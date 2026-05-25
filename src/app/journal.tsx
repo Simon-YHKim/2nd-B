@@ -188,6 +188,9 @@ export default function Journal() {
           <Link href="/wiki" asChild>
             <Button label={locale === "ko" ? "위키" : "Wiki"} variant="secondary" />
           </Link>
+          <Link href="/insights" asChild>
+            <Button label={locale === "ko" ? "인사이트" : "Insights"} variant="secondary" />
+          </Link>
           <Link href="/jarvis" asChild>
             <Button label={locale === "ko" ? "자비스" : "Jarvis"} variant="secondary" />
           </Link>
