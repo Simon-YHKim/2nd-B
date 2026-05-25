@@ -110,6 +110,11 @@ export default function SignUp() {
               </Text>
             </Link>
           </Text>
+          <Link href="/manual" style={{ marginTop: spacing.xs }}>
+            <Text variant="subtle" color="textSubtle" style={styles.link}>
+              {locale === "ko" ? "이 앱이 처음이라면 — 안내서 보기" : "New here? Read the 1-min manual"}
+            </Text>
+          </Link>
         </View>
       </ScrollView>
     </Screen>
