@@ -9,18 +9,21 @@ import { join, relative, sep } from "node:path";
 const ROOT = process.cwd();
 const SRC = join(ROOT, "src");
 const GEMINI_WRAPPER = ["src", "lib", "llm", "gemini.ts"].join("/");
-const GEMINI_TEST = ["src", "lib", "llm", "__tests__", "gemini.test.ts"].join("/");
+const GEMINI_TESTS = [
+  ["src", "lib", "llm", "__tests__", "gemini.test.ts"].join("/"),
+  ["src", "lib", "llm", "__tests__", "gemini.mock.test.ts"].join("/"),
+];
 
 const importRegexes: { name: string; pattern: RegExp; allowed: string[] }[] = [
   {
     name: "@google/genai (C1)",
     pattern: /from\s+["']@google\/genai["']/,
-    allowed: [GEMINI_WRAPPER, GEMINI_TEST],
+    allowed: [GEMINI_WRAPPER, ...GEMINI_TESTS],
   },
   {
     name: "audit module (C3)",
     pattern: /from\s+["'](?:\.\.?\/)+supabase\/audit["']|from\s+["']@\/lib\/supabase\/audit["']/,
-    allowed: [GEMINI_WRAPPER, GEMINI_TEST],
+    allowed: [GEMINI_WRAPPER, ...GEMINI_TESTS],
   },
 ];
 

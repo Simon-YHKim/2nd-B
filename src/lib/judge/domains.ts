@@ -9,7 +9,8 @@ export type JudgeDomain = (typeof JUDGE_DOMAINS)[number];
 export function isJudgeEmail(email: string): boolean {
   if (typeof email !== "string") return false;
   const at = email.lastIndexOf("@");
-  if (at < 0 || at === email.length - 1) return false;
+  // Reject missing @, trailing @, or empty local part (@xprize.org is not a real email).
+  if (at <= 0 || at === email.length - 1) return false;
   const domain = email.slice(at + 1).toLowerCase();
   return (JUDGE_DOMAINS as readonly string[]).includes(domain);
 }

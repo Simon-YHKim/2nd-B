@@ -83,4 +83,20 @@ describe("callGemini", () => {
       }),
     ).resolves.toBeDefined();
   });
+
+  test("C3 + C9: red zone is also audited (crisis event recorded for judges)", async () => {
+    const r = await callGemini({
+      userId: "u1",
+      locale: "ko",
+      purpose: "journal_reflect",
+      user: "자살하고 싶다",
+    });
+    expect(r.safety.zone).toBe("red");
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    const arg = insertMock.mock.calls[0]![0]!;
+    expect(arg.safetyZone).toBe("red");
+    expect(arg.modelUsed).toBe("none-crisis-routed");
+    expect(arg.userId).toBe("u1");
+  });
 });

@@ -34,7 +34,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       purpose,
       user: args.body,
     });
-    aiFollowup = { text: res.text, zone: res.safety.zone };
+    // Cap LLM output to the DB CHECK constraint (8 KB total jsonb size).
+    // Stay well under so the JSON wrapping doesn't push us over.
+    const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
+    aiFollowup = { text: cappedText, zone: res.safety.zone };
   }
 
   const { data, error } = await supabase
