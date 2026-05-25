@@ -18,16 +18,23 @@ export interface CrisisRouterProps {
 export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
   const { t } = useTranslation("safety");
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <View style={styles.card}>
+        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+          <View style={styles.hotlineBadge}>
+            <Text variant="subtle" style={styles.hotlineBadgeText}>
+              {hotline === "KR_1393" || hotline === "KR_1577_0199" ? "긴급" : "URGENT"}
+            </Text>
+          </View>
           <Text variant="heading">{t("red.title")}</Text>
           <Text variant="body" color="textMuted">{t("red.body")}</Text>
-          <Text variant="body" style={styles.hotline}>
-            {t(`red.hotline.${hotline}`)}
-          </Text>
+          <View style={styles.hotlineBox}>
+            <Text variant="body" style={styles.hotline}>
+              {t(`red.hotline.${hotline}`)}
+            </Text>
+          </View>
           <Button label={t("red.dismiss")} variant="secondary" onPress={onClose} />
-        </View>
+        </Pressable>
       </Pressable>
     </Modal>
   );
@@ -49,11 +56,32 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.md,
     width: "100%",
-    maxWidth: 420,
+    maxWidth: 440,
+  },
+  hotlineBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: semantic.danger,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+  },
+  hotlineBadgeText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    letterSpacing: 1,
+    fontSize: 10,
+  },
+  hotlineBox: {
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderLeftWidth: 3,
+    borderLeftColor: semantic.brand,
   },
   hotline: {
-    marginVertical: spacing.sm,
     color: semantic.brand,
     fontWeight: "600",
+    fontSize: 16,
   },
 });
