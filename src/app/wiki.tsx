@@ -18,7 +18,7 @@ import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getBacklinks, listWikiPages } from "@/lib/wiki/queries";
 import { exportUserWiki } from "@/lib/wiki/export";
-import { readPhase1 } from "@/lib/wiki/phase1";
+import { readPhase1, runPhase1 } from "@/lib/wiki/phase1";
 import type { WikiPageKind, WikiPageRow } from "@/lib/wiki/types";
 
 const KIND_LABEL: Record<WikiPageKind, { en: string; ko: string }> = {
@@ -46,6 +46,7 @@ export default function Wiki() {
   const [backlinksById, setBacklinksById] = useState<Record<string, WikiPageRow[]>>({});
   const [exporting, setExporting] = useState(false);
   const [exportText, setExportText] = useState<string | null>(null);
+  const [phase1RunningId, setPhase1RunningId] = useState<string | null>(null);
 
   const load = useCallback(
     async (uid: string, tagsFilter: string[]) => {
@@ -105,6 +106,26 @@ export default function Wiki() {
     setRefreshing(true);
     await load(userId, activeTags);
     setRefreshing(false);
+  }
+
+  async function handleRunPhase1OnPage(page: WikiPageRow): Promise<void> {
+    if (!userId || !page.source_id) return;
+    setPhase1RunningId(page.id);
+    try {
+      await runPhase1({ userId, sourceId: page.source_id, locale });
+      // Reload to pick up the updated frontmatter on the source AND the
+      // wiki page (the wiki page's frontmatter was copied at source-page
+      // generation time, so we re-promote to refresh it).
+      await load(userId, activeTags);
+      Alert.alert(locale === "ko" ? "Phase 1 완료" : "Phase 1 done");
+    } catch (e) {
+      Alert.alert(
+        locale === "ko" ? "Phase 1 실패" : "Phase 1 failed",
+        (e as Error).message,
+      );
+    } finally {
+      setPhase1RunningId(null);
+    }
   }
 
   async function handleExport(): Promise<void> {
@@ -250,7 +271,31 @@ export default function Wiki() {
                     <View style={styles.expandedSection}>
                       {(() => {
                         const p1 = readPhase1(p.frontmatter);
-                        if (p1 === null) return null;
+                        if (p1 === null) {
+                          // source-kind pages can re-run Phase 1; entity/concept can't
+                          if (p.kind !== "source" || !p.source_id) return null;
+                          return (
+                            <Pressable
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                void handleRunPhase1OnPage(p);
+                              }}
+                              disabled={phase1RunningId === p.id}
+                              style={styles.phase1Trigger}
+                              hitSlop={4}
+                            >
+                              <Text variant="caption" color="brand">
+                                {phase1RunningId === p.id
+                                  ? locale === "ko"
+                                    ? "요약 중…"
+                                    : "Summarizing…"
+                                  : locale === "ko"
+                                    ? "→ Phase 1 실행 (요약 + 4질문)"
+                                    : "→ Run Phase 1 (summary + 4 questions)"}
+                              </Text>
+                            </Pressable>
+                          );
+                        }
                         return (
                           <View style={styles.phase1Card}>
                             <Text variant="caption" color="brand">
@@ -369,6 +414,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   phase1QHeader: { marginTop: spacing.xs },
+  phase1Trigger: { paddingVertical: spacing.xs, marginBottom: spacing.sm },
   exportCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.brand,
