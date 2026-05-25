@@ -118,7 +118,7 @@ export default function Journal() {
             <Text variant="caption" color="brand">2nd-Brain</Text>
             <Text variant="heading">{t("app.name")}</Text>
           </View>
-          <Button label="Sign out" variant="secondary" onPress={handleSignOut} />
+          <Button label={t("actions.signOut")} variant="secondary" onPress={handleSignOut} />
         </View>
 
         <View style={styles.navRow}>
@@ -153,6 +153,9 @@ export default function Journal() {
             disabled={!body.trim() || submitting}
             loading={submitting}
           />
+          <Text variant="subtle" color="textSubtle" style={styles.privacyFootnote}>
+            {t("journal.privacyFootnote")}
+          </Text>
           {lastFollowup ? <FollowupCard followup={lastFollowup} locale={locale} /> : null}
         </View>
 
@@ -175,7 +178,7 @@ export default function Journal() {
             recent.map((r) => (
               <View key={r.id} style={styles.recordCard}>
                 <Text variant="subtle" color="textSubtle">
-                  {new Date(r.created_at).toLocaleString(locale === "ko" ? "ko-KR" : "en-US")}
+                  {formatRelative(r.created_at, locale, t)}
                 </Text>
                 <Text variant="body" style={{ marginTop: spacing.xs }}>{r.body}</Text>
                 {r.ai_followup ? <FollowupCard followup={r.ai_followup} locale={locale} compact /> : null}
@@ -219,9 +222,12 @@ function FollowupCard({
 
   return (
     <View style={[compact ? styles.followupCompact : styles.followupCard, { borderLeftColor: zoneColor }]}>
-      <Text variant="subtle" style={{ color: zoneColor, fontWeight: "700" }}>
-        {label}
-      </Text>
+      <View style={styles.zoneLabelRow}>
+        <View style={[styles.zoneDot, { backgroundColor: zoneColor }]} />
+        <Text variant="subtle" style={{ color: zoneColor, fontWeight: "700", letterSpacing: 0.4 }}>
+          {label}
+        </Text>
+      </View>
       <Text variant="body" style={{ marginTop: spacing.xs }}>{followup.text}</Text>
 
       {followup.matchedBatches && followup.matchedBatches.length > 0 ? (
@@ -249,9 +255,28 @@ function FollowupCard({
   );
 }
 
+// Format an ISO timestamp as a short, locale-aware relative string. Falls
+// through to the full date once the entry is more than ~24h old, so older
+// records stay scannable without scrolling.
+function formatRelative(iso: string, locale: "en" | "ko", t: (k: string, opts?: Record<string, unknown>) => string): string {
+  const then = new Date(iso).getTime();
+  const diffSec = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (diffSec < 60) return t("journal.relativeJustNow");
+  if (diffSec < 3600) return t("journal.relativeMinutes", { n: Math.floor(diffSec / 60) });
+  if (diffSec < 86400) return t("journal.relativeHours", { n: Math.floor(diffSec / 3600) });
+  if (diffSec < 172800) return t("journal.relativeYesterday");
+  return new Date(iso).toLocaleDateString(locale === "ko" ? "ko-KR" : "en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  privacyFootnote: { marginTop: spacing.xs, fontStyle: "italic" },
+  zoneLabelRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  zoneDot: { width: 8, height: 8, borderRadius: 4 },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",

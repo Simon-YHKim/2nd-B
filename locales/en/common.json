@@ -8,7 +8,15 @@
     "back": "Back",
     "cancel": "Cancel",
     "save": "Save",
-    "delete": "Delete"
+    "delete": "Delete",
+    "signOut": "Sign out"
+  },
+  "journal": {
+    "privacyFootnote": "Your entries stay encrypted and never train any model.",
+    "relativeJustNow": "just now",
+    "relativeMinutes": "{{n}} min ago",
+    "relativeHours": "{{n}} hr ago",
+    "relativeYesterday": "yesterday"
   },
   "errors": {
     "unknown": "Something went wrong. Please try again.",
