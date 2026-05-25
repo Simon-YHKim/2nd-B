@@ -183,9 +183,16 @@ export default function Inbox() {
           </View>
         ) : rows.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text variant="body" color="textMuted">
+            <Text variant="body" color="textMuted" style={styles.emptyText}>
               {t("empty")}
             </Text>
+            <Link href="/capture" asChild>
+              <Pressable hitSlop={6}>
+                <Text variant="caption" color="brand">
+                  {locale === "ko" ? "→ 첫 캡처 시작" : "→ Capture your first"}
+                </Text>
+              </Pressable>
+            </Link>
           </View>
         ) : (
           <View style={styles.list}>
@@ -350,7 +357,8 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: spacing.sm },
   center: { paddingVertical: spacing.xl, alignItems: "center" },
   errorCard: { padding: spacing.md, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, borderWidth: 1, borderColor: semantic.danger },
-  emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, alignItems: "center" },
+  emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, alignItems: "center", gap: spacing.sm },
+  emptyText: { textAlign: "center" },
   list: { gap: spacing.sm },
   row: {
     backgroundColor: semantic.surface,
