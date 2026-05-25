@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { dailyPrompt } from "@/lib/journal/daily-prompts";
 import { computeStreak } from "@/lib/journal/streak";
+import { notify } from "@/lib/notifications/web";
 import {
   createRecord,
   listRecentRecords,
@@ -259,9 +260,29 @@ export default function Journal() {
               ) : null}
             </View>
             <View style={styles.dailyPromptCard}>
-              <Text variant="caption" color="brand" style={{ letterSpacing: 1.2 }}>
-                {locale === "ko" ? "오늘의 성찰 질문" : "Today's reflection prompt"}
-              </Text>
+              <View style={styles.dailyPromptHead}>
+                <Text variant="caption" color="brand" style={{ letterSpacing: 1.2 }}>
+                  {locale === "ko" ? "오늘의 성찰 질문" : "Today's reflection prompt"}
+                </Text>
+                <Pressable
+                  onPress={async () => {
+                    const r = await notify(
+                      locale === "ko" ? "두번째 뇌 — 오늘의 성찰" : "2nd-Brain — today's reflection",
+                      dailyPrompt(locale),
+                    );
+                    if (r.status === "not_supported") {
+                      Alert.alert(locale === "ko" ? "이 환경에선 알림이 지원되지 않아요" : "Notifications not supported here");
+                    } else if (r.status === "denied") {
+                      Alert.alert(locale === "ko" ? "알림 권한이 차단돼 있어요" : "Notification permission blocked");
+                    }
+                  }}
+                  hitSlop={6}
+                >
+                  <Text variant="caption" color="brand">
+                    {locale === "ko" ? "🔔 알림으로" : "🔔 Notify"}
+                  </Text>
+                </Pressable>
+              </View>
               <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }}>
                 {dailyPrompt(locale)}
               </Text>
@@ -581,6 +602,7 @@ const styles = StyleSheet.create({
   },
   recordTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
   streakRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  dailyPromptHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   dailyPromptCard: {
     backgroundColor: semantic.surfaceAlt,
     borderRadius: radii.sm,
