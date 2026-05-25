@@ -11,19 +11,30 @@
 import { classifyInput } from "../classifier";
 
 const RED = [
+  // Active suicidal ideation (Korean)
   "죽고 싶어요.",
   "더 이상 살고 싶지 않아요.",
-  "나는 사라지는 게 나을 것 같아.",
   "오늘 밤에 끝낼 거야.",
-  "엄마한테 마지막 인사를 했어.",
   "자살에 대해 자주 생각해요.",
+  "끝내고 싶다는 생각이 떠나지 않아요.",
+  "살고 싶지 않다는 생각이 들어요.",
+  // Method / preparation (Korean)
   "유서를 써봤어요.",
+  "자해를 멈출 수가 없어요.",
+  // Latent / passive ideation (Suicide CARE 2.0 markers)
+  "나는 사라지는 게 나을 것 같아.",
   "다음 생에는 더 잘 살 수 있을까요.",
   "영영 잠들고 싶어요.",
-  "자해를 멈출 수가 없어요.",
-  "끝내고 싶다는 생각이 떠나지 않아요.",
+  "짐이 되는 것 같아요.",
+  "모두에게 짐이 되는 기분이에요.",
+  "어딘가로 사라지고 싶어요.",
+  "엄마한테 마지막 인사를 했어.",
+  // English
   "I want to die.",
   "I've been thinking about ending it.",
+  "There's no reason to live anymore.",
+  "I'm going to end it all tonight.",
+  "I keep thinking about suicide.",
 ];
 
 const YELLOW = [
