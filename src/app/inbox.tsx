@@ -53,6 +53,8 @@ export default function Inbox() {
   const [error, setError] = useState<string | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [phase1Id, setPhase1Id] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [bodyById, setBodyById] = useState<Record<string, string>>({});
 
   const load = useCallback(async (uid: string) => {
     setError(null);
@@ -77,15 +79,18 @@ export default function Inbox() {
   }
 
   async function handleRowPress(row: SourceRow): Promise<void> {
-    try {
-      const body = await downloadRawClipping(row.storage_path);
-      const preview = body.length > 800 ? body.slice(0, 800) + "…" : body;
-      Alert.alert(row.title, preview);
-    } catch (e) {
-      Alert.alert(
-        locale === "ko" ? "본문을 불러오지 못했어요" : "Could not load body",
-        (e as Error).message,
-      );
+    if (expandedId === row.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(row.id);
+    if (bodyById[row.id] === undefined) {
+      try {
+        const body = await downloadRawClipping(row.storage_path);
+        setBodyById((prev) => ({ ...prev, [row.id]: body }));
+      } catch (e) {
+        setBodyById((prev) => ({ ...prev, [row.id]: `_(${locale === "ko" ? "본문 로드 실패" : "body load failed"}: ${(e as Error).message})_` }));
+      }
     }
   }
 
@@ -277,6 +282,17 @@ export default function Inbox() {
                     </Pressable>
                   ) : null}
                 </View>
+                {expandedId === r.id ? (
+                  <View style={styles.expandedSection}>
+                    {bodyById[r.id] === undefined ? (
+                      <ActivityIndicator color={semantic.brand} />
+                    ) : (
+                      <Text variant="subtle" color="textMuted" style={styles.body}>
+                        {bodyById[r.id]}
+                      </Text>
+                    )}
+                  </View>
+                ) : null}
               </Pressable>
             ))}
           </View>
@@ -333,4 +349,11 @@ const styles = StyleSheet.create({
   ingestedChip: { backgroundColor: semantic.surface, borderColor: semantic.success },
   rowActions: { marginTop: spacing.xs, flexDirection: "row", flexWrap: "wrap", gap: spacing.md, alignItems: "center" },
   generateBtn: { paddingVertical: spacing.xs },
+  expandedSection: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopColor: semantic.border,
+    borderTopWidth: 1,
+  },
+  body: { lineHeight: 20 },
 });
