@@ -154,6 +154,19 @@ export async function listRecentRecords(userId: string, limit = 20) {
   return data ?? [];
 }
 
+// Delete a single record by id. RLS scopes to auth.uid(), so users can
+// only delete their own rows; we still pass userId explicitly so the
+// index-friendly WHERE fires first.
+export async function deleteRecord(userId: string, recordId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("records")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", recordId);
+  if (error) throw error;
+}
+
 // Exact count of a user's records of one kind. Used by the free-tier usage
 // gate (entitlements.checkUsage) so the 2-use limit is accurate regardless of
 // how many other-kind records exist.

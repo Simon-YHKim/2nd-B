@@ -16,6 +16,7 @@ import { computeStreak } from "@/lib/journal/streak";
 import { notify } from "@/lib/notifications/web";
 import {
   createRecord,
+  deleteRecord,
   listRecentRecords,
   countRecordsByKind,
   type RecordedEvidence,
@@ -387,7 +388,26 @@ export default function Journal() {
               </Text>
             </View>
           ) : (
-            recent.map((r) => <RecentEntry key={r.id} record={r} locale={locale} t={t} />)
+            recent.map((r) => (
+              <RecentEntry
+                key={r.id}
+                record={r}
+                locale={locale}
+                t={t}
+                onDelete={async () => {
+                  if (!userId) return;
+                  try {
+                    await deleteRecord(userId, r.id);
+                    await refresh(userId);
+                  } catch (e) {
+                    Alert.alert(
+                      locale === "ko" ? "삭제 실패" : "Delete failed",
+                      (e as Error).message,
+                    );
+                  }
+                }}
+              />
+            ))
           )}
         </View>
       </ScrollView>
@@ -407,10 +427,12 @@ function RecentEntry({
   record,
   locale,
   t,
+  onDelete,
 }: {
   record: RecordRow;
   locale: "en" | "ko";
   t: (k: string, opts?: Record<string, unknown>) => string;
+  onDelete: () => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = record.body.length > PREVIEW_CHARS;
@@ -450,6 +472,30 @@ function RecentEntry({
         </Text>
       ) : null}
       {record.ai_followup ? <FollowupCard followup={record.ai_followup} locale={locale} compact /> : null}
+      <Pressable
+        onPress={() => {
+          Alert.alert(
+            locale === "ko" ? "이 기록을 삭제하시겠어요?" : "Delete this entry?",
+            locale === "ko" ? "되돌릴 수 없어요." : "This cannot be undone.",
+            [
+              { text: locale === "ko" ? "취소" : "Cancel", style: "cancel" },
+              {
+                text: locale === "ko" ? "삭제" : "Delete",
+                style: "destructive",
+                onPress: () => {
+                  void onDelete();
+                },
+              },
+            ],
+          );
+        }}
+        hitSlop={6}
+        style={{ marginTop: spacing.sm, alignSelf: "flex-end" }}
+      >
+        <Text variant="caption" color="textSubtle">
+          {locale === "ko" ? "삭제" : "Delete"}
+        </Text>
+      </Pressable>
     </View>
   );
 }
