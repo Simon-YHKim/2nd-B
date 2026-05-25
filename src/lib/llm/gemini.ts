@@ -326,12 +326,65 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   });
   const latencyMs = Date.now() - t0;
   const text = res.text ?? "";
+
+  // OUTPUT SAFETY RE-CLASSIFICATION. Per CSO audit: Pro can emit crisis content
+  // (esp. when prompt-injected via knowledge_sources rows or conversationContext)
+  // that bypasses input-time classifier. Re-classifying here closes that loop.
+  const outputSafety = await classifySafety(text, input.locale);
+
+  if (outputSafety.zone === "red") {
+    // Don't ship the Pro text. Substitute the verbatim crisis template, audit
+    // both the swapped text and the original (to give judges a trail), and
+    // log a crisis_event with categorical metadata.
+    const fixed = fixedCrisisResponse(input.locale);
+    const audit = {
+      promptHash: djb2(systemPrompt + input.userMessage),
+      outputHash: djb2(fixed.text),
+      modelUsed: `${model}+swap:${fixed.version}`,
+      vertexBackend: vertex,
+      safetyZone: "red" as const,
+      latencyMs,
+    };
+    try {
+      await insertAiAuditLog({ userId: input.userId, ...audit });
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[advisor] output-swap audit failed", e);
+    }
+    try {
+      await insertCrisisEvent({
+        userIdHash: djb2(input.userId),
+        zone: "red",
+        classifierConfidence: outputSafety.confidence,
+        triggerCategories: [...outputSafety.triggers, "output_swap"],
+        cssrsLevel: outputSafety.cssrsLevel,
+        routingTemplateVersion: fixed.version,
+        locale: input.locale,
+      });
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[advisor] output-swap crisis_events failed", e);
+    }
+    return {
+      text: fixed.text,
+      zone: "red",
+      triggers: [...outputSafety.triggers, "output_swap"],
+      cssrsLevel: outputSafety.cssrsLevel,
+      fixedTemplate: true,
+      matchedBatches: ["crisis-detection"],
+      evidence: [],
+      audit,
+    };
+  }
+
+  // GREEN/YELLOW output — merge input + output zones (worst case wins).
+  const finalZone: "green" | "yellow" =
+    safety.zone === "yellow" || outputSafety.zone === "yellow" ? "yellow" : "green";
+
   const audit = {
     promptHash: djb2(systemPrompt + input.userMessage),
     outputHash: djb2(text),
     modelUsed: model,
     vertexBackend: vertex,
-    safetyZone: safety.zone,
+    safetyZone: finalZone,
     latencyMs,
   };
   try {
@@ -341,9 +394,9 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   }
   return {
     text,
-    zone: safety.zone,
-    triggers: safety.triggers,
-    cssrsLevel: safety.cssrsLevel,
+    zone: finalZone,
+    triggers: [...new Set([...safety.triggers, ...outputSafety.triggers])],
+    cssrsLevel: safety.cssrsLevel ?? outputSafety.cssrsLevel,
     fixedTemplate: false,
     matchedBatches: evidence.matchedBatches,
     evidence: evidence.rows.map((r) => ({

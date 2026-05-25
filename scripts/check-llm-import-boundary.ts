@@ -13,6 +13,7 @@ const SAFETY_LLM = ["src", "lib", "llm", "safety.ts"].join("/");
 const GEMINI_TESTS = [
   ["src", "lib", "llm", "__tests__", "gemini.test.ts"].join("/"),
   ["src", "lib", "llm", "__tests__", "gemini.mock.test.ts"].join("/"),
+  ["src", "lib", "llm", "__tests__", "advisor-output-swap.test.ts"].join("/"),
 ];
 
 const importRegexes: { name: string; pattern: RegExp; allowed: string[] }[] = [
