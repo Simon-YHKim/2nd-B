@@ -20,6 +20,8 @@ export default function RootLayout() {
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="journal" />
+            <Stack.Screen name="audit" />
+            <Stack.Screen name="persona" />
             <Stack.Screen name="+not-found" />
           </Stack>
         </AuthProvider>

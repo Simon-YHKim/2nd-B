@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, Link } from "expo-router";
 
 import { Screen } from "@/components/ui/Screen";
 import { Text } from "@/components/ui/Text";
@@ -107,6 +107,21 @@ export default function Journal() {
           <Button label="Sign out" variant="secondary" onPress={handleSignOut} />
         </View>
 
+        <View style={styles.navRow}>
+          <Link href="/audit" asChild>
+            <Button
+              label={locale === "ko" ? "라이프 오딧" : "Life audit"}
+              variant="secondary"
+            />
+          </Link>
+          <Link href="/persona" asChild>
+            <Button
+              label={locale === "ko" ? "페르소나 v1" : "Persona v1"}
+              variant="secondary"
+            />
+          </Link>
+        </View>
+
         <View style={styles.composer}>
           <Text variant="caption" color="textMuted">
             {locale === "ko" ? "오늘의 기록" : "Today's entry"}
@@ -182,6 +197,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  navRow: { flexDirection: "row", gap: spacing.sm },
   composer: { gap: spacing.sm },
   textarea: { minHeight: 120, textAlignVertical: "top", paddingTop: spacing.md },
   followupCard: {
