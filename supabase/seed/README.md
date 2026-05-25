@@ -32,8 +32,16 @@
 | `self-knowledge.sql` | `self_knowledge` | 7 |
 | `values-meaning.sql` | `values_meaning` | 5 |
 | `methodology-coaching.sql` | (reuses `self_knowledge`) | 1 |
+| `crisis-detection.sql` | `crisis_detection` | 7 |
+| `cbt-rebt.sql` | `cbt`, `rebt` | 4 |
+| `computational-personality.sql` | `computational_personality` | 5 |
+| `ai-mental-health-safety.sql` | `ai_mental_health` | 5 |
+| `wellbeing-kpi.sql` | `wellbeing_kpi` | 4 |
+| `data-ethics-consent.sql` | `data_ethics` | 1 |
 
-**Total**: 69 rows across 15 batches / 23 framework slugs.
+**Total**: 95 rows across 21 batches / 27 framework slugs.
+
+> AI retrieval schema for these seeds: see [`../../docs/research/CLAUDE.md`](../../docs/research/CLAUDE.md).
 
 전체 목록과 batch markdown은 `docs/research/batches/INDEX.md` 참조.
 

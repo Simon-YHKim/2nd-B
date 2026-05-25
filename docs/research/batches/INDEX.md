@@ -21,8 +21,16 @@ DOI-verified psychology framework batches curated via `docs/research/psychology-
 | `self_knowledge` | [self-knowledge.md](self-knowledge.md) | 7 | **Core methods** — reflection vs rumination (RRQ), insight (SRIS), expressive writing meta-analysis, mindful attention (MAAS), self-concept clarity (SCCS), K-MAAS |
 | `values_meaning` | [values-meaning.md](values-meaning.md) | 5 | **"철학" layer** — self-concordant goals (Sheldon & Elliot), best-possible-self writing (King), Meaning in Life (Steger), Valued Living (Wilson ACT), Korean K-MIL-CQ |
 | *(analysis)* | [methodology-birkman-brain-trinity.md](methodology-birkman-brain-trinity.md) | 1 | **Methodology audit** of the Birkman × Brain Trinity practitioner manual — component-by-component evidence map, 8 critical gaps, developed integration recipe; adds Theeboom et al. (2014) coaching meta-analysis (g=0.43–0.74) |
+| `crisis_detection` | [crisis-detection.md](crisis-detection.md) | 7 | **Engine 7 (Safety) academic basis** — C-SSRS (Posner 2011), NLP suicide screening (De Choudhury 2017, Coppersmith 2018), LLM crisis capability+limits (McBain 2025, Holmes 2025), Korean Suicide CARE 2.0 (Na 2020), Korean national policy (You 2025), WHO LIVE LIFE (2021) |
+| `cbt` / `rebt` | [cbt-rebt.md](cbt-rebt.md) | 4 | **Engine 4 reframing basis** — Hofmann (2012) CBT meta-meta, David (2018) REBT 50yr meta, Cuijpers (2023) 409-trial CBT-depression meta, Kim & Jin (2019) Korean CBT meta |
+| `computational_personality` | [computational-personality.md](computational-personality.md) | 5 | **Engine 2 (Inference) reliability** — Pennebaker (2003) LIWC foundations, Kosinski (2013) PNAS, Schwartz (2013) open-vocab, Park (2015) JPSP r≈0.4 ceiling, Maharjan (2025) LLM benchmark. Validity boundary + persona card schema |
+| `ai_mental_health` | [ai-mental-health-safety.md](ai-mental-health-safety.md) | 5 | **2nd-Brain as AI wellness product** — Fitzpatrick (2017) Woebot RCT, Inkster (2018) Wysa real-world, Stade (2024) responsible deployment, Heinz (2025) Therabot NEJM AI RCT, Kang & Hong (2025) Korean ChatGPT pilot |
+| `wellbeing_kpi` | [wellbeing-kpi.md](wellbeing-kpi.md) | 4 | **Longitudinal outcome measurement** — SWLS (Diener 1985), WHO-5 (Topp 2015), PERMA-Profiler (Butler & Kern 2016), Korean K-WHO-5 (Moon 2014). MCID + cadence guidance |
+| `data_ethics` | [data-ethics-consent.md](data-ethics-consent.md) | 1 | **Consent + regulatory floor** — Pillay (2025) AI ethics for mental health practice; markdown documents Korean PIPA Article 23, AI Framework Act, OECD AI Principles, APA AI ethics as authoritative non-DOI references |
 
-**Total**: 15 batches (1 methodology analysis), 69 verified rows for `knowledge_sources`.
+**Total**: 21 batches (1 methodology analysis), 95 verified DOI rows for `knowledge_sources`.
+
+> **RAG/Wiki retrieval schema**: see [`../CLAUDE.md`](../CLAUDE.md) for AI-agent retrieval rules, query→batch routing, hard safety rules, and evidence tier policy. This file is the human-facing index; CLAUDE.md is the machine-facing schema.
 
 ## Coverage by life stage
 
