@@ -120,6 +120,20 @@ export default function Audit() {
           numberOfLines={6}
           style={styles.textarea}
         />
+        <View style={styles.charCountRow}>
+          <Text variant="subtle" color="textSubtle">
+            {locale === "ko"
+              ? answer.trim().length < 40
+                ? "조금만 더 길게 적어볼까요"
+                : "충분해요"
+              : answer.trim().length < 40
+                ? "A few more words help"
+                : "Looks good"}
+          </Text>
+          <Text variant="subtle" color="textSubtle">
+            {answer.length} / 2000
+          </Text>
+        </View>
         <Button
           label={
             index + 1 >= questions.length
@@ -158,6 +172,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   textarea: { minHeight: 140, textAlignVertical: "top", paddingTop: spacing.md },
+  charCountRow: { flexDirection: "row", justifyContent: "space-between", marginTop: -spacing.xs },
   progressWrap: { gap: spacing.xs },
   progressTrack: {
     height: 4,
