@@ -35,33 +35,6 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Switch Pages source to gh-pages branch (legacy)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-        run: |
-          # First, try to CREATE Pages with branch source. Returns 201 on
-          # first run, 409 if Pages already exists with a different source.
-          POST_STATUS=$(curl -s -o /tmp/pages-post.json -w "%{http_code}" -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/pages" \
-            -d '{"source":{"branch":"gh-pages","path":"/"}}')
-          echo "POST /pages (source:gh-pages) → $POST_STATUS"
-          # If Pages exists, PUT to switch source. PUT requires the source
-          # branch to actually exist — gh-pages won't exist on first run, so
-          # we run this AFTER peaceiris creates the branch in a second push.
-          # For now, just attempt; failure is acceptable on the first ever push.
-          PUT_STATUS=$(curl -s -o /tmp/pages-put.json -w "%{http_code}" -X PUT \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/pages" \
-            -d '{"source":{"branch":"gh-pages","path":"/"},"build_type":"legacy"}')
-          echo "PUT /pages (build_type:legacy) → $PUT_STATUS"
-          if [ "$PUT_STATUS" != "200" ] && [ "$PUT_STATUS" != "201" ] && [ "$POST_STATUS" != "201" ]; then
-            echo "POST body:"; cat /tmp/pages-post.json
-            echo "PUT body:";  cat /tmp/pages-put.json
-          fi
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -93,3 +66,28 @@ jobs:
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
           commit_message: "deploy: ${{ github.sha }}"
+      # Switch Pages source AFTER gh-pages exists. On the very first run
+      # this is the moment the branch becomes valid as a Pages source.
+      - name: Switch Pages source to gh-pages branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+        run: |
+          # POST creates Pages if it doesn't exist (201) or 409 if it does.
+          POST_STATUS=$(curl -s -o /tmp/pages-post.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pages" \
+            -d '{"source":{"branch":"gh-pages","path":"/"}}')
+          echo "POST /pages (source:gh-pages) → $POST_STATUS"
+          # PUT switches an existing Pages site to the gh-pages branch source.
+          PUT_STATUS=$(curl -s -o /tmp/pages-put.json -w "%{http_code}" -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pages" \
+            -d '{"source":{"branch":"gh-pages","path":"/"},"build_type":"legacy"}')
+          echo "PUT /pages (build_type:legacy) → $PUT_STATUS"
+          if [ "$POST_STATUS" != "201" ] && [ "$PUT_STATUS" != "200" ] && [ "$PUT_STATUS" != "204" ]; then
+            echo "POST body:"; cat /tmp/pages-post.json
+            echo "PUT body:";  cat /tmp/pages-put.json
+          fi
