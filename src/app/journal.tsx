@@ -11,6 +11,7 @@ import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { XpBar } from "@/components/progression/XpBar";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
+import { dailyPrompt } from "@/lib/journal/daily-prompts";
 import {
   createRecord,
   listRecentRecords,
@@ -240,6 +241,14 @@ export default function Journal() {
                     : `${usage.remaining} free left`}
                 </Text>
               ) : null}
+            </View>
+            <View style={styles.dailyPromptCard}>
+              <Text variant="caption" color="brand" style={{ letterSpacing: 1.2 }}>
+                {locale === "ko" ? "오늘의 성찰 질문" : "Today's reflection prompt"}
+              </Text>
+              <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }}>
+                {dailyPrompt(locale)}
+              </Text>
             </View>
             <Input
               value={topic}
@@ -555,6 +564,13 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   recordTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
+  dailyPromptCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.sm,
+    borderLeftColor: semantic.brand,
+    borderLeftWidth: 3,
+    padding: spacing.sm,
+  },
   conclusionBlock: {
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
