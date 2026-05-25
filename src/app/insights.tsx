@@ -201,7 +201,7 @@ export default function Insights() {
                     day: "numeric",
                   })}
                 </Text>
-                <Text variant="body" color="textMuted" style={{ flex: 1 }}>
+                <Text variant="body" color="textMuted" style={{ flex: 1 }} selectable>
                   {c.conclusion}
                 </Text>
               </View>
