@@ -18,8 +18,9 @@ DOI-verified psychology framework batches curated via `docs/research/psychology-
 | `narrative_identity` | [narrative-identity.md](narrative-identity.md) | 4 | Core — life story (direct fit for 2nd-Brain) |
 | `assessment_a/b/c_*` | [assessment-landscape.md](assessment-landscape.md) | 9 | Meta — empirical tiering of famous assessments (Big Five / HEXACO / RIASEC / Schwartz Values / HPI / 16PF / EI / Birkman / MBTI critique / Enneagram review) |
 | `interpersonal` | [interpersonal.md](interpersonal.md) | 4 | Adult relationships (Wiggins IPC, IIP-32, Gottman, Korean couples) |
+| `self_knowledge` | [self-knowledge.md](self-knowledge.md) | 7 | **Core methods** — reflection vs rumination (RRQ), insight (SRIS), expressive writing meta-analysis, mindful attention (MAAS), self-concept clarity (SCCS), K-MAAS |
 
-**Total**: 12 framework batches, 56 verified rows for `knowledge_sources`.
+**Total**: 13 framework batches, 63 verified rows for `knowledge_sources`.
 
 ## Coverage by life stage
 
@@ -46,6 +47,7 @@ DOI-verified psychology framework batches curated via `docs/research/psychology-
 - **Growth Mindset**: [NO VERIFIED SOURCE FOUND] in this session
 - **Interpersonal / Couples**: Yoo (2022) — Korean adult marital communication & gender-role moderation
 - **Assessment Landscape**: McGrath (2015) — 75-nation VIA (includes Korea); other tools rely on global multi-cultural samples
+- **Self-Knowledge Methods**: Kwon & Kim (2007) — K-MAAS Korean mindfulness attention
 
 ## What is NOT in this set (future batches)
 

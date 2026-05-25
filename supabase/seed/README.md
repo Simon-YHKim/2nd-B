@@ -29,8 +29,9 @@
 | `narrative-identity.sql` | `narrative_identity` | 4 |
 | `assessment-landscape.sql` | `assessment_a_*`, `assessment_b_*`, `assessment_c_*` (9 slugs) | 9 |
 | `interpersonal.sql` | `interpersonal` | 4 |
+| `self-knowledge.sql` | `self_knowledge` | 7 |
 
-**Total**: 56 rows across 12 batches / 21 framework slugs.
+**Total**: 63 rows across 13 batches / 22 framework slugs.
 
 전체 목록과 batch markdown은 `docs/research/batches/INDEX.md` 참조.
 
