@@ -138,16 +138,29 @@ export default function Jarvis() {
                 key={i}
                 style={[styles.bubbleRow, turn.role === "user" ? styles.userRow : styles.jarvisRow]}
               >
-                <View
+                <Pressable
+                  onLongPress={async () => {
+                    if (typeof navigator !== "undefined" && navigator.clipboard) {
+                      try {
+                        await navigator.clipboard.writeText(turn.text);
+                      } catch {
+                        // ignore — fall back to selection by the user
+                      }
+                    }
+                  }}
                   style={[
                     styles.bubble,
                     turn.role === "user" ? styles.userBubble : styles.jarvisBubble,
                   ]}
                 >
-                  <Text variant="body" color={turn.role === "user" ? "background" : "text"}>
+                  <Text
+                    variant="body"
+                    color={turn.role === "user" ? "background" : "text"}
+                    selectable
+                  >
                     {turn.text}
                   </Text>
-                </View>
+                </Pressable>
               </View>
             ))
           )}
