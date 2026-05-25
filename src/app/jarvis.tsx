@@ -117,6 +117,13 @@ export default function Jarvis() {
             >
               {usedDisplay} / {limit}
             </Text>
+            {turns.length > 0 ? (
+              <Pressable onPress={() => setTurns([])} hitSlop={4} style={{ marginTop: spacing.xs }}>
+                <Text variant="caption" color="brand">
+                  {locale === "ko" ? "대화 비우기" : "Clear chat"}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
