@@ -92,6 +92,9 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   // safety.ts cites the official Korean hotline name "정신건강위기상담전화"
   // verbatim. Same justification as the locale safety files.
   "src/lib/llm/safety.ts",
+  // Landing page carries the mandatory "not a diagnosis" disclosure per
+  // docs/research/CLAUDE.md §0 rule 5 — the term IS the policy text.
+  "src/app/index.tsx",
   // Research artifacts cite academic terms by definition — they ARE the
   // policy reference, not user-facing copy. The user-facing copy in src/
   // and locales/ is still scanned.
