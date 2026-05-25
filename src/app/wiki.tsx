@@ -269,6 +269,12 @@ export default function Wiki() {
                   ) : null}
                   {expanded ? (
                     <View style={styles.expandedSection}>
+                      {typeof p.frontmatter.url === "string" && p.frontmatter.url.length > 0 ? (
+                        <Text variant="subtle" color="textSubtle" numberOfLines={1}>
+                          {locale === "ko" ? "원본: " : "Source: "}
+                          {p.frontmatter.url}
+                        </Text>
+                      ) : null}
                       {(() => {
                         const p1 = readPhase1(p.frontmatter);
                         if (p1 === null) {
