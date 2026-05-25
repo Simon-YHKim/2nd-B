@@ -177,6 +177,11 @@ export default function Persona() {
             onPress={handleExport}
           />
           <Button
+            label={locale === "ko" ? "Big Five 다시 평가" : "Retake Big Five"}
+            variant="secondary"
+            onPress={() => router.replace("/big-five")}
+          />
+          <Button
             label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
             variant="secondary"
             onPress={() => router.replace("/journal")}
