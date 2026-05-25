@@ -1,29 +1,29 @@
 import { useTranslation } from "react-i18next";
-import { View, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import { View, StyleSheet, ScrollView, Image, Text } from "react-native";
 import { Link, Redirect } from "expo-router";
 
 import { Screen } from "@/components/ui/Screen";
-import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
+import { colors, spacing, radius, fontSize, fontFamilies, fontWeights } from "@/theme";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getEnv, IS_DEMO_BUILD } from "@/lib/env";
+
+// Logo with glow — resolves to the root assets/ dir.
+const logo = require("../../assets/images/logo-glow.png");
+
+// One phytoncide accent per pillar (spring leaf / sunlight / sky).
+const ACCENTS = [colors.leaf, colors.sun, colors.skyDeep] as const;
 
 export default function Landing() {
   const { t, i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
-  if (loading) {
-    return (
-      <Screen>
-        <View style={styles.center}>
-          <ActivityIndicator color={semantic.brand} />
-        </View>
-      </Screen>
-    );
-  }
+  // Auth still resolving — show the branded loading screen.
+  if (loading) return <LoadingScreen />;
 
+  // Signed in — the landing is for visitors only.
   if (userId) return <Redirect href="/journal" />;
 
   // Demo mode = deployed with no Supabase env vars set. Sign-in/save will
@@ -35,60 +35,67 @@ export default function Landing() {
     demoMode = false;
   }
 
+  const serifDisplay = locale === "ko" ? fontFamilies.serifKo : fontFamilies.serifEn;
+
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {demoMode ? (
           <View style={styles.demoBanner} accessibilityRole="alert">
-            <Text variant="subtle" color="warning" style={styles.demoBannerTitle}>
-              {locale === "ko" ? "데모 모드" : "Demo mode"}
+            <Text style={styles.demoBannerTitle}>
+              {locale === "ko" ? "데모 모드" : "DEMO MODE"}
             </Text>
-            <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
+            <Text style={styles.demoBannerBody}>
               {locale === "ko"
                 ? "UI 미리보기 전용입니다. 로그인이나 데이터 저장은 작동하지 않아요."
                 : "UI preview only — sign-in and data persistence are disabled."}
             </Text>
           </View>
         ) : null}
-        <View>
-          <Text variant="caption" color="brand">2nd-Brain</Text>
-          <Text variant="display" style={styles.display}>
+
+        {/* Hero — logo, brand eyebrow, serif display name, tagline. */}
+        <View style={styles.hero}>
+          <Image
+            source={logo}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="2nd-Brain"
+          />
+          <Text style={styles.eyebrow}>2nd-Brain</Text>
+          <Text style={[styles.display, { fontFamily: serifDisplay }]} accessibilityRole="header">
             {t("app.name")}
           </Text>
-          <Text variant="body" color="textMuted" style={styles.tagline}>
+          <Text style={styles.tagline}>
             {locale === "ko"
               ? "노트 저장소가 아닌, 당신을 배우는 AI."
               : "Not a note vault — an AI that learns you."}
           </Text>
         </View>
 
+        {/* Three pillars — guided capture, evolving self-model, portable RAG. */}
         <View style={styles.pillars}>
-          {PILLARS[locale].map((p) => (
-            <View key={p.title} style={styles.pillarCard}>
-              <Text variant="subtle" color="brand" style={{ letterSpacing: 1, fontWeight: "700" }}>
-                {p.eyebrow}
-              </Text>
-              <Text variant="body" style={{ marginTop: spacing.xs, fontSize: typography.sizes.lg, fontWeight: "600" }}>
-                {p.title}
-              </Text>
-              <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs }}>
-                {p.body}
-              </Text>
+          {PILLARS[locale].map((p, i) => (
+            <View key={p.title} style={[styles.pillarCard, { borderLeftColor: ACCENTS[i] }]}>
+              <Text style={[styles.pillarEyebrow, { color: ACCENTS[i] }]}>{p.eyebrow}</Text>
+              <Text style={styles.pillarTitle}>{p.title}</Text>
+              <Text style={styles.pillarBody}>{p.body}</Text>
             </View>
           ))}
         </View>
 
+        {/* Evidence card — what the inference is grounded in. */}
         <View style={styles.evidenceCard}>
-          <Text variant="caption" color="textMuted" style={{ letterSpacing: 1 }}>
-            {locale === "ko" ? "근거 기반" : "Evidence-grounded"}
+          <Text style={styles.evidenceEyebrow}>
+            {locale === "ko" ? "근거 기반" : "EVIDENCE-GROUNDED"}
           </Text>
-          <Text variant="body" style={{ marginTop: spacing.xs }}>
+          <Text style={styles.evidenceBody}>
             {locale === "ko"
               ? "Big Five · Self-Determination Theory · Attachment · VIA · Erikson — 검증된 학술 프레임만 인용합니다. MBTI나 점성술은 사용하지 않습니다."
               : "Big Five · Self-Determination Theory · Attachment · VIA · Erikson — we cite only validated frameworks. No MBTI, no astrology."}
           </Text>
         </View>
 
+        {/* Calls to action. */}
         <View style={styles.actions}>
           <Link href="/sign-up" asChild>
             <Button label={locale === "ko" ? "시작하기" : "Get started"} variant="primary" />
@@ -98,7 +105,7 @@ export default function Landing() {
           </Link>
         </View>
 
-        <Text variant="subtle" color="textSubtle" style={styles.disclosure}>
+        <Text style={styles.disclosure}>
           {locale === "ko"
             ? "진단이 아닙니다. 치료 권고도 아닙니다. 자기 이해를 돕는 도구입니다."
             : "Not a diagnosis. Not therapeutic advice. A reflection scaffold."}
@@ -148,38 +155,119 @@ const PILLARS: Record<"en" | "ko", { eyebrow: string; title: string; body: strin
 };
 
 const styles = StyleSheet.create({
-  scroll: { gap: spacing.xl, paddingBottom: spacing.xxl },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  scroll: { gap: spacing["2xl"], paddingBottom: spacing["4xl"] },
+
+  // Demo-mode banner.
   demoBanner: {
-    backgroundColor: semantic.surfaceAlt,
-    borderColor: semantic.warning,
+    backgroundColor: colors.mist,
+    borderColor: colors.amber,
     borderWidth: 1,
     borderLeftWidth: 3,
-    borderLeftColor: semantic.warning,
-    borderRadius: radii.sm,
+    borderRadius: radius.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },
-  demoBannerTitle: { fontWeight: "700", letterSpacing: 1 },
-  display: { marginTop: spacing.sm, fontSize: typography.sizes.display, fontWeight: "800", letterSpacing: -1 },
-  tagline: { marginTop: spacing.sm, fontSize: typography.sizes.lg, lineHeight: typography.sizes.lg * 1.4 },
+  demoBannerTitle: {
+    fontFamily: fontFamilies.sans,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeights.bold,
+    letterSpacing: 1,
+    color: colors.amber,
+  },
+  demoBannerBody: {
+    fontFamily: fontFamilies.sans,
+    fontSize: fontSize.sm,
+    lineHeight: fontSize.sm * 1.45,
+    color: colors.ink3,
+    marginTop: 2,
+  },
+
+  // Hero.
+  hero: { gap: spacing.sm },
+  logo: { width: 84, height: 84, marginBottom: spacing.xs },
+  eyebrow: {
+    fontFamily: fontFamilies.sans,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeights.bold,
+    letterSpacing: 2,
+    color: colors.pineSoft,
+  },
+  display: {
+    fontSize: fontSize["4xl"],
+    lineHeight: fontSize["4xl"] * 1.12,
+    color: colors.pine,
+  },
+  tagline: {
+    fontFamily: fontFamilies.sans,
+    fontSize: fontSize.lg,
+    lineHeight: fontSize.lg * 1.5,
+    color: colors.ink2,
+    marginTop: spacing.xs,
+  },
+
+  // Pillars.
   pillars: { gap: spacing.md },
   pillarCard: {
-    backgroundColor: semantic.surface,
-    borderColor: semantic.border,
-    borderWidth: 1,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-  },
-  evidenceCard: {
-    backgroundColor: semantic.surfaceAlt,
-    borderColor: semantic.border,
+    backgroundColor: colors.paper2,
+    borderColor: colors.rule,
     borderWidth: 1,
     borderLeftWidth: 3,
-    borderLeftColor: semantic.brand,
-    borderRadius: radii.md,
-    padding: spacing.md,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    gap: spacing.xs,
   },
+  pillarEyebrow: {
+    fontFamily: fontFamilies.sans,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeights.bold,
+    letterSpacing: 1,
+  },
+  pillarTitle: {
+    fontFamily: fontFamilies.sans,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
+  },
+  pillarBody: {
+    fontFamily: fontFamilies.sans,
+    fontSize: fontSize.base,
+    lineHeight: fontSize.base * 1.55,
+    color: colors.ink2,
+  },
+
+  // Evidence.
+  evidenceCard: {
+    backgroundColor: colors.mist,
+    borderColor: colors.rule,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.pine,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.xs,
+  },
+  evidenceEyebrow: {
+    fontFamily: fontFamilies.sans,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeights.bold,
+    letterSpacing: 1,
+    color: colors.ink3,
+  },
+  evidenceBody: {
+    fontFamily: fontFamilies.sans,
+    fontSize: fontSize.base,
+    lineHeight: fontSize.base * 1.55,
+    color: colors.ink2,
+  },
+
+  // CTAs + disclosure.
   actions: { gap: spacing.sm },
-  disclosure: { textAlign: "center", marginTop: spacing.sm },
+  disclosure: {
+    fontFamily: fontFamilies.sans,
+    fontSize: fontSize.xs,
+    lineHeight: fontSize.xs * 1.5,
+    color: colors.ink3,
+    textAlign: "center",
+    marginTop: spacing.xs,
+  },
 });
