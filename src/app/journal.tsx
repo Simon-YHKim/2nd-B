@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
+import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, Link } from "expo-router";
 
@@ -175,15 +175,7 @@ export default function Journal() {
               </Text>
             </View>
           ) : (
-            recent.map((r) => (
-              <View key={r.id} style={styles.recordCard}>
-                <Text variant="subtle" color="textSubtle">
-                  {formatRelative(r.created_at, locale, t)}
-                </Text>
-                <Text variant="body" style={{ marginTop: spacing.xs }}>{r.body}</Text>
-                {r.ai_followup ? <FollowupCard followup={r.ai_followup} locale={locale} compact /> : null}
-              </View>
-            ))
+            recent.map((r) => <RecentEntry key={r.id} record={r} locale={locale} t={t} />)
           )}
         </View>
       </ScrollView>
@@ -193,6 +185,40 @@ export default function Journal() {
         onClose={() => setCrisis({ ...crisis, visible: false })}
       />
     </Screen>
+  );
+}
+
+// Recent entry: collapses long bodies behind a tap to keep the scan fast.
+// Threshold (240 chars) ≈ a half-screen on most phones in body type size.
+const PREVIEW_CHARS = 240;
+function RecentEntry({
+  record,
+  locale,
+  t,
+}: {
+  record: RecordRow;
+  locale: "en" | "ko";
+  t: (k: string, opts?: Record<string, unknown>) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = record.body.length > PREVIEW_CHARS;
+  const body = expanded || !isLong ? record.body : record.body.slice(0, PREVIEW_CHARS).trimEnd() + "…";
+  const toggleLabel = expanded
+    ? locale === "ko" ? "접기" : "Show less"
+    : locale === "ko" ? "더 보기" : "Show more";
+  return (
+    <View style={styles.recordCard}>
+      <Text variant="subtle" color="textSubtle">
+        {formatRelative(record.created_at, locale, t)}
+      </Text>
+      <Text variant="body" style={{ marginTop: spacing.xs }}>{body}</Text>
+      {isLong ? (
+        <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={8} style={styles.showMoreBtn}>
+          <Text variant="subtle" color="brand">{toggleLabel}</Text>
+        </Pressable>
+      ) : null}
+      {record.ai_followup ? <FollowupCard followup={record.ai_followup} locale={locale} compact /> : null}
+    </View>
   );
 }
 
@@ -277,6 +303,7 @@ const styles = StyleSheet.create({
   privacyFootnote: { marginTop: spacing.xs, fontStyle: "italic" },
   zoneLabelRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   zoneDot: { width: 8, height: 8, borderRadius: 4 },
+  showMoreBtn: { marginTop: spacing.xs, alignSelf: "flex-start", paddingVertical: 2 },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",

@@ -7,6 +7,7 @@
 //
 // All AI calls route through src/lib/llm/gemini.ts so safety (C9) + audit (C3) hold.
 
+import { buildMemorizedPattern } from "../knowledge/engines";
 import { callAdvisor, callGemini } from "../llm/gemini";
 import { getSupabaseClient } from "../supabase/client";
 
@@ -66,6 +67,25 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
           summary: e.summary ? e.summary.slice(0, 300) : null,
         })),
       };
+
+      // Engine 6 (memorize): persist the observed pattern keyed by user.
+      // Skip RED zone (handled separately via crisis_events, never co-located
+      // with normal patterns) and skip fixed-template responses (which carry
+      // no inference signal). Best-effort: never block UX on memorize.
+      if (!res.fixedTemplate && res.zone !== "red") {
+        try {
+          const pattern = buildMemorizedPattern({
+            userId: args.userId,
+            matchedBatches: res.matchedBatches,
+            triggers: res.triggers,
+            text: `${args.body}\n\n${res.text}`,
+            zone: res.zone,
+          });
+          await supabase.from("memorized_patterns").insert(pattern);
+        } catch (e) {
+          if (typeof console !== "undefined") console.warn("[memorize] insert failed", e);
+        }
+      }
     } else {
       // Audit response: lighter, no retrieval.
       const res = await callGemini({
