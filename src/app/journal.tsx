@@ -46,6 +46,8 @@ export default function Journal() {
   const { userId, loading } = useAuth();
   const progression = useProgression();
   const [body, setBody] = useState("");
+  const [topic, setTopic] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [lastFollowup, setLastFollowup] = useState<StoredFollowup | null>(null);
   const [recent, setRecent] = useState<RecordRow[]>([]);
@@ -83,11 +85,17 @@ export default function Journal() {
     setSubmitting(true);
     setLastFollowup(null);
     try {
+      const tags = tagsInput
+        .split(/[,#]+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
       const res = await createRecord({
         userId,
         locale,
         kind: "journal",
         body: body.trim(),
+        topic: topic.trim().length > 0 ? topic.trim() : undefined,
+        tags: tags.length > 0 ? tags : undefined,
       });
       if (res.followup) {
         setLastFollowup(res.followup);
@@ -96,6 +104,8 @@ export default function Journal() {
         }
       }
       setBody("");
+      setTopic("");
+      setTagsInput("");
       await refresh(userId);
       // Capture earned XP — refresh the level bar.
       void progression.refresh();
@@ -153,6 +163,9 @@ export default function Journal() {
           </Link>
           <Link href="/jarvis" asChild>
             <Button label={locale === "ko" ? "자비스" : "Jarvis"} variant="secondary" />
+          </Link>
+          <Link href="/manual" asChild>
+            <Button label={locale === "ko" ? "안내" : "Manual"} variant="secondary" />
           </Link>
           <Link href="/audit" asChild>
             <Button label={locale === "ko" ? "라이프 오딧" : "Life audit"} variant="secondary" />
@@ -220,6 +233,12 @@ export default function Journal() {
               ) : null}
             </View>
             <Input
+              value={topic}
+              onChangeText={setTopic}
+              placeholder={locale === "ko" ? "주제 (선택) — 한 줄로" : "Topic (optional) — one line"}
+              autoCapitalize="sentences"
+            />
+            <Input
               value={body}
               onChangeText={setBody}
               placeholder={
@@ -230,6 +249,12 @@ export default function Journal() {
               multiline
               numberOfLines={6}
               style={styles.textarea}
+            />
+            <Input
+              value={tagsInput}
+              onChangeText={setTagsInput}
+              placeholder={locale === "ko" ? "태그 (선택, 쉼표/# 구분) — #일기 #감정" : "Tags (optional, comma/# separated) — #journal #emotion"}
+              autoCapitalize="none"
             />
             <Button
               label={locale === "ko" ? "기록하기" : "Save"}
@@ -244,6 +269,22 @@ export default function Journal() {
             {lastFollowup ? <FollowupCard followup={lastFollowup} locale={locale} /> : null}
           </View>
         )}
+
+        {recent.length === 0 ? (
+          <View style={styles.coachmarkCard}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 1.2 }}>
+              {locale === "ko" ? "처음이신가요?" : "First time?"}
+            </Text>
+            <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }}>
+              {locale === "ko"
+                ? "두번째 뇌는 8가지 핵심 동작이 있어요. 캡처 → 인박스 → 위키 → 자비스로 흐름이 이어집니다. 1분 안내서를 먼저 보시면 길을 잃지 않아요."
+                : "2nd-Brain has 8 core moves. Capture → Inbox → Wiki → Jarvis. A 1-minute manual saves you from getting lost."}
+            </Text>
+            <Link href="/manual" asChild>
+              <Button label={locale === "ko" ? "안내서 열기" : "Open the manual"} variant="primary" />
+            </Link>
+          </View>
+        ) : null}
 
         <View style={styles.recentList}>
           <Text variant="caption" color="textMuted">
@@ -442,6 +483,15 @@ const styles = StyleSheet.create({
   },
   evidenceList: { marginTop: spacing.sm, gap: spacing.xs },
   evidenceRow: { gap: 2 },
+  coachmarkCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.brand,
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
   recentList: { gap: spacing.sm },
   emptyCard: {
     backgroundColor: semantic.surfaceAlt,

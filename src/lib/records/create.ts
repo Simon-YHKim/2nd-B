@@ -23,6 +23,13 @@ export interface CreateRecordArgs {
   prompt?: string;
   auditPeriod?: string;
   withFollowup?: boolean;
+  // Per master blueprint: every entry should surface tags, topic,
+  // summary, conclusion alongside the body. All optional — the LLM
+  // follow-up (Phase 1 / Advisor) can fill them in later.
+  topic?: string;
+  summary?: string;
+  conclusion?: string;
+  tags?: string[];
 }
 
 export interface RecordedEvidence {
@@ -118,6 +125,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       prompt: args.prompt ?? null,
       body: args.body,
       ai_followup: aiFollowup,
+      topic: args.topic ?? null,
+      summary: args.summary ?? null,
+      conclusion: args.conclusion ?? null,
+      tags: args.tags ?? [],
     })
     .select("id")
     .single();
@@ -135,7 +146,7 @@ export async function listRecentRecords(userId: string, limit = 20) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("records")
-    .select("id, kind, body, ai_followup, created_at")
+    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);

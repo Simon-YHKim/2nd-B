@@ -290,11 +290,15 @@ export type Database = {
           ai_followup: Json | null
           audit_period: string | null
           body: string
+          conclusion: string | null
           created_at: string
           id: string
           kind: Database["public"]["Enums"]["record_kind"]
           prompt: string | null
           self_context_id: string | null
+          summary: string | null
+          tags: string[]
+          topic: string | null
           updated_at: string
           user_id: string
         }
@@ -302,11 +306,15 @@ export type Database = {
           ai_followup?: Json | null
           audit_period?: string | null
           body: string
+          conclusion?: string | null
           created_at?: string
           id?: string
           kind: Database["public"]["Enums"]["record_kind"]
           prompt?: string | null
           self_context_id?: string | null
+          summary?: string | null
+          tags?: string[]
+          topic?: string | null
           updated_at?: string
           user_id: string
         }
@@ -314,11 +322,15 @@ export type Database = {
           ai_followup?: Json | null
           audit_period?: string | null
           body?: string
+          conclusion?: string | null
           created_at?: string
           id?: string
           kind?: Database["public"]["Enums"]["record_kind"]
           prompt?: string | null
           self_context_id?: string | null
+          summary?: string | null
+          tags?: string[]
+          topic?: string | null
           updated_at?: string
           user_id?: string
         }
