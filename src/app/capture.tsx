@@ -113,6 +113,17 @@ export default function Capture() {
             </Text>
           </View>
 
+          <View style={styles.helpCard}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+              {locale === "ko" ? "어떻게 쓰나요?" : "How this works"}
+            </Text>
+            <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
+              {locale === "ko"
+                ? "1) URL을 붙여넣기 → 자동으로 종류(글·영상·논문·레딧·GitHub·AI툴·자기지식) 감지\n2) Obsidian Web Clipper로 클립한 마크다운을 본문에 붙여넣기 (선택)\n3) '캡처' 누르면 받은편지함에 저장 → 거기서 위키 페이지로 발전"
+                : "1) Paste a URL → kind auto-detected (article / video / paper / reddit / GitHub / AI tool / self-knowledge)\n2) Paste your Obsidian Web Clipper markdown into the body (optional)\n3) Tap Capture → it lands in your inbox, then you can promote to a wiki page."}
+            </Text>
+          </View>
+
           <View style={styles.form}>
             <View style={styles.fieldGroup}>
               <Text variant="caption" color="textMuted">
@@ -227,6 +238,14 @@ const styles = StyleSheet.create({
   header: { gap: spacing.xs, marginBottom: spacing.lg },
   title: { marginTop: spacing.xs },
   form: { gap: spacing.md },
+  helpCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.sm,
+    borderLeftColor: semantic.brand,
+    borderLeftWidth: 3,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
   fieldGroup: { gap: spacing.sm },
   detectedRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: -spacing.xs },
   detectedDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
