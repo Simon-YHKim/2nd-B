@@ -1,20 +1,17 @@
 name: Web preview (GitHub Pages)
 
 # Publishes the Expo Web static export to GitHub Pages.
-# Requires (one-time, by Simon): Settings → Pages → Source: "GitHub Actions".
+# The first step auto-enables Pages via the REST API so Simon doesn't have to
+# click anything (the workflow's GITHUB_TOKEN with pages:write is sufficient).
 #
-# URL after activation:
+# URL after first successful deploy:
 #   https://simon-yhkim.github.io/2nd-B/
 #
-# Note on env vars: this workflow runs without SUPABASE / Gemini secrets,
-# so the deployed site falls back to mock LLM mode and uses public anon
-# Supabase URL if a repo Variable is set. Add via Settings → Secrets and
-# variables → Actions → Variables:
+# Note on env vars: deployed site uses Supabase + optional Gemini via repo
+# Variables (Settings → Secrets and variables → Actions → Variables):
 #   EXPO_PUBLIC_SUPABASE_URL
 #   EXPO_PUBLIC_SUPABASE_ANON_KEY
-#
-# (Both are public-by-design, so storing them as plain Variables — not
-# Secrets — keeps the build reproducible across forks.)
+# Both are public-by-design (the anon key is bundled into any client build).
 
 on:
   push:
@@ -28,6 +25,10 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  # Opt-in to Node 24 for v4 actions per GitHub's 2026-09 deprecation.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -36,6 +37,30 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Ensure GitHub Pages is enabled (workflow source)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Idempotent: 201 on first run, 409 if already enabled.
+          # Either is acceptable — we just need Pages to exist before deploy.
+          STATUS=$(curl -s -o /tmp/pages-resp.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/pages" \
+            -d '{"build_type":"workflow"}')
+          echo "POST /pages → $STATUS"
+          if [ "$STATUS" = "201" ] || [ "$STATUS" = "409" ]; then
+            echo "✓ Pages ready (workflow source)"
+          else
+            cat /tmp/pages-resp.json
+            # Try switching build_type on an already-existing Pages site.
+            curl -s -X PUT \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/pages" \
+              -d '{"build_type":"workflow"}'
+          fi
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:

@@ -93,9 +93,14 @@ export default function Audit() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text variant="caption" color="brand">
-          {locale === "ko" ? `질문 ${index + 1} / ${questions.length}` : `Question ${index + 1} / ${questions.length}`}
-        </Text>
+        <View style={styles.progressWrap}>
+          <Text variant="caption" color="brand">
+            {locale === "ko" ? `질문 ${index + 1} / ${questions.length}` : `Question ${index + 1} / ${questions.length}`}
+          </Text>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${((index + 1) / questions.length) * 100}%` }]} />
+          </View>
+        </View>
         <View style={styles.questionCard}>
           <Text variant="heading">{current?.prompt[locale]}</Text>
           <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
@@ -148,4 +153,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   textarea: { minHeight: 140, textAlignVertical: "top", paddingTop: spacing.md },
+  progressWrap: { gap: spacing.xs },
+  progressTrack: {
+    height: 4,
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.sm,
+    overflow: "hidden",
+  },
+  progressFill: { height: "100%", backgroundColor: semantic.brand },
 });

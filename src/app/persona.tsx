@@ -78,17 +78,25 @@ export default function Persona() {
         </View>
 
         <View style={styles.traitsCard}>
-          {Object.entries(persona.traits).map(([k, v]) => (
-            <View key={k} style={styles.traitRow}>
-              <Text variant="body" style={{ width: 160 }}>{k}</Text>
-              <View style={styles.barOuter}>
-                <View style={[styles.barInner, { width: `${v * 100}%` }]} />
+          {Object.entries(persona.traits).map(([k, v]) => {
+            const label = TRAIT_LABELS[locale][k as keyof typeof TRAIT_LABELS["en"]] ?? k;
+            return (
+              <View key={k} style={styles.traitRow}>
+                <Text variant="body" style={{ width: 160 }}>{label}</Text>
+                <View style={styles.barOuter}>
+                  <View style={[styles.barInner, { width: `${v * 100}%` }]} />
+                </View>
+                <Text variant="subtle" color="textMuted" style={{ width: 40, textAlign: "right" }}>
+                  {Math.round(v * 100)}
+                </Text>
               </View>
-              <Text variant="subtle" color="textMuted" style={{ width: 40, textAlign: "right" }}>
-                {Math.round(v * 100)}
-              </Text>
-            </View>
-          ))}
+            );
+          })}
+          <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.sm }}>
+            {locale === "ko"
+              ? "Big Five 근사치 (v1). 진단이 아니며, 패턴 관찰입니다."
+              : "Big Five proxy (v1). Not a diagnosis — observed patterns only."}
+          </Text>
         </View>
 
         <View style={styles.narrativeCard}>
@@ -123,6 +131,25 @@ export default function Persona() {
     </Screen>
   );
 }
+
+// Big Five trait labels translated for the persona card. Keys match
+// the PersonaTraits TypeScript shape from lib/persona/build.ts.
+const TRAIT_LABELS: Record<"en" | "ko", Record<"openness" | "conscientiousness" | "extraversion" | "agreeableness" | "neuroticism", string>> = {
+  en: {
+    openness: "Openness",
+    conscientiousness: "Conscientiousness",
+    extraversion: "Extraversion",
+    agreeableness: "Agreeableness",
+    neuroticism: "Neuroticism",
+  },
+  ko: {
+    openness: "개방성",
+    conscientiousness: "성실성",
+    extraversion: "외향성",
+    agreeableness: "친화성",
+    neuroticism: "신경성",
+  },
+};
 
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
