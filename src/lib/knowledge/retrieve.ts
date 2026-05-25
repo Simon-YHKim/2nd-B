@@ -124,8 +124,9 @@ function routeBatches(userMessage: string): string[] {
   return [...matched].slice(0, MAX_BATCHES);
 }
 
-// Map our slugs to the framework strings used in knowledge_sources.
-// (Slugs use hyphens, framework values often use underscores.)
+// Map our routing slugs to the framework values actually present in
+// knowledge_sources. Source of truth: `SELECT DISTINCT framework FROM
+// knowledge_sources` after seeding. Update when new batches land.
 const SLUG_TO_FRAMEWORK: Record<string, string[]> = {
   "crisis-detection": ["crisis_detection"],
   "big-five": ["big_five"],
@@ -133,26 +134,29 @@ const SLUG_TO_FRAMEWORK: Record<string, string[]> = {
     "assessment_a_hexaco",
     "assessment_a_riasec",
     "assessment_a_values",
-    "assessment_b_hpi",
+    "assessment_b_16pf",
     "assessment_b_birkman",
+    "assessment_b_ei",
+    "assessment_b_hpi",
+    "assessment_c_enneagram_review",
+    "assessment_c_mbti_critique",
   ],
   sdt: ["sdt"],
   attachment: ["attachment"],
   interpersonal: ["interpersonal"],
-  "cbt-rebt": ["cbt_rebt"],
+  "cbt-rebt": ["cbt", "rebt"],
   "self-compassion": ["self_compassion"],
   "growth-mindset": ["growth_mindset"],
   erikson: ["erikson"],
   "narrative-identity": ["narrative_identity"],
   "values-meaning": ["values_meaning"],
-  "via-strengths": ["via_strengths"],
+  "via-strengths": ["via"],
   "self-knowledge": ["self_knowledge"],
   "emerging-adulthood": ["emerging_adulthood"],
-  "soc-successful-aging": ["soc_successful_aging"],
+  "soc-successful-aging": ["soc", "successful_aging"],
   "ai-mental-health-safety": ["ai_mental_health"],
   "data-ethics-consent": ["data_ethics"],
   "computational-personality": ["computational_personality"],
-  "methodology-birkman-brain-trinity": ["methodology"],
   "wellbeing-kpi": ["wellbeing_kpi"],
 };
 

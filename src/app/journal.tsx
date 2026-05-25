@@ -10,15 +10,29 @@ import { Input } from "@/components/ui/Input";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
-import { createRecord, listRecentRecords } from "@/lib/records/create";
+import {
+  createRecord,
+  listRecentRecords,
+  type RecordedEvidence,
+} from "@/lib/records/create";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import type { HotlineId } from "@/lib/safety/lexicon";
+
+type FollowupZone = "green" | "yellow" | "red";
+
+interface StoredFollowup {
+  text: string;
+  zone: FollowupZone;
+  fixedTemplate?: boolean;
+  matchedBatches?: string[];
+  evidence?: RecordedEvidence[];
+}
 
 interface RecordRow {
   id: string;
   kind: "journal" | "note" | "audit_response";
   body: string;
-  ai_followup: { text: string; zone: "green" | "yellow" | "red" } | null;
+  ai_followup: StoredFollowup | null;
   created_at: string;
 }
 
@@ -27,7 +41,7 @@ export default function Journal() {
   const { userId, loading } = useAuth();
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [followup, setFollowup] = useState<string | null>(null);
+  const [lastFollowup, setLastFollowup] = useState<StoredFollowup | null>(null);
   const [recent, setRecent] = useState<RecordRow[]>([]);
   const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
     visible: false,
@@ -52,7 +66,7 @@ export default function Journal() {
   async function handleSubmit(): Promise<void> {
     if (!userId || !body.trim()) return;
     setSubmitting(true);
-    setFollowup(null);
+    setLastFollowup(null);
     try {
       const res = await createRecord({
         userId,
@@ -61,7 +75,7 @@ export default function Journal() {
         body: body.trim(),
       });
       if (res.followup) {
-        setFollowup(res.followup.text);
+        setLastFollowup(res.followup);
         if (res.followup.zone === "red") {
           setCrisis({ visible: true, hotline: locale === "ko" ? "KR_1393" : "GLOBAL_988" });
         }
@@ -109,16 +123,10 @@ export default function Journal() {
 
         <View style={styles.navRow}>
           <Link href="/audit" asChild>
-            <Button
-              label={locale === "ko" ? "라이프 오딧" : "Life audit"}
-              variant="secondary"
-            />
+            <Button label={locale === "ko" ? "라이프 오딧" : "Life audit"} variant="secondary" />
           </Link>
           <Link href="/persona" asChild>
-            <Button
-              label={locale === "ko" ? "페르소나 v1" : "Persona v1"}
-              variant="secondary"
-            />
+            <Button label={locale === "ko" ? "페르소나 v1" : "Persona v1"} variant="secondary" />
           </Link>
         </View>
 
@@ -145,14 +153,7 @@ export default function Journal() {
             disabled={!body.trim() || submitting}
             loading={submitting}
           />
-          {followup ? (
-            <View style={styles.followupCard}>
-              <Text variant="subtle" color="brand">
-                {locale === "ko" ? "AI 후속 질문" : "AI follow-up"}
-              </Text>
-              <Text variant="body">{followup}</Text>
-            </View>
-          ) : null}
+          {lastFollowup ? <FollowupCard followup={lastFollowup} locale={locale} /> : null}
         </View>
 
         <View style={styles.recentList}>
@@ -170,11 +171,7 @@ export default function Journal() {
                   {new Date(r.created_at).toLocaleString(locale === "ko" ? "ko-KR" : "en-US")}
                 </Text>
                 <Text variant="body" style={{ marginTop: spacing.xs }}>{r.body}</Text>
-                {r.ai_followup ? (
-                  <Text variant="subtle" color="brand" style={{ marginTop: spacing.xs }}>
-                    → {r.ai_followup.text}
-                  </Text>
-                ) : null}
+                {r.ai_followup ? <FollowupCard followup={r.ai_followup} locale={locale} compact /> : null}
               </View>
             ))
           )}
@@ -186,6 +183,62 @@ export default function Journal() {
         onClose={() => setCrisis({ ...crisis, visible: false })}
       />
     </Screen>
+  );
+}
+
+function FollowupCard({
+  followup,
+  locale,
+  compact,
+}: {
+  followup: StoredFollowup;
+  locale: "en" | "ko";
+  compact?: boolean;
+}) {
+  const zoneColor =
+    followup.zone === "red" ? semantic.zoneRed : followup.zone === "yellow" ? semantic.zoneYellow : semantic.brand;
+  const label =
+    followup.zone === "red"
+      ? locale === "ko"
+        ? "안전 안내"
+        : "Safety notice"
+      : followup.zone === "yellow"
+        ? locale === "ko"
+          ? "AI · 들어주기 모드"
+          : "AI · listening mode"
+        : locale === "ko"
+          ? "AI 어드바이저"
+          : "AI Advisor";
+
+  return (
+    <View style={[compact ? styles.followupCompact : styles.followupCard, { borderLeftColor: zoneColor }]}>
+      <Text variant="subtle" style={{ color: zoneColor, fontWeight: "700" }}>
+        {label}
+      </Text>
+      <Text variant="body" style={{ marginTop: spacing.xs }}>{followup.text}</Text>
+
+      {followup.matchedBatches && followup.matchedBatches.length > 0 ? (
+        <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.sm }}>
+          {locale === "ko" ? "근거 프레임" : "Frameworks"}: {followup.matchedBatches.join(" · ")}
+        </Text>
+      ) : null}
+
+      {followup.evidence && followup.evidence.length > 0 ? (
+        <View style={styles.evidenceList}>
+          <Text variant="subtle" color="textSubtle">
+            {locale === "ko" ? "참고 문헌" : "Cited research"}
+          </Text>
+          {followup.evidence.map((e, i) => (
+            <View key={i} style={styles.evidenceRow}>
+              <Text variant="subtle" color="textMuted">• {e.title}</Text>
+              {e.doi ? (
+                <Text variant="subtle" color="textSubtle">DOI {e.doi}</Text>
+              ) : null}
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -206,8 +259,20 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderColor: semantic.border,
     borderWidth: 1,
+    borderLeftWidth: 3,
     gap: spacing.xs,
   },
+  followupCompact: {
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+    borderLeftWidth: 3,
+    borderColor: semantic.border,
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  evidenceList: { marginTop: spacing.sm, gap: spacing.xs },
+  evidenceRow: { gap: 2 },
   recentList: { gap: spacing.sm },
   recordCard: {
     backgroundColor: semantic.surface,

@@ -1,8 +1,13 @@
 // Capture Engine helper: inserts a journal/note/audit_response row and,
-// optionally, calls the Gemini wrapper for an AI follow-up question.
-// All AI calls route through callGemini() so safety (C9) + audit (C3) hold.
+// optionally, calls the appropriate LLM entry for an AI follow-up.
+//
+//   kind === 'journal'        → callAdvisor (full RAG: safety + retrieve + evidence)
+//   kind === 'audit_response' → callGemini (purpose: audit_qa, lighter)
+//   kind === 'note'           → no AI call
+//
+// All AI calls route through src/lib/llm/gemini.ts so safety (C9) + audit (C3) hold.
 
-import { callGemini } from "../llm/gemini";
+import { callAdvisor, callGemini } from "../llm/gemini";
 import { getSupabaseClient } from "../supabase/client";
 
 export type RecordKind = "journal" | "note" | "audit_response";
@@ -17,27 +22,61 @@ export interface CreateRecordArgs {
   withFollowup?: boolean;
 }
 
+export interface RecordedEvidence {
+  title: string;
+  doi: string | null;
+  summary: string | null;
+}
+
+export interface RecordFollowup {
+  text: string;
+  zone: "green" | "yellow" | "red";
+  fixedTemplate?: boolean;
+  matchedBatches?: string[];
+  evidence?: RecordedEvidence[];
+}
+
 export interface CreatedRecord {
   id: string;
-  followup?: { text: string; zone: "green" | "yellow" | "red" };
+  followup?: RecordFollowup;
 }
 
 export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecord> {
   const supabase = getSupabaseClient();
 
-  let aiFollowup: { text: string; zone: "green" | "yellow" | "red" } | null = null;
+  let aiFollowup: RecordFollowup | null = null;
   if (args.withFollowup !== false && args.kind !== "note") {
-    const purpose = args.kind === "audit_response" ? "audit_qa" : "journal_reflect";
-    const res = await callGemini({
-      userId: args.userId,
-      locale: args.locale,
-      purpose,
-      user: args.body,
-    });
-    // Cap LLM output to the DB CHECK constraint (8 KB total jsonb size).
-    // Stay well under so the JSON wrapping doesn't push us over.
-    const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
-    aiFollowup = { text: cappedText, zone: res.safety.zone };
+    if (args.kind === "journal") {
+      // Engine 4 Advisor flow: layered safety + Path A RAG.
+      const res = await callAdvisor({
+        userId: args.userId,
+        userMessage: args.body,
+        locale: args.locale,
+      });
+      const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
+      aiFollowup = {
+        text: cappedText,
+        zone: res.zone,
+        fixedTemplate: res.fixedTemplate,
+        matchedBatches: res.matchedBatches.slice(0, 4),
+        // Cap evidence stored on the row to keep ai_followup under 8 KB.
+        evidence: res.evidence.slice(0, 3).map((e) => ({
+          title: e.title.slice(0, 200),
+          doi: e.doi,
+          summary: e.summary ? e.summary.slice(0, 300) : null,
+        })),
+      };
+    } else {
+      // Audit response: lighter, no retrieval.
+      const res = await callGemini({
+        userId: args.userId,
+        locale: args.locale,
+        purpose: "audit_qa",
+        user: args.body,
+      });
+      const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
+      aiFollowup = { text: cappedText, zone: res.safety.zone };
+    }
   }
 
   const { data, error } = await supabase

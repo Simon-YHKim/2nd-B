@@ -1,0 +1,77 @@
+name: Web preview (GitHub Pages)
+
+# Publishes the Expo Web static export to GitHub Pages.
+# Requires (one-time, by Simon): Settings → Pages → Source: "GitHub Actions".
+#
+# URL after activation:
+#   https://simon-yhkim.github.io/2nd-B/
+#
+# Note on env vars: this workflow runs without SUPABASE / Gemini secrets,
+# so the deployed site falls back to mock LLM mode and uses public anon
+# Supabase URL if a repo Variable is set. Add via Settings → Secrets and
+# variables → Actions → Variables:
+#   EXPO_PUBLIC_SUPABASE_URL
+#   EXPO_PUBLIC_SUPABASE_ANON_KEY
+#
+# (Both are public-by-design, so storing them as plain Variables — not
+# Secrets — keeps the build reproducible across forks.)
+
+on:
+  push:
+    branches:
+      - main
+      - claude/awesome-clarke-ZJgc3
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci --legacy-peer-deps
+      - name: Build Expo Web (static export)
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_LLM_MODE: mock
+          EXPO_USE_STATIC: "true"
+          EXPO_BASE_URL: /2nd-B/
+        run: |
+          npx expo export --platform web --output-dir dist
+          # GitHub Pages serves /2nd-B/* — patch absolute /_expo/ paths.
+          # Expo Router static export emits absolute /_expo/... script URLs by
+          # default; rewrite to /2nd-B/_expo/... so they resolve under the
+          # repo-name subpath.
+          find dist -name "*.html" -print0 | xargs -0 sed -i 's|"/_expo/|"/2nd-B/_expo/|g'
+          find dist -name "*.html" -print0 | xargs -0 sed -i 's|"/assets/|"/2nd-B/assets/|g'
+          # Pages SPA fallback: copy index.html to 404.html so client-side
+          # routes resolve on direct hit.
+          cp dist/index.html dist/404.html 2>/dev/null || true
+          # Disable Jekyll so files starting with `_` aren't filtered.
+          touch dist/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
