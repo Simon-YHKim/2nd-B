@@ -7,6 +7,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { getEnv, IS_DEMO_BUILD } from "@/lib/env";
 
 export default function Landing() {
   const { t, i18n } = useTranslation();
@@ -25,9 +26,30 @@ export default function Landing() {
 
   if (userId) return <Redirect href="/journal" />;
 
+  // Demo mode = deployed with no Supabase env vars set. Sign-in/save will
+  // fail at the network layer; show a banner so the user knows why.
+  let demoMode = false;
+  try {
+    demoMode = IS_DEMO_BUILD(getEnv().EXPO_PUBLIC_SUPABASE_URL);
+  } catch {
+    demoMode = false;
+  }
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll}>
+        {demoMode ? (
+          <View style={styles.demoBanner} accessibilityRole="alert">
+            <Text variant="subtle" color="warning" style={styles.demoBannerTitle}>
+              {locale === "ko" ? "데모 모드" : "Demo mode"}
+            </Text>
+            <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
+              {locale === "ko"
+                ? "UI 미리보기 전용입니다. 로그인이나 데이터 저장은 작동하지 않아요."
+                : "UI preview only — sign-in and data persistence are disabled."}
+            </Text>
+          </View>
+        ) : null}
         <View>
           <Text variant="caption" color="brand">2nd-Brain</Text>
           <Text variant="display" style={styles.display}>
@@ -128,6 +150,17 @@ const PILLARS: Record<"en" | "ko", { eyebrow: string; title: string; body: strin
 const styles = StyleSheet.create({
   scroll: { gap: spacing.xl, paddingBottom: spacing.xxl },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  demoBanner: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.warning,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderLeftColor: semantic.warning,
+    borderRadius: radii.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  demoBannerTitle: { fontWeight: "700", letterSpacing: 1 },
   display: { marginTop: spacing.sm, fontSize: typography.sizes.display, fontWeight: "800", letterSpacing: -1 },
   tagline: { marginTop: spacing.sm, fontSize: typography.sizes.lg, lineHeight: typography.sizes.lg * 1.4 },
   pillars: { gap: spacing.md },
