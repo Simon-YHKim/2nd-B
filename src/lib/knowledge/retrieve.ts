@@ -178,12 +178,17 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrieveRe
 
   const schemaContext = await loadSchema();
 
-  const rows = await queryRows({
+  // Pull more than we'll cite (limit:16) so the ranker has headroom to pick
+  // the most relevant ones — instead of arbitrarily taking the first 8 the
+  // database returns.
+  const candidateRows = await queryRows({
     framework: frameworksForBatches(matchedBatches),
     locale: input.userLocale,
     ageRange: input.userAgeRange,
-    limit: 8,
+    limit: 16,
   });
+
+  const rows = rankRows(candidateRows, input.userMessage, input.userLocale).slice(0, 8);
 
   const assembledPrompt = assembleAdvisorPrompt({
     schemaContext,
@@ -197,6 +202,58 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrieveRe
   });
 
   return { matchedBatches, rows, schemaContext, assembledPrompt };
+}
+
+// Relevance ranking pass over candidate rows. Combines four signals:
+//   - term overlap between user message and (title + summary) — primary
+//   - locale match (row's summary in the user's locale present) — boost
+//   - verification recency — gentle tiebreaker
+//   - DOI presence — small trust signal
+// Pure function so tests can drive it without a Supabase fixture.
+export function rankRows(rows: KnowledgeRow[], userMessage: string, locale: Locale): KnowledgeRow[] {
+  const queryTerms = tokenize(userMessage, locale);
+  if (queryTerms.size === 0) return rows;
+
+  const scored = rows.map((r) => {
+    const summary = (locale === "ko" ? r.summary_ko : r.summary_en) ?? "";
+    const haystack = `${r.title} ${summary} ${r.application_notes ?? ""}`;
+    const docTerms = tokenize(haystack, locale);
+
+    let overlap = 0;
+    for (const t of queryTerms) if (docTerms.has(t)) overlap += 1;
+
+    // Normalize by query length so longer queries don't dominate. Cap at 1.
+    const termScore = Math.min(1, overlap / Math.max(3, queryTerms.size));
+
+    const localeMatch = summary.length > 0 ? 0.15 : 0;
+    const doiSignal = r.doi ? 0.05 : 0;
+    const recency = r.verified_at ? 0.05 : 0;
+
+    return { row: r, score: termScore + localeMatch + doiSignal + recency };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((s) => s.row);
+}
+
+// Tokenizer: lowercase, split on whitespace + punctuation, drop common stop
+// words. Korean stays as syllable runs (Hangul boundary heuristic) — coarse
+// but good enough for keyword overlap.
+const STOPWORDS_EN = new Set([
+  "the","a","an","and","or","but","of","in","on","at","for","to","with","is","are","was","were",
+  "i","you","we","my","your","our","this","that","it","its","be","been","being","have","has","had",
+  "do","does","did","not","no","so","if","as","by","from","what","how","why","when","who","which",
+]);
+const STOPWORDS_KO = new Set(["은","는","이","가","을","를","의","에","에서","으로","로","와","과","도","만","나","우리","당신","그","그리고","그러나","그래서","입니다","합니다","했어요","해요","돼요","아닌","그냥"]);
+
+function tokenize(text: string, locale: Locale): Set<string> {
+  const stop = locale === "ko" ? STOPWORDS_KO : STOPWORDS_EN;
+  const lower = text.toLowerCase();
+  const parts = lower
+    .split(/[\s\p{P}\p{S}]+/u)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 2 && !stop.has(s));
+  return new Set(parts);
 }
 
 interface AssembleInput {

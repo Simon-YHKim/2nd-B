@@ -138,3 +138,70 @@ describe("retrieveEvidence — routing table", () => {
     expect(r.assembledPrompt).toMatch(/<UNTRUSTED>.*<\/UNTRUSTED>/);
   });
 });
+
+// Relevance ranker — Engine "rank" from the build-rag-wiki spec. Pure function
+// so we can drive it without a Supabase fixture.
+import { rankRows } from "../retrieve";
+import type { KnowledgeRow } from "../types";
+
+function row(overrides: Partial<KnowledgeRow>): KnowledgeRow {
+  return {
+    id: overrides.id ?? "r" + Math.random().toString(36).slice(2, 8),
+    title: overrides.title ?? "",
+    authors: overrides.authors ?? [],
+    doi: overrides.doi ?? null,
+    url: overrides.url ?? null,
+    framework: overrides.framework ?? "self_knowledge",
+    age_range: overrides.age_range ?? "lifespan",
+    locale: overrides.locale ?? "both",
+    verified_at: overrides.verified_at ?? null,
+    summary_ko: overrides.summary_ko ?? null,
+    summary_en: overrides.summary_en ?? null,
+    application_notes: overrides.application_notes ?? null,
+  };
+}
+
+describe("rankRows — relevance ordering", () => {
+  test("higher term-overlap row ranks first (EN)", () => {
+    const rows = [
+      row({ id: "low", title: "Big Five trait stability", summary_en: "rank-order stability across midlife." }),
+      row({ id: "high", title: "Burnout recovery and rest cycles", summary_en: "evidence on burnout, exhaustion, recovery." }),
+    ];
+    const ranked = rankRows(rows, "I am totally burned out from work — exhaustion is constant.", "en");
+    expect(ranked[0]!.id).toBe("high");
+    expect(ranked[1]!.id).toBe("low");
+  });
+
+  test("higher term-overlap row ranks first (KO)", () => {
+    const rows = [
+      row({ id: "low", title: "Big Five 신뢰도", summary_ko: "성격 안정성 연구." }),
+      row({ id: "high", title: "번아웃 회복", summary_ko: "번아웃과 회복 사이클에 대한 증거." }),
+    ];
+    const ranked = rankRows(rows, "회사 번아웃 때문에 너무 지쳐요", "ko");
+    expect(ranked[0]!.id).toBe("high");
+  });
+
+  test("row with locale-matched summary outscores a row without it (tiebreaker)", () => {
+    const rows = [
+      row({ id: "no-locale", title: "growth research", summary_en: null, summary_ko: null }),
+      row({ id: "with-locale", title: "growth research", summary_en: "applicable text." }),
+    ];
+    const ranked = rankRows(rows, "thinking about growth and change", "en");
+    expect(ranked[0]!.id).toBe("with-locale");
+  });
+
+  test("empty query returns rows untouched (no thrash on trivial messages)", () => {
+    const rows = [row({ id: "a" }), row({ id: "b" })];
+    const ranked = rankRows(rows, "   ", "en");
+    expect(ranked.map((r) => r.id)).toEqual(["a", "b"]);
+  });
+
+  test("stopwords don't inflate scores", () => {
+    const rows = [
+      row({ id: "stops", title: "the and or but is are", summary_en: "the of in on at." }),
+      row({ id: "real", title: "burnout exhaustion recovery", summary_en: "evidence on rest cycles." }),
+    ];
+    const ranked = rankRows(rows, "the burnout is so exhausting", "en");
+    expect(ranked[0]!.id).toBe("real");
+  });
+});
