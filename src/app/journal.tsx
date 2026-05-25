@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, Link } from "expo-router";
@@ -12,6 +12,7 @@ import { XpBar } from "@/components/progression/XpBar";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { dailyPrompt } from "@/lib/journal/daily-prompts";
+import { computeStreak } from "@/lib/journal/streak";
 import {
   createRecord,
   listRecentRecords,
@@ -68,6 +69,8 @@ export default function Journal() {
   // Progression gates: journal unlocks at Lv3, then free tier allows 2 entries.
   const gate = checkGate("journal", progression.totalXp);
   const usage = checkUsage("journal", progression.tier, journalCount);
+
+  const streak = useMemo(() => computeStreak(recent.map((r) => r.created_at)), [recent]);
 
   useEffect(() => {
     if (!userId) return;
@@ -160,6 +163,19 @@ export default function Journal() {
 
         {/* Quest progression — level + XP toward the next unlock. */}
         {progression.loading ? null : <XpBar progress={progression.progress} locale={locale} />}
+
+        {streak.current > 0 ? (
+          <View style={styles.streakRow}>
+            <Text variant="caption" color="brand">
+              {streak.capturedToday ? "🔥" : "·"}
+            </Text>
+            <Text variant="subtle" color="textMuted">
+              {locale === "ko"
+                ? `${streak.current}일 연속 기록${streak.capturedToday ? "" : " (오늘은 아직)"}`
+                : `${streak.current}-day streak${streak.capturedToday ? "" : " (no entry today yet)"}`}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.navRow}>
           <Link href="/capture" asChild>
@@ -564,6 +580,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   recordTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
+  streakRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   dailyPromptCard: {
     backgroundColor: semantic.surfaceAlt,
     borderRadius: radii.sm,
