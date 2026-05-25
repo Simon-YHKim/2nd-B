@@ -121,6 +121,33 @@ export default function Persona() {
           <Text variant="body" style={{ marginTop: spacing.xs }}>{persona.patterns.summary}</Text>
         </View>
 
+        {Object.entries(persona.patterns).filter(([k]) => k.startsWith("top_")).length > 0 ? (
+          <View style={styles.patternsCard}>
+            <Text variant="caption" color="textMuted">
+              {locale === "ko" ? "관찰된 패턴 (최근)" : "Observed patterns (recent)"}
+            </Text>
+            {Object.entries(persona.patterns)
+              .filter(([k]) => k.startsWith("top_"))
+              .map(([k, count]) => {
+                const kind = k.replace(/^top_/, "");
+                return (
+                  <View key={k} style={styles.patternRow}>
+                    <View style={styles.patternDot} />
+                    <Text variant="body" style={{ flex: 1 }}>{kind}</Text>
+                    <Text variant="subtle" color="textMuted">
+                      {locale === "ko" ? `${count}회` : `${count}×`}
+                    </Text>
+                  </View>
+                );
+              })}
+            <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
+              {locale === "ko"
+                ? "최근 기록에서 가장 자주 다룬 주제예요. 단정이 아닌 관찰입니다."
+                : "Themes you've returned to most often in recent entries. Observation, not verdict."}
+            </Text>
+          </View>
+        ) : null}
+
         {persona.values.length > 0 ? (
           <View style={styles.valuesCard}>
             <Text variant="caption" color="textMuted">
@@ -200,6 +227,16 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
   },
+  patternsCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  patternRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 2 },
+  patternDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
   actions: { gap: spacing.md, marginTop: spacing.md },
   emptyActions: { gap: spacing.md, marginTop: spacing.xl, width: "100%", maxWidth: 320 },
 });
