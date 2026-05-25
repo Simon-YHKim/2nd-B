@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import "../../global.css";
 import { initI18n } from "@/lib/i18n";
 import { AuthProvider } from "@/lib/auth/AuthContext";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { fontAssets } from "@/theme/typography";
 import { semantic } from "@/lib/theme/tokens";
 
@@ -28,9 +29,11 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  // Hold the (already-visible) splash until fonts resolve. On a font error we
-  // still proceed so the app is never permanently blocked.
-  if (!fontsLoaded && !fontError) return null;
+  // Hold here until the phytoncide fonts resolve. On native the OS splash is
+  // still up; on web there is none, so render the branded loading screen
+  // instead of a blank frame. On a font error we still proceed so the app is
+  // never permanently blocked.
+  if (!fontsLoaded && !fontError) return <LoadingScreen />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
