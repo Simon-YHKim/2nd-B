@@ -374,7 +374,7 @@ export default function Inbox() {
                     {bodyById[r.id] === undefined ? (
                       <ActivityIndicator color={semantic.brand} />
                     ) : (
-                      <Text variant="subtle" color="textMuted" style={styles.body}>
+                      <Text variant="subtle" color="textMuted" style={styles.body} selectable>
                         {bodyById[r.id]}
                       </Text>
                     )}
