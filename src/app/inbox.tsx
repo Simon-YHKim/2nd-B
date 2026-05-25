@@ -280,7 +280,15 @@ export default function Inbox() {
                             : "→ Generate wiki page"}
                       </Text>
                     </Pressable>
-                  ) : null}
+                  ) : (
+                    <Link href="/wiki" asChild>
+                      <Pressable style={styles.generateBtn} hitSlop={4} onPress={(e) => e.stopPropagation()}>
+                        <Text variant="caption" color="success">
+                          {locale === "ko" ? "→ 위키에서 보기" : "→ View in wiki"}
+                        </Text>
+                      </Pressable>
+                    </Link>
+                  )}
                 </View>
                 {expandedId === r.id ? (
                   <View style={styles.expandedSection}>
