@@ -233,6 +233,19 @@ export default function Manual() {
           <Link href="/research" asChild>
             <Button label={locale === "ko" ? "큐레이션된 자료" : "Curated research"} variant="secondary" />
           </Link>
+          {userId ? (
+            <>
+              <Link href="/insights" asChild>
+                <Button label={locale === "ko" ? "내 인사이트" : "My insights"} variant="secondary" />
+              </Link>
+              <Link href="/big-five" asChild>
+                <Button label={locale === "ko" ? "Big Five 평가" : "Big Five test"} variant="secondary" />
+              </Link>
+              <Link href="/attachment" asChild>
+                <Button label={locale === "ko" ? "애착 스타일 평가" : "Attachment test"} variant="secondary" />
+              </Link>
+            </>
+          ) : null}
           <Button label={locale === "ko" ? "뒤로" : "Back"} variant="secondary" onPress={() => router.back()} />
         </View>
 
