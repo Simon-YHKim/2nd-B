@@ -32,7 +32,6 @@ function resolveStorageAdapter(): Storage | undefined {
     return g.localStorage;
   }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const AsyncStorage = require("@react-native-async-storage/async-storage").default;
     return AsyncStorage as Storage;
   } catch {
