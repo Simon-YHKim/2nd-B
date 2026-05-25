@@ -58,3 +58,23 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
 
   return { userId: user.id, judgeMode };
 }
+
+export async function signInWithEmail(email: string, password: string): Promise<{ userId: string }> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  if (!data.user) throw new Error("Sign-in returned no user");
+  return { userId: data.user.id };
+}
+
+export async function signOut(): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+export async function getCurrentUserId(): Promise<string | null> {
+  const supabase = getSupabaseClient();
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
+}

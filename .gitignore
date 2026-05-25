@@ -44,6 +44,10 @@ coverage/
 # tsx cache
 .tsx
 
+# Claude Code per-user settings (project-level shared settings.json stays tracked)
+.claude/settings.local.json
+.claude/local/
+
 # generated native folders
 /ios
 /android

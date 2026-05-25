@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'if [ ! -d \"$HOME/.simonk-stack\" ]; then git clone --depth 1 https://github.com/Simon-YHKim/SimonK-stack.git \"$HOME/.simonk-stack\" && (cd \"$HOME/.simonk-stack\" && [ -x scripts/install.sh ] && bash scripts/install.sh || true); else (cd \"$HOME/.simonk-stack\" && git pull --ff-only --quiet || true); fi'",
+            "timeout": 60,
+            "statusMessage": "Syncing SimonK Stack..."
+          }
+        ]
+      }
+    ]
+  }
+}

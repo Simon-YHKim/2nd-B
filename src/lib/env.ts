@@ -5,6 +5,12 @@ import { z } from "zod";
 const schema = z.object({
   EXPO_PUBLIC_SUPABASE_URL: z.string().url(),
   EXPO_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20),
+  // LLM mode: "live" calls Gemini for real; "mock" returns templated responses
+  // (still routes through safety classifier — C9 invariant holds).
+  // Defaults to "mock" when no GOOGLE_API_KEY and not using Vertex.
+  EXPO_PUBLIC_LLM_MODE: z
+    .union([z.literal("live"), z.literal("mock")])
+    .optional(),
   EXPO_PUBLIC_USE_VERTEX: z
     .union([z.literal("true"), z.literal("false")])
     .default("false")
@@ -18,10 +24,23 @@ const schema = z.object({
 });
 
 // C2: when Vertex is enabled, GOOGLE_CLOUD_PROJECT must be set.
-const refined = schema.refine(
-  (e) => !e.EXPO_PUBLIC_USE_VERTEX || (e.GOOGLE_CLOUD_PROJECT && e.GOOGLE_CLOUD_PROJECT.length > 0),
-  { message: "GOOGLE_CLOUD_PROJECT is required when EXPO_PUBLIC_USE_VERTEX=true (C2)" },
-);
+// Mock mode skips this requirement (no live call → no project needed).
+const refined = schema
+  .transform((e) => ({
+    ...e,
+    EXPO_PUBLIC_LLM_MODE:
+      e.EXPO_PUBLIC_LLM_MODE ??
+      (e.EXPO_PUBLIC_USE_VERTEX || (e.GOOGLE_API_KEY && e.GOOGLE_API_KEY.length > 0)
+        ? ("live" as const)
+        : ("mock" as const)),
+  }))
+  .refine(
+    (e) =>
+      e.EXPO_PUBLIC_LLM_MODE === "mock" ||
+      !e.EXPO_PUBLIC_USE_VERTEX ||
+      (e.GOOGLE_CLOUD_PROJECT && e.GOOGLE_CLOUD_PROJECT.length > 0),
+    { message: "GOOGLE_CLOUD_PROJECT is required when EXPO_PUBLIC_USE_VERTEX=true (C2)" },
+  );
 
 function readRaw(): Record<string, string | undefined> {
   const e: Record<string, string | undefined> =
@@ -29,6 +48,7 @@ function readRaw(): Record<string, string | undefined> {
   return {
     EXPO_PUBLIC_SUPABASE_URL: e.EXPO_PUBLIC_SUPABASE_URL,
     EXPO_PUBLIC_SUPABASE_ANON_KEY: e.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+    EXPO_PUBLIC_LLM_MODE: e.EXPO_PUBLIC_LLM_MODE,
     EXPO_PUBLIC_USE_VERTEX: e.EXPO_PUBLIC_USE_VERTEX,
     GOOGLE_CLOUD_PROJECT: e.GOOGLE_CLOUD_PROJECT,
     GOOGLE_CLOUD_LOCATION: e.GOOGLE_CLOUD_LOCATION,

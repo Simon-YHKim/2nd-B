@@ -83,14 +83,14 @@ results.push(
     const sql = read("db/migrations/0005_revenue_events.sql");
     const ok =
       sql.includes("month_bucket") &&
-      sql.includes("GENERATED ALWAYS AS") &&
+      sql.includes("set_revenue_month_bucket") &&
       sql.includes("is_related_party") &&
       sql.includes("customer_relation_type");
     return {
       id: "C4",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "revenue_events has month_bucket (generated) + is_related_party + customer_relation_type"
+        ? "revenue_events has month_bucket (trigger-populated) + is_related_party + customer_relation_type"
         : "revenue_events missing required columns",
     };
   }),

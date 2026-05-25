@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { View, StyleSheet, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
+import { router } from "expo-router";
 
 import { Screen } from "@/components/ui/Screen";
 import { Text } from "@/components/ui/Text";
@@ -9,27 +10,39 @@ import { Input } from "@/components/ui/Input";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { JudgeBadge } from "@/components/auth/JudgeBadge";
 import { spacing } from "@/lib/theme/tokens";
-import { ageInYears } from "@/lib/supabase/auth";
+import { ageInYears, signUpWithEmail, AgeGateError } from "@/lib/supabase/auth";
 import { isJudgeEmail } from "@/lib/judge/domains";
 
 export default function SignUp() {
-  const { t } = useTranslation("auth");
+  const { t, i18n } = useTranslation("auth");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const judge = useMemo(() => isJudgeEmail(email), [email]);
   const canSubmit = useMemo(() => {
-    return email.includes("@") && password.length >= 8 && ageInYears(birthDate) >= 18;
-  }, [email, password, birthDate]);
+    return email.includes("@") && password.length >= 8 && ageInYears(birthDate) >= 18 && !submitting;
+  }, [email, password, birthDate, submitting]);
 
-  function handleSubmit(): void {
-    if (ageInYears(birthDate) < 18) {
-      Alert.alert(t("errors.ageGate"));
-      return;
+  async function handleSubmit(): Promise<void> {
+    setSubmitting(true);
+    try {
+      const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+      const result = await signUpWithEmail({
+        email: email.trim(),
+        password,
+        birthDate,
+        locale,
+      });
+      if (result.judgeMode) Alert.alert(t("judge.welcome"));
+      router.replace("/journal");
+    } catch (e) {
+      if (e instanceof AgeGateError) Alert.alert(t("errors.ageGate"));
+      else Alert.alert("Sign-up failed", (e as Error).message);
+    } finally {
+      setSubmitting(false);
     }
-    // Server signUp lives in src/lib/supabase/auth.ts. Wired in Sprint 1.
-    Alert.alert("Sprint 1", "Server sign-up wired in Sprint 1.");
   }
 
   return (
@@ -54,6 +67,7 @@ export default function SignUp() {
           label={t("signUp.submit")}
           variant="primary"
           disabled={!canSubmit}
+          loading={submitting}
           onPress={handleSubmit}
         />
       </View>

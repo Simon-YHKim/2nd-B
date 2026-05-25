@@ -47,6 +47,31 @@ function getClient(): { client: GoogleGenAI; vertex: boolean } {
   return { client: cachedClient, vertex: cachedClientVertex };
 }
 
+// Mock responses keyed by purpose + locale. Used when LLM_MODE=mock so the
+// UI can be exercised end-to-end without a Gemini API key. Safety classifier
+// still runs (C9 invariant) and audit log still records the call (C3).
+const MOCK_RESPONSES: Record<
+  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat",
+  Record<"en" | "ko", string>
+> = {
+  journal_reflect: {
+    en: "[MOCK] What feeling came up most strongly in that moment? Try naming it in a single word.",
+    ko: "[MOCK] 그 순간 가장 또렷이 떠오른 감정이 무엇이었나요? 한 단어로 이름 붙여볼까요?",
+  },
+  audit_qa: {
+    en: "[MOCK] Looking back, who did you lean on most during that period — and what did they offer you?",
+    ko: "[MOCK] 그 시기를 돌아보면, 가장 의지했던 사람은 누구였고, 그 사람은 당신에게 무엇을 주었나요?",
+  },
+  knowledge_lookup: {
+    en: "[MOCK] Curator stub — psychology references will appear here once a Gemini key is configured.",
+    ko: "[MOCK] 큐레이터 임시 응답 — Gemini 키 연결 후 검증된 자료가 표시됩니다.",
+  },
+  persona_chat: {
+    en: "[MOCK] I'm noticing a pattern across your recent entries. Tell me more about how you decided.",
+    ko: "[MOCK] 최근 기록에서 반복되는 흐름이 보여요. 그 결정을 어떻게 내렸는지 더 들려주세요.",
+  },
+};
+
 function routeCrisis(result: SafetyResult, locale: "en" | "ko"): GeminiResult<string> {
   const h = result.crisisRouting;
   const number = h?.number ?? HOTLINES.GLOBAL_988.number;
@@ -75,9 +100,34 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     return routeCrisis(inputSafety, input.locale) as unknown as GeminiResult<T>;
   }
 
-  // C2: client constructed with Vertex when configured.
-  const { client, vertex } = getClient();
+  const env = getEnv();
   const model = MODELS[input.model ?? "flash"];
+
+  // Mock mode: skip network. Useful for offline dev, CI, and demos without
+  // a Gemini API key. C3 audit log + C9 safety classifier still apply.
+  if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
+    const t0 = Date.now();
+    const text = MOCK_RESPONSES[input.purpose][input.locale];
+    const latencyMs = Date.now() - t0;
+    const outputSafety = classifyInput(text, input.locale);
+    const audit = {
+      promptHash: djb2(`${input.system ?? ""}${input.user}`),
+      outputHash: djb2(text),
+      modelUsed: `mock:${model}`,
+      vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
+      safetyZone: outputSafety.zone,
+      latencyMs,
+    };
+    try {
+      await insertAiAuditLog({ userId: input.userId, ...audit });
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[ai_audit_log] insert failed (mock)", e);
+    }
+    return { text: text as unknown as T, safety: outputSafety, audit };
+  }
+
+  // Live mode: C2 client constructed with Vertex when configured.
+  const { client, vertex } = getClient();
 
   const t0 = Date.now();
   const res = await client.models.generateContent({
