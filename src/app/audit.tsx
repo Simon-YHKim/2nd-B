@@ -47,6 +47,8 @@ export default function Audit() {
         body: answer.trim(),
         prompt: current.prompt[locale],
         auditPeriod: "current",
+        topic: current.prompt[locale].slice(0, 80),
+        tags: ["life_audit", current.framework],
       });
       setAnswer("");
       if (index + 1 >= questions.length) {
