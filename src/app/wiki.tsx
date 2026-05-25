@@ -272,9 +272,22 @@ export default function Wiki() {
                     {p.title}
                   </Text>
                   {p.tags.length > 0 ? (
-                    <Text variant="subtle" color="textSubtle" numberOfLines={1}>
-                      #{p.tags.join(" #")}
-                    </Text>
+                    <View style={styles.inlineTagRow}>
+                      {p.tags.map((tag) => (
+                        <Pressable
+                          key={tag}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            if (!activeTags.includes(tag)) setActiveTags([...activeTags, tag]);
+                          }}
+                          hitSlop={2}
+                        >
+                          <Text variant="subtle" color="textSubtle">
+                            #{tag}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
                   ) : null}
                   {expanded ? (
                     <View style={styles.expandedSection}>
@@ -428,6 +441,7 @@ const styles = StyleSheet.create({
   center: { paddingVertical: spacing.xl, alignItems: "center" },
   emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, alignItems: "center", gap: spacing.sm },
   emptyText: { textAlign: "center" },
+  inlineTagRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   list: { gap: spacing.sm },
   row: {
     backgroundColor: semantic.surface,
