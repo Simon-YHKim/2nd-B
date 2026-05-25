@@ -17,6 +17,7 @@ import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { detectClipperKind } from "@/lib/wiki/clipper-kind";
+import { buildSourcePayload } from "@/lib/wiki/ingest-helpers";
 import type { SourceKind } from "@/lib/wiki/types";
 
 const KIND_LABEL: Record<SourceKind, { en: string; ko: string }> = {
@@ -46,6 +47,17 @@ export default function Capture() {
     if (url.trim().length === 0) return "inbox";
     return detectClipperKind(url.trim());
   }, [url]);
+
+  // Live preview of the parsed payload so the user can verify
+  // title/slug/tags before submitting.
+  const preview = useMemo(() => {
+    if (body.trim().length === 0) return null;
+    try {
+      return buildSourcePayload(body, url.trim().length > 0 ? url.trim() : null, kindOverride);
+    } catch {
+      return null;
+    }
+  }, [body, url, kindOverride]);
 
   const canSubmit = userId !== null && body.trim().length > 0 && !submitting;
 
@@ -167,6 +179,34 @@ export default function Capture() {
               </View>
             </View>
 
+            {preview ? (
+              <View style={styles.previewCard}>
+                <Text variant="caption" color="brand">
+                  {locale === "ko" ? "미리보기" : "Preview"}
+                </Text>
+                <Text variant="subtle" color="textMuted">
+                  <Text variant="subtle" color="textSubtle">
+                    {locale === "ko" ? "제목: " : "Title: "}
+                  </Text>
+                  {preview.payload.title}
+                </Text>
+                <Text variant="subtle" color="textMuted">
+                  <Text variant="subtle" color="textSubtle">
+                    {locale === "ko" ? "슬러그: " : "Slug: "}
+                  </Text>
+                  {preview.suggested_slug}
+                </Text>
+                {preview.payload.tags.length > 0 ? (
+                  <Text variant="subtle" color="textMuted">
+                    <Text variant="subtle" color="textSubtle">
+                      {locale === "ko" ? "태그: " : "Tags: "}
+                    </Text>
+                    {preview.payload.tags.join(", ")}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+
             <Button
               label={t("submit")}
               variant="primary"
@@ -209,4 +249,12 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
   },
   kindOverrideChipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
+  previewCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.brand,
+    borderLeftWidth: 3,
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+    gap: 2,
+  },
 });
