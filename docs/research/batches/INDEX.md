@@ -16,8 +16,10 @@ DOI-verified psychology framework batches curated via `docs/research/psychology-
 | `self_compassion` | [self-compassion.md](self-compassion.md) | 3 | T3 — growth |
 | `via` | [via-strengths.md](via-strengths.md) | 3 | T3 — strengths |
 | `narrative_identity` | [narrative-identity.md](narrative-identity.md) | 4 | Core — life story (direct fit for 2nd-Brain) |
+| `assessment_a/b/c_*` | [assessment-landscape.md](assessment-landscape.md) | 9 | Meta — empirical tiering of famous assessments (Big Five / HEXACO / RIASEC / Schwartz Values / HPI / 16PF / EI / Birkman / MBTI critique / Enneagram review) |
+| `interpersonal` | [interpersonal.md](interpersonal.md) | 4 | Adult relationships (Wiggins IPC, IIP-32, Gottman, Korean couples) |
 
-**Total**: 10 framework batches, 43 verified rows for `knowledge_sources`.
+**Total**: 12 framework batches, 56 verified rows for `knowledge_sources`.
 
 ## Coverage by life stage
 
@@ -42,6 +44,8 @@ DOI-verified psychology framework batches curated via `docs/research/psychology-
 - **VIA**: McGrath (2015) — 75-nation including Korea (no Korean-only DOI-registered validation found)
 - **Narrative Identity**: Park et al. (2024) — Korean TALE validation
 - **Growth Mindset**: [NO VERIFIED SOURCE FOUND] in this session
+- **Interpersonal / Couples**: Yoo (2022) — Korean adult marital communication & gender-role moderation
+- **Assessment Landscape**: McGrath (2015) — 75-nation VIA (includes Korea); other tools rely on global multi-cultural samples
 
 ## What is NOT in this set (future batches)
 
@@ -53,6 +57,9 @@ DOI-verified psychology framework batches curated via `docs/research/psychology-
 - **Theory of mind, executive function** (Wellman, Diamond) — child-specific
 - **Levinson's seasons** — adult development, in approved list
 - **Vaillant defenses** — adult development
+- **Schutz FIRO-B, MMPI** — additional assessments mentioned in landscape but no peer-reviewed validation rows added yet
+- **Family systems** (Bowen) — relational systems framework
+- **Bowen, Sullivan books** — interpersonal/family foundational works without single-paper DOI
 
 Each is a separate batch request via `docs/research/psychology-handoff.md`.
 

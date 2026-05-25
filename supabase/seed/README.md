@@ -27,8 +27,10 @@
 | `self-compassion.sql` | `self_compassion` | 3 |
 | `via-strengths.sql` | `via` | 3 |
 | `narrative-identity.sql` | `narrative_identity` | 4 |
+| `assessment-landscape.sql` | `assessment_a_*`, `assessment_b_*`, `assessment_c_*` (9 slugs) | 9 |
+| `interpersonal.sql` | `interpersonal` | 4 |
 
-**Total**: 43 rows across 10 framework slugs.
+**Total**: 56 rows across 12 batches / 21 framework slugs.
 
 전체 목록과 batch markdown은 `docs/research/batches/INDEX.md` 참조.
 
