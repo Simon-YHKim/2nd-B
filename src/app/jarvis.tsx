@@ -135,9 +135,19 @@ export default function Jarvis() {
         >
           {turns.length === 0 ? (
             <View style={styles.empty}>
-              <Text variant="body" color="textMuted">
+              <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
                 {t("empty")}
               </Text>
+              <View style={styles.helpCard}>
+                <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+                  {locale === "ko" ? "자비스가 잘하는 것" : "What Jarvis is good at"}
+                </Text>
+                <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
+                  {locale === "ko"
+                    ? "· 당신의 위키 페이지를 컨텍스트로 답합니다 — 답에 [[페이지 슬러그]]가 인용돼요\n· '최근 한 달 캡처에서 반복되는 패턴은?' 같은 메타 질문에 강해요\n· 일일 한도는 등급별 (무료 5 · Soma 30 · Cortex 80 · Brain 250), KST 자정 리셋"
+                    : "· Answers using your own wiki pages as context — replies cite [[page-slug]]\n· Strong on meta questions like 'what patterns recur in my captures this month?'\n· Daily limit by tier (free 5 · Soma 30 · Cortex 80 · Brain 250), resets at midnight KST"}
+                </Text>
+              </View>
             </View>
           ) : (
             turns.map((turn, i) => (
@@ -206,7 +216,15 @@ const styles = StyleSheet.create({
   headerLeft: { flex: 1 },
   meter: { alignItems: "flex-end", gap: 2 },
   scroll: { paddingVertical: spacing.md, gap: spacing.sm },
-  empty: { paddingVertical: spacing.xl, alignItems: "center" },
+  empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },
+  helpCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.sm,
+    borderLeftColor: semantic.brand,
+    borderLeftWidth: 3,
+    padding: spacing.sm,
+    alignSelf: "stretch",
+  },
   bubbleRow: { flexDirection: "row" },
   userRow: { justifyContent: "flex-end" },
   jarvisRow: { justifyContent: "flex-start" },
