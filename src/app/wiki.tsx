@@ -16,9 +16,10 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getBacklinks, listWikiPages } from "@/lib/wiki/queries";
+import { getBacklinks, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import { exportUserWiki } from "@/lib/wiki/export";
 import { readPhase1, runPhase1 } from "@/lib/wiki/phase1";
+import { computeGraphStats, type GraphStats } from "@/lib/wiki/graph-stats";
 import type { WikiPageKind, WikiPageRow } from "@/lib/wiki/types";
 
 const KIND_LABEL: Record<WikiPageKind, { en: string; ko: string }> = {
@@ -47,6 +48,8 @@ export default function Wiki() {
   const [exporting, setExporting] = useState(false);
   const [exportText, setExportText] = useState<string | null>(null);
   const [phase1RunningId, setPhase1RunningId] = useState<string | null>(null);
+  const [statsVisible, setStatsVisible] = useState(false);
+  const [stats, setStats] = useState<GraphStats | null>(null);
 
   const load = useCallback(
     async (uid: string, tagsFilter: string[]) => {
@@ -106,6 +109,25 @@ export default function Wiki() {
     setRefreshing(true);
     await load(userId, activeTags);
     setRefreshing(false);
+  }
+
+  async function handleToggleStats(): Promise<void> {
+    if (!userId) return;
+    if (statsVisible) {
+      setStatsVisible(false);
+      return;
+    }
+    try {
+      const edges = await listAllWikiLinks(userId);
+      const computed = computeGraphStats({ pages, edges });
+      setStats(computed);
+      setStatsVisible(true);
+    } catch (e) {
+      Alert.alert(
+        locale === "ko" ? "통계 로드 실패" : "Stats load failed",
+        (e as Error).message,
+      );
+    }
   }
 
   async function handleRunPhase1OnPage(page: WikiPageRow): Promise<void> {
@@ -171,10 +193,80 @@ export default function Wiki() {
             loading={exporting}
             disabled={exporting || pages.length === 0}
           />
+          <Button
+            label={statsVisible ? (locale === "ko" ? "통계 닫기" : "Hide stats") : (locale === "ko" ? "그래프 통계" : "Graph stats")}
+            variant="secondary"
+            onPress={handleToggleStats}
+            disabled={pages.length === 0}
+          />
           <Link href="/journal" asChild>
             <Button label={t("back")} variant="secondary" />
           </Link>
         </View>
+
+        {statsVisible && stats !== null ? (
+          <View style={styles.statsCard}>
+            <Text variant="caption" color="brand">
+              {locale === "ko" ? "지식 그래프 — 한눈에" : "Knowledge graph — at a glance"}
+            </Text>
+            <View style={styles.statsTopRow}>
+              <View style={styles.statsBlock}>
+                <Text variant="caption" color="textSubtle">
+                  {locale === "ko" ? "페이지" : "Pages"}
+                </Text>
+                <Text variant="heading">{stats.pageCount}</Text>
+                <Text variant="subtle" color="textSubtle">
+                  {locale === "ko"
+                    ? `소스 ${stats.countByKind.source} · 엔티티 ${stats.countByKind.entity} · 개념 ${stats.countByKind.concept}`
+                    : `${stats.countByKind.source} src · ${stats.countByKind.entity} ent · ${stats.countByKind.concept} cpt`}
+                </Text>
+              </View>
+              <View style={styles.statsBlock}>
+                <Text variant="caption" color="textSubtle">
+                  {locale === "ko" ? "연결" : "Edges"}
+                </Text>
+                <Text variant="heading">{stats.edgeCount}</Text>
+                <Text variant="subtle" color="textSubtle">
+                  {locale === "ko"
+                    ? `고립 페이지 ${stats.orphans.length}`
+                    : `${stats.orphans.length} orphan${stats.orphans.length === 1 ? "" : "s"}`}
+                </Text>
+              </View>
+            </View>
+            {stats.topHubs.length > 0 ? (
+              <View>
+                <Text variant="caption" color="textSubtle" style={styles.statsSectionHead}>
+                  {locale === "ko" ? "가장 많이 인용된 페이지" : "Most-cited pages"}
+                </Text>
+                {stats.topHubs.map((h) => (
+                  <Text key={h.id} variant="subtle" color="textMuted">
+                    [[{h.slug}]] · ← {h.inDegree}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+            {stats.topTags.length > 0 ? (
+              <View>
+                <Text variant="caption" color="textSubtle" style={styles.statsSectionHead}>
+                  {locale === "ko" ? "자주 쓰인 태그" : "Top tags"}
+                </Text>
+                <Text variant="subtle" color="textMuted">
+                  {stats.topTags.map((t) => `#${t.tag} (${t.count})`).join("  ")}
+                </Text>
+              </View>
+            ) : null}
+            {stats.orphans.length > 0 ? (
+              <View>
+                <Text variant="caption" color="textSubtle" style={styles.statsSectionHead}>
+                  {locale === "ko" ? "연결 없는 페이지" : "Orphan pages"}
+                </Text>
+                <Text variant="subtle" color="textMuted" numberOfLines={3}>
+                  {stats.orphans.slice(0, 8).map((o) => `[[${o.slug}]]`).join(", ")}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         {exportText !== null ? (
           <View style={styles.exportCard}>
@@ -488,4 +580,16 @@ const styles = StyleSheet.create({
   exportHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   exportScroll: { maxHeight: 320, backgroundColor: semantic.surfaceAlt, borderRadius: radii.sm, padding: spacing.sm },
   exportHelper: { marginTop: spacing.xs },
+  statsCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.brand,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  statsTopRow: { flexDirection: "row", gap: spacing.lg },
+  statsBlock: { flex: 1, gap: 2 },
+  statsSectionHead: { letterSpacing: 1, marginTop: spacing.xs },
 });

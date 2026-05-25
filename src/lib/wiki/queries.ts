@@ -168,6 +168,17 @@ export interface OutgoingEdge {
   to_slug: string;
 }
 
+/** All wiki_links rows for the user. Used by the graph stats view. */
+export async function listAllWikiLinks(userId: string): Promise<{ from_page: string; to_page: string }[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("wiki_links")
+    .select("from_page, to_page")
+    .eq("user_id", userId);
+  if (error) throw error;
+  return (data ?? []) as { from_page: string; to_page: string }[];
+}
+
 export async function getOutgoingLinks(userId: string, fromPageId: string): Promise<OutgoingEdge[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
