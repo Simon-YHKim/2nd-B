@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { View, StyleSheet, ScrollView, Image, Text } from "react-native";
+import { View, StyleSheet, ScrollView, Image, Text, Pressable } from "react-native";
 import { Link, Redirect } from "expo-router";
 
 import { Screen } from "@/components/ui/Screen";
@@ -65,7 +65,18 @@ export default function Landing() {
             resizeMode="contain"
             accessibilityLabel="2nd-Brain"
           />
-          <Text style={styles.eyebrow}>2nd-Brain</Text>
+          <View style={styles.eyebrowRow}>
+            <Text style={styles.eyebrow}>2nd-Brain</Text>
+            <Pressable
+              onPress={() => {
+                void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
+              }}
+              hitSlop={6}
+              style={styles.localeToggle}
+            >
+              <Text style={styles.localeToggleText}>{locale === "ko" ? "EN" : "한국어"}</Text>
+            </Pressable>
+          </View>
           <Text style={[styles.display, { fontFamily: serifDisplay }]} accessibilityRole="header">
             {t("app.name")}
           </Text>
@@ -192,6 +203,15 @@ const styles = StyleSheet.create({
   // Hero.
   hero: { gap: spacing.sm },
   logo: { width: 84, height: 84, marginBottom: spacing.xs },
+  eyebrowRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  localeToggle: { paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  localeToggleText: {
+    fontFamily: fontFamilies.sans,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeights.bold,
+    letterSpacing: 1.5,
+    color: colors.pineSoft,
+  },
   eyebrow: {
     fontFamily: fontFamilies.sans,
     fontSize: fontSize.xs,
