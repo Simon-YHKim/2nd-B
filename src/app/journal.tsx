@@ -48,6 +48,8 @@ export default function Journal() {
   const [body, setBody] = useState("");
   const [topic, setTopic] = useState("");
   const [tagsInput, setTagsInput] = useState("");
+  const [conclusion, setConclusion] = useState("");
+  const [showExtras, setShowExtras] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [lastFollowup, setLastFollowup] = useState<StoredFollowup | null>(null);
   const [recent, setRecent] = useState<RecordRow[]>([]);
@@ -96,6 +98,7 @@ export default function Journal() {
         body: body.trim(),
         topic: topic.trim().length > 0 ? topic.trim() : undefined,
         tags: tags.length > 0 ? tags : undefined,
+        conclusion: conclusion.trim().length > 0 ? conclusion.trim() : undefined,
       });
       if (res.followup) {
         setLastFollowup(res.followup);
@@ -106,6 +109,8 @@ export default function Journal() {
       setBody("");
       setTopic("");
       setTagsInput("");
+      setConclusion("");
+      setShowExtras(false);
       await refresh(userId);
       // Capture earned XP — refresh the level bar.
       void progression.refresh();
@@ -256,6 +261,22 @@ export default function Journal() {
               placeholder={locale === "ko" ? "태그 (선택, 쉼표/# 구분) — #일기 #감정" : "Tags (optional, comma/# separated) — #journal #emotion"}
               autoCapitalize="none"
             />
+            <Pressable onPress={() => setShowExtras((v) => !v)} hitSlop={4}>
+              <Text variant="caption" color="brand">
+                {showExtras
+                  ? locale === "ko" ? "▾ 결론 칸 닫기" : "▾ Hide conclusion field"
+                  : locale === "ko" ? "▸ 결론 한 줄로 (선택)" : "▸ Add a one-line conclusion (optional)"}
+              </Text>
+            </Pressable>
+            {showExtras ? (
+              <Input
+                value={conclusion}
+                onChangeText={setConclusion}
+                placeholder={locale === "ko" ? "결론 — 오늘의 한 줄 깨달음" : "Conclusion — today's one-line takeaway"}
+                multiline
+                numberOfLines={2}
+              />
+            ) : null}
             <Button
               label={locale === "ko" ? "기록하기" : "Save"}
               variant="primary"
