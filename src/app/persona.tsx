@@ -95,14 +95,22 @@ export default function Persona() {
         <View style={styles.traitsCard}>
           {Object.entries(persona.traits).map(([k, v]) => {
             const label = TRAIT_LABELS[locale][k as keyof typeof TRAIT_LABELS["en"]] ?? k;
+            const score = Math.round(v * 100);
+            const aboveMean = v > 0.5;
             return (
               <View key={k} style={styles.traitRow}>
                 <Text variant="body" style={{ width: 160 }}>{label}</Text>
                 <View style={styles.barOuter}>
                   <View style={[styles.barInner, { width: `${v * 100}%` }]} />
+                  {/* Midline reference at 50% so users can read above/below */}
+                  <View style={styles.barMidline} />
                 </View>
-                <Text variant="subtle" color="textMuted" style={{ width: 40, textAlign: "right" }}>
-                  {Math.round(v * 100)}
+                <Text
+                  variant="subtle"
+                  color={aboveMean ? "brand" : "textMuted"}
+                  style={{ width: 40, textAlign: "right", fontVariant: ["tabular-nums"] }}
+                >
+                  {score}
                 </Text>
               </View>
             );
@@ -211,8 +219,18 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
     borderRadius: radii.sm,
     overflow: "hidden",
+    position: "relative",
   },
   barInner: { height: "100%", backgroundColor: semantic.brand },
+  barMidline: {
+    position: "absolute",
+    left: "50%",
+    top: -2,
+    bottom: -2,
+    width: 1,
+    backgroundColor: semantic.textSubtle,
+    opacity: 0.35,
+  },
   narrativeCard: {
     backgroundColor: semantic.surfaceAlt,
     borderColor: semantic.border,

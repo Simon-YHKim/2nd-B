@@ -59,26 +59,33 @@ export default function SignUp() {
           {judge ? <View style={styles.badgeWrap}><JudgeBadge /></View> : null}
         </View>
         <View style={styles.form}>
-          <Text variant="caption" color="textMuted">{t("signUp.email")}</Text>
-          <Input
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-            placeholder="you@example.com"
-          />
-          <Text variant="caption" color="textMuted">{t("signUp.password")}</Text>
-          <Input
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="new-password"
-          />
-          <Text variant="subtle" color="textSubtle" style={styles.helper}>
-            {t("signUp.passwordHelper")}
-          </Text>
-          <BirthDateField value={birthDate} onChange={setBirthDate} />
+          <View style={styles.fieldGroup}>
+            <Text variant="caption" color="textMuted">{t("signUp.email")}</Text>
+            <Input
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              placeholder="you@example.com"
+            />
+            <Text variant="caption" color="textMuted" style={styles.fieldLabelSpaced}>
+              {t("signUp.password")}
+            </Text>
+            <Input
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete="new-password"
+            />
+            <Text variant="subtle" color="textSubtle" style={styles.helper}>
+              {t("signUp.passwordHelper")}
+            </Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.fieldGroup}>
+            <BirthDateField value={birthDate} onChange={setBirthDate} />
+          </View>
           {(email.length > 0 || password.length > 0 || birthDate.length > 0) ? (
             <View style={styles.checklist}>
               <ChecklistItem ok={email.includes("@")} label={email.includes("@") ? t("signUp.checkEmail") : t("signUp.checkEmailMissing")} />
@@ -126,6 +133,14 @@ const styles = StyleSheet.create({
   title: { marginTop: spacing.xs },
   badgeWrap: { marginTop: spacing.sm },
   form: { gap: spacing.sm },
+  fieldGroup: { gap: spacing.sm },
+  fieldLabelSpaced: { marginTop: spacing.sm },
+  divider: {
+    height: 1,
+    backgroundColor: semantic.border,
+    opacity: 0.5,
+    marginVertical: spacing.md,
+  },
   helper: { marginTop: -spacing.xs },
   checklist: { gap: spacing.xs, marginTop: spacing.xs, marginBottom: spacing.xs },
   checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
