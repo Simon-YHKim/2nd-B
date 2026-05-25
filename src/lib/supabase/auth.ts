@@ -36,13 +36,31 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
   if (ageInYears(args.birthDate) < 18) throw new AgeGateError();
 
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.auth.signUp({
+  const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
     email: args.email,
     password: args.password,
   });
-  if (error) throw error;
-  const user = data.user;
-  if (!user) throw new Error("Sign-up returned no user");
+  if (signUpErr) throw signUpErr;
+
+  // The project keeps GoTrue's "confirm email" enabled, but migration 0018
+  // installs an auth.users auto-confirm trigger so the free-tier flow (no SMTP
+  // configured) is not a dead end. signUp() therefore returns no session; we
+  // sign in immediately to obtain an authenticated session BEFORE the profile
+  // INSERT, because RLS policy users_self_insert requires auth.uid() = id.
+  // If the project later disables confirmation, signUp() returns a session
+  // directly and the sign-in step is skipped.
+  let session = signUpData.session;
+  let user = signUpData.user;
+  if (!session) {
+    const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+      email: args.email,
+      password: args.password,
+    });
+    if (signInErr) throw signInErr;
+    session = signInData.session;
+    user = signInData.user;
+  }
+  if (!user || !session) throw new Error("Sign-up returned no session");
 
   const judgeMode = isJudgeEmail(args.email);
   const { error: insertErr } = await supabase.from("users").insert({
