@@ -64,6 +64,7 @@ export default function RootLayout() {
             <Stack.Screen name="big-five" />
             <Stack.Screen name="insights" />
             <Stack.Screen name="attachment" />
+            <Stack.Screen name="permissions" />
             <Stack.Screen name="+not-found" />
           </Stack>
         </AuthProvider>
