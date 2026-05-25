@@ -30,8 +30,9 @@
 | `assessment-landscape.sql` | `assessment_a_*`, `assessment_b_*`, `assessment_c_*` (9 slugs) | 9 |
 | `interpersonal.sql` | `interpersonal` | 4 |
 | `self-knowledge.sql` | `self_knowledge` | 7 |
+| `values-meaning.sql` | `values_meaning` | 5 |
 
-**Total**: 63 rows across 13 batches / 22 framework slugs.
+**Total**: 68 rows across 14 batches / 23 framework slugs.
 
 전체 목록과 batch markdown은 `docs/research/batches/INDEX.md` 참조.
 
