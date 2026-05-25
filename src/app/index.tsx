@@ -107,6 +107,9 @@ export default function Landing() {
           <Link href="/sign-in" asChild>
             <Button label={locale === "ko" ? "로그인" : "Sign in"} variant="secondary" />
           </Link>
+          <Link href="/manual" asChild>
+            <Button label={locale === "ko" ? "안내서 보기 (1분)" : "Read the manual (1 min)"} variant="secondary" />
+          </Link>
         </View>
 
         <Text style={styles.disclosure}>
