@@ -38,6 +38,10 @@ interface RecordRow {
   kind: "journal" | "note" | "audit_response";
   body: string;
   ai_followup: StoredFollowup | null;
+  topic: string | null;
+  summary: string | null;
+  conclusion: string | null;
+  tags: string[];
   created_at: string;
 }
 
@@ -356,14 +360,34 @@ function RecentEntry({
     : locale === "ko" ? "더 보기" : "Show more";
   return (
     <View style={styles.recordCard}>
-      <Text variant="subtle" color="textSubtle">
-        {formatRelative(record.created_at, locale, t)}
-      </Text>
+      <View style={styles.recordTopRow}>
+        <Text variant="subtle" color="textSubtle">
+          {formatRelative(record.created_at, locale, t)}
+        </Text>
+        {record.topic ? (
+          <Text variant="subtle" color="brand" numberOfLines={1} style={{ flex: 1, textAlign: "right" }}>
+            {record.topic}
+          </Text>
+        ) : null}
+      </View>
       <Text variant="body" style={{ marginTop: spacing.xs }}>{body}</Text>
       {isLong ? (
         <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={8} style={styles.showMoreBtn}>
           <Text variant="subtle" color="brand">{toggleLabel}</Text>
         </Pressable>
+      ) : null}
+      {record.conclusion ? (
+        <View style={styles.conclusionBlock}>
+          <Text variant="caption" color="textSubtle">
+            {locale === "ko" ? "결론" : "Conclusion"}
+          </Text>
+          <Text variant="subtle" color="textMuted">{record.conclusion}</Text>
+        </View>
+      ) : null}
+      {record.tags && record.tags.length > 0 ? (
+        <Text variant="subtle" color="textSubtle" numberOfLines={1} style={{ marginTop: spacing.xs }}>
+          #{record.tags.join(" #")}
+        </Text>
       ) : null}
       {record.ai_followup ? <FollowupCard followup={record.ai_followup} locale={locale} compact /> : null}
     </View>
@@ -529,5 +553,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.md,
+  },
+  recordTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
+  conclusionBlock: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopColor: semantic.border,
+    borderTopWidth: 1,
+    gap: 2,
   },
 });
