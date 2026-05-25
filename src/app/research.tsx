@@ -171,16 +171,16 @@ export default function Research() {
                         </View>
                       ) : null}
                     </View>
-                    <Text variant="body" style={styles.cardTitle}>
+                    <Text variant="body" style={styles.cardTitle} selectable>
                       {s.title}
                     </Text>
                     {s.authors && s.authors.length > 0 ? (
-                      <Text variant="subtle" color="textSubtle">
+                      <Text variant="subtle" color="textSubtle" selectable>
                         {s.authors.slice(0, 4).join(", ")}{s.authors.length > 4 ? " et al." : ""}
                       </Text>
                     ) : null}
                     {summary ? (
-                      <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 20 }}>
+                      <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 20 }} selectable>
                         {summary}
                       </Text>
                     ) : null}
