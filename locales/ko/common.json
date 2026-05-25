@@ -25,5 +25,10 @@
   "locale": {
     "en": "English",
     "ko": "한국어"
+  },
+  "_meta": {
+    "fontFamily": {
+      "serif": "NanumMyeongjo-Regular"
+    }
   }
 }

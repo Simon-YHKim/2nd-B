@@ -1,46 +1,33 @@
-// Okabe-Ito color-blind-safe palette + dark-mode-first semantic tokens.
-// Single source of truth for color. Components should never use literal hex.
+// Phytoncide compatibility layer. The semantic color tokens below derive from
+// the phytoncide design system (src/theme/tokens.ts), so every existing screen
+// -- all of which import `semantic` from here -- renders in the light forest
+// palette with no per-component change. `spacing`, `radii` and `typography`
+// are layout primitives and are unchanged.
+//
+// New components should import design primitives directly from "@/theme" and
+// use the NativeWind classes. This file bridges the pre-phytoncide screens
+// until they migrate to that module.
 
-export const okabeIto = {
-  black: "#000000",
-  orange: "#E69F00",
-  skyBlue: "#56B4E9",
-  bluishGreen: "#009E73",
-  yellow: "#F0E442",
-  blue: "#0072B2",
-  vermillion: "#D55E00",
-  reddishPurple: "#CC79A7",
-} as const;
-
-export const palette = {
-  bg: "#0B0E0C",
-  panel: "#11161A",
-  panel2: "#161B20",
-  line: "#222B33",
-  ink: "#E8ECEF",
-  ink2: "#A8B2BC",
-  ink3: "#6B7680",
-  brand: "#7DD3FC",
-} as const;
+import { colors } from "@/theme/tokens";
 
 export const semantic = {
-  background: palette.bg,
-  surface: palette.panel,
-  surfaceAlt: palette.panel2,
-  border: palette.line,
-  text: palette.ink,
-  textMuted: palette.ink2,
-  textSubtle: palette.ink3,
-  brand: palette.brand,
-  // Zone colors aligned with safety classifier output.
-  zoneGreen: okabeIto.bluishGreen,
-  zoneYellow: okabeIto.yellow,
-  zoneRed: okabeIto.vermillion,
-  // Info/success/warning/danger.
-  info: okabeIto.skyBlue,
-  success: okabeIto.bluishGreen,
-  warning: okabeIto.yellow,
-  danger: okabeIto.vermillion,
+  background: colors.paper, // birch -- app background
+  surface: colors.paper2, // raised cards
+  surfaceAlt: colors.mist, // tinted panels
+  border: colors.rule,
+  text: colors.ink, // earth-dark text on light
+  textMuted: colors.ink2,
+  textSubtle: colors.ink3,
+  brand: colors.pine, // pine needle
+  // Zone colors aligned with the safety classifier output.
+  zoneGreen: colors.sage,
+  zoneYellow: colors.amber,
+  zoneRed: colors.clay,
+  // Info / success / warning / danger.
+  info: colors.skyDeep,
+  success: colors.sage,
+  warning: colors.amber,
+  danger: colors.clay,
 } as const;
 
 export const spacing = {
