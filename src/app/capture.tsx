@@ -5,7 +5,7 @@
 // flow) or navigates back to the journal.
 
 import { useMemo, useState } from "react";
-import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
@@ -38,6 +38,7 @@ export default function Capture() {
   const [url, setUrl] = useState("");
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [kindOverride, setKindOverride] = useState<SourceKind | null>(null);
 
   // Live preview of the detected clipper kind so the user sees what they'll
   // get before submitting.
@@ -62,6 +63,7 @@ export default function Capture() {
         userId,
         rawMd: body,
         fallbackUrl: url.trim().length > 0 ? url.trim() : null,
+        kindOverride,
       });
       const msg =
         locale === "ko"
@@ -70,6 +72,7 @@ export default function Capture() {
       Alert.alert(msg);
       setUrl("");
       setBody("");
+      setKindOverride(null);
     } catch (e) {
       const msg =
         locale === "ko"
@@ -117,11 +120,28 @@ export default function Capture() {
                   <View style={styles.detectedDot} />
                   <Text variant="subtle" color="textMuted">
                     {locale === "ko"
-                      ? `자동 인식: ${KIND_LABEL[detected].ko}`
-                      : `Detected: ${KIND_LABEL[detected].en}`}
+                      ? `자동 인식: ${KIND_LABEL[(kindOverride ?? detected)].ko}`
+                      : `${kindOverride ? "Override" : "Detected"}: ${KIND_LABEL[(kindOverride ?? detected)].en}`}
                   </Text>
                 </View>
               ) : null}
+              <View style={styles.kindOverrideRow}>
+                {(["inbox", "article", "video", "paper", "reddit", "code", "ai_tool", "self_knowledge"] as SourceKind[]).map((k) => {
+                  const active = (kindOverride ?? detected) === k;
+                  return (
+                    <Pressable
+                      key={k}
+                      onPress={() => setKindOverride(k === detected ? null : k)}
+                      style={[styles.kindOverrideChip, active && styles.kindOverrideChipActive]}
+                      hitSlop={2}
+                    >
+                      <Text variant="caption" color={active ? "background" : "textMuted"}>
+                        {KIND_LABEL[k][locale]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
 
             <View style={styles.fieldGroup}>
@@ -179,4 +199,14 @@ const styles = StyleSheet.create({
   },
   helper: { marginTop: -spacing.xs, flex: 1 },
   helperRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
+  kindOverrideRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.xs },
+  kindOverrideChip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surfaceAlt,
+  },
+  kindOverrideChipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
 });
