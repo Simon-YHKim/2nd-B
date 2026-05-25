@@ -57,9 +57,11 @@ export default [
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },
   },
-  // Allow @google/genai ONLY inside the wrapper module.
+  // Allow @google/genai ONLY inside the wrapper module + the safety classifier
+  // (which is itself called only from the wrapper). The boundary script
+  // `scripts/check-llm-import-boundary.ts` provides the second line of defense.
   {
-    files: ["src/lib/llm/gemini.ts"],
+    files: ["src/lib/llm/gemini.ts", "src/lib/llm/safety.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -69,13 +71,15 @@ export default [
       ],
     },
   },
-  // Block direct import of audit module from outside the wrapper.
-  // Tests for the wrapper need to import it to mock; allow them explicitly.
+  // Block direct import of audit / crisis-events modules from outside the wrapper.
+  // Tests for the wrapper need to import them to mock; allow them explicitly.
   {
     files: ["**/*.{ts,tsx}"],
     ignores: [
       "src/lib/llm/gemini.ts",
+      "src/lib/llm/safety.ts",
       "src/lib/supabase/audit.ts",
+      "src/lib/supabase/crisis-events.ts",
       "src/lib/llm/__tests__/**",
     ],
     rules: {

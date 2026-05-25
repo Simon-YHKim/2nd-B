@@ -6,7 +6,27 @@ export type PromptPurpose =
   | "journal_reflect"
   | "audit_qa"
   | "knowledge_lookup"
-  | "persona_chat";
+  | "persona_chat"
+  | "advisor";
+
+export interface AdvisorInput {
+  userId: string;
+  userMessage: string;
+  locale: "en" | "ko";
+  userAgeRange?: "young_adult" | "adult" | "midlife" | "elderly";
+  conversationContext?: string;
+}
+
+export interface AdvisorResult {
+  text: string;
+  zone: "green" | "yellow" | "red";
+  triggers: string[];
+  cssrsLevel: number | null;
+  fixedTemplate: boolean;
+  matchedBatches: string[];
+  evidence: { title: string; doi: string | null; summary: string | null }[];
+  audit: AuditMeta;
+}
 
 export interface PromptInput {
   userId: string;

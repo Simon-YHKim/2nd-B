@@ -9,6 +9,7 @@ import { join, relative, sep } from "node:path";
 const ROOT = process.cwd();
 const SRC = join(ROOT, "src");
 const GEMINI_WRAPPER = ["src", "lib", "llm", "gemini.ts"].join("/");
+const SAFETY_LLM = ["src", "lib", "llm", "safety.ts"].join("/");
 const GEMINI_TESTS = [
   ["src", "lib", "llm", "__tests__", "gemini.test.ts"].join("/"),
   ["src", "lib", "llm", "__tests__", "gemini.mock.test.ts"].join("/"),
@@ -17,12 +18,19 @@ const GEMINI_TESTS = [
 const importRegexes: { name: string; pattern: RegExp; allowed: string[] }[] = [
   {
     name: "@google/genai (C1)",
+    // gemini.ts is the production entry, safety.ts is the in-wrapper classifier
+    // (called only from gemini.ts and from its tests). Both legitimately import the SDK.
     pattern: /from\s+["']@google\/genai["']/,
-    allowed: [GEMINI_WRAPPER, ...GEMINI_TESTS],
+    allowed: [GEMINI_WRAPPER, SAFETY_LLM, ...GEMINI_TESTS],
   },
   {
     name: "audit module (C3)",
     pattern: /from\s+["'](?:\.\.?\/)+supabase\/audit["']|from\s+["']@\/lib\/supabase\/audit["']/,
+    allowed: [GEMINI_WRAPPER, ...GEMINI_TESTS],
+  },
+  {
+    name: "crisis_events module (C3-adjacent)",
+    pattern: /from\s+["'](?:\.\.?\/)+supabase\/crisis-events["']|from\s+["']@\/lib\/supabase\/crisis-events["']/,
     allowed: [GEMINI_WRAPPER, ...GEMINI_TESTS],
   },
 ];

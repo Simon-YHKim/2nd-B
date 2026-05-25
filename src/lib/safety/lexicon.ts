@@ -35,19 +35,37 @@ export const CRISIS_TERMS: Record<Locale, readonly string[]> = {
     "suicidal",
     "kill myself",
     "end my life",
+    "end it all",
+    "ending it",
     "self-harm",
     "self harm",
     "cutting myself",
     "want to die",
     "i want to die",
+    "no reason to live",
   ],
   ko: [
+    // Active RED (Suicide CARE 2.0, Na et al. 2020)
     "자살",
     "죽고 싶",
     "죽고싶",
+    "살고 싶지 않",
+    "사라지고 싶",
+    "더 이상 살",
+    "끝내고 싶",
+    "끝낼 거",
+    "끝낼거",
     "자해",
     "목숨을 끊",
     "스스로 목숨",
+    "유서",
+    "마지막 인사",
+    // Latent RED (Suicide CARE 2.0 §Korean linguistic markers)
+    "짐이 되",
+    "없어지는 게 나아",
+    "사라지는 게 나",
+    "다음 생에는",
+    "영영 잠들고 싶",
   ],
 } as const;
 
@@ -71,6 +89,16 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   "locales/en/safety.json",
   "locales/ko/safety.json",
   "docs/CONSTRAINTS.md",
+  // safety.ts cites the official Korean hotline name "정신건강위기상담전화"
+  // verbatim. Same justification as the locale safety files.
+  "src/lib/llm/safety.ts",
+  // Research artifacts cite academic terms by definition — they ARE the
+  // policy reference, not user-facing copy. The user-facing copy in src/
+  // and locales/ is still scanned.
+  "docs/research/**",
+  "docs/handoff/**",
+  "supabase/seed/**",
+  "db/seed/**",
   "node_modules/**",
   ".expo/**",
   "dist/**",

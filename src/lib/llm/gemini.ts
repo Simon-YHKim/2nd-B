@@ -11,10 +11,19 @@
 import { GoogleGenAI } from "@google/genai";
 
 import { getEnv } from "../env";
+import { retrieveEvidence } from "../knowledge/retrieve";
 import { classifyInput, type SafetyResult } from "../safety/classifier";
 import { HOTLINES } from "../safety/lexicon";
 import { insertAiAuditLog } from "../supabase/audit";
-import { MODELS, type GeminiResult, type PromptInput } from "./types";
+import { insertCrisisEvent } from "../supabase/crisis-events";
+import { classifySafety, fixedCrisisResponse } from "./safety";
+import {
+  MODELS,
+  type AdvisorInput,
+  type AdvisorResult,
+  type GeminiResult,
+  type PromptInput,
+} from "./types";
 
 // Web Crypto SubtleCrypto fallback to a simple non-cryptographic hash when
 // running outside a browser/RN runtime (e.g. node tests). Audit hashes are
@@ -122,7 +131,12 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   // a Gemini API key. C3 audit log + C9 safety classifier still apply.
   if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
     const t0 = Date.now();
-    const text = MOCK_RESPONSES[input.purpose][input.locale];
+    // 'advisor' purpose flows through callAdvisor(), not callGemini(). For
+    // any unknown purpose, fall back to a generic mock reply.
+    const mockTable = MOCK_RESPONSES as Record<string, Record<"en" | "ko", string>>;
+    const text =
+      mockTable[input.purpose]?.[input.locale] ??
+      (input.locale === "ko" ? "[MOCK] 응답 준비 중이에요." : "[MOCK] Reply pending.");
     const latencyMs = Date.now() - t0;
     const outputSafety = classifyInput(text, input.locale);
     const audit = {
@@ -180,6 +194,163 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   return {
     text: text as unknown as T,
     safety: outputSafety,
+    audit,
+  };
+}
+
+// callAdvisor — Engine 4 entry. Layered safety + Path A RAG retrieval.
+//
+// Per docs/handoff/build-rag-wiki.md §6.5 "Gemini Wrapper with mandatory safety
+// pre-pass" + §7 "Prompt Assembly Template".
+//
+// Flow:
+//   1. classifySafety (LLM-Flash union lexicon) — strong, semantic + literal.
+//   2. RED → fixedCrisisResponse + audit log + crisis_events. Never invoke Advisor LLM.
+//   3. YELLOW → retrieveEvidence with listening-mode addendum, then Advisor LLM call.
+//   4. GREEN → retrieveEvidence with full Advisor prompt, then Advisor LLM call.
+//
+// Mock mode: GREEN/YELLOW returns a templated [MOCK] string but still routes through
+// retrieveEvidence so the system prompt assembly is exercised. RED still uses
+// fixedCrisisResponse and still inserts crisis_events.
+export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
+  const env = getEnv();
+  const promptHash = djb2(input.userMessage);
+
+  // Layer 1+2 safety: lexicon backstop + Gemini Flash classifier (semantic).
+  const safety = await classifySafety(input.userMessage, input.locale);
+
+  if (safety.zone === "red") {
+    const fixed = fixedCrisisResponse(input.locale);
+    const audit = {
+      promptHash,
+      outputHash: djb2(fixed.text),
+      modelUsed: `none-crisis-routed:${fixed.version}`,
+      vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
+      safetyZone: "red" as const,
+      latencyMs: 0,
+    };
+    // C3: audit log.
+    try {
+      await insertAiAuditLog({ userId: input.userId, ...audit });
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[advisor] audit insert failed", e);
+    }
+    // Separate restricted log (crisis_events). Categorical only.
+    try {
+      await insertCrisisEvent({
+        userIdHash: djb2(input.userId),
+        zone: "red",
+        classifierConfidence: safety.confidence,
+        triggerCategories: safety.triggers,
+        cssrsLevel: safety.cssrsLevel,
+        routingTemplateVersion: fixed.version,
+        locale: input.locale,
+      });
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[advisor] crisis_events insert failed", e);
+    }
+    return {
+      text: fixed.text,
+      zone: "red",
+      triggers: safety.triggers,
+      cssrsLevel: safety.cssrsLevel,
+      fixedTemplate: true,
+      matchedBatches: ["crisis-detection"],
+      evidence: [],
+      audit,
+    };
+  }
+
+  // YELLOW/GREEN: retrieve grounding evidence.
+  const evidence = await retrieveEvidence({
+    userMessage: input.userMessage,
+    userLocale: input.locale,
+    userAgeRange: input.userAgeRange,
+    conversationContext: input.conversationContext,
+  });
+
+  let systemPrompt = evidence.assembledPrompt;
+  if (safety.zone === "yellow") {
+    systemPrompt +=
+      `\n\n=== YELLOW-ZONE ADDENDUM ===\nThe user is in YELLOW (distress without crisis). ` +
+      `Skip the pattern-citation sentence. Mirror + reflective question only. ` +
+      `Maximum 3 sentences. Never use "should" or "have you tried". ` +
+      `If a recurring pattern across entries, gently mention a professional resource at the very end.`;
+  }
+
+  const model = MODELS.pro; // Advisor uses Pro for nuance; Flash was the classifier.
+
+  // Mock mode short-circuit (still ran safety + retrieval).
+  if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
+    const text =
+      input.locale === "ko"
+        ? `[MOCK 어드바이저] 당신이 말한 것을 들었어요. 오늘 이 감정에 이름을 붙인다면 어떤 단어가 떠오르나요?`
+        : `[MOCK Advisor] I heard what you wrote. If you named the feeling under it today, what word comes up?`;
+    const audit = {
+      promptHash: djb2(systemPrompt + input.userMessage),
+      outputHash: djb2(text),
+      modelUsed: `mock:${model}`,
+      vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
+      safetyZone: safety.zone,
+      latencyMs: 0,
+    };
+    try {
+      await insertAiAuditLog({ userId: input.userId, ...audit });
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[advisor] mock audit failed", e);
+    }
+    return {
+      text,
+      zone: safety.zone,
+      triggers: safety.triggers,
+      cssrsLevel: safety.cssrsLevel,
+      fixedTemplate: false,
+      matchedBatches: evidence.matchedBatches,
+      evidence: evidence.rows.map((r) => ({
+        title: r.title,
+        doi: r.doi,
+        summary: input.locale === "ko" ? r.summary_ko : r.summary_en,
+      })),
+      audit,
+    };
+  }
+
+  // Live mode: real Gemini Pro call.
+  const { client, vertex } = getClient();
+  const t0 = Date.now();
+  const res = await client.models.generateContent({
+    model,
+    contents: [
+      { role: "user", parts: [{ text: systemPrompt }] },
+    ],
+  });
+  const latencyMs = Date.now() - t0;
+  const text = res.text ?? "";
+  const audit = {
+    promptHash: djb2(systemPrompt + input.userMessage),
+    outputHash: djb2(text),
+    modelUsed: model,
+    vertexBackend: vertex,
+    safetyZone: safety.zone,
+    latencyMs,
+  };
+  try {
+    await insertAiAuditLog({ userId: input.userId, ...audit });
+  } catch (e) {
+    if (typeof console !== "undefined") console.warn("[advisor] audit failed", e);
+  }
+  return {
+    text,
+    zone: safety.zone,
+    triggers: safety.triggers,
+    cssrsLevel: safety.cssrsLevel,
+    fixedTemplate: false,
+    matchedBatches: evidence.matchedBatches,
+    evidence: evidence.rows.map((r) => ({
+      title: r.title,
+      doi: r.doi,
+      summary: input.locale === "ko" ? r.summary_ko : r.summary_en,
+    })),
     audit,
   };
 }

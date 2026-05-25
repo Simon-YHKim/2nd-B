@@ -2,7 +2,12 @@
   "expo": {
     "name": "2nd-Brain",
     "slug": "2nd-brain",
+    "owner": "simon_k",
     "version": "0.0.1",
+    "runtimeVersion": { "policy": "appVersion" },
+    "updates": {
+      "url": "https://u.expo.dev/2nd-brain"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "secondbrain",
