@@ -223,6 +223,11 @@ export default function Inbox() {
             <Text variant="body" color="textMuted" style={styles.emptyText}>
               {t("empty")}
             </Text>
+            <Text variant="subtle" color="textSubtle" style={{ textAlign: "center", lineHeight: 18 }}>
+              {locale === "ko"
+                ? "받은편지함은 캡처한 자료가 모이는 곳. 여기서 Phase 1(요약 + 4질문)을 돌리거나 위키 페이지로 발전시킬 수 있어요."
+                : "Your inbox holds captured sources. Run Phase 1 (summary + 4 questions) here, or promote a row to a wiki page."}
+            </Text>
             <Link href="/capture" asChild>
               <Pressable hitSlop={6}>
                 <Text variant="caption" color="brand">
