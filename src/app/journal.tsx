@@ -8,13 +8,18 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import { XpBar } from "@/components/progression/XpBar";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import {
   createRecord,
   listRecentRecords,
+  countRecordsByKind,
   type RecordedEvidence,
 } from "@/lib/records/create";
+import { useProgression } from "@/lib/progression/useProgression";
+import { checkGate } from "@/lib/progression/gates";
+import { checkUsage } from "@/lib/progression/entitlements";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import type { HotlineId } from "@/lib/safety/lexicon";
 
@@ -39,15 +44,21 @@ interface RecordRow {
 export default function Journal() {
   const { t, i18n } = useTranslation();
   const { userId, loading } = useAuth();
+  const progression = useProgression();
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [lastFollowup, setLastFollowup] = useState<StoredFollowup | null>(null);
   const [recent, setRecent] = useState<RecordRow[]>([]);
+  const [journalCount, setJournalCount] = useState(0);
   const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
     visible: false,
     hotline: "GLOBAL_988",
   });
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+
+  // Progression gates: journal unlocks at Lv3, then free tier allows 2 entries.
+  const gate = checkGate("journal", progression.totalXp);
+  const usage = checkUsage("journal", progression.tier, journalCount);
 
   useEffect(() => {
     if (!userId) return;
@@ -56,8 +67,12 @@ export default function Journal() {
 
   async function refresh(uid: string): Promise<void> {
     try {
-      const rows = await listRecentRecords(uid);
+      const [rows, jc] = await Promise.all([
+        listRecentRecords(uid),
+        countRecordsByKind(uid, "journal"),
+      ]);
       setRecent(rows as RecordRow[]);
+      setJournalCount(jc);
     } catch (e) {
       console.warn("Failed to load records", e);
     }
@@ -82,6 +97,8 @@ export default function Journal() {
       }
       setBody("");
       await refresh(userId);
+      // Capture earned XP — refresh the level bar.
+      void progression.refresh();
     } catch (e) {
       Alert.alert("Save failed", (e as Error).message);
     } finally {
@@ -121,6 +138,9 @@ export default function Journal() {
           <Button label={t("actions.signOut")} variant="secondary" onPress={handleSignOut} />
         </View>
 
+        {/* Quest progression — level + XP toward the next unlock. */}
+        {progression.loading ? null : <XpBar progress={progression.progress} locale={locale} />}
+
         <View style={styles.navRow}>
           <Link href="/audit" asChild>
             <Button label={locale === "ko" ? "라이프 오딧" : "Life audit"} variant="secondary" />
@@ -130,34 +150,88 @@ export default function Journal() {
           </Link>
         </View>
 
-        <View style={styles.composer}>
-          <Text variant="caption" color="textMuted">
-            {locale === "ko" ? "오늘의 기록" : "Today's entry"}
-          </Text>
-          <Input
-            value={body}
-            onChangeText={setBody}
-            placeholder={
-              locale === "ko"
-                ? "오늘 떠오른 생각이나 느낌을 적어주세요."
-                : "What's on your mind today?"
-            }
-            multiline
-            numberOfLines={6}
-            style={styles.textarea}
-          />
-          <Button
-            label={locale === "ko" ? "기록하기" : "Save"}
-            variant="primary"
-            onPress={handleSubmit}
-            disabled={!body.trim() || submitting}
-            loading={submitting}
-          />
-          <Text variant="subtle" color="textSubtle" style={styles.privacyFootnote}>
-            {t("journal.privacyFootnote")}
-          </Text>
-          {lastFollowup ? <FollowupCard followup={lastFollowup} locale={locale} /> : null}
-        </View>
+        {/* Composer — gated by level (Lv3) then by the free-tier 2-use limit. */}
+        {progression.loading ? (
+          <View style={styles.gateCard}>
+            <ActivityIndicator color={semantic.brand} />
+          </View>
+        ) : !gate.unlocked ? (
+          <View style={styles.gateCard}>
+            <Text variant="subtle" color="brand" style={styles.gateEyebrow}>
+              {locale === "ko" ? "일기 잠김" : "Journal locked"}
+            </Text>
+            <Text variant="body" style={{ marginTop: spacing.xs }}>
+              {locale === "ko"
+                ? `입문 퀘스트(라이프 오딧)를 완료하면 Lv${gate.requiredLevel}에 도달하고 일기가 열려요.`
+                : `Finish the onboarding quest (life audit) to reach Lv${gate.requiredLevel} and unlock the journal.`}
+            </Text>
+            <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
+              {locale === "ko"
+                ? `현재 Lv${gate.currentLevel} → Lv${gate.requiredLevel} 필요`
+                : `Currently Lv${gate.currentLevel} → Lv${gate.requiredLevel} required`}
+            </Text>
+            <View style={{ marginTop: spacing.md }}>
+              <Link href="/audit" asChild>
+                <Button
+                  label={locale === "ko" ? "라이프 오딧 시작하기" : "Start the life audit"}
+                  variant="primary"
+                />
+              </Link>
+            </View>
+          </View>
+        ) : !usage.allowed ? (
+          <View style={styles.limitCard}>
+            <Text variant="subtle" color="warning" style={styles.gateEyebrow}>
+              {locale === "ko" ? "무료 한도 도달" : "Free limit reached"}
+            </Text>
+            <Text variant="body" style={{ marginTop: spacing.xs }}>
+              {locale === "ko"
+                ? `무료 일기 ${usage.limit}회를 모두 사용했어요. Soma 구독부터 일기를 무제한으로 쓸 수 있어요.`
+                : `You have used all ${usage.limit} free journal entries. The Soma plan and up unlock unlimited journaling.`}
+            </Text>
+            <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
+              {locale === "ko" ? "구독 화면은 곧 추가됩니다." : "The subscription screen is coming soon."}
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.composer}>
+            <View style={styles.composerHeadRow}>
+              <Text variant="caption" color="textMuted">
+                {locale === "ko" ? "오늘의 기록" : "Today's entry"}
+              </Text>
+              {!usage.unlimited && usage.remaining !== null ? (
+                <Text variant="subtle" color="textSubtle">
+                  {locale === "ko"
+                    ? `무료 ${usage.remaining}회 남음`
+                    : `${usage.remaining} free left`}
+                </Text>
+              ) : null}
+            </View>
+            <Input
+              value={body}
+              onChangeText={setBody}
+              placeholder={
+                locale === "ko"
+                  ? "오늘 떠오른 생각이나 느낌을 적어주세요."
+                  : "What's on your mind today?"
+              }
+              multiline
+              numberOfLines={6}
+              style={styles.textarea}
+            />
+            <Button
+              label={locale === "ko" ? "기록하기" : "Save"}
+              variant="primary"
+              onPress={handleSubmit}
+              disabled={!body.trim() || submitting}
+              loading={submitting}
+            />
+            <Text variant="subtle" color="textSubtle" style={styles.privacyFootnote}>
+              {t("journal.privacyFootnote")}
+            </Text>
+            {lastFollowup ? <FollowupCard followup={lastFollowup} locale={locale} /> : null}
+          </View>
+        )}
 
         <View style={styles.recentList}>
           <Text variant="caption" color="textMuted">
@@ -311,7 +385,31 @@ const styles = StyleSheet.create({
   },
   navRow: { flexDirection: "row", gap: spacing.sm },
   composer: { gap: spacing.sm },
+  composerHeadRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   textarea: { minHeight: 120, textAlignVertical: "top", paddingTop: spacing.md },
+  gateEyebrow: { fontWeight: "700", letterSpacing: 1 },
+  gateCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderLeftColor: semantic.brand,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+  },
+  limitCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.warning,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderLeftColor: semantic.warning,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+  },
   followupCard: {
     backgroundColor: semantic.surfaceAlt,
     borderRadius: radii.md,
