@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { JudgeBadge } from "@/components/auth/JudgeBadge";
-import { spacing } from "@/lib/theme/tokens";
+import { semantic, spacing } from "@/lib/theme/tokens";
 import { ageInYears, signUpWithEmail, AgeGateError } from "@/lib/supabase/auth";
 import { isJudgeEmail } from "@/lib/judge/domains";
 
@@ -75,7 +75,17 @@ export default function SignUp() {
             secureTextEntry
             autoComplete="new-password"
           />
+          <Text variant="subtle" color="textSubtle" style={styles.helper}>
+            {t("signUp.passwordHelper")}
+          </Text>
           <BirthDateField value={birthDate} onChange={setBirthDate} />
+          {(email.length > 0 || password.length > 0 || birthDate.length > 0) ? (
+            <View style={styles.checklist}>
+              <ChecklistItem ok={email.includes("@")} label={email.includes("@") ? t("signUp.checkEmail") : t("signUp.checkEmailMissing")} />
+              <ChecklistItem ok={password.length >= 8} label={password.length >= 8 ? t("signUp.checkPassword") : t("signUp.checkPasswordShort")} />
+              <ChecklistItem ok={ageInYears(birthDate) >= 18} label={ageInYears(birthDate) >= 18 ? t("signUp.checkAge") : t("signUp.checkAgeBlocked")} />
+            </View>
+          ) : null}
           <Button
             label={t("signUp.submit")}
             variant="primary"
@@ -99,12 +109,27 @@ export default function SignUp() {
   );
 }
 
+function ChecklistItem({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <View style={styles.checkRow}>
+      <View style={[styles.checkDot, { backgroundColor: ok ? semantic.success : semantic.textSubtle }]} />
+      <Text variant="subtle" color={ok ? "success" : "textMuted"}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl },
   header: { gap: spacing.xs, marginBottom: spacing.xl },
   title: { marginTop: spacing.xs },
   badgeWrap: { marginTop: spacing.sm },
   form: { gap: spacing.sm },
+  helper: { marginTop: -spacing.xs },
+  checklist: { gap: spacing.xs, marginTop: spacing.xs, marginBottom: spacing.xs },
+  checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  checkDot: { width: 8, height: 8, borderRadius: 4 },
   footer: { marginTop: spacing.xl, alignItems: "center" },
   link: { textDecorationLine: "underline" },
 });

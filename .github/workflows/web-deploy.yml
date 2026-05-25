@@ -24,6 +24,9 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  # administration:write needed for configure-pages enablement:true AND for
+  # mutating the github-pages environment's deployment_branch_policy.
+  administration: write
 
 env:
   # Opt-in to Node 24 for v4 actions per GitHub's 2026-09 deprecation.
@@ -49,31 +52,32 @@ jobs:
           enablement: true
       # Some accounts default the github-pages env to a single-branch policy
       # (usually `main`). For a preview branch we either need to allow this
-      # branch or remove the policy entirely. Idempotent: succeeds whether
-      # the env exists or not, whether a policy is set or not.
-      - name: Allow this branch to deploy to github-pages
+      # branch or remove the policy entirely. Best-effort: never fail the
+      # build on env-mutation errors — deploy-pages will report the real
+      # issue with a useful message and we don't want to mask its output.
+      - name: Allow this branch to deploy to github-pages (best-effort)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           BRANCH: ${{ github.ref_name }}
         run: |
-          set -e
-          # Ensure the env exists (deploy-pages would create it but we want
-          # to set policies first).
-          curl -sS -X PUT \
+          set +e
+          ENV_STATUS=$(curl -sS -o /tmp/env.json -w "%{http_code}" -X PUT \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/$REPO/environments/github-pages" \
-            -d '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}' \
-            -o /tmp/env.json -w "PUT env → %{http_code}\n"
-          # Add a custom branch policy for this branch. 422 if already exists.
-          STATUS=$(curl -sS -o /tmp/pol.json -w "%{http_code}" -X POST \
+            -d '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}')
+          echo "PUT environments/github-pages → $ENV_STATUS"
+          [ "$ENV_STATUS" -ge 400 ] && cat /tmp/env.json || true
+          POL_STATUS=$(curl -sS -o /tmp/pol.json -w "%{http_code}" -X POST \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/$REPO/environments/github-pages/deployment-branch-policies" \
             -d "{\"name\":\"$BRANCH\",\"type\":\"branch\"}")
-          echo "POST policy ($BRANCH) → $STATUS"
-          [ "$STATUS" = "200" ] || [ "$STATUS" = "201" ] || [ "$STATUS" = "422" ]
+          echo "POST deployment-branch-policies ($BRANCH) → $POL_STATUS"
+          [ "$POL_STATUS" -ge 400 ] && [ "$POL_STATUS" -ne 422 ] && cat /tmp/pol.json || true
+          # Never fail this step. deploy-pages will print the actionable error.
+          exit 0
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
