@@ -5,7 +5,7 @@
 //   - any value is not a string (nested objects allowed; we flatten)
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, basename } from "node:path";
 
 const ROOT = process.cwd();
 const LOCALES = join(ROOT, "locales");
@@ -34,7 +34,8 @@ function listJsonFiles(dir: string): string[] {
 
 function load(dir: string): { ns: string; flat: FlatMap }[] {
   return listJsonFiles(dir).map((f) => {
-    const ns = f.split("/").pop()!.replace(".json", "");
+    // basename() handles both POSIX "/" and Windows "\" path separators.
+    const ns = basename(f, ".json");
     const flat = flatten(JSON.parse(readFileSync(f, "utf8")));
     return { ns, flat };
   });
