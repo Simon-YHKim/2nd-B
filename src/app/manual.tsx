@@ -208,6 +208,12 @@ export default function Manual() {
           </Link>
           <Button label={locale === "ko" ? "뒤로" : "Back"} variant="secondary" onPress={() => router.back()} />
         </View>
+
+        <Text variant="subtle" color="textSubtle" style={styles.versionFootnote}>
+          {locale === "ko"
+            ? "두번째 뇌 · XPRIZE Build with Gemini · Education & Human Potential"
+            : "2nd-Brain · XPRIZE Build with Gemini · Education & Human Potential"}
+        </Text>
       </ScrollView>
     </Screen>
   );
@@ -238,4 +244,5 @@ const styles = StyleSheet.create({
   glossaryTerm: { width: 140 },
   glossaryDef: { flex: 1, lineHeight: 18 },
   actions: { gap: spacing.sm },
+  versionFootnote: { textAlign: "center", marginTop: spacing.lg, letterSpacing: 0.5 },
 });
