@@ -1,0 +1,21 @@
+{
+  "app": {
+    "name": "2nd-Brain",
+    "tagline": "An AI that learns you."
+  },
+  "actions": {
+    "continue": "Continue",
+    "back": "Back",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete"
+  },
+  "errors": {
+    "unknown": "Something went wrong. Please try again.",
+    "network": "We couldn't reach the server. Check your connection."
+  },
+  "locale": {
+    "en": "English",
+    "ko": "한국어"
+  }
+}

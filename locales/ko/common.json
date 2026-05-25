@@ -1,0 +1,21 @@
+{
+  "app": {
+    "name": "두번째 뇌",
+    "tagline": "너를 배우는 AI."
+  },
+  "actions": {
+    "continue": "계속",
+    "back": "뒤로",
+    "cancel": "취소",
+    "save": "저장",
+    "delete": "삭제"
+  },
+  "errors": {
+    "unknown": "문제가 발생했어요. 잠시 후 다시 시도해 주세요.",
+    "network": "서버에 연결할 수 없어요. 인터넷 상태를 확인해 주세요."
+  },
+  "locale": {
+    "en": "English",
+    "ko": "한국어"
+  }
+}

@@ -1,0 +1,41 @@
+name: Supabase migrations dry-run
+
+on:
+  pull_request:
+    paths:
+      - "db/migrations/**"
+      - ".github/workflows/supabase-dry-run.yml"
+
+jobs:
+  sql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply migrations in order
+        env:
+          PGPASSWORD: postgres
+        run: |
+          for f in db/migrations/*.sql; do
+            echo "Applying $f"
+            psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Confirm key constraints
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -c "\d+ users" | grep users_birth_date_min_age
+          psql -h localhost -U postgres -c "\d+ ai_audit_log" | grep vertex_backend
+          psql -h localhost -U postgres -c "\d+ revenue_events" | grep month_bucket
+          psql -h localhost -U postgres -c "\d+ testimonials" | grep consent_given_at
+          psql -h localhost -U postgres -c "\d+ knowledge_sources" | grep ks_must_have
