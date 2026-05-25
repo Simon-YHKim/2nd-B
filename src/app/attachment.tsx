@@ -180,8 +180,8 @@ export default function Attachment() {
 
           <Text variant="subtle" color="textSubtle" style={styles.footnote}>
             {locale === "ko"
-              ? "ECR-S는 자기 이해용 스크리닝 도구입니다. 진단이나 치료 권고가 아니에요."
-              : "ECR-S is a self-understanding screener. Not a diagnosis or treatment recommendation."}
+              ? "ECR-S는 자기 이해용 스크리닝 도구입니다. 패턴 관찰일 뿐, 단정이나 권고가 아니에요."
+              : "ECR-S is a self-understanding screener. Observed patterns only — not verdicts or advice."}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
