@@ -6,6 +6,7 @@
 // (framework, locale, age_range). The Advisor system prompt is assembled
 // per the §7 template.
 
+import { distillContext, fuseFrameworks } from "./engines";
 import { loadBatch, loadSchema, queryRows } from "./loader";
 import type { AgeRange, KnowledgeRow, Locale } from "./types";
 
@@ -188,7 +189,16 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrieveRe
     limit: 16,
   });
 
-  const rows = rankRows(candidateRows, input.userMessage, input.userLocale).slice(0, 8);
+  // Pipeline: rank by relevance, then fuse across frameworks so the top-N
+  // is balanced rather than dominated by a single framework's rows.
+  const ranked = rankRows(candidateRows, input.userMessage, input.userLocale);
+  const rows = fuseFrameworks(ranked, 8);
+
+  // Conversation context gets distilled to keep the prompt tight (Pro tokens
+  // are not cheap, and the LLM degrades with crufty inputs).
+  const distilledContext = input.conversationContext
+    ? distillContext(input.conversationContext, 600)
+    : undefined;
 
   const assembledPrompt = assembleAdvisorPrompt({
     schemaContext,
@@ -198,7 +208,7 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrieveRe
     userMessage: input.userMessage,
     userLocale: input.userLocale,
     userAgeRange: input.userAgeRange,
-    conversationContext: input.conversationContext,
+    conversationContext: distilledContext,
   });
 
   return { matchedBatches, rows, schemaContext, assembledPrompt };
