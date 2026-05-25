@@ -1,0 +1,15 @@
+{
+  "title": "Capture",
+  "subtitle": "Drop a link, paste a clipped article, or jot a self-note. We'll route it.",
+  "url": {
+    "label": "Source URL (optional)",
+    "placeholder": "https://example.com/article"
+  },
+  "body": {
+    "label": "Body or pasted markdown",
+    "placeholder": "Paste a clipped article (with frontmatter), or write a note...",
+    "helper": "We accept Obsidian-style frontmatter or plain markdown. The first H1 becomes the title."
+  },
+  "submit": "Capture",
+  "cancel": "Cancel"
+}

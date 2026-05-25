@@ -1,0 +1,15 @@
+{
+  "title": "캡처",
+  "subtitle": "링크를 붙이거나, 클리핑한 아티클을 붙여 넣거나, 자기 노트를 적어 보세요. 자동으로 분류돼요.",
+  "url": {
+    "label": "출처 URL (선택)",
+    "placeholder": "https://example.com/article"
+  },
+  "body": {
+    "label": "본문 또는 붙여넣은 마크다운",
+    "placeholder": "클리퍼가 만든 마크다운(프런트매터 포함)을 붙여 넣거나, 자유롭게 쓰세요…",
+    "helper": "Obsidian 스타일 프런트매터나 일반 마크다운 모두 받아요. 첫 H1이 제목이 됩니다."
+  },
+  "submit": "저장",
+  "cancel": "취소"
+}

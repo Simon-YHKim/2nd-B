@@ -52,6 +52,7 @@ export default function RootLayout() {
             <Stack.Screen name="journal" />
             <Stack.Screen name="audit" />
             <Stack.Screen name="persona" />
+            <Stack.Screen name="capture" />
             <Stack.Screen name="+not-found" />
           </Stack>
         </AuthProvider>
