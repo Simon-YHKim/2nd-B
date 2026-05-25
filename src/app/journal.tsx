@@ -287,7 +287,7 @@ export default function Journal() {
                   </Text>
                 </Pressable>
               </View>
-              <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }}>
+              <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }} selectable>
                 {dailyPrompt(locale)}
               </Text>
               {topic.length === 0 ? (
