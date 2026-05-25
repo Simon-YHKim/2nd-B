@@ -1,5 +1,20 @@
 import { z } from "zod";
 
+// Public demo placeholders. When the deployed web build has no Supabase
+// repo Variables set (e.g. first-deploy of a public preview), zod would
+// fail the .url()/.min(20) checks and the entire app would crash on
+// import — producing the dreaded blank white screen.
+//
+// We accept these placeholders at module load so the UI renders. Any
+// actual auth/data call against this stub will fail with a clear
+// network error rather than a silent SPA crash. Production builds with
+// real Supabase credentials in env vars are unaffected.
+const DEMO_SUPABASE_URL = "https://demo.invalid.supabase.co";
+const DEMO_SUPABASE_ANON_KEY = "demo-key-placeholder-20-chars-min";
+
+export const IS_DEMO_BUILD = (raw: string | undefined): boolean =>
+  !raw || raw === "" || raw === DEMO_SUPABASE_URL;
+
 // Runtime-validated env. Read once at module import; failures throw early
 // so misconfiguration surfaces before any LLM/auth call.
 const schema = z.object({
@@ -45,9 +60,14 @@ const refined = schema
 function readRaw(): Record<string, string | undefined> {
   const e: Record<string, string | undefined> =
     typeof process !== "undefined" && process.env ? process.env : {};
+  // Empty-string fallback to demo values lets the UI render even on a
+  // public preview deploy with no repo Variables set. Real credentials
+  // override these unconditionally.
+  const supaUrl = e.EXPO_PUBLIC_SUPABASE_URL;
+  const supaKey = e.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   return {
-    EXPO_PUBLIC_SUPABASE_URL: e.EXPO_PUBLIC_SUPABASE_URL,
-    EXPO_PUBLIC_SUPABASE_ANON_KEY: e.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+    EXPO_PUBLIC_SUPABASE_URL: supaUrl && supaUrl.length > 0 ? supaUrl : DEMO_SUPABASE_URL,
+    EXPO_PUBLIC_SUPABASE_ANON_KEY: supaKey && supaKey.length >= 20 ? supaKey : DEMO_SUPABASE_ANON_KEY,
     EXPO_PUBLIC_LLM_MODE: e.EXPO_PUBLIC_LLM_MODE,
     EXPO_PUBLIC_USE_VERTEX: e.EXPO_PUBLIC_USE_VERTEX,
     GOOGLE_CLOUD_PROJECT: e.GOOGLE_CLOUD_PROJECT,
