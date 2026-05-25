@@ -1,0 +1,43 @@
+{
+  "date": "2026-05-25",
+  "window": "7d",
+  "note": "Session-style retro — project is hours old, squash-merge collapses underlying history",
+  "metrics": {
+    "commits": 4,
+    "underlying_commits": 32,
+    "contributors": 1,
+    "prs_merged": 1,
+    "insertions": 25944,
+    "deletions": 34,
+    "net_loc": 25910,
+    "test_loc": "approx 800 (8 test files added)",
+    "test_files": 10,
+    "test_ratio": 0.03,
+    "active_days": 1,
+    "sessions": 1,
+    "session_minutes": 360,
+    "loc_per_session_hour": 4300,
+    "feat_pct": 0.31,
+    "fix_pct": 0.45,
+    "chore_pct": 0.24,
+    "peak_hour": 18,
+    "ai_assisted_commits": 4,
+    "rag_engines_implemented": 6,
+    "constraints_enforced": 12
+  },
+  "authors": {
+    "SimonK + Claude (paired)": {
+      "commits": 4,
+      "insertions": 25944,
+      "deletions": 34,
+      "test_ratio": 0.03,
+      "top_area": "src/, db/migrations/, .github/workflows/"
+    }
+  },
+  "version_range": ["initial", "post-deploy fix v8"],
+  "streak_days": 1,
+  "tweetable": "2nd-Brain Sprint 0: 1 day, 25.9k SLOC, 6 RAG engines, 12 constraints enforced, 121/121 tests, web live at simon-yhkim.github.io/2nd-B",
+  "deploy_iterations": 8,
+  "skills_invoked": ["design-consultation", "review", "health", "update-config", "canary", "context-save", "document-release(aborted)", "retro"],
+  "skills_blocked_by_env": ["qa", "design-review", "verify (browse-dependent)"]
+}
