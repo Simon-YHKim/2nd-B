@@ -10,6 +10,7 @@ import "../../global.css";
 import { initI18n } from "@/lib/i18n";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import { fontAssets } from "@/theme/typography";
+import { semantic } from "@/lib/theme/tokens";
 
 // Initialize at module load so the i18next instance exists during SSR/SSG
 // (static export renders without running effects).
@@ -35,8 +36,14 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <StatusBar style="light" />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#0B0E0C" } }}>
+          {/* Light phytoncide theme -- dark status bar content. */}
+          <StatusBar style="dark" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: semantic.background },
+            }}
+          >
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="journal" />

@@ -17,7 +17,7 @@ const BG: Record<Variant, string> = {
 };
 
 const FG: Record<Variant, string> = {
-  primary: "#0B0E0C",
+  primary: semantic.background,
   secondary: semantic.text,
   danger: "#ffffff",
 };

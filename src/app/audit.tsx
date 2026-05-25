@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
   },
   completeBadgeText: {
-    color: "#0B0E0C",
+    color: semantic.text,
     fontWeight: "700",
     letterSpacing: 1.5,
     fontSize: 10,
