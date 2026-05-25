@@ -5,7 +5,7 @@
 // Reachable from /journal navRow and auto-shown right after sign-up
 // (handled by AuthContext via users.coachmarks_seen).
 
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
@@ -123,9 +123,21 @@ export default function Manual() {
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Text variant="caption" color="brand">
-            2nd-Brain
-          </Text>
+          <View style={styles.headerTop}>
+            <Text variant="caption" color="brand">
+              2nd-Brain
+            </Text>
+            <Pressable
+              onPress={() => {
+                void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
+              }}
+              hitSlop={6}
+            >
+              <Text variant="caption" color="brand">
+                {locale === "ko" ? "EN" : "한국어"}
+              </Text>
+            </Pressable>
+          </View>
           <Text variant="heading" style={styles.title}>
             {locale === "ko" ? "사용 안내서" : "User manual"}
           </Text>
@@ -262,6 +274,7 @@ export default function Manual() {
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
   header: { gap: spacing.xs, marginBottom: spacing.md },
+  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   title: { marginTop: spacing.xs },
   cards: { gap: spacing.sm },
   card: {
