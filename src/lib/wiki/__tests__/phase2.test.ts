@@ -170,4 +170,55 @@ describe("generateSourcePage", () => {
     expect(sync.args[0]).toBe("u1");
     expect((sync.args[1] as { id: string }).id).toBe("p-NEW");
   });
+
+  test("merges Phase 1 concepts into wiki page tags (slugified, deduped)", async () => {
+    fixtures.source = {
+      id: "s1",
+      user_id: "u1",
+      title: "Big Five Personality",
+      storage_path: "u1/big-five.md",
+      frontmatter: {
+        __phase1__: {
+          summary: "Five-factor model summary.",
+          entities: ["McCrae", "Costa"],
+          concepts: ["Openness to Experience", "neuroticism", "Big Five"],
+          questions: ["q1", "q2", "q3", "q4"],
+          generated_at: "2026-05-25T00:00:00Z",
+          model: "gemini-2.5-flash",
+        },
+      },
+      tags: ["psychology", "big-five"],
+    };
+    fixtures.upsertWikiPage = { id: "p1", user_id: "u1", slug: "big-five-personality" };
+
+    await generateSourcePage("u1", "s1");
+
+    const upsert = captured.find((c) => c.fn === "upsertWikiPage")!;
+    const tags = (upsert.args[0] as { tags: string[] }).tags;
+    // Original tags preserved, concepts slugified, "big-five" appears once.
+    expect(tags).toContain("psychology");
+    expect(tags).toContain("big-five");
+    expect(tags).toContain("openness-to-experience");
+    expect(tags).toContain("neuroticism");
+    // "Big Five" → "big-five" — already in source tags so should appear once
+    const occurrences = tags.filter((t) => t === "big-five").length;
+    expect(occurrences).toBe(1);
+  });
+
+  test("no Phase 1 cached → tags unchanged (no concept merge)", async () => {
+    fixtures.source = {
+      id: "s1",
+      user_id: "u1",
+      title: "Article",
+      storage_path: "u1/article.md",
+      frontmatter: {}, // no __phase1__
+      tags: ["one", "two"],
+    };
+    fixtures.upsertWikiPage = { id: "p1", user_id: "u1", slug: "article" };
+
+    await generateSourcePage("u1", "s1");
+
+    const upsert = captured.find((c) => c.fn === "upsertWikiPage")!;
+    expect((upsert.args[0] as { tags: string[] }).tags).toEqual(["one", "two"]);
+  });
 });
