@@ -239,9 +239,18 @@ export default function Wiki() {
           </View>
         ) : pages.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text variant="body" color="textMuted">
+            <Text variant="body" color="textMuted" style={styles.emptyText}>
               {activeTags.length > 0 ? t("emptyForTags") : t("empty")}
             </Text>
+            {activeTags.length === 0 ? (
+              <Link href="/inbox" asChild>
+                <Pressable hitSlop={6}>
+                  <Text variant="caption" color="brand">
+                    {locale === "ko" ? "→ 받은편지함 열기" : "→ Open inbox"}
+                  </Text>
+                </Pressable>
+              </Link>
+            ) : null}
           </View>
         ) : (
           <View style={styles.list}>
@@ -417,7 +426,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
   },
   center: { paddingVertical: spacing.xl, alignItems: "center" },
-  emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, alignItems: "center" },
+  emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, alignItems: "center", gap: spacing.sm },
+  emptyText: { textAlign: "center" },
   list: { gap: spacing.sm },
   row: {
     backgroundColor: semantic.surface,
