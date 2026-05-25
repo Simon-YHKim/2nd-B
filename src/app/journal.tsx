@@ -326,6 +326,16 @@ export default function Journal() {
               placeholder={locale === "ko" ? "태그 (선택, 쉼표/# 구분) — #일기 #감정" : "Tags (optional, comma/# separated) — #journal #emotion"}
               autoCapitalize="none"
             />
+            {tagsInput.trim().length > 0 ? (
+              <Text variant="subtle" color="textSubtle">
+                {(() => {
+                  const parsed = tagsInput.split(/[,#]+/).map((t) => t.trim()).filter((t) => t.length > 0);
+                  return parsed.length === 0
+                    ? (locale === "ko" ? "태그가 비어 있어요" : "No tags parsed")
+                    : "→ " + parsed.map((t) => `#${t}`).join(" ");
+                })()}
+              </Text>
+            ) : null}
             <Pressable onPress={() => setShowExtras((v) => !v)} hitSlop={4}>
               <Text variant="caption" color="brand">
                 {showExtras
