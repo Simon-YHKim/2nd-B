@@ -15,10 +15,22 @@
 
 ## 현재 적재 대상
 
-- `big-five.sql` — Big Five (OCEAN), 7 rows
-- `attachment.sql` — Attachment Theory, 6 rows
-- `erikson.sql` — Erikson's Stages, 5 rows
-- *(추가 예정)* SDT, Emerging Adulthood, SOC, Successful Aging, Growth Mindset, Self-Compassion, VIA
+| 파일 | Framework slug(s) | Rows |
+| --- | --- | --- |
+| `big-five.sql` | `big_five` | 7 |
+| `attachment.sql` | `attachment` | 6 |
+| `erikson.sql` | `erikson` | 5 |
+| `sdt.sql` | `sdt` | 4 |
+| `emerging-adulthood.sql` | `emerging_adulthood` | 4 |
+| `soc-successful-aging.sql` | `soc`, `successful_aging` | 4 |
+| `growth-mindset.sql` | `growth_mindset` | 3 |
+| `self-compassion.sql` | `self_compassion` | 3 |
+| `via-strengths.sql` | `via` | 3 |
+| `narrative-identity.sql` | `narrative_identity` | 4 |
+
+**Total**: 43 rows across 10 framework slugs.
+
+전체 목록과 batch markdown은 `docs/research/batches/INDEX.md` 참조.
 
 ## 적용 순서
 
