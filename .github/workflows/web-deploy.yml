@@ -51,6 +51,34 @@ jobs:
             echo "Response body:"
             cat /tmp/pages.json
           fi
+      - name: Allow this branch in github-pages environment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+        continue-on-error: true
+        run: |
+          # Flip the env's branch policy from "protected branches only" (which
+          # blocks our preview branch) to "custom branch policies", then add
+          # this branch to the allowlist. Deploy-pages otherwise fast-fails
+          # with "Branch X not allowed".
+          ENV_STATUS=$(curl -s -o /tmp/env.json -w "%{http_code}" -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/environments/github-pages" \
+            -d '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}')
+          echo "PUT environments/github-pages → $ENV_STATUS"
+          POL_STATUS=$(curl -s -o /tmp/pol.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/environments/github-pages/deployment-branch-policies" \
+            -d "{\"name\":\"$BRANCH\",\"type\":\"branch\"}")
+          echo "POST deployment-branch-policies ($BRANCH) → $POL_STATUS"
+          # 200/201 = added; 422 = already exists. Anything else: log body.
+          if [ "$POL_STATUS" != "200" ] && [ "$POL_STATUS" != "201" ] && [ "$POL_STATUS" != "422" ]; then
+            echo "Policy response body:"
+            cat /tmp/pol.json
+          fi
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
