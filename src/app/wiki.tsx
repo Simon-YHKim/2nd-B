@@ -320,6 +320,26 @@ export default function Wiki() {
                             <Text variant="body" color="textMuted" style={styles.body}>
                               {p1.summary}
                             </Text>
+                            {p1.entities.length > 0 || p1.concepts.length > 0 ? (
+                              <View style={styles.phase1Meta}>
+                                {p1.entities.length > 0 ? (
+                                  <Text variant="subtle" color="textSubtle" numberOfLines={2}>
+                                    <Text variant="subtle" color="textMuted">
+                                      {locale === "ko" ? "엔티티: " : "Entities: "}
+                                    </Text>
+                                    {p1.entities.join(", ")}
+                                  </Text>
+                                ) : null}
+                                {p1.concepts.length > 0 ? (
+                                  <Text variant="subtle" color="textSubtle" numberOfLines={2}>
+                                    <Text variant="subtle" color="textMuted">
+                                      {locale === "ko" ? "개념: " : "Concepts: "}
+                                    </Text>
+                                    {p1.concepts.join(", ")}
+                                  </Text>
+                                ) : null}
+                              </View>
+                            ) : null}
                             {p1.questions.length > 0 ? (
                               <>
                                 <Text variant="caption" color="brand" style={styles.phase1QHeader}>
@@ -431,6 +451,7 @@ const styles = StyleSheet.create({
   },
   phase1Header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   phase1QHeader: { marginTop: spacing.xs },
+  phase1Meta: { marginTop: spacing.xs, gap: 2 },
   phase1Trigger: { paddingVertical: spacing.xs, marginBottom: spacing.sm },
   exportCard: {
     backgroundColor: semantic.surface,
