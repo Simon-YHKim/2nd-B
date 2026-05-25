@@ -1,0 +1,204 @@
+// Inference Engine v1: synthesize a coarse persona from audit_response
+// records. v1 is intentionally lightweight — no LLM extraction yet, just
+// frequency counting + length heuristics over the framework tags from
+// AUDIT_QUESTIONS. The full extraction (LLM persona chat over the full
+// record set) lands in Sprint 3 once we have ≥50 entries per user.
+
+import { AUDIT_QUESTIONS, type Framework } from "../audit/questions";
+import { callGemini } from "../llm/gemini";
+import { getSupabaseClient } from "../supabase/client";
+
+export interface PersonaTraits {
+  openness: number;
+  conscientiousness: number;
+  extraversion: number;
+  agreeableness: number;
+  neuroticism: number;
+}
+
+export interface PersonaCard {
+  version: number;
+  traits: PersonaTraits;
+  values: string[];
+  patterns: Record<string, string>;
+  markdownExport: string;
+}
+
+interface AuditResponseRow {
+  id: string;
+  prompt: string | null;
+  body: string;
+  created_at: string;
+}
+
+const DEFAULT_TRAITS: PersonaTraits = {
+  openness: 0.5,
+  conscientiousness: 0.5,
+  extraversion: 0.5,
+  agreeableness: 0.5,
+  neuroticism: 0.5,
+};
+
+// Per-trait keyword sets used for v1 heuristic scoring. Each hit nudges the
+// corresponding trait up; the dampening factor keeps a single keyword from
+// dominating. KO and EN markers share a regex so the same scorer handles
+// both locales.
+const TRAIT_KEYWORDS: Record<keyof PersonaTraits, RegExp> = {
+  // Length-driven; regex is a fallback that catches explicit curiosity cues.
+  openness: /\b(curious|imagine|new idea|wonder|호기심|상상|새로운|궁금|배우고)\b/i,
+  conscientiousness: /\b(habit|routine|every day|discipline|plan|매일|꾸준히|루틴|습관|계획)\b/i,
+  // "we", "people", "friend"-style cues lift extraversion mildly.
+  extraversion: /\b(friend|together|party|met up|talked|친구|만났|모임|어울)\b/i,
+  // Empathy / care cues for agreeableness.
+  agreeableness: /\b(help|kind|forgive|care for|sorry|도왔|배려|용서|미안|챙겼)\b/i,
+  // Distress markers for neuroticism (yellow-zone equivalents — not crisis).
+  neuroticism: /\b(anxious|worried|stressed|overwhelmed|lonely|불안|걱정|스트레스|외로워|지쳤)\b/i,
+};
+
+// Lightweight heuristic: longer answers nudge openness up; per-trait keyword
+// hits nudge the matched trait up. v1 placeholder — full LLM extraction lands
+// in Sprint 3 (≥50 entries per user). Markdown export labels it as such.
+function scoreFromAnswers(rows: AuditResponseRow[]): PersonaTraits {
+  if (rows.length === 0) return DEFAULT_TRAITS;
+  const traits: PersonaTraits = { ...DEFAULT_TRAITS };
+  const avgLen = rows.reduce((s, r) => s + r.body.length, 0) / rows.length;
+  traits.openness = Math.min(0.95, 0.4 + avgLen / 600);
+  for (const key of Object.keys(TRAIT_KEYWORDS) as (keyof PersonaTraits)[]) {
+    const pattern = TRAIT_KEYWORDS[key];
+    const hits = rows.filter((r) => pattern.test(r.body)).length;
+    // Skip openness here — already set above. Skipping avoids double-counting.
+    if (key === "openness") continue;
+    traits[key] = Math.min(0.95, 0.4 + hits * 0.12);
+  }
+  return traits;
+}
+
+// Reads the memorize Engine's output and rolls it up into a {pattern_kind:
+// count} histogram. Used to enrich the persona patterns dict beyond a
+// single LLM summary string.
+async function loadMemorizedHistogram(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  userId: string,
+): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from("memorized_patterns")
+    .select("pattern_kind")
+    .eq("user_id", userId)
+    .limit(500);
+  if (error) {
+    if (typeof console !== "undefined") console.warn("[persona] memorized read failed", error);
+    return {};
+  }
+  const hist: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const kind = (row as { pattern_kind: string }).pattern_kind;
+    hist[kind] = (hist[kind] ?? 0) + 1;
+  }
+  return hist;
+}
+
+export async function buildPersona(userId: string, locale: "en" | "ko"): Promise<PersonaCard> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("records")
+    .select("id, prompt, body, created_at")
+    .eq("user_id", userId)
+    .eq("kind", "audit_response")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  const rows = (data ?? []) as AuditResponseRow[];
+
+  const traits = scoreFromAnswers(rows);
+  const memorized = await loadMemorizedHistogram(supabase, userId);
+
+  // Pull one short narrative summary from the LLM wrapper (mock or live).
+  // This still goes through callGemini, so C9 + C3 hold.
+  const summaryInput = rows
+    .map((r, i) => `${i + 1}. Q: ${r.prompt ?? "(audit)"}\n   A: ${r.body}`)
+    .join("\n");
+  const summaryRes = await callGemini({
+    userId,
+    locale,
+    purpose: "persona_chat",
+    user: summaryInput || "no entries yet",
+  });
+
+  const patterns: Record<string, string> = { summary: summaryRes.text };
+  // Surface the top-3 memorized pattern kinds as their own patterns entries
+  // so the persona screen can show "you've been writing about attachment
+  // (8x), career (3x)" beneath the LLM summary.
+  const topKinds = Object.entries(memorized)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+  for (const [kind, count] of topKinds) {
+    patterns[`top_${kind}`] = `${count}`;
+  }
+
+  const persona: PersonaCard = {
+    version: 1,
+    traits,
+    values: deriveValues(rows),
+    patterns,
+    markdownExport: renderMarkdown(traits, rows, summaryRes.text, locale, topKinds),
+  };
+
+  // Persist for later reuse (RAG export, etc).
+  await supabase
+    .from("personas")
+    .upsert(
+      {
+        user_id: userId,
+        version: 1,
+        traits,
+        values: persona.values,
+        patterns: persona.patterns,
+        markdown_export: persona.markdownExport,
+      },
+      { onConflict: "user_id,version" },
+    );
+
+  return persona;
+}
+
+function deriveValues(rows: AuditResponseRow[]): string[] {
+  // Take frameworks of questions the user actually answered; deduplicate.
+  const answeredIds = new Set(rows.map((r) => r.prompt ?? "").map(matchQuestionId));
+  const frameworks = new Set<Framework>();
+  for (const q of AUDIT_QUESTIONS) {
+    if (answeredIds.has(q.id)) frameworks.add(q.framework);
+  }
+  return [...frameworks];
+}
+
+function matchQuestionId(prompt: string): string | null {
+  for (const q of AUDIT_QUESTIONS) {
+    if (q.prompt.en === prompt || q.prompt.ko === prompt) return q.id;
+  }
+  return null;
+}
+
+function renderMarkdown(
+  traits: PersonaTraits,
+  rows: AuditResponseRow[],
+  summary: string,
+  locale: "en" | "ko",
+  topKinds: [string, number][] = [],
+): string {
+  const title = locale === "ko" ? "# 두번째 뇌 — 페르소나 v1" : "# 2nd-Brain — Persona v1";
+  const intro =
+    locale === "ko"
+      ? "_이 카드는 라이프 오딧 응답을 기반으로 생성한 초기 자기 모델입니다. v1은 휴리스틱 + LLM 요약이며, 검증된 평가가 아닙니다._"
+      : "_This card is a starter self-model from your life-audit responses. v1 uses heuristics + LLM summary; not a validated assessment._";
+  const traitLines = Object.entries(traits)
+    .map(([k, v]) => `- **${k}**: ${(v * 100).toFixed(0)} / 100`)
+    .join("\n");
+  const entries = rows
+    .slice(0, 5)
+    .map((r) => `> ${r.body.slice(0, 200)}${r.body.length > 200 ? "…" : ""}`)
+    .join("\n\n");
+  const patternsSection = topKinds.length
+    ? `\n\n## ${locale === "ko" ? "관찰된 패턴" : "Observed patterns"}\n` +
+      topKinds.map(([k, n]) => `- ${k}: ${n}${locale === "ko" ? "회 관찰" : "× observed"}`).join("\n")
+    : "";
+  return `${title}\n\n${intro}\n\n## Traits (Big Five proxy)\n${traitLines}\n\n## Narrative\n${summary}${patternsSection}\n\n## Source entries\n${entries}\n`;
+}

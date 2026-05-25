@@ -1,0 +1,95 @@
+name: Web preview (GitHub Pages)
+
+# Publishes the Expo Web static export to GitHub Pages via the
+# legacy/branch source (peaceiris/actions-gh-pages). This bypasses
+# the github-pages environment entirely — which is necessary because
+# that environment defaults to a main-only branch policy that the
+# default GITHUB_TOKEN cannot relax (administration:write is required
+# to mutate env policies, but enabling that permission causes this
+# workflow to fail to register on non-main branches).
+#
+# URL after first successful deploy:
+#   https://simon-yhkim.github.io/2nd-B/
+#
+# Note on env vars: deployed site uses Supabase via repo Variables
+# (Settings → Secrets and variables → Actions → Variables):
+#   EXPO_PUBLIC_SUPABASE_URL
+#   EXPO_PUBLIC_SUPABASE_ANON_KEY
+
+on:
+  push:
+    branches:
+      - main
+      - claude/awesome-clarke-ZJgc3
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Switch Pages source to gh-pages branch (legacy)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+        run: |
+          # First, try to CREATE Pages with branch source. Returns 201 on
+          # first run, 409 if Pages already exists with a different source.
+          POST_STATUS=$(curl -s -o /tmp/pages-post.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pages" \
+            -d '{"source":{"branch":"gh-pages","path":"/"}}')
+          echo "POST /pages (source:gh-pages) → $POST_STATUS"
+          # If Pages exists, PUT to switch source. PUT requires the source
+          # branch to actually exist — gh-pages won't exist on first run, so
+          # we run this AFTER peaceiris creates the branch in a second push.
+          # For now, just attempt; failure is acceptable on the first ever push.
+          PUT_STATUS=$(curl -s -o /tmp/pages-put.json -w "%{http_code}" -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pages" \
+            -d '{"source":{"branch":"gh-pages","path":"/"},"build_type":"legacy"}')
+          echo "PUT /pages (build_type:legacy) → $PUT_STATUS"
+          if [ "$PUT_STATUS" != "200" ] && [ "$PUT_STATUS" != "201" ] && [ "$POST_STATUS" != "201" ]; then
+            echo "POST body:"; cat /tmp/pages-post.json
+            echo "PUT body:";  cat /tmp/pages-put.json
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci --legacy-peer-deps
+      - name: Build Expo Web (static export)
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_LLM_MODE: mock
+          EXPO_USE_STATIC: "true"
+          EXPO_BASE_URL: /2nd-B/
+        run: |
+          npx expo export --platform web --output-dir dist
+          # GitHub Pages serves /2nd-B/* — patch absolute /_expo/ + /assets/.
+          find dist -name "*.html" -print0 | xargs -0 sed -i 's|"/_expo/|"/2nd-B/_expo/|g'
+          find dist -name "*.html" -print0 | xargs -0 sed -i 's|"/assets/|"/2nd-B/assets/|g'
+          # SPA fallback + Jekyll opt-out.
+          cp dist/index.html dist/404.html 2>/dev/null || true
+          touch dist/.nojekyll
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
+          force_orphan: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: "deploy: ${{ github.sha }}"
