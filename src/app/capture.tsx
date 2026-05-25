@@ -137,9 +137,14 @@ export default function Capture() {
                 textAlignVertical="top"
                 style={styles.textarea}
               />
-              <Text variant="subtle" color="textSubtle" style={styles.helper}>
-                {t("body.helper")}
-              </Text>
+              <View style={styles.helperRow}>
+                <Text variant="subtle" color="textSubtle" style={styles.helper}>
+                  {t("body.helper")}
+                </Text>
+                <Text variant="subtle" color="textSubtle">
+                  {body.length.toLocaleString()} {locale === "ko" ? "자" : "chars"}
+                </Text>
+              </View>
             </View>
 
             <Button
@@ -172,5 +177,6 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     borderRadius: radii.md,
   },
-  helper: { marginTop: -spacing.xs },
+  helper: { marginTop: -spacing.xs, flex: 1 },
+  helperRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
 });
