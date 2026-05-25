@@ -6,9 +6,11 @@
 //   kind === 'note'           → no AI call
 //
 // All AI calls route through src/lib/llm/gemini.ts so safety (C9) + audit (C3) hold.
+// Every successful capture also awards quest XP (best-effort) — see award_xp RPC.
 
 import { buildMemorizedPattern } from "../knowledge/engines";
 import { callAdvisor, callGemini } from "../llm/gemini";
+import { awardXpSafe, type XpAction } from "../progression/xp";
 import { getSupabaseClient } from "../supabase/client";
 
 export type RecordKind = "journal" | "note" | "audit_response";
@@ -41,6 +43,14 @@ export interface CreatedRecord {
   id: string;
   followup?: RecordFollowup;
 }
+
+// Quest XP action for each record kind. Capturing data is the core
+// progression loop: audit answers drive Lv1→3, journals/notes drive beyond.
+const XP_ACTION_FOR_KIND: Record<RecordKind, XpAction> = {
+  journal: "journal",
+  note: "note",
+  audit_response: "audit_answer",
+};
 
 export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecord> {
   const supabase = getSupabaseClient();
@@ -114,6 +124,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   if (error) throw error;
   if (!data) throw new Error("Insert returned no row");
 
+  // Quest XP — best-effort, never blocks the capture. The server (award_xp
+  // RPC) decides the amount from xp_rules; we only name the action.
+  await awardXpSafe(XP_ACTION_FOR_KIND[args.kind]);
+
   return { id: data.id, followup: aiFollowup ?? undefined };
 }
 
@@ -127,4 +141,18 @@ export async function listRecentRecords(userId: string, limit = 20) {
     .limit(limit);
   if (error) throw error;
   return data ?? [];
+}
+
+// Exact count of a user's records of one kind. Used by the free-tier usage
+// gate (entitlements.checkUsage) so the 2-use limit is accurate regardless of
+// how many other-kind records exist.
+export async function countRecordsByKind(userId: string, kind: RecordKind): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { count, error } = await supabase
+    .from("records")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("kind", kind);
+  if (error) throw error;
+  return count ?? 0;
 }
