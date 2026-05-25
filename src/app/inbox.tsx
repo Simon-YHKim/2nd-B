@@ -292,6 +292,22 @@ export default function Inbox() {
                 </View>
                 {expandedId === r.id ? (
                   <View style={styles.expandedSection}>
+                    {Object.keys(r.frontmatter).length > 0 ? (
+                      <View style={styles.metaCard}>
+                        <Text variant="caption" color="textMuted">
+                          {locale === "ko" ? "메타데이터" : "Metadata"}
+                        </Text>
+                        {Object.entries(r.frontmatter)
+                          .filter(([k]) => k !== "__phase1__")
+                          .slice(0, 10)
+                          .map(([k, v]) => (
+                            <Text key={k} variant="subtle" color="textSubtle" numberOfLines={2}>
+                              <Text variant="subtle" color="textMuted">{k}:</Text>{" "}
+                              {Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v)}
+                            </Text>
+                          ))}
+                      </View>
+                    ) : null}
                     {bodyById[r.id] === undefined ? (
                       <ActivityIndicator color={semantic.brand} />
                     ) : (
@@ -362,6 +378,13 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     borderTopColor: semantic.border,
     borderTopWidth: 1,
+    gap: spacing.sm,
+  },
+  metaCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+    gap: 2,
   },
   body: { lineHeight: 20 },
 });
