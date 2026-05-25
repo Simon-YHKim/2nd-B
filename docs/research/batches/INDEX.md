@@ -20,8 +20,9 @@ DOI-verified psychology framework batches curated via `docs/research/psychology-
 | `interpersonal` | [interpersonal.md](interpersonal.md) | 4 | Adult relationships (Wiggins IPC, IIP-32, Gottman, Korean couples) |
 | `self_knowledge` | [self-knowledge.md](self-knowledge.md) | 7 | **Core methods** — reflection vs rumination (RRQ), insight (SRIS), expressive writing meta-analysis, mindful attention (MAAS), self-concept clarity (SCCS), K-MAAS |
 | `values_meaning` | [values-meaning.md](values-meaning.md) | 5 | **"철학" layer** — self-concordant goals (Sheldon & Elliot), best-possible-self writing (King), Meaning in Life (Steger), Valued Living (Wilson ACT), Korean K-MIL-CQ |
+| *(analysis)* | [methodology-birkman-brain-trinity.md](methodology-birkman-brain-trinity.md) | 1 | **Methodology audit** of the Birkman × Brain Trinity practitioner manual — component-by-component evidence map, 8 critical gaps, developed integration recipe; adds Theeboom et al. (2014) coaching meta-analysis (g=0.43–0.74) |
 
-**Total**: 14 framework batches, 68 verified rows for `knowledge_sources`.
+**Total**: 15 batches (1 methodology analysis), 69 verified rows for `knowledge_sources`.
 
 ## Coverage by life stage
 

@@ -31,8 +31,9 @@
 | `interpersonal.sql` | `interpersonal` | 4 |
 | `self-knowledge.sql` | `self_knowledge` | 7 |
 | `values-meaning.sql` | `values_meaning` | 5 |
+| `methodology-coaching.sql` | (reuses `self_knowledge`) | 1 |
 
-**Total**: 68 rows across 14 batches / 23 framework slugs.
+**Total**: 69 rows across 15 batches / 23 framework slugs.
 
 전체 목록과 batch markdown은 `docs/research/batches/INDEX.md` 참조.
 
