@@ -11,6 +11,7 @@
 // once Gemini is wired up, this function will accept the Phase-1 output
 // (summary, suggested_slug overrides, additional tags) as inputs.
 
+import { readPhase1 } from "./phase1";
 import { getSource, markSourceIngested, syncWikiLinks, upsertWikiPage } from "./queries";
 import { toSlug } from "./slug";
 import { downloadRawClipping } from "./storage";
@@ -45,6 +46,15 @@ export async function generateSourcePage(userId: string, sourceId: string): Prom
   const body = await downloadRawClipping(source.storage_path);
   const slug = toSlug(source.title);
 
+  // Merge Phase 1 concepts into tags (when present). Concepts are the
+  // LLM's distilled abstract ideas — natural tag candidates. Dedupe to
+  // avoid duplicates from concepts that already match user tags.
+  const phase1 = readPhase1(source.frontmatter);
+  const conceptTags = phase1
+    ? phase1.concepts.map((c) => toSlug(c)).filter((c) => c.length > 0)
+    : [];
+  const mergedTags = Array.from(new Set([...source.tags, ...conceptTags]));
+
   const page = await upsertWikiPage({
     user_id: userId,
     slug,
@@ -52,7 +62,7 @@ export async function generateSourcePage(userId: string, sourceId: string): Prom
     title: source.title,
     body_md: body,
     frontmatter: source.frontmatter,
-    tags: source.tags,
+    tags: mergedTags,
     source_id: source.id,
   });
 
