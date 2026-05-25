@@ -289,6 +289,17 @@ export default function Journal() {
               <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }}>
                 {dailyPrompt(locale)}
               </Text>
+              {topic.length === 0 ? (
+                <Pressable
+                  onPress={() => setTopic(dailyPrompt(locale))}
+                  hitSlop={4}
+                  style={{ marginTop: spacing.xs }}
+                >
+                  <Text variant="caption" color="brand">
+                    {locale === "ko" ? "→ 이 질문을 주제로" : "→ Use this as topic"}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
             <Input
               value={topic}
