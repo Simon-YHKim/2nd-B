@@ -1,0 +1,64 @@
+// Wiki / RAG types — mirror tables introduced by db/migrations/0022_wiki_rag.sql.
+// Kept hand-written (rather than re-running types.gen.ts) until the migration is
+// applied to the remote Supabase project.
+
+export type SourceKind =
+  | "inbox"
+  | "article"
+  | "video"
+  | "paper"
+  | "reddit"
+  | "code"
+  | "ai_tool"
+  | "self_knowledge";
+
+export const SOURCE_KINDS: readonly SourceKind[] = [
+  "inbox",
+  "article",
+  "video",
+  "paper",
+  "reddit",
+  "code",
+  "ai_tool",
+  "self_knowledge",
+] as const;
+
+export type WikiPageKind = "source" | "entity" | "concept";
+
+export const WIKI_PAGE_KINDS: readonly WikiPageKind[] = ["source", "entity", "concept"] as const;
+
+export interface SourceRow {
+  id: string;
+  user_id: string;
+  kind: SourceKind;
+  title: string;
+  source_url: string | null;
+  storage_path: string;
+  frontmatter: Record<string, unknown>;
+  tags: string[];
+  simon_relevance: number | null;
+  ingested: boolean;
+  ingested_at: string | null;
+  captured_at: string;
+}
+
+export interface WikiPageRow {
+  id: string;
+  user_id: string;
+  slug: string;
+  kind: WikiPageKind;
+  title: string;
+  body_md: string;
+  frontmatter: Record<string, unknown>;
+  tags: string[];
+  source_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WikiLinkRow {
+  user_id: string;
+  from_page: string;
+  to_page: string;
+  created_at: string;
+}
