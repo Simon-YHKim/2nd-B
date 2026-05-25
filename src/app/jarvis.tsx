@@ -6,7 +6,7 @@
 // The chat_usage daily counter (server-side) is the persistent surface.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
@@ -96,10 +96,12 @@ export default function Jarvis() {
     <Screen>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.header}>
-          <View>
-            <Text variant="caption" color="brand">
-              2nd-Brain
-            </Text>
+          <View style={styles.headerLeft}>
+            <Pressable onPress={() => router.replace("/journal")} hitSlop={6}>
+              <Text variant="caption" color="brand">
+                ← 2nd-Brain
+              </Text>
+            </Pressable>
             <Text variant="heading">{t("title")}</Text>
             <Text variant="subtle" color="textMuted">
               {t("subtitle")}
@@ -181,6 +183,7 @@ const styles = StyleSheet.create({
     borderBottomColor: semantic.border,
     borderBottomWidth: 1,
   },
+  headerLeft: { flex: 1 },
   meter: { alignItems: "flex-end", gap: 2 },
   scroll: { paddingVertical: spacing.md, gap: spacing.sm },
   empty: { paddingVertical: spacing.xl, alignItems: "center" },
