@@ -388,13 +388,20 @@ export default function Wiki() {
               {activeTags.length > 0 ? t("emptyForTags") : t("empty")}
             </Text>
             {activeTags.length === 0 ? (
-              <Link href="/inbox" asChild>
-                <Pressable hitSlop={6}>
-                  <Text variant="caption" color="brand">
-                    {locale === "ko" ? "→ 받은편지함 열기" : "→ Open inbox"}
-                  </Text>
-                </Pressable>
-              </Link>
+              <>
+                <Text variant="subtle" color="textSubtle" style={{ textAlign: "center", lineHeight: 18, marginTop: spacing.sm }}>
+                  {locale === "ko"
+                    ? "캡처 → 받은편지함 → '위키 페이지 생성' 순서로 페이지가 쌓여요. 페이지들은 [[wikilink]]로 자동 연결됩니다."
+                    : "Captures land in your inbox, then 'Generate wiki page' promotes them here. Pages link to each other via [[wikilinks]] automatically."}
+                </Text>
+                <Link href="/inbox" asChild>
+                  <Pressable hitSlop={6}>
+                    <Text variant="caption" color="brand">
+                      {locale === "ko" ? "→ 받은편지함 열기" : "→ Open inbox"}
+                    </Text>
+                  </Pressable>
+                </Link>
+              </>
             ) : null}
           </View>
         ) : (
