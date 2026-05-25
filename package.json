@@ -20,6 +20,7 @@
   "dependencies": {
     "@expo/ui": "~56.0.13",
     "@google/genai": "^1.0.0",
+    "@react-native-async-storage/async-storage": "^3.1.0",
     "@supabase/supabase-js": "^2.45.0",
     "dayjs": "^1.11.13",
     "expo": "~56.0.4",

@@ -35,12 +35,17 @@ const results: CheckResult[] = [];
 
 results.push(
   check("C1", () => {
-    const eslintConfig = exists("eslint.config.js") ? read("eslint.config.js") : "";
+    const configPath = exists("eslint.config.mjs")
+      ? "eslint.config.mjs"
+      : exists("eslint.config.js")
+        ? "eslint.config.js"
+        : "";
+    const eslintConfig = configPath ? read(configPath) : "";
     const ok = eslintConfig.includes("@google/genai") && eslintConfig.includes("no-restricted-imports");
     return {
       id: "C1",
       status: ok ? "PASS" : "FAIL",
-      note: ok ? "ESLint restricts non-Gemini LLM SDKs" : "eslint.config.js missing no-restricted-imports for LLM SDKs",
+      note: ok ? `ESLint (${configPath}) restricts non-Gemini LLM SDKs` : "eslint.config.{js,mjs} missing no-restricted-imports for LLM SDKs",
     };
   }),
 );
