@@ -190,6 +190,33 @@ export default function Manual() {
           ))}
         </View>
 
+        <View style={styles.recentList}>
+          <Text variant="caption" color="textMuted" style={styles.glossaryTitle}>
+            {locale === "ko" ? "최근 추가된 기능" : "Recently added"}
+          </Text>
+          {(locale === "ko"
+            ? [
+                "Big Five (TIPI) · 애착 스타일 (ECR-S) — 검증된 3분 평가",
+                "/insights — 매주 활동·자주 다룬 주제·결론 모음",
+                "/research — 어드바이저가 인용하는 학술 자료 브라우저",
+                "오늘의 성찰 질문 + 연속 기록 카운터",
+                "기록 · 캡처 · 위키 페이지 삭제 가능",
+                "캡처 시 종류 자동 감지 + 미리보기",
+              ]
+            : [
+                "Big Five (TIPI) + Attachment (ECR-S) 3-min validated tests",
+                "/insights — weekly activity, recurring topics, conclusion stream",
+                "/research — browse validated academic sources the Advisor cites",
+                "Daily reflection prompt + streak counter",
+                "Delete affordances for records, captures, wiki pages",
+                "Auto-detect kind on capture + preview before save",
+              ]).map((line, i) => (
+            <Text key={i} variant="subtle" color="textMuted" style={styles.recentLine}>
+              · {line}
+            </Text>
+          ))}
+        </View>
+
         <View style={styles.actions}>
           {userId ? (
             <Link href="/journal" asChild>
@@ -244,5 +271,12 @@ const styles = StyleSheet.create({
   glossaryTerm: { width: 140 },
   glossaryDef: { flex: 1, lineHeight: 18 },
   actions: { gap: spacing.sm },
+  recentList: {
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: 2,
+  },
+  recentLine: { lineHeight: 20 },
   versionFootnote: { textAlign: "center", marginTop: spacing.lg, letterSpacing: 0.5 },
 });
