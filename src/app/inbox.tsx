@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { listSources } from "@/lib/wiki/queries";
+import { runPhase1, readPhase1 } from "@/lib/wiki/phase1";
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { downloadRawClipping } from "@/lib/wiki/storage";
 import type { SourceKind, SourceRow } from "@/lib/wiki/types";
@@ -51,6 +52,7 @@ export default function Inbox() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [phase1Id, setPhase1Id] = useState<string | null>(null);
 
   const load = useCallback(async (uid: string) => {
     setError(null);
@@ -92,6 +94,30 @@ export default function Inbox() {
     setRefreshing(true);
     await load(userId);
     setRefreshing(false);
+  }
+
+  async function handleRunPhase1(row: SourceRow): Promise<void> {
+    if (!userId) return;
+    setPhase1Id(row.id);
+    try {
+      const result = await runPhase1({ userId, sourceId: row.id, locale });
+      Alert.alert(
+        locale === "ko" ? `요약 + 4개 질문 생성됨` : `Summary + 4 questions generated`,
+        result.summary +
+          "\n\n" +
+          (locale === "ko" ? "성찰 질문:" : "Reflection questions:") +
+          "\n" +
+          result.questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
+      );
+      await load(userId);
+    } catch (e) {
+      Alert.alert(
+        locale === "ko" ? "Phase 1 실패" : "Phase 1 failed",
+        (e as Error).message,
+      );
+    } finally {
+      setPhase1Id(null);
+    }
   }
 
   async function handleGeneratePage(row: SourceRow): Promise<void> {
@@ -190,8 +216,33 @@ export default function Inbox() {
                     #{r.tags.join(" #")}
                   </Text>
                 ) : null}
-                {!r.ingested ? (
-                  <View style={styles.rowActions}>
+                <View style={styles.rowActions}>
+                  {readPhase1(r.frontmatter) === null ? (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        void handleRunPhase1(r);
+                      }}
+                      style={styles.generateBtn}
+                      disabled={phase1Id === r.id}
+                      hitSlop={4}
+                    >
+                      <Text variant="caption" color="brand">
+                        {phase1Id === r.id
+                          ? locale === "ko"
+                            ? "요약 중…"
+                            : "Summarizing…"
+                          : locale === "ko"
+                            ? "→ 요약 + 4질문"
+                            : "→ Summarize + 4 questions"}
+                      </Text>
+                    </Pressable>
+                  ) : (
+                    <Text variant="caption" color="success">
+                      {locale === "ko" ? "✓ Phase 1 완료" : "✓ Phase 1 done"}
+                    </Text>
+                  )}
+                  {!r.ingested ? (
                     <Pressable
                       onPress={(e) => {
                         e.stopPropagation();
@@ -211,8 +262,8 @@ export default function Inbox() {
                             : "→ Generate wiki page"}
                       </Text>
                     </Pressable>
-                  </View>
-                ) : null}
+                  ) : null}
+                </View>
               </Pressable>
             ))}
           </View>
@@ -267,6 +318,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   ingestedChip: { backgroundColor: semantic.surface, borderColor: semantic.success },
-  rowActions: { marginTop: spacing.xs, alignItems: "flex-start" },
+  rowActions: { marginTop: spacing.xs, flexDirection: "row", flexWrap: "wrap", gap: spacing.md, alignItems: "center" },
   generateBtn: { paddingVertical: spacing.xs },
 });
