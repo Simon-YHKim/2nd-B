@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, StyleSheet, Alert, Pressable } from "react-native";
+import { View, StyleSheet, Alert, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
@@ -36,8 +36,21 @@ export default function SignIn() {
 
   const canSubmit = email.includes("@") && password.length > 0 && !submitting;
 
+  function handleForgotPassword() {
+    Alert.alert(
+      locale === "ko" ? "비밀번호 재설정" : "Reset password",
+      locale === "ko"
+        ? "비밀번호 재설정 기능은 Sprint 1에 추가됩니다. 그동안은 support@2nd-brain.app으로 연락해 주세요."
+        : "Password reset is coming in Sprint 1. Contact support@2nd-brain.app in the meantime.",
+    );
+  }
+
   return (
     <Screen>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
       <View style={styles.header}>
         <Text variant="caption" color="brand">2nd-Brain</Text>
         <Text variant="heading" style={styles.title}>{t("signIn.title")}</Text>
@@ -78,6 +91,11 @@ export default function SignIn() {
           disabled={!canSubmit}
           loading={submitting}
         />
+        <Pressable onPress={handleForgotPassword} hitSlop={8} style={styles.forgotBtn}>
+          <Text variant="subtle" color="textMuted">
+            {locale === "ko" ? "비밀번호를 잊으셨나요?" : "Forgot password?"}
+          </Text>
+        </Pressable>
       </View>
       <View style={styles.footer}>
         <Text variant="subtle" color="textMuted">
@@ -89,6 +107,7 @@ export default function SignIn() {
           </Link>
         </Text>
       </View>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
@@ -98,6 +117,7 @@ const styles = StyleSheet.create({
   title: { marginTop: spacing.xs },
   form: { gap: spacing.sm },
   passwordRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  forgotBtn: { marginTop: spacing.sm, alignItems: "center", paddingVertical: spacing.xs },
   footer: { marginTop: spacing.xl, alignItems: "center" },
   link: { textDecorationLine: "underline" },
 });

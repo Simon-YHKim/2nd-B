@@ -29,6 +29,26 @@ export default function NotFound() {
             <Button label={locale === "ko" ? "처음으로" : "Go home"} variant="primary" />
           </Link>
         </View>
+        <View style={styles.destinations}>
+          <Text variant="caption" color="textMuted" style={styles.destinationsTitle}>
+            {locale === "ko" ? "또는, 자주 가는 곳" : "Or, common destinations"}
+          </Text>
+          <Link href="/journal" style={styles.destinationLink}>
+            <Text variant="body" color="brand">
+              {locale === "ko" ? "일기" : "Journal"}
+            </Text>
+          </Link>
+          <Link href="/audit" style={styles.destinationLink}>
+            <Text variant="body" color="brand">
+              {locale === "ko" ? "라이프 오딧" : "Life audit"}
+            </Text>
+          </Link>
+          <Link href="/persona" style={styles.destinationLink}>
+            <Text variant="body" color="brand">
+              {locale === "ko" ? "페르소나 v1" : "Persona v1"}
+            </Text>
+          </Link>
+        </View>
       </View>
     </Screen>
   );
@@ -55,4 +75,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   actions: { marginTop: spacing.xl, width: "100%", maxWidth: 320 },
+  destinations: {
+    marginTop: spacing.xl,
+    width: "100%",
+    maxWidth: 320,
+    gap: spacing.xs,
+    alignItems: "center",
+  },
+  destinationsTitle: { letterSpacing: 1, marginBottom: spacing.xs },
+  destinationLink: { paddingVertical: 4 },
 });

@@ -105,6 +105,18 @@ export default function Audit() {
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${((index + 1) / questions.length) * 100}%` }]} />
           </View>
+          <View style={styles.progressDots}>
+            {questions.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.progressDot,
+                  i < index && styles.progressDotDone,
+                  i === index && styles.progressDotCurrent,
+                ]}
+              />
+            ))}
+          </View>
         </View>
         <View style={styles.questionCard}>
           <Text variant="heading">{current?.prompt[locale]}</Text>
@@ -181,6 +193,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: semantic.brand },
+  progressDots: { flexDirection: "row", gap: spacing.xs, marginTop: spacing.xs },
+  progressDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.surfaceAlt },
+  progressDotDone: { backgroundColor: semantic.brand, opacity: 0.5 },
+  progressDotCurrent: { backgroundColor: semantic.brand, transform: [{ scale: 1.3 }] },
   completeBadge: {
     backgroundColor: semantic.success,
     paddingHorizontal: spacing.md,
