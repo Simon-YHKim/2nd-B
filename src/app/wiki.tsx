@@ -274,11 +274,36 @@ export default function Wiki() {
               <Text variant="caption" color="textMuted">
                 {t("exportTitle")} ({exportText.length.toLocaleString()} {locale === "ko" ? "자" : "chars"})
               </Text>
-              <Pressable onPress={() => setExportText(null)} hitSlop={6}>
-                <Text variant="caption" color="brand">
-                  {locale === "ko" ? "닫기" : "Close"}
-                </Text>
-              </Pressable>
+              <View style={{ flexDirection: "row", gap: spacing.md }}>
+                <Pressable
+                  onPress={async () => {
+                    if (typeof navigator !== "undefined" && navigator.clipboard) {
+                      try {
+                        await navigator.clipboard.writeText(exportText);
+                        Alert.alert(locale === "ko" ? "클립보드에 복사됨" : "Copied to clipboard");
+                      } catch {
+                        Alert.alert(
+                          locale === "ko" ? "복사 실패 — 아래 텍스트를 직접 선택해 주세요" : "Copy failed — please select the text below manually",
+                        );
+                      }
+                    } else {
+                      Alert.alert(
+                        locale === "ko" ? "이 환경에서는 자동 복사가 지원되지 않아요" : "Auto-copy not supported in this environment",
+                      );
+                    }
+                  }}
+                  hitSlop={6}
+                >
+                  <Text variant="caption" color="brand">
+                    {locale === "ko" ? "복사" : "Copy"}
+                  </Text>
+                </Pressable>
+                <Pressable onPress={() => setExportText(null)} hitSlop={6}>
+                  <Text variant="caption" color="brand">
+                    {locale === "ko" ? "닫기" : "Close"}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
             <ScrollView style={styles.exportScroll} nestedScrollEnabled>
               <Text variant="subtle" color="text" selectable>
@@ -287,8 +312,8 @@ export default function Wiki() {
             </ScrollView>
             <Text variant="subtle" color="textSubtle" style={styles.exportHelper}>
               {locale === "ko"
-                ? "위 텍스트를 길게 눌러 전체 선택 후 복사하세요. Claude · ChatGPT 새 대화에 붙여 넣으면 자비스와 같은 컨텍스트로 사용됩니다."
-                : "Long-press the text above to select all, then paste into a new Claude / ChatGPT chat for the same context as Jarvis."}
+                ? "위 복사 버튼으로 한 번에 클립보드로 옮기거나, 텍스트를 길게 눌러 직접 선택해도 됩니다. Claude · ChatGPT 새 대화에 붙여 넣으면 자비스와 같은 컨텍스트로 사용됩니다."
+                : "Tap Copy to send everything to your clipboard, or long-press the text to select manually. Paste into a new Claude / ChatGPT chat for the same context as Jarvis."}
             </Text>
           </View>
         ) : null}
