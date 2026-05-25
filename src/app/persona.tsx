@@ -43,14 +43,29 @@ export default function Persona() {
     return (
       <Screen>
         <View style={styles.center}>
-          <Text variant="body" color="textMuted">
-            {locale === "ko" ? "데이터가 부족합니다." : "Not enough data yet."}
+          <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
+            {locale === "ko" ? "페르소나 V1" : "PERSONA V1"}
           </Text>
-          <Button
-            label={locale === "ko" ? "오딧 시작" : "Start audit"}
-            variant="primary"
-            onPress={() => router.replace("/audit")}
-          />
+          <Text variant="heading" style={{ marginTop: spacing.sm, textAlign: "center" }}>
+            {locale === "ko" ? "아직 합성할 데이터가 부족해요" : "Not enough data to synthesize yet"}
+          </Text>
+          <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
+            {locale === "ko"
+              ? "5문항 라이프 오딧을 마치면 자기 모델 v1이 만들어집니다."
+              : "Complete the 5-question life audit to generate self-model v1."}
+          </Text>
+          <View style={styles.emptyActions}>
+            <Button
+              label={locale === "ko" ? "오딧 시작" : "Start the audit"}
+              variant="primary"
+              onPress={() => router.replace("/audit")}
+            />
+            <Button
+              label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
+              variant="secondary"
+              onPress={() => router.replace("/journal")}
+            />
+          </View>
         </View>
       </Screen>
     );
@@ -186,4 +201,5 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   actions: { gap: spacing.md, marginTop: spacing.md },
+  emptyActions: { gap: spacing.md, marginTop: spacing.xl, width: "100%", maxWidth: 320 },
 });

@@ -161,9 +161,16 @@ export default function Journal() {
             {locale === "ko" ? "최근 기록" : "Recent entries"}
           </Text>
           {recent.length === 0 ? (
-            <Text variant="subtle" color="textSubtle">
-              {locale === "ko" ? "아직 기록이 없어요." : "No entries yet."}
-            </Text>
+            <View style={styles.emptyCard}>
+              <Text variant="subtle" color="brand" style={{ letterSpacing: 1.2 }}>
+                {locale === "ko" ? "여기서 시작" : "START HERE"}
+              </Text>
+              <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm }}>
+                {locale === "ko"
+                  ? "한 줄이라도 좋아요. 며칠 쌓이면 패턴이 보이기 시작합니다."
+                  : "One sentence is enough. Patterns show up after a few days."}
+              </Text>
+            </View>
           ) : (
             recent.map((r) => (
               <View key={r.id} style={styles.recordCard}>
@@ -274,6 +281,15 @@ const styles = StyleSheet.create({
   evidenceList: { marginTop: spacing.sm, gap: spacing.xs },
   evidenceRow: { gap: 2 },
   recentList: { gap: spacing.sm },
+  emptyCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: semantic.brand,
+  },
   recordCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,

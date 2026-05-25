@@ -65,13 +65,18 @@ export default function Audit() {
     return (
       <Screen>
         <View style={styles.center}>
-          <Text variant="heading">
-            {locale === "ko" ? "라이프 오딧 완료" : "Audit complete"}
+          <View style={styles.completeBadge}>
+            <Text variant="subtle" style={styles.completeBadgeText}>
+              {locale === "ko" ? "완료" : "DONE"}
+            </Text>
+          </View>
+          <Text variant="heading" style={{ marginTop: spacing.md, textAlign: "center" }}>
+            {locale === "ko" ? "라이프 오딧을 마쳤어요" : "Audit complete"}
           </Text>
-          <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.md }}>
+          <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.sm }}>
             {locale === "ko"
-              ? "이제 페르소나 카드를 생성할 수 있어요."
-              : "You can now generate your persona card."}
+              ? `${questions.length}개의 답변이 페르소나 모델을 합성할 준비가 됐어요.`
+              : `${questions.length} answers are ready to synthesize your persona model.`}
           </Text>
           <View style={styles.actions}>
             <Button
@@ -161,4 +166,16 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: semantic.brand },
+  completeBadge: {
+    backgroundColor: semantic.success,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.sm,
+  },
+  completeBadgeText: {
+    color: "#0B0E0C",
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    fontSize: 10,
+  },
 });
