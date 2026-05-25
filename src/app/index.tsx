@@ -17,14 +17,18 @@ const ACCENTS = [colors.leaf, colors.sun, colors.skyDeep] as const;
 
 export default function Landing() {
   const { t, i18n } = useTranslation();
-  const { userId, loading } = useAuth();
+  const { userId, hasProfile, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   // Auth still resolving — show the branded loading screen.
   if (loading) return <LoadingScreen />;
 
-  // Signed in — the landing is for visitors only.
-  if (userId) return <Redirect href="/journal" />;
+  // Signed in via OAuth but no public.users row yet — finish the C10 birth-date
+  // prompt before letting them into the app.
+  if (userId && hasProfile === false) return <Redirect href="/complete-profile" />;
+
+  // Signed in and profile exists — the landing is for visitors only.
+  if (userId && hasProfile) return <Redirect href="/journal" />;
 
   // Demo mode = deployed with no Supabase env vars set. Sign-in/save will
   // fail at the network layer; show a banner so the user knows why.
