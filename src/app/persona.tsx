@@ -61,6 +61,11 @@ export default function Persona() {
               onPress={() => router.replace("/audit")}
             />
             <Button
+              label={locale === "ko" ? "Big Five 3분 평가" : "Big Five — 3-min test"}
+              variant="secondary"
+              onPress={() => router.replace("/big-five")}
+            />
+            <Button
               label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
               variant="secondary"
               onPress={() => router.replace("/journal")}

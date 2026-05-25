@@ -61,6 +61,7 @@ export default function RootLayout() {
             <Stack.Screen name="jarvis" />
             <Stack.Screen name="wiki" />
             <Stack.Screen name="manual" />
+            <Stack.Screen name="big-five" />
             <Stack.Screen name="+not-found" />
           </Stack>
         </AuthProvider>
