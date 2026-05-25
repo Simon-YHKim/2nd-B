@@ -63,6 +63,7 @@ export default function RootLayout() {
             <Stack.Screen name="manual" />
             <Stack.Screen name="big-five" />
             <Stack.Screen name="insights" />
+            <Stack.Screen name="attachment" />
             <Stack.Screen name="+not-found" />
           </Stack>
         </AuthProvider>

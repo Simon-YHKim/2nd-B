@@ -66,6 +66,11 @@ export default function Persona() {
               onPress={() => router.replace("/big-five")}
             />
             <Button
+              label={locale === "ko" ? "애착 스타일 평가" : "Attachment style test"}
+              variant="secondary"
+              onPress={() => router.replace("/attachment")}
+            />
+            <Button
               label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
               variant="secondary"
               onPress={() => router.replace("/journal")}
@@ -180,6 +185,11 @@ export default function Persona() {
             label={locale === "ko" ? "Big Five 다시 평가" : "Retake Big Five"}
             variant="secondary"
             onPress={() => router.replace("/big-five")}
+          />
+          <Button
+            label={locale === "ko" ? "애착 스타일 평가" : "Attachment style test"}
+            variant="secondary"
+            onPress={() => router.replace("/attachment")}
           />
           <Button
             label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
