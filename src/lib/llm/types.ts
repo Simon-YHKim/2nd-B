@@ -7,7 +7,8 @@ export type PromptPurpose =
   | "audit_qa"
   | "knowledge_lookup"
   | "persona_chat"
-  | "advisor";
+  | "advisor"
+  | "jarvis_chat";
 
 export interface AdvisorInput {
   userId: string;

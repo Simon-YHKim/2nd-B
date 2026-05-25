@@ -60,7 +60,7 @@ function getClient(): { client: GoogleGenAI; vertex: boolean } {
 // UI can be exercised end-to-end without a Gemini API key. Safety classifier
 // still runs (C9 invariant) and audit log still records the call (C3).
 const MOCK_RESPONSES: Record<
-  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat",
+  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "jarvis_chat",
   Record<"en" | "ko", string>
 > = {
   journal_reflect: {
@@ -78,6 +78,10 @@ const MOCK_RESPONSES: Record<
   persona_chat: {
     en: "[MOCK] I'm noticing a pattern across your recent entries. Tell me more about how you decided.",
     ko: "[MOCK] 최근 기록에서 반복되는 흐름이 보여요. 그 결정을 어떻게 내렸는지 더 들려주세요.",
+  },
+  jarvis_chat: {
+    en: "[MOCK] Jarvis stub — once Gemini is connected I'll consult your captured pages and answer with citations. For now I'm echoing the prompt structure.",
+    ko: "[MOCK] 자비스 임시 응답 — Gemini 연결 후엔 캡처한 페이지를 참고해 인용과 함께 답해 드려요. 지금은 프롬프트 구조만 흉내내요.",
   },
 };
 
