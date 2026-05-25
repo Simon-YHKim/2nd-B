@@ -63,11 +63,17 @@ function readRaw(): Record<string, string | undefined> {
   // Empty-string fallback to demo values lets the UI render even on a
   // public preview deploy with no repo Variables set. Real credentials
   // override these unconditionally.
+  //
+  // ONLY fall back when the env var is missing or empty. Do NOT replace
+  // a present-but-too-short anon key with demo — that would silently mask
+  // a misconfigured-but-intentional credential (truncation, wrong key
+  // type, secret-store paste error). For non-empty-but-malformed input,
+  // let zod's .url()/.min(20) throw so the user sees a clear error.
   const supaUrl = e.EXPO_PUBLIC_SUPABASE_URL;
   const supaKey = e.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   return {
     EXPO_PUBLIC_SUPABASE_URL: supaUrl && supaUrl.length > 0 ? supaUrl : DEMO_SUPABASE_URL,
-    EXPO_PUBLIC_SUPABASE_ANON_KEY: supaKey && supaKey.length >= 20 ? supaKey : DEMO_SUPABASE_ANON_KEY,
+    EXPO_PUBLIC_SUPABASE_ANON_KEY: supaKey && supaKey.length > 0 ? supaKey : DEMO_SUPABASE_ANON_KEY,
     EXPO_PUBLIC_LLM_MODE: e.EXPO_PUBLIC_LLM_MODE,
     EXPO_PUBLIC_USE_VERTEX: e.EXPO_PUBLIC_USE_VERTEX,
     GOOGLE_CLOUD_PROJECT: e.GOOGLE_CLOUD_PROJECT,
