@@ -38,6 +38,9 @@ export default [
       "coverage/**",
       "expo-env.d.ts",
       "*.config.js",
+      // Edge Functions target the Deno runtime, not Node — separate type
+      // pipeline. Linted by the Supabase CLI when deployed.
+      "supabase/functions/**",
     ],
   },
   {

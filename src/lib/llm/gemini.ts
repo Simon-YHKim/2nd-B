@@ -15,6 +15,7 @@ import { retrieveEvidence } from "../knowledge/retrieve";
 import { classifyInput, type SafetyResult } from "../safety/classifier";
 import { HOTLINES } from "../safety/lexicon";
 import { insertAiAuditLog } from "../supabase/audit";
+import { getSupabaseClient } from "../supabase/client";
 import { insertCrisisEvent } from "../supabase/crisis-events";
 import { classifySafety, fixedCrisisResponse } from "./safety";
 import {
@@ -159,22 +160,45 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     return { text: text as unknown as T, safety: outputSafety, audit };
   }
 
-  // Live mode: C2 client constructed with Vertex when configured.
-  const { client, vertex } = getClient();
+  // Live mode: route through gemini-proxy Edge Function when configured
+  // (key stays server-side) or construct the @google/genai client directly.
+  let text: string;
+  let latencyMs: number;
+  let modelUsedForAudit: string;
+  let vertexBackend: boolean;
 
-  const t0 = Date.now();
-  const res = await client.models.generateContent({
-    model,
-    contents: [
-      ...(input.system ? [{ role: "user", parts: [{ text: `[SYSTEM]\n${input.system}` }] }] : []),
-      { role: "user", parts: [{ text: input.user }] },
-    ],
-    config: input.responseSchema
-      ? { responseMimeType: "application/json", responseSchema: input.responseSchema }
-      : undefined,
-  });
-  const latencyMs = Date.now() - t0;
-  const text = res.text ?? "";
+  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
+    const supabase = getSupabaseClient();
+    const t0 = Date.now();
+    const { data, error } = await supabase.functions.invoke("gemini-proxy", {
+      body: { system: input.system ?? null, user: input.user, model },
+    });
+    latencyMs = Date.now() - t0;
+    if (error) throw error;
+    const payload = data as { text?: string; modelUsed?: string } | null;
+    text = payload?.text ?? "";
+    modelUsedForAudit = payload?.modelUsed ?? model;
+    vertexBackend = false;
+  } else {
+    // C2 client constructed with Vertex when configured.
+    const { client, vertex } = getClient();
+
+    const t0 = Date.now();
+    const res = await client.models.generateContent({
+      model,
+      contents: [
+        ...(input.system ? [{ role: "user", parts: [{ text: `[SYSTEM]\n${input.system}` }] }] : []),
+        { role: "user", parts: [{ text: input.user }] },
+      ],
+      config: input.responseSchema
+        ? { responseMimeType: "application/json", responseSchema: input.responseSchema }
+        : undefined,
+    });
+    latencyMs = Date.now() - t0;
+    text = res.text ?? "";
+    modelUsedForAudit = model;
+    vertexBackend = vertex;
+  }
 
   // Re-classify the output to record the final zone in audit log.
   const outputSafety = classifyInput(text, input.locale);
@@ -182,8 +206,8 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   const audit = {
     promptHash: djb2(`${input.system ?? ""}${input.user}`),
     outputHash: djb2(text),
-    modelUsed: model,
-    vertexBackend: vertex,
+    modelUsed: modelUsedForAudit,
+    vertexBackend,
     safetyZone: outputSafety.zone,
     latencyMs,
   };

@@ -30,6 +30,14 @@ const schema = z.object({
     .union([z.literal("true"), z.literal("false")])
     .default("false")
     .transform((v) => v === "true"),
+  // When true, callGemini() routes through the gemini-proxy Edge Function
+  // instead of constructing a @google/genai client. This keeps the API key
+  // off the client bundle — strongly recommended for Web deploys since the
+  // bundle is public.
+  EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: z
+    .union([z.literal("true"), z.literal("false")])
+    .default("false")
+    .transform((v) => v === "true"),
   GOOGLE_CLOUD_PROJECT: z.string().optional(),
   GOOGLE_CLOUD_LOCATION: z.string().default("us-central1"),
   // GOOGLE_API_KEY without EXPO_PUBLIC_ is server-side only (native / Edge
@@ -76,6 +84,7 @@ function readRaw(): Record<string, string | undefined> {
   const supaKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   const llmMode = process.env.EXPO_PUBLIC_LLM_MODE;
   const useVertex = process.env.EXPO_PUBLIC_USE_VERTEX;
+  const viaEdge = process.env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION;
   const publicGoogleKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
   const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY;
   const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST;
@@ -98,6 +107,7 @@ function readRaw(): Record<string, string | undefined> {
     EXPO_PUBLIC_SUPABASE_ANON_KEY: supaKey && supaKey.length > 0 ? supaKey : DEMO_SUPABASE_ANON_KEY,
     EXPO_PUBLIC_LLM_MODE: llmMode,
     EXPO_PUBLIC_USE_VERTEX: useVertex,
+    EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: viaEdge,
     GOOGLE_CLOUD_PROJECT: proc.GOOGLE_CLOUD_PROJECT,
     GOOGLE_CLOUD_LOCATION: proc.GOOGLE_CLOUD_LOCATION,
     // Prefer the inlined EXPO_PUBLIC_ variant when present (Web), fall back
