@@ -18,6 +18,7 @@ import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getBacklinks, listWikiPages } from "@/lib/wiki/queries";
 import { exportUserWiki } from "@/lib/wiki/export";
+import { readPhase1 } from "@/lib/wiki/phase1";
 import type { WikiPageKind, WikiPageRow } from "@/lib/wiki/types";
 
 const KIND_LABEL: Record<WikiPageKind, { en: string; ko: string }> = {
@@ -247,6 +248,32 @@ export default function Wiki() {
                   ) : null}
                   {expanded ? (
                     <View style={styles.expandedSection}>
+                      {(() => {
+                        const p1 = readPhase1(p.frontmatter);
+                        if (p1 === null) return null;
+                        return (
+                          <View style={styles.phase1Card}>
+                            <Text variant="caption" color="brand">
+                              {locale === "ko" ? "Phase 1 — 요약" : "Phase 1 — summary"}
+                            </Text>
+                            <Text variant="body" color="textMuted" style={styles.body}>
+                              {p1.summary}
+                            </Text>
+                            {p1.questions.length > 0 ? (
+                              <>
+                                <Text variant="caption" color="brand" style={styles.phase1QHeader}>
+                                  {locale === "ko" ? "성찰 질문" : "Reflection questions"}
+                                </Text>
+                                {p1.questions.map((q, i) => (
+                                  <Text key={i} variant="subtle" color="textMuted">
+                                    {i + 1}. {q}
+                                  </Text>
+                                ))}
+                              </>
+                            ) : null}
+                          </View>
+                        );
+                      })()}
                       {p.body_md.length > 0 ? (
                         <Text variant="body" color="textMuted" style={styles.body}>
                           {p.body_md}
@@ -332,6 +359,16 @@ const styles = StyleSheet.create({
   expandedSection: { marginTop: spacing.sm, gap: spacing.xs, paddingTop: spacing.sm, borderTopColor: semantic.border, borderTopWidth: 1 },
   body: { lineHeight: 22 },
   backlinksHeader: { marginTop: spacing.sm },
+  phase1Card: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.brand,
+    borderLeftWidth: 3,
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  phase1QHeader: { marginTop: spacing.xs },
   exportCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.brand,
