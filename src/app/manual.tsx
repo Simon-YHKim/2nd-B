@@ -203,6 +203,9 @@ export default function Manual() {
           <Link href="/permissions" asChild>
             <Button label={locale === "ko" ? "권한 사용 안내" : "What the app accesses"} variant="secondary" />
           </Link>
+          <Link href="/research" asChild>
+            <Button label={locale === "ko" ? "큐레이션된 자료" : "Curated research"} variant="secondary" />
+          </Link>
           <Button label={locale === "ko" ? "뒤로" : "Back"} variant="secondary" onPress={() => router.back()} />
         </View>
       </ScrollView>
