@@ -37,31 +37,43 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Ensure GitHub Pages is enabled (workflow source)
+      - uses: actions/checkout@v4
+      # Canonical pattern: configure-pages with enablement:true creates the
+      # Pages site (if needed) AND sets the build_type to "workflow", in one
+      # API-aware step that the deploy-pages action understands. Replaces
+      # the previous hand-rolled curl POST which left github-pages env in an
+      # inconsistent branch-policy state.
+      - name: Configure Pages (auto-enable + workflow source)
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      # Some accounts default the github-pages env to a single-branch policy
+      # (usually `main`). For a preview branch we either need to allow this
+      # branch or remove the policy entirely. Idempotent: succeeds whether
+      # the env exists or not, whether a policy is set or not.
+      - name: Allow this branch to deploy to github-pages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
         run: |
-          # Idempotent: 201 on first run, 409 if already enabled.
-          # Either is acceptable — we just need Pages to exist before deploy.
-          STATUS=$(curl -s -o /tmp/pages-resp.json -w "%{http_code}" -X POST \
+          set -e
+          # Ensure the env exists (deploy-pages would create it but we want
+          # to set policies first).
+          curl -sS -X PUT \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${{ github.repository }}/pages" \
-            -d '{"build_type":"workflow"}')
-          echo "POST /pages → $STATUS"
-          if [ "$STATUS" = "201" ] || [ "$STATUS" = "409" ]; then
-            echo "✓ Pages ready (workflow source)"
-          else
-            cat /tmp/pages-resp.json
-            # Try switching build_type on an already-existing Pages site.
-            curl -s -X PUT \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${{ github.repository }}/pages" \
-              -d '{"build_type":"workflow"}'
-          fi
-      - uses: actions/checkout@v4
+            "https://api.github.com/repos/$REPO/environments/github-pages" \
+            -d '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}' \
+            -o /tmp/env.json -w "PUT env → %{http_code}\n"
+          # Add a custom branch policy for this branch. 422 if already exists.
+          STATUS=$(curl -sS -o /tmp/pol.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/environments/github-pages/deployment-branch-policies" \
+            -d "{\"name\":\"$BRANCH\",\"type\":\"branch\"}")
+          echo "POST policy ($BRANCH) → $STATUS"
+          [ "$STATUS" = "200" ] || [ "$STATUS" = "201" ] || [ "$STATUS" = "422" ]
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
