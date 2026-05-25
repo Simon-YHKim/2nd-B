@@ -320,6 +320,20 @@ export default function Journal() {
               numberOfLines={6}
               style={styles.textarea}
             />
+            {body.length > 0 ? (
+              <View style={styles.charCountRow}>
+                <Text variant="subtle" color="textSubtle">
+                  {locale === "ko"
+                    ? body.trim().length < 40
+                      ? "조금만 더 길게 적어볼까요"
+                      : "충분해요"
+                    : body.trim().length < 40
+                      ? "A few more words help"
+                      : "Looks good"}
+                </Text>
+                <Text variant="subtle" color="textSubtle">{body.length}</Text>
+              </View>
+            ) : null}
             <Input
               value={tagsInput}
               onChangeText={setTagsInput}
@@ -615,6 +629,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.lg,
   },
+  charCountRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
   limitCard: {
     backgroundColor: semantic.surfaceAlt,
     borderColor: semantic.warning,
