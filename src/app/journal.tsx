@@ -476,7 +476,7 @@ function RecentEntry({
           </Text>
         ) : null}
       </View>
-      <Text variant="body" style={{ marginTop: spacing.xs }}>{body}</Text>
+      <Text variant="body" style={{ marginTop: spacing.xs }} selectable>{body}</Text>
       {isLong ? (
         <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={8} style={styles.showMoreBtn}>
           <Text variant="subtle" color="brand">{toggleLabel}</Text>
@@ -487,7 +487,7 @@ function RecentEntry({
           <Text variant="caption" color="textSubtle">
             {locale === "ko" ? "결론" : "Conclusion"}
           </Text>
-          <Text variant="subtle" color="textMuted">{record.conclusion}</Text>
+          <Text variant="subtle" color="textMuted" selectable>{record.conclusion}</Text>
         </View>
       ) : null}
       {record.tags && record.tags.length > 0 ? (
