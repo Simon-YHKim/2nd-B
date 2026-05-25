@@ -58,7 +58,24 @@ const refined = schema
   );
 
 function readRaw(): Record<string, string | undefined> {
-  const e: Record<string, string | undefined> =
+  // CRITICAL: every EXPO_PUBLIC_* value must be read as a *direct*
+  // `process.env.EXPO_PUBLIC_X` member expression. babel-preset-expo replaces
+  // exactly that syntactic pattern with the literal value at build time.
+  // Aliasing `process.env` to a local variable (e.g. `const e = process.env`)
+  // defeats the static replacement — the prior bug, which made every web /
+  // native build silently fall back to the demo placeholders below even when
+  // real Supabase credentials were configured. Do not refactor these into a
+  // loop or an alias.
+  const supaUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const supaKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  const llmMode = process.env.EXPO_PUBLIC_LLM_MODE;
+  const useVertex = process.env.EXPO_PUBLIC_USE_VERTEX;
+  const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY;
+  const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST;
+  // Non-public vars (no EXPO_PUBLIC_ prefix) are never inlined into the client
+  // bundle by design; they resolve from the real process.env on native / node
+  // and are simply undefined on web. Aliasing is safe for these.
+  const proc: Record<string, string | undefined> =
     typeof process !== "undefined" && process.env ? process.env : {};
   // Empty-string fallback to demo values lets the UI render even on a
   // public preview deploy with no repo Variables set. Real credentials
@@ -69,19 +86,17 @@ function readRaw(): Record<string, string | undefined> {
   // a misconfigured-but-intentional credential (truncation, wrong key
   // type, secret-store paste error). For non-empty-but-malformed input,
   // let zod's .url()/.min(20) throw so the user sees a clear error.
-  const supaUrl = e.EXPO_PUBLIC_SUPABASE_URL;
-  const supaKey = e.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   return {
     EXPO_PUBLIC_SUPABASE_URL: supaUrl && supaUrl.length > 0 ? supaUrl : DEMO_SUPABASE_URL,
     EXPO_PUBLIC_SUPABASE_ANON_KEY: supaKey && supaKey.length > 0 ? supaKey : DEMO_SUPABASE_ANON_KEY,
-    EXPO_PUBLIC_LLM_MODE: e.EXPO_PUBLIC_LLM_MODE,
-    EXPO_PUBLIC_USE_VERTEX: e.EXPO_PUBLIC_USE_VERTEX,
-    GOOGLE_CLOUD_PROJECT: e.GOOGLE_CLOUD_PROJECT,
-    GOOGLE_CLOUD_LOCATION: e.GOOGLE_CLOUD_LOCATION,
-    GOOGLE_API_KEY: e.GOOGLE_API_KEY,
-    SENTRY_DSN: e.SENTRY_DSN,
-    EXPO_PUBLIC_POSTHOG_KEY: e.EXPO_PUBLIC_POSTHOG_KEY,
-    EXPO_PUBLIC_POSTHOG_HOST: e.EXPO_PUBLIC_POSTHOG_HOST,
+    EXPO_PUBLIC_LLM_MODE: llmMode,
+    EXPO_PUBLIC_USE_VERTEX: useVertex,
+    GOOGLE_CLOUD_PROJECT: proc.GOOGLE_CLOUD_PROJECT,
+    GOOGLE_CLOUD_LOCATION: proc.GOOGLE_CLOUD_LOCATION,
+    GOOGLE_API_KEY: proc.GOOGLE_API_KEY,
+    SENTRY_DSN: proc.SENTRY_DSN,
+    EXPO_PUBLIC_POSTHOG_KEY: posthogKey,
+    EXPO_PUBLIC_POSTHOG_HOST: posthogHost,
   };
 }
 
