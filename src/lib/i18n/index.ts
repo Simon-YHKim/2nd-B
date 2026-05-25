@@ -8,6 +8,7 @@ import enConsent from "../../../locales/en/consent.json";
 import enInbox from "../../../locales/en/inbox.json";
 import enJarvis from "../../../locales/en/jarvis.json";
 import enSafety from "../../../locales/en/safety.json";
+import enWiki from "../../../locales/en/wiki.json";
 import koAuth from "../../../locales/ko/auth.json";
 import koCapture from "../../../locales/ko/capture.json";
 import koCommon from "../../../locales/ko/common.json";
@@ -15,14 +16,15 @@ import koConsent from "../../../locales/ko/consent.json";
 import koInbox from "../../../locales/ko/inbox.json";
 import koJarvis from "../../../locales/ko/jarvis.json";
 import koSafety from "../../../locales/ko/safety.json";
+import koWiki from "../../../locales/ko/wiki.json";
 import { detectLanguage } from "./languageDetector";
 
-export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "jarvis"] as const;
+export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "jarvis", "wiki"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
 export const resources = {
-  en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, jarvis: enJarvis },
-  ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, jarvis: koJarvis },
+  en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, jarvis: enJarvis, wiki: enWiki },
+  ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, jarvis: koJarvis, wiki: koWiki },
 } as const;
 
 let initialized = false;

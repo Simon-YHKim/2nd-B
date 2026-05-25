@@ -55,6 +55,7 @@ export default function RootLayout() {
             <Stack.Screen name="capture" />
             <Stack.Screen name="inbox" />
             <Stack.Screen name="jarvis" />
+            <Stack.Screen name="wiki" />
             <Stack.Screen name="+not-found" />
           </Stack>
         </AuthProvider>

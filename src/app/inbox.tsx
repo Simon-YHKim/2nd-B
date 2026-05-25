@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { listSources } from "@/lib/wiki/queries";
+import { generateSourcePage } from "@/lib/wiki/phase2";
 import { downloadRawClipping } from "@/lib/wiki/storage";
 import type { SourceKind, SourceRow } from "@/lib/wiki/types";
 
@@ -49,6 +50,7 @@ export default function Inbox() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
 
   const load = useCallback(async (uid: string) => {
     setError(null);
@@ -90,6 +92,27 @@ export default function Inbox() {
     setRefreshing(true);
     await load(userId);
     setRefreshing(false);
+  }
+
+  async function handleGeneratePage(row: SourceRow): Promise<void> {
+    if (!userId) return;
+    setGeneratingId(row.id);
+    try {
+      const result = await generateSourcePage(userId, row.id);
+      const msg =
+        locale === "ko"
+          ? `[[${result.slug}]] 위키 페이지 생성됨${result.danglingSlugs.length > 0 ? ` (연결 안 된 슬러그: ${result.danglingSlugs.length})` : ""}`
+          : `Generated wiki page [[${result.slug}]]${result.danglingSlugs.length > 0 ? ` (${result.danglingSlugs.length} dangling link${result.danglingSlugs.length === 1 ? "" : "s"})` : ""}`;
+      Alert.alert(msg);
+      await load(userId); // reflect ingested=true
+    } catch (e) {
+      Alert.alert(
+        locale === "ko" ? "위키 페이지 생성 실패" : "Could not generate wiki page",
+        (e as Error).message,
+      );
+    } finally {
+      setGeneratingId(null);
+    }
   }
 
   return (
@@ -167,6 +190,29 @@ export default function Inbox() {
                     #{r.tags.join(" #")}
                   </Text>
                 ) : null}
+                {!r.ingested ? (
+                  <View style={styles.rowActions}>
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        void handleGeneratePage(r);
+                      }}
+                      style={styles.generateBtn}
+                      disabled={generatingId === r.id}
+                      hitSlop={4}
+                    >
+                      <Text variant="caption" color="brand">
+                        {generatingId === r.id
+                          ? locale === "ko"
+                            ? "생성 중…"
+                            : "Generating…"
+                          : locale === "ko"
+                            ? "→ 위키 페이지 생성"
+                            : "→ Generate wiki page"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : null}
               </Pressable>
             ))}
           </View>
@@ -221,4 +267,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   ingestedChip: { backgroundColor: semantic.surface, borderColor: semantic.success },
+  rowActions: { marginTop: spacing.xs, alignItems: "flex-start" },
+  generateBtn: { paddingVertical: spacing.xs },
 });
