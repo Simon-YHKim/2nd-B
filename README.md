@@ -69,6 +69,12 @@ See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md). The 7 engines and
 12 constraints map to specific files and CI checks; the architecture
 doc is the routing table.
 
+## Design system
+
+UI color, spacing, radius, type scale and font pairing come from the
+phytoncide design tokens in `src/theme/` (Option C). Never hardcode hex
+literals in components. See [`docs/DESIGN_TOKENS.md`](./docs/DESIGN_TOKENS.md).
+
 ## Verification
 
 ```bash
