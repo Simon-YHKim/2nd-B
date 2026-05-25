@@ -7,7 +7,7 @@
 // "Generate page" path (PR follow-up wires that button).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshControl } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshControl, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getBacklinks, listWikiPages } from "@/lib/wiki/queries";
+import { exportUserWiki } from "@/lib/wiki/export";
 import type { WikiPageKind, WikiPageRow } from "@/lib/wiki/types";
 
 const KIND_LABEL: Record<WikiPageKind, { en: string; ko: string }> = {
@@ -42,6 +43,8 @@ export default function Wiki() {
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [backlinksById, setBacklinksById] = useState<Record<string, WikiPageRow[]>>({});
+  const [exporting, setExporting] = useState(false);
+  const [exportText, setExportText] = useState<string | null>(null);
 
   const load = useCallback(
     async (uid: string, tagsFilter: string[]) => {
@@ -103,6 +106,22 @@ export default function Wiki() {
     setRefreshing(false);
   }
 
+  async function handleExport(): Promise<void> {
+    if (!userId) return;
+    setExporting(true);
+    try {
+      const result = await exportUserWiki(userId, { locale, bodyCharLimit: 4000 });
+      setExportText(result.prompt);
+    } catch (e) {
+      Alert.alert(
+        locale === "ko" ? "익스포트 실패" : "Export failed",
+        (e as Error).message,
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <Screen>
       <ScrollView
@@ -123,10 +142,42 @@ export default function Wiki() {
           <Link href="/capture" asChild>
             <Button label={t("capture")} variant="primary" />
           </Link>
+          <Button
+            label={t("export")}
+            variant="secondary"
+            onPress={handleExport}
+            loading={exporting}
+            disabled={exporting || pages.length === 0}
+          />
           <Link href="/journal" asChild>
             <Button label={t("back")} variant="secondary" />
           </Link>
         </View>
+
+        {exportText !== null ? (
+          <View style={styles.exportCard}>
+            <View style={styles.exportHeader}>
+              <Text variant="caption" color="textMuted">
+                {t("exportTitle")} ({exportText.length.toLocaleString()} {locale === "ko" ? "자" : "chars"})
+              </Text>
+              <Pressable onPress={() => setExportText(null)} hitSlop={6}>
+                <Text variant="caption" color="brand">
+                  {locale === "ko" ? "닫기" : "Close"}
+                </Text>
+              </Pressable>
+            </View>
+            <ScrollView style={styles.exportScroll} nestedScrollEnabled>
+              <Text variant="subtle" color="text" selectable>
+                {exportText}
+              </Text>
+            </ScrollView>
+            <Text variant="subtle" color="textSubtle" style={styles.exportHelper}>
+              {locale === "ko"
+                ? "위 텍스트를 길게 눌러 전체 선택 후 복사하세요. Claude · ChatGPT 새 대화에 붙여 넣으면 자비스와 같은 컨텍스트로 사용됩니다."
+                : "Long-press the text above to select all, then paste into a new Claude / ChatGPT chat for the same context as Jarvis."}
+            </Text>
+          </View>
+        ) : null}
 
         {visibleTags.length > 0 ? (
           <View style={styles.tagFilterCard}>
@@ -281,4 +332,15 @@ const styles = StyleSheet.create({
   expandedSection: { marginTop: spacing.sm, gap: spacing.xs, paddingTop: spacing.sm, borderTopColor: semantic.border, borderTopWidth: 1 },
   body: { lineHeight: 22 },
   backlinksHeader: { marginTop: spacing.sm },
+  exportCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.brand,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  exportHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  exportScroll: { maxHeight: 320, backgroundColor: semantic.surfaceAlt, borderRadius: radii.sm, padding: spacing.sm },
+  exportHelper: { marginTop: spacing.xs },
 });

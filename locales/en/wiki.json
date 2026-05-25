@@ -2,11 +2,13 @@
   "title": "Wiki",
   "subtitle": "Your knowledge graph. Tap a page to read it and see what links back.",
   "capture": "Capture",
+  "export": "Export",
   "back": "Back to journal",
   "filterByTag": "Filter by tag",
   "clear": "Clear",
   "empty": "No pages yet. Capture something and generate its page from the inbox.",
   "emptyForTags": "No pages match these tags.",
   "emptyBody": "(no body content yet)",
-  "backlinks": "Backlinks"
+  "backlinks": "Backlinks",
+  "exportTitle": "Wiki export bundle"
 }
