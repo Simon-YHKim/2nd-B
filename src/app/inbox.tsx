@@ -238,9 +238,22 @@ export default function Inbox() {
                       </Text>
                     </Pressable>
                   ) : (
-                    <Text variant="caption" color="success">
-                      {locale === "ko" ? "✓ Phase 1 완료" : "✓ Phase 1 done"}
-                    </Text>
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        const p1 = readPhase1(r.frontmatter)!;
+                        Alert.alert(
+                          locale === "ko" ? "Phase 1 결과" : "Phase 1 result",
+                          p1.summary + "\n\n" + p1.questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
+                        );
+                      }}
+                      style={styles.generateBtn}
+                      hitSlop={4}
+                    >
+                      <Text variant="caption" color="success">
+                        {locale === "ko" ? "✓ Phase 1 보기" : "✓ Phase 1 — view"}
+                      </Text>
+                    </Pressable>
                   )}
                   {!r.ingested ? (
                     <Pressable
