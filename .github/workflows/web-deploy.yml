@@ -47,12 +47,12 @@ jobs:
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           EXPO_PUBLIC_LLM_MODE: mock
           EXPO_USE_STATIC: "true"
-          EXPO_BASE_URL: /2nd-B/
         run: |
+          # base-path (/2nd-B) comes from expo.experiments.baseUrl in app.json,
+          # so `expo export` emits correctly-prefixed asset AND client-router
+          # paths. No manual sed patching needed (that only fixed asset URLs
+          # and left the router unaware of the subpath — the root-URL 404 bug).
           npx expo export --platform web --output-dir dist
-          # GitHub Pages serves /2nd-B/* — patch absolute /_expo/ + /assets/.
-          find dist -name "*.html" -print0 | xargs -0 sed -i 's|"/_expo/|"/2nd-B/_expo/|g'
-          find dist -name "*.html" -print0 | xargs -0 sed -i 's|"/assets/|"/2nd-B/assets/|g'
           # SPA fallback + Jekyll opt-out.
           cp dist/index.html dist/404.html 2>/dev/null || true
           touch dist/.nojekyll
