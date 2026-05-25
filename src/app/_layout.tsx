@@ -1,16 +1,15 @@
 import { Stack } from "expo-router";
-import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
 import { initI18n } from "@/lib/i18n";
 
-export default function RootLayout() {
-  useEffect(() => {
-    initI18n();
-  }, []);
+// Initialize at module load so the i18next instance exists during SSR/SSG
+// (static export renders without running effects).
+initI18n();
 
+export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
