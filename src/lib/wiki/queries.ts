@@ -72,6 +72,27 @@ export async function markSourceIngested(sourceId: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Delete a source row. wiki_pages.source_id is ON DELETE SET NULL, but
+ * the wiki_pages_source_kind_pair CHECK constraint requires kind='source'
+ * ⇔ source_id IS NOT NULL. So sources that have been promoted to a
+ * wiki page CAN'T be cleanly deleted without first deleting the wiki page.
+ * The inbox UI only exposes the delete action on un-ingested rows.
+ *
+ * Storage cleanup (deleting the .md from raw-clippings) is not automated
+ * here — operator can prune Storage manually or via a scheduled Edge
+ * Function later.
+ */
+export async function deleteSource(userId: string, sourceId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("sources")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", sourceId);
+  if (error) throw error;
+}
+
 // --- wiki_pages --------------------------------------------------------
 
 export interface UpsertWikiPageInput {

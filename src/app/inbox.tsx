@@ -12,7 +12,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { listSources } from "@/lib/wiki/queries";
+import { deleteSource, listSources } from "@/lib/wiki/queries";
 import { runPhase1, readPhase1 } from "@/lib/wiki/phase1";
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { downloadRawClipping } from "@/lib/wiki/storage";
@@ -123,6 +123,43 @@ export default function Inbox() {
     } finally {
       setPhase1Id(null);
     }
+  }
+
+  async function handleDeleteSource(row: SourceRow): Promise<void> {
+    if (!userId) return;
+    if (row.ingested) {
+      Alert.alert(
+        locale === "ko" ? "삭제 불가" : "Cannot delete",
+        locale === "ko"
+          ? "위키 페이지로 승격된 소스는 먼저 위키에서 페이지를 삭제해야 해요."
+          : "Promoted sources need the wiki page deleted first.",
+      );
+      return;
+    }
+    Alert.alert(
+      locale === "ko" ? "이 캡처를 삭제할까요?" : "Delete this capture?",
+      locale === "ko"
+        ? "본문 파일은 Supabase Storage에 남아 있을 수 있어요 (자동 정리는 v2)."
+        : "The body file may stay in Supabase Storage (auto-cleanup ships in v2).",
+      [
+        { text: locale === "ko" ? "취소" : "Cancel", style: "cancel" },
+        {
+          text: locale === "ko" ? "삭제" : "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteSource(userId, row.id);
+              await load(userId);
+            } catch (e) {
+              Alert.alert(
+                locale === "ko" ? "삭제 실패" : "Delete failed",
+                (e as Error).message,
+              );
+            }
+          },
+        },
+      ],
+    );
   }
 
   async function handleGeneratePage(row: SourceRow): Promise<void> {
@@ -296,6 +333,20 @@ export default function Inbox() {
                       </Pressable>
                     </Link>
                   )}
+                  {!r.ingested ? (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        void handleDeleteSource(r);
+                      }}
+                      style={styles.generateBtn}
+                      hitSlop={4}
+                    >
+                      <Text variant="caption" color="textSubtle">
+                        {locale === "ko" ? "삭제" : "Delete"}
+                      </Text>
+                    </Pressable>
+                  ) : null}
                 </View>
                 {expandedId === r.id ? (
                   <View style={styles.expandedSection}>
