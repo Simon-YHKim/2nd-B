@@ -16,7 +16,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getBacklinks, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
+import { deleteWikiPage, getBacklinks, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import { exportUserWiki } from "@/lib/wiki/export";
 import { readPhase1, runPhase1 } from "@/lib/wiki/phase1";
 import { computeGraphStats, type GraphStats } from "@/lib/wiki/graph-stats";
@@ -128,6 +128,34 @@ export default function Wiki() {
         (e as Error).message,
       );
     }
+  }
+
+  async function handleDeletePage(p: WikiPageRow): Promise<void> {
+    if (!userId) return;
+    Alert.alert(
+      locale === "ko" ? "이 위키 페이지를 삭제할까요?" : "Delete this wiki page?",
+      locale === "ko"
+        ? "연결된 [[wikilink]]도 자동으로 정리돼요. 되돌릴 수 없습니다."
+        : "All [[wikilink]] edges to this page are cascaded. This cannot be undone.",
+      [
+        { text: locale === "ko" ? "취소" : "Cancel", style: "cancel" },
+        {
+          text: locale === "ko" ? "삭제" : "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteWikiPage(userId, p.id);
+              await load(userId, activeTags);
+            } catch (e) {
+              Alert.alert(
+                locale === "ko" ? "삭제 실패" : "Delete failed",
+                (e as Error).message,
+              );
+            }
+          },
+        },
+      ],
+    );
   }
 
   async function handleRunPhase1OnPage(page: WikiPageRow): Promise<void> {
@@ -513,6 +541,18 @@ export default function Wiki() {
                           ← [[{b.slug}]] {b.title}
                         </Text>
                       ))}
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          void handleDeletePage(p);
+                        }}
+                        hitSlop={6}
+                        style={{ alignSelf: "flex-end", marginTop: spacing.sm }}
+                      >
+                        <Text variant="caption" color="textSubtle">
+                          {locale === "ko" ? "이 페이지 삭제" : "Delete page"}
+                        </Text>
+                      </Pressable>
                     </View>
                   ) : null}
                 </Pressable>

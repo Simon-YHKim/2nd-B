@@ -159,6 +159,23 @@ export async function listWikiPages(userId: string, opts: ListWikiPagesOpts = {}
   return (data ?? []) as WikiPageRow[];
 }
 
+/**
+ * Delete a wiki page. wiki_links rows on both sides cascade automatically
+ * (ON DELETE CASCADE in 0022). The underlying sources row (if any) is
+ * unaffected — wiki_pages.source_id is the FK, and that's the column being
+ * deleted, not the parent. The user can re-promote later if they change
+ * their mind.
+ */
+export async function deleteWikiPage(userId: string, pageId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("wiki_pages")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", pageId);
+  if (error) throw error;
+}
+
 /** Pages whose body links TO the given page (i.e., wiki_links.to_page = pageId). */
 export async function getBacklinks(userId: string, pageId: string): Promise<WikiPageRow[]> {
   const supabase = getSupabaseClient();
