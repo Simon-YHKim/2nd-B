@@ -72,7 +72,17 @@ export default function SignIn() {
         style={{ flex: 1 }}
       >
       <View style={styles.header}>
-        <Text variant="caption" color="brand">2nd-Brain</Text>
+        <View style={styles.brandRow}>
+          <Text variant="caption" color="brand">2nd-Brain</Text>
+          <Pressable
+            onPress={() => {
+              void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
+            }}
+            hitSlop={6}
+          >
+            <Text variant="caption" color="brand">{locale === "ko" ? "EN" : "한국어"}</Text>
+          </Pressable>
+        </View>
         <Text variant="heading" style={styles.title}>{t("signIn.title")}</Text>
         <Text variant="body" color="textMuted">{t("signIn.subtitle")}</Text>
       </View>
@@ -153,6 +163,7 @@ export default function SignIn() {
 
 const styles = StyleSheet.create({
   header: { gap: spacing.xs, marginBottom: spacing.xl },
+  brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   title: { marginTop: spacing.xs },
   form: { gap: spacing.sm },
   passwordRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },

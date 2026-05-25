@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { View, StyleSheet, Alert, ScrollView } from "react-native";
+import { View, StyleSheet, Alert, Pressable, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
@@ -53,7 +53,17 @@ export default function SignUp() {
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Text variant="caption" color="brand">2nd-Brain</Text>
+          <View style={styles.brandRow}>
+            <Text variant="caption" color="brand">2nd-Brain</Text>
+            <Pressable
+              onPress={() => {
+                void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
+              }}
+              hitSlop={6}
+            >
+              <Text variant="caption" color="brand">{locale === "ko" ? "EN" : "한국어"}</Text>
+            </Pressable>
+          </View>
           <Text variant="heading" style={styles.title}>{t("signUp.title")}</Text>
           <Text variant="body" color="textMuted">{t("signUp.subtitle")}</Text>
           {judge ? <View style={styles.badgeWrap}><JudgeBadge /></View> : null}
@@ -135,6 +145,7 @@ function ChecklistItem({ ok, label }: { ok: boolean; label: string }) {
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl },
   header: { gap: spacing.xs, marginBottom: spacing.xl },
+  brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   title: { marginTop: spacing.xs },
   badgeWrap: { marginTop: spacing.sm },
   form: { gap: spacing.sm },
