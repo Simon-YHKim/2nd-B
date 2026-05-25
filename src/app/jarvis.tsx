@@ -109,7 +109,10 @@ export default function Jarvis() {
             <Text variant="caption" color="textMuted">
               {locale === "ko" ? "오늘" : "Today"}
             </Text>
-            <Text variant="body" color="textMuted">
+            <Text
+              variant="body"
+              color={usedToday !== null && usedToday >= limit ? "danger" : usedToday !== null && limit - usedToday <= 2 ? "warning" : "textMuted"}
+            >
               {usedDisplay} / {limit}
             </Text>
           </View>
