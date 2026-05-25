@@ -298,9 +298,19 @@ export default function Wiki() {
                         }
                         return (
                           <View style={styles.phase1Card}>
-                            <Text variant="caption" color="brand">
-                              {locale === "ko" ? "Phase 1 — 요약" : "Phase 1 — summary"}
-                            </Text>
+                            <View style={styles.phase1Header}>
+                              <Text variant="caption" color="brand">
+                                {locale === "ko" ? "Phase 1 — 요약" : "Phase 1 — summary"}
+                              </Text>
+                              <Text variant="subtle" color="textSubtle">
+                                {new Date(p1.generated_at).toLocaleDateString(
+                                  locale === "ko" ? "ko-KR" : "en-US",
+                                  { month: "short", day: "numeric" },
+                                )}
+                                {" · "}
+                                {p1.model.startsWith("mock:") ? "MOCK" : p1.model.split("-").slice(-2, -1)[0] ?? p1.model}
+                              </Text>
+                            </View>
                             <Text variant="body" color="textMuted" style={styles.body}>
                               {p1.summary}
                             </Text>
@@ -413,6 +423,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     marginBottom: spacing.sm,
   },
+  phase1Header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   phase1QHeader: { marginTop: spacing.xs },
   phase1Trigger: { paddingVertical: spacing.xs, marginBottom: spacing.sm },
   exportCard: {
