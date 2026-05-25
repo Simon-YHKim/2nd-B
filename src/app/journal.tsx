@@ -142,6 +142,12 @@ export default function Journal() {
         {progression.loading ? null : <XpBar progress={progression.progress} locale={locale} />}
 
         <View style={styles.navRow}>
+          <Link href="/capture" asChild>
+            <Button label={locale === "ko" ? "캡처" : "Capture"} variant="secondary" />
+          </Link>
+          <Link href="/inbox" asChild>
+            <Button label={locale === "ko" ? "받은편지함" : "Inbox"} variant="secondary" />
+          </Link>
           <Link href="/audit" asChild>
             <Button label={locale === "ko" ? "라이프 오딧" : "Life audit"} variant="secondary" />
           </Link>
