@@ -1,0 +1,3 @@
+[submodule "SimonK-stack"]
+	path = SimonK-stack
+	url = https://github.com/Simon-YHKim/SimonK-stack.git
