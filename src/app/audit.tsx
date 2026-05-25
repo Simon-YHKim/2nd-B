@@ -100,6 +100,18 @@ export default function Audit() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll}>
+        {index === 0 ? (
+          <View style={styles.introCard}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+              {locale === "ko" ? "라이프 오딧 — 자기 인터뷰" : "Life audit — self interview"}
+            </Text>
+            <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
+              {locale === "ko"
+                ? "Big Five · 애착이론 · 자기결정성 이론에 기반한 질문들. 정답이 없어요 — 솔직하게 적은 만큼 페르소나가 정확해집니다."
+                : "Questions grounded in Big Five, Attachment Theory, and Self-Determination Theory. No right answer — the more honest you are, the sharper your Persona becomes."}
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.progressWrap}>
           <Text variant="caption" color="brand">
             {locale === "ko" ? `질문 ${index + 1} / ${questions.length}` : `Question ${index + 1} / ${questions.length}`}
@@ -187,6 +199,14 @@ const styles = StyleSheet.create({
   },
   textarea: { minHeight: 140, textAlignVertical: "top", paddingTop: spacing.md },
   charCountRow: { flexDirection: "row", justifyContent: "space-between", marginTop: -spacing.xs },
+  introCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.sm,
+    borderLeftColor: semantic.brand,
+    borderLeftWidth: 3,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
   progressWrap: { gap: spacing.xs },
   progressTrack: {
     height: 4,
