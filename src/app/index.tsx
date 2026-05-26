@@ -1,25 +1,35 @@
-import { useEffect, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { Animated, Easing, View, StyleSheet, ScrollView, Image, Text, Pressable } from "react-native";
-import { Link, Redirect } from "expo-router";
+// Landing — the post-loading "main view" per docs/DESIGN.md.
+//
+// After the LoadingScreen dolly-zoom resolves into this screen, the user
+// sees:
+//   • Dark sky-black backdrop with the giant logo (continuous with the
+//     zoomed loader logo) and a slow sky-drift color overlay.
+//   • A knowledge graph in the foreground.
+//     - Empty state (no data): just the central "core" node — the
+//       user's identity anchor. Top text invites the first tap.
+//     - With data (authenticated + has wiki pages): the core surrounded
+//       by source/entity/concept nodes connected by [[wikilink]] edges.
+//
+// Tap on the core:
+//   • unauthenticated → /sign-up
+//   • authenticated + no profile → /complete-profile  (C10)
+//   • authenticated + profile → /journal
 
-import { Screen } from "@/components/ui/Screen";
-import { Button } from "@/components/ui/Button";
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Animated, Easing, View, StyleSheet, Image, Pressable, Text } from "react-native";
+import { router } from "expo-router";
+
 import { InlineLoader } from "@/components/ui/InlineLoader";
-import { colors, spacing, radius, fontSize, fontFamilies, fontWeights } from "@/theme";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getEnv, IS_DEMO_BUILD } from "@/lib/env";
+import { getSupabaseClient } from "@/lib/supabase/client";
+import { KnowledgeGraph, type GraphEdge, type GraphNode } from "@/components/graph/KnowledgeGraph";
 
 // Logo with glow — resolves to the root assets/ dir.
 const logo = require("../../assets/images/logo-glow.png");
 
-// One phytoncide accent per pillar (spring leaf / sunlight / sky).
-const ACCENTS = [colors.leaf, colors.sun, colors.skyDeep] as const;
-
-// Sky drift — atmospheric color shift behind the logo. Per docs/DESIGN.md
-// the landing background should feel like "하늘이 자연스럽게 흐르는 느낌."
-// Three-stop interpolation cycling every 20s (10s each way) — slow enough
-// to feel like atmosphere, not animation.
+// Sky drift — slow atmospheric color shift behind the logo. Three-stop
+// interpolation cycling every 20s — barely visible alpha 0.05.
 function useSkyDrift() {
   const tide = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -42,185 +52,97 @@ function useSkyDrift() {
   }, [tide]);
   return tide.interpolate({
     inputRange: [0, 0.5, 1],
-    // Very subtle — alpha 0.05 so the overlay is barely visible but the
-    // hue shift reads as ambient atmosphere drifting across the logo.
     outputRange: ["rgba(30,136,238,0.05)", "rgba(143,112,240,0.05)", "rgba(0,255,255,0.05)"],
   });
 }
 
 export default function Landing() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { userId, hasProfile, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const skyOverlay = useSkyDrift();
 
-  // Auth still resolving — the full intro already played in _layout, so
-  // just show a minimal inline loader.
+  const [nodes, setNodes] = useState<GraphNode[]>([]);
+  const [edges, setEdges] = useState<GraphEdge[]>([]);
+
+  // Pull the user's wiki graph if signed in. Empty arrays for unauth
+  // visitors — they see just the core.
+  useEffect(() => {
+    if (!userId) {
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
+    const supabase = getSupabaseClient();
+    let cancelled = false;
+    Promise.all([
+      supabase
+        .from("wiki_pages")
+        .select("id, kind, title")
+        .eq("user_id", userId)
+        .limit(120),
+      supabase
+        .from("wiki_links")
+        .select("from_page, to_page")
+        .eq("user_id", userId)
+        .limit(400),
+    ]).then(([pagesRes, linksRes]) => {
+      if (cancelled) return;
+      if (pagesRes.data) setNodes(pagesRes.data as GraphNode[]);
+      if (linksRes.data) setEdges(linksRes.data as GraphEdge[]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
   if (loading) return <InlineLoader />;
 
-  // Signed in via OAuth but no public.users row yet — finish the C10 birth-date
-  // prompt before letting them into the app.
-  if (userId && hasProfile === false) return <Redirect href="/complete-profile" />;
-
-  // Signed in and profile exists — the landing is for visitors only.
-  if (userId && hasProfile) return <Redirect href="/journal" />;
-
-  // Demo mode = deployed with no Supabase env vars set. Sign-in/save will
-  // fail at the network layer; show a banner so the user knows why.
-  let demoMode = false;
-  try {
-    demoMode = IS_DEMO_BUILD(getEnv().EXPO_PUBLIC_SUPABASE_URL);
-  } catch {
-    demoMode = false;
+  function handleTapCore() {
+    if (!userId) {
+      router.push("/sign-up");
+      return;
+    }
+    if (hasProfile === false) {
+      router.push("/complete-profile");
+      return;
+    }
+    router.push("/journal");
   }
 
-  const serifDisplay = locale === "ko" ? fontFamilies.serifKo : fontFamilies.serifEn;
+  // Top message — only shown when the graph is empty (just the core).
+  const isEmpty = nodes.length === 0;
+  const topMessage = isEmpty
+    ? locale === "ko"
+      ? "가운데 점을 터치해서 두번째 뇌의 구성을 시작하세요."
+      : "Tap the center dot to begin building your second brain."
+    : undefined;
+
+  // Locale toggle, top-right.
+  function toggleLocale() {
+    void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
+  }
 
   return (
     <View style={styles.skyContainer}>
-      {/* The dolly-zoomed logo from /loading lives here, full-bleed, behind
-          everything. Sky-drift overlay adds barely-visible atmospheric color
-          shift. Existing landing content overlays on top. Step 6 will replace
-          the overlay content with the dot-or-graph branch. */}
+      {/* Dolly-zoomed logo continues here, full-bleed, behind everything. */}
       <Image source={logo} style={styles.skyLogo} resizeMode="contain" />
       <Animated.View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, { backgroundColor: skyOverlay }]}
       />
-      <Screen style={styles.screenOverDark}>
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {demoMode ? (
-          <View style={styles.demoBanner} accessibilityRole="alert">
-            <Text style={styles.demoBannerTitle}>
-              {locale === "ko" ? "데모 모드" : "DEMO MODE"}
-            </Text>
-            <Text style={styles.demoBannerBody}>
-              {locale === "ko"
-                ? "UI 미리보기 전용입니다. 로그인이나 데이터 저장은 작동하지 않아요."
-                : "UI preview only — sign-in and data persistence are disabled."}
-            </Text>
-          </View>
-        ) : null}
+      <KnowledgeGraph nodes={nodes} edges={edges} onTapCore={handleTapCore} topMessage={topMessage} />
 
-        {/* Hero — logo, brand eyebrow, serif display name, tagline. */}
-        <View style={styles.hero}>
-          <Image
-            source={logo}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityLabel="2nd-Brain"
-          />
-          <View style={styles.eyebrowRow}>
-            <Text style={styles.eyebrow}>2nd-Brain</Text>
-            <Pressable
-              onPress={() => {
-                void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
-              }}
-              hitSlop={6}
-              style={styles.localeToggle}
-            >
-              <Text style={styles.localeToggleText}>{locale === "ko" ? "EN" : "한국어"}</Text>
-            </Pressable>
-          </View>
-          <Text style={[styles.display, { fontFamily: serifDisplay }]} accessibilityRole="header">
-            {t("app.name")}
-          </Text>
-          <Text style={styles.tagline}>
-            {locale === "ko"
-              ? "노트 저장소가 아닌, 당신을 배우는 AI."
-              : "Not a note vault — an AI that learns you."}
-          </Text>
-        </View>
-
-        {/* Three pillars — guided capture, evolving self-model, portable RAG. */}
-        <View style={styles.pillars}>
-          {PILLARS[locale].map((p, i) => (
-            <View key={p.title} style={[styles.pillarCard, { borderLeftColor: ACCENTS[i] }]}>
-              <Text style={[styles.pillarEyebrow, { color: ACCENTS[i] }]}>{p.eyebrow}</Text>
-              <Text style={styles.pillarTitle}>{p.title}</Text>
-              <Text style={styles.pillarBody}>{p.body}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Evidence card — what the inference is grounded in. */}
-        <View style={styles.evidenceCard}>
-          <Text style={styles.evidenceEyebrow}>
-            {locale === "ko" ? "근거 기반" : "EVIDENCE-GROUNDED"}
-          </Text>
-          <Text style={styles.evidenceBody}>
-            {locale === "ko"
-              ? "Big Five · Self-Determination Theory · Attachment · VIA · Erikson — 검증된 학술 프레임만 인용합니다. MBTI나 점성술은 사용하지 않습니다."
-              : "Big Five · Self-Determination Theory · Attachment · VIA · Erikson — we cite only validated frameworks. No MBTI, no astrology."}
-          </Text>
-        </View>
-
-        {/* Calls to action. */}
-        <View style={styles.actions}>
-          <Link href="/sign-up" asChild>
-            <Button label={locale === "ko" ? "시작하기" : "Get started"} variant="primary" />
-          </Link>
-          <Link href="/sign-in" asChild>
-            <Button label={locale === "ko" ? "로그인" : "Sign in"} variant="secondary" />
-          </Link>
-          <Link href="/manual" asChild>
-            <Button label={locale === "ko" ? "안내서 보기 (1분)" : "Read the manual (1 min)"} variant="secondary" />
-          </Link>
-        </View>
-
-        <Text style={styles.disclosure}>
-          {locale === "ko"
-            ? "진단이 아닙니다. 치료 권고도 아닙니다. 자기 이해를 돕는 도구입니다."
-            : "Not a diagnosis. Not therapeutic advice. A reflection scaffold."}
-        </Text>
-        </ScrollView>
-      </Screen>
+      {/* Tiny locale toggle in the corner — preserves the EN/KO affordance
+          without competing with the graph for attention. */}
+      <Pressable style={styles.localeToggle} onPress={toggleLocale} hitSlop={8}>
+        <Text style={styles.localeToggleText}>{locale === "ko" ? "EN" : "한국어"}</Text>
+      </Pressable>
     </View>
   );
 }
 
-// Three pillars per DESIGN.md voice ("companion, not coach") + blueprint §1
-// differentiators (guided capture, portability, validated psychology).
-const PILLARS: Record<"en" | "ko", { eyebrow: string; title: string; body: string }[]> = {
-  en: [
-    {
-      eyebrow: "01 · CAPTURE",
-      title: "Journal that asks back.",
-      body: "Daily entries, life-audit interviews, and free-form notes — the questions are tuned to who you've been writing as.",
-    },
-    {
-      eyebrow: "02 · INFER",
-      title: "A self-model that updates.",
-      body: "Patterns extracted across your entries — Big Five proxy, values, attachment cues — surfaced as observations, never verdicts.",
-    },
-    {
-      eyebrow: "03 · OWN",
-      title: "Portable RAG, your data.",
-      body: "Export a Markdown knowledge base that works with Claude, ChatGPT, or whatever comes next. Your second brain travels.",
-    },
-  ],
-  ko: [
-    {
-      eyebrow: "01 · 캡처",
-      title: "되묻는 일기.",
-      body: "매일의 기록, 라이프 오딧 인터뷰, 자유 노트. 질문은 당신이 어떻게 써왔는지에 맞춰 정교해집니다.",
-    },
-    {
-      eyebrow: "02 · 추론",
-      title: "업데이트되는 자기 모델.",
-      body: "기록 전체에서 패턴을 추출합니다. Big Five 근사, 가치, 애착 단서를 단정이 아닌 관찰로 보여드려요.",
-    },
-    {
-      eyebrow: "03 · 소유",
-      title: "당신 데이터, 어디서든.",
-      body: "Markdown 지식 베이스로 내보내면 Claude·ChatGPT·차세대 어떤 도구에도 가져갈 수 있어요. 두번째 뇌는 함께 이동합니다.",
-    },
-  ],
-};
-
 const styles = StyleSheet.create({
-  // Step 5: dark sky-black container with the dolly-zoomed logo full-bleed.
-  // The Screen above is transparent so the logo + drift overlay show through.
   skyContainer: { flex: 1, backgroundColor: "#02040A" },
   skyLogo: {
     position: "absolute",
@@ -230,134 +152,20 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: undefined,
     height: undefined,
-    // logo-glow.png's glow looks best when it can spill past the screen edges.
     transform: [{ scale: 1.6 }],
-    opacity: 0.55,
+    opacity: 0.4,
   },
-  screenOverDark: { backgroundColor: "transparent" },
-
-  scroll: { gap: spacing["2xl"], paddingBottom: spacing["4xl"] },
-
-  // Demo-mode banner.
-  demoBanner: {
-    backgroundColor: colors.mist,
-    borderColor: colors.amber,
-    borderWidth: 1,
-    borderLeftWidth: 3,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+  localeToggle: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  demoBannerTitle: {
-    fontFamily: fontFamilies.sans,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeights.bold,
-    letterSpacing: 1,
-    color: colors.amber,
-  },
-  demoBannerBody: {
-    fontFamily: fontFamilies.sans,
-    fontSize: fontSize.sm,
-    lineHeight: fontSize.sm * 1.45,
-    color: colors.ink3,
-    marginTop: 2,
-  },
-
-  // Hero.
-  hero: { gap: spacing.sm },
-  logo: { width: 84, height: 84, marginBottom: spacing.xs },
-  eyebrowRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  localeToggle: { paddingHorizontal: spacing.sm, paddingVertical: 2 },
   localeToggleText: {
-    fontFamily: fontFamilies.sans,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeights.bold,
+    color: "#7FB3F4",
+    fontSize: 12,
     letterSpacing: 1.5,
-    color: colors.pineSoft,
-  },
-  eyebrow: {
-    fontFamily: fontFamilies.sans,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeights.bold,
-    letterSpacing: 2,
-    color: colors.pineSoft,
-  },
-  display: {
-    fontSize: fontSize["4xl"],
-    lineHeight: fontSize["4xl"] * 1.12,
-    color: colors.pine,
-  },
-  tagline: {
-    fontFamily: fontFamilies.sans,
-    fontSize: fontSize.lg,
-    lineHeight: fontSize.lg * 1.5,
-    color: colors.ink2,
-    marginTop: spacing.xs,
-  },
-
-  // Pillars.
-  pillars: { gap: spacing.md },
-  pillarCard: {
-    backgroundColor: colors.paper2,
-    borderColor: colors.rule,
-    borderWidth: 1,
-    borderLeftWidth: 3,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    gap: spacing.xs,
-  },
-  pillarEyebrow: {
-    fontFamily: fontFamilies.sans,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeights.bold,
-    letterSpacing: 1,
-  },
-  pillarTitle: {
-    fontFamily: fontFamilies.sans,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeights.semibold,
-    color: colors.ink,
-  },
-  pillarBody: {
-    fontFamily: fontFamilies.sans,
-    fontSize: fontSize.base,
-    lineHeight: fontSize.base * 1.55,
-    color: colors.ink2,
-  },
-
-  // Evidence.
-  evidenceCard: {
-    backgroundColor: colors.mist,
-    borderColor: colors.rule,
-    borderWidth: 1,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.pine,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    gap: spacing.xs,
-  },
-  evidenceEyebrow: {
-    fontFamily: fontFamilies.sans,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeights.bold,
-    letterSpacing: 1,
-    color: colors.ink3,
-  },
-  evidenceBody: {
-    fontFamily: fontFamilies.sans,
-    fontSize: fontSize.base,
-    lineHeight: fontSize.base * 1.55,
-    color: colors.ink2,
-  },
-
-  // CTAs + disclosure.
-  actions: { gap: spacing.sm },
-  disclosure: {
-    fontFamily: fontFamilies.sans,
-    fontSize: fontSize.xs,
-    lineHeight: fontSize.xs * 1.5,
-    color: colors.ink3,
-    textAlign: "center",
-    marginTop: spacing.xs,
+    fontWeight: "700",
   },
 });
