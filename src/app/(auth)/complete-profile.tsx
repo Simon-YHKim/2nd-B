@@ -29,7 +29,7 @@ export default function CompleteProfile() {
   // Already has a profile — bounce to journal. Possible if the user navigates
   // here manually after completing setup.
   if (userId && hasProfile) {
-    router.replace("/journal");
+    router.replace("/");
     return null;
   }
 
@@ -44,7 +44,7 @@ export default function CompleteProfile() {
     try {
       const result = await ensureUserProfile({ birthDate, locale });
       if (result.judgeMode) Alert.alert(t("judge.welcome"));
-      router.replace("/journal");
+      router.replace("/");
     } catch (e) {
       if (e instanceof AgeGateError) {
         Alert.alert(t("errors.ageGate"));

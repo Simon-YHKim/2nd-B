@@ -67,9 +67,11 @@ export default function SignIn() {
     setSubmitting(true);
     try {
       await signInWithEmail(email.trim(), password);
-      // AuthContext picks up the new session; IntroGate in _layout will
-      // play the LoadingScreen before this navigation actually surfaces.
-      router.replace("/journal");
+      // AuthContext picks up the new session; IntroGate plays the cell
+      // LoadingScreen and then mounts the Stack. Route to /index so the
+      // post-loading hand-off lands on the graph view (the new main),
+      // not /journal. /journal stays reachable via the in-app nav.
+      router.replace("/");
     } catch (e) {
       // Generic message to avoid email-enumeration. CSO finding R3.
       Alert.alert(
