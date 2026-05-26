@@ -36,7 +36,8 @@ export default function SignUp() {
         locale,
       });
       if (result.judgeMode) Alert.alert(t("judge.welcome"));
-      router.replace("/journal");
+      // Post-signup hand-off → graph view (main). /journal reachable via nav.
+      router.replace("/");
     } catch (e) {
       if (e instanceof AgeGateError) Alert.alert(t("errors.ageGate"));
       else {
