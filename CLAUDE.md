@@ -70,8 +70,8 @@ When the user's request matches an available skill, invoke it via the Skill tool
 - Visual polish → `/design-review`
 - Ship / deploy / PR → `/ship` or `/land-and-deploy`
 - Security audit → `/cso`
-- Save progress → `/context-save`
-- Resume context → `/context-restore`
+- Save progress → `/checkpoint` (snapshot work state)
+- Resume context → `/checkpoint` (resume) or `/context-guardian` (recovery mode after disconnect)
 
 ## What never to do in this repo
 
