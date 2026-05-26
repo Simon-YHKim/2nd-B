@@ -69,6 +69,7 @@ export default function RootLayout() {
             <Stack.Screen name="trinity" />
             <Stack.Screen name="mbti" />
             <Stack.Screen name="settings" />
+            <Stack.Screen name="interview" />
             <Stack.Screen name="+not-found" />
           </Stack>
         </AuthProvider>

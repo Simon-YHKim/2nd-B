@@ -207,6 +207,9 @@ export default function Journal() {
           <Link href="/audit" asChild>
             <Button label={locale === "ko" ? "라이프 오딧" : "Life audit"} variant="secondary" />
           </Link>
+          <Link href="/interview" asChild>
+            <Button label={locale === "ko" ? "스무고개" : "Interview"} variant="secondary" />
+          </Link>
           <Link href="/persona" asChild>
             <Button label={locale === "ko" ? "페르소나" : "Persona"} variant="secondary" />
           </Link>
