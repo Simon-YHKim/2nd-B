@@ -20,8 +20,9 @@ import {
   View,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Link, router } from "expo-router";
+import { Link, Redirect, router } from "expo-router";
 
+import { useAuth } from "@/lib/auth/AuthContext";
 import { signInWithEmail, signInWithGoogle } from "@/lib/supabase/auth";
 
 const logo = require("../../../assets/images/logo-glow.png");
@@ -40,12 +41,19 @@ const PALETTE = {
 
 export default function SignIn() {
   const { t, i18n } = useTranslation("auth");
+  const { userId } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+
+  // Already signed in (OAuth redirect landed back here, or user hit
+  // /sign-in directly while session was still alive). Bounce to root
+  // so the IntroGate plays the loader and /index routes the user to
+  // the right next step (/complete-profile or graph).
+  if (userId) return <Redirect href="/" />;
 
   async function handleGoogle() {
     setOauthSubmitting(true);
