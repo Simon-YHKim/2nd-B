@@ -8,6 +8,12 @@
 //
 // Auth: requires a valid Supabase JWT (verify_jwt is set in config).
 //
+// Security hardening (docs/security/2026-05-26-SUMMARY.md — C3, M1, M2):
+//   - MAX_USER_LEN / MAX_SYSTEM_LEN cap unbounded prompts
+//   - maxOutputTokens caps the cost of any single call
+//   - CORS allowlist replaces the previous wildcard
+//   - upstream_error.detail truncated; never echoes prompt fragments
+//
 // Secrets the operator sets via the Supabase Dashboard:
 //   GEMINI_API_KEY                — the Google AI Studio key
 //
@@ -28,22 +34,40 @@ const MODELS_ALLOWED = new Set(['gemini-2.5-flash', 'gemini-2.5-pro']);
 const GEMINI_ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-function jsonResponse(body: unknown, status = 200): Response {
+const MAX_USER_LEN = 8000;
+const MAX_SYSTEM_LEN = 4000;
+const MAX_OUTPUT_TOKENS = 1024;
+const UPSTREAM_DETAIL_TRUNCATE = 80;
+
+const ALLOWED_ORIGINS = new Set<string>([
+  'https://simon-yhkim.github.io',
+  'http://localhost:8081',
+  'http://localhost:19006',
+]);
+
+function resolveOrigin(req: Request): string {
+  const origin = req.headers.get('origin') ?? '';
+  return ALLOWED_ORIGINS.has(origin) ? origin : 'null';
+}
+
+function jsonResponse(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      'access-control-allow-origin': '*',
+      'access-control-allow-origin': resolveOrigin(req),
+      'vary': 'origin',
       'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
     },
   });
 }
 
-function corsPreflight(): Response {
+function corsPreflight(req: Request): Response {
   return new Response(null, {
     status: 204,
     headers: {
-      'access-control-allow-origin': '*',
+      'access-control-allow-origin': resolveOrigin(req),
+      'vary': 'origin',
       'access-control-allow-methods': 'POST, OPTIONS',
       'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
       'access-control-max-age': '86400',
@@ -52,35 +76,45 @@ function corsPreflight(): Response {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return corsPreflight();
-  if (req.method !== 'POST') return jsonResponse({ error: 'method_not_allowed' }, 405);
+  if (req.method === 'OPTIONS') return corsPreflight(req);
+  if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
 
   const authHeader = req.headers.get('authorization') ?? '';
   if (!authHeader.toLowerCase().startsWith('bearer ')) {
-    return jsonResponse({ error: 'missing_authorization' }, 401);
+    return jsonResponse(req, { error: 'missing_authorization' }, 401);
   }
 
   const apiKey = Deno.env.get('GEMINI_API_KEY');
   if (!apiKey || apiKey.length === 0) {
-    return jsonResponse({ error: 'server_misconfigured_missing_GEMINI_API_KEY' }, 500);
+    return jsonResponse(req, { error: 'server_misconfigured_missing_GEMINI_API_KEY' }, 500);
   }
 
   let body: { user?: unknown; system?: unknown; model?: unknown };
   try {
     body = await req.json();
   } catch {
-    return jsonResponse({ error: 'invalid_json' }, 400);
+    return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
 
   const userText: string = typeof body?.user === 'string' ? body.user : '';
   const systemText: string | null = typeof body?.system === 'string' ? body.system : null;
   const model: string = typeof body?.model === 'string' ? body.model : 'gemini-2.5-flash';
 
-  if (userText.length === 0) return jsonResponse({ error: 'user_required' }, 400);
-  if (!MODELS_ALLOWED.has(model)) return jsonResponse({ error: 'model_not_allowed' }, 400);
+  if (userText.length === 0) return jsonResponse(req, { error: 'user_required' }, 400);
+  if (userText.length > MAX_USER_LEN) {
+    return jsonResponse(req, { error: 'user_too_long', max: MAX_USER_LEN, got: userText.length }, 413);
+  }
+  if (systemText && systemText.length > MAX_SYSTEM_LEN) {
+    return jsonResponse(req, { error: 'system_too_long', max: MAX_SYSTEM_LEN, got: systemText.length }, 413);
+  }
+  if (!MODELS_ALLOWED.has(model)) return jsonResponse(req, { error: 'model_not_allowed' }, 400);
 
   const geminiBody: Record<string, unknown> = {
     contents: [{ role: 'user', parts: [{ text: userText }] }],
+    generationConfig: {
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+      temperature: 0.7,
+    },
   };
   if (systemText && systemText.length > 0) {
     geminiBody.systemInstruction = { parts: [{ text: systemText }] };
@@ -98,18 +132,22 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify(geminiBody),
     });
   } catch (e) {
-    return jsonResponse({ error: 'upstream_unreachable', detail: String(e) }, 502);
+    return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
   }
   const latencyMs = Date.now() - t0;
 
   if (!upstream.ok) {
     const errBody = await upstream.text();
-    return jsonResponse({ error: 'upstream_error', status: upstream.status, detail: errBody.slice(0, 500) }, 502);
+    return jsonResponse(req, {
+      error: 'upstream_error',
+      status: upstream.status,
+      detail: errBody.slice(0, UPSTREAM_DETAIL_TRUNCATE),
+    }, 502);
   }
 
   const data = await upstream.json();
   const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
   const modelUsed: string = data?.modelVersion ?? model;
 
-  return jsonResponse({ text, modelUsed, latencyMs });
+  return jsonResponse(req, { text, modelUsed, latencyMs });
 });

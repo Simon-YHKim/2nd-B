@@ -61,7 +61,10 @@ jobs:
           cp dist/index.html dist/404.html 2>/dev/null || true
           touch dist/.nojekyll
       - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
+        # H1 (docs/security/2026-05-26-SUMMARY.md): pin third-party action by SHA
+        # to prevent a tag retargeting / repo takeover from injecting a malicious
+        # release. v4.0.0 → 4f9cc6602d3f66b9c108549d475ec49e8ef4d45e.
+        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
