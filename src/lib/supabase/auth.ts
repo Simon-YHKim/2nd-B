@@ -110,7 +110,18 @@ export interface OAuthRedirect {
 
 function defaultRedirectTo(): string | undefined {
   if (typeof window === "undefined") return undefined;
-  return `${window.location.origin}${window.location.pathname}`;
+  // ALWAYS return to the app root, not window.location.pathname.
+  // If the user clicked Google from /sign-in, using pathname would
+  // send them back to /sign-in post-OAuth — they'd see the sign-in
+  // form again after authenticating. Routing through the root lets
+  // IntroGate play the cell loader and /index decide where the
+  // signed-in user actually belongs (/complete-profile or graph).
+  //
+  // expo-router base path is '/2nd-B/' on GitHub Pages, '/' in dev.
+  // Detect by looking at the current pathname's prefix.
+  const path = window.location.pathname;
+  const base = path.startsWith("/2nd-B/") ? "/2nd-B/" : "/";
+  return `${window.location.origin}${base}`;
 }
 
 export async function signInWithGoogle(redirectTo?: string): Promise<OAuthRedirect | null> {
