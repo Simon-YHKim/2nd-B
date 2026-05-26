@@ -18,7 +18,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Animated, Easing, View, StyleSheet, Image, Pressable, Text } from "react-native";
-import { router } from "expo-router";
+import { router, Redirect } from "expo-router";
 
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -126,6 +126,14 @@ export default function Landing() {
   }, [userId]);
 
   if (loading) return <InlineLoader />;
+
+  // Unauthenticated visitors land on the dedicated dark sign-in screen
+  // instead of seeing the empty-graph view. Per user directive: the
+  // sign-in surface comes BEFORE the cell-loader; the loader is the
+  // 'welcome' that plays once they've authenticated.
+  if (!userId) return <Redirect href="/sign-in" />;
+  // OAuth user with no public.users row → finish the C10 birth-date prompt.
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
   function handleTapCore() {
     if (!userId) {
