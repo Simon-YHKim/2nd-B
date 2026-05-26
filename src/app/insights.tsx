@@ -14,6 +14,7 @@ import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { computeInsights, type InsightsResult } from "@/lib/journal/insights";
+import { AppNav } from "@/components/ui/AppNav";
 
 export default function Insights() {
   const { i18n } = useTranslation();
@@ -209,11 +210,7 @@ export default function Insights() {
           </View>
         ) : null}
 
-        <View style={styles.actions}>
-          <Link href="/journal" asChild>
-            <Button label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"} variant="secondary" />
-          </Link>
-        </View>
+        <AppNav locale={locale} />
       </ScrollView>
     </Screen>
   );

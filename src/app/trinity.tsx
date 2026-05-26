@@ -21,6 +21,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { AppNav } from "@/components/ui/AppNav";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 export type TrinityDomain = "health" | "app" | "brain" | "finance";
@@ -249,11 +250,7 @@ export default function Trinity() {
           ))}
         </View>
 
-        <View style={styles.actions}>
-          <Link href="/journal" asChild>
-            <Button label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"} variant="secondary" />
-          </Link>
-        </View>
+        <AppNav locale={locale} />
       </ScrollView>
     </Screen>
   );

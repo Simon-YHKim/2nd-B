@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/Input";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
+import { AppNav } from "@/components/ui/AppNav";
 import {
   deleteAllChatUsage,
   deleteAllUserData,
@@ -326,10 +327,8 @@ export default function Settings() {
               }
             }}
           />
-          <Link href="/journal" asChild>
-            <Button label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"} variant="secondary" />
-          </Link>
         </View>
+        <AppNav locale={locale} />
       </ScrollView>
     </Screen>
   );
