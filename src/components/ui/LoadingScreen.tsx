@@ -1,19 +1,17 @@
-// LoadingScreen — phase-driven typewriter, adaptive timing, opacity FADE-IN.
+// LoadingScreen — phase-driven typewriter, adaptive timing, opacity FADE-OUT.
 //
 // "내 머릿속의 열일하는 세포들" (docs/DESIGN.md). 25 messages across 5
 // build phases (Soma → Neuron → Cortex → Cerebrum → Ready), each ~1.5s.
 //
 // Behavior:
-//   - Logo starts at opacity 0 (invisible) and fades IN to 1 as the
-//     "brain forms" via the typing messages. Reversed from v1 per user
-//     directive ("로고의 불투명도 변화가 반대로 설정 됐어").
-//   - Adaptive duration: the intro keeps typing until parent.ready=true,
-//     with a MIN_INTRO_MS guard so users always see at least the first
-//     few messages even when the app is cached and ready instantly.
-//   - After parent.ready AND min-time elapsed, transition to 'ready':
-//     logo grows to scale 1.05 and pulses on a heartbeat loop.
-//   - Tap during typing: skips straight to ready (returning users).
-//   - Tap during ready: dolly-zoom (scale 1.05 → 8) + onContinue fires.
+//   - Logo starts at opacity 1 and fades OUT to 0 over MIN_INTRO_MS as
+//     the typing messages take over. Per user convention: all opacity
+//     transitions go 100% → 0%. The brain is being "absorbed into" the
+//     cells' typed work.
+//   - When ready hits, logo fades back to 1 + grows + pulses (must be
+//     visible to invite the tap).
+//   - Tap → dolly-zoom to scale 4 → onContinue. /index picks up the
+//     same scale 4 + opacity 1 frame so the handoff is seamless.
 
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from "react-native";
@@ -86,8 +84,9 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   const [typed, setTyped] = useState("");
   const [minElapsed, setMinElapsed] = useState(false);
 
-  // Logo starts invisible and fades IN — the brain "appears" as cells form.
-  const opacity = useRef(new Animated.Value(0)).current;
+  // Logo starts at opacity 1 and fades OUT during typing — the brain
+  // "absorbs into" the cells' work. Comes back to 1 in the ready phase.
+  const opacity = useRef(new Animated.Value(1)).current;
   const scale = useRef(new Animated.Value(1)).current;
   const hintOpacity = useRef(new Animated.Value(0)).current;
 
@@ -97,13 +96,15 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
     return () => clearTimeout(t);
   }, []);
 
-  // ── logo opacity fades 0 → 1 over MIN_INTRO_MS, then holds at 1
+  // ── logo opacity fades 1 → 0 over OPACITY_FADE_MS while the cells type.
+  //    All opacity transitions follow the 100% → 0% direction per user
+  //    convention. Returns to 1 when phase flips to ready.
   useEffect(() => {
     if (phase !== "typing") return;
     Animated.timing(opacity, {
-      toValue: 1,
+      toValue: 0,
       duration: OPACITY_FADE_MS,
-      easing: Easing.out(Easing.cubic),
+      easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start();
   }, [opacity, phase]);

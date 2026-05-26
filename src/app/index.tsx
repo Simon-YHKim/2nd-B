@@ -81,13 +81,18 @@ export default function Landing() {
 
   const logoScale = entryProgress.interpolate({
     inputRange: [0, 1],
-    // Start near the dolly-zoom's final scale (≈ filling the viewport),
-    // settle to the ambient background scale.
-    outputRange: [4, 1.6],
+    // Picks up exactly where LoadingScreen's dolly-zoom landed
+    // (scale 4 of the same 220×220 base) and settles to scale 2 as
+    // ambient backdrop. Same base size + same centering math as
+    // LoadingScreen so the handoff is pixel-aligned with the graph.
+    outputRange: [4, 2],
   });
   const logoOpacity = entryProgress.interpolate({
     inputRange: [0, 0.55, 1],
-    outputRange: [1, 0.65, 0.4],
+    // 100% → 0% direction per user convention. Settles to 0.55 so the
+    // logo stays present as ambient backdrop without competing with
+    // the graph foreground.
+    outputRange: [1, 0.75, 0.55],
   });
   const contentOpacity = entryProgress.interpolate({
     inputRange: [0, 0.5, 1],
@@ -192,15 +197,19 @@ export default function Landing() {
 
 const styles = StyleSheet.create({
   skyContainer: { flex: 1, backgroundColor: "#02040A" },
+  // Logo positioned with the SAME base size (220×220) and the SAME
+  // centering math as LoadingScreen so the dolly-zoom handoff is
+  // pixel-aligned. KnowledgeGraph centers on viewport via
+  // useWindowDimensions, which equals this center exactly.
   skyLogo: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: undefined,
-    height: undefined,
-    // scale + opacity now driven by entryProgress (Animated.Value).
+    width: 220,
+    height: 220,
+    top: "50%",
+    left: "50%",
+    marginLeft: -110,
+    marginTop: -110,
+    // scale + opacity driven by entryProgress (Animated.Value).
   },
   contentLayer: { ...StyleSheet.absoluteFill as object },
   localeToggle: {
