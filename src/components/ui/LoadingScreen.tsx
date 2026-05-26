@@ -1,19 +1,19 @@
-// LoadingScreen — phase-driven typewriter → pulse-and-tap → dolly zoom.
+// LoadingScreen — phase-driven typewriter, adaptive timing, opacity FADE-IN.
 //
-// "내 머릿속의 열일하는 세포들" — the loading sequence IS the brand
-// (docs/DESIGN.md). 25 messages across 5 build phases (Soma → Neuron →
-// Cortex → Cerebrum → Ready), 1.5s per message (1s typing + 0.5s hold).
+// "내 머릿속의 열일하는 세포들" (docs/DESIGN.md). 25 messages across 5
+// build phases (Soma → Neuron → Cortex → Cerebrum → Ready), each ~1.5s.
 //
-// State machine:
-//   typing  — logo fades 1→0 while 25 messages type in sequence
-//   ready   — typing done + parent.ready=true; logo fades back to 1,
-//             grows slightly, then pulses on a heartbeat loop. The user
-//             is invited to tap anywhere to continue.
-//   zooming — user tapped; logo dolly-zooms (scale 1.05 → 8) and
-//             screen fades; onContinue fires after the animation lands.
-//
-// Tap during 'typing' skips straight to 'ready' so returning users
-// aren't trapped in the 37.5s sequence.
+// Behavior:
+//   - Logo starts at opacity 0 (invisible) and fades IN to 1 as the
+//     "brain forms" via the typing messages. Reversed from v1 per user
+//     directive ("로고의 불투명도 변화가 반대로 설정 됐어").
+//   - Adaptive duration: the intro keeps typing until parent.ready=true,
+//     with a MIN_INTRO_MS guard so users always see at least the first
+//     few messages even when the app is cached and ready instantly.
+//   - After parent.ready AND min-time elapsed, transition to 'ready':
+//     logo grows to scale 1.05 and pulses on a heartbeat loop.
+//   - Tap during typing: skips straight to ready (returning users).
+//   - Tap during ready: dolly-zoom (scale 1.05 → 8) + onContinue fires.
 
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from "react-native";
@@ -21,31 +21,31 @@ import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from "reac
 const logo = require("../../../assets/images/logo-glow.png");
 
 const MESSAGES: readonly string[] = [
-  // Phase 1 — Soma (0..20%)
+  // Phase 1 — Soma
   "Soma 형성 중...",
   "영차영차! 단백질 블록 운반 중.",
   "자재 반입 완료! 일꾼 세포 투입.",
   "읏차! 튼튼한 코어 빚는 중.",
   "세포 조립 라인 풀가동!",
-  // Phase 2 — Neuron (20..40%)
+  // Phase 2 — Neuron
   "Neuron 형성 중...",
   "쫙쫙! 축삭돌기 연장 중.",
   "찌릿! 통신 케이블 연결.",
   "바쁘다 바빠! 시냅스 땜질 중.",
   "신경 회로 엉키지 않게 조심조심!",
-  // Phase 3 — Cortex (40..60%)
+  // Phase 3 — Cortex
   "Cortex 형성 중...",
   "꾹꾹! 뇌 주름 접는 중.",
   "표면적을 넓혀라! 세포들 뜀박질.",
   "고급 정보 구역 뼈대 세우기.",
   "차곡차곡! 빈틈없이 피질 쌓기.",
-  // Phase 4 — Cerebrum (60..80%)
+  // Phase 4 — Cerebrum
   "Cerebrum 형성 중...",
   "탁! 메인 컨트롤 룸 점등.",
   "좌우뇌 통신 완료! 중앙 다리 연결.",
   "쓱싹쓱싹, 지휘소 대청소 중.",
   "뇌 조립 막바지! 최종 점검.",
-  // Phase 5 — Ready (80..100%)
+  // Phase 5 — Ready
   "사용자의 생각을 받아들일 준비 중...",
   "수신 안테나 쫙! 아이디어 대기.",
   "신경망 스탠바이! 환영 게이트 개방.",
@@ -53,23 +53,30 @@ const MESSAGES: readonly string[] = [
   "두근두근! 멋진 생각 기대 중!",
 ] as const;
 
+// Minimum time the intro plays before we'll allow the ready transition
+// — guards instant warm-loads where parent.ready fires in <100ms. 2.5s
+// = enough to see the first 1-2 messages.
+const MIN_INTRO_MS = 2500;
+// Per-message slot in the typing animation: 1s typing + 0.5s hold.
 const TYPE_TARGET_MS = 1000;
 const HOLD_MS = 500;
 const PER_MESSAGE_MS = TYPE_TARGET_MS + HOLD_MS;
-const TYPING_TOTAL_MS = MESSAGES.length * PER_MESSAGE_MS;
+// Logo fade-in spans the minimum-intro window so it always lands at 1
+// before we even consider going to ready. After that it stays at 1.
+const OPACITY_FADE_MS = MIN_INTRO_MS;
 
-const ENTER_READY_MS = 500;   // logo fade-back + grow to 1.05
-const PULSE_PERIOD_MS = 1400; // heartbeat half-cycle × 2
-const ZOOM_MS = 800;          // dolly zoom duration
+const ENTER_READY_MS = 400;    // grow to 1.05 when entering ready
+const PULSE_PERIOD_MS = 1400;  // heartbeat full cycle
+const ZOOM_MS = 800;           // dolly-zoom on tap
 
 type Phase = "typing" | "ready" | "zooming";
 
 interface Props {
   /** Parent's actual loading state — fonts, auth, etc. The screen
-   *  won't advance to 'ready' until both the typing finishes AND this
-   *  flag is true. Optional: when omitted, defaults to true. */
+   *  won't advance to 'ready' until both this flag is true AND
+   *  MIN_INTRO_MS has elapsed. Optional: defaults to true. */
   ready?: boolean;
-  /** Fires after the dolly-zoom animation completes. Parent unmounts. */
+  /** Fires after the dolly-zoom completes. Parent unmounts. */
   onContinue?: () => void;
 }
 
@@ -77,29 +84,35 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   const [phase, setPhase] = useState<Phase>("typing");
   const [msgIdx, setMsgIdx] = useState(0);
   const [typed, setTyped] = useState("");
-  const [typingDone, setTypingDone] = useState(false);
+  const [minElapsed, setMinElapsed] = useState(false);
 
-  const opacity = useRef(new Animated.Value(1)).current;
+  // Logo starts invisible and fades IN — the brain "appears" as cells form.
+  const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
   const hintOpacity = useRef(new Animated.Value(0)).current;
 
-  // ── typing sequence: fade logo opacity 1 → 0 in lockstep
+  // ── min-intro gate
+  useEffect(() => {
+    const t = setTimeout(() => setMinElapsed(true), MIN_INTRO_MS);
+    return () => clearTimeout(t);
+  }, []);
+
+  // ── logo opacity fades 0 → 1 over MIN_INTRO_MS, then holds at 1
   useEffect(() => {
     if (phase !== "typing") return;
     Animated.timing(opacity, {
-      toValue: 0,
-      duration: TYPING_TOTAL_MS,
+      toValue: 1,
+      duration: OPACITY_FADE_MS,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
   }, [opacity, phase]);
 
-  // ── per-message typewriter
+  // ── per-message typewriter — advances until parent.ready & minElapsed
+  //    push us into the 'ready' phase below.
   useEffect(() => {
     if (phase !== "typing") return;
-    if (msgIdx >= MESSAGES.length) {
-      setTypingDone(true);
-      return;
-    }
+    if (msgIdx >= MESSAGES.length) return; // last message stays
     const text = MESSAGES[msgIdx];
     setTyped("");
 
@@ -111,7 +124,7 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
     }, Math.max(20, TYPE_TARGET_MS / text.length));
 
     const advanceId = setTimeout(() => {
-      setMsgIdx((idx) => idx + 1);
+      setMsgIdx((idx) => Math.min(idx + 1, MESSAGES.length - 1));
     }, PER_MESSAGE_MS);
 
     return () => {
@@ -120,12 +133,13 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
     };
   }, [msgIdx, phase]);
 
-  // ── transition typing → ready when both typing-done and parent.ready
+  // ── transition typing → ready when parent says ready AND min-time elapsed.
+  //    No more "wait for typing to finish" — the intro adapts to actual
+  //    loading speed per user directive (실제 로딩되는 속도에 맞게).
   useEffect(() => {
     if (phase !== "typing") return;
-    if (!typingDone || !ready) return;
+    if (!ready || !minElapsed) return;
     setPhase("ready");
-    // Bring logo back, grow slightly, then start heartbeat loop.
     opacity.stopAnimation();
     scale.stopAnimation();
     Animated.parallel([
@@ -148,7 +162,7 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      // Heartbeat — gentle, ~0.7Hz. Two-stage like a real pulse.
+      // Heartbeat — gentle, two-stage pulse.
       Animated.loop(
         Animated.sequence([
           Animated.timing(scale, { toValue: 1.15, duration: PULSE_PERIOD_MS / 4, easing: Easing.out(Easing.quad), useNativeDriver: true }),
@@ -158,14 +172,13 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
         ]),
       ).start();
     });
-  }, [phase, typingDone, ready, opacity, scale, hintOpacity]);
+  }, [phase, ready, minElapsed, opacity, scale, hintOpacity]);
 
   function handlePress() {
     if (phase === "typing") {
-      // Skip the rest of the typing sequence.
-      setTypingDone(true);
-      setMsgIdx(MESSAGES.length); // stop typewriter
-      // The 'ready' effect will run on the next render if parent.ready=true.
+      // Skip path: assume ready by forcing minElapsed (parent.ready
+      // might still be false but most tap-skips are warm reloads).
+      setMinElapsed(true);
       return;
     }
     if (phase !== "ready") return;
@@ -173,14 +186,12 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
     scale.stopAnimation();
     hintOpacity.stopAnimation();
     Animated.parallel([
-      // Dolly zoom: logo grows ~7× to fill (and overflow) the viewport.
       Animated.timing(scale, {
         toValue: 8,
         duration: ZOOM_MS,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
-      // Hint fades out as the eye locks onto the logo.
       Animated.timing(hintOpacity, {
         toValue: 0,
         duration: ZOOM_MS * 0.4,
