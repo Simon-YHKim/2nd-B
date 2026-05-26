@@ -1,10 +1,11 @@
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { View, StyleSheet, ScrollView, Image, Text, Pressable } from "react-native";
+import { Animated, Easing, View, StyleSheet, ScrollView, Image, Text, Pressable } from "react-native";
 import { Link, Redirect } from "expo-router";
 
 import { Screen } from "@/components/ui/Screen";
 import { Button } from "@/components/ui/Button";
-import { LoadingScreen } from "@/components/ui/LoadingScreen";
+import { InlineLoader } from "@/components/ui/InlineLoader";
 import { colors, spacing, radius, fontSize, fontFamilies, fontWeights } from "@/theme";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getEnv, IS_DEMO_BUILD } from "@/lib/env";
@@ -15,13 +16,47 @@ const logo = require("../../assets/images/logo-glow.png");
 // One phytoncide accent per pillar (spring leaf / sunlight / sky).
 const ACCENTS = [colors.leaf, colors.sun, colors.skyDeep] as const;
 
+// Sky drift — atmospheric color shift behind the logo. Per docs/DESIGN.md
+// the landing background should feel like "하늘이 자연스럽게 흐르는 느낌."
+// Three-stop interpolation cycling every 20s (10s each way) — slow enough
+// to feel like atmosphere, not animation.
+function useSkyDrift() {
+  const tide = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(tide, {
+          toValue: 1,
+          duration: 10000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+        Animated.timing(tide, {
+          toValue: 0,
+          duration: 10000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+      ]),
+    ).start();
+  }, [tide]);
+  return tide.interpolate({
+    inputRange: [0, 0.5, 1],
+    // Very subtle — alpha 0.05 so the overlay is barely visible but the
+    // hue shift reads as ambient atmosphere drifting across the logo.
+    outputRange: ["rgba(30,136,238,0.05)", "rgba(143,112,240,0.05)", "rgba(0,255,255,0.05)"],
+  });
+}
+
 export default function Landing() {
   const { t, i18n } = useTranslation();
   const { userId, hasProfile, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const skyOverlay = useSkyDrift();
 
-  // Auth still resolving — show the branded loading screen.
-  if (loading) return <LoadingScreen />;
+  // Auth still resolving — the full intro already played in _layout, so
+  // just show a minimal inline loader.
+  if (loading) return <InlineLoader />;
 
   // Signed in via OAuth but no public.users row yet — finish the C10 birth-date
   // prompt before letting them into the app.
@@ -42,8 +77,18 @@ export default function Landing() {
   const serifDisplay = locale === "ko" ? fontFamilies.serifKo : fontFamilies.serifEn;
 
   return (
-    <Screen>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <View style={styles.skyContainer}>
+      {/* The dolly-zoomed logo from /loading lives here, full-bleed, behind
+          everything. Sky-drift overlay adds barely-visible atmospheric color
+          shift. Existing landing content overlays on top. Step 6 will replace
+          the overlay content with the dot-or-graph branch. */}
+      <Image source={logo} style={styles.skyLogo} resizeMode="contain" />
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: skyOverlay }]}
+      />
+      <Screen style={styles.screenOverDark}>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {demoMode ? (
           <View style={styles.demoBanner} accessibilityRole="alert">
             <Text style={styles.demoBannerTitle}>
@@ -128,8 +173,9 @@ export default function Landing() {
             ? "진단이 아닙니다. 치료 권고도 아닙니다. 자기 이해를 돕는 도구입니다."
             : "Not a diagnosis. Not therapeutic advice. A reflection scaffold."}
         </Text>
-      </ScrollView>
-    </Screen>
+        </ScrollView>
+      </Screen>
+    </View>
   );
 }
 
@@ -173,6 +219,23 @@ const PILLARS: Record<"en" | "ko", { eyebrow: string; title: string; body: strin
 };
 
 const styles = StyleSheet.create({
+  // Step 5: dark sky-black container with the dolly-zoomed logo full-bleed.
+  // The Screen above is transparent so the logo + drift overlay show through.
+  skyContainer: { flex: 1, backgroundColor: "#02040A" },
+  skyLogo: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: undefined,
+    height: undefined,
+    // logo-glow.png's glow looks best when it can spill past the screen edges.
+    transform: [{ scale: 1.6 }],
+    opacity: 0.55,
+  },
+  screenOverDark: { backgroundColor: "transparent" },
+
   scroll: { gap: spacing["2xl"], paddingBottom: spacing["4xl"] },
 
   // Demo-mode banner.
