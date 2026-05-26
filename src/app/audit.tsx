@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { semantic, spacing, radii } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { AppNav } from "@/components/ui/AppNav";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { createRecord } from "@/lib/records/create";
 
@@ -227,6 +228,7 @@ export default function Audit() {
           variant="secondary"
           onPress={() => router.replace("/journal")}
         />
+        <AppNav locale={locale} />
       </ScrollView>
     </Screen>
   );
