@@ -22,18 +22,24 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v4
-      - name: Seed Supabase compatibility layer (auth schema + roles)
+      - name: Seed Supabase compatibility layer (auth schema + roles + auth.users stub)
         env:
           PGPASSWORD: postgres
         run: |
-          # The migrations reference auth.uid() and three Supabase roles
-          # (authenticated / anon / service_role). Vanilla Postgres doesn't
-          # have them. We stub them just enough that the DDL parses and
-          # role-conditional logic (e.g. 0015) sees the roles exist.
+          # The migrations reference auth.uid(), three Supabase roles
+          # (authenticated / anon / service_role), and the auth.users table
+          # (0018 attaches a BEFORE INSERT trigger to it). Vanilla Postgres
+          # has none of these. We stub them just enough that the DDL parses
+          # and role-conditional logic (e.g. 0015) sees the roles exist.
           psql -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
           CREATE SCHEMA IF NOT EXISTS auth;
           CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
             LANGUAGE sql STABLE AS $$ SELECT '00000000-0000-0000-0000-000000000000'::uuid $$;
+          CREATE TABLE IF NOT EXISTS auth.users (
+            id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            email              text,
+            email_confirmed_at timestamptz
+          );
           DO $$ BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated; END IF;
             IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon')          THEN CREATE ROLE anon;          END IF;

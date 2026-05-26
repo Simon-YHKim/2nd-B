@@ -30,8 +30,22 @@ const schema = z.object({
     .union([z.literal("true"), z.literal("false")])
     .default("false")
     .transform((v) => v === "true"),
+  // When true, callGemini() routes through the gemini-proxy Edge Function
+  // instead of constructing a @google/genai client. This keeps the API key
+  // off the client bundle — strongly recommended for Web deploys since the
+  // bundle is public.
+  EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: z
+    .union([z.literal("true"), z.literal("false")])
+    .default("false")
+    .transform((v) => v === "true"),
   GOOGLE_CLOUD_PROJECT: z.string().optional(),
   GOOGLE_CLOUD_LOCATION: z.string().default("us-central1"),
+  // GOOGLE_API_KEY without EXPO_PUBLIC_ is server-side only (native / Edge
+  // Function). For Expo Web we accept EXPO_PUBLIC_GOOGLE_API_KEY too so the
+  // key gets inlined into the client bundle. SECURITY: any key inlined in
+  // the web bundle is extractable by anyone who visits the deployed site —
+  // only use this for test keys. Production should route Gemini through a
+  // Supabase Edge Function or Vertex with a service account.
   GOOGLE_API_KEY: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
   EXPO_PUBLIC_POSTHOG_KEY: z.string().optional(),
@@ -70,6 +84,8 @@ function readRaw(): Record<string, string | undefined> {
   const supaKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   const llmMode = process.env.EXPO_PUBLIC_LLM_MODE;
   const useVertex = process.env.EXPO_PUBLIC_USE_VERTEX;
+  const viaEdge = process.env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION;
+  const publicGoogleKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
   const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY;
   const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST;
   // Non-public vars (no EXPO_PUBLIC_ prefix) are never inlined into the client
@@ -91,9 +107,12 @@ function readRaw(): Record<string, string | undefined> {
     EXPO_PUBLIC_SUPABASE_ANON_KEY: supaKey && supaKey.length > 0 ? supaKey : DEMO_SUPABASE_ANON_KEY,
     EXPO_PUBLIC_LLM_MODE: llmMode,
     EXPO_PUBLIC_USE_VERTEX: useVertex,
+    EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: viaEdge,
     GOOGLE_CLOUD_PROJECT: proc.GOOGLE_CLOUD_PROJECT,
     GOOGLE_CLOUD_LOCATION: proc.GOOGLE_CLOUD_LOCATION,
-    GOOGLE_API_KEY: proc.GOOGLE_API_KEY,
+    // Prefer the inlined EXPO_PUBLIC_ variant when present (Web), fall back
+    // to the non-public one (native / Edge Function).
+    GOOGLE_API_KEY: (publicGoogleKey && publicGoogleKey.length > 0) ? publicGoogleKey : proc.GOOGLE_API_KEY,
     SENTRY_DSN: proc.SENTRY_DSN,
     EXPO_PUBLIC_POSTHOG_KEY: posthogKey,
     EXPO_PUBLIC_POSTHOG_HOST: posthogHost,

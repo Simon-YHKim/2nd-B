@@ -9,14 +9,23 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { semantic, spacing, radii } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { questionsForPeriod } from "@/lib/audit/questions";
+import { AppNav } from "@/components/ui/AppNav";
+import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { createRecord } from "@/lib/records/create";
+
+const PERIOD_OPTIONS: { id: AuditPeriod; label: { en: string; ko: string } }[] = [
+  { id: "current", label: { en: "Right now", ko: "지금 이 시기" } },
+  { id: "20s", label: { en: "Your 20s", ko: "20대" } },
+  { id: "teens", label: { en: "Your teens", ko: "10대" } },
+];
 
 export default function Audit() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const questions = questionsForPeriod("current");
+
+  const [period, setPeriod] = useState<AuditPeriod | null>(null);
+  const questions = period ? questionsForPeriod(period) : [];
 
   const [index, setIndex] = useState(0);
   const [answer, setAnswer] = useState("");
@@ -46,7 +55,9 @@ export default function Audit() {
         kind: "audit_response",
         body: answer.trim(),
         prompt: current.prompt[locale],
-        auditPeriod: "current",
+        auditPeriod: period ?? "current",
+        topic: current.prompt[locale].slice(0, 80),
+        tags: ["life_audit", current.framework],
       });
       setAnswer("");
       if (index + 1 >= questions.length) {
@@ -59,6 +70,45 @@ export default function Audit() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (period === null) {
+    return (
+      <Screen>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.introCard}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+              {locale === "ko" ? "라이프 오딧 — 시기 선택" : "Life audit — choose a period"}
+            </Text>
+            <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
+              {locale === "ko"
+                ? "Big Five · 애착이론 · 자기결정성 이론에 기반한 고정 질문 묶음입니다. 자유로운 깊이 탐색은 /스무고개에서."
+                : "A fixed framework-anchored question set (Big Five · Attachment · SDT). For open-ended depth probing, use /interview."}
+            </Text>
+          </View>
+          <View style={{ gap: spacing.sm }}>
+            {PERIOD_OPTIONS.map((p) => (
+              <Button
+                key={p.id}
+                label={p.label[locale]}
+                variant="secondary"
+                onPress={() => {
+                  setPeriod(p.id);
+                  setIndex(0);
+                  setAnswer("");
+                  setDone(false);
+                }}
+              />
+            ))}
+            <Button
+              label={locale === "ko" ? "뒤로" : "Back"}
+              variant="secondary"
+              onPress={() => router.back()}
+            />
+          </View>
+        </ScrollView>
+      </Screen>
+    );
   }
 
   if (done) {
@@ -98,6 +148,18 @@ export default function Audit() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll}>
+        {index === 0 ? (
+          <View style={styles.introCard}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+              {locale === "ko" ? "라이프 오딧 — 자기 인터뷰" : "Life audit — self interview"}
+            </Text>
+            <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
+              {locale === "ko"
+                ? "Big Five · 애착이론 · 자기결정성 이론에 기반한 질문들. 정답이 없어요 — 솔직하게 적은 만큼 페르소나가 정확해집니다."
+                : "Questions grounded in Big Five, Attachment Theory, and Self-Determination Theory. No right answer — the more honest you are, the sharper your Persona becomes."}
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.progressWrap}>
           <Text variant="caption" color="brand">
             {locale === "ko" ? `질문 ${index + 1} / ${questions.length}` : `Question ${index + 1} / ${questions.length}`}
@@ -166,6 +228,7 @@ export default function Audit() {
           variant="secondary"
           onPress={() => router.replace("/journal")}
         />
+        <AppNav locale={locale} />
       </ScrollView>
     </Screen>
   );
@@ -185,6 +248,14 @@ const styles = StyleSheet.create({
   },
   textarea: { minHeight: 140, textAlignVertical: "top", paddingTop: spacing.md },
   charCountRow: { flexDirection: "row", justifyContent: "space-between", marginTop: -spacing.xs },
+  introCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.sm,
+    borderLeftColor: semantic.brand,
+    borderLeftWidth: 3,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
   progressWrap: { gap: spacing.xs },
   progressTrack: {
     height: 4,

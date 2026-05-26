@@ -1,0 +1,9 @@
+{
+  "title": "Inbox",
+  "subtitle": "Everything you've captured. Tap to preview.",
+  "captureMore": "Capture more",
+  "back": "Back to journal",
+  "empty": "Nothing captured yet. Tap Capture to add your first.",
+  "error": "Couldn't load your captures:",
+  "ingested": "Ingested"
+}

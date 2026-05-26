@@ -45,7 +45,11 @@ jobs:
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-          EXPO_PUBLIC_LLM_MODE: mock
+          # LLM mode + key: when the repo Variable EXPO_PUBLIC_GOOGLE_API_KEY is
+          # set, builds default to "live"; otherwise mock. Override by setting
+          # the Variable EXPO_PUBLIC_LLM_MODE explicitly.
+          EXPO_PUBLIC_LLM_MODE: ${{ vars.EXPO_PUBLIC_LLM_MODE || 'mock' }}
+          EXPO_PUBLIC_GOOGLE_API_KEY: ${{ vars.EXPO_PUBLIC_GOOGLE_API_KEY }}
           EXPO_USE_STATIC: "true"
         run: |
           # base-path (/2nd-B) comes from expo.experiments.baseUrl in app.json,

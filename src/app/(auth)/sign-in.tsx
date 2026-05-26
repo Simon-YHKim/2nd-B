@@ -7,8 +7,8 @@ import { Screen } from "@/components/ui/Screen";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { spacing } from "@/lib/theme/tokens";
-import { signInWithEmail } from "@/lib/supabase/auth";
+import { semantic, spacing } from "@/lib/theme/tokens";
+import { signInWithEmail, signInWithGoogle } from "@/lib/supabase/auth";
 
 export default function SignIn() {
   const { t, i18n } = useTranslation("auth");
@@ -16,7 +16,27 @@ export default function SignIn() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [oauthSubmitting, setOauthSubmitting] = useState(false);
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+
+  async function handleGoogle(): Promise<void> {
+    setOauthSubmitting(true);
+    try {
+      await signInWithGoogle();
+      // On Web, Supabase navigates away to Google's consent page; this line
+      // is typically not reached. On native (Sprint 1+) we'd open the URL
+      // explicitly. AuthContext picks up the new session on return and
+      // routes to /complete-profile or /journal as appropriate.
+    } catch (e) {
+      const msg = locale === "ko"
+        ? "Google 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요."
+        : "Could not start Google sign-in. Please try again in a moment.";
+      Alert.alert(msg);
+      if (typeof console !== "undefined") console.warn("[auth] google oauth error", (e as Error).message);
+    } finally {
+      setOauthSubmitting(false);
+    }
+  }
 
   async function handleSubmit(): Promise<void> {
     setSubmitting(true);
@@ -52,7 +72,17 @@ export default function SignIn() {
         style={{ flex: 1 }}
       >
       <View style={styles.header}>
-        <Text variant="caption" color="brand">2nd-Brain</Text>
+        <View style={styles.brandRow}>
+          <Text variant="caption" color="brand">2nd-Brain</Text>
+          <Pressable
+            onPress={() => {
+              void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
+            }}
+            hitSlop={6}
+          >
+            <Text variant="caption" color="brand">{locale === "ko" ? "EN" : "한국어"}</Text>
+          </Pressable>
+        </View>
         <Text variant="heading" style={styles.title}>{t("signIn.title")}</Text>
         <Text variant="body" color="textMuted">{t("signIn.subtitle")}</Text>
       </View>
@@ -91,6 +121,20 @@ export default function SignIn() {
           disabled={!canSubmit}
           loading={submitting}
         />
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text variant="subtle" color="textSubtle" style={styles.dividerLabel}>
+            {t("signIn.or")}
+          </Text>
+          <View style={styles.dividerLine} />
+        </View>
+        <Button
+          label={t("signIn.continueWithGoogle")}
+          variant="secondary"
+          onPress={handleGoogle}
+          disabled={oauthSubmitting || submitting}
+          loading={oauthSubmitting}
+        />
         <Pressable onPress={handleForgotPassword} hitSlop={8} style={styles.forgotBtn}>
           <Text variant="subtle" color="textMuted">
             {locale === "ko" ? "비밀번호를 잊으셨나요?" : "Forgot password?"}
@@ -106,6 +150,11 @@ export default function SignIn() {
             </Text>
           </Link>
         </Text>
+        <Link href="/manual" style={{ marginTop: spacing.xs }}>
+          <Text variant="subtle" color="textSubtle" style={styles.link}>
+            {locale === "ko" ? "이 앱이 처음이라면 — 안내서 보기" : "New here? Read the 1-min manual"}
+          </Text>
+        </Link>
       </View>
       </KeyboardAvoidingView>
     </Screen>
@@ -114,9 +163,13 @@ export default function SignIn() {
 
 const styles = StyleSheet.create({
   header: { gap: spacing.xs, marginBottom: spacing.xl },
+  brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   title: { marginTop: spacing.xs },
   form: { gap: spacing.sm },
   passwordRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  divider: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginVertical: spacing.xs },
+  dividerLine: { flex: 1, height: 1, backgroundColor: semantic.border, opacity: 0.4 },
+  dividerLabel: { letterSpacing: 1 },
   forgotBtn: { marginTop: spacing.sm, alignItems: "center", paddingVertical: spacing.xs },
   footer: { marginTop: spacing.xl, alignItems: "center" },
   link: { textDecorationLine: "underline" },

@@ -61,6 +61,26 @@ export default function Persona() {
               onPress={() => router.replace("/audit")}
             />
             <Button
+              label={locale === "ko" ? "Big Five 3분 평가" : "Big Five — 3-min test"}
+              variant="secondary"
+              onPress={() => router.replace("/big-five")}
+            />
+            <Button
+              label={locale === "ko" ? "애착 스타일 평가" : "Attachment style test"}
+              variant="secondary"
+              onPress={() => router.replace("/attachment")}
+            />
+            <Button
+              label={locale === "ko" ? "MBTI 16타입" : "MBTI 16 types"}
+              variant="secondary"
+              onPress={() => router.replace("/mbti")}
+            />
+            <Button
+              label={locale === "ko" ? "Brain Trinity 대시보드" : "Brain Trinity dashboard"}
+              variant="secondary"
+              onPress={() => router.replace("/trinity")}
+            />
+            <Button
               label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
               variant="secondary"
               onPress={() => router.replace("/journal")}
@@ -170,6 +190,16 @@ export default function Persona() {
             label={locale === "ko" ? "Markdown으로 내보내기" : "Export as Markdown"}
             variant="primary"
             onPress={handleExport}
+          />
+          <Button
+            label={locale === "ko" ? "Big Five 다시 평가" : "Retake Big Five"}
+            variant="secondary"
+            onPress={() => router.replace("/big-five")}
+          />
+          <Button
+            label={locale === "ko" ? "애착 스타일 평가" : "Attachment style test"}
+            variant="secondary"
+            onPress={() => router.replace("/attachment")}
           />
           <Button
             label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}

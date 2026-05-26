@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { View, StyleSheet, ScrollView, Image, Text } from "react-native";
+import { View, StyleSheet, ScrollView, Image, Text, Pressable } from "react-native";
 import { Link, Redirect } from "expo-router";
 
 import { Screen } from "@/components/ui/Screen";
@@ -17,14 +17,18 @@ const ACCENTS = [colors.leaf, colors.sun, colors.skyDeep] as const;
 
 export default function Landing() {
   const { t, i18n } = useTranslation();
-  const { userId, loading } = useAuth();
+  const { userId, hasProfile, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   // Auth still resolving — show the branded loading screen.
   if (loading) return <LoadingScreen />;
 
-  // Signed in — the landing is for visitors only.
-  if (userId) return <Redirect href="/journal" />;
+  // Signed in via OAuth but no public.users row yet — finish the C10 birth-date
+  // prompt before letting them into the app.
+  if (userId && hasProfile === false) return <Redirect href="/complete-profile" />;
+
+  // Signed in and profile exists — the landing is for visitors only.
+  if (userId && hasProfile) return <Redirect href="/journal" />;
 
   // Demo mode = deployed with no Supabase env vars set. Sign-in/save will
   // fail at the network layer; show a banner so the user knows why.
@@ -61,7 +65,18 @@ export default function Landing() {
             resizeMode="contain"
             accessibilityLabel="2nd-Brain"
           />
-          <Text style={styles.eyebrow}>2nd-Brain</Text>
+          <View style={styles.eyebrowRow}>
+            <Text style={styles.eyebrow}>2nd-Brain</Text>
+            <Pressable
+              onPress={() => {
+                void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
+              }}
+              hitSlop={6}
+              style={styles.localeToggle}
+            >
+              <Text style={styles.localeToggleText}>{locale === "ko" ? "EN" : "한국어"}</Text>
+            </Pressable>
+          </View>
           <Text style={[styles.display, { fontFamily: serifDisplay }]} accessibilityRole="header">
             {t("app.name")}
           </Text>
@@ -102,6 +117,9 @@ export default function Landing() {
           </Link>
           <Link href="/sign-in" asChild>
             <Button label={locale === "ko" ? "로그인" : "Sign in"} variant="secondary" />
+          </Link>
+          <Link href="/manual" asChild>
+            <Button label={locale === "ko" ? "안내서 보기 (1분)" : "Read the manual (1 min)"} variant="secondary" />
           </Link>
         </View>
 
@@ -185,6 +203,15 @@ const styles = StyleSheet.create({
   // Hero.
   hero: { gap: spacing.sm },
   logo: { width: 84, height: 84, marginBottom: spacing.xs },
+  eyebrowRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  localeToggle: { paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  localeToggleText: {
+    fontFamily: fontFamilies.sans,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeights.bold,
+    letterSpacing: 1.5,
+    color: colors.pineSoft,
+  },
   eyebrow: {
     fontFamily: fontFamilies.sans,
     fontSize: fontSize.xs,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, Link } from "expo-router";
@@ -11,8 +11,12 @@ import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { XpBar } from "@/components/progression/XpBar";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
+import { dailyPrompt } from "@/lib/journal/daily-prompts";
+import { computeStreak } from "@/lib/journal/streak";
+import { notify } from "@/lib/notifications/web";
 import {
   createRecord,
+  deleteRecord,
   listRecentRecords,
   countRecordsByKind,
   type RecordedEvidence,
@@ -38,6 +42,10 @@ interface RecordRow {
   kind: "journal" | "note" | "audit_response";
   body: string;
   ai_followup: StoredFollowup | null;
+  topic: string | null;
+  summary: string | null;
+  conclusion: string | null;
+  tags: string[];
   created_at: string;
 }
 
@@ -46,6 +54,11 @@ export default function Journal() {
   const { userId, loading } = useAuth();
   const progression = useProgression();
   const [body, setBody] = useState("");
+  const [topic, setTopic] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
+  const [conclusion, setConclusion] = useState("");
+  const [showExtras, setShowExtras] = useState(false);
+  const [askAdvisor, setAskAdvisor] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [lastFollowup, setLastFollowup] = useState<StoredFollowup | null>(null);
   const [recent, setRecent] = useState<RecordRow[]>([]);
@@ -59,6 +72,8 @@ export default function Journal() {
   // Progression gates: journal unlocks at Lv3, then free tier allows 2 entries.
   const gate = checkGate("journal", progression.totalXp);
   const usage = checkUsage("journal", progression.tier, journalCount);
+
+  const streak = useMemo(() => computeStreak(recent.map((r) => r.created_at)), [recent]);
 
   useEffect(() => {
     if (!userId) return;
@@ -83,11 +98,22 @@ export default function Journal() {
     setSubmitting(true);
     setLastFollowup(null);
     try {
+      const tags = tagsInput
+        .split(/[,#]+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
       const res = await createRecord({
         userId,
         locale,
         kind: "journal",
         body: body.trim(),
+        topic: topic.trim().length > 0 ? topic.trim() : undefined,
+        tags: tags.length > 0 ? tags : undefined,
+        conclusion: conclusion.trim().length > 0 ? conclusion.trim() : undefined,
+        // Advisor is OPT-IN per user directive: '아무것한테나 어드바이저 하지말고'.
+        // Default behavior is record-without-AI; only fire callAdvisor
+        // when the user explicitly toggles "Ask Advisor" on this entry.
+        withFollowup: askAdvisor,
       });
       if (res.followup) {
         setLastFollowup(res.followup);
@@ -96,6 +122,11 @@ export default function Journal() {
         }
       }
       setBody("");
+      setTopic("");
+      setTagsInput("");
+      setConclusion("");
+      setShowExtras(false);
+      setAskAdvisor(false);
       await refresh(userId);
       // Capture earned XP — refresh the level bar.
       void progression.refresh();
@@ -141,12 +172,52 @@ export default function Journal() {
         {/* Quest progression — level + XP toward the next unlock. */}
         {progression.loading ? null : <XpBar progress={progression.progress} locale={locale} />}
 
+        {streak.current > 0 ? (
+          <View style={styles.streakRow}>
+            <Text variant="caption" color="brand">
+              {streak.capturedToday ? "🔥" : "·"}
+            </Text>
+            <Text variant="subtle" color="textMuted">
+              {locale === "ko"
+                ? `${streak.current}일 연속 기록${streak.capturedToday ? "" : " (오늘은 아직)"}`
+                : `${streak.current}-day streak${streak.capturedToday ? "" : " (no entry today yet)"}`}
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.navRow}>
+          <Link href="/capture" asChild>
+            <Button label={locale === "ko" ? "캡처" : "Capture"} variant="secondary" />
+          </Link>
+          <Link href="/inbox" asChild>
+            <Button label={locale === "ko" ? "받은편지함" : "Inbox"} variant="secondary" />
+          </Link>
+          <Link href="/wiki" asChild>
+            <Button label={locale === "ko" ? "위키" : "Wiki"} variant="secondary" />
+          </Link>
+          <Link href="/insights" asChild>
+            <Button label={locale === "ko" ? "인사이트" : "Insights"} variant="secondary" />
+          </Link>
+          <Link href="/jarvis" asChild>
+            <Button label={locale === "ko" ? "자비스" : "Jarvis"} variant="secondary" />
+          </Link>
+          <Link href="/manual" asChild>
+            <Button label={locale === "ko" ? "안내" : "Manual"} variant="secondary" />
+          </Link>
           <Link href="/audit" asChild>
             <Button label={locale === "ko" ? "라이프 오딧" : "Life audit"} variant="secondary" />
           </Link>
+          <Link href="/interview" asChild>
+            <Button label={locale === "ko" ? "스무고개" : "Interview"} variant="secondary" />
+          </Link>
           <Link href="/persona" asChild>
-            <Button label={locale === "ko" ? "페르소나 v1" : "Persona v1"} variant="secondary" />
+            <Button label={locale === "ko" ? "페르소나" : "Persona"} variant="secondary" />
+          </Link>
+          <Link href="/trinity" asChild>
+            <Button label={locale === "ko" ? "Trinity" : "Trinity"} variant="secondary" />
+          </Link>
+          <Link href="/settings" asChild>
+            <Button label={locale === "ko" ? "설정" : "Settings"} variant="secondary" />
           </Link>
         </View>
 
@@ -207,6 +278,51 @@ export default function Journal() {
                 </Text>
               ) : null}
             </View>
+            <View style={styles.dailyPromptCard}>
+              <View style={styles.dailyPromptHead}>
+                <Text variant="caption" color="brand" style={{ letterSpacing: 1.2 }}>
+                  {locale === "ko" ? "오늘의 성찰 질문" : "Today's reflection prompt"}
+                </Text>
+                <Pressable
+                  onPress={async () => {
+                    const r = await notify(
+                      locale === "ko" ? "두번째 뇌 — 오늘의 성찰" : "2nd-Brain — today's reflection",
+                      dailyPrompt(locale),
+                    );
+                    if (r.status === "not_supported") {
+                      Alert.alert(locale === "ko" ? "이 환경에선 알림이 지원되지 않아요" : "Notifications not supported here");
+                    } else if (r.status === "denied") {
+                      Alert.alert(locale === "ko" ? "알림 권한이 차단돼 있어요" : "Notification permission blocked");
+                    }
+                  }}
+                  hitSlop={6}
+                >
+                  <Text variant="caption" color="brand">
+                    {locale === "ko" ? "🔔 알림으로" : "🔔 Notify"}
+                  </Text>
+                </Pressable>
+              </View>
+              <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }} selectable>
+                {dailyPrompt(locale)}
+              </Text>
+              {topic.length === 0 ? (
+                <Pressable
+                  onPress={() => setTopic(dailyPrompt(locale))}
+                  hitSlop={4}
+                  style={{ marginTop: spacing.xs }}
+                >
+                  <Text variant="caption" color="brand">
+                    {locale === "ko" ? "→ 이 질문을 주제로" : "→ Use this as topic"}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+            <Input
+              value={topic}
+              onChangeText={setTopic}
+              placeholder={locale === "ko" ? "주제 (선택) — 한 줄로" : "Topic (optional) — one line"}
+              autoCapitalize="sentences"
+            />
             <Input
               value={body}
               onChangeText={setBody}
@@ -219,6 +335,67 @@ export default function Journal() {
               numberOfLines={6}
               style={styles.textarea}
             />
+            {body.length > 0 ? (
+              <View style={styles.charCountRow}>
+                <Text variant="subtle" color="textSubtle">
+                  {locale === "ko"
+                    ? body.trim().length < 40
+                      ? "조금만 더 길게 적어볼까요"
+                      : "충분해요"
+                    : body.trim().length < 40
+                      ? "A few more words help"
+                      : "Looks good"}
+                </Text>
+                <Text variant="subtle" color="textSubtle">{body.length}</Text>
+              </View>
+            ) : null}
+            <Input
+              value={tagsInput}
+              onChangeText={setTagsInput}
+              placeholder={locale === "ko" ? "태그 (선택, 쉼표/# 구분) — #일기 #감정" : "Tags (optional, comma/# separated) — #journal #emotion"}
+              autoCapitalize="none"
+            />
+            {tagsInput.trim().length > 0 ? (
+              <Text variant="subtle" color="textSubtle">
+                {(() => {
+                  const parsed = tagsInput.split(/[,#]+/).map((t) => t.trim()).filter((t) => t.length > 0);
+                  return parsed.length === 0
+                    ? (locale === "ko" ? "태그가 비어 있어요" : "No tags parsed")
+                    : "→ " + parsed.map((t) => `#${t}`).join(" ");
+                })()}
+              </Text>
+            ) : null}
+            <Pressable onPress={() => setShowExtras((v) => !v)} hitSlop={4}>
+              <Text variant="caption" color="brand">
+                {showExtras
+                  ? locale === "ko" ? "▾ 결론 칸 닫기" : "▾ Hide conclusion field"
+                  : locale === "ko" ? "▸ 결론 한 줄로 (선택)" : "▸ Add a one-line conclusion (optional)"}
+              </Text>
+            </Pressable>
+            {showExtras ? (
+              <Input
+                value={conclusion}
+                onChangeText={setConclusion}
+                placeholder={locale === "ko" ? "결론 — 오늘의 한 줄 깨달음" : "Conclusion — today's one-line takeaway"}
+                multiline
+                numberOfLines={2}
+              />
+            ) : null}
+            <Pressable onPress={() => setAskAdvisor((v) => !v)} hitSlop={4} style={styles.advisorRow}>
+              <View style={[styles.advisorCheck, askAdvisor && styles.advisorCheckOn]}>
+                {askAdvisor ? <Text variant="caption" color="background">✓</Text> : null}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="subtle" color={askAdvisor ? "brand" : "textMuted"}>
+                  {locale === "ko" ? "이 기록에 AI 조언 받기" : "Ask Advisor on this entry"}
+                </Text>
+                <Text variant="subtle" color="textSubtle">
+                  {locale === "ko"
+                    ? "기본은 꺼짐. 고민이나 되묻고 싶을 때만 켜세요."
+                    : "Off by default. Turn on only for entries where you want a reflection back."}
+                </Text>
+              </View>
+            </Pressable>
             <Button
               label={locale === "ko" ? "기록하기" : "Save"}
               variant="primary"
@@ -232,6 +409,22 @@ export default function Journal() {
             {lastFollowup ? <FollowupCard followup={lastFollowup} locale={locale} /> : null}
           </View>
         )}
+
+        {recent.length === 0 ? (
+          <View style={styles.coachmarkCard}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 1.2 }}>
+              {locale === "ko" ? "처음이신가요?" : "First time?"}
+            </Text>
+            <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }}>
+              {locale === "ko"
+                ? "두번째 뇌는 8가지 핵심 동작이 있어요. 캡처 → 인박스 → 위키 → 자비스로 흐름이 이어집니다. 1분 안내서를 먼저 보시면 길을 잃지 않아요."
+                : "2nd-Brain has 8 core moves. Capture → Inbox → Wiki → Jarvis. A 1-minute manual saves you from getting lost."}
+            </Text>
+            <Link href="/manual" asChild>
+              <Button label={locale === "ko" ? "안내서 열기" : "Open the manual"} variant="primary" />
+            </Link>
+          </View>
+        ) : null}
 
         <View style={styles.recentList}>
           <Text variant="caption" color="textMuted">
@@ -249,7 +442,26 @@ export default function Journal() {
               </Text>
             </View>
           ) : (
-            recent.map((r) => <RecentEntry key={r.id} record={r} locale={locale} t={t} />)
+            recent.map((r) => (
+              <RecentEntry
+                key={r.id}
+                record={r}
+                locale={locale}
+                t={t}
+                onDelete={async () => {
+                  if (!userId) return;
+                  try {
+                    await deleteRecord(userId, r.id);
+                    await refresh(userId);
+                  } catch (e) {
+                    Alert.alert(
+                      locale === "ko" ? "삭제 실패" : "Delete failed",
+                      (e as Error).message,
+                    );
+                  }
+                }}
+              />
+            ))
           )}
         </View>
       </ScrollView>
@@ -269,10 +481,12 @@ function RecentEntry({
   record,
   locale,
   t,
+  onDelete,
 }: {
   record: RecordRow;
   locale: "en" | "ko";
   t: (k: string, opts?: Record<string, unknown>) => string;
+  onDelete: () => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = record.body.length > PREVIEW_CHARS;
@@ -282,16 +496,60 @@ function RecentEntry({
     : locale === "ko" ? "더 보기" : "Show more";
   return (
     <View style={styles.recordCard}>
-      <Text variant="subtle" color="textSubtle">
-        {formatRelative(record.created_at, locale, t)}
-      </Text>
-      <Text variant="body" style={{ marginTop: spacing.xs }}>{body}</Text>
+      <View style={styles.recordTopRow}>
+        <Text variant="subtle" color="textSubtle">
+          {formatRelative(record.created_at, locale, t)}
+        </Text>
+        {record.topic ? (
+          <Text variant="subtle" color="brand" numberOfLines={1} style={{ flex: 1, textAlign: "right" }}>
+            {record.topic}
+          </Text>
+        ) : null}
+      </View>
+      <Text variant="body" style={{ marginTop: spacing.xs }} selectable>{body}</Text>
       {isLong ? (
         <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={8} style={styles.showMoreBtn}>
           <Text variant="subtle" color="brand">{toggleLabel}</Text>
         </Pressable>
       ) : null}
+      {record.conclusion ? (
+        <View style={styles.conclusionBlock}>
+          <Text variant="caption" color="textSubtle">
+            {locale === "ko" ? "결론" : "Conclusion"}
+          </Text>
+          <Text variant="subtle" color="textMuted" selectable>{record.conclusion}</Text>
+        </View>
+      ) : null}
+      {record.tags && record.tags.length > 0 ? (
+        <Text variant="subtle" color="textSubtle" numberOfLines={1} style={{ marginTop: spacing.xs }}>
+          #{record.tags.join(" #")}
+        </Text>
+      ) : null}
       {record.ai_followup ? <FollowupCard followup={record.ai_followup} locale={locale} compact /> : null}
+      <Pressable
+        onPress={() => {
+          Alert.alert(
+            locale === "ko" ? "이 기록을 삭제하시겠어요?" : "Delete this entry?",
+            locale === "ko" ? "되돌릴 수 없어요." : "This cannot be undone.",
+            [
+              { text: locale === "ko" ? "취소" : "Cancel", style: "cancel" },
+              {
+                text: locale === "ko" ? "삭제" : "Delete",
+                style: "destructive",
+                onPress: () => {
+                  void onDelete();
+                },
+              },
+            ],
+          );
+        }}
+        hitSlop={6}
+        style={{ marginTop: spacing.sm, alignSelf: "flex-end" }}
+      >
+        <Text variant="caption" color="textSubtle">
+          {locale === "ko" ? "삭제" : "Delete"}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -401,6 +659,19 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.lg,
   },
+  charCountRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
+  advisorRow: { flexDirection: "row", gap: spacing.sm, alignItems: "center", paddingVertical: spacing.xs },
+  advisorCheck: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  advisorCheckOn: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   limitCard: {
     backgroundColor: semantic.surfaceAlt,
     borderColor: semantic.warning,
@@ -430,6 +701,15 @@ const styles = StyleSheet.create({
   },
   evidenceList: { marginTop: spacing.sm, gap: spacing.xs },
   evidenceRow: { gap: 2 },
+  coachmarkCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.brand,
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
   recentList: { gap: spacing.sm },
   emptyCard: {
     backgroundColor: semantic.surfaceAlt,
@@ -446,5 +726,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.md,
+  },
+  recordTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
+  streakRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  dailyPromptHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  dailyPromptCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.sm,
+    borderLeftColor: semantic.brand,
+    borderLeftWidth: 3,
+    padding: spacing.sm,
+  },
+  conclusionBlock: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopColor: semantic.border,
+    borderTopWidth: 1,
+    gap: 2,
   },
 });

@@ -1,8 +1,14 @@
 // Inference Engine v1: synthesize a coarse persona from audit_response
-// records. v1 is intentionally lightweight — no LLM extraction yet, just
-// frequency counting + length heuristics over the framework tags from
-// AUDIT_QUESTIONS. The full extraction (LLM persona chat over the full
-// record set) lands in Sprint 3 once we have ≥50 entries per user.
+// records + TIPI Big Five assessments. v1 is intentionally lightweight —
+// no LLM extraction yet, just frequency counting + length heuristics over
+// the framework tags from AUDIT_QUESTIONS, with TIPI scores layered on top
+// when present. The full extraction (LLM persona chat over the full record
+// set) lands in Sprint 3 once we have ≥50 entries per user.
+//
+// TIPI scores (1-7) are normalized to 0-1 and OVERRIDE the heuristic
+// trait estimates when a TIPI assessment exists — direct measurement beats
+// keyword inference. The most recent TIPI run wins (handles repeated
+// assessments). emotional_stability ↔ neuroticism is inverted.
 
 import { AUDIT_QUESTIONS, type Framework } from "../audit/questions";
 import { callGemini } from "../llm/gemini";
@@ -97,6 +103,36 @@ async function loadMemorizedHistogram(
   return hist;
 }
 
+async function loadLatestTipi(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  userId: string,
+): Promise<{ openness: number; conscientiousness: number; extraversion: number; agreeableness: number; emotional_stability: number } | null> {
+  const { data, error } = await supabase
+    .from("records")
+    .select("body, created_at")
+    .eq("user_id", userId)
+    .contains("tags", ["tipi"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error || !data || data.length === 0) return null;
+  try {
+    const parsed = JSON.parse((data[0] as { body: string }).body) as {
+      scores?: { openness?: number; conscientiousness?: number; extraversion?: number; agreeableness?: number; emotional_stability?: number };
+    };
+    const s = parsed.scores;
+    if (!s || typeof s.openness !== "number") return null;
+    return {
+      openness: s.openness,
+      conscientiousness: s.conscientiousness ?? 0,
+      extraversion: s.extraversion ?? 0,
+      agreeableness: s.agreeableness ?? 0,
+      emotional_stability: s.emotional_stability ?? 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function buildPersona(userId: string, locale: "en" | "ko"): Promise<PersonaCard> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
@@ -108,7 +144,22 @@ export async function buildPersona(userId: string, locale: "en" | "ko"): Promise
   if (error) throw error;
   const rows = (data ?? []) as AuditResponseRow[];
 
-  const traits = scoreFromAnswers(rows);
+  let traits = scoreFromAnswers(rows);
+
+  // If a TIPI assessment exists, prefer it (1-7 → 0-1 normalize).
+  // emotional_stability → neuroticism is inverted.
+  const tipi = await loadLatestTipi(supabase, userId);
+  if (tipi) {
+    const norm = (v: number) => Math.max(0, Math.min(1, (v - 1) / 6));
+    traits = {
+      openness: norm(tipi.openness),
+      conscientiousness: norm(tipi.conscientiousness),
+      extraversion: norm(tipi.extraversion),
+      agreeableness: norm(tipi.agreeableness),
+      neuroticism: 1 - norm(tipi.emotional_stability),
+    };
+  }
+
   const memorized = await loadMemorizedHistogram(supabase, userId);
 
   // Pull one short narrative summary from the LLM wrapper (mock or live).
