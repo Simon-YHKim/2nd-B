@@ -58,6 +58,7 @@ export default function Journal() {
   const [tagsInput, setTagsInput] = useState("");
   const [conclusion, setConclusion] = useState("");
   const [showExtras, setShowExtras] = useState(false);
+  const [askAdvisor, setAskAdvisor] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [lastFollowup, setLastFollowup] = useState<StoredFollowup | null>(null);
   const [recent, setRecent] = useState<RecordRow[]>([]);
@@ -109,6 +110,10 @@ export default function Journal() {
         topic: topic.trim().length > 0 ? topic.trim() : undefined,
         tags: tags.length > 0 ? tags : undefined,
         conclusion: conclusion.trim().length > 0 ? conclusion.trim() : undefined,
+        // Advisor is OPT-IN per user directive: '아무것한테나 어드바이저 하지말고'.
+        // Default behavior is record-without-AI; only fire callAdvisor
+        // when the user explicitly toggles "Ask Advisor" on this entry.
+        withFollowup: askAdvisor,
       });
       if (res.followup) {
         setLastFollowup(res.followup);
@@ -121,6 +126,7 @@ export default function Journal() {
       setTagsInput("");
       setConclusion("");
       setShowExtras(false);
+      setAskAdvisor(false);
       await refresh(userId);
       // Capture earned XP — refresh the level bar.
       void progression.refresh();
@@ -372,6 +378,21 @@ export default function Journal() {
                 numberOfLines={2}
               />
             ) : null}
+            <Pressable onPress={() => setAskAdvisor((v) => !v)} hitSlop={4} style={styles.advisorRow}>
+              <View style={[styles.advisorCheck, askAdvisor && styles.advisorCheckOn]}>
+                {askAdvisor ? <Text variant="caption" color="background">✓</Text> : null}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="subtle" color={askAdvisor ? "brand" : "textMuted"}>
+                  {locale === "ko" ? "이 기록에 AI 조언 받기" : "Ask Advisor on this entry"}
+                </Text>
+                <Text variant="subtle" color="textSubtle">
+                  {locale === "ko"
+                    ? "기본은 꺼짐. 고민이나 되묻고 싶을 때만 켜세요."
+                    : "Off by default. Turn on only for entries where you want a reflection back."}
+                </Text>
+              </View>
+            </Pressable>
             <Button
               label={locale === "ko" ? "기록하기" : "Save"}
               variant="primary"
@@ -636,6 +657,18 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   charCountRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
+  advisorRow: { flexDirection: "row", gap: spacing.sm, alignItems: "center", paddingVertical: spacing.xs },
+  advisorCheck: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  advisorCheckOn: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   limitCard: {
     backgroundColor: semantic.surfaceAlt,
     borderColor: semantic.warning,
