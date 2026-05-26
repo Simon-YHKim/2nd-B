@@ -71,6 +71,16 @@ export default function Persona() {
               onPress={() => router.replace("/attachment")}
             />
             <Button
+              label={locale === "ko" ? "MBTI 16타입" : "MBTI 16 types"}
+              variant="secondary"
+              onPress={() => router.replace("/mbti")}
+            />
+            <Button
+              label={locale === "ko" ? "Brain Trinity 대시보드" : "Brain Trinity dashboard"}
+              variant="secondary"
+              onPress={() => router.replace("/trinity")}
+            />
+            <Button
               label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
               variant="secondary"
               onPress={() => router.replace("/journal")}

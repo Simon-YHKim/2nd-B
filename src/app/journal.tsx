@@ -202,7 +202,13 @@ export default function Journal() {
             <Button label={locale === "ko" ? "라이프 오딧" : "Life audit"} variant="secondary" />
           </Link>
           <Link href="/persona" asChild>
-            <Button label={locale === "ko" ? "페르소나 v1" : "Persona v1"} variant="secondary" />
+            <Button label={locale === "ko" ? "페르소나" : "Persona"} variant="secondary" />
+          </Link>
+          <Link href="/trinity" asChild>
+            <Button label={locale === "ko" ? "Trinity" : "Trinity"} variant="secondary" />
+          </Link>
+          <Link href="/settings" asChild>
+            <Button label={locale === "ko" ? "설정" : "Settings"} variant="secondary" />
           </Link>
         </View>
 
