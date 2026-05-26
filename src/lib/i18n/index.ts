@@ -17,7 +17,7 @@ import koInbox from "../../../locales/ko/inbox.json";
 import koJarvis from "../../../locales/ko/jarvis.json";
 import koSafety from "../../../locales/ko/safety.json";
 import koWiki from "../../../locales/ko/wiki.json";
-import { detectLanguage } from "./languageDetector";
+import { detectLanguage, saveLanguagePreference } from "./languageDetector";
 
 export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "jarvis", "wiki"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
@@ -39,6 +39,10 @@ export function initI18n(): typeof i18next {
     defaultNS: "common",
     interpolation: { escapeValue: false },
     compatibilityJSON: "v4",
+  });
+  // Persist whenever the user (or any code path) flips the active language.
+  i18next.on("languageChanged", (lng) => {
+    if (lng === "en" || lng === "ko") saveLanguagePreference(lng);
   });
   return i18next;
 }
