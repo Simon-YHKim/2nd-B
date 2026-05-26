@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
@@ -26,6 +26,9 @@ void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets);
+  // The intro plays once per session (page load). Once the user taps to
+  // dismiss the dolly-zoom, this flips true and the Stack mounts.
+  const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
@@ -33,11 +36,17 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  // Hold here until the phytoncide fonts resolve. On native the OS splash is
-  // still up; on web there is none, so render the branded loading screen
-  // instead of a blank frame. On a font error we still proceed so the app is
-  // never permanently blocked.
-  if (!fontsLoaded && !fontError) return <LoadingScreen />;
+  // Show the branded intro until BOTH the fonts have resolved AND the
+  // user has tapped through the pulse stage. On a font error we still
+  // unblock so the app is never permanently stuck.
+  if (!introDone) {
+    return (
+      <LoadingScreen
+        ready={fontsLoaded || !!fontError}
+        onContinue={() => setIntroDone(true)}
+      />
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

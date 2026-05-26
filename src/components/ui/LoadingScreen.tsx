@@ -1,22 +1,25 @@
-// LoadingScreen — phase-driven typewriter + logo opacity fade.
+// LoadingScreen — phase-driven typewriter → pulse-and-tap → dolly zoom.
 //
-// "내 머릿속의 열일하는 세포들" — the loading sequence IS the brand:
-// cell-team metaphors per docs/DESIGN.md. 25 messages across 5 build
-// phases (Soma → Neuron → Cortex → Cerebrum → Ready), 1.5s per
-// message (1s typing + 0.5s hold).
+// "내 머릿속의 열일하는 세포들" — the loading sequence IS the brand
+// (docs/DESIGN.md). 25 messages across 5 build phases (Soma → Neuron →
+// Cortex → Cerebrum → Ready), 1.5s per message (1s typing + 0.5s hold).
 //
-// Self-contained: no provider or font dependency, so it renders both
-// during _layout font load and during in-screen auth resolution. The
-// legacy light version is preserved in LoadingScreen.legacy.tsx.
+// State machine:
+//   typing  — logo fades 1→0 while 25 messages type in sequence
+//   ready   — typing done + parent.ready=true; logo fades back to 1,
+//             grows slightly, then pulses on a heartbeat loop. The user
+//             is invited to tap anywhere to continue.
+//   zooming — user tapped; logo dolly-zooms (scale 1.05 → 8) and
+//             screen fades; onContinue fires after the animation lands.
+//
+// Tap during 'typing' skips straight to 'ready' so returning users
+// aren't trapped in the 37.5s sequence.
 
 import { useEffect, useRef, useState } from "react";
-import { Animated, Image, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-// Logo with glow — resolves to the root assets/ dir.
 const logo = require("../../../assets/images/logo-glow.png");
 
-// Per docs/DESIGN.md: each phase = 5 messages. First message of each
-// phase is the technical anchor; the next four are cell-team prose.
 const MESSAGES: readonly string[] = [
   // Phase 1 — Soma (0..20%)
   "Soma 형성 중...",
@@ -50,31 +53,53 @@ const MESSAGES: readonly string[] = [
   "두근두근! 멋진 생각 기대 중!",
 ] as const;
 
-// Each message: 1s typing + 0.5s hold = 1.5s slot.
 const TYPE_TARGET_MS = 1000;
 const HOLD_MS = 500;
 const PER_MESSAGE_MS = TYPE_TARGET_MS + HOLD_MS;
-// Total fade duration = number of messages × per-message slot.
-const TOTAL_MS = MESSAGES.length * PER_MESSAGE_MS;
+const TYPING_TOTAL_MS = MESSAGES.length * PER_MESSAGE_MS;
 
-export function LoadingScreen() {
+const ENTER_READY_MS = 500;   // logo fade-back + grow to 1.05
+const PULSE_PERIOD_MS = 1400; // heartbeat half-cycle × 2
+const ZOOM_MS = 800;          // dolly zoom duration
+
+type Phase = "typing" | "ready" | "zooming";
+
+interface Props {
+  /** Parent's actual loading state — fonts, auth, etc. The screen
+   *  won't advance to 'ready' until both the typing finishes AND this
+   *  flag is true. Optional: when omitted, defaults to true. */
+  ready?: boolean;
+  /** Fires after the dolly-zoom animation completes. Parent unmounts. */
+  onContinue?: () => void;
+}
+
+export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
+  const [phase, setPhase] = useState<Phase>("typing");
   const [msgIdx, setMsgIdx] = useState(0);
   const [typed, setTyped] = useState("");
-  const opacity = useRef(new Animated.Value(1)).current;
+  const [typingDone, setTypingDone] = useState(false);
 
-  // Fade logo opacity 1 → 0 over TOTAL_MS in lockstep with the typewriter.
+  const opacity = useRef(new Animated.Value(1)).current;
+  const scale = useRef(new Animated.Value(1)).current;
+  const hintOpacity = useRef(new Animated.Value(0)).current;
+
+  // ── typing sequence: fade logo opacity 1 → 0 in lockstep
   useEffect(() => {
+    if (phase !== "typing") return;
     Animated.timing(opacity, {
       toValue: 0,
-      duration: TOTAL_MS,
+      duration: TYPING_TOTAL_MS,
       useNativeDriver: true,
     }).start();
-  }, [opacity]);
+  }, [opacity, phase]);
 
-  // Per-message lifecycle: type chars at (1s / length) interval,
-  // then schedule advance to next message after PER_MESSAGE_MS.
+  // ── per-message typewriter
   useEffect(() => {
-    if (msgIdx >= MESSAGES.length) return; // done — last message stays on screen
+    if (phase !== "typing") return;
+    if (msgIdx >= MESSAGES.length) {
+      setTypingDone(true);
+      return;
+    }
     const text = MESSAGES[msgIdx];
     setTyped("");
 
@@ -93,24 +118,103 @@ export function LoadingScreen() {
       clearInterval(typeId);
       clearTimeout(advanceId);
     };
-  }, [msgIdx]);
+  }, [msgIdx, phase]);
+
+  // ── transition typing → ready when both typing-done and parent.ready
+  useEffect(() => {
+    if (phase !== "typing") return;
+    if (!typingDone || !ready) return;
+    setPhase("ready");
+    // Bring logo back, grow slightly, then start heartbeat loop.
+    opacity.stopAnimation();
+    scale.stopAnimation();
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: ENTER_READY_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        toValue: 1.05,
+        duration: ENTER_READY_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(hintOpacity, {
+        toValue: 1,
+        duration: ENTER_READY_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Heartbeat — gentle, ~0.7Hz. Two-stage like a real pulse.
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scale, { toValue: 1.15, duration: PULSE_PERIOD_MS / 4, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.05, duration: PULSE_PERIOD_MS / 4, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.10, duration: PULSE_PERIOD_MS / 4, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.05, duration: PULSE_PERIOD_MS / 4, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        ]),
+      ).start();
+    });
+  }, [phase, typingDone, ready, opacity, scale, hintOpacity]);
+
+  function handlePress() {
+    if (phase === "typing") {
+      // Skip the rest of the typing sequence.
+      setTypingDone(true);
+      setMsgIdx(MESSAGES.length); // stop typewriter
+      // The 'ready' effect will run on the next render if parent.ready=true.
+      return;
+    }
+    if (phase !== "ready") return;
+    setPhase("zooming");
+    scale.stopAnimation();
+    hintOpacity.stopAnimation();
+    Animated.parallel([
+      // Dolly zoom: logo grows ~7× to fill (and overflow) the viewport.
+      Animated.timing(scale, {
+        toValue: 8,
+        duration: ZOOM_MS,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      // Hint fades out as the eye locks onto the logo.
+      Animated.timing(hintOpacity, {
+        toValue: 0,
+        duration: ZOOM_MS * 0.4,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onContinue?.();
+    });
+  }
 
   return (
-    <View
+    <Pressable
+      onPress={handlePress}
       style={styles.root}
       accessibilityRole="progressbar"
       accessibilityLabel="2nd-Brain 불러오는 중"
     >
       <Animated.Image
         source={logo}
-        style={[styles.logo, { opacity }]}
+        style={[styles.logo, { opacity, transform: [{ scale }] }]}
         resizeMode="contain"
       />
-      <Text style={styles.text}>
-        {typed}
-        <Text style={styles.caret}>▍</Text>
-      </Text>
-    </View>
+      {phase === "typing" ? (
+        <Text style={styles.text}>
+          {typed}
+          <Text style={styles.caret}>▍</Text>
+        </Text>
+      ) : null}
+      {phase === "ready" ? (
+        <Animated.Text style={[styles.hint, { opacity: hintOpacity }]}>
+          탭해서 두번째 뇌를 열기
+        </Animated.Text>
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -129,8 +233,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     minHeight: 22,
   },
-  caret: {
-    color: "#2F97FC",
-    opacity: 0.8,
+  caret: { color: "#2F97FC", opacity: 0.8 },
+  hint: {
+    color: "#7FB3F4",
+    fontSize: 13,
+    letterSpacing: 2,
+    textAlign: "center",
   },
 });
