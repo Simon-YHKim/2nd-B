@@ -65,6 +65,35 @@ export default function Landing() {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
 
+  // Entry animation — picks up where LoadingScreen's dolly-zoom ended,
+  // settling the logo into its resting position while the graph/banner
+  // fades in. This makes the loading→main hand-off feel continuous
+  // instead of a hard cut.
+  const entryProgress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(entryProgress, {
+      toValue: 1,
+      duration: 750,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [entryProgress]);
+
+  const logoScale = entryProgress.interpolate({
+    inputRange: [0, 1],
+    // Start near the dolly-zoom's final scale (≈ filling the viewport),
+    // settle to the ambient background scale.
+    outputRange: [4, 1.6],
+  });
+  const logoOpacity = entryProgress.interpolate({
+    inputRange: [0, 0.55, 1],
+    outputRange: [1, 0.65, 0.4],
+  });
+  const contentOpacity = entryProgress.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, 0, 1],
+  });
+
   // Pull the user's wiki graph if signed in. Empty arrays for unauth
   // visitors — they see just the core.
   useEffect(() => {
@@ -125,19 +154,30 @@ export default function Landing() {
 
   return (
     <View style={styles.skyContainer}>
-      {/* Dolly-zoomed logo continues here, full-bleed, behind everything. */}
-      <Image source={logo} style={styles.skyLogo} resizeMode="contain" />
+      {/* Logo picks up from LoadingScreen's dolly-zoom: starts large +
+          opaque, settles into ambient background scale + 0.4 opacity. */}
+      <Animated.Image
+        source={logo}
+        style={[styles.skyLogo, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}
+        resizeMode="contain"
+      />
       <Animated.View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, { backgroundColor: skyOverlay }]}
       />
-      <KnowledgeGraph nodes={nodes} edges={edges} onTapCore={handleTapCore} topMessage={topMessage} />
+      {/* Graph + banner fade in after the settle so the eye registers the
+          logo movement first, the content second. */}
+      <Animated.View style={[styles.contentLayer, { opacity: contentOpacity }]} pointerEvents="box-none">
+        <KnowledgeGraph nodes={nodes} edges={edges} onTapCore={handleTapCore} topMessage={topMessage} />
+      </Animated.View>
 
       {/* Tiny locale toggle in the corner — preserves the EN/KO affordance
           without competing with the graph for attention. */}
-      <Pressable style={styles.localeToggle} onPress={toggleLocale} hitSlop={8}>
-        <Text style={styles.localeToggleText}>{locale === "ko" ? "EN" : "한국어"}</Text>
-      </Pressable>
+      <Animated.View style={[styles.localeToggle, { opacity: contentOpacity }]}>
+        <Pressable onPress={toggleLocale} hitSlop={8}>
+          <Text style={styles.localeToggleText}>{locale === "ko" ? "EN" : "한국어"}</Text>
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -152,9 +192,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: undefined,
     height: undefined,
-    transform: [{ scale: 1.6 }],
-    opacity: 0.4,
+    // scale + opacity now driven by entryProgress (Animated.Value).
   },
+  contentLayer: { ...StyleSheet.absoluteFill as object },
   localeToggle: {
     position: "absolute",
     top: 16,

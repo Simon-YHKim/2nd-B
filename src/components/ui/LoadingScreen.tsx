@@ -186,8 +186,11 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
     scale.stopAnimation();
     hintOpacity.stopAnimation();
     Animated.parallel([
+      // Dolly zoom ends at scale 4 — matches /index's entry initial
+      // scale so the loading→main handoff has no size jump. /index then
+      // settles to scale 1.6 + opacity 0.4 over 750ms.
       Animated.timing(scale, {
-        toValue: 8,
+        toValue: 4,
         duration: ZOOM_MS,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
