@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { AppNav } from "@/components/ui/AppNav";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { detectClipperKind } from "@/lib/wiki/clipper-kind";
 import { buildSourcePayload } from "@/lib/wiki/ingest-helpers";
@@ -227,6 +228,7 @@ export default function Capture() {
             />
             <Button label={t("cancel")} variant="secondary" onPress={() => router.back()} disabled={submitting} />
           </View>
+          <AppNav locale={locale} />
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

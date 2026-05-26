@@ -16,6 +16,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { AppNav } from "@/components/ui/AppNav";
 import { deleteWikiPage, getBacklinks, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import { exportUserWiki } from "@/lib/wiki/export";
 import { readPhase1, runPhase1 } from "@/lib/wiki/phase1";
@@ -567,6 +568,7 @@ export default function Wiki() {
             })}
           </View>
         )}
+        <AppNav locale={locale} />
       </ScrollView>
     </Screen>
   );

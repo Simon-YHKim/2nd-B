@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { AppNav } from "@/components/ui/AppNav";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { readChatUsage } from "@/lib/chat/usage";
@@ -198,6 +199,7 @@ export default function Jarvis() {
           />
           <Button label={t("send")} variant="primary" onPress={handleSend} disabled={!canSend} loading={sending} />
         </View>
+        <AppNav locale={locale} />
       </KeyboardAvoidingView>
     </Screen>
   );
