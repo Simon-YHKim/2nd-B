@@ -30,6 +30,21 @@ export const semantic = {
   danger: colors.clay,
 } as const;
 
+// Dark-sky palette — used by the loader, landing graph, and sign-in
+// screen so they share a single source of truth. Kept as a separate
+// export so the `semantic` object stays a flat ColorValue map (every
+// member assignable to React Native's ColorValue type).
+export const darkSky = {
+  bg: "#02040A",
+  surface: "rgba(255,255,255,0.04)",
+  border: "rgba(143,183,244,0.18)",
+  text: "#E5EDFA",
+  textMuted: "#C7D4EA",
+  textSubtle: "#7FB3F4",
+  brand: "#2F97FC",
+  accent: "#7FB3F4",
+} as const;
+
 export const spacing = {
   xs: 4,
   sm: 8,

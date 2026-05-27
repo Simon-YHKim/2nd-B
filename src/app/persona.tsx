@@ -6,6 +6,7 @@ import { Redirect, router } from "expo-router";
 import { Screen } from "@/components/ui/Screen";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
+import { AppNav } from "@/components/ui/AppNav";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
@@ -56,37 +57,18 @@ export default function Persona() {
           </Text>
           <View style={styles.emptyActions}>
             <Button
-              label={locale === "ko" ? "오딧 시작" : "Start the audit"}
+              label={locale === "ko" ? "오딧 시작 (5분)" : "Start the audit (5 min)"}
               variant="primary"
-              onPress={() => router.replace("/audit")}
+              onPress={() => router.push("/audit")}
             />
-            <Button
-              label={locale === "ko" ? "Big Five 3분 평가" : "Big Five — 3-min test"}
-              variant="secondary"
-              onPress={() => router.replace("/big-five")}
-            />
-            <Button
-              label={locale === "ko" ? "애착 스타일 평가" : "Attachment style test"}
-              variant="secondary"
-              onPress={() => router.replace("/attachment")}
-            />
-            <Button
-              label={locale === "ko" ? "MBTI 16타입" : "MBTI 16 types"}
-              variant="secondary"
-              onPress={() => router.replace("/mbti")}
-            />
-            <Button
-              label={locale === "ko" ? "Brain Trinity 대시보드" : "Brain Trinity dashboard"}
-              variant="secondary"
-              onPress={() => router.replace("/trinity")}
-            />
-            <Button
-              label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
-              variant="secondary"
-              onPress={() => router.replace("/journal")}
-            />
+            <Text variant="subtle" color="textSubtle" style={{ textAlign: "center", marginTop: spacing.sm }}>
+              {locale === "ko"
+                ? "Big Five · 애착 · MBTI · Trinity 도 아래 메뉴에서 바로 갈 수 있어요."
+                : "Big Five, attachment, MBTI, Trinity are one tap away below."}
+            </Text>
           </View>
         </View>
+        <AppNav locale={locale} />
       </Screen>
     );
   }
@@ -207,6 +189,7 @@ export default function Persona() {
             onPress={() => router.replace("/journal")}
           />
         </View>
+        <AppNav locale={locale} />
       </ScrollView>
     </Screen>
   );

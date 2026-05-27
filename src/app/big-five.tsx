@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
 import { Screen } from "@/components/ui/Screen";
+import { AppNav } from "@/components/ui/AppNav";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -191,6 +192,7 @@ export default function BigFive() {
               ? "TIPI는 빠른 스크리닝 도구입니다. 정밀한 측정은 BFI-2 등 더 긴 도구가 필요해요. MBTI·에니어그램은 사용하지 않습니다."
               : "TIPI is a quick screener. For high-precision use the BFI-2 or longer instruments. We don't use MBTI / Enneagram."}
           </Text>
+          <AppNav locale={locale} />
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

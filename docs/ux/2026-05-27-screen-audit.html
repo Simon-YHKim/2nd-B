@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2nd-Brain · UX/UI Audit · 2026-05-27</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #02040A;
+    --surface: rgba(255,255,255,0.04);
+    --surface-strong: rgba(143,183,244,0.08);
+    --border: rgba(143,183,244,0.18);
+    --text: #E5EDFA;
+    --text-muted: #C7D4EA;
+    --text-subtle: #7FB3F4;
+    --brand: #2F97FC;
+    --accent: #7FB3F4;
+    --red: #FF6B6B;
+    --amber: #FFB55C;
+    --green: #74E0A8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 56px 28px 80px; }
+  header { margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .brand {
+    color: var(--brand);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    margin-bottom: 12px;
+  }
+  h1 {
+    color: var(--text);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+    letter-spacing: 0.2px;
+  }
+  .meta {
+    color: var(--text-subtle);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 14px;
+  }
+  h2 {
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.1px;
+    margin: 40px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  h2 .num {
+    color: var(--brand);
+    font-size: 12px;
+    margin-right: 8px;
+    letter-spacing: 1.5px;
+  }
+  h3 {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    margin: 18px 0 8px;
+  }
+  p, li { color: var(--text-muted); margin-bottom: 6px; }
+  ul { padding-left: 18px; }
+  code, .mono {
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, ui-monospace, monospace;
+    font-size: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--accent);
+  }
+  pre.diagram {
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.55;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: var(--text-muted);
+    overflow-x: auto;
+    margin: 12px 0;
+  }
+  pre.diagram .smooth { color: var(--green); }
+  pre.diagram .abrupt { color: var(--amber); }
+  pre.diagram .missing { color: var(--red); }
+  pre.diagram .label { color: var(--accent); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    color: var(--text-subtle);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    background: var(--surface);
+  }
+  tr:hover td { background: var(--surface-strong); }
+  td.screen { color: var(--text); font-weight: 500; }
+  .score {
+    display: inline-block;
+    min-width: 22px;
+    text-align: center;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .score.s5 { color: var(--green); }
+  .score.s4 { color: var(--green); }
+  .score.s3 { color: var(--amber); }
+  .score.s2 { color: var(--amber); }
+  .score.s1 { color: var(--red); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-right: 6px;
+  }
+  .badge.crit { background: rgba(255,107,107,0.15); color: var(--red); border: 1px solid rgba(255,107,107,0.3); }
+  .badge.high { background: rgba(255,181,92,0.15); color: var(--amber); border: 1px solid rgba(255,181,92,0.3); }
+  .badge.win { background: rgba(116,224,168,0.15); color: var(--green); border: 1px solid rgba(116,224,168,0.3); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 10px 0;
+  }
+  .card .ref {
+    color: var(--text-subtle);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    margin-top: 4px;
+  }
+  .footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-subtle);
+    letter-spacing: 0.5px;
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .col { flex: 1 1 320px; }
+  .legend { display: flex; gap: 14px; font-size: 11px; color: var(--text-muted); margin: 6px 0 14px; }
+  .legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .legend .dot.s5 { background: var(--green); }
+  .legend .dot.s3 { background: var(--amber); }
+  .legend .dot.s1 { background: var(--red); }
+  @media (max-width: 640px) {
+    .wrap { padding: 32px 18px; }
+    h1 { font-size: 22px; }
+    table { font-size: 11px; }
+    th, td { padding: 6px 6px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">2ND-BRAIN · UX/UI AUDIT</div>
+  <h1>에브리 화면 22개 UI/UX 점검 결과</h1>
+  <div class="subtitle">XPRIZE 심사관 시선으로 본 디자인·네비게이션·세포 톤 연속성</div>
+  <div class="meta">2026-05-27 · live: simon-yhkim.github.io/2nd-B/ · PR #20 머지 직후</div>
+</header>
+
+<h2><span class="num">01</span>한 줄 요약</h2>
+<p>전체 시각 골격(다크 sky 팔레트, LoadingScreen 25문구, 그래프 랜딩)은 잘 잡혔는데, <strong>세포-톤 브랜드 보이스가 22개 중 17개 화면에서 빠져 있고</strong>, AppNav 가 9개 화면에 안 붙어 있어서 발견성 스토리가 무너져요. 즉시 손볼 critical은 3가지: (1) 헥스 리터럴 두 곳 (랜딩·로그인), (2) 세포 톤 누락 17 화면, (3) AppNav 커버리지 9 화면.</p>
+
+<h2><span class="num">02</span>화면별 점수 (4차원, 1-5)</h2>
+<div class="legend">
+  <span><span class="dot s5"></span>4-5점: 잘됨</span>
+  <span><span class="dot s3"></span>3점: 보통</span>
+  <span><span class="dot s1"></span>1-2점: 문제</span>
+</div>
+<table>
+<thead><tr><th>화면</th><th>시각</th><th>세포톤</th><th>네비</th><th>연속성</th><th>메모</th></tr></thead>
+<tbody>
+  <tr><td class="screen">_layout.tsx</td><td><span class="score s5">5</span></td><td><span class="score s3">3</span></td><td><span class="score s5">5</span></td><td><span class="score s5">5</span></td><td>IntroGate 깔끔, semantic 사용</td></tr>
+  <tr><td class="screen">(auth)/_layout.tsx</td><td><span class="score s5">5</span></td><td><span class="score s3">3</span></td><td><span class="score s5">5</span></td><td><span class="score s5">5</span></td><td>스택 래퍼, 무해</td></tr>
+  <tr><td class="screen">(auth)/sign-in.tsx</td><td><span class="score s2">2</span></td><td><span class="score s4">4</span></td><td><span class="score s4">4</span></td><td><span class="score s4">4</span></td><td><strong>헥스 리터럴 32-40줄</strong>, "세포들이 기다리고 있어요" ✓</td></tr>
+  <tr><td class="screen">(auth)/sign-up.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s4">4</span></td><td><span class="score s4">4</span></td><td>순수 폼, 세포 톤 0</td></tr>
+  <tr><td class="screen">(auth)/complete-profile.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s3">3</span></td><td><span class="score s4">4</span></td><td>manual 링크 없음</td></tr>
+  <tr><td class="screen">index.tsx (랜딩)</td><td><span class="score s3">3</span></td><td><span class="score s1">1</span></td><td><span class="score s4">4</span></td><td><span class="score s5">5</span></td><td><strong>헥스 #02040A, #7FB3F4 (199,223줄)</strong></td></tr>
+  <tr><td class="screen">journal.tsx</td><td><span class="score s5">5</span></td><td><span class="score s2">2</span></td><td><span class="score s5">5</span></td><td><span class="score s5">5</span></td><td>navRow가 AppNav 중복 구현 (188-222)</td></tr>
+  <tr><td class="screen">jarvis.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s4">4</span></td><td><span class="score s4">4</span></td><td>"Searching wiki…" DESIGN.md 미적용</td></tr>
+  <tr><td class="screen">capture.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s4">4</span></td><td><span class="score s5">5</span></td><td>"자재 반입" 비유 안 됨 (DESIGN.md L86)</td></tr>
+  <tr><td class="screen">inbox.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s4">4</span></td><td><span class="score s5">5</span></td><td>"뇌 주름 빚기" 안 됨 (DESIGN.md L87)</td></tr>
+  <tr><td class="screen">wiki.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s4">4</span></td><td><span class="score s5">5</span></td><td>export 문구 중립적</td></tr>
+  <tr><td class="screen">+not-found.tsx</td><td><span class="score s5">5</span></td><td><span class="score s2">2</span></td><td><span class="score s3">3</span></td><td><span class="score s3">3</span></td><td>manual 링크 누락</td></tr>
+  <tr><td class="screen">persona.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s3">3</span></td><td><span class="score s4">4</span></td><td>빈 상태가 AppNav 6버튼 재발명</td></tr>
+  <tr><td class="screen">big-five.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s3">3</span></td><td><span class="score s5">5</span></td><td>AppNav 없음, Back만</td></tr>
+  <tr><td class="screen">attachment.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s3">3</span></td><td><span class="score s5">5</span></td><td>AppNav 없음</td></tr>
+  <tr><td class="screen">mbti.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s3">3</span></td><td><span class="score s5">5</span></td><td>AppNav 없음</td></tr>
+  <tr><td class="screen">audit.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s4">4</span></td><td><span class="score s5">5</span></td><td>q-flow에는 AppNav, 기간 선택엔 없음</td></tr>
+  <tr><td class="screen">interview.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s3">3</span></td><td><span class="score s4">4</span></td><td>AppNav 없음, 기간 picker 돌아갈 길 없음</td></tr>
+  <tr><td class="screen">trinity.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s5">5</span></td><td><span class="score s5">5</span></td><td>AppNav 있음 ✓</td></tr>
+  <tr><td class="screen">insights.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s4">4</span></td><td><span class="score s4">4</span></td><td>중립 카피, DESIGN.md L90 미적용</td></tr>
+  <tr><td class="screen">research.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s4">4</span></td><td><span class="score s4">4</span></td><td>AppNav 있음 ✓</td></tr>
+  <tr><td class="screen">manual.tsx</td><td><span class="score s5">5</span></td><td><span class="score s2">2</span></td><td><span class="score s5">5</span></td><td><span class="score s5">5</span></td><td>용어집은 중립, 세포 비유 누락</td></tr>
+  <tr><td class="screen">permissions.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s3">3</span></td><td><span class="score s3">3</span></td><td>Manual + Back만, 거의 막힘</td></tr>
+  <tr><td class="screen">settings.tsx</td><td><span class="score s5">5</span></td><td><span class="score s1">1</span></td><td><span class="score s4">4</span></td><td><span class="score s4">4</span></td><td>AppNav 있음 ✓</td></tr>
+</tbody>
+</table>
+
+<h2><span class="num">03</span>잘된 점 (Top 5)</h2>
+<div class="row">
+  <div class="col">
+    <div class="card"><span class="badge win">WIN 1</span><strong>LoadingScreen 25문구</strong><div class="ref">src/components/ui/LoadingScreen.tsx</div><p>세포 톤이 가장 완벽하게 구현된 모범 사례. Soma → Neuron → Cortex → Cerebrum 단계 진행이 카피와 시각이 모두 맞춰져 있어요.</p></div>
+    <div class="card"><span class="badge win">WIN 2</span><strong>돌리줌 핸드오프 픽셀 정렬</strong><div class="ref">index.tsx:88, 200-213</div><p>LoadingScreen → 그래프 랜딩 전환이 로고 중심 좌표가 정확히 맞아서 끊김 없음.</p></div>
+  </div>
+  <div class="col">
+    <div class="card"><span class="badge win">WIN 3</span><strong>AppNav 3-rail 디자인</strong><div class="ref">src/components/ui/AppNav.tsx</div><p>DAILY · SELF-KNOWLEDGE · MANAGE 3행 구조로 "페이지 간 연속성 없음" 문제를 개념적으로 해결.</p></div>
+    <div class="card"><span class="badge win">WIN 4</span><strong>CI 가드레일 그린</strong><p>Lexicon, constraints (C1-C12), i18n parity (99 keys × 8 namespace), LLM boundary 전부 통과.</p></div>
+    <div class="card"><span class="badge win">WIN 5</span><strong>+not-found 친절함</strong><div class="ref">src/app/+not-found.tsx</div><p>"이 길은 아직 만들어지지 않았어요" — 톤 살아 있음.</p></div>
+  </div>
+</div>
+
+<h2><span class="num">04</span>핵심 문제 Top 10</h2>
+<div class="card">
+  <span class="badge crit">CRIT 1</span><strong>헥스 리터럴이 디자인 시스템 위반</strong>
+  <div class="ref">src/app/index.tsx:199 (#02040A), :223 (#7FB3F4) · src/app/(auth)/sign-in.tsx:32-40 (PALETTE const 8개 헥스)</div>
+  <p>CLAUDE.md "No hex literals in components. Always go through semantic.*" 위반. 랜딩 + 첫 인증 화면 모두에서 발생 — 심사관 첫 인상에서 바로 잡힐 자리. <code>semantic.darkSky.*</code> 토큰 그룹을 신설하든가 PALETTE를 <code>src/lib/theme/tokens.ts</code>로 이전 필요.</p>
+</div>
+<div class="card">
+  <span class="badge crit">CRIT 2</span><strong>AppNav 누락 9개 화면</strong>
+  <div class="ref">persona, big-five, attachment, mbti, interview, permissions, complete-profile + journal(자작 navRow) + audit(period picker)</div>
+  <p>assessment 도구가 다 dead-end 팝업처럼 느껴져요. journal:188-222의 자작 navRow는 <code>&lt;AppNav locale={locale} /&gt;</code>로 교체 필요.</p>
+</div>
+<div class="card">
+  <span class="badge crit">CRIT 3</span><strong>세포-톤 보이스 17 화면 누락</strong>
+  <div class="ref">capture · inbox · jarvis · wiki · insights · audit · interview · big-five · attachment · mbti 외 7개</div>
+  <p>DESIGN.md가 SoT인데 LoadingScreen + sign-in 부제 외엔 적용 0. <strong>quick win 3개</strong>: capture.tsx:83-84 alert ("자재 반입 완료! 일꾼 세포들이 신나게 뇌 주름 만들러 갔어요"), inbox.tsx:170-174 ("뇌 주름 빚기"), jarvis.tsx:148-149 empty state.</p>
+</div>
+<div class="card">
+  <span class="badge high">ISS 4</span><strong>Persona 빈 상태가 AppNav 재발명</strong>
+  <div class="ref">persona.tsx:57-89</div>
+  <p>6개 버튼이 AppNav와 목적지 중복. router.replace로 백스택 잃음.</p>
+</div>
+<div class="card">
+  <span class="badge high">ISS 5</span><strong>Auth 화면 간 팔레트 단절</strong>
+  <div class="ref">(auth)/sign-in.tsx ↔ (auth)/sign-up.tsx</div>
+  <p>sign-in은 하드코딩 다크 sky, sign-up은 light forest. 둘 사이 이동 시 팔레트 깜빡임.</p>
+</div>
+<div class="card">
+  <span class="badge high">ISS 6</span><strong>complete-profile 출구 없음</strong>
+  <div class="ref">src/app/(auth)/complete-profile.tsx</div>
+  <p>OAuth 후 혼란스러운 사용자가 /manual 갈 길 없음. sign-in/up엔 있는데 여기는 없음.</p>
+</div>
+<div class="card">
+  <span class="badge high">ISS 7</span><strong>em-dash가 UI 곳곳에</strong>
+  <div class="ref">journal:182,247-262 · big-five:113 · attachment:93 · wiki:344 · manual:32</div>
+  <p>CLAUDE.md "Do not add em dashes in UI strings" 위반. 마침표/쉼표로 교체.</p>
+</div>
+<div class="card">
+  <span class="badge high">ISS 8</span><strong>/permissions 거의 막힘</strong>
+  <div class="ref">permissions.tsx:171-176</div>
+  <p>Manual + Back만 제공. 스토어 리스팅에서 들어온 사용자가 앱 내부로 진입할 길 없음.</p>
+</div>
+<div class="card">
+  <span class="badge high">ISS 9</span><strong>구독 안내 카피 stale</strong>
+  <div class="ref">journal.tsx:264</div>
+  <p>"구독 화면은 곧 추가됩니다" 표시하지만 22개 중에 그런 화면 없음. /upgrade stub 추가하든가 약속을 지우든가.</p>
+</div>
+<div class="card">
+  <span class="badge high">ISS 10</span><strong>insights → research 연결 누락</strong>
+  <div class="ref">/insights ↔ /research</div>
+  <p>주제별 인사이트에서 deep-dive로 가는 자연스러운 흐름이 없음. story-link 추가 필요.</p>
+</div>
+
+<h2><span class="num">05</span>화면 시퀀스 맵 (전환 다이어그램)</h2>
+<pre class="diagram"><span class="label">SIGNED-OUT</span>
+  /                  <span class="smooth">──redirect──►</span> /sign-in              <span class="smooth">[smooth]</span>
+  /sign-in           <span class="abrupt">──Link────────►</span> /sign-up              <span class="abrupt">[ABRUPT: light palette flash]</span>
+  /sign-in           <span class="smooth">──Link────────►</span> /manual               <span class="smooth">[smooth]</span>
+  /sign-up           <span class="abrupt">──Link────────►</span> /sign-in              <span class="abrupt">[ABRUPT: dark palette flash]</span>
+  /sign-up           <span class="smooth">──submit──────►</span> /                     <span class="smooth">[smooth via IntroGate]</span>
+  /sign-in           <span class="smooth">──submit──────►</span> /                     <span class="smooth">[smooth via IntroGate]</span>
+  (OAuth)            <span class="missing">──────────────►</span> /complete-profile     <span class="missing">[MISSING: no manual link]</span>
+  /complete-profile  <span class="smooth">──submit──────►</span> /                     <span class="smooth">[smooth]</span>
+
+<span class="label">SIGNED-IN ENTRY</span>
+  IntroGate(Loading) <span class="smooth">──dolly───────►</span> /                     <span class="smooth">[SMOOTH: pixel-aligned]</span>
+  /  (graph)         <span class="smooth">──tap core────►</span> /journal              <span class="smooth">[smooth]</span>
+  /  (graph)         <span class="missing">──no AppNav───►</span> /audit /persona ...   <span class="missing">[MISSING: dead-end if user wants more]</span>
+
+<span class="label">DAILY LOOP (AppNav rail)</span>
+  /journal  <span class="smooth">◄──►</span>  /capture  <span class="smooth">◄──►</span>  /inbox  <span class="smooth">◄──►</span>  /wiki  <span class="smooth">◄──►</span>  /jarvis    <span class="smooth">[smooth]</span>
+  /inbox             <span class="smooth">──gen page────►</span> /wiki                 <span class="smooth">[smooth]</span>
+  /wiki              <span class="smooth">──export──────►</span> clipboard             <span class="smooth">[smooth]</span>
+  /journal hand-rolled-row <span class="abrupt">────────►</span> any                   <span class="abrupt">[ABRUPT: differs from AppNav]</span>
+
+<span class="label">SELF-KNOWLEDGE</span>
+  /journal  <span class="smooth">──►</span>  /audit  <span class="smooth">──period──►</span>  questions  <span class="smooth">──►</span>  /persona     <span class="smooth">[smooth]</span>
+  /audit             <span class="smooth">──"Continue later"──►</span> /journal             <span class="smooth">[smooth]</span>
+  /interview         <span class="smooth">──period grid──►</span> chat <span class="smooth">──save──►</span> /persona     <span class="smooth">[smooth]</span>
+  /persona empty     <span class="abrupt">──6 buttons──►</span> /audit /big-five /attach /mbti /trinity   <span class="abrupt">[ABRUPT: AppNav dup]</span>
+  /big-five  /attachment  /mbti  <span class="smooth">──save──►</span> /persona                   <span class="smooth">[smooth]</span>
+  /big-five  /attachment  /mbti  <span class="missing">──Back──►</span> history                   <span class="missing">[MISSING AppNav]</span>
+  /persona           <span class="smooth">──►</span> /trinity                                          <span class="smooth">[smooth]</span>
+  /trinity           <span class="smooth">──►</span> AppNav                                            <span class="smooth">[smooth]</span>
+
+<span class="label">INSIGHTS / RESEARCH</span>
+  /insights          <span class="smooth">──►</span> AppNav                                            <span class="smooth">[smooth]</span>
+  /research          <span class="smooth">──►</span> AppNav                                            <span class="smooth">[smooth]</span>
+  /journal  <span class="missing">──►</span>  /insights  <span class="missing">──no link──►</span>  /research                   <span class="missing">[MISSING: linkage]</span>
+
+<span class="label">SUPPORT</span>
+  /manual            <span class="smooth">──►</span> /journal /sign-up /permissions /research /insights ...   <span class="smooth">[smooth]</span>
+  /permissions       <span class="missing">──►</span> /manual only                                       <span class="missing">[DEAD-END]</span>
+  /settings          <span class="smooth">──►</span> AppNav + danger zone                              <span class="smooth">[smooth]</span>
+  /+not-found        <span class="abrupt">──►</span> /, /journal, /audit, /persona                     <span class="abrupt">[INCOMPLETE: no /manual]</span>
+</pre>
+
+<h2><span class="num">06</span>XPRIZE 심사 가장 critical 3가지</h2>
+<div class="card">
+  <span class="badge crit">JUDGE-CRIT 1</span><strong>세포 톤이 17개 화면에서 누락</strong>
+  <p>DESIGN.md(SoT)가 capture, inbox, jarvis, wiki, insights, audit, interview, big-five, attachment, mbti를 마이그레이션 타깃으로 명시. 심사관이 capture.tsx:83-84의 <code>"Captured as Article: ..."</code> 같은 일반 SaaS 문구를 마주하는 순간, "내 머릿속의 열일하는 세포들" 브랜드 약속이 첫 액션에서 무너져요.</p>
+</div>
+<div class="card">
+  <span class="badge crit">JUDGE-CRIT 2</span><strong>헥스 리터럴이 디자인 시스템 위반</strong>
+  <p>index.tsx:199,223 + sign-in.tsx:32-40. 위반 자리가 <strong>랜딩 화면 + 메인 인증 입구</strong>라 심사관이 둘 다 거쳐 갈 위치. QA 돌리는 리뷰어가 즉시 잡을 항목.</p>
+</div>
+<div class="card">
+  <span class="badge crit">JUDGE-CRIT 3</span><strong>AppNav 커버리지 갭이 발견성 무너뜨림</strong>
+  <p>22개 중 9개 (/persona, /big-five, /attachment, /mbti, /interview, /permissions 등)에 AppNav 없음. AppNav.tsx 주석에 인용된 사용자 지시 <em>"페이지 간에 연속적이다 즉 네비게이팅이 직관적으로 쉽게 된다는 느낌이 없어"</em>가 절반만 해결됨. 심사관이 Big Five 먼저 풀면 /persona로 가는데(good), /persona 먼저 들어가면 빈 상태 + 6버튼 메뉴(AppNav 중복)와 만남. 같은 목적지 다른 UI — 발견성 스토리 붕괴.</p>
+</div>
+
+<h2><span class="num">07</span>우선순위 액션 큐</h2>
+<table>
+<thead><tr><th>#</th><th>액션</th><th>예상 시간</th><th>난이도</th><th>PR 묶음</th></tr></thead>
+<tbody>
+  <tr><td>1</td><td>헥스 리터럴 제거 → <code>semantic.darkSky.*</code> 토큰 신설</td><td>20분</td><td>낮음</td><td>UX-fix #1</td></tr>
+  <tr><td>2</td><td>AppNav를 9개 화면에 부착 (persona/big-five/attachment/mbti/interview/permissions/complete-profile + journal navRow 교체 + audit period picker)</td><td>40분</td><td>중간</td><td>UX-fix #1</td></tr>
+  <tr><td>3</td><td>세포 톤 quick win 3개 (capture, inbox, jarvis 핵심 alert·empty state)</td><td>30분</td><td>낮음</td><td>UX-fix #1</td></tr>
+  <tr><td>4</td><td>em-dash 일괄 제거 (대시 → 마침표/쉼표)</td><td>15분</td><td>낮음</td><td>UX-fix #1</td></tr>
+  <tr><td>5</td><td>세포 톤 깊이 적용 (wiki, insights, audit, interview, big-five, attachment, mbti)</td><td>1.5시간</td><td>중간</td><td>UX-fix #2</td></tr>
+  <tr><td>6</td><td>Auth 팔레트 통일 (sign-up도 다크 sky로) + complete-profile manual 링크</td><td>30분</td><td>중간</td><td>UX-fix #2</td></tr>
+  <tr><td>7</td><td>insights → research story link + /upgrade stub</td><td>20분</td><td>낮음</td><td>UX-fix #2</td></tr>
+  <tr><td>8</td><td>+not-found에 /manual 추가</td><td>5분</td><td>낮음</td><td>UX-fix #1</td></tr>
+</tbody>
+</table>
+
+<div class="footer">
+  소스: <a href="https://github.com/Simon-YHKim/2nd-B/blob/main/docs/DESIGN.md">docs/DESIGN.md</a> · <a href="https://github.com/Simon-YHKim/2nd-B/blob/main/CLAUDE.md">CLAUDE.md</a> · <a href="https://github.com/Simon-YHKim/2nd-B/blob/main/src/components/ui/AppNav.tsx">AppNav.tsx</a> · <a href="https://simon-yhkim.github.io/2nd-B/">라이브</a><br>
+  점검자: Claude Code 22-screen subagent · 2026-05-27 · PR #20 머지 직후 (<code>fb39f440</code>)
+</div>
+
+</div>
+</body>
+</html>

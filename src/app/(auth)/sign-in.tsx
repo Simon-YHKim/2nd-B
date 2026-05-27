@@ -24,20 +24,13 @@ import { Link, Redirect, router } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signInWithEmail, signInWithGoogle } from "@/lib/supabase/auth";
+import { darkSky } from "@/lib/theme/tokens";
 
 const logo = require("../../../assets/images/logo-glow.png");
 
-// Dark sky palette — must match LoadingScreen tokens.
-const PALETTE = {
-  bg: "#02040A",
-  surface: "rgba(255,255,255,0.04)",
-  border: "rgba(143,183,244,0.18)",
-  text: "#E5EDFA",
-  textMuted: "#C7D4EA",
-  textSubtle: "#7FB3F4",
-  brand: "#2F97FC",
-  accent: "#7FB3F4",
-} as const;
+// Dark sky palette — single source of truth in tokens.darkSky.
+// Aliased for terseness inside this file's StyleSheet.
+const PALETTE = darkSky;
 
 export default function SignIn() {
   const { t, i18n } = useTranslation("auth");

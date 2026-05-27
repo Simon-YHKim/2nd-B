@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
 import { Screen } from "@/components/ui/Screen";
+import { AppNav } from "@/components/ui/AppNav";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -156,6 +157,7 @@ export default function Interview() {
             variant="secondary"
             onPress={() => router.back()}
           />
+          <AppNav locale={locale} />
         </ScrollView>
       </Screen>
     );
@@ -231,6 +233,7 @@ export default function Interview() {
             </View>
           </View>
         )}
+        <AppNav locale={locale} />
       </KeyboardAvoidingView>
     </Screen>
   );
