@@ -209,9 +209,9 @@ export default function Interview() {
             ))}
           </View>
           <Button
-            label={locale === "ko" ? "뒤로" : "Back"}
+            label={locale === "ko" ? "← 네비게이터로" : "← Back to navigator"}
             variant="secondary"
-            onPress={() => router.back()}
+            onPress={() => router.push("/")}
           />
           <AppNav locale={locale} />
         </ScrollView>

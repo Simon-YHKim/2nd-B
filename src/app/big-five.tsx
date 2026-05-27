@@ -182,7 +182,7 @@ export default function BigFive() {
             <Button
               label={locale === "ko" ? "뒤로" : "Back"}
               variant="secondary"
-              onPress={() => router.back()}
+              onPress={() => router.push("/")}
               disabled={submitting}
             />
           </View>

@@ -173,7 +173,7 @@ export default function Permissions() {
           <Link href="/manual" asChild>
             <Button label={locale === "ko" ? "사용 안내서로" : "Open the manual"} variant="secondary" />
           </Link>
-          <Button label={locale === "ko" ? "뒤로" : "Back"} variant="secondary" onPress={() => router.back()} />
+          <Button label={locale === "ko" ? "← 네비게이터로" : "← Back to navigator"} variant="secondary" onPress={() => router.push("/")} />
         </View>
         <AppNav locale={locale} />
       </ScrollView>

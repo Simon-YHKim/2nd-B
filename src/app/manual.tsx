@@ -258,7 +258,7 @@ export default function Manual() {
               </Link>
             </>
           ) : null}
-          <Button label={locale === "ko" ? "뒤로" : "Back"} variant="secondary" onPress={() => router.back()} />
+          <Button label={locale === "ko" ? "← 네비게이터로" : "← Back to navigator"} variant="secondary" onPress={() => router.push("/")} />
         </View>
 
         <Text variant="subtle" color="textSubtle" style={styles.versionFootnote}>

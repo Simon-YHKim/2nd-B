@@ -103,7 +103,7 @@ export default function Audit() {
             <Button
               label={locale === "ko" ? "뒤로" : "Back"}
               variant="secondary"
-              onPress={() => router.back()}
+              onPress={() => router.push("/")}
             />
           </View>
         </ScrollView>
