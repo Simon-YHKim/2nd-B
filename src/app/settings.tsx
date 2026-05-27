@@ -216,12 +216,12 @@ export default function Settings() {
             }
           />
           <Button
-            label={locale === "ko" ? "라이프 오딧 응답 삭제" : "Delete audit responses"}
+            label={locale === "ko" ? "과거의 나 응답 삭제" : "Delete audit responses"}
             variant="secondary"
             disabled={busy !== null}
             onPress={() =>
               confirm(
-                locale === "ko" ? "모든 라이프 오딧 응답을 삭제합니다." : "Delete every audit response.",
+                locale === "ko" ? "모든 과거의 나 응답을 삭제합니다." : "Delete every audit response.",
                 () => runDeleteKind("audit_response", "audit"),
               )
             }
