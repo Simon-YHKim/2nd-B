@@ -1,9 +1,14 @@
-// Twenty-questions life-period interview. Separate from /audit (which
-// is a fixed framework-anchored screener) — this is a free-form,
-// LLM-driven progressive probe that goes deeper each turn.
+// Drill-down interview. Separate from /audit (which is a fixed
+// framework-anchored screener) — this is a free-form, LLM-driven
+// probe that descends through 5 narrative layers (FACT → ECHO) within
+// a chosen life period.
 //
-// Per user directive: '라이프 오딧 너무 빈약해. 연령별 속마음을 드러내게
-// 하는 스무고개 같은 질문을 계속 던지라고 했었을텐데?'
+// v0.3 (2026-05-27, docs/ux/2026-05-27-interview-drilldown.html):
+//   - 25-cell live progress matrix (5 layers × 5 periods)
+//   - Per-turn layer label so the user sees what depth a probe is at
+//   - 20-turn hard cap replaced with a "sufficient depth" soft signal
+//     once the active period's 5 layers are each covered once
+//   - Soft cap at 50 turns to protect memory + LLM context
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -24,18 +29,26 @@ import { AppNav } from "@/components/ui/AppNav";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DrillProgress } from "@/components/ui/DrillProgress";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import {
   PERIOD_LABEL,
+  LAYER_LABEL,
+  emptyCoverage,
+  incrementCoverage,
+  isPeriodComplete,
+  nextLayerSuggestion,
   nextProbe,
   seedQuestion,
+  type Coverage,
+  type DrillLayer,
   type InterviewTurn,
   type LifePeriod,
 } from "@/lib/interview/probe";
 
-const MAX_TURNS = 20;
+const SOFT_CAP = 50;
 
 export default function Interview() {
   const { i18n } = useTranslation();
@@ -44,16 +57,18 @@ export default function Interview() {
 
   const [period, setPeriod] = useState<LifePeriod | null>(null);
   const [turns, setTurns] = useState<InterviewTurn[]>([]);
+  const [coverage, setCoverage] = useState<Coverage>(emptyCoverage());
+  const [pendingLayer, setPendingLayer] = useState<DrillLayer>("fact");
   const [draft, setDraft] = useState("");
   const [thinking, setThinking] = useState(false);
   const [done, setDone] = useState(false);
+  const [completionAcknowledged, setCompletionAcknowledged] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (turns.length > 0) {
-      // scroll-to-bottom on new turn
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
     }
   }, [turns.length]);
@@ -65,25 +80,53 @@ export default function Interview() {
   }
 
   function startInterview(p: LifePeriod) {
+    const initialCoverage = emptyCoverage();
     setPeriod(p);
-    setTurns([{ role: "interviewer", text: seedQuestion(p, locale) }]);
+    setCoverage(initialCoverage);
+    setPendingLayer(nextLayerSuggestion(initialCoverage, p));
+    setTurns([
+      {
+        role: "interviewer",
+        text: seedQuestion(p, locale),
+        period: p,
+        layer: "fact",
+      },
+    ]);
   }
 
   async function handleAnswer() {
     if (!userId || !period || !draft.trim() || thinking) return;
-    const userTurn: InterviewTurn = { role: "user", text: draft.trim() };
-    const updated = [...turns, userTurn];
-    setTurns(updated);
+
+    // The pending layer is what the *current* probe was trying to elicit —
+    // when the user answers, that's the cell that gets credited. This stays
+    // a deterministic mapping (LLM-agnostic).
+    const answeredLayer = pendingLayer;
+    const userTurn: InterviewTurn = {
+      role: "user",
+      text: draft.trim(),
+      period,
+      layer: answeredLayer,
+    };
+    const updatedTurns = [...turns, userTurn];
+    const updatedCoverage = incrementCoverage(coverage, period, answeredLayer);
+    setTurns(updatedTurns);
+    setCoverage(updatedCoverage);
     setDraft("");
-    const userCount = updated.filter((t) => t.role === "user").length;
-    if (userCount >= MAX_TURNS) {
+
+    const userCount = updatedTurns.filter((t) => t.role === "user").length;
+    if (userCount >= SOFT_CAP) {
       setDone(true);
       return;
     }
+
     setThinking(true);
     try {
-      const probe = await nextProbe(userId, locale, period, updated);
-      setTurns((prev) => [...prev, { role: "interviewer", text: probe.question }]);
+      const probe = await nextProbe(userId, locale, period, updatedTurns, updatedCoverage);
+      setTurns((prev) => [
+        ...prev,
+        { role: "interviewer", text: probe.question, period, layer: probe.layer },
+      ]);
+      setPendingLayer(probe.layer);
     } catch (e) {
       Alert.alert(
         locale === "ko" ? "다음 질문 실패" : "Next probe failed",
@@ -99,25 +142,36 @@ export default function Interview() {
     setSaving(true);
     try {
       const transcript = turns
-        .map((t) => (t.role === "interviewer" ? `Q: ${t.text}` : `A: ${t.text}`))
+        .map((t) => {
+          const tag = t.role === "interviewer"
+            ? (locale === "ko" ? "질문" : "Q")
+            : (locale === "ko" ? "답변" : "A");
+          const layer = t.layer ? ` [${LAYER_LABEL[locale][t.layer]}]` : "";
+          return `${tag}${layer}: ${t.text}`;
+        })
         .join("\n\n");
       const userCount = turns.filter((t) => t.role === "user").length;
+      const layersCovered = (["fact", "feeling", "meaning", "belief", "echo"] as DrillLayer[])
+        .filter((l) => coverage[period][l] > 0).length;
       await createRecord({
         userId,
         locale,
         kind: "audit_response",
         body: transcript,
         topic: locale === "ko"
-          ? `스무고개 인터뷰 · ${PERIOD_LABEL.ko[period]}`
-          : `Interview · ${PERIOD_LABEL.en[period]}`,
+          ? `드릴 인터뷰 · ${PERIOD_LABEL.ko[period]}`
+          : `Drill interview · ${PERIOD_LABEL.en[period]}`,
         summary: locale === "ko"
-          ? `${userCount}개의 답변을 통한 ${PERIOD_LABEL.ko[period]} 깊이 탐색`
-          : `${userCount}-answer depth probe of ${PERIOD_LABEL.en[period]}`,
-        tags: ["interview", "life_audit", `period-${period}`],
+          ? `${userCount}개 답변, ${layersCovered}/5 깊이 층 탐색`
+          : `${userCount} answers · ${layersCovered}/5 layers covered`,
+        tags: ["interview", "life_audit", `period-${period}`, `layers-${layersCovered}`],
         auditPeriod: period === "current" ? "current" : "past",
         withFollowup: false,
       });
-      Alert.alert(locale === "ko" ? "저장됐어요" : "Saved", locale === "ko" ? "/persona 에서 다른 기록과 함께 합산됩니다." : "Combined with other records on /persona.");
+      Alert.alert(
+        locale === "ko" ? "저장됐어요" : "Saved",
+        locale === "ko" ? "/persona 에서 다른 기록과 함께 합산됩니다." : "Combined with other records on /persona.",
+      );
       router.replace("/persona");
     } catch (e) {
       Alert.alert(locale === "ko" ? "저장 실패" : "Save failed", (e as Error).message);
@@ -127,6 +181,8 @@ export default function Interview() {
   }
 
   const userAnswers = turns.filter((t) => t.role === "user").length;
+  const periodComplete = period !== null && isPeriodComplete(coverage, period);
+  const shouldSuggestWrap = periodComplete && !completionAcknowledged && !done;
 
   if (period === null) {
     return (
@@ -135,12 +191,12 @@ export default function Interview() {
           <View style={styles.header}>
             <Text variant="caption" color="brand">2nd-Brain · Interview</Text>
             <Text variant="heading">
-              {locale === "ko" ? "스무고개 인터뷰" : "Twenty-questions interview"}
+              {locale === "ko" ? "드릴 인터뷰" : "Drill interview"}
             </Text>
             <Text variant="body" color="textMuted">
               {locale === "ko"
-                ? "한 시기를 골라 인터뷰를 시작합니다. AI 인터뷰어가 한 번에 한 질문씩, 답변에 직접 이어붙여 점점 깊이 들어갑니다. 진단·해석은 하지 않고, 듣는 데만 집중해요. 최대 20개의 답까지."
-                : "Pick a life period. The AI interviewer asks one question at a time, anchored on your last answer, going gradually deeper. It doesn't diagnose or interpret — just listens. Up to 20 of your answers."}
+                ? "한 시기를 골라서 깊게 들어갑니다. 인터뷰어가 사실 → 감정 → 의미 → 믿음 → 울림 다섯 층을 한 단계씩 안내해요. 진단·해석은 하지 않고, 듣는 데만 집중합니다. 20턴 제한 없이, 충분한 깊이에 도달하면 마무리 신호를 드려요."
+                : "Pick a life period and drill in. The interviewer guides you across five layers: fact → feeling → meaning → belief → echo. It doesn't diagnose or interpret — just listens. No 20-turn hard cap; we'll flag when you've reached sufficient depth."}
             </Text>
           </View>
           <View style={styles.periodGrid}>
@@ -171,15 +227,57 @@ export default function Interview() {
             {PERIOD_LABEL[locale][period]}
           </Text>
           <Text variant="subtle" color="textSubtle">
-            {locale === "ko" ? `${userAnswers}/${MAX_TURNS}` : `${userAnswers}/${MAX_TURNS}`}
+            {locale === "ko" ? `${userAnswers}턴 · 다음: ${LAYER_LABEL.ko[pendingLayer]}` : `${userAnswers} turns · next: ${LAYER_LABEL.en[pendingLayer]}`}
           </Text>
         </View>
+
+        <View style={styles.progressWrap}>
+          <DrillProgress
+            coverage={coverage}
+            locale={locale}
+            activePeriod={period}
+            activeLayer={pendingLayer}
+          />
+        </View>
+
+        {shouldSuggestWrap ? (
+          <View style={styles.completionBanner}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+              {locale === "ko" ? "충분한 깊이 도달" : "Sufficient depth reached"}
+            </Text>
+            <Text variant="body" color="textMuted" style={{ marginTop: 4 }}>
+              {locale === "ko"
+                ? "5개 층 모두 들었어요. 여기서 마무리해도 좋고, 더 가도 좋아요."
+                : "All five layers covered. You can wrap up now or keep going."}
+            </Text>
+            <View style={styles.completionActions}>
+              <Button
+                label={locale === "ko" ? "마무리하기" : "Wrap up"}
+                variant="primary"
+                onPress={() => setDone(true)}
+              />
+              <Button
+                label={locale === "ko" ? "더 갈게요" : "Keep going"}
+                variant="secondary"
+                onPress={() => setCompletionAcknowledged(true)}
+              />
+            </View>
+          </View>
+        ) : null}
+
         <ScrollView ref={scrollRef} contentContainerStyle={styles.chatScroll}>
           {turns.map((t, i) => (
             <View key={i} style={[styles.bubble, t.role === "interviewer" ? styles.qBubble : styles.aBubble]}>
-              <Text variant="subtle" color={t.role === "interviewer" ? "brand" : "textSubtle"} style={{ letterSpacing: 1 }}>
-                {t.role === "interviewer" ? (locale === "ko" ? "질문" : "Q") : (locale === "ko" ? "답변" : "A")}
-              </Text>
+              <View style={styles.bubbleHeader}>
+                <Text variant="subtle" color={t.role === "interviewer" ? "brand" : "textSubtle"} style={{ letterSpacing: 1 }}>
+                  {t.role === "interviewer" ? (locale === "ko" ? "질문" : "Q") : (locale === "ko" ? "답변" : "A")}
+                </Text>
+                {t.layer ? (
+                  <Text variant="subtle" color="textSubtle" style={styles.layerTag}>
+                    {LAYER_LABEL[locale][t.layer]}
+                  </Text>
+                ) : null}
+              </View>
               <Text variant="body" selectable style={{ marginTop: 4, lineHeight: 22 }}>
                 {t.text}
               </Text>
@@ -198,7 +296,9 @@ export default function Interview() {
         {done ? (
           <View style={styles.footer}>
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "20개 답변 모두 수집됨" : "Reached 20 answers"}
+              {locale === "ko"
+                ? (userAnswers >= SOFT_CAP ? "긴 인터뷰가 끝났어요" : "인터뷰 마무리")
+                : (userAnswers >= SOFT_CAP ? "Long interview complete" : "Interview wrap-up")}
             </Text>
             <Button
               label={locale === "ko" ? "저장하고 페르소나에 반영" : "Save & feed Persona"}
@@ -218,59 +318,75 @@ export default function Interview() {
             />
             <View style={styles.footerActions}>
               <Button
-                label={locale === "ko" ? "답변" : "Answer"}
+                label={locale === "ko" ? "그만하기" : "Stop"}
+                variant="secondary"
+                onPress={() => setDone(true)}
+              />
+              <Button
+                label={locale === "ko" ? "보내기" : "Send"}
                 variant="primary"
                 onPress={handleAnswer}
                 disabled={!draft.trim() || thinking}
                 loading={thinking}
               />
-              <Button
-                label={locale === "ko" ? "여기서 마무리" : "End here"}
-                variant="secondary"
-                onPress={() => setDone(true)}
-                disabled={userAnswers === 0 || thinking}
-              />
             </View>
           </View>
         )}
-        <AppNav locale={locale} />
       </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
-  header: { gap: spacing.xs },
-  periodGrid: { gap: spacing.sm },
+  scroll: { padding: spacing.lg, gap: spacing.md },
+  header: { gap: spacing.sm },
+  periodGrid: { gap: spacing.sm, marginVertical: spacing.md },
   periodCard: {
-    backgroundColor: semantic.surface,
-    borderColor: semantic.brand,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-    borderRadius: radii.md,
     padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surface,
   },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: spacing.sm,
-    borderBottomColor: semantic.border,
-    borderBottomWidth: 1,
-    marginBottom: spacing.sm,
-  },
-  chatScroll: { paddingBottom: spacing.lg, gap: spacing.sm },
-  bubble: {
-    backgroundColor: semantic.surface,
-    borderColor: semantic.border,
-    borderWidth: 1,
-    borderRadius: radii.md,
     padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: semantic.border,
   },
-  qBubble: { borderLeftColor: semantic.brand, borderLeftWidth: 3 },
-  aBubble: { backgroundColor: semantic.surfaceAlt, alignSelf: "flex-end", maxWidth: "92%" },
-  thinkingRow: { flexDirection: "row", gap: spacing.sm, alignItems: "center", padding: spacing.sm },
-  footer: { gap: spacing.sm, paddingTop: spacing.sm, borderTopColor: semantic.border, borderTopWidth: 1 },
-  footerActions: { flexDirection: "row", gap: spacing.sm },
+  progressWrap: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  completionBanner: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: semantic.success,
+    backgroundColor: semantic.surface,
+  },
+  completionActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  chatScroll: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+  bubble: {
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: semantic.border,
+  },
+  bubbleHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  layerTag: { fontFamily: "Menlo", fontSize: 10, letterSpacing: 0.5 },
+  qBubble: { backgroundColor: semantic.surface },
+  aBubble: { backgroundColor: semantic.surfaceAlt },
+  thinkingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
+  footer: {
+    padding: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: semantic.border,
+    gap: spacing.sm,
+  },
+  footerActions: { flexDirection: "row", justifyContent: "space-between", gap: spacing.sm },
 });
