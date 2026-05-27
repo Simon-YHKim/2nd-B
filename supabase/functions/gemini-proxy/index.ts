@@ -8,19 +8,20 @@
 //
 // Auth: requires a valid Supabase JWT (verify_jwt is set in config).
 //
-// Security hardening (docs/security/2026-05-26-SUMMARY.md — C3, M1, M2):
-//   - MAX_USER_LEN / MAX_SYSTEM_LEN cap unbounded prompts
-//   - maxOutputTokens caps the cost of any single call
-//   - CORS allowlist replaces the previous wildcard
-//   - upstream_error.detail truncated; never echoes prompt fragments
+// Security hardening (docs/security/2026-05-26-SUMMARY.md — C3, M1, M2 +
+// 2026-05-26-codex-challenge.md — R1):
+//   - MAX_USER_LEN / MAX_SYSTEM_LEN cap unbounded prompts (C3)
+//   - maxOutputTokens caps the cost of any single call (C3)
+//   - CORS allowlist replaces the previous wildcard (M1)
+//   - upstream_error.detail truncated; never echoes prompt fragments (M2)
+//   - Immutable safety preamble prepended to systemInstruction (R1-B)
+//   - Server-side crisis-term classifier rejects red-zone input (R1-A)
 //
 // Secrets the operator sets via the Supabase Dashboard:
 //   GEMINI_API_KEY                — the Google AI Studio key
 //
-// The function is intentionally minimal — it doesn't re-run the safety
-// classifier (C9 still happens client-side before the invoke()) nor write
-// the audit log (the client writes it after receiving the reply). The
-// only thing this function 'owns' is the API key.
+// Audit-log writes still happen on the client after the reply lands.
+// The function owns the API key and the inbound safety boundary.
 //
 // Request shape:
 //   { system: string | null, user: string, model: 'gemini-2.5-flash' | 'gemini-2.5-pro' }
@@ -44,6 +45,37 @@ const ALLOWED_ORIGINS = new Set<string>([
   'http://localhost:8081',
   'http://localhost:19006',
 ]);
+
+// R1-A (codex challenge): server-side crisis-term classifier. Mirror of
+// src/lib/safety/lexicon.ts:CRISIS_TERMS. Kept here so the Edge Function
+// is its own safety boundary — if a malicious client bypasses the React
+// client and POSTs directly, crisis input still gets rejected before any
+// Gemini call happens. KEEP THESE TWO LISTS IN SYNC with the lexicon
+// source; the client-side classifier remains the primary boundary, this
+// is defense-in-depth.
+const CRISIS_TERMS_EN: readonly string[] = [
+  'suicide', 'suicidal', 'kill myself', 'end my life', 'end it all',
+  'ending it', 'self-harm', 'self harm', 'cutting myself', 'want to die',
+  'i want to die', 'no reason to live',
+];
+const CRISIS_TERMS_KO: readonly string[] = [
+  '자살', '죽고 싶', '죽고싶', '살고 싶지 않', '사라지고 싶',
+  '더 이상 살', '끝내고 싶', '끝낼 거', '끝낼거', '자해',
+  '목숨을 끊', '스스로 목숨', '유서', '마지막 인사',
+  '짐이 되', '없어지는 게 나아', '사라지는 게 나', '다음 생에는',
+  '영영 잠들고 싶',
+];
+
+function hasCrisisTerm(text: string): boolean {
+  const lower = text.toLowerCase();
+  for (const term of CRISIS_TERMS_EN) {
+    if (lower.includes(term)) return true;
+  }
+  for (const term of CRISIS_TERMS_KO) {
+    if (text.includes(term)) return true;
+  }
+  return false;
+}
 
 function resolveOrigin(req: Request): string {
   const origin = req.headers.get('origin') ?? '';
@@ -108,6 +140,17 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'system_too_long', max: MAX_SYSTEM_LEN, got: systemText.length }, 413);
   }
   if (!MODELS_ALLOWED.has(model)) return jsonResponse(req, { error: 'model_not_allowed' }, 400);
+
+  // R1-A: server-side crisis classifier. Reject before any Gemini call so
+  // a bypassed client cannot route red-zone input around C9. The body
+  // intentionally does NOT echo the matched term — we don't want to give
+  // a bypass attacker a "what word triggered it" oracle.
+  if (hasCrisisTerm(userText) || (systemText !== null && hasCrisisTerm(systemText))) {
+    return jsonResponse(req, {
+      error: 'safety_red_zone',
+      reason: 'crisis_term_detected',
+    }, 422);
+  }
 
   const geminiBody: Record<string, unknown> = {
     contents: [{ role: 'user', parts: [{ text: userText }] }],
