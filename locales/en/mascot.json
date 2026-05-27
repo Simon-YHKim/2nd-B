@@ -1,0 +1,47 @@
+{
+  "core": {
+    "name": "Core Brain",
+    "nick": "Star Boss",
+    "quote": "The direction holds. We're just drawing new paths."
+  },
+  "self": {
+    "name": "Self Brain",
+    "nick": "Veteran Runner",
+    "quote": "I've bumped into this before. Follow me."
+  },
+  "field": {
+    "name": "Field Brain",
+    "nick": "Workshop Foreman",
+    "quote": "We assemble it here. Let's go."
+  },
+  "augment": {
+    "name": "Augment Brain",
+    "nick": "Digital Rookie",
+    "quote": "Searched in 0.3s. Accuracy not guaranteed."
+  },
+  "engram": {
+    "name": "Engram",
+    "nick": "Librarian",
+    "quote": "This memory — where should I file it?"
+  },
+  "signal": {
+    "name": "Signal Sorter",
+    "nick": "Gatekeeper",
+    "quote": "This one's signal. That one's noise. Pass!"
+  },
+  "mirror": {
+    "name": "Mirror Neuron",
+    "nick": "Echo",
+    "quote": "I'm echoing back. I'm echoing back."
+  },
+  "trinity": {
+    "name": "Trinity Guide",
+    "nick": "Compass Conductor",
+    "quote": "Health, app, brain, finance. All four corners watched."
+  },
+  "audit": {
+    "name": "Audit Companion",
+    "nick": "Patient Witness",
+    "quote": "Take your time. I'm right here with you."
+  }
+}

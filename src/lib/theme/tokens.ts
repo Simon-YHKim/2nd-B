@@ -45,6 +45,28 @@ export const darkSky = {
   accent: "#7FB3F4",
 } as const;
 
+// Brain Stack v1.1 mascot palette — 9 characters, one color each.
+// Source: docs/ux/2026-05-27-mascot-compatibility.html (this repo's
+// diagnostic) + external sessions' Final Spec v1.1 (26.05.27 KST).
+// Augment Brain was rebalanced from #7a9bc4 → #5A6FB4 (indigo) so it
+// stops clashing with darkSky.brand (#2F97FC) and darkSky.accent
+// (#7FB3F4) on the same screen. WCAG AA verified on darkSky.bg
+// (>= 4.5:1 contrast).
+export const mascot = {
+  core: "#f0c862",      // gold        — Core Brain (Star Boss)
+  self: "#e36464",      // red         — Self Brain (Veteran Runner)
+  field: "#9ba0a8",     // steel       — Field Brain (Workshop Foreman)
+  augment: "#5A6FB4",   // indigo ★    — Augment Brain (Digital Rookie)
+  engram: "#c9a374",    // beige       — Engram (Librarian)
+  signal: "#a8d4c0",    // mint        — Signal Sorter (Gatekeeper)
+  mirror: "#7ec4c0",    // teal        — Mirror Neuron (Echo)
+  trinity: "#b48ec4",   // purple ✦    — Trinity Guide (Compass Conductor)
+  audit: "#e89c5a",     // amber ✦     — Audit Companion (Patient Witness)
+} as const;
+
+export type MascotName = keyof typeof mascot;
+
+
 export const spacing = {
   xs: 4,
   sm: 8,
