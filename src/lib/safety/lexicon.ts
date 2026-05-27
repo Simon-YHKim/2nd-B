@@ -102,6 +102,14 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   // and locales/ is still scanned.
   "docs/research/**",
   "docs/handoff/**",
+  // Legal & security docs define the policy — they must contain the
+  // banned terms verbatim. The user-facing surfaces (src/ + locales/)
+  // are still scanned, so this allowlisting doesn't weaken the gate.
+  "docs/legal/**",
+  "docs/security/**",
+  // UX docs (audit reports, mascot diagnostics) cite the lexicon for
+  // verification — they reference, not surface.
+  "docs/ux/**",
   "supabase/seed/**",
   "db/seed/**",
   "node_modules/**",
@@ -111,3 +119,159 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   "android/**",
   "coverage/**",
 ] as const;
+
+// ════════════════════════════════════════════════════════════════════
+// Analysis Lexicon v0.1
+// Source of truth: docs/legal/lexicon-jurisdiction-matrix.md
+//                + docs/legal/lexicon-draft-v0.1.md
+// ════════════════════════════════════════════════════════════════════
+//
+// New surface: 2nd-Brain's analysis system (Behavior Taxonomy + theory
+// frameworks + Voice layer) introduces vocabulary the clinical lexicon
+// above does not cover — IQ claims, percentile-without-population,
+// diagnosis-shaped verdicts, Title-Act-reserved labels. Without an
+// explicit policy these slip into product copy and trigger Tier-1
+// jurisdiction risk (EU AI Act, EU GDPR Art.9, US Practice Acts,
+// US FTC §5, KR 의료법 §27).
+//
+// Hard ban — these terms must never appear in user-facing copy in any
+// jurisdiction. They are the universal floor. Jurisdiction-specific
+// additions are below.
+//
+// The CI scanner does NOT enforce these lists yet (next PR wires them
+// into scripts/check-forbidden-lexicon.ts) — this PR establishes the
+// authoritative source so taxonomy / theory matrix / Voice work in
+// parallel sessions can reference a stable list.
+
+export const ANALYSIS_UNIVERSAL_FORBIDDEN: Record<Locale, readonly string[]> = {
+  en: [
+    "IQ score",
+    "intelligence quotient",
+    "diagnose",
+    "diagnosis",
+    "psychotherapy",
+    "psychological evaluation",
+    "psychiatric",
+    "mental disorder",
+    "scientifically proven",
+    "clinically validated",
+    "medically approved",
+    "you have a disorder",
+    "your personality type is",
+    "increase your IQ",
+    "boost brainpower",
+  ],
+  ko: [
+    "지능지수",
+    "아이큐 점수",
+    "진단명",
+    "정신과적",
+    "정신질환",
+    "심리치료",
+    "심리상담사",
+    "임상심리사",
+    "당신은 ~한 사람입니다",
+    "과학적으로 입증된",
+    "임상적으로 검증된",
+    "머리 좋은",
+    "똑똑한",
+    "정상이",
+    "비정상이",
+    "장애가 있",
+    "결함이 있",
+    "우월한",
+    "열등한",
+  ],
+} as const;
+
+export type Jurisdiction = "EU" | "US" | "KR" | "JP" | "UK" | "AU" | "CA" | "SG";
+
+// Jurisdiction-specific tripwires. Triggered only when distributing to
+// the named market. Universal list covers everywhere; this catches the
+// market-specific traps (EU AI Act emotion-recognition framing, KR 의료법
+// reserved titles, JP 公認心理師法 title protection, etc.).
+export const ANALYSIS_JURISDICTION_FORBIDDEN: Record<Jurisdiction, readonly string[]> = {
+  EU: [
+    "emotion recognition",
+    "emotion detection",
+    "affective computing",
+    "biometric categorisation",
+    "personality assessment for employment",
+  ],
+  US: [
+    "licensed practitioner",
+    "clinical evaluation",
+    "medical advice",
+    "psychologist services",
+    "psychological services",
+  ],
+  KR: [
+    "정신건강복지센터",
+    "정신질환자",
+    "우울증 환자",
+    "정신건강의학과",
+  ],
+  JP: [
+    "公認心理師",
+    "臨床心理士",
+    "精神療法",
+  ],
+  UK: [
+    "psychotherapist",
+    "psychiatric assessment",
+  ],
+  AU: [
+    "registered psychologist",
+    "AHPRA-registered",
+  ],
+  CA: [
+    "registered psychologist",
+    "psychological services",
+  ],
+  SG: [
+    "registered psychologist",
+    "medical service",
+  ],
+} as const;
+
+// Banned claim *shapes* — even with all individual words OK, certain
+// templates trigger FTC §5 deception or EU AI Act framing risk. Stored
+// as regex sources so the runtime classifier can compile + match.
+// Each pattern carries a Voice-safe replacement suggestion.
+export const ANALYSIS_BANNED_CLAIM_PATTERNS: ReadonlyArray<{
+  pattern: string;
+  flags: string;
+  why: string;
+  replacement: string;
+}> = [
+  {
+    pattern: "\\b(?:proven|guaranteed) to (?:increase|improve|boost|enhance)\\b",
+    flags: "i",
+    why: "FTC §5: efficacy claims need competent and reliable evidence",
+    replacement: "supports your reflection practice",
+  },
+  {
+    pattern: "\\d+\\s*%\\s*(?:increase|improvement) in (?:IQ|memory|focus|intelligence)",
+    flags: "i",
+    why: "FTC §5: quantified cognitive-outcome claims (Lumos Labs precedent)",
+    replacement: "patterns shifted in your records",
+  },
+  {
+    pattern: "clinically validated to",
+    flags: "i",
+    why: "FTC §5: medical-grade efficacy claim",
+    replacement: "based on peer-reviewed frameworks",
+  },
+  {
+    pattern: "replace your (?:therapist|doctor|psychologist|psychiatrist)",
+    flags: "i",
+    why: "US Practice Acts: implies medical/therapeutic substitution",
+    replacement: "complement your reflection practice",
+  },
+];
+
+// Versioning + counsel-review cadence. CI may compare
+// LEXICON_LAST_LEGAL_REVIEW to today and warn when older than 365d
+// (next-PR work — scaffold now to make sure the field exists).
+export const LEXICON_VERSION = "0.1" as const;
+export const LEXICON_LAST_LEGAL_REVIEW: string | null = null; // ISO-8601 date when set by external counsel
