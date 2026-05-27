@@ -27,22 +27,35 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 const KAKAO_TOKEN_URL = 'https://kauth.kakao.com/oauth/token';
 const KAKAO_USER_URL = 'https://kapi.kakao.com/v2/user/me';
 
-function jsonResponse(body: unknown, status = 200): Response {
+// M1 hardening: CORS allowlist (was wildcard).
+const ALLOWED_ORIGINS = new Set<string>([
+  'https://simon-yhkim.github.io',
+  'http://localhost:8081',
+  'http://localhost:19006',
+]);
+function resolveOrigin(req: Request): string {
+  const origin = req.headers.get('origin') ?? '';
+  return ALLOWED_ORIGINS.has(origin) ? origin : 'null';
+}
+
+function jsonResponse(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      'access-control-allow-origin': '*',
+      'access-control-allow-origin': resolveOrigin(req),
+      'vary': 'origin',
       'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
     },
   });
 }
 
-function corsPreflight(): Response {
+function corsPreflight(req: Request): Response {
   return new Response(null, {
     status: 204,
     headers: {
-      'access-control-allow-origin': '*',
+      'access-control-allow-origin': resolveOrigin(req),
+      'vary': 'origin',
       'access-control-allow-methods': 'POST, OPTIONS',
       'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
       'access-control-max-age': '86400',
@@ -69,28 +82,28 @@ interface KakaoUser {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return corsPreflight();
-  if (req.method !== 'POST') return jsonResponse({ error: 'method_not_allowed' }, 405);
+  if (req.method === 'OPTIONS') return corsPreflight(req);
+  if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
 
   const clientId = Deno.env.get('KAKAO_CLIENT_ID');
-  if (!clientId) return jsonResponse({ error: 'server_misconfigured_missing_KAKAO_CLIENT_ID' }, 500);
+  if (!clientId) return jsonResponse(req, { error: 'server_misconfigured_missing_KAKAO_CLIENT_ID' }, 500);
   const clientSecret = Deno.env.get('KAKAO_CLIENT_SECRET') ?? '';
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceRoleKey) {
-    return jsonResponse({ error: 'server_misconfigured_supabase_env' }, 500);
+    return jsonResponse(req, { error: 'server_misconfigured_supabase_env' }, 500);
   }
 
   let body: { code?: unknown; redirect_uri?: unknown };
   try {
     body = await req.json();
   } catch {
-    return jsonResponse({ error: 'invalid_json' }, 400);
+    return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
   const code = typeof body?.code === 'string' ? body.code : '';
   const redirectUri = typeof body?.redirect_uri === 'string' ? body.redirect_uri : '';
-  if (!code || !redirectUri) return jsonResponse({ error: 'code_and_redirect_uri_required' }, 400);
+  if (!code || !redirectUri) return jsonResponse(req, { error: 'code_and_redirect_uri_required' }, 400);
 
   // 1. Exchange code for access token.
   const tokenForm = new URLSearchParams({
@@ -108,7 +121,7 @@ Deno.serve(async (req: Request) => {
   });
   const tokenJson: KakaoTokenResponse = await tokenRes.json();
   if (!tokenRes.ok || !tokenJson.access_token) {
-    return jsonResponse({ error: 'kakao_token_exchange_failed', detail: tokenJson }, 502);
+    return jsonResponse(req, { error: 'kakao_token_exchange_failed', detail: tokenJson }, 502);
   }
 
   // 2. Fetch user profile.
@@ -116,12 +129,12 @@ Deno.serve(async (req: Request) => {
     headers: { authorization: `Bearer ${tokenJson.access_token}` },
   });
   if (!userRes.ok) {
-    return jsonResponse({ error: 'kakao_user_fetch_failed', status: userRes.status }, 502);
+    return jsonResponse(req, { error: 'kakao_user_fetch_failed', status: userRes.status }, 502);
   }
   const kakaoUser: KakaoUser = await userRes.json();
   const kakaoId = kakaoUser.id;
   const email = kakaoUser.kakao_account?.email;
-  if (!kakaoId) return jsonResponse({ error: 'kakao_user_missing_id' }, 502);
+  if (!kakaoId) return jsonResponse(req, { error: 'kakao_user_missing_id' }, 502);
 
   // Kakao users can refuse to share email; we still need a stable identifier.
   // Synthesize a kakao.local email when missing — the user can update later
@@ -151,7 +164,7 @@ Deno.serve(async (req: Request) => {
       },
     });
     if (createErr || !created?.user) {
-      return jsonResponse({ error: 'supabase_create_user_failed', detail: createErr?.message }, 500);
+      return jsonResponse(req, { error: 'supabase_create_user_failed', detail: createErr?.message }, 500);
     }
     userId = created.user.id;
   }
@@ -165,7 +178,7 @@ Deno.serve(async (req: Request) => {
     email: userEmail,
   });
   if (linkErr || !linkData) {
-    return jsonResponse({ error: 'supabase_session_mint_failed', detail: linkErr?.message }, 500);
+    return jsonResponse(req, { error: 'supabase_session_mint_failed', detail: linkErr?.message }, 500);
   }
 
   // The action_link contains a hashed_token; on a real browser flow Supabase
@@ -175,7 +188,7 @@ Deno.serve(async (req: Request) => {
   const url = new URL(actionLink);
   const tokenHash = url.searchParams.get('token_hash') ?? '';
 
-  return jsonResponse({
+  return jsonResponse(req, {
     user_id: userId,
     email: userEmail,
     token_hash: tokenHash,
