@@ -41,8 +41,40 @@ import { router, type Href } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { darkSky } from "@/lib/theme/tokens";
+import { pitchForTier, playPop } from "@/lib/audio/pop";
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
+
+// User directive (2026-05-27): tier-ordered "뽁!" spawn sequence after
+// the logo fade completes. Per tier, node order is randomized so two
+// visits feel different. Each pop = scale 0 → 1.25 → 1.0 (overshoot)
+// + brief "뽁" Web Audio synth tone. When a newly-spawned node has a
+// graph relation to a node that's already on stage, its incoming edge
+// fades in alongside the pop so the connection appears to "draw itself".
+//
+// DESIGN.md note: the global rule forbids bounce/elastic easing, but
+// the user explicitly asked for the pulse / overshoot feel here. The
+// overshoot is small (1.25x → 1.0x, ~400ms total) so it stays inside
+// the tight, controlled feel of the rest of the design.
+const SPAWN_LOGO_DELAY_MS = 620;     // logo fade is ~750ms; start when it's mostly faded
+const SPAWN_STAGGER_HIGH_TIER_MS = 130;
+const SPAWN_STAGGER_TIER4_MS = 35;
+const SPAWN_TIER_GAP_MS = 110;
+const SPAWN_POP_OVERSHOOT_MS = 180;
+const SPAWN_POP_SETTLE_MS = 220;
+const EDGE_REVEAL_MS = 260;
+
+function shuffleInPlace<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j]!, arr[i]!];
+  }
+  return arr;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 export type Tier = 1 | 2 | 3 | 4;
 
@@ -221,6 +253,13 @@ export function NavGraph({ locale, dataNodes }: Props) {
   const swayRef = useRef<Map<string, { sx: Animated.AnimatedInterpolation<number>; sy: Animated.AnimatedInterpolation<number> }>>(new Map());
   const driftValues = useRef<Map<string, Animated.Value>>(new Map());
   const pulseValues = useRef<Map<string, Animated.Value>>(new Map());
+  // Spawn anim per node — 0 (hidden) → 1.25 (overshoot) → 1.0 (settled).
+  // Drives both transform scale and opacity for the pop-in effect.
+  const spawnValues = useRef<Map<string, Animated.Value>>(new Map());
+  // Edge fade-in anim per edge key — 0..1, multiplied into edge opacity.
+  // Triggered when both endpoints are in `spawnedIds`.
+  const edgeValues = useRef<Map<string, Animated.Value>>(new Map());
+  const [spawnedIds, setSpawnedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const ids = [CENTER_NODE.id, ...MENU_NODES.map((n) => n.id), ...Array.from(dataPositions.keys())];
@@ -252,6 +291,58 @@ export function NavGraph({ locale, dataNodes }: Props) {
     }
   }, [dataPositions]);
 
+  // Spawn sequence — tier 1 → 2 → 3 → 4, randomized within each tier.
+  // Each node: play "뽁!" pop sound + scale 0 → 1.25 → 1.0 + opacity 0 → 1.
+  // Initializes spawn anims at 0 on first run so nodes start hidden.
+  useEffect(() => {
+    const allIds = [CENTER_NODE.id, ...MENU_NODES.map((n) => n.id), ...Array.from(dataPositions.keys())];
+    for (const id of allIds) {
+      if (!spawnValues.current.has(id)) {
+        spawnValues.current.set(id, new Animated.Value(0));
+      }
+    }
+    let cancelled = false;
+    const run = async () => {
+      await delay(SPAWN_LOGO_DELAY_MS);
+      // Group ids by tier so each tier reveals together.
+      const byTier: Record<1 | 2 | 3 | 4, string[]> = { 1: [], 2: [], 3: [], 4: [] };
+      byTier[1].push(CENTER_NODE.id);
+      for (const n of MENU_NODES) byTier[n.tier].push(n.id);
+      for (const id of dataPositions.keys()) byTier[4].push(id);
+
+      for (const tier of [1, 2, 3, 4] as const) {
+        if (cancelled) return;
+        const ids = shuffleInPlace([...byTier[tier]]);
+        const stagger = tier === 4 ? SPAWN_STAGGER_TIER4_MS : SPAWN_STAGGER_HIGH_TIER_MS;
+        const volume = tier === 4 ? 0.05 : tier === 1 ? 0.22 : 0.16;
+        for (const id of ids) {
+          if (cancelled) return;
+          playPop(pitchForTier(tier), volume);
+          setSpawnedIds((prev) => {
+            if (prev.has(id)) return prev;
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+          });
+          const v = spawnValues.current.get(id);
+          if (v) {
+            Animated.sequence([
+              Animated.timing(v, { toValue: 1.25, duration: SPAWN_POP_OVERSHOOT_MS, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+              Animated.timing(v, { toValue: 1.0, duration: SPAWN_POP_SETTLE_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+            ]).start();
+          }
+          await delay(stagger);
+        }
+        await delay(SPAWN_TIER_GAP_MS);
+      }
+    };
+    void run();
+    return () => { cancelled = true; };
+    // Re-run only when the set of data nodes changes (e.g. after the
+    // wiki fetch lands). The set comparison via dataPositions identity
+    // is cheap and a fresh stream resets the show.
+  }, [dataPositions]);
+
   const [activeId, setActiveId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -273,16 +364,30 @@ export function NavGraph({ locale, dataNodes }: Props) {
   function swayTransform(id: string): unknown {
     // RN's transform union is fiddly to satisfy at compile time, but
     // the runtime contract is "array of single-key transform objects".
-    // Each entry below is exactly one such object.
+    // Each entry below is exactly one such object. Multiple `scale`
+    // entries compose multiplicatively, which is exactly what we want:
+    // spawn pop scale × ambient pulse scale.
     const s = swayRef.current.get(id);
     const out: Array<Record<string, Animated.AnimatedInterpolation<number> | Animated.Value>> = [];
     if (s) {
       out.push({ translateX: s.sx });
       out.push({ translateY: s.sy });
     }
+    const sp = spawnValues.current.get(id);
+    if (sp) out.push({ scale: sp });
     const p = pulseValues.current.get(id);
     if (p) out.push({ scale: p });
     return out;
+  }
+
+  /** Spawn opacity (0..1) — used to keep nodes invisible until their pop fires. */
+  function spawnOpacity(id: string): Animated.Value | number {
+    const v = spawnValues.current.get(id);
+    if (!v) return 0;
+    return v.interpolate({
+      inputRange: [0, 0.4, 1],
+      outputRange: [0, 1, 1],
+    }) as unknown as Animated.Value;
   }
 
   /** For SVG endpoints — animated number that equals `base + sway`. */
@@ -298,17 +403,41 @@ export function NavGraph({ locale, dataNodes }: Props) {
   }
 
   // Build parent→child edges (drives the static line web).
-  interface EdgeDef { fromId: string; toId: string; opacity: number }
+  interface EdgeDef { fromId: string; toId: string; opacity: number; key: string }
   const edges = useMemo<EdgeDef[]>(() => {
     const list: EdgeDef[] = [];
     for (const n of MENU_NODES) {
-      if (n.parentId) list.push({ fromId: n.parentId, toId: n.id, opacity: n.tier === 2 ? 0.45 : 0.3 });
+      if (n.parentId) {
+        list.push({ fromId: n.parentId, toId: n.id, opacity: n.tier === 2 ? 0.45 : 0.3, key: `${n.parentId}->${n.id}` });
+      }
     }
     for (const [id, p] of dataPositions) {
-      list.push({ fromId: p.parentId, toId: id, opacity: 0.12 });
+      list.push({ fromId: p.parentId, toId: id, opacity: 0.12, key: `${p.parentId}->${id}` });
     }
     return list;
   }, [dataPositions]);
+
+  // Edge fade-in: when both endpoints have spawned, ramp the edge's
+  // 0..1 multiplier to 1 over EDGE_REVEAL_MS. This is what makes the
+  // line "draw itself" as a new node pops in next to a node that's
+  // already on stage.
+  useEffect(() => {
+    for (const e of edges) {
+      if (!edgeValues.current.has(e.key)) {
+        edgeValues.current.set(e.key, new Animated.Value(0));
+      }
+      const v = edgeValues.current.get(e.key)!;
+      const bothShown = spawnedIds.has(e.fromId) && spawnedIds.has(e.toId);
+      // Animated.Value's last value isn't observable; instead we track
+      // it on the value itself via a private field. Cheap and avoids a
+      // parallel Map of last-values.
+      const tagged = v as Animated.Value & { __target?: number };
+      if (bothShown && tagged.__target !== 1) {
+        tagged.__target = 1;
+        Animated.timing(v, { toValue: 1, duration: EDGE_REVEAL_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+      }
+    }
+  }, [spawnedIds, edges]);
 
   const activeNode = activeId === CENTER_NODE.id
     ? CENTER_NODE
@@ -339,7 +468,7 @@ export function NavGraph({ locale, dataNodes }: Props) {
     <View style={styles.root} pointerEvents="box-none">
       {/* Animated edges — endpoints track each node's drift. */}
       <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
-        {edges.map((e, i) => {
+        {edges.map((e) => {
           const fromBase = e.fromId === CENTER_NODE.id
             ? { x: cx, y: cy }
             : positions.get(e.fromId) ?? dataPositions.get(e.fromId);
@@ -347,15 +476,19 @@ export function NavGraph({ locale, dataNodes }: Props) {
             ? { x: cx, y: cy }
             : positions.get(e.toId) ?? dataPositions.get(e.toId);
           if (!fromBase || !toBase) return null;
+          const ev = edgeValues.current.get(e.key);
+          const animOpacity = ev
+            ? (ev.interpolate({ inputRange: [0, 1], outputRange: [0, e.opacity] }) as unknown as number)
+            : 0;
           return (
             <AnimatedLine
-              key={i}
+              key={e.key}
               x1={animX(e.fromId, fromBase.x) as unknown as number}
               y1={animY(e.fromId, fromBase.y) as unknown as number}
               x2={animX(e.toId, toBase.x) as unknown as number}
               y2={animY(e.toId, toBase.y) as unknown as number}
               stroke={darkSky.accent}
-              strokeOpacity={e.opacity}
+              strokeOpacity={animOpacity}
               strokeWidth={1}
             />
           );
@@ -369,7 +502,12 @@ export function NavGraph({ locale, dataNodes }: Props) {
           pointerEvents="none"
           style={[
             styles.dataDot,
-            { left: p.x - 2.5, top: p.y - 2.5, transform: swayTransform(id) as never },
+            {
+              left: p.x - 2.5,
+              top: p.y - 2.5,
+              opacity: spawnOpacity(id) as never,
+              transform: swayTransform(id) as never,
+            },
           ]}
         />
       ))}
@@ -390,6 +528,7 @@ export function NavGraph({ locale, dataNodes }: Props) {
                 top: base.y - size / 2,
                 width: size,
                 height: size,
+                opacity: spawnOpacity(n.id) as never,
                 transform: swayTransform(n.id) as never,
               },
             ]}
@@ -413,6 +552,7 @@ export function NavGraph({ locale, dataNodes }: Props) {
             top: cy - 26,
             width: 52,
             height: 52,
+            opacity: spawnOpacity(CENTER_NODE.id) as never,
             transform: swayTransform(CENTER_NODE.id) as never,
           },
         ]}
