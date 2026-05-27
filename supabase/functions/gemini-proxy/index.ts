@@ -24,7 +24,12 @@
 // The function owns the API key and the inbound safety boundary.
 //
 // Request shape:
-//   { system: string | null, user: string, model: 'gemini-2.5-flash' | 'gemini-2.5-pro' }
+//   {
+//     system: string | null,
+//     user: string,
+//     model: 'gemini-2.5-flash' | 'gemini-2.5-pro',
+//     image?: { mimeType: string, data: string }   // base64 (no data: URL prefix)
+//   }
 //
 // Response shape:
 //   { text: string, modelUsed: string, latencyMs: number }
@@ -39,6 +44,11 @@ const MAX_USER_LEN = 8000;
 const MAX_SYSTEM_LEN = 4000;
 const MAX_OUTPUT_TOKENS = 1024;
 const UPSTREAM_DETAIL_TRUNCATE = 80;
+// Cap on inline image payload (base64 chars). ~2.6MB base64 ≈ 2MB binary.
+// Gemini Flash accepts up to 20MB but the proxy stays defensively small
+// so a single oversized OCR request can't bomb the request body cap.
+const MAX_IMAGE_BASE64_LEN = 2_700_000;
+const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
 
 const ALLOWED_ORIGINS = new Set<string>([
   'https://simon-yhkim.github.io',
@@ -121,7 +131,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'server_misconfigured_missing_GEMINI_API_KEY' }, 500);
   }
 
-  let body: { user?: unknown; system?: unknown; model?: unknown };
+  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -131,6 +141,24 @@ Deno.serve(async (req: Request) => {
   const userText: string = typeof body?.user === 'string' ? body.user : '';
   const systemText: string | null = typeof body?.system === 'string' ? body.system : null;
   const model: string = typeof body?.model === 'string' ? body.model : 'gemini-2.5-flash';
+
+  // Optional image attachment for multimodal OCR / image-grounded prompts.
+  // Validated tightly: mime allowlist + base64 length cap.
+  let imagePart: { mimeType: string; data: string } | null = null;
+  if (body?.image && typeof body.image === 'object') {
+    const imgObj = body.image as Record<string, unknown>;
+    const mime = typeof imgObj.mimeType === 'string' ? imgObj.mimeType : '';
+    const data = typeof imgObj.data === 'string' ? imgObj.data : '';
+    if (mime && data) {
+      if (!ALLOWED_IMAGE_MIME.has(mime)) {
+        return jsonResponse(req, { error: 'image_mime_not_allowed', got: mime }, 415);
+      }
+      if (data.length > MAX_IMAGE_BASE64_LEN) {
+        return jsonResponse(req, { error: 'image_too_large', max: MAX_IMAGE_BASE64_LEN, got: data.length }, 413);
+      }
+      imagePart = { mimeType: mime, data };
+    }
+  }
 
   if (userText.length === 0) return jsonResponse(req, { error: 'user_required' }, 400);
   if (userText.length > MAX_USER_LEN) {
@@ -152,11 +180,22 @@ Deno.serve(async (req: Request) => {
     }, 422);
   }
 
+  // Build content parts. When an image is attached, the image part goes
+  // first — Gemini's multimodal best practice for OCR/vision tasks.
+  const userParts: Array<Record<string, unknown>> = [];
+  if (imagePart) {
+    userParts.push({ inlineData: { mimeType: imagePart.mimeType, data: imagePart.data } });
+  }
+  userParts.push({ text: userText });
+
   const geminiBody: Record<string, unknown> = {
-    contents: [{ role: 'user', parts: [{ text: userText }] }],
+    contents: [{ role: 'user', parts: userParts }],
     generationConfig: {
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      temperature: 0.7,
+      // OCR/vision benefits from a higher output budget than the chat
+      // default; cap a bit higher when an image is present so a full
+      // receipt / page transcription doesn't truncate.
+      maxOutputTokens: imagePart ? Math.min(4096, MAX_OUTPUT_TOKENS * 4) : MAX_OUTPUT_TOKENS,
+      temperature: imagePart ? 0.2 : 0.7,
     },
   };
   // R1 (codex challenge, docs/security/2026-05-26-codex-challenge.md):

@@ -175,7 +175,13 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     const supabase = getSupabaseClient();
     const t0 = Date.now();
     const { data, error } = await supabase.functions.invoke("gemini-proxy", {
-      body: { system: input.system ?? null, user: input.user, model },
+      body: {
+        system: input.system ?? null,
+        user: input.user,
+        model,
+        // Optional image payload for multimodal OCR / vision prompts.
+        ...(input.image ? { image: input.image } : {}),
+      },
     });
     latencyMs = Date.now() - t0;
     if (error) throw error;
