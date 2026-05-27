@@ -55,22 +55,22 @@ function useSkyDrift() {
 // 30-day records via /insights aggregation; until that pipeline is
 // wired, we surface a curated set of pattern-style observations that
 // fit the cell-team / drill voice.
+// Core Brain — first-person plural voice from the cell team. Short,
+// nothing to action; just a "we noticed" hint.
 const INSIGHTS: Record<"en" | "ko", readonly string[]> = {
   en: [
-    "Patterns from the last month — the cells noticed something.",
-    "Your past-me / present-me dots have been quietly aligning.",
-    "Three new captures landed in Wiki this week. Worth a sort.",
-    "Your interview drill went deepest in 'Feeling'. Want to keep going?",
-    "The constellation pulses brighter where you look most.",
-    "Today's drift: more 'present me' than usual.",
+    "We noticed something this past month.",
+    "Your past me and present me are lining up.",
+    "There's fresh material in Wiki worth a sort.",
+    "Your patterns are showing up brighter where you look most.",
+    "Today leans a little more 'present me'.",
   ],
   ko: [
-    "최근 한 달의 패턴 — 세포들이 뭔가 알아챘어요.",
-    "과거의 나와 현재의 나 점이 조용히 정렬되는 중.",
-    "이번 주 Wiki에 새로 들어온 자료 3개. 정리할까요?",
-    "드릴 인터뷰가 '감정' 층에서 가장 깊었어요. 계속 갈래요?",
-    "당신이 자주 보는 곳일수록 별이 더 밝게 맥동해요.",
-    "오늘의 흐름: 평소보다 '현재의 나' 쪽으로 살짝.",
+    "이번 한 달, 우리가 뭘 좀 알아챘어요.",
+    "과거의 당신과 현재의 당신이 정렬되는 중이에요.",
+    "Wiki에 새 재료가 좀 들어와 있어요. 정리해 볼까요?",
+    "자주 보는 곳일수록 별이 더 밝게 맥동해요.",
+    "오늘은 '현재의 나' 쪽으로 살짝 기울어요.",
   ],
 };
 
@@ -165,10 +165,16 @@ export default function Landing() {
         <NavGraph locale={locale} dataNodes={dataNodes} />
       </Animated.View>
 
-      {/* Top insight ribbon — one line of "what the cells noticed". */}
+      {/* Top insight ribbon — Core Brain talks. The slot on the left
+          is reserved for a future mascot avatar; for now it shows a
+          subtle initial circle so the layout doesn't reflow when the
+          asset lands. */}
       <Animated.View style={[styles.insightRibbon, { opacity: contentOpacity }]} pointerEvents="box-none">
-        <Pressable onPress={() => router.push("/insights")} hitSlop={8}>
-          <Text style={styles.insightEyebrow}>{locale === "ko" ? "지난 한 달의 흐름" : "Past month"}</Text>
+        <View style={styles.mascotSlot} accessibilityLabel="Core Brain">
+          <Text style={styles.mascotInitial}>C</Text>
+        </View>
+        <Pressable onPress={() => router.push("/insights")} hitSlop={8} style={{ flex: 1 }}>
+          <Text style={styles.insightEyebrow}>{locale === "ko" ? "코어 브레인" : "Core Brain"}</Text>
           <Text style={styles.insightText} numberOfLines={2}>{insight}</Text>
         </Pressable>
       </Animated.View>
@@ -205,8 +211,29 @@ const styles = StyleSheet.create({
   contentLayer: { ...StyleSheet.absoluteFill as object },
   insightRibbon: {
     position: "absolute",
-    top: 56, left: 24, right: 80,
+    top: 56, left: 16, right: 80,
     maxWidth: 600,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  // Slot reserved for the upcoming Core Brain mascot. Same footprint
+  // (52px circle) the eventual <Image> will occupy.
+  mascotSlot: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: "rgba(127,179,244,0.35)",
+    backgroundColor: "rgba(127,179,244,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mascotInitial: {
+    color: "rgba(127,179,244,0.7)",
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
   insightEyebrow: {
     color: darkSky.textSubtle,
