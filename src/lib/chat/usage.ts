@@ -16,9 +16,9 @@ export async function readChatUsage(userId: string, day: string = kstDateToday()
 }
 
 /**
- * Atomically bump today's chat_usage row. Uses the bump_chat_usage RPC so the
- * row is inserted-or-incremented in a single SQL statement (no client-side
- * race window between read and write). Returns the new count.
+ * DEPRECATED — use bumpChatUsageIfUnderCap. Kept for backward compat with
+ * tests that exercise the old path; new code paths must go through the
+ * cap-aware RPC to close the TOCTOU race (codex challenge R2).
  */
 export async function bumpChatUsage(userId: string, day: string = kstDateToday()): Promise<number> {
   const supabase = getSupabaseClient();
@@ -27,5 +27,46 @@ export async function bumpChatUsage(userId: string, day: string = kstDateToday()
     p_day: day,
   });
   if (error) throw error;
+  return data as number;
+}
+
+export class ChatLimitExceededError extends Error {
+  readonly code = "chat_limit_exceeded";
+  constructor() {
+    super("chat_limit_exceeded");
+    this.name = "ChatLimitExceededError";
+  }
+}
+
+/**
+ * Atomic check-and-bump. The RPC inserts a new row (count=1) or increments
+ * the existing one — but only if the existing count is < cap. If the cap is
+ * already reached the RPC raises 'chat_limit_exceeded', which we surface as
+ * a typed ChatLimitExceededError so the caller can branch without a string
+ * compare.
+ *
+ * This closes the TOCTOU race where parallel callers all read `used` at
+ * 249, all pass the client-side cap check, all bump, and the counter ends
+ * up at 349 with 100 LLM calls billed.
+ */
+export async function bumpChatUsageIfUnderCap(
+  userId: string,
+  cap: number,
+  day: string = kstDateToday(),
+): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc("bump_chat_usage_if_under_cap", {
+    p_user_id: userId,
+    p_day: day,
+    p_cap: cap,
+  });
+  if (error) {
+    // Postgres raises chat_limit_exceeded with SQLSTATE P0001. Supabase's
+    // PostgREST surfaces it via error.message containing the raised text.
+    if (typeof error.message === "string" && error.message.includes("chat_limit_exceeded")) {
+      throw new ChatLimitExceededError();
+    }
+    throw error;
+  }
   return data as number;
 }

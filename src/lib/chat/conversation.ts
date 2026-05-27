@@ -17,9 +17,9 @@ import { callGemini } from "@/lib/llm/gemini";
 import type { GeminiResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
-import { checkChatLimit, kstDateToday } from "./limits";
+import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
 import { exportUserWiki } from "../wiki/export";
-import { bumpChatUsage, readChatUsage } from "./usage";
+import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsage } from "./usage";
 
 export interface SendMessageInput {
   userId: string;
@@ -66,18 +66,35 @@ const BLOCKED_HINT = {
 
 export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
   const day = kstDateToday();
-  const used = await readChatUsage(input.userId, day);
-  const check = checkChatLimit(input.tier, used);
+  const limit = CHAT_DAILY_LIMIT[input.tier];
 
-  if (!check.allowed) {
-    return {
-      status: "blocked",
-      reason: "limit_reached",
-      limit: check.limit,
-      used: check.used,
-      upgradeTo: check.upgradeTo,
-      hint: BLOCKED_HINT[input.locale](check.limit, check.upgradeTo),
-    };
+  // Atomic check-and-bump (codex R2): the RPC inserts/increments the row
+  // ONLY if the existing count is below `limit`. Otherwise it raises
+  // chat_limit_exceeded and we return a blocked result without ever
+  // calling Gemini. This closes the TOCTOU race where N parallel callers
+  // could all see used<limit and all bill an LLM call.
+  //
+  // Trade-off vs. the previous design: red-zone (crisis-routed) turns now
+  // ALSO count against the daily quota. The alternative — bump after the
+  // LLM call — would reopen the race. We accept the 1-count penalty on
+  // crisis turns; a future PR can add a refund RPC if it matters.
+  let newCount: number;
+  try {
+    newCount = await bumpChatUsageIfUnderCap(input.userId, limit, day);
+  } catch (e) {
+    if (e instanceof ChatLimitExceededError) {
+      const used = await readChatUsage(input.userId, day);
+      const check = checkChatLimit(input.tier, used);
+      return {
+        status: "blocked",
+        reason: "limit_reached",
+        limit: check.limit,
+        used: check.used,
+        upgradeTo: check.upgradeTo,
+        hint: BLOCKED_HINT[input.locale](check.limit, check.upgradeTo),
+      };
+    }
+    throw e;
   }
 
   // RAG context: compact wiki snapshot. Capped so the chat stays inside the
@@ -91,9 +108,9 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
 
   const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${snapshot.prompt}`;
 
-  // C1/C3/C9 are enforced by callGemini. Red-zone input is short-circuited
-  // BEFORE the network call (and before usage is bumped — we don't punish
-  // safety-routed turns against the user's daily quota).
+  // C1/C3/C9 are enforced by callGemini. Red-zone short-circuit still
+  // happens inside callGemini; we just no longer adjust the counter
+  // afterwards because the bump already landed atomically above.
   const reply = await callGemini({
     userId: input.userId,
     locale: input.locale,
@@ -102,23 +119,11 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
     user: input.message,
   });
 
-  // Only bump if Gemini actually engaged. Red-zone responses come back with
-  // audit.modelUsed='none-crisis-routed'; we let those through free.
-  if (reply.audit.modelUsed !== "none-crisis-routed") {
-    try {
-      await bumpChatUsage(input.userId, day);
-    } catch (e) {
-      // Counting failure shouldn't fail the chat — the reply has already
-      // happened. Surface via console; next call will read stale `used`.
-      if (typeof console !== "undefined") console.warn("[chat] bumpChatUsage failed", (e as Error).message);
-    }
-  }
-
   return {
     status: "ok",
     reply,
-    used: used + 1,
-    limit: check.limit,
-    remaining: Math.max(0, check.limit - (used + 1)),
+    used: newCount,
+    limit,
+    remaining: Math.max(0, limit - newCount),
   };
 }
