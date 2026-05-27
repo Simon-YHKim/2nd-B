@@ -48,6 +48,11 @@ export default function NotFound() {
               {locale === "ko" ? "페르소나 v1" : "Persona v1"}
             </Text>
           </Link>
+          <Link href="/manual" style={styles.destinationLink}>
+            <Text variant="body" color="brand">
+              {locale === "ko" ? "사용 안내서" : "Manual"}
+            </Text>
+          </Link>
         </View>
       </View>
     </Screen>

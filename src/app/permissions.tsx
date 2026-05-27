@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
 import { Screen } from "@/components/ui/Screen";
+import { AppNav } from "@/components/ui/AppNav";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -174,6 +175,7 @@ export default function Permissions() {
           </Link>
           <Button label={locale === "ko" ? "뒤로" : "Back"} variant="secondary" onPress={() => router.back()} />
         </View>
+        <AppNav locale={locale} />
       </ScrollView>
     </Screen>
   );

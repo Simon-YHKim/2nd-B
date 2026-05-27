@@ -17,12 +17,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Animated, Easing, View, StyleSheet, Image, Pressable, Text } from "react-native";
+import { Animated, Easing, View, StyleSheet, Pressable, Text } from "react-native";
 import { router, Redirect } from "expo-router";
 
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { darkSky } from "@/lib/theme/tokens";
 import { KnowledgeGraph, type GraphEdge, type GraphNode } from "@/components/graph/KnowledgeGraph";
 
 // Logo with glow — resolves to the root assets/ dir.
@@ -196,7 +197,7 @@ export default function Landing() {
 }
 
 const styles = StyleSheet.create({
-  skyContainer: { flex: 1, backgroundColor: "#02040A" },
+  skyContainer: { flex: 1, backgroundColor: darkSky.bg },
   // Logo positioned with the SAME base size (220×220) and the SAME
   // centering math as LoadingScreen so the dolly-zoom handoff is
   // pixel-aligned. KnowledgeGraph centers on viewport via
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   localeToggleText: {
-    color: "#7FB3F4",
+    color: darkSky.textSubtle,
     fontSize: 12,
     letterSpacing: 1.5,
     fontWeight: "700",

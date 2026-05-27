@@ -9,6 +9,7 @@ import { router } from "expo-router";
 import { Screen } from "@/components/ui/Screen";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
+import { AppNav } from "@/components/ui/AppNav";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
@@ -181,8 +182,9 @@ export default function Attachment() {
           <Text variant="subtle" color="textSubtle" style={styles.footnote}>
             {locale === "ko"
               ? "ECR-S는 자기 이해용 스크리닝 도구입니다. 패턴 관찰일 뿐, 단정이나 권고가 아니에요."
-              : "ECR-S is a self-understanding screener. Observed patterns only — not verdicts or advice."}
+              : "ECR-S is a self-understanding screener. Observed patterns only, not verdicts or advice."}
           </Text>
+          <AppNav locale={locale} />
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

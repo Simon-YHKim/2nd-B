@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
 import { Screen } from "@/components/ui/Screen";
+import { AppNav } from "@/components/ui/AppNav";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -166,6 +167,7 @@ export default function Mbti() {
               disabled={submitting}
             />
           </View>
+          <AppNav locale={locale} />
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
