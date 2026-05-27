@@ -14,6 +14,7 @@ import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { fontAssets } from "@/theme/typography";
 import { semantic } from "@/lib/theme/tokens";
+import { ThemeProvider, useTheme, useThemePalette } from "@/lib/theme/ThemeContext";
 
 initI18n();
 void initAnalytics();
@@ -36,15 +37,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <StatusBar style="light" />
-          <IntroGate>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: semantic.background },
-              }}
-            >
+        <ThemeProvider>
+          <AuthProvider>
+            <ThemedStatusBar />
+            <IntroGate>
+              <ThemedStack>
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="journal" />
@@ -65,12 +62,35 @@ export default function RootLayout() {
               <Stack.Screen name="settings" />
               <Stack.Screen name="interview" />
               <Stack.Screen name="+not-found" />
-            </Stack>
-          </IntroGate>
-        </AuthProvider>
+              </ThemedStack>
+            </IntroGate>
+          </AuthProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+/** Wraps <Stack> so its contentStyle.backgroundColor tracks the theme
+ *  toggle without forcing every screen to set its own bg. */
+function ThemedStack({ children }: { children: React.ReactNode }) {
+  const palette = useThemePalette();
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: palette.background },
+      }}
+    >
+      {children}
+    </Stack>
+  );
+}
+
+/** StatusBar style follows the active mode. */
+function ThemedStatusBar() {
+  const { mode } = useTheme();
+  return <StatusBar style={mode === "dark" ? "light" : "dark"} />;
 }
 
 /**

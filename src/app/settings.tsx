@@ -15,6 +15,7 @@ import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { AppNav } from "@/components/ui/AppNav";
+import { useTheme } from "@/lib/theme/ThemeContext";
 import {
   deleteAllChatUsage,
   deleteAllUserData,
@@ -30,6 +31,7 @@ export default function Settings() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const { mode, toggle } = useTheme();
 
   const [busy, setBusy] = useState<string | null>(null);
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
@@ -157,6 +159,29 @@ export default function Settings() {
               ? "데이터 삭제는 되돌릴 수 없어요. 익스포트가 필요하면 위키 화면의 Export 버튼을 먼저 사용하세요."
               : "Data deletion is permanent. If you want a backup, use the Export button on /wiki first."}
           </Text>
+        </View>
+
+        <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
+          <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
+            {locale === "ko" ? "테마" : "Theme"}
+          </Text>
+          <Text variant="subtle" color="textMuted">
+            {locale === "ko"
+              ? "메인 화면의 어두운 하늘 톤이 기본. 밝은 톤도 시도해 보세요."
+              : "Defaults to the loader's dark-sky tone. Light is also available."}
+          </Text>
+          <View style={styles.themeRow}>
+            <Button
+              label={locale === "ko" ? "다크" : "Dark"}
+              variant={mode === "dark" ? "primary" : "secondary"}
+              onPress={() => { if (mode !== "dark") toggle(); }}
+            />
+            <Button
+              label={locale === "ko" ? "라이트" : "Light"}
+              variant={mode === "light" ? "primary" : "secondary"}
+              onPress={() => { if (mode !== "light") toggle(); }}
+            />
+          </View>
         </View>
 
         <View style={[styles.section, { borderLeftColor: semantic.warning }]}>
@@ -348,4 +373,5 @@ const styles = StyleSheet.create({
   },
   sectionEyebrow: { letterSpacing: 1, fontWeight: "700" },
   actions: { gap: spacing.sm, marginTop: spacing.md },
+  themeRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
 });
