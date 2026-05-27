@@ -38,10 +38,16 @@ import {
 } from "react-native";
 import Svg, { Line } from "react-native-svg";
 import { router, type Href } from "expo-router";
+import ReAnimated, {
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 import { Text } from "@/components/ui/Text";
 import { darkSky } from "@/lib/theme/tokens";
 import { pitchForTier, playPop } from "@/lib/audio/pop";
+import { clampPan, clampScale, panForFocalZoom } from "./zoom-math";
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 
@@ -196,6 +202,99 @@ export function NavGraph({ locale, dataNodes }: Props) {
   const { width, height } = useWindowDimensions();
   const cx = width / 2;
   const cy = height / 2;
+
+  // Zoom + pan — pinch to scale, 2-finger pan to translate. The root
+  // ReAnimated.View applies the transform; individual node positions /
+  // drift / pulse animations are unchanged (they live in graph space).
+  // Single-tap on a node is preserved because pan requires 2 pointers
+  // (minPointers(2)).
+  //
+  // Web wheel-to-zoom + mouse drag pan are intentionally out of scope
+  // for this PR — gesture-handler covers native + web touch already.
+  // Wheel handling is a follow-up.
+  const zoomScale = useSharedValue(1);
+  const zoomPanX = useSharedValue(0);
+  const zoomPanY = useSharedValue(0);
+  const zoomSavedScale = useSharedValue(1);
+  const zoomSavedPanX = useSharedValue(0);
+  const zoomSavedPanY = useSharedValue(0);
+  const zoomViewportW = useSharedValue(width);
+  const zoomViewportH = useSharedValue(height);
+  useEffect(() => {
+    zoomViewportW.value = width;
+    zoomViewportH.value = height;
+  }, [width, height, zoomViewportW, zoomViewportH]);
+
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((e) => {
+      "worklet";
+      const next = clampScale(zoomSavedScale.value * e.scale);
+      const focal = { x: e.focalX, y: e.focalY };
+      const prevPan = { x: zoomSavedPanX.value, y: zoomSavedPanY.value };
+      const newPan = panForFocalZoom(zoomSavedScale.value, next, focal, prevPan);
+      const clamped = clampPan(newPan, next, {
+        width: zoomViewportW.value,
+        height: zoomViewportH.value,
+      });
+      zoomScale.value = next;
+      zoomPanX.value = clamped.x;
+      zoomPanY.value = clamped.y;
+    })
+    .onEnd(() => {
+      "worklet";
+      zoomSavedScale.value = zoomScale.value;
+      zoomSavedPanX.value = zoomPanX.value;
+      zoomSavedPanY.value = zoomPanY.value;
+    });
+
+  // 2-finger pan only — leaves 1-finger taps to the node Pressables.
+  const panGesture = Gesture.Pan()
+    .minPointers(2)
+    .onUpdate((e) => {
+      "worklet";
+      const proposed = {
+        x: zoomSavedPanX.value + e.translationX,
+        y: zoomSavedPanY.value + e.translationY,
+      };
+      const clamped = clampPan(proposed, zoomScale.value, {
+        width: zoomViewportW.value,
+        height: zoomViewportH.value,
+      });
+      zoomPanX.value = clamped.x;
+      zoomPanY.value = clamped.y;
+    })
+    .onEnd(() => {
+      "worklet";
+      zoomSavedPanX.value = zoomPanX.value;
+      zoomSavedPanY.value = zoomPanY.value;
+    });
+
+  // Double-tap to reset zoom + pan to the home view.
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      "worklet";
+      zoomScale.value = 1;
+      zoomPanX.value = 0;
+      zoomPanY.value = 0;
+      zoomSavedScale.value = 1;
+      zoomSavedPanX.value = 0;
+      zoomSavedPanY.value = 0;
+    });
+
+  const composedGesture = Gesture.Simultaneous(
+    pinchGesture,
+    panGesture,
+    doubleTapGesture,
+  );
+
+  const zoomAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: zoomPanX.value },
+      { translateY: zoomPanY.value },
+      { scale: zoomScale.value },
+    ],
+  }));
 
   // Tier layout — concentric rings, children kept near their parent's
   // angle so the parent→child line web reads as branching out.
@@ -544,7 +643,8 @@ export function NavGraph({ locale, dataNodes }: Props) {
   }
 
   return (
-    <View style={styles.root} pointerEvents="box-none">
+    <GestureDetector gesture={composedGesture}>
+      <ReAnimated.View style={[styles.root, zoomAnimatedStyle]} pointerEvents="box-none">
       {/* Animated edges — endpoints track each node's drift. */}
       <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
         {edges.map((e) => {
@@ -692,7 +792,8 @@ export function NavGraph({ locale, dataNodes }: Props) {
           </View>
         </Animated.View>
       ) : null}
-    </View>
+      </ReAnimated.View>
+    </GestureDetector>
   );
 }
 
