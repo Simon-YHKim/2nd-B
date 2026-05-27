@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>/interview drill-down 개선 설계 · v0.1 · 2026-05-27</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #02040A;
+    --surface: rgba(255,255,255,0.04);
+    --surface-strong: rgba(143,183,244,0.08);
+    --border: rgba(143,183,244,0.18);
+    --text: #E5EDFA;
+    --text-muted: #C7D4EA;
+    --text-subtle: #7FB3F4;
+    --brand: #2F97FC;
+    --accent: #7FB3F4;
+    --red: #FF6B6B;
+    --amber: #FFB55C;
+    --green: #74E0A8;
+    --plum: #C19EDC;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Pretendard', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 56px 28px 80px; }
+  header { margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .brand-tag { color: var(--brand); font-size: 11px; font-weight: 700; letter-spacing: 2.5px; margin-bottom: 12px; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 14px; }
+  .meta { color: var(--text-subtle); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; margin-top: 14px; }
+  h2 { font-size: 18px; font-weight: 700; margin: 40px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h2 .num { color: var(--brand); font-size: 12px; margin-right: 8px; letter-spacing: 1.5px; }
+  h3 { font-size: 14px; font-weight: 600; margin: 18px 0 8px; }
+  p, li { color: var(--text-muted); margin-bottom: 6px; }
+  ul { padding-left: 18px; }
+  code, .mono {
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 12px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; color: var(--accent);
+  }
+
+  /* Matrix 5x5 */
+  .matrix-wrap { margin: 18px 0; }
+  .matrix-grid {
+    display: grid;
+    grid-template-columns: 100px repeat(5, 1fr);
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .matrix-header {
+    color: var(--text-subtle);
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 8px 4px;
+    font-weight: 600;
+  }
+  .matrix-header.row { text-align: right; padding-right: 10px; }
+  .cell {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    background: rgba(143,183,244,0.04);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-subtle);
+    transition: all 0.2s;
+  }
+  .cell.filled-1 { background: rgba(47,151,252,0.18); border-color: rgba(47,151,252,0.35); color: var(--accent); }
+  .cell.filled-2 { background: rgba(47,151,252,0.32); border-color: rgba(47,151,252,0.5); color: var(--text); }
+  .cell.filled-3 { background: rgba(47,151,252,0.55); border-color: var(--brand); color: var(--text); font-weight: 700; }
+  .cell.glow { box-shadow: 0 0 12px rgba(47,151,252,0.5); animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(47,151,252,0.3); }
+    50% { box-shadow: 0 0 16px rgba(47,151,252,0.7); }
+  }
+
+  .layer-list, .period-list { margin: 14px 0; }
+  .layer-row {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 14px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-left: 3px solid var(--brand);
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .layer-row .num {
+    color: var(--brand);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .layer-row .body .title { color: var(--text); font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .layer-row .body .desc { color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+  .layer-row .body .example { color: var(--accent); font-size: 11.5px; font-style: italic; margin-top: 4px; }
+
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 14px 0;
+    font-size: 12px;
+  }
+  .compare-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+  .compare-cell.before { border-left: 3px solid var(--red); }
+  .compare-cell.after { border-left: 3px solid var(--green); }
+  .compare-cell .head {
+    color: var(--text-subtle);
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    color: var(--text-subtle);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    background: var(--surface);
+  }
+  td.right { color: var(--text); font-weight: 500; }
+
+  .citation {
+    background: var(--surface);
+    border-left: 3px solid var(--plum);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .citation .tag { color: var(--plum); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700; }
+  .citation .author { color: var(--text); font-weight: 600; }
+
+  .footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-subtle);
+    letter-spacing: 0.5px;
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 720px) {
+    .matrix-grid { grid-template-columns: 70px repeat(5, 1fr); }
+    .compare { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand-tag">2ND-BRAIN · /interview · DRILL-DOWN DESIGN</div>
+  <h1>경험 깊이 × 인생 시기 — 5×5 라이브 매트릭스</h1>
+  <div class="subtitle">사용자를 *drill down* 하는 인터뷰 — 사실 위 5개 layer × 시기 5개 위에 진행도를 실시간 빛으로 표시. 20턴 hard cap 제거.</div>
+  <div class="meta">2026-05-27 · src/app/interview.tsx + src/lib/interview/probe.ts 변경 설계</div>
+</header>
+
+<h2><span class="num">00</span>한 줄 요약</h2>
+<p><strong>"한 시기를 깊이"</strong> 또는 <strong>"여러 시기를 폭넓게"</strong> — 사용자가 자유롭게 선택. 진행도는 항상 <strong>25칸 매트릭스(5 layer × 5 period)</strong> 위 실시간 빛으로 보여줘서, 사용자가 자기 인터뷰가 어디까지 갔는지 즉시 인식.</p>
+
+<h2><span class="num">01</span>5 Drill Layers — 경험을 깊게 파는 5단계</h2>
+<p>narrative identity 연구(McAdams 2001 + repo의 <code>docs/research/batches/narrative-identity.md</code>) 기반. 한 사건을 회상할 때 깊이는 항상 이 5층 순서로 내려감.</p>
+
+<div class="layer-list">
+  <div class="layer-row">
+    <div class="num">▸ L1 FACT</div>
+    <div class="body">
+      <div class="title">무슨 일이 있었나 — 사건의 사실관계</div>
+      <div class="desc">시간·장소·등장 인물. 6하원칙. 감정 없이 "있었던 것".</div>
+      <div class="example">"고2 봄, 학원 복도에서 친구 K가 나한테 ~라고 말했어."</div>
+    </div>
+  </div>
+  <div class="layer-row">
+    <div class="num">▸ L2 FEELING</div>
+    <div class="body">
+      <div class="title">그때 어떻게 느꼈나 — 정서적 풍경</div>
+      <div class="desc">사건 직후의 감정. 신체 감각 포함 가능.</div>
+      <div class="example">"숨이 막혔어. 화는 안 나는데 가슴이 답답했어."</div>
+    </div>
+  </div>
+  <div class="layer-row">
+    <div class="num">▸ L3 MEANING</div>
+    <div class="body">
+      <div class="title">그게 당신에게 어떤 의미였나 — 해석</div>
+      <div class="desc">사건을 어떻게 받아들였는지. 이때 처음으로 '나' 가 들어옴.</div>
+      <div class="example">"내가 K한테는 그 정도 사람이었구나, 라고 생각했어."</div>
+    </div>
+  </div>
+  <div class="layer-row">
+    <div class="num">▸ L4 BELIEF</div>
+    <div class="body">
+      <div class="title">어떤 믿음이 남았나 — 인지 도식</div>
+      <div class="desc">사건이 자기 / 세상 / 관계에 대한 어떤 일반화로 굳었는지. <strong>여기가 drill의 핵심 목적지</strong>.</div>
+      <div class="example">"가까운 사람일수록 결국 거리 두는 게 안전하다는 걸 그때 배운 거 같아."</div>
+    </div>
+  </div>
+  <div class="layer-row">
+    <div class="num">▸ L5 ECHO</div>
+    <div class="body">
+      <div class="title">지금도 어떻게 울리고 있나 — 현재 작용</div>
+      <div class="desc">그 믿음이 오늘 결정/관계/일에 어떻게 나타나는지. 과거 → 현재 연결.</div>
+      <div class="example">"요즘도 친한 사람한테 일부러 약속 미루는 거, 그게 거기서 나온 패턴 같아."</div>
+    </div>
+  </div>
+</div>
+
+<div class="citation">
+  <span class="tag">근거</span>
+  <span class="author">McAdams (2001)</span> "The psychology of life stories" · Review of General Psychology · DOI: 10.1037/1089-2680.5.2.100 — narrative identity의 자기서사 회상은 항상 사건(scene) → 감정(affect) → 해석(meaning) → 신념(belief) → 통합(integration) 순서로 깊어진다고 보고.
+</div>
+
+<h2><span class="num">02</span>5 Life Periods — 시기별 drill 진행도</h2>
+<p>현재 코드의 5 period 그대로 활용. 단, multi-period 동시 진행 가능 (사용자가 한 시기 5층 다 채우고 다음 시기로, 또는 여러 시기를 layer별로 비교 가능).</p>
+
+<table>
+<thead><tr><th>코드</th><th>시기</th><th>드릴 의의</th></tr></thead>
+<tbody>
+  <tr><td><code>childhood</code></td><td>12세 이전</td><td>가장 깊은 belief 형성기 — Erikson trust vs mistrust / Bowlby attachment</td></tr>
+  <tr><td><code>teens</code></td><td>12-19세</td><td>identity vs role confusion — 자기상 핵심 형성</td></tr>
+  <tr><td><code>twenties</code></td><td>20-29세</td><td>emerging adulthood (Arnett 2000) — intimacy vs isolation</td></tr>
+  <tr><td><code>thirties</code></td><td>30-39세</td><td>generativity vs stagnation 초기 — 자기와 사회 역할 조정</td></tr>
+  <tr><td><code>current</code></td><td>지금</td><td>echo layer의 자연스러운 입구 — 다른 시기와 연결</td></tr>
+</tbody>
+</table>
+
+<h2><span class="num">03</span>라이브 진행도 매트릭스 (시각화 mock)</h2>
+<p>인터뷰 화면 상단에 항상 보이는 25칸. 사용자가 어떤 시기의 어떤 층을 답했는지 실시간으로 빛남. 한 칸의 답변 수가 늘수록 색이 짙어짐.</p>
+
+<div class="matrix-wrap">
+  <div class="matrix-grid" aria-label="Drill progress matrix sample">
+    <div class="matrix-header">layer ↓ / period →</div>
+    <div class="matrix-header">유년</div>
+    <div class="matrix-header">10대</div>
+    <div class="matrix-header">20대</div>
+    <div class="matrix-header">30대</div>
+    <div class="matrix-header">지금</div>
+
+    <div class="matrix-header row">L1 FACT</div>
+    <div class="cell filled-3">2</div>
+    <div class="cell filled-2">1</div>
+    <div class="cell filled-1">1</div>
+    <div class="cell"></div>
+    <div class="cell filled-2">1</div>
+
+    <div class="matrix-header row">L2 FEELING</div>
+    <div class="cell filled-2">1</div>
+    <div class="cell filled-3">2</div>
+    <div class="cell filled-1">1</div>
+    <div class="cell"></div>
+    <div class="cell glow filled-1">●</div>
+
+    <div class="matrix-header row">L3 MEANING</div>
+    <div class="cell filled-1">1</div>
+    <div class="cell filled-1">1</div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+
+    <div class="matrix-header row">L4 BELIEF</div>
+    <div class="cell filled-1">1</div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+
+    <div class="matrix-header row">L5 ECHO</div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+  </div>
+  <p style="font-size:11.5px;color:var(--text-subtle);margin-top:8px;text-align:center">
+    예시 — 유년 인터뷰 중. 빛나는 칸이 방금 답한 cell (지금-FEELING). 한 칸 = 한 시기 × 한 layer. 숫자 = 그 칸에 누적된 답변 턴 수.
+  </p>
+</div>
+
+<h2><span class="num">04</span>before ↔ after</h2>
+
+<div class="compare">
+  <div class="compare-cell before">
+    <div class="head">v0.2 (현재)</div>
+    <ul>
+      <li>1 period 선택 → 20턴 hard cap</li>
+      <li>nextProbe = "더 듣고 싶은 부분"만 — drill 차원 명시 없음</li>
+      <li>사용자는 자기가 어느 깊이까지 갔는지 모름</li>
+      <li>종료 = 20턴 도달 OR "그만"</li>
+      <li>turn label = "Q / A" 뿐</li>
+    </ul>
+  </div>
+  <div class="compare-cell after">
+    <div class="head">v0.3 (개선)</div>
+    <ul>
+      <li>multi-period 가능, soft cap 50턴 (메모리 보호)</li>
+      <li>nextProbe = <strong>(현재 layer 분류 → 다음 layer 결정 → 질문 생성)</strong> 3단계</li>
+      <li>25칸 라이브 매트릭스 항상 표시 + 방금 답한 칸 glow 1.5초</li>
+      <li>종료 = "선택 시기 모두 5층 cover" 신호 표시 (계속 가능)</li>
+      <li>각 turn 에 <code>L1 FACT</code>~<code>L5 ECHO</code> 라벨 표시</li>
+    </ul>
+  </div>
+</div>
+
+<h2><span class="num">05</span>nextProbe 알고리즘 (3-stage)</h2>
+<p>v0.3 프롬프트 T1 (single-stage vs 2-stage) 권장 — 2-stage 가 품질 ↑. 우리는 3-stage 로 확장:</p>
+
+<table>
+<thead><tr><th>Stage</th><th>역할</th><th>출력</th></tr></thead>
+<tbody>
+  <tr><td>S1 · classify</td><td>사용자 마지막 답이 어느 layer 였는지 분류</td><td><code>{layer: "feeling", confidence: 0.78}</code></td></tr>
+  <tr><td>S2 · plan</td><td>다음 어느 layer 로 갈지 결정 (선택 시기의 under-covered layer 우선)</td><td><code>{next_layer: "meaning", reason: "feeling 채워졌고 meaning 비어 있음"}</code></td></tr>
+  <tr><td>S3 · question</td><td>S2가 정한 next_layer 에 맞는 질문 한 줄 생성</td><td><code>"방금 그 감정이 당신한테 뭘 의미했어요?"</code></td></tr>
+</tbody>
+</table>
+
+<p style="margin-top:10px">실제 LLM 호출은 <strong>1번</strong>(비용·지연 절약). 프롬프트가 S1+S2+S3 한 번에 요청하되, 출력을 구조화 JSON 으로 받아 layer 분류와 질문을 분리. Coverage 누적은 결정론적 함수 — LLM은 layer 추정만, 점수 계산 안 함 (LLM-agnostic 원칙).</p>
+
+<h2><span class="num">06</span>"충분한 깊이" 종료 신호</h2>
+<p>20턴 hard cap 대신 <strong>품질 기반 종료 제안</strong>:</p>
+<ul>
+  <li>선택한 시기들의 5 layer 모두 1+턴 cover → "충분히 들어왔어요" 토스트 + "마무리할까요?" / "더 가겠어요" 선택지</li>
+  <li>선택한 시기 어느 layer가 3턴 이상 cover → "이 부분은 충분히 들었어요" 라벨</li>
+  <li>50턴 도달 → "메모리 보호 차원에서 곧 마무리할게요" 부드러운 캡 (저장 강제 X, 사용자가 명시 stop)</li>
+</ul>
+
+<h2><span class="num">07</span>구현 변경 영역</h2>
+<table>
+<thead><tr><th>영역</th><th>변경</th></tr></thead>
+<tbody>
+  <tr><td><code>src/lib/interview/probe.ts</code></td><td><code>DrillLayer</code> 타입 추가, <code>Coverage</code> 타입, <code>incrementCoverage</code>/<code>coverageStats</code>/<code>nextLayerSuggestion</code> 헬퍼, <code>nextProbe</code> 3-stage 확장</td></tr>
+  <tr><td><code>src/app/interview.tsx</code></td><td>multi-period 지원(<code>period: LifePeriod[]</code>), 20턴 cap 제거, DrillProgress 매트릭스 mount, turn 마다 layer 라벨</td></tr>
+  <tr><td><code>src/components/ui/DrillProgress.tsx</code> 신규</td><td>5×5 매트릭스 컴포넌트. 입력: <code>Coverage</code>. 출력: aria-labeled grid + glow 애니메이션</td></tr>
+  <tr><td><code>src/lib/interview/__tests__/probe.test.ts</code> 신규</td><td>coverage helpers + nextLayerSuggestion 우선순위 단위 테스트</td></tr>
+  <tr><td><code>locales/{en,ko}/interview.json</code> 신규</td><td>5 layer 라벨 + 진행도 메시지 — i18n parity (C7)</td></tr>
+</tbody>
+</table>
+
+<h2><span class="num">08</span>학술 근거 정리</h2>
+<div class="citation">
+  <span class="tag">narrative identity</span>
+  <span class="author">McAdams, D. P. (2001)</span> — Review of General Psychology · doi:10.1037/1089-2680.5.2.100 — 자기서사 회상은 scene → affect → meaning → belief → integration 순서로 깊어짐. <strong>repo: docs/research/batches/narrative-identity.md</strong>
+</div>
+
+<div class="citation">
+  <span class="tag">life-period anchoring</span>
+  <span class="author">Erikson, E. H. (1959)</span> — Identity and the Life Cycle · 8 life stages — 우리 5 period 그대로 매핑(childhood=1-2, teens=3-4, twenties=intimacy, thirties=generativity). <strong>repo: docs/research/batches/erikson.md</strong>
+</div>
+
+<div class="citation">
+  <span class="tag">emerging adulthood</span>
+  <span class="author">Arnett, J. J. (2000)</span> — American Psychologist · doi:10.1037/0003-066X.55.5.469 — 20대는 별도 발달 단계. 우리의 <code>twenties</code> period 분리 정당화. <strong>repo: docs/research/batches/emerging-adulthood.md</strong>
+</div>
+
+<div class="citation">
+  <span class="tag">attachment belief 형성</span>
+  <span class="author">Bowlby, J. (1969)</span> / Mikulincer & Shaver (2007) — childhood 시기 L4 BELIEF 가 가장 적층되는 시기. drill 알고리즘이 childhood × belief 칸을 가중. <strong>repo: docs/research/batches/attachment.md</strong>
+</div>
+
+<div class="citation">
+  <span class="tag">2-stage prompting</span>
+  <span class="author">Tam et al. (2024)</span> "Let Me Speak Freely" · arXiv:2408.02442 — JSON 강제 단일 stage 는 추론 품질 저하. 우리 3-stage 가 그 경고를 반영. (v0.3 시스템 개선 프롬프트 T1)
+</div>
+
+<h2><span class="num">09</span>C1-C12 영향 평가</h2>
+<table>
+<thead><tr><th>제약</th><th>위반?</th><th>설명</th></tr></thead>
+<tbody>
+  <tr><td>C1 LLM 경계</td><td>✅ 안전</td><td>nextProbe 는 callGemini 통해서만 호출 — gemini.ts 단일 경계 유지</td></tr>
+  <tr><td>C3 audit 로그</td><td>✅ 안전</td><td>callGemini 가 audit 로그 INSERT — 변경 없음</td></tr>
+  <tr><td>C7 i18n parity</td><td>✅ 안전</td><td>새 interview.json 의 en/ko 동시 추가, layer 라벨 매핑 동일</td></tr>
+  <tr><td>C8 출처-검증 pair</td><td>✅ 안전</td><td>설계 근거가 검증된 batches/ 파일 인용 (DOI 포함)</td></tr>
+  <tr><td>C9 classifier 우선</td><td>✅ 안전</td><td>nextProbe 안에서도 callGemini → classifyInput 자동 호출 (변경 없음)</td></tr>
+</tbody>
+</table>
+
+<h2><span class="num">10</span>의도적으로 안 하는 것</h2>
+<ul>
+  <li><strong>해석/조언 추가</strong> — drill은 elicit 만. Voice의 "당신보다 잘 안다" 경계(v0.3 프롬프트 T4) 준수.</li>
+  <li><strong>belief 자동 추출</strong> — L4 cell이 채워져도 LLM이 "당신의 belief는 X입니다" 같은 단정형 안 만듦. 사용자 자기 표현만.</li>
+  <li><strong>매트릭스 점수화</strong> — 25칸 채움률은 "진행 표시"일 뿐 "성과 점수" 아님. 100% 달성 reward 같은 게이미피케이션 X.</li>
+  <li><strong>cross-period 자동 인사이트</strong> — 다른 시기 답변을 연결하는 자동 분석은 /persona 의 일 (현재 turn 에서는 안 함).</li>
+</ul>
+
+<div class="footer">
+  소스: <a href="https://github.com/Simon-YHKim/2nd-B/blob/main/docs/research/batches/narrative-identity.md">narrative-identity batch</a> · <a href="https://github.com/Simon-YHKim/2nd-B/blob/main/src/lib/interview/probe.ts">probe.ts</a> · <a href="https://simon-yhkim.github.io/2nd-B/">라이브</a><br>
+  설계자: Claude · 2026-05-27 · 다음 단계: probe.ts 3-stage 확장 + DrillProgress 컴포넌트 + interview.tsx 매트릭스 mount
+</div>
+
+</div>
+</body>
+</html>
