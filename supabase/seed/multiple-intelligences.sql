@@ -1,0 +1,218 @@
+-- Multiple Intelligences (MI) — Gardner — verified knowledge sources
+-- Batch source: docs/research/batches/multiple-intelligences.md
+-- DOIs verified against Crossref / publisher record, May 2026. ISBN cited for foundational monographs.
+-- `verified_at = now()` set at insert; re-verify quarterly.
+-- 2nd-Brain treats MI as Tier C / contested. Use as vocabulary only, never as inference base.
+
+insert into public.knowledge_sources
+  (title, authors, doi, url, framework, age_range, locale,
+   verified_at, summary_ko, summary_en, application_notes)
+values
+  (
+    'Frames of Mind: The Theory of Multiple Intelligences',
+    ARRAY['Howard Gardner'],
+    NULL,
+    'https://www.basicbooks.com/titles/howard-gardner/frames-of-mind/9780465024339/',
+    'multiple_intelligences',
+    'lifespan',
+    'en',
+    now(),
+    '1983년 가드너가 제안한 다중지능 이론(MI)의 원전. 언어·논리수학·공간·신체운동·음악·대인·자기성찰·자연 8가지 지능. 신경심리학 사례, 천재/서번트 증거, 발달 자료, 문화인류학적 관찰의 종합으로 제안된 이론이며 요인분석 기반이 아니라는 점이 후속 비판의 핵심. ISBN 9780465024339.',
+    'Gardner''s 1983 foundational text proposing the eight intelligences (linguistic, logical-mathematical, spatial, bodily-kinesthetic, musical, interpersonal, intrapersonal, naturalist added 1995). Synthesised from neuropsychological case studies, savant evidence, developmental and cross-cultural observation — not from factor analysis. ISBN 9780465024339. Monograph — no DOI.',
+    'Cite as foundational source only. 2nd-Brain treats MI as Tier C — use as vocabulary, not as inference base.'
+  ),
+  (
+    'Intelligence Reframed: Multiple Intelligences for the 21st Century',
+    ARRAY['Howard Gardner'],
+    NULL,
+    'https://www.basicbooks.com/titles/howard-gardner/intelligence-reframed/9780465026111/',
+    'multiple_intelligences',
+    'lifespan',
+    'en',
+    now(),
+    '1999년 가드너의 후속작. 자연지능을 8번째로 공식 추가하고 존재지능을 "반쪽 지능"으로 제안. 초기 비판(특히 Klein 1997)에 대한 응답을 담음. ISBN 9780465026111.',
+    'Gardner''s 1999 update: formally adds naturalist as the 8th intelligence and floats existential as a "half" intelligence. Responds to early critics including Klein (1997). ISBN 9780465026111. Monograph — no DOI.',
+    'Use only when user references the 8-intelligence list including naturalist. Not a basis for inference.'
+  ),
+  (
+    'Multiple Intelligences: New Horizons in Theory and Practice',
+    ARRAY['Howard Gardner'],
+    NULL,
+    'https://www.basicbooks.com/titles/howard-gardner/multiple-intelligences/9780465047680/',
+    'multiple_intelligences',
+    'lifespan',
+    'en',
+    now(),
+    '2006년 개정판. 가드너 본인의 MI에 대한 가장 최근 정전 진술. 전 세계 교육 응용 사례를 조망하고 Waterhouse(2006) 비판에 간략히 응답. ISBN 9780465047680.',
+    'Most current statement of MI from Gardner himself (2006 revised edition); surveys global educational applications and engages (briefly) with Waterhouse (2006a, 2006b). ISBN 9780465047680. Monograph — no DOI.',
+    '가드너 본인의 최신 입장이 필요할 때만 인용. 비판 문헌과 균형 인용.'
+  ),
+  (
+    'Multiple Intelligences, the Mozart Effect, and Emotional Intelligence: A Critical Review',
+    ARRAY['Lynn Waterhouse'],
+    '10.1207/s15326985ep4104_1',
+    'https://doi.org/10.1207/s15326985ep4104_1',
+    'multiple_intelligences',
+    'lifespan',
+    'en',
+    now(),
+    '워터하우스(2006)의 다중지능 비판 종합. 23년간 MI를 독립된 지능 집합으로 입증한 peer-reviewed 연구가 없다고 결론. MI 기반 교육 개입의 증분 타당도 증거도 부재. Educational Psychologist 41(4), 207-225.',
+    'Waterhouse (2006) — the foundational critique. Concludes that across 23 years no peer-reviewed studies validated MI as independent intelligences, and MI-based educational interventions lack replicated outcome evidence. Educational Psychologist 41(4), 207-225.',
+    'Primary justification for 2nd-Brain treating MI as Tier C. Cite when explaining why we do not score MI.'
+  ),
+  (
+    'Inadequate Evidence for Multiple Intelligences, Mozart Effect, and Emotional Intelligence Theories',
+    ARRAY['Lynn Waterhouse'],
+    '10.1207/s15326985ep4104_5',
+    'https://doi.org/10.1207/s15326985ep4104_5',
+    'multiple_intelligences',
+    'lifespan',
+    'en',
+    now(),
+    '워터하우스(2006)의 동반 비판 논문. 같은 호 Gardner & Moran의 응답에 재반박. MI에 대한 누적적 증거 부재 주장을 강화.',
+    'Waterhouse (2006) companion piece; replies to Gardner & Moran''s defence in the same issue. Educational Psychologist 41(4), 247-255.',
+    'Cite alongside Waterhouse 2006a when reinforcing the empirical critique.'
+  ),
+  (
+    'Why multiple intelligences theory is a neuromyth',
+    ARRAY['Lynn Waterhouse'],
+    '10.3389/fpsyg.2023.1217288',
+    'https://doi.org/10.3389/fpsyg.2023.1217288',
+    'multiple_intelligences',
+    'lifespan',
+    'en',
+    now(),
+    '워터하우스(2023)의 갱신된 결론. MI는 (1) 신경학적 근거 부재, (2) 뇌의 모듈성 가정 반증, (3) 교육적 효과 입증 실패 — 셋이 모이면 "neuromyth"의 형식적 정의를 충족한다고 주장. 17년 전 비판의 업데이트.',
+    'Waterhouse (2023) updates the case 17 years later: MI now meets the formal definition of a neuromyth because (1) no neural correlates of the eight intelligences have been found, (2) the brain is not modularly organised as MI requires, and (3) MI-aligned education still lacks causal evidence. Frontiers in Psychology 14, 1217288.',
+    'Cite alongside Waterhouse 2006 when grounding the Tier C verdict. Critical for the "why we do not display MI" policy.'
+  ),
+  (
+    'Beyond g: Putting multiple intelligences theory to the test',
+    ARRAY['Beth A. Visser','Michael C. Ashton','Philip A. Vernon'],
+    '10.1016/j.intell.2006.02.004',
+    'https://doi.org/10.1016/j.intell.2006.02.004',
+    'multiple_intelligences',
+    'adult',
+    'en',
+    now(),
+    'Visser·Ashton·Vernon(2006). 가드너 기술에 따라 8개 지능 과제를 200명 성인에게 시행한 가장 널리 인용되는 직접 경험적 검증. 인지적 지능들은 강한 g 부하를 보였고 신체운동·음악만 약한 g 부하 — 8개 독립 지능 구조는 회복되지 않음. MI는 "g 포화 인지 핵심 + 비인지 능력 일부"로 가장 잘 묘사된다는 결론.',
+    'Visser, Ashton & Vernon (2006). The most-cited direct empirical test of MI as a structural model. N=200 adults; tasks built per Gardner''s descriptions. Cognitive intelligences loaded heavily on a single g factor; only bodily-kinesthetic and musical loaded weakly on g but still failed to form clean independent factors. Intelligence 34(5), 487-502.',
+    'Cite when explaining why Engine 2 does not emit MI dimensions. Pair with Castejón et al. (2010) for the developmental sample replication.'
+  ),
+  (
+    'Multiplying the problems of intelligence by eight: A critique of Gardner''s theory',
+    ARRAY['Perry D. Klein'],
+    '10.2307/1585790',
+    'https://doi.org/10.2307/1585790',
+    'multiple_intelligences',
+    'lifespan',
+    'en',
+    now(),
+    'Klein(1997). MI의 "약한 버전"(재능은 다양하다)은 자명하지만 사소하고, "강한 버전"(8개 독립 모듈)은 가드너가 제시한 사례 기반 증거로 뒷받침되지 않는다고 주장. 철학적·방법론적 비판의 고전. Canadian Journal of Education 22(4), 377-394.',
+    'Klein (1997). Argues that MI''s "weak" version (talents differ) is trivially true but the "strong" version (eight independent modular intelligences) is not supported by Gardner''s case-based evidence. Foundational philosophical critique. Canadian Journal of Education 22(4), 377-394.',
+    'Cite when a user asks "what''s wrong with MI as science?" Use alongside White (2008) for the philosophical case.'
+  ),
+  (
+    'Illusory intelligences?',
+    ARRAY['John White'],
+    '10.1111/j.1467-9752.2008.00643.x',
+    'https://doi.org/10.1111/j.1467-9752.2008.00643.x',
+    'multiple_intelligences',
+    'lifespan',
+    'en',
+    now(),
+    'White(2008). 가드너의 8개 지능 선정 기준이 일관되지 않고 역사적·교육이념적으로 선택된 것이라고 분석. MI는 과학 분류라기보다 교육 이데올로기에 가깝다고 결론. Journal of Philosophy of Education 42(3-4), 611-630.',
+    'White (2008). Argues Gardner''s criteria for designating an "intelligence" are criterion-shifting and historically contingent; MI operates more like a moral/educational ideology than a scientific taxonomy. Journal of Philosophy of Education 42(3-4), 611-630.',
+    'Use to ground the "why we don''t reify intelligences as categories" advisor script.'
+  ),
+  (
+    'Neuromythologies in education',
+    ARRAY['John Geake'],
+    '10.1080/00131880802082518',
+    'https://doi.org/10.1080/00131880802082518',
+    'multiple_intelligences',
+    'lifespan',
+    'en',
+    now(),
+    'Geake(2008). MI를 "뇌의 10% 활용설", "좌뇌·우뇌 학습설", "VAK 학습 스타일"과 함께 교사 사이에 끈질기게 존속하는 neuromyth로 분류. Educational Research 50(2), 123-133.',
+    'Geake (2008). Classes MI alongside the 10%-brain myth, left-/right-brain learning, and VAK learning styles as neuromyths persistently held by teachers. Educational Research 50(2), 123-133.',
+    'Cite when discussing why MI persists in education despite weak evidence.'
+  ),
+  (
+    'Confirmatory factor analysis of Project Spectrum activities. A second-order g factor or multiple intelligences?',
+    ARRAY['Juan L. Castejón','Antonio M. Pérez','Raquel Gilar'],
+    '10.1016/j.intell.2010.07.002',
+    'https://doi.org/10.1016/j.intell.2010.07.002',
+    'multiple_intelligences',
+    'child',
+    'en',
+    now(),
+    'Castejón 외(2010). 가드너 본인의 Project Spectrum 과제(N=393 아동)로 MI 구조를 검증. 어떤 모형도 충분히 적합하지 않았고 가장 잘 맞은 모형은 1차 지능 + 강한 2차 g 모형 — MI 과제들은 CHC 식 g의 facet에 가깝다는 결론. Intelligence 38(5), 481-496.',
+    'Castejón, Pérez & Gilar (2010). Uses Gardner''s own Project Spectrum tasks in N=393 children. No model achieved fully satisfactory fit. Best-fitting model recovered first-order intelligences with a strong second-order g — i.e., MI tasks measure facets of CHC-style g, not independent intelligences. Intelligence 38(5), 481-496.',
+    'Cite as developmental-sample replication of Visser et al. (2006). Strong evidence that MI tasks reduce to g + a few extras even in children.'
+  ),
+  (
+    'Intelligence assessment: Gardner multiple intelligence theory as an alternative',
+    ARRAY['Leandro S. Almeida','María D. Prieto','Aristides I. Ferreira','María R. Bermejo','Mercedes Ferrando','Carmen Ferrándiz'],
+    '10.1016/j.lindif.2009.12.010',
+    'https://doi.org/10.1016/j.lindif.2009.12.010',
+    'multiple_intelligences',
+    'child',
+    'en',
+    now(),
+    'Almeida 외(2010). 이베리아 아동 표본에서 MI식 과제는 전통 IQ 과제와 다소 구분되지만 여전히 단일 일반 인지요인으로 수렴 — Visser 결과 재현. Learning and Individual Differences 20(3), 225-230.',
+    'Almeida et al. (2010). Iberian child sample. MI-style tasks differentiate somewhat from classic IQ items but still converge into a general cognitive factor — replicating Visser et al. (2006). Learning and Individual Differences 20(3), 225-230.',
+    'Secondary replication citation. Use when stronger Visser/Castejón anchors already cited.'
+  ),
+  (
+    'Psychometric Properties of Chinese Version of the Multiple Intelligence Scale (MIS) Among Older Adults: Rasch Analysis and Confirmatory Factor Analysis',
+    ARRAY['Tzu-Yu Lin','Fang-Wen Hu','Hao-Ming Li','Mark D. Griffiths','Amir H. Papour','I-Hua Chen','Chung-Ying Lin'],
+    '10.1177/07334648241313002',
+    'https://doi.org/10.1177/07334648241313002',
+    'multiple_intelligences',
+    'elderly',
+    'en',
+    now(),
+    'Lin 외(2025). 중국 노인 대상 자기보고식 8영역 MI 척도 검증. Rasch 분석과 확인적 요인분석에서 영역별 내적 일관성은 수용 가능하나, "자기지각된 지능"을 측정할 뿐 능력 측정 검증은 아님 — 구조적 질문은 해결되지 않음.',
+    'Lin et al. (2025). Rasch analysis of an 8-domain self-report MI scale in Chinese older adults. Reports acceptable internal consistency per domain but does not — and cannot — settle the structural question; self-report MI scales reliably measure self-perceived intelligence, a different construct from ability. Journal of Applied Gerontology.',
+    'Cite as caution: self-report MI scales measure perception, not ability. Useful for older-adult locale conversations.'
+  ),
+  (
+    'The Persistence of Neuromyths in the Educational Settings: A Systematic Review',
+    ARRAY['Marta Torrijos-Muelas','Sixto González-Víllora','Ana Rosa Bodoque-Osma'],
+    '10.3389/fpsyg.2020.591923',
+    'https://doi.org/10.3389/fpsyg.2020.591923',
+    'multiple_intelligences',
+    'lifespan',
+    'en',
+    now(),
+    'Torrijos-Muelas 외(2021). 교사 신념에 관한 24개 연구의 체계적 고찰. 15개국 교사 70% 이상이 MI/VAK/학습스타일 같은 neuromyth를 여전히 지지함을 보고. Frontiers in Psychology 11, 591923.',
+    'Torrijos-Muelas et al. (2021). Systematic review of 24 studies of teacher beliefs in neuromyths. 70%+ of educators across 15 countries still endorse MI/VAK/learning-styles myths. Frontiers in Psychology 11, 591923.',
+    'Cite when discussing why Korean and other users arrive at 2nd-Brain already believing MI is settled science.'
+  ),
+  (
+    'CHC theory and the human cognitive abilities project: Standing on the shoulders of the giants of psychometric intelligence research',
+    ARRAY['Kevin S. McGrew'],
+    '10.1016/j.intell.2008.08.004',
+    'https://doi.org/10.1016/j.intell.2008.08.004',
+    'multiple_intelligences',
+    'lifespan',
+    'en',
+    now(),
+    'McGrew(2009). MI의 실질적 대안인 CHC(Cattell-Horn-Carroll) 이론 정리. g 요인 + 10여 개 broad ability + 70여 narrow ability의 다층 구조이며 WAIS-IV, WISC-V, Stanford-Binet 5 등 주요 검사의 이론적 토대. MI 비판의 대조항으로 인용.',
+    'McGrew (2009). The CHC (Cattell-Horn-Carroll) model — the actual incumbent paradigm in cognitive ability research. Multi-stratum: g, ~10 broad abilities, 70+ narrow abilities. Backed by decades of factor-analytic studies and the basis for WAIS-IV, WISC-V, Stanford-Binet 5, Woodcock-Johnson. Intelligence 37(1), 1-10.',
+    'Anchor citation when users ask "if not MI, then what?" CHC is the answer to that question.'
+  ),
+  (
+    '한국형 다중지능 진단도구의 타당화 [Validation of a Korean Multiple Intelligences Diagnostic Tool]',
+    ARRAY['문용린','유경재'],
+    NULL,
+    'https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001379769',
+    'multiple_intelligences',
+    'child',
+    'ko',
+    now(),
+    '문용린·유경재(2009). 유아부터 고등학생까지 다섯 단계로 구성된 한국형 MI 진단도구 개발. 객관식·진위형·자기보고 Likert를 혼합. 영역별 내적 일관성은 보고되었으나 8개 영역의 독립성에 대한 요인분석 확증은 제시되지 않음. 교육심리연구 23(3), 645-663. KCI: ART001379769. DOI 미부여.',
+    'Moon Yong-lin & Yu Kyung-jae (2009). Develops five age-graded Korean MI diagnostic tools (preschool → high school) using mixed item formats. Reports adequate subscale internal consistency but does not confirm independence of the 8 domains via factor analysis. Korean Journal of Educational Psychology 23(3), 645-663. KCI: ART001379769. No DOI assigned.',
+    'Cite when explaining Korean K-12 MI adoption context. Note: no DOI; cite via KCI. Same structural validity gap as international literature.'
+  );
