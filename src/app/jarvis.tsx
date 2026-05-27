@@ -1,12 +1,20 @@
-// Jarvis chat screen. Per handoff v3 §4.B — preview of how RAG transforms
-// the experience. Calls into the single Gemini wrapper (so C1/C3/C9 hold)
-// and pulls a compact wiki snapshot as system context.
+// 세컨비 chat screen (formerly "Jarvis"). Per handoff v3 §4.B —
+// preview of how RAG transforms the experience. Calls into the single
+// Gemini wrapper (so C1/C3/C9 hold) and pulls a compact wiki snapshot
+// as system context.
 //
 // State lives in component-local memory; no chat-history persistence in v1.
 // The chat_usage daily counter (server-side) is the persistent surface.
+//
+// 2026-05-27 (user directive):
+//   - Renamed Jarvis → "세컨비" / "2ndB" (locale-routed via jarvis.json).
+//   - "What I'm good at" card moved out of the chat panel into a
+//     one-time intro modal with [알았어요 / 오늘은 그만 볼래요]
+//     buttons. The modal is dismissed via localStorage so it doesn't
+//     reappear every session.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable } from "react-native";
+import { Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
@@ -27,6 +35,34 @@ interface ChatTurn {
   text: string;
 }
 
+const INTRO_DISMISS_KEY = "secondB_intro_dismissed_v1";
+
+function readIntroDismissed(): "off" | "today" | "permanent" {
+  try {
+    if (typeof localStorage === "undefined") return "off";
+    const v = localStorage.getItem(INTRO_DISMISS_KEY);
+    if (v === "permanent") return "permanent";
+    if (v && v.startsWith("today:")) {
+      const day = v.slice("today:".length);
+      const today = new Date().toISOString().slice(0, 10);
+      if (day === today) return "today";
+    }
+    return "off";
+  } catch {
+    return "off";
+  }
+}
+
+function writeIntroDismissed(kind: "today" | "permanent"): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    const v = kind === "permanent" ? "permanent" : `today:${new Date().toISOString().slice(0, 10)}`;
+    localStorage.setItem(INTRO_DISMISS_KEY, v);
+  } catch {
+    // ignore — private mode, native
+  }
+}
+
 export default function Jarvis() {
   const { t, i18n } = useTranslation("jarvis");
   const { userId, loading: authLoading } = useAuth();
@@ -37,9 +73,15 @@ export default function Jarvis() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [usedToday, setUsedToday] = useState<number | null>(null);
+  const [introOpen, setIntroOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const limit = useMemo(() => CHAT_DAILY_LIMIT[progression.tier], [progression.tier]);
+
+  useEffect(() => {
+    // Intro modal opens on first entry only — guarded by localStorage.
+    if (readIntroDismissed() === "off") setIntroOpen(true);
+  }, []);
 
   useEffect(() => {
     if (!userId) return;
@@ -98,9 +140,9 @@ export default function Jarvis() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Pressable onPress={() => router.replace("/journal")} hitSlop={6}>
+            <Pressable onPress={() => router.push("/")} hitSlop={6}>
               <Text variant="caption" color="brand">
-                ← 2nd-Brain
+                {locale === "ko" ? "← 네비게이터" : "← Navigator"}
               </Text>
             </Pressable>
             <Text variant="heading">{t("title")}</Text>
@@ -139,16 +181,6 @@ export default function Jarvis() {
               <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
                 {t("empty")}
               </Text>
-              <View style={styles.helpCard}>
-                <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
-                  {locale === "ko" ? "자비스가 잘하는 것" : "What Jarvis is good at"}
-                </Text>
-                <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
-                  {locale === "ko"
-                    ? "· 당신의 위키 페이지를 컨텍스트로 답합니다 — 답에 [[페이지 슬러그]]가 인용돼요\n· '최근 한 달 캡처에서 반복되는 패턴은?' 같은 메타 질문에 강해요\n· 일일 한도는 등급별 (무료 5 · Soma 30 · Cortex 80 · Brain 250), KST 자정 리셋"
-                    : "· Answers using your own wiki pages as context — replies cite [[page-slug]]\n· Strong on meta questions like 'what patterns recur in my captures this month?'\n· Daily limit by tier (free 5 · Soma 30 · Cortex 80 · Brain 250), resets at midnight KST"}
-                </Text>
-              </View>
             </View>
           ) : (
             turns.map((turn, i) => (
@@ -201,6 +233,38 @@ export default function Jarvis() {
         </View>
         <AppNav locale={locale} />
       </KeyboardAvoidingView>
+
+      {/* 첫 진입 인사 모달 — 알았어요 / 오늘은 그만 볼래요 */}
+      <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setIntroOpen(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+              {t("intro_title")}
+            </Text>
+            <Text variant="body" color="text" style={{ marginTop: spacing.sm, lineHeight: 20 }}>
+              {t("intro_body")}
+            </Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => { writeIntroDismissed("today"); setIntroOpen(false); }}
+                style={[styles.modalBtn, styles.modalBtnSecondary]}
+                hitSlop={4}
+              >
+                <Text variant="body" color="textMuted">{t("intro_mute")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { setIntroOpen(false); }}
+                style={[styles.modalBtn, styles.modalBtnPrimary]}
+                hitSlop={4}
+              >
+                <Text variant="body" color="background" style={{ fontWeight: "700" }}>
+                  {t("intro_ok")}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
@@ -219,14 +283,35 @@ const styles = StyleSheet.create({
   meter: { alignItems: "flex-end", gap: 2 },
   scroll: { paddingVertical: spacing.md, gap: spacing.sm },
   empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },
-  helpCard: {
-    backgroundColor: semantic.surfaceAlt,
-    borderRadius: radii.sm,
-    borderLeftColor: semantic.brand,
-    borderLeftWidth: 3,
-    padding: spacing.sm,
-    alignSelf: "stretch",
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(8, 12, 24, 0.78)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.lg,
   },
+  modalCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    maxWidth: 420,
+    width: "100%",
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    justifyContent: "flex-end",
+  },
+  modalBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.sm,
+  },
+  modalBtnPrimary: { backgroundColor: semantic.brand },
+  modalBtnSecondary: { backgroundColor: "transparent" },
   bubbleRow: { flexDirection: "row" },
   userRow: { justifyContent: "flex-end" },
   jarvisRow: { justifyContent: "flex-start" },

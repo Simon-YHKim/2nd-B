@@ -57,6 +57,14 @@ const AnimatedLine = Animated.createAnimatedComponent(Line);
 // overshoot is small (1.25x → 1.0x, ~400ms total) so it stays inside
 // the tight, controlled feel of the rest of the design.
 const SPAWN_LOGO_DELAY_MS = 620;     // logo fade is ~750ms; start when it's mostly faded
+const SPAWN_SESSION_KEY = "navGraphSpawned_v1";
+// Ambient pulse interval — was 4000ms before, user asked for ~30% faster
+// so the dots feel a touch more "breathing" without becoming jittery.
+const PULSE_INTERVAL_MS = 2800;
+// Bubble pop-in (말풍선 뽁) per user (2026-05-27): same overshoot feel as
+// the node spawn so the bubble feels emitted from the node.
+const BUBBLE_POP_OVERSHOOT_MS = 160;
+const BUBBLE_POP_SETTLE_MS = 200;
 const SPAWN_STAGGER_HIGH_TIER_MS = 130;
 const SPAWN_STAGGER_TIER4_MS = 35;
 const SPAWN_TIER_GAP_MS = 110;
@@ -100,36 +108,36 @@ export const MENU_NODES: readonly NavNode[] = [
   // Tier 2 — three pillars of the profile
   { id: "now", tier: 2, parentId: "core", href: "/trinity",
     label: { en: "Present me", ko: "현재의 나" },
-    description: { en: "Brain Trinity: Health · App · Brain · Finance.", ko: "Brain Trinity: 건강 · 앱 · 뇌 · 재정." } },
+    description: { en: "Today's you — health, app, brain, finance.", ko: "오늘의 당신 — 건강·앱·뇌·재정." } },
   { id: "past", tier: 2, parentId: "core", href: "/interview",
     label: { en: "Past me", ko: "과거의 나" },
-    description: { en: "Drill chat that goes deeper each turn.", ko: "꼬리에 꼬리를 무는 드릴 챗." } },
+    description: { en: "Walk back through your chapters together.", ko: "지난 챕터들을 함께 되짚어요." } },
   { id: "wiki", tier: 2, parentId: "core", href: "/wiki", bubbleAction: "upload",
     label: { en: "Wiki", ko: "Wiki" },
-    description: { en: "Your personal knowledge web.", ko: "당신의 지식 그물 — 자료/메모/링크를 올리면 정리돼요." } },
+    description: { en: "Your knowledge — drop anything in.", ko: "당신의 지식 — 뭐든 던지면 우리가 정리해 둘게요." } },
 
   // Tier 3 — children of present/past/wiki
   { id: "wiki-daily", tier: 3, parentId: "wiki", href: "/wiki",
     label: { en: "Daily Wiki", ko: "일상 Wiki" },
-    description: { en: "Everyday notes, captures, scraps.", ko: "일상 기록 · 이메일 · 스크랩 · 캡쳐 OCR · 기타 문서." } },
+    description: { en: "Everyday notes and captures.", ko: "일상의 메모와 자료." } },
   { id: "wiki-pro", tier: 3, parentId: "wiki", href: "/wiki",
     label: { en: "Pro Wiki", ko: "Pro Wiki" },
-    description: { en: "Career-related references.", ko: "전문 기록 · 전문 이메일 · 전문 스크랩 · 전문 OCR · 별도 문서." } },
+    description: { en: "Career-side references.", ko: "일·전문 쪽 자료." } },
   { id: "past-childhood", tier: 3, parentId: "past", href: "/interview",
     label: { en: "Childhood", ko: "유년기" },
-    description: { en: "Under-12 chapter.", ko: "12세 이전 챕터의 드릴 인터뷰." } },
+    description: { en: "Before 12.", ko: "12세 이전." } },
   { id: "past-teens", tier: 3, parentId: "past", href: "/interview",
     label: { en: "Teens", ko: "10대" },
-    description: { en: "12–19 chapter.", ko: "12–19세 챕터의 드릴 인터뷰." } },
+    description: { en: "12–19.", ko: "12–19세." } },
   { id: "past-twenties", tier: 3, parentId: "past", href: "/interview",
     label: { en: "Twenties", ko: "20대" },
-    description: { en: "20–29 chapter.", ko: "20–29세 챕터의 드릴 인터뷰." } },
+    description: { en: "20–29.", ko: "20–29세." } },
   { id: "past-thirties", tier: 3, parentId: "past", href: "/interview",
     label: { en: "Thirties", ko: "30대" },
-    description: { en: "30–39 chapter.", ko: "30–39세 챕터의 드릴 인터뷰." } },
+    description: { en: "30–39.", ko: "30–39세." } },
   { id: "insights", tier: 3, parentId: "now", href: "/insights",
     label: { en: "Insights", ko: "인사이트" },
-    description: { en: "Patterns surfaced from your records.", ko: "기록에서 떠오른 패턴." } },
+    description: { en: "Patterns we noticed.", ko: "우리가 알아챈 패턴." } },
 ] as const;
 
 export const CENTER_NODE: NavNode = {
@@ -137,18 +145,23 @@ export const CENTER_NODE: NavNode = {
   tier: 1,
   href: "/persona",
   bubbleAction: "jarvis",
-  label: { en: "2nd Brain", ko: "두 번째 뇌" },
+  label: { en: "Core Brain", ko: "코어 브레인" },
+  // Core Brain speaks as the team's voice — calm, plural ("우리 / we"),
+  // owns the cells. Surface this everywhere the user lands first.
   description: {
-    en: "The accumulated profile — how the AI understands you so far.",
-    ko: "지금까지 AI가 이해한 당신의 종합 프로필.",
+    en: "I'm Core Brain. The cells and I keep track of who you are. Tap 💬 to talk to me.",
+    ko: "코어 브레인이에요. 세포들과 함께 당신을 정리해 두고 있어요. 💬 누르시면 대화해요.",
   },
 };
 
 function tierTone(t: Tier): string {
-  if (t === 1) return darkSky.brand;      // electric blue, brightest
-  if (t === 2) return darkSky.accent;     // softer sky
-  if (t === 3) return "#9BA8D4";          // indigo-tinted blue
-  return "rgba(127,179,244,0.65)";        // tier 4 is faint
+  // Per user (2026-05-27): subtle hue separation so tiers feel
+  // distinct without breaking the dark-sky monotone. Kept all four
+  // inside the cyan→indigo arc so DESIGN.md's 3-color rule holds.
+  if (t === 1) return darkSky.brand;        // electric cyan-blue, brightest core
+  if (t === 2) return "#7BCBFF";            // sky blue
+  if (t === 3) return "#A8A4E0";            // soft indigo
+  return "rgba(180,170,235,0.6)";           // faint lilac for tier 4 specks
 }
 
 function tierSize(t: Tier): number {
@@ -265,24 +278,46 @@ export function NavGraph({ locale, dataNodes }: Props) {
     const ids = [CENTER_NODE.id, ...MENU_NODES.map((n) => n.id), ...Array.from(dataPositions.keys())];
     for (const id of ids) {
       if (!driftValues.current.has(id)) {
-        const v = new Animated.Value(seeded(id, 5));
+        // Seamless drift loop. Previously the value swung 0↔1↔0 via a
+        // 2-step sequence, but the seeded starting value (0..1) meant
+        // the first cycle began mid-curve and the loop re-entry from
+        // 0 back to 0 of the next cycle could jerk visibly. The fix:
+        //   - single linear 0→1 loop (no sequence, no rebound)
+        //   - cosine/sine output ranges where input 0 and input 1 map
+        //     to the SAME output value, so loop wrap is continuous
+        //   - X uses cosine, Y uses sine with phase offset → soft
+        //     lissajous figure instead of a back-and-forth line
+        const v = new Animated.Value(0);
         driftValues.current.set(id, v);
-        const duration = 9000 + seeded(id, 6) * 4000;
+        const duration = 14000 + seeded(id, 6) * 6000; // 14–20s per cycle, gentler than before
         Animated.loop(
-          Animated.sequence([
-            Animated.timing(v, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-            Animated.timing(v, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-          ]),
+          Animated.timing(v, { toValue: 1, duration, easing: Easing.linear, useNativeDriver: false }),
         ).start();
+        // 9-point cosine/sine table — input 0 and input 1 are exactly
+        // equal so the loop's wrap-around is invisible.
+        const amp = 5 + seeded(id, 7) * 2; // 5..7 px sway
+        const phase = seeded(id, 8) * Math.PI * 2;
+        const cosTable = (offset: number) => {
+          const pts = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(
+            (i) => Math.cos((i / 8) * Math.PI * 2 + offset) * amp,
+          );
+          return {
+            inputRange: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1],
+            outputRange: pts,
+          };
+        };
+        const sinTable = (offset: number) => {
+          const pts = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(
+            (i) => Math.sin((i / 8) * Math.PI * 2 + offset) * (amp * 0.7),
+          );
+          return {
+            inputRange: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1],
+            outputRange: pts,
+          };
+        };
         swayRef.current.set(id, {
-          sx: v.interpolate({
-            inputRange: [0, 0.25, 0.5, 0.75, 1],
-            outputRange: [0, 6, 0, -6, 0],
-          }),
-          sy: v.interpolate({
-            inputRange: [0, 0.25, 0.5, 0.75, 1],
-            outputRange: [0, -4, -7, -4, 0],
-          }),
+          sx: v.interpolate(cosTable(phase)),
+          sy: v.interpolate(sinTable(phase + Math.PI / 3)),
         });
       }
       if (!pulseValues.current.has(id)) {
@@ -293,14 +328,37 @@ export function NavGraph({ locale, dataNodes }: Props) {
 
   // Spawn sequence — tier 1 → 2 → 3 → 4, randomized within each tier.
   // Each node: play "뽁!" pop sound + scale 0 → 1.25 → 1.0 + opacity 0 → 1.
-  // Initializes spawn anims at 0 on first run so nodes start hidden.
+  //
+  // Session guard (2026-05-27 bug fix): playing the full pop sequence
+  // every time the user re-navigates back to "/" — e.g. coming back
+  // from /jarvis or /capture — meant the cells popped & beeped on
+  // every return. Now we mark the sequence as played in sessionStorage
+  // for the rest of the tab session; subsequent mounts snap straight
+  // to the settled state with no audio.
   useEffect(() => {
     const allIds = [CENTER_NODE.id, ...MENU_NODES.map((n) => n.id), ...Array.from(dataPositions.keys())];
+    let alreadyPlayed = false;
+    try {
+      if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(SPAWN_SESSION_KEY) === "1") {
+        alreadyPlayed = true;
+      }
+    } catch { /* ignore — Private mode, native, etc. */ }
+
     for (const id of allIds) {
       if (!spawnValues.current.has(id)) {
-        spawnValues.current.set(id, new Animated.Value(0));
+        spawnValues.current.set(id, new Animated.Value(alreadyPlayed ? 1 : 0));
+      } else if (alreadyPlayed) {
+        spawnValues.current.get(id)!.setValue(1);
       }
     }
+
+    if (alreadyPlayed) {
+      // Snap visible: mark every id as spawned (drives edges) and skip
+      // the queue/audio entirely.
+      setSpawnedIds(new Set(allIds));
+      return;
+    }
+
     let cancelled = false;
     const run = async () => {
       await delay(SPAWN_LOGO_DELAY_MS);
@@ -335,6 +393,9 @@ export function NavGraph({ locale, dataNodes }: Props) {
         }
         await delay(SPAWN_TIER_GAP_MS);
       }
+      if (!cancelled) {
+        try { sessionStorage.setItem(SPAWN_SESSION_KEY, "1"); } catch { /* ignore */ }
+      }
     };
     void run();
     return () => { cancelled = true; };
@@ -345,9 +406,27 @@ export function NavGraph({ locale, dataNodes }: Props) {
 
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // Bubble pop-in anim — 0 (hidden) → 1.2 (overshoot) → 1.0 (settled).
+  // Re-triggered whenever activeId switches to a non-null value, so
+  // tapping a different node makes the new bubble pop in.
+  const bubbleAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (activeId == null) {
+      bubbleAnim.setValue(0);
+      return;
+    }
+    bubbleAnim.setValue(0);
+    playPop(pitchForTier(2), 0.14);
+    Animated.sequence([
+      Animated.timing(bubbleAnim, { toValue: 1.2, duration: BUBBLE_POP_OVERSHOOT_MS, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+      Animated.timing(bubbleAnim, { toValue: 1.0, duration: BUBBLE_POP_SETTLE_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+    ]).start();
+  }, [activeId, bubbleAnim]);
+
   useEffect(() => {
     const id = setInterval(() => {
       // Pulse a random tier-2 or tier-3 node, skipping the active one.
+      // Interval shortened ~30% per user (2026-05-27).
       const candidates = MENU_NODES.filter((n) => n.id !== activeId);
       const pick = candidates[Math.floor(Math.random() * candidates.length)];
       if (!pick) return;
@@ -357,7 +436,7 @@ export function NavGraph({ locale, dataNodes }: Props) {
         Animated.timing(v, { toValue: 1.18, duration: 280, easing: Easing.out(Easing.quad), useNativeDriver: false }),
         Animated.timing(v, { toValue: 1.0, duration: 360, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
       ]).start();
-    }, 4000);
+    }, PULSE_INTERVAL_MS);
     return () => clearInterval(id);
   }, [activeId]);
 
@@ -567,12 +646,14 @@ export function NavGraph({ locale, dataNodes }: Props) {
 
       {/* Bubble */}
       {activeNode && activeBase ? (
-        <View
+        <Animated.View
           style={[
             styles.bubble,
             {
               left: Math.max(16, Math.min(width - 16 - 260, activeBase.x - 130)),
               top: activeBase.y > cy ? activeBase.y - 150 : activeBase.y + 30,
+              opacity: bubbleAnim.interpolate({ inputRange: [0, 0.5, 1.2], outputRange: [0, 1, 1] }) as never,
+              transform: [{ scale: bubbleAnim }] as never,
             },
           ]}
           pointerEvents="box-none"
@@ -609,7 +690,7 @@ export function NavGraph({ locale, dataNodes }: Props) {
               </Pressable>
             </View>
           </View>
-        </View>
+        </Animated.View>
       ) : null}
     </View>
   );
