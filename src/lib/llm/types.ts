@@ -9,7 +9,9 @@ export type PromptPurpose =
   | "persona_chat"
   | "advisor"
   | "jarvis_chat"
-  | "interview_probe";
+  | "interview_probe"
+  | "capture_ocr"
+  | "capture_classify";
 
 export interface AdvisorInput {
   userId: string;
@@ -39,6 +41,10 @@ export interface PromptInput {
   model?: GeminiModel;
   // When provided, response is constrained to this JSON schema (Gemini structured output).
   responseSchema?: Record<string, unknown>;
+  // Optional inline image for multimodal prompts (OCR, vision). Base64 *only*,
+  // no `data:` URL prefix. Mime allowlist + size cap enforced server-side by
+  // the gemini-proxy Edge Function.
+  image?: { mimeType: string; data: string };
 }
 
 export interface AuditMeta {
