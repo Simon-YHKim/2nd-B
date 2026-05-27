@@ -52,8 +52,8 @@ export default function Persona() {
           </Text>
           <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
             {locale === "ko"
-              ? "5문항 라이프 오딧을 마치면 자기 모델 v1이 만들어집니다."
-              : "Complete the 5-question life audit to generate self-model v1."}
+              ? "5문항 과거의 나을 마치면 자기 모델 v1이 만들어집니다."
+              : "Complete the 5-question past me to generate self-model v1."}
           </Text>
           <View style={styles.emptyActions}>
             <Button

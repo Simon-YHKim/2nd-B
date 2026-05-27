@@ -40,7 +40,7 @@ export default function NotFound() {
           </Link>
           <Link href="/audit" style={styles.destinationLink}>
             <Text variant="body" color="brand">
-              {locale === "ko" ? "라이프 오딧" : "Life audit"}
+              {locale === "ko" ? "과거의 나" : "Past me"}
             </Text>
           </Link>
           <Link href="/persona" style={styles.destinationLink}>

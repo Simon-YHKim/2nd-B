@@ -78,7 +78,7 @@ export default function Audit() {
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
-              {locale === "ko" ? "라이프 오딧 — 시기 선택" : "Life audit — choose a period"}
+              {locale === "ko" ? "과거의 나 — 시기 선택" : "Past me — choose a period"}
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
               {locale === "ko"
@@ -121,7 +121,7 @@ export default function Audit() {
             </Text>
           </View>
           <Text variant="heading" style={{ marginTop: spacing.md, textAlign: "center" }}>
-            {locale === "ko" ? "라이프 오딧을 마쳤어요" : "Audit complete"}
+            {locale === "ko" ? "과거의 나 인터뷰를 마쳤어요" : "Past me complete"}
           </Text>
           <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.sm }}>
             {locale === "ko"
@@ -151,7 +151,7 @@ export default function Audit() {
         {index === 0 ? (
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
-              {locale === "ko" ? "라이프 오딧 — 자기 인터뷰" : "Life audit — self interview"}
+              {locale === "ko" ? "과거의 나 — 자기 인터뷰" : "Past me — self interview"}
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
               {locale === "ko"

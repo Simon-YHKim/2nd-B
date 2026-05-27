@@ -1,5 +1,7 @@
 import { Pressable, type PressableProps, StyleSheet } from "react-native";
-import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
+
+import { radii, spacing, typography } from "@/lib/theme/tokens";
+import { useThemePalette } from "@/lib/theme/ThemeContext";
 import { Text } from "./Text";
 
 type Variant = "primary" | "secondary" | "danger";
@@ -10,31 +12,32 @@ export interface ButtonProps extends Omit<PressableProps, "children"> {
   loading?: boolean;
 }
 
-const BG: Record<Variant, string> = {
-  primary: semantic.brand,
-  secondary: semantic.surfaceAlt,
-  danger: semantic.danger,
-};
-
-const FG: Record<Variant, string> = {
-  primary: semantic.background,
-  secondary: semantic.text,
-  danger: "#ffffff",
-};
-
 export function Button({ label, variant = "primary", loading, disabled, style, ...rest }: ButtonProps) {
+  const palette = useThemePalette();
   const isDisabled = disabled || loading;
+  // Same variants, but the bg/fg colours track the active theme so a
+  // light-mode primary stays high-contrast on the light background.
+  const bg: Record<Variant, string> = {
+    primary: palette.brand,
+    secondary: palette.surfaceAlt,
+    danger: palette.danger,
+  };
+  const fg: Record<Variant, string> = {
+    primary: palette.background,
+    secondary: palette.text,
+    danger: "#ffffff",
+  };
   return (
     <Pressable
       {...rest}
       disabled={isDisabled}
       style={[
         styles.base,
-        { backgroundColor: BG[variant], opacity: isDisabled ? 0.5 : 1 },
-        style as any,
+        { backgroundColor: bg[variant], opacity: isDisabled ? 0.5 : 1 },
+        style as never,
       ]}
     >
-      <Text style={{ color: FG[variant], fontSize: typography.sizes.md, fontWeight: "600" }}>
+      <Text style={{ color: fg[variant], fontSize: typography.sizes.md, fontWeight: "600" }}>
         {loading ? "…" : label}
       </Text>
     </Pressable>

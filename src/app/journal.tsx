@@ -205,7 +205,7 @@ export default function Journal() {
             <Button label={locale === "ko" ? "안내" : "Manual"} variant="secondary" />
           </Link>
           <Link href="/audit" asChild>
-            <Button label={locale === "ko" ? "라이프 오딧" : "Life audit"} variant="secondary" />
+            <Button label={locale === "ko" ? "과거의 나" : "Past me"} variant="secondary" />
           </Link>
           <Link href="/interview" asChild>
             <Button label={locale === "ko" ? "스무고개" : "Interview"} variant="secondary" />
@@ -233,8 +233,8 @@ export default function Journal() {
             </Text>
             <Text variant="body" style={{ marginTop: spacing.xs }}>
               {locale === "ko"
-                ? `입문 퀘스트(라이프 오딧)를 완료하면 Lv${gate.requiredLevel}에 도달하고 일기가 열려요.`
-                : `Finish the onboarding quest (life audit) to reach Lv${gate.requiredLevel} and unlock the journal.`}
+                ? `입문 퀘스트(과거의 나)를 완료하면 Lv${gate.requiredLevel}에 도달하고 일기가 열려요.`
+                : `Finish the onboarding quest (past me) to reach Lv${gate.requiredLevel} and unlock the journal.`}
             </Text>
             <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
               {locale === "ko"
@@ -244,7 +244,7 @@ export default function Journal() {
             <View style={{ marginTop: spacing.md }}>
               <Link href="/audit" asChild>
                 <Button
-                  label={locale === "ko" ? "라이프 오딧 시작하기" : "Start the life audit"}
+                  label={locale === "ko" ? "과거의 나 시작하기" : "Start the past me"}
                   variant="primary"
                 />
               </Link>
