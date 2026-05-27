@@ -1,9 +1,91 @@
-# 2nd-Brain Handoff — 2026-05-25 → Cowork
+# 2nd-Brain Handoff
 
-> Snapshot of where Sprint 0 lands and what the next session needs to know.
-> Last commit on `main`: `d45ad4e`. Web preview: <https://simon-yhkim.github.io/2nd-B/>.
+> 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
+> Live: <https://simon-yhkim.github.io/2nd-B/>
 
 ---
+
+## Latest — 2026-05-27 / Constellation v2 + 세컨비 + Capture v2
+
+### 어디까지 왔나
+`main` 의 `61e784f` 까지 4개 PR 머지 (#31 → #34). **471/471 tests green**, working tree clean, gemini-proxy **v5 ACTIVE** (multimodal OCR enabled).
+
+| # | SHA | What |
+|---|---|---|
+| #31 | `e8e9456` | base components (Text/Button/Input) `useThemePalette()` 추적 + 라이프 오딧 → 과거의 나 rename |
+| #32 | `f257b88` | /capture v2 — 5 모드 (메모/링크/스크랩/OCR/문서) + 일상/Pro 토글 + Gemini multimodal OCR + LLM 자동 분류 |
+| #33 | `d87d6fa` | 로고 페이드 후 티어 1→4 순차 노드 등장 (랜덤) + Web Audio "뽁!" 합성음 + 엣지 reveal |
+| #34 | `61e784f` | drift seamless loop + tier hue 분리 + 펄스 30% 단축 + 말풍선 뽁 + Core Brain voice + Jarvis→세컨비 + intro 모달 + viewport zoom lock |
+
+### 활성 인프라
+- **Supabase project**: `zoacryukmdeivmolvyhj`
+- **gemini-proxy edge function**: **v5 ACTIVE** — multimodal OCR (image base64 ≤2.7MB, mime allowlist jpeg/png/webp/heic/heif), 안전 preamble + crisis 분류 유지
+- **CI**: GitHub Actions verify + lint 둘 다 그린
+- **Deploy**: GitHub Pages auto-deploy on main push (~2–3 min)
+
+### 다음 작업 큐 — PR #34 의 follow-up
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **그래프 자체 pinch/wheel zoom** — `react-native-gesture-handler` + `react-native-reanimated` 로 `NavGraph` root 에 `GestureDetector` wrap. 페이지 viewport 는 이미 lock 됨 (`src/app/+html.tsx`) | medium | ⭐ PR #34 에서 "follow-up 별도 PR" 로 명시한 유일한 항목 — 가장 먼저 권장 |
+| B | **전체 문구 sweep** — Insights / Trinity / Interview / Wiki 화면들이 아직 clinical voice. Core Brain 일인칭 복수 ("우리") 로 전환 | medium-large | i18n keys 만지면 EN↔KO parity 깨지지 않게 주의 (C7) |
+| C | **`sources.wiki_track` DB 마이그레이션** | medium | PR #32 의 하이브리드 옵션 C 의 phase 2 (당시 phase 1 만 처리). Supabase migration + ingest layer 가 컬럼 읽도록 업데이트 |
+| D | **태그/track 영속화** | small-medium | PR #32 capture flow 가 LLM 분류 결과를 Alert 만 보여주고 frontmatter 업데이트는 안 함. **C 와 묶어 처리 권장** |
+| E | **PDF/DOCX 바이너리 텍스트 추출** | medium | 현재 capture-file.ts 는 text MIME 만 추출. `pdfjs-dist` (PDF) + `mammoth` (DOCX) 추가 |
+
+### 적용 중인 정책 (영구)
+
+1. **CI 자동 머지**: PR 만들고 CI 그린되면 자동 squash merge → 사용자에게 사후 보고. 사용자가 명시한 정책.
+2. **Branch reset 패턴** (충돌 회피): 이전 PR squash 머지 후 새 PR 시작 전 항상:
+   ```bash
+   git fetch origin main && git reset --hard origin/main
+   # 새 commit 만들기 전에 fresh main 위에서 시작
+   ```
+   안 하면 PR #34 머지 시 충돌 났던 그 패턴 반복.
+3. **개발 branch**: 사용자 환경마다 다름. 현재 세션은 컨테이너에 따라 `claude/exciting-galileo-Qapf4`, `claude/previous-session-handoff-uszkl` 등. **각 새 세션에서 자기 branch 로 작업 → PR → 머지**.
+4. **C1~C12**: `npm run check:constraints` 가 CI 에서 강제. 약화 금지.
+5. **DESIGN.md**: bounce/elastic 금지가 원칙. PR #34 의 뽁 overshoot (1.25× cap, ~400ms) 은 사용자 명시 예외 — 새로 추가하는 overshoot 도 같은 톤 유지.
+
+### 핵심 파일 위치 (이번 세션에 변경된 것)
+
+```
+src/components/graph/NavGraph.tsx              drift/spawn/pulse/bubble/색상/엣지
+src/app/index.tsx                              Core Brain ribbon + mascot 자리
+src/app/+html.tsx (NEW)                        viewport zoom lock
+src/app/capture.tsx                            5-mode capture
+src/app/jarvis.tsx                             세컨비 + intro modal
+src/lib/audio/pop.ts (NEW)                     Web Audio "뽁!" synth
+src/lib/wiki/capture-image.ts (NEW)            Gemini multimodal OCR
+src/lib/wiki/capture-file.ts (NEW)             DocumentPicker
+src/lib/wiki/classify-track.ts (NEW)           LLM tag/track suggestion
+src/lib/llm/types.ts                           image? field + capture purposes
+src/lib/llm/gemini.ts                          image forward to proxy
+supabase/functions/gemini-proxy/index.ts       v5 — multimodal support
+locales/{ko,en}/jarvis.json                    세컨비 strings + intro
+```
+
+### 검증
+
+```bash
+npm run verify                # 풀 게이트: lint + type + i18n + lexicon + LLM boundary + constraints + jest (471 tests)
+npm run check:constraints     # C1~C12 단독
+```
+
+### 다음 세션 시작하는 법 (간단)
+
+```bash
+git fetch origin main
+git checkout main && git pull
+# 또는 자기 branch 에서
+git fetch origin main && git reset --hard origin/main
+# 이 파일 읽기
+cat docs/HANDOFF.md
+# A 작업부터 시작 (또는 사용자 선택)
+```
+
+---
+
+## Sprint 0 (historic) — 2026-05-25
 
 ## 1. What is live right now
 
