@@ -116,10 +116,10 @@ export default function Persona() {
             {locale === "ko" ? "자기 모델" : "Self-model"}
           </Text>
           <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
-            {persona.traitsSource === "tipi"
+            {persona.traitsSource === "bfi"
               ? locale === "ko"
-                ? "Big Five는 TIPI 실측 기준 · MBTI · 애착 합성"
-                : "Big Five from TIPI measurement · MBTI · attachment combined"
+                ? "Big Five는 BFI-44 실측 기준 · MBTI · 애착 합성"
+                : "Big Five from BFI-44 measurement · MBTI · attachment combined"
               : locale === "ko"
                 ? "Big Five는 일기 기반 휴리스틱 추정 · 평가를 하시면 실측으로 업데이트돼요"
                 : "Big Five is a keyword heuristic — take the assessment for measured scores"}

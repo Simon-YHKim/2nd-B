@@ -111,17 +111,17 @@ describe("buildPersona", () => {
     expect(card.markdownExport).toContain("Attachment style");
   });
 
-  test("TIPI record → traitsSource = 'tipi' + neuroticism inverted from emotional_stability", async () => {
+  test("BFI record → traitsSource = 'bfi' + neuroticism measured directly (no inversion)", async () => {
     tableFixtures["records:select"] = {
       data: [
         {
           body: JSON.stringify({
             scores: {
-              openness: 6,
-              conscientiousness: 5,
-              extraversion: 4,
-              agreeableness: 6,
-              emotional_stability: 7,
+              openness: 4,
+              conscientiousness: 3.5,
+              extraversion: 2,
+              agreeableness: 4,
+              neuroticism: 1.5,
             },
           }),
           created_at: "2026-05-01T00:00:00Z",
@@ -131,10 +131,11 @@ describe("buildPersona", () => {
     };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
     const card = await buildPersona("u1", "en");
-    expect(card.traitsSource).toBe("tipi");
-    // emotional_stability 7 → norm 1.0 → neuroticism 0
-    expect(card.traits.neuroticism).toBeCloseTo(0, 5);
-    expect(card.traits.openness).toBeCloseTo((6 - 1) / 6, 5);
+    expect(card.traitsSource).toBe("bfi");
+    // BFI 1-5 → 0-1: norm(v) = (v - 1) / 4
+    // neuroticism 1.5 → (1.5 - 1) / 4 = 0.125 — preserved, NOT inverted
+    expect(card.traits.neuroticism).toBeCloseTo(0.125, 5);
+    expect(card.traits.openness).toBeCloseTo((4 - 1) / 4, 5);
   });
 
   test("persona row upserted with version 1", async () => {

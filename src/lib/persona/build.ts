@@ -22,7 +22,7 @@ export interface PersonaTraits {
   neuroticism: number;
 }
 
-export type TraitsSource = "tipi" | "heuristic";
+export type TraitsSource = "bfi" | "heuristic";
 
 export interface PersonaMbti {
   type: string;
@@ -177,21 +177,23 @@ async function loadLatestAttachment(
   }
 }
 
-async function loadLatestTipi(
+async function loadLatestBfi(
   supabase: ReturnType<typeof getSupabaseClient>,
   userId: string,
-): Promise<{ openness: number; conscientiousness: number; extraversion: number; agreeableness: number; emotional_stability: number } | null> {
+): Promise<{ openness: number; conscientiousness: number; extraversion: number; agreeableness: number; neuroticism: number } | null> {
+  // BFI-44 (1-5 Likert) is the primary Big Five measure. Scores written by
+  // /big-five carry tags ["big_five", "bfi", "assessment"]; we match on "bfi".
   const { data, error } = await supabase
     .from("records")
     .select("body, created_at")
     .eq("user_id", userId)
-    .contains("tags", ["tipi"])
+    .contains("tags", ["bfi"])
     .order("created_at", { ascending: false })
     .limit(1);
   if (error || !data || data.length === 0) return null;
   try {
     const parsed = JSON.parse((data[0] as { body: string }).body) as {
-      scores?: { openness?: number; conscientiousness?: number; extraversion?: number; agreeableness?: number; emotional_stability?: number };
+      scores?: { openness?: number; conscientiousness?: number; extraversion?: number; agreeableness?: number; neuroticism?: number };
     };
     const s = parsed.scores;
     if (!s || typeof s.openness !== "number") return null;
@@ -200,7 +202,7 @@ async function loadLatestTipi(
       conscientiousness: s.conscientiousness ?? 0,
       extraversion: s.extraversion ?? 0,
       agreeableness: s.agreeableness ?? 0,
-      emotional_stability: s.emotional_stability ?? 0,
+      neuroticism: s.neuroticism ?? 0,
     };
   } catch {
     return null;
@@ -221,19 +223,20 @@ export async function buildPersona(userId: string, locale: "en" | "ko"): Promise
   let traits = scoreFromAnswers(rows);
   let traitsSource: TraitsSource = "heuristic";
 
-  // If a TIPI assessment exists, prefer it (1-7 → 0-1 normalize).
-  // emotional_stability → neuroticism is inverted.
-  const tipi = await loadLatestTipi(supabase, userId);
-  if (tipi) {
-    const norm = (v: number) => Math.max(0, Math.min(1, (v - 1) / 6));
+  // If a BFI-44 assessment exists, prefer it (1-5 → 0-1 normalize). BFI
+  // measures neuroticism directly so no inversion is needed (unlike the
+  // older TIPI which used emotional_stability).
+  const bfi = await loadLatestBfi(supabase, userId);
+  if (bfi) {
+    const norm = (v: number) => Math.max(0, Math.min(1, (v - 1) / 4));
     traits = {
-      openness: norm(tipi.openness),
-      conscientiousness: norm(tipi.conscientiousness),
-      extraversion: norm(tipi.extraversion),
-      agreeableness: norm(tipi.agreeableness),
-      neuroticism: 1 - norm(tipi.emotional_stability),
+      openness: norm(bfi.openness),
+      conscientiousness: norm(bfi.conscientiousness),
+      extraversion: norm(bfi.extraversion),
+      agreeableness: norm(bfi.agreeableness),
+      neuroticism: norm(bfi.neuroticism),
     };
-    traitsSource = "tipi";
+    traitsSource = "bfi";
   }
 
   const [memorized, mbti, attachment] = await Promise.all([
