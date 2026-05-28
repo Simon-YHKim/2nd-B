@@ -153,12 +153,14 @@ export const CENTER_NODE: NavNode = {
   // bubbleAction removed (2026-05-28 user directive): the chat (세컨비)
   // entry moved out of the bubble to a floating button at the bottom-
   // right of the main screen. The bubble now only describes Core Brain.
-  label: { en: "Core Brain", ko: "코어 브레인" },
+  // Dev name stays "Core Brain"; user-facing label uses the village
+   // wording "나의 중심" / "Center of me" (handoff §7-2).
+  label: { en: "Center of me", ko: "나의 중심" },
   // Core Brain speaks as the team's voice — calm, plural ("우리 / we"),
   // owns the cells. Surface this everywhere the user lands first.
   description: {
-    en: "I'm Core Brain. The cells and I keep track of who you are.",
-    ko: "코어 브레인이에요. 세포들과 함께 당신을 정리해 두고 있어요.",
+    en: "Center of you. The small ones and I keep your pieces in order.",
+    ko: "여기가 너의 중심이야. 작은 친구들이랑 함께 조각들을 정리해두고 있어.",
   },
 };
 
