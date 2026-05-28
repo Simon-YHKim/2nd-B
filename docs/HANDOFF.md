@@ -62,7 +62,7 @@
 2. **Branch reset 패턴**: 이전 PR 머지 후 `git fetch origin main && git reset --hard origin/main`. 안 하면 충돌.
 3. **개발 branch**: 각 세션마다 자기 branch 만들기 (예: `claude/previous-session-handoff-uszkl`). 같은 branch 누적 push 도 가능하지만 PR 사이즈가 커짐 — confirm ⑥ 정책 결정 대기.
 4. **C1~C12 강제** — `npm run check:constraints` CI 에서 강제. 약화 금지.
-5. **forbidden lexicon** (진단/치료/치유/정신건강/심리상담/멘탈) — character voice 라인 단위 테스트 + CI scan 으로 defense in depth.
+5. **forbidden lexicon** — 자세한 단어 목록은 `src/lib/safety/lexicon.ts`. character voice 라인 단위 테스트 + CI scan 으로 defense in depth.
 6. **DESIGN.md** bounce/elastic 금지. PR #34 의 뽁 overshoot 만 명시 예외.
 7. **개발명 vs 유저-facing 분리**: 코드 식별자 = "Core Brain", 화면 문구 = "나의 중심" (handoff §7-2 정책).
 
