@@ -17,18 +17,19 @@ import { useTranslation } from "react-i18next";
 import {
   Animated,
   Easing,
-  PanResponder,
   Pressable,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { Redirect, router } from "expo-router";
 
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { darkSky } from "@/lib/theme/tokens";
+import { cosmic } from "@/lib/theme/tokens";
+import { CharacterPathLayer } from "@/components/graph/CharacterPathLayer";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 
 const logo = require("../../assets/images/logo-glow.png");
@@ -132,18 +133,6 @@ export default function Landing() {
     };
   }, [userId]);
 
-  // Bottom-handle swipe-up → /settings. PanResponder is the lightest
-  // way to wire a custom gesture without pulling in react-native-gesture-handler
-  // surface (already loaded at root, but PanResponder is enough here).
-  const handlePan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => g.dy < -10 && Math.abs(g.dx) < 40,
-      onPanResponderRelease: (_, g) => {
-        if (g.dy < -40) router.push("/settings");
-      },
-    }),
-  ).current;
-
   if (loading) return <InlineLoader />;
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
@@ -163,6 +152,12 @@ export default function Landing() {
 
       <Animated.View style={[styles.contentLayer, { opacity: contentOpacity }]} pointerEvents="box-none">
         <NavGraph locale={locale} dataNodes={dataNodes} />
+        {/* CharacterPathLayer — 6 픽셀 주민 placeholder. Phase 3 에서
+            엣지-따라-걷기 motion + sprite asset 으로 진화 (handoff §5/§7-1).
+            현재는 static anchor 에 colored block 만. */}
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <CharacterLayerHost />
+        </View>
       </Animated.View>
 
       {/* Top insight ribbon — Core Brain talks. The slot on the left
@@ -170,38 +165,66 @@ export default function Landing() {
           subtle initial circle so the layout doesn't reflow when the
           asset lands. */}
       <Animated.View style={[styles.insightRibbon, { opacity: contentOpacity }]} pointerEvents="box-none">
-        <View style={styles.mascotSlot} accessibilityLabel="Core Brain">
-          <Text style={styles.mascotInitial}>C</Text>
+        {/* SecondB placeholder — soul-violet pixel block with a mint core.
+            Same 52px footprint the eventual sprite will occupy. */}
+        <View style={styles.mascotSlot} accessibilityLabel="SecondB">
+          <View style={styles.mascotPixelCore} />
         </View>
         <Pressable onPress={() => router.push("/insights")} hitSlop={8} style={{ flex: 1 }}>
-          <Text style={styles.insightEyebrow}>{locale === "ko" ? "코어 브레인" : "Core Brain"}</Text>
+          <Text style={styles.insightEyebrow}>{locale === "ko" ? "나의 중심" : "Center of me"}</Text>
           <Text style={styles.insightText} numberOfLines={2}>{insight}</Text>
         </Pressable>
       </Animated.View>
 
-      {/* Locale toggle, top-right. */}
-      <Animated.View style={[styles.localeToggle, { opacity: contentOpacity }]}>
-        <Pressable onPress={toggleLocale} hitSlop={8}>
+      {/* Top-right cluster — locale toggle + settings cog.
+          The settings cog replaced the bottom swipe-up handle per user
+          directive (2026-05-28). The locale toggle stays alongside. */}
+      <Animated.View style={[styles.topRightCluster, { opacity: contentOpacity }]}>
+        <Pressable onPress={toggleLocale} hitSlop={8} style={styles.localeBtn}>
           <Text style={styles.localeToggleText}>{locale === "ko" ? "EN" : "한국어"}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push("/settings")}
+          hitSlop={8}
+          style={styles.settingsCog}
+          accessibilityLabel={locale === "ko" ? "설정" : "Settings"}
+        >
+          <Text style={styles.settingsCogIcon}>⚙</Text>
         </Pressable>
       </Animated.View>
 
-      {/* Bottom settings handle — faint horizontal gradient, swipe up. */}
-      <Animated.View
-        style={[styles.settingsHandle, { opacity: contentOpacity }]}
-        {...handlePan.panHandlers}
-      >
-        <View style={styles.handleStripe} />
-        <Text style={styles.handleLabel}>
-          {locale === "ko" ? "위로 스와이프 → 설정" : "Swipe up · Settings"}
-        </Text>
+      {/* Bottom-right floating chat (세컨비 / 2ndB) entry — moved out
+          of the constellation bubble per user directive (2026-05-28).
+          Single circular FAB, plenty of safe-area margin. */}
+      <Animated.View style={[styles.jarvisFabWrap, { opacity: contentOpacity }]}>
+        <Pressable
+          onPress={() => router.push("/jarvis")}
+          hitSlop={16}
+          style={styles.jarvisFab}
+          accessibilityLabel={locale === "ko" ? "세컨비 열기" : "Open 2ndB"}
+        >
+          {/* SecondB pixel mark — soul-violet pad with a mint core dot.
+              Replaces the 💬 emoji per handoff §5 (SecondB is a pixel
+              robot, not a speech bubble). Full sprite lands in Phase 3. */}
+          <View style={styles.jarvisFabSprite}>
+            <View style={styles.jarvisFabSpriteCore} />
+          </View>
+        </Pressable>
       </Animated.View>
     </View>
   );
 }
 
+// Picks up the viewport size via useWindowDimensions so CharacterPathLayer
+// has real pixel coordinates. Lives at the bottom of the screen tree so
+// it overlays the graph but stays below the floating FAB + topRightCluster.
+function CharacterLayerHost() {
+  const { width, height } = useWindowDimensions();
+  return <CharacterPathLayer width={width} height={height} />;
+}
+
 const styles = StyleSheet.create({
-  skyContainer: { flex: 1, backgroundColor: darkSky.bg },
+  skyContainer: { flex: 1, backgroundColor: cosmic.space950 },
   skyLogo: {
     position: "absolute",
     width: 220, height: 220,
@@ -217,26 +240,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  // Slot reserved for the upcoming Core Brain mascot. Same footprint
-  // (52px circle) the eventual <Image> will occupy.
+  // SecondB placeholder — soul-violet block with a mint signal core.
+  // Same 52px footprint the eventual pixel sprite will occupy.
   mascotSlot: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: 12, // square-ish, pixel-block feel rather than round avatar
     borderWidth: 1,
-    borderColor: "rgba(127,179,244,0.35)",
-    backgroundColor: "rgba(127,179,244,0.06)",
+    borderColor: "rgba(167,139,250,0.42)",
+    backgroundColor: "rgba(167,139,250,0.16)",
     alignItems: "center",
     justifyContent: "center",
   },
-  mascotInitial: {
-    color: "rgba(127,179,244,0.7)",
-    fontSize: 18,
-    fontWeight: "700",
-    letterSpacing: 0.5,
+  mascotPixelCore: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+    backgroundColor: cosmic.signalMint,
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.7,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
   },
   insightEyebrow: {
-    color: darkSky.textSubtle,
+    color: cosmic.signalMint,
     fontSize: 10,
     letterSpacing: 1.5,
     fontWeight: "700",
@@ -244,39 +271,83 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   insightText: {
-    color: darkSky.text,
+    color: cosmic.moonWhite,
     fontSize: 14,
     lineHeight: 20,
     letterSpacing: 0.2,
   },
-  localeToggle: {
+  topRightCluster: {
     position: "absolute",
     top: 16, right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  localeBtn: {
     paddingHorizontal: 10, paddingVertical: 4,
   },
   localeToggleText: {
-    color: darkSky.textSubtle,
+    color: cosmic.mistGray,
     fontSize: 12, letterSpacing: 1.5, fontWeight: "700",
   },
-  settingsHandle: {
-    position: "absolute",
-    bottom: 0, left: 0, right: 0,
-    paddingTop: 14, paddingBottom: 22,
+  settingsCog: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: cosmic.lineDim,
     alignItems: "center",
-    // Faint grey-tinted gradient feel via overlay strip.
-    backgroundColor: "rgba(127,179,244,0.04)",
+    justifyContent: "center",
+    backgroundColor: "rgba(167,139,250,0.06)",
   },
-  handleStripe: {
-    width: 64,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "rgba(127,179,244,0.35)",
-    marginBottom: 8,
+  settingsCogIcon: {
+    color: cosmic.moonWhite,
+    fontSize: 18,
+    lineHeight: 18,
+    marginTop: -1,
   },
-  handleLabel: {
-    color: darkSky.textSubtle,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    fontWeight: "600",
+  jarvisFabWrap: {
+    position: "absolute",
+    bottom: 24, right: 20,
+  },
+  // SecondB FAB — soul-violet body, mint glow. Square-ish pixel block,
+  // not a round avatar, so it reads as a pixel resident rather than a
+  // chat button (handoff §5 + §7-1 floating-b).
+  jarvisFab: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.55)",
+    backgroundColor: "rgba(167,139,250,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: cosmic.soulViolet,
+    shadowOpacity: 0.55,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
+  },
+  // Inner pixel sprite stand-in — small violet square with a mint core.
+  // Replaced by a real Image when the sprite sheet lands (Phase 3).
+  jarvisFabSprite: {
+    width: 26,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: cosmic.space950,
+    backgroundColor: cosmic.soulViolet,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  jarvisFabSpriteCore: {
+    width: 6,
+    height: 6,
+    borderRadius: 1.5,
+    backgroundColor: cosmic.signalMint,
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.85,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 0 },
   },
 });

@@ -19,6 +19,18 @@ export interface CaptureInput {
   fallbackUrl?: string | null;
   /** Force a clipper kind (e.g., "self_knowledge" for user-authored notes). */
   kindOverride?: SourceKind | null;
+  /**
+   * User-final tag list from the capture screen. Merged with frontmatter tags
+   * (dedup, lowercased). When the user accepted the LLM suggestion as-is, this
+   * is the LLM list; when they edited it, this is the edited list.
+   */
+  userTags?: string[] | null;
+  /**
+   * Wiki track selected on the capture screen ("daily" or "pro"). Written into
+   * `sources.frontmatter.wiki_track` so the inbox can filter and downstream UI
+   * can show the badge.
+   */
+  track?: "daily" | "pro" | null;
 }
 
 export interface CaptureResult {
@@ -39,14 +51,23 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
   // joinFrontmatter() on read.
   const { path } = await uploadRawClipping(input.userId, built.suggested_slug, built.body);
 
+  // Merge LLM-classifier output (user-final) with whatever the frontmatter
+  // already carried. Tags get deduped + lowercased. Track lives in frontmatter
+  // under `wiki_track` — keeps the schema flat (no new column required) and
+  // matches the phase1 pattern of storing classifier metadata in jsonb.
+  const mergedTags = mergeTags(built.payload.tags, input.userTags ?? null);
+  const mergedFrontmatter = input.track
+    ? { ...built.payload.frontmatter, wiki_track: input.track }
+    : built.payload.frontmatter;
+
   const source = await createSource({
     user_id: input.userId,
     kind: built.payload.kind,
     title: built.payload.title,
     source_url: built.payload.source_url,
     storage_path: path,
-    frontmatter: built.payload.frontmatter,
-    tags: built.payload.tags,
+    frontmatter: mergedFrontmatter,
+    tags: mergedTags,
     simon_relevance: built.payload.simon_relevance,
   });
 
@@ -56,4 +77,18 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     hadFrontmatter: built.hadFrontmatter,
     suggested_slug: built.suggested_slug,
   };
+}
+
+// Lowercase + trim + dedupe. Frontmatter tags come first to preserve original
+// ordering; user tags append in their displayed order. Empty strings dropped.
+function mergeTags(frontmatterTags: string[], userTags: string[] | null): string[] {
+  const merged: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of [...frontmatterTags, ...(userTags ?? [])]) {
+    const norm = raw.trim().toLowerCase();
+    if (norm.length === 0 || seen.has(norm)) continue;
+    seen.add(norm);
+    merged.push(norm);
+  }
+  return merged;
 }

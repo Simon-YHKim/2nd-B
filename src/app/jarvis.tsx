@@ -140,11 +140,6 @@ export default function Jarvis() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Pressable onPress={() => router.push("/")} hitSlop={6}>
-              <Text variant="caption" color="brand">
-                {locale === "ko" ? "← 네비게이터" : "← Navigator"}
-              </Text>
-            </Pressable>
             <Text variant="heading">{t("title")}</Text>
             <Text variant="subtle" color="textMuted">
               {t("subtitle")}

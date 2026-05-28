@@ -1,17 +1,33 @@
 // Expo Router web root HTML.
 //
-// 2026-05-27 (user directive): the page itself must NOT zoom — earlier
-// the whole document scaled when the user pinched/ctrl-wheeled, which
-// blew up the insights ribbon, locale toggle, settings handle, etc.
-// We lock the document viewport to scale=1 and route zoom intent into
-// the NavGraph component only (it handles its own pinch + wheel).
-//
-// Accessibility note: we still allow user pinch on the graph itself
-// via NavGraph's pinch handler, and the locale toggle stays large
-// enough at base size.
+// 2026-05-27 / 2026-05-28 (user directive): the page itself must NOT zoom
+// AND must not reveal whitespace at the edges. Earlier the whole document
+// scaled when the user pinched/ctrl-wheeled (blew up the insights ribbon,
+// locale toggle, settings handle); later, scroll + bounce on web exposed
+// blank gutters around the constellation. We lock viewport to scale=1
+// AND lock html/body to 100vh × 100vw with overflow:hidden — the only
+// thing that can zoom is the NavGraph (its own pinch handler).
 
 import type { PropsWithChildren } from "react";
 import { ScrollViewStyleReset } from "expo-router/html";
+
+// Reset inline so the rule lands in the first paint. The dark background
+// matches darkSky.bg so the white flash that would otherwise show during
+// the initial render is hidden. Light-mode users still see darkSky-bg
+// on the landing screen (the landing is forced-dark per directive).
+const PAGE_LOCK_CSS = `
+html, body, #root, #__next {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: pan-x pan-y;
+  background-color: #02040A;
+}
+* { -webkit-tap-highlight-color: transparent; }
+`;
 
 export default function Root({ children }: PropsWithChildren) {
   return (
@@ -21,9 +37,10 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+          content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"
         />
         <ScrollViewStyleReset />
+        <style dangerouslySetInnerHTML={{ __html: PAGE_LOCK_CSS }} />
       </head>
       <body>{children}</body>
     </html>

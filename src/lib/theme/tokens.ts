@@ -1,20 +1,49 @@
 // Semantic theme tokens.
 //
-// 2026-05-27 — palette pivot: the `semantic` object used to map to the
-// phytoncide forest palette (paper / ink / pine). Per user directive,
-// every screen now adopts the dark-sky tone of the loader + main
-// navigator. `semantic` keys stay identical (`background`, `text`,
-// `brand`, …) so the 21 screens that already import `semantic.*` get
-// the new tone with zero per-screen edits.
+// 2026-05-29 — palette pivot #3: "Cosmic Pixel Graph Village" / 밤빛
+// 조각마을. The handoff doc (uploads/.../2ndB_pixel_graph_village_revised
+// _handoff.html) replaces the dark-sky tone with a deep-space + neural
+// + pixel-village palette. The `semantic` keys stay identical so the 21
+// screens that import `semantic.*` get the new tone without per-screen
+// edits — only the values move.
 //
-// The phytoncide colors module (src/theme/tokens.ts) is intact for
-// historic reference and any external utility; semantic just no longer
-// pulls from it.
+// 2026-05-27 — palette pivot #2 (dark-sky) is preserved as `darkSky`
+// for any historic consumer (LoadingScreen.tsx, etc.). New work should
+// reach for `semantic` or the `cosmic` raw palette below.
 //
-// `darkSky` stays exported as a verbose alias for screens that want
-// the loader's raw palette by name (LoadingScreen.tsx, etc).
-// `lightSky` is the new light-mode counterpart. Together they back the
-// ThemeContext (src/lib/theme/ThemeContext.tsx) so users can toggle.
+// `lightSky` stays as the light-mode counterpart for ThemeContext until
+// a cosmic-light palette is designed; the handoff explicitly says
+// "main screen remains dark even in light mode" (Prompt D), so a near-
+// term light variant only matters for non-graph surfaces.
+
+// ─── Cosmic Pixel palette — raw colors from the 2026-05-29 handoff ──
+// Group naming mirrors the handoff CSS variables so designers can
+// cross-reference the doc 1:1.
+export const cosmic = {
+  // Deep space backgrounds — pure black is forbidden; bg uses the
+  // deepest ink instead.
+  space950: "#070A18", // Deep Space Ink — primary bg
+  space900: "#0D1530", // Night Navy
+  space800: "#16213E", // Graph Slate — surface
+  space700: "#243056",
+  lineDim: "#2A345A", // Dim Neural Line — inactive edges, borders
+
+  // Signal accents — applied to active connections, AI presence,
+  // discoveries, imagination, and safety states.
+  signalBlue: "#4CC9F0", // Archi accent
+  signalMint: "#72F2C7", // Electric Mint — active connections, Lulu, brand
+  soulViolet: "#A78BFA", // SecondB / AI presence
+  soulViolet2: "#7C5EE8",
+  pixelLamp: "#FFD166", // New record / discovery, Momo accent
+  dreamPink: "#FF9FD6", // Imagine / Vela accent
+  guardRose: "#FF7A90", // Safety / Gadi accent
+
+  // Neutrals.
+  moonWhite: "#E8ECF8", // Primary text
+  softWhite: "#F7F8FF",
+  mistGray: "#8D98B8", // Muted text
+  quietGray: "#64708E", // Subtle text
+} as const;
 
 export const darkSky = {
   bg: "#02040A",
@@ -41,34 +70,35 @@ export const lightSky = {
   accent: "#2F97FC",
 } as const;
 
-// Default `semantic` = dark-sky tones. Keys mirror the legacy phytoncide
+// Default `semantic` = Cosmic Pixel tones. Keys mirror the legacy
 // shape so every existing `semantic.background` / `semantic.text` /
 // `semantic.brand` consumer keeps working. The shape is also what the
 // light-mode runtime palette returns via useThemePalette() — same keys,
 // different values.
 export const semantic = {
-  background: darkSky.bg,
-  surface: darkSky.surface,
-  surfaceAlt: "rgba(143,183,244,0.08)",
-  border: darkSky.border,
-  text: darkSky.text,
-  textMuted: darkSky.textMuted,
-  textSubtle: darkSky.textSubtle,
-  brand: darkSky.brand,
+  background: cosmic.space950,
+  surface: "rgba(167,139,250,0.07)", // soul-violet washed, like the handoff cards
+  surfaceAlt: "rgba(114,242,199,0.06)", // mint-washed, slightly more "active" surface
+  border: cosmic.lineDim,
+  text: cosmic.moonWhite,
+  textMuted: "#C9D0E6", // slightly above mist-gray for body text
+  textSubtle: cosmic.mistGray,
+  brand: cosmic.signalMint, // active-connection mint = primary accent
   // Zone tones — kept saturated so they read in both modes.
-  zoneGreen: "#74E0A8",
-  zoneYellow: "#FFB55C",
-  zoneRed: "#FF6B6B",
-  // Info / success / warning / danger — match the zone tones.
-  info: darkSky.brand,
-  success: "#74E0A8",
-  warning: "#FFB55C",
-  danger: "#FF6B6B",
+  zoneGreen: cosmic.signalMint,
+  zoneYellow: cosmic.pixelLamp,
+  zoneRed: cosmic.guardRose,
+  // Info / success / warning / danger — mapped onto cosmic signals.
+  info: cosmic.signalBlue,
+  success: cosmic.signalMint,
+  warning: cosmic.pixelLamp,
+  danger: cosmic.guardRose,
 } as const;
 
 // Same-shape light palette. Returned by useThemePalette() when the
-// active mode is "light". Zone tones reuse the dark values for cross-
-// mode recognizability (a red warning stays the same red).
+// active mode is "light". Per handoff Prompt D, the main graph screen
+// stays dark in light mode — this palette is for secondary surfaces
+// (settings, sign-in, etc.) where light is meaningful.
 export const semanticLight = {
   background: lightSky.bg,
   surface: lightSky.surface,
@@ -87,11 +117,25 @@ export const semanticLight = {
   danger: "#C23B3B",
 } as const;
 
-// Brain Stack v1.1 mascot palette — 9 characters, one color each.
-// Source: docs/ux/2026-05-27-mascot-compatibility.html + the external
-// Final Spec v1.1. Augment Brain locked to indigo #5A6FB4 — the Q1
-// diagnostic fix vs cool-blue collision with darkSky.brand/accent.
-// WCAG AA verified on darkSky.bg.
+// ─── Characters — 6 pixel residents of the Graph Village ────────────
+// Source: handoff §5 "Character System". Each is anchored to one
+// cosmic accent so the village reads as a small consistent cast across
+// the graph, popovers, and chat avatars. Routes the character is tied
+// to live in src/lib/characters.ts.
+export const characters = {
+  secondb: cosmic.soulViolet, // AI guide — /jarvis, floating button
+  momo: cosmic.pixelLamp, // Record keeper — /journal, /audit, /wiki
+  lulu: cosmic.signalMint, // Capture collector — /capture
+  archi: cosmic.signalBlue, // Connection architect — /persona, /core-brain
+  vela: cosmic.dreamPink, // Imagination guide — /imagine
+  gadi: cosmic.guardRose, // Safety / boundary — safety classifier
+} as const;
+
+export type CharacterName = keyof typeof characters;
+
+// Brain Stack v1.1 mascot palette — kept for backwards compatibility
+// with screens that still reference `mascot.*`. New screens should use
+// `characters.*` (the 6-resident cast) or raw `cosmic.*` colors.
 export const mascot = {
   core: "#f0c862",
   self: "#e36464",

@@ -12,6 +12,7 @@ import { initAnalytics } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { BackArrow } from "@/components/ui/BackArrow";
 import { fontAssets } from "@/theme/typography";
 import { semantic } from "@/lib/theme/tokens";
 import { ThemeProvider, useTheme, useThemePalette } from "@/lib/theme/ThemeContext";
@@ -63,6 +64,7 @@ export default function RootLayout() {
               <Stack.Screen name="interview" />
               <Stack.Screen name="+not-found" />
               </ThemedStack>
+              <BackArrow />
             </IntroGate>
           </AuthProvider>
         </ThemeProvider>

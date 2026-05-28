@@ -7,7 +7,7 @@
 
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Link, router } from "expo-router";
+import { Link } from "expo-router";
 
 import { Screen } from "@/components/ui/Screen";
 import { Text } from "@/components/ui/Text";
@@ -258,7 +258,6 @@ export default function Manual() {
               </Link>
             </>
           ) : null}
-          <Button label={locale === "ko" ? "← 네비게이터로" : "← Back to navigator"} variant="secondary" onPress={() => router.push("/")} />
         </View>
 
         <Text variant="subtle" color="textSubtle" style={styles.versionFootnote}>
