@@ -191,18 +191,16 @@ export default function Capture() {
         rawMd: finalBody,
         fallbackUrl: url.trim() || null,
         kindOverride: mode === "ocr" ? "self_knowledge" : null,
+        userTags: tagsEditable,
+        track,
       });
 
-      // Persist the LLM-suggested-but-user-edited tags + track via a
-      // frontmatter update. captureFromMarkdown already wrote the row;
-      // here we tack on track + extra tags as a follow-up tag patch.
-      // (Tag updates land in next iteration — for now, surface success.)
       const trackLabel = track === "pro" ? (locale === "ko" ? "Pro Wiki" : "Pro Wiki") : (locale === "ko" ? "일상 Wiki" : "Daily Wiki");
       Alert.alert(
         locale === "ko" ? "자재 반입 완료!" : "Captured!",
         locale === "ko"
-          ? `${trackLabel}로 들어갔어요: ${result.source.title}\n태그 ${tagsEditable.length}개`
-          : `Filed under ${trackLabel}: ${result.source.title}\n${tagsEditable.length} tags`,
+          ? `${trackLabel}로 들어갔어요: ${result.source.title}\n태그 ${result.source.tags.length}개`
+          : `Filed under ${trackLabel}: ${result.source.title}\n${result.source.tags.length} tags`,
       );
       reset();
     } catch (e) {
