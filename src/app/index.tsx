@@ -21,6 +21,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { Redirect, router } from "expo-router";
 
@@ -28,6 +29,7 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic } from "@/lib/theme/tokens";
+import { CharacterPathLayer } from "@/components/graph/CharacterPathLayer";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 
 const logo = require("../../assets/images/logo-glow.png");
@@ -150,6 +152,12 @@ export default function Landing() {
 
       <Animated.View style={[styles.contentLayer, { opacity: contentOpacity }]} pointerEvents="box-none">
         <NavGraph locale={locale} dataNodes={dataNodes} />
+        {/* CharacterPathLayer — 6 픽셀 주민 placeholder. Phase 3 에서
+            엣지-따라-걷기 motion + sprite asset 으로 진화 (handoff §5/§7-1).
+            현재는 static anchor 에 colored block 만. */}
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <CharacterLayerHost />
+        </View>
       </Animated.View>
 
       {/* Top insight ribbon — Core Brain talks. The slot on the left
@@ -205,6 +213,14 @@ export default function Landing() {
       </Animated.View>
     </View>
   );
+}
+
+// Picks up the viewport size via useWindowDimensions so CharacterPathLayer
+// has real pixel coordinates. Lives at the bottom of the screen tree so
+// it overlays the graph but stays below the floating FAB + topRightCluster.
+function CharacterLayerHost() {
+  const { width, height } = useWindowDimensions();
+  return <CharacterPathLayer width={width} height={height} />;
 }
 
 const styles = StyleSheet.create({
