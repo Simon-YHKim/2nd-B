@@ -426,12 +426,6 @@ export default function Capture() {
               disabled={!canSubmit}
               loading={submitting}
             />
-            <Button
-              label={locale === "ko" ? "← 네비게이터로" : "← Back to navigator"}
-              variant="secondary"
-              onPress={() => router.push("/")}
-              disabled={submitting}
-            />
           </View>
           <AppNav locale={locale} />
         </ScrollView>

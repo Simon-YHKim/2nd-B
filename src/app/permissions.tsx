@@ -5,7 +5,7 @@
 
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Link, router } from "expo-router";
+import { Link } from "expo-router";
 
 import { Screen } from "@/components/ui/Screen";
 import { AppNav } from "@/components/ui/AppNav";
@@ -173,7 +173,6 @@ export default function Permissions() {
           <Link href="/manual" asChild>
             <Button label={locale === "ko" ? "사용 안내서로" : "Open the manual"} variant="secondary" />
           </Link>
-          <Button label={locale === "ko" ? "← 네비게이터로" : "← Back to navigator"} variant="secondary" onPress={() => router.push("/")} />
         </View>
         <AppNav locale={locale} />
       </ScrollView>

@@ -17,7 +17,6 @@ import { useTranslation } from "react-i18next";
 import {
   Animated,
   Easing,
-  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -132,18 +131,6 @@ export default function Landing() {
     };
   }, [userId]);
 
-  // Bottom-handle swipe-up → /settings. PanResponder is the lightest
-  // way to wire a custom gesture without pulling in react-native-gesture-handler
-  // surface (already loaded at root, but PanResponder is enough here).
-  const handlePan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => g.dy < -10 && Math.abs(g.dx) < 40,
-      onPanResponderRelease: (_, g) => {
-        if (g.dy < -40) router.push("/settings");
-      },
-    }),
-  ).current;
-
   if (loading) return <InlineLoader />;
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
@@ -179,22 +166,35 @@ export default function Landing() {
         </Pressable>
       </Animated.View>
 
-      {/* Locale toggle, top-right. */}
-      <Animated.View style={[styles.localeToggle, { opacity: contentOpacity }]}>
-        <Pressable onPress={toggleLocale} hitSlop={8}>
+      {/* Top-right cluster — locale toggle + settings cog.
+          The settings cog replaced the bottom swipe-up handle per user
+          directive (2026-05-28). The locale toggle stays alongside. */}
+      <Animated.View style={[styles.topRightCluster, { opacity: contentOpacity }]}>
+        <Pressable onPress={toggleLocale} hitSlop={8} style={styles.localeBtn}>
           <Text style={styles.localeToggleText}>{locale === "ko" ? "EN" : "한국어"}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push("/settings")}
+          hitSlop={8}
+          style={styles.settingsCog}
+          accessibilityLabel={locale === "ko" ? "설정" : "Settings"}
+        >
+          <Text style={styles.settingsCogIcon}>⚙</Text>
         </Pressable>
       </Animated.View>
 
-      {/* Bottom settings handle — faint horizontal gradient, swipe up. */}
-      <Animated.View
-        style={[styles.settingsHandle, { opacity: contentOpacity }]}
-        {...handlePan.panHandlers}
-      >
-        <View style={styles.handleStripe} />
-        <Text style={styles.handleLabel}>
-          {locale === "ko" ? "위로 스와이프 → 설정" : "Swipe up · Settings"}
-        </Text>
+      {/* Bottom-right floating chat (세컨비 / 2ndB) entry — moved out
+          of the constellation bubble per user directive (2026-05-28).
+          Single circular FAB, plenty of safe-area margin. */}
+      <Animated.View style={[styles.jarvisFabWrap, { opacity: contentOpacity }]}>
+        <Pressable
+          onPress={() => router.push("/jarvis")}
+          hitSlop={16}
+          style={styles.jarvisFab}
+          accessibilityLabel={locale === "ko" ? "세컨비 열기" : "Open 2ndB"}
+        >
+          <Text style={styles.jarvisFabIcon}>💬</Text>
+        </Pressable>
       </Animated.View>
     </View>
   );
@@ -249,34 +249,57 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     letterSpacing: 0.2,
   },
-  localeToggle: {
+  topRightCluster: {
     position: "absolute",
     top: 16, right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  localeBtn: {
     paddingHorizontal: 10, paddingVertical: 4,
   },
   localeToggleText: {
     color: darkSky.textSubtle,
     fontSize: 12, letterSpacing: 1.5, fontWeight: "700",
   },
-  settingsHandle: {
-    position: "absolute",
-    bottom: 0, left: 0, right: 0,
-    paddingTop: 14, paddingBottom: 22,
+  settingsCog: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: darkSky.border,
     alignItems: "center",
-    // Faint grey-tinted gradient feel via overlay strip.
+    justifyContent: "center",
     backgroundColor: "rgba(127,179,244,0.04)",
   },
-  handleStripe: {
-    width: 64,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "rgba(127,179,244,0.35)",
-    marginBottom: 8,
+  settingsCogIcon: {
+    color: darkSky.text,
+    fontSize: 18,
+    lineHeight: 18,
+    marginTop: -1,
   },
-  handleLabel: {
-    color: darkSky.textSubtle,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    fontWeight: "600",
+  jarvisFabWrap: {
+    position: "absolute",
+    bottom: 24, right: 20,
+  },
+  jarvisFab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: darkSky.accent,
+    backgroundColor: darkSky.bg,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: darkSky.accent,
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
+  },
+  jarvisFabIcon: {
+    fontSize: 24,
+    lineHeight: 24,
   },
 });

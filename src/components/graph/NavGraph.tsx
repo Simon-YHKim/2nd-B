@@ -150,13 +150,15 @@ export const CENTER_NODE: NavNode = {
   id: "core",
   tier: 1,
   href: "/persona",
-  bubbleAction: "jarvis",
+  // bubbleAction removed (2026-05-28 user directive): the chat (세컨비)
+  // entry moved out of the bubble to a floating button at the bottom-
+  // right of the main screen. The bubble now only describes Core Brain.
   label: { en: "Core Brain", ko: "코어 브레인" },
   // Core Brain speaks as the team's voice — calm, plural ("우리 / we"),
   // owns the cells. Surface this everywhere the user lands first.
   description: {
-    en: "I'm Core Brain. The cells and I keep track of who you are. Tap 💬 to talk to me.",
-    ko: "코어 브레인이에요. 세포들과 함께 당신을 정리해 두고 있어요. 💬 누르시면 대화해요.",
+    en: "I'm Core Brain. The cells and I keep track of who you are.",
+    ko: "코어 브레인이에요. 세포들과 함께 당신을 정리해 두고 있어요.",
   },
 };
 
