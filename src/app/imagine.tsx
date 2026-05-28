@@ -16,7 +16,7 @@
 //   - Vela voice line + character animation on submit
 
 import { useState } from "react";
-import { ScrollView, StyleSheet, View, TextInput, Pressable } from "react-native";
+import { Animated, ScrollView, StyleSheet, View, TextInput, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { CHARACTERS } from "@/lib/characters";
+import { useImaginePulse } from "@/components/motion/useSignatureMotion";
 
 export default function Imagine() {
   const { i18n } = useTranslation();
@@ -34,6 +35,9 @@ export default function Imagine() {
 
   const [draft, setDraft] = useState("");
   const vela = CHARACTERS.vela;
+
+  // 벨라 핑크 신호 — Vela's soft presence pulse on her sprite slot.
+  const velaPulse = useImaginePulse();
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
@@ -45,8 +49,14 @@ export default function Imagine() {
             Asset TODO: drop in /assets/characters/vela-idle@2x.png. */}
         <View style={styles.header}>
           <View style={styles.velaSpriteSlot}>
-            {/* Placeholder pixel block — Dream Pink body + signal-mint core */}
-            <View style={styles.velaPlaceholderBody} />
+            {/* Placeholder pixel block — Dream Pink body + signal-mint core.
+                The body carries Vela's "핑크 신호" presence pulse. */}
+            <Animated.View
+              style={[
+                styles.velaPlaceholderBody,
+                { opacity: velaPulse.opacity, transform: [{ scale: velaPulse.scale }] },
+              ]}
+            />
             <View style={styles.velaPlaceholderCore} />
           </View>
           <View style={{ flex: 1 }}>

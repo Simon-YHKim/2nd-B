@@ -41,49 +41,64 @@ The product is a companion. Not a coach. Not a therapist. Not a guru. A second b
 
 ## Color System
 
-Source: `src/lib/theme/tokens.ts`. Palette is **Okabe-Ito color-blind-safe**. Dark mode is the only mode in v1; a light mode is deferred until we have a real reason.
+Source: `src/lib/theme/tokens.ts`. The palette is the **Cosmic Pixel Graph Village** ("밤빛 조각마을") — a deep-space + neural-line + pixel-village tone (pivot #3, 2026-05-29). The `semantic.*` keys are stable; only their values moved, so every screen inherits the tone without per-screen edits. Dark is the primary mode. A light variant (`semanticLight` / `lightCosmic`) exists for secondary surfaces (settings, sign-in) — the main graph screen stays dark even in light mode.
 
 ### Surfaces (neutrals)
 
 | Token | Hex | Use |
 |---|---|---|
-| `semantic.background` | `#0B0E0C` | App background. Off-black, slight green undertone so pure-white text doesn't vibrate. |
-| `semantic.surface` | `#11161A` | Cards, modal bodies, list items. |
-| `semantic.surfaceAlt` | `#161B20` | Inputs, hover/pressed states, nested cards. |
-| `semantic.border` | `#222B33` | Hairline borders. Never a fill. |
+| `semantic.background` | `#070A18` (`cosmic.space950`) | App background. Deep Space Ink. Pure black is forbidden; this is the deepest ink. |
+| `semantic.surface` | `rgba(167,139,250,0.07)` | Cards, modal bodies — soul-violet wash, like the village cards. |
+| `semantic.surfaceAlt` | `rgba(114,242,199,0.06)` | Inputs, hover/pressed, nested cards — mint wash, the slightly "more active" surface. |
+| `semantic.border` | `#2A345A` (`cosmic.lineDim`) | Hairline borders + inactive neural edges. Never a fill. |
+
+Raw space tones for graph/canvas work live under `cosmic.*`: `space950` `space900` `space800` `space700` `lineDim`.
 
 ### Ink (typography)
 
 | Token | Hex | Use |
 |---|---|---|
-| `semantic.text` | `#E8ECEF` | Body text and headings. Never pure white. |
-| `semantic.textMuted` | `#A8B2BC` | Secondary text: labels, captions, helper copy. |
-| `semantic.textSubtle` | `#6B7680` | Tertiary: timestamps, hint text, placeholders. |
+| `semantic.text` | `#E8ECF8` (`cosmic.moonWhite`) | Body text and headings. Never pure white. |
+| `semantic.textMuted` | `#C9D0E6` | Secondary text: labels, captions, helper copy. |
+| `semantic.textSubtle` | `#8D98B8` (`cosmic.mistGray`) | Tertiary: timestamps, hint text, placeholders. |
 
-### Brand & semantic accents
+### Brand & semantic accents — the cosmic signals
 
-| Token | Hex | Use |
+The brand pivoted from sky blue to **Electric Mint** (`#72F2C7`) — the color of an active neural connection. Mint is the single primary signal; the other accents are reserved per meaning, not decoration.
+
+| Token | Hex | Meaning / use |
 |---|---|---|
-| `semantic.brand` | `#7DD3FC` (sky blue) | Primary CTAs, brand chip, focus rings, AI follow-up highlights. The single warm signal in the palette. |
-| `semantic.zoneGreen` / `semantic.success` | `#009E73` | Successful save, normal-zone confirmation. |
-| `semantic.zoneYellow` / `semantic.warning` | `#F0E442` | Forbidden-lexicon downgrade hint, rephrase prompts, mock-mode badge. |
-| `semantic.zoneRed` / `semantic.danger` | `#D55E00` | Crisis modal, destructive actions, age-gate error. Never used decoratively. |
-| `semantic.info` | `#56B4E9` | Judge-mode badge, neutral informational notices. |
+| `semantic.brand` / `cosmic.signalMint` | `#72F2C7` (mint) | Active connection. Primary CTAs, brand chip, focus rings, AI follow-up highlights, Lulu (capture). |
+| `cosmic.signalBlue` | `#4CC9F0` | Archi (connection architect) accent · `semantic.info` (judge / neutral notices). |
+| `cosmic.soulViolet` | `#A78BFA` | SecondB / AI presence. Card surface wash. |
+| `cosmic.pixelLamp` | `#FFD166` | New record / discovery, Momo accent · `semantic.zoneYellow` / `warning`. |
+| `cosmic.dreamPink` | `#FF9FD6` | Imagine / Vela accent. The "공상" signal. |
+| `cosmic.guardRose` | `#FF7A90` | Safety / Gadi · `semantic.zoneRed` / `danger`. |
+| `semantic.zoneGreen` / `success` | `#72F2C7` (mint) | Successful save, normal-zone confirmation. |
+
+### Accent budget (replaces the old 3-color rule)
+
+The pre-cosmic system capped at 3 colors. The village needs more, because **each accent carries a fixed meaning** — it is a coded signal, not a palette flourish. The rule is now:
+
+- **One primary** (mint) drives every CTA, focus ring, and "active" affordance.
+- **Five reserved signals** (signalBlue / soulViolet / pixelLamp / dreamPink / guardRose) each map to exactly one concept (Archi, AI presence, discovery, imagine, safety). Never use a signal color for anything but its meaning.
+- **On any single screen, at most 3 of the six appear at once.** The full 6 only ever coexist on the graph itself, where each is a different character/tier.
+- Saturated accents stay sparse — a bar, label, dot, or border, never a fill on > 30% of a screen.
 
 ### Safety-zone semantics
 
 The `classifyInput()` result maps directly to UI affordance:
 
 - **Green** → no chrome, default. The AI follow-up appears inline in a `surfaceAlt` card.
-- **Yellow** → show the rephrase hint inside the follow-up card with a `zoneYellow` left border (3px). Never block.
-- **Red** → block-modal via `<CrisisRouter />`. Hotline number rendered in `brand` (not `danger` — we want it warm, not alarming). Dismiss-only.
+- **Yellow** → show the rephrase hint inside the follow-up card with a `zoneYellow` (pixelLamp) left border (3px). Never block.
+- **Red** → block-modal via `<CrisisRouter />`. Hotline number rendered in `brand` mint (not `danger` — we want it warm, not alarming). Dismiss-only.
 
 ### Color rules
 
-- Never introduce a hex literal in a component. Always go through `semantic.*` or `palette.*` from `tokens.ts`.
-- No gradients. Not in CTAs, not in backgrounds, not as decorative fills. The product is text-first; gradients lie about depth.
-- No translucent overlays except modal backdrops (`rgba(0,0,0,0.6)`).
-- Saturated colors (`brand`, `zone*`) are sparse — a single bar, label, or border, never a fill on > 30% of a screen.
+- Never introduce a hex literal in a component. Always go through `semantic.*`, `cosmic.*`, or `characters.*` from `tokens.ts`.
+- No gradients. Not in CTAs, not in backgrounds, not as decorative fills. The product is text-first; gradients lie about depth. (The faint sky-drift overlay on the landing graph is the one documented exception — a 5%-opacity atmospheric wash, not a fill.)
+- No translucent overlays except modal backdrops (`rgba(0,0,0,0.6)`) and the soul-violet / mint surface washes defined above.
+- Saturated colors are sparse (see accent budget).
 
 ---
 
@@ -260,9 +275,26 @@ Calmness is the brand. Motion supports comprehension; it never performs.
 - **Press feedback**: 80ms opacity drop to `0.8`. No scale, no spring.
 - **AI follow-up card appearing**: 250ms opacity + 4px translate-up. Once per save.
 - **No skeleton shimmer**. Use the `<ActivityIndicator color={brand} />` for loading.
-- **No bouncy springs**. The product is for thinking; bounce signals toy.
+- **No bouncy springs**, with one documented exception below.
 
-`prefers-reduced-motion` (web): zero out durations and translate distances.
+### Bounce exception — the "뽁" overshoot
+
+Bounce/elastic easing is forbidden everywhere *except* the village's signature "뽁" pop. This is a single sanctioned overshoot, calibrated so it reads as a cell settling, not a toy:
+
+- **Cap 1.25×**, settle to 1.0 in **~400ms**, ease-out. Never larger, never longer.
+- Origins: node spawn on the graph (PR #34) and the three signature moments below.
+
+### Signature motion (the three village moments)
+
+Three brand moments get a named motion. Each pairs a character accent with a single restrained gesture — they are the only motion the village performs:
+
+| Moment | Trigger | Motion | Accent |
+|---|---|---|---|
+| **저장 / Save** ("루루 뽁") | A record/capture saves | One "뽁" overshoot (1.25× / ~400ms) + optional `playPop()` on web | mint (`characters.lulu`) |
+| **연결 발견 / Connection** ("아치 라인 켜짐") | A new edge/connection surfaces | A line illuminates dim→bright over ~500ms ease-out, then holds | signalBlue (`characters.archi`) |
+| **공상 / Imagine** ("벨라 핑크 신호") | Imagine generation begins | A soft pink pulse (opacity 0.4→1→0.6, ~600ms, no scale beyond 1.05) | dreamPink (`characters.vela`) |
+
+`prefers-reduced-motion` (web): zero out durations and translate distances; the pop becomes an instant state change, the line illuminates without transition, the pulse holds at full opacity.
 
 ---
 
@@ -279,9 +311,9 @@ Calmness is the brand. Motion supports comprehension; it never performs.
 
 ## What we never do
 
-- Gradients of any kind.
+- Gradients of any kind (except the documented 5%-opacity sky-drift overlay).
 - Glassmorphism, blurs, frosted surfaces.
-- Cute illustrations, mascots, hand-drawn icons.
+- Cute *cartoon* illustrations or hand-drawn icons. **Exception:** the six pixel residents of the Graph Village (SecondB / Momo / Lulu / Archi / Vela / Gadi, defined in `src/lib/characters.ts`) are sanctioned — they are low-fidelity pixel sprites tied to fixed accents and meanings, not decorative mascots. No character outside that roster.
 - Emojis as decoration in UI strings. (Crisis hotline messages may use language icons, but not 🌱✨💫.)
 - Em dashes in any user-visible string.
 - Lottie / animated background loops.
@@ -300,7 +332,13 @@ Calmness is the brand. Motion supports comprehension; it never performs.
 |------|----------|-----------|
 | 2026-05-25 | Initial design system created | Formalize what's already in `src/lib/theme/tokens.ts` + add typography, motion, accessibility, voice. Source: `/design-consultation`. |
 | 2026-05-25 | Dark mode only in v1 | Journaling is an evening activity; dark surfaces don't compete with the text. Light mode is a v2 decision. |
-| 2026-05-25 | Brand color = sky blue (`#7DD3FC`) | Single warm signal in a cool palette. Conveys clarity without claiming authority. |
+| 2026-05-25 | Brand color = sky blue (`#7DD3FC`) | Single warm signal in a cool palette. Conveys clarity without claiming authority. (Superseded 2026-05-29.) |
+| 2026-05-29 | Palette pivot #3 → Cosmic Pixel Graph Village | Deep-space + neural-line + pixel-village tone. The nav is a living graph of "조각"; the palette had to read as night sky with lit connections, not a flat dark UI. `semantic.*` keys unchanged so screens inherit it. |
+| 2026-05-29 | Brand color = Electric Mint (`#72F2C7`) | Mint = an active neural connection — the product's core metaphor (your pieces lighting up as they link). Sky blue became Archi's reserved accent (`signalBlue`). Confirmed by Simon 2026-05-28. |
+| 2026-05-29 | 3-color rule → cosmic accent budget (1 primary + 5 reserved signals) | Each accent now encodes a fixed meaning (character / concept), so a hard 3-color cap was wrong. Replaced with a meaning-locked budget + a per-screen max of 3. |
+| 2026-05-29 | Six pixel residents sanctioned despite the no-mascots rule | They are coded pixel sprites (one accent + one role each), the navigational cast of the graph — not decorative cartoon mascots. Roster is closed to `src/lib/characters.ts`. |
+| 2026-05-29 | "뽁" overshoot + 3 signature motions as the only bounce | Calmness is still the brand; the single 1.25×/400ms overshoot is the one sanctioned exception, reused across save / connection / imagine moments. |
+| 2026-05-29 | Light mode promoted from "deferred" to planned (`lightCosmic`) | Secondary surfaces (settings, sign-in) benefit from light; the graph stays dark. Palette work tracked as queue item G. |
 | 2026-05-25 | Fraunces (display) + Geist Sans (body) | Serif display says "this is writing." Geist body keeps UI chrome unobtrusive. Korean fallback via Pretendard. |
 | 2026-05-25 | No gradients, no glass, no pills | Anti-slop. The category is full of meditation-app sameness; we look like a writing tool, not a wellness pillow. |
 | 2026-05-25 | Crisis hotline rendered in `brand` not `danger` | Crisis routing is care, not warning. Warm signal > alarm signal. |

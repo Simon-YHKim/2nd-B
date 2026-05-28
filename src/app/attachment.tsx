@@ -72,8 +72,8 @@ export default function Attachment() {
       Alert.alert(
         locale === "ko" ? "저장됐어요" : "Saved",
         locale === "ko"
-          ? "결과는 페르소나 화면에서 다른 기록과 함께 표시돼요."
-          : "Results are combined with your other records on the Persona screen.",
+          ? "우리가 페르소나 화면에서 다른 기록과 함께 묶어둘게요."
+          : "We'll fold this in with your other records on the Persona screen.",
       );
       router.replace("/persona");
     } catch (e) {
