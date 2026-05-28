@@ -45,7 +45,7 @@ import ReAnimated, {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 import { Text } from "@/components/ui/Text";
-import { darkSky } from "@/lib/theme/tokens";
+import { cosmic } from "@/lib/theme/tokens";
 import { pitchForTier, playPop } from "@/lib/audio/pop";
 import { clampPan, clampScale, panForFocalZoom } from "./zoom-math";
 
@@ -163,13 +163,15 @@ export const CENTER_NODE: NavNode = {
 };
 
 function tierTone(t: Tier): string {
-  // Per user (2026-05-27): subtle hue separation so tiers feel
-  // distinct without breaking the dark-sky monotone. Kept all four
-  // inside the cyan→indigo arc so DESIGN.md's 3-color rule holds.
-  if (t === 1) return darkSky.brand;        // electric cyan-blue, brightest core
-  if (t === 2) return "#7BCBFF";            // sky blue
-  if (t === 3) return "#A8A4E0";            // soft indigo
-  return "rgba(180,170,235,0.6)";           // faint lilac for tier 4 specks
+  // Cosmic Pixel Village palette (2026-05-29 handoff §4 Graph Architecture):
+  //   Tier 1 = "나의 중심" / Core Brain — soul-violet, the village's central lamp
+  //   Tier 2 = "동네" / Domain — signal-blue, the bigger districts
+  //   Tier 3 = "나의 모습" / Persona — electric-mint, the role outposts
+  //   Tier 4 = "생각 조각" / record fragments — mist-gray pixels, soft, low signal
+  if (t === 1) return cosmic.soulViolet;
+  if (t === 2) return cosmic.signalBlue;
+  if (t === 3) return cosmic.signalMint;
+  return "rgba(141,152,184,0.55)"; // cosmic.mistGray washed
 }
 
 function tierSize(t: Tier): number {
@@ -668,7 +670,7 @@ export function NavGraph({ locale, dataNodes }: Props) {
               y1={animY(e.fromId, fromBase.y) as unknown as number}
               x2={animX(e.toId, toBase.x) as unknown as number}
               y2={animY(e.toId, toBase.y) as unknown as number}
-              stroke={darkSky.accent}
+              stroke={cosmic.signalMint}
               strokeOpacity={animOpacity}
               strokeWidth={1}
             />
@@ -804,7 +806,8 @@ const styles = StyleSheet.create({
   menuDotWrap: { position: "absolute", alignItems: "center", justifyContent: "center" },
   menuDot: {
     borderWidth: 1,
-    shadowColor: "#7FB3F4",
+    // Cosmic palette: active connections / signals glow mint (handoff §6 UI 상태색).
+    shadowColor: cosmic.signalMint,
     shadowOpacity: 0.6,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
@@ -814,24 +817,27 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: "rgba(127,179,244,0.6)",
+    // 생각 조각 — mist-gray washed, low-key until the user zooms in.
+    backgroundColor: "rgba(141,152,184,0.55)",
   },
   centerDot: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: darkSky.brand,
-    shadowColor: darkSky.brand,
-    shadowOpacity: 0.9,
-    shadowRadius: 14,
+    // Core Brain = 나의 중심 = village central lamp:
+    // soul-violet body + pixel-lamp glow (handoff §4 Tier 1 / §7-2 center-lamp).
+    backgroundColor: cosmic.soulViolet,
+    shadowColor: cosmic.pixelLamp,
+    shadowOpacity: 0.7,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
     borderWidth: 2,
-    borderColor: darkSky.accent,
+    borderColor: "rgba(255,209,102,0.32)", // pixel-lamp rim, like a soft halo
   },
   bubble: { position: "absolute", width: 260 },
   bubbleBody: {
-    backgroundColor: darkSky.bg,
-    borderColor: darkSky.border,
+    backgroundColor: cosmic.space950,
+    borderColor: cosmic.lineDim,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 14,
@@ -844,19 +850,19 @@ const styles = StyleSheet.create({
   bubbleHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   bubbleLabel: { letterSpacing: 1 },
   bubbleIcon: {
-    backgroundColor: darkSky.brand,
+    backgroundColor: cosmic.signalMint,
     width: 28, height: 28, borderRadius: 14,
     alignItems: "center", justifyContent: "center",
   },
-  bubbleIconText: { color: darkSky.bg, fontSize: 14, fontWeight: "800" },
-  bubbleDesc: { marginTop: 6, color: darkSky.text, fontSize: 13, lineHeight: 18 },
+  bubbleIconText: { color: cosmic.space950, fontSize: 14, fontWeight: "800" },
+  bubbleDesc: { marginTop: 6, color: cosmic.moonWhite, fontSize: 13, lineHeight: 18 },
   bubbleAsk: { marginTop: 6, fontSize: 11, letterSpacing: 0.5 },
   bubbleActions: { flexDirection: "row", gap: 8, marginTop: 10 },
   bubbleBtn: {
     flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: "center", borderWidth: 1,
   },
-  bubbleBtnYes: { backgroundColor: darkSky.brand, borderColor: darkSky.brand },
-  bubbleBtnYesText: { color: darkSky.bg, fontWeight: "700", fontSize: 13 },
-  bubbleBtnNo: { backgroundColor: "transparent", borderColor: darkSky.border },
-  bubbleBtnNoText: { color: darkSky.textMuted, fontSize: 13 },
+  bubbleBtnYes: { backgroundColor: cosmic.signalMint, borderColor: cosmic.signalMint },
+  bubbleBtnYesText: { color: cosmic.space950, fontWeight: "700", fontSize: 13 },
+  bubbleBtnNo: { backgroundColor: "transparent", borderColor: cosmic.lineDim },
+  bubbleBtnNoText: { color: cosmic.mistGray, fontSize: 13 },
 });

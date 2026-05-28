@@ -27,7 +27,7 @@ import { Redirect, router } from "expo-router";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { darkSky } from "@/lib/theme/tokens";
+import { cosmic } from "@/lib/theme/tokens";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 
 const logo = require("../../assets/images/logo-glow.png");
@@ -157,11 +157,13 @@ export default function Landing() {
           subtle initial circle so the layout doesn't reflow when the
           asset lands. */}
       <Animated.View style={[styles.insightRibbon, { opacity: contentOpacity }]} pointerEvents="box-none">
-        <View style={styles.mascotSlot} accessibilityLabel="Core Brain">
-          <Text style={styles.mascotInitial}>C</Text>
+        {/* SecondB placeholder — soul-violet pixel block with a mint core.
+            Same 52px footprint the eventual sprite will occupy. */}
+        <View style={styles.mascotSlot} accessibilityLabel="SecondB">
+          <View style={styles.mascotPixelCore} />
         </View>
         <Pressable onPress={() => router.push("/insights")} hitSlop={8} style={{ flex: 1 }}>
-          <Text style={styles.insightEyebrow}>{locale === "ko" ? "코어 브레인" : "Core Brain"}</Text>
+          <Text style={styles.insightEyebrow}>{locale === "ko" ? "나의 중심" : "Center of me"}</Text>
           <Text style={styles.insightText} numberOfLines={2}>{insight}</Text>
         </Pressable>
       </Animated.View>
@@ -193,7 +195,12 @@ export default function Landing() {
           style={styles.jarvisFab}
           accessibilityLabel={locale === "ko" ? "세컨비 열기" : "Open 2ndB"}
         >
-          <Text style={styles.jarvisFabIcon}>💬</Text>
+          {/* SecondB pixel mark — soul-violet pad with a mint core dot.
+              Replaces the 💬 emoji per handoff §5 (SecondB is a pixel
+              robot, not a speech bubble). Full sprite lands in Phase 3. */}
+          <View style={styles.jarvisFabSprite}>
+            <View style={styles.jarvisFabSpriteCore} />
+          </View>
         </Pressable>
       </Animated.View>
     </View>
@@ -201,7 +208,7 @@ export default function Landing() {
 }
 
 const styles = StyleSheet.create({
-  skyContainer: { flex: 1, backgroundColor: darkSky.bg },
+  skyContainer: { flex: 1, backgroundColor: cosmic.space950 },
   skyLogo: {
     position: "absolute",
     width: 220, height: 220,
@@ -217,26 +224,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  // Slot reserved for the upcoming Core Brain mascot. Same footprint
-  // (52px circle) the eventual <Image> will occupy.
+  // SecondB placeholder — soul-violet block with a mint signal core.
+  // Same 52px footprint the eventual pixel sprite will occupy.
   mascotSlot: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: 12, // square-ish, pixel-block feel rather than round avatar
     borderWidth: 1,
-    borderColor: "rgba(127,179,244,0.35)",
-    backgroundColor: "rgba(127,179,244,0.06)",
+    borderColor: "rgba(167,139,250,0.42)",
+    backgroundColor: "rgba(167,139,250,0.16)",
     alignItems: "center",
     justifyContent: "center",
   },
-  mascotInitial: {
-    color: "rgba(127,179,244,0.7)",
-    fontSize: 18,
-    fontWeight: "700",
-    letterSpacing: 0.5,
+  mascotPixelCore: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+    backgroundColor: cosmic.signalMint,
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.7,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
   },
   insightEyebrow: {
-    color: darkSky.textSubtle,
+    color: cosmic.signalMint,
     fontSize: 10,
     letterSpacing: 1.5,
     fontWeight: "700",
@@ -244,7 +255,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   insightText: {
-    color: darkSky.text,
+    color: cosmic.moonWhite,
     fontSize: 14,
     lineHeight: 20,
     letterSpacing: 0.2,
@@ -260,7 +271,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4,
   },
   localeToggleText: {
-    color: darkSky.textSubtle,
+    color: cosmic.mistGray,
     fontSize: 12, letterSpacing: 1.5, fontWeight: "700",
   },
   settingsCog: {
@@ -268,13 +279,13 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: darkSky.border,
+    borderColor: cosmic.lineDim,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(127,179,244,0.04)",
+    backgroundColor: "rgba(167,139,250,0.06)",
   },
   settingsCogIcon: {
-    color: darkSky.text,
+    color: cosmic.moonWhite,
     fontSize: 18,
     lineHeight: 18,
     marginTop: -1,
@@ -283,23 +294,44 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 24, right: 20,
   },
+  // SecondB FAB — soul-violet body, mint glow. Square-ish pixel block,
+  // not a round avatar, so it reads as a pixel resident rather than a
+  // chat button (handoff §5 + §7-1 floating-b).
   jarvisFab: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: darkSky.accent,
-    backgroundColor: darkSky.bg,
+    borderColor: "rgba(167,139,250,0.55)",
+    backgroundColor: "rgba(167,139,250,0.22)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: darkSky.accent,
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
+    shadowColor: cosmic.soulViolet,
+    shadowOpacity: 0.55,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
     elevation: 6,
   },
-  jarvisFabIcon: {
-    fontSize: 24,
-    lineHeight: 24,
+  // Inner pixel sprite stand-in — small violet square with a mint core.
+  // Replaced by a real Image when the sprite sheet lands (Phase 3).
+  jarvisFabSprite: {
+    width: 26,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: cosmic.space950,
+    backgroundColor: cosmic.soulViolet,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  jarvisFabSpriteCore: {
+    width: 6,
+    height: 6,
+    borderRadius: 1.5,
+    backgroundColor: cosmic.signalMint,
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.85,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 0 },
   },
 });
