@@ -5,6 +5,120 @@
 
 ---
 
+## Latest — 2026-05-29 / Cosmic Pixel Graph Village Phase 1 (PR #39 merged)
+
+### 어디까지 왔나
+- **main HEAD**: `6df18d1` ([PR #39](https://github.com/Simon-YHKim/2nd-B/pull/39))
+- 이번 세션 머지된 PR: **#39** — 9 commits 통합 squash (nav 정리 + persona 통합 + 정량 도구 + capture + 인사이트 + Cosmic Phase 1)
+- 테스트 상태: **509 / 509 green** (47 suites)
+- working tree: clean
+- diff: **41 files, +3,345 / -823**
+
+### 마지막 작업 성실성 audit (2026-05-29 KST)
+세션 종료 직전 self-audit 완료:
+
+| 항목 | 결과 |
+|---|---|
+| 12개 신규 파일 main 에 존재 | ✅ (bfi.ts / characters.ts / QuantIntroModal+Pager / CharacterPathLayer / imagine.tsx / 보고서 HTML 등 전부 사이즈 확인) |
+| tipi.ts + tipi.test.ts 삭제 | ✅ ENOENT 확인 |
+| `npm run verify` on `6df18d1` | ✅ 509/509 tests, lint + typecheck + i18n parity + forbidden lexicon + LLM boundary + C1~C12 모두 PASS |
+| PR #39 CI | ✅ lint + verify ×2 모두 success |
+| squash merge stat 일관성 | ⚠ PR description "44 files, +2,683" → 실제 "41 files, +3,345" (squash 통합 + lockfile 차이, 기능 누락 없음) |
+| 의도된 변경 누락 | 없음 |
+
+### 활성 인프라
+- **Supabase project**: `zoacryukmdeivmolvyhj` (변경 없음)
+- **gemini-proxy edge function**: **v5 ACTIVE** — multimodal OCR (image base64 ≤2.7MB)
+- **CI**: GitHub Actions verify + lint 모두 green
+- **Deploy**: GitHub Pages auto-deploy on main push (~2-3분)
+- **신규 deps** (이번 세션): `pdfjs-dist@^5.7`, `mammoth@^1.12` (`--legacy-peer-deps` 로 install)
+
+### 사용자 confirm 필요 (전 세션 종료 시점)
+| # | 항목 | 비고 |
+|---|---|---|
+| ① | brand color sky-blue → mint (#72F2C7) 유지? | 모든 primary button/accent 색 변경. 어색하면 되돌리기 |
+| ② | 라이트 모드 정책 — cosmic-light palette 필요? | 핸드오프 "main 다크 유지" 명시, 부수 화면 토글은? |
+| ③ | 6 캐릭터 sprite asset 발주 path | 외주 / Gemini 생성 / 직접 도트 선택 |
+| ④ | /imagine LLM pipeline 시점 | Gemini purpose enum 에 "imagine" 추가 결정 |
+| ⑤ | BFI-44 ↔ 기존 TIPI 호환 | 척도 다름 (1-7→1-5). 자동 마이그레이션 불가, Simon 본인 재평가 필요 |
+| ⑥ | PR 사이즈 정책 | #39 가 41 files. 다음 PR 부터 묶음당 분리 원하면 정책 변경 |
+
+상세: `docs/2026-05-29-session-cosmic-phase1-report.html`
+
+### 다음 작업 큐 (Phase 3 후보)
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **6 캐릭터 sprite asset 제작** + CharacterPathLayer 의 placeholder → `<Image>` swap | medium-large | ⭐ confirm ③ 의 답에 따라 외주/생성/직접. 동시에 imagine.tsx 의 velaSpriteSlot 도 swap |
+| B | **/imagine LLM pipeline wiring** — Gemini `purpose: "imagine"` 추가 + classify-track + 출력 카드 7섹션 동적 채움 | medium | confirm ④ 시작 시 |
+| C | **persona / core-brain 카드 구조 §7-2 재편** — "지금 가장 밝은 방향" / "요즘 불 켜진 동네" / "이걸 만든 조각" 카드 | medium | Cosmic Phase 1 의 5번 항목 완성 |
+| D | **signature motion** — 저장 (루루 뽁) / 연결 발견 (아치 라인 켜짐) / 공상 (벨라 핑크 신호) animation system | medium-large | 핸드오프 우선순위 8 |
+| E | **voice sweep 잔여** — BFI / MBTI / ECR-S / Interview / Wiki 의 clinical 잔여 → Core Brain 일인칭 복수 | medium | HANDOFF B 잔여 |
+| F | **DESIGN.md 3-color rule 갱신** — cosmic accent 5-6색 정책 명확화 | small | 다른 PR 시작 전 권장 |
+| G | **lightCosmic palette 설계** (confirm ② = "필요" 답 시) | small-medium | semantic 의 light 매핑 추가 |
+
+### 적용 중인 정책 (영구 — 이번 세션 reaffirmed)
+1. **CI 자동 머지**: PR 만들고 CI 그린되면 squash auto-merge. PR #39 이 그렇게 머지됨.
+2. **Branch reset 패턴**: 이전 PR 머지 후 `git fetch origin main && git reset --hard origin/main`. 안 하면 충돌.
+3. **개발 branch**: 각 세션마다 자기 branch 만들기 (예: `claude/previous-session-handoff-uszkl`). 같은 branch 누적 push 도 가능하지만 PR 사이즈가 커짐 — confirm ⑥ 정책 결정 대기.
+4. **C1~C12 강제** — `npm run check:constraints` CI 에서 강제. 약화 금지.
+5. **forbidden lexicon** (진단/치료/치유/정신건강/심리상담/멘탈) — character voice 라인 단위 테스트 + CI scan 으로 defense in depth.
+6. **DESIGN.md** bounce/elastic 금지. PR #34 의 뽁 overshoot 만 명시 예외.
+7. **개발명 vs 유저-facing 분리**: 코드 식별자 = "Core Brain", 화면 문구 = "나의 중심" (handoff §7-2 정책).
+
+### 핵심 파일 위치 (이번 세션 변경)
+```
+src/lib/theme/tokens.ts                     cosmic palette + characters + semantic 매핑 pivot
+src/lib/characters.ts (NEW)                 6 캐릭터 roster + voice + 라우트 매핑
+src/lib/persona/bfi.ts (NEW)                BFI-44 44문항 + friendly subtitle
+src/lib/persona/build.ts                    loadLatestMbti/Attachment/Bfi + traitsSource
+src/lib/persona/mbti.ts                     16 → 32 items + subtitle
+src/lib/persona/attachment.ts               + subtitle 12개
+src/lib/audit/frameworkLabels.ts (NEW)      Framework KO/EN 라벨
+src/lib/wiki/capture.ts                     userTags + track frontmatter 영속화
+src/lib/wiki/capture-file.ts                PDF/DOCX dynamic import (web)
+src/components/quant/QuantIntroModal.tsx (NEW)  시작 사전고지 modal
+src/components/quant/QuantPager.tsx (NEW)       5문항/페이지 + progress
+src/components/graph/CharacterPathLayer.tsx (NEW)  6 캐릭터 placeholder (asset slot)
+src/components/graph/NavGraph.tsx           cosmic 색상 + imagine 노드 + 나의 중심 label
+src/app/imagine.tsx (NEW)                   공상 작업실 scaffold (Vela accent)
+src/app/big-five.tsx / mbti.tsx / attachment.tsx  Pager + IntroModal 적용
+src/app/persona.tsx                         MBTI/Attachment 카드 + 출처 라벨
+src/app/index.tsx                           FAB sprite block + ribbon "나의 중심"
+src/app/insights.tsx                        Core Brain 일인칭 복수 voice
+src/app/capture.tsx                         userTags + track 전달
+docs/2026-05-29-session-cosmic-phase1-report.html (NEW)  세션 보고서
+```
+
+### Asset slot 명세 (Phase 3 swap 1-line)
+| 위치 | 영역 | 필요 asset |
+|---|---|---|
+| `src/components/graph/CharacterPathLayer.tsx` styles.body ×6 | 16×14 each | `{id}-idle.png` (secondb/momo/lulu/archi/vela/gadi) |
+| `src/app/imagine.tsx` styles.velaSpriteSlot | 64×64 | `vela-idle@2x.png` |
+| `src/app/imagine.tsx` styles.sceneSlot ×3 | 88×88 each | 장면 thumbnail/illustration |
+| `src/app/index.tsx` styles.jarvisFabSprite | 26×22 | `secondb-idle.png` (FAB 안) |
+| `src/app/index.tsx` styles.mascotSlot | 52×52 | `secondb-idle@2x.png` (ribbon left) |
+
+### 검증
+```bash
+npm run verify            # lint + type + i18n + lexicon + LLM boundary + constraints + jest (509 tests)
+npm run check:constraints # C1~C12 단독
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# Phase 3 시작 — confirm 6 항목 답 받고 큐 A~G 진행
+```
+
+근거 파일:
+- `docs/2026-05-29-session-cosmic-phase1-report.html` — 세션 보고서 (palette swatch + confirm 카드)
+- 핸드오프 원본: `uploads/d8550591-65ae-4ac1-b720-2d6ef26ea366/277276a6-2ndB_pixel_graph_village_revised_handoff.html` (1914 lines)
+- PR #39: <https://github.com/Simon-YHKim/2nd-B/pull/39>
+
+---
+
 ## Latest — 2026-05-27 / Constellation v2 + 세컨비 + Capture v2
 
 ### 어디까지 왔나
