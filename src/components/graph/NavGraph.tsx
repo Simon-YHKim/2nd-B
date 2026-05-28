@@ -121,6 +121,15 @@ export const MENU_NODES: readonly NavNode[] = [
   { id: "wiki", tier: 2, parentId: "core", href: "/wiki", bubbleAction: "upload",
     label: { en: "Wiki", ko: "Wiki" },
     description: { en: "Your knowledge — drop anything in.", ko: "당신의 지식 — 뭐든 던지면 우리가 정리해 둘게요." } },
+  // 공상 동네 — Vela's atelier. Phase 1 lands the scaffold + nav entry;
+  // generation pipeline arrives in Phase 3.
+  { id: "imagine", tier: 2, parentId: "core", href: "/imagine",
+    label: { en: "Imagine", ko: "공상" },
+    description: {
+      en: "Lay a vague thought out as scenes. Vela's workshop.",
+      ko: "막연한 생각을 장면으로 펼쳐보는 곳. 벨라의 작업실이에요.",
+    },
+  },
 
   // Tier 3 — children of present/past/wiki
   { id: "wiki-daily", tier: 3, parentId: "wiki", href: "/wiki",

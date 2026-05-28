@@ -77,19 +77,21 @@ export default function Imagine() {
             style={styles.promptInput}
           />
           <Button
-            label={locale === "ko" ? "장면으로 펼치기" : "Lay it out as scenes"}
+            label={
+              locale === "ko"
+                ? "장면으로 펼치기 (곧 연결돼요)"
+                : "Lay it out as scenes (wiring soon)"
+            }
             variant="primary"
-            disabled={draft.trim().length === 0}
-            onPress={() => {
-              // Phase 3 — wire to Gemini "imagine" purpose + classify-track.
-              // For now, this only surfaces a friendly notice so the
-              // scaffolding is functional.
-            }}
+            // Always disabled in Phase 1 — the button is here so the
+            // layout doesn't shift when Phase 3 wires generation.
+            disabled
+            onPress={() => undefined}
           />
           <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.sm, textAlign: "center" }}>
             {locale === "ko"
-              ? "(Phase 3에서 실제 펼침이 연결돼요. 지금은 자리만 잡아둔 상태예요.)"
-              : "(Generation pipeline lands in Phase 3 — this is the scaffold for now.)"}
+              ? "Phase 3에서 실제 펼침이 연결돼요. 지금은 자리만 잡아둔 상태예요."
+              : "Generation pipeline lands in Phase 3 — this is the scaffold for now."}
           </Text>
         </View>
 
