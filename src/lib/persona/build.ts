@@ -22,9 +22,28 @@ export interface PersonaTraits {
   neuroticism: number;
 }
 
+export type TraitsSource = "tipi" | "heuristic";
+
+export interface PersonaMbti {
+  type: string;
+  scores: Record<"E" | "I" | "S" | "N" | "T" | "F" | "J" | "P", number>;
+}
+
+export interface PersonaAttachment {
+  style: "secure" | "preoccupied" | "dismissing" | "fearful";
+  anxiety: number;
+  avoidance: number;
+}
+
 export interface PersonaCard {
   version: number;
   traits: PersonaTraits;
+  /** Where `traits` came from — direct TIPI measurement or keyword heuristic. */
+  traitsSource: TraitsSource;
+  /** Latest MBTI 16-type result if the user has taken the screener. */
+  mbti: PersonaMbti | null;
+  /** Latest ECR-S attachment result if available. */
+  attachment: PersonaAttachment | null;
   values: string[];
   patterns: Record<string, string>;
   markdownExport: string;
@@ -103,6 +122,61 @@ async function loadMemorizedHistogram(
   return hist;
 }
 
+async function loadLatestMbti(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  userId: string,
+): Promise<PersonaMbti | null> {
+  const { data, error } = await supabase
+    .from("records")
+    .select("body, created_at")
+    .eq("user_id", userId)
+    .contains("tags", ["mbti", "assessment"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error || !data || data.length === 0) return null;
+  try {
+    const parsed = JSON.parse((data[0] as { body: string }).body) as {
+      type?: string;
+      scores?: Record<"E" | "I" | "S" | "N" | "T" | "F" | "J" | "P", number>;
+    };
+    if (typeof parsed.type !== "string" || parsed.type.length !== 4 || !parsed.scores) return null;
+    return { type: parsed.type, scores: parsed.scores };
+  } catch {
+    return null;
+  }
+}
+
+async function loadLatestAttachment(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  userId: string,
+): Promise<PersonaAttachment | null> {
+  const { data, error } = await supabase
+    .from("records")
+    .select("body, created_at")
+    .eq("user_id", userId)
+    .contains("tags", ["attachment", "ecr"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error || !data || data.length === 0) return null;
+  try {
+    const parsed = JSON.parse((data[0] as { body: string }).body) as {
+      style?: PersonaAttachment["style"];
+      anxiety?: number;
+      avoidance?: number;
+    };
+    if (
+      !parsed.style ||
+      typeof parsed.anxiety !== "number" ||
+      typeof parsed.avoidance !== "number"
+    ) {
+      return null;
+    }
+    return { style: parsed.style, anxiety: parsed.anxiety, avoidance: parsed.avoidance };
+  } catch {
+    return null;
+  }
+}
+
 async function loadLatestTipi(
   supabase: ReturnType<typeof getSupabaseClient>,
   userId: string,
@@ -145,6 +219,7 @@ export async function buildPersona(userId: string, locale: "en" | "ko"): Promise
   const rows = (data ?? []) as AuditResponseRow[];
 
   let traits = scoreFromAnswers(rows);
+  let traitsSource: TraitsSource = "heuristic";
 
   // If a TIPI assessment exists, prefer it (1-7 → 0-1 normalize).
   // emotional_stability → neuroticism is inverted.
@@ -158,9 +233,14 @@ export async function buildPersona(userId: string, locale: "en" | "ko"): Promise
       agreeableness: norm(tipi.agreeableness),
       neuroticism: 1 - norm(tipi.emotional_stability),
     };
+    traitsSource = "tipi";
   }
 
-  const memorized = await loadMemorizedHistogram(supabase, userId);
+  const [memorized, mbti, attachment] = await Promise.all([
+    loadMemorizedHistogram(supabase, userId),
+    loadLatestMbti(supabase, userId),
+    loadLatestAttachment(supabase, userId),
+  ]);
 
   // Pull one short narrative summary from the LLM wrapper (mock or live).
   // This still goes through callGemini, so C9 + C3 hold.
@@ -188,9 +268,12 @@ export async function buildPersona(userId: string, locale: "en" | "ko"): Promise
   const persona: PersonaCard = {
     version: 1,
     traits,
+    traitsSource,
+    mbti,
+    attachment,
     values: deriveValues(rows),
     patterns,
-    markdownExport: renderMarkdown(traits, rows, summaryRes.text, locale, topKinds),
+    markdownExport: renderMarkdown(traits, rows, summaryRes.text, locale, topKinds, mbti, attachment),
   };
 
   // Persist for later reuse (RAG export, etc).
@@ -234,6 +317,8 @@ function renderMarkdown(
   summary: string,
   locale: "en" | "ko",
   topKinds: [string, number][] = [],
+  mbti: PersonaMbti | null = null,
+  attachment: PersonaAttachment | null = null,
 ): string {
   const title = locale === "ko" ? "# 두번째 뇌 — 페르소나 v1" : "# 2nd-Brain — Persona v1";
   const intro =
@@ -251,5 +336,14 @@ function renderMarkdown(
     ? `\n\n## ${locale === "ko" ? "관찰된 패턴" : "Observed patterns"}\n` +
       topKinds.map(([k, n]) => `- ${k}: ${n}${locale === "ko" ? "회 관찰" : "× observed"}`).join("\n")
     : "";
-  return `${title}\n\n${intro}\n\n## Traits (Big Five proxy)\n${traitLines}\n\n## Narrative\n${summary}${patternsSection}\n\n## Source entries\n${entries}\n`;
+  const mbtiSection = mbti
+    ? `\n\n## MBTI\n- ${locale === "ko" ? "유형" : "Type"}: **${mbti.type}**`
+    : "";
+  const attachmentSection = attachment
+    ? `\n\n## ${locale === "ko" ? "애착 스타일" : "Attachment style"}\n` +
+      `- ${locale === "ko" ? "스타일" : "Style"}: **${attachment.style}**\n` +
+      `- ${locale === "ko" ? "불안" : "Anxiety"}: ${attachment.anxiety.toFixed(1)} / 7\n` +
+      `- ${locale === "ko" ? "회피" : "Avoidance"}: ${attachment.avoidance.toFixed(1)} / 7`
+    : "";
+  return `${title}\n\n${intro}\n\n## Traits (Big Five proxy)\n${traitLines}${mbtiSection}${attachmentSection}${patternsSection}\n\n## Narrative\n${summary}${patternsSection ? "" : ""}\n\n## Source entries\n${entries}\n`;
 }
