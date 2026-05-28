@@ -92,6 +92,12 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   // VISION.md restates the vocabulary policy in a ❌/✅ table so future
   // contributors see it on first read — table entries must be verbatim.
   "docs/VISION.md",
+  // gemini-app-overview.md is the prompt-ready spec we hand to an external
+  // LLM (Gemini) for world-building / UI consulting. It restates the
+  // ❌/✅ vocabulary table verbatim and quotes the LLM's draft phrasing
+  // ("위로 패치" etc.) inside an evaluation block — those quotations are
+  // policy-definition reference, not user-facing copy.
+  "docs/gemini-app-overview.md",
   // safety.ts cites the official Korean hotline name "정신건강위기상담전화"
   // verbatim. Same justification as the locale safety files.
   "src/lib/llm/safety.ts",
