@@ -89,6 +89,9 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   "locales/en/safety.json",
   "locales/ko/safety.json",
   "docs/CONSTRAINTS.md",
+  // VISION.md restates the vocabulary policy in a ❌/✅ table so future
+  // contributors see it on first read — table entries must be verbatim.
+  "docs/VISION.md",
   // safety.ts cites the official Korean hotline name "정신건강위기상담전화"
   // verbatim. Same justification as the locale safety files.
   "src/lib/llm/safety.ts",
