@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="350" height="260" viewBox="0 0 350 260" fill="none">
+<defs>
+  <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="5" result="blur"/>
+    <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.45 0 0 0 0 0.95 0 0 0 0 0.80 0 0 0 0.7 0" result="glow"/>
+    <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="violetGlow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="6" result="blur"/>
+    <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.65 0 0 0 0 0.55 0 0 0 0 1 0 0 0 0.65 0" result="glow"/>
+    <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="lampGlow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="4" result="blur"/>
+    <feColorMatrix in="blur" type="matrix" values="0 0 0 0 1 0 0 0 0 0.82 0 0 0 0 0.35 0 0 0 0.65 0" result="glow"/>
+    <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <pattern id="noiseGrid" width="12" height="12" patternUnits="userSpaceOnUse">
+    <path d="M 12 0 L 0 0 0 12" fill="none" stroke="rgba(141,152,184,0.08)" stroke-width="1"/>
+  </pattern>
+  <style>
+    .t { font-family: 'Noto Sans CJK KR','Pretendard','SF Pro Display',system-ui,sans-serif; }
+    .mono { font-family: 'NanumGothicCoding','SF Mono',monospace; }
+    .pixel { shape-rendering: crispEdges; }
+  </style>
+</defs>
+
+<rect x="0" y="0" width="350" height="260" rx="30" fill="rgba(13,21,48,0.72)" stroke="rgba(167,139,250,0.25)"/>
+<circle cx="175" cy="86" r="34" fill="rgba(167,139,250,0.13)" stroke="rgba(167,139,250,0.45)" filter="url(#violetGlow)"/>
+<rect class="pixel" x="160" y="80" width="7" height="7" fill="#E8ECF8"/>
+<rect class="pixel" x="183" y="80" width="7" height="7" fill="#E8ECF8"/>
+<rect class="pixel" x="171" y="98" width="8" height="4" fill="#72F2C7"/>
+<text x="175" y="153" class="t" fill="#E8ECF8" font-size="18" font-weight="800" text-anchor="middle">세컨비에게 물어보기</text>
+<text x="175" y="181" class="t" fill="#8D98B8" font-size="13" text-anchor="middle">내 조각, 나의 모습, 최근 기록을 참고해요.</text>
+<rect x="84" y="204" width="182" height="38" rx="16" fill="rgba(114,242,199,0.13)" stroke="rgba(114,242,199,0.34)"/>
+<text x="175" y="228" class="t" fill="#72F2C7" font-size="13" font-weight="700" text-anchor="middle">오늘의 조각으로 시작</text>
+
+</svg>
