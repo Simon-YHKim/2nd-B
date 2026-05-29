@@ -249,7 +249,7 @@ export default function CoreBrain() {
                   style={styles.evRow}
                   onPress={() => {
                     setDrawerOpen(false);
-                    router.push(ev.route as never);
+                    router.push({ pathname: "/record/[id]", params: { id: ev.id } });
                   }}
                 >
                   <View style={styles.evDot} />
@@ -262,6 +262,14 @@ export default function CoreBrain() {
                 </Pressable>
               ))}
             </ScrollView>
+            <Button
+              label={locale === "ko" ? "모든 기록 보기" : "See all records"}
+              variant="secondary"
+              onPress={() => {
+                setDrawerOpen(false);
+                router.push("/records");
+              }}
+            />
             <Button label={locale === "ko" ? "닫기" : "Close"} variant="secondary" onPress={() => setDrawerOpen(false)} />
           </Pressable>
         </Pressable>

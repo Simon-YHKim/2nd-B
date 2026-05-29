@@ -200,6 +200,9 @@ function seeded(id: string, salt: number): number {
 interface Props {
   locale: "en" | "ko";
   dataNodes: readonly DataNode[];
+  /** Highlight-on-return (queue B): a node/wiki-page id to focus when the
+   *  user arrives from a record / wiki detail via "그래프에서 보기". */
+  highlightId?: string | null;
 }
 
 interface Positioned {
@@ -212,7 +215,7 @@ interface DataPositioned {
   base: { x: number; y: number };
 }
 
-export function NavGraph({ locale, dataNodes }: Props) {
+export function NavGraph({ locale, dataNodes, highlightId }: Props) {
   const { width, height } = useWindowDimensions();
   const cx = width / 2;
   const cy = height / 2;
@@ -487,6 +490,8 @@ export function NavGraph({ locale, dataNodes }: Props) {
   }, [dataPositions]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Highlight-on-return (queue B): a tier-4 shard the user came back to see.
+  const [highlightDataId, setHighlightDataId] = useState<string | null>(null);
 
   // Zoom-driven tier visibility (overhaul §5). Mirror the live pinch scale
   // into a coarse 0/1/2 bucket on the JS thread; the worklet only pushes a
@@ -512,6 +517,37 @@ export function NavGraph({ locale, dataNodes }: Props) {
   const tierOf = (id: string): Tier =>
     id === CENTER_NODE.id ? 1 : MENU_NODES.find((n) => n.id === id)?.tier ?? 4;
   const idVisible = (id: string): boolean => nodeVisible(tierOf(id));
+
+  // Highlight-on-return (queue B): when the screen mounts with a highlight id
+  // (from a record / wiki detail "그래프에서 보기"), focus it. A menu/center
+  // node opens its bottom sheet (reusing the focus + edge highlight); a
+  // tier-4 shard reveals tier 4 and pulses for a moment so the user lands on
+  // exactly the piece they tapped.
+  useEffect(() => {
+    if (!highlightId) return;
+    if (highlightId === CENTER_NODE.id || MENU_NODES.some((n) => n.id === highlightId)) {
+      setActiveId(highlightId);
+      return;
+    }
+    if (!dataPositions.has(highlightId)) return;
+    setHighlightDataId(highlightId);
+    // Reveal tier-4 shards so the highlighted one is on screen.
+    const revealed = Math.max(zoomScale.value, 1.25);
+    zoomScale.value = revealed;
+    zoomSavedScale.value = revealed;
+    const v = pulseValues.current.get(highlightId);
+    if (v) {
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1.9, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+        Animated.delay(400),
+        Animated.timing(v, { toValue: 1.6, duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+      ]).start();
+    }
+    const t = setTimeout(() => setHighlightDataId(null), 2800);
+    return () => clearTimeout(t);
+  }, [highlightId, dataPositions, zoomScale, zoomSavedScale]);
 
   // 연결 발견 / "아치 라인 켜짐" — when a node is focused, its incident
   // edges light up in signal-mint (overhaul §7 "연결된 edge만 signal-mint로
@@ -652,6 +688,9 @@ export function NavGraph({ locale, dataNodes }: Props) {
   const connectedCount = activeNeighbors.size;
   const isRelated = (id: string): boolean =>
     activeId == null || id === activeId || activeNeighbors.has(id);
+  // Dim predicate combining focus (activeId) and highlight-on-return.
+  const dimFor = (id: string): boolean =>
+    highlightDataId != null ? id !== highlightDataId : activeId != null && !isRelated(id);
 
   // Village type label per tier (overhaul §6/§7 sheet "노드 타입").
   const typeLabel = (tier: Tier): string => {
@@ -754,7 +793,8 @@ export function NavGraph({ locale, dataNodes }: Props) {
                   opacity: spawnOpacity(id) as never,
                   transform: swayTransform(id) as never,
                 },
-                activeId != null && !isRelated(id) ? styles.dimmed : null,
+                id === highlightDataId ? styles.shardHighlight : null,
+                dimFor(id) ? styles.dimmed : null,
               ]}
             >
               <NodeArt tier={4} size={14} />
@@ -768,7 +808,7 @@ export function NavGraph({ locale, dataNodes }: Props) {
         const base = positions.get(n.id);
         if (!base) return null;
         const size = tierSize(n.tier);
-        const dim = activeId != null && !isRelated(n.id);
+        const dim = dimFor(n.id);
         return (
           <Animated.View
             key={n.id}
@@ -821,7 +861,7 @@ export function NavGraph({ locale, dataNodes }: Props) {
           style={[
             styles.centerArtWrap,
             CENTER_NODE.id === activeId ? styles.nodeFocused : null,
-            activeId != null && !isRelated(CENTER_NODE.id) ? styles.dimmed : null,
+            dimFor(CENTER_NODE.id) ? styles.dimmed : null,
           ]}
         >
           <NodeArt tier={1} size={CENTER_SIZE} />
@@ -949,6 +989,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   shardWrap: { position: "absolute", width: 14, height: 14, alignItems: "center", justifyContent: "center" },
+  // Highlight-on-return: a mint halo around the shard the user came back to.
+  shardHighlight: {
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+  },
   // Selection states (§7).
   nodeFocused: {
     shadowColor: cosmic.signalMint,

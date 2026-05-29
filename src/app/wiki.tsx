@@ -585,6 +585,36 @@ export default function Wiki() {
                           ← [[{b.slug}]] {b.title}
                         </Text>
                       ))}
+                      {/* Handoffs (wiki-records §6/§7): jump to this page on
+                          the graph, or ask SecondB about it. */}
+                      <View style={styles.pageHandoffs}>
+                        <Pressable
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            router.push({ pathname: "/", params: { highlightWikiPageId: p.id } });
+                          }}
+                          hitSlop={6}
+                          style={styles.pageHandoffBtn}
+                          accessibilityRole="button"
+                        >
+                          <Text variant="caption" color="brand">
+                            {locale === "ko" ? "그래프에서 보기" : "See in graph"}
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            router.push({ pathname: "/jarvis", params: { fromNode: p.title } });
+                          }}
+                          hitSlop={6}
+                          style={styles.pageHandoffBtn}
+                          accessibilityRole="button"
+                        >
+                          <Text variant="caption" color="brand">
+                            {locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
+                          </Text>
+                        </Pressable>
+                      </View>
                       <Pressable
                         onPress={(e) => {
                           e.stopPropagation();
@@ -617,6 +647,14 @@ export default function Wiki() {
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
   companionFlash: { position: "absolute", bottom: 40, right: 20 },
+  pageHandoffs: { flexDirection: "row", gap: spacing.md, marginTop: spacing.sm },
+  pageHandoffBtn: {
+    borderWidth: 1,
+    borderColor: semantic.border,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   actions: { flexDirection: "row", gap: spacing.sm },
   tagFilterCard: {

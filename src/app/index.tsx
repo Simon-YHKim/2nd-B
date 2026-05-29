@@ -23,7 +23,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -93,6 +93,15 @@ export default function Landing() {
   const skyOverlay = useSkyDrift();
 
   const [dataNodes, setDataNodes] = useState<DataNode[]>([]);
+
+  // Highlight-on-return (queue B): a record / wiki detail can deep-link back
+  // to the graph and ask it to focus a specific node.
+  const params = useLocalSearchParams<{ highlight?: string; highlightWikiPageId?: string; highlightRecordId?: string }>();
+  const highlightId =
+    (typeof params.highlightWikiPageId === "string" && params.highlightWikiPageId) ||
+    (typeof params.highlight === "string" && params.highlight) ||
+    (typeof params.highlightRecordId === "string" && params.highlightRecordId) ||
+    null;
 
   // SecondB presence: dozes off after a stretch of no interaction, and shows
   // a soft notification glyph while there are pieces the user hasn't opened
@@ -186,7 +195,7 @@ export default function Landing() {
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: skyOverlay }]} />
 
       <Animated.View style={[styles.contentLayer, { opacity: contentOpacity }]} pointerEvents="box-none">
-        <NavGraph locale={locale} dataNodes={dataNodes} />
+        <NavGraph locale={locale} dataNodes={dataNodes} highlightId={highlightId} />
         {/* CharacterPathLayer — 6 픽셀 주민 placeholder. Phase 3 에서
             엣지-따라-걷기 motion + sprite asset 으로 진화 (handoff §5/§7-1).
             현재는 static anchor 에 colored block 만. */}
