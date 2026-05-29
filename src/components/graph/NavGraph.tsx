@@ -27,7 +27,7 @@
 //   - Core tier-1 node (bubbleAction: 'jarvis'): bubble shows a 💬
 //     icon that opens /jarvis. Primary action: open /persona.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -47,6 +47,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Text } from "@/components/ui/Text";
 import { cosmic } from "@/lib/theme/tokens";
 import { pitchForTier, playPop } from "@/lib/audio/pop";
+import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { clampPan, clampScale, panForFocalZoom } from "./zoom-math";
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
@@ -520,6 +521,14 @@ export function NavGraph({ locale, dataNodes }: Props) {
 
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // 연결 발견 / "아치 라인 켜짐" — when a node is focused, its incident
+  // edges light up in Archi's signal-blue (handoff §8 + Prompt B "highlight
+  // connected edges on tap"). The glow fades dim → bright over ~500ms.
+  const { opacity: connGlow, light: lightConnections } = useConnectionGlow();
+  useEffect(() => {
+    if (activeId != null) lightConnections();
+  }, [activeId, lightConnections]);
+
   // Bubble pop-in anim — 0 (hidden) → 1.2 (overshoot) → 1.0 (settled).
   // Re-triggered whenever activeId switches to a non-null value, so
   // tapping a different node makes the new bubble pop in.
@@ -674,17 +683,37 @@ export function NavGraph({ locale, dataNodes }: Props) {
           const animOpacity = ev
             ? (ev.interpolate({ inputRange: [0, 1], outputRange: [0, e.opacity] }) as unknown as number)
             : 0;
+          const incident = activeId != null && (e.fromId === activeId || e.toId === activeId);
+          const x1 = animX(e.fromId, fromBase.x) as unknown as number;
+          const y1 = animY(e.fromId, fromBase.y) as unknown as number;
+          const x2 = animX(e.toId, toBase.x) as unknown as number;
+          const y2 = animY(e.toId, toBase.y) as unknown as number;
           return (
-            <AnimatedLine
-              key={e.key}
-              x1={animX(e.fromId, fromBase.x) as unknown as number}
-              y1={animY(e.fromId, fromBase.y) as unknown as number}
-              x2={animX(e.toId, toBase.x) as unknown as number}
-              y2={animY(e.toId, toBase.y) as unknown as number}
-              stroke={cosmic.signalMint}
-              strokeOpacity={animOpacity}
-              strokeWidth={1}
-            />
+            <Fragment key={e.key}>
+              <AnimatedLine
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={cosmic.signalMint}
+                strokeOpacity={animOpacity}
+                strokeWidth={1}
+              />
+              {/* Archi connection glow — only the focused node's edges. */}
+              {incident ? (
+                <AnimatedLine
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke={cosmic.signalBlue}
+                  strokeOpacity={
+                    connGlow.interpolate({ inputRange: [0.25, 1], outputRange: [0.35, 0.95] }) as unknown as number
+                  }
+                  strokeWidth={1.6}
+                />
+              ) : null}
+            </Fragment>
           );
         })}
       </Svg>

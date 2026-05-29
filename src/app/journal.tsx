@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Pressable } from "react-native";
+import { Animated, View, StyleSheet, ScrollView, ActivityIndicator, Alert, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, Link } from "expo-router";
 
@@ -22,6 +22,7 @@ import {
   type RecordedEvidence,
 } from "@/lib/records/create";
 import { useProgression } from "@/lib/progression/useProgression";
+import { useSavePop } from "@/components/motion/useSignatureMotion";
 import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -53,6 +54,8 @@ export default function Journal() {
   const { t, i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const progression = useProgression();
+  // 저장 / Save — "루루 뽁" signature pop on a successful entry.
+  const { scale: saveScale, pop: savePop } = useSavePop();
   const [body, setBody] = useState("");
   const [topic, setTopic] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -128,6 +131,8 @@ export default function Journal() {
       setShowExtras(false);
       setAskAdvisor(false);
       await refresh(userId);
+      // 루루 뽁 — signature save pop (+ synth pop on web).
+      savePop();
       // Capture earned XP — refresh the level bar.
       void progression.refresh();
     } catch (e) {
@@ -396,13 +401,15 @@ export default function Journal() {
                 </Text>
               </View>
             </Pressable>
-            <Button
-              label={locale === "ko" ? "기록하기" : "Save"}
-              variant="primary"
-              onPress={handleSubmit}
-              disabled={!body.trim() || submitting}
-              loading={submitting}
-            />
+            <Animated.View style={{ transform: [{ scale: saveScale }] }}>
+              <Button
+                label={locale === "ko" ? "기록하기" : "Save"}
+                variant="primary"
+                onPress={handleSubmit}
+                disabled={!body.trim() || submitting}
+                loading={submitting}
+              />
+            </Animated.View>
             <Text variant="subtle" color="textSubtle" style={styles.privacyFootnote}>
               {t("journal.privacyFootnote")}
             </Text>
