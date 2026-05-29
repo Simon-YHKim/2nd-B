@@ -31,7 +31,8 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic } from "@/lib/theme/tokens";
 import { CharacterPathLayer } from "@/components/graph/CharacterPathLayer";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
-import { CharacterArt, PixelIcon } from "@/components/art/CosmicPixel";
+import { PixelIcon } from "@/components/art/CosmicPixel";
+import { SecondBFab, SecondBSprite } from "@/components/art/SecondBSprite";
 
 const logo = require("../../assets/images/logo-glow.png");
 
@@ -169,7 +170,7 @@ export default function Landing() {
         {/* SecondB placeholder — soul-violet pixel block with a mint core.
             Same 52px footprint the eventual sprite will occupy. */}
         <View style={styles.mascotSlot} accessibilityLabel="SecondB">
-          <CharacterArt id="secondb" size={46} />
+          <SecondBSprite state="idle" size={46} float />
         </View>
         <Pressable onPress={() => router.push("/insights")} hitSlop={8} style={{ flex: 1 }}>
           <Text style={styles.insightEyebrow}>{locale === "ko" ? "오늘의 중심" : "Today's center"}</Text>
@@ -202,10 +203,10 @@ export default function Landing() {
           onPress={() => router.push("/jarvis")}
           hitSlop={16}
           style={styles.jarvisFab}
-          accessibilityLabel={locale === "ko" ? "세컨비 열기" : "Open 2ndB"}
+          accessibilityLabel={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
         >
-          {/* SecondB pixel robot — the v1 cosmic-pixel sprite (asset pack). */}
-          <CharacterArt id="secondb" size={44} />
+          {/* SecondB v2 FAB sprite (default state, gentle float). */}
+          <SecondBFab fabState="default" size={48} />
         </Pressable>
       </Animated.View>
     </View>

@@ -7,10 +7,12 @@
 
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 
+import { cosmic } from "@/lib/theme/tokens";
+
 export function InlineLoader() {
   return (
     <View style={styles.root} accessibilityRole="progressbar" accessibilityLabel="불러오는 중">
-      <ActivityIndicator color="#2F97FC" />
+      <ActivityIndicator color={cosmic.signalMint} />
     </View>
   );
 }
@@ -20,6 +22,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#02040A",
+    backgroundColor: cosmic.space950,
   },
 });

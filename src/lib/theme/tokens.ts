@@ -67,6 +67,22 @@ export const darkSky = {
   accent: "#7FB3F4",
 } as const;
 
+// Cosmic entry palette — same SHAPE as `darkSky` (bg/surface/border/text/
+// textMuted/textSubtle/brand/accent) so the unauthenticated entry surface
+// (sign-in, loaders) can drop-in replace the legacy sky-blue look with the
+// Cosmic Pixel identity (deep-space bg + mint brand + violet accent). This
+// is what makes the rebrand visible before login.
+export const cosmicSky = {
+  bg: cosmic.space950,
+  surface: "rgba(167,139,250,0.07)",
+  border: cosmic.lineDim,
+  text: cosmic.moonWhite,
+  textMuted: "#C9D0E6",
+  textSubtle: cosmic.mistGray,
+  brand: cosmic.signalMint,
+  accent: cosmic.soulViolet,
+} as const;
+
 // Legacy light-mode counterpart in the sky-blue family. Still consumed by
 // useSkyPalette() for the loader / raw-sky surfaces. Kept as-is; the
 // cosmic-light palette below is what secondary card surfaces now use.

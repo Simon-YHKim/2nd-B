@@ -23,7 +23,7 @@ import {
 } from "@/lib/records/create";
 import { useProgression } from "@/lib/progression/useProgression";
 import { useSavePop } from "@/components/motion/useSignatureMotion";
-import { CharacterFlash } from "@/components/art/CosmicPixel";
+import { SecondBSprite, useSaveCelebration } from "@/components/art/SecondBSprite";
 import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -55,10 +55,10 @@ export default function Journal() {
   const { t, i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const progression = useProgression();
-  // 저장 / Save — "루루 뽁" signature pop on a successful entry.
+  // 저장 / Save — "뽁" signature pop on a successful entry.
   const { scale: saveScale, pop: savePop } = useSavePop();
-  // Bumped on save to flash 루루 (collection drone) briefly.
-  const [saveFlash, setSaveFlash] = useState(0);
+  // 세컨비 save celebration: carrying_shard → happy → idle (v2 §3).
+  const saveCeleb = useSaveCelebration();
   const [body, setBody] = useState("");
   const [topic, setTopic] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -134,9 +134,9 @@ export default function Journal() {
       setShowExtras(false);
       setAskAdvisor(false);
       await refresh(userId);
-      // 루루 뽁 — signature save pop (+ synth pop on web) + brief 루루 flash.
+      // 뽁 — signature save pop (+ synth pop on web) + 세컨비 celebration.
       savePop();
-      setSaveFlash((n) => n + 1);
+      saveCeleb.celebrate();
       // Capture earned XP — refresh the level bar.
       void progression.refresh();
     } catch (e) {
@@ -476,8 +476,10 @@ export default function Journal() {
           )}
         </View>
       </ScrollView>
-      {/* 루루 — collection drone flashes briefly when an entry is saved (§9) */}
-      <CharacterFlash id="lulu" trigger={saveFlash} size={52} style={styles.saveFlash} />
+      {/* 세컨비 celebrates a saved entry: carrying_shard → happy → idle */}
+      {saveCeleb.active ? (
+        <SecondBSprite state={saveCeleb.state} size={56} style={styles.saveFlash} />
+      ) : null}
       <CrisisRouter
         visible={crisis.visible}
         hotline={crisis.hotline}

@@ -28,6 +28,7 @@ import { AppNav } from "@/components/ui/AppNav";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { parseSourceCitations } from "@/lib/chat/sources";
+import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
 
@@ -144,10 +145,14 @@ export default function Jarvis() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text variant="heading">{t("title")}</Text>
-            <Text variant="subtle" color="textMuted">
-              {t("subtitle")}
-            </Text>
+            {/* 세컨비 — chat presence; thinks while a reply is generating. */}
+            <SecondBSprite state={sending ? "thinking" : "chat"} size={44} float />
+            <View style={{ flex: 1 }}>
+              <Text variant="heading">{t("title")}</Text>
+              <Text variant="subtle" color="textMuted">
+                {t("subtitle")}
+              </Text>
+            </View>
           </View>
           <View style={styles.meter}>
             <Text variant="caption" color="textMuted">
@@ -293,7 +298,7 @@ const styles = StyleSheet.create({
     borderBottomColor: semantic.border,
     borderBottomWidth: 1,
   },
-  headerLeft: { flex: 1 },
+  headerLeft: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm },
   meter: { alignItems: "flex-end", gap: 2 },
   scroll: { paddingVertical: spacing.md, gap: spacing.sm },
   empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },
