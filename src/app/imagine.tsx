@@ -21,6 +21,7 @@ import { CHARACTERS } from "@/lib/characters";
 import { useImaginePulse } from "@/components/motion/useSignatureMotion";
 import { CharacterArt } from "@/components/art/CosmicPixel";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+import { ContextPill } from "@/components/premium";
 import { callGemini } from "@/lib/llm/gemini";
 import {
   IMAGINE_SYSTEM,
@@ -133,15 +134,8 @@ export default function Imagine() {
 
         {/* nodeContext pill (pack §7) */}
         {fromNode ? (
-          <View style={styles.contextPill}>
-            <Text variant="caption" color="brand">
-              {locale === "ko" ? `${fromNode}에서 시작` : `Starting from ${fromNode}`}
-            </Text>
-            <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
-              {locale === "ko"
-                ? "선택한 노드와 연결된 조각을 먼저 참고해요."
-                : "I'll look at the pieces connected to it first."}
-            </Text>
+          <View style={styles.contextPillWrap}>
+            <ContextPill label={fromNode} />
           </View>
         ) : null}
 
@@ -281,16 +275,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,159,214,0.42)",
     alignItems: "center", justifyContent: "center",
   },
-  contextPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: semantic.border,
-    borderLeftWidth: 3,
-    borderLeftColor: cosmic.dreamPink,
-    backgroundColor: semantic.surface,
-  },
+  contextPillWrap: { marginTop: spacing.xs },
   promptCard: {
     backgroundColor: "rgba(255,159,214,0.06)",
     borderColor: "rgba(255,159,214,0.18)",

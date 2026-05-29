@@ -51,6 +51,7 @@ import { cosmic } from "@/lib/theme/tokens";
 import { pitchForTier, playPop } from "@/lib/audio/pop";
 import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { NodeArt, CharacterArt } from "@/components/art/CosmicPixel";
+import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampScale, panForFocalZoom } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
 import { worldMenuPositions, worldDataPositions, worldToScreen } from "./world-layout";
@@ -952,13 +953,24 @@ function NodeSheet({
         ) : null}
       </View>
       <Text variant="body" color="textMuted" style={styles.sheetDesc}>{description}</Text>
+      {connectedCount > 0 ? (
+        <View style={styles.sheetStats}>
+          <StatTile value={connectedCount} label={locale === "ko" ? "연결된 조각" : "connected"} accent={cosmic.signalMint} />
+        </View>
+      ) : null}
       <View style={styles.sheetActions}>
-        <Pressable onPress={onLook} style={[styles.sheetBtn, styles.sheetBtnPrimary]}>
-          <Text style={styles.sheetBtnPrimaryText}>{locale === "ko" ? "살펴보기" : "Look around"}</Text>
-        </Pressable>
-        <Pressable onPress={onAsk} style={[styles.sheetBtn, styles.sheetBtnSecondary]}>
-          <Text style={styles.sheetBtnSecondaryText}>{locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}</Text>
-        </Pressable>
+        <PremiumButton
+          label={locale === "ko" ? "살펴보기" : "Look around"}
+          variant="primary"
+          onPress={onLook}
+          style={styles.sheetActionBtn}
+        />
+        <PremiumButton
+          label={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
+          variant="secondary"
+          onPress={onAsk}
+          style={styles.sheetActionBtn}
+        />
       </View>
       {/* Optional: unfold this node in the imagine workshop (imagine pack §7) */}
       <Pressable onPress={onImagine} hitSlop={6} style={styles.sheetImagine}>
@@ -1037,11 +1049,8 @@ const styles = StyleSheet.create({
   sheetMetaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 },
   sheetType: { letterSpacing: 1 },
   sheetDesc: { marginTop: 10, lineHeight: 20 },
+  sheetStats: { flexDirection: "row", gap: 16, marginTop: 12 },
   sheetActions: { flexDirection: "row", gap: 10, marginTop: 16 },
+  sheetActionBtn: { flex: 1 },
   sheetImagine: { alignSelf: "center", paddingVertical: 10 },
-  sheetBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center", borderWidth: 1 },
-  sheetBtnPrimary: { backgroundColor: cosmic.signalMint, borderColor: cosmic.signalMint },
-  sheetBtnPrimaryText: { color: cosmic.space950, fontWeight: "700", fontSize: 14 },
-  sheetBtnSecondary: { backgroundColor: "transparent", borderColor: cosmic.lineDim },
-  sheetBtnSecondaryText: { color: cosmic.moonWhite, fontSize: 14 },
 });
