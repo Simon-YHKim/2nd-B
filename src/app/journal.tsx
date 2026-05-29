@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Pressable } from "react-native";
+import { Animated, View, StyleSheet, ScrollView, ActivityIndicator, Alert, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, Link } from "expo-router";
 
@@ -22,6 +22,7 @@ import {
   type RecordedEvidence,
 } from "@/lib/records/create";
 import { useProgression } from "@/lib/progression/useProgression";
+import { useSavePop } from "@/components/motion/useSignatureMotion";
 import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -53,6 +54,8 @@ export default function Journal() {
   const { t, i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const progression = useProgression();
+  // 저장 / Save — "루루 뽁" signature pop on a successful entry.
+  const { scale: saveScale, pop: savePop } = useSavePop();
   const [body, setBody] = useState("");
   const [topic, setTopic] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -128,6 +131,8 @@ export default function Journal() {
       setShowExtras(false);
       setAskAdvisor(false);
       await refresh(userId);
+      // 루루 뽁 — signature save pop (+ synth pop on web).
+      savePop();
       // Capture earned XP — refresh the level bar.
       void progression.refresh();
     } catch (e) {
@@ -199,7 +204,7 @@ export default function Journal() {
             <Button label={locale === "ko" ? "인사이트" : "Insights"} variant="secondary" />
           </Link>
           <Link href="/jarvis" asChild>
-            <Button label={locale === "ko" ? "자비스" : "Jarvis"} variant="secondary" />
+            <Button label={locale === "ko" ? "세컨비" : "SecondB"} variant="secondary" />
           </Link>
           <Link href="/manual" asChild>
             <Button label={locale === "ko" ? "안내" : "Manual"} variant="secondary" />
@@ -396,13 +401,15 @@ export default function Journal() {
                 </Text>
               </View>
             </Pressable>
-            <Button
-              label={locale === "ko" ? "기록하기" : "Save"}
-              variant="primary"
-              onPress={handleSubmit}
-              disabled={!body.trim() || submitting}
-              loading={submitting}
-            />
+            <Animated.View style={{ transform: [{ scale: saveScale }] }}>
+              <Button
+                label={locale === "ko" ? "기록하기" : "Save"}
+                variant="primary"
+                onPress={handleSubmit}
+                disabled={!body.trim() || submitting}
+                loading={submitting}
+              />
+            </Animated.View>
             <Text variant="subtle" color="textSubtle" style={styles.privacyFootnote}>
               {t("journal.privacyFootnote")}
             </Text>
@@ -417,8 +424,8 @@ export default function Journal() {
             </Text>
             <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }}>
               {locale === "ko"
-                ? "두번째 뇌는 8가지 핵심 동작이 있어요. 캡처 → 인박스 → 위키 → 자비스로 흐름이 이어집니다. 1분 안내서를 먼저 보시면 길을 잃지 않아요."
-                : "2nd-Brain has 8 core moves. Capture → Inbox → Wiki → Jarvis. A 1-minute manual saves you from getting lost."}
+                ? "두번째 뇌는 8가지 핵심 동작이 있어요. 캡처 → 인박스 → 위키 → 세컨비로 흐름이 이어집니다. 1분 안내서를 먼저 보시면 길을 잃지 않아요."
+                : "2nd-Brain has 8 core moves. Capture → Inbox → Wiki → SecondB. A 1-minute manual saves you from getting lost."}
             </Text>
             <Link href="/manual" asChild>
               <Button label={locale === "ko" ? "안내서 열기" : "Open the manual"} variant="primary" />

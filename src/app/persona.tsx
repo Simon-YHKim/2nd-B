@@ -10,6 +10,7 @@ import { AppNav } from "@/components/ui/AppNav";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
+import { buildCenterCards } from "@/lib/persona/center";
 import { TYPE_NICKNAME } from "@/lib/persona/mbti";
 import { STYLE_LABEL, STYLE_DESCRIPTION } from "@/lib/persona/attachment";
 import { labelFramework } from "@/lib/audit/frameworkLabels";
@@ -37,7 +38,7 @@ export default function Persona() {
         <View style={styles.center}>
           <ActivityIndicator color={semantic.brand} />
           <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.md }}>
-            {locale === "ko" ? "당신의 페르소나를 합성하는 중..." : "Synthesizing your persona..."}
+            {locale === "ko" ? "당신을 이루는 조각들을 모으는 중이에요..." : "Gathering the pieces of you..."}
           </Text>
         </View>
       </Screen>
@@ -67,12 +68,12 @@ export default function Persona() {
               {locale === "ko" ? "페르소나 V1" : "PERSONA V1"}
             </Text>
             <Text variant="heading" style={{ marginTop: spacing.sm, textAlign: "center" }}>
-              {locale === "ko" ? "아직 합성할 데이터가 부족해요" : "Not enough data to synthesize yet"}
+              {locale === "ko" ? "아직 우리가 모을 조각이 부족해요" : "Not enough pieces for us to gather yet"}
             </Text>
             <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
               {locale === "ko"
-                ? "아래 도구 중 하나를 마치면 자기 모델 v1이 만들어져요. 모두 끝내면 한 화면에 합쳐서 보여드려요."
-                : "Finish any one of the tools below to generate self-model v1. Take them all and they merge into a single view."}
+                ? "아래 도구 중 하나만 마쳐도 우리가 자기 모델 v1을 만들어요. 모두 끝내면 한 화면에 합쳐서 보여드려요."
+                : "Finish any one tool below and we'll build self-model v1. Take them all and we merge them into a single view."}
             </Text>
           </View>
           <View style={styles.toolGrid}>
@@ -124,6 +125,21 @@ export default function Persona() {
                 ? "Big Five는 일기 기반 휴리스틱 추정 · 평가를 하시면 실측으로 업데이트돼요"
                 : "Big Five is a keyword heuristic — take the assessment for measured scores"}
           </Text>
+        </View>
+
+        {/* 나의 중심 — §7-2 three-card summary in Core Brain voice.
+            Each card's meaning is coded by its left-border accent
+            (mint / signal-blue / pixel-lamp), per DESIGN.md accent budget. */}
+        <View style={styles.centerSection}>
+          <Text variant="caption" color="textMuted" style={{ letterSpacing: 1 }}>
+            {locale === "ko" ? "나의 중심" : "Center of me"}
+          </Text>
+          {buildCenterCards(persona, locale).map((card) => (
+            <View key={card.id} style={[styles.centerCard, { borderLeftColor: card.accent }]}>
+              <Text variant="caption" color="textMuted">{card.title}</Text>
+              <Text variant="body" style={{ marginTop: 2 }}>{card.body}</Text>
+            </View>
+          ))}
         </View>
 
         <View style={styles.traitsCard}>
@@ -326,6 +342,15 @@ const TRAIT_LABELS: Record<"en" | "ko", Record<"openness" | "conscientiousness" 
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.md },
+  centerSection: { gap: spacing.sm },
+  centerCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderRadius: radii.md,
+    padding: spacing.md,
+  },
   traitsCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,

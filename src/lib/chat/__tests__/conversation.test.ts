@@ -111,7 +111,7 @@ describe("sendChatMessage", () => {
     const geminiArgs = geminiCall?.args[0] as { system: string; purpose: string; user: string };
     expect(geminiArgs.purpose).toBe("jarvis_chat");
     expect(geminiArgs.user).toBe("hello");
-    expect(geminiArgs.system).toContain("Jarvis"); // header
+    expect(geminiArgs.system).toContain("SecondB"); // header
   });
 
   test("red-zone routed reply still counts toward the quota (R2 policy change)", async () => {

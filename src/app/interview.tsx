@@ -170,7 +170,7 @@ export default function Interview() {
       });
       Alert.alert(
         locale === "ko" ? "저장됐어요" : "Saved",
-        locale === "ko" ? "/persona 에서 다른 기록과 함께 합산됩니다." : "Combined with other records on /persona.",
+        locale === "ko" ? "우리가 페르소나 화면에서 다른 기록과 함께 묶어둘게요." : "We'll fold this in with your other records on the Persona screen.",
       );
       router.replace("/persona");
     } catch (e) {

@@ -72,8 +72,8 @@ export default function Attachment() {
       Alert.alert(
         locale === "ko" ? "저장됐어요" : "Saved",
         locale === "ko"
-          ? "결과는 페르소나 화면에서 다른 기록과 함께 표시돼요."
-          : "Results are combined with your other records on the Persona screen.",
+          ? "우리가 페르소나 화면에서 다른 기록과 함께 묶어둘게요."
+          : "We'll fold this in with your other records on the Persona screen.",
       );
       router.replace("/persona");
     } catch (e) {
@@ -93,8 +93,8 @@ export default function Attachment() {
           estimatedMinutes={3}
           description={
             locale === "ko"
-              ? "가까운 관계에서 당신의 패턴 — 불안과 회피 두 축에서 — 을 측정해 4가지 스타일 중 하나로 분류합니다. 답할 때는 한 명의 특정 관계가 아니라 ‘가까운 관계 전반’ 을 떠올려 주세요. 한 페이지 5문항씩, 3페이지로 나눠집니다."
-              : "Measures your pattern in close relationships across two axes — anxiety and avoidance — and lands you in one of four styles. Think of close relationships in general, not one specific person. Split across 3 pages, 5 items each (last page has 2)."
+              ? "가까운 관계에서의 패턴 — 불안과 회피 두 축 — 을 함께 살펴보고, 어느 스타일에 가까운지 우리가 같이 짚어볼게요. 답할 때는 한 명의 특정 관계가 아니라 ‘가까운 관계 전반’ 을 떠올려 주세요. 한 페이지 5문항씩, 3페이지로 나눠집니다."
+              : "We'll look together at your pattern in close relationships across two axes — anxiety and avoidance — and see which of four styles you lean toward. Think of close relationships in general, not one specific person. Split across 3 pages, 5 items each (last page has 2)."
           }
           citation={
             locale === "ko"

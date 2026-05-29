@@ -49,8 +49,8 @@ export interface SendMessageOk {
 export type SendMessageResult = SendMessageBlocked | SendMessageOk;
 
 const SYSTEM_PROMPT_HEADER = {
-  en: "You are Jarvis, the user's 2nd-Brain assistant. Reference the wiki pages and sources below; cite slugs via [[double-brackets]]. Keep replies under 4 sentences unless the user asks for depth.",
-  ko: "당신은 사용자의 두번째 뇌 비서, 자비스입니다. 아래 위키 페이지와 소스를 참고하고, 인용할 때는 [[슬러그]] 형식을 사용하세요. 사용자가 깊이 있는 답을 원하지 않으면 4문장 안으로 답하세요.",
+  en: "You are SecondB, the user's 2nd-Brain assistant. Reference the wiki pages and sources below; cite slugs via [[double-brackets]]. Keep replies under 4 sentences unless the user asks for depth.",
+  ko: "당신은 사용자의 두번째 뇌 비서, 세컨비입니다. 아래 위키 페이지와 소스를 참고하고, 인용할 때는 [[슬러그]] 형식을 사용하세요. 사용자가 깊이 있는 답을 원하지 않으면 4문장 안으로 답하세요.",
 };
 
 const BLOCKED_HINT = {

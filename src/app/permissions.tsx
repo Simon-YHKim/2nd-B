@@ -46,8 +46,8 @@ const ENTRIES: PermissionEntry[] = [
     status: "optional",
     platform: "web",
     why: {
-      en: "Tap 'Copy' on the wiki Export and on Jarvis bubbles. Only fires when you tap; we never read clipboard.",
-      ko: "위키 익스포트와 자비스 말풍선의 '복사' 동작. 탭할 때만 작동하며, 클립보드를 읽지 않습니다.",
+      en: "Tap 'Copy' on the wiki Export and on SecondB bubbles. Only fires when you tap; we never read clipboard.",
+      ko: "위키 익스포트와 세컨비 말풍선의 '복사' 동작. 탭할 때만 작동하며, 클립보드를 읽지 않습니다.",
     },
   },
   {

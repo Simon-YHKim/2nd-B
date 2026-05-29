@@ -294,7 +294,7 @@ export default function Settings() {
             }
           />
           <Button
-            label={locale === "ko" ? "자비스 일일 사용량 리셋" : "Reset Jarvis daily usage"}
+            label={locale === "ko" ? "세컨비 일일 사용량 리셋" : "Reset SecondB daily usage"}
             variant="secondary"
             disabled={busy !== null}
             onPress={() =>
@@ -312,8 +312,8 @@ export default function Settings() {
           </Text>
           <Text variant="subtle" color="textMuted">
             {locale === "ko"
-              ? "기록 · 캡처 · 위키 페이지 · 자비스 사용량을 한 번에 모두 삭제합니다. 계정은 유지되지만 0부터 다시 시작합니다."
-              : "Wipes records, sources, wiki pages, and Jarvis usage in one shot. The account stays but you start from zero."}
+              ? "기록 · 캡처 · 위키 페이지 · 세컨비 사용량을 한 번에 모두 삭제합니다. 계정은 유지되지만 0부터 다시 시작합니다."
+              : "Wipes records, sources, wiki pages, and SecondB usage in one shot. The account stays but you start from zero."}
           </Text>
           <Text variant="subtle" color="textMuted">
             {locale === "ko" ? `진행하려면 "${CONFIRM_PHRASE}" 라고 입력하세요.` : `To proceed, type "${CONFIRM_PHRASE}" below.`}

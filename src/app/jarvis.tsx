@@ -27,12 +27,15 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { AppNav } from "@/components/ui/AppNav";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
+import { parseSourceCitations } from "@/lib/chat/sources";
 import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
 
 interface ChatTurn {
   role: "user" | "jarvis";
   text: string;
+  /** Slugs the reply cited — rendered as small source chips. */
+  chips?: string[];
 }
 
 const INTRO_DISMISS_KEY = "secondB_intro_dismissed_v1";
@@ -117,7 +120,8 @@ export default function Jarvis() {
         setTurns((prev) => [...prev, { role: "jarvis", text: result.hint }]);
         setUsedToday(result.used);
       } else {
-        setTurns((prev) => [...prev, { role: "jarvis", text: result.reply.text }]);
+        const { display, chips } = parseSourceCitations(result.reply.text);
+        setTurns((prev) => [...prev, { role: "jarvis", text: display, chips }]);
         setUsedToday(result.used);
       }
     } catch (e) {
@@ -183,29 +187,44 @@ export default function Jarvis() {
                 key={i}
                 style={[styles.bubbleRow, turn.role === "user" ? styles.userRow : styles.jarvisRow]}
               >
-                <Pressable
-                  onLongPress={async () => {
-                    if (typeof navigator !== "undefined" && navigator.clipboard) {
-                      try {
-                        await navigator.clipboard.writeText(turn.text);
-                      } catch {
-                        // ignore — fall back to selection by the user
+                <View style={styles.bubbleCol}>
+                  <Pressable
+                    onLongPress={async () => {
+                      if (typeof navigator !== "undefined" && navigator.clipboard) {
+                        try {
+                          await navigator.clipboard.writeText(turn.text);
+                        } catch {
+                          // ignore — fall back to selection by the user
+                        }
                       }
-                    }
-                  }}
-                  style={[
-                    styles.bubble,
-                    turn.role === "user" ? styles.userBubble : styles.jarvisBubble,
-                  ]}
-                >
-                  <Text
-                    variant="body"
-                    color={turn.role === "user" ? "background" : "text"}
-                    selectable
+                    }}
+                    style={[
+                      styles.bubble,
+                      turn.role === "user" ? styles.userBubble : styles.jarvisBubble,
+                    ]}
                   >
-                    {turn.text}
-                  </Text>
-                </Pressable>
+                    <Text
+                      variant="body"
+                      color={turn.role === "user" ? "background" : "text"}
+                      selectable
+                    >
+                      {turn.text}
+                    </Text>
+                  </Pressable>
+                  {/* Source chips — "내 조각에서 온 답" (handoff §7-4) */}
+                  {turn.role === "jarvis" && turn.chips && turn.chips.length > 0 ? (
+                    <View style={styles.chipRow}>
+                      <Text variant="caption" color="textSubtle">
+                        {locale === "ko" ? "참고한 조각" : "from your pieces"}
+                      </Text>
+                      {turn.chips.map((slug) => (
+                        <View key={slug} style={styles.chip}>
+                          <Text variant="caption" color="brand">{slug}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
               </View>
             ))
           )}
@@ -310,8 +329,24 @@ const styles = StyleSheet.create({
   bubbleRow: { flexDirection: "row" },
   userRow: { justifyContent: "flex-end" },
   jarvisRow: { justifyContent: "flex-start" },
+  bubbleCol: { maxWidth: "85%", gap: spacing.xs, alignItems: "flex-start" },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  chip: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
   bubble: {
-    maxWidth: "85%",
+    maxWidth: "100%",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radii.lg,
