@@ -11,7 +11,8 @@ export type PromptPurpose =
   | "jarvis_chat"
   | "interview_probe"
   | "capture_ocr"
-  | "capture_classify";
+  | "capture_classify"
+  | "imagine";
 
 export interface AdvisorInput {
   userId: string;

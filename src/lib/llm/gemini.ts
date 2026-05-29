@@ -61,7 +61,7 @@ function getClient(): { client: GoogleGenAI; vertex: boolean } {
 // UI can be exercised end-to-end without a Gemini API key. Safety classifier
 // still runs (C9 invariant) and audit log still records the call (C3).
 const MOCK_RESPONSES: Record<
-  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "jarvis_chat" | "interview_probe",
+  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "jarvis_chat" | "interview_probe" | "imagine",
   Record<"en" | "ko", string>
 > = {
   journal_reflect: {
@@ -87,6 +87,34 @@ const MOCK_RESPONSES: Record<
   interview_probe: {
     en: "[MOCK] What part of what you just said feels most alive to you right now?",
     ko: "[MOCK] 방금 말한 것 중에서 지금 가장 살아 있는 느낌이 드는 부분은 무엇인가요?",
+  },
+  // Structured "공상" stub in the :: delimited format parseImagineResult expects,
+  // so the result cards render in mock mode (the default deployed build).
+  imagine: {
+    en:
+      "TITLE :: A lantern in the night alley\n" +
+      "WORLDLINE :: A story where one small piece lights the village's first lamp.\n" +
+      "SCENE :: The first lamp :: A single lantern flickers on in a dark alley.\n" +
+      "SCENE :: The path appears :: The lit lanterns trace a road forward.\n" +
+      "SCENE :: Friends gather :: Small pixel friends drift onto the path.\n" +
+      "OBJECT :: Lantern :: The little light your piece switched on.\n" +
+      "OBJECT :: Path :: A signal line linking piece to piece.\n" +
+      "OBJECT :: Note :: A place to jot what comes next.\n" +
+      "CHARACTER :: Vela :: The guide who unfolds a thought into scenes.\n" +
+      "CHARACTER :: Lulu :: The friend who brings back fresh pieces.\n" +
+      "NEXTSTEP :: Write down one line of the scene you saw today.",
+    ko:
+      "TITLE :: 밤빛 골목의 등불\n" +
+      "WORLDLINE :: 작은 기록 하나가 마을의 첫 등불을 켜는 이야기예요.\n" +
+      "SCENE :: 첫 등불 :: 어두운 골목에 등불이 하나 켜져요.\n" +
+      "SCENE :: 이어지는 길 :: 켜진 등불을 따라 길이 이어져요.\n" +
+      "SCENE :: 모이는 친구들 :: 작은 친구들이 길 위로 모여요.\n" +
+      "OBJECT :: 등불 :: 오늘의 조각이 켠 작은 빛.\n" +
+      "OBJECT :: 길 :: 조각과 조각을 잇는 신호선.\n" +
+      "OBJECT :: 노트 :: 다음을 적어두는 자리.\n" +
+      "CHARACTER :: 벨라 :: 공상을 장면으로 펼쳐주는 안내자.\n" +
+      "CHARACTER :: 루루 :: 새 조각을 주워오는 친구.\n" +
+      "NEXTSTEP :: 오늘 떠오른 장면 한 줄을 기록으로 남겨보기.",
   },
 };
 

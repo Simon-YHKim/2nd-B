@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="350" height="64" viewBox="0 0 350 64" fill="none" shape-rendering="crispEdges" >
+
+  <defs>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="tinyGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="dreamGlow" cx="50%" cy="50%" r="58%">
+      <stop offset="0%" stop-color="#FF9FD6" stop-opacity="0.76"/>
+      <stop offset="45%" stop-color="#A78BFA" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#FF9FD6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="52%">
+      <stop offset="0%" stop-color="#72F2C7" stop-opacity="0.74"/>
+      <stop offset="100%" stop-color="#72F2C7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0D1530" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#16213E" stop-opacity="0.92"/>
+    </linearGradient>
+    <linearGradient id="dreamPanel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16213E" stop-opacity="0.90"/>
+      <stop offset="0.55" stop-color="#0D1530" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#A78BFA" stop-opacity="0.18"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="1" y="1" width="348" height="62" rx="22" fill="#FF9FD6" fill-opacity="0.17" stroke="#FF9FD6" stroke-opacity="0.42"/>
+  <path d="M118 23L122 31L131 34L122 37L118 45L114 37L105 34L114 31Z" fill="#FFD166" filter="url(#tinyGlow)"/>
+  <text x="185" y="39" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#E8ECF8" shape-rendering="geometricPrecision">장면으로 펼치기</text>
+  <path d="M286 25L296 32L286 39" stroke="#72F2C7" stroke-width="3" stroke-linejoin="miter"/>
+</svg>
