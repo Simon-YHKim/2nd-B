@@ -51,6 +51,7 @@ import { cosmic } from "@/lib/theme/tokens";
 import { pitchForTier, playPop } from "@/lib/audio/pop";
 import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { NodeArt, CharacterArt } from "@/components/art/CosmicPixel";
+import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampScale, panForFocalZoom } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
@@ -178,6 +179,17 @@ export const CENTER_NODE: NavNode = {
     en: "Center of you. The small ones and I keep your pieces in order.",
     ko: "여기가 너의 중심이야. 작은 친구들이랑 함께 조각들을 정리해두고 있어.",
   },
+};
+
+// Floating pixel island art per node (premium closing pack). Decorative
+// node artwork mapped onto the existing graph nodes; tier 1 + 2 get islands,
+// tier 3/4 keep the lighter node/shard art so the mobile view isn't busy.
+const ISLAND_FOR: Record<string, IslandId> = {
+  core: "core",
+  now: "work_growth",
+  past: "relationship",
+  wiki: "knowledge",
+  imagine: "imagine",
 };
 
 function tierSize(t: Tier): number {
@@ -832,7 +844,11 @@ export function NavGraph({ locale, dataNodes, highlightId }: Props) {
                 dim ? styles.dimmed : null,
               ]}
             >
-              <NodeArt tier={n.tier} size={size} />
+              {ISLAND_FOR[n.id] ? (
+                <IslandArt id={ISLAND_FOR[n.id]!} size={size * 1.7} style={{ position: "absolute", left: -size * 0.35, top: -size * 0.35 }} />
+              ) : (
+                <NodeArt tier={n.tier} size={size} />
+              )}
               <Pressable
                 onPress={() => setActiveId(n.id === activeId ? null : n.id)}
                 hitSlop={14}
@@ -865,7 +881,7 @@ export function NavGraph({ locale, dataNodes, highlightId }: Props) {
             dimFor(CENTER_NODE.id) ? styles.dimmed : null,
           ]}
         >
-          <NodeArt tier={1} size={CENTER_SIZE} />
+          <IslandArt id="core" size={CENTER_SIZE * 1.7} style={{ position: "absolute", left: -CENTER_SIZE * 0.35, top: -CENTER_SIZE * 0.35 }} />
           <Pressable
             onPress={() => setActiveId(CENTER_NODE.id === activeId ? null : CENTER_NODE.id)}
             hitSlop={20}
