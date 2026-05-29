@@ -25,6 +25,7 @@ import { Link, Redirect, router } from "expo-router";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signInWithEmail, signInWithGoogle } from "@/lib/supabase/auth";
 import { cosmicSky } from "@/lib/theme/tokens";
+import { CosmicBackground } from "@/components/premium";
 
 const logo = require("../../../assets/images/logo-glow.png");
 
@@ -100,6 +101,7 @@ export default function SignIn() {
 
   return (
     <View style={styles.root}>
+      <CosmicBackground />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
@@ -221,7 +223,7 @@ export default function SignIn() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: PALETTE.bg },
+  root: { flex: 1, backgroundColor: cosmicSky.bg },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: 24,

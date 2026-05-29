@@ -16,7 +16,6 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { PremiumTabBar } from "@/components/premium";
 import { fontAssets } from "@/theme/typography";
-import { semantic } from "@/lib/theme/tokens";
 import { ThemeProvider, useTheme, useThemePalette } from "@/lib/theme/ThemeContext";
 
 initI18n();

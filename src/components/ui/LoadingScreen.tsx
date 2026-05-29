@@ -14,7 +14,9 @@
 //     same scale 4 + opacity 1 frame so the handoff is seamless.
 
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, Text } from "react-native";
+
+import { CosmicBackground } from "@/components/premium";
 
 const logo = require("../../../assets/images/logo-glow.png");
 
@@ -246,6 +248,7 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       accessibilityRole="progressbar"
       accessibilityLabel="2nd-Brain 불러오는 중"
     >
+      <CosmicBackground />
       <Animated.Image
         source={logo}
         style={[styles.logo, { opacity, transform: [{ scale }] }]}
