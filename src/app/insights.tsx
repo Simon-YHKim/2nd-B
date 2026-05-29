@@ -7,7 +7,7 @@ import { ScrollView, StyleSheet, View, ActivityIndicator, Alert, RefreshControl 
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -57,17 +57,17 @@ export default function Insights() {
 
   if (loading) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <ActivityIndicator color={semantic.brand} />
         </View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
 
   if (!insights || insights.recordCount === 0) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <Text variant="heading">
             {locale === "ko" ? "아직 우리가 뽑아낼 게 없어요" : "Nothing for us to pull yet"}
@@ -81,14 +81,14 @@ export default function Insights() {
             <Button label={locale === "ko" ? "일기 쓰러 가기" : "Go to journal"} variant="primary" />
           </Link>
         </View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
 
   const i = insights;
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -212,7 +212,7 @@ export default function Insights() {
 
         <AppNav locale={locale} />
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

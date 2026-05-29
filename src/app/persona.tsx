@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Share } from "r
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { AppNav } from "@/components/ui/AppNav";
@@ -40,14 +40,14 @@ export default function Persona() {
 
   if (loading || building) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <ActivityIndicator color={semantic.brand} />
           <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.md }}>
             {locale === "ko" ? "당신을 이루는 조각들을 모으는 중이에요..." : "Gathering the pieces of you..."}
           </Text>
         </View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
@@ -67,7 +67,7 @@ export default function Persona() {
             { label: "Attachment (ECR-S)", sub: "12 items · ~3 min", route: "/attachment" },
           ];
     return (
-      <Screen>
+      <PremiumAppShell>
         <ScrollView contentContainerStyle={styles.emptyScroll}>
           <View style={styles.emptyHeader}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
@@ -99,7 +99,7 @@ export default function Persona() {
           </View>
         </ScrollView>
         <AppNav locale={locale} />
-      </Screen>
+      </PremiumAppShell>
     );
   }
 
@@ -113,7 +113,7 @@ export default function Persona() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View>
           <Text variant="caption" color="brand">
@@ -303,7 +303,7 @@ export default function Persona() {
       {companionMoment ? (
         <CompanionMoment moment={companionMoment} style={styles.companionFlash} />
       ) : null}
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

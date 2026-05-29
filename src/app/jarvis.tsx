@@ -19,7 +19,6 @@ import { useTranslation } from "react-i18next";
 import { router, useLocalSearchParams } from "expo-router";
 import { SvgXml } from "react-native-svg";
 
-import { Screen } from "@/components/ui/Screen";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -32,7 +31,7 @@ import { parseSourceCitations } from "@/lib/chat/sources";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { SECONDB_CHAT_XML } from "@/components/art/secondbChatXml";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
-import { ContextPill, ReferenceShardCard } from "@/components/premium";
+import { PremiumAppShell, ContextPill, ReferenceShardCard } from "@/components/premium";
 import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
 
@@ -182,7 +181,7 @@ export default function Jarvis() {
   const usedDisplay = usedToday === null ? "—" : String(usedToday);
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -411,7 +410,7 @@ export default function Jarvis() {
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
       ) : null}
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

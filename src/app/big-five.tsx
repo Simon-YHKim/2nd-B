@@ -8,7 +8,7 @@ import { View, StyleSheet, Pressable, Alert, KeyboardAvoidingView, Platform } fr
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -94,7 +94,7 @@ export default function BigFive() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       {!started ? (
         <QuantIntroModal
           toolKey="bfi"
@@ -181,7 +181,7 @@ export default function BigFive() {
           />
         </KeyboardAvoidingView>
       ) : null}
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

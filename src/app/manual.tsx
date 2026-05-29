@@ -9,7 +9,7 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -120,7 +120,7 @@ export default function Manual() {
   if (loading) return null;
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
@@ -266,7 +266,7 @@ export default function Manual() {
             : "2nd-Brain · XPRIZE Build with Gemini · Education & Human Potential"}
         </Text>
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

@@ -11,7 +11,7 @@ import { ScrollView, StyleSheet, View, ActivityIndicator, Alert, Linking, Pressa
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -83,7 +83,7 @@ export default function Research() {
     : sources;
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <Text variant="caption" color="brand">
@@ -207,7 +207,7 @@ export default function Research() {
 
         <AppNav locale={locale} />
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

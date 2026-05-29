@@ -7,7 +7,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { AppNav } from "@/components/ui/AppNav";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -100,7 +100,7 @@ export default function Permissions() {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <Text variant="caption" color="brand">
@@ -176,7 +176,7 @@ export default function Permissions() {
         </View>
         <AppNav locale={locale} />
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

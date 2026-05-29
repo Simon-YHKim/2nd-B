@@ -7,7 +7,7 @@ import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, Refr
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -185,7 +185,7 @@ export default function Inbox() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={semantic.brand} />}
@@ -387,7 +387,7 @@ export default function Inbox() {
         )}
         <AppNav locale={locale} />
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

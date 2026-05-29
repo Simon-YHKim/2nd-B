@@ -11,7 +11,7 @@ import { View, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -78,24 +78,24 @@ export default function RecordDetail() {
 
   if (loading) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}><ActivityIndicator color={semantic.brand} /></View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
   if (state === "loading") {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}><ActivityIndicator color={semantic.brand} /></View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
 
   if (state === "error" || state === "missing" || !row) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <Text variant="heading" style={{ textAlign: "center" }}>
             {state === "missing"
@@ -104,7 +104,7 @@ export default function RecordDetail() {
           </Text>
           <Button label={locale === "ko" ? "기록으로" : "Back to records"} variant="secondary" onPress={() => router.replace("/records")} />
         </View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
 
@@ -113,7 +113,7 @@ export default function RecordDetail() {
   const dateLabel = evidenceDateLabel(row.created_at, locale);
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View>
           <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
@@ -161,7 +161,7 @@ export default function RecordDetail() {
           />
         </View>
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

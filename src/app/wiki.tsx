@@ -11,7 +11,7 @@ import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshCont
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -210,7 +210,7 @@ export default function Wiki() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={semantic.brand} />}
@@ -640,7 +640,7 @@ export default function Wiki() {
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
       ) : null}
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

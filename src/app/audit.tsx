@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from "react-na
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -36,11 +36,11 @@ export default function Audit() {
 
   if (loading) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <ActivityIndicator color={semantic.brand} />
         </View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
@@ -78,7 +78,7 @@ export default function Audit() {
 
   if (period === null) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
@@ -111,13 +111,13 @@ export default function Audit() {
             />
           </View>
         </ScrollView>
-      </Screen>
+      </PremiumAppShell>
     );
   }
 
   if (done) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <View style={styles.completeBadge}>
             <Text variant="subtle" style={styles.completeBadgeText}>
@@ -149,12 +149,12 @@ export default function Audit() {
         {companion.moment ? (
           <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
         ) : null}
-      </Screen>
+      </PremiumAppShell>
     );
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         {index === 0 ? (
           <View style={styles.introCard}>
@@ -238,7 +238,7 @@ export default function Audit() {
         />
         <AppNav locale={locale} />
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

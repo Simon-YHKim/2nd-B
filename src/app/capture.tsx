@@ -29,7 +29,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -217,7 +217,7 @@ export default function Capture() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Header */}
@@ -451,7 +451,7 @@ export default function Capture() {
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.captureFlash} />
       ) : null}
-    </Screen>
+    </PremiumAppShell>
   );
 }
 
