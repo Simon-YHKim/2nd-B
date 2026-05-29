@@ -171,7 +171,7 @@ export default function Landing() {
           <View style={styles.mascotPixelCore} />
         </View>
         <Pressable onPress={() => router.push("/insights")} hitSlop={8} style={{ flex: 1 }}>
-          <Text style={styles.insightEyebrow}>{locale === "ko" ? "나의 중심" : "Center of me"}</Text>
+          <Text style={styles.insightEyebrow}>{locale === "ko" ? "오늘의 중심" : "Today's center"}</Text>
           <Text style={styles.insightText} numberOfLines={2}>{insight}</Text>
         </Pressable>
       </Animated.View>
