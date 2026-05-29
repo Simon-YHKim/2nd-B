@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" fill="none" shape-rendering="crispEdges" >
+
+  <defs>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="smallGlow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="bg" cx="50%" cy="30%" r="78%"><stop offset="0" stop-color="#FF9FD6" stop-opacity="0.15"/><stop offset="34%" stop-color="#A78BFA" stop-opacity="0.10"/><stop offset="62%" stop-color="#0D1530" stop-opacity="0.88"/><stop offset="100%" stop-color="#070A18"/></radialGradient>
+    <radialGradient id="dreamGlow" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#FF9FD6" stop-opacity="0.72"/><stop offset="52%" stop-color="#A78BFA" stop-opacity="0.26"/><stop offset="100%" stop-color="#FF9FD6" stop-opacity="0"/></radialGradient>
+  </defs>
+<rect width="390" height="844" fill="url(#bg)"/><rect x="22" y="118" width="2" height="2" fill="#8D98B8" opacity="0.48"/><rect x="340" y="126" width="2" height="2" fill="#72F2C7" opacity="0.48"/><rect x="78" y="238" width="2" height="2" fill="#A78BFA" opacity="0.48"/><rect x="320" y="330" width="2" height="2" fill="#FFD166" opacity="0.48"/><rect x="42" y="592" width="2" height="2" fill="#72F2C7" opacity="0.48"/><rect x="355" y="642" width="2" height="2" fill="#8D98B8" opacity="0.48"/><rect x="116" y="760" width="2" height="2" fill="#FFD166" opacity="0.48"/><rect x="244" y="204" width="2" height="2" fill="#8D98B8" opacity="0.48"/><rect x="182" y="618" width="2" height="2" fill="#FF9FD6" opacity="0.48"/><rect x="32" y="410" width="2" height="2" fill="#FF9FD6" opacity="0.48"/><rect x="350" y="520" width="2" height="2" fill="#4CC9F0" opacity="0.48"/>
+
+  <rect x="16" y="50" width="44" height="44" rx="14" fill="#0D1530" stroke="#8D98B8" stroke-opacity="0.28"/>
+  <path d="M42 62L32 72L42 82" stroke="#E8ECF8" stroke-width="3"/>
+  <text x="78" y="72" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="22" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">공상 작업실</text>
+  <text x="78" y="96" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="11" font-weight="500" fill="#8D98B8" shape-rendering="geometricPrecision">떠오른 장면을 보관하고 다시 펼쳐요.</text>
+  <rect x="336" y="54" width="38" height="38" rx="13" fill="#0D1530" stroke="#FF9FD6" stroke-opacity="0.32"/>
+  <path d="M355 62L359 72L369 76L359 80L355 90L351 80L341 76L351 72Z" fill="#FF9FD6" opacity="0.88"/>
+
+  <rect x="32" y="158" width="326" height="356" rx="32" fill="#0D1530" fill-opacity="0.78" stroke="#FF9FD6" stroke-opacity="0.22"/>
+  <circle cx="195" cy="278" r="90" fill="url(#dreamGlow)" opacity="0.42" filter="url(#glow)"/>
+  <g transform="translate(195 278) scale(0.72)">
+      <circle cx="0" cy="2" r="48" fill="url(#dreamGlow)" opacity="0.72"/>
+      <rect x="-26" y="-12" width="52" height="44" rx="14" fill="#16213E" stroke="#FF9FD6" stroke-opacity="0.58"/>
+      <rect x="-18" y="-26" width="36" height="16" rx="6" fill="#A78BFA" stroke="#FF9FD6" stroke-opacity="0.44"/>
+      <rect x="-4" y="-42" width="8" height="16" fill="#FF9FD6" filter="url(#tinyGlow)"/>
+      <rect x="-2" y="-54" width="4" height="10" fill="#FFD166" filter="url(#tinyGlow)"/>
+      <rect x="-14" y="2" width="5" height="5" fill="#E8ECF8"/>
+      <rect x="9" y="2" width="5" height="5" fill="#E8ECF8"/>
+      <rect x="-8" y="18" width="16" height="4" fill="#72F2C7"/>
+      <path d="M-32 8L-48 -2L-38 26Z" fill="#A78BFA" opacity="0.62" stroke="#FF9FD6" stroke-opacity="0.44"/>
+      <path d="M32 8L48 -2L38 26Z" fill="#A78BFA" opacity="0.62" stroke="#FF9FD6" stroke-opacity="0.44"/>
+      <rect x="-18" y="34" width="10" height="8" fill="#243056"/>
+      <rect x="8" y="34" width="10" height="8" fill="#243056"/>
+    </g>
+  <text x="195" y="398" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="20" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">아직 공상 조각이 없어요</text>
+  <text x="195" y="428" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="13" font-weight="500" fill="#8D98B8" shape-rendering="geometricPrecision">떠오른 장면을 하나만 던져주세요.</text>
+  <text x="195" y="452" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="13" font-weight="500" fill="#8D98B8" shape-rendering="geometricPrecision">벨라가 다음 한 걸음으로 접어볼게요.</text>
+  <rect x="54" y="548" width="282" height="56" rx="20" fill="#FF9FD6" fill-opacity="0.16" stroke="#FF9FD6" stroke-opacity="0.34"/>
+  <text x="195" y="583" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">첫 공상 조각 만들기</text>
+  <rect x="54" y="624" width="282" height="56" rx="20" fill="#A78BFA" fill-opacity="0.16" stroke="#A78BFA" stroke-opacity="0.34"/>
+  <text x="195" y="659" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">세컨비와 같이 시작하기</text>
+</svg>

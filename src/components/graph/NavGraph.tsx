@@ -708,6 +708,13 @@ export function NavGraph({ locale, dataNodes }: Props) {
     router.push(label ? { pathname: "/jarvis", params: { fromNode: label } } : "/jarvis");
   }
 
+  function handleImagine() {
+    // Graph node → imagine handoff (imagine pack §7): seed the workshop.
+    const label = activeNode?.label[locale];
+    setActiveId(null);
+    router.push(label ? { pathname: "/imagine", params: { fromNode: label } } : "/imagine");
+  }
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
     <GestureDetector gesture={composedGesture}>
@@ -872,6 +879,7 @@ export function NavGraph({ locale, dataNodes }: Props) {
           description={activeNode.description[locale]}
           onLook={handleLook}
           onAsk={handleAskSecondB}
+          onImagine={handleImagine}
           onClose={() => setActiveId(null)}
         />
       ) : null}
@@ -889,6 +897,7 @@ function NodeSheet({
   description,
   onLook,
   onAsk,
+  onImagine,
   onClose,
 }: {
   locale: "en" | "ko";
@@ -898,6 +907,7 @@ function NodeSheet({
   description: string;
   onLook: () => void;
   onAsk: () => void;
+  onImagine: () => void;
   onClose: () => void;
 }) {
   const slide = useRef(new Animated.Value(0)).current;
@@ -942,6 +952,10 @@ function NodeSheet({
           <Text style={styles.sheetBtnSecondaryText}>{locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}</Text>
         </Pressable>
       </View>
+      {/* Optional: unfold this node in the imagine workshop (imagine pack §7) */}
+      <Pressable onPress={onImagine} hitSlop={6} style={styles.sheetImagine}>
+        <Text variant="caption" color="brand">{locale === "ko" ? "공상으로 펼치기" : "Open in imagine"}</Text>
+      </Pressable>
     </Animated.View>
   );
 }
@@ -1008,6 +1022,7 @@ const styles = StyleSheet.create({
   sheetType: { letterSpacing: 1 },
   sheetDesc: { marginTop: 10, lineHeight: 20 },
   sheetActions: { flexDirection: "row", gap: 10, marginTop: 16 },
+  sheetImagine: { alignSelf: "center", paddingVertical: 10 },
   sheetBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center", borderWidth: 1 },
   sheetBtnPrimary: { backgroundColor: cosmic.signalMint, borderColor: cosmic.signalMint },
   sheetBtnPrimaryText: { color: cosmic.space950, fontWeight: "700", fontSize: 14 },
