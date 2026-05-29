@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>2ndB Mobile Graph UI Pack v2 Preview</title>
+  <style>
+    :root { --bg:#070A18; --panel:#0D1530; --text:#E8ECF8; --muted:#8D98B8; --mint:#72F2C7; --violet:#A78BFA; --lamp:#FFD166; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family: Pretendard, system-ui, -apple-system, Segoe UI, sans-serif; background: radial-gradient(circle at 30% 0%, rgba(167,139,250,.16), transparent 38%), var(--bg); color:var(--text); }
+    header { padding:48px 28px 24px; max-width:1100px; margin:0 auto; }
+    h1 { margin:0 0 12px; font-size: clamp(30px, 4vw, 56px); }
+    p { color:var(--muted); line-height:1.65; }
+    .badge { display:inline-block; border:1px solid rgba(114,242,199,.35); color:var(--mint); padding:6px 10px; border-radius:999px; font-size:13px; margin-bottom:18px; }
+    .phones { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:22px; max-width:1480px; padding:24px 28px 56px; margin:0 auto; }
+    .phone { background:rgba(13,21,48,.72); border:1px solid rgba(141,152,184,.18); border-radius:26px; padding:16px; box-shadow: 0 20px 70px rgba(0,0,0,.22); }
+    .phone h3 { margin:0 0 12px; color:var(--lamp); font-size:15px; }
+    .phone img { width:100%; border-radius:22px; display:block; background:#050714; }
+    .assets { max-width:1480px; margin:0 auto; padding:0 28px 64px; }
+    .assets h2 { margin-top:0; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:14px; }
+    .asset { border:1px solid rgba(141,152,184,.18); background:rgba(13,21,48,.55); border-radius:18px; padding:14px; min-height:140px; display:grid; place-items:center; text-align:center; }
+    .asset img { max-width:100%; max-height:84px; }
+    .asset span { color:var(--muted); font-size:11px; word-break:break-word; }
+    code { color: var(--mint); }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="badge">Cosmic Pixel Graph Village</span>
+    <h1>2ndB Mobile Graph UI Pack v2</h1>
+    <p>모바일 세로 화면에서 밤빛 조각마을 그래프를 구현하기 위한 SVG 자산, 화면 목업, HUD, CSS, React skeleton, layout spec 패키지입니다.</p>
+    <p>권장 경로: <code>public/assets/cosmic-pixel-v2/mobile-graph/</code></p>
+  </header>
+  <section class="phones"><article class="phone"><h3>Main graph mobile</h3><img src="mockups/mobile_main_graph_390x844.svg" alt="Main graph mobile"/></article><article class="phone"><h3>Node selected + bottom sheet</h3><img src="mockups/mobile_node_selected_390x844.svg" alt="Node selected + bottom sheet"/></article><article class="phone"><h3>Zoomed detail tier 3/4</h3><img src="mockups/mobile_zoomed_detail_390x844.svg" alt="Zoomed detail tier 3/4"/></article><article class="phone"><h3>Core screen reference</h3><img src="mockups/mobile_core_screen_390x844.svg" alt="Core screen reference"/></article><article class="phone"><h3>Imagine screen reference</h3><img src="mockups/mobile_imagine_screen_390x844.svg" alt="Imagine screen reference"/></article></section>
+  <section class="assets"><h2>Assets</h2><div class="grid"><div class="asset"><img src="graph/core_node_v2.svg" alt="core_node_v2.svg"/><span>core_node_v2.svg</span></div><div class="asset"><img src="graph/data_shard_v2.svg" alt="data_shard_v2.svg"/><span>data_shard_v2.svg</span></div><div class="asset"><img src="graph/domain_node_v2.svg" alt="domain_node_v2.svg"/><span>domain_node_v2.svg</span></div><div class="asset"><img src="graph/persona_node_v2.svg" alt="persona_node_v2.svg"/><span>persona_node_v2.svg</span></div><div class="asset"><img src="graph/simple_node_chip.svg" alt="simple_node_chip.svg"/><span>simple_node_chip.svg</span></div><div class="asset"><img src="edges/edge_active_320.svg" alt="edge_active_320.svg"/><span>edge_active_320.svg</span></div><div class="asset"><img src="edges/edge_default_320.svg" alt="edge_default_320.svg"/><span>edge_default_320.svg</span></div><div class="asset"><img src="edges/edge_recent_320.svg" alt="edge_recent_320.svg"/><span>edge_recent_320.svg</span></div><div class="asset"><img src="hud/back_button_v2.svg" alt="back_button_v2.svg"/><span>back_button_v2.svg</span></div><div class="asset"><img src="hud/graph_minimap_v2.svg" alt="graph_minimap_v2.svg"/><span>graph_minimap_v2.svg</span></div><div class="asset"><img src="hud/node_bottom_sheet_v2.svg" alt="node_bottom_sheet_v2.svg"/><span>node_bottom_sheet_v2.svg</span></div><div class="asset"><img src="hud/secondb_fab_frame_v2.svg" alt="secondb_fab_frame_v2.svg"/><span>secondb_fab_frame_v2.svg</span></div><div class="asset"><img src="hud/settings_button_v2.svg" alt="settings_button_v2.svg"/><span>settings_button_v2.svg</span></div><div class="asset"><img src="hud/top_ribbon_v2.svg" alt="top_ribbon_v2.svg"/><span>top_ribbon_v2.svg</span></div><div class="asset"><img src="hud/zoom_controls_v2.svg" alt="zoom_controls_v2.svg"/><span>zoom_controls_v2.svg</span></div><div class="asset"><img src="overlays/connection_pulse.svg" alt="connection_pulse.svg"/><span>connection_pulse.svg</span></div><div class="asset"><img src="overlays/focus_glow_v2.svg" alt="focus_glow_v2.svg"/><span>focus_glow_v2.svg</span></div><div class="asset"><img src="overlays/tiny_star_noise_tile.svg" alt="tiny_star_noise_tile.svg"/><span>tiny_star_noise_tile.svg</span></div></div></section>
+</body>
+</html>

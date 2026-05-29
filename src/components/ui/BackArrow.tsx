@@ -10,8 +10,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname, router } from "expo-router";
 
-import { Text } from "@/components/ui/Text";
-import { useThemePalette } from "@/lib/theme/ThemeContext";
+import { PixelButton } from "@/components/art/CosmicPixel";
 
 // Routes that hide the back arrow — the landing page itself + the
 // pre-auth flow (sign-in / sign-up / complete-profile / auth groups).
@@ -20,7 +19,6 @@ const HIDDEN_PATHS = new Set<string>(["/", "/sign-in", "/sign-up", "/complete-pr
 export function BackArrow() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const palette = useThemePalette();
 
   if (HIDDEN_PATHS.has(pathname)) return null;
 
@@ -33,15 +31,10 @@ export function BackArrow() {
         onPress={() => router.push("/")}
         hitSlop={16}
         accessibilityLabel="Back"
-        style={({ pressed }) => [
-          styles.btn,
-          {
-            backgroundColor: pressed ? palette.surfaceAlt : "transparent",
-            borderColor: palette.border,
-          },
-        ]}
+        style={({ pressed }) => [styles.btn, pressed ? { opacity: 0.7 } : null]}
       >
-        <Text style={[styles.arrow, { color: palette.text }]}>←</Text>
+        {/* v2 back HUD button (self-contained art) */}
+        <PixelButton kind="back" size={40} />
       </Pressable>
     </View>
   );
@@ -55,15 +48,7 @@ const styles = StyleSheet.create({
   btn: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  arrow: {
-    fontSize: 22,
-    lineHeight: 22,
-    fontWeight: "500",
-    marginTop: -2,
   },
 });
