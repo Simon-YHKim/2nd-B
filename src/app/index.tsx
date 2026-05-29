@@ -38,6 +38,7 @@ import { SvgXml } from "react-native-svg";
 import { ONBOARDING_XML, ONBOARDING_ASPECT } from "@/components/art/onboardingXml";
 import { isOnboardingComplete } from "@/lib/onboarding/state";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
+import { StarNoiseLayer } from "@/components/premium";
 
 const logo = require("../../assets/images/logo-glow.png");
 
@@ -196,6 +197,10 @@ export default function Landing() {
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: skyOverlay }]} />
 
       <Animated.View style={[styles.contentLayer, { opacity: contentOpacity }]} pointerEvents="box-none">
+        {/* Subtle cosmic star grain behind the village (premium pass). */}
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <GraphStarHost />
+        </View>
         <NavGraph locale={locale} dataNodes={dataNodes} highlightId={highlightId} />
         {/* CharacterPathLayer — 6 픽셀 주민 placeholder. Phase 3 에서
             엣지-따라-걷기 motion + sprite asset 으로 진화 (handoff §5/§7-1).
@@ -292,6 +297,12 @@ export default function Landing() {
 function CharacterLayerHost() {
   const { width, height } = useWindowDimensions();
   return <CharacterPathLayer width={width} height={height} />;
+}
+
+// Star grain sized to the viewport, sitting behind the graph village.
+function GraphStarHost() {
+  const { width, height } = useWindowDimensions();
+  return <StarNoiseLayer width={width} height={height} count={90} />;
 }
 
 const styles = StyleSheet.create({

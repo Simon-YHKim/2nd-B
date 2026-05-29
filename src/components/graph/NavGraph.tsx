@@ -51,6 +51,8 @@ import { cosmic } from "@/lib/theme/tokens";
 import { pitchForTier, playPop } from "@/lib/audio/pop";
 import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { NodeArt, CharacterArt } from "@/components/art/CosmicPixel";
+import { IslandArt, type IslandId } from "@/components/art/IslandArt";
+import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampScale, panForFocalZoom } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
 import { worldMenuPositions, worldDataPositions, worldToScreen } from "./world-layout";
@@ -177,6 +179,17 @@ export const CENTER_NODE: NavNode = {
     en: "Center of you. The small ones and I keep your pieces in order.",
     ko: "여기가 너의 중심이야. 작은 친구들이랑 함께 조각들을 정리해두고 있어.",
   },
+};
+
+// Floating pixel island art per node (premium closing pack). Decorative
+// node artwork mapped onto the existing graph nodes; tier 1 + 2 get islands,
+// tier 3/4 keep the lighter node/shard art so the mobile view isn't busy.
+const ISLAND_FOR: Record<string, IslandId> = {
+  core: "core",
+  now: "work_growth",
+  past: "relationship",
+  wiki: "knowledge",
+  imagine: "imagine",
 };
 
 function tierSize(t: Tier): number {
@@ -831,7 +844,11 @@ export function NavGraph({ locale, dataNodes, highlightId }: Props) {
                 dim ? styles.dimmed : null,
               ]}
             >
-              <NodeArt tier={n.tier} size={size} />
+              {ISLAND_FOR[n.id] ? (
+                <IslandArt id={ISLAND_FOR[n.id]!} size={size * 1.7} style={{ position: "absolute", left: -size * 0.35, top: -size * 0.35 }} />
+              ) : (
+                <NodeArt tier={n.tier} size={size} />
+              )}
               <Pressable
                 onPress={() => setActiveId(n.id === activeId ? null : n.id)}
                 hitSlop={14}
@@ -864,7 +881,7 @@ export function NavGraph({ locale, dataNodes, highlightId }: Props) {
             dimFor(CENTER_NODE.id) ? styles.dimmed : null,
           ]}
         >
-          <NodeArt tier={1} size={CENTER_SIZE} />
+          <IslandArt id="core" size={CENTER_SIZE * 1.7} style={{ position: "absolute", left: -CENTER_SIZE * 0.35, top: -CENTER_SIZE * 0.35 }} />
           <Pressable
             onPress={() => setActiveId(CENTER_NODE.id === activeId ? null : CENTER_NODE.id)}
             hitSlop={20}
@@ -952,13 +969,24 @@ function NodeSheet({
         ) : null}
       </View>
       <Text variant="body" color="textMuted" style={styles.sheetDesc}>{description}</Text>
+      {connectedCount > 0 ? (
+        <View style={styles.sheetStats}>
+          <StatTile value={connectedCount} label={locale === "ko" ? "연결된 조각" : "connected"} accent={cosmic.signalMint} />
+        </View>
+      ) : null}
       <View style={styles.sheetActions}>
-        <Pressable onPress={onLook} style={[styles.sheetBtn, styles.sheetBtnPrimary]}>
-          <Text style={styles.sheetBtnPrimaryText}>{locale === "ko" ? "살펴보기" : "Look around"}</Text>
-        </Pressable>
-        <Pressable onPress={onAsk} style={[styles.sheetBtn, styles.sheetBtnSecondary]}>
-          <Text style={styles.sheetBtnSecondaryText}>{locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}</Text>
-        </Pressable>
+        <PremiumButton
+          label={locale === "ko" ? "살펴보기" : "Look around"}
+          variant="primary"
+          onPress={onLook}
+          style={styles.sheetActionBtn}
+        />
+        <PremiumButton
+          label={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
+          variant="secondary"
+          onPress={onAsk}
+          style={styles.sheetActionBtn}
+        />
       </View>
       {/* Optional: unfold this node in the imagine workshop (imagine pack §7) */}
       <Pressable onPress={onImagine} hitSlop={6} style={styles.sheetImagine}>
@@ -1037,11 +1065,8 @@ const styles = StyleSheet.create({
   sheetMetaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 },
   sheetType: { letterSpacing: 1 },
   sheetDesc: { marginTop: 10, lineHeight: 20 },
+  sheetStats: { flexDirection: "row", gap: 16, marginTop: 12 },
   sheetActions: { flexDirection: "row", gap: 10, marginTop: 16 },
+  sheetActionBtn: { flex: 1 },
   sheetImagine: { alignSelf: "center", paddingVertical: 10 },
-  sheetBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center", borderWidth: 1 },
-  sheetBtnPrimary: { backgroundColor: cosmic.signalMint, borderColor: cosmic.signalMint },
-  sheetBtnPrimaryText: { color: cosmic.space950, fontWeight: "700", fontSize: 14 },
-  sheetBtnSecondary: { backgroundColor: "transparent", borderColor: cosmic.lineDim },
-  sheetBtnSecondaryText: { color: cosmic.moonWhite, fontSize: 14 },
 });

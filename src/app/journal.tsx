@@ -3,7 +3,7 @@ import { Animated, View, StyleSheet, ScrollView, ActivityIndicator, Alert, Press
 import { useTranslation } from "react-i18next";
 import { Redirect, router, Link } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, PremiumCard, PremiumButton } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -24,6 +24,7 @@ import {
 import { useProgression } from "@/lib/progression/useProgression";
 import { useSavePop } from "@/components/motion/useSignatureMotion";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+import { ShardArt } from "@/components/art/IslandArt";
 import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -433,21 +434,26 @@ export default function Journal() {
             </Animated.View>
             {/* Save success → graph link (journal-capture pack §2/§7) */}
             {justSaved && body.trim().length === 0 ? (
-              <View style={styles.savedPanel}>
-                <Text variant="body" color="brand" style={{ fontWeight: "600" }}>
-                  {locale === "ko" ? "조각을 잘 보관했어요" : "Your piece is safely kept"}
-                </Text>
-                <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
-                  {locale === "ko"
-                    ? "이 조각은 나중에 다른 길과 이어질 수 있어요."
-                    : "It may connect to other paths later."}
-                </Text>
-                <Button
+              <PremiumCard glow style={styles.savedPanel}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <ShardArt id="journal_gold" size={48} />
+                  <View style={{ flex: 1 }}>
+                    <Text variant="body" color="brand" style={{ fontWeight: "600" }}>
+                      {locale === "ko" ? "조각을 잘 보관했어요" : "Your piece is safely kept"}
+                    </Text>
+                    <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
+                      {locale === "ko"
+                        ? "이 조각은 나중에 다른 길과 이어질 수 있어요."
+                        : "It may connect to other paths later."}
+                    </Text>
+                  </View>
+                </View>
+                <PremiumButton
                   label={locale === "ko" ? "그래프 보기" : "See the graph"}
                   variant="secondary"
                   onPress={() => router.push("/")}
                 />
-              </View>
+              </PremiumCard>
             ) : null}
             <Text variant="subtle" color="textSubtle" style={styles.privacyFootnote}>
               {t("journal.privacyFootnote")}
