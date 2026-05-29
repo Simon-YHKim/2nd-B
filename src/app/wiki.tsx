@@ -23,6 +23,7 @@ import { exportUserWiki } from "@/lib/wiki/export";
 import { readPhase1, runPhase1 } from "@/lib/wiki/phase1";
 import { computeGraphStats, type GraphStats } from "@/lib/wiki/graph-stats";
 import type { WikiPageKind, WikiPageRow } from "@/lib/wiki/types";
+import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 
 const KIND_LABEL: Record<WikiPageKind, { en: string; ko: string }> = {
   source: { en: "Source", ko: "소스" },
@@ -53,6 +54,7 @@ export default function Wiki() {
   const [phase1RunningId, setPhase1RunningId] = useState<string | null>(null);
   const [statsVisible, setStatsVisible] = useState(false);
   const [stats, setStats] = useState<GraphStats | null>(null);
+  const companion = useCompanionMoment();
 
   const load = useCallback(
     async (uid: string, tagsFilter: string[]) => {
@@ -178,6 +180,8 @@ export default function Wiki() {
       // wiki page (the wiki page's frontmatter was copied at source-page
       // generation time, so we re-promote to refresh it).
       await load(userId, activeTags);
+      // 모모 labels the freshly organized page (companion pack §3).
+      companion.fire("wikiSaved");
       Alert.alert(locale === "ko" ? "Phase 1 완료" : "Phase 1 done");
     } catch (e) {
       Alert.alert(
@@ -602,12 +606,17 @@ export default function Wiki() {
         )}
         <AppNav locale={locale} />
       </ScrollView>
+      {/* 모모 appears briefly to label the organized page (companion pack §3) */}
+      {companion.moment ? (
+        <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
+  companionFlash: { position: "absolute", bottom: 40, right: 20 },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   actions: { flexDirection: "row", gap: spacing.sm },
   tagFilterCard: {

@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { AppNav } from "@/components/ui/AppNav";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { createRecord } from "@/lib/records/create";
+import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 
 const PERIOD_OPTIONS: { id: AuditPeriod; label: { en: string; ko: string } }[] = [
   { id: "current", label: { en: "Right now", ko: "지금 이 시기" } },
@@ -31,6 +32,7 @@ export default function Audit() {
   const [answer, setAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const companion = useCompanionMoment();
 
   if (loading) {
     return (
@@ -62,6 +64,8 @@ export default function Audit() {
       setAnswer("");
       if (index + 1 >= questions.length) {
         setDone(true);
+        // 모모 reads back the finished interview before it's filed (companion pack §3).
+        companion.fire("auditCompleted");
       } else {
         setIndex(index + 1);
       }
@@ -141,6 +145,10 @@ export default function Audit() {
             />
           </View>
         </View>
+        {/* 모모 appears briefly to file the finished interview (companion pack §3) */}
+        {companion.moment ? (
+          <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
+        ) : null}
       </Screen>
     );
   }
@@ -237,6 +245,7 @@ export default function Audit() {
 const styles = StyleSheet.create({
   scroll: { gap: spacing.md, paddingBottom: spacing.xl },
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: spacing.lg },
+  companionFlash: { position: "absolute", bottom: 40, right: 20 },
   actions: { width: "100%", gap: spacing.md, marginTop: spacing.xl },
   questionCard: {
     backgroundColor: semantic.surface,

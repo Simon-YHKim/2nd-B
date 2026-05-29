@@ -20,6 +20,7 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { CHARACTERS } from "@/lib/characters";
 import { useImaginePulse } from "@/components/motion/useSignatureMotion";
 import { CharacterArt } from "@/components/art/CosmicPixel";
+import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { callGemini } from "@/lib/llm/gemini";
 import {
   IMAGINE_SYSTEM,
@@ -45,6 +46,7 @@ export default function Imagine() {
   const [phase, setPhase] = useState<Phase>("input");
   const [result, setResult] = useState<ParsedImagine | null>(null);
   const [saving, setSaving] = useState(false);
+  const companion = useCompanionMoment();
 
   // Seed the prompt once from a graph-node entry (pack §7).
   const [seeded, setSeeded] = useState(false);
@@ -61,6 +63,8 @@ export default function Imagine() {
   async function handleGenerate() {
     if (!userId || draft.trim().length === 0 || phase === "generating") return;
     setPhase("generating");
+    // 벨라 sparks as the idea starts unfolding (companion pack §3).
+    companion.fire("imagineStarted");
     try {
       const system = fromNode
         ? `${IMAGINE_SYSTEM}\nThe user started from the graph node "${fromNode}"; gently let that color the scenes.`
@@ -91,6 +95,8 @@ export default function Imagine() {
         track: "daily",
       });
       setPhase("saved");
+      // 벨라 tucks the scene into the village (companion pack §3).
+      companion.fire("imagineSaved");
     } catch (e) {
       Alert.alert(locale === "ko" ? "저장 실패" : "Save failed", (e as Error).message);
     } finally {
@@ -255,12 +261,17 @@ export default function Imagine() {
           </View>
         ) : null}
       </ScrollView>
+      {/* 벨라 appears briefly while a scene sparks / is saved (companion pack §3) */}
+      {companion.moment ? (
+        <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
+  companionFlash: { position: "absolute", bottom: 40, right: 20 },
   header: { flexDirection: "row", gap: spacing.md, alignItems: "center" },
   velaSpriteSlot: {
     width: 64, height: 64,

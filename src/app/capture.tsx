@@ -201,7 +201,8 @@ export default function Capture() {
       });
 
       reset();
-      companion.fire("captureSaved");
+      // 루루 carries the shard home; an imported link gets the "success" beat.
+      companion.fire(mode === "link" ? "linkImported" : "captureSaved");
       // Inline success panel (journal-capture pack §3/§7) replaces the alert.
       setSavedTitle(result.source.title);
     } catch (e) {

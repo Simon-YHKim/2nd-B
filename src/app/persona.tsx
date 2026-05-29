@@ -15,6 +15,7 @@ import { TYPE_NICKNAME } from "@/lib/persona/mbti";
 import { STYLE_LABEL, STYLE_DESCRIPTION } from "@/lib/persona/attachment";
 import { labelFramework } from "@/lib/audit/frameworkLabels";
 import type { Framework } from "@/lib/audit/questions";
+import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 
 export default function Persona() {
   const { i18n } = useTranslation();
@@ -22,15 +23,20 @@ export default function Persona() {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [building, setBuilding] = useState(false);
+  const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
   useEffect(() => {
     if (!userId) return;
     setBuilding(true);
     buildPersona(userId, locale)
-      .then(setPersona)
+      .then((p) => {
+        setPersona(p);
+        // 아치 builds the connections once a persona card synthesizes (companion pack §3).
+        if (p) fireCompanion("personaUpdated");
+      })
       .catch((e) => Alert.alert("Persona failed", (e as Error).message))
       .finally(() => setBuilding(false));
-  }, [userId, locale]);
+  }, [userId, locale, fireCompanion]);
 
   if (loading || building) {
     return (
@@ -293,6 +299,10 @@ export default function Persona() {
         </View>
         <AppNav locale={locale} />
       </ScrollView>
+      {/* 아치 appears briefly when the persona model rebuilds (companion pack §3) */}
+      {companionMoment ? (
+        <CompanionMoment moment={companionMoment} style={styles.companionFlash} />
+      ) : null}
     </Screen>
   );
 }
@@ -342,6 +352,7 @@ const TRAIT_LABELS: Record<"en" | "ko", Record<"openness" | "conscientiousness" 
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.md },
+  companionFlash: { position: "absolute", bottom: 40, right: 20 },
   centerSection: { gap: spacing.sm },
   centerCard: {
     backgroundColor: semantic.surface,
