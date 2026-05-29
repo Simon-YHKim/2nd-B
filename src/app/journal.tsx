@@ -23,7 +23,7 @@ import {
 } from "@/lib/records/create";
 import { useProgression } from "@/lib/progression/useProgression";
 import { useSavePop } from "@/components/motion/useSignatureMotion";
-import { SecondBSprite, useSaveCelebration } from "@/components/art/SecondBSprite";
+import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -57,8 +57,8 @@ export default function Journal() {
   const progression = useProgression();
   // 저장 / Save — "뽁" signature pop on a successful entry.
   const { scale: saveScale, pop: savePop } = useSavePop();
-  // 세컨비 save celebration: carrying_shard → happy → idle (v2 §3).
-  const saveCeleb = useSaveCelebration();
+  // 모모 brief event moment on save (companion pack §3: journalSaved → momo).
+  const companion = useCompanionMoment();
   const [body, setBody] = useState("");
   const [topic, setTopic] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -136,7 +136,7 @@ export default function Journal() {
       await refresh(userId);
       // 뽁 — signature save pop (+ synth pop on web) + 세컨비 celebration.
       savePop();
-      saveCeleb.celebrate();
+      companion.fire("journalSaved");
       // Capture earned XP — refresh the level bar.
       void progression.refresh();
     } catch (e) {
@@ -476,9 +476,9 @@ export default function Journal() {
           )}
         </View>
       </ScrollView>
-      {/* 세컨비 celebrates a saved entry: carrying_shard → happy → idle */}
-      {saveCeleb.active ? (
-        <SecondBSprite state={saveCeleb.state} size={56} style={styles.saveFlash} />
+      {/* 모모 appears briefly to file a saved entry (companion pack §3) */}
+      {companion.moment ? (
+        <CompanionMoment moment={companion.moment} style={styles.saveFlash} />
       ) : null}
       <CrisisRouter
         visible={crisis.visible}
