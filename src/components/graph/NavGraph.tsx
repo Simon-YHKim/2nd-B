@@ -53,6 +53,7 @@ import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { NodeArt, CharacterArt } from "@/components/art/CosmicPixel";
 import { clampPan, clampScale, panForFocalZoom } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
+import { worldMenuPositions, worldDataPositions, worldToScreen } from "./world-layout";
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 
@@ -309,70 +310,37 @@ export function NavGraph({ locale, dataNodes }: Props) {
     ],
   }));
 
-  // Tier layout — concentric rings, children kept near their parent's
-  // angle so the parent→child line web reads as branching out.
+  // World-coordinate layout (queue A): the village lives in a fixed
+  // 1200×1600 world and is fitted into the viewport, so districts keep
+  // their place as you pan/zoom (mobile-graph pack §3). The world ring
+  // arrangement is computed once; only the world→screen fit depends on the
+  // viewport. The world center maps exactly to the viewport center, so the
+  // tier-1 lamp stays at (cx, cy) and the rest of the gesture / clamp /
+  // spawn / sheet machinery is unchanged.
+  const worldMenu = useMemo(() => worldMenuPositions(MENU_NODES, CENTER_NODE.id), []);
+
   const positions = useMemo(() => {
-    const minDim = Math.min(width, height);
-    // Rings widened from 0.22 / 0.36 to make room for the larger §5 node
-    // sizes so districts don't overlap the bigger center lamp.
-    const ring2 = minDim * 0.30;
-    const ring3 = minDim * 0.46;
-
+    const vp = { width, height };
     const map = new Map<string, { x: number; y: number; angle: number }>();
-    map.set(CENTER_NODE.id, { x: cx, y: cy, angle: 0 });
-
-    // Tier 2 — 3 nodes, evenly spaced starting at top.
-    const t2 = MENU_NODES.filter((n) => n.tier === 2);
-    t2.forEach((n, i) => {
-      const angle = -Math.PI / 2 + (i / t2.length) * Math.PI * 2;
-      map.set(n.id, {
-        x: cx + Math.cos(angle) * ring2,
-        y: cy + Math.sin(angle) * ring2,
-        angle,
-      });
-    });
-
-    // Tier 3 — clustered near their parent's angle.
-    const childrenOf: Record<string, NavNode[]> = {};
-    for (const n of MENU_NODES) {
-      if (n.tier !== 3 || !n.parentId) continue;
-      (childrenOf[n.parentId] ??= []).push(n);
-    }
-    for (const [parentId, kids] of Object.entries(childrenOf)) {
-      const parent = map.get(parentId);
-      if (!parent) continue;
-      const sectorWidth = Math.PI * 0.55;
-      kids.forEach((n, i) => {
-        const t = kids.length === 1 ? 0.5 : i / (kids.length - 1);
-        const angle = parent.angle - sectorWidth / 2 + sectorWidth * t;
-        const jitter = (seeded(n.id, 1) - 0.5) * 0.18;
-        const rJit = 0.9 + seeded(n.id, 2) * 0.2;
-        map.set(n.id, {
-          x: cx + Math.cos(angle + jitter) * ring3 * rJit,
-          y: cy + Math.sin(angle + jitter) * ring3 * rJit,
-          angle,
-        });
-      });
+    for (const [id, wp] of worldMenu) {
+      const s = worldToScreen({ x: wp.x, y: wp.y }, vp);
+      map.set(id, { x: s.x, y: s.y, angle: wp.angle });
     }
     return map;
-  }, [width, height, cx, cy]);
+  }, [worldMenu, width, height]);
 
-  // Tier 4 data positions — clustered around their wiki parent's angle.
+  // Tier 4 data positions — clustered around their wiki parent in world
+  // space, then fitted to the viewport.
   const dataPositions = useMemo(() => {
-    const cap = Math.min(dataNodes.length, 40);
+    const vp = { width, height };
+    const worldData = worldDataPositions(dataNodes, worldMenu);
     const out = new Map<string, { x: number; y: number; parentId: string }>();
-    const minDim = Math.min(width, height);
-    const ring4 = minDim * 0.6;
-    dataNodes.slice(0, cap).forEach((d) => {
-      const parentId = d.parentId ?? "wiki-daily";
-      const parent = positions.get(parentId);
-      const parentAngle = parent?.angle ?? 0;
-      const ang = parentAngle + (seeded(d.id, 3) - 0.5) * Math.PI * 0.6;
-      const r = ring4 * (0.88 + seeded(d.id, 4) * 0.12);
-      out.set(d.id, { x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r, parentId });
-    });
+    for (const [id, wd] of worldData) {
+      const s = worldToScreen({ x: wd.x, y: wd.y }, vp);
+      out.set(id, { x: s.x, y: s.y, parentId: wd.parentId });
+    }
     return out;
-  }, [dataNodes, positions, width, height, cx, cy]);
+  }, [dataNodes, worldMenu, width, height]);
 
   // Drift Animated.Values — one pair per node (sx, sy = sway offsets).
   // useNativeDriver=false because SVG props can't run on the native
