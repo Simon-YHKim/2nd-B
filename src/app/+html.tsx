@@ -27,6 +27,13 @@ html, body, #root, #__next {
   background-color: #070A18;
 }
 * { -webkit-tap-highlight-color: transparent; }
+/* NeoDunggeunmo pixel font app-wide (user directive 2026-05-29). The
+   @font-face for "NeoDunggeunmo" / "NeoDunggeunmoCode" is injected by
+   expo-font's useFonts() after hydration; this sets the inherited base so
+   every element (incl. raw text + form controls) renders in the pixel face. */
+html, body, #root, #__next, button, input, textarea, select {
+  font-family: "NeoDunggeunmo", "NeoDunggeunmoCode", monospace;
+}
 `;
 
 export default function Root({ children }: PropsWithChildren) {

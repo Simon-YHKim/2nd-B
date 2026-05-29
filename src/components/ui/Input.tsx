@@ -1,6 +1,7 @@
 import { TextInput, type TextInputProps, StyleSheet } from "react-native";
 
 import { radii, spacing, typography } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { useThemePalette } from "@/lib/theme/ThemeContext";
 
 export type InputProps = TextInputProps;
@@ -28,6 +29,7 @@ const styles = StyleSheet.create({
   base: {
     borderWidth: 1,
     borderRadius: radii.md,
+    fontFamily: fontFamilies.sans,
     fontSize: typography.sizes.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,

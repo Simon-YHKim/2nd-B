@@ -104,18 +104,18 @@ The `classifyInput()` result maps directly to UI affordance:
 
 ## Typography
 
-Source: `src/lib/theme/tokens.ts:typography`. `fontFamily` is currently `"System"` to defer the font decision. The decision is below; load when Sprint 1.5 lands the font pipeline.
+**Active font (user directive 2026-05-29): NeoDunggeunmo (둥근모꼴 / 네오둥근모) — applied app-wide.** A crisp Korean+Latin pixel bitmap face that matches the Cosmic Pixel Graph Village aesthetic. SIL OFL 1.1. <https://neodgm.dalgona.dev/>
 
-### Recommended stack (to load via `expo-font`)
+Source: `src/theme/typography.ts:fontFamilies` (every face resolves to `NeoDunggeunmo`; `mono` → `NeoDunggeunmoCode`). Loaded via `expo-font` in `src/app/_layout.tsx`; applied through the shared `Text` / `Button` / `Input` components and a web base rule in `src/app/+html.tsx`. The earlier Fraunces / Geist / Pretendard recommendation below is superseded for the current build.
 
-| Role | Font | Reason |
+### Stack
+
+| Role | Font | Notes |
 |---|---|---|
-| Display (`xxl`, `display`) | **Fraunces** | Serif. Warm without being precious. Variable axes give us weight + optical size at one file. Signals "this is writing, not chrome." |
-| Body, UI (`xs`–`xl`) | **Geist Sans** | Pragmatic, neutral, tabular-nums available. Excellent Korean fallback (pairs well with Pretendard). |
-| Korean fallback for body | **Pretendard** | Variable, designed for Korean web/app text. Apply via fontFamily fallback chain. |
-| Tabular / Data | **Geist Mono** | Same family as body. `tabular-nums` enabled by default for timestamps, persona scores. |
+| All UI text | **NeoDunggeunmo** | One pixel voice across the whole app. Single weight; `fontWeight` props degrade gracefully. |
+| Numbers / code | **NeoDunggeunmoCode** | Fixed-width pixel variant for trait numbers, drill cells, badges. |
 
-Until fonts are loaded, the system font (`fontFamily: "System"`) is acceptable — it ships SF Pro on iOS and Roboto on Android, both of which respect the scale below.
+Decorative `<text>` baked into existing v2 SVG art still references its own font-family and is out of scope for this pass (those fall back to system as before).
 
 ### Scale (px, from `tokens.ts:typography.sizes`)
 

@@ -29,6 +29,7 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { CharacterPathLayer } from "@/components/graph/CharacterPathLayer";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { PixelButton } from "@/components/art/CosmicPixel";
@@ -317,8 +318,8 @@ const styles = StyleSheet.create({
     padding: 18,
     maxWidth: 360,
   },
-  emptyGraphTitle: { color: cosmic.moonWhite, fontSize: 16, fontWeight: "700", marginTop: 8 },
-  emptyGraphBody: { color: cosmic.mistGray, fontSize: 13, lineHeight: 18, textAlign: "center", marginTop: 4 },
+  emptyGraphTitle: { color: cosmic.moonWhite, fontSize: 16, fontWeight: "700", marginTop: 8, fontFamily: fontFamilies.sans },
+  emptyGraphBody: { color: cosmic.mistGray, fontSize: 13, lineHeight: 18, textAlign: "center", marginTop: 4, fontFamily: fontFamilies.sans },
   emptyGraphCta: {
     marginTop: 14,
     backgroundColor: cosmic.signalMint,
@@ -326,7 +327,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
   },
-  emptyGraphCtaText: { color: cosmic.space950, fontWeight: "700", fontSize: 14 },
+  emptyGraphCtaText: { color: cosmic.space950, fontWeight: "700", fontSize: 14, fontFamily: fontFamilies.sans },
   insightRibbon: {
     position: "absolute",
     top: 56, left: 16, right: 80,
@@ -364,12 +365,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
     marginBottom: 4,
+    fontFamily: fontFamilies.sans,
   },
   insightText: {
     color: cosmic.moonWhite,
     fontSize: 14,
     lineHeight: 20,
     letterSpacing: 0.2,
+    fontFamily: fontFamilies.sans,
   },
   topRightCluster: {
     position: "absolute",
@@ -384,6 +387,7 @@ const styles = StyleSheet.create({
   localeToggleText: {
     color: cosmic.mistGray,
     fontSize: 12, letterSpacing: 1.5, fontWeight: "700",
+    fontFamily: fontFamilies.sans,
   },
   settingsCog: {
     width: 36,
