@@ -5,6 +5,7 @@ import { Redirect, router, Link } from "expo-router";
 
 import { PremiumAppShell, PremiumCard, PremiumButton } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { XpBar } from "@/components/progression/XpBar";
