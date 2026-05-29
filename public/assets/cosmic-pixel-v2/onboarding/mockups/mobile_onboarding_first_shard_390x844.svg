@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" fill="none" shape-rendering="crispEdges">
+  <title>Mobile onboarding first shard</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="390" y2="844" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#070A18"/>
+      <stop offset="0.62" stop-color="#0D1530"/>
+      <stop offset="1" stop-color="#16213E"/>
+    </linearGradient>
+    <radialGradient id="violetGlow" cx="50%" cy="38%" r="55%">
+      <stop stop-color="#A78BFA" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#A78BFA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="50%">
+      <stop stop-color="#72F2C7" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#72F2C7" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  
+    <rect width="390" height="844" fill="#070A18"/>
+    <circle cx="196" cy="214" r="180" fill="#A78BFA" opacity=".12"/>
+    <circle cx="64" cy="620" r="120" fill="#72F2C7" opacity=".06"/>
+    <rect x="16" y="18" width="358" height="806" rx="34" fill="none" stroke="#243056" stroke-opacity=".55"/>
+    
+  <text x="32" y="78" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="22" font-weight="800">첫 조각을 남겨요</text>
+  <text x="32" y="106" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="13">한 문장만 있어도 충분해요.</text>
+  <rect x="32" y="150" width="326" height="220" rx="26" fill="#0D1530" stroke="#243056"/>
+  <text x="54" y="188" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="16" font-weight="700">오늘 머릿속에 남은 조각</text>
+  <rect x="54" y="214" width="282" height="88" rx="18" fill="#070A18" stroke="#243056"/>
+  <text x="74" y="248" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="12">예: 오늘 떠오른 앱 아이디어...</text>
+  <rect x="54" y="318" width="168" height="32" rx="16" fill="#FFD166"/>
+  <text x="86" y="339" fill="#070A18" font-family="Pretendard, system-ui" font-size="12" font-weight="800">마을에 저장</text>
+  <g transform="translate(104 420)">
+    <path d="M0 50 C55 8, 110 95, 170 28" stroke="#243056" stroke-width="5" stroke-linecap="round"/>
+    <path d="M0 50 C55 8, 110 95, 170 28" stroke="#FFD166" stroke-width="2" stroke-dasharray="5 8" stroke-linecap="round"/>
+    <circle cx="0" cy="50" r="11" fill="#FFD166"/><circle cx="170" cy="28" r="11" fill="#A78BFA"/>
+  </g>
+  <rect x="32" y="716" width="326" height="52" rx="26" fill="#FFD166"/>
+  <text x="130" y="749" fill="#070A18" font-family="Pretendard, system-ui" font-size="15" font-weight="800">첫 조각 저장</text>
+
+    
+</svg>

@@ -33,6 +33,9 @@ import { CharacterPathLayer } from "@/components/graph/CharacterPathLayer";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { PixelButton } from "@/components/art/CosmicPixel";
 import { SecondBFab, SecondBSprite } from "@/components/art/SecondBSprite";
+import { SvgXml } from "react-native-svg";
+import { ONBOARDING_XML, ONBOARDING_ASPECT } from "@/components/art/onboardingXml";
+import { isOnboardingComplete } from "@/lib/onboarding/state";
 
 const logo = require("../../assets/images/logo-glow.png");
 
@@ -138,6 +141,8 @@ export default function Landing() {
   if (loading) return <InlineLoader />;
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  // First run → onboarding (once; recorded in localStorage). §2/§4.
+  if (!isOnboardingComplete()) return <Redirect href="/onboarding" />;
 
   function toggleLocale() {
     void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
@@ -161,6 +166,24 @@ export default function Landing() {
           <CharacterLayerHost />
         </View>
       </Animated.View>
+
+      {/* Empty graph state (onboarding pack §6) — no saved pieces yet. */}
+      {dataNodes.length === 0 ? (
+        <Animated.View style={[styles.emptyGraphWrap, { opacity: contentOpacity }]} pointerEvents="box-none">
+          <View style={styles.emptyGraphCard}>
+            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <SvgXml xml={ONBOARDING_XML.emptyGraph} width={220} height={220 / ONBOARDING_ASPECT.emptyGraph} />
+            </View>
+            <Text style={styles.emptyGraphTitle}>{locale === "ko" ? "아직 마을이 조용해요" : "The village is quiet"}</Text>
+            <Text style={styles.emptyGraphBody}>
+              {locale === "ko" ? "첫 조각을 남기면 길이 조금씩 켜져요." : "Leave a first piece and the roads light up."}
+            </Text>
+            <Pressable onPress={() => router.push({ pathname: "/journal", params: { entry: "firstRun" } })} style={styles.emptyGraphCta}>
+              <Text style={styles.emptyGraphCtaText}>{locale === "ko" ? "첫 조각 남기기" : "Leave a first piece"}</Text>
+            </Pressable>
+          </View>
+        </Animated.View>
+      ) : null}
 
       {/* Top insight ribbon — Core Brain talks. The slot on the left
           is reserved for a future mascot avatar; for now it shows a
@@ -230,6 +253,31 @@ const styles = StyleSheet.create({
     marginLeft: -110, marginTop: -110,
   },
   contentLayer: { ...StyleSheet.absoluteFill as object },
+  emptyGraphWrap: {
+    position: "absolute",
+    left: 0, right: 0, bottom: 96,
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  emptyGraphCard: {
+    alignItems: "center",
+    backgroundColor: "rgba(13,21,48,0.88)",
+    borderColor: "rgba(141,152,184,0.28)",
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 18,
+    maxWidth: 360,
+  },
+  emptyGraphTitle: { color: cosmic.moonWhite, fontSize: 16, fontWeight: "700", marginTop: 8 },
+  emptyGraphBody: { color: cosmic.mistGray, fontSize: 13, lineHeight: 18, textAlign: "center", marginTop: 4 },
+  emptyGraphCta: {
+    marginTop: 14,
+    backgroundColor: cosmic.signalMint,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  emptyGraphCtaText: { color: cosmic.space950, fontWeight: "700", fontSize: 14 },
   insightRibbon: {
     position: "absolute",
     top: 56, left: 16, right: 80,
