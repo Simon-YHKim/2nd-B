@@ -37,6 +37,16 @@ export default function DataManagement() {
           </Text>
         </View>
 
+        <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
+          <Text variant="caption" color="textMuted" style={styles.eyebrow}>{ko ? "가져오기" : "Import"}</Text>
+          <Text variant="body" color="textMuted">
+            {ko
+              ? "다른 AI가 정리한 나, 예전에 한 성향·성격 검사 결과를 가져와 우리 구조에 맞게 분류해 보관해요."
+              : "Bring in what another assistant gathered about you, or a past disposition/personality test, sorted into your structure."}
+          </Text>
+          <Button label={ko ? "외부 자료 가져오기" : "Import external material"} variant="secondary" onPress={() => router.push("/import")} />
+        </View>
+
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{ko ? "내보내기" : "Export"}</Text>
           <Text variant="body" color="textMuted">

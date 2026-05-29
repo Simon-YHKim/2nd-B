@@ -61,7 +61,7 @@ function getClient(): { client: GoogleGenAI; vertex: boolean } {
 // UI can be exercised end-to-end without a Gemini API key. Safety classifier
 // still runs (C9 invariant) and audit log still records the call (C3).
 const MOCK_RESPONSES: Record<
-  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "jarvis_chat" | "interview_probe" | "imagine",
+  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "jarvis_chat" | "interview_probe" | "imagine" | "import_ingest",
   Record<"en" | "ko", string>
 > = {
   journal_reflect: {
@@ -115,6 +115,30 @@ const MOCK_RESPONSES: Record<
       "CHARACTER :: 벨라 :: 공상을 장면으로 펼쳐주는 안내자.\n" +
       "CHARACTER :: 루루 :: 새 조각을 주워오는 친구.\n" +
       "NEXTSTEP :: 오늘 떠오른 장면 한 줄을 기록으로 남겨보기.",
+  },
+  // Structured JSON stub for the external-import ingest so /import works in
+  // the default mock build (parseIngestResult reads this shape).
+  import_ingest: {
+    en: JSON.stringify({
+      summary: "[MOCK] A reflective, curious person who values growth and close relationships.",
+      track: "daily",
+      tags: ["imported", "growth", "reflection"],
+      items: [
+        { section: "trait", title: "Openness", detail: "Drawn to new ideas and perspectives.", confidence: "medium" },
+        { section: "value", title: "Growth", detail: "Frames experiences as chances to learn.", confidence: "medium" },
+        { section: "relationship", title: "Close ties", detail: "Leans on a small circle of trusted people.", confidence: "low" },
+      ],
+    }),
+    ko: JSON.stringify({
+      summary: "[MOCK] 성장과 가까운 관계를 중요하게 여기는, 호기심 많고 성찰적인 사람.",
+      track: "daily",
+      tags: ["imported", "성장", "성찰"],
+      items: [
+        { section: "trait", title: "개방성", detail: "새로운 생각과 관점에 끌려요.", confidence: "medium" },
+        { section: "value", title: "성장", detail: "경험을 배움의 기회로 받아들여요.", confidence: "medium" },
+        { section: "relationship", title: "가까운 관계", detail: "신뢰하는 소수에게 의지해요.", confidence: "low" },
+      ],
+    }),
   },
 };
 

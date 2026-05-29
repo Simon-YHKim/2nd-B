@@ -110,6 +110,8 @@ export default function Landing() {
   // the center for yet. `wake()` resets the idle timer on any interaction.
   const [sleeping, setSleeping] = useState(false);
   const [centerSeen, setCenterSeen] = useState(false);
+  // First-run empty-graph card is dismissible so the user can just browse.
+  const [emptyDismissed, setEmptyDismissed] = useState(false);
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wake = useCallback(() => {
     setSleeping(false);
@@ -210,10 +212,21 @@ export default function Landing() {
         </View>
       </Animated.View>
 
-      {/* Empty graph state (onboarding pack §6) — no saved pieces yet. */}
-      {dataNodes.length === 0 ? (
+      {/* Empty graph state (onboarding pack §6) — no saved pieces yet.
+          Dismissible so the user can just look around the village. */}
+      {dataNodes.length === 0 && !emptyDismissed ? (
         <Animated.View style={[styles.emptyGraphWrap, { opacity: contentOpacity }]} pointerEvents="box-none">
           <View style={styles.emptyGraphCard}>
+            {/* Close — lets the user dismiss and browse the empty village. */}
+            <Pressable
+              onPress={() => setEmptyDismissed(true)}
+              hitSlop={12}
+              style={styles.emptyGraphClose}
+              accessibilityRole="button"
+              accessibilityLabel={locale === "ko" ? "닫고 둘러보기" : "Dismiss and look around"}
+            >
+              <Text style={styles.emptyGraphCloseText}>✕</Text>
+            </Pressable>
             <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
               <SvgXml xml={ONBOARDING_XML.emptyGraph} width={220} height={220 / ONBOARDING_ASPECT.emptyGraph} />
             </View>
@@ -223,6 +236,9 @@ export default function Landing() {
             </Text>
             <Pressable onPress={() => router.push({ pathname: "/journal", params: { entry: "firstRun" } })} style={styles.emptyGraphCta}>
               <Text style={styles.emptyGraphCtaText}>{locale === "ko" ? "첫 조각 남기기" : "Leave a first piece"}</Text>
+            </Pressable>
+            <Pressable onPress={() => setEmptyDismissed(true)} hitSlop={8} style={styles.emptyGraphSkip}>
+              <Text style={styles.emptyGraphSkipText}>{locale === "ko" ? "먼저 둘러볼게요" : "I'll look around first"}</Text>
             </Pressable>
           </View>
         </Animated.View>
@@ -329,6 +345,10 @@ const styles = StyleSheet.create({
     padding: 18,
     maxWidth: 360,
   },
+  emptyGraphClose: { position: "absolute", top: 8, right: 10, padding: 6, zIndex: 2 },
+  emptyGraphCloseText: { color: cosmic.mistGray, fontSize: 16, fontFamily: fontFamilies.sans },
+  emptyGraphSkip: { marginTop: 10, paddingVertical: 6 },
+  emptyGraphSkipText: { color: cosmic.mistGray, fontSize: 13, fontFamily: fontFamilies.sans },
   emptyGraphTitle: { color: cosmic.moonWhite, fontSize: 16, fontWeight: "700", marginTop: 8, fontFamily: fontFamilies.sans },
   emptyGraphBody: { color: cosmic.mistGray, fontSize: 13, lineHeight: 18, textAlign: "center", marginTop: 4, fontFamily: fontFamilies.sans },
   emptyGraphCta: {
