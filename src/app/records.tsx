@@ -12,11 +12,11 @@ import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "reac
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, ReferenceShardCard } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import {
@@ -28,6 +28,16 @@ import {
 } from "@/lib/persona/evidence";
 
 const TYPE_FILTERS: (EvidenceType | "all")[] = ["all", "journal", "capture", "audit", "interview", "imagine", "wiki"];
+
+// Warm-gold for records by default; a few types carry their companion accent.
+const TYPE_ACCENT: Record<EvidenceType, string> = {
+  journal: cosmic.pixelLamp,
+  capture: cosmic.signalMint,
+  wiki: cosmic.signalBlue,
+  interview: cosmic.soulViolet,
+  audit: cosmic.soulViolet,
+  imagine: cosmic.dreamPink,
+};
 
 export default function Records() {
   const { i18n } = useTranslation();
@@ -159,21 +169,13 @@ export default function Records() {
         ) : (
           <View style={styles.list}>
             {filtered.map((s) => (
-              <Pressable
+              <ReferenceShardCard
                 key={s.id}
-                style={styles.row}
+                title={s.title}
+                meta={[s.dateLabel, evidenceTypeLabel(s.type, locale)].filter(Boolean).join(" · ")}
+                accent={TYPE_ACCENT[s.type]}
                 onPress={() => router.push({ pathname: "/record/[id]", params: { id: s.id } })}
-                accessibilityRole="button"
-                accessibilityLabel={s.title}
-              >
-                <View style={styles.rowDot} />
-                <View style={{ flex: 1 }}>
-                  <Text variant="body" numberOfLines={1}>{s.title}</Text>
-                  <Text variant="subtle" color="textSubtle">
-                    {[s.dateLabel, evidenceTypeLabel(s.type, locale)].filter(Boolean).join(" · ")}
-                  </Text>
-                </View>
-              </Pressable>
+              />
             ))}
           </View>
         )}
@@ -196,6 +198,4 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   list: { gap: spacing.xs },
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
-  rowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
 });
