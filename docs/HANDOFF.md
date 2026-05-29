@@ -5,6 +5,83 @@
 
 ---
 
+## Latest — 2026-05-29 / v2 design-pack integration — 10 packs + onboarding (PR #41–#51)
+
+### 어디까지 왔나
+- **main HEAD**: `3570a8b`
+- 이번 세션 머지된 PR (11개, 전부 squash + CI green):
+  - #41 Phase-3 F/C/E/D + 세컨비 rename + lightCosmic + walker/signature/source-chips
+  - #42 Cosmic Pixel Graph Village mobile (Phase 1/2: bottom-sheet, zoom-tier-gating 0.65/1.1, mint highlight+dim, bigger nodes)
+  - #43 SecondB sprite pack v2 + **cosmic entry surface** (sign-in/loader → cosmic; fixed "라이브에 변화 없음" = 변경이 로그인 뒤라서)
+  - #44 companion sprite pack v2 (모모/루루/아치/벨라/가디 event characters)
+  - #45 mobile-graph pack v2 (v2 node art + HUD 버튼)
+  - #46 SecondB chat v2 (node context pill, 참고한 조각 grounding, reference drawer, quick actions)
+  - #47 Core Brain / 나의 중심 화면 (`/core-brain`)
+  - #48 Imagine / 공상 작업실 **생성 파이프라인** (큐 B 완료 — Gemini `purpose:"imagine"`)
+  - #49 journal/capture v2 (오늘의 조각 / 조각 담기 + graph-link success)
+  - #50 wiki/records v2 (지식 창고 + 검색 + handoff)
+  - #51 first-run onboarding + empty graph state
+- 테스트: **562 / 562 green** (57 suites). `npm run verify` 전부 통과 (lint 0 error · type · i18n parity · forbidden lexicon · LLM boundary · C1~C12).
+- working tree: clean.
+
+### 활성 인프라
+- **Supabase**: `zoacryukmdeivmolvyhj` (변경 없음). **gemini-proxy v5 ACTIVE**.
+- **LLM 모드**: 배포 기본 `EXPO_PUBLIC_LLM_MODE=mock`. imagine/chat/persona 모두 mock에서도 동작(구조화 mock stub 포함). 실제 생성은 `GOOGLE_API_KEY`(또는 Vertex) repo Variable 설정 시.
+- **Deploy**: main push → GitHub Pages 자동 (~2–3분). Live: <https://simon-yhkim.github.io/2nd-B/>.
+- **SVG 렌더 방식**: 모든 v2 픽셀 에셋은 `react-native-svg`의 `SvgXml` + 생성된 `*Xml.ts` 모듈로 렌더. **svg-transformer 안 씀**(metro/배포 안전). raw 에셋은 `public/assets/cosmic-pixel-v2/<pack>/`에 커밋(무거운 PNG preview는 제외). `eslint.config.mjs`가 `public/**` ignore.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **world-coordinate(1200×1600) 그래프 마이그레이션** (mobile-graph pack §3). 현재 NavGraph는 반응형 ring 레이아웃; 고정 월드 + translate/scale로 전환. `layout/mobile_graph_layout_example.json` 참고. **유일한 고위험 항목** — 작동 중인 제스처/clamp(`zoom-math.ts`) 코어를 건드림 | large | ⭐ 라이브 미리보기 보며 신중히. 항목별 highlight-on-return(B)이 여기 딸려옴 |
+| B | **records 브라우저 + record/wiki-page 상세 화면** + 항목별 "그래프에서 보기" highlight-on-return (wiki-records §5/§6/§7, journal-capture §7-7). 그래프가 wiki_pages 기준이라 record-id 하이라이트 배선 필요 | medium-large | A와 묶으면 자연스러움 |
+| C | **남은 companion event 트리거 연결**: auditCompleted/wikiSaved(모모), linkImported(루루), connectionFound/personaUpdated(아치), safetySoftStop/clear(가디). `companionEventMap`에 다 정의됨, trigger site만 연결 | small-medium | |
+| D | **persona 5필드 상세**(who/forWhom/goal/do/fuel) 데이터 계약 — core-brain "나의 모습"이 현재 collecting state. 백킹 데이터 없어 보류 중 | medium | data_contract 먼저 |
+| E | **CharacterPathLayer walker 모션 고도화** + sprite walk frames(이미 placeholder drift만), SecondB FAB notification/chat_ready 트리거, sleep-on-idle | medium | |
+| F | **실제 Gemini 생성 연결** (현재 mock) — imagine/chat/persona를 라이브로. `GOOGLE_API_KEY` repo Variable + `EXPO_PUBLIC_LLM_MODE=live` | small(설정) | XPRIZE는 Vertex 권장 |
+
+### 적용 중인 정책 (영구 — 이번 세션 재확인)
+1. **CI 자동 머지**: PR 만들고 CI(lint+verify) green이면 draft 해제 → squash merge → 사후 보고. 사용자 명시.
+2. **Branch 패턴**: 각 작업마다 `git fetch origin main && git checkout -b claude/<name> origin/main` (fresh main 위에서). 이전 PR 머지 후 새 작업은 새 브랜치.
+3. **에셋 팩 통합 패턴**: zip → `public/assets/cosmic-pixel-v2/<pack>/` (무거운 PNG 제외) → 필요한 SVG만 `node`로 `src/components/art/<pack>Xml.ts` 생성 → `SvgXml`로 렌더. CSS 토큰은 기존 `cosmic.*` alias(중복 금지).
+4. **날조 금지**: data_contract 원칙 — evidence 없는 요약/필드는 collecting/empty state로. (core-brain, imagine 등)
+5. **C1~C12 강제** + **forbidden lexicon**(임상어 금지). `npm run check:constraints`.
+6. **유저-facing vs 코드 식별자 분리**: 화면 = "나의 중심/오늘의 조각/조각 담기/지식 창고/공상 작업실/세컨비", 코드 route = `/core-brain`,`/journal`,`/capture`,`/wiki`,`/imagine`,`/jarvis`(+`jarvis_chat` purpose) 유지.
+7. **DESIGN.md**: cosmic 팔레트 + accent budget(primary mint + 5 signal, 화면당 ≤3) + 뽁 overshoot + signature motion. 캐릭터는 보조자, 그래프가 주인공.
+
+### 핵심 파일 위치 (이번 세션)
+```
+src/components/art/                  SvgXml art layer (CosmicPixel/SecondBSprite/CompanionSprite + *Xml.ts 생성물)
+src/components/graph/NavGraph.tsx    bottom-sheet · zoom-tier-gating · mint highlight/dim · v2 node art · 공상/세컨비 handoff
+src/components/graph/tier-visibility.ts  zoom→tier 순수 헬퍼 (테스트됨)
+src/components/motion/useSignatureMotion.ts  save-pop / connection-glow / imagine-pulse 훅
+src/app/core-brain.tsx (NEW)         나의 중심 화면 (+ evidence drawer)
+src/app/imagine.tsx                  공상 생성 파이프라인 (states + 카드 + 저장)
+src/app/onboarding.tsx (NEW)         5단계 첫 진입
+src/app/jarvis.tsx                   세컨비 chat — node context pill · grounding · reference drawer · quick actions
+src/app/{journal,capture,wiki}.tsx   오늘의 조각 / 조각 담기 / 지식 창고 (+ momo/lulu cue, graph-link success, 검색)
+src/lib/llm/imagine.ts (NEW)         IMAGINE_SYSTEM + parseImagineResult(순수, 테스트됨)
+src/lib/llm/{types,gemini}.ts        purpose "imagine" 추가 + 구조화 mock
+src/lib/persona/{center,evidence}.ts 나의 중심 카드 + evidence 매핑 (테스트됨)
+src/lib/onboarding/state.ts          온보딩 완료 플래그
+src/lib/theme/tokens.ts              cosmic + lightCosmic + cosmicSky + FX 토큰
+public/assets/cosmic-pixel-v2/*      10개 팩 raw 에셋
+```
+
+### 검증
+```bash
+npm run verify   # lint + type + i18n + lexicon + LLM boundary + C1~C12 + jest (562)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# 큐 A (world-coordinate 그래프 마이그레이션) 부터 — 단, 라이브 미리보기 보며 신중히
+```
+
+---
+
 ## Latest — 2026-05-29 / Cosmic Pixel Graph Village Phase 1 (PR #39 merged)
 
 ### 어디까지 왔나
