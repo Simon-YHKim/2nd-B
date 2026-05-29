@@ -24,6 +24,8 @@ import {
 import { useProgression } from "@/lib/progression/useProgression";
 import { useSavePop } from "@/components/motion/useSignatureMotion";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+import { PremiumCard, PremiumButton } from "@/components/premium";
+import { ShardArt } from "@/components/art/IslandArt";
 import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
