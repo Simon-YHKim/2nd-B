@@ -30,7 +30,6 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
-import { CharacterPathLayer } from "@/components/graph/CharacterPathLayer";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { PixelButton } from "@/components/art/CosmicPixel";
 import { SecondBFab, SecondBSprite } from "@/components/art/SecondBSprite";
@@ -203,13 +202,12 @@ export default function Landing() {
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <GraphStarHost />
         </View>
-        <NavGraph locale={locale} dataNodes={dataNodes} highlightId={highlightId} />
-        {/* CharacterPathLayer — 6 픽셀 주민 placeholder. Phase 3 에서
-            엣지-따라-걷기 motion + sprite asset 으로 진화 (handoff §5/§7-1).
-            현재는 static anchor 에 colored block 만. */}
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <CharacterLayerHost />
-        </View>
+        <NavGraph
+          locale={locale}
+          dataNodes={dataNodes}
+          highlightId={highlightId}
+          glowNodeId={dataNodes.length > 0 && !centerSeen ? "records" : null}
+        />
       </Animated.View>
 
       {/* Empty graph state (onboarding pack §6) — no saved pieces yet.
@@ -305,14 +303,6 @@ export default function Landing() {
       </Animated.View>
     </View>
   );
-}
-
-// Picks up the viewport size via useWindowDimensions so CharacterPathLayer
-// has real pixel coordinates. Lives at the bottom of the screen tree so
-// it overlays the graph but stays below the floating FAB + topRightCluster.
-function CharacterLayerHost() {
-  const { width, height } = useWindowDimensions();
-  return <CharacterPathLayer width={width} height={height} />;
 }
 
 // Star grain sized to the viewport, sitting behind the graph village.

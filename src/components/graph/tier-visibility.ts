@@ -15,10 +15,15 @@ export interface TierVisibility {
 }
 
 /** Coarse zoom bucket — 0 (far), 1 (mid), 2 (close). Cheap to compare so
- *  the gesture worklet only pushes a React state update on a real change. */
+ *  the gesture worklet only pushes a React state update on a real change.
+ *
+ *  Thresholds tuned so the DEFAULT view (gesture scale = 1) sits in bucket 0
+ *  — first screen shows only the center + domain islands (tier 1 + 2). The
+ *  user zooms in to unfold persona outposts (tier 3 at ≥1.15) and then the
+ *  individual record shards (tier 4 at ≥1.8). (graph-restructure: B1.) */
 export function scaleBucket(scale: number): 0 | 1 | 2 {
-  if (scale < 0.65) return 0;
-  if (scale < 1.1) return 1;
+  if (scale < 1.15) return 0;
+  if (scale < 1.8) return 1;
   return 2;
 }
 
