@@ -7,7 +7,7 @@ import { View, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -44,9 +44,9 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}><ActivityIndicator color={semantic.brand} /></View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
@@ -54,7 +54,7 @@ export default function Profile() {
   const displayName = email ? email.split("@")[0] : locale === "ko" ? "마을 주민" : "Villager";
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View>
           <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
@@ -95,12 +95,12 @@ export default function Profile() {
           <Button label={locale === "ko" ? "설정으로" : "Back to settings"} variant="secondary" onPress={() => router.push("/settings")} />
         </View>
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
+  scroll: { gap: spacing.lg, paddingBottom: 110 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   section: {
     backgroundColor: semantic.surface,

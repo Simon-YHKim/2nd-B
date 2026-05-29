@@ -12,7 +12,7 @@ import { Animated, ScrollView, StyleSheet, View, TextInput, Pressable, Alert } f
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -111,7 +111,7 @@ export default function Imagine() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Header — Vela hero */}
         <View style={styles.header}>
@@ -265,7 +265,7 @@ export default function Imagine() {
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
       ) : null}
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

@@ -12,7 +12,7 @@ import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "reac
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -81,11 +81,11 @@ export default function Records() {
 
   if (loading) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <ActivityIndicator color={semantic.brand} />
         </View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
@@ -93,7 +93,7 @@ export default function Records() {
   const reload = () => setReloadKey((k) => k + 1);
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View>
           <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
@@ -178,12 +178,12 @@ export default function Records() {
           </View>
         )}
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
+  scroll: { gap: spacing.lg, paddingBottom: 110 },
   center: { paddingVertical: spacing.xxl, alignItems: "center", justifyContent: "center" },
   stateBox: { paddingVertical: spacing.xl, gap: spacing.md, alignItems: "center" },
   chipRow: { gap: spacing.sm, paddingVertical: spacing.xs },

@@ -7,7 +7,7 @@ import { ScrollView, StyleSheet, View, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -145,7 +145,7 @@ export default function Settings() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <Text variant="caption" color="brand">
@@ -367,7 +367,7 @@ export default function Settings() {
         </View>
         <AppNav locale={locale} />
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

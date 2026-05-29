@@ -9,14 +9,21 @@
 // 세컨비에게 이 중심으로 묻기.
 
 import { useEffect, useState, type ReactNode } from "react";
-import { View, StyleSheet, ScrollView, ActivityIndicator, Modal, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, Modal, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 import { SvgXml } from "react-native-svg";
 
-import { Screen } from "@/components/ui/Screen";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
+import {
+  PremiumAppShell,
+  PremiumTopBar,
+  PremiumCTA,
+  PixelIconButton,
+  PremiumLoadingState,
+  StatTile,
+} from "@/components/premium";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -73,14 +80,11 @@ export default function CoreBrain() {
 
   if (loading || building) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
-          <ActivityIndicator color={semantic.brand} />
-          <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.md }}>
-            {locale === "ko" ? "중심을 살펴보는 중이에요..." : "Looking at your center..."}
-          </Text>
+          <PremiumLoadingState message={locale === "ko" ? "중심을 살펴보는 중이에요…" : "Looking at your center…"} />
         </View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
@@ -88,7 +92,7 @@ export default function CoreBrain() {
   // Empty state (§7) — never fabricate a summary with no pieces.
   if (evidence.length === 0) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <SvgXml xml={CORE_BRAIN_XML.orb} width={140} height={140} />
           <Text variant="heading" style={{ marginTop: spacing.lg, textAlign: "center" }}>
@@ -112,7 +116,7 @@ export default function CoreBrain() {
             />
           </View>
         </View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
 
@@ -126,23 +130,30 @@ export default function CoreBrain() {
   // and point the user at the one place that would fill them. Never fabricated.
   const portrait = buildSelfPortrait({ persona }, locale);
 
-  return (
-    <Screen>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* 1) Header */}
-        <View>
-          <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
-            {locale === "ko" ? "나의 중심" : "Center of me"}
-          </Text>
-          <Text variant="heading">{locale === "ko" ? "지금의 나" : "You, right now"}</Text>
-          <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.xs }}>
-            {locale === "ko" ? "요즘 자주 이어지는 조각들을 살펴봐요." : "A look at the pieces that keep connecting lately."}
-          </Text>
-        </View>
+  const filledFields = portrait.filter((f) => f.status === "filled").length;
 
-        {/* 2) Center hero orb */}
+  return (
+    <PremiumAppShell>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        {/* 1) Premium top bar */}
+        <PremiumTopBar
+          title={locale === "ko" ? "나의 중심" : "Center of me"}
+          subtitle={locale === "ko" ? "요즘 나의 연결 상태" : "How you're connecting lately"}
+          right={
+            <PixelIconButton accessibilityLabel={locale === "ko" ? "설정" : "Settings"} onPress={() => router.push("/settings")}>
+              <Text style={{ color: cosmic.moonWhite, fontSize: 18 }}>⚙</Text>
+            </PixelIconButton>
+          }
+        />
+
+        {/* 2) Center hero orb + summary stats */}
         <View style={styles.hero}>
           <SvgXml xml={CORE_BRAIN_XML.orb} width={200} height={200} />
+        </View>
+        <View style={styles.statRow}>
+          <StatTile value={evidence.length} label={locale === "ko" ? "조각" : "pieces"} accent={cosmic.pixelLamp} />
+          <StatTile value={`${filledFields}/5`} label={locale === "ko" ? "나의 모습" : "self-portrait"} accent={cosmic.soulViolet} />
+          <StatTile value={persona?.values.length ?? 0} label={locale === "ko" ? "동네" : "areas"} accent={cosmic.signalMint} />
         </View>
 
         {/* 3) 요즘 가장 밝은 연결 */}
@@ -219,16 +230,11 @@ export default function CoreBrain() {
         </Section>
 
         {/* 8) 세컨비에게 이 중심으로 묻기 */}
-        <Pressable
+        <PremiumCTA
+          label={locale === "ko" ? "세컨비에게 이 중심으로 묻기" : "Ask SecondB about this center"}
+          variant="secondary"
           onPress={() => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "나의 중심" : "my center" } })}
-          style={styles.askCta}
-          accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "세컨비에게 이 중심으로 묻기" : "Ask SecondB about this center"}
-        >
-          <Text variant="body" color="background" style={{ fontWeight: "700" }}>
-            {locale === "ko" ? "세컨비에게 이 중심으로 묻기" : "Ask SecondB about this center"}
-          </Text>
-        </Pressable>
+        />
       </ScrollView>
 
       {/* Evidence drawer (§5) */}
@@ -278,7 +284,7 @@ export default function CoreBrain() {
       {companionMoment ? (
         <CompanionMoment moment={companionMoment} style={styles.companionFlash} />
       ) : null}
-    </Screen>
+    </PremiumAppShell>
   );
 }
 
@@ -296,10 +302,11 @@ function Section({ title, accent, children }: { title: string; accent: string; c
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
+  scroll: { gap: spacing.lg, paddingBottom: 110 },
   companionFlash: { position: "absolute", bottom: 40, right: 20 },
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: spacing.lg },
   hero: { alignItems: "center" },
+  statRow: { flexDirection: "row", justifyContent: "space-around", gap: spacing.sm },
   section: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
@@ -313,12 +320,6 @@ const styles = StyleSheet.create({
   fieldRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs },
   fieldDot: { width: 8, height: 8, borderRadius: 4 },
   evidenceBtn: { paddingVertical: spacing.xs },
-  askCta: {
-    backgroundColor: semantic.brand,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.lg,
-    alignItems: "center",
-  },
   emptyActions: { gap: spacing.md, marginTop: spacing.xl, width: "100%", maxWidth: 320 },
   backdrop: { flex: 1, backgroundColor: "rgba(2,4,10,0.78)", justifyContent: "flex-end" },
   drawer: {

@@ -2,7 +2,7 @@ import { Link } from "expo-router";
 import { View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -12,7 +12,7 @@ export default function NotFound() {
   const { i18n } = useTranslation();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   return (
-    <Screen>
+    <PremiumAppShell>
       <View style={styles.center}>
         <View style={styles.badge}>
           <Text variant="subtle" color="brand" style={styles.badgeText}>404</Text>
@@ -56,7 +56,7 @@ export default function NotFound() {
           </Link>
         </View>
       </View>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

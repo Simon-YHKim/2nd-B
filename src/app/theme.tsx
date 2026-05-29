@@ -7,7 +7,7 @@ import { View, StyleSheet, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -35,7 +35,7 @@ export default function ThemeScreen() {
   ];
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View>
           <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
@@ -77,7 +77,7 @@ export default function ThemeScreen() {
 
         <Button label={locale === "ko" ? "설정으로" : "Back to settings"} variant="secondary" onPress={() => router.push("/settings")} />
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

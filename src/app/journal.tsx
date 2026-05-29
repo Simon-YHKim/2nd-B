@@ -3,7 +3,7 @@ import { Animated, View, StyleSheet, ScrollView, ActivityIndicator, Alert, Press
 import { useTranslation } from "react-i18next";
 import { Redirect, router, Link } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -160,18 +160,18 @@ export default function Journal() {
 
   if (loading) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <ActivityIndicator color={semantic.brand} />
         </View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
 
   if (!userId) return <Redirect href="/sign-in" />;
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headerRow}>
           <View>
@@ -520,7 +520,7 @@ export default function Journal() {
         hotline={crisis.hotline}
         onClose={() => setCrisis({ ...crisis, visible: false })}
       />
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

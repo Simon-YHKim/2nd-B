@@ -24,7 +24,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { AppNav } from "@/components/ui/AppNav";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -187,7 +187,7 @@ export default function Interview() {
 
   if (period === null) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">2nd-Brain · Interview</Text>
@@ -211,12 +211,12 @@ export default function Interview() {
           </View>
           <AppNav locale={locale} />
         </ScrollView>
-      </Screen>
+      </PremiumAppShell>
     );
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.topBar}>
           <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
@@ -329,7 +329,7 @@ export default function Interview() {
           </View>
         )}
       </KeyboardAvoidingView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

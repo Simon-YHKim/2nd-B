@@ -19,7 +19,6 @@ import { useTranslation } from "react-i18next";
 import { router, useLocalSearchParams } from "expo-router";
 import { SvgXml } from "react-native-svg";
 
-import { Screen } from "@/components/ui/Screen";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -32,6 +31,7 @@ import { parseSourceCitations } from "@/lib/chat/sources";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { SECONDB_CHAT_XML } from "@/components/art/secondbChatXml";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+import { PremiumAppShell, ContextPill, ReferenceShardCard } from "@/components/premium";
 import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
 
@@ -181,7 +181,7 @@ export default function Jarvis() {
   const usedDisplay = usedToday === null ? "—" : String(usedToday);
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -216,23 +216,8 @@ export default function Jarvis() {
 
         {/* nodeContext pill — entered from a graph node (chat pack §7) */}
         {fromNode ? (
-          <View
-            style={styles.contextPill}
-            accessible
-            accessibilityLabel={
-              locale === "ko"
-                ? `${fromNode}에서 질문. 선택한 노드와 연결된 조각을 먼저 참고해요.`
-                : `Asking from ${fromNode}. I'll look at the pieces connected to it first.`
-            }
-          >
-            <Text variant="caption" color="brand" style={{ letterSpacing: 0.5 }}>
-              {locale === "ko" ? `${fromNode}에서 질문` : `Asking from ${fromNode}`}
-            </Text>
-            <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
-              {locale === "ko"
-                ? "선택한 노드와 연결된 조각을 먼저 참고해요."
-                : "I'll look at the pieces connected to it first."}
-            </Text>
+          <View style={styles.contextPillWrap}>
+            <ContextPill label={fromNode} />
           </View>
         ) : null}
 
@@ -410,10 +395,7 @@ export default function Jarvis() {
             </Text>
             <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
               {(refDrawer ?? []).map((slug) => (
-                <View key={slug} style={styles.refRow}>
-                  <View style={styles.refDot} />
-                  <Text variant="body" style={{ flex: 1 }} selectable>{slug}</Text>
-                </View>
+                <ReferenceShardCard key={slug} title={slug} meta={locale === "ko" ? "참고한 조각" : "referenced piece"} />
               ))}
             </View>
             <Button
@@ -428,7 +410,7 @@ export default function Jarvis() {
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
       ) : null}
-    </Screen>
+    </PremiumAppShell>
   );
 }
 
@@ -495,17 +477,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
   },
-  contextPill: {
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: semantic.border,
-    borderLeftWidth: 3,
-    borderLeftColor: semantic.brand,
-    backgroundColor: semantic.surface,
-  },
+  contextPillWrap: { marginTop: spacing.sm },
   quickRow: { gap: spacing.sm, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
   quickChip: {
     backgroundColor: semantic.surfaceAlt,
@@ -537,8 +509,6 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.border,
     marginBottom: spacing.sm,
   },
-  refRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  refDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
   bubble: {
     maxWidth: "100%",
     paddingHorizontal: spacing.md,

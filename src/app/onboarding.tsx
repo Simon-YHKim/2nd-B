@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 import { SvgXml } from "react-native-svg";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
@@ -92,7 +92,7 @@ export default function Onboarding() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <View style={styles.root}>
         <View style={styles.topBar}>
           <View style={styles.dots} accessibilityLabel={locale === "ko" ? `${index + 1} / ${STEPS.length} 단계` : `Step ${index + 1} of ${STEPS.length}`}>
@@ -124,7 +124,7 @@ export default function Onboarding() {
           ) : null}
         </View>
       </View>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 
