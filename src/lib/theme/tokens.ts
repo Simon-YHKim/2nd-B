@@ -11,10 +11,11 @@
 // for any historic consumer (LoadingScreen.tsx, etc.). New work should
 // reach for `semantic` or the `cosmic` raw palette below.
 //
-// `lightSky` stays as the light-mode counterpart for ThemeContext until
-// a cosmic-light palette is designed; the handoff explicitly says
-// "main screen remains dark even in light mode" (Prompt D), so a near-
-// term light variant only matters for non-graph surfaces.
+// `lightSky` stays only for the raw sky/loader layer (useSkyPalette).
+// The cosmic-light palette (`lightCosmic` / `semanticLight`, queue item G)
+// is the real light mode for card surfaces. The handoff says "main screen
+// remains dark even in light mode" (Prompt D), so the light variant only
+// applies to non-graph surfaces (settings, sign-in).
 
 // ─── Cosmic Pixel palette — raw colors from the 2026-05-29 handoff ──
 // Group naming mirrors the handoff CSS variables so designers can
@@ -56,9 +57,9 @@ export const darkSky = {
   accent: "#7FB3F4",
 } as const;
 
-// Light-mode counterpart. Same hue family (sky-blue) so the visual
-// identity carries over — just inverted luminance. Tuned for WCAG AA
-// contrast on the matching background.
+// Legacy light-mode counterpart in the sky-blue family. Still consumed by
+// useSkyPalette() for the loader / raw-sky surfaces. Kept as-is; the
+// cosmic-light palette below is what secondary card surfaces now use.
 export const lightSky = {
   bg: "#F2F7FF",
   surface: "rgba(15,40,80,0.04)",
@@ -68,6 +69,24 @@ export const lightSky = {
   textSubtle: "#6B7F99",
   brand: "#1E70C8",
   accent: "#2F97FC",
+} as const;
+
+// ─── Cosmic-light palette (queue item G, 2026-05-29) ────────────────
+// The light counterpart to `cosmic`. Same hue family (deep-space navy ink
+// + electric-mint signal) at inverted luminance, for secondary surfaces
+// (settings, sign-in) where light is meaningful. Per the handoff, the main
+// graph screen stays dark even in light mode, so this never touches the
+// sky/graph layer. Mint is darkened to a deep teal-mint so it clears WCAG
+// AA contrast (>= 4.5:1) as text/CTA on the light haze background.
+export const lightCosmic = {
+  bg: "#F4F5FC", // Moon Haze — faint violet-tinted light, never pure white
+  surface: "rgba(124,94,232,0.06)", // soul-violet wash, mirrors the dark card
+  surfaceAlt: "rgba(10,122,87,0.07)", // deep-mint wash, the "active" surface
+  border: "#D6DAEC", // light neural line
+  text: "#0D1530", // Night Navy ink
+  textMuted: "#3C476A",
+  textSubtle: "#6A7693",
+  brand: "#0A7A57", // deep Electric Mint — AA-safe on light
 } as const;
 
 // Default `semantic` = Cosmic Pixel tones. Keys mirror the legacy
@@ -95,26 +114,28 @@ export const semantic = {
   danger: cosmic.guardRose,
 } as const;
 
-// Same-shape light palette. Returned by useThemePalette() when the
-// active mode is "light". Per handoff Prompt D, the main graph screen
-// stays dark in light mode — this palette is for secondary surfaces
-// (settings, sign-in, etc.) where light is meaningful.
+// Same-shape light palette. Returned by useThemePalette() when the active
+// mode is "light". Now built on the cosmic-light palette (queue item G)
+// rather than sky-blue, so light mode carries the same mint/violet
+// identity as dark. Per handoff Prompt D the main graph screen stays dark
+// in light mode — this palette is for secondary surfaces only. Zone tones
+// are darkened cosmic signals tuned for AA contrast on the light haze.
 export const semanticLight = {
-  background: lightSky.bg,
-  surface: lightSky.surface,
-  surfaceAlt: "rgba(47,151,252,0.08)",
-  border: lightSky.border,
-  text: lightSky.text,
-  textMuted: lightSky.textMuted,
-  textSubtle: lightSky.textSubtle,
-  brand: lightSky.brand,
-  zoneGreen: "#3AA76C",
-  zoneYellow: "#C97A1F",
-  zoneRed: "#C23B3B",
-  info: lightSky.brand,
-  success: "#3AA76C",
-  warning: "#C97A1F",
-  danger: "#C23B3B",
+  background: lightCosmic.bg,
+  surface: lightCosmic.surface,
+  surfaceAlt: lightCosmic.surfaceAlt,
+  border: lightCosmic.border,
+  text: lightCosmic.text,
+  textMuted: lightCosmic.textMuted,
+  textSubtle: lightCosmic.textSubtle,
+  brand: lightCosmic.brand,
+  zoneGreen: lightCosmic.brand, // deep mint
+  zoneYellow: "#9A6A00", // deep pixel-lamp
+  zoneRed: "#C2403F", // deep guard-rose
+  info: "#1E6FA8", // deep signal-blue
+  success: lightCosmic.brand,
+  warning: "#9A6A00",
+  danger: "#C2403F",
 } as const;
 
 // ─── Characters — 6 pixel residents of the Graph Village ────────────

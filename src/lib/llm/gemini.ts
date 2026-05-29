@@ -81,8 +81,8 @@ const MOCK_RESPONSES: Record<
     ko: "[MOCK] 최근 기록에서 반복되는 흐름이 보여요. 그 결정을 어떻게 내렸는지 더 들려주세요.",
   },
   jarvis_chat: {
-    en: "[MOCK] Jarvis stub — once Gemini is connected I'll consult your captured pages and answer with citations. For now I'm echoing the prompt structure.",
-    ko: "[MOCK] 자비스 임시 응답 — Gemini 연결 후엔 캡처한 페이지를 참고해 인용과 함께 답해 드려요. 지금은 프롬프트 구조만 흉내내요.",
+    en: "[MOCK] SecondB stub — once Gemini is connected I'll consult your captured pages and answer with citations. For now I'm echoing the prompt structure.",
+    ko: "[MOCK] 세컨비 임시 응답 — Gemini 연결 후엔 캡처한 페이지를 참고해 인용과 함께 답해 드려요. 지금은 프롬프트 구조만 흉내내요.",
   },
   interview_probe: {
     en: "[MOCK] What part of what you just said feels most alive to you right now?",

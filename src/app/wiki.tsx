@@ -341,8 +341,8 @@ export default function Wiki() {
             </ScrollView>
             <Text variant="subtle" color="textSubtle" style={styles.exportHelper}>
               {locale === "ko"
-                ? "위 복사 버튼으로 한 번에 클립보드로 옮기거나, 텍스트를 길게 눌러 직접 선택해도 됩니다. Claude · ChatGPT 새 대화에 붙여 넣으면 자비스와 같은 컨텍스트로 사용됩니다."
-                : "Tap Copy to send everything to your clipboard, or long-press the text to select manually. Paste into a new Claude / ChatGPT chat for the same context as Jarvis."}
+                ? "위 복사 버튼으로 한 번에 클립보드로 옮기거나, 텍스트를 길게 눌러 직접 선택해도 됩니다. Claude · ChatGPT 새 대화에 붙여 넣으면 우리가 세컨비에서 보던 것과 같은 컨텍스트로 이어서 쓸 수 있어요."
+                : "Tap Copy to send everything to your clipboard, or long-press the text to select manually. Paste it into a new Claude / ChatGPT chat and you'll pick up with the same context we use in SecondB."}
             </Text>
           </View>
         ) : null}

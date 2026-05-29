@@ -69,12 +69,12 @@ const SECTIONS: ManualSection[] = [
   {
     emoji: "05",
     title: {
-      en: "Jarvis (chat)",
-      ko: "자비스 (채팅)",
+      en: "SecondB (chat)",
+      ko: "세컨비 (채팅)",
     },
     body: {
-      en: "/jarvis is a chat that has your wiki as system context. Ask 'what patterns show up across my captures this month?' — replies cite [[slugs]] from your own pages. Daily limit per tier; resets at midnight KST.",
-      ko: "/자비스는 당신의 위키를 시스템 컨텍스트로 가진 채팅이에요. '이번 달 캡처에서 반복되는 패턴은?' 같은 질문에, 답이 당신의 [[페이지 슬러그]]를 인용합니다. 일일 한도는 등급별, KST 자정 리셋.",
+      en: "SecondB (the /jarvis tab) is a chat that has your wiki as system context. Ask 'what patterns show up across my captures this month?' — replies cite [[slugs]] from your own pages. Daily limit per tier; resets at midnight KST.",
+      ko: "세컨비(/jarvis 탭)는 당신의 위키를 시스템 컨텍스트로 가진 채팅이에요. '이번 달 캡처에서 반복되는 패턴은?' 같은 질문에, 답이 당신의 [[페이지 슬러그]]를 인용합니다. 일일 한도는 등급별, KST 자정 리셋.",
     },
   },
   {
@@ -178,7 +178,7 @@ export default function Manual() {
                 ["Phase 1", "LLM이 소스를 요약하고 4개의 성찰 질문을 만드는 단계"],
                 ["Phase 2", "소스를 위키 페이지로 승격하고 [[wikilink]] 연결을 만드는 단계"],
                 ["익스포트", "전체 위키를 한 번에 마크다운 번들로 추출 (Claude/ChatGPT에 붙여넣기용)"],
-                ["자비스", "당신의 위키를 시스템 컨텍스트로 가진 RAG 챗봇"],
+                ["세컨비", "당신의 위키를 시스템 컨텍스트로 가진 RAG 챗봇"],
                 ["3존 분류기", "Green/Yellow/Red 안전 라우팅 (Red는 LLM 차단 + 핫라인)"],
               ]
             : [
@@ -188,7 +188,7 @@ export default function Manual() {
                 ["Phase 1", "LLM summarizes the source + emits 4 reflection questions"],
                 ["Phase 2", "Promote a source into a wiki page and build [[wikilink]] edges"],
                 ["Export", "Pack the whole wiki into a markdown bundle (paste into Claude/ChatGPT)"],
-                ["Jarvis", "A RAG chatbot with your wiki as system context"],
+                ["SecondB", "A RAG chatbot with your wiki as system context"],
                 ["3-zone classifier", "Green/Yellow/Red safety routing (Red blocks the LLM + hotline)"],
               ]).map(([term, def]) => (
             <View key={term} style={styles.glossaryRow}>

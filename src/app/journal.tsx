@@ -199,7 +199,7 @@ export default function Journal() {
             <Button label={locale === "ko" ? "인사이트" : "Insights"} variant="secondary" />
           </Link>
           <Link href="/jarvis" asChild>
-            <Button label={locale === "ko" ? "자비스" : "Jarvis"} variant="secondary" />
+            <Button label={locale === "ko" ? "세컨비" : "SecondB"} variant="secondary" />
           </Link>
           <Link href="/manual" asChild>
             <Button label={locale === "ko" ? "안내" : "Manual"} variant="secondary" />
@@ -417,8 +417,8 @@ export default function Journal() {
             </Text>
             <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }}>
               {locale === "ko"
-                ? "두번째 뇌는 8가지 핵심 동작이 있어요. 캡처 → 인박스 → 위키 → 자비스로 흐름이 이어집니다. 1분 안내서를 먼저 보시면 길을 잃지 않아요."
-                : "2nd-Brain has 8 core moves. Capture → Inbox → Wiki → Jarvis. A 1-minute manual saves you from getting lost."}
+                ? "두번째 뇌는 8가지 핵심 동작이 있어요. 캡처 → 인박스 → 위키 → 세컨비로 흐름이 이어집니다. 1분 안내서를 먼저 보시면 길을 잃지 않아요."
+                : "2nd-Brain has 8 core moves. Capture → Inbox → Wiki → SecondB. A 1-minute manual saves you from getting lost."}
             </Text>
             <Link href="/manual" asChild>
               <Button label={locale === "ko" ? "안내서 열기" : "Open the manual"} variant="primary" />
