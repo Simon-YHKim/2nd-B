@@ -71,11 +71,14 @@ describe("fontSize", () => {
 });
 
 describe("typography", () => {
-  it("fontFamilies resolves platform-specific values (ios in the test env)", () => {
-    expect(fontFamilies.serifKo).toBe("NanumMyeongjo-Regular");
-    expect(fontFamilies.serifEn).toBe("SourceSerif4-Regular");
-    expect(fontFamilies.sans).toBe("Pretendard");
-    expect(fontFamilies.mono).toBe("Menlo");
+  it("resolves every face to the NeoDunggeunmo pixel font (user directive 2026-05-29)", () => {
+    // All proportional faces collapse to the one pixel face; mono uses the
+    // fixed-width variant. (ios values in the test env.)
+    expect(fontFamilies.serifKo).toBe("NeoDunggeunmo");
+    expect(fontFamilies.serifEn).toBe("NeoDunggeunmo");
+    expect(fontFamilies.sans).toBe("NeoDunggeunmo");
+    expect(fontFamilies.pixel).toBe("NeoDunggeunmo");
+    expect(fontFamilies.mono).toBe("NeoDunggeunmoCode");
   });
 
   it("exposes the standard font weights", () => {

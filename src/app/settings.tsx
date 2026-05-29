@@ -11,7 +11,7 @@ import { Screen } from "@/components/ui/Screen";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { AppNav } from "@/components/ui/AppNav";
@@ -161,9 +161,21 @@ export default function Settings() {
           </Text>
         </View>
 
+        {/* Navigation hub (A-to-Z Phase 12) — the settings sub-screens. */}
+        <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
+          <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
+            {locale === "ko" ? "설정 항목" : "Settings"}
+          </Text>
+          <Button label={locale === "ko" ? "프로필" : "Profile"} variant="secondary" onPress={() => router.push("/profile")} />
+          <Button label={locale === "ko" ? "테마" : "Theme"} variant="secondary" onPress={() => router.push("/theme")} />
+          <Button label={locale === "ko" ? "데이터 관리" : "Data management"} variant="secondary" onPress={() => router.push("/data")} />
+          <Button label={locale === "ko" ? "기록" : "Records"} variant="secondary" onPress={() => router.push("/records")} />
+          <Button label={locale === "ko" ? "지원" : "Support"} variant="secondary" onPress={() => router.push("/support")} />
+        </View>
+
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
           <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "테마" : "Theme"}
+            {locale === "ko" ? "테마 (빠른 전환)" : "Theme (quick toggle)"}
           </Text>
           <Text variant="subtle" color="textMuted">
             {locale === "ko"

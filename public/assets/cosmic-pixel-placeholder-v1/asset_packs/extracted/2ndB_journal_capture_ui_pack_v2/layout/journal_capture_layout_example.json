@@ -1,0 +1,54 @@
+{
+  "name": "2ndB Journal/Capture mobile layout v2",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "routes": [
+    "/journal",
+    "/capture"
+  ],
+  "safeArea": true,
+  "sections": {
+    "journal": [
+      "header",
+      "todayShardInputPanel",
+      "quickPromptChips",
+      "saveToVillageCTA",
+      "savingCue",
+      "graphLinkResult"
+    ],
+    "capture": [
+      "header",
+      "modeSelector",
+      "sourceInputPanel",
+      "previewCard",
+      "saveToVillageCTA",
+      "importSuccessCue",
+      "graphLinkResult"
+    ]
+  },
+  "entryFlow": [
+    "userInput",
+    "localDraft",
+    "classifyInput",
+    "saveRecord",
+    "memorize/retrieve-ready",
+    "attachToGraphTier4",
+    "showEventCue"
+  ],
+  "events": {
+    "journalSaved": {
+      "character": "momo",
+      "cue": "save_success_panel_v2"
+    },
+    "captureSaved": {
+      "character": "lulu",
+      "cue": "import_success_panel_v2"
+    },
+    "graphLinked": {
+      "highlight": "signalMint",
+      "asset": "graph_link_result_v2"
+    }
+  }
+}

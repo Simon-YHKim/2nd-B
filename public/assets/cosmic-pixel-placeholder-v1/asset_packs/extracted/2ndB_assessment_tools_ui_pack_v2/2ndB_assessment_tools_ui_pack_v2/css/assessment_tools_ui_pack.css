@@ -1,0 +1,20 @@
+:root {
+  --space-950: #070A18;
+  --space-900: #0D1530;
+  --space-800: #16213E;
+  --space-700: #243056;
+  --signal-blue: #4CC9F0;
+  --signal-mint: #72F2C7;
+  --soul-violet: #A78BFA;
+  --pixel-lamp: #FFD166;
+  --moon-white: #E8ECF8;
+  --mist-gray: #8D98B8;
+  --guard-rose: #FF7A90;
+  --dream-pink: #FF9FD6;
+}
+.placeholder-panel {
+  background: radial-gradient(circle at 50% 20%, color-mix(in srgb, #FFD166 18%, transparent), transparent 32%), var(--space-950);
+  color: var(--moon-white);
+  border: 1px solid color-mix(in srgb, #FFD166 42%, transparent);
+  border-radius: 22px;
+}

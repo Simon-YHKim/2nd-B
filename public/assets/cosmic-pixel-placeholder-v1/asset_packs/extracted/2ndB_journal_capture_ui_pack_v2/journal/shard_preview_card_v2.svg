@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="350" height="142" viewBox="0 0 350 142" fill="none" shape-rendering="crispEdges" >
+  <defs>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="tinyGlow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="bg" cx="50%" cy="28%" r="78%"><stop offset="0" stop-color="#72F2C7" stop-opacity="0.10"/><stop offset="35%" stop-color="#A78BFA" stop-opacity="0.08"/><stop offset="65%" stop-color="#0D1530" stop-opacity="0.86"/><stop offset="100%" stop-color="#070A18"/></radialGradient>
+    <radialGradient id="lampGlow" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#FFD166" stop-opacity="0.74"/><stop offset="50%" stop-color="#FFD166" stop-opacity="0.22"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0"/></radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#72F2C7" stop-opacity="0.74"/><stop offset="100%" stop-color="#72F2C7" stop-opacity="0"/></radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0D1530" stop-opacity="0.96"/><stop offset="1" stop-color="#16213E" stop-opacity="0.90"/></linearGradient>
+    <linearGradient id="entryPanel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#16213E" stop-opacity="0.92"/><stop offset="0.55" stop-color="#0D1530" stop-opacity="0.98"/><stop offset="1" stop-color="#72F2C7" stop-opacity="0.11"/></linearGradient>
+  </defs>
+  <rect x="1" y="1" width="348" height="140" rx="24" fill="#0D1530" fill-opacity="0.84" stroke="#8D98B8" stroke-opacity="0.22"/>
+  <g transform="translate(42 46) scale(0.82)"><path d="M0 -13L12 -2L6 13L-10 8L-7 -7Z" fill="#16213E" stroke="#FFD166" stroke-width="2"/><rect x="-2" y="-2" width="4" height="4" fill="#FFD166" filter="url(#tinyGlow)"/></g>
+  <text x="76" y="36" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#FFD166" shape-rendering="geometricPrecision">오늘의 조각</text>
+  <text x="76" y="62" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">복잡한 것을 보기 쉽게 만들고 싶다</text>
+  <text x="76" y="88" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="12" font-weight="500" fill="#8D98B8" shape-rendering="geometricPrecision">방금 저장됨 · 기록 보관소와 연결 대기</text>
+  <path d="M30 114H318" stroke="#243056" stroke-width="1" opacity="0.8"/>
+  <rect x="30" y="124" width="78" height="2" fill="#72F2C7" opacity="0.65"/><rect x="122" y="124" width="48" height="2" fill="#A78BFA" opacity="0.45"/><rect x="184" y="124" width="92" height="2" fill="#FFD166" opacity="0.45"/>
+</svg>

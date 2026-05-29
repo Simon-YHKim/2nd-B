@@ -34,6 +34,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AppNav } from "@/components/ui/AppNav";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
@@ -201,7 +202,8 @@ export default function Capture() {
       });
 
       reset();
-      companion.fire("captureSaved");
+      // 루루 carries the shard home; an imported link gets the "success" beat.
+      companion.fire(mode === "link" ? "linkImported" : "captureSaved");
       // Inline success panel (journal-capture pack §3/§7) replaces the alert.
       setSavedTitle(result.source.title);
     } catch (e) {
@@ -528,7 +530,7 @@ const styles = StyleSheet.create({
   textarea: {
     minHeight: 160,
     paddingTop: spacing.md,
-    fontFamily: Platform.select({ ios: "Menlo", android: "monospace", default: "ui-monospace, monospace" }),
+    fontFamily: fontFamilies.mono,
     fontSize: typography.sizes.sm,
   },
   actionRow: { flexDirection: "row", gap: spacing.sm },

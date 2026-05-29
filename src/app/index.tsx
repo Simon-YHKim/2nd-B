@@ -12,7 +12,7 @@
 //   • authenticated + no profile → /complete-profile (C10)
 //   • signed-in → tier dot opens bubble → confirm → router.push
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -23,12 +23,13 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { CharacterPathLayer } from "@/components/graph/CharacterPathLayer";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { PixelButton } from "@/components/art/CosmicPixel";
@@ -36,6 +37,7 @@ import { SecondBFab, SecondBSprite } from "@/components/art/SecondBSprite";
 import { SvgXml } from "react-native-svg";
 import { ONBOARDING_XML, ONBOARDING_ASPECT } from "@/components/art/onboardingXml";
 import { isOnboardingComplete } from "@/lib/onboarding/state";
+import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 
 const logo = require("../../assets/images/logo-glow.png");
 
@@ -93,6 +95,33 @@ export default function Landing() {
 
   const [dataNodes, setDataNodes] = useState<DataNode[]>([]);
 
+  // Highlight-on-return (queue B): a record / wiki detail can deep-link back
+  // to the graph and ask it to focus a specific node.
+  const params = useLocalSearchParams<{ highlight?: string; highlightWikiPageId?: string; highlightRecordId?: string }>();
+  const highlightId =
+    (typeof params.highlightWikiPageId === "string" && params.highlightWikiPageId) ||
+    (typeof params.highlight === "string" && params.highlight) ||
+    (typeof params.highlightRecordId === "string" && params.highlightRecordId) ||
+    null;
+
+  // SecondB presence: dozes off after a stretch of no interaction, and shows
+  // a soft notification glyph while there are pieces the user hasn't opened
+  // the center for yet. `wake()` resets the idle timer on any interaction.
+  const [sleeping, setSleeping] = useState(false);
+  const [centerSeen, setCenterSeen] = useState(false);
+  const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wake = useCallback(() => {
+    setSleeping(false);
+    if (sleepTimer.current) clearTimeout(sleepTimer.current);
+    sleepTimer.current = setTimeout(() => setSleeping(true), SLEEP_AFTER_MS);
+  }, []);
+  useEffect(() => {
+    wake();
+    return () => {
+      if (sleepTimer.current) clearTimeout(sleepTimer.current);
+    };
+  }, [wake]);
+
   const entryProgress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(entryProgress, { toValue: 1, duration: 750, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
@@ -145,8 +174,17 @@ export default function Landing() {
   if (!isOnboardingComplete()) return <Redirect href="/onboarding" />;
 
   function toggleLocale() {
+    wake();
     void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
   }
+
+  // SecondB nudges toward the center when there are pieces the user hasn't
+  // looked at yet this session; it dozes once idle and nothing is pending.
+  const presence = secondbPresence({
+    idleMs: sleeping ? SLEEP_AFTER_MS : 0,
+    sleepAfterMs: SLEEP_AFTER_MS,
+    hasNotification: dataNodes.length > 0 && !centerSeen,
+  });
 
   return (
     <View style={styles.skyContainer}>
@@ -158,7 +196,7 @@ export default function Landing() {
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: skyOverlay }]} />
 
       <Animated.View style={[styles.contentLayer, { opacity: contentOpacity }]} pointerEvents="box-none">
-        <NavGraph locale={locale} dataNodes={dataNodes} />
+        <NavGraph locale={locale} dataNodes={dataNodes} highlightId={highlightId} />
         {/* CharacterPathLayer — 6 픽셀 주민 placeholder. Phase 3 에서
             엣지-따라-걷기 motion + sprite asset 으로 진화 (handoff §5/§7-1).
             현재는 static anchor 에 colored block 만. */}
@@ -193,9 +231,17 @@ export default function Landing() {
         {/* SecondB placeholder — soul-violet pixel block with a mint core.
             Same 52px footprint the eventual sprite will occupy. */}
         <View style={styles.mascotSlot} accessibilityLabel="SecondB">
-          <SecondBSprite state="idle" size={46} float />
+          <SecondBSprite state={presence.mascot === "sleep" ? "sleep" : "idle"} size={46} float={presence.mascot !== "sleep"} />
         </View>
-        <Pressable onPress={() => router.push("/core-brain")} hitSlop={8} style={{ flex: 1 }}>
+        <Pressable
+          onPress={() => {
+            wake();
+            setCenterSeen(true);
+            router.push("/core-brain");
+          }}
+          hitSlop={8}
+          style={{ flex: 1 }}
+        >
           <Text style={styles.insightEyebrow}>{locale === "ko" ? "오늘의 중심" : "Today's center"}</Text>
           <Text style={styles.insightText} numberOfLines={2}>{insight}</Text>
         </Pressable>
@@ -223,13 +269,17 @@ export default function Landing() {
           Single circular FAB, plenty of safe-area margin. */}
       <Animated.View style={[styles.jarvisFabWrap, { opacity: contentOpacity }]}>
         <Pressable
-          onPress={() => router.push("/jarvis")}
+          onPress={() => {
+            wake();
+            setCenterSeen(true);
+            router.push("/jarvis");
+          }}
           hitSlop={16}
           style={styles.jarvisFab}
           accessibilityLabel={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
         >
-          {/* SecondB v2 FAB sprite (default state, gentle float). */}
-          <SecondBFab fabState="default" size={48} />
+          {/* SecondB v2 FAB sprite — default / notification / chat_ready. */}
+          <SecondBFab fabState={presence.fab} size={48} />
         </Pressable>
       </Animated.View>
     </View>
@@ -268,8 +318,8 @@ const styles = StyleSheet.create({
     padding: 18,
     maxWidth: 360,
   },
-  emptyGraphTitle: { color: cosmic.moonWhite, fontSize: 16, fontWeight: "700", marginTop: 8 },
-  emptyGraphBody: { color: cosmic.mistGray, fontSize: 13, lineHeight: 18, textAlign: "center", marginTop: 4 },
+  emptyGraphTitle: { color: cosmic.moonWhite, fontSize: 16, fontWeight: "700", marginTop: 8, fontFamily: fontFamilies.sans },
+  emptyGraphBody: { color: cosmic.mistGray, fontSize: 13, lineHeight: 18, textAlign: "center", marginTop: 4, fontFamily: fontFamilies.sans },
   emptyGraphCta: {
     marginTop: 14,
     backgroundColor: cosmic.signalMint,
@@ -277,7 +327,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
   },
-  emptyGraphCtaText: { color: cosmic.space950, fontWeight: "700", fontSize: 14 },
+  emptyGraphCtaText: { color: cosmic.space950, fontWeight: "700", fontSize: 14, fontFamily: fontFamilies.sans },
   insightRibbon: {
     position: "absolute",
     top: 56, left: 16, right: 80,
@@ -315,12 +365,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
     marginBottom: 4,
+    fontFamily: fontFamilies.sans,
   },
   insightText: {
     color: cosmic.moonWhite,
     fontSize: 14,
     lineHeight: 20,
     letterSpacing: 0.2,
+    fontFamily: fontFamilies.sans,
   },
   topRightCluster: {
     position: "absolute",
@@ -335,6 +387,7 @@ const styles = StyleSheet.create({
   localeToggleText: {
     color: cosmic.mistGray,
     fontSize: 12, letterSpacing: 1.5, fontWeight: "700",
+    fontFamily: fontFamilies.sans,
   },
   settingsCog: {
     width: 36,

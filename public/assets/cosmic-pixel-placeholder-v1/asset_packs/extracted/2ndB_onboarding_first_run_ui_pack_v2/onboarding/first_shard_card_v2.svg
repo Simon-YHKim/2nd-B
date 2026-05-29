@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="230" viewBox="0 0 390 230" fill="none" shape-rendering="crispEdges">
+  <title>First shard card</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="390" y2="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#070A18"/>
+      <stop offset="0.62" stop-color="#0D1530"/>
+      <stop offset="1" stop-color="#16213E"/>
+    </linearGradient>
+    <radialGradient id="violetGlow" cx="50%" cy="38%" r="55%">
+      <stop stop-color="#A78BFA" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#A78BFA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="50%">
+      <stop stop-color="#72F2C7" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#72F2C7" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  
+  <rect width="390" height="230" rx="26" fill="#0D1530" stroke="#243056"/>
+  <text x="24" y="38" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="18" font-weight="700">첫 조각을 남겨볼까요?</text>
+  <text x="24" y="62" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="12">한 문장이어도 충분해요</text>
+  <rect x="24" y="82" width="342" height="88" rx="18" fill="#070A18" stroke="#243056"/>
+  <text x="42" y="112" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="13">오늘 머릿속에 남은 조각이 있나요?</text>
+  <rect x="24" y="184" width="176" height="32" rx="16" fill="#A78BFA"/>
+  <text x="54" y="205" fill="#070A18" font-family="Pretendard, system-ui" font-size="13" font-weight="700">마을에 저장하기</text>
+  <path d="M320 172l18 18-8 28h-24l-8-28 22-18z" fill="#FFD166" opacity=".9"/>
+  <circle cx="333" cy="176" r="4" fill="#72F2C7"/>
+
+</svg>

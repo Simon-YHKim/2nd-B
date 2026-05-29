@@ -31,6 +31,7 @@ import { sendChatMessage } from "@/lib/chat/conversation";
 import { parseSourceCitations } from "@/lib/chat/sources";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { SECONDB_CHAT_XML } from "@/components/art/secondbChatXml";
+import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
 
@@ -96,6 +97,10 @@ export default function Jarvis() {
   const [introOpen, setIntroOpen] = useState(false);
   // Reference drawer (chat pack §6): the cited pieces of a tapped answer.
   const [refDrawer, setRefDrawer] = useState<string[] | null>(null);
+  const companion = useCompanionMoment();
+  // Tracks whether the last turn was safety-blocked, so 가디 can give the
+  // "clear" beat the first time the conversation flows freely again.
+  const wasBlockedRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
 
   // Seed the composer with the node context once, on a graph-node entry.
@@ -147,10 +152,18 @@ export default function Jarvis() {
       if (result.status === "blocked") {
         setTurns((prev) => [...prev, { role: "jarvis", text: result.hint }]);
         setUsedToday(result.used);
+        // 가디 steps in with a soft stop (companion pack §3 / C9).
+        companion.fire("safetySoftStop");
+        wasBlockedRef.current = true;
       } else {
         const { display, chips } = parseSourceCitations(result.reply.text);
         setTurns((prev) => [...prev, { role: "jarvis", text: display, chips }]);
         setUsedToday(result.used);
+        // 가디 gives the all-clear the first time we flow freely after a stop.
+        if (wasBlockedRef.current) {
+          companion.fire("safetyClear");
+          wasBlockedRef.current = false;
+        }
       }
     } catch (e) {
       const msg =
@@ -411,11 +424,16 @@ export default function Jarvis() {
           </Pressable>
         </Pressable>
       </Modal>
+      {/* 가디 appears briefly on a safety soft-stop / all-clear (companion pack §3) */}
+      {companion.moment ? (
+        <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  companionFlash: { position: "absolute", bottom: 90, right: 20 },
   header: {
     flexDirection: "row",
     alignItems: "flex-start",

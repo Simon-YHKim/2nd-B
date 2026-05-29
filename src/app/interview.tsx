@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DrillProgress } from "@/components/ui/DrillProgress";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import {
@@ -373,7 +374,7 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
   },
   bubbleHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  layerTag: { fontFamily: "Menlo", fontSize: 10, letterSpacing: 0.5 },
+  layerTag: { fontFamily: fontFamilies.mono, fontSize: 10, letterSpacing: 0.5 },
   qBubble: { backgroundColor: semantic.surface },
   aBubble: { backgroundColor: semantic.surfaceAlt },
   thinkingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },

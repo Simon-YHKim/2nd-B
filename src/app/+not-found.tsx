@@ -6,6 +6,7 @@ import { Screen } from "@/components/ui/Screen";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 
 export default function NotFound() {
   const { i18n } = useTranslation();
@@ -75,7 +76,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
   },
   badgeText: {
-    fontFamily: "monospace",
+    fontFamily: fontFamilies.mono,
     letterSpacing: 2,
     fontWeight: "700",
   },

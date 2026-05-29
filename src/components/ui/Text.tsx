@@ -1,6 +1,7 @@
 import { Text as RNText, type TextProps as RNTextProps } from "react-native";
 
 import { semantic, typography } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { useThemePalette } from "@/lib/theme/ThemeContext";
 
 type Variant = "display" | "heading" | "body" | "caption" | "subtle";
@@ -28,7 +29,7 @@ export function Text({ variant = "body", color, style, ...rest }: TextProps) {
     <RNText
       {...rest}
       style={[
-        { color: palette[color ?? "text"], fontSize: v.fontSize, fontWeight: v.fontWeight },
+        { color: palette[color ?? "text"], fontSize: v.fontSize, fontWeight: v.fontWeight, fontFamily: fontFamilies.sans },
         style,
       ]}
     />

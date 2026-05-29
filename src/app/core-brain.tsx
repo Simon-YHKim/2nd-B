@@ -23,9 +23,9 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
 import { buildCenterCards } from "@/lib/persona/center";
 import { toEvidenceShard, evidenceTypeLabel, type EvidenceShard, type RawRecordRow } from "@/lib/persona/evidence";
-import { TYPE_NICKNAME } from "@/lib/persona/mbti";
-import { STYLE_LABEL } from "@/lib/persona/attachment";
+import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { CORE_BRAIN_XML } from "@/components/art/coreBrainXml";
+import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 
 export default function CoreBrain() {
   const { i18n } = useTranslation();
@@ -36,6 +36,7 @@ export default function CoreBrain() {
   const [evidence, setEvidence] = useState<EvidenceShard[]>([]);
   const [building, setBuilding] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
   useEffect(() => {
     if (!userId) return;
@@ -56,6 +57,8 @@ export default function CoreBrain() {
         if (!cancelled) {
           setEvidence(ev);
           setPersona(p);
+          // 아치 lights up when the center surfaces a fresh connection (companion pack §3).
+          if (p) fireCompanion("connectionFound");
         }
       } catch (e) {
         if (typeof console !== "undefined") console.warn("[core-brain] load failed", (e as Error).message);
@@ -66,7 +69,7 @@ export default function CoreBrain() {
     return () => {
       cancelled = true;
     };
-  }, [userId, locale]);
+  }, [userId, locale, fireCompanion]);
 
   if (loading || building) {
     return (
@@ -118,10 +121,10 @@ export default function CoreBrain() {
   const neighborhood = cards.find((c) => c.id === "neighborhood");
   const pieces = cards.find((c) => c.id === "pieces");
 
-  // 나의 모습 — only real, measured signals; collecting state otherwise.
-  const personaBits: string[] = [];
-  if (persona?.mbti) personaBits.push(`${persona.mbti.type} · ${TYPE_NICKNAME[locale][persona.mbti.type] ?? ""}`.trim());
-  if (persona?.attachment) personaBits.push(STYLE_LABEL[locale][persona.attachment.style]);
+  // 나의 모습 — the 5-field self-portrait (who / forWhom / goal / do / fuel).
+  // Data contract: only measured fields are filled; the rest stay collecting
+  // and point the user at the one place that would fill them. Never fabricated.
+  const portrait = buildSelfPortrait({ persona }, locale);
 
   return (
     <Screen>
@@ -156,23 +159,34 @@ export default function CoreBrain() {
           </Section>
         ) : null}
 
-        {/* 5) 자주 보이는 나의 모습 */}
+        {/* 5) 자주 보이는 나의 모습 — 5-field self-portrait (data contract) */}
         <Section title={locale === "ko" ? "자주 보이는 나의 모습" : "A side of me I keep seeing"} accent={cosmic.soulViolet}>
-          {personaBits.length > 0 ? (
-            <View style={styles.bitRow}>
-              {personaBits.map((b) => (
-                <View key={b} style={styles.bitChip}>
-                  <Text variant="caption" color="brand">{b}</Text>
+          <View style={styles.fieldList}>
+            {portrait.map((field) => (
+              <Pressable
+                key={field.id}
+                style={styles.fieldRow}
+                onPress={() => router.push(field.route as never)}
+                accessibilityRole="button"
+                accessibilityLabel={field.label}
+              >
+                <View
+                  style={[styles.fieldDot, { backgroundColor: field.status === "filled" ? cosmic.signalMint : semantic.border }]}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text variant="caption" color="textMuted" style={{ letterSpacing: 0.5 }}>{field.label}</Text>
+                  {field.status === "filled" ? (
+                    <Text variant="body">{field.value}</Text>
+                  ) : (
+                    <Text variant="subtle" color="textSubtle">{field.hint}</Text>
+                  )}
                 </View>
-              ))}
-            </View>
-          ) : (
-            <Text variant="body" color="textMuted">
-              {locale === "ko"
-                ? "아직 또렷한 모습은 모이는 중이에요. 평가를 하나 마치면 더 선명해져요."
-                : "Still gathering a clear shape. Finishing one assessment sharpens it."}
-            </Text>
-          )}
+                {field.status === "collecting" ? (
+                  <Text variant="caption" color="brand">{locale === "ko" ? "채우기" : "Fill"}</Text>
+                ) : null}
+              </Pressable>
+            ))}
+          </View>
           <Button
             label={locale === "ko" ? "살펴보기" : "Look around"}
             variant="secondary"
@@ -235,7 +249,7 @@ export default function CoreBrain() {
                   style={styles.evRow}
                   onPress={() => {
                     setDrawerOpen(false);
-                    router.push(ev.route as never);
+                    router.push({ pathname: "/record/[id]", params: { id: ev.id } });
                   }}
                 >
                   <View style={styles.evDot} />
@@ -248,10 +262,22 @@ export default function CoreBrain() {
                 </Pressable>
               ))}
             </ScrollView>
+            <Button
+              label={locale === "ko" ? "모든 기록 보기" : "See all records"}
+              variant="secondary"
+              onPress={() => {
+                setDrawerOpen(false);
+                router.push("/records");
+              }}
+            />
             <Button label={locale === "ko" ? "닫기" : "Close"} variant="secondary" onPress={() => setDrawerOpen(false)} />
           </Pressable>
         </Pressable>
       </Modal>
+      {/* 아치 appears briefly when a fresh connection surfaces (companion pack §3) */}
+      {companionMoment ? (
+        <CompanionMoment moment={companionMoment} style={styles.companionFlash} />
+      ) : null}
     </Screen>
   );
 }
@@ -271,6 +297,7 @@ function Section({ title, accent, children }: { title: string; accent: string; c
 
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
+  companionFlash: { position: "absolute", bottom: 40, right: 20 },
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: spacing.lg },
   hero: { alignItems: "center" },
   section: {
@@ -282,15 +309,9 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  bitRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  bitChip: {
-    backgroundColor: semantic.surfaceAlt,
-    borderColor: semantic.border,
-    borderWidth: 1,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
+  fieldList: { gap: spacing.xs },
+  fieldRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs },
+  fieldDot: { width: 8, height: 8, borderRadius: 4 },
   evidenceBtn: { paddingVertical: spacing.xs },
   askCta: {
     backgroundColor: semantic.brand,

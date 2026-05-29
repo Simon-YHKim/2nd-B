@@ -53,6 +53,7 @@ import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { NodeArt, CharacterArt } from "@/components/art/CosmicPixel";
 import { clampPan, clampScale, panForFocalZoom } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
+import { worldMenuPositions, worldDataPositions, worldToScreen } from "./world-layout";
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 
@@ -199,6 +200,9 @@ function seeded(id: string, salt: number): number {
 interface Props {
   locale: "en" | "ko";
   dataNodes: readonly DataNode[];
+  /** Highlight-on-return (queue B): a node/wiki-page id to focus when the
+   *  user arrives from a record / wiki detail via "그래프에서 보기". */
+  highlightId?: string | null;
 }
 
 interface Positioned {
@@ -211,7 +215,7 @@ interface DataPositioned {
   base: { x: number; y: number };
 }
 
-export function NavGraph({ locale, dataNodes }: Props) {
+export function NavGraph({ locale, dataNodes, highlightId }: Props) {
   const { width, height } = useWindowDimensions();
   const cx = width / 2;
   const cy = height / 2;
@@ -309,70 +313,37 @@ export function NavGraph({ locale, dataNodes }: Props) {
     ],
   }));
 
-  // Tier layout — concentric rings, children kept near their parent's
-  // angle so the parent→child line web reads as branching out.
+  // World-coordinate layout (queue A): the village lives in a fixed
+  // 1200×1600 world and is fitted into the viewport, so districts keep
+  // their place as you pan/zoom (mobile-graph pack §3). The world ring
+  // arrangement is computed once; only the world→screen fit depends on the
+  // viewport. The world center maps exactly to the viewport center, so the
+  // tier-1 lamp stays at (cx, cy) and the rest of the gesture / clamp /
+  // spawn / sheet machinery is unchanged.
+  const worldMenu = useMemo(() => worldMenuPositions(MENU_NODES, CENTER_NODE.id), []);
+
   const positions = useMemo(() => {
-    const minDim = Math.min(width, height);
-    // Rings widened from 0.22 / 0.36 to make room for the larger §5 node
-    // sizes so districts don't overlap the bigger center lamp.
-    const ring2 = minDim * 0.30;
-    const ring3 = minDim * 0.46;
-
+    const vp = { width, height };
     const map = new Map<string, { x: number; y: number; angle: number }>();
-    map.set(CENTER_NODE.id, { x: cx, y: cy, angle: 0 });
-
-    // Tier 2 — 3 nodes, evenly spaced starting at top.
-    const t2 = MENU_NODES.filter((n) => n.tier === 2);
-    t2.forEach((n, i) => {
-      const angle = -Math.PI / 2 + (i / t2.length) * Math.PI * 2;
-      map.set(n.id, {
-        x: cx + Math.cos(angle) * ring2,
-        y: cy + Math.sin(angle) * ring2,
-        angle,
-      });
-    });
-
-    // Tier 3 — clustered near their parent's angle.
-    const childrenOf: Record<string, NavNode[]> = {};
-    for (const n of MENU_NODES) {
-      if (n.tier !== 3 || !n.parentId) continue;
-      (childrenOf[n.parentId] ??= []).push(n);
-    }
-    for (const [parentId, kids] of Object.entries(childrenOf)) {
-      const parent = map.get(parentId);
-      if (!parent) continue;
-      const sectorWidth = Math.PI * 0.55;
-      kids.forEach((n, i) => {
-        const t = kids.length === 1 ? 0.5 : i / (kids.length - 1);
-        const angle = parent.angle - sectorWidth / 2 + sectorWidth * t;
-        const jitter = (seeded(n.id, 1) - 0.5) * 0.18;
-        const rJit = 0.9 + seeded(n.id, 2) * 0.2;
-        map.set(n.id, {
-          x: cx + Math.cos(angle + jitter) * ring3 * rJit,
-          y: cy + Math.sin(angle + jitter) * ring3 * rJit,
-          angle,
-        });
-      });
+    for (const [id, wp] of worldMenu) {
+      const s = worldToScreen({ x: wp.x, y: wp.y }, vp);
+      map.set(id, { x: s.x, y: s.y, angle: wp.angle });
     }
     return map;
-  }, [width, height, cx, cy]);
+  }, [worldMenu, width, height]);
 
-  // Tier 4 data positions — clustered around their wiki parent's angle.
+  // Tier 4 data positions — clustered around their wiki parent in world
+  // space, then fitted to the viewport.
   const dataPositions = useMemo(() => {
-    const cap = Math.min(dataNodes.length, 40);
+    const vp = { width, height };
+    const worldData = worldDataPositions(dataNodes, worldMenu);
     const out = new Map<string, { x: number; y: number; parentId: string }>();
-    const minDim = Math.min(width, height);
-    const ring4 = minDim * 0.6;
-    dataNodes.slice(0, cap).forEach((d) => {
-      const parentId = d.parentId ?? "wiki-daily";
-      const parent = positions.get(parentId);
-      const parentAngle = parent?.angle ?? 0;
-      const ang = parentAngle + (seeded(d.id, 3) - 0.5) * Math.PI * 0.6;
-      const r = ring4 * (0.88 + seeded(d.id, 4) * 0.12);
-      out.set(d.id, { x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r, parentId });
-    });
+    for (const [id, wd] of worldData) {
+      const s = worldToScreen({ x: wd.x, y: wd.y }, vp);
+      out.set(id, { x: s.x, y: s.y, parentId: wd.parentId });
+    }
     return out;
-  }, [dataNodes, positions, width, height, cx, cy]);
+  }, [dataNodes, worldMenu, width, height]);
 
   // Drift Animated.Values — one pair per node (sx, sy = sway offsets).
   // useNativeDriver=false because SVG props can't run on the native
@@ -519,6 +490,8 @@ export function NavGraph({ locale, dataNodes }: Props) {
   }, [dataPositions]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Highlight-on-return (queue B): a tier-4 shard the user came back to see.
+  const [highlightDataId, setHighlightDataId] = useState<string | null>(null);
 
   // Zoom-driven tier visibility (overhaul §5). Mirror the live pinch scale
   // into a coarse 0/1/2 bucket on the JS thread; the worklet only pushes a
@@ -544,6 +517,37 @@ export function NavGraph({ locale, dataNodes }: Props) {
   const tierOf = (id: string): Tier =>
     id === CENTER_NODE.id ? 1 : MENU_NODES.find((n) => n.id === id)?.tier ?? 4;
   const idVisible = (id: string): boolean => nodeVisible(tierOf(id));
+
+  // Highlight-on-return (queue B): when the screen mounts with a highlight id
+  // (from a record / wiki detail "그래프에서 보기"), focus it. A menu/center
+  // node opens its bottom sheet (reusing the focus + edge highlight); a
+  // tier-4 shard reveals tier 4 and pulses for a moment so the user lands on
+  // exactly the piece they tapped.
+  useEffect(() => {
+    if (!highlightId) return;
+    if (highlightId === CENTER_NODE.id || MENU_NODES.some((n) => n.id === highlightId)) {
+      setActiveId(highlightId);
+      return;
+    }
+    if (!dataPositions.has(highlightId)) return;
+    setHighlightDataId(highlightId);
+    // Reveal tier-4 shards so the highlighted one is on screen.
+    const revealed = Math.max(zoomScale.value, 1.25);
+    zoomScale.value = revealed;
+    zoomSavedScale.value = revealed;
+    const v = pulseValues.current.get(highlightId);
+    if (v) {
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1.9, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+        Animated.delay(400),
+        Animated.timing(v, { toValue: 1.6, duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+      ]).start();
+    }
+    const t = setTimeout(() => setHighlightDataId(null), 2800);
+    return () => clearTimeout(t);
+  }, [highlightId, dataPositions, zoomScale, zoomSavedScale]);
 
   // 연결 발견 / "아치 라인 켜짐" — when a node is focused, its incident
   // edges light up in signal-mint (overhaul §7 "연결된 edge만 signal-mint로
@@ -684,6 +688,9 @@ export function NavGraph({ locale, dataNodes }: Props) {
   const connectedCount = activeNeighbors.size;
   const isRelated = (id: string): boolean =>
     activeId == null || id === activeId || activeNeighbors.has(id);
+  // Dim predicate combining focus (activeId) and highlight-on-return.
+  const dimFor = (id: string): boolean =>
+    highlightDataId != null ? id !== highlightDataId : activeId != null && !isRelated(id);
 
   // Village type label per tier (overhaul §6/§7 sheet "노드 타입").
   const typeLabel = (tier: Tier): string => {
@@ -786,7 +793,8 @@ export function NavGraph({ locale, dataNodes }: Props) {
                   opacity: spawnOpacity(id) as never,
                   transform: swayTransform(id) as never,
                 },
-                activeId != null && !isRelated(id) ? styles.dimmed : null,
+                id === highlightDataId ? styles.shardHighlight : null,
+                dimFor(id) ? styles.dimmed : null,
               ]}
             >
               <NodeArt tier={4} size={14} />
@@ -800,7 +808,7 @@ export function NavGraph({ locale, dataNodes }: Props) {
         const base = positions.get(n.id);
         if (!base) return null;
         const size = tierSize(n.tier);
-        const dim = activeId != null && !isRelated(n.id);
+        const dim = dimFor(n.id);
         return (
           <Animated.View
             key={n.id}
@@ -853,7 +861,7 @@ export function NavGraph({ locale, dataNodes }: Props) {
           style={[
             styles.centerArtWrap,
             CENTER_NODE.id === activeId ? styles.nodeFocused : null,
-            activeId != null && !isRelated(CENTER_NODE.id) ? styles.dimmed : null,
+            dimFor(CENTER_NODE.id) ? styles.dimmed : null,
           ]}
         >
           <NodeArt tier={1} size={CENTER_SIZE} />
@@ -981,6 +989,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   shardWrap: { position: "absolute", width: 14, height: 14, alignItems: "center", justifyContent: "center" },
+  // Highlight-on-return: a mint halo around the shard the user came back to.
+  shardHighlight: {
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+  },
   // Selection states (§7).
   nodeFocused: {
     shadowColor: cosmic.signalMint,

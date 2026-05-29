@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="244" viewBox="0 0 390 244" fill="none" shape-rendering="crispEdges" >
+
+  <defs>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="tinyGlow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="violetCore" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#A78BFA" stop-opacity="0.95"/>
+      <stop offset="60%" stop-color="#A78BFA" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#A78BFA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#72F2C7" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#72F2C7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="nodeSurface" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16213E"/>
+      <stop offset="1" stop-color="#0D1530"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="12" y="14" width="366" height="214" rx="24" fill="#0D1530" fill-opacity="0.96" stroke="#8D98B8" stroke-opacity="0.25"/>
+  <rect x="160" y="26" width="70" height="4" rx="2" fill="#8D98B8" opacity="0.45"/>
+  <rect x="30" y="46" width="44" height="44" rx="12" fill="#16213E" stroke="#72F2C7" stroke-opacity="0.36"/>
+  <rect x="45" y="60" width="14" height="14" fill="#72F2C7"/>
+  <text x="86" y="62" text-anchor="start" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="17" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">만드는 나</text>
+  <text x="86" y="84" text-anchor="start" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="12" font-weight="600" fill="#FFD166" shape-rendering="geometricPrecision">최근 연결된 조각 23개</text>
+  <text x="30" y="122" text-anchor="start" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="12" font-weight="500" fill="#8D98B8" shape-rendering="geometricPrecision">기록, 지식 창고, 공상 작업실과 자주 이어져 있어요.</text>
+  <rect x="30" y="154" width="152" height="42" rx="14" fill="#72F2C7" opacity="0.16" stroke="#72F2C7" stroke-opacity="0.45"/>
+  <text x="106" y="181" text-anchor="middle" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="13" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">살펴보기</text>
+  <rect x="196" y="154" width="164" height="42" rx="14" fill="#A78BFA" opacity="0.18" stroke="#A78BFA" stroke-opacity="0.45"/>
+  <text x="278" y="181" text-anchor="middle" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="13" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">세컨비에게 묻기</text>
+</svg>

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" fill="none" shape-rendering="crispEdges">
+  <defs>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="tinyGlow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="screenBg" cx="50%" cy="28%" r="86%"><stop offset="0" stop-color="#72F2C7" stop-opacity="0.10"/><stop offset="34%" stop-color="#A78BFA" stop-opacity="0.10"/><stop offset="74%" stop-color="#0D1530" stop-opacity="0.92"/><stop offset="100%" stop-color="#070A18"/></radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="58%"><stop offset="0" stop-color="#72F2C7" stop-opacity="0.68"/><stop offset="100%" stop-color="#72F2C7" stop-opacity="0"/></radialGradient>
+    <radialGradient id="violetGlow" cx="50%" cy="50%" r="58%"><stop offset="0" stop-color="#A78BFA" stop-opacity="0.64"/><stop offset="100%" stop-color="#A78BFA" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lampGlow" cx="50%" cy="50%" r="58%"><stop offset="0" stop-color="#FFD166" stop-opacity="0.72"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0"/></radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0D1530" stop-opacity="0.96"/><stop offset="1" stop-color="#16213E" stop-opacity="0.88"/></linearGradient>
+    <linearGradient id="shardPanel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#16213E" stop-opacity="0.94"/><stop offset="0.68" stop-color="#0D1530" stop-opacity="0.96"/><stop offset="1" stop-color="#72F2C7" stop-opacity="0.15"/></linearGradient>
+    
+  </defs><rect width="390" height="844" fill="url(#screenBg)"/><rect x="20" y="122" width="2" height="2" fill="#8D98B8" opacity="0.50"/><rect x="342" y="114" width="2" height="2" fill="#72F2C7" opacity="0.50"/><rect x="66" y="225" width="2" height="2" fill="#A78BFA" opacity="0.50"/><rect x="312" y="322" width="2" height="2" fill="#FFD166" opacity="0.50"/><rect x="52" y="516" width="2" height="2" fill="#72F2C7" opacity="0.50"/><rect x="352" y="635" width="2" height="2" fill="#8D98B8" opacity="0.50"/><rect x="96" y="760" width="2" height="2" fill="#FFD166" opacity="0.50"/><rect x="210" y="206" width="2" height="2" fill="#8D98B8" opacity="0.50"/><rect x="172" y="660" width="2" height="2" fill="#4CC9F0" opacity="0.50"/><rect x="32" y="407" width="2" height="2" fill="#FFD166" opacity="0.50"/><rect x="342" y="466" width="2" height="2" fill="#72F2C7" opacity="0.50"/><rect x="280" y="735" width="2" height="2" fill="#A78BFA" opacity="0.50"/>
+  <rect x="16" y="50" width="44" height="44" rx="14" fill="#0D1530" stroke="#8D98B8" stroke-opacity="0.28"/>
+  <path d="M42 62L32 72L42 82" stroke="#E8ECF8" stroke-width="3"/>
+  <text x="78" y="72" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="22" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">기록 상세</text>
+  <text x="78" y="96" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="11" font-weight="500" fill="#8D98B8" shape-rendering="geometricPrecision">조각의 원문과 연결을 확인해요</text>
+  <rect x="336" y="54" width="38" height="38" rx="13" fill="#0D1530" stroke="#FFD166" stroke-opacity="0.32"/>
+  <path d="M356 62L360 72L370 76L360 80L356 90L352 80L342 76L352 72Z" fill="#FFD166" opacity="0.88"/>
+  <g transform="translate(20 126)"><rect x="0" y="0" width="350" height="216" rx="28" fill="url(#panel)" stroke="#FFD166" stroke-opacity="0.28"/><g transform="translate(54 58) scale(1.05)" opacity="1">
+      <path d="M0 -13L12 -2L6 13L-10 9L-8 -6Z" fill="#16213E" stroke="#FFD166" stroke-width="2"/>
+      <rect x="-2" y="-2" width="4" height="4" fill="#FFD166" filter="url(#tinyGlow)"/>
+    </g><text x="96" y="48" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#FFD166" shape-rendering="geometricPrecision">오늘의 조각</text><text x="96" y="76" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">모바일 그래프에서 연결이 잘 보이는 구조</text><rect x="24" y="112" width="302" height="70" rx="18" fill="#070A18" fill-opacity="0.35" stroke="#8D98B8" stroke-opacity="0.18"/><text x="44" y="140" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="12" font-weight="500" fill="#8D98B8" shape-rendering="geometricPrecision">원문 일부가 여기에 보여요.</text><text x="44" y="162" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="12" font-weight="500" fill="#8D98B8" shape-rendering="geometricPrecision">상세에서 전체를 열 수 있어요.</text></g>
+  <g transform="translate(20 366)"><rect x="0" y="0" width="350" height="136" rx="24" fill="#0D1530" fill-opacity="0.84" stroke="#4CC9F0" stroke-opacity="0.24"/><text x="24" y="36" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="600" fill="#4CC9F0" shape-rendering="geometricPrecision">어디서 온 조각인가요?</text><path d="M44 72H112M112 72V102H176M176 102H288" stroke="#72F2C7" stroke-opacity="0.46" stroke-width="3"/><circle cx="44" cy="72" r="10" fill="#FFD166"/><circle cx="176" cy="102" r="10" fill="#72F2C7"/><circle cx="288" cy="102" r="10" fill="#A78BFA"/></g>
+  <g transform="translate(20 526)"><rect x="0" y="0" width="350" height="136" rx="24" fill="url(#shardPanel)" stroke="#72F2C7" stroke-opacity="0.28"/><text x="24" y="36" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="600" fill="#72F2C7" shape-rendering="geometricPrecision">그래프에서 보기</text><path d="M72 82C130 36 206 126 278 64" stroke="#72F2C7" stroke-opacity="0.60" stroke-width="3" fill="none"/><g transform="translate(72 82) scale(0.82)" opacity="1">
+      <path d="M0 -13L12 -2L6 13L-10 9L-8 -6Z" fill="#16213E" stroke="#FFD166" stroke-width="2"/>
+      <rect x="-2" y="-2" width="4" height="4" fill="#FFD166" filter="url(#tinyGlow)"/>
+    </g><g transform="translate(172 102)">
+      <circle r="18" fill="#16213E" stroke="#A78BFA" stroke-opacity="0.62" stroke-width="2"/>
+      <rect x="-4" y="-4" width="8" height="8" fill="#A78BFA" filter="url(#tinyGlow)"/>
+    </g><g transform="translate(278 64)">
+      <circle r="18" fill="#16213E" stroke="#72F2C7" stroke-opacity="0.62" stroke-width="2"/>
+      <rect x="-4" y="-4" width="8" height="8" fill="#72F2C7" filter="url(#tinyGlow)"/>
+    </g></g>
+  <g transform="translate(20 686)"><rect x="0" y="0" width="350" height="72" rx="24" fill="#A78BFA" fill-opacity="0.14" stroke="#A78BFA" stroke-opacity="0.38"/><g transform="translate(48 36) scale(0.36)">
+      <circle cx="0" cy="2" r="42" fill="url(#violetGlow)" opacity="0.52"/>
+      <rect x="-25" y="-19" width="50" height="48" rx="14" fill="#16213E" stroke="#A78BFA" stroke-opacity="0.62"/>
+      <rect x="-12" y="-30" width="24" height="12" rx="5" fill="#A78BFA" fill-opacity="0.18" stroke="#A78BFA" stroke-opacity="0.42"/>
+      <rect x="-12" y="-1" width="6" height="6" fill="#E8ECF8"/><rect x="6" y="-1" width="6" height="6" fill="#E8ECF8"/>
+      <rect x="-7" y="17" width="14" height="4" fill="#72F2C7"/>
+      <rect x="-3" y="-13" width="6" height="6" fill="#72F2C7" filter="url(#tinyGlow)"/>
+    </g><text x="112" y="40" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">이 조각으로 세컨비에게 묻기</text><path d="M304 27L314 36L304 45" stroke="#72F2C7" stroke-width="3"/></g>
+</svg>

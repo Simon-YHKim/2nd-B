@@ -1,0 +1,172 @@
+{
+  "name": "2ndB Cosmic Pixel Assets v1",
+  "version": "1.0.0",
+  "style": "Cosmic Pixel Graph Village / 밤빛 조각마을",
+  "palette": {
+    "space-950": "#070A18",
+    "space-900": "#0D1530",
+    "space-800": "#16213E",
+    "space-700": "#243056",
+    "signal-blue": "#4CC9F0",
+    "signal-mint": "#72F2C7",
+    "soul-violet": "#A78BFA",
+    "pixel-lamp": "#FFD166",
+    "moon-white": "#E8ECF8",
+    "mist-gray": "#8D98B8",
+    "guard-rose": "#FF7A90",
+    "dream-pink": "#FF9FD6",
+    "paper-50": "#F5F1E8",
+    "paper-0": "#FFFBF2",
+    "ink-navy": "#172033",
+    "paper-line": "#D9D4C7"
+  },
+  "characters": [
+    {
+      "id": "secondb",
+      "ko": "세컨비",
+      "role": "AI 안내자",
+      "accent": "#A78BFA",
+      "file": "characters/secondb.svg"
+    },
+    {
+      "id": "momo",
+      "ko": "모모",
+      "role": "기록 관리자",
+      "accent": "#FFD166",
+      "file": "characters/momo.svg"
+    },
+    {
+      "id": "lulu",
+      "ko": "루루",
+      "role": "수집 드론",
+      "accent": "#72F2C7",
+      "file": "characters/lulu.svg"
+    },
+    {
+      "id": "archi",
+      "ko": "아치",
+      "role": "구조 설계자",
+      "accent": "#4CC9F0",
+      "file": "characters/archi.svg"
+    },
+    {
+      "id": "vela",
+      "ko": "벨라",
+      "role": "공상 확장자",
+      "accent": "#FF9FD6",
+      "file": "characters/vela.svg"
+    },
+    {
+      "id": "gadi",
+      "ko": "가디",
+      "role": "안전 관리자",
+      "accent": "#FF7A90",
+      "file": "characters/gadi.svg"
+    }
+  ],
+  "icons": [
+    {
+      "id": "home",
+      "ko": "홈",
+      "file": "icons/home.svg"
+    },
+    {
+      "id": "search",
+      "ko": "검색",
+      "file": "icons/search.svg"
+    },
+    {
+      "id": "save",
+      "ko": "저장",
+      "file": "icons/save.svg"
+    },
+    {
+      "id": "link",
+      "ko": "연결",
+      "file": "icons/link.svg"
+    },
+    {
+      "id": "dream",
+      "ko": "공상",
+      "file": "icons/dream.svg"
+    },
+    {
+      "id": "journal",
+      "ko": "기록",
+      "file": "icons/journal.svg"
+    },
+    {
+      "id": "growth",
+      "ko": "성장",
+      "file": "icons/growth.svg"
+    },
+    {
+      "id": "warning",
+      "ko": "경고",
+      "file": "icons/warning.svg"
+    },
+    {
+      "id": "new",
+      "ko": "새로움",
+      "file": "icons/new.svg"
+    },
+    {
+      "id": "knowledge",
+      "ko": "지식",
+      "file": "icons/knowledge.svg"
+    },
+    {
+      "id": "chat",
+      "ko": "세컨비 대화",
+      "file": "icons/chat.svg"
+    },
+    {
+      "id": "settings",
+      "ko": "설정",
+      "file": "icons/settings.svg"
+    },
+    {
+      "id": "core",
+      "ko": "나의 중심",
+      "file": "icons/core.svg"
+    },
+    {
+      "id": "node",
+      "ko": "영역 노드",
+      "file": "icons/node.svg"
+    },
+    {
+      "id": "shard",
+      "ko": "생각 조각",
+      "file": "icons/shard.svg"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "core_node",
+      "ko": "나의 중심",
+      "file": "nodes/core_node.svg"
+    },
+    {
+      "id": "domain_node",
+      "ko": "영역",
+      "file": "nodes/domain_node.svg"
+    },
+    {
+      "id": "persona_node",
+      "ko": "나의 모습",
+      "file": "nodes/persona_node.svg"
+    },
+    {
+      "id": "data_shard",
+      "ko": "생각 조각",
+      "file": "nodes/data_shard.svg"
+    }
+  ],
+  "implementation_notes": [
+    "Use SVGs as initial placeholders or production-ready simple assets.",
+    "Keep character count low on mobile. Use SecondB by default and show other characters only on events.",
+    "Use icons as CSS-mask or inline SVG for color control.",
+    "For pixel crispness, keep shape-rendering='crispEdges'."
+  ]
+}

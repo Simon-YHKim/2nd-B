@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="240" viewBox="0 0 390 240" fill="none" shape-rendering="crispEdges">
+  <title>Age gate panel</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="390" y2="240" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#070A18"/>
+      <stop offset="0.62" stop-color="#0D1530"/>
+      <stop offset="1" stop-color="#16213E"/>
+    </linearGradient>
+    <radialGradient id="violetGlow" cx="50%" cy="38%" r="55%">
+      <stop stop-color="#A78BFA" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#A78BFA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="50%">
+      <stop stop-color="#72F2C7" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#72F2C7" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  
+  <rect width="390" height="240" rx="26" fill="#0D1530" stroke="#243056"/>
+  <circle cx="68" cy="60" r="28" fill="#FF7A90" opacity=".15"/>
+  <text x="44" y="70" fill="#FF7A90" font-family="Pretendard, system-ui" font-size="22" font-weight="800">18+</text>
+  <text x="112" y="54" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="18" font-weight="700">시작 전 확인</text>
+  <text x="112" y="80" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="12">계정 생성에는 생년월일 확인이 필요해요.</text>
+  <rect x="24" y="112" width="342" height="48" rx="16" fill="#070A18" stroke="#243056"/>
+  <text x="44" y="142" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="13">YYYY / MM / DD</text>
+  <rect x="24" y="178" width="342" height="38" rx="19" fill="#FF7A90" opacity=".9"/>
+  <text x="152" y="202" fill="#070A18" font-family="Pretendard, system-ui" font-size="13" font-weight="800">확인하고 계속</text>
+
+</svg>

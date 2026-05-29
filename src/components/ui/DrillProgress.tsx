@@ -22,6 +22,7 @@ import {
   type LifePeriod,
 } from "@/lib/interview/probe";
 import { darkSky } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 
 interface Props {
   coverage: Coverage;
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
   },
-  cellText: { fontSize: 11, fontWeight: "700", fontFamily: "Menlo" },
+  cellText: { fontSize: 11, fontWeight: "700", fontFamily: fontFamilies.mono },
   headerCell: { aspectRatio: undefined, paddingVertical: 4 },
   headerCellActive: {},
   headerLabel: { fontSize: 10, color: darkSky.textSubtle, letterSpacing: 0.5, fontWeight: "600" },

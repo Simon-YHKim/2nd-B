@@ -1,22 +1,21 @@
 // CharacterPathLayer — the six pixel residents of the graph village
 // (handoff §5 / §10 "small pixel robot residents walking along edges").
 //
-// Phase 3 adds the *motion*: each resident gently drifts around its home
-// anchor with a slow core blink, so the village reads as "alive" without
-// performing. Real sprites still arrive later as <Image> — the slot
-// layout / hit area / z-index are unchanged, so that swap is a one-liner
-// per character. Motion honours prefers-reduced-motion (web): residents
-// hold still with a steady core.
-//
-// Each resident renders as a 22×22 colored block centered on a fixed
-// graph anchor (their "home" node on the village map).
+// Phase E upgrades the residents from "drift around one anchor" to a gentle
+// *patrol*: each walks back and forth along a short path between two anchors
+// with a slight hop arc, and the placeholder colored block is replaced with
+// the real v2 sprites (SecondB has a 2-frame walk cycle; the companions
+// hover in their idle pose). Motion math lives in ./walker-path (pure +
+// tested). Honours prefers-reduced-motion: residents hold at their home
+// anchor with a static frame.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
 
-import { cosmic } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
-import { CHARACTER_ORDER, CHARACTERS, type CharacterId } from "@/lib/characters";
+import { CHARACTER_ORDER, type CharacterId } from "@/lib/characters";
+import { SecondBSprite } from "@/components/art/SecondBSprite";
+import { CompanionSprite, type CompanionName } from "@/components/art/CompanionSprite";
 
 interface Props {
   /** Bounding box of the parent graph viewport — provides the coordinate frame. */
@@ -26,22 +25,19 @@ interface Props {
   hidden?: boolean;
 }
 
-// Home anchors per character, as fractions of the viewport. Picked to
-// loosely align with the handoff §7-1 walker positions:
-//   - SecondB drifts near the core (top-right of center)
-//   - Momo sits on the 기록 동네 path (upper-left)
-//   - Lulu wanders the 공상 동네 path (lower-left)
-//   - Archi watches the 일 동네 path (upper-right)
-//   - Vela hovers near the 공상 corner (lower-left edge)
-//   - Gadi stays close to center but slightly lower (guard radius)
-const ANCHORS: Record<CharacterId, { x: number; y: number }> = {
-  secondb: { x: 0.58, y: 0.35 },
-  momo: { x: 0.36, y: 0.30 },
-  lulu: { x: 0.30, y: 0.62 },
-  archi: { x: 0.66, y: 0.48 },
-  vela: { x: 0.40, y: 0.76 },
-  gadi: { x: 0.52, y: 0.58 },
+// Patrol paths per resident, as fractions of the viewport: a home anchor and
+// a nearby waypoint the resident walks out to and back from. Kept short so
+// each stays inside its district (handoff §7-1 walker positions).
+const PATROLS: Record<CharacterId, { from: { x: number; y: number }; to: { x: number; y: number } }> = {
+  secondb: { from: { x: 0.56, y: 0.35 }, to: { x: 0.64, y: 0.40 } },
+  momo: { from: { x: 0.34, y: 0.30 }, to: { x: 0.42, y: 0.34 } },
+  lulu: { from: { x: 0.28, y: 0.62 }, to: { x: 0.36, y: 0.58 } },
+  archi: { from: { x: 0.64, y: 0.48 }, to: { x: 0.70, y: 0.52 } },
+  vela: { from: { x: 0.38, y: 0.76 }, to: { x: 0.46, y: 0.72 } },
+  gadi: { from: { x: 0.50, y: 0.58 }, to: { x: 0.55, y: 0.62 } },
 };
+
+const SPRITE = 26;
 
 export function CharacterPathLayer({ width, height, hidden }: Props) {
   if (hidden) return null;
@@ -52,15 +48,13 @@ export function CharacterPathLayer({ width, height, hidden }: Props) {
       accessibilityElementsHidden
     >
       {CHARACTER_ORDER.map((id, i) => {
-        const c = CHARACTERS[id];
-        const anchor = ANCHORS[id];
+        const patrol = PATROLS[id];
         return (
           <Walker
             key={id}
-            label={c.name.en}
-            accent={c.accent}
-            left={anchor.x * width - 11}
-            top={anchor.y * height - 11}
+            id={id}
+            from={{ x: patrol.from.x * width, y: patrol.from.y * height }}
+            to={{ x: patrol.to.x * width, y: patrol.to.y * height }}
             seed={i}
           />
         );
@@ -69,73 +63,73 @@ export function CharacterPathLayer({ width, height, hidden }: Props) {
   );
 }
 
-// One resident: a gently drifting pixel block with a blinking mint core.
-// Drift uses a seamless looping sinusoid whose endpoints both map to 0, so
-// the rest position (and reduced-motion state) has no offset.
+// One resident: patrols along its path with a slight hop. SecondB cycles its
+// two walk frames while moving; the companions hover in their idle pose.
 function Walker({
-  label,
-  accent,
-  left,
-  top,
+  id,
+  from,
+  to,
   seed,
 }: {
-  label: string;
-  accent: string;
-  left: number;
-  top: number;
+  id: CharacterId;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
   seed: number;
 }) {
-  const drift = useRef(new Animated.Value(0)).current;
-  const blink = useRef(new Animated.Value(1)).current;
+  const t = useRef(new Animated.Value(0)).current;
+  const [frame, setFrame] = useState(0);
+  const reduced = prefersReducedMotion();
 
   useEffect(() => {
-    if (prefersReducedMotion()) return;
-    const driftLoop = Animated.loop(
-      Animated.timing(drift, {
+    if (reduced) return;
+    const duration = 7000 + (seed % 5) * 1100; // 7.0–11.4s round trip, phase-spread
+    const loop = Animated.loop(
+      Animated.timing(t, {
         toValue: 1,
-        duration: 6000 + (seed % 5) * 900, // 6.0–9.6s, phase-spread per resident
-        easing: Easing.linear,
+        duration,
+        easing: Easing.inOut(Easing.sin), // ease near the turn-arounds
         useNativeDriver: true,
       }),
     );
-    const blinkLoop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(1600 + (seed % 4) * 700),
-        Animated.timing(blink, { toValue: 0.35, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(blink, { toValue: 1, duration: 320, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-      ]),
-    );
-    driftLoop.start();
-    blinkLoop.start();
+    loop.start();
+    // SecondB has real walk frames; toggle them at a calm ~2.3fps cadence.
+    const frameTimer =
+      id === "secondb"
+        ? setInterval(() => setFrame((f) => (f === 0 ? 1 : 0)), 430)
+        : null;
     return () => {
-      driftLoop.stop();
-      blinkLoop.stop();
+      loop.stop();
+      if (frameTimer) clearInterval(frameTimer);
     };
-  }, [drift, blink, seed]);
+  }, [t, seed, id, reduced]);
 
-  const amp = 3 + (seed % 3); // 3–5 px sway
-  const tx = drift.interpolate({
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const arc = 4 + (seed % 3); // 4–6px hop at mid-trip
+
+  // Ping-pong interpolation (mirrors walker-path.walkerPosition at these
+  // sample points): out to `to` at t=0.5, back to `from` at t=1.
+  const tx = t.interpolate({
     inputRange: [0, 0.25, 0.5, 0.75, 1],
-    outputRange: [0, amp, 0, -amp, 0],
+    outputRange: [0, dx * 0.5, dx, dx * 0.5, 0],
   });
-  const ty = drift.interpolate({
+  const ty = t.interpolate({
     inputRange: [0, 0.25, 0.5, 0.75, 1],
-    outputRange: [0, -amp * 0.6, 0, amp * 0.6, 0],
+    outputRange: [0, dy * 0.5 - arc, dy, dy * 0.5 - arc, 0],
   });
 
   return (
     <Animated.View
       style={[
         styles.spriteSlot,
-        { left, top, shadowColor: accent, transform: [{ translateX: tx }, { translateY: ty }] },
+        { left: from.x - SPRITE / 2, top: from.y - SPRITE / 2, transform: [{ translateX: tx }, { translateY: ty }] },
       ]}
-      accessibilityLabel={label}
     >
-      {/* Placeholder pixel body. Replace with <Image source={...} />
-          when assets/characters/{id}-idle.png lands. */}
-      <View style={[styles.body, { backgroundColor: accent }]} />
-      {/* Mint signal core — a slow blink, like a heartbeat */}
-      <Animated.View style={[styles.core, { opacity: blink }]} />
+      {id === "secondb" ? (
+        <SecondBSprite state={reduced ? "idle" : frame === 0 ? "walk_1" : "walk_2"} size={SPRITE} />
+      ) : (
+        <CompanionSprite companion={id as CompanionName} state="idle" size={SPRITE} />
+      )}
     </Animated.View>
   );
 }
@@ -144,22 +138,9 @@ const styles = StyleSheet.create({
   layer: { position: "absolute", left: 0, top: 0 },
   spriteSlot: {
     position: "absolute",
-    width: 22, height: 22,
-    alignItems: "center", justifyContent: "center",
-    shadowOpacity: 0.5, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
-  },
-  body: {
-    position: "absolute",
-    width: 16, height: 14,
-    borderRadius: 3,
-    borderWidth: 2,
-    borderColor: cosmic.space950,
-  },
-  core: {
-    width: 3, height: 3,
-    backgroundColor: cosmic.signalMint,
-    marginTop: 6,
-    shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.9, shadowRadius: 3, shadowOffset: { width: 0, height: 0 },
+    width: SPRITE,
+    height: SPRITE,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
