@@ -12,7 +12,7 @@ import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop, Circle } from "react-native-svg";
 
-import { cosmic } from "@/lib/theme/tokens";
+import { cosmic, spacing } from "@/lib/theme/tokens";
 import { starField } from "./star-field";
 
 /** Subtle static star grain, sized to the given box. Decorative. */
@@ -72,15 +72,18 @@ export function PremiumAppShell({
   children,
   glow = true,
   stars = true,
+  padded = true,
 }: {
   children: ReactNode;
   glow?: boolean;
   stars?: boolean;
+  /** Add the standard horizontal screen padding (matches the legacy Screen). */
+  padded?: boolean;
 }) {
   return (
     <View style={styles.root}>
       <CosmicBackground glow={glow} stars={stars} />
-      <SafeAreaView style={styles.safe}>{children}</SafeAreaView>
+      <SafeAreaView style={[styles.safe, padded ? styles.padded : null]}>{children}</SafeAreaView>
     </View>
   );
 }
@@ -88,4 +91,5 @@ export function PremiumAppShell({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: cosmic.space950 },
   safe: { flex: 1 },
+  padded: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
 });
