@@ -1,0 +1,125 @@
+{
+  "package": "2ndB_companion_sprite_pack_v2",
+  "version": "2.0.0",
+  "created_for": "2ndB Cosmic Pixel Graph Village",
+  "description": "Momo, Lulu, Archi, Vela, Gadi SVG-friendly pixel companion states and event cues.",
+  "recommended_install_path": "public/assets/cosmic-pixel-v2/companions/",
+  "characters": {
+    "momo": {
+      "ko": "모모",
+      "role": "기록 관리자",
+      "accent": "#FFD166",
+      "states": [
+        "idle",
+        "note",
+        "store",
+        "read",
+        "label",
+        "happy",
+        "sleep"
+      ],
+      "files": [
+        "sprites/momo/momo_idle.svg",
+        "sprites/momo/momo_note.svg",
+        "sprites/momo/momo_store.svg",
+        "sprites/momo/momo_read.svg",
+        "sprites/momo/momo_label.svg",
+        "sprites/momo/momo_happy.svg",
+        "sprites/momo/momo_sleep.svg"
+      ]
+    },
+    "lulu": {
+      "ko": "루루",
+      "role": "수집 드론",
+      "accent": "#72F2C7",
+      "states": [
+        "idle",
+        "fly_1",
+        "fly_2",
+        "carrying_shard",
+        "scan",
+        "success",
+        "dash"
+      ],
+      "files": [
+        "sprites/lulu/lulu_idle.svg",
+        "sprites/lulu/lulu_fly_1.svg",
+        "sprites/lulu/lulu_fly_2.svg",
+        "sprites/lulu/lulu_carrying_shard.svg",
+        "sprites/lulu/lulu_scan.svg",
+        "sprites/lulu/lulu_success.svg",
+        "sprites/lulu/lulu_dash.svg"
+      ]
+    },
+    "archi": {
+      "ko": "아치",
+      "role": "연결 설계자",
+      "accent": "#4CC9F0",
+      "states": [
+        "idle",
+        "linking",
+        "measure",
+        "highlight",
+        "thinking",
+        "build"
+      ],
+      "files": [
+        "sprites/archi/archi_idle.svg",
+        "sprites/archi/archi_linking.svg",
+        "sprites/archi/archi_measure.svg",
+        "sprites/archi/archi_highlight.svg",
+        "sprites/archi/archi_thinking.svg",
+        "sprites/archi/archi_build.svg"
+      ]
+    },
+    "vela": {
+      "ko": "벨라",
+      "role": "공상 확장자",
+      "accent": "#FF9FD6",
+      "states": [
+        "idle",
+        "spark",
+        "dream",
+        "unfold",
+        "save",
+        "happy"
+      ],
+      "files": [
+        "sprites/vela/vela_idle.svg",
+        "sprites/vela/vela_spark.svg",
+        "sprites/vela/vela_dream.svg",
+        "sprites/vela/vela_unfold.svg",
+        "sprites/vela/vela_save.svg",
+        "sprites/vela/vela_happy.svg"
+      ]
+    },
+    "gadi": {
+      "ko": "가디",
+      "role": "안전 관리자",
+      "accent": "#FF7A90",
+      "states": [
+        "idle",
+        "guard",
+        "alert",
+        "soft_stop",
+        "clear",
+        "scan"
+      ],
+      "files": [
+        "sprites/gadi/gadi_idle.svg",
+        "sprites/gadi/gadi_guard.svg",
+        "sprites/gadi/gadi_alert.svg",
+        "sprites/gadi/gadi_soft_stop.svg",
+        "sprites/gadi/gadi_clear.svg",
+        "sprites/gadi/gadi_scan.svg"
+      ]
+    }
+  },
+  "event_cues": {
+    "journal_saved": "event_cues/journal_saved.svg",
+    "capture_saved": "event_cues/capture_saved.svg",
+    "link_found": "event_cues/link_found.svg",
+    "imagine_ready": "event_cues/imagine_ready.svg",
+    "safety_soft_stop": "event_cues/safety_soft_stop.svg"
+  }
+}

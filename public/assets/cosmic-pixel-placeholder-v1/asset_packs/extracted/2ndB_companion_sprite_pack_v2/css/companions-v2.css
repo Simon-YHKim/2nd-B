@@ -1,0 +1,60 @@
+/* 2ndB Companion Sprite Pack v2 — Cosmic Pixel Graph Village */
+:root {
+  --2b-space-950: #070A18;
+  --2b-space-900: #0D1530;
+  --2b-space-800: #16213E;
+  --2b-space-700: #243056;
+  --2b-signal-blue: #4CC9F0;
+  --2b-signal-mint: #72F2C7;
+  --2b-soul-violet: #A78BFA;
+  --2b-pixel-lamp: #FFD166;
+  --2b-dream-pink: #FF9FD6;
+  --2b-guard-rose: #FF7A90;
+  --2b-moon-white: #E8ECF8;
+  --2b-mist-gray: #8D98B8;
+}
+
+.companion-sprite {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  width: var(--companion-size, 64px);
+  height: var(--companion-size, 64px);
+  display: inline-block;
+  user-select: none;
+  pointer-events: none;
+}
+
+.companion-cue {
+  position: absolute;
+  width: var(--cue-size, 76px);
+  height: var(--cue-size, 76px);
+  image-rendering: pixelated;
+  pointer-events: none;
+  filter: drop-shadow(0 0 14px rgba(114, 242, 199, 0.18));
+}
+
+.companion-cue--enter {
+  animation: companionCueEnter 1.45s cubic-bezier(.2,.9,.25,1) both;
+}
+
+.companion-cue--float {
+  animation: companionFloat 3.6s ease-in-out infinite;
+}
+
+@keyframes companionCueEnter {
+  0% { opacity: 0; transform: translateY(8px) scale(.92); }
+  18% { opacity: 1; transform: translateY(0) scale(1.06); }
+  100% { opacity: 0; transform: translateY(-10px) scale(1); }
+}
+
+@keyframes companionFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .companion-cue--enter,
+  .companion-cue--float {
+    animation: none;
+  }
+}

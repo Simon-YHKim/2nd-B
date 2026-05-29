@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-labelledby="title desc" shape-rendering="crispEdges">
+  <title>세컨비 대화</title>
+  <desc>2ndB icon: 세컨비 대화</desc>
+  <rect x="5" y="7" width="22" height="15" fill="#16213E" rx="3" stroke="#A78BFA" stroke-width="2"/>
+  <polygon points="12,22 12,27 17,22" fill="#A78BFA"/>
+  <rect x="10" y="12" width="3" height="3" fill="#E8ECF8"/>
+  <rect x="15" y="12" width="3" height="3" fill="#E8ECF8"/>
+  <rect x="20" y="12" width="3" height="3" fill="#E8ECF8"/>
+</svg>

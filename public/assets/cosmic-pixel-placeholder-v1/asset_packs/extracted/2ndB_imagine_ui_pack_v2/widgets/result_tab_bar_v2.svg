@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="350" height="58" viewBox="0 0 350 58" fill="none" shape-rendering="crispEdges" >
+
+  <defs>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="tinyGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="dreamGlow" cx="50%" cy="50%" r="58%">
+      <stop offset="0%" stop-color="#FF9FD6" stop-opacity="0.76"/>
+      <stop offset="45%" stop-color="#A78BFA" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#FF9FD6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="52%">
+      <stop offset="0%" stop-color="#72F2C7" stop-opacity="0.74"/>
+      <stop offset="100%" stop-color="#72F2C7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0D1530" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#16213E" stop-opacity="0.92"/>
+    </linearGradient>
+    <linearGradient id="dreamPanel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16213E" stop-opacity="0.90"/>
+      <stop offset="0.55" stop-color="#0D1530" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#A78BFA" stop-opacity="0.18"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="1" y="1" width="348" height="56" rx="18" fill="#0D1530" fill-opacity="0.84" stroke="#8D98B8" stroke-opacity="0.18"/>
+  <rect x="10" y="10" width="74" height="38" rx="14" fill="#FF9FD6" fill-opacity="0.18" stroke="#FF9FD6" stroke-opacity="0.34"/><text x="47" y="34" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="12" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">장면</text>
+  <rect x="94" y="10" width="74" height="38" rx="14" fill="#16213E" stroke="#8D98B8" stroke-opacity="0.16"/><text x="131" y="34" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="12" font-weight="600" fill="#8D98B8" shape-rendering="geometricPrecision">사물</text>
+  <rect x="178" y="10" width="74" height="38" rx="14" fill="#16213E" stroke="#8D98B8" stroke-opacity="0.16"/><text x="215" y="34" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="12" font-weight="600" fill="#8D98B8" shape-rendering="geometricPrecision">친구</text>
+  <rect x="262" y="10" width="78" height="38" rx="14" fill="#16213E" stroke="#8D98B8" stroke-opacity="0.16"/><text x="301" y="34" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="12" font-weight="600" fill="#8D98B8" shape-rendering="geometricPrecision">한 걸음</text>
+</svg>
