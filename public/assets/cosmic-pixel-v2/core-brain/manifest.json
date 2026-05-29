@@ -1,0 +1,68 @@
+{
+  "name": "2ndB Core Brain UI Pack v2",
+  "slug": "2ndB_core_brain_ui_pack_v2",
+  "version": "2.0.0",
+  "createdFor": "2ndB Cosmic Pixel Graph Village",
+  "recommendedPath": "public/assets/cosmic-pixel-v2/core-brain/",
+  "route": "/core-brain",
+  "userFacingName": "나의 중심",
+  "tokens": {
+    "space950": "#070A18",
+    "space900": "#0D1530",
+    "space800": "#16213E",
+    "space700": "#243056",
+    "signalBlue": "#4CC9F0",
+    "signalMint": "#72F2C7",
+    "soulViolet": "#A78BFA",
+    "pixelLamp": "#FFD166",
+    "moonWhite": "#E8ECF8",
+    "mistGray": "#8D98B8",
+    "guardRose": "#FF7A90",
+    "dreamPink": "#FF9FD6",
+    "paper50": "#F5F1E8",
+    "paper0": "#FFFBF2",
+    "inkNavy": "#172033",
+    "paperLine": "#D9D4C7"
+  },
+  "assets": {
+    "core": [
+      "core/ask_secondb_cta_v2.svg",
+      "core/bright_connection_card_v2.svg",
+      "core/center_core_orb_v2.svg",
+      "core/core_header_v2.svg",
+      "core/domain_signal_card_v2.svg",
+      "core/evidence_shard_row_v2.svg",
+      "core/next_step_card_v2.svg",
+      "core/persona_profile_card_v2.svg",
+      "core/phase_meter_v2.svg",
+      "core/recent_change_card_v2.svg"
+    ],
+    "widgets": [
+      "widgets/core_summary_badge_v2.svg",
+      "widgets/domain_orbit_ring_v2.svg",
+      "widgets/mini_graph_core_v2.svg",
+      "widgets/persona_chip_stack_v2.svg",
+      "widgets/shard_timeline_v2.svg"
+    ],
+    "icons": [
+      "icons/ask.svg",
+      "icons/center.svg",
+      "icons/connection.svg",
+      "icons/domain.svg",
+      "icons/edit.svg",
+      "icons/evidence.svg",
+      "icons/next_step.svg",
+      "icons/persona.svg",
+      "icons/refresh.svg",
+      "icons/shard.svg"
+    ],
+    "mockups": [
+      "mockups/mobile_core_domain_detail_390x844.svg",
+      "mockups/mobile_core_empty_state_390x844.svg",
+      "mockups/mobile_core_evidence_drawer_390x844.svg",
+      "mockups/mobile_core_overview_390x844.svg",
+      "mockups/mobile_core_persona_detail_390x844.svg",
+      "mockups/mobile_core_phase_progress_390x844.svg"
+    ]
+  }
+}
