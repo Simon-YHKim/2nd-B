@@ -32,6 +32,9 @@ export default [
       "node_modules/**",
       ".expo/**",
       "dist/**",
+      // Vendored design-asset packs (reference SVGs / example components) —
+      // static deliverables served as-is, not project source to lint.
+      "public/**",
       "web-build/**",
       "ios/**",
       "android/**",

@@ -13,6 +13,7 @@ import { Animated, Easing, type ViewStyle } from "react-native";
 import { SvgXml } from "react-native-svg";
 
 import { COSMIC_PIXEL_XML } from "./cosmicPixelXml";
+import { MOBILE_GRAPH_XML } from "./mobileGraphXml";
 import type { CharacterId } from "@/lib/characters";
 
 // Native viewBox aspect (width / height) per non-square asset, so a single
@@ -43,12 +44,17 @@ export function DataShardArt({ size }: { size: number }) {
   return <Art name="dataShard" width={size} aspect={NODE_ASPECT.dataShard} />;
 }
 
-/** Render the right node art for a graph tier (1 core / 2 domain / 3 persona / 4 shard). */
+/** Render the right node art for a graph tier (1 core / 2 domain / 3 persona / 4 shard).
+ *  Uses the v2 mobile-graph node art (square viewBoxes 128/96/80/48). */
 export function NodeArt({ tier, size }: { tier: 1 | 2 | 3 | 4; size: number }) {
-  if (tier === 1) return <CoreNodeArt size={size} />;
-  if (tier === 2) return <DomainNodeArt size={size} />;
-  if (tier === 3) return <PersonaNodeArt size={size} />;
-  return <DataShardArt size={size} />;
+  const key = tier === 1 ? "core_v2" : tier === 2 ? "domain_v2" : tier === 3 ? "persona_v2" : "shard_v2";
+  return <SvgXml xml={MOBILE_GRAPH_XML[key]} width={size} height={size} />;
+}
+
+/** A self-contained v2 HUD button glyph (settings / back), 56×56 art. */
+export function PixelButton({ kind, size = 40 }: { kind: "settings" | "back"; size?: number }) {
+  const xml = MOBILE_GRAPH_XML[kind === "settings" ? "btn_settings" : "btn_back"];
+  return <SvgXml xml={xml} width={size} height={size} />;
 }
 
 /** One of the six pixel residents (all 64×64 square). */

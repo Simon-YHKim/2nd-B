@@ -31,7 +31,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic } from "@/lib/theme/tokens";
 import { CharacterPathLayer } from "@/components/graph/CharacterPathLayer";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
-import { PixelIcon } from "@/components/art/CosmicPixel";
+import { PixelButton } from "@/components/art/CosmicPixel";
 import { SecondBFab, SecondBSprite } from "@/components/art/SecondBSprite";
 
 const logo = require("../../assets/images/logo-glow.png");
@@ -188,10 +188,10 @@ export default function Landing() {
         <Pressable
           onPress={() => router.push("/settings")}
           hitSlop={8}
-          style={styles.settingsCog}
           accessibilityLabel={locale === "ko" ? "설정" : "Settings"}
         >
-          <PixelIcon name="settings" size={20} />
+          {/* v2 settings HUD button (self-contained art) */}
+          <PixelButton kind="settings" size={40} />
         </Pressable>
       </Animated.View>
 
