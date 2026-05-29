@@ -12,7 +12,7 @@
 //   • authenticated + no profile → /complete-profile (C10)
 //   • signed-in → tier dot opens bubble → confirm → router.push
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -36,6 +36,7 @@ import { SecondBFab, SecondBSprite } from "@/components/art/SecondBSprite";
 import { SvgXml } from "react-native-svg";
 import { ONBOARDING_XML, ONBOARDING_ASPECT } from "@/components/art/onboardingXml";
 import { isOnboardingComplete } from "@/lib/onboarding/state";
+import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 
 const logo = require("../../assets/images/logo-glow.png");
 
@@ -93,6 +94,24 @@ export default function Landing() {
 
   const [dataNodes, setDataNodes] = useState<DataNode[]>([]);
 
+  // SecondB presence: dozes off after a stretch of no interaction, and shows
+  // a soft notification glyph while there are pieces the user hasn't opened
+  // the center for yet. `wake()` resets the idle timer on any interaction.
+  const [sleeping, setSleeping] = useState(false);
+  const [centerSeen, setCenterSeen] = useState(false);
+  const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wake = useCallback(() => {
+    setSleeping(false);
+    if (sleepTimer.current) clearTimeout(sleepTimer.current);
+    sleepTimer.current = setTimeout(() => setSleeping(true), SLEEP_AFTER_MS);
+  }, []);
+  useEffect(() => {
+    wake();
+    return () => {
+      if (sleepTimer.current) clearTimeout(sleepTimer.current);
+    };
+  }, [wake]);
+
   const entryProgress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(entryProgress, { toValue: 1, duration: 750, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
@@ -145,8 +164,17 @@ export default function Landing() {
   if (!isOnboardingComplete()) return <Redirect href="/onboarding" />;
 
   function toggleLocale() {
+    wake();
     void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
   }
+
+  // SecondB nudges toward the center when there are pieces the user hasn't
+  // looked at yet this session; it dozes once idle and nothing is pending.
+  const presence = secondbPresence({
+    idleMs: sleeping ? SLEEP_AFTER_MS : 0,
+    sleepAfterMs: SLEEP_AFTER_MS,
+    hasNotification: dataNodes.length > 0 && !centerSeen,
+  });
 
   return (
     <View style={styles.skyContainer}>
@@ -193,9 +221,17 @@ export default function Landing() {
         {/* SecondB placeholder — soul-violet pixel block with a mint core.
             Same 52px footprint the eventual sprite will occupy. */}
         <View style={styles.mascotSlot} accessibilityLabel="SecondB">
-          <SecondBSprite state="idle" size={46} float />
+          <SecondBSprite state={presence.mascot === "sleep" ? "sleep" : "idle"} size={46} float={presence.mascot !== "sleep"} />
         </View>
-        <Pressable onPress={() => router.push("/core-brain")} hitSlop={8} style={{ flex: 1 }}>
+        <Pressable
+          onPress={() => {
+            wake();
+            setCenterSeen(true);
+            router.push("/core-brain");
+          }}
+          hitSlop={8}
+          style={{ flex: 1 }}
+        >
           <Text style={styles.insightEyebrow}>{locale === "ko" ? "오늘의 중심" : "Today's center"}</Text>
           <Text style={styles.insightText} numberOfLines={2}>{insight}</Text>
         </Pressable>
@@ -223,13 +259,17 @@ export default function Landing() {
           Single circular FAB, plenty of safe-area margin. */}
       <Animated.View style={[styles.jarvisFabWrap, { opacity: contentOpacity }]}>
         <Pressable
-          onPress={() => router.push("/jarvis")}
+          onPress={() => {
+            wake();
+            setCenterSeen(true);
+            router.push("/jarvis");
+          }}
           hitSlop={16}
           style={styles.jarvisFab}
           accessibilityLabel={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
         >
-          {/* SecondB v2 FAB sprite (default state, gentle float). */}
-          <SecondBFab fabState="default" size={48} />
+          {/* SecondB v2 FAB sprite — default / notification / chat_ready. */}
+          <SecondBFab fabState={presence.fab} size={48} />
         </Pressable>
       </Animated.View>
     </View>
