@@ -23,6 +23,7 @@ import {
 } from "@/lib/records/create";
 import { useProgression } from "@/lib/progression/useProgression";
 import { useSavePop } from "@/components/motion/useSignatureMotion";
+import { CharacterFlash } from "@/components/art/CosmicPixel";
 import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -56,6 +57,8 @@ export default function Journal() {
   const progression = useProgression();
   // 저장 / Save — "루루 뽁" signature pop on a successful entry.
   const { scale: saveScale, pop: savePop } = useSavePop();
+  // Bumped on save to flash 루루 (collection drone) briefly.
+  const [saveFlash, setSaveFlash] = useState(0);
   const [body, setBody] = useState("");
   const [topic, setTopic] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -131,8 +134,9 @@ export default function Journal() {
       setShowExtras(false);
       setAskAdvisor(false);
       await refresh(userId);
-      // 루루 뽁 — signature save pop (+ synth pop on web).
+      // 루루 뽁 — signature save pop (+ synth pop on web) + brief 루루 flash.
       savePop();
+      setSaveFlash((n) => n + 1);
       // Capture earned XP — refresh the level bar.
       void progression.refresh();
     } catch (e) {
@@ -472,6 +476,8 @@ export default function Journal() {
           )}
         </View>
       </ScrollView>
+      {/* 루루 — collection drone flashes briefly when an entry is saved (§9) */}
+      <CharacterFlash id="lulu" trigger={saveFlash} size={52} style={styles.saveFlash} />
       <CrisisRouter
         visible={crisis.visible}
         hotline={crisis.hotline}
@@ -650,6 +656,7 @@ const styles = StyleSheet.create({
   },
   navRow: { flexDirection: "row", gap: spacing.sm },
   composer: { gap: spacing.sm },
+  saveFlash: { position: "absolute", bottom: 90, right: 20 },
   composerHeadRow: {
     flexDirection: "row",
     justifyContent: "space-between",

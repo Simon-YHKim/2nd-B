@@ -27,6 +27,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { CHARACTERS } from "@/lib/characters";
 import { useImaginePulse } from "@/components/motion/useSignatureMotion";
+import { CharacterArt } from "@/components/art/CosmicPixel";
 
 export default function Imagine() {
   const { i18n } = useTranslation();
@@ -49,15 +50,12 @@ export default function Imagine() {
             Asset TODO: drop in /assets/characters/vela-idle@2x.png. */}
         <View style={styles.header}>
           <View style={styles.velaSpriteSlot}>
-            {/* Placeholder pixel block — Dream Pink body + signal-mint core.
-                The body carries Vela's "핑크 신호" presence pulse. */}
+            {/* 벨라 cosmic-pixel sprite carrying the "핑크 신호" presence pulse. */}
             <Animated.View
-              style={[
-                styles.velaPlaceholderBody,
-                { opacity: velaPulse.opacity, transform: [{ scale: velaPulse.scale }] },
-              ]}
-            />
-            <View style={styles.velaPlaceholderCore} />
+              style={{ opacity: velaPulse.opacity, transform: [{ scale: velaPulse.scale }] }}
+            >
+              <CharacterArt id="vela" size={56} />
+            </Animated.View>
           </View>
           <View style={{ flex: 1 }}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>

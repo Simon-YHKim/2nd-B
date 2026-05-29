@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-labelledby="title desc" shape-rendering="crispEdges">
+  <title>홈</title>
+  <desc>2ndB icon: 홈</desc>
+  <polygon points="5,16 16,6 27,16" fill="#A78BFA"/>
+  <rect x="8" y="16" width="16" height="12" fill="#16213E" stroke="#A78BFA" stroke-width="2"/>
+  <rect x="14" y="21" width="4" height="7" fill="#E8ECF8" opacity="0.85"/>
+</svg>

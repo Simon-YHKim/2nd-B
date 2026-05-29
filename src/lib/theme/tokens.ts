@@ -44,6 +44,16 @@ export const cosmic = {
   softWhite: "#F7F8FF",
   mistGray: "#8D98B8", // Muted text
   quietGray: "#64708E", // Subtle text
+
+  // Composite FX tokens — merged from the asset pack's
+  // 2ndb-cosmic-pixel-tokens.css so code references named tokens instead
+  // of inline rgba(). Edge / panel / glow surfaces of the graph village.
+  edgeDefault: "rgba(141,152,184,0.28)", // --edge-default
+  edgeRecent: "#FFD166", // --edge-recent (= pixelLamp)
+  panelBg: "rgba(13,21,48,0.88)", // --panel-bg
+  panelBorder: "rgba(141,152,184,0.28)", // --panel-border
+  coreGlow: "rgba(167,139,250,0.42)", // --core-glow
+  mintGlow: "rgba(114,242,199,0.34)", // --mint-glow
 } as const;
 
 export const darkSky = {

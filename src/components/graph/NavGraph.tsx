@@ -39,7 +39,9 @@ import {
 import Svg, { Line } from "react-native-svg";
 import { router, type Href } from "expo-router";
 import ReAnimated, {
+  runOnJS,
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -48,7 +50,9 @@ import { Text } from "@/components/ui/Text";
 import { cosmic } from "@/lib/theme/tokens";
 import { pitchForTier, playPop } from "@/lib/audio/pop";
 import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
+import { NodeArt, CharacterArt } from "@/components/art/CosmicPixel";
 import { clampPan, clampScale, panForFocalZoom } from "./zoom-math";
+import { tierVisibility } from "./tier-visibility";
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 
@@ -174,24 +178,17 @@ export const CENTER_NODE: NavNode = {
   },
 };
 
-function tierTone(t: Tier): string {
-  // Cosmic Pixel Village palette (2026-05-29 handoff §4 Graph Architecture):
-  //   Tier 1 = "나의 중심" / Core Brain — soul-violet, the village's central lamp
-  //   Tier 2 = "동네" / Domain — signal-blue, the bigger districts
-  //   Tier 3 = "나의 모습" / Persona — electric-mint, the role outposts
-  //   Tier 4 = "생각 조각" / record fragments — mist-gray pixels, soft, low signal
-  if (t === 1) return cosmic.soulViolet;
-  if (t === 2) return cosmic.signalBlue;
-  if (t === 3) return cosmic.signalMint;
-  return "rgba(141,152,184,0.55)"; // cosmic.mistGray washed
+function tierSize(t: Tier): number {
+  // UI/UX overhaul §5 node sizes (touch target met via hitSlop).
+  if (t === 1) return 88;
+  if (t === 2) return 64;
+  if (t === 3) return 48;
+  return 12;
 }
 
-function tierSize(t: Tier): number {
-  if (t === 1) return 52;
-  if (t === 2) return 26;
-  if (t === 3) return 16;
-  return 5;
-}
+// Center (tier 1) size — kept as a named constant since the center node
+// is positioned with explicit offsets in JSX.
+const CENTER_SIZE = tierSize(1);
 
 function seeded(id: string, salt: number): number {
   let h = 5381 + salt * 31;
@@ -316,8 +313,10 @@ export function NavGraph({ locale, dataNodes }: Props) {
   // angle so the parent→child line web reads as branching out.
   const positions = useMemo(() => {
     const minDim = Math.min(width, height);
-    const ring2 = minDim * 0.22;
-    const ring3 = minDim * 0.36;
+    // Rings widened from 0.22 / 0.36 to make room for the larger §5 node
+    // sizes so districts don't overlap the bigger center lamp.
+    const ring2 = minDim * 0.30;
+    const ring3 = minDim * 0.46;
 
     const map = new Map<string, { x: number; y: number; angle: number }>();
     map.set(CENTER_NODE.id, { x: cx, y: cy, angle: 0 });
@@ -363,7 +362,7 @@ export function NavGraph({ locale, dataNodes }: Props) {
     const cap = Math.min(dataNodes.length, 40);
     const out = new Map<string, { x: number; y: number; parentId: string }>();
     const minDim = Math.min(width, height);
-    const ring4 = minDim * 0.46;
+    const ring4 = minDim * 0.6;
     dataNodes.slice(0, cap).forEach((d) => {
       const parentId = d.parentId ?? "wiki-daily";
       const parent = positions.get(parentId);
@@ -521,9 +520,35 @@ export function NavGraph({ locale, dataNodes }: Props) {
 
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // Zoom-driven tier visibility (overhaul §5). Mirror the live pinch scale
+  // into a coarse 0/1/2 bucket on the JS thread; the worklet only pushes a
+  // state update when the bucket actually changes, so renders stay rare.
+  const [bucket, setBucket] = useState<0 | 1 | 2>(1);
+  const lastBucketRef = useRef<0 | 1 | 2>(1);
+  const pushBucket = (b: 0 | 1 | 2) => {
+    if (lastBucketRef.current !== b) {
+      lastBucketRef.current = b;
+      setBucket(b);
+    }
+  };
+  useDerivedValue(() => {
+    // Inline thresholds (must stay worklet-safe — mirrors scaleBucket()).
+    const s = zoomScale.value;
+    const b: 0 | 1 | 2 = s < 0.65 ? 0 : s < 1.1 ? 1 : 2;
+    runOnJS(pushBucket)(b);
+    return b;
+  });
+  const vis = tierVisibility(bucket < 1 ? 0.5 : bucket < 2 ? 1.0 : 1.5);
+  const nodeVisible = (tier: Tier): boolean =>
+    tier === 1 ? vis.tier1 : tier === 2 ? vis.tier2 : tier === 3 ? vis.tier3 : vis.tier4;
+  const tierOf = (id: string): Tier =>
+    id === CENTER_NODE.id ? 1 : MENU_NODES.find((n) => n.id === id)?.tier ?? 4;
+  const idVisible = (id: string): boolean => nodeVisible(tierOf(id));
+
   // 연결 발견 / "아치 라인 켜짐" — when a node is focused, its incident
-  // edges light up in Archi's signal-blue (handoff §8 + Prompt B "highlight
-  // connected edges on tap"). The glow fades dim → bright over ~500ms.
+  // edges light up in signal-mint (overhaul §7 "연결된 edge만 signal-mint로
+  // 하이라이트") and unrelated nodes/edges dim. The glow fades dim → bright
+  // over ~500ms.
   const { opacity: connGlow, light: lightConnections } = useConnectionGlow();
   useEffect(() => {
     if (activeId != null) lightConnections();
@@ -644,34 +669,51 @@ export function NavGraph({ locale, dataNodes }: Props) {
   const activeNode = activeId === CENTER_NODE.id
     ? CENTER_NODE
     : MENU_NODES.find((n) => n.id === activeId) ?? null;
-  const activeBase = activeNode
-    ? (activeNode.id === CENTER_NODE.id ? { x: cx, y: cy } : positions.get(activeNode.id))
-    : null;
 
-  function handleConfirm() {
+  // Neighbours of the focused node — drives edge highlight + node dimming
+  // (overhaul §7). Also the "연결된 조각 수" the sheet reports.
+  const activeNeighbors = useMemo(() => {
+    const s = new Set<string>();
+    if (activeId == null) return s;
+    for (const e of edges) {
+      if (e.fromId === activeId) s.add(e.toId);
+      else if (e.toId === activeId) s.add(e.fromId);
+    }
+    return s;
+  }, [activeId, edges]);
+  const connectedCount = activeNeighbors.size;
+  const isRelated = (id: string): boolean =>
+    activeId == null || id === activeId || activeNeighbors.has(id);
+
+  // Village type label per tier (overhaul §6/§7 sheet "노드 타입").
+  const typeLabel = (tier: Tier): string => {
+    if (tier === 1) return locale === "ko" ? "나의 중심" : "Center";
+    if (tier === 2) return locale === "ko" ? "동네" : "District";
+    if (tier === 3) return locale === "ko" ? "나의 모습" : "A side of me";
+    return locale === "ko" ? "생각 조각" : "Fragment";
+  };
+
+  function handleLook() {
     if (!activeNode?.href) return;
     const href = activeNode.href;
     setActiveId(null);
     router.push(href);
   }
 
-  function handleBubbleAction() {
-    if (!activeNode?.bubbleAction) return;
-    if (activeNode.bubbleAction === "jarvis") {
-      setActiveId(null);
-      router.push("/jarvis");
-    } else if (activeNode.bubbleAction === "upload") {
-      setActiveId(null);
-      router.push("/capture");
-    }
+  function handleAskSecondB() {
+    setActiveId(null);
+    router.push("/jarvis");
   }
 
   return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
     <GestureDetector gesture={composedGesture}>
       <ReAnimated.View style={[styles.root, zoomAnimatedStyle]} pointerEvents="box-none">
       {/* Animated edges — endpoints track each node's drift. */}
       <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
         {edges.map((e) => {
+          // Tier-gating (§5): hide edges whose endpoints aren't shown.
+          if (!idVisible(e.fromId) || !idVisible(e.toId)) return null;
           const fromBase = e.fromId === CENTER_NODE.id
             ? { x: cx, y: cy }
             : positions.get(e.fromId) ?? dataPositions.get(e.fromId);
@@ -679,11 +721,13 @@ export function NavGraph({ locale, dataNodes }: Props) {
             ? { x: cx, y: cy }
             : positions.get(e.toId) ?? dataPositions.get(e.toId);
           if (!fromBase || !toBase) return null;
+          const incident = activeId != null && (e.fromId === activeId || e.toId === activeId);
+          // §7: when a node is focused, dim the unrelated edges.
+          const dimFactor = activeId != null && !incident ? 0.22 : 1;
           const ev = edgeValues.current.get(e.key);
           const animOpacity = ev
-            ? (ev.interpolate({ inputRange: [0, 1], outputRange: [0, e.opacity] }) as unknown as number)
+            ? (ev.interpolate({ inputRange: [0, 1], outputRange: [0, e.opacity * dimFactor] }) as unknown as number)
             : 0;
-          const incident = activeId != null && (e.fromId === activeId || e.toId === activeId);
           const x1 = animX(e.fromId, fromBase.x) as unknown as number;
           const y1 = animY(e.fromId, fromBase.y) as unknown as number;
           const x2 = animX(e.toId, toBase.x) as unknown as number;
@@ -699,18 +743,18 @@ export function NavGraph({ locale, dataNodes }: Props) {
                 strokeOpacity={animOpacity}
                 strokeWidth={1}
               />
-              {/* Archi connection glow — only the focused node's edges. */}
+              {/* 연결된 edge만 signal-mint 하이라이트 (§7). */}
               {incident ? (
                 <AnimatedLine
                   x1={x1}
                   y1={y1}
                   x2={x2}
                   y2={y2}
-                  stroke={cosmic.signalBlue}
+                  stroke={cosmic.signalMint}
                   strokeOpacity={
-                    connGlow.interpolate({ inputRange: [0.25, 1], outputRange: [0.35, 0.95] }) as unknown as number
+                    connGlow.interpolate({ inputRange: [0.25, 1], outputRange: [0.4, 0.95] }) as unknown as number
                   }
-                  strokeWidth={1.6}
+                  strokeWidth={2}
                 />
               ) : null}
             </Fragment>
@@ -718,29 +762,35 @@ export function NavGraph({ locale, dataNodes }: Props) {
         })}
       </Svg>
 
-      {/* Tier 4 data dots — base position static, transform handles drift */}
-      {Array.from(dataPositions.entries()).map(([id, p]) => (
-        <Animated.View
-          key={id}
-          pointerEvents="none"
-          style={[
-            styles.dataDot,
-            {
-              left: p.x - 2.5,
-              top: p.y - 2.5,
-              opacity: spawnOpacity(id) as never,
-              transform: swayTransform(id) as never,
-            },
-          ]}
-        />
-      ))}
+      {/* Tier 4 data shards — only when zoomed in (§5). */}
+      {vis.tier4
+        ? Array.from(dataPositions.entries()).map(([id, p]) => (
+            <Animated.View
+              key={id}
+              pointerEvents="none"
+              style={[
+                styles.shardWrap,
+                {
+                  left: p.x - 7,
+                  top: p.y - 7,
+                  opacity: spawnOpacity(id) as never,
+                  transform: swayTransform(id) as never,
+                },
+                activeId != null && !isRelated(id) ? styles.dimmed : null,
+              ]}
+            >
+              <NodeArt tier={4} size={14} />
+            </Animated.View>
+          ))
+        : null}
 
-      {/* Tier 2 + 3 dots */}
+      {/* Tier 2 + 3 nodes — pixel-object art; tier 3 gated by zoom (§5) */}
       {MENU_NODES.map((n) => {
+        if (!nodeVisible(n.tier)) return null;
         const base = positions.get(n.id);
         if (!base) return null;
-        const color = tierTone(n.tier);
         const size = tierSize(n.tier);
+        const dim = activeId != null && !isRelated(n.id);
         return (
           <Animated.View
             key={n.id}
@@ -756,12 +806,21 @@ export function NavGraph({ locale, dataNodes }: Props) {
               },
             ]}
           >
-            <Pressable
-              onPress={() => setActiveId(n.id === activeId ? null : n.id)}
-              hitSlop={14}
-              accessibilityLabel={n.label[locale]}
-              style={[styles.menuDot, { backgroundColor: color, borderColor: color, width: size, height: size, borderRadius: size / 2 }]}
-            />
+            <View
+              style={[
+                styles.nodeArtWrap,
+                n.id === activeId ? styles.nodeFocused : null,
+                dim ? styles.dimmed : null,
+              ]}
+            >
+              <NodeArt tier={n.tier} size={size} />
+              <Pressable
+                onPress={() => setActiveId(n.id === activeId ? null : n.id)}
+                hitSlop={14}
+                accessibilityLabel={n.label[locale]}
+                style={StyleSheet.absoluteFill}
+              />
+            </View>
           </Animated.View>
         );
       })}
@@ -771,138 +830,184 @@ export function NavGraph({ locale, dataNodes }: Props) {
         style={[
           styles.menuDotWrap,
           {
-            left: cx - 26,
-            top: cy - 26,
-            width: 52,
-            height: 52,
+            left: cx - CENTER_SIZE / 2,
+            top: cy - CENTER_SIZE / 2,
+            width: CENTER_SIZE,
+            height: CENTER_SIZE,
             opacity: spawnOpacity(CENTER_NODE.id) as never,
             transform: swayTransform(CENTER_NODE.id) as never,
           },
         ]}
       >
-        <Pressable
-          onPress={() => setActiveId(CENTER_NODE.id === activeId ? null : CENTER_NODE.id)}
-          hitSlop={20}
-          accessibilityLabel={CENTER_NODE.label[locale]}
-          style={styles.centerDot}
-        />
+        <View
+          style={[
+            styles.centerArtWrap,
+            CENTER_NODE.id === activeId ? styles.nodeFocused : null,
+            activeId != null && !isRelated(CENTER_NODE.id) ? styles.dimmed : null,
+          ]}
+        >
+          <NodeArt tier={1} size={CENTER_SIZE} />
+          <Pressable
+            onPress={() => setActiveId(CENTER_NODE.id === activeId ? null : CENTER_NODE.id)}
+            hitSlop={20}
+            accessibilityLabel={CENTER_NODE.label[locale]}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
       </Animated.View>
 
-      {/* Bubble */}
-      {activeNode && activeBase ? (
-        <Animated.View
-          style={[
-            styles.bubble,
-            {
-              left: Math.max(16, Math.min(width - 16 - 260, activeBase.x - 130)),
-              top: activeBase.y > cy ? activeBase.y - 150 : activeBase.y + 30,
-              opacity: bubbleAnim.interpolate({ inputRange: [0, 0.5, 1.2], outputRange: [0, 1, 1] }) as never,
-              transform: [{ scale: bubbleAnim }] as never,
-            },
-          ]}
-          pointerEvents="box-none"
-        >
-          <View style={styles.bubbleBody}>
-            <View style={styles.bubbleHead}>
-              <Text variant="caption" color="brand" style={styles.bubbleLabel}>
-                {activeNode.label[locale]}
-              </Text>
-              {activeNode.bubbleAction ? (
-                <Pressable onPress={handleBubbleAction} hitSlop={8} style={styles.bubbleIcon}>
-                  <Text style={styles.bubbleIconText}>
-                    {activeNode.bubbleAction === "jarvis" ? "💬" : "+"}
-                  </Text>
-                </Pressable>
-              ) : null}
-            </View>
-            <Text variant="body" style={styles.bubbleDesc}>
-              {activeNode.description[locale]}
-            </Text>
-            <Text variant="subtle" color="textSubtle" style={styles.bubbleAsk}>
-              {locale === "ko" ? "들어갈까요?" : "Go here?"}
-            </Text>
-            <View style={styles.bubbleActions}>
-              <Pressable onPress={handleConfirm} style={[styles.bubbleBtn, styles.bubbleBtnYes]}>
-                <Text style={styles.bubbleBtnYesText}>
-                  {locale === "ko" ? "네" : "Yes"}
-                </Text>
-              </Pressable>
-              <Pressable onPress={() => setActiveId(null)} style={[styles.bubbleBtn, styles.bubbleBtnNo]}>
-                <Text style={styles.bubbleBtnNoText}>
-                  {locale === "ko" ? "아니오" : "No"}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </Animated.View>
-      ) : null}
       </ReAnimated.View>
     </GestureDetector>
+
+      {/* Node bottom sheet (§7) — screen-fixed, outside the zoom transform. */}
+      {activeNode ? (
+        <NodeSheet
+          locale={locale}
+          name={activeNode.label[locale]}
+          type={typeLabel(activeNode.tier)}
+          connectedCount={connectedCount}
+          description={activeNode.description[locale]}
+          onLook={handleLook}
+          onAsk={handleAskSecondB}
+          onClose={() => setActiveId(null)}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+// Bottom sheet shown when a node is focused. Slides up from the bottom and
+// stays screen-fixed (it is rendered outside the zoom/pan transform).
+function NodeSheet({
+  locale,
+  name,
+  type,
+  connectedCount,
+  description,
+  onLook,
+  onAsk,
+  onClose,
+}: {
+  locale: "en" | "ko";
+  name: string;
+  type: string;
+  connectedCount: number;
+  description: string;
+  onLook: () => void;
+  onAsk: () => void;
+  onClose: () => void;
+}) {
+  const slide = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    slide.setValue(0);
+    Animated.timing(slide, {
+      toValue: 1,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [slide, name]);
+  const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
+
+  return (
+    <Animated.View style={[styles.sheet, { opacity: slide as never, transform: [{ translateY }] }]}>
+      <View style={styles.sheetHandle} />
+      <View style={styles.sheetHead}>
+        <View style={styles.sheetTitleRow}>
+          {/* 아치 — connection guide, appears on the highlight moment (§9) */}
+          <CharacterArt id="archi" size={28} />
+          <Text variant="heading" style={styles.sheetName}>{name}</Text>
+        </View>
+        <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={locale === "ko" ? "닫기" : "Close"}>
+          <Text style={styles.sheetClose}>✕</Text>
+        </Pressable>
+      </View>
+      <View style={styles.sheetMetaRow}>
+        <Text variant="caption" color="brand" style={styles.sheetType}>{type}</Text>
+        {connectedCount > 0 ? (
+          <Text variant="subtle" color="textMuted">
+            {locale === "ko" ? `연결된 조각 ${connectedCount}개` : `${connectedCount} connected`}
+          </Text>
+        ) : null}
+      </View>
+      <Text variant="body" color="textMuted" style={styles.sheetDesc}>{description}</Text>
+      <View style={styles.sheetActions}>
+        <Pressable onPress={onLook} style={[styles.sheetBtn, styles.sheetBtnPrimary]}>
+          <Text style={styles.sheetBtnPrimaryText}>{locale === "ko" ? "살펴보기" : "Look around"}</Text>
+        </Pressable>
+        <Pressable onPress={onAsk} style={[styles.sheetBtn, styles.sheetBtnSecondary]}>
+          <Text style={styles.sheetBtnSecondaryText}>{locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}</Text>
+        </Pressable>
+      </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { ...StyleSheet.absoluteFill as object },
   menuDotWrap: { position: "absolute", alignItems: "center", justifyContent: "center" },
-  menuDot: {
-    borderWidth: 1,
-    // Cosmic palette: active connections / signals glow mint (handoff §6 UI 상태색).
-    shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.6,
-    shadowRadius: 6,
+  nodeArtWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "stretch",
+  },
+  centerArtWrap: {
+    width: CENTER_SIZE,
+    height: CENTER_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+    // Core Brain = 나의 중심 = village central lamp glow (§7-2).
+    shadowColor: cosmic.coreGlow,
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
     shadowOffset: { width: 0, height: 0 },
   },
-  dataDot: {
-    position: "absolute",
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    // 생각 조각 — mist-gray washed, low-key until the user zooms in.
-    backgroundColor: "rgba(141,152,184,0.55)",
-  },
-  centerDot: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    // Core Brain = 나의 중심 = village central lamp:
-    // soul-violet body + pixel-lamp glow (handoff §4 Tier 1 / §7-2 center-lamp).
-    backgroundColor: cosmic.soulViolet,
-    shadowColor: cosmic.pixelLamp,
-    shadowOpacity: 0.7,
+  shardWrap: { position: "absolute", width: 14, height: 14, alignItems: "center", justifyContent: "center" },
+  // Selection states (§7).
+  nodeFocused: {
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.95,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
-    borderWidth: 2,
-    borderColor: "rgba(255,209,102,0.32)", // pixel-lamp rim, like a soft halo
   },
-  bubble: { position: "absolute", width: 260 },
-  bubbleBody: {
-    backgroundColor: cosmic.space950,
-    borderColor: cosmic.lineDim,
+  dimmed: { opacity: 0.28 },
+  // Node bottom sheet (§7) — screen-fixed, slides up from the bottom.
+  sheet: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 24,
+    zIndex: 25,
+    borderRadius: 22,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderColor: "rgba(141,152,184,0.28)",
+    backgroundColor: "rgba(13,21,48,0.96)",
+    padding: 16,
     shadowColor: "#000",
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
   },
-  bubbleHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  bubbleLabel: { letterSpacing: 1 },
-  bubbleIcon: {
-    backgroundColor: cosmic.signalMint,
-    width: 28, height: 28, borderRadius: 14,
-    alignItems: "center", justifyContent: "center",
+  sheetHandle: {
+    alignSelf: "center",
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: cosmic.lineDim,
+    marginBottom: 12,
   },
-  bubbleIconText: { color: cosmic.space950, fontSize: 14, fontWeight: "800" },
-  bubbleDesc: { marginTop: 6, color: cosmic.moonWhite, fontSize: 13, lineHeight: 18 },
-  bubbleAsk: { marginTop: 6, fontSize: 11, letterSpacing: 0.5 },
-  bubbleActions: { flexDirection: "row", gap: 8, marginTop: 10 },
-  bubbleBtn: {
-    flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: "center", borderWidth: 1,
-  },
-  bubbleBtnYes: { backgroundColor: cosmic.signalMint, borderColor: cosmic.signalMint },
-  bubbleBtnYesText: { color: cosmic.space950, fontWeight: "700", fontSize: 13 },
-  bubbleBtnNo: { backgroundColor: "transparent", borderColor: cosmic.lineDim },
-  bubbleBtnNoText: { color: cosmic.mistGray, fontSize: 13 },
+  sheetHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  sheetTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
+  sheetName: { flexShrink: 1 },
+  sheetClose: { color: cosmic.mistGray, fontSize: 16, paddingHorizontal: 4 },
+  sheetMetaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 },
+  sheetType: { letterSpacing: 1 },
+  sheetDesc: { marginTop: 10, lineHeight: 20 },
+  sheetActions: { flexDirection: "row", gap: 10, marginTop: 16 },
+  sheetBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center", borderWidth: 1 },
+  sheetBtnPrimary: { backgroundColor: cosmic.signalMint, borderColor: cosmic.signalMint },
+  sheetBtnPrimaryText: { color: cosmic.space950, fontWeight: "700", fontSize: 14 },
+  sheetBtnSecondary: { backgroundColor: "transparent", borderColor: cosmic.lineDim },
+  sheetBtnSecondaryText: { color: cosmic.moonWhite, fontSize: 14 },
 });

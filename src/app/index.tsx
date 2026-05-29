@@ -31,6 +31,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic } from "@/lib/theme/tokens";
 import { CharacterPathLayer } from "@/components/graph/CharacterPathLayer";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
+import { CharacterArt, PixelIcon } from "@/components/art/CosmicPixel";
 
 const logo = require("../../assets/images/logo-glow.png");
 
@@ -168,10 +169,10 @@ export default function Landing() {
         {/* SecondB placeholder — soul-violet pixel block with a mint core.
             Same 52px footprint the eventual sprite will occupy. */}
         <View style={styles.mascotSlot} accessibilityLabel="SecondB">
-          <View style={styles.mascotPixelCore} />
+          <CharacterArt id="secondb" size={46} />
         </View>
         <Pressable onPress={() => router.push("/insights")} hitSlop={8} style={{ flex: 1 }}>
-          <Text style={styles.insightEyebrow}>{locale === "ko" ? "나의 중심" : "Center of me"}</Text>
+          <Text style={styles.insightEyebrow}>{locale === "ko" ? "오늘의 중심" : "Today's center"}</Text>
           <Text style={styles.insightText} numberOfLines={2}>{insight}</Text>
         </Pressable>
       </Animated.View>
@@ -189,7 +190,7 @@ export default function Landing() {
           style={styles.settingsCog}
           accessibilityLabel={locale === "ko" ? "설정" : "Settings"}
         >
-          <Text style={styles.settingsCogIcon}>⚙</Text>
+          <PixelIcon name="settings" size={20} />
         </Pressable>
       </Animated.View>
 
@@ -203,12 +204,8 @@ export default function Landing() {
           style={styles.jarvisFab}
           accessibilityLabel={locale === "ko" ? "세컨비 열기" : "Open 2ndB"}
         >
-          {/* SecondB pixel mark — soul-violet pad with a mint core dot.
-              Replaces the 💬 emoji per handoff §5 (SecondB is a pixel
-              robot, not a speech bubble). Full sprite lands in Phase 3. */}
-          <View style={styles.jarvisFabSprite}>
-            <View style={styles.jarvisFabSpriteCore} />
-          </View>
+          {/* SecondB pixel robot — the v1 cosmic-pixel sprite (asset pack). */}
+          <CharacterArt id="secondb" size={44} />
         </Pressable>
       </Animated.View>
     </View>
