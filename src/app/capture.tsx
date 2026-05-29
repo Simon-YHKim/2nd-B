@@ -237,18 +237,23 @@ export default function Capture() {
 
           {/* Import success → graph link (journal-capture pack §3/§7) */}
           {savedTitle ? (
-            <View style={styles.savedPanel}>
-              <Text variant="body" color="brand" style={{ fontWeight: "600" }}>
-                {locale === "ko" ? "루루가 새 조각을 가져왔어요" : "Lulu brought a new piece"}
-              </Text>
-              <Text variant="subtle" color="textMuted" numberOfLines={1} style={{ marginTop: 2 }}>
-                {savedTitle}
-              </Text>
-              <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
-                <Button label={locale === "ko" ? "그래프 보기" : "See the graph"} variant="secondary" onPress={() => router.push("/")} />
-                <Button label={locale === "ko" ? "또 담기" : "Capture more"} variant="secondary" onPress={() => setSavedTitle(null)} />
+            <PremiumCard glow style={styles.savedPanel}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <ShardArt id="capture_mint" size={48} />
+                <View style={{ flex: 1 }}>
+                  <Text variant="body" color="brand" style={{ fontWeight: "600" }}>
+                    {locale === "ko" ? "루루가 새 조각을 가져왔어요" : "Lulu brought a new piece"}
+                  </Text>
+                  <Text variant="subtle" color="textMuted" numberOfLines={1} style={{ marginTop: 2 }}>
+                    {savedTitle}
+                  </Text>
+                </View>
               </View>
-            </View>
+              <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
+                <PremiumButton label={locale === "ko" ? "그래프 보기" : "See the graph"} variant="secondary" onPress={() => router.push("/")} style={{ flex: 1 }} />
+                <PremiumButton label={locale === "ko" ? "또 담기" : "Capture more"} variant="ghost" onPress={() => setSavedTitle(null)} style={{ flex: 1 }} />
+              </View>
+            </PremiumCard>
           ) : null}
 
           {/* Track toggle: 일상 / Pro */}

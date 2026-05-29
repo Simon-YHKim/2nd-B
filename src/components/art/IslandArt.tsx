@@ -1,13 +1,13 @@
-// Floating pixel island art (premium closing pack). Renders the 512×512
-// transparent island sprites as decorative node artwork on the graph. The
-// image layer is purely decorative (pointer-events none in the caller); the
-// interactive hitbox + label live in the graph node component, so the island
-// can be drawn larger than the touch target.
+// Floating pixel island art (premium closing pack). Renders the transparent
+// island / shard PNG sprites as decorative node artwork on the graph. The
+// image layer is decorative (the graph node owns the hitbox + label), so the
+// island can be drawn larger than the touch target.
 //
 // PNGs are require()'d so Metro bundles them for web + native. image-rendering
-// pixelated keeps the pixel art crisp when scaled up.
+// pixelated keeps the pixel art crisp when scaled up (web-only CSS; ignored
+// on native).
 
-import { Image, StyleSheet, type ViewStyle, type StyleProp } from "react-native";
+import { Image, type ImageStyle, type StyleProp } from "react-native";
 
 const ISLANDS = {
   core: require("../../../public/assets/premium-closing/islands/png/core_center_island.png"),
@@ -31,34 +31,29 @@ const SHARDS = {
 
 export type ShardId = keyof typeof SHARDS;
 
-export function IslandArt({ id, size, style }: { id: IslandId; size: number; style?: StyleProp<ViewStyle> }) {
+// imageRendering is a web-only CSS prop, not in RN's ImageStyle type.
+const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
+
+export function IslandArt({ id, size, style }: { id: IslandId; size: number; style?: StyleProp<ImageStyle> }) {
   return (
     <Image
       source={ISLANDS[id]}
-      style={[{ width: size, height: size }, styles.pixelated, style as never]}
+      style={[{ width: size, height: size }, PIXELATED, style]}
       resizeMode="contain"
-      accessibilityIgnoresInvertColors
-      // decorative — the graph node owns the a11y label
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     />
   );
 }
 
-export function ShardArt({ id, size, style }: { id: ShardId; size: number; style?: StyleProp<ViewStyle> }) {
+export function ShardArt({ id, size, style }: { id: ShardId; size: number; style?: StyleProp<ImageStyle> }) {
   return (
     <Image
       source={SHARDS[id]}
-      style={[{ width: size, height: size }, styles.pixelated, style as never]}
+      style={[{ width: size, height: size }, PIXELATED, style]}
       resizeMode="contain"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     />
   );
 }
-
-const styles = StyleSheet.create({
-  // imageRendering is a web-only CSS prop; ignored on native. Keeps the
-  // upscaled pixel art crisp instead of blurry.
-  pixelated: { imageRendering: "pixelated" } as unknown as ViewStyle,
-});
