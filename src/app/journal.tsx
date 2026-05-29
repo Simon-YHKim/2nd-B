@@ -59,6 +59,8 @@ export default function Journal() {
   const { scale: saveScale, pop: savePop } = useSavePop();
   // 모모 brief event moment on save (companion pack §3: journalSaved → momo).
   const companion = useCompanionMoment();
+  // Shows the "그래프 보기" success panel after a save, until the next keystroke.
+  const [justSaved, setJustSaved] = useState(false);
   const [body, setBody] = useState("");
   const [topic, setTopic] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -137,6 +139,7 @@ export default function Journal() {
       // 뽁 — signature save pop (+ synth pop on web) + 세컨비 celebration.
       savePop();
       companion.fire("journalSaved");
+      setJustSaved(true);
       // Capture earned XP — refresh the level bar.
       void progression.refresh();
     } catch (e) {
@@ -173,7 +176,7 @@ export default function Journal() {
         <View style={styles.headerRow}>
           <View>
             <Text variant="caption" color="brand">2nd-Brain</Text>
-            <Text variant="heading">{t("app.name")}</Text>
+            <Text variant="heading">{locale === "ko" ? "오늘의 조각" : "Today's piece"}</Text>
           </View>
           <Button label={t("actions.signOut")} variant="secondary" onPress={handleSignOut} />
         </View>
@@ -332,13 +335,27 @@ export default function Journal() {
               placeholder={locale === "ko" ? "주제 (선택) — 한 줄로" : "Topic (optional) — one line"}
               autoCapitalize="sentences"
             />
+            {/* Quick prompt chips (journal-capture pack §2) — tap to seed
+                the piece. "한 문장이어도 충분해요." */}
+            {body.trim().length === 0 ? (
+              <View style={styles.promptChipRow}>
+                {(locale === "ko"
+                  ? ["오늘 가장 또렷했던 순간", "요즘 자주 떠오르는 생각", "지금 마음에 걸리는 것"]
+                  : ["A moment that stood out today", "A thought that keeps returning", "Something on my mind"]
+                ).map((p) => (
+                  <Pressable key={p} style={styles.promptChip} onPress={() => setBody(p + (locale === "ko" ? ": " : ": "))}>
+                    <Text variant="caption" color="brand">{p}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             <Input
               value={body}
               onChangeText={setBody}
               placeholder={
                 locale === "ko"
-                  ? "오늘 떠오른 생각이나 느낌을 적어주세요."
-                  : "What's on your mind today?"
+                  ? "오늘 떠오른 생각이나 느낌을 적어주세요. 한 문장이어도 충분해요."
+                  : "What's on your mind today? One sentence is enough."
               }
               multiline
               numberOfLines={6}
@@ -414,6 +431,24 @@ export default function Journal() {
                 loading={submitting}
               />
             </Animated.View>
+            {/* Save success → graph link (journal-capture pack §2/§7) */}
+            {justSaved && body.trim().length === 0 ? (
+              <View style={styles.savedPanel}>
+                <Text variant="body" color="brand" style={{ fontWeight: "600" }}>
+                  {locale === "ko" ? "조각을 잘 보관했어요" : "Your piece is safely kept"}
+                </Text>
+                <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
+                  {locale === "ko"
+                    ? "이 조각은 나중에 다른 길과 이어질 수 있어요."
+                    : "It may connect to other paths later."}
+                </Text>
+                <Button
+                  label={locale === "ko" ? "그래프 보기" : "See the graph"}
+                  variant="secondary"
+                  onPress={() => router.push("/")}
+                />
+              </View>
+            ) : null}
             <Text variant="subtle" color="textSubtle" style={styles.privacyFootnote}>
               {t("journal.privacyFootnote")}
             </Text>
@@ -658,7 +693,24 @@ const styles = StyleSheet.create({
   },
   navRow: { flexDirection: "row", gap: spacing.sm },
   composer: { gap: spacing.sm },
+  promptChipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  promptChip: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
   saveFlash: { position: "absolute", bottom: 90, right: 20 },
+  savedPanel: {
+    backgroundColor: "rgba(114,242,199,0.06)",
+    borderColor: "rgba(114,242,199,0.22)",
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
   composerHeadRow: {
     flexDirection: "row",
     justifyContent: "space-between",

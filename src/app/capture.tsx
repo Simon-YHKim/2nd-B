@@ -94,6 +94,8 @@ export default function Capture() {
   const [tagsEditable, setTagsEditable] = useState<string[]>([]);
   // 루루 brief event moment on capture (companion pack §3: captureSaved → lulu).
   const companion = useCompanionMoment();
+  // Title of the just-saved piece — drives the inline success panel.
+  const [savedTitle, setSavedTitle] = useState<string | null>(null);
 
   if (loading) return null;
   if (!userId) {
@@ -198,15 +200,10 @@ export default function Capture() {
         track,
       });
 
-      const trackLabel = track === "pro" ? (locale === "ko" ? "Pro Wiki" : "Pro Wiki") : (locale === "ko" ? "일상 Wiki" : "Daily Wiki");
-      Alert.alert(
-        locale === "ko" ? "자재 반입 완료!" : "Captured!",
-        locale === "ko"
-          ? `${trackLabel}로 들어갔어요: ${result.source.title}\n태그 ${result.source.tags.length}개`
-          : `Filed under ${trackLabel}: ${result.source.title}\n${result.source.tags.length} tags`,
-      );
       reset();
       companion.fire("captureSaved");
+      // Inline success panel (journal-capture pack §3/§7) replaces the alert.
+      setSavedTitle(result.source.title);
     } catch (e) {
       Alert.alert(
         locale === "ko" ? "저장 실패" : "Save failed",
@@ -225,14 +222,30 @@ export default function Capture() {
           <View style={styles.header}>
             <Text variant="caption" color="brand">2nd-Brain</Text>
             <Text variant="heading">
-              {locale === "ko" ? "자재 반입 🪨" : "Drop into the cells 🪨"}
+              {locale === "ko" ? "조각 담기" : "Capture a piece"}
             </Text>
             <Text variant="body" color="textMuted">
               {locale === "ko"
-                ? "일꾼 세포들에게 새 재료를 넘기세요. 자동으로 분류·태그가 달려요."
-                : "Hand new material to the cells — they'll sort and tag it."}
+                ? "메모·링크·파일·사진을 던지면 조각으로 보관하고 자동으로 분류·태그해요."
+                : "Toss a memo, link, file, or photo — we'll keep it as a piece and sort + tag it."}
             </Text>
           </View>
+
+          {/* Import success → graph link (journal-capture pack §3/§7) */}
+          {savedTitle ? (
+            <View style={styles.savedPanel}>
+              <Text variant="body" color="brand" style={{ fontWeight: "600" }}>
+                {locale === "ko" ? "루루가 새 조각을 가져왔어요" : "Lulu brought a new piece"}
+              </Text>
+              <Text variant="subtle" color="textMuted" numberOfLines={1} style={{ marginTop: 2 }}>
+                {savedTitle}
+              </Text>
+              <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
+                <Button label={locale === "ko" ? "그래프 보기" : "See the graph"} variant="secondary" onPress={() => router.push("/")} />
+                <Button label={locale === "ko" ? "또 담기" : "Capture more"} variant="secondary" onPress={() => setSavedTitle(null)} />
+              </View>
+            </View>
+          ) : null}
 
           {/* Track toggle: 일상 / Pro */}
           <View style={styles.trackCard}>
@@ -461,6 +474,13 @@ function TagAdder({ onAdd, locale }: { onAdd: (s: string) => void; locale: "en" 
 
 const styles = StyleSheet.create({
   captureFlash: { position: "absolute", bottom: 40, right: 20 },
+  savedPanel: {
+    backgroundColor: "rgba(114,242,199,0.06)",
+    borderColor: "rgba(114,242,199,0.22)",
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+  },
   scroll: { paddingBottom: spacing.xl, gap: spacing.md },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   trackCard: {
