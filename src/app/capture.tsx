@@ -41,6 +41,7 @@ import { detectClipperKind } from "@/lib/wiki/clipper-kind";
 import { pickAndOcrImage } from "@/lib/wiki/capture-image";
 import { pickFile, type PickedFile } from "@/lib/wiki/capture-file";
 import { classifyCapture, type WikiTrack } from "@/lib/wiki/classify-track";
+import { CharacterFlash } from "@/components/art/CosmicPixel";
 
 type Mode = "memo" | "link" | "clip" | "ocr" | "file";
 
@@ -91,6 +92,8 @@ export default function Capture() {
   const [classifying, setClassifying] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [tagsEditable, setTagsEditable] = useState<string[]>([]);
+  // Bumped on a successful capture to flash 루루 (collection drone).
+  const [captureFlash, setCaptureFlash] = useState(0);
 
   if (loading) return null;
   if (!userId) {
@@ -203,6 +206,7 @@ export default function Capture() {
           : `Filed under ${trackLabel}: ${result.source.title}\n${result.source.tags.length} tags`,
       );
       reset();
+      setCaptureFlash((n) => n + 1);
     } catch (e) {
       Alert.alert(
         locale === "ko" ? "저장 실패" : "Save failed",
@@ -428,6 +432,8 @@ export default function Capture() {
           <AppNav locale={locale} />
         </ScrollView>
       </KeyboardAvoidingView>
+      {/* 루루 — collection drone flashes on a successful capture (§9) */}
+      <CharacterFlash id="lulu" trigger={captureFlash} size={52} style={styles.captureFlash} />
     </Screen>
   );
 }
@@ -452,6 +458,7 @@ function TagAdder({ onAdd, locale }: { onAdd: (s: string) => void; locale: "en" 
 }
 
 const styles = StyleSheet.create({
+  captureFlash: { position: "absolute", bottom: 40, right: 20 },
   scroll: { paddingBottom: spacing.xl, gap: spacing.md },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   trackCard: {

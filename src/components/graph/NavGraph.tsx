@@ -50,6 +50,7 @@ import { Text } from "@/components/ui/Text";
 import { cosmic } from "@/lib/theme/tokens";
 import { pitchForTier, playPop } from "@/lib/audio/pop";
 import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
+import { NodeArt, CharacterArt } from "@/components/art/CosmicPixel";
 import { clampPan, clampScale, panForFocalZoom } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
 
@@ -176,18 +177,6 @@ export const CENTER_NODE: NavNode = {
     ko: "여기가 너의 중심이야. 작은 친구들이랑 함께 조각들을 정리해두고 있어.",
   },
 };
-
-function tierTone(t: Tier): string {
-  // Cosmic Pixel Village palette (2026-05-29 handoff §4 Graph Architecture):
-  //   Tier 1 = "나의 중심" / Core Brain — soul-violet, the village's central lamp
-  //   Tier 2 = "동네" / Domain — signal-blue, the bigger districts
-  //   Tier 3 = "나의 모습" / Persona — electric-mint, the role outposts
-  //   Tier 4 = "생각 조각" / record fragments — mist-gray pixels, soft, low signal
-  if (t === 1) return cosmic.soulViolet;
-  if (t === 2) return cosmic.signalBlue;
-  if (t === 3) return cosmic.signalMint;
-  return "rgba(141,152,184,0.55)"; // cosmic.mistGray washed
-}
 
 function tierSize(t: Tier): number {
   // UI/UX overhaul §5 node sizes (touch target met via hitSlop).
@@ -773,32 +762,33 @@ export function NavGraph({ locale, dataNodes }: Props) {
         })}
       </Svg>
 
-      {/* Tier 4 data dots — only when zoomed in (§5). */}
+      {/* Tier 4 data shards — only when zoomed in (§5). */}
       {vis.tier4
         ? Array.from(dataPositions.entries()).map(([id, p]) => (
             <Animated.View
               key={id}
               pointerEvents="none"
               style={[
-                styles.dataDot,
+                styles.shardWrap,
                 {
-                  left: p.x - 6,
-                  top: p.y - 6,
+                  left: p.x - 7,
+                  top: p.y - 7,
                   opacity: spawnOpacity(id) as never,
                   transform: swayTransform(id) as never,
                 },
                 activeId != null && !isRelated(id) ? styles.dimmed : null,
               ]}
-            />
+            >
+              <NodeArt tier={4} size={14} />
+            </Animated.View>
           ))
         : null}
 
-      {/* Tier 2 + 3 dots — tier 3 gated by zoom (§5) */}
+      {/* Tier 2 + 3 nodes — pixel-object art; tier 3 gated by zoom (§5) */}
       {MENU_NODES.map((n) => {
         if (!nodeVisible(n.tier)) return null;
         const base = positions.get(n.id);
         if (!base) return null;
-        const color = tierTone(n.tier);
         const size = tierSize(n.tier);
         const dim = activeId != null && !isRelated(n.id);
         return (
@@ -816,17 +806,21 @@ export function NavGraph({ locale, dataNodes }: Props) {
               },
             ]}
           >
-            <Pressable
-              onPress={() => setActiveId(n.id === activeId ? null : n.id)}
-              hitSlop={14}
-              accessibilityLabel={n.label[locale]}
+            <View
               style={[
-                styles.menuDot,
-                { backgroundColor: color, borderColor: color, width: size, height: size, borderRadius: size / 2 },
+                styles.nodeArtWrap,
                 n.id === activeId ? styles.nodeFocused : null,
                 dim ? styles.dimmed : null,
               ]}
-            />
+            >
+              <NodeArt tier={n.tier} size={size} />
+              <Pressable
+                onPress={() => setActiveId(n.id === activeId ? null : n.id)}
+                hitSlop={14}
+                accessibilityLabel={n.label[locale]}
+                style={StyleSheet.absoluteFill}
+              />
+            </View>
           </Animated.View>
         );
       })}
@@ -845,16 +839,21 @@ export function NavGraph({ locale, dataNodes }: Props) {
           },
         ]}
       >
-        <Pressable
-          onPress={() => setActiveId(CENTER_NODE.id === activeId ? null : CENTER_NODE.id)}
-          hitSlop={20}
-          accessibilityLabel={CENTER_NODE.label[locale]}
+        <View
           style={[
-            styles.centerDot,
+            styles.centerArtWrap,
             CENTER_NODE.id === activeId ? styles.nodeFocused : null,
             activeId != null && !isRelated(CENTER_NODE.id) ? styles.dimmed : null,
           ]}
-        />
+        >
+          <NodeArt tier={1} size={CENTER_SIZE} />
+          <Pressable
+            onPress={() => setActiveId(CENTER_NODE.id === activeId ? null : CENTER_NODE.id)}
+            hitSlop={20}
+            accessibilityLabel={CENTER_NODE.label[locale]}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
       </Animated.View>
 
       </ReAnimated.View>
@@ -914,7 +913,11 @@ function NodeSheet({
     <Animated.View style={[styles.sheet, { opacity: slide as never, transform: [{ translateY }] }]}>
       <View style={styles.sheetHandle} />
       <View style={styles.sheetHead}>
-        <Text variant="heading" style={styles.sheetName}>{name}</Text>
+        <View style={styles.sheetTitleRow}>
+          {/* 아치 — connection guide, appears on the highlight moment (§9) */}
+          <CharacterArt id="archi" size={28} />
+          <Text variant="heading" style={styles.sheetName}>{name}</Text>
+        </View>
         <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={locale === "ko" ? "닫기" : "Close"}>
           <Text style={styles.sheetClose}>✕</Text>
         </Pressable>
@@ -943,43 +946,30 @@ function NodeSheet({
 const styles = StyleSheet.create({
   root: { ...StyleSheet.absoluteFill as object },
   menuDotWrap: { position: "absolute", alignItems: "center", justifyContent: "center" },
-  menuDot: {
-    borderWidth: 1,
-    // Cosmic palette: active connections / signals glow mint (handoff §6 UI 상태색).
-    shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.6,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
+  nodeArtWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "stretch",
   },
-  dataDot: {
-    position: "absolute",
-    width: 12,
-    height: 12,
-    borderRadius: 3,
-    // 생각 조각 — mist-gray washed, low-key until the user zooms in.
-    backgroundColor: "rgba(141,152,184,0.55)",
-  },
-  centerDot: {
+  centerArtWrap: {
     width: CENTER_SIZE,
     height: CENTER_SIZE,
-    borderRadius: CENTER_SIZE / 2,
-    // Core Brain = 나의 중심 = village central lamp:
-    // soul-violet body + pixel-lamp glow (handoff §4 Tier 1 / §7-2 center-lamp).
-    backgroundColor: cosmic.soulViolet,
-    shadowColor: cosmic.pixelLamp,
-    shadowOpacity: 0.7,
+    alignItems: "center",
+    justifyContent: "center",
+    // Core Brain = 나의 중심 = village central lamp glow (§7-2).
+    shadowColor: cosmic.coreGlow,
+    shadowOpacity: 0.8,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 0 },
-    borderWidth: 2,
-    borderColor: "rgba(255,209,102,0.32)", // pixel-lamp rim, like a soft halo
   },
+  shardWrap: { position: "absolute", width: 14, height: 14, alignItems: "center", justifyContent: "center" },
   // Selection states (§7).
   nodeFocused: {
-    borderColor: cosmic.signalMint,
-    borderWidth: 2,
     shadowColor: cosmic.signalMint,
     shadowOpacity: 0.95,
-    shadowRadius: 14,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
   },
   dimmed: { opacity: 0.28 },
   // Node bottom sheet (§7) — screen-fixed, slides up from the bottom.
@@ -1008,7 +998,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sheetHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  sheetName: {},
+  sheetTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
+  sheetName: { flexShrink: 1 },
   sheetClose: { color: cosmic.mistGray, fontSize: 16, paddingHorizontal: 4 },
   sheetMetaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 },
   sheetType: { letterSpacing: 1 },
