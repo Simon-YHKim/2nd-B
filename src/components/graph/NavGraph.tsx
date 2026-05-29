@@ -118,49 +118,55 @@ export interface DataNode {
 }
 
 // Authoritative menu graph. Tier ↑ size ↑ brightness ↑.
+//
+// graph-restructure (C4): tier 2 is six village districts ("동네"), each a
+// floating island whose art matches its meaning. Tier 3 are the few real
+// sub-places under a district, revealed only when you zoom/select. Routes are
+// unchanged so every existing screen stays reachable.
 export const MENU_NODES: readonly NavNode[] = [
-  // Tier 2 — three pillars of the profile
-  { id: "now", tier: 2, parentId: "core", href: "/trinity",
-    label: { en: "Present me", ko: "현재의 나" },
-    description: { en: "Today's you — health, app, brain, finance.", ko: "오늘의 당신 — 건강·앱·뇌·재정." } },
-  { id: "past", tier: 2, parentId: "core", href: "/interview",
-    label: { en: "Past me", ko: "과거의 나" },
-    description: { en: "Walk back through your chapters together.", ko: "지난 챕터들을 함께 되짚어요." } },
-  { id: "wiki", tier: 2, parentId: "core", href: "/wiki", bubbleAction: "upload",
-    label: { en: "Wiki", ko: "Wiki" },
-    description: { en: "Your knowledge — drop anything in.", ko: "당신의 지식 — 뭐든 던지면 우리가 정리해 둘게요." } },
-  // 공상 동네 — Vela's atelier. Phase 1 lands the scaffold + nav entry;
-  // generation pipeline arrives in Phase 3.
+  // Tier 2 — six domain islands around the center.
+  { id: "work", tier: 2, parentId: "core", href: "/trinity",
+    label: { en: "Work & growth", ko: "일과 성장" },
+    description: { en: "Today's you — health, app, brain, finance.", ko: "오늘의 나 — 건강·앱·뇌·재정을 한눈에." } },
+  { id: "relation", tier: 2, parentId: "core", href: "/interview",
+    label: { en: "People & ties", ko: "관계와 사람" },
+    description: { en: "Walk back through your chapters and the people in them.", ko: "지난 챕터와 그 안의 사람들을 함께 되짚어요." } },
+  { id: "knowledge", tier: 2, parentId: "core", href: "/wiki", bubbleAction: "upload",
+    label: { en: "Learning & knowledge", ko: "배움과 지식" },
+    description: { en: "Your knowledge store — drop anything in.", ko: "당신의 지식 창고 — 뭐든 던지면 우리가 정리해 둘게요." } },
+  { id: "records", tier: 2, parentId: "core", href: "/records",
+    label: { en: "Records", ko: "기록 보관소" },
+    description: { en: "Every piece you've kept, in one place.", ko: "남긴 모든 조각이 모이는 곳." } },
   { id: "imagine", tier: 2, parentId: "core", href: "/imagine",
-    label: { en: "Imagine", ko: "공상" },
+    label: { en: "Imagine workshop", ko: "공상 작업실" },
     description: {
       en: "Lay a vague thought out as scenes. Vela's workshop.",
       ko: "막연한 생각을 장면으로 펼쳐보는 곳. 벨라의 작업실이에요.",
     },
   },
+  { id: "taste", tier: 2, parentId: "core", href: "/insights",
+    label: { en: "Taste & spark", ko: "취향과 영감" },
+    description: { en: "The patterns and sparks we keep noticing.", ko: "우리가 자꾸 알아채는 취향과 영감." } },
 
-  // Tier 3 — children of present/past/wiki
-  { id: "wiki-daily", tier: 3, parentId: "wiki", href: "/wiki",
-    label: { en: "Daily Wiki", ko: "일상 Wiki" },
+  // Tier 3 — real sub-places under a district; revealed on zoom/selection.
+  { id: "wiki-daily", tier: 3, parentId: "knowledge", href: "/wiki",
+    label: { en: "Daily Wiki", ko: "일상 지식" },
     description: { en: "Everyday notes and captures.", ko: "일상의 메모와 자료." } },
-  { id: "wiki-pro", tier: 3, parentId: "wiki", href: "/wiki",
-    label: { en: "Pro Wiki", ko: "Pro Wiki" },
+  { id: "wiki-pro", tier: 3, parentId: "knowledge", href: "/wiki",
+    label: { en: "Pro Wiki", ko: "일·전문 지식" },
     description: { en: "Career-side references.", ko: "일·전문 쪽 자료." } },
-  { id: "past-childhood", tier: 3, parentId: "past", href: "/interview",
+  { id: "past-childhood", tier: 3, parentId: "relation", href: "/interview",
     label: { en: "Childhood", ko: "유년기" },
     description: { en: "Before 12.", ko: "12세 이전." } },
-  { id: "past-teens", tier: 3, parentId: "past", href: "/interview",
+  { id: "past-teens", tier: 3, parentId: "relation", href: "/interview",
     label: { en: "Teens", ko: "10대" },
     description: { en: "12–19.", ko: "12–19세." } },
-  { id: "past-twenties", tier: 3, parentId: "past", href: "/interview",
+  { id: "past-twenties", tier: 3, parentId: "relation", href: "/interview",
     label: { en: "Twenties", ko: "20대" },
     description: { en: "20–29.", ko: "20–29세." } },
-  { id: "past-thirties", tier: 3, parentId: "past", href: "/interview",
+  { id: "past-thirties", tier: 3, parentId: "relation", href: "/interview",
     label: { en: "Thirties", ko: "30대" },
     description: { en: "30–39.", ko: "30–39세." } },
-  { id: "insights", tier: 3, parentId: "now", href: "/insights",
-    label: { en: "Insights", ko: "인사이트" },
-    description: { en: "Patterns we noticed.", ko: "우리가 알아챈 패턴." } },
 ] as const;
 
 export const CENTER_NODE: NavNode = {
@@ -186,10 +192,12 @@ export const CENTER_NODE: NavNode = {
 // tier 3/4 keep the lighter node/shard art so the mobile view isn't busy.
 const ISLAND_FOR: Record<string, IslandId> = {
   core: "core",
-  now: "work_growth",
-  past: "relationship",
-  wiki: "knowledge",
+  work: "work_growth",
+  relation: "relationship",
+  knowledge: "knowledge",
+  records: "records",
   imagine: "imagine",
+  taste: "inspiration",
 };
 
 function tierSize(t: Tier): number {
@@ -216,6 +224,10 @@ interface Props {
   /** Highlight-on-return (queue B): a node/wiki-page id to focus when the
    *  user arrives from a record / wiki detail via "그래프에서 보기". */
   highlightId?: string | null;
+  /** Ambient glow (graph-restructure C6): a domain id the top ribbon is
+   *  talking about. Glows that island + lights its edge to the center WITHOUT
+   *  opening a sheet or dimming the rest. */
+  glowNodeId?: string | null;
 }
 
 interface Positioned {
@@ -228,7 +240,7 @@ interface DataPositioned {
   base: { x: number; y: number };
 }
 
-export function NavGraph({ locale, dataNodes, highlightId }: Props) {
+export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) {
   const { width, height } = useWindowDimensions();
   const cx = width / 2;
   const cy = height / 2;
@@ -520,11 +532,11 @@ export function NavGraph({ locale, dataNodes, highlightId }: Props) {
   useDerivedValue(() => {
     // Inline thresholds (must stay worklet-safe — mirrors scaleBucket()).
     const s = zoomScale.value;
-    const b: 0 | 1 | 2 = s < 0.65 ? 0 : s < 1.1 ? 1 : 2;
+    const b: 0 | 1 | 2 = s < 1.15 ? 0 : s < 1.8 ? 1 : 2;
     runOnJS(pushBucket)(b);
     return b;
   });
-  const vis = tierVisibility(bucket < 1 ? 0.5 : bucket < 2 ? 1.0 : 1.5);
+  const vis = tierVisibility(bucket < 1 ? 0.5 : bucket < 2 ? 1.5 : 2.0);
   const nodeVisible = (tier: Tier): boolean =>
     tier === 1 ? vis.tier1 : tier === 2 ? vis.tier2 : tier === 3 ? vis.tier3 : vis.tier4;
   const tierOf = (id: string): Tier =>
@@ -752,6 +764,8 @@ export function NavGraph({ locale, dataNodes, highlightId }: Props) {
             : positions.get(e.toId) ?? dataPositions.get(e.toId);
           if (!fromBase || !toBase) return null;
           const incident = activeId != null && (e.fromId === activeId || e.toId === activeId);
+          // C6: edge to the ambient-glow domain stays lit (no active needed).
+          const glowIncident = glowNodeId != null && (e.fromId === glowNodeId || e.toId === glowNodeId);
           // §7: when a node is focused, dim the unrelated edges.
           const dimFactor = activeId != null && !incident ? 0.22 : 1;
           const ev = edgeValues.current.get(e.key);
@@ -773,7 +787,7 @@ export function NavGraph({ locale, dataNodes, highlightId }: Props) {
                 strokeOpacity={animOpacity}
                 strokeWidth={1}
               />
-              {/* 연결된 edge만 signal-mint 하이라이트 (§7). */}
+              {/* 연결된 edge만 signal-mint 하이라이트 (§7) + C6 ambient glow. */}
               {incident ? (
                 <AnimatedLine
                   x1={x1}
@@ -786,6 +800,8 @@ export function NavGraph({ locale, dataNodes, highlightId }: Props) {
                   }
                   strokeWidth={2}
                 />
+              ) : glowIncident ? (
+                <Line x1={x1} y1={y1} x2={x2} y2={y2} stroke={cosmic.signalMint} strokeOpacity={0.7} strokeWidth={2} />
               ) : null}
             </Fragment>
           );
@@ -840,7 +856,7 @@ export function NavGraph({ locale, dataNodes, highlightId }: Props) {
             <View
               style={[
                 styles.nodeArtWrap,
-                n.id === activeId ? styles.nodeFocused : null,
+                n.id === activeId || n.id === glowNodeId ? styles.nodeFocused : null,
                 dim ? styles.dimmed : null,
               ]}
             >
