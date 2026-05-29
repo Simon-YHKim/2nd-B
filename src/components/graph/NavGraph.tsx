@@ -701,8 +701,11 @@ export function NavGraph({ locale, dataNodes }: Props) {
   }
 
   function handleAskSecondB() {
+    // Graph node → chat handoff: pass the node label so the chat opens in
+    // its nodeContext state with a context pill (chat pack §7).
+    const label = activeNode?.label[locale];
     setActiveId(null);
-    router.push("/jarvis");
+    router.push(label ? { pathname: "/jarvis", params: { fromNode: label } } : "/jarvis");
   }
 
   return (

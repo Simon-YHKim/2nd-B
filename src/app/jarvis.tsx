@@ -16,7 +16,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { SvgXml } from "react-native-svg";
 
 import { Screen } from "@/components/ui/Screen";
 import { Text } from "@/components/ui/Text";
@@ -29,8 +30,19 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { parseSourceCitations } from "@/lib/chat/sources";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
+import { SECONDB_CHAT_XML } from "@/components/art/secondbChatXml";
 import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
+
+// Quick-action chips offered under an answer (chat pack §8). Each prefills
+// the composer with a short follow-up in the village voice; the user sends.
+const QUICK_ACTIONS: { ko: string; en: string; prompt: { ko: string; en: string } }[] = [
+  { ko: "다음 한 걸음", en: "Next step", prompt: { ko: "지금 할 수 있는 다음 한 걸음으로 줄여줘.", en: "Narrow this to one next step I can take today." } },
+  { ko: "공상으로 펼치기", en: "Open as imagine", prompt: { ko: "이 생각을 장면으로 펼쳐서 보여줘.", en: "Unfold this thought into a few scenes." } },
+  { ko: "지식 창고에 저장", en: "Save to wiki", prompt: { ko: "이 답을 지식 창고에 저장할 수 있게 한 단락으로 정리해줘.", en: "Sum this up in one paragraph I can save to my wiki." } },
+  { ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 조각을 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
+  { ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter — one sentence." } },
+];
 
 interface ChatTurn {
   role: "user" | "jarvis";
@@ -73,12 +85,27 @@ export default function Jarvis() {
   const progression = useProgression();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
+  // nodeContext entry (chat pack §3/§7): a graph node passed its label.
+  const params = useLocalSearchParams<{ fromNode?: string }>();
+  const fromNode = typeof params.fromNode === "string" && params.fromNode.length > 0 ? params.fromNode : null;
+
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [usedToday, setUsedToday] = useState<number | null>(null);
   const [introOpen, setIntroOpen] = useState(false);
+  // Reference drawer (chat pack §6): the cited pieces of a tapped answer.
+  const [refDrawer, setRefDrawer] = useState<string[] | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+
+  // Seed the composer with the node context once, on a graph-node entry.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (fromNode && !seededRef.current) {
+      seededRef.current = true;
+      setDraft(locale === "ko" ? `'${fromNode}'에 대해 물어볼게요: ` : `About '${fromNode}': `);
+    }
+  }, [fromNode, locale]);
 
   const limit = useMemo(() => CHAT_DAILY_LIMIT[progression.tier], [progression.tier]);
 
@@ -174,6 +201,28 @@ export default function Jarvis() {
           </View>
         </View>
 
+        {/* nodeContext pill — entered from a graph node (chat pack §7) */}
+        {fromNode ? (
+          <View
+            style={styles.contextPill}
+            accessible
+            accessibilityLabel={
+              locale === "ko"
+                ? `${fromNode}에서 질문. 선택한 노드와 연결된 조각을 먼저 참고해요.`
+                : `Asking from ${fromNode}. I'll look at the pieces connected to it first.`
+            }
+          >
+            <Text variant="caption" color="brand" style={{ letterSpacing: 0.5 }}>
+              {locale === "ko" ? `${fromNode}에서 질문` : `Asking from ${fromNode}`}
+            </Text>
+            <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
+              {locale === "ko"
+                ? "선택한 노드와 연결된 조각을 먼저 참고해요."
+                : "I'll look at the pieces connected to it first."}
+            </Text>
+          </View>
+        ) : null}
+
         <ScrollView
           ref={scrollRef}
           style={{ flex: 1 }}
@@ -182,7 +231,8 @@ export default function Jarvis() {
         >
           {turns.length === 0 ? (
             <View style={styles.empty}>
-              <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
+              <SvgXml xml={SECONDB_CHAT_XML.empty_state} width={260} height={(260 * 260) / 350} />
+              <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.md }}>
                 {t("empty")}
               </Text>
             </View>
@@ -216,18 +266,33 @@ export default function Jarvis() {
                       {turn.text}
                     </Text>
                   </Pressable>
-                  {/* Source chips — "내 조각에서 온 답" (handoff §7-4) */}
+                  {/* Grounding strip — "이 답변은 참고한 조각 N개를 봤어요"; tap to
+                      open the reference drawer (chat pack §5/§6). */}
                   {turn.role === "jarvis" && turn.chips && turn.chips.length > 0 ? (
-                    <View style={styles.chipRow}>
+                    <Pressable
+                      style={styles.chipRow}
+                      onPress={() => setRefDrawer(turn.chips ?? [])}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        locale === "ko"
+                          ? `이 답변은 참고한 조각 ${turn.chips.length}개를 봤어요. 눌러서 자세히 보기.`
+                          : `This answer drew on ${turn.chips.length} of your pieces. Tap for detail.`
+                      }
+                    >
                       <Text variant="caption" color="textSubtle">
-                        {locale === "ko" ? "참고한 조각" : "from your pieces"}
+                        {locale === "ko" ? `참고한 조각 ${turn.chips.length}` : `${turn.chips.length} pieces`}
                       </Text>
-                      {turn.chips.map((slug) => (
+                      {turn.chips.slice(0, 3).map((slug) => (
                         <View key={slug} style={styles.chip}>
                           <Text variant="caption" color="brand">{slug}</Text>
                         </View>
                       ))}
-                    </View>
+                      {turn.chips.length > 3 ? (
+                        <Text variant="caption" color="textSubtle">
+                          {locale === "ko" ? `+${turn.chips.length - 3}` : `+${turn.chips.length - 3}`}
+                        </Text>
+                      ) : null}
+                    </Pressable>
                   ) : null}
                 </View>
               </View>
@@ -240,6 +305,29 @@ export default function Jarvis() {
           ) : null}
         </ScrollView>
 
+        {/* Quick-action chips (chat pack §8) — appear once SecondB has
+            answered; each prefills the composer with a short follow-up. */}
+        {turns.length > 0 && turns[turns.length - 1].role === "jarvis" && !sending ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickRow}
+            keyboardShouldPersistTaps="handled"
+          >
+            {QUICK_ACTIONS.map((qa) => (
+              <Pressable
+                key={qa.en}
+                style={styles.quickChip}
+                onPress={() => setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en)}
+                accessibilityRole="button"
+                accessibilityLabel={locale === "ko" ? qa.ko : qa.en}
+              >
+                <Text variant="caption" color="brand">{locale === "ko" ? qa.ko : qa.en}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : null}
+
         <View style={styles.composer}>
           <Input
             value={draft}
@@ -247,6 +335,7 @@ export default function Jarvis() {
             placeholder={t("placeholder")}
             multiline
             style={styles.composerInput}
+            accessibilityLabel={locale === "ko" ? "세컨비에게 물어보기" : "Ask SecondB"}
           />
           <Button label={t("send")} variant="primary" onPress={handleSend} disabled={!canSend} loading={sending} />
         </View>
@@ -281,6 +370,44 @@ export default function Jarvis() {
                 </Text>
               </Pressable>
             </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Reference drawer (chat pack §6) — the pieces an answer drew on. */}
+      <Modal
+        visible={refDrawer !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRefDrawer(null)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setRefDrawer(null)}>
+          <Pressable
+            style={styles.drawer}
+            onPress={(e) => e.stopPropagation()}
+            accessibilityViewIsModal
+            accessibilityLabel={locale === "ko" ? "참고한 조각들" : "Pieces referenced"}
+          >
+            <View style={styles.drawerHandle} />
+            <Text variant="heading">{locale === "ko" ? "참고한 조각들" : "Pieces referenced"}</Text>
+            <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
+              {locale === "ko"
+                ? "답변에 영향을 준 조각들이에요. 필요하면 하나씩 열어볼 수 있어요."
+                : "The pieces that shaped this answer. Open any one if you like."}
+            </Text>
+            <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+              {(refDrawer ?? []).map((slug) => (
+                <View key={slug} style={styles.refRow}>
+                  <View style={styles.refDot} />
+                  <Text variant="body" style={{ flex: 1 }} selectable>{slug}</Text>
+                </View>
+              ))}
+            </View>
+            <Button
+              label={locale === "ko" ? "닫기" : "Close"}
+              variant="secondary"
+              onPress={() => setRefDrawer(null)}
+            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -350,6 +477,50 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
   },
+  contextPill: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    borderLeftWidth: 3,
+    borderLeftColor: semantic.brand,
+    backgroundColor: semantic.surface,
+  },
+  quickRow: { gap: spacing.sm, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
+  quickChip: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  drawer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: "62%",
+    backgroundColor: semantic.surface,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  drawerHandle: {
+    alignSelf: "center",
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: semantic.border,
+    marginBottom: spacing.sm,
+  },
+  refRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  refDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
   bubble: {
     maxWidth: "100%",
     paddingHorizontal: spacing.md,
