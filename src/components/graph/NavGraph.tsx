@@ -163,7 +163,7 @@ export const MENU_NODES: readonly NavNode[] = [
 export const CENTER_NODE: NavNode = {
   id: "core",
   tier: 1,
-  href: "/persona",
+  href: "/core-brain",
   // bubbleAction removed (2026-05-28 user directive): the chat (세컨비)
   // entry moved out of the bubble to a floating button at the bottom-
   // right of the main screen. The bubble now only describes Core Brain.
