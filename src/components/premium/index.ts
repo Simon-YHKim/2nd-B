@@ -30,4 +30,5 @@ export {
   ContextPill,
   StatTile,
 } from "./graph-bits";
+export { PremiumTabBar, TAB_BAR_HEIGHT } from "./tab-bar";
 export { starField, type Star } from "./star-field";

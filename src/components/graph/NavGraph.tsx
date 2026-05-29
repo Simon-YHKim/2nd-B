@@ -1009,7 +1009,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 12,
     right: 12,
-    bottom: 24,
+    // Above the premium bottom tab bar.
+    bottom: 92,
     zIndex: 25,
     borderRadius: 22,
     borderWidth: 1,

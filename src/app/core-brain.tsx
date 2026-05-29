@@ -302,7 +302,7 @@ function Section({ title, accent, children }: { title: string; accent: string; c
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
+  scroll: { gap: spacing.lg, paddingBottom: 110 },
   companionFlash: { position: "absolute", bottom: 40, right: 20 },
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: spacing.lg },
   hero: { alignItems: "center" },

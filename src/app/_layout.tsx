@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
@@ -13,6 +14,7 @@ import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { BackArrow } from "@/components/ui/BackArrow";
+import { PremiumTabBar } from "@/components/premium";
 import { fontAssets } from "@/theme/typography";
 import { semantic } from "@/lib/theme/tokens";
 import { ThemeProvider, useTheme, useThemePalette } from "@/lib/theme/ThemeContext";
@@ -65,6 +67,7 @@ export default function RootLayout() {
               <Stack.Screen name="+not-found" />
               </ThemedStack>
               <BackArrow />
+              <AppTabBar />
             </IntroGate>
           </AuthProvider>
         </ThemeProvider>
@@ -87,6 +90,12 @@ function ThemedStack({ children }: { children: React.ReactNode }) {
       {children}
     </Stack>
   );
+}
+
+/** Locale-aware premium bottom tab bar (shows only on primary routes). */
+function AppTabBar() {
+  const { i18n } = useTranslation();
+  return <PremiumTabBar locale={i18n.language === "ko" ? "ko" : "en"} />;
 }
 
 /** StatusBar style follows the active mode. */

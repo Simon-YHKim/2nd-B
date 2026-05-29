@@ -645,7 +645,7 @@ export default function Wiki() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
+  scroll: { paddingBottom: 110, gap: spacing.lg },
   companionFlash: { position: "absolute", bottom: 40, right: 20 },
   pageHandoffs: { flexDirection: "row", gap: spacing.md, marginTop: spacing.sm },
   pageHandoffBtn: {

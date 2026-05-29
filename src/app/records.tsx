@@ -183,7 +183,7 @@ export default function Records() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
+  scroll: { gap: spacing.lg, paddingBottom: 110 },
   center: { paddingVertical: spacing.xxl, alignItems: "center", justifyContent: "center" },
   stateBox: { paddingVertical: spacing.xl, gap: spacing.md, alignItems: "center" },
   chipRow: { gap: spacing.sm, paddingVertical: spacing.xs },

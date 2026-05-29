@@ -407,7 +407,8 @@ const styles = StyleSheet.create({
   },
   jarvisFabWrap: {
     position: "absolute",
-    bottom: 24, right: 20,
+    // Sits above the premium bottom tab bar (TAB_BAR_HEIGHT + inset margin).
+    bottom: 96, right: 20,
   },
   // SecondB FAB — soul-violet body, mint glow. Square-ish pixel block,
   // not a round avatar, so it reads as a pixel resident rather than a

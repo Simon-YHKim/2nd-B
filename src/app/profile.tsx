@@ -100,7 +100,7 @@ export default function Profile() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
+  scroll: { gap: spacing.lg, paddingBottom: 110 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   section: {
     backgroundColor: semantic.surface,
