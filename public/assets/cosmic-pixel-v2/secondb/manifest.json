@@ -1,0 +1,104 @@
+{
+  "name": "2ndB SecondB Sprite Pack v2",
+  "version": "2.0.0",
+  "style": "Cosmic Pixel Neural / Game Boy inspired 2D pixel art",
+  "baseSize": "64x64",
+  "recommendedInstallPath": "public/assets/cosmic-pixel-v2/secondb/",
+  "colors": {
+    "space_950": "#070A18",
+    "space_900": "#0D1530",
+    "space_800": "#16213E",
+    "space_700": "#243056",
+    "signal_blue": "#4CC9F0",
+    "signal_mint": "#72F2C7",
+    "soul_violet": "#A78BFA",
+    "soul_violet_dark": "#5B4BB7",
+    "soul_violet_light": "#C4B5FD",
+    "pixel_lamp": "#FFD166",
+    "moon_white": "#E8ECF8",
+    "mist_gray": "#8D98B8",
+    "dream_pink": "#FF9FD6",
+    "guard_rose": "#FF7A90"
+  },
+  "sprites": [
+    {
+      "state": "idle",
+      "path": "sprites/secondb_idle.svg"
+    },
+    {
+      "state": "blink",
+      "path": "sprites/secondb_blink.svg"
+    },
+    {
+      "state": "happy",
+      "path": "sprites/secondb_happy.svg"
+    },
+    {
+      "state": "thinking",
+      "path": "sprites/secondb_thinking.svg"
+    },
+    {
+      "state": "carrying_shard",
+      "path": "sprites/secondb_carrying_shard.svg"
+    },
+    {
+      "state": "chat",
+      "path": "sprites/secondb_chat.svg"
+    },
+    {
+      "state": "sleep",
+      "path": "sprites/secondb_sleep.svg"
+    },
+    {
+      "state": "alert",
+      "path": "sprites/secondb_alert.svg"
+    },
+    {
+      "state": "wave_a",
+      "path": "sprites/secondb_wave_a.svg"
+    },
+    {
+      "state": "wave_b",
+      "path": "sprites/secondb_wave_b.svg"
+    },
+    {
+      "state": "walk_1",
+      "path": "sprites/secondb_walk_1.svg"
+    },
+    {
+      "state": "walk_2",
+      "path": "sprites/secondb_walk_2.svg"
+    },
+    {
+      "state": "sprite_sheet",
+      "path": "sprites/secondb_sprite_sheet.svg"
+    }
+  ],
+  "fab": [
+    {
+      "state": "default",
+      "path": "fab/secondb_fab_default.svg"
+    },
+    {
+      "state": "notification",
+      "path": "fab/secondb_fab_notification.svg"
+    },
+    {
+      "state": "chat_ready",
+      "path": "fab/secondb_fab_chat_ready.svg"
+    }
+  ],
+  "appIconCandidates": [
+    "app_icon/secondb_app_icon_candidate_a.svg",
+    "app_icon/secondb_app_icon_candidate_b.svg"
+  ],
+  "usage": {
+    "mainGraphDefault": "sprites/secondb_idle.svg or fab/secondb_fab_default.svg",
+    "newConnection": "sprites/secondb_happy.svg or fab/secondb_fab_notification.svg",
+    "savingShard": "sprites/secondb_carrying_shard.svg",
+    "chat": "sprites/secondb_chat.svg",
+    "thinking": "sprites/secondb_thinking.svg",
+    "lowActivity": "sprites/secondb_sleep.svg",
+    "safetyAttention": "sprites/secondb_alert.svg"
+  }
+}

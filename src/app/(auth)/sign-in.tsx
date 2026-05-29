@@ -24,13 +24,14 @@ import { Link, Redirect, router } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signInWithEmail, signInWithGoogle } from "@/lib/supabase/auth";
-import { darkSky } from "@/lib/theme/tokens";
+import { cosmicSky } from "@/lib/theme/tokens";
 
 const logo = require("../../../assets/images/logo-glow.png");
 
-// Dark sky palette — single source of truth in tokens.darkSky.
-// Aliased for terseness inside this file's StyleSheet.
-const PALETTE = darkSky;
+// Cosmic entry palette — deep-space bg + mint brand + violet accent, so
+// the first (unauthenticated) screen already reads as the Cosmic Pixel
+// Graph Village. Same shape as the legacy darkSky it replaced.
+const PALETTE = cosmicSky;
 
 export default function SignIn() {
   const { t, i18n } = useTranslation("auth");

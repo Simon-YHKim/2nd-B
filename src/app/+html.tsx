@@ -12,9 +12,9 @@ import type { PropsWithChildren } from "react";
 import { ScrollViewStyleReset } from "expo-router/html";
 
 // Reset inline so the rule lands in the first paint. The dark background
-// matches darkSky.bg so the white flash that would otherwise show during
-// the initial render is hidden. Light-mode users still see darkSky-bg
-// on the landing screen (the landing is forced-dark per directive).
+// matches cosmic.space950 (Deep Space Ink) so the white flash that would
+// otherwise show during the initial render is hidden, and the very first
+// paint already reads as the Cosmic Pixel Graph Village.
 const PAGE_LOCK_CSS = `
 html, body, #root, #__next {
   margin: 0;
@@ -24,7 +24,7 @@ html, body, #root, #__next {
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: pan-x pan-y;
-  background-color: #02040A;
+  background-color: #070A18;
 }
 * { -webkit-tap-highlight-color: transparent; }
 `;
