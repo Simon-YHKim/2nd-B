@@ -1,0 +1,54 @@
+{
+  "package": "2ndB_onboarding_first_run_ui_pack_v2",
+  "target": "mobile portrait 390x844",
+  "routes": {
+    "onboarding": "/onboarding",
+    "ageGate": "/signup/birth-date",
+    "firstShard": "/journal?entry=firstRun",
+    "graph": "/"
+  },
+  "flow": [
+    {
+      "id": "welcome",
+      "asset": "onboarding/welcome_hero_v2.svg",
+      "primaryCta": "시작하기"
+    },
+    {
+      "id": "graphVillage",
+      "asset": "onboarding/graph_village_intro_v2.svg",
+      "primaryCta": "마을 둘러보기"
+    },
+    {
+      "id": "secondb",
+      "asset": "onboarding/secondb_intro_card_v2.svg",
+      "primaryCta": "세컨비와 시작"
+    },
+    {
+      "id": "trust",
+      "asset": "trust/privacy_trust_card_v2.svg",
+      "primaryCta": "좋아요"
+    },
+    {
+      "id": "firstShard",
+      "asset": "onboarding/first_shard_card_v2.svg",
+      "primaryCta": "첫 조각 저장"
+    }
+  ],
+  "optionalAgeGate": {
+    "when": "before account creation if birth_date is missing",
+    "asset": "age_gate/age_gate_panel_v2.svg",
+    "constraint": "birth_date >= 18"
+  },
+  "events": {
+    "onboardingCompleted": {
+      "persistKey": "onboarding.cosmicPixel.v2.completedAt"
+    },
+    "firstShardSaved": {
+      "navigate": "/",
+      "state": {
+        "entry": "firstShard",
+        "highlightRecordId": "recordId"
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "2ndB Onboarding First Run UI Pack v2",
+  "version": "2.0.0",
+  "style": "Cosmic Pixel Graph Village",
+  "target": "mobile portrait onboarding and first-run",
+  "assets": {
+    "onboarding": [
+      "welcome_hero_v2.svg",
+      "graph_village_intro_v2.svg",
+      "secondb_intro_card_v2.svg",
+      "first_shard_card_v2.svg"
+    ],
+    "trust": [
+      "privacy_trust_card_v2.svg"
+    ],
+    "age_gate": [
+      "age_gate_panel_v2.svg"
+    ],
+    "first_run": [
+      "empty_graph_state_v2.svg",
+      "first_shard_success_v2.svg"
+    ],
+    "mockups": [
+      "mobile_onboarding_welcome_390x844.svg",
+      "mobile_onboarding_graph_village_390x844.svg",
+      "mobile_onboarding_secondb_390x844.svg",
+      "mobile_onboarding_first_shard_390x844.svg",
+      "mobile_onboarding_age_gate_390x844.svg",
+      "mobile_first_run_graph_empty_390x844.svg",
+      "mobile_first_shard_success_390x844.svg"
+    ]
+  },
+  "handoff": "See docs/implementation_order_for_coding_llm.md"
+}
