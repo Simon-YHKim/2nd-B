@@ -23,8 +23,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
 import { buildCenterCards } from "@/lib/persona/center";
 import { toEvidenceShard, evidenceTypeLabel, type EvidenceShard, type RawRecordRow } from "@/lib/persona/evidence";
-import { TYPE_NICKNAME } from "@/lib/persona/mbti";
-import { STYLE_LABEL } from "@/lib/persona/attachment";
+import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { CORE_BRAIN_XML } from "@/components/art/coreBrainXml";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 
@@ -122,10 +121,10 @@ export default function CoreBrain() {
   const neighborhood = cards.find((c) => c.id === "neighborhood");
   const pieces = cards.find((c) => c.id === "pieces");
 
-  // 나의 모습 — only real, measured signals; collecting state otherwise.
-  const personaBits: string[] = [];
-  if (persona?.mbti) personaBits.push(`${persona.mbti.type} · ${TYPE_NICKNAME[locale][persona.mbti.type] ?? ""}`.trim());
-  if (persona?.attachment) personaBits.push(STYLE_LABEL[locale][persona.attachment.style]);
+  // 나의 모습 — the 5-field self-portrait (who / forWhom / goal / do / fuel).
+  // Data contract: only measured fields are filled; the rest stay collecting
+  // and point the user at the one place that would fill them. Never fabricated.
+  const portrait = buildSelfPortrait({ persona }, locale);
 
   return (
     <Screen>
@@ -160,23 +159,34 @@ export default function CoreBrain() {
           </Section>
         ) : null}
 
-        {/* 5) 자주 보이는 나의 모습 */}
+        {/* 5) 자주 보이는 나의 모습 — 5-field self-portrait (data contract) */}
         <Section title={locale === "ko" ? "자주 보이는 나의 모습" : "A side of me I keep seeing"} accent={cosmic.soulViolet}>
-          {personaBits.length > 0 ? (
-            <View style={styles.bitRow}>
-              {personaBits.map((b) => (
-                <View key={b} style={styles.bitChip}>
-                  <Text variant="caption" color="brand">{b}</Text>
+          <View style={styles.fieldList}>
+            {portrait.map((field) => (
+              <Pressable
+                key={field.id}
+                style={styles.fieldRow}
+                onPress={() => router.push(field.route as never)}
+                accessibilityRole="button"
+                accessibilityLabel={field.label}
+              >
+                <View
+                  style={[styles.fieldDot, { backgroundColor: field.status === "filled" ? cosmic.signalMint : semantic.border }]}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text variant="caption" color="textMuted" style={{ letterSpacing: 0.5 }}>{field.label}</Text>
+                  {field.status === "filled" ? (
+                    <Text variant="body">{field.value}</Text>
+                  ) : (
+                    <Text variant="subtle" color="textSubtle">{field.hint}</Text>
+                  )}
                 </View>
-              ))}
-            </View>
-          ) : (
-            <Text variant="body" color="textMuted">
-              {locale === "ko"
-                ? "아직 또렷한 모습은 모이는 중이에요. 평가를 하나 마치면 더 선명해져요."
-                : "Still gathering a clear shape. Finishing one assessment sharpens it."}
-            </Text>
-          )}
+                {field.status === "collecting" ? (
+                  <Text variant="caption" color="brand">{locale === "ko" ? "채우기" : "Fill"}</Text>
+                ) : null}
+              </Pressable>
+            ))}
+          </View>
           <Button
             label={locale === "ko" ? "살펴보기" : "Look around"}
             variant="secondary"
@@ -291,15 +301,9 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  bitRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  bitChip: {
-    backgroundColor: semantic.surfaceAlt,
-    borderColor: semantic.border,
-    borderWidth: 1,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
+  fieldList: { gap: spacing.xs },
+  fieldRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs },
+  fieldDot: { width: 8, height: 8, borderRadius: 4 },
   evidenceBtn: { paddingVertical: spacing.xs },
   askCta: {
     backgroundColor: semantic.brand,
