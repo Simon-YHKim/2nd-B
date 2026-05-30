@@ -31,7 +31,6 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
-import { PixelButton } from "@/components/art/CosmicPixel";
 import { SecondBFab, SecondBSprite } from "@/components/art/SecondBSprite";
 import { SvgXml } from "react-native-svg";
 import { ONBOARDING_XML, ONBOARDING_ASPECT } from "@/components/art/onboardingXml";
@@ -175,11 +174,6 @@ export default function Landing() {
   // First run → onboarding (once; recorded in localStorage). §2/§4.
   if (!isOnboardingComplete()) return <Redirect href="/onboarding" />;
 
-  function toggleLocale() {
-    wake();
-    void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
-  }
-
   // SecondB nudges toward the center when there are pieces the user hasn't
   // looked at yet this session; it dozes once idle and nothing is pending.
   const presence = secondbPresence({
@@ -266,22 +260,9 @@ export default function Landing() {
         </Pressable>
       </Animated.View>
 
-      {/* Top-right cluster — locale toggle + settings cog.
-          The settings cog replaced the bottom swipe-up handle per user
-          directive (2026-05-28). The locale toggle stays alongside. */}
-      <Animated.View style={[styles.topRightCluster, { opacity: contentOpacity }]}>
-        <Pressable onPress={toggleLocale} hitSlop={8} style={styles.localeBtn}>
-          <Text style={styles.localeToggleText}>{locale === "ko" ? "EN" : "한국어"}</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push("/settings")}
-          hitSlop={8}
-          accessibilityLabel={locale === "ko" ? "설정" : "Settings"}
-        >
-          {/* v2 settings HUD button (self-contained art) */}
-          <PixelButton kind="settings" size={40} />
-        </Pressable>
-      </Animated.View>
+      {/* Top-right cluster removed (graph-ux #2/#4): language is auto-detected
+          and lives in Settings; Settings is reachable from the Profile tab.
+          The main graph keeps a clean top so 오늘의 중심 sits at the very top. */}
 
       {/* Bottom-right floating chat (세컨비 / 2ndB) entry — moved out
           of the constellation bubble per user directive (2026-05-28).
@@ -351,7 +332,7 @@ const styles = StyleSheet.create({
   emptyGraphCtaText: { color: cosmic.space950, fontWeight: "700", fontSize: 14, fontFamily: fontFamilies.sans },
   insightRibbon: {
     position: "absolute",
-    top: 56, left: 16, right: 80,
+    top: 12, left: 12, right: 12,
     maxWidth: 600,
     flexDirection: "row",
     alignItems: "center",
