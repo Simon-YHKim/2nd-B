@@ -1,0 +1,721 @@
+{
+  "world": {
+    "width": 1200,
+    "height": 1600,
+    "center": {
+      "x": 600,
+      "y": 780
+    }
+  },
+  "interaction": {
+    "defaultScale": 0.72,
+    "domainFocusScale": 1.45,
+    "minScale": 0.42,
+    "maxScale": 2.2,
+    "panTarget": "graphViewportFullArea"
+  },
+  "tiers": {
+    "tier1": {
+      "visibleAtScale": 0,
+      "label": "나의 중심"
+    },
+    "tier2": {
+      "visibleAtScale": 0,
+      "label": "영역 / 마을"
+    },
+    "tier3": {
+      "visibleAtScale": 0.72,
+      "label": "나의 모습"
+    },
+    "tier4": {
+      "visibleAtScale": 1.05,
+      "label": "실제 조각"
+    }
+  },
+  "nodes": [
+    {
+      "id": "core",
+      "tier": 1,
+      "label": "나의 중심",
+      "route": "/core-brain",
+      "x": 600,
+      "y": 780,
+      "assetKey": "core_center_island_premium",
+      "sector": null
+    },
+    {
+      "id": "work_growth",
+      "tier": 2,
+      "label": "일과 성장",
+      "route": "/insights",
+      "x": 600,
+      "y": 370,
+      "assetKey": "domain_work_growth_premium",
+      "sectorIndex": 0,
+      "angleDeg": -90,
+      "handoffActions": [
+        "open",
+        "askSecondB",
+        "imagine"
+      ]
+    },
+    {
+      "id": "work_growth_persona_1",
+      "tier": 3,
+      "label": "만드는 나",
+      "route": "/persona",
+      "x": 453,
+      "y": 270,
+      "assetKey": "tier_icon_flying_paper",
+      "parentDomainId": "work_growth",
+      "sectorIndex": 0
+    },
+    {
+      "id": "work_growth_persona_2",
+      "tier": 3,
+      "label": "배우는 나",
+      "route": "/persona",
+      "x": 600,
+      "y": 180,
+      "assetKey": "tier_icon_book",
+      "parentDomainId": "work_growth",
+      "sectorIndex": 0
+    },
+    {
+      "id": "work_growth_persona_3",
+      "tier": 3,
+      "label": "정리하는 나",
+      "route": "/persona",
+      "x": 784,
+      "y": 135,
+      "assetKey": "tier_icon_star_spark",
+      "parentDomainId": "work_growth",
+      "sectorIndex": 0
+    },
+    {
+      "id": "work_growth_shard_1",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 377,
+      "y": 169,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "work_growth",
+      "sectorIndex": 0
+    },
+    {
+      "id": "work_growth_shard_2",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 482,
+      "y": 112,
+      "assetKey": "shard_wiki_blue",
+      "parentDomainId": "work_growth",
+      "sectorIndex": 0
+    },
+    {
+      "id": "work_growth_shard_3",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 600,
+      "y": 74,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "work_growth",
+      "sectorIndex": 0
+    },
+    {
+      "id": "work_growth_shard_4",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 727,
+      "y": 57,
+      "assetKey": "shard_wiki_blue",
+      "parentDomainId": "work_growth",
+      "sectorIndex": 0
+    },
+    {
+      "id": "work_growth_shard_5",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 860,
+      "y": 63,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "work_growth",
+      "sectorIndex": 0
+    },
+    {
+      "id": "relationship",
+      "tier": 2,
+      "label": "관계와 사람",
+      "route": "/persona",
+      "x": 955,
+      "y": 575,
+      "assetKey": "domain_relationship_premium",
+      "sectorIndex": 1,
+      "angleDeg": -30,
+      "handoffActions": [
+        "open",
+        "askSecondB",
+        "imagine"
+      ]
+    },
+    {
+      "id": "relationship_persona_1",
+      "tier": 3,
+      "label": "만드는 나",
+      "route": "/persona",
+      "x": 968,
+      "y": 398,
+      "assetKey": "tier_icon_flying_paper",
+      "parentDomainId": "relationship",
+      "sectorIndex": 1
+    },
+    {
+      "id": "relationship_persona_2",
+      "tier": 3,
+      "label": "배우는 나",
+      "route": "/persona",
+      "x": 1119,
+      "y": 480,
+      "assetKey": "tier_icon_book",
+      "parentDomainId": "relationship",
+      "sectorIndex": 1
+    },
+    {
+      "id": "relationship_persona_3",
+      "tier": 3,
+      "label": "정리하는 나",
+      "route": "/persona",
+      "x": 1250,
+      "y": 617,
+      "assetKey": "tier_icon_star_spark",
+      "parentDomainId": "relationship",
+      "sectorIndex": 1
+    },
+    {
+      "id": "relationship_shard_1",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 1017,
+      "y": 282,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "relationship",
+      "sectorIndex": 1
+    },
+    {
+      "id": "relationship_shard_2",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 1119,
+      "y": 344,
+      "assetKey": "shard_wiki_blue",
+      "parentDomainId": "relationship",
+      "sectorIndex": 1
+    },
+    {
+      "id": "relationship_shard_3",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 1211,
+      "y": 427,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "relationship",
+      "sectorIndex": 1
+    },
+    {
+      "id": "relationship_shard_4",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 1289,
+      "y": 528,
+      "assetKey": "shard_wiki_blue",
+      "parentDomainId": "relationship",
+      "sectorIndex": 1
+    },
+    {
+      "id": "relationship_shard_5",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 1350,
+      "y": 647,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "relationship",
+      "sectorIndex": 1
+    },
+    {
+      "id": "knowledge",
+      "tier": 2,
+      "label": "배움과 지식",
+      "route": "/wiki",
+      "x": 955,
+      "y": 985,
+      "assetKey": "domain_knowledge_premium",
+      "sectorIndex": 2,
+      "angleDeg": 30,
+      "handoffActions": [
+        "open",
+        "askSecondB",
+        "imagine"
+      ]
+    },
+    {
+      "id": "knowledge_persona_1",
+      "tier": 3,
+      "label": "만드는 나",
+      "route": "/persona",
+      "x": 1114,
+      "y": 908,
+      "assetKey": "tier_icon_flying_paper",
+      "parentDomainId": "knowledge",
+      "sectorIndex": 2
+    },
+    {
+      "id": "knowledge_persona_2",
+      "tier": 3,
+      "label": "배우는 나",
+      "route": "/persona",
+      "x": 1119,
+      "y": 1080,
+      "assetKey": "tier_icon_book",
+      "parentDomainId": "knowledge",
+      "sectorIndex": 2
+    },
+    {
+      "id": "knowledge_persona_3",
+      "tier": 3,
+      "label": "정리하는 나",
+      "route": "/persona",
+      "x": 1065,
+      "y": 1261,
+      "assetKey": "tier_icon_star_spark",
+      "parentDomainId": "knowledge",
+      "sectorIndex": 2
+    },
+    {
+      "id": "knowledge_shard_1",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 1240,
+      "y": 892,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "knowledge",
+      "sectorIndex": 2
+    },
+    {
+      "id": "knowledge_shard_2",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 1237,
+      "y": 1011,
+      "assetKey": "shard_wiki_blue",
+      "parentDomainId": "knowledge",
+      "sectorIndex": 2
+    },
+    {
+      "id": "knowledge_shard_3",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 1211,
+      "y": 1133,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "knowledge",
+      "sectorIndex": 2
+    },
+    {
+      "id": "knowledge_shard_4",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 1162,
+      "y": 1251,
+      "assetKey": "shard_wiki_blue",
+      "parentDomainId": "knowledge",
+      "sectorIndex": 2
+    },
+    {
+      "id": "knowledge_shard_5",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 1089,
+      "y": 1363,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "knowledge",
+      "sectorIndex": 2
+    },
+    {
+      "id": "records",
+      "tier": 2,
+      "label": "기록 보관소",
+      "route": "/wiki?tab=records",
+      "x": 600,
+      "y": 1190,
+      "assetKey": "domain_records_premium",
+      "sectorIndex": 3,
+      "angleDeg": 90,
+      "handoffActions": [
+        "open",
+        "askSecondB",
+        "imagine"
+      ]
+    },
+    {
+      "id": "records_persona_1",
+      "tier": 3,
+      "label": "만드는 나",
+      "route": "/persona",
+      "x": 746,
+      "y": 1289,
+      "assetKey": "tier_icon_flying_paper",
+      "parentDomainId": "records",
+      "sectorIndex": 3
+    },
+    {
+      "id": "records_persona_2",
+      "tier": 3,
+      "label": "배우는 나",
+      "route": "/persona",
+      "x": 600,
+      "y": 1380,
+      "assetKey": "tier_icon_book",
+      "parentDomainId": "records",
+      "sectorIndex": 3
+    },
+    {
+      "id": "records_persona_3",
+      "tier": 3,
+      "label": "정리하는 나",
+      "route": "/persona",
+      "x": 415,
+      "y": 1424,
+      "assetKey": "tier_icon_star_spark",
+      "parentDomainId": "records",
+      "sectorIndex": 3
+    },
+    {
+      "id": "records_shard_1",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 822,
+      "y": 1390,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "records",
+      "sectorIndex": 3
+    },
+    {
+      "id": "records_shard_2",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 717,
+      "y": 1447,
+      "assetKey": "shard_wiki_blue",
+      "parentDomainId": "records",
+      "sectorIndex": 3
+    },
+    {
+      "id": "records_shard_3",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 600,
+      "y": 1486,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "records",
+      "sectorIndex": 3
+    },
+    {
+      "id": "records_shard_4",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 472,
+      "y": 1502,
+      "assetKey": "shard_wiki_blue",
+      "parentDomainId": "records",
+      "sectorIndex": 3
+    },
+    {
+      "id": "records_shard_5",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 339,
+      "y": 1496,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "records",
+      "sectorIndex": 3
+    },
+    {
+      "id": "imagine",
+      "tier": 2,
+      "label": "공상 작업실",
+      "route": "/imagine",
+      "x": 244,
+      "y": 985,
+      "assetKey": "domain_imagine_premium",
+      "sectorIndex": 4,
+      "angleDeg": 150,
+      "handoffActions": [
+        "open",
+        "askSecondB",
+        "imagine"
+      ]
+    },
+    {
+      "id": "imagine_persona_1",
+      "tier": 3,
+      "label": "만드는 나",
+      "route": "/persona",
+      "x": 231,
+      "y": 1161,
+      "assetKey": "tier_icon_flying_paper",
+      "parentDomainId": "imagine",
+      "sectorIndex": 4
+    },
+    {
+      "id": "imagine_persona_2",
+      "tier": 3,
+      "label": "배우는 나",
+      "route": "/persona",
+      "x": 80,
+      "y": 1080,
+      "assetKey": "tier_icon_book",
+      "parentDomainId": "imagine",
+      "sectorIndex": 4
+    },
+    {
+      "id": "imagine_persona_3",
+      "tier": 3,
+      "label": "정리하는 나",
+      "route": "/persona",
+      "x": -50,
+      "y": 942,
+      "assetKey": "tier_icon_star_spark",
+      "parentDomainId": "imagine",
+      "sectorIndex": 4
+    },
+    {
+      "id": "imagine_shard_1",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 182,
+      "y": 1277,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "imagine",
+      "sectorIndex": 4
+    },
+    {
+      "id": "imagine_shard_2",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 80,
+      "y": 1215,
+      "assetKey": "shard_wiki_blue",
+      "parentDomainId": "imagine",
+      "sectorIndex": 4
+    },
+    {
+      "id": "imagine_shard_3",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": -11,
+      "y": 1133,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "imagine",
+      "sectorIndex": 4
+    },
+    {
+      "id": "imagine_shard_4",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": -89,
+      "y": 1031,
+      "assetKey": "shard_wiki_blue",
+      "parentDomainId": "imagine",
+      "sectorIndex": 4
+    },
+    {
+      "id": "imagine_shard_5",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": -150,
+      "y": 912,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "imagine",
+      "sectorIndex": 4
+    },
+    {
+      "id": "inspiration",
+      "tier": 2,
+      "label": "취향과 영감",
+      "route": "/persona?domain=inspiration",
+      "x": 244,
+      "y": 575,
+      "assetKey": "domain_inspiration_premium",
+      "sectorIndex": 5,
+      "angleDeg": 210,
+      "handoffActions": [
+        "open",
+        "askSecondB",
+        "imagine"
+      ]
+    },
+    {
+      "id": "inspiration_persona_1",
+      "tier": 3,
+      "label": "만드는 나",
+      "route": "/persona",
+      "x": 85,
+      "y": 651,
+      "assetKey": "tier_icon_flying_paper",
+      "parentDomainId": "inspiration",
+      "sectorIndex": 5
+    },
+    {
+      "id": "inspiration_persona_2",
+      "tier": 3,
+      "label": "배우는 나",
+      "route": "/persona",
+      "x": 80,
+      "y": 479,
+      "assetKey": "tier_icon_book",
+      "parentDomainId": "inspiration",
+      "sectorIndex": 5
+    },
+    {
+      "id": "inspiration_persona_3",
+      "tier": 3,
+      "label": "정리하는 나",
+      "route": "/persona",
+      "x": 134,
+      "y": 298,
+      "assetKey": "tier_icon_star_spark",
+      "parentDomainId": "inspiration",
+      "sectorIndex": 5
+    },
+    {
+      "id": "inspiration_shard_1",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": -40,
+      "y": 667,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "inspiration",
+      "sectorIndex": 5
+    },
+    {
+      "id": "inspiration_shard_2",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": -37,
+      "y": 548,
+      "assetKey": "shard_wiki_blue",
+      "parentDomainId": "inspiration",
+      "sectorIndex": 5
+    },
+    {
+      "id": "inspiration_shard_3",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": -11,
+      "y": 426,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "inspiration",
+      "sectorIndex": 5
+    },
+    {
+      "id": "inspiration_shard_4",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 37,
+      "y": 308,
+      "assetKey": "shard_wiki_blue",
+      "parentDomainId": "inspiration",
+      "sectorIndex": 5
+    },
+    {
+      "id": "inspiration_shard_5",
+      "tier": 4,
+      "label": "조각",
+      "route": "/wiki",
+      "x": 110,
+      "y": 196,
+      "assetKey": "shard_journal_gold",
+      "parentDomainId": "inspiration",
+      "sectorIndex": 5
+    }
+  ],
+  "domains": [
+    {
+      "id": "work_growth",
+      "label": "일과 성장",
+      "angleDeg": -90,
+      "sectorStartDeg": -120,
+      "sectorEndDeg": -60,
+      "assetKey": "domain_work_growth_premium"
+    },
+    {
+      "id": "relationship",
+      "label": "관계와 사람",
+      "angleDeg": -30,
+      "sectorStartDeg": -60,
+      "sectorEndDeg": 0,
+      "assetKey": "domain_relationship_premium"
+    },
+    {
+      "id": "knowledge",
+      "label": "배움과 지식",
+      "angleDeg": 30,
+      "sectorStartDeg": 0,
+      "sectorEndDeg": 60,
+      "assetKey": "domain_knowledge_premium"
+    },
+    {
+      "id": "records",
+      "label": "기록 보관소",
+      "angleDeg": 90,
+      "sectorStartDeg": 60,
+      "sectorEndDeg": 120,
+      "assetKey": "domain_records_premium"
+    },
+    {
+      "id": "imagine",
+      "label": "공상 작업실",
+      "angleDeg": 150,
+      "sectorStartDeg": 120,
+      "sectorEndDeg": 180,
+      "assetKey": "domain_imagine_premium"
+    },
+    {
+      "id": "inspiration",
+      "label": "취향과 영감",
+      "angleDeg": 210,
+      "sectorStartDeg": 180,
+      "sectorEndDeg": 240,
+      "assetKey": "domain_inspiration_premium"
+    }
+  ]
+}

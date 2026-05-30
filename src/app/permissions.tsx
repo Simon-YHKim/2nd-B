@@ -5,9 +5,10 @@
 
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Link, router } from "expo-router";
+import { Link } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
+import { AppNav } from "@/components/ui/AppNav";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -45,8 +46,8 @@ const ENTRIES: PermissionEntry[] = [
     status: "optional",
     platform: "web",
     why: {
-      en: "Tap 'Copy' on the wiki Export and on Jarvis bubbles. Only fires when you tap; we never read clipboard.",
-      ko: "위키 익스포트와 자비스 말풍선의 '복사' 동작. 탭할 때만 작동하며, 클립보드를 읽지 않습니다.",
+      en: "Tap 'Copy' on the wiki Export and on SecondB bubbles. Only fires when you tap; we never read clipboard.",
+      ko: "위키 익스포트와 세컨비 말풍선의 '복사' 동작. 탭할 때만 작동하며, 클립보드를 읽지 않습니다.",
     },
   },
   {
@@ -99,7 +100,7 @@ export default function Permissions() {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <Text variant="caption" color="brand">
@@ -172,10 +173,10 @@ export default function Permissions() {
           <Link href="/manual" asChild>
             <Button label={locale === "ko" ? "사용 안내서로" : "Open the manual"} variant="secondary" />
           </Link>
-          <Button label={locale === "ko" ? "뒤로" : "Back"} variant="secondary" onPress={() => router.back()} />
         </View>
+        <AppNav locale={locale} />
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 

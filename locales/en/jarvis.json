@@ -1,7 +1,11 @@
 {
-  "title": "Jarvis",
+  "title": "2ndB",
   "subtitle": "Your wiki, on tap. Ask anything — I'll cite the pages I used.",
   "empty": "Start a conversation. Try: \"What patterns show up across my captures this month?\"",
-  "placeholder": "Ask Jarvis...",
-  "send": "Send"
+  "placeholder": "Ask 2ndB...",
+  "send": "Send",
+  "intro_title": "Hi, I'm 2ndB",
+  "intro_body": "I answer using your own wiki pages as context. My replies cite [[page-slug]] so you can trace what I leaned on. Meta questions like 'what patterns recur across this month?' are where I shine.",
+  "intro_ok": "Got it",
+  "intro_mute": "Don't show again today"
 }

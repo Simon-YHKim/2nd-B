@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from "react-na
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { AppNav } from "@/components/ui/AppNav";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { createRecord } from "@/lib/records/create";
+import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 
 const PERIOD_OPTIONS: { id: AuditPeriod; label: { en: string; ko: string } }[] = [
   { id: "current", label: { en: "Right now", ko: "지금 이 시기" } },
@@ -31,14 +32,15 @@ export default function Audit() {
   const [answer, setAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const companion = useCompanionMoment();
 
   if (loading) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <ActivityIndicator color={semantic.brand} />
         </View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
@@ -62,6 +64,8 @@ export default function Audit() {
       setAnswer("");
       if (index + 1 >= questions.length) {
         setDone(true);
+        // 모모 reads back the finished interview before it's filed (companion pack §3).
+        companion.fire("auditCompleted");
       } else {
         setIndex(index + 1);
       }
@@ -74,11 +78,11 @@ export default function Audit() {
 
   if (period === null) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
-              {locale === "ko" ? "라이프 오딧 — 시기 선택" : "Life audit — choose a period"}
+              {locale === "ko" ? "과거의 나 — 시기 선택" : "Past me — choose a period"}
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
               {locale === "ko"
@@ -103,17 +107,17 @@ export default function Audit() {
             <Button
               label={locale === "ko" ? "뒤로" : "Back"}
               variant="secondary"
-              onPress={() => router.back()}
+              onPress={() => router.push("/")}
             />
           </View>
         </ScrollView>
-      </Screen>
+      </PremiumAppShell>
     );
   }
 
   if (done) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <View style={styles.completeBadge}>
             <Text variant="subtle" style={styles.completeBadgeText}>
@@ -121,7 +125,7 @@ export default function Audit() {
             </Text>
           </View>
           <Text variant="heading" style={{ marginTop: spacing.md, textAlign: "center" }}>
-            {locale === "ko" ? "라이프 오딧을 마쳤어요" : "Audit complete"}
+            {locale === "ko" ? "과거의 나 인터뷰를 마쳤어요" : "Past me complete"}
           </Text>
           <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.sm }}>
             {locale === "ko"
@@ -141,17 +145,21 @@ export default function Audit() {
             />
           </View>
         </View>
-      </Screen>
+        {/* 모모 appears briefly to file the finished interview (companion pack §3) */}
+        {companion.moment ? (
+          <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
+        ) : null}
+      </PremiumAppShell>
     );
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         {index === 0 ? (
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
-              {locale === "ko" ? "라이프 오딧 — 자기 인터뷰" : "Life audit — self interview"}
+              {locale === "ko" ? "과거의 나 — 자기 인터뷰" : "Past me — self interview"}
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
               {locale === "ko"
@@ -230,13 +238,14 @@ export default function Audit() {
         />
         <AppNav locale={locale} />
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: { gap: spacing.md, paddingBottom: spacing.xl },
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: spacing.lg },
+  companionFlash: { position: "absolute", bottom: 40, right: 20 },
   actions: { width: "100%", gap: spacing.md, marginTop: spacing.xl },
   questionCard: {
     backgroundColor: semantic.surface,

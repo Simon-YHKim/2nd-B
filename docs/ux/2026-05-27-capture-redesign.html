@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>/capture 데이터 입력 화면 재설계 진단 · 2026-05-27</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #02040A;
+    --surface: rgba(255,255,255,0.04);
+    --border: rgba(143,183,244,0.18);
+    --text: #E5EDFA;
+    --text-muted: #C7D4EA;
+    --text-subtle: #7FB3F4;
+    --brand: #2F97FC;
+    --accent: #7FB3F4;
+    --red: #FF6B6B;
+    --amber: #FFB55C;
+    --green: #74E0A8;
+    --plum: #C19EDC;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Pretendard', system-ui, sans-serif;
+    font-size: 14px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 56px 28px 80px; }
+  header { margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .brand-tag { color: var(--brand); font-size: 11px; font-weight: 700; letter-spacing: 2.5px; margin-bottom: 12px; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 14px; }
+  .meta { color: var(--text-subtle); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; margin-top: 14px; }
+  h2 { font-size: 18px; font-weight: 700; margin: 40px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h2 .num { color: var(--brand); font-size: 12px; margin-right: 8px; letter-spacing: 1.5px; }
+  h3 { font-size: 14px; font-weight: 600; margin: 18px 0 8px; }
+  p, li { color: var(--text-muted); margin-bottom: 6px; }
+  ul { padding-left: 18px; }
+  code, .mono {
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 12px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; color: var(--accent);
+  }
+
+  table {
+    width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12px;
+  }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--text-subtle); font-weight: 600; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; background: var(--surface); }
+  td.green { color: var(--green); }
+  td.red { color: var(--red); }
+  td.amber { color: var(--amber); }
+  td b { color: var(--text); }
+
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; font-size: 12px; }
+  .compare-cell { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; }
+  .compare-cell.before { border-left: 3px solid var(--red); }
+  .compare-cell.after { border-left: 3px solid var(--green); }
+  .compare-cell .head { color: var(--text-subtle); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+
+  .mode-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 16px 0; }
+  .mode-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 12px; text-align: center;
+    transition: all 0.2s;
+  }
+  .mode-card .icon { font-size: 22px; margin-bottom: 6px; }
+  .mode-card .title { color: var(--text); font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  .mode-card .desc { color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+  .mode-card.have { border-color: rgba(116,224,168,0.4); }
+  .mode-card.partial { border-color: rgba(255,181,92,0.4); }
+  .mode-card.missing { border-color: rgba(255,107,107,0.4); }
+  .mode-card .status { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 1px; margin-top: 6px; }
+  .mode-card.have .status { color: var(--green); }
+  .mode-card.partial .status { color: var(--amber); }
+  .mode-card.missing .status { color: var(--red); }
+
+  .mockup {
+    background: rgba(143,183,244,0.04);
+    border: 1px dashed var(--border); border-radius: 10px;
+    padding: 18px; margin: 16px 0;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .mockup pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; line-height: 1.55; color: var(--text-muted);
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  .qcard {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--plum); border-radius: 8px;
+    padding: 18px 22px; margin: 14px 0;
+  }
+  .qcard .tag { color: var(--plum); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; }
+  .qcard h4 { color: var(--text); font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+
+  .footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-subtle); letter-spacing: 0.5px; }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 720px) {
+    .compare { grid-template-columns: 1fr; }
+    .mode-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand-tag">2ND-BRAIN · /capture · DATA-INPUT REDESIGN</div>
+  <h1>사용자 데이터 입력 화면 — 의도 분해 + 갭 분석</h1>
+  <div class="subtitle">PR #31 머지 보류. 사용자가 v2 에서 명시한 데이터 입력 요구 (일상/Pro × 5 입력 형태) 와 현재 /capture 구현의 차이를 분해 → MVP 결정 → 코드 작업.</div>
+  <div class="meta">2026-05-27 · src/app/capture.tsx (282 lines) · src/lib/wiki/types.ts (SourceKind 8개)</div>
+</header>
+
+<h2><span class="num">00</span>사용자 의도 (v2 + 이번 turn 종합)</h2>
+<ul>
+  <li><strong>Wiki = 사용자를 이해하는 AI 의 기반 지식</strong></li>
+  <li>사용자가 <strong>자료 업로드 / 메모 / 링크</strong> 입력 → Obsidian 스크랩퍼 형식으로 자동 분류 → 자동 정리</li>
+  <li>두 트랙으로 분리:
+    <ul>
+      <li><strong>일상 Wiki</strong> (직업 무관): 일상 기록 · 이메일 · 스크랩 · 캡쳐 OCR · 별도 문서</li>
+      <li><strong>Pro Wiki</strong> (직업 관련): 전문 기록 · 전문 이메일 · 전문 스크랩 · 전문 OCR · 별도 문서</li>
+    </ul>
+  </li>
+  <li>각 카테고리에 대해 <strong>읽기/수정 화면 진입 가능</strong></li>
+  <li>입구는 메인 네비게이터의 Wiki 노드 말풍선 <code>+</code> 아이콘</li>
+</ul>
+
+<h2><span class="num">01</span>현재 /capture 의 상태</h2>
+<table>
+<thead><tr><th>요소</th><th>현재</th></tr></thead>
+<tbody>
+  <tr><td>입력 필드</td><td>URL + 마크다운 본문 (자유 텍스트 또는 Obsidian Web Clipper 출력)</td></tr>
+  <tr><td>분류</td><td>URL 기반 자동 감지 + 8 칩 수동 override<br>(inbox · article · video · paper · reddit · code · ai_tool · self_knowledge)</td></tr>
+  <tr><td>저장</td><td>Supabase Storage 업로드 + sources 테이블 insert</td></tr>
+  <tr><td>일상/Pro 분류</td><td><span style="color:var(--red)">없음</span></td></tr>
+  <tr><td>이미지 OCR</td><td><span style="color:var(--red)">없음</span> (markdown text 만)</td></tr>
+  <tr><td>파일 첨부</td><td><span style="color:var(--red)">없음</span></td></tr>
+  <tr><td>이메일 forward</td><td><span style="color:var(--red)">없음</span></td></tr>
+  <tr><td>톤</td><td>일부 기술적 — "Obsidian Web Clipper markdown" / "kind override" / 영어 8 칩 명칭</td></tr>
+</tbody>
+</table>
+
+<h2><span class="num">02</span>입력 형태 갭 — 사용자 의도의 5 모드</h2>
+<div class="mode-grid">
+  <div class="mode-card have">
+    <div class="icon">✍️</div>
+    <div class="title">메모</div>
+    <div class="desc">자유 텍스트 한 줄~여러 줄</div>
+    <div class="status">✓ HAVE</div>
+  </div>
+  <div class="mode-card have">
+    <div class="icon">🔗</div>
+    <div class="title">링크</div>
+    <div class="desc">URL 1개 (자동 메타 추출 예정)</div>
+    <div class="status">✓ HAVE</div>
+  </div>
+  <div class="mode-card partial">
+    <div class="icon">📋</div>
+    <div class="title">스크랩</div>
+    <div class="desc">웹 클리퍼 마크다운 붙여넣기</div>
+    <div class="status">▲ PARTIAL</div>
+  </div>
+  <div class="mode-card missing">
+    <div class="icon">📸</div>
+    <div class="title">캡쳐 OCR</div>
+    <div class="desc">사진/스크린샷 → 텍스트 추출</div>
+    <div class="status">✗ MISSING</div>
+  </div>
+  <div class="mode-card missing">
+    <div class="icon">📄</div>
+    <div class="title">문서/이메일</div>
+    <div class="desc">PDF · DOCX 첨부 또는 이메일 forward</div>
+    <div class="status">✗ MISSING</div>
+  </div>
+</div>
+
+<h2><span class="num">03</span>before ↔ after 컨셉</h2>
+<div class="compare">
+  <div class="compare-cell before">
+    <div class="head">현재 (v1.0)</div>
+    <ul>
+      <li>단일 form (URL + body)</li>
+      <li>분류 = 8 영문 칩 (article/reddit/code/ai_tool…)</li>
+      <li>일상/Pro 개념 없음</li>
+      <li>"Obsidian Web Clipper" 같은 기술 어휘 노출</li>
+      <li>이미지/파일/이메일 입력 불가</li>
+    </ul>
+  </div>
+  <div class="compare-cell after">
+    <div class="head">제안 (v2.0)</div>
+    <ul>
+      <li>상단 토글: <strong>일상 Wiki · Pro Wiki</strong></li>
+      <li>5 모드 탭: <strong>메모 / 링크 / 스크랩 / 캡쳐 OCR / 문서</strong></li>
+      <li>각 모드별 적절한 입력 UI (메모=textarea, 링크=URL, OCR=이미지 picker, 문서=파일 picker)</li>
+      <li>톤 = "자재 반입" 비유, 기술 어휘 제거</li>
+      <li>저장 시 자동: kind 추론 + tag 추론 + frontmatter 생성</li>
+    </ul>
+  </div>
+</div>
+
+<h2><span class="num">04</span>제안 화면 mockup</h2>
+<div class="mockup">
+<pre>┌────────────────────────────────────────────────────────────┐
+│  ← 네비게이터                                         EN ⇆ │
+├────────────────────────────────────────────────────────────┤
+│  자재 반입 🪨                                              │
+│  일꾼 세포들에게 새 재료를 넘기세요.                       │
+│                                                            │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  📂 어디로 갈까요?                                    │  │
+│  │  [ 일상 Wiki ✓ ]   [ Pro Wiki ]                       │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                            │
+│  📥 어떻게 들어왔어요?                                     │
+│  ┌─────┬─────┬─────┬─────┬─────┐                          │
+│  │ ✍️  │ 🔗  │ 📋  │ 📸  │ 📄  │                          │
+│  │메모 │링크 │스크랩│OCR │문서 │                          │
+│  └─────┴─────┴─────┴─────┴─────┘                          │
+│                                                            │
+│  (선택 모드에 따라 입력 UI 가 바뀜)                        │
+│                                                            │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ 자유롭게 적어 보세요…                                │  │
+│  │                                                       │  │
+│  │                                                       │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                            │
+│  💡 미리보기 — 제목 / 슬러그 / 자동 태그 (있을 때만)      │
+│                                                            │
+│  [ 영차영차 던지기 ]   [ 취소 ]                            │
+└────────────────────────────────────────────────────────────┘</pre>
+</div>
+
+<h2><span class="num">05</span>데이터 모델 변경 후보</h2>
+<table>
+<thead><tr><th>옵션</th><th>요약</th><th>장점</th><th>단점</th></tr></thead>
+<tbody>
+  <tr>
+    <td><strong>A. 마이그레이션 (정통)</strong></td>
+    <td>sources 테이블에 <code>wiki_track ENUM('daily','pro')</code> 추가, SourceKind 에 <code>note</code> · <code>email</code> · <code>image_ocr</code> · <code>file_doc</code> 추가</td>
+    <td>쿼리 단순. RLS 분리 가능. 통계 정확.</td>
+    <td>DB 마이그레이션 + 타입 회귀 다수.</td>
+  </tr>
+  <tr>
+    <td><strong>B. tag 기반 (저비용)</strong> ⭐</td>
+    <td>frontmatter <code>track: 'daily'|'pro'</code> + 기존 tags 에 <code>'pro'</code> 추가. 새 kind 는 tag <code>'mode-ocr'</code> 등으로</td>
+    <td>마이그레이션 불필요. 즉시 배포 가능.</td>
+    <td>쿼리/필터에 tag 의존 — 살짝 fragile.</td>
+  </tr>
+  <tr>
+    <td><strong>C. 하이브리드</strong></td>
+    <td>이번 PR = B (tag). 사용자 데이터 누적 후 v2 마이그레이션 (A)</td>
+    <td>위험 분산. 점진 진화.</td>
+    <td>두 단계 작업.</td>
+  </tr>
+</tbody>
+</table>
+
+<h2><span class="num">06</span>제안 MVP (이번 PR 범위)</h2>
+<ul>
+  <li>✅ <strong>일상 Wiki / Pro Wiki 토글</strong> (tag 기반, 옵션 B)</li>
+  <li>✅ <strong>5 모드 탭 UI</strong> — 메모 / 링크 / 스크랩 / 캡쳐 OCR (placeholder) / 문서 (placeholder)</li>
+  <li>✅ 메모 / 링크 / 스크랩 모드 = 기존 로직 reuse, 깔끔하게 분리</li>
+  <li>⏳ <strong>캡쳐 OCR / 문서 모드 = "곧 추가" placeholder</strong> — 외부 의존성 (`expo-image-picker`, `expo-document-picker`, OCR API) 필요. 다음 PR.</li>
+  <li>✅ <strong>톤 일관화</strong> — "자재 반입" / "어떻게 들어왔어요?" / "영차영차 던지기" 식 카피</li>
+  <li>✅ <strong>back 버튼</strong> → router.push("/") (네비게이터 복귀)</li>
+  <li>⏳ 자료별 <strong>읽기/수정 화면</strong> — /wiki 가 이미 존재, 다음 PR 에서 모드별 필터 추가</li>
+</ul>
+
+<h2><span class="num">07</span>핵심 결정 (사용자에게)</h2>
+
+<div class="qcard">
+  <div class="tag">Q1 · 데이터 모델</div>
+  <h4>마이그레이션 vs tag 기반?</h4>
+  <p>옵션 A (DB 마이그레이션) 가 정통이지만 작업 큼. 옵션 B (tag 기반) 는 이번 PR 안에 다 끝남. 옵션 C 는 둘 다. <strong>제안: B 로 시작, 사용자 데이터 누적되면 A 로 마이그레이션</strong>.</p>
+</div>
+
+<div class="qcard">
+  <div class="tag">Q2 · OCR/파일 범위</div>
+  <h4>이번 PR 에 OCR/파일 입력도?</h4>
+  <p>외부 의존성 (<code>expo-image-picker</code>, <code>expo-document-picker</code>, OCR API) 필요. 약 4시간 + 권한 처리. <strong>제안: 이번 PR 은 placeholder ("곧 추가") 만, 다음 PR 에서 구현</strong>.</p>
+</div>
+
+<div class="qcard">
+  <div class="tag">Q3 · Pro/일상 분류 방식</div>
+  <h4>사용자 토글 vs AI 자동?</h4>
+  <p>입력 시점 사용자 명시 토글이 가장 정확. AI 자동 분류는 v2 이후 (분류기 학습 데이터 누적 후). <strong>제안: 사용자 토글, 기본값 = 일상 Wiki</strong>.</p>
+</div>
+
+<h2><span class="num">08</span>실행 시퀀스</h2>
+<ol>
+  <li>이 문서 확인 → 사용자 Q1/Q2/Q3 결정</li>
+  <li><code>/capture</code> 재설계 코드 작업 (옵션 B 채택 시 ~2시간)</li>
+  <li>NavGraph Wiki 노드 말풍선의 <code>+</code> 아이콘 → /capture 진입 (이미 PR #30 에 있음)</li>
+  <li>PR #31 머지 (보류된 base 컴포넌트 변경 + 명칭 변경) — 독립적이므로 가능</li>
+  <li>새 PR /capture 재설계 (이 문서 기반)</li>
+</ol>
+
+<div class="footer">
+  소스: <a href="https://github.com/Simon-YHKim/2nd-B/blob/main/src/app/capture.tsx">capture.tsx</a> · <a href="https://github.com/Simon-YHKim/2nd-B/blob/main/src/lib/wiki/types.ts">wiki/types.ts</a> · 사용자 v2 메시지 (이번 turn) · DESIGN.md 세포 톤<br>
+  설계: Claude · 2026-05-27 · 다음 단계: Q1-Q3 결정 받으면 실 코드.
+</div>
+
+</div>
+</body>
+</html>

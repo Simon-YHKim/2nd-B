@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Pressable } from "react-native";
+import { Animated, View, StyleSheet, ScrollView, ActivityIndicator, Alert, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, Link } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell, PremiumCard, PremiumButton } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -22,6 +22,9 @@ import {
   type RecordedEvidence,
 } from "@/lib/records/create";
 import { useProgression } from "@/lib/progression/useProgression";
+import { useSavePop } from "@/components/motion/useSignatureMotion";
+import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+import { ShardArt } from "@/components/art/IslandArt";
 import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -53,6 +56,12 @@ export default function Journal() {
   const { t, i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const progression = useProgression();
+  // 저장 / Save — "뽁" signature pop on a successful entry.
+  const { scale: saveScale, pop: savePop } = useSavePop();
+  // 모모 brief event moment on save (companion pack §3: journalSaved → momo).
+  const companion = useCompanionMoment();
+  // Shows the "그래프 보기" success panel after a save, until the next keystroke.
+  const [justSaved, setJustSaved] = useState(false);
   const [body, setBody] = useState("");
   const [topic, setTopic] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -128,6 +137,10 @@ export default function Journal() {
       setShowExtras(false);
       setAskAdvisor(false);
       await refresh(userId);
+      // 뽁 — signature save pop (+ synth pop on web) + 세컨비 celebration.
+      savePop();
+      companion.fire("journalSaved");
+      setJustSaved(true);
       // Capture earned XP — refresh the level bar.
       void progression.refresh();
     } catch (e) {
@@ -148,23 +161,23 @@ export default function Journal() {
 
   if (loading) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <ActivityIndicator color={semantic.brand} />
         </View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
 
   if (!userId) return <Redirect href="/sign-in" />;
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headerRow}>
           <View>
             <Text variant="caption" color="brand">2nd-Brain</Text>
-            <Text variant="heading">{t("app.name")}</Text>
+            <Text variant="heading">{locale === "ko" ? "오늘의 조각" : "Today's piece"}</Text>
           </View>
           <Button label={t("actions.signOut")} variant="secondary" onPress={handleSignOut} />
         </View>
@@ -199,13 +212,13 @@ export default function Journal() {
             <Button label={locale === "ko" ? "인사이트" : "Insights"} variant="secondary" />
           </Link>
           <Link href="/jarvis" asChild>
-            <Button label={locale === "ko" ? "자비스" : "Jarvis"} variant="secondary" />
+            <Button label={locale === "ko" ? "세컨비" : "SecondB"} variant="secondary" />
           </Link>
           <Link href="/manual" asChild>
             <Button label={locale === "ko" ? "안내" : "Manual"} variant="secondary" />
           </Link>
           <Link href="/audit" asChild>
-            <Button label={locale === "ko" ? "라이프 오딧" : "Life audit"} variant="secondary" />
+            <Button label={locale === "ko" ? "과거의 나" : "Past me"} variant="secondary" />
           </Link>
           <Link href="/interview" asChild>
             <Button label={locale === "ko" ? "스무고개" : "Interview"} variant="secondary" />
@@ -233,8 +246,8 @@ export default function Journal() {
             </Text>
             <Text variant="body" style={{ marginTop: spacing.xs }}>
               {locale === "ko"
-                ? `입문 퀘스트(라이프 오딧)를 완료하면 Lv${gate.requiredLevel}에 도달하고 일기가 열려요.`
-                : `Finish the onboarding quest (life audit) to reach Lv${gate.requiredLevel} and unlock the journal.`}
+                ? `입문 퀘스트(과거의 나)를 완료하면 Lv${gate.requiredLevel}에 도달하고 일기가 열려요.`
+                : `Finish the onboarding quest (past me) to reach Lv${gate.requiredLevel} and unlock the journal.`}
             </Text>
             <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
               {locale === "ko"
@@ -244,7 +257,7 @@ export default function Journal() {
             <View style={{ marginTop: spacing.md }}>
               <Link href="/audit" asChild>
                 <Button
-                  label={locale === "ko" ? "라이프 오딧 시작하기" : "Start the life audit"}
+                  label={locale === "ko" ? "과거의 나 시작하기" : "Start the past me"}
                   variant="primary"
                 />
               </Link>
@@ -323,13 +336,27 @@ export default function Journal() {
               placeholder={locale === "ko" ? "주제 (선택) — 한 줄로" : "Topic (optional) — one line"}
               autoCapitalize="sentences"
             />
+            {/* Quick prompt chips (journal-capture pack §2) — tap to seed
+                the piece. "한 문장이어도 충분해요." */}
+            {body.trim().length === 0 ? (
+              <View style={styles.promptChipRow}>
+                {(locale === "ko"
+                  ? ["오늘 가장 또렷했던 순간", "요즘 자주 떠오르는 생각", "지금 마음에 걸리는 것"]
+                  : ["A moment that stood out today", "A thought that keeps returning", "Something on my mind"]
+                ).map((p) => (
+                  <Pressable key={p} style={styles.promptChip} onPress={() => setBody(p + (locale === "ko" ? ": " : ": "))}>
+                    <Text variant="caption" color="brand">{p}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             <Input
               value={body}
               onChangeText={setBody}
               placeholder={
                 locale === "ko"
-                  ? "오늘 떠오른 생각이나 느낌을 적어주세요."
-                  : "What's on your mind today?"
+                  ? "오늘 떠오른 생각이나 느낌을 적어주세요. 한 문장이어도 충분해요."
+                  : "What's on your mind today? One sentence is enough."
               }
               multiline
               numberOfLines={6}
@@ -396,13 +423,38 @@ export default function Journal() {
                 </Text>
               </View>
             </Pressable>
-            <Button
-              label={locale === "ko" ? "기록하기" : "Save"}
-              variant="primary"
-              onPress={handleSubmit}
-              disabled={!body.trim() || submitting}
-              loading={submitting}
-            />
+            <Animated.View style={{ transform: [{ scale: saveScale }] }}>
+              <Button
+                label={locale === "ko" ? "기록하기" : "Save"}
+                variant="primary"
+                onPress={handleSubmit}
+                disabled={!body.trim() || submitting}
+                loading={submitting}
+              />
+            </Animated.View>
+            {/* Save success → graph link (journal-capture pack §2/§7) */}
+            {justSaved && body.trim().length === 0 ? (
+              <PremiumCard glow style={styles.savedPanel}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <ShardArt id="journal_gold" size={48} />
+                  <View style={{ flex: 1 }}>
+                    <Text variant="body" color="brand" style={{ fontWeight: "600" }}>
+                      {locale === "ko" ? "조각을 잘 보관했어요" : "Your piece is safely kept"}
+                    </Text>
+                    <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
+                      {locale === "ko"
+                        ? "이 조각은 나중에 다른 길과 이어질 수 있어요."
+                        : "It may connect to other paths later."}
+                    </Text>
+                  </View>
+                </View>
+                <PremiumButton
+                  label={locale === "ko" ? "그래프 보기" : "See the graph"}
+                  variant="secondary"
+                  onPress={() => router.push("/")}
+                />
+              </PremiumCard>
+            ) : null}
             <Text variant="subtle" color="textSubtle" style={styles.privacyFootnote}>
               {t("journal.privacyFootnote")}
             </Text>
@@ -417,8 +469,8 @@ export default function Journal() {
             </Text>
             <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }}>
               {locale === "ko"
-                ? "두번째 뇌는 8가지 핵심 동작이 있어요. 캡처 → 인박스 → 위키 → 자비스로 흐름이 이어집니다. 1분 안내서를 먼저 보시면 길을 잃지 않아요."
-                : "2nd-Brain has 8 core moves. Capture → Inbox → Wiki → Jarvis. A 1-minute manual saves you from getting lost."}
+                ? "두번째 뇌는 8가지 핵심 동작이 있어요. 캡처 → 인박스 → 위키 → 세컨비로 흐름이 이어집니다. 1분 안내서를 먼저 보시면 길을 잃지 않아요."
+                : "2nd-Brain has 8 core moves. Capture → Inbox → Wiki → SecondB. A 1-minute manual saves you from getting lost."}
             </Text>
             <Link href="/manual" asChild>
               <Button label={locale === "ko" ? "안내서 열기" : "Open the manual"} variant="primary" />
@@ -465,12 +517,16 @@ export default function Journal() {
           )}
         </View>
       </ScrollView>
+      {/* 모모 appears briefly to file a saved entry (companion pack §3) */}
+      {companion.moment ? (
+        <CompanionMoment moment={companion.moment} style={styles.saveFlash} />
+      ) : null}
       <CrisisRouter
         visible={crisis.visible}
         hotline={crisis.hotline}
         onClose={() => setCrisis({ ...crisis, visible: false })}
       />
-    </Screen>
+    </PremiumAppShell>
   );
 }
 
@@ -643,6 +699,24 @@ const styles = StyleSheet.create({
   },
   navRow: { flexDirection: "row", gap: spacing.sm },
   composer: { gap: spacing.sm },
+  promptChipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  promptChip: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  saveFlash: { position: "absolute", bottom: 90, right: 20 },
+  savedPanel: {
+    backgroundColor: "rgba(114,242,199,0.06)",
+    borderColor: "rgba(114,242,199,0.22)",
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
   composerHeadRow: {
     flexDirection: "row",
     justifyContent: "space-between",

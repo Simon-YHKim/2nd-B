@@ -1,0 +1,67 @@
+:root {
+  --space-950: #070A18;
+  --space-900: #0D1530;
+  --space-800: #16213E;
+  --space-700: #243056;
+  --signal-blue: #4CC9F0;
+  --signal-mint: #72F2C7;
+  --soul-violet: #A78BFA;
+  --pixel-lamp: #FFD166;
+  --moon-white: #E8ECF8;
+  --mist-gray: #8D98B8;
+  --guard-rose: #FF7A90;
+  --dream-pink: #FF9FD6;
+}
+
+.onboarding-screen {
+  min-height: 100dvh;
+  color: var(--moon-white);
+  background:
+    radial-gradient(circle at 50% 22%, rgba(167, 139, 250, 0.18), transparent 34%),
+    radial-gradient(circle at 18% 72%, rgba(114, 242, 199, 0.08), transparent 32%),
+    var(--space-950);
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, "SF Pro", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.onboarding-card {
+  border: 1px solid rgba(141, 152, 184, 0.22);
+  background: rgba(13, 21, 48, 0.86);
+  backdrop-filter: blur(16px);
+  border-radius: 26px;
+  box-shadow: 0 0 28px rgba(167, 139, 250, 0.12);
+}
+
+.onboarding-primary-cta {
+  min-height: 52px;
+  border-radius: 999px;
+  border: 0;
+  color: var(--space-950);
+  background: var(--soul-violet);
+  font-weight: 800;
+}
+
+.onboarding-secondary-cta {
+  min-height: 48px;
+  border-radius: 999px;
+  border: 1px solid rgba(114, 242, 199, 0.4);
+  color: var(--signal-mint);
+  background: rgba(22, 33, 62, 0.82);
+}
+
+.onboarding-progress-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--space-700);
+}
+
+.onboarding-progress-dot[data-active="true"] {
+  background: var(--soul-violet);
+  box-shadow: 0 0 14px rgba(167, 139, 250, 0.7);
+}
+
+.first-run-safe-area {
+  padding-top: calc(16px + env(safe-area-inset-top));
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}

@@ -4,10 +4,11 @@ Project-specific guidance for Claude Code sessions in this repo.
 
 ## Project context
 
-- **What**: 2nd-Brain — daily journaling + life-audit + AI-curated self-knowledge platform for the Build with Gemini XPRIZE (Education & Human Potential).
+- **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화. Build with Gemini XPRIZE (Education & Human Potential) 출품작.
 - **Deadline**: 2026-08-17 06:00 KST.
 - **Stack**: React Native + Expo SDK 56, TypeScript strict, Supabase (Postgres + Auth), Gemini via `@google/genai`, EAS Build, Vercel (web), GitHub Actions.
 - **Solo build**: Simon Kim. Evenings + weekends only.
+- **Vision**: `docs/VISION.md` (캐치프레이즈 + 3축 모델). 모든 새 기능은 어느 축에 속하는지 PR 설명에 명시.
 - **Master blueprint**: `docs/ARCHITECTURE.md`. Hard constraints C1~C12: `docs/CONSTRAINTS.md`.
 
 ## The 12 hard constraints

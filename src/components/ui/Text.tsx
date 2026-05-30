@@ -1,5 +1,8 @@
 import { Text as RNText, type TextProps as RNTextProps } from "react-native";
+
 import { semantic, typography } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
+import { useThemePalette } from "@/lib/theme/ThemeContext";
 
 type Variant = "display" | "heading" | "body" | "caption" | "subtle";
 
@@ -18,11 +21,15 @@ const VARIANT_STYLE: Record<Variant, { fontSize: number; fontWeight: "400" | "50
 
 export function Text({ variant = "body", color, style, ...rest }: TextProps) {
   const v = VARIANT_STYLE[variant];
+  // useThemePalette returns the same-shape palette for the active mode
+  // (dark default / light when the user toggles). Every <Text/> across
+  // the app picks the right tone automatically without per-screen edits.
+  const palette = useThemePalette();
   return (
     <RNText
       {...rest}
       style={[
-        { color: semantic[color ?? "text"], fontSize: v.fontSize, fontWeight: v.fontWeight },
+        { color: palette[color ?? "text"], fontSize: v.fontSize, fontWeight: v.fontWeight, fontFamily: fontFamilies.sans },
         style,
       ]}
     />

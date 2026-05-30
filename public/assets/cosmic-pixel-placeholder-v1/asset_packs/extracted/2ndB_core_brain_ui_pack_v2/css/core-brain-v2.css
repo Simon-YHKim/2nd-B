@@ -1,0 +1,131 @@
+:root {
+  --space-950: #070A18;
+  --space-900: #0D1530;
+  --space-800: #16213E;
+  --space-700: #243056;
+  --signal-blue: #4CC9F0;
+  --signal-mint: #72F2C7;
+  --soul-violet: #A78BFA;
+  --pixel-lamp: #FFD166;
+  --moon-white: #E8ECF8;
+  --mist-gray: #8D98B8;
+  --dream-pink: #FF9FD6;
+  --guard-rose: #FF7A90;
+}
+
+.coreBrainScreen {
+  min-height: 100svh;
+  color: var(--moon-white);
+  background:
+    radial-gradient(circle at 50% 24%, rgba(167, 139, 250, 0.17), transparent 34%),
+    radial-gradient(circle at 20% 78%, rgba(114, 242, 199, 0.07), transparent 30%),
+    var(--space-950);
+  padding: calc(22px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+  overflow-x: hidden;
+}
+
+.coreBrainHeader {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.coreBackButton,
+.coreIconButton {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(141, 152, 184, 0.28);
+  border-radius: 14px;
+  background: rgba(13, 21, 48, 0.86);
+  color: var(--moon-white);
+}
+
+.coreHero {
+  border: 1px solid rgba(167, 139, 250, 0.28);
+  border-radius: 28px;
+  background: rgba(13, 21, 48, 0.72);
+  padding: 18px;
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+}
+
+.coreCard {
+  border: 1px solid rgba(141, 152, 184, 0.18);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(22, 33, 62, 0.82), rgba(13, 21, 48, 0.94));
+  padding: 18px;
+  margin-top: 14px;
+}
+
+.coreCard[data-accent="mint"] { border-color: rgba(114, 242, 199, 0.28); }
+.coreCard[data-accent="violet"] { border-color: rgba(167, 139, 250, 0.28); }
+.coreCard[data-accent="lamp"] { border-color: rgba(255, 209, 102, 0.24); }
+
+.coreSectionTitle {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.corePersonaChips {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.corePersonaChip {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(167, 139, 250, 0.38);
+  background: rgba(167, 139, 250, 0.16);
+  color: var(--moon-white);
+}
+
+.coreEvidenceRow {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid rgba(141, 152, 184, 0.16);
+  border-radius: 18px;
+  background: rgba(22, 33, 62, 0.72);
+  padding: 12px;
+}
+
+.coreAskSecondB {
+  width: 100%;
+  border: 1px solid rgba(167, 139, 250, 0.38);
+  border-radius: 24px;
+  background: rgba(167, 139, 250, 0.16);
+  color: var(--moon-white);
+  padding: 16px 18px;
+  text-align: left;
+}
+
+.coreEvidenceDrawer {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  border: 1px solid rgba(114, 242, 199, 0.28);
+  border-radius: 28px;
+  background: rgba(13, 21, 48, 0.98);
+  backdrop-filter: blur(18px);
+  padding: 20px;
+  z-index: 40;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .coreHero img { animation: corePulse 3.4s ease-in-out infinite; }
+}
+
+@keyframes corePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
+}

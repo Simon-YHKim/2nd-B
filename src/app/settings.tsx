@@ -7,14 +7,15 @@ import { ScrollView, StyleSheet, View, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { AppNav } from "@/components/ui/AppNav";
+import { useTheme } from "@/lib/theme/ThemeContext";
 import {
   deleteAllChatUsage,
   deleteAllUserData,
@@ -30,6 +31,7 @@ export default function Settings() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const { mode, toggle } = useTheme();
 
   const [busy, setBusy] = useState<string | null>(null);
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
@@ -143,7 +145,7 @@ export default function Settings() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <Text variant="caption" color="brand">
@@ -157,6 +159,41 @@ export default function Settings() {
               ? "데이터 삭제는 되돌릴 수 없어요. 익스포트가 필요하면 위키 화면의 Export 버튼을 먼저 사용하세요."
               : "Data deletion is permanent. If you want a backup, use the Export button on /wiki first."}
           </Text>
+        </View>
+
+        {/* Navigation hub (A-to-Z Phase 12) — the settings sub-screens. */}
+        <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
+          <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
+            {locale === "ko" ? "설정 항목" : "Settings"}
+          </Text>
+          <Button label={locale === "ko" ? "프로필" : "Profile"} variant="secondary" onPress={() => router.push("/profile")} />
+          <Button label={locale === "ko" ? "테마" : "Theme"} variant="secondary" onPress={() => router.push("/theme")} />
+          <Button label={locale === "ko" ? "데이터 관리" : "Data management"} variant="secondary" onPress={() => router.push("/data")} />
+          <Button label={locale === "ko" ? "기록" : "Records"} variant="secondary" onPress={() => router.push("/records")} />
+          <Button label={locale === "ko" ? "지원" : "Support"} variant="secondary" onPress={() => router.push("/support")} />
+        </View>
+
+        <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
+          <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
+            {locale === "ko" ? "테마 (빠른 전환)" : "Theme (quick toggle)"}
+          </Text>
+          <Text variant="subtle" color="textMuted">
+            {locale === "ko"
+              ? "메인 화면의 어두운 하늘 톤이 기본. 밝은 톤도 시도해 보세요."
+              : "Defaults to the loader's dark-sky tone. Light is also available."}
+          </Text>
+          <View style={styles.themeRow}>
+            <Button
+              label={locale === "ko" ? "다크" : "Dark"}
+              variant={mode === "dark" ? "primary" : "secondary"}
+              onPress={() => { if (mode !== "dark") toggle(); }}
+            />
+            <Button
+              label={locale === "ko" ? "라이트" : "Light"}
+              variant={mode === "light" ? "primary" : "secondary"}
+              onPress={() => { if (mode !== "light") toggle(); }}
+            />
+          </View>
         </View>
 
         <View style={[styles.section, { borderLeftColor: semantic.warning }]}>
@@ -191,12 +228,12 @@ export default function Settings() {
             }
           />
           <Button
-            label={locale === "ko" ? "라이프 오딧 응답 삭제" : "Delete audit responses"}
+            label={locale === "ko" ? "과거의 나 응답 삭제" : "Delete audit responses"}
             variant="secondary"
             disabled={busy !== null}
             onPress={() =>
               confirm(
-                locale === "ko" ? "모든 라이프 오딧 응답을 삭제합니다." : "Delete every audit response.",
+                locale === "ko" ? "모든 과거의 나 응답을 삭제합니다." : "Delete every audit response.",
                 () => runDeleteKind("audit_response", "audit"),
               )
             }
@@ -269,7 +306,7 @@ export default function Settings() {
             }
           />
           <Button
-            label={locale === "ko" ? "자비스 일일 사용량 리셋" : "Reset Jarvis daily usage"}
+            label={locale === "ko" ? "세컨비 일일 사용량 리셋" : "Reset SecondB daily usage"}
             variant="secondary"
             disabled={busy !== null}
             onPress={() =>
@@ -287,8 +324,8 @@ export default function Settings() {
           </Text>
           <Text variant="subtle" color="textMuted">
             {locale === "ko"
-              ? "기록 · 캡처 · 위키 페이지 · 자비스 사용량을 한 번에 모두 삭제합니다. 계정은 유지되지만 0부터 다시 시작합니다."
-              : "Wipes records, sources, wiki pages, and Jarvis usage in one shot. The account stays but you start from zero."}
+              ? "기록 · 캡처 · 위키 페이지 · 세컨비 사용량을 한 번에 모두 삭제합니다. 계정은 유지되지만 0부터 다시 시작합니다."
+              : "Wipes records, sources, wiki pages, and SecondB usage in one shot. The account stays but you start from zero."}
           </Text>
           <Text variant="subtle" color="textMuted">
             {locale === "ko" ? `진행하려면 "${CONFIRM_PHRASE}" 라고 입력하세요.` : `To proceed, type "${CONFIRM_PHRASE}" below.`}
@@ -330,7 +367,7 @@ export default function Settings() {
         </View>
         <AppNav locale={locale} />
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 
@@ -348,4 +385,5 @@ const styles = StyleSheet.create({
   },
   sectionEyebrow: { letterSpacing: 1, fontWeight: "700" },
   actions: { gap: spacing.sm, marginTop: spacing.md },
+  themeRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
 });

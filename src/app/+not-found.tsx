@@ -2,16 +2,17 @@ import { Link } from "expo-router";
 import { View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 
 export default function NotFound() {
   const { i18n } = useTranslation();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   return (
-    <Screen>
+    <PremiumAppShell>
       <View style={styles.center}>
         <View style={styles.badge}>
           <Text variant="subtle" color="brand" style={styles.badgeText}>404</Text>
@@ -40,7 +41,7 @@ export default function NotFound() {
           </Link>
           <Link href="/audit" style={styles.destinationLink}>
             <Text variant="body" color="brand">
-              {locale === "ko" ? "라이프 오딧" : "Life audit"}
+              {locale === "ko" ? "과거의 나" : "Past me"}
             </Text>
           </Link>
           <Link href="/persona" style={styles.destinationLink}>
@@ -48,9 +49,14 @@ export default function NotFound() {
               {locale === "ko" ? "페르소나 v1" : "Persona v1"}
             </Text>
           </Link>
+          <Link href="/manual" style={styles.destinationLink}>
+            <Text variant="body" color="brand">
+              {locale === "ko" ? "사용 안내서" : "Manual"}
+            </Text>
+          </Link>
         </View>
       </View>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 
@@ -70,7 +76,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
   },
   badgeText: {
-    fontFamily: "monospace",
+    fontFamily: fontFamilies.mono,
     letterSpacing: 2,
     fontWeight: "700",
   },

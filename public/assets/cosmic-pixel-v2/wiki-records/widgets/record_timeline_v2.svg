@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="350" height="168" viewBox="0 0 350 168" fill="none" shape-rendering="crispEdges">
+  <defs>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="tinyGlow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="screenBg" cx="50%" cy="28%" r="86%"><stop offset="0" stop-color="#72F2C7" stop-opacity="0.10"/><stop offset="34%" stop-color="#A78BFA" stop-opacity="0.10"/><stop offset="74%" stop-color="#0D1530" stop-opacity="0.92"/><stop offset="100%" stop-color="#070A18"/></radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="58%"><stop offset="0" stop-color="#72F2C7" stop-opacity="0.68"/><stop offset="100%" stop-color="#72F2C7" stop-opacity="0"/></radialGradient>
+    <radialGradient id="violetGlow" cx="50%" cy="50%" r="58%"><stop offset="0" stop-color="#A78BFA" stop-opacity="0.64"/><stop offset="100%" stop-color="#A78BFA" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lampGlow" cx="50%" cy="50%" r="58%"><stop offset="0" stop-color="#FFD166" stop-opacity="0.72"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0"/></radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0D1530" stop-opacity="0.96"/><stop offset="1" stop-color="#16213E" stop-opacity="0.88"/></linearGradient>
+    <linearGradient id="shardPanel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#16213E" stop-opacity="0.94"/><stop offset="0.68" stop-color="#0D1530" stop-opacity="0.96"/><stop offset="1" stop-color="#72F2C7" stop-opacity="0.15"/></linearGradient>
+    
+  </defs>
+  <rect x="1" y="1" width="348" height="166" rx="26" fill="#0D1530" fill-opacity="0.84" stroke="#FFD166" stroke-opacity="0.20"/>
+  <text x="24" y="36" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="600" fill="#FFD166" shape-rendering="geometricPrecision">최근 조각 흐름</text>
+  <path d="M48 78H302" stroke="#243056" stroke-width="3"/>
+  <circle cx="58" cy="78" r="9" fill="#FFD166"/><circle cx="130" cy="78" r="9" fill="#72F2C7"/><circle cx="206" cy="78" r="9" fill="#A78BFA"/><circle cx="284" cy="78" r="9" fill="#4CC9F0"/>
+  <text x="58" y="112" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="10" font-weight="600" fill="#8D98B8" shape-rendering="geometricPrecision">오늘</text><text x="130" y="112" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="10" font-weight="600" fill="#8D98B8" shape-rendering="geometricPrecision">링크</text><text x="206" y="112" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="10" font-weight="600" fill="#8D98B8" shape-rendering="geometricPrecision">공상</text><text x="284" y="112" text-anchor="middle" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="10" font-weight="600" fill="#8D98B8" shape-rendering="geometricPrecision">위키</text>
+</svg>

@@ -3,12 +3,19 @@ import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Share } from "r
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
+import { AppNav } from "@/components/ui/AppNav";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
+import { buildCenterCards } from "@/lib/persona/center";
+import { TYPE_NICKNAME } from "@/lib/persona/mbti";
+import { STYLE_LABEL, STYLE_DESCRIPTION } from "@/lib/persona/attachment";
+import { labelFramework } from "@/lib/audit/frameworkLabels";
+import type { Framework } from "@/lib/audit/questions";
+import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 
 export default function Persona() {
   const { i18n } = useTranslation();
@@ -16,78 +23,83 @@ export default function Persona() {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [building, setBuilding] = useState(false);
+  const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
   useEffect(() => {
     if (!userId) return;
     setBuilding(true);
     buildPersona(userId, locale)
-      .then(setPersona)
+      .then((p) => {
+        setPersona(p);
+        // 아치 builds the connections once a persona card synthesizes (companion pack §3).
+        if (p) fireCompanion("personaUpdated");
+      })
       .catch((e) => Alert.alert("Persona failed", (e as Error).message))
       .finally(() => setBuilding(false));
-  }, [userId, locale]);
+  }, [userId, locale, fireCompanion]);
 
   if (loading || building) {
     return (
-      <Screen>
+      <PremiumAppShell>
         <View style={styles.center}>
           <ActivityIndicator color={semantic.brand} />
           <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.md }}>
-            {locale === "ko" ? "당신의 페르소나를 합성하는 중..." : "Synthesizing your persona..."}
+            {locale === "ko" ? "당신을 이루는 조각들을 모으는 중이에요..." : "Gathering the pieces of you..."}
           </Text>
         </View>
-      </Screen>
+      </PremiumAppShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
   if (!persona) {
+    const toolCards: { label: string; sub: string; route: "/audit" | "/big-five" | "/mbti" | "/attachment" }[] =
+      locale === "ko"
+        ? [
+            { label: "라이프 오딧", sub: "25문항 · 약 8분", route: "/audit" },
+            { label: "Big Five (BFI-44)", sub: "44문항 · 약 8분", route: "/big-five" },
+            { label: "MBTI 16유형", sub: "32문항 · 약 6분", route: "/mbti" },
+            { label: "애착 스타일 (ECR-S)", sub: "12문항 · 약 3분", route: "/attachment" },
+          ]
+        : [
+            { label: "Life audit", sub: "25 items · ~8 min", route: "/audit" },
+            { label: "Big Five (BFI-44)", sub: "44 items · ~8 min", route: "/big-five" },
+            { label: "MBTI 16 types", sub: "32 items · ~6 min", route: "/mbti" },
+            { label: "Attachment (ECR-S)", sub: "12 items · ~3 min", route: "/attachment" },
+          ];
     return (
-      <Screen>
-        <View style={styles.center}>
-          <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
-            {locale === "ko" ? "페르소나 V1" : "PERSONA V1"}
-          </Text>
-          <Text variant="heading" style={{ marginTop: spacing.sm, textAlign: "center" }}>
-            {locale === "ko" ? "아직 합성할 데이터가 부족해요" : "Not enough data to synthesize yet"}
-          </Text>
-          <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
-            {locale === "ko"
-              ? "5문항 라이프 오딧을 마치면 자기 모델 v1이 만들어집니다."
-              : "Complete the 5-question life audit to generate self-model v1."}
-          </Text>
-          <View style={styles.emptyActions}>
-            <Button
-              label={locale === "ko" ? "오딧 시작" : "Start the audit"}
-              variant="primary"
-              onPress={() => router.replace("/audit")}
-            />
-            <Button
-              label={locale === "ko" ? "Big Five 3분 평가" : "Big Five — 3-min test"}
-              variant="secondary"
-              onPress={() => router.replace("/big-five")}
-            />
-            <Button
-              label={locale === "ko" ? "애착 스타일 평가" : "Attachment style test"}
-              variant="secondary"
-              onPress={() => router.replace("/attachment")}
-            />
-            <Button
-              label={locale === "ko" ? "MBTI 16타입" : "MBTI 16 types"}
-              variant="secondary"
-              onPress={() => router.replace("/mbti")}
-            />
-            <Button
-              label={locale === "ko" ? "Brain Trinity 대시보드" : "Brain Trinity dashboard"}
-              variant="secondary"
-              onPress={() => router.replace("/trinity")}
-            />
-            <Button
-              label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
-              variant="secondary"
-              onPress={() => router.replace("/journal")}
-            />
+      <PremiumAppShell>
+        <ScrollView contentContainerStyle={styles.emptyScroll}>
+          <View style={styles.emptyHeader}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
+              {locale === "ko" ? "페르소나 V1" : "PERSONA V1"}
+            </Text>
+            <Text variant="heading" style={{ marginTop: spacing.sm, textAlign: "center" }}>
+              {locale === "ko" ? "아직 우리가 모을 조각이 부족해요" : "Not enough pieces for us to gather yet"}
+            </Text>
+            <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
+              {locale === "ko"
+                ? "아래 도구 중 하나만 마쳐도 우리가 자기 모델 v1을 만들어요. 모두 끝내면 한 화면에 합쳐서 보여드려요."
+                : "Finish any one tool below and we'll build self-model v1. Take them all and we merge them into a single view."}
+            </Text>
           </View>
-        </View>
-      </Screen>
+          <View style={styles.toolGrid}>
+            {toolCards.map((t) => (
+              <View key={t.route} style={styles.toolCard}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="body" style={{ fontWeight: "600" }}>{t.label}</Text>
+                  <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>{t.sub}</Text>
+                </View>
+                <Button
+                  label={locale === "ko" ? "시작" : "Start"}
+                  variant="secondary"
+                  onPress={() => router.push(t.route)}
+                />
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+        <AppNav locale={locale} />
+      </PremiumAppShell>
     );
   }
 
@@ -101,15 +113,39 @@ export default function Persona() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View>
           <Text variant="caption" color="brand">
             {locale === "ko" ? "페르소나 v1" : "Persona v1"}
           </Text>
           <Text variant="heading">
-            {locale === "ko" ? "자기 모델 (Big Five 근사)" : "Self-model (Big Five proxy)"}
+            {locale === "ko" ? "자기 모델" : "Self-model"}
           </Text>
+          <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
+            {persona.traitsSource === "bfi"
+              ? locale === "ko"
+                ? "Big Five는 BFI-44 실측 기준 · MBTI · 애착 합성"
+                : "Big Five from BFI-44 measurement · MBTI · attachment combined"
+              : locale === "ko"
+                ? "Big Five는 일기 기반 휴리스틱 추정 · 평가를 하시면 실측으로 업데이트돼요"
+                : "Big Five is a keyword heuristic — take the assessment for measured scores"}
+          </Text>
+        </View>
+
+        {/* 나의 중심 — §7-2 three-card summary in Core Brain voice.
+            Each card's meaning is coded by its left-border accent
+            (mint / signal-blue / pixel-lamp), per DESIGN.md accent budget. */}
+        <View style={styles.centerSection}>
+          <Text variant="caption" color="textMuted" style={{ letterSpacing: 1 }}>
+            {locale === "ko" ? "나의 중심" : "Center of me"}
+          </Text>
+          {buildCenterCards(persona, locale).map((card) => (
+            <View key={card.id} style={[styles.centerCard, { borderLeftColor: card.accent }]}>
+              <Text variant="caption" color="textMuted">{card.title}</Text>
+              <Text variant="body" style={{ marginTop: 2 }}>{card.body}</Text>
+            </View>
+          ))}
         </View>
 
         <View style={styles.traitsCard}>
@@ -176,12 +212,61 @@ export default function Persona() {
           </View>
         ) : null}
 
+        {persona.mbti ? (
+          <View style={styles.mbtiCard}>
+            <Text variant="caption" color="textMuted">
+              {locale === "ko" ? "MBTI · 16유형 (참고용)" : "MBTI · 16 types (reference)"}
+            </Text>
+            <View style={styles.mbtiRow}>
+              <Text variant="heading" color="brand" style={styles.mbtiType}>
+                {persona.mbti.type}
+              </Text>
+              <View style={{ flex: 1 }}>
+                <Text variant="body" style={{ fontWeight: "600" }}>
+                  {TYPE_NICKNAME[locale][persona.mbti.type] ?? persona.mbti.type}
+                </Text>
+                <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
+                  {locale === "ko"
+                    ? "MBTI는 학술적 신뢰도가 낮은 분류입니다. 자기 인식의 출발점으로만 가볍게 보세요."
+                    : "MBTI has weak scientific validity. Use as a self-awareness starting point only."}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {persona.attachment ? (
+          <View style={styles.attachmentCard}>
+            <Text variant="caption" color="textMuted">
+              {locale === "ko" ? "애착 스타일 (ECR-S)" : "Attachment style (ECR-S)"}
+            </Text>
+            <Text variant="body" style={{ marginTop: spacing.xs, fontWeight: "600" }}>
+              {STYLE_LABEL[locale][persona.attachment.style]}
+            </Text>
+            <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.xs }}>
+              {STYLE_DESCRIPTION[locale][persona.attachment.style]}
+            </Text>
+            <View style={styles.attachmentDims}>
+              <AttachmentDimBar
+                label={locale === "ko" ? "불안" : "Anxiety"}
+                value={persona.attachment.anxiety}
+              />
+              <AttachmentDimBar
+                label={locale === "ko" ? "회피" : "Avoidance"}
+                value={persona.attachment.avoidance}
+              />
+            </View>
+          </View>
+        ) : null}
+
         {persona.values.length > 0 ? (
           <View style={styles.valuesCard}>
             <Text variant="caption" color="textMuted">
               {locale === "ko" ? "관련 프레임워크" : "Relevant frameworks"}
             </Text>
-            <Text variant="body" style={{ marginTop: spacing.xs }}>{persona.values.join(" · ")}</Text>
+            <Text variant="body" style={{ marginTop: spacing.xs }}>
+              {persona.values.map((f) => labelFramework(f as Framework, locale)).join(" · ")}
+            </Text>
           </View>
         ) : null}
 
@@ -202,13 +287,46 @@ export default function Persona() {
             onPress={() => router.replace("/attachment")}
           />
           <Button
+            label={locale === "ko" ? "MBTI 평가" : "MBTI assessment"}
+            variant="secondary"
+            onPress={() => router.replace("/mbti")}
+          />
+          <Button
             label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
             variant="secondary"
             onPress={() => router.replace("/journal")}
           />
         </View>
+        <AppNav locale={locale} />
       </ScrollView>
-    </Screen>
+      {/* 아치 appears briefly when the persona model rebuilds (companion pack §3) */}
+      {companionMoment ? (
+        <CompanionMoment moment={companionMoment} style={styles.companionFlash} />
+      ) : null}
+    </PremiumAppShell>
+  );
+}
+
+// ECR-S anxiety/avoidance values are on a 1-7 Likert scale. Mid-point (4) is
+// the median-split threshold the scorer uses to classify style.
+function AttachmentDimBar({ label, value }: { label: string; value: number }) {
+  const pct = Math.max(0, Math.min(1, (value - 1) / 6));
+  const high = value > 4;
+  return (
+    <View style={styles.dimRow}>
+      <Text variant="subtle" color="textMuted" style={{ width: 56 }}>{label}</Text>
+      <View style={styles.dimBarOuter}>
+        <View style={[styles.dimBarInner, { width: `${pct * 100}%` }]} />
+        <View style={styles.dimBarMid} />
+      </View>
+      <Text
+        variant="subtle"
+        color={high ? "brand" : "textMuted"}
+        style={{ width: 36, textAlign: "right", fontVariant: ["tabular-nums"] }}
+      >
+        {value.toFixed(1)}
+      </Text>
+    </View>
   );
 }
 
@@ -234,6 +352,16 @@ const TRAIT_LABELS: Record<"en" | "ko", Record<"openness" | "conscientiousness" 
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.md },
+  companionFlash: { position: "absolute", bottom: 40, right: 20 },
+  centerSection: { gap: spacing.sm },
+  centerCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderRadius: radii.md,
+    padding: spacing.md,
+  },
   traitsCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
@@ -287,4 +415,53 @@ const styles = StyleSheet.create({
   patternDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
   actions: { gap: spacing.md, marginTop: spacing.md },
   emptyActions: { gap: spacing.md, marginTop: spacing.xl, width: "100%", maxWidth: 320 },
+  emptyScroll: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
+  emptyHeader: { alignItems: "center", marginTop: spacing.xl },
+  toolGrid: { gap: spacing.sm, marginTop: spacing.md },
+  toolCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  mbtiCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+  },
+  mbtiRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.xs },
+  mbtiType: { fontVariant: ["tabular-nums"], letterSpacing: 2 },
+  attachmentCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+  },
+  attachmentDims: { marginTop: spacing.md, gap: spacing.xs },
+  dimRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  dimBarOuter: {
+    flex: 1,
+    height: 6,
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.sm,
+    overflow: "hidden",
+    position: "relative",
+  },
+  dimBarInner: { height: "100%", backgroundColor: semantic.brand },
+  dimBarMid: {
+    position: "absolute",
+    left: "50%",
+    top: -2,
+    bottom: -2,
+    width: 1,
+    backgroundColor: semantic.textSubtle,
+    opacity: 0.35,
+  },
 });

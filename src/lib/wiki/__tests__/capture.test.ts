@@ -136,4 +136,46 @@ Body.`;
     const upload = captured.find((c) => c.fn === "uploadRawClipping")!;
     expect(upload.args[1]).toBe("민지의-성장-노트");
   });
+
+  test("userTags merged with frontmatter tags, deduped + lowercased", async () => {
+    fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "article", title: "Foo", tags: [] };
+    const md = `---
+title: "Foo"
+tags:
+  - psychology
+  - habits
+---
+Body.`;
+    await captureFromMarkdown({
+      userId: "u1",
+      rawMd: md,
+      userTags: ["Productivity", "psychology", "  Reading  ", ""],
+    });
+    const insert = captured.find((c) => c.fn === "createSource")!;
+    // Order: frontmatter first, then user tags (in order); psychology dedup'd; empty dropped.
+    expect((insert.args[0] as { tags: string[] }).tags).toEqual([
+      "psychology",
+      "habits",
+      "productivity",
+      "reading",
+    ]);
+  });
+
+  test("track is persisted to frontmatter.wiki_track when provided", async () => {
+    fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "self_knowledge", title: "T", tags: [] };
+    await captureFromMarkdown({
+      userId: "u1",
+      rawMd: "# T\n\nBody.",
+      track: "pro",
+    });
+    const insert = captured.find((c) => c.fn === "createSource")!;
+    expect((insert.args[0] as { frontmatter: { wiki_track?: string } }).frontmatter.wiki_track).toBe("pro");
+  });
+
+  test("track omitted → frontmatter has no wiki_track key", async () => {
+    fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "self_knowledge", title: "T", tags: [] };
+    await captureFromMarkdown({ userId: "u1", rawMd: "# T\n\nBody." });
+    const insert = captured.find((c) => c.fn === "createSource")!;
+    expect((insert.args[0] as { frontmatter: Record<string, unknown> }).frontmatter.wiki_track).toBeUndefined();
+  });
 });

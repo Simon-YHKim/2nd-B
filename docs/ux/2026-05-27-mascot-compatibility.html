@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mascot v1.0 ↔ 2nd-Brain UI · 호환성 진단 · 2026-05-27</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #02040A;
+    --surface: rgba(255,255,255,0.04);
+    --surface-strong: rgba(143,183,244,0.08);
+    --border: rgba(143,183,244,0.18);
+    --text: #E5EDFA;
+    --text-muted: #C7D4EA;
+    --text-subtle: #7FB3F4;
+    --brand: #2F97FC;
+    --accent: #7FB3F4;
+    --red: #FF6B6B;
+    --amber: #FFB55C;
+    --green: #74E0A8;
+    --plum: #C19EDC;
+    /* Mascot proposed colors */
+    --c-core: #f0c862;
+    --c-self: #e36464;
+    --c-field: #9ba0a8;
+    --c-augment: #7a9bc4;
+    --c-pulse: #e89c5a;
+    --c-engram: #c9a374;
+    --c-synapse: #b48ec4;
+    --c-signal: #a8d4c0;
+    --c-mirror: #7ec4c0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 56px 28px 80px; }
+  header { margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .brand { color: var(--brand); font-size: 11px; font-weight: 700; letter-spacing: 2.5px; margin-bottom: 12px; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 8px; }
+  .subtitle { color: var(--text-muted); font-size: 14px; }
+  .meta { color: var(--text-subtle); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; margin-top: 14px; }
+
+  h2 {
+    font-size: 18px; font-weight: 700; margin: 40px 0 14px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  h2 .num { color: var(--brand); font-size: 12px; margin-right: 8px; letter-spacing: 1.5px; }
+  h3 { font-size: 14px; font-weight: 600; margin: 18px 0 8px; color: var(--text); }
+  p, li { color: var(--text-muted); margin-bottom: 6px; }
+  ul { padding-left: 18px; }
+  code, .mono {
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, ui-monospace, monospace;
+    font-size: 12px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; color: var(--accent);
+  }
+
+  /* Verdict pills */
+  .verdict {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .verdict.go { background: rgba(116,224,168,0.15); color: var(--green); border: 1px solid rgba(116,224,168,0.4); }
+  .verdict.warn { background: rgba(255,181,92,0.15); color: var(--amber); border: 1px solid rgba(255,181,92,0.4); }
+  .verdict.stop { background: rgba(255,107,107,0.15); color: var(--red); border: 1px solid rgba(255,107,107,0.4); }
+
+  /* Question card */
+  .qcard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 22px 26px;
+    margin: 12px 0;
+  }
+  .qcard .qno {
+    color: var(--brand);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+  }
+  .qcard .qtitle {
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+
+  /* Color swatch */
+  .swatch-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 14px 0;
+  }
+  .swatch {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .swatch .chip {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+  }
+  .swatch .label {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.3;
+  }
+  .swatch .label .name { color: var(--text); font-weight: 600; display: block; }
+  .swatch .label .hex { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-subtle); }
+  .swatch.clash { border-color: rgba(255,107,107,0.4); }
+  .swatch.ok { border-color: rgba(116,224,168,0.3); }
+
+  /* Comparison */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 14px 0;
+    font-size: 12px;
+  }
+  .compare-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+  .compare-cell .head {
+    color: var(--text-subtle);
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .compare-cell.app { border-left: 3px solid var(--brand); }
+  .compare-cell.mascot { border-left: 3px solid var(--c-core); }
+
+  /* Mascot grid */
+  .mascot-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 14px 0;
+  }
+  .mascot-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .mascot-cell .top {
+    border-top: 3px solid;
+    margin: -12px -14px 10px;
+    padding: 10px 14px 8px;
+  }
+  .mascot-cell .name { color: var(--text); font-weight: 700; font-size: 13px; }
+  .mascot-cell .verdict-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .vp { font-size: 9px; padding: 2px 6px; border-radius: 999px; font-weight: 700; letter-spacing: 0.5px; }
+  .vp.keep { background: rgba(116,224,168,0.15); color: var(--green); border: 1px solid rgba(116,224,168,0.3); }
+  .vp.adj { background: rgba(255,181,92,0.15); color: var(--amber); border: 1px solid rgba(255,181,92,0.3); }
+  .vp.cut { background: rgba(255,107,107,0.15); color: var(--red); border: 1px solid rgba(255,107,107,0.3); }
+  .mascot-cell .note { color: var(--text-muted); margin-top: 6px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    color: var(--text-subtle);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    background: var(--surface);
+  }
+  td.right { color: var(--text); font-weight: 500; }
+
+  .footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-subtle);
+    letter-spacing: 0.5px;
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 720px) {
+    .swatch-row, .mascot-grid { grid-template-columns: 1fr 1fr; }
+    .compare { grid-template-columns: 1fr; }
+    h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">MASCOT v1.0 · COMPATIBILITY DIAGNOSTIC</div>
+  <h1>마스코트 9명 ↔ 현재 앱 톤·팔레트 호환성 진단</h1>
+  <div class="subtitle">Brain Stack Pixel Mascot v1.0 (26.05.27) 와 2nd-Brain 현재 UI 의 정합성 5가지 검토 항목</div>
+  <div class="meta">2026-05-27 · 검토 기준: docs/DESIGN.md · src/lib/theme/tokens.ts(darkSky) · trinity.tsx · LoadingScreen.tsx</div>
+</header>
+
+<h2><span class="num">00</span>총평 — 톤은 GO, 시각 스타일은 STOP, 컨셉은 WARN</h2>
+<p>한 줄로: <strong>"세포 톤"이라는 정신은 우리 앱과 정확히 같은데, "GBC 8-bit 픽셀 아트"라는 시각 언어는 다크 sky 미니멀과 정면 충돌해요.</strong> 그리고 마스코트가 가정한 9-node "Brain Stack" 시스템은 현재 앱에 도입되지 않은 별개의 정신 모델 — 채택할지 결정 필요.</p>
+
+<div class="compare">
+  <div class="compare-cell app">
+    <div class="head">App (2nd-Brain · 현재)</div>
+    <ul>
+      <li>다크 sky-black <code>#02040A</code> + electric blue <code>#2F97FC</code></li>
+      <li>현대적 미니멀, 부드러운 그림자, vector 아이콘</li>
+      <li>Brain Trinity (4영역: 건강/앱/뇌/재정)</li>
+      <li>LoadingScreen 25문구로 세포 톤 이미 적용 (텍스트만)</li>
+      <li>마스코트 시각 자산 0개</li>
+    </ul>
+  </div>
+  <div class="compare-cell mascot">
+    <div class="head">Mascot v1.0 (제안)</div>
+    <ul>
+      <li>9개 톤·톤 다른 컬러 (gold/red/steel/blue/orange/beige/purple/mint/teal)</li>
+      <li>Game Boy Color 8-bit 픽셀, anti-aliasing 없음</li>
+      <li>Brain Stack (4 main + 5 sub = 9 nodes)</li>
+      <li>"일하는 세포!" 톤 quote 9개</li>
+      <li>32×32 정사각형 캐릭터 카드</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ════ Q1 ════ -->
+<h2><span class="num">01</span>검토 항목 1 — UI 컬러 팔레트 충돌</h2>
+<div class="qcard">
+  <div class="qno">Q1 · Color Palette Collision</div>
+  <div class="qtitle">9개 캐릭터 컬러가 darkSky 토큰과 부딪히는가?</div>
+  <span class="verdict warn">⚠ WARN — 1건 충돌, 1건 톤 겹침</span>
+
+  <p>다크 bg(<code>#02040A</code>) 위에서 9개 컬러 모두 대비는 충분히 살아요. 문제는 <strong>cool-blue 톤 3종</strong>이 너무 가까워서 위계가 무너진다는 점.</p>
+
+  <h3>🚨 충돌하는 컬러</h3>
+  <div class="swatch-row">
+    <div class="swatch clash">
+      <div class="chip" style="background:#2F97FC"></div>
+      <div class="label"><span class="name">App brand</span><span class="hex">#2F97FC</span></div>
+    </div>
+    <div class="swatch clash">
+      <div class="chip" style="background:#7FB3F4"></div>
+      <div class="label"><span class="name">App accent</span><span class="hex">#7FB3F4</span></div>
+    </div>
+    <div class="swatch clash">
+      <div class="chip" style="background:#7a9bc4"></div>
+      <div class="label"><span class="name">Augment Brain</span><span class="hex">#7a9bc4</span></div>
+    </div>
+  </div>
+  <p style="font-size:12px;margin-top:6px">→ 세 컬러 모두 cool-blue 영역. 사용자가 "이게 brand인가 캐릭터인가" 분간 어려움. <strong>Augment Brain을 차별화 필요</strong> — 권장: indigo <code>#5A6FB4</code> 또는 cyan <code>#5AC4D4</code>.</p>
+
+  <h3>✅ 안전한 컬러 8종</h3>
+  <div class="swatch-row">
+    <div class="swatch ok"><div class="chip" style="background:#f0c862"></div><div class="label"><span class="name">Core gold</span><span class="hex">#f0c862</span></div></div>
+    <div class="swatch ok"><div class="chip" style="background:#e36464"></div><div class="label"><span class="name">Self red</span><span class="hex">#e36464</span></div></div>
+    <div class="swatch ok"><div class="chip" style="background:#9ba0a8"></div><div class="label"><span class="name">Field steel</span><span class="hex">#9ba0a8</span></div></div>
+    <div class="swatch ok"><div class="chip" style="background:#e89c5a"></div><div class="label"><span class="name">Pulse orange</span><span class="hex">#e89c5a</span></div></div>
+    <div class="swatch ok"><div class="chip" style="background:#c9a374"></div><div class="label"><span class="name">Engram beige</span><span class="hex">#c9a374</span></div></div>
+    <div class="swatch ok"><div class="chip" style="background:#b48ec4"></div><div class="label"><span class="name">Synapse purple</span><span class="hex">#b48ec4</span></div></div>
+    <div class="swatch ok"><div class="chip" style="background:#a8d4c0"></div><div class="label"><span class="name">Signal mint</span><span class="hex">#a8d4c0</span></div></div>
+    <div class="swatch ok"><div class="chip" style="background:#7ec4c0"></div><div class="label"><span class="name">Mirror teal</span><span class="hex">#7ec4c0</span></div></div>
+  </div>
+</div>
+
+<!-- ════ Q2 ════ -->
+<h2><span class="num">02</span>검토 항목 2 — 톤 일관성 (브랜드 보이스)</h2>
+<div class="qcard">
+  <div class="qno">Q2 · Brand Voice Consistency</div>
+  <div class="qtitle">"일반인 친화 + 진지한 사명감 + 살짝 위트" 톤이 우리 앱과 일치하는가?</div>
+  <span class="verdict go">✅ GO — 거의 완벽 매칭</span>
+
+  <p>DESIGN.md(우리 앱 SoT)와 마스코트 컨셉을 나란히 놓으면 같은 글이라고 봐도 무리 없어요.</p>
+
+  <table>
+    <thead><tr><th>축</th><th>DESIGN.md (현재)</th><th>Mascot v1.0</th><th>매칭</th></tr></thead>
+    <tbody>
+      <tr><td>core concept</td><td>"내 머릿속의 열일하는 세포들"</td><td>"Cells at Work!" 톤 의인화</td><td class="right">✅ 100%</td></tr>
+      <tr><td>caps</td><td>까불거리지 않음, 단정함</td><td>"NOT silly or comedic"</td><td class="right">✅ 100%</td></tr>
+      <tr><td>의성어·의태어</td><td>영차영차·찌릿·꾹꾹</td><td>"펄스!", "또랑또랑"</td><td class="right">✅ 100%</td></tr>
+      <tr><td>친근감</td><td>다정하고 든든한 태도</td><td>"warm approachability"</td><td class="right">✅ 100%</td></tr>
+      <tr><td>아이덴티티</td><td>일하는 세포들이 뇌 짓는 비유</td><td>마스코트 직군 (배달원/사서/안내원…)</td><td class="right">✅ 자연 확장</td></tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:10px"><strong>마스코트의 9개 quote도 그대로 i18n 로 가져갈 수 있는 수준</strong> — "펄스! 배달 완료!", "이 *흔적*, 어디 보관할까요?" 등이 capture/inbox alert 카피로 직결.</p>
+</div>
+
+<!-- ════ Q3 ════ -->
+<h2><span class="num">03</span>검토 항목 3 — 9명 중 빼거나 합칠 캐릭터</h2>
+<div class="qcard">
+  <div class="qno">Q3 · Roster Curation</div>
+  <div class="qtitle">현재 앱의 기능(journal/capture/inbox/wiki/jarvis/trinity/persona/insights/research) 과 맵핑되는가?</div>
+  <span class="verdict warn">⚠ WARN — 9 → 6 권장 (3명 cut)</span>
+
+  <div class="mascot-grid">
+    <div class="mascot-cell">
+      <div class="top" style="border-color:#f0c862"><span class="name">Core Brain</span><div class="verdict-row"><span class="vp keep">KEEP</span></div></div>
+      <div class="note">Brain Trinity의 중심·5 Core. 현 trinity.tsx 메인 카드와 직결. <strong>마스코트의 5 Core가 우리 앱의 Brain Trinity 4영역과 다른 모델</strong> — 정리 필요(§04).</div>
+    </div>
+    <div class="mascot-cell">
+      <div class="top" style="border-color:#e36464"><span class="name">Self Brain</span><div class="verdict-row"><span class="vp keep">KEEP</span></div></div>
+      <div class="note">사용자 본인의 경험·판단. <strong>/journal · /persona · /audit · /interview</strong> 와 1:1 매핑. 가장 자연스러운 마스코트.</div>
+    </div>
+    <div class="mascot-cell">
+      <div class="top" style="border-color:#9ba0a8"><span class="name">Field Brain</span><div class="verdict-row"><span class="vp keep">KEEP</span></div></div>
+      <div class="note">도구·실행. <strong>/capture · /inbox</strong> — 자재 반입, 뇌 주름 빚기. DESIGN.md High 우선순위와 정합.</div>
+    </div>
+    <div class="mascot-cell">
+      <div class="top" style="border-color:#7a9bc4"><span class="name">Augment Brain</span><div class="verdict-row"><span class="vp adj">ADJUST</span></div></div>
+      <div class="note">AI 협업. <strong>/jarvis</strong> 와 매칭. 컬러만 조정(§01). 베이스 컨셉은 유지.</div>
+    </div>
+    <div class="mascot-cell">
+      <div class="top" style="border-color:#e89c5a"><span class="name">Pulse (전령)</span><div class="verdict-row"><span class="vp cut">CUT</span></div></div>
+      <div class="note">"행동 신호 배달원". 현 앱에 명시적 "actions/펄스" 기능 없음 — Brain Stack 시스템 도입 안 하는 한 정체불명. <strong>제외 권장</strong>.</div>
+    </div>
+    <div class="mascot-cell">
+      <div class="top" style="border-color:#c9a374"><span class="name">Engram (사서)</span><div class="verdict-row"><span class="vp keep">KEEP</span></div></div>
+      <div class="note"><strong>/wiki</strong> 와 정확히 매핑. 책+라벨 스티커 → 위키 페이지+태그. 가장 명확한 보조 마스코트.</div>
+    </div>
+    <div class="mascot-cell">
+      <div class="top" style="border-color:#b48ec4"><span class="name">Synapse (안내원)</span><div class="verdict-row"><span class="vp cut">CUT</span></div></div>
+      <div class="note">"Self ↔ Augment 만남 안내". Brain Stack을 안 도입하면 의미 불명. <strong>Pulse 와 함께 제외</strong>.</div>
+    </div>
+    <div class="mascot-cell">
+      <div class="top" style="border-color:#a8d4c0"><span class="name">Signal Sorter</span><div class="verdict-row"><span class="vp keep">KEEP</span></div></div>
+      <div class="note">신호/잡음 분류. <strong>/inbox</strong> 자동 분류 + safety classifier(C9) 와 매핑. 백혈구 톤 = 세포 컨셉 강화.</div>
+    </div>
+    <div class="mascot-cell">
+      <div class="top" style="border-color:#7ec4c0"><span class="name">Mirror Neuron</span><div class="verdict-row"><span class="vp adj">ADJUST</span></div></div>
+      <div class="note">거울뉴런 인턴. <strong>Jarvis의 reflection 모드</strong>와 매칭 가능. 단 mascot v0.22 v0.2 설계도의 "건설적 거울" UX 컨셉과 정확히 일치 — 활용도 높음. 역할 명확화 필요.</div>
+    </div>
+  </div>
+
+  <p style="margin-top:14px"><strong>최종 6명 권장</strong>: Core / Self / Field / Augment(컬러 조정) / Engram / Signal Sorter / Mirror Neuron. (Pulse + Synapse 제외)</p>
+</div>
+
+<!-- ════ Q4 ════ -->
+<h2><span class="num">04</span>검토 항목 4 — 추가로 필요한 캐릭터</h2>
+<div class="qcard">
+  <div class="qno">Q4 · Roster Gaps</div>
+  <div class="qtitle">현재 앱의 핵심 기능 중 마스코트 없는 영역이 있는가?</div>
+  <span class="verdict warn">⚠ WARN — 2명 추가 권장</span>
+
+  <table>
+    <thead><tr><th>제안 마스코트</th><th>매칭 화면</th><th>역할</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Trinity Guide</strong> (트리니티 안내)</td>
+        <td><code>/trinity</code></td>
+        <td>4영역(건강/앱/뇌/재정) 대시보드 가이드. 마스코트 vs 우리 앱의 가장 큰 컨셉 충돌(Brain Stack 4+5 ≠ Brain Trinity 4영역)을 해소하는 캐릭터.</td>
+      </tr>
+      <tr>
+        <td><strong>Audit Companion</strong> (오딧 동행)</td>
+        <td><code>/audit</code> · <code>/interview</code></td>
+        <td>25문항 라이프 오딧 + 스무고개를 함께하는 마스코트. 자기 인식 도구의 정서적 받침이 됨.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:10px"><strong>현 앱의 핵심 화면 22개 중 마스코트가 명확히 붙는 화면</strong>: /index(Core·Self) · /journal(Self) · /capture·/inbox(Field·Signal) · /jarvis(Augment·Mirror) · /wiki(Engram) · /trinity(Trinity Guide) · /audit·/interview(Audit Companion). 8명으로 22개 화면 cover.</p>
+</div>
+
+<!-- ════ Q5 ════ -->
+<h2><span class="num">05</span>검토 항목 5 — 시그니처·외형 디테일 수정</h2>
+<div class="qcard">
+  <div class="qno">Q5 · Visual Language Compatibility</div>
+  <div class="qtitle">GBC 8-bit 픽셀 스타일이 다크 sky 미니멀 UI 와 한 화면에 살 수 있는가?</div>
+  <span class="verdict stop">🛑 STOP — 시각 언어 충돌 큼. 재해석 필요</span>
+
+  <p>현재 앱은 <strong>현대적 미니멀</strong>(부드러운 그라데이션, vector 아이콘, anti-aliased 글리프) 인데 마스코트는 <strong>레트로 픽셀</strong>(no anti-aliasing, hard edges, 32×32). 같은 화면에 놓으면 둘 다 가짜로 보일 위험.</p>
+
+  <h3>3가지 진로</h3>
+  <table>
+    <thead><tr><th>옵션</th><th>요약</th><th>장점</th><th>단점</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>A. 격리 사용</strong></td>
+        <td>픽셀 그대로, /loading + /index 빈 상태 + Easter egg 에만 등장</td>
+        <td>마스코트 v1.0 그대로 사용, GPT 생성 비용 0 추가</td>
+        <td>22개 중 3-4개 화면만 노출 → 마스코트 효과 제한적</td>
+      </tr>
+      <tr>
+        <td><strong>B. 재해석 (vector 일러스트)</strong> ⭐</td>
+        <td>같은 캐릭터·컬러·시그니처를 vector minimal 로 다시 그림</td>
+        <td>전 화면에 사용 가능, 다크 sky 미니멀과 자연 융합</td>
+        <td>일러스트 작업 추가 — Figma/Stitch/Midjourney v6 niji</td>
+      </tr>
+      <tr>
+        <td><strong>C. 하이브리드</strong></td>
+        <td>픽셀 = 마스코트 인트로(/loading), Vector = 인앱 일상 사용</td>
+        <td>레트로 시그니처 + 일상 통합 모두 확보</td>
+        <td>두 자산 셋 관리 — 캐릭터 일관성 부담</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:10px"><strong>권장: B</strong>. 픽셀 컨셉은 매력적이지만 우리 앱의 미적 정체성(현대적 다크 sky)과 갈등이 큽니다. 마스코트 컨셉(컬러+성격+시그니처 아이템+quote)을 유지한 채 vector minimal 로 재해석하면 22개 화면 모두에 자연스럽게 박혀요.</p>
+
+  <h3>vector 재해석 추가 가이드</h3>
+  <ul>
+    <li>32×32 → <strong>64×64 또는 SVG</strong>. 인터페이스 크기에 따라 64/96/128 출력</li>
+    <li>anti-aliased + 부드러운 그림자 + 다크 sky bg 위에서 빛나는 미세 glow</li>
+    <li>퍼시즈 톤 — 라벨/태그/명찰은 그대로 유지(시그니처가 캐릭터 식별의 핵심)</li>
+    <li>vector 라인은 1.5pt — 다크 bg 위에서 가독성 확보</li>
+  </ul>
+</div>
+
+<!-- ════ ACTION ════ -->
+<h2><span class="num">06</span>액션 큐 (이번 결정 후 진행 가능)</h2>
+<table>
+  <thead><tr><th>#</th><th>액션</th><th>산출물</th><th>의존</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><strong>Brain Stack vs Brain Trinity 통합 결정</strong></td><td>아키텍처 결정 메모 (1페이지)</td><td>사용자 결정 필요</td></tr>
+    <tr><td>2</td><td>Augment Brain 컬러 차별화 (cool-blue 충돌 해소)</td><td>새 spec (예: indigo #5A6FB4)</td><td>—</td></tr>
+    <tr><td>3</td><td>9명 → 6 + 2 추가 (Trinity Guide / Audit Companion) 컨셉 작성</td><td>마스코트 v1.1 사양서 (HTML)</td><td>#1 결정 후</td></tr>
+    <tr><td>4</td><td>vector 재해석 프롬프트 생성 (Stitch/Midjourney 용)</td><td>새 prompt set (KR + EN)</td><td>#3 후</td></tr>
+    <tr><td>5</td><td>마스코트 노출 위치 맵 (22개 화면 ↔ 8 마스코트)</td><td>matrix doc</td><td>#3 후</td></tr>
+    <tr><td>6</td><td>i18n 키에 quote 적용 (capture/inbox/jarvis alert)</td><td>locale 추가 (en/ko)</td><td>#3 후</td></tr>
+  </tbody>
+</table>
+
+<!-- ════ DECISION POINT ════ -->
+<h2><span class="num">07</span>가장 큰 결정 포인트 — Brain Stack vs Brain Trinity</h2>
+<div class="qcard">
+  <p>마스코트 컨셉은 <strong>9-node Brain Stack 시스템</strong>(0~3rd Brain + 5 workflow nodes)을 가정해요. 우리 앱은 <strong>4-area Brain Trinity</strong>(건강/앱/뇌/재정)를 이미 구현했고요. 두 모델이 같은 단어("Brain")를 쓰는데 다른 차원이라 충돌 가능.</p>
+
+  <h3>3가지 화해 안</h3>
+  <ul>
+    <li><strong>가. Trinity 유지 + Stack 마스코트 적용</strong> — Stack은 메타포(시스템 내부 직군), Trinity는 사용자 대시보드. 마스코트들은 "Trinity 4영역의 일꾼"으로 재정의. 권장.</li>
+    <li><strong>나. Trinity → Brain Stack 으로 교체</strong> — 큰 리팩토링. trinity.tsx 폐기. 데드라인 26.08.17 고려하면 risky.</li>
+    <li><strong>다. 두 시스템 병존</strong> — Trinity = 사용자 대시보드, Brain Stack = 분석 시스템 내부. 사용자는 Trinity 만 보고, Brain Stack은 v0.22 분석 시스템 설계도(이번에 받은 자료)에 박힘. 가장 깔끔.</li>
+  </ul>
+
+  <p style="margin-top:10px"><strong>제 권장: 다.</strong> v0.22 분석 시스템 설계도의 4-Layer LLM-agnostic + Behavior Taxonomy + Ledger/Voice 가 Brain Stack의 내부 구현이 되고, 마스코트는 그 시스템의 직군을 의인화. Trinity는 사용자 대시보드로 남음. 두 컨셉 모두 살리면서 충돌 회피.</p>
+</div>
+
+<div class="footer">
+  소스: <a href="https://github.com/Simon-YHKim/2nd-B/blob/main/docs/DESIGN.md">DESIGN.md</a> · <a href="https://github.com/Simon-YHKim/2nd-B/blob/main/src/lib/theme/tokens.ts">tokens.ts (darkSky)</a> · <a href="https://github.com/Simon-YHKim/2nd-B/blob/main/src/app/trinity.tsx">trinity.tsx</a> · 받은 자료: Mascot v1.0 (26.05.27) · Analysis System Design v0.22 (26.05.27)<br>
+  점검자: Claude · 2026-05-27 · 다음 결정 대기 — Brain Stack vs Brain Trinity 통합 방향 (a/b/c)
+</div>
+
+</div>
+</body>
+</html>

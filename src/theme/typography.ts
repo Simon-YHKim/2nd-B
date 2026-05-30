@@ -1,37 +1,52 @@
-// Typography pairing — Nanum Myeongjo (KO serif) + Source Serif 4 (EN serif)
-// + Pretendard (sans UI) + monospace. Phytoncide design system.
+// Typography — NeoDunggeunmo (둥근모꼴 / 네오둥근모) pixel bitmap font, applied
+// app-wide per user directive (2026-05-29). It fits the Cosmic Pixel Graph
+// Village aesthetic: a crisp Korean+Latin pixel face. SIL OFL 1.1.
+// https://neodgm.dalgona.dev/
+//
+// Every text family below resolves to NeoDunggeunmo so the whole app reads
+// in one consistent pixel voice; `mono` uses the fixed-width NeoDunggeunmoCode
+// variant for numeric / code-ish spots.
 
 import { Platform } from "react-native";
 
+// Main proportional pixel face.
+const PIXEL = Platform.select({
+  ios: "NeoDunggeunmo",
+  android: "NeoDunggeunmo",
+  web: '"NeoDunggeunmo", "둥근모꼴", monospace',
+  default: "monospace",
+});
+
+// Fixed-width pixel variant (code / numbers).
+const PIXEL_MONO = Platform.select({
+  ios: "NeoDunggeunmoCode",
+  android: "NeoDunggeunmoCode",
+  web: '"NeoDunggeunmoCode", "NeoDunggeunmo", monospace',
+  default: "monospace",
+});
+
+// Readable sans (closeout-v3 #10): long Korean paragraphs / bottom-sheet
+// descriptions / CTAs should NOT use the pixel face — it hurts legibility at
+// small sizes. Use Pretendard / system sans for body copy. Pixel stays for
+// labels, badges, and decorative headings.
+const READABLE = Platform.select({
+  ios: "Pretendard",
+  android: "Pretendard",
+  web: '"Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+  default: "sans-serif",
+});
+
 export const fontFamilies = {
-  // 한국어 명조 — Display, Quote
-  serifKo: Platform.select({
-    ios: "NanumMyeongjo-Regular",
-    android: "NanumMyeongjo-Regular",
-    web: '"Nanum Myeongjo", "본명조", Georgia, serif',
-    default: "serif",
-  }),
-  // 영어 세리프 — Display Italic, English Quote
-  serifEn: Platform.select({
-    ios: "SourceSerif4-Regular",
-    android: "SourceSerif4-Regular",
-    web: '"Source Serif 4", "Iowan Old Style", Georgia, serif',
-    default: "serif",
-  }),
-  // 본문·UI 산세리프
-  sans: Platform.select({
-    ios: "Pretendard",
-    android: "Pretendard",
-    web: '"Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, sans-serif',
-    default: "sans-serif",
-  }),
-  // 모노스페이스 — 트레잇 수치, 코드
-  mono: Platform.select({
-    ios: "Menlo",
-    android: "monospace",
-    web: "ui-monospace, SFMono-Regular, Menlo, monospace",
-    default: "monospace",
-  }),
+  // All faces resolve to the one pixel face (user directive: 전부 적용).
+  serifKo: PIXEL,
+  serifEn: PIXEL,
+  sans: PIXEL,
+  // Fixed-width pixel variant for trait numbers / code.
+  mono: PIXEL_MONO,
+  // Explicit alias for callers that want to be unambiguous.
+  pixel: PIXEL,
+  // Readable sans for long-form Korean copy.
+  readable: READABLE,
 } as const;
 
 export const fontWeights = {
@@ -42,11 +57,8 @@ export const fontWeights = {
 } as const;
 
 // expo-font useFonts() input. Asset paths resolve to the root assets/ dir.
+// The font ships a single weight; weight props degrade gracefully.
 export const fontAssets = {
-  "NanumMyeongjo-Regular": require("../../assets/fonts/NanumMyeongjo-Regular.ttf"),
-  "NanumMyeongjo-Bold": require("../../assets/fonts/NanumMyeongjo-Bold.ttf"),
-  "NanumMyeongjo-ExtraBold": require("../../assets/fonts/NanumMyeongjo-ExtraBold.ttf"),
-  "SourceSerif4-Regular": require("../../assets/fonts/SourceSerif4-Regular.ttf"),
-  "SourceSerif4-SemiBold": require("../../assets/fonts/SourceSerif4-SemiBold.ttf"),
-  "SourceSerif4-Bold": require("../../assets/fonts/SourceSerif4-Bold.ttf"),
+  NeoDunggeunmo: require("../../assets/fonts/NeoDunggeunmo-Regular.ttf"),
+  NeoDunggeunmoCode: require("../../assets/fonts/NeoDunggeunmoCode-Regular.ttf"),
 };

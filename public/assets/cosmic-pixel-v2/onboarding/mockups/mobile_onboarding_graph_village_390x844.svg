@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" fill="none" shape-rendering="crispEdges">
+  <title>Mobile onboarding graph village</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="390" y2="844" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#070A18"/>
+      <stop offset="0.62" stop-color="#0D1530"/>
+      <stop offset="1" stop-color="#16213E"/>
+    </linearGradient>
+    <radialGradient id="violetGlow" cx="50%" cy="38%" r="55%">
+      <stop stop-color="#A78BFA" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#A78BFA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="50%">
+      <stop stop-color="#72F2C7" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#72F2C7" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  
+    <rect width="390" height="844" fill="#070A18"/>
+    <circle cx="196" cy="214" r="180" fill="#A78BFA" opacity=".12"/>
+    <circle cx="64" cy="620" r="120" fill="#72F2C7" opacity=".06"/>
+    <rect x="16" y="18" width="358" height="806" rx="34" fill="none" stroke="#243056" stroke-opacity=".55"/>
+    
+  <text x="32" y="78" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="22" font-weight="800">그래프가 곧 마을이에요</text>
+  <text x="32" y="106" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="13">노드는 장소, 연결선은 길, 기록은 조각이에요.</text>
+  <g transform="translate(32 146) scale(.836)">
+    <rect width="390" height="260" rx="28" fill="#0D1530" stroke="#243056"/>
+    <path d="M195 120 L95 84 L120 182 L195 120 L290 80 L270 184 L195 120" stroke="#243056" stroke-width="5"/>
+    <path d="M195 120 L95 84 L120 182" stroke="#72F2C7" stroke-width="2" stroke-dasharray="5 9"/>
+    <rect x="165" y="90" width="60" height="60" rx="18" fill="#16213E" stroke="#A78BFA" stroke-width="2"/>
+    <circle cx="95" cy="84" r="20" fill="#16213E" stroke="#4CC9F0" stroke-width="2"/>
+    <circle cx="120" cy="182" r="20" fill="#16213E" stroke="#FFD166" stroke-width="2"/>
+    <circle cx="290" cy="80" r="20" fill="#16213E" stroke="#72F2C7" stroke-width="2"/>
+    <circle cx="270" cy="184" r="20" fill="#16213E" stroke="#FF9FD6" stroke-width="2"/>
+  </g>
+  <rect x="32" y="474" width="326" height="70" rx="20" fill="#0D1530" stroke="#243056"/>
+  <text x="54" y="506" fill="#72F2C7" font-family="Pretendard, system-ui" font-size="14" font-weight="700">확대하면 더 작은 조각이 보여요</text>
+  <text x="54" y="530" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="12">처음에는 중심과 큰 동네부터 시작해요.</text>
+  <rect x="32" y="716" width="326" height="52" rx="26" fill="#72F2C7"/>
+  <text x="128" y="749" fill="#070A18" font-family="Pretendard, system-ui" font-size="15" font-weight="800">마을 둘러보기</text>
+
+    
+</svg>

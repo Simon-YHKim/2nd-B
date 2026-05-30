@@ -22,6 +22,13 @@ describe("ECR_ITEMS shape", () => {
     const reverses = ECR_ITEMS.filter((x) => x.dimension === "avoidance" && x.reverse);
     expect(reverses).toHaveLength(4);
   });
+
+  test("each item has a friendly subtitle in both locales", () => {
+    for (const item of ECR_ITEMS) {
+      expect(item.subtitleEn.length).toBeGreaterThan(10);
+      expect(item.subtitleKo.length).toBeGreaterThan(5);
+    }
+  });
 });
 
 describe("scoreEcr", () => {

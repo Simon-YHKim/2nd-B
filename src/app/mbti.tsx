@@ -1,18 +1,19 @@
-// MBTI-style 16-item screener. Disclaimers up front since the user
+// MBTI-style 32-item screener. Disclaimers up front since the user
 // explicitly requested it but the blueprint avoids it.
 
 import { useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, Pressable, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import { MBTI_ITEMS, scoreMbti, TYPE_NICKNAME, type MbtiResponses } from "@/lib/persona/mbti";
+import { QuantIntroModal } from "@/components/quant/QuantIntroModal";
+import { QuantPager } from "@/components/quant/QuantPager";
 
 const SCALE = [1, 2, 3, 4, 5];
 
@@ -23,6 +24,7 @@ export default function Mbti() {
 
   const [responses, setResponses] = useState<MbtiResponses>({});
   const [submitting, setSubmitting] = useState(false);
+  const [started, setStarted] = useState(false);
 
   const result = useMemo(() => scoreMbti(responses), [responses]);
 
@@ -61,7 +63,7 @@ export default function Mbti() {
       });
       Alert.alert(
         locale === "ko" ? "저장됐어요" : "Saved",
-        locale === "ko" ? "결과는 페르소나 화면에서 다른 기록과 함께 표시됩니다." : "Results are combined with your other records on the Persona screen.",
+        locale === "ko" ? "우리가 페르소나 화면에서 다른 기록과 함께 묶어둘게요." : "We'll fold this in with your other records on the Persona screen.",
       );
       router.replace("/persona");
     } catch (e) {
@@ -72,40 +74,72 @@ export default function Mbti() {
   }
 
   return (
-    <Screen>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll}>
+    <PremiumAppShell>
+      {!started ? (
+        <QuantIntroModal
+          toolKey="mbti"
+          title={locale === "ko" ? "MBTI 16유형" : "MBTI 16 types"}
+          itemCount={MBTI_ITEMS.length}
+          estimatedMinutes={6}
+          description={
+            locale === "ko"
+              ? "4가지 축 (외향/내향 · 감각/직관 · 사고/감정 · 판단/인식)에 대한 32개 문장에 답하면 16가지 유형 중 하나가 나옵니다. 한 페이지 5문항씩, 7페이지로 나눠집니다."
+              : "Answer 32 statements across 4 axes (extraversion/introversion, sensing/intuition, thinking/feeling, judging/perceiving) and land on one of 16 types. Split across 7 pages, 5 items each."
+          }
+          citation={
+            locale === "ko"
+              ? "16personalities-style 공개 문항 차용 · 공식 MBTI® 아님"
+              : "Paraphrased from 16personalities-style public pool · not the official MBTI® inventory"
+          }
+          disclaimer={
+            locale === "ko"
+              ? "주의: MBTI는 학술적 신뢰도가 낮은 분류입니다. 단정짓는 도구가 아니라 자기 관찰의 출발점으로만 사용하세요. 더 검증된 측정이 필요하면 Big Five (BFI-44) 또는 애착 스타일 (ECR-S)을 권장합니다."
+              : "Caveat: MBTI has weak psychometric validity (low test-retest, no support for bimodal types). Treat as a conversation starter, not a verdict. For validated tools, prefer Big Five (BFI-44) or Attachment (ECR-S)."
+          }
+          locale={locale}
+          onStart={() => setStarted(true)}
+          onCancel={() => router.back()}
+        />
+      ) : null}
+
+      {started ? (
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
-              2nd-Brain
+              {locale === "ko" ? "MBTI · 32문항" : "MBTI · 32 items"}
             </Text>
-            <Text variant="heading" style={{ marginTop: spacing.xs }}>
-              {locale === "ko" ? "MBTI 16타입 — 16문항" : "MBTI 16 types — 16 items"}
-            </Text>
-            <Text variant="body" color="textMuted">
-              {locale === "ko"
-                ? "각 문장에 1(전혀 아니다) ~ 5(매우 그렇다)로 답해 주세요. 3분이면 끝나요."
-                : "Rate each statement 1 (Disagree strongly) to 5 (Agree strongly). 3 minutes total."}
-            </Text>
-            <View style={styles.warnCard}>
-              <Text variant="caption" color="warning" style={{ letterSpacing: 1 }}>
-                {locale === "ko" ? "주의 — 가벼운 자기 인식 도구" : "Note — light self-awareness tool"}
+            {result.type ? (
+              <Text variant="subtle" color="textMuted">
+                {locale === "ko" ? `현재까지 유형: ${result.type}` : `Current type: ${result.type}`}
               </Text>
-              <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
+            ) : (
+              <Text variant="body" color="textMuted">
                 {locale === "ko"
-                  ? "MBTI는 인기 있는 분류이지만 학술적으로 신뢰도가 낮아요. 단정짓는 도구가 아니라, 자기 관찰의 출발점으로만 쓰세요. 더 검증된 도구가 필요하면 Big Five (TIPI) 또는 애착 스타일 (ECR-S)을 권장합니다."
-                  : "MBTI is popular but has weak psychometric validity (low test-retest reliability, no support for the 16-bimodal types). Treat the result as a conversation starter, not a verdict. For validated tools, prefer Big Five (TIPI) or Attachment (ECR-S)."}
+                  ? "각 문장에 1(전혀 아니다) ~ 5(매우 그렇다)로 답해 주세요."
+                  : "Rate each statement 1 (strongly disagree) to 5 (strongly agree)."}
               </Text>
-            </View>
+            )}
           </View>
 
-          <View style={styles.itemList}>
-            {MBTI_ITEMS.map((item) => {
+          <QuantPager
+            totalItems={MBTI_ITEMS.length}
+            perPage={5}
+            answered={result.answered}
+            complete={result.complete}
+            onSubmit={handleSubmit}
+            submitDisabled={!result.complete || submitting}
+            submitLoading={submitting}
+            locale={locale}
+            renderItem={(idx) => {
+              const item = MBTI_ITEMS[idx];
               const value = responses[item.id];
               return (
-                <View key={item.id} style={styles.itemCard}>
-                  <Text variant="body" style={{ marginBottom: spacing.xs }}>
+                <View style={styles.itemCard}>
+                  <Text variant="body" style={{ marginBottom: 2 }}>
                     {item.id}. {locale === "ko" ? item.ko : item.en}
+                  </Text>
+                  <Text variant="subtle" color="textSubtle" style={{ marginBottom: spacing.xs }}>
+                    {locale === "ko" ? item.subtitleKo : item.subtitleEn}
                   </Text>
                   <View style={styles.scaleRow}>
                     {SCALE.map((v) => {
@@ -124,66 +158,26 @@ export default function Mbti() {
                       );
                     })}
                   </View>
+                  <View style={styles.scaleLegend}>
+                    <Text variant="subtle" color="textSubtle">
+                      {locale === "ko" ? "전혀 아니다" : "Strongly disagree"}
+                    </Text>
+                    <Text variant="subtle" color="textSubtle">
+                      {locale === "ko" ? "매우 그렇다" : "Strongly agree"}
+                    </Text>
+                  </View>
                 </View>
               );
-            })}
-          </View>
-
-          {result.answered > 0 ? (
-            <View style={styles.scoreCard}>
-              <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
-                {locale === "ko" ? "현재까지" : "Progress"}
-              </Text>
-              {result.type ? (
-                <View style={{ marginTop: spacing.xs }}>
-                  <Text variant="heading" style={{ fontSize: 26 }}>
-                    {result.type}
-                  </Text>
-                  <Text variant="subtle" color="textMuted">
-                    {TYPE_NICKNAME[locale][result.type] ?? result.type}
-                  </Text>
-                </View>
-              ) : (
-                <Text variant="subtle" color="textSubtle">
-                  {locale === "ko" ? `${result.answered}/16 응답` : `${result.answered}/16 answered`}
-                </Text>
-              )}
-            </View>
-          ) : null}
-
-          <View style={styles.actions}>
-            <Button
-              label={locale === "ko" ? "결과 저장 (페르소나에 반영)" : "Save result (feeds Persona)"}
-              variant="primary"
-              onPress={handleSubmit}
-              disabled={!result.complete || submitting}
-              loading={submitting}
-            />
-            <Button
-              label={locale === "ko" ? "뒤로" : "Back"}
-              variant="secondary"
-              onPress={() => router.back()}
-              disabled={submitting}
-            />
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </Screen>
+            }}
+          />
+        </KeyboardAvoidingView>
+      ) : null}
+    </PremiumAppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
   header: { gap: spacing.xs, marginBottom: spacing.md },
-  warnCard: {
-    backgroundColor: semantic.surfaceAlt,
-    borderRadius: radii.sm,
-    borderLeftColor: semantic.warning,
-    borderLeftWidth: 3,
-    padding: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  itemList: { gap: spacing.sm },
   itemCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
@@ -202,15 +196,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   scaleBtnActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
-  scoreCard: {
-    backgroundColor: semantic.surface,
-    borderLeftColor: semantic.brand,
-    borderLeftWidth: 3,
-    borderColor: semantic.border,
-    borderWidth: 1,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  actions: { gap: spacing.sm },
+  scaleLegend: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
 });

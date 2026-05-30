@@ -11,9 +11,10 @@ import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshCont
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AppNav } from "@/components/ui/AppNav";
@@ -22,6 +23,7 @@ import { exportUserWiki } from "@/lib/wiki/export";
 import { readPhase1, runPhase1 } from "@/lib/wiki/phase1";
 import { computeGraphStats, type GraphStats } from "@/lib/wiki/graph-stats";
 import type { WikiPageKind, WikiPageRow } from "@/lib/wiki/types";
+import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 
 const KIND_LABEL: Record<WikiPageKind, { en: string; ko: string }> = {
   source: { en: "Source", ko: "소스" },
@@ -41,6 +43,7 @@ export default function Wiki() {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [pages, setPages] = useState<WikiPageRow[]>([]);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTags, setActiveTags] = useState<string[]>([]);
@@ -51,6 +54,7 @@ export default function Wiki() {
   const [phase1RunningId, setPhase1RunningId] = useState<string | null>(null);
   const [statsVisible, setStatsVisible] = useState(false);
   const [stats, setStats] = useState<GraphStats | null>(null);
+  const companion = useCompanionMoment();
 
   const load = useCallback(
     async (uid: string, tagsFilter: string[]) => {
@@ -76,6 +80,14 @@ export default function Wiki() {
     for (const p of pages) for (const t of p.tags) freq.set(t, (freq.get(t) ?? 0) + 1);
     return [...freq.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
   }, [pages]);
+
+  // Local search filter (wiki pack §8) — title/slug contains. Backend /
+  // RAG search can replace this later behind the same `query` input.
+  const visiblePages = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return pages;
+    return pages.filter((p) => p.title.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q));
+  }, [pages, query]);
 
   if (authLoading) return null;
   if (!userId) {
@@ -168,6 +180,8 @@ export default function Wiki() {
       // wiki page (the wiki page's frontmatter was copied at source-page
       // generation time, so we re-promote to refresh it).
       await load(userId, activeTags);
+      // 모모 labels the freshly organized page (companion pack §3).
+      companion.fire("wikiSaved");
       Alert.alert(locale === "ko" ? "Phase 1 완료" : "Phase 1 done");
     } catch (e) {
       Alert.alert(
@@ -196,7 +210,7 @@ export default function Wiki() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={semantic.brand} />}
@@ -205,11 +219,23 @@ export default function Wiki() {
           <Text variant="caption" color="brand">
             2nd-Brain
           </Text>
-          <Text variant="heading">{t("title")}</Text>
+          <Text variant="heading">{locale === "ko" ? "지식 창고" : "Knowledge store"}</Text>
           <Text variant="body" color="textMuted">
-            {t("subtitle")}
+            {locale === "ko"
+              ? "마을에 저장한 조각을 다시 찾아보는 곳이에요."
+              : "Where you find the pieces you saved to the village."}
           </Text>
         </View>
+
+        {/* Search (wiki pack §4/§8) — local filter over saved pages. */}
+        {pages.length > 0 ? (
+          <Input
+            value={query}
+            onChangeText={setQuery}
+            placeholder={locale === "ko" ? "조각 검색 — 제목이나 슬러그" : "Search pieces — title or slug"}
+            accessibilityLabel={locale === "ko" ? "지식 창고 검색" : "Search the knowledge store"}
+          />
+        ) : null}
 
         <View style={styles.actions}>
           <Link href="/capture" asChild>
@@ -227,6 +253,12 @@ export default function Wiki() {
             variant="secondary"
             onPress={handleToggleStats}
             disabled={pages.length === 0}
+          />
+          {/* SecondB handoff from the store (wiki pack §10) */}
+          <Button
+            label={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
+            variant="secondary"
+            onPress={() => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "지식 창고" : "knowledge store" } })}
           />
           <Link href="/journal" asChild>
             <Button label={t("back")} variant="secondary" />
@@ -341,8 +373,8 @@ export default function Wiki() {
             </ScrollView>
             <Text variant="subtle" color="textSubtle" style={styles.exportHelper}>
               {locale === "ko"
-                ? "위 복사 버튼으로 한 번에 클립보드로 옮기거나, 텍스트를 길게 눌러 직접 선택해도 됩니다. Claude · ChatGPT 새 대화에 붙여 넣으면 자비스와 같은 컨텍스트로 사용됩니다."
-                : "Tap Copy to send everything to your clipboard, or long-press the text to select manually. Paste into a new Claude / ChatGPT chat for the same context as Jarvis."}
+                ? "위 복사 버튼으로 한 번에 클립보드로 옮기거나, 텍스트를 길게 눌러 직접 선택해도 됩니다. Claude · ChatGPT 새 대화에 붙여 넣으면 우리가 세컨비에서 보던 것과 같은 컨텍스트로 이어서 쓸 수 있어요."
+                : "Tap Copy to send everything to your clipboard, or long-press the text to select manually. Paste it into a new Claude / ChatGPT chat and you'll pick up with the same context we use in SecondB."}
             </Text>
           </View>
         ) : null}
@@ -386,28 +418,32 @@ export default function Wiki() {
         ) : pages.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text variant="body" color="textMuted" style={styles.emptyText}>
-              {activeTags.length > 0 ? t("emptyForTags") : t("empty")}
+              {activeTags.length > 0
+                ? t("emptyForTags")
+                : locale === "ko"
+                  ? "아직 창고가 조용해요. 오늘의 조각이나 링크를 저장하면 여기서 다시 찾아볼 수 있어요."
+                  : "The store is quiet for now. Save a piece or a link and you'll find it here again."}
             </Text>
             {activeTags.length === 0 ? (
-              <>
-                <Text variant="subtle" color="textSubtle" style={{ textAlign: "center", lineHeight: 18, marginTop: spacing.sm }}>
-                  {locale === "ko"
-                    ? "캡처 → 받은편지함 → '위키 페이지 생성' 순서로 페이지가 쌓여요. 페이지들은 [[wikilink]]로 자동 연결됩니다."
-                    : "Captures land in your inbox, then 'Generate wiki page' promotes them here. Pages link to each other via [[wikilinks]] automatically."}
-                </Text>
-                <Link href="/inbox" asChild>
-                  <Pressable hitSlop={6}>
-                    <Text variant="caption" color="brand">
-                      {locale === "ko" ? "→ 받은편지함 열기" : "→ Open inbox"}
-                    </Text>
-                  </Pressable>
+              <View style={styles.emptyCtaRow}>
+                <Link href="/journal" asChild>
+                  <Button label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"} variant="primary" />
                 </Link>
-              </>
+                <Link href="/capture" asChild>
+                  <Button label={locale === "ko" ? "조각 담기" : "Capture a piece"} variant="secondary" />
+                </Link>
+              </View>
             ) : null}
+          </View>
+        ) : visiblePages.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text variant="body" color="textMuted" style={styles.emptyText}>
+              {locale === "ko" ? `'${query.trim()}'에 맞는 조각이 없어요.` : `No pieces match '${query.trim()}'.`}
+            </Text>
           </View>
         ) : (
           <View style={styles.list}>
-            {pages.map((p) => {
+            {visiblePages.map((p) => {
               const expanded = expandedId === p.id;
               return (
                 <Pressable key={p.id} onPress={() => toggleExpand(p)} style={styles.row}>
@@ -549,6 +585,36 @@ export default function Wiki() {
                           ← [[{b.slug}]] {b.title}
                         </Text>
                       ))}
+                      {/* Handoffs (wiki-records §6/§7): jump to this page on
+                          the graph, or ask SecondB about it. */}
+                      <View style={styles.pageHandoffs}>
+                        <Pressable
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            router.push({ pathname: "/", params: { highlightWikiPageId: p.id } });
+                          }}
+                          hitSlop={6}
+                          style={styles.pageHandoffBtn}
+                          accessibilityRole="button"
+                        >
+                          <Text variant="caption" color="brand">
+                            {locale === "ko" ? "그래프에서 보기" : "See in graph"}
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            router.push({ pathname: "/jarvis", params: { fromNode: p.title } });
+                          }}
+                          hitSlop={6}
+                          style={styles.pageHandoffBtn}
+                          accessibilityRole="button"
+                        >
+                          <Text variant="caption" color="brand">
+                            {locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
+                          </Text>
+                        </Pressable>
+                      </View>
                       <Pressable
                         onPress={(e) => {
                           e.stopPropagation();
@@ -570,12 +636,25 @@ export default function Wiki() {
         )}
         <AppNav locale={locale} />
       </ScrollView>
-    </Screen>
+      {/* 모모 appears briefly to label the organized page (companion pack §3) */}
+      {companion.moment ? (
+        <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
+      ) : null}
+    </PremiumAppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
+  scroll: { paddingBottom: 110, gap: spacing.lg },
+  companionFlash: { position: "absolute", bottom: 40, right: 20 },
+  pageHandoffs: { flexDirection: "row", gap: spacing.md, marginTop: spacing.sm },
+  pageHandoffBtn: {
+    borderWidth: 1,
+    borderColor: semantic.border,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   actions: { flexDirection: "row", gap: spacing.sm },
   tagFilterCard: {
@@ -607,6 +686,7 @@ const styles = StyleSheet.create({
   center: { paddingVertical: spacing.xl, alignItems: "center" },
   emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, alignItems: "center", gap: spacing.sm },
   emptyText: { textAlign: "center" },
+  emptyCtaRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm, flexWrap: "wrap", justifyContent: "center" },
   inlineTagRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   list: { gap: spacing.sm },
   row: {

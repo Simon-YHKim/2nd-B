@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
@@ -12,8 +13,10 @@ import { initAnalytics } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { BackArrow } from "@/components/ui/BackArrow";
+import { PremiumTabBar } from "@/components/premium";
 import { fontAssets } from "@/theme/typography";
-import { semantic } from "@/lib/theme/tokens";
+import { ThemeProvider, useTheme, useThemePalette } from "@/lib/theme/ThemeContext";
 
 initI18n();
 void initAnalytics();
@@ -36,15 +39,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <StatusBar style="light" />
-          <IntroGate>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: semantic.background },
-              }}
-            >
+        <ThemeProvider>
+          <AuthProvider>
+            <ThemedStatusBar />
+            <IntroGate>
+              <ThemedStack>
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="journal" />
@@ -63,14 +62,46 @@ export default function RootLayout() {
               <Stack.Screen name="trinity" />
               <Stack.Screen name="mbti" />
               <Stack.Screen name="settings" />
+              <Stack.Screen name="import" />
               <Stack.Screen name="interview" />
               <Stack.Screen name="+not-found" />
-            </Stack>
-          </IntroGate>
-        </AuthProvider>
+              </ThemedStack>
+              <BackArrow />
+              <AppTabBar />
+            </IntroGate>
+          </AuthProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+/** Wraps <Stack> so its contentStyle.backgroundColor tracks the theme
+ *  toggle without forcing every screen to set its own bg. */
+function ThemedStack({ children }: { children: React.ReactNode }) {
+  const palette = useThemePalette();
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: palette.background },
+      }}
+    >
+      {children}
+    </Stack>
+  );
+}
+
+/** Locale-aware premium bottom tab bar (shows only on primary routes). */
+function AppTabBar() {
+  const { i18n } = useTranslation();
+  return <PremiumTabBar locale={i18n.language === "ko" ? "ko" : "en"} />;
+}
+
+/** StatusBar style follows the active mode. */
+function ThemedStatusBar() {
+  const { mode } = useTheme();
+  return <StatusBar style={mode === "dark" ? "light" : "dark"} />;
 }
 
 /**
@@ -85,14 +116,51 @@ export default function RootLayout() {
  * building your second brain' literally welcomes you in. Returning
  * authenticated users on cold launch see it as 'reloading your brain'.
  */
+const INTRO_SEEN_KEY = "secondB_intro_played_v1";
+
+function introAlreadyPlayed(): boolean {
+  try {
+    return typeof sessionStorage !== "undefined" && sessionStorage.getItem(INTRO_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markIntroPlayed(): void {
+  try {
+    if (typeof sessionStorage !== "undefined") sessionStorage.setItem(INTRO_SEEN_KEY, "1");
+  } catch {
+    /* ignore — private mode / native */
+  }
+}
+
 function IntroGate({ children }: { children: React.ReactNode }) {
   const { userId, loading } = useAuth();
-  const [introDone, setIntroDone] = useState(false);
+  // Play the cell-team intro only once per tab session. On re-entry (tab
+  // switch back, navigating home, a fresh auth event) we go straight to the
+  // app instead of re-showing the loader that waits for a tap — that was the
+  // "infinite loading on re-entry" report.
+  const [introDone, setIntroDone] = useState(introAlreadyPlayed);
 
-  if (loading) return <InlineLoader />;
-  if (!userId) return <>{children}</>;
-  if (!introDone) {
-    return <LoadingScreen ready={true} onContinue={() => setIntroDone(true)} />;
-  }
-  return <>{children}</>;
+  // Once the intro has played this session, just render the app/children —
+  // auth re-resolves quietly without re-gating the UI.
+  if (introDone) return <>{children}</>;
+
+  // Unauthenticated visitors skip the cell intro entirely once auth resolves —
+  // they should land on /sign-in immediately, not watch a loader.
+  if (!loading && !userId) return <>{children}</>;
+
+  // Otherwise show the cell-team intro. Crucially, `ready` is driven by the
+  // REAL auth/profile resolution (`!loading`) instead of a hardcoded true —
+  // so the loader genuinely reflects loading: it keeps typing while we resolve
+  // the session and only invites the tap once we're actually ready.
+  return (
+    <LoadingScreen
+      ready={!loading}
+      onContinue={() => {
+        markIntroPlayed();
+        setIntroDone(true);
+      }}
+    />
+  );
 }

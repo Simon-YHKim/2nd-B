@@ -11,6 +11,14 @@ interface CapturedCall {
 const captured: CapturedCall[] = [];
 const fixtures: Record<string, unknown> = {};
 
+class ChatLimitExceededError extends Error {
+  readonly code = "chat_limit_exceeded";
+  constructor() {
+    super("chat_limit_exceeded");
+    this.name = "ChatLimitExceededError";
+  }
+}
+
 jest.mock("../usage", () => ({
   readChatUsage: jest.fn((userId: string, day: string) => {
     captured.push({ fn: "readChatUsage", args: [userId, day], ret: fixtures.used ?? 0 });
@@ -20,6 +28,13 @@ jest.mock("../usage", () => ({
     captured.push({ fn: "bumpChatUsage", args: [userId, day], ret: (fixtures.used as number ?? 0) + 1 });
     return Promise.resolve((fixtures.used as number ?? 0) + 1);
   }),
+  bumpChatUsageIfUnderCap: jest.fn((userId: string, cap: number, day: string) => {
+    const used = (fixtures.used as number) ?? 0;
+    captured.push({ fn: "bumpChatUsageIfUnderCap", args: [userId, cap, day], ret: used + 1 });
+    if (used >= cap) return Promise.reject(new ChatLimitExceededError());
+    return Promise.resolve(used + 1);
+  }),
+  ChatLimitExceededError,
 }));
 
 jest.mock("../../wiki/export", () => ({
@@ -63,9 +78,11 @@ describe("sendChatMessage", () => {
     expect(r.hint).toContain("free chat limit (5)");
 
     const callNames = captured.map((c) => c.fn);
+    // R2: atomic-bump tries first, fails with ChatLimitExceededError, then
+    // readChatUsage runs to compose the localized hint.
+    expect(callNames).toContain("bumpChatUsageIfUnderCap");
     expect(callNames).toContain("readChatUsage");
     expect(callNames).not.toContain("callGemini");
-    expect(callNames).not.toContain("bumpChatUsage");
     expect(callNames).not.toContain("exportUserWiki");
   });
 
@@ -78,7 +95,7 @@ describe("sendChatMessage", () => {
     expect(r.upgradeTo).toBe("cortex");
   });
 
-  test("happy path: reads usage → exports wiki → calls Gemini → bumps usage", async () => {
+  test("happy path: atomic-bumps usage → exports wiki → calls Gemini", async () => {
     fixtures.used = 2;
     const r = await sendChatMessage({ userId: "u1", message: "hello", locale: "en", tier: "free" });
     expect(r.status).toBe("ok");
@@ -87,17 +104,21 @@ describe("sendChatMessage", () => {
     expect(r.remaining).toBe(2); // 5 - 3
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["readChatUsage", "exportUserWiki", "callGemini", "bumpChatUsage"]);
+    expect(callNames).toEqual(["bumpChatUsageIfUnderCap", "exportUserWiki", "callGemini"]);
 
     // System prompt was assembled from header + exportUserWiki output.
     const geminiCall = captured.find((c) => c.fn === "callGemini");
     const geminiArgs = geminiCall?.args[0] as { system: string; purpose: string; user: string };
     expect(geminiArgs.purpose).toBe("jarvis_chat");
     expect(geminiArgs.user).toBe("hello");
-    expect(geminiArgs.system).toContain("Jarvis"); // header
+    expect(geminiArgs.system).toContain("SecondB"); // header
   });
 
-  test("red-zone routed reply (modelUsed='none-crisis-routed') does NOT bump usage", async () => {
+  test("red-zone routed reply still counts toward the quota (R2 policy change)", async () => {
+    // codex R2: to close the TOCTOU race, the bump now happens BEFORE the
+    // LLM call. Crisis-routed turns are no longer free. This is the
+    // deliberate trade-off documented in
+    // docs/security/2026-05-26-codex-challenge.md.
     fixtures.used = 2;
     fixtures.geminiResult = {
       text: "Please call hotline...",
@@ -108,9 +129,8 @@ describe("sendChatMessage", () => {
     expect(r.status).toBe("ok");
 
     const callNames = captured.map((c) => c.fn);
+    expect(callNames).toContain("bumpChatUsageIfUnderCap");
     expect(callNames).toContain("callGemini");
-    // Crisis routing went through, but quota was not burned.
-    expect(callNames).not.toContain("bumpChatUsage");
   });
 
   test("includes the export bundle as the system prompt context", async () => {

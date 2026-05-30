@@ -1,0 +1,65 @@
+{
+  "domains": {
+    "work_growth": {
+      "worker": "archi",
+      "accent": "#4CC9F0",
+      "tierIcons": [
+        "seed_growth",
+        "paper_journal",
+        "spark_recent"
+      ]
+    },
+    "relationship": {
+      "worker": "gadi",
+      "accent": "#FF7A90",
+      "tierIcons": [
+        "heart_relationship",
+        "paper_journal",
+        "spark_recent"
+      ]
+    },
+    "knowledge": {
+      "worker": "lulu",
+      "accent": "#72F2C7",
+      "tierIcons": [
+        "book_wiki",
+        "link_capture",
+        "file_source"
+      ]
+    },
+    "records": {
+      "worker": "momo",
+      "accent": "#FFD166",
+      "tierIcons": [
+        "paper_journal",
+        "file_source",
+        "cube_data"
+      ]
+    },
+    "imagine": {
+      "worker": "vela",
+      "accent": "#FF9FD6",
+      "tierIcons": [
+        "crystal_imagine",
+        "spark_recent",
+        "compass_inspiration"
+      ]
+    },
+    "inspiration": {
+      "worker": "lumi",
+      "accent": "#FFD166",
+      "tierIcons": [
+        "compass_inspiration",
+        "spark_recent",
+        "heart_relationship"
+      ]
+    }
+  },
+  "sourceToShard": {
+    "journal": "shard_journal_gold",
+    "wiki": "shard_wiki_blue",
+    "capture": "shard_capture_mint",
+    "imagine": "shard_imagine_pink",
+    "core": "shard_core_violet"
+  }
+}

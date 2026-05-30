@@ -6,8 +6,17 @@
 // Secrets the operator sets via the Supabase Dashboard:
 //   NAVER_CLIENT_ID       — Client ID from developers.naver.com
 //   NAVER_CLIENT_SECRET   — Client Secret from developers.naver.com
+//   ENABLE_NAVER_OAUTH    — must be 'true' to activate (default: disabled)
 //
 // Auth: verify_jwt=false (pre-auth — Naver validates the user).
+//
+// Security hardening (docs/security/2026-05-26-SUMMARY.md — H2, M1):
+//   H2 — Naver OAuth state CSRF: the current implementation only checks
+//        state is non-empty, not that it matches a server-issued nonce.
+//        Until a PKCE/server-state-store flow is wired in, the function
+//        is disabled by default. Set ENABLE_NAVER_OAUTH=true to opt in
+//        once the state-binding implementation is complete.
+//   M1 — CORS allowlist (was wildcard).
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -15,22 +24,34 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 const NAVER_TOKEN_URL = 'https://nid.naver.com/oauth2.0/token';
 const NAVER_USER_URL = 'https://openapi.naver.com/v1/nid/me';
 
-function jsonResponse(body: unknown, status = 200): Response {
+const ALLOWED_ORIGINS = new Set<string>([
+  'https://simon-yhkim.github.io',
+  'http://localhost:8081',
+  'http://localhost:19006',
+]);
+function resolveOrigin(req: Request): string {
+  const origin = req.headers.get('origin') ?? '';
+  return ALLOWED_ORIGINS.has(origin) ? origin : 'null';
+}
+
+function jsonResponse(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      'access-control-allow-origin': '*',
+      'access-control-allow-origin': resolveOrigin(req),
+      'vary': 'origin',
       'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
     },
   });
 }
 
-function corsPreflight(): Response {
+function corsPreflight(req: Request): Response {
   return new Response(null, {
     status: 204,
     headers: {
-      'access-control-allow-origin': '*',
+      'access-control-allow-origin': resolveOrigin(req),
+      'vary': 'origin',
       'access-control-allow-methods': 'POST, OPTIONS',
       'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
       'access-control-max-age': '86400',
@@ -39,32 +60,37 @@ function corsPreflight(): Response {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return corsPreflight();
-  if (req.method !== 'POST') return jsonResponse({ error: 'method_not_allowed' }, 405);
+  if (req.method === 'OPTIONS') return corsPreflight(req);
+  if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
+
+  // H2 — disabled until proper state validation lands.
+  if (Deno.env.get('ENABLE_NAVER_OAUTH') !== 'true') {
+    return jsonResponse(req, { error: 'naver_oauth_disabled' }, 503);
+  }
 
   const clientId = Deno.env.get('NAVER_CLIENT_ID');
   const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
   if (!clientId || !clientSecret) {
-    return jsonResponse({ error: 'server_misconfigured_missing_NAVER_credentials' }, 500);
+    return jsonResponse(req, { error: 'server_misconfigured_missing_NAVER_credentials' }, 500);
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceRoleKey) {
-    return jsonResponse({ error: 'server_misconfigured_supabase_env' }, 500);
+    return jsonResponse(req, { error: 'server_misconfigured_supabase_env' }, 500);
   }
 
   let body: { code?: unknown; state?: unknown; redirect_uri?: unknown };
   try {
     body = await req.json();
   } catch {
-    return jsonResponse({ error: 'invalid_json' }, 400);
+    return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
   const code = typeof body?.code === 'string' ? body.code : '';
   const state = typeof body?.state === 'string' ? body.state : '';
   const redirectUri = typeof body?.redirect_uri === 'string' ? body.redirect_uri : '';
   if (!code || !state || !redirectUri) {
-    return jsonResponse({ error: 'code_state_redirect_uri_required' }, 400);
+    return jsonResponse(req, { error: 'code_state_redirect_uri_required' }, 400);
   }
 
   // 1. Exchange code for access token. Naver uses GET with query params.
@@ -78,20 +104,20 @@ Deno.serve(async (req: Request) => {
   const tokenRes = await fetch(tokenUrl.toString(), { method: 'GET' });
   const tokenJson = (await tokenRes.json()) as { access_token?: string; error?: string };
   if (!tokenRes.ok || !tokenJson.access_token) {
-    return jsonResponse({ error: 'naver_token_exchange_failed', detail: tokenJson }, 502);
+    return jsonResponse(req, { error: 'naver_token_exchange_failed', detail: tokenJson }, 502);
   }
 
   // 2. Fetch user profile.
   const userRes = await fetch(NAVER_USER_URL, {
     headers: { authorization: `Bearer ${tokenJson.access_token}` },
   });
-  if (!userRes.ok) return jsonResponse({ error: 'naver_user_fetch_failed', status: userRes.status }, 502);
+  if (!userRes.ok) return jsonResponse(req, { error: 'naver_user_fetch_failed', status: userRes.status }, 502);
   const userJson = (await userRes.json()) as {
     resultcode?: string;
     response?: { id?: string; email?: string; nickname?: string };
   };
   const naverId = userJson.response?.id;
-  if (!naverId) return jsonResponse({ error: 'naver_user_missing_id' }, 502);
+  if (!naverId) return jsonResponse(req, { error: 'naver_user_missing_id' }, 502);
   const userEmail = userJson.response?.email ?? `${naverId}@naver.local`;
 
   // 3. Find-or-create + mint session — same pattern as oauth-kakao.
@@ -115,7 +141,7 @@ Deno.serve(async (req: Request) => {
       },
     });
     if (createErr || !created?.user) {
-      return jsonResponse({ error: 'supabase_create_user_failed', detail: createErr?.message }, 500);
+      return jsonResponse(req, { error: 'supabase_create_user_failed', detail: createErr?.message }, 500);
     }
     userId = created.user.id;
   }
@@ -125,13 +151,13 @@ Deno.serve(async (req: Request) => {
     email: userEmail,
   });
   if (linkErr || !linkData) {
-    return jsonResponse({ error: 'supabase_session_mint_failed', detail: linkErr?.message }, 500);
+    return jsonResponse(req, { error: 'supabase_session_mint_failed', detail: linkErr?.message }, 500);
   }
   const actionLink = linkData.properties?.action_link ?? '';
   const url = new URL(actionLink);
   const tokenHash = url.searchParams.get('token_hash') ?? '';
 
-  return jsonResponse({
+  return jsonResponse(req, {
     user_id: userId,
     email: userEmail,
     token_hash: tokenHash,

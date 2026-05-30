@@ -14,7 +14,9 @@
 //     same scale 4 + opacity 1 frame so the handoff is seamless.
 
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, Text } from "react-native";
+
+import { CosmicBackground } from "@/components/premium";
 
 const logo = require("../../../assets/images/logo-glow.png");
 
@@ -66,6 +68,9 @@ const OPACITY_FADE_MS = MIN_INTRO_MS;
 const ENTER_READY_MS = 400;    // grow to 1.05 when entering ready
 const PULSE_PERIOD_MS = 1400;  // heartbeat full cycle
 const ZOOM_MS = 800;           // dolly-zoom on tap
+// Safety net: if the user never taps (or can't), auto-continue a few seconds
+// after the ready phase so we never sit on the loader forever.
+const AUTO_CONTINUE_MS = 4000;
 
 type Phase = "typing" | "ready" | "zooming";
 
@@ -175,6 +180,36 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
     });
   }, [phase, ready, minElapsed, opacity, scale, hintOpacity]);
 
+  // Auto-continue safety net: if we reach 'ready' and the user doesn't tap
+  // within AUTO_CONTINUE_MS, advance anyway so we never strand on the loader.
+  useEffect(() => {
+    if (phase !== "ready") return;
+    const t = setTimeout(() => startZoom(), AUTO_CONTINUE_MS);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  function startZoom() {
+    if (phase === "zooming") return;
+    setPhase("zooming");
+    scale.stopAnimation();
+    hintOpacity.stopAnimation();
+    Animated.parallel([
+      Animated.timing(scale, {
+        toValue: 4,
+        duration: ZOOM_MS,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(hintOpacity, {
+        toValue: 0,
+        duration: ZOOM_MS * 0.4,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onContinue?.();
+    });
+  }
+
   function handlePress() {
     if (phase === "typing") {
       // Skip path: assume ready by forcing minElapsed (parent.ready
@@ -213,6 +248,7 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       accessibilityRole="progressbar"
       accessibilityLabel="2nd-Brain 불러오는 중"
     >
+      <CosmicBackground />
       <Animated.Image
         source={logo}
         style={[styles.logo, { opacity, transform: [{ scale }] }]}
@@ -238,19 +274,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#02040A",
+    backgroundColor: "#070A18",
     gap: 32,
   },
   logo: { width: 220, height: 220 },
   text: {
-    color: "#C7D4EA",
+    color: "#E8ECF8",
     fontSize: 15,
     letterSpacing: 0.3,
     minHeight: 22,
   },
-  caret: { color: "#2F97FC", opacity: 0.8 },
+  caret: { color: "#72F2C7", opacity: 0.85 },
   hint: {
-    color: "#7FB3F4",
+    color: "#A78BFA",
     fontSize: 13,
     letterSpacing: 2,
     textAlign: "center",

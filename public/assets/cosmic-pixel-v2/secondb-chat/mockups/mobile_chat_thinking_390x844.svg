@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" fill="none">
+<defs>
+  <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="5" result="blur"/>
+    <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.45 0 0 0 0 0.95 0 0 0 0 0.80 0 0 0 0.7 0" result="glow"/>
+    <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="violetGlow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="6" result="blur"/>
+    <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.65 0 0 0 0 0.55 0 0 0 0 1 0 0 0 0.65 0" result="glow"/>
+    <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="lampGlow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="4" result="blur"/>
+    <feColorMatrix in="blur" type="matrix" values="0 0 0 0 1 0 0 0 0 0.82 0 0 0 0 0.35 0 0 0 0.65 0" result="glow"/>
+    <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <pattern id="noiseGrid" width="12" height="12" patternUnits="userSpaceOnUse">
+    <path d="M 12 0 L 0 0 0 12" fill="none" stroke="rgba(141,152,184,0.08)" stroke-width="1"/>
+  </pattern>
+  <style>
+    .t { font-family: 'Noto Sans CJK KR','Pretendard','SF Pro Display',system-ui,sans-serif; }
+    .mono { font-family: 'NanumGothicCoding','SF Mono',monospace; }
+    .pixel { shape-rendering: crispEdges; }
+  </style>
+</defs>
+
+
+<rect width="390" height="844" fill="#070A18"/>
+<rect width="390" height="844" fill="url(#noiseGrid)" opacity="0.48"/>
+<circle cx="195" cy="160" r="150" fill="#A78BFA" opacity="0.14" filter="url(#violetGlow)"/>
+<circle cx="72" cy="594" r="126" fill="#72F2C7" opacity="0.06"/>
+
+
+<rect x="16" y="20" width="358" height="70" rx="22" fill="rgba(13,21,48,0.88)" stroke="rgba(167,139,250,0.30)"/>
+<circle cx="52" cy="55" r="20" fill="#16213E" stroke="#A78BFA"/>
+<rect class="pixel" x="44" y="50" width="5" height="5" fill="#E8ECF8"/><rect class="pixel" x="56" y="50" width="5" height="5" fill="#E8ECF8"/>
+<text x="84" y="49" class="t" fill="#E8ECF8" font-size="16" font-weight="800">세컨비</text>
+<text x="84" y="69" class="t" fill="#8D98B8" font-size="12">관련 조각을 찾는 중</text>
+<rect x="333" y="46" width="16" height="16" rx="4" fill="rgba(114,242,199,0.18)"/>
+<circle cx="341" cy="54" r="3" fill="#72F2C7"/>
+
+<g transform="translate(78 118)">
+  <rect x="0" y="0" width="290" height="84" rx="22" fill="rgba(76,201,240,0.14)" stroke="rgba(76,201,240,0.42)"/>
+  <text x="20" y="33" class="t" fill="#E8ECF8" font-size="14">오늘 기록 기반으로</text>
+  <text x="20" y="57" class="t" fill="#E8ECF8" font-size="14">정리해줄래?</text>
+</g>
+<g transform="translate(20 232)">
+  <rect x="0" y="0" width="246" height="84" rx="24" fill="rgba(13,21,48,0.94)" stroke="rgba(167,139,250,0.30)"/>
+  <text x="20" y="31" class="t" fill="#8D98B8" font-size="13">조각을 찾고 있어요</text>
+  <circle cx="120" cy="56" r="5" fill="#A78BFA" opacity="0.7"/>
+  <circle cx="144" cy="56" r="5" fill="#72F2C7" filter="url(#softGlow)"/>
+  <circle cx="168" cy="56" r="5" fill="#FFD166" opacity="0.75"/>
+</g>
+<g transform="translate(38 368)" opacity="0.92">
+  <path d="M54 20 C 118 82, 196 -24, 270 52" stroke="rgba(114,242,199,0.38)" stroke-width="2" stroke-dasharray="5 8"/>
+  <circle cx="54" cy="20" r="22" fill="rgba(22,33,62,0.90)" stroke="#72F2C7"/>
+  <circle cx="165" cy="35" r="30" fill="rgba(22,33,62,0.90)" stroke="#A78BFA"/>
+  <circle cx="270" cy="52" r="22" fill="rgba(22,33,62,0.90)" stroke="#FFD166"/>
+  <text x="54" y="80" class="t" fill="#8D98B8" font-size="11" text-anchor="middle">기록</text>
+  <text x="165" y="91" class="t" fill="#8D98B8" font-size="11" text-anchor="middle">나의 모습</text>
+  <text x="270" y="112" class="t" fill="#8D98B8" font-size="11" text-anchor="middle">공상</text>
+</g>
+
+<rect x="16" y="758" width="358" height="68" rx="24" fill="rgba(13,21,48,0.96)" stroke="rgba(141,152,184,0.25)"/>
+<rect x="30" y="772" width="246" height="40" rx="16" fill="rgba(7,10,24,0.55)"/>
+<text x="48" y="797" class="t" fill="#8D98B8" font-size="13">세컨비에게 물어보기...</text>
+<rect x="288" y="772" width="72" height="40" rx="16" fill="rgba(114,242,199,0.14)" stroke="rgba(114,242,199,0.38)"/>
+<text x="309" y="797" class="t" fill="#72F2C7" font-size="13" font-weight="800">전송</text>
+
+
+</svg>

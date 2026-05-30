@@ -1,15 +1,22 @@
 import { MBTI_ITEMS, scoreMbti, type MbtiResponses } from "../mbti";
 
 describe("MBTI_ITEMS shape", () => {
-  test("16 items total", () => {
-    expect(MBTI_ITEMS).toHaveLength(16);
+  test("32 items total", () => {
+    expect(MBTI_ITEMS).toHaveLength(32);
   });
 
-  test("4 items per dichotomy", () => {
+  test("8 items per dichotomy", () => {
     const counts = new Map<string, number>();
     for (const i of MBTI_ITEMS) counts.set(i.dichotomy, (counts.get(i.dichotomy) ?? 0) + 1);
     for (const d of ["EI", "SN", "TF", "JP"]) {
-      expect(counts.get(d)).toBe(4);
+      expect(counts.get(d)).toBe(8);
+    }
+  });
+
+  test("each item has a friendly subtitle in both locales", () => {
+    for (const item of MBTI_ITEMS) {
+      expect(item.subtitleEn.length).toBeGreaterThan(10);
+      expect(item.subtitleKo.length).toBeGreaterThan(5);
     }
   });
 
