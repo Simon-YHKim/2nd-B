@@ -230,6 +230,14 @@ function tierSize(t: Tier): number {
 // is positioned with explicit offsets in JSX.
 const CENTER_SIZE = tierSize(1);
 
+// Premium HQ core art scale (asset-replacement pass). The new core_center
+// HQ piece reads "heavier" than the old clean core, so it's drawn at ~1.0x
+// (≈60% of the previous 1.7x footprint) — the center should anchor the
+// village, not dominate it. The offset re-centers any overflow:
+// left/top = -(scale-1)/2 * box, which is 0 at scale 1.0.
+const CORE_ART_SCALE = 1.0;
+const CORE_ART_OFFSET = (-CENTER_SIZE * (CORE_ART_SCALE - 1)) / 2;
+
 function seeded(id: string, salt: number): number {
   let h = 5381 + salt * 31;
   for (let i = 0; i < id.length; i++) h = (h * 33) ^ id.charCodeAt(i);
@@ -1035,7 +1043,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
             dimFor(CENTER_NODE.id) ? styles.dimmed : null,
           ]}
         >
-          <IslandArt id="core" size={CENTER_SIZE * 1.7} style={{ position: "absolute", left: -CENTER_SIZE * 0.35, top: -CENTER_SIZE * 0.35 }} />
+          <IslandArt id="core" size={CENTER_SIZE * CORE_ART_SCALE} style={{ position: "absolute", left: CORE_ART_OFFSET, top: CORE_ART_OFFSET }} />
           <Pressable
             onPress={() => handleNodeTap(CENTER_NODE.id)}
             hitSlop={20}

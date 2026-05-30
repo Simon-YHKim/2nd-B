@@ -14,6 +14,7 @@ import { createRecord } from "@/lib/records/create";
 import { MBTI_ITEMS, scoreMbti, TYPE_NICKNAME, type MbtiResponses } from "@/lib/persona/mbti";
 import { QuantIntroModal } from "@/components/quant/QuantIntroModal";
 import { QuantPager } from "@/components/quant/QuantPager";
+import { QuantSaveCelebration } from "@/components/quant/QuantSaveCelebration";
 
 const SCALE = [1, 2, 3, 4, 5];
 
@@ -25,6 +26,7 @@ export default function Mbti() {
   const [responses, setResponses] = useState<MbtiResponses>({});
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const result = useMemo(() => scoreMbti(responses), [responses]);
 
@@ -61,11 +63,7 @@ export default function Mbti() {
         tags: ["mbti", "assessment", `type-${result.type.toLowerCase()}`],
         withFollowup: false,
       });
-      Alert.alert(
-        locale === "ko" ? "저장됐어요" : "Saved",
-        locale === "ko" ? "우리가 페르소나 화면에서 다른 기록과 함께 묶어둘게요." : "We'll fold this in with your other records on the Persona screen.",
-      );
-      router.replace("/persona");
+      setSaved(true);
     } catch (e) {
       Alert.alert(locale === "ko" ? "저장 실패" : "Save failed", (e as Error).message);
     } finally {
@@ -171,6 +169,13 @@ export default function Mbti() {
             }}
           />
         </KeyboardAvoidingView>
+      ) : null}
+
+      {saved ? (
+        <QuantSaveCelebration
+          message={locale === "ko" ? "저장됐어요 · 페르소나에서 다시 만나요" : "Saved · see it on your Persona"}
+          onDone={() => router.replace("/persona")}
+        />
       ) : null}
     </PremiumAppShell>
   );

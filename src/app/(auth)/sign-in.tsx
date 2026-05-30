@@ -28,7 +28,7 @@ import { cosmicSky } from "@/lib/theme/tokens";
 import { CosmicBackground } from "@/components/premium";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
 
-const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_clean.png");
+const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
 // Cosmic entry palette — deep-space bg + mint brand + violet accent, so
 // the first (unauthenticated) screen already reads as the Cosmic Pixel
@@ -252,7 +252,9 @@ const styles = StyleSheet.create({
   },
   hero: { alignItems: "center", marginTop: 32, marginBottom: 28, gap: 8 },
   logo: { width: 84, height: 84, marginBottom: 6 },
-  heroImg: { width: 260, height: 122, marginBottom: 6 },
+  // HQ gate hero is ~square (740x746); render it in a square box so it
+  // floats on the cosmic background instead of letterboxing into a sliver.
+  heroImg: { width: 200, height: 200, marginBottom: 6 },
   title: {
     color: PALETTE.text,
     fontSize: 22,

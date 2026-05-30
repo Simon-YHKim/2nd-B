@@ -20,6 +20,7 @@ import {
 } from "@/lib/persona/attachment";
 import { QuantIntroModal } from "@/components/quant/QuantIntroModal";
 import { QuantPager } from "@/components/quant/QuantPager";
+import { QuantSaveCelebration } from "@/components/quant/QuantSaveCelebration";
 
 const SCALE = [1, 2, 3, 4, 5, 6, 7];
 
@@ -31,6 +32,7 @@ export default function Attachment() {
   const [responses, setResponses] = useState<EcrResponses>({});
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const result = useMemo(() => scoreEcr(responses), [responses]);
 
@@ -69,13 +71,7 @@ export default function Attachment() {
         tags: ["attachment", "ecr", "assessment"],
         withFollowup: false,
       });
-      Alert.alert(
-        locale === "ko" ? "저장됐어요" : "Saved",
-        locale === "ko"
-          ? "우리가 페르소나 화면에서 다른 기록과 함께 묶어둘게요."
-          : "We'll fold this in with your other records on the Persona screen.",
-      );
-      router.replace("/persona");
+      setSaved(true);
     } catch (e) {
       Alert.alert(locale === "ko" ? "저장 실패" : "Save failed", (e as Error).message);
     } finally {
@@ -178,6 +174,13 @@ export default function Attachment() {
             }}
           />
         </KeyboardAvoidingView>
+      ) : null}
+
+      {saved ? (
+        <QuantSaveCelebration
+          message={locale === "ko" ? "저장됐어요 · 페르소나에서 다시 만나요" : "Saved · see it on your Persona"}
+          onDone={() => router.replace("/persona")}
+        />
       ) : null}
     </PremiumAppShell>
   );

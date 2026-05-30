@@ -22,6 +22,7 @@ import {
 } from "@/lib/persona/bfi";
 import { QuantIntroModal } from "@/components/quant/QuantIntroModal";
 import { QuantPager } from "@/components/quant/QuantPager";
+import { QuantSaveCelebration } from "@/components/quant/QuantSaveCelebration";
 
 const SCALE: { value: number; en: string; ko: string }[] = [
   { value: 1, en: "Strongly disagree", ko: "전혀 아니다" },
@@ -39,6 +40,7 @@ export default function BigFive() {
   const [responses, setResponses] = useState<BfiResponses>({});
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const result = useMemo(() => scoreBfi(responses), [responses]);
 
@@ -76,13 +78,7 @@ export default function BigFive() {
         tags: ["big_five", "bfi", "assessment"],
         withFollowup: false,
       });
-      Alert.alert(
-        locale === "ko" ? "저장됐어요" : "Saved",
-        locale === "ko"
-          ? "우리가 페르소나 화면에서 다른 기록과 함께 묶어둘게요."
-          : "We'll fold this in with your other records on the Persona screen.",
-      );
-      router.replace("/persona");
+      setSaved(true);
     } catch (e) {
       Alert.alert(
         locale === "ko" ? "저장 실패" : "Save failed",
@@ -180,6 +176,13 @@ export default function BigFive() {
             }}
           />
         </KeyboardAvoidingView>
+      ) : null}
+
+      {saved ? (
+        <QuantSaveCelebration
+          message={locale === "ko" ? "저장됐어요 · 페르소나에서 다시 만나요" : "Saved · see it on your Persona"}
+          onDone={() => router.replace("/persona")}
+        />
       ) : null}
     </PremiumAppShell>
   );

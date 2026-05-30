@@ -12,6 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
+import { CompanionSprite } from "@/components/art/CompanionSprite";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 
 export interface QuantIntroProps {
@@ -90,10 +91,15 @@ export function QuantIntroModal({
     <Modal visible={true} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
-            {locale === "ko" ? "시작 전 안내" : "Before you start"}
-          </Text>
-          <Text variant="heading" style={{ marginTop: spacing.xs }}>{title}</Text>
+          <View style={styles.introHeader}>
+            <CompanionSprite companion="momo" state="read" size={52} />
+            <View style={styles.introHeaderText}>
+              <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
+                {locale === "ko" ? "시작 전 안내" : "Before you start"}
+              </Text>
+              <Text variant="heading" style={{ marginTop: spacing.xs }}>{title}</Text>
+            </View>
+          </View>
 
           <View style={styles.statsRow}>
             <Stat
@@ -175,6 +181,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     padding: spacing.lg,
   },
+  introHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  introHeaderText: { flex: 1 },
   statsRow: {
     flexDirection: "row",
     alignItems: "center",
