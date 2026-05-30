@@ -2,7 +2,8 @@
 // 6-frame walk strip (768x128 = 6 x 128). The walk cycle is driven by a GLOBAL
 // monotonic clock + stable worker id, NOT component mount time, so a worker's
 // animation phase is continuous across remounts and never resets when a
-// village is tapped/focused. Honours prefers-reduced-motion (holds frame 0).
+// village is tapped/focused. Under prefers-reduced-motion it swaps the strip
+// for the dedicated idle pose (a standing frame, not a frozen mid-stride).
 
 import { useEffect, useState } from "react";
 import { Image, View, type ViewStyle, type ImageStyle, type StyleProp } from "react-native";
@@ -22,6 +23,18 @@ const STRIPS: Record<WorkerId, number> = {
   vela: require("../../../public/assets/2ndb-production-premium-v1/workers/vela_premium_walk_strip_6f.png"),
   gadi: require("../../../public/assets/2ndb-production-premium-v1/workers/gadi_premium_walk_strip_6f.png"),
   lumi: require("../../../public/assets/2ndb-production-premium-v1/workers/lumi_premium_walk_strip_6f.png"),
+};
+
+// Single-frame standing poses (128x128), shown instead of the walk strip when
+// motion is reduced so a held worker reads as "idle" rather than mid-step.
+const IDLES: Record<WorkerId, number> = {
+  secondb: require("../../../public/assets/2ndb-production-premium-v1/workers/secondb_premium_idle.png"),
+  momo: require("../../../public/assets/2ndb-production-premium-v1/workers/momo_premium_idle.png"),
+  lulu: require("../../../public/assets/2ndb-production-premium-v1/workers/lulu_premium_idle.png"),
+  archi: require("../../../public/assets/2ndb-production-premium-v1/workers/archi_premium_idle.png"),
+  vela: require("../../../public/assets/2ndb-production-premium-v1/workers/vela_premium_idle.png"),
+  gadi: require("../../../public/assets/2ndb-production-premium-v1/workers/gadi_premium_idle.png"),
+  lumi: require("../../../public/assets/2ndb-production-premium-v1/workers/lumi_premium_idle.png"),
 };
 
 const FRAMES = 6;
@@ -69,14 +82,23 @@ export function WorkerSprite({ id, size = 26, style }: { id: WorkerId; size?: nu
     });
   }, [id, reduced]);
 
-  const f = reduced ? 0 : frame;
+  // Reduced motion: render the dedicated idle pose instead of freezing on a
+  // mid-stride walk frame.
+  if (reduced) {
+    return (
+      <View style={[{ width: size, height: size }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <Image source={IDLES[id]} style={[PIXELATED, { width: size, height: size }]} resizeMode="contain" />
+      </View>
+    );
+  }
+
   return (
     <View style={[{ width: size, height: size, overflow: "hidden" }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Image
         source={STRIPS[id]}
         style={[
           PIXELATED,
-          { width: size * FRAMES, height: size, transform: [{ translateX: -size * f }] },
+          { width: size * FRAMES, height: size, transform: [{ translateX: -size * frame }] },
         ]}
         resizeMode="cover"
       />

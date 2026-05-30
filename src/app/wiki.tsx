@@ -21,9 +21,14 @@ import { AppNav } from "@/components/ui/AppNav";
 import { deleteWikiPage, getBacklinks, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import { exportUserWiki } from "@/lib/wiki/export";
 import { readPhase1, runPhase1 } from "@/lib/wiki/phase1";
-import { computeGraphStats, type GraphStats } from "@/lib/wiki/graph-stats";
+import { computeGraphStats } from "@/lib/wiki/graph-stats";
 import type { WikiPageKind, WikiPageRow } from "@/lib/wiki/types";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+import { WikiCardThumb, type WikiCardThumbId } from "@/components/art/WikiCardThumb";
+
+// listAllWikiLinks projects only the two endpoint columns — all the
+// living-brain summary and per-row connection counts need.
+type WikiEdge = { from_page: string; to_page: string };
 
 const KIND_LABEL: Record<WikiPageKind, { en: string; ko: string }> = {
   source: { en: "Source", ko: "소스" },
@@ -36,6 +41,20 @@ const KIND_BORDER: Record<WikiPageKind, keyof typeof semantic> = {
   entity: "success",
   concept: "warning",
 };
+
+// The three knowledge facets at the top of the store (premium wiki card
+// thumbnails, asset audit P2). Core + Imagine open their own screens; Library
+// is the store itself, so its card stays put and reads "지금 여기 / You're here".
+const FACETS: ReadonlyArray<{
+  id: WikiCardThumbId;
+  route: "/core-brain" | "/imagine" | null;
+  label: { en: string; ko: string };
+  desc: { en: string; ko: string };
+}> = [
+  { id: "core_brain", route: "/core-brain", label: { en: "Core", ko: "코어" }, desc: { en: "Know yourself", ko: "나를 알기" } },
+  { id: "library", route: null, label: { en: "Library", ko: "서재" }, desc: { en: "You're here", ko: "지금 여기" } },
+  { id: "imagine", route: "/imagine", label: { en: "Imagine", ko: "상상" }, desc: { en: "Dream it up", ko: "공상을 구체화" } },
+];
 
 export default function Wiki() {
   const { t, i18n } = useTranslation("wiki");
@@ -53,16 +72,23 @@ export default function Wiki() {
   const [exportText, setExportText] = useState<string | null>(null);
   const [phase1RunningId, setPhase1RunningId] = useState<string | null>(null);
   const [statsVisible, setStatsVisible] = useState(false);
-  const [stats, setStats] = useState<GraphStats | null>(null);
+  const [edges, setEdges] = useState<WikiEdge[] | null>(null);
   const companion = useCompanionMoment();
 
   const load = useCallback(
     async (uid: string, tagsFilter: string[]) => {
-      const data = await listWikiPages(uid, {
-        anyOfTags: tagsFilter.length > 0 ? tagsFilter : undefined,
-        limit: 200,
-      });
+      // Pull pages + the full link set together so the "living brain" summary
+      // and per-row connection counts are ready without a separate tap. Links
+      // are global (not tag-filtered); a failure degrades to a zero-edge graph.
+      const [data, links] = await Promise.all([
+        listWikiPages(uid, {
+          anyOfTags: tagsFilter.length > 0 ? tagsFilter : undefined,
+          limit: 200,
+        }),
+        listAllWikiLinks(uid).catch(() => [] as WikiEdge[]),
+      ]);
       setPages(data);
+      setEdges(links);
     },
     [],
   );
@@ -88,6 +114,23 @@ export default function Wiki() {
     if (!q) return pages;
     return pages.filter((p) => p.title.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q));
   }, [pages, query]);
+
+  // The living-brain summary + per-row connection counts are all derived from
+  // the one edge set we loaded above — no extra fetch. `stats` is null only
+  // until the first load resolves; a hub is a page cited twice or more.
+  const stats = useMemo(
+    () => (edges === null ? null : computeGraphStats({ pages, edges })),
+    [pages, edges],
+  );
+  const inDegreeById = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of edges ?? []) m.set(e.to_page, (m.get(e.to_page) ?? 0) + 1);
+    return m;
+  }, [edges]);
+  const hubIds = useMemo(
+    () => new Set((stats?.topHubs ?? []).filter((h) => h.inDegree >= 2).map((h) => h.id)),
+    [stats],
+  );
 
   if (authLoading) return null;
   if (!userId) {
@@ -124,23 +167,10 @@ export default function Wiki() {
     setRefreshing(false);
   }
 
-  async function handleToggleStats(): Promise<void> {
-    if (!userId) return;
-    if (statsVisible) {
-      setStatsVisible(false);
-      return;
-    }
-    try {
-      const edges = await listAllWikiLinks(userId);
-      const computed = computeGraphStats({ pages, edges });
-      setStats(computed);
-      setStatsVisible(true);
-    } catch (e) {
-      Alert.alert(
-        locale === "ko" ? "통계 로드 실패" : "Stats load failed",
-        (e as Error).message,
-      );
-    }
+  function handleToggleStats(): void {
+    // The headline numbers live in the always-on pulse strip now; this just
+    // reveals the fuller breakdown (hubs, tags, orphans) already in `stats`.
+    setStatsVisible((v) => !v);
   }
 
   async function handleDeletePage(p: WikiPageRow): Promise<void> {
@@ -227,6 +257,57 @@ export default function Wiki() {
           </Text>
         </View>
 
+        {/* Three knowledge facets (premium wiki card thumbnails, asset audit P2):
+            Core / Library / Imagine. Core + Imagine open their own screens. */}
+        <View style={styles.facetRow}>
+          {FACETS.map((f) => {
+            const body = (
+              <>
+                <WikiCardThumb id={f.id} size={56} />
+                <Text variant="caption" color="text" style={styles.facetLabel}>
+                  {f.label[locale]}
+                </Text>
+                <Text variant="subtle" color="textSubtle" numberOfLines={1}>
+                  {f.route ? `${f.desc[locale]} →` : f.desc[locale]}
+                </Text>
+              </>
+            );
+            if (!f.route) {
+              return (
+                <View key={f.id} style={styles.facetCard}>
+                  {body}
+                </View>
+              );
+            }
+            const route = f.route;
+            return (
+              <Pressable
+                key={f.id}
+                onPress={() => router.push(route)}
+                style={styles.facetCard}
+                accessibilityRole="button"
+                accessibilityLabel={f.label[locale]}
+                accessibilityHint={f.desc[locale]}
+                hitSlop={4}
+              >
+                {body}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Living-brain pulse (wiki deep restyle): an always-on headline of the
+            knowledge graph so the store feels alive before any tap. */}
+        {stats !== null && pages.length > 0 ? (
+          <View style={styles.pulseStrip}>
+            <PulseStat label={locale === "ko" ? "조각" : "Pieces"} value={stats.pageCount} />
+            <View style={styles.pulseDivider} />
+            <PulseStat label={locale === "ko" ? "연결" : "Links"} value={stats.edgeCount} accent />
+            <View style={styles.pulseDivider} />
+            <PulseStat label={locale === "ko" ? "외딴 조각" : "Orphans"} value={stats.orphans.length} />
+          </View>
+        ) : null}
+
         {/* Search (wiki pack §4/§8) — local filter over saved pages. */}
         {pages.length > 0 ? (
           <Input
@@ -237,31 +318,39 @@ export default function Wiki() {
           />
         ) : null}
 
+        {/* Primary row: the two actions that move you forward — capture a new
+            piece, or hand the whole store to SecondB. */}
         <View style={styles.actions}>
           <Link href="/capture" asChild>
-            <Button label={t("capture")} variant="primary" />
+            <Button label={t("capture")} variant="primary" style={styles.actionBtn} />
           </Link>
+          <Button
+            label={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
+            variant="secondary"
+            style={styles.actionBtn}
+            onPress={() => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "지식 창고" : "knowledge store" } })}
+          />
+        </View>
+
+        {/* Utility row: lower-frequency tools sit a step down the hierarchy. */}
+        <View style={styles.actionsUtility}>
           <Button
             label={t("export")}
             variant="secondary"
+            style={styles.actionBtn}
             onPress={handleExport}
             loading={exporting}
             disabled={exporting || pages.length === 0}
           />
           <Button
-            label={statsVisible ? (locale === "ko" ? "통계 닫기" : "Hide stats") : (locale === "ko" ? "그래프 통계" : "Graph stats")}
+            label={statsVisible ? (locale === "ko" ? "통계 접기" : "Hide detail") : (locale === "ko" ? "통계 자세히" : "Graph detail")}
             variant="secondary"
+            style={styles.actionBtn}
             onPress={handleToggleStats}
             disabled={pages.length === 0}
           />
-          {/* SecondB handoff from the store (wiki pack §10) */}
-          <Button
-            label={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
-            variant="secondary"
-            onPress={() => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "지식 창고" : "knowledge store" } })}
-          />
           <Link href="/journal" asChild>
-            <Button label={t("back")} variant="secondary" />
+            <Button label={t("back")} variant="secondary" style={styles.actionBtn} />
           </Link>
         </View>
 
@@ -417,6 +506,7 @@ export default function Wiki() {
           </View>
         ) : pages.length === 0 ? (
           <View style={styles.emptyCard}>
+            <WikiCardThumb id="library" size={88} />
             <Text variant="body" color="textMuted" style={styles.emptyText}>
               {activeTags.length > 0
                 ? t("emptyForTags")
@@ -445,17 +535,28 @@ export default function Wiki() {
           <View style={styles.list}>
             {visiblePages.map((p) => {
               const expanded = expandedId === p.id;
+              const inDeg = inDegreeById.get(p.id) ?? 0;
+              const isHub = hubIds.has(p.id);
               return (
-                <Pressable key={p.id} onPress={() => toggleExpand(p)} style={styles.row}>
+                <Pressable
+                  key={p.id}
+                  onPress={() => toggleExpand(p)}
+                  style={[styles.row, { borderLeftColor: semantic[KIND_BORDER[p.kind]], borderLeftWidth: 3 }]}
+                >
                   <View style={styles.rowHeader}>
                     <View style={[styles.kindChip, { borderColor: semantic[KIND_BORDER[p.kind]] }]}>
                       <Text variant="caption" color="textMuted">
                         {KIND_LABEL[p.kind][locale]}
                       </Text>
                     </View>
-                    <Text variant="subtle" color="textSubtle" style={styles.flexSpacer}>
+                    <Text variant="subtle" color="textSubtle" numberOfLines={1} style={styles.rowSlug}>
                       [[{p.slug}]]
                     </Text>
+                    {inDeg > 0 ? (
+                      <Text variant="subtle" color={isHub ? "brand" : "textSubtle"} style={styles.rowInDeg}>
+                        ← {inDeg}
+                      </Text>
+                    ) : null}
                   </View>
                   <Text variant="body" style={styles.rowTitle} numberOfLines={expanded ? undefined : 2}>
                     {p.title}
@@ -644,6 +745,21 @@ export default function Wiki() {
   );
 }
 
+// One cell of the living-brain pulse strip: a big number over a quiet label.
+// `accent` paints the number mint to mark the "connection" signal.
+function PulseStat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+  return (
+    <View style={styles.pulseStat}>
+      <Text variant="heading" color={accent ? "brand" : "text"}>
+        {value}
+      </Text>
+      <Text variant="subtle" color="textSubtle">
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   scroll: { paddingBottom: 110, gap: spacing.lg },
   companionFlash: { position: "absolute", bottom: 40, right: 20 },
@@ -656,7 +772,32 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   header: { gap: spacing.xs, marginBottom: spacing.md },
+  facetRow: { flexDirection: "row", gap: spacing.sm },
+  facetCard: {
+    flex: 1,
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  facetLabel: { fontWeight: "600" },
+  pulseStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  pulseStat: { flex: 1, alignItems: "center", gap: 2 },
+  pulseDivider: { width: 1, alignSelf: "stretch", backgroundColor: semantic.border, opacity: 0.5 },
   actions: { flexDirection: "row", gap: spacing.sm },
+  actionsUtility: { flexDirection: "row", gap: spacing.sm },
+  actionBtn: { flex: 1 },
   tagFilterCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
@@ -698,7 +839,8 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   rowHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  flexSpacer: { marginLeft: "auto" },
+  rowSlug: { flex: 1 },
+  rowInDeg: { marginLeft: spacing.sm },
   rowTitle: { fontWeight: "600" },
   kindChip: {
     paddingHorizontal: spacing.sm,

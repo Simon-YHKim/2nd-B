@@ -10,13 +10,13 @@
 import { Image, type ImageStyle, type StyleProp } from "react-native";
 
 const ISLANDS = {
-  core: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_clean.png"),
-  work_growth: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_work_growth_premium.png"),
-  relationship: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_relationship_premium.png"),
-  knowledge: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_knowledge_premium.png"),
-  records: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_records_premium.png"),
-  imagine: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_imagine_premium.png"),
-  inspiration: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_inspiration_premium.png"),
+  core: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png"),
+  work_growth: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_work_growth_premium_hq.png"),
+  relationship: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_relationship_premium_hq.png"),
+  knowledge: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_knowledge_premium_hq.png"),
+  records: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_records_premium_hq.png"),
+  imagine: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_imagine_premium_hq.png"),
+  inspiration: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_inspiration_premium_hq.png"),
 } as const;
 
 export type IslandId = keyof typeof ISLANDS;
