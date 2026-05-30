@@ -28,7 +28,7 @@ import { cosmicSky } from "@/lib/theme/tokens";
 import { CosmicBackground } from "@/components/premium";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
 
-const authHero = require("../../../public/assets/2ndb-closeout-v3/auth/auth_secondb_gate_hero_transparent.png");
+const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_clean.png");
 
 // Cosmic entry palette — deep-space bg + mint brand + violet accent, so
 // the first (unauthenticated) screen already reads as the Cosmic Pixel
