@@ -26,8 +26,9 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { signInWithEmail, signInWithGoogle } from "@/lib/supabase/auth";
 import { cosmicSky } from "@/lib/theme/tokens";
 import { CosmicBackground } from "@/components/premium";
+import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
 
-const logo = require("../../../assets/images/logo-glow.png");
+const authHero = require("../../../public/assets/2ndb-refine/auth/auth_hero_secondb_gate_premium.png");
 
 // Cosmic entry palette — deep-space bg + mint brand + violet accent, so
 // the first (unauthenticated) screen already reads as the Cosmic Pixel
@@ -120,16 +121,16 @@ export default function SignIn() {
             </Pressable>
           </View>
 
-          {/* Logo + headline — minimal, centered. */}
+          {/* Logo + headline — premium SecondB gate hero. */}
           <View style={styles.hero}>
-            <Image source={logo} style={styles.logo} resizeMode="contain" />
+            <Image source={authHero} style={styles.heroImg} resizeMode="contain" />
             <Text style={styles.title}>
-              {locale === "ko" ? "두번째 뇌에 들어가기" : "Enter your second brain"}
+              {locale === "ko" ? "밤빛 조각마을에 들어가기" : "Enter the night village"}
             </Text>
             <Text style={styles.subtitle}>
               {locale === "ko"
-                ? "세포들이 당신을 기다리고 있어요."
-                : "The cells are waiting for you."}
+                ? "내 조각들이 다시 연결될 준비를 하고 있어요."
+                : "Your pieces are getting ready to connect again."}
             </Text>
           </View>
 
@@ -148,12 +149,18 @@ export default function SignIn() {
             />
             <View style={styles.labelRow}>
               <Text style={styles.label}>{t("signIn.password")}</Text>
-              <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
-                <Text style={styles.linkText}>
-                  {showPassword
-                    ? locale === "ko" ? "숨기기" : "Hide"
-                    : locale === "ko" ? "보기" : "Show"}
-                </Text>
+              <Pressable
+                onPress={() => setShowPassword((v) => !v)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  showPassword
+                    ? (locale === "ko" ? "비밀번호 숨기기" : "Hide password")
+                    : (locale === "ko" ? "비밀번호 보기" : "Show password")
+                }
+                style={styles.eyeBtn}
+              >
+                {showPassword ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
               </Pressable>
             </View>
             <TextInput
@@ -245,6 +252,7 @@ const styles = StyleSheet.create({
   },
   hero: { alignItems: "center", marginTop: 32, marginBottom: 28, gap: 8 },
   logo: { width: 84, height: 84, marginBottom: 6 },
+  heroImg: { width: 200, height: 134, marginBottom: 6 },
   title: {
     color: PALETTE.text,
     fontSize: 22,
@@ -267,6 +275,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   labelRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
+  eyeBtn: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
   input: {
     backgroundColor: PALETTE.surface,
     borderColor: PALETTE.border,

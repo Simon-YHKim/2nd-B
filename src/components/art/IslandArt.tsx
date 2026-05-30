@@ -10,13 +10,13 @@
 import { Image, type ImageStyle, type StyleProp } from "react-native";
 
 const ISLANDS = {
-  core: require("../../../public/assets/premium-closing/islands/png/core_center_island.png"),
-  work_growth: require("../../../public/assets/premium-closing/islands/png/domain_work_growth_island.png"),
-  relationship: require("../../../public/assets/premium-closing/islands/png/domain_relationship_island.png"),
-  knowledge: require("../../../public/assets/premium-closing/islands/png/domain_knowledge_island.png"),
-  records: require("../../../public/assets/premium-closing/islands/png/domain_records_island.png"),
-  imagine: require("../../../public/assets/premium-closing/islands/png/domain_imagine_island.png"),
-  inspiration: require("../../../public/assets/premium-closing/islands/png/domain_inspiration_island.png"),
+  core: require("../../../public/assets/2ndb-refine/islands/core_center_island_premium.png"),
+  work_growth: require("../../../public/assets/2ndb-refine/islands/domain_work_growth_premium.png"),
+  relationship: require("../../../public/assets/2ndb-refine/islands/domain_relationship_premium.png"),
+  knowledge: require("../../../public/assets/2ndb-refine/islands/domain_knowledge_premium.png"),
+  records: require("../../../public/assets/2ndb-refine/islands/domain_records_premium.png"),
+  imagine: require("../../../public/assets/2ndb-refine/islands/domain_imagine_premium.png"),
+  inspiration: require("../../../public/assets/2ndb-refine/islands/domain_inspiration_premium.png"),
 } as const;
 
 export type IslandId = keyof typeof ISLANDS;

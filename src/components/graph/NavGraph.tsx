@@ -335,8 +335,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         width: zoomViewportW.value,
         height: zoomViewportH.value,
       });
-      zoomPanX.value = withSpring(clamped.x, { damping: 18, stiffness: 140 });
-      zoomPanY.value = withSpring(clamped.y, { damping: 18, stiffness: 140 });
+      zoomPanX.value = withSpring(clamped.x, { damping: 24, stiffness: 180, mass: 0.7 });
+      zoomPanY.value = withSpring(clamped.y, { damping: 24, stiffness: 180, mass: 0.7 });
       zoomSavedPanX.value = clamped.x;
       zoomSavedPanY.value = clamped.y;
     });
@@ -348,33 +348,33 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     .maxDistance(16)
     .onEnd(() => {
       "worklet";
-      zoomScale.value = withSpring(1, { damping: 16, stiffness: 130 });
-      zoomPanX.value = withSpring(0, { damping: 16, stiffness: 130 });
-      zoomPanY.value = withSpring(0, { damping: 16, stiffness: 130 });
+      zoomScale.value = withSpring(1, { damping: 22, stiffness: 170, mass: 0.7 });
+      zoomPanX.value = withSpring(0, { damping: 22, stiffness: 170, mass: 0.7 });
+      zoomPanY.value = withSpring(0, { damping: 22, stiffness: 170, mass: 0.7 });
       zoomSavedScale.value = 1;
       zoomSavedPanX.value = 0;
       zoomSavedPanY.value = 0;
     });
 
-  // Programmatic camera move (graph-ux-overhaul #6): spring the village so a
-  // world point lands at viewport center at the given scale. Used by
-  // tap-a-village → fill-screen-with-its-sector.
-  const focusWorldPoint = (wx: number, wy: number, targetScale: number) => {
+  // Programmatic camera move (graph-ux-overhaul #6/#10): spring the village so
+  // a world point lands at a chosen screen Y (default viewport center). When a
+  // bottom sheet will cover the lower part of the screen we aim the point into
+  // the *visible* upper area instead, so the focused village fills the space
+  // ABOVE the sheet rather than hiding behind it. Springs are gentle + low
+  // overshoot (#9: small amplitude, no dizziness).
+  const focusWorldPoint = (wx: number, wy: number, targetScale: number, screenY?: number) => {
     const vp = { width: zoomViewportW.value, height: zoomViewportH.value };
-    const base = fitScale(vp);
-    // screen point of the world point at base fit (scale handled separately)
-    const sx = worldToScreen({ x: wx, y: wy }, vp).x;
-    const sy = worldToScreen({ x: wx, y: wy }, vp).y;
-    void base;
-    // We want: sx * targetScale + panX = cx  →  panX = cx - sx*targetScale
+    const s = worldToScreen({ x: wx, y: wy }, vp);
+    const targetY = screenY ?? cy;
     const want = clampPan(
-      { x: cx - sx * targetScale, y: cy - sy * targetScale },
+      { x: cx - s.x * targetScale, y: targetY - s.y * targetScale },
       targetScale,
       vp,
     );
-    zoomScale.value = withSpring(targetScale, { damping: 17, stiffness: 130 });
-    zoomPanX.value = withSpring(want.x, { damping: 17, stiffness: 130 });
-    zoomPanY.value = withSpring(want.y, { damping: 17, stiffness: 130 });
+    const spring = { damping: 22, stiffness: 170, mass: 0.7 };
+    zoomScale.value = withSpring(targetScale, spring);
+    zoomPanX.value = withSpring(want.x, spring);
+    zoomPanY.value = withSpring(want.y, spring);
     zoomSavedScale.value = targetScale;
     zoomSavedPanX.value = want.x;
     zoomSavedPanY.value = want.y;
@@ -609,6 +609,24 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   const vis = tierVisibility(bucket < 1 ? 0.5 : bucket < 2 ? 1.5 : 2.0);
   const nodeVisible = (tier: Tier): boolean =>
     tier === 1 ? vis.tier1 : tier === 2 ? vis.tier2 : tier === 3 ? vis.tier3 : vis.tier4;
+
+  // Soft tier fade (graph-ux-overhaul #8): instead of tier 3/4 popping in/out
+  // at the zoom threshold, ramp their opacity quickly (~180ms) and keep them
+  // mounted through the fade-out via `mounted` flags. Tied to the zoom bucket.
+  const tier3Fade = useRef(new Animated.Value(vis.tier3 ? 1 : 0)).current;
+  const tier4Fade = useRef(new Animated.Value(vis.tier4 ? 1 : 0)).current;
+  const [tier3Mounted, setTier3Mounted] = useState(vis.tier3);
+  const [tier4Mounted, setTier4Mounted] = useState(vis.tier4);
+  useEffect(() => {
+    if (vis.tier3) setTier3Mounted(true);
+    Animated.timing(tier3Fade, { toValue: vis.tier3 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false })
+      .start(() => { if (!vis.tier3) setTier3Mounted(false); });
+  }, [vis.tier3, tier3Fade]);
+  useEffect(() => {
+    if (vis.tier4) setTier4Mounted(true);
+    Animated.timing(tier4Fade, { toValue: vis.tier4 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false })
+      .start(() => { if (!vis.tier4) setTier4Mounted(false); });
+  }, [vis.tier4, tier4Fade]);
   const tierOf = (id: string): Tier =>
     id === CENTER_NODE.id ? 1 : MENU_NODES.find((n) => n.id === id)?.tier ?? 4;
   const idVisible = (id: string): boolean => nodeVisible(tierOf(id));
@@ -805,8 +823,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     const wp = worldMenu.get(id);
     const focus = wp ? sectorFocus(wp, MENU_NODES.filter((n) => n.tier === 2).length) : null;
     if (focus) {
-      // Fill the screen with the sector: zoom in to the tier-3/4 reveal range.
-      focusWorldPoint(focus.focus.x, focus.focus.y, 1.9);
+      // Fill the space ABOVE the bottom sheet with the village + its sector
+      // (#10): aim the sector into the upper ~38% of the screen and use a
+      // modest scale so it reads as a calm move, not a dizzy lunge (#9).
+      focusWorldPoint(focus.focus.x, focus.focus.y, 1.5, height * 0.38);
     } else if (id === CENTER_NODE.id) {
       // Center tap re-centers the whole village at home scale.
       focusWorldPoint(WORLD_CENTER.x, WORLD_CENTER.y, 1);
@@ -838,7 +858,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
     <GestureDetector gesture={composedGesture}>
-      <ReAnimated.View style={[styles.root, zoomAnimatedStyle]} pointerEvents="box-none">
+      <ReAnimated.View style={[styles.root, zoomAnimatedStyle]}>
+      {/* Full-size transparent hit surface (graph-ux #6): an opaque-to-touch
+          layer spanning the whole graph so pan/pinch register from ANY empty
+          area, not only on island art. Node Pressables render later (on top)
+          so their taps still win; this only catches the gaps. */}
+      <View style={StyleSheet.absoluteFill} />
       {/* Animated edges — endpoints track each node's drift. */}
       <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
         {edges.map((e) => {
@@ -896,13 +921,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         })}
       </Svg>
 
-      {/* Working residents — walk the edges between villages and the center,
-          inside the zoom transform so they pan/scale with the map and stay
-          below the screen-fixed sheet/FAB (graph-ux-overhaul #1/#2). */}
-      <CharacterPathLayer commutes={commutes} />
-
-      {/* Tier 4 data shards — only when zoomed in (§5). */}
-      {vis.tier4
+      {/* Tier 4 data shards — fade in/out with zoom (§5 + graph-ux #8). */}
+      {tier4Mounted
         ? Array.from(dataPositions.entries()).map(([id, p]) => (
             <Animated.View
               key={id}
@@ -912,7 +932,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 {
                   left: p.x - 7,
                   top: p.y - 7,
-                  opacity: spawnOpacity(id) as never,
+                  opacity: tier4Fade as never,
                   transform: swayTransform(id) as never,
                 },
                 id === highlightDataId ? styles.shardHighlight : null,
@@ -924,9 +944,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           ))
         : null}
 
-      {/* Tier 2 + 3 nodes — pixel-object art; tier 3 gated by zoom (§5) */}
+      {/* Tier 2 + 3 nodes — pixel-object art; tier 3 fades with zoom (§5 + #8) */}
       {MENU_NODES.map((n) => {
-        if (!nodeVisible(n.tier)) return null;
+        // Tier 3 stays mounted through its fade-out; tier 2 is always shown.
+        if (n.tier === 3 ? !tier3Mounted : !nodeVisible(n.tier)) return null;
         const base = positions.get(n.id);
         if (!base) return null;
         const size = tierSize(n.tier);
@@ -941,7 +962,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 top: base.y - size / 2,
                 width: size,
                 height: size,
-                opacity: spawnOpacity(n.id) as never,
+                opacity: (n.tier === 3 ? tier3Fade : spawnOpacity(n.id)) as never,
                 transform: swayTransform(n.id) as never,
               },
             ]}
@@ -1000,6 +1021,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         </View>
       </Animated.View>
 
+      {/* Working residents — render LAST inside the transform so they walk
+          ABOVE the island/node art (graph-ux #5: were hidden behind islands)
+          yet still below the screen-fixed bottom sheet / FAB (#1). When a
+          node sheet is open we hide them so nothing floats over the popup. */}
+      <CharacterPathLayer commutes={commutes} hidden={activeId != null} />
+
       </ReAnimated.View>
     </GestureDetector>
 
@@ -1009,6 +1036,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           locale={locale}
           name={activeNode.label[locale]}
           type={typeLabel(activeNode.tier)}
+          character={activeId ? VILLAGE_WORKER[activeId] ?? "secondb" : "secondb"}
           connectedCount={connectedCount}
           description={activeNode.description[locale]}
           onLook={handleLook}
@@ -1027,6 +1055,7 @@ function NodeSheet({
   locale,
   name,
   type,
+  character,
   connectedCount,
   description,
   onLook,
@@ -1037,6 +1066,7 @@ function NodeSheet({
   locale: "en" | "ko";
   name: string;
   type: string;
+  character: CharacterId;
   connectedCount: number;
   description: string;
   onLook: () => void;
@@ -1062,7 +1092,7 @@ function NodeSheet({
       <View style={styles.sheetHead}>
         <View style={styles.sheetTitleRow}>
           {/* 아치 — connection guide, appears on the highlight moment (§9) */}
-          <CharacterArt id="archi" size={28} />
+          <CharacterArt id={character} size={28} />
           <Text variant="heading" style={styles.sheetName}>{name}</Text>
         </View>
         <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={locale === "ko" ? "닫기" : "Close"}>
