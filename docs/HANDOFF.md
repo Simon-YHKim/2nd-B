@@ -3,6 +3,81 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-05-30 / premium closeout v3 머지 + reference-assetization audit 진행 중 (미완료)
+
+### 어디까지 왔나
+- **main HEAD**: `f6cc931`
+- 이번 세션 머지된 PR (시각/그래프 UX 폴리시 연속):
+  - #56 loading reliability(무한로딩 수정) + external import(/import) + first-run dismiss + auth/loading premium
+  - #57 main-graph restructure — 기본 tier 1+2, 6 도메인 섬, ribbon glow
+  - #58 graph-UX overhaul — layering, 1-finger pan, sectors, tap-zoom, light text, branded loader, back arrow
+  - #59 cross-LLM handoff note (docs)
+  - #60 refine-v2 — graph gestures/layers/sectors, auth hero + eye icon, HUD cleanup
+  - #61 **closeout-v3** — premium islands(no-square core), workers+Lumi(글로벌 클럭 모션), tier icons(종이/책/링크/큐브/크리스탈), free camera + 원래대로 reset, readable Pretendard bottom sheet, transparent auth hero
+- **테스트**: `npm run verify` green — jest **627/627 (64 suites)**, lint 0 err, C1~C12.
+- **working tree**: clean.
+
+### ⏳ 이번 세션 미완료 작업 (다음 세션 1순위)
+**premium reference assetization audit** — 사용자가 4개 zip(2ndB_AtoZ_premium part1~4)을 업로드. `premium_references/` 프리뷰 이미지 품질을 최종 기준으로 삼아, 현재 적용된 단순 placeholder 자산을 식별·교체 목록 작성하는 **감사 보고서**가 목표. 코드 대규모 수정 금지(보고서 우선), 단 명백한 버그(검은 사각형 wrapper)는 즉시 수정 허용.
+- 레퍼런스 추출 위치(재추출 필요, /tmp는 ephemeral): 업로드 zip은 `/root/.claude/uploads/bb7deded-fdd7-42d2-b73f-0a60ec4d3d1c/`.
+- 핵심 레퍼런스: 01_character_sheet · 02_main_graph · 03_chat · 04_core_brain · 05_imagine · 06_journal_capture · 07_wiki_records · 08_onboarding · 09_settings_profile · 10_system_board (+ alt 11~16).
+- 감사 항목: (1) island 자산 (2) character 자산 (3) tier3/4 node 아이콘 (4) UI panel/card/sheet 비교 (5) 교체 우선순위 P0/P1/P2 (6) 필요한 새 production asset 목록(assetKey/description/targetReference/format/size/usedIn/replaces/priority 형식) (7) 최종 제안 A/B/C. 마지막에 plain-text handoff 출력(마크다운 테이블 금지).
+- 보고서만 작성, PR/머지 불필요(단 검은박스 등 버그 수정 시 평소 PR 흐름).
+
+### 활성 인프라
+- **Supabase**: `zoacryukmdeivmolvyhj`, gemini-proxy edge function 활성. 배포 기본 `EXPO_PUBLIC_LLM_MODE=mock`.
+- **Deploy**: main push → GitHub Pages 자동(~2–3분). Live: <https://simon-yhkim.github.io/2nd-B/>.
+- **현재 그래프 아트 자산**: 전부 `public/assets/2ndb-closeout-v3/` 사용 중 (islands/workers/tier-icons/shards/auth). 구 팩(2ndb-refine, premium-closing, cosmic-pixel-v2 등)은 일부 잔존하나 IslandArt/WorkerSprite/TierIcon는 closeout-v3를 참조.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **reference assetization audit 보고서 완료** (위 미완료 항목) | medium | ⭐ 사용자 직전 요청, 이어서 진행 |
+| B | audit 결과의 P0 항목 즉시 수정 (검은박스 wrapper 등 버그성) | small | A의 부산물 |
+| C | Wiki 딥 리스타일 / 평가 화면 questionnaire 프리미엄 컴포넌트 | medium | 이전부터 누적된 잔여 |
+| D | 실제 Gemini 라이브 연결 (mock→live, Vertex 권장) | small(설정) | XPRIZE 대비 |
+
+### 적용 중인 정책 (영구 — 이번 세션 재확인)
+1. **PR 흐름**: fresh main에서 새 브랜치 → draft PR → **CI(verify+lint) 그린 확인 후** squash 머지 → 사후 보고. (이번 세션 한 번 CI 확인 전 머지 실수 있었음 — 반드시 그린 먼저.)
+2. **브랜치 패턴**: `git fetch origin main && git checkout main && git reset --hard origin/main` 후 새 브랜치.
+3. **순수 로직은 별도 모듈 + jest 테스트** (world-layout, zoom-math, import-external 등). UI는 컴포넌트 얇게.
+4. **C1~C12 + forbidden lexicon** 강제. 임상어/기술어(RAG/vector/embedding/classifier) UI 노출 금지.
+5. **메인 그래프는 라이트 모드에서도 항상 다크** (PremiumAppShell이 ForceDark로 children 감쌈).
+6. **둥근모꼴(NeoDunggeunmo) 픽셀폰트 전역**, 단 긴 한글 본문/바텀시트 설명은 `fontFamilies.readable`(Pretendard/system).
+7. 강제 푸시/main 직접 푸시/`.env` 커밋 금지.
+
+### 핵심 파일 위치
+```
+src/components/graph/NavGraph.tsx          그래프 본체 (제스처/섹터/포커스/노드시트/워커 마운트)
+src/components/graph/world-layout.ts       순수 6섹터 레이아웃 + sectorFocus (테스트됨)
+src/components/graph/zoom-math.ts          clampPanFree/cameraOffHome 등 (테스트됨)
+src/components/graph/CharacterPathLayer.tsx 워커 커뮤트 (글로벌 클럭, 마운트 리셋 없음)
+src/components/art/IslandArt.tsx           도메인 섬 PNG (closeout-v3)
+src/components/art/WorkerSprite.tsx        7 워커 6프레임 워크 스트립 (글로벌 클럭)
+src/components/art/TierIcon.tsx            tier3/4 조각 아이콘 (paper/book/link/...)
+src/app/(auth)/sign-in.tsx                 transparent auth hero + eye icon
+src/components/ui/InlineLoader.tsx         브랜드 로더
+src/lib/theme/ThemeContext.tsx             ForceDark
+src/theme/typography.ts                    NeoDunggeunmo + fontFamilies.readable
+public/assets/2ndb-closeout-v3/            현재 그래프 아트 자산 (islands/workers/tier-icons/shards/auth)
+```
+
+### 검증
+```bash
+npm run verify   # lint + type + i18n + lexicon + LLM boundary + C1~C12 + jest (627)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# 큐 A — reference assetization audit 보고서 완료부터.
+# 업로드 zip 4개: /root/.claude/uploads/bb7deded-fdd7-42d2-b73f-0a60ec4d3d1c/
+```
+
+---
+
+
 ---
 
 ## Latest — 2026-05-29 / v2 design-pack integration — 10 packs + onboarding (PR #41–#51)
