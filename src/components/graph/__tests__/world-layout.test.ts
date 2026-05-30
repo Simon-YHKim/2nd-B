@@ -6,9 +6,19 @@ import {
   worldToScreen,
   worldMenuPositions,
   worldDataPositions,
+  sectorHalfWidth,
+  sectorFocus,
   seeded,
   type MenuLike,
 } from "../world-layout";
+
+// Normalize an angle delta into [-PI, PI].
+function angleDelta(a: number, b: number): number {
+  let d = a - b;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
 
 const MENU: MenuLike[] = [
   { id: "now", tier: 2, parentId: "core" },
@@ -53,7 +63,7 @@ describe("worldMenuPositions", () => {
   const pos = worldMenuPositions(MENU, "core");
 
   it("places the center at the world center", () => {
-    expect(pos.get("core")).toEqual({ x: WORLD_CENTER.x, y: WORLD_CENTER.y, angle: 0 });
+    expect(pos.get("core")).toEqual({ x: WORLD_CENTER.x, y: WORLD_CENTER.y, angle: 0, sector: -1 });
   });
 
   it("places every menu node plus the center", () => {
@@ -112,5 +122,54 @@ describe("seeded", () => {
     expect(a).toBe(seeded("node", 1));
     expect(a).toBeGreaterThanOrEqual(0);
     expect(a).toBeLessThan(1);
+  });
+});
+
+describe("equal sectors + confinement (graph-ux-overhaul #5)", () => {
+  // Six real domains, each with a couple of children.
+  const SIX: MenuLike[] = [
+    { id: "work", tier: 2, parentId: "core" },
+    { id: "relation", tier: 2, parentId: "core" },
+    { id: "knowledge", tier: 2, parentId: "core" },
+    { id: "records", tier: 2, parentId: "core" },
+    { id: "imagine", tier: 2, parentId: "core" },
+    { id: "taste", tier: 2, parentId: "core" },
+    { id: "k1", tier: 3, parentId: "knowledge" },
+    { id: "k2", tier: 3, parentId: "knowledge" },
+    { id: "r1", tier: 3, parentId: "relation" },
+  ];
+  const pos = worldMenuPositions(SIX, "core");
+
+  it("assigns each domain its own sector index", () => {
+    const sectors = ["work", "relation", "knowledge", "records", "imagine", "taste"].map((id) => pos.get(id)!.sector);
+    expect(new Set(sectors).size).toBe(6);
+  });
+
+  it("keeps tier-3 children within their parent's sector half-width", () => {
+    const half = sectorHalfWidth(6);
+    for (const [child, parent] of [["k1", "knowledge"], ["k2", "knowledge"], ["r1", "relation"]] as const) {
+      const c = pos.get(child)!;
+      const p = pos.get(parent)!;
+      expect(c.sector).toBe(p.sector);
+      expect(Math.abs(angleDelta(c.angle, p.angle))).toBeLessThanOrEqual(half);
+    }
+  });
+
+  it("confines tier-4 shards to their domain's sector", () => {
+    const half = sectorHalfWidth(6);
+    const data = Array.from({ length: 30 }, (_, i) => ({ id: `s${i}`, parentId: "knowledge" }));
+    const out = worldDataPositions(data, pos, "knowledge", 40, 6);
+    const parentAngle = pos.get("knowledge")!.angle;
+    for (const p of out.values()) {
+      const ang = Math.atan2(p.y - WORLD_CENTER.y, p.x - WORLD_CENTER.x);
+      expect(Math.abs(angleDelta(ang, parentAngle))).toBeLessThanOrEqual(half);
+    }
+  });
+
+  it("sectorFocus returns a focus point for a domain, null for center", () => {
+    expect(sectorFocus(pos.get("core"), 6)).toBeNull();
+    const f = sectorFocus(pos.get("knowledge"), 6);
+    expect(f).not.toBeNull();
+    expect(f!.halfWidth).toBeCloseTo(sectorHalfWidth(6), 6);
   });
 });

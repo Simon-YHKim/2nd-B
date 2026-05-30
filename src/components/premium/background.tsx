@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop, Circle } from "react-native-svg";
 
 import { cosmic, spacing } from "@/lib/theme/tokens";
+import { ForceDark } from "@/lib/theme/ThemeContext";
 import { starField } from "./star-field";
 
 /** Subtle static star grain, sized to the given box. Decorative. */
@@ -81,10 +82,12 @@ export function PremiumAppShell({
   padded?: boolean;
 }) {
   return (
-    <View style={styles.root}>
-      <CosmicBackground glow={glow} stars={stars} />
-      <SafeAreaView style={[styles.safe, padded ? styles.padded : null]}>{children}</SafeAreaView>
-    </View>
+    <ForceDark>
+      <View style={styles.root}>
+        <CosmicBackground glow={glow} stars={stars} />
+        <SafeAreaView style={[styles.safe, padded ? styles.padded : null]}>{children}</SafeAreaView>
+      </View>
+    </ForceDark>
   );
 }
 

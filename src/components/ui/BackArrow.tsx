@@ -12,9 +12,15 @@ import { usePathname, router } from "expo-router";
 
 import { PixelButton } from "@/components/art/CosmicPixel";
 
-// Routes that hide the back arrow — the landing page itself + the
-// pre-auth flow (sign-in / sign-up / complete-profile / auth groups).
-const HIDDEN_PATHS = new Set<string>(["/", "/sign-in", "/sign-up", "/complete-profile"]);
+// Routes that hide the back arrow:
+//  - the landing page + pre-auth flow, and
+//  - the primary tab destinations (they're reachable via the bottom tab bar,
+//    and the arrow would collide with each screen's PremiumTopBar brand chip
+//    in the top-left). (graph-ux-overhaul #7.)
+const HIDDEN_PATHS = new Set<string>([
+  "/", "/sign-in", "/sign-up", "/complete-profile",
+  "/core-brain", "/records", "/wiki", "/profile",
+]);
 
 export function BackArrow() {
   const pathname = usePathname();
@@ -50,5 +56,12 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: "center",
     justifyContent: "center",
+    // Glassy circular backing so the arrow never visually merges with text
+    // or icons it floats over (graph-ux-overhaul #7).
+    borderRadius: 20,
+    backgroundColor: "rgba(7,10,24,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(141,152,184,0.28)",
+    overflow: "hidden",
   },
 });

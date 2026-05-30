@@ -92,6 +92,24 @@ export function useTheme(): ThemeContextValue {
   return useContext(ThemeContext);
 }
 
+// ── Force-dark subtree (graph-ux-overhaul #4) ───────────────────────────
+// The cosmic PremiumAppShell background is ALWAYS dark (constraint #4: the
+// village stays dark even in light mode). So any text/surfaces rendered on
+// it must use the dark palette regardless of the user's theme toggle —
+// otherwise light mode paints dark navy text on the dark cosmic bg and it's
+// invisible. PremiumAppShell wraps its children in <ForceDark> and
+// useThemePalette() honours it. The real `mode` (via useTheme) is untouched,
+// so the Theme screen's selection UI still reflects the user's choice.
+const ForceDarkContext = createContext(false);
+
+export function ForceDark({ children }: { children: ReactNode }) {
+  return <ForceDarkContext.Provider value={true}>{children}</ForceDarkContext.Provider>;
+}
+
+export function useForceDark(): boolean {
+  return useContext(ForceDarkContext);
+}
+
 /**
  * Returns the active semantic palette as the same shape as `semantic`.
  * Spread or destructure into inline styles — same keys as the static
@@ -99,7 +117,8 @@ export function useTheme(): ThemeContextValue {
  */
 export function useThemePalette(): Palette {
   const { mode } = useTheme();
-  return mode === "dark" ? semantic : semanticLight;
+  const forceDark = useForceDark();
+  return mode === "dark" || forceDark ? semantic : semanticLight;
 }
 
 /**
