@@ -1,4 +1,4 @@
-// Floating pixel island art (premium closing pack). Renders the transparent
+// Floating pixel island art (production-premium-v1 pack). Renders the transparent
 // island / shard PNG sprites as decorative node artwork on the graph. The
 // image layer is decorative (the graph node owns the hitbox + label), so the
 // island can be drawn larger than the touch target.
@@ -10,13 +10,13 @@
 import { Image, type ImageStyle, type StyleProp } from "react-native";
 
 const ISLANDS = {
-  core: require("../../../public/assets/2ndb-closeout-v3/graph/islands/core_center_premium_nosquare.png"),
-  work_growth: require("../../../public/assets/2ndb-closeout-v3/graph/islands/domain_work_growth_fullpixel.png"),
-  relationship: require("../../../public/assets/2ndb-closeout-v3/graph/islands/domain_relationship_fullpixel.png"),
-  knowledge: require("../../../public/assets/2ndb-closeout-v3/graph/islands/domain_knowledge_fullpixel.png"),
-  records: require("../../../public/assets/2ndb-closeout-v3/graph/islands/domain_records_fullpixel.png"),
-  imagine: require("../../../public/assets/2ndb-closeout-v3/graph/islands/domain_imagine_fullpixel.png"),
-  inspiration: require("../../../public/assets/2ndb-closeout-v3/graph/islands/domain_inspiration_fullpixel.png"),
+  core: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_clean.png"),
+  work_growth: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_work_growth_premium.png"),
+  relationship: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_relationship_premium.png"),
+  knowledge: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_knowledge_premium.png"),
+  records: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_records_premium.png"),
+  imagine: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_imagine_premium.png"),
+  inspiration: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_inspiration_premium.png"),
 } as const;
 
 export type IslandId = keyof typeof ISLANDS;
