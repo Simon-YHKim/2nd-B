@@ -18,7 +18,7 @@ import { Animated, Easing, Pressable, StyleSheet, Text } from "react-native";
 
 import { CosmicBackground } from "@/components/premium";
 
-const logo = require("../../../assets/images/logo-glow.png");
+const logo = require("../../../public/assets/2ndb-refine/auth/loading_core_orb_premium.png");
 
 const MESSAGES: readonly string[] = [
   // Phase 1 — Soma

@@ -1,4 +1,4 @@
-// Tier-icon + shard art (closeout-v3 #9). Tier-3/4 graph nodes are pieces of
+// Tier-icon art (refine premium pack). Tier-3/4 graph nodes are pieces of
 // knowledge — paper, books, links, files, cubes, crystals, seeds, hearts,
 // compasses, sparks — NOT generic robot glyphs. require()'d PNGs so Metro
 // bundles them for web + native; image-rendering pixelated keeps them crisp.
@@ -6,16 +6,16 @@
 import { Image, type ImageStyle, type StyleProp } from "react-native";
 
 const TIER_ICONS = {
-  paper_journal: require("../../../public/assets/2ndb-closeout-v3/tier-icons/paper_journal.png"),
-  book_wiki: require("../../../public/assets/2ndb-closeout-v3/tier-icons/book_wiki.png"),
-  link_capture: require("../../../public/assets/2ndb-closeout-v3/tier-icons/link_capture.png"),
-  file_source: require("../../../public/assets/2ndb-closeout-v3/tier-icons/file_source.png"),
-  cube_data: require("../../../public/assets/2ndb-closeout-v3/tier-icons/cube_data.png"),
-  crystal_imagine: require("../../../public/assets/2ndb-closeout-v3/tier-icons/crystal_imagine.png"),
-  seed_growth: require("../../../public/assets/2ndb-closeout-v3/tier-icons/seed_growth.png"),
-  heart_relationship: require("../../../public/assets/2ndb-closeout-v3/tier-icons/heart_relationship.png"),
-  compass_inspiration: require("../../../public/assets/2ndb-closeout-v3/tier-icons/compass_inspiration.png"),
-  spark_recent: require("../../../public/assets/2ndb-closeout-v3/tier-icons/spark_recent.png"),
+  paper_journal: require("../../../public/assets/2ndb-refine/tier-icons/flying_paper_premium.png"),
+  book_wiki: require("../../../public/assets/2ndb-refine/tier-icons/book_premium.png"),
+  link_capture: require("../../../public/assets/2ndb-refine/tier-icons/link_chain_premium.png"),
+  file_source: require("../../../public/assets/2ndb-refine/tier-icons/file_page_premium.png"),
+  cube_data: require("../../../public/assets/2ndb-refine/tier-icons/data_cube_premium.png"),
+  crystal_imagine: require("../../../public/assets/2ndb-refine/tier-icons/dream_crystal_premium.png"),
+  seed_growth: require("../../../public/assets/2ndb-refine/tier-icons/seed_growth_premium.png"),
+  heart_relationship: require("../../../public/assets/2ndb-refine/tier-icons/heart_connection_premium.png"),
+  compass_inspiration: require("../../../public/assets/2ndb-refine/tier-icons/compass_premium.png"),
+  spark_recent: require("../../../public/assets/2ndb-refine/tier-icons/star_spark_premium.png"),
 } as const;
 
 export type TierIconId = keyof typeof TIER_ICONS;
@@ -35,7 +35,7 @@ export function TierIcon({ id, size, style }: { id: TierIconId; size: number; st
   );
 }
 
-// Default tier-icon per domain id (closeout mapping_v3). Tier-3 nodes under a
+// Default tier-icon per domain id. Tier-3 nodes under a
 // domain show the domain's signature piece; tier-4 data shards pick by source.
 export const DOMAIN_TIER_ICON: Record<string, TierIconId> = {
   work: "seed_growth",

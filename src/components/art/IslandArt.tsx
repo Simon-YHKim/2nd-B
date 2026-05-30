@@ -1,5 +1,5 @@
-// Floating pixel island art (production-premium-v1 pack). Renders the transparent
-// island / shard PNG sprites as decorative node artwork on the graph. The
+// Floating pixel island art (production-premium-v1 + refine premium packs).
+// Renders the transparent island / shard PNG sprites as decorative node artwork on the graph. The
 // image layer is decorative (the graph node owns the hitbox + label), so the
 // island can be drawn larger than the touch target.
 //
@@ -22,11 +22,11 @@ const ISLANDS = {
 export type IslandId = keyof typeof ISLANDS;
 
 const SHARDS = {
-  core_violet: require("../../../public/assets/2ndb-closeout-v3/shards/shard_core_violet.png"),
-  journal_gold: require("../../../public/assets/2ndb-closeout-v3/shards/shard_journal_gold.png"),
-  wiki_blue: require("../../../public/assets/2ndb-closeout-v3/shards/shard_wiki_blue.png"),
-  capture_mint: require("../../../public/assets/2ndb-closeout-v3/shards/shard_capture_mint.png"),
-  imagine_pink: require("../../../public/assets/2ndb-closeout-v3/shards/shard_imagine_pink.png"),
+  core_violet: require("../../../public/assets/2ndb-refine/shards/shard_core_violet.png"),
+  journal_gold: require("../../../public/assets/2ndb-refine/shards/shard_journal_gold.png"),
+  wiki_blue: require("../../../public/assets/2ndb-refine/shards/shard_wiki_blue.png"),
+  capture_mint: require("../../../public/assets/2ndb-refine/shards/shard_capture_mint.png"),
+  imagine_pink: require("../../../public/assets/2ndb-refine/shards/shard_imagine_pink.png"),
 } as const;
 
 export type ShardId = keyof typeof SHARDS;

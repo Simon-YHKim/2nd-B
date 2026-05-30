@@ -8,8 +8,8 @@ import { View, Image, ActivityIndicator, StyleSheet } from "react-native";
 
 import { colors, spacing } from "@/theme";
 
-// Logo with glow — resolves to the root assets/ dir.
-const logo = require("../../../assets/images/logo-glow.png");
+// Premium loading orb from the refine asset pack.
+const logo = require("../../../public/assets/2ndb-refine/auth/loading_core_orb_premium.png");
 
 export function LoadingScreen() {
   return (
