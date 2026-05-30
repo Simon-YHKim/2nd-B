@@ -64,3 +64,85 @@ export function isResting(t: number, eps = 0.04): boolean {
   const p = pingPong(t);
   return p < eps || p > 1 - eps;
 }
+
+/** Pose of a resident travelling a CLOSED multi-waypoint route (a patrol that
+ *  visits several villages and loops). Distinct from the single-leg ping-pong
+ *  helpers above: here the route is a ring (the last point connects back to the
+ *  first), travel is CONSTANT speed (time on a leg ∝ its length, so a worker
+ *  never sprints down a long road), and an optional `dwell` parks the worker at
+ *  each stop so it reads as pausing to work before moving on. Pure in `t`, so a
+ *  global-clock driver keeps motion continuous across remounts. */
+export interface RoutePose {
+  x: number;
+  y: number;
+  /** Horizontal facing of travel: +1 rightward, -1 leftward. */
+  facing: 1 | -1;
+  /** True while parked at a stop (dwell), so the caller can show an idle pose. */
+  resting: boolean;
+  /** Index of the leg being walked, or the leg just arrived from while resting. */
+  seg: number;
+}
+
+function legFacing(ax: number, bx: number): 1 | -1 {
+  if (bx === ax) return 1; // purely vertical leg keeps a stable facing
+  return bx > ax ? 1 : -1;
+}
+
+export function walkerRoutePose(
+  t: number,
+  route: readonly PathPoint[],
+  opts: { arc?: number; dwell?: number } = {},
+): RoutePose {
+  const n = route.length;
+  if (n === 0) return { x: 0, y: 0, facing: 1, resting: true, seg: 0 };
+  if (n === 1) return { x: route[0].x, y: route[0].y, facing: 1, resting: true, seg: 0 };
+
+  const arc = opts.arc ?? 0;
+
+  // Leg lengths around the closed ring (leg i: route[i] → route[(i+1)%n]).
+  const legLen: number[] = new Array(n);
+  let totalLen = 0;
+  for (let i = 0; i < n; i++) {
+    const a = route[i];
+    const b = route[(i + 1) % n];
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    legLen[i] = d;
+    totalLen += d;
+  }
+  if (totalLen === 0) return { x: route[0].x, y: route[0].y, facing: 1, resting: true, seg: 0 };
+
+  // Dwell is sized in the same px-units as travel (a fraction of the average
+  // leg) so one normalized cycle covers walking + resting at a single scale.
+  const dwellLen = Math.max(0, opts.dwell ?? 0) * (totalLen / n);
+  const cycleLen = totalLen + dwellLen * n;
+
+  // Where we are within the cycle, in px-units.
+  const c = (((t % 1) + 1) % 1) * cycleLen;
+
+  let acc = 0;
+  for (let i = 0; i < n; i++) {
+    const a = route[i];
+    const b = route[(i + 1) % n];
+    // Walking leg i.
+    if (c < acc + legLen[i]) {
+      const p = legLen[i] === 0 ? 0 : (c - acc) / legLen[i];
+      const lift = arc * Math.sin(p * Math.PI);
+      return {
+        x: a.x + (b.x - a.x) * p,
+        y: a.y + (b.y - a.y) * p - lift,
+        facing: legFacing(a.x, b.x),
+        resting: false,
+        seg: i,
+      };
+    }
+    acc += legLen[i];
+    // Resting at the arrival vertex b.
+    if (dwellLen > 0 && c < acc + dwellLen) {
+      return { x: b.x, y: b.y, facing: legFacing(a.x, b.x), resting: true, seg: i };
+    }
+    acc += dwellLen;
+  }
+
+  // Numerical guard (c === cycleLen): wrap to the route start.
+  return { x: route[0].x, y: route[0].y, facing: legFacing(route[0].x, route[1].x), resting: false, seg: 0 };
+}

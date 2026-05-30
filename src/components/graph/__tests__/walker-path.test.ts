@@ -4,6 +4,7 @@ import {
   walkFrame,
   walkerFacing,
   isResting,
+  walkerRoutePose,
 } from "../walker-path";
 
 const A = { x: 0, y: 0 };
@@ -82,5 +83,78 @@ describe("isResting", () => {
   });
   it("is false mid-stride", () => {
     expect(isResting(0.25)).toBe(false);
+  });
+});
+
+describe("walkerRoutePose", () => {
+  // Unit square, walked clockwise as a closed ring. Perimeter = 40, four
+  // equal legs of length 10, so each leg owns a quarter of the cycle.
+  const SQUARE = [
+    { x: 0, y: 0 },
+    { x: 10, y: 0 },
+    { x: 10, y: 10 },
+    { x: 0, y: 10 },
+  ];
+
+  it("degenerates safely for empty / single-point routes", () => {
+    expect(walkerRoutePose(0.3, [])).toMatchObject({ x: 0, y: 0, resting: true });
+    expect(walkerRoutePose(0.3, [{ x: 4, y: 9 }])).toMatchObject({ x: 4, y: 9, resting: true });
+  });
+
+  it("starts at the first waypoint and advances at constant speed", () => {
+    expect(walkerRoutePose(0, SQUARE)).toMatchObject({ x: 0, y: 0, seg: 0 });
+    // Quarter-cycle = one full leg → sits on the next vertex.
+    const q = walkerRoutePose(0.25, SQUARE);
+    expect(q.x).toBeCloseTo(10, 6);
+    expect(q.y).toBeCloseTo(0, 6);
+    // Half-cycle = two legs.
+    const h = walkerRoutePose(0.5, SQUARE);
+    expect(h.x).toBeCloseTo(10, 6);
+    expect(h.y).toBeCloseTo(10, 6);
+  });
+
+  it("interpolates the mid-point of a leg", () => {
+    const p = walkerRoutePose(0.125, SQUARE); // half of leg 0
+    expect(p.x).toBeCloseTo(5, 6);
+    expect(p.y).toBeCloseTo(0, 6);
+    expect(p.seg).toBe(0);
+  });
+
+  it("faces the direction of travel (+1 right, -1 left)", () => {
+    expect(walkerRoutePose(0.125, SQUARE).facing).toBe(1); // leg 0 goes right
+    expect(walkerRoutePose(0.625, SQUARE).facing).toBe(-1); // leg 2 goes left
+  });
+
+  it("loops seamlessly (t and t+1 are identical)", () => {
+    const a = walkerRoutePose(0.4, SQUARE);
+    const b = walkerRoutePose(1.4, SQUARE);
+    expect(b.x).toBeCloseTo(a.x, 6);
+    expect(b.y).toBeCloseTo(a.y, 6);
+    expect(b.facing).toBe(a.facing);
+  });
+
+  it("lifts the leg mid-point by `arc` (hop), zero at the ends", () => {
+    expect(walkerRoutePose(0, SQUARE, { arc: 10 }).y).toBeCloseTo(0, 6);
+    expect(walkerRoutePose(0.125, SQUARE, { arc: 10 }).y).toBeCloseTo(-10, 6);
+  });
+
+  it("parks at each stop when dwell > 0", () => {
+    // Two-point ring: out-and-back, each leg length 10 (total 20). dwell=1 adds
+    // one average-leg (10) of rest at each of the 2 stops → cycle length 40.
+    const LINE = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ];
+    // t=0.3125 → c=12.5 → inside the rest at the far vertex (10,0).
+    const rest = walkerRoutePose(0.3125, LINE, { dwell: 1 });
+    expect(rest.resting).toBe(true);
+    expect(rest.x).toBeCloseTo(10, 6);
+    // t=0 → walking out of the first vertex, not resting.
+    expect(walkerRoutePose(0, LINE, { dwell: 1 }).resting).toBe(false);
+    // Return leg walks leftward. c = 0.625*40 = 25 → mid of the return leg.
+    const back = walkerRoutePose(0.625, LINE, { dwell: 1 });
+    expect(back.resting).toBe(false);
+    expect(back.facing).toBe(-1);
+    expect(back.x).toBeCloseTo(5, 6);
   });
 });
