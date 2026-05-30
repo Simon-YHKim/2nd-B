@@ -25,6 +25,17 @@ const PIXEL_MONO = Platform.select({
   default: "monospace",
 });
 
+// Readable sans (closeout-v3 #10): long Korean paragraphs / bottom-sheet
+// descriptions / CTAs should NOT use the pixel face — it hurts legibility at
+// small sizes. Use Pretendard / system sans for body copy. Pixel stays for
+// labels, badges, and decorative headings.
+const READABLE = Platform.select({
+  ios: "Pretendard",
+  android: "Pretendard",
+  web: '"Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+  default: "sans-serif",
+});
+
 export const fontFamilies = {
   // All faces resolve to the one pixel face (user directive: 전부 적용).
   serifKo: PIXEL,
@@ -34,6 +45,8 @@ export const fontFamilies = {
   mono: PIXEL_MONO,
   // Explicit alias for callers that want to be unambiguous.
   pixel: PIXEL,
+  // Readable sans for long-form Korean copy.
+  readable: READABLE,
 } as const;
 
 export const fontWeights = {

@@ -49,16 +49,18 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 import { Text } from "@/components/ui/Text";
 import { cosmic } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { pitchForTier, playPop } from "@/lib/audio/pop";
 import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
-import { NodeArt, CharacterArt } from "@/components/art/CosmicPixel";
+
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
+import { TierIcon, DOMAIN_TIER_ICON } from "@/components/art/TierIcon";
+import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
-import type { CharacterId } from "@/lib/characters";
 import { PremiumButton, StatTile } from "@/components/premium";
-import { clampPan, clampScale, panForFocalZoom } from "./zoom-math";
+import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
-import { worldMenuPositions, worldDataPositions, worldToScreen, fitScale, sectorFocus, WORLD_CENTER } from "./world-layout";
+import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus, WORLD_CENTER } from "./world-layout";
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 
@@ -130,26 +132,26 @@ export const MENU_NODES: readonly NavNode[] = [
   // Tier 2 — six domain islands around the center.
   { id: "work", tier: 2, parentId: "core", href: "/trinity",
     label: { en: "Work & growth", ko: "일과 성장" },
-    description: { en: "Today's you — health, app, brain, finance.", ko: "오늘의 나 — 건강·앱·뇌·재정을 한눈에." } },
+    description: { en: "Where the pieces that move today's you — work and growth — gather.", ko: "오늘의 나를 움직이는 일과 성장의 조각들이 모이는 곳이에요." } },
   { id: "relation", tier: 2, parentId: "core", href: "/interview",
     label: { en: "People & ties", ko: "관계와 사람" },
-    description: { en: "Walk back through your chapters and the people in them.", ko: "지난 챕터와 그 안의 사람들을 함께 되짚어요." } },
+    description: { en: "Where memories, promises, and conversations with people connect.", ko: "사람들과의 기억, 약속, 대화 조각이 이어지는 곳이에요." } },
   { id: "knowledge", tier: 2, parentId: "core", href: "/wiki", bubbleAction: "upload",
     label: { en: "Learning & knowledge", ko: "배움과 지식" },
-    description: { en: "Your knowledge store — drop anything in.", ko: "당신의 지식 창고 — 뭐든 던지면 우리가 정리해 둘게요." } },
+    description: { en: "Where what you've learned and understood stacks up as knowledge.", ko: "배우고 이해한 것들이 지식 조각으로 쌓이는 곳이에요." } },
   { id: "records", tier: 2, parentId: "core", href: "/records",
     label: { en: "Records", ko: "기록 보관소" },
-    description: { en: "Every piece you've kept, in one place.", ko: "남긴 모든 조각이 모이는 곳." } },
+    description: { en: "Where every piece you've kept gathers so you can find it again.", ko: "남긴 모든 조각이 다시 찾아볼 수 있게 모이는 곳이에요." } },
   { id: "imagine", tier: 2, parentId: "core", href: "/imagine",
     label: { en: "Imagine workshop", ko: "공상 작업실" },
     description: {
-      en: "Lay a vague thought out as scenes. Vela's workshop.",
-      ko: "막연한 생각을 장면으로 펼쳐보는 곳. 벨라의 작업실이에요.",
+      en: "Where a vague thought unfolds into scenes and a next step.",
+      ko: "막연한 생각을 장면과 다음 한 걸음으로 펼치는 곳이에요.",
     },
   },
   { id: "taste", tier: 2, parentId: "core", href: "/insights",
     label: { en: "Taste & spark", ko: "취향과 영감" },
-    description: { en: "The patterns and sparks we keep noticing.", ko: "우리가 자꾸 알아채는 취향과 영감." } },
+    description: { en: "Where the things you like, are drawn to, and find inspiring gather.", ko: "좋아하는 것, 끌리는 것, 영감의 조각이 모이는 곳이에요." } },
 
   // Tier 3 — real sub-places under a district; revealed on zoom/selection.
   { id: "wiki-daily", tier: 3, parentId: "knowledge", href: "/wiki",
@@ -203,16 +205,17 @@ const ISLAND_FOR: Record<string, IslandId> = {
   taste: "inspiration",
 };
 
-// Which companion works which village (graph-ux-overhaul #2). Each walks the
-// road between the center and its village, matched to its concept:
-//   momo=기록 보관소, lulu=배움과 지식(수집), archi=관계와 사람(연결),
-//   vela=공상 작업실, gadi=일과 성장(돌봄). secondb roams near the center.
-const VILLAGE_WORKER: Record<string, CharacterId> = {
-  records: "momo",
+// Domain → worker mapping (closeout-v3 #6, authoritative):
+//   일과 성장 = Archi, 관계와 사람 = Gadi, 배움과 지식 = Lulu,
+//   기록 보관소 = Momo, 공상 작업실 = Vela, 취향과 영감 = Lumi (new #7),
+//   나의 중심 = SecondB. Worker glow matches the domain accent.
+const VILLAGE_WORKER: Record<string, WorkerId> = {
+  work: "archi",
+  relation: "gadi",
   knowledge: "lulu",
-  relation: "archi",
+  records: "momo",
   imagine: "vela",
-  work: "gadi",
+  taste: "lumi",
 };
 
 function tierSize(t: Tier): number {
@@ -289,7 +292,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       const focal = { x: e.focalX, y: e.focalY };
       const prevPan = { x: zoomSavedPanX.value, y: zoomSavedPanY.value };
       const newPan = panForFocalZoom(zoomSavedScale.value, next, focal, prevPan);
-      const clamped = clampPan(newPan, next, {
+      const clamped = clampPanFree(newPan, next, {
         width: zoomViewportW.value,
         height: zoomViewportH.value,
       });
@@ -304,10 +307,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       zoomSavedPanY.value = zoomPanY.value;
     });
 
-  // 1-finger pan (graph-ux-overhaul #2): drag anywhere to move the village.
-  // A small activation distance lets node Pressables still receive taps —
-  // a tap that doesn't travel far never activates the pan. A spring settles
-  // the pan at the clamped bound for an elastic, dynamic feel.
+  // 1-finger pan (closeout-v3 #3): drag anywhere to move freely — even out
+  // into cosmic space past the village (soft bounds via clampPanFree). A small
+  // activation distance lets node Pressables still receive taps.
   const panGesture = Gesture.Pan()
     .minDistance(8)
     .onUpdate((e) => {
@@ -316,7 +318,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         x: zoomSavedPanX.value + e.translationX,
         y: zoomSavedPanY.value + e.translationY,
       };
-      const clamped = clampPan(proposed, zoomScale.value, {
+      const clamped = clampPanFree(proposed, zoomScale.value, {
         width: zoomViewportW.value,
         height: zoomViewportH.value,
       });
@@ -325,13 +327,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     })
     .onEnd((e) => {
       "worklet";
-      // Inertia + spring-to-bound: project a little past the release point,
-      // then let clampPan + spring pull it back for a bouncy settle.
       const projected = {
         x: zoomPanX.value + e.velocityX * 0.05,
         y: zoomPanY.value + e.velocityY * 0.05,
       };
-      const clamped = clampPan(projected, zoomScale.value, {
+      const clamped = clampPanFree(projected, zoomScale.value, {
         width: zoomViewportW.value,
         height: zoomViewportH.value,
       });
@@ -341,20 +341,40 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       zoomSavedPanY.value = clamped.y;
     });
 
-  // Double-tap to reset zoom + pan to the home view, with a spring so the
-  // village "snaps home" elastically rather than cutting.
+  // Reset the camera to the home view (closeout-v3 #4): used by double-tap AND
+  // the floating "원래대로" button. Spring so the village snaps home elastically.
+  const resetCamera = () => {
+    zoomScale.value = withSpring(1, { damping: 22, stiffness: 170, mass: 0.7 });
+    zoomPanX.value = withSpring(0, { damping: 22, stiffness: 170, mass: 0.7 });
+    zoomPanY.value = withSpring(0, { damping: 22, stiffness: 170, mass: 0.7 });
+    zoomSavedScale.value = 1;
+    zoomSavedPanX.value = 0;
+    zoomSavedPanY.value = 0;
+  };
+
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
     .maxDistance(16)
     .onEnd(() => {
       "worklet";
-      zoomScale.value = withSpring(1, { damping: 22, stiffness: 170, mass: 0.7 });
-      zoomPanX.value = withSpring(0, { damping: 22, stiffness: 170, mass: 0.7 });
-      zoomPanY.value = withSpring(0, { damping: 22, stiffness: 170, mass: 0.7 });
-      zoomSavedScale.value = 1;
-      zoomSavedPanX.value = 0;
-      zoomSavedPanY.value = 0;
+      runOnJS(resetCamera)();
     });
+
+  // Track whether the camera is far from home so the reset button can fade in
+  // (closeout-v3 #4). The worklet only pushes a JS update when the boolean flips.
+  const [offHome, setOffHome] = useState(false);
+  const lastOffRef = useRef(false);
+  const pushOffHome = (v: boolean) => {
+    if (lastOffRef.current !== v) {
+      lastOffRef.current = v;
+      setOffHome(v);
+    }
+  };
+  useDerivedValue(() => {
+    const { off } = cameraOffHome({ x: zoomPanX.value, y: zoomPanY.value }, zoomScale.value);
+    runOnJS(pushOffHome)(off);
+    return off;
+  });
 
   // Programmatic camera move (graph-ux-overhaul #6/#10): spring the village so
   // a world point lands at a chosen screen Y (default viewport center). When a
@@ -930,8 +950,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               style={[
                 styles.shardWrap,
                 {
-                  left: p.x - 7,
-                  top: p.y - 7,
+                  left: p.x - 9,
+                  top: p.y - 9,
                   opacity: tier4Fade as never,
                   transform: swayTransform(id) as never,
                 },
@@ -939,7 +959,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 dimFor(id) ? styles.dimmed : null,
               ]}
             >
-              <NodeArt tier={4} size={14} />
+              {/* Data shards are pieces (closeout #9). Current shards come from
+                  wiki pages → blue book; other sources fall back to a cube. */}
+              <TierIcon id={p.parentId.startsWith("wiki") ? "book_wiki" : "cube_data"} size={18} />
             </Animated.View>
           ))
         : null}
@@ -977,7 +999,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               {ISLAND_FOR[n.id] ? (
                 <IslandArt id={ISLAND_FOR[n.id]!} size={size * 1.7} style={{ position: "absolute", left: -size * 0.35, top: -size * 0.35 }} />
               ) : (
-                <NodeArt tier={n.tier} size={size} />
+                // Tier-3 nodes are pieces, not robots (closeout-v3 #9): show the
+                // parent domain's signature tier icon (book / paper / heart …).
+                <TierIcon id={DOMAIN_TIER_ICON[n.parentId ?? ""] ?? "cube_data"} size={size} />
               )}
               <Pressable
                 onPress={() => handleNodeTap(n.id)}
@@ -1030,6 +1054,17 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       </ReAnimated.View>
     </GestureDetector>
 
+      {/* "원래대로" reset button (closeout-v3 #4) — fades in near the top when
+          the camera has drifted far from home or zoomed a lot. Same action as
+          double-tap. Screen-fixed; doesn't steal graph gestures. */}
+      {offHome ? (
+        <View style={styles.resetWrap} pointerEvents="box-none">
+          <Pressable onPress={() => resetCamera()} style={styles.resetBtn} accessibilityRole="button" accessibilityLabel={locale === "ko" ? "원래대로" : "Reset view"}>
+            <Text variant="caption" style={styles.resetText}>{locale === "ko" ? "원래대로" : "Reset"}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       {/* Node bottom sheet (§7) — screen-fixed, outside the zoom transform. */}
       {activeNode ? (
         <NodeSheet
@@ -1066,7 +1101,7 @@ function NodeSheet({
   locale: "en" | "ko";
   name: string;
   type: string;
-  character: CharacterId;
+  character: WorkerId;
   connectedCount: number;
   description: string;
   onLook: () => void;
@@ -1092,7 +1127,7 @@ function NodeSheet({
       <View style={styles.sheetHead}>
         <View style={styles.sheetTitleRow}>
           {/* 아치 — connection guide, appears on the highlight moment (§9) */}
-          <CharacterArt id={character} size={28} />
+          <WorkerSprite id={character} size={28} />
           <Text variant="heading" style={styles.sheetName}>{name}</Text>
         </View>
         <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={locale === "ko" ? "닫기" : "Close"}>
@@ -1149,12 +1184,30 @@ const styles = StyleSheet.create({
     height: CENTER_SIZE,
     alignItems: "center",
     justifyContent: "center",
-    // Core Brain = 나의 중심 = village central lamp glow (§7-2).
+    // closeout-v3 #2: no boxy backing. The no-square Core PNG carries its own
+    // glow; the wrapper is a circular, transparent halo so no rectangle shows.
+    borderRadius: CENTER_SIZE / 2,
     shadowColor: cosmic.coreGlow,
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
+    shadowOpacity: 0.6,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
   },
+  resetWrap: { position: "absolute", top: 64, left: 0, right: 0, alignItems: "center", zIndex: 22 },
+  resetBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(13,21,48,0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.5)",
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  resetText: { color: cosmic.signalMint, letterSpacing: 0.5 },
   shardWrap: { position: "absolute", width: 14, height: 14, alignItems: "center", justifyContent: "center" },
   // Highlight-on-return: a mint halo around the shard the user came back to.
   shardHighlight: {
@@ -1165,6 +1218,8 @@ const styles = StyleSheet.create({
   },
   // Selection states (§7).
   nodeFocused: {
+    // Round halo (closeout-v3 #2): no square backing behind focused art.
+    borderRadius: 999,
     shadowColor: cosmic.signalMint,
     shadowOpacity: 0.95,
     shadowRadius: 16,
@@ -1203,7 +1258,8 @@ const styles = StyleSheet.create({
   sheetClose: { color: cosmic.mistGray, fontSize: 16, paddingHorizontal: 4 },
   sheetMetaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 },
   sheetType: { letterSpacing: 1 },
-  sheetDesc: { marginTop: 10, lineHeight: 20 },
+  // Readable sans for the long Korean description (closeout-v3 #10).
+  sheetDesc: { marginTop: 10, lineHeight: 21, fontFamily: fontFamilies.readable },
   sheetStats: { flexDirection: "row", gap: 16, marginTop: 12 },
   sheetActions: { flexDirection: "row", gap: 10, marginTop: 16 },
   sheetActionBtn: { flex: 1 },

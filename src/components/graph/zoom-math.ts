@@ -57,3 +57,28 @@ export function clampPan(pan: Point, scale: number, viewport: Viewport): Point {
     y: Math.max(-maxY, Math.min(maxY, pan.y)),
   };
 }
+
+// Free pan with soft bounds (closeout-v3 #3): let the user drift out past the
+// village into empty cosmic space — at least `slack` viewport-widths beyond
+// the content overflow in every direction, even at scale <= 1. Not a hard
+// village clamp; just a generous limit so the map can't be lost entirely.
+export function clampPanFree(pan: Point, scale: number, viewport: Viewport, slack = 1.2): Point {
+  "worklet";
+  const overflowX = viewport.width * Math.max(0, scale - 1);
+  const overflowY = viewport.height * Math.max(0, scale - 1);
+  const maxX = overflowX / 2 + viewport.width * slack;
+  const maxY = overflowY / 2 + viewport.height * slack;
+  return {
+    x: Math.max(-maxX, Math.min(maxX, pan.x)),
+    y: Math.max(-maxY, Math.min(maxY, pan.y)),
+  };
+}
+
+// Distance of the camera from the home view (pan 0,0 / scale 1), used to fade
+// in the "원래대로" reset button (closeout-v3 #4).
+export function cameraOffHome(pan: Point, scale: number): { dist: number; off: boolean } {
+  "worklet";
+  const dist = Math.sqrt(pan.x * pan.x + pan.y * pan.y);
+  const off = dist > 280 || scale < 0.72 || scale > 1.9;
+  return { dist, off };
+}

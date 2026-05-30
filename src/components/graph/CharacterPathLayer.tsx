@@ -1,101 +1,91 @@
 // CharacterPathLayer — the pixel residents of the graph village, working.
 //
-// graph-ux-overhaul #2: each companion is tied to a village (domain node) and
-// walks the road between the center (나의 중심) and its village — like a
-// little worker commuting along the neural edge that connects them. SecondB
-// roams the inner ring near the center. The layer lives INSIDE the graph's
-// zoom/pan transform (mounted by NavGraph), so residents pan and scale with
-// the village and naturally sit *below* the screen-fixed bottom sheet / FAB
-// (fixes #1: characters no longer float above popups).
+// closeout-v3 #5/#6: each worker walks the road between its village and the
+// center continuously, and the motion is driven by a GLOBAL monotonic clock +
+// a stable per-worker phase — NOT component mount time. So when a village is
+// tapped/focused (which can remount this layer), a worker's position and walk
+// frame stay continuous instead of snapping back to the start.
 //
-// Positions come in graph (screen-fitted world) coordinates from NavGraph,
-// so a resident literally walks its parent→center edge. Honours
-// prefers-reduced-motion: residents rest at their village end.
+// The layer is mounted INSIDE NavGraph's zoom transform, rendered after the
+// nodes, so workers ride above the islands yet below the screen-fixed bottom
+// sheet / FAB. Positions arrive in the same screen-fitted coords NavGraph
+// renders nodes in. Honours prefers-reduced-motion (workers hold still).
 
-import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
+import { useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
-import type { CharacterId } from "@/lib/characters";
-import { SecondBSprite } from "@/components/art/SecondBSprite";
-import { CompanionSprite, type CompanionName } from "@/components/art/CompanionSprite";
+import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 
-/** One worker's commute: from `home` (their village) to `target` (usually the
- *  center), in the SAME coordinate space NavGraph renders nodes in. */
+/** One worker's commute: from `home` (their village) to `target` (the center),
+ *  in the SAME coordinate space NavGraph renders nodes in. */
 export interface Commute {
-  id: CharacterId;
+  id: WorkerId;
   home: { x: number; y: number };
   target: { x: number; y: number };
 }
 
 interface Props {
   commutes: readonly Commute[];
-  /** Hide the layer (e.g. when zoomed past tier 4 / reduced clutter). */
+  /** Hide the layer (e.g. while a bottom sheet is open). */
   hidden?: boolean;
 }
 
 const SPRITE = 24;
+// Per-worker round-trip period (ms). Co-prime-ish so the village never looks
+// synchronized. Keyed by worker id for a STABLE phase across remounts.
+const PERIOD: Record<WorkerId, number> = {
+  secondb: 10000, archi: 11000, gadi: 12000, lulu: 9000, momo: 13000, vela: 10500, lumi: 11500,
+};
+const PHASE: Record<WorkerId, number> = {
+  secondb: 0, archi: 1500, gadi: 3000, lulu: 4500, momo: 6000, vela: 7500, lumi: 2200,
+};
 
 export function CharacterPathLayer({ commutes, hidden }: Props) {
   if (hidden) return null;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none" accessibilityElementsHidden>
-      {commutes.map((c, i) => (
-        <Worker key={c.id} commute={c} seed={i} />
+      {commutes.map((c) => (
+        <Worker key={c.id} commute={c} />
       ))}
     </View>
   );
 }
 
-// A resident walks home→target→home along the connecting edge, with a gentle
-// hop and (for SecondB) a 2-frame walk cycle. The walk is phase-spread per
-// resident so the village feels busy but not synchronized.
-function Worker({ commute, seed }: { commute: Commute; seed: number }) {
+// A worker shuttles along its edge (15%→85%) with a small hop. Position is a
+// pure function of global time, so it's continuous regardless of mounts.
+function Worker({ commute }: { commute: Commute }) {
   const { id, home, target } = commute;
-  const t = useRef(new Animated.Value(0)).current;
-  const [frame, setFrame] = useState(0);
   const reduced = prefersReducedMotion();
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     if (reduced) return;
-    const duration = 9000 + (seed % 5) * 1400; // 9.0–14.6s round trip
-    const loop = Animated.loop(
-      Animated.timing(t, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-    );
-    loop.start();
-    const frameTimer = setInterval(() => setFrame((f) => (f === 0 ? 1 : 0)), 460);
-    return () => {
-      loop.stop();
-      clearInterval(frameTimer);
-    };
-  }, [t, seed, reduced]);
+    // Re-render on a shared cadence; the actual position is recomputed from
+    // Date.now() each frame so it never resets.
+    const t = setInterval(() => setTick((n) => (n + 1) % 1000), 1000 / 20);
+    return () => clearInterval(t);
+  }, [reduced]);
 
-  // Walk only part-way (0.15→0.85 of the edge) so the worker doesn't sit on
-  // top of the node art at either end.
+  // Triangle-wave 0→1→0 over the worker's period, offset by its stable phase.
+  const period = PERIOD[id];
+  const phase = PHASE[id];
+  const now = reduced ? 0 : Date.now();
+  const cyc = (((now + phase) % period) / period); // 0..1
+  const tri = cyc < 0.5 ? cyc * 2 : 2 - cyc * 2;     // 0..1..0
+
   const ax = home.x + (target.x - home.x) * 0.15;
   const ay = home.y + (target.y - home.y) * 0.15;
   const bx = home.x + (target.x - home.x) * 0.85;
   const by = home.y + (target.y - home.y) * 0.85;
-  const dx = bx - ax;
-  const dy = by - ay;
-  const arc = 5 + (seed % 3);
-
-  const tx = t.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, dx * 0.5, dx, dx * 0.5, 0] });
-  const ty = t.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, dy * 0.5 - arc, dy, dy * 0.5 - arc, 0] });
+  const arc = 6;
+  const x = ax + (bx - ax) * tri;
+  const y = ay + (by - ay) * tri - Math.sin(tri * Math.PI) * arc;
 
   return (
-    <Animated.View
-      style={[
-        styles.spriteSlot,
-        { left: ax - SPRITE / 2, top: ay - SPRITE / 2, transform: [{ translateX: tx }, { translateY: ty }] },
-      ]}
-    >
-      {id === "secondb" ? (
-        <SecondBSprite state={reduced ? "idle" : frame === 0 ? "walk_1" : "walk_2"} size={SPRITE} />
-      ) : (
-        <CompanionSprite companion={id as CompanionName} state="idle" size={SPRITE} />
-      )}
-    </Animated.View>
+    <View style={[styles.spriteSlot, { left: x - SPRITE / 2, top: y - SPRITE / 2 }]}>
+      <WorkerSprite id={id} size={SPRITE} />
+    </View>
   );
 }
 
