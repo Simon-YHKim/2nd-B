@@ -129,7 +129,10 @@ export default function Landing() {
   }, [entryProgress]);
 
   const logoScale = entryProgress.interpolate({ inputRange: [0, 1], outputRange: [4, 2] });
-  const logoOpacity = entryProgress.interpolate({ inputRange: [0, 0.55, 1], outputRange: [1, 0.75, 0.55] });
+  // Entry flourish only (refine-v2 #7): the logo fades fully OUT as the
+  // village fades in, instead of staying as a fixed centered watermark that
+  // didn't track zoom/village scale. The premium islands carry the screen.
+  const logoOpacity = entryProgress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.5, 0] });
   const contentOpacity = entryProgress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
 
   // Insight chosen once per Landing mount — different on each visit.
@@ -186,6 +189,7 @@ export default function Landing() {
     <View style={styles.skyContainer}>
       <Animated.Image
         source={logo}
+        pointerEvents="none"
         style={[styles.skyLogo, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}
         resizeMode="contain"
       />
