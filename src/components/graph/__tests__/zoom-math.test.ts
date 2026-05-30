@@ -1,11 +1,40 @@
 import {
   clampScale,
   clampPan,
+  clampPanFree,
+  cameraOffHome,
   panForFocalZoom,
   ZOOM_MIN,
   ZOOM_MAX,
   type Point,
 } from "../zoom-math";
+
+describe("clampPanFree (closeout-v3 #3)", () => {
+  const vp = { width: 400, height: 600 };
+  it("allows panning into cosmic space even at scale 1", () => {
+    // slack 1.2 → maxX = 400*1.2 = 480, maxY = 600*1.2 = 720
+    expect(clampPanFree({ x: 300, y: -300 }, 1, vp)).toEqual({ x: 300, y: -300 });
+    expect(clampPanFree({ x: 9999, y: 9999 }, 1, vp).x).toBeCloseTo(480);
+    expect(clampPanFree({ x: 9999, y: 9999 }, 1, vp).y).toBeCloseTo(720);
+  });
+  it("adds the zoom overflow on top of the slack", () => {
+    // scale 2 → overflowX/2 = 200, + slack 480 = 680
+    expect(clampPanFree({ x: 9999, y: 0 }, 2, vp).x).toBeCloseTo(680);
+  });
+});
+
+describe("cameraOffHome (closeout-v3 #4)", () => {
+  it("is off-home when far in distance", () => {
+    expect(cameraOffHome({ x: 300, y: 0 }, 1).off).toBe(true);
+  });
+  it("is off-home when zoomed past thresholds", () => {
+    expect(cameraOffHome({ x: 0, y: 0 }, 0.6).off).toBe(true);
+    expect(cameraOffHome({ x: 0, y: 0 }, 2.0).off).toBe(true);
+  });
+  it("is home when centered at default scale", () => {
+    expect(cameraOffHome({ x: 10, y: 10 }, 1).off).toBe(false);
+  });
+});
 
 describe("clampScale", () => {
   it("returns value within bounds untouched", () => {
