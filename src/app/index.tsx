@@ -189,7 +189,6 @@ export default function Landing() {
     <View style={styles.skyContainer}>
       <Animated.Image
         source={logo}
-        pointerEvents="none"
         style={[styles.skyLogo, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}
         resizeMode="contain"
       />
