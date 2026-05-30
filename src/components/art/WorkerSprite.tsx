@@ -68,32 +68,55 @@ const PHASE_OFFSET: Record<WorkerId, number> = {
   secondb: 0, momo: 1, lulu: 2, archi: 3, vela: 4, gadi: 5, lumi: 2,
 };
 
-/** Renders one worker's current walk frame, advanced by the global clock. */
-export function WorkerSprite({ id, size = 26, style }: { id: WorkerId; size?: number; style?: StyleProp<ViewStyle> }) {
+/** Renders one worker's current walk frame, advanced by the global clock.
+ *  `facing` mirrors the sprite so it looks toward its direction of travel
+ *  (+1 = artwork's native facing, -1 = flipped). `paused` swaps in the idle
+ *  pose while the worker is parked at a village ("working"), so a resting
+ *  resident reads as standing rather than moonwalking in place. */
+export function WorkerSprite({
+  id,
+  size = 26,
+  style,
+  facing = 1,
+  paused = false,
+}: {
+  id: WorkerId;
+  size?: number;
+  style?: StyleProp<ViewStyle>;
+  facing?: 1 | -1;
+  paused?: boolean;
+}) {
   const reduced = prefersReducedMotion();
   const [frame, setFrame] = useState(0);
 
+  // Walk frames only advance when actually walking — frozen under reduced
+  // motion or while parked at a stop.
+  const animate = !reduced && !paused;
   useEffect(() => {
-    if (reduced) return;
+    if (!animate) return;
     return subscribe((now) => {
       // Global-time driven frame index + stable per-worker phase offset.
       const f = (Math.floor(now / FRAME_MS) + PHASE_OFFSET[id]) % FRAMES;
       setFrame(f);
     });
-  }, [id, reduced]);
+  }, [id, animate]);
 
-  // Reduced motion: render the dedicated idle pose instead of freezing on a
-  // mid-stride walk frame.
-  if (reduced) {
+  // scaleX flip mirrors the whole clipped frame (including the strip's
+  // translateX), so flipping the outer box is correct.
+  const flip: ViewStyle["transform"] = facing === -1 ? [{ scaleX: -1 }] : [];
+
+  // Reduced motion OR parked: render the dedicated idle pose instead of
+  // freezing on a mid-stride walk frame.
+  if (reduced || paused) {
     return (
-      <View style={[{ width: size, height: size }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={[{ width: size, height: size, transform: flip }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <Image source={IDLES[id]} style={[PIXELATED, { width: size, height: size }]} resizeMode="contain" />
       </View>
     );
   }
 
   return (
-    <View style={[{ width: size, height: size, overflow: "hidden" }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View style={[{ width: size, height: size, overflow: "hidden", transform: flip }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Image
         source={STRIPS[id]}
         style={[

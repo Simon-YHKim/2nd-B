@@ -31,6 +31,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -293,6 +294,54 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     zoomViewportH.value = height;
   }, [width, height, zoomViewportW, zoomViewportH]);
 
+  // Web-only scroll-to-zoom (graph-ux #12): the mouse wheel / trackpad zooms
+  // toward the cursor, reusing the SAME focal math as the pinch gesture so
+  // wheel + pinch + pan stay one coherent camera model. Attached to the
+  // non-transformed outer box, whose getBoundingClientRect shares the focal
+  // space of the pinch's focalX/focalY. preventDefault stops the page itself
+  // from scrolling while the graph zooms. Native is a no-op (touch pinch only).
+  const outerRef = useRef<View>(null);
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const node = outerRef.current as unknown as HTMLElement | null;
+    if (!node) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = node.getBoundingClientRect();
+      const focal = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const factor = Math.exp(-e.deltaY * 0.0015); // down = out, up = in
+      const next = clampScale(zoomScale.value * factor);
+      if (next === zoomScale.value) return; // already pinned at a zoom bound
+      const newPan = panForFocalZoom(zoomScale.value, next, focal, {
+        x: zoomPanX.value,
+        y: zoomPanY.value,
+      });
+      const clamped = clampPanFree(newPan, next, {
+        width: zoomViewportW.value,
+        height: zoomViewportH.value,
+      });
+      zoomScale.value = next;
+      zoomPanX.value = clamped.x;
+      zoomPanY.value = clamped.y;
+      // Sync the gesture baseline so a following pinch/pan continues from the
+      // wheel-adjusted camera instead of snapping back to the last saved view.
+      zoomSavedScale.value = next;
+      zoomSavedPanX.value = clamped.x;
+      zoomSavedPanY.value = clamped.y;
+    };
+    node.addEventListener("wheel", onWheel, { passive: false });
+    return () => node.removeEventListener("wheel", onWheel);
+  }, [
+    zoomScale,
+    zoomPanX,
+    zoomPanY,
+    zoomSavedScale,
+    zoomSavedPanX,
+    zoomSavedPanY,
+    zoomViewportW,
+    zoomViewportH,
+  ]);
+
   const pinchGesture = Gesture.Pinch()
     .onUpdate((e) => {
       "worklet";
@@ -454,17 +503,34 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     return out;
   }, [dataNodes, worldMenu, width, height]);
 
-  // Worker commutes (graph-ux-overhaul #2): each companion walks the road
-  // between its village and the center. Built in the same screen-fitted
-  // coords NavGraph renders nodes in, so they ride the actual edges.
+  // Worker commutes (graph-ux-overhaul #2): each companion endlessly travels
+  // between villages along the real spokes (village → center → village →
+  // center). Because the only tier-2 edges are center↔village, every
+  // village-to-village hop routes through the center — a true node-line-node
+  // patrol. Built in the same screen-fitted coords NavGraph renders nodes in.
   const commutes = useMemo<Commute[]>(() => {
+    const center = { x: cx, y: cy };
+    const placed = Object.keys(VILLAGE_WORKER)
+      .map((id) => {
+        const p = positions.get(id);
+        return p ? { id, pt: { x: p.x, y: p.y } } : null;
+      })
+      .filter((v): v is { id: string; pt: { x: number; y: number } } => v !== null);
+
     const out: Commute[] = [];
-    for (const [domainId, worker] of Object.entries(VILLAGE_WORKER)) {
-      const home = positions.get(domainId);
-      if (home) out.push({ id: worker, home: { x: home.x, y: home.y }, target: { x: cx, y: cy } });
+    for (let i = 0; i < placed.length; i++) {
+      const here = placed[i];
+      const next = placed[(i + 1) % placed.length];
+      // village → center → neighbour village → center; the closed ring loops
+      // back home, so the worker shuttles between two villages via the hub.
+      out.push({ id: VILLAGE_WORKER[here.id], route: [here.pt, center, next.pt, center] });
     }
-    // SecondB roams a short arc just off the center.
-    out.push({ id: "secondb", home: { x: cx, y: cy - 70 }, target: { x: cx + 60, y: cy - 30 } });
+
+    // SecondB tours the hub on a wider patrol: out to every other spoke and back.
+    const tour: { x: number; y: number }[] = [];
+    for (let k = 0; k < placed.length; k += 2) tour.push(center, placed[k].pt);
+    out.push({ id: "secondb", route: tour.length >= 2 ? tour : [center, { x: cx + 60, y: cy - 30 }] });
+
     return out;
   }, [positions, cx, cy]);
 
@@ -884,7 +950,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   }
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View ref={outerRef} style={StyleSheet.absoluteFill} pointerEvents="box-none">
     <GestureDetector gesture={composedGesture}>
       <ReAnimated.View style={[styles.root, zoomAnimatedStyle]}>
       {/* Full-size transparent hit surface (graph-ux #6): an opaque-to-touch
