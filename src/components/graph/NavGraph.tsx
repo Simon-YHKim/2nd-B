@@ -43,6 +43,7 @@ import ReAnimated, {
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
+  withSpring,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
@@ -52,10 +53,12 @@ import { pitchForTier, playPop } from "@/lib/audio/pop";
 import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { NodeArt, CharacterArt } from "@/components/art/CosmicPixel";
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
+import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
+import type { CharacterId } from "@/lib/characters";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampScale, panForFocalZoom } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
-import { worldMenuPositions, worldDataPositions, worldToScreen } from "./world-layout";
+import { worldMenuPositions, worldDataPositions, worldToScreen, fitScale, sectorFocus, WORLD_CENTER } from "./world-layout";
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 
@@ -200,6 +203,18 @@ const ISLAND_FOR: Record<string, IslandId> = {
   taste: "inspiration",
 };
 
+// Which companion works which village (graph-ux-overhaul #2). Each walks the
+// road between the center and its village, matched to its concept:
+//   momo=기록 보관소, lulu=배움과 지식(수집), archi=관계와 사람(연결),
+//   vela=공상 작업실, gadi=일과 성장(돌봄). secondb roams near the center.
+const VILLAGE_WORKER: Record<string, CharacterId> = {
+  records: "momo",
+  knowledge: "lulu",
+  relation: "archi",
+  imagine: "vela",
+  work: "gadi",
+};
+
 function tierSize(t: Tier): number {
   // UI/UX overhaul §5 node sizes (touch target met via hitSlop).
   if (t === 1) return 88;
@@ -289,9 +304,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       zoomSavedPanY.value = zoomPanY.value;
     });
 
-  // 2-finger pan only — leaves 1-finger taps to the node Pressables.
+  // 1-finger pan (graph-ux-overhaul #2): drag anywhere to move the village.
+  // A small activation distance lets node Pressables still receive taps —
+  // a tap that doesn't travel far never activates the pan. A spring settles
+  // the pan at the clamped bound for an elastic, dynamic feel.
   const panGesture = Gesture.Pan()
-    .minPointers(2)
+    .minDistance(8)
     .onUpdate((e) => {
       "worklet";
       const proposed = {
@@ -305,24 +323,62 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       zoomPanX.value = clamped.x;
       zoomPanY.value = clamped.y;
     })
-    .onEnd(() => {
+    .onEnd((e) => {
       "worklet";
-      zoomSavedPanX.value = zoomPanX.value;
-      zoomSavedPanY.value = zoomPanY.value;
+      // Inertia + spring-to-bound: project a little past the release point,
+      // then let clampPan + spring pull it back for a bouncy settle.
+      const projected = {
+        x: zoomPanX.value + e.velocityX * 0.05,
+        y: zoomPanY.value + e.velocityY * 0.05,
+      };
+      const clamped = clampPan(projected, zoomScale.value, {
+        width: zoomViewportW.value,
+        height: zoomViewportH.value,
+      });
+      zoomPanX.value = withSpring(clamped.x, { damping: 18, stiffness: 140 });
+      zoomPanY.value = withSpring(clamped.y, { damping: 18, stiffness: 140 });
+      zoomSavedPanX.value = clamped.x;
+      zoomSavedPanY.value = clamped.y;
     });
 
-  // Double-tap to reset zoom + pan to the home view.
+  // Double-tap to reset zoom + pan to the home view, with a spring so the
+  // village "snaps home" elastically rather than cutting.
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
+    .maxDistance(16)
     .onEnd(() => {
       "worklet";
-      zoomScale.value = 1;
-      zoomPanX.value = 0;
-      zoomPanY.value = 0;
+      zoomScale.value = withSpring(1, { damping: 16, stiffness: 130 });
+      zoomPanX.value = withSpring(0, { damping: 16, stiffness: 130 });
+      zoomPanY.value = withSpring(0, { damping: 16, stiffness: 130 });
       zoomSavedScale.value = 1;
       zoomSavedPanX.value = 0;
       zoomSavedPanY.value = 0;
     });
+
+  // Programmatic camera move (graph-ux-overhaul #6): spring the village so a
+  // world point lands at viewport center at the given scale. Used by
+  // tap-a-village → fill-screen-with-its-sector.
+  const focusWorldPoint = (wx: number, wy: number, targetScale: number) => {
+    const vp = { width: zoomViewportW.value, height: zoomViewportH.value };
+    const base = fitScale(vp);
+    // screen point of the world point at base fit (scale handled separately)
+    const sx = worldToScreen({ x: wx, y: wy }, vp).x;
+    const sy = worldToScreen({ x: wx, y: wy }, vp).y;
+    void base;
+    // We want: sx * targetScale + panX = cx  →  panX = cx - sx*targetScale
+    const want = clampPan(
+      { x: cx - sx * targetScale, y: cy - sy * targetScale },
+      targetScale,
+      vp,
+    );
+    zoomScale.value = withSpring(targetScale, { damping: 17, stiffness: 130 });
+    zoomPanX.value = withSpring(want.x, { damping: 17, stiffness: 130 });
+    zoomPanY.value = withSpring(want.y, { damping: 17, stiffness: 130 });
+    zoomSavedScale.value = targetScale;
+    zoomSavedPanX.value = want.x;
+    zoomSavedPanY.value = want.y;
+  };
 
   const composedGesture = Gesture.Simultaneous(
     pinchGesture,
@@ -369,6 +425,20 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     }
     return out;
   }, [dataNodes, worldMenu, width, height]);
+
+  // Worker commutes (graph-ux-overhaul #2): each companion walks the road
+  // between its village and the center. Built in the same screen-fitted
+  // coords NavGraph renders nodes in, so they ride the actual edges.
+  const commutes = useMemo<Commute[]>(() => {
+    const out: Commute[] = [];
+    for (const [domainId, worker] of Object.entries(VILLAGE_WORKER)) {
+      const home = positions.get(domainId);
+      if (home) out.push({ id: worker, home: { x: home.x, y: home.y }, target: { x: cx, y: cy } });
+    }
+    // SecondB roams a short arc just off the center.
+    out.push({ id: "secondb", home: { x: cx, y: cy - 70 }, target: { x: cx + 60, y: cy - 30 } });
+    return out;
+  }, [positions, cx, cy]);
 
   // Drift Animated.Values — one pair per node (sx, sy = sway offsets).
   // useNativeDriver=false because SVG props can't run on the native
@@ -725,6 +795,24 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     return locale === "ko" ? "생각 조각" : "Fragment";
   };
 
+  // Tap a node (graph-ux-overhaul #6). For a tier-2 village we spring the
+  // camera so its sector fills the screen, then open the sheet. Tapping the
+  // same node again (or a non-domain node) just toggles the sheet.
+  function handleNodeTap(id: string) {
+    const willOpen = id !== activeId;
+    setActiveId(willOpen ? id : null);
+    if (!willOpen) return;
+    const wp = worldMenu.get(id);
+    const focus = wp ? sectorFocus(wp, MENU_NODES.filter((n) => n.tier === 2).length) : null;
+    if (focus) {
+      // Fill the screen with the sector: zoom in to the tier-3/4 reveal range.
+      focusWorldPoint(focus.focus.x, focus.focus.y, 1.9);
+    } else if (id === CENTER_NODE.id) {
+      // Center tap re-centers the whole village at home scale.
+      focusWorldPoint(WORLD_CENTER.x, WORLD_CENTER.y, 1);
+    }
+  }
+
   function handleLook() {
     if (!activeNode?.href) return;
     const href = activeNode.href;
@@ -808,6 +896,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         })}
       </Svg>
 
+      {/* Working residents — walk the edges between villages and the center,
+          inside the zoom transform so they pan/scale with the map and stay
+          below the screen-fixed sheet/FAB (graph-ux-overhaul #1/#2). */}
+      <CharacterPathLayer commutes={commutes} />
+
       {/* Tier 4 data shards — only when zoomed in (§5). */}
       {vis.tier4
         ? Array.from(dataPositions.entries()).map(([id, p]) => (
@@ -866,7 +959,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 <NodeArt tier={n.tier} size={size} />
               )}
               <Pressable
-                onPress={() => setActiveId(n.id === activeId ? null : n.id)}
+                onPress={() => handleNodeTap(n.id)}
                 hitSlop={14}
                 accessibilityLabel={n.label[locale]}
                 style={StyleSheet.absoluteFill}
@@ -899,7 +992,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         >
           <IslandArt id="core" size={CENTER_SIZE * 1.7} style={{ position: "absolute", left: -CENTER_SIZE * 0.35, top: -CENTER_SIZE * 0.35 }} />
           <Pressable
-            onPress={() => setActiveId(CENTER_NODE.id === activeId ? null : CENTER_NODE.id)}
+            onPress={() => handleNodeTap(CENTER_NODE.id)}
             hitSlop={20}
             accessibilityLabel={CENTER_NODE.label[locale]}
             style={StyleSheet.absoluteFill}

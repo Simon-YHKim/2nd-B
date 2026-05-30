@@ -32,6 +32,7 @@ import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { SECONDB_CHAT_XML } from "@/components/art/secondbChatXml";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { PremiumAppShell, ContextPill, ReferenceShardCard } from "@/components/premium";
+import { InlineLoader } from "@/components/ui/InlineLoader";
 import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
 
@@ -134,7 +135,7 @@ export default function Jarvis() {
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
   }, [turns]);
 
-  if (authLoading || progression.loading) return null;
+  if (authLoading || progression.loading) return <InlineLoader />;
   if (!userId) {
     router.replace("/sign-in");
     return null;
