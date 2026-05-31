@@ -16,6 +16,7 @@ import {
   TARGET_CATEGORIES,
   type TargetCategory,
 } from "./clipper-templates";
+import { listAccessibleTemplates } from "./template-queries";
 import { SOURCE_KINDS, type SourceKind } from "./types";
 
 export type WikiTrack = "daily" | "pro";
@@ -48,11 +49,22 @@ export function buildClipperPrompt(
   content: string,
   url: string | null,
   locale: "en" | "ko",
+  customFormats: readonly { name: string; baseKind: SourceKind }[] = [],
 ): { system: string; user: string } {
   const tmpl = CLIPPER_TEMPLATES[baselineKind];
   const kindMenu = CLIPPER_TEMPLATE_LIST.map(
     (t) => `  - ${t.kind}: ${locale === "ko" ? t.what.ko : t.what.en}`,
   ).join("\n");
+  // Community / user-added formats (migration 0027) appear as hints so the AI can
+  // map novel material onto the closest base kind. They never widen the set of
+  // kinds it may return — only the 8 canonical kinds are valid output.
+  const customMenu =
+    customFormats.length > 0
+      ? "\n" +
+        (locale === "ko" ? "커뮤니티/내 추가 형식 (참고용):" : "Community / your added formats (reference):") +
+        "\n" +
+        customFormats.map((c) => `  - ${c.name} (${c.baseKind})`).join("\n")
+      : "";
   const propLines = tmpl.aiProperties.length
     ? tmpl.aiProperties
         .map((p) => `    "${p.name}": ${locale === "ko" ? p.describe.ko : p.describe.en}`)
@@ -66,7 +78,7 @@ export function buildClipperPrompt(
           "JSON만 출력하세요. JSON 외 텍스트 금지.",
           "",
           "kind 후보 (가장 잘 맞는 하나):",
-          kindMenu,
+          kindMenu + customMenu,
           "",
           "JSON 형식:",
           '{ "kind": 위 후보 중 하나,',
@@ -87,7 +99,7 @@ export function buildClipperPrompt(
           "Return strict JSON only. No prose outside the JSON.",
           "",
           "Candidate kinds (pick the single best fit):",
-          kindMenu,
+          kindMenu + customMenu,
           "",
           "JSON shape:",
           '{ "kind": one of the candidates,',
@@ -182,7 +194,23 @@ export async function classifyClipper(
   const trimmed = content.trim();
   if (trimmed.length === 0) return parseClipperResult("", baselineKind);
 
-  const { system, user } = buildClipperPrompt(baselineKind, trimmed, url, locale);
+  // Surface the user's own + community-shared formats (migration 0027) so the
+  // classifier is aware of them. Fail-open: if the table is missing/offline we
+  // just fall back to the bundled 8 canonical kinds.
+  let customFormats: { name: string; baseKind: SourceKind }[] = [];
+  try {
+    const templates = await listAccessibleTemplates(userId);
+    customFormats = templates
+      .map((t) => ({
+        name: (locale === "ko" ? t.name.ko : t.name.en) || t.name.en || t.name.ko || t.slug,
+        baseKind: t.baseKind,
+      }))
+      .slice(0, 12);
+  } catch {
+    // table not applied yet / offline — bundled kinds are enough.
+  }
+
+  const { system, user } = buildClipperPrompt(baselineKind, trimmed, url, locale, customFormats);
   const reply = await callGemini({ userId, locale, purpose: "clipper_classify", system, user });
   return parseClipperResult(reply.text, baselineKind);
 }

@@ -3,7 +3,28 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-01 / AI clipper 분류 (#97)
+## Latest — 2026-06-01 / G3 공유 클리퍼 형식 + relevance 수정 (feat/g3-clipper-templates)
+
+### 무엇을 / 왜 (Vision 축 2 — 개인 비서 기반)
+**G3**: 기존 8개 형식에 안 맞는 자료를 만나면 AI가 **새 클리퍼 형식 제안** → 사용자 확인 → 개인저장(공유는 옵트인). 공유분은 모든 사용자가 읽음(커뮤니티 형식). 분류기는 본인+공유 형식을 메뉴 힌트로 읽음(없으면 번들 8개로 fail-open).
+**버그 수정**: classify의 `simonRelevance`(0~1)가 `sources.simon_relevance`(int CHECK 1~5)에 그대로 들어가 저장이 깨지던 것 → 1~5로 스케일(`scaleAiRelevance`). #97 잠복 버그.
+
+### 바뀐 파일
+- `db/migrations/0027_clipper_templates.sql`(신규, RLS: 읽기=본인 OR 공유 / 쓰기=본인만) + 구조 테스트
+- `src/lib/wiki/template-queries.ts`(신규) · `propose-template.ts`(신규, AI 제안 + C-vocabulary 가드) + 각 test
+- `classify-clipper.ts`(공유 형식 메뉴 주입 +test) · `capture.tsx`(inbox 캡처 후 제안 UI) · `capture.ts`(relevance 스케일 +test) · `llm/types.ts`(purpose)
+
+### 검증
+- npm run verify: jest **699/699 (71 suites)**, lint 0, lexicon + C1~C12 그린
+
+### 다음 / 되돌리기
+- ⚠️ **0027 마이그레이션 prod 미적용** → 적용 전까지 저장/공유는 fail-open(앱 안 깨지고 기능만 inert). 적용: Supabase에 `0027_clipper_templates.sql` 실행.
+- 다음(옵션): 형식 관리 UI(목록/편집/삭제) · 분류기가 형식별 props까지 채우기.
+- revert: 이 PR 단독. 마이그레이션 되돌리기는 `DROP TABLE clipper_templates`.
+
+---
+
+## 2026-06-01 / AI clipper 분류 (#97)
 
 ### 무엇을 / 왜
 캡처 시 Gemini 1회로 내용 읽고 **clipper 형식 분류** + 의미 프론트매터 채움(kind·target-category·simon-relevance·actionable-takeaway·kind별 props). 8개 템플릿을 `clipper-templates.ts` 정식 데이터화(분류기·레지스트리 단일 소스). 저장은 기존 `sources.frontmatter`(jsonb) 재사용. mock graceful(JSON 없음→baseline kind).

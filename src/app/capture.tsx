@@ -45,6 +45,8 @@ import { detectClipperKind } from "@/lib/wiki/clipper-kind";
 import { pickAndOcrImage } from "@/lib/wiki/capture-image";
 import { pickFile, type PickedFile } from "@/lib/wiki/capture-file";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
+import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
+import { saveTemplate } from "@/lib/wiki/template-queries";
 import type { SourceKind } from "@/lib/wiki/types";
 import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
@@ -115,6 +117,11 @@ export default function Capture() {
   const companion = useCompanionMoment();
   // Title of the just-saved piece — drives the inline success panel.
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
+  // G3: AI-proposed new clipper format flow (opt-in, offered after an inbox capture).
+  const [proposalCtx, setProposalCtx] = useState<{ content: string; url: string | null } | null>(null);
+  const [proposal, setProposal] = useState<ProposedClipperTemplate | null>(null);
+  const [proposing, setProposing] = useState(false);
+  const [formatSavedMsg, setFormatSavedMsg] = useState<string | null>(null);
 
   // Journal-mode (일기) state — ported from /journal. Writes to records.
   const progression = useProgression();
@@ -184,6 +191,9 @@ export default function Capture() {
     setConclusion("");
     setShowExtras(false);
     setAskAdvisor(false);
+    setProposalCtx(null);
+    setProposal(null);
+    setFormatSavedMsg(null);
   }
 
   async function runOcr(source: "library" | "camera") {
@@ -343,6 +353,12 @@ export default function Capture() {
       companion.fire(isBareLink ? "linkImported" : "captureSaved");
       // Inline success panel (journal-capture pack §3/§7) replaces the alert.
       setSavedTitle(result.source.title);
+      // G3: a capture that landed as "inbox" (no specific format fit) is the
+      // signal to offer an AI-proposed new format. Gate on body length so
+      // trivial memos don't prompt. Opt-in: nothing runs until the user taps.
+      if (result.source.kind === "inbox" && finalBody.trim().length >= 120) {
+        setProposalCtx({ content: finalBody, url: fallbackUrl });
+      }
     } catch (e) {
       Alert.alert(
         locale === "ko" ? "저장 실패" : "Save failed",
@@ -350,6 +366,62 @@ export default function Capture() {
       );
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // G3: AI proposes a new clipper format for material that fit no existing one.
+  // Opt-in — only runs when the user taps. Never blocks; a null proposal (mock
+  // mode, bad reply, or C-vocabulary filtered) just tells the user there's none.
+  async function runPropose() {
+    if (!userId || !proposalCtx || proposing) return;
+    setProposing(true);
+    try {
+      const p = await proposeClipperTemplate(userId, proposalCtx.content, proposalCtx.url, locale);
+      if (!p) {
+        setProposalCtx(null);
+        Alert.alert(
+          locale === "ko" ? "형식 제안 없음" : "No format to suggest",
+          locale === "ko" ? "이 자료에 맞는 새 형식을 만들지 못했어요." : "Couldn't draft a new format for this one.",
+        );
+        return;
+      }
+      setProposal(p);
+    } catch (e) {
+      Alert.alert(locale === "ko" ? "제안 실패" : "Proposal failed", (e as Error).message);
+    } finally {
+      setProposing(false);
+    }
+  }
+
+  // Save the proposed format to the user's own library; `share` opts it in to
+  // the community (clipper_templates.is_shared, so every user can read it).
+  async function saveProposed(share: boolean) {
+    if (!userId || !proposal) return;
+    try {
+      await saveTemplate({
+        ownerId: userId,
+        slug: proposal.slug,
+        baseKind: proposal.baseKind,
+        name: proposal.name,
+        what: proposal.what,
+        defaultTags: proposal.defaultTags,
+        targetCategory: proposal.targetCategory,
+        aiProperties: proposal.aiProperties,
+        shared: share,
+      });
+      setProposal(null);
+      setProposalCtx(null);
+      setFormatSavedMsg(
+        share
+          ? locale === "ko"
+            ? "새 형식을 저장하고 마을에 공유했어요."
+            : "Saved your new format and shared it with the village."
+          : locale === "ko"
+            ? "새 형식을 내 형식으로 저장했어요."
+            : "Saved as your personal format.",
+      );
+    } catch (e) {
+      Alert.alert(locale === "ko" ? "형식 저장 실패" : "Save format failed", (e as Error).message);
     }
   }
 
@@ -393,6 +465,65 @@ export default function Capture() {
                 <PremiumButton label={locale === "ko" ? "그래프 보기" : "See the graph"} variant="secondary" onPress={() => router.push("/")} style={{ flex: 1 }} />
                 <PremiumButton label={locale === "ko" ? "또 담기" : "Capture more"} variant="ghost" onPress={() => setSavedTitle(null)} style={{ flex: 1 }} />
               </View>
+            </PremiumCard>
+          ) : null}
+
+          {/* G3: after an "inbox" capture (no format fit), offer an AI-proposed
+              new clipper format. Opt-in: nothing runs until the user taps. */}
+          {proposalCtx || proposal || formatSavedMsg ? (
+            <PremiumCard style={styles.proposalPanel}>
+              {formatSavedMsg ? (
+                <Text variant="body" color="brand">{formatSavedMsg}</Text>
+              ) : proposal ? (
+                <View style={{ gap: spacing.xs }}>
+                  <Text variant="caption" color="brand" style={styles.eyebrow}>
+                    {locale === "ko" ? "새 형식 제안" : "Proposed new format"}
+                  </Text>
+                  <Text variant="body" style={{ fontWeight: "600" }}>
+                    {(locale === "ko" ? proposal.name.ko : proposal.name.en) || proposal.name.en || proposal.name.ko}
+                  </Text>
+                  <Text variant="subtle" color="textMuted">
+                    {(locale === "ko" ? proposal.what.ko : proposal.what.en) || proposal.what.en}
+                  </Text>
+                  <Text variant="subtle" color="textSubtle">
+                    {locale === "ko" ? `기준 종류: ${proposal.baseKind}` : `Base kind: ${proposal.baseKind}`}
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
+                    <PremiumButton
+                      label={locale === "ko" ? "내 형식으로 저장" : "Save as mine"}
+                      variant="secondary"
+                      onPress={() => saveProposed(false)}
+                      style={{ flex: 1 }}
+                    />
+                    <PremiumButton
+                      label={locale === "ko" ? "저장하고 공유" : "Save & share"}
+                      variant="primary"
+                      onPress={() => saveProposed(true)}
+                      style={{ flex: 1 }}
+                    />
+                  </View>
+                  <Pressable onPress={() => { setProposal(null); setProposalCtx(null); }} hitSlop={4} style={{ marginTop: 4 }}>
+                    <Text variant="caption" color="textSubtle">{locale === "ko" ? "안 만들래요" : "Not now"}</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={{ gap: spacing.xs }}>
+                  <Text variant="subtle" color="textMuted">
+                    {locale === "ko"
+                      ? "이 자료에 딱 맞는 형식이 없네요. AI가 새 형식을 제안할까요?"
+                      : "No format fit this well. Want the AI to propose a new one?"}
+                  </Text>
+                  <PremiumButton
+                    label={
+                      proposing
+                        ? (locale === "ko" ? "제안 만드는 중..." : "Drafting...")
+                        : (locale === "ko" ? "새 형식 제안받기" : "Propose a new format")
+                    }
+                    variant="secondary"
+                    onPress={runPropose}
+                  />
+                </View>
+              )}
             </PremiumCard>
           ) : null}
 
@@ -848,6 +979,15 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(114,242,199,0.06)",
     borderColor: "rgba(114,242,199,0.22)",
     borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+  },
+  proposalPanel: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderLeftColor: semantic.brand,
+    borderLeftWidth: 3,
     borderRadius: radii.md,
     padding: spacing.md,
   },
