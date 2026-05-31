@@ -16,9 +16,10 @@ import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, spacing } from "@/lib/theme/tokens";
 import { CHARACTERS } from "@/lib/characters";
 import { useImaginePulse } from "@/components/motion/useSignatureMotion";
+import { IslandArt, ShardArt } from "@/components/art/IslandArt";
 import { WorkerSprite } from "@/components/art/WorkerSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { ContextPill } from "@/components/premium";
@@ -48,6 +49,7 @@ export default function Imagine() {
   const [result, setResult] = useState<ParsedImagine | null>(null);
   const [saving, setSaving] = useState(false);
   const companion = useCompanionMoment();
+  const hasResult = (phase === "result" || phase === "saved") && result !== null;
 
   // Seed the prompt once from a graph-node entry (pack §7).
   const [seeded, setSeeded] = useState(false);
@@ -111,21 +113,56 @@ export default function Imagine() {
     setPhase("input");
   }
 
+  function developFurther() {
+    if (!result) {
+      reset();
+      return;
+    }
+    setDraft([result.title, result.worldline, result.nextStep].filter(Boolean).join("\n\n"));
+    setResult(null);
+    setPhase("input");
+  }
+
+  const heroSpeech =
+    phase === "saved"
+      ? locale === "ko"
+        ? "마을에 잘 보관했어요. 다음 장면도 이어볼까요?"
+        : "It's tucked into the village. Want to keep building?"
+      : hasResult
+        ? locale === "ko"
+          ? "멋진 생각이에요! 이 장면을 저장할까요?"
+          : "Lovely thought. Should we save this scene?"
+        : phase === "generating"
+          ? locale === "ko"
+            ? "떠오른 생각을 밤빛 장면으로 엮는 중이에요."
+            : "I'm weaving that thought into a night-lit scene."
+          : locale === "ko"
+            ? "작은 생각을 던져보세요. 제가 장면으로 펼쳐볼게요."
+            : "Toss me a small thought. I'll unfold it into a scene.";
+
+  const primaryActionLabel =
+    phase === "saved"
+      ? locale === "ko" ? "지식 창고 열기" : "Open wiki"
+      : hasResult
+        ? locale === "ko" ? "마을에 저장" : "Save to village"
+        : phase === "generating"
+          ? locale === "ko" ? "상상하는 중..." : "Imagining..."
+          : locale === "ko" ? "상상하기 ✨" : "Imagine ✨";
+
+  const secondaryActionLabel =
+    hasResult
+      ? locale === "ko" ? "더 발전시키기" : "Develop further"
+      : locale === "ko" ? "입력 정리" : "Clear";
+
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Header — Vela hero */}
         <View style={styles.header}>
-          <View style={styles.velaSpriteSlot}>
-            <Animated.View style={{ opacity: velaPulse.opacity, transform: [{ scale: velaPulse.scale }] }}>
-              <WorkerSprite id="vela" size={56} />
-            </Animated.View>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
-              {locale === "ko" ? "공상 작업실" : "Imagine workshop"}
+          <View>
+            <Text variant="caption" color="brand" style={styles.eyebrow}>
+              {locale === "ko" ? "03. 공상 놀이터" : "03. Imagine playground"}
             </Text>
-            <Text variant="heading">{locale === "ko" ? "그 생각, 펼쳐볼까요?" : "Want to lay that out?"}</Text>
+            <Text variant="heading">{locale === "ko" ? "생각을 밤빛 장면으로" : "Turn a thought into a scene"}</Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.xs }}>
               {locale === "ko" ? `${vela.name.ko} · ${vela.role.ko}` : `${vela.name.en} · ${vela.role.en}`}
             </Text>
@@ -139,13 +176,57 @@ export default function Imagine() {
           </View>
         ) : null}
 
+        <View style={styles.sceneShell}>
+          <View style={styles.sceneRail} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            {["⌂", "✦", "⌕", "◇", "▣"].map((icon, index) => (
+              <View key={icon} style={[styles.railButton, index === 0 ? styles.railButtonActive : null]}>
+                <Text variant="body" style={styles.railIcon}>{icon}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.sceneStage}>
+            <View style={styles.sceneGlow} />
+            <IslandArt id="imagine" size={292} style={styles.sceneIsland} />
+            <Animated.View style={[styles.sceneVela, { opacity: velaPulse.opacity, transform: [{ scale: velaPulse.scale }] }]}>
+              <View style={styles.velaReadabilityHalo} />
+              <WorkerSprite id="vela" size={96} />
+            </Animated.View>
+            <View style={styles.speechBubble}>
+              <View style={styles.speechTail} />
+              <Text variant="body" style={styles.speechText}>{heroSpeech}</Text>
+            </View>
+          </View>
+
+          <View style={styles.heroActions}>
+            <Button
+              label={primaryActionLabel}
+              variant="primary"
+              loading={phase === "generating" || saving}
+              disabled={phase === "generating" || saving}
+              onPress={phase === "saved" ? () => router.push("/wiki") : hasResult ? handleSave : handleGenerate}
+              style={styles.heroButton}
+            />
+            <Button
+              label={secondaryActionLabel}
+              variant="secondary"
+              disabled={phase === "generating"}
+              onPress={hasResult ? developFurther : reset}
+              style={styles.heroButton}
+            />
+          </View>
+        </View>
+
         {/* Input panel — hidden once a result is showing */}
         {phase === "input" || phase === "generating" ? (
           <View style={styles.promptCard}>
-            <Text variant="body" style={{ color: cosmic.dreamPink, marginBottom: spacing.xs }}>
+            <Text variant="caption" color="brand" style={styles.panelTitle}>
+              {locale === "ko" ? "생각을 던져보세요..." : "Toss in a thought..."}
+            </Text>
+            <Text variant="body" style={{ color: cosmic.moonWhite, marginBottom: spacing.xs, fontWeight: "600" }}>
               {locale === "ko"
-                ? "아직 말이 안 되어도 괜찮아요. 떠오른 장면을 하나 던져주세요."
-                : "It doesn't have to make sense yet. Just toss a scene you saw in your head."}
+                ? "만약 내가 작은 로봇 마음의 도서관을 만든다면?"
+                : "What if I built a tiny library for a robot heart?"}
             </Text>
             <TextInput
               multiline
@@ -157,17 +238,20 @@ export default function Imagine() {
               style={styles.promptInput}
               accessibilityLabel={locale === "ko" ? "공상 입력" : "Imagine input"}
             />
-            <Button
-              label={
-                phase === "generating"
-                  ? locale === "ko" ? "장면으로 펼치는 중…" : "Unfolding into scenes…"
-                  : locale === "ko" ? "장면으로 펼치기" : "Lay it out as scenes"
-              }
-              variant="primary"
-              disabled={draft.trim().length === 0 || phase === "generating"}
-              loading={phase === "generating"}
-              onPress={handleGenerate}
-            />
+            <View style={styles.previewPanel}>
+              <Text variant="caption" color="textMuted">{locale === "ko" ? "생성될 장면" : "Scene seeds"}</Text>
+              <View style={styles.previewStrip}>
+                {[0, 1].map((index) => (
+                  <View key={index} style={styles.previewTile}>
+                    <IslandArt id={index === 0 ? "imagine" : "inspiration"} size={86} />
+                    <View style={styles.previewFooter}>
+                      <ShardArt id="imagine_pink" size={18} />
+                      <Text variant="subtle" color="textMuted">0{index + 1}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
           </View>
         ) : null}
 
@@ -235,22 +319,13 @@ export default function Imagine() {
                     ? "지식 창고에서 다시 찾아볼 수 있어요."
                     : "You can find it again in your wiki."}
                 </Text>
-                <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
-                  <Button label={locale === "ko" ? "지식 창고 열기" : "Open wiki"} variant="secondary" onPress={() => router.push("/wiki")} />
-                  <Button label={locale === "ko" ? "또 펼치기" : "Unfold again"} variant="secondary" onPress={reset} />
-                </View>
               </View>
             ) : (
-              <View style={{ gap: spacing.sm }}>
-                <Button
-                  label={locale === "ko" ? "마을에 공상 조각으로 저장" : "Save to the village"}
-                  variant="primary"
-                  loading={saving}
-                  disabled={saving}
-                  onPress={handleSave}
-                />
-                <Button label={locale === "ko" ? "다시 펼치기" : "Unfold again"} variant="secondary" onPress={reset} />
-              </View>
+              <Text variant="subtle" color="textMuted" style={styles.resultHint}>
+                {locale === "ko"
+                  ? "저장과 발전 액션은 위쪽 장면 무대에서 바로 이어갈 수 있어요."
+                  : "Save or develop this scene from the stage actions above."}
+              </Text>
             )}
           </View>
         ) : null}
@@ -266,7 +341,8 @@ export default function Imagine() {
 const styles = StyleSheet.create({
   scroll: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
   companionFlash: { position: "absolute", bottom: 40, right: 20 },
-  header: { flexDirection: "row", gap: spacing.md, alignItems: "center" },
+  header: { gap: spacing.xs },
+  eyebrow: { letterSpacing: 1.2, color: cosmic.dreamPink },
   velaSpriteSlot: {
     width: 64, height: 64,
     borderRadius: radii.md,
@@ -276,9 +352,136 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   contextPillWrap: { marginTop: spacing.xs },
+  sceneShell: {
+    position: "relative",
+    overflow: "hidden",
+    minHeight: 470,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: "rgba(255,159,214,0.28)",
+    backgroundColor: "rgba(7,10,24,0.66)",
+    shadowColor: cosmic.dreamPink,
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  sceneRail: {
+    position: "absolute",
+    left: spacing.sm,
+    top: spacing.sm,
+    zIndex: 6,
+    gap: spacing.sm,
+    padding: spacing.xs,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: "rgba(141,152,184,0.24)",
+    backgroundColor: "rgba(13,21,48,0.86)",
+  },
+  railButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(141,152,184,0.16)",
+    backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  railButtonActive: {
+    borderColor: "rgba(167,139,250,0.78)",
+    backgroundColor: "rgba(167,139,250,0.26)",
+  },
+  railIcon: { color: cosmic.moonWhite, fontWeight: "800" },
+  sceneStage: {
+    minHeight: 352,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+  },
+  sceneGlow: {
+    position: "absolute",
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: "rgba(255,159,214,0.12)",
+    shadowColor: cosmic.dreamPink,
+    shadowOpacity: 0.5,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  sceneIsland: {
+    marginTop: spacing.md,
+    opacity: 0.98,
+  },
+  sceneVela: {
+    position: "absolute",
+    left: 52,
+    bottom: 64,
+    zIndex: 4,
+    width: 112,
+    height: 112,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  velaReadabilityHalo: {
+    position: "absolute",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: "rgba(255,159,214,0.52)",
+    backgroundColor: "rgba(7,10,24,0.58)",
+    shadowColor: cosmic.dreamPink,
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  speechBubble: {
+    position: "absolute",
+    right: spacing.md,
+    bottom: 92,
+    width: 188,
+    minHeight: 82,
+    justifyContent: "center",
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.72)",
+    backgroundColor: "rgba(247,248,255,0.94)",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    zIndex: 5,
+  },
+  speechTail: {
+    position: "absolute",
+    left: -10,
+    bottom: 22,
+    width: 0,
+    height: 0,
+    borderTopWidth: 8,
+    borderBottomWidth: 8,
+    borderRightWidth: 11,
+    borderTopColor: "transparent",
+    borderBottomColor: "transparent",
+    borderRightColor: "rgba(247,248,255,0.94)",
+  },
+  speechText: {
+    color: cosmic.space900,
+    fontWeight: "700",
+    lineHeight: 21,
+  },
+  heroActions: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
+  heroButton: {
+    minHeight: 52,
+    borderRadius: radii.sm,
+  },
   promptCard: {
-    backgroundColor: "rgba(255,159,214,0.06)",
-    borderColor: "rgba(255,159,214,0.18)",
+    backgroundColor: "rgba(13,21,48,0.82)",
+    borderColor: "rgba(255,159,214,0.24)",
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.lg,
@@ -288,20 +491,54 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
   },
+  panelTitle: {
+    color: cosmic.dreamPink,
+    letterSpacing: 1,
+  },
   promptInput: {
     minHeight: 110,
     color: cosmic.moonWhite,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderColor: semantic.border,
+    backgroundColor: "rgba(7,10,24,0.72)",
+    borderColor: "rgba(141,152,184,0.34)",
     borderWidth: 1,
-    borderRadius: radii.md,
+    borderRadius: radii.sm,
     padding: spacing.md,
     textAlignVertical: "top",
     fontSize: 15,
   },
+  previewPanel: {
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  previewStrip: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  previewTile: {
+    flex: 1,
+    minHeight: 126,
+    overflow: "hidden",
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.38)",
+    backgroundColor: "rgba(7,10,24,0.84)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: spacing.sm,
+  },
+  previewFooter: {
+    width: "100%",
+    minHeight: 32,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(167,139,250,0.2)",
+  },
   card: {
-    backgroundColor: semantic.surface,
-    borderColor: semantic.border,
+    backgroundColor: "rgba(13,21,48,0.88)",
+    borderColor: "rgba(141,152,184,0.34)",
     borderWidth: 1,
     borderLeftWidth: 3,
     borderRadius: radii.md,
@@ -315,5 +552,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.lg,
+  },
+  resultHint: {
+    textAlign: "center",
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
   },
 });
