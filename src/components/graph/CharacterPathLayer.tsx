@@ -44,9 +44,11 @@ interface Props {
   hidden?: boolean;
   /** Locale for the self-talk bubble copy. */
   locale?: "en" | "ko";
+  /** Rendered character height in graph pixels. */
+  spriteSize?: number;
 }
 
-const SPRITE = 28;
+const DEFAULT_SPRITE = 22;
 // Constant walking pace (px per ms) — each worker's period is DERIVED from its
 // route length, so a worker on a long tour never sprints to hold a fixed period.
 const SPEED = 0.032;
@@ -61,7 +63,7 @@ const PHASE: Record<WorkerId, number> = {
   secondb: 0, archi: 1500, gadi: 3000, lulu: 4500, momo: 6000, vela: 7500, lumi: 2200,
 };
 
-export function CharacterPathLayer({ commutes, hidden, locale = "ko" }: Props) {
+export function CharacterPathLayer({ commutes, hidden, locale = "ko", spriteSize = DEFAULT_SPRITE }: Props) {
   // Which worker is currently muttering, and the line it's saying. One at a time.
   const [bubble, setBubble] = useState<{ id: WorkerId; line: string } | null>(null);
 
@@ -80,6 +82,7 @@ export function CharacterPathLayer({ commutes, hidden, locale = "ko" }: Props) {
           key={c.id}
           commute={c}
           locale={locale}
+          spriteSize={spriteSize}
           line={bubble?.id === c.id ? bubble.line : null}
           onTap={() => setBubble({ id: c.id, line: pickMonologue(c.id, locale, Math.random()) })}
         />
@@ -94,11 +97,13 @@ export function CharacterPathLayer({ commutes, hidden, locale = "ko" }: Props) {
 function Worker({
   commute,
   locale,
+  spriteSize,
   line,
   onTap,
 }: {
   commute: Commute;
   locale: "en" | "ko";
+  spriteSize: number;
   line: string | null;
   onTap: () => void;
 }) {
@@ -134,16 +139,16 @@ function Worker({
   const pose = walkerRoutePose(t, route, { arc: ARC, dwell: DWELL });
 
   return (
-    <View style={[styles.spriteSlot, { left: pose.x - SPRITE / 2, top: pose.y - SPRITE / 2 }]}>
+    <View style={[styles.spriteSlot, { width: spriteSize, height: spriteSize, left: pose.x - spriteSize / 2, top: pose.y - spriteSize / 2 }]}>
       <Pressable
         onPress={onTap}
         hitSlop={18}
         accessibilityRole="button"
         accessibilityLabel={locale === "ko" ? `${getPersona(id).name.ko} 혼잣말 듣기` : `Hear ${getPersona(id).name.en} think aloud`}
       >
-        <WorkerSprite id={id} size={SPRITE} facing={pose.facing} paused={pose.resting} />
+        <WorkerSprite id={id} size={spriteSize} facing={pose.facing} paused={pose.resting} />
       </Pressable>
-      {line ? <SpeechBubble text={line} /> : null}
+      {line ? <SpeechBubble text={line} spriteSize={spriteSize} /> : null}
     </View>
   );
 }
@@ -151,9 +156,9 @@ function Worker({
 // Small pixel speech bubble that floats just above the worker (tail points
 // down at it). Non-interactive so it never eats the next tap. Matches the
 // village name-plate style (pixel font, mint border on dark).
-function SpeechBubble({ text }: { text: string }) {
+function SpeechBubble({ text, spriteSize }: { text: string; spriteSize: number }) {
   return (
-    <View style={styles.bubbleWrap} pointerEvents="none">
+    <View style={[styles.bubbleWrap, { bottom: spriteSize + 4, left: spriteSize / 2 - BUBBLE_W / 2 }]} pointerEvents="none">
       <View style={styles.bubble}>
         <Text style={styles.bubbleText} numberOfLines={3}>{text}</Text>
       </View>
@@ -165,15 +170,11 @@ function SpeechBubble({ text }: { text: string }) {
 const styles = StyleSheet.create({
   spriteSlot: {
     position: "absolute",
-    width: SPRITE,
-    height: SPRITE,
     alignItems: "center",
     justifyContent: "center",
   },
   bubbleWrap: {
     position: "absolute",
-    bottom: SPRITE + 4, // sit just above the sprite
-    left: SPRITE / 2 - BUBBLE_W / 2, // center the fixed-width bubble over it
     width: BUBBLE_W,
     alignItems: "center",
   },
