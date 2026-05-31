@@ -153,7 +153,8 @@ export default function Journal() {
   async function handleSignOut(): Promise<void> {
     try {
       await signOut();
-      router.replace("/");
+      // Straight to /sign-in so we don't flash the graph with a stale session.
+      router.replace("/sign-in");
     } catch (e) {
       Alert.alert("Sign-out failed", (e as Error).message);
     }
