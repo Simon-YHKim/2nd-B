@@ -3,7 +3,28 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-01 / 메뉴 재설계 Phase 4 — 마을→도메인 필터 records (#86)
+## Latest — 2026-06-01 / 메인화면 UX — 마을 간격·크기 + 첫진입 모달 잠금 (#88)
+
+### 무엇을 / 왜
+사용자 라이브 테스트 피드백 (UX 배치 1/4):
+1. 마을 6개가 빽빽 → `world-layout.ts` `RING2` 360→400 + `NavGraph` 섬 아트 1.7→1.5(`ISLAND_ART_SCALE`). 주관적 — 라이브 보고 조정 가능.
+2. 첫진입 '아직 마을이 조용해요' 카드가 뒤 그래프 눌리던 것 → 전체화면 dim 백드롭(`pointerEvents="auto"`, `zIndex 100`)으로 잠금. 닫기는 카드 컨트롤(✕/먼저 둘러볼게요)로만.
+
+### 바뀐 파일
+- `src/components/graph/world-layout.ts` — RING2 400
+- `src/components/graph/NavGraph.tsx` — ISLAND_ART_SCALE 1.5
+- `src/app/index.tsx` — emptyGraphBackdrop (모달 잠금)
+
+### 검증
+- npm run verify: jest **663/663 (66 suites)**, lint 0, C1~C12
+
+### 다음 / 되돌리기
+- 다음(이 배치): **C** 로딩 문구 컨셉화 → **B** 캐릭터 말풍선 → **D** Phase 5
+- revert: PR #88 단독.
+
+---
+
+## 2026-06-01 / 메뉴 재설계 Phase 4 — 마을→도메인 필터 records (#86)
 
 ### 무엇을 / 왜
 마을 이름↔도착지 불일치 해소 (§4). 불일치 3개 마을이 records 도메인 필터 뷰로 진입:
