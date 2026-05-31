@@ -34,7 +34,7 @@ interface Props {
   hidden?: boolean;
 }
 
-const SPRITE = 24;
+const SPRITE = 28;
 // Constant walking pace (px per ms) — each worker's period is DERIVED from its
 // route length, so a worker on a long tour never sprints to hold a fixed period.
 const SPEED = 0.045;
