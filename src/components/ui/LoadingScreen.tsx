@@ -1,7 +1,8 @@
 // LoadingScreen — phase-driven typewriter, adaptive timing, opacity FADE-OUT.
 //
-// "내 머릿속의 열일하는 세포들" (docs/DESIGN.md). 25 messages across 5
-// build phases (Soma → Neuron → Cortex → Cerebrum → Ready), each ~1.5s.
+// 밤빛 조각마을이 깨어나는 동안 일꾼 세포들이 분주하다 (docs/DESIGN.md). 25
+// messages across 5 build phases (밤하늘 → 마을 섬 → 길 → 나의 중심 → 환영),
+// each ~1.5s — the cosmic pixel graph village, not a literal brain.
 //
 // Behavior:
 //   - Logo starts at opacity 1 and fades OUT to 0 over MIN_INTRO_MS as
@@ -21,36 +22,36 @@ import { CosmicBackground } from "@/components/premium";
 const logo = require("../../../public/assets/2ndb-refine/auth/loading_core_orb_premium.png");
 
 const MESSAGES: readonly string[] = [
-  // Phase 1 — Soma
-  "Soma 형성 중...",
-  "영차영차! 단백질 블록 운반 중.",
-  "자재 반입 완료! 일꾼 세포 투입.",
-  "읏차! 튼튼한 코어 빚는 중.",
-  "세포 조립 라인 풀가동!",
-  // Phase 2 — Neuron
-  "Neuron 형성 중...",
-  "쫙쫙! 축삭돌기 연장 중.",
-  "찌릿! 통신 케이블 연결.",
-  "바쁘다 바빠! 시냅스 땜질 중.",
-  "신경 회로 엉키지 않게 조심조심!",
-  // Phase 3 — Cortex
-  "Cortex 형성 중...",
-  "꾹꾹! 뇌 주름 접는 중.",
-  "표면적을 넓혀라! 세포들 뜀박질.",
-  "고급 정보 구역 뼈대 세우기.",
-  "차곡차곡! 빈틈없이 피질 쌓기.",
-  // Phase 4 — Cerebrum
-  "Cerebrum 형성 중...",
-  "탁! 메인 컨트롤 룸 점등.",
-  "좌우뇌 통신 완료! 중앙 다리 연결.",
-  "쓱싹쓱싹, 지휘소 대청소 중.",
-  "뇌 조립 막바지! 최종 점검.",
-  // Phase 5 — Ready
-  "사용자의 생각을 받아들일 준비 중...",
-  "수신 안테나 쫙! 아이디어 대기.",
-  "신경망 스탠바이! 환영 게이트 개방.",
-  "꿀꺽. 일꾼들 긴장하며 대기 선 열쇠.",
-  "두근두근! 멋진 생각 기대 중!",
+  // Phase 1 — 밤하늘 (the cosmic night canvas)
+  "밤하늘 펼치는 중...",
+  "영차영차! 별가루 한 줌 뿌리는 중.",
+  "우주 바닥 다 깔았다! 일꾼 세포 투입.",
+  "읏차! 어둠에 첫 불빛 한 점 심는 중.",
+  "마을 들어설 자리, 반짝반짝 닦는 중!",
+  // Phase 2 — 마을 섬 (the floating district islands)
+  "마을 섬 빚는 중...",
+  "흙 한 줌 두 줌, 동네 땅 다지기.",
+  "여섯 동네 기둥 세우는 중!",
+  "바쁘다 바빠! 지붕에 픽셀 한 칸씩.",
+  "섬이 둥실, 하늘 위로 띄우는 중.",
+  // Phase 3 — 길 (the paths between villages)
+  "마을과 마을, 길 잇는 중...",
+  "쫙쫙! 빛나는 오솔길 늘이는 중.",
+  "조각과 조각, 실 한 가닥씩 연결.",
+  "찌릿! 끊긴 길 이어 붙이는 중.",
+  "길 엉키지 않게 조심조심!",
+  // Phase 4 — 나의 중심 (the center lights up)
+  "나의 중심 불 켜는 중...",
+  "탁! 마을 한가운데 등대 점등.",
+  "사방 동네로 빛 보내는 중!",
+  "쓱싹쓱싹, 중심 광장 대청소.",
+  "마을 채비 막바지! 최종 점검.",
+  // Phase 5 — 환영 (ready to welcome the first piece)
+  "당신의 조각을 기다리는 중...",
+  "안테나 쫙! 새 이야기 수신 대기.",
+  "일꾼들 환영 채비 끝, 문 여는 중.",
+  "꿀꺽. 첫 조각 받을 두 손 모으고 대기.",
+  "두근두근! 당신의 멋진 생각, 기대 중!",
 ] as const;
 
 // Minimum time the intro plays before we'll allow the ready transition
