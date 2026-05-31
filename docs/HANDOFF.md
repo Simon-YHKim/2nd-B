@@ -3,7 +3,64 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-01 / G3 공유 클리퍼 형식 + relevance 수정 (feat/g3-clipper-templates)
+## Latest — 2026-06-01 / 세션 종료 핸드오프 (G3 머지 + 보안수정 + gstack v1.55)
+
+### 어디까지 왔나
+- main HEAD: `1ae98c7`
+- 이번 세션 머지 PR: **#100** (G3 공유 클리퍼 형식 + relevance 수정), **#101** (공유 형식 이름 프롬프트-인젝션 sanitize)
+- `0027` 마이그레이션 **prod 적용 완료** (clipper_templates, RLS 4정책, 보안 어드바이저 클린)
+- 테스트: **700/700 (71 suites) green**, CI(lint+verify) green
+- working tree: clean (`.claude/launch.json`, `.tmp_hq_pack/`만 미추적)
+- Gemini 라이브 확인 (G1 chat + G2 clipper-classify, edge fn 경유 200 OK)
+- gstack 업그레이드: v0.15.9.0 → **v1.55.0.0**
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj` · edge fn `gemini-proxy`(v5 ACTIVE) · secret `GEMINI_API_KEY` 설정됨(라이브)
+- repo Variables: `EXPO_PUBLIC_LLM_MODE=live` + `EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true`
+- Web(GitHub Pages): <https://simon-yhkim.github.io/2nd-B/>
+- 마이그레이션 경로: `db/migrations/` 파일 + CI `supabase-dry-run`(sql) → prod 적용은 Supabase MCP `apply_migration`(사용자 승인 후)
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | 형식 관리 UI — 내/커뮤니티 형식 목록·편집·삭제·공유토글 (`template-queries.ts` 준비됨) | medium | ⭐ G3 사용성 완성 |
+| B | 분류기가 형식별 `aiProperties`까지 채우기 — 지금은 name+baseKind 힌트만 | medium | 형식 실제 값 활용 |
+| C | 커뮤니티 형식 트리거 매칭 시 default_tags/target 자동 머지 | small | |
+| D | `clipper-templates.ts` `what` 문자열 em dash 제거(UI 노출 대비, DESIGN.md) | small | |
+
+### 적용 중인 정책 (영구)
+1. `npm ci --legacy-peer-deps`; 최신 main→브랜치→`npm run verify` green→PR→CI green→**squash merge**→main 동기화.
+2. GPT 공동작업 — 머지 전 항상 최신 main 재검증. 핸드오프는 `docs/HANDOFF.md` 누적.
+3. **API 키/시크릿 직접 입력 금지** — 사용자 위임(평문 노출 키는 Google이 leaked 차단 → 교체 필수).
+4. 마이그레이션 prod 적용은 사용자 승인 후 Supabase MCP. force push/rebase -i/reset --hard·`.env`·`.claude/settings.local.json` 스테이징 금지.
+5. 모든 LLM은 `callGemini` 경유(C1/C3/C9). semantic.* 토큰만, hex/gradient/glassmorphism/pill chip/em dash 금지. 금지 어휘(임상 표현).
+
+### 핵심 파일 위치
+```
+src/lib/wiki/clipper-templates.ts        번들 8개 정본 형식(오프라인 기준)
+src/lib/wiki/template-queries.ts         clipper_templates CRUD + 공유토글 (0027)
+src/lib/wiki/propose-template.ts         AI 새 형식 제안(빌더/파서 + C-vocab 가드)
+src/lib/wiki/classify-clipper.ts         분류 + 공유형식 메뉴 주입(이름 sanitize)
+src/lib/wiki/capture.ts                  captureFromMarkdown + relevance 1..5 스케일
+src/app/capture.tsx                      inbox 캡처 후 제안 UI(opt-in 저장/공유)
+db/migrations/0027_clipper_templates.sql 공유 형식 테이블 + RLS
+src/lib/llm/gemini.ts                    callGemini/callAdvisor (edge fn 라우팅)
+```
+
+### 검증
+```bash
+npm run verify   # lint + type + i18n + lexicon + llm-boundary + constraints + jest(700)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A 작업(형식 관리 UI)부터 권장
+```
+
+---
+
+## 2026-06-01 / G3 공유 클리퍼 형식 + relevance 수정 (#100)
 
 ### 무엇을 / 왜 (Vision 축 2 — 개인 비서 기반)
 **G3**: 기존 8개 형식에 안 맞는 자료를 만나면 AI가 **새 클리퍼 형식 제안** → 사용자 확인 → 개인저장(공유는 옵트인). 공유분은 모든 사용자가 읽음(커뮤니티 형식). 분류기는 본인+공유 형식을 메뉴 힌트로 읽음(없으면 번들 8개로 fail-open).
