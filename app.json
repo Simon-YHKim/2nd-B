@@ -4,10 +4,6 @@
     "slug": "2nd-brain",
     "owner": "simon_k",
     "version": "0.0.1",
-    "runtimeVersion": { "policy": "appVersion" },
-    "updates": {
-      "url": "https://u.expo.dev/2nd-brain"
-    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "secondbrain",
@@ -17,7 +13,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#070A18",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -33,13 +29,14 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#070A18",
           "android": {
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

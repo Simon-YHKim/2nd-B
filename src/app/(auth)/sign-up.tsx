@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { View, StyleSheet, Alert, Pressable, ScrollView } from "react-native";
+import { Image, View, StyleSheet, Alert, Pressable, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -12,6 +12,8 @@ import { JudgeBadge } from "@/components/auth/JudgeBadge";
 import { semantic, spacing } from "@/lib/theme/tokens";
 import { ageInYears, signUpWithEmail, AgeGateError } from "@/lib/supabase/auth";
 import { isJudgeEmail } from "@/lib/judge/domains";
+
+const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
 export default function SignUp() {
   const { t, i18n } = useTranslation("auth");
@@ -51,7 +53,7 @@ export default function SignUp() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <View style={styles.brandRow}>
@@ -65,8 +67,13 @@ export default function SignUp() {
               <Text variant="caption" color="brand">{locale === "ko" ? "EN" : "한국어"}</Text>
             </Pressable>
           </View>
-          <Text variant="heading" style={styles.title}>{t("signUp.title")}</Text>
-          <Text variant="body" color="textMuted">{t("signUp.subtitle")}</Text>
+          <View style={styles.heroRow}>
+            <View style={styles.heroCopy}>
+              <Text variant="heading" style={styles.title}>{t("signUp.title")}</Text>
+              <Text variant="body" color="textMuted">{t("signUp.subtitle")}</Text>
+            </View>
+            <Image source={authHero} style={styles.heroImg} resizeMode="contain" />
+          </View>
           {judge ? <View style={styles.badgeWrap}><JudgeBadge /></View> : null}
         </View>
         <View style={styles.form}>
@@ -128,7 +135,7 @@ export default function SignUp() {
           </Link>
         </View>
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 
@@ -145,9 +152,12 @@ function ChecklistItem({ ok, label }: { ok: boolean; label: string }) {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl },
-  header: { gap: spacing.xs, marginBottom: spacing.xl },
+  header: { gap: spacing.sm, marginBottom: spacing.lg },
   brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  title: { marginTop: spacing.xs },
+  heroRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  heroCopy: { flex: 1, gap: spacing.xs },
+  heroImg: { width: 112, height: 112 },
+  title: { marginTop: 0 },
   badgeWrap: { marginTop: spacing.sm },
   form: { gap: spacing.sm },
   fieldGroup: { gap: spacing.sm },

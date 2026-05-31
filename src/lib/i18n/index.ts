@@ -40,7 +40,7 @@ export function initI18n(): typeof i18next {
     ns: [...NAMESPACES],
     defaultNS: "common",
     interpolation: { escapeValue: false },
-    compatibilityJSON: "v4",
+    compatibilityJSON: "v3",
   });
   // Persist whenever the user (or any code path) flips the active language.
   i18next.on("languageChanged", (lng) => {
