@@ -18,6 +18,8 @@ type SceneHeroAction = {
 // island, the central desk is roughly 10-11% of the rendered island height; a
 // worker at ~22% reads as about two desk-heights tall.
 const WORKER_TO_ISLAND_SCALE = 0.22;
+const SPEECH_LAYER = 40;
+const CHARACTER_LAYER = 12;
 
 export function SceneHero({
   eyebrow,
@@ -182,7 +184,8 @@ const styles = StyleSheet.create({
   },
   workerWrap: {
     position: "absolute",
-    zIndex: 4,
+    zIndex: CHARACTER_LAYER,
+    elevation: CHARACTER_LAYER,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -206,7 +209,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(247,248,255,0.94)",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    zIndex: 5,
+    zIndex: SPEECH_LAYER,
+    elevation: SPEECH_LAYER,
   },
   bubbleTail: {
     position: "absolute",
