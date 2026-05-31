@@ -166,11 +166,6 @@ export default function Settings() {
             label: locale === "ko" ? "데이터 관리" : "Data management",
             onPress: () => router.push("/data"),
           }}
-          secondaryAction={{
-            label: locale === "ko" ? "지식 창고" : "Knowledge store",
-            variant: "secondary",
-            onPress: () => router.push("/wiki"),
-          }}
           railIcons={["⌂", "⚙", "◇", "▣"]}
         />
 

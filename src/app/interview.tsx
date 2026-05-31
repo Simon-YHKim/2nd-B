@@ -200,15 +200,6 @@ export default function Interview() {
                 ? "해석보다 먼저 듣겠습니다. 어느 시기부터 살펴볼까요?"
                 : "I'll listen before interpreting. Which period should we start with?"
             }
-            primaryAction={{
-              label: PERIOD_LABEL[locale].current,
-              onPress: () => startInterview("current"),
-            }}
-            secondaryAction={{
-              label: PERIOD_LABEL[locale].childhood,
-              variant: "secondary",
-              onPress: () => startInterview("childhood"),
-            }}
             railIcons={["⌂", "◇", "◎", "▣"]}
           />
           <View style={styles.periodGrid}>
