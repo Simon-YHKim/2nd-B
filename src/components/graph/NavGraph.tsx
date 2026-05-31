@@ -58,6 +58,7 @@ import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { TierIcon, DOMAIN_TIER_ICON } from "@/components/art/TierIcon";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { getPersona } from "@/lib/chat/personas";
+import { relatedEdges } from "@/lib/graph/relatedness";
 import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
@@ -120,8 +121,15 @@ export interface NavNode {
 export interface DataNode {
   id: string;
   title: string;
-  /** Which tier-3 wiki node this entry belongs to. Defaults to wiki-daily. */
-  parentId?: "wiki-daily" | "wiki-pro";
+  /**
+   * Which graph node this piece hangs under — a tier-2 village id
+   * ("work" | "relation" | "knowledge" | "records" | "imagine" | "taste")
+   * chosen from the piece's tags, or a tier-3 wiki node. Defaults to
+   * wiki-daily when unknown.
+   */
+  parentId?: string;
+  /** The piece's tags — drives both domain placement and relatedness edges. */
+  tags?: readonly string[];
 }
 
 // Authoritative menu graph. Tier ↑ size ↑ brightness ↑.
@@ -853,8 +861,20 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     for (const [id, p] of dataPositions) {
       list.push({ fromId: p.parentId, toId: id, opacity: 0.12, key: `${p.parentId}->${id}` });
     }
+    // Relatedness edges (2026-05-31): connect pieces that share tags so the
+    // graph shows actual associations between what the user added, not just
+    // the parent→child hierarchy. Only between data nodes currently on stage.
+    const relatable = dataNodes
+      .filter((d) => dataPositions.has(d.id))
+      .map((d) => ({ id: d.id, tags: d.tags ?? [] }));
+    for (const e of relatedEdges(relatable, { minShared: 2, maxPerNode: 3 })) {
+      // Slightly brighter than the faint parent→shard line, scaled by how
+      // many tags they share, so stronger associations read stronger.
+      const opacity = Math.min(0.34, 0.16 + e.weight * 0.06);
+      list.push({ fromId: e.from, toId: e.to, opacity, key: `rel:${e.from}~${e.to}` });
+    }
     return list;
-  }, [dataPositions]);
+  }, [dataPositions, dataNodes]);
 
   // Edge fade-in: when both endpoints have spawned, ramp the edge's
   // 0..1 multiplier to 1 over EDGE_REVEAL_MS. This is what makes the
