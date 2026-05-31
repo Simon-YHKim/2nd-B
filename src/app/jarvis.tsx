@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   emptySecondB: {
     width: 140,
     height: 140,
-    borderRadius: 28,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "rgba(114,242,199,0.38)",
     backgroundColor: "rgba(167,139,250,0.14)",
@@ -533,8 +533,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     maxHeight: "62%",
     backgroundColor: semantic.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
+    borderTopLeftRadius: radii.md,
+    borderTopRightRadius: radii.md,
     borderColor: semantic.border,
     borderWidth: 1,
     padding: spacing.lg,
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     borderWidth: 1,
   },
   userBubble: {

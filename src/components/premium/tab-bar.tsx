@@ -104,7 +104,7 @@ export function PremiumTabBar({ locale = "ko" }: { locale?: "en" | "ko" }) {
             <Pressable
               key={tab.id}
               onPress={() => { if (!active) router.replace(tab.href); }}
-              style={styles.tab}
+              style={[styles.tab, active ? styles.tabActive : null]}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
               accessibilityLabel={locale === "ko" ? tab.ko : tab.en}
@@ -126,15 +126,29 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(9,13,30,0.96)",
+    backgroundColor: "rgba(7,10,24,0.96)",
     borderTopWidth: 1,
     borderTopColor: "rgba(114,242,199,0.22)",
     shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.25,
-    shadowRadius: 14,
+    shadowOpacity: 0.32,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: -2 },
   },
-  row: { flexDirection: "row", height: TAB_BAR_HEIGHT, alignItems: "center" },
-  tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2, paddingTop: spacing.xs },
-  label: { fontSize: 10, letterSpacing: 0.3 },
+  row: { flexDirection: "row", height: TAB_BAR_HEIGHT, alignItems: "center", paddingHorizontal: 8, gap: 4 },
+  tab: {
+    flex: 1,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    paddingTop: spacing.xs,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  tabActive: {
+    backgroundColor: "rgba(114,242,199,0.1)",
+    borderColor: "rgba(114,242,199,0.42)",
+  },
+  label: { fontSize: 10, letterSpacing: 0, fontWeight: "600" },
 });

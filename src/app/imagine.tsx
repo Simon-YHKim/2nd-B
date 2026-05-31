@@ -280,9 +280,13 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,159,214,0.06)",
     borderColor: "rgba(255,159,214,0.18)",
     borderWidth: 1,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     padding: spacing.lg,
     gap: spacing.sm,
+    shadowColor: cosmic.dreamPink,
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
   },
   promptInput: {
     minHeight: 110,
@@ -309,7 +313,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(114,242,199,0.06)",
     borderColor: "rgba(114,242,199,0.22)",
     borderWidth: 1,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     padding: spacing.lg,
   },
 });

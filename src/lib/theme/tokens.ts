@@ -50,8 +50,8 @@ export const cosmic = {
   // of inline rgba(). Edge / panel / glow surfaces of the graph village.
   edgeDefault: "rgba(141,152,184,0.28)", // --edge-default
   edgeRecent: "#FFD166", // --edge-recent (= pixelLamp)
-  panelBg: "rgba(13,21,48,0.88)", // --panel-bg
-  panelBorder: "rgba(141,152,184,0.28)", // --panel-border
+  panelBg: "rgba(13,21,48,0.9)", // --panel-bg
+  panelBorder: "rgba(141,152,184,0.34)", // --panel-border
   coreGlow: "rgba(167,139,250,0.42)", // --core-glow
   mintGlow: "rgba(114,242,199,0.34)", // --mint-glow
 } as const;
@@ -122,9 +122,9 @@ export const lightCosmic = {
 // different values.
 export const semantic = {
   background: cosmic.space950,
-  surface: "rgba(167,139,250,0.07)", // soul-violet washed, like the handoff cards
-  surfaceAlt: "rgba(114,242,199,0.06)", // mint-washed, slightly more "active" surface
-  border: cosmic.lineDim,
+  surface: "rgba(13,21,48,0.84)", // glassy night panel, aligned to premium village cards
+  surfaceAlt: "rgba(22,33,62,0.68)", // graph-slate wash for nested controls
+  border: "rgba(141,152,184,0.3)",
   text: cosmic.moonWhite,
   textMuted: "#C9D0E6", // slightly above mist-gray for body text
   textSubtle: cosmic.mistGray,

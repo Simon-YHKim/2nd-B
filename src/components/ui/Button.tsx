@@ -1,43 +1,60 @@
-import { Pressable, type PressableProps, StyleSheet } from "react-native";
+import { Pressable, type PressableProps, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 
-import { radii, spacing, typography } from "@/lib/theme/tokens";
+import { cosmic, radii, spacing, typography } from "@/lib/theme/tokens";
 import { useThemePalette } from "@/lib/theme/ThemeContext";
 import { Text } from "./Text";
 
 type Variant = "primary" | "secondary" | "danger";
 
-export interface ButtonProps extends Omit<PressableProps, "children"> {
+export interface ButtonProps extends Omit<PressableProps, "children" | "style"> {
   label: string;
   variant?: Variant;
   loading?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function Button({ label, variant = "primary", loading, disabled, style, ...rest }: ButtonProps) {
   const palette = useThemePalette();
   const isDisabled = disabled || loading;
-  // Same variants, but the bg/fg colours track the active theme so a
-  // light-mode primary stays high-contrast on the light background.
   const bg: Record<Variant, string> = {
     primary: palette.brand,
-    secondary: palette.surfaceAlt,
+    secondary: "rgba(167,139,250,0.14)",
+    danger: "rgba(255,122,144,0.16)",
+  };
+  const border: Record<Variant, string> = {
+    primary: palette.brand,
+    secondary: "rgba(167,139,250,0.52)",
     danger: palette.danger,
   };
   const fg: Record<Variant, string> = {
     primary: palette.background,
     secondary: palette.text,
-    danger: "#ffffff",
+    danger: palette.danger,
+  };
+  const glow: Record<Variant, string> = {
+    primary: palette.brand,
+    secondary: cosmic.soulViolet,
+    danger: palette.danger,
   };
   return (
     <Pressable
       {...rest}
       disabled={isDisabled}
-      style={[
+      accessibilityRole="button"
+      style={({ pressed }) => [
         styles.base,
-        { backgroundColor: bg[variant], opacity: isDisabled ? 0.5 : 1 },
-        style as never,
+        {
+          backgroundColor: bg[variant],
+          borderColor: border[variant],
+          shadowColor: glow[variant],
+        },
+        variant === "primary" ? styles.primaryGlow : styles.softGlow,
+        pressed && !isDisabled ? styles.pressed : null,
+        isDisabled ? { backgroundColor: "rgba(141,152,184,0.08)", borderColor: palette.border, shadowOpacity: 0 } : null,
+        style,
       ]}
     >
-      <Text style={{ color: fg[variant], fontSize: typography.sizes.md, fontWeight: "600" }}>
+      <Text numberOfLines={1} style={[styles.label, { color: isDisabled ? palette.textSubtle : fg[variant] }]}>
         {loading ? "…" : label}
       </Text>
     </Pressable>
@@ -46,10 +63,29 @@ export function Button({ label, variant = "primary", loading, disabled, style, .
 
 const styles = StyleSheet.create({
   base: {
+    minHeight: 44,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: radii.md,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  primaryGlow: {
+    shadowOpacity: 0.36,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 2,
+  },
+  softGlow: {
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  pressed: { opacity: 0.82, transform: [{ scale: 0.985 }] },
+  label: {
+    fontSize: typography.sizes.md,
+    fontWeight: "700",
+    letterSpacing: 0,
   },
 });
