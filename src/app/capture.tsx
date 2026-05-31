@@ -80,25 +80,30 @@ const MODE_LABEL: Record<Mode, { en: string; ko: string }> = {
   file: { en: "File", ko: "문서" },
 };
 
+const TRACK_OPTIONS: { id: WikiTrack; en: string; ko: string }[] = [
+  { id: "daily", en: "Daily Wiki", ko: "일상 Wiki" },
+  { id: "pro", en: "Pro Wiki", ko: "Pro Wiki" },
+];
+
 const MODE_HELP: Record<Mode, { en: string; ko: string }> = {
   journal: {
-    en: "Today's piece — a reflection saved to your records, with an optional Advisor reply.",
-    ko: "오늘의 조각 — 기록에 저장되는 성찰. 원하면 AI 조언도 받을 수 있어요.",
+    en: "Today's piece: a reflection saved to your records, with an optional Advisor reply.",
+    ko: "오늘의 조각: 기록에 저장되는 성찰. 원하면 AI 조언도 받을 수 있어요.",
   },
   memo: {
     en: "Jot a short note. Tags and track get added automatically when you toss it.",
     ko: "한 줄 메모. 던지면 일꾼 세포가 알아서 분류·태그를 달아요.",
   },
   linkclip: {
-    en: "Paste a URL, or paste the markdown your Web Clipper gave you — we detect which.",
+    en: "Paste a URL, or paste the markdown your Web Clipper gave you. We'll detect which.",
     ko: "URL을 붙이거나, Web Clipper가 만든 마크다운을 붙여 넣으세요. 알아서 구분해요.",
   },
   ocr: {
-    en: "Pick an image (or use the camera) — the cells will read the text out.",
+    en: "Pick an image or use the camera. The workers will read the text out.",
     ko: "이미지를 고르세요. 일꾼 세포가 그 위 글자를 읽어 옵니다.",
   },
   file: {
-    en: "Pick a PDF / DOCX / .txt — text is extracted and indexed.",
+    en: "Pick a PDF / DOCX / .txt. Text is extracted and indexed.",
     ko: "PDF · DOCX · .txt를 고르세요. 텍스트가 추출되어 색인됩니다.",
   },
 };
@@ -147,6 +152,25 @@ function ModeGlyph({ mode, color }: { mode: Mode; color: string }) {
         </Svg>
       );
   }
+}
+
+function TrackGlyph({ id, color }: { id: WikiTrack; color: string }) {
+  const sw = 1.8;
+  if (id === "daily") {
+    return (
+      <Svg width={16} height={16} viewBox="0 0 16 16" style={styles.trackGlyph}>
+        <Path d="M3 7.4 L8 3.2 L13 7.4" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <Path d="M5 7.2 L5 13 L11 13 L11 7.2" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </Svg>
+    );
+  }
+  return (
+    <Svg width={16} height={16} viewBox="0 0 16 16" style={styles.trackGlyph}>
+      <Path d="M5.3 6.1 L5.3 4.8 C5.3 4.1 5.8 3.6 6.5 3.6 L9.5 3.6 C10.2 3.6 10.7 4.1 10.7 4.8 L10.7 6.1" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
+      <Rect x="3" y="6" width="10" height="6.8" rx="1.2" stroke={color} strokeWidth={sw} fill="none" />
+      <Line x1="3" y1="9.1" x2="13" y2="9.1" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+    </Svg>
+  );
 }
 
 export default function Capture() {
@@ -583,24 +607,23 @@ export default function Capture() {
               {locale === "ko" ? "어디로 갈까요?" : "Which wiki?"}
             </Text>
             <View style={styles.trackRow}>
-              <Pressable
-                style={[styles.trackChip, track === "daily" && styles.trackChipActive]}
-                onPress={() => setTrack("daily")}
-                hitSlop={4}
-              >
-                <Text style={[styles.trackChipText, track === "daily" && styles.trackChipTextActive]}>
-                  {locale === "ko" ? "🏠 일상 Wiki" : "🏠 Daily Wiki"}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.trackChip, track === "pro" && styles.trackChipActive]}
-                onPress={() => setTrack("pro")}
-                hitSlop={4}
-              >
-                <Text style={[styles.trackChipText, track === "pro" && styles.trackChipTextActive]}>
-                  {locale === "ko" ? "💼 Pro Wiki" : "💼 Pro Wiki"}
-                </Text>
-              </Pressable>
+              {TRACK_OPTIONS.map((option) => {
+                const active = track === option.id;
+                const color = active ? semantic.background : semantic.textMuted;
+                return (
+                  <Pressable
+                    key={option.id}
+                    style={[styles.trackChip, active && styles.trackChipActive]}
+                    onPress={() => setTrack(option.id)}
+                    hitSlop={4}
+                  >
+                    <TrackGlyph id={option.id} color={color} />
+                    <Text style={[styles.trackChipText, active && styles.trackChipTextActive]}>
+                      {option[locale]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
           ) : null}
@@ -654,8 +677,8 @@ export default function Capture() {
               </Text>
               <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
                 {locale === "ko"
-                  ? `현재 Lv${journalGate.currentLevel} → Lv${journalGate.requiredLevel} 필요`
-                  : `Currently Lv${journalGate.currentLevel} → Lv${journalGate.requiredLevel} required`}
+                  ? `현재 Lv${journalGate.currentLevel} / 필요 Lv${journalGate.requiredLevel}`
+                  : `Current Lv${journalGate.currentLevel} / Lv${journalGate.requiredLevel} required`}
               </Text>
               <View style={{ marginTop: spacing.md }}>
                 <Button
@@ -689,7 +712,7 @@ export default function Capture() {
             <View style={styles.fieldGroup}>
               {streak.current > 0 ? (
                 <View style={styles.streakRow}>
-                  <Text variant="caption" color="brand">{streak.capturedToday ? "🔥" : "·"}</Text>
+                  <View style={[styles.streakDot, streak.capturedToday && styles.streakDotOn]} />
                   <Text variant="subtle" color="textMuted">
                     {locale === "ko"
                       ? `${streak.current}일 연속 기록${streak.capturedToday ? "" : " (오늘은 아직)"}`
@@ -707,7 +730,7 @@ export default function Capture() {
                 {topic.length === 0 ? (
                   <Pressable onPress={() => setTopic(dailyPrompt(locale))} hitSlop={4} style={{ marginTop: spacing.xs }}>
                     <Text variant="caption" color="brand">
-                      {locale === "ko" ? "→ 이 질문을 주제로" : "→ Use this as topic"}
+                      {locale === "ko" ? "이 질문을 주제로" : "Use this as topic"}
                     </Text>
                   </Pressable>
                 ) : null}
@@ -715,7 +738,7 @@ export default function Capture() {
               <Input
                 value={topic}
                 onChangeText={setTopic}
-                placeholder={locale === "ko" ? "주제 (선택) — 한 줄로" : "Topic (optional) — one line"}
+                placeholder={locale === "ko" ? "주제 (선택): 한 줄로" : "Topic (optional): one line"}
                 autoCapitalize="sentences"
               />
               <Input
@@ -734,15 +757,15 @@ export default function Capture() {
               <Pressable onPress={() => setShowExtras((v) => !v)} hitSlop={4}>
                 <Text variant="caption" color="brand">
                   {showExtras
-                    ? (locale === "ko" ? "▾ 결론 칸 닫기" : "▾ Hide conclusion field")
-                    : (locale === "ko" ? "▸ 결론 한 줄로 (선택)" : "▸ Add a one-line conclusion (optional)")}
+                    ? (locale === "ko" ? "결론 칸 닫기" : "Hide conclusion field")
+                    : (locale === "ko" ? "결론 한 줄로 (선택)" : "Add a one-line conclusion (optional)")}
                 </Text>
               </Pressable>
               {showExtras ? (
                 <Input
                   value={conclusion}
                   onChangeText={setConclusion}
-                  placeholder={locale === "ko" ? "결론 — 오늘의 한 줄 깨달음" : "Conclusion — today's takeaway"}
+                  placeholder={locale === "ko" ? "결론: 오늘의 한 줄 깨달음" : "Conclusion: today's takeaway"}
                   multiline
                   numberOfLines={2}
                   textAlignVertical="top"
@@ -825,12 +848,12 @@ export default function Capture() {
           {mode === "ocr" ? (
             <View style={styles.actionRow}>
               <Button
-                label={locale === "ko" ? "📷 카메라" : "📷 Camera"}
+                label={locale === "ko" ? "카메라" : "Camera"}
                 variant="secondary"
                 onPress={() => runOcr("camera")}
               />
               <Button
-                label={locale === "ko" ? "🖼️ 갤러리" : "🖼️ Library"}
+                label={locale === "ko" ? "갤러리" : "Library"}
                 variant="secondary"
                 onPress={() => runOcr("library")}
               />
@@ -847,7 +870,7 @@ export default function Capture() {
           {mode === "file" ? (
             <View style={styles.actionRow}>
               <Button
-                label={locale === "ko" ? "📂 파일 선택" : "📂 Pick file"}
+                label={locale === "ko" ? "파일 선택" : "Pick file"}
                 variant="secondary"
                 onPress={runFilePick}
               />
@@ -863,11 +886,11 @@ export default function Capture() {
               </Text>
               {pickedFile.textContent ? (
                 <Text variant="subtle" color="textMuted" style={{ marginTop: 6 }}>
-                  {locale === "ko" ? "텍스트 추출됨 — 본문에 채워졌어요" : "Text extracted — filled into body"}
+                  {locale === "ko" ? "텍스트 추출됨: 본문에 채워졌어요" : "Text extracted: filled into body"}
                 </Text>
               ) : (
                 <Text variant="subtle" color="textSubtle" style={{ marginTop: 6 }}>
-                  {locale === "ko" ? "바이너리 파일 — 메타데이터만 저장" : "Binary — metadata only"}
+                  {locale === "ko" ? "바이너리 파일: 메타데이터만 저장" : "Binary: metadata only"}
                 </Text>
               )}
             </View>
@@ -892,7 +915,7 @@ export default function Capture() {
               {tagsEditable.length === 0
                 ? (locale === "ko"
                     ? "비워 두면 던질 때 자동으로 달아줘요. +로 직접 추가할 수도 있어요."
-                    : "Leave empty and we'll tag it on toss — or add your own with +.")
+                    : "Leave empty and we'll tag it on toss, or add your own with +.")
                 : (locale === "ko" ? "태그를 누르면 삭제됩니다." : "Tap a tag to remove.")}
             </Text>
           </View>
@@ -989,6 +1012,22 @@ const styles = StyleSheet.create({
   captureFlash: { position: "absolute", bottom: 40, right: 20 },
   // Journal-mode (일기) bits, ported from /journal.
   streakRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  streakDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    backgroundColor: "transparent",
+  },
+  streakDotOn: {
+    borderColor: semantic.brand,
+    backgroundColor: semantic.brand,
+    shadowColor: semantic.brand,
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+  },
   dailyPromptCard: {
     backgroundColor: semantic.surfaceAlt,
     borderRadius: radii.md,
@@ -1058,6 +1097,9 @@ const styles = StyleSheet.create({
   trackRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   trackChip: {
     flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: spacing.xs,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: radii.md,
@@ -1067,6 +1109,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   trackChipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
+  trackGlyph: { width: 16, height: 16 },
   trackChipText: { color: semantic.textMuted, fontSize: typography.sizes.sm, fontWeight: "600" },
   trackChipTextActive: { color: semantic.background, fontWeight: "700" },
   modeRow: {
