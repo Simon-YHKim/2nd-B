@@ -31,6 +31,15 @@ export interface CaptureInput {
    * can show the badge.
    */
   track?: "daily" | "pro" | null;
+  /**
+   * Extra frontmatter the AI clipper classifier filled by reading the content
+   * (target-category, actionable-takeaway, summary, and kind-specific props like
+   * topic-area / doc-type). Merged into sources.frontmatter so storage matches
+   * the clipper template format. See classify-clipper.ts.
+   */
+  extraFrontmatter?: Record<string, unknown> | null;
+  /** AI-estimated 0..1 relevance; overrides the frontmatter-derived value. */
+  simonRelevance?: number | null;
 }
 
 export interface CaptureResult {
@@ -56,9 +65,11 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
   // under `wiki_track` — keeps the schema flat (no new column required) and
   // matches the phase1 pattern of storing classifier metadata in jsonb.
   const mergedTags = mergeTags(built.payload.tags, input.userTags ?? null);
-  const mergedFrontmatter = input.track
-    ? { ...built.payload.frontmatter, wiki_track: input.track }
-    : built.payload.frontmatter;
+  const mergedFrontmatter = {
+    ...built.payload.frontmatter,
+    ...(input.track ? { wiki_track: input.track } : {}),
+    ...(input.extraFrontmatter ?? {}),
+  };
 
   const source = await createSource({
     user_id: input.userId,
@@ -68,7 +79,7 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     storage_path: path,
     frontmatter: mergedFrontmatter,
     tags: mergedTags,
-    simon_relevance: built.payload.simon_relevance,
+    simon_relevance: input.simonRelevance ?? built.payload.simon_relevance,
   });
 
   return {
