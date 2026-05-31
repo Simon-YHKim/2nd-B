@@ -8,7 +8,7 @@
 // piece enters the knowledge layer / graph.
 
 import { useEffect, useState } from "react";
-import { Animated, ScrollView, StyleSheet, View, TextInput, Pressable, Alert } from "react-native";
+import { Animated, ScrollView, StyleSheet, View, TextInput, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
@@ -19,7 +19,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { CHARACTERS } from "@/lib/characters";
 import { useImaginePulse } from "@/components/motion/useSignatureMotion";
-import { CharacterArt } from "@/components/art/CosmicPixel";
+import { WorkerSprite } from "@/components/art/WorkerSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { ContextPill } from "@/components/premium";
 import { callGemini } from "@/lib/llm/gemini";
@@ -118,7 +118,7 @@ export default function Imagine() {
         <View style={styles.header}>
           <View style={styles.velaSpriteSlot}>
             <Animated.View style={{ opacity: velaPulse.opacity, transform: [{ scale: velaPulse.scale }] }}>
-              <CharacterArt id="vela" size={56} />
+              <WorkerSprite id="vela" size={56} />
             </Animated.View>
           </View>
           <View style={{ flex: 1 }}>

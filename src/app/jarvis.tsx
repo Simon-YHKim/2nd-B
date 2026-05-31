@@ -17,7 +17,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router, useLocalSearchParams } from "expo-router";
-import { SvgXml } from "react-native-svg";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -29,7 +28,6 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { parseSourceCitations } from "@/lib/chat/sources";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
-import { SECONDB_CHAT_XML } from "@/components/art/secondbChatXml";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { PremiumAppShell, ContextPill, ReferenceShardCard } from "@/components/premium";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -230,7 +228,9 @@ export default function Jarvis() {
         >
           {turns.length === 0 ? (
             <View style={styles.empty}>
-              <SvgXml xml={SECONDB_CHAT_XML.empty_state} width={260} height={(260 * 260) / 350} />
+              <View style={styles.emptySecondB}>
+                <SecondBSprite state="chat" size={96} float />
+              </View>
               <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.md }}>
                 {t("empty")}
               </Text>
@@ -430,6 +430,20 @@ const styles = StyleSheet.create({
   meter: { alignItems: "flex-end", gap: 2 },
   scroll: { paddingVertical: spacing.md, gap: spacing.sm },
   empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },
+  emptySecondB: {
+    width: 140,
+    height: 140,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.38)",
+    backgroundColor: "rgba(167,139,250,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#A78BFA",
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(8, 12, 24, 0.78)",
