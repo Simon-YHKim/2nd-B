@@ -3,7 +3,27 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-01 / 메뉴 재설계 Phase 5 — 나 허브 (#92)
+## Latest — 2026-06-01 / Gemini 라이브 재연결 (#95)
+
+### 무엇을 / 왜
+배포 사이트가 mock 모드였던 것 → **라이브**. 키는 서버측 유지(공개 번들 인라인 안 됨):
+- `web-deploy.yml`에 `EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION` 빌드 전달 추가 → `callGemini`가 `gemini-proxy` 엣지함수 경유.
+- `gemini.ts` `callAdvisor`(저널 어드바이저)도 라이브에서 엣지함수 경유로 라우팅(직접경로는 그대로 → 테스트 그린).
+- repo Variables `EXPO_PUBLIC_LLM_MODE=live` + `EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true` 설정. `gemini-proxy` ACTIVE(v5), `GEMINI_API_KEY` 시크릿 설정됨.
+
+### 바뀐 파일
+- `.github/workflows/web-deploy.yml` · `src/lib/llm/gemini.ts`
+
+### 검증
+- npm run verify: jest **668/668**, lint 0, C1~C12. 머지·배포 후 세컨비 채팅 실응답 확인.
+
+### 다음 / 되돌리기
+- 다음: **G2** AI clipper 분류(`classifyCapture` 확장) → **G3** `clipper_templates` 레지스트리(8개 시드, AI 제안→사용자 확인→개인저장, 공유 옵트인)
+- revert: PR #95 + Variables `LLM_MODE=mock` 되돌리기.
+
+---
+
+## 2026-06-01 / 메뉴 재설계 Phase 5 — 나 허브 (#92)
 
 ### 무엇을 / 왜
 `/profile`을 3축 '나' 허브로 확장. 묻힌 화면 18개를 축별 칩으로 노출:
