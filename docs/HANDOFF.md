@@ -3,7 +3,26 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-01 / 로딩 문구 컨셉화 (#89)
+## Latest — 2026-06-01 / 캐릭터 혼잣말 말풍선 (#91)
+
+### 무엇을 / 왜
+메인 그래프에서 일꾼(캐릭터) 탭 → 성격별 혼잣말 픽셀 말풍선(~3.6s, 걷는 캐릭터를 따라다님). (UX 배치 3/4)
+
+### 바뀐 파일
+- `src/lib/graph/monologues.ts`(+test, 신규) — 캐릭터별 혼잣말 4줄(ko+en) + 테스트된 `pickMonologue`
+- `src/components/graph/CharacterPathLayer.tsx` — 레이어 box-none + 스프라이트 Pressable + 말풍선
+- `src/components/graph/NavGraph.tsx` — CharacterPathLayer 에 locale 전달
+
+### 검증
+- npm run verify: jest **668/668 (67 suites)**, lint 0, lexicon + C1~C12
+
+### 다음 / 되돌리기
+- 다음(배치 마지막): **D** Phase 5 (나 허브 — /profile 확장)
+- revert: PR #91 단독. 혼잣말 문구는 monologues.ts에서 손봄.
+
+---
+
+## 2026-06-01 / 로딩 문구 컨셉화 (#89)
 
 ### 무엇을 / 왜
 로딩 타이프라이터 25개 문구가 옛 생물학적 뇌 조립(Soma/Neuron/Cortex/Cerebrum) 메타포였음 → 밤빛 조각마을 컨셉(밤하늘→마을 섬→길→나의 중심→환영)으로 전면 교체. 일꾼 세포 장난기 유지, forbidden lexicon·em dash 없음. (UX 배치 2/4)
