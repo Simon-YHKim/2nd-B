@@ -51,6 +51,10 @@ export function SceneHero({
   const ownerHaloSize = ownerSize + 18;
   const ownerLeft = Math.max(12, Math.round(islandSize * 0.12));
   const ownerBottom = Math.max(14, Math.round(islandSize * 0.1));
+  const ownerGroundWidth = Math.round(ownerSize * 0.76);
+  const ownerGroundHeight = Math.max(7, Math.round(ownerSize * 0.18));
+  const ownerGroundBottom = Math.max(4, Math.round(ownerSize * 0.09));
+  const ownerSpriteBottom = ownerGroundBottom + Math.round(ownerGroundHeight * 0.45);
   const bubbleWidth = Math.min(220, Math.max(168, Math.round(islandSize * 0.78)));
   const maxBubbleLeft = Math.max(8, islandSize - bubbleWidth - 8);
   const bubbleLeft = Math.max(8, Math.min(maxBubbleLeft, ownerLeft + ownerHaloSize / 2 - 28));
@@ -94,15 +98,28 @@ export function SceneHero({
             >
               <View
                 style={[
-                  styles.workerHalo,
+                  styles.workerGround,
                   {
-                    width: ownerHaloSize,
-                    height: ownerHaloSize,
-                    borderRadius: ownerHaloSize / 2,
+                    width: ownerGroundWidth,
+                    height: ownerGroundHeight,
+                    borderRadius: ownerGroundHeight / 2,
+                    left: (ownerHaloSize - ownerGroundWidth) / 2,
+                    bottom: ownerGroundBottom,
                   },
                 ]}
               />
-              <WorkerSprite id={worker} size={ownerSize} paused />
+              <WorkerSprite
+                id={worker}
+                size={ownerSize}
+                paused
+                style={[
+                  styles.workerSprite,
+                  {
+                    left: (ownerHaloSize - ownerSize) / 2,
+                    bottom: ownerSpriteBottom,
+                  },
+                ]}
+              />
             </View>
             <View style={[styles.bubble, { left: bubbleLeft, bottom: bubbleBottom, width: bubbleWidth }]}>
               <Text variant="body" style={styles.bubbleText}>{speech}</Text>
@@ -189,15 +206,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  workerHalo: {
+  workerGround: {
     position: "absolute",
+    alignSelf: "center",
+    backgroundColor: "rgba(2,4,10,0.64)",
     borderWidth: 1,
-    borderColor: "rgba(255,159,214,0.52)",
-    backgroundColor: "rgba(7,10,24,0.58)",
-    shadowColor: cosmic.dreamPink,
-    shadowOpacity: 0.42,
-    shadowRadius: 14,
+    borderColor: "rgba(114,242,199,0.34)",
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.34,
+    shadowRadius: 7,
     shadowOffset: { width: 0, height: 0 },
+  },
+  workerSprite: {
+    position: "absolute",
   },
   bubble: {
     position: "absolute",

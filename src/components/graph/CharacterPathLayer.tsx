@@ -59,6 +59,9 @@ const BUBBLE_MS = 3600;  // how long a tapped worker's self-talk lingers
 const BUBBLE_W = 156;    // fixed bubble width so it can center over the sprite
 const ACTIVE_SPEECH_LAYER = 60;
 const WORKER_LAYER = 2;
+const FOOT_INSET_RATIO = 0.08;
+const SHADOW_WIDTH_RATIO = 0.78;
+const SHADOW_HEIGHT_RATIO = 0.18;
 // Stable per-worker phase (ms) so the village never steps in lockstep. Keyed by
 // worker id so the offset survives remounts (global-clock continuity).
 const PHASE: Record<WorkerId, number> = {
@@ -139,30 +142,56 @@ function Worker({
   const now = reduced ? 0 : Date.now();
   const t = ((now + phase) % period) / period; // 0..1 around the loop
   const pose = walkerRoutePose(t, route, { arc: ARC, dwell: DWELL });
+  const ground = walkerRoutePose(t, route, { arc: 0, dwell: DWELL });
+  const lift = Math.max(0, ground.y - pose.y);
+  const footInset = Math.max(1, Math.round(spriteSize * FOOT_INSET_RATIO));
+  const shadowWidth = Math.max(10, Math.round(spriteSize * SHADOW_WIDTH_RATIO));
+  const shadowHeight = Math.max(3, Math.round(spriteSize * SHADOW_HEIGHT_RATIO));
+  const slotWidth = Math.round(spriteSize * 1.28);
+  const slotHeight = spriteSize + ARC + shadowHeight + footInset + 4;
+  const groundY = slotHeight - 1;
+  const spriteTop = Math.max(0, groundY - spriteSize - lift + footInset);
+  const spriteLeft = (slotWidth - spriteSize) / 2;
+  const shadowLeft = (slotWidth - shadowWidth) / 2;
+  const bubbleBottom = slotHeight - spriteTop + 4;
 
   return (
     <View
       style={[
         styles.spriteSlot,
         {
-          width: spriteSize,
-          height: spriteSize,
-          left: pose.x - spriteSize / 2,
-          top: pose.y - spriteSize / 2,
+          width: slotWidth,
+          height: slotHeight,
+          left: ground.x - slotWidth / 2,
+          top: ground.y - slotHeight,
           zIndex: line ? ACTIVE_SPEECH_LAYER : WORKER_LAYER,
           elevation: line ? ACTIVE_SPEECH_LAYER : WORKER_LAYER,
         },
       ]}
     >
+      <View
+        style={[
+          styles.groundShadow,
+          {
+            width: shadowWidth,
+            height: shadowHeight,
+            borderRadius: shadowHeight / 2,
+            left: shadowLeft,
+            top: groundY - shadowHeight,
+            opacity: pose.resting ? 0.62 : Math.max(0.34, 0.56 - lift * 0.04),
+          },
+        ]}
+      />
       <Pressable
         onPress={onTap}
         hitSlop={18}
+        style={[styles.spritePressable, { left: spriteLeft, top: spriteTop, width: spriteSize, height: spriteSize }]}
         accessibilityRole="button"
         accessibilityLabel={locale === "ko" ? `${getPersona(id).name.ko} 혼잣말 듣기` : `Hear ${getPersona(id).name.en} think aloud`}
       >
         <WorkerSprite id={id} size={spriteSize} facing={pose.facing} paused={pose.resting} />
       </Pressable>
-      {line ? <SpeechBubble text={line} spriteSize={spriteSize} /> : null}
+      {line ? <SpeechBubble text={line} bottom={bubbleBottom} slotWidth={slotWidth} /> : null}
     </View>
   );
 }
@@ -170,9 +199,9 @@ function Worker({
 // Small pixel speech bubble that floats just above the worker (tail points
 // down at it). Non-interactive so it never eats the next tap. Matches the
 // village name-plate style (pixel font, mint border on dark).
-function SpeechBubble({ text, spriteSize }: { text: string; spriteSize: number }) {
+function SpeechBubble({ text, bottom, slotWidth }: { text: string; bottom: number; slotWidth: number }) {
   return (
-    <View style={[styles.bubbleWrap, { bottom: spriteSize + 4, left: spriteSize / 2 - BUBBLE_W / 2 }]} pointerEvents="none">
+    <View style={[styles.bubbleWrap, { bottom, left: slotWidth / 2 - BUBBLE_W / 2 }]} pointerEvents="none">
       <View style={styles.bubble}>
         <Text style={styles.bubbleText} numberOfLines={3}>{text}</Text>
       </View>
@@ -190,6 +219,21 @@ const styles = StyleSheet.create({
     position: "absolute",
     alignItems: "center",
     justifyContent: "center",
+  },
+  spritePressable: {
+    position: "absolute",
+    zIndex: 2,
+    elevation: 2,
+  },
+  groundShadow: {
+    position: "absolute",
+    backgroundColor: "rgba(2,4,10,0.68)",
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.34)",
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.3,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 0 },
   },
   bubbleWrap: {
     position: "absolute",
