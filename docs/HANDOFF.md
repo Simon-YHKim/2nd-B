@@ -3,7 +3,32 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-05-31 (밤) / Phase 3 하드닝 — 탭 라우트 정합 + 크래시 수정 (#83)
+## Latest — 2026-06-01 / 메뉴 재설계 Phase 4 — 마을→도메인 필터 records (#86)
+
+### 무엇을 / 왜
+마을 이름↔도착지 불일치 해소 (§4). 불일치 3개 마을이 records 도메인 필터 뷰로 진입:
+- 일과 성장(work) → `/records?domain=work` (was /trinity)
+- 관계와 사람(relation) → `/records?domain=relation` (was /interview)
+- 취향과 영감(taste) → `/records?domain=taste` (was /insights)
+- 기록 보관소 → `/records`(전체 아카이브) · 배움과 지식→/wiki · 공상→/imagine 유지 · relation tier-3→/interview 유지(시기별 인터뷰)
+
+### 바뀐 파일
+- `src/lib/persona/evidence.ts`(+test) — `OriginShard.domain` (mergeEvidence 가 `domainForTags(tags,title)`로 계산)
+- `src/app/records.tsx` — `?domain=` 읽어 마을 칩 행 필터(전체+6) + SceneHero eyebrow 반영
+- `src/lib/graph/relatedness.ts` — `VILLAGE_LABEL` 단일 소스
+- `src/components/graph/NavGraph.tsx` — work/relation/taste href → `/records?domain=`
+
+### 검증
+- npm run verify: jest **663/663 (66 suites)**, lint 0, C1~C12
+
+### 다음 / 되돌리기
+- 다음 1순위: **Phase 5** (나 허브 — `/profile` 확장, 묻힌 화면 + /trinity·/insights 분석도구 수용)
+- ⚠️ 인터림: `/trinity` 그래프 진입점 없어짐(work 마을이 옮겨감) → Phase 5에서 나 허브로 재배치. `/insights` 는 `/manual` 에서 도달 가능. 둘 다 라우트 존재(404 없음).
+- revert: PR #86 단독 revert.
+
+---
+
+## 2026-05-31 (밤) / Phase 3 하드닝 — 탭 라우트 정합 + 크래시 수정 (#83)
 
 ### 무엇을 / 왜
 사용자 "시스템적으로 더 만질것 없어?" → Phase 3(#79) 탭 재정의가 드러낸 시스템 이슈 4개 수정:
