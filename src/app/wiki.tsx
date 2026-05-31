@@ -11,7 +11,7 @@ import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshCont
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -245,17 +245,28 @@ export default function Wiki() {
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={semantic.brand} />}
       >
-        <View style={styles.header}>
-          <Text variant="caption" color="brand">
-            2nd-Brain
-          </Text>
-          <Text variant="heading">{locale === "ko" ? "지식 창고" : "Knowledge store"}</Text>
-          <Text variant="body" color="textMuted">
-            {locale === "ko"
-              ? "마을에 저장한 조각을 다시 찾아보는 곳이에요."
-              : "Where you find the pieces you saved to the village."}
-          </Text>
-        </View>
+        <SceneHero
+          eyebrow={locale === "ko" ? "04. 지식 창고" : "04. Knowledge store"}
+          title={locale === "ko" ? "저장한 조각들이 서재가 돼요" : "Saved pieces become a library"}
+          subtitle={locale === "ko" ? "마을에 저장한 조각을 다시 찾아보는 곳" : "Find the pieces you saved to the village"}
+          island="knowledge"
+          worker="momo"
+          speech={
+            locale === "ko"
+              ? "조각들을 정리해뒀어요. 새 조각을 담거나 세컨비에게 물어볼 수 있어요."
+              : "I've kept the pieces in order. Capture a new one or ask SecondB."
+          }
+          primaryAction={{
+            label: t("capture"),
+            onPress: () => router.push("/capture"),
+          }}
+          secondaryAction={{
+            label: locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB",
+            variant: "secondary",
+            onPress: () => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "지식 창고" : "knowledge store" } }),
+          }}
+          railIcons={["⌂", "▤", "⌕", "◇"]}
+        />
 
         {/* Three knowledge facets (premium wiki card thumbnails, asset audit P2):
             Core / Library / Imagine. Core + Imagine open their own screens. */}
@@ -317,20 +328,6 @@ export default function Wiki() {
             accessibilityLabel={locale === "ko" ? "지식 창고 검색" : "Search the knowledge store"}
           />
         ) : null}
-
-        {/* Primary row: the two actions that move you forward — capture a new
-            piece, or hand the whole store to SecondB. */}
-        <View style={styles.actions}>
-          <Link href="/capture" asChild>
-            <Button label={t("capture")} variant="primary" style={styles.actionBtn} />
-          </Link>
-          <Button
-            label={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
-            variant="secondary"
-            style={styles.actionBtn}
-            onPress={() => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "지식 창고" : "knowledge store" } })}
-          />
-        </View>
 
         {/* Utility row: lower-frequency tools sit a step down the hierarchy. */}
         <View style={styles.actionsUtility}>

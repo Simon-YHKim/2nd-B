@@ -30,7 +30,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { PremiumCard, PremiumButton } from "@/components/premium";
@@ -337,18 +337,35 @@ export default function Capture() {
     <PremiumAppShell>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          {/* Header */}
-          <View style={styles.header}>
-            <Text variant="caption" color="brand">2nd-Brain</Text>
-            <Text variant="heading">
-              {locale === "ko" ? "담기" : "Capture"}
-            </Text>
-            <Text variant="body" color="textMuted">
-              {locale === "ko"
-                ? "오늘의 조각(일기)부터 메모·링크·파일·사진까지 — 한곳에서 담아요."
-                : "From today's journal to memos, links, files and photos — capture it all in one place."}
-            </Text>
-          </View>
+          <SceneHero
+            eyebrow={locale === "ko" ? "01. 조각 담기" : "01. Capture"}
+            title={locale === "ko" ? "떠오른 조각을 마을로" : "Send a piece into the village"}
+            subtitle={locale === "ko" ? "일기 · 메모 · 링크 · 파일 · 사진" : "Journal · memo · link · file · photo"}
+            island="records"
+            worker="lulu"
+            speech={
+              savedTitle
+                ? locale === "ko"
+                  ? "새 조각을 챙겼어요. 그래프에서 바로 확인할 수 있어요."
+                  : "I carried the new piece home. You can see it on the graph."
+                : locale === "ko"
+                  ? "아직 거칠어도 괜찮아요. 제가 조각으로 정리해둘게요."
+                  : "It can be rough. I'll carry it home as a piece."
+            }
+            primaryAction={{
+              label: submitting ? (locale === "ko" ? "던지는 중..." : "Tossing...") : (locale === "ko" ? "영차영차 던지기" : "Send to the cells"),
+              loading: submitting,
+              disabled: !canSubmit,
+              onPress: handleSubmit,
+            }}
+            secondaryAction={{
+              label: locale === "ko" ? "입력 정리" : "Clear",
+              variant: "secondary",
+              disabled: submitting,
+              onPress: reset,
+            }}
+            railIcons={["⌂", "✚", "⌁", "▣"]}
+          />
 
           {/* Import success → graph link (journal-capture pack §3/§7) */}
           {savedTitle ? (

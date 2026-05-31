@@ -5,11 +5,10 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View, ActivityIndicator, Alert, RefreshControl } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Link, router } from "expo-router";
+import { router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -68,19 +67,30 @@ export default function Insights() {
   if (!insights || insights.recordCount === 0) {
     return (
       <PremiumAppShell>
-        <View style={styles.center}>
-          <Text variant="heading">
-            {locale === "ko" ? "아직 우리가 뽑아낼 게 없어요" : "Nothing for us to pull yet"}
-          </Text>
-          <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
-            {locale === "ko"
-              ? "며칠 치 일기가 쌓이면 우리가 패턴을 찾기 시작해요."
-              : "Give us a few days of journaling and we'll start seeing patterns."}
-          </Text>
-          <Link href="/journal" asChild>
-            <Button label={locale === "ko" ? "일기 쓰러 가기" : "Go to journal"} variant="primary" />
-          </Link>
-        </View>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <SceneHero
+            eyebrow={locale === "ko" ? "11. 인사이트" : "11. Insights"}
+            title={locale === "ko" ? "아직 뽑아낼 패턴이 작아요" : "Patterns are still small"}
+            subtitle={locale === "ko" ? "며칠 치 기록이 쌓이면 흐름이 보여요" : "A few days of records will reveal the flow"}
+            island="inspiration"
+            worker="lumi"
+            speech={
+              locale === "ko"
+                ? "취향과 반복을 보려면 조각이 조금 더 필요해요. 오늘 하나 남겨볼까요?"
+                : "I need a few more pieces to see taste and repetition. Leave one today?"
+            }
+            primaryAction={{
+              label: locale === "ko" ? "일기 쓰러 가기" : "Go to journal",
+              onPress: () => router.push("/journal"),
+            }}
+            secondaryAction={{
+              label: locale === "ko" ? "담기 열기" : "Open capture",
+              variant: "secondary",
+              onPress: () => router.push("/capture"),
+            }}
+            railIcons={["⌂", "✦", "⌕", "◇"]}
+          />
+        </ScrollView>
       </PremiumAppShell>
     );
   }
@@ -103,17 +113,28 @@ export default function Insights() {
           />
         }
       >
-        <View style={styles.header}>
-          <Text variant="caption" color="brand">
-            {locale === "ko" ? "Core Brain 이 정리한" : "From the cells"}
-          </Text>
-          <Text variant="heading">{locale === "ko" ? "인사이트" : "Insights"}</Text>
-          <Text variant="body" color="textMuted">
-            {locale === "ko"
-              ? "우리가 최근 기록에서 뽑아낸 패턴이에요. AI 호출 없이 즉석에서 계산했어요."
-              : "Patterns we pulled from your recent entries. No LLM call — just us, computing on the spot."}
-          </Text>
-        </View>
+        <SceneHero
+          eyebrow={locale === "ko" ? "11. 인사이트" : "11. Insights"}
+          title={locale === "ko" ? "최근 기록의 흐름 보기" : "See the flow in recent records"}
+          subtitle={locale === "ko" ? "AI 호출 없이 기록에서 바로 계산" : "Computed from records without an LLM call"}
+          island="inspiration"
+          worker="lumi"
+          speech={
+            locale === "ko"
+              ? "반복되는 주제와 최근 결론을 모았어요. 끌리는 흐름을 같이 볼까요?"
+              : "I gathered recurring topics and recent conclusions. Shall we trace the pattern?"
+          }
+          primaryAction={{
+            label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
+            onPress: () => router.push("/journal"),
+          }}
+          secondaryAction={{
+            label: locale === "ko" ? "4영역 보기" : "Four areas",
+            variant: "secondary",
+            onPress: () => router.push("/trinity"),
+          }}
+          railIcons={["⌂", "✦", "⌕", "◇"]}
+        />
 
         <View style={styles.topRow}>
           <View style={styles.statBlock}>
