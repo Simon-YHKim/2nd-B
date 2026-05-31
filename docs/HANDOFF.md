@@ -3,7 +3,24 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-01 / 메인화면 UX — 마을 간격·크기 + 첫진입 모달 잠금 (#88)
+## Latest — 2026-06-01 / 로딩 문구 컨셉화 (#89)
+
+### 무엇을 / 왜
+로딩 타이프라이터 25개 문구가 옛 생물학적 뇌 조립(Soma/Neuron/Cortex/Cerebrum) 메타포였음 → 밤빛 조각마을 컨셉(밤하늘→마을 섬→길→나의 중심→환영)으로 전면 교체. 일꾼 세포 장난기 유지, forbidden lexicon·em dash 없음. (UX 배치 2/4)
+
+### 바뀐 파일
+- `src/components/ui/LoadingScreen.tsx` (MESSAGES + 상단 주석)
+
+### 검증
+- npm run verify: jest **663/663**, lint 0, lexicon + C1~C12
+
+### 다음 / 되돌리기
+- 다음(이 배치): **B** 캐릭터 말풍선 → **D** Phase 5
+- revert: PR #89 단독.
+
+---
+
+## 2026-06-01 / 메인화면 UX — 마을 간격·크기 + 첫진입 모달 잠금 (#88)
 
 ### 무엇을 / 왜
 사용자 라이브 테스트 피드백 (UX 배치 1/4):
