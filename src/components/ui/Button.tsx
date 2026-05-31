@@ -5,6 +5,9 @@ import { useThemePalette } from "@/lib/theme/ThemeContext";
 import { Text } from "./Text";
 
 type Variant = "primary" | "secondary" | "danger";
+const DISABLED_BG = "rgba(141,152,184,0.12)";
+const DISABLED_BORDER = "rgba(141,152,184,0.28)";
+const DISABLED_TEXT = "rgba(232,236,248,0.66)";
 
 export interface ButtonProps extends Omit<PressableProps, "children" | "style"> {
   label: string;
@@ -50,11 +53,11 @@ export function Button({ label, variant = "primary", loading, disabled, style, .
         },
         variant === "primary" ? styles.primaryGlow : styles.softGlow,
         pressed && !isDisabled ? styles.pressed : null,
-        isDisabled ? { backgroundColor: "rgba(141,152,184,0.08)", borderColor: palette.border, shadowOpacity: 0 } : null,
+        isDisabled ? { backgroundColor: DISABLED_BG, borderColor: DISABLED_BORDER, shadowOpacity: 0 } : null,
         style,
       ]}
     >
-      <Text numberOfLines={1} style={[styles.label, { color: isDisabled ? palette.textSubtle : fg[variant] }]}>
+      <Text numberOfLines={1} style={[styles.label, { color: isDisabled ? DISABLED_TEXT : fg[variant] }]}>
         {loading ? "…" : label}
       </Text>
     </Pressable>

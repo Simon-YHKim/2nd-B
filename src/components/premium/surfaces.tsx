@@ -136,6 +136,9 @@ const BTN_FG: Record<BtnVariant, string> = {
   ghost: cosmic.moonWhite,
   danger: cosmic.guardRose,
 };
+const BTN_DISABLED_BG = "rgba(141,152,184,0.12)";
+const BTN_DISABLED_BORDER = "rgba(141,152,184,0.28)";
+const BTN_DISABLED_FG = "rgba(232,236,248,0.66)";
 
 export interface PremiumButtonProps extends Omit<PressableProps, "children" | "style"> {
   label: string;
@@ -154,17 +157,18 @@ export function PremiumButton({ label, variant = "primary", icon, loading, disab
       {...rest}
       disabled={isDisabled}
       accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       style={({ pressed }) => [
         styles.btn,
         full ? { alignSelf: "stretch" } : null,
         { backgroundColor: BTN_BG[variant], borderColor: BTN_BORDER[variant], shadowColor: glowColor },
         variant !== "ghost" ? styles.btnGlow : null,
-        isDisabled ? { opacity: 0.45 } : pressed ? { opacity: 0.82 } : null,
+        isDisabled ? { backgroundColor: BTN_DISABLED_BG, borderColor: BTN_DISABLED_BORDER, shadowOpacity: 0 } : pressed ? { opacity: 0.82 } : null,
         style,
       ]}
     >
       {icon ? <View style={styles.btnIcon}>{icon}</View> : null}
-      <Text style={[styles.btnLabel, { color: BTN_FG[variant] }]}>{loading ? "…" : label}</Text>
+      <Text style={[styles.btnLabel, { color: isDisabled ? BTN_DISABLED_FG : BTN_FG[variant] }]}>{loading ? "…" : label}</Text>
     </Pressable>
   );
 }
