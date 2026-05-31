@@ -10,8 +10,6 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname, router } from "expo-router";
 
-import { PixelButton } from "@/components/art/CosmicPixel";
-
 // Routes that hide the back arrow entirely: only the landing page (the home
 // the arrow points to) + the pre-auth flow. Every other screen — including
 // the bottom-tab destinations — shows it (2026-05-31 user directive: back on
@@ -59,8 +57,10 @@ export function BackArrow() {
         accessibilityLabel="Back"
         style={({ pressed }) => [styles.btn, pressed ? { opacity: 0.7 } : null]}
       >
-        {/* v2 back HUD button (self-contained art) */}
-        <PixelButton kind="back" size={40} />
+        <View style={styles.chevron} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <View style={[styles.chevronStroke, styles.chevronTop]} />
+          <View style={[styles.chevronStroke, styles.chevronBottom]} />
+        </View>
       </Pressable>
     </View>
   );
@@ -76,12 +76,35 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: "center",
     justifyContent: "center",
-    // Glassy circular backing so the arrow never visually merges with text
-    // or icons it floats over (graph-ux-overhaul #7).
-    borderRadius: 20,
-    backgroundColor: "rgba(7,10,24,0.6)",
+    // Premium glass backing so the arrow never visually merges with text.
+    borderRadius: 12,
+    backgroundColor: "rgba(167,139,250,0.16)",
     borderWidth: 1,
-    borderColor: "rgba(141,152,184,0.28)",
-    overflow: "hidden",
+    borderColor: "rgba(114,242,199,0.42)",
+    shadowColor: "#72F2C7",
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  chevron: {
+    width: 14,
+    height: 18,
+    justifyContent: "center",
+  },
+  chevronStroke: {
+    position: "absolute",
+    left: 2,
+    width: 14,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "#72F2C7",
+  },
+  chevronTop: {
+    transform: [{ rotate: "-42deg" }],
+    top: 4,
+  },
+  chevronBottom: {
+    transform: [{ rotate: "42deg" }],
+    bottom: 4,
   },
 });
