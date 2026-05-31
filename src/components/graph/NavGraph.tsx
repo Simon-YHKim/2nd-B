@@ -228,6 +228,31 @@ const VILLAGE_WORKER: Record<string, WorkerId> = {
   taste: "lumi",
 };
 
+type PatrolPoint = { x: number; y: number; angle: number };
+
+function aroundVillage(p: PatrolPoint, radial: number, tangent: number): { x: number; y: number } {
+  const rx = Math.cos(p.angle);
+  const ry = Math.sin(p.angle);
+  const tx = -Math.sin(p.angle);
+  const ty = Math.cos(p.angle);
+  return { x: p.x + rx * radial + tx * tangent, y: p.y + ry * radial + ty * tangent };
+}
+
+function aroundHub(center: { x: number; y: number }, angle: number, radius: number, tangent: number): { x: number; y: number } {
+  const rx = Math.cos(angle);
+  const ry = Math.sin(angle);
+  const tx = -Math.sin(angle);
+  const ty = Math.cos(angle);
+  return { x: center.x + rx * radius + tx * tangent, y: center.y + ry * radius + ty * tangent };
+}
+
+function curvedMid(a: { x: number; y: number }, b: { x: number; y: number }, curve: number): { x: number; y: number } {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  return { x: (a.x + b.x) / 2 + (-dy / len) * curve, y: (a.y + b.y) / 2 + (dx / len) * curve };
+}
+
 function tierSize(t: Tier): number {
   // UI/UX overhaul §5 node sizes (touch target met via hitSlop).
   if (t === 1) return 88;
@@ -529,9 +554,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     const placed = Object.keys(VILLAGE_WORKER)
       .map((id) => {
         const p = positions.get(id);
-        return p ? { id, pt: { x: p.x, y: p.y } } : null;
+        return p ? { id, x: p.x, y: p.y, angle: p.angle } : null;
       })
-      .filter((v): v is { id: string; pt: { x: number; y: number } } => v !== null);
+      .filter((v): v is { id: string; x: number; y: number; angle: number } => v !== null);
 
     const out: Commute[] = [];
     for (let i = 0; i < placed.length; i++) {
@@ -539,12 +564,23 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       const next = placed[(i + 1) % placed.length];
       // village → center → neighbour village → center; the closed ring loops
       // back home, so the worker shuttles between two villages via the hub.
-      out.push({ id: VILLAGE_WORKER[here.id], route: [here.pt, center, next.pt, center] });
+      const side = i % 2 === 0 ? 1 : -1;
+      const herePorch = aroundVillage(here, -34, 22 * side);
+      const hereLane = aroundVillage(here, -92, 48 * side);
+      const hubEntry = aroundHub(center, here.angle, 88, -18 * side);
+      const hubExit = aroundHub(center, next.angle, 88, 18 * side);
+      const nextLane = aroundVillage(next, -92, -48 * side);
+      const nextPorch = aroundVillage(next, -34, -22 * side);
+      const returnArc = curvedMid(nextPorch, herePorch, 54 * side);
+      out.push({
+        id: VILLAGE_WORKER[here.id],
+        route: [herePorch, hereLane, hubEntry, hubExit, nextLane, nextPorch, returnArc],
+      });
     }
 
-    // SecondB tours the hub on a wider patrol: out to every other spoke and back.
-    const tour: { x: number; y: number }[] = [];
-    for (let k = 0; k < placed.length; k += 2) tour.push(center, placed[k].pt);
+    // SecondB circles the hub instead of cutting through it, so the center
+    // feels alive without a large sprite repeatedly crossing the core art.
+    const tour = placed.map((p, k) => aroundHub(center, p.angle, k % 2 === 0 ? 72 : 108, k % 2 === 0 ? 18 : -18));
     out.push({ id: "secondb", route: tour.length >= 2 ? tour : [center, { x: cx + 60, y: cy - 30 }] });
 
     return out;

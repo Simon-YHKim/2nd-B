@@ -119,8 +119,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: cosmic.space950 },
   safe: { flex: 1 },
   padded: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  // ~40px arrow + 8px top inset gap; clears the HUD button row.
-  arrowHeadroom: { paddingTop: spacing.xxl },
+  // 40px arrow + breathing room; keeps the back button lane separate from
+  // each screen's first title/eyebrow row.
+  arrowHeadroom: { paddingTop: 60 },
   // Clears the absolute bottom tab bar (its height) so tab-screen content and
   // bottom inputs aren't covered. SafeAreaView already adds the safe-area
   // inset; this is the bar's own height plus a small gap on top.

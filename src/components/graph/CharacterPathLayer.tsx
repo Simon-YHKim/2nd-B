@@ -49,9 +49,9 @@ interface Props {
 const SPRITE = 28;
 // Constant walking pace (px per ms) — each worker's period is DERIVED from its
 // route length, so a worker on a long tour never sprints to hold a fixed period.
-const SPEED = 0.045;
-const ARC = 7;      // px hop lifted at each leg's mid-point
-const DWELL = 0.18; // rest at each stop, as a fraction of the average leg
+const SPEED = 0.032;
+const ARC = 4;      // small px hop lifted at each leg's mid-point
+const DWELL = 0.08; // brief look-around pause at each stop
 const MIN_PERIOD = 7000; // floor so a short route still ambles
 const BUBBLE_MS = 3600;  // how long a tapped worker's self-talk lingers
 const BUBBLE_W = 156;    // fixed bubble width so it can center over the sprite
