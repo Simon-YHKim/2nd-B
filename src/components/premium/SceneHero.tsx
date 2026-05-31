@@ -14,6 +14,11 @@ type SceneHeroAction = {
   variant?: "primary" | "secondary";
 };
 
+// Character scale is keyed to the village art, not the screen. In the records
+// island, the central desk is roughly 10-11% of the rendered island height; a
+// worker at ~22% reads as about two desk-heights tall.
+const WORKER_TO_ISLAND_SCALE = 0.22;
+
 export function SceneHero({
   eyebrow,
   title,
@@ -40,7 +45,7 @@ export function SceneHero({
   railIcons?: string[];
   style?: StyleProp<ViewStyle>;
 }) {
-  const ownerSize = Math.min(workerSize, Math.max(46, Math.round(islandSize * 0.23)));
+  const ownerSize = Math.min(workerSize, Math.max(44, Math.round(islandSize * WORKER_TO_ISLAND_SCALE)));
   const ownerHaloSize = ownerSize + 18;
   const ownerLeft = Math.max(12, Math.round(islandSize * 0.12));
   const ownerBottom = Math.max(14, Math.round(islandSize * 0.1));

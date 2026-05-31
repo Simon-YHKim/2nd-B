@@ -279,6 +279,11 @@ const CORE_ART_OFFSET = (-CENTER_SIZE * (CORE_ART_SCALE - 1)) / 2;
 // (left/top = (1 - scale)/2 * size).
 const ISLAND_ART_SCALE = 1.5;
 const ISLAND_ART_OFFSET = (1 - ISLAND_ART_SCALE) / 2;
+// Match graph residents to the rendered village art scale. At 22% of the
+// tier-2 island art, a worker reads around twice the height of the records
+// archive desk, consistent with the village detail scale.
+const GRAPH_WORKER_TO_ISLAND_SCALE = 0.22;
+const GRAPH_WORKER_SIZE = Math.round(tierSize(2) * ISLAND_ART_SCALE * GRAPH_WORKER_TO_ISLAND_SCALE);
 
 function seeded(id: string, salt: number): number {
   let h = 5381 + salt * 31;
@@ -1203,7 +1208,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           ABOVE the island/node art (graph-ux #5: were hidden behind islands)
           yet still below the screen-fixed bottom sheet / FAB (#1). When a
           node sheet is open we hide them so nothing floats over the popup. */}
-      <CharacterPathLayer commutes={commutes} hidden={activeId != null} locale={locale} />
+      <CharacterPathLayer commutes={commutes} hidden={activeId != null} locale={locale} spriteSize={GRAPH_WORKER_SIZE} />
 
       </ReAnimated.View>
     </GestureDetector>
