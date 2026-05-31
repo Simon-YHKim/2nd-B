@@ -57,6 +57,7 @@ import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { TierIcon, DOMAIN_TIER_ICON } from "@/components/art/TierIcon";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
+import { getPersona } from "@/lib/chat/personas";
 import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
@@ -935,11 +936,16 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   }
 
   function handleAskSecondB() {
-    // Graph node → chat handoff: pass the node label so the chat opens in
-    // its nodeContext state with a context pill (chat pack §7).
+    // Graph node → chat handoff: pass the node label (context pill, chat pack
+    // §7) AND the domain's companion so the chat opens in that character's
+    // voice (2026-05-31 directive). Center node → SecondB (no worker param).
     const label = activeNode?.label[locale];
+    const worker = activeId ? VILLAGE_WORKER[activeId] : undefined;
     setActiveId(null);
-    router.push(label ? { pathname: "/jarvis", params: { fromNode: label } } : "/jarvis");
+    const params: Record<string, string> = {};
+    if (label) params.fromNode = label;
+    if (worker) params.character = worker;
+    router.push(Object.keys(params).length > 0 ? { pathname: "/jarvis", params } : "/jarvis");
   }
 
   function handleImagine() {
@@ -1230,7 +1236,11 @@ function NodeSheet({
           style={styles.sheetActionBtn}
         />
         <PremiumButton
-          label={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
+          label={
+            locale === "ko"
+              ? `${getPersona(character).name.ko}에게 묻기`
+              : `Ask ${getPersona(character).name.en}`
+          }
           variant="secondary"
           onPress={onAsk}
           style={styles.sheetActionBtn}

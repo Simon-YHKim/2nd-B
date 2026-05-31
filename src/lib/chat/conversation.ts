@@ -26,6 +26,12 @@ export interface SendMessageInput {
   message: string;
   locale: "en" | "ko";
   tier: SubscriptionTier;
+  /**
+   * Optional character voice instruction (from src/lib/chat/personas.ts).
+   * When the user opens chat by tapping a village companion, this keeps the
+   * reply in that character's voice while still grounding on the wiki.
+   */
+  personaHint?: string | null;
 }
 
 export interface SendMessageBlocked {
@@ -106,7 +112,8 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
     sourceLimit: 100,
   });
 
-  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${snapshot.prompt}`;
+  const personaLine = input.personaHint ? `${input.personaHint}\n\n` : "";
+  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${personaLine}${snapshot.prompt}`;
 
   // C1/C3/C9 are enforced by callGemini. Red-zone short-circuit still
   // happens inside callGemini; we just no longer adjust the counter
