@@ -50,6 +50,11 @@ jobs:
           # the Variable EXPO_PUBLIC_LLM_MODE explicitly.
           EXPO_PUBLIC_LLM_MODE: ${{ vars.EXPO_PUBLIC_LLM_MODE || 'mock' }}
           EXPO_PUBLIC_GOOGLE_API_KEY: ${{ vars.EXPO_PUBLIC_GOOGLE_API_KEY }}
+          # Route Gemini through the gemini-proxy Edge Function so the API key
+          # stays server-side (Supabase secret GEMINI_API_KEY) and is NEVER
+          # inlined into the public web bundle. REQUIRED for live web: set repo
+          # Variable EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true alongside LLM_MODE=live.
+          EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: ${{ vars.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || 'false' }}
           EXPO_USE_STATIC: "true"
         run: |
           # base-path (/2nd-B) comes from expo.experiments.baseUrl in app.json,

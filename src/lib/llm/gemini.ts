@@ -405,17 +405,34 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     };
   }
 
-  // Live mode: real Gemini Pro call.
-  const { client, vertex } = getClient();
-  const t0 = Date.now();
-  const res = await client.models.generateContent({
-    model,
-    contents: [
-      { role: "user", parts: [{ text: systemPrompt }] },
-    ],
-  });
-  const latencyMs = Date.now() - t0;
-  const text = res.text ?? "";
+  // Live mode: real Gemini Pro call. Route through the gemini-proxy Edge
+  // Function (key stays server-side) when configured — REQUIRED for the public
+  // web bundle, where a direct @google/genai client would need an inlined key.
+  // Otherwise construct the client directly (native / Vertex).
+  let text: string;
+  let latencyMs: number;
+  let vertex: boolean;
+  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
+    const supabase = getSupabaseClient();
+    const t0 = Date.now();
+    const { data, error } = await supabase.functions.invoke("gemini-proxy", {
+      body: { system: null, user: systemPrompt, model },
+    });
+    latencyMs = Date.now() - t0;
+    if (error) throw error;
+    text = (data as { text?: string } | null)?.text ?? "";
+    vertex = false;
+  } else {
+    const c = getClient();
+    const t0 = Date.now();
+    const res = await c.client.models.generateContent({
+      model,
+      contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
+    });
+    latencyMs = Date.now() - t0;
+    text = res.text ?? "";
+    vertex = c.vertex;
+  }
 
   // OUTPUT SAFETY RE-CLASSIFICATION. Per CSO audit: Pro can emit crisis content
   // (esp. when prompt-injected via knowledge_sources rows or conversationContext)
