@@ -1,4 +1,4 @@
-// Worker sprite (production-premium-v1, sharp readability pass). Six pixel
+// Worker sprite (production-premium-v1, redrawn readability pass). Six pixel
 // companions plus Lumi, each a 6-frame walk strip (768x128 = 6 x 128). The
 // walk cycle is driven by a GLOBAL
 // monotonic clock + stable worker id, NOT component mount time, so a worker's
@@ -17,25 +17,25 @@ const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
 export type WorkerId = "secondb" | "momo" | "lulu" | "archi" | "vela" | "gadi" | "lumi";
 
 const STRIPS: Record<WorkerId, number> = {
-  secondb: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/secondb_premium_walk_strip_6f.png"),
-  momo: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/momo_premium_walk_strip_6f.png"),
-  lulu: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/lulu_premium_walk_strip_6f.png"),
-  archi: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/archi_premium_walk_strip_6f.png"),
-  vela: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/vela_premium_walk_strip_6f.png"),
-  gadi: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/gadi_premium_walk_strip_6f.png"),
-  lumi: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/lumi_premium_walk_strip_6f.png"),
+  secondb: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/secondb_premium_walk_strip_6f.png"),
+  momo: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/momo_premium_walk_strip_6f.png"),
+  lulu: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lulu_premium_walk_strip_6f.png"),
+  archi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/archi_premium_walk_strip_6f.png"),
+  vela: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/vela_premium_walk_strip_6f.png"),
+  gadi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/gadi_premium_walk_strip_6f.png"),
+  lumi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lumi_premium_walk_strip_6f.png"),
 };
 
 // Single-frame standing poses (128x128), shown instead of the walk strip when
 // motion is reduced so a held worker reads as "idle" rather than mid-step.
 const IDLES: Record<WorkerId, number> = {
-  secondb: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/secondb_premium_idle.png"),
-  momo: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/momo_premium_idle.png"),
-  lulu: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/lulu_premium_idle.png"),
-  archi: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/archi_premium_idle.png"),
-  vela: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/vela_premium_idle.png"),
-  gadi: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/gadi_premium_idle.png"),
-  lumi: require("../../../public/assets/2ndb-production-premium-v1/workers-sharp/lumi_premium_idle.png"),
+  secondb: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/secondb_premium_idle.png"),
+  momo: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/momo_premium_idle.png"),
+  lulu: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lulu_premium_idle.png"),
+  archi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/archi_premium_idle.png"),
+  vela: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/vela_premium_idle.png"),
+  gadi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/gadi_premium_idle.png"),
+  lumi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lumi_premium_idle.png"),
 };
 
 const FRAMES = 6;
