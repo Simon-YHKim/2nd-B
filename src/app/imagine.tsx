@@ -8,19 +8,16 @@
 // piece enters the knowledge layer / graph.
 
 import { useEffect, useState } from "react";
-import { Animated, ScrollView, StyleSheet, View, TextInput, Alert } from "react-native";
+import { ScrollView, StyleSheet, View, TextInput, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { cosmic, radii, spacing } from "@/lib/theme/tokens";
 import { CHARACTERS } from "@/lib/characters";
-import { useImaginePulse } from "@/components/motion/useSignatureMotion";
 import { IslandArt, ShardArt } from "@/components/art/IslandArt";
-import { WorkerSprite } from "@/components/art/WorkerSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { ContextPill } from "@/components/premium";
 import { callGemini } from "@/lib/llm/gemini";
@@ -39,7 +36,6 @@ export default function Imagine() {
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const vela = CHARACTERS.vela;
-  const velaPulse = useImaginePulse();
 
   const params = useLocalSearchParams<{ fromNode?: string }>();
   const fromNode = typeof params.fromNode === "string" && params.fromNode.length > 0 ? params.fromNode : null;
@@ -157,67 +153,40 @@ export default function Imagine() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <View>
-            <Text variant="caption" color="brand" style={styles.eyebrow}>
-              {locale === "ko" ? "03. 공상 놀이터" : "03. Imagine playground"}
-            </Text>
-            <Text variant="heading">{locale === "ko" ? "생각을 밤빛 장면으로" : "Turn a thought into a scene"}</Text>
-            <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.xs }}>
-              {locale === "ko" ? `${vela.name.ko} · ${vela.role.ko}` : `${vela.name.en} · ${vela.role.en}`}
-            </Text>
-          </View>
-        </View>
+        <SceneHero
+          eyebrow={locale === "ko" ? "03. 공상 놀이터" : "03. Imagine playground"}
+          title={locale === "ko" ? "생각을 밤빛 장면으로" : "Turn a thought into a scene"}
+          subtitle={locale === "ko" ? `${vela.name.ko} · ${vela.role.ko}` : `${vela.name.en} · ${vela.role.en}`}
+          island="imagine"
+          worker="vela"
+          speech={heroSpeech}
+          islandSize={292}
+          workerSize={96}
+          primaryAction={{
+            label: primaryActionLabel,
+            variant: "primary",
+            loading: phase === "generating" || saving,
+            disabled: phase === "generating" || saving || (!hasResult && draft.trim().length === 0),
+            onPress: phase === "saved" ? () => router.push("/wiki") : hasResult ? handleSave : handleGenerate,
+          }}
+          secondaryAction={
+            hasResult || draft.trim().length > 0
+              ? {
+                  label: secondaryActionLabel,
+                  variant: "secondary",
+                  disabled: phase === "generating",
+                  onPress: hasResult ? developFurther : reset,
+                }
+              : undefined
+          }
+        />
 
-        {/* nodeContext pill (pack §7) */}
+        {/* Graph-node entry context. */}
         {fromNode ? (
           <View style={styles.contextPillWrap}>
             <ContextPill label={fromNode} />
           </View>
         ) : null}
-
-        <View style={styles.sceneShell}>
-          <View style={styles.sceneRail} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            {["⌂", "✦", "⌕", "◇", "▣"].map((icon, index) => (
-              <View key={icon} style={[styles.railButton, index === 0 ? styles.railButtonActive : null]}>
-                <Text variant="body" style={styles.railIcon}>{icon}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.sceneStage}>
-            <View style={styles.sceneGlow} />
-            <IslandArt id="imagine" size={292} style={styles.sceneIsland} />
-            <Animated.View style={[styles.sceneVela, { opacity: velaPulse.opacity, transform: [{ scale: velaPulse.scale }] }]}>
-              <View style={styles.velaReadabilityHalo} />
-              <WorkerSprite id="vela" size={96} />
-            </Animated.View>
-            <View style={styles.speechBubble}>
-              <View style={styles.speechTail} />
-              <Text variant="body" style={styles.speechText}>{heroSpeech}</Text>
-            </View>
-          </View>
-
-          <View style={styles.heroActions}>
-            <Button
-              label={primaryActionLabel}
-              variant="primary"
-              loading={phase === "generating" || saving}
-              disabled={phase === "generating" || saving || (!hasResult && draft.trim().length === 0)}
-              onPress={phase === "saved" ? () => router.push("/wiki") : hasResult ? handleSave : handleGenerate}
-              style={styles.heroButton}
-            />
-            {hasResult || draft.trim().length > 0 ? (
-              <Button
-                label={secondaryActionLabel}
-                variant="secondary"
-                disabled={phase === "generating"}
-                onPress={hasResult ? developFurther : reset}
-                style={styles.heroButton}
-              />
-            ) : null}
-          </View>
-        </View>
 
         {/* Input panel — hidden once a result is showing */}
         {phase === "input" || phase === "generating" ? (
@@ -343,144 +312,7 @@ export default function Imagine() {
 const styles = StyleSheet.create({
   scroll: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
   companionFlash: { position: "absolute", bottom: 40, right: 20 },
-  header: { gap: spacing.xs },
-  eyebrow: { letterSpacing: 1.2, color: cosmic.dreamPink },
-  velaSpriteSlot: {
-    width: 64, height: 64,
-    borderRadius: radii.md,
-    backgroundColor: "rgba(255,159,214,0.14)",
-    borderWidth: 1,
-    borderColor: "rgba(255,159,214,0.42)",
-    alignItems: "center", justifyContent: "center",
-  },
   contextPillWrap: { marginTop: spacing.xs },
-  sceneShell: {
-    position: "relative",
-    overflow: "hidden",
-    minHeight: 470,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: "rgba(255,159,214,0.28)",
-    backgroundColor: "rgba(7,10,24,0.66)",
-    shadowColor: cosmic.dreamPink,
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  sceneRail: {
-    position: "absolute",
-    left: spacing.sm,
-    top: spacing.sm,
-    zIndex: 6,
-    gap: spacing.sm,
-    padding: spacing.xs,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: "rgba(141,152,184,0.24)",
-    backgroundColor: "rgba(13,21,48,0.86)",
-  },
-  railButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.sm,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(141,152,184,0.16)",
-    backgroundColor: "rgba(255,255,255,0.03)",
-  },
-  railButtonActive: {
-    borderColor: "rgba(167,139,250,0.78)",
-    backgroundColor: "rgba(167,139,250,0.26)",
-  },
-  railIcon: { color: cosmic.moonWhite, fontWeight: "800" },
-  sceneStage: {
-    minHeight: 352,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: spacing.lg,
-    paddingHorizontal: spacing.md,
-  },
-  sceneGlow: {
-    position: "absolute",
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: "rgba(255,159,214,0.12)",
-    shadowColor: cosmic.dreamPink,
-    shadowOpacity: 0.5,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  sceneIsland: {
-    marginTop: spacing.md,
-    opacity: 0.98,
-  },
-  sceneVela: {
-    position: "absolute",
-    left: 52,
-    bottom: 64,
-    zIndex: 4,
-    width: 112,
-    height: 112,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  velaReadabilityHalo: {
-    position: "absolute",
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 1,
-    borderColor: "rgba(255,159,214,0.52)",
-    backgroundColor: "rgba(7,10,24,0.58)",
-    shadowColor: cosmic.dreamPink,
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  speechBubble: {
-    position: "absolute",
-    right: spacing.md,
-    bottom: 92,
-    width: 188,
-    minHeight: 82,
-    justifyContent: "center",
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.72)",
-    backgroundColor: "rgba(247,248,255,0.94)",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    zIndex: 5,
-  },
-  speechTail: {
-    position: "absolute",
-    left: -10,
-    bottom: 22,
-    width: 0,
-    height: 0,
-    borderTopWidth: 8,
-    borderBottomWidth: 8,
-    borderRightWidth: 11,
-    borderTopColor: "transparent",
-    borderBottomColor: "transparent",
-    borderRightColor: "rgba(247,248,255,0.94)",
-  },
-  speechText: {
-    color: cosmic.space900,
-    fontWeight: "700",
-    lineHeight: 21,
-  },
-  heroActions: {
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  heroButton: {
-    minHeight: 52,
-    borderRadius: radii.sm,
-  },
   promptCard: {
     backgroundColor: "rgba(13,21,48,0.82)",
     borderColor: "rgba(255,159,214,0.24)",

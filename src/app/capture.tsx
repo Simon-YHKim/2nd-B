@@ -476,7 +476,7 @@ export default function Capture() {
               <View style={{ marginTop: spacing.md }}>
                 <Button
                   label={locale === "ko" ? "과거의 나 시작하기" : "Start the past me"}
-                  variant="primary"
+                  variant="secondary"
                   onPress={() => router.push("/audit")}
                 />
               </View>
@@ -985,9 +985,10 @@ const styles = StyleSheet.create({
   },
   tossBtnPressed: { transform: [{ scale: 0.97 }], opacity: 0.9 },
   tossBtnDisabled: {
-    backgroundColor: "rgba(114,242,199,0.14)",
-    borderColor: "rgba(114,242,199,0.34)",
+    backgroundColor: "rgba(13,21,48,0.86)",
+    borderColor: "rgba(141,152,184,0.36)",
+    shadowOpacity: 0,
   },
   tossBtnText: { color: semantic.background, fontSize: typography.sizes.md, fontWeight: "700" },
-  tossBtnTextDisabled: { color: semantic.textSubtle },
+  tossBtnTextDisabled: { color: "rgba(232,236,248,0.72)" },
 });
