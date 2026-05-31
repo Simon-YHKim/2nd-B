@@ -43,6 +43,18 @@ function sanitizeTag(t: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+// A shared/community format name is untrusted input that gets embedded into every
+// OTHER user's classify prompt, so strip newlines + structural characters and cap
+// the length to defuse stored prompt-injection before it reaches the model.
+function safeFormatLabel(s: string): string {
+  return String(s)
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/[^\p{L}\p{N} ._/-]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 40);
+}
+
 /** Build the classify prompt for a candidate kind. Pure → deterministic. */
 export function buildClipperPrompt(
   baselineKind: SourceKind,
@@ -57,13 +69,19 @@ export function buildClipperPrompt(
   ).join("\n");
   // Community / user-added formats (migration 0027) appear as hints so the AI can
   // map novel material onto the closest base kind. They never widen the set of
-  // kinds it may return — only the 8 canonical kinds are valid output.
+  // kinds it may return — only the 8 canonical kinds are valid output. A shared
+  // name is untrusted (it reaches every user), so each label is sanitized + capped
+  // to defuse stored prompt-injection.
+  const customLines = customFormats
+    .map((c) => ({ label: safeFormatLabel(c.name), baseKind: c.baseKind }))
+    .filter((c) => c.label.length > 0)
+    .map((c) => `  - ${c.label} (${c.baseKind})`);
   const customMenu =
-    customFormats.length > 0
+    customLines.length > 0
       ? "\n" +
         (locale === "ko" ? "커뮤니티/내 추가 형식 (참고용):" : "Community / your added formats (reference):") +
         "\n" +
-        customFormats.map((c) => `  - ${c.name} (${c.baseKind})`).join("\n")
+        customLines.join("\n")
       : "";
   const propLines = tmpl.aiProperties.length
     ? tmpl.aiProperties
