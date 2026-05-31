@@ -1167,7 +1167,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           ABOVE the island/node art (graph-ux #5: were hidden behind islands)
           yet still below the screen-fixed bottom sheet / FAB (#1). When a
           node sheet is open we hide them so nothing floats over the popup. */}
-      <CharacterPathLayer commutes={commutes} hidden={activeId != null} />
+      <CharacterPathLayer commutes={commutes} hidden={activeId != null} locale={locale} />
 
       </ReAnimated.View>
     </GestureDetector>
