@@ -16,6 +16,7 @@ import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop, Circle } from "r
 import { cosmic, spacing } from "@/lib/theme/tokens";
 import { ForceDark } from "@/lib/theme/ThemeContext";
 import { backArrowVisible, isTabPath } from "@/components/ui/BackArrow";
+import { TAB_BAR_HEIGHT } from "./tab-bar";
 import { starField } from "./star-field";
 
 /** Subtle static star grain, sized to the given box. Decorative. */
@@ -90,6 +91,10 @@ export function PremiumAppShell({
   // screens keep the arrow shifted right of the brand chip, so their heading
   // stays at the normal top.
   const needsArrowHeadroom = backArrowVisible(pathname) && !isTabPath(pathname);
+  // Tab screens render under the absolute bottom tab bar; reserve its height so
+  // a screen's last element (e.g. the 세컨비 chat composer / send button) isn't
+  // hidden behind it. Applies regardless of `padded` (horizontal-only).
+  const onTabBar = isTabPath(pathname);
 
   return (
     <ForceDark>
@@ -100,6 +105,7 @@ export function PremiumAppShell({
             styles.safe,
             padded ? styles.padded : null,
             padded && needsArrowHeadroom ? styles.arrowHeadroom : null,
+            onTabBar ? styles.tabBarClearance : null,
           ]}
         >
           {children}
@@ -115,4 +121,8 @@ const styles = StyleSheet.create({
   padded: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   // ~40px arrow + 8px top inset gap; clears the HUD button row.
   arrowHeadroom: { paddingTop: spacing.xxl },
+  // Clears the absolute bottom tab bar (its height) so tab-screen content and
+  // bottom inputs aren't covered. SafeAreaView already adds the safe-area
+  // inset; this is the bar's own height plus a small gap on top.
+  tabBarClearance: { paddingBottom: TAB_BAR_HEIGHT + spacing.lg },
 });

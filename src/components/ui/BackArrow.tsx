@@ -10,24 +10,18 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname, router } from "expo-router";
 
-// Routes that hide the back arrow entirely: the landing page, pre-auth flow,
-// and primary tab destinations that already have persistent tab navigation.
-const HIDDEN_PATHS = new Set<string>([
-  "/",
-  "/sign-in",
-  "/sign-up",
-  "/complete-profile",
-  "/core-brain",
-  "/records",
-  "/wiki",
-  "/profile",
-]);
+import { PRIMARY_TAB_PATHS, isPrimaryTabPath } from "@/lib/nav/tabs";
 
-// Tab destinations render a top-left brand chip (PremiumTopBar) or a heading
-// flush-left. On those, the arrow shifts right of the ~44px brand chip so it
-// never sits on top of it; other screens get standard headroom (their content
-// top-padding was widened to clear the arrow). See PremiumAppShell.
-const TAB_PATHS = new Set<string>(["/core-brain", "/records", "/wiki", "/profile"]);
+// Landing + pre-auth routes that hide the arrow (no "back to graph" there yet).
+const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile"];
+
+// Routes that hide the back arrow entirely: the pre-auth flow plus every
+// primary tab destination (those already have the persistent bottom tab bar,
+// so a second back affordance is redundant). The tab list comes from the
+// shared PRIMARY_TAB_PATHS — it must NOT be hand-maintained here, or it drifts
+// from the tab bar (which is exactly what stranded /core-brain, /records and
+// /wiki with neither a back arrow nor a tab bar after the Phase 3 retabbing).
+const HIDDEN_PATHS = new Set<string>([...PRE_AUTH_PATHS, ...PRIMARY_TAB_PATHS]);
 
 /** True when the back arrow is shown on this route (i.e. not the landing /
  *  pre-auth pages). Screens use this to reserve top-left headroom so the
@@ -38,7 +32,7 @@ export function backArrowVisible(pathname: string): boolean {
 
 /** True when the route is a bottom-tab destination (brand chip top-left). */
 export function isTabPath(pathname: string): boolean {
-  return TAB_PATHS.has(pathname);
+  return isPrimaryTabPath(pathname);
 }
 
 export function BackArrow() {
@@ -49,7 +43,7 @@ export function BackArrow() {
 
   // On a tab screen, clear the brand chip by nudging the arrow rightward.
   const leftBase = insets.left + 12;
-  const left = TAB_PATHS.has(pathname) ? leftBase + 52 : leftBase;
+  const left = isPrimaryTabPath(pathname) ? leftBase + 52 : leftBase;
 
   return (
     <View

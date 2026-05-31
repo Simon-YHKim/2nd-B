@@ -3,7 +3,31 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-05-31 (저녁) / 메뉴 재설계 Phase 3 — 탭 재정의 + journal redirect (#79)
+## Latest — 2026-05-31 (밤) / Phase 3 하드닝 — 탭 라우트 정합 + 크래시 수정 (#83)
+
+### 무엇을 / 왜
+사용자 "시스템적으로 더 만질것 없어?" → Phase 3(#79) 탭 재정의가 드러낸 시스템 이슈 4개 수정:
+1. **BackArrow 라우트 desync** — BackArrow 가 자체 목록(옛 탭)을 들고 있어 `/core-brain`·`/records`·`/wiki` 가 막다른 길(back·탭바 둘 다 없음), 새 탭은 이중 내비. → `src/lib/nav/tabs.ts`(`PRIMARY_TAB_PATHS`) 단일 소스로 통합(탭바·BackArrow·shell 공유).
+2. **탭바 하단 클리어런스 없음** — capture/jarvis/imagine 콘텐츠(특히 세컨비 입력창)가 58px 탭바 밑에 깔림. → `PremiumAppShell` 에 `isTabPath` 기반 `tabBarClearance` 중앙화 + profile 중복 패딩 제거.
+3. **capture.tsx hooks 크래시** — `useMemo` 2개가 early-return 뒤 → userId/loading 플립 시 React #300(흰 화면). /capture 가 주요 탭 되며 노출(라이브 재현). → 가드 위로 이동.
+4. **근본 원인** — `react-hooks/rules-of-hooks` 미적용 → `eslint-plugin-react-hooks` 추가 + 룰 on(error). blast radius=capture 1개.
+
+### 바뀐 파일
+- `src/lib/nav/tabs.ts`(신규) — PRIMARY_TAB_PATHS 단일 소스
+- `tab-bar.tsx`·`BackArrow.tsx` — 공유 상수 사용 / `background.tsx` — tabBarClearance / `profile.tsx` — 중복 패딩 제거
+- `capture.tsx` — useMemo 가드 위로 / `eslint.config.mjs`·`package.json`/`lock` — react-hooks
+
+### 검증
+- npm run verify: jest **662/662 (66 suites)**, lint **0 errors**(rules-of-hooks 포함), C1~C12
+
+### 다음 / 되돌리기
+- 다음 1순위: **Phase 4** (마을 탭 → records 도메인 필터)
+- revert: PR #83 단독 revert. `tabs.ts` 만 신규.
+- 협업 메모: GPT 와 같은 파일 동시 작업 시 **머지 후 재검증 필수**(#79 에서 capture.tsx 겹침 경험).
+
+---
+
+## 2026-05-31 (저녁) / 메뉴 재설계 Phase 3 — 탭 재정의 + journal redirect (#79)
 
 ### 무엇을 / 왜
 - 하단 탭을 VISION 3축 IA 로 5개 재정의: **그래프·담기·세컨비·공상·나**. explore(`/core-brain`)·records(`/records`)·store(`/wiki`) 탭 제거 — core-brain 은 '나' 허브(Phase 5), wiki/records 는 그래프 마을(Phase 4)로 흡수.
