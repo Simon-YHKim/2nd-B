@@ -140,10 +140,10 @@ export interface DataNode {
 // unchanged so every existing screen stays reachable.
 export const MENU_NODES: readonly NavNode[] = [
   // Tier 2 — six domain islands around the center.
-  { id: "work", tier: 2, parentId: "core", href: "/trinity",
+  { id: "work", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "work" } },
     label: { en: "Work & growth", ko: "일과 성장" },
     description: { en: "Where the pieces that move today's you — work and growth — gather.", ko: "오늘의 나를 움직이는 일과 성장의 조각들이 모이는 곳이에요." } },
-  { id: "relation", tier: 2, parentId: "core", href: "/interview",
+  { id: "relation", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "relation" } },
     label: { en: "People & ties", ko: "관계와 사람" },
     description: { en: "Where memories, promises, and conversations with people connect.", ko: "사람들과의 기억, 약속, 대화 조각이 이어지는 곳이에요." } },
   { id: "knowledge", tier: 2, parentId: "core", href: "/wiki", bubbleAction: "upload",
@@ -159,7 +159,7 @@ export const MENU_NODES: readonly NavNode[] = [
       ko: "막연한 생각을 장면과 다음 한 걸음으로 펼치는 곳이에요.",
     },
   },
-  { id: "taste", tier: 2, parentId: "core", href: "/insights",
+  { id: "taste", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "taste" } },
     label: { en: "Taste & spark", ko: "취향과 영감" },
     description: { en: "Where the things you like, are drawn to, and find inspiring gather.", ko: "좋아하는 것, 끌리는 것, 영감의 조각이 모이는 곳이에요." } },
 

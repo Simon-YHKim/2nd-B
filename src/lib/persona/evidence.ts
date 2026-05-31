@@ -3,6 +3,8 @@
 // "이걸 만든 조각들" drawer (core-brain pack §5 / data_contract). Pure +
 // tested so the type/route/label mapping is a single source of truth.
 
+import { domainForTags, type VillageId } from "@/lib/graph/relatedness";
+
 export type EvidenceType = "journal" | "capture" | "wiki" | "interview" | "audit" | "imagine";
 
 export interface EvidenceShard {
@@ -117,6 +119,9 @@ export interface OriginShard extends EvidenceShard {
   origin: ShardOrigin;
   /** ISO timestamp used for cross-table sort (records.created_at / sources.captured_at). */
   at: string;
+  /** Which of the six villages this piece belongs to, from its tags (+ title).
+   *  Lets the Records screen filter to a domain when entered from a village. */
+  domain: VillageId;
 }
 
 /**
@@ -132,11 +137,13 @@ export function mergeEvidence(
     ...toEvidenceShard(r, locale),
     origin: "record",
     at: r.created_at,
+    domain: domainForTags(r.tags ?? [], r.topic ?? ""),
   }));
   const fromSources: OriginShard[] = sources.map((s) => ({
     ...sourceToEvidenceShard(s, locale),
     origin: "source",
     at: s.captured_at,
+    domain: domainForTags(s.tags ?? [], s.title ?? ""),
   }));
   return [...fromRecords, ...fromSources].sort((a, b) => b.at.localeCompare(a.at));
 }

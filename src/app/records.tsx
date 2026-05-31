@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 
 import { PremiumAppShell, ReferenceShardCard, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -27,8 +27,11 @@ import {
   type RawRecordRow,
   type RawSourceRow,
 } from "@/lib/persona/evidence";
+import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 
 const TYPE_FILTERS: (EvidenceType | "all")[] = ["all", "journal", "capture", "audit", "interview", "imagine", "wiki"];
+// Domain (village) filter chips — "all" plus the six villages, in graph order.
+const DOMAIN_CHIPS: ("all" | VillageId)[] = ["all", ...VILLAGE_IDS];
 
 // Warm-gold for records by default; a few types carry their companion accent.
 const TYPE_ACCENT: Record<EvidenceType, string> = {
@@ -45,11 +48,19 @@ export default function Records() {
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
+  // Domain (village) filter — entering from a village node carries
+  // ?domain=<villageId>, so Records opens already filtered to that village's
+  // pieces (menu restructure Phase 4). The chip row can change it afterward.
+  const params = useLocalSearchParams<{ domain?: string }>();
+  const paramDomain: VillageId | "all" =
+    VILLAGE_IDS.includes(params.domain as VillageId) ? (params.domain as VillageId) : "all";
+
   const [shards, setShards] = useState<OriginShard[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<EvidenceType | "all">("all");
+  const [domainFilter, setDomainFilter] = useState<VillageId | "all">(paramDomain);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -95,14 +106,21 @@ export default function Records() {
     };
   }, [userId, locale, reloadKey]);
 
+  // Re-sync the filter when the URL domain changes (tapping a different village
+  // re-enters /records with a new ?domain). A manual chip pick sticks until then.
+  useEffect(() => {
+    setDomainFilter(paramDomain);
+  }, [paramDomain]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return shards.filter((s) => {
+      if (domainFilter !== "all" && s.domain !== domainFilter) return false;
       if (typeFilter !== "all" && s.type !== typeFilter) return false;
       if (q.length > 0 && !s.title.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [shards, query, typeFilter]);
+  }, [shards, query, typeFilter, domainFilter]);
 
   if (loading) {
     return (
@@ -121,7 +139,13 @@ export default function Records() {
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <SceneHero
-          eyebrow={locale === "ko" ? "05. 기록 보관소" : "05. Records"}
+          eyebrow={
+            domainFilter === "all"
+              ? (locale === "ko" ? "05. 기록 보관소" : "05. Records")
+              : (locale === "ko"
+                  ? `${VILLAGE_LABEL[domainFilter].ko} · 기록`
+                  : `${VILLAGE_LABEL[domainFilter].en} · Records`)
+          }
           title={locale === "ko" ? "남긴 조각을 다시 만나요" : "Revisit every piece you left"}
           subtitle={locale === "ko" ? "일기 · 담기 · 검사 · 공상까지 한곳에" : "Journal, capture, assessments, and imagine in one place"}
           island="records"
@@ -145,6 +169,32 @@ export default function Records() {
           accessibilityLabel={locale === "ko" ? "기록 검색" : "Search records"}
         />
 
+        {/* Domain (village) filter — the primary "which village" cut. Set by the
+            village node that brought you here, switchable via these chips. */}
+        <Text variant="caption" color="textSubtle" style={styles.filterLabel}>
+          {locale === "ko" ? "마을" : "Village"}
+        </Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+          {DOMAIN_CHIPS.map((d) => {
+            const active = d === domainFilter;
+            const label = d === "all" ? (locale === "ko" ? "전체" : "All") : VILLAGE_LABEL[d][locale];
+            return (
+              <Pressable
+                key={d}
+                onPress={() => setDomainFilter(d)}
+                style={[styles.chip, active ? styles.chipActive : null]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <Text variant="caption" color={active ? "background" : "textMuted"}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <Text variant="caption" color="textSubtle" style={styles.filterLabel}>
+          {locale === "ko" ? "종류" : "Type"}
+        </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
           {TYPE_FILTERS.map((tf) => {
             const active = tf === typeFilter;
@@ -220,6 +270,8 @@ const styles = StyleSheet.create({
   center: { paddingVertical: spacing.xxl, alignItems: "center", justifyContent: "center" },
   stateBox: { paddingVertical: spacing.xl, gap: spacing.md, alignItems: "center" },
   chipRow: { gap: spacing.sm, paddingVertical: spacing.xs },
+  // Pull each chip row up under its small section label (scroll gap is lg).
+  filterLabel: { marginBottom: -spacing.sm, letterSpacing: 0.5 },
   chip: {
     borderWidth: 1,
     borderColor: semantic.border,

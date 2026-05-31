@@ -119,4 +119,14 @@ describe("mergeEvidence", () => {
   test("handles empty streams", () => {
     expect(mergeEvidence([], [], "en")).toEqual([]);
   });
+  test("tags each shard with its village domain (from tags + title)", () => {
+    const merged = mergeEvidence(
+      [{ id: "r1", kind: "journal", topic: "커리어 목표", created_at: "2026-05-10T00:00:00Z", tags: ["work"] }],
+      [{ id: "s1", kind: "article", title: "영화 추천", captured_at: "2026-05-20T00:00:00Z", tags: ["taste", "film"] }],
+      "ko",
+    );
+    const domainById = Object.fromEntries(merged.map((m) => [m.id, m.domain]));
+    expect(domainById.r1).toBe("work");
+    expect(domainById.s1).toBe("taste");
+  });
 });

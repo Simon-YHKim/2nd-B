@@ -21,6 +21,18 @@ export const VILLAGE_IDS: readonly VillageId[] = [
   "taste",
 ];
 
+/** Canonical user-facing village names (kept in step with NavGraph's tier-2
+ *  node labels). Single source for any surface that filters by village — e.g.
+ *  the Records domain chips — so the wording can't drift from the graph. */
+export const VILLAGE_LABEL: Record<VillageId, { en: string; ko: string }> = {
+  work: { en: "Work & growth", ko: "일과 성장" },
+  relation: { en: "People & ties", ko: "관계와 사람" },
+  knowledge: { en: "Learning & knowledge", ko: "배움과 지식" },
+  records: { en: "Records", ko: "기록 보관소" },
+  imagine: { en: "Imagine workshop", ko: "공상 작업실" },
+  taste: { en: "Taste & spark", ko: "취향과 영감" },
+};
+
 // Keyword → village. Lowercase substrings matched against a piece's tags
 // (and, as a fallback, its title). Ordering of VILLAGE_IDS breaks ties so the
 // mapping is deterministic. English + Korean cues since tags can be either.
