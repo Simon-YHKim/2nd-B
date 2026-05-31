@@ -7,12 +7,17 @@
 import { StyleSheet, View, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname, router, type Href } from "expo-router";
-import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Line, Path } from "react-native-svg";
 
 import { Text } from "@/components/ui/Text";
 import { cosmic, spacing } from "@/lib/theme/tokens";
 
-type TabId = "graph" | "explore" | "records" | "store" | "profile";
+// Menu restructure Phase 3 (2026-05-31): the five tabs are now the VISION
+// 3-axis IA — 그래프 / 담기 / 세컨비 / 공상 / 나. The old explore(/core-brain),
+// records(/records) and store(/wiki) tabs were removed: core-brain folds into
+// the 나 hub (Phase 5), wiki + records are reached through the graph villages
+// (Phase 4 routes a village to its records domain filter).
+type TabId = "graph" | "capture" | "jarvis" | "imagine" | "profile";
 
 interface Tab {
   id: TabId;
@@ -23,14 +28,14 @@ interface Tab {
 
 const TABS: Tab[] = [
   { id: "graph", href: "/", ko: "그래프", en: "Graph" },
-  { id: "explore", href: "/core-brain", ko: "탐험", en: "Explore" },
-  { id: "records", href: "/records", ko: "기록", en: "Records" },
-  { id: "store", href: "/wiki", ko: "보관소", en: "Store" },
-  { id: "profile", href: "/profile", ko: "프로필", en: "Profile" },
+  { id: "capture", href: "/capture", ko: "담기", en: "Capture" },
+  { id: "jarvis", href: "/jarvis", ko: "세컨비", en: "SecondB" },
+  { id: "imagine", href: "/imagine", ko: "공상", en: "Imagine" },
+  { id: "profile", href: "/profile", ko: "나", en: "Me" },
 ];
 
 // Routes the bar appears on (its own destinations).
-const TAB_PATHS = new Set<string>(["/", "/core-brain", "/records", "/wiki", "/profile"]);
+const TAB_PATHS = new Set<string>(["/", "/capture", "/jarvis", "/imagine", "/profile"]);
 
 function TabIcon({ id, color }: { id: TabId; color: string }) {
   const sw = 1.8;
@@ -47,29 +52,29 @@ function TabIcon({ id, color }: { id: TabId; color: string }) {
           <Circle cx="8" cy="17" r="1.6" fill={color} />
         </Svg>
       );
-    case "explore":
+    case "capture":
+      // 담기 — drop a piece into a tray (down arrow into an open box).
       return (
         <Svg width={22} height={22} viewBox="0 0 22 22">
-          <Circle cx="11" cy="11" r="4" fill={color} />
-          <Circle cx="11" cy="11" r="8" stroke={color} strokeWidth={sw} fill="none" opacity={0.7} />
+          <Line x1="11" y1="3" x2="11" y2="12" stroke={color} strokeWidth={sw} />
+          <Path d="M7 9 L11 13 L15 9" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M4 14 L4 18 L18 18 L18 14" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
         </Svg>
       );
-    case "records":
+    case "jarvis":
+      // 세컨비 — a chat speech bubble with two dots.
       return (
         <Svg width={22} height={22} viewBox="0 0 22 22">
-          <Rect x="5" y="4" width="12" height="14" rx="2" stroke={color} strokeWidth={sw} fill="none" />
-          <Line x1="8" y1="8" x2="14" y2="8" stroke={color} strokeWidth={sw} />
-          <Line x1="8" y1="11" x2="14" y2="11" stroke={color} strokeWidth={sw} />
-          <Line x1="8" y1="14" x2="12" y2="14" stroke={color} strokeWidth={sw} />
+          <Path d="M4 5 L18 5 L18 13 L9 13 L6 16 L6 13 L4 13 Z" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
+          <Circle cx="9" cy="9" r="1.1" fill={color} />
+          <Circle cx="13" cy="9" r="1.1" fill={color} />
         </Svg>
       );
-    case "store":
+    case "imagine":
+      // 공상 — a crescent moon (the future self / dream axis).
       return (
         <Svg width={22} height={22} viewBox="0 0 22 22">
-          <Path d="M4 8 L11 4 L18 8 L18 16 L11 19 L4 16 Z" stroke={color} strokeWidth={sw} fill="none" />
-          <Line x1="4" y1="8" x2="11" y2="11.5" stroke={color} strokeWidth={sw} />
-          <Line x1="18" y1="8" x2="11" y2="11.5" stroke={color} strokeWidth={sw} />
-          <Line x1="11" y1="11.5" x2="11" y2="19" stroke={color} strokeWidth={sw} />
+          <Path d="M13 3 A8.5 8.5 0 1 0 13 19 A6.5 6.5 0 1 1 13 3 Z" fill={color} />
         </Svg>
       );
     case "profile":
