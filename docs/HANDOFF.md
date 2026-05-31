@@ -3,7 +3,26 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-01 / Gemini 라이브 재연결 (#95)
+## Latest — 2026-06-01 / AI clipper 분류 (#97)
+
+### 무엇을 / 왜
+캡처 시 Gemini 1회로 내용 읽고 **clipper 형식 분류** + 의미 프론트매터 채움(kind·target-category·simon-relevance·actionable-takeaway·kind별 props). 8개 템플릿을 `clipper-templates.ts` 정식 데이터화(분류기·레지스트리 단일 소스). 저장은 기존 `sources.frontmatter`(jsonb) 재사용. mock graceful(JSON 없음→baseline kind).
+
+### 바뀐 파일
+- `src/lib/wiki/clipper-templates.ts`(신규) · `classify-clipper.ts`(+test, 신규)
+- `src/lib/llm/types.ts`(purpose) · `capture.ts`(extraFrontmatter/simonRelevance) · `capture.tsx`(wiring)
+
+### 검증
+- npm run verify: jest **674/674 (68 suites)**, lint 0, lexicon + C1~C12
+
+### 다음 / 되돌리기
+- 다음: **G3** `clipper_templates` 공유 레지스트리 + AI 신규 제안→사용자 확인→개인저장(공유 옵트인)
+- ⚠️ `GEMINI_API_KEY` 시크릿 아직 미설정 → 라이브 분류는 키 설정 후 동작(G1 #95). mock에선 baseline kind만.
+- revert: PR #97 단독.
+
+---
+
+## 2026-06-01 / Gemini 라이브 재연결 (#95)
 
 ### 무엇을 / 왜
 배포 사이트가 mock 모드였던 것 → **라이브**. 키는 서버측 유지(공개 번들 인라인 안 됨):
