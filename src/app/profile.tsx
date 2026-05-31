@@ -68,7 +68,7 @@ export default function Profile() {
               : "Your account stays quiet here, with only useful settings close by."
           }
           islandSize={250}
-          workerSize={88}
+          workerSize={104}
           railIcons={["⌂", "◎", "◇", "▣"]}
         />
 

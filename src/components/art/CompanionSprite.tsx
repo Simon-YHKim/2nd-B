@@ -31,7 +31,7 @@ export const companionAlt: Record<CompanionName, string> = {
   gadi: "Gadi, safety guard",
 };
 
-const COMPANION_BASE = "/assets/2ndb-production-premium-v1/workers";
+const COMPANION_BASE = "/assets/2ndb-production-premium-v1/workers-sharp";
 
 export function getCompanionSpritePath(
   companion: CompanionName,

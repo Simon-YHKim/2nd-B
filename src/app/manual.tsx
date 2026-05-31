@@ -150,7 +150,7 @@ export default function Manual() {
               : "Read top-down the first time; later, jump to the card you need."
           }
           islandSize={250}
-          workerSize={88}
+          workerSize={104}
           railIcons={["⌂", "✦", "▤", "✓"]}
         />
 

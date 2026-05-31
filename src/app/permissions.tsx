@@ -114,7 +114,7 @@ export default function Permissions() {
               : "Permissions are requested only when useful, and optional ones can be declined."
           }
           islandSize={250}
-          workerSize={88}
+          workerSize={104}
           railIcons={["▣", "✓", "!", "◇"]}
         />
 

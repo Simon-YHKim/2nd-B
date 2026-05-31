@@ -118,7 +118,7 @@ export default function ImportExternal() {
                 : "Pasted material is sorted first, then saved only when you confirm."
             }
             islandSize={250}
-            workerSize={88}
+            workerSize={104}
             railIcons={["⇄", "▤", "◇", "✓"]}
           />
 

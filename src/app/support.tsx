@@ -35,7 +35,7 @@ export default function Support() {
           worker="gadi"
           speech={ko ? "문제가 생기면 메일로 보내주세요. 필요한 맥락부터 차분히 볼게요." : "Send us what got stuck. We'll start from the context."}
           islandSize={250}
-          workerSize={88}
+          workerSize={104}
           railIcons={["✦", "✉", "?", "◇"]}
         />
 

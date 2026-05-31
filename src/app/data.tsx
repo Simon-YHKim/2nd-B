@@ -39,7 +39,7 @@ export default function DataManagement() {
               : "Before deleting anything important, export a backup first."
           }
           islandSize={250}
-          workerSize={88}
+          workerSize={104}
           railIcons={["▣", "⇄", "⌁", "×"]}
         />
 
