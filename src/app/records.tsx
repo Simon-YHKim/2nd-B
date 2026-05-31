@@ -20,11 +20,12 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import {
-  toEvidenceShard,
+  mergeEvidence,
   evidenceTypeLabel,
-  type EvidenceShard,
   type EvidenceType,
+  type OriginShard,
   type RawRecordRow,
+  type RawSourceRow,
 } from "@/lib/persona/evidence";
 
 const TYPE_FILTERS: (EvidenceType | "all")[] = ["all", "journal", "capture", "audit", "interview", "imagine", "wiki"];
@@ -44,7 +45,7 @@ export default function Records() {
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
-  const [shards, setShards] = useState<EvidenceShard[]>([]);
+  const [shards, setShards] = useState<OriginShard[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
@@ -59,15 +60,29 @@ export default function Records() {
     (async () => {
       try {
         const supabase = getSupabaseClient();
-        const { data, error: err } = await supabase
-          .from("records")
-          .select("id, kind, topic, created_at, tags")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(200);
-        if (err) throw err;
-        const rows = (data ?? []) as RawRecordRow[];
-        if (!cancelled) setShards(rows.map((r) => toEvidenceShard(r, locale)));
+        // Records browser unifies two stores: `records` (journal / audit /
+        // interview) and `sources` (capture / imagine — the wiki ingest
+        // path). Read both, then mergeEvidence sorts by recency so a just-
+        // captured piece shows up here, not just in the wiki.
+        const [recRes, srcRes] = await Promise.all([
+          supabase
+            .from("records")
+            .select("id, kind, topic, created_at, tags")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(200),
+          supabase
+            .from("sources")
+            .select("id, kind, title, captured_at, tags")
+            .eq("user_id", userId)
+            .order("captured_at", { ascending: false })
+            .limit(200),
+        ]);
+        if (recRes.error) throw recRes.error;
+        if (srcRes.error) throw srcRes.error;
+        const recRows = (recRes.data ?? []) as RawRecordRow[];
+        const srcRows = (srcRes.data ?? []) as RawSourceRow[];
+        if (!cancelled) setShards(mergeEvidence(recRows, srcRows, locale));
       } catch (e) {
         if (typeof console !== "undefined") console.warn("[records] load failed", (e as Error).message);
         if (!cancelled) setError(true);
@@ -170,11 +185,19 @@ export default function Records() {
           <View style={styles.list}>
             {filtered.map((s) => (
               <ReferenceShardCard
-                key={s.id}
+                key={`${s.origin}:${s.id}`}
                 title={s.title}
                 meta={[s.dateLabel, evidenceTypeLabel(s.type, locale)].filter(Boolean).join(" · ")}
                 accent={TYPE_ACCENT[s.type]}
-                onPress={() => router.push({ pathname: "/record/[id]", params: { id: s.id } })}
+                onPress={() =>
+                  // `records`-origin shards open the record detail; `sources`-
+                  // origin shards (capture / imagine) live in the wiki store,
+                  // so open their wiki page instead of /record/[id] (which
+                  // only reads the records table).
+                  s.origin === "record"
+                    ? router.push({ pathname: "/record/[id]", params: { id: s.id } })
+                    : router.push(s.route)
+                }
               />
             ))}
           </View>

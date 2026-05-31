@@ -10,10 +10,12 @@
 import type { ReactNode } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { usePathname } from "expo-router";
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop, Circle } from "react-native-svg";
 
 import { cosmic, spacing } from "@/lib/theme/tokens";
 import { ForceDark } from "@/lib/theme/ThemeContext";
+import { backArrowVisible, isTabPath } from "@/components/ui/BackArrow";
 import { starField } from "./star-field";
 
 /** Subtle static star grain, sized to the given box. Decorative. */
@@ -81,11 +83,27 @@ export function PremiumAppShell({
   /** Add the standard horizontal screen padding (matches the legacy Screen). */
   padded?: boolean;
 }) {
+  const pathname = usePathname();
+  // When the floating back arrow is shown on a NON-tab screen it sits flush
+  // top-left over the content; reserve extra top padding so the first heading
+  // never collides with it (2026-05-31 directive: check text overlap). Tab
+  // screens keep the arrow shifted right of the brand chip, so their heading
+  // stays at the normal top.
+  const needsArrowHeadroom = backArrowVisible(pathname) && !isTabPath(pathname);
+
   return (
     <ForceDark>
       <View style={styles.root}>
         <CosmicBackground glow={glow} stars={stars} />
-        <SafeAreaView style={[styles.safe, padded ? styles.padded : null]}>{children}</SafeAreaView>
+        <SafeAreaView
+          style={[
+            styles.safe,
+            padded ? styles.padded : null,
+            padded && needsArrowHeadroom ? styles.arrowHeadroom : null,
+          ]}
+        >
+          {children}
+        </SafeAreaView>
       </View>
     </ForceDark>
   );
@@ -95,4 +113,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: cosmic.space950 },
   safe: { flex: 1 },
   padded: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  // ~40px arrow + 8px top inset gap; clears the HUD button row.
+  arrowHeadroom: { paddingTop: spacing.xxl },
 });

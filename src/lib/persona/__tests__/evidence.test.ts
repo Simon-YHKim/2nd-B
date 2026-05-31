@@ -4,6 +4,9 @@ import {
   evidenceTypeLabel,
   evidenceDateLabel,
   toEvidenceShard,
+  sourceKindToType,
+  sourceToEvidenceShard,
+  mergeEvidence,
 } from "../evidence";
 
 describe("recordKindToType", () => {
@@ -68,5 +71,52 @@ describe("toEvidenceShard", () => {
       "ko",
     );
     expect(s.title).toBe("오늘의 조각");
+  });
+});
+
+describe("sourceKindToType", () => {
+  test("imagine tag wins", () => {
+    expect(sourceKindToType("inbox", ["imagine"])).toBe("imagine");
+  });
+  test("self_knowledge → capture", () => {
+    expect(sourceKindToType("self_knowledge")).toBe("capture");
+  });
+  test("external clips → wiki", () => {
+    expect(sourceKindToType("article")).toBe("wiki");
+    expect(sourceKindToType("paper")).toBe("wiki");
+    expect(sourceKindToType("inbox")).toBe("wiki");
+  });
+});
+
+describe("sourceToEvidenceShard", () => {
+  test("uses title when present", () => {
+    const s = sourceToEvidenceShard(
+      { id: "s1", kind: "self_knowledge", title: "메모 한 줄", captured_at: "2026-05-12T00:00:00Z" },
+      "ko",
+    );
+    expect(s).toMatchObject({ id: "s1", type: "capture", title: "메모 한 줄", route: "/capture" });
+  });
+  test("falls back to type label when title empty", () => {
+    const s = sourceToEvidenceShard(
+      { id: "s2", kind: "article", title: "", captured_at: "2026-05-12T00:00:00Z" },
+      "ko",
+    );
+    expect(s.title).toBe("지식 창고");
+  });
+});
+
+describe("mergeEvidence", () => {
+  test("merges records + sources sorted by recency, tagging origin", () => {
+    const merged = mergeEvidence(
+      [{ id: "r1", kind: "journal", topic: "오래된 일기", created_at: "2026-05-10T00:00:00Z" }],
+      [{ id: "s1", kind: "self_knowledge", title: "최근 메모", captured_at: "2026-05-20T00:00:00Z" }],
+      "ko",
+    );
+    expect(merged.map((m) => m.id)).toEqual(["s1", "r1"]);
+    expect(merged[0]).toMatchObject({ origin: "source", type: "capture" });
+    expect(merged[1]).toMatchObject({ origin: "record", type: "journal" });
+  });
+  test("handles empty streams", () => {
+    expect(mergeEvidence([], [], "en")).toEqual([]);
   });
 });

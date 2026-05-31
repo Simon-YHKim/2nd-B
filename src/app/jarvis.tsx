@@ -26,8 +26,10 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { AppNav } from "@/components/ui/AppNav";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
+import { getPersona, PERSONAS } from "@/lib/chat/personas";
 import { parseSourceCitations } from "@/lib/chat/sources";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
+import { WorkerSprite } from "@/components/art/WorkerSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { PremiumAppShell, ContextPill, ReferenceShardCard } from "@/components/premium";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -86,8 +88,14 @@ export default function Jarvis() {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   // nodeContext entry (chat pack §3/§7): a graph node passed its label.
-  const params = useLocalSearchParams<{ fromNode?: string }>();
+  // character (2026-05-31): tapping a village companion opens chat in that
+  // character's voice (src/lib/chat/personas.ts).
+  const params = useLocalSearchParams<{ fromNode?: string; character?: string }>();
   const fromNode = typeof params.fromNode === "string" && params.fromNode.length > 0 ? params.fromNode : null;
+  const characterParam = typeof params.character === "string" && params.character.length > 0 ? params.character : null;
+  const persona = useMemo(() => getPersona(characterParam), [characterParam]);
+  // Only treat it as a character chat when a real worker was passed.
+  const isCharacterChat = characterParam != null && characterParam in PERSONAS;
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState("");
@@ -102,14 +110,19 @@ export default function Jarvis() {
   const wasBlockedRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  // Seed the composer with the node context once, on a graph-node entry.
+  // Seed once on entry: a character chat opens with that companion's greeting
+  // as the first turn; a node entry pre-fills the composer with the context.
   const seededRef = useRef(false);
   useEffect(() => {
-    if (fromNode && !seededRef.current) {
-      seededRef.current = true;
+    if (seededRef.current) return;
+    seededRef.current = true;
+    if (isCharacterChat) {
+      setTurns([{ role: "jarvis", text: persona.greeting[locale] }]);
+    }
+    if (fromNode) {
       setDraft(locale === "ko" ? `'${fromNode}'에 대해 물어볼게요: ` : `About '${fromNode}': `);
     }
-  }, [fromNode, locale]);
+  }, [fromNode, locale, isCharacterChat, persona]);
 
   const limit = useMemo(() => CHAT_DAILY_LIMIT[progression.tier], [progression.tier]);
 
@@ -147,7 +160,13 @@ export default function Jarvis() {
     setTurns((prev) => [...prev, { role: "user", text: msg }]);
     setDraft("");
     try {
-      const result = await sendChatMessage({ userId, message: msg, locale, tier: progression.tier });
+      const result = await sendChatMessage({
+        userId,
+        message: msg,
+        locale,
+        tier: progression.tier,
+        personaHint: isCharacterChat ? persona.systemHint[locale] : null,
+      });
       if (result.status === "blocked") {
         setTurns((prev) => [...prev, { role: "jarvis", text: result.hint }]);
         setUsedToday(result.used);
@@ -184,12 +203,17 @@ export default function Jarvis() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            {/* 세컨비 — chat presence; thinks while a reply is generating. */}
-            <SecondBSprite state={sending ? "thinking" : "chat"} size={44} float />
+            {/* Chat presence: the tapped companion in a character chat,
+                otherwise 세컨비 — thinks while a reply is generating. */}
+            {isCharacterChat ? (
+              <WorkerSprite id={persona.id} size={44} paused={!sending} />
+            ) : (
+              <SecondBSprite state={sending ? "thinking" : "chat"} size={44} float />
+            )}
             <View style={{ flex: 1 }}>
-              <Text variant="heading">{t("title")}</Text>
+              <Text variant="heading">{isCharacterChat ? persona.name[locale] : t("title")}</Text>
               <Text variant="subtle" color="textMuted">
-                {t("subtitle")}
+                {isCharacterChat ? persona.role[locale] : t("subtitle")}
               </Text>
             </View>
           </View>

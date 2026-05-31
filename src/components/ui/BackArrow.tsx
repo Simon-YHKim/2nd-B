@@ -10,15 +10,31 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname, router } from "expo-router";
 
-// Routes that hide the back arrow:
-//  - the landing page + pre-auth flow, and
-//  - the primary tab destinations (they're reachable via the bottom tab bar,
-//    and the arrow would collide with each screen's PremiumTopBar brand chip
-//    in the top-left). (graph-ux-overhaul #7.)
+// Routes that hide the back arrow entirely: only the landing page (the home
+// the arrow points to) + the pre-auth flow. Every other screen — including
+// the bottom-tab destinations — shows it (2026-05-31 user directive: back on
+// all screens except main).
 const HIDDEN_PATHS = new Set<string>([
   "/", "/sign-in", "/sign-up", "/complete-profile",
-  "/core-brain", "/records", "/wiki", "/profile",
 ]);
+
+// Tab destinations render a top-left brand chip (PremiumTopBar) or a heading
+// flush-left. On those, the arrow shifts right of the ~44px brand chip so it
+// never sits on top of it; other screens get standard headroom (their content
+// top-padding was widened to clear the arrow). See PremiumAppShell.
+const TAB_PATHS = new Set<string>(["/core-brain", "/records", "/wiki", "/profile"]);
+
+/** True when the back arrow is shown on this route (i.e. not the landing /
+ *  pre-auth pages). Screens use this to reserve top-left headroom so the
+ *  floating arrow never overlaps their first heading/text. */
+export function backArrowVisible(pathname: string): boolean {
+  return !HIDDEN_PATHS.has(pathname);
+}
+
+/** True when the route is a bottom-tab destination (brand chip top-left). */
+export function isTabPath(pathname: string): boolean {
+  return TAB_PATHS.has(pathname);
+}
 
 export function BackArrow() {
   const pathname = usePathname();
@@ -26,9 +42,13 @@ export function BackArrow() {
 
   if (HIDDEN_PATHS.has(pathname)) return null;
 
+  // On a tab screen, clear the brand chip by nudging the arrow rightward.
+  const leftBase = insets.left + 12;
+  const left = TAB_PATHS.has(pathname) ? leftBase + 52 : leftBase;
+
   return (
     <View
-      style={[styles.wrap, { top: insets.top + 8, left: insets.left + 12 }]}
+      style={[styles.wrap, { top: insets.top + 8, left }]}
       pointerEvents="box-none"
     >
       <Pressable
