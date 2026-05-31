@@ -79,7 +79,7 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     storage_path: path,
     frontmatter: mergedFrontmatter,
     tags: mergedTags,
-    simon_relevance: input.simonRelevance ?? built.payload.simon_relevance,
+    simon_relevance: scaleAiRelevance(input.simonRelevance) ?? built.payload.simon_relevance,
   });
 
   return {
@@ -88,6 +88,17 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     hadFrontmatter: built.hadFrontmatter,
     suggested_slug: built.suggested_slug,
   };
+}
+
+// classifyClipper estimates relevance on a 0..1 scale, but sources.simon_relevance
+// is the clipper 1..5 integer (CHECK simon_relevance BETWEEN 1 AND 5). Map the AI
+// estimate onto 1..5 so a successful classification never writes a fractional or
+// out-of-range value (0.4 -> 2, 0 -> 1, 1 -> 5). null/NaN means "no AI estimate",
+// so the caller falls back to the frontmatter-derived value.
+export function scaleAiRelevance(r: number | null | undefined): number | null {
+  if (r == null || !Number.isFinite(r)) return null;
+  const scaled = Math.round(r * 5);
+  return Math.min(5, Math.max(1, scaled));
 }
 
 // Lowercase + trim + dedupe. Frontmatter tags come first to preserve original
