@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { CharacterArt } from "@/components/art/CosmicPixel";
+import { WorkerSprite } from "@/components/art/WorkerSprite";
 import { HOTLINES, type HotlineId } from "@/lib/safety/lexicon";
 
 export interface CrisisRouterProps {
@@ -60,7 +60,7 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
           </View>
           <View style={styles.titleRow}>
             {/* 가디 — safety guard, calm and protective (§9) */}
-            <CharacterArt id="gadi" size={40} />
+            <WorkerSprite id="gadi" size={40} />
             <Text variant="heading" style={{ flexShrink: 1 }}>{t("red.title")}</Text>
           </View>
           <Text variant="body" color="textMuted">{t("red.body")}</Text>

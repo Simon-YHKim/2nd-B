@@ -12,7 +12,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { View, StyleSheet, ScrollView, Modal, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
-import { SvgXml } from "react-native-svg";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -31,8 +30,8 @@ import { buildPersona, type PersonaCard } from "@/lib/persona/build";
 import { buildCenterCards } from "@/lib/persona/center";
 import { toEvidenceShard, evidenceTypeLabel, type EvidenceShard, type RawRecordRow } from "@/lib/persona/evidence";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
-import { CORE_BRAIN_XML } from "@/components/art/coreBrainXml";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+import { IslandArt } from "@/components/art/IslandArt";
 
 export default function CoreBrain() {
   const { i18n } = useTranslation();
@@ -94,7 +93,7 @@ export default function CoreBrain() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <SvgXml xml={CORE_BRAIN_XML.orb} width={140} height={140} />
+          <IslandArt id="core" size={140} />
           <Text variant="heading" style={{ marginTop: spacing.lg, textAlign: "center" }}>
             {locale === "ko" ? "아직 중심이 작아요" : "Your center is still small"}
           </Text>
@@ -148,7 +147,7 @@ export default function CoreBrain() {
 
         {/* 2) Center hero orb + summary stats */}
         <View style={styles.hero}>
-          <SvgXml xml={CORE_BRAIN_XML.orb} width={200} height={200} />
+          <IslandArt id="core" size={200} />
         </View>
         <View style={styles.statRow}>
           <StatTile value={evidence.length} label={locale === "ko" ? "조각" : "pieces"} accent={cosmic.pixelLamp} />

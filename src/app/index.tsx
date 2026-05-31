@@ -32,8 +32,7 @@ import { cosmic } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBFab, SecondBSprite } from "@/components/art/SecondBSprite";
-import { SvgXml } from "react-native-svg";
-import { ONBOARDING_XML, ONBOARDING_ASPECT } from "@/components/art/onboardingXml";
+import { IslandArt } from "@/components/art/IslandArt";
 import { isOnboardingComplete } from "@/lib/onboarding/state";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 import { StarNoiseLayer } from "@/components/premium";
@@ -223,7 +222,7 @@ export default function Landing() {
               <Text style={styles.emptyGraphCloseText}>✕</Text>
             </Pressable>
             <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-              <SvgXml xml={ONBOARDING_XML.emptyGraph} width={220} height={220 / ONBOARDING_ASPECT.emptyGraph} />
+              <IslandArt id="core" size={180} />
             </View>
             <Text style={styles.emptyGraphTitle}>{locale === "ko" ? "아직 마을이 조용해요" : "The village is quiet"}</Text>
             <Text style={styles.emptyGraphBody}>

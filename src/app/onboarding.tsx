@@ -7,18 +7,21 @@ import { useState } from "react";
 import { View, StyleSheet, useWindowDimensions, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
-import { SvgXml } from "react-native-svg";
 
 import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { ONBOARDING_XML, ONBOARDING_ASPECT } from "@/components/art/onboardingXml";
 import { markOnboardingComplete } from "@/lib/onboarding/state";
+import { IslandArt, ShardArt } from "@/components/art/IslandArt";
+import { SecondBSprite } from "@/components/art/SecondBSprite";
+import { WorkerSprite } from "@/components/art/WorkerSprite";
+
+type OnboardingArt = "welcome" | "village" | "secondb" | "trust" | "firstShard";
 
 interface Step {
-  art: keyof typeof ONBOARDING_XML;
+  art: OnboardingArt;
   title: { ko: string; en: string };
   body: { ko: string; en: string };
   cta: { ko: string; en: string };
@@ -107,7 +110,7 @@ export default function Onboarding() {
 
         <View style={styles.body}>
           <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <SvgXml xml={ONBOARDING_XML[step.art]} width={artW} height={artW / ONBOARDING_ASPECT[step.art]} />
+            <OnboardingPremiumArt id={step.art} width={artW} />
           </View>
           <Text variant="heading" style={styles.title}>{step.title[locale]}</Text>
           <Text variant="body" color="textMuted" style={styles.bodyText}>{step.body[locale]}</Text>
@@ -128,6 +131,64 @@ export default function Onboarding() {
   );
 }
 
+function OnboardingPremiumArt({ id, width }: { id: OnboardingArt; width: number }) {
+  const stageW = Math.min(width, 360);
+  const islandSize = Math.min(220, stageW * 0.62);
+  const smallIsland = Math.min(118, stageW * 0.32);
+  const shardSize = Math.min(76, stageW * 0.22);
+
+  if (id === "village") {
+    return (
+      <View style={[styles.artStage, { width: stageW }]}>
+        <View style={styles.villageRow}>
+          <IslandArt id="imagine" size={smallIsland} />
+          <IslandArt id="knowledge" size={smallIsland} />
+          <IslandArt id="work_growth" size={smallIsland} />
+        </View>
+        <IslandArt id="core" size={islandSize * 0.75} />
+      </View>
+    );
+  }
+
+  if (id === "secondb") {
+    return (
+      <View style={[styles.artStage, { width: stageW }]}>
+        <View style={styles.secondBFrame}>
+          <SecondBSprite state="wave_a" size={118} float />
+        </View>
+      </View>
+    );
+  }
+
+  if (id === "trust") {
+    return (
+      <View style={[styles.artStage, { width: stageW }]}>
+        <View style={styles.shardRow}>
+          <WorkerSprite id="gadi" size={64} />
+          <ShardArt id="wiki_blue" size={shardSize} />
+          <ShardArt id="journal_gold" size={shardSize} />
+          <ShardArt id="capture_mint" size={shardSize} />
+        </View>
+      </View>
+    );
+  }
+
+  if (id === "firstShard") {
+    return (
+      <View style={[styles.artStage, { width: stageW }]}>
+        <ShardArt id="core_violet" size={Math.min(130, stageW * 0.38)} />
+        <SecondBSprite state="carrying_shard" size={86} float />
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.artStage, { width: stageW }]}>
+      <IslandArt id="core" size={islandSize} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: "space-between", paddingVertical: spacing.lg },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -135,6 +196,38 @@ const styles = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: semantic.border },
   dotActive: { backgroundColor: cosmic.signalMint, width: 18 },
   body: { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg },
+  artStage: {
+    minHeight: 220,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  villageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    marginBottom: -20,
+  },
+  secondBFrame: {
+    width: 160,
+    height: 160,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.38)",
+    backgroundColor: "rgba(167,139,250,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: cosmic.soulViolet,
+    shadowOpacity: 0.38,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  shardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+  },
   title: { textAlign: "center" },
   bodyText: { textAlign: "center", lineHeight: 22, paddingHorizontal: spacing.md },
   actions: { gap: spacing.sm },
