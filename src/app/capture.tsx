@@ -44,7 +44,8 @@ import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { detectClipperKind } from "@/lib/wiki/clipper-kind";
 import { pickAndOcrImage } from "@/lib/wiki/capture-image";
 import { pickFile, type PickedFile } from "@/lib/wiki/capture-file";
-import { classifyCapture, type WikiTrack } from "@/lib/wiki/classify-track";
+import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
+import type { SourceKind } from "@/lib/wiki/types";
 import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { createRecord } from "@/lib/records/create";
@@ -297,16 +298,30 @@ export default function Capture() {
         finalBody = `# ${pickedFile.name}\n\nFile attachment — ${pickedFile.mimeType}, ${pickedFile.size} bytes.`;
       }
 
-      // Auto-classify on toss (2026-05-31 directive): no separate button.
-      // If the user already curated hashtags, keep theirs; otherwise ask the
-      // cells to suggest. Classification failure never blocks the save.
+      // AI clipper classification on toss (2026-06-01 directive): one call
+      // reads the content, picks the clipper kind, and fills the semantic
+      // frontmatter (target-category / simon-relevance / actionable-takeaway /
+      // kind-specific props). User-curated hashtags win; failure never blocks
+      // the save (degrades to the URL-derived kind + no extra frontmatter).
       let finalTags = tagsEditable;
       let suggestedTrack: WikiTrack = track;
-      if (tagsEditable.length === 0 && finalBody.length > 0) {
+      // OCR is user-authored knowledge → keep self_knowledge; else let the AI pick.
+      let kindOverride: SourceKind | null = mode === "ocr" ? "self_knowledge" : null;
+      let extraFrontmatter: Record<string, unknown> | undefined;
+      let simonRelevance: number | null = null;
+      if (finalBody.length > 0) {
         try {
-          const c = await classifyCapture(userId, finalBody, locale);
-          finalTags = c.tags;
-          suggestedTrack = c.track;
+          const cls = await classifyClipper(userId, finalBody, fallbackUrl, locale);
+          if (tagsEditable.length === 0) finalTags = cls.tags;
+          suggestedTrack = cls.track;
+          if (mode !== "ocr") kindOverride = cls.kind;
+          extraFrontmatter = {
+            ...cls.props,
+            "target-category": cls.targetCategory,
+            "actionable-takeaway": cls.actionableTakeaway,
+            summary: cls.summary,
+          };
+          simonRelevance = cls.simonRelevance;
         } catch (e) {
           if (typeof console !== "undefined") console.warn("[capture] auto-classify failed", (e as Error).message);
         }
@@ -316,9 +331,11 @@ export default function Capture() {
         userId,
         rawMd: finalBody,
         fallbackUrl,
-        kindOverride: mode === "ocr" ? "self_knowledge" : null,
+        kindOverride,
         userTags: finalTags,
         track: suggestedTrack,
+        extraFrontmatter,
+        simonRelevance,
       });
 
       reset();
