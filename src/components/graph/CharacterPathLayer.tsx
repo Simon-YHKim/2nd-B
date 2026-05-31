@@ -57,6 +57,8 @@ const DWELL = 0.08; // brief look-around pause at each stop
 const MIN_PERIOD = 7000; // floor so a short route still ambles
 const BUBBLE_MS = 3600;  // how long a tapped worker's self-talk lingers
 const BUBBLE_W = 156;    // fixed bubble width so it can center over the sprite
+const ACTIVE_SPEECH_LAYER = 60;
+const WORKER_LAYER = 2;
 // Stable per-worker phase (ms) so the village never steps in lockstep. Keyed by
 // worker id so the offset survives remounts (global-clock continuity).
 const PHASE: Record<WorkerId, number> = {
@@ -76,7 +78,7 @@ export function CharacterPathLayer({ commutes, hidden, locale = "ko", spriteSize
 
   if (hidden) return null;
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View style={[StyleSheet.absoluteFill, styles.layer]} pointerEvents="box-none">
       {commutes.map((c) => (
         <Worker
           key={c.id}
@@ -139,7 +141,19 @@ function Worker({
   const pose = walkerRoutePose(t, route, { arc: ARC, dwell: DWELL });
 
   return (
-    <View style={[styles.spriteSlot, { width: spriteSize, height: spriteSize, left: pose.x - spriteSize / 2, top: pose.y - spriteSize / 2 }]}>
+    <View
+      style={[
+        styles.spriteSlot,
+        {
+          width: spriteSize,
+          height: spriteSize,
+          left: pose.x - spriteSize / 2,
+          top: pose.y - spriteSize / 2,
+          zIndex: line ? ACTIVE_SPEECH_LAYER : WORKER_LAYER,
+          elevation: line ? ACTIVE_SPEECH_LAYER : WORKER_LAYER,
+        },
+      ]}
+    >
       <Pressable
         onPress={onTap}
         hitSlop={18}
@@ -168,6 +182,10 @@ function SpeechBubble({ text, spriteSize }: { text: string; spriteSize: number }
 }
 
 const styles = StyleSheet.create({
+  layer: {
+    zIndex: ACTIVE_SPEECH_LAYER,
+    elevation: ACTIVE_SPEECH_LAYER,
+  },
   spriteSlot: {
     position: "absolute",
     alignItems: "center",
@@ -177,6 +195,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: BUBBLE_W,
     alignItems: "center",
+    zIndex: ACTIVE_SPEECH_LAYER,
+    elevation: ACTIVE_SPEECH_LAYER,
   },
   bubble: {
     maxWidth: BUBBLE_W,
