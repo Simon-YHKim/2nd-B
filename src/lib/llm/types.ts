@@ -13,6 +13,7 @@ export type PromptPurpose =
   | "capture_ocr"
   | "capture_classify"
   | "clipper_classify"
+  | "clipper_template_propose"
   | "import_ingest"
   | "imagine";
 

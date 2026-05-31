@@ -23,6 +23,19 @@ describe("buildClipperPrompt", () => {
     const { user } = buildClipperPrompt("article", "x".repeat(9000), null, "ko");
     expect(user.length).toBe(4000);
   });
+
+  it("lists community / user-added formats as reference when provided", () => {
+    const { system } = buildClipperPrompt("inbox", "some content", null, "en", [
+      { name: "Podcast Episode", baseKind: "video" },
+    ]);
+    expect(system).toContain("Community / your added formats");
+    expect(system).toContain("Podcast Episode (video)");
+  });
+
+  it("omits the community section when there are no custom formats", () => {
+    const { system } = buildClipperPrompt("inbox", "some content", null, "en");
+    expect(system).not.toContain("Community / your added formats");
+  });
 });
 
 describe("parseClipperResult", () => {

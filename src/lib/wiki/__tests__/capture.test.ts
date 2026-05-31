@@ -178,4 +178,33 @@ Body.`;
     const insert = captured.find((c) => c.fn === "createSource")!;
     expect((insert.args[0] as { frontmatter: Record<string, unknown> }).frontmatter.wiki_track).toBeUndefined();
   });
+
+  // The AI clipper classifier reports relevance on a 0..1 scale; the
+  // sources.simon_relevance column is the clipper 1..5 integer with a CHECK.
+  // captureFromMarkdown must rescale so a save never violates the CHECK.
+  test("AI simon_relevance (0..1) is rescaled to the clipper 1..5 integer", async () => {
+    fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "article", title: "T", tags: [] };
+    await captureFromMarkdown({ userId: "u1", rawMd: "# T\n\nBody.", simonRelevance: 0.8 });
+    const insert = captured.find((c) => c.fn === "createSource")!;
+    expect((insert.args[0] as { simon_relevance: number }).simon_relevance).toBe(4);
+  });
+
+  test("AI relevance of 0 floors to 1 (never violates the 1..5 CHECK)", async () => {
+    fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "inbox", title: "T", tags: [] };
+    await captureFromMarkdown({ userId: "u1", rawMd: "# T\n\nBody.", simonRelevance: 0 });
+    const insert = captured.find((c) => c.fn === "createSource")!;
+    expect((insert.args[0] as { simon_relevance: number }).simon_relevance).toBe(1);
+  });
+
+  test("no AI relevance → falls back to the frontmatter simon-relevance", async () => {
+    fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "article", title: "Foo", tags: [] };
+    const md = `---
+title: "Foo"
+simon-relevance: 3
+---
+Body.`;
+    await captureFromMarkdown({ userId: "u1", rawMd: md });
+    const insert = captured.find((c) => c.fn === "createSource")!;
+    expect((insert.args[0] as { simon_relevance: number }).simon_relevance).toBe(3);
+  });
 });
