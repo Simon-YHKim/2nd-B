@@ -58,6 +58,7 @@ import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { TierIcon, DOMAIN_TIER_ICON } from "@/components/art/TierIcon";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { getPersona } from "@/lib/chat/personas";
+import { relatedEdges } from "@/lib/graph/relatedness";
 import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
@@ -120,8 +121,15 @@ export interface NavNode {
 export interface DataNode {
   id: string;
   title: string;
-  /** Which tier-3 wiki node this entry belongs to. Defaults to wiki-daily. */
-  parentId?: "wiki-daily" | "wiki-pro";
+  /**
+   * Which graph node this piece hangs under — a tier-2 village id
+   * ("work" | "relation" | "knowledge" | "records" | "imagine" | "taste")
+   * chosen from the piece's tags, or a tier-3 wiki node. Defaults to
+   * wiki-daily when unknown.
+   */
+  parentId?: string;
+  /** The piece's tags — drives both domain placement and relatedness edges. */
+  tags?: readonly string[];
 }
 
 // Authoritative menu graph. Tier ↑ size ↑ brightness ↑.
@@ -853,8 +861,20 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     for (const [id, p] of dataPositions) {
       list.push({ fromId: p.parentId, toId: id, opacity: 0.12, key: `${p.parentId}->${id}` });
     }
+    // Relatedness edges (2026-05-31): connect pieces that share tags so the
+    // graph shows actual associations between what the user added, not just
+    // the parent→child hierarchy. Only between data nodes currently on stage.
+    const relatable = dataNodes
+      .filter((d) => dataPositions.has(d.id))
+      .map((d) => ({ id: d.id, tags: d.tags ?? [] }));
+    for (const e of relatedEdges(relatable, { minShared: 2, maxPerNode: 3 })) {
+      // Slightly brighter than the faint parent→shard line, scaled by how
+      // many tags they share, so stronger associations read stronger.
+      const opacity = Math.min(0.34, 0.16 + e.weight * 0.06);
+      list.push({ fromId: e.from, toId: e.to, opacity, key: `rel:${e.from}~${e.to}` });
+    }
     return list;
-  }, [dataPositions]);
+  }, [dataPositions, dataNodes]);
 
   // Edge fade-in: when both endpoints have spawned, ramp the edge's
   // 0..1 multiplier to 1 over EDGE_REVEAL_MS. This is what makes the
@@ -1090,6 +1110,17 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 style={StyleSheet.absoluteFill}
               />
             </View>
+            {/* Village name tag (2026-05-31): tier-2 islands carry a pixel
+                name plate so first-time users can read what each village is
+                straight from the main graph. Tier-3 nodes get theirs only
+                when zoomed in (label shown in the bottom sheet on tap). */}
+            {n.tier === 2 ? (
+              <View style={styles.villageTag} pointerEvents="none">
+                <Text style={styles.villageTagText} numberOfLines={1}>
+                  {n.label[locale]}
+                </Text>
+              </View>
+            ) : null}
           </Animated.View>
         );
       })}
@@ -1262,6 +1293,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "stretch",
+  },
+  // Village name plate under each tier-2 island. Pixel face on a dark glass
+  // chip with a mint hairline so it reads against the cosmic background while
+  // staying in the pixel-art register. Centered under the node; overflows the
+  // node box (which is only `size` wide) so the full name shows.
+  villageTag: {
+    position: "absolute",
+    top: "104%",
+    minWidth: 96,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "rgba(7,10,24,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.40)",
+  },
+  villageTagText: {
+    color: cosmic.moonWhite,
+    fontFamily: fontFamilies.pixel,
+    fontSize: 12,
+    letterSpacing: 0.3,
+    textAlign: "center",
   },
   centerArtWrap: {
     width: CENTER_SIZE,

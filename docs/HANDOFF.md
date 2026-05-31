@@ -3,7 +3,65 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-05-30 / premium closeout v3 머지 + reference-assetization audit 진행 중 (미완료)
+## Latest — 2026-05-31 / 메뉴 구조 전면 재설계 진행 중 (Phase 2/6 완료, Phase 3 다음)
+
+### 어디까지 왔나
+- **main HEAD**: `d77cb00`
+- **테스트**: `npm run verify` green — jest **662/662 (66 suites)**, lint 0 err, C1~C12. working tree clean.
+- **의존성 설치 주의**: `npm ci --legacy-peer-deps` (그냥 `npm ci`는 typescript@6 vs expo peer 충돌로 실패. CI도 `--legacy-peer-deps`).
+
+### 이번 세션 머지된 PR (시간순)
+- #71 capture/records 저장소 통합 읽기(mergeEvidence) + 캐릭터별 페르소나 chat + capture 개편(링크/스크랩 통합, 자동분류 버튼 제거, 해시태그 +칩)
+- #73 로그아웃→/sign-in 직행 + 메인 그래프 마을 픽셀 이름표
+- #74 그래프 연관성: 태그 기반 도메인 자동 배치(domainForTags) + 공유태그 연결선(relatedEdges) — `src/lib/graph/relatedness.ts`
+- #75 **메뉴 재설계 스펙 문서** — `docs/MENU_RESTRUCTURE.md` (VISION 3축 IA, 5탭, 결정 Q1~Q3 확정)
+- #76 **재설계 Phase 2** — `/capture`(담기)에 '일기' 모드 추가(streak·성찰질문·topic/conclusion·opt-in Advisor, records 저장, C9 crisis). 나머지 모드는 sources 저장.
+
+### ⏳ 진행 중인 큰 작업: 메뉴 구조 전면 재설계
+**단일 소스: `docs/MENU_RESTRUCTURE.md`** (스펙 + Phase별 진행현황 + 확정 결정).
+사용자 지시: "메뉴 하나하나 기능부터 다시 정의해서 구조를 짜자." → VISION 3축 기반 IA로 재설계 합의.
+
+**확정된 결정 (MENU_RESTRUCTURE.md §6):**
+- Q1 통합 입력 저장 = **모드별 유지 + 읽기 통합** (메모/일기→records, 링크·파일→sources; 읽기는 mergeEvidence)
+- Q2 마을 도착지 = **records 도메인 필터 재사용** (신규 화면 최소화)
+- Q3 탭 5개 = **그래프 · 담기 · 세컨비 · 공상 · 나** (explore/store 탭 제거)
+
+**Phase 진행 상태:**
+- ✅ Phase 1 (스펙 문서) — #75
+- ✅ Phase 2 (통합 담기, 일기 모드) — #76
+- ⬜ **Phase 3 (다음 1순위) — 5탭 재정의**: `src/components/premium/tab-bar.tsx`의 explore(`/core-brain`)·store(`/wiki`) 탭 제거 → 담기(`/capture`)·세컨비(`/jarvis`)·공상(`/imagine`) 추가. `/journal`은 진입점 19곳이라 삭제 말고 `/capture`로 **redirect**. ⚠️ journal은 Lv3 게이트(checkGate)·firstRun 파라미터(onboarding.tsx:85, index.tsx:239)가 있으니 redirect 시 깨지지 않게 처리.
+- ⬜ Phase 4 — 마을 탭 도착지를 records 도메인 필터 뷰로 통일 (relatedness.ts의 VillageId와 정합). 현재 마을→trinity/insights/interview로 불일치.
+- ⬜ Phase 5 — `/profile`을 '나' 허브로 확장, 묻힌 화면(big-five/mbti/attachment/audit/interview/research/support/permissions/import/inbox/data/theme/manual) 명시 노출.
+- ⬜ Phase 6 — 죽은 라우트/중복 정리, i18n·테스트.
+
+> **사용자 메모: "하다보면 별로일 수도 있어."** → 재설계는 가역적으로. 각 Phase는 독립 PR + 독립 동작(중간에 멈춰도 안 깨짐). 별로면 해당 Phase PR만 revert하면 됨. Phase 2까지는 `/journal` 원본을 남겨둬서 롤백 안전.
+
+### 복구 방법 (다음 세션 시작 시)
+1. `git checkout main && git fetch origin main && git pull origin main` (HEAD `d77cb00` 이상)
+2. `npm ci --legacy-peer-deps && npm run verify` (662/662 green 확인)
+3. `cat docs/MENU_RESTRUCTURE.md` 읽기 — 재설계 전체 맥락 + Phase별 할 일 + 확정 결정
+4. Phase 3부터 이어서: tab-bar.tsx 교체 + /journal redirect (위 ⚠️ 주의사항대로)
+
+### 핵심 파일 (재설계 관련)
+```
+docs/MENU_RESTRUCTURE.md              재설계 단일 소스 (스펙+Phase+결정)
+src/components/premium/tab-bar.tsx    5탭 정의 (Phase 3 대상)
+src/app/capture.tsx                   통합 담기 (journal+capture, Phase 2 완료)
+src/app/journal.tsx                   원본 일기 (Phase 3에서 redirect 예정, 아직 살아있음)
+src/lib/graph/relatedness.ts          domainForTags + relatedEdges (#74)
+src/lib/persona/evidence.ts           mergeEvidence (records+sources 읽기 통합, #71)
+src/lib/chat/personas.ts              캐릭터별 페르소나 (#71)
+src/components/graph/NavGraph.tsx     메인 그래프 (마을 이름표·연관선·캐릭터 탭)
+```
+
+### 알려진 미해결 (재설계와 별개 트랙)
+- capture(`sources`) 조각은 아직 **메인 그래프 미반영** — 메인은 `wiki_pages`만 읽음. (기록 화면은 #71로 통합됐지만 그래프는 별개.)
+- 연관성은 "공유 태그" 기준 — 임베딩 의미 유사도는 범위 밖.
+- 실제 Gemini 라이브 연결 안 됨 (mock 유지).
+
+---
+
+## Earlier — 2026-05-30 / premium closeout v3 머지 + reference-assetization audit 진행 중 (미완료)
 
 ### 어디까지 왔나
 - **main HEAD**: `f6cc931`

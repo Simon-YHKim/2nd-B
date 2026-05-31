@@ -1,0 +1,129 @@
+# 메뉴 구조 재설계 스펙 (v1)
+
+> 작성 2026-05-31 · 기준 main `f461884` · 결정: **VISION 3축 기반 + 입력 단일 통합**
+> 이 문서는 구현 전 합의용. 코드는 이 문서의 단계(Phase)대로 별도 PR로 진행한다.
+
+## 0. 왜 재설계하나 (진단)
+
+현재 앱에는 **3개의 정신 모델이 충돌**한다:
+
+1. 마을 메타포 — 메인 그래프의 6개 도메인 섬 (시각)
+2. VISION 3축 — 알아가기 / 개인 비서 / 공상 (docs/VISION.md)
+3. 5탭 + 33라우트 — 실제 네비게이션
+
+세 모델의 매핑이 어긋나 다음 문제가 발생한다:
+
+- **중복 도착지**: "기록" 탭과 "기록 보관소" 마을이 둘 다 `/records`. "보관소" 탭과 "배움과 지식" 마을이 둘 다 `/wiki`.
+- **마을↔기능 불일치**: "일과 성장" 마을 → `/trinity`(Simon 개인 4영역 대시보드). "취향과 영감" 마을 → `/insights`(글쓰기 패턴 분석). 이름과 도착지가 다르다.
+- **묻힌 화면**: `/mbti` `/research` `/support` `/permissions` `/import` `/inbox` 진입점 1곳뿐.
+- **입력 경로 분산**: `/journal`(records 테이블)과 `/capture`(sources 테이블)이 분리. 사용자에게 "어디에 뭘 쓰는지" 불명확.
+- **평가 도구 단절**: big-five/mbti/attachment/audit/interview가 그래프 구조 밖에 떠 있음. "알아가기" 축의 핵심인데 메인에서 안 보임.
+
+## 1. 재설계 원칙
+
+**마을 = VISION 3축의 시각화로 통일한다.** 3축을 1급 정보구조로 삼고, 탭·마을·라우트를 그 아래 정렬한다.
+
+```
+축 1. 알아가기 (입력·축적)   →  입력 단일 진입 + 평가도구 + 마을(일/관계/지식/기록)
+축 2. 개인 비서 (활용·대화)  →  세컨비 chat · 나의 중심 · 페르소나 · insights
+축 3. 공상 → 구체화 (미래)   →  공상 작업실(imagine)
+```
+
+원칙:
+- 한 라우트는 한 가지 일만 한다 (중복 도착지 제거).
+- 모든 화면은 3축 중 하나에 속한다 (떠 있는 화면 없음).
+- 입력은 단일 진입점 "담기"로 통합한다.
+- 마을 이름 = 도착지 의미와 일치시킨다.
+
+## 2. 하단 탭바 재정의 (5탭 = 3축 + 입력 + 나)
+
+| 새 탭 | 라우트 | 의미 | 축 | 현재 대비 |
+|---|---|---|---|---|
+| 🏠 그래프 | `/` | 마을 = 내 데이터 지도 | 전체 | 유지 |
+| ✍️ 담기 | `/capture` | 모든 입력 단일 진입 (journal+capture 통합) | 1 | **신규 탭** (기존 explore 대체) |
+| 💬 세컨비 | `/jarvis` | AI 비서 대화 | 2 | **탭 승격** (기존 FAB만) |
+| 🌙 공상 | `/imagine` | 미래의 나 | 3 | **신규 탭** |
+| 👤 나 | `/profile` | 페르소나·평가·나의중심·설정 허브 | 2 | store 대체 |
+
+제거: explore(`/core-brain`)·store(`/wiki`) 탭 → 각각 "나" 허브와 그래프 마을로 흡수.
+
+## 3. 입력 통합: "담기" (Phase 2의 핵심)
+
+journal(records) + capture(sources)을 **하나의 "담기" 경험**으로 합친다.
+
+- 사용자는 "남기기" 하나만 안다. 내부에서 모드로 구분:
+  - 메모 / 일기 (짧은 자기 기록) — 현재 journal + capture memo
+  - 링크·스크랩 (외부 자료) — 현재 capture linkclip
+  - 이미지 / 문서 — 현재 capture ocr/file
+- **저장 테이블 정책 (결정 필요 — §6 Open Q1)**: 통합 입력의 저장 위치.
+- streak·오늘의 조각 같은 journal 고유 기능은 "담기" 안의 메모/일기 모드에 흡수.
+
+## 4. 마을 ↔ 라우트 정합 (이름과 도착지 일치)
+
+| 마을 | 현재 도착지 | 문제 | 제안 도착지 |
+|---|---|---|---|
+| 일과 성장 | `/trinity` | trinity는 Simon 개인 4영역 대시보드 | 일·성장 태그 조각 모음 뷰 (records 필터) |
+| 관계와 사람 | `/interview` | interview는 LLM 드릴다운 | 관계 태그 조각 + 시기별 인터뷰 진입 |
+| 배움과 지식 | `/wiki` | OK (지식=wiki) | 유지 |
+| 기록 보관소 | `/records` | 탭과 중복 | 마을 탭 시 records를 도메인 필터로 진입 |
+| 공상 작업실 | `/imagine` | OK | 유지 (탭과 동일) |
+| 취향과 영감 | `/insights` | insights는 글쓰기 패턴 | 취향 태그 조각 + 영감 모음 |
+
+핵심: **마을 탭 → "그 도메인으로 필터된 조각 뷰"**로 통일. 도메인 = relatedness.ts의 VillageId와 일치(이미 구현됨). trinity/insights는 "나" 허브 아래 분석 도구로 이동.
+
+## 5. "나" 허브 (묻힌 화면 수용)
+
+`/profile`을 단순 계정 화면 → **3축 중 '나를 활용/관리' 허브**로 재정의. 섹션:
+
+- **나의 중심** → `/core-brain` (페르소나 요약)
+- **나를 알아가기 (평가)**: `/big-five` `/mbti` `/attachment` `/audit` `/interview` `/persona`
+- **분석**: `/insights` `/trinity` `/research`
+- **계정·설정**: `/settings` `/theme` `/data` `/support` `/permissions` `/manual` `/import` `/inbox`
+
+→ 진입점 1곳뿐이던 화면들이 "나" 허브 아래 명시적 목록으로 노출된다.
+
+## 6. 결정 사항 (2026-05-31 확정)
+
+- **Q1. 통합 입력 저장 테이블 → (c) 모드별 유지 + 읽기 통합.**
+  쓰기는 기존대로(메모/일기 → `records`, 링크·스크랩/이미지/문서 → `sources`),
+  읽기는 이미 `mergeEvidence`로 통합돼 있음. 입력 UI만 하나로 합친다.
+  쓰기 마이그레이션 리스크 없음.
+- **Q2. 마을 도착지 → records 도메인 필터 재사용.**
+  마을 탭 시 그 도메인(VillageId)으로 필터된 기록 뷰로 진입. 신규 화면 최소화.
+- **Q3. 탭 5개 확정 → 그래프 · 담기 · 세컨비 · 공상 · 나.**
+  공상은 독립 탭으로 둔다(3축 가시성). explore(`/core-brain`)·store(`/wiki`) 탭 제거.
+
+## 7. 구현 Phase (각 단계 = 별도 PR, verify green 게이트)
+
+진행 상태 (2026-05-31 갱신):
+
+- ✅ **Phase 1 (문서)** — #75 머지. 이 스펙 + 결정 Q1~Q3 확정.
+- ✅ **Phase 2 (입력 통합)** — #76 머지. `/capture`(담기)에 '일기' 모드 추가:
+  streak·성찰질문·topic/conclusion·opt-in Advisor 포팅, records 저장 + C9 crisis.
+  나머지 모드(메모/링크·스크랩/이미지/문서)는 sources 저장. `/journal` 원본은 그대로 둠.
+- ⬜ **Phase 3 (탭 재정의) — 다음 1순위**: `src/components/premium/tab-bar.tsx`에서
+  explore(`/core-brain`)·store(`/wiki`) 탭 제거 → 담기(`/capture`)·세컨비(`/jarvis`)·
+  공상(`/imagine`) 추가. 최종 5탭 = 그래프·담기·세컨비·공상·나.
+  - ⚠️ `/journal`은 진입점 19곳(onboarding.tsx:85, index.tsx:239의 `entry: "firstRun"` 등) →
+    삭제 말고 `/capture`로 redirect. journal의 Lv3 게이트(`checkGate`)·firstRun 동선이
+    깨지지 않게 처리. redirect 시 firstRun 파라미터도 `/capture`가 받게 하거나 무시.
+- ⬜ **Phase 4 (마을 정합)**: 마을 탭 도착지를 records 도메인 필터 뷰로 통일.
+  현재 work→trinity, taste→insights, relation→interview로 불일치. relatedness.ts의
+  `VillageId`와 정합. records.tsx에 도메인 필터 파라미터 추가가 핵심.
+- ⬜ **Phase 5 (나 허브)**: `/profile`을 3축 '나' 허브로 확장. 묻힌 화면 수용:
+  big-five/mbti/attachment/audit/interview/persona/insights/trinity/research +
+  settings/theme/data/support/permissions/manual/import/inbox.
+- ⬜ **Phase 6 (정리)**: 죽은 라우트/중복 제거, journal nav row 정리, i18n·테스트.
+
+각 Phase는 독립 동작하도록 쪼갠다(중간에 멈춰도 앱이 깨지지 않게).
+
+> **가역성 메모 (사용자: "하다보면 별로일 수도 있어")**: 각 Phase는 독립 PR이라
+> 별로면 해당 PR만 revert. Phase 2까지는 `/journal` 원본을 남겨둬 롤백 안전.
+> Phase 3에서 journal을 redirect로 바꾸기 전까지는 어떤 단계든 되돌리기 쉬움.
+
+## 8. 비범위 (이번 재설계에서 안 건드림)
+
+- 임베딩 기반 의미 유사도 (relatedness는 공유 태그 기준 유지)
+- capture(sources) 조각의 메인 그래프 노출 (별도 트랙)
+- 실제 Gemini 라이브 연결 (mock 유지)
+- 디자인 비주얼 (DESIGN.md 톤 유지, 구조만 변경)

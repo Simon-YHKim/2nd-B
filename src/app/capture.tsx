@@ -15,7 +15,7 @@
 //     Editable chips, track toggle stays user-final.
 //   - Submit: persists via captureFromMarkdown + tag updates.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -46,12 +46,21 @@ import { pickFile, type PickedFile } from "@/lib/wiki/capture-file";
 import { classifyCapture, type WikiTrack } from "@/lib/wiki/classify-track";
 import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+import { createRecord } from "@/lib/records/create";
+import { computeStreak } from "@/lib/journal/streak";
+import { dailyPrompt } from "@/lib/journal/daily-prompts";
+import { listRecentRecords } from "@/lib/records/create";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import type { HotlineId } from "@/lib/safety/lexicon";
 
-// Link and Clip(스크랩) were merged into one "링크/스크랩" mode (2026-05-31
-// user directive): paste a URL or paste clipper markdown — we detect which.
-type Mode = "memo" | "linkclip" | "ocr" | "file";
+// Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
+// capture modes live on one screen. "일기" writes to `records` (createRecord —
+// streak / reflection / optional Advisor); the rest write to `sources`
+// (captureFromMarkdown). Reads were already unified via mergeEvidence.
+type Mode = "journal" | "memo" | "linkclip" | "ocr" | "file";
 
 const MODE_LABEL: Record<Mode, { en: string; ko: string; icon: string }> = {
+  journal: { en: "Journal", ko: "일기", icon: "🌙" },
   memo: { en: "Memo", ko: "메모", icon: "✍️" },
   linkclip: { en: "Link/Clip", ko: "링크/스크랩", icon: "🔗" },
   ocr: { en: "OCR", ko: "이미지", icon: "📸" },
@@ -59,6 +68,10 @@ const MODE_LABEL: Record<Mode, { en: string; ko: string; icon: string }> = {
 };
 
 const MODE_HELP: Record<Mode, { en: string; ko: string }> = {
+  journal: {
+    en: "Today's piece — a reflection saved to your records, with an optional Advisor reply.",
+    ko: "오늘의 조각 — 기록에 저장되는 성찰. 원하면 AI 조언도 받을 수 있어요.",
+  },
   memo: {
     en: "Jot a short note. Tags and track get added automatically when you toss it.",
     ko: "한 줄 메모. 던지면 일꾼 세포가 알아서 분류·태그를 달아요.",
@@ -82,7 +95,7 @@ export default function Capture() {
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
-  const [mode, setMode] = useState<Mode>("memo");
+  const [mode, setMode] = useState<Mode>("journal");
   const [track, setTrack] = useState<WikiTrack>("daily");
   const [body, setBody] = useState("");
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
@@ -94,6 +107,34 @@ export default function Capture() {
   const companion = useCompanionMoment();
   // Title of the just-saved piece — drives the inline success panel.
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
+
+  // Journal-mode (일기) state — ported from /journal. Writes to records.
+  const [topic, setTopic] = useState("");
+  const [conclusion, setConclusion] = useState("");
+  const [showExtras, setShowExtras] = useState(false);
+  const [askAdvisor, setAskAdvisor] = useState(false);
+  const [recentDates, setRecentDates] = useState<string[]>([]);
+  const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+    visible: false,
+    hotline: "GLOBAL_988",
+  });
+  const streak = useMemo(() => computeStreak(recentDates), [recentDates]);
+
+  // Load recent record dates (journal streak) once we have a user.
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void listRecentRecords(userId)
+      .then((rows) => {
+        if (!cancelled) setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at));
+      })
+      .catch((e) => {
+        if (typeof console !== "undefined") console.warn("[capture] streak load failed", (e as Error).message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   if (loading) return null;
   if (!userId) {
@@ -114,6 +155,10 @@ export default function Capture() {
     setPickedFile(null);
     setOcrPreview(null);
     setTagsEditable([]);
+    setTopic("");
+    setConclusion("");
+    setShowExtras(false);
+    setAskAdvisor(false);
   }
 
   async function runOcr(source: "library" | "camera") {
@@ -156,14 +201,50 @@ export default function Capture() {
   }
 
   const canSubmit = !!userId && !submitting && (
+    (mode === "journal" && body.trim().length > 0) ||
     (mode === "memo" && body.trim().length > 0) ||
     (mode === "linkclip" && body.trim().length > 0) ||
     (mode === "ocr" && body.trim().length > 0) ||
     (mode === "file" && (!!pickedFile || body.trim().length > 0))
   );
 
+  // 일기(journal) mode writes to `records` via createRecord: streak, optional
+  // topic/conclusion, and an opt-in Advisor reply. Crisis routing is honoured.
+  async function handleJournalSubmit() {
+    if (!userId || !body.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await createRecord({
+        userId,
+        locale,
+        kind: "journal",
+        body: body.trim(),
+        topic: topic.trim().length > 0 ? topic.trim() : undefined,
+        tags: tagsEditable.length > 0 ? tagsEditable : undefined,
+        conclusion: conclusion.trim().length > 0 ? conclusion.trim() : undefined,
+        withFollowup: askAdvisor,
+      });
+      if (res.followup?.zone === "red") {
+        setCrisis({ visible: true, hotline: locale === "ko" ? "KR_1393" : "GLOBAL_988" });
+      }
+      const savedTopic = topic.trim();
+      reset();
+      companion.fire("journalSaved");
+      setSavedTitle(savedTopic.length > 0 ? savedTopic : (locale === "ko" ? "오늘의 조각" : "Today's piece"));
+      // Refresh streak.
+      void listRecentRecords(userId)
+        .then((rows) => setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at)))
+        .catch(() => {});
+    } catch (e) {
+      Alert.alert(locale === "ko" ? "저장 실패" : "Save failed", (e as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleSubmit() {
     if (!userId) return;
+    if (mode === "journal") return handleJournalSubmit();
     setSubmitting(true);
     try {
       // Compose the body that captureFromMarkdown will index.
@@ -231,12 +312,12 @@ export default function Capture() {
           <View style={styles.header}>
             <Text variant="caption" color="brand">2nd-Brain</Text>
             <Text variant="heading">
-              {locale === "ko" ? "조각 담기" : "Capture a piece"}
+              {locale === "ko" ? "담기" : "Capture"}
             </Text>
             <Text variant="body" color="textMuted">
               {locale === "ko"
-                ? "메모·링크·파일·사진을 던지면 조각으로 보관하고 자동으로 분류·태그해요."
-                : "Toss a memo, link, file, or photo — we'll keep it as a piece and sort + tag it."}
+                ? "오늘의 조각(일기)부터 메모·링크·파일·사진까지 — 한곳에서 담아요."
+                : "From today's journal to memos, links, files and photos — capture it all in one place."}
             </Text>
           </View>
 
@@ -261,7 +342,8 @@ export default function Capture() {
             </PremiumCard>
           ) : null}
 
-          {/* Track toggle: 일상 / Pro */}
+          {/* Track toggle: 일상 / Pro — only for capture modes (not journal). */}
+          {mode !== "journal" ? (
           <View style={styles.trackCard}>
             <Text variant="caption" color="brand" style={styles.eyebrow}>
               {locale === "ko" ? "어디로 갈까요?" : "Which wiki?"}
@@ -287,10 +369,11 @@ export default function Capture() {
               </Pressable>
             </View>
           </View>
+          ) : null}
 
           {/* Mode tabs */}
           <View style={styles.modeRow}>
-            {(["memo", "linkclip", "ocr", "file"] as Mode[]).map((m) => (
+            {(["journal", "memo", "linkclip", "ocr", "file"] as Mode[]).map((m) => (
               <Pressable
                 key={m}
                 style={[styles.modeTab, mode === m && styles.modeTabActive]}
@@ -313,6 +396,87 @@ export default function Capture() {
           <Text variant="subtle" color="textMuted" style={styles.modeHelp}>
             {MODE_HELP[mode][locale]}
           </Text>
+
+          {/* Journal (일기) mode — streak, reflection prompt, topic, body,
+              optional conclusion, opt-in Advisor. Writes to records. */}
+          {mode === "journal" ? (
+            <View style={styles.fieldGroup}>
+              {streak.current > 0 ? (
+                <View style={styles.streakRow}>
+                  <Text variant="caption" color="brand">{streak.capturedToday ? "🔥" : "·"}</Text>
+                  <Text variant="subtle" color="textMuted">
+                    {locale === "ko"
+                      ? `${streak.current}일 연속 기록${streak.capturedToday ? "" : " (오늘은 아직)"}`
+                      : `${streak.current}-day streak${streak.capturedToday ? "" : " (none today yet)"}`}
+                  </Text>
+                </View>
+              ) : null}
+              <View style={styles.dailyPromptCard}>
+                <Text variant="caption" color="brand" style={{ letterSpacing: 1.2 }}>
+                  {locale === "ko" ? "오늘의 성찰 질문" : "Today's reflection prompt"}
+                </Text>
+                <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }} selectable>
+                  {dailyPrompt(locale)}
+                </Text>
+                {topic.length === 0 ? (
+                  <Pressable onPress={() => setTopic(dailyPrompt(locale))} hitSlop={4} style={{ marginTop: spacing.xs }}>
+                    <Text variant="caption" color="brand">
+                      {locale === "ko" ? "→ 이 질문을 주제로" : "→ Use this as topic"}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+              <Input
+                value={topic}
+                onChangeText={setTopic}
+                placeholder={locale === "ko" ? "주제 (선택) — 한 줄로" : "Topic (optional) — one line"}
+                autoCapitalize="sentences"
+              />
+              <Input
+                value={body}
+                onChangeText={setBody}
+                placeholder={
+                  locale === "ko"
+                    ? "오늘 떠오른 생각이나 느낌을 적어주세요. 한 문장이어도 충분해요."
+                    : "What's on your mind today? One sentence is enough."
+                }
+                multiline
+                numberOfLines={6}
+                textAlignVertical="top"
+                style={styles.textarea}
+              />
+              <Pressable onPress={() => setShowExtras((v) => !v)} hitSlop={4}>
+                <Text variant="caption" color="brand">
+                  {showExtras
+                    ? (locale === "ko" ? "▾ 결론 칸 닫기" : "▾ Hide conclusion field")
+                    : (locale === "ko" ? "▸ 결론 한 줄로 (선택)" : "▸ Add a one-line conclusion (optional)")}
+                </Text>
+              </Pressable>
+              {showExtras ? (
+                <Input
+                  value={conclusion}
+                  onChangeText={setConclusion}
+                  placeholder={locale === "ko" ? "결론 — 오늘의 한 줄 깨달음" : "Conclusion — today's takeaway"}
+                  multiline
+                  numberOfLines={2}
+                  textAlignVertical="top"
+                />
+              ) : null}
+              <Pressable onPress={() => setAskAdvisor((v) => !v)} hitSlop={4} style={styles.advisorRow}>
+                <View style={[styles.advisorCheck, askAdvisor && styles.advisorCheckOn]}>
+                  {askAdvisor ? <Text variant="caption" color="background">✓</Text> : null}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text variant="subtle" color={askAdvisor ? "brand" : "textMuted"}>
+                    {locale === "ko" ? "이 기록에 AI 조언 받기" : "Ask Advisor on this entry"}
+                  </Text>
+                  <Text variant="subtle" color="textSubtle">
+                    {locale === "ko" ? "기본은 꺼짐. 되묻고 싶을 때만 켜세요." : "Off by default. Turn on only when you want a reflection back."}
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+          ) : null}
 
           {/* Mode-specific inputs. Each mode renders ONLY its own field block
               inside a bordered group so the URL/body boxes never read as one
@@ -473,6 +637,12 @@ export default function Capture() {
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.captureFlash} />
       ) : null}
+      {/* Crisis routing for journal-mode entries (C9). */}
+      <CrisisRouter
+        visible={crisis.visible}
+        hotline={crisis.hotline}
+        onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
+      />
     </PremiumAppShell>
   );
 }
@@ -531,6 +701,27 @@ function HashtagAdder({ onAdd, locale }: { onAdd: (s: string) => void; locale: "
 
 const styles = StyleSheet.create({
   captureFlash: { position: "absolute", bottom: 40, right: 20 },
+  // Journal-mode (일기) bits, ported from /journal.
+  streakRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  dailyPromptCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: semantic.brand,
+  },
+  advisorRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, marginTop: spacing.xs },
+  advisorCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  advisorCheckOn: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   savedPanel: {
     backgroundColor: "rgba(114,242,199,0.06)",
     borderColor: "rgba(114,242,199,0.22)",

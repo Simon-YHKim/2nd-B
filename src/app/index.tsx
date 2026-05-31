@@ -35,6 +35,7 @@ import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBFab, SecondBSprite } from "@/components/art/SecondBSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
+import { domainForTags } from "@/lib/graph/relatedness";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 import { StarNoiseLayer } from "@/components/premium";
 
@@ -153,18 +154,25 @@ export default function Landing() {
     let cancelled = false;
     supabase
       .from("wiki_pages")
-      .select("id, title")
+      .select("id, title, tags")
       .eq("user_id", userId)
       .limit(120)
       .then((res) => {
         if (cancelled) return;
         if (res.data) {
           setDataNodes(
-            res.data.map((p) => ({
-              id: p.id,
-              title: p.title,
-              parentId: "wiki-daily" as const,
-            })),
+            res.data.map((p) => {
+              const tags = (p.tags ?? []) as string[];
+              // Place each piece in the village its tags point to (no longer
+              // hardcoded to wiki-daily), so adding data grows the right
+              // district. relatedness edges are computed inside NavGraph.
+              return {
+                id: p.id,
+                title: p.title,
+                parentId: domainForTags(tags, p.title),
+                tags,
+              };
+            }),
           );
         }
       });
