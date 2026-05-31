@@ -29,9 +29,8 @@ import { sendChatMessage } from "@/lib/chat/conversation";
 import { getPersona, PERSONAS } from "@/lib/chat/personas";
 import { parseSourceCitations } from "@/lib/chat/sources";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
-import { WorkerSprite } from "@/components/art/WorkerSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
-import { PremiumAppShell, ContextPill, ReferenceShardCard } from "@/components/premium";
+import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/components/premium";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
@@ -197,27 +196,51 @@ export default function Jarvis() {
 
   const canSend = draft.trim().length > 0 && !sending;
   const usedDisplay = usedToday === null ? "—" : String(usedToday);
+  const chatIslandByWorker = {
+    secondb: "core",
+    archi: "work_growth",
+    gadi: "relationship",
+    lulu: "knowledge",
+    momo: "records",
+    vela: "imagine",
+    lumi: "inspiration",
+  } as const;
+  const chatWorker = isCharacterChat ? persona.id : "secondb";
 
   return (
     <PremiumAppShell>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            {/* Chat presence: the tapped companion in a character chat,
-                otherwise 세컨비 — thinks while a reply is generating. */}
-            {isCharacterChat ? (
-              <WorkerSprite id={persona.id} size={44} paused={!sending} />
-            ) : (
-              <SecondBSprite state={sending ? "thinking" : "chat"} size={44} float />
-            )}
-            <View style={{ flex: 1 }}>
-              <Text variant="heading">{isCharacterChat ? persona.name[locale] : t("title")}</Text>
-              <Text variant="subtle" color="textMuted">
-                {isCharacterChat ? persona.role[locale] : t("subtitle")}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.meter}>
+        <SceneHero
+          eyebrow={locale === "ko" ? "06. 세컨비 대화" : "06. SecondB chat"}
+          title={isCharacterChat ? persona.name[locale] : t("title")}
+          subtitle={isCharacterChat ? persona.role[locale] : t("subtitle")}
+          island={chatIslandByWorker[chatWorker]}
+          worker={chatWorker}
+          speech={
+            sending
+              ? locale === "ko"
+                ? "참고한 조각들을 읽어오는 중이에요."
+                : "I'm reading the pieces that matter."
+              : locale === "ko"
+                ? "오늘의 기록을 읽어봤어요. 작은 한 걸음으로 시작해볼까요?"
+                : "I've read today's pieces. Shall we start with one small step?"
+          }
+          primaryAction={{
+            label: t("send"),
+            loading: sending,
+            disabled: !canSend,
+            onPress: handleSend,
+          }}
+          secondaryAction={{
+            label: locale === "ko" ? "대화 비우기" : "Clear chat",
+            variant: "secondary",
+            disabled: turns.length === 0 || sending,
+            onPress: () => setTurns([]),
+          }}
+          railIcons={["⌂", "✦", "◎", "▣"]}
+        />
+
+        <View style={styles.usagePanel}>
             <Text variant="caption" color="textMuted">
               {locale === "ko" ? "오늘" : "Today"}
             </Text>
@@ -234,7 +257,6 @@ export default function Jarvis() {
                 </Text>
               </Pressable>
             ) : null}
-          </View>
         </View>
 
         {/* nodeContext pill — entered from a graph node (chat pack §7) */}
@@ -452,6 +474,14 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm },
   meter: { alignItems: "flex-end", gap: 2 },
+  usagePanel: {
+    alignItems: "flex-end",
+    gap: 2,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderBottomColor: semantic.border,
+    borderBottomWidth: 1,
+  },
   scroll: { paddingVertical: spacing.md, gap: spacing.sm },
   empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },
   emptySecondB: {

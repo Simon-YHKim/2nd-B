@@ -12,7 +12,7 @@ import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "reac
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, ReferenceShardCard } from "@/components/premium";
+import { PremiumAppShell, ReferenceShardCard, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -120,15 +120,28 @@ export default function Records() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View>
-          <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
-            {locale === "ko" ? "지식 창고" : "Village store"}
-          </Text>
-          <Text variant="heading">{locale === "ko" ? "기록" : "Records"}</Text>
-          <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.xs }}>
-            {locale === "ko" ? "마을에 남긴 모든 조각을 한곳에서 살펴봐요." : "Every piece you've left in the village, in one place."}
-          </Text>
-        </View>
+        <SceneHero
+          eyebrow={locale === "ko" ? "05. 기록 보관소" : "05. Records"}
+          title={locale === "ko" ? "남긴 조각을 다시 만나요" : "Revisit every piece you left"}
+          subtitle={locale === "ko" ? "일기 · 담기 · 검사 · 공상까지 한곳에" : "Journal, capture, assessments, and imagine in one place"}
+          island="records"
+          worker="momo"
+          speech={
+            locale === "ko"
+              ? "모든 조각은 시간순으로 보관했어요. 필요한 기억을 바로 꺼내볼까요?"
+              : "Every piece is kept by time. Want to pull a memory back out?"
+          }
+          primaryAction={{
+            label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
+            onPress: () => router.push("/journal"),
+          }}
+          secondaryAction={{
+            label: locale === "ko" ? "지식 창고" : "Knowledge store",
+            variant: "secondary",
+            onPress: () => router.push("/wiki"),
+          }}
+          railIcons={["⌂", "▤", "⌕", "◇"]}
+        />
 
         <Input
           value={query}

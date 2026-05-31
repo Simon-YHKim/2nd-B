@@ -16,9 +16,8 @@ import { ScrollView, StyleSheet, View, ActivityIndicator, Pressable, Alert } fro
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AppNav } from "@/components/ui/AppNav";
@@ -152,19 +151,28 @@ export default function Trinity() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <Text variant="caption" color="brand">
-            2nd-Brain · Brain Trinity
-          </Text>
-          <Text variant="heading">
-            {locale === "ko" ? "4영역 인생 관리" : "Four-area life management"}
-          </Text>
-          <Text variant="body" color="textMuted">
-            {locale === "ko"
-              ? "건강 · 앱 · 뇌 · 재정. 기록에 해당 영역 태그를 달면 자동으로 분류돼요. 균형이 어디로 기우는지, 어느 영역이 한동안 비어 있는지 한눈에 보입니다."
-              : "Health · App · Brain · Finance. Tag records with the domain name and they cluster automatically — at-a-glance picture of where your attention is going."}
-          </Text>
-        </View>
+        <SceneHero
+          eyebrow={locale === "ko" ? "09. 4영역 관리" : "09. Brain Trinity"}
+          title={locale === "ko" ? "생활의 네 영역을 밝히기" : "Light up four life areas"}
+          subtitle={locale === "ko" ? "건강 · 앱 · 뇌 · 재정" : "Health · app · brain · finance"}
+          island="work_growth"
+          worker="archi"
+          speech={
+            locale === "ko"
+              ? "태그가 붙은 기록을 네 영역으로 나눴어요. 비어 있는 영역부터 살펴볼까요?"
+              : "I grouped tagged records into four areas. Want to inspect the quietest one?"
+          }
+          primaryAction={{
+            label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
+            onPress: () => router.push("/journal"),
+          }}
+          secondaryAction={{
+            label: locale === "ko" ? "인사이트 보기" : "Open insights",
+            variant: "secondary",
+            onPress: () => router.push("/insights"),
+          }}
+          railIcons={["⌂", "▦", "◎", "◇"]}
+        />
 
         {loading ? (
           <View style={styles.center}>

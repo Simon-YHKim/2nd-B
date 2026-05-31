@@ -17,10 +17,9 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import {
   PremiumAppShell,
-  PremiumTopBar,
   PremiumCTA,
-  PixelIconButton,
   PremiumLoadingState,
+  SceneHero,
   StatTile,
 } from "@/components/premium";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -134,21 +133,28 @@ export default function CoreBrain() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* 1) Premium top bar */}
-        <PremiumTopBar
-          title={locale === "ko" ? "나의 중심" : "Center of me"}
+        <SceneHero
+          eyebrow={locale === "ko" ? "02. 나의 중심" : "02. Core brain"}
+          title={locale === "ko" ? "내 조각들이 중심으로 모여요" : "Your pieces gather into a center"}
           subtitle={locale === "ko" ? "요즘 나의 연결 상태" : "How you're connecting lately"}
-          right={
-            <PixelIconButton accessibilityLabel={locale === "ko" ? "설정" : "Settings"} onPress={() => router.push("/settings")}>
-              <Text style={{ color: cosmic.moonWhite, fontSize: 18 }}>⚙</Text>
-            </PixelIconButton>
+          island="core"
+          worker="archi"
+          speech={
+            locale === "ko"
+              ? "가장 밝은 연결을 찾았어요. 오늘의 방향으로 줄여볼까요?"
+              : "I found the brightest link. Want to narrow it into today's direction?"
           }
+          primaryAction={{
+            label: locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB",
+            onPress: () => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "나의 중심" : "my center" } }),
+          }}
+          secondaryAction={{
+            label: locale === "ko" ? "설정" : "Settings",
+            variant: "secondary",
+            onPress: () => router.push("/settings"),
+          }}
+          railIcons={["⌂", "◎", "✦", "▣"]}
         />
-
-        {/* 2) Center hero orb + summary stats */}
-        <View style={styles.hero}>
-          <IslandArt id="core" size={200} />
-        </View>
         <View style={styles.statRow}>
           <StatTile value={evidence.length} label={locale === "ko" ? "조각" : "pieces"} accent={cosmic.pixelLamp} />
           <StatTile value={`${filledFields}/5`} label={locale === "ko" ? "나의 모습" : "self-portrait"} accent={cosmic.soulViolet} />

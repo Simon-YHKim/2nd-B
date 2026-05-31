@@ -24,7 +24,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { AppNav } from "@/components/ui/AppNav";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -189,17 +189,28 @@ export default function Interview() {
     return (
       <PremiumAppShell>
         <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={styles.header}>
-            <Text variant="caption" color="brand">2nd-Brain · Interview</Text>
-            <Text variant="heading">
-              {locale === "ko" ? "드릴 인터뷰" : "Drill interview"}
-            </Text>
-            <Text variant="body" color="textMuted">
-              {locale === "ko"
-                ? "한 시기를 골라서 깊게 들어갑니다. 인터뷰어가 사실 → 감정 → 의미 → 믿음 → 울림 다섯 층을 한 단계씩 안내해요. 진단·해석은 하지 않고, 듣는 데만 집중합니다. 20턴 제한 없이, 충분한 깊이에 도달하면 마무리 신호를 드려요."
-                : "Pick a life period and drill in. The interviewer guides you across five layers: fact → feeling → meaning → belief → echo. It doesn't diagnose or interpret — just listens. No 20-turn hard cap; we'll flag when you've reached sufficient depth."}
-            </Text>
-          </View>
+          <SceneHero
+            eyebrow={locale === "ko" ? "10. 드릴 인터뷰" : "10. Drill interview"}
+            title={locale === "ko" ? "한 시기를 깊게 들어가기" : "Drill into one life period"}
+            subtitle={locale === "ko" ? "사실 → 감정 → 의미 → 믿음 → 울림" : "Fact → feeling → meaning → belief → echo"}
+            island="relationship"
+            worker="gadi"
+            speech={
+              locale === "ko"
+                ? "해석보다 먼저 듣겠습니다. 어느 시기부터 살펴볼까요?"
+                : "I'll listen before interpreting. Which period should we start with?"
+            }
+            primaryAction={{
+              label: PERIOD_LABEL[locale].current,
+              onPress: () => startInterview("current"),
+            }}
+            secondaryAction={{
+              label: PERIOD_LABEL[locale].childhood,
+              variant: "secondary",
+              onPress: () => startInterview("childhood"),
+            }}
+            railIcons={["⌂", "◇", "◎", "▣"]}
+          />
           <View style={styles.periodGrid}>
             {(["childhood", "teens", "twenties", "thirties", "current"] as LifePeriod[]).map((p) => (
               <Pressable key={p} onPress={() => startInterview(p)} style={styles.periodCard} hitSlop={4}>

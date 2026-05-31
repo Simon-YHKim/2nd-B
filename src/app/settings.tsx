@@ -5,9 +5,9 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, View, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Link, router } from "expo-router";
+import { router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -147,19 +147,32 @@ export default function Settings() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <Text variant="caption" color="brand">
-            2nd-Brain
-          </Text>
-          <Text variant="heading">
-            {locale === "ko" ? "설정" : "Settings"}
-          </Text>
-          <Text variant="body" color="textMuted">
-            {locale === "ko"
-              ? "데이터 삭제는 되돌릴 수 없어요. 익스포트가 필요하면 위키 화면의 Export 버튼을 먼저 사용하세요."
-              : "Data deletion is permanent. If you want a backup, use the Export button on /wiki first."}
-          </Text>
-        </View>
+        <SceneHero
+          eyebrow={locale === "ko" ? "08. 설정" : "08. Settings"}
+          title={locale === "ko" ? "마을의 규칙을 정리해요" : "Tune the village rules"}
+          subtitle={
+            locale === "ko"
+              ? "테마 · 데이터 · 프로필 · 지원"
+              : "Theme · data · profile · support"
+          }
+          island="relationship"
+          worker="gadi"
+          speech={
+            locale === "ko"
+              ? "삭제는 되돌릴 수 없어요. 필요한 조각은 먼저 내보내기로 챙겨두세요."
+              : "Deletion cannot be undone. Export anything you need before clearing data."
+          }
+          primaryAction={{
+            label: locale === "ko" ? "데이터 관리" : "Data management",
+            onPress: () => router.push("/data"),
+          }}
+          secondaryAction={{
+            label: locale === "ko" ? "지식 창고" : "Knowledge store",
+            variant: "secondary",
+            onPress: () => router.push("/wiki"),
+          }}
+          railIcons={["⌂", "⚙", "◇", "▣"]}
+        />
 
         {/* Navigation hub (A-to-Z Phase 12) — the settings sub-screens. */}
         <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>

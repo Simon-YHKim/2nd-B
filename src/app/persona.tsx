@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Share } from "r
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { AppNav } from "@/components/ui/AppNav";
@@ -69,19 +69,32 @@ export default function Persona() {
     return (
       <PremiumAppShell>
         <ScrollView contentContainerStyle={styles.emptyScroll}>
-          <View style={styles.emptyHeader}>
-            <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
-              {locale === "ko" ? "페르소나 V1" : "PERSONA V1"}
-            </Text>
-            <Text variant="heading" style={{ marginTop: spacing.sm, textAlign: "center" }}>
-              {locale === "ko" ? "아직 우리가 모을 조각이 부족해요" : "Not enough pieces for us to gather yet"}
-            </Text>
-            <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
-              {locale === "ko"
-                ? "아래 도구 중 하나만 마쳐도 우리가 자기 모델 v1을 만들어요. 모두 끝내면 한 화면에 합쳐서 보여드려요."
-                : "Finish any one tool below and we'll build self-model v1. Take them all and we merge them into a single view."}
-            </Text>
-          </View>
+          <SceneHero
+            eyebrow={locale === "ko" ? "07. 나의 모습" : "07. Self model"}
+            title={locale === "ko" ? "아직 모을 조각이 부족해요" : "Not enough pieces yet"}
+            subtitle={
+              locale === "ko"
+                ? "도구 하나만 마쳐도 자기 모델 v1을 만들 수 있어요"
+                : "Finish one tool and we can build self-model v1"
+            }
+            island="core"
+            worker="archi"
+            speech={
+              locale === "ko"
+                ? "검사 하나만 끝내도 윤곽이 생겨요. 같이 첫 조각부터 모아볼까요?"
+                : "One assessment is enough to sketch the outline. Shall we gather the first piece?"
+            }
+            primaryAction={{
+              label: locale === "ko" ? "라이프 오딧 시작" : "Start life audit",
+              onPress: () => router.push("/audit"),
+            }}
+            secondaryAction={{
+              label: locale === "ko" ? "Big Five 시작" : "Start Big Five",
+              variant: "secondary",
+              onPress: () => router.push("/big-five"),
+            }}
+            railIcons={["⌂", "◎", "✦", "▣"]}
+          />
           <View style={styles.toolGrid}>
             {toolCards.map((t) => (
               <View key={t.route} style={styles.toolCard}>
@@ -115,23 +128,36 @@ export default function Persona() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View>
-          <Text variant="caption" color="brand">
-            {locale === "ko" ? "페르소나 v1" : "Persona v1"}
-          </Text>
-          <Text variant="heading">
-            {locale === "ko" ? "자기 모델" : "Self-model"}
-          </Text>
-          <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
-            {persona.traitsSource === "bfi"
+        <SceneHero
+          eyebrow={locale === "ko" ? "07. 나의 모습" : "07. Self model"}
+          title={locale === "ko" ? "자기 모델이 하나로 모였어요" : "Your self-model is gathered"}
+          subtitle={
+            persona.traitsSource === "bfi"
               ? locale === "ko"
-                ? "Big Five는 BFI-44 실측 기준 · MBTI · 애착 합성"
-                : "Big Five from BFI-44 measurement · MBTI · attachment combined"
+                ? "BFI-44 실측 · MBTI · 애착 합성"
+                : "BFI-44 measurement · MBTI · attachment combined"
               : locale === "ko"
-                ? "Big Five는 일기 기반 휴리스틱 추정 · 평가를 하시면 실측으로 업데이트돼요"
-                : "Big Five is a keyword heuristic — take the assessment for measured scores"}
-          </Text>
-        </View>
+                ? "일기 기반 추정 · 평가하면 실측으로 업데이트"
+                : "Journal-based estimate · assessments update it"
+          }
+          island="core"
+          worker="archi"
+          speech={
+            locale === "ko"
+              ? "반복해서 보이는 모습들을 모았어요. 중심 화면에서 방향으로 이어볼 수 있어요."
+              : "I gathered the patterns that keep showing up. You can turn them into direction in Core."
+          }
+          primaryAction={{
+            label: locale === "ko" ? "나의 중심 보기" : "Open core",
+            onPress: () => router.push("/core-brain"),
+          }}
+          secondaryAction={{
+            label: locale === "ko" ? "내보내기" : "Export",
+            variant: "secondary",
+            onPress: handleExport,
+          }}
+          railIcons={["⌂", "◎", "✦", "▣"]}
+        />
 
         {/* 나의 중심 — §7-2 three-card summary in Core Brain voice.
             Each card's meaning is coded by its left-border accent
