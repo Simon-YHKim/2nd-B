@@ -1,17 +1,15 @@
-// SecondB sprite pack v2 — the expressive companion. Renders the 12 state
-// sprites + 3 FAB states (public/assets/cosmic-pixel-v2/secondb) via
-// SvgXml from the already-installed react-native-svg, so native + web
-// match with no extra bundler config (same approach as the v1 art layer).
-//
-// Motion is deliberately restrained (asset order §6): idle gets a 4px
-// float only; event sequences finish within 1.2–1.8s. Honours
-// prefers-reduced-motion (holds still).
+// Premium SecondB sprite wrapper. The public API still exposes the expressive
+// v2 states, but the rendered body now uses the production premium worker PNG
+// so FAB, chat, onboarding, and empty states stay in the same visual family as
+// the main village workers.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, type ViewStyle } from "react-native";
-import { SvgXml } from "react-native-svg";
+import { Animated, Easing, StyleSheet, View, type ViewStyle } from "react-native";
 
-import { SECONDB_V2_XML } from "./secondbV2Xml";
+import { ShardArt } from "@/components/art/IslandArt";
+import { TierIcon } from "@/components/art/TierIcon";
+import { WorkerSprite } from "@/components/art/WorkerSprite";
+import { cosmic } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
 export type SecondBState =
@@ -30,7 +28,6 @@ export type SecondBState =
 
 export type SecondBFabState = "default" | "notification" | "chat_ready";
 
-/** A gentle 4px vertical float (asset order §6) — for the resting FAB / idle. */
 function useFloat(enabled: boolean) {
   const ty = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -47,10 +44,51 @@ function useFloat(enabled: boolean) {
   return ty;
 }
 
-/**
- * One SecondB sprite in a given state. Decorative by default (aria-hidden);
- * pass `label` to surface it to screen readers.
- */
+function SecondBStateAccent({ state, size }: { state: SecondBState; size: number }) {
+  const chip = Math.max(14, size * 0.28);
+
+  if (state === "carrying_shard") {
+    return (
+      <View style={[styles.stateLayer, { right: -size * 0.08, bottom: -size * 0.04 }]}>
+        <ShardArt id="core_violet" size={chip * 1.35} />
+      </View>
+    );
+  }
+
+  if (state === "chat" || state === "thinking") {
+    return (
+      <View style={[styles.chatChip, { width: chip * 1.45, height: chip, right: -size * 0.08, top: size * 0.02 }]}>
+        <View style={styles.chatDot} />
+        <View style={[styles.chatDot, { opacity: state === "thinking" ? 0.72 : 1 }]} />
+        <View style={[styles.chatDot, { opacity: state === "thinking" ? 0.44 : 1 }]} />
+      </View>
+    );
+  }
+
+  if (state === "happy" || state === "wave_a" || state === "wave_b") {
+    return (
+      <View style={[styles.stateLayer, { right: -size * 0.1, top: -size * 0.04 }]}>
+        <TierIcon id="spark_recent" size={chip * 1.1} />
+      </View>
+    );
+  }
+
+  if (state === "alert") {
+    return (
+      <View style={[styles.alertBurst, { right: -size * 0.05, top: size * 0.04 }]}>
+        <View style={styles.alertBar} />
+        <View style={[styles.alertBar, { transform: [{ rotate: "90deg" }] }]} />
+      </View>
+    );
+  }
+
+  if (state === "sleep") {
+    return <View style={[styles.sleepDot, { width: chip * 0.58, height: chip * 0.58, right: size * 0.06, top: size * 0.04 }]} />;
+  }
+
+  return null;
+}
+
 export function SecondBSprite({
   state = "idle",
   size = 64,
@@ -65,41 +103,64 @@ export function SecondBSprite({
   style?: ViewStyle;
 }) {
   const ty = useFloat(float);
-  const xml = SECONDB_V2_XML[state] ?? SECONDB_V2_XML.idle;
   const a11y = label
     ? { accessible: true, accessibilityLabel: label }
     : { accessibilityElementsHidden: true, importantForAccessibility: "no-hide-descendants" as const };
+  const walking = state === "walk_1" || state === "walk_2";
+
   return (
     <Animated.View style={[{ transform: [{ translateY: ty }] }, style]} {...a11y}>
-      <SvgXml xml={xml} width={size} height={size} />
+      <View style={[styles.spriteBox, { width: size, height: size, opacity: state === "sleep" ? 0.64 : 1 }]}>
+        <WorkerSprite id="secondb" size={size} paused={!walking} />
+        <SecondBStateAccent state={state} size={size} />
+      </View>
     </Animated.View>
   );
 }
 
-/**
- * The bottom-right SecondB FAB art (default / notification / chat_ready),
- * with the resting float. Decorative — the wrapping Pressable owns the
- * "세컨비에게 묻기" label/role.
- */
+function FabBadge({ fabState, size }: { fabState: SecondBFabState; size: number }) {
+  if (fabState === "notification") {
+    return (
+      <View style={[styles.fabBadge, { width: size * 0.24, height: size * 0.24, right: -size * 0.02, top: -size * 0.02 }]}>
+        <View style={styles.fabBadgeCore} />
+      </View>
+    );
+  }
+
+  if (fabState === "chat_ready") {
+    return (
+      <View style={[styles.fabChatBadge, { width: size * 0.34, height: size * 0.24, right: -size * 0.06, top: size * 0.04 }]}>
+        <View style={styles.chatDot} />
+        <View style={styles.chatDot} />
+      </View>
+    );
+  }
+
+  return null;
+}
+
 export function SecondBFab({ fabState = "default", size = 64 }: { fabState?: SecondBFabState; size?: number }) {
   const ty = useFloat(true);
-  const xml = SECONDB_V2_XML[`fab_${fabState}`] ?? SECONDB_V2_XML.fab_default;
   return (
     <Animated.View
-      style={{ transform: [{ translateY: ty }] }}
+      style={[
+        styles.fabFrame,
+        {
+          width: size,
+          height: size,
+          borderRadius: Math.max(14, size * 0.3),
+          transform: [{ translateY: ty }],
+        },
+      ]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <SvgXml xml={xml} width={size} height={size} />
+      <WorkerSprite id="secondb" size={size * 0.68} paused />
+      <FabBadge fabState={fabState} size={size} />
     </Animated.View>
   );
 }
 
-/**
- * Save-celebration sequence (asset order §3): carrying_shard → happy →
- * idle, finishing in ~1.5s (inside the 1.2–1.8s budget). `active` is true
- * while it plays so callers can mount the sprite transiently.
- */
 export function useSaveCelebration(): {
   state: SecondBState;
   active: boolean;
@@ -130,3 +191,88 @@ export function useSaveCelebration(): {
   useEffect(() => () => clear(), []);
   return { state, active, celebrate };
 }
+
+const styles = StyleSheet.create({
+  spriteBox: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stateLayer: {
+    position: "absolute",
+  },
+  chatChip: {
+    position: "absolute",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.62)",
+    backgroundColor: "rgba(7,10,24,0.76)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  chatDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: cosmic.signalMint,
+  },
+  alertBurst: {
+    position: "absolute",
+    width: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  alertBar: {
+    position: "absolute",
+    width: 14,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: cosmic.guardRose,
+  },
+  sleepDot: {
+    position: "absolute",
+    borderRadius: 99,
+    borderWidth: 2,
+    borderColor: cosmic.signalBlue,
+    opacity: 0.74,
+  },
+  fabFrame: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.48)",
+    backgroundColor: "rgba(167,139,250,0.16)",
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.38,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  fabBadge: {
+    position: "absolute",
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: "rgba(255,214,102,0.86)",
+    backgroundColor: "rgba(255,214,102,0.24)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fabBadgeCore: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: cosmic.pixelLamp,
+  },
+  fabChatBadge: {
+    position: "absolute",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.72)",
+    backgroundColor: "rgba(7,10,24,0.72)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+  },
+});
