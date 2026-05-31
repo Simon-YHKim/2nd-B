@@ -1238,7 +1238,7 @@ function NodeSheet({
       <View style={styles.sheetHead}>
         <View style={styles.sheetTitleRow}>
           {/* 아치 — connection guide, appears on the highlight moment (§9) */}
-          <WorkerSprite id={character} size={28} />
+          <WorkerSprite id={character} size={32} />
           <Text variant="heading" style={styles.sheetName}>{name}</Text>
         </View>
         <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={locale === "ko" ? "닫기" : "Close"}>
