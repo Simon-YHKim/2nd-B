@@ -10,12 +10,17 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname, router } from "expo-router";
 
-// Routes that hide the back arrow entirely: only the landing page (the home
-// the arrow points to) + the pre-auth flow. Every other screen — including
-// the bottom-tab destinations — shows it (2026-05-31 user directive: back on
-// all screens except main).
+// Routes that hide the back arrow entirely: the landing page, pre-auth flow,
+// and primary tab destinations that already have persistent tab navigation.
 const HIDDEN_PATHS = new Set<string>([
-  "/", "/sign-in", "/sign-up", "/complete-profile",
+  "/",
+  "/sign-in",
+  "/sign-up",
+  "/complete-profile",
+  "/core-brain",
+  "/records",
+  "/wiki",
+  "/profile",
 ]);
 
 // Tab destinations render a top-left brand chip (PremiumTopBar) or a heading

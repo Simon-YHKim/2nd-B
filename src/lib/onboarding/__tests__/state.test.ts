@@ -1,4 +1,4 @@
-import { isOnboardingComplete, markOnboardingComplete, ONBOARDING_KEY } from "../state";
+import { __resetOnboardingStateForTests, isOnboardingComplete, markOnboardingComplete, ONBOARDING_KEY } from "../state";
 
 describe("onboarding state", () => {
   const store: Record<string, string> = {};
@@ -9,6 +9,7 @@ describe("onboarding state", () => {
   } as unknown as Storage;
 
   beforeEach(() => {
+    __resetOnboardingStateForTests();
     for (const k of Object.keys(store)) delete store[k];
     (globalThis as { localStorage?: Storage }).localStorage = mockLs;
   });

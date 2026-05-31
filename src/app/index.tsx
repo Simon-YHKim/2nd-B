@@ -24,6 +24,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -33,7 +34,7 @@ import { fontFamilies } from "@/theme/typography";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBFab, SecondBSprite } from "@/components/art/SecondBSprite";
 import { IslandArt } from "@/components/art/IslandArt";
-import { isOnboardingComplete } from "@/lib/onboarding/state";
+import { useOnboardingComplete } from "@/lib/onboarding/state";
 import { domainForTags } from "@/lib/graph/relatedness";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 import { StarNoiseLayer } from "@/components/premium";
@@ -89,6 +90,8 @@ function pickInsight(locale: "en" | "ko", salt: number): string {
 export default function Landing() {
   const { i18n } = useTranslation();
   const { userId, hasProfile, loading } = useAuth();
+  const onboardingComplete = useOnboardingComplete();
+  const insets = useSafeAreaInsets();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const skyOverlay = useSkyDrift();
 
@@ -181,8 +184,9 @@ export default function Landing() {
   if (loading) return <InlineLoader />;
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
-  // First run → onboarding (once; recorded in localStorage). §2/§4.
-  if (!isOnboardingComplete()) return <Redirect href="/onboarding" />;
+  // First run: wait for native persistence before deciding whether to gate.
+  if (onboardingComplete === null) return <InlineLoader />;
+  if (!onboardingComplete) return <Redirect href="/onboarding" />;
 
   // SecondB nudges toward the center when there are pieces the user hasn't
   // looked at yet this session; it dozes once idle and nothing is pending.
@@ -250,7 +254,7 @@ export default function Landing() {
           is reserved for a future mascot avatar; for now it shows a
           subtle initial circle so the layout doesn't reflow when the
           asset lands. */}
-      <Animated.View style={[styles.insightRibbon, { opacity: contentOpacity }]} pointerEvents="box-none">
+      <Animated.View style={[styles.insightRibbon, { opacity: contentOpacity, top: Math.max(insets.top + 8, 18) }]} pointerEvents="box-none">
         {/* SecondB placeholder — soul-violet pixel block with a mint core.
             Same 52px footprint the eventual sprite will occupy. */}
         <View style={styles.mascotSlot} accessibilityLabel="SecondB">

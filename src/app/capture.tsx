@@ -615,15 +615,15 @@ export default function Capture() {
             <Pressable
               onPress={handleSubmit}
               disabled={!canSubmit}
-              style={({ pressed }) => [
-                styles.tossBtn,
-                !canSubmit && styles.tossBtnDisabled,
-                pressed && canSubmit && styles.tossBtnPressed,
-              ]}
+              style={
+                !canSubmit
+                  ? [styles.tossBtn, styles.tossBtnDisabled]
+                  : ({ pressed }) => [styles.tossBtn, pressed && styles.tossBtnPressed]
+              }
               accessibilityRole="button"
               accessibilityState={{ disabled: !canSubmit, busy: submitting }}
             >
-              <Text style={styles.tossBtnText}>
+              <Text style={[styles.tossBtnText, !canSubmit && styles.tossBtnTextDisabled]}>
                 {submitting
                   ? (locale === "ko" ? "던지는 중…" : "Tossing…")
                   : (locale === "ko" ? "영차영차 던지기" : "Send to the cells")}
@@ -833,13 +833,20 @@ const styles = StyleSheet.create({
   // 영차영차 던지기 — solid primary with a clear pressed beat (scale, no
   // bounce per DESIGN.md) so the toss actually feels like it lands.
   tossBtn: {
+    alignSelf: "stretch",
     backgroundColor: semantic.brand,
+    borderWidth: 1,
+    borderColor: semantic.brand,
     borderRadius: radii.md,
     paddingVertical: spacing.md,
     alignItems: "center",
     justifyContent: "center",
   },
   tossBtnPressed: { transform: [{ scale: 0.97 }], opacity: 0.9 },
-  tossBtnDisabled: { opacity: 0.4 },
+  tossBtnDisabled: {
+    backgroundColor: "rgba(114,242,199,0.14)",
+    borderColor: "rgba(114,242,199,0.34)",
+  },
   tossBtnText: { color: semantic.background, fontSize: typography.sizes.md, fontWeight: "700" },
+  tossBtnTextDisabled: { color: semantic.textSubtle },
 });

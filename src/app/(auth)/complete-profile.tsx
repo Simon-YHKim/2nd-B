@@ -3,17 +3,19 @@
 // satisfy C10 (18+ gate) before letting them into the app.
 
 import { useMemo, useState } from "react";
-import { View, StyleSheet, Alert, ScrollView } from "react-native";
+import { Image, View, StyleSheet, Alert, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
-import { Screen } from "@/components/ui/Screen";
+import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { semantic, spacing } from "@/lib/theme/tokens";
 import { ageInYears, ensureUserProfile, AgeGateError, signOut } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
+
+const coreOrb = require("../../../public/assets/2ndb-refine/auth/loading_core_orb_premium.png");
 
 export default function CompleteProfile() {
   const { t, i18n } = useTranslation("auth");
@@ -79,18 +81,23 @@ export default function CompleteProfile() {
   }
 
   return (
-    <Screen>
+    <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <Text variant="caption" color="brand">
             2nd-Brain
           </Text>
-          <Text variant="heading" style={styles.title}>
-            {t("completeProfile.title")}
-          </Text>
-          <Text variant="body" color="textMuted">
-            {t("completeProfile.subtitle")}
-          </Text>
+          <View style={styles.heroRow}>
+            <View style={styles.heroCopy}>
+              <Text variant="heading" style={styles.title}>
+                {t("completeProfile.title")}
+              </Text>
+              <Text variant="body" color="textMuted">
+                {t("completeProfile.subtitle")}
+              </Text>
+            </View>
+            <Image source={coreOrb} style={styles.heroImg} resizeMode="contain" />
+          </View>
         </View>
 
         <View style={styles.form}>
@@ -117,7 +124,7 @@ export default function CompleteProfile() {
           <Button label={t("completeProfile.cancel")} variant="secondary" onPress={handleCancel} disabled={submitting} />
         </View>
       </ScrollView>
-    </Screen>
+    </PremiumAppShell>
   );
 }
 
@@ -134,8 +141,11 @@ function ChecklistItem({ ok, label }: { ok: boolean; label: string }) {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl },
-  header: { gap: spacing.xs, marginBottom: spacing.xl },
-  title: { marginTop: spacing.xs },
+  header: { gap: spacing.sm, marginBottom: spacing.lg },
+  heroRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  heroCopy: { flex: 1, gap: spacing.xs },
+  heroImg: { width: 108, height: 108 },
+  title: { marginTop: 0 },
   form: { gap: spacing.sm },
   checklist: { gap: spacing.xs, marginTop: spacing.xs, marginBottom: spacing.xs },
   checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
