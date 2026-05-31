@@ -148,11 +148,6 @@ export default function CoreBrain() {
             label: locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB",
             onPress: () => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "나의 중심" : "my center" } }),
           }}
-          secondaryAction={{
-            label: locale === "ko" ? "설정" : "Settings",
-            variant: "secondary",
-            onPress: () => router.push("/settings"),
-          }}
           railIcons={["⌂", "◎", "✦", "▣"]}
         />
         <View style={styles.statRow}>

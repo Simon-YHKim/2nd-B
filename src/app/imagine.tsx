@@ -203,17 +203,19 @@ export default function Imagine() {
               label={primaryActionLabel}
               variant="primary"
               loading={phase === "generating" || saving}
-              disabled={phase === "generating" || saving}
+              disabled={phase === "generating" || saving || (!hasResult && draft.trim().length === 0)}
               onPress={phase === "saved" ? () => router.push("/wiki") : hasResult ? handleSave : handleGenerate}
               style={styles.heroButton}
             />
-            <Button
-              label={secondaryActionLabel}
-              variant="secondary"
-              disabled={phase === "generating"}
-              onPress={hasResult ? developFurther : reset}
-              style={styles.heroButton}
-            />
+            {hasResult || draft.trim().length > 0 ? (
+              <Button
+                label={secondaryActionLabel}
+                variant="secondary"
+                disabled={phase === "generating"}
+                onPress={hasResult ? developFurther : reset}
+                style={styles.heroButton}
+              />
+            ) : null}
           </View>
         </View>
 

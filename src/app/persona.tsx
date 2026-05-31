@@ -88,11 +88,6 @@ export default function Persona() {
               label: locale === "ko" ? "라이프 오딧 시작" : "Start life audit",
               onPress: () => router.push("/audit"),
             }}
-            secondaryAction={{
-              label: locale === "ko" ? "Big Five 시작" : "Start Big Five",
-              variant: "secondary",
-              onPress: () => router.push("/big-five"),
-            }}
             railIcons={["⌂", "◎", "✦", "▣"]}
           />
           <View style={styles.toolGrid}>

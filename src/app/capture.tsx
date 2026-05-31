@@ -355,18 +355,6 @@ export default function Capture() {
                   ? "아직 거칠어도 괜찮아요. 제가 조각으로 정리해둘게요."
                   : "It can be rough. I'll carry it home as a piece."
             }
-            primaryAction={{
-              label: submitting ? (locale === "ko" ? "던지는 중..." : "Tossing...") : (locale === "ko" ? "영차영차 던지기" : "Send to the cells"),
-              loading: submitting,
-              disabled: !canSubmit,
-              onPress: handleSubmit,
-            }}
-            secondaryAction={{
-              label: locale === "ko" ? "입력 정리" : "Clear",
-              variant: "secondary",
-              disabled: submitting,
-              onPress: reset,
-            }}
             railIcons={["⌂", "✚", "⌁", "▣"]}
           />
 

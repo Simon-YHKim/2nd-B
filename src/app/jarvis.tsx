@@ -225,18 +225,6 @@ export default function Jarvis() {
                 ? "오늘의 기록을 읽어봤어요. 작은 한 걸음으로 시작해볼까요?"
                 : "I've read today's pieces. Shall we start with one small step?"
           }
-          primaryAction={{
-            label: t("send"),
-            loading: sending,
-            disabled: !canSend,
-            onPress: handleSend,
-          }}
-          secondaryAction={{
-            label: locale === "ko" ? "대화 비우기" : "Clear chat",
-            variant: "secondary",
-            disabled: turns.length === 0 || sending,
-            onPress: () => setTurns([]),
-          }}
           railIcons={["⌂", "✦", "◎", "▣"]}
         />
 

@@ -260,11 +260,6 @@ export default function Wiki() {
             label: t("capture"),
             onPress: () => router.push("/capture"),
           }}
-          secondaryAction={{
-            label: locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB",
-            variant: "secondary",
-            onPress: () => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "지식 창고" : "knowledge store" } }),
-          }}
           railIcons={["⌂", "▤", "⌕", "◇"]}
         />
 

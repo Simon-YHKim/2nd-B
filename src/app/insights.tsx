@@ -83,11 +83,6 @@ export default function Insights() {
               label: locale === "ko" ? "일기 쓰러 가기" : "Go to journal",
               onPress: () => router.push("/journal"),
             }}
-            secondaryAction={{
-              label: locale === "ko" ? "담기 열기" : "Open capture",
-              variant: "secondary",
-              onPress: () => router.push("/capture"),
-            }}
             railIcons={["⌂", "✦", "⌕", "◇"]}
           />
         </ScrollView>
@@ -127,11 +122,6 @@ export default function Insights() {
           primaryAction={{
             label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
             onPress: () => router.push("/journal"),
-          }}
-          secondaryAction={{
-            label: locale === "ko" ? "4영역 보기" : "Four areas",
-            variant: "secondary",
-            onPress: () => router.push("/trinity"),
           }}
           railIcons={["⌂", "✦", "⌕", "◇"]}
         />

@@ -135,11 +135,6 @@ export default function Records() {
             label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
             onPress: () => router.push("/journal"),
           }}
-          secondaryAction={{
-            label: locale === "ko" ? "지식 창고" : "Knowledge store",
-            variant: "secondary",
-            onPress: () => router.push("/wiki"),
-          }}
           railIcons={["⌂", "▤", "⌕", "◇"]}
         />
 
