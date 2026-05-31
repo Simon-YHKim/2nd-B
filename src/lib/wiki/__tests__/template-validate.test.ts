@@ -65,6 +65,13 @@ describe("validateTemplateDraft", () => {
     expect(validateTemplateDraft(draft({ name: { en: "X", ko: term } }), "ko").ok).toBe(false);
   });
 
+  it("does not false-positive on a forbidden term embedded in a larger word (boundary-aware)", () => {
+    // "cure" is in the lexicon, but "Secure" / "Procurement" must not trip the
+    // gate — the canonical matcher uses English word boundaries.
+    expect(draftHasForbiddenTerm(draft({ name: { en: "Secure inbox", ko: "" } }))).toBe(false);
+    expect(validateTemplateDraft(draft({ name: { en: "Procurement log", ko: "" } }), "en").ok).toBe(true);
+  });
+
   it("scans nested aiProperty describe text for forbidden terms", () => {
     const term = FORBIDDEN_TERMS.en[0];
     const bad = draft({

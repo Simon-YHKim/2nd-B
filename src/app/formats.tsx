@@ -6,7 +6,7 @@
 // calls and no schema work here, so the C-constraints are untouched. Reached
 // from the /profile hub and a link on /capture. Token-only styling (DESIGN.md).
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, StyleSheet, ScrollView, Switch, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -50,6 +50,21 @@ export default function Formats() {
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [pendingShareIds, setPendingShareIds] = useState<ReadonlySet<string>>(new Set());
+
+  // Async-race guards: ignore results after unmount, and apply only the latest
+  // load (a write bumps loadSeqRef so a stale reload can't clobber a mutation).
+  const mountedRef = useRef(true);
+  const loadSeqRef = useRef(0);
+  // Set true on (re)mount too, not just false on cleanup — otherwise React
+  // Strict Mode's mount→unmount→mount would leave it false on the live mount
+  // and every guarded setState would be skipped (screen never loads).
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   function flashToast(message: string, tone: Toast["tone"]) {
     setToast({ message, tone });
@@ -62,59 +77,73 @@ export default function Formats() {
 
   const reload = useCallback(() => {
     if (!userId) return;
-    let cancelled = false;
+    const seq = ++loadSeqRef.current;
     setLoadError(false);
     setTemplates(null);
     listAccessibleTemplates(userId)
       .then((rows) => {
-        if (!cancelled) setTemplates(rows);
+        if (mountedRef.current && seq === loadSeqRef.current) setTemplates(rows);
       })
       .catch((e) => {
         if (typeof console !== "undefined") console.warn("[formats] load failed", (e as Error).message);
-        if (!cancelled) setLoadError(true);
+        if (mountedRef.current && seq === loadSeqRef.current) setLoadError(true);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [userId]);
 
-  useEffect(() => reload(), [reload]);
+  useEffect(() => { reload(); }, [reload]);
 
   function toggleShare(t: CustomClipperTemplate, next: boolean) {
-    if (!userId) return;
+    // Ignore a second tap while this row's write is still in flight — that race
+    // could otherwise let an earlier failed write's revert clobber a later one.
+    if (!userId || pendingShareIds.has(t.id)) return;
+    loadSeqRef.current++; // a write invalidates any in-flight reload
+    setPendingShareIds((s) => new Set(s).add(t.id));
     // Optimistic: flip locally now, revert if the write fails.
     setTemplates((prev) => (prev ? prev.map((x) => (x.id === t.id ? { ...x, isShared: next } : x)) : prev));
-    setTemplateShared(userId, t.id, next).catch((e) => {
-      if (typeof console !== "undefined") console.warn("[formats] share toggle failed", (e as Error).message);
-      setTemplates((prev) => (prev ? prev.map((x) => (x.id === t.id ? { ...x, isShared: !next } : x)) : prev));
-      flashToast(locale === "ko" ? "공유 설정을 바꾸지 못했어요." : "Could not change sharing.", "danger");
-    });
+    setTemplateShared(userId, t.id, next)
+      .catch((e) => {
+        if (typeof console !== "undefined") console.warn("[formats] share toggle failed", (e as Error).message);
+        if (!mountedRef.current) return;
+        setTemplates((prev) => (prev ? prev.map((x) => (x.id === t.id ? { ...x, isShared: !next } : x)) : prev));
+        flashToast(locale === "ko" ? "공유 설정을 바꾸지 못했어요." : "Could not change sharing.", "danger");
+      })
+      .finally(() => {
+        if (!mountedRef.current) return;
+        setPendingShareIds((s) => {
+          const n = new Set(s);
+          n.delete(t.id);
+          return n;
+        });
+      });
   }
 
   async function confirmDeleteNow() {
     if (!userId || !confirmDelete) return;
     const target = confirmDelete;
+    loadSeqRef.current++; // a stale reload must not resurrect the deleted row
     setBusyId(target.id);
     try {
       await deleteTemplate(userId, target.id);
+      if (!mountedRef.current) return;
       setTemplates((prev) => (prev ? prev.filter((x) => x.id !== target.id) : prev));
       setConfirmDelete(null);
       flashToast(locale === "ko" ? "형식을 삭제했어요." : "Format deleted.", "success");
     } catch (e) {
-      flashToast(locale === "ko" ? "삭제하지 못했어요." : "Could not delete.", "danger");
       if (typeof console !== "undefined") console.warn("[formats] delete failed", (e as Error).message);
+      if (mountedRef.current) flashToast(locale === "ko" ? "삭제하지 못했어요." : "Could not delete.", "danger");
     } finally {
-      setBusyId(null);
+      if (mountedRef.current) setBusyId(null);
     }
   }
 
   async function handleSaveEdit(draft: TemplateDraft) {
     if (!userId || !editing) return;
+    loadSeqRef.current++;
     setSaving(true);
     try {
       const saved = await saveTemplate({
         ownerId: userId,
-        slug: editing.slug, // upsert key — preserved so we update, not duplicate
+        slug: editing.slug, // upsert key, preserved so we update rather than duplicate
         baseKind: draft.baseKind,
         name: draft.name,
         what: draft.what,
@@ -125,14 +154,22 @@ export default function Formats() {
         aiProperties: draft.aiProperties,
         shared: editing.isShared, // share state is owned by the list toggle
       });
-      setTemplates((prev) => (prev ? prev.map((x) => (x.id === saved.id ? saved : x)) : [saved]));
+      if (!mountedRef.current) return;
+      // Update in place, or prepend if the upsert INSERTed (e.g. the original
+      // row was deleted out-of-band) so a saved format is never dropped from view.
+      setTemplates((prev) => {
+        if (!prev) return [saved];
+        return prev.some((x) => x.id === saved.id)
+          ? prev.map((x) => (x.id === saved.id ? saved : x))
+          : [saved, ...prev];
+      });
       setEditing(null);
       flashToast(locale === "ko" ? "형식을 저장했어요." : "Format saved.", "success");
     } catch (e) {
-      flashToast(locale === "ko" ? "저장하지 못했어요." : "Could not save.", "danger");
       if (typeof console !== "undefined") console.warn("[formats] save failed", (e as Error).message);
+      if (mountedRef.current) flashToast(locale === "ko" ? "저장하지 못했어요." : "Could not save.", "danger");
     } finally {
-      setSaving(false);
+      if (mountedRef.current) setSaving(false);
     }
   }
 
@@ -234,6 +271,7 @@ export default function Formats() {
                           <Switch
                             value={t.isShared}
                             onValueChange={(next) => toggleShare(t, next)}
+                            disabled={pendingShareIds.has(t.id)}
                             trackColor={{ true: semantic.brand, false: semantic.border }}
                             thumbColor={semantic.text}
                             accessibilityLabel={`${nameOf(t)} ${locale === "ko" ? "공유" : "share"}`}

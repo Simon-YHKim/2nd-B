@@ -3,11 +3,12 @@
 //
 // Why a vocabulary gate here too: a user can edit one of their own clipper
 // formats and flip it to community-shared. A shared format is visible to every
-// user, so the same C-vocabulary rule the AI-proposal path enforces
-// (propose-template.ts → hasForbiddenTerm) must apply to MANUAL edits — a
-// forbidden clinical term must never reach the shared store, whoever typed it.
+// user, so the C-vocabulary rule must apply to MANUAL edits too. Matching runs
+// through the canonical, boundary-aware matcher in safety/classifier
+// (containsForbiddenLexicon); lexicon.ts mandates that consumers must not
+// duplicate it, and the word boundary keeps "Secure" from tripping on "cure".
 
-import { FORBIDDEN_TERMS } from "../safety/lexicon";
+import { containsForbiddenLexicon } from "../safety/classifier";
 import type { ClipperAiProperty, TargetCategory } from "./clipper-templates";
 import type { SourceKind } from "./types";
 
@@ -59,16 +60,13 @@ function surfaceText(draft: TemplateDraft): string {
   ].join(" \n ");
 }
 
-/**
- * The forbidden-lexicon gate, mirroring propose-template's hasForbiddenTerm:
- * English terms are matched case-insensitively; Korean terms as-is.
- */
+/** The forbidden-lexicon gate over a whole draft, via the canonical matcher. */
 export function draftHasForbiddenTerm(draft: TemplateDraft): boolean {
+  // Surface text mixes EN + KO, so scan both term sets. The canonical matcher
+  // applies word boundaries for English (so "Secure" is not "cure") and
+  // substring matching for Korean.
   const text = surfaceText(draft);
-  const lower = text.toLowerCase();
-  for (const t of FORBIDDEN_TERMS.en) if (lower.includes(t.toLowerCase())) return true;
-  for (const t of FORBIDDEN_TERMS.ko) if (text.includes(t)) return true;
-  return false;
+  return containsForbiddenLexicon(text, "en").length > 0 || containsForbiddenLexicon(text, "ko").length > 0;
 }
 
 export interface DraftValidation {

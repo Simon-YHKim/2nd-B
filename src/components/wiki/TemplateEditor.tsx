@@ -19,6 +19,7 @@ import {
 import { SOURCE_KINDS, type SourceKind } from "@/lib/wiki/types";
 import type { CustomClipperTemplate } from "@/lib/wiki/template-queries";
 import { validateTemplateDraft, type TemplateDraft } from "@/lib/wiki/template-validate";
+import { sanitizeTag } from "@/lib/wiki/tags";
 
 type Locale = "en" | "ko";
 type PropType = ClipperAiProperty["type"];
@@ -30,15 +31,6 @@ const PROP_TYPE_LABEL: Record<PropType, { en: string; ko: string }> = {
   number: { en: "Number", ko: "숫자" },
 };
 const TARGET_OPTIONS: (TargetCategory | "")[] = ["", ...TARGET_CATEGORIES];
-
-function tagSanitize(s: string): string {
-  return s
-    .trim()
-    .toLowerCase()
-    .replace(/^#+/, "")
-    .replace(/[^a-z0-9가-힣\-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 export interface TemplateEditorProps {
   initial: CustomClipperTemplate;
@@ -172,13 +164,13 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
         <TagField
           values={defaultTags}
           onChange={setDefaultTags}
-          sanitize={tagSanitize}
+          sanitize={sanitizeTag}
           addLabel={locale === "ko" ? "태그 추가" : "Add tag"}
         />
       </Field>
 
       {/* Wiki path */}
-      <Field label={locale === "ko" ? "위키 경로" : "Wiki path"} hint={locale === "ko" ? "선택 — 하위 폴더 힌트 (예: tools/)" : "Optional — sub-folder hint (e.g. tools/)"}>
+      <Field label={locale === "ko" ? "위키 경로" : "Wiki path"} hint={locale === "ko" ? "선택 - 하위 폴더 힌트 (예: tools/)" : "Optional - sub-folder hint (e.g. tools/)"}>
         <Input value={wikiTarget} onChangeText={setWikiTarget} placeholder="tools/" autoCapitalize="none" autoCorrect={false} />
       </Field>
 
