@@ -28,7 +28,10 @@ export const WORLD_CENTER: WP = { x: WORLD.width / 2, y: WORLD.height / 2 };
 // Ring radii in world units. Kept inside the world half-extents (600 × 800)
 // with a margin so even the jittered tier-3 / clustered tier-4 nodes stay
 // on the map.
-const RING2 = 360;
+// RING2 widened 360 -> 400 (2026-06-01) so the six villages sit further apart
+// and the home view reads less crowded. Still well inside the 600 half-width
+// (400 + village art half ≈ within bounds); tier-3/4 rings unchanged.
+const RING2 = 400;
 const RING3 = 540;
 const RING4 = 660;
 

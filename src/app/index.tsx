@@ -222,7 +222,13 @@ export default function Landing() {
       {/* Empty graph state (onboarding pack §6) — no saved pieces yet.
           Dismissible so the user can just look around the village. */}
       {showingEmptyGraphCard ? (
-        <Animated.View style={[styles.emptyGraphWrap, { opacity: contentOpacity }]} pointerEvents="box-none">
+        // Full-screen modal backdrop (2026-06-01 directive): while the first-run
+        // card is up, NOTHING behind it is interactive. pointerEvents="auto" on
+        // the absolute-fill view captures every touch (graph, 오늘의 중심 ribbon,
+        // FAB), and the high zIndex keeps it above all siblings. The dim focuses
+        // attention on the card; tapping the backdrop does nothing — the user
+        // dismisses via the card's "먼저 둘러볼게요" / ✕.
+        <Animated.View style={[styles.emptyGraphBackdrop, { opacity: contentOpacity }]} pointerEvents="auto">
           <View style={styles.emptyGraphCard}>
             {/* Close — lets the user dismiss and browse the empty village. */}
             <Pressable
@@ -318,10 +324,13 @@ const styles = StyleSheet.create({
     marginLeft: -110, marginTop: -110,
   },
   contentLayer: { ...StyleSheet.absoluteFill as object },
-  emptyGraphWrap: {
-    position: "absolute",
-    left: 0, right: 0, bottom: 96,
+  emptyGraphBackdrop: {
+    ...StyleSheet.absoluteFill as object,
+    zIndex: 100,
+    backgroundColor: "rgba(5,7,15,0.55)",
     alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 96,
     paddingHorizontal: 24,
   },
   emptyGraphCard: {
