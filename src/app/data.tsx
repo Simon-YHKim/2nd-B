@@ -8,7 +8,7 @@ import { View, StyleSheet, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -27,15 +27,21 @@ export default function DataManagement() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View>
-          <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
-            {ko ? "설정" : "Settings"}
-          </Text>
-          <Text variant="heading">{ko ? "데이터 관리" : "Data management"}</Text>
-          <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.xs }}>
-            {ko ? "내 조각들을 내보내거나 정리할 수 있어요." : "Export or clean up your pieces."}
-          </Text>
-        </View>
+        <SceneHero
+          eyebrow={ko ? "08-1. 데이터 관리" : "08-1. Data management"}
+          title={ko ? "조각을 옮기고 정리해요" : "Move and organize your pieces"}
+          subtitle={ko ? "가져오기 · 내보내기 · 삭제" : "Import · export · delete"}
+          island="knowledge"
+          worker="momo"
+          speech={
+            ko
+              ? "중요한 조각을 지우기 전에는 먼저 내보내기로 백업해두세요."
+              : "Before deleting anything important, export a backup first."
+          }
+          islandSize={250}
+          workerSize={88}
+          railIcons={["▣", "⇄", "⌁", "×"]}
+        />
 
         <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{ko ? "가져오기" : "Import"}</Text>
@@ -74,10 +80,12 @@ export default function DataManagement() {
               ? "이 기기에 저장된 화면 설정·첫 진입 안내 표시 여부 같은 가벼운 항목을 초기화해요. (곧 지원)"
               : "Reset lightweight on-device bits like view preferences and the first-run hints. (coming soon)"}
           </Text>
-          <Button label={ko ? "기기 설정 초기화" : "Clear device preferences"} variant="secondary" disabled />
+          <View style={styles.statusPill}>
+            <Text variant="caption" color="textSubtle">
+              {ko ? "곧 지원" : "Coming soon"}
+            </Text>
+          </View>
         </View>
-
-        <Button label={ko ? "설정으로" : "Back to settings"} variant="secondary" onPress={() => router.push("/settings")} />
       </ScrollView>
     </PremiumAppShell>
   );
@@ -90,9 +98,22 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
     borderWidth: 1,
     borderLeftWidth: 4,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     padding: spacing.lg,
     gap: spacing.sm,
+    shadowColor: "#A78BFA",
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
   },
   eyebrow: { letterSpacing: 1 },
+  statusPill: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: semantic.border,
+    borderRadius: radii.sm,
+    backgroundColor: semantic.surfaceAlt,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
 });

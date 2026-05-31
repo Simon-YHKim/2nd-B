@@ -9,12 +9,11 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View, ActivityIndicator, Alert, Linking, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Link, router } from "expo-router";
+import { router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AppNav } from "@/components/ui/AppNav";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -85,19 +84,21 @@ export default function Research() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <Text variant="caption" color="brand">
-            2nd-Brain
-          </Text>
-          <Text variant="heading" style={{ marginTop: spacing.xs }}>
-            {locale === "ko" ? "큐레이션된 자료" : "Curated research"}
-          </Text>
-          <Text variant="body" color="textMuted">
-            {locale === "ko"
-              ? "어드바이저가 인용하는 검증된 학술 자료. 모든 항목에 DOI 또는 URL이 있으며, 큐레이터 검증을 통과한 것만 등록돼요."
-              : "Validated academic sources the Advisor cites. Every row has a DOI or URL and has passed curator verification."}
-          </Text>
-        </View>
+        <SceneHero
+          eyebrow={locale === "ko" ? "자료실" : "Research"}
+          title={locale === "ko" ? "검증된 근거를 모아둬요" : "Keep the evidence visible"}
+          subtitle={locale === "ko" ? "Big Five · 애착 · CBT · VIA" : "Big Five · attachment · CBT · VIA"}
+          island="knowledge"
+          worker="archi"
+          speech={
+            locale === "ko"
+              ? "세컨비가 참고하는 근거만 따로 모아 보여줄게요."
+              : "Only verified sources that SecondB can cite show up here."
+          }
+          islandSize={250}
+          workerSize={88}
+          railIcons={["▤", "⌕", "◇", "✓"]}
+        />
 
         {loading ? (
           <View style={styles.center}>
@@ -213,9 +214,15 @@ export default function Research() {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
-  header: { gap: spacing.xs },
   center: { paddingVertical: spacing.xl, alignItems: "center" },
-  emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, alignItems: "center" },
+  emptyCard: {
+    padding: spacing.lg,
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    alignItems: "center",
+  },
   frameworkFilter: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
@@ -223,6 +230,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.sm,
+    shadowColor: cosmic.soulViolet,
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   chip: {
@@ -242,9 +253,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     gap: 2,
+    shadowColor: cosmic.signalBlue,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
   cardHead: { flexDirection: "row", gap: spacing.xs },
   fwChip: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radii.sm, borderWidth: 1, borderColor: semantic.brand, backgroundColor: semantic.surfaceAlt },
   cardTitle: { fontWeight: "600", marginTop: spacing.xs },
-  actions: { gap: spacing.sm, marginTop: spacing.md },
 });
