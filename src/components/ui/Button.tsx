@@ -30,9 +30,9 @@ export function Button({ label, variant = "primary", loading, disabled, style, .
     danger: palette.danger,
   };
   const fg: Record<Variant, string> = {
-    primary: palette.background,
-    secondary: palette.text,
-    danger: palette.danger,
+    primary: cosmic.space950,
+    secondary: cosmic.moonWhite,
+    danger: cosmic.guardRose,
   };
   const glow: Record<Variant, string> = {
     primary: palette.brand,
