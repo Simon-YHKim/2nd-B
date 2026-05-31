@@ -3,7 +3,29 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-05-31 / 메뉴 구조 전면 재설계 진행 중 (Phase 2/6 완료, Phase 3 다음)
+## Latest — 2026-05-31 (저녁) / 메뉴 재설계 Phase 3 — 탭 재정의 + journal redirect (#79)
+
+### 무엇을 / 왜
+- 하단 탭을 VISION 3축 IA 로 5개 재정의: **그래프·담기·세컨비·공상·나**. explore(`/core-brain`)·records(`/records`)·store(`/wiki`) 탭 제거 — core-brain 은 '나' 허브(Phase 5), wiki/records 는 그래프 마을(Phase 4)로 흡수.
+- `/journal` → `/capture` redirect. 라우트 파일·`_layout` Stack.Screen 유지 → 진입점 19곳(onboarding firstRun, index 빈그래프 CTA, insights/inbox/wiki/trinity/manual/persona/audit/settings/core-brain/+not-found)과 `characterForRoute("/journal")→momo` 안 깨짐.
+- capture 일기 모드에 Lv3 게이트(`checkGate`)+무료 한도(`checkUsage`) 이식 → redirect 가 진행도 게이트를 우회하지 않음.
+
+### 바뀐 파일
+- `src/components/premium/tab-bar.tsx` — 5탭 재정의 + 새 픽셀 글리프(담기=트레이↓/세컨비=말풍선/공상=초승달), unused `Rect` import 제거
+- `src/app/journal.tsx` — 본문 전체 → `<Redirect href="/capture" />` (822→18줄)
+- `src/app/capture.tsx` — 일기 모드 Lv3 게이트+무료 한도 이식, journalCount 로드, 저장 후 XP/카운트 refresh
+
+### 검증
+- npm run verify: jest **662/662 (66 suites)** green, lint 0, C1~C12
+
+### 다음 / 되돌리기
+- 다음 1순위: **Phase 4** (마을 탭 → records 도메인 필터 뷰로 통일)
+- revert: PR #79 단독 revert 로 롤백. `journal.tsx` 복원 시 구 일기 화면 그대로 복귀.
+- ⚠️ 결정(사용자 확정): 게이트가 capture 일기 모드 전체에 적용 → 담기 일기에도 무료 2회 한도 생김. 마찰 원치 않으면 revert.
+
+---
+
+## 2026-05-31 (낮) / 메뉴 재설계 Phase 1·2 (스펙 + 담기 일기 모드) — #75 #76
 
 ### 어디까지 왔나
 - **main HEAD**: `d77cb00`
