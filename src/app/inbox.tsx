@@ -202,7 +202,7 @@ export default function Inbox() {
               : "Captured sources can be summarized here or promoted into wiki pages."
           }
           islandSize={250}
-          workerSize={88}
+          workerSize={104}
           railIcons={["▤", "⌕", "→", "✓"]}
         />
 
