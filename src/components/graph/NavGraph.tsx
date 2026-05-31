@@ -248,6 +248,13 @@ const CENTER_SIZE = tierSize(1);
 const CORE_ART_SCALE = 1.0;
 const CORE_ART_OFFSET = (-CENTER_SIZE * (CORE_ART_SCALE - 1)) / 2;
 
+// Domain / tier-3 island art overflows its node box so a village reads larger
+// than its hit target. Scaled down 1.7 -> 1.5 (2026-06-01) so the six villages
+// breathe on the home view; the offset re-centers the oversized art on the box
+// (left/top = (1 - scale)/2 * size).
+const ISLAND_ART_SCALE = 1.5;
+const ISLAND_ART_OFFSET = (1 - ISLAND_ART_SCALE) / 2;
+
 function seeded(id: string, salt: number): number {
   let h = 5381 + salt * 31;
   for (let i = 0; i < id.length; i++) h = (h * 33) ^ id.charCodeAt(i);
@@ -1097,7 +1104,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               ]}
             >
               {ISLAND_FOR[n.id] ? (
-                <IslandArt id={ISLAND_FOR[n.id]!} size={size * 1.7} style={{ position: "absolute", left: -size * 0.35, top: -size * 0.35 }} />
+                <IslandArt id={ISLAND_FOR[n.id]!} size={size * ISLAND_ART_SCALE} style={{ position: "absolute", left: size * ISLAND_ART_OFFSET, top: size * ISLAND_ART_OFFSET }} />
               ) : (
                 // Tier-3 nodes are pieces, not robots (closeout-v3 #9): show the
                 // parent domain's signature tier icon (book / paper / heart …).
