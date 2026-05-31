@@ -20,6 +20,7 @@ import {
   View,
   StyleSheet,
   Alert,
+  ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -49,9 +50,15 @@ import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionS
 import { createRecord } from "@/lib/records/create";
 import { computeStreak } from "@/lib/journal/streak";
 import { dailyPrompt } from "@/lib/journal/daily-prompts";
-import { listRecentRecords } from "@/lib/records/create";
+import { listRecentRecords, countRecordsByKind } from "@/lib/records/create";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
+// Journal-mode (일기) entitlement: Lv3 unlock + free-tier use limit, ported
+// from the retired /journal screen so the /journal→/capture redirect (Phase 3)
+// doesn't bypass progression gating.
+import { useProgression } from "@/lib/progression/useProgression";
+import { checkGate } from "@/lib/progression/gates";
+import { checkUsage } from "@/lib/progression/entitlements";
 
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
 // capture modes live on one screen. "일기" writes to `records` (createRecord —
@@ -109,6 +116,8 @@ export default function Capture() {
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
 
   // Journal-mode (일기) state — ported from /journal. Writes to records.
+  const progression = useProgression();
+  const [journalCount, setJournalCount] = useState(0);
   const [topic, setTopic] = useState("");
   const [conclusion, setConclusion] = useState("");
   const [showExtras, setShowExtras] = useState(false);
@@ -120,13 +129,19 @@ export default function Capture() {
   });
   const streak = useMemo(() => computeStreak(recentDates), [recentDates]);
 
-  // Load recent record dates (journal streak) once we have a user.
+  // Load recent record dates (journal streak) + journal use count (free-tier
+  // limit) once we have a user.
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    void listRecentRecords(userId)
-      .then((rows) => {
-        if (!cancelled) setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at));
+    void Promise.all([
+      listRecentRecords(userId),
+      countRecordsByKind(userId, "journal"),
+    ])
+      .then(([rows, jc]) => {
+        if (cancelled) return;
+        setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at));
+        setJournalCount(jc);
       })
       .catch((e) => {
         if (typeof console !== "undefined") console.warn("[capture] streak load failed", (e as Error).message);
@@ -149,6 +164,12 @@ export default function Capture() {
     () => (linkClipKind === "url" ? detectClipperKind(body.trim()) : "inbox"),
     [linkClipKind, body],
   );
+
+  // 일기(journal) entitlement — unlocks at Lv3, then the free tier allows a
+  // fixed number of entries. Other modes write to `sources` and were never
+  // gated, so this only constrains the journal mode.
+  const journalGate = checkGate("journal", progression.totalXp);
+  const journalUsage = checkUsage("journal", progression.tier, journalCount);
 
   function reset() {
     setBody("");
@@ -201,7 +222,7 @@ export default function Capture() {
   }
 
   const canSubmit = !!userId && !submitting && (
-    (mode === "journal" && body.trim().length > 0) ||
+    (mode === "journal" && journalGate.unlocked && journalUsage.allowed && body.trim().length > 0) ||
     (mode === "memo" && body.trim().length > 0) ||
     (mode === "linkclip" && body.trim().length > 0) ||
     (mode === "ocr" && body.trim().length > 0) ||
@@ -231,9 +252,17 @@ export default function Capture() {
       reset();
       companion.fire("journalSaved");
       setSavedTitle(savedTopic.length > 0 ? savedTopic : (locale === "ko" ? "오늘의 조각" : "Today's piece"));
-      // Refresh streak.
-      void listRecentRecords(userId)
-        .then((rows) => setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at)))
+      // Refresh streak + journal use count (free-tier limit) + XP (the entry
+      // earns progression, mirroring the retired /journal screen).
+      void progression.refresh();
+      void Promise.all([
+        listRecentRecords(userId),
+        countRecordsByKind(userId, "journal"),
+      ])
+        .then(([rows, jc]) => {
+          setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at));
+          setJournalCount(jc);
+        })
         .catch(() => {});
     } catch (e) {
       Alert.alert(locale === "ko" ? "저장 실패" : "Save failed", (e as Error).message);
@@ -397,9 +426,57 @@ export default function Capture() {
             {MODE_HELP[mode][locale]}
           </Text>
 
+          {/* Journal (일기) gate — Lv3 unlock then free-tier use limit, ported
+              from the retired /journal screen so the redirect can't bypass it. */}
+          {mode === "journal" && progression.loading ? (
+            <View style={styles.gateCard}>
+              <ActivityIndicator color={semantic.brand} />
+            </View>
+          ) : null}
+          {mode === "journal" && !progression.loading && !journalGate.unlocked ? (
+            <View style={styles.gateCard}>
+              <Text variant="subtle" color="brand" style={styles.gateEyebrow}>
+                {locale === "ko" ? "일기 잠김" : "Journal locked"}
+              </Text>
+              <Text variant="body" style={{ marginTop: spacing.xs }}>
+                {locale === "ko"
+                  ? `입문 퀘스트(과거의 나)를 완료하면 Lv${journalGate.requiredLevel}에 도달하고 일기가 열려요.`
+                  : `Finish the onboarding quest (past me) to reach Lv${journalGate.requiredLevel} and unlock journaling.`}
+              </Text>
+              <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
+                {locale === "ko"
+                  ? `현재 Lv${journalGate.currentLevel} → Lv${journalGate.requiredLevel} 필요`
+                  : `Currently Lv${journalGate.currentLevel} → Lv${journalGate.requiredLevel} required`}
+              </Text>
+              <View style={{ marginTop: spacing.md }}>
+                <Button
+                  label={locale === "ko" ? "과거의 나 시작하기" : "Start the past me"}
+                  variant="primary"
+                  onPress={() => router.push("/audit")}
+                />
+              </View>
+            </View>
+          ) : null}
+          {mode === "journal" && !progression.loading && journalGate.unlocked && !journalUsage.allowed ? (
+            <View style={styles.limitCard}>
+              <Text variant="subtle" color="warning" style={styles.gateEyebrow}>
+                {locale === "ko" ? "무료 한도 도달" : "Free limit reached"}
+              </Text>
+              <Text variant="body" style={{ marginTop: spacing.xs }}>
+                {locale === "ko"
+                  ? `무료 일기 ${journalUsage.limit}회를 모두 사용했어요. Soma 구독부터 일기를 무제한으로 쓸 수 있어요.`
+                  : `You have used all ${journalUsage.limit} free journal entries. The Soma plan and up unlock unlimited journaling.`}
+              </Text>
+              <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
+                {locale === "ko" ? "구독 화면은 곧 추가됩니다." : "The subscription screen is coming soon."}
+              </Text>
+            </View>
+          ) : null}
+
           {/* Journal (일기) mode — streak, reflection prompt, topic, body,
-              optional conclusion, opt-in Advisor. Writes to records. */}
-          {mode === "journal" ? (
+              optional conclusion, opt-in Advisor. Writes to records. Only shown
+              when unlocked and within the free-tier limit. */}
+          {mode === "journal" && !progression.loading && journalGate.unlocked && journalUsage.allowed ? (
             <View style={styles.fieldGroup}>
               {streak.current > 0 ? (
                 <View style={styles.streakRow}>
@@ -722,6 +799,26 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   advisorCheckOn: { backgroundColor: semantic.brand, borderColor: semantic.brand },
+  // 일기 gate cards (Lv3 lock / free-tier limit), ported from /journal.
+  gateEyebrow: { fontWeight: "700", letterSpacing: 1 },
+  gateCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderLeftColor: semantic.brand,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+  },
+  limitCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.warning,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderLeftColor: semantic.warning,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+  },
   savedPanel: {
     backgroundColor: "rgba(114,242,199,0.06)",
     borderColor: "rgba(114,242,199,0.22)",
