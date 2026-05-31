@@ -12,8 +12,7 @@ import { CompanionMoment } from "@/components/art/CompanionSprite";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { spacing } from "@/lib/theme/tokens";
 
-// momo filing the freshly-saved record + the journal-saved cue burst. Both are
-// real sprite keys (see companionXml); momo has no "happy" pose.
+// Momo filing the freshly-saved record + the journal-saved premium cue burst.
 const MOMENT = { companion: "momo", state: "store", cue: "journal_saved" } as const;
 
 export function QuantSaveCelebration({ message, onDone }: { message: string; onDone: () => void }) {
