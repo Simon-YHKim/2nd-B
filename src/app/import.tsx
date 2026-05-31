@@ -16,7 +16,7 @@ import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } f
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumTopBar, PremiumCard, PremiumButton, PremiumTextarea } from "@/components/premium";
+import { PremiumAppShell, PremiumCard, PremiumButton, PremiumTextarea, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -106,9 +106,20 @@ export default function ImportExternal() {
     <PremiumAppShell>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <PremiumTopBar
-            title={ko ? "가져오기" : "Import"}
-            subtitle={ko ? "다른 곳에서 정리한 나를 데려오기" : "Bring in what was gathered elsewhere"}
+          <SceneHero
+            eyebrow={ko ? "08-5. 가져오기" : "08-5. Import"}
+            title={ko ? "다른 곳의 나를 마을로 옮겨요" : "Bring outside self-knowledge home"}
+            subtitle={ko ? "외부 AI · 검사 결과 · 메모" : "Other assistants · tests · notes"}
+            island="knowledge"
+            worker="momo"
+            speech={
+              ko
+                ? "붙여넣은 내용은 바로 저장하지 않고, 먼저 구조에 맞게 분류해 보여줄게요."
+                : "Pasted material is sorted first, then saved only when you confirm."
+            }
+            islandSize={250}
+            workerSize={88}
+            railIcons={["⇄", "▤", "◇", "✓"]}
           />
 
           {phase === "input" || phase === "analyzing" ? (

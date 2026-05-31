@@ -4,9 +4,9 @@
 
 import { View, StyleSheet, ScrollView, Linking } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -27,15 +27,17 @@ export default function Support() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View>
-          <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
-            {ko ? "설정" : "Settings"}
-          </Text>
-          <Text variant="heading">{ko ? "지원" : "Support"}</Text>
-          <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.xs }}>
-            {ko ? "막히는 곳이 있으면 도와드릴게요." : "If anything's in your way, we'll help."}
-          </Text>
-        </View>
+        <SceneHero
+          eyebrow={ko ? "08-3. 지원" : "08-3. Support"}
+          title={ko ? "막힌 조각을 같이 풀어요" : "Untangle stuck pieces together"}
+          subtitle={ko ? "응답 시간 · 문의 · 도움말" : "Response time · contact · help"}
+          island="relationship"
+          worker="gadi"
+          speech={ko ? "문제가 생기면 메일로 보내주세요. 필요한 맥락부터 차분히 볼게요." : "Send us what got stuck. We'll start from the context."}
+          islandSize={250}
+          workerSize={88}
+          railIcons={["✦", "✉", "?", "◇"]}
+        />
 
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{ko ? "응답 시간" : "Response time"}</Text>
@@ -63,7 +65,6 @@ export default function Support() {
           </Text>
         </View>
 
-        <Button label={ko ? "설정으로" : "Back to settings"} variant="secondary" onPress={() => router.push("/settings")} />
       </ScrollView>
     </PremiumAppShell>
   );
@@ -76,9 +77,13 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
     borderWidth: 1,
     borderLeftWidth: 4,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     padding: spacing.lg,
     gap: spacing.sm,
+    shadowColor: "#A78BFA",
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
   },
   eyebrow: { letterSpacing: 1 },
 });

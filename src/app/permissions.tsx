@@ -7,11 +7,11 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { AppNav } from "@/components/ui/AppNav";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 
 type Status = "in_use" | "optional" | "planned" | "not_used";
 
@@ -102,19 +102,21 @@ export default function Permissions() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <Text variant="caption" color="brand">
-            2nd-Brain
-          </Text>
-          <Text variant="heading" style={styles.title}>
-            {locale === "ko" ? "권한 사용 안내" : "What the app accesses"}
-          </Text>
-          <Text variant="body" color="textMuted">
-            {locale === "ko"
-              ? "두번째 뇌가 디바이스에서 무엇을 요청하고, 왜 요청하는지 한곳에 정리했어요. 최소한만 쓰는 게 원칙이에요."
-              : "Everything 2nd-Brain asks for on your device, and why. Minimal by design."}
-          </Text>
-        </View>
+        <SceneHero
+          eyebrow={locale === "ko" ? "권한 안내" : "Permissions"}
+          title={locale === "ko" ? "필요한 접근만 밝히고 써요" : "Use only what is needed"}
+          subtitle={locale === "ko" ? "네트워크 · 알림 · 클립보드" : "Network · notifications · clipboard"}
+          island="records"
+          worker="gadi"
+          speech={
+            locale === "ko"
+              ? "권한은 기능이 필요할 때만 요청하고, 선택 권한은 거절해도 괜찮아요."
+              : "Permissions are requested only when useful, and optional ones can be declined."
+          }
+          islandSize={250}
+          workerSize={88}
+          railIcons={["▣", "✓", "!", "◇"]}
+        />
 
         <View style={styles.cards}>
           {ENTRIES.map((e) => {
@@ -182,8 +184,6 @@ export default function Permissions() {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
-  header: { gap: spacing.xs },
-  title: { marginTop: spacing.xs },
   cards: { gap: spacing.sm },
   card: {
     backgroundColor: semantic.surface,
@@ -192,6 +192,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.xs,
+    shadowColor: cosmic.soulViolet,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
   cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
   cardTitle: { fontWeight: "600", flex: 1 },

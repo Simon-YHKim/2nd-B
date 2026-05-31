@@ -9,11 +9,11 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 
 interface ManualSection {
   emoji: string; // semantic anchor only — kept ASCII-art-ish for the design
@@ -122,31 +122,37 @@ export default function Manual() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
+        <View style={styles.languageRow}>
+          <Text variant="caption" color="brand">2ndB Guide</Text>
+          <Pressable
+            onPress={() => {
+              void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
+            }}
+            hitSlop={6}
+            style={styles.languagePill}
+            accessibilityRole="button"
+          >
             <Text variant="caption" color="brand">
-              2nd-Brain
+              {locale === "ko" ? "EN" : "한국어"}
             </Text>
-            <Pressable
-              onPress={() => {
-                void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
-              }}
-              hitSlop={6}
-            >
-              <Text variant="caption" color="brand">
-                {locale === "ko" ? "EN" : "한국어"}
-              </Text>
-            </Pressable>
-          </View>
-          <Text variant="heading" style={styles.title}>
-            {locale === "ko" ? "사용 안내서" : "User manual"}
-          </Text>
-          <Text variant="body" color="textMuted">
-            {locale === "ko"
-              ? "8개 카드로 보는 두번째 뇌. 처음이라면 위에서부터, 익숙해진 뒤엔 필요할 때 다시 펼치세요."
-              : "Eight cards. First time? Read top-down. Returning? Jump to what you need."}
-          </Text>
+          </Pressable>
         </View>
+
+        <SceneHero
+          eyebrow={locale === "ko" ? "안내서" : "Manual"}
+          title={locale === "ko" ? "마을을 읽는 짧은 지도" : "A compact map of the village"}
+          subtitle={locale === "ko" ? "루틴 · 캡처 · 위키 · 안전" : "Routine · capture · wiki · safety"}
+          island="core"
+          worker="secondb"
+          speech={
+            locale === "ko"
+              ? "처음이라면 위에서부터 읽고, 익숙해지면 필요한 카드만 펼쳐보세요."
+              : "Read top-down the first time; later, jump to the card you need."
+          }
+          islandSize={250}
+          workerSize={88}
+          railIcons={["⌂", "✦", "▤", "✓"]}
+        />
 
         <View style={styles.cards}>
           {SECTIONS.map((s) => (
@@ -231,8 +237,8 @@ export default function Manual() {
 
         <View style={styles.actions}>
           {userId ? (
-            <Link href="/journal" asChild>
-              <Button label={locale === "ko" ? "저널로 이동" : "Go to journal"} variant="primary" />
+            <Link href="/capture" asChild>
+              <Button label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"} variant="primary" />
             </Link>
           ) : (
             <Link href="/sign-up" asChild>
@@ -245,19 +251,6 @@ export default function Manual() {
           <Link href="/research" asChild>
             <Button label={locale === "ko" ? "큐레이션된 자료" : "Curated research"} variant="secondary" />
           </Link>
-          {userId ? (
-            <>
-              <Link href="/insights" asChild>
-                <Button label={locale === "ko" ? "내 인사이트" : "My insights"} variant="secondary" />
-              </Link>
-              <Link href="/big-five" asChild>
-                <Button label={locale === "ko" ? "Big Five 평가" : "Big Five test"} variant="secondary" />
-              </Link>
-              <Link href="/attachment" asChild>
-                <Button label={locale === "ko" ? "애착 스타일 평가" : "Attachment test"} variant="secondary" />
-              </Link>
-            </>
-          ) : null}
         </View>
 
         <Text variant="subtle" color="textSubtle" style={styles.versionFootnote}>
@@ -272,9 +265,15 @@ export default function Manual() {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
-  header: { gap: spacing.xs, marginBottom: spacing.md },
-  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  title: { marginTop: spacing.xs },
+  languageRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  languagePill: {
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.5)",
+    borderRadius: radii.sm,
+    backgroundColor: "rgba(114,242,199,0.08)",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
   cards: { gap: spacing.sm },
   card: {
     backgroundColor: semantic.surface,
@@ -285,6 +284,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.xs,
+    shadowColor: cosmic.soulViolet,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   cardEyebrow: { letterSpacing: 1 },

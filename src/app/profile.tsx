@@ -7,7 +7,7 @@ import { View, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -56,12 +56,21 @@ export default function Profile() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View>
-          <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
-            {locale === "ko" ? "설정" : "Settings"}
-          </Text>
-          <Text variant="heading">{locale === "ko" ? "프로필" : "Profile"}</Text>
-        </View>
+        <SceneHero
+          eyebrow={locale === "ko" ? "08-2. 프로필" : "08-2. Profile"}
+          title={locale === "ko" ? `${displayName}의 마을 표식` : `${displayName}'s village mark`}
+          subtitle={locale === "ko" ? "계정 · 언어 · 데이터 연결" : "Account · language · data links"}
+          island="core"
+          worker="archi"
+          speech={
+            locale === "ko"
+              ? "계정 정보는 조용히 보관하고, 필요한 설정만 이어서 만져요."
+              : "Your account stays quiet here, with only useful settings close by."
+          }
+          islandSize={250}
+          workerSize={88}
+          railIcons={["⌂", "◎", "◇", "▣"]}
+        />
 
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>
@@ -92,7 +101,6 @@ export default function Profile() {
         <View style={styles.actions}>
           <Button label={locale === "ko" ? "테마" : "Theme"} variant="secondary" onPress={() => router.push("/theme")} />
           <Button label={locale === "ko" ? "데이터 관리" : "Data management"} variant="secondary" onPress={() => router.push("/data")} />
-          <Button label={locale === "ko" ? "설정으로" : "Back to settings"} variant="secondary" onPress={() => router.push("/settings")} />
         </View>
       </ScrollView>
     </PremiumAppShell>

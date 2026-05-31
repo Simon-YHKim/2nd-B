@@ -13,7 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { CompanionSprite } from "@/components/art/CompanionSprite";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 
 export interface QuantIntroProps {
   /** Storage key used to remember "don't show again" preference. */
@@ -178,8 +178,12 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     padding: spacing.lg,
+    shadowColor: cosmic.soulViolet,
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
   },
   introHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   introHeaderText: { flex: 1 },

@@ -7,10 +7,10 @@ import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, Refr
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AppNav } from "@/components/ui/AppNav";
 import { deleteSource, listSources } from "@/lib/wiki/queries";
@@ -190,22 +190,25 @@ export default function Inbox() {
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={semantic.brand} />}
       >
-        <View style={styles.header}>
-          <Text variant="caption" color="brand">
-            2nd-Brain
-          </Text>
-          <Text variant="heading">{t("title")}</Text>
-          <Text variant="body" color="textMuted">
-            {t("subtitle")}
-          </Text>
-        </View>
+        <SceneHero
+          eyebrow={locale === "ko" ? "받은편지함" : "Inbox"}
+          title={locale === "ko" ? "잡아둔 조각을 다듬어요" : "Refine captured pieces"}
+          subtitle={locale === "ko" ? "요약 · 질문 · 위키 승격" : "Summaries · questions · wiki promotion"}
+          island="records"
+          worker="momo"
+          speech={
+            locale === "ko"
+              ? "캡처한 자료는 여기서 요약하거나 위키 페이지로 키울 수 있어요."
+              : "Captured sources can be summarized here or promoted into wiki pages."
+          }
+          islandSize={250}
+          workerSize={88}
+          railIcons={["▤", "⌕", "→", "✓"]}
+        />
 
         <View style={styles.actions}>
           <Link href="/capture" asChild>
             <Button label={t("captureMore")} variant="primary" />
-          </Link>
-          <Link href="/journal" asChild>
-            <Button label={t("back")} variant="secondary" />
           </Link>
         </View>
 
@@ -411,11 +414,18 @@ function kindChipColor(kind: SourceKind) {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
-  header: { gap: spacing.xs, marginBottom: spacing.md },
-  actions: { flexDirection: "row", gap: spacing.sm },
+  actions: { gap: spacing.sm },
   center: { paddingVertical: spacing.xl, alignItems: "center" },
   errorCard: { padding: spacing.md, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, borderWidth: 1, borderColor: semantic.danger },
-  emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, alignItems: "center", gap: spacing.sm },
+  emptyCard: {
+    padding: spacing.lg,
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    alignItems: "center",
+    gap: spacing.sm,
+  },
   emptyText: { textAlign: "center" },
   list: { gap: spacing.sm },
   row: {
@@ -425,6 +435,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.xs,
+    shadowColor: cosmic.pixelLamp,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
   rowPressed: { opacity: 0.7 },
   rowHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },

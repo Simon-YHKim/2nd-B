@@ -10,7 +10,7 @@ import { router } from "expo-router";
 
 import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import {
@@ -189,13 +189,27 @@ export default function BigFive() {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: spacing.xs, marginBottom: spacing.md },
+  header: {
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderLeftColor: cosmic.signalMint,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderRadius: radii.md,
+    padding: spacing.md,
+  },
   itemCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.md,
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
   scaleRow: { flexDirection: "row", justifyContent: "space-between", gap: spacing.xs },
   scaleBtn: {
