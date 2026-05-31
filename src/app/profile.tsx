@@ -100,7 +100,9 @@ export default function Profile() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: spacing.lg, paddingBottom: 110 },
+  // Bottom tab-bar clearance is handled centrally by PremiumAppShell now; keep
+  // only a normal content gap here so it doesn't double-pad.
+  scroll: { gap: spacing.lg, paddingBottom: spacing.lg },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   section: {
     backgroundColor: semantic.surface,

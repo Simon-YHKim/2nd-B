@@ -11,6 +11,7 @@ import Svg, { Circle, Line, Path } from "react-native-svg";
 
 import { Text } from "@/components/ui/Text";
 import { cosmic, spacing } from "@/lib/theme/tokens";
+import { PRIMARY_TAB_PATHS } from "@/lib/nav/tabs";
 
 // Menu restructure Phase 3 (2026-05-31): the five tabs are now the VISION
 // 3-axis IA — 그래프 / 담기 / 세컨비 / 공상 / 나. The old explore(/core-brain),
@@ -34,8 +35,10 @@ const TABS: Tab[] = [
   { id: "profile", href: "/profile", ko: "나", en: "Me" },
 ];
 
-// Routes the bar appears on (its own destinations).
-const TAB_PATHS = new Set<string>(["/", "/capture", "/jarvis", "/imagine", "/profile"]);
+// Routes the bar appears on (its own destinations). Shared with BackArrow via
+// PRIMARY_TAB_PATHS so the bar's show-list and the arrow's hide-list stay in
+// lockstep. TABS above must list these same hrefs (labels/icons live here).
+const TAB_PATHS = new Set<string>(PRIMARY_TAB_PATHS);
 
 function TabIcon({ id, color }: { id: TabId; color: string }) {
   const sw = 1.8;

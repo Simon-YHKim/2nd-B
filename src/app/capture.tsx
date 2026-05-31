@@ -151,19 +151,22 @@ export default function Capture() {
     };
   }, [userId]);
 
-  if (loading) return null;
-  if (!userId) {
-    router.replace("/sign-in");
-    return null;
-  }
-
   // Link/Clip unified box lives in `body`. If it's a bare URL we detect the
-  // clipper kind from it; otherwise it's pasted markdown.
+  // clipper kind from it; otherwise it's pasted markdown. These useMemo hooks
+  // MUST stay above the early returns below: a hook after a conditional return
+  // violates rules-of-hooks, and a userId/loading flip on a later render would
+  // skip them and blank the screen (React #300). rules-of-hooks now guards this.
   const linkClipKind = useMemo(() => classifyLinkOrClip(body), [body]);
   const detectedKind = useMemo(
     () => (linkClipKind === "url" ? detectClipperKind(body.trim()) : "inbox"),
     [linkClipKind, body],
   );
+
+  if (loading) return null;
+  if (!userId) {
+    router.replace("/sign-in");
+    return null;
+  }
 
   // 일기(journal) entitlement — unlocks at Lv3, then the free tier allows a
   // fixed number of entries. Other modes write to `sources` and were never
