@@ -32,7 +32,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
-import { SecondBFab, SecondBSprite } from "@/components/art/SecondBSprite";
+import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
 import { domainForTags } from "@/lib/graph/relatedness";
@@ -285,26 +285,6 @@ export default function Landing() {
           and lives in Settings; Settings is reachable from the Profile tab.
           The main graph keeps a clean top so 오늘의 중심 sits at the very top. */}
 
-      {/* Bottom-right floating chat (세컨비 / 2ndB) entry — moved out
-          of the constellation bubble per user directive (2026-05-28).
-          Single circular FAB, plenty of safe-area margin. */}
-      {!showingEmptyGraphCard ? (
-        <Animated.View style={[styles.jarvisFabWrap, { opacity: contentOpacity }]}>
-          <Pressable
-            onPress={() => {
-              wake();
-              setCenterSeen(true);
-              router.push("/jarvis");
-            }}
-            hitSlop={16}
-            style={styles.jarvisFab}
-            accessibilityLabel={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
-          >
-            {/* SecondB v2 FAB sprite — default / notification / chat_ready. */}
-            <SecondBFab fabState={presence.fab} size={48} />
-          </Pressable>
-        </Animated.View>
-      ) : null}
     </View>
   );
 }
@@ -449,50 +429,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 18,
     marginTop: -1,
-  },
-  jarvisFabWrap: {
-    position: "absolute",
-    // Sits above the premium bottom tab bar (TAB_BAR_HEIGHT + inset margin).
-    bottom: 96, right: 20,
-  },
-  // SecondB FAB — soul-violet body, mint glow. Square-ish pixel block,
-  // not a round avatar, so it reads as a pixel resident rather than a
-  // chat button (handoff §5 + §7-1 floating-b).
-  jarvisFab: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.55)",
-    backgroundColor: "rgba(167,139,250,0.22)",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: cosmic.soulViolet,
-    shadowOpacity: 0.55,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
-  },
-  // Inner pixel sprite stand-in — small violet square with a mint core.
-  // Replaced by a real Image when the sprite sheet lands (Phase 3).
-  jarvisFabSprite: {
-    width: 26,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: cosmic.space950,
-    backgroundColor: cosmic.soulViolet,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  jarvisFabSpriteCore: {
-    width: 6,
-    height: 6,
-    borderRadius: 1.5,
-    backgroundColor: cosmic.signalMint,
-    shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.85,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 0 },
   },
 });

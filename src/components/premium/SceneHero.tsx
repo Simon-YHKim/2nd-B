@@ -25,7 +25,6 @@ export function SceneHero({
   secondaryAction,
   islandSize = 274,
   workerSize = 104,
-  railIcons = ["⌂", "✦", "⌕", "◇"],
   style,
 }: {
   eyebrow: string;
@@ -41,6 +40,16 @@ export function SceneHero({
   railIcons?: string[];
   style?: StyleProp<ViewStyle>;
 }) {
+  const ownerSize = Math.min(workerSize, Math.max(46, Math.round(islandSize * 0.23)));
+  const ownerHaloSize = ownerSize + 18;
+  const ownerLeft = Math.max(12, Math.round(islandSize * 0.12));
+  const ownerBottom = Math.max(14, Math.round(islandSize * 0.1));
+  const bubbleWidth = Math.min(220, Math.max(168, Math.round(islandSize * 0.78)));
+  const maxBubbleLeft = Math.max(8, islandSize - bubbleWidth - 8);
+  const bubbleLeft = Math.max(8, Math.min(maxBubbleLeft, ownerLeft + ownerHaloSize / 2 - 28));
+  const bubbleBottom = ownerBottom + ownerHaloSize - 4;
+  const tailLeft = Math.max(18, Math.min(bubbleWidth - 26, ownerLeft + ownerHaloSize / 2 - bubbleLeft - 5));
+
   return (
     <View style={[styles.wrap, style]}>
       <View style={styles.copy}>
@@ -52,24 +61,46 @@ export function SceneHero({
       </View>
 
       <View style={styles.shell}>
-        <View style={styles.rail} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          {railIcons.map((icon, index) => (
-            <View key={`${icon}-${index}`} style={[styles.railButton, index === 0 ? styles.railButtonActive : null]}>
-              <Text variant="body" style={styles.railIcon}>{icon}</Text>
-            </View>
-          ))}
-        </View>
-
         <View style={styles.stage}>
-          <View style={styles.glow} />
-          <IslandArt id={island} size={islandSize} style={styles.island} />
-          <View style={styles.workerWrap}>
-            <View style={styles.workerHalo} />
-            <WorkerSprite id={worker} size={workerSize} paused />
-          </View>
-          <View style={styles.bubble}>
-            <View style={styles.bubbleTail} />
-            <Text variant="body" style={styles.bubbleText}>{speech}</Text>
+          <View style={[styles.islandFrame, { width: islandSize, height: islandSize }]}>
+            <View
+              style={[
+                styles.glow,
+                {
+                  width: islandSize * 0.92,
+                  height: islandSize * 0.92,
+                  borderRadius: islandSize * 0.46,
+                },
+              ]}
+            />
+            <IslandArt id={island} size={islandSize} style={styles.island} />
+            <View
+              style={[
+                styles.workerWrap,
+                {
+                  width: ownerHaloSize,
+                  height: ownerHaloSize,
+                  left: ownerLeft,
+                  bottom: ownerBottom,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.workerHalo,
+                  {
+                    width: ownerHaloSize,
+                    height: ownerHaloSize,
+                    borderRadius: ownerHaloSize / 2,
+                  },
+                ]}
+              />
+              <WorkerSprite id={worker} size={ownerSize} paused />
+            </View>
+            <View style={[styles.bubble, { left: bubbleLeft, bottom: bubbleBottom, width: bubbleWidth }]}>
+              <Text variant="body" style={styles.bubbleText}>{speech}</Text>
+              <View style={[styles.bubbleTail, { left: tailLeft }]} />
+            </View>
           </View>
         </View>
 
@@ -110,7 +141,7 @@ const styles = StyleSheet.create({
   shell: {
     position: "relative",
     overflow: "hidden",
-    minHeight: 430,
+    minHeight: 404,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "rgba(255,159,214,0.28)",
@@ -120,45 +151,21 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
   },
-  rail: {
-    position: "absolute",
-    left: spacing.sm,
-    top: spacing.sm,
-    zIndex: 6,
-    gap: spacing.sm,
-    padding: spacing.xs,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: "rgba(141,152,184,0.24)",
-    backgroundColor: "rgba(13,21,48,0.86)",
-  },
-  railButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.sm,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(141,152,184,0.16)",
-    backgroundColor: "rgba(255,255,255,0.03)",
-  },
-  railButtonActive: {
-    borderColor: "rgba(167,139,250,0.78)",
-    backgroundColor: "rgba(167,139,250,0.26)",
-  },
-  railIcon: { color: cosmic.moonWhite, fontWeight: "800" },
   stage: {
-    minHeight: 312,
+    minHeight: 300,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  islandFrame: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
   },
   glow: {
     position: "absolute",
-    width: 250,
-    height: 250,
-    borderRadius: 125,
     backgroundColor: "rgba(255,159,214,0.11)",
     shadowColor: cosmic.dreamPink,
     shadowOpacity: 0.42,
@@ -166,24 +173,16 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   island: {
-    marginTop: spacing.md,
     opacity: 0.98,
   },
   workerWrap: {
     position: "absolute",
-    left: 52,
-    bottom: 44,
     zIndex: 4,
-    width: 128,
-    height: 128,
     alignItems: "center",
     justifyContent: "center",
   },
   workerHalo: {
     position: "absolute",
-    width: 118,
-    height: 118,
-    borderRadius: 59,
     borderWidth: 1,
     borderColor: "rgba(255,159,214,0.52)",
     backgroundColor: "rgba(7,10,24,0.58)",
@@ -194,10 +193,7 @@ const styles = StyleSheet.create({
   },
   bubble: {
     position: "absolute",
-    right: spacing.md,
-    bottom: 74,
-    width: 188,
-    minHeight: 82,
+    minHeight: 68,
     justifyContent: "center",
     borderRadius: radii.sm,
     borderWidth: 1,
@@ -209,16 +205,15 @@ const styles = StyleSheet.create({
   },
   bubbleTail: {
     position: "absolute",
-    left: -10,
-    bottom: 22,
+    bottom: -6,
     width: 0,
     height: 0,
-    borderTopWidth: 8,
-    borderBottomWidth: 8,
-    borderRightWidth: 11,
-    borderTopColor: "transparent",
-    borderBottomColor: "transparent",
-    borderRightColor: "rgba(247,248,255,0.94)",
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 7,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: "rgba(247,248,255,0.94)",
   },
   bubbleText: {
     color: cosmic.space900,
@@ -229,6 +224,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(141,152,184,0.18)",
+    backgroundColor: "rgba(7,10,24,0.32)",
   },
   actionButton: {
     minHeight: 52,
