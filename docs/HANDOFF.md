@@ -3,7 +3,29 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-01 / 캐릭터 혼잣말 말풍선 (#91)
+## Latest — 2026-06-01 / 메뉴 재설계 Phase 5 — 나 허브 (#92)
+
+### 무엇을 / 왜
+`/profile`을 3축 '나' 허브로 확장. 묻힌 화면 18개를 축별 칩으로 노출:
+- 나의 중심 → /core-brain
+- 평가 → /persona /big-five /mbti /attachment /audit /interview
+- 분석 → /insights **/trinity** /research
+- 계정·설정 → /settings /theme /data /manual /import /inbox /support /permissions
+Phase 4에서 그래프 진입점 잃은 `/trinity` 여기 재배치(인터림 해소). 라우팅 변경 없음(본문만 확장), 칩 route는 typed `Href`.
+
+### 바뀐 파일
+- `src/app/profile.tsx` — 나 허브 4섹션
+
+### 검증
+- npm run verify: jest **668/668 (67 suites)**, lint 0, lexicon + C1~C12
+
+### 다음 / 되돌리기
+- 다음: **Phase 6** (죽은 라우트/중복 정리, i18n·테스트) — 재설계 마지막
+- revert: PR #92 단독.
+
+---
+
+## 2026-06-01 / 캐릭터 혼잣말 말풍선 (#91)
 
 ### 무엇을 / 왜
 메인 그래프에서 일꾼(캐릭터) 탭 → 성격별 혼잣말 픽셀 말풍선(~3.6s, 걷는 캐릭터를 따라다님). (UX 배치 3/4)
