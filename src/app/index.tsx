@@ -195,6 +195,7 @@ export default function Landing() {
     sleepAfterMs: SLEEP_AFTER_MS,
     hasNotification: dataNodes.length > 0 && !centerSeen,
   });
+  const showingEmptyGraphCard = dataNodes.length === 0 && !emptyDismissed;
 
   return (
     <View style={styles.skyContainer}>
@@ -220,7 +221,7 @@ export default function Landing() {
 
       {/* Empty graph state (onboarding pack §6) — no saved pieces yet.
           Dismissible so the user can just look around the village. */}
-      {dataNodes.length === 0 && !emptyDismissed ? (
+      {showingEmptyGraphCard ? (
         <Animated.View style={[styles.emptyGraphWrap, { opacity: contentOpacity }]} pointerEvents="box-none">
           <View style={styles.emptyGraphCard}>
             {/* Close — lets the user dismiss and browse the empty village. */}
@@ -234,7 +235,7 @@ export default function Landing() {
               <Text style={styles.emptyGraphCloseText}>✕</Text>
             </Pressable>
             <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-              <IslandArt id="core" size={180} />
+              <IslandArt id="core" size={150} />
             </View>
             <Text style={styles.emptyGraphTitle}>{locale === "ko" ? "아직 마을이 조용해요" : "The village is quiet"}</Text>
             <Text style={styles.emptyGraphBody}>
@@ -281,21 +282,23 @@ export default function Landing() {
       {/* Bottom-right floating chat (세컨비 / 2ndB) entry — moved out
           of the constellation bubble per user directive (2026-05-28).
           Single circular FAB, plenty of safe-area margin. */}
-      <Animated.View style={[styles.jarvisFabWrap, { opacity: contentOpacity }]}>
-        <Pressable
-          onPress={() => {
-            wake();
-            setCenterSeen(true);
-            router.push("/jarvis");
-          }}
-          hitSlop={16}
-          style={styles.jarvisFab}
-          accessibilityLabel={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
-        >
-          {/* SecondB v2 FAB sprite — default / notification / chat_ready. */}
-          <SecondBFab fabState={presence.fab} size={48} />
-        </Pressable>
-      </Animated.View>
+      {!showingEmptyGraphCard ? (
+        <Animated.View style={[styles.jarvisFabWrap, { opacity: contentOpacity }]}>
+          <Pressable
+            onPress={() => {
+              wake();
+              setCenterSeen(true);
+              router.push("/jarvis");
+            }}
+            hitSlop={16}
+            style={styles.jarvisFab}
+            accessibilityLabel={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
+          >
+            {/* SecondB v2 FAB sprite — default / notification / chat_ready. */}
+            <SecondBFab fabState={presence.fab} size={48} />
+          </Pressable>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -323,12 +326,16 @@ const styles = StyleSheet.create({
   },
   emptyGraphCard: {
     alignItems: "center",
-    backgroundColor: "rgba(13,21,48,0.88)",
-    borderColor: "rgba(141,152,184,0.28)",
+    backgroundColor: "rgba(7,10,24,0.92)",
+    borderColor: "rgba(167,139,250,0.38)",
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: 8,
     padding: 18,
     maxWidth: 360,
+    shadowColor: cosmic.soulViolet,
+    shadowOpacity: 0.32,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
   },
   emptyGraphClose: { position: "absolute", top: 8, right: 10, padding: 6, zIndex: 2 },
   emptyGraphCloseText: { color: cosmic.mistGray, fontSize: 16, fontFamily: fontFamilies.sans },
@@ -339,9 +346,13 @@ const styles = StyleSheet.create({
   emptyGraphCta: {
     marginTop: 14,
     backgroundColor: cosmic.signalMint,
-    borderRadius: 12,
+    borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
   emptyGraphCtaText: { color: cosmic.space950, fontWeight: "700", fontSize: 14, fontFamily: fontFamilies.sans },
   insightRibbon: {
@@ -351,13 +362,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.26)",
+    backgroundColor: "rgba(7,10,24,0.62)",
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
   },
   // SecondB placeholder — soul-violet block with a mint signal core.
   // Same 52px footprint the eventual pixel sprite will occupy.
   mascotSlot: {
     width: 52,
     height: 52,
-    borderRadius: 12, // square-ish, pixel-block feel rather than round avatar
+    borderRadius: 8, // square-ish, pixel-block feel rather than round avatar
     borderWidth: 1,
     borderColor: "rgba(167,139,250,0.42)",
     backgroundColor: "rgba(167,139,250,0.16)",
@@ -432,7 +452,7 @@ const styles = StyleSheet.create({
   jarvisFab: {
     width: 56,
     height: 56,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "rgba(167,139,250,0.55)",
     backgroundColor: "rgba(167,139,250,0.22)",
