@@ -358,7 +358,9 @@ export default function Settings() {
             onPress={async () => {
               try {
                 await signOut();
-                router.replace("/");
+                // Go straight to /sign-in. Routing via "/" could briefly render
+                // with a stale session before the SIGNED_OUT event lands.
+                router.replace("/sign-in");
               } catch (e) {
                 Alert.alert(locale === "ko" ? "로그아웃 실패" : "Sign-out failed", (e as Error).message);
               }

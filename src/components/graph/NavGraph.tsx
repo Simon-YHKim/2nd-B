@@ -1090,6 +1090,17 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 style={StyleSheet.absoluteFill}
               />
             </View>
+            {/* Village name tag (2026-05-31): tier-2 islands carry a pixel
+                name plate so first-time users can read what each village is
+                straight from the main graph. Tier-3 nodes get theirs only
+                when zoomed in (label shown in the bottom sheet on tap). */}
+            {n.tier === 2 ? (
+              <View style={styles.villageTag} pointerEvents="none">
+                <Text style={styles.villageTagText} numberOfLines={1}>
+                  {n.label[locale]}
+                </Text>
+              </View>
+            ) : null}
           </Animated.View>
         );
       })}
@@ -1262,6 +1273,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "stretch",
+  },
+  // Village name plate under each tier-2 island. Pixel face on a dark glass
+  // chip with a mint hairline so it reads against the cosmic background while
+  // staying in the pixel-art register. Centered under the node; overflows the
+  // node box (which is only `size` wide) so the full name shows.
+  villageTag: {
+    position: "absolute",
+    top: "104%",
+    minWidth: 96,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "rgba(7,10,24,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.40)",
+  },
+  villageTagText: {
+    color: cosmic.moonWhite,
+    fontFamily: fontFamilies.pixel,
+    fontSize: 12,
+    letterSpacing: 0.3,
+    textAlign: "center",
   },
   centerArtWrap: {
     width: CENTER_SIZE,
