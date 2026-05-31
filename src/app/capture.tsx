@@ -29,6 +29,7 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
+import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -69,12 +70,14 @@ import { checkUsage } from "@/lib/progression/entitlements";
 // (captureFromMarkdown). Reads were already unified via mergeEvidence.
 type Mode = "journal" | "memo" | "linkclip" | "ocr" | "file";
 
-const MODE_LABEL: Record<Mode, { en: string; ko: string; icon: string }> = {
-  journal: { en: "Journal", ko: "일기", icon: "🌙" },
-  memo: { en: "Memo", ko: "메모", icon: "✍️" },
-  linkclip: { en: "Link/Clip", ko: "링크/스크랩", icon: "🔗" },
-  ocr: { en: "OCR", ko: "이미지", icon: "📸" },
-  file: { en: "File", ko: "문서", icon: "📄" },
+const CAPTURE_MODES: Mode[] = ["journal", "memo", "linkclip", "ocr", "file"];
+
+const MODE_LABEL: Record<Mode, { en: string; ko: string }> = {
+  journal: { en: "Journal", ko: "일기" },
+  memo: { en: "Memo", ko: "메모" },
+  linkclip: { en: "Link/Clip", ko: "링크/스크랩" },
+  ocr: { en: "OCR", ko: "이미지" },
+  file: { en: "File", ko: "문서" },
 };
 
 const MODE_HELP: Record<Mode, { en: string; ko: string }> = {
@@ -99,6 +102,52 @@ const MODE_HELP: Record<Mode, { en: string; ko: string }> = {
     ko: "PDF · DOCX · .txt를 고르세요. 텍스트가 추출되어 색인됩니다.",
   },
 };
+
+function ModeGlyph({ mode, color }: { mode: Mode; color: string }) {
+  const sw = 1.8;
+  switch (mode) {
+    case "journal":
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph}>
+          <Path d="M14 4 A8 8 0 1 0 14 20 A6 6 0 1 1 14 4 Z" fill={color} />
+        </Svg>
+      );
+    case "memo":
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph}>
+          <Path d="M7 17 L8 13 L16 5 L19 8 L11 16 Z" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
+          <Line x1="13.5" y1="7.5" x2="16.5" y2="10.5" stroke={color} strokeWidth={sw} />
+          <Line x1="6" y1="20" x2="18" y2="20" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+        </Svg>
+      );
+    case "linkclip":
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph}>
+          <Path d="M9.5 14.5 L14.5 9.5" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Path d="M10 8 L8.5 8 C6.5 8 5 9.5 5 11.5 C5 13.5 6.5 15 8.5 15 L10 15" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
+          <Path d="M14 9 L15.5 9 C17.5 9 19 10.5 19 12.5 C19 14.5 17.5 16 15.5 16 L14 16" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
+        </Svg>
+      );
+    case "ocr":
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph}>
+          <Rect x="5" y="8" width="14" height="10" rx="1.5" stroke={color} strokeWidth={sw} fill="none" />
+          <Path d="M9 8 L10 6 L14 6 L15 8" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
+          <Circle cx="12" cy="13" r="2.4" stroke={color} strokeWidth={sw} fill="none" />
+          <Path d="M4 5 L4 3 L7 3 M17 3 L20 3 L20 5 M4 19 L4 21 L7 21 M17 21 L20 21 L20 19" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
+        </Svg>
+      );
+    case "file":
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph}>
+          <Path d="M7 4 L14 4 L18 8 L18 20 L7 20 Z" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
+          <Path d="M14 4 L14 8 L18 8" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
+          <Line x1="9" y1="12" x2="15" y2="12" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Line x1="9" y1="15" x2="14" y2="15" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+        </Svg>
+      );
+  }
+}
 
 export default function Capture() {
   const { i18n } = useTranslation("capture");
@@ -572,24 +621,28 @@ export default function Capture() {
 
           {/* Mode tabs */}
           <View style={styles.modeRow}>
-            {(["journal", "memo", "linkclip", "ocr", "file"] as Mode[]).map((m) => (
-              <Pressable
-                key={m}
-                style={[styles.modeTab, mode === m && styles.modeTabActive]}
-                onPress={() => {
-                  setMode(m);
-                  // Clear all per-mode input so a URL box never "bleeds" into
-                  // the memo/file box (2026-05-31 directive: inputs feel shared).
-                  reset();
-                }}
-                hitSlop={2}
-              >
-                <Text style={styles.modeIcon}>{MODE_LABEL[m].icon}</Text>
-                <Text style={[styles.modeLabel, mode === m && styles.modeLabelActive]}>
-                  {MODE_LABEL[m][locale]}
-                </Text>
-              </Pressable>
-            ))}
+            {CAPTURE_MODES.map((m) => {
+              const active = mode === m;
+              const color = active ? semantic.background : semantic.textMuted;
+              return (
+                <Pressable
+                  key={m}
+                  style={[styles.modeTab, active && styles.modeTabActive]}
+                  onPress={() => {
+                    setMode(m);
+                    // Clear all per-mode input so a URL box never "bleeds" into
+                    // the memo/file box (2026-05-31 directive: inputs feel shared).
+                    reset();
+                  }}
+                  hitSlop={2}
+                >
+                  <ModeGlyph mode={m} color={color} />
+                  <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
+                    {MODE_LABEL[m][locale]}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
 
           <Text variant="subtle" color="textMuted" style={styles.modeHelp}>
@@ -1049,7 +1102,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   modeTabActive: { backgroundColor: semantic.brand },
-  modeIcon: { fontSize: 22 },
+  modeGlyph: { width: 24, height: 24 },
   modeLabel: { color: semantic.textMuted, fontSize: typography.sizes.xs, fontWeight: "600" },
   modeLabelActive: { color: semantic.background, fontWeight: "700" },
   modeHelp: { lineHeight: 18, marginTop: -spacing.xs },
