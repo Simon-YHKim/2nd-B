@@ -170,6 +170,7 @@ export default function Settings() {
           </Text>
           <Button label={locale === "ko" ? "프로필" : "Profile"} variant="secondary" onPress={() => router.push("/profile")} />
           <Button label={locale === "ko" ? "개인정보 보호" : "Privacy"} variant="secondary" onPress={() => router.push("/privacy")} />
+          <Button label={locale === "ko" ? "계정 관리" : "Account"} variant="secondary" onPress={() => router.push("/account")} />
           <Button label={locale === "ko" ? "테마" : "Theme"} variant="secondary" onPress={() => router.push("/theme")} />
           <Button label={locale === "ko" ? "데이터 관리" : "Data management"} variant="secondary" onPress={() => router.push("/data")} />
           <Button label={locale === "ko" ? "기록" : "Records"} variant="secondary" onPress={() => router.push("/records")} />
