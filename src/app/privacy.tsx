@@ -24,6 +24,7 @@ import {
   type PrivacyPrefs,
 } from "@/lib/privacy/prefs";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 export default function Privacy() {
   const { t } = useTranslation("consent");
@@ -90,8 +91,9 @@ export default function Privacy() {
           eyebrow={t("privacy.eyebrow")}
           title={t("privacy.title")}
           subtitle={t("privacy.subtitle")}
-          island="relationship"
-          worker="gadi"
+          island={VILLAGE_UI.relation.island}
+          worker={VILLAGE_UI.relation.worker}
+          accent={VILLAGE_UI.relation.accent}
           speech={t("privacy.speech")}
         />
 
