@@ -303,16 +303,6 @@ interface Props {
   glowNodeId?: string | null;
 }
 
-interface Positioned {
-  node: NavNode;
-  base: { x: number; y: number };
-}
-
-interface DataPositioned {
-  node: DataNode;
-  base: { x: number; y: number };
-}
-
 export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) {
   const { width, height } = useWindowDimensions();
   const cx = width / 2;
