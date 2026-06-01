@@ -2,9 +2,9 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
-import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, spacing } from "@/lib/theme/tokens";
+import { PremiumButton } from "./surfaces";
 
 type SceneHeroAction = {
   label: string;
@@ -44,7 +44,6 @@ export function SceneHero({
   secondaryAction?: SceneHeroAction;
   islandSize?: number;
   workerSize?: number;
-  railIcons?: string[];
   style?: StyleProp<ViewStyle>;
 }) {
   const ownerSize = Math.min(workerSize, Math.max(44, Math.round(islandSize * WORKER_TO_ISLAND_SCALE)));
@@ -143,7 +142,7 @@ export function SceneHero({
         {primaryAction || secondaryAction ? (
           <View style={styles.actions}>
             {primaryAction ? (
-              <Button
+              <PremiumButton
                 label={primaryAction.label}
                 variant={primaryAction.variant ?? "primary"}
                 loading={primaryAction.loading}
@@ -153,7 +152,7 @@ export function SceneHero({
               />
             ) : null}
             {secondaryAction ? (
-              <Button
+              <PremiumButton
                 label={secondaryAction.label}
                 variant={secondaryAction.variant ?? "secondary"}
                 loading={secondaryAction.loading}

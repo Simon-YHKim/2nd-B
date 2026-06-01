@@ -161,9 +161,7 @@ export default function Settings() {
             locale === "ko"
               ? "삭제는 되돌릴 수 없어요. 필요한 조각은 먼저 내보내기로 챙겨두세요."
               : "Deletion cannot be undone. Export anything you need before clearing data."
-          }
-          railIcons={["⌂", "⚙", "◇", "▣"]}
-        />
+          }        />
 
         {/* Navigation hub (A-to-Z Phase 12) — the settings sub-screens. */}
         <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>

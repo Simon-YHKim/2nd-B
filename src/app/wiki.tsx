@@ -259,9 +259,7 @@ export default function Wiki() {
           primaryAction={{
             label: t("capture"),
             onPress: () => router.push("/capture"),
-          }}
-          railIcons={["⌂", "▤", "⌕", "◇"]}
-        />
+          }}        />
 
         {/* Three knowledge facets (premium wiki card thumbnails, asset audit P2):
             Core / Library / Imagine. Core + Imagine open their own screens. */}

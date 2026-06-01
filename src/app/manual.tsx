@@ -150,9 +150,7 @@ export default function Manual() {
               : "Read top-down the first time; later, jump to the card you need."
           }
           islandSize={250}
-          workerSize={104}
-          railIcons={["⌂", "✦", "▤", "✓"]}
-        />
+          workerSize={104}        />
 
         <View style={styles.cards}>
           {SECTIONS.map((s) => (

@@ -147,9 +147,7 @@ export default function CoreBrain() {
           primaryAction={{
             label: locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB",
             onPress: () => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "나의 중심" : "my center" } }),
-          }}
-          railIcons={["⌂", "◎", "✦", "▣"]}
-        />
+          }}        />
         <View style={styles.statRow}>
           <StatTile value={evidence.length} label={locale === "ko" ? "조각" : "pieces"} accent={cosmic.pixelLamp} />
           <StatTile value={`${filledFields}/5`} label={locale === "ko" ? "나의 모습" : "self-portrait"} accent={cosmic.soulViolet} />

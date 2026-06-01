@@ -39,9 +39,7 @@ export default function ThemeScreen() {
           worker="lulu"
           speech={locale === "ko" ? "메인 그래프는 언제나 밤빛이에요. 별과 연결이 가장 또렷하거든요." : "The main graph always keeps the night sky so stars and links stay crisp."}
           islandSize={250}
-          workerSize={104}
-          railIcons={["✦", "◐", "☼", "◇"]}
-        />
+          workerSize={104}        />
 
         <View style={styles.list}>
           {options.map((o) => {

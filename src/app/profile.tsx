@@ -137,9 +137,7 @@ export default function Profile() {
               : "Everything about you is gathered here. Take your time."
           }
           islandSize={250}
-          workerSize={104}
-          railIcons={["⌂", "◎", "◇", "▣"]}
-        />
+          workerSize={104}        />
 
         {/* Account — compact now that the hub is the focus. */}
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>

@@ -87,9 +87,7 @@ export default function Persona() {
             primaryAction={{
               label: locale === "ko" ? "라이프 오딧 시작" : "Start life audit",
               onPress: () => router.push("/audit"),
-            }}
-            railIcons={["⌂", "◎", "✦", "▣"]}
-          />
+            }}          />
           <View style={styles.toolGrid}>
             {toolCards.map((t) => (
               <View key={t.route} style={styles.toolCard}>
@@ -150,9 +148,7 @@ export default function Persona() {
             label: locale === "ko" ? "내보내기" : "Export",
             variant: "secondary",
             onPress: handleExport,
-          }}
-          railIcons={["⌂", "◎", "✦", "▣"]}
-        />
+          }}        />
 
         {/* 나의 중심 — §7-2 three-card summary in Core Brain voice.
             Each card's meaning is coded by its left-border accent

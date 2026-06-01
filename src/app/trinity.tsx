@@ -165,9 +165,7 @@ export default function Trinity() {
           primaryAction={{
             label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
             onPress: () => router.push("/journal"),
-          }}
-          railIcons={["⌂", "▦", "◎", "◇"]}
-        />
+          }}        />
 
         {loading ? (
           <View style={styles.center}>

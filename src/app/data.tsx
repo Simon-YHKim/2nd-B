@@ -39,9 +39,7 @@ export default function DataManagement() {
               : "Before deleting anything important, export a backup first."
           }
           islandSize={250}
-          workerSize={104}
-          railIcons={["▣", "⇄", "⌁", "×"]}
-        />
+          workerSize={104}        />
 
         <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{ko ? "가져오기" : "Import"}</Text>
