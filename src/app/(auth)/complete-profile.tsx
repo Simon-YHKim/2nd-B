@@ -11,7 +11,7 @@ import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
-import { semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
 import { ageInYears, ensureUserProfile, AgeGateError, signOut } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     padding: spacing.lg,
-    shadowColor: "#A78BFA",
+    shadowColor: cosmic.soulViolet,
     shadowOpacity: 0.2,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 0 },

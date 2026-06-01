@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname, router } from "expo-router";
 
 import { PRIMARY_TAB_PATHS, isPrimaryTabPath } from "@/lib/nav/tabs";
+import { cosmic } from "@/lib/theme/tokens";
 
 // Landing + pre-auth routes that hide the arrow (no "back to graph" there yet).
 const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile"];
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(167,139,250,0.16)",
     borderWidth: 1,
     borderColor: "rgba(114,242,199,0.42)",
-    shadowColor: "#72F2C7",
+    shadowColor: cosmic.signalMint,
     shadowOpacity: 0.28,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
@@ -96,7 +97,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 3,
     borderRadius: 2,
-    backgroundColor: "#72F2C7",
+    backgroundColor: cosmic.signalMint,
   },
   chevronTop: {
     transform: [{ rotate: "-42deg" }],

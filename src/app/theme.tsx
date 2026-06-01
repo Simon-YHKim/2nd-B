@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.lg,
-    shadowColor: "#A78BFA",
+    shadowColor: cosmic.soulViolet,
     shadowOpacity: 0.16,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },

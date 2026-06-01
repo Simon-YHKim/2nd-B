@@ -21,7 +21,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AppNav } from "@/components/ui/AppNav";
 import { useProgression } from "@/lib/progression/useProgression";
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(167,139,250,0.14)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#A78BFA",
+    shadowColor: cosmic.soulViolet,
     shadowOpacity: 0.35,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
