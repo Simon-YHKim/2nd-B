@@ -74,7 +74,7 @@ The jest suite asserts the call order via mock spy.
 ## C10 — Age-tiered registration + guardian consent (phased)
 
 Sign-up requires `birth_date`, which sets an **age tier**:
-- **Adult (≥18)** and **self-consent minor (14–17, Korea PIPA Article 22-2)** register directly.
+- **Adult (≥18)** and **self-consent minor (14–17)** register directly. Under PIPA, legal-representative consent is mandated only *below 14* (Article 22-2); users 14+ self-consent under the general provisions (Articles 15/17/22) with age-appropriate notice.
 - **Under-14** require **verifiable guardian consent** (PIPA Article 22-2 / COPPA): the
   account starts in `account_status = 'pending_guardian_consent'`, held until a
   guardian verifies via the `guardian_consents` ledger.
@@ -86,9 +86,9 @@ Enforcement (phased rollout):
 - **Client — done:** `auth.ts` gates at `MIN_SELF_CONSENT_AGE` (14). 14-17
   self-consent and 18+ register directly; under-14 still throw `AgeGateError`
   pending the guardian-consent flow.
-- **Safety — capability done (`KR_1388`):** the classifier supports age-aware
-  routing (minor → youth line); threading the minor flag through the record/LLM
-  chain is the next step.
+- **Safety — done (#134):** the minor flag threads from `AuthContext.isMinor`
+  through the record/chat/interview/LLM chain. KO minors route to 1388 + 109,
+  adults to the unified 109 line (1393 retired 2024-01), EN to 988.
 
 CI: `check:constraints` asserts the guardian-consent schema + client age logic;
 `supabase-dry-run` asserts `users_birth_date_sane` + `guardian_consents`.

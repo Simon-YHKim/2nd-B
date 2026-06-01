@@ -142,7 +142,7 @@
 | C7 | i18n EN↔KO 키 parity, EN canonical | check script |
 | C8 | knowledge_sources 는 DOI/URL + 검증쌍 필수 | migration |
 | C9 | classifyInput 이 모든 LLM 호출 전에 실행 | wrapper |
-| C10 | 가입 시 birth_date ≥ 18 | UI + auth + DB CHECK |
+| C10 | 연령 티어 가입: 14+ 본인동의 · <14 보호자동의 | UI + auth + DB |
 | C11 | Support SLA = 2 business days (KST) | README |
 | C12 | README "Pre-existing assets used" 섹션 | README |
 

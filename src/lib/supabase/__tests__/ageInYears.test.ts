@@ -34,8 +34,10 @@ describe("ageInYears", () => {
   test("leap-year birthday — non-leap target year clamps to last of Feb", () => {
     // Born 2008-02-29 (leap). 2026 is non-leap. dayjs clamps the anniversary
     // to 2026-02-28, so the gate opens on 2026-02-28 (one day "earlier").
-    // This is acceptable: the policy is "at least 18 years old," and the
-    // person is treated as 18 starting the closest valid calendar day.
+    // This is acceptable: ageInYears reports whole years; a person is treated
+    // as having turned N on the closest valid calendar day. (The sign-up floor
+    // is MIN_SELF_CONSENT_AGE = 14; these cases exercise the boundary math at
+    // an example age, not the policy threshold.)
     expect(ageInYears("2008-02-29", new Date("2026-02-27T12:00:00Z"))).toBe(17);
     expect(ageInYears("2008-02-29", new Date("2026-02-28T12:00:00Z"))).toBe(18);
     expect(ageInYears("2008-02-29", new Date("2026-03-01T12:00:00Z"))).toBe(18);

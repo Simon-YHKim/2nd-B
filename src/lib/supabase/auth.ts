@@ -6,9 +6,11 @@ import dayjs from "dayjs";
 import { isJudgeEmail } from "../judge/domains";
 import { getSupabaseClient } from "./client";
 
-// C10 age tiers: 18+ adult and 14-17 self-consent (Korea PIPA Article 22-2)
-// register directly. Under 14 requires verifiable guardian consent (added in a
-// later PR); until then they are blocked at this gate.
+// C10 age tiers: 18+ adults and 14-17 minors self-consent and register
+// directly. Under PIPA, legal-representative consent is mandatory only below 14
+// (Article 22-2); users 14+ may consent themselves under the general provisions
+// (Articles 15/17/22) with age-appropriate notice. Under 14 requires verifiable
+// guardian consent (added in a later PR); until then they are blocked here.
 export const MIN_SELF_CONSENT_AGE = 14;
 
 export class AgeGateError extends Error {
@@ -18,8 +20,10 @@ export class AgeGateError extends Error {
   }
 }
 
-// birthDate format: ISO date (YYYY-MM-DD), UTC interpretation.
-// Equivalent to the SQL CHECK: birth_date <= (current_date - interval '18 years').
+// birthDate format: ISO date (YYYY-MM-DD), UTC interpretation. Returns whole
+// years elapsed. The sign-up floor (MIN_SELF_CONSENT_AGE = 14) is applied by
+// the callers above; the DB no longer hard-codes an age CHECK (0028 relaxed the
+// flat 18+ rule to a sanity range).
 export function ageInYears(birthDate: string, now: Date = new Date()): number {
   const b = dayjs(birthDate);
   if (!b.isValid()) return -1;
