@@ -203,7 +203,7 @@ export default function Inbox() {
           }
           islandSize={250}
           workerSize={104}
-          railIcons={["▤", "⌕", "→", "✓"]}
+          railIcons={["▤", "⌕", "◎", "◆"]}
         />
 
         <View style={styles.actions}>
@@ -235,7 +235,7 @@ export default function Inbox() {
             <Link href="/capture" asChild>
               <Pressable hitSlop={6}>
                 <Text variant="caption" color="brand">
-                  {locale === "ko" ? "→ 첫 캡처 시작" : "→ Capture your first"}
+                  {locale === "ko" ? "첫 캡처 시작" : "Capture your first"}
                 </Text>
               </Pressable>
             </Link>
@@ -281,7 +281,7 @@ export default function Inbox() {
                         e.stopPropagation();
                         void handleRunPhase1(r);
                       }}
-                      style={styles.generateBtn}
+                      style={[styles.generateBtn, phase1Id === r.id && styles.generateBtnDisabled]}
                       disabled={phase1Id === r.id}
                       hitSlop={4}
                     >
@@ -291,8 +291,8 @@ export default function Inbox() {
                             ? "요약 중…"
                             : "Summarizing…"
                           : locale === "ko"
-                            ? "→ 요약 + 4질문"
-                            : "→ Summarize + 4 questions"}
+                            ? "요약 + 4질문"
+                            : "Summarize + 4 questions"}
                       </Text>
                     </Pressable>
                   ) : (
@@ -309,7 +309,7 @@ export default function Inbox() {
                       hitSlop={4}
                     >
                       <Text variant="caption" color="success">
-                        {locale === "ko" ? "✓ Phase 1 보기" : "✓ Phase 1 — view"}
+                        {locale === "ko" ? "Phase 1 보기" : "View Phase 1"}
                       </Text>
                     </Pressable>
                   )}
@@ -319,7 +319,7 @@ export default function Inbox() {
                         e.stopPropagation();
                         void handleGeneratePage(r);
                       }}
-                      style={styles.generateBtn}
+                      style={[styles.generateBtn, generatingId === r.id && styles.generateBtnDisabled]}
                       disabled={generatingId === r.id}
                       hitSlop={4}
                     >
@@ -329,15 +329,15 @@ export default function Inbox() {
                             ? "생성 중…"
                             : "Generating…"
                           : locale === "ko"
-                            ? "→ 위키 페이지 생성"
-                            : "→ Generate wiki page"}
+                            ? "위키 페이지 생성"
+                            : "Generate wiki page"}
                       </Text>
                     </Pressable>
                   ) : (
                     <Link href="/wiki" asChild>
                       <Pressable style={styles.generateBtn} hitSlop={4} onPress={(e) => e.stopPropagation()}>
                         <Text variant="caption" color="success">
-                          {locale === "ko" ? "→ 위키에서 보기" : "→ View in wiki"}
+                          {locale === "ko" ? "위키에서 보기" : "View in wiki"}
                         </Text>
                       </Pressable>
                     </Link>
@@ -348,7 +348,7 @@ export default function Inbox() {
                         e.stopPropagation();
                         void handleDeleteSource(r);
                       }}
-                      style={styles.generateBtn}
+                      style={[styles.generateBtn, styles.deleteBtn]}
                       hitSlop={4}
                     >
                       <Text variant="caption" color="textSubtle">
@@ -451,8 +451,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   ingestedChip: { backgroundColor: semantic.surface, borderColor: semantic.success },
-  rowActions: { marginTop: spacing.xs, flexDirection: "row", flexWrap: "wrap", gap: spacing.md, alignItems: "center" },
-  generateBtn: { paddingVertical: spacing.xs },
+  rowActions: { marginTop: spacing.xs, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, alignItems: "center" },
+  generateBtn: {
+    minHeight: 30,
+    justifyContent: "center",
+    paddingVertical: 5,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surfaceAlt,
+  },
+  generateBtnDisabled: { opacity: 0.62 },
+  deleteBtn: { backgroundColor: "transparent" },
   expandedSection: {
     marginTop: spacing.sm,
     paddingTop: spacing.sm,

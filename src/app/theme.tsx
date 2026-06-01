@@ -72,7 +72,7 @@ export default function ThemeScreen() {
           <Text variant="subtle" color="textMuted">
             {locale === "ko"
               ? "밤빛 조각마을(메인 그래프)은 라이트 모드에서도 어두운 톤을 유지해요. 별과 연결이 가장 잘 보이는 배경이거든요."
-              : "The graph village stays dark even in light mode — it's the background where the stars and connections read best."}
+              : "The graph village stays dark even in light mode. It's the background where the stars and connections read best."}
           </Text>
         </View>
       </ScrollView>

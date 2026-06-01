@@ -142,7 +142,7 @@ export const MENU_NODES: readonly NavNode[] = [
   // Tier 2 — six domain islands around the center.
   { id: "work", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "work" } },
     label: { en: "Work & growth", ko: "일과 성장" },
-    description: { en: "Where the pieces that move today's you — work and growth — gather.", ko: "오늘의 나를 움직이는 일과 성장의 조각들이 모이는 곳이에요." } },
+    description: { en: "Where the pieces that move today's you gather: work and growth.", ko: "오늘의 나를 움직이는 일과 성장의 조각들이 모이는 곳이에요." } },
   { id: "relation", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "relation" } },
     label: { en: "People & ties", ko: "관계와 사람" },
     description: { en: "Where memories, promises, and conversations with people connect.", ko: "사람들과의 기억, 약속, 대화 조각이 이어지는 곳이에요." } },

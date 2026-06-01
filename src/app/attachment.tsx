@@ -89,8 +89,8 @@ export default function Attachment() {
           estimatedMinutes={3}
           description={
             locale === "ko"
-              ? "가까운 관계에서의 패턴 — 불안과 회피 두 축 — 을 함께 살펴보고, 어느 스타일에 가까운지 우리가 같이 짚어볼게요. 답할 때는 한 명의 특정 관계가 아니라 ‘가까운 관계 전반’ 을 떠올려 주세요. 한 페이지 5문항씩, 3페이지로 나눠집니다."
-              : "We'll look together at your pattern in close relationships across two axes — anxiety and avoidance — and see which of four styles you lean toward. Think of close relationships in general, not one specific person. Split across 3 pages, 5 items each (last page has 2)."
+              ? "가까운 관계에서의 패턴을 불안과 회피 두 축으로 함께 살펴보고, 어느 스타일에 가까운지 같이 짚어볼게요. 답할 때는 한 명의 특정 관계가 아니라 ‘가까운 관계 전반’ 을 떠올려 주세요. 한 페이지 5문항씩, 3페이지로 나눠집니다."
+              : "We'll look together at your pattern in close relationships across two axes: anxiety and avoidance. Then we'll see which of four styles you lean toward. Think of close relationships in general, not one specific person. Split across 3 pages, 5 items each (last page has 2)."
           }
           citation={
             locale === "ko"

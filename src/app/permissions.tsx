@@ -138,7 +138,7 @@ export default function Permissions() {
                 </Text>
                 <Text variant="subtle" color="textSubtle">
                   {locale === "ko" ? "플랫폼: " : "Platform: "}
-                  {e.platform === "both" ? (locale === "ko" ? "웹 + 네이티브" : "Web + Native") : e.platform === "web" ? "Web" : e.platform === "native" ? "Native" : "—"}
+                  {e.platform === "both" ? (locale === "ko" ? "웹 + 네이티브" : "Web + Native") : e.platform === "web" ? "Web" : e.platform === "native" ? "Native" : "N/A"}
                 </Text>
               </View>
             );
@@ -151,18 +151,18 @@ export default function Permissions() {
           </Text>
           {(locale === "ko"
             ? [
-                "최소한만 요청 — 새 기능마다 권한 영향을 먼저 검토.",
-                "거절해도 앱은 동작 — 권한은 모두 점진적, 선택적.",
-                "탭할 때만 — 클립보드 등 즉시 작업 외엔 백그라운드 접근 없음.",
-                "왜 필요한지 명시 — 모든 권한 요청에 짧은 설명.",
-                "데이터는 당신 것 — RLS로 어카운트당 격리, 언제든 익스포트 가능.",
+                "최소한만 요청: 새 기능마다 권한 영향을 먼저 검토.",
+                "거절해도 앱은 동작: 권한은 모두 점진적, 선택적.",
+                "탭할 때만: 클립보드 등 즉시 작업 외엔 백그라운드 접근 없음.",
+                "왜 필요한지 명시: 모든 권한 요청에 짧은 설명.",
+                "데이터는 당신 것: RLS로 어카운트당 격리, 언제든 익스포트 가능.",
               ]
             : [
-                "Minimum surface — every new feature is reviewed for permission impact.",
-                "Decline-friendly — the app works without any optional permission.",
-                "Only on tap — no background access beyond on-tap actions like Copy.",
-                "Explain the why — every prompt comes with a short reason.",
-                "Your data, yours — RLS isolates per account; export anytime.",
+                "Minimum surface: every new feature is reviewed for permission impact.",
+                "Decline-friendly: the app works without any optional permission.",
+                "Only on tap: no background access beyond on-tap actions like Copy.",
+                "Explain the why: every prompt comes with a short reason.",
+                "Your data, yours: RLS isolates per account; export anytime.",
               ]
           ).map((p, i) => (
             <Text key={i} variant="subtle" color="textMuted" style={styles.principle}>

@@ -274,7 +274,7 @@ export default function Wiki() {
                   {f.label[locale]}
                 </Text>
                 <Text variant="subtle" color="textSubtle" numberOfLines={1}>
-                  {f.route ? `${f.desc[locale]} →` : f.desc[locale]}
+                  {f.desc[locale]}
                 </Text>
               </>
             );
@@ -319,7 +319,7 @@ export default function Wiki() {
           <Input
             value={query}
             onChangeText={setQuery}
-            placeholder={locale === "ko" ? "조각 검색 — 제목이나 슬러그" : "Search pieces — title or slug"}
+            placeholder={locale === "ko" ? "조각 검색: 제목이나 슬러그" : "Search pieces: title or slug"}
             accessibilityLabel={locale === "ko" ? "지식 창고 검색" : "Search the knowledge store"}
           />
         ) : null}
@@ -349,7 +349,7 @@ export default function Wiki() {
         {statsVisible && stats !== null ? (
           <View style={styles.statsCard}>
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "지식 그래프 — 한눈에" : "Knowledge graph — at a glance"}
+              {locale === "ko" ? "지식 그래프 한눈에" : "Knowledge graph at a glance"}
             </Text>
             <View style={styles.statsTopRow}>
               <View style={styles.statsBlock}>
@@ -425,7 +425,7 @@ export default function Wiki() {
                         Alert.alert(locale === "ko" ? "클립보드에 복사됨" : "Copied to clipboard");
                       } catch {
                         Alert.alert(
-                          locale === "ko" ? "복사 실패 — 아래 텍스트를 직접 선택해 주세요" : "Copy failed — please select the text below manually",
+                          locale === "ko" ? "복사 실패: 아래 텍스트를 직접 선택해 주세요" : "Copy failed: please select the text below manually",
                         );
                       }
                     } else {
@@ -600,8 +600,8 @@ export default function Wiki() {
                                     ? "요약 중…"
                                     : "Summarizing…"
                                   : locale === "ko"
-                                    ? "→ Phase 1 실행 (요약 + 4질문)"
-                                    : "→ Run Phase 1 (summary + 4 questions)"}
+                                    ? "Phase 1 실행 (요약 + 4질문)"
+                                    : "Run Phase 1 (summary + 4 questions)"}
                               </Text>
                             </Pressable>
                           );
@@ -610,7 +610,7 @@ export default function Wiki() {
                           <View style={styles.phase1Card}>
                             <View style={styles.phase1Header}>
                               <Text variant="caption" color="brand">
-                                {locale === "ko" ? "Phase 1 — 요약" : "Phase 1 — summary"}
+                                {locale === "ko" ? "Phase 1 요약" : "Phase 1 summary"}
                               </Text>
                               <Text variant="subtle" color="textSubtle">
                                 {new Date(p1.generated_at).toLocaleDateString(

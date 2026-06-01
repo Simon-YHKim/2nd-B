@@ -42,7 +42,7 @@ const QUICK_ACTIONS: { ko: string; en: string; prompt: { ko: string; en: string 
   { ko: "공상으로 펼치기", en: "Open as imagine", prompt: { ko: "이 생각을 장면으로 펼쳐서 보여줘.", en: "Unfold this thought into a few scenes." } },
   { ko: "지식 창고에 저장", en: "Save to wiki", prompt: { ko: "이 답을 지식 창고에 저장할 수 있게 한 단락으로 정리해줘.", en: "Sum this up in one paragraph I can save to my wiki." } },
   { ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 조각을 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
-  { ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter — one sentence." } },
+  { ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
 ];
 
 interface ChatTurn {
@@ -195,7 +195,7 @@ export default function Jarvis() {
   }
 
   const canSend = draft.trim().length > 0 && !sending;
-  const usedDisplay = usedToday === null ? "—" : String(usedToday);
+  const usedDisplay = usedToday === null ? "..." : String(usedToday);
   const chatIslandByWorker = {
     secondb: "core",
     archi: "work_growth",

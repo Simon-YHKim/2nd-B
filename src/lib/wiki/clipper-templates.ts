@@ -56,7 +56,7 @@ export const CLIPPER_TEMPLATES: Record<SourceKind, ClipperTemplate> = {
     kind: "inbox",
     name: { en: "Default Inbox", ko: "기본 받은함" },
     what: {
-      en: "Anything that doesn't fit a specific kind — needs triage later.",
+      en: "Anything that doesn't fit a specific kind. Needs triage later.",
       ko: "특정 종류에 안 맞는 자료. 나중에 분류가 필요한 임시함.",
     },
     triggers: [],
@@ -72,7 +72,7 @@ export const CLIPPER_TEMPLATES: Record<SourceKind, ClipperTemplate> = {
     kind: "article",
     name: { en: "General Article", ko: "일반 아티클" },
     what: {
-      en: "A web article, essay, or blog post — prose meant to be read.",
+      en: "A web article, essay, or blog post. Prose meant to be read.",
       ko: "웹 아티클·에세이·블로그 글. 읽기 위한 산문.",
     },
     triggers: [],
@@ -205,8 +205,8 @@ export const CLIPPER_TEMPLATES: Record<SourceKind, ClipperTemplate> = {
     kind: "self_knowledge",
     name: { en: "Self-Knowledge", ko: "자기 이해" },
     what: {
-      en: "Material about understanding oneself — frameworks, reflections, growth.",
-      ko: "자기 이해에 관한 자료 — 프레임워크·성찰·성장.",
+      en: "Material about understanding oneself: frameworks, reflections, growth.",
+      ko: "자기 이해에 관한 자료: 프레임워크·성찰·성장.",
     },
     triggers: [
       "https://www.psychologytoday.com/*", "https://hbr.org/*", "https://nesslabs.com/*",
