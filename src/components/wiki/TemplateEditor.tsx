@@ -155,6 +155,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
         <TagField
           values={triggers}
           onChange={setTriggers}
+          locale={locale}
           addLabel={locale === "ko" ? "트리거 추가" : "Add trigger"}
         />
       </Field>
@@ -165,6 +166,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
           values={defaultTags}
           onChange={setDefaultTags}
           sanitize={sanitizeTag}
+          locale={locale}
           addLabel={locale === "ko" ? "태그 추가" : "Add tag"}
         />
       </Field>
@@ -230,7 +232,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
           accessibilityRole="button"
           accessibilityLabel={locale === "ko" ? "속성 추가" : "Add property"}
         >
-          <Text variant="caption" color="brand">{locale === "ko" ? "+ 속성 추가" : "+ Add property"}</Text>
+          <Text variant="caption" color="brand">{locale === "ko" ? "속성 추가" : "Add property"}</Text>
         </Pressable>
       </Field>
 
@@ -314,11 +316,13 @@ function TagField({
   values,
   onChange,
   sanitize,
+  locale,
   addLabel,
 }: {
   values: string[];
   onChange: (next: string[]) => void;
   sanitize?: (s: string) => string;
+  locale: Locale;
   addLabel: string;
 }) {
   const [v, setV] = useState("");
@@ -342,7 +346,7 @@ function TagField({
           style={styles.tagChip}
           hitSlop={2}
           accessibilityRole="button"
-          accessibilityLabel={`${t} 삭제`}
+          accessibilityLabel={locale === "ko" ? `${t} 삭제` : `Remove ${t}`}
         >
           <Text style={styles.tagChipText}>{t} ✕</Text>
         </Pressable>
