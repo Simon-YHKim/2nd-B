@@ -73,6 +73,8 @@ export const CRISIS_TERMS: Record<Locale, readonly string[]> = {
 export const HOTLINES = {
   KR_1393: { number: "1393", label: "자살예방상담전화" },
   KR_1577_0199: { number: "1577-0199", label: "정신건강위기상담전화" },
+  // Youth line (Korea). Age-aware routing sends minors here instead of 1393.
+  KR_1388: { number: "1388", label: "청소년상담전화" },
   GLOBAL_988: { number: "988", label: "Suicide & Crisis Lifeline (US)" },
 } as const;
 

@@ -30,6 +30,18 @@ describe("classifyInput", () => {
     expect(r.crisisRouting?.hotline).toBe("KR_1393");
   });
 
+  test("KR minor crisis routes to youth line KR_1388", () => {
+    const r = classifyInput("요즘 자살에 대해 자주 생각해요.", "ko", { minor: true });
+    expect(r.zone).toBe("red");
+    expect(r.crisisRouting?.hotline).toBe("KR_1388");
+  });
+
+  test("EN minor crisis stays on GLOBAL_988 (serves youth)", () => {
+    const r = classifyInput("Sometimes I want to die.", "en", { minor: true });
+    expect(r.zone).toBe("red");
+    expect(r.crisisRouting?.hotline).toBe("GLOBAL_988");
+  });
+
   test("EN forbidden lexicon downgrades to yellow, not red", () => {
     const r = classifyInput("My therapy session helped.", "en");
     expect(r.zone).toBe("yellow");
