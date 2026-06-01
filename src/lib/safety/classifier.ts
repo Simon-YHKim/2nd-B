@@ -13,6 +13,13 @@ export interface SafetyResult {
   };
 }
 
+export interface ClassifyOptions {
+  // When the user is a minor, route crisis to a youth-appropriate line
+  // (Korea: 1388). Defaults to false (adult routing) so the signature stays
+  // backward-compatible until age tiers thread it in at the call sites.
+  minor?: boolean;
+}
+
 // Matches a term against text using a locale-appropriate boundary check.
 // English: word boundary via lowercased substring with surrounding non-letter.
 // Korean: substring presence (Hangul has no whitespace word boundaries).
@@ -33,10 +40,14 @@ function matchesTerm(haystack: string, term: string, locale: Locale): boolean {
   return false;
 }
 
-function pickCrisisHotline(locale: Locale): { id: HotlineId; label: string; number: string } {
+// Age-aware crisis routing. Minors in the KO locale go to the youth line
+// (1388) instead of 1393; EN's 988 already serves all ages, so minors stay on
+// it. Defaults to adult routing.
+function pickCrisisHotline(locale: Locale, minor = false): { id: HotlineId; label: string; number: string } {
   if (locale === "ko") {
-    const h = HOTLINES.KR_1393;
-    return { id: "KR_1393", label: h.label, number: h.number };
+    const id: HotlineId = minor ? "KR_1388" : "KR_1393";
+    const h = HOTLINES[id];
+    return { id, label: h.label, number: h.number };
   }
   const h = HOTLINES.GLOBAL_988;
   return { id: "GLOBAL_988", label: h.label, number: h.number };
@@ -46,7 +57,7 @@ function pickCrisisHotline(locale: Locale): { id: HotlineId; label: string; numb
 //   1. CRISIS_TERMS → red (short-circuit, surface hotline)
 //   2. FORBIDDEN_TERMS → yellow (downgrade; surface rephrase hint)
 //   3. otherwise → green
-export function classifyInput(text: string, locale: Locale): SafetyResult {
+export function classifyInput(text: string, locale: Locale, opts: ClassifyOptions = {}): SafetyResult {
   if (!text || text.trim().length === 0) {
     return { zone: "green", matched: [], categories: [] };
   }
@@ -55,7 +66,7 @@ export function classifyInput(text: string, locale: Locale): SafetyResult {
     if (matchesTerm(text, term, locale)) crisisMatches.push(term);
   }
   if (crisisMatches.length > 0) {
-    const h = pickCrisisHotline(locale);
+    const h = pickCrisisHotline(locale, opts.minor);
     return {
       zone: "red",
       matched: crisisMatches,

@@ -58,7 +58,8 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
-          psql -h localhost -U postgres -c "\d+ users" | grep users_birth_date_min_age
+          psql -h localhost -U postgres -c "\d+ users" | grep users_birth_date_sane
+          psql -h localhost -U postgres -c "\dt guardian_consents" | grep guardian_consents
           psql -h localhost -U postgres -c "\d+ ai_audit_log" | grep vertex_backend
           psql -h localhost -U postgres -c "\d+ revenue_events" | grep month_bucket
           psql -h localhost -U postgres -c "\d+ testimonials" | grep consent_given_at

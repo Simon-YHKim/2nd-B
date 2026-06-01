@@ -170,13 +170,21 @@ results.push(
 
 results.push(
   check("C10", () => {
-    const sql = read("db/migrations/0002_users.sql");
+    // C10 redefined: age-tiered registration with verifiable guardian consent
+    // for under-14 (PIPA Article 22-2 / COPPA), replacing the flat 18+ CHECK (0002).
+    const sql = read("db/migrations/0028_minor_consent.sql");
     const auth = read("src/lib/supabase/auth.ts");
-    const ok = sql.includes("users_birth_date_min_age") && auth.includes("AgeGateError");
+    const ok =
+      sql.includes("guardian_consents") &&
+      sql.includes("pending_guardian_consent") &&
+      sql.includes("minor_tier") &&
+      auth.includes("ageInYears");
     return {
       id: "C10",
       status: ok ? "PASS" : "FAIL",
-      note: ok ? "users CHECK >= 18 + client AgeGateError" : "age gate enforcement missing",
+      note: ok
+        ? "age-tier schema (guardian_consents + account_status) + client age logic"
+        : "age-tier / guardian-consent enforcement missing",
     };
   }),
 );

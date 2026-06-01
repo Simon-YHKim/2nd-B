@@ -1,4 +1,4 @@
-// C10: enforce age >= 18 at the UI layer. Server (auth.ts) and DB
+// C10: enforce the self-consent age floor at the UI layer. Server (auth.ts) and DB
 // (users_birth_date_min_age CHECK) are the second and third lines of defense.
 
 import { useMemo, useState } from "react";
@@ -6,7 +6,7 @@ import { View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { semantic, spacing } from "@/lib/theme/tokens";
-import { ageInYears } from "@/lib/supabase/auth";
+import { ageInYears, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { Input } from "@/components/ui/Input";
 import { Text } from "@/components/ui/Text";
 
@@ -26,7 +26,7 @@ export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
     if (!ISO_DATE.test(value)) return "malformed";
     const age = ageInYears(value);
     if (age < 0) return "malformed";
-    if (age < 18) return "underage";
+    if (age < MIN_SELF_CONSENT_AGE) return "underage";
     return "ok";
   }, [value]);
 

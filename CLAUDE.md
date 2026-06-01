@@ -26,7 +26,7 @@ Never weaken these. They're enforced at code/schema/CI level:
 | C7 | i18n EN ↔ KO key parity. EN is canonical. |
 | C8 | `knowledge_sources` requires DOI/URL + verification pair. |
 | C9 | `classifyInput()` runs before any LLM call. Red zone short-circuits. |
-| C10 | Sign-up requires birth_date ≥ 18 (UI + auth + DB CHECK). |
+| C10 | Age-tiered sign-up: 18+ and 14-17 self-consent register direct; under-14 needs verifiable guardian consent (PIPA §22-2/COPPA). Phased rollout; see docs/CONSTRAINTS.md. |
 | C11 | Support SLA = 2 business days (KST). |
 | C12 | README "Pre-existing assets used" section per rulebook §04. |
 

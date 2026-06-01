@@ -6,11 +6,11 @@ import { ageInYears } from "../auth";
 describe("ageInYears", () => {
   const today = new Date("2026-05-25T12:00:00Z");
 
-  test("exactly 18 today returns 18 (passes >= 18 gate)", () => {
+  test("exactly 18 today returns 18", () => {
     expect(ageInYears("2008-05-25", today)).toBe(18);
   });
 
-  test("18th birthday tomorrow returns 17 (still blocked)", () => {
+  test("18th birthday tomorrow returns 17", () => {
     expect(ageInYears("2008-05-26", today)).toBe(17);
   });
 

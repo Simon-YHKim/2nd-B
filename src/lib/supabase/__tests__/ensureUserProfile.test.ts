@@ -1,10 +1,11 @@
 // C10 second line of defense for OAuth: ensureUserProfile must throw
 // AgeGateError before reaching Supabase whenever the supplied birth_date
-// resolves to under 18. The DB CHECK constraint on users.birth_date is the
-// third line; this test makes sure we never even attempt the INSERT.
+// resolves to under 14 (the self-consent floor). The DB CHECK constraint on
+// users.birth_date is the third line; this test makes sure we never even
+// attempt the INSERT for a blocked age.
 
 jest.mock("../client", () => {
-  // Detect any unexpected DB activity for under-18 inputs so the C10 contract
+  // Detect any unexpected DB activity for under-14 inputs so the C10 contract
   // doesn't silently degrade if the function reorders its checks.
   const mock = {
     auth: {
@@ -36,7 +37,7 @@ describe("ensureUserProfile — C10 age gate (OAuth path)", () => {
     supabaseMock.from.mockReset();
   });
 
-  test("under-18 birth date throws AgeGateError BEFORE any auth/DB call", async () => {
+  test("under-14 birth date throws AgeGateError BEFORE any auth/DB call", async () => {
     const tooYoung = new Date();
     tooYoung.setFullYear(tooYoung.getFullYear() - 10);
     const iso = tooYoung.toISOString().slice(0, 10);
@@ -46,6 +47,18 @@ describe("ensureUserProfile — C10 age gate (OAuth path)", () => {
     // The age gate fires synchronously — Supabase is never touched.
     expect(supabaseMock.auth.getUser).not.toHaveBeenCalled();
     expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  test("self-consent minor (15) passes the age gate and reaches Supabase", async () => {
+    const fifteen = new Date();
+    fifteen.setFullYear(fifteen.getFullYear() - 15);
+    const iso = fifteen.toISOString().slice(0, 10);
+    // 14-17 self-consent is now allowed, so the gate must NOT short-circuit.
+    // No session is mocked, so it proceeds past the gate and fails later.
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+
+    await expect(ensureUserProfile({ birthDate: iso, locale: "en" })).rejects.not.toBeInstanceOf(AgeGateError);
+    expect(supabaseMock.auth.getUser).toHaveBeenCalled();
   });
 
   test("malformed birth date is treated as -1 years → AgeGateError", async () => {

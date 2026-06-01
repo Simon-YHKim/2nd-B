@@ -71,12 +71,27 @@ enforced by `ks_verification_pair` CHECK.
 short-circuits and returns hotline guidance without invoking the LLM.
 The jest suite asserts the call order via mock spy.
 
-## C10 — Age gate
+## C10 — Age-tiered registration + guardian consent (phased)
 
-Sign-up requires `birth_date`. Users under 18 are blocked.
-- UI: `BirthDateField` shows immediate error.
-- Client: `signUpWithEmail` throws `AgeGateError`.
-- DB: `users_birth_date_min_age` CHECK rejects.
+Sign-up requires `birth_date`, which sets an **age tier**:
+- **Adult (≥18)** and **self-consent minor (14–17, Korea PIPA Article 22-2)** register directly.
+- **Under-14** require **verifiable guardian consent** (PIPA Article 22-2 / COPPA): the
+  account starts in `account_status = 'pending_guardian_consent'`, held until a
+  guardian verifies via the `guardian_consents` ledger.
+
+Enforcement (phased rollout):
+- **DB — done (`db/migrations/0028`):** flat 18+ CHECK replaced by
+  `users_birth_date_sane`; adds `account_status`, `minor_tier`, and the
+  `guardian_consents` table with per-user RLS.
+- **Client — done:** `auth.ts` gates at `MIN_SELF_CONSENT_AGE` (14). 14-17
+  self-consent and 18+ register directly; under-14 still throw `AgeGateError`
+  pending the guardian-consent flow.
+- **Safety — capability done (`KR_1388`):** the classifier supports age-aware
+  routing (minor → youth line); threading the minor flag through the record/LLM
+  chain is the next step.
+
+CI: `check:constraints` asserts the guardian-consent schema + client age logic;
+`supabase-dry-run` asserts `users_birth_date_sane` + `guardian_consents`.
 
 ## C11 — 2-business-day response
 

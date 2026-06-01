@@ -1,13 +1,19 @@
 // C6/C10: client-side guards for sign-up.
-// DB-level CHECK constraint in 0002_users.sql is the second line of defense.
+// DB-level CHECK in 0028_minor_consent.sql (users_birth_date_sane) is the
+// second line of defense.
 
 import dayjs from "dayjs";
 import { isJudgeEmail } from "../judge/domains";
 import { getSupabaseClient } from "./client";
 
+// C10 age tiers: 18+ adult and 14-17 self-consent (Korea PIPA Article 22-2)
+// register directly. Under 14 requires verifiable guardian consent (added in a
+// later PR); until then they are blocked at this gate.
+export const MIN_SELF_CONSENT_AGE = 14;
+
 export class AgeGateError extends Error {
   constructor() {
-    super("Users under 18 are not permitted.");
+    super("Users under 14 cannot register without guardian consent.");
     this.name = "AgeGateError";
   }
 }
@@ -33,7 +39,7 @@ export interface SignUpResult {
 }
 
 export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
-  if (ageInYears(args.birthDate) < 18) throw new AgeGateError();
+  if (ageInYears(args.birthDate) < MIN_SELF_CONSENT_AGE) throw new AgeGateError();
 
   const supabase = getSupabaseClient();
   const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
@@ -169,7 +175,7 @@ export async function hasUserProfile(): Promise<boolean> {
 }
 
 export async function ensureUserProfile(args: CompleteProfileArgs): Promise<CompleteProfileResult> {
-  if (ageInYears(args.birthDate) < 18) throw new AgeGateError();
+  if (ageInYears(args.birthDate) < MIN_SELF_CONSENT_AGE) throw new AgeGateError();
 
   const supabase = getSupabaseClient();
   const { data: authData, error: authErr } = await supabase.auth.getUser();

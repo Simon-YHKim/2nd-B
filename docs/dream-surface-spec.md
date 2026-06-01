@@ -134,7 +134,7 @@ UNTRUSTED fence + INJECTION GUARD rubric — `retrieve.ts` 의 패턴과 동일.
 | C7 (i18n parity) | EN/KO 키 추가 — `imagine.json` |
 | C8 (knowledge sources) | 무관 (사용자 데이터만 RAG) |
 | C9 (safety classify) | input + output swap 양쪽 |
-| C10 (age 18+) | AuthContext 가드 재사용 |
+| C10 (age 14+) | AuthContext 가드 재사용 |
 | C11 (SLA) | 무관 |
 | C12 (pre-existing assets) | README 갱신 — Gemini Pro 사용 명시 |
 

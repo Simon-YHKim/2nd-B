@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { JudgeBadge } from "@/components/auth/JudgeBadge";
 import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
-import { ageInYears, signUpWithEmail, AgeGateError } from "@/lib/supabase/auth";
+import { ageInYears, signUpWithEmail, AgeGateError, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { isJudgeEmail } from "@/lib/judge/domains";
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
@@ -26,7 +26,10 @@ export default function SignUp() {
   const judge = useMemo(() => isJudgeEmail(email), [email]);
   const canSubmit = useMemo(() => {
     return (
-      email.includes("@") && password.length >= 8 && ageInYears(birthDate) >= 18 && !submitting
+      email.includes("@") &&
+      password.length >= 8 &&
+      ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE &&
+      !submitting
     );
   }, [email, password, birthDate, submitting]);
 
@@ -142,9 +145,11 @@ export default function SignUp() {
                 }
               />
               <ChecklistItem
-                ok={ageInYears(birthDate) >= 18}
+                ok={ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE}
                 label={
-                  ageInYears(birthDate) >= 18 ? t("signUp.checkAge") : t("signUp.checkAgeBlocked")
+                  ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE
+                    ? t("signUp.checkAge")
+                    : t("signUp.checkAgeBlocked")
                 }
               />
             </View>
