@@ -3,7 +3,83 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-01 / 형식 관리 UI (#104) + 다중 스킬 감사
+## Latest — 2026-06-01 / 연령 티어 확장 + ⚠️ GPT BLOCK: 미성년 게이트 remediation (로컬 인수인계)
+
+### 어디까지 왔나
+- main HEAD: `b9ed7d0`
+- 이번 세션 머지된 PR:
+  - **#132** feat(auth): C10 14-17 self-consent 게이트 오픈 (18→14) — **라이브, 그러나 GPT 적대 리뷰가 Blocker 판정 (아래)**
+  - **#133** docs: 영유아 LLM 리터러시 트랙 개념 (Phase-2 비전)
+  - #128(스키마 0028)/#129(age-aware crisis) → #132에 folded 후 closed
+- 열린 PR: **#134** (draft) 미성년 위기 라우팅 *토대*(AuthContext.isMinor + PromptInput.minor, **무동작**) · **#127** (draft) 50-페르소나 연령 시뮬 docs
+- 테스트: `claude/minor-safety-foundation`(#134) 기준 730/730 green · main 729 green
+- working tree: #134 코드는 `claude/minor-safety-foundation` 브랜치에 commit됨
+
+### ⚠️ 최우선 — GPT 적대 리뷰 = BLOCK (이미 머지된 #132 대상)
+**결론: #132를 그대로 두면 안 됨. 출시 전 막아야 할 Blocker.** High 항목:
+1. **법적 근거 오인용** — PIPA **§22-2 = "만 14세 미만 법정대리인 동의" 조항**. 14-17 본인동의 근거가 아님. 14-17은 일반 동의 체계(**§15/§17/§22**)로 재정립 + 고지(목적·항목·보유기간·거부권/불이익) 필요. → #128/#132 본문 · `CONSTRAINTS.md` C10 · `KIDS-MODE-CONCEPT.md` · 기존 설명 전부 §22-2 오인용 → **전수 정정.**
+2. **서버측 게이트 부재** — 0028이 DB 18+ CHECK를 sanity(1900~today)로 완화 → 게이트가 사실상 **클라 전용 → 우회 가능**(anon client/직접 API/OAuth/profile upsert로 <14·잘못된 minor_tier 주입). COPPA "actual knowledge"(DOB로 <13 인지) 리스크.
+3. **minor→1388 미배선 = known safety defect** — 14-17 여는 순간 미성년 인지 상태인데 위기 청소년이 성인 라우팅 받음. gate 오픈 전 실배선 필수. (#134는 토대만, advisor 경로 `fixedCrisisResponse`는 minor 무관.)
+4. **미성년 프로파일링/민감정보** — 저널+LLM에 건강/자해/가족/성 등 PIPA §23 민감정보 유입. 14-17 기본 high-privacy 필요.
+
+### 다음 작업 큐 (= GPT 최소 머지 조건) — 로컬에서
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| 0 | ✅ **결정됨 (2026-06-01): #132 라이브 유지 + forward-fix** — revert 안 함. 단 A~D는 *실사용자 출시 전 필수*. 데모/심사 노출은 mock·소수라 수용 | — | — |
+| A | **서버측 14+ 강제** — Edge Function/RPC 가입, DOB→age/minor_tier/account_status 서버 계산, minor_tier 클라입력 금지(DB generated/trigger), `active`=age≥14 DB 제약, under-14 auth 생성 차단(잔여 로그·이메일 X) | large | ⭐ |
+| B | **`consent_records`** + 가입 시 기록(user_id·age_band·minor_tier·consent/policy/terms version·purposes·required·optional·llm_processing_ack·overseas_transfer_ack·sensitive_data_ack·locale·ts·ip_hash·ua_hash) + **청소년용 개인정보 안내** 별도 링크/요약 | large | ⭐ |
+| C | **minor 위기 실배선 + 테스트** — `useAuth().isMinor` → callGemini/callAdvisor → classifier. KO 14-17 자해/자살 → **1388 + 109(자살예방)**, EN minor → 988. advisor `fixedCrisisResponse` minor-aware. (#134 토대 위) | medium | ⭐ |
+| D | **14-17 high-privacy 기본값** — 광고/공유/추천/외부분석 OFF, LLM 학습 미사용, Gemini/국외이전 고지, persona export/share off, 장기기억은 명시 승격 | medium | |
+| E | `guardian_consents` — PR-4 전까지 **deny-all RLS + no grants + "NOT IN USE" DB comment + migration test** (또는 제거). 보호자 PII 보존/삭제 정책 없이 컬럼 두지 말 것 | small | |
+| F | **consent-age 매트릭스** — country/region × 디지털동의연령. EU 16(국가별 13까지), US COPPA <13 차단. 14 단일로 글로벌 불가 | medium | |
+| G | 철회/삭제/DOB 정정/age-out(17→18) UI + 국외이전 고지 + 위기로그 retention 정책 | medium | |
+| H | "18세 이상" 잔여 카피 전수 검사 + §22-2 오인용 docs 정정 | small | |
+
+### 머지 전 문서로 확정 필요 (GPT가 정보 부족으로 추측 표시한 것)
+- Supabase Auth가 현재 **공개 sign-up** 상태인지 (그렇다면 서버측 게이트 우회 표면)
+- Gemini/Supabase 데이터 처리·보관 **국가** (국외이전 고지 트리거)
+- XPRIZE 제출/심사/데모/로그에 **실제 사용자 데이터** 포함 여부
+
+### 적용 중인 정책 (영구)
+1. 독립 작업은 **main에서 새 브랜치** (스택 PR 지양). `force-push`/`rebase -i`는 사용자 confirm 필수.
+2. 안전-크리티컬/컴플라이언스 변경은 **draft PR + 리뷰 후 머지**. auto-merge 금지(사용자 명시 지시 때만).
+3. 모든 push 전 `npm run verify`. 머지 전 CI(lint·verify·sql) green 확인.
+4. 어휘 정책(C-vocab): 임상 용어 금지(`src/lib/safety/lexicon.ts` 단일 소스).
+
+### 핵심 파일 위치
+```
+src/lib/supabase/auth.ts             연령 게이트(MIN_SELF_CONSENT_AGE=14, 클라 only — 서버측 필요)
+src/lib/auth/AuthContext.tsx         isMinor 노출 (#134)
+src/lib/llm/types.ts                 PromptInput.minor (#134)
+src/lib/llm/gemini.ts                callGemini classifyInput(177 in,202/266 out); callAdvisor→fixedCrisisResponse(minor 무관)
+src/lib/safety/classifier.ts         pickCrisisHotline(locale,minor) → 1388/1393/988
+db/migrations/0028_minor_consent.sql account_status/minor_tier/guardian_consents (DB 게이트 완화 지점)
+docs/CONSTRAINTS.md                  C10 (§22-2 오인용 정정 대상)
+docs/KIDS-MODE-CONCEPT.md            영유아 트랙(Phase-2) + 전 연령 지도
+```
+
+### 검증
+```bash
+npm run verify   # lint + type-check + i18n(C7) + lexicon + llm-boundary(C1) + constraints + jest
+# 서버측(작업 A/B)엔 로컬 Supabase 필요: supabase start  /  supabase functions serve
+```
+
+### 다음 세션(로컬) 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md            # 이 블록
+# 작업 0(#132 revert vs forward-fix 결정)부터.
+# #134 이어가려면:
+git fetch origin claude/minor-safety-foundation
+git checkout claude/minor-safety-foundation
+```
+
+### GPT 리뷰 출처(핵심)
+PIPA §15/§17/§22/§22-2/§23 · FTC COPPA Rule/FAQ · GDPR Art.8 & Recital 38 · 청소년상담 1388 · 자살예방 상담 109(2024~ 통합).
+
+---
+
+## 2026-06-01 / 형식 관리 UI (#104) + 다중 스킬 감사
 
 ### 어디까지 왔나
 - 이번 세션 PR: **#104** (형식 관리 UI, G3 사용성 완성) — 최신 main(#106 `cb907c0`)까지 통합 후 squash merge.
