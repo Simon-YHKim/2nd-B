@@ -192,7 +192,7 @@ export default function Interview() {
           <SceneHero
             eyebrow={locale === "ko" ? "10. 드릴 인터뷰" : "10. Drill interview"}
             title={locale === "ko" ? "한 시기를 깊게 들어가기" : "Drill into one life period"}
-            subtitle={locale === "ko" ? "사실 → 감정 → 의미 → 믿음 → 울림" : "Fact → feeling → meaning → belief → echo"}
+            subtitle={locale === "ko" ? "사실 · 감정 · 의미 · 믿음 · 울림" : "Fact · feeling · meaning · belief · echo"}
             island="relationship"
             worker="gadi"
             speech={

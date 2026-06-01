@@ -109,7 +109,7 @@ export default function Research() {
             <Text variant="body" color="textMuted">
               {locale === "ko"
                 ? "아직 등록된 자료가 없어요. 큐레이터 워크플로가 진행 중이에요."
-                : "No sources yet — the curator workflow is in progress."}
+                : "No sources yet. The curator workflow is in progress."}
             </Text>
           </View>
         ) : (
@@ -195,7 +195,7 @@ export default function Research() {
                         hitSlop={4}
                       >
                         <Text variant="subtle" color="brand" numberOfLines={1} style={{ marginTop: spacing.xs }}>
-                          → {s.doi ? `doi.org/${s.doi}` : s.url}
+                          {s.doi ? `doi.org/${s.doi}` : s.url}
                         </Text>
                       </Pressable>
                     ) : null}

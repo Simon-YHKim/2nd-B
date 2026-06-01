@@ -202,7 +202,7 @@ export default function Settings() {
 
         <View style={[styles.section, { borderLeftColor: semantic.warning }]}>
           <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "부분 삭제 (종류별)" : "Partial — by kind"}
+            {locale === "ko" ? "부분 삭제: 종류별" : "Partial: by kind"}
           </Text>
           <Text variant="subtle" color="textMuted">
             {locale === "ko"
@@ -246,7 +246,7 @@ export default function Settings() {
 
         <View style={[styles.section, { borderLeftColor: semantic.warning }]}>
           <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "부분 삭제 (평가 결과)" : "Partial — by assessment"}
+            {locale === "ko" ? "부분 삭제: 평가 결과" : "Partial: by assessment"}
           </Text>
           <Button
             label={locale === "ko" ? "Big Five (TIPI) 결과 삭제" : "Delete Big Five (TIPI) results"}
@@ -285,7 +285,7 @@ export default function Settings() {
 
         <View style={[styles.section, { borderLeftColor: semantic.warning }]}>
           <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "부분 삭제 (위키/캡처/사용량)" : "Partial — wiki / captures / usage"}
+            {locale === "ko" ? "부분 삭제: 위키/캡처/사용량" : "Partial: wiki / captures / usage"}
           </Text>
           <Button
             label={locale === "ko" ? "모든 위키 페이지 삭제" : "Delete all wiki pages"}
@@ -324,7 +324,7 @@ export default function Settings() {
 
         <View style={[styles.section, { borderLeftColor: semantic.danger }]}>
           <Text variant="caption" color="danger" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "위험 — 전체 삭제" : "Danger — full wipe"}
+            {locale === "ko" ? "위험: 전체 삭제" : "Danger: full wipe"}
           </Text>
           <Text variant="subtle" color="textMuted">
             {locale === "ko"

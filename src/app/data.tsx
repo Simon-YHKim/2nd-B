@@ -58,7 +58,7 @@ export default function DataManagement() {
           <Text variant="body" color="textMuted">
             {ko
               ? "지식 창고에서 내 조각들을 하나의 텍스트로 모아 복사할 수 있어요. 백업이나 다른 곳으로 옮길 때 쓰세요."
-              : "From the store you can gather your pieces into one text to copy — handy for a backup or moving elsewhere."}
+              : "From the store you can gather your pieces into one text to copy. Handy for a backup or moving elsewhere."}
           </Text>
           <Button label={ko ? "지식 창고에서 내보내기" : "Export from the store"} variant="secondary" onPress={() => router.push("/wiki")} />
         </View>
