@@ -189,10 +189,10 @@ export default function Audit() {
           </View>
         </View>
         <View style={styles.questionCard}>
+          {/* The internal framework id (e.g. big_five:openness) is intentionally
+              NOT shown — it is analysis metadata the user doesn't care about
+              (2026-06-02 directive). It still rides on the saved record's tags. */}
           <Text variant="heading">{current?.prompt[locale]}</Text>
-          <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
-            {locale === "ko" ? `프레임워크: ${current?.framework}` : `Framework: ${current?.framework}`}
-          </Text>
         </View>
         <Input
           value={answer}
