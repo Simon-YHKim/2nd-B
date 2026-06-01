@@ -257,13 +257,10 @@ export default function Landing() {
         </Animated.View>
       ) : null}
 
-      {/* Top insight ribbon — Core Brain talks. The slot on the left
-          is reserved for a future mascot avatar; for now it shows a
-          subtle initial circle so the layout doesn't reflow when the
-          asset lands. */}
+      {/* Top insight ribbon — Core Brain talks. The left slot carries
+          the live SecondB sprite as a stable visual anchor. */}
       <Animated.View style={[styles.insightRibbon, { opacity: contentOpacity, top: Math.max(insets.top + 8, 18) }]} pointerEvents="box-none">
-        {/* SecondB placeholder — soul-violet pixel block with a mint core.
-            Same 52px footprint the eventual sprite will occupy. */}
+        {/* SecondB sprite slot. Same 52px footprint across idle/sleep states. */}
         <View style={styles.mascotSlot} accessibilityLabel="SecondB">
           <SecondBSprite state={presence.mascot === "sleep" ? "sleep" : "idle"} size={46} float={presence.mascot !== "sleep"} />
         </View>
@@ -361,8 +358,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
   },
-  // SecondB placeholder — soul-violet block with a mint signal core.
-  // Same 52px footprint the eventual pixel sprite will occupy.
+  // SecondB sprite frame. Same 52px footprint across idle/sleep states.
   mascotSlot: {
     width: 52,
     height: 52,
