@@ -54,7 +54,9 @@ export function SceneHero({
   const ownerGroundWidth = Math.round(ownerSize * 0.76);
   const ownerGroundHeight = Math.max(7, Math.round(ownerSize * 0.18));
   const ownerGroundBottom = Math.max(4, Math.round(ownerSize * 0.09));
-  const ownerSpriteBottom = ownerGroundBottom + Math.round(ownerGroundHeight * 0.45);
+  const ownerContactWidth = Math.round(ownerSize * 0.44);
+  const ownerContactBottom = ownerGroundBottom + Math.round(ownerGroundHeight * 0.42);
+  const ownerSpriteBottom = ownerGroundBottom + Math.round(ownerGroundHeight * 0.3);
   const bubbleWidth = Math.min(220, Math.max(168, Math.round(islandSize * 0.78)));
   const maxBubbleLeft = Math.max(8, islandSize - bubbleWidth - 8);
   const bubbleLeft = Math.max(8, Math.min(maxBubbleLeft, ownerLeft + ownerHaloSize / 2 - 28));
@@ -105,6 +107,16 @@ export function SceneHero({
                     borderRadius: ownerGroundHeight / 2,
                     left: (ownerHaloSize - ownerGroundWidth) / 2,
                     bottom: ownerGroundBottom,
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.workerContact,
+                  {
+                    width: ownerContactWidth,
+                    left: (ownerHaloSize - ownerContactWidth) / 2,
+                    bottom: ownerContactBottom,
                   },
                 ]}
               />
@@ -209,13 +221,20 @@ const styles = StyleSheet.create({
   workerGround: {
     position: "absolute",
     alignSelf: "center",
-    backgroundColor: "rgba(2,4,10,0.64)",
+    backgroundColor: "rgba(2,4,10,0.72)",
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.34)",
-    shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.34,
-    shadowRadius: 7,
+    borderColor: "rgba(232,236,248,0.12)",
+    shadowColor: "#000",
+    shadowOpacity: 0.32,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
+  },
+  workerContact: {
+    position: "absolute",
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: "rgba(114,242,199,0.36)",
+    zIndex: CHARACTER_LAYER - 1,
   },
   workerSprite: {
     position: "absolute",
