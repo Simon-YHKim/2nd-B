@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>2nd-Brain — 연령 코호트 시뮬레이션 (50 페르소나)</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<style>
+  :root{
+    --bg:#06080f; --panel:#0b0f1d; --panel2:#0e1426;
+    --line:rgba(167,139,250,0.18); --line2:rgba(114,242,199,0.20);
+    --text:#e7e9f3; --dim:#9aa0b6; --faint:#6b7186;
+    --violet:#a78bfa; --mint:#72f2c7; --amber:#f4c777; --info:#7cc4ff; --rose:#ff8d9b;
+    --mono:"SFMono-Regular",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:Pretendard,system-ui,sans-serif;line-height:1.62;font-size:15px;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 120px}
+  header{padding:64px 0 28px;border-bottom:1px solid var(--line)}
+  h1{font-size:30px;letter-spacing:-0.4px;margin:0 0 8px}
+  .sub{color:var(--dim);font-size:15px;max-width:780px}
+  .eyebrow{color:var(--mint);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+  h2{font-size:21px;margin:54px 0 6px;letter-spacing:-0.3px;padding-top:10px}
+  h2 .n{color:var(--violet);font-variant-numeric:tabular-nums;margin-right:10px}
+  h3{font-size:16px;margin:30px 0 4px;color:var(--text)}
+  h3 .rt{color:var(--faint);font-family:var(--mono);font-size:12px;font-weight:400;margin-left:8px}
+  p{margin:8px 0}
+  a{color:var(--mint);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:var(--mono);font-size:12.5px;color:var(--mint);background:rgba(114,242,199,0.07);
+    padding:1px 5px;border-radius:4px;white-space:nowrap}
+  .ref{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+  ul{margin:8px 0;padding-left:20px} li{margin:3px 0}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.06);vertical-align:top}
+  th{color:var(--violet);font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+  td code{white-space:normal}
+  td.who{white-space:nowrap;font-weight:600}
+  td.who .j{display:block;color:var(--faint);font-weight:400;font-size:11.5px;white-space:normal}
+  .tag{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:1px 7px;border-radius:20px;
+    border:1px solid var(--line);color:var(--dim);margin-right:4px}
+  .tag.c{border-color:var(--line2);color:var(--mint)}
+  .r-h{color:var(--rose);font-weight:700}
+  .r-m{color:var(--amber);font-weight:700}
+  .r-l{color:var(--mint);font-weight:700}
+  .blk{color:var(--rose);font-weight:700}
+  .pass{color:var(--mint)}
+  .note{border-left:3px solid var(--amber);background:rgba(244,199,119,0.05);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0;color:var(--dim);font-size:13.5px}
+  .note b{color:var(--amber)}
+  .note.v{border-left-color:var(--violet);background:rgba(167,139,250,0.06)}
+  .note.v b{color:var(--violet)}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:26px 0}
+  .toc ol{margin:0;padding-left:20px;columns:2;column-gap:30px}
+  .toc a{color:var(--text)} .toc li{margin:4px 0}
+  .curve{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 6px}
+  .curve .b{flex:1;min-width:84px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px 8px;text-align:center}
+  .curve .b .ag{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .curve .b .ft{font-size:18px;font-weight:700;margin-top:3px}
+  .curve .b .lb{font-size:10.5px;color:var(--dim);margin-top:2px}
+  .find{border:1px solid var(--line);border-radius:10px;padding:2px 0;margin:14px 0;background:var(--panel)}
+  .find .f{display:grid;grid-template-columns:30px 1fr;border-top:1px solid rgba(255,255,255,0.05);padding:11px 14px;gap:10px}
+  .find .f:first-child{border-top:none}
+  .find .f .k{color:var(--violet);font-weight:700;font-variant-numeric:tabular-nums}
+  .find .f .t{font-size:14px}
+  .find .f .t b{color:var(--text)}
+  .find .f .t .d{color:var(--dim);font-size:13px}
+  .p0{color:var(--rose);font-weight:700} .p1{color:var(--amber);font-weight:700} .p2{color:var(--info);font-weight:700}
+  hr{border:none;border-top:1px solid var(--line);margin:40px 0}
+  .small{font-size:12.5px;color:var(--faint)}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--faint);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">2nd-Brain · 연령 코호트 시나리오 시뮬레이션</div>
+  <h1>글 읽는 영유아부터 90대까지 — 50명의 가상 사용자가 앱을 만나는 법</h1>
+  <p class="sub">10개 연령대 × 5명(직업·배경 다양) = <b>50 페르소나</b>를, 실제 코드 흐름 기준으로 A→Z 시뮬레이션한 결과. 각 인물의 <span style="color:var(--mint)">가입 통과/차단</span> · 온보딩 이해 · 끌리는 축 · 마찰/접근성 · 이탈 위험 · 평결을 추적했다. 자매 문서: <a href="./user-simulation.html">사용자 여정 시뮬레이션(A→Z)</a>.</p>
+  <p class="small">근거: 5개 병렬 시뮬레이터(6–17 · 18–39 · 40–59 · 60–79 · 80–99). 코드 실측 — 배경 <code>space950 #070A18</code>, 보조텍스트 <code>mistGray #8D98B8</code>(대비 ~3.5:1, WCAG AA 미달), 픽셀폰트 NeoDunggeunmo, 탭 라벨 10px, 생년월일 <code>YYYY-MM-DD</code> 텍스트입력, 일기 Lv3 잠금, 음성입력 없음.</p>
+</header>
+
+<div class="toc">
+  <b style="font-size:12px;color:var(--violet);letter-spacing:1px">목차</b>
+  <ol>
+    <li><a href="#fit">00 · 연령 적합도 곡선</a></li>
+    <li><a href="#univ">01 · 전 연령 공통 8대 발견</a></li>
+    <li><a href="#ends">02 · 양 끝의 역설 (C10 · 보조자)</a></li>
+    <li><a href="#bands">03 · 코호트별 50 페르소나</a></li>
+    <li><a href="#rec">04 · 우선순위 권고 (P0–P2)</a></li>
+  </ol>
+</div>
+
+<!-- ───────────── FIT CURVE ───────────── -->
+<h2 id="fit"><span class="n">00</span>연령 적합도 곡선</h2>
+<p>핵심 적합층은 <b>20대 후반 ~ 30대 초</b> — "내 데이터를 쌓아 AI 페르소나로"라는 명제를 가장 빨리 이해하고 유료 잠재력도 높다. 양 끝으로 갈수록 적합도가 떨어지는데, <b>이유가 서로 다르다</b>: 미성년은 <span class="blk">법적 차단(C10)</span>, 시니어는 <span class="r-m">접근성·보조자 필요</span>.</p>
+<div class="curve">
+  <div class="b"><div class="ag">6–9</div><div class="ft blk">✕</div><div class="lb">C10 차단 + 발달 부적합</div></div>
+  <div class="b"><div class="ag">10–17</div><div class="ft blk">✕</div><div class="lb">C10 차단 (16–17 잠재 코어)</div></div>
+  <div class="b"><div class="ag">18–29</div><div class="ft r-l">◎</div><div class="lb">핵심 적합</div></div>
+  <div class="b"><div class="ag">30–39</div><div class="ft r-l">◎</div><div class="lb">핵심 · 즉시유용성 기대</div></div>
+  <div class="b"><div class="ag">40–49</div><div class="ft r-m">○</div><div class="lb">노안 시작 · 실용 의심</div></div>
+  <div class="b"><div class="ag">50–59</div><div class="ft r-m">△</div><div class="lb">돋보기 · 은유 이탈</div></div>
+  <div class="b"><div class="ag">60–69</div><div class="ft r-m">△</div><div class="lb">생년월일·빈그래프 장벽</div></div>
+  <div class="b"><div class="ag">70–79</div><div class="ft r-h">▽</div><div class="lb">다크UI 의학적 한계</div></div>
+  <div class="b"><div class="ag">80–89</div><div class="ft r-h">▽</div><div class="lb">보조자 의존 · 음성 필요</div></div>
+  <div class="b"><div class="ag">90–99</div><div class="ft r-h">▽</div><div class="lb">직접사용 ≈0 · 대리입력</div></div>
+</div>
+<p class="small">◎ 핵심 적합 · ○ 조건부 · △ 마찰 큼 · ▽ 직접사용 곤란 · ✕ 가입 차단</p>
+
+<!-- ───────────── UNIVERSAL ───────────── -->
+<h2 id="univ"><span class="n">01</span>전 연령 공통 8대 발견</h2>
+<p>밴드를 가로질러 반복된 패턴. 위로 갈수록 영향 범위가 넓다.</p>
+<div class="find">
+  <div class="f"><div class="k">1</div><div class="t"><b>일기 Lv3 잠금 = 단일 최대 이탈 트리거.</b> <span class="d">20대~80대까지, 가장 자연스러운 진입(감정 토로·회고·일기)을 첫날 차단. 재수생·육아맘·간호사·소방관·농부·은퇴교사·독거 어르신 — 가장 절절한 동기를 가진 이들이 직격탄. 50명 중 과반이 이 지점에서 충격.</span></div></div>
+  <div class="f"><div class="k">2</div><div class="t"><b>/jarvis 기대 불일치.</b> <span class="d">대부분 범용 AI(ChatGPT)를 기대 → 실제는 <i>내 위키</i> RAG. 카페 사장은 "발주 정리해줘"→"제 위키에 없어요"로 D+0 이탈. 개발자·창업가·전문직은 <b>세션 기억 없음 + 스트리밍 없음</b>에 실망.</span></div></div>
+  <div class="f"><div class="k">3</div><div class="t"><b>콜드스타트 빈 상태.</b> <span class="d">가치는 데이터가 쌓여야 나오는데, 빈 홈·빈 결과가 그 전에 사용자를 내보냄. 시니어는 빈 별자리 그래프를 "고장/오류"로 인식(G-2·G-4·H-3).</span></div></div>
+  <div class="f"><div class="k">4</div><div class="t"><b>온보딩 은유 과부하.</b> <span class="d">마을·세포·조각·별자리가 기능 진입 전 인지부하를 높임. 테크 친숙도 낮을수록(자영업·생산직·농업·시니어) 거의 기능 0%.</span></div></div>
+  <div class="f"><div class="k">5</div><div class="t"><b>접근성 절벽 — 40대부터 급락.</b> <span class="d">다크+저대비(<code>mistGray 3.5:1</code> WCAG 미달) + 픽셀폰트 + 10px 탭 + 작은 터치타겟. 노안(40s)→돋보기(50s)→백내장·황반변성·녹내장(70s+)에서 사실상 의학적 실격.</span></div></div>
+  <div class="f"><div class="k">6</div><div class="t"><b>음성 입력 부재.</b> <span class="d">70대+ 관절염·손떨림·저시력에서 타이핑이 유일 입력인데 막힘. 90대는 직접 사용 ≈0% → 자녀·보조자 대리입력만 현실적.</span></div></div>
+  <div class="f"><div class="k">7</div><div class="t"><b>생년월일 텍스트 입력(<code>YYYY-MM-DD</code>, 피커 없음).</b> <span class="d">60대+ 단독 가입 성공률 절반 이하. 시니어의 첫 탈락 필터이자 자녀 의존 유발점.</span></div></div>
+  <div class="f"><div class="k">8</div><div class="t"><b>위기 분류기 오탐.</b> <span class="d">청소년 은어("죽겠다")·의료직 맥락("번아웃")이 키워드 기반 감지에 걸려 과잉/오분류. 진솔한 기록을 위축시키는 역효과.</span></div></div>
+</div>
+
+<!-- ───────────── TWO ENDS ───────────── -->
+<h2 id="ends"><span class="n">02</span>양 끝의 역설 — 같은 해법을 가리킨다</h2>
+<p>요청한 "글 읽는 영유아부터"라는 범위 자체가 <b>제품의 경계를 드러내는 테스트</b>가 됐다.</p>
+<div class="note v"><b>미성년 (6–17):</b> 전원 <span class="blk">C10에 차단</span> — 가입 시 만 18세 이상만(UI <code>canSubmit</code> + 클라 <code>AgeGateError</code> + DB CHECK 3겹). 특히 <b>16–17세</b>는 정체성 탐색·문해력·동기를 모두 갖춘 <b>잠재 코어</b>인데 나이 한 줄에 막힌다. (참고: 한국 정보통신망법은 만 14세 자기동의 — C10의 18세는 법보다 4년 보수적.)</div>
+<div class="note"><b>초고령 (80–99):</b> 가입은 되지만 저시력·관절염·인지저하로 <b>직접 사용 불가</b>. 대신 "<b>자녀가 대신 입력</b>"을 강하게 원함 — 6.25 증언, 40년 간호 일기, 산업화 1세대 서사 등 강력한 유산 콘텐츠 보유.</div>
+<p>두 끝이 <b>같은 구조</b>를 요구한다 — <b>보호자/보조자 계정 + 음성 파이프라인</b>. 미성년은 보호자 동의·감독, 초고령은 자녀 대리입력. 하나의 아키텍처가 양쪽을 동시에 연다. <span class="small">(이 발견이 현재 진행 중인 <b>연령 게이트 하향 + 보호자 동의</b> 작업의 출발점.)</span></p>
+
+<!-- ───────────── BANDS ───────────── -->
+<h2 id="bands"><span class="n">03</span>코호트별 50 페르소나</h2>
+
+<h3>밴드 A · 아동 6–9세 <span class="rt">전원 C10 차단</span></h3>
+<table>
+  <tr><th>페르소나</th><th>가입</th><th>(가정) 끌릴 축</th><th>이탈</th><th>평결 한 줄</th></tr>
+  <tr><td class="who">하나 7<span class="j">초1, 인천</span></td><td class="blk">차단</td><td>스프라이트·이미지</td><td class="r-h">30초</td><td>발달 단계 전면 불일치. 그림책형 UI 전제 필요.</td></tr>
+  <tr><td class="who">준서 9<span class="j">초3, 독서가</span></td><td class="blk">차단</td><td>/imagine 놀이</td><td class="r-h">상</td><td>읽기는 되나 BFI-44 자기성찰 초과 → 3~5문항 포기.</td></tr>
+  <tr><td class="who">소율 6<span class="j">유치원, 부산</span></td><td class="blk">차단</td><td>코스믹 비주얼</td><td class="r-h">10초</td><td>문해 미형성 — 텍스트 기반 전체가 기능 불가.</td></tr>
+  <tr><td class="who">민준 8<span class="j">초2, 코딩학원</span></td><td class="blk">차단</td><td>별자리·/imagine</td><td class="r-m">중</td><td>게임 직관은 있으나 자기성찰 프레임이 8세 초과.</td></tr>
+  <tr><td class="who">지아 9<span class="j">초3, 그림</span></td><td class="blk">차단</td><td>이미지 OCR</td><td class="r-m">중</td><td>캡처 욕구 진짜이나 Phase1→2 파이프라인이 블랙박스.</td></tr>
+</table>
+<p class="small"><b>밴드 A 상위 이슈:</b> ① C10 절대 장벽 ② 자기성찰 능력 미형성(BFI/MBTI/인터뷰 전부 초과) ③ 은유 한국어 + 다크 소형 텍스트 이중 장벽. → 아동 서비스는 별도 앱·별도 DB·아동 개인정보 처리방침이 필요한 <b>다른 제품 범주</b>.</p>
+
+<h3>밴드 B · 10대 10–17세 <span class="rt">전원 C10 차단</span></h3>
+<table>
+  <tr><th>페르소나</th><th>가입</th><th>(가정) 끌릴 축</th><th>이탈</th><th>평결 한 줄</th></tr>
+  <tr><td class="who">이서연 15<span class="j">중3, 자기계발서</span></td><td class="blk">차단</td><td>축1 알아가기</td><td class="r-m">중</td><td>정체성 탐색기와 정확히 일치 — C10만 없으면 적합. 결제 벽.</td></tr>
+  <tr><td class="who">박도현 17<span class="j">고2, 프로그래밍</span></td><td class="blk">차단</td><td>축2·3 비서/공상</td><td class="r-m">중</td><td>최적합인데 1살 부족. 세션 기억 없음 즉각 인지.</td></tr>
+  <tr><td class="who">김지수 13<span class="j">중1, K-pop</span></td><td class="blk">차단</td><td>/imagine</td><td class="r-h">상</td><td>즉각 피드백 없는 모든 단계에서 이탈(틱톡 감각).</td></tr>
+  <tr><td class="who">최민서 16<span class="j">고1, 문학</span></td><td class="blk">차단</td><td>축1 + 일기</td><td class="r-m">중-하</td><td>은유를 문학적으로 수용 — 밴드 내 1순위 적합. 결제 벽.</td></tr>
+  <tr><td class="who">오태양 11<span class="j">초5, 유튜버꿈</span></td><td class="blk">차단</td><td>/imagine</td><td class="r-m">중</td><td>/imagine은 창의 욕구와 맞으나 전체가 성인 프레임.</td></tr>
+</table>
+<p class="small"><b>밴드 B 상위 이슈:</b> ① C10 + 결제(카드 없음) 이중 장벽 ② 위기 감지 과잉발동(청소년 관용어 오탐 → 자기검열) ③ 무료 2/일 한도의 청소년 비현실성. → <b>16–17세 보호자 동의 Teen 경로</b>가 실질적 기회 창(법무 검토 선행).</p>
+
+<h3>밴드 C · 20대 18–29세 <span class="rt">핵심 적합</span></h3>
+<table>
+  <tr><th>페르소나</th><th>가입</th><th>끌리는 축</th><th>이탈</th><th>평결 한 줄</th></tr>
+  <tr><td class="who">이서연 19<span class="j">재수생</span></td><td class="pass">통과·경계</td><td>/capture 일기</td><td class="r-h">상</td><td>감정 토로 욕구 강한데 일기 Lv3 잠금이 첫날 차단.</td></tr>
+  <tr><td class="who">박준혁 23<span class="j">백엔드 개발자</span></td><td class="pass">통과</td><td>/jarvis</td><td class="r-m">중</td><td>기술 기대 높아 RAG 갭(기억없음·평문덤프)에 바로 실망.</td></tr>
+  <tr><td class="who">김나래 26<span class="j">프리랜서 디자이너</span></td><td class="pass">통과</td><td>/imagine</td><td class="r-m">중</td><td>결과가 "일반 ChatGPT" 같음 — 콜드스타트 미안내. 설정 제스처 못 찾음.</td></tr>
+  <tr><td class="who">오민준 28<span class="j">9급 공무원</span></td><td class="pass">통과</td><td>없음</td><td class="r-h">상</td><td>모든 요소가 낯섦. 받은편지함 개념 미이해 → D+0.</td></tr>
+  <tr><td class="who">장혜인 27<span class="j">간호사 3년차</span></td><td class="pass">통과</td><td>축1 알아가기</td><td class="r-m">중</td><td>동기·감성 핏 최고인데 일기 잠금 + BFI 중간저장 불안 + 위기 오탐.</td></tr>
+</table>
+<p class="small"><b>밴드 C 상위 이슈:</b> ① 일기 Lv3 잠금 ② 콜드스타트 빈 홈 ③ 온보딩 은유 과부하.</p>
+
+<h3>밴드 D · 30대 <span class="rt">핵심 · 즉시유용성 기대</span></h3>
+<table>
+  <tr><th>페르소나</th><th>가입</th><th>끌리는 축</th><th>이탈</th><th>평결 한 줄</th></tr>
+  <tr><td class="who">최성훈 32<span class="j">스타트업 창업가</span></td><td class="pass">통과</td><td>/jarvis·/imagine</td><td class="r-m">중</td><td>유료전환 1순위지만 세션 기억 없음이 치명적.</td></tr>
+  <tr><td class="who">이지현 35<span class="j">초등 교사</span></td><td class="pass">통과</td><td>축1 + 메모</td><td class="r-m">중</td><td>Phase1 능동 분류 요구가 고피로 직군에 부담. 일기 잠금.</td></tr>
+  <tr><td class="who">김태훈 37<span class="j">IT 영업</span></td><td class="pass">통과</td><td>/capture 메모</td><td class="r-h">상</td><td>"즉시 유용" 기대 vs "쌓아야 의미" 구조 미스매치 → D+1~2.</td></tr>
+  <tr><td class="who">박소연 33<span class="j">육아 번역가</span></td><td class="pass">통과</td><td>일기 + 축1</td><td class="r-h">상</td><td>가장 절절한 동기(자기 회복)를 일기 잠금이 D+0에 차단.</td></tr>
+  <tr><td class="who">윤재원 39<span class="j">카페 운영</span></td><td class="pass">통과</td><td>/jarvis</td><td class="r-h">상</td><td>광고의 "AI 비서" 기대와 180도 — D+0 즉시 이탈.</td></tr>
+</table>
+<p class="small"><b>밴드 D 상위 이슈:</b> ① /jarvis 기대 불일치(범용 AI 오해) ② 능동 분류 요구 ③ 세션 기억 없음.</p>
+
+<h3>밴드 E · 40대 <span class="rt">노안 시작 · 실용 의심</span></h3>
+<table>
+  <tr><th>페르소나</th><th>가입</th><th>끌리는 축</th><th>이탈</th><th>평결 한 줄</th></tr>
+  <tr><td class="who">박소영 44<span class="j">중학 교사</span></td><td class="pass">통과</td><td>/capture 메모</td><td class="r-m">중</td><td>수업자료 실용가치로 잔류 가능. 일기 잠금 + 'mono 13pt' 눈 피로.</td></tr>
+  <tr><td class="who">이민준 47<span class="j">카페 · SE3</span></td><td class="pass">통과</td><td>메모·/jarvis</td><td class="r-h">상</td><td>소형화면+저테크+실용 기대 불일치 삼중 악재. 오탭 빈발.</td></tr>
+  <tr><td class="who">정다혜 42<span class="j">주부 · iPad</span></td><td class="pass">통과</td><td>축1 + 일기</td><td class="r-m">중</td><td>동기 좋으나 잠금·2/일 한도·iPad 미최적화 중첩.</td></tr>
+  <tr><td class="who">김철수 49<span class="j">대기업 팀장</span></td><td class="pass">통과</td><td>Pro Wiki·/jarvis</td><td class="r-l">하</td><td>최이상 파워유저. 단 세션 기억 없음 반복 시 점차 이탈.</td></tr>
+  <tr><td class="who">오재현 45<span class="j">소방관</span></td><td class="pass">통과</td><td>일기·/imagine</td><td class="r-m">상-중</td><td>야간근무·다크UI 부합. 일기 잠금 + 진행 경로 불명.</td></tr>
+</table>
+<p class="small"><b>밴드 E 상위 이슈:</b> ① 일기 Lv3 잠금 ② XP 진행 가시성 부재 ③ 세션 기억 없음(업무 연속 사용).</p>
+
+<h3>밴드 F · 50대 <span class="rt">돋보기 · 은유 이탈</span></h3>
+<table>
+  <tr><th>페르소나</th><th>가입</th><th>끌리는 축</th><th>이탈</th><th>평결 한 줄</th></tr>
+  <tr><td class="who">한미경 53<span class="j">공무원</span></td><td class="pass">통과·마찰</td><td>/capture·일기</td><td class="r-h">상</td><td>생년월일 포맷 오류 + 글씨 안 보임 이중 충격. 설정 못 찾음.</td></tr>
+  <tr><td class="who">윤호철 56<span class="j">과수원 농업</span></td><td class="pass">통과·자녀</td><td>(도달 불가)</td><td class="r-h">상·확정</td><td>은유 이해 0%, 별자리 미로. 자녀 없이 사용 경로 못 찾음.</td></tr>
+  <tr><td class="who">이수진 51<span class="j">변호사</span></td><td class="pass">통과</td><td>링크·문서·/jarvis</td><td class="r-m">중-하</td><td>활용 적합 최고. 데이터 보안 신뢰 신호 부재 + 세션 기억 없음.</td></tr>
+  <tr><td class="who">최동훈 58<span class="j">생산직</span></td><td class="pass">통과·자녀</td><td>일기</td><td class="r-h">상·확정</td><td>"일기 쓰기" 단일 목적인데 Lv3 잠금이 앱 존재이유 차단.</td></tr>
+  <tr><td class="who">배영숙 55<span class="j">응급실 간호사</span></td><td class="pass">통과</td><td>일기·축1</td><td class="r-m">중</td><td>의료직 자기분석 욕구 강함. 잠금+한도+"번아웃" 오분류 3중 벽.</td></tr>
+</table>
+<p class="small"><b>밴드 F 상위 이슈:</b> ① 접근성 위기(돋보기 — 시스템 폰트 미연동) ② 일기 Lv3 잠금 ③ 은유 완전 이탈(저테크). + 생년월일 포맷 오류가 C10보다 먼저 첫인상을 망침.</p>
+
+<h3>밴드 G · 60대 <span class="rt">생년월일 · 빈 그래프 장벽</span></h3>
+<table>
+  <tr><th>페르소나</th><th>가입</th><th>끌리는 축</th><th>이탈</th><th>평결 한 줄</th></tr>
+  <tr><td class="who">이종수 62<span class="j">은퇴 공무원</span></td><td class="pass">통과·마찰</td><td>일기(회고록)</td><td class="r-m">중</td><td>회고 동기 강하나 Lv3 잠금 + 레벨 개념 이해 불가.</td></tr>
+  <tr><td class="who">박순영 65<span class="j">분식집 은퇴·SE3</span></td><td class="pass">통과·마찰</td><td>메모(레시피)</td><td class="r-h">상</td><td>손녀 유산 동기. 빈 그래프를 '오류'로 인식 → 삭제.</td></tr>
+  <tr><td class="who">윤태식 67<span class="j">건축사·테크상</span></td><td class="pass">통과</td><td>/jarvis·file</td><td class="r-l">하</td><td>G밴드 유일 파워유저. 세션 기억 없음이 유일 이탈 트리거.</td></tr>
+  <tr><td class="who">최복순 63<span class="j">주부·백내장</span></td><td class="pass">통과·자녀</td><td>메모·일기</td><td class="r-h">상</td><td>단독 가입 불가. 빈 그래프 + 저대비 텍스트 번짐.</td></tr>
+  <tr><td class="who">강민준 60<span class="j">시설 관리</span></td><td class="pass">통과</td><td>메모</td><td class="r-m">중</td><td>저장한 메모를 어디서 보는지 못 찾음 — 기본 피드백 루프 부재.</td></tr>
+</table>
+<p class="small"><b>밴드 G 상위 이슈:</b> ① 생년월일 텍스트 직접 입력(피커 없음) ② 빈 그래프 = '오류' 인식 ③ Lv3 잠금. → 네이티브 DatePicker + 빈 상태 카드(18px+, 명확한 CTA).</p>
+
+<h3>밴드 H · 70대 <span class="rt">다크 UI 의학적 한계</span></h3>
+<table>
+  <tr><th>페르소나</th><th>가입</th><th>끌리는 축</th><th>이탈</th><th>평결 한 줄</th></tr>
+  <tr><td class="who">정해선 72<span class="j">은퇴 국어교사 +3.0D</span></td><td class="pass">통과·난</td><td>일기(시·수필)</td><td class="r-h">상</td><td>시적 카피에 공감하는 희소 케이스. 돋보기+10px 탭+Lv3 3중 물리 장벽.</td></tr>
+  <tr><td class="who">오세민 75<span class="j">농부·황반변성</span></td><td class="blk">대리</td><td>(없음)</td><td class="r-h">최고</td><td>다크 고정 배경이 황반변성에 의학적 금기. 음성 부재로 입력 불가.</td></tr>
+  <tr><td class="who">이미정 70<span class="j">주부·독서모임</span></td><td class="pass">통과</td><td>축1 알아가기</td><td class="r-m">중</td><td>BFI-44를 70대 단독 완성 거의 불가(1문항 40~60초).</td></tr>
+  <tr><td class="who">서병철 77<span class="j">은퇴 교수·iPad</span></td><td class="pass">통과</td><td>/jarvis·file</td><td class="r-m">중-하</td><td>H밴드 파워유저. 세션 기억 없으면 연구 보조 불가 판정.</td></tr>
+  <tr><td class="who">김말순 73<span class="j">종교인·녹내장+관절염</span></td><td class="blk">대리</td><td>(없음)</td><td class="r-h">최고</td><td>관절염+녹내장 조합 수용 불가. 음성+44px 터치타겟 선결.</td></tr>
+</table>
+<p class="small"><b>밴드 H 상위 이슈:</b> ① 다크 고정 배경(황반변성·녹내장·백내장에 식별 불가) ② 음성 입력 부재 ③ 대리 가입 구조(1인 노인 배제). → 전체 라이트 모드 + OS STT 마이크.</p>
+
+<h3>밴드 I · 80대 <span class="rt">보조자 의존 · 음성 필요</span></h3>
+<table>
+  <tr><th>페르소나</th><th>가입</th><th>끌리는 축</th><th>이탈</th><th>평결 한 줄</th></tr>
+  <tr><td class="who">이순임 83<span class="j">독거·전직 교사</span></td><td class="blk">보조</td><td>일기(교직 유산)</td><td class="r-h">상</td><td>구술 유산 욕구 강함. 픽셀폰트 판독 불가 + 음성 부재.</td></tr>
+  <tr><td class="who">박태용 80<span class="j">동거·전직 사업가</span></td><td class="blk">보조</td><td>메모·/jarvis</td><td class="r-m">중상</td><td>80대 디지털 경험 최선 케이스. SE3 소형 + Lv3 + 세션 리셋.</td></tr>
+  <tr><td class="who">최말분 86<span class="j">요양원·황반+인지저하</span></td><td class="blk">대리</td><td>(없음)</td><td class="r-h">최상</td><td>온보딩 첫 화면 이후 진행 불가 — 현재 구조 완전 사용 불가.</td></tr>
+  <tr><td class="who">정동수 81<span class="j">동거·역사교사</span></td><td class="blk">보조</td><td>축1·메모</td><td class="r-m">중</td><td>6.25 증언 의식 강함. BFI 중단 + 음성 부재가 결정타.</td></tr>
+  <tr><td class="who">강옥순 88<span class="j">독거·백내장</span></td><td class="blk">보조</td><td>일기(기도)</td><td class="r-h">최상</td><td>월 1~2회 자녀 방문이 사용 기회 전부. 텍스트 판독 불가.</td></tr>
+</table>
+<p class="small"><b>밴드 I 상위 이슈:</b> ① 가독성 위기(폰트·크기·대비 동시 부적합) ② 보조자 모드 부재 ③ 진입 차단 루프(비번 분실 → 이메일 재설정 미구현 → 자력 복구 불가).</p>
+
+<h3>밴드 J · 90대 <span class="rt">직접사용 ≈0 · 대리입력</span></h3>
+<table>
+  <tr><th>페르소나</th><th>가입</th><th>끌리는 축</th><th>이탈</th><th>평결 한 줄</th></tr>
+  <tr><td class="who">김복남 91<span class="j">동거·6.25 생존</span></td><td class="blk">대리</td><td>(구술만)</td><td class="r-h">최상</td><td>양안 0.1 — 어떤 UI도 판독 불가. 아들 대리입력에 완전 의존.</td></tr>
+  <tr><td class="who">윤성칠 94<span class="j">요양원·사업가</span></td><td class="blk">대리</td><td>/jarvis(딸 경유)</td><td class="r-h">최상</td><td>주 1회 방문 + 세션 리셋 = 기록 연속성 0.</td></tr>
+  <tr><td class="who">오귀남 90<span class="j">독거·40년 일기</span></td><td class="blk">대리</td><td>일기·OCR</td><td class="r-h">상</td><td>40년 손글씨 일기라는 최고급 자산을 기기·접근 구조가 막음.</td></tr>
+  <tr><td class="who">한영복 97<span class="j">최고령·산업화 1세대</span></td><td class="blk">대리</td><td>인터뷰(손자 경유)</td><td class="r-m">중</td><td>역사 증언 + 손자 헌신 = 최적 '보조자 입력'. 음성 전사 없으면 6개월 내 중단.</td></tr>
+  <tr><td class="who">노춘희 92<span class="j">요양원·불교 수행</span></td><td class="blk">대리</td><td>일기(법문)·OCR</td><td class="r-h">상</td><td>불교 세계관이 "업(業)=조각" 은유를 의외로 수용. 타이핑 불가.</td></tr>
+</table>
+<p class="small"><b>밴드 J 상위 이슈:</b> ① 보조자 모드 부재(직접사용 0% 전제 필요) ② 음성→텍스트 파이프라인 없음 ③ 세대 간 기록 도구 정체성 부재. → Gemini 멀티모달 음성 전사 + 보조자 세션 연속성("이어하기").</p>
+
+<!-- ───────────── RECS ───────────── -->
+<h2 id="rec"><span class="n">04</span>우선순위 권고</h2>
+<div class="find">
+  <div class="f"><div class="k p0">P0</div><div class="t"><b>일기 Lv1 개방</b> (또는 첫 3일 무제한 체험). <span class="d">Lv3 잠금은 "심층 일기 분석"으로 재포지션. — 50명 중 단일 최대 이탈 트리거 제거.</span></div></div>
+  <div class="f"><div class="k p0">P0</div><div class="t"><b>/jarvis 기대 조정 + 세션 컨텍스트 보존.</b> <span class="d">진입 시 "내 위키 N페이지 기반" 상태 고정 표시 → 기대 조정 + 축적 동기. 최소 당일 세션 기억.</span></div></div>
+  <div class="f"><div class="k p0">P0</div><div class="t"><b>empty-state 설계.</b> <span class="d">"위키 3개 쌓이면 개인화 시작" 명시. 빈 그래프가 '오류'로 안 읽히게 — 시니어 첫 세션 이탈 방지.</span></div></div>
+  <div class="f"><div class="k p1">P1</div><div class="t"><b>접근성 패키지</b> (연령 확장의 전제). <span class="d">시스템 폰트 스케일 연동(iOS Dynamic Type / Android fontScale) + 고대비·라이트 모드 토글 + 생년월일 네이티브 DatePicker. 40대~시니어 동시 수혜.</span></div></div>
+  <div class="f"><div class="k p1">P1</div><div class="t"><b>담기 음성 입력(OS STT).</b> <span class="d">마이크 버튼 하나 — 70대+ 타이핑 불가층의 유일한 진입로, 동시에 미성년 접근성도 향상.</span></div></div>
+  <div class="f"><div class="k p2">P2</div><div class="t"><b>보호자/보조자 계정 모델.</b> <span class="d">미성년 동의·감독 + 초고령 대리입력을 한 구조로. 세션 연속성("이어하기") 포함. — 양 끝을 동시에 여는 핵심 레버.</span></div></div>
+  <div class="f"><div class="k p2">P2</div><div class="t"><b>위기 분류기 연령 인지.</b> <span class="d">미성년 청소년 핫라인(1388) + 문맥 기반 오탐 보정(키워드 단독 → 주변 문장·반복 패턴). 의료직 맥락 예외.</span></div></div>
+  <div class="f"><div class="k p2">P2</div><div class="t"><b>온보딩 직업별 시작 루트.</b> <span class="d">"주로 무엇을 기록하나요?" 한 문장 선택 → 은유를 건너뛰고 실용 가치로 직결. 저테크·시니어 은유 장벽 해소.</span></div></div>
+</div>
+
+<footer>
+  2nd-Brain · 연령 코호트 시나리오 시뮬레이션 (50 페르소나, 10 밴드) · 5-에이전트 병렬 트레이스 기준 · 모든 코드 경로는 실측 <span class="ref">file:line</span> 검증. 시점 스냅샷(2026-06-01 코드 기준) — 앱이 진화하면 갱신 필요. 자매 문서 <a href="./user-simulation.html">user-simulation.html</a>.
+</footer>
+
+</div>
+</body>
+</html>
