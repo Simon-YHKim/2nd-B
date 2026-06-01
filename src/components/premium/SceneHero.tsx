@@ -186,10 +186,20 @@ export function SceneHero({
                 ]}
               />
             </Animated.View>
-            <View style={[styles.bubble, { left: bubbleLeft, bottom: bubbleBottom, width: bubbleWidth }]}>
+            <Animated.View
+              style={[
+                styles.bubble,
+                {
+                  left: bubbleLeft,
+                  bottom: bubbleBottom,
+                  width: bubbleWidth,
+                  transform: [{ translateX: ownerTranslateX }],
+                },
+              ]}
+            >
               <Text variant="body" style={styles.bubbleText}>{speech}</Text>
               <View style={[styles.bubbleTail, { left: tailLeft }]} />
-            </View>
+            </Animated.View>
           </View>
         </View>
 
