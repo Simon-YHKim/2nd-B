@@ -10,7 +10,7 @@ import { View, StyleSheet, Pressable } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { PremiumButton } from "@/components/premium";
-import { semantic, cosmic, radii, spacing, typography } from "@/lib/theme/tokens";
+import { semantic, radii, spacing, typography } from "@/lib/theme/tokens";
 import {
   TARGET_CATEGORIES,
   type ClipperAiProperty,
@@ -195,7 +195,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
                 placeholder={locale === "ko" ? "속성 키 (예: topic-area)" : "key (e.g. topic-area)"}
                 autoCapitalize="none"
                 autoCorrect={false}
-                style={{ flex: 1 }}
+                style={styles.propNameInput}
               />
               <Pressable
                 onPress={() => removeProp(i)}
@@ -374,9 +374,9 @@ function TagField({
 const styles = StyleSheet.create({
   wrap: { gap: spacing.lg },
   headerRow: { gap: 2 },
-  eyebrow: { letterSpacing: 1, fontWeight: "700" },
+  eyebrow: { letterSpacing: 0, fontWeight: "700" },
   field: { gap: spacing.xs },
-  fieldLabel: { letterSpacing: 0.5, fontWeight: "600" },
+  fieldLabel: { letterSpacing: 0, fontWeight: "600" },
   area: { minHeight: 56, paddingTop: spacing.sm },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   selChip: {
@@ -386,6 +386,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     backgroundColor: semantic.surfaceAlt,
+    minHeight: 44,
+    justifyContent: "center",
   },
   selChipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   selChipText: { color: semantic.textMuted, fontSize: typography.sizes.sm, fontWeight: "600" },
@@ -398,13 +400,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: semantic.border,
     backgroundColor: semantic.surfaceAlt,
+    minHeight: 44,
+    justifyContent: "center",
   },
   tagChipText: { color: semantic.textMuted, fontSize: typography.sizes.xs, fontWeight: "600" },
   tagInputRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, minWidth: 140, flex: 1 },
-  tagInput: { flex: 1, minHeight: 38 },
+  tagInput: { flex: 1, minHeight: 44 },
   tagAddBtn: {
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
     borderRadius: radii.sm,
     borderWidth: 1,
     borderColor: semantic.brand,
@@ -420,8 +424,9 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
     padding: spacing.sm,
   },
-  propTopRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  propRemove: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
+  propTopRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.sm },
+  propNameInput: { flexGrow: 1, flexShrink: 1, minWidth: 180 },
+  propRemove: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, minHeight: 44, justifyContent: "center" },
   addPropBtn: {
     alignSelf: "flex-start",
     borderWidth: 1,
@@ -430,11 +435,13 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    minHeight: 44,
+    justifyContent: "center",
   },
   errorBox: {
     gap: spacing.xs,
     borderWidth: 1,
-    borderColor: cosmic.guardRose,
+    borderColor: semantic.danger,
     borderLeftWidth: 3,
     borderRadius: radii.md,
     padding: spacing.md,

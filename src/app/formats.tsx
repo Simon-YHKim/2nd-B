@@ -23,7 +23,7 @@ import {
   PremiumToast,
 } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import {
@@ -265,7 +265,7 @@ export default function Formats() {
               />
 
               <PremiumButton
-                label={locale === "ko" ? "+ 형식 추가" : "+ Add format"}
+                label={locale === "ko" ? "형식 추가" : "Add format"}
                 variant="primary"
                 onPress={() => setAdding(true)}
                 full
@@ -340,7 +340,7 @@ export default function Formats() {
                     partition.mine.map((t) => (
                       <PremiumCard
                         key={t.id}
-                        accent={cosmic.soulViolet}
+                        accent={VILLAGE_UI.knowledge.accent}
                         eyebrow={metaOf(t)}
                         title={nameOf(t)}
                         right={
@@ -376,7 +376,7 @@ export default function Formats() {
                             label={locale === "ko" ? "편집" : "Edit"}
                             variant="secondary"
                             onPress={() => setEditing(t)}
-                            style={{ flex: 1 }}
+                            style={styles.editAction}
                           />
                           <Pressable
                             onPress={() => setConfirmDelete(t)}
@@ -488,9 +488,16 @@ const styles = StyleSheet.create({
   scroll: { gap: spacing.md, paddingBottom: spacing.xl },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   sectionHead: { marginTop: spacing.sm },
-  sectionEyebrow: { letterSpacing: 1, fontWeight: "700" },
+  sectionEyebrow: { letterSpacing: 0, fontWeight: "700" },
   shareNote: { marginTop: spacing.xs },
-  cardActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
+  cardActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "stretch",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  editAction: { flexGrow: 1, flexShrink: 1, minWidth: 120 },
   deleteLink: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
@@ -501,6 +508,6 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
   },
   communityEmpty: { lineHeight: 20 },
-  modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
+  modalActions: { gap: spacing.sm, marginTop: spacing.xs },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
