@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { JudgeBadge } from "@/components/auth/JudgeBadge";
 import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
-import { ageInYears, signUpWithEmail, AgeGateError } from "@/lib/supabase/auth";
+import { ageInYears, signUpWithEmail, AgeGateError, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { isJudgeEmail } from "@/lib/judge/domains";
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
@@ -25,7 +25,7 @@ export default function SignUp() {
 
   const judge = useMemo(() => isJudgeEmail(email), [email]);
   const canSubmit = useMemo(() => {
-    return email.includes("@") && password.length >= 8 && ageInYears(birthDate) >= 18 && !submitting;
+    return email.includes("@") && password.length >= 8 && ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE && !submitting;
   }, [email, password, birthDate, submitting]);
 
   async function handleSubmit(): Promise<void> {
@@ -108,7 +108,7 @@ export default function SignUp() {
             <View style={styles.checklist}>
               <ChecklistItem ok={email.includes("@")} label={email.includes("@") ? t("signUp.checkEmail") : t("signUp.checkEmailMissing")} />
               <ChecklistItem ok={password.length >= 8} label={password.length >= 8 ? t("signUp.checkPassword") : t("signUp.checkPasswordShort")} />
-              <ChecklistItem ok={ageInYears(birthDate) >= 18} label={ageInYears(birthDate) >= 18 ? t("signUp.checkAge") : t("signUp.checkAgeBlocked")} />
+              <ChecklistItem ok={ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE} label={ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE ? t("signUp.checkAge") : t("signUp.checkAgeBlocked")} />
             </View>
           ) : null}
           <Button

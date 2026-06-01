@@ -1,6 +1,6 @@
 // Post-OAuth profile completion. Users who sign in via Google land here when
 // the public.users row doesn't exist yet — we need their date of birth to
-// satisfy C10 (18+ gate) before letting them into the app.
+// satisfy C10 (age gate) before letting them into the app.
 
 import { useMemo, useState } from "react";
 import { Image, View, StyleSheet, Alert, ScrollView } from "react-native";
@@ -12,7 +12,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
-import { ageInYears, ensureUserProfile, AgeGateError, signOut } from "@/lib/supabase/auth";
+import { ageInYears, ensureUserProfile, AgeGateError, signOut, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
@@ -25,7 +25,7 @@ export default function CompleteProfile() {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const canSubmit = useMemo(() => {
-    return userId !== null && ageInYears(birthDate) >= 18 && !submitting;
+    return userId !== null && ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE && !submitting;
   }, [userId, birthDate, submitting]);
 
   // Already has a profile — bounce to journal. Possible if the user navigates
@@ -48,7 +48,7 @@ export default function CompleteProfile() {
     } catch (e) {
       if (e instanceof AgeGateError) {
         Alert.alert(t("errors.ageGate"));
-        // C10: under-18 OAuth users are signed out immediately so the
+        // C10: under-14 OAuth users are signed out immediately so the
         // session doesn't linger after the prompt is rejected.
         try {
           await signOut();
@@ -104,8 +104,8 @@ export default function CompleteProfile() {
           {birthDate.length > 0 ? (
             <View style={styles.checklist}>
               <ChecklistItem
-                ok={ageInYears(birthDate) >= 18}
-                label={ageInYears(birthDate) >= 18 ? t("signUp.checkAge") : t("signUp.checkAgeBlocked")}
+                ok={ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE}
+                label={ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE ? t("signUp.checkAge") : t("signUp.checkAgeBlocked")}
               />
             </View>
           ) : null}

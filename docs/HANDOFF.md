@@ -741,7 +741,7 @@ CI-enforced via `npm run check:constraints`. C1–C10 + C12 PASS; C11 PARTIAL.
 | C7 | i18n EN ↔ KO key parity, EN canonical | `scripts/check-i18n-keys.ts` |
 | C8 | `knowledge_sources` requires DOI/URL + verification pair | migration 0007 + 0014 |
 | C9 | `classifyInput()` runs before any LLM call; red zone short-circuits | `src/lib/llm/gemini.ts` + `src/lib/safety/classifier.ts` |
-| C10 | Sign-up requires birth_date ≥ 18 (UI + auth + DB CHECK) | migration 0002 + `src/lib/supabase/auth.ts` + `BirthDateField` |
+| C10 | Age-tiered sign-up: 18+/14-17 self-consent direct; <14 guardian consent (PIPA §22-2) | migration 0028 + `src/lib/supabase/auth.ts` + `BirthDateField` |
 | C11 | Support SLA = 2 business days (KST) | README §Support · auto-responder Sprint 1 |
 | C12 | README "Pre-existing assets used" section | README §Pre-existing assets |
 

@@ -83,9 +83,12 @@ Enforcement (phased rollout):
 - **DB — done (`db/migrations/0028`):** flat 18+ CHECK replaced by
   `users_birth_date_sane`; adds `account_status`, `minor_tier`, and the
   `guardian_consents` table with per-user RLS.
-- **Client — pending (PR-3):** `auth.ts` still throws `AgeGateError` < 18; the
-  schema is open but the gate is not yet lowered (this step is behaviorally inert).
-- **Safety — pending (PR-2):** age-aware crisis routing (minors → youth hotline).
+- **Client — done:** `auth.ts` gates at `MIN_SELF_CONSENT_AGE` (14). 14-17
+  self-consent and 18+ register directly; under-14 still throw `AgeGateError`
+  pending the guardian-consent flow.
+- **Safety — capability done (`KR_1388`):** the classifier supports age-aware
+  routing (minor → youth line); threading the minor flag through the record/LLM
+  chain is the next step.
 
 CI: `check:constraints` asserts the guardian-consent schema + client age logic;
 `supabase-dry-run` asserts `users_birth_date_sane` + `guardian_consents`.
