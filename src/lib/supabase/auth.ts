@@ -1,6 +1,8 @@
-// C6/C10: client-side guards for sign-up.
-// DB-level CHECK in 0028_minor_consent.sql (users_birth_date_sane) is the
-// second line of defense.
+// C6/C10: client-side guards for sign-up (fast UX fail). The AUTHORITATIVE age
+// gate is server-side: the BEFORE INSERT trigger in 0030_server_age_gate.sql
+// rejects under-14 and derives minor_tier / account_status from birth_date, so a
+// direct-API insert can't bypass the floor or inject a false tier. The
+// users_birth_date_sane CHECK (0028) is a further backstop.
 
 import dayjs from "dayjs";
 import { isJudgeEmail } from "../judge/domains";

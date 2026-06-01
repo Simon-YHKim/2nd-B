@@ -184,18 +184,26 @@ results.push(
       lock.includes("DROP POLICY IF EXISTS guardian_consents_select_own") &&
       lock.includes("DROP POLICY IF EXISTS guardian_consents_insert_own") &&
       lock.includes("NOT IN USE");
+    // Server-side age gate (0030): a BEFORE INSERT trigger derives minor_tier /
+    // account_status and rejects under-14, so the floor is not client-only.
+    const serverGate = read("db/migrations/0030_server_age_gate.sql");
+    const serverEnforced =
+      serverGate.includes("enforce_user_age_tier") &&
+      serverGate.includes("age_years < 14") &&
+      serverGate.includes("BEFORE INSERT");
     const ok =
       sql.includes("guardian_consents") &&
       sql.includes("pending_guardian_consent") &&
       sql.includes("minor_tier") &&
       auth.includes("ageInYears") &&
-      lockedDown;
+      lockedDown &&
+      serverEnforced;
     return {
       id: "C10",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "age-tier schema + client age logic; guardian_consents locked to service_role (0029, NOT IN USE until PR-4)"
-        : "age-tier/guardian-consent enforcement missing or guardian_consents not locked down",
+        ? "age-tier schema + client age logic; server trigger enforces >=14 (0030); guardian_consents locked (0029)"
+        : "age-tier / server gate / guardian-consent lockdown incomplete",
     };
   }),
 );
