@@ -1,4 +1,10 @@
-import { PRIVACY_PREF_KEYS, defaultPrivacyPrefs, resolvePrivacyPrefs } from "../prefs";
+import {
+  PRIVACY_PREF_KEYS,
+  defaultPrivacyPrefs,
+  resolvePrivacyPrefs,
+  isPrivacyPrefEditable,
+  MINOR_PROMOTABLE_KEYS,
+} from "../prefs";
 
 describe("privacy prefs (task D)", () => {
   test("default is privacy-by-design — every key OFF", () => {
@@ -33,5 +39,24 @@ describe("privacy prefs (task D)", () => {
       "persona_share",
       "long_term_memory",
     ]);
+  });
+
+  describe("minor lock (task B1)", () => {
+    test("adults may toggle every key", () => {
+      for (const k of PRIVACY_PREF_KEYS) {
+        expect(isPrivacyPrefEditable(k, false)).toBe(true);
+      }
+    });
+
+    test("minors may only promote long_term_memory; all outward keys are locked", () => {
+      for (const k of PRIVACY_PREF_KEYS) {
+        const editable = isPrivacyPrefEditable(k, true);
+        expect(editable).toBe(k === "long_term_memory");
+      }
+    });
+
+    test("the only minor-promotable key is long_term_memory", () => {
+      expect([...MINOR_PROMOTABLE_KEYS]).toEqual(["long_term_memory"]);
+    });
   });
 });

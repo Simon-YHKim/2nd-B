@@ -11,6 +11,7 @@ jest.mock("../client", () => {
 
 import {
   recordConsent,
+  recordConsentBestEffort,
   CONSENT_VERSION,
   PRIVACY_POLICY_VERSION,
   TERMS_VERSION,
@@ -77,5 +78,41 @@ describe("recordConsent", () => {
     expect(CONSENT_VERSION.length).toBeGreaterThan(0);
     expect(PRIVACY_POLICY_VERSION.length).toBeGreaterThan(0);
     expect(TERMS_VERSION.length).toBeGreaterThan(0);
+  });
+
+  describe("recordConsentBestEffort (sign-up path)", () => {
+    test("returns true and writes when the ledger is available", async () => {
+      __insert.mockResolvedValueOnce({ error: null });
+      const ok = await recordConsentBestEffort({
+        userId: "u1",
+        ageBand: "adult",
+        locale: "en",
+        purposes: ["service"],
+        requiredAck: true,
+        llmProcessingAck: true,
+        overseasTransferAck: true,
+        sensitiveDataAck: true,
+      });
+      expect(ok).toBe(true);
+      expect(__mock.from).toHaveBeenCalledWith("consent_records");
+    });
+
+    test("swallows a DB error (table missing pre-migration) and returns false", async () => {
+      __insert.mockResolvedValueOnce({ error: new Error('relation "consent_records" does not exist') });
+      const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const ok = await recordConsentBestEffort({
+        userId: "u1",
+        ageBand: "minor_self",
+        minorTier: "minor_self",
+        locale: "ko",
+        purposes: ["service"],
+        requiredAck: true,
+        llmProcessingAck: true,
+        overseasTransferAck: true,
+        sensitiveDataAck: true,
+      });
+      expect(ok).toBe(false); // never throws -> sign-up is not blocked
+      warn.mockRestore();
+    });
   });
 });
