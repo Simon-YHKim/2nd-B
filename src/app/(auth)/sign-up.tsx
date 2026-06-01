@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { JudgeBadge } from "@/components/auth/JudgeBadge";
-import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { ageInYears, signUpWithEmail, AgeGateError, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { isJudgeEmail } from "@/lib/judge/domains";
 
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: radii.md,
     padding: spacing.lg,
     shadowColor: cosmic.soulViolet,
     shadowOpacity: 0.2,
