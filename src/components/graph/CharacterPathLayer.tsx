@@ -52,16 +52,17 @@ const DEFAULT_SPRITE = 22;
 // Constant walking pace (px per ms) — each worker's period is DERIVED from its
 // route length, so a worker on a long tour never sprints to hold a fixed period.
 const SPEED = 0.032;
-const ARC = 4;      // small px hop lifted at each leg's mid-point
+const ARC = 2;      // slight px body bob; keep feet visually tied to the ground
 const DWELL = 0.08; // brief look-around pause at each stop
 const MIN_PERIOD = 7000; // floor so a short route still ambles
 const BUBBLE_MS = 3600;  // how long a tapped worker's self-talk lingers
 const BUBBLE_W = 156;    // fixed bubble width so it can center over the sprite
 const ACTIVE_SPEECH_LAYER = 60;
 const WORKER_LAYER = 2;
-const FOOT_INSET_RATIO = 0.08;
+const FOOT_INSET_RATIO = 0.13;
 const SHADOW_WIDTH_RATIO = 0.78;
 const SHADOW_HEIGHT_RATIO = 0.18;
+const CONTACT_WIDTH_RATIO = 0.42;
 // Stable per-worker phase (ms) so the village never steps in lockstep. Keyed by
 // worker id so the offset survives remounts (global-clock continuity).
 const PHASE: Record<WorkerId, number> = {
@@ -147,12 +148,15 @@ function Worker({
   const footInset = Math.max(1, Math.round(spriteSize * FOOT_INSET_RATIO));
   const shadowWidth = Math.max(10, Math.round(spriteSize * SHADOW_WIDTH_RATIO));
   const shadowHeight = Math.max(3, Math.round(spriteSize * SHADOW_HEIGHT_RATIO));
+  const contactWidth = Math.max(6, Math.round(spriteSize * CONTACT_WIDTH_RATIO));
+  const contactHeight = 2;
   const slotWidth = Math.round(spriteSize * 1.28);
   const slotHeight = spriteSize + ARC + shadowHeight + footInset + 4;
   const groundY = slotHeight - 1;
   const spriteTop = Math.max(0, groundY - spriteSize - lift + footInset);
   const spriteLeft = (slotWidth - spriteSize) / 2;
   const shadowLeft = (slotWidth - shadowWidth) / 2;
+  const contactLeft = (slotWidth - contactWidth) / 2;
   const bubbleBottom = slotHeight - spriteTop + 4;
 
   return (
@@ -178,7 +182,19 @@ function Worker({
             borderRadius: shadowHeight / 2,
             left: shadowLeft,
             top: groundY - shadowHeight,
-            opacity: pose.resting ? 0.62 : Math.max(0.34, 0.56 - lift * 0.04),
+            opacity: pose.resting ? 0.7 : Math.max(0.46, 0.62 - lift * 0.05),
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.footContact,
+          {
+            width: contactWidth,
+            height: contactHeight,
+            left: contactLeft,
+            top: groundY - Math.max(1, Math.round(shadowHeight * 0.46)),
+            opacity: pose.resting ? 0.72 : Math.max(0.42, 0.62 - lift * 0.06),
           },
         ]}
       />
@@ -227,13 +243,19 @@ const styles = StyleSheet.create({
   },
   groundShadow: {
     position: "absolute",
-    backgroundColor: "rgba(2,4,10,0.68)",
+    backgroundColor: "rgba(2,4,10,0.76)",
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.34)",
-    shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.3,
-    shadowRadius: 7,
+    borderColor: "rgba(232,236,248,0.12)",
+    shadowColor: "#000",
+    shadowOpacity: 0.28,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
+  },
+  footContact: {
+    position: "absolute",
+    borderRadius: 2,
+    backgroundColor: "rgba(114,242,199,0.34)",
+    zIndex: 1,
   },
   bubbleWrap: {
     position: "absolute",
