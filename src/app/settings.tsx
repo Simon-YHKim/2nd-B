@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/Input";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
-import { AppNav } from "@/components/ui/AppNav";
 import { useTheme } from "@/lib/theme/ThemeContext";
 import {
   deleteAllChatUsage,
@@ -368,7 +367,6 @@ export default function Settings() {
             }}
           />
         </View>
-        <AppNav locale={locale} />
       </ScrollView>
     </PremiumAppShell>
   );

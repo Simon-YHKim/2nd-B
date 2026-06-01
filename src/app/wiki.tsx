@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { AppNav } from "@/components/ui/AppNav";
 import { deleteWikiPage, getBacklinks, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import { exportUserWiki } from "@/lib/wiki/export";
 import { readPhase1, runPhase1 } from "@/lib/wiki/phase1";
@@ -724,7 +723,6 @@ export default function Wiki() {
             })}
           </View>
         )}
-        <AppNav locale={locale} />
       </ScrollView>
       {/* 모모 appears briefly to label the organized page (companion pack §3) */}
       {companion.moment ? (

@@ -12,7 +12,6 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { AppNav } from "@/components/ui/AppNav";
 import { deleteSource, listSources } from "@/lib/wiki/queries";
 import { runPhase1, readPhase1 } from "@/lib/wiki/phase1";
 import { generateSourcePage } from "@/lib/wiki/phase2";
@@ -385,7 +384,6 @@ export default function Inbox() {
             ))}
           </View>
         )}
-        <AppNav locale={locale} />
       </ScrollView>
     </PremiumAppShell>
   );

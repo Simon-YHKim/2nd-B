@@ -15,7 +15,6 @@ import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { AppNav } from "@/components/ui/AppNav";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 interface Source {
@@ -203,7 +202,6 @@ export default function Research() {
           </>
         )}
 
-        <AppNav locale={locale} />
       </ScrollView>
     </PremiumAppShell>
   );

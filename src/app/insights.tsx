@@ -13,7 +13,6 @@ import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { computeInsights, type InsightsResult } from "@/lib/journal/insights";
-import { AppNav } from "@/components/ui/AppNav";
 
 export default function Insights() {
   const { i18n } = useTranslation();
@@ -216,7 +215,6 @@ export default function Insights() {
           </View>
         ) : null}
 
-        <AppNav locale={locale} />
       </ScrollView>
     </PremiumAppShell>
   );
