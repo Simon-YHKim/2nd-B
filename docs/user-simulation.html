@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>2nd-Brain — 사용자 시뮬레이션 (A→Z)</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<style>
+  :root{
+    --bg:#06080f; --panel:#0b0f1d; --panel2:#0e1426;
+    --line:rgba(167,139,250,0.18); --line2:rgba(114,242,199,0.20);
+    --text:#e7e9f3; --dim:#9aa0b6; --faint:#6b7186;
+    --violet:#a78bfa; --mint:#72f2c7; --amber:#f4c777; --info:#7cc4ff;
+    --mono:"SFMono-Regular",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:Pretendard,system-ui,sans-serif;line-height:1.62;font-size:15px;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 120px}
+  header{padding:64px 0 28px;border-bottom:1px solid var(--line)}
+  h1{font-size:30px;letter-spacing:-0.4px;margin:0 0 8px}
+  .sub{color:var(--dim);font-size:15px;max-width:760px}
+  .eyebrow{color:var(--mint);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+  h2{font-size:21px;margin:54px 0 6px;letter-spacing:-0.3px;padding-top:10px}
+  h2 .n{color:var(--violet);font-variant-numeric:tabular-nums;margin-right:10px}
+  h3{font-size:16px;margin:30px 0 4px;color:var(--text)}
+  h3 .rt{color:var(--faint);font-family:var(--mono);font-size:12px;font-weight:400;margin-left:8px}
+  p{margin:8px 0}
+  a{color:var(--mint);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:var(--mono);font-size:12.5px;color:var(--mint);background:rgba(114,242,199,0.07);
+    padding:1px 5px;border-radius:4px;white-space:nowrap}
+  .ref{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+  .axis{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0 6px}
+  .axis .a{flex:1;min-width:220px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .axis .a .t{font-weight:700;color:var(--violet);font-size:13px}
+  .axis .a .d{color:var(--dim);font-size:13px;margin-top:3px}
+  .axis .a .tab{font-family:var(--mono);font-size:11px;color:var(--mint);margin-top:8px}
+
+  /* the perceive→press→logic→result loop */
+  .loop{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:14px 0 6px;background:var(--panel)}
+  .loop .row{display:grid;grid-template-columns:86px 1fr;border-top:1px solid rgba(255,255,255,0.05)}
+  .loop .row:first-child{border-top:none}
+  .loop .lab{font-size:11px;font-weight:700;letter-spacing:.5px;padding:12px 12px;text-transform:uppercase;
+    border-right:1px solid rgba(255,255,255,0.05)}
+  .loop .bd{padding:11px 15px;color:var(--text);font-size:14px}
+  .loop .bd .dim{color:var(--dim)}
+  .l-see .lab{color:var(--violet)} .l-tap .lab{color:var(--text)}
+  .l-sys .lab{color:var(--mint)} .l-out .lab{color:var(--amber)}
+  .l-sys .bd{background:rgba(114,242,199,0.035)}
+  ul{margin:8px 0;padding-left:20px} li{margin:3px 0}
+  .pipe{font-family:var(--mono);font-size:12px;color:var(--dim);background:var(--panel2);
+    border:1px solid var(--line2);border-radius:8px;padding:12px 14px;white-space:pre-wrap;line-height:1.7;margin:10px 0;overflow-x:auto}
+  .pipe b{color:var(--mint);font-weight:600}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.06);vertical-align:top}
+  th{color:var(--violet);font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+  td code{white-space:normal}
+  .tag{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:1px 7px;border-radius:20px;
+    border:1px solid var(--line);color:var(--dim);margin-right:4px}
+  .tag.c{border-color:var(--line2);color:var(--mint)}
+  .note{border-left:3px solid var(--amber);background:rgba(244,199,119,0.05);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0;color:var(--dim);font-size:13.5px}
+  .note b{color:var(--amber)}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:26px 0}
+  .toc ol{margin:0;padding-left:20px;columns:2;column-gap:30px}
+  .toc a{color:var(--text)} .toc li{margin:4px 0}
+  .legend{font-size:12px;color:var(--faint);margin-top:8px}
+  hr{border:none;border-top:1px solid var(--line);margin:40px 0}
+  .small{font-size:12.5px;color:var(--faint)}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--faint);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">2nd-Brain · 사용자 여정 시뮬레이션</div>
+  <h1>화면 인지 → 버튼 → 시스템 로직 → 결과, A부터 Z까지</h1>
+  <p class="sub">신규 사용자 <b>지민</b>이 앱을 처음 켜서 자기 자신을 데이터로 쌓아가는 한 세션을, 실제 코드 경로(<span class="ref">file:line</span>) 기준으로 따라간 문서. 각 화면은 <span style="color:var(--violet)">인지</span> · <span style="color:var(--text)">액션</span> · <span style="color:var(--mint)">로직</span> · <span style="color:var(--amber)">결과</span> 4단으로 분해했다.</p>
+  <p class="legend">근거: 5개 병렬 코드 트레이스(entry/gating · capture · 알아가기 · 비서·공상·형식 · 지식 표면). 모든 LLM은 <code>src/lib/llm/gemini.ts</code> 경유(C1), 호출 전 <code>classifyInput</code>(C9), 호출마다 <code>ai_audit_log</code>(C3).</p>
+</header>
+
+<!-- ───────────────────── OVERVIEW ───────────────────── -->
+<h2><span class="n">00</span>한눈에 — 세 축과 다섯 탭</h2>
+<p>앱의 명제는 <b>"AI 시대 가장 가치있는 자산 = 나 자신"을 데이터로 축적</b>하는 것. 세 축이 하단 5개 탭(<code>PRIMARY_TAB_PATHS</code> <span class="ref">lib/nav/tabs.ts:9</span>)에 매핑된다.</p>
+<div class="axis">
+  <div class="a"><div class="t">축1 · 알아가기</div><div class="d">평가·인터뷰로 나를 측정 → 페르소나로 합성</div><div class="tab">→ 마을(/) · /core-brain · /persona</div></div>
+  <div class="a"><div class="t">축2 · 개인 비서 기반</div><div class="d">내 위키를 근거로 답하는 RAG 비서</div><div class="tab">→ /jarvis</div></div>
+  <div class="a"><div class="t">축3 · 공상→구체화</div><div class="d">막연한 생각을 구조화된 5카드로</div><div class="tab">→ /imagine</div></div>
+</div>
+<p class="small">나머지 두 탭: <code>/</code> 마을(별자리 홈) · <code>/capture</code> 담기(핵심 루프) · <code>/profile</code>. 탭 화면에선 <code>BackArrow</code>가 숨고, 그 외 화면에선 좌상단 ←.</p>
+
+<h3>데이터가 흐르는 길 — "뇌가 자란다"의 실체</h3>
+<div class="pipe">담기(capture) ──▶ <b>sources</b> 테이블 (본문은 Storage, 메타는 frontmatter jsonb)
+        │
+        ▼  /inbox 분류 큐
+   <b>Phase 1</b> "요약 + 질문 4개"  ──▶ runPhase1 ──▶ Gemini(knowledge_lookup, flash)
+            ──▶ sources.frontmatter.__phase1__ 에 저장
+        │
+        ▼
+   <b>Phase 2</b> "위키 페이지 만들기" ──▶ generateSourcePage
+            ──▶ <b>wiki_pages</b> 행 + <b>wiki_links</b> 엣지([[wikilink]]) + sources.ingested=true
+        │
+        ▼
+   /wiki  (그래프 목록 · 펄스 스트립: Pieces/Links/Orphans)
+        │  promote된 위키 페이지 = 별 하나
+        ▼
+   /  마을  (NavGraph가 wiki_pages를 domainForTags로 마을에 배치)</div>
+<p class="small">즉 홈 별자리의 별들은 <b>당신이 승격시킨 <code>wiki_pages</code></b>다. 담기만 하고 분류 안 하면 마을은 비어 있다(inbox에만 쌓임).</p>
+
+<div class="toc">
+  <b style="font-size:12px;color:var(--mint);letter-spacing:1px">여정 차례</b>
+  <ol>
+    <li><a href="#a0">콜드 스타트 → 인증 게이트</a></li>
+    <li><a href="#a1">회원가입 (C10 나이 게이트)</a></li>
+    <li><a href="#a2">셀-팀 인트로 + 온보딩</a></li>
+    <li><a href="#a3">첫 화면 — 조용한 마을</a></li>
+    <li><a href="#a4">첫 담기 — 핵심 루프</a></li>
+    <li><a href="#a5">받은편지함 분류 (Phase 1·2)</a></li>
+    <li><a href="#a6">알아가기 (축1) — 평가·인터뷰·페르소나</a></li>
+    <li><a href="#a7">세컨비 (축2) — RAG 비서</a></li>
+    <li><a href="#a8">공상 (축3) — 상상하기</a></li>
+    <li><a href="#a9">형식·기록·인사이트 (부속 표면)</a></li>
+    <li><a href="#a10">안전 오버레이 — 레드존</a></li>
+    <li><a href="#ref">레퍼런스 + QA 관찰</a></li>
+  </ol>
+</div>
+
+<!-- ───────────────────── ACT 0 ───────────────────── -->
+<h2 id="a0"><span class="n">01</span>콜드 스타트 → 인증 게이트</h2>
+<div class="loop">
+  <div class="row l-see"><div class="lab">인지</div><div class="bd">앱을 켜면 폰트 로딩 동안 짧은 <code>InlineLoader</code>(스피너)만. 인터랙션 없음. <span class="dim ref">_layout.tsx:37</span></div></div>
+  <div class="row l-tap"><div class="lab">액션</div><div class="bd">없음 — 순수 분기 로직.</div></div>
+  <div class="row l-sys"><div class="lab">로직</div><div class="bd"><code>AuthProvider</code>가 <code>supabase.auth.getSession()</code> 호출 <span class="ref">AuthContext.tsx:64</span>. 세션 있으면 <code>SELECT id FROM users</code>로 프로필 확인(8초 타임아웃 → false). 그다음 <code>/index</code>가 4단 가드를 통과시킨다 <span class="ref">index.tsx:184-189</span>.</div></div>
+  <div class="row l-out"><div class="lab">결과</div><div class="bd">미로그인 → <code>/sign-in</code> 리다이렉트. 프로필 없음 → <code>/complete-profile</code>. 온보딩 미완 → <code>/onboarding</code>. 전부 통과 → 마을.</div></div>
+</div>
+<p class="small">지민은 신규라 <code>userId</code>가 없다 → 즉시 <code>&lt;Redirect href="/sign-in" /&gt;</code>.</p>
+
+<!-- ───────────────────── ACT 1 ───────────────────── -->
+<h2 id="a1"><span class="n">02</span>회원가입 — 나이 게이트(C10)와 심사위원 플래그(C6)</h2>
+<h3>/sign-in <span class="rt">src/app/(auth)/sign-in.tsx</span></h3>
+<div class="loop">
+  <div class="row l-see"><div class="lab">인지</div><div class="bd">어두운 코스믹 하늘 + SecondB 게이트 히어로(188px). "밤빛 조각마을에 들어가기". 프로스티드 카드 안 이메일·비밀번호. Google 2차 버튼, 비번 찾기, <code>/sign-up</code> 링크.</div></div>
+  <div class="row l-tap"><div class="lab">액션</div><div class="bd">지민은 계정이 없으니 <b>"회원가입"</b> 링크 → <code>/sign-up</code>. (기존 사용자는 <code>handleSubmit</code> <span class="ref">sign-in.tsx:70</span> → <code>signInWithPassword</code> → <code>router.replace("/")</code>.)</div></div>
+  <div class="row l-sys"><div class="lab">로직</div><div class="bd">로그인 실패는 <b>일반 오류 메시지</b>로 통일 — 이메일 존재 여부 노출 차단(CSO R3). LLM·안전분류·감사 없음.</div></div>
+  <div class="row l-out"><div class="lab">결과</div><div class="bd">성공 시 루트로 → <code>/index</code> 재게이트. 신규는 <code>/sign-up</code>으로 이동.</div></div>
+</div>
+<h3>/sign-up <span class="rt">src/app/(auth)/sign-up.tsx</span></h3>
+<div class="loop">
+  <div class="row l-see"><div class="lab">인지</div><div class="bd">이메일·비밀번호·<code>BirthDateField</code>(생년월일 피커). 한 필드라도 건드리면 <b>3조건 라이브 체크리스트</b>: 유효 이메일 · 비번 ≥ 8 · 나이 ≥ 18. 이메일 도메인이 <code>xprize.org/devpost.com/hacker.fund</code>면 <b>JudgeBadge</b>가 자동 등장(C6) <span class="ref">sign-up.tsx:26</span>.</div></div>
+  <div class="row l-tap"><div class="lab">액션</div><div class="bd">"계정 만들기" → <code>handleSubmit</code> <span class="ref">sign-up.tsx:31</span>. <code>canSubmit</code>이 <code>ageInYears(birthDate) >= 18</code>를 포함해 미만이면 버튼 자체가 비활성.</div></div>
+  <div class="row l-sys"><div class="lab">로직</div><div class="bd"><b>C10 3중 방어</b>: ① UI <code>canSubmit</code> → ② 클라 <code>signUpWithEmail</code>이 <code>ageInYears&lt;18</code>이면 네트워크 전에 <code>AgeGateError</code> throw <span class="ref">auth.ts:36</span> → ③ DB <code>CHECK(birth_date ≤ now-18y)</code>(migration 0002). 통과 시 <code>auth.signUp</code> → 세션 확보 → <code>users</code> INSERT(<code>judge_mode</code>는 <code>isJudgeEmail</code> + DB 트리거 <code>auto_judge_mode</code>로 권위 부여).</div></div>
+  <div class="row l-out"><div class="lab">결과</div><div class="bd"><code>router.replace("/")</code> → <code>hasProfile=true</code> → 첫 실행이므로 <code>/onboarding</code>.</div></div>
+</div>
+<div class="note"><b>비대칭 주의:</b> Google OAuth 사용자는 세션이 먼저 생기므로, <code>/complete-profile</code>에서 18세 미만이면 <code>AgeGateError</code> 시 <b>즉시 <code>signOut()</code></b>으로 세션을 끊는다 <span class="ref">complete-profile.tsx:49</span>. 이메일 가입은 네트워크 전에 막혀 이 처리가 불필요.</div>
+
+<!-- ───────────────────── ACT 2 ───────────────────── -->
+<h2 id="a2"><span class="n">03</span>셀-팀 인트로 + 온보딩</h2>
+<div class="loop">
+  <div class="row l-see"><div class="lab">인지</div><div class="bd"><b>로그인 직후</b> <code>IntroGate</code>가 <code>LoadingScreen</code> 재생: 25개 한글 타자 메시지(밤하늘→마을 섬→길→나의 중심→환영), 코어 오브가 페이드아웃되며 세포팀이 "당신의 두번째 뇌를 짓는" 연출. <span class="ref">LoadingScreen.tsx</span></div></div>
+  <div class="row l-tap"><div class="lab">액션</div><div class="bd">준비되면 "탭해서 두번째 뇌를 열기" → 돌리 줌(scale 1→4) → <code>onContinue</code>. (탭 없어도 4초 후 자동 진행.) 세션당 1회만(<code>INTRO_SEEN_KEY</code>).</div></div>
+  <div class="row l-sys"><div class="lab">로직</div><div class="bd"><code>ready</code>가 실제 <code>!loading</code>(auth 해소)에 묶여 있어, 로더가 진짜 로딩을 반영. 끝나면 <code>/onboarding</code> 5스텝.</div></div>
+  <div class="row l-out"><div class="lab">결과</div><div class="bd">온보딩 마지막 "첫 조각 저장" → <code>markOnboardingComplete()</code> → <code>/journal(firstRun)</code>. "둘러보기" → 마을. <b>온보딩 완료는 기기-로컬에만 저장</b>(localStorage/AsyncStorage, Supabase 아님).</div></div>
+</div>
+<div class="note"><b>기기-로컬 한계:</b> 온보딩 완료 키 <code>onboarding.cosmicPixel.v2.completedAt</code>는 서버에 없다. 기기 변경·캐시 삭제 시 온보딩 재노출. 키의 <code>v2</code> 접미사를 올리면 전원 재온보딩.</div>
+
+<!-- ───────────────────── ACT 3 ───────────────────── -->
+<h2 id="a3"><span class="n">04</span>첫 화면 — 조용한 마을 (index.tsx)</h2>
+<div class="loop">
+  <div class="row l-see"><div class="lab">인지</div><div class="bd">코어 오브가 마을로 페이드인. <code>NavGraph</code>가 <code>wiki_pages</code>를 불러와 태그 기반 <code>domainForTags</code>로 마을에 배치 <span class="ref">index.tsx:155</span>. 신규라 비어 있어 <b>"아직 마을이 조용해요 · 첫 조각을 남기면 길이 조금씩 켜져요"</b> 카드가 전면 모달로. 상단엔 "오늘의 중심" 리본(Core Brain 음성, 매 방문 회전) + SecondB 마스코트(유휴 시 잠듦).</div></div>
+  <div class="row l-tap"><div class="lab">액션</div><div class="bd"><b>"첫 조각 남기기"</b> → <code>/journal(firstRun)</code> → 담기 <span class="ref">index.tsx:250</span>. 리본 탭 → <code>/core-brain</code>. 마을의 tier dot 탭 → 버블 → 확인 → <code>router.push</code>.</div></div>
+  <div class="row l-sys"><div class="lab">로직</div><div class="bd"><code>wiki_pages(id,title,tags)</code> SELECT 후 각 조각을 태그가 가리키는 마을에 클러스터링. SecondB 존재감은 <code>secondbPresence</code>(미열람 조각 있으면 알림 글리프, 유휴 시 sleep).</div></div>
+  <div class="row l-out"><div class="lab">결과</div><div class="bd">지민은 담기로 유도된다. 마을은 데이터가 쌓일수록 별이 늘고 길(엣지)이 켜진다.</div></div>
+</div>
+
+<!-- ───────────────────── ACT 4 ───────────────────── -->
+<h2 id="a4"><span class="n">05</span>첫 담기 — 핵심 루프 (capture.tsx, 1242줄)</h2>
+<div class="loop">
+  <div class="row l-see"><div class="lab">인지</div><div class="bd"><code>SceneHero</code> "01. 조각 담기 · 떠오른 조각을 마을로" + 일꾼 Lulu. <b>트랙 토글</b>(일상/Pro Wiki, 일기 모드선 숨김) · <b>5개 모드 탭</b>(일기·메모·링크/스크랩·이미지·문서) · 모드 설명 · 해시태그 추가칩 · <b>"영차영차 던지기"</b> 제출.</div></div>
+  <div class="row l-tap"><div class="lab">액션</div><div class="bd">5모드 각각:
+    <ul>
+      <li><b>일기</b>: 스트릭·오늘의 회전 프롬프트·본문·결론·Advisor 옵트인 → <code>handleJournalSubmit</code>(클리퍼 파이프라인 우회).</li>
+      <li><b>메모</b>: 자유 텍스트 → <code>handleSubmit</code>(태그 비우면 AI 자동태그).</li>
+      <li><b>링크/스크랩</b>: <code>classifyLinkOrClip</code>가 url/markdown 라이브 판별, 맨 URL은 본문으로 래핑.</li>
+      <li><b>이미지(OCR)</b>: 카메라/앨범 → <code>pickAndOcrImage</code> → <code>callGemini(capture_ocr)</code> → 텍스트 채움. <code>kind=self_knowledge</code> 강제.</li>
+      <li><b>문서</b>: <code>pickFile</code> → PDF/DOCX는 <code>pdfjs/mammoth</code> 동적 임포트(웹).</li>
+    </ul>
+  </div></div>
+  <div class="row l-sys"><div class="lab">로직</div><div class="bd">비-일기 모드의 분류+영속 파이프라인:
+  <div class="pipe">handleSubmit
+ └▶ classifyClipper(userId, body, url, locale)            <span class="ref">classify-clipper.ts:211</span>
+     ├ detectClipperKind(url)        → baselineKind (host 규칙: youtube→video …)
+     ├ listAccessibleTemplates()     → 내 형식 + 공유 형식
+     ├ <b>matchTemplateByUrl(url, 내 형식)</b>  → 매칭 시 kind 강제 + propSchema  ← 트리거 라우팅
+     ├ buildClipperPrompt(...)       → 8 canonical kind + 형식 hint(주입 방어 sanitize)
+     ├ <b>callGemini(clipper_classify)</b>      [C9 classifyInput 먼저 · C3 audit 후]
+     └ parseClipperResult(...)       → {kind,track,targetCategory,tags,props,summary}
+ └▶ captureFromMarkdown(...)                              <span class="ref">capture.ts:54</span>
+     ├ buildSourcePayload(frontmatter 파싱)
+     ├ uploadRawClipping → Supabase <b>Storage</b> (본문)
+     └ createSource → <b>sources</b> INSERT (simon_relevance 0–1 → 1–5 스케일)</div>
+  일기 경로는 <code>createRecord</code> → <code>callAdvisor</code>(다층 안전 + RAG <code>retrieveEvidence</code>) → <code>ai_followup</code> + <code>memorized_patterns</code> + <code>records</code> INSERT → XP 적립.</div></div>
+  <div class="row l-out"><div class="lab">결과</div><div class="bd">Lulu 컴패니언 플래시 + <b>"루루가 새 조각을 가져왔어요"</b> 성공 패널 + 제목 + [그래프 보기 / 또 담기]. <code>kind=inbox</code> & 본문 ≥120자면 <b>"새 형식 제안받기"</b> 옵트인 카드. 스트릭/XP 갱신.</div></div>
+</div>
+<table>
+  <tr><th>게이팅</th><th>위치</th><th>규칙</th></tr>
+  <tr><td>journalGate</td><td><span class="ref">gates.ts:30</span></td><td><code>checkGate("journal", totalXp)</code> → <b>Lv3</b> 필요(온보딩 오딧 20문항×10XP)</td></tr>
+  <tr><td>journalUsage</td><td><span class="ref">entitlements.ts:54</span></td><td>무료 티어 <b>2개/일</b>, <code>soma</code> 이상 무제한</td></tr>
+</table>
+
+<!-- ───────────────────── ACT 5 ───────────────────── -->
+<h2 id="a5"><span class="n">06</span>받은편지함 분류 — Phase 1·2 (inbox.tsx)</h2>
+<div class="loop">
+  <div class="row l-see"><div class="lab">인지</div><div class="bd">"받은편지함" + 일꾼 momo. 각 행: kind 칩(색 테두리)·날짜·제목·URL·태그. 승격된 행엔 초록 "Ingested" 배지. 행 아래 액션: "요약+질문 4개" / "위키 페이지 만들기" / "삭제".</div></div>
+  <div class="row l-tap"><div class="lab">액션</div><div class="bd">행 탭 → 펼치며 <code>downloadRawClipping</code>로 Storage 본문 로드. "요약+질문" → <code>handleRunPhase1</code> <span class="ref">inbox.tsx:104</span>. "위키 페이지 만들기" → <code>handleGeneratePage</code> <span class="ref">inbox.tsx:165</span>.</div></div>
+  <div class="row l-sys"><div class="lab">로직</div><div class="bd"><b>Phase 1</b>: <code>runPhase1</code> → <code>callGemini(knowledge_lookup, flash, responseSchema)</code> → 결과를 <code>sources.frontmatter.__phase1__</code>에 UPDATE. <b>Phase 2</b>: <code>generateSourcePage</code> → concepts를 태그로 병합 → <code>upsertWikiPage</code>(<code>wiki_pages</code>) → <code>syncWikiLinks</code>(본문 <code>[[wikilink]]</code> diff → <code>wiki_links</code>) → <code>markSourceIngested</code>.</div></div>
+  <div class="row l-out"><div class="lab">결과</div><div class="bd">Phase 1 후: 요약+질문4 Alert, 버튼이 "View Phase 1"로. Phase 2 후: 초록 배지 + "위키에서 보기". <b>이 순간 마을에 별이 하나 생긴다</b>(홈 <code>NavGraph</code>가 <code>wiki_pages</code>를 읽으므로).</div></div>
+</div>
+<div class="note"><b>삭제 가드:</b> <code>wiki_pages</code>의 CHECK 제약(<code>kind='source' ↔ source_id NOT NULL</code>) 때문에 승격된 source는 위키 페이지를 먼저 지워야 삭제 가능 — UI가 수동으로 막는다. 또한 <code>syncWikiLinks</code>는 클라에서 delete-then-insert 2콜이라 비트랜잭션(향후 Edge Function RPC 예정).</div>
+
+<!-- ───────────────────── ACT 6 ───────────────────── -->
+<h2 id="a6"><span class="n">07</span>알아가기 (축1) — 측정 → 합성</h2>
+<p>지민이 자신을 측정하는 도구들. 전부 <code>records</code>에 쌓이고, <code>buildPersona</code>가 합성한다.</p>
+<table>
+  <tr><th>화면</th><th>무엇</th><th>로직 핵심</th><th>LLM</th></tr>
+  <tr><td><b>/interview</b> <span class="ref">interview.tsx</span></td><td>생애 구술사. 5계층(사실→감정→의미→신념→메아리) 깊이 우선 탐침</td><td><code>nextProbe</code>가 <code>nextLayerSuggestion</code>(결정적)로 다음 계층 정하고 질문 생성. 25칸 <code>DrillProgress</code></td><td><span class="tag c">interview_probe</span></td></tr>
+  <tr><td><b>/big-five</b> <span class="ref">big-five.tsx</span></td><td>BFI-44(검증된 빅파이브, 44문항)</td><td><code>scoreBfi</code> 순수 클라 채점(역코딩). <code>records(kind=note, tags=bfi)</code></td><td>없음</td></tr>
+  <tr><td><b>/mbti</b> <span class="ref">mbti.tsx</span></td><td>32문항 MBTI 스크리너(검증력 약함 명시)</td><td><code>scoreMbti</code> 라이브. 4글자 유형 + 점수</td><td>없음</td></tr>
+  <tr><td><b>/persona</b> <span class="ref">persona.tsx</span></td><td>합성 자아 허브 "07. 나의 모습"</td><td><code>buildPersona</code> 종합(아래)</td><td><span class="tag c">persona_chat</span></td></tr>
+  <tr><td><b>/core-brain</b> <span class="ref">core-brain.tsx</span></td><td>"나의 중심" 방향성 뷰 + 24조각 증거 서랍 + 5필드 자화상</td><td>24행 → <code>buildPersona</code> → <code>buildCenterCards</code>/<code>buildSelfPortrait</code></td><td><span class="tag c">persona_chat</span></td></tr>
+  <tr><td><b>/trinity</b> <span class="ref">trinity.tsx</span></td><td>"4영역 관리"(건강/앱/뇌/재정) 태그 대시보드</td><td><code>classifyDomain</code>+<code>computeStats</code> 순수 집계, 읽기 전용</td><td>없음</td></tr>
+  <tr><td><b>/insights</b> <span class="ref">insights.tsx</span></td><td>"인사이트" 패턴 파놉티콘(주간 활동·태그·주제 빈도)</td><td><code>computeInsights</code> 순수, 읽기 전용</td><td>없음</td></tr>
+</table>
+<h3>buildPersona — 합성의 심장 <span class="rt">src/lib/persona/build.ts:212</span></h3>
+<div class="pipe">buildPersona(userId, locale)
+ ① records(kind="audit_response") 전체 fetch
+ ② scoreFromAnswers()        → 키워드 휴리스틱 traits  (source: "heuristic")
+ ③ loadLatestBfi()           → 있으면 1–5→0–1 정규화, <b>traits 덮어씀</b> (source: "bfi")
+ ④ loadLatestMbti() / loadLatestAttachment() / loadMemorizedHistogram()  ← 가산 레이어
+ ⑤ <b>callGemini(persona_chat)</b>  [C9·C3]  → 내러티브 요약
+ ⑥ PersonaCard 조립 + <b>personas</b> 테이블 upsert</div>
+<div class="loop">
+  <div class="row l-see"><div class="lab">인지</div><div class="bd">데이터 없으면 빈 상태(일꾼 archi + 4개 진입점: 라이프오딧/BFI/MBTI/ECR-S). 있으면 합성 부제 + 트레잇 막대(0–100, 중앙선 50) + AI 내러티브 + 상위 패턴 + MBTI/애착 카드.</div></div>
+  <div class="row l-tap"><div class="lab">액션</div><div class="bd">마운트 시 <code>buildPersona</code> 자동. "나의 중심 보기" → <code>/core-brain</code>. "Markdown 내보내기" → <code>Share.share(markdownExport)</code>. 재검사 버튼 → 각 평가로.</div></div>
+  <div class="row l-sys"><div class="lab">로직</div><div class="bd">BFI가 휴리스틱을 무조건 이기고, MBTI/애착은 옆에 가산. 인터뷰 transcript는 <code>audit_response</code>로서 휴리스틱과 persona_chat 요약 둘 다에 기여.</div></div>
+  <div class="row l-out"><div class="lab">결과</div><div class="bd">측정할수록 "추정"이 "실측"으로 승격(<code>traitsSource: heuristic → bfi</code>). 자화상 5필드 중 현재 <b>who·fuel만 실데이터로 채워짐</b>, 나머지는 "수집 중".</div></div>
+</div>
+<div class="note"><b>비용 관찰:</b> <code>/persona</code>와 <code>/core-brain</code>이 <b>각자 독립적으로</b> <code>buildPersona</code>를 호출 → 둘을 오가면 <code>persona_chat</code> Gemini 호출 + audit가 매번 중복(캐시·메모이즈 없음).</div>
+
+<!-- ───────────────────── ACT 7 ───────────────────── -->
+<h2 id="a7"><span class="n">08</span>세컨비 (축2) — RAG 비서 (jarvis.tsx)</h2>
+<div class="loop">
+  <div class="row l-see"><div class="lab">인지</div><div class="bd"><code>SceneHero</code> "06. 세컨비 대화" + 우상단 사용량 미터(<code>usedToday/limit</code>, 한도 근접 시 색 경고). 빈 상태엔 떠다니는 SecondB 스프라이트. 첫 세션만 인트로 모달.</div></div>
+  <div class="row l-tap"><div class="lab">액션</div><div class="bd">컴포저 전송 → <code>handleSend</code> <span class="ref">jarvis.tsx:153</span>. 빠른 액션 칩 → 초안 채움. 답변 버블 길게눌러 복사. 출처 칩 스트립 탭 → 레퍼런스 서랍.</div></div>
+  <div class="row l-sys"><div class="lab">로직</div><div class="bd">
+  <div class="pipe">sendChatMessage
+ ① <b>bumpChatUsageIfUnderCap</b>(RPC, 원자적) — 한도 초과면 ChatLimitExceeded, <b>Gemini 미호출</b>  (TOCTOU 차단)
+ ② exportUserWiki(50p×600자 + source 100개) → 시스템 프롬프트 (<b>전문 덤프 RAG, 벡터 아님</b>)
+ ③ classifyInput (C9)  → 레드존이면 routeCrisis (hotline, 미호출)
+ ④ <b>callGemini(jarvis_chat)</b>  (Edge Function gemini-proxy 경유 가능)  (C1)
+ ⑤ insertAiAuditLog (C3)
+ ⑥ parseSourceCitations([[slug]]) → 출처 칩</div></div></div>
+  <div class="row l-out"><div class="lab">결과</div><div class="bd">답변 버블 + <code>[[slug]]</code> 출처 칩 → 탭하면 <code>ReferenceShardCard</code> 서랍. 사용량 카운터 갱신. <b>대화는 서버에 영속되지 않음</b>(로컬 state만, <code>chat_usage</code> 행만 영속). 스트리밍 없음.</div></div>
+</div>
+<div class="note"><b>RAG 한계:</b> <code>exportUserWiki</code>는 위키 50페이지×600자 + 소스 100제목을 그냥 평문 블록으로 시스템 프롬프트에 넣는다. 임베딩·시맨틱 검색 없음 → 위키가 50페이지를 넘으면 오래된 내용이 조용히 잘림.</div>
+
+<!-- ───────────────────── ACT 8 ───────────────────── -->
+<h2 id="a8"><span class="n">09</span>공상 (축3) — 상상하기 (imagine.tsx)</h2>
+<div class="loop">
+  <div class="row l-see"><div class="lab">인지</div><div class="bd">"03. 공상 놀이터" + Vela("작은 생각을 던져보세요"). 자유 입력 카드 + 섬 미리보기. 생성 중엔 스피너, 결과는 <b>타입별 5카드</b>(worldline/scene/object/character/next-step, 카드별 좌측 색 보더).</div></div>
+  <div class="row l-tap"><div class="lab">액션</div><div class="bd">"상상하기" → <code>handleGenerate</code>. "더 발전시키기" → <code>developFurther</code>. 결과 후 "마을에 저장" → <code>handleSave</code>, "지식 창고 열기" → <code>/wiki</code> <span class="ref">imagine.tsx:165</span>.</div></div>
+  <div class="row l-sys"><div class="lab">로직</div><div class="bd"><code>callGemini(imagine)</code> [C9·C3] with <code>IMAGINE_SYSTEM</code>(엄격한 <code>::</code> 구분 태그 출력 강제) → <code>parseImagineResult</code>(순수 라인 파서) → 저장 시 <code>renderImagineMarkdown</code> → <code>captureFromMarkdown</code>(tag <code>imagine</code>, track daily).</div></div>
+  <div class="row l-out"><div class="lab">결과</div><div class="bd">5카드 아티팩트가 <code>sources</code> 행으로(본문은 Storage). <b>위키 페이지 자동생성은 아님</b> → inbox로 들어가 나중에 분류. (<code>kind</code>는 결국 <code>inbox</code>로 떨어짐 — <code>imagine</code> SourceKind는 없음.)</div></div>
+</div>
+
+<!-- ───────────────────── ACT 9 ───────────────────── -->
+<h2 id="a9"><span class="n">10</span>형식 · 기록 · 인사이트 (부속 표면)</h2>
+<h3>/formats — 클리퍼 형식 관리자 <span class="rt">formats.tsx</span></h3>
+<div class="loop">
+  <div class="row l-see"><div class="lab">인지</div><div class="bd">"내 형식(N)" + "마을 공유 형식(N)" 두 섹션. 내 형식 카드엔 공유 <code>Switch</code> + 편집/삭제. 공유 형식은 읽기 전용.</div></div>
+  <div class="row l-tap"><div class="lab">액션</div><div class="bd">공유 토글 → <code>setTemplateShared</code>(옵티미스틱). "편집" → <code>TemplateEditor</code> → "저장" → <code>validateTemplateDraft</code> → upsert. 삭제 → owner 가드 DELETE.</div></div>
+  <div class="row l-sys"><div class="lab">로직</div><div class="bd"><code>listAccessibleTemplates</code>(RLS: 내 것 + <code>is_shared</code>) → <code>partitionTemplates</code>(ownerId 기준 분할). 저장 시 <b>C-금칙어 게이트</b>(<code>containsForbiddenLexicon</code>)가 공유-가시 텍스트 전체에 적용. <b>이 화면엔 LLM 없음</b> — 형식은 담기에서 AI가 제안하고 여기선 관리만.</div></div>
+  <div class="row l-out"><div class="lab">결과</div><div class="bd"><code>clipper_templates</code> 영속. 트리거·<code>aiProperties</code>·<code>default_tags</code>가 담기 분류기로 전달(우리가 방금 작업한 C/B). <code>isShared</code>는 에디터가 아니라 리스트 토글만 소유(실수 공개 방지).</div></div>
+</div>
+<h3>/records · /record/[id] — 통합 타임라인</h3>
+<p><code>mergeEvidence</code> <span class="ref">persona/evidence.ts:131</span>가 <code>records</code>(일기·오딧·인터뷰) + <code>sources</code>(담기)를 하나의 최신순 리스트로 융합, 6개 마을(work/relation/knowledge/records/imagine/taste)로 버킷팅. 마을·타입 칩으로 클라 필터. 행 탭 → record면 <code>/record/[id]</code>, source면 <code>/wiki·/capture·/imagine</code>. 모든 상세는 <b>그래프에서 보기</b>(→ <code>/</code> highlight) · <b>세컨비에게 묻기</b>(→ <code>/jarvis</code> fromNode) 핸드오프 제공.</p>
+<p class="small"><b>/insights · /trinity</b>는 순수 읽기 전용 파생 뷰(LLM·쓰기 없음). insights=시간·내용 패턴, trinity=4영역 태그 집계. 둘 다 <b>태그가 있어야</b> 의미가 산다(자유본문 NLP 없음).</p>
+
+<!-- ───────────────────── ACT 10 ───────────────────── -->
+<h2 id="a10"><span class="n">11</span>안전 오버레이 — 레드존 (가로지르는 관심사)</h2>
+<p>모든 LLM 경로 위에 깔린 안전 레이어. <code>classifyInput</code>이 <code>callGemini</code> 안에서 네트워크 전에 실행 <span class="ref">gemini.ts:177</span>.</p>
+<table>
+  <tr><th>존</th><th>트리거</th><th>동작</th></tr>
+  <tr><td><span class="tag" style="border-color:var(--mint);color:var(--mint)">green</span></td><td>금칙어 없음</td><td>LLM 정상 진행</td></tr>
+  <tr><td><span class="tag" style="border-color:var(--amber);color:var(--amber)">yellow</span></td><td>FORBIDDEN_TERMS (치유/therapy 등)</td><td>진행하되 "거울+성찰질문만, 3문장 이내" 부록 주입</td></tr>
+  <tr><td><span class="tag" style="border-color:#ff7a7a;color:#ff7a7a">red</span></td><td>CRISIS_TERMS (자살/kill myself 등)</td><td><b>LLM 단락</b> → <code>routeCrisis</code> 고정 응답 + 핫라인 → <code>CrisisRouter</code> 모달</td></tr>
+</table>
+<div class="loop">
+  <div class="row l-see"><div class="lab">인지</div><div class="bd">레드존 감지 시 <code>CrisisRouter</code> 슬라이드 모달. 안전 가디언 가디(gadi) 스프라이트 + 핫라인 행(탭하면 <code>tel:</code> 통화). 백드롭 탭으론 안 닫힘, "닫기"만.</div></div>
+  <div class="row l-tap"><div class="lab">액션</div><div class="bd">핫라인 탭 → 전화. KO → <b>1393</b>(자살예방상담), EN → <b>988</b>.</div></div>
+  <div class="row l-sys"><div class="lab">로직</div><div class="bd"><code>callAdvisor</code>(Engine 4)는 <b>입력+출력 둘 다</b> 분류 — 출력이 레드면 원답을 고정 템플릿으로 스왑(<code>modelUsed: model+swap</code>으로 기록), <code>crisis_events</code> 행 삽입(<code>djb2(userId)</code> 가명화 + CSSRS 레벨). C3 감사는 크라이시스 경로에도 <code>modelUsed: none-crisis-routed</code>로 남는다.</div></div>
+  <div class="row l-out"><div class="lab">결과</div><div class="bd">위기 사용자는 LLM 생성물 대신 검증된 핫라인을 받는다. 감사 추적엔 스왑 여부가 남아 심사 가능.</div></div>
+</div>
+<div class="note"><b>순서 관찰:</b> 일기 모드 레드존은 <code>createRecord</code> → <code>callAdvisor</code> 위기 인터셉트가 돌지만, <code>records</code> INSERT가 위기 응답을 <code>ai_followup</code>으로 저장한 <b>뒤에</b> 모달이 뜬다(행은 이미 기록됨).</p></div>
+
+<!-- ───────────────────── REFERENCE ───────────────────── -->
+<h2 id="ref"><span class="n">12</span>레퍼런스 + QA 관찰</h2>
+<h3>화면 인벤토리 (35개 라우트)</h3>
+<table>
+  <tr><th>그룹</th><th>라우트</th></tr>
+  <tr><td>진입/인증</td><td><code>(auth)/sign-in · sign-up · complete-profile</code> · <code>onboarding</code> · <code>permissions</code></td></tr>
+  <tr><td>탭 5종</td><td><code>/</code> 마을 · <code>/capture</code> · <code>/jarvis</code> · <code>/imagine</code> · <code>/profile</code></td></tr>
+  <tr><td>축1 알아가기</td><td><code>persona · core-brain · interview · big-five · mbti · attachment · trinity · insights · audit</code></td></tr>
+  <tr><td>지식 표면</td><td><code>wiki · inbox · records · record/[id]</code></td></tr>
+  <tr><td>관리/기타</td><td><code>formats · settings · data · import · manual · support · theme · research · jarvis · attachment</code></td></tr>
+</table>
+<h3>LLM 호출 목적(purpose) — 전부 gemini.ts 경유</h3>
+<p><span class="tag c">clipper_classify</span><span class="tag c">capture_ocr</span><span class="tag c">knowledge_lookup</span>(Phase1)<span class="tag c">interview_probe</span><span class="tag c">persona_chat</span><span class="tag c">jarvis_chat</span><span class="tag c">imagine</span><span class="tag c">advisor</span>(일기 followup). 각 호출 = <code>classifyInput</code> 선행(C9) + <code>ai_audit_log</code> 후행(C3).</p>
+<h3>핵심 테이블</h3>
+<table>
+  <tr><th>테이블</th><th>쓰는 곳</th><th>비고</th></tr>
+  <tr><td><code>users</code></td><td>가입/프로필</td><td><code>birth_date</code> CHECK(C10) · <code>judge_mode</code>(C6)</td></tr>
+  <tr><td><code>sources</code></td><td>담기·공상</td><td>본문=Storage, 메타=<code>frontmatter</code> jsonb(<code>__phase1__</code> 포함)</td></tr>
+  <tr><td><code>records</code></td><td>일기·오딧·인터뷰·평가</td><td>본문 인라인 · <code>ai_followup</code></td></tr>
+  <tr><td><code>wiki_pages</code> / <code>wiki_links</code></td><td>Phase2 승격</td><td>마을 별 = wiki_pages · 엣지 = [[wikilink]]</td></tr>
+  <tr><td><code>personas</code></td><td>buildPersona upsert</td><td>합성 자아(version=1)</td></tr>
+  <tr><td><code>memorized_patterns</code> / <code>chat_usage</code> / <code>crisis_events</code> / <code>ai_audit_log</code></td><td>패턴·쿼터·위기·감사</td><td><code>ai_audit_log</code> = C3 전수</td></tr>
+</table>
+
+<h3>QA 관찰 — 시뮬레이션 중 발견한 마찰점</h3>
+<table>
+  <tr><th>#</th><th>관찰</th><th>영향</th></tr>
+  <tr><td>1</td><td>레드존 일기: <code>records</code> INSERT가 위기 모달보다 <b>먼저</b> 일어남</td><td>위기 응답이 DB에 남은 뒤 모달. 의도된 감사용일 수 있으나 확인 필요</td></tr>
+  <tr><td>2</td><td>OCR이 <code>kind=self_knowledge</code> 강제하면서도 <code>clipper_classify</code> Gemini 호출을 그대로 소비</td><td>태그/track만 쓰려고 분류 1콜 + 감사 낭비</td></tr>
+  <tr><td>3</td><td><code>/persona</code>·<code>/core-brain</code>이 각자 <code>buildPersona</code> 호출(캐시 없음)</td><td>두 화면 오가면 <code>persona_chat</code> 중복 비용</td></tr>
+  <tr><td>4</td><td>Jarvis RAG = 위키 50p×600자 평문 덤프(벡터 아님)</td><td>위키 커지면 오래된 지식 조용히 잘림</td></tr>
+  <tr><td>5</td><td><code>simon_relevance</code> 0–1 → 1–5 스케일에서 0.0이 1로 바닥</td><td>"완전 무관"을 표현 불가</td></tr>
+  <tr><td>6</td><td>온보딩 완료가 기기-로컬에만 저장</td><td>기기 변경·캐시 삭제 시 재온보딩, <code>v2</code> 범프 시 전원 재노출</td></tr>
+  <tr><td>7</td><td>공유 형식 이름이 타 사용자 분류 프롬프트에 삽입 — 방어는 <code>safeFormatLabel</code>(40자·newline strip)뿐</td><td>주입 표면 잔존</td></tr>
+  <tr><td>8</td><td>자화상 5필드 중 <code>who·fuel</code>만 실데이터, 나머지 3개는 영구 "수집 중"</td><td>완성감 부족(의도된 넛지지만)</td></tr>
+  <tr><td>9</td><td>trinity/insights가 태그에 전적으로 의존(본문 NLP 없음)</td><td>태그 안 단 일기는 0 기여 — 암묵적 태깅 강제</td></tr>
+  <tr><td>10</td><td>AuthContext 8초 타임아웃 시 <code>hasProfile=false</code> 폴백</td><td>느린 네트워크에서 프로필 있어도 <code>/complete-profile</code> 한 번 들름(멱등 처리로 중복삽입은 방지)</td></tr>
+</table>
+
+<footer>
+  생성: 2nd-Brain 코드베이스 5-에이전트 병렬 트레이스 기준 · 모든 경로는 <span class="ref">file:line</span>으로 검증 가능 · 시점 스냅샷(2026-06-01 코드 기준) — 앱이 진화하면 갱신 필요.
+</footer>
+
+</div>
+</body>
+</html>
