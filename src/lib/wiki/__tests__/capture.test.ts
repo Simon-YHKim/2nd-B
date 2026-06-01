@@ -12,6 +12,7 @@ const captured: Captured[] = [];
 const fixtures: Record<string, unknown> = {};
 
 jest.mock("../storage", () => ({
+  rawClippingPath: (userId: string, slug: string) => `${userId}/${slug}.md`,
   uploadRawClipping: jest.fn((userId: string, slug: string, content: string) => {
     captured.push({ fn: "uploadRawClipping", args: [userId, slug, content] });
     return Promise.resolve({ path: `${userId}/${slug}.md` });
@@ -206,5 +207,24 @@ Body.`;
     await captureFromMarkdown({ userId: "u1", rawMd: md });
     const insert = captured.find((c) => c.fn === "createSource")!;
     expect((insert.args[0] as { simon_relevance: number }).simon_relevance).toBe(3);
+  });
+
+  // A storage hiccup must never lose the user's piece: the source row still
+  // saves, with the body stashed in frontmatter for later recovery.
+  test("storage upload failure still saves the source (body kept in frontmatter)", async () => {
+    fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "inbox", title: "T", tags: [] };
+    const storage = require("../storage") as { uploadRawClipping: jest.Mock };
+    storage.uploadRawClipping.mockRejectedValueOnce(new Error("storage down"));
+
+    const r = await captureFromMarkdown({ userId: "u1", rawMd: "# T\n\nImportant body." });
+
+    const insert = captured.find((c) => c.fn === "createSource");
+    expect(insert).toBeDefined();
+    const arg = insert!.args[0] as { storage_path: string; frontmatter: Record<string, unknown> };
+    // Row saved with the canonical path; body preserved in frontmatter.
+    expect(arg.storage_path).toBe("u1/t.md");
+    expect(arg.frontmatter._storage_pending).toBe(true);
+    expect(arg.frontmatter._body_fallback).toContain("Important body.");
+    expect(r.source).toBe(fixtures.sourceRow);
   });
 });

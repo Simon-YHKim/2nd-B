@@ -7,7 +7,7 @@
 
 import { buildSourcePayload } from "./ingest-helpers";
 import { createSource } from "./queries";
-import { uploadRawClipping } from "./storage";
+import { rawClippingPath, uploadRawClipping } from "./storage";
 import type { SourceKind, SourceRow } from "./types";
 
 export interface CaptureInput {
@@ -54,11 +54,20 @@ export interface CaptureResult {
 export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureResult> {
   const built = buildSourcePayload(input.rawMd, input.fallbackUrl ?? null, input.kindOverride ?? null);
 
-  // The body-only markdown is what we persist to Storage — the frontmatter
-  // also lives in sources.frontmatter (jsonb) so we don't need to keep two
-  // copies. If a future workflow wants to re-emit the original file, it can
-  // joinFrontmatter() on read.
-  const { path } = await uploadRawClipping(input.userId, built.suggested_slug, built.body);
+  // The body-only markdown is persisted to Storage; the frontmatter also lives
+  // in sources.frontmatter (jsonb). The upload is BEST-EFFORT: a transient
+  // Storage error (bucket hiccup, network) must NOT lose the user's piece, so we
+  // never let it abort the save. We use the canonical path regardless, and when
+  // the upload didn't land we stash the body in frontmatter (_body_fallback) so
+  // nothing is lost and a re-upload can recover it later.
+  const path = rawClippingPath(input.userId, built.suggested_slug);
+  let storedToStorage = true;
+  try {
+    await uploadRawClipping(input.userId, built.suggested_slug, built.body);
+  } catch (e) {
+    storedToStorage = false;
+    if (typeof console !== "undefined") console.warn("[capture] storage upload failed; saving body inline", e);
+  }
 
   // Merge LLM-classifier output (user-final) with whatever the frontmatter
   // already carried. Tags get deduped + lowercased. Track lives in frontmatter
@@ -69,6 +78,7 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     ...built.payload.frontmatter,
     ...(input.track ? { wiki_track: input.track } : {}),
     ...(input.extraFrontmatter ?? {}),
+    ...(storedToStorage ? {} : { _storage_pending: true, _body_fallback: built.body }),
   };
 
   const source = await createSource({
