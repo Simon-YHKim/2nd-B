@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { Image, StyleSheet, View, type ViewStyle, type ImageStyle, type StyleProp } from "react-native";
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
+import { semantic } from "@/lib/theme/tokens";
 
 // imageRendering pixelated keeps the strip crisp; web-only, ignored native.
 const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
@@ -153,10 +154,11 @@ export function WorkerSprite({
 const styles = StyleSheet.create({
   contactShadow: {
     position: "absolute",
-    backgroundColor: "rgba(0,0,0,0.42)",
+    backgroundColor: semantic.background,
+    opacity: 0.42,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(114,242,199,0.18)",
-    shadowColor: "#000000",
+    borderColor: semantic.border,
+    shadowColor: semantic.background,
     shadowOpacity: 0.42,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 1 },
