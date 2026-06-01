@@ -25,7 +25,7 @@
 ### 다음 작업 큐 (= GPT 최소 머지 조건) — 로컬에서
 | # | 작업 | 크기 | 권장 |
 |---|---|---|---|
-| 0 | **결정: #132 revert vs forward-fix** — 라이브 게이트가 Blocker. 사용자 판단 필요 | — | ⭐ 먼저 |
+| 0 | ✅ **결정됨 (2026-06-01): #132 라이브 유지 + forward-fix** — revert 안 함. 단 A~D는 *실사용자 출시 전 필수*. 데모/심사 노출은 mock·소수라 수용 | — | — |
 | A | **서버측 14+ 강제** — Edge Function/RPC 가입, DOB→age/minor_tier/account_status 서버 계산, minor_tier 클라입력 금지(DB generated/trigger), `active`=age≥14 DB 제약, under-14 auth 생성 차단(잔여 로그·이메일 X) | large | ⭐ |
 | B | **`consent_records`** + 가입 시 기록(user_id·age_band·minor_tier·consent/policy/terms version·purposes·required·optional·llm_processing_ack·overseas_transfer_ack·sensitive_data_ack·locale·ts·ip_hash·ua_hash) + **청소년용 개인정보 안내** 별도 링크/요약 | large | ⭐ |
 | C | **minor 위기 실배선 + 테스트** — `useAuth().isMinor` → callGemini/callAdvisor → classifier. KO 14-17 자해/자살 → **1388 + 109(자살예방)**, EN minor → 988. advisor `fixedCrisisResponse` minor-aware. (#134 토대 위) | medium | ⭐ |
