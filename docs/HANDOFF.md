@@ -3,6 +3,33 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest -- 2026-06-02 / Codex UI QA + premium consistency pass
+
+### Handoff snapshot
+- main HEAD: `9a13d87`
+- Working tree at handoff: clean except intentionally untracked `asset_cleanup_preview/`.
+- Latest merged Codex PRs:
+  - **#148 / #152 / #155** village metadata and hero alignment pass: active village assets, owners, scale hints, hero copy, and route metadata were aligned around the premium Cosmic Pixel Graph Village direction.
+  - **#156** `village-ui` guard test: scans app screens for hardcoded `SceneHero` island/worker/size metadata so future village screens use shared metadata.
+  - **#157** format schema display polish: AI-generated format properties now render as premium structured rows instead of text bullets; add-format actions wrap safely on mobile.
+  - **#158** format manager controls: format list/editor controls now use shared village accent, semantic surfaces, sharper radii, and stable mobile touch targets.
+  - **#160** village label normalization: core/records/wiki/imagine/graph labels were normalized; imagine prompt panel moved onto semantic surfaces; fixed unauthenticated `/core-brain` loading by redirecting to `/sign-in`.
+  - **#161** sign-in surface polish: auth entry UI now uses semantic tokens and the current Cosmic Pixel palette instead of old sky-blue placeholder styling.
+  - **#162** birth-date error copy: sign-up/complete-profile now show dedicated birth-date validation copy in KO/EN instead of email error text.
+
+### Verification
+- `npm run verify` green: **748/748 tests**, 77 suites.
+- Browser route smoke green while signed out: `/`, `/sign-in`, `/sign-up`, `/complete-profile`, `/onboarding`, `/manual`, `/support`, `/permissions`, `/settings`, `/theme`, `/profile`, `/persona`, `/core-brain`, `/records`, `/wiki`, `/imagine`, `/capture`, `/formats`, `/inbox`, `/data`, `/import`, `/interview`, `/audit`, `/big-five`, `/mbti`, `/attachment`, `/jarvis`, `/insights`, `/research`, `/trinity`, `/no-such-route-for-preview`.
+- `/sign-up` invalid birth-date smoke verified: Korean birth-date error appears and email error does not leak into the birth-date field.
+
+### Recommended next checks
+- Run authenticated Android-device QA through the village routes, especially graph readability, worker ground contact, and village detail layout.
+- Continue visual-token cleanup on public/static routes (`manual`, `permissions`, not-found) and high-traffic protected routes (`capture`, `jarvis`, `onboarding`) in small PRs.
+- For asset work, compare active assets first; current active village/worker paths are already premium-leaning, while older placeholder/production-sharp folders should be treated as cleanup candidates only after preview.
+- Coordinate with Claude before editing `capture.tsx`, `/profile`, or minor-safety consent/high-privacy flows.
+
+---
+
 ## Latest — 2026-06-02 / 클리퍼 형식(양식·AI추가) + 그래프 조각 + 저장 점검
 
 ### 어디까지 왔나
