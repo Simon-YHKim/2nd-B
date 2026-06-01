@@ -9,7 +9,7 @@ import { View, Image, ActivityIndicator, StyleSheet } from "react-native";
 import { colors, spacing } from "@/theme";
 
 // Premium loading orb from the refine asset pack.
-const logo = require("../../../public/assets/2ndb-refine/auth/loading_core_orb_premium.png");
+const logo = require("../../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png");
 
 export function LoadingScreen() {
   return (

@@ -15,7 +15,7 @@ import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
 import { ageInYears, ensureUserProfile, AgeGateError, signOut } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 
-const coreOrb = require("../../../public/assets/2ndb-refine/auth/loading_core_orb_premium.png");
+const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
 export default function CompleteProfile() {
   const { t, i18n } = useTranslation("auth");
@@ -94,7 +94,7 @@ export default function CompleteProfile() {
                 {t("completeProfile.subtitle")}
               </Text>
             </View>
-            <Image source={coreOrb} style={styles.heroImg} resizeMode="contain" />
+            <Image source={authHero} style={styles.heroImg} resizeMode="contain" />
           </View>
         </View>
 
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   header: { gap: spacing.sm, marginBottom: spacing.lg },
   heroRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   heroCopy: { flex: 1, gap: spacing.xs },
-  heroImg: { width: 108, height: 108 },
+  heroImg: { width: 112, height: 112 },
   title: { marginTop: 0 },
   form: {
     gap: spacing.sm,
