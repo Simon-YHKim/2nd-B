@@ -15,7 +15,6 @@ import {
   nextLayerSuggestion,
   DRILL_LAYERS,
   LIFE_PERIODS,
-  type Coverage,
 } from "../probe";
 
 describe("emptyCoverage", () => {

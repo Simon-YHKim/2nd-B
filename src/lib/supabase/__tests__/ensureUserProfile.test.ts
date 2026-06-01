@@ -28,7 +28,6 @@ jest.mock("../../env", () => ({
 import { AgeGateError, ensureUserProfile } from "../auth";
 
 // Re-fetch the mock created by jest.mock above so we can read call counts.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { __mock: supabaseMock } = require("../client") as { __mock: { auth: { getUser: jest.Mock }; from: jest.Mock } };
 
 describe("ensureUserProfile — C10 age gate (OAuth path)", () => {
