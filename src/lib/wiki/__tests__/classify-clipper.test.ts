@@ -1,4 +1,5 @@
 import { buildClipperPrompt, parseClipperResult } from "../classify-clipper";
+import { type ClipperAiProperty } from "../clipper-templates";
 
 describe("buildClipperPrompt", () => {
   it("lists all kinds and the baseline kind's props + url", () => {
@@ -108,5 +109,27 @@ describe("parseClipperResult", () => {
 
   it("leaves the model's kind authoritative when no forcedKind is given", () => {
     expect(parseClipperResult(JSON.stringify({ kind: "video" }), "article").kind).toBe("video");
+  });
+});
+
+describe("custom format prop schema (queue B)", () => {
+  const customProps: ClipperAiProperty[] = [
+    { name: "guest-name", type: "text", describe: { en: "Who is interviewed", ko: "출연자" } },
+    { name: "key-claims", type: "multitext", describe: { en: "Main claims made", ko: "핵심 주장" } },
+  ];
+
+  it("requests the matched format's own props in the prompt", () => {
+    const { system } = buildClipperPrompt("article", "content", null, "en", [], customProps);
+    expect(system).toContain("guest-name");
+    expect(system).toContain("Who is interviewed");
+    expect(system).toContain("key-claims");
+  });
+
+  it("extracts props against the custom schema, dropping ones it does not declare", () => {
+    const raw = JSON.stringify({ kind: "article", props: { "guest-name": "Ada", "key-claims": ["a", "b"], stray: "x" } });
+    const r = parseClipperResult(raw, "article", "article", customProps);
+    expect(r.props["guest-name"]).toBe("Ada");
+    expect(r.props["key-claims"]).toEqual(["a", "b"]);
+    expect(r.props.stray).toBeUndefined();
   });
 });
