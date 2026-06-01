@@ -1,8 +1,7 @@
-// Sign-in screen — dark sky-black palette matching LoadingScreen.
+// Sign-in screen — Cosmic Pixel entry gate matching LoadingScreen.
 //
 // Per docs/DESIGN.md visual continuity: the unauthenticated entry point
-// uses the same palette as the loader (#02040A bg, electric blue
-// #2F97FC accents, soft blue #7FB3F4 secondary, light text #C7D4EA).
+// uses the same deep-space, mint, and violet palette as the loader.
 // On successful sign-in, the IntroGate in _layout plays the cell-team
 // loading sequence as the "we're building your second brain" hand-off.
 
@@ -24,7 +23,7 @@ import { Link, Redirect, router } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signInWithEmail, signInWithGoogle } from "@/lib/supabase/auth";
-import { cosmicSky } from "@/lib/theme/tokens";
+import { cosmicSky, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { CosmicBackground } from "@/components/premium";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
 
@@ -255,13 +254,13 @@ const styles = StyleSheet.create({
     color: PALETTE.brand,
     fontSize: 11,
     fontWeight: "700",
-    letterSpacing: 2.5,
+    letterSpacing: 0,
   },
   localeToggle: {
     color: PALETTE.accent,
     fontSize: 11,
     fontWeight: "700",
-    letterSpacing: 1.5,
+    letterSpacing: 0,
   },
   localeButton: { minWidth: 44, minHeight: 44, alignItems: "flex-end", justifyContent: "center" },
   hero: { alignItems: "center", marginTop: 28, marginBottom: 22, gap: 8 },
@@ -273,22 +272,22 @@ const styles = StyleSheet.create({
     color: PALETTE.text,
     fontSize: 22,
     fontWeight: "700",
-    letterSpacing: 0.2,
+    letterSpacing: 0,
     textAlign: "center",
   },
   subtitle: {
     color: PALETTE.textMuted,
     fontSize: 14,
-    letterSpacing: 0.3,
+    letterSpacing: 0,
     textAlign: "center",
   },
   form: {
-    gap: 10,
-    backgroundColor: "rgba(13,21,48,0.82)",
-    borderColor: "rgba(141,152,184,0.3)",
+    gap: spacing.sm,
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: radii.md,
+    padding: spacing.lg,
     shadowColor: PALETTE.accent,
     shadowOpacity: 0.22,
     shadowRadius: 16,
@@ -298,7 +297,7 @@ const styles = StyleSheet.create({
     color: PALETTE.textMuted,
     fontSize: 11,
     fontWeight: "600",
-    letterSpacing: 1,
+    letterSpacing: 0,
     textTransform: "uppercase",
   },
   labelRow: {
@@ -309,21 +308,22 @@ const styles = StyleSheet.create({
   },
   eyeBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   input: {
-    backgroundColor: "rgba(7,10,24,0.72)",
-    borderColor: "rgba(141,152,184,0.34)",
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: radii.md,
     color: PALETTE.text,
     fontSize: 15,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    minHeight: 46,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
   primaryBtn: {
     backgroundColor: PALETTE.brand,
     borderColor: PALETTE.brand,
     borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 14,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
     alignItems: "center",
     marginTop: 12,
     shadowColor: PALETTE.brand,
@@ -331,23 +331,23 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
-  primaryBtnText: { color: PALETTE.bg, fontSize: 15, fontWeight: "700", letterSpacing: 0.3 },
+  primaryBtnText: { color: PALETTE.bg, fontSize: 15, fontWeight: "700", letterSpacing: 0 },
   secondaryBtn: {
-    backgroundColor: "rgba(167,139,250,0.12)",
-    borderColor: "rgba(167,139,250,0.46)",
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 13,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
     alignItems: "center",
   },
-  secondaryBtnText: { color: PALETTE.text, fontSize: 15, fontWeight: "600", letterSpacing: 0.3 },
+  secondaryBtnText: { color: PALETTE.text, fontSize: 15, fontWeight: "600", letterSpacing: 0 },
   btnDisabled: { opacity: 0.4 },
-  dividerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 8 },
+  dividerRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginVertical: spacing.sm },
   dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: PALETTE.border },
   dividerLabel: {
     color: PALETTE.textSubtle,
     fontSize: 11,
-    letterSpacing: 1.5,
+    letterSpacing: 0,
     textTransform: "uppercase",
   },
   forgotRow: {
