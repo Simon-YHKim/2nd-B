@@ -72,6 +72,7 @@ const HUB: HubSection[] = [
     accent: cosmic.mistGray,
     items: [
       { route: "/settings", ko: "설정", en: "Settings" },
+      { route: "/privacy", ko: "개인정보 보호", en: "Privacy" },
       { route: "/theme", ko: "테마", en: "Theme" },
       { route: "/data", ko: "데이터 관리", en: "Data" },
       { route: "/formats", ko: "내 형식", en: "My formats" },

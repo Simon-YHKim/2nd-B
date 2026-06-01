@@ -68,3 +68,21 @@ export async function recordConsent(args: RecordConsentArgs): Promise<void> {
   });
   if (error) throw error;
 }
+
+// Best-effort variant for the sign-up / complete-profile path. The user has
+// already given the acknowledgements in the UI (the submit button gates on
+// them), so a failed ledger write must NOT block account creation. Before the
+// 0031 migration is applied to a given environment the consent_records table
+// does not exist yet — this no-ops with a warning; once applied it records
+// normally. Returns whether the row was written.
+export async function recordConsentBestEffort(args: RecordConsentArgs): Promise<boolean> {
+  try {
+    await recordConsent(args);
+    return true;
+  } catch (e) {
+    if (typeof console !== "undefined") {
+      console.warn("[consent] ledger write skipped (best-effort)", (e as Error).message);
+    }
+    return false;
+  }
+}

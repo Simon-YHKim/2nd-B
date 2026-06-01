@@ -14,6 +14,15 @@ import { BirthDateField } from "@/components/auth/BirthDateField";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { ageInYears, ensureUserProfile, AgeGateError, signOut, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { ConsentNotice } from "@/components/consent/ConsentNotice";
+import {
+  emptyConsentSelections,
+  allRequiredAcksChecked,
+  buildSignUpConsentArgs,
+} from "@/lib/auth/consent-selections";
+import { recordConsentBestEffort } from "@/lib/supabase/consent";
+
+const ADULT_AGE = 18;
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
@@ -22,11 +31,19 @@ export default function CompleteProfile() {
   const { userId, hasProfile } = useAuth();
   const [birthDate, setBirthDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [consent, setConsent] = useState(emptyConsentSelections());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
+  const age = ageInYears(birthDate);
+  const isMinorAge = age >= MIN_SELF_CONSENT_AGE && age < ADULT_AGE;
   const canSubmit = useMemo(() => {
-    return userId !== null && ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE && !submitting;
-  }, [userId, birthDate, submitting]);
+    return (
+      userId !== null &&
+      ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE &&
+      allRequiredAcksChecked(consent) &&
+      !submitting
+    );
+  }, [userId, birthDate, consent, submitting]);
 
   // Already has a profile — bounce to journal. Possible if the user navigates
   // here manually after completing setup.
@@ -43,6 +60,12 @@ export default function CompleteProfile() {
     setSubmitting(true);
     try {
       const result = await ensureUserProfile({ birthDate, locale });
+      // Record the consent the user just gave (best-effort — see sign-up).
+      if (userId) {
+        void recordConsentBestEffort(
+          buildSignUpConsentArgs({ userId, isMinor: isMinorAge, locale, selections: consent }),
+        );
+      }
       if (result.judgeMode) Alert.alert(t("judge.welcome"));
       router.replace("/");
     } catch (e) {
@@ -109,6 +132,10 @@ export default function CompleteProfile() {
               />
             </View>
           ) : null}
+
+          <View style={{ height: spacing.sm }} />
+
+          <ConsentNotice minor={isMinorAge} value={consent} onChange={setConsent} />
 
           <View style={{ height: spacing.sm }} />
 
