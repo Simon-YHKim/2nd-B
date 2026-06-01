@@ -42,7 +42,7 @@ export function getCompanionSpritePath(
   return `${basePath}/${companion}_premium_${suffix}.png`;
 }
 
-export function getCompanionCuePath(event: CompanionEvent, basePath = "/assets/2ndb-refine"): string {
+export function getCompanionCuePath(event: CompanionEvent, basePath = "/assets/2ndb-production-premium-v1"): string {
   switch (event) {
     case "journal_saved": return `${basePath}/shards/shard_journal_gold.png`;
     case "capture_saved": return `${basePath}/shards/shard_capture_mint.png`;
