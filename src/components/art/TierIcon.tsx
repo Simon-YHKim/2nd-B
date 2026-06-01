@@ -6,16 +6,16 @@
 import { Image, type ImageStyle, type StyleProp } from "react-native";
 
 const TIER_ICONS = {
-  paper_journal: require("../../../public/assets/2ndb-refine/tier-icons/flying_paper_premium.png"),
-  book_wiki: require("../../../public/assets/2ndb-refine/tier-icons/book_premium.png"),
-  link_capture: require("../../../public/assets/2ndb-refine/tier-icons/link_chain_premium.png"),
-  file_source: require("../../../public/assets/2ndb-refine/tier-icons/file_page_premium.png"),
-  cube_data: require("../../../public/assets/2ndb-refine/tier-icons/data_cube_premium.png"),
-  crystal_imagine: require("../../../public/assets/2ndb-refine/tier-icons/dream_crystal_premium.png"),
-  seed_growth: require("../../../public/assets/2ndb-refine/tier-icons/seed_growth_premium.png"),
-  heart_relationship: require("../../../public/assets/2ndb-refine/tier-icons/heart_connection_premium.png"),
-  compass_inspiration: require("../../../public/assets/2ndb-refine/tier-icons/compass_premium.png"),
-  spark_recent: require("../../../public/assets/2ndb-refine/tier-icons/star_spark_premium.png"),
+  paper_journal: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/flying_paper_premium.png"),
+  book_wiki: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/book_premium.png"),
+  link_capture: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/link_chain_premium.png"),
+  file_source: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/file_page_premium.png"),
+  cube_data: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/data_cube_premium.png"),
+  crystal_imagine: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/dream_crystal_premium.png"),
+  seed_growth: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/seed_growth_premium.png"),
+  heart_relationship: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/heart_connection_premium.png"),
+  compass_inspiration: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/compass_premium.png"),
+  spark_recent: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/star_spark_premium.png"),
 } as const;
 
 export type TierIconId = keyof typeof TIER_ICONS;
