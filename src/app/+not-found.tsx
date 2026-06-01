@@ -16,12 +16,19 @@ export default function NotFound() {
         <SceneHero
           eyebrow="404"
           title={locale === "ko" ? "아직 놓이지 않은 길이에요" : "This path is not laid yet"}
-          subtitle={locale === "ko" ? "마을의 중심으로 돌아갈 수 있어요" : "Return to the village center"}
+          subtitle={
+            locale === "ko" ? "마을의 중심으로 돌아갈 수 있어요" : "Return to the village center"
+          }
           island="core"
           worker="secondb"
-          speech={locale === "ko" ? "길이 끊긴 것 같아요. 중심에서 다시 이어볼게요." : "Looks like the path broke. Let's reconnect from the center."}
+          speech={
+            locale === "ko"
+              ? "길이 끊긴 것 같아요. 중심에서 다시 이어볼게요."
+              : "Looks like the path broke. Let's reconnect from the center."
+          }
           islandSize={250}
-          workerSize={104}        />
+          workerSize={104}
+        />
         <View style={styles.actions}>
           <Link href="/" asChild>
             <Button label={locale === "ko" ? "마을 중심으로" : "Go home"} variant="primary" />
@@ -43,7 +50,7 @@ export default function NotFound() {
           </Link>
           <Link href="/persona" style={styles.destinationLink}>
             <Text variant="body" color="brand">
-              {locale === "ko" ? "페르소나 v1" : "Persona v1"}
+              {locale === "ko" ? "나의 모습" : "Persona"}
             </Text>
           </Link>
           <Link href="/manual" style={styles.destinationLink}>
@@ -73,5 +80,10 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   destinationsTitle: { letterSpacing: 1, marginBottom: spacing.xs },
-  destinationLink: { paddingVertical: 4 },
+  destinationLink: {
+    minHeight: 44,
+    alignSelf: "stretch",
+    textAlign: "center",
+    paddingVertical: spacing.sm,
+  },
 });

@@ -44,9 +44,13 @@ export function PremiumTopBar({
     <View style={styles.topBar}>
       <View style={styles.topBarSide}>{brand ? <BrandChip /> : null}</View>
       <View style={styles.topBarCenter}>
-        <Text variant="heading" style={styles.topBarTitle} numberOfLines={1}>{title}</Text>
+        <Text variant="heading" style={styles.topBarTitle} numberOfLines={1}>
+          {title}
+        </Text>
         {subtitle ? (
-          <Text variant="subtle" color="textSubtle" numberOfLines={1} style={styles.topBarSub}>{subtitle}</Text>
+          <Text variant="subtle" color="textSubtle" numberOfLines={1} style={styles.topBarSub}>
+            {subtitle}
+          </Text>
         ) : null}
       </View>
       <View style={[styles.topBarSide, styles.topBarRight]}>{right}</View>
@@ -104,9 +108,15 @@ export function PremiumCard({
         <View style={styles.cardHead}>
           <View style={{ flex: 1 }}>
             {eyebrow ? (
-              <Text variant="caption" color="textMuted" style={styles.eyebrow}>{eyebrow}</Text>
+              <Text variant="caption" color="textMuted" style={styles.eyebrow}>
+                {eyebrow}
+              </Text>
             ) : null}
-            {title ? <Text variant="heading" style={styles.cardTitle}>{title}</Text> : null}
+            {title ? (
+              <Text variant="heading" style={styles.cardTitle}>
+                {title}
+              </Text>
+            ) : null}
           </View>
           {right}
         </View>
@@ -149,9 +159,23 @@ export interface PremiumButtonProps extends Omit<PressableProps, "children" | "s
   style?: StyleProp<ViewStyle>;
 }
 
-export function PremiumButton({ label, variant = "primary", icon, loading, disabled, full, style, ...rest }: PremiumButtonProps) {
+export function PremiumButton({
+  label,
+  variant = "primary",
+  icon,
+  loading,
+  disabled,
+  full,
+  style,
+  ...rest
+}: PremiumButtonProps) {
   const isDisabled = disabled || loading;
-  const glowColor = variant === "primary" ? cosmic.signalMint : variant === "danger" ? cosmic.guardRose : cosmic.soulViolet;
+  const glowColor =
+    variant === "primary"
+      ? cosmic.signalMint
+      : variant === "danger"
+        ? cosmic.guardRose
+        : cosmic.soulViolet;
   return (
     <Pressable
       {...rest}
@@ -161,20 +185,36 @@ export function PremiumButton({ label, variant = "primary", icon, loading, disab
       style={({ pressed }) => [
         styles.btn,
         full ? { alignSelf: "stretch" } : null,
-        { backgroundColor: BTN_BG[variant], borderColor: BTN_BORDER[variant], shadowColor: glowColor },
+        {
+          backgroundColor: BTN_BG[variant],
+          borderColor: BTN_BORDER[variant],
+          shadowColor: glowColor,
+        },
         variant !== "ghost" ? styles.btnGlow : null,
-        isDisabled ? { backgroundColor: BTN_DISABLED_BG, borderColor: BTN_DISABLED_BORDER, shadowOpacity: 0 } : pressed ? { opacity: 0.82 } : null,
+        isDisabled
+          ? { backgroundColor: BTN_DISABLED_BG, borderColor: BTN_DISABLED_BORDER, shadowOpacity: 0 }
+          : pressed
+            ? { opacity: 0.82 }
+            : null,
         style,
       ]}
     >
       {icon ? <View style={styles.btnIcon}>{icon}</View> : null}
-      <Text style={[styles.btnLabel, { color: isDisabled ? BTN_DISABLED_FG : BTN_FG[variant] }]}>{loading ? "…" : label}</Text>
+      <Text style={[styles.btnLabel, { color: isDisabled ? BTN_DISABLED_FG : BTN_FG[variant] }]}>
+        {loading ? "…" : label}
+      </Text>
     </Pressable>
   );
 }
 
 /** Big full-width call-to-action (the dominant button on a screen). */
-export function PremiumCTA({ label, variant = "primary", icon, onPress, accessibilityLabel }: {
+export function PremiumCTA({
+  label,
+  variant = "primary",
+  icon,
+  onPress,
+  accessibilityLabel,
+}: {
   label: string;
   variant?: "primary" | "secondary";
   icon?: ReactNode;
@@ -195,7 +235,12 @@ export function PremiumCTA({ label, variant = "primary", icon, onPress, accessib
 }
 
 /** Small square pixel icon button (top bar actions, etc.). */
-export function PixelIconButton({ children, onPress, accessibilityLabel, accent = cosmic.soulViolet }: {
+export function PixelIconButton({
+  children,
+  onPress,
+  accessibilityLabel,
+  accent = cosmic.soulViolet,
+}: {
   children: ReactNode;
   onPress?: () => void;
   accessibilityLabel: string;
@@ -207,7 +252,11 @@ export function PixelIconButton({ children, onPress, accessibilityLabel, accent 
       hitSlop={10}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [styles.iconBtn, { borderColor: accent }, pressed ? { opacity: 0.7 } : null]}
+      style={({ pressed }) => [
+        styles.iconBtn,
+        { borderColor: accent },
+        pressed ? { opacity: 0.7 } : null,
+      ]}
     >
       {children}
     </Pressable>
@@ -244,9 +293,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  brandChipMain: { color: cosmic.signalMint, fontFamily: fontFamilies.sans, fontWeight: "800", fontSize: 16, lineHeight: 18 },
-  brandChipSub: { color: cosmic.mistGray, fontFamily: fontFamilies.sans, fontSize: 8, letterSpacing: 0 },
-  topBar: { flexDirection: "row", alignItems: "center", paddingVertical: spacing.sm, gap: spacing.sm },
+  brandChipMain: {
+    color: cosmic.signalMint,
+    fontFamily: fontFamilies.sans,
+    fontWeight: "800",
+    fontSize: 16,
+    lineHeight: 18,
+  },
+  brandChipSub: {
+    color: cosmic.mistGray,
+    fontFamily: fontFamilies.sans,
+    fontSize: 8,
+    letterSpacing: 0,
+  },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
   topBarSide: { width: 64, justifyContent: "center" },
   topBarRight: { alignItems: "flex-end" },
   topBarCenter: { flex: 1, alignItems: "center" },
@@ -280,17 +345,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    minHeight: 42,
+    minHeight: 44,
     borderRadius: radii.md,
     borderWidth: 1,
   },
   btnGlow: { shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 0 } },
-  btnIcon: { },
+  btnIcon: {},
   btnLabel: { fontFamily: fontFamilies.sans, fontWeight: "700", fontSize: 14, letterSpacing: 0 },
   cta: { paddingVertical: spacing.lg, borderRadius: radii.md },
   iconBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: radii.md,
     borderWidth: 1,
     alignItems: "center",
