@@ -3,7 +3,40 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-01 / 세션 종료 핸드오프 (G3 머지 + 보안수정 + gstack v1.55)
+## Latest — 2026-06-01 / 형식 관리 UI (#104) + 다중 스킬 감사
+
+### 어디까지 왔나
+- 이번 세션 PR: **#104** (형식 관리 UI, G3 사용성 완성) — 최신 main(#106 `cb907c0`)까지 통합 후 squash merge.
+- 핸드오프 큐 **A안 완료**: 클리퍼 형식 목록(내/마을) · 공유 토글 · 전체 편집 폼 · 삭제.
+- 테스트 **710/710 (72 suites) green**, CI(lint+verify) green.
+- GPT 동시작업 #102/#105/#106(capture/imagine UI)와 `capture.tsx` 3회 재머지 — 충돌 0.
+
+### 추가/바뀐 파일
+- 신규 `src/app/formats.tsx`(매니저) · `src/components/wiki/TemplateEditor.tsx`(전체 편집 폼) · `src/lib/wiki/template-validate.ts`(+test) · `src/lib/wiki/tags.ts`(공유 태그 정규화).
+- 수정 `profile.tsx`(나 허브 칩) · `capture.tsx`(형식 관리 링크) · `_layout.tsx`(라우트) · `propose-template.ts`(금지어 게이트 일원화).
+- 진입점: `/profile` "계정·설정" 칩 + `/capture` 링크.
+
+### 다중 스킬 감사로 잡아 고친 것
+- 금지어 **오탐 버그**: naive `includes` → 경계 인식 `containsForbiddenLexicon` 일원화(template-validate + propose-template). "Secure"가 "cure"로 오차단되던 것 수정 +회귀 테스트.
+- 저장 행 증발(upsert INSERT 엣지) → in-place/prepend.
+- 동시성: `mountedRef`(+mount 시 true 재설정, strict-mode 대비) + load-generation 가드 + 토글 in-flight 가드.
+- authz(owner_id 필터 + RLS write-own) · 인젝션 sanitize(#101, inject 시점) 재확인 클린. DESIGN.md(토큰·em dash·arrow) 클린.
+
+### 다음 작업 큐
+| # | 작업 | 크기 |
+|---|---|---|
+| B | 분류기가 형식별 `aiProperties`까지 채우기 (편집 폼과 직결) | medium |
+| C | 커뮤니티 형식 트리거 매칭 시 default_tags/target 자동 머지 | small |
+| D | `clipper-templates.ts` `what` em dash 제거 | small |
+| 후속 | `classify-clipper` sanitizeTag → `tags.ts` 완전 일원화 · TagField/HashtagAdder 공유화(capture 겹침, Codex 조율) | small |
+
+### 미해결
+- gstack upstream 5커밋 뒤처짐 → `/gstack-upgrade` (세션훅 알림, 글로벌 스킬).
+- 실기기/웹 시각 QA: `/formats` 렌더·터치 미확인 (Codex ADB offline). 다음 순회에 `/formats` 포함 권장.
+
+---
+
+## 2026-06-01 / 세션 종료 핸드오프 (G3 머지 + 보안수정 + gstack v1.55)
 
 ### 어디까지 왔나
 - main HEAD: `1ae98c7`

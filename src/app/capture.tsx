@@ -610,7 +610,7 @@ export default function Capture() {
             accessibilityLabel={locale === "ko" ? "내 형식 관리" : "Manage my formats"}
           >
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "내 형식 관리하기 →" : "Manage my formats →"}
+              {locale === "ko" ? "내 형식 관리하기" : "Manage my formats"}
             </Text>
           </Pressable>
 
