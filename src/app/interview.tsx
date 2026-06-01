@@ -47,6 +47,7 @@ import {
   type InterviewTurn,
   type LifePeriod,
 } from "@/lib/interview/probe";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 const SOFT_CAP = 50;
 
@@ -192,8 +193,9 @@ export default function Interview() {
             eyebrow={locale === "ko" ? "10. 드릴 인터뷰" : "10. Drill interview"}
             title={locale === "ko" ? "한 시기를 깊게 들어가기" : "Drill into one life period"}
             subtitle={locale === "ko" ? "사실 · 감정 · 의미 · 믿음 · 울림" : "Fact · feeling · meaning · belief · echo"}
-            island="relationship"
-            worker="gadi"
+            island={VILLAGE_UI.relation.island}
+            worker={VILLAGE_UI.relation.worker}
+            accent={VILLAGE_UI.relation.accent}
             speech={
               locale === "ko"
                 ? "해석보다 먼저 듣겠습니다. 어느 시기부터 살펴볼까요?"

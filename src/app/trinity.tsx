@@ -21,6 +21,7 @@ import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 export type TrinityDomain = "health" | "app" | "brain" | "finance";
 
@@ -153,8 +154,9 @@ export default function Trinity() {
           eyebrow={locale === "ko" ? "09. 4영역 관리" : "09. Brain Trinity"}
           title={locale === "ko" ? "생활의 네 영역을 밝히기" : "Light up four life areas"}
           subtitle={locale === "ko" ? "건강 · 앱 · 뇌 · 재정" : "Health · app · brain · finance"}
-          island="work_growth"
-          worker="archi"
+          island={VILLAGE_UI.work.island}
+          worker={VILLAGE_UI.work.worker}
+          accent={VILLAGE_UI.work.accent}
           speech={
             locale === "ko"
               ? "태그가 붙은 기록을 네 영역으로 나눴어요. 비어 있는 영역부터 살펴볼까요?"

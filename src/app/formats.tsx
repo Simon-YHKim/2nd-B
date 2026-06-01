@@ -25,6 +25,7 @@ import {
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { VILLAGE_UI } from "@/lib/village-ui";
 import {
   listAccessibleTemplates,
   setTemplateShared,
@@ -215,15 +216,14 @@ export default function Formats() {
                 eyebrow={locale === "ko" ? "형식" : "Formats"}
                 title={locale === "ko" ? "내 클리퍼 형식" : "My clipper formats"}
                 subtitle={locale === "ko" ? "내가 만든 형식과 마을이 공유한 형식" : "Formats you made and ones the village shared"}
-                island="records"
-                worker="archi"
+                island={VILLAGE_UI.knowledge.island}
+                worker={VILLAGE_UI.knowledge.worker}
+                accent={VILLAGE_UI.knowledge.accent}
                 speech={
                   locale === "ko"
                     ? "형식을 다듬으면 다음 자료부터 더 잘 정리돼요."
                     : "Tune a format and the next pieces file themselves better."
                 }
-                islandSize={240}
-                workerSize={100}
               />
 
               {/* Built-in default formats (the bundled 8). Always available and
