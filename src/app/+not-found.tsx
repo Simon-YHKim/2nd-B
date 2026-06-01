@@ -6,6 +6,7 @@ import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 export default function NotFound() {
   const { i18n } = useTranslation();
@@ -19,15 +20,14 @@ export default function NotFound() {
           subtitle={
             locale === "ko" ? "마을의 중심으로 돌아갈 수 있어요" : "Return to the village center"
           }
-          island="core"
-          worker="secondb"
+          island={CORE_VILLAGE_UI.island}
+          worker={CORE_VILLAGE_UI.worker}
+          accent={CORE_VILLAGE_UI.accent}
           speech={
             locale === "ko"
               ? "길이 끊긴 것 같아요. 중심에서 다시 이어볼게요."
               : "Looks like the path broke. Let's reconnect from the center."
           }
-          islandSize={250}
-          workerSize={104}
         />
         <View style={styles.actions}>
           <Link href="/" asChild>
