@@ -77,7 +77,7 @@ export default function CoreBrain() {
     };
   }, [userId, locale, fireCompanion]);
 
-  if (loading || building) {
+  if (loading) {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
@@ -87,6 +87,16 @@ export default function CoreBrain() {
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
+
+  if (building) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "중심을 살펴보는 중이에요…" : "Looking at your center…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
 
   // Empty state (§7) — never fabricate a summary with no pieces.
   if (evidence.length === 0) {
@@ -181,7 +191,7 @@ export default function CoreBrain() {
                   style={[styles.fieldDot, { backgroundColor: field.status === "filled" ? cosmic.signalMint : semantic.border }]}
                 />
                 <View style={{ flex: 1 }}>
-                  <Text variant="caption" color="textMuted" style={{ letterSpacing: 0.5 }}>{field.label}</Text>
+                  <Text variant="caption" color="textMuted" style={styles.fieldLabel}>{field.label}</Text>
                   {field.status === "filled" ? (
                     <Text variant="body">{field.value}</Text>
                   ) : (
@@ -291,7 +301,7 @@ function evidenceLabel(ev: EvidenceShard, locale: "en" | "ko"): string {
 function Section({ title, accent, children }: { title: string; accent: string; children: ReactNode }) {
   return (
     <View style={[styles.section, { borderLeftColor: accent }]}>
-      <Text variant="caption" color="textMuted" style={{ letterSpacing: 1, marginBottom: spacing.xs }}>{title}</Text>
+      <Text variant="caption" color="textMuted" style={styles.sectionTitle}>{title}</Text>
       {children}
     </View>
   );
@@ -314,6 +324,7 @@ const styles = StyleSheet.create({
   },
   fieldList: { gap: spacing.xs },
   fieldRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs },
+  fieldLabel: { letterSpacing: 0 },
   fieldDot: { width: 8, height: 8, borderRadius: 4 },
   evidenceBtn: { paddingVertical: spacing.xs },
   emptyActions: { gap: spacing.md, marginTop: spacing.xl, width: "100%", maxWidth: 320 },
@@ -329,6 +340,7 @@ const styles = StyleSheet.create({
     maxHeight: "70%",
   },
   drawerHandle: { alignSelf: "center", width: 36, height: 4, borderRadius: 2, backgroundColor: semantic.border, marginBottom: spacing.sm },
+  sectionTitle: { letterSpacing: 0, marginBottom: spacing.xs },
   evRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs },
   evDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
 });

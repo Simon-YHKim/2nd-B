@@ -1459,7 +1459,7 @@ const styles = StyleSheet.create({
     color: cosmic.moonWhite,
     fontFamily: fontFamilies.pixel,
     fontSize: 12,
-    letterSpacing: 0.3,
+    letterSpacing: 0,
     textAlign: "center",
   },
   centerArtWrap: {
@@ -1490,7 +1490,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
-  resetText: { color: cosmic.signalMint, letterSpacing: 0.5 },
+  resetText: { color: cosmic.signalMint, letterSpacing: 0 },
   shardWrap: { position: "absolute", width: 14, height: 14, alignItems: "center", justifyContent: "center" },
   // Highlight-on-return: a mint halo around the shard the user came back to.
   shardHighlight: {
@@ -1540,7 +1540,7 @@ const styles = StyleSheet.create({
   sheetName: { flexShrink: 1 },
   sheetClose: { color: cosmic.mistGray, fontSize: 16, paddingHorizontal: 4 },
   sheetMetaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 },
-  sheetType: { letterSpacing: 1 },
+  sheetType: { letterSpacing: 0 },
   // Readable sans for the long Korean description (closeout-v3 #10).
   sheetDesc: { marginTop: 10, lineHeight: 21, fontFamily: fontFamilies.readable },
   sheetStats: { flexDirection: "row", gap: 16, marginTop: 12 },
