@@ -3,7 +3,66 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest -- 2026-06-02 / Codex UI QA + premium consistency pass
+## Latest -- 2026-06-02 / 미성년 보호장치 B+C UI 머지 + A prod 적용 (14-17 라이브 오픈)
+
+### 어디까지 왔나
+- main HEAD: 이 핸드오프 머지 후 (직전 `fc45f86`)
+- 이번 세션 머지 2 PR (둘 다 `npm run verify` green, CI green, squash):
+  - **#159 (B)** 미성년 보호장치 UI — `/privacy` high-privacy 토글(8키, 14-17 잠금 / `long_term_memory`만 승격) + 가입 동의안내(`ConsentNotice`, sign-up + complete-profile, `recordConsentBestEffort`). 계약(prefs.ts / consent.ts) 배선.
+  - **#167 (C)** 계정 관리 `/account` — DOB 정정(0030 서버 재검증) · 개인정보/동의 → /privacy 링크 · 계정삭제(데이터 erase + 로그아웃) · age-out = 라이브 `isMinor` 자동 해제.
+- **A: prod 마이그레이션 0028 → 0032 적용 완료** (사용자 명시 확인 후) → **prod가 이제 14-17 self-consent 가입 오픈.** 적용 후 `get_advisors(security)` 점검 완료.
+
+### ⚠️ prod 상태 변경 (중요 — GPT 동시작업자 주목)
+- prod `zoacryukmdeivmolvyhj` 마이그레이션: **0027 → 0032**. `users`에 `account_status` / `minor_tier` / `privacy_prefs` 추가, 테이블 `guardian_consents`(deny-all) · `consent_records`(append-only) 신설. 서버 트리거 `enforce_user_age_tier`가 <14 거부 + minor_tier 도출 + 미성년 high-privacy 시드.
+- 기존 2 성인 유저 → `minor_tier='adult'` backfill 완료 (users_active_has_tier 제약 통과로 확인).
+- **이제 18+ 강제 아님. 14-17 가입 라이브.** B의 동의 UI / 프라이버시 토글이 main 배포돼 보호장치 동작.
+
+### get_advisors(security) 결과 (적용 후)
+- 신규 실질 위험 없음. `guardian_consents` RLS-no-policy(INFO) = 의도된 deny-all(0029). `consent_records`는 RLS+정책 정상.
+- WARN `enforce_user_age_tier` search_path mutable — 기존 트리거 함수들(auto_judge_mode 등)과 동일 baseline 패턴. **후속 권장**: 연령 게이트 함수라 search_path 하드닝(0033 후보).
+
+### 후속 작업 큐
+| # | 작업 | 크기 |
+|---|---|---|
+| 1 | **법무 카피 확정** — 동의 문구 · `CONSENT/POLICY/TERMS_VERSION`(현 placeholder `2026-06-02`) · 국외이전 처리국가. `LEXICON_LAST_LEGAL_REVIEW` null | medium |
+| 2 | **계정 완전삭제 RPC**(service_role/엣지) — 현재 C는 데이터 erase+로그아웃, `auth.users` 제거 미구현 | medium |
+| 3 | **동의 철회 기록**(consent_records append) + **minor update 서버 강제**(변조 클라가 locked 키를 못 켜게 트리거/RLS) | medium |
+| 4 | trigger 함수 search_path 하드닝 (0033) | small |
+| 5 | **D 시각 QA**(기기/웹): /privacy 토글·잠금 · 가입 ConsentNotice(14-17 배너) · /account DOB·삭제 — 원격 컨테이너라 미수행 | small |
+| 6 | guardian flow(under-14) — 별도 트랙(현재 <14 거부) | large |
+
+### 핵심 파일 (이번 세션)
+```
+src/app/privacy.tsx                      high-privacy 토글 (B1)
+src/app/account.tsx                      계정 관리 (C)
+src/components/consent/ConsentNotice.tsx 가입 동의안내 (B2)
+src/lib/auth/consent-selections.ts       동의 selection 게이트/매핑 (B2)
+src/lib/supabase/consent.ts              recordConsent + recordConsentBestEffort
+src/lib/supabase/privacy.ts              privacy_prefs fail-soft 읽기/쓰기 (B1)
+src/lib/supabase/account.ts              fetch/updateBirthDate (C)
+src/lib/account/dob.ts                   dobCorrectionStatus (C)
+src/lib/privacy/prefs.ts                 키셋 + isPrivacyPrefEditable (minor 잠금)
+db/migrations/0028~0032                  ★ prod 적용 완료
+```
+
+### 정책 (이번 세션 확정)
+- **자동 머지 ON** (Simon, 2026-06-02): PR CI green 시 묻지 않고 squash merge → main 재검증.
+- **prod 마이그레이션 적용은 여전히 명시 확인 필요** (안전 레이어가 강제; 이번엔 확인받고 적용함).
+
+### 검증
+```bash
+npm run verify   # 769/769 (80 suites)
+```
+
+### 다음 세션 시작
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# 후속 1(법무) / D(시각 QA) / 후속 2~4(삭제 RPC·철회기록·search_path) 중 선택.
+```
+
+---
+
+## 2026-06-02 / Codex UI QA + premium consistency pass
 
 ### Handoff snapshot
 - main HEAD: `9a13d87`
