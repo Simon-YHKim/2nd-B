@@ -1,8 +1,10 @@
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { Text } from "@/components/ui/Text";
+import { prefersReducedMotion } from "@/lib/motion/signature";
 import { cosmic, radii, spacing } from "@/lib/theme/tokens";
 import { PremiumButton } from "./surfaces";
 
@@ -20,6 +22,8 @@ type SceneHeroAction = {
 const WORKER_TO_ISLAND_SCALE = 0.22;
 const SPEECH_LAYER = 40;
 const CHARACTER_LAYER = 12;
+const OWNER_PATROL_MS = 2800;
+const OWNER_PATROL_TO_ISLAND_SCALE = 0.034;
 
 export function SceneHero({
   eyebrow,
@@ -47,6 +51,9 @@ export function SceneHero({
   style?: StyleProp<ViewStyle>;
 }) {
   const ownerSize = Math.min(workerSize, Math.max(44, Math.round(islandSize * WORKER_TO_ISLAND_SCALE)));
+  const reducedMotion = prefersReducedMotion();
+  const patrol = useRef(new Animated.Value(0)).current;
+  const [ownerFacing, setOwnerFacing] = useState<1 | -1>(1);
   const ownerHaloSize = ownerSize + 18;
   const ownerLeft = Math.max(12, Math.round(islandSize * 0.12));
   const ownerBottom = Math.max(14, Math.round(islandSize * 0.1));
@@ -61,6 +68,51 @@ export function SceneHero({
   const bubbleLeft = Math.max(8, Math.min(maxBubbleLeft, ownerLeft + ownerHaloSize / 2 - 28));
   const bubbleBottom = ownerBottom + ownerHaloSize - 4;
   const tailLeft = Math.max(18, Math.min(bubbleWidth - 26, ownerLeft + ownerHaloSize / 2 - bubbleLeft - 5));
+  const ownerStride = Math.max(6, Math.round(islandSize * OWNER_PATROL_TO_ISLAND_SCALE));
+  const ownerTranslateX = patrol.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-ownerStride, ownerStride],
+  });
+
+  useEffect(() => {
+    if (reducedMotion) {
+      patrol.stopAnimation();
+      patrol.setValue(0.5);
+      setOwnerFacing(1);
+      return;
+    }
+
+    let alive = true;
+    const toRight = () => {
+      setOwnerFacing(1);
+      Animated.timing(patrol, {
+        toValue: 1,
+        duration: OWNER_PATROL_MS,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (alive && finished) toLeft();
+      });
+    };
+    const toLeft = () => {
+      setOwnerFacing(-1);
+      Animated.timing(patrol, {
+        toValue: 0,
+        duration: OWNER_PATROL_MS,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (alive && finished) toRight();
+      });
+    };
+
+    patrol.setValue(0);
+    toRight();
+    return () => {
+      alive = false;
+      patrol.stopAnimation();
+    };
+  }, [patrol, reducedMotion]);
 
   return (
     <View style={[styles.wrap, style]}>
@@ -86,7 +138,7 @@ export function SceneHero({
               ]}
             />
             <IslandArt id={island} size={islandSize} style={styles.island} />
-            <View
+            <Animated.View
               style={[
                 styles.workerWrap,
                 {
@@ -94,6 +146,7 @@ export function SceneHero({
                   height: ownerHaloSize,
                   left: ownerLeft,
                   bottom: ownerBottom,
+                  transform: [{ translateX: ownerTranslateX }],
                 },
               ]}
             >
@@ -122,7 +175,8 @@ export function SceneHero({
               <WorkerSprite
                 id={worker}
                 size={ownerSize}
-                paused
+                facing={ownerFacing}
+                paused={reducedMotion}
                 style={[
                   styles.workerSprite,
                   {
@@ -131,7 +185,7 @@ export function SceneHero({
                   },
                 ]}
               />
-            </View>
+            </Animated.View>
             <View style={[styles.bubble, { left: bubbleLeft, bottom: bubbleBottom, width: bubbleWidth }]}>
               <Text variant="body" style={styles.bubbleText}>{speech}</Text>
               <View style={[styles.bubbleTail, { left: tailLeft }]} />
