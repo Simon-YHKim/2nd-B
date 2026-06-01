@@ -16,7 +16,8 @@ import {
   TARGET_CATEGORIES,
   type TargetCategory,
 } from "./clipper-templates";
-import { listAccessibleTemplates } from "./template-queries";
+import { listAccessibleTemplates, type CustomClipperTemplate } from "./template-queries";
+import { matchTemplateByUrl } from "./template-triggers";
 import { SOURCE_KINDS, type SourceKind } from "./types";
 
 export type WikiTrack = "daily" | "pro";
@@ -139,7 +140,8 @@ export function buildClipperPrompt(
 
 /** Parse + sanitize the LLM reply into a ClipperClassification. Pure → tested.
  *  Anchors every field on a safe default keyed off the URL-derived kind. */
-export function parseClipperResult(raw: string, fallbackKind: SourceKind): ClipperClassification {
+export function parseClipperResult(raw: string, fallbackKind: SourceKind, forcedKind?: SourceKind): ClipperClassification {
+  const anchorKind = forcedKind ?? fallbackKind;
   const safe = (kind: SourceKind): ClipperClassification => ({
     kind,
     track: "daily",
@@ -154,15 +156,16 @@ export function parseClipperResult(raw: string, fallbackKind: SourceKind): Clipp
   let parsed: Record<string, unknown>;
   try {
     const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) return safe(fallbackKind);
+    if (!match) return safe(anchorKind);
     parsed = JSON.parse(match[0]) as Record<string, unknown>;
   } catch {
-    return safe(fallbackKind);
+    return safe(anchorKind);
   }
 
-  const kind: SourceKind = SOURCE_KINDS.includes(parsed.kind as SourceKind)
-    ? (parsed.kind as SourceKind)
-    : fallbackKind;
+  // forcedKind (an authored trigger match) wins over the model's kind so the
+  // explicit route holds; otherwise take the model's valid kind or the fallback.
+  const kind: SourceKind =
+    forcedKind ?? (SOURCE_KINDS.includes(parsed.kind as SourceKind) ? (parsed.kind as SourceKind) : fallbackKind);
   const tmpl = CLIPPER_TEMPLATES[kind];
 
   const track: WikiTrack = parsed.track === "pro" ? "pro" : "daily";
@@ -208,7 +211,7 @@ export async function classifyClipper(
   url: string | null,
   locale: "en" | "ko",
 ): Promise<ClipperClassification> {
-  const baselineKind: SourceKind = url ? detectClipperKind(url) : "inbox";
+  let baselineKind: SourceKind = url ? detectClipperKind(url) : "inbox";
   const trimmed = content.trim();
   if (trimmed.length === 0) return parseClipperResult("", baselineKind);
 
@@ -216,6 +219,7 @@ export async function classifyClipper(
   // classifier is aware of them. Fail-open: if the table is missing/offline we
   // just fall back to the bundled 8 canonical kinds.
   let customFormats: { name: string; baseKind: SourceKind }[] = [];
+  let matchedFormat: CustomClipperTemplate | null = null;
   try {
     const templates = await listAccessibleTemplates(userId);
     customFormats = templates
@@ -224,11 +228,29 @@ export async function classifyClipper(
         baseKind: t.baseKind,
       }))
       .slice(0, 12);
+    // An authored URL trigger on one of the user's OWN formats is their explicit
+    // routing intent, so a match overrides the bundled host rules. Community
+    // formats stay reference-only (no cross-user trigger hijacking).
+    if (url) matchedFormat = matchTemplateByUrl(url, templates.filter((t) => t.ownerId === userId));
   } catch {
     // table not applied yet / offline — bundled kinds are enough.
   }
+  if (matchedFormat) baselineKind = matchedFormat.baseKind;
 
   const { system, user } = buildClipperPrompt(baselineKind, trimmed, url, locale, customFormats);
   const reply = await callGemini({ userId, locale, purpose: "clipper_classify", system, user });
-  return parseClipperResult(reply.text, baselineKind);
+  // A matched trigger is an explicit routing override, so force the kind (and its
+  // prop schema) to the authored baseKind rather than letting the model pick.
+  const classification = parseClipperResult(reply.text, baselineKind, matchedFormat?.baseKind);
+
+  // Apply the matched format's authored routing: force its target bucket when set
+  // (it must win over the bundled template default the parser fills in) and union
+  // its default tags onto the model's.
+  if (matchedFormat) {
+    if (matchedFormat.targetCategory) classification.targetCategory = matchedFormat.targetCategory;
+    if (matchedFormat.defaultTags.length > 0) {
+      classification.tags = Array.from(new Set([...classification.tags, ...matchedFormat.defaultTags]));
+    }
+  }
+  return classification;
 }
