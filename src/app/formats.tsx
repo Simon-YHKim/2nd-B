@@ -33,8 +33,10 @@ import {
   type CustomClipperTemplate,
 } from "@/lib/wiki/template-queries";
 import { partitionTemplates, type TemplateDraft } from "@/lib/wiki/template-validate";
-import { CLIPPER_TEMPLATE_LIST } from "@/lib/wiki/clipper-templates";
+import { CLIPPER_TEMPLATE_LIST, type ClipperTemplate } from "@/lib/wiki/clipper-templates";
 import { TemplateEditor } from "@/components/wiki/TemplateEditor";
+import { AddFormatFlow } from "@/components/wiki/AddFormatFlow";
+import { FormatSchemaView, type FormatSchemaInput } from "@/components/wiki/FormatSchemaView";
 
 type Locale = "en" | "ko";
 type Toast = { message: string; tone: "info" | "success" | "danger" };
@@ -52,6 +54,8 @@ export default function Formats() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [pendingShareIds, setPendingShareIds] = useState<ReadonlySet<string>>(new Set());
+  const [adding, setAdding] = useState(false);
+  const [viewing, setViewing] = useState<FormatSchemaInput | null>(null);
 
   // Async-race guards: ignore results after unmount, and apply only the latest
   // load (a write bumps loadSeqRef so a stale reload can't clobber a mutation).
@@ -196,6 +200,29 @@ export default function Formats() {
   function metaOf(t: CustomClipperTemplate): string {
     return t.targetCategory ? `${t.baseKind} · ${t.targetCategory}` : t.baseKind;
   }
+  // Normalize a format (bundled or custom) into the locale-resolved schema view.
+  function schemaOfBundled(t: ClipperTemplate): FormatSchemaInput {
+    return {
+      name: (locale === "ko" ? t.name.ko : t.name.en) || t.name.en,
+      baseKind: t.kind,
+      what: (locale === "ko" ? t.what.ko : t.what.en) || t.what.en,
+      targetCategory: t.targetCategoryDefault,
+      defaultTags: t.defaultTags,
+      triggers: t.triggers,
+      aiProperties: t.aiProperties.map((p) => ({ name: p.name, type: p.type, describe: locale === "ko" ? p.describe.ko : p.describe.en })),
+    };
+  }
+  function schemaOfCustom(t: CustomClipperTemplate): FormatSchemaInput {
+    return {
+      name: nameOf(t),
+      baseKind: t.baseKind,
+      what: whatOf(t),
+      targetCategory: t.targetCategory,
+      defaultTags: t.defaultTags,
+      triggers: t.triggers,
+      aiProperties: t.aiProperties.map((p) => ({ name: p.name, type: p.type, describe: locale === "ko" ? p.describe.ko : p.describe.en })),
+    };
+  }
 
   return (
     <PremiumAppShell>
@@ -208,6 +235,17 @@ export default function Formats() {
               saving={saving}
               onSave={handleSaveEdit}
               onCancel={() => setEditing(null)}
+            />
+          ) : adding ? (
+            <AddFormatFlow
+              userId={userId}
+              locale={locale}
+              onSaved={(saved) => {
+                setTemplates((prev) => (prev ? [saved, ...prev.filter((x) => x.id !== saved.id)] : [saved]));
+                setAdding(false);
+                flashToast(locale === "ko" ? "형식을 추가했어요." : "Format added.", "success");
+              }}
+              onCancel={() => setAdding(false)}
             />
           ) : (
             <>
@@ -226,6 +264,13 @@ export default function Formats() {
                 workerSize={100}
               />
 
+              <PremiumButton
+                label={locale === "ko" ? "+ 형식 추가" : "+ Add format"}
+                variant="primary"
+                onPress={() => setAdding(true)}
+                full
+              />
+
               {/* Built-in default formats (the bundled 8). Always available and
                   read-only — they back the classifier, so they show even before
                   any DB-stored custom format exists (and even if the load fails). */}
@@ -235,19 +280,25 @@ export default function Formats() {
                 </Text>
               </View>
               {CLIPPER_TEMPLATE_LIST.map((t) => (
-                <PremiumCard
+                <Pressable
                   key={t.id}
-                  accent={semantic.brand}
-                  eyebrow={t.targetCategoryDefault ? `${t.kind} · ${t.targetCategoryDefault}` : t.kind}
-                  title={(locale === "ko" ? t.name.ko : t.name.en) || t.name.en}
+                  onPress={() => setViewing(schemaOfBundled(t))}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${(locale === "ko" ? t.name.ko : t.name.en) || t.name.en} ${locale === "ko" ? "양식 보기" : "view schema"}`}
                 >
-                  <Text variant="subtle" color="textMuted">
-                    {locale === "ko" ? t.what.ko : t.what.en}
-                  </Text>
-                  <Text variant="subtle" color="textSubtle" style={styles.shareNote}>
-                    {locale === "ko" ? "기본 제공 형식" : "Built-in format"}
-                  </Text>
-                </PremiumCard>
+                  <PremiumCard
+                    accent={semantic.brand}
+                    eyebrow={t.targetCategoryDefault ? `${t.kind} · ${t.targetCategoryDefault}` : t.kind}
+                    title={(locale === "ko" ? t.name.ko : t.name.en) || t.name.en}
+                  >
+                    <Text variant="subtle" color="textMuted">
+                      {locale === "ko" ? t.what.ko : t.what.en}
+                    </Text>
+                    <Text variant="subtle" color="brand" style={styles.shareNote}>
+                      {locale === "ko" ? "눌러서 분류 양식 보기 ›" : "Tap to view schema ›"}
+                    </Text>
+                  </PremiumCard>
+                </Pressable>
               ))}
 
               {templates === null && !loadError ? (
@@ -312,6 +363,15 @@ export default function Formats() {
                             : locale === "ko" ? "나만 보기" : "Private to you"}
                         </Text>
                         <View style={styles.cardActions}>
+                          <Pressable
+                            onPress={() => setViewing(schemaOfCustom(t))}
+                            style={styles.deleteLink}
+                            hitSlop={6}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${nameOf(t)} ${locale === "ko" ? "양식 보기" : "view schema"}`}
+                          >
+                            <Text variant="subtle" color="brand">{locale === "ko" ? "양식" : "Schema"}</Text>
+                          </Pressable>
                           <PremiumButton
                             label={locale === "ko" ? "편집" : "Edit"}
                             variant="secondary"
@@ -347,12 +407,19 @@ export default function Formats() {
                     </Text>
                   ) : (
                     partition.community.map((t) => (
-                      <PremiumCard key={t.id} accent={semantic.info} eyebrow={metaOf(t)} title={nameOf(t)}>
-                        {whatOf(t) ? <Text variant="subtle" color="textMuted">{whatOf(t)}</Text> : null}
-                        <Text variant="subtle" color="textSubtle" style={styles.shareNote}>
-                          {locale === "ko" ? "마을 주민이 공유한 형식" : "Shared by a fellow villager"}
-                        </Text>
-                      </PremiumCard>
+                      <Pressable
+                        key={t.id}
+                        onPress={() => setViewing(schemaOfCustom(t))}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${nameOf(t)} ${locale === "ko" ? "양식 보기" : "view schema"}`}
+                      >
+                        <PremiumCard accent={semantic.info} eyebrow={metaOf(t)} title={nameOf(t)}>
+                          {whatOf(t) ? <Text variant="subtle" color="textMuted">{whatOf(t)}</Text> : null}
+                          <Text variant="subtle" color="brand" style={styles.shareNote}>
+                            {locale === "ko" ? "눌러서 분류 양식 보기 ›" : "Tap to view schema ›"}
+                          </Text>
+                        </PremiumCard>
+                      </Pressable>
                     ))
                   )}
                 </>
@@ -387,6 +454,22 @@ export default function Formats() {
             variant="danger"
             loading={!!busyId}
             onPress={confirmDeleteNow}
+            full
+          />
+        </View>
+      </PremiumModal>
+
+      {/* Item 1a: tap a format to see how it classifies (read-only schema). */}
+      <PremiumModal visible={!!viewing} onClose={() => setViewing(null)}>
+        <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
+          {locale === "ko" ? "분류 양식" : "Classification schema"}
+        </Text>
+        {viewing ? <FormatSchemaView schema={viewing} locale={locale} /> : null}
+        <View style={styles.modalActions}>
+          <PremiumButton
+            label={locale === "ko" ? "닫기" : "Close"}
+            variant="secondary"
+            onPress={() => setViewing(null)}
             full
           />
         </View>
