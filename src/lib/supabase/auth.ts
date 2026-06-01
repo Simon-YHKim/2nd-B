@@ -5,6 +5,7 @@
 // users_birth_date_sane CHECK (0028) is a further backstop.
 
 import dayjs from "dayjs";
+import { digitalConsentAge } from "../auth/consent-age";
 import { isJudgeEmail } from "../judge/domains";
 import { getSupabaseClient } from "./client";
 
@@ -13,7 +14,9 @@ import { getSupabaseClient } from "./client";
 // (Article 22-2); users 14+ may consent themselves under the general provisions
 // (Articles 15/17/22) with age-appropriate notice. Under 14 requires verifiable
 // guardian consent (added in a later PR); until then they are blocked here.
-export const MIN_SELF_CONSENT_AGE = 14;
+// Sourced from the jurisdiction matrix (task F); KR-assumed until country
+// detection exists, so the live floor is the KR value (14).
+export const MIN_SELF_CONSENT_AGE = digitalConsentAge("KR");
 
 export class AgeGateError extends Error {
   constructor() {
