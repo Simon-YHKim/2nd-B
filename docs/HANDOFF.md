@@ -3,7 +3,64 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-01 / 연령 티어 확장 + ⚠️ GPT BLOCK: 미성년 게이트 remediation (로컬 인수인계)
+## Latest — 2026-06-02 / 미성년 안전 remediation — 7 PR 머지 (C/H/E/A·core/B/D/F) + prod 보류
+
+### 어디까지 왔나
+- main HEAD: 이 핸드오프 머지 후 (직전 `0e338fa`)
+- 이번 세션 머지 7 PR (전부 CI green · `npm run verify` 744/744, 76 suites):
+  - **#134 (C)** 미성년 위기 라우팅 실배선 + KR 핫라인 **1393→109**(2024 통합). KO 14-17 → 1388+109, EN → 988. `crisisHotlines()` 단일 소스.
+  - **#136 (H)** PIPA **§22-2 오인용 정정**(=<14 법정대리인; 14-17은 §15/§17/§22) + `ageNotice` 18→14.
+  - **#137 (E)** `guardian_consents` service_role 잠금 (0029, deny-all).
+  - **#138 (A·core)** 서버측 연령 게이트 트리거 (0030) — <14 거부 + minor_tier/account_status 서버 도출.
+  - **#140 (B)** `consent_records` 동의 원장 (0031) — append-only. **미배선**(notice UI 대기).
+  - **#141 (D)** 14-17 **high-privacy 기본값** (0032) — 트리거가 minor에 보수적 기본 시드 + `prefs.ts` 계약.
+  - **#142 (F)** 관할 동의연령 매트릭스(`consent-age.ts`) + 게이트 floor 소스화(KR=14 가정).
+  - (+ GPT **#139** age-gate 에셋 18+→14+ — 위임 프롬프트로 처리됨)
+- **GPT 적대 리뷰 High 1·2·3 전부 코드로 닫힘.** working tree clean.
+
+### ⚠️ prod 상태 — 핸드오프 정정 (중요)
+- **0028이 prod에 미적용.** prod는 `0027`(clipper_templates)까지. `users`에 18+ CHECK(`users_birth_date_min_age`) 그대로, `minor_tier`/`account_status`/`guardian_consents` 없음, user 2명.
+- 즉 **prod는 여전히 18+ DB 강제** → finding #2(클라전용 우회)는 prod에 **존재 안 함**(코드-상태 리뷰였음). 단 **14-17 가입은 prod에서 깨진 상태**(클라 허용, DB가 <18 거부).
+- **결정(2026-06-02): B/D UI 준비될 때까지 prod 적용 보류.** 보호장치(동의기록/청소년안내/high-privacy 토글) 없이 미성년 가입을 여는 건 역순. 데모/심사는 18+로 충분·안전.
+- PR-1의 109 위기 라우팅은 **코드**(엣지/웹 빌드)라 라이브 — 성인도 이미 109.
+
+### prod 적용 시퀀스 (B/D UI 완성 후 한꺼번에)
+Supabase MCP `apply_migration` 으로 **0028 → 0029 → 0030 → 0031 → 0032** 순서대로(프로젝트 `zoacryukmdeivmolvyhj`). 0030/0032 트리거 backfill이 prod 데이터에 실행됨. 적용 후 `get_advisors(security)`. 그 다음에 14-17 가입 활성화.
+
+### 남은 작업 / 위임
+- **B·D UI → GPT** (프롬프트 전달됨): 청소년 개인정보 안내 화면(`recordConsent` 필드 계약) + high-privacy 설정 토글(`prefs.ts` 키셋).
+- **G (철회/삭제/age-out)** — 대부분 UI(→GPT). 코드측: **DOB 정정**은 0030 트리거가 재검증(완료), **age-out 안전**은 `AuthContext.isMinor` 라이브 계산(완료; DB `minor_tier` 스테일은 무해 — 성인 되면 보수적 기본값 토글 가능). 미래 인프라: 계정삭제 RPC(service_role), 동의철회 기록, `crisis_events` retention 정책.
+- **A edge-function**(선택): under-14 `auth.users` 생성 자체 차단(고아 row). 현재 트리거로 usable account/false-tier 주입은 차단됨.
+- **법무 확정 필요** (`LEXICON_LAST_LEGAL_REVIEW` null): 동의·고지 문구, consent/policy/terms 버전(현재 placeholder `2026-06-02`), EU 관할별 연령, 국외이전 고지(Gemini/Supabase 처리 국가).
+
+### 핵심 파일 (이번 세션)
+```
+src/lib/safety/classifier.ts        crisisHotlines(locale,minor) 단일 소스 + pickCrisisHotline
+src/lib/llm/safety.ts               fixedCrisisResponse(locale,minor) — 109/1388
+src/lib/llm/gemini.ts               routeCrisis/callAdvisor minor-aware
+src/lib/auth/consent-age.ts         관할 동의연령 매트릭스 (KR14/US13/EU16/DEFAULT16)
+src/lib/privacy/prefs.ts            privacy_prefs 키셋 + privacy-by-design 기본
+src/lib/supabase/consent.ts         recordConsent + 버전 상수
+db/migrations/0028~0032             prod 미적용 (위 시퀀스로 일괄 적용)
+```
+
+### 적용 중인 정책 (이번 세션)
+- **표준: 모든 작업 GitHub 머지까지** (Simon 2026-06-02). prod 인프라 적용(마이그레이션/엣지)은 그 시점 별도 확인.
+- 새 브랜치 → `npm run verify` green → PR → CI green → squash merge → main 재검증.
+
+### 검증
+```bash
+npm run verify   # 744/744 (76 suites) · lint/type/i18n/lexicon/boundary/C1~C12
+```
+
+### 다음 세션 시작
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+```
+
+---
+
+## 2026-06-01 / 연령 티어 확장 + GPT BLOCK: 미성년 게이트 remediation (로컬 인수인계)
 
 ### 어디까지 왔나
 - main HEAD: `b9ed7d0`
