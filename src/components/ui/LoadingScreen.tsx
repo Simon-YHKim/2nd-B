@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text } from "react-native";
 
 import { CosmicBackground } from "@/components/premium";
+import { cosmic } from "@/lib/theme/tokens";
 
 const logo = require("../../../public/assets/2ndb-refine/auth/loading_core_orb_premium.png");
 
@@ -275,19 +276,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#070A18",
+    backgroundColor: cosmic.space950,
     gap: 32,
   },
   logo: { width: 220, height: 220 },
   text: {
-    color: "#E8ECF8",
+    color: cosmic.moonWhite,
     fontSize: 15,
     letterSpacing: 0.3,
     minHeight: 22,
   },
-  caret: { color: "#72F2C7", opacity: 0.85 },
+  caret: { color: cosmic.signalMint, opacity: 0.85 },
   hint: {
-    color: "#A78BFA",
+    color: cosmic.soulViolet,
     fontSize: 13,
     letterSpacing: 2,
     textAlign: "center",

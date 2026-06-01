@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.sm,
-    shadowColor: "#A78BFA",
+    shadowColor: cosmic.soulViolet,
     shadowOpacity: 0.14,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },

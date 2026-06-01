@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     padding: 16,
-    shadowColor: "#A78BFA",
+    shadowColor: PALETTE.accent,
     shadowOpacity: 0.22,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
