@@ -15,6 +15,7 @@ import {
   CLIPPER_TEMPLATE_LIST,
   TARGET_CATEGORIES,
   type TargetCategory,
+  type ClipperAiProperty,
 } from "./clipper-templates";
 import { listAccessibleTemplates, type CustomClipperTemplate } from "./template-queries";
 import { matchTemplateByUrl } from "./template-triggers";
@@ -32,7 +33,7 @@ export interface ClipperClassification {
   summary: string;
   actionableTakeaway: string;
   /** Kind-specific frontmatter props (only the keys the template declares). */
-  props: Record<string, string | string[]>;
+  props: Record<string, string | string[] | number>;
 }
 
 function sanitizeTag(t: string): string {
@@ -63,6 +64,7 @@ export function buildClipperPrompt(
   url: string | null,
   locale: "en" | "ko",
   customFormats: readonly { name: string; baseKind: SourceKind }[] = [],
+  propSchema?: readonly ClipperAiProperty[],
 ): { system: string; user: string } {
   const tmpl = CLIPPER_TEMPLATES[baselineKind];
   const kindMenu = CLIPPER_TEMPLATE_LIST.map(
@@ -84,8 +86,11 @@ export function buildClipperPrompt(
         "\n" +
         customLines.join("\n")
       : "";
-  const propLines = tmpl.aiProperties.length
-    ? tmpl.aiProperties
+  // A matched custom format supplies its own prop schema; otherwise request the
+  // bundled kind's props.
+  const propDefs = propSchema ?? tmpl.aiProperties;
+  const propLines = propDefs.length
+    ? propDefs
         .map((p) => `    "${p.name}": ${locale === "ko" ? p.describe.ko : p.describe.en}`)
         .join("\n")
     : `    (none)`;
@@ -140,7 +145,7 @@ export function buildClipperPrompt(
 
 /** Parse + sanitize the LLM reply into a ClipperClassification. Pure → tested.
  *  Anchors every field on a safe default keyed off the URL-derived kind. */
-export function parseClipperResult(raw: string, fallbackKind: SourceKind, forcedKind?: SourceKind): ClipperClassification {
+export function parseClipperResult(raw: string, fallbackKind: SourceKind, forcedKind?: SourceKind, propSchema?: readonly ClipperAiProperty[]): ClipperClassification {
   const anchorKind = forcedKind ?? fallbackKind;
   const safe = (kind: SourceKind): ClipperClassification => ({
     kind,
@@ -184,16 +189,22 @@ export function parseClipperResult(raw: string, fallbackKind: SourceKind, forced
   const actionableTakeaway =
     typeof parsed.actionableTakeaway === "string" ? parsed.actionableTakeaway.slice(0, 200) : "";
 
-  // Only keep props the template declares, in their declared type.
-  const props: Record<string, string | string[]> = {};
+  // Only keep props the schema declares, in their declared type. A matched
+  // custom format overrides the bundled kind's props with its own.
+  const props: Record<string, string | string[] | number> = {};
   const rawProps = (parsed.props ?? {}) as Record<string, unknown>;
-  for (const p of tmpl.aiProperties) {
+  for (const p of propSchema ?? tmpl.aiProperties) {
     const v = rawProps[p.name];
     if (v == null) continue;
     if (p.type === "multitext") {
       const arr = Array.isArray(v) ? v.map((x) => String(x).trim()) : String(v).split(",").map((x) => x.trim());
       const cleaned = arr.filter((x) => x.length > 0).slice(0, 8);
       if (cleaned.length) props[p.name] = cleaned;
+    } else if (p.type === "number") {
+      // A user-defined number prop must land as a real number so it stays valid
+      // numeric frontmatter; a non-numeric model reply is dropped, not stringified.
+      const n = typeof v === "number" ? v : Number(String(v).trim());
+      if (Number.isFinite(n)) props[p.name] = n;
     } else {
       const s = String(v).trim().slice(0, 200);
       if (s.length) props[p.name] = s;
@@ -237,11 +248,11 @@ export async function classifyClipper(
   }
   if (matchedFormat) baselineKind = matchedFormat.baseKind;
 
-  const { system, user } = buildClipperPrompt(baselineKind, trimmed, url, locale, customFormats);
+  const { system, user } = buildClipperPrompt(baselineKind, trimmed, url, locale, customFormats, matchedFormat?.aiProperties);
   const reply = await callGemini({ userId, locale, purpose: "clipper_classify", system, user });
-  // A matched trigger is an explicit routing override, so force the kind (and its
-  // prop schema) to the authored baseKind rather than letting the model pick.
-  const classification = parseClipperResult(reply.text, baselineKind, matchedFormat?.baseKind);
+  // A matched trigger is an explicit routing override, so force the kind and its
+  // prop schema to the authored format rather than letting the model pick.
+  const classification = parseClipperResult(reply.text, baselineKind, matchedFormat?.baseKind, matchedFormat?.aiProperties);
 
   // Apply the matched format's authored routing: force its target bucket when set
   // (it must win over the bundled template default the parser fills in) and union
