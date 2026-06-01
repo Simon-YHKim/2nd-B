@@ -170,21 +170,32 @@ results.push(
 
 results.push(
   check("C10", () => {
-    // C10 redefined: age-tiered registration with verifiable guardian consent
-    // for under-14 (PIPA Article 22-2 / COPPA), replacing the flat 18+ CHECK (0002).
+    // C10 redefined: age-tiered registration. Under-14 require verifiable
+    // legal-representative consent (PIPA Article 22-2 / COPPA); 14+ self-consent
+    // under the general provisions (Articles 15/17/22). Replaces the flat 18+
+    // CHECK (0002).
     const sql = read("db/migrations/0028_minor_consent.sql");
     const auth = read("src/lib/supabase/auth.ts");
+    // guardian_consents is created in 0028 but NOT IN USE until the server-side
+    // under-14 flow (PR-4). 0029 locks it to service_role only — drops the
+    // per-user RLS policies — so it is not a reachable unmanaged-PII store.
+    const lock = read("db/migrations/0029_lock_guardian_consents.sql");
+    const lockedDown =
+      lock.includes("DROP POLICY IF EXISTS guardian_consents_select_own") &&
+      lock.includes("DROP POLICY IF EXISTS guardian_consents_insert_own") &&
+      lock.includes("NOT IN USE");
     const ok =
       sql.includes("guardian_consents") &&
       sql.includes("pending_guardian_consent") &&
       sql.includes("minor_tier") &&
-      auth.includes("ageInYears");
+      auth.includes("ageInYears") &&
+      lockedDown;
     return {
       id: "C10",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "age-tier schema (guardian_consents + account_status) + client age logic"
-        : "age-tier / guardian-consent enforcement missing",
+        ? "age-tier schema + client age logic; guardian_consents locked to service_role (0029, NOT IN USE until PR-4)"
+        : "age-tier/guardian-consent enforcement missing or guardian_consents not locked down",
     };
   }),
 );
