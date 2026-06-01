@@ -72,6 +72,13 @@ describe("validateTemplateDraft", () => {
     expect(validateTemplateDraft(draft({ name: { en: "Procurement log", ko: "" } }), "en").ok).toBe(true);
   });
 
+  it("still blocks a forbidden term that first appears embedded but later standalone", () => {
+    // "secure" contains "cure" (embedded), but a later standalone "cure" must
+    // still trip the gate; the matcher scans every occurrence, not just the first.
+    expect(draftHasForbiddenTerm(draft({ what: { en: "secure cure", ko: "" } }))).toBe(true);
+    expect(validateTemplateDraft(draft({ what: { en: "a secure cure here", ko: "" } }), "en").ok).toBe(false);
+  });
+
   it("scans nested aiProperty describe text for forbidden terms", () => {
     const term = FORBIDDEN_TERMS.en[0];
     const bad = draft({

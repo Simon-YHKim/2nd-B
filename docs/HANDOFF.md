@@ -17,7 +17,7 @@
 - 진입점: `/profile` "계정·설정" 칩 + `/capture` 링크.
 
 ### 다중 스킬 감사로 잡아 고친 것
-- 금지어 **오탐 버그**: naive `includes` → 경계 인식 `containsForbiddenLexicon` 일원화(template-validate + propose-template). "Secure"가 "cure"로 오차단되던 것 수정 +회귀 테스트.
+- 금지어 **오탐 버그**: naive `includes` → 경계 인식 `containsForbiddenLexicon` 일원화(template-validate + propose-template). "Secure" 같은 단어 속 임베드된 금지어로 오차단되던 것 수정 +회귀 테스트.
 - 저장 행 증발(upsert INSERT 엣지) → in-place/prepend.
 - 동시성: `mountedRef`(+mount 시 true 재설정, strict-mode 대비) + load-generation 가드 + 토글 in-flight 가드.
 - authz(owner_id 필터 + RLS write-own) · 인젝션 sanitize(#101, inject 시점) 재확인 클린. DESIGN.md(토큰·em dash·arrow) 클린.

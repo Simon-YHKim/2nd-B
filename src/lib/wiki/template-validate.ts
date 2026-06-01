@@ -6,7 +6,7 @@
 // user, so the C-vocabulary rule must apply to MANUAL edits too. Matching runs
 // through the canonical, boundary-aware matcher in safety/classifier
 // (containsForbiddenLexicon); lexicon.ts mandates that consumers must not
-// duplicate it, and the word boundary keeps "Secure" from tripping on "cure".
+// duplicate it, and the word boundary stops an embedded substring from tripping.
 
 import { containsForbiddenLexicon } from "../safety/classifier";
 import type { ClipperAiProperty, TargetCategory } from "./clipper-templates";
@@ -63,7 +63,7 @@ function surfaceText(draft: TemplateDraft): string {
 /** The forbidden-lexicon gate over a whole draft, via the canonical matcher. */
 export function draftHasForbiddenTerm(draft: TemplateDraft): boolean {
   // Surface text mixes EN + KO, so scan both term sets. The canonical matcher
-  // applies word boundaries for English (so "Secure" is not "cure") and
+  // applies word boundaries for English (an embedded substring is ignored) and
   // substring matching for Korean.
   const text = surfaceText(draft);
   return containsForbiddenLexicon(text, "en").length > 0 || containsForbiddenLexicon(text, "ko").length > 0;

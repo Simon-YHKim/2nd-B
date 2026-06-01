@@ -151,7 +151,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
       </Field>
 
       {/* Triggers (URL globs — freeform, not sanitized) */}
-      <Field label={locale === "ko" ? "트리거" : "Triggers"} hint={locale === "ko" ? "이 형식으로 자동 라우팅할 URL 조건" : "URL conditions that auto-route to this format"}>
+      <Field label={locale === "ko" ? "트리거" : "Triggers"} hint={locale === "ko" ? "이 형식과 연결할 URL 조건. 자동 라우팅 연동은 준비 중이에요." : "URL conditions linked to this format. Auto-routing isn't wired up yet."}>
         <TagField
           values={triggers}
           onChange={setTriggers}

@@ -21,12 +21,16 @@ function matchesTerm(haystack: string, term: string, locale: Locale): boolean {
   const lower = haystack.toLowerCase();
   const t = term.toLowerCase();
   if (locale === "ko") return lower.includes(t);
-  const idx = lower.indexOf(t);
-  if (idx === -1) return false;
-  const before = idx === 0 ? " " : lower[idx - 1];
-  const after = idx + t.length >= lower.length ? " " : lower[idx + t.length];
+  if (t.length === 0) return false;
   const isBoundary = (ch: string) => /[^a-z0-9]/i.test(ch);
-  return isBoundary(before) && isBoundary(after);
+  // Scan every occurrence: a term embedded in a larger word at its first
+  // position (for example inside a longer word) must not mask a later standalone one.
+  for (let idx = lower.indexOf(t); idx !== -1; idx = lower.indexOf(t, idx + 1)) {
+    const before = idx === 0 ? " " : lower[idx - 1];
+    const after = idx + t.length >= lower.length ? " " : lower[idx + t.length];
+    if (isBoundary(before) && isBoundary(after)) return true;
+  }
+  return false;
 }
 
 function pickCrisisHotline(locale: Locale): { id: HotlineId; label: string; number: string } {
