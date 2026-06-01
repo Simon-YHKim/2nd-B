@@ -26,7 +26,10 @@ html, body, #root, #__next {
   touch-action: pan-x pan-y;
   background-color: #070A18;
 }
-* { -webkit-tap-highlight-color: transparent; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
 /* NeoDunggeunmo pixel font app-wide (user directive 2026-05-29). The
    @font-face for "NeoDunggeunmo" / "NeoDunggeunmoCode" is injected by
    expo-font's useFonts() after hydration; this sets the inherited base so
