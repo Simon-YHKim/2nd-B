@@ -59,6 +59,7 @@ import { TierIcon, DOMAIN_TIER_ICON } from "@/components/art/TierIcon";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { getPersona } from "@/lib/chat/personas";
 import { relatedEdges } from "@/lib/graph/relatedness";
+import { VILLAGE_UI } from "@/lib/village-ui";
 import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
@@ -207,12 +208,12 @@ export const CENTER_NODE: NavNode = {
 // tier 3/4 keep the lighter node/shard art so the mobile view isn't busy.
 const ISLAND_FOR: Record<string, IslandId> = {
   core: "core",
-  work: "work_growth",
-  relation: "relationship",
-  knowledge: "knowledge",
-  records: "records",
-  imagine: "imagine",
-  taste: "inspiration",
+  work: VILLAGE_UI.work.island,
+  relation: VILLAGE_UI.relation.island,
+  knowledge: VILLAGE_UI.knowledge.island,
+  records: VILLAGE_UI.records.island,
+  imagine: VILLAGE_UI.imagine.island,
+  taste: VILLAGE_UI.taste.island,
 };
 
 // Domain → worker mapping (closeout-v3 #6, authoritative):
@@ -220,12 +221,12 @@ const ISLAND_FOR: Record<string, IslandId> = {
 //   기록 보관소 = Momo, 공상 작업실 = Vela, 취향과 영감 = Lumi (new #7),
 //   나의 중심 = SecondB. Worker glow matches the domain accent.
 const VILLAGE_WORKER: Record<string, WorkerId> = {
-  work: "archi",
-  relation: "gadi",
-  knowledge: "lulu",
-  records: "momo",
-  imagine: "vela",
-  taste: "lumi",
+  work: VILLAGE_UI.work.worker,
+  relation: VILLAGE_UI.relation.worker,
+  knowledge: VILLAGE_UI.knowledge.worker,
+  records: VILLAGE_UI.records.worker,
+  imagine: VILLAGE_UI.imagine.worker,
+  taste: VILLAGE_UI.taste.worker,
 };
 
 type PatrolPoint = { x: number; y: number; angle: number };

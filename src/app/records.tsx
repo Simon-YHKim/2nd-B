@@ -28,6 +28,7 @@ import {
   type RawSourceRow,
 } from "@/lib/persona/evidence";
 import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 const TYPE_FILTERS: (EvidenceType | "all")[] = ["all", "journal", "capture", "audit", "interview", "imagine", "wiki"];
 // Domain (village) filter chips — "all" plus the six villages, in graph order.
@@ -134,31 +135,38 @@ export default function Records() {
   if (!userId) return <Redirect href="/sign-in" />;
 
   const reload = () => setReloadKey((k) => k + 1);
+  const activeVillage: VillageId = domainFilter === "all" ? "records" : domainFilter;
+  const villageUi = VILLAGE_UI[activeVillage];
+  const villageLabel = VILLAGE_LABEL[activeVillage][locale];
+  const heroEyebrow =
+    domainFilter === "all"
+      ? (locale === "ko" ? "05. 기록 보관소" : "05. Records")
+      : (locale === "ko" ? `${villageLabel} · 마을 기록` : `${villageLabel} · village records`);
+  const heroTitle =
+    domainFilter === "all"
+      ? (locale === "ko" ? "남긴 조각을 다시 만나요" : "Revisit every piece you left")
+      : (locale === "ko" ? `${villageLabel}의 조각들` : `${villageLabel} pieces`);
+  const heroSubtitle =
+    domainFilter === "all"
+      ? (locale === "ko" ? "일기 · 담기 · 검사 · 공상까지 한곳에" : "Journal, capture, assessments, and imagine in one place")
+      : (locale === "ko" ? "이 마을에 모인 기록만 골라 봅니다" : "Only the pieces gathered in this village");
 
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <SceneHero
-          eyebrow={
-            domainFilter === "all"
-              ? (locale === "ko" ? "05. 기록 보관소" : "05. Records")
-              : (locale === "ko"
-                  ? `${VILLAGE_LABEL[domainFilter].ko} · 기록`
-                  : `${VILLAGE_LABEL[domainFilter].en} · Records`)
-          }
-          title={locale === "ko" ? "남긴 조각을 다시 만나요" : "Revisit every piece you left"}
-          subtitle={locale === "ko" ? "일기 · 담기 · 검사 · 공상까지 한곳에" : "Journal, capture, assessments, and imagine in one place"}
-          island="records"
-          worker="momo"
-          speech={
-            locale === "ko"
-              ? "모든 조각은 시간순으로 보관했어요. 필요한 기억을 바로 꺼내볼까요?"
-              : "Every piece is kept by time. Want to pull a memory back out?"
-          }
+          eyebrow={heroEyebrow}
+          title={heroTitle}
+          subtitle={heroSubtitle}
+          island={villageUi.island}
+          worker={villageUi.worker}
+          accent={villageUi.accent}
+          speech={villageUi.speech[locale]}
           primaryAction={{
-            label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
-            onPress: () => router.push("/journal"),
-          }}        />
+            label: villageUi.primaryLabel[locale],
+            onPress: () => router.push(villageUi.primaryRoute),
+          }}
+        />
 
         <Input
           value={query}

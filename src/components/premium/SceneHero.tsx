@@ -35,6 +35,7 @@ export function SceneHero({
   speech,
   primaryAction,
   secondaryAction,
+  accent = cosmic.dreamPink,
   islandSize = 274,
   workerSize = 104,
   style,
@@ -47,6 +48,7 @@ export function SceneHero({
   speech: string;
   primaryAction?: SceneHeroAction;
   secondaryAction?: SceneHeroAction;
+  accent?: string;
   islandSize?: number;
   workerSize?: number;
   style?: StyleProp<ViewStyle>;
@@ -137,7 +139,7 @@ export function SceneHero({
         <Text variant="heading">{title}</Text>
       </View>
 
-      <View style={styles.shell}>
+      <View style={[styles.shell, { shadowColor: accent }]}>
         <View style={styles.stage}>
           <View style={[styles.islandFrame, { width: islandSize, height: islandSize }]}>
             <View
@@ -147,6 +149,8 @@ export function SceneHero({
                   width: islandSize * 0.92,
                   height: islandSize * 0.92,
                   borderRadius: islandSize * 0.46,
+                  backgroundColor: accent,
+                  shadowColor: accent,
                 },
               ]}
             />
@@ -182,6 +186,7 @@ export function SceneHero({
                     width: ownerContactWidth,
                     left: (ownerHaloSize - ownerContactWidth) / 2,
                     bottom: ownerContactBottom,
+                    backgroundColor: accent,
                   },
                 ]}
               />
@@ -278,7 +283,7 @@ const styles = StyleSheet.create({
   },
   glow: {
     position: "absolute",
-    backgroundColor: "rgba(255,159,214,0.11)",
+    opacity: 0.11,
     shadowColor: cosmic.dreamPink,
     shadowOpacity: 0.42,
     shadowRadius: 24,
@@ -309,8 +314,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     height: 2,
     borderRadius: 2,
-    backgroundColor: "rgba(114,242,199,0.36)",
     zIndex: CHARACTER_LAYER - 1,
+    opacity: 0.56,
   },
   workerSprite: {
     position: "absolute",

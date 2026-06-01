@@ -21,6 +21,7 @@ import { IslandArt, ShardArt } from "@/components/art/IslandArt";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { ContextPill } from "@/components/premium";
 import { callGemini } from "@/lib/llm/gemini";
+import { VILLAGE_UI } from "@/lib/village-ui";
 import {
   IMAGINE_SYSTEM,
   parseImagineResult,
@@ -157,11 +158,10 @@ export default function Imagine() {
           eyebrow={locale === "ko" ? "03. 공상 놀이터" : "03. Imagine playground"}
           title={locale === "ko" ? "생각을 밤빛 장면으로" : "Turn a thought into a scene"}
           subtitle={locale === "ko" ? `${vela.name.ko} · ${vela.role.ko}` : `${vela.name.en} · ${vela.role.en}`}
-          island="imagine"
-          worker="vela"
+          island={VILLAGE_UI.imagine.island}
+          worker={VILLAGE_UI.imagine.worker}
+          accent={VILLAGE_UI.imagine.accent}
           speech={heroSpeech}
-          islandSize={292}
-          workerSize={96}
           primaryAction={{
             label: primaryActionLabel,
             variant: "primary",
