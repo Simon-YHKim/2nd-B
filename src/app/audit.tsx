@@ -21,7 +21,7 @@ const PERIOD_OPTIONS: { id: AuditPeriod; label: { en: string; ko: string } }[] =
 
 export default function Audit() {
   const { i18n } = useTranslation();
-  const { userId, loading } = useAuth();
+  const { userId, loading, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [period, setPeriod] = useState<AuditPeriod | null>(null);
@@ -53,6 +53,7 @@ export default function Audit() {
       await createRecord({
         userId,
         locale,
+        minor: isMinor === true,
         kind: "audit_response",
         body: answer.trim(),
         prompt: current.prompt[locale],

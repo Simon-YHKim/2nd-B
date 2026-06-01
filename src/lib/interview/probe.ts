@@ -193,7 +193,7 @@ function buildSystemPrompt(
       "2) 사용자의 마지막 답에 직접 이어붙입니다 — 답의 어느 부분을 더 듣고 싶은지 명확히 합니다.",
       "3) 진단·조언·해석은 절대 하지 않습니다. 그저 더 듣는 다음 질문만.",
       "4) 사용자가 '그만' 같은 신호를 보내면, '여기서 멈춰도 좋아요'로 마무리합니다.",
-      "5) 위기 신호(자해·자살·학대)가 보이면 즉시 한국 1393 안내로 전환합니다.",
+      "5) 위기 신호(자해·자살·학대)가 보이면 즉시 한국 109(자살예방) 안내로 전환합니다.",
       "출력: 다음 질문 한 줄만. 다른 텍스트는 출력하지 않습니다.",
     ].join("\n");
   }
@@ -242,6 +242,7 @@ export async function nextProbe(
   period: LifePeriod,
   history: InterviewTurn[],
   coverage: Coverage,
+  minor = false,
 ): Promise<ProbeResult> {
   const layer = nextLayerSuggestion(coverage, period);
   const res = await callGemini({
@@ -250,6 +251,7 @@ export async function nextProbe(
     purpose: "interview_probe",
     system: buildSystemPrompt(period, locale, layer),
     user: buildUserPrompt(history),
+    minor,
   });
   const cleaned = res.text.trim().split("\n")[0]?.trim() ?? "";
   return {

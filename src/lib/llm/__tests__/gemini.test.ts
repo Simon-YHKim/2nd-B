@@ -99,4 +99,27 @@ describe("callGemini", () => {
     expect(arg.modelUsed).toBe("none-crisis-routed");
     expect(arg.userId).toBe("u1");
   });
+
+  test("C9: minor flag routes KO crisis to youth 1388 + 109 (adult gets 109)", async () => {
+    const minorR = await callGemini({
+      userId: "u1",
+      locale: "ko",
+      purpose: "journal_reflect",
+      user: "자살하고 싶다",
+      minor: true,
+    });
+    expect(minorR.safety.zone).toBe("red");
+    expect(minorR.text).toMatch(/1388/);
+    expect(minorR.text).toMatch(/109/);
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+
+    const adultR = await callGemini({
+      userId: "u1",
+      locale: "ko",
+      purpose: "journal_reflect",
+      user: "자살하고 싶다",
+    });
+    expect(adultR.text).toMatch(/109/);
+    expect(adultR.text).not.toMatch(/1393/);
+  });
 });

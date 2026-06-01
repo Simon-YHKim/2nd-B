@@ -32,6 +32,8 @@ export interface SendMessageInput {
    * reply in that character's voice while still grounding on the wiki.
    */
   personaHint?: string | null;
+  // C10 safety: minor flag forwarded to callGemini for youth crisis routing.
+  minor?: boolean;
 }
 
 export interface SendMessageBlocked {
@@ -124,6 +126,7 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
     purpose: "jarvis_chat",
     system,
     user: input.message,
+    minor: input.minor,
   });
 
   return {

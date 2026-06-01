@@ -84,8 +84,8 @@ const SECTIONS: ManualSection[] = [
       ko: "안전 우선",
     },
     body: {
-      en: "Every AI call passes a 3-zone safety classifier before generation. Red-zone input never reaches the LLM; you get hotline guidance (KR 1393, US 988) instead. Audit log is mandatory for every call.",
-      ko: "모든 AI 호출은 생성 전에 3존 안전 분류기를 통과해요. 위기 신호(레드존)는 LLM에 닿지 않고 한국 1393 / 미국 988 등 핫라인 안내로 라우팅됩니다. 모든 호출은 감사 로그에 남아요.",
+      en: "Every AI call passes a 3-zone safety classifier before generation. Red-zone input never reaches the LLM; you get hotline guidance (KR 109, US 988) instead. Audit log is mandatory for every call.",
+      ko: "모든 AI 호출은 생성 전에 3존 안전 분류기를 통과해요. 위기 신호(레드존)는 LLM에 닿지 않고 한국 109 / 미국 988 등 핫라인 안내로 라우팅됩니다. 모든 호출은 감사 로그에 남아요.",
     },
   },
   {

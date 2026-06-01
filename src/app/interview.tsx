@@ -52,7 +52,7 @@ const SOFT_CAP = 50;
 
 export default function Interview() {
   const { i18n } = useTranslation();
-  const { userId, loading } = useAuth();
+  const { userId, loading, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [period, setPeriod] = useState<LifePeriod | null>(null);
@@ -120,7 +120,7 @@ export default function Interview() {
 
     setThinking(true);
     try {
-      const probe = await nextProbe(userId, locale, period, updatedTurns, updatedCoverage);
+      const probe = await nextProbe(userId, locale, period, updatedTurns, updatedCoverage, isMinor === true);
       setTurns((prev) => [
         ...prev,
         { role: "interviewer", text: probe.question, period, layer: probe.layer },
@@ -155,6 +155,7 @@ export default function Interview() {
       await createRecord({
         userId,
         locale,
+        minor: isMinor === true,
         kind: "audit_response",
         body: transcript,
         topic: locale === "ko"

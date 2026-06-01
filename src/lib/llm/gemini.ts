@@ -12,8 +12,7 @@ import { GoogleGenAI } from "@google/genai";
 
 import { getEnv } from "../env";
 import { retrieveEvidence } from "../knowledge/retrieve";
-import { classifyInput, type SafetyResult } from "../safety/classifier";
-import { HOTLINES } from "../safety/lexicon";
+import { classifyInput, crisisHotlines, type SafetyResult } from "../safety/classifier";
 import { insertAiAuditLog } from "../supabase/audit";
 import { getSupabaseClient } from "../supabase/client";
 import { insertCrisisEvent } from "../supabase/crisis-events";
@@ -147,13 +146,16 @@ async function routeCrisis(
   locale: "en" | "ko",
   userId: string,
   promptHash: string,
+  minor = false,
 ): Promise<GeminiResult<string>> {
-  const h = result.crisisRouting;
-  const number = h?.number ?? HOTLINES.GLOBAL_988.number;
+  // Same hotline set as the Advisor path (single source of truth):
+  // KO adult -> 109, KO minor -> 1388 + 109, EN -> 988.
+  const numbers = crisisHotlines(locale, minor).map((hl) => hl.number);
+  const joined = locale === "ko" ? numbers.join(" 또는 ") : numbers.join(" or ");
   const text =
     locale === "ko"
-      ? `지금 많이 힘드신 것 같아요. 혼자 견디지 마시고 ${number}로 연락해 주세요. 전문가가 24시간 함께합니다.`
-      : `It sounds like you're going through a lot right now. Please reach out to ${number} — trained responders are available 24/7.`;
+      ? `지금 많이 힘드신 것 같아요. 혼자 견디지 마시고 ${joined}로 연락해 주세요. 전문가가 24시간 함께합니다.`
+      : `It sounds like you're going through a lot right now. Please reach out to ${joined} — trained responders are available 24/7.`;
   const audit = {
     promptHash,
     outputHash: djb2(text),
@@ -174,7 +176,7 @@ async function routeCrisis(
 
 export async function callGemini<T = string>(input: PromptInput): Promise<GeminiResult<T>> {
   // C9: pre-call classification of user input. Red zone never reaches the LLM.
-  const inputSafety = classifyInput(input.user, input.locale);
+  const inputSafety = classifyInput(input.user, input.locale, { minor: input.minor });
   const promptHash = djb2(`${input.system ?? ""}${input.user}`);
   if (inputSafety.zone === "red") {
     return (await routeCrisis(
@@ -182,6 +184,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       input.locale,
       input.userId,
       promptHash,
+      input.minor,
     )) as unknown as GeminiResult<T>;
   }
 
@@ -199,7 +202,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       mockTable[input.purpose]?.[input.locale] ??
       (input.locale === "ko" ? "[MOCK] 응답 준비 중이에요." : "[MOCK] Reply pending.");
     const latencyMs = Date.now() - t0;
-    const outputSafety = classifyInput(text, input.locale);
+    const outputSafety = classifyInput(text, input.locale, { minor: input.minor });
     const audit = {
       promptHash: djb2(`${input.system ?? ""}${input.user}`),
       outputHash: djb2(text),
@@ -263,7 +266,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   }
 
   // Re-classify the output to record the final zone in audit log.
-  const outputSafety = classifyInput(text, input.locale);
+  const outputSafety = classifyInput(text, input.locale, { minor: input.minor });
 
   const audit = {
     promptHash: djb2(`${input.system ?? ""}${input.user}`),
@@ -310,7 +313,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   const safety = await classifySafety(input.userMessage, input.locale);
 
   if (safety.zone === "red") {
-    const fixed = fixedCrisisResponse(input.locale);
+    const fixed = fixedCrisisResponse(input.locale, input.minor);
     const audit = {
       promptHash,
       outputHash: djb2(fixed.text),
@@ -443,7 +446,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     // Don't ship the Pro text. Substitute the verbatim crisis template, audit
     // both the swapped text and the original (to give judges a trail), and
     // log a crisis_event with categorical metadata.
-    const fixed = fixedCrisisResponse(input.locale);
+    const fixed = fixedCrisisResponse(input.locale, input.minor);
     const audit = {
       promptHash: djb2(systemPrompt + input.userMessage),
       outputHash: djb2(fixed.text),

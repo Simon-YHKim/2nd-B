@@ -1,4 +1,4 @@
-import { classifyInput, containsForbiddenLexicon } from "../classifier";
+import { classifyInput, containsForbiddenLexicon, crisisHotlines } from "../classifier";
 
 describe("classifyInput", () => {
   test("empty input is green", () => {
@@ -24,10 +24,10 @@ describe("classifyInput", () => {
     expect(r.categories).toContain("crisis");
   });
 
-  test("KR crisis term routes to KR_1393", () => {
+  test("KR adult crisis routes to KR_109 (1393 merged into 109 in 2024)", () => {
     const r = classifyInput("요즘 자살에 대해 자주 생각해요.", "ko");
     expect(r.zone).toBe("red");
-    expect(r.crisisRouting?.hotline).toBe("KR_1393");
+    expect(r.crisisRouting?.hotline).toBe("KR_109");
   });
 
   test("KR minor crisis routes to youth line KR_1388", () => {
@@ -71,5 +71,18 @@ describe("containsForbiddenLexicon", () => {
   });
   test("returns empty array when none match", () => {
     expect(containsForbiddenLexicon("hello world", "en")).toEqual([]);
+  });
+});
+
+describe("crisisHotlines (single source of truth)", () => {
+  test("KO adult -> [109]", () => {
+    expect(crisisHotlines("ko").map((h) => h.number)).toEqual(["109"]);
+  });
+  test("KO minor -> [1388, 109] (youth line first, then 109)", () => {
+    expect(crisisHotlines("ko", true).map((h) => h.number)).toEqual(["1388", "109"]);
+  });
+  test("EN any age -> [988] (serves minors too)", () => {
+    expect(crisisHotlines("en").map((h) => h.number)).toEqual(["988"]);
+    expect(crisisHotlines("en", true).map((h) => h.number)).toEqual(["988"]);
   });
 });

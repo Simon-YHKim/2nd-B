@@ -27,7 +27,11 @@ export interface CrisisRouterProps {
 export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
   const { t } = useTranslation("safety");
   const number = HOTLINES[hotline].number;
-  const isKorean = hotline === "KR_1393" || hotline === "KR_1577_0199" || hotline === "KR_1388";
+  const isKorean =
+    hotline === "KR_109" ||
+    hotline === "KR_1393" ||
+    hotline === "KR_1577_0199" ||
+    hotline === "KR_1388";
 
   const handleCall = useCallback(() => {
     // Strip non-digits for the tel: URI (e.g. "1577-0199" → "15770199").
