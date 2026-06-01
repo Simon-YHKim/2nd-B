@@ -143,7 +143,7 @@ export default function Imagine() {
         ? locale === "ko" ? "마을에 저장" : "Save to village"
         : phase === "generating"
           ? locale === "ko" ? "상상하는 중..." : "Imagining..."
-          : locale === "ko" ? "상상하기 ✨" : "Imagine ✨";
+          : locale === "ko" ? "상상하기" : "Imagine";
 
   const secondaryActionLabel =
     hasResult
