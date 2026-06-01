@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     padding: spacing.lg,
   },
-  destinationsTitle: { letterSpacing: 1, marginBottom: spacing.xs },
+  destinationsTitle: { letterSpacing: 0, marginBottom: spacing.xs },
   destinationLink: {
     minHeight: 44,
     alignSelf: "stretch",

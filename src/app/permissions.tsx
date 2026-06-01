@@ -144,7 +144,7 @@ export default function Permissions() {
         </View>
 
         <View style={styles.principles}>
-          <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+          <Text variant="caption" color="brand" style={styles.principlesTitle}>
             {locale === "ko" ? "원칙" : "Principles"}
           </Text>
           {(locale === "ko"
@@ -196,13 +196,21 @@ const styles = StyleSheet.create({
   },
   cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
   cardTitle: { fontWeight: "600", flex: 1 },
-  tag: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radii.sm, borderWidth: 1 },
+  tag: {
+    minHeight: 32,
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+  },
   principles: {
     backgroundColor: semantic.surfaceAlt,
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.xs,
   },
+  principlesTitle: { letterSpacing: 0 },
   principle: { lineHeight: 20 },
   actions: { gap: spacing.sm },
 });
