@@ -166,10 +166,11 @@ export default function Landing() {
   // Insight chosen once per Landing mount — different on each visit.
   const insight = useMemo(() => pickInsight(locale, Date.now() % 1000), [locale]);
 
-  // Fetch wiki entries as Tier 4 data dots. Each carries a parentId so
-  // NavGraph can cluster them near the right tier-3 wiki node. Until
-  // there's a way to classify daily vs pro server-side we default to
-  // wiki-daily; a follow-up classifier will split.
+  // Fetch the user's classified pieces (clipper captures → `sources`) as the
+  // tier-4 data dots. Each is placed in the village its tags point to
+  // (domainForTags), so uploading + classifying a piece grows the right
+  // district, and carries the AI summary + tags so the graph popup can show
+  // them on tap. relatedness edges are computed inside NavGraph.
   useEffect(() => {
     if (!userId) {
       setDataNodes([]);
@@ -178,9 +179,10 @@ export default function Landing() {
     const supabase = getSupabaseClient();
     let cancelled = false;
     supabase
-      .from("wiki_pages")
-      .select("id, title, tags")
+      .from("sources")
+      .select("id, title, tags, frontmatter")
       .eq("user_id", userId)
+      .order("created_at", { ascending: false })
       .limit(120)
       .then((res) => {
         if (cancelled) return;
@@ -188,14 +190,14 @@ export default function Landing() {
           setDataNodes(
             res.data.map((p) => {
               const tags = (p.tags ?? []) as string[];
-              // Place each piece in the village its tags point to (no longer
-              // hardcoded to wiki-daily), so adding data grows the right
-              // district. relatedness edges are computed inside NavGraph.
+              const fm = (p.frontmatter ?? {}) as Record<string, unknown>;
+              const summary = typeof fm.summary === "string" ? fm.summary : "";
               return {
                 id: p.id,
                 title: p.title,
                 parentId: domainForTags(tags, p.title),
                 tags,
+                summary,
               };
             }),
           );
