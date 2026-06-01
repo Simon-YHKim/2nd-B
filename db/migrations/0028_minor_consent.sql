@@ -1,13 +1,15 @@
 -- 0028_minor_consent.sql
 -- C10 (REDEFINED): age-tiered registration with verifiable guardian consent.
 -- Replaces the flat `birth_date >= 18` CHECK from 0002. Adults (>=18) and
--- self-consent minors (14-17, per Korea PIPA Article 22-2) register directly;
--- under-14 require verifiable guardian consent (PIPA Article 22-2 / COPPA) and
--- start in account_status='pending_guardian_consent' until a guardian verifies.
+-- minors 14-17 register directly under the general PIPA consent provisions
+-- (Articles 15/17/22); legal-representative consent is mandated only for
+-- under-14 (Article 22-2). Under-14 require verifiable guardian consent
+-- (PIPA Article 22-2 / COPPA) and start in
+-- account_status='pending_guardian_consent' until a guardian verifies.
 --
--- BEHAVIORALLY INERT in this PR: the client (auth.ts) still throws AgeGateError
--- for < 18, so no minor can register yet. This migration only opens the schema
--- and lowers the DB floor; the client age-tier branching lands in a later PR.
+-- NOTE: this migration only opened the schema + lowered the DB floor. The
+-- client age-tier gate (MIN_SELF_CONSENT_AGE = 14) shipped separately in #132,
+-- so 14-17 self-consent registration is now live.
 
 -- 1. Relax the flat 18+ CHECK -> sanity range only. C10's age floor moves to the
 --    app/consent layer (minor_tier + account_status + guardian_consents), not a
