@@ -13,6 +13,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 export default function DataManagement() {
   const { i18n } = useTranslation();
@@ -31,15 +32,15 @@ export default function DataManagement() {
           eyebrow={ko ? "08-1. 데이터 관리" : "08-1. Data management"}
           title={ko ? "조각을 옮기고 정리해요" : "Move and organize your pieces"}
           subtitle={ko ? "가져오기 · 내보내기 · 삭제" : "Import · export · delete"}
-          island="knowledge"
-          worker="momo"
+          island={VILLAGE_UI.records.island}
+          worker={VILLAGE_UI.records.worker}
+          accent={VILLAGE_UI.records.accent}
           speech={
             ko
               ? "중요한 조각을 지우기 전에는 먼저 내보내기로 백업해두세요."
               : "Before deleting anything important, export a backup first."
           }
-          islandSize={250}
-          workerSize={104}        />
+        />
 
         <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{ko ? "가져오기" : "Import"}</Text>

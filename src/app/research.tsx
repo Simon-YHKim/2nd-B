@@ -16,6 +16,7 @@ import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 interface Source {
   id: string;
@@ -86,15 +87,15 @@ export default function Research() {
           eyebrow={locale === "ko" ? "자료실" : "Research"}
           title={locale === "ko" ? "검증된 근거를 모아둬요" : "Keep the evidence visible"}
           subtitle={locale === "ko" ? "Big Five · 애착 · CBT · VIA" : "Big Five · attachment · CBT · VIA"}
-          island="knowledge"
-          worker="archi"
+          island={VILLAGE_UI.knowledge.island}
+          worker={VILLAGE_UI.knowledge.worker}
+          accent={VILLAGE_UI.knowledge.accent}
           speech={
             locale === "ko"
               ? "세컨비가 참고하는 근거만 따로 모아 보여줄게요."
               : "Only verified sources that SecondB can cite show up here."
           }
-          islandSize={250}
-          workerSize={104}        />
+        />
 
         {loading ? (
           <View style={styles.center}>

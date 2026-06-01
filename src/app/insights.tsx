@@ -13,6 +13,7 @@ import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { computeInsights, type InsightsResult } from "@/lib/journal/insights";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 export default function Insights() {
   const { i18n } = useTranslation();
@@ -70,8 +71,9 @@ export default function Insights() {
             eyebrow={locale === "ko" ? "11. 인사이트" : "11. Insights"}
             title={locale === "ko" ? "아직 뽑아낼 패턴이 작아요" : "Patterns are still small"}
             subtitle={locale === "ko" ? "며칠 치 기록이 쌓이면 흐름이 보여요" : "A few days of records will reveal the flow"}
-            island="inspiration"
-            worker="lumi"
+            island={VILLAGE_UI.taste.island}
+            worker={VILLAGE_UI.taste.worker}
+            accent={VILLAGE_UI.taste.accent}
             speech={
               locale === "ko"
                 ? "취향과 반복을 보려면 조각이 조금 더 필요해요. 오늘 하나 남겨볼까요?"
@@ -108,8 +110,9 @@ export default function Insights() {
           eyebrow={locale === "ko" ? "11. 인사이트" : "11. Insights"}
           title={locale === "ko" ? "최근 기록의 흐름 보기" : "See the flow in recent records"}
           subtitle={locale === "ko" ? "AI 호출 없이 기록에서 바로 계산" : "Computed from records without an LLM call"}
-          island="inspiration"
-          worker="lumi"
+          island={VILLAGE_UI.taste.island}
+          worker={VILLAGE_UI.taste.worker}
+          accent={VILLAGE_UI.taste.accent}
           speech={
             locale === "ko"
               ? "반복되는 주제와 최근 결론을 모았어요. 끌리는 흐름을 같이 볼까요?"

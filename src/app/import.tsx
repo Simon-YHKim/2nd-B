@@ -20,6 +20,7 @@ import { PremiumAppShell, PremiumCard, PremiumButton, PremiumTextarea, SceneHero
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { VILLAGE_UI } from "@/lib/village-ui";
 import { callGemini } from "@/lib/llm/gemini";
 import {
   buildExtractionPrompt,
@@ -110,15 +111,15 @@ export default function ImportExternal() {
             eyebrow={ko ? "08-5. 가져오기" : "08-5. Import"}
             title={ko ? "다른 곳의 나를 마을로 옮겨요" : "Bring outside self-knowledge home"}
             subtitle={ko ? "외부 AI · 검사 결과 · 메모" : "Other assistants · tests · notes"}
-            island="knowledge"
-            worker="momo"
+            island={VILLAGE_UI.knowledge.island}
+            worker={VILLAGE_UI.knowledge.worker}
+            accent={VILLAGE_UI.knowledge.accent}
             speech={
               ko
                 ? "붙여넣은 내용은 바로 저장하지 않고, 먼저 구조에 맞게 분류해 보여줄게요."
                 : "Pasted material is sorted first, then saved only when you confirm."
             }
-            islandSize={250}
-            workerSize={104}          />
+          />
 
           {phase === "input" || phase === "analyzing" ? (
             <>

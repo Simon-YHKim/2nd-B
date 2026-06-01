@@ -12,6 +12,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { VILLAGE_UI } from "@/lib/village-ui";
 import { deleteSource, listSources } from "@/lib/wiki/queries";
 import { runPhase1, readPhase1 } from "@/lib/wiki/phase1";
 import { generateSourcePage } from "@/lib/wiki/phase2";
@@ -192,15 +193,15 @@ export default function Inbox() {
           eyebrow={locale === "ko" ? "받은편지함" : "Inbox"}
           title={locale === "ko" ? "잡아둔 조각을 다듬어요" : "Refine captured pieces"}
           subtitle={locale === "ko" ? "요약 · 질문 · 위키 승격" : "Summaries · questions · wiki promotion"}
-          island="records"
-          worker="momo"
+          island={VILLAGE_UI.records.island}
+          worker={VILLAGE_UI.records.worker}
+          accent={VILLAGE_UI.records.accent}
           speech={
             locale === "ko"
               ? "캡처한 자료는 여기서 요약하거나 위키 페이지로 키울 수 있어요."
               : "Captured sources can be summarized here or promoted into wiki pages."
           }
-          islandSize={250}
-          workerSize={104}        />
+        />
 
         <View style={styles.actions}>
           <Link href="/capture" asChild>

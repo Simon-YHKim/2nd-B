@@ -62,6 +62,7 @@ import type { HotlineId } from "@/lib/safety/lexicon";
 import { useProgression } from "@/lib/progression/useProgression";
 import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
 // capture modes live on one screen. "일기" writes to `records` (createRecord —
@@ -523,8 +524,9 @@ export default function Capture() {
             eyebrow={locale === "ko" ? "01. 조각 담기" : "01. Capture"}
             title={locale === "ko" ? "떠오른 조각을 마을로" : "Send a piece into the village"}
             subtitle={locale === "ko" ? "일기 · 메모 · 링크 · 파일 · 사진" : "Journal · memo · link · file · photo"}
-            island="records"
-            worker="lulu"
+            island={VILLAGE_UI.knowledge.island}
+            worker={VILLAGE_UI.knowledge.worker}
+            accent={VILLAGE_UI.knowledge.accent}
             speech={
               savedTitle
                 ? locale === "ko"
