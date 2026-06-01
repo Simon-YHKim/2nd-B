@@ -47,8 +47,18 @@ function useSkyDrift() {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(tide, { toValue: 1, duration: 10000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-        Animated.timing(tide, { toValue: 0, duration: 10000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(tide, {
+          toValue: 1,
+          duration: 10000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+        Animated.timing(tide, {
+          toValue: 0,
+          duration: 10000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
       ]),
     ).start();
   }, [tide]);
@@ -99,7 +109,11 @@ export default function Landing() {
 
   // Highlight-on-return (queue B): a record / wiki detail can deep-link back
   // to the graph and ask it to focus a specific node.
-  const params = useLocalSearchParams<{ highlight?: string; highlightWikiPageId?: string; highlightRecordId?: string }>();
+  const params = useLocalSearchParams<{
+    highlight?: string;
+    highlightWikiPageId?: string;
+    highlightRecordId?: string;
+  }>();
   const highlightId =
     (typeof params.highlightWikiPageId === "string" && params.highlightWikiPageId) ||
     (typeof params.highlight === "string" && params.highlight) ||
@@ -128,15 +142,26 @@ export default function Landing() {
 
   const entryProgress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(entryProgress, { toValue: 1, duration: 750, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    Animated.timing(entryProgress, {
+      toValue: 1,
+      duration: 750,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
   }, [entryProgress]);
 
   const logoScale = entryProgress.interpolate({ inputRange: [0, 1], outputRange: [4, 2] });
   // Entry flourish only (refine-v2 #7): the logo fades fully OUT as the
   // village fades in, instead of staying as a fixed centered watermark that
   // didn't track zoom/village scale. The premium islands carry the screen.
-  const logoOpacity = entryProgress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.5, 0] });
-  const contentOpacity = entryProgress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
+  const logoOpacity = entryProgress.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 0.5, 0],
+  });
+  const contentOpacity = entryProgress.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, 0, 1],
+  });
 
   // Insight chosen once per Landing mount — different on each visit.
   const insight = useMemo(() => pickInsight(locale, Date.now() % 1000), [locale]);
@@ -204,9 +229,15 @@ export default function Landing() {
         style={[styles.skyLogo, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}
         resizeMode="contain"
       />
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: skyOverlay }]} />
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: skyOverlay }]}
+      />
 
-      <Animated.View style={[styles.contentLayer, { opacity: contentOpacity }]} pointerEvents="box-none">
+      <Animated.View
+        style={[styles.contentLayer, { opacity: contentOpacity }]}
+        pointerEvents="box-none"
+      >
         {/* Subtle cosmic star grain behind the village (premium pass). */}
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <GraphStarHost />
@@ -228,7 +259,10 @@ export default function Landing() {
         // FAB), and the high zIndex keeps it above all siblings. The dim focuses
         // attention on the card; tapping the backdrop does nothing — the user
         // dismisses via the card's "먼저 둘러볼게요" / ✕.
-        <Animated.View style={[styles.emptyGraphBackdrop, { opacity: contentOpacity }]} pointerEvents="auto">
+        <Animated.View
+          style={[styles.emptyGraphBackdrop, { opacity: contentOpacity }]}
+          pointerEvents="auto"
+        >
           <View style={styles.emptyGraphCard}>
             {/* Close — lets the user dismiss and browse the empty village. */}
             <Pressable
@@ -243,15 +277,30 @@ export default function Landing() {
             <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
               <IslandArt id="core" size={150} />
             </View>
-            <Text style={styles.emptyGraphTitle}>{locale === "ko" ? "아직 마을이 조용해요" : "The village is quiet"}</Text>
-            <Text style={styles.emptyGraphBody}>
-              {locale === "ko" ? "첫 조각을 남기면 길이 조금씩 켜져요." : "Leave a first piece and the roads light up."}
+            <Text style={styles.emptyGraphTitle}>
+              {locale === "ko" ? "아직 마을이 조용해요" : "The village is quiet"}
             </Text>
-            <Pressable onPress={() => router.push({ pathname: "/journal", params: { entry: "firstRun" } })} style={styles.emptyGraphCta}>
-              <Text style={styles.emptyGraphCtaText}>{locale === "ko" ? "첫 조각 남기기" : "Leave a first piece"}</Text>
+            <Text style={styles.emptyGraphBody}>
+              {locale === "ko"
+                ? "첫 조각을 남기면 길이 조금씩 켜져요."
+                : "Leave a first piece and the roads light up."}
+            </Text>
+            <Pressable
+              onPress={() => router.push({ pathname: "/journal", params: { entry: "firstRun" } })}
+              style={styles.emptyGraphCta}
+            >
+              <Text style={styles.emptyGraphCtaText}>
+                {locale === "ko" ? "첫 조각 남기기" : "Leave a first piece"}
+              </Text>
             </Pressable>
-            <Pressable onPress={() => setEmptyDismissed(true)} hitSlop={8} style={styles.emptyGraphSkip}>
-              <Text style={styles.emptyGraphSkipText}>{locale === "ko" ? "먼저 둘러볼게요" : "I'll look around first"}</Text>
+            <Pressable
+              onPress={() => setEmptyDismissed(true)}
+              hitSlop={8}
+              style={styles.emptyGraphSkip}
+            >
+              <Text style={styles.emptyGraphSkipText}>
+                {locale === "ko" ? "먼저 둘러볼게요" : "I'll look around first"}
+              </Text>
             </Pressable>
           </View>
         </Animated.View>
@@ -259,10 +308,20 @@ export default function Landing() {
 
       {/* Top insight ribbon — Core Brain talks. The left slot carries
           the live SecondB sprite as a stable visual anchor. */}
-      <Animated.View style={[styles.insightRibbon, { opacity: contentOpacity, top: Math.max(insets.top + 8, 18) }]} pointerEvents="box-none">
+      <Animated.View
+        style={[
+          styles.insightRibbon,
+          { opacity: contentOpacity, top: Math.max(insets.top + 8, 18) },
+        ]}
+        pointerEvents="box-none"
+      >
         {/* SecondB sprite slot. Same 52px footprint across idle/sleep states. */}
         <View style={styles.mascotSlot} accessibilityLabel="SecondB">
-          <SecondBSprite state={presence.mascot === "sleep" ? "sleep" : "idle"} size={46} float={presence.mascot !== "sleep"} />
+          <SecondBSprite
+            state={presence.mascot === "sleep" ? "sleep" : "idle"}
+            size={46}
+            float={presence.mascot !== "sleep"}
+          />
         </View>
         <Pressable
           onPress={() => {
@@ -273,15 +332,18 @@ export default function Landing() {
           hitSlop={8}
           style={{ flex: 1 }}
         >
-          <Text style={styles.insightEyebrow}>{locale === "ko" ? "오늘의 중심" : "Today's center"}</Text>
-          <Text style={styles.insightText} numberOfLines={2}>{insight}</Text>
+          <Text style={styles.insightEyebrow}>
+            {locale === "ko" ? "오늘의 중심" : "Today's center"}
+          </Text>
+          <Text style={styles.insightText} numberOfLines={2}>
+            {insight}
+          </Text>
         </Pressable>
       </Animated.View>
 
       {/* Top-right cluster removed (graph-ux #2/#4): language is auto-detected
           and lives in Settings; Settings is reachable from the Profile tab.
           The main graph keeps a clean top so 오늘의 중심 sits at the very top. */}
-
     </View>
   );
 }
@@ -296,13 +358,16 @@ const styles = StyleSheet.create({
   skyContainer: { flex: 1, backgroundColor: cosmic.space950 },
   skyLogo: {
     position: "absolute",
-    width: 220, height: 220,
-    top: "50%", left: "50%",
-    marginLeft: -110, marginTop: -110,
+    width: 220,
+    height: 220,
+    top: "50%",
+    left: "50%",
+    marginLeft: -110,
+    marginTop: -110,
   },
-  contentLayer: { ...StyleSheet.absoluteFill as object },
+  contentLayer: { ...(StyleSheet.absoluteFill as object) },
   emptyGraphBackdrop: {
-    ...StyleSheet.absoluteFill as object,
+    ...(StyleSheet.absoluteFill as object),
     zIndex: 100,
     backgroundColor: "rgba(5,7,15,0.55)",
     alignItems: "center",
@@ -323,16 +388,39 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
   },
-  emptyGraphClose: { position: "absolute", top: 8, right: 10, padding: 6, zIndex: 2 },
+  emptyGraphClose: {
+    position: "absolute",
+    top: 4,
+    right: 6,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+  },
   emptyGraphCloseText: { color: cosmic.mistGray, fontSize: 16, fontFamily: fontFamilies.sans },
-  emptyGraphSkip: { marginTop: 10, paddingVertical: 6 },
-  emptyGraphSkipText: { color: cosmic.mistGray, fontSize: 13, fontFamily: fontFamilies.sans },
-  emptyGraphTitle: { color: cosmic.moonWhite, fontSize: 16, fontWeight: "700", marginTop: 8, fontFamily: fontFamilies.sans },
-  emptyGraphBody: { color: cosmic.mistGray, fontSize: 13, lineHeight: 18, textAlign: "center", marginTop: 4, fontFamily: fontFamilies.sans },
+  emptyGraphSkip: { minHeight: 44, marginTop: 10, justifyContent: "center" },
+  emptyGraphSkipText: { color: cosmic.mistGray, fontSize: 14, fontFamily: fontFamilies.sans },
+  emptyGraphTitle: {
+    color: cosmic.moonWhite,
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 8,
+    fontFamily: fontFamilies.sans,
+  },
+  emptyGraphBody: {
+    color: cosmic.mistGray,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
+    marginTop: 4,
+    fontFamily: fontFamilies.sans,
+  },
   emptyGraphCta: {
     marginTop: 14,
     backgroundColor: cosmic.signalMint,
     borderRadius: 8,
+    minHeight: 44,
     paddingVertical: 12,
     paddingHorizontal: 20,
     shadowColor: cosmic.signalMint,
@@ -340,10 +428,17 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
-  emptyGraphCtaText: { color: cosmic.space950, fontWeight: "700", fontSize: 14, fontFamily: fontFamilies.sans },
+  emptyGraphCtaText: {
+    color: cosmic.space950,
+    fontWeight: "700",
+    fontSize: 15,
+    fontFamily: fontFamilies.sans,
+  },
   insightRibbon: {
     position: "absolute",
-    top: 12, left: 12, right: 12,
+    top: 12,
+    left: 12,
+    right: 12,
     maxWidth: 600,
     flexDirection: "row",
     alignItems: "center",
@@ -381,7 +476,7 @@ const styles = StyleSheet.create({
   },
   insightEyebrow: {
     color: cosmic.signalMint,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1.5,
     fontWeight: "700",
     textTransform: "uppercase",
@@ -397,17 +492,21 @@ const styles = StyleSheet.create({
   },
   topRightCluster: {
     position: "absolute",
-    top: 16, right: 16,
+    top: 16,
+    right: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
   localeBtn: {
-    paddingHorizontal: 10, paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   localeToggleText: {
     color: cosmic.mistGray,
-    fontSize: 12, letterSpacing: 1.5, fontWeight: "700",
+    fontSize: 12,
+    letterSpacing: 1.5,
+    fontWeight: "700",
     fontFamily: fontFamilies.sans,
   },
   settingsCog: {

@@ -33,6 +33,16 @@ Codex cannot directly invoke Claude's Skill runtime in this session, so this rep
 | 404 destination links were too small                               | Each route link was around 27px high.                                            | Made each destination link a full-width 44px row.  | All 404 destination links meet target.                           |
 | Internal copy leaked into user-facing 404                          | `페르소나 v1` / `Persona v1`.                                                    | Changed to `나의 모습` / `Persona`.                | More human and premium-aligned.                                  |
 
+## Follow-Up Improvements Applied
+
+These changes reflect the age-band feedback directly in the product:
+
+- Raised shared `caption` / `subtle` text sizes by 1px to reduce fatigue for 45+ and 75+ stress personas.
+- Added a plain-language 18+ notice on sign-up so teen and guardian-assisted scenarios see the eligibility rule before entering the form.
+- Increased the floating back arrow from 40px to 44px.
+- Increased the bottom navigation content height and label size so primary routes are easier to tap and read.
+- Increased first-run empty graph dismiss, skip, and CTA affordances to preserve 44px targets on the main graph entry surface.
+
 ## Re-Check Evidence
 
 Live browser measurements after the fix:
@@ -164,3 +174,9 @@ For the intended 18+ audience, the entry surfaces are now in a good state. For 7
 - `src/app/(auth)/sign-in.tsx`
 - `src/app/(auth)/sign-up.tsx`
 - `src/app/+not-found.tsx`
+- `src/components/premium/tab-bar.tsx`
+- `src/components/ui/BackArrow.tsx`
+- `src/app/index.tsx`
+- `src/lib/theme/tokens.ts`
+- `locales/en/auth.json`
+- `locales/ko/auth.json`

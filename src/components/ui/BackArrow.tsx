@@ -47,17 +47,18 @@ export function BackArrow() {
   const left = isPrimaryTabPath(pathname) ? leftBase + 52 : leftBase;
 
   return (
-    <View
-      style={[styles.wrap, { top: insets.top + 8, left }]}
-      pointerEvents="box-none"
-    >
+    <View style={[styles.wrap, { top: insets.top + 8, left }]} pointerEvents="box-none">
       <Pressable
         onPress={() => router.push("/")}
         hitSlop={16}
         accessibilityLabel="Back"
         style={({ pressed }) => [styles.btn, pressed ? { opacity: 0.7 } : null]}
       >
-        <View style={styles.chevron} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <View
+          style={styles.chevron}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           <View style={[styles.chevronStroke, styles.chevronTop]} />
           <View style={[styles.chevronStroke, styles.chevronBottom]} />
         </View>
@@ -72,8 +73,8 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   btn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     // Premium glass backing so the arrow never visually merges with text.
