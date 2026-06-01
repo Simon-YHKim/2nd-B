@@ -116,7 +116,7 @@ export default function RecordDetail() {
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View>
-          <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+          <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
             {[evidenceTypeLabel(type, locale), dateLabel].filter(Boolean).join(" · ")}
           </Text>
           <Text variant="heading">{title}</Text>

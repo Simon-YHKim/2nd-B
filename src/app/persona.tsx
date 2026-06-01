@@ -155,7 +155,7 @@ export default function Persona() {
             Each card's meaning is coded by its left-border accent
             (mint / signal-blue / pixel-lamp), per DESIGN.md accent budget. */}
         <View style={styles.centerSection}>
-          <Text variant="caption" color="textMuted" style={{ letterSpacing: 1 }}>
+          <Text variant="caption" color="textMuted" style={{ letterSpacing: 0 }}>
             {locale === "ko" ? "나의 중심" : "Center of me"}
           </Text>
           {buildCenterCards(persona, locale).map((card) => (
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   mbtiRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.xs },
-  mbtiType: { fontVariant: ["tabular-nums"], letterSpacing: 2 },
+  mbtiType: { fontVariant: ["tabular-nums"], letterSpacing: 0 },
   attachmentCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,

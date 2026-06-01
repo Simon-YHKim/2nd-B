@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
-  sectionEyebrow: { letterSpacing: 1, fontWeight: "700" },
+  sectionEyebrow: { letterSpacing: 0, fontWeight: "700" },
   actions: { gap: spacing.sm, marginTop: spacing.md },
   themeRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
 });

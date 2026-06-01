@@ -241,7 +241,7 @@ export default function Trinity() {
         )}
 
         <View style={styles.tagGuide}>
-          <Text variant="caption" color="textMuted" style={{ letterSpacing: 1 }}>
+          <Text variant="caption" color="textMuted" style={{ letterSpacing: 0 }}>
             {locale === "ko" ? "인식하는 태그" : "Recognized tags"}
           </Text>
           {(["health", "app", "brain", "finance"] as TrinityDomain[]).map((d) => (
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
-  cardEyebrow: { letterSpacing: 1.5, fontWeight: "700" },
+  cardEyebrow: { letterSpacing: 0, fontWeight: "700" },
   cardSection: { marginTop: spacing.xs, gap: 2 },
   tagGuide: { backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, padding: spacing.md, gap: spacing.xs },
   actions: { gap: spacing.sm },

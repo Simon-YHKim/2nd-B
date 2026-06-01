@@ -81,7 +81,7 @@ export default function Audit() {
       <PremiumAppShell>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.introCard}>
-            <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
               {locale === "ko" ? "과거의 나: 시기 선택" : "Past me: choose a period"}
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
@@ -158,7 +158,7 @@ export default function Audit() {
       <ScrollView contentContainerStyle={styles.scroll}>
         {index === 0 ? (
           <View style={styles.introCard}>
-            <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
               {locale === "ko" ? "과거의 나: 자기 인터뷰" : "Past me: self interview"}
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   completeBadgeText: {
     color: semantic.text,
     fontWeight: "700",
-    letterSpacing: 1.5,
+    letterSpacing: 0,
     fontSize: 10,
   },
 });

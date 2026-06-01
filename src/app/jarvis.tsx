@@ -378,7 +378,7 @@ export default function Jarvis() {
       <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setIntroOpen(false)}>
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
               {t("intro_title")}
             </Text>
             <Text variant="body" color="text" style={{ marginTop: spacing.sm, lineHeight: 20 }}>

@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
   },
-  eyebrow: { letterSpacing: 1 },
+  eyebrow: { letterSpacing: 0 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.xs },
   chip: {
     borderWidth: 1,

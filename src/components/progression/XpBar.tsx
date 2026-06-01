@@ -37,7 +37,7 @@ export function XpBar({ progress, locale = "ko" }: { progress: LevelProgress; lo
 const styles = StyleSheet.create({
   wrap: { gap: spacing.xs },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  lv: { fontWeight: "700", letterSpacing: 0.5 },
+  lv: { fontWeight: "700", letterSpacing: 0 },
   track: {
     height: 8,
     backgroundColor: semantic.surfaceAlt,

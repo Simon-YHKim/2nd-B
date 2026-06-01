@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
   },
-  eyebrow: { letterSpacing: 1 },
+  eyebrow: { letterSpacing: 0 },
   statusPill: {
     alignSelf: "flex-start",
     borderWidth: 1,
