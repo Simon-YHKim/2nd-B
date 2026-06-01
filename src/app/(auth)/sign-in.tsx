@@ -61,7 +61,8 @@ export default function SignIn() {
           ? "Google 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요."
           : "Could not start Google sign-in. Please try again in a moment.",
       );
-      if (typeof console !== "undefined") console.warn("[auth] google oauth error", (e as Error).message);
+      if (typeof console !== "undefined")
+        console.warn("[auth] google oauth error", (e as Error).message);
     } finally {
       setOauthSubmitting(false);
     }
@@ -116,6 +117,8 @@ export default function SignIn() {
                 void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
               }}
               hitSlop={8}
+              accessibilityRole="button"
+              style={styles.localeButton}
             >
               <Text style={styles.localeToggle}>{locale === "ko" ? "EN" : "한국어"}</Text>
             </Pressable>
@@ -155,8 +158,12 @@ export default function SignIn() {
                 accessibilityRole="button"
                 accessibilityLabel={
                   showPassword
-                    ? (locale === "ko" ? "비밀번호 숨기기" : "Hide password")
-                    : (locale === "ko" ? "비밀번호 보기" : "Show password")
+                    ? locale === "ko"
+                      ? "비밀번호 숨기기"
+                      : "Hide password"
+                    : locale === "ko"
+                      ? "비밀번호 보기"
+                      : "Show password"
                 }
                 style={styles.eyeBtn}
               >
@@ -211,16 +218,22 @@ export default function SignIn() {
 
           {/* Footer — sign-up + manual link. */}
           <View style={styles.footer}>
-            <Text style={styles.subtleText}>
-              {t("signIn.noAccount")}{" "}
-              <Link href="/sign-up">
-                <Text style={styles.linkText}>{t("signIn.signUpLink")}</Text>
+            <View style={styles.footerRow}>
+              <Text style={styles.subtleText}>{t("signIn.noAccount")}</Text>
+              <Link href="/sign-up" asChild>
+                <Pressable accessibilityRole="link" style={styles.footerLinkHit}>
+                  <Text style={styles.linkText}>{t("signIn.signUpLink")}</Text>
+                </Pressable>
               </Link>
-            </Text>
-            <Link href="/manual" style={{ marginTop: 8 }}>
-              <Text style={[styles.subtleText, styles.linkUnderline]}>
-                {locale === "ko" ? "이 앱이 처음이라면 안내서 보기" : "New here? Read the 1-min manual"}
-              </Text>
+            </View>
+            <Link href="/manual" asChild>
+              <Pressable accessibilityRole="link" style={styles.manualLinkHit}>
+                <Text style={[styles.subtleText, styles.linkUnderline]}>
+                  {locale === "ko"
+                    ? "이 앱이 처음이라면 안내서 보기"
+                    : "New here? Read the 1-min manual"}
+                </Text>
+              </Pressable>
             </Link>
           </View>
         </ScrollView>
@@ -250,6 +263,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.5,
   },
+  localeButton: { minWidth: 44, minHeight: 44, alignItems: "flex-end", justifyContent: "center" },
   hero: { alignItems: "center", marginTop: 28, marginBottom: 22, gap: 8 },
   logo: { width: 84, height: 84, marginBottom: 6 },
   // HQ gate hero is ~square (740x746); render it in a square box so it
@@ -287,8 +301,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: "uppercase",
   },
-  labelRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
-  eyeBtn: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+  labelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  eyeBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   input: {
     backgroundColor: "rgba(7,10,24,0.72)",
     borderColor: "rgba(141,152,184,0.34)",
@@ -325,9 +344,29 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.4 },
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 8 },
   dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: PALETTE.border },
-  dividerLabel: { color: PALETTE.textSubtle, fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase" },
-  forgotRow: { marginTop: 6, alignItems: "center", paddingVertical: 4 },
+  dividerLabel: {
+    color: PALETTE.textSubtle,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  forgotRow: {
+    minHeight: 44,
+    marginTop: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 4,
+  },
   footer: { marginTop: 28, alignItems: "center" },
+  footerRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  footerLinkHit: { minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center" },
+  manualLinkHit: { minHeight: 44, justifyContent: "center", alignItems: "center", marginTop: 4 },
   subtleText: { color: PALETTE.textMuted, fontSize: 13 },
   linkText: { color: PALETTE.brand, fontSize: 13, fontWeight: "600" },
   linkUnderline: { textDecorationLine: "underline" },
