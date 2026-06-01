@@ -3,7 +3,69 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-02 / 미성년 안전 remediation — 7 PR 머지 (C/H/E/A·core/B/D/F) + prod 보류
+## Latest — 2026-06-02 / 클리퍼 형식(양식·AI추가) + 그래프 조각 + 저장 점검
+
+### 어디까지 왔나
+- main HEAD: `017e18d`
+- 이번 세션 머지 PR (`npm run verify` 747/747, 77 suites):
+  - **#149** audit 화면 내부 프레임워크 id(`big_five:openness`) 숨김 (1-a)
+  - **#150** 그래프: 분류된 `sources`를 마을 하위노드로 + 조각 탭 팝업(요약·해시태그·자세히→마을 화면) (1-b/c/d)
+  - **#151** capture 저장 회복력 — Storage 업로드 실패해도 행은 저장(`_body_fallback`) (item 2)
+  - **#153** 형식 화면: 형식 탭→분류 양식 보기(FormatSchemaView) + `+ 형식 추가` AI 화면(AddFormatFlow) (item 1)
+  - (+ GPT: `village-ui.ts` / 마을 metadata·hero 정렬)
+- working tree: clean (untracked `.claude/launch.json`, `.tmp_hq_pack/`만)
+
+### 저장 점검 결과 (item 2) — 정상
+- capture→`sources` 저장 OK: `raw-clippings` 버킷(비공개) + 소유자 정책 4종 + `sources_owner_all` RLS(WITH CHECK) 존재, source 2행 저장됨.
+- '조각 안 보임'은 그래프가 `wiki_pages`(0행) 읽던 것 → #150이 `sources`로 전환해 해결.
+- 기존 2조각은 2026-05-31 **mock 시절** 캡처라 tags/summary 비어있음 → 라이브 Gemini 캡처는 분류가 채워짐.
+- ⚠️ `raw-clippings` 버킷은 **수동 operator 세팅**(마이그레이션 아님 — `storage.ts` 주석). prod엔 존재. 재현성용 guarded 마이그레이션은 후속(바닐라 PG dry-run엔 `storage` 스키마 없음 주의).
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj` · edge fn `gemini-proxy` · **Gemini LIVE**
+- Storage 버킷 `raw-clippings`(private, 소유자 정책) · Web: GitHub Pages auto-deploy on main
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **미성년 prod 마이그레이션 적용** `0028→0032`(게이트/동의/프라이버시) — B/D UI 준비 후 일괄 + `get_advisors`. **적용 전 사용자 확인** | large | ⭐ 미성년 출시 게이트 |
+| B | 미성년 **B/D UI**: 청소년 개인정보 안내 화면 + high-privacy 설정 토글 → GPT 위임(계약: `recordConsent` 필드, `prefs.ts` 키셋) | medium | |
+| C | 미성년 **G**: 동의 철회/계정삭제/DOB 정정/age-out UI | medium | |
+| D | **시각 QA**(기기/웹): 그래프 조각 탭·팝업·마을↔조각 선 · 형식 양식 모달 · AI 형식추가 플로우(라이브) | small | |
+| E | 형식 '자세히' 목적지 = 현재 마을 화면. 조각별 상세 화면 원하면 신설 | small | |
+
+### 적용 중인 정책 (영구)
+1. **모든 작업 GitHub 머지까지** (Simon, 2026-06-02): 새 브랜치 → `npm run verify` green → PR → CI green → squash merge → main 재검증.
+2. **prod 인프라 적용(마이그레이션 apply / 엣지 배포)은 GitHub 머지와 별개 — 그 시점 사용자 확인.**
+3. **GPT 동시작업** — origin/main이 같은 파일을 앞서갈 수 있음. 머지 후 항상 main 재검증.
+4. `npm ci --legacy-peer-deps`. C1~C12 + forbidden lexicon. semantic 토큰만(hex/gradient/pill/em dash 금지).
+
+### 핵심 파일
+```
+src/app/index.tsx                         그래프 데이터: sources → DataNode(summary 포함)
+src/components/graph/NavGraph.tsx          티어/엣지/DataNodeSheet(조각 팝업)
+src/app/formats.tsx                        형식 관리(탭→양식, +형식추가, 편집/삭제/공유)
+src/components/wiki/FormatSchemaView.tsx   분류 양식 표시(공유 컴포넌트)
+src/components/wiki/AddFormatFlow.tsx      AI 형식 제안→미리보기→저장
+src/lib/wiki/propose-template.ts           proposeClipperTemplate (AI 형식 JSON, C-vocab 가드)
+src/lib/wiki/capture.ts                    captureFromMarkdown (best-effort 업로드 + 행 보존)
+db/migrations/0028~0032                    prod 미적용 (큐 A로 일괄 적용)
+```
+
+### 검증
+```bash
+npm ci --legacy-peer-deps && npm run verify   # 747/747 (77 suites)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# 큐 A(미성년 prod 마이그레이션 — 단 B/D UI 준비 여부 먼저 확인) 또는 B/C UI부터.
+```
+
+---
+
+## 2026-06-02 / 미성년 안전 remediation — 7 PR 머지 (C/H/E/A·core/B/D/F) + prod 보류
 
 ### 어디까지 왔나
 - main HEAD: 이 핸드오프 머지 후 (직전 `0e338fa`)
