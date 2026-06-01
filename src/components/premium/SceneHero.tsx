@@ -6,6 +6,7 @@ import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { Text } from "@/components/ui/Text";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { cosmic, radii, spacing } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { PremiumButton } from "./surfaces";
 
 type SceneHeroAction = {
@@ -52,6 +53,13 @@ export function SceneHero({
 }) {
   const ownerSize = Math.min(workerSize, Math.max(44, Math.round(islandSize * WORKER_TO_ISLAND_SCALE)));
   const reducedMotion = prefersReducedMotion();
+  // 2026-06-02: village headers show the TITLE only — eyebrow + subtitle are no
+  // longer rendered. Kept in the props for API compatibility with the callers.
+  void eyebrow;
+  void subtitle;
+  // The owner's speech bubble blinks (~2.5s shown, ~2.5s hidden) instead of
+  // always showing. Reduced-motion users keep a steady bubble.
+  const [speechShown, setSpeechShown] = useState(true);
   const patrol = useRef(new Animated.Value(0)).current;
   const [ownerFacing, setOwnerFacing] = useState<1 | -1>(1);
   const ownerHaloSize = ownerSize + 18;
@@ -114,14 +122,19 @@ export function SceneHero({
     };
   }, [patrol, reducedMotion]);
 
+  useEffect(() => {
+    if (reducedMotion) {
+      setSpeechShown(true);
+      return;
+    }
+    const id = setInterval(() => setSpeechShown((v) => !v), 2500);
+    return () => clearInterval(id);
+  }, [reducedMotion]);
+
   return (
     <View style={[styles.wrap, style]}>
       <View style={styles.copy}>
-        <Text variant="caption" color="brand" style={styles.eyebrow}>{eyebrow}</Text>
         <Text variant="heading">{title}</Text>
-        {subtitle ? (
-          <Text variant="subtle" color="textMuted" style={styles.subtitle}>{subtitle}</Text>
-        ) : null}
       </View>
 
       <View style={styles.shell}>
@@ -186,20 +199,22 @@ export function SceneHero({
                 ]}
               />
             </Animated.View>
-            <Animated.View
-              style={[
-                styles.bubble,
-                {
-                  left: bubbleLeft,
-                  bottom: bubbleBottom,
-                  width: bubbleWidth,
-                  transform: [{ translateX: ownerTranslateX }],
-                },
-              ]}
-            >
-              <Text variant="body" style={styles.bubbleText}>{speech}</Text>
-              <View style={[styles.bubbleTail, { left: tailLeft }]} />
-            </Animated.View>
+            {speechShown ? (
+              <Animated.View
+                style={[
+                  styles.bubble,
+                  {
+                    left: bubbleLeft,
+                    bottom: bubbleBottom,
+                    width: bubbleWidth,
+                    transform: [{ translateX: ownerTranslateX }],
+                  },
+                ]}
+              >
+                <Text variant="body" style={styles.bubbleText}>{speech}</Text>
+                <View style={[styles.bubbleTail, { left: tailLeft }]} />
+              </Animated.View>
+            ) : null}
           </View>
         </View>
 
@@ -235,8 +250,6 @@ export function SceneHero({
 const styles = StyleSheet.create({
   wrap: { gap: spacing.md },
   copy: { gap: spacing.xs },
-  eyebrow: { color: cosmic.dreamPink, letterSpacing: 1.2 },
-  subtitle: { marginTop: 1 },
   shell: {
     position: "relative",
     overflow: "hidden",
@@ -302,16 +315,22 @@ const styles = StyleSheet.create({
   workerSprite: {
     position: "absolute",
   },
+  // Matches the main-graph CharacterPathLayer bubble: dark fill, mint border,
+  // pixel font (2026-06-02 directive).
   bubble: {
     position: "absolute",
     minHeight: 68,
     justifyContent: "center",
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.72)",
-    backgroundColor: "rgba(247,248,255,0.94)",
+    borderColor: "rgba(114,242,199,0.5)",
+    backgroundColor: "rgba(7,10,24,0.96)",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
     zIndex: SPEECH_LAYER,
     elevation: SPEECH_LAYER,
   },
@@ -325,12 +344,15 @@ const styles = StyleSheet.create({
     borderTopWidth: 7,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderTopColor: "rgba(247,248,255,0.94)",
+    borderTopColor: "rgba(7,10,24,0.96)",
   },
   bubbleText: {
-    color: cosmic.space900,
-    fontWeight: "700",
-    lineHeight: 21,
+    color: cosmic.moonWhite,
+    fontFamily: fontFamilies.pixel,
+    fontSize: 13,
+    lineHeight: 18,
+    letterSpacing: 0.2,
+    textAlign: "center",
   },
   actions: {
     gap: spacing.sm,

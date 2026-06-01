@@ -10,19 +10,19 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname, router } from "expo-router";
 
-import { PRIMARY_TAB_PATHS, isPrimaryTabPath } from "@/lib/nav/tabs";
+import { isPrimaryTabPath } from "@/lib/nav/tabs";
 import { cosmic } from "@/lib/theme/tokens";
 
 // Landing + pre-auth routes that hide the arrow (no "back to graph" there yet).
 const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile"];
 
-// Routes that hide the back arrow entirely: the pre-auth flow plus every
-// primary tab destination (those already have the persistent bottom tab bar,
-// so a second back affordance is redundant). The tab list comes from the
-// shared PRIMARY_TAB_PATHS — it must NOT be hand-maintained here, or it drifts
-// from the tab bar (which is exactly what stranded /core-brain, /records and
-// /wiki with neither a back arrow nor a tab bar after the Phase 3 retabbing).
-const HIDDEN_PATHS = new Set<string>([...PRE_AUTH_PATHS, ...PRIMARY_TAB_PATHS]);
+// Routes that hide the back arrow entirely: the pre-auth flow plus the graph
+// home ("/") itself — "/" IS the back target, so it gets no arrow. Every other
+// village screen keeps a top-left back-to-graph arrow, INCLUDING the tab
+// destinations (담기/세컨비/공상/나), per the 2026-06-02 directive ("every
+// village needs a back button"). On a tab screen the arrow is nudged right of
+// the brand chip (see below) so the two don't overlap.
+const HIDDEN_PATHS = new Set<string>([...PRE_AUTH_PATHS, "/"]);
 
 /** True when the back arrow is shown on this route (i.e. not the landing /
  *  pre-auth pages). Screens use this to reserve top-left headroom so the
