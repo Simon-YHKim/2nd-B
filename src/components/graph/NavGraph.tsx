@@ -131,6 +131,8 @@ export interface DataNode {
   parentId?: string;
   /** The piece's tags — drives both domain placement and relatedness edges. */
   tags?: readonly string[];
+  /** AI summary (sources.frontmatter.summary) — shown in the piece popup on tap. */
+  summary?: string;
 }
 
 // Authoritative menu graph. Tier ↑ size ↑ brightness ↑.
@@ -941,6 +943,13 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     ? CENTER_NODE
     : MENU_NODES.find((n) => n.id === activeId) ?? null;
 
+  // A tapped tier-4 piece (data node) — distinct from the structural menu nodes
+  // above. Drives the piece popup (summary + hashtags + 자세히).
+  const activeDataNode = useMemo(
+    () => (activeId && !activeNode ? dataNodes.find((d) => d.id === activeId) ?? null : null),
+    [activeId, activeNode, dataNodes],
+  );
+
   // Neighbours of the focused node — drives edge highlight + node dimming
   // (overhaul §7). Also the "연결된 조각 수" the sheet reports.
   const activeNeighbors = useMemo(() => {
@@ -1014,6 +1023,16 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     router.push(label ? { pathname: "/imagine", params: { fromNode: label } } : "/imagine");
   }
 
+  // "자세히" on a piece popup → open the piece's village screen, the space that
+  // lists that village's classified pieces (2026-06-02 directive).
+  function handlePieceDetail() {
+    const village = activeDataNode
+      ? MENU_NODES.find((n) => n.id === activeDataNode.parentId)
+      : null;
+    setActiveId(null);
+    router.push(village?.href ?? "/records");
+  }
+
   return (
     <View ref={outerRef} style={StyleSheet.absoluteFill} pointerEvents="box-none">
     <GestureDetector gesture={composedGesture}>
@@ -1085,7 +1104,6 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         ? Array.from(dataPositions.entries()).map(([id, p]) => (
             <Animated.View
               key={id}
-              pointerEvents="none"
               style={[
                 styles.shardWrap,
                 {
@@ -1098,9 +1116,15 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 dimFor(id) ? styles.dimmed : null,
               ]}
             >
-              {/* Data shards are pieces (closeout #9). Current shards come from
-                  wiki pages → blue book; other sources fall back to a cube. */}
-              <TierIcon id={p.parentId.startsWith("wiki") ? "book_wiki" : "cube_data"} size={18} />
+              {/* Each data shard is one of the user's classified pieces. Tapping
+                  it opens the piece popup (summary + hashtags + 자세히). */}
+              <Pressable
+                onPress={() => handleNodeTap(id)}
+                hitSlop={14}
+                accessibilityLabel={dataNodes.find((d) => d.id === id)?.title ?? "piece"}
+              >
+                <TierIcon id={p.parentId.startsWith("wiki") ? "book_wiki" : "cube_data"} size={18} />
+              </Pressable>
             </Animated.View>
           ))
         : null}
@@ -1230,6 +1254,19 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           onClose={() => setActiveId(null)}
         />
       ) : null}
+
+      {/* Piece popup (2026-06-02) — a tapped tier-4 data node shows its summary
+          + hashtags and a single 자세히 button. */}
+      {activeDataNode ? (
+        <DataNodeSheet
+          locale={locale}
+          title={activeDataNode.title}
+          summary={activeDataNode.summary ?? ""}
+          tags={activeDataNode.tags ?? []}
+          onDetail={handlePieceDetail}
+          onClose={() => setActiveId(null)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -1320,6 +1357,72 @@ function NodeSheet({
       <Pressable onPress={onImagine} hitSlop={6} style={styles.sheetImagine}>
         <Text variant="caption" color="brand">{locale === "ko" ? "공상으로 펼치기" : "Open in imagine"}</Text>
       </Pressable>
+    </Animated.View>
+  );
+}
+
+// Piece popup for a tapped tier-4 data node: the AI summary + hashtags and a
+// single 자세히 button that opens the piece's village (2026-06-02 directive).
+function DataNodeSheet({
+  locale,
+  title,
+  summary,
+  tags,
+  onDetail,
+  onClose,
+}: {
+  locale: "en" | "ko";
+  title: string;
+  summary: string;
+  tags: readonly string[];
+  onDetail: () => void;
+  onClose: () => void;
+}) {
+  const slide = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    slide.setValue(0);
+    Animated.timing(slide, {
+      toValue: 1,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [slide, title]);
+  const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
+
+  return (
+    <Animated.View style={[styles.sheet, { opacity: slide as never, transform: [{ translateY }] }]}>
+      <View style={styles.sheetHandle} />
+      <View style={styles.sheetHead}>
+        <Text variant="heading" style={styles.sheetName} numberOfLines={2}>{title}</Text>
+        <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={locale === "ko" ? "닫기" : "Close"}>
+          <Text style={styles.sheetClose}>✕</Text>
+        </Pressable>
+      </View>
+      {summary ? (
+        <Text variant="body" color="textMuted" style={styles.sheetDesc} numberOfLines={5}>{summary}</Text>
+      ) : (
+        <Text variant="subtle" color="textSubtle" style={styles.sheetDesc}>
+          {locale === "ko" ? "아직 요약이 없어요." : "No summary yet."}
+        </Text>
+      )}
+      {tags.length > 0 ? (
+        <View style={styles.dataTagRow}>
+          {tags.slice(0, 8).map((t) => (
+            <View key={t} style={styles.dataTagChip}>
+              <Text style={styles.dataTagText}>#{t}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      <View style={styles.sheetActions}>
+        <PremiumButton
+          label={locale === "ko" ? "자세히" : "Details"}
+          variant="primary"
+          onPress={onDetail}
+          style={styles.sheetActionBtn}
+        />
+      </View>
     </Animated.View>
   );
 }
@@ -1444,4 +1547,14 @@ const styles = StyleSheet.create({
   sheetActions: { flexDirection: "row", gap: 10, marginTop: 16 },
   sheetActionBtn: { flex: 1 },
   sheetImagine: { alignSelf: "center", paddingVertical: 10 },
+  dataTagRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 12 },
+  dataTagChip: {
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.4)",
+    backgroundColor: "rgba(114,242,199,0.1)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  dataTagText: { color: cosmic.signalMint, fontSize: 12, fontFamily: fontFamilies.readable },
 });
