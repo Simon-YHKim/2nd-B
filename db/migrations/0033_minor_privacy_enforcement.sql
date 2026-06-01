@@ -37,8 +37,13 @@ BEGIN
   NEW.minor_tier := CASE WHEN age_years < 18 THEN 'minor_self' ELSE 'adult' END;
   NEW.account_status := 'active';
 
-  IF TG_OP = 'INSERT' AND NEW.minor_tier = 'minor_self'
-     AND (NEW.privacy_prefs IS NULL OR NEW.privacy_prefs = '{}'::jsonb) THEN
+  -- Normalize minor privacy on every write the age gate sees: INSERT *and* a
+  -- birth_date UPDATE that turns an adult (with opt-ins) into a 14-17 minor.
+  -- Force every locked key false; preserve the promotable long_term_memory
+  -- value (default false). Gating this only on INSERT left a hole: a DOB
+  -- correction into the minor range would change minor_tier here but leave the
+  -- adult's sharing/profiling keys true until they next touched privacy.
+  IF NEW.minor_tier = 'minor_self' THEN
     NEW.privacy_prefs := jsonb_build_object(
       'ads', false,
       'sharing', false,
@@ -47,7 +52,7 @@ BEGIN
       'llm_training', false,
       'persona_export', false,
       'persona_share', false,
-      'long_term_memory', false
+      'long_term_memory', COALESCE((NEW.privacy_prefs ->> 'long_term_memory')::boolean, false)
     );
   END IF;
 

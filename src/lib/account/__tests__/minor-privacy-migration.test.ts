@@ -47,4 +47,12 @@ describe("0033_minor_privacy_enforcement.sql — structure", () => {
       }
     }
   });
+
+  test("age gate clamps minors on tier change too, not only on insert (DOB-correction gap)", () => {
+    // The clamp inside enforce_user_age_tier must run whenever minor_tier is
+    // minor_self (covers a birth_date UPDATE into 14-17), not be gated on insert.
+    expect(sql).not.toMatch(/TG_OP = 'INSERT' AND NEW\.minor_tier/);
+    // and it preserves the promotable key rather than hard-forcing it false
+    expect(sql).toMatch(/'long_term_memory', COALESCE\(\(NEW\.privacy_prefs ->> 'long_term_memory'\)::boolean, false\)/);
+  });
 });
