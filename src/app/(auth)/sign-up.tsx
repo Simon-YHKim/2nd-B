@@ -87,6 +87,9 @@ export default function SignUp() {
               <Text variant="body" color="textMuted">
                 {t("signUp.subtitle")}
               </Text>
+              <Text variant="subtle" color="textMuted" style={styles.ageNotice}>
+                {t("signUp.ageNotice")}
+              </Text>
             </View>
             <Image source={authHero} style={styles.heroImg} resizeMode="contain" />
           </View>
@@ -204,6 +207,7 @@ const styles = StyleSheet.create({
   heroCopy: { flex: 1, gap: spacing.xs },
   heroImg: { width: 112, height: 112 },
   title: { marginTop: 0 },
+  ageNotice: { marginTop: spacing.xs },
   badgeWrap: { marginTop: spacing.sm },
   form: {
     gap: spacing.sm,

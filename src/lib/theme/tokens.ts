@@ -216,8 +216,8 @@ export const radii = {
 export const typography = {
   fontFamily: "System",
   sizes: {
-    xs: 11,
-    sm: 13,
+    xs: 12,
+    sm: 14,
     md: 15,
     lg: 18,
     xl: 22,
