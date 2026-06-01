@@ -20,6 +20,7 @@ import {
 import { detectClipperKind } from "./clipper-kind";
 import { toSlug } from "./slug";
 import { SOURCE_KINDS, type SourceKind } from "./types";
+import { sanitizeTag } from "./tags";
 
 export interface ProposedClipperTemplate {
   slug: string;
@@ -29,15 +30,6 @@ export interface ProposedClipperTemplate {
   defaultTags: string[];
   targetCategory: TargetCategory | "";
   aiProperties: ClipperAiProperty[];
-}
-
-function sanitizeTag(t: string): string {
-  return String(t)
-    .trim()
-    .toLowerCase()
-    .replace(/^#+/, "")
-    .replace(/[^a-z0-9가-힣\-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 /** Build the propose-a-new-format prompt. Pure → deterministic. */
