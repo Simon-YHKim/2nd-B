@@ -277,13 +277,15 @@ const styles = StyleSheet.create({
   stateBox: { paddingVertical: spacing.xl, gap: spacing.md, alignItems: "center" },
   chipRow: { gap: spacing.sm, paddingVertical: spacing.xs },
   // Pull each chip row up under its small section label (scroll gap is lg).
-  filterLabel: { marginBottom: -spacing.sm, letterSpacing: 0.5 },
+  filterLabel: { marginBottom: -spacing.sm, letterSpacing: 0 },
   chip: {
     borderWidth: 1,
     borderColor: semantic.border,
-    borderRadius: radii.xl,
+    borderRadius: radii.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
+    minHeight: 44,
+    justifyContent: "center",
   },
   chipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   list: { gap: spacing.xs },
