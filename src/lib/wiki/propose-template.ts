@@ -10,7 +10,7 @@
 // (returns null) so a forbidden term can never reach the shared template store.
 
 import { callGemini } from "../llm/gemini";
-import { FORBIDDEN_TERMS } from "../safety/lexicon";
+import { containsForbiddenLexicon } from "../safety/classifier";
 import {
   CLIPPER_TEMPLATE_LIST,
   TARGET_CATEGORIES,
@@ -118,13 +118,6 @@ function parseAiProps(v: unknown): ClipperAiProperty[] {
   return out;
 }
 
-function hasForbiddenTerm(s: string): boolean {
-  const lower = s.toLowerCase();
-  for (const t of FORBIDDEN_TERMS.en) if (lower.includes(t.toLowerCase())) return true;
-  for (const t of FORBIDDEN_TERMS.ko) if (s.includes(t)) return true;
-  return false;
-}
-
 /**
  * Parse + sanitize the LLM reply into a ProposedClipperTemplate. Pure → tested.
  * Returns null when the reply is unusable (bad JSON, no name) or when it carries
@@ -176,7 +169,7 @@ export function parseProposedTemplate(raw: string, fallbackKind: SourceKind): Pr
     ...defaultTags,
     ...aiProperties.flatMap((p) => [p.name, p.describe.en, p.describe.ko]),
   ].join(" \n ");
-  if (hasForbiddenTerm(surface)) return null;
+  if (containsForbiddenLexicon(surface, "en").length > 0 || containsForbiddenLexicon(surface, "ko").length > 0) return null;
 
   return { slug, baseKind, name, what, defaultTags, targetCategory, aiProperties };
 }

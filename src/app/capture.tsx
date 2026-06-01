@@ -600,6 +600,20 @@ export default function Capture() {
             </PremiumCard>
           ) : null}
 
+          {/* Entry to the format-manager (/formats): list, share, edit, or delete
+              the clipper formats — including any just proposed above. */}
+          <Pressable
+            onPress={() => router.push("/formats")}
+            hitSlop={6}
+            style={styles.manageFormatsLink}
+            accessibilityRole="button"
+            accessibilityLabel={locale === "ko" ? "내 형식 관리" : "Manage my formats"}
+          >
+            <Text variant="caption" color="brand">
+              {locale === "ko" ? "내 형식 관리하기" : "Manage my formats"}
+            </Text>
+          </Pressable>
+
           {/* Track toggle: 일상 / Pro — only for capture modes (not journal). */}
           {mode !== "journal" ? (
           <View style={styles.trackCard}>
@@ -1084,6 +1098,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   scroll: { paddingBottom: spacing.xl, gap: spacing.md },
+  manageFormatsLink: { alignSelf: "flex-end", paddingVertical: spacing.xs, paddingHorizontal: spacing.xs },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   trackCard: {
     backgroundColor: semantic.surface,

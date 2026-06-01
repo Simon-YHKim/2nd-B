@@ -73,6 +73,7 @@ const HUB: HubSection[] = [
       { route: "/settings", ko: "설정", en: "Settings" },
       { route: "/theme", ko: "테마", en: "Theme" },
       { route: "/data", ko: "데이터 관리", en: "Data" },
+      { route: "/formats", ko: "내 형식", en: "My formats" },
       { route: "/manual", ko: "안내서", en: "Manual" },
       { route: "/import", ko: "가져오기", en: "Import" },
       { route: "/inbox", ko: "받은편지함", en: "Inbox" },

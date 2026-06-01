@@ -51,6 +51,7 @@ export default function RootLayout() {
               <Stack.Screen name="persona" />
               <Stack.Screen name="capture" />
               <Stack.Screen name="inbox" />
+              <Stack.Screen name="formats" />
               <Stack.Screen name="jarvis" />
               <Stack.Screen name="wiki" />
               <Stack.Screen name="manual" />
