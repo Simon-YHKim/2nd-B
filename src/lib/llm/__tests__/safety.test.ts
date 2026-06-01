@@ -98,11 +98,18 @@ describe("classifySafety (layered)", () => {
 });
 
 describe("fixedCrisisResponse", () => {
-  test("Korean template includes 1393 and 1577-0199", () => {
+  test("Korean adult template uses the current 109 line (not retired 1393)", () => {
     const r = fixedCrisisResponse("ko");
-    expect(r.text).toContain("1393");
-    expect(r.text).toContain("1577-0199");
-    expect(r.version).toBe("red-ko-v1");
+    expect(r.text).toContain("109");
+    expect(r.text).not.toContain("1393");
+    expect(r.version).toBe("red-ko-v2");
+  });
+
+  test("Korean minor template surfaces the youth line 1388 alongside 109", () => {
+    const r = fixedCrisisResponse("ko", true);
+    expect(r.text).toContain("1388");
+    expect(r.text).toContain("109");
+    expect(r.version).toBe("red-ko-minor-v1");
   });
 
   test("English template includes 988 and findahelpline", () => {

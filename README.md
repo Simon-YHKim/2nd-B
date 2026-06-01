@@ -29,7 +29,7 @@ category. Solo build; deadline 2026-08-17 06:00 KST.
    before inclusion.
 7. **Safety Classifier** — Every input is classified into a
    green/yellow/red zone before any LLM call. Red-zone content is routed
-   to professional resources (Korea 1393, US 988), never to AI.
+   to professional resources (Korea 109, US 988), never to AI.
 
 ## Sprint 0 scope
 

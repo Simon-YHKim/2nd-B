@@ -71,9 +71,16 @@ export const CRISIS_TERMS: Record<Locale, readonly string[]> = {
 
 // Hotlines surfaced when CRISIS_TERMS match. Locale-aware.
 export const HOTLINES = {
+  // KR unified suicide-prevention line. As of 2024-01 the government merged
+  // 1393 (자살예방상담전화) and seven other lines into the single 3-digit 109
+  // ("한 명(1)의 생명도 자살 없이(0) 구(9)하자"). 109 is the number to publish.
+  KR_109: { number: "109", label: "자살예방상담전화" },
+  // Legacy lines — kept defined for audit/research history only. NOT selected
+  // by routing anymore (109 superseded 1393 in 2024). Never surface to users.
   KR_1393: { number: "1393", label: "자살예방상담전화" },
   KR_1577_0199: { number: "1577-0199", label: "정신건강위기상담전화" },
-  // Youth line (Korea). Age-aware routing sends minors here instead of 1393.
+  // Youth line (Korea, 청소년전화). Age-aware routing adds this for minors
+  // (14-17) alongside 109.
   KR_1388: { number: "1388", label: "청소년상담전화" },
   GLOBAL_988: { number: "988", label: "Suicide & Crisis Lifeline (US)" },
 } as const;

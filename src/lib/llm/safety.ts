@@ -16,7 +16,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 import { getEnv } from "../env";
-import { classifyInput as lexiconClassify } from "../safety/classifier";
+import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
 
 export type SafetyZone = "green" | "yellow" | "red";
 
@@ -169,20 +169,28 @@ export async function classifySafety(userMessage: string, locale: "en" | "ko"): 
 }
 
 // Fixed-string crisis templates per docs/research/batches/crisis-detection.md.
-// Keep verbatim — these are referenced as "red-ko-v1" / "red-en-v1" in the audit log.
-export function fixedCrisisResponse(locale: "en" | "ko"): { text: string; version: string } {
+// Hotline numbers come from crisisHotlines() (single source of truth) so KO
+// routing stays current (109 since 2024) and minors get the youth line (1388).
+// Versions are referenced in the audit log: red-ko-v2 (adult), red-ko-minor-v1
+// (14-17), red-en-v1 (988, all ages).
+export function fixedCrisisResponse(
+  locale: "en" | "ko",
+  minor = false,
+): { text: string; version: string } {
+  const hotlineBlock = crisisHotlines(locale, minor)
+    .map((h) => (locale === "ko" ? `📞 ${h.number} — ${h.label} (24시간, 무료)` : `📞 ${h.number} — ${h.label}`))
+    .join("\n");
   if (locale === "ko") {
     return {
       text: `지금 많이 힘드신 것 같아요. 혼자 견디지 마세요.
 
 지금 바로 도움을 받을 수 있는 곳이 있어요:
 
-📞 1393 — 자살예방상담전화 (24시간, 무료)
-📞 1577-0199 — 정신건강위기상담전화
+${hotlineBlock}
 
 전화가 어려우시면, 가까운 응급실로 가셔도 됩니다.
 당신의 안전이 가장 중요해요. 두번째 뇌는 지금 잠시 한 발 물러나 있을게요.`,
-      version: "red-ko-v1",
+      version: minor ? "red-ko-minor-v1" : "red-ko-v2",
     };
   }
   return {
@@ -190,7 +198,7 @@ export function fixedCrisisResponse(locale: "en" | "ko"): { text: string; versio
 
 People are available right now to talk:
 
-📞 988 — Suicide & Crisis Lifeline (24/7, free, US)
+${hotlineBlock}
 🌐 findahelpline.com — international directory
 
 If calling is hard, you can go to your nearest emergency room.

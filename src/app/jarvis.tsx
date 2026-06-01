@@ -81,7 +81,7 @@ function writeIntroDismissed(kind: "today" | "permanent"): void {
 
 export default function Jarvis() {
   const { t, i18n } = useTranslation("jarvis");
-  const { userId, loading: authLoading } = useAuth();
+  const { userId, loading: authLoading, isMinor } = useAuth();
   const progression = useProgression();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -163,6 +163,7 @@ export default function Jarvis() {
         locale,
         tier: progression.tier,
         personaHint: isCharacterChat ? persona.systemHint[locale] : null,
+        minor: isMinor === true,
       });
       if (result.status === "blocked") {
         setTurns((prev) => [...prev, { role: "jarvis", text: result.hint }]);

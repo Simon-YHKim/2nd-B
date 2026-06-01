@@ -40,17 +40,29 @@ function matchesTerm(haystack: string, term: string, locale: Locale): boolean {
   return false;
 }
 
-// Age-aware crisis routing. Minors in the KO locale go to the youth line
-// (1388) instead of 1393; EN's 988 already serves all ages, so minors stay on
-// it. Defaults to adult routing.
-function pickCrisisHotline(locale: Locale, minor = false): { id: HotlineId; label: string; number: string } {
+// Age-aware crisis routing — the single source of truth for WHICH hotlines a
+// (locale, minor) crisis surfaces, in display order (primary first). Both the
+// callGemini path (routeCrisis) and the Advisor path (fixedCrisisResponse) read
+// this so the numbers never drift between surfaces.
+//   KO adult -> [109]        자살예방상담전화 (109 merged 1393 in 2024-01)
+//   KO minor -> [1388, 109]  청소년전화 first, then 109
+//   EN any   -> [988]        serves all ages
+// Defaults to adult routing; unknown age is safe because 109/988 are all-ages.
+export function crisisHotlines(
+  locale: Locale,
+  minor = false,
+): { id: HotlineId; label: string; number: string }[] {
   if (locale === "ko") {
-    const id: HotlineId = minor ? "KR_1388" : "KR_1393";
-    const h = HOTLINES[id];
-    return { id, label: h.label, number: h.number };
+    const ids: HotlineId[] = minor ? ["KR_1388", "KR_109"] : ["KR_109"];
+    return ids.map((id) => ({ id, label: HOTLINES[id].label, number: HOTLINES[id].number }));
   }
-  const h = HOTLINES.GLOBAL_988;
-  return { id: "GLOBAL_988", label: h.label, number: h.number };
+  return [{ id: "GLOBAL_988", label: HOTLINES.GLOBAL_988.label, number: HOTLINES.GLOBAL_988.number }];
+}
+
+// The single primary hotline (first of crisisHotlines) — used for the
+// SafetyResult.crisisRouting field and the CrisisRouter modal.
+function pickCrisisHotline(locale: Locale, minor = false): { id: HotlineId; label: string; number: string } {
+  return crisisHotlines(locale, minor)[0];
 }
 
 // Classifies a user input or LLM output. Order:

@@ -23,6 +23,9 @@ export interface CreateRecordArgs {
   prompt?: string;
   auditPeriod?: string;
   withFollowup?: boolean;
+  // C10 safety: forwarded to callAdvisor/callGemini so a minor's crisis
+  // routing uses the youth hotline. From AuthContext.isMinor at the call site.
+  minor?: boolean;
   // Per master blueprint: every entry should surface tags, topic,
   // summary, conclusion alongside the body. All optional — the LLM
   // follow-up (Phase 1 / Advisor) can fill them in later.
@@ -70,6 +73,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         userId: args.userId,
         userMessage: args.body,
         locale: args.locale,
+        minor: args.minor,
       });
       const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
       aiFollowup = {
@@ -110,6 +114,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         locale: args.locale,
         purpose: "audit_qa",
         user: args.body,
+        minor: args.minor,
       });
       const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
       aiFollowup = { text: cappedText, zone: res.safety.zone };

@@ -33,7 +33,7 @@ type Phase = "input" | "generating" | "result" | "saved";
 
 export default function Imagine() {
   const { i18n } = useTranslation();
-  const { userId, loading } = useAuth();
+  const { userId, loading, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const vela = CHARACTERS.vela;
 
@@ -68,7 +68,7 @@ export default function Imagine() {
       const system = fromNode
         ? `${IMAGINE_SYSTEM}\nThe user started from the graph node "${fromNode}"; gently let that color the scenes.`
         : IMAGINE_SYSTEM;
-      const reply = await callGemini({ userId, locale, purpose: "imagine", system, user: draft.trim() });
+      const reply = await callGemini({ userId, locale, purpose: "imagine", system, user: draft.trim(), minor: isMinor === true });
       setResult(parseImagineResult(reply.text));
       setPhase("result");
     } catch (e) {

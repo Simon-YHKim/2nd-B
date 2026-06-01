@@ -34,7 +34,7 @@ type Phase = "input" | "analyzing" | "result" | "saved";
 
 export default function ImportExternal() {
   const { i18n } = useTranslation();
-  const { userId, loading } = useAuth();
+  const { userId, loading, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const ko = locale === "ko";
 
@@ -68,7 +68,7 @@ export default function ImportExternal() {
     if (!userId || raw.trim().length === 0 || phase === "analyzing") return;
     setPhase("analyzing");
     try {
-      const reply = await callGemini({ userId, locale, purpose: "import_ingest", system: INGEST_SYSTEM, user: raw.trim() });
+      const reply = await callGemini({ userId, locale, purpose: "import_ingest", system: INGEST_SYSTEM, user: raw.trim(), minor: isMinor === true });
       setResult(parseIngestResult(reply.text, raw.trim()));
       setPhase("result");
     } catch (e) {

@@ -174,7 +174,7 @@ function TrackGlyph({ id, color }: { id: WikiTrack; color: string }) {
 
 export default function Capture() {
   const { i18n } = useTranslation("capture");
-  const { userId, loading } = useAuth();
+  const { userId, loading, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [mode, setMode] = useState<Mode>("journal");
@@ -323,6 +323,7 @@ export default function Capture() {
       const res = await createRecord({
         userId,
         locale,
+        minor: isMinor === true,
         kind: "journal",
         body: body.trim(),
         topic: topic.trim().length > 0 ? topic.trim() : undefined,
@@ -331,7 +332,7 @@ export default function Capture() {
         withFollowup: askAdvisor,
       });
       if (res.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: locale === "ko" ? "KR_1393" : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
       }
       const savedTopic = topic.trim();
       reset();
