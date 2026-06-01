@@ -29,7 +29,7 @@
   <text x="32" y="106" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="13">계정 생성을 위해 생년월일을 확인해요.</text>
   <g transform="translate(32 150) scale(.836)">
     <rect width="390" height="240" rx="26" fill="#0D1530" stroke="#243056"/>
-    <text x="44" y="70" fill="#FF7A90" font-family="Pretendard, system-ui" font-size="22" font-weight="800">18+</text>
+    <text x="44" y="70" fill="#FF7A90" font-family="Pretendard, system-ui" font-size="22" font-weight="800">14+</text>
     <text x="112" y="54" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="18" font-weight="700">생년월일 확인</text>
     <rect x="24" y="112" width="342" height="48" rx="16" fill="#070A18" stroke="#243056"/>
     <text x="44" y="142" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="13">YYYY / MM / DD</text>
