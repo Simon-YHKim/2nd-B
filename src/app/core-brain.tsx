@@ -31,6 +31,7 @@ import { toEvidenceShard, evidenceTypeLabel, type EvidenceShard, type RawRecordR
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { IslandArt } from "@/components/art/IslandArt";
+import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 export default function CoreBrain() {
   const { i18n } = useTranslation();
@@ -137,13 +138,10 @@ export default function CoreBrain() {
           eyebrow={locale === "ko" ? "02. 나의 중심" : "02. Core brain"}
           title={locale === "ko" ? "내 조각들이 중심으로 모여요" : "Your pieces gather into a center"}
           subtitle={locale === "ko" ? "요즘 나의 연결 상태" : "How you're connecting lately"}
-          island="core"
-          worker="archi"
-          speech={
-            locale === "ko"
-              ? "가장 밝은 연결을 찾았어요. 오늘의 방향으로 줄여볼까요?"
-              : "I found the brightest link. Want to narrow it into today's direction?"
-          }
+          island={CORE_VILLAGE_UI.island}
+          worker={CORE_VILLAGE_UI.worker}
+          accent={CORE_VILLAGE_UI.accent}
+          speech={CORE_VILLAGE_UI.speech[locale]}
           primaryAction={{
             label: locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB",
             onPress: () => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "나의 중심" : "my center" } }),

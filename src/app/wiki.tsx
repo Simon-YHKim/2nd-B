@@ -24,6 +24,7 @@ import { computeGraphStats } from "@/lib/wiki/graph-stats";
 import type { WikiPageKind, WikiPageRow } from "@/lib/wiki/types";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { WikiCardThumb, type WikiCardThumbId } from "@/components/art/WikiCardThumb";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 // listAllWikiLinks projects only the two endpoint columns — all the
 // living-brain summary and per-row connection counts need.
@@ -247,8 +248,9 @@ export default function Wiki() {
           eyebrow={locale === "ko" ? "04. 지식 창고" : "04. Knowledge store"}
           title={locale === "ko" ? "저장한 조각들이 서재가 돼요" : "Saved pieces become a library"}
           subtitle={locale === "ko" ? "마을에 저장한 조각을 다시 찾아보는 곳" : "Find the pieces you saved to the village"}
-          island="knowledge"
-          worker="momo"
+          island={VILLAGE_UI.knowledge.island}
+          worker={VILLAGE_UI.knowledge.worker}
+          accent={VILLAGE_UI.knowledge.accent}
           speech={
             locale === "ko"
               ? "조각들을 정리해뒀어요. 새 조각을 담거나 세컨비에게 물어볼 수 있어요."
