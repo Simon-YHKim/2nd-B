@@ -25,7 +25,7 @@ import { prefersReducedMotion } from "@/lib/motion/signature";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { getPersona } from "@/lib/chat/personas";
 import { fontFamilies } from "@/theme/typography";
-import { cosmic } from "@/lib/theme/tokens";
+import { semantic } from "@/lib/theme/tokens";
 import { walkerRoutePose } from "./walker-path";
 import { pickMonologue } from "@/lib/graph/monologues";
 
@@ -243,10 +243,11 @@ const styles = StyleSheet.create({
   },
   groundShadow: {
     position: "absolute",
-    backgroundColor: "rgba(2,4,10,0.76)",
+    backgroundColor: semantic.background,
+    opacity: 0.76,
     borderWidth: 1,
-    borderColor: "rgba(232,236,248,0.12)",
-    shadowColor: "#000",
+    borderColor: semantic.border,
+    shadowColor: semantic.background,
     shadowOpacity: 0.28,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
@@ -254,7 +255,8 @@ const styles = StyleSheet.create({
   footContact: {
     position: "absolute",
     borderRadius: 2,
-    backgroundColor: "rgba(114,242,199,0.34)",
+    backgroundColor: semantic.brand,
+    opacity: 0.34,
     zIndex: 1,
   },
   bubbleWrap: {
@@ -266,23 +268,23 @@ const styles = StyleSheet.create({
   },
   bubble: {
     maxWidth: BUBBLE_W,
-    backgroundColor: "rgba(7,10,24,0.96)",
-    borderColor: "rgba(114,242,199,0.5)",
+    backgroundColor: semantic.surface,
+    borderColor: semantic.brand,
     borderWidth: 1,
     borderRadius: 7,
     paddingHorizontal: 9,
     paddingVertical: 6,
-    shadowColor: cosmic.signalMint,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.28,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
   },
   bubbleText: {
-    color: cosmic.moonWhite,
+    color: semantic.text,
     fontFamily: fontFamilies.pixel,
     fontSize: 12,
     lineHeight: 16,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
     textAlign: "center",
   },
   bubbleTail: {
@@ -293,7 +295,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 6,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderTopColor: "rgba(7,10,24,0.96)",
+    borderTopColor: semantic.surface,
     marginTop: -1,
   },
 });

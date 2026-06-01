@@ -8,7 +8,7 @@ import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } fr
 import { ShardArt, type ShardId } from "@/components/art/IslandArt";
 import { TierIcon, type TierIconId } from "@/components/art/TierIcon";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
-import { cosmic } from "@/lib/theme/tokens";
+import { cosmic, semantic } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
 export type CompanionName = "momo" | "lulu" | "archi" | "vela" | "gadi";
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    backgroundColor: "rgba(7,10,24,0.68)",
+    backgroundColor: semantic.surfaceAlt,
     shadowOpacity: 0.28,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },

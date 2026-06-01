@@ -5,7 +5,7 @@ import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { Text } from "@/components/ui/Text";
 import { prefersReducedMotion } from "@/lib/motion/signature";
-import { cosmic, radii, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { PremiumButton } from "./surfaces";
 
@@ -261,9 +261,9 @@ const styles = StyleSheet.create({
     minHeight: 404,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: "rgba(255,159,214,0.28)",
-    backgroundColor: "rgba(7,10,24,0.66)",
-    shadowColor: cosmic.dreamPink,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surfaceAlt,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.2,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   glow: {
     position: "absolute",
     opacity: 0.11,
-    shadowColor: cosmic.dreamPink,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.42,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 0 },
@@ -302,10 +302,11 @@ const styles = StyleSheet.create({
   workerGround: {
     position: "absolute",
     alignSelf: "center",
-    backgroundColor: "rgba(2,4,10,0.72)",
+    backgroundColor: semantic.background,
+    opacity: 0.72,
     borderWidth: 1,
-    borderColor: "rgba(232,236,248,0.12)",
-    shadowColor: "#000",
+    borderColor: semantic.border,
+    shadowColor: semantic.background,
     shadowOpacity: 0.32,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
@@ -328,11 +329,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.5)",
-    backgroundColor: "rgba(7,10,24,0.96)",
+    borderColor: semantic.brand,
+    backgroundColor: semantic.surface,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    shadowColor: cosmic.signalMint,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.28,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
@@ -349,14 +350,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 7,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderTopColor: "rgba(7,10,24,0.96)",
+    borderTopColor: semantic.surface,
   },
   bubbleText: {
-    color: cosmic.moonWhite,
+    color: semantic.text,
     fontFamily: fontFamilies.pixel,
     fontSize: 13,
     lineHeight: 18,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
     textAlign: "center",
   },
   actions: {
@@ -365,8 +366,8 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: "rgba(141,152,184,0.18)",
-    backgroundColor: "rgba(7,10,24,0.32)",
+    borderTopColor: semantic.border,
+    backgroundColor: semantic.surfaceAlt,
   },
   actionButton: {
     minHeight: 52,
