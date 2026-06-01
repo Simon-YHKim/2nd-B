@@ -20,6 +20,7 @@ import {
 import { listAccessibleTemplates, type CustomClipperTemplate } from "./template-queries";
 import { matchTemplateByUrl } from "./template-triggers";
 import { SOURCE_KINDS, type SourceKind } from "./types";
+import { sanitizeTag } from "./tags";
 
 export type WikiTrack = "daily" | "pro";
 
@@ -34,15 +35,6 @@ export interface ClipperClassification {
   actionableTakeaway: string;
   /** Kind-specific frontmatter props (only the keys the template declares). */
   props: Record<string, string | string[] | number>;
-}
-
-function sanitizeTag(t: string): string {
-  return String(t)
-    .trim()
-    .toLowerCase()
-    .replace(/^#+/, "")
-    .replace(/[^a-z0-9가-힣\-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 // A shared/community format name is untrusted input that gets embedded into every
