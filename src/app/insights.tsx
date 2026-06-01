@@ -82,9 +82,7 @@ export default function Insights() {
             primaryAction={{
               label: locale === "ko" ? "일기 쓰러 가기" : "Go to journal",
               onPress: () => router.push("/journal"),
-            }}
-            railIcons={["⌂", "✦", "⌕", "◇"]}
-          />
+            }}          />
         </ScrollView>
       </PremiumAppShell>
     );
@@ -122,9 +120,7 @@ export default function Insights() {
           primaryAction={{
             label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
             onPress: () => router.push("/journal"),
-          }}
-          railIcons={["⌂", "✦", "⌕", "◇"]}
-        />
+          }}        />
 
         <View style={styles.topRow}>
           <View style={styles.statBlock}>

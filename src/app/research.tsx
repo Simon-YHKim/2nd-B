@@ -96,9 +96,7 @@ export default function Research() {
               : "Only verified sources that SecondB can cite show up here."
           }
           islandSize={250}
-          workerSize={104}
-          railIcons={["▤", "⌕", "◇", "✓"]}
-        />
+          workerSize={104}        />
 
         {loading ? (
           <View style={styles.center}>

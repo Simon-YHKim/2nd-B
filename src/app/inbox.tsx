@@ -202,9 +202,7 @@ export default function Inbox() {
               : "Captured sources can be summarized here or promoted into wiki pages."
           }
           islandSize={250}
-          workerSize={104}
-          railIcons={["▤", "⌕", "◎", "◆"]}
-        />
+          workerSize={104}        />
 
         <View style={styles.actions}>
           <Link href="/capture" asChild>

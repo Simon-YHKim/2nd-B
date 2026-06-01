@@ -224,9 +224,7 @@ export default function Jarvis() {
               : locale === "ko"
                 ? "오늘의 기록을 읽어봤어요. 작은 한 걸음으로 시작해볼까요?"
                 : "I've read today's pieces. Shall we start with one small step?"
-          }
-          railIcons={["⌂", "✦", "◎", "▣"]}
-        />
+          }        />
 
         <View style={styles.usagePanel}>
             <Text variant="caption" color="textMuted">

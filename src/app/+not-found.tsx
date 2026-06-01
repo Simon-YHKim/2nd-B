@@ -21,9 +21,7 @@ export default function NotFound() {
           worker="secondb"
           speech={locale === "ko" ? "길이 끊긴 것 같아요. 중심에서 다시 이어볼게요." : "Looks like the path broke. Let's reconnect from the center."}
           islandSize={250}
-          workerSize={104}
-          railIcons={["?", "⌂", "◇", "↩"]}
-        />
+          workerSize={104}        />
         <View style={styles.actions}>
           <Link href="/" asChild>
             <Button label={locale === "ko" ? "마을 중심으로" : "Go home"} variant="primary" />

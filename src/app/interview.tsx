@@ -199,9 +199,7 @@ export default function Interview() {
               locale === "ko"
                 ? "해석보다 먼저 듣겠습니다. 어느 시기부터 살펴볼까요?"
                 : "I'll listen before interpreting. Which period should we start with?"
-            }
-            railIcons={["⌂", "◇", "◎", "▣"]}
-          />
+            }          />
           <View style={styles.periodGrid}>
             {(["childhood", "teens", "twenties", "thirties", "current"] as LifePeriod[]).map((p) => (
               <Pressable key={p} onPress={() => startInterview(p)} style={styles.periodCard} hitSlop={4}>

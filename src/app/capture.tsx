@@ -516,9 +516,7 @@ export default function Capture() {
                 : locale === "ko"
                   ? "아직 거칠어도 괜찮아요. 제가 조각으로 정리해둘게요."
                   : "It can be rough. I'll carry it home as a piece."
-            }
-            railIcons={["⌂", "✚", "⌁", "▣"]}
-          />
+            }          />
 
           {/* Import success → graph link (journal-capture pack §3/§7) */}
           {savedTitle ? (
