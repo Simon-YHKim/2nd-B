@@ -16,7 +16,8 @@ import {
   TARGET_CATEGORIES,
   type TargetCategory,
 } from "./clipper-templates";
-import { listAccessibleTemplates } from "./template-queries";
+import { listAccessibleTemplates, type CustomClipperTemplate } from "./template-queries";
+import { matchTemplateByUrl } from "./template-triggers";
 import { SOURCE_KINDS, type SourceKind } from "./types";
 
 export type WikiTrack = "daily" | "pro";
@@ -208,7 +209,7 @@ export async function classifyClipper(
   url: string | null,
   locale: "en" | "ko",
 ): Promise<ClipperClassification> {
-  const baselineKind: SourceKind = url ? detectClipperKind(url) : "inbox";
+  let baselineKind: SourceKind = url ? detectClipperKind(url) : "inbox";
   const trimmed = content.trim();
   if (trimmed.length === 0) return parseClipperResult("", baselineKind);
 
@@ -216,6 +217,7 @@ export async function classifyClipper(
   // classifier is aware of them. Fail-open: if the table is missing/offline we
   // just fall back to the bundled 8 canonical kinds.
   let customFormats: { name: string; baseKind: SourceKind }[] = [];
+  let matchedFormat: CustomClipperTemplate | null = null;
   try {
     const templates = await listAccessibleTemplates(userId);
     customFormats = templates
@@ -224,11 +226,28 @@ export async function classifyClipper(
         baseKind: t.baseKind,
       }))
       .slice(0, 12);
+    // An authored URL trigger on one of the user's OWN formats is their explicit
+    // routing intent, so a match overrides the bundled host rules. Community
+    // formats stay reference-only (no cross-user trigger hijacking).
+    if (url) matchedFormat = matchTemplateByUrl(url, templates.filter((t) => t.ownerId === userId));
   } catch {
     // table not applied yet / offline — bundled kinds are enough.
   }
+  if (matchedFormat) baselineKind = matchedFormat.baseKind;
 
   const { system, user } = buildClipperPrompt(baselineKind, trimmed, url, locale, customFormats);
   const reply = await callGemini({ userId, locale, purpose: "clipper_classify", system, user });
-  return parseClipperResult(reply.text, baselineKind);
+  const classification = parseClipperResult(reply.text, baselineKind);
+
+  // Seed the matched format's authored defaults: union its default tags and use
+  // its target bucket when the model left one unset.
+  if (matchedFormat) {
+    if (matchedFormat.defaultTags.length > 0) {
+      classification.tags = Array.from(new Set([...classification.tags, ...matchedFormat.defaultTags]));
+    }
+    if (!classification.targetCategory && matchedFormat.targetCategory) {
+      classification.targetCategory = matchedFormat.targetCategory;
+    }
+  }
+  return classification;
 }
