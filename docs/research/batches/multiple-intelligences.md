@@ -93,8 +93,8 @@ Korea adopted MI vigorously in K-12 and gifted education from the late 1990s onw
 
 MI was originally a developmental theory; Korean and Spanish adaptations exist for children. As a *theory of self* (relevant to 2nd-Brain) it applies across the lifespan, but utility is highest in identity-formation windows.
 
-- **Child (0–12)**: Partially applicable — Project Spectrum and Korean preschool MI tools target this band, but evidence base for "tailoring instruction to MI profile" is essentially null (Waterhouse 2006a; Geake 2008). 2nd-Brain serves 18+ only (C10) so this band is informational.
-- **Adolescent (13–17)**: Partially applicable — Korean 진로상담 widely uses MI vocabulary. 2nd-Brain age-gates this band out (C10).
+- **Child (0–12)**: Partially applicable — Project Spectrum and Korean preschool MI tools target this band, but evidence base for "tailoring instruction to MI profile" is essentially null (Waterhouse 2006a; Geake 2008). Under-14 users remain outside the main 2nd-Brain app, so this band is informational.
+- **Adolescent (13–17)**: Partially applicable — Korean 진로상담 widely uses MI vocabulary. 14-17 users are now in scope with youth safeguards; 13-year-olds remain outside the main app.
 - **Young Adult (18–29)**: Applicable as supplementary vocabulary — emerging-adulthood identity work (`emerging-adulthood.md`) overlaps with "what kind of intelligence is mine?" questions. Use MI language; defer scoring to Big Five / VIA / RIASEC.
 - **Adult (30–49)**: Applicable as supplementary — interpersonal vs intrapersonal language is genuinely useful in journaling prompts about work and relationships.
 - **Midlife (50–64)**: Applicable as supplementary — Gardner himself proposed *existential* intelligence here; pair with `values-meaning.md` (Steger MLQ) for the real construct.

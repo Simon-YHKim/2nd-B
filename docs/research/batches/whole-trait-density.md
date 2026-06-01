@@ -77,8 +77,8 @@ What this means for 2nd-Brain:
 
 ## Age Range Coverage
 
-- **Child (0–12)**: not applicable for 2nd-Brain (18+); ESM is rarely used in children due to compliance burden; density-distribution structure not established at this age.
-- **Adolescent (13–17)**: not applicable for 2nd-Brain (C10 ≥ 18). Adolescent ESM studies exist but are not the basis for adult persona inference.
+- **Child (0–12)**: not applicable for the main 2nd-Brain app under the 14+ floor; ESM is rarely used in children due to compliance burden; density-distribution structure not established at this age.
+- **Adolescent (13–17)**: applicable for 14-17 users with caution. Adolescent ESM studies exist but are not the basis for adult persona inference.
 - **Young Adult (18–29)**: applicable — strongest evidence base; Fleeson 2001 sample, Geukes 2017 sample, most DIAMONDS validations are undergraduate.
 - **Adult (30–49)**: applicable — Wrzus & Mehl 2015 covers methodological adaptation across adulthood; trait-level findings carry over, but ESM compliance drops with parental / work burden.
 - **Midlife (50–64)**: applicable with caveats — fewer ESM studies; daily diary methods more practical.

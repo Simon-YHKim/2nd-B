@@ -104,8 +104,8 @@ Direct Korean-language peer-reviewed habit-formation literature (in the Lally-st
 
 ## Age Range Coverage
 
-- **Child (0–12)**: applicable in principle (parental scaffolding shapes early habit formation), but **outside 2nd-Brain's user base** per C10 (18+).
-- **Adolescent (13–17)**: applicable but **outside 2nd-Brain's user base** per C10.
+- **Child (0–12)**: applicable in principle (parental scaffolding shapes early habit formation), but **outside the main 2nd-Brain app** under the 14+ floor.
+- **Adolescent (13–17)**: applicable for 14-17 users with age-appropriate defaults; 13-year-olds remain outside the main app.
 - **Young Adult (18–29)**: applicable — Lally (2010) sample skewed to this range; emerging-adulthood discontinuity creates frequent habit-installation opportunities.
 - **Adult (30–49)**: applicable — most-studied window; stable life context supports habit formation but competes with established habits that must be disrupted.
 - **Midlife (50–64)**: applicable — habit formation works; the Wood & Rünger (2016) "context-change window" point applies (career transitions, children leaving, etc.).

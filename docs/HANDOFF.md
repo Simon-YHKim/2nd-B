@@ -75,7 +75,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 ### ⚠️ 최우선 — GPT 적대 리뷰 = BLOCK (이미 머지된 #132 대상)
 **결론: #132를 그대로 두면 안 됨. 출시 전 막아야 할 Blocker.** High 항목:
 1. **법적 근거 오인용** — PIPA **§22-2 = "만 14세 미만 법정대리인 동의" 조항**. 14-17 본인동의 근거가 아님. 14-17은 일반 동의 체계(**§15/§17/§22**)로 재정립 + 고지(목적·항목·보유기간·거부권/불이익) 필요. → #128/#132 본문 · `CONSTRAINTS.md` C10 · `KIDS-MODE-CONCEPT.md` · 기존 설명 전부 §22-2 오인용 → **전수 정정.**
-2. **서버측 게이트 부재** — 0028이 DB 18+ CHECK를 sanity(1900~today)로 완화 → 게이트가 사실상 **클라 전용 → 우회 가능**(anon client/직접 API/OAuth/profile upsert로 <14·잘못된 minor_tier 주입). COPPA "actual knowledge"(DOB로 <13 인지) 리스크.
+2. **서버측 게이트 부재** — 0028이 legacy adult-only DB CHECK를 sanity(1900~today)로 완화 → 게이트가 사실상 **클라 전용 → 우회 가능**(anon client/직접 API/OAuth/profile upsert로 <14·잘못된 minor_tier 주입). COPPA "actual knowledge"(DOB로 <13 인지) 리스크.
 3. **minor→1388 미배선 = known safety defect** — 14-17 여는 순간 미성년 인지 상태인데 위기 청소년이 성인 라우팅 받음. gate 오픈 전 실배선 필수. (#134는 토대만, advisor 경로 `fixedCrisisResponse`는 minor 무관.)
 4. **미성년 프로파일링/민감정보** — 저널+LLM에 건강/자해/가족/성 등 PIPA §23 민감정보 유입. 14-17 기본 high-privacy 필요.
 
@@ -90,7 +90,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 | E | `guardian_consents` — PR-4 전까지 **deny-all RLS + no grants + "NOT IN USE" DB comment + migration test** (또는 제거). 보호자 PII 보존/삭제 정책 없이 컬럼 두지 말 것 | small | |
 | F | **consent-age 매트릭스** — country/region × 디지털동의연령. EU 16(국가별 13까지), US COPPA <13 차단. 14 단일로 글로벌 불가 | medium | |
 | G | 철회/삭제/DOB 정정/age-out(17→18) UI + 국외이전 고지 + 위기로그 retention 정책 | medium | |
-| H | "18세 이상" 잔여 카피 전수 검사 + §22-2 오인용 docs 정정 | small | |
+| H | age floor 잔여 카피 전수 검사 + §22-2 오인용 docs 정정 | small | |
 
 ### 머지 전 문서로 확정 필요 (GPT가 정보 부족으로 추측 표시한 것)
 - Supabase Auth가 현재 **공개 sign-up** 상태인지 (그렇다면 서버측 게이트 우회 표면)
@@ -874,7 +874,7 @@ CI-enforced via `npm run check:constraints`. C1–C10 + C12 PASS; C11 PARTIAL.
 | C7 | i18n EN ↔ KO key parity, EN canonical | `scripts/check-i18n-keys.ts` |
 | C8 | `knowledge_sources` requires DOI/URL + verification pair | migration 0007 + 0014 |
 | C9 | `classifyInput()` runs before any LLM call; red zone short-circuits | `src/lib/llm/gemini.ts` + `src/lib/safety/classifier.ts` |
-| C10 | Age-tiered sign-up: 18+/14-17 self-consent direct; <14 guardian consent (PIPA §22-2) | migration 0028 + `src/lib/supabase/auth.ts` + `BirthDateField` |
+| C10 | Age-tiered sign-up: 14-17 self-consent minors + adults direct; <14 guardian consent (PIPA §22-2) | migration 0028 + `src/lib/supabase/auth.ts` + `BirthDateField` |
 | C11 | Support SLA = 2 business days (KST) | README §Support · auto-responder Sprint 1 |
 | C12 | README "Pre-existing assets used" section | README §Pre-existing assets |
 

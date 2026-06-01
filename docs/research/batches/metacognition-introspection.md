@@ -162,8 +162,8 @@ A targeted search for 한국심리학회지 (Korean Journal of Psychology) publi
 
 ## Age Range Coverage
 
-- **Child (0–12)**: Flavell (1979) is foundational specifically in developmental work — metacognition emerges through childhood. However, the *introspection-accuracy-about-self* work (Nisbett & Wilson; Schwitzgebel; Fleming; Vazire) is adult-validated. 2nd-Brain is age 18+ per C10, so child-range applicability is informational only.
-- **Adolescent (13–17)**: applicable in principle; metacognitive skill consolidates through adolescence. Not in 2nd-Brain's user range.
+- **Child (0–12)**: Flavell (1979) is foundational specifically in developmental work — metacognition emerges through childhood. However, the *introspection-accuracy-about-self* work (Nisbett & Wilson; Schwitzgebel; Fleming; Vazire) is adult-validated. Under-14 child-range applicability is informational only.
+- **Adolescent (13–17)**: applicable in principle; metacognitive skill consolidates through adolescence. 14-17 users are now in 2nd-Brain's user range with youth safeguards.
 - **Young Adult (18–29)**: primary sample for nearly all studies in this batch. Note: Sanchez & Dunning 2018 beginner-overconfidence effect is most-tested in this age range and is directly relevant to first-time journaling users.
 - **Adult (30–49)**: applicable. Fleming et al. 2010 and Vazire 2010 community samples cover this range.
 - **Midlife (50–64)**: applicable. Metacognitive monitoring shows mild age-related decline in some perceptual tasks but is largely preserved for personality/value self-knowledge.

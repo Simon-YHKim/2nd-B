@@ -45,7 +45,7 @@ What this means for 2nd-Brain:
 ## Age Range Coverage
 
 Western evidence base is overwhelmingly young-adult (Facebook/Reddit samples). Application to other age ranges is extrapolation:
-- **Adolescent (13–17)**: not applicable for 2nd-Brain (18+) but research base is adolescent-skewed.
+- **Adolescent (13–17)**: applicable for 14-17 users with caution; the research base is adolescent-skewed, but youth profiling needs stronger minimization.
 - **Young Adult (18–29)**: strongest evidence.
 - **Adult (30–49)**: applicable but writing-style norms differ from social media style.
 - **Midlife (50–64)**: limited evidence; older adults less represented in training corpora.

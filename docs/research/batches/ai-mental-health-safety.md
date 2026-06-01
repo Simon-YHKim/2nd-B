@@ -40,7 +40,7 @@
 ## Age Range Coverage
 
 - **Child (0–12)**: not applicable to 2nd-Brain; chatbot mental health evidence in children is thin.
-- **Adolescent (13–17)**: not applicable to 2nd-Brain (18+ block) but Wysa has adolescent validation.
+- **Adolescent (13–17)**: applicable to 14-17 users with youth-specific privacy and safety safeguards; Wysa has adolescent validation.
 - **Young Adult (18–29)**: **strongest evidence** — Woebot (Fitzpatrick 2017), Kang & Hong (2025) all young adult.
 - **Adult (30–49)**: applicable — Therabot RCT (Heinz 2025) and Wysa real-world include adult ages.
 - **Midlife (50–64)**: applicable; lighter evidence base.

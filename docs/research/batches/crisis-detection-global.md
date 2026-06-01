@@ -83,7 +83,7 @@
 
 17. UK Government. (2023). *Online Safety Act 2023*. UK Public General Acts c. 50. Official URL: https://www.legislation.gov.uk/ukpga/2023/50/contents
     - Sets statutory duties on user-to-user (U2U) and search services regarding illegal and harmful content. **Relevant sections for 2nd-Brain**:
-      - **Sections 9–11** (services likely to be accessed by children): illegal-content risk assessments + safety duties. 2nd-Brain is 18+ (Blueprint C10), so children's duties **do not directly apply**, but the Act treats age verification as a duty to evidence the 18+ gate.
+      - **Sections 9–11** (services likely to be accessed by children): illegal-content risk assessments + safety duties. 2nd-Brain now has a 14+ floor (Blueprint C10), so UK/EU rollout must treat 14-17 access as a first-class compliance question rather than assuming child-service duties are out of scope.
       - **Section 184 / Schedule 7 (priority offences)**: encouraging or assisting suicide is a Priority Offence; providers must proactively reduce risk. Subsequently (December 2025), the UK created two new Priority Offences via the *Online Safety Act 2023 (Priority Offences) (Amendment) Regulations 2025*: **encouraging or assisting serious self-harm**, and **cyberflashing**. Ofcom (the regulator) has signalled it will treat suicide and self-harm as a combined illegal-harm category.
       - **Section 64**: the section number "64" varies across the Act's structure; the **priority-offences mechanism** is the substantively relevant provision, codified across Schedule 7 and Part 4 of the Act. (The original task brief's "Section 64 priority offences" is best understood as shorthand for this priority-offences mechanism. Cite the Act + Schedule 7 explicitly, not "Section 64", to avoid mis-citation.)
     - **Implication for 2nd-Brain UK routing**: any 2nd-Brain UI string visible to UK users that could be construed as encouraging or assisting suicide or serious self-harm is a regulated category. The fixed-string RED-zone copy (per `crisis-detection.md`) is the safe path; LLM-generated reasoning about methods is not.
@@ -103,7 +103,7 @@
     - Updated General Principles (revised 2017; subsequent revision 2022) under Japan's **Basic Act on Suicide Prevention** (自殺対策基本法, 2006). Three-level framework: social systems · local cooperation · personal support. **Japan's suicide rate fell ~35% from 2006 to 2022** during the policy's operation (Kim et al. 2024, see below). For 2nd-Brain: the policy authorises and funds the public hotlines 2nd-Brain hands off to; routing to よりそいホットライン and いのちの電話 is consistent with the official Japanese framework.
 
 22. Kim, S. J., Tachikawa, H., et al. (2024). Impact of the Japanese Government's 'General Principles of Suicide Prevention Policy' on youth suicide from 2007 to 2022. *BJPsych Open*. PubMed: https://pubmed.ncbi.nlm.nih.gov/38112073/ · DOI: https://doi.org/10.1192/bjo.2023.616
-    - Long-run policy evaluation: significant declines in adult suicide rates over the policy period; **youth suicide rates rose** during the same window — sobering counter-evidence that policy alone does not protect under-18s. For 2nd-Brain: aligns with the 18+ floor (C10) and informs cautions around any future youth-product expansion.
+    - Long-run policy evaluation: significant declines in adult suicide rates over the policy period; **youth suicide rates rose** during the same window — sobering counter-evidence that policy alone does not protect youth. For 2nd-Brain: reinforces the need for explicit 14-17 safeguards, minor-aware crisis routing, and conservative youth defaults.
 
 ## Canada — Crisis Infrastructure
 
@@ -227,8 +227,8 @@ RED detected → Lookup user.locale (set at sign-up; user-editable)
 
 ## Age Range Coverage (locale × age intersection)
 
-- **Child (0–12)**: out of scope for 2nd-Brain (18+ gate). Children-specific resources listed for completeness only (Kids Help Phone, Kids Helpline, child sub-lines on 116111).
-- **Adolescent (13–17)**: out of scope. UK Online Safety Act 2023 children's duties (§§9–11) do not apply because 2nd-Brain is 18+; if age-gate fails, child-protection legal obligations attach in UK + EU jurisdictions.
+- **Child (0–12)**: out of scope for the main 2nd-Brain app under the 14+ floor. Children-specific resources listed for completeness only (Kids Help Phone, Kids Helpline, child sub-lines on 116111).
+- **Adolescent (13–17)**: in scope for 14-17 users in the main app. UK Online Safety Act 2023 children's duties (§§9–11) require jurisdiction-specific review before UK launch; Korea-first routing must keep minor-aware crisis copy and resources wired.
 - **Young Adult (18–29)**: elevated risk across all locales. Trevor Project (<25), Kids Help Phone (<25, CA), Kids Helpline (5–25, AU) become relevant only on user opt-in.
 - **Adult (30–49)**: standard adult routing.
 - **Midlife (50–64)**: elevated risk especially Korean males (per `crisis-detection.md` You 2025); elevated risk in Japan working-age population (per Kim 2024).
@@ -471,9 +471,9 @@ values
     'crisis_detection_global',
     'all_ages',
     'en',
-    '일본 자살예방 종합대강 정책 평가 (2007-2022). 성인 자살률은 감소했지만 청소년 자살률은 증가. 18+ 정책 정당성 + 청소년 확장 시 주의 근거.',
-    'Long-run policy evaluation of Japan''s General Principles of Suicide Prevention Policy. Adult suicide declined ~35%; youth suicide rose. Reinforces 18+ floor and cautions any future youth-product expansion.',
-    'Aligns with C10 (18+ floor); informs any future under-18 roadmap with sobering counter-evidence.'
+    '일본 자살예방 종합대강 정책 평가 (2007-2022). 성인 자살률은 감소했지만 청소년 자살률은 증가. 14-17 보호장치와 minor-aware crisis routing의 주의 근거.',
+    'Long-run policy evaluation of Japan''s General Principles of Suicide Prevention Policy. Adult suicide declined ~35%; youth suicide rose. Reinforces the need for explicit 14-17 safeguards and conservative youth defaults.',
+    'Aligns with C10 14+ floor; informs 14-17 safety routing and high-privacy defaults with sobering counter-evidence.'
   );
 ```
 

@@ -67,8 +67,9 @@ These are essential regulatory references. No DOI assignable (legal/policy docum
 
 ## Age Range Coverage
 
-- **Child (0–12)** / **Adolescent (13–17)**: not applicable to 2nd-Brain user base (18+ block per Blueprint C10). Korean PIPA Article 22-2 has additional protections for users under 14 — not 2nd-Brain's concern but worth noting if scope ever expands.
-- **Young Adult (18–29)** through **Elderly (65+)**: all governed by adult PIPA framework; standard consent.
+- **Child (0–12)**: not applicable to the main 2nd-Brain app under the 14+ floor. Korean PIPA Article 22-2 has additional protections for users under 14.
+- **Adolescent (13–17)**: applicable for 14-17 users under C10; use age-appropriate notice, consent evidence, and high-privacy defaults.
+- **Young Adult (18–29)** through **Elderly (65+)**: governed by the adult tier; standard consent still applies.
 
 ## Application to 2nd-Brain
 

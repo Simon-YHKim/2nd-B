@@ -38,7 +38,7 @@ Codex cannot directly invoke Claude's Skill runtime in this session, so this rep
 These changes reflect the age-band feedback directly in the product:
 
 - Raised shared `caption` / `subtle` text sizes by 1px to reduce fatigue for 45+ and 75+ stress personas.
-- Added a plain-language 18+ notice on sign-up so teen and guardian-assisted scenarios see the eligibility rule before entering the form.
+- Added a plain-language 14+ notice on sign-up so teen and guardian-assisted scenarios see the eligibility rule before entering the form.
 - Increased the floating back arrow from 40px to 44px.
 - Increased the bottom navigation content height and label size so primary routes are easier to tap and read.
 - Increased first-run empty graph dismiss, skip, and CTA affordances to preserve 44px targets on the main graph entry surface.
@@ -55,7 +55,7 @@ Live browser measurements after the fix:
 
 ## Age-Band Persona Set
 
-These are simulation personas, not target-audience claims. Under-18 personas are included because the request asked for the full readable-age range; product eligibility remains 18+ and the age gate is required.
+These are simulation personas, not target-audience claims. Under-14 personas are included because the request asked for the full readable-age range; product eligibility starts at 14+ and the age gate is required.
 
 | Age band | Persona  | Life / job context                     | UI/design stress being tested                                                |
 | -------- | -------- | -------------------------------------- | ---------------------------------------------------------------------------- |
@@ -121,11 +121,11 @@ These are simulation personas, not target-audience claims. Under-18 personas are
 
 - Visuals are attractive and the character/world metaphor is easy to recognize.
 - Dense text and account/security concepts are too advanced for independent use.
-- The 18+ age gate means this group should be treated as readability stress testers only.
+- The 14+ age gate means this group should be treated as readability stress testers only.
 
 ### 13-17
 
-- Premium visuals feel more game-like than clinical, which is good for engagement but could over-invite non-target minors.
+- Premium visuals feel more game-like than clinical, which is good for engagement but needs clear youth privacy and safety affordances for 14-17 users.
 - Sign-up age gate copy is visible and important.
 - Internal terms like `v1` are especially confusing for this group, so removing `Persona v1` was the right correction.
 
@@ -158,7 +158,7 @@ These are simulation personas, not target-audience claims. Under-18 personas are
 | Functional route confidence |     84 |    86 |
 | Overall UI/design score     |     81 |    87 |
 
-For the intended 18+ audience, the entry surfaces are now in a good state. For 75+ usage, the score is closer to 74 unless a large-text or simplified-density mode is added.
+For the intended 14+ audience, the entry surfaces are now in a good state. For 75+ usage, the score is closer to 74 unless a large-text or simplified-density mode is added.
 
 ## Recommended Next QA Pass
 
