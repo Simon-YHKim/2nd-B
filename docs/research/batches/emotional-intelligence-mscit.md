@@ -68,8 +68,8 @@
 
 ## Age Range Coverage
 
-- **Child (0–12)**: **partially** — MSCEIT-YV (Youth Version) exists for ages 10–17 (Rivers et al., separate from main MSCEIT). For ages <10, use developmentally appropriate emotion-understanding tasks (Pons & Harris TEC) rather than MSCEIT. 2nd-Brain does not serve under-18 users (C10), so this is out of scope operationally but flagged for completeness.
-- **Adolescent (13–17)**: **applicable** with MSCEIT-YV — but again out of scope for 2nd-Brain. Adult MSCEIT V2.0 is validated 17+.
+- **Child (0–12)**: **partially** — MSCEIT-YV (Youth Version) exists for ages 10–17 (Rivers et al., separate from main MSCEIT). For ages <10, use developmentally appropriate emotion-understanding tasks (Pons & Harris TEC) rather than MSCEIT. Under-14 users remain outside the main 2nd-Brain app.
+- **Adolescent (13–17)**: **applicable** for 14-17 users with MSCEIT-YV evidence; 13-year-olds remain outside the main app. Adult MSCEIT V2.0 is validated 17+.
 - **Young Adult (18–29)**: **applicable** — largest evidence base. MSCEIT V2.0 normed primarily on adult samples in this range.
 - **Adult (30–49)**: **applicable** — strong evidence base. Job-performance meta-analyses (Joseph & Newman 2010; O'Boyle et al. 2011) draw heavily from this range.
 - **Midlife (50–64)**: **applicable** — MSCEIT validation extends here; modest age-related improvements reported in Understanding and Managing branches (consistent with crystallized-ability patterns).

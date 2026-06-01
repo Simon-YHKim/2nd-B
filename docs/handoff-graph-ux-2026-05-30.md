@@ -7,7 +7,7 @@
 
 ## 1. 절대 깨면 안 되는 제약
 - 모든 LLM 호출은 src/lib/llm/gemini.ts 경유. classifyInput() 안전분류가 LLM 호출 전 실행(C9).
-- ai_audit_log INSERT(C3), 18세 이상 가입(C10), i18n EN↔KO 키 패리티(C7).
+- ai_audit_log INSERT(C3), 14세 이상 가입(C10), i18n EN↔KO 키 패리티(C7).
 - 임상 용어 금지(정신건강/심리치료/치유/therapy/diagnosis/treatment 등). 단어 단위 CI 스캔이 막음.
 - 기술 용어(RAG/vector/embedding/classifier) 사용자 UI 노출 금지.
 - 메인 그래프는 라이트 모드에서도 항상 어두움(제약 #4).

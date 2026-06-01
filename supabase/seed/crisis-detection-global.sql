@@ -124,8 +124,8 @@ values
     'adult',
     'en',
     now(),
-    '영국 공공법 2023 c. 50. user-to-user(U2U) 및 검색 서비스에 대해 불법·유해 콘텐츠에 관한 법정 의무를 부과. 2nd-Brain 관련 조항: §§9–11 아동 접근 가능 서비스(2nd-Brain 은 18+ 이라 직접 적용 안 됨), §184/Schedule 7 우선 범죄(자살 권유·조력은 우선 범죄). 2025-12 개정으로 *심각한 자해 권유·조력* 및 cyberflashing 이 우선 범죄로 추가. 함의: 영국 사용자에게 보이는 모든 UI 문자열은 자살·심각한 자해 권유·조력으로 해석될 여지 없어야 함. 고정 문자열 RED-zone 카피가 안전한 경로; LLM 생성 방법 추론은 금지.',
-    'UK Public General Acts c. 50. Sets statutory duties on user-to-user (U2U) and search services regarding illegal and harmful content. Relevant for 2nd-Brain: §§9–11 (children''s services — N/A because 2nd-Brain is 18+); §184 / Schedule 7 priority offences — encouraging or assisting suicide is a Priority Offence; subsequently (December 2025) encouraging serious self-harm and cyberflashing added. Implication: any UI string visible to UK users that could be construed as encouraging or assisting suicide or serious self-harm is a regulated category. Fixed-string RED-zone copy is the safe path; LLM-generated reasoning about methods is not.',
+    '영국 공공법 2023 c. 50. user-to-user(U2U) 및 검색 서비스에 대해 불법·유해 콘텐츠에 관한 법정 의무를 부과. 2nd-Brain 관련 조항: §§9–11 아동 접근 가능 서비스는 14+ floor 때문에 영국 출시 전 별도 검토가 필요함, §184/Schedule 7 우선 범죄(자살 권유·조력은 우선 범죄). 2025-12 개정으로 *심각한 자해 권유·조력* 및 cyberflashing 이 우선 범죄로 추가. 함의: 영국 사용자에게 보이는 모든 UI 문자열은 자살·심각한 자해 권유·조력으로 해석될 여지 없어야 함. 고정 문자열 RED-zone 카피가 안전한 경로; LLM 생성 방법 추론은 금지.',
+    'UK Public General Acts c. 50. Sets statutory duties on user-to-user (U2U) and search services regarding illegal and harmful content. Relevant for 2nd-Brain: §§9–11 (children''s services) need jurisdiction-specific review before UK launch because 2nd-Brain has a 14+ floor; §184 / Schedule 7 priority offences — encouraging or assisting suicide is a Priority Offence; subsequently (December 2025) encouraging serious self-harm and cyberflashing added. Implication: any UI string visible to UK users that could be construed as encouraging or assisting suicide or serious self-harm is a regulated category. Fixed-string RED-zone copy is the safe path; LLM-generated reasoning about methods is not.',
     'UK 로케일 카피 검토: 모든 RED-zone 문자열은 사전 native-speaker 검토 + 자살·자해 권유로 해석될 여지 없는지 확인. LLM 런타임 위기 카피 생성 절대 금지.'
   ),
   (
@@ -150,9 +150,9 @@ values
     'lifespan',
     'en',
     now(),
-    '일본 자살예방 종합대강 정책(자살대책기본법 2006 + 2017·2022 개정 종합대강) 의 장기 평가. 정책 운영 기간(2006–2022) 동안 일본 자살률은 ~35% 감소; 그러나 *청소년 자살률은 같은 기간 상승* — 정책만으로는 18세 미만을 보호하지 못한다는 냉정한 반-증거. 2nd-Brain 함의: C10 (18+) 정책과 정합; 향후 청소년 제품 확장 시 경고 근거.',
-    'Long-run policy evaluation: significant declines in adult suicide rates over Japan''s General Principles of Suicide Prevention Policy period (2006–2022, ~35% decline); but youth suicide rates rose during the same window — sobering counter-evidence that policy alone does not protect under-18s. For 2nd-Brain: aligns with the 18+ floor (C10) and informs cautions around any future youth-product expansion.',
-    'C10 18+ 정책의 경험적 정당화. 향후 under-18 로드맵에 대한 cautionary evidence.'
+    '일본 자살예방 종합대강 정책(자살대책기본법 2006 + 2017·2022 개정 종합대강) 의 장기 평가. 정책 운영 기간(2006–2022) 동안 일본 자살률은 ~35% 감소; 그러나 *청소년 자살률은 같은 기간 상승* — 정책만으로는 청소년을 보호하지 못한다는 냉정한 반-증거. 2nd-Brain 함의: C10 14+ floor에 맞춘 14-17 보호장치, minor-aware crisis routing, high-privacy defaults의 근거.',
+    'Long-run policy evaluation: significant declines in adult suicide rates over Japan''s General Principles of Suicide Prevention Policy period (2006–2022, ~35% decline); but youth suicide rates rose during the same window — sobering counter-evidence that policy alone does not protect youth. For 2nd-Brain: reinforces explicit 14-17 safeguards, minor-aware crisis routing, and conservative youth defaults.',
+    'C10 14+ floor에 맞춘 14-17 안전 라우팅과 high-privacy defaults에 대한 cautionary evidence.'
   ),
   (
     'Evaluation of alignment between large language models and expert clinicians in suicide risk assessment',

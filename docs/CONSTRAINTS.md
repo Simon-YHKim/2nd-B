@@ -80,11 +80,11 @@ Sign-up requires `birth_date`, which sets an **age tier**:
   guardian verifies via the `guardian_consents` ledger.
 
 Enforcement (phased rollout):
-- **DB — done (`db/migrations/0028`):** flat 18+ CHECK replaced by
+- **DB — done (`db/migrations/0028`):** legacy adult-only CHECK replaced by
   `users_birth_date_sane`; adds `account_status`, `minor_tier`, and the
   `guardian_consents` table with per-user RLS.
 - **Client — done:** `auth.ts` gates at `MIN_SELF_CONSENT_AGE` (14). 14-17
-  self-consent and 18+ register directly; under-14 still throw `AgeGateError`
+  self-consent minors and adults register directly; under-14 still throw `AgeGateError`
   pending the guardian-consent flow.
 - **Safety — done (#134):** the minor flag threads from `AuthContext.isMinor`
   through the record/chat/interview/LLM chain. KO minors route to 1388 + 109,

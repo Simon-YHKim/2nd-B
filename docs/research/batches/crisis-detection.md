@@ -50,8 +50,8 @@
 
 ## Age Range Coverage
 
-- **Child (0–12)**: not applicable for 2nd-Brain (18+ policy) but C-SSRS validated from age 11.
-- **Adolescent (13–17)**: not applicable for 2nd-Brain user base but Korean Suicide CARE has a teacher-targeted version (Na et al. 2024) for completeness.
+- **Child (0–12)**: not applicable for the main 2nd-Brain app under the 14+ floor, but C-SSRS validated from age 11.
+- **Adolescent (13–17)**: applicable for 14-17 users with minor-aware routing; Korean Suicide CARE has a teacher-targeted version (Na et al. 2024) for completeness.
 - **Young Adult (18–29)**: applicable — elevated suicide risk in this window (per Arnett et al. 2014 Lancet Psychiatry in our `emerging-adulthood` seed).
 - **Adult (30–49)**: applicable.
 - **Midlife (50–64)**: applicable — elevated suicide risk in Korean midlife males (per You et al. 2025).

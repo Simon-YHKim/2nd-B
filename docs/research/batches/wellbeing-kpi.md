@@ -36,7 +36,7 @@
 ## Age Range Coverage
 
 - **Child (0–12)**: not applicable for these adult measures.
-- **Adolescent (13–17)**: not applicable for 2nd-Brain (18+) but PERMA youth versions exist.
+- **Adolescent (13–17)**: applicable for 14-17 users with age-appropriate wording; PERMA youth versions exist.
 - **Young Adult (18–29)**: applicable for all four.
 - **Adult (30–49)**: applicable for all four.
 - **Midlife (50–64)**: applicable for all four.

@@ -172,7 +172,7 @@ results.push(
   check("C10", () => {
     // C10 redefined: age-tiered registration. Under-14 require verifiable
     // legal-representative consent (PIPA Article 22-2 / COPPA); 14+ self-consent
-    // under the general provisions (Articles 15/17/22). Replaces the flat 18+
+    // under the general provisions (Articles 15/17/22). Replaces the legacy adult-only
     // CHECK (0002).
     const sql = read("db/migrations/0028_minor_consent.sql");
     const auth = read("src/lib/supabase/auth.ts");
