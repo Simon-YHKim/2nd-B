@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   cellText: { fontSize: 11, fontWeight: "700", fontFamily: fontFamilies.mono },
   headerCell: { aspectRatio: undefined, paddingVertical: 4 },
   headerCellActive: {},
-  headerLabel: { fontSize: 10, color: darkSky.textSubtle, letterSpacing: 0.5, fontWeight: "600" },
+  headerLabel: { fontSize: 10, color: darkSky.textSubtle, letterSpacing: 0, fontWeight: "600" },
   headerLabelActive: { color: darkSky.brand },
-  headerMicro: { fontSize: 9, color: darkSky.textSubtle, letterSpacing: 0.5 },
+  headerMicro: { fontSize: 9, color: darkSky.textSubtle, letterSpacing: 0 },
 });

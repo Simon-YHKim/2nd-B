@@ -204,7 +204,7 @@ export default function Interview() {
           <View style={styles.periodGrid}>
             {(["childhood", "teens", "twenties", "thirties", "current"] as LifePeriod[]).map((p) => (
               <Pressable key={p} onPress={() => startInterview(p)} style={styles.periodCard} hitSlop={4}>
-                <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+                <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
                   {PERIOD_LABEL[locale][p]}
                 </Text>
               </Pressable>
@@ -219,7 +219,7 @@ export default function Interview() {
     <PremiumAppShell>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.topBar}>
-          <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+          <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
             {PERIOD_LABEL[locale][period]}
           </Text>
           <Text variant="subtle" color="textSubtle">
@@ -238,7 +238,7 @@ export default function Interview() {
 
         {shouldSuggestWrap ? (
           <View style={styles.completionBanner}>
-            <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
               {locale === "ko" ? "충분한 깊이 도달" : "Sufficient depth reached"}
             </Text>
             <Text variant="body" color="textMuted" style={{ marginTop: 4 }}>
@@ -265,7 +265,7 @@ export default function Interview() {
           {turns.map((t, i) => (
             <View key={i} style={[styles.bubble, t.role === "interviewer" ? styles.qBubble : styles.aBubble]}>
               <View style={styles.bubbleHeader}>
-                <Text variant="subtle" color={t.role === "interviewer" ? "brand" : "textSubtle"} style={{ letterSpacing: 1 }}>
+                <Text variant="subtle" color={t.role === "interviewer" ? "brand" : "textSubtle"} style={{ letterSpacing: 0 }}>
                   {t.role === "interviewer" ? (locale === "ko" ? "질문" : "Q") : (locale === "ko" ? "답변" : "A")}
                 </Text>
                 {t.layer ? (
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
   },
   bubbleHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  layerTag: { fontFamily: fontFamilies.mono, fontSize: 10, letterSpacing: 0.5 },
+  layerTag: { fontFamily: fontFamilies.mono, fontSize: 10, letterSpacing: 0 },
   qBubble: { backgroundColor: semantic.surface },
   aBubble: { backgroundColor: semantic.surfaceAlt },
   thinkingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },

@@ -283,14 +283,14 @@ const styles = StyleSheet.create({
   text: {
     color: cosmic.moonWhite,
     fontSize: 15,
-    letterSpacing: 0.3,
+    letterSpacing: 0,
     minHeight: 22,
   },
   caret: { color: cosmic.signalMint, opacity: 0.85 },
   hint: {
     color: cosmic.soulViolet,
     fontSize: 13,
-    letterSpacing: 2,
+    letterSpacing: 0,
     textAlign: "center",
   },
 });
