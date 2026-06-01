@@ -68,5 +68,35 @@
         "desc": "Let your assistant remember across sessions for continuity."
       }
     }
+  },
+  "account": {
+    "eyebrow": "Account",
+    "title": "Your account, your call",
+    "subtitle": "Fix your details, manage privacy, or close your account.",
+    "speech": "Anything about your account lives here. No rush.",
+    "dob": {
+      "label": "Correct your date of birth",
+      "hint": "Fix a mistyped birth date. It must be a real date and meet the age floor.",
+      "save": "Save birth date",
+      "saved": "Birth date updated.",
+      "saveFailed": "Could not update your birth date"
+    },
+    "privacy": {
+      "label": "Privacy and consent",
+      "body": "Sharing, ads, recommendations, and outside processing are each off by default. Turn them on or off any time.",
+      "button": "Open privacy controls"
+    },
+    "delete": {
+      "label": "Delete account",
+      "body": "This erases your entries, captures, wiki, and assistant usage, then signs you out.",
+      "supportNote": "Full account removal is processed within 2 business days. Contact support if you need it sooner.",
+      "confirmHint": "Type \"{{phrase}}\" to enable the button.",
+      "button": "Delete my account",
+      "confirmTitle": "Delete your account?",
+      "confirmBody": "Your data will be erased and you will be signed out. This cannot be undone.",
+      "confirmCta": "Delete",
+      "cancel": "Cancel",
+      "failed": "Account deletion failed"
+    }
   }
 }
