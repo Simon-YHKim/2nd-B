@@ -11,13 +11,17 @@ export type GatedFeature =
   | "self_context" // Lv6 - "me in other contexts"
   | "rag_export"; // Lv8
 
+// 2026-06-02 directive: level-based ENTRY restrictions removed. Every feature is
+// reachable from the start (Lv1) — monetization gating is by subscription tier +
+// free-tier usage limits (entitlements.ts), NOT by progression level. The map +
+// checkGate are kept (all Lv1) so re-gating a feature is a one-line change.
 export const FEATURE_UNLOCK_LEVEL: Record<GatedFeature, number> = {
   audit: 1,
-  journal: 3,
-  note: 3,
-  persona: 5,
-  self_context: 6,
-  rag_export: 8,
+  journal: 1,
+  note: 1,
+  persona: 1,
+  self_context: 1,
+  rag_export: 1,
 };
 
 export interface GateResult {
