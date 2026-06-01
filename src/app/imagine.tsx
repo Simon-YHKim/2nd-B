@@ -15,7 +15,7 @@ import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { cosmic, radii, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { CHARACTERS } from "@/lib/characters";
 import { IslandArt, ShardArt } from "@/components/art/IslandArt";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
@@ -314,8 +314,8 @@ const styles = StyleSheet.create({
   companionFlash: { position: "absolute", bottom: 40, right: 20 },
   contextPillWrap: { marginTop: spacing.xs },
   promptCard: {
-    backgroundColor: "rgba(13,21,48,0.82)",
-    borderColor: "rgba(255,159,214,0.24)",
+    backgroundColor: semantic.surface,
+    borderColor: VILLAGE_UI.imagine.accent,
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.lg,
@@ -326,14 +326,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   panelTitle: {
-    color: cosmic.dreamPink,
-    letterSpacing: 1,
+    color: VILLAGE_UI.imagine.accent,
+    letterSpacing: 0,
   },
   promptInput: {
     minHeight: 110,
-    color: cosmic.moonWhite,
-    backgroundColor: "rgba(7,10,24,0.72)",
-    borderColor: "rgba(141,152,184,0.34)",
+    color: semantic.text,
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
     borderWidth: 1,
     borderRadius: radii.sm,
     padding: spacing.md,

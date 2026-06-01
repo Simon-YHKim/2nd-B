@@ -1,11 +1,11 @@
 // C10: enforce the self-consent age floor at the UI layer. Server (auth.ts) and DB
 // (users_birth_date_min_age CHECK) are the second and third lines of defense.
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { semantic, spacing } from "@/lib/theme/tokens";
+import { spacing } from "@/lib/theme/tokens";
 import { ageInYears, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { Input } from "@/components/ui/Input";
 import { Text } from "@/components/ui/Text";
@@ -19,8 +19,6 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
   const { t } = useTranslation("auth");
-  const [touched, setTouched] = useState(false);
-
   const status = useMemo(() => {
     if (!value) return "empty";
     if (!ISO_DATE.test(value)) return "malformed";
@@ -30,7 +28,7 @@ export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
     return "ok";
   }, [value]);
 
-  const showError = touched && (status === "underage" || status === "malformed");
+  const showError = value.length > 0 && (status === "underage" || status === "malformed");
 
   return (
     <View style={styles.row}>
@@ -39,13 +37,12 @@ export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
         value={value}
         placeholder="YYYY-MM-DD"
         onChangeText={onChange}
-        onBlur={() => setTouched(true)}
         autoCapitalize="none"
         keyboardType="numbers-and-punctuation"
       />
       <Text variant="subtle" color={showError ? "danger" : "textSubtle"}>
         {showError
-          ? t(status === "underage" ? "errors.ageGate" : "errors.invalidEmail")
+          ? t(status === "underage" ? "errors.ageGate" : "errors.invalidBirthDate")
           : t("signUp.birthDateHelper")}
       </Text>
     </View>
@@ -55,5 +52,3 @@ export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
 const styles = StyleSheet.create({
   row: { gap: spacing.xs, marginBottom: spacing.md },
 });
-
-void semantic;

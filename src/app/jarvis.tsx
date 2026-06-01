@@ -33,6 +33,7 @@ import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/c
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
+import { CORE_VILLAGE_UI, VILLAGE_UI } from "@/lib/village-ui";
 
 // Quick-action chips offered under an answer (chat pack §8). Each prefills
 // the composer with a short follow-up in the village voice; the user sends.
@@ -195,16 +196,17 @@ export default function Jarvis() {
 
   const canSend = draft.trim().length > 0 && !sending;
   const usedDisplay = usedToday === null ? "..." : String(usedToday);
-  const chatIslandByWorker = {
-    secondb: "core",
-    archi: "work_growth",
-    gadi: "relationship",
-    lulu: "knowledge",
-    momo: "records",
-    vela: "imagine",
-    lumi: "inspiration",
+  const chatUiByWorker = {
+    secondb: CORE_VILLAGE_UI,
+    archi: VILLAGE_UI.work,
+    gadi: VILLAGE_UI.relation,
+    lulu: VILLAGE_UI.knowledge,
+    momo: VILLAGE_UI.records,
+    vela: VILLAGE_UI.imagine,
+    lumi: VILLAGE_UI.taste,
   } as const;
   const chatWorker = isCharacterChat ? persona.id : "secondb";
+  const chatUi = chatUiByWorker[chatWorker];
 
   return (
     <PremiumAppShell>
@@ -213,8 +215,9 @@ export default function Jarvis() {
           eyebrow={locale === "ko" ? "06. 세컨비 대화" : "06. SecondB chat"}
           title={isCharacterChat ? persona.name[locale] : t("title")}
           subtitle={isCharacterChat ? persona.role[locale] : t("subtitle")}
-          island={chatIslandByWorker[chatWorker]}
-          worker={chatWorker}
+          island={chatUi.island}
+          worker={chatUi.worker}
+          accent={chatUi.accent}
           speech={
             sending
               ? locale === "ko"
@@ -375,7 +378,7 @@ export default function Jarvis() {
       <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setIntroOpen(false)}>
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
               {t("intro_title")}
             </Text>
             <Text variant="body" color="text" style={{ marginTop: spacing.sm, lineHeight: 20 }}>

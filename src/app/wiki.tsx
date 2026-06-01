@@ -876,5 +876,5 @@ const styles = StyleSheet.create({
   },
   statsTopRow: { flexDirection: "row", gap: spacing.lg },
   statsBlock: { flex: 1, gap: 2 },
-  statsSectionHead: { letterSpacing: 1, marginTop: spacing.xs },
+  statsSectionHead: { letterSpacing: 0, marginTop: spacing.xs },
 });

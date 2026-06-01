@@ -11,6 +11,7 @@ import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 type Status = "in_use" | "optional" | "planned" | "not_used";
 
@@ -105,15 +106,15 @@ export default function Permissions() {
           eyebrow={locale === "ko" ? "권한 안내" : "Permissions"}
           title={locale === "ko" ? "필요한 접근만 밝히고 써요" : "Use only what is needed"}
           subtitle={locale === "ko" ? "네트워크 · 알림 · 클립보드" : "Network · notifications · clipboard"}
-          island="records"
-          worker="gadi"
+          island={VILLAGE_UI.relation.island}
+          worker={VILLAGE_UI.relation.worker}
+          accent={VILLAGE_UI.relation.accent}
           speech={
             locale === "ko"
               ? "권한은 기능이 필요할 때만 요청하고, 선택 권한은 거절해도 괜찮아요."
               : "Permissions are requested only when useful, and optional ones can be declined."
           }
-          islandSize={250}
-          workerSize={104}        />
+        />
 
         <View style={styles.cards}>
           {ENTRIES.map((e) => {
@@ -143,7 +144,7 @@ export default function Permissions() {
         </View>
 
         <View style={styles.principles}>
-          <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
+          <Text variant="caption" color="brand" style={styles.principlesTitle}>
             {locale === "ko" ? "원칙" : "Principles"}
           </Text>
           {(locale === "ko"
@@ -195,13 +196,21 @@ const styles = StyleSheet.create({
   },
   cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
   cardTitle: { fontWeight: "600", flex: 1 },
-  tag: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radii.sm, borderWidth: 1 },
+  tag: {
+    minHeight: 32,
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+  },
   principles: {
     backgroundColor: semantic.surfaceAlt,
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.xs,
   },
+  principlesTitle: { letterSpacing: 0 },
   principle: { lineHeight: 20 },
   actions: { gap: spacing.sm },
 });

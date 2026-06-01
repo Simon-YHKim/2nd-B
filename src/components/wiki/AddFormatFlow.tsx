@@ -109,8 +109,8 @@ export function AddFormatFlow({
         onChangeText={setInput}
         placeholder={
           ko
-            ? "예: 팟캐스트 에피소드 — 출연자와 핵심 주장을 정리하고 싶어요"
-            : "e.g. Podcast episodes — capture the guest and key claims"
+            ? "예: 팟캐스트 에피소드 - 출연자와 핵심 주장을 정리하고 싶어요"
+            : "e.g. Podcast episodes - capture the guest and key claims"
         }
         multiline
         numberOfLines={4}
@@ -138,13 +138,14 @@ export function AddFormatFlow({
               onPress={add}
               loading={saving}
               disabled={saving}
-              style={{ flex: 1 }}
+              style={styles.primaryAction}
             />
             <PremiumButton
               label={ko ? "다시" : "Redo"}
               variant="secondary"
               onPress={() => setProposed(null)}
               disabled={saving}
+              style={styles.secondaryAction}
             />
           </View>
         </PremiumCard>
@@ -157,5 +158,13 @@ export function AddFormatFlow({
 
 const styles = StyleSheet.create({
   scroll: { gap: spacing.md, paddingBottom: spacing.xl },
-  actions: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.md },
+  actions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "stretch",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  primaryAction: { flexGrow: 1, flexShrink: 1, minWidth: 180 },
+  secondaryAction: { flexGrow: 1, flexShrink: 1, minWidth: 96 },
 });

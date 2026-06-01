@@ -9,8 +9,9 @@ import { Redirect } from "expo-router";
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 const SUPPORT_EMAIL = "support@2nd-brain.app";
 
@@ -31,11 +32,11 @@ export default function Support() {
           eyebrow={ko ? "08-3. 지원" : "08-3. Support"}
           title={ko ? "막힌 조각을 같이 풀어요" : "Untangle stuck pieces together"}
           subtitle={ko ? "응답 시간 · 문의 · 도움말" : "Response time · contact · help"}
-          island="relationship"
-          worker="gadi"
+          island={VILLAGE_UI.relation.island}
+          worker={VILLAGE_UI.relation.worker}
+          accent={VILLAGE_UI.relation.accent}
           speech={ko ? "문제가 생기면 메일로 보내주세요. 필요한 맥락부터 차분히 볼게요." : "Send us what got stuck. We'll start from the context."}
-          islandSize={250}
-          workerSize={104}        />
+        />
 
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{ko ? "응답 시간" : "Response time"}</Text>
@@ -46,7 +47,7 @@ export default function Support() {
           </Text>
         </View>
 
-        <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
+        <View style={[styles.section, { borderLeftColor: semantic.info }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{ko ? "문의하기" : "Get in touch"}</Text>
           <Text variant="body" color="textMuted">{SUPPORT_EMAIL}</Text>
           <Button
@@ -56,7 +57,7 @@ export default function Support() {
           />
         </View>
 
-        <View style={[styles.section, { borderLeftColor: semantic.info }]}>
+        <View style={[styles.section, { borderLeftColor: semantic.warning }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{ko ? "자주 묻는 질문" : "FAQ"}</Text>
           <Text variant="subtle" color="textSubtle">
             {ko ? "도움말 모음은 곧 준비할게요." : "A help center is on the way."}
@@ -78,10 +79,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.lg,
     gap: spacing.sm,
-    shadowColor: cosmic.soulViolet,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.16,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
   },
-  eyebrow: { letterSpacing: 1 },
+  eyebrow: { letterSpacing: 0 },
 });

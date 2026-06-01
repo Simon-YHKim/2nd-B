@@ -11,7 +11,7 @@ import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
-import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { ageInYears, ensureUserProfile, AgeGateError, signOut, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { ConsentNotice } from "@/components/consent/ConsentNotice";
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: radii.md,
     padding: spacing.lg,
     shadowColor: cosmic.soulViolet,
     shadowOpacity: 0.2,

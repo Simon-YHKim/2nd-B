@@ -70,7 +70,15 @@ export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput
         ) : (
           schema.aiProperties.map((p) => (
             <View key={p.name} style={styles.propRow}>
-              <Text variant="subtle">· {p.name} ({p.type})</Text>
+              <View style={styles.propHeader}>
+                <View style={styles.propDot} />
+                <Text variant="caption" style={styles.propName} numberOfLines={1}>
+                  {p.name}
+                </Text>
+                <View style={styles.typeChip}>
+                  <Text style={styles.typeText}>{p.type}</Text>
+                </View>
+              </View>
               {p.describe ? (
                 <Text variant="subtle" color="textMuted" style={styles.propDesc}>{p.describe}</Text>
               ) : null}
@@ -85,10 +93,35 @@ export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm },
   field: { gap: 2 },
-  fieldLabel: { letterSpacing: 0.5 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 2 },
-  chip: { borderRadius: radii.sm, borderWidth: 1, borderColor: semantic.border, paddingHorizontal: 8, paddingVertical: 2 },
-  chipText: { color: semantic.brand, fontSize: 12 },
-  propRow: { marginTop: 4 },
-  propDesc: { marginLeft: 10, lineHeight: 18 },
+  fieldLabel: { letterSpacing: 0 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: 2 },
+  chip: {
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  chipText: { color: semantic.brand, fontSize: 12, lineHeight: 16 },
+  propRow: {
+    marginTop: spacing.xs,
+    gap: spacing.xs,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surfaceAlt,
+    padding: spacing.sm,
+  },
+  propHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  propDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
+  propName: { flex: 1 },
+  typeChip: {
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+  },
+  typeText: { color: semantic.textSubtle, fontSize: 11, lineHeight: 14 },
+  propDesc: { lineHeight: 18 },
 });

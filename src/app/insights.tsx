@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.xs,
   },
-  cardEyebrow: { letterSpacing: 1 },
+  cardEyebrow: { letterSpacing: 0 },
   barRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   barOuter: { flex: 1, height: 12, backgroundColor: semantic.surfaceAlt, borderRadius: 6, overflow: "hidden" },
   barInner: { height: 12, backgroundColor: semantic.brand },

@@ -13,7 +13,8 @@ import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 interface ManualSection {
   emoji: string; // semantic anchor only — kept ASCII-art-ish for the design
@@ -142,15 +143,15 @@ export default function Manual() {
           eyebrow={locale === "ko" ? "안내서" : "Manual"}
           title={locale === "ko" ? "마을을 읽는 짧은 지도" : "A compact map of the village"}
           subtitle={locale === "ko" ? "루틴 · 캡처 · 위키 · 안전" : "Routine · capture · wiki · safety"}
-          island="core"
-          worker="secondb"
+          island={CORE_VILLAGE_UI.island}
+          worker={CORE_VILLAGE_UI.worker}
+          accent={CORE_VILLAGE_UI.accent}
           speech={
             locale === "ko"
               ? "처음이라면 위에서부터 읽고, 익숙해지면 필요한 카드만 펼쳐보세요."
               : "Read top-down the first time; later, jump to the card you need."
           }
-          islandSize={250}
-          workerSize={104}        />
+        />
 
         <View style={styles.cards}>
           {SECTIONS.map((s) => (
@@ -266,11 +267,13 @@ const styles = StyleSheet.create({
   languageRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   languagePill: {
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.5)",
+    borderColor: semantic.brand,
     borderRadius: radii.sm,
-    backgroundColor: "rgba(114,242,199,0.08)",
+    backgroundColor: semantic.surfaceAlt,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
+    minHeight: 36,
+    justifyContent: "center",
   },
   cards: { gap: spacing.sm },
   card: {
@@ -282,17 +285,17 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.xs,
-    shadowColor: cosmic.soulViolet,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  cardEyebrow: { letterSpacing: 1 },
+  cardEyebrow: { letterSpacing: 0 },
   cardTitle: { fontWeight: "600" },
   cardBody: { lineHeight: 22 },
   glossary: { backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, padding: spacing.md, gap: spacing.xs },
-  glossaryTitle: { letterSpacing: 1, marginBottom: spacing.xs },
+  glossaryTitle: { letterSpacing: 0, marginBottom: spacing.xs },
   glossaryRow: { flexDirection: "row", gap: spacing.sm, paddingVertical: 2 },
   glossaryTerm: { width: 140 },
   glossaryDef: { flex: 1, lineHeight: 18 },
@@ -304,5 +307,5 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   recentLine: { lineHeight: 20 },
-  versionFootnote: { textAlign: "center", marginTop: spacing.lg, letterSpacing: 0.5 },
+  versionFootnote: { textAlign: "center", marginTop: spacing.lg, letterSpacing: 0 },
 });
