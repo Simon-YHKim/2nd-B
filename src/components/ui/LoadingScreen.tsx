@@ -20,7 +20,7 @@ import { Animated, Easing, Pressable, StyleSheet, Text } from "react-native";
 import { CosmicBackground } from "@/components/premium";
 import { cosmic } from "@/lib/theme/tokens";
 
-const logo = require("../../../public/assets/2ndb-refine/auth/loading_core_orb_premium.png");
+const logo = require("../../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png");
 
 const MESSAGES: readonly string[] = [
   // Phase 1 — 밤하늘 (the cosmic night canvas)

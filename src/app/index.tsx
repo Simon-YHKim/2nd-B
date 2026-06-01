@@ -39,7 +39,7 @@ import { domainForTags } from "@/lib/graph/relatedness";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 import { StarNoiseLayer } from "@/components/premium";
 
-const logo = require("../../public/assets/2ndb-refine/auth/loading_core_orb_premium.png");
+const logo = require("../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png");
 
 // Sky drift — slow atmospheric color shift behind the logo.
 function useSkyDrift() {
