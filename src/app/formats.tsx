@@ -33,6 +33,7 @@ import {
   type CustomClipperTemplate,
 } from "@/lib/wiki/template-queries";
 import { partitionTemplates, type TemplateDraft } from "@/lib/wiki/template-validate";
+import { CLIPPER_TEMPLATE_LIST } from "@/lib/wiki/clipper-templates";
 import { TemplateEditor } from "@/components/wiki/TemplateEditor";
 
 type Locale = "en" | "ko";
@@ -224,6 +225,30 @@ export default function Formats() {
                 islandSize={240}
                 workerSize={100}
               />
+
+              {/* Built-in default formats (the bundled 8). Always available and
+                  read-only — they back the classifier, so they show even before
+                  any DB-stored custom format exists (and even if the load fails). */}
+              <View style={styles.sectionHead}>
+                <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
+                  {locale === "ko" ? `기본 형식 (${CLIPPER_TEMPLATE_LIST.length})` : `Built-in formats (${CLIPPER_TEMPLATE_LIST.length})`}
+                </Text>
+              </View>
+              {CLIPPER_TEMPLATE_LIST.map((t) => (
+                <PremiumCard
+                  key={t.id}
+                  accent={semantic.brand}
+                  eyebrow={t.targetCategoryDefault ? `${t.kind} · ${t.targetCategoryDefault}` : t.kind}
+                  title={(locale === "ko" ? t.name.ko : t.name.en) || t.name.en}
+                >
+                  <Text variant="subtle" color="textMuted">
+                    {locale === "ko" ? t.what.ko : t.what.en}
+                  </Text>
+                  <Text variant="subtle" color="textSubtle" style={styles.shareNote}>
+                    {locale === "ko" ? "기본 제공 형식" : "Built-in format"}
+                  </Text>
+                </PremiumCard>
+              ))}
 
               {templates === null && !loadError ? (
                 <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />

@@ -25,6 +25,13 @@ describe("buildClipperPrompt", () => {
     expect(user.length).toBe(4000);
   });
 
+  it("asks Gemini to extract hashtags (tags) — both locales", () => {
+    // Locks in that hashtags are AI-extracted: the classify prompt requests a
+    // "tags" array. capture.tsx uses these when the user adds none.
+    expect(buildClipperPrompt("article", "content", null, "en").system).toContain('"tags"');
+    expect(buildClipperPrompt("article", "content", null, "ko").system).toContain('"tags"');
+  });
+
   it("lists community / user-added formats as reference when provided", () => {
     const { system } = buildClipperPrompt("inbox", "some content", null, "en", [
       { name: "Podcast Episode", baseKind: "video" },
