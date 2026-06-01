@@ -60,15 +60,34 @@ function TabIcon({ id, color }: { id: TabId; color: string }) {
       return (
         <Svg width={22} height={22} viewBox="0 0 22 22">
           <Line x1="11" y1="3" x2="11" y2="12" stroke={color} strokeWidth={sw} />
-          <Path d="M7 9 L11 13 L15 9" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <Path d="M4 14 L4 18 L18 18 L18 14" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
+          <Path
+            d="M7 9 L11 13 L15 9"
+            stroke={color}
+            strokeWidth={sw}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M4 14 L4 18 L18 18 L18 14"
+            stroke={color}
+            strokeWidth={sw}
+            fill="none"
+            strokeLinejoin="round"
+          />
         </Svg>
       );
     case "jarvis":
       // 세컨비 — a chat speech bubble with two dots.
       return (
         <Svg width={22} height={22} viewBox="0 0 22 22">
-          <Path d="M4 5 L18 5 L18 13 L9 13 L6 16 L6 13 L4 13 Z" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
+          <Path
+            d="M4 5 L18 5 L18 13 L9 13 L6 16 L6 13 L4 13 Z"
+            stroke={color}
+            strokeWidth={sw}
+            fill="none"
+            strokeLinejoin="round"
+          />
           <Circle cx="9" cy="9" r="1.1" fill={color} />
           <Circle cx="13" cy="9" r="1.1" fill={color} />
         </Svg>
@@ -91,14 +110,17 @@ function TabIcon({ id, color }: { id: TabId; color: string }) {
 }
 
 /** Height of the bar's content (excludes the safe-area inset). */
-export const TAB_BAR_HEIGHT = 58;
+export const TAB_BAR_HEIGHT = 62;
 
 export function PremiumTabBar({ locale = "ko" }: { locale?: "en" | "ko" }) {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   if (!TAB_PATHS.has(pathname)) return null;
   return (
-    <View style={[styles.bar, { paddingBottom: insets.bottom, height: TAB_BAR_HEIGHT + insets.bottom }]} pointerEvents="box-none">
+    <View
+      style={[styles.bar, { paddingBottom: insets.bottom, height: TAB_BAR_HEIGHT + insets.bottom }]}
+      pointerEvents="box-none"
+    >
       <View style={styles.row}>
         {TABS.map((tab) => {
           const active = pathname === tab.href;
@@ -106,7 +128,9 @@ export function PremiumTabBar({ locale = "ko" }: { locale?: "en" | "ko" }) {
           return (
             <Pressable
               key={tab.id}
-              onPress={() => { if (!active) router.replace(tab.href); }}
+              onPress={() => {
+                if (!active) router.replace(tab.href);
+              }}
               style={[styles.tab, active ? styles.tabActive : null]}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
@@ -114,7 +138,9 @@ export function PremiumTabBar({ locale = "ko" }: { locale?: "en" | "ko" }) {
               hitSlop={6}
             >
               <TabIcon id={tab.id} color={color} />
-              <Text variant="subtle" style={[styles.label, { color }]}>{locale === "ko" ? tab.ko : tab.en}</Text>
+              <Text variant="subtle" style={[styles.label, { color }]}>
+                {locale === "ko" ? tab.ko : tab.en}
+              </Text>
             </Pressable>
           );
         })}
@@ -137,10 +163,16 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: -2 },
   },
-  row: { flexDirection: "row", height: TAB_BAR_HEIGHT, alignItems: "center", paddingHorizontal: 8, gap: 4 },
+  row: {
+    flexDirection: "row",
+    height: TAB_BAR_HEIGHT,
+    alignItems: "center",
+    paddingHorizontal: 8,
+    gap: 4,
+  },
   tab: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 52,
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
@@ -153,5 +185,5 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(114,242,199,0.1)",
     borderColor: "rgba(114,242,199,0.42)",
   },
-  label: { fontSize: 10, letterSpacing: 0, fontWeight: "600" },
+  label: { fontSize: 11, letterSpacing: 0, fontWeight: "600" },
 });

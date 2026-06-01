@@ -25,7 +25,12 @@ export default function SignUp() {
 
   const judge = useMemo(() => isJudgeEmail(email), [email]);
   const canSubmit = useMemo(() => {
-    return email.includes("@") && password.length >= 8 && ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE && !submitting;
+    return (
+      email.includes("@") &&
+      password.length >= 8 &&
+      ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE &&
+      !submitting
+    );
   }, [email, password, birthDate, submitting]);
 
   async function handleSubmit(): Promise<void> {
@@ -43,9 +48,13 @@ export default function SignUp() {
     } catch (e) {
       if (e instanceof AgeGateError) Alert.alert(t("errors.ageGate"));
       else {
-        const msg = locale === "ko" ? "가입에 실패했어요. 잠시 후 다시 시도해 주세요." : "Sign-up failed. Please try again in a moment.";
+        const msg =
+          locale === "ko"
+            ? "가입에 실패했어요. 잠시 후 다시 시도해 주세요."
+            : "Sign-up failed. Please try again in a moment.";
         Alert.alert(msg);
-        if (typeof console !== "undefined") console.warn("[auth] signUp error", (e as Error).message);
+        if (typeof console !== "undefined")
+          console.warn("[auth] signUp error", (e as Error).message);
       }
     } finally {
       setSubmitting(false);
@@ -57,28 +66,47 @@ export default function SignUp() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <View style={styles.brandRow}>
-            <Text variant="caption" color="brand">2nd-Brain</Text>
+            <Text variant="caption" color="brand">
+              2nd-Brain
+            </Text>
             <Pressable
               onPress={() => {
                 void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
               }}
               hitSlop={6}
+              accessibilityRole="button"
+              style={styles.localeButton}
             >
-              <Text variant="caption" color="brand">{locale === "ko" ? "EN" : "한국어"}</Text>
+              <Text variant="caption" color="brand">
+                {locale === "ko" ? "EN" : "한국어"}
+              </Text>
             </Pressable>
           </View>
           <View style={styles.heroRow}>
             <View style={styles.heroCopy}>
-              <Text variant="heading" style={styles.title}>{t("signUp.title")}</Text>
-              <Text variant="body" color="textMuted">{t("signUp.subtitle")}</Text>
+              <Text variant="heading" style={styles.title}>
+                {t("signUp.title")}
+              </Text>
+              <Text variant="body" color="textMuted">
+                {t("signUp.subtitle")}
+              </Text>
+              <Text variant="subtle" color="textMuted" style={styles.ageNotice}>
+                {t("signUp.ageNotice")}
+              </Text>
             </View>
             <Image source={authHero} style={styles.heroImg} resizeMode="contain" />
           </View>
-          {judge ? <View style={styles.badgeWrap}><JudgeBadge /></View> : null}
+          {judge ? (
+            <View style={styles.badgeWrap}>
+              <JudgeBadge />
+            </View>
+          ) : null}
         </View>
         <View style={styles.form}>
           <View style={styles.fieldGroup}>
-            <Text variant="caption" color="textMuted">{t("signUp.email")}</Text>
+            <Text variant="caption" color="textMuted">
+              {t("signUp.email")}
+            </Text>
             <Input
               value={email}
               onChangeText={setEmail}
@@ -104,11 +132,26 @@ export default function SignUp() {
           <View style={styles.fieldGroup}>
             <BirthDateField value={birthDate} onChange={setBirthDate} />
           </View>
-          {(email.length > 0 || password.length > 0 || birthDate.length > 0) ? (
+          {email.length > 0 || password.length > 0 || birthDate.length > 0 ? (
             <View style={styles.checklist}>
-              <ChecklistItem ok={email.includes("@")} label={email.includes("@") ? t("signUp.checkEmail") : t("signUp.checkEmailMissing")} />
-              <ChecklistItem ok={password.length >= 8} label={password.length >= 8 ? t("signUp.checkPassword") : t("signUp.checkPasswordShort")} />
-              <ChecklistItem ok={ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE} label={ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE ? t("signUp.checkAge") : t("signUp.checkAgeBlocked")} />
+              <ChecklistItem
+                ok={email.includes("@")}
+                label={email.includes("@") ? t("signUp.checkEmail") : t("signUp.checkEmailMissing")}
+              />
+              <ChecklistItem
+                ok={password.length >= 8}
+                label={
+                  password.length >= 8 ? t("signUp.checkPassword") : t("signUp.checkPasswordShort")
+                }
+              />
+              <ChecklistItem
+                ok={ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE}
+                label={
+                  ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE
+                    ? t("signUp.checkAge")
+                    : t("signUp.checkAgeBlocked")
+                }
+              />
             </View>
           ) : null}
           <Button
@@ -120,18 +163,26 @@ export default function SignUp() {
           />
         </View>
         <View style={styles.footer}>
-          <Text variant="subtle" color="textMuted">
-            {t("signUp.alreadyHaveAccount")}{" "}
-            <Link href="/sign-in">
-              <Text variant="subtle" color="brand" style={styles.link}>
-                {t("signUp.signInLink")}
-              </Text>
-            </Link>
-          </Text>
-          <Link href="/manual" style={{ marginTop: spacing.xs }}>
-            <Text variant="subtle" color="textSubtle" style={styles.link}>
-              {locale === "ko" ? "이 앱이 처음이라면 안내서 보기" : "New here? Read the 1-min manual"}
+          <View style={styles.footerRow}>
+            <Text variant="subtle" color="textMuted">
+              {t("signUp.alreadyHaveAccount")}
             </Text>
+            <Link href="/sign-in" asChild>
+              <Pressable accessibilityRole="link" style={styles.footerLinkHit}>
+                <Text variant="subtle" color="brand" style={styles.link}>
+                  {t("signUp.signInLink")}
+                </Text>
+              </Pressable>
+            </Link>
+          </View>
+          <Link href="/manual" asChild>
+            <Pressable accessibilityRole="link" style={styles.manualLinkHit}>
+              <Text variant="subtle" color="textSubtle" style={styles.link}>
+                {locale === "ko"
+                  ? "이 앱이 처음이라면 안내서 보기"
+                  : "New here? Read the 1-min manual"}
+              </Text>
+            </Pressable>
           </Link>
         </View>
       </ScrollView>
@@ -142,7 +193,9 @@ export default function SignUp() {
 function ChecklistItem({ ok, label }: { ok: boolean; label: string }) {
   return (
     <View style={styles.checkRow}>
-      <View style={[styles.checkDot, { backgroundColor: ok ? semantic.success : semantic.textSubtle }]} />
+      <View
+        style={[styles.checkDot, { backgroundColor: ok ? semantic.success : semantic.textSubtle }]}
+      />
       <Text variant="subtle" color={ok ? "success" : "textMuted"}>
         {label}
       </Text>
@@ -154,10 +207,12 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl },
   header: { gap: spacing.sm, marginBottom: spacing.lg },
   brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  localeButton: { minWidth: 44, minHeight: 44, alignItems: "flex-end", justifyContent: "center" },
   heroRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   heroCopy: { flex: 1, gap: spacing.xs },
   heroImg: { width: 112, height: 112 },
   title: { marginTop: 0 },
+  ageNotice: { marginTop: spacing.xs },
   badgeWrap: { marginTop: spacing.sm },
   form: {
     gap: spacing.sm,
@@ -184,5 +239,19 @@ const styles = StyleSheet.create({
   checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   checkDot: { width: 8, height: 8, borderRadius: 4 },
   footer: { marginTop: spacing.xl, alignItems: "center" },
+  footerRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+  },
+  footerLinkHit: { minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center" },
+  manualLinkHit: {
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: spacing.xs,
+  },
   link: { textDecorationLine: "underline" },
 });
