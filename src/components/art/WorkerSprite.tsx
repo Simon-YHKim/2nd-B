@@ -7,7 +7,7 @@
 // for the dedicated idle pose (a standing frame, not a frozen mid-stride).
 
 import { useEffect, useState } from "react";
-import { Image, View, type ViewStyle, type ImageStyle, type StyleProp } from "react-native";
+import { Image, StyleSheet, View, type ViewStyle, type ImageStyle, type StyleProp } from "react-native";
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
@@ -69,6 +69,24 @@ const PHASE_OFFSET: Record<WorkerId, number> = {
   secondb: 0, momo: 1, lulu: 2, archi: 3, vela: 4, gadi: 5, lumi: 2,
 };
 
+function ContactShadow({ size }: { size: number }) {
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        styles.contactShadow,
+        {
+          left: size * 0.22,
+          right: size * 0.22,
+          bottom: Math.max(1, size * 0.04),
+          height: Math.max(3, size * 0.12),
+          borderRadius: size,
+        },
+      ]}
+    />
+  );
+}
+
 /** Renders one worker's current walk frame, advanced by the global clock.
  *  `facing` mirrors the sprite so it looks toward its direction of travel
  *  (+1 = artwork's native facing, -1 = flipped). `paused` swaps in the idle
@@ -111,6 +129,7 @@ export function WorkerSprite({
   if (reduced || paused) {
     return (
       <View style={[{ width: size, height: size, transform: flip }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <ContactShadow size={size} />
         <Image source={IDLES[id]} style={[PIXELATED, { width: size, height: size }]} resizeMode="contain" />
       </View>
     );
@@ -118,6 +137,7 @@ export function WorkerSprite({
 
   return (
     <View style={[{ width: size, height: size, overflow: "hidden", transform: flip }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <ContactShadow size={size} />
       <Image
         source={STRIPS[id]}
         style={[
@@ -130,3 +150,15 @@ export function WorkerSprite({
   );
 }
 
+const styles = StyleSheet.create({
+  contactShadow: {
+    position: "absolute",
+    backgroundColor: "rgba(0,0,0,0.42)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(114,242,199,0.18)",
+    shadowColor: "#000000",
+    shadowOpacity: 0.42,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 1 },
+  },
+});
