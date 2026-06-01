@@ -1,6 +1,7 @@
 2ndB Production Premium Assets v1
 All PNG files are RGBA with transparent background. No text is baked into images. No baked rectangular frame is intentionally included.
 shards/ and tier-icons/ are promoted premium cue assets copied from the refine pack so runtime code can reference a single production-premium namespace.
+2026-06-01 polish pass: app-used HQ/auth/island/wiki/worker-redraw/shard/tier-icon PNGs received a conservative alpha cleanup, mild unsharp mask, and tiny contrast/saturation lift. No AI regeneration; transparent RGBA preserved.
 
 - archi_premium_idle.png / 128x128 / transparent=True / 01_character_sheet_premium.png; extracted/recomposited transparent idle sprite; accent glow preserved
 - archi_premium_walk_strip_6f.png / 768x128 / transparent=True / 01_character_sheet_premium.png; 6-frame sprite strip derived from premium idle; transparent
