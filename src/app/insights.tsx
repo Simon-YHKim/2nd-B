@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View, ActivityIndicator, Alert, RefreshControl } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -50,8 +50,7 @@ export default function Insights() {
 
   if (authLoading) return null;
   if (!userId) {
-    router.replace("/sign-in");
-    return null;
+    return <Redirect href="/sign-in" />;
   }
 
   if (loading) {

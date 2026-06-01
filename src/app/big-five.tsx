@@ -6,7 +6,7 @@
 import { useMemo, useState } from "react";
 import { View, StyleSheet, Pressable, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 
 import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -46,8 +46,7 @@ export default function BigFive() {
 
   if (loading) return null;
   if (!userId) {
-    router.replace("/sign-in");
-    return null;
+    return <Redirect href="/sign-in" />;
   }
 
   function setResponse(itemId: number, value: number) {

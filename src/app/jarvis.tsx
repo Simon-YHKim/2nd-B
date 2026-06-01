@@ -16,7 +16,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router, useLocalSearchParams } from "expo-router";
+import { Redirect, useLocalSearchParams } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -147,8 +147,7 @@ export default function Jarvis() {
 
   if (authLoading || progression.loading) return <InlineLoader />;
   if (!userId) {
-    router.replace("/sign-in");
-    return null;
+    return <Redirect href="/sign-in" />;
   }
 
   async function handleSend(): Promise<void> {

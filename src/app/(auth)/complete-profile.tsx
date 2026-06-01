@@ -5,7 +5,7 @@
 import { useMemo, useState } from "react";
 import { Image, View, StyleSheet, Alert, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 
 import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -31,14 +31,12 @@ export default function CompleteProfile() {
   // Already has a profile — bounce to journal. Possible if the user navigates
   // here manually after completing setup.
   if (userId && hasProfile) {
-    router.replace("/");
-    return null;
+    return <Redirect href="/" />;
   }
 
   // Not signed in at all — bounce to sign-in.
   if (userId === null) {
-    router.replace("/sign-in");
-    return null;
+    return <Redirect href="/sign-in" />;
   }
 
   async function handleSubmit(): Promise<void> {

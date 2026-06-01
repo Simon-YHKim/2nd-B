@@ -22,7 +22,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { AppNav } from "@/components/ui/AppNav";
@@ -76,8 +76,7 @@ export default function Interview() {
 
   if (loading) return null;
   if (!userId) {
-    router.replace("/sign-in");
-    return null;
+    return <Redirect href="/sign-in" />;
   }
 
   function startInterview(p: LifePeriod) {

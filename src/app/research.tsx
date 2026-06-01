@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View, ActivityIndicator, Alert, Linking, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -72,8 +72,7 @@ export default function Research() {
 
   if (authLoading) return null;
   if (!userId) {
-    router.replace("/sign-in");
-    return null;
+    return <Redirect href="/sign-in" />;
   }
 
   const frameworks = [...new Set(sources.map((s) => s.framework).filter((f): f is string => !!f))];

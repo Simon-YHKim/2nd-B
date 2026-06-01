@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View, ActivityIndicator, Pressable, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Link, router } from "expo-router";
+import { Link, Redirect, router } from "expo-router";
 
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -141,8 +141,7 @@ export default function Trinity() {
 
   if (authLoading) return null;
   if (!userId) {
-    router.replace("/sign-in");
-    return null;
+    return <Redirect href="/sign-in" />;
   }
 
   const labels = DOMAIN_LABEL[locale];

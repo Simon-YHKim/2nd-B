@@ -28,7 +28,7 @@ import {
   Image,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 import { PremiumAppShell, SceneHero } from "@/components/premium";
@@ -245,8 +245,7 @@ export default function Capture() {
 
   if (loading) return null;
   if (!userId) {
-    router.replace("/sign-in");
-    return null;
+    return <Redirect href="/sign-in" />;
   }
 
   // 일기(journal) entitlement — unlocks at Lv3, then the free tier allows a
