@@ -219,7 +219,7 @@ export default function SignIn() {
             </Text>
             <Link href="/manual" style={{ marginTop: 8 }}>
               <Text style={[styles.subtleText, styles.linkUnderline]}>
-                {locale === "ko" ? "이 앱이 처음이라면 — 안내서 보기" : "New here? Read the 1-min manual"}
+                {locale === "ko" ? "이 앱이 처음이라면 안내서 보기" : "New here? Read the 1-min manual"}
               </Text>
             </Link>
           </View>

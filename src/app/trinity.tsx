@@ -183,7 +183,7 @@ export default function Trinity() {
             <Link href="/journal" asChild>
               <Pressable hitSlop={6}>
                 <Text variant="caption" color="brand">
-                  {locale === "ko" ? "→ 일기에서 #건강 같은 태그를 달아 보세요" : "→ Try adding tags like #health in your journal"}
+                  {locale === "ko" ? "일기에서 #건강 같은 태그를 달아 보세요" : "Try adding tags like #health in your journal"}
                 </Text>
               </Pressable>
             </Link>

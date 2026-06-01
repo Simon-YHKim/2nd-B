@@ -134,7 +134,7 @@ export function KnowledgeGraph({ nodes, edges, onTapCore, topMessage }: Props) {
         onPress={onTapCore}
         style={[styles.coreTapTarget, { left: cx - 32, top: cy - 32 }]}
         accessibilityRole="button"
-        accessibilityLabel="중심 노드 — 두번째 뇌 구성 시작"
+        accessibilityLabel="중심 노드: 두번째 뇌 구성 시작"
         hitSlop={12}
       />
     </View>

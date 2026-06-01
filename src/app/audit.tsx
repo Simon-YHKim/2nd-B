@@ -82,7 +82,7 @@ export default function Audit() {
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
-              {locale === "ko" ? "과거의 나 — 시기 선택" : "Past me — choose a period"}
+              {locale === "ko" ? "과거의 나: 시기 선택" : "Past me: choose a period"}
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
               {locale === "ko"
@@ -159,12 +159,12 @@ export default function Audit() {
         {index === 0 ? (
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 1 }}>
-              {locale === "ko" ? "과거의 나 — 자기 인터뷰" : "Past me — self interview"}
+              {locale === "ko" ? "과거의 나: 자기 인터뷰" : "Past me: self interview"}
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
               {locale === "ko"
-                ? "Big Five · 애착이론 · 자기결정성 이론에 기반한 질문들. 정답이 없어요 — 솔직하게 적은 만큼 페르소나가 정확해집니다."
-                : "Questions grounded in Big Five, Attachment Theory, and Self-Determination Theory. No right answer — the more honest you are, the sharper your Persona becomes."}
+                ? "Big Five · 애착이론 · 자기결정성 이론에 기반한 질문들. 정답은 없고, 솔직하게 적은 만큼 페르소나가 정확해집니다."
+                : "Questions grounded in Big Five, Attachment Theory, and Self-Determination Theory. No right answer; the more honest you are, the sharper your Persona becomes."}
             </Text>
           </View>
         ) : null}

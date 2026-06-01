@@ -72,8 +72,8 @@ export function QuantPager({
           </Text>
           <Text variant="caption" color={complete ? "brand" : "textMuted"}>
             {locale === "ko"
-              ? `${answered} / ${totalItems} 응답${complete ? " — 저장 가능" : ""}`
-              : `${answered} / ${totalItems} answered${complete ? " — ready to save" : ""}`}
+              ? `${answered} / ${totalItems} 응답${complete ? " · 저장 가능" : ""}`
+              : `${answered} / ${totalItems} answered${complete ? " · ready to save" : ""}`}
           </Text>
         </View>
         <View style={styles.progressBarOuter}>

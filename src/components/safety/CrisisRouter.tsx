@@ -68,7 +68,7 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
             onPress={handleCall}
             accessibilityRole="button"
             accessibilityHint={isKorean ? "전화 걸기" : "Place a call"}
-            accessibilityLabel={`${number} — ${HOTLINES[hotline].label}`}
+            accessibilityLabel={`${number}: ${HOTLINES[hotline].label}`}
             style={({ pressed }) => [styles.hotlineBox, pressed && styles.hotlineBoxPressed]}
           >
             <Text variant="body" style={styles.hotline}>
