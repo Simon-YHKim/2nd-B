@@ -14,6 +14,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 interface ManualSection {
   emoji: string; // semantic anchor only — kept ASCII-art-ish for the design
@@ -142,15 +143,15 @@ export default function Manual() {
           eyebrow={locale === "ko" ? "안내서" : "Manual"}
           title={locale === "ko" ? "마을을 읽는 짧은 지도" : "A compact map of the village"}
           subtitle={locale === "ko" ? "루틴 · 캡처 · 위키 · 안전" : "Routine · capture · wiki · safety"}
-          island="core"
-          worker="secondb"
+          island={CORE_VILLAGE_UI.island}
+          worker={CORE_VILLAGE_UI.worker}
+          accent={CORE_VILLAGE_UI.accent}
           speech={
             locale === "ko"
               ? "처음이라면 위에서부터 읽고, 익숙해지면 필요한 카드만 펼쳐보세요."
               : "Read top-down the first time; later, jump to the card you need."
           }
-          islandSize={250}
-          workerSize={104}        />
+        />
 
         <View style={styles.cards}>
           {SECTIONS.map((s) => (

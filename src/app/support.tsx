@@ -11,6 +11,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 const SUPPORT_EMAIL = "support@2nd-brain.app";
 
@@ -31,11 +32,11 @@ export default function Support() {
           eyebrow={ko ? "08-3. 지원" : "08-3. Support"}
           title={ko ? "막힌 조각을 같이 풀어요" : "Untangle stuck pieces together"}
           subtitle={ko ? "응답 시간 · 문의 · 도움말" : "Response time · contact · help"}
-          island="relationship"
-          worker="gadi"
+          island={VILLAGE_UI.relation.island}
+          worker={VILLAGE_UI.relation.worker}
+          accent={VILLAGE_UI.relation.accent}
           speech={ko ? "문제가 생기면 메일로 보내주세요. 필요한 맥락부터 차분히 볼게요." : "Send us what got stuck. We'll start from the context."}
-          islandSize={250}
-          workerSize={104}        />
+        />
 
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{ko ? "응답 시간" : "Response time"}</Text>

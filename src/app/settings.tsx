@@ -15,6 +15,7 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { useTheme } from "@/lib/theme/ThemeContext";
+import { VILLAGE_UI } from "@/lib/village-ui";
 import {
   deleteAllChatUsage,
   deleteAllUserData,
@@ -153,8 +154,9 @@ export default function Settings() {
               ? "테마 · 데이터 · 프로필 · 지원"
               : "Theme · data · profile · support"
           }
-          island="relationship"
-          worker="gadi"
+          island={VILLAGE_UI.relation.island}
+          worker={VILLAGE_UI.relation.worker}
+          accent={VILLAGE_UI.relation.accent}
           speech={
             locale === "ko"
               ? "삭제는 되돌릴 수 없어요. 필요한 조각은 먼저 내보내기로 챙겨두세요."

@@ -15,6 +15,7 @@ import { STYLE_LABEL, STYLE_DESCRIPTION } from "@/lib/persona/attachment";
 import { labelFramework } from "@/lib/audit/frameworkLabels";
 import type { Framework } from "@/lib/audit/questions";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 export default function Persona() {
   const { i18n } = useTranslation();
@@ -76,8 +77,9 @@ export default function Persona() {
                 ? "도구 하나만 마쳐도 자기 모델 v1을 만들 수 있어요"
                 : "Finish one tool and we can build self-model v1"
             }
-            island="core"
-            worker="archi"
+            island={CORE_VILLAGE_UI.island}
+            worker={CORE_VILLAGE_UI.worker}
+            accent={CORE_VILLAGE_UI.accent}
             speech={
               locale === "ko"
                 ? "검사 하나만 끝내도 윤곽이 생겨요. 같이 첫 조각부터 모아볼까요?"
@@ -131,8 +133,9 @@ export default function Persona() {
                 ? "일기 기반 추정 · 평가하면 실측으로 업데이트"
                 : "Journal-based estimate · assessments update it"
           }
-          island="core"
-          worker="archi"
+          island={CORE_VILLAGE_UI.island}
+          worker={CORE_VILLAGE_UI.worker}
+          accent={CORE_VILLAGE_UI.accent}
           speech={
             locale === "ko"
               ? "반복해서 보이는 모습들을 모았어요. 중심 화면에서 방향으로 이어볼 수 있어요."

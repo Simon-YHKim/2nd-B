@@ -11,6 +11,7 @@ import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 type Status = "in_use" | "optional" | "planned" | "not_used";
 
@@ -105,15 +106,15 @@ export default function Permissions() {
           eyebrow={locale === "ko" ? "권한 안내" : "Permissions"}
           title={locale === "ko" ? "필요한 접근만 밝히고 써요" : "Use only what is needed"}
           subtitle={locale === "ko" ? "네트워크 · 알림 · 클립보드" : "Network · notifications · clipboard"}
-          island="records"
-          worker="gadi"
+          island={VILLAGE_UI.relation.island}
+          worker={VILLAGE_UI.relation.worker}
+          accent={VILLAGE_UI.relation.accent}
           speech={
             locale === "ko"
               ? "권한은 기능이 필요할 때만 요청하고, 선택 권한은 거절해도 괜찮아요."
               : "Permissions are requested only when useful, and optional ones can be declined."
           }
-          islandSize={250}
-          workerSize={104}        />
+        />
 
         <View style={styles.cards}>
           {ENTRIES.map((e) => {

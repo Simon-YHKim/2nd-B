@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useTheme } from "@/lib/theme/ThemeContext";
+import { VILLAGE_UI } from "@/lib/village-ui";
 
 export default function ThemeScreen() {
   const { i18n } = useTranslation();
@@ -35,11 +36,11 @@ export default function ThemeScreen() {
           eyebrow={locale === "ko" ? "08-4. 테마" : "08-4. Theme"}
           title={locale === "ko" ? "마을의 빛을 고르세요" : "Choose the village light"}
           subtitle={locale === "ko" ? "밤빛 기본 · 밝은 보조 톤" : "Night default · bright secondary tone"}
-          island="inspiration"
-          worker="lulu"
+          island={VILLAGE_UI.taste.island}
+          worker={VILLAGE_UI.taste.worker}
+          accent={VILLAGE_UI.taste.accent}
           speech={locale === "ko" ? "메인 그래프는 언제나 밤빛이에요. 별과 연결이 가장 또렷하거든요." : "The main graph always keeps the night sky so stars and links stay crisp."}
-          islandSize={250}
-          workerSize={104}        />
+        />
 
         <View style={styles.list}>
           {options.map((o) => {

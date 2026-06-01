@@ -15,6 +15,7 @@ import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 interface HubLink {
   route: Href;
@@ -129,15 +130,15 @@ export default function Profile() {
           eyebrow={locale === "ko" ? "나" : "Me"}
           title={locale === "ko" ? `${displayName}의 마을 표식` : `${displayName}'s village mark`}
           subtitle={locale === "ko" ? "나를 알아가고 · 활용하고 · 관리하는 곳" : "Know, use, and manage yourself"}
-          island="core"
-          worker="archi"
+          island={CORE_VILLAGE_UI.island}
+          worker={CORE_VILLAGE_UI.worker}
+          accent={CORE_VILLAGE_UI.accent}
           speech={
             locale === "ko"
               ? "나에 관한 건 다 여기 모아 뒀어요. 천천히 둘러봐요."
               : "Everything about you is gathered here. Take your time."
           }
-          islandSize={250}
-          workerSize={104}        />
+        />
 
         {/* Account — compact now that the hub is the focus. */}
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
