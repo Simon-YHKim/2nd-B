@@ -140,7 +140,8 @@ export function buildClipperPrompt(
 
 /** Parse + sanitize the LLM reply into a ClipperClassification. Pure → tested.
  *  Anchors every field on a safe default keyed off the URL-derived kind. */
-export function parseClipperResult(raw: string, fallbackKind: SourceKind): ClipperClassification {
+export function parseClipperResult(raw: string, fallbackKind: SourceKind, forcedKind?: SourceKind): ClipperClassification {
+  const anchorKind = forcedKind ?? fallbackKind;
   const safe = (kind: SourceKind): ClipperClassification => ({
     kind,
     track: "daily",
@@ -155,15 +156,16 @@ export function parseClipperResult(raw: string, fallbackKind: SourceKind): Clipp
   let parsed: Record<string, unknown>;
   try {
     const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) return safe(fallbackKind);
+    if (!match) return safe(anchorKind);
     parsed = JSON.parse(match[0]) as Record<string, unknown>;
   } catch {
-    return safe(fallbackKind);
+    return safe(anchorKind);
   }
 
-  const kind: SourceKind = SOURCE_KINDS.includes(parsed.kind as SourceKind)
-    ? (parsed.kind as SourceKind)
-    : fallbackKind;
+  // forcedKind (an authored trigger match) wins over the model's kind so the
+  // explicit route holds; otherwise take the model's valid kind or the fallback.
+  const kind: SourceKind =
+    forcedKind ?? (SOURCE_KINDS.includes(parsed.kind as SourceKind) ? (parsed.kind as SourceKind) : fallbackKind);
   const tmpl = CLIPPER_TEMPLATES[kind];
 
   const track: WikiTrack = parsed.track === "pro" ? "pro" : "daily";
@@ -237,16 +239,17 @@ export async function classifyClipper(
 
   const { system, user } = buildClipperPrompt(baselineKind, trimmed, url, locale, customFormats);
   const reply = await callGemini({ userId, locale, purpose: "clipper_classify", system, user });
-  const classification = parseClipperResult(reply.text, baselineKind);
+  // A matched trigger is an explicit routing override, so force the kind (and its
+  // prop schema) to the authored baseKind rather than letting the model pick.
+  const classification = parseClipperResult(reply.text, baselineKind, matchedFormat?.baseKind);
 
-  // Seed the matched format's authored defaults: union its default tags and use
-  // its target bucket when the model left one unset.
+  // Apply the matched format's authored routing: force its target bucket when set
+  // (it must win over the bundled template default the parser fills in) and union
+  // its default tags onto the model's.
   if (matchedFormat) {
+    if (matchedFormat.targetCategory) classification.targetCategory = matchedFormat.targetCategory;
     if (matchedFormat.defaultTags.length > 0) {
       classification.tags = Array.from(new Set([...classification.tags, ...matchedFormat.defaultTags]));
-    }
-    if (!classification.targetCategory && matchedFormat.targetCategory) {
-      classification.targetCategory = matchedFormat.targetCategory;
     }
   }
   return classification;

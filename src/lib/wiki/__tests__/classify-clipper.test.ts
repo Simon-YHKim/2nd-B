@@ -93,4 +93,20 @@ describe("parseClipperResult", () => {
     expect(r.track).toBe("daily");
     expect(r.targetCategory).toBe("entities"); // code template default
   });
+
+  it("forces the kind over the model when a trigger match supplies forcedKind", () => {
+    // Model picked video, but the user's authored trigger routes this to article.
+    const r = parseClipperResult(JSON.stringify({ kind: "video", track: "pro" }), "video", "article");
+    expect(r.kind).toBe("article");
+    expect(r.track).toBe("pro"); // other model fields still flow through
+  });
+
+  it("anchors a forced kind even on unparseable / empty replies", () => {
+    expect(parseClipperResult("not json", "video", "article").kind).toBe("article");
+    expect(parseClipperResult("", "inbox", "code").kind).toBe("code");
+  });
+
+  it("leaves the model's kind authoritative when no forcedKind is given", () => {
+    expect(parseClipperResult(JSON.stringify({ kind: "video" }), "article").kind).toBe("video");
+  });
 });
