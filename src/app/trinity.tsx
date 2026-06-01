@@ -20,7 +20,6 @@ import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { AppNav } from "@/components/ui/AppNav";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 export type TrinityDomain = "health" | "app" | "brain" | "finance";
@@ -250,7 +249,6 @@ export default function Trinity() {
           ))}
         </View>
 
-        <AppNav locale={locale} />
       </ScrollView>
     </PremiumAppShell>
   );

@@ -23,7 +23,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { AppNav } from "@/components/ui/AppNav";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { getPersona, PERSONAS } from "@/lib/chat/personas";
@@ -369,7 +368,6 @@ export default function Jarvis() {
           />
           <Button label={t("send")} variant="primary" onPress={handleSend} disabled={!canSend} loading={sending} />
         </View>
-        <AppNav locale={locale} />
       </KeyboardAvoidingView>
 
       {/* 첫 진입 인사 모달 — 알았어요 / 오늘은 그만 볼래요 */}

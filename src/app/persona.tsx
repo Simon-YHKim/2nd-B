@@ -6,7 +6,6 @@ import { Redirect, router } from "expo-router";
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { AppNav } from "@/components/ui/AppNav";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
@@ -104,7 +103,6 @@ export default function Persona() {
             ))}
           </View>
         </ScrollView>
-        <AppNav locale={locale} />
       </PremiumAppShell>
     );
   }
@@ -314,7 +312,6 @@ export default function Persona() {
             onPress={() => router.replace("/journal")}
           />
         </View>
-        <AppNav locale={locale} />
       </ScrollView>
       {/* 아치 appears briefly when the persona model rebuilds (companion pack §3) */}
       {companionMoment ? (

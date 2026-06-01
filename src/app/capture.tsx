@@ -40,7 +40,6 @@ import { Input } from "@/components/ui/Input";
 import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { AppNav } from "@/components/ui/AppNav";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { detectClipperKind } from "@/lib/wiki/clipper-kind";
 import { pickAndOcrImage } from "@/lib/wiki/capture-image";
@@ -950,7 +949,6 @@ export default function Capture() {
               </Text>
             </Pressable>
           </View>
-          <AppNav locale={locale} />
         </ScrollView>
       </KeyboardAvoidingView>
       {/* 루루 appears briefly to carry the new shard (companion pack §3) */}

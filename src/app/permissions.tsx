@@ -8,7 +8,6 @@ import { useTranslation } from "react-i18next";
 import { Link } from "expo-router";
 
 import { PremiumAppShell, SceneHero } from "@/components/premium";
-import { AppNav } from "@/components/ui/AppNav";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -174,7 +173,6 @@ export default function Permissions() {
             <Button label={locale === "ko" ? "사용 안내서로" : "Open the manual"} variant="secondary" />
           </Link>
         </View>
-        <AppNav locale={locale} />
       </ScrollView>
     </PremiumAppShell>
   );
