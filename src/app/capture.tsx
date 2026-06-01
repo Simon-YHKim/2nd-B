@@ -42,7 +42,7 @@ import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { detectClipperKind } from "@/lib/wiki/clipper-kind";
-import { pickAndOcrImage } from "@/lib/wiki/capture-image";
+import { pickImageAsset, ocrImageAsset } from "@/lib/wiki/capture-image";
 import { pickFile, type PickedFile } from "@/lib/wiki/capture-file";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
@@ -75,7 +75,7 @@ const MODE_LABEL: Record<Mode, { en: string; ko: string }> = {
   journal: { en: "Journal", ko: "일기" },
   memo: { en: "Memo", ko: "메모" },
   linkclip: { en: "Link/Clip", ko: "링크/스크랩" },
-  ocr: { en: "OCR", ko: "이미지" },
+  ocr: { en: "OCR", ko: "OCR" },
   file: { en: "File", ko: "문서" },
 };
 
@@ -181,7 +181,8 @@ export default function Capture() {
   const [track, setTrack] = useState<WikiTrack>("daily");
   const [body, setBody] = useState("");
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
-  const [ocrPreview, setOcrPreview] = useState<{ uri: string } | null>(null);
+  const [pickedImage, setPickedImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
+  const [extracting, setExtracting] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [tagsEditable, setTagsEditable] = useState<string[]>([]);
@@ -256,7 +257,8 @@ export default function Capture() {
   function reset() {
     setBody("");
     setPickedFile(null);
-    setOcrPreview(null);
+    setPickedImage(null);
+    setExtracting(false);
     setTagsEditable([]);
     setTopic("");
     setConclusion("");
@@ -267,18 +269,34 @@ export default function Capture() {
     setFormatSavedMsg(null);
   }
 
-  async function runOcr(source: "library" | "camera") {
+  async function pickImage(source: "library" | "camera") {
     if (!userId) return;
     try {
-      const r = await pickAndOcrImage(userId, locale, source);
-      if (!r) return;
-      setOcrPreview({ uri: r.uri });
-      setBody(r.markdown);
+      const img = await pickImageAsset(source);
+      if (!img) return;
+      setPickedImage(img);
+      setBody(""); // clear any prior extraction; the user presses 추출하기 to fill
+    } catch (e) {
+      Alert.alert(
+        locale === "ko" ? "이미지 선택 실패" : "Image pick failed",
+        (e as Error).message,
+      );
+    }
+  }
+
+  async function runExtract() {
+    if (!userId || !pickedImage) return;
+    setExtracting(true);
+    try {
+      const md = await ocrImageAsset(userId, locale, pickedImage);
+      setBody(md);
     } catch (e) {
       Alert.alert(
         locale === "ko" ? "이미지 읽기 실패" : "OCR failed",
         (e as Error).message,
       );
+    } finally {
+      setExtracting(false);
     }
   }
 
@@ -861,20 +879,28 @@ export default function Capture() {
               <Button
                 label={locale === "ko" ? "카메라" : "Camera"}
                 variant="secondary"
-                onPress={() => runOcr("camera")}
+                onPress={() => pickImage("camera")}
               />
               <Button
                 label={locale === "ko" ? "갤러리" : "Library"}
                 variant="secondary"
-                onPress={() => runOcr("library")}
+                onPress={() => pickImage("library")}
               />
             </View>
           ) : null}
 
-          {mode === "ocr" && ocrPreview ? (
+          {mode === "ocr" && pickedImage ? (
             <View style={styles.previewCard}>
               <Text variant="caption" color="brand">{locale === "ko" ? "미리보기" : "Preview"}</Text>
-              <Image source={{ uri: ocrPreview.uri }} style={styles.imagePreview} resizeMode="contain" />
+              <Image source={{ uri: pickedImage.uri }} style={styles.imagePreview} resizeMode="contain" />
+              <Button
+                label={locale === "ko" ? "추출하기" : "Extract text"}
+                variant="primary"
+                onPress={runExtract}
+                loading={extracting}
+                disabled={extracting}
+                style={{ marginTop: spacing.sm }}
+              />
             </View>
           ) : null}
 
