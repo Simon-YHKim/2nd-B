@@ -174,7 +174,7 @@ async function routeCrisis(
 
 export async function callGemini<T = string>(input: PromptInput): Promise<GeminiResult<T>> {
   // C9: pre-call classification of user input. Red zone never reaches the LLM.
-  const inputSafety = classifyInput(input.user, input.locale);
+  const inputSafety = classifyInput(input.user, input.locale, { minor: input.minor });
   const promptHash = djb2(`${input.system ?? ""}${input.user}`);
   if (inputSafety.zone === "red") {
     return (await routeCrisis(
@@ -199,7 +199,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       mockTable[input.purpose]?.[input.locale] ??
       (input.locale === "ko" ? "[MOCK] 응답 준비 중이에요." : "[MOCK] Reply pending.");
     const latencyMs = Date.now() - t0;
-    const outputSafety = classifyInput(text, input.locale);
+    const outputSafety = classifyInput(text, input.locale, { minor: input.minor });
     const audit = {
       promptHash: djb2(`${input.system ?? ""}${input.user}`),
       outputHash: djb2(text),
@@ -263,7 +263,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   }
 
   // Re-classify the output to record the final zone in audit log.
-  const outputSafety = classifyInput(text, input.locale);
+  const outputSafety = classifyInput(text, input.locale, { minor: input.minor });
 
   const audit = {
     promptHash: djb2(`${input.system ?? ""}${input.user}`),
