@@ -132,4 +132,16 @@ describe("custom format prop schema (queue B)", () => {
     expect(r.props["key-claims"]).toEqual(["a", "b"]);
     expect(r.props.stray).toBeUndefined();
   });
+
+  it("coerces a number-typed custom prop to a real number, dropping non-numeric replies", () => {
+    const numProps: ClipperAiProperty[] = [
+      { name: "servings", type: "number", describe: { en: "How many servings", ko: "인분" } },
+    ];
+    const get = (v: unknown) =>
+      parseClipperResult(JSON.stringify({ kind: "article", props: { servings: v } }), "article", "article", numProps)
+        .props.servings;
+    expect(get("4")).toBe(4); // numeric string from the model
+    expect(get(6)).toBe(6); // already a number
+    expect(get("lots")).toBeUndefined(); // non-numeric dropped, not stored as a string
+  });
 });

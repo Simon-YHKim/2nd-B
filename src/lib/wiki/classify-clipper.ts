@@ -33,7 +33,7 @@ export interface ClipperClassification {
   summary: string;
   actionableTakeaway: string;
   /** Kind-specific frontmatter props (only the keys the template declares). */
-  props: Record<string, string | string[]>;
+  props: Record<string, string | string[] | number>;
 }
 
 function sanitizeTag(t: string): string {
@@ -191,7 +191,7 @@ export function parseClipperResult(raw: string, fallbackKind: SourceKind, forced
 
   // Only keep props the schema declares, in their declared type. A matched
   // custom format overrides the bundled kind's props with its own.
-  const props: Record<string, string | string[]> = {};
+  const props: Record<string, string | string[] | number> = {};
   const rawProps = (parsed.props ?? {}) as Record<string, unknown>;
   for (const p of propSchema ?? tmpl.aiProperties) {
     const v = rawProps[p.name];
@@ -200,6 +200,11 @@ export function parseClipperResult(raw: string, fallbackKind: SourceKind, forced
       const arr = Array.isArray(v) ? v.map((x) => String(x).trim()) : String(v).split(",").map((x) => x.trim());
       const cleaned = arr.filter((x) => x.length > 0).slice(0, 8);
       if (cleaned.length) props[p.name] = cleaned;
+    } else if (p.type === "number") {
+      // A user-defined number prop must land as a real number so it stays valid
+      // numeric frontmatter; a non-numeric model reply is dropped, not stringified.
+      const n = typeof v === "number" ? v : Number(String(v).trim());
+      if (Number.isFinite(n)) props[p.name] = n;
     } else {
       const s = String(v).trim().slice(0, 200);
       if (s.length) props[p.name] = s;
