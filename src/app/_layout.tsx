@@ -53,7 +53,7 @@ export default function RootLayout() {
               <Stack.Screen name="inbox" />
               <Stack.Screen name="formats" />
               <Stack.Screen name="jarvis" />
-              <Stack.Screen name="wiki" />
+              <Stack.Screen name="wiki" options={{ animation: "fade" }} />
               <Stack.Screen name="manual" />
               <Stack.Screen name="big-five" />
               <Stack.Screen name="insights" />
@@ -67,6 +67,14 @@ export default function RootLayout() {
               <Stack.Screen name="account" />
               <Stack.Screen name="import" />
               <Stack.Screen name="interview" />
+              {/* Village detail + center: crossfade so the graph→village
+                  transition reads as the zoomed island resolving into the
+                  screen, and BACK doesn't hard-cut to a re-popping graph. The
+                  six districts route to /records, /wiki, /imagine; the center
+                  to /core-brain. */}
+              <Stack.Screen name="records" options={{ animation: "fade" }} />
+              <Stack.Screen name="imagine" options={{ animation: "fade" }} />
+              <Stack.Screen name="core-brain" options={{ animation: "fade" }} />
               <Stack.Screen name="+not-found" />
               </ThemedStack>
               <BackArrow />

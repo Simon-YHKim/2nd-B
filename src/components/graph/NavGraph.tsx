@@ -53,6 +53,7 @@ import { cosmic } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { pitchForTier, playPop } from "@/lib/audio/pop";
 import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
+import { prefersReducedMotion } from "@/lib/motion/signature";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { TierIcon, DOMAIN_TIER_ICON } from "@/components/art/TierIcon";
@@ -64,7 +65,7 @@ import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
-import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus, WORLD_CENTER } from "./world-layout";
+import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus } from "./world-layout";
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 
@@ -80,7 +81,12 @@ const AnimatedLine = Animated.createAnimatedComponent(Line);
 // overshoot is small (1.25x → 1.0x, ~400ms total) so it stays inside
 // the tight, controlled feel of the rest of the design.
 const SPAWN_LOGO_DELAY_MS = 620;     // logo fade is ~750ms; start when it's mostly faded
-const SPAWN_SESSION_KEY = "navGraphSpawned_v1";
+// Spawn-once guard. Was sessionStorage("navGraphSpawned_v1"), but sessionStorage
+// is absent on native, so the tier-ordered "뽁" spawn replayed on every return
+// to "/" — that is the BACK-from-village "나의 중심" pop this redesign removes.
+// A module-level flag survives route remounts within the JS session on web AND
+// native, so a return snaps straight to the settled graph.
+let navGraphSpawnPlayed = false;
 // Ambient pulse interval — was 4000ms before, user asked for ~30% faster
 // so the dots feel a touch more "breathing" without becoming jittery.
 const PULSE_INTERVAL_MS = 2800;
@@ -661,12 +667,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // to the settled state with no audio.
   useEffect(() => {
     const allIds = [CENTER_NODE.id, ...MENU_NODES.map((n) => n.id), ...Array.from(dataPositions.keys())];
-    let alreadyPlayed = false;
-    try {
-      if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(SPAWN_SESSION_KEY) === "1") {
-        alreadyPlayed = true;
-      }
-    } catch { /* ignore — Private mode, native, etc. */ }
+    const alreadyPlayed = navGraphSpawnPlayed;
 
     for (const id of allIds) {
       if (!spawnValues.current.has(id)) {
@@ -718,7 +719,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         await delay(SPAWN_TIER_GAP_MS);
       }
       if (!cancelled) {
-        try { sessionStorage.setItem(SPAWN_SESSION_KEY, "1"); } catch { /* ignore */ }
+        navGraphSpawnPlayed = true;
       }
     };
     void run();
@@ -831,6 +832,39 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       Animated.timing(bubbleAnim, { toValue: 1.0, duration: BUBBLE_POP_SETTLE_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
     ]).start();
   }, [activeId, bubbleAnim]);
+
+  // Centered village zoom-in overlay (graph-transition redesign): tapping a
+  // village island fills the screen center with that island, smoothly scaling
+  // in, while the graph recedes behind a soft dim. Decoupled from the pan/zoom
+  // camera so it can truly fill + center any district regardless of the camera
+  // clamp. The same island PNG renders on the village detail (SceneHero), so
+  // pressing 살펴보기 crossfades (route animation:"fade") from this overlay into
+  // the detail with visual continuity. zoomMountId keeps the island mounted
+  // through the fade-out.
+  const zoomIslandId = activeId && ISLAND_FOR[activeId] ? activeId : null;
+  const zoomReveal = useRef(new Animated.Value(0)).current;
+  const [zoomMountId, setZoomMountId] = useState<string | null>(null);
+  useEffect(() => {
+    const reduce = prefersReducedMotion();
+    if (zoomIslandId) {
+      setZoomMountId(zoomIslandId);
+      Animated.timing(zoomReveal, {
+        toValue: 1,
+        duration: reduce ? 0 : 280,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(zoomReveal, {
+        toValue: 0,
+        duration: reduce ? 0 : 200,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setZoomMountId(null);
+      });
+    }
+  }, [zoomIslandId, zoomReveal]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -983,24 +1017,30 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     const willOpen = id !== activeId;
     setActiveId(willOpen ? id : null);
     if (!willOpen) return;
+    // Village islands (the six tier-2 districts + the center) get the centered
+    // zoom-in overlay below instead of a camera spring: the overlay fills the
+    // screen with the island, so moving the graph camera behind it is both
+    // unnecessary and fights the pan clamp at high fill scales.
+    if (ISLAND_FOR[id]) return;
+    // Tier-3 sub-places keep the gentle sector focus into the upper area so the
+    // tapped place sits above the bottom sheet (#9/#10).
     const wp = worldMenu.get(id);
     const focus = wp ? sectorFocus(wp, MENU_NODES.filter((n) => n.tier === 2).length) : null;
     if (focus) {
-      // Fill the space ABOVE the bottom sheet with the village + its sector
-      // (#10): aim the sector into the upper ~38% of the screen and use a
-      // modest scale so it reads as a calm move, not a dizzy lunge (#9).
       focusWorldPoint(focus.focus.x, focus.focus.y, 1.5, height * 0.38);
-    } else if (id === CENTER_NODE.id) {
-      // Center tap re-centers the whole village at home scale.
-      focusWorldPoint(WORLD_CENTER.x, WORLD_CENTER.y, 1);
     }
   }
 
   function handleLook() {
     if (!activeNode?.href) return;
     const href = activeNode.href;
-    setActiveId(null);
+    // Crossfade into the village detail (route animation:"fade") with the
+    // zoomed island still on screen, so the big island resolves into the
+    // detail's hero (same PNG). Clear the focus AFTER the detail has taken over
+    // so a later BACK returns to a clean, settled graph. ~360ms ≈ the platform
+    // fade; tunable.
     router.push(href);
+    setTimeout(() => setActiveId(null), 360);
   }
 
   function handleAskSecondB() {
@@ -1032,6 +1072,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     setActiveId(null);
     router.push(village?.href ?? "/records");
   }
+
+  // Fill size for the centered zoom-in island: large but fully visible above
+  // the bottom sheet ("크게 / 전체 보임"). Tunable on device.
+  const zoomFillSize = Math.min(width * 0.92, height * 0.5);
 
   return (
     <View ref={outerRef} style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -1239,6 +1283,35 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         </View>
       ) : null}
 
+      {/* Centered village zoom-in (graph-transition redesign): sits above the
+          graph, below the bottom sheet (zIndex). The same island PNG renders on
+          the village detail, so 살펴보기 crossfades into it. */}
+      {zoomMountId && ISLAND_FOR[zoomMountId] ? (
+        <Animated.View pointerEvents="none" style={styles.zoomOverlay}>
+          <Animated.View
+            style={[StyleSheet.absoluteFill, styles.zoomBackdrop, { opacity: zoomReveal as never }]}
+          />
+          <Animated.View
+            style={[
+              styles.zoomIslandWrap,
+              {
+                opacity: zoomReveal as never,
+                transform: [
+                  {
+                    scale: zoomReveal.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.86, 1],
+                    }) as never,
+                  },
+                ],
+              },
+            ]}
+          >
+            <IslandArt id={ISLAND_FOR[zoomMountId]!} size={zoomFillSize} />
+          </Animated.View>
+        </Animated.View>
+      ) : null}
+
       {/* Node bottom sheet (§7) — screen-fixed, outside the zoom transform. */}
       {activeNode ? (
         <NodeSheet
@@ -1429,6 +1502,18 @@ function DataNodeSheet({
 
 const styles = StyleSheet.create({
   root: { ...StyleSheet.absoluteFill as object },
+  // Centered village zoom-in overlay (graph → detail transition).
+  zoomOverlay: {
+    ...(StyleSheet.absoluteFill as object),
+    alignItems: "center",
+    justifyContent: "center",
+    // Bias the island into the area ABOVE the bottom sheet so the popup never
+    // covers it ("팝업을 제외한 나머지 화면의 정 중앙"). Tunable on device.
+    paddingBottom: "34%",
+    zIndex: 18,
+  },
+  zoomBackdrop: { backgroundColor: "rgba(7,10,24,0.55)" },
+  zoomIslandWrap: { alignItems: "center", justifyContent: "center" },
   menuDotWrap: { position: "absolute", alignItems: "center", justifyContent: "center" },
   nodeArtWrap: {
     flex: 1,
