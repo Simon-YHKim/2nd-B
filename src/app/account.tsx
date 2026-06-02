@@ -30,8 +30,9 @@ import { VILLAGE_UI } from "@/lib/village-ui";
 const CONFIRM_PHRASE = "DELETE";
 
 export default function Account() {
-  const { t } = useTranslation("consent");
+  const { t, i18n } = useTranslation("consent");
   const { userId, loading } = useAuth();
+  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [origDob, setOrigDob] = useState<string | null>(null);
   const [birthDate, setBirthDate] = useState("");
