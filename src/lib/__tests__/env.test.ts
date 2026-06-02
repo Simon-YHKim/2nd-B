@@ -140,6 +140,14 @@ describe("getEnv", () => {
     expect(() => getEnv()).toThrow();
   });
 
+  test("USE_V3_ART defaults to false (legacy PNG art)", async () => {
+    process.env.EXPO_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = "x".repeat(40);
+    delete process.env.EXPO_PUBLIC_USE_V3_ART;
+    const { getEnv } = await import("../env");
+    expect(getEnv().EXPO_PUBLIC_USE_V3_ART).toBe(false);
+  });
+
   test("IS_DEMO_BUILD correctly identifies demo URLs", async () => {
     const { IS_DEMO_BUILD } = await import("../env");
     expect(IS_DEMO_BUILD(undefined)).toBe(true);
