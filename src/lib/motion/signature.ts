@@ -70,7 +70,7 @@ export const IMAGINE_MOTION: ImagineMotionSpec = {
   restOpacity: 0.6,
   maxScale: 1.05,
   durationMs: 600,
-  accent: "vela",
+  accent: "secondb", // Vela retired; legacy imagine motion is dormant (공상 → Divergent)
 };
 
 /** Total wall-clock of the save pop, ms. Documented as ~400ms. */

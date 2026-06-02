@@ -13,7 +13,7 @@
 
 import { characters as characterColors } from "./theme/tokens";
 
-export type CharacterId = "secondb" | "momo" | "lulu" | "archi" | "vela" | "gadi";
+export type CharacterId = "secondb" | "momo" | "lulu" | "archi" | "gadi";
 
 export interface CharacterMeta {
   id: CharacterId;
@@ -74,17 +74,6 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
       en: "These pieces line up into growth.",
     },
   },
-  vela: {
-    id: "vela",
-    name: { ko: "벨라", en: "Vela" },
-    role: { ko: "공상 확장", en: "Imagination guide" },
-    accent: characterColors.vela,
-    routes: ["/imagine"],
-    line: {
-      ko: "그 생각, 장면으로 펼쳐볼까?",
-      en: "Want to lay that thought out as scenes?",
-    },
-  },
   gadi: {
     id: "gadi",
     name: { ko: "릴리아", en: "Relia" },
@@ -109,4 +98,4 @@ export function characterForRoute(pathname: string): CharacterMeta | null {
 }
 
 /** All characters in display order — useful for sprite sheets / about pages. */
-export const CHARACTER_ORDER: CharacterId[] = ["secondb", "momo", "lulu", "archi", "vela", "gadi"];
+export const CHARACTER_ORDER: CharacterId[] = ["secondb", "momo", "lulu", "archi", "gadi"];

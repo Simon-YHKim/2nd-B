@@ -66,7 +66,7 @@ const CONTACT_WIDTH_RATIO = 0.42;
 // Stable per-worker phase (ms) so the village never steps in lockstep. Keyed by
 // worker id so the offset survives remounts (global-clock continuity).
 const PHASE: Record<WorkerId, number> = {
-  secondb: 0, archi: 1500, gadi: 3000, lulu: 4500, momo: 6000, vela: 7500, lumi: 2200,
+  secondb: 0, archi: 1500, gadi: 3000, lulu: 4500, momo: 6000, lumi: 2200,
 };
 
 export function CharacterPathLayer({ commutes, hidden, locale = "ko", spriteSize = DEFAULT_SPRITE }: Props) {

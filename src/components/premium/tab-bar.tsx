@@ -18,7 +18,7 @@ import { PRIMARY_TAB_PATHS } from "@/lib/nav/tabs";
 // records(/records) and store(/wiki) tabs were removed: core-brain folds into
 // the 나 hub (Phase 5), wiki + records are reached through the graph villages
 // (Phase 4 routes a village to its records domain filter).
-type TabId = "graph" | "capture" | "jarvis" | "imagine" | "profile";
+type TabId = "graph" | "capture" | "jarvis" | "profile";
 
 interface Tab {
   id: TabId;
@@ -31,7 +31,6 @@ const TABS: Tab[] = [
   { id: "graph", href: "/", ko: "그래프", en: "Graph" },
   { id: "capture", href: "/capture", ko: "담기", en: "Capture" },
   { id: "jarvis", href: "/jarvis", ko: "세컨비", en: "SecondB" },
-  { id: "imagine", href: "/imagine", ko: "공상", en: "Imagine" },
   { id: "profile", href: "/profile", ko: "나", en: "Me" },
 ];
 
@@ -90,13 +89,6 @@ function TabIcon({ id, color }: { id: TabId; color: string }) {
           />
           <Circle cx="9" cy="9" r="1.1" fill={color} />
           <Circle cx="13" cy="9" r="1.1" fill={color} />
-        </Svg>
-      );
-    case "imagine":
-      // 공상 — a crescent moon (the future self / dream axis).
-      return (
-        <Svg width={22} height={22} viewBox="0 0 22 22">
-          <Path d="M13 3 A8.5 8.5 0 1 0 13 19 A6.5 6.5 0 1 1 13 3 Z" fill={color} />
         </Svg>
       );
     case "profile":

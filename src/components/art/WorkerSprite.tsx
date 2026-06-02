@@ -15,14 +15,13 @@ import { semantic } from "@/lib/theme/tokens";
 // imageRendering pixelated keeps the strip crisp; web-only, ignored native.
 const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
 
-export type WorkerId = "secondb" | "momo" | "lulu" | "archi" | "vela" | "gadi" | "lumi";
+export type WorkerId = "secondb" | "momo" | "lulu" | "archi" | "gadi" | "lumi";
 
 const STRIPS: Record<WorkerId, number> = {
   secondb: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/secondb_premium_walk_strip_6f.png"),
   momo: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/momo_premium_walk_strip_6f.png"),
   lulu: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lulu_premium_walk_strip_6f.png"),
   archi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/archi_premium_walk_strip_6f.png"),
-  vela: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/vela_premium_walk_strip_6f.png"),
   gadi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/gadi_premium_walk_strip_6f.png"),
   lumi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lumi_premium_walk_strip_6f.png"),
 };
@@ -34,7 +33,6 @@ const IDLES: Record<WorkerId, number> = {
   momo: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/momo_premium_idle.png"),
   lulu: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lulu_premium_idle.png"),
   archi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/archi_premium_idle.png"),
-  vela: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/vela_premium_idle.png"),
   gadi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/gadi_premium_idle.png"),
   lumi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lumi_premium_idle.png"),
 };
@@ -67,7 +65,7 @@ function subscribe(fn: (t: number) => void): () => void {
 
 // Per-worker phase offset so they don't all step in lockstep.
 const PHASE_OFFSET: Record<WorkerId, number> = {
-  secondb: 0, momo: 1, lulu: 2, archi: 3, vela: 4, gadi: 5, lumi: 2,
+  secondb: 0, momo: 1, lulu: 2, archi: 3, gadi: 5, lumi: 2,
 };
 
 function ContactShadow({ size }: { size: number }) {

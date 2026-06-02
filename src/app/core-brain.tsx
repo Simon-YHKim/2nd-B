@@ -229,9 +229,9 @@ export default function CoreBrain() {
               : "Let's narrow this center into one next step."}
           </Text>
           <Button
-            label={locale === "ko" ? "공상 작업실에서 펼치기" : "Open in the imagine workshop"}
+            label={locale === "ko" ? "공상 모드로 펼치기" : "Open in Divergent mode"}
             variant="secondary"
-            onPress={() => router.push("/imagine")}
+            onPress={() => router.push({ pathname: "/jarvis", params: { mode: "divergent" } })}
           />
         </Section>
 

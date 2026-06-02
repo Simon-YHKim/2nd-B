@@ -1,10 +1,10 @@
 import { PERSONAS, getPersona, personaIds } from "../personas";
 import { FORBIDDEN_TERMS } from "@/lib/safety/lexicon";
 
-const WORKER_IDS = ["secondb", "momo", "lulu", "archi", "vela", "gadi", "lumi"] as const;
+const WORKER_IDS = ["secondb", "momo", "lulu", "archi", "gadi", "lumi"] as const;
 
 describe("PERSONAS", () => {
-  test("has all seven workers", () => {
+  test("has all six workers (Vela retired)", () => {
     expect(personaIds().sort()).toEqual([...WORKER_IDS].sort());
   });
 
