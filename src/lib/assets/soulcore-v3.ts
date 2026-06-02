@@ -18,6 +18,12 @@ import NarrativeCore from "../../../public/assets/cosmic-pixel-v3-soulcore/mobil
 import MuseCore from "../../../public/assets/cosmic-pixel-v3-soulcore/mobile-graph/graph/muse_core.svg";
 import GrowthCore from "../../../public/assets/cosmic-pixel-v3-soulcore/mobile-graph/graph/growth_core.svg";
 
+import ArchonIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companions/sprites/archon/archon_idle.svg";
+import ReliaIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companions/sprites/relia/relia_idle.svg";
+import LumenIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companions/sprites/lumen/lumen_idle.svg";
+import ForemanMomoIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companions/sprites/foreman_momo/foreman_momo_idle.svg";
+import IrisIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companions/sprites/iris/iris_idle.svg";
+
 // Legacy IslandArt id → v3 Pattern-Core component. `imagine` is intentionally
 // absent (the imagine core was retired in worldview v-final) → PNG fallback.
 export const V3_CORE_ART: Record<string, FC<SvgProps>> = {
@@ -27,4 +33,16 @@ export const V3_CORE_ART: Record<string, FC<SvgProps>> = {
   records: NarrativeCore,
   inspiration: MuseCore,
   work_growth: GrowthCore,
+};
+
+// WorkerId (internal id) → v3 companion idle pose. `secondb` has no v3 companion
+// sprite (→ PNG fallback). The v3 pack ships per-state SVGs (not a 6-frame
+// strip), so under the flag a worker shows a static idle pose rather than the
+// PNG walk-cycle; its on-graph position still comes from CharacterPathLayer.
+export const V3_WORKER_ART: Record<string, FC<SvgProps>> = {
+  archi: ArchonIdle,
+  gadi: ReliaIdle,
+  lulu: LumenIdle,
+  momo: ForemanMomoIdle,
+  lumi: IrisIdle,
 };
