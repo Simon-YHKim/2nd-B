@@ -64,6 +64,8 @@ import { VILLAGE_UI } from "@/lib/village-ui";
 import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
 import { CrewLayer } from "./CrewLayer";
 import { useCrewCount } from "@/lib/settings/crew-density";
+import { getEnv } from "@/lib/env";
+import { V3_CREW_ART } from "@/lib/assets/soulcore-v3";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
@@ -317,6 +319,14 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // on-graph Log nodes, bounded by the density preference + LOD. The crew sprite
   // render is wired when the assets land; CrewLayer draws nothing until then.
   const { count: crewCount, animated: crewAnimated } = useCrewCount(dataNodes.length);
+  // v3 momo-crew sprites behind EXPO_PUBLIC_USE_V3_ART. Default off →
+  // renderV3Crew is undefined → CrewLayer renders nothing (current behavior).
+  const renderV3Crew = getEnv().EXPO_PUBLIC_USE_V3_ART
+    ? (i: number, sz: number) => {
+        const Crew = V3_CREW_ART[i % V3_CREW_ART.length];
+        return <Crew width={sz} height={sz} />;
+      }
+    : undefined;
 
   // Zoom + pan — pinch to scale, 2-finger pan to translate. The root
   // ReAnimated.View applies the transform; individual node positions /
@@ -1278,7 +1288,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       <CharacterPathLayer commutes={commutes} hidden={activeId != null} locale={locale} spriteSize={GRAPH_WORKER_SIZE} />
       {/* Decorative Narrative crew (worldview v-final). Hidden while a sheet is
           open; renders nothing until the GPT crew sprites land (renderCrew slot). */}
-      <CrewLayer count={crewCount} animated={crewAnimated} visible={activeId == null} />
+      <CrewLayer count={crewCount} animated={crewAnimated} visible={activeId == null} width={width} height={height} renderCrew={renderV3Crew} />
 
       </ReAnimated.View>
     </GestureDetector>

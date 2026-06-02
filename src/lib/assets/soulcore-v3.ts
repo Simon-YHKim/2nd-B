@@ -24,6 +24,14 @@ import LumenIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companion
 import ForemanMomoIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companions/sprites/foreman_momo/foreman_momo_idle.svg";
 import IrisIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companions/sprites/iris/iris_idle.svg";
 
+import CrewWorking from "../../../public/assets/cosmic-pixel-v3-soulcore/momo-crew/sprites/momo_crew_working.svg";
+import CrewIdlePlaying from "../../../public/assets/cosmic-pixel-v3-soulcore/momo-crew/sprites/momo_crew_idle_playing.svg";
+import CrewSlacking from "../../../public/assets/cosmic-pixel-v3-soulcore/momo-crew/sprites/momo_crew_slacking.svg";
+import CrewAchievement from "../../../public/assets/cosmic-pixel-v3-soulcore/momo-crew/sprites/momo_crew_achievement.svg";
+import CrewAnnoyed from "../../../public/assets/cosmic-pixel-v3-soulcore/momo-crew/sprites/momo_crew_annoyed.svg";
+import CrewOverworked from "../../../public/assets/cosmic-pixel-v3-soulcore/momo-crew/sprites/momo_crew_overworked.svg";
+import CrewAngry from "../../../public/assets/cosmic-pixel-v3-soulcore/momo-crew/sprites/momo_crew_angry.svg";
+
 // Legacy IslandArt id → v3 Pattern-Core component. `imagine` is intentionally
 // absent (the imagine core was retired in worldview v-final) → PNG fallback.
 export const V3_CORE_ART: Record<string, FC<SvgProps>> = {
@@ -46,3 +54,15 @@ export const V3_WORKER_ART: Record<string, FC<SvgProps>> = {
   momo: ForemanMomoIdle,
   lumi: IrisIdle,
 };
+
+// Decorative momo-crew (Narrative Core) mood sprites. Indexed by crew index in
+// CrewLayer for ambient variety. Order is just the variant rotation.
+export const V3_CREW_ART: FC<SvgProps>[] = [
+  CrewWorking,
+  CrewIdlePlaying,
+  CrewSlacking,
+  CrewAchievement,
+  CrewAnnoyed,
+  CrewOverworked,
+  CrewAngry,
+];
