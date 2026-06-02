@@ -1,0 +1,44 @@
+:root {
+  --secondb-space-950: #070A18;
+  --secondb-space-900: #0D1530;
+  --secondb-space-800: #16213E;
+  --secondb-space-700: #243056;
+  --secondb-signal-mint: #72F2C7;
+  --secondb-soul-violet: #A78BFA;
+  --secondb-pixel-lamp: #FFD166;
+  --secondb-moon-white: #E8ECF8;
+}
+
+.secondb-fab {
+  width: 64px;
+  height: 64px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 18px rgba(167, 139, 250, 0.32));
+}
+
+.secondb-sprite {
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+}
+
+.secondb-float {
+  animation: secondb-float 2600ms ease-in-out infinite;
+}
+
+.secondb-blink {
+  animation: secondb-blink 4200ms steps(1, end) infinite;
+}
+
+@keyframes secondb-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes secondb-blink {
+  0%, 88%, 100% { opacity: 1; }
+  89%, 92% { opacity: 0.72; }
+}

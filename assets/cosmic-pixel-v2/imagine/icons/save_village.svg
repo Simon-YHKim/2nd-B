@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" shape-rendering="crispEdges" >
+
+  <defs>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="tinyGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="dreamGlow" cx="50%" cy="50%" r="58%">
+      <stop offset="0%" stop-color="#FF9FD6" stop-opacity="0.76"/>
+      <stop offset="45%" stop-color="#A78BFA" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#FF9FD6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="52%">
+      <stop offset="0%" stop-color="#72F2C7" stop-opacity="0.74"/>
+      <stop offset="100%" stop-color="#72F2C7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0D1530" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#16213E" stop-opacity="0.92"/>
+    </linearGradient>
+    <linearGradient id="dreamPanel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16213E" stop-opacity="0.90"/>
+      <stop offset="0.55" stop-color="#0D1530" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#A78BFA" stop-opacity="0.18"/>
+    </linearGradient>
+  </defs>
+
+  <path d="M6 26V12L16 4L26 12V26H6Z" fill="#16213E" stroke="#FFD166" stroke-width="2"/><rect x="13" y="18" width="6" height="8" fill="#FFD166"/>
+</svg>

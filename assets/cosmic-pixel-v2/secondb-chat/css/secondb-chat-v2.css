@@ -1,0 +1,173 @@
+:root {
+  --space-950: #070A18;
+  --space-900: #0D1530;
+  --space-800: #16213E;
+  --space-700: #243056;
+  --signal-blue: #4CC9F0;
+  --signal-mint: #72F2C7;
+  --soul-violet: #A78BFA;
+  --pixel-lamp: #FFD166;
+  --moon-white: #E8ECF8;
+  --mist-gray: #8D98B8;
+  --dream-pink: #FF9FD6;
+  --guard-rose: #FF7A90;
+}
+
+.secondb-chat-screen {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  color: var(--moon-white);
+  background:
+    radial-gradient(circle at 50% 16%, rgba(167, 139, 250, 0.18), transparent 34%),
+    radial-gradient(circle at 18% 72%, rgba(114, 242, 199, 0.08), transparent 28%),
+    var(--space-950);
+  font-family: Pretendard, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.secondb-chat-header {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top));
+  left: 16px;
+  right: 16px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  border: 1px solid rgba(167, 139, 250, 0.30);
+  border-radius: 22px;
+  background: rgba(13, 21, 48, 0.88);
+  backdrop-filter: blur(14px);
+  z-index: 10;
+}
+.secondb-chat-header h1 { margin: 0; font-size: 16px; font-weight: 800; }
+.secondb-chat-header p { margin: 4px 0 0; color: var(--mist-gray); font-size: 12px; }
+.secondb-chat-avatar { width: 44px; height: 44px; image-rendering: pixelated; }
+
+.secondb-chat-thread {
+  position: absolute;
+  inset: calc(104px + env(safe-area-inset-top)) 0 88px 0;
+  overflow-y: auto;
+  padding: 14px 20px 22px;
+}
+.secondb-message-row { display: flex; margin: 14px 0; }
+.secondb-message-row.is-user { justify-content: flex-end; }
+.secondb-message-row.is-secondb { justify-content: flex-start; }
+
+.secondb-user-bubble,
+.secondb-answer-bubble {
+  max-width: min(78vw, 330px);
+  border-radius: 24px;
+  padding: 16px 18px;
+  line-height: 1.55;
+  font-size: 14px;
+}
+.secondb-user-bubble {
+  background: rgba(76, 201, 240, 0.14);
+  border: 1px solid rgba(76, 201, 240, 0.42);
+}
+.secondb-answer-bubble {
+  background: rgba(13, 21, 48, 0.94);
+  border: 1px solid rgba(167, 139, 250, 0.38);
+}
+.secondb-grounding-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--signal-mint);
+  background: rgba(114, 242, 199, 0.12);
+  border: 1px solid rgba(114, 242, 199, 0.35);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.secondb-reference-strip h2 {
+  margin: 22px 0 10px;
+  font-size: 14px;
+  font-weight: 800;
+}
+.reference-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+  padding: 14px 16px;
+  text-align: left;
+  color: var(--moon-white);
+  border: 1px solid rgba(114, 242, 199, 0.24);
+  border-radius: 18px;
+  background: rgba(22, 33, 62, 0.84);
+}
+.reference-card small { display: block; margin-top: 4px; color: var(--mist-gray); }
+.reference-dot { width: 12px; height: 12px; background: var(--signal-mint); image-rendering: pixelated; }
+.reference-card.type-persona .reference-dot { background: var(--soul-violet); }
+.reference-card.type-imagine .reference-dot { background: var(--pixel-lamp); }
+
+.secondb-chat-inputbar {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  border-radius: 24px;
+  border: 1px solid rgba(141, 152, 184, 0.25);
+  background: rgba(13, 21, 48, 0.96);
+  backdrop-filter: blur(16px);
+}
+.secondb-chat-inputbar input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  border: 0;
+  border-radius: 16px;
+  padding: 0 16px;
+  color: var(--moon-white);
+  background: rgba(7, 10, 24, 0.55);
+  outline: none;
+}
+.secondb-chat-inputbar button {
+  height: 40px;
+  border: 1px solid rgba(114, 242, 199, 0.38);
+  border-radius: 16px;
+  padding: 0 18px;
+  color: var(--signal-mint);
+  font-weight: 800;
+  background: rgba(114, 242, 199, 0.14);
+}
+
+.secondb-reference-drawer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 62vh;
+  padding: 20px 24px calc(24px + env(safe-area-inset-bottom));
+  border-radius: 30px 30px 0 0;
+  border: 1px solid rgba(141, 152, 184, 0.25);
+  background: rgba(13, 21, 48, 0.98);
+  z-index: 20;
+}
+.drawer-handle { width: 58px; height: 5px; margin: 0 auto 22px; border-radius: 999px; background: rgba(141, 152, 184, 0.45); }
+.secondb-reference-drawer h2 { margin: 0 0 6px; font-size: 18px; }
+.secondb-reference-drawer p { margin: 0; color: var(--mist-gray); font-size: 12px; }
+
+.secondb-context-card {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin: 10px 0 22px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  background: rgba(167, 139, 250, 0.12);
+}
+.context-pixel { width: 16px; height: 16px; background: var(--soul-violet); image-rendering: pixelated; }
+.secondb-context-card p { margin: 4px 0 0; color: var(--mist-gray); font-size: 12px; }

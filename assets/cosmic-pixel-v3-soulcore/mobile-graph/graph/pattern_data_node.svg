@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none" shape-rendering="crispEdges" role="img" aria-label="Pattern Data category node">
+  <title>Pattern Data category node</title>
+  <desc>Cosmic Pixel Graph Village v3 soulcore asset with named token fills.</desc>
+  <defs>
+  <style><![CDATA[
+    .space950{fill:#070A18}.space900{fill:#0D1530}.space800{fill:#16213E}.space700{fill:#243056}
+    .signalBlue{fill:#4CC9F0}.signalMint{fill:#72F2C7}.soulViolet{fill:#A78BFA}.pixelLamp{fill:#FFD166}
+    .moonWhite{fill:#E8ECF8}.mistGray{fill:#8D98B8}.dreamPink{fill:#FF9FD6}
+    .strokeSpace700{stroke:#243056}.strokeSignalBlue{stroke:#4CC9F0}.strokeSignalMint{stroke:#72F2C7}
+    .strokeSoulViolet{stroke:#A78BFA}.strokePixelLamp{stroke:#FFD166}.strokeMoonWhite{stroke:#E8ECF8}.strokeDreamPink{stroke:#FF9FD6}
+  ]]></style>
+  <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="tinyGlow" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <radialGradient id="violetCore" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#A78BFA" stop-opacity="0.95"/><stop offset="60%" stop-color="#A78BFA" stop-opacity="0.18"/><stop offset="100%" stop-color="#A78BFA" stop-opacity="0"/></radialGradient>
+  <radialGradient id="mintGlow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#72F2C7" stop-opacity="0.9"/><stop offset="100%" stop-color="#72F2C7" stop-opacity="0"/></radialGradient>
+  <linearGradient id="nodeSurface" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#16213E"/><stop offset="1" stop-color="#0D1530"/></linearGradient>
+</defs>
+  <path d="M24 4 L39 19 L32 43 L14 38 L8 18 Z" class="space800"/>
+  <path d="M24 4 L39 19 L32 43 L14 38 L8 18 Z" class="strokePixelLamp" stroke-width="2" stroke-linejoin="miter"/>
+  <path d="M24 4 L24 40 M8 18 L39 19" class="strokeSignalMint" stroke-width="2" opacity="0.4"/>
+  <rect x="21" y="18" width="6" height="6" class="pixelLamp" filter="url(#tinyGlow)"/>
+  <rect x="29" y="29" width="4" height="4" class="moonWhite" opacity="0.72"/>
+</svg>

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" fill="none" shape-rendering="crispEdges" >
+
+    <defs>
+      <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <filter id="smallGlow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <radialGradient id="bg" cx="50%" cy="35%" r="75%"><stop offset="0" stop-color="#A78BFA" stop-opacity="0.18"/><stop offset="45%" stop-color="#0D1530" stop-opacity="0.85"/><stop offset="100%" stop-color="#070A18"/></radialGradient>
+    </defs>
+<rect width="390" height="844" fill="url(#bg)"/><rect x="22" y="122" width="2" height="2" fill="#8D98B8" opacity="0.5"/><rect x="333" y="128" width="2" height="2" fill="#72F2C7" opacity="0.5"/><rect x="74" y="222" width="2" height="2" fill="#A78BFA" opacity="0.5"/><rect x="324" y="346" width="2" height="2" fill="#FFD166" opacity="0.5"/><rect x="43" y="593" width="2" height="2" fill="#72F2C7" opacity="0.5"/><rect x="357" y="646" width="2" height="2" fill="#8D98B8" opacity="0.5"/><rect x="122" y="738" width="2" height="2" fill="#FFD166" opacity="0.5"/><rect x="246" y="202" width="2" height="2" fill="#8D98B8" opacity="0.5"/><rect x="183" y="610" width="2" height="2" fill="#FF9FD6" opacity="0.5"/>
+  <rect x="330" y="46" width="44" height="44" rx="14" fill="#0D1530" stroke="#8D98B8" stroke-opacity="0.28"/>
+  <rect x="16" y="50" width="304" height="58" rx="18" fill="#0D1530" fill-opacity="0.86" stroke="#A78BFA" stroke-opacity="0.3"/>
+  <text x="36" y="74" text-anchor="start" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="13" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">선택한 모습</text>
+  <text x="36" y="96" text-anchor="start" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="11" font-weight="500" fill="#8D98B8" shape-rendering="geometricPrecision">만드는 나와 연결된 길만 밝아졌어요.</text>
+  <path d="M195 330 C145.5 250, 145.5 290, 96 210" stroke="#243056" stroke-width="2" stroke-linecap="square" opacity="0.62"/><path d="M195 330 C244.5 250, 244.5 300, 294 220" stroke="#243056" stroke-width="2" stroke-linecap="square" opacity="0.62"/><path d="M195 330 C205.5 250, 205.5 574, 216 494" stroke="#72F2C7" stroke-width="3" stroke-linecap="square" opacity="0.88" filter="url(#smallGlow)"/><path d="M216 494 C177.0 414, 177.0 606, 138 526" stroke="#72F2C7" stroke-width="3" stroke-linecap="square" opacity="0.88" filter="url(#smallGlow)"/><path d="M216 494 C247.0 414, 247.0 598, 278 518" stroke="#72F2C7" stroke-width="3" stroke-linecap="square" opacity="0.88" filter="url(#smallGlow)"/>
+  <rect x="154.0" y="289.0" width="82" height="82" rx="22" fill="#16213E" stroke="#A78BFA" stroke-width="3" filter="url(#glow)"/><rect x="179" y="312" width="32" height="36" rx="8" fill="#A78BFA" opacity="0.85"/><rect x="191" y="294" width="8" height="12" fill="#FFD166" filter="url(#smallGlow)"/><text x="195" y="389.0" text-anchor="middle" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="11" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">나의 중심</text>
+  <rect x="65.0" y="179.0" width="62" height="62" rx="18" fill="#16213E" stroke="#4CC9F0" stroke-width="2"/><path d="M78 220 L96 195 L114 220 V234 H78Z" fill="#0D1530" stroke="#4CC9F0" stroke-opacity="0.45"/><text x="96" y="259.0" text-anchor="middle" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="11" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">기록</text>
+  <rect x="263.0" y="189.0" width="62" height="62" rx="18" fill="#16213E" stroke="#4CC9F0" stroke-width="2"/><path d="M276 230 L294 205 L312 230 V244 H276Z" fill="#0D1530" stroke="#4CC9F0" stroke-opacity="0.45"/><text x="294" y="269.0" text-anchor="middle" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="11" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">지식</text>
+  <rect x="192.0" y="470.0" width="48" height="48" rx="14" fill="#0D1530" stroke="#A78BFA" stroke-opacity="0.72" stroke-width="2"/><rect x="204" y="485" width="7" height="6" fill="#E8ECF8"/><rect x="221" y="485" width="7" height="6" fill="#E8ECF8"/><rect x="208" y="502" width="16" height="4" fill="#72F2C7"/><text x="216" y="536.0" text-anchor="middle" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="11" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">만드는 나</text>
+  <path d="M138 514L148 526L142 540L126 534L129 521Z" fill="#16213E" stroke="#FFD166" stroke-width="2"/><path d="M278 506L288 518L282 532L266 526L269 513Z" fill="#16213E" stroke="#FFD166" stroke-width="2"/>
+  <g transform="translate(256,480) scale(0.8)">
+      <rect x="-18" y="-20" width="36" height="40" rx="9" fill="#A78BFA" stroke="#070A18" stroke-width="3"/>
+      <rect x="-9" y="-5" width="5" height="5" fill="#E8ECF8"/>
+      <rect x="5" y="-5" width="5" height="5" fill="#E8ECF8"/>
+      <rect x="-5" y="8" width="10" height="4" fill="#72F2C7"/>
+      <rect x="-3" y="-32" width="6" height="10" fill="#FFD166" filter="url(#smallGlow)"/>
+    </g>
+  <rect x="12" y="604" width="366" height="214" rx="24" fill="#0D1530" fill-opacity="0.96" stroke="#72F2C7" stroke-opacity="0.28"/>
+  <rect x="160" y="616" width="70" height="4" rx="2" fill="#8D98B8" opacity="0.45"/>
+  <rect x="30" y="638" width="44" height="44" rx="12" fill="#16213E" stroke="#72F2C7" stroke-opacity="0.36"/>
+  <text x="86" y="654" text-anchor="start" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="17" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">만드는 나</text>
+  <text x="86" y="676" text-anchor="start" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="12" font-weight="600" fill="#FFD166" shape-rendering="geometricPrecision">최근 연결된 조각 23개</text>
+  <text x="30" y="714" text-anchor="start" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="12" font-weight="500" fill="#8D98B8" shape-rendering="geometricPrecision">기록, 지식 창고, 공상 작업실과 자주 이어져 있어요.</text>
+  <rect x="30" y="748" width="152" height="42" rx="14" fill="#72F2C7" opacity="0.16" stroke="#72F2C7" stroke-opacity="0.45"/>
+  <text x="106" y="775" text-anchor="middle" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="13" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">살펴보기</text>
+  <rect x="196" y="748" width="164" height="42" rx="14" fill="#A78BFA" opacity="0.18" stroke="#A78BFA" stroke-opacity="0.45"/>
+  <text x="278" y="775" text-anchor="middle" font-family="NanumSquareRound, Noto Sans CJK KR, Noto Sans CJK, DejaVu Sans, sans-serif" font-size="13" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">세컨비에게 묻기</text>
+</svg>

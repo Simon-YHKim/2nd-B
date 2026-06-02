@@ -1,0 +1,119 @@
+:root {
+  --space-950: #070A18;
+  --space-900: #0D1530;
+  --space-800: #16213E;
+  --space-700: #243056;
+  --signal-blue: #4CC9F0;
+  --signal-mint: #72F2C7;
+  --soul-violet: #A78BFA;
+  --pixel-lamp: #FFD166;
+  --moon-white: #E8ECF8;
+  --mist-gray: #8D98B8;
+  --dream-pink: #FF9FD6;
+  --guard-rose: #FF7A90;
+}
+
+.mobileGraphVillage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  color: var(--moon-white);
+  background:
+    radial-gradient(circle at 50% 34%, rgba(167, 139, 250, 0.18), transparent 34%),
+    radial-gradient(circle at 20% 70%, rgba(114, 242, 199, 0.08), transparent 28%),
+    var(--space-950);
+  touch-action: none;
+}
+
+.graphViewport {
+  position: absolute;
+  inset: 110px 0 0 0;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.graphWorld {
+  position: absolute;
+  width: 1200px;
+  height: 1600px;
+  transform-origin: 0 0;
+}
+
+.graphEdge {
+  stroke: rgba(141, 152, 184, 0.28);
+  stroke-width: 2;
+  stroke-linecap: square;
+}
+
+.graphEdgeActive {
+  stroke: var(--signal-mint);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px rgba(114, 242, 199, 0.55));
+}
+
+.graphNode {
+  position: absolute;
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+}
+
+.graphNode[data-selected="true"] {
+  filter: drop-shadow(0 0 18px rgba(114, 242, 199, 0.45));
+}
+
+.topRibbon {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  left: 16px;
+  right: 70px;
+  z-index: 20;
+  border: 1px solid rgba(167, 139, 250, 0.28);
+  background: rgba(13, 21, 48, 0.82);
+  backdrop-filter: blur(12px);
+  border-radius: 18px;
+  padding: 12px 14px;
+}
+
+.secondbFab {
+  position: absolute;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  width: 64px;
+  height: 64px;
+  z-index: 30;
+  border: 1px solid rgba(114, 242, 199, 0.42);
+  background: rgba(22, 33, 62, 0.92);
+  border-radius: 22px;
+  box-shadow: 0 0 24px rgba(167, 139, 250, 0.35), 0 0 12px rgba(114, 242, 199, 0.22);
+}
+
+.nodeSheet {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 25;
+  border-radius: 22px;
+  border: 1px solid rgba(141, 152, 184, 0.28);
+  background: rgba(13, 21, 48, 0.94);
+  backdrop-filter: blur(18px);
+  padding: 16px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .secondbFab { animation: secondbFloat 3.6s ease-in-out infinite; }
+  .graphEdgeActive { animation: edgePulse 1.8s ease-in-out infinite; }
+}
+
+@keyframes secondbFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes edgePulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}

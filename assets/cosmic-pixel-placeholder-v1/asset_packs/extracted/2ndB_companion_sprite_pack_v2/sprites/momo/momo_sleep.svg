@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges" role="img" aria-label="Momo sleep">
+  <title>Momo sleep</title>
+  <desc>모모 기록 관리자 pixel sprite state: sleep.</desc>
+    <rect x="18" y="55" width="28" height="4" fill="#0D1530" opacity="0.42"/>
+  <rect x="31" y="9" width="2" height="7" fill="#243056"/>
+  <rect x="28" y="6" width="8" height="6" fill="#0D1530"/>
+  <rect x="30" y="8" width="4" height="2" fill="#FFD166"/>
+  <rect x="21" y="17" width="22" height="4" fill="#070A18"/>
+  <rect x="17" y="21" width="30" height="4" fill="#070A18"/>
+  <rect x="15" y="25" width="34" height="20" fill="#070A18"/>
+  <rect x="17" y="45" width="30" height="4" fill="#070A18"/>
+  <rect x="21" y="49" width="22" height="5" fill="#070A18"/>
+  <rect x="22" y="17" width="20" height="4" fill="#F4B942"/>
+  <rect x="20" y="21" width="24" height="4" fill="#FFD166"/>
+  <rect x="18" y="25" width="28" height="19" fill="#FFD166"/>
+  <rect x="20" y="44" width="24" height="4" fill="#B48628"/>
+  <rect x="24" y="48" width="16" height="4" fill="#B48628"/>
+  <rect x="22" y="27" width="20" height="11" fill="#16213E"/>
+  <rect x="24" y="29" width="16" height="7" fill="#0D1530"/>
+  <rect x="25" y="32" width="4" height="1" fill="#E8ECF8"/>
+  <rect x="35" y="32" width="4" height="1" fill="#E8ECF8"/>
+  <rect x="30" y="40" width="4" height="2" fill="#0D1530"/>
+  <rect x="11" y="34" width="5" height="10" fill="#070A18"/>
+  <rect x="48" y="34" width="5" height="10" fill="#070A18"/>
+  <rect x="12" y="35" width="3" height="7" fill="#B48628"/>
+  <rect x="49" y="35" width="3" height="7" fill="#B48628"/>
+  <rect x="24" y="52" width="5" height="5" fill="#070A18"/>
+  <rect x="35" y="52" width="5" height="5" fill="#070A18"/>
+  <rect x="25" y="52" width="3" height="2" fill="#B48628"/>
+  <rect x="36" y="52" width="3" height="2" fill="#B48628"/>
+  <rect x="8" y="36" width="8" height="10" fill="#0D1530"/>
+  <rect x="9" y="37" width="6" height="7" fill="#16213E"/>
+  <rect x="10" y="38" width="4" height="2" fill="#FFD166"/>
+  <rect x="43" y="14" width="3" height="3" fill="#E8ECF8"/>
+  <rect x="47" y="10" width="4" height="4" fill="#E8ECF8" opacity="0.8"/>
+  <rect x="52" y="6" width="5" height="5" fill="#E8ECF8" opacity="0.65"/>
+</svg>

@@ -1,0 +1,42 @@
+{
+  "name": "SecondB Chat UI v2",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "safeArea": true
+  },
+  "assetBase": "/assets/cosmic-pixel-v2/secondb-chat/",
+  "regions": {
+    "header": {
+      "x": 16,
+      "y": "16 + safe-top",
+      "w": 358,
+      "h": 70
+    },
+    "thread": {
+      "x": 0,
+      "y": "104 + safe-top",
+      "w": 390,
+      "h": "screen - header - input"
+    },
+    "inputBar": {
+      "x": 16,
+      "y": "screen-bottom - 84 - safe-bottom",
+      "w": 358,
+      "h": 68
+    },
+    "referenceDrawer": {
+      "x": 0,
+      "y": "bottom anchored",
+      "w": 390,
+      "h": "max 62vh"
+    }
+  },
+  "states": {
+    "empty": "chat_ready_empty_state.svg",
+    "thinking": "thinking_bubble_v2.svg + source pulse graph",
+    "answer": "message bubbles + grounding badge + reference strip",
+    "referenceDrawer": "bottom sheet for cited user records",
+    "nodeContext": "starts with selected graph node context pill"
+  }
+}

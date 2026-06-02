@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="350" height="74" viewBox="0 0 350 74" fill="none" shape-rendering="crispEdges">
+  <defs>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="tinyGlow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="screenBg" cx="50%" cy="28%" r="86%"><stop offset="0" stop-color="#72F2C7" stop-opacity="0.10"/><stop offset="34%" stop-color="#A78BFA" stop-opacity="0.10"/><stop offset="74%" stop-color="#0D1530" stop-opacity="0.92"/><stop offset="100%" stop-color="#070A18"/></radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="58%"><stop offset="0" stop-color="#72F2C7" stop-opacity="0.68"/><stop offset="100%" stop-color="#72F2C7" stop-opacity="0"/></radialGradient>
+    <radialGradient id="violetGlow" cx="50%" cy="50%" r="58%"><stop offset="0" stop-color="#A78BFA" stop-opacity="0.64"/><stop offset="100%" stop-color="#A78BFA" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lampGlow" cx="50%" cy="50%" r="58%"><stop offset="0" stop-color="#FFD166" stop-opacity="0.72"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0"/></radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0D1530" stop-opacity="0.96"/><stop offset="1" stop-color="#16213E" stop-opacity="0.88"/></linearGradient>
+    <linearGradient id="shardPanel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#16213E" stop-opacity="0.94"/><stop offset="0.68" stop-color="#0D1530" stop-opacity="0.96"/><stop offset="1" stop-color="#72F2C7" stop-opacity="0.15"/></linearGradient>
+    
+  </defs>
+  <rect x="1" y="1" width="348" height="72" rx="24" fill="#A78BFA" fill-opacity="0.14" stroke="#A78BFA" stroke-opacity="0.38"/>
+  <g transform="translate(48 36) scale(0.38)">
+      <circle cx="0" cy="2" r="42" fill="url(#violetGlow)" opacity="0.52"/>
+      <rect x="-25" y="-19" width="50" height="48" rx="14" fill="#16213E" stroke="#A78BFA" stroke-opacity="0.62"/>
+      <rect x="-12" y="-30" width="24" height="12" rx="5" fill="#A78BFA" fill-opacity="0.18" stroke="#A78BFA" stroke-opacity="0.42"/>
+      <rect x="-12" y="-1" width="6" height="6" fill="#E8ECF8"/><rect x="6" y="-1" width="6" height="6" fill="#E8ECF8"/>
+      <rect x="-7" y="17" width="14" height="4" fill="#72F2C7"/>
+      <rect x="-3" y="-13" width="6" height="6" fill="#72F2C7" filter="url(#tinyGlow)"/>
+    </g>
+  <text x="112" y="41" text-anchor="start" font-family="Pretendard, system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="600" fill="#E8ECF8" shape-rendering="geometricPrecision">이 페이지로 세컨비에게 묻기</text>
+  <path d="M304 27L314 36L304 45" stroke="#72F2C7" stroke-width="3"/>
+</svg>

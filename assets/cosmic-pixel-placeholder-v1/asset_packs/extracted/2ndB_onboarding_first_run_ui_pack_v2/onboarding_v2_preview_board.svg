@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" fill="none" shape-rendering="crispEdges">
+  <title>Onboarding v2 preview board</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#070A18"/>
+      <stop offset="0.62" stop-color="#0D1530"/>
+      <stop offset="1" stop-color="#16213E"/>
+    </linearGradient>
+    <radialGradient id="violetGlow" cx="50%" cy="38%" r="55%">
+      <stop stop-color="#A78BFA" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#A78BFA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="50%">
+      <stop stop-color="#72F2C7" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#72F2C7" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  
+  <rect width="1200" height="900" fill="#070A18"/>
+  <circle cx="600" cy="170" r="320" fill="#A78BFA" opacity=".12"/>
+  <text x="60" y="80" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="42" font-weight="800">2ndB Onboarding / First Run UI Pack v2</text>
+  <text x="60" y="122" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="18">밤빛 조각마을 첫 진입 경험</text>
+  <g transform="translate(60 180)">
+    <rect width="320" height="220" rx="28" fill="#0D1530" stroke="#243056"/>
+    <text x="28" y="48" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="24" font-weight="800">Welcome</text>
+    <path d="M45 160 C105 80, 145 190, 210 95 S260 150, 292 122" stroke="#72F2C7" stroke-width="3" stroke-dasharray="5 8"/>
+    <rect x="128" y="86" width="64" height="58" rx="16" fill="#16213E" stroke="#A78BFA"/>
+  </g>
+  <g transform="translate(440 180)">
+    <rect width="320" height="220" rx="28" fill="#0D1530" stroke="#243056"/>
+    <text x="28" y="48" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="24" font-weight="800">Graph Village</text>
+    <path d="M160 120 L76 82 L96 170 M160 120 L242 82 L224 170" stroke="#243056" stroke-width="5"/>
+    <circle cx="160" cy="120" r="26" fill="#16213E" stroke="#A78BFA"/>
+    <circle cx="76" cy="82" r="16" fill="#16213E" stroke="#4CC9F0"/>
+    <circle cx="224" cy="170" r="16" fill="#16213E" stroke="#FFD166"/>
+  </g>
+  <g transform="translate(820 180)">
+    <rect width="320" height="220" rx="28" fill="#0D1530" stroke="#243056"/>
+    <text x="28" y="48" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="24" font-weight="800">First Shard</text>
+    <rect x="36" y="76" width="248" height="78" rx="18" fill="#070A18" stroke="#243056"/>
+    <path d="M258 130l18 18-8 28h-24l-8-28 22-18z" fill="#FFD166"/>
+    <rect x="36" y="170" width="150" height="34" rx="17" fill="#FFD166"/>
+  </g>
+  <g transform="translate(60 500)">
+    <rect width="1080" height="250" rx="32" fill="#0D1530" stroke="#243056"/>
+    <text x="40" y="60" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="28" font-weight="800">Recommended first-run path</text>
+    <text x="40" y="104" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="18">Onboarding → Age Check → First Shard → Save Event → Graph Highlight</text>
+    <path d="M80 170 H1000" stroke="#243056" stroke-width="7" stroke-linecap="round"/>
+    <path d="M80 170 H600" stroke="#72F2C7" stroke-width="3" stroke-dasharray="6 9" stroke-linecap="round"/>
+    <circle cx="80" cy="170" r="18" fill="#A78BFA"/><circle cx="310" cy="170" r="18" fill="#FF7A90"/><circle cx="540" cy="170" r="18" fill="#FFD166"/><circle cx="770" cy="170" r="18" fill="#72F2C7"/><circle cx="1000" cy="170" r="18" fill="#4CC9F0"/>
+  </g>
+
+</svg>

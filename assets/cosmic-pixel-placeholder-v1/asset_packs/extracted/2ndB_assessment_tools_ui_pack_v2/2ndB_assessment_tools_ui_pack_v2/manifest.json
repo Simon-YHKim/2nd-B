@@ -1,0 +1,56 @@
+{
+  "pack": "2ndB_assessment_tools_ui_pack_v2",
+  "kind": "structural-placeholder",
+  "accent": "#FFD166",
+  "screens": [
+    {
+      "id": "big_five",
+      "title": "Big Five / 기질 별자리",
+      "path": "assessments/big_five_placeholder_v2.svg"
+    },
+    {
+      "id": "mbti",
+      "title": "MBTI-style / 나의 별명",
+      "path": "assessments/mbti_placeholder_v2.svg"
+    },
+    {
+      "id": "attachment",
+      "title": "Attachment / 관계 거리계",
+      "path": "assessments/attachment_placeholder_v2.svg"
+    },
+    {
+      "id": "audit",
+      "title": "Past Self / 예전의 나 보기",
+      "path": "reflection/audit_placeholder_v2.svg"
+    },
+    {
+      "id": "interview",
+      "title": "Deep Interview / 깊이 물어보기",
+      "path": "reflection/interview_placeholder_v2.svg"
+    },
+    {
+      "id": "question_card",
+      "title": "Question Card",
+      "path": "components/question_card_v2.svg"
+    },
+    {
+      "id": "result_card",
+      "title": "Result Card",
+      "path": "components/result_card_v2.svg"
+    }
+  ],
+  "icons": [
+    "big_five",
+    "mbti",
+    "attachment",
+    "audit",
+    "interview",
+    "question",
+    "result",
+    "progress",
+    "save",
+    "next",
+    "previous",
+    "check"
+  ]
+}

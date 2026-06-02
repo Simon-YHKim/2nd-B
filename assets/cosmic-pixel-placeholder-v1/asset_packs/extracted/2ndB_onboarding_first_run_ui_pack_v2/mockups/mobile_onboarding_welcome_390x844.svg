@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" fill="none" shape-rendering="crispEdges">
+  <title>Mobile onboarding welcome</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="390" y2="844" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#070A18"/>
+      <stop offset="0.62" stop-color="#0D1530"/>
+      <stop offset="1" stop-color="#16213E"/>
+    </linearGradient>
+    <radialGradient id="violetGlow" cx="50%" cy="38%" r="55%">
+      <stop stop-color="#A78BFA" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#A78BFA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="50%" cy="50%" r="50%">
+      <stop stop-color="#72F2C7" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#72F2C7" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  
+    <rect width="390" height="844" fill="#070A18"/>
+    <circle cx="196" cy="214" r="180" fill="#A78BFA" opacity=".12"/>
+    <circle cx="64" cy="620" r="120" fill="#72F2C7" opacity=".06"/>
+    <rect x="16" y="18" width="358" height="806" rx="34" fill="none" stroke="#243056" stroke-opacity=".55"/>
+    
+  <text x="32" y="78" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="24" font-weight="800">2ndB</text>
+  <text x="32" y="108" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="13">밤빛 조각마을</text>
+  <g transform="translate(32 150) scale(.836)">
+    <rect width="390" height="260" rx="28" fill="#0D1530" stroke="#243056"/>
+    <circle cx="195" cy="120" r="100" fill="#A78BFA" opacity=".2"/>
+    <path d="M90 180 C130 95, 175 205, 220 110 S280 105, 310 170" stroke="#243056" stroke-width="5"/>
+    <path d="M90 180 C130 95, 175 205, 220 110 S280 105, 310 170" stroke="#72F2C7" stroke-opacity=".55" stroke-width="2" stroke-dasharray="6 8"/>
+    <rect x="153" y="76" width="84" height="76" rx="22" fill="#16213E" stroke="#A78BFA" stroke-width="2"/>
+    <rect x="174" y="108" width="9" height="9" fill="#E8ECF8"/>
+    <rect x="207" y="108" width="9" height="9" fill="#E8ECF8"/>
+    <rect x="186" y="132" width="18" height="6" fill="#72F2C7"/>
+  </g>
+  <text x="32" y="482" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="24" font-weight="800">내 생각 조각이</text>
+  <text x="32" y="514" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="24" font-weight="800">작은 지도가 돼요</text>
+  <text x="32" y="552" fill="#8D98B8" font-family="Pretendard, system-ui" font-size="14">세컨비가 내 기록을 참고해 나다운 다음 한 걸음을 함께 찾아줘요.</text>
+  <rect x="32" y="716" width="326" height="52" rx="26" fill="#A78BFA"/>
+  <text x="147" y="749" fill="#070A18" font-family="Pretendard, system-ui" font-size="15" font-weight="800">시작하기</text>
+  <circle cx="148" cy="794" r="5" fill="#A78BFA"/><circle cx="174" cy="794" r="5" fill="#243056"/><circle cx="200" cy="794" r="5" fill="#243056"/><circle cx="226" cy="794" r="5" fill="#243056"/><circle cx="252" cy="794" r="5" fill="#243056"/>
+
+    
+</svg>

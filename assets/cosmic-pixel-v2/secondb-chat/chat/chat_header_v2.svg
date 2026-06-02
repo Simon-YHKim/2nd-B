@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="96" viewBox="0 0 390 96" fill="none">
+<defs>
+  <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="5" result="blur"/>
+    <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.45 0 0 0 0 0.95 0 0 0 0 0.80 0 0 0 0.7 0" result="glow"/>
+    <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="violetGlow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="6" result="blur"/>
+    <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.65 0 0 0 0 0.55 0 0 0 0 1 0 0 0 0.65 0" result="glow"/>
+    <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="lampGlow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="4" result="blur"/>
+    <feColorMatrix in="blur" type="matrix" values="0 0 0 0 1 0 0 0 0 0.82 0 0 0 0 0.35 0 0 0 0.65 0" result="glow"/>
+    <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <pattern id="noiseGrid" width="12" height="12" patternUnits="userSpaceOnUse">
+    <path d="M 12 0 L 0 0 0 12" fill="none" stroke="rgba(141,152,184,0.08)" stroke-width="1"/>
+  </pattern>
+  <style>
+    .t { font-family: 'Noto Sans CJK KR','Pretendard','SF Pro Display',system-ui,sans-serif; }
+    .mono { font-family: 'NanumGothicCoding','SF Mono',monospace; }
+    .pixel { shape-rendering: crispEdges; }
+  </style>
+</defs>
+
+<rect width="390" height="96" fill="#070A18"/>
+<rect x="16" y="18" width="358" height="66" rx="22" fill="rgba(13,21,48,0.88)" stroke="rgba(167,139,250,0.34)"/>
+<circle cx="50" cy="51" r="20" fill="#16213E" stroke="#A78BFA"/>
+<rect class="pixel" x="42" y="45" width="5" height="5" fill="#E8ECF8"/>
+<rect class="pixel" x="54" y="45" width="5" height="5" fill="#E8ECF8"/>
+<rect class="pixel" x="48" y="56" width="5" height="3" fill="#72F2C7"/>
+<text x="82" y="44" class="t" fill="#E8ECF8" font-size="16" font-weight="700">세컨비</text>
+<text x="82" y="64" class="t" fill="#8D98B8" font-size="12">내 조각을 참고해서 답하는 친구</text>
+<rect x="304" y="36" width="54" height="30" rx="13" fill="rgba(114,242,199,0.10)" stroke="rgba(114,242,199,0.42)"/>
+<circle cx="320" cy="51" r="4" fill="#72F2C7" filter="url(#softGlow)"/>
+<text x="330" y="55" class="t" fill="#72F2C7" font-size="11" font-weight="700">ready</text>
+
+</svg>
