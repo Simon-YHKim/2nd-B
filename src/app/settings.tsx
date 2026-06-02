@@ -203,6 +203,27 @@ export default function Settings() {
           </View>
         </View>
 
+        <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
+          <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
+            {locale === "ko" ? "그래프 크루 (장식 로봇)" : "Graph crew (decorative)"}
+          </Text>
+          <Text variant="subtle" color="textMuted">
+            {locale === "ko"
+              ? "기록 보관소 크루가 그래프를 돌아다니는 양. 노드 수에 비례하며, 없음~많이로 조절하거나 완전히 끌 수 있어요."
+              : "How many records-crew sprites wander the graph. Scales with your node count; set anywhere from none to many."}
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm }}>
+            {CREW_DENSITY_ORDER.map((d) => (
+              <Button
+                key={d}
+                label={CREW_DENSITY_LABEL[locale][d]}
+                variant={crewDensity === d ? "primary" : "secondary"}
+                onPress={() => setCrewDensity(d)}
+              />
+            ))}
+          </View>
+        </View>
+
           <Button label={locale === "ko" ? "지원" : "Support"} variant="secondary" onPress={() => router.push("/support")} />
         </View>
 

@@ -236,20 +236,8 @@ export default function Jarvis() {
               : locale === "ko"
                 ? "오늘의 기록을 읽어봤어요. 작은 한 걸음으로 시작해볼까요?"
                 : "I've read today's pieces. Shall we start with one small step?"
-            accessibilityLabel={locale === "ko" ? "공상 모드" : "Divergent mode"}
-          >
-            <Text variant="caption" color={chatMode === "divergent" ? "text" : "textMuted"}>
-              {locale === "ko" ? "공상" : "Divergent"}
-            </Text>
-          </Pressable>
-          {chatMode === "divergent" ? (
-            <Text variant="caption" color="textSubtle" style={styles.modeHint} numberOfLines={1}>
-              {locale === "ko" ? "새로운 관점·가정으로" : "New perspectives & what-ifs"}
-            </Text>
-          ) : null}
-        </View>
-
-          }        />
+          }
+        />
 
         <View style={styles.usagePanel}>
             <Text variant="caption" color="textMuted">
@@ -269,6 +257,20 @@ export default function Jarvis() {
               </Pressable>
             ) : null}
         </View>
+
+            accessibilityLabel={locale === "ko" ? "공상 모드" : "Divergent mode"}
+          >
+            <Text variant="caption" color={chatMode === "divergent" ? "text" : "textMuted"}>
+              {locale === "ko" ? "공상" : "Divergent"}
+            </Text>
+          </Pressable>
+          {chatMode === "divergent" ? (
+            <Text variant="caption" color="textSubtle" style={styles.modeHint} numberOfLines={1}>
+              {locale === "ko" ? "새로운 관점·가정으로" : "New perspectives & what-ifs"}
+            </Text>
+          ) : null}
+        </View>
+
 
           }        />
 
@@ -342,7 +344,7 @@ export default function Jarvis() {
                     >
                       {turn.text}
                     </Text>
-                  </Pressable>
+                    </Pressable>
                 onPress={() => {
                   if (qa.mode) setChatMode(qa.mode);
                   setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
@@ -463,7 +465,6 @@ export default function Jarvis() {
         <Pressable style={styles.modalBackdrop} onPress={() => setRefDrawer(null)}>
           <Pressable
             style={styles.drawer}
-            onPress={(e) => e.stopPropagation()}
   modeRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -485,6 +486,7 @@ export default function Jarvis() {
   },
   modeChipAnalytic: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   modeChipDivergent: { backgroundColor: cosmic.soulViolet2, borderColor: cosmic.soulViolet2 },
+  modeHint: { flex: 1, marginLeft: spacing.xs },
   modeHint: { flex: 1, marginLeft: spacing.xs },
       </Modal>
       {/* 가디 appears briefly on a safety soft-stop / all-clear (companion pack §3) */}
