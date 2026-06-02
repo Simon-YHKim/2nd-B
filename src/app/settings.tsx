@@ -168,19 +168,6 @@ export default function Settings() {
             locale === "ko"
               ? "삭제는 되돌릴 수 없어요. 필요한 조각은 먼저 내보내기로 챙겨두세요."
               : "Deletion cannot be undone. Export anything you need before clearing data."
-          }        />
-
-        {/* Navigation hub (A-to-Z Phase 12) — the settings sub-screens. */}
-        <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
-          <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "설정 항목" : "Settings"}
-          </Text>
-          <Button label={locale === "ko" ? "프로필" : "Profile"} variant="secondary" onPress={() => router.push("/profile")} />
-          <Button label={locale === "ko" ? "개인정보 보호" : "Privacy"} variant="secondary" onPress={() => router.push("/privacy")} />
-          <Button label={locale === "ko" ? "계정 관리" : "Account"} variant="secondary" onPress={() => router.push("/account")} />
-          <Button label={locale === "ko" ? "테마" : "Theme"} variant="secondary" onPress={() => router.push("/theme")} />
-          <Button label={locale === "ko" ? "데이터 관리" : "Data management"} variant="secondary" onPress={() => router.push("/data")} />
-          <Button label={locale === "ko" ? "기록" : "Records"} variant="secondary" onPress={() => router.push("/records")} />
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
           <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
             {locale === "ko" ? "그래프 크루 (장식 로봇)" : "Graph crew (decorative)"}
@@ -188,6 +175,20 @@ export default function Settings() {
           <Text variant="subtle" color="textMuted">
             {locale === "ko"
               ? "기록 보관소 크루가 그래프를 돌아다니는 양. 노드 수에 비례하며, 없음~많이로 조절하거나 완전히 끌 수 있어요."
+              : "How many records-crew sprites wander the graph. Scales with your node count; set anywhere from none to many."}
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm }}>
+            {CREW_DENSITY_ORDER.map((d) => (
+              <Button
+                key={d}
+                label={CREW_DENSITY_LABEL[locale][d]}
+                variant={crewDensity === d ? "primary" : "secondary"}
+                onPress={() => setCrewDensity(d)}
+              />
+            ))}
+          </View>
+        </View>
+
               : "How many records-crew sprites wander the graph. Scales with your node count; set anywhere from none to many."}
           </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm }}>
