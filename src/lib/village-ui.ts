@@ -1,11 +1,11 @@
 import { cosmic } from "@/lib/theme/tokens";
 import { type VillageId } from "@/lib/graph/relatedness";
 
-export type VillageRoute = "/journal" | "/capture" | "/imagine";
+export type VillageRoute = "/journal" | "/capture";
 
 export type VillageUiMeta = {
-  island: "work_growth" | "relationship" | "knowledge" | "records" | "imagine" | "inspiration";
-  worker: "archi" | "gadi" | "lulu" | "momo" | "vela" | "lumi";
+  island: "work_growth" | "relationship" | "knowledge" | "records" | "inspiration";
+  worker: "archi" | "gadi" | "lulu" | "momo" | "lumi";
   accent: string;
   primaryRoute: VillageRoute;
   primaryLabel: { en: string; ko: string };
@@ -27,7 +27,7 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
   relation: {
     island: "relationship",
     worker: "gadi",
-    accent: cosmic.guardRose,
+    accent: cosmic.pixelLamp, // Bond Core / Relia — amber
     primaryRoute: "/journal",
     primaryLabel: { en: "Leave a people piece", ko: "관계 조각 남기기" },
     speech: {
@@ -49,7 +49,7 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
   records: {
     island: "records",
     worker: "momo",
-    accent: cosmic.pixelLamp,
+    accent: cosmic.moonWhite, // Narrative Core / Foreman Momo — monochrome
     primaryRoute: "/journal",
     primaryLabel: { en: "Leave today's piece", ko: "오늘의 조각 남기기" },
     speech: {
@@ -57,21 +57,10 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
       ko: "모든 조각은 시간순으로 보관돼 있어요. 필요한 기억을 꺼내볼까요?",
     },
   },
-  imagine: {
-    island: "imagine",
-    worker: "vela",
-    accent: cosmic.dreamPink,
-    primaryRoute: "/imagine",
-    primaryLabel: { en: "Open imagine", ko: "상상 열기" },
-    speech: {
-      en: "Scenes you imagined can stay in the village too.",
-      ko: "상상한 장면도 마을에 남겨둘 수 있어요.",
-    },
-  },
   taste: {
     island: "inspiration",
     worker: "lumi",
-    accent: cosmic.signalMint,
+    accent: cosmic.dreamPink, // Muse Core / Iris
     primaryRoute: "/journal",
     primaryLabel: { en: "Leave an inspiration piece", ko: "영감 조각 남기기" },
     speech: {

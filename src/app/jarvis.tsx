@@ -37,9 +37,9 @@ import { CORE_VILLAGE_UI, VILLAGE_UI } from "@/lib/village-ui";
 
 // Quick-action chips offered under an answer (chat pack §8). Each prefills
 // the composer with a short follow-up in the village voice; the user sends.
-const QUICK_ACTIONS: { ko: string; en: string; prompt: { ko: string; en: string } }[] = [
+const QUICK_ACTIONS: { ko: string; en: string; mode?: "divergent"; prompt: { ko: string; en: string } }[] = [
   { ko: "다음 한 걸음", en: "Next step", prompt: { ko: "지금 할 수 있는 다음 한 걸음으로 줄여줘.", en: "Narrow this to one next step I can take today." } },
-  { ko: "공상으로 펼치기", en: "Open as imagine", prompt: { ko: "이 생각을 장면으로 펼쳐서 보여줘.", en: "Unfold this thought into a few scenes." } },
+  { ko: "공상 모드로", en: "Divergent mode", mode: "divergent", prompt: { ko: "이 생각을 전혀 다른 관점에서 펼쳐줘.", en: "Unfold this from a completely different angle." } },
   { ko: "지식 창고에 저장", en: "Save to wiki", prompt: { ko: "이 답을 지식 창고에 저장할 수 있게 한 단락으로 정리해줘.", en: "Sum this up in one paragraph I can save to my wiki." } },
   { ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 조각을 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
   { ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
@@ -89,7 +89,7 @@ export default function Jarvis() {
   // nodeContext entry (chat pack §3/§7): a graph node passed its label.
   // character (2026-05-31): tapping a village companion opens chat in that
   // character's voice (src/lib/chat/personas.ts).
-  const params = useLocalSearchParams<{ fromNode?: string; character?: string }>();
+  const params = useLocalSearchParams<{ fromNode?: string; character?: string; mode?: string }>();
   const fromNode = typeof params.fromNode === "string" && params.fromNode.length > 0 ? params.fromNode : null;
   const characterParam = typeof params.character === "string" && params.character.length > 0 ? params.character : null;
   const persona = useMemo(() => getPersona(characterParam), [characterParam]);
@@ -101,6 +101,12 @@ export default function Jarvis() {
   const [sending, setSending] = useState(false);
   const [usedToday, setUsedToday] = useState<number | null>(null);
   const [introOpen, setIntroOpen] = useState(false);
+  // SecondB conversation mode (worldview v-final). Analytic = data-grounded
+  // analysis; Divergent = data-grounded but explores radically different angles.
+  // Seeded from ?mode=divergent (e.g. a graph node's "공상 모드로 펼치기").
+  const [chatMode, setChatMode] = useState<"analytic" | "divergent">(
+    params.mode === "divergent" ? "divergent" : "analytic",
+  );
   // Reference drawer (chat pack §6): the cited pieces of a tapped answer.
   const [refDrawer, setRefDrawer] = useState<string[] | null>(null);
   const companion = useCompanionMoment();
@@ -164,6 +170,7 @@ export default function Jarvis() {
         locale,
         tier: progression.tier,
         personaHint: isCharacterChat ? persona.systemHint[locale] : null,
+        mode: chatMode,
         minor: isMinor === true,
       });
       if (result.status === "blocked") {
@@ -202,10 +209,13 @@ export default function Jarvis() {
     gadi: VILLAGE_UI.relation,
     lulu: VILLAGE_UI.knowledge,
     momo: VILLAGE_UI.records,
-    vela: VILLAGE_UI.imagine,
     lumi: VILLAGE_UI.taste,
   } as const;
-  const chatWorker = isCharacterChat ? persona.id : "secondb";
+  // vela is dormant (공상 → Divergent mode); fall back to the Soul Core UI for
+  // any worker without a Pattern Core mapping.
+  const chatWorker = (
+    isCharacterChat && persona.id in chatUiByWorker ? persona.id : "secondb"
+  ) as keyof typeof chatUiByWorker;
   const chatUi = chatUiByWorker[chatWorker];
 
   return (
@@ -245,6 +255,40 @@ export default function Jarvis() {
                 </Text>
               </Pressable>
             ) : null}
+        </View>
+
+        {/* SecondB mode toggle (worldview v-final): Analytic / Divergent. Both
+            run the same C9 -> C3 -> gemini.ts path; only the prompt shifts. */}
+        <View style={styles.modeRow}>
+          <Pressable
+            onPress={() => setChatMode("analytic")}
+            hitSlop={6}
+            style={[styles.modeChip, chatMode === "analytic" ? styles.modeChipAnalytic : null]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: chatMode === "analytic" }}
+            accessibilityLabel={locale === "ko" ? "분석 모드" : "Analytic mode"}
+          >
+            <Text variant="caption" color={chatMode === "analytic" ? "background" : "textMuted"}>
+              {locale === "ko" ? "분석" : "Analytic"}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setChatMode("divergent")}
+            hitSlop={6}
+            style={[styles.modeChip, chatMode === "divergent" ? styles.modeChipDivergent : null]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: chatMode === "divergent" }}
+            accessibilityLabel={locale === "ko" ? "공상 모드" : "Divergent mode"}
+          >
+            <Text variant="caption" color={chatMode === "divergent" ? "text" : "textMuted"}>
+              {locale === "ko" ? "공상" : "Divergent"}
+            </Text>
+          </Pressable>
+          {chatMode === "divergent" ? (
+            <Text variant="caption" color="textSubtle" style={styles.modeHint} numberOfLines={1}>
+              {locale === "ko" ? "새로운 관점·가정으로" : "New perspectives & what-ifs"}
+            </Text>
+          ) : null}
         </View>
 
         {/* nodeContext pill — entered from a graph node (chat pack §7) */}
@@ -351,7 +395,10 @@ export default function Jarvis() {
               <Pressable
                 key={qa.en}
                 style={styles.quickChip}
-                onPress={() => setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en)}
+                onPress={() => {
+                  if (qa.mode) setChatMode(qa.mode);
+                  setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={locale === "ko" ? qa.ko : qa.en}
               >
@@ -469,6 +516,28 @@ const styles = StyleSheet.create({
     borderBottomColor: semantic.border,
     borderBottomWidth: 1,
   },
+  modeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderBottomColor: semantic.border,
+    borderBottomWidth: 1,
+  },
+  modeChip: {
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surfaceAlt,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    minHeight: 36,
+    justifyContent: "center",
+  },
+  modeChipAnalytic: { backgroundColor: semantic.brand, borderColor: semantic.brand },
+  modeChipDivergent: { backgroundColor: cosmic.soulViolet2, borderColor: cosmic.soulViolet2 },
+  modeHint: { flex: 1, marginLeft: spacing.xs },
   scroll: { paddingVertical: spacing.md, gap: spacing.sm },
   empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },
   emptySecondB: {

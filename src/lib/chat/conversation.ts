@@ -32,6 +32,14 @@ export interface SendMessageInput {
    * reply in that character's voice while still grounding on the wiki.
    */
   personaHint?: string | null;
+  /**
+   * SecondB conversation mode (worldview v-final). "analytic" (default) grounds
+   * analysis + advice in the user's data; "divergent" stays data-grounded but
+   * explores radically different angles and new possibilities. Both still run
+   * the full C9 -> C3 -> gemini.ts path; the mode only shapes the system prompt
+   * (공상 is a mode, never a safety bypass).
+   */
+  mode?: "analytic" | "divergent";
   // C10 safety: minor flag forwarded to callGemini for youth crisis routing.
   minor?: boolean;
 }
@@ -59,6 +67,21 @@ export type SendMessageResult = SendMessageBlocked | SendMessageOk;
 const SYSTEM_PROMPT_HEADER = {
   en: "You are SecondB, the user's 2nd-Brain assistant. Reference the wiki pages and sources below; cite slugs via [[double-brackets]]. Keep replies under 4 sentences unless the user asks for depth.",
   ko: "당신은 사용자의 두번째 뇌 비서, 세컨비입니다. 아래 위키 페이지와 소스를 참고하고, 인용할 때는 [[슬러그]] 형식을 사용하세요. 사용자가 깊이 있는 답을 원하지 않으면 4문장 안으로 답하세요.",
+};
+
+// SecondB conversation modes (worldview v-final). The "공상" workshop is no
+// longer a place — it is the Divergent mode here. Both modes go through the
+// same callGemini path, so C9 (classifyInput) -> C3 (ai_audit_log) hold; the
+// mode only shapes the system prompt.
+const MODE_INSTRUCTION: Record<"analytic" | "divergent", { en: string; ko: string }> = {
+  analytic: {
+    en: "Analytic mode: ground every observation in the user's records and patterns, and give clear, practical analysis.",
+    ko: "Analytic 모드: 모든 관찰을 사용자의 기록과 패턴에 근거해 명확하고 실용적으로 분석하세요.",
+  },
+  divergent: {
+    en: "Divergent mode: stay grounded in the user's data, but deliberately explore radically different angles, assumptions, and unexpected possibilities. Clearly frame them as new perspectives or 'what if' hypotheses, not established facts.",
+    ko: "Divergent 모드: 사용자의 데이터에 근거하되, 전혀 다른 관점과 가정, 뜻밖의 가능성을 의도적으로 탐색하세요. 단정이 아니라 '새로운 관점 / 가정'으로 분명히 표시하세요.",
+  },
 };
 
 const BLOCKED_HINT = {
@@ -115,7 +138,8 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   });
 
   const personaLine = input.personaHint ? `${input.personaHint}\n\n` : "";
-  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${personaLine}${snapshot.prompt}`;
+  const modeLine = `${MODE_INSTRUCTION[input.mode ?? "analytic"][input.locale]}\n\n`;
+  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${modeLine}${personaLine}${snapshot.prompt}`;
 
   // C1/C3/C9 are enforced by callGemini. Red-zone short-circuit still
   // happens inside callGemini; we just no longer adjust the counter

@@ -13,22 +13,22 @@ const MONOLOGUES: Record<WorkerId, { en: readonly string[]; ko: readonly string[
     ko: ["오늘은 어느 마을부터 둘러볼까.", "다들 잘 지내나 한 바퀴 돌아봐야지.", "길이 조금씩 이어지고 있네.", "필요할 때 바로 꺼내 줄게요."],
     en: ["Which village should I check first today?", "Let me make a round and see how everyone's doing.", "The roads are slowly linking up.", "I'll pull it up the moment you need it."],
   },
-  // 아치 — steady planner of work & growth; big goals into one next step.
+  // 아콘 (Archon) — Growth Core career consultant; big goals into one next step.
   archi: {
     ko: ["이번 일은 셋으로 쪼개면 되겠다.", "한 걸음, 또 한 걸음.", "큰 산도 결국 작은 계단이지.", "오늘 할 한 가지만 정하자."],
     en: ["Split this into three and it's doable.", "One step, then another.", "Even a mountain is just small stairs.", "Pick the one thing for today."],
   },
-  // 가디 — warm keeper of relationships; gentle, attentive.
+  // 릴리아 (Relia) — Bond Core warm guide; gentle, attentive.
   gadi: {
     ko: ["그 사람, 잘 지내려나.", "오늘은 마음이 좀 말랑한 날이네.", "연락 한번 해 볼까.", "고마웠다고 말할걸 그랬나."],
     en: ["I wonder how they're doing.", "A soft-hearted kind of day.", "Maybe I'll reach out.", "I should've said thank you."],
   },
-  // 루루 — bright collector of knowledge; loves connecting pieces.
+  // 루멘 (Lumen) — Wisdom Core sage; connects knowledge to life.
   lulu: {
     ko: ["어, 이 조각이랑 저 조각이 이어지는데?", "이건 따로 모아 둬야지.", "오, 새 자료 냄새가 난다.", "연결고리를 또 하나 찾았어!"],
     en: ["Oh, this piece links to that one.", "Better file this one away.", "I smell fresh material.", "Found another connection!"],
   },
-  // 모모 — careful archivist of records; recall and revisit.
+  // 모모 반장 (Foreman Momo) — Narrative Core crew foreman; sort + retrieve.
   momo: {
     ko: ["작년 오늘은 뭘 적었더라.", "여기, 잘 보관해 둘게요.", "먼지 한 톨 없이 정리 완료.", "다 제자리에 있네, 좋아."],
     en: ["What did I write a year ago today?", "Here, I'll keep this safe.", "Filed away, not a speck of dust.", "Everything in its place. Good."],
@@ -38,7 +38,7 @@ const MONOLOGUES: Record<WorkerId, { en: readonly string[]; ko: readonly string[
     ko: ["이걸 장면으로 펼치면 어떨까.", "만약에… 만약에 말이야.", "여기서 이야기가 시작될 것 같은데.", "상상은 공짜니까, 크게 가자."],
     en: ["What if I unfolded this into a scene?", "What if... just what if.", "A story could start right here.", "Dreaming's free, so let's dream big."],
   },
-  // 루미 — bright spark of taste & inspiration; notices patterns.
+  // 아이리스 (Iris) — Muse Core trainer & curator; notices patterns.
   lumi: {
     ko: ["요즘 자꾸 이런 게 눈에 들어와.", "이 색깔, 마음에 든다.", "끌리는 데는 다 이유가 있지.", "어, 이거 완전 취향 저격인데."],
     en: ["This keeps catching my eye lately.", "I like this color.", "There's always a reason we're drawn in.", "Oh, this is exactly my taste."],

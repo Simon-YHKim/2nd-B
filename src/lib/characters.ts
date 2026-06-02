@@ -43,35 +43,35 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
   },
   momo: {
     id: "momo",
-    name: { ko: "모모", en: "Momo" },
-    role: { ko: "기록 보관", en: "Record keeper" },
+    name: { ko: "모모 반장", en: "Foreman Momo" },
+    role: { ko: "기록 크루 반장", en: "Records crew foreman" },
     accent: characterColors.momo,
     routes: ["/journal", "/audit", "/wiki"],
     line: {
-      ko: "잘 넣어둘게.",
-      en: "I'll keep it safe.",
+      ko: "잘 분류해서 넣어둘게.",
+      en: "I'll sort it and keep it safe.",
     },
   },
   lulu: {
     id: "lulu",
-    name: { ko: "루루", en: "Lulu" },
-    role: { ko: "수집·캡처", en: "Capture collector" },
+    name: { ko: "루멘", en: "Lumen" },
+    role: { ko: "지혜의 현자", en: "Sage of wisdom" },
     accent: characterColors.lulu,
     routes: ["/capture"],
     line: {
-      ko: "새 조각 주워왔어.",
-      en: "Brought back a fresh piece.",
+      ko: "새 조각, 네 삶에 어떻게 엮일까?",
+      en: "A fresh piece - where does it fit your life?",
     },
   },
   archi: {
     id: "archi",
-    name: { ko: "아치", en: "Archi" },
-    role: { ko: "연결 설계", en: "Connection architect" },
+    name: { ko: "아콘", en: "Archon" },
+    role: { ko: "성장 설계", en: "Growth architect" },
     accent: characterColors.archi,
     routes: ["/persona", "/core-brain", "/trinity", "/insights"],
     line: {
-      ko: "이 조각들이 이어져 있어.",
-      en: "These pieces line up — see?",
+      ko: "이 조각들이 성장으로 이어져.",
+      en: "These pieces line up into growth.",
     },
   },
   vela: {
@@ -87,14 +87,15 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
   },
   gadi: {
     id: "gadi",
-    name: { ko: "가디", en: "Gadi" },
-    role: { ko: "안전·경계", en: "Safety guard" },
+    name: { ko: "릴리아", en: "Relia" },
+    role: { ko: "따뜻한 길잡이", en: "Warm guide" },
     accent: characterColors.gadi,
-    // Gadi doesn't own a screen — surfaces on top of any safety event.
+    // Bond Core guide (worldview v-final). Safety is now system-only (guardRose,
+    // no mascot), so Relia owns relationship warmth, not safety events.
     routes: [],
     line: {
-      ko: "이 길은 조심히 가자.",
-      en: "Let's take this path gently.",
+      ko: "천천히 같이 들여다보자.",
+      en: "Let's look at it together, gently.",
     },
   },
 };
