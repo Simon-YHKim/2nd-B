@@ -293,6 +293,40 @@ export default function Jarvis() {
             ) : null}
         </View>
 
+        {/* SecondB mode toggle (worldview v-final): Analytic / Divergent. Both
+            run the same C9 -> C3 -> gemini.ts path; only the prompt shifts. */}
+        <View style={styles.modeRow}>
+          <Pressable
+            onPress={() => setChatMode("analytic")}
+            hitSlop={6}
+            style={[styles.modeChip, chatMode === "analytic" ? styles.modeChipAnalytic : null]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: chatMode === "analytic" }}
+            accessibilityLabel={locale === "ko" ? "분석 모드" : "Analytic mode"}
+          >
+            <Text variant="caption" color={chatMode === "analytic" ? "background" : "textMuted"}>
+              {locale === "ko" ? "분석" : "Analytic"}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setChatMode("divergent")}
+            hitSlop={6}
+            style={[styles.modeChip, chatMode === "divergent" ? styles.modeChipDivergent : null]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: chatMode === "divergent" }}
+            accessibilityLabel={locale === "ko" ? "공상 모드" : "Divergent mode"}
+          >
+            <Text variant="caption" color={chatMode === "divergent" ? "text" : "textMuted"}>
+              {locale === "ko" ? "공상" : "Divergent"}
+            </Text>
+          </Pressable>
+          {chatMode === "divergent" ? (
+            <Text variant="caption" color="textSubtle" style={styles.modeHint} numberOfLines={1}>
+              {locale === "ko" ? "새로운 관점·가정으로" : "New perspectives & what-ifs"}
+            </Text>
+          ) : null}
+        </View>
+
         {/* nodeContext pill — entered from a graph node (chat pack §7) */}
         {fromNode ? (
           <View style={styles.contextPillWrap}>
@@ -400,7 +434,10 @@ export default function Jarvis() {
               <Pressable
                 key={qa.en}
                 style={styles.quickChip}
-                onPress={() => setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en)}
+                onPress={() => {
+                  if (qa.mode) setChatMode(qa.mode);
+                  setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={locale === "ko" ? qa.ko : qa.en}
               >
@@ -540,6 +577,28 @@ const styles = StyleSheet.create({
     borderBottomColor: semantic.border,
     borderBottomWidth: 1,
   },
+  modeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderBottomColor: semantic.border,
+    borderBottomWidth: 1,
+  },
+  modeChip: {
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surfaceAlt,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    minHeight: 36,
+    justifyContent: "center",
+  },
+  modeChipAnalytic: { backgroundColor: semantic.brand, borderColor: semantic.brand },
+  modeChipDivergent: { backgroundColor: cosmic.soulViolet2, borderColor: cosmic.soulViolet2 },
+  modeHint: { flex: 1, marginLeft: spacing.xs },
   scroll: { paddingVertical: spacing.md, gap: spacing.sm },
   empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },
   emptySecondB: {
