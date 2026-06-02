@@ -236,42 +236,6 @@ export default function Jarvis() {
               : locale === "ko"
                 ? "오늘의 기록을 읽어봤어요. 작은 한 걸음으로 시작해볼까요?"
                 : "I've read today's pieces. Shall we start with one small step?"
-          }
-        />
-
-        <View style={styles.usagePanel}>
-            <Text variant="caption" color="textMuted">
-              {locale === "ko" ? "오늘" : "Today"}
-            </Text>
-            <Text
-              variant="body"
-              color={usedToday !== null && usedToday >= limit ? "danger" : usedToday !== null && limit - usedToday <= 2 ? "warning" : "textMuted"}
-            >
-              {usedDisplay} / {limit}
-            </Text>
-            {turns.length > 0 ? (
-              <Pressable onPress={() => setTurns([])} hitSlop={4} style={{ marginTop: spacing.xs }}>
-                <Text variant="caption" color="brand">
-                  {locale === "ko" ? "대화 비우기" : "Clear chat"}
-                </Text>
-              </Pressable>
-            ) : null}
-        </View>
-
-            accessibilityLabel={locale === "ko" ? "공상 모드" : "Divergent mode"}
-          >
-            <Text variant="caption" color={chatMode === "divergent" ? "text" : "textMuted"}>
-              {locale === "ko" ? "공상" : "Divergent"}
-            </Text>
-          </Pressable>
-          {chatMode === "divergent" ? (
-            <Text variant="caption" color="textSubtle" style={styles.modeHint} numberOfLines={1}>
-              {locale === "ko" ? "새로운 관점·가정으로" : "New perspectives & what-ifs"}
-            </Text>
-          ) : null}
-        </View>
-
-
           }        />
 
         <View style={styles.usagePanel}>
@@ -378,12 +342,12 @@ export default function Jarvis() {
                     >
                       {turn.text}
                     </Text>
-                    </Pressable>
-                onPress={() => {
-                  if (qa.mode) setChatMode(qa.mode);
-                  setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
-                }}
-                onPress={() => setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en)}
+                  </Pressable>
+                  {/* Grounding strip — "이 답변은 참고한 조각 N개를 봤어요"; tap to
+                      open the reference drawer (chat pack §5/§6). */}
+                  {turn.role === "jarvis" && turn.chips && turn.chips.length > 0 ? (
+                    <Pressable
+                      style={styles.chipRow}
                       onPress={() => setRefDrawer(turn.chips ?? [])}
                       accessibilityRole="button"
                       accessibilityLabel={
@@ -405,10 +369,7 @@ export default function Jarvis() {
                           {locale === "ko" ? `+${turn.chips.length - 3}` : `+${turn.chips.length - 3}`}
                         </Text>
                       ) : null}
-                onPress={() => {
-                  if (qa.mode) setChatMode(qa.mode);
-                  setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
-                }}
+                    </Pressable>
                   ) : null}
                 </View>
               </View>
@@ -502,55 +463,33 @@ export default function Jarvis() {
         <Pressable style={styles.modalBackdrop} onPress={() => setRefDrawer(null)}>
           <Pressable
             style={styles.drawer}
-  modeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderBottomColor: semantic.border,
-    borderBottomWidth: 1,
-  },
-  modeChip: {
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: semantic.border,
-    backgroundColor: semantic.surfaceAlt,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    minHeight: 36,
-    justifyContent: "center",
-  },
-  modeChipAnalytic: { backgroundColor: semantic.brand, borderColor: semantic.brand },
-  modeChipDivergent: { backgroundColor: cosmic.soulViolet2, borderColor: cosmic.soulViolet2 },
-  modeHint: { flex: 1, marginLeft: spacing.xs },
-  modeHint: { flex: 1, marginLeft: spacing.xs },
+            onPress={(e) => e.stopPropagation()}
+            accessibilityViewIsModal
+            accessibilityLabel={locale === "ko" ? "참고한 조각들" : "Pieces referenced"}
+          >
+            <View style={styles.drawerHandle} />
+            <Text variant="heading">{locale === "ko" ? "참고한 조각들" : "Pieces referenced"}</Text>
+            <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
+              {locale === "ko"
+                ? "답변에 영향을 준 조각들이에요. 필요하면 하나씩 열어볼 수 있어요."
+                : "The pieces that shaped this answer. Open any one if you like."}
+            </Text>
+            <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+              {(refDrawer ?? []).map((slug) => (
+                <ReferenceShardCard key={slug} title={slug} meta={locale === "ko" ? "참고한 조각" : "referenced piece"} />
+              ))}
+            </View>
+            <Button
+              label={locale === "ko" ? "닫기" : "Close"}
+              variant="secondary"
+              onPress={() => setRefDrawer(null)}
+            />
+          </Pressable>
+        </Pressable>
       </Modal>
       {/* 가디 appears briefly on a safety soft-stop / all-clear (companion pack §3) */}
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
-  modeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderBottomColor: semantic.border,
-    borderBottomWidth: 1,
-  },
-  modeChip: {
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: semantic.border,
-    backgroundColor: semantic.surfaceAlt,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    minHeight: 36,
-    justifyContent: "center",
-  },
-  modeChipAnalytic: { backgroundColor: semantic.brand, borderColor: semantic.brand },
-  modeChipDivergent: { backgroundColor: cosmic.soulViolet2, borderColor: cosmic.soulViolet2 },
-  modeHint: { flex: 1, marginLeft: spacing.xs },
       ) : null}
     </PremiumAppShell>
   );
