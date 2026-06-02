@@ -34,7 +34,7 @@ describe("PERSONAS", () => {
 
 describe("getPersona", () => {
   test("resolves a known id", () => {
-    expect(getPersona("lulu").name.en).toBe("Lulu");
+    expect(getPersona("lulu").name.en).toBe("Lumen");
   });
   test("falls back to SecondB for unknown / null", () => {
     expect(getPersona(null).id).toBe("secondb");

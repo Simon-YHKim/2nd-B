@@ -62,6 +62,8 @@ import { getPersona } from "@/lib/chat/personas";
 import { relatedEdges } from "@/lib/graph/relatedness";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
+import { CrewLayer } from "./CrewLayer";
+import { useCrewCount } from "@/lib/settings/crew-density";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
@@ -148,28 +150,22 @@ export interface DataNode {
 // sub-places under a district, revealed only when you zoom/select. Routes are
 // unchanged so every existing screen stays reachable.
 export const MENU_NODES: readonly NavNode[] = [
-  // Tier 2 — six domain islands around the center.
+  // Tier 2 — five Pattern Cores around the Soul Core (worldview v-final). The
+  // former "imagine" core was removed: 공상 is now SecondB's Divergent mode.
   { id: "work", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "work" } },
-    label: { en: "Work & growth", ko: "일과 성장" },
+    label: { en: "Growth Core", ko: "일과 성장" },
     description: { en: "Where the pieces that move today's you gather: work and growth.", ko: "오늘의 나를 움직이는 일과 성장의 조각들이 모이는 곳이에요." } },
   { id: "relation", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "relation" } },
-    label: { en: "People & ties", ko: "관계와 사람" },
+    label: { en: "Bond Core", ko: "관계와 사랑" },
     description: { en: "Where memories, promises, and conversations with people connect.", ko: "사람들과의 기억, 약속, 대화 조각이 이어지는 곳이에요." } },
   { id: "knowledge", tier: 2, parentId: "core", href: "/wiki", bubbleAction: "upload",
-    label: { en: "Learning & knowledge", ko: "배움과 지식" },
+    label: { en: "Wisdom Core", ko: "배움과 지식" },
     description: { en: "Where what you've learned and understood stacks up as knowledge.", ko: "배우고 이해한 것들이 지식 조각으로 쌓이는 곳이에요." } },
   { id: "records", tier: 2, parentId: "core", href: "/records",
-    label: { en: "Records", ko: "기록 보관소" },
+    label: { en: "Narrative Core", ko: "기록 보관소" },
     description: { en: "Where every piece you've kept gathers so you can find it again.", ko: "남긴 모든 조각이 다시 찾아볼 수 있게 모이는 곳이에요." } },
-  { id: "imagine", tier: 2, parentId: "core", href: "/imagine",
-    label: { en: "Imagine workshop", ko: "공상 작업실" },
-    description: {
-      en: "Where a vague thought unfolds into scenes and a next step.",
-      ko: "막연한 생각을 장면과 다음 한 걸음으로 펼치는 곳이에요.",
-    },
-  },
   { id: "taste", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "taste" } },
-    label: { en: "Taste & spark", ko: "취향과 영감" },
+    label: { en: "Muse Core", ko: "취향과 영감" },
     description: { en: "Where the things you like, are drawn to, and find inspiring gather.", ko: "좋아하는 것, 끌리는 것, 영감의 조각이 모이는 곳이에요." } },
 
   // Tier 3 — real sub-places under a district; revealed on zoom/selection.
@@ -202,7 +198,7 @@ export const CENTER_NODE: NavNode = {
   // right of the main screen. The bubble now only describes Core Brain.
   // Dev name stays "Core Brain"; user-facing label uses the village
    // wording "나의 중심" / "Center of me" (handoff §7-2).
-  label: { en: "Center of me", ko: "나의 중심" },
+  label: { en: "Soul Core", ko: "나의 중심" },
   // Core Brain speaks as the team's voice — calm, plural ("우리 / we"),
   // owns the cells. Surface this everywhere the user lands first.
   description: {
@@ -220,7 +216,6 @@ const ISLAND_FOR: Record<string, IslandId> = {
   relation: VILLAGE_UI.relation.island,
   knowledge: VILLAGE_UI.knowledge.island,
   records: VILLAGE_UI.records.island,
-  imagine: VILLAGE_UI.imagine.island,
   taste: VILLAGE_UI.taste.island,
 };
 
@@ -233,7 +228,6 @@ const VILLAGE_WORKER: Record<string, WorkerId> = {
   relation: VILLAGE_UI.relation.worker,
   knowledge: VILLAGE_UI.knowledge.worker,
   records: VILLAGE_UI.records.worker,
-  imagine: VILLAGE_UI.imagine.worker,
   taste: VILLAGE_UI.taste.worker,
 };
 
@@ -316,6 +310,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   const { width, height } = useWindowDimensions();
   const cx = width / 2;
   const cy = height / 2;
+
+  // Decorative crew count (worldview v-final "모모크루"). Scales with the user's
+  // on-graph Log nodes, bounded by the density preference + LOD. The crew sprite
+  // render is wired when the assets land; CrewLayer draws nothing until then.
+  const { count: crewCount, animated: crewAnimated } = useCrewCount(dataNodes.length);
 
   // Zoom + pan — pinch to scale, 2-finger pan to translate. The root
   // ReAnimated.View applies the transform; individual node positions /
@@ -1004,10 +1003,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
 
   // Village type label per tier (overhaul §6/§7 sheet "노드 타입").
   const typeLabel = (tier: Tier): string => {
-    if (tier === 1) return locale === "ko" ? "나의 중심" : "Center";
-    if (tier === 2) return locale === "ko" ? "동네" : "District";
-    if (tier === 3) return locale === "ko" ? "나의 모습" : "A side of me";
-    return locale === "ko" ? "생각 조각" : "Fragment";
+    if (tier === 1) return locale === "ko" ? "나의 중심" : "Soul Core";
+    if (tier === 2) return locale === "ko" ? "패턴 코어" : "Pattern Core";
+    if (tier === 3) return locale === "ko" ? "패턴 데이터" : "Pattern Data";
+    return locale === "ko" ? "기록 조각" : "Log";
   };
 
   // Tap a node (graph-ux-overhaul #6). For a tier-2 village we spring the
@@ -1057,10 +1056,13 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   }
 
   function handleImagine() {
-    // Graph node → imagine handoff (imagine pack §7): seed the workshop.
+    // Worldview v-final: 공상 is no longer a place — it's SecondB's Divergent
+    // chat mode. "공상으로 펼치기" opens the node in /jarvis with mode=divergent.
     const label = activeNode?.label[locale];
     setActiveId(null);
-    router.push(label ? { pathname: "/imagine", params: { fromNode: label } } : "/imagine");
+    const params: Record<string, string> = { mode: "divergent" };
+    if (label) params.fromNode = label;
+    router.push({ pathname: "/jarvis", params });
   }
 
   // "자세히" on a piece popup → open the piece's village screen, the space that
@@ -1268,6 +1270,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           yet still below the screen-fixed bottom sheet / FAB (#1). When a
           node sheet is open we hide them so nothing floats over the popup. */}
       <CharacterPathLayer commutes={commutes} hidden={activeId != null} locale={locale} spriteSize={GRAPH_WORKER_SIZE} />
+      {/* Decorative Narrative crew (worldview v-final). Hidden while a sheet is
+          open; renders nothing until the GPT crew sprites land (renderCrew slot). */}
+      <CrewLayer count={crewCount} animated={crewAnimated} visible={activeId == null} />
 
       </ReAnimated.View>
     </GestureDetector>
@@ -1428,7 +1433,7 @@ function NodeSheet({
       </View>
       {/* Optional: unfold this node in the imagine workshop (imagine pack §7) */}
       <Pressable onPress={onImagine} hitSlop={6} style={styles.sheetImagine}>
-        <Text variant="caption" color="brand">{locale === "ko" ? "공상으로 펼치기" : "Open in imagine"}</Text>
+        <Text variant="caption" color="brand">{locale === "ko" ? "공상 모드로 펼치기" : "Open in Divergent"}</Text>
       </Pressable>
     </Animated.View>
   );

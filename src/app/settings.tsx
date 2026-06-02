@@ -15,6 +15,7 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { useTheme } from "@/lib/theme/ThemeContext";
+import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/settings/crew-density";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import {
   deleteAllChatUsage,
@@ -27,11 +28,17 @@ import {
 
 const CONFIRM_PHRASE = "DELETE";
 
+const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
+  en: { none: "None", few: "Few", some: "Some", many: "Many" },
+  ko: { none: "없음", few: "적게", some: "보통", many: "많이" },
+};
+
 export default function Settings() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const { mode, toggle } = useTheme();
+  const { density: crewDensity, setDensity: setCrewDensity } = useCrewDensity();
 
   const [busy, setBusy] = useState<string | null>(null);
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
@@ -174,6 +181,27 @@ export default function Settings() {
           <Button label={locale === "ko" ? "테마" : "Theme"} variant="secondary" onPress={() => router.push("/theme")} />
           <Button label={locale === "ko" ? "데이터 관리" : "Data management"} variant="secondary" onPress={() => router.push("/data")} />
           <Button label={locale === "ko" ? "기록" : "Records"} variant="secondary" onPress={() => router.push("/records")} />
+        <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
+          <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
+            {locale === "ko" ? "그래프 크루 (장식 로봇)" : "Graph crew (decorative)"}
+          </Text>
+          <Text variant="subtle" color="textMuted">
+            {locale === "ko"
+              ? "기록 보관소 크루가 그래프를 돌아다니는 양. 노드 수에 비례하며, 없음~많이로 조절하거나 완전히 끌 수 있어요."
+              : "How many records-crew sprites wander the graph. Scales with your node count; set anywhere from none to many."}
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm }}>
+            {CREW_DENSITY_ORDER.map((d) => (
+              <Button
+                key={d}
+                label={CREW_DENSITY_LABEL[locale][d]}
+                variant={crewDensity === d ? "primary" : "secondary"}
+                onPress={() => setCrewDensity(d)}
+              />
+            ))}
+          </View>
+        </View>
+
           <Button label={locale === "ko" ? "지원" : "Support"} variant="secondary" onPress={() => router.push("/support")} />
         </View>
 

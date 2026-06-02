@@ -24,11 +24,11 @@ export type CompanionEvent =
   | "journal_saved" | "capture_saved" | "link_found" | "imagine_ready" | "safety_soft_stop";
 
 export const companionAlt: Record<CompanionName, string> = {
-  momo: "Momo, record keeper",
-  lulu: "Lulu, capture collector",
-  archi: "Archi, connection architect",
+  momo: "Foreman Momo, records crew foreman",
+  lulu: "Lumen, sage of wisdom",
+  archi: "Archon, growth architect",
   vela: "Vela, imagination guide",
-  gadi: "Gadi, safety guard",
+  gadi: "Relia, warm guide",
 };
 
 const COMPANION_BASE = "/assets/2ndb-production-premium-v1/workers-redraw-v1";

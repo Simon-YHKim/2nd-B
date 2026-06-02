@@ -31,13 +31,13 @@ export const cosmic = {
 
   // Signal accents — applied to active connections, AI presence,
   // discoveries, imagination, and safety states.
-  signalBlue: "#4CC9F0", // Archi accent
-  signalMint: "#72F2C7", // Electric Mint — active connections, Lulu, brand
-  soulViolet: "#A78BFA", // SecondB / AI presence
-  soulViolet2: "#7C5EE8",
-  pixelLamp: "#FFD166", // New record / discovery, Momo accent
-  dreamPink: "#FF9FD6", // Imagine / Vela accent
-  guardRose: "#FF7A90", // Safety / Gadi accent
+  signalBlue: "#4CC9F0", // Growth Core / Archon accent
+  signalMint: "#72F2C7", // Electric Mint — active connections, Wisdom Core / Lumen, brand
+  soulViolet: "#A78BFA", // Soul Core / SecondB / AI presence
+  soulViolet2: "#7C5EE8", // SecondB Divergent-mode variant (worldview v-final)
+  pixelLamp: "#FFD166", // Bond Core / Relia accent + new-record/discovery + zoneYellow (dual-context)
+  dreamPink: "#FF9FD6", // Muse Core / Iris accent
+  guardRose: "#FF7A90", // Safety / crisis — system-only (no mascot)
 
   // Neutrals.
   moonWhite: "#E8ECF8", // Primary text
@@ -169,13 +169,16 @@ export const semanticLight = {
 // cosmic accent so the village reads as a small consistent cast across
 // the graph, popovers, and chat avatars. Routes the character is tied
 // to live in src/lib/characters.ts.
+// Worldview v-final (2026-06): accents map to the 5 Pattern Cores + Soul Core.
+// Safety is now system-only (guardRose), separated from any mascot. Internal
+// keys stay (asset filenames / personas key off them); only color + meaning move.
 export const characters = {
-  secondb: cosmic.soulViolet, // AI guide — /jarvis, floating button
-  momo: cosmic.pixelLamp, // Record keeper — /journal, /audit, /wiki
-  lulu: cosmic.signalMint, // Capture collector — /capture
-  archi: cosmic.signalBlue, // Connection architect — /persona, /core-brain
-  vela: cosmic.dreamPink, // Imagination guide — /imagine
-  gadi: cosmic.guardRose, // Safety / boundary — safety classifier
+  secondb: cosmic.soulViolet, // Soul Core / SecondB — AI presence
+  momo: cosmic.moonWhite, // Narrative Core / Foreman Momo + crew — monochrome
+  lulu: cosmic.signalMint, // Wisdom Core / Lumen
+  archi: cosmic.signalBlue, // Growth Core / Archon
+  vela: cosmic.dreamPink, // retired (공상 → Divergent mode); kept dormant, not surfaced
+  gadi: cosmic.pixelLamp, // Bond Core / Relia — amber (dual-context with zoneYellow; see DESIGN.md)
 } as const;
 
 export type CharacterName = keyof typeof characters;
