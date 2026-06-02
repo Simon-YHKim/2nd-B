@@ -11,6 +11,8 @@ import { Image, StyleSheet, View, type ViewStyle, type ImageStyle, type StylePro
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { semantic } from "@/lib/theme/tokens";
+import { getEnv } from "@/lib/env";
+import { V3_WORKER_ART } from "@/lib/assets/soulcore-v3";
 
 // imageRendering pixelated keeps the strip crisp; web-only, ignored native.
 const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
@@ -122,6 +124,20 @@ export function WorkerSprite({
   // scaleX flip mirrors the whole clipped frame (including the strip's
   // translateX), so flipping the outer box is correct.
   const flip: ViewStyle["transform"] = facing === -1 ? [{ scaleX: -1 }] : [];
+
+  // v3 art (EXPO_PUBLIC_USE_V3_ART): the v3 pack ships per-state SVGs, not a
+  // frame strip, so render the static idle pose (keeping the contact shadow +
+  // facing flip; position is owned by CharacterPathLayer). Default off → the
+  // PNG walk-cycle / idle below is unchanged. secondb has no v3 sprite → PNG.
+  const V3Sprite = getEnv().EXPO_PUBLIC_USE_V3_ART ? V3_WORKER_ART[id] : undefined;
+  if (V3Sprite) {
+    return (
+      <View style={[{ width: size, height: size, transform: flip }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <ContactShadow size={size} />
+        <V3Sprite width={size} height={size} />
+      </View>
+    );
+  }
 
   // Reduced motion OR parked: render the dedicated idle pose instead of
   // freezing on a mid-stride walk frame.
