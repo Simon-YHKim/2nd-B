@@ -78,6 +78,7 @@ function useSkyDrift() {
 // nothing to action; just a "we noticed" hint.
 const INSIGHTS: Record<"en" | "ko", readonly string[]> = {
   en: [
+    "In the age of AI, the most valuable asset is you.",
     "We noticed something this past month.",
     "Your past me and present me are lining up.",
     "There's fresh material in Wiki worth a sort.",
@@ -85,6 +86,7 @@ const INSIGHTS: Record<"en" | "ko", readonly string[]> = {
     "Today leans a little more 'present me'.",
   ],
   ko: [
+    "AI 시대, 가장 가치있는 것은 나 자신.",
     "이번 한 달, 우리가 뭘 좀 알아챘어요.",
     "과거의 당신과 현재의 당신이 정렬되는 중이에요.",
     "Wiki에 새 재료가 좀 들어와 있어요. 정리해 볼까요?",

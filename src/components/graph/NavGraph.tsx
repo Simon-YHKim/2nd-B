@@ -67,6 +67,7 @@ import { useCrewCount } from "@/lib/settings/crew-density";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
+import { patternLinkStyle } from "@/lib/graph/pattern-link";
 import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus } from "./world-layout";
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
@@ -219,10 +220,11 @@ const ISLAND_FOR: Record<string, IslandId> = {
   taste: VILLAGE_UI.taste.island,
 };
 
-// Domain → worker mapping (closeout-v3 #6, authoritative):
-//   일과 성장 = Archi, 관계와 사람 = Gadi, 배움과 지식 = Lulu,
-//   기록 보관소 = Momo, 공상 작업실 = Vela, 취향과 영감 = Lumi (new #7),
-//   나의 중심 = SecondB. Worker glow matches the domain accent.
+// Domain → worker mapping (worldview v-final, authoritative). Internal worker
+// ids (archi/gadi/lulu/momo/lumi/secondb) are unchanged; display names moved:
+//   일과 성장 = Archon, 관계와 사랑 = Relia, 배움과 지식 = Lumen,
+//   기록 보관소 = Foreman Momo, 취향과 영감 = Iris,
+//   나의 중심 = SecondB. Worker glow matches the core accent.
 const VILLAGE_WORKER: Record<string, WorkerId> = {
   work: VILLAGE_UI.work.worker,
   relation: VILLAGE_UI.relation.worker,
@@ -751,6 +753,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     return b;
   });
   const vis = tierVisibility(bucket < 1 ? 0.5 : bucket < 2 ? 1.5 : 2.0);
+  // Pattern Link proximity → edge weight (worldview v-final): zoomed-in (bucket
+  // 2) reads "closer" so edges thicken; zoomed-out stays thin. Recomputed when
+  // the zoom bucket flips (rare), so it's a live but render-cheap signal.
+  const linkStyle = patternLinkStyle(bucket / 2);
   const nodeVisible = (tier: Tier): boolean =>
     tier === 1 ? vis.tier1 : tier === 2 ? vis.tier2 : tier === 3 ? vis.tier3 : vis.tier4;
 
@@ -1122,7 +1128,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 y2={y2}
                 stroke={cosmic.signalMint}
                 strokeOpacity={animOpacity}
-                strokeWidth={1}
+                strokeWidth={linkStyle.strokeWidth}
               />
               {/* 연결된 edge만 signal-mint 하이라이트 (§7) + C6 ambient glow. */}
               {incident ? (

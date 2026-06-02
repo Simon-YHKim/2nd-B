@@ -14,7 +14,7 @@
 //     reappear every session.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable } from "react-native";
+import { Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, Easing } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, useLocalSearchParams } from "expo-router";
 
@@ -34,6 +34,7 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
 import { CORE_VILLAGE_UI, VILLAGE_UI } from "@/lib/village-ui";
+import { prefersReducedMotion } from "@/lib/motion/signature";
 
 // Quick-action chips offered under an answer (chat pack §8). Each prefills
 // the composer with a short follow-up in the village voice; the user sends.
@@ -107,6 +108,10 @@ export default function Jarvis() {
   const [chatMode, setChatMode] = useState<"analytic" | "divergent">(
     params.mode === "divergent" ? "divergent" : "analytic",
   );
+  // Divergent signature motion (DESIGN.md): a soft soulViolet2 pulse while a
+  // Divergent turn is in flight. Holds at rest otherwise; static under reduced
+  // motion. (Replaces the old dreamPink "벨라 신호" now that 공상 is a mode.)
+  const divergentPulse = useRef(new Animated.Value(0.6)).current;
   // Reference drawer (chat pack §6): the cited pieces of a tapped answer.
   const [refDrawer, setRefDrawer] = useState<string[] | null>(null);
   const companion = useCompanionMoment();
@@ -150,6 +155,20 @@ export default function Jarvis() {
     // Scroll to bottom after each new turn.
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
   }, [turns]);
+
+  useEffect(() => {
+    if (chatMode === "divergent" && sending && !prefersReducedMotion()) {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(divergentPulse, { toValue: 1, duration: 300, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.timing(divergentPulse, { toValue: 0.6, duration: 300, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        ]),
+      );
+      loop.start();
+      return () => loop.stop();
+    }
+    divergentPulse.setValue(0.6);
+  }, [chatMode, sending, divergentPulse]);
 
   if (authLoading || progression.loading) return <InlineLoader />;
   if (!userId) {
@@ -285,9 +304,12 @@ export default function Jarvis() {
             </Text>
           </Pressable>
           {chatMode === "divergent" ? (
-            <Text variant="caption" color="textSubtle" style={styles.modeHint} numberOfLines={1}>
-              {locale === "ko" ? "새로운 관점·가정으로" : "New perspectives & what-ifs"}
-            </Text>
+            <>
+              <Animated.View style={[styles.divergentPulseDot, { opacity: divergentPulse as never }]} />
+              <Text variant="caption" color="textSubtle" style={styles.modeHint} numberOfLines={1}>
+                {locale === "ko" ? "새로운 관점·가정으로" : "New perspectives & what-ifs"}
+              </Text>
+            </>
           ) : null}
         </View>
 
@@ -538,6 +560,7 @@ const styles = StyleSheet.create({
   modeChipAnalytic: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   modeChipDivergent: { backgroundColor: cosmic.soulViolet2, borderColor: cosmic.soulViolet2 },
   modeHint: { flex: 1, marginLeft: spacing.xs },
+  divergentPulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: cosmic.soulViolet2 },
   scroll: { paddingVertical: spacing.md, gap: spacing.sm },
   empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },
   emptySecondB: {
