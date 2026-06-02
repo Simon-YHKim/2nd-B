@@ -21,7 +21,6 @@ import { IslandArt, ShardArt } from "@/components/art/IslandArt";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { ContextPill } from "@/components/premium";
 import { callGemini } from "@/lib/llm/gemini";
-import { VILLAGE_UI } from "@/lib/village-ui";
 import {
   IMAGINE_SYSTEM,
   parseImagineResult,
@@ -29,6 +28,15 @@ import {
   type ParsedImagine,
 } from "@/lib/llm/imagine";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
+
+// Worldview v-final: the imagine Pattern-Core node was removed (공상 → SecondB
+// Divergent mode), so VILLAGE_UI no longer carries an `imagine` entry. This
+// screen is vestigial; its art / accent live inline so it still renders.
+const IMAGINE_UI = {
+  island: "imagine" as const,
+  worker: "vela" as const,
+  accent: cosmic.dreamPink,
+};
 
 type Phase = "input" | "generating" | "result" | "saved";
 
@@ -158,9 +166,9 @@ export default function Imagine() {
           eyebrow={locale === "ko" ? "03. 공상 놀이터" : "03. Imagine playground"}
           title={locale === "ko" ? "생각을 밤빛 장면으로" : "Turn a thought into a scene"}
           subtitle={locale === "ko" ? `${vela.name.ko} · ${vela.role.ko}` : `${vela.name.en} · ${vela.role.en}`}
-          island={VILLAGE_UI.imagine.island}
-          worker={VILLAGE_UI.imagine.worker}
-          accent={VILLAGE_UI.imagine.accent}
+          island={IMAGINE_UI.island}
+          worker={IMAGINE_UI.worker}
+          accent={IMAGINE_UI.accent}
           speech={heroSpeech}
           primaryAction={{
             label: primaryActionLabel,
@@ -315,7 +323,7 @@ const styles = StyleSheet.create({
   contextPillWrap: { marginTop: spacing.xs },
   promptCard: {
     backgroundColor: semantic.surface,
-    borderColor: VILLAGE_UI.imagine.accent,
+    borderColor: IMAGINE_UI.accent,
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.lg,
@@ -326,7 +334,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   panelTitle: {
-    color: VILLAGE_UI.imagine.accent,
+    color: IMAGINE_UI.accent,
     letterSpacing: 0,
   },
   promptInput: {

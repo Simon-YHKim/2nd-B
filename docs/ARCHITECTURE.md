@@ -2,6 +2,27 @@
 
 > Snapshot at Sprint 0. Evolves with each sprint.
 
+## 세계관 (v-final) — 5계층 그래프 모델
+
+정본은 `docs/VISION.md` "세계관 (v-final)". 코드 / 그래프 / 마스코트 / 색은 모두 이 모델을 따른다.
+
+- **Tier 1 Soul Core** ("나의 중심", 마스코트 SecondB) — 5개 Pattern Core 가 모여 형성. 내부 키 `core`.
+- **Tier 2 Pattern Core** (Pattern Tesseract) — 5개:
+  Bond(관계·`relation`)/Relia, Wisdom(지식·`knowledge`)/Lumen, Narrative(기록·`records`)/Foreman Momo,
+  Muse(취향·`taste`)/Iris, Growth(일·성장·`work`)/Archon.
+- **Tier 3 Pattern Data** — Log 로 만들어진 카테고리 (도메인 태그 분류, `src/lib/graph/relatedness.ts`).
+- **Tier 4 Log** — 사용자 기록 그 자체 (`sources` / `records`).
+- **Pattern Link** (Graph Network) — 전 계층을 잇는 그래프 엣지.
+
+내부 route / slug / DB 키(work / relation / knowledge / records / taste)는 유지하고, 표시명 · 개념 ·
+마스코트 이름만 표시 레이어에서 바뀐다 (`src/lib/chat/personas.ts`, `src/lib/characters.ts`,
+`src/lib/graph/relatedness.ts::VILLAGE_LABEL`).
+
+**공상 작업실**은 장소(Pattern Core 노드)에서 제거되고 SecondB 대화 모드로 전환된다:
+**Analytic**(data 기반 분석) · **Divergent**(data 기반 + 전혀 다른 관점). 두 모드 모두
+C9 → C3 → `gemini.ts` 경로를 타며 안전 분류를 우회하지 않는다(C9 유지). 구 `/imagine` 라우트 ·
+스크린 · LLM purpose · 에셋 키는 vestigial 로 보존한다(회귀 위험 최소화).
+
 ## Seven Engines
 
 | # | Engine | Responsibility | Sprint |
@@ -118,7 +139,7 @@ a Gemini connection.
 | `/capture` | URL + pasted markdown with live "Detected: \<kind\>" preview. |
 | `/inbox` | Captured sources with per-row kind chip, ingested badge, "Generate wiki page" action for unpromoted rows. |
 | `/wiki` | Wiki page browser. Tag filter chips, tap to expand body + backlinks. |
-| `/jarvis` | Chatbot. Daily usage meter at the top. |
+| `/jarvis` | SecondB chat. Daily usage meter at the top. **Analytic / Divergent** mode toggle (worldview v-final): Analytic = data-grounded analysis, Divergent = data-grounded but explores radically different angles. Both route through `callGemini` (C9 → C3). |
 
 ### What's still ahead
 

@@ -21,11 +21,11 @@ describe("Cosmic Pixel palette", () => {
 describe("characters palette mapping", () => {
   test("each of the 6 residents has the handoff-mandated accent", () => {
     expect(characterColors.secondb).toBe("#A78BFA"); // Soul Violet
-    expect(characterColors.momo).toBe("#FFD166"); // Pixel Lamp
-    expect(characterColors.lulu).toBe("#72F2C7"); // Electric Mint
-    expect(characterColors.archi).toBe("#4CC9F0"); // Signal Blue
-    expect(characterColors.vela).toBe("#FF9FD6"); // Dream Pink
-    expect(characterColors.gadi).toBe("#FF7A90"); // Guard Rose
+    expect(characterColors.momo).toBe("#E8ECF8"); // Moon White (Narrative — monochrome)
+    expect(characterColors.lulu).toBe("#72F2C7"); // Electric Mint (Wisdom / Lumen)
+    expect(characterColors.archi).toBe("#4CC9F0"); // Signal Blue (Growth / Archon)
+    expect(characterColors.vela).toBe("#FF9FD6"); // Dream Pink (retired, dormant)
+    expect(characterColors.gadi).toBe("#FFD166"); // Pixel Lamp (Bond / Relia — amber)
   });
 });
 

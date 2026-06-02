@@ -4,20 +4,21 @@
 // actually related — not just hang everything under one fixed node.
 //
 // Two pure functions, both unit-tested so NavGraph/index stay thin:
-//   1. domainForTags  — route a piece's tags to one of the six villages.
+//   1. domainForTags  — route a piece's tags to one of the five Pattern Cores.
 //   2. relatedEdges   — connect pieces that share enough tags.
 //
 // Vocabulary stays in the project register (no clinical/technical terms).
 
-// The six tier-2 villages (NavGraph MENU_NODES tier-2 ids).
-export type VillageId = "work" | "relation" | "knowledge" | "records" | "imagine" | "taste";
+// The five tier-2 Pattern Cores (NavGraph MENU_NODES tier-2 ids). The former
+// "imagine" district was removed in worldview v-final (공상 → SecondB Divergent
+// mode); its keywords fold into `taste` (Muse Core). Internal ids unchanged.
+export type VillageId = "work" | "relation" | "knowledge" | "records" | "taste";
 
 export const VILLAGE_IDS: readonly VillageId[] = [
   "work",
   "relation",
   "knowledge",
   "records",
-  "imagine",
   "taste",
 ];
 
@@ -25,12 +26,11 @@ export const VILLAGE_IDS: readonly VillageId[] = [
  *  node labels). Single source for any surface that filters by village — e.g.
  *  the Records domain chips — so the wording can't drift from the graph. */
 export const VILLAGE_LABEL: Record<VillageId, { en: string; ko: string }> = {
-  work: { en: "Work & growth", ko: "일과 성장" },
-  relation: { en: "People & ties", ko: "관계와 사람" },
-  knowledge: { en: "Learning & knowledge", ko: "배움과 지식" },
-  records: { en: "Records", ko: "기록 보관소" },
-  imagine: { en: "Imagine workshop", ko: "공상 작업실" },
-  taste: { en: "Taste & spark", ko: "취향과 영감" },
+  work: { en: "Growth Core", ko: "일과 성장" },
+  relation: { en: "Bond Core", ko: "관계와 사랑" },
+  knowledge: { en: "Wisdom Core", ko: "배움과 지식" },
+  records: { en: "Narrative Core", ko: "기록 보관소" },
+  taste: { en: "Muse Core", ko: "취향과 영감" },
 };
 
 // Keyword → village. Lowercase substrings matched against a piece's tags
@@ -56,15 +56,14 @@ const DOMAIN_KEYWORDS: Record<VillageId, readonly string[]> = {
     "record", "journal", "diary", "log", "memo", "note", "daily", "today",
     "기록", "일기", "일지", "메모", "노트", "오늘", "일상",
   ],
-  imagine: [
-    "imagine", "idea-spark", "dream", "fiction", "story", "creative",
-    "imagination", "what-if", "scene",
-    "공상", "상상", "꿈", "이야기", "창작", "장면", "아이디어",
-  ],
   taste: [
     "taste", "inspiration", "spark", "music", "film", "movie", "art",
     "design", "aesthetic", "style", "favorite", "like",
     "취향", "영감", "음악", "영화", "예술", "디자인", "미감", "스타일", "좋아하는",
+    // Muse Core also absorbs the former imagine domain (공상 → Divergent mode).
+    "imagine", "idea-spark", "dream", "fiction", "story", "creative",
+    "imagination", "what-if", "scene",
+    "공상", "상상", "꿈", "이야기", "창작", "장면", "아이디어",
   ],
 };
 
