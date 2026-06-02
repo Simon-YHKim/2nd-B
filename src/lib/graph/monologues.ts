@@ -33,11 +33,6 @@ const MONOLOGUES: Record<WorkerId, { en: readonly string[]; ko: readonly string[
     ko: ["작년 오늘은 뭘 적었더라.", "여기, 잘 보관해 둘게요.", "먼지 한 톨 없이 정리 완료.", "다 제자리에 있네, 좋아."],
     en: ["What did I write a year ago today?", "Here, I'll keep this safe.", "Filed away, not a speck of dust.", "Everything in its place. Good."],
   },
-  // 벨라 — playful dream-weaver of imagination; ideas into scenes.
-  vela: {
-    ko: ["이걸 장면으로 펼치면 어떨까.", "만약에… 만약에 말이야.", "여기서 이야기가 시작될 것 같은데.", "상상은 공짜니까, 크게 가자."],
-    en: ["What if I unfolded this into a scene?", "What if... just what if.", "A story could start right here.", "Dreaming's free, so let's dream big."],
-  },
   // 아이리스 (Iris) — Muse Core trainer & curator; notices patterns.
   lumi: {
     ko: ["요즘 자꾸 이런 게 눈에 들어와.", "이 색깔, 마음에 든다.", "끌리는 데는 다 이유가 있지.", "어, 이거 완전 취향 저격인데."],

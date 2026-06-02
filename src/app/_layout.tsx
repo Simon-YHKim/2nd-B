@@ -70,10 +70,9 @@ export default function RootLayout() {
               {/* Village detail + center: crossfade so the graph→village
                   transition reads as the zoomed island resolving into the
                   screen, and BACK doesn't hard-cut to a re-popping graph. The
-                  six districts route to /records, /wiki, /imagine; the center
-                  to /core-brain. */}
+                  five Pattern Cores route to /records + /wiki; the center to
+                  /core-brain. (/imagine is now a redirect into Divergent mode.) */}
               <Stack.Screen name="records" options={{ animation: "fade" }} />
-              <Stack.Screen name="imagine" options={{ animation: "fade" }} />
               <Stack.Screen name="core-brain" options={{ animation: "fade" }} />
               <Stack.Screen name="+not-found" />
               </ThemedStack>

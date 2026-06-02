@@ -177,7 +177,6 @@ export const characters = {
   momo: cosmic.moonWhite, // Narrative Core / Foreman Momo + crew — monochrome
   lulu: cosmic.signalMint, // Wisdom Core / Lumen
   archi: cosmic.signalBlue, // Growth Core / Archon
-  vela: cosmic.dreamPink, // retired (공상 → Divergent mode); kept dormant, not surfaced
   gadi: cosmic.pixelLamp, // Bond Core / Relia — amber (dual-context with zoneYellow; see DESIGN.md)
 } as const;
 

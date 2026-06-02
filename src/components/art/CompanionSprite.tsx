@@ -11,7 +11,7 @@ import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { cosmic, semantic } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
-export type CompanionName = "momo" | "lulu" | "archi" | "vela" | "gadi";
+export type CompanionName = "momo" | "lulu" | "archi" | "gadi";
 
 export type CompanionState =
   | "idle" | "note" | "store" | "read" | "label" | "happy" | "sleep"
@@ -27,7 +27,6 @@ export const companionAlt: Record<CompanionName, string> = {
   momo: "Foreman Momo, records crew foreman",
   lulu: "Lumen, sage of wisdom",
   archi: "Archon, growth architect",
-  vela: "Vela, imagination guide",
   gadi: "Relia, warm guide",
 };
 
@@ -61,8 +60,6 @@ export const companionEventMap = {
   linkImported: { companion: "lulu", state: "success", cue: "capture_saved" },
   connectionFound: { companion: "archi", state: "linking", cue: "link_found" },
   personaUpdated: { companion: "archi", state: "build", cue: "link_found" },
-  imagineStarted: { companion: "vela", state: "spark", cue: "imagine_ready" },
-  imagineSaved: { companion: "vela", state: "save", cue: "imagine_ready" },
   safetySoftStop: { companion: "gadi", state: "soft_stop", cue: "safety_soft_stop" },
   safetyClear: { companion: "gadi", state: "clear", cue: "safety_soft_stop" },
 } as const satisfies Record<string, { companion: CompanionName; state: CompanionState; cue: CompanionEvent }>;

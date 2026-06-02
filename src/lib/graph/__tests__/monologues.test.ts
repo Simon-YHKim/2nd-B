@@ -1,7 +1,7 @@
 import { monologuesFor, pickMonologue } from "../monologues";
 import type { WorkerId } from "@/components/art/WorkerSprite";
 
-const WORKERS: WorkerId[] = ["secondb", "archi", "gadi", "lulu", "momo", "vela", "lumi"];
+const WORKERS: WorkerId[] = ["secondb", "archi", "gadi", "lulu", "momo", "lumi"];
 
 describe("monologuesFor", () => {
   it("gives every worker non-empty self-talk in both locales", () => {
