@@ -3,7 +3,45 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest -- 2026-06-04 / 재감사 4~6라운드 PERFECT 수렴 (HIGH/MED 전부 닫음)
+## Latest -- 2026-06-04 (cont.) / gstack 갱신 + L/I 위생 PR #206 + L8 미성년 라우팅 + gemini-proxy v11(M6) 배포
+
+### 어디까지 왔나
+- 작업 브랜치 **`claude/sharp-brahmagupta-r29oW`** -> **PR #206 (draft, CI green)**. 머지는 Simon (draft 유지, 자동머지 안 함).
+- **gstack** v1.52.2.0 -> **v1.55.1.0** 업데이트 (telemetry 동의문 정확화 + gstack-slug 캐시 새니타이즈, /sync-gbrain 파괴적-op 가드, headed 브라우저 크래시루프 수정 등).
+- **PR #206 커밋 2개**:
+  - `673b0d5` **L/I 위생 7건** (감사 체크박스가 낡아 HEAD 대조로 실제 열린 것만): markSourceIngested user_id 스코프, delete-account 주석 정정(ai_audit_log 는 0011 로 ON DELETE SET NULL = 감사증거 보존, cascade 아님), check-constraints C5 공백-허용 정규식, check-i18n 배열 deep-compare, index.tsx 데드 스타일 6개 제거, common.json `_meta` 제거(양 로케일), ageInYears 주석.
+  - `eade59a` **L8(안전)**: `minor` 플래그를 phase1(runPhase1)/clipper(classifyClipper)/propose(proposeClipperTemplate) 의 callGemini 경로에 전달 -> 미성년 위기 hotline(KR 1388) 라우팅 복구. 화면(inbox/wiki/capture)에서 `AuthContext.isMinor` 전달. (interview/OCR 패턴과 동일.)
+- **prod gemini-proxy 배포: v10 -> v11** (M6 fail-closed). 스펜드 RPC 비-cap 에러 시 유료호출 진행(fail-open) -> 503 차단(fail-closed), RPC-missing(PGRST202/42883)만 예외 통과 + 알림. 정본 소스 byte-perfect 검증 후 MCP 배포, re-fetch+로그로 재검증, v10 롤백본 보관.
+
+### ⚠️ 활성 인프라 변경 (다음 세션 주의)
+- **gemini-proxy 는 이제 prod v11** (M6 반영). 직전 핸드오프의 "M6 fail-closed 미배포" 큐 = **닫힘**.
+- 나머지 인프라(Supabase `zoacryukmdeivmolvyhj`, migration 0034-0040, delete-account v3)는 직전과 동일. verify **821/821 (91 suites)** green.
+
+### 감사 체크박스 정리 (중요)
+- `docs/AUDIT_2026-06-03.md` 의 LOW/INFO **체크박스는 낡음** (rounds 4-6 + GPT 코워크가 대부분 닫았으나 미갱신). HEAD 대조 검증: **A,C,D,E,H,K,N,Q,R,T,U,L11,L12 = 이미 닫힘**. #206 이 나머지 순수-코드 건 처리. L8 도 이번에 닫음.
+
+### 다음 작업 큐 (전부 NON-BLOCKING)
+| # | 작업 | 게이트 | 비고 |
+|---|---|---|---|
+| F | gemini-proxy CORS: 비허용 origin 에 `ACAO: null` 대신 헤더 생략 | 엣지 재배포 | LOW; 다음 엣지 변경/CLI 배포 때 묶기 권장 |
+| M5 | buildPersona 마운트마다 uncached Gemini -> 캐시+무효화 | 기기 QA | 코어 화면 회귀 위험, 전용 PR |
+| M7 | 스펜드캡 call수 -> token cost 가중(p_units) | DB 마이그+prod apply | non-critical (call 캡으로 $0/mo 충분) |
+| S | memorized_patterns.summary near-raw 저장 -> 범주형 신호 | 스키마/제품 결정 | 프라이버시 |
+| I1 | 프라이버시 토글 7/8 inert -> 실제 와이어링 | 제품 결정 | external_analytics 만 동작 |
+| 운영 | `supabase/migrations/` <-> `db/migrations/` 동기화 | ops | CI 는 db/migrations 적용 -> 안 깨짐. 신중히 |
+| 디자인 | G(NavGraph rgba), I/J(TierIcon imagine 잔재), V(radius.full=9999 pill), capture rgba/hashtag chip | **GPT 담당** | tokens/그래프/capture 스타일 |
+| 운영자 | `SUPABASE_ACCESS_TOKEN`(엣지 byte-perfect CLI), GA4/Clarity ID, Apple/Kakao Providers, Naver creds, 출시전 `EXPO_PUBLIC_FORCE_TIER=off` | Simon | go-live |
+
+### 🤝 GPT 코워크 충돌 주의
+- 이번에 **`src/app/capture.tsx`** 를 Claude 가 수정(L8 로직 라인: classifyClipper/proposeClipperTemplate 호출에 `isMinor === true` 추가) -- GPT 의 capture 디자인 항목(rgba/hashtag chip)과 **같은 파일**. 머지 전 충돌 주의.
+- `src/app/inbox.tsx`, `src/app/wiki.tsx` 도 각 2줄(useAuth 디스트럭처 + runPhase1 호출) 수정.
+
+### 정책 (직전과 동일, 영구)
+- branch-first, **draft PR (자동머지 금지 -- Simon 이 머지)**, prod 배포는 명시 승인 + 적용 후 재검증, 기존 에셋/타인작업 삭제 금지.
+
+---
+
+## Earlier -- 2026-06-04 / 재감사 4~6라운드 PERFECT 수렴 (HIGH/MED 전부 닫음)
 
 ### 어디까지 왔나
 - main HEAD: `0d4914f` (이 핸드오프 머지 후 갱신). verify **821/821 (91 suites)** green, working tree clean.
