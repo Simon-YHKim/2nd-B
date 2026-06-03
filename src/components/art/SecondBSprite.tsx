@@ -9,7 +9,7 @@ import { Animated, Easing, StyleSheet, View, type ViewStyle } from "react-native
 import { ShardArt } from "@/components/art/IslandArt";
 import { TierIcon } from "@/components/art/TierIcon";
 import { WorkerSprite } from "@/components/art/WorkerSprite";
-import { cosmic } from "@/lib/theme/tokens";
+import { cosmic, withAlpha } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
 export type SecondBState =
@@ -204,8 +204,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.62)",
-    backgroundColor: "rgba(7,10,24,0.76)",
+    borderColor: withAlpha(cosmic.signalMint, 0.62),
+    backgroundColor: withAlpha(cosmic.space950, 0.76),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -242,8 +242,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.48)",
-    backgroundColor: "rgba(167,139,250,0.16)",
+    borderColor: withAlpha(cosmic.signalMint, 0.48),
+    backgroundColor: withAlpha(cosmic.soulViolet, 0.16),
     shadowColor: cosmic.signalMint,
     shadowOpacity: 0.38,
     shadowRadius: 14,
@@ -253,8 +253,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     borderRadius: 99,
     borderWidth: 1,
-    borderColor: "rgba(255,214,102,0.86)",
-    backgroundColor: "rgba(255,214,102,0.24)",
+    borderColor: withAlpha(cosmic.pixelLamp, 0.86),
+    backgroundColor: withAlpha(cosmic.pixelLamp, 0.24),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -268,8 +268,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.72)",
-    backgroundColor: "rgba(7,10,24,0.72)",
+    borderColor: withAlpha(cosmic.signalMint, 0.72),
+    backgroundColor: withAlpha(cosmic.space950, 0.72),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

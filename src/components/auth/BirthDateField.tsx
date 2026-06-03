@@ -1,5 +1,8 @@
-// C10: enforce the self-consent age floor at the UI layer. Server (auth.ts) and DB
-// (users_birth_date_min_age CHECK) are the second and third lines of defense.
+// C10: enforce the self-consent age floor at the UI layer. The authoritative gate
+// is the server-side BEFORE INSERT trigger (0030_server_age_gate), with the
+// users_birth_date_sane CHECK (0028) as a backstop -- the legacy
+// users_birth_date_min_age CHECK was dropped in 0028. auth.ts mirrors the floor
+// client-side for fast-fail UX.
 
 import { useMemo } from "react";
 import { View, StyleSheet } from "react-native";

@@ -17,8 +17,9 @@ export interface ParsedImagine {
   nextStep: string;
 }
 
-// System prompt — SecondB's Divergent mode. Output format is fixed so the UI
-// can parse it; tone rules mirror the pack copy guide.
+// System prompt — SecondB's Divergent mode (worldview v-final retired the
+// separate "Vela" character; 공상 is now SecondB's Divergent mode). Output format
+// is fixed so the UI can parse it; tone rules mirror the pack copy guide.
 export const IMAGINE_SYSTEM = `You are SecondB in Divergent mode. The user gives a rough, half-formed idea. Unfold it from an unexpected angle without judging it. Warm, creative, plain language.
 Reply ONLY in these lines, each prefixed exactly, fields split by " :: ". No extra prose, no markdown:
 TITLE :: <short title>

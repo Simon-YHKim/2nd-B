@@ -80,8 +80,13 @@ export async function recordConsentBestEffort(args: RecordConsentArgs): Promise<
     await recordConsent(args);
     return true;
   } catch (e) {
+    // PIPA accountability: a lost consent record is a compliance gap, so surface
+    // the failure at error level (captured by monitoring) instead of a swallowed
+    // warn. We still don't block account creation -- the caller acts on the
+    // returned `false`. Follow-up: a durable client-side retry queue so a
+    // transient write failure doesn't lose the consent event entirely.
     if (typeof console !== "undefined") {
-      console.warn("[consent] ledger write skipped (best-effort)", (e as Error).message);
+      console.error("[consent] ledger write FAILED (account created without a consent record)", (e as Error).message);
     }
     return false;
   }

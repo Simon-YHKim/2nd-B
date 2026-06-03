@@ -1,4 +1,4 @@
-// BFI-44 — Big Five Inventory (John, Donahue, & Kentle, 1991).
+// BFI-44 - Big Five Inventory (John, Donahue, & Kentle, 1991).
 // 44 items, 5-point Likert scale. Public domain. Replaces TIPI as the
 // primary Big Five measure because TIPI's 10-item brevity costs precision
 // at each trait (only 2 items per trait → low internal consistency).
@@ -11,7 +11,7 @@
 // validated; the subtitle adds context without changing what's measured.
 //
 // Reference: John, O. P., Donahue, E. M., & Kentle, R. L. (1991).
-//   The Big Five Inventory — Versions 4a and 54. Berkeley, CA:
+//   The Big Five Inventory - Versions 4a and 54. Berkeley, CA:
 //   University of California, Berkeley, Institute of Personality and
 //   Social Research.
 
@@ -38,7 +38,7 @@ export interface BfiItem {
   subtitleKo: string;
 }
 
-// All 44 items begin with "I see myself as someone who…" — that framing
+// All 44 items begin with "I see myself as someone who…" - that framing
 // is presented once at the top of the screen, not repeated per item.
 export const BFI_ITEMS: readonly BfiItem[] = [
   { id: 1, trait: "extraversion", reverse: false, en: "Is talkative.", ko: "말이 많은 편이다.", subtitleEn: "Comfortable filling silence in conversation.", subtitleKo: "대화에서 침묵을 채우는 게 편한 편." },
@@ -83,7 +83,7 @@ export const BFI_ITEMS: readonly BfiItem[] = [
   { id: 40, trait: "openness", reverse: false, en: "Likes to reflect, play with ideas.", ko: "깊이 생각하고 아이디어를 가지고 노는 걸 좋아한다.", subtitleEn: "Idle time becomes idea time, not lost time.", subtitleKo: "한가한 시간이 잃은 시간보다 아이디어 시간이 된다." },
   { id: 41, trait: "openness", reverse: true, en: "Has few artistic interests.", ko: "예술적인 관심사가 적은 편이다.", subtitleEn: "Art doesn't pull at you the way it pulls at others.", subtitleKo: "예술이 남들만큼 끌어당기진 않는다." },
   { id: 42, trait: "agreeableness", reverse: false, en: "Likes to cooperate with others.", ko: "다른 사람과 협력하는 걸 좋아한다.", subtitleEn: "Prefers building together over alone.", subtitleKo: "혼자보다 같이 만드는 쪽을 선호." },
-  { id: 43, trait: "conscientiousness", reverse: true, en: "Is easily distracted.", ko: "쉽게 산만해지는 편이다.", subtitleEn: "Notifications, tabs, side thoughts — they all win.", subtitleKo: "알림 · 탭 · 곁가지 생각이 자주 이긴다." },
+  { id: 43, trait: "conscientiousness", reverse: true, en: "Is easily distracted.", ko: "쉽게 산만해지는 편이다.", subtitleEn: "Notifications, tabs, side thoughts - they all win.", subtitleKo: "알림 · 탭 · 곁가지 생각이 자주 이긴다." },
   { id: 44, trait: "openness", reverse: false, en: "Is sophisticated in art, music, or literature.", ko: "예술 · 음악 · 문학에 조예가 있는 편이다.", subtitleEn: "Knows the difference between styles, not just titles.", subtitleKo: "제목이 아니라 스타일 차이까지 구분이 된다." },
 ] as const;
 

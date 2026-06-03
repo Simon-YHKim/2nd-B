@@ -37,7 +37,7 @@ import { Button } from "@/components/ui/Button";
 import { PremiumCard, PremiumButton } from "@/components/premium";
 import { ShardArt } from "@/components/art/IslandArt";
 import { Input } from "@/components/ui/Input";
-import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
@@ -1106,8 +1106,8 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   savedPanel: {
-    backgroundColor: "rgba(114,242,199,0.06)",
-    borderColor: "rgba(114,242,199,0.22)",
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.success,
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.md,
@@ -1214,7 +1214,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     borderWidth: 1,
     borderColor: semantic.brand,
-    backgroundColor: "rgba(47,151,252,0.08)",
+    backgroundColor: semantic.surfaceAlt,
   },
   tagChipText: { color: semantic.brand, fontSize: typography.sizes.xs, fontWeight: "600" },
   // "+" chip that opens the inline hashtag input (sits in the tag row).
@@ -1260,10 +1260,10 @@ const styles = StyleSheet.create({
   },
   tossBtnPressed: { transform: [{ scale: 0.97 }], opacity: 0.9 },
   tossBtnDisabled: {
-    backgroundColor: "rgba(13,21,48,0.86)",
-    borderColor: "rgba(141,152,184,0.36)",
+    backgroundColor: withAlpha(cosmic.space900, 0.86),
+    borderColor: withAlpha(cosmic.mistGray, 0.36),
     shadowOpacity: 0,
   },
   tossBtnText: { color: semantic.background, fontSize: typography.sizes.md, fontWeight: "700" },
-  tossBtnTextDisabled: { color: "rgba(232,236,248,0.72)" },
+  tossBtnTextDisabled: { color: withAlpha(cosmic.moonWhite, 0.72) },
 });
