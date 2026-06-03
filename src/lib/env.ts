@@ -80,6 +80,12 @@ const schema = z.object({
   SENTRY_DSN: z.string().optional(),
   EXPO_PUBLIC_POSTHOG_KEY: z.string().optional(),
   EXPO_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
+  // Web usage analytics — public client-side ids (not secrets). Both no-op until
+  // set, and only load after the user grants analytics consent (PIPA). GA4 =
+  // "G-XXXXXXX" measurement id (gtag); Clarity = the project id from
+  // clarity.microsoft.com. Set as repo/EAS Variables to activate.
+  EXPO_PUBLIC_GA4_MEASUREMENT_ID: z.string().optional(),
+  EXPO_PUBLIC_CLARITY_PROJECT_ID: z.string().optional(),
 });
 
 // C2: when Vertex is enabled, GOOGLE_CLOUD_PROJECT must be set.
@@ -122,6 +128,8 @@ function readRaw(): Record<string, string | undefined> {
   const publicGoogleKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
   const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY;
   const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST;
+  const ga4Id = process.env.EXPO_PUBLIC_GA4_MEASUREMENT_ID;
+  const clarityId = process.env.EXPO_PUBLIC_CLARITY_PROJECT_ID;
   // Non-public vars (no EXPO_PUBLIC_ prefix) are never inlined into the client
   // bundle by design; they resolve from the real process.env on native / node
   // and are simply undefined on web. Aliasing is safe for these.
@@ -154,6 +162,8 @@ function readRaw(): Record<string, string | undefined> {
     SENTRY_DSN: proc.SENTRY_DSN,
     EXPO_PUBLIC_POSTHOG_KEY: posthogKey,
     EXPO_PUBLIC_POSTHOG_HOST: posthogHost,
+    EXPO_PUBLIC_GA4_MEASUREMENT_ID: ga4Id,
+    EXPO_PUBLIC_CLARITY_PROJECT_ID: clarityId,
   };
 }
 

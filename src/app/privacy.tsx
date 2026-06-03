@@ -24,6 +24,7 @@ import {
   type PrivacyPrefs,
 } from "@/lib/privacy/prefs";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
+import { setAnalyticsConsent } from "@/lib/analytics";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 export default function Privacy() {
@@ -51,6 +52,9 @@ export default function Privacy() {
       if (!cancelled && mounted.current) {
         setPrefs(loaded);
         setReady(true);
+        // Gate web analytics (GA4/Clarity/PostHog) on the external_analytics
+        // pref — they load only when the user has opted in.
+        setAnalyticsConsent(loaded.external_analytics);
       }
     })();
     return () => {
@@ -68,6 +72,8 @@ export default function Privacy() {
       setSaveError(false);
       try {
         await savePrivacyPrefs(userId, updated);
+        // Sync the analytics consent gate with the saved external_analytics pref.
+        setAnalyticsConsent(updated.external_analytics);
       } catch {
         // Revert the optimistic flip and tell the user. Pre-migration the
         // privacy_prefs column may not exist yet, so this path is expected
