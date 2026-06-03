@@ -92,6 +92,10 @@ Deno.serve(async (req: Request) => {
   }
   const code = typeof body?.code === 'string' ? body.code : '';
   const state = typeof body?.state === 'string' ? body.state : '';
+  // redirect_uri is required as a sanity check that the caller is our own
+  // client flow, but Naver's token endpoint (unlike Google) does NOT take a
+  // redirect_uri in the exchange -- it validates code + state -- so it is not
+  // forwarded below.
   const redirectUri = typeof body?.redirect_uri === 'string' ? body.redirect_uri : '';
   if (!code || !state || !redirectUri) {
     return jsonResponse(req, { error: 'code_state_redirect_uri_required' }, 400);

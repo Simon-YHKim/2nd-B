@@ -97,10 +97,14 @@ export default [
       "no-restricted-imports": [
         "error",
         {
-          patterns: [...FOREIGN_LLM_SDKS, "@google/genai"],
-          paths: [
+          patterns: [
+            { group: [...FOREIGN_LLM_SDKS, "@google/genai"] },
             {
-              name: "@/lib/supabase/audit",
+              // Glob catches BOTH the @/ alias and the relative form
+              // (../supabase/audit) the codebase actually uses; the old `paths`
+              // entry only matched the exact "@/lib/supabase/audit" string, so a
+              // relative import slipped the C3 boundary.
+              group: ["**/supabase/audit"],
               message: "Use callGemini() — direct audit insert bypasses C3.",
             },
           ],

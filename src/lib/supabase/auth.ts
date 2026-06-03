@@ -121,12 +121,6 @@ export async function signOut(): Promise<void> {
   if (error) throw error;
 }
 
-export async function getCurrentUserId(): Promise<string | null> {
-  const supabase = getSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id ?? null;
-}
-
 // --- OAuth (Google / Apple / Kakao) --------------------------------------
 //
 // Google, Apple, and Kakao are Supabase-native social providers, so they all
@@ -376,20 +370,6 @@ export interface CompleteProfileArgs {
 export interface CompleteProfileResult {
   created: boolean;
   judgeMode: boolean;
-}
-
-export async function hasUserProfile(): Promise<boolean> {
-  const supabase = getSupabaseClient();
-  const { data: authData } = await supabase.auth.getUser();
-  const user = authData.user;
-  if (!user) return false;
-  const { data, error } = await supabase.from("users").select("id").eq("id", user.id).maybeSingle();
-  if (error) {
-    // Network or RLS failure — caller should treat unknown as "needs sign-in".
-    if (typeof console !== "undefined") console.warn("[auth] hasUserProfile failed", error.message);
-    return false;
-  }
-  return data !== null;
 }
 
 export async function ensureUserProfile(args: CompleteProfileArgs): Promise<CompleteProfileResult> {
