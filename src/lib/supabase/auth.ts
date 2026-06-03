@@ -5,6 +5,7 @@
 // users_birth_date_sane CHECK (0028) is a further backstop.
 
 import dayjs from "dayjs";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { digitalConsentAge } from "../auth/consent-age";
 import { isJudgeEmail } from "../judge/domains";
 import { getEnv } from "../env";
@@ -116,24 +117,31 @@ export async function getCurrentUserId(): Promise<string | null> {
 // --- OAuth (Google / Apple / Kakao) --------------------------------------
 //
 // Google, Apple, and Kakao are Supabase-native social providers, so they all
-// go through the same signInWithOAuth() web-redirect path. Each must be enabled
-// (with its client id/secret) in the Supabase dashboard, and the redirect URL
-// allowed under Auth -> URL Configuration. For Expo Web on GitHub Pages we
-// redirect back to the current origin; native iOS/Android builds will need a
-// deep-link scheme + expo-web-browser to open data.url (deferred, same as the
-// original Google path). Naver is NOT a built-in Supabase provider — it needs a
-// custom OAuth edge function; see docs/AUTH_PROVIDERS.md.
+// go through the same signInWithOAuth() path via signInWithProvider(). Each must
+// be enabled (with its client id/secret) in the Supabase dashboard, and the
+// redirect URL allowed under Auth -> URL Configuration. On Expo Web (GitHub
+// Pages) Supabase navigates the page directly; on native iOS/Android we open the
+// provider URL with expo-web-browser and convert the callback into a session
+// (openNativeOAuthSession). Naver is NOT a built-in Supabase provider; it needs a
+// custom OAuth edge function (see docs/AUTH_PROVIDERS.md) and is excluded here.
 
 // OAuth providers we support via Supabase's built-in social login. (Naver is
-// intentionally excluded — it is not a Supabase provider; see the doc above.)
+// intentionally excluded: it is not a Supabase provider; see the doc above.)
 export type OAuthProvider = "google" | "apple" | "kakao";
 
 export interface OAuthRedirect {
   url: string;
 }
 
+type ExpoLinkingModule = typeof import("expo-linking");
+type ExpoWebBrowserModule = typeof import("expo-web-browser");
+
+function isWebRuntime(): boolean {
+  return typeof window !== "undefined" && typeof document !== "undefined";
+}
+
 function defaultRedirectTo(): string | undefined {
-  if (typeof window === "undefined") return undefined;
+  if (!isWebRuntime()) return nativeRedirectTo();
   // ALWAYS return to the app root, not window.location.pathname.
   // If the user clicked Google from /sign-in, using pathname would
   // send them back to /sign-in post-OAuth — they'd see the sign-in
@@ -148,20 +156,78 @@ function defaultRedirectTo(): string | undefined {
   return `${window.location.origin}${base}`;
 }
 
+function nativeRedirectTo(): string | undefined {
+  try {
+    const Linking = require("expo-linking") as ExpoLinkingModule;
+    return Linking.createURL("/");
+  } catch {
+    return undefined;
+  }
+}
+
+function authParamsFromUrl(url: string): Record<string, string> {
+  const params = new URLSearchParams();
+  const [withoutHash, hash = ""] = url.split("#");
+  const query = withoutHash.split("?")[1] ?? "";
+  for (const source of [query, hash]) {
+    const sourceParams = new URLSearchParams(source);
+    sourceParams.forEach((value, key) => params.set(key, value));
+  }
+  return Object.fromEntries(params.entries());
+}
+
+async function createNativeSessionFromUrl(supabase: SupabaseClient, url: string): Promise<void> {
+  const params = authParamsFromUrl(url);
+  const errorCode = params.error_code ?? params.errorCode;
+  if (errorCode) throw new Error(params.error_description ?? errorCode);
+
+  if (params.code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(params.code);
+    if (error) throw error;
+    return;
+  }
+
+  if (params.access_token && params.refresh_token) {
+    const { error } = await supabase.auth.setSession({
+      access_token: params.access_token,
+      refresh_token: params.refresh_token,
+    });
+    if (error) throw error;
+  }
+}
+
+async function openNativeOAuthSession(
+  supabase: SupabaseClient,
+  authUrl: string,
+  redirectTo: string | undefined,
+): Promise<OAuthRedirect | null> {
+  const WebBrowser = require("expo-web-browser") as ExpoWebBrowserModule;
+  const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
+  if (result.type !== "success") return null;
+  await createNativeSessionFromUrl(supabase, result.url);
+  return { url: result.url };
+}
+
 // Start a Supabase social-login redirect for the given provider. On Web,
-// Supabase navigates the page directly; data.url is informational. On native
-// we'd open data.url via expo-web-browser — that path lands when native builds
-// come online (unchanged from the original Google-only behavior).
+// Supabase navigates the page directly; data.url is informational. On native,
+// open the provider URL and convert the callback URL into a Supabase session so
+// AuthContext can continue the normal app hand-off.
 export async function signInWithProvider(
   provider: OAuthProvider,
   redirectTo?: string,
 ): Promise<OAuthRedirect | null> {
   const supabase = getSupabaseClient();
+  const isWeb = isWebRuntime();
+  const resolvedRedirectTo = redirectTo ?? defaultRedirectTo();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
-    options: { redirectTo: redirectTo ?? defaultRedirectTo() },
+    options: {
+      redirectTo: resolvedRedirectTo,
+      skipBrowserRedirect: !isWeb,
+    },
   });
   if (error) throw error;
+  if (!isWeb && data.url) return openNativeOAuthSession(supabase, data.url, resolvedRedirectTo);
   return data.url ? { url: data.url } : null;
 }
 

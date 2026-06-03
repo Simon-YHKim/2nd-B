@@ -3,13 +3,21 @@
 // /journal etc.), partial (per-kind / per-tag), and full (everything).
 
 import { useState } from "react";
-import { ScrollView, StyleSheet, View, Alert } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -32,6 +40,70 @@ const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
   en: { none: "None", few: "Few", some: "Some", many: "Many" },
   ko: { none: "없음", few: "적게", some: "보통", many: "많이" },
 };
+
+type SettingsActionButtonProps = {
+  label: string;
+  variant?: "primary" | "secondary" | "danger";
+  disabled?: boolean;
+  loading?: boolean;
+  onPress?: () => void | Promise<void>;
+  style?: StyleProp<ViewStyle>;
+  full?: boolean;
+};
+
+function SettingsActionButton({
+  label,
+  variant = "secondary",
+  disabled,
+  loading,
+  onPress,
+  style,
+  full = true,
+}: SettingsActionButtonProps) {
+  const isDisabled = disabled || loading;
+  const labelColor = isDisabled
+    ? "rgba(232,236,248,0.58)"
+    : variant === "primary"
+      ? cosmic.space950
+      : variant === "danger"
+        ? cosmic.guardRose
+        : cosmic.moonWhite;
+
+  return (
+    <View
+      style={[
+        styles.settingsButton,
+        full ? styles.settingsButtonFull : null,
+        style,
+        variant === "primary"
+          ? styles.settingsButtonPrimary
+          : variant === "danger"
+            ? styles.settingsButtonDanger
+            : styles.settingsButtonSecondary,
+        isDisabled ? styles.settingsButtonDisabled : null,
+      ]}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled: isDisabled, busy: loading }}
+        disabled={isDisabled}
+        onPress={onPress ? () => void onPress() : undefined}
+        style={({ pressed }) => [
+          styles.settingsButtonPressable,
+          pressed ? styles.settingsButtonPressed : null,
+        ]}
+      >
+        {loading ? <ActivityIndicator size="small" color={labelColor} /> : null}
+        <Text style={[styles.settingsButtonLabel, { color: labelColor }]}>{label}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function Button(props: SettingsActionButtonProps) {
+  return <SettingsActionButton {...props} />;
+}
 
 export default function Settings() {
   const { i18n } = useTranslation();
@@ -198,11 +270,13 @@ export default function Settings() {
               label={locale === "ko" ? "다크" : "Dark"}
               variant={mode === "dark" ? "primary" : "secondary"}
               onPress={() => { if (mode !== "dark") toggle(); }}
+              style={styles.themeButton}
             />
             <Button
               label={locale === "ko" ? "라이트" : "Light"}
               variant={mode === "light" ? "primary" : "secondary"}
               onPress={() => { if (mode !== "light") toggle(); }}
+              style={styles.themeButton}
             />
           </View>
         </View>
@@ -223,6 +297,7 @@ export default function Settings() {
                 label={CREW_DENSITY_LABEL[locale][d]}
                 variant={crewDensity === d ? "primary" : "secondary"}
                 onPress={() => setCrewDensity(d)}
+                full={false}
               />
             ))}
           </View>
@@ -239,7 +314,7 @@ export default function Settings() {
           </Text>
           <Button
             label={locale === "ko" ? "모든 일기 삭제" : "Delete all journals"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -250,7 +325,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "모든 노트 삭제" : "Delete all notes"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -261,7 +336,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "과거의 나 응답 삭제" : "Delete audit responses"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -278,7 +353,7 @@ export default function Settings() {
           </Text>
           <Button
             label={locale === "ko" ? "Big Five (TIPI) 결과 삭제" : "Delete Big Five (TIPI) results"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -289,7 +364,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "애착 (ECR) 결과 삭제" : "Delete Attachment (ECR) results"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -300,7 +375,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "MBTI 결과 삭제" : "Delete MBTI results"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -317,7 +392,7 @@ export default function Settings() {
           </Text>
           <Button
             label={locale === "ko" ? "모든 위키 페이지 삭제" : "Delete all wiki pages"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -328,7 +403,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "미발전 캡처 삭제 (받은편지함의 미정리분)" : "Delete un-ingested captures"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -339,7 +414,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "세컨비 일일 사용량 리셋" : "Reset SecondB daily usage"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -371,7 +446,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "전체 데이터 삭제" : "Delete everything"}
-            variant="primary"
+            variant="danger"
             disabled={fullDeleteConfirm !== CONFIRM_PHRASE || busy !== null}
             loading={busy === "full"}
             onPress={() =>
@@ -421,6 +496,58 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   sectionEyebrow: { letterSpacing: 0, fontWeight: "700" },
+  settingsButton: {
+    minHeight: 48,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    elevation: 1,
+    overflow: "hidden",
+  },
+  settingsButtonFull: {
+    alignSelf: "stretch",
+    width: "100%",
+  },
+  settingsButtonPressable: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  settingsButtonPrimary: {
+    backgroundColor: cosmic.signalMint,
+    borderColor: cosmic.signalMint,
+  },
+  settingsButtonSecondary: {
+    backgroundColor: cosmic.space700,
+    borderColor: "rgba(141,152,184,0.56)",
+  },
+  settingsButtonDanger: {
+    backgroundColor: "rgba(255,122,144,0.22)",
+    borderColor: cosmic.guardRose,
+  },
+  settingsButtonDisabled: {
+    backgroundColor: "rgba(141,152,184,0.12)",
+    borderColor: "rgba(141,152,184,0.28)",
+    elevation: 0,
+  },
+  settingsButtonPressed: {
+    opacity: 0.78,
+  },
+  settingsButtonLabel: {
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0,
+    textAlign: "center",
+  },
   actions: { gap: spacing.sm, marginTop: spacing.md },
   themeRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  themeButton: {
+    flex: 1,
+    minHeight: 48,
+    backgroundColor: cosmic.space700,
+    borderColor: "rgba(141,152,184,0.56)",
+  },
 });

@@ -7,9 +7,17 @@
 // "Generate page" path (PR follow-up wires that button).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshControl, Alert } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
+} from "react-native";
 import { useTranslation } from "react-i18next";
-import { Link, Redirect, router } from "expo-router";
+import { Link, Redirect, router, type Href } from "expo-router";
 
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -25,6 +33,7 @@ import type { WikiPageKind, WikiPageRow } from "@/lib/wiki/types";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { WikiCardThumb, type WikiCardThumbId } from "@/components/art/WikiCardThumb";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { VILLAGE_IDS, type VillageId } from "@/lib/graph/relatedness";
 
 // listAllWikiLinks projects only the two endpoint columns — all the
 // living-brain summary and per-row connection counts need.
@@ -51,9 +60,24 @@ const FACETS: ReadonlyArray<{
   label: { en: string; ko: string };
   desc: { en: string; ko: string };
 }> = [
-  { id: "core_brain", route: "/core-brain", label: { en: "Core", ko: "코어" }, desc: { en: "Know yourself", ko: "나를 알기" } },
-  { id: "library", route: null, label: { en: "Library", ko: "서재" }, desc: { en: "You're here", ko: "지금 여기" } },
+  {
+    id: "core_brain",
+    route: "/core-brain",
+    label: { en: "Core", ko: "코어" },
+    desc: { en: "Know yourself", ko: "나를 알기" },
+  },
+  {
+    id: "library",
+    route: null,
+    label: { en: "Library", ko: "서재" },
+    desc: { en: "You're here", ko: "지금 여기" },
+  },
 ];
+
+function villageHref(village: VillageId): Href {
+  if (village === "knowledge") return "/wiki";
+  return { pathname: "/records", params: { domain: village } };
+}
 
 export default function Wiki() {
   const { t, i18n } = useTranslation("wiki");
@@ -74,23 +98,20 @@ export default function Wiki() {
   const [edges, setEdges] = useState<WikiEdge[] | null>(null);
   const companion = useCompanionMoment();
 
-  const load = useCallback(
-    async (uid: string, tagsFilter: string[]) => {
-      // Pull pages + the full link set together so the "living brain" summary
-      // and per-row connection counts are ready without a separate tap. Links
-      // are global (not tag-filtered); a failure degrades to a zero-edge graph.
-      const [data, links] = await Promise.all([
-        listWikiPages(uid, {
-          anyOfTags: tagsFilter.length > 0 ? tagsFilter : undefined,
-          limit: 200,
-        }),
-        listAllWikiLinks(uid).catch(() => [] as WikiEdge[]),
-      ]);
-      setPages(data);
-      setEdges(links);
-    },
-    [],
-  );
+  const load = useCallback(async (uid: string, tagsFilter: string[]) => {
+    // Pull pages + the full link set together so the "living brain" summary
+    // and per-row connection counts are ready without a separate tap. Links
+    // are global (not tag-filtered); a failure degrades to a zero-edge graph.
+    const [data, links] = await Promise.all([
+      listWikiPages(uid, {
+        anyOfTags: tagsFilter.length > 0 ? tagsFilter : undefined,
+        limit: 200,
+      }),
+      listAllWikiLinks(uid).catch(() => [] as WikiEdge[]),
+    ]);
+    setPages(data);
+    setEdges(links);
+  }, []);
 
   useEffect(() => {
     if (!userId) return;
@@ -111,7 +132,9 @@ export default function Wiki() {
   const visiblePages = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return pages;
-    return pages.filter((p) => p.title.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q));
+    return pages.filter(
+      (p) => p.title.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q),
+    );
   }, [pages, query]);
 
   // The living-brain summary + per-row connection counts are all derived from
@@ -130,6 +153,12 @@ export default function Wiki() {
     () => new Set((stats?.topHubs ?? []).filter((h) => h.inDegree >= 2).map((h) => h.id)),
     [stats],
   );
+
+  const swipeVillage = useCallback((step: 1 | -1) => {
+    const currentIndex = VILLAGE_IDS.indexOf("knowledge");
+    const nextIndex = (currentIndex + step + VILLAGE_IDS.length) % VILLAGE_IDS.length;
+    router.replace(villageHref(VILLAGE_IDS[nextIndex]));
+  }, []);
 
   if (authLoading) return null;
   if (!userId) {
@@ -152,7 +181,8 @@ export default function Wiki() {
         const back = await getBacklinks(userId, page.id);
         setBacklinksById((prev) => ({ ...prev, [page.id]: back }));
       } catch (e) {
-        if (typeof console !== "undefined") console.warn("[wiki] backlinks load failed", (e as Error).message);
+        if (typeof console !== "undefined")
+          console.warn("[wiki] backlinks load failed", (e as Error).message);
         setBacklinksById((prev) => ({ ...prev, [page.id]: [] }));
       }
     }
@@ -188,10 +218,7 @@ export default function Wiki() {
               await deleteWikiPage(userId, p.id);
               await load(userId, activeTags);
             } catch (e) {
-              Alert.alert(
-                locale === "ko" ? "삭제 실패" : "Delete failed",
-                (e as Error).message,
-              );
+              Alert.alert(locale === "ko" ? "삭제 실패" : "Delete failed", (e as Error).message);
             }
           },
         },
@@ -212,10 +239,7 @@ export default function Wiki() {
       companion.fire("wikiSaved");
       Alert.alert(locale === "ko" ? "Phase 1 완료" : "Phase 1 done");
     } catch (e) {
-      Alert.alert(
-        locale === "ko" ? "Phase 1 실패" : "Phase 1 failed",
-        (e as Error).message,
-      );
+      Alert.alert(locale === "ko" ? "Phase 1 실패" : "Phase 1 failed", (e as Error).message);
     } finally {
       setPhase1RunningId(null);
     }
@@ -228,10 +252,7 @@ export default function Wiki() {
       const result = await exportUserWiki(userId, { locale, bodyCharLimit: 4000 });
       setExportText(result.prompt);
     } catch (e) {
-      Alert.alert(
-        locale === "ko" ? "익스포트 실패" : "Export failed",
-        (e as Error).message,
-      );
+      Alert.alert(locale === "ko" ? "익스포트 실패" : "Export failed", (e as Error).message);
     } finally {
       setExporting(false);
     }
@@ -241,12 +262,22 @@ export default function Wiki() {
     <PremiumAppShell>
       <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={semantic.brand} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={semantic.brand}
+          />
+        }
       >
         <SceneHero
           eyebrow={locale === "ko" ? "04. 지식 창고" : "04. Knowledge store"}
           title={locale === "ko" ? "저장한 조각들이 서재가 돼요" : "Saved pieces become a library"}
-          subtitle={locale === "ko" ? "마을에 저장한 조각을 다시 찾아보는 곳" : "Find the pieces you saved to the village"}
+          subtitle={
+            locale === "ko"
+              ? "마을에 저장한 조각을 다시 찾아보는 곳"
+              : "Find the pieces you saved to the village"
+          }
           island={VILLAGE_UI.knowledge.island}
           worker={VILLAGE_UI.knowledge.worker}
           accent={VILLAGE_UI.knowledge.accent}
@@ -258,7 +289,10 @@ export default function Wiki() {
           primaryAction={{
             label: t("capture"),
             onPress: () => router.push("/capture"),
-          }}        />
+          }}
+          onSwipeLeft={() => swipeVillage(1)}
+          onSwipeRight={() => swipeVillage(-1)}
+        />
 
         {/* Three knowledge facets (premium wiki card thumbnails, asset audit P2):
             Core / Library / Imagine. Core + Imagine open their own screens. */}
@@ -307,7 +341,10 @@ export default function Wiki() {
             <View style={styles.pulseDivider} />
             <PulseStat label={locale === "ko" ? "연결" : "Links"} value={stats.edgeCount} accent />
             <View style={styles.pulseDivider} />
-            <PulseStat label={locale === "ko" ? "외딴 조각" : "Orphans"} value={stats.orphans.length} />
+            <PulseStat
+              label={locale === "ko" ? "외딴 조각" : "Orphans"}
+              value={stats.orphans.length}
+            />
           </View>
         ) : null}
 
@@ -316,7 +353,9 @@ export default function Wiki() {
           <Input
             value={query}
             onChangeText={setQuery}
-            placeholder={locale === "ko" ? "조각 검색: 제목이나 슬러그" : "Search pieces: title or slug"}
+            placeholder={
+              locale === "ko" ? "조각 검색: 제목이나 슬러그" : "Search pieces: title or slug"
+            }
             accessibilityLabel={locale === "ko" ? "지식 창고 검색" : "Search the knowledge store"}
           />
         ) : null}
@@ -332,7 +371,15 @@ export default function Wiki() {
             disabled={exporting || pages.length === 0}
           />
           <Button
-            label={statsVisible ? (locale === "ko" ? "통계 접기" : "Hide detail") : (locale === "ko" ? "통계 자세히" : "Graph detail")}
+            label={
+              statsVisible
+                ? locale === "ko"
+                  ? "통계 접기"
+                  : "Hide detail"
+                : locale === "ko"
+                  ? "통계 자세히"
+                  : "Graph detail"
+            }
             variant="secondary"
             style={styles.actionBtn}
             onPress={handleToggleStats}
@@ -400,7 +447,10 @@ export default function Wiki() {
                   {locale === "ko" ? "연결 없는 페이지" : "Orphan pages"}
                 </Text>
                 <Text variant="subtle" color="textMuted" numberOfLines={3}>
-                  {stats.orphans.slice(0, 8).map((o) => `[[${o.slug}]]`).join(", ")}
+                  {stats.orphans
+                    .slice(0, 8)
+                    .map((o) => `[[${o.slug}]]`)
+                    .join(", ")}
                 </Text>
               </View>
             ) : null}
@@ -411,7 +461,8 @@ export default function Wiki() {
           <View style={styles.exportCard}>
             <View style={styles.exportHeader}>
               <Text variant="caption" color="textMuted">
-                {t("exportTitle")} ({exportText.length.toLocaleString()} {locale === "ko" ? "자" : "chars"})
+                {t("exportTitle")} ({exportText.length.toLocaleString()}{" "}
+                {locale === "ko" ? "자" : "chars"})
               </Text>
               <View style={{ flexDirection: "row", gap: spacing.md }}>
                 <Pressable
@@ -422,12 +473,16 @@ export default function Wiki() {
                         Alert.alert(locale === "ko" ? "클립보드에 복사됨" : "Copied to clipboard");
                       } catch {
                         Alert.alert(
-                          locale === "ko" ? "복사 실패: 아래 텍스트를 직접 선택해 주세요" : "Copy failed: please select the text below manually",
+                          locale === "ko"
+                            ? "복사 실패: 아래 텍스트를 직접 선택해 주세요"
+                            : "Copy failed: please select the text below manually",
                         );
                       }
                     } else {
                       Alert.alert(
-                        locale === "ko" ? "이 환경에서는 자동 복사가 지원되지 않아요" : "Auto-copy not supported in this environment",
+                        locale === "ko"
+                          ? "이 환경에서는 자동 복사가 지원되지 않아요"
+                          : "Auto-copy not supported in this environment",
                       );
                     }
                   }}
@@ -506,10 +561,16 @@ export default function Wiki() {
             {activeTags.length === 0 ? (
               <View style={styles.emptyCtaRow}>
                 <Link href="/journal" asChild>
-                  <Button label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"} variant="primary" />
+                  <Button
+                    label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
+                    variant="primary"
+                  />
                 </Link>
                 <Link href="/capture" asChild>
-                  <Button label={locale === "ko" ? "조각 담기" : "Capture a piece"} variant="secondary" />
+                  <Button
+                    label={locale === "ko" ? "조각 담기" : "Capture a piece"}
+                    variant="secondary"
+                  />
                 </Link>
               </View>
             ) : null}
@@ -517,7 +578,9 @@ export default function Wiki() {
         ) : visiblePages.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text variant="body" color="textMuted" style={styles.emptyText}>
-              {locale === "ko" ? `'${query.trim()}'에 맞는 조각이 없어요.` : `No pieces match '${query.trim()}'.`}
+              {locale === "ko"
+                ? `'${query.trim()}'에 맞는 조각이 없어요.`
+                : `No pieces match '${query.trim()}'.`}
             </Text>
           </View>
         ) : (
@@ -530,7 +593,10 @@ export default function Wiki() {
                 <Pressable
                   key={p.id}
                   onPress={() => toggleExpand(p)}
-                  style={[styles.row, { borderLeftColor: semantic[KIND_BORDER[p.kind]], borderLeftWidth: 3 }]}
+                  style={[
+                    styles.row,
+                    { borderLeftColor: semantic[KIND_BORDER[p.kind]], borderLeftWidth: 3 },
+                  ]}
                 >
                   <View style={styles.rowHeader}>
                     <View style={[styles.kindChip, { borderColor: semantic[KIND_BORDER[p.kind]] }]}>
@@ -538,16 +604,29 @@ export default function Wiki() {
                         {KIND_LABEL[p.kind][locale]}
                       </Text>
                     </View>
-                    <Text variant="subtle" color="textSubtle" numberOfLines={1} style={styles.rowSlug}>
+                    <Text
+                      variant="subtle"
+                      color="textSubtle"
+                      numberOfLines={1}
+                      style={styles.rowSlug}
+                    >
                       [[{p.slug}]]
                     </Text>
                     {inDeg > 0 ? (
-                      <Text variant="subtle" color={isHub ? "brand" : "textSubtle"} style={styles.rowInDeg}>
+                      <Text
+                        variant="subtle"
+                        color={isHub ? "brand" : "textSubtle"}
+                        style={styles.rowInDeg}
+                      >
                         ← {inDeg}
                       </Text>
                     ) : null}
                   </View>
-                  <Text variant="body" style={styles.rowTitle} numberOfLines={expanded ? undefined : 2}>
+                  <Text
+                    variant="body"
+                    style={styles.rowTitle}
+                    numberOfLines={expanded ? undefined : 2}
+                  >
                     {p.title}
                   </Text>
                   {p.tags.length > 0 ? (
@@ -615,7 +694,9 @@ export default function Wiki() {
                                   { month: "short", day: "numeric" },
                                 )}
                                 {" · "}
-                                {p1.model.startsWith("mock:") ? "MOCK" : p1.model.split("-").slice(-2, -1)[0] ?? p1.model}
+                                {p1.model.startsWith("mock:")
+                                  ? "MOCK"
+                                  : (p1.model.split("-").slice(-2, -1)[0] ?? p1.model)}
                               </Text>
                             </View>
                             <Text variant="body" color="textMuted" style={styles.body}>
@@ -813,9 +894,21 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
   },
   center: { paddingVertical: spacing.xl, alignItems: "center" },
-  emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, alignItems: "center", gap: spacing.sm },
+  emptyCard: {
+    padding: spacing.lg,
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.md,
+    alignItems: "center",
+    gap: spacing.sm,
+  },
   emptyText: { textAlign: "center" },
-  emptyCtaRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm, flexWrap: "wrap", justifyContent: "center" },
+  emptyCtaRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    flexWrap: "wrap",
+    justifyContent: "center",
+  },
   inlineTagRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   list: { gap: spacing.sm },
   row: {
@@ -837,7 +930,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: semantic.surfaceAlt,
   },
-  expandedSection: { marginTop: spacing.sm, gap: spacing.xs, paddingTop: spacing.sm, borderTopColor: semantic.border, borderTopWidth: 1 },
+  expandedSection: {
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+    borderTopColor: semantic.border,
+    borderTopWidth: 1,
+  },
   body: { lineHeight: 22 },
   backlinksHeader: { marginTop: spacing.sm },
   phase1Card: {
@@ -862,7 +961,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   exportHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  exportScroll: { maxHeight: 320, backgroundColor: semantic.surfaceAlt, borderRadius: radii.sm, padding: spacing.sm },
+  exportScroll: {
+    maxHeight: 320,
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+  },
   exportHelper: { marginTop: spacing.xs },
   statsCard: {
     backgroundColor: semantic.surface,

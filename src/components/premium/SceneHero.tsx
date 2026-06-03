@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  Animated,
+  Easing,
+  PanResponder,
+  StyleSheet,
+  View,
+  type GestureResponderEvent,
+  type PanResponderGestureState,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
@@ -25,6 +35,8 @@ const SPEECH_LAYER = 40;
 const CHARACTER_LAYER = 12;
 const OWNER_PATROL_MS = 2800;
 const OWNER_PATROL_TO_ISLAND_SCALE = 0.034;
+const HERO_SWIPE_DISTANCE = 48;
+const HERO_SWIPE_VERTICAL_TOLERANCE = 1.35;
 
 export function SceneHero({
   eyebrow,
@@ -35,9 +47,11 @@ export function SceneHero({
   speech,
   primaryAction,
   secondaryAction,
+  onSwipeLeft,
+  onSwipeRight,
   accent = cosmic.dreamPink,
-  islandSize = 274,
-  workerSize = 104,
+  islandSize = 188,
+  workerSize = 76,
   style,
 }: {
   eyebrow: string;
@@ -48,6 +62,8 @@ export function SceneHero({
   speech: string;
   primaryAction?: SceneHeroAction;
   secondaryAction?: SceneHeroAction;
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
   accent?: string;
   islandSize?: number;
   workerSize?: number;
@@ -83,6 +99,38 @@ export function SceneHero({
     inputRange: [0, 1],
     outputRange: [-ownerStride, ownerStride],
   });
+  const hasSwipe = Boolean(onSwipeLeft || onSwipeRight);
+  const hasSwipeRef = useRef(hasSwipe);
+  const swipeLeftRef = useRef(onSwipeLeft);
+  const swipeRightRef = useRef(onSwipeRight);
+  const swipeResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (
+        _event: GestureResponderEvent,
+        gesture: PanResponderGestureState,
+      ) =>
+        hasSwipeRef.current &&
+        Math.abs(gesture.dx) > HERO_SWIPE_DISTANCE * 0.55 &&
+        Math.abs(gesture.dx) > Math.abs(gesture.dy) * HERO_SWIPE_VERTICAL_TOLERANCE,
+      onPanResponderRelease: (
+        _event: GestureResponderEvent,
+        gesture: PanResponderGestureState,
+      ) => {
+        if (Math.abs(gesture.dx) < HERO_SWIPE_DISTANCE) return;
+        if (gesture.dx < 0) {
+          swipeLeftRef.current?.();
+        } else {
+          swipeRightRef.current?.();
+        }
+      },
+    }),
+  ).current;
+
+  useEffect(() => {
+    hasSwipeRef.current = hasSwipe;
+    swipeLeftRef.current = onSwipeLeft;
+    swipeRightRef.current = onSwipeRight;
+  }, [hasSwipe, onSwipeLeft, onSwipeRight]);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -140,7 +188,7 @@ export function SceneHero({
       </View>
 
       <View style={[styles.shell, { shadowColor: accent }]}>
-        <View style={styles.stage}>
+        <View style={styles.stage} {...(hasSwipe ? swipeResponder.panHandlers : {})}>
           <View style={[styles.islandFrame, { width: islandSize, height: islandSize }]}>
             <View
               style={[
@@ -258,7 +306,7 @@ const styles = StyleSheet.create({
   shell: {
     position: "relative",
     overflow: "hidden",
-    minHeight: 404,
+    minHeight: 268,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: semantic.border,
@@ -269,12 +317,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   stage: {
-    minHeight: 300,
+    minHeight: 202,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   islandFrame: {
     position: "relative",
@@ -363,8 +411,8 @@ const styles = StyleSheet.create({
   actions: {
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: semantic.border,
     backgroundColor: semantic.surfaceAlt,

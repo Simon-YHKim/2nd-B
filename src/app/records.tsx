@@ -7,7 +7,7 @@
 // Renders meaningful loading / empty / error states so the route is never
 // blank, and can be reached directly via URL.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
@@ -31,9 +31,6 @@ import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedn
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 const TYPE_FILTERS: (EvidenceType | "all")[] = ["all", "journal", "capture", "audit", "interview", "imagine", "wiki"];
-// Domain (village) filter chips — "all" plus the six villages, in graph order.
-const DOMAIN_CHIPS: ("all" | VillageId)[] = ["all", ...VILLAGE_IDS];
-
 // Warm-gold for records by default; a few types carry their companion accent.
 const TYPE_ACCENT: Record<EvidenceType, string> = {
   journal: cosmic.pixelLamp,
@@ -113,6 +110,22 @@ export default function Records() {
     setDomainFilter(paramDomain);
   }, [paramDomain]);
 
+  const swipeVillage = useCallback(
+    (step: 1 | -1) => {
+      const currentVillage = domainFilter === "all" ? "records" : domainFilter;
+      const currentIndex = VILLAGE_IDS.indexOf(currentVillage);
+      const nextIndex = (currentIndex + step + VILLAGE_IDS.length) % VILLAGE_IDS.length;
+      const nextVillage = VILLAGE_IDS[nextIndex];
+      if (nextVillage === "knowledge") {
+        router.replace("/wiki");
+        return;
+      }
+      setDomainFilter(nextVillage);
+      router.setParams({ domain: nextVillage });
+    },
+    [domainFilter],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return shards.filter((s) => {
@@ -141,15 +154,15 @@ export default function Records() {
   const heroEyebrow =
     domainFilter === "all"
       ? (locale === "ko" ? "05. 기록 보관소" : "05. Records")
-      : (locale === "ko" ? `${villageLabel} · 마을 기록` : `${villageLabel} · village records`);
+      : (locale === "ko" ? `${villageLabel} · Core 로그` : `${villageLabel} · core logs`);
   const heroTitle =
     domainFilter === "all"
       ? (locale === "ko" ? "남긴 조각을 다시 만나요" : "Revisit every piece you left")
-      : (locale === "ko" ? `${villageLabel}의 조각들` : `${villageLabel} pieces`);
+      : (locale === "ko" ? "이 Core의 조각" : "Core pieces");
   const heroSubtitle =
     domainFilter === "all"
-      ? (locale === "ko" ? "일기 · 담기 · 검사 · 공상까지 한곳에" : "Journal, capture, assessments, and imagine in one place")
-      : (locale === "ko" ? "이 마을에 모인 기록만 골라 봅니다" : "Only the pieces gathered in this village");
+      ? (locale === "ko" ? "일기 · 담기 · 검사 · 영감까지 한곳에" : "Journal, capture, assessments, and inspiration in one place")
+      : (locale === "ko" ? "이 Core에 모인 로그만 골라 봅니다" : "Only the logs gathered in this Core");
 
   return (
     <PremiumAppShell>
@@ -162,10 +175,8 @@ export default function Records() {
           worker={villageUi.worker}
           accent={villageUi.accent}
           speech={villageUi.speech[locale]}
-          primaryAction={{
-            label: villageUi.primaryLabel[locale],
-            onPress: () => router.push(villageUi.primaryRoute),
-          }}
+          onSwipeLeft={() => swipeVillage(1)}
+          onSwipeRight={() => swipeVillage(-1)}
         />
 
         <Input
@@ -175,33 +186,17 @@ export default function Records() {
           accessibilityLabel={locale === "ko" ? "기록 검색" : "Search records"}
         />
 
-        {/* Domain (village) filter — the primary "which village" cut. Set by the
-            village node that brought you here, switchable via these chips. */}
-        <Text variant="caption" color="textSubtle" style={styles.filterLabel}>
-          {locale === "ko" ? "마을" : "Village"}
-        </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-          {DOMAIN_CHIPS.map((d) => {
-            const active = d === domainFilter;
-            const label = d === "all" ? (locale === "ko" ? "전체" : "All") : VILLAGE_LABEL[d][locale];
-            return (
-              <Pressable
-                key={d}
-                onPress={() => setDomainFilter(d)}
-                style={[styles.chip, active ? styles.chipActive : null]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-              >
-                <Text variant="caption" color={active ? "background" : "textMuted"}>{label}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
         <Text variant="caption" color="textSubtle" style={styles.filterLabel}>
           {locale === "ko" ? "종류" : "Type"}
         </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+        <ScrollView
+          horizontal
+          nestedScrollEnabled
+          keyboardShouldPersistTaps="handled"
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipStrip}
+          contentContainerStyle={styles.chipRow}
+        >
           {TYPE_FILTERS.map((tf) => {
             const active = tf === typeFilter;
             const label = tf === "all" ? (locale === "ko" ? "전체" : "All") : evidenceTypeLabel(tf, locale);
@@ -242,7 +237,7 @@ export default function Records() {
                   : "No pieces match that filter."}
             </Text>
             {shards.length === 0 ? (
-              <Button label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"} variant="primary" onPress={() => router.push("/journal")} />
+              <Button label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"} variant="primary" onPress={() => router.push("/capture")} />
             ) : null}
           </View>
         ) : (
@@ -275,7 +270,8 @@ const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: 110 },
   center: { paddingVertical: spacing.xxl, alignItems: "center", justifyContent: "center" },
   stateBox: { paddingVertical: spacing.xl, gap: spacing.md, alignItems: "center" },
-  chipRow: { gap: spacing.sm, paddingVertical: spacing.xs },
+  chipStrip: { flexGrow: 0, marginHorizontal: -spacing.xs, paddingHorizontal: spacing.xs },
+  chipRow: { gap: spacing.sm, paddingVertical: spacing.xs, paddingRight: spacing.lg },
   // Pull each chip row up under its small section label (scroll gap is lg).
   filterLabel: { marginBottom: -spacing.sm, letterSpacing: 0 },
   chip: {
@@ -286,6 +282,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     minHeight: 44,
     justifyContent: "center",
+    flexShrink: 0,
   },
   chipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   list: { gap: spacing.xs },

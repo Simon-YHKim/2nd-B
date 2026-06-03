@@ -44,7 +44,7 @@ async function fetchProfile(userId: string): Promise<ProfileProbe> {
     .eq("id", userId)
     .maybeSingle();
   if (error) {
-    if (typeof console !== "undefined") console.warn("[auth] profile probe failed", error.message);
+    if (typeof console !== "undefined") console.log("[auth] profile probe failed", error.message);
     return { hasProfile: false, isMinor: null };
   }
   if (!data) return { hasProfile: false, isMinor: null };
@@ -61,7 +61,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
     const t = setTimeout(() => {
       if (!done) {
         done = true;
-        if (typeof console !== "undefined") console.warn("[auth] profile probe timed out; continuing");
+        if (typeof console !== "undefined") console.log("[auth] profile probe timed out; continuing");
         resolve(fallback);
       }
     }, ms);
@@ -149,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Network failure (demo build with placeholder Supabase, offline,
         // blocked CORS). Don't strand the UI in loading-forever — render
         // the unauthenticated state so the landing page becomes visible.
-        if (typeof console !== "undefined") console.warn("[auth] getSession failed, treating as signed out", e);
+        if (typeof console !== "undefined") console.log("[auth] getSession failed, treating as signed out", e);
         if (!cancelled) setState({ userId: null, hasProfile: null, isMinor: null, loading: false });
       });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
