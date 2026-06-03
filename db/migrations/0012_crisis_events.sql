@@ -9,7 +9,7 @@
 
 CREATE TABLE IF NOT EXISTS crisis_events (
   id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id_hash             text,                                              -- SHA-256(users.id); never the raw id
+  user_id_hash             text,                                              -- non-cryptographic djb2 hash of users.id (obfuscation only, NOT anonymization: 32-bit, collision-prone, re-identifiable); never the raw id. Upgrade to salted SHA-256 if it must resist re-identification.
   occurred_at              timestamptz NOT NULL DEFAULT now(),
   zone                     text NOT NULL CHECK (zone = 'red'),
   classifier_confidence    numeric(4,3) CHECK (classifier_confidence >= 0 AND classifier_confidence <= 1),
