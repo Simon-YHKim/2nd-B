@@ -47,16 +47,6 @@ function webWindow(): WebGlobal | null {
   return window as unknown as WebGlobal;
 }
 
-/** Read the persisted analytics-consent decision (web only). Defaults false. */
-function readStoredConsent(): boolean {
-  const w = webWindow();
-  try {
-    return w?.localStorage?.getItem(CONSENT_KEY) === "granted";
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Lazy-initialize analytics. Safe to call multiple times — subsequent calls are
  * no-ops. Called once from src/app/_layout.tsx as `void initAnalytics()`.
@@ -105,7 +95,15 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean }): Prom
     }
   }
 
-  analyticsConsent = opts?.analyticsConsent ?? readStoredConsent();
+  // M1 (round-4): do NOT trust the localStorage cache to auto-load product
+  // analytics at boot — a stale "granted", or a 14-17 minor who set the key in
+  // devtools, would load GA4/Clarity/PostHog without re-checking the SERVER
+  // decision. Product analytics now load ONLY from an explicit, server-derived
+  // decision: initAnalytics({analyticsConsent}) or setAnalyticsConsent() once
+  // AuthContext resolves external_analytics + minor status (see the
+  // AnalyticsConsentSync effect in _layout). Sentry (above) is operational +
+  // PII-free, so it loads regardless of this gate.
+  analyticsConsent = opts?.analyticsConsent ?? false;
   if (analyticsConsent) await loadProductAnalytics(env);
 }
 

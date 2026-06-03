@@ -35,7 +35,7 @@ import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 export default function CoreBrain() {
   const { i18n } = useTranslation();
-  const { userId, loading, hasProfile } = useAuth();
+  const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [persona, setPersona] = useState<PersonaCard | null>(null);
@@ -61,7 +61,7 @@ export default function CoreBrain() {
           .limit(24);
         const rows = (data ?? []) as RawRecordRow[];
         const ev = rows.map((r) => toEvidenceShard(r, locale));
-        const p = ev.length > 0 ? await buildPersona(userId, locale) : null;
+        const p = ev.length > 0 ? await buildPersona(userId, locale, isMinor === true) : null;
         if (!cancelled) {
           setEvidence(ev);
           setPersona(p);
@@ -77,7 +77,7 @@ export default function CoreBrain() {
     return () => {
       cancelled = true;
     };
-  }, [userId, hasProfile, locale, fireCompanion]);
+  }, [userId, hasProfile, isMinor, locale, fireCompanion]);
 
   if (loading) {
     return (

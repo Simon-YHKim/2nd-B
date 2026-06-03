@@ -289,8 +289,7 @@ Deno.serve(async (req: Request) => {
 
   // Spend cap (cost backstop) — server-authoritative, BEFORE any paid upstream
   // call. bump_gemini_spend raises gemini_spend_exceeded at the per-user/day
-  // ceiling. If the counter is unavailable (e.g. migration not yet applied) we
-  // fail open so the cap can never hard-break live LLM, logging for monitoring.
+  // ceiling.
   const dailyCap = Number(Deno.env.get('GEMINI_DAILY_CALL_CAP')) || DEFAULT_DAILY_CALL_CAP;
   const { error: spendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
     p_user_id: userId,
@@ -298,10 +297,25 @@ Deno.serve(async (req: Request) => {
     p_cap: dailyCap,
   });
   if (spendErr) {
-    if ((spendErr.message ?? '').includes('gemini_spend_exceeded')) {
+    const msg = spendErr.message ?? '';
+    if (msg.includes('gemini_spend_exceeded')) {
       return jsonResponse(req, { error: 'daily_limit_exceeded' }, 429);
     }
-    console.warn('[gemini-proxy] spend bump failed, failing open:', spendErr.message);
+    // M6 (round-4): FAIL CLOSED on a cost-critical error. Previously ANY non-cap
+    // error (timeout, pool exhaustion) fell through to a paid upstream call with
+    // only a console.warn — an uncapped-spend hole. The ONLY tolerated case is
+    // "the RPC/counter does not exist yet" (migration not applied): PGRST202 (RPC
+    // not found) / 42883 (undefined_function). There we allow + alert loudly so
+    // the operator restores the cap. Every other error → 503, no upstream spend.
+    const code = (spendErr as { code?: string }).code ?? '';
+    const rpcMissing =
+      code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
+    if (rpcMissing) {
+      console.error('[gemini-proxy][ALERT] spend RPC missing — allowing WITHOUT a cap. Apply 0035/0036:', msg);
+    } else {
+      console.error('[gemini-proxy][ALERT] spend check unavailable — failing closed:', msg);
+      return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
+    }
   }
 
   const t0 = Date.now();

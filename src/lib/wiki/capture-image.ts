@@ -61,6 +61,9 @@ export async function ocrImageAsset(
   userId: string,
   locale: "en" | "ko",
   image: { base64: string; mimeType: string },
+  // C10: forwarded so a minor's crisis output-swap (if the OCR'd text trips the
+  // classifier) routes to the youth hotline. Defaults to adult routing.
+  minor = false,
 ): Promise<string> {
   const reply = await callGemini({
     userId,
@@ -68,6 +71,7 @@ export async function ocrImageAsset(
     purpose: "capture_ocr",
     user: OCR_PROMPT[locale],
     image: { mimeType: image.mimeType, data: image.base64 },
+    minor,
   });
   return reply.text;
 }

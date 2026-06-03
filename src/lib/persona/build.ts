@@ -209,7 +209,13 @@ async function loadLatestBfi(
   }
 }
 
-export async function buildPersona(userId: string, locale: "en" | "ko"): Promise<PersonaCard> {
+export async function buildPersona(
+  userId: string,
+  locale: "en" | "ko",
+  // C10: forwarded to callGemini so a minor's crisis output-swap routes to the
+  // youth hotline (KO 1388 + 109), not adult-only. Defaults to adult routing.
+  minor = false,
+): Promise<PersonaCard> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("records")
@@ -255,6 +261,7 @@ export async function buildPersona(userId: string, locale: "en" | "ko"): Promise
     locale,
     purpose: "persona_chat",
     user: summaryInput || "no entries yet",
+    minor,
   });
 
   const patterns: Record<string, string> = { summary: summaryRes.text };

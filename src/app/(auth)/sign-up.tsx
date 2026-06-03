@@ -19,6 +19,7 @@ import {
   signInWithKakao,
   signInWithNaver,
   AgeGateError,
+  BreachedPasswordError,
   MIN_SELF_CONSENT_AGE,
 } from "@/lib/supabase/auth";
 import { isJudgeEmail } from "@/lib/judge/domains";
@@ -86,6 +87,7 @@ export default function SignUp() {
       router.replace("/");
     } catch (e) {
       if (e instanceof AgeGateError) Alert.alert(t("errors.ageGate"));
+      else if (e instanceof BreachedPasswordError) Alert.alert(t("errors.breachedPassword"));
       else {
         const msg =
           locale === "ko"
