@@ -15,7 +15,8 @@
     "check:lexicon": "tsx scripts/check-forbidden-lexicon.ts",
     "check:llm-boundary": "tsx scripts/check-llm-import-boundary.ts",
     "check:constraints": "tsx scripts/check-constraints.ts",
-    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:lexicon && npm run check:llm-boundary && npm run check:constraints && npm test -- --ci"
+    "check:emdash": "tsx scripts/check-no-emdash.ts",
+    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:lexicon && npm run check:llm-boundary && npm run check:constraints && npm run check:emdash && npm test -- --ci"
   },
   "dependencies": {
     "@expo/ui": "~56.0.15",
