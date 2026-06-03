@@ -4,6 +4,7 @@
 
 import type { ReactNode } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   type PressableProps,
   StyleSheet,
@@ -199,9 +200,13 @@ export function PremiumButton({
   ];
   const buttonContent = (
     <>
-      {icon ? <View style={styles.btnIcon}>{icon}</View> : null}
+      {loading ? (
+        <ActivityIndicator size="small" color={isDisabled ? BTN_DISABLED_FG : BTN_FG[variant]} style={styles.btnIcon} />
+      ) : icon ? (
+        <View style={styles.btnIcon}>{icon}</View>
+      ) : null}
       <Text style={[styles.btnLabel, { color: isDisabled ? BTN_DISABLED_FG : BTN_FG[variant] }]}>
-        {loading ? "..." : label}
+        {label}
       </Text>
     </>
   );

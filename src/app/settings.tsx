@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -93,9 +94,8 @@ function SettingsActionButton({
           pressed ? styles.settingsButtonPressed : null,
         ]}
       >
-        <Text style={[styles.settingsButtonLabel, { color: labelColor }]}>
-          {loading ? "..." : label}
-        </Text>
+        {loading ? <ActivityIndicator size="small" color={labelColor} /> : null}
+        <Text style={[styles.settingsButtonLabel, { color: labelColor }]}>{label}</Text>
       </Pressable>
     </View>
   );
@@ -314,7 +314,7 @@ export default function Settings() {
           </Text>
           <Button
             label={locale === "ko" ? "모든 일기 삭제" : "Delete all journals"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -325,7 +325,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "모든 노트 삭제" : "Delete all notes"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -336,7 +336,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "과거의 나 응답 삭제" : "Delete audit responses"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -353,7 +353,7 @@ export default function Settings() {
           </Text>
           <Button
             label={locale === "ko" ? "Big Five (TIPI) 결과 삭제" : "Delete Big Five (TIPI) results"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -364,7 +364,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "애착 (ECR) 결과 삭제" : "Delete Attachment (ECR) results"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -375,7 +375,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "MBTI 결과 삭제" : "Delete MBTI results"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -392,7 +392,7 @@ export default function Settings() {
           </Text>
           <Button
             label={locale === "ko" ? "모든 위키 페이지 삭제" : "Delete all wiki pages"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -403,7 +403,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "미발전 캡처 삭제 (받은편지함의 미정리분)" : "Delete un-ingested captures"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -414,7 +414,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "세컨비 일일 사용량 리셋" : "Reset SecondB daily usage"}
-            variant="secondary"
+            variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
@@ -446,7 +446,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "전체 데이터 삭제" : "Delete everything"}
-            variant="primary"
+            variant="danger"
             disabled={fullDeleteConfirm !== CONFIRM_PHRASE || busy !== null}
             loading={busy === "full"}
             onPress={() =>
@@ -508,8 +508,10 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   settingsButtonPressable: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: spacing.sm,
     minHeight: 48,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,

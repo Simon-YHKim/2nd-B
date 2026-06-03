@@ -183,7 +183,7 @@ export default function Account() {
           />
           <Button
             label={t("account.delete.button")}
-            variant="primary"
+            variant="danger"
             disabled={deleteConfirm !== CONFIRM_PHRASE || deleting}
             loading={deleting}
             onPress={onDeleteAccount}
