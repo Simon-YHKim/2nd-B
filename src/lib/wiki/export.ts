@@ -61,11 +61,16 @@ const STRINGS = {
 } as const;
 
 function formatPage(page: WikiPageRow, bodyCharLimit: number | undefined, locale: "en" | "ko"): string {
+  // Drop internal frontmatter keys (underscore-prefixed, e.g. _body_fallback)
+  // so storage/internal markers never leak into the exported LLM context.
+  const publicFrontmatter = Object.fromEntries(
+    Object.entries(page.frontmatter ?? {}).filter(([k]) => !k.startsWith("_")),
+  );
   const headerFrontmatter = {
     slug: page.slug,
     kind: page.kind,
     tags: page.tags,
-    ...page.frontmatter,
+    ...publicFrontmatter,
   };
   let body = page.body_md;
   if (bodyCharLimit !== undefined && body.length > bodyCharLimit) {
