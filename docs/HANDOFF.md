@@ -24,13 +24,19 @@
 - 웹 빌드(repo Variables): `EXPO_PUBLIC_LLM_MODE=live` + `EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true` (라이브, 프록시 경유).
 - ⚠️ **edge fn 배포는 Supabase access token이 없어 MCP 인라인 전사로 진행**(v8/v9/v10, 매번 re-fetch 재검증). **`SUPABASE_ACCESS_TOKEN` 받으면 CLI 디스크 배포로 byte-perfect** 가능 → 전사 리스크 제거.
 
-### 다음 작업 큐
-| # | 작업 | 크기 | 권장 |
+### 다음 작업 큐 — 재감사 round 3 verdict: **NOT perfect, 2 HIGH + 4 MED** (전부 adversarial 검증됨, task `wp0z9cbnn`)
+> round 3는 round-2 수정 4건을 전부 confirm. 하지만 6건 추가 발견 (2건은 round-2 수정의 엣지 — 그래서 라우트 게이트는 per-screen whack-a-mole 대신 **root 공유 게이트** 권장). 아래 수정 → CI green 자동머지 → edge/DB 재배포 → round 4 재감사. perfect 될 때까지 반복.
+
+| # | 작업 | 심각도 | 파일 / 수정 방향 |
 |---|---|---|---|
-| A | **재감사 루프 계속**: 새 세션에서 confirming 재감사(멀티에이전트 워크플로우)를 main 기준으로 1회 더 돌려 verdict 확인 → findings 있으면 수정+머지+재배포, 없으면 "완벽" 도달로 종료. (이전 세션의 round 3 `wp0z9cbnn`은 그 세션 알림에만 잡힘) | medium | ⭐ /goal "완벽해질때까지 반복"의 다음 라운드 |
-| B | 운영자 값 세팅(사용자): `SUPABASE_ACCESS_TOKEN`, GA4 `G-XXXX` + Clarity Project ID, Apple/Kakao Supabase Providers, Naver creds + `ENABLE_NAVER_OAUTH=true` | small | go-live 차단 해제 |
-| C | 출시 전 `EXPO_PUBLIC_FORCE_TIER=off` (현재 'brain'=전부 unlock 테스트용) | small | 런치 체크리스트 |
-| D | Android 라이브 Advisor end-to-end QA (이번엔 Expo Go 개발서버 리로드로 못 함; 전 화면 렌더+v3 아트는 검증됨) | small | 선택 |
+| A1 | **C10 미성년 lock 우회**: minor_self 유저가 같은 UPDATE에 `minor_tier='adult'`를 셀프쓰면 `0033 clamp_minor_privacy_prefs`(NEW.minor_tier='minor_self' 분기)가 무력화 → 미성년이 high-privacy 탈출. minor_tier는 REVOKE/block_self_tier_change 어디에도 없고 age-gate 트리거는 birth_date 변경 시에만 발동(0030). | **HIGH** | `block_self_tier_change`(0034/0037)의 보호 컬럼 집합에 `minor_tier` 추가(서버만 변경 허용), 또는 clamp를 `OLD.minor_tier` 기준으로. 새 migration 0038 + prod 적용. |
+| A2 | **C3 위조**: `0011 audit_owner_insert`(authenticated INSERT, WITH CHECK user_id=auth.uid()만) → 클라가 ai_audit_log 행 위조/생략 가능. 프록시 server-write는 web edge 경로만 부분 완화. AUDIT_2026-06-03.md:153에 원래 MED로 기록됨(미해결). | **HIGH** | web은 이미 프록시가 service_role로 audit → 클라 INSERT 정책 제거 또는 SECURITY DEFINER RPC로 제약(zone 재계산). native/direct 경로 감사 경로 별도 설계. |
+| A3 | **무프로필 OAuth → LLM** 누락 2화면: `inbox.tsx:77` + `wiki.tsx:164` (둘 다 runPhase1→callGemini, `!userId`만 게이트). fix #5/round-2가 또 놓침. | MED | **권장: `src/app/_layout.tsx`에 root 공유 게이트** (userId && hasProfile===false && route ∉ (auth) group → Redirect /complete-profile). per-screen 게이트 whack-a-mole 종료. (임시: inbox/wiki에 기존 패턴 게이트 추가) |
+| A4 | **삭제 Storage 미완**: delete-account의 raw-clippings 정리가 `list({limit:1000})` 1페이지만 → 1000+ 클립 유저는 PII 잔존. round-2 수정의 엣지. | MED | offset 페이지네이션 루프로 prefix 전부 삭제. delete-account 재배포. |
+| A5 | **출력 red 스왑 없음**: callGemini 출력 red-zone 미억제 → interview가 red 모델 출력을 그대로 렌더(`interview.tsx:128-131`, probe.zone 미확인). callAdvisor는 output-swap 있음. | MED | callGemini/nextProbe 출력 재분류 후 red면 스왑/억제 + 테스트(현재 미커버). |
+| B | 운영자 값(사용자): `SUPABASE_ACCESS_TOKEN`, GA4 `G-XXXX` + Clarity Project ID, Apple/Kakao Supabase Providers, Naver creds + `ENABLE_NAVER_OAUTH=true` | small | go-live 차단 해제 |
+| C | 출시 전 `EXPO_PUBLIC_FORCE_TIER=off` (현재 'brain'=전부 unlock) | small | 런치 체크리스트 |
+| D | Android 라이브 Advisor end-to-end QA (이번엔 Expo Go 리로드로 못 함; 전 화면 렌더+v3 아트는 검증됨) | small | 선택 |
 
 ### 적용 중인 정책 (영구)
 1. **PR/CI/머지 자동화**: PR 생성 → `gh pr checks --watch` → green이면 `gh pr merge --squash --delete-branch`. (사용자 지시 2026-06-03; global 의 no-auto-merge 를 이 repo에서 override)
