@@ -53,3 +53,7 @@ coverage/
 /ios
 /android
 .gstack/
+
+# Local-only dev artifacts (never commit)
+.claude/launch.json
+.tmp_hq_pack/

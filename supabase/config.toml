@@ -7,11 +7,8 @@ project_id = "zoacryukmdeivmolvyhj"
 [functions.gemini-proxy]
 verify_jwt = true
 
-[functions.oauth-kakao]
-# Pre-auth endpoint — the function IS the auth boundary. It validates the
-# user via Kakao's OAuth and only then mints a Supabase session.
-verify_jwt = false
-
 [functions.oauth-naver]
-# Same shape as oauth-kakao, different upstream (Naver Login API).
+# Pre-auth endpoint - the function IS the auth boundary: it validates the user
+# via Naver's OAuth and only then mints a Supabase session. (Kakao uses the
+# native Supabase provider now, so it has no edge function.)
 verify_jwt = false
