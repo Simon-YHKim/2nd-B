@@ -186,6 +186,8 @@ export default function SignUp() {
             disabled={!canSubmit}
             loading={submitting}
             onPress={handleSubmit}
+            full
+            style={styles.submitButton}
           />
         </View>
         <View style={styles.footer}>
@@ -262,6 +264,7 @@ const styles = StyleSheet.create({
   },
   helper: { marginTop: -spacing.xs },
   checklist: { gap: spacing.xs, marginTop: spacing.xs, marginBottom: spacing.xs },
+  submitButton: { alignSelf: "stretch", width: "100%" },
   checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   checkDot: { width: 8, height: 8, borderRadius: 4 },
   footer: { marginTop: spacing.xl, alignItems: "center" },

@@ -1549,7 +1549,9 @@ const styles = StyleSheet.create({
   villageTag: {
     position: "absolute",
     top: "104%",
-    minWidth: 96,
+    left: "50%",
+    width: 150,
+    marginLeft: -75,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -1564,7 +1566,7 @@ const styles = StyleSheet.create({
   villageTagText: {
     color: cosmic.moonWhite,
     fontFamily: fontFamilies.pixel,
-    fontSize: 12,
+    fontSize: 11,
     letterSpacing: 0,
     textAlign: "center",
   },

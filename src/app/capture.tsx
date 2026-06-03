@@ -544,7 +544,7 @@ export default function Capture() {
                 <ShardArt id="capture_mint" size={48} />
                 <View style={{ flex: 1 }}>
                   <Text variant="body" color="brand" style={{ fontWeight: "600" }}>
-                    {locale === "ko" ? "루루가 새 조각을 가져왔어요" : "Lulu brought a new piece"}
+                    {locale === "ko" ? "Lumen이 새 조각을 가져왔어요" : "Lumen brought a new piece"}
                   </Text>
                   <Text variant="subtle" color="textMuted" numberOfLines={1} style={{ marginTop: 2 }}>
                     {savedTitle}

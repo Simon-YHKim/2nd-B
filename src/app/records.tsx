@@ -141,15 +141,15 @@ export default function Records() {
   const heroEyebrow =
     domainFilter === "all"
       ? (locale === "ko" ? "05. 기록 보관소" : "05. Records")
-      : (locale === "ko" ? `${villageLabel} · 마을 기록` : `${villageLabel} · village records`);
+      : (locale === "ko" ? `${villageLabel} · Core 로그` : `${villageLabel} · core logs`);
   const heroTitle =
     domainFilter === "all"
       ? (locale === "ko" ? "남긴 조각을 다시 만나요" : "Revisit every piece you left")
       : (locale === "ko" ? `${villageLabel}의 조각들` : `${villageLabel} pieces`);
   const heroSubtitle =
     domainFilter === "all"
-      ? (locale === "ko" ? "일기 · 담기 · 검사 · 공상까지 한곳에" : "Journal, capture, assessments, and imagine in one place")
-      : (locale === "ko" ? "이 마을에 모인 기록만 골라 봅니다" : "Only the pieces gathered in this village");
+      ? (locale === "ko" ? "일기 · 담기 · 검사 · 영감까지 한곳에" : "Journal, capture, assessments, and inspiration in one place")
+      : (locale === "ko" ? "이 Core에 모인 로그만 골라 봅니다" : "Only the logs gathered in this Core");
 
   return (
     <PremiumAppShell>
