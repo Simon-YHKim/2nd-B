@@ -56,6 +56,19 @@ export const cosmic = {
   mintGlow: "rgba(114,242,199,0.34)", // --mint-glow
 } as const;
 
+// Compose an rgba() string from a hex palette token + alpha (0..1). Lets
+// components use translucent shades of the cosmic palette WITHOUT hardcoding
+// rgba() literals (DESIGN.md: no hex/rgba literals in components). Accepts
+// #RGB or #RRGGBB. Pure; safe to call inside StyleSheet.create.
+export function withAlpha(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 export const darkSky = {
   bg: "#02040A",
   surface: "rgba(255,255,255,0.04)",
