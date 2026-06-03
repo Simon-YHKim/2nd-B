@@ -19,6 +19,25 @@ jest.mock("../../supabase/audit", () => ({
   insertAiAuditLog: jest.fn().mockResolvedValue(undefined),
 }));
 
+// callGemini now re-classifies output via classifySafety (round-4 H1). This suite
+// tests audit + multimodal wiring, not the classifier, so stub it to a no-op
+// green — otherwise it would make a second (Flash) generateContent call + its own
+// audit on the Vertex client. The swap behavior is covered by gemini-output-swap.test.ts.
+jest.mock("../safety", () => {
+  const actual = jest.requireActual("../safety");
+  return {
+    ...actual,
+    classifySafety: jest.fn().mockResolvedValue({
+      zone: "green",
+      triggers: [],
+      confidence: 0.4,
+      cssrsLevel: null,
+      source: "lexicon-fallback",
+      routingTemplateVersion: "rcv1-2026-05-25",
+    }),
+  };
+});
+
 jest.mock("../../env", () => ({
   getEnv: () => ({
     EXPO_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
