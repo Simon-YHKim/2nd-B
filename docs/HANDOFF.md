@@ -3,7 +3,73 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest -- 2026-06-03 / 3 PR 통합 머지 + Naver 취약점 수정 + 감사 루프 (HIGH 전부 닫음)
+## Latest -- 2026-06-03 (eve) / 애널리틱스 + Android QA + 재감사 2라운드 + prod 배포
+
+### 어디까지 왔나
+- main HEAD: `c12774b` (이 핸드오프 머지 후 갱신). verify **808/808 (88 suites)** green, working tree clean.
+- 이번 세션 머지 PR (전부 CI green → squash 자동 머지):
+  - **#189** 최종 후보 v3 PNG 아트 wiring (cores + Pattern Data/Log; flag `EXPO_PUBLIC_USE_V3_ART`, 기본 off)
+  - **#190** `0036` bump_gemini_spend 를 service_role 전용으로 잠금 (anon/authenticated EXECUTE 회수 — DoS 차단)
+  - **#191** 애널리틱스: **GA4 + MS Clarity** 추가 (기존 `external_analytics` 프라이버시 동의에 게이팅, web-only, IP 익명화; PostHog 무동의 로딩 갭도 같이 닫음)
+  - **#192** [HIGH] Advisor/interview edge 422 수정 + C3 callAdvisor 이중기록 dedup
+  - **#193** `0037` XP 가드 NULL-safe (인증 유저의 total_xp 셀프쓰기 차단)
+  - **#194** 계정삭제 false-success + OAuth 무프로필 라우트 게이트 (batch 1: capture/jarvis/audit)
+  - **#195** classifySafety Flash 호출 감사 (native/Vertex C3 갭)
+  - **#196** 재감사 round 2 (4 MED): delete-account FK(added_by)+Storage, OAuth 게이트 batch 2 (interview/import/persona/core-brain), proxy crisis-scan 채널 수정
+
+### 활성 인프라
+- Supabase project **`zoacryukmdeivmolvyhj`** (2nd-brain, ap-northeast-2).
+- Prod 마이그레이션 적용됨: `0034`(award_xp 복구)·`0035`(gemini_spend_daily)·`0036`(spend RPC 권한잠금)·`0037`(XP 가드 NULL-safe). (prod는 이제 0037까지; 0034~0037 모두 이번 세션 적용)
+- Edge functions 배포됨: **delete-account v2** (verified_by+added_by null + raw-clippings Storage 삭제), **gemini-proxy v10** (스펜드캡 + C3 서버감사 + responseSchema + crisis-scan은 `userText`만; 큐레이트 RAG는 `system`으로), oauth-naver v3 (탈취방지, `ENABLE_NAVER_OAUTH`로 꺼짐), oauth-kakao v3 (폐기/orphan — 정리 가능).
+- 웹 빌드(repo Variables): `EXPO_PUBLIC_LLM_MODE=live` + `EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true` (라이브, 프록시 경유).
+- ⚠️ **edge fn 배포는 Supabase access token이 없어 MCP 인라인 전사로 진행**(v8/v9/v10, 매번 re-fetch 재검증). **`SUPABASE_ACCESS_TOKEN` 받으면 CLI 디스크 배포로 byte-perfect** 가능 → 전사 리스크 제거.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **재감사 루프 계속**: 새 세션에서 confirming 재감사(멀티에이전트 워크플로우)를 main 기준으로 1회 더 돌려 verdict 확인 → findings 있으면 수정+머지+재배포, 없으면 "완벽" 도달로 종료. (이전 세션의 round 3 `wp0z9cbnn`은 그 세션 알림에만 잡힘) | medium | ⭐ /goal "완벽해질때까지 반복"의 다음 라운드 |
+| B | 운영자 값 세팅(사용자): `SUPABASE_ACCESS_TOKEN`, GA4 `G-XXXX` + Clarity Project ID, Apple/Kakao Supabase Providers, Naver creds + `ENABLE_NAVER_OAUTH=true` | small | go-live 차단 해제 |
+| C | 출시 전 `EXPO_PUBLIC_FORCE_TIER=off` (현재 'brain'=전부 unlock 테스트용) | small | 런치 체크리스트 |
+| D | Android 라이브 Advisor end-to-end QA (이번엔 Expo Go 개발서버 리로드로 못 함; 전 화면 렌더+v3 아트는 검증됨) | small | 선택 |
+
+### 적용 중인 정책 (영구)
+1. **PR/CI/머지 자동화**: PR 생성 → `gh pr checks --watch` → green이면 `gh pr merge --squash --delete-branch`. (사용자 지시 2026-06-03; global 의 no-auto-merge 를 이 repo에서 override)
+2. **전부 자율 진행**: 안전 수정 + 보안/법적/과금 항목도. 단 prod DB 마이그레이션/edge 배포는 적용 후 재검증(소스 re-fetch + verify).
+3. **co-work-with-GPT**: merged main은 신뢰하지 말고 재검증(verify + 필요시 prod 대조).
+4. 기존 앱 에셋·다른 사람 작업 삭제/되돌리기 금지.
+5. **시크릿 입력/계정 로그인/OAuth 승인은 사용자가 직접**; 공개값(anon key, GA4 ID, Naver client ID 등)은 Claude가 세팅 가능.
+6. edge fn 배포 후 반드시 `get_edge_function`으로 배포 소스 재확인(인라인 전사 검증).
+
+### 핵심 파일 위치
+```
+src/lib/llm/gemini.ts            callGemini/callAdvisor (C1/C3/C9 경계; edge=RAG→system, 엔트리→user)
+src/lib/llm/safety.ts            classifySafety (Flash 분류기, 자체 감사)
+supabase/functions/gemini-proxy/ 스펜드캡+C3감사+crisis(userText만 스캔) [prod v10]
+supabase/functions/delete-account/ 진짜 삭제(cascade+Storage) [prod v2]
+src/lib/analytics/index.ts       GA4+Clarity+PostHog+Sentry (external_analytics 동의 게이팅)
+src/app/privacy.tsx              external_analytics 토글 → setAnalyticsConsent
+src/app/{capture,jarvis,audit,interview,import,persona,core-brain}.tsx  hasProfile===false → /complete-profile 게이트
+db/migrations/0034-0037          award_xp/spend/grant-lock/xp-guard (prod 적용됨)
+docs/AUDIT_2026-06-03.md         감사 원장(원본 58 findings + 라운드 추적)
+docs/V3_ASSET_BRIEF.md           GPT 에셋 브리프(아트 매핑 출처)
+```
+
+### 검증
+```bash
+npm ci --legacy-peer-deps   # node_modules 스테일 시
+npm run verify              # lint+type+i18n+lexicon+llm-boundary+constraints+jest (808/808)
+EXPO_USE_STATIC=true EXPO_PUBLIC_USE_V3_ART=true npx expo export --platform web   # 번들 빌드 확인
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A 작업(재감사 1라운드 더)부터: main 기준 멀티에이전트 confirming 재감사 → verdict
+```
+
+---
+
+## Earlier -- 2026-06-03 / 3 PR 통합 머지 + Naver 취약점 수정 + 감사 루프 (HIGH 전부 닫음)
 
 ### 어디까지 왔나
 - main HEAD: `9cb8ac2` (이 핸드오프 머지 후 갱신). 통합 main verify green **803/803 (87 suites)**.
