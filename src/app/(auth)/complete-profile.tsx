@@ -60,9 +60,11 @@ export default function CompleteProfile() {
     setSubmitting(true);
     try {
       const result = await ensureUserProfile({ birthDate, locale });
-      // Record the consent the user just gave (best-effort — see sign-up).
+      // Record the consent the user just gave. Await before navigating so a
+      // web router.replace can't cancel the in-flight write (see sign-up).
+      // Still best-effort: a failure logs at error level, never blocks entry.
       if (userId) {
-        void recordConsentBestEffort(
+        await recordConsentBestEffort(
           buildSignUpConsentArgs({ userId, isMinor: isMinorAge, locale, selections: consent }),
         );
       }

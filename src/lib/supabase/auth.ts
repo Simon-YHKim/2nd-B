@@ -89,7 +89,20 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
   });
   // DB trigger auto_judge_mode also enforces judgeMode; the client-side
   // value is best-effort for instant UI updates. The trigger is authoritative.
-  if (insertErr) throw insertErr;
+  if (insertErr) {
+    // The auth.users account already exists with an authenticated session, but
+    // the profile row failed (age-gate trigger, citext-unique email collision,
+    // RLS/network). Leaving the session live would strand the user: profile-less
+    // but signed in, and a retry hits "user already registered". Sign the
+    // just-created session back out so the account isn't half-provisioned, then
+    // surface the original error. Best-effort: never mask insertErr.
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      /* ignore — surfacing insertErr is what matters */
+    }
+    throw insertErr;
+  }
 
   return { userId: user.id, judgeMode };
 }

@@ -68,9 +68,12 @@ export default function SignUp() {
         birthDate,
         locale,
       });
-      // Record the consent the user just gave (best-effort: a ledger write
-      // failure must not undo a created account; pre-migration it no-ops).
-      void recordConsentBestEffort(
+      // Record the consent the user just gave. Await it BEFORE navigating: on
+      // web a router.replace tears down the page and cancels an in-flight
+      // fire-and-forget request, which could silently drop the PIPA consent
+      // row. Still best-effort -- a write failure logs at error level and must
+      // not undo a created account; pre-migration it no-ops.
+      await recordConsentBestEffort(
         buildSignUpConsentArgs({
           userId: result.userId,
           isMinor: isMinorAge,
