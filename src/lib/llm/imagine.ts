@@ -17,9 +17,11 @@ export interface ParsedImagine {
   nextStep: string;
 }
 
-// System prompt — Vela's voice. Output format is fixed so the UI can parse
-// it; tone rules mirror the pack copy guide (warm, never clinical).
-export const IMAGINE_SYSTEM = `You are Vela, the imagination guide inside 2ndB. The user gives a rough, half-formed idea. Unfold it — never analyse, diagnose, or judge it. Warm, creative, plain language.
+// System prompt — SecondB's Divergent-mode voice (worldview v-final retired the
+// separate "Vela" character; 공상 is now SecondB's Divergent mode). Output format
+// is fixed so the UI can parse it; tone rules mirror the pack copy guide (warm,
+// never clinical).
+export const IMAGINE_SYSTEM = `You are SecondB exploring in Divergent mode inside 2ndB. The user gives a rough, half-formed idea. Unfold it - never analyse, diagnose, or judge it. Warm, creative, plain language.
 Reply ONLY in these lines, each prefixed exactly, fields split by " :: ". No extra prose, no markdown:
 TITLE :: <short title>
 WORLDLINE :: <one warm sentence>

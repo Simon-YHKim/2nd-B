@@ -2,7 +2,7 @@
 //
 // Layered design (defense in depth):
 //   1. Lexicon backstop (src/lib/safety/classifier.ts) — synchronous, always runs.
-//   2. Gemini Flash LLM classifier — async, semantic, when env.EXPO_PUBLIC_LLM_MODE === 'live'.
+//   2. Gemini Flash LLM classifier — async, semantic, when env.EXPO_PUBLIC_LLM_MODE !== 'mock' (i.e. live).
 //   3. Conservative union: if EITHER returns RED, the result is RED.
 //
 // Per docs/research/batches/crisis-detection.md §"Classifier prompt scaffolding".
