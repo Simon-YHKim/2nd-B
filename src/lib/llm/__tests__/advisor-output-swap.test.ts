@@ -43,7 +43,10 @@ jest.mock("../../env", () => ({
     EXPO_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
     EXPO_PUBLIC_SUPABASE_ANON_KEY: "x".repeat(40),
     EXPO_PUBLIC_LLM_MODE: "live",
-    EXPO_PUBLIC_USE_VERTEX: false,
+    // Vertex direct path: exempt from the round-4 H4 direct-egress guard (Vertex
+    // bills GCP, not the Gemini-API free-tier counter). The output-swap logic is
+    // egress-agnostic, so this still exercises the real direct generateContent path.
+    EXPO_PUBLIC_USE_VERTEX: true,
     GOOGLE_CLOUD_PROJECT: undefined,
     GOOGLE_CLOUD_LOCATION: "us-central1",
     GOOGLE_API_KEY: "test-key",

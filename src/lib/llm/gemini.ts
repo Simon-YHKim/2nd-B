@@ -56,6 +56,26 @@ function getClient(): { client: GoogleGenAI; vertex: boolean } {
   return { client: cachedClient, vertex: cachedClientVertex };
 }
 
+// C-cost (round-4 H4): the gemini-proxy is the ONLY spend-capped LLM egress
+// (bump_gemini_spend, 0035/0036, per-user/day). Reaching the direct @google/genai
+// client on a LIVE call bypasses that ceiling. The API-key direct path bills the
+// Gemini free tier the $0/mo promise (blueprint §5) protects, so a live call MUST
+// route through the edge proxy. Vertex (USE_VERTEX) is the only permitted direct
+// egress: it bills GCP (governed by the project budget/quota in the GCP console,
+// a separate domain from the Gemini-API free-tier counter) and is the C2
+// submission-evidence path. Mock mode never reaches the direct branch (returns
+// earlier). Called at the top of both direct branches so neither can ship an
+// uncapped live API-key path.
+function assertDirectEgressAllowed(env: ReturnType<typeof getEnv>): void {
+  if (env.EXPO_PUBLIC_LLM_MODE === "live" && !env.EXPO_PUBLIC_USE_VERTEX) {
+    throw new Error(
+      "LLM boundary (C-cost): a live call reached the uncapped direct API-key client. " +
+        "Route through the gemini-proxy edge function (EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true), " +
+        "which enforces the per-user/day spend cap, or use Vertex (EXPO_PUBLIC_USE_VERTEX=true).",
+    );
+  }
+}
+
 // Mock responses keyed by purpose + locale. Used when LLM_MODE=mock so the
 // UI can be exercised end-to-end without a Gemini API key. Safety classifier
 // still runs (C9 invariant) and audit log still records the call (C3).
@@ -254,6 +274,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     proxyAudited = payload?.audited === true;
   } else {
     // C2 client constructed with Vertex when configured.
+    assertDirectEgressAllowed(env);
     const { client, vertex } = getClient();
 
     const t0 = Date.now();
@@ -284,8 +305,23 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     vertexBackend = vertex;
   }
 
-  // Re-classify the output to record the final zone in audit log.
-  const outputSafety = classifyInput(text, input.locale, { minor: input.minor });
+  // Output re-classification + swap. Round-4 H1: the lexical classifyInput pass
+  // missed semantically-red output with no literal crisis term, while callAdvisor
+  // re-classifies output with the semantic union classifier. Reach parity: gate
+  // the swap on classifySafety (lexicon + Gemini Flash where a client key exists;
+  // lexicon-only on the keyless web build, exactly like callAdvisor there). We
+  // keep a cheap classifier-typed lexical result for the returned
+  // GeminiResult.safety shape, but the swap DECISION + recorded zone use the
+  // semantic (worst-case-merged) result.
+  const lexical = classifyInput(text, input.locale, { minor: input.minor });
+  const semantic = await classifySafety(text, input.locale, { userId: input.userId });
+  const outputZone: "green" | "yellow" | "red" =
+    lexical.zone === "red" || semantic.zone === "red"
+      ? "red"
+      : lexical.zone === "yellow" || semantic.zone === "yellow"
+        ? "yellow"
+        : "green";
+  const outputSafety = { ...lexical, zone: outputZone };
 
   // OUTPUT SAFETY SWAP (parity with callAdvisor). The model can emit red-zone
   // content the input classifier never saw — via injected wiki/clip context, a
@@ -295,7 +331,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   // (real model + latency + a +swap marker so judges see the model WAS called and
   // intercepted), and log a categorical crisis_event. Skip the audit insert only
   // when the proxy already wrote it server-side (proxyAudited), like GREEN/YELLOW.
-  if (outputSafety.zone === "red") {
+  if (outputZone === "red") {
     const fixed = fixedCrisisResponse(input.locale, input.minor);
     const swapAudit = {
       promptHash,
@@ -314,16 +350,12 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     }
     try {
       await insertCrisisEvent({
-        userIdHash: djb2(input.userId),
-        zone: "red",
-        // classifyInput is the deterministic lexicon classifier (no LLM
-        // confidence / C-SSRS level): a crisis-lexicon match is a strong literal
-        // signal, so use the same 0.95 the lexicon path uses elsewhere, carry the
-        // matched categories, and leave cssrsLevel null (only the Flash/Pro
-        // classifier derives it).
-        classifierConfidence: 0.95,
-        triggerCategories: [...outputSafety.categories, "output_swap"],
-        cssrsLevel: null,
+        // Carry the semantic classifier's confidence / triggers / C-SSRS level
+        // when present (Flash); on the lexicon-only fallback these are the
+        // lexicon's conservative values.
+        classifierConfidence: semantic.confidence,
+        triggerCategories: [...semantic.triggers, "output_swap"],
+        cssrsLevel: semantic.cssrsLevel,
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       });
@@ -405,8 +437,6 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     // Separate restricted log (crisis_events). Categorical only.
     try {
       await insertCrisisEvent({
-        userIdHash: djb2(input.userId),
-        zone: "red",
         classifierConfidence: safety.confidence,
         triggerCategories: safety.triggers,
         cssrsLevel: safety.cssrsLevel,
@@ -512,6 +542,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     proxyAudited = payload?.audited === true;
     vertex = false;
   } else {
+    assertDirectEgressAllowed(env);
     const c = getClient();
     const t0 = Date.now();
     const res = await c.client.models.generateContent({
@@ -552,8 +583,6 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     }
     try {
       await insertCrisisEvent({
-        userIdHash: djb2(input.userId),
-        zone: "red",
         classifierConfidence: outputSafety.confidence,
         triggerCategories: [...outputSafety.triggers, "output_swap"],
         cssrsLevel: outputSafety.cssrsLevel,

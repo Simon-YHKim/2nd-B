@@ -246,6 +246,26 @@ results.push(
   }),
 );
 
+// Bonus: cost cap (round-4 H4). The gemini-proxy is the only spend-capped LLM
+// egress (bump_gemini_spend, 0035/0036). Both direct @google/genai branches in
+// gemini.ts must call assertDirectEgressAllowed so a live API-key call cannot
+// bypass the per-user/day ceiling (Vertex is the only permitted direct egress).
+results.push(
+  check("Cost", () => {
+    const wrapper = read("src/lib/llm/gemini.ts");
+    const defined = wrapper.includes("function assertDirectEgressAllowed");
+    const guardCount = (wrapper.match(/assertDirectEgressAllowed\(env\)/g) ?? []).length;
+    const ok = defined && guardCount >= 2;
+    return {
+      id: "Cost",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "both direct LLM egress branches guard the uncapped live API-key path"
+        : "direct LLM egress not guarded against uncapped live API-key calls (round-4 H4)",
+    };
+  }),
+);
+
 // Bonus: lexicon sanity (terms exist and look right)
 results.push({
   id: "Lex",
