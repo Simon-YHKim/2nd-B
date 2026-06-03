@@ -31,11 +31,13 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
+  Image,
   Platform,
   Pressable,
   StyleSheet,
   View,
   useWindowDimensions,
+  type ImageStyle,
 } from "react-native";
 import Svg, { Line } from "react-native-svg";
 import { router, type Href } from "expo-router";
@@ -65,7 +67,7 @@ import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
 import { CrewLayer } from "./CrewLayer";
 import { useCrewCount } from "@/lib/settings/crew-density";
 import { getEnv } from "@/lib/env";
-import { V3_CREW_ART, V3_DATA_ART, V3_LOG_ART } from "@/lib/assets/soulcore-v3";
+import { V3_CREW_ART, V3_DATA_PNG, V3_DATA_PNG_DEFAULT, V3_LOG_PNG_DEFAULT } from "@/lib/assets/soulcore-v3";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
@@ -332,9 +334,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // renderV3Crew is undefined → CrewLayer renders nothing (current behavior).
   const useV3Art = getEnv().EXPO_PUBLIC_USE_V3_ART;
   // Tier 3 (Pattern Data) / Tier 4 (Log) v3 node art — flag-gated; off keeps the
-  // legacy TierIcon metaphor icons (book / paper / heart …) untouched.
-  const DataArt = V3_DATA_ART;
-  const LogArt = V3_LOG_ART;
+  // legacy TierIcon metaphor icons (book / paper / heart …) untouched. The final
+  // candidate art ships as PNG, so these render via <Image> (contain + pixelated,
+  // no blur/opacity) rather than an SVG component — Tier 3 per parent domain
+  // (V3_DATA_PNG), Tier 4 a single Log chip (V3_LOG_PNG_DEFAULT).
+  // imageRendering is web-only CSS, absent from RN's ImageStyle type.
+  const navPixelated = { imageRendering: "pixelated" } as unknown as ImageStyle;
   const renderV3Crew = useV3Art
     ? (i: number, sz: number) => {
         const Crew = V3_CREW_ART[i % V3_CREW_ART.length];
@@ -1199,7 +1204,17 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 hitSlop={14}
                 accessibilityLabel={dataNodes.find((d) => d.id === id)?.title ?? "piece"}
               >
-                {useV3Art ? <LogArt width={18} height={18} /> : <TierIcon id={p.parentId.startsWith("wiki") ? "book_wiki" : "cube_data"} size={18} />}
+                {useV3Art ? (
+                  <Image
+                    source={V3_LOG_PNG_DEFAULT}
+                    style={[{ width: 18, height: 18 }, navPixelated]}
+                    resizeMode="contain"
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
+                ) : (
+                  <TierIcon id={p.parentId.startsWith("wiki") ? "book_wiki" : "cube_data"} size={18} />
+                )}
               </Pressable>
             </Animated.View>
           ))
@@ -1238,8 +1253,14 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               {ISLAND_FOR[n.id] ? (
                 <IslandArt id={ISLAND_FOR[n.id]!} size={size * ISLAND_ART_SCALE} style={{ position: "absolute", left: size * ISLAND_ART_OFFSET, top: size * ISLAND_ART_OFFSET }} />
               ) : useV3Art ? (
-                // v3: Tier-3 = Pattern Data tesseract (flag on).
-                <DataArt width={size} height={size} />
+                // v3: Tier-3 = Pattern Data tesseract (flag on), tinted per parent domain.
+                <Image
+                  source={V3_DATA_PNG[n.parentId ?? ""] ?? V3_DATA_PNG_DEFAULT}
+                  style={[{ width: size, height: size }, navPixelated]}
+                  resizeMode="contain"
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                />
               ) : (
                 // Tier-3 nodes are pieces, not robots (closeout-v3 #9): show the
                 // parent domain's signature tier icon (book / paper / heart …).

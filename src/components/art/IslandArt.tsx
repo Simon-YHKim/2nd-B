@@ -10,7 +10,7 @@
 import { Image, type ImageStyle, type StyleProp } from "react-native";
 
 import { getEnv } from "@/lib/env";
-import { V3_CORE_ART } from "@/lib/assets/soulcore-v3";
+import { V3_CORE_PNG } from "@/lib/assets/soulcore-v3";
 
 const ISLANDS = {
   core: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png"),
@@ -38,11 +38,21 @@ export type ShardId = keyof typeof SHARDS;
 const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
 
 export function IslandArt({ id, size, style }: { id: IslandId; size: number; style?: StyleProp<ImageStyle> }) {
-  // Worldview v-final: when EXPO_PUBLIC_USE_V3_ART is on, render the Soul Core v3
-  // SVG core for ids that have one; otherwise fall back to the legacy PNG.
-  const V3Art = getEnv().EXPO_PUBLIC_USE_V3_ART ? V3_CORE_ART[id] : undefined;
-  if (V3Art) {
-    return <V3Art width={size} height={size} style={style as never} />;
+  // Worldview v-final: when EXPO_PUBLIC_USE_V3_ART is on, render the final
+  // candidate Soul/Pattern Core PNG for ids that have one (Image, contain +
+  // pixelated, no blur/opacity); otherwise fall back to the legacy PNG. `imagine`
+  // has no v3 core (retired) so it always takes the legacy path.
+  const v3Png = getEnv().EXPO_PUBLIC_USE_V3_ART ? V3_CORE_PNG[id] : undefined;
+  if (v3Png) {
+    return (
+      <Image
+        source={v3Png}
+        style={[{ width: size, height: size }, PIXELATED, style]}
+        resizeMode="contain"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
+    );
   }
   return (
     <Image
