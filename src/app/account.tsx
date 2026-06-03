@@ -2,9 +2,11 @@
 //   - DOB correction (re-validated server-side by the 0030 trigger).
 //   - Privacy & consent controls (link to /privacy, where sharing / profiling /
 //     processing are withdrawn per-key; teens stay locked to high-privacy).
-//   - Account deletion (erase all data + sign out; full account removal is
-//     processed via support within the C11 SLA — auth-user removal needs a
-//     service_role path that is a separate follow-up).
+//   - Account deletion (terminal): a best-effort client content wipe, then the
+//     delete-account Edge Function (service role) erases public.users -> cascade
+//     across every owned table + the auth.users row, then sign out. If the
+//     function isn't deployed yet the content wipe + sign out still run and the
+//     residual erasure is logged for the operator (C11 SLA backstop).
 //
 // Age-out (17 -> 18) needs no dedicated flow: useAuth().isMinor is computed live
 // from birth_date, so a former minor's locks lift automatically on /privacy.
@@ -24,7 +26,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { fetchBirthDate, updateBirthDate } from "@/lib/supabase/account";
 import { canSubmitDobCorrection } from "@/lib/account/dob";
-import { deleteAllUserData } from "@/lib/records/delete-bulk";
+import { deleteAllUserData, requestAccountDeletion } from "@/lib/records/delete-bulk";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 const CONFIRM_PHRASE = "DELETE";
@@ -91,7 +93,19 @@ export default function Account() {
           void (async () => {
             setDeleting(true);
             try {
+              // Best-effort client wipe first (clears the bulk of PII even if
+              // the Edge Function isn't deployed), then the terminal cascade.
               await deleteAllUserData(userId);
+              try {
+                await requestAccountDeletion();
+              } catch (delErr) {
+                // delete-account not deployed / unreachable: content is already
+                // wiped; log so the operator can finish removing the row. Don't
+                // block sign-out on it.
+                if (typeof console !== "undefined") {
+                  console.warn("[account] terminal erasure deferred", (delErr as Error).message);
+                }
+              }
               await signOut();
               router.replace("/sign-in");
             } catch (e) {

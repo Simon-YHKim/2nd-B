@@ -7,6 +7,12 @@ project_id = "zoacryukmdeivmolvyhj"
 [functions.gemini-proxy]
 verify_jwt = true
 
+[functions.delete-account]
+# Terminal account erasure (GDPR/PIPA). verify_jwt=true so the gateway
+# validates the caller; the function erases ONLY the caller's own account
+# (user_id derived from the JWT, never from the request body).
+verify_jwt = true
+
 [functions.oauth-naver]
 # Pre-auth endpoint - the function IS the auth boundary: it validates the user
 # via Naver's OAuth and only then mints a Supabase session. (Kakao uses the
