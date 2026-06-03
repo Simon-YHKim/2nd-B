@@ -348,5 +348,5 @@ function renderMarkdown(
       `- ${locale === "ko" ? "불안" : "Anxiety"}: ${attachment.anxiety.toFixed(1)} / 7\n` +
       `- ${locale === "ko" ? "회피" : "Avoidance"}: ${attachment.avoidance.toFixed(1)} / 7`
     : "";
-  return `${title}\n\n${intro}\n\n## Traits (Big Five proxy)\n${traitLines}${mbtiSection}${attachmentSection}${patternsSection}\n\n## Narrative\n${summary}${patternsSection ? "" : ""}\n\n## Source entries\n${entries}\n`;
+  return `${title}\n\n${intro}\n\n## Traits (Big Five proxy)\n${traitLines}${mbtiSection}${attachmentSection}${patternsSection}\n\n## Narrative\n${summary}\n\n## Source entries\n${entries}\n`;
 }

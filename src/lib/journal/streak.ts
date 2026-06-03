@@ -8,10 +8,13 @@
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
-function kstDayKey(iso: string, now: Date = new Date()): string {
-  const utc = new Date(iso).getTime() + now.getTimezoneOffset() * 60_000;
-  const kst = new Date(utc + KST_OFFSET_MS);
-  // Use UTC parts because we already shifted by +9h
+function kstDayKey(iso: string): string {
+  // new Date(iso).getTime() is absolute epoch ms (timezone-independent), so to
+  // read the KST wall-clock day we add +9h and take the UTC parts. The previous
+  // version also added the *device* timezone offset, which made the day boundary
+  // wrong on any non-UTC device (it silently used UTC days for Korean users). CI
+  // runs in UTC, so the bug was invisible there.
+  const kst = new Date(new Date(iso).getTime() + KST_OFFSET_MS);
   const y = kst.getUTCFullYear();
   const m = String(kst.getUTCMonth() + 1).padStart(2, "0");
   const d = String(kst.getUTCDate()).padStart(2, "0");
@@ -19,7 +22,7 @@ function kstDayKey(iso: string, now: Date = new Date()): string {
 }
 
 function todayKst(now: Date = new Date()): string {
-  return kstDayKey(now.toISOString(), now);
+  return kstDayKey(now.toISOString());
 }
 
 function dayBefore(key: string): string {
@@ -45,7 +48,7 @@ export function computeStreak(timestamps: string[], now: Date = new Date()): Str
   }
 
   const days = new Set<string>();
-  for (const ts of timestamps) days.add(kstDayKey(ts, now));
+  for (const ts of timestamps) days.add(kstDayKey(ts));
 
   const today = todayKst(now);
   const capturedToday = days.has(today);
