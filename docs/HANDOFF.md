@@ -11,10 +11,10 @@
 - **PR #206 커밋 2개**:
   - `673b0d5` **L/I 위생 7건** (감사 체크박스가 낡아 HEAD 대조로 실제 열린 것만): markSourceIngested user_id 스코프, delete-account 주석 정정(ai_audit_log 는 0011 로 ON DELETE SET NULL = 감사증거 보존, cascade 아님), check-constraints C5 공백-허용 정규식, check-i18n 배열 deep-compare, index.tsx 데드 스타일 6개 제거, common.json `_meta` 제거(양 로케일), ageInYears 주석.
   - `eade59a` **L8(안전)**: `minor` 플래그를 phase1(runPhase1)/clipper(classifyClipper)/propose(proposeClipperTemplate) 의 callGemini 경로에 전달 -> 미성년 위기 hotline(KR 1388) 라우팅 복구. 화면(inbox/wiki/capture)에서 `AuthContext.isMinor` 전달. (interview/OCR 패턴과 동일.)
-- **prod gemini-proxy 배포: v10 -> v11** (M6 fail-closed). 스펜드 RPC 비-cap 에러 시 유료호출 진행(fail-open) -> 503 차단(fail-closed), RPC-missing(PGRST202/42883)만 예외 통과 + 알림. 정본 소스 byte-perfect 검증 후 MCP 배포, re-fetch+로그로 재검증, v10 롤백본 보관.
+- **prod gemini-proxy 배포: v10 -> v11(M6) -> v12(F)**. v11 = M6 fail-closed (스펜드 RPC 비-cap 에러 시 유료호출 차단 503, RPC-missing(PGRST202/42883)만 예외 통과 + 알림). v12 = F CORS (비허용 origin 에 `ACAO: null` 대신 헤더 생략; `corsHeaders` 헬퍼, allowed origin 만 echo). 둘 다 정본 소스 검증 후 MCP 배포 -> re-fetch + 로그 재검증, v10/v11 롤백본 보관.
 
 ### ⚠️ 활성 인프라 변경 (다음 세션 주의)
-- **gemini-proxy 는 이제 prod v11** (M6 반영). 직전 핸드오프의 "M6 fail-closed 미배포" 큐 = **닫힘**.
+- **gemini-proxy 는 이제 prod v12** (M6 + F CORS 반영). 직전 핸드오프의 "M6 미배포" 큐 = **닫힘**, F(CORS) 도 배포 완료. prod == repo 소스(`b1ee5db6`).
 - 나머지 인프라(Supabase `zoacryukmdeivmolvyhj`, migration 0034-0040, delete-account v3)는 직전과 동일. verify **821/821 (91 suites)** green.
 
 ### 감사 체크박스 정리 (중요)
@@ -23,7 +23,6 @@
 ### 다음 작업 큐 (전부 NON-BLOCKING)
 | # | 작업 | 게이트 | 비고 |
 |---|---|---|---|
-| F | gemini-proxy CORS: 비허용 origin 에 `ACAO: null` 대신 헤더 생략 | 엣지 재배포 | LOW; 다음 엣지 변경/CLI 배포 때 묶기 권장 |
 | M5 | buildPersona 마운트마다 uncached Gemini -> 캐시+무효화 | 기기 QA | 코어 화면 회귀 위험, 전용 PR |
 | M7 | 스펜드캡 call수 -> token cost 가중(p_units) | DB 마이그+prod apply | non-critical (call 캡으로 $0/mo 충분) |
 | S | memorized_patterns.summary near-raw 저장 -> 범주형 신호 | 스키마/제품 결정 | 프라이버시 |
