@@ -63,11 +63,12 @@ export async function getSource(userId: string, id: string): Promise<SourceRow |
   return data as SourceRow | null;
 }
 
-export async function markSourceIngested(sourceId: string): Promise<void> {
+export async function markSourceIngested(userId: string, sourceId: string): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from("sources")
     .update({ ingested: true, ingested_at: new Date().toISOString() })
+    .eq("user_id", userId)
     .eq("id", sourceId);
   if (error) throw error;
 }
