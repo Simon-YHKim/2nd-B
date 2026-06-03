@@ -20,6 +20,11 @@ jest.mock("../../env", () => ({
   getEnv: () => mockEnv(),
 }));
 
+const mockInsertAudit = jest.fn().mockResolvedValue(undefined);
+jest.mock("../../supabase/audit", () => ({
+  insertAiAuditLog: (...args: unknown[]) => mockInsertAudit(...args),
+}));
+
 import { classifySafety, fixedCrisisResponse } from "../safety";
 
 const LIVE_ENV = {
@@ -41,6 +46,7 @@ describe("classifySafety (layered)", () => {
   beforeEach(() => {
     mockGenerateContent.mockClear();
     mockEnv.mockReset();
+    mockInsertAudit.mockClear();
   });
 
   test("mock mode: Gemini Flash never called, lexicon-only result", async () => {
@@ -94,6 +100,28 @@ describe("classifySafety (layered)", () => {
     // Lexicon says GREEN → no LLM result → GREEN.
     expect(r.zone).toBe("green");
     expect(r.source).toBe("lexicon-fallback");
+  });
+
+  test("C3: audits the Flash classifier call when a userId is supplied", async () => {
+    mockEnv.mockReturnValue(LIVE_ENV);
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({ zone: "green", triggers: [], confidence: 0.5, cssrsLevel: null }),
+    });
+    await classifySafety("그냥 산책 갔어요", "ko", { userId: "u1" });
+    expect(mockInsertAudit).toHaveBeenCalledTimes(1);
+    expect(mockInsertAudit.mock.calls[0]![0]).toMatchObject({
+      userId: "u1",
+      modelUsed: "gemini-2.5-flash",
+    });
+  });
+
+  test("C3: does NOT audit when no userId (no attribution / web no-key path)", async () => {
+    mockEnv.mockReturnValue(LIVE_ENV);
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({ zone: "green", triggers: [], confidence: 0.5, cssrsLevel: null }),
+    });
+    await classifySafety("그냥 산책 갔어요", "ko");
+    expect(mockInsertAudit).not.toHaveBeenCalled();
   });
 });
 

@@ -334,7 +334,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   const promptHash = djb2(input.userMessage);
 
   // Layer 1+2 safety: lexicon backstop + Gemini Flash classifier (semantic).
-  const safety = await classifySafety(input.userMessage, input.locale);
+  const safety = await classifySafety(input.userMessage, input.locale, { userId: input.userId });
 
   if (safety.zone === "red") {
     const fixed = fixedCrisisResponse(input.locale, input.minor);
@@ -474,7 +474,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   // OUTPUT SAFETY RE-CLASSIFICATION. Per CSO audit: Pro can emit crisis content
   // (esp. when prompt-injected via knowledge_sources rows or conversationContext)
   // that bypasses input-time classifier. Re-classifying here closes that loop.
-  const outputSafety = await classifySafety(text, input.locale);
+  const outputSafety = await classifySafety(text, input.locale, { userId: input.userId });
 
   if (outputSafety.zone === "red") {
     // Don't ship the Pro text. Substitute the verbatim crisis template, audit
