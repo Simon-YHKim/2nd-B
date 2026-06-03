@@ -3,7 +3,69 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest -- 2026-06-03 (eve) / 애널리틱스 + Android QA + 재감사 2라운드 + prod 배포
+## Latest -- 2026-06-04 / 재감사 4~6라운드 PERFECT 수렴 (HIGH/MED 전부 닫음)
+
+### 어디까지 왔나
+- main HEAD: `0d4914f` (이 핸드오프 머지 후 갱신). verify **821/821 (91 suites)** green, working tree clean.
+- 이번 세션 머지 PR (전부 CI green -> squash 자동 머지):
+  - **#199** 재감사 round 3: 2 HIGH + 3 MED (C10 미성년 lock 우회, C3 audit 위조, 무프로필 LLM 게이트, 삭제 Storage 페이지네이션, callGemini 출력 red-swap) + migration 0038
+  - **#200** `0039` log_ai_audit anon/service_role EXECUTE 회수 (최소권한)
+  - **#201** 재감사 round 4: 4 HIGH (H1 A5 시맨틱 출력분류, H2 users INSERT 에스컬레이션 가드, H3 crisis_events RPC, H4 direct-egress 캡) + migration 0040
+  - **#202** round 4 MED: M1 미성년 애널리틱스 서버게이트, M2 HIBP 유출 비번 검사, M3/M4 미성년 hotline 전달, M6 프록시 스펜드캡 fail-closed
+  - **#203** round 5: H4-residual (safety.ts getFlashClient 의 3번째 uncapped live API-key egress 차단)
+- **감사 루프 수렴**: round 4(43 agents) -> 5(12 agents) -> 6(5 agents, 확정). **round-6 verdict = PERFECT ✅**: perfect bar(H1-H4 + M1-M2) 달성, 소스 대조로 H1-H4/M1-M4/M6/H4-residual 전부 hold 확인, uncapped live Gemini egress 0개, 신규 CRITICAL/HIGH/MED 0개. 감사 원장: `docs/AUDIT_2026-06-03.md` (round 4 verdict 추가됨).
+
+### 활성 인프라
+- Supabase project **`zoacryukmdeivmolvyhj`** (2nd-brain, ap-northeast-2).
+- Prod 마이그레이션 적용+검증됨: `0034`~`0037`(이전), **`0038`**(minor_tier 서버전용 + clamp OLD-tier + log_ai_audit RPC + audit INSERT 정책 제거), **`0039`**(log_ai_audit anon/service_role 회수 -> authenticated만), **`0040`**(block_self_tier_insert BEFORE INSERT 가드 + log_crisis_event SECURITY DEFINER RPC). 전부 execute_sql 로 함수 본문/정책/grant 재검증 완료. (H3 는 prod 에서 SET ROLE authenticated 로 실삽입까지 검증, 합성행 정리됨.)
+- Edge functions: **delete-account v3** (raw-clippings Storage 페이지네이션). **gemini-proxy v10** (⚠️ **M6 fail-closed 소스는 머지됐으나 prod 미배포** -- 아래 큐).
+- 웹 빌드(repo Variables): `EXPO_PUBLIC_LLM_MODE=live` + `EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true` (프록시 경유, 캡 적용). 키 없는 공개 빌드는 mock -> 분류기 lexicon-only.
+
+### 다음 작업 큐 -- 전부 NON-BLOCKING (round-6 가 perfect bar 밖으로 명시). perfect 는 이미 달성.
+| # | 작업 | 크기 | 비고 |
+|---|---|---|---|
+| 배포 | **gemini-proxy 재배포** (M6 fail-closed 소스 반영) | small | `SUPABASE_ACCESS_TOKEN` 받으면 CLI byte-perfect, 아니면 get_edge_function fetch->swap->deploy. exposure 좁음(스펜드 RPC 에러시에만 fail-open) |
+| M5 | buildPersona 마운트마다 uncached Gemini 호출 -> 캐시+무효화 | medium | 성능/비용 (캡으로 bounded; correctness 아님) |
+| M7 | 스펜드캡이 call 수만 셈(토큰 cost 아님) -> p_units 가중치 | medium | call 캡으로 충분한 $0/mo 백스톱 |
+| L/I | `docs/AUDIT_2026-06-03.md` 의 L1-L12 + I1-I2 (search_path 핀, anon EXECUTE 회수 잔여, consent_records 위조, mock-mode swap 대칭, classifySafety confidence clamp, crisis_events 보존정책, em-dash/hex-literal 등) | small each | LOW/INFO 위생+문서 |
+| 운영 | migration vendoring: prod 의 0028-0040 이 `db/migrations/` 엔 있으나 `supabase/migrations/` 엔 knowledge_sources 만 -- CLI 디렉토리 동기화 | small | ops 갭, 코드결함 아님 |
+| 운영자 | `SUPABASE_ACCESS_TOKEN`, GA4 `G-XXXX` + Clarity ID, Apple/Kakao Supabase Providers, Naver creds + `ENABLE_NAVER_OAUTH=true`, 출시전 `EXPO_PUBLIC_FORCE_TIER=off` | small | go-live |
+
+### 적용 중인 정책 (영구)
+1. **PR/CI/머지 자동화**: PR -> `gh pr checks --watch` -> green이면 `gh pr merge --squash --delete-branch`.
+2. **전부 자율 진행** (보안/법적/과금 포함). 단 prod DB migration/edge 배포는 적용 후 재검증(소스 re-fetch + execute_sql/verify).
+3. **co-work-with-GPT**: merged main 재검증.
+4. 기존 에셋·타인 작업 삭제/되돌리기 금지. 시크릿 입력/계정 로그인/OAuth 승인은 사용자가 직접.
+5. **branch-first**: main 직접 커밋 금지 (이번 세션 1회 실수 -> branch 이동 + main rewind 로 복구; push 안 됨).
+6. **새 SECURITY DEFINER 함수는 `REVOKE FROM anon` 명시** (Supabase 기본 grant 가 anon 에도 EXECUTE 부여; 0038->0039 교훈, memory 에 기록).
+
+### 핵심 파일 위치
+```
+src/lib/llm/gemini.ts            callGemini/callAdvisor; assertDirectEgressAllowed (H4); 출력 red-swap (H1/A5)
+src/lib/llm/safety.ts            classifySafety + getFlashClient (H4-residual: live&&!Vertex -> null)
+src/lib/supabase/audit.ts        insertAiAuditLog -> log_ai_audit RPC (A2)
+src/lib/supabase/crisis-events.ts insertCrisisEvent -> log_crisis_event RPC (H3)
+src/app/_layout.tsx              IntroGate 루트 무프로필 게이트(A3) + AnalyticsConsentSync(M1)
+src/lib/supabase/auth.ts         signUpWithEmail + isPasswordBreached HIBP (M2)
+db/migrations/0038-0040          minor_tier/audit-RPC / anon-revoke / INSERT-guard+crisis-RPC
+docs/AUDIT_2026-06-03.md         감사 원장 (round 1-6 추적 + 잔여 L/I 큐)
+```
+
+### 검증
+```bash
+npm ci --legacy-peer-deps   # node_modules 스테일 시
+npm run verify              # lint+type+i18n+lexicon+llm-boundary+constraints(+Cost)+emdash+jest (821/821)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# perfect bar 달성됨. 위 "다음 작업 큐"(전부 non-blocking)부터: 권장 = gemini-proxy 재배포 -> M5/M7 -> L/I 위생.
+```
+
+---
+
+## Earlier -- 2026-06-03 (eve) / 애널리틱스 + Android QA + 재감사 2라운드 + prod 배포
 
 ### 어디까지 왔나
 - main HEAD: `c12774b` (이 핸드오프 머지 후 갱신). verify **808/808 (88 suites)** green, working tree clean.
