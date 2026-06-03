@@ -1,0 +1,14 @@
+-- 0036_lock_bump_gemini_spend.sql
+-- Follow-up to 0035: `REVOKE EXECUTE ... FROM PUBLIC` did NOT remove Supabase's
+-- default per-role EXECUTE grants to anon/authenticated (those are granted
+-- explicitly by the platform's default privileges on the public schema, not via
+-- PUBLIC). So bump_gemini_spend stayed callable by any authenticated user with
+-- an arbitrary p_user_id -- a DoS vector: an authed user could bump a victim's
+-- daily counter (or their own) to the cap and lock them out of the LLM. The RPC
+-- has no auth.uid() check by design (it trusts the proxy's service-role caller),
+-- so it MUST be service_role-only. Revoke the per-role grants explicitly.
+--
+-- Verified on prod (2026-06-03): proacl went from
+--   {postgres=X,anon=X,authenticated=X,service_role=X}
+-- to {postgres=X,service_role=X}.
+REVOKE EXECUTE ON FUNCTION public.bump_gemini_spend(uuid, date, integer) FROM anon, authenticated;
