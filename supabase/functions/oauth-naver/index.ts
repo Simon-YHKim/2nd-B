@@ -125,8 +125,15 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { data: existing } = await supabaseAdmin.auth.admin.listUsers();
-  const found = existing?.users.find((u: { email?: string }) => u.email === userEmail);
+  // Paginated lookup — listUsers() returns one page only; a single call misses
+  // users past the first page and would wrongly re-create them. See oauth-kakao.
+  let found: { id: string; email?: string } | undefined;
+  for (let page = 1; page <= 100 && !found; page++) {
+    const { data: pageData, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
+    if (listErr || !pageData) break;
+    found = pageData.users.find((u: { email?: string }) => u.email === userEmail);
+    if (pageData.users.length < 200) break; // last page
+  }
   let userId: string;
   if (found) {
     userId = found.id;

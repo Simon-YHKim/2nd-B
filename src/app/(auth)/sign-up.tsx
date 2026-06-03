@@ -13,9 +13,11 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import {
   ageInYears,
   signUpWithEmail,
+  isNaverEnabled,
   signInWithApple,
   signInWithGoogle,
   signInWithKakao,
+  signInWithNaver,
   AgeGateError,
   MIN_SELF_CONSENT_AGE,
 } from "@/lib/supabase/auth";
@@ -114,6 +116,20 @@ export default function SignUp() {
       if (typeof console !== "undefined") console.warn(`[auth] ${provider} oauth error`, (e as Error).message);
     } finally {
       setOauthSubmitting(false);
+    }
+  }
+
+  // Naver: custom redirect flow (not Supabase-native). Navigates to Naver.
+  function handleNaver() {
+    try {
+      signInWithNaver();
+    } catch (e) {
+      Alert.alert(
+        locale === "ko"
+          ? "Naver 가입을 시작하지 못했어요. 잠시 후 다시 시도해 주세요."
+          : "Could not start Naver sign-up. Please try again in a moment.",
+      );
+      if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
     }
   }
 
@@ -245,6 +261,14 @@ export default function SignUp() {
             disabled={oauthSubmitting || submitting}
             onPress={() => handleOAuth("kakao")}
           />
+          {isNaverEnabled() ? (
+            <Button
+              label={t("signUp.continueWithNaver")}
+              variant="secondary"
+              disabled={oauthSubmitting || submitting}
+              onPress={handleNaver}
+            />
+          ) : null}
         </View>
         <View style={styles.footer}>
           <View style={styles.footerRow}>

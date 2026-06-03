@@ -22,7 +22,14 @@ import { useTranslation } from "react-i18next";
 import { Link, Redirect, router } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
-import { signInWithApple, signInWithEmail, signInWithGoogle, signInWithKakao } from "@/lib/supabase/auth";
+import {
+  isNaverEnabled,
+  signInWithApple,
+  signInWithEmail,
+  signInWithGoogle,
+  signInWithKakao,
+  signInWithNaver,
+} from "@/lib/supabase/auth";
 import { cosmicSky, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { CosmicBackground } from "@/components/premium";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
@@ -67,6 +74,21 @@ export default function SignIn() {
         console.warn(`[auth] ${provider} oauth error`, (e as Error).message);
     } finally {
       setOauthSubmitting(false);
+    }
+  }
+
+  // Naver uses a custom redirect (not Supabase-native), so it has its own
+  // handler — signInWithNaver() navigates the browser to Naver's authorize page.
+  function handleNaver() {
+    try {
+      signInWithNaver();
+    } catch (e) {
+      Alert.alert(
+        locale === "ko"
+          ? "Naver 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요."
+          : "Could not start Naver sign-in. Please try again in a moment.",
+      );
+      if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
     }
   }
 
@@ -230,6 +252,16 @@ export default function SignIn() {
                 {oauthSubmitting ? "…" : t("signIn.continueWithKakao")}
               </Text>
             </Pressable>
+
+            {isNaverEnabled() ? (
+              <Pressable
+                onPress={handleNaver}
+                disabled={oauthSubmitting || submitting}
+                style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+              >
+                <Text style={styles.secondaryBtnText}>{t("signIn.continueWithNaver")}</Text>
+              </Pressable>
+            ) : null}
 
             <Pressable onPress={handleForgotPassword} hitSlop={8} style={styles.forgotRow}>
               <Text style={styles.subtleText}>

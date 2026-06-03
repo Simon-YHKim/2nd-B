@@ -7,6 +7,7 @@
 import dayjs from "dayjs";
 import { digitalConsentAge } from "../auth/consent-age";
 import { isJudgeEmail } from "../judge/domains";
+import { getEnv } from "../env";
 import { getSupabaseClient } from "./client";
 
 // C10 age tiers: adult users and 14-17 minors self-consent and register
@@ -174,6 +175,111 @@ export function signInWithApple(redirectTo?: string): Promise<OAuthRedirect | nu
 
 export function signInWithKakao(redirectTo?: string): Promise<OAuthRedirect | null> {
   return signInWithProvider("kakao", redirectTo);
+}
+
+// --- Naver social login (custom OAuth via the oauth-naver edge function) ------
+//
+// Naver is NOT a Supabase-native provider, so we drive the OAuth ourselves:
+//   1. signInWithNaver() redirects the browser to Naver's authorize page with a
+//      random `state` stashed in sessionStorage (CSRF defense).
+//   2. Naver returns to /oauth-callback with ?code&state.
+//   3. completeNaverOAuth() verifies the returned state matches (CSRF check),
+//      hands the code to the oauth-naver edge function, and signs the user in
+//      with the magic-link token_hash it returns (verifyOtp). New users then
+//      route through /complete-profile (DOB + consent), like every provider.
+// Gated behind EXPO_PUBLIC_ENABLE_NAVER + a configured client id (and the
+// server's ENABLE_NAVER_OAUTH). Web-only for now; native lands with the other
+// providers' native path. See docs/AUTH_PROVIDERS.md.
+
+const NAVER_AUTHORIZE_URL = "https://nid.naver.com/oauth2.0/authorize";
+const NAVER_STATE_KEY = "secondB_naver_oauth_state";
+
+export function isNaverEnabled(): boolean {
+  const env = getEnv();
+  return env.EXPO_PUBLIC_ENABLE_NAVER && !!env.EXPO_PUBLIC_NAVER_CLIENT_ID;
+}
+
+// Callback URL Naver redirects back to. Must be registered in the Naver console
+// AND match the value the edge function forwards to Naver's token exchange.
+function naverRedirectUri(): string {
+  if (typeof window === "undefined") return "";
+  const path = window.location.pathname;
+  const base = path.startsWith("/2nd-B/") ? "/2nd-B/" : "/";
+  return `${window.location.origin}${base}oauth-callback`;
+}
+
+function randomState(): string {
+  const g = globalThis as unknown as { crypto?: { getRandomValues?: (a: Uint8Array) => Uint8Array } };
+  if (g.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    g.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  // Fallback only if no CSPRNG (shouldn't happen on web); state is still echoed.
+  return `${Date.now().toString(16)}${Math.floor(Math.random() * 1e16).toString(16)}`;
+}
+
+// Web: redirect to Naver's authorize page. Throws if Naver isn't configured.
+export function signInWithNaver(): void {
+  const env = getEnv();
+  const clientId = env.EXPO_PUBLIC_NAVER_CLIENT_ID;
+  if (!env.EXPO_PUBLIC_ENABLE_NAVER || !clientId) throw new Error("Naver login is not enabled.");
+  if (typeof window === "undefined") throw new Error("Naver login is web-only for now.");
+  const state = randomState();
+  try {
+    window.sessionStorage?.setItem(NAVER_STATE_KEY, state);
+  } catch {
+    // sessionStorage unavailable (private mode) — the state echo can't be
+    // verified on return, so completeNaverOAuth() will reject. User can retry.
+  }
+  const url = new URL(NAVER_AUTHORIZE_URL);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("client_id", clientId);
+  url.searchParams.set("redirect_uri", naverRedirectUri());
+  url.searchParams.set("state", state);
+  window.location.href = url.toString();
+}
+
+export interface NaverCallbackParams {
+  code: string;
+  state: string;
+}
+
+// Complete the Naver flow after the redirect: verify the state echo (CSRF),
+// exchange the code via the edge function, and sign in with the magic-link
+// token it returns. Returns the user id.
+export async function completeNaverOAuth(params: NaverCallbackParams): Promise<{ userId: string }> {
+  let stored: string | null = null;
+  try {
+    stored = window.sessionStorage?.getItem(NAVER_STATE_KEY) ?? null;
+  } catch {
+    stored = null;
+  }
+  // CSRF: the state Naver echoes back must equal the one we issued.
+  if (!params.state || !stored || stored !== params.state) {
+    throw new Error("Naver sign-in state mismatch (possible CSRF). Please try again.");
+  }
+  try {
+    window.sessionStorage?.removeItem(NAVER_STATE_KEY);
+  } catch {
+    /* ignore */
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.functions.invoke("oauth-naver", {
+    body: { code: params.code, state: params.state, redirect_uri: naverRedirectUri() },
+  });
+  if (error) throw error;
+  const tokenHash = (data as { token_hash?: string } | null)?.token_hash;
+  if (!tokenHash) throw new Error("Naver sign-in could not be completed.");
+
+  const { data: otp, error: otpErr } = await supabase.auth.verifyOtp({
+    token_hash: tokenHash,
+    type: "magiclink",
+  });
+  if (otpErr) throw otpErr;
+  if (!otp.user) throw new Error("Naver sign-in returned no user.");
+  return { userId: otp.user.id };
 }
 
 // --- Profile completion (OAuth post-step) --------------------------------
