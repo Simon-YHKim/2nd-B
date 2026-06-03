@@ -8,7 +8,7 @@
 // (low test-retest reliability, weak construct validity, no
 // dimensional support for the bimodal types). The blueprint §9
 // explicitly cites MBTI under "회피" (avoid). This module exists
-// because the user explicitly requested it for their personal use —
+// because the user explicitly requested it for their personal use -
 // it's clearly framed in the UI as "popular framework, not a
 // scientific measure" and the result is stored alongside the
 // validated BFI / ECR-S so users can compare.
@@ -35,7 +35,7 @@ export interface MbtiItem {
 export const MBTI_ITEMS: readonly MbtiItem[] = [
   // ── E ↔ I (8) ──
   { id: 1, dichotomy: "EI", agreeSide: "E", en: "I recharge by being around other people.", ko: "다른 사람들과 함께 있으면 에너지가 충전된다.", subtitleEn: "A social evening leaves you energized, not drained.", subtitleKo: "사람 만난 저녁이 진을 빼기보다 채워준다." },
-  { id: 2, dichotomy: "EI", agreeSide: "I", en: "I need quiet alone time to feel like myself.", ko: "혼자 있는 조용한 시간이 있어야 나다워진다.", subtitleEn: "Solitude isn't loneliness — it's how you reset.", subtitleKo: "혼자는 외로움이 아니라 리셋의 방식." },
+  { id: 2, dichotomy: "EI", agreeSide: "I", en: "I need quiet alone time to feel like myself.", ko: "혼자 있는 조용한 시간이 있어야 나다워진다.", subtitleEn: "Solitude isn't loneliness - it's how you reset.", subtitleKo: "혼자는 외로움이 아니라 리셋의 방식." },
   { id: 3, dichotomy: "EI", agreeSide: "E", en: "I usually think out loud, in conversation.", ko: "생각은 보통 대화를 통해 정리된다.", subtitleEn: "Ideas crystallize when you say them, not before.", subtitleKo: "생각은 말하고 나서야 또렷해진다." },
   { id: 4, dichotomy: "EI", agreeSide: "I", en: "I prefer deep one-on-one talks over group settings.", ko: "여러 명보다 일대일 깊은 대화가 편하다.", subtitleEn: "Group dynamics dilute what you want to say.", subtitleKo: "여러 명이면 하고 싶은 말이 흐려진다." },
   { id: 5, dichotomy: "EI", agreeSide: "E", en: "After a busy social day, I still want to call a friend.", ko: "사람들과 보낸 하루 끝에도 친구에게 전화하고 싶다.", subtitleEn: "Your social battery rarely fully drains.", subtitleKo: "사회 배터리가 다 닳는 일이 드물다." },
@@ -44,7 +44,7 @@ export const MBTI_ITEMS: readonly MbtiItem[] = [
   { id: 8, dichotomy: "EI", agreeSide: "I", en: "I'd rather observe a room than be its focus.", ko: "주인공이 되기보다 관찰하는 쪽이 좋다.", subtitleEn: "You read the room before joining it.", subtitleKo: "들어가기 전에 분위기를 먼저 읽는다." },
 
   // ── S ↔ N (8) ──
-  { id: 9, dichotomy: "SN", agreeSide: "S", en: "I trust facts and direct experience more than theories.", ko: "이론보다는 사실과 직접 경험을 더 믿는다.", subtitleEn: "Show, don't tell — and don't speculate.", subtitleKo: "추측보다 직접 보여줘야 믿어진다." },
+  { id: 9, dichotomy: "SN", agreeSide: "S", en: "I trust facts and direct experience more than theories.", ko: "이론보다는 사실과 직접 경험을 더 믿는다.", subtitleEn: "Show, don't tell - and don't speculate.", subtitleKo: "추측보다 직접 보여줘야 믿어진다." },
   { id: 10, dichotomy: "SN", agreeSide: "N", en: "I'm often more interested in possibilities than what is.", ko: "지금 있는 것보다 가능성에 더 끌리는 편이다.", subtitleEn: "What could be pulls harder than what is.", subtitleKo: "있는 것보다 될 수 있는 게 더 끌린다." },
   { id: 11, dichotomy: "SN", agreeSide: "S", en: "I focus on details before stepping back to the big picture.", ko: "큰 그림보다 디테일을 먼저 본다.", subtitleEn: "Specifics first, framework after.", subtitleKo: "구체적인 것 먼저, 틀은 그 다음." },
   { id: 12, dichotomy: "SN", agreeSide: "N", en: "I find patterns and connections quickly across topics.", ko: "주제들 사이에서 패턴과 연결을 빠르게 본다.", subtitleEn: "Cross-domain analogies show up fast.", subtitleKo: "분야가 달라도 비슷한 구조가 빨리 보인다." },
@@ -60,7 +60,7 @@ export const MBTI_ITEMS: readonly MbtiItem[] = [
   { id: 20, dichotomy: "TF", agreeSide: "F", en: "Empathy comes naturally to me even with strangers.", ko: "낯선 사람에게도 공감하는 게 자연스럽다.", subtitleEn: "Other people's weather lands on you quickly.", subtitleKo: "남의 기분 날씨가 금방 옮아온다." },
   { id: 21, dichotomy: "TF", agreeSide: "T", en: "A clear principle beats a case-by-case ruling.", ko: "분명한 원칙이 사례별 판단보다 낫다.", subtitleEn: "Consistency you can trust > flexible exceptions.", subtitleKo: "믿을 수 있는 일관성 > 유연한 예외." },
   { id: 22, dichotomy: "TF", agreeSide: "F", en: "The right call depends on who's in front of me.", ko: "옳은 판단은 앞에 있는 사람에 따라 달라진다.", subtitleEn: "Context first, principle second.", subtitleKo: "맥락 먼저, 원칙은 그 다음." },
-  { id: 23, dichotomy: "TF", agreeSide: "T", en: "I find debate energizing, not draining.", ko: "토론은 진을 빼기보다 활력을 준다.", subtitleEn: "Friction sharpens thinking — bring it on.", subtitleKo: "마찰이 생각을 날카롭게 한다." },
+  { id: 23, dichotomy: "TF", agreeSide: "T", en: "I find debate energizing, not draining.", ko: "토론은 진을 빼기보다 활력을 준다.", subtitleEn: "Friction sharpens thinking - bring it on.", subtitleKo: "마찰이 생각을 날카롭게 한다." },
   { id: 24, dichotomy: "TF", agreeSide: "F", en: "Conflict between people is something I try to absorb.", ko: "사람들 사이의 갈등은 흡수하려 애쓰는 편이다.", subtitleEn: "You feel the room's tension before words form.", subtitleKo: "말이 되기 전에 분위기 긴장이 먼저 느껴진다." },
 
   // ── J ↔ P (8) ──

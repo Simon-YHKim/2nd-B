@@ -3,18 +3,18 @@
 // while I was writing" surprise) but rotates across days for variety.
 //
 // Prompts are grounded in the validated frameworks the app cites
-// (Big Five, SDT, Attachment, Erikson, VIA) — written as plain,
+// (Big Five, SDT, Attachment, Erikson, VIA) - written as plain,
 // non-clinical, growth-oriented invitations.
 
 const PROMPTS_EN: string[] = [
-  "What single moment from today are you still thinking about — and why?",
+  "What single moment from today are you still thinking about - and why?",
   "Name one feeling that came up today in one word. What triggered it?",
   "Where did you feel most yourself today?",
-  "What did you notice yourself avoiding — even briefly?",
+  "What did you notice yourself avoiding - even briefly?",
   "Who did you lean on, or wish you could?",
   "What's one thing you assumed about someone today that may not be true?",
   "If today were a chapter in your life, what would the title be?",
-  "What did you learn about yourself — not about the world?",
+  "What did you learn about yourself - not about the world?",
   "What needed your attention but didn't get it?",
   "What pattern showed up today that you've seen before?",
   "What did you say no to (out loud or silently)?",

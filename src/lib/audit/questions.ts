@@ -1,6 +1,6 @@
 // Life-audit interview content. Blueprint §4 calls for ~20 questions per
 // life period. v2 expands to 15 questions for "current" + 5 each for
-// "teens" and "20s" — covering Big Five, SDT, VIA, and Attachment.
+// "teens" and "20s" - covering Big Five, SDT, VIA, and Attachment.
 // Free-form deeper probing lives in /interview (the twenty-questions
 // LLM mode); this file is the fixed framework-anchored screener.
 
@@ -28,7 +28,7 @@ export interface AuditQuestion {
 }
 
 export const AUDIT_QUESTIONS: AuditQuestion[] = [
-  // ─── CURRENT — Big Five + SDT + VIA + Attachment, 15 items ───
+  // ─── CURRENT - Big Five + SDT + VIA + Attachment, 15 items ───
   {
     id: "current_01",
     period: "current",
@@ -70,7 +70,7 @@ export const AUDIT_QUESTIONS: AuditQuestion[] = [
     period: "current",
     framework: "via:character_strength",
     prompt: {
-      en: "If a close friend had to name your strongest quality, what would they say — and would you agree?",
+      en: "If a close friend had to name your strongest quality, what would they say - and would you agree?",
       ko: "가까운 친구가 당신의 가장 강한 면을 한 단어로 꼽는다면 무엇이라 말할까요? 당신은 동의하시나요?",
     },
   },
@@ -79,8 +79,8 @@ export const AUDIT_QUESTIONS: AuditQuestion[] = [
     period: "current",
     framework: "big_five:extraversion",
     prompt: {
-      en: "After a draining week, what actually refills you — being with others, being alone, or moving your body?",
-      ko: "고된 한 주 끝에 진짜로 당신을 채워주는 건 무엇인가요 — 사람 곁, 혼자 있는 시간, 몸을 움직이는 것?",
+      en: "After a draining week, what actually refills you - being with others, being alone, or moving your body?",
+      ko: "고된 한 주 끝에 진짜로 당신을 채워주는 건 무엇인가요 - 사람 곁, 혼자 있는 시간, 몸을 움직이는 것?",
     },
   },
   {
@@ -124,7 +124,7 @@ export const AUDIT_QUESTIONS: AuditQuestion[] = [
     period: "current",
     framework: "attachment:avoidance",
     prompt: {
-      en: "Is there something you've never told anyone close — not because it's shameful, but because telling feels exposing?",
+      en: "Is there something you've never told anyone close - not because it's shameful, but because telling feels exposing?",
       ko: "수치스러워서가 아니라 그저 말로 꺼내는 것 자체가 노출처럼 느껴져서, 가까운 누구에게도 말한 적 없는 무언가가 있나요?",
     },
   },
@@ -142,7 +142,7 @@ export const AUDIT_QUESTIONS: AuditQuestion[] = [
     period: "current",
     framework: "via:character_strength",
     prompt: {
-      en: "What does 'being a good person' mean to you in practice — not in theory?",
+      en: "What does 'being a good person' mean to you in practice - not in theory?",
       ko: "당신에게 '좋은 사람으로 산다'는 건 이론이 아니라 일상에서 무엇을 의미하나요?",
     },
   },
@@ -165,13 +165,13 @@ export const AUDIT_QUESTIONS: AuditQuestion[] = [
     },
   },
 
-  // ─── TEENS — 5 items ───
+  // ─── TEENS - 5 items ───
   {
     id: "teens_01",
     period: "teens",
     framework: "attachment:secure",
     prompt: {
-      en: "Who in your teens really saw you — not the role you played, but you?",
+      en: "Who in your teens really saw you - not the role you played, but you?",
       ko: "10대 시절, 당신이 연기하던 역할이 아니라 진짜 당신을 봐준 사람은 누구였나요?",
     },
   },
@@ -207,18 +207,18 @@ export const AUDIT_QUESTIONS: AuditQuestion[] = [
     period: "teens",
     framework: "big_five:openness",
     prompt: {
-      en: "Which song, book, or film hit you hardest in your teens — and why do you think it landed then?",
+      en: "Which song, book, or film hit you hardest in your teens - and why do you think it landed then?",
       ko: "10대 때 가장 깊이 박힌 노래·책·영화는 무엇이었고, 왜 그때 닿았다고 생각하나요?",
     },
   },
 
-  // ─── 20s — 5 items ───
+  // ─── 20s - 5 items ───
   {
     id: "20s_01",
     period: "20s",
     framework: "sdt:competence",
     prompt: {
-      en: "What did you try in your 20s that you failed at — and what did failing teach you?",
+      en: "What did you try in your 20s that you failed at - and what did failing teach you?",
       ko: "20대에 도전했다가 실패한 일은 무엇이었고, 그 실패는 무엇을 가르쳤나요?",
     },
   },
