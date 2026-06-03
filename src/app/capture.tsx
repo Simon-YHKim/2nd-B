@@ -1106,8 +1106,8 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   savedPanel: {
-    backgroundColor: "rgba(114,242,199,0.06)",
-    borderColor: "rgba(114,242,199,0.22)",
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.success,
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.md,
@@ -1214,7 +1214,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     borderWidth: 1,
     borderColor: semantic.brand,
-    backgroundColor: "rgba(47,151,252,0.08)",
+    backgroundColor: semantic.surfaceAlt,
   },
   tagChipText: { color: semantic.brand, fontSize: typography.sizes.xs, fontWeight: "600" },
   // "+" chip that opens the inline hashtag input (sits in the tag row).
