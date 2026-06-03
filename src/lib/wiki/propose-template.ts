@@ -177,11 +177,12 @@ export async function proposeClipperTemplate(
   content: string,
   url: string | null,
   locale: "en" | "ko",
+  minor = false,
 ): Promise<ProposedClipperTemplate | null> {
   const trimmed = content.trim();
   if (trimmed.length === 0) return null;
   const baselineKind: SourceKind = url ? detectClipperKind(url) : "inbox";
   const { system, user } = buildProposeTemplatePrompt(trimmed, url, locale);
-  const reply = await callGemini({ userId, locale, purpose: "clipper_template_propose", system, user });
+  const reply = await callGemini({ userId, locale, purpose: "clipper_template_propose", system, user, minor });
   return parseProposedTemplate(reply.text, baselineKind);
 }
