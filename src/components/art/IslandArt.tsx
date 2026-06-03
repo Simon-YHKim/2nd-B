@@ -7,10 +7,10 @@
 // pixelated keeps the pixel art crisp when scaled up (web-only CSS; ignored
 // on native).
 
-import { Image, type ImageStyle, type StyleProp } from "react-native";
+import { Image, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
 
-import { getEnv } from "@/lib/env";
-import { V3_CORE_PNG } from "@/lib/assets/soulcore-v3";
+import { LivingAsset } from "@/components/motion/LivingAsset";
+import { FinalCoreArt, hasFinalCoreArt } from "@/components/art/SoulcoreFinalArt";
 
 const ISLANDS = {
   core: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png"),
@@ -37,42 +37,55 @@ export type ShardId = keyof typeof SHARDS;
 // imageRendering is a web-only CSS prop, not in RN's ImageStyle type.
 const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
 
-export function IslandArt({ id, size, style }: { id: IslandId; size: number; style?: StyleProp<ImageStyle> }) {
-  // Worldview v-final: when EXPO_PUBLIC_USE_V3_ART is on, render the final
-  // candidate Soul/Pattern Core PNG for ids that have one (Image, contain +
-  // pixelated, no blur/opacity); otherwise fall back to the legacy PNG. `imagine`
-  // has no v3 core (retired) so it always takes the legacy path.
-  const v3Png = getEnv().EXPO_PUBLIC_USE_V3_ART ? V3_CORE_PNG[id] : undefined;
-  if (v3Png) {
-    return (
+export function IslandArt({
+  id,
+  size,
+  style,
+  animated = true,
+}: {
+  id: IslandId;
+  size: number;
+  style?: StyleProp<ViewStyle>;
+  animated?: boolean;
+}) {
+  // Worldview v-final: render the final transparent PNG tesseract set when it
+  // exists; otherwise fall back to the legacy PNG for retired ids like imagine.
+  const useFinalArt = hasFinalCoreArt(id);
+  const preset = id === "core" ? "soulCore" : "patternCore";
+  if (useFinalArt) return <FinalCoreArt id={id} size={size} style={style} animated={animated} />;
+  return (
+    <LivingAsset preset={preset} id={id} size={size} style={style} enabled={animated} pointerEvents="none">
       <Image
-        source={v3Png}
-        style={[{ width: size, height: size }, PIXELATED, style]}
+        source={ISLANDS[id]}
+        style={[{ width: size, height: size }, PIXELATED]}
         resizeMode="contain"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       />
-    );
-  }
-  return (
-    <Image
-      source={ISLANDS[id]}
-      style={[{ width: size, height: size }, PIXELATED, style]}
-      resizeMode="contain"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    />
+    </LivingAsset>
   );
 }
 
-export function ShardArt({ id, size, style }: { id: ShardId; size: number; style?: StyleProp<ImageStyle> }) {
+export function ShardArt({
+  id,
+  size,
+  style,
+  animated = true,
+}: {
+  id: ShardId;
+  size: number;
+  style?: StyleProp<ViewStyle>;
+  animated?: boolean;
+}) {
   return (
-    <Image
-      source={SHARDS[id]}
-      style={[{ width: size, height: size }, PIXELATED, style]}
-      resizeMode="contain"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    />
+    <LivingAsset preset="shard" id={id} size={size} style={style} enabled={animated} pointerEvents="none">
+      <Image
+        source={SHARDS[id]}
+        style={[{ width: size, height: size }, PIXELATED]}
+        resizeMode="contain"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
+    </LivingAsset>
   );
 }
