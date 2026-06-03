@@ -53,7 +53,7 @@ const SOFT_CAP = 50;
 
 export default function Interview() {
   const { i18n } = useTranslation();
-  const { userId, loading, isMinor } = useAuth();
+  const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [period, setPeriod] = useState<LifePeriod | null>(null);
@@ -78,6 +78,9 @@ export default function Interview() {
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
+  // No-profile OAuth session must not reach the interview LLM surface (the probe
+  // calls Gemini on the user's answers) — route to /complete-profile (C10 + consent).
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
   function startInterview(p: LifePeriod) {
     const initialCoverage = emptyCoverage();

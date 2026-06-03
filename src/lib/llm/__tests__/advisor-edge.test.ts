@@ -1,10 +1,12 @@
 // Regression test for the 2026-06-03 re-audit (HIGH + C3 MED): callAdvisor's
 // LIVE EDGE path was previously uncovered, so CI stayed green while it was
 // broken in prod. This locks in the fix:
-//   1. The genuine journal entry is sent as `userMessage` so the proxy's crisis
-//      re-check targets the real utterance — NOT the RAG-assembled `user` prompt
-//      that legitimately quotes crisis-detection reference text (which 422'd
-//      every Advisor call on the live edge config).
+//   1. The genuine journal entry is sent as `user` (the channel the proxy
+//      crisis-scans) and the RAG-assembled prompt as `system` (trusted, not
+//      scanned — it legitimately quotes crisis-detection reference text). This
+//      fixes the prior false 422 AND keeps the server-side crisis gate effective
+//      (a bypassed client cannot smuggle crisis content through an unscanned
+//      channel — the gate scans exactly what is forwarded as the user turn).
 //   2. callAdvisor honors the proxy's `audited` flag and skips its own
 //      ai_audit_log insert when the proxy already wrote one (C3 1:1 parity with
 //      callGemini), and falls back to the client insert when it did not.
@@ -82,10 +84,11 @@ describe("callAdvisor — live edge path (2026-06-03 re-audit fix)", () => {
 
     expect(r.text).toBe("What stood out on that walk?");
     const body = invokeBody();
-    // The proxy's crisis re-check must see the real utterance...
-    expect(body.userMessage).toBe("Today I went for a long walk.");
-    // ...while the curated prompt (with crisis-reference text) rides in `user`.
-    expect(String(body.user)).toMatch(/Columbia-Suicide/);
+    // The genuine entry rides in `user` — the channel the proxy crisis-scans.
+    expect(body.user).toBe("Today I went for a long walk.");
+    // ...while the curated RAG prompt (with crisis-reference text) rides in the
+    // un-scanned `system` channel.
+    expect(String(body.system)).toMatch(/Columbia-Suicide/);
     // proxy audited:true => no client double-write (C3 1:1)
     expect(auditMock).not.toHaveBeenCalled();
   });

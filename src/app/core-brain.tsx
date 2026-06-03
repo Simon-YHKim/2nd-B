@@ -35,7 +35,7 @@ import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 export default function CoreBrain() {
   const { i18n } = useTranslation();
-  const { userId, loading } = useAuth();
+  const { userId, loading, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [persona, setPersona] = useState<PersonaCard | null>(null);
@@ -45,7 +45,9 @@ export default function CoreBrain() {
   const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
   useEffect(() => {
-    if (!userId) return;
+    // buildPersona() calls Gemini — don't fire it for a no-profile OAuth session
+    // (gated here because the effect runs before the render redirect). C10 + consent.
+    if (!userId || hasProfile === false) return;
     let cancelled = false;
     setBuilding(true);
     (async () => {
@@ -75,7 +77,7 @@ export default function CoreBrain() {
     return () => {
       cancelled = true;
     };
-  }, [userId, locale, fireCompanion]);
+  }, [userId, hasProfile, locale, fireCompanion]);
 
   if (loading) {
     return (
@@ -87,6 +89,7 @@ export default function CoreBrain() {
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
   if (building) {
     return (

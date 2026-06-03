@@ -35,7 +35,7 @@ type Phase = "input" | "analyzing" | "result" | "saved";
 
 export default function ImportExternal() {
   const { i18n } = useTranslation();
-  const { userId, loading, isMinor } = useAuth();
+  const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const ko = locale === "ko";
 
@@ -46,6 +46,9 @@ export default function ImportExternal() {
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
+  // No-profile OAuth session (DOB/consent not yet collected) must not reach this
+  // LLM surface — route to /complete-profile (C10 age gate + PIPA consent).
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
   async function copyPrompt() {
     const prompt = buildExtractionPrompt(locale);
