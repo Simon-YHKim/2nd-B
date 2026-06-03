@@ -439,15 +439,25 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   let text: string;
   let latencyMs: number;
   let vertex: boolean;
+  // When the proxy writes the audit row itself (C3 server-authoritative) it
+  // returns audited:true; we then skip the client insert to avoid double-logging
+  // (parity with callGemini).
+  let proxyAudited = false;
   if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
     const supabase = getSupabaseClient();
     const t0 = Date.now();
     const { data, error } = await supabase.functions.invoke("gemini-proxy", {
-      body: { system: null, user: systemPrompt, model },
+      // The curated RAG prompt rides in `user`; the genuine journal entry rides
+      // in userMessage so the proxy's crisis re-check targets the real utterance,
+      // not the crisis-detection reference text the prompt legitimately quotes
+      // (which otherwise 422'd every Advisor call on the live edge path).
+      body: { system: null, user: systemPrompt, model, userMessage: input.userMessage },
     });
     latencyMs = Date.now() - t0;
     if (error) throw error;
-    text = (data as { text?: string } | null)?.text ?? "";
+    const payload = data as { text?: string; audited?: boolean } | null;
+    text = payload?.text ?? "";
+    proxyAudited = payload?.audited === true;
     vertex = false;
   } else {
     const c = getClient();
@@ -479,10 +489,14 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       safetyZone: "red" as const,
       latencyMs,
     };
-    try {
-      await insertAiAuditLog({ userId: input.userId, ...audit });
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[advisor] output-swap audit failed", e);
+    // Skip when the proxy already wrote the row (proxyAudited); the swap itself
+    // is still recorded in crisis_events below regardless.
+    if (!proxyAudited) {
+      try {
+        await insertAiAuditLog({ userId: input.userId, ...audit });
+      } catch (e) {
+        if (typeof console !== "undefined") console.warn("[advisor] output-swap audit failed", e);
+      }
     }
     try {
       await insertCrisisEvent({
@@ -521,10 +535,12 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     safetyZone: finalZone,
     latencyMs,
   };
-  try {
-    await insertAiAuditLog({ userId: input.userId, ...audit });
-  } catch (e) {
-    if (typeof console !== "undefined") console.warn("[advisor] audit failed", e);
+  if (!proxyAudited) {
+    try {
+      await insertAiAuditLog({ userId: input.userId, ...audit });
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[advisor] audit failed", e);
+    }
   }
   return {
     text,
