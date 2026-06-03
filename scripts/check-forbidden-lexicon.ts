@@ -12,7 +12,11 @@ import { containsForbiddenLexicon } from "../src/lib/safety/classifier";
 
 const ROOT = process.cwd();
 
-const ROOT_DIRS = ["src", "app", "components", "locales", "db", "docs"];
+// "src" covers src/app + src/components (the real code roots). "supabase/functions"
+// is included so deployed edge functions (gemini-proxy, oauth-naver) — which ship
+// prompt-assembly + user-facing strings — are scanned too. Seed exclusions are
+// handled by LEXICON_SCAN_ALLOWLIST.
+const ROOT_DIRS = ["src", "supabase/functions", "locales", "db", "docs"];
 const ROOT_FILES = ["README.md"];
 
 const EXT_OK = /\.(?:ts|tsx|js|jsx|json|sql|md)$/;
