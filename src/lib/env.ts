@@ -165,6 +165,19 @@ let cached: Env | null = null;
 export function getEnv(): Env {
   if (cached) return cached;
   cached = refined.parse(readRaw());
+  // Audit MED: EXPO_PUBLIC_FORCE_TIER defaults to "brain", so a release/judge
+  // build that forgets to set it ships with the paywall fully open. Flipping
+  // the default is a launch-time call (it would change what testers see today),
+  // so for now make the unsafe state loud instead of silent: warn once in a
+  // non-dev runtime when the override is active. Pre-launch checklist: set
+  // EXPO_PUBLIC_FORCE_TIER=off.
+  const devGlobal = (globalThis as { __DEV__?: boolean }).__DEV__;
+  if (cached.EXPO_PUBLIC_FORCE_TIER !== "off" && devGlobal === false && typeof console !== "undefined") {
+    console.warn(
+      `[env] EXPO_PUBLIC_FORCE_TIER="${cached.EXPO_PUBLIC_FORCE_TIER}" in a non-dev build: ` +
+        "the paywall is bypassed for every user. Set it to 'off' before launch/judging.",
+    );
+  }
   return cached;
 }
 

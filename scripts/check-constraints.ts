@@ -118,14 +118,29 @@ results.push(
 results.push(
   check("C6", () => {
     const trigger = read("db/migrations/0010_triggers.sql");
-    const ok =
-      JUDGE_DOMAINS.every((d) => trigger.includes(d)) &&
-      trigger.includes("auto_judge_mode") &&
-      trigger.includes("BEFORE INSERT ON users");
+    // Parse the ARRAY[...] literal out of auto_judge_mode() and compare its
+    // element set EXACTLY to JUDGE_DOMAINS (bidirectional), ignoring comments.
+    // The old `includes()` check passed if a domain appeared anywhere in the
+    // file (including the "keep in sync" comment) and never checked the SQL->TS
+    // direction, so a domain in only one side slipped through.
+    const fnStart = trigger.indexOf("auto_judge_mode()");
+    const arrIdx = trigger.indexOf("ARRAY[", fnStart);
+    const close = arrIdx >= 0 ? trigger.indexOf("]", arrIdx) : -1;
+    const arrayLiteral = arrIdx >= 0 && close > arrIdx ? trigger.slice(arrIdx, close) : "";
+    const sqlDomains = [...arrayLiteral.matchAll(/'([^']+)'/g)].map((m) => m[1]!);
+    const sqlSet = new Set(sqlDomains);
+    const libSet = new Set<string>(JUDGE_DOMAINS);
+    const setEqual =
+      sqlDomains.length === libSet.size && // no SQL duplicates
+      sqlSet.size === libSet.size &&
+      [...libSet].every((d) => sqlSet.has(d));
+    const ok = setEqual && trigger.includes("BEFORE INSERT ON users");
     return {
       id: "C6",
       status: ok ? "PASS" : "FAIL",
-      note: ok ? "judge whitelist mirrored in trigger + lib/judge/domains.ts" : "judge mode trigger incomplete",
+      note: ok
+        ? "judge ARRAY[] set-equals JUDGE_DOMAINS (bidirectional) + trigger present"
+        : `judge domain mismatch: SQL=[${sqlDomains.join(", ")}] lib=[${[...libSet].join(", ")}]`,
     };
   }),
 );
