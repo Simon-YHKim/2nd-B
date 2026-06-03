@@ -225,6 +225,9 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   let latencyMs: number;
   let modelUsedForAudit: string;
   let vertexBackend: boolean;
+  // When the proxy writes the audit row itself (C3 server-authoritative), it
+  // returns audited:true and we skip the client insert to avoid double-logging.
+  let proxyAudited = false;
 
   if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
     const supabase = getSupabaseClient();
@@ -236,14 +239,19 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
         model,
         // Optional image payload for multimodal OCR / vision prompts.
         ...(input.image ? { image: input.image } : {}),
+        // Structured-output schema (e.g. phase1). The proxy sets
+        // responseMimeType=application/json + responseSchema when present so
+        // edge-routed callers reach parity with the direct-client path.
+        ...(input.responseSchema ? { responseSchema: input.responseSchema } : {}),
       },
     });
     latencyMs = Date.now() - t0;
     if (error) throw error;
-    const payload = data as { text?: string; modelUsed?: string } | null;
+    const payload = data as { text?: string; modelUsed?: string; audited?: boolean } | null;
     text = payload?.text ?? "";
     modelUsedForAudit = payload?.modelUsed ?? model;
     vertexBackend = false;
+    proxyAudited = payload?.audited === true;
   } else {
     // C2 client constructed with Vertex when configured.
     const { client, vertex } = getClient();
@@ -253,7 +261,18 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       model,
       contents: [
         ...(input.system ? [{ role: "user", parts: [{ text: `[SYSTEM]\n${input.system}` }] }] : []),
-        { role: "user", parts: [{ text: input.user }] },
+        {
+          role: "user",
+          parts: [
+            // Multimodal: attach the image first (Gemini's OCR/vision best
+            // practice), mirroring the edge-function path. Without this the
+            // direct/Vertex path silently dropped input.image.
+            ...(input.image
+              ? [{ inlineData: { mimeType: input.image.mimeType, data: input.image.data } }]
+              : []),
+            { text: input.user },
+          ],
+        },
       ],
       config: input.responseSchema
         ? { responseMimeType: "application/json", responseSchema: input.responseSchema }
@@ -277,11 +296,16 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     latencyMs,
   };
 
-  // C3: best-effort audit. We must not block UX on logging failure.
-  try {
-    await insertAiAuditLog({ userId: input.userId, ...audit });
-  } catch (e) {
-    if (typeof console !== "undefined") console.warn("[ai_audit_log] insert failed", e);
+  // C3: best-effort audit. We must not block UX on logging failure. Skip when
+  // the proxy already wrote the row server-side (proxyAudited) to avoid a
+  // duplicate; we still write here on the direct path and whenever the proxy
+  // did not confirm an audit (deploy-safe fallback).
+  if (!proxyAudited) {
+    try {
+      await insertAiAuditLog({ userId: input.userId, ...audit });
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[ai_audit_log] insert failed", e);
+    }
   }
 
   return {

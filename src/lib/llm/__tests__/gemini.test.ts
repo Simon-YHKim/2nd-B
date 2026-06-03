@@ -100,6 +100,27 @@ describe("callGemini", () => {
     expect(arg.userId).toBe("u1");
   });
 
+  test("multimodal: image is attached as an inlineData part on the direct/Vertex path", async () => {
+    await callGemini({
+      userId: "u1",
+      locale: "en",
+      purpose: "capture_ocr",
+      user: "Transcribe the text in this image.",
+      image: { mimeType: "image/png", data: "QkFTRTY0SU1BR0U=" },
+    });
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    const callArg = mockGenerateContent.mock.calls[0]![0] as {
+      contents: { role: string; parts: Record<string, unknown>[] }[];
+    };
+    const userMsg = callArg.contents[callArg.contents.length - 1]!;
+    const hasImagePart = userMsg.parts.some(
+      (p) =>
+        (p.inlineData as { mimeType?: string; data?: string } | undefined)?.data === "QkFTRTY0SU1BR0U=" &&
+        (p.inlineData as { mimeType?: string } | undefined)?.mimeType === "image/png",
+    );
+    expect(hasImagePart).toBe(true);
+  });
+
   test("C9: minor flag routes KO crisis to youth 1388 + 109 (adult gets 109)", async () => {
     const minorR = await callGemini({
       userId: "u1",
