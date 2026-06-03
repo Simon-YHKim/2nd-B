@@ -12,9 +12,9 @@
 |---|---|---|---|
 | Email + password ("ID 가입") | ✅ live | yes | none (auto-confirm trigger 0018) |
 | Google | ✅ wired | yes | enable in Supabase + Google Cloud OAuth client |
-| **Apple** | ✅ wired (this PR) | yes | enable in Supabase + Apple Service ID/key |
-| **Kakao** | ✅ wired (this PR) | yes | enable in Supabase + Kakao app keys |
-| **Naver** | ⛔ not built (custom) | **no** | edge function + Naver app (see below) |
+| **Apple** | ✅ wired (native) | yes | enable in Supabase + Apple Service ID/key |
+| **Kakao** | ✅ wired (native) | yes | enable in Supabase + Kakao app keys (legacy `oauth-kakao` edge fn retired) |
+| **Naver** | ✅ wired (edge fn, flag-gated) | **no** | Naver app + flags + deploy `oauth-naver` (see below) |
 
 All provider sign-ups route a brand-new user through **`/complete-profile`**, which collects date of
 birth (C10 age gate, ≥14) **and** records consent (`recordConsentBestEffort`). So the age floor +
@@ -44,22 +44,31 @@ After enabling, the existing buttons work on the web build with no code change.
 
 ## Naver (custom — not a Supabase provider)
 
-Naver is not in Supabase's built-in provider list and does not issue a Supabase-compatible OIDC
-id_token, so it needs a small **edge function** + client OAuth start. Plan (build when the Naver app
-credentials exist):
+Naver is not a Supabase-native provider, so it uses the **`oauth-naver` edge function** (Deno,
+service_role) which exchanges the code, fetches the profile, find-or-creates the user, and returns a
+magic-link `token_hash`. The client side is now wired (`src/lib/supabase/auth.ts`):
 
-1. **Naver Developers** → register an application → get `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET`,
-   set the callback URL to the app's redirect.
-2. **Client:** start the OAuth with `expo-auth-session` (Naver authorize URL + state); on return,
-   send the `code` + `state` to the edge function.
-3. **Edge function `naver-oauth`** (Deno, service_role): exchange `code` → Naver access token →
-   fetch the Naver profile (id/email) → find-or-create the Supabase user via the **admin API**, then
-   return a session (e.g. `admin.generateLink`/`generateLink('magiclink')` or a signed session). Store
-   `NAVER_CLIENT_ID/SECRET` as **edge-function secrets**, never in the client.
-4. Add a `signInWithNaver()` client helper that drives steps 2–3, plus the button (gated on an
-   `EXPO_PUBLIC_ENABLE_NAVER` flag so it only shows once the function is deployed).
+- `signInWithNaver()` stashes a random `state` in `sessionStorage` and redirects to Naver's authorize page.
+- Naver returns to **`/oauth-callback`** (`src/app/(auth)/oauth-callback.tsx`), which calls
+  `completeNaverOAuth()`: it **verifies the returned `state` matches** (client-side CSRF defense),
+  invokes `oauth-naver`, then `verifyOtp({ token_hash, type: 'magiclink' })`. New users land on
+  `/complete-profile` (DOB + consent) like every provider.
 
-This keeps the Naver secret server-side and reuses the same `/complete-profile` age/consent gate.
+**Off by default** behind two layers, so nothing shows or runs until the operator opts in:
+
+1. **Client flags:** set `EXPO_PUBLIC_NAVER_CLIENT_ID` (the public REST client id) and
+   `EXPO_PUBLIC_ENABLE_NAVER=true` — only then does the Naver button render.
+2. **Edge function:** set `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` + `ENABLE_NAVER_OAUTH=true` as
+   `oauth-naver` secrets (the secret never leaves the function), register the redirect URI
+   `<origin><base>oauth-callback` in the Naver console **and** in the function's `ALLOWED_ORIGINS`,
+   then deploy `oauth-naver`.
+
+CSRF note: the primary defense is the **client-side `state` echo check** in `completeNaverOAuth`.
+A stronger server-issued state-nonce store (the original H2 hardening) can layer on top later; the
+function remains server-gated by `ENABLE_NAVER_OAUTH` until you're satisfied.
+
+> The legacy **`oauth-kakao` edge function was retired** — Kakao is now a Supabase-native provider
+> (`signInWithOAuth({ provider: 'kakao' })`), so it follows the built-in path above, no edge function.
 
 ## Native (Expo) — deferred, same as the original Google path
 
