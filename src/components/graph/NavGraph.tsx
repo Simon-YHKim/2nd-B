@@ -164,7 +164,7 @@ export const MENU_NODES: readonly NavNode[] = [
   { id: "knowledge", tier: 2, parentId: "core", href: "/wiki", bubbleAction: "upload",
     label: { en: "Wisdom Core", ko: "배움과 지식" },
     description: { en: "Where what you've learned and understood stacks up as knowledge.", ko: "배우고 이해한 것들이 지식 조각으로 쌓이는 곳이에요." } },
-  { id: "records", tier: 2, parentId: "core", href: "/records",
+  { id: "records", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "records" } },
     label: { en: "Narrative Core", ko: "기록 보관소" },
     description: { en: "Where every piece you've kept gathers so you can find it again.", ko: "남긴 모든 조각이 다시 찾아볼 수 있게 모이는 곳이에요." } },
   { id: "taste", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "taste" } },
