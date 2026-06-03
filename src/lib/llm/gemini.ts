@@ -287,6 +287,56 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   // Re-classify the output to record the final zone in audit log.
   const outputSafety = classifyInput(text, input.locale, { minor: input.minor });
 
+  // OUTPUT SAFETY SWAP (parity with callAdvisor). The model can emit red-zone
+  // content the input classifier never saw — via injected wiki/clip context, a
+  // jailbreak, or multi-turn drift. callGemini text is rendered verbatim by every
+  // caller (interview probe, phase1 summary, import echo, persona), so we must
+  // NOT ship it. Swap in the verbatim crisis template, write an HONEST audit row
+  // (real model + latency + a +swap marker so judges see the model WAS called and
+  // intercepted), and log a categorical crisis_event. Skip the audit insert only
+  // when the proxy already wrote it server-side (proxyAudited), like GREEN/YELLOW.
+  if (outputSafety.zone === "red") {
+    const fixed = fixedCrisisResponse(input.locale, input.minor);
+    const swapAudit = {
+      promptHash,
+      outputHash: djb2(fixed.text),
+      modelUsed: `${modelUsedForAudit}+swap:${fixed.version}`,
+      vertexBackend,
+      safetyZone: "red" as const,
+      latencyMs,
+    };
+    if (!proxyAudited) {
+      try {
+        await insertAiAuditLog({ userId: input.userId, ...swapAudit });
+      } catch (e) {
+        if (typeof console !== "undefined") console.warn("[ai_audit_log] output-swap insert failed", e);
+      }
+    }
+    try {
+      await insertCrisisEvent({
+        userIdHash: djb2(input.userId),
+        zone: "red",
+        // classifyInput is the deterministic lexicon classifier (no LLM
+        // confidence / C-SSRS level): a crisis-lexicon match is a strong literal
+        // signal, so use the same 0.95 the lexicon path uses elsewhere, carry the
+        // matched categories, and leave cssrsLevel null (only the Flash/Pro
+        // classifier derives it).
+        classifierConfidence: 0.95,
+        triggerCategories: [...outputSafety.categories, "output_swap"],
+        cssrsLevel: null,
+        routingTemplateVersion: fixed.version,
+        locale: input.locale,
+      });
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[crisis_events] output-swap insert failed", e);
+    }
+    return {
+      text: fixed.text as unknown as T,
+      safety: outputSafety,
+      audit: swapAudit,
+    };
+  }
+
   const audit = {
     promptHash: djb2(`${input.system ?? ""}${input.user}`),
     outputHash: djb2(text),

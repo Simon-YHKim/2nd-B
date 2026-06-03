@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Stack } from "expo-router";
+import { Stack, Redirect, useSegments } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -145,12 +145,24 @@ function markIntroPlayed(): void {
 }
 
 function IntroGate({ children }: { children: React.ReactNode }) {
-  const { userId, loading } = useAuth();
+  const { userId, loading, hasProfile } = useAuth();
+  const segments = useSegments();
   // Play the cell-team intro only once per tab session. On re-entry (tab
   // switch back, navigating home, a fresh auth event) we go straight to the
   // app instead of re-showing the loader that waits for a tap — that was the
   // "infinite loading on re-entry" report.
   const [introDone, setIntroDone] = useState(introAlreadyPlayed);
+
+  // Global C10 + PIPA-consent gate (re-audit 2026-06-03: per-screen gating was
+  // leaky — inbox/wiki kept slipping through). An authenticated session with NO
+  // public.users row (the OAuth-before-/complete-profile state, hasProfile===
+  // false) must not reach ANY feature screen, since every one may invoke Gemini
+  // before the age gate + consent are collected. Redirect to /complete-profile.
+  // The (auth) group (sign-in/up, complete-profile, oauth-callback) is exempt so
+  // the user can actually finish. Per-screen redirects stay as defense-in-depth.
+  if (!loading && userId && hasProfile === false && segments[0] !== "(auth)") {
+    return <Redirect href="/complete-profile" />;
+  }
 
   // Once the intro has played this session, just render the app/children —
   // auth re-resolves quietly without re-gating the UI.

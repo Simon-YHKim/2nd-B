@@ -15,6 +15,7 @@ const GEMINI_TESTS = [
   ["src", "lib", "llm", "__tests__", "gemini.mock.test.ts"].join("/"),
   ["src", "lib", "llm", "__tests__", "advisor-output-swap.test.ts"].join("/"),
   ["src", "lib", "llm", "__tests__", "advisor-edge.test.ts"].join("/"),
+  ["src", "lib", "llm", "__tests__", "gemini-output-swap.test.ts"].join("/"),
 ];
 
 const importRegexes: { name: string; pattern: RegExp; allowed: string[] }[] = [

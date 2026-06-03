@@ -81,7 +81,7 @@ function villageHref(village: VillageId): Href {
 
 export default function Wiki() {
   const { t, i18n } = useTranslation("wiki");
-  const { userId, loading: authLoading } = useAuth();
+  const { userId, loading: authLoading, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [pages, setPages] = useState<WikiPageRow[]>([]);
@@ -164,6 +164,9 @@ export default function Wiki() {
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
+  // No-profile OAuth session must not reach this LLM screen (Run Phase 1 →
+  // Gemini) before C10 age-gate + PIPA consent. (Root gate in _layout covers too.)
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
   function toggleTag(tag: string) {
     setActiveTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
