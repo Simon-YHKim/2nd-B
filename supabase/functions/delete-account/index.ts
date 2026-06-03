@@ -116,12 +116,22 @@ Deno.serve(async (req: Request) => {
   // <userId>/<slug>.md) — the most PII-rich content, NOT FK-linked so the
   // public.users cascade never reaches it. Best-effort: the account is already
   // erased, so a Storage hiccup must not fail the request.
+  // Paginate: list() returns one bounded page. We delete each page then re-list
+  // from the start (the deleted page is gone, so the next list surfaces the
+  // remainder) until a short/empty page — so users with >1000 clippings are
+  // fully erased, not just the first page.
   try {
-    const { data: objs } = await admin.storage.from('raw-clippings').list(userId, { limit: 1000 });
-    if (objs && objs.length > 0) {
+    const PAGE = 1000;
+    for (;;) {
+      const { data: objs } = await admin.storage.from('raw-clippings').list(userId, { limit: PAGE });
+      if (!objs || objs.length === 0) break;
       const paths = objs.map((o) => `${userId}/${o.name}`);
       const { error: rmErr } = await admin.storage.from('raw-clippings').remove(paths);
-      if (rmErr) console.warn('[delete-account] raw-clippings remove failed:', rmErr.message);
+      if (rmErr) {
+        console.warn('[delete-account] raw-clippings remove failed:', rmErr.message);
+        break;
+      }
+      if (objs.length < PAGE) break;
     }
   } catch (e) {
     console.warn('[delete-account] raw-clippings cleanup threw:', String(e));

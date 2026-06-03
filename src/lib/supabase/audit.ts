@@ -11,16 +11,22 @@ export interface AiAuditInsert extends AuditMeta {
   userId: string;
 }
 
+// Writes go through the log_ai_audit SECURITY DEFINER RPC (migration 0038), not
+// a direct table INSERT. The blanket authenticated INSERT policy was forgeable
+// (re-audit A2): a client could spam or fabricate its own audit rows. The RPC
+// stamps user_id := auth.uid() server-side and is the only authenticated write
+// path; meta.userId is kept on the type for callers but is NOT trusted/sent.
+// Prod web's authoritative row is still written server-side by gemini-proxy
+// (service_role), which bypasses RLS and is unaffected by the policy removal.
 export async function insertAiAuditLog(meta: AiAuditInsert): Promise<void> {
   const supabase = getSupabaseClient();
-  const { error } = await supabase.from("ai_audit_log").insert({
-    user_id: meta.userId,
-    prompt_hash: meta.promptHash,
-    output_hash: meta.outputHash,
-    model_used: meta.modelUsed,
-    vertex_backend: meta.vertexBackend,
-    safety_zone: meta.safetyZone,
-    latency_ms: meta.latencyMs,
+  const { error } = await supabase.rpc("log_ai_audit", {
+    p_prompt_hash: meta.promptHash,
+    p_output_hash: meta.outputHash,
+    p_model_used: meta.modelUsed,
+    p_vertex_backend: meta.vertexBackend,
+    p_safety_zone: meta.safetyZone,
+    p_latency_ms: meta.latencyMs,
   });
   if (error) throw error;
 }

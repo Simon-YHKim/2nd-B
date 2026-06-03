@@ -45,7 +45,7 @@ function formatCapturedAt(iso: string, locale: "en" | "ko"): string {
 
 export default function Inbox() {
   const { t, i18n } = useTranslation("inbox");
-  const { userId, loading: authLoading } = useAuth();
+  const { userId, loading: authLoading, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [rows, setRows] = useState<SourceRow[]>([]);
@@ -77,6 +77,9 @@ export default function Inbox() {
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
+  // No-profile OAuth session must not reach this LLM screen (Phase-1 → Gemini)
+  // before C10 age-gate + PIPA consent. (Root gate in _layout also covers this.)
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
   async function handleRowPress(row: SourceRow): Promise<void> {
     if (expandedId === row.id) {
