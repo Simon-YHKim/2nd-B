@@ -93,22 +93,21 @@ export default function Account() {
           void (async () => {
             setDeleting(true);
             try {
-              // Best-effort client wipe first (clears the bulk of PII even if
-              // the Edge Function isn't deployed), then the terminal cascade.
+              // Best-effort client wipe first (clears the bulk of PII), then the
+              // terminal service-role cascade (the auth row + RLS-protected tables
+              // the client cannot reach). requestAccountDeletion() throws unless
+              // the edge function confirms { deleted: true }.
               await deleteAllUserData(userId);
-              try {
-                await requestAccountDeletion();
-              } catch (delErr) {
-                // delete-account not deployed / unreachable: content is already
-                // wiped; log so the operator can finish removing the row. Don't
-                // block sign-out on it.
-                if (typeof console !== "undefined") {
-                  console.warn("[account] terminal erasure deferred", (delErr as Error).message);
-                }
-              }
+              await requestAccountDeletion();
               await signOut();
               router.replace("/sign-in");
             } catch (e) {
+              // Either step failed (incl. a deployed-but-5xx terminal cascade). Do
+              // NOT sign out with a false "deleted" confirmation while the account
+              // row / RLS-protected data may still remain — keep the user on screen
+              // with an actionable error so they can retry or reach support (the
+              // C11 2-business-day backstop). Erasure is terminal only on success.
+              if (typeof console !== "undefined") console.warn("[account] deletion failed", (e as Error).message);
               Alert.alert(t("account.delete.failed"), (e as Error).message);
               if (mounted.current) setDeleting(false);
             }
