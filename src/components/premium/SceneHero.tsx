@@ -36,8 +36,8 @@ export function SceneHero({
   primaryAction,
   secondaryAction,
   accent = cosmic.dreamPink,
-  islandSize = 274,
-  workerSize = 104,
+  islandSize = 188,
+  workerSize = 76,
   style,
 }: {
   eyebrow: string;
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   shell: {
     position: "relative",
     overflow: "hidden",
-    minHeight: 404,
+    minHeight: 268,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: semantic.border,
@@ -269,12 +269,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   stage: {
-    minHeight: 300,
+    minHeight: 202,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   islandFrame: {
     position: "relative",
@@ -363,8 +363,8 @@ const styles = StyleSheet.create({
   actions: {
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: semantic.border,
     backgroundColor: semantic.surfaceAlt,

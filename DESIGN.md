@@ -69,11 +69,12 @@ The brand pivoted from sky blue to **Electric Mint** (`#72F2C7`) — the color o
 | Token | Hex | Meaning / use |
 |---|---|---|
 | `semantic.brand` / `cosmic.signalMint` | `#72F2C7` (mint) | Active connection. Primary CTAs, brand chip, focus rings, AI follow-up highlights, Lulu (capture). |
-| `cosmic.signalBlue` | `#4CC9F0` | Archi (connection architect) accent · `semantic.info` (judge / neutral notices). |
-| `cosmic.soulViolet` | `#A78BFA` | SecondB / AI presence. Card surface wash. |
-| `cosmic.pixelLamp` | `#FFD166` | New record / discovery, Momo accent · `semantic.zoneYellow` / `warning`. |
-| `cosmic.dreamPink` | `#FF9FD6` | Imagine / Vela accent. The "공상" signal. |
-| `cosmic.guardRose` | `#FF7A90` | Safety / Gadi · `semantic.zoneRed` / `danger`. |
+| `cosmic.signalBlue` | `#4CC9F0` | Archon / Growth Core accent · `semantic.info` (judge / neutral notices). |
+| `cosmic.soulViolet` | `#A78BFA` | SecondB / Soul Core presence. Card surface wash. |
+| `cosmic.pixelLamp` | `#FFD166` | Relia / Bond Core accent · `semantic.zoneYellow` / `warning`. |
+| `cosmic.dreamPink` | `#FF9FD6` | Lumina / Muse Core / Divergent signal. |
+| `cosmic.moonWhite` | `#E8ECF8` | Foreman Momo / Narrative Core neutral worker signal. |
+| `cosmic.guardRose` | `#FF7A90` | Safety-only red signal · `semantic.zoneRed` / `danger`. |
 | `semantic.zoneGreen` / `success` | `#72F2C7` (mint) | Successful save, normal-zone confirmation. |
 
 ### Accent budget (replaces the old 3-color rule)
@@ -81,7 +82,7 @@ The brand pivoted from sky blue to **Electric Mint** (`#72F2C7`) — the color o
 The pre-cosmic system capped at 3 colors. The village needs more, because **each accent carries a fixed meaning** — it is a coded signal, not a palette flourish. The rule is now:
 
 - **One primary** (mint) drives every CTA, focus ring, and "active" affordance.
-- **Five reserved signals** (signalBlue / soulViolet / pixelLamp / dreamPink / guardRose) each map to exactly one concept (Archi, AI presence, discovery, imagine, safety). Never use a signal color for anything but its meaning.
+- **Reserved signals** (signalBlue / soulViolet / pixelLamp / dreamPink / moonWhite / guardRose) each map to a fixed concept (Archon, SecondB/Soul Core, Relia, Lumina/Divergent, Foreman Momo, safety). Never use a signal color for anything but its meaning.
 - **On any single screen, at most 3 of the six appear at once.** The full 6 only ever coexist on the graph itself, where each is a different character/tier.
 - Saturated accents stay sparse — a bar, label, dot, or border, never a fill on > 30% of a screen.
 
@@ -290,9 +291,9 @@ Three brand moments get a named motion. Each pairs a character accent with a sin
 
 | Moment | Trigger | Motion | Accent |
 |---|---|---|---|
-| **저장 / Save** ("루루 뽁") | A record/capture saves | One "뽁" overshoot (1.25× / ~400ms) + optional `playPop()` on web | mint (`characters.lulu`) |
-| **연결 발견 / Connection** ("아치 라인 켜짐") | A new edge/connection surfaces | A line illuminates dim→bright over ~500ms ease-out, then holds | signalBlue (`characters.archi`) |
-| **공상 / Imagine** ("벨라 핑크 신호") | Imagine generation begins | A soft pink pulse (opacity 0.4→1→0.6, ~600ms, no scale beyond 1.05) | dreamPink (`characters.vela`) |
+| **저장 / Save** ("Lumen 뽁") | A record/capture saves | One "뽁" overshoot (1.25× / ~400ms) + optional `playPop()` on web | mint (`characters.lulu`) |
+| **연결 발견 / Connection** ("Archon line on") | A new edge/connection surfaces | A line illuminates dim→bright over ~500ms ease-out, then holds | signalBlue (`characters.archi`) |
+| **Divergent** ("Lumina pink signal") | Divergent generation begins | A soft pink pulse (opacity 0.4→1→0.6, ~600ms, no scale beyond 1.05) | dreamPink (`characters.lumi`) |
 
 `prefers-reduced-motion` (web): zero out durations and translate distances; the pop becomes an instant state change, the line illuminates without transition, the pulse holds at full opacity.
 
@@ -313,7 +314,7 @@ Three brand moments get a named motion. Each pairs a character accent with a sin
 
 - Gradients of any kind (except the documented 5%-opacity sky-drift overlay).
 - Glassmorphism, blurs, frosted surfaces.
-- Cute *cartoon* illustrations or hand-drawn icons. **Exception:** the six pixel residents of the Graph Village (SecondB / Momo / Lulu / Archi / Vela / Gadi, defined in `src/lib/characters.ts`) are sanctioned — they are low-fidelity pixel sprites tied to fixed accents and meanings, not decorative mascots. No character outside that roster.
+- Cute *cartoon* illustrations or hand-drawn icons. **Exception:** the six pixel residents of the Graph Village (SecondB / Foreman Momo / Lumen / Archon / Relia / Lumina, defined in `src/lib/characters.ts`) are sanctioned — they are low-fidelity pixel sprites tied to fixed accents and meanings, not decorative mascots. No character outside that roster.
 - Emojis as decoration in UI strings. (Crisis hotline messages may use language icons, but not 🌱✨💫.)
 - Em dashes in any user-visible string.
 - Lottie / animated background loops.

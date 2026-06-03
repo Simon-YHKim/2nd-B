@@ -27,12 +27,12 @@ import {
   type RawRecordRow,
   type RawSourceRow,
 } from "@/lib/persona/evidence";
-import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
+import { VILLAGE_IDS, VILLAGE_LABEL, type PatternCoreId, type VillageId } from "@/lib/graph/relatedness";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 const TYPE_FILTERS: (EvidenceType | "all")[] = ["all", "journal", "capture", "audit", "interview", "imagine", "wiki"];
 // Domain (village) filter chips — "all" plus the six villages, in graph order.
-const DOMAIN_CHIPS: ("all" | VillageId)[] = ["all", ...VILLAGE_IDS];
+const DOMAIN_CHIPS: ("all" | PatternCoreId)[] = ["all", ...VILLAGE_IDS];
 
 // Warm-gold for records by default; a few types carry their companion accent.
 const TYPE_ACCENT: Record<EvidenceType, string> = {
@@ -53,15 +53,15 @@ export default function Records() {
   // ?domain=<villageId>, so Records opens already filtered to that village's
   // pieces (menu restructure Phase 4). The chip row can change it afterward.
   const params = useLocalSearchParams<{ domain?: string }>();
-  const paramDomain: VillageId | "all" =
-    VILLAGE_IDS.includes(params.domain as VillageId) ? (params.domain as VillageId) : "all";
+  const paramDomain: PatternCoreId | "all" =
+    VILLAGE_IDS.includes(params.domain as PatternCoreId) ? (params.domain as PatternCoreId) : "all";
 
   const [shards, setShards] = useState<OriginShard[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<EvidenceType | "all">("all");
-  const [domainFilter, setDomainFilter] = useState<VillageId | "all">(paramDomain);
+  const [domainFilter, setDomainFilter] = useState<PatternCoreId | "all">(paramDomain);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -141,15 +141,15 @@ export default function Records() {
   const heroEyebrow =
     domainFilter === "all"
       ? (locale === "ko" ? "05. 기록 보관소" : "05. Records")
-      : (locale === "ko" ? `${villageLabel} · 마을 기록` : `${villageLabel} · village records`);
+      : (locale === "ko" ? `${villageLabel} · Core 로그` : `${villageLabel} · core logs`);
   const heroTitle =
     domainFilter === "all"
       ? (locale === "ko" ? "남긴 조각을 다시 만나요" : "Revisit every piece you left")
       : (locale === "ko" ? `${villageLabel}의 조각들` : `${villageLabel} pieces`);
   const heroSubtitle =
     domainFilter === "all"
-      ? (locale === "ko" ? "일기 · 담기 · 검사 · 공상까지 한곳에" : "Journal, capture, assessments, and imagine in one place")
-      : (locale === "ko" ? "이 마을에 모인 기록만 골라 봅니다" : "Only the pieces gathered in this village");
+      ? (locale === "ko" ? "일기 · 담기 · 검사 · 영감까지 한곳에" : "Journal, capture, assessments, and inspiration in one place")
+      : (locale === "ko" ? "이 Core에 모인 로그만 골라 봅니다" : "Only the logs gathered in this Core");
 
   return (
     <PremiumAppShell>

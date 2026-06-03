@@ -99,8 +99,8 @@ const MOCK_RESPONSES: Record<
       "OBJECT :: Lantern :: The little light your piece switched on.\n" +
       "OBJECT :: Path :: A signal line linking piece to piece.\n" +
       "OBJECT :: Note :: A place to jot what comes next.\n" +
-      "CHARACTER :: Vela :: The guide who unfolds a thought into scenes.\n" +
-      "CHARACTER :: Lulu :: The friend who brings back fresh pieces.\n" +
+      "CHARACTER :: SecondB Divergent :: The guide who unfolds a thought from a new angle.\n" +
+      "CHARACTER :: Lumen :: The guide who brings back useful pieces.\n" +
       "NEXTSTEP :: Write down one line of the scene you saw today.",
     ko:
       "TITLE :: 밤빛 골목의 등불\n" +
@@ -111,8 +111,8 @@ const MOCK_RESPONSES: Record<
       "OBJECT :: 등불 :: 오늘의 조각이 켠 작은 빛.\n" +
       "OBJECT :: 길 :: 조각과 조각을 잇는 신호선.\n" +
       "OBJECT :: 노트 :: 다음을 적어두는 자리.\n" +
-      "CHARACTER :: 벨라 :: 공상을 장면으로 펼쳐주는 안내자.\n" +
-      "CHARACTER :: 루루 :: 새 조각을 주워오는 친구.\n" +
+      "CHARACTER :: SecondB Divergent :: 생각을 낯선 각도에서 장면으로 펼쳐주는 길잡이.\n" +
+      "CHARACTER :: Lumen :: 쓸모 있는 새 조각을 가져오는 길잡이.\n" +
       "NEXTSTEP :: 오늘 떠오른 장면 한 줄을 기록으로 남겨보기.",
   },
   // Structured JSON stub for the external-import ingest so /import works in

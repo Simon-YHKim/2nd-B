@@ -276,17 +276,25 @@ export default function Landing() {
             >
               <Text style={styles.emptyGraphCloseText}>✕</Text>
             </Pressable>
-            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-              <IslandArt id="core" size={150} />
+            <View style={styles.emptyGraphIntro}>
+              <View
+                style={styles.emptyGraphArt}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <IslandArt id="core" size={88} />
+              </View>
+              <View style={styles.emptyGraphCopy}>
+                <Text style={styles.emptyGraphTitle}>
+                  {locale === "ko" ? "아직 마을이 조용해요" : "The village is quiet"}
+                </Text>
+                <Text style={styles.emptyGraphBody}>
+                  {locale === "ko"
+                    ? "첫 조각을 남기면 길이 조금씩 켜져요."
+                    : "Leave a first piece and the roads light up."}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.emptyGraphTitle}>
-              {locale === "ko" ? "아직 마을이 조용해요" : "The village is quiet"}
-            </Text>
-            <Text style={styles.emptyGraphBody}>
-              {locale === "ko"
-                ? "첫 조각을 남기면 길이 조금씩 켜져요."
-                : "Leave a first piece and the roads light up."}
-            </Text>
             <Pressable
               onPress={() => router.push({ pathname: "/journal", params: { entry: "firstRun" } })}
               style={styles.emptyGraphCta}
@@ -371,20 +379,21 @@ const styles = StyleSheet.create({
   emptyGraphBackdrop: {
     ...(StyleSheet.absoluteFill as object),
     zIndex: 100,
-    backgroundColor: "rgba(5,7,15,0.55)",
+    backgroundColor: "rgba(5,7,15,0.38)",
     alignItems: "center",
     justifyContent: "flex-end",
-    paddingBottom: 96,
-    paddingHorizontal: 24,
+    paddingBottom: 88,
+    paddingHorizontal: 16,
   },
   emptyGraphCard: {
-    alignItems: "center",
+    alignItems: "stretch",
     backgroundColor: "rgba(7,10,24,0.92)",
     borderColor: "rgba(167,139,250,0.38)",
     borderWidth: 1,
     borderRadius: 8,
-    padding: 18,
-    maxWidth: 360,
+    padding: 14,
+    maxWidth: 380,
+    width: "100%",
     shadowColor: cosmic.soulViolet,
     shadowOpacity: 0.32,
     shadowRadius: 16,
@@ -401,25 +410,36 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   emptyGraphCloseText: { color: cosmic.mistGray, fontSize: 16, fontFamily: fontFamilies.sans },
-  emptyGraphSkip: { minHeight: 44, marginTop: 10, justifyContent: "center" },
-  emptyGraphSkipText: { color: cosmic.mistGray, fontSize: 14, fontFamily: fontFamilies.sans },
+  emptyGraphIntro: {
+    minHeight: 104,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingRight: 34,
+  },
+  emptyGraphArt: {
+    width: 96,
+    height: 96,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyGraphCopy: { flex: 1, gap: 4 },
+  emptyGraphSkip: { minHeight: 44, marginTop: 6, justifyContent: "center", alignItems: "center" },
+  emptyGraphSkipText: { color: cosmic.mistGray, fontSize: 13, fontFamily: fontFamilies.sans },
   emptyGraphTitle: {
     color: cosmic.moonWhite,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
-    marginTop: 8,
     fontFamily: fontFamilies.sans,
   },
   emptyGraphBody: {
     color: cosmic.mistGray,
-    fontSize: 13,
-    lineHeight: 18,
-    textAlign: "center",
-    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 17,
     fontFamily: fontFamilies.sans,
   },
   emptyGraphCta: {
-    marginTop: 14,
+    marginTop: 8,
     backgroundColor: cosmic.signalMint,
     borderRadius: 8,
     minHeight: 44,
@@ -433,8 +453,9 @@ const styles = StyleSheet.create({
   emptyGraphCtaText: {
     color: cosmic.space950,
     fontWeight: "700",
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: fontFamilies.sans,
+    textAlign: "center",
   },
   insightRibbon: {
     position: "absolute",

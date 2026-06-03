@@ -226,7 +226,7 @@ export default function ImportExternal() {
 const SECTION_ACCENT: Record<string, string> = {
   trait: cosmic.soulViolet,
   value: cosmic.pixelLamp,
-  relationship: cosmic.guardRose,
+  relationship: cosmic.pixelLamp,
   motivation: cosmic.signalMint,
   context: cosmic.signalBlue,
   preference: cosmic.dreamPink,

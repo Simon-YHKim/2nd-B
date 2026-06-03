@@ -5,7 +5,7 @@ export type VillageRoute = "/journal" | "/capture" | "/imagine";
 
 export type VillageUiMeta = {
   island: "work_growth" | "relationship" | "knowledge" | "records" | "imagine" | "inspiration";
-  worker: "archi" | "gadi" | "lulu" | "momo" | "vela" | "lumi";
+  worker: "secondb" | "archi" | "gadi" | "lulu" | "momo" | "vela" | "lumi";
   accent: string;
   primaryRoute: VillageRoute;
   primaryLabel: { en: string; ko: string };
@@ -18,21 +18,21 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     worker: "archi",
     accent: cosmic.signalBlue,
     primaryRoute: "/journal",
-    primaryLabel: { en: "Leave a growth piece", ko: "성장 조각 남기기" },
+    primaryLabel: { en: "Leave a growth log", ko: "성장 로그 남기기" },
     speech: {
-      en: "I can line up the pieces that show where you're growing.",
-      ko: "자라나는 조각들을 한 줄로 이어볼게요.",
+      en: "Archon can line up the next route from the pieces you left.",
+      ko: "Archon이 남겨둔 조각에서 다음 경로를 설계해 볼게요.",
     },
   },
   relation: {
     island: "relationship",
     worker: "gadi",
-    accent: cosmic.guardRose,
+    accent: cosmic.pixelLamp,
     primaryRoute: "/journal",
-    primaryLabel: { en: "Leave a people piece", ko: "관계 조각 남기기" },
+    primaryLabel: { en: "Leave a bond log", ko: "관계 로그 남기기" },
     speech: {
-      en: "People pieces need a steady hand. I'll keep them clear and gentle.",
-      ko: "관계의 조각은 조심히 다뤄볼게요.",
+      en: "Relia keeps the lamp on where trust and care cross.",
+      ko: "Relia가 신뢰와 돌봄이 만나는 곳에 등불을 켜둘게요.",
     },
   },
   knowledge: {
@@ -40,43 +40,43 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     worker: "lulu",
     accent: cosmic.signalMint,
     primaryRoute: "/capture",
-    primaryLabel: { en: "Capture a knowledge piece", ko: "지식 조각 담기" },
+    primaryLabel: { en: "Capture a wisdom piece", ko: "지혜 조각 담기" },
     speech: {
-      en: "Bring a source here and I'll help it find its shelf.",
-      ko: "자료를 가져오면 찾기 쉬운 자리로 묶어둘게요.",
+      en: "Lumen keeps knowledge useful, not just stacked.",
+      ko: "Lumen이 지식을 쌓아두는 데서 끝내지 않고 삶에 닿게 묶어둘게요.",
     },
   },
   records: {
     island: "records",
     worker: "momo",
-    accent: cosmic.pixelLamp,
+    accent: cosmic.moonWhite,
     primaryRoute: "/journal",
-    primaryLabel: { en: "Leave today's piece", ko: "오늘의 조각 남기기" },
+    primaryLabel: { en: "Leave today's log", ko: "오늘의 로그 남기기" },
     speech: {
-      en: "Every piece is kept by time. Want to pull a memory back out?",
-      ko: "모든 조각은 시간순으로 보관돼 있어요. 필요한 기억을 꺼내볼까요?",
+      en: "Foreman Momo keeps the logs sorted and easy to pull back out.",
+      ko: "Foreman Momo가 로그를 꺼내 쓰기 좋게 정리해둘게요.",
     },
   },
   imagine: {
     island: "imagine",
-    worker: "vela",
+    worker: "secondb",
     accent: cosmic.dreamPink,
-    primaryRoute: "/imagine",
-    primaryLabel: { en: "Open imagine", ko: "상상 열기" },
+    primaryRoute: "/journal",
+    primaryLabel: { en: "Ask in divergent mode", ko: "Divergent 모드로 묻기" },
     speech: {
-      en: "Scenes you imagined can stay in the village too.",
-      ko: "상상한 장면도 마을에 남겨둘 수 있어요.",
+      en: "SecondB can turn a familiar piece sideways and look for a new route.",
+      ko: "세컨비가 익숙한 조각을 비스듬히 돌려 새로운 경로를 찾아볼게요.",
     },
   },
   taste: {
     island: "inspiration",
     worker: "lumi",
-    accent: cosmic.signalMint,
+    accent: cosmic.dreamPink,
     primaryRoute: "/journal",
-    primaryLabel: { en: "Leave an inspiration piece", ko: "영감 조각 남기기" },
+    primaryLabel: { en: "Leave a muse log", ko: "영감 로그 남기기" },
     speech: {
-      en: "What you keep liking often points toward the next spark.",
-      ko: "좋아하는 것들이 다음 불빛을 알려줄 때가 있어요.",
+      en: "Lumina can train the thread inside what keeps catching your eye.",
+      ko: "Lumina가 자꾸 눈에 들어오는 것들 사이의 결을 단련해 볼게요.",
     },
   },
 };
@@ -86,7 +86,7 @@ export const CORE_VILLAGE_UI = {
   worker: "secondb" as const,
   accent: cosmic.soulViolet,
   speech: {
-    en: "I found the brightest link. Want to narrow it into today's direction?",
-    ko: "가장 밝은 연결을 찾았어요. 오늘의 방향으로 줄여볼까요?",
+    en: "Your logs are becoming Pattern Data. I can trace the brightest link.",
+    ko: "당신의 로그가 Pattern Data로 모이고 있어요. 가장 밝은 Pattern Link를 따라가볼게요.",
   },
 };

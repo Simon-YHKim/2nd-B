@@ -80,11 +80,11 @@ export function GraphNodeChip({
 
 const COMPANION_ACCENT: Record<CharacterId, string> = {
   secondb: cosmic.soulViolet,
-  momo: cosmic.pixelLamp,
+  momo: cosmic.moonWhite,
   lulu: cosmic.signalMint,
   archi: cosmic.signalBlue,
   vela: cosmic.dreamPink,
-  gadi: cosmic.guardRose,
+  gadi: cosmic.pixelLamp,
 };
 
 /** Companion avatar with a glowing ring. SecondB uses its own sprite. */

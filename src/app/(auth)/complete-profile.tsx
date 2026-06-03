@@ -118,8 +118,17 @@ export default function CompleteProfile() {
             disabled={!canSubmit}
             loading={submitting}
             onPress={handleSubmit}
+            full
+            style={styles.submitButton}
           />
-          <Button label={t("completeProfile.cancel")} variant="secondary" onPress={handleCancel} disabled={submitting} />
+          <Button
+            label={t("completeProfile.cancel")}
+            variant="secondary"
+            onPress={handleCancel}
+            disabled={submitting}
+            full
+            style={styles.submitButton}
+          />
         </View>
       </ScrollView>
     </PremiumAppShell>
@@ -157,6 +166,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   checklist: { gap: spacing.xs, marginTop: spacing.xs, marginBottom: spacing.xs },
+  submitButton: { alignSelf: "stretch", width: "100%" },
   checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   checkDot: { width: 8, height: 8, borderRadius: 4 },
 });

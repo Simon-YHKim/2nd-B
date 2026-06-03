@@ -52,6 +52,8 @@ interface ChatTurn {
   chips?: string[];
 }
 
+type ChatMode = "analytic" | "divergent";
+
 const INTRO_DISMISS_KEY = "secondB_intro_dismissed_v1";
 
 function readIntroDismissed(): "off" | "today" | "permanent" {
@@ -89,15 +91,17 @@ export default function Jarvis() {
   // nodeContext entry (chat pack §3/§7): a graph node passed its label.
   // character (2026-05-31): tapping a village companion opens chat in that
   // character's voice (src/lib/chat/personas.ts).
-  const params = useLocalSearchParams<{ fromNode?: string; character?: string }>();
+  const params = useLocalSearchParams<{ fromNode?: string; character?: string; mode?: string }>();
   const fromNode = typeof params.fromNode === "string" && params.fromNode.length > 0 ? params.fromNode : null;
   const characterParam = typeof params.character === "string" && params.character.length > 0 ? params.character : null;
+  const requestedMode: ChatMode = params.mode === "divergent" ? "divergent" : "analytic";
   const persona = useMemo(() => getPersona(characterParam), [characterParam]);
   // Only treat it as a character chat when a real worker was passed.
   const isCharacterChat = characterParam != null && characterParam in PERSONAS;
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState("");
+  const [mode, setMode] = useState<ChatMode>(requestedMode);
   const [sending, setSending] = useState(false);
   const [usedToday, setUsedToday] = useState<number | null>(null);
   const [introOpen, setIntroOpen] = useState(false);
@@ -112,6 +116,10 @@ export default function Jarvis() {
   // Seed once on entry: a character chat opens with that companion's greeting
   // as the first turn; a node entry pre-fills the composer with the context.
   const seededRef = useRef(false);
+  useEffect(() => {
+    setMode(requestedMode);
+  }, [requestedMode]);
+
   useEffect(() => {
     if (seededRef.current) return;
     seededRef.current = true;
@@ -163,6 +171,7 @@ export default function Jarvis() {
         message: msg,
         locale,
         tier: progression.tier,
+        mode,
         personaHint: isCharacterChat ? persona.systemHint[locale] : null,
         minor: isMinor === true,
       });
@@ -223,6 +232,10 @@ export default function Jarvis() {
               ? locale === "ko"
                 ? "참고한 조각들을 읽어오는 중이에요."
                 : "I'm reading the pieces that matter."
+              : mode === "divergent"
+                ? locale === "ko"
+                  ? "Divergent 모드로 낯선 관점의 경로를 찾아볼게요."
+                  : "Divergent mode is looking for an unexpected route."
               : locale === "ko"
                 ? "오늘의 기록을 읽어봤어요. 작은 한 걸음으로 시작해볼까요?"
                 : "I've read today's pieces. Shall we start with one small step?"
@@ -253,6 +266,25 @@ export default function Jarvis() {
             <ContextPill label={fromNode} />
           </View>
         ) : null}
+
+        <View style={styles.modeSwitch} accessibilityRole="tablist">
+          {(["analytic", "divergent"] as const).map((m) => {
+            const active = mode === m;
+            return (
+              <Pressable
+                key={m}
+                onPress={() => setMode(m)}
+                style={[styles.modeTab, active ? styles.modeTabActive : null]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+              >
+                <Text variant="caption" color={active ? "background" : "brand"}>
+                  {m === "analytic" ? "Analytic" : "Divergent"}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         <ScrollView
           ref={scrollRef}
@@ -534,6 +566,28 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   contextPillWrap: { marginTop: spacing.sm },
+  modeSwitch: {
+    flexDirection: "row",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomColor: semantic.border,
+    borderBottomWidth: 1,
+  },
+  modeTab: {
+    minHeight: 36,
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surfaceAlt,
+  },
+  modeTabActive: {
+    borderColor: semantic.brand,
+    backgroundColor: semantic.brand,
+  },
   quickRow: { gap: spacing.sm, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
   quickChip: {
     backgroundColor: semantic.surfaceAlt,

@@ -171,9 +171,9 @@ export interface WorldDataNode {
 export function worldDataPositions(
   dataNodes: readonly DataLike[],
   menuPos: Map<string, WorldNode>,
-  fallbackParent = "wiki-daily",
+  fallbackParent = "knowledge",
   cap = 40,
-  domainCount = 6,
+  domainCount = 5,
 ): Map<string, WorldDataNode> {
   const out = new Map<string, WorldDataNode>();
   const half = sectorHalfWidth(domainCount);

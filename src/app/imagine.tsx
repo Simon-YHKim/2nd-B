@@ -1,6 +1,5 @@
-// "공상 작업실" / Imagine workshop (imagine pack v2). Vela unfolds a rough
-// idea into a structured result — 한 줄 세계관 / 장면 / 사물 / 등장 캐릭터 /
-// 다음 한 걸음 — and saves it to the village as a 공상 조각.
+// Divergent workshop. SecondB unfolds a rough idea into a structured result:
+// one worldline, scenes, objects, characters, and one next step.
 //
 // Generation goes through callGemini (purpose "imagine"), so C1/C3/C9 hold;
 // the result is parsed into cards by parseImagineResult (never shown as raw
@@ -16,7 +15,6 @@ import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
-import { CHARACTERS } from "@/lib/characters";
 import { IslandArt, ShardArt } from "@/components/art/IslandArt";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { ContextPill } from "@/components/premium";
@@ -36,7 +34,6 @@ export default function Imagine() {
   const { i18n } = useTranslation();
   const { userId, loading, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const vela = CHARACTERS.vela;
 
   const params = useLocalSearchParams<{ fromNode?: string }>();
   const fromNode = typeof params.fromNode === "string" && params.fromNode.length > 0 ? params.fromNode : null;
@@ -63,7 +60,7 @@ export default function Imagine() {
   async function handleGenerate() {
     if (!userId || draft.trim().length === 0 || phase === "generating") return;
     setPhase("generating");
-    // 벨라 sparks as the idea starts unfolding (companion pack §3).
+    // SecondB sparks as the idea starts unfolding.
     companion.fire("imagineStarted");
     try {
       const system = fromNode
@@ -95,7 +92,7 @@ export default function Imagine() {
         track: "daily",
       });
       setPhase("saved");
-      // 벨라 tucks the scene into the village (companion pack §3).
+      // SecondB tucks the scene into the village.
       companion.fire("imagineSaved");
     } catch (e) {
       Alert.alert(locale === "ko" ? "저장 실패" : "Save failed", (e as Error).message);
@@ -144,7 +141,7 @@ export default function Imagine() {
         ? locale === "ko" ? "마을에 저장" : "Save to village"
         : phase === "generating"
           ? locale === "ko" ? "상상하는 중..." : "Imagining..."
-          : locale === "ko" ? "상상하기" : "Imagine";
+          : locale === "ko" ? "Divergent로 펼치기" : "Open Divergent";
 
   const secondaryActionLabel =
     hasResult
@@ -155,9 +152,9 @@ export default function Imagine() {
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
-          eyebrow={locale === "ko" ? "03. 공상 놀이터" : "03. Imagine playground"}
-          title={locale === "ko" ? "생각을 밤빛 장면으로" : "Turn a thought into a scene"}
-          subtitle={locale === "ko" ? `${vela.name.ko} · ${vela.role.ko}` : `${vela.name.en} · ${vela.role.en}`}
+          eyebrow={locale === "ko" ? "03. Divergent workshop" : "03. Divergent workshop"}
+          title={locale === "ko" ? "세컨비와 낯선 경로 보기" : "Find an unexpected route with SecondB"}
+          subtitle={locale === "ko" ? "SecondB · Divergent mode" : "SecondB · Divergent mode"}
           island={VILLAGE_UI.imagine.island}
           worker={VILLAGE_UI.imagine.worker}
           accent={VILLAGE_UI.imagine.accent}
@@ -207,7 +204,7 @@ export default function Imagine() {
               placeholder={locale === "ko" ? "예: 밤빛 골목에서 등불이 한 개씩 켜진다…" : "e.g. lanterns light up one by one in a night alley…"}
               placeholderTextColor={cosmic.mistGray}
               style={styles.promptInput}
-              accessibilityLabel={locale === "ko" ? "공상 입력" : "Imagine input"}
+              accessibilityLabel={locale === "ko" ? "Divergent 입력" : "Divergent input"}
             />
             <View style={styles.previewPanel}>
               <Text variant="caption" color="textMuted">{locale === "ko" ? "생성될 장면" : "Scene seeds"}</Text>
@@ -301,7 +298,7 @@ export default function Imagine() {
           </View>
         ) : null}
       </ScrollView>
-      {/* 벨라 appears briefly while a scene sparks / is saved (companion pack §3) */}
+      {/* SecondB appears briefly while a scene sparks / is saved. */}
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
       ) : null}

@@ -9,9 +9,9 @@ describe("domainForTags", () => {
     expect(domainForTags(["friend", "family"])).toBe("relation");
     expect(domainForTags(["관계", "친구"])).toBe("relation");
   });
-  test("routes imagination tags to imagine village", () => {
-    expect(domainForTags(["dream", "story"])).toBe("imagine");
-    expect(domainForTags(["공상", "상상"])).toBe("imagine");
+  test("routes imagination tags to the Muse Core", () => {
+    expect(domainForTags(["dream", "story"])).toBe("taste");
+    expect(domainForTags(["공상", "상상"])).toBe("taste");
   });
   test("routes taste/inspiration tags to taste village", () => {
     expect(domainForTags(["music", "inspiration"])).toBe("taste");

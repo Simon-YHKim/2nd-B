@@ -4,39 +4,39 @@
 // actually related — not just hang everything under one fixed node.
 //
 // Two pure functions, both unit-tested so NavGraph/index stay thin:
-//   1. domainForTags  — route a piece's tags to one of the six villages.
+//   1. domainForTags  — route a piece's tags to one of the five Pattern Cores.
 //   2. relatedEdges   — connect pieces that share enough tags.
 //
 // Vocabulary stays in the project register (no clinical/technical terms).
 
-// The six tier-2 villages (NavGraph MENU_NODES tier-2 ids).
-export type VillageId = "work" | "relation" | "knowledge" | "records" | "imagine" | "taste";
+// The five tier-2 Pattern Cores (NavGraph MENU_NODES tier-2 ids).
+export type PatternCoreId = "work" | "relation" | "knowledge" | "records" | "taste";
+export type VillageId = PatternCoreId | "imagine";
 
-export const VILLAGE_IDS: readonly VillageId[] = [
+export const VILLAGE_IDS: readonly PatternCoreId[] = [
   "work",
   "relation",
   "knowledge",
   "records",
-  "imagine",
   "taste",
 ];
 
-/** Canonical user-facing village names (kept in step with NavGraph's tier-2
+/** Canonical user-facing core names (kept in step with NavGraph's tier-2
  *  node labels). Single source for any surface that filters by village — e.g.
  *  the Records domain chips — so the wording can't drift from the graph. */
 export const VILLAGE_LABEL: Record<VillageId, { en: string; ko: string }> = {
-  work: { en: "Work & growth", ko: "일과 성장" },
-  relation: { en: "People & ties", ko: "관계와 사람" },
-  knowledge: { en: "Learning & knowledge", ko: "배움과 지식" },
-  records: { en: "Records", ko: "기록 보관소" },
-  imagine: { en: "Imagine workshop", ko: "공상 작업실" },
-  taste: { en: "Taste & spark", ko: "취향과 영감" },
+  work: { en: "Growth Core", ko: "Growth Core" },
+  relation: { en: "Bond Core", ko: "Bond Core" },
+  knowledge: { en: "Wisdom Core", ko: "Wisdom Core" },
+  records: { en: "Narrative Core", ko: "Narrative Core" },
+  taste: { en: "Muse Core", ko: "Muse Core" },
+  imagine: { en: "Divergent workshop", ko: "Divergent workshop" },
 };
 
 // Keyword → village. Lowercase substrings matched against a piece's tags
 // (and, as a fallback, its title). Ordering of VILLAGE_IDS breaks ties so the
 // mapping is deterministic. English + Korean cues since tags can be either.
-const DOMAIN_KEYWORDS: Record<VillageId, readonly string[]> = {
+const DOMAIN_KEYWORDS: Record<PatternCoreId, readonly string[]> = {
   work: [
     "work", "career", "job", "study", "project", "goal", "growth", "skill",
     "productivity", "business", "startup", "money", "finance",
@@ -56,28 +56,26 @@ const DOMAIN_KEYWORDS: Record<VillageId, readonly string[]> = {
     "record", "journal", "diary", "log", "memo", "note", "daily", "today",
     "기록", "일기", "일지", "메모", "노트", "오늘", "일상",
   ],
-  imagine: [
-    "imagine", "idea-spark", "dream", "fiction", "story", "creative",
-    "imagination", "what-if", "scene",
-    "공상", "상상", "꿈", "이야기", "창작", "장면", "아이디어",
-  ],
   taste: [
     "taste", "inspiration", "spark", "music", "film", "movie", "art",
-    "design", "aesthetic", "style", "favorite", "like",
+    "design", "aesthetic", "style", "favorite", "like", "imagine",
+    "idea-spark", "dream", "fiction", "story", "creative", "imagination",
+    "what-if", "scene",
     "취향", "영감", "음악", "영화", "예술", "디자인", "미감", "스타일", "좋아하는",
+    "공상", "상상", "꿈", "이야기", "창작", "장면", "아이디어",
   ],
 };
 
-const DEFAULT_VILLAGE: VillageId = "knowledge";
+const DEFAULT_VILLAGE: PatternCoreId = "knowledge";
 
 /**
  * Pick the village whose keywords best match this piece's tags. The piece's
  * title is used as a weak fallback signal. Returns DEFAULT_VILLAGE ("knowledge")
  * when nothing matches, so a freshly captured note still lands somewhere sane.
  */
-export function domainForTags(tags: readonly string[], title = ""): VillageId {
+export function domainForTags(tags: readonly string[], title = ""): PatternCoreId {
   const hay = [...tags.map((t) => t.toLowerCase()), title.toLowerCase()];
-  const score = new Map<VillageId, number>();
+  const score = new Map<PatternCoreId, number>();
   for (const village of VILLAGE_IDS) {
     let s = 0;
     for (const kw of DOMAIN_KEYWORDS[village]) {
@@ -89,7 +87,7 @@ export function domainForTags(tags: readonly string[], title = ""): VillageId {
   }
   if (score.size === 0) return DEFAULT_VILLAGE;
   // Highest score wins; VILLAGE_IDS order breaks ties deterministically.
-  let best: VillageId = DEFAULT_VILLAGE;
+  let best: PatternCoreId = DEFAULT_VILLAGE;
   let bestScore = -1;
   for (const village of VILLAGE_IDS) {
     const s = score.get(village) ?? 0;

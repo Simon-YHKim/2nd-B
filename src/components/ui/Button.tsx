@@ -5,7 +5,7 @@ import type { PremiumButtonProps } from "@/components/premium/surfaces";
 
 type Variant = "primary" | "secondary" | "danger";
 
-export interface ButtonProps extends Omit<PremiumButtonProps, "variant" | "icon" | "full" | "style"> {
+export interface ButtonProps extends Omit<PremiumButtonProps, "variant" | "icon" | "style"> {
   variant?: Variant;
   style?: StyleProp<ViewStyle>;
 }

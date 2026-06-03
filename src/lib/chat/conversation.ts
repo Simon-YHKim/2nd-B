@@ -26,6 +26,7 @@ export interface SendMessageInput {
   message: string;
   locale: "en" | "ko";
   tier: SubscriptionTier;
+  mode?: "analytic" | "divergent";
   /**
    * Optional character voice instruction (from src/lib/chat/personas.ts).
    * When the user opens chat by tapping a village companion, this keeps the
@@ -60,6 +61,17 @@ const SYSTEM_PROMPT_HEADER = {
   en: "You are SecondB, the user's 2nd-Brain assistant. Reference the wiki pages and sources below; cite slugs via [[double-brackets]]. Keep replies under 4 sentences unless the user asks for depth.",
   ko: "당신은 사용자의 두번째 뇌 비서, 세컨비입니다. 아래 위키 페이지와 소스를 참고하고, 인용할 때는 [[슬러그]] 형식을 사용하세요. 사용자가 깊이 있는 답을 원하지 않으면 4문장 안으로 답하세요.",
 };
+
+const MODE_PROMPT = {
+  analytic: {
+    en: "Mode: Analytic. Ground the answer in the user's saved logs and wiki. Separate observed evidence from inference, then give one practical next step.",
+    ko: "모드: Analytic. 사용자의 저장된 Log와 위키에 근거해 답하세요. 관찰된 근거와 추론을 구분하고, 실천 가능한 다음 한 걸음을 제안하세요.",
+  },
+  divergent: {
+    en: "Mode: Divergent. Use the user's saved logs as a starting point, then deliberately try an unexpected outside lens. Mark it as a possibility, not a verdict, and look for a new route.",
+    ko: "모드: Divergent. 사용자의 저장된 Log를 출발점으로 삼되, 의도적으로 낯선 외부 관점을 적용하세요. 단정하지 말고 가능성으로 제시하며 새로운 경로를 찾으세요.",
+  },
+} as const;
 
 const BLOCKED_HINT = {
   en: (limit: number, upgrade: SubscriptionTier | null) =>
@@ -114,8 +126,9 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
     sourceLimit: 100,
   });
 
+  const mode = input.mode ?? "analytic";
   const personaLine = input.personaHint ? `${input.personaHint}\n\n` : "";
-  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${personaLine}${snapshot.prompt}`;
+  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${MODE_PROMPT[mode][input.locale]}\n\n${personaLine}${snapshot.prompt}`;
 
   // C1/C3/C9 are enforced by callGemini. Red-zone short-circuit still
   // happens inside callGemini; we just no longer adjust the counter

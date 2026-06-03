@@ -31,13 +31,13 @@ export const cosmic = {
 
   // Signal accents — applied to active connections, AI presence,
   // discoveries, imagination, and safety states.
-  signalBlue: "#4CC9F0", // Archi accent
-  signalMint: "#72F2C7", // Electric Mint — active connections, Lulu, brand
+  signalBlue: "#4CC9F0", // Archon accent
+  signalMint: "#72F2C7", // Electric Mint — active connections, Lumen, brand
   soulViolet: "#A78BFA", // SecondB / AI presence
   soulViolet2: "#7C5EE8",
-  pixelLamp: "#FFD166", // New record / discovery, Momo accent
+  pixelLamp: "#FFD166", // Bond Core / warm guide lamp
   dreamPink: "#FF9FD6", // Imagine / Vela accent
-  guardRose: "#FF7A90", // Safety / Gadi accent
+  guardRose: "#FF7A90", // Safety system accent only
 
   // Neutrals.
   moonWhite: "#E8ECF8", // Primary text
@@ -171,11 +171,11 @@ export const semanticLight = {
 // to live in src/lib/characters.ts.
 export const characters = {
   secondb: cosmic.soulViolet, // AI guide — /jarvis, floating button
-  momo: cosmic.pixelLamp, // Record keeper — /journal, /audit, /wiki
-  lulu: cosmic.signalMint, // Capture collector — /capture
-  archi: cosmic.signalBlue, // Connection architect — /persona, /core-brain
+  momo: cosmic.moonWhite, // Foreman Momo / Narrative Core
+  lulu: cosmic.signalMint, // Lumen / Wisdom Core
+  archi: cosmic.signalBlue, // Archon / Growth Core
   vela: cosmic.dreamPink, // Imagination guide — /imagine
-  gadi: cosmic.guardRose, // Safety / boundary — safety classifier
+  gadi: cosmic.pixelLamp, // Relia / Bond Core
 } as const;
 
 export type CharacterName = keyof typeof characters;

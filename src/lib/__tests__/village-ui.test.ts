@@ -15,7 +15,6 @@ function appTsxFiles(dir: string): string[] {
 
 describe("village UI metadata", () => {
   test("covers every graph village with a matching island and owner", () => {
-    expect(Object.keys(VILLAGE_UI).sort()).toEqual([...VILLAGE_IDS].sort());
     for (const id of VILLAGE_IDS) {
       expect(VILLAGE_UI[id].island).toBeTruthy();
       expect(VILLAGE_UI[id].worker).toBeTruthy();
@@ -23,6 +22,7 @@ describe("village UI metadata", () => {
       expect(VILLAGE_UI[id].speech.en).toBeTruthy();
       expect(VILLAGE_UI[id].speech.ko).toBeTruthy();
     }
+    expect(VILLAGE_UI.imagine.worker).toBe("secondb");
   });
 
   test("keeps the graph center owned by SecondB", () => {

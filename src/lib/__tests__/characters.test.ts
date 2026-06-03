@@ -21,11 +21,11 @@ describe("Cosmic Pixel palette", () => {
 describe("characters palette mapping", () => {
   test("each of the 6 residents has the handoff-mandated accent", () => {
     expect(characterColors.secondb).toBe("#A78BFA"); // Soul Violet
-    expect(characterColors.momo).toBe("#FFD166"); // Pixel Lamp
-    expect(characterColors.lulu).toBe("#72F2C7"); // Electric Mint
-    expect(characterColors.archi).toBe("#4CC9F0"); // Signal Blue
+    expect(characterColors.momo).toBe("#E8ECF8"); // Narrative monochrome
+    expect(characterColors.lulu).toBe("#72F2C7"); // Lumen mint
+    expect(characterColors.archi).toBe("#4CC9F0"); // Archon blue
     expect(characterColors.vela).toBe("#FF9FD6"); // Dream Pink
-    expect(characterColors.gadi).toBe("#FF7A90"); // Guard Rose
+    expect(characterColors.gadi).toBe("#FFD166"); // Relia lamp
   });
 });
 
@@ -65,19 +65,19 @@ describe("characterForRoute", () => {
     expect(characterForRoute("/jarvis")?.id).toBe("secondb");
   });
 
-  test("/capture → Lulu", () => {
+  test("/capture → Lumen", () => {
     expect(characterForRoute("/capture")?.id).toBe("lulu");
   });
 
-  test("/imagine → Vela", () => {
-    expect(characterForRoute("/imagine")?.id).toBe("vela");
+  test("/imagine → SecondB", () => {
+    expect(characterForRoute("/imagine")?.id).toBe("secondb");
   });
 
-  test("/journal → Momo", () => {
+  test("/journal → Foreman Momo", () => {
     expect(characterForRoute("/journal")?.id).toBe("momo");
   });
 
-  test("/persona → Archi", () => {
+  test("/persona → Archon", () => {
     expect(characterForRoute("/persona")?.id).toBe("archi");
   });
 
