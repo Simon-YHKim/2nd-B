@@ -105,17 +105,81 @@ export async function deleteAllChatUsage(userId: string): Promise<number> {
   return count ?? 0;
 }
 
-/** Full wipe: wiki pages → sources → records → chat_usage.
- *  Order matters because of the source_id pair CHECK on wiki_pages. */
+/** Delete the user's derived self-context entries (0021, owner-deletable). */
+export async function deleteAllSelfContexts(userId: string): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { count, error } = await supabase
+    .from("self_contexts")
+    .delete({ count: "exact" })
+    .eq("user_id", userId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Delete the user's own clipper templates (0027, owner-deletable). Shared
+ *  copies others adopted are independent rows and are not touched. */
+export async function deleteAllOwnedClipperTemplates(userId: string): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { count, error } = await supabase
+    .from("clipper_templates")
+    .delete({ count: "exact" })
+    .eq("owner_id", userId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+// Tables a client CANNOT erase (no DELETE RLS policy) and that therefore only
+// disappear via the service-role public.users cascade in requestAccountDeletion:
+//   personas (0008), memorized_patterns (0017), xp_events (0019),
+//   consent_records (0031, append-only ledger), ai_audit_log (0004).
+// A content wipe keeps the account, so it intentionally leaves those in place.
+
+/** Content wipe (keeps the account): wiki pages -> sources -> records ->
+ *  chat_usage -> self_contexts -> owned clipper templates. Order matters for
+ *  the source_id pair CHECK on wiki_pages. The derived tables are best-effort:
+ *  a failure on one (e.g. RLS) is logged and skipped so the wipe still clears
+ *  the rest. RLS-protected derived data (personas/memorized_patterns/xp) is
+ *  only erased by full account deletion — see requestAccountDeletion. */
 export async function deleteAllUserData(userId: string): Promise<{
   records: number;
   sources: number;
   wikiPages: number;
   chatUsage: number;
+  selfContexts: number;
+  clipperTemplates: number;
 }> {
   const wikiPages = await deleteAllWikiPages(userId);
   const sources = await deleteAllSources(userId);
   const records = await deleteAllRecords(userId);
   const chatUsage = await deleteAllChatUsage(userId);
-  return { records, sources, wikiPages, chatUsage };
+  const selfContexts = await bestEffort(() => deleteAllSelfContexts(userId), "self_contexts");
+  const clipperTemplates = await bestEffort(
+    () => deleteAllOwnedClipperTemplates(userId),
+    "clipper_templates",
+  );
+  return { records, sources, wikiPages, chatUsage, selfContexts, clipperTemplates };
+}
+
+async function bestEffort(fn: () => Promise<number>, label: string): Promise<number> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (typeof console !== "undefined") console.warn(`[delete-bulk] ${label} delete failed`, e);
+    return 0;
+  }
+}
+
+/** Terminal account erasure (GDPR Art.17 / PIPA). Invokes the delete-account
+ *  Edge Function, which (service role) deletes public.users -> cascade across
+ *  every user_id-owned table, then removes the auth.users row. This is the only
+ *  path that reaches RLS-protected tables (personas, memorized_patterns,
+ *  xp_events) and the append-only consent_records ledger. Requires the function
+ *  to be deployed; throws otherwise so the caller can decide how to proceed. */
+export async function requestAccountDeletion(): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
+  if (error) throw error;
+  if ((data as { deleted?: boolean } | null)?.deleted !== true) {
+    throw new Error("account deletion did not complete");
+  }
 }
