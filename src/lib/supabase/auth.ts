@@ -112,12 +112,20 @@ export async function getCurrentUserId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
-// --- OAuth (Google native) -----------------------------------------------
+// --- OAuth (Google / Apple / Kakao) --------------------------------------
 //
-// Native iOS/Android builds (Sprint 1+) will need a deep-link scheme; for
-// Expo Web on GitHub Pages we redirect back to the current origin. The
-// Supabase project must have Google enabled and the redirect URL allowed
-// in the Auth → URL Configuration page.
+// Google, Apple, and Kakao are Supabase-native social providers, so they all
+// go through the same signInWithOAuth() web-redirect path. Each must be enabled
+// (with its client id/secret) in the Supabase dashboard, and the redirect URL
+// allowed under Auth -> URL Configuration. For Expo Web on GitHub Pages we
+// redirect back to the current origin; native iOS/Android builds will need a
+// deep-link scheme + expo-web-browser to open data.url (deferred, same as the
+// original Google path). Naver is NOT a built-in Supabase provider — it needs a
+// custom OAuth edge function; see docs/AUTH_PROVIDERS.md.
+
+// OAuth providers we support via Supabase's built-in social login. (Naver is
+// intentionally excluded — it is not a Supabase provider; see the doc above.)
+export type OAuthProvider = "google" | "apple" | "kakao";
 
 export interface OAuthRedirect {
   url: string;
@@ -139,17 +147,33 @@ function defaultRedirectTo(): string | undefined {
   return `${window.location.origin}${base}`;
 }
 
-export async function signInWithGoogle(redirectTo?: string): Promise<OAuthRedirect | null> {
+// Start a Supabase social-login redirect for the given provider. On Web,
+// Supabase navigates the page directly; data.url is informational. On native
+// we'd open data.url via expo-web-browser — that path lands when native builds
+// come online (unchanged from the original Google-only behavior).
+export async function signInWithProvider(
+  provider: OAuthProvider,
+  redirectTo?: string,
+): Promise<OAuthRedirect | null> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
+    provider,
     options: { redirectTo: redirectTo ?? defaultRedirectTo() },
   });
   if (error) throw error;
-  // On Web, Supabase navigates the page directly; data.url is informational.
-  // On native we'd open data.url via expo-web-browser — that path lands when
-  // native builds come online.
   return data.url ? { url: data.url } : null;
+}
+
+export function signInWithGoogle(redirectTo?: string): Promise<OAuthRedirect | null> {
+  return signInWithProvider("google", redirectTo);
+}
+
+export function signInWithApple(redirectTo?: string): Promise<OAuthRedirect | null> {
+  return signInWithProvider("apple", redirectTo);
+}
+
+export function signInWithKakao(redirectTo?: string): Promise<OAuthRedirect | null> {
+  return signInWithProvider("kakao", redirectTo);
 }
 
 // --- Profile completion (OAuth post-step) --------------------------------

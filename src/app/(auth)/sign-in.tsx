@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { Link, Redirect, router } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
-import { signInWithEmail, signInWithGoogle } from "@/lib/supabase/auth";
+import { signInWithApple, signInWithEmail, signInWithGoogle, signInWithKakao } from "@/lib/supabase/auth";
 import { cosmicSky, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { CosmicBackground } from "@/components/premium";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
@@ -50,18 +50,21 @@ export default function SignIn() {
   // the right next step (/complete-profile or graph).
   if (userId) return <Redirect href="/" />;
 
-  async function handleGoogle() {
+  async function handleOAuth(provider: "google" | "apple" | "kakao") {
     setOauthSubmitting(true);
     try {
-      await signInWithGoogle();
+      if (provider === "apple") await signInWithApple();
+      else if (provider === "kakao") await signInWithKakao();
+      else await signInWithGoogle();
     } catch (e) {
+      const name = provider === "apple" ? "Apple" : provider === "kakao" ? "Kakao" : "Google";
       Alert.alert(
         locale === "ko"
-          ? "Google 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요."
-          : "Could not start Google sign-in. Please try again in a moment.",
+          ? `${name} 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.`
+          : `Could not start ${name} sign-in. Please try again in a moment.`,
       );
       if (typeof console !== "undefined")
-        console.warn("[auth] google oauth error", (e as Error).message);
+        console.warn(`[auth] ${provider} oauth error`, (e as Error).message);
     } finally {
       setOauthSubmitting(false);
     }
@@ -199,12 +202,32 @@ export default function SignIn() {
             </View>
 
             <Pressable
-              onPress={handleGoogle}
+              onPress={() => handleOAuth("google")}
               disabled={oauthSubmitting || submitting}
               style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
             >
               <Text style={styles.secondaryBtnText}>
                 {oauthSubmitting ? "…" : t("signIn.continueWithGoogle")}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => handleOAuth("apple")}
+              disabled={oauthSubmitting || submitting}
+              style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+            >
+              <Text style={styles.secondaryBtnText}>
+                {oauthSubmitting ? "…" : t("signIn.continueWithApple")}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => handleOAuth("kakao")}
+              disabled={oauthSubmitting || submitting}
+              style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+            >
+              <Text style={styles.secondaryBtnText}>
+                {oauthSubmitting ? "…" : t("signIn.continueWithKakao")}
               </Text>
             </Pressable>
 

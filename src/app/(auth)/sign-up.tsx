@@ -10,7 +10,15 @@ import { Input } from "@/components/ui/Input";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { JudgeBadge } from "@/components/auth/JudgeBadge";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
-import { ageInYears, signUpWithEmail, AgeGateError, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
+import {
+  ageInYears,
+  signUpWithEmail,
+  signInWithApple,
+  signInWithGoogle,
+  signInWithKakao,
+  AgeGateError,
+  MIN_SELF_CONSENT_AGE,
+} from "@/lib/supabase/auth";
 import { isJudgeEmail } from "@/lib/judge/domains";
 import { ConsentNotice } from "@/components/consent/ConsentNotice";
 import {
@@ -30,6 +38,7 @@ export default function SignUp() {
   const [password, setPassword] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [oauthSubmitting, setOauthSubmitting] = useState(false);
   const [consent, setConsent] = useState(emptyConsentSelections());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -83,6 +92,28 @@ export default function SignUp() {
       }
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // Social sign-up: the OAuth flow creates the auth user, then /complete-profile
+  // collects date of birth (C10) and records consent — so the age gate + consent
+  // ledger still apply to provider sign-ups, just at the post-redirect step.
+  async function handleOAuth(provider: "google" | "apple" | "kakao") {
+    setOauthSubmitting(true);
+    try {
+      if (provider === "apple") await signInWithApple();
+      else if (provider === "kakao") await signInWithKakao();
+      else await signInWithGoogle();
+    } catch (e) {
+      const name = provider === "apple" ? "Apple" : provider === "kakao" ? "Kakao" : "Google";
+      Alert.alert(
+        locale === "ko"
+          ? `${name} 가입을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.`
+          : `Could not start ${name} sign-up. Please try again in a moment.`,
+      );
+      if (typeof console !== "undefined") console.warn(`[auth] ${provider} oauth error`, (e as Error).message);
+    } finally {
+      setOauthSubmitting(false);
     }
   }
 
@@ -187,6 +218,33 @@ export default function SignUp() {
             loading={submitting}
             onPress={handleSubmit}
           />
+
+          <View style={styles.providerDivider}>
+            <View style={styles.providerDividerLine} />
+            <Text variant="subtle" color="textSubtle" style={styles.providerOr}>
+              {t("signUp.or")}
+            </Text>
+            <View style={styles.providerDividerLine} />
+          </View>
+
+          <Button
+            label={t("signUp.continueWithGoogle")}
+            variant="secondary"
+            disabled={oauthSubmitting || submitting}
+            onPress={() => handleOAuth("google")}
+          />
+          <Button
+            label={t("signUp.continueWithApple")}
+            variant="secondary"
+            disabled={oauthSubmitting || submitting}
+            onPress={() => handleOAuth("apple")}
+          />
+          <Button
+            label={t("signUp.continueWithKakao")}
+            variant="secondary"
+            disabled={oauthSubmitting || submitting}
+            onPress={() => handleOAuth("kakao")}
+          />
         </View>
         <View style={styles.footer}>
           <View style={styles.footerRow}>
@@ -280,4 +338,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   link: { textDecorationLine: "underline" },
+  providerDivider: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.xs },
+  providerDividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: semantic.border },
+  providerOr: { textTransform: "uppercase" },
 });
