@@ -99,3 +99,53 @@ export const V3_OVERLAY_ART: Record<"pulse" | "focusGlow", FC<SvgProps>> = {
   pulse: PatternConnectionPulse,
   focusGlow: SoulFocusGlow,
 };
+
+// ─── Final candidate art (set 45, transparent PNG) ──────────────────────────
+// Production v3 art, delivered as누끼-processed transparent PNG under
+// final-candidate-v45/. IslandArt + NavGraph render these via <Image>
+// (resizeMode="contain" + pixelated) behind EXPO_PUBLIC_USE_V3_ART. These take
+// precedence over the placeholder SVG maps above for cores / Pattern Data / Log;
+// mascots + crew have no PNG in this set, so they keep their SVG bindings. Pattern
+// Link PNGs are exported as ready structure (not yet mounted — edges still render
+// as styled lines). require() paths MUST be string literals (Metro static analysis).
+
+// IslandArt id -> final core PNG. core = Tier-1 Soul Core (256, it renders
+// largest/at the center); the 5 Pattern Cores use the 128 set. `imagine` has no
+// v3 core (retired) -> falls back to the legacy PNG in IslandArt.
+export const V3_CORE_PNG: Record<string, number> = {
+  core: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier1_soul_core/soul_core_256.png"),
+  relationship: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/bond_core_128.png"),
+  knowledge: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/wisdom_core_128.png"),
+  records: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/narrative_core_128.png"),
+  inspiration: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/muse_core_128.png"),
+  work_growth: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/growth_core_128.png"),
+};
+
+// Tier-3 Pattern Data PNG, keyed by the internal domain id (NavGraph node
+// parentId: work / relation / knowledge / records / taste). Per-domain tint.
+export const V3_DATA_PNG: Record<string, number> = {
+  relation: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/bond_pattern_data_96.png"),
+  knowledge: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/wisdom_pattern_data_96.png"),
+  records: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/narrative_pattern_data_96.png"),
+  taste: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/muse_pattern_data_96.png"),
+  work: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/growth_pattern_data_96.png"),
+};
+export const V3_DATA_PNG_DEFAULT = require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/narrative_pattern_data_96.png");
+
+// Tier-4 Log PNG, keyed by domain (mapped to the nearest life-category log).
+export const V3_LOG_PNG: Record<string, number> = {
+  work: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/work_log_96x72.png"),
+  knowledge: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/knowledge_log_96x72.png"),
+  relation: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/relationship_log_96x72.png"),
+  taste: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/hobby_log_96x72.png"),
+};
+export const V3_LOG_PNG_DEFAULT = require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/knowledge_log_96x72.png");
+
+// Pattern Link PNG tiles by depth (320x64). Exported as ready structure; the
+// graph still renders edges as styled lines, so these are not mounted yet.
+export const V3_EDGE_PNG: Record<"current" | "near" | "mid" | "far", number> = {
+  current: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_current_320x64.png"),
+  near: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_near_320x64.png"),
+  mid: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_mid_320x64.png"),
+  far: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_far_320x64.png"),
+};
