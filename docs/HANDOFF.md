@@ -3,6 +3,62 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest -- 2026-06-03 / 3 PR 통합 머지 + Naver 취약점 수정 + 감사 루프 (HIGH 전부 닫음)
+
+### 어디까지 왔나
+- main HEAD: `9cb8ac2` (이 핸드오프 머지 후 갱신). 통합 main verify green **803/803 (87 suites)**.
+- 이번 세션 머지 PR (전부 CI green + squash):
+  - **#180** v3 PNG 에셋 wiring (flag-gated, 기존 clean PR)
+  - **#181** 소셜 로그인 -- Email/Google/Apple/Kakao(네이티브) + Naver(엣지 fn). **머지 전 Naver 이메일-매칭 계정 탈취 취약점 수정**: find-or-create 를 stable `naver_id` 바인딩으로 바꾸고, 다른 로그인 수단이 이미 소유한 이메일이면 자동 링크 거부(409). state CSRF 는 클라(sessionStorage echo)에서 이미 처리됨 확인. 레거시 oauth-kakao 엣지 fn 폐기.
+  - **#182** 감사 1차 배치 (0034 award_xp, 디자인 토큰, lexicon/emdash CI 가드). 제목 Conventional Commits 로 정정.
+  - **#184** LLM 경계 배치 -- HIGH 스펜드캡 + 4 MED (아래)
+  - **#185** 전체 계정 삭제 (HIGH, GDPR/PIPA)
+  - **#186** 정합/안전 MED 배치
+  - **#187** LOW 배치 (데드코드/주석/lint 룰)
+- ⚠️ `git add -A` 가 로컬 아티팩트(`.claude/launch.json`, `.tmp_hq_pack/`)를 #181 머지 커밋에 잘못 포함시킴 -> untrack + `.gitignore` 추가로 정리(머지 전).
+
+### 감사 진행 (docs/AUDIT_2026-06-03.md = 정본 트래커)
+- **HIGH 3/3 닫음.** award_xp/0034(#182) · gemini-proxy 스펜드캡(#184) · deleteAllUserData 전체삭제(#185).
+- **MED 대부분 닫음.** gemini image-drop·responseSchema 패리티 · proxy C3 감사로그 · crisis-terms 중복(jest 패리티) · oauth-naver 탈취 · signUpWithEmail orphan · consent-ledger await · 0002 주석 · check-constraints C6 양방향.
+- **LOW 일부 닫음.** reset-project.js·dead auth fns 제거 · eslint C3 상대경로 import 차단 · 0012 hash 주석 · oauth-naver redirect_uri 주석.
+
+### ⚠️ 배포 게이트 (operator -- Simon 확인/실행 필요)
+코드는 main 에 있으나 **prod 반영은 별개**. 마이그레이션 apply + 엣지 배포가 필요:
+1. **마이그레이션 0035** (`gemini_spend_daily` + `bump_gemini_spend` RPC) apply.
+2. **gemini-proxy 재배포** -- 0035 적용 후라야 스펜드캡 + 서버 C3 감사로그 동작. (옵션 `GEMINI_DAILY_CALL_CAP`, 기본 500). 미배포여도 클라는 backward-compatible(앱 안 깨짐).
+3. **delete-account 엣지 fn 배포** (`supabase functions deploy delete-account`) -- 미배포면 계정삭제는 클라 컨텐츠 wipe + signOut 만 수행하고 잔여 삭제는 로깅됨.
+- `EXPO_PUBLIC_ENABLE_NAVER` + `EXPO_PUBLIC_NAVER_CLIENT_ID` + 서버 `ENABLE_NAVER_OAUTH` 는 전부 OFF -- Naver 자격증명 들어오면 켜기(구조는 완성).
+
+### 🔸 Simon 결정 필요 (autonomous 안 함)
+- **EXPO_PUBLIC_FORCE_TIER 기본값 brain->off 전환.** 지금 바꾸면 테스터가 보는 화면(전체 unlock)이 바뀜 -> 런칭 직전 결정 사안. 현재는 비-dev 빌드에서 경고만 출력하도록 함. **런칭/심사 전 체크리스트: =off 설정.**
+
+### 다음 작업 큐 (남은 감사)
+| # | 작업 | 크기 | 비고 |
+|---|---|---|---|
+| A | **buildPersona 캐싱** (MED) -- 매 mount/locale 토글마다 유료 Gemini 호출. signature 컬럼(마이그레이션) + locale 처리 필요. 코어 화면 회귀 위험 -> 전용 PR + 기기 QA 권장 | medium | 미착수(의도적 보류) |
+| B | **0011 client-writable audit policy 제거** (MED) -- proxy 서버 감사로그 배포 확인 후라야 안전 | small | deploy-gated |
+| C | LOW 잔여: NavGraph hex/tokens.ts pill 토큰화(디자인 -- GPT/Codex 충돌 위험, 조율 필요) · +html lang · capture i18n ternaries · mascot namespace · check-i18n 배열비교 · check-constraints C5 공백 · wiki markSourceIngested user-scope · common.json _meta · 0010 search_path · 0011 중복 트리거 | small~med | 디자인 토큰은 조율 후 |
+
+### 적용 중인 정책 (영구)
+1. 머지: feature 브랜치 -> verify green + CI green -> squash. PR 제목 Conventional Commits 필수.
+2. **prod 인프라(마이그레이션 apply / 엣지 배포)는 항상 Simon 확인 후.** 머지 != 배포.
+3. GPT/Codex 동시작업 -- 머지 전 항상 최신 main 재검증. 디자인 파일(NavGraph/capture/tokens) 동시편집 충돌 주의.
+4. `git add -A` 금지(로컬 아티팩트 혼입). 변경 파일만 명시 stage.
+5. C1~C12 + forbidden lexicon(`src/lib/safety/lexicon.ts`) + semantic 토큰만(hex/gradient/pill/em dash 금지).
+
+### 검증
+```bash
+npm ci --legacy-peer-deps && npm run verify   # 803/803 (87 suites)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# 큐 A(buildPersona 캐싱) 또는 배포 게이트(Simon 확인) 부터.
+```
+
+---
+
 ## Latest -- 2026-06-02 / Worldview v-final 완결 + Soul Core v3 아트 wiring (플래그 게이트)
 
 ### 어디까지 왔나
