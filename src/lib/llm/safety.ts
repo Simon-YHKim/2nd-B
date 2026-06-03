@@ -78,6 +78,17 @@ function getFlashClient(): GoogleGenAI | null {
   try {
     const env = getEnv();
     if (env.EXPO_PUBLIC_LLM_MODE === "mock") return null;
+    // H4-residual (round-5): the direct API-key Flash client is an UNCAPPED Gemini
+    // egress — it bypasses the gemini-proxy per-user/day spend cap, the same hole
+    // assertDirectEgressAllowed (gemini.ts) closes for the two main branches. On a
+    // LIVE build that means uncapped billing of the Gemini free tier on every
+    // classify turn, so refuse it and degrade to the lexicon-only backstop (return
+    // null -> classifySafety returns the lexicon result; it must NEVER throw).
+    // Mirror the guard's condition exactly (live && !Vertex), and check it BEFORE
+    // the cache so a previously-built client can't defeat it. Vertex is exempt
+    // (GCP-billed); dev/test (non-live) keeps the direct client; the keyless web
+    // build is already mock -> null above.
+    if (env.EXPO_PUBLIC_LLM_MODE === "live" && !env.EXPO_PUBLIC_USE_VERTEX) return null;
     if (cachedClient) return cachedClient;
     if (env.EXPO_PUBLIC_USE_VERTEX) {
       cachedClient = new GoogleGenAI({

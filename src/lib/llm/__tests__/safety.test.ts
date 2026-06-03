@@ -31,8 +31,12 @@ const LIVE_ENV = {
   EXPO_PUBLIC_SUPABASE_URL: "https://x.supabase.co",
   EXPO_PUBLIC_SUPABASE_ANON_KEY: "x".repeat(40),
   EXPO_PUBLIC_LLM_MODE: "live" as const,
-  EXPO_PUBLIC_USE_VERTEX: false,
-  GOOGLE_CLOUD_PROJECT: undefined,
+  // Vertex: the live egress that legitimately runs the Flash classifier (GCP-
+  // billed, exempt from the H4 spend-cap guard). The API-key direct path is now
+  // refused on live builds (see LIVE_APIKEY_ENV below), so these classifier tests
+  // exercise the Vertex path.
+  EXPO_PUBLIC_USE_VERTEX: true,
+  GOOGLE_CLOUD_PROJECT: "test-project",
   GOOGLE_CLOUD_LOCATION: "us-central1",
   GOOGLE_API_KEY: "test-key",
   SENTRY_DSN: undefined,
@@ -41,6 +45,11 @@ const LIVE_ENV = {
 };
 
 const MOCK_ENV = { ...LIVE_ENV, EXPO_PUBLIC_LLM_MODE: "mock" as const };
+
+// H4-residual (round-5): a LIVE non-Vertex (API-key) build must NOT construct the
+// direct Flash client — that egress is uncapped (bypasses the gemini-proxy spend
+// cap). classifySafety degrades to the lexicon-only backstop instead.
+const LIVE_APIKEY_ENV = { ...LIVE_ENV, EXPO_PUBLIC_USE_VERTEX: false };
 
 describe("classifySafety (layered)", () => {
   beforeEach(() => {
@@ -122,6 +131,21 @@ describe("classifySafety (layered)", () => {
     });
     await classifySafety("그냥 산책 갔어요", "ko");
     expect(mockInsertAudit).not.toHaveBeenCalled();
+  });
+
+  test("H4-residual: a live non-Vertex (API-key) build does NOT call the uncapped Flash client", async () => {
+    mockEnv.mockReturnValue(LIVE_APIKEY_ENV);
+    await classifySafety("그냥 산책 갔어요", "ko", { userId: "u1" });
+    // getFlashClient refuses the uncapped API-key egress on live -> lexicon-only.
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(mockInsertAudit).not.toHaveBeenCalled();
+  });
+
+  test("H4-residual: a RED input is still caught by the lexicon backstop on that build", async () => {
+    mockEnv.mockReturnValue(LIVE_APIKEY_ENV);
+    const r = await classifySafety("자살하고 싶다", "ko");
+    expect(r.zone).toBe("red");
+    expect(mockGenerateContent).not.toHaveBeenCalled();
   });
 });
 
