@@ -10,13 +10,17 @@
 //
 // Auth: verify_jwt=false (pre-auth — Naver validates the user).
 //
-// Security hardening (docs/security/2026-05-26-SUMMARY.md — H2, M1):
-//   H2 — Naver OAuth state CSRF: the current implementation only checks
-//        state is non-empty, not that it matches a server-issued nonce.
-//        Until a PKCE/server-state-store flow is wired in, the function
-//        is disabled by default. Set ENABLE_NAVER_OAUTH=true to opt in
-//        once the state-binding implementation is complete.
-//   M1 — CORS allowlist (was wildcard).
+// Security posture:
+//   State CSRF: the web client issues a random `state`, stashes it in
+//     sessionStorage, and verifies the echo on return (completeNaverOAuth in
+//     src/lib/supabase/auth.ts); Naver also re-checks state at token exchange.
+//     The standard SPA double-submit defense.
+//   Account-takeover: find-or-create binds on the stable naver_id (step 3),
+//     never on email alone. An email already owned by a different sign-in
+//     method is refused (409) instead of being auto-linked.
+//   CORS: explicit origin allowlist (no wildcard).
+//   ENABLE_NAVER_OAUTH gate: stays opt-in so the endpoint is dark until the
+//     operator has configured Naver credentials and reviewed the flow.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -125,18 +129,47 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
+  // Find-or-create bound on the stable Naver subject id, NOT email.
+  //
+  // Account-takeover guard: matching purely on email would let a Naver login
+  // whose profile email equals an account created via another method
+  // (email/password, Google, Apple) silently mint a session for that other
+  // account. So we (a) look up the existing Naver user by naver_id stored in
+  // user_metadata, and (b) refuse to auto-link when the email is already owned
+  // by a different identity, surfacing an explicit error instead of a session.
+  //
   // Paginated lookup — listUsers() returns one page only; a single call misses
-  // users past the first page and would wrongly re-create them. See oauth-kakao.
-  let found: { id: string; email?: string } | undefined;
-  for (let page = 1; page <= 100 && !found; page++) {
+  // users past the first page and would wrongly re-create them.
+  type AdminUser = { id: string; email?: string; user_metadata?: Record<string, unknown> | null };
+  let matchedByNaverId: AdminUser | undefined;
+  let emailOwner: AdminUser | undefined;
+  for (let page = 1; page <= 100 && !matchedByNaverId; page++) {
     const { data: pageData, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
     if (listErr || !pageData) break;
-    found = pageData.users.find((u: { email?: string }) => u.email === userEmail);
+    for (const u of pageData.users as AdminUser[]) {
+      const meta = u.user_metadata ?? {};
+      if (meta.provider === 'naver' && meta.naver_id === naverId) {
+        matchedByNaverId = u;
+        break;
+      }
+      if (!emailOwner && u.email === userEmail) emailOwner = u;
+    }
     if (pageData.users.length < 200) break; // last page
   }
+
   let userId: string;
-  if (found) {
-    userId = found.id;
+  let accountEmail: string;
+  if (matchedByNaverId) {
+    // Returning Naver user, matched on the provider-stable id (their email may
+    // have changed on Naver's side since the account was created).
+    userId = matchedByNaverId.id;
+    accountEmail = matchedByNaverId.email ?? userEmail;
+  } else if (emailOwner) {
+    // The email already belongs to an account that is NOT this Naver identity.
+    // Refuse to take it over: the user should sign in with their original
+    // method (a deliberate account-linking flow can be added from authenticated
+    // settings later). No session is minted.
+    return jsonResponse(req, { error: 'email_belongs_to_existing_account' }, 409);
   } else {
     const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email: userEmail,
@@ -151,11 +184,12 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'supabase_create_user_failed', detail: createErr?.message }, 500);
     }
     userId = created.user.id;
+    accountEmail = userEmail;
   }
 
   const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
     type: 'magiclink',
-    email: userEmail,
+    email: accountEmail,
   });
   if (linkErr || !linkData) {
     return jsonResponse(req, { error: 'supabase_session_mint_failed', detail: linkErr?.message }, 500);
@@ -166,7 +200,7 @@ Deno.serve(async (req: Request) => {
 
   return jsonResponse(req, {
     user_id: userId,
-    email: userEmail,
+    email: accountEmail,
     token_hash: tokenHash,
     token_type: 'magiclink',
   });
