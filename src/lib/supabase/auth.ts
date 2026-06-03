@@ -27,6 +27,48 @@ export class AgeGateError extends Error {
   }
 }
 
+// M2 (round-4): the only credential strength check was length >= 8, and the
+// Supabase leaked-password (HIBP) protection is a Pro-plan dashboard toggle the
+// $0/mo free tier can't enable. This is the code-side backstop, and it matters
+// most for the 14-17 minors who register through the same flow.
+export class BreachedPasswordError extends Error {
+  constructor() {
+    super("This password appeared in a known data breach. Please choose a different one.");
+    this.name = "BreachedPasswordError";
+  }
+}
+
+// HIBP k-anonymity range check: SHA-1 the password locally, send ONLY the first
+// 5 hex chars to api.pwnedpasswords.com, and match the returned suffixes. The
+// plaintext (and even the full hash) never leave the device — the widely-used,
+// privacy-preserving HIBP model. Best-effort: if Web Crypto is unavailable (some
+// native runtimes) or the network/HIBP fails, we DON'T block sign-up (the >= 8
+// length floor + Supabase's own checks remain). `Add-Padding` masks the prefix's
+// real result-count from the network.
+export async function isPasswordBreached(password: string): Promise<boolean> {
+  try {
+    const subtle = (globalThis.crypto as Crypto | undefined)?.subtle;
+    if (!subtle) return false;
+    const digest = await subtle.digest("SHA-1", new TextEncoder().encode(password));
+    const hex = Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase();
+    const prefix = hex.slice(0, 5);
+    const suffix = hex.slice(5);
+    const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+      headers: { "Add-Padding": "true" },
+    });
+    if (!res.ok) return false;
+    const body = await res.text();
+    return body
+      .split("\n")
+      .some((line) => line.split(":")[0]?.trim().toUpperCase() === suffix && !line.trim().endsWith(":0"));
+  } catch {
+    return false;
+  }
+}
+
 // birthDate format: ISO date (YYYY-MM-DD), UTC interpretation. Returns whole
 // years elapsed. The sign-up floor (MIN_SELF_CONSENT_AGE = 14) is applied by
 // the callers above; the DB no longer hard-codes an age CHECK (0028 relaxed the
@@ -51,6 +93,7 @@ export interface SignUpResult {
 
 export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
   if (ageInYears(args.birthDate) < MIN_SELF_CONSENT_AGE) throw new AgeGateError();
+  if (await isPasswordBreached(args.password)) throw new BreachedPasswordError();
 
   const supabase = getSupabaseClient();
   const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({

@@ -19,7 +19,7 @@ import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 export default function Persona() {
   const { i18n } = useTranslation();
-  const { userId, loading, hasProfile } = useAuth();
+  const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [building, setBuilding] = useState(false);
@@ -31,7 +31,7 @@ export default function Persona() {
     // but the effect runs regardless, so gate it here too). C10 + consent.
     if (!userId || hasProfile === false) return;
     setBuilding(true);
-    buildPersona(userId, locale)
+    buildPersona(userId, locale, isMinor === true)
       .then((p) => {
         setPersona(p);
         // 아치 builds the connections once a persona card synthesizes (companion pack §3).
@@ -39,7 +39,7 @@ export default function Persona() {
       })
       .catch((e) => Alert.alert("Persona failed", (e as Error).message))
       .finally(() => setBuilding(false));
-  }, [userId, hasProfile, locale, fireCompanion]);
+  }, [userId, hasProfile, isMinor, locale, fireCompanion]);
 
   if (loading || building) {
     return (

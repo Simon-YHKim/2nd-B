@@ -292,7 +292,7 @@ export default function Capture() {
     if (!userId || !pickedImage) return;
     setExtracting(true);
     try {
-      const md = await ocrImageAsset(userId, locale, pickedImage);
+      const md = await ocrImageAsset(userId, locale, pickedImage, isMinor === true);
       setBody(md);
     } catch (e) {
       Alert.alert(
