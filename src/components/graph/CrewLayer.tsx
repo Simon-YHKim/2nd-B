@@ -12,6 +12,7 @@
 import type { ReactNode } from "react";
 import { View, StyleSheet } from "react-native";
 
+import { LivingAsset } from "@/components/motion/LivingAsset";
 import { crewLayout } from "@/lib/graph/crew-layout";
 
 export interface CrewLayerProps {
@@ -28,7 +29,7 @@ export interface CrewLayerProps {
   renderCrew?: (index: number, size: number) => ReactNode;
 }
 
-export function CrewLayer({ count, visible = true, width, height, renderCrew }: CrewLayerProps) {
+export function CrewLayer({ count, animated, visible = true, width, height, renderCrew }: CrewLayerProps) {
   if (!visible || count <= 0 || !renderCrew) return null;
   const slots = crewLayout(count, width, height);
   return (
@@ -38,7 +39,13 @@ export function CrewLayer({ count, visible = true, width, height, renderCrew }: 
           key={i}
           style={{ position: "absolute", left: s.x - s.size / 2, top: s.y - s.size / 2, width: s.size, height: s.size }}
         >
-          {renderCrew(i, s.size)}
+          {animated ? (
+            <LivingAsset preset="crew" id={i} size={s.size} pointerEvents="none">
+              {renderCrew(i, s.size)}
+            </LivingAsset>
+          ) : (
+            renderCrew(i, s.size)
+          )}
         </View>
       ))}
     </View>
