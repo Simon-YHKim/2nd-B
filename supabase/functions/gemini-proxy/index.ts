@@ -18,10 +18,18 @@
 //   - Server-side crisis-term classifier rejects red-zone input (R1-A)
 //
 // Secrets the operator sets via the Supabase Dashboard:
-//   GEMINI_API_KEY                — the Google AI Studio key
+//   GEMINI_API_KEY          — the Google AI Studio key
+//   GEMINI_DAILY_CALL_CAP   — optional; per-user/day proxy-call ceiling
+//                             (cost backstop; default 500)
+// SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected automatically and used
+// for the server-side spend cap + ai_audit_log write.
 //
-// Audit-log writes still happen on the client after the reply lands.
-// The function owns the API key and the inbound safety boundary.
+// C3 (audit authority): the proxy now writes ai_audit_log itself with the
+// service-role key, so a direct/replayed POST that bypasses the React client
+// still leaves an audit trail. It returns { audited: true } on success; the
+// client skips its own insert in that case (no double-logging) and falls back
+// to a client-side write only when the proxy did not audit. The function owns
+// the API key, the inbound safety boundary, the spend cap, and the audit row.
 //
 // Request shape:
 //   {
@@ -35,6 +43,7 @@
 //   { text: string, modelUsed: string, latencyMs: number }
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const MODELS_ALLOWED = new Set(['gemini-2.5-flash', 'gemini-2.5-pro']);
 const GEMINI_ENDPOINT = (model: string) =>
@@ -44,6 +53,41 @@ const MAX_USER_LEN = 8000;
 const MAX_SYSTEM_LEN = 4000;
 const MAX_OUTPUT_TOKENS = 1024;
 const UPSTREAM_DETAIL_TRUNCATE = 80;
+
+// Audit HIGH (spend cap): per-user/day ceiling on TOTAL proxy calls (all
+// purposes), a cost backstop distinct from the product-level Jarvis chat cap
+// (chat_usage). Generous so it never blocks legitimate use; it exists to stop
+// a bypassed/replayed JWT from looping paid gemini-2.5-pro calls. Override via
+// the GEMINI_DAILY_CALL_CAP secret.
+const DEFAULT_DAILY_CALL_CAP = 500;
+
+// Mirror of src/lib/llm/gemini.ts:djb2 so the proxy's ai_audit_log row hashes
+// prompt/output identically to the client wrapper.
+function djb2(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(16);
+}
+
+// The JWT is already validated by the gateway (verify_jwt=true in config.toml),
+// so we only need to read the `sub` claim from the payload, not re-verify the
+// signature. Returns null if the token is malformed.
+function userIdFromJwt(authHeader: string): string | null {
+  try {
+    const token = authHeader.slice(authHeader.toLowerCase().indexOf('bearer ') + 7).trim();
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(b64 + '=='.slice(0, (4 - (b64.length % 4)) % 4)));
+    return typeof json?.sub === 'string' ? json.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+function utcDay(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 // Cap on inline image payload (base64 chars). ~2.6MB base64 ≈ 2MB binary.
 // Gemini Flash accepts up to 20MB but the proxy stays defensively small
 // so a single oversized OCR request can't bomb the request body cap.
@@ -131,7 +175,20 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'server_misconfigured_missing_GEMINI_API_KEY' }, 500);
   }
 
-  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown };
+  // user_id from the gateway-verified JWT — needed for the spend cap + audit row.
+  const userId = userIdFromJwt(authHeader);
+  if (!userId) return jsonResponse(req, { error: 'invalid_jwt' }, 401);
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceRoleKey) {
+    return jsonResponse(req, { error: 'server_misconfigured_supabase_env' }, 500);
+  }
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; responseSchema?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -141,6 +198,10 @@ Deno.serve(async (req: Request) => {
   const userText: string = typeof body?.user === 'string' ? body.user : '';
   const systemText: string | null = typeof body?.system === 'string' ? body.system : null;
   const model: string = typeof body?.model === 'string' ? body.model : 'gemini-2.5-flash';
+  // Structured-output schema (parity with the direct-client path). Threaded
+  // into generationConfig below so edge-routed callers (e.g. phase1) get JSON.
+  const responseSchema =
+    body?.responseSchema && typeof body.responseSchema === 'object' ? body.responseSchema : null;
 
   // Optional image attachment for multimodal OCR / image-grounded prompts.
   // Validated tightly: mime allowlist + base64 length cap.
@@ -209,6 +270,29 @@ Deno.serve(async (req: Request) => {
   if (systemText && systemText.length > 0) systemParts.push({ text: systemText });
   geminiBody.systemInstruction = { parts: systemParts };
 
+  if (responseSchema) {
+    const gc = geminiBody.generationConfig as Record<string, unknown>;
+    gc.responseMimeType = 'application/json';
+    gc.responseSchema = responseSchema;
+  }
+
+  // Spend cap (cost backstop) — server-authoritative, BEFORE any paid upstream
+  // call. bump_gemini_spend raises gemini_spend_exceeded at the per-user/day
+  // ceiling. If the counter is unavailable (e.g. migration not yet applied) we
+  // fail open so the cap can never hard-break live LLM, logging for monitoring.
+  const dailyCap = Number(Deno.env.get('GEMINI_DAILY_CALL_CAP')) || DEFAULT_DAILY_CALL_CAP;
+  const { error: spendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
+    p_user_id: userId,
+    p_day: utcDay(),
+    p_cap: dailyCap,
+  });
+  if (spendErr) {
+    if ((spendErr.message ?? '').includes('gemini_spend_exceeded')) {
+      return jsonResponse(req, { error: 'daily_limit_exceeded' }, 429);
+    }
+    console.warn('[gemini-proxy] spend bump failed, failing open:', spendErr.message);
+  }
+
   const t0 = Date.now();
   let upstream: Response;
   try {
@@ -238,5 +322,28 @@ Deno.serve(async (req: Request) => {
   const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
   const modelUsed: string = data?.modelVersion ?? model;
 
-  return jsonResponse(req, { text, modelUsed, latencyMs });
+  // C3: write the audit row server-side so a bypassed/replayed POST is still
+  // logged. safety_zone is coarse here (crisis re-check on the output) vs the
+  // client's richer classifier, which is acceptable for the bypass-defense
+  // purpose. On success we tell the client (audited:true) so it skips its own
+  // insert; on failure the client falls back to writing the row itself. The
+  // prompt hash mirrors the client (system+user only, excluding the preamble).
+  let audited = false;
+  try {
+    const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
+      user_id: userId,
+      prompt_hash: djb2(`${systemText ?? ''}${userText}`),
+      output_hash: djb2(text),
+      model_used: modelUsed,
+      vertex_backend: false,
+      safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
+      latency_ms: latencyMs,
+    });
+    audited = !auditErr;
+    if (auditErr) console.warn('[gemini-proxy] audit insert failed:', auditErr.message);
+  } catch (e) {
+    console.warn('[gemini-proxy] audit insert threw:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
+  }
+
+  return jsonResponse(req, { text, modelUsed, latencyMs, audited });
 });
