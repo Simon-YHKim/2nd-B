@@ -7,7 +7,8 @@
 // so the user sees where the interview is heading.
 //
 // Source of truth for layers/periods is src/lib/interview/probe.ts.
-// Visual language matches darkSky palette (semantic.darkSky.*).
+// Visual language uses the cosmic palette: a signalBlue intensity ramp with a
+// signalMint active-cell glow.
 
 import { StyleSheet, View } from "react-native";
 
@@ -21,7 +22,7 @@ import {
   type DrillLayer,
   type LifePeriod,
 } from "@/lib/interview/probe";
-import { darkSky } from "@/lib/theme/tokens";
+import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
 interface Props {
@@ -34,10 +35,10 @@ interface Props {
 }
 
 function cellTone(count: number): { bg: string; border: string; text: string } {
-  if (count <= 0) return { bg: "rgba(143,183,244,0.05)", border: darkSky.border, text: darkSky.textSubtle };
-  if (count === 1) return { bg: "rgba(47,151,252,0.18)", border: "rgba(47,151,252,0.35)", text: darkSky.accent };
-  if (count === 2) return { bg: "rgba(47,151,252,0.32)", border: "rgba(47,151,252,0.55)", text: darkSky.text };
-  return { bg: "rgba(47,151,252,0.55)", border: darkSky.brand, text: darkSky.text };
+  if (count <= 0) return { bg: semantic.surfaceAlt, border: semantic.border, text: semantic.textSubtle };
+  if (count === 1) return { bg: withAlpha(cosmic.signalBlue, 0.18), border: withAlpha(cosmic.signalBlue, 0.35), text: cosmic.signalBlue };
+  if (count === 2) return { bg: withAlpha(cosmic.signalBlue, 0.32), border: withAlpha(cosmic.signalBlue, 0.55), text: semantic.text };
+  return { bg: withAlpha(cosmic.signalBlue, 0.55), border: cosmic.signalBlue, text: semantic.text };
 }
 
 function shortPeriodLabel(p: LifePeriod, locale: "en" | "ko"): string {
@@ -107,10 +108,10 @@ export function DrillProgress({ coverage, locale, activePeriod, activeLayer }: P
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: darkSky.surface,
+    backgroundColor: semantic.surface,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: darkSky.border,
+    borderColor: semantic.border,
     padding: 8,
     gap: 4,
   },
@@ -131,8 +132,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cellActive: {
-    borderColor: darkSky.brand,
-    shadowColor: darkSky.brand,
+    borderColor: semantic.brand,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.7,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
@@ -140,7 +141,7 @@ const styles = StyleSheet.create({
   cellText: { fontSize: 11, fontWeight: "700", fontFamily: fontFamilies.mono },
   headerCell: { aspectRatio: undefined, paddingVertical: 4 },
   headerCellActive: {},
-  headerLabel: { fontSize: 10, color: darkSky.textSubtle, letterSpacing: 0, fontWeight: "600" },
-  headerLabelActive: { color: darkSky.brand },
-  headerMicro: { fontSize: 9, color: darkSky.textSubtle, letterSpacing: 0 },
+  headerLabel: { fontSize: 10, color: semantic.textSubtle, letterSpacing: 0, fontWeight: "600" },
+  headerLabelActive: { color: semantic.brand },
+  headerMicro: { fontSize: 9, color: semantic.textSubtle, letterSpacing: 0 },
 });
