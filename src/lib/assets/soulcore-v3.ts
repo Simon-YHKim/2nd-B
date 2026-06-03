@@ -32,6 +32,15 @@ import CrewAnnoyed from "../../../public/assets/cosmic-pixel-v3-soulcore/momo-cr
 import CrewOverworked from "../../../public/assets/cosmic-pixel-v3-soulcore/momo-crew/sprites/momo_crew_overworked.svg";
 import CrewAngry from "../../../public/assets/cosmic-pixel-v3-soulcore/momo-crew/sprites/momo_crew_angry.svg";
 
+import PatternDataNode from "../../../public/assets/cosmic-pixel-v3-soulcore/mobile-graph/graph/pattern_data_node.svg";
+import LogChip from "../../../public/assets/cosmic-pixel-v3-soulcore/mobile-graph/graph/log_chip.svg";
+import PatternLinkFar from "../../../public/assets/cosmic-pixel-v3-soulcore/mobile-graph/edges/pattern_link_far_320.svg";
+import PatternLinkMid from "../../../public/assets/cosmic-pixel-v3-soulcore/mobile-graph/edges/pattern_link_mid_320.svg";
+import PatternLinkCurrent from "../../../public/assets/cosmic-pixel-v3-soulcore/mobile-graph/edges/pattern_link_current_320.svg";
+import PatternLinkNear from "../../../public/assets/cosmic-pixel-v3-soulcore/mobile-graph/edges/pattern_link_near_320.svg";
+import PatternConnectionPulse from "../../../public/assets/cosmic-pixel-v3-soulcore/mobile-graph/overlays/pattern_connection_pulse.svg";
+import SoulFocusGlow from "../../../public/assets/cosmic-pixel-v3-soulcore/mobile-graph/overlays/soul_focus_glow.svg";
+
 // Legacy IslandArt id → v3 Pattern-Core component. `imagine` is intentionally
 // absent (the imagine core was retired in worldview v-final) → PNG fallback.
 export const V3_CORE_ART: Record<string, FC<SvgProps>> = {
@@ -66,3 +75,27 @@ export const V3_CREW_ART: FC<SvgProps>[] = [
   CrewOverworked,
   CrewAngry,
 ];
+
+// Tier 3 (Pattern Data) + Tier 4 (Log) node art — single components (vs the
+// per-id core map). Wired into NavGraph behind EXPO_PUBLIC_USE_V3_ART; the
+// flag-off path keeps rendering the legacy TierIcon metaphor icons untouched.
+export const V3_DATA_ART: FC<SvgProps> = PatternDataNode;
+export const V3_LOG_ART: FC<SvgProps> = LogChip;
+
+// Pattern Link edge tiles by depth state (far -> near + the active "current").
+// Ready for the textured-edge pass; NavGraph currently styles its AnimatedLine
+// by depth color (rotating a tile along an animated edge is a separate change),
+// so these are exported but not yet mounted — they drop in when that lands.
+export const V3_EDGE_ART: Record<"far" | "mid" | "current" | "near", FC<SvgProps>> = {
+  far: PatternLinkFar,
+  mid: PatternLinkMid,
+  current: PatternLinkCurrent,
+  near: PatternLinkNear,
+};
+
+// Graph overlays — connection pulse + soul focus glow. Exported for the overlay
+// pass (not yet mounted in NavGraph).
+export const V3_OVERLAY_ART: Record<"pulse" | "focusGlow", FC<SvgProps>> = {
+  pulse: PatternConnectionPulse,
+  focusGlow: SoulFocusGlow,
+};

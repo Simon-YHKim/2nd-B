@@ -30,9 +30,8 @@ import { VILLAGE_UI } from "@/lib/village-ui";
 const CONFIRM_PHRASE = "DELETE";
 
 export default function Account() {
-  const { t, i18n } = useTranslation("consent");
+  const { t } = useTranslation("consent");
   const { userId, loading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [origDob, setOrigDob] = useState<string | null>(null);
   const [birthDate, setBirthDate] = useState("");
@@ -184,7 +183,7 @@ export default function Account() {
           />
           <Button
             label={t("account.delete.button")}
-            variant="primary"
+            variant="danger"
             disabled={deleteConfirm !== CONFIRM_PHRASE || deleting}
             loading={deleting}
             onPress={onDeleteAccount}

@@ -4,6 +4,7 @@
 
 import type { ReactNode } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   type PressableProps,
   StyleSheet,
@@ -130,14 +131,14 @@ type BtnVariant = "primary" | "secondary" | "ghost" | "danger";
 
 const BTN_BG: Record<BtnVariant, string> = {
   primary: cosmic.signalMint,
-  secondary: "rgba(167,139,250,0.16)",
-  ghost: "transparent",
-  danger: "rgba(255,122,144,0.16)",
+  secondary: cosmic.space700,
+  ghost: "rgba(141,152,184,0.08)",
+  danger: "rgba(255,122,144,0.22)",
 };
 const BTN_BORDER: Record<BtnVariant, string> = {
   primary: cosmic.signalMint,
-  secondary: "rgba(167,139,250,0.55)",
-  ghost: cosmic.lineDim,
+  secondary: "rgba(141,152,184,0.56)",
+  ghost: "rgba(141,152,184,0.46)",
   danger: cosmic.guardRose,
 };
 const BTN_FG: Record<BtnVariant, string> = {
@@ -146,9 +147,9 @@ const BTN_FG: Record<BtnVariant, string> = {
   ghost: cosmic.moonWhite,
   danger: cosmic.guardRose,
 };
-const BTN_DISABLED_BG = "rgba(141,152,184,0.12)";
-const BTN_DISABLED_BORDER = "rgba(141,152,184,0.28)";
-const BTN_DISABLED_FG = "rgba(232,236,248,0.66)";
+const BTN_DISABLED_BG = "rgba(167,139,250,0.20)";
+const BTN_DISABLED_BORDER = "rgba(167,139,250,0.48)";
+const BTN_DISABLED_FG = "rgba(232,236,248,0.72)";
 
 export interface PremiumButtonProps extends Omit<PressableProps, "children" | "style"> {
   label: string;
@@ -167,6 +168,10 @@ export function PremiumButton({
   disabled,
   full,
   style,
+  onPress,
+  onLongPress,
+  onPressIn,
+  onPressOut,
   ...rest
 }: PremiumButtonProps) {
   const isDisabled = disabled || loading;
@@ -176,33 +181,67 @@ export function PremiumButton({
       : variant === "danger"
         ? cosmic.guardRose
         : cosmic.soulViolet;
+  const fullStyle: ViewStyle | null = full ? { alignSelf: "stretch", width: "100%" } : null;
+  const colorStyle: ViewStyle = {
+    backgroundColor: BTN_BG[variant],
+    borderColor: BTN_BORDER[variant],
+    shadowColor: glowColor,
+  };
+  const disabledStyle: ViewStyle | null = isDisabled
+    ? { backgroundColor: BTN_DISABLED_BG, borderColor: BTN_DISABLED_BORDER, shadowOpacity: 0 }
+    : null;
+  const buttonStyle: StyleProp<ViewStyle> = [
+    styles.btn,
+    fullStyle,
+    colorStyle,
+    variant !== "ghost" ? styles.btnGlow : null,
+    disabledStyle,
+    style,
+  ];
+  const buttonContent = (
+    <>
+      {loading ? (
+        <ActivityIndicator size="small" color={isDisabled ? BTN_DISABLED_FG : BTN_FG[variant]} style={styles.btnIcon} />
+      ) : icon ? (
+        <View style={styles.btnIcon}>{icon}</View>
+      ) : null}
+      <Text style={[styles.btnLabel, { color: isDisabled ? BTN_DISABLED_FG : BTN_FG[variant] }]}>
+        {label}
+      </Text>
+    </>
+  );
+
+  if (isDisabled) {
+    return (
+      <View
+        accessibilityRole="button"
+        accessibilityState={{ disabled: true, busy: loading }}
+        style={buttonStyle}
+      >
+        {buttonContent}
+      </View>
+    );
+  }
+
   return (
     <Pressable
       {...rest}
-      disabled={isDisabled}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       accessibilityRole="button"
-      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      accessibilityState={{ disabled: false, busy: false }}
       style={({ pressed }) => [
         styles.btn,
-        full ? { alignSelf: "stretch" } : null,
-        {
-          backgroundColor: BTN_BG[variant],
-          borderColor: BTN_BORDER[variant],
-          shadowColor: glowColor,
-        },
+        fullStyle,
+        colorStyle,
         variant !== "ghost" ? styles.btnGlow : null,
-        isDisabled
-          ? { backgroundColor: BTN_DISABLED_BG, borderColor: BTN_DISABLED_BORDER, shadowOpacity: 0 }
-          : pressed
-            ? { opacity: 0.82 }
-            : null,
         style,
+        pressed ? { opacity: 0.82 } : null,
       ]}
     >
-      {icon ? <View style={styles.btnIcon}>{icon}</View> : null}
-      <Text style={[styles.btnLabel, { color: isDisabled ? BTN_DISABLED_FG : BTN_FG[variant] }]}>
-        {loading ? "…" : label}
-      </Text>
+      {buttonContent}
     </Pressable>
   );
 }
@@ -348,10 +387,17 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: radii.md,
     borderWidth: 1,
+    elevation: 1,
   },
   btnGlow: { shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 0 } },
   btnIcon: {},
-  btnLabel: { fontFamily: fontFamilies.sans, fontWeight: "700", fontSize: 14, letterSpacing: 0 },
+  btnLabel: {
+    fontFamily: fontFamilies.sans,
+    fontWeight: "700",
+    fontSize: 14,
+    letterSpacing: 0,
+    textAlign: "center",
+  },
   cta: { paddingVertical: spacing.lg, borderRadius: radii.md },
   iconBtn: {
     width: 44,

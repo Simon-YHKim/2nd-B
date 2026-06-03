@@ -5,8 +5,10 @@
 // users_birth_date_sane CHECK (0028) is a further backstop.
 
 import dayjs from "dayjs";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { digitalConsentAge } from "../auth/consent-age";
 import { isJudgeEmail } from "../judge/domains";
+import { getEnv } from "../env";
 import { getSupabaseClient } from "./client";
 
 // C10 age tiers: adult users and 14-17 minors self-consent and register
@@ -112,19 +114,34 @@ export async function getCurrentUserId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
-// --- OAuth (Google native) -----------------------------------------------
+// --- OAuth (Google / Apple / Kakao) --------------------------------------
 //
-// Native iOS/Android builds (Sprint 1+) will need a deep-link scheme; for
-// Expo Web on GitHub Pages we redirect back to the current origin. The
-// Supabase project must have Google enabled and the redirect URL allowed
-// in the Auth → URL Configuration page.
+// Google, Apple, and Kakao are Supabase-native social providers, so they all
+// go through the same signInWithOAuth() path via signInWithProvider(). Each must
+// be enabled (with its client id/secret) in the Supabase dashboard, and the
+// redirect URL allowed under Auth -> URL Configuration. On Expo Web (GitHub
+// Pages) Supabase navigates the page directly; on native iOS/Android we open the
+// provider URL with expo-web-browser and convert the callback into a session
+// (openNativeOAuthSession). Naver is NOT a built-in Supabase provider; it needs a
+// custom OAuth edge function (see docs/AUTH_PROVIDERS.md) and is excluded here.
+
+// OAuth providers we support via Supabase's built-in social login. (Naver is
+// intentionally excluded: it is not a Supabase provider; see the doc above.)
+export type OAuthProvider = "google" | "apple" | "kakao";
 
 export interface OAuthRedirect {
   url: string;
 }
 
+type ExpoLinkingModule = typeof import("expo-linking");
+type ExpoWebBrowserModule = typeof import("expo-web-browser");
+
+function isWebRuntime(): boolean {
+  return typeof window !== "undefined" && typeof document !== "undefined";
+}
+
 function defaultRedirectTo(): string | undefined {
-  if (typeof window === "undefined") return undefined;
+  if (!isWebRuntime()) return nativeRedirectTo();
   // ALWAYS return to the app root, not window.location.pathname.
   // If the user clicked Google from /sign-in, using pathname would
   // send them back to /sign-in post-OAuth — they'd see the sign-in
@@ -139,17 +156,196 @@ function defaultRedirectTo(): string | undefined {
   return `${window.location.origin}${base}`;
 }
 
-export async function signInWithGoogle(redirectTo?: string): Promise<OAuthRedirect | null> {
+function nativeRedirectTo(): string | undefined {
+  try {
+    const Linking = require("expo-linking") as ExpoLinkingModule;
+    return Linking.createURL("/");
+  } catch {
+    return undefined;
+  }
+}
+
+function authParamsFromUrl(url: string): Record<string, string> {
+  const params = new URLSearchParams();
+  const [withoutHash, hash = ""] = url.split("#");
+  const query = withoutHash.split("?")[1] ?? "";
+  for (const source of [query, hash]) {
+    const sourceParams = new URLSearchParams(source);
+    sourceParams.forEach((value, key) => params.set(key, value));
+  }
+  return Object.fromEntries(params.entries());
+}
+
+async function createNativeSessionFromUrl(supabase: SupabaseClient, url: string): Promise<void> {
+  const params = authParamsFromUrl(url);
+  const errorCode = params.error_code ?? params.errorCode;
+  if (errorCode) throw new Error(params.error_description ?? errorCode);
+
+  if (params.code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(params.code);
+    if (error) throw error;
+    return;
+  }
+
+  if (params.access_token && params.refresh_token) {
+    const { error } = await supabase.auth.setSession({
+      access_token: params.access_token,
+      refresh_token: params.refresh_token,
+    });
+    if (error) throw error;
+  }
+}
+
+async function openNativeOAuthSession(
+  supabase: SupabaseClient,
+  authUrl: string,
+  redirectTo: string | undefined,
+): Promise<OAuthRedirect | null> {
+  const WebBrowser = require("expo-web-browser") as ExpoWebBrowserModule;
+  const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
+  if (result.type !== "success") return null;
+  await createNativeSessionFromUrl(supabase, result.url);
+  return { url: result.url };
+}
+
+// Start a Supabase social-login redirect for the given provider. On Web,
+// Supabase navigates the page directly; data.url is informational. On native,
+// open the provider URL and convert the callback URL into a Supabase session so
+// AuthContext can continue the normal app hand-off.
+export async function signInWithProvider(
+  provider: OAuthProvider,
+  redirectTo?: string,
+): Promise<OAuthRedirect | null> {
   const supabase = getSupabaseClient();
+  const isWeb = isWebRuntime();
+  const resolvedRedirectTo = redirectTo ?? defaultRedirectTo();
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: redirectTo ?? defaultRedirectTo() },
+    provider,
+    options: {
+      redirectTo: resolvedRedirectTo,
+      skipBrowserRedirect: !isWeb,
+    },
   });
   if (error) throw error;
-  // On Web, Supabase navigates the page directly; data.url is informational.
-  // On native we'd open data.url via expo-web-browser — that path lands when
-  // native builds come online.
+  if (!isWeb && data.url) return openNativeOAuthSession(supabase, data.url, resolvedRedirectTo);
   return data.url ? { url: data.url } : null;
+}
+
+export function signInWithGoogle(redirectTo?: string): Promise<OAuthRedirect | null> {
+  return signInWithProvider("google", redirectTo);
+}
+
+export function signInWithApple(redirectTo?: string): Promise<OAuthRedirect | null> {
+  return signInWithProvider("apple", redirectTo);
+}
+
+export function signInWithKakao(redirectTo?: string): Promise<OAuthRedirect | null> {
+  return signInWithProvider("kakao", redirectTo);
+}
+
+// --- Naver social login (custom OAuth via the oauth-naver edge function) ------
+//
+// Naver is NOT a Supabase-native provider, so we drive the OAuth ourselves:
+//   1. signInWithNaver() redirects the browser to Naver's authorize page with a
+//      random `state` stashed in sessionStorage (CSRF defense).
+//   2. Naver returns to /oauth-callback with ?code&state.
+//   3. completeNaverOAuth() verifies the returned state matches (CSRF check),
+//      hands the code to the oauth-naver edge function, and signs the user in
+//      with the magic-link token_hash it returns (verifyOtp). New users then
+//      route through /complete-profile (DOB + consent), like every provider.
+// Gated behind EXPO_PUBLIC_ENABLE_NAVER + a configured client id (and the
+// server's ENABLE_NAVER_OAUTH). Web-only for now; native lands with the other
+// providers' native path. See docs/AUTH_PROVIDERS.md.
+
+const NAVER_AUTHORIZE_URL = "https://nid.naver.com/oauth2.0/authorize";
+const NAVER_STATE_KEY = "secondB_naver_oauth_state";
+
+export function isNaverEnabled(): boolean {
+  const env = getEnv();
+  return env.EXPO_PUBLIC_ENABLE_NAVER && !!env.EXPO_PUBLIC_NAVER_CLIENT_ID;
+}
+
+// Callback URL Naver redirects back to. Must be registered in the Naver console
+// AND match the value the edge function forwards to Naver's token exchange.
+function naverRedirectUri(): string {
+  if (typeof window === "undefined") return "";
+  const path = window.location.pathname;
+  const base = path.startsWith("/2nd-B/") ? "/2nd-B/" : "/";
+  return `${window.location.origin}${base}oauth-callback`;
+}
+
+function randomState(): string {
+  const g = globalThis as unknown as { crypto?: { getRandomValues?: (a: Uint8Array) => Uint8Array } };
+  if (g.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    g.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  // Fallback only if no CSPRNG (shouldn't happen on web); state is still echoed.
+  return `${Date.now().toString(16)}${Math.floor(Math.random() * 1e16).toString(16)}`;
+}
+
+// Web: redirect to Naver's authorize page. Throws if Naver isn't configured.
+export function signInWithNaver(): void {
+  const env = getEnv();
+  const clientId = env.EXPO_PUBLIC_NAVER_CLIENT_ID;
+  if (!env.EXPO_PUBLIC_ENABLE_NAVER || !clientId) throw new Error("Naver login is not enabled.");
+  if (typeof window === "undefined") throw new Error("Naver login is web-only for now.");
+  const state = randomState();
+  try {
+    window.sessionStorage?.setItem(NAVER_STATE_KEY, state);
+  } catch {
+    // sessionStorage unavailable (private mode) — the state echo can't be
+    // verified on return, so completeNaverOAuth() will reject. User can retry.
+  }
+  const url = new URL(NAVER_AUTHORIZE_URL);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("client_id", clientId);
+  url.searchParams.set("redirect_uri", naverRedirectUri());
+  url.searchParams.set("state", state);
+  window.location.href = url.toString();
+}
+
+export interface NaverCallbackParams {
+  code: string;
+  state: string;
+}
+
+// Complete the Naver flow after the redirect: verify the state echo (CSRF),
+// exchange the code via the edge function, and sign in with the magic-link
+// token it returns. Returns the user id.
+export async function completeNaverOAuth(params: NaverCallbackParams): Promise<{ userId: string }> {
+  let stored: string | null = null;
+  try {
+    stored = window.sessionStorage?.getItem(NAVER_STATE_KEY) ?? null;
+  } catch {
+    stored = null;
+  }
+  // CSRF: the state Naver echoes back must equal the one we issued.
+  if (!params.state || !stored || stored !== params.state) {
+    throw new Error("Naver sign-in state mismatch (possible CSRF). Please try again.");
+  }
+  try {
+    window.sessionStorage?.removeItem(NAVER_STATE_KEY);
+  } catch {
+    /* ignore */
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.functions.invoke("oauth-naver", {
+    body: { code: params.code, state: params.state, redirect_uri: naverRedirectUri() },
+  });
+  if (error) throw error;
+  const tokenHash = (data as { token_hash?: string } | null)?.token_hash;
+  if (!tokenHash) throw new Error("Naver sign-in could not be completed.");
+
+  const { data: otp, error: otpErr } = await supabase.auth.verifyOtp({
+    token_hash: tokenHash,
+    type: "magiclink",
+  });
+  if (otpErr) throw otpErr;
+  if (!otp.user) throw new Error("Naver sign-in returned no user.");
+  return { userId: otp.user.id };
 }
 
 // --- Profile completion (OAuth post-step) --------------------------------

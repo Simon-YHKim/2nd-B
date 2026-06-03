@@ -85,12 +85,10 @@ export function PremiumAppShell({
   padded?: boolean;
 }) {
   const pathname = usePathname();
-  // When the floating back arrow is shown on a NON-tab screen it sits flush
-  // top-left over the content; reserve extra top padding so the first heading
-  // never collides with it (2026-05-31 directive: check text overlap). Tab
-  // screens keep the arrow shifted right of the brand chip, so their heading
-  // stays at the normal top.
-  const needsArrowHeadroom = backArrowVisible(pathname) && !isTabPath(pathname);
+  // When the floating back arrow is shown it sits above the content lane;
+  // reserve top padding so first headings never collide with it. This also
+  // applies to tab destinations, which still render full screen titles.
+  const needsArrowHeadroom = backArrowVisible(pathname);
   // Tab screens render under the absolute bottom tab bar; reserve its height so
   // a screen's last element (e.g. the 세컨비 chat composer / send button) isn't
   // hidden behind it. Applies regardless of `padded` (horizontal-only).
