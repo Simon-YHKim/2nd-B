@@ -175,7 +175,7 @@ function TrackGlyph({ id, color }: { id: WikiTrack; color: string }) {
 
 export default function Capture() {
   const { i18n } = useTranslation("capture");
-  const { userId, loading, isMinor } = useAuth();
+  const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [mode, setMode] = useState<Mode>("journal");
@@ -248,6 +248,9 @@ export default function Capture() {
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
+  // OAuth mints a session before the profile/DOB + PIPA consent exist; a
+  // no-profile session must not reach the capture/OCR LLM path (C10 + consent).
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
   // 일기(journal) entitlement — unlocks at Lv3, then the free tier allows a
   // fixed number of entries. Other modes write to `sources` and were never

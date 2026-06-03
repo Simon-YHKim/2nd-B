@@ -85,7 +85,7 @@ function writeIntroDismissed(kind: "today" | "permanent"): void {
 
 export default function Jarvis() {
   const { t, i18n } = useTranslation("jarvis");
-  const { userId, loading: authLoading, isMinor } = useAuth();
+  const { userId, loading: authLoading, isMinor, hasProfile } = useAuth();
   const progression = useProgression();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -182,6 +182,11 @@ export default function Jarvis() {
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
+  // OAuth mints a session before the profile/DOB + PIPA consent exist. A
+  // no-profile session must not reach an LLM/crisis surface: route it to
+  // /complete-profile (C10 age gate + consent; also fixes minor crisis-routing,
+  // which keys off isMinor that is null until the birth date is on file).
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
   async function handleSend(): Promise<void> {
     if (!userId) return;

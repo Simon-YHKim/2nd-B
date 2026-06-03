@@ -21,7 +21,7 @@ const PERIOD_OPTIONS: { id: AuditPeriod; label: { en: string; ko: string } }[] =
 
 export default function Audit() {
   const { i18n } = useTranslation();
-  const { userId, loading, isMinor } = useAuth();
+  const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [period, setPeriod] = useState<AuditPeriod | null>(null);
@@ -43,6 +43,9 @@ export default function Audit() {
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
+  // No-profile OAuth session (DOB/consent not yet collected) must not reach the
+  // audit LLM surface — route to /complete-profile (C10 age gate + consent).
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
   const current = questions[index];
 
