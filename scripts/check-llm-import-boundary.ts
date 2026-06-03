@@ -28,7 +28,9 @@ const importRegexes: { name: string; pattern: RegExp; allowed: string[] }[] = [
   {
     name: "audit module (C3)",
     pattern: /from\s+["'](?:\.\.?\/)+supabase\/audit["']|from\s+["']@\/lib\/supabase\/audit["']/,
-    allowed: [GEMINI_WRAPPER, ...GEMINI_TESTS],
+    // safety.ts audits its own client-side Flash classifier call (C3); it is a
+    // sanctioned LLM-boundary module (already allowed to import @google/genai).
+    allowed: [GEMINI_WRAPPER, SAFETY_LLM, ...GEMINI_TESTS],
   },
   {
     name: "crisis_events module (C3-adjacent)",

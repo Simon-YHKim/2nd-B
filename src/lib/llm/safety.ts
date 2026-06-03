@@ -17,6 +17,11 @@ import { GoogleGenAI } from "@google/genai";
 
 import { getEnv } from "../env";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
+// C3: the Flash classifier makes a real Gemini call client-side (not via the
+// gemini-proxy), so the proxy never logs it. This module audits its own call.
+// safety.ts is a sanctioned LLM-boundary module (already C1-allowlisted for
+// @google/genai); the audit allowlist (check-llm-import-boundary.ts) covers it.
+import { insertAiAuditLog } from "../supabase/audit";
 
 export type SafetyZone = "green" | "yellow" | "red";
 
@@ -115,7 +120,19 @@ function mergeResults(a: SafetyResult, b: SafetyResult): SafetyResult {
   };
 }
 
-export async function classifySafety(userMessage: string, locale: "en" | "ko"): Promise<SafetyResult> {
+// djb2 hash for the ai_audit_log prompt/output (mirrors gemini.ts / gemini-proxy
+// so the classifier's audit row hashes consistently with the rest of C3).
+function djb2(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(16);
+}
+
+export async function classifySafety(
+  userMessage: string,
+  locale: "en" | "ko",
+  opts?: { userId?: string },
+): Promise<SafetyResult> {
   // Layer 1: lexicon. Always runs synchronously.
   const lex = lexiconToResult(userMessage, locale);
 
@@ -126,6 +143,7 @@ export async function classifySafety(userMessage: string, locale: "en" | "ko"): 
   }
 
   try {
+    const t0 = Date.now();
     const res = await client.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [
@@ -145,23 +163,47 @@ export async function classifySafety(userMessage: string, locale: "en" | "ko"): 
         },
       },
     });
+    const latencyMs = Date.now() - t0;
     const text = (res.text ?? "").trim();
-    if (!text) return lex;
-    const parsed = JSON.parse(text) as {
-      zone: SafetyZone;
-      triggers?: string[];
-      confidence?: number;
-      cssrsLevel?: number | null;
-    };
-    const llm: SafetyResult = {
-      zone: parsed.zone,
-      triggers: parsed.triggers ?? [],
-      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.5,
-      cssrsLevel: (parsed.cssrsLevel as SafetyResult["cssrsLevel"]) ?? null,
-      source: "llm",
-      routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
-    };
-    return mergeResults(lex, llm);
+    let result: SafetyResult = lex;
+    if (text) {
+      const parsed = JSON.parse(text) as {
+        zone: SafetyZone;
+        triggers?: string[];
+        confidence?: number;
+        cssrsLevel?: number | null;
+      };
+      const llm: SafetyResult = {
+        zone: parsed.zone,
+        triggers: parsed.triggers ?? [],
+        confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.5,
+        cssrsLevel: (parsed.cssrsLevel as SafetyResult["cssrsLevel"]) ?? null,
+        source: "llm",
+        routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
+      };
+      result = mergeResults(lex, llm);
+    }
+    // C3: a real Gemini Flash call happened. The classifier runs client-side (not
+    // via the gemini-proxy), so the proxy never logs it — audit it here,
+    // best-effort, when attributable to a user. On the public web build the Flash
+    // client has no key (getFlashClient() === null) so we never reach this; this
+    // closes the C3 gap on native/Vertex live builds.
+    if (opts?.userId) {
+      try {
+        await insertAiAuditLog({
+          userId: opts.userId,
+          promptHash: djb2(`${SYSTEM_PROMPT}${userMessage}`),
+          outputHash: djb2(text),
+          modelUsed: "gemini-2.5-flash",
+          vertexBackend: getEnv().EXPO_PUBLIC_USE_VERTEX,
+          safetyZone: result.zone,
+          latencyMs,
+        });
+      } catch (e) {
+        if (typeof console !== "undefined") console.warn("[safety] classifier audit failed", e);
+      }
+    }
+    return result;
   } catch (e) {
     if (typeof console !== "undefined") console.warn("[safety] llm classifier failed, using lexicon", e);
     return lex;
