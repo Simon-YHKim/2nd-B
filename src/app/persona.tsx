@@ -19,14 +19,17 @@ import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 export default function Persona() {
   const { i18n } = useTranslation();
-  const { userId, loading } = useAuth();
+  const { userId, loading, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [building, setBuilding] = useState(false);
   const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
   useEffect(() => {
-    if (!userId) return;
+    // buildPersona() calls Gemini on mount — don't fire it for a no-profile
+    // OAuth session (the render guard below redirects it to /complete-profile,
+    // but the effect runs regardless, so gate it here too). C10 + consent.
+    if (!userId || hasProfile === false) return;
     setBuilding(true);
     buildPersona(userId, locale)
       .then((p) => {
@@ -36,7 +39,7 @@ export default function Persona() {
       })
       .catch((e) => Alert.alert("Persona failed", (e as Error).message))
       .finally(() => setBuilding(false));
-  }, [userId, locale, fireCompanion]);
+  }, [userId, hasProfile, locale, fireCompanion]);
 
   if (loading || building) {
     return (
@@ -51,6 +54,7 @@ export default function Persona() {
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
   if (!persona) {
     const toolCards: { label: string; sub: string; route: "/audit" | "/big-five" | "/mbti" | "/attachment" }[] =
       locale === "ko"

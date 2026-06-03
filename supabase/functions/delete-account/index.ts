@@ -90,11 +90,13 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // knowledge_sources.verified_by references users(id) with no cascade; null it
-  // so the public.users delete is never blocked. (added_by is NOT NULL and
-  // can't be nulled, but a normal user never authors curated knowledge_sources,
-  // so in practice it doesn't reference them.)
+  // knowledge_sources.verified_by AND added_by both reference users(id) with NO
+  // ACTION (no cascade), so either one still pointing at this user blocks the
+  // public.users delete. Both are nullable (migration 0013) and a signed-in user
+  // CAN author a row (RLS ks_auth_insert: authenticated INSERT WITH CHECK
+  // added_by = auth.uid()), so null BOTH before the delete.
   await admin.from('knowledge_sources').update({ verified_by: null }).eq('verified_by', userId);
+  await admin.from('knowledge_sources').update({ added_by: null }).eq('added_by', userId);
 
   // 1. Delete the profile row — cascades to every user_id-owned table.
   const { error: profileErr } = await admin.from('users').delete().eq('id', userId);
@@ -108,6 +110,21 @@ Deno.serve(async (req: Request) => {
     // Profile + owned data are already gone; surface the auth-side failure so
     // the operator can finish removing the dangling auth row.
     return jsonResponse(req, { error: 'auth_delete_failed', detail: authErr.message, profile_deleted: true }, 500);
+  }
+
+  // 3. Remove the user's raw clipped markdown from Storage (raw-clippings bucket,
+  // <userId>/<slug>.md) — the most PII-rich content, NOT FK-linked so the
+  // public.users cascade never reaches it. Best-effort: the account is already
+  // erased, so a Storage hiccup must not fail the request.
+  try {
+    const { data: objs } = await admin.storage.from('raw-clippings').list(userId, { limit: 1000 });
+    if (objs && objs.length > 0) {
+      const paths = objs.map((o) => `${userId}/${o.name}`);
+      const { error: rmErr } = await admin.storage.from('raw-clippings').remove(paths);
+      if (rmErr) console.warn('[delete-account] raw-clippings remove failed:', rmErr.message);
+    }
+  } catch (e) {
+    console.warn('[delete-account] raw-clippings cleanup threw:', String(e));
   }
 
   return jsonResponse(req, { deleted: true });

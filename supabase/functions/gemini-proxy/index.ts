@@ -50,9 +50,9 @@ const GEMINI_ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
 const MAX_USER_LEN = 8000;
-// A curated/assembled prompt (e.g. the journal Advisor's RAG prompt) can be
-// larger than a chat turn; it rides in `user` while the genuine utterance comes
-// in `userMessage`. The genuine utterance still uses MAX_USER_LEN.
+// A curated/assembled prompt (e.g. the journal Advisor's RAG) can exceed a chat
+// turn; it rides in the `system` channel, which gets this larger cap. The `user`
+// turn (the genuine utterance, which IS crisis-scanned) keeps MAX_USER_LEN.
 const MAX_ASSEMBLED_LEN = 24000;
 const MAX_SYSTEM_LEN = 4000;
 const MAX_OUTPUT_TOKENS = 1024;
@@ -192,7 +192,7 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; responseSchema?: unknown; userMessage?: unknown };
+  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; responseSchema?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -201,12 +201,6 @@ Deno.serve(async (req: Request) => {
 
   const userText: string = typeof body?.user === 'string' ? body.user : '';
   const systemText: string | null = typeof body?.system === 'string' ? body.system : null;
-  // The genuine end-user utterance, separate from a curated/assembled `user`
-  // prompt. When supplied (the journal Advisor sends its RAG-assembled prompt as
-  // `user` plus the raw entry here), the inbound crisis re-check runs on THIS,
-  // not on the curated prompt — which legitimately quotes crisis-detection
-  // reference material and would otherwise false-positive (422) on every call.
-  const userMessage: string | null = typeof body?.userMessage === 'string' ? body.userMessage : null;
   const model: string = typeof body?.model === 'string' ? body.model : 'gemini-2.5-flash';
   // Structured-output schema (parity with the direct-client path). Threaded
   // into generationConfig below so edge-routed callers (e.g. phase1) get JSON.
@@ -232,30 +226,26 @@ Deno.serve(async (req: Request) => {
   }
 
   if (userText.length === 0) return jsonResponse(req, { error: 'user_required' }, 400);
-  // A curated/assembled prompt (userMessage present) may exceed a chat turn; the
-  // genuine utterance is still capped at the chat size.
-  const userCap = userMessage !== null ? MAX_ASSEMBLED_LEN : MAX_USER_LEN;
-  if (userText.length > userCap) {
-    return jsonResponse(req, { error: 'user_too_long', max: userCap, got: userText.length }, 413);
+  if (userText.length > MAX_USER_LEN) {
+    return jsonResponse(req, { error: 'user_too_long', max: MAX_USER_LEN, got: userText.length }, 413);
   }
-  if (userMessage !== null && userMessage.length > MAX_USER_LEN) {
-    return jsonResponse(req, { error: 'user_message_too_long', max: MAX_USER_LEN, got: userMessage.length }, 413);
-  }
-  if (systemText && systemText.length > MAX_SYSTEM_LEN) {
-    return jsonResponse(req, { error: 'system_too_long', max: MAX_SYSTEM_LEN, got: systemText.length }, 413);
+  // `system` carries the curated/assembled prompt (e.g. the Advisor's RAG), which
+  // can exceed a chat turn — allow the larger assembled cap there.
+  if (systemText && systemText.length > MAX_ASSEMBLED_LEN) {
+    return jsonResponse(req, { error: 'system_too_long', max: MAX_ASSEMBLED_LEN, got: systemText.length }, 413);
   }
   if (!MODELS_ALLOWED.has(model)) return jsonResponse(req, { error: 'model_not_allowed' }, 400);
 
   // R1-A: server-side crisis classifier. Reject before any Gemini call so a
-  // bypassed client cannot route red-zone USER input around C9. We check ONLY
-  // the genuine user utterance (userMessage when supplied, else `user`) — NOT
-  // the curated `system`/assembled prompt, which is app-controlled and
-  // legitimately carries crisis-detection reference vocabulary (matching it
-  // 422'd every Advisor/interview call). The SAFETY preamble below guards the
+  // bypassed client cannot route red-zone USER input around C9. We scan ONLY the
+  // `user` turn — the text actually forwarded to Gemini as the user message —
+  // NOT the curated `system` channel, which is app-controlled and legitimately
+  // carries crisis-detection reference vocabulary (scanning it 422'd every
+  // Advisor/interview call). Callers route the genuine utterance via `user` and
+  // the curated/RAG prompt via `system`; the SAFETY preamble below guards the
   // system channel against a bypassed attacker. The body intentionally does NOT
   // echo the matched term (no "what word triggered it" oracle).
-  const crisisProbe = userMessage ?? userText;
-  if (hasCrisisTerm(crisisProbe)) {
+  if (hasCrisisTerm(userText)) {
     return jsonResponse(req, {
       error: 'safety_red_zone',
       reason: 'crisis_term_detected',

@@ -447,11 +447,13 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     const supabase = getSupabaseClient();
     const t0 = Date.now();
     const { data, error } = await supabase.functions.invoke("gemini-proxy", {
-      // The curated RAG prompt rides in `user`; the genuine journal entry rides
-      // in userMessage so the proxy's crisis re-check targets the real utterance,
-      // not the crisis-detection reference text the prompt legitimately quotes
-      // (which otherwise 422'd every Advisor call on the live edge path).
-      body: { system: null, user: systemPrompt, model, userMessage: input.userMessage },
+      // The curated RAG prompt rides in `system` (trusted, NOT crisis-scanned —
+      // it legitimately quotes crisis-detection reference text); the genuine
+      // journal entry rides in `user`, which the proxy DOES crisis-scan. This
+      // fixes the prior false 422 AND keeps the server-side crisis gate effective
+      // (a bypassed client can't smuggle crisis content through an unscanned
+      // `user` channel — the gate scans exactly what is forwarded as the turn).
+      body: { system: systemPrompt, user: input.userMessage, model },
     });
     latencyMs = Date.now() - t0;
     if (error) throw error;
