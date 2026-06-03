@@ -65,7 +65,7 @@ import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
 import { CrewLayer } from "./CrewLayer";
 import { useCrewCount } from "@/lib/settings/crew-density";
 import { getEnv } from "@/lib/env";
-import { V3_CREW_ART } from "@/lib/assets/soulcore-v3";
+import { V3_CREW_ART, V3_DATA_ART, V3_LOG_ART } from "@/lib/assets/soulcore-v3";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
@@ -268,6 +268,15 @@ function tierSize(t: Tier): number {
   return 12;
 }
 
+// Pattern Link depth palette (worldview v-final §8: "가까운 데이터일수록 두껍고 밝음").
+// Edges nearer the center (lower child tier) read bright mint; deeper tiers shift
+// cooler (blue -> violet) so the link layers read as a neural signal path. Width
+// + per-edge opacity already fall off with depth; this adds the color layer.
+// Flag-gated in render — the legacy mint edge is unchanged when the flag is off.
+function v3EdgeColor(childTier: Tier): string {
+  return childTier <= 2 ? cosmic.signalMint : childTier === 3 ? cosmic.signalBlue : cosmic.soulViolet;
+}
+
 // Center (tier 1) size — kept as a named constant since the center node
 // is positioned with explicit offsets in JSX.
 const CENTER_SIZE = tierSize(1);
@@ -321,7 +330,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   const { count: crewCount, animated: crewAnimated } = useCrewCount(dataNodes.length);
   // v3 momo-crew sprites behind EXPO_PUBLIC_USE_V3_ART. Default off →
   // renderV3Crew is undefined → CrewLayer renders nothing (current behavior).
-  const renderV3Crew = getEnv().EXPO_PUBLIC_USE_V3_ART
+  const useV3Art = getEnv().EXPO_PUBLIC_USE_V3_ART;
+  // Tier 3 (Pattern Data) / Tier 4 (Log) v3 node art — flag-gated; off keeps the
+  // legacy TierIcon metaphor icons (book / paper / heart …) untouched.
+  const DataArt = V3_DATA_ART;
+  const LogArt = V3_LOG_ART;
+  const renderV3Crew = useV3Art
     ? (i: number, sz: number) => {
         const Crew = V3_CREW_ART[i % V3_CREW_ART.length];
         return <Crew width={sz} height={sz} />;
@@ -1136,7 +1150,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke={cosmic.signalMint}
+                stroke={useV3Art ? v3EdgeColor(tierOf(e.toId)) : cosmic.signalMint}
                 strokeOpacity={animOpacity}
                 strokeWidth={linkStyle.strokeWidth}
               />
@@ -1185,7 +1199,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 hitSlop={14}
                 accessibilityLabel={dataNodes.find((d) => d.id === id)?.title ?? "piece"}
               >
-                <TierIcon id={p.parentId.startsWith("wiki") ? "book_wiki" : "cube_data"} size={18} />
+                {useV3Art ? <LogArt width={18} height={18} /> : <TierIcon id={p.parentId.startsWith("wiki") ? "book_wiki" : "cube_data"} size={18} />}
               </Pressable>
             </Animated.View>
           ))
@@ -1223,6 +1237,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
             >
               {ISLAND_FOR[n.id] ? (
                 <IslandArt id={ISLAND_FOR[n.id]!} size={size * ISLAND_ART_SCALE} style={{ position: "absolute", left: size * ISLAND_ART_OFFSET, top: size * ISLAND_ART_OFFSET }} />
+              ) : useV3Art ? (
+                // v3: Tier-3 = Pattern Data tesseract (flag on).
+                <DataArt width={size} height={size} />
               ) : (
                 // Tier-3 nodes are pieces, not robots (closeout-v3 #9): show the
                 // parent domain's signature tier icon (book / paper / heart …).
