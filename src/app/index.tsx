@@ -35,6 +35,7 @@ import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
+import { useEmptyGraphDismissed } from "@/lib/onboarding/empty-card";
 import { domainForTags } from "@/lib/graph/relatedness";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 import { StarNoiseLayer } from "@/components/premium";
@@ -77,6 +78,7 @@ function useSkyDrift() {
 // nothing to action; just a "we noticed" hint.
 const INSIGHTS: Record<"en" | "ko", readonly string[]> = {
   en: [
+    "In the age of AI, the most valuable asset is you.",
     "We noticed something this past month.",
     "Your past me and present me are lining up.",
     "There's fresh material in Wiki worth a sort.",
@@ -84,6 +86,7 @@ const INSIGHTS: Record<"en" | "ko", readonly string[]> = {
     "Today leans a little more 'present me'.",
   ],
   ko: [
+    "AI 시대, 가장 가치있는 것은 나 자신.",
     "이번 한 달, 우리가 뭘 좀 알아챘어요.",
     "과거의 당신과 현재의 당신이 정렬되는 중이에요.",
     "Wiki에 새 재료가 좀 들어와 있어요. 정리해 볼까요?",
@@ -97,6 +100,12 @@ function pickInsight(locale: "en" | "ko", salt: number): string {
   return bank[salt % bank.length];
 }
 
+// The logo→village entry flourish plays once per JS session. A module-level
+// flag survives the Stack pop's remount, so returning to "/" (e.g. BACK from a
+// village detail) snaps to the settled state instead of replaying the logo +
+// center-island ("나의 중심") fade — the old back-transition flash.
+let entryFlourishPlayed = false;
+
 export default function Landing() {
   const { i18n } = useTranslation();
   const { userId, hasProfile, loading } = useAuth();
@@ -106,6 +115,13 @@ export default function Landing() {
   const skyOverlay = useSkyDrift();
 
   const [dataNodes, setDataNodes] = useState<DataNode[]>([]);
+  // Whether the user has left ANY piece yet, across BOTH stores: classified
+  // clipper captures (`sources`, which also become graph nodes) and journal /
+  // note pieces (`records`, which don't surface as nodes yet). `null` until the
+  // first read resolves. Drives the empty-graph card so a journal-only user is
+  // never nagged to "leave a first piece" (prev bug: the card keyed off
+  // `sources` only, so any journal save left it showing forever).
+  const [hasAnyPiece, setHasAnyPiece] = useState<boolean | null>(null);
 
   // Highlight-on-return (queue B): a record / wiki detail can deep-link back
   // to the graph and ask it to focus a specific node.
@@ -126,7 +142,11 @@ export default function Landing() {
   const [sleeping, setSleeping] = useState(false);
   const [centerSeen, setCenterSeen] = useState(false);
   // First-run empty-graph card is dismissible so the user can just browse.
-  const [emptyDismissed, setEmptyDismissed] = useState(false);
+  // Dismissal persists (web localStorage / native AsyncStorage) so the card
+  // doesn't re-appear on every return to the graph (it used to be mount-local
+  // useState, which reset each visit).
+  const { dismissed: emptyDismissed, dismiss: dismissEmptyCard } =
+    useEmptyGraphDismissed();
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wake = useCallback(() => {
     setSleeping(false);
@@ -140,8 +160,15 @@ export default function Landing() {
     };
   }, [wake]);
 
-  const entryProgress = useRef(new Animated.Value(0)).current;
+  const entryProgress = useRef(new Animated.Value(entryFlourishPlayed ? 1 : 0)).current;
   useEffect(() => {
+    // Subsequent mounts (BACK to "/") snap to the settled state; only the first
+    // mount of the session plays the flourish. See entryFlourishPlayed above.
+    if (entryFlourishPlayed) {
+      entryProgress.setValue(1);
+      return;
+    }
+    entryFlourishPlayed = true;
     Animated.timing(entryProgress, {
       toValue: 1,
       duration: 750,
@@ -174,35 +201,47 @@ export default function Landing() {
   useEffect(() => {
     if (!userId) {
       setDataNodes([]);
+      setHasAnyPiece(null);
       return;
     }
     const supabase = getSupabaseClient();
     let cancelled = false;
-    supabase
-      .from("sources")
-      .select("id, title, tags, frontmatter")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(120)
-      .then((res) => {
-        if (cancelled) return;
-        if (res.data) {
-          setDataNodes(
-            res.data.map((p) => {
-              const tags = (p.tags ?? []) as string[];
-              const fm = (p.frontmatter ?? {}) as Record<string, unknown>;
-              const summary = typeof fm.summary === "string" ? fm.summary : "";
-              return {
-                id: p.id,
-                title: p.title,
-                parentId: domainForTags(tags, p.title),
-                tags,
-                summary,
-              };
-            }),
-          );
-        }
-      });
+    // Two reads settle together: `sources` → the tier-4 graph dots (classified
+    // clipper captures); `records` (journal + note, head-only count) → the
+    // user's authored pieces. The empty-graph card's emptiness check considers
+    // both, so leaving a journal "조각" clears it. audit_response is excluded —
+    // it's onboarding-guided Q&A, not a free-form piece.
+    Promise.all([
+      supabase
+        .from("sources")
+        .select("id, title, tags, frontmatter")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(120),
+      supabase
+        .from("records")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .in("kind", ["journal", "note"]),
+    ]).then(([sourcesRes, recordsRes]) => {
+      if (cancelled) return;
+      const sources = sourcesRes.data ?? [];
+      setDataNodes(
+        sources.map((p) => {
+          const tags = (p.tags ?? []) as string[];
+          const fm = (p.frontmatter ?? {}) as Record<string, unknown>;
+          const summary = typeof fm.summary === "string" ? fm.summary : "";
+          return {
+            id: p.id,
+            title: p.title,
+            parentId: domainForTags(tags, p.title),
+            tags,
+            summary,
+          };
+        }),
+      );
+      setHasAnyPiece(sources.length > 0 || (recordsRes.count ?? 0) > 0);
+    });
     return () => {
       cancelled = true;
     };
@@ -222,7 +261,11 @@ export default function Landing() {
     sleepAfterMs: SLEEP_AFTER_MS,
     hasNotification: dataNodes.length > 0 && !centerSeen,
   });
-  const showingEmptyGraphCard = dataNodes.length === 0 && !emptyDismissed;
+  // Show only once the piece check has resolved to "none" (hasAnyPiece === false,
+  // not null) AND the user hasn't dismissed (emptyDismissed hydrated to false,
+  // not null). Both gates avoid a first-paint flash for users who do have pieces
+  // or who previously dismissed.
+  const showingEmptyGraphCard = hasAnyPiece === false && emptyDismissed === false;
 
   return (
     <View style={styles.skyContainer}>
@@ -268,7 +311,7 @@ export default function Landing() {
           <View style={styles.emptyGraphCard}>
             {/* Close — lets the user dismiss and browse the empty village. */}
             <Pressable
-              onPress={() => setEmptyDismissed(true)}
+              onPress={dismissEmptyCard}
               hitSlop={12}
               style={styles.emptyGraphClose}
               accessibilityRole="button"
@@ -304,7 +347,7 @@ export default function Landing() {
               </Text>
             </Pressable>
             <Pressable
-              onPress={() => setEmptyDismissed(true)}
+              onPress={dismissEmptyCard}
               hitSlop={8}
               style={styles.emptyGraphSkip}
             >

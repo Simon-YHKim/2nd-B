@@ -12,6 +12,15 @@ import { JudgeBadge } from "@/components/auth/JudgeBadge";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { ageInYears, signUpWithEmail, AgeGateError, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { isJudgeEmail } from "@/lib/judge/domains";
+import { ConsentNotice } from "@/components/consent/ConsentNotice";
+import {
+  emptyConsentSelections,
+  allRequiredAcksChecked,
+  buildSignUpConsentArgs,
+} from "@/lib/auth/consent-selections";
+import { recordConsentBestEffort } from "@/lib/supabase/consent";
+
+const ADULT_AGE = 18;
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
@@ -21,17 +30,23 @@ export default function SignUp() {
   const [password, setPassword] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [consent, setConsent] = useState(emptyConsentSelections());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const judge = useMemo(() => isJudgeEmail(email), [email]);
+  // A valid DOB in the 14-17 band drives the high-privacy notice variant and
+  // the minor_self consent band.
+  const age = ageInYears(birthDate);
+  const isMinorAge = age >= MIN_SELF_CONSENT_AGE && age < ADULT_AGE;
   const canSubmit = useMemo(() => {
     return (
       email.includes("@") &&
       password.length >= 8 &&
       ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE &&
+      allRequiredAcksChecked(consent) &&
       !submitting
     );
-  }, [email, password, birthDate, submitting]);
+  }, [email, password, birthDate, consent, submitting]);
 
   async function handleSubmit(): Promise<void> {
     setSubmitting(true);
@@ -42,6 +57,16 @@ export default function SignUp() {
         birthDate,
         locale,
       });
+      // Record the consent the user just gave (best-effort: a ledger write
+      // failure must not undo a created account; pre-migration it no-ops).
+      void recordConsentBestEffort(
+        buildSignUpConsentArgs({
+          userId: result.userId,
+          isMinor: isMinorAge,
+          locale,
+          selections: consent,
+        }),
+      );
       if (result.judgeMode) Alert.alert(t("judge.welcome"));
       // Post-signup hand-off → graph view (main). /journal reachable via nav.
       router.replace("/");
@@ -154,6 +179,7 @@ export default function SignUp() {
               />
             </View>
           ) : null}
+          <ConsentNotice minor={isMinorAge} value={consent} onChange={setConsent} />
           <Button
             label={t("signUp.submit")}
             variant="primary"

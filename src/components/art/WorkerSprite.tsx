@@ -11,18 +11,19 @@ import { Image, StyleSheet, View, type ViewStyle, type ImageStyle, type StylePro
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { semantic } from "@/lib/theme/tokens";
+import { getEnv } from "@/lib/env";
+import { V3_WORKER_ART } from "@/lib/assets/soulcore-v3";
 
 // imageRendering pixelated keeps the strip crisp; web-only, ignored native.
 const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
 
-export type WorkerId = "secondb" | "momo" | "lulu" | "archi" | "vela" | "gadi" | "lumi";
+export type WorkerId = "secondb" | "momo" | "lulu" | "archi" | "gadi" | "lumi";
 
 const STRIPS: Record<WorkerId, number> = {
   secondb: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/secondb_premium_walk_strip_6f.png"),
   momo: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/momo_premium_walk_strip_6f.png"),
   lulu: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lulu_premium_walk_strip_6f.png"),
   archi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/archi_premium_walk_strip_6f.png"),
-  vela: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/vela_premium_walk_strip_6f.png"),
   gadi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/gadi_premium_walk_strip_6f.png"),
   lumi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lumi_premium_walk_strip_6f.png"),
 };
@@ -34,7 +35,6 @@ const IDLES: Record<WorkerId, number> = {
   momo: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/momo_premium_idle.png"),
   lulu: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lulu_premium_idle.png"),
   archi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/archi_premium_idle.png"),
-  vela: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/vela_premium_idle.png"),
   gadi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/gadi_premium_idle.png"),
   lumi: require("../../../public/assets/2ndb-production-premium-v1/workers-redraw-v1/lumi_premium_idle.png"),
 };
@@ -67,7 +67,7 @@ function subscribe(fn: (t: number) => void): () => void {
 
 // Per-worker phase offset so they don't all step in lockstep.
 const PHASE_OFFSET: Record<WorkerId, number> = {
-  secondb: 0, momo: 1, lulu: 2, archi: 3, vela: 4, gadi: 5, lumi: 2,
+  secondb: 0, momo: 1, lulu: 2, archi: 3, gadi: 5, lumi: 2,
 };
 
 function ContactShadow({ size }: { size: number }) {
@@ -124,6 +124,20 @@ export function WorkerSprite({
   // scaleX flip mirrors the whole clipped frame (including the strip's
   // translateX), so flipping the outer box is correct.
   const flip: ViewStyle["transform"] = facing === -1 ? [{ scaleX: -1 }] : [];
+
+  // v3 art (EXPO_PUBLIC_USE_V3_ART): the v3 pack ships per-state SVGs, not a
+  // frame strip, so render the static idle pose (keeping the contact shadow +
+  // facing flip; position is owned by CharacterPathLayer). Default off → the
+  // PNG walk-cycle / idle below is unchanged. secondb has no v3 sprite → PNG.
+  const V3Sprite = getEnv().EXPO_PUBLIC_USE_V3_ART ? V3_WORKER_ART[id] : undefined;
+  if (V3Sprite) {
+    return (
+      <View style={[{ width: size, height: size, transform: flip }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <ContactShadow size={size} />
+        <V3Sprite width={size} height={size} />
+      </View>
+    );
+  }
 
   // Reduced motion OR parked: render the dedicated idle pose instead of
   // freezing on a mid-stride walk frame.

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "../auth/AuthContext";
+import { getEnv } from "../env";
 import { getSupabaseClient } from "../supabase/client";
 import { levelForXp, levelProgress, type LevelProgress } from "./levels";
 import type { SubscriptionTier } from "./entitlements";
@@ -50,11 +51,19 @@ export function useProgression(): Progression {
     void refresh();
   }, [refresh]);
 
+  // Test/QA paywall override (EXPO_PUBLIC_FORCE_TIER). When not "off", every
+  // user is treated as this tier, so all subscription gating that keys off
+  // `progression.tier` (journal/note caps, chat daily cap, premium features)
+  // is bypassed. Defaults to "brain" (everything unlocked) for the current
+  // testing phase; set EXPO_PUBLIC_FORCE_TIER=off to restore real per-user
+  // billing. This is the single chokepoint — no gate call-site needs editing.
+  const forcedTier = getEnv().EXPO_PUBLIC_FORCE_TIER;
+
   return {
     totalXp,
     level: levelForXp(totalXp),
     progress: levelProgress(totalXp),
-    tier,
+    tier: forcedTier === "off" ? tier : forcedTier,
     loading,
     refresh,
   };

@@ -38,6 +38,27 @@ const schema = z.object({
     .union([z.literal("true"), z.literal("false")])
     .default("false")
     .transform((v) => v === "true"),
+  // Test/QA paywall override: force a subscription tier for ALL users,
+  // bypassing the per-user `users.subscription_tier` gating (the free-tier
+  // journal/note caps, the chat daily cap, and premium-only features). This is
+  // a deliberate, temporary "unlock everything for testing" switch and is the
+  // single point that flips the whole paywall on/off:
+  //   - "brain" (default): everything unlocked — the current testing-phase
+  //     setting, applied build-wide even when the var is unset.
+  //   - "off": use the real per-user tier (restores live billing gating).
+  //   - "soma" | "cortex" | "free": pin everyone to that tier to test a
+  //     specific paywall boundary.
+  // Restore real billing by setting EXPO_PUBLIC_FORCE_TIER=off.
+  EXPO_PUBLIC_FORCE_TIER: z
+    .enum(["off", "free", "soma", "cortex", "brain"])
+    .default("brain"),
+  // Render the Soul Core v3 SVG art pack (public/assets/cosmic-pixel-v3-soulcore/)
+  // instead of the legacy PNG art. Default false — the v3 pack is wired but not
+  // yet QA'd on-device; flip to "true" on a dev/QA build to preview it.
+  EXPO_PUBLIC_USE_V3_ART: z
+    .union([z.literal("true"), z.literal("false")])
+    .default("false")
+    .transform((v) => v === "true"),
   GOOGLE_CLOUD_PROJECT: z.string().optional(),
   GOOGLE_CLOUD_LOCATION: z.string().default("us-central1"),
   // GOOGLE_API_KEY without EXPO_PUBLIC_ is server-side only (native / Edge
@@ -85,6 +106,8 @@ function readRaw(): Record<string, string | undefined> {
   const llmMode = process.env.EXPO_PUBLIC_LLM_MODE;
   const useVertex = process.env.EXPO_PUBLIC_USE_VERTEX;
   const viaEdge = process.env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION;
+  const forceTier = process.env.EXPO_PUBLIC_FORCE_TIER;
+  const useV3Art = process.env.EXPO_PUBLIC_USE_V3_ART;
   const publicGoogleKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
   const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY;
   const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST;
@@ -108,6 +131,8 @@ function readRaw(): Record<string, string | undefined> {
     EXPO_PUBLIC_LLM_MODE: llmMode,
     EXPO_PUBLIC_USE_VERTEX: useVertex,
     EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: viaEdge,
+    EXPO_PUBLIC_FORCE_TIER: forceTier,
+    EXPO_PUBLIC_USE_V3_ART: useV3Art,
     GOOGLE_CLOUD_PROJECT: proc.GOOGLE_CLOUD_PROJECT,
     GOOGLE_CLOUD_LOCATION: proc.GOOGLE_CLOUD_LOCATION,
     // Prefer the inlined EXPO_PUBLIC_ variant when present (Web), fall back

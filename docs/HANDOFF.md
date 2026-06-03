@@ -3,7 +3,143 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest -- 2026-06-02 / Codex UI QA + premium consistency pass
+## Latest -- 2026-06-02 / Worldview v-final 완결 + Soul Core v3 아트 wiring (플래그 게이트)
+
+### 어디까지 왔나
+- main HEAD: `f16a464` (이 핸드오프 머지 후 갱신)
+- 이번 세션 머지 PR (전부 verify green + CI green + squash):
+  - **#171** v-final 로직: 5계층(Soul Core -> 5 Pattern Core -> Pattern Data -> Log + Pattern Link), 마스코트 rename(Lulu->Lumen, Archi->Archon, Gadi->Relia, Momo->Foreman Momo, Lumi->Iris), SecondB Analytic/Divergent 모드, Pattern Link/crew 스켈레톤
+  - **#172** Soul Core v3 에셋 팩 (Codex; #171과 reconcile -> 에셋만 net)
+  - **#173** 공상-place + Vela 완전 제거(`/imagine`->Divergent redirect, 탭/wiki카드/노드 제거), 캐치프레이즈, Divergent soulViolet2 펄스, live Pattern Link 엣지 두께, CONTEXT.md, 네이밍 가드
+  - **#174** v3 코어 아트, **#175** v3 마스코트 idle, **#176** v3 모모크루 (전부 플래그 뒤)
+- 테스트: `npm run verify` green (85 suites / 797 tests). 빌드 게이트: `npx expo export --platform web` 성공.
+- working tree: clean. gstack 1.52.2.0 -> 1.55.0.0.
+
+### 활성 인프라
+- Supabase prod `zoacryukmdeivmolvyhj` (마이그레이션 0028-0033, 14-17 self-consent 라이브)
+- Web: GitHub Pages <https://simon-yhkim.github.io/2nd-B/> (web-deploy.yml, main push 자동)
+
+### v3 아트 wiring 상태 (전부 `EXPO_PUBLIC_USE_V3_ART` 플래그 뒤 / 기본 OFF = 라이브 PNG 그대로)
+- DONE: 코어(IslandArt) / 마스코트 idle(WorkerSprite) / 모모크루(CrewLayer + crew-layout)
+- 인프라: react-native-svg-transformer + metro.config.js (*.svg -> 컴포넌트, web/native), src/types/svg.d.ts, src/lib/assets/soulcore-v3.ts (V3_CORE_ART / V3_WORKER_ART / V3_CREW_ART)
+- TODO: 엣지 아트(PatternLink -> NavGraph 라이브 엣지) -- core graph 렌더 변경 = 회귀 위험, 기기 QA 후 권장
+- 주의: 아직 아무도 기기에서 v3 아트 안 봄(플래그 OFF). 크기/위치 QA 필요.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | dev 빌드 `EXPO_PUBLIC_USE_V3_ART=true` -> 코어/마스코트/크루 기기 QA(크기·위치) | small | ⭐ 엣지/플래그ON 전 선행 |
+| B | OK면 플래그 기본 ON (env.ts default 또는 eas/repo var) | small | A 후 |
+| C | 엣지 아트 wiring (PatternLink -> NavGraph live edges) | medium | core-graph 회귀 위험, 플래그 게이트 유지 |
+| D | 마스코트 프레임 애니 (현재 v3 정적 idle; sprite_sheet 프레임화) | medium | 선택 |
+| E | 계정 완전삭제 RPC(auth.users) · 법무 카피 | medium | 법무는 사용자 입력 필요 |
+
+### 적용 중인 정책 (영구)
+1. 머지: feature 브랜치 -> verify green + CI green(verify + lint=PR제목 Conventional Commits) -> squash. PR 제목 `feat(...)/fix(...)/docs:` 필수.
+2. 빌드 게이트: 에셋/metro/번들 영향 변경은 `npx expo export --platform web` 로컬 검증(verify는 Metro 미실행).
+3. `EXPO_PUBLIC_FORCE_TIER=brain`(테스트 전체 unlock). 런칭/심사 전 `=off` 복원.
+4. `EXPO_PUBLIC_USE_V3_ART` 기본 false. 기기 QA 후 ON.
+5. 픽셀아트(public/assets/**)는 GPT 워크스트림 소유 -- 참조만, 생성/수정 금지.
+6. 어휘: src/lib/safety/lexicon.ts 의 금지 임상어휘(목록은 그 파일 참조) 절대 금지 -- 임상/치료 register 회피, 자기이해/성장 register 사용.
+7. main 직접 push 금지, force-push/rebase -i 금지.
+
+### 핵심 파일 위치
+```
+src/lib/assets/soulcore-v3.ts        v3 SVG -> 컴포넌트 (코어/마스코트/크루)
+metro.config.js                      svg-transformer + NativeWind
+src/lib/env.ts                       EXPO_PUBLIC_FORCE_TIER / EXPO_PUBLIC_USE_V3_ART
+src/components/art/IslandArt.tsx     코어 (flag -> v3)
+src/components/art/WorkerSprite.tsx  마스코트 (flag -> v3 idle)
+src/components/graph/CrewLayer.tsx   모모크루 (+ src/lib/graph/crew-layout.ts)
+src/components/graph/PatternLink.tsx 엣지 골격 (+ src/lib/graph/pattern-link.ts) -- 라이브 미배선
+docs/VISION.md(세계관 v-final) · DESIGN.md · CONTEXT.md   정본
+public/assets/cosmic-pixel-v3-soulcore/docs/asset_mapping.md   v3 매핑표
+```
+
+### 검증
+```bash
+npm run verify
+EXPO_USE_STATIC=true npx expo export --platform web --output-dir /tmp/exp   # 에셋/번들 변경 시
+```
+
+### 엣지 wiring 이어가는 법 (C)
+```bash
+git fetch origin main && git pull origin main
+git checkout -b claude/v3-edge-wiring origin/main
+# PatternLink.renderEdge 슬롯 + v3 엣지 SVG
+#   (public/assets/cosmic-pixel-v3-soulcore/mobile-graph/edges/pattern_link_{far,mid,current,near}_320.svg)
+# 를 NavGraph 엣지 렌더(AnimatedLine)에 EXPO_PUBLIC_USE_V3_ART 게이트로 통합.
+# npm run verify && expo export -> squash merge.
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A 작업(기기 QA)부터
+```
+
+---
+
+## 2026-06-02 (earlier) / 미성년 보호장치 B+C UI 머지 + A prod 적용 (14-17 라이브 오픈)
+
+### 어디까지 왔나
+- main HEAD: 이 핸드오프 머지 후 (직전 `fc45f86`)
+- 이번 세션 머지 2 PR (둘 다 `npm run verify` green, CI green, squash):
+  - **#159 (B)** 미성년 보호장치 UI — `/privacy` high-privacy 토글(8키, 14-17 잠금 / `long_term_memory`만 승격) + 가입 동의안내(`ConsentNotice`, sign-up + complete-profile, `recordConsentBestEffort`). 계약(prefs.ts / consent.ts) 배선.
+  - **#167 (C)** 계정 관리 `/account` — DOB 정정(0030 서버 재검증) · 개인정보/동의 → /privacy 링크 · 계정삭제(데이터 erase + 로그아웃) · age-out = 라이브 `isMinor` 자동 해제.
+- **A: prod 마이그레이션 0028 → 0032 적용 완료** (사용자 명시 확인 후) → **prod가 이제 14-17 self-consent 가입 오픈.** 적용 후 `get_advisors(security)` 점검 완료.
+
+### ⚠️ prod 상태 변경 (중요 — GPT 동시작업자 주목)
+- prod `zoacryukmdeivmolvyhj` 마이그레이션: **0027 → 0032**. `users`에 `account_status` / `minor_tier` / `privacy_prefs` 추가, 테이블 `guardian_consents`(deny-all) · `consent_records`(append-only) 신설. 서버 트리거 `enforce_user_age_tier`가 <14 거부 + minor_tier 도출 + 미성년 high-privacy 시드.
+- 기존 2 성인 유저 → `minor_tier='adult'` backfill 완료 (users_active_has_tier 제약 통과로 확인).
+- **이제 18+ 강제 아님. 14-17 가입 라이브.** B의 동의 UI / 프라이버시 토글이 main 배포돼 보호장치 동작.
+
+### get_advisors(security) 결과 (적용 후)
+- 신규 실질 위험 없음. `guardian_consents` RLS-no-policy(INFO) = 의도된 deny-all(0029). `consent_records`는 RLS+정책 정상.
+- WARN `enforce_user_age_tier` search_path mutable — 기존 트리거 함수들(auto_judge_mode 등)과 동일 baseline 패턴. **후속 권장**: 연령 게이트 함수라 search_path 하드닝(0033 후보).
+
+### 후속 작업 큐
+| # | 작업 | 크기 |
+|---|---|---|
+| 1 | **법무 카피 확정** — 동의 문구 · `CONSENT/POLICY/TERMS_VERSION`(현 placeholder `2026-06-02`) · 국외이전 처리국가. `LEXICON_LAST_LEGAL_REVIEW` null | medium |
+| 2 | **계정 완전삭제 RPC**(service_role/엣지) — 현재 C는 데이터 erase+로그아웃, `auth.users` 제거 미구현 | medium |
+| 3 | **동의 철회 기록**(consent_records append) + **minor update 서버 강제**(변조 클라가 locked 키를 못 켜게 트리거/RLS) | medium |
+| 4 | trigger 함수 search_path 하드닝 (0033) | small |
+| 5 | **D 시각 QA**(기기/웹): /privacy 토글·잠금 · 가입 ConsentNotice(14-17 배너) · /account DOB·삭제 — 원격 컨테이너라 미수행 | small |
+| 6 | guardian flow(under-14) — 별도 트랙(현재 <14 거부) | large |
+
+### 핵심 파일 (이번 세션)
+```
+src/app/privacy.tsx                      high-privacy 토글 (B1)
+src/app/account.tsx                      계정 관리 (C)
+src/components/consent/ConsentNotice.tsx 가입 동의안내 (B2)
+src/lib/auth/consent-selections.ts       동의 selection 게이트/매핑 (B2)
+src/lib/supabase/consent.ts              recordConsent + recordConsentBestEffort
+src/lib/supabase/privacy.ts              privacy_prefs fail-soft 읽기/쓰기 (B1)
+src/lib/supabase/account.ts              fetch/updateBirthDate (C)
+src/lib/account/dob.ts                   dobCorrectionStatus (C)
+src/lib/privacy/prefs.ts                 키셋 + isPrivacyPrefEditable (minor 잠금)
+db/migrations/0028~0032                  ★ prod 적용 완료
+```
+
+### 정책 (이번 세션 확정)
+- **자동 머지 ON** (Simon, 2026-06-02): PR CI green 시 묻지 않고 squash merge → main 재검증.
+- **prod 마이그레이션 적용은 여전히 명시 확인 필요** (안전 레이어가 강제; 이번엔 확인받고 적용함).
+
+### 검증
+```bash
+npm run verify   # 769/769 (80 suites)
+```
+
+### 다음 세션 시작
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# 후속 1(법무) / D(시각 QA) / 후속 2~4(삭제 RPC·철회기록·search_path) 중 선택.
+```
+
+---
+
+## 2026-06-02 / Codex UI QA + premium consistency pass
 
 ### Handoff snapshot
 - main HEAD: `9a13d87`

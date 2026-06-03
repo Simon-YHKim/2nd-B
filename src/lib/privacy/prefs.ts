@@ -40,3 +40,20 @@ export function resolvePrivacyPrefs(stored: Record<string, unknown> | null | und
   }
   return base;
 }
+
+// 14-17 self-consent minors are held at high privacy: every outward-sharing,
+// profiling, or external-processing pref stays locked OFF and cannot be turned
+// on from the settings UI. The single exception is long_term_memory — a minor
+// may *explicitly* promote it (off by default, opt-in allowed). Adults may
+// toggle every key.
+//
+// This is the UX layer of the protection; the server seeds these same defaults
+// for minors on sign-up (migration 0032). Server-side enforcement of minor
+// *updates* (so a tampered client cannot enable a locked key) is a separate
+// follow-up — this function alone is not a security boundary.
+export const MINOR_PROMOTABLE_KEYS: readonly PrivacyPrefKey[] = ["long_term_memory"];
+
+export function isPrivacyPrefEditable(key: PrivacyPrefKey, isMinor: boolean): boolean {
+  if (!isMinor) return true;
+  return MINOR_PROMOTABLE_KEYS.includes(key);
+}

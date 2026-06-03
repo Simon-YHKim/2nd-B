@@ -47,13 +47,12 @@ const KIND_BORDER: Record<WikiPageKind, keyof typeof semantic> = {
 // is the store itself, so its card stays put and reads "지금 여기 / You're here".
 const FACETS: ReadonlyArray<{
   id: WikiCardThumbId;
-  route: "/core-brain" | "/imagine" | null;
+  route: "/core-brain" | null;
   label: { en: string; ko: string };
   desc: { en: string; ko: string };
 }> = [
   { id: "core_brain", route: "/core-brain", label: { en: "Core", ko: "코어" }, desc: { en: "Know yourself", ko: "나를 알기" } },
   { id: "library", route: null, label: { en: "Library", ko: "서재" }, desc: { en: "You're here", ko: "지금 여기" } },
-  { id: "imagine", route: "/imagine", label: { en: "Imagine", ko: "상상" }, desc: { en: "Dream it up", ko: "공상을 구체화" } },
 ];
 
 export default function Wiki() {

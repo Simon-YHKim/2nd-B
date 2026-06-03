@@ -11,7 +11,7 @@ import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { cosmic, semantic } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
-export type CompanionName = "secondb" | "momo" | "lulu" | "archi" | "vela" | "gadi";
+export type CompanionName = "momo" | "lulu" | "archi" | "gadi";
 
 export type CompanionState =
   | "idle" | "note" | "store" | "read" | "label" | "happy" | "sleep"
@@ -24,12 +24,10 @@ export type CompanionEvent =
   | "journal_saved" | "capture_saved" | "link_found" | "imagine_ready" | "safety_soft_stop";
 
 export const companionAlt: Record<CompanionName, string> = {
-  secondb: "SecondB, Soul Core navigator",
-  momo: "Foreman Momo, Narrative Core foreman",
-  lulu: "Lumen, Wisdom Core sage",
-  archi: "Archon, Growth Core architect",
-  vela: "SecondB Divergent, legacy sprite",
-  gadi: "Relia, Bond Core guide",
+  momo: "Foreman Momo, records crew foreman",
+  lulu: "Lumen, sage of wisdom",
+  archi: "Archon, growth architect",
+  gadi: "Relia, warm guide",
 };
 
 const COMPANION_BASE = "/assets/2ndb-production-premium-v1/workers-redraw-v1";
@@ -62,8 +60,6 @@ export const companionEventMap = {
   linkImported: { companion: "lulu", state: "success", cue: "capture_saved" },
   connectionFound: { companion: "archi", state: "linking", cue: "link_found" },
   personaUpdated: { companion: "archi", state: "build", cue: "link_found" },
-  imagineStarted: { companion: "secondb", state: "spark", cue: "imagine_ready" },
-  imagineSaved: { companion: "secondb", state: "save", cue: "imagine_ready" },
   safetySoftStop: { companion: "gadi", state: "soft_stop", cue: "safety_soft_stop" },
   safetyClear: { companion: "gadi", state: "clear", cue: "safety_soft_stop" },
 } as const satisfies Record<string, { companion: CompanionName; state: CompanionState; cue: CompanionEvent }>;

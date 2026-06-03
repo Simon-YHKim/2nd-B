@@ -68,13 +68,12 @@ The brand pivoted from sky blue to **Electric Mint** (`#72F2C7`) — the color o
 
 | Token | Hex | Meaning / use |
 |---|---|---|
-| `semantic.brand` / `cosmic.signalMint` | `#72F2C7` (mint) | Active connection. Primary CTAs, brand chip, focus rings, AI follow-up highlights, Lulu (capture). |
-| `cosmic.signalBlue` | `#4CC9F0` | Archon / Growth Core accent · `semantic.info` (judge / neutral notices). |
-| `cosmic.soulViolet` | `#A78BFA` | SecondB / Soul Core presence. Card surface wash. |
-| `cosmic.pixelLamp` | `#FFD166` | Relia / Bond Core accent · `semantic.zoneYellow` / `warning`. |
-| `cosmic.dreamPink` | `#FF9FD6` | Lumina / Muse Core / Divergent signal. |
-| `cosmic.moonWhite` | `#E8ECF8` | Foreman Momo / Narrative Core neutral worker signal. |
-| `cosmic.guardRose` | `#FF7A90` | Safety-only red signal · `semantic.zoneRed` / `danger`. |
+| `semantic.brand` / `cosmic.signalMint` | `#72F2C7` (mint) | Active connection. Primary CTAs, brand chip, focus rings, AI follow-up highlights, Wisdom Core / Lumen. |
+| `cosmic.signalBlue` | `#4CC9F0` | Growth Core / Archon accent · `semantic.info` (judge / neutral notices). |
+| `cosmic.soulViolet` | `#A78BFA` | Soul Core / SecondB / AI presence. Card surface wash. `soulViolet2` `#7C5EE8` = SecondB Divergent mode. |
+| `cosmic.pixelLamp` | `#FFD166` | Bond Core / Relia accent · new record / discovery · `semantic.zoneYellow` / `warning` (dual-context, see Decisions Log). |
+| `cosmic.dreamPink` | `#FF9FD6` | Muse Core / Iris accent. |
+| `cosmic.guardRose` | `#FF7A90` | Safety / crisis — system-only, no mascot · `semantic.zoneRed` / `danger`. |
 | `semantic.zoneGreen` / `success` | `#72F2C7` (mint) | Successful save, normal-zone confirmation. |
 
 ### Accent budget (replaces the old 3-color rule)
@@ -82,7 +81,7 @@ The brand pivoted from sky blue to **Electric Mint** (`#72F2C7`) — the color o
 The pre-cosmic system capped at 3 colors. The village needs more, because **each accent carries a fixed meaning** — it is a coded signal, not a palette flourish. The rule is now:
 
 - **One primary** (mint) drives every CTA, focus ring, and "active" affordance.
-- **Reserved signals** (signalBlue / soulViolet / pixelLamp / dreamPink / moonWhite / guardRose) each map to a fixed concept (Archon, SecondB/Soul Core, Relia, Lumina/Divergent, Foreman Momo, safety). Never use a signal color for anything but its meaning.
+- **Five reserved signals** (signalBlue / soulViolet / pixelLamp / dreamPink / guardRose) each map to a fixed concept (Growth/Archon, Soul/SecondB, Bond/Relia + discovery, Muse/Iris, safety-system). Never use a signal color for anything but its meaning.
 - **On any single screen, at most 3 of the six appear at once.** The full 6 only ever coexist on the graph itself, where each is a different character/tier.
 - Saturated accents stay sparse — a bar, label, dot, or border, never a fill on > 30% of a screen.
 
@@ -291,9 +290,9 @@ Three brand moments get a named motion. Each pairs a character accent with a sin
 
 | Moment | Trigger | Motion | Accent |
 |---|---|---|---|
-| **저장 / Save** ("Lumen 뽁") | A record/capture saves | One "뽁" overshoot (1.25× / ~400ms) + optional `playPop()` on web | mint (`characters.lulu`) |
-| **연결 발견 / Connection** ("Archon line on") | A new edge/connection surfaces | A line illuminates dim→bright over ~500ms ease-out, then holds | signalBlue (`characters.archi`) |
-| **Divergent** ("Lumina pink signal") | Divergent generation begins | A soft pink pulse (opacity 0.4→1→0.6, ~600ms, no scale beyond 1.05) | dreamPink (`characters.lumi`) |
+| **저장 / Save** ("뽁") | A record/capture saves | One "뽁" overshoot (1.25× / ~400ms) + optional `playPop()` on web | mint (`characters.lulu` = Wisdom / Lumen) |
+| **연결 발견 / Connection** | A new edge/connection surfaces | A line illuminates dim→bright over ~500ms ease-out, then holds | signalBlue (`characters.archi` = Growth / Archon) |
+| **공상 / Divergent** | SecondB Divergent mode opens a turn | A soft violet pulse (opacity 0.4→1→0.6, ~600ms, no scale beyond 1.05) | `soulViolet2` (Divergent). Legacy `/imagine` screen keeps its dreamPink pulse while vestigial. |
 
 `prefers-reduced-motion` (web): zero out durations and translate distances; the pop becomes an instant state change, the line illuminates without transition, the pulse holds at full opacity.
 
@@ -314,7 +313,7 @@ Three brand moments get a named motion. Each pairs a character accent with a sin
 
 - Gradients of any kind (except the documented 5%-opacity sky-drift overlay).
 - Glassmorphism, blurs, frosted surfaces.
-- Cute *cartoon* illustrations or hand-drawn icons. **Exception:** the six pixel residents of the Graph Village (SecondB / Foreman Momo / Lumen / Archon / Relia / Lumina, defined in `src/lib/characters.ts`) are sanctioned — they are low-fidelity pixel sprites tied to fixed accents and meanings, not decorative mascots. No character outside that roster.
+- Cute *cartoon* illustrations or hand-drawn icons. **Exception:** the pixel residents of the Graph Village — SecondB (Soul Core), Archon (Growth), Relia (Bond), Lumen (Wisdom), Foreman Momo (Narrative) + crew, Iris (Muse); the retired Vela sprite stays dormant — are sanctioned low-fidelity pixel sprites tied to fixed accents and meanings (internal keys in `src/lib/characters.ts` / `WorkerSprite`), not decorative mascots. No character outside that roster.
 - Emojis as decoration in UI strings. (Crisis hotline messages may use language icons, but not 🌱✨💫.)
 - Em dashes in any user-visible string.
 - Lottie / animated background loops.
@@ -343,3 +342,7 @@ Three brand moments get a named motion. Each pairs a character accent with a sin
 | 2026-05-25 | Fraunces (display) + Geist Sans (body) | Serif display says "this is writing." Geist body keeps UI chrome unobtrusive. Korean fallback via Pretendard. |
 | 2026-05-25 | No gradients, no glass, no pills | Anti-slop. The category is full of meditation-app sameness; we look like a writing tool, not a wellness pillow. |
 | 2026-05-25 | Crisis hotline rendered in `brand` not `danger` | Crisis routing is care, not warning. Warm signal > alarm signal. |
+| 2026-06-02 | Worldview v-final: 5-tier model (Soul Core → Pattern Core ×5 → Pattern Data → Log + Pattern Link) | Canonical spatial/graph model. Mascots renamed (display only): Gadi→Relia (Bond), Lulu→Lumen (Wisdom), Momo→Foreman Momo (Narrative), Lumi→Iris (Muse), Archi→Archon (Growth); SecondB = Soul Core. Internal keys/asset filenames unchanged. See `docs/VISION.md`. |
+| 2026-06-02 | Bond / Relia = `pixelLamp` amber, dual-context with `zoneYellow` / `warning` accepted | No-new-hex rule + `guardRose` reserved system-only leaves `pixelLamp` as the only free warm signal for Bond. Narrative / Momo freed it by moving to monochrome (`moonWhite` / `mistGray`). Safety yellow-zone (rephrase-hint 3px left border, rare) and the Bond mascot accent coexist by context. |
+| 2026-06-02 | Safety color (`guardRose`) separated from mascots → system-only | Gadi (the old safety guard) became Relia / Bond. Crisis + safety surfaces use `guardRose` directly with no mascot, so a safety signal never reads as a character. |
+| 2026-06-02 | 공상 = SecondB Divergent mode (not a place); Divergent accent = `soulViolet2` | The imagine Pattern-Core node is removed; Divergent is a SecondB chat mode using the soulViolet variant (dreamPink is now Muse / Iris). Analytic + Divergent both route C9 → C3 → `gemini.ts`. |

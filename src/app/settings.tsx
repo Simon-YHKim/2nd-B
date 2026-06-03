@@ -1,4 +1,4 @@
-﻿// Settings screen — primarily the "Danger zone" for data deletion.
+// Settings screen — primarily the "Danger zone" for data deletion.
 // Three modes per user requirement: select-only (handled inline on
 // /journal etc.), partial (per-kind / per-tag), and full (everything).
 
@@ -22,6 +22,7 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { useTheme } from "@/lib/theme/ThemeContext";
+import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/settings/crew-density";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import {
   deleteAllChatUsage,
@@ -33,6 +34,11 @@ import {
 } from "@/lib/records/delete-bulk";
 
 const CONFIRM_PHRASE = "DELETE";
+
+const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
+  en: { none: "None", few: "Few", some: "Some", many: "Many" },
+  ko: { none: "없음", few: "적게", some: "보통", many: "많이" },
+};
 
 type SettingsActionButtonProps = {
   label: string;
@@ -95,11 +101,16 @@ function SettingsActionButton({
   );
 }
 
+function Button(props: SettingsActionButtonProps) {
+  return <SettingsActionButton {...props} />;
+}
+
 export default function Settings() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const { mode, toggle } = useTheme();
+  const { density: crewDensity, setDensity: setCrewDensity } = useCrewDensity();
 
   const [busy, setBusy] = useState<string | null>(null);
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
@@ -236,11 +247,13 @@ export default function Settings() {
           <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
             {locale === "ko" ? "설정 항목" : "Settings"}
           </Text>
-          <SettingsActionButton label={locale === "ko" ? "프로필" : "Profile"} variant="secondary" onPress={() => router.push("/profile")} full style={styles.navButton} />
-          <SettingsActionButton label={locale === "ko" ? "테마" : "Theme"} variant="secondary" onPress={() => router.push("/theme")} full style={styles.navButton} />
-          <SettingsActionButton label={locale === "ko" ? "데이터 관리" : "Data management"} variant="secondary" onPress={() => router.push("/data")} full style={styles.navButton} />
-          <SettingsActionButton label={locale === "ko" ? "기록" : "Records"} variant="secondary" onPress={() => router.push("/records")} full style={styles.navButton} />
-          <SettingsActionButton label={locale === "ko" ? "지원" : "Support"} variant="secondary" onPress={() => router.push("/support")} full style={styles.navButton} />
+          <Button label={locale === "ko" ? "프로필" : "Profile"} variant="secondary" onPress={() => router.push("/profile")} />
+          <Button label={locale === "ko" ? "개인정보 보호" : "Privacy"} variant="secondary" onPress={() => router.push("/privacy")} />
+          <Button label={locale === "ko" ? "계정 관리" : "Account"} variant="secondary" onPress={() => router.push("/account")} />
+          <Button label={locale === "ko" ? "테마" : "Theme"} variant="secondary" onPress={() => router.push("/theme")} />
+          <Button label={locale === "ko" ? "데이터 관리" : "Data management"} variant="secondary" onPress={() => router.push("/data")} />
+          <Button label={locale === "ko" ? "기록" : "Records"} variant="secondary" onPress={() => router.push("/records")} />
+          <Button label={locale === "ko" ? "지원" : "Support"} variant="secondary" onPress={() => router.push("/support")} />
         </View>
 
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
@@ -253,18 +266,40 @@ export default function Settings() {
               : "Defaults to the loader's dark-sky tone. Light is also available."}
           </Text>
           <View style={styles.themeRow}>
-            <SettingsActionButton
+            <Button
               label={locale === "ko" ? "다크" : "Dark"}
               variant={mode === "dark" ? "primary" : "secondary"}
               onPress={() => { if (mode !== "dark") toggle(); }}
               style={styles.themeButton}
             />
-            <SettingsActionButton
+            <Button
               label={locale === "ko" ? "라이트" : "Light"}
               variant={mode === "light" ? "primary" : "secondary"}
               onPress={() => { if (mode !== "light") toggle(); }}
               style={styles.themeButton}
             />
+          </View>
+        </View>
+
+        <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
+          <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
+            {locale === "ko" ? "그래프 크루 (장식 로봇)" : "Graph crew (decorative)"}
+          </Text>
+          <Text variant="subtle" color="textMuted">
+            {locale === "ko"
+              ? "기록 보관소 크루가 그래프를 돌아다니는 양. 노드 수에 비례하며, 없음~많이로 조절하거나 완전히 끌 수 있어요."
+              : "How many records-crew sprites wander the graph. Scales with your node count; set anywhere from none to many."}
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm }}>
+            {CREW_DENSITY_ORDER.map((d) => (
+              <Button
+                key={d}
+                label={CREW_DENSITY_LABEL[locale][d]}
+                variant={crewDensity === d ? "primary" : "secondary"}
+                onPress={() => setCrewDensity(d)}
+                full={false}
+              />
+            ))}
           </View>
         </View>
 
@@ -277,7 +312,7 @@ export default function Settings() {
               ? "특정 종류의 기록만 삭제. 다른 종류와 위키는 그대로 둡니다."
               : "Delete one kind only. Other kinds and your wiki stay."}
           </Text>
-          <SettingsActionButton
+          <Button
             label={locale === "ko" ? "모든 일기 삭제" : "Delete all journals"}
             variant="secondary"
             disabled={busy !== null}
@@ -288,7 +323,7 @@ export default function Settings() {
               )
             }
           />
-          <SettingsActionButton
+          <Button
             label={locale === "ko" ? "모든 노트 삭제" : "Delete all notes"}
             variant="secondary"
             disabled={busy !== null}
@@ -299,7 +334,7 @@ export default function Settings() {
               )
             }
           />
-          <SettingsActionButton
+          <Button
             label={locale === "ko" ? "과거의 나 응답 삭제" : "Delete audit responses"}
             variant="secondary"
             disabled={busy !== null}
@@ -316,7 +351,7 @@ export default function Settings() {
           <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
             {locale === "ko" ? "부분 삭제: 평가 결과" : "Partial: by assessment"}
           </Text>
-          <SettingsActionButton
+          <Button
             label={locale === "ko" ? "Big Five (TIPI) 결과 삭제" : "Delete Big Five (TIPI) results"}
             variant="secondary"
             disabled={busy !== null}
@@ -327,7 +362,7 @@ export default function Settings() {
               )
             }
           />
-          <SettingsActionButton
+          <Button
             label={locale === "ko" ? "애착 (ECR) 결과 삭제" : "Delete Attachment (ECR) results"}
             variant="secondary"
             disabled={busy !== null}
@@ -338,7 +373,7 @@ export default function Settings() {
               )
             }
           />
-          <SettingsActionButton
+          <Button
             label={locale === "ko" ? "MBTI 결과 삭제" : "Delete MBTI results"}
             variant="secondary"
             disabled={busy !== null}
@@ -355,7 +390,7 @@ export default function Settings() {
           <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
             {locale === "ko" ? "부분 삭제: 위키/캡처/사용량" : "Partial: wiki / captures / usage"}
           </Text>
-          <SettingsActionButton
+          <Button
             label={locale === "ko" ? "모든 위키 페이지 삭제" : "Delete all wiki pages"}
             variant="secondary"
             disabled={busy !== null}
@@ -366,7 +401,7 @@ export default function Settings() {
               )
             }
           />
-          <SettingsActionButton
+          <Button
             label={locale === "ko" ? "미발전 캡처 삭제 (받은편지함의 미정리분)" : "Delete un-ingested captures"}
             variant="secondary"
             disabled={busy !== null}
@@ -377,7 +412,7 @@ export default function Settings() {
               )
             }
           />
-          <SettingsActionButton
+          <Button
             label={locale === "ko" ? "세컨비 일일 사용량 리셋" : "Reset SecondB daily usage"}
             variant="secondary"
             disabled={busy !== null}
@@ -409,7 +444,7 @@ export default function Settings() {
             autoCapitalize="characters"
             autoCorrect={false}
           />
-          <SettingsActionButton
+          <Button
             label={locale === "ko" ? "전체 데이터 삭제" : "Delete everything"}
             variant="primary"
             disabled={fullDeleteConfirm !== CONFIRM_PHRASE || busy !== null}
@@ -424,7 +459,7 @@ export default function Settings() {
         </View>
 
         <View style={styles.actions}>
-          <SettingsActionButton
+          <Button
             label={locale === "ko" ? "로그아웃" : "Sign out"}
             variant="secondary"
             onPress={async () => {
@@ -468,16 +503,16 @@ const styles = StyleSheet.create({
     elevation: 1,
     overflow: "hidden",
   },
+  settingsButtonFull: {
+    alignSelf: "stretch",
+    width: "100%",
+  },
   settingsButtonPressable: {
     alignItems: "center",
     justifyContent: "center",
     minHeight: 48,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-  },
-  settingsButtonFull: {
-    alignSelf: "stretch",
-    width: "100%",
   },
   settingsButtonPrimary: {
     backgroundColor: cosmic.signalMint,
@@ -504,14 +539,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0,
     textAlign: "center",
-  },
-  navButton: {
-    alignSelf: "stretch",
-    width: "100%",
-    minHeight: 48,
-    marginTop: spacing.xs,
-    backgroundColor: cosmic.space700,
-    borderColor: "rgba(141,152,184,0.56)",
   },
   actions: { gap: spacing.sm, marginTop: spacing.md },
   themeRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },

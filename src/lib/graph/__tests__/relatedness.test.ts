@@ -9,7 +9,8 @@ describe("domainForTags", () => {
     expect(domainForTags(["friend", "family"])).toBe("relation");
     expect(domainForTags(["관계", "친구"])).toBe("relation");
   });
-  test("routes imagination tags to the Muse Core", () => {
+  test("routes former-imagine tags to the Muse (taste) core", () => {
+    // 공상 was removed as a place (worldview v-final); its keywords fold into taste.
     expect(domainForTags(["dream", "story"])).toBe("taste");
     expect(domainForTags(["공상", "상상"])).toBe("taste");
   });

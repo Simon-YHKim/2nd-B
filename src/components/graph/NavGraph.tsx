@@ -53,6 +53,7 @@ import { cosmic } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { pitchForTier, playPop } from "@/lib/audio/pop";
 import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
+import { prefersReducedMotion } from "@/lib/motion/signature";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { TierIcon, DOMAIN_TIER_ICON } from "@/components/art/TierIcon";
@@ -61,10 +62,15 @@ import { getPersona } from "@/lib/chat/personas";
 import { relatedEdges } from "@/lib/graph/relatedness";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
+import { CrewLayer } from "./CrewLayer";
+import { useCrewCount } from "@/lib/settings/crew-density";
+import { getEnv } from "@/lib/env";
+import { V3_CREW_ART } from "@/lib/assets/soulcore-v3";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
-import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus, WORLD_CENTER } from "./world-layout";
+import { patternLinkStyle } from "@/lib/graph/pattern-link";
+import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus } from "./world-layout";
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 
@@ -80,7 +86,12 @@ const AnimatedLine = Animated.createAnimatedComponent(Line);
 // overshoot is small (1.25x → 1.0x, ~400ms total) so it stays inside
 // the tight, controlled feel of the rest of the design.
 const SPAWN_LOGO_DELAY_MS = 620;     // logo fade is ~750ms; start when it's mostly faded
-const SPAWN_SESSION_KEY = "navGraphSpawned_v1";
+// Spawn-once guard. Was sessionStorage("navGraphSpawned_v1"), but sessionStorage
+// is absent on native, so the tier-ordered "뽁" spawn replayed on every return
+// to "/" — that is the BACK-from-village "나의 중심" pop this redesign removes.
+// A module-level flag survives route remounts within the JS session on web AND
+// native, so a return snaps straight to the settled graph.
+let navGraphSpawnPlayed = false;
 // Ambient pulse interval — was 4000ms before, user asked for ~30% faster
 // so the dots feel a touch more "breathing" without becoming jittery.
 const PULSE_INTERVAL_MS = 2800;
@@ -123,9 +134,10 @@ export interface DataNode {
   id: string;
   title: string;
   /**
-   * Which graph node this piece hangs under — a tier-2 Pattern Core id
-   * ("work" | "relation" | "knowledge" | "records" | "taste")
-   * chosen from the piece's tags, or a tier-3 Pattern Data node.
+   * Which graph node this piece hangs under — a tier-2 village id
+   * ("work" | "relation" | "knowledge" | "records" | "imagine" | "taste")
+   * chosen from the piece's tags, or a tier-3 wiki node. Defaults to
+   * wiki-daily when unknown.
    */
   parentId?: string;
   /** The piece's tags — drives both domain placement and relatedness edges. */
@@ -134,61 +146,51 @@ export interface DataNode {
   summary?: string;
 }
 
-// Authoritative Soul Core v3 graph. Tier ↑ size ↑ brightness ↑.
-// T1: Soul Core. T2: five Pattern Cores. T3: Pattern Data clusters.
-// T4: user logs/data shards.
+// Authoritative menu graph. Tier ↑ size ↑ brightness ↑.
+//
+// graph-restructure (C4): tier 2 is six village districts ("동네"), each a
+// floating island whose art matches its meaning. Tier 3 are the few real
+// sub-places under a district, revealed only when you zoom/select. Routes are
+// unchanged so every existing screen stays reachable.
 export const MENU_NODES: readonly NavNode[] = [
-  // Tier 2 — five Pattern Core islands around the Soul Core.
+  // Tier 2 — five Pattern Cores around the Soul Core (worldview v-final). The
+  // former "imagine" core was removed: 공상 is now SecondB's Divergent mode.
   { id: "work", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "work" } },
-    label: { en: "Growth Core", ko: "Growth Core" },
-    description: { en: "Career, work, skill, and growth logs gather into patterns here.", ko: "일, 커리어, 역량, 성장 로그가 패턴으로 모이는 Core예요." } },
+    label: { en: "Growth Core", ko: "일과 성장" },
+    description: { en: "Where the pieces that move today's you gather: work and growth.", ko: "오늘의 나를 움직이는 일과 성장의 조각들이 모이는 곳이에요." } },
   { id: "relation", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "relation" } },
-    label: { en: "Bond Core", ko: "Bond Core" },
-    description: { en: "Relationship, trust, love, and care logs become visible bonds here.", ko: "관계, 신뢰, 사랑, 돌봄의 로그가 연결 패턴으로 보이는 Core예요." } },
+    label: { en: "Bond Core", ko: "관계와 사랑" },
+    description: { en: "Where memories, promises, and conversations with people connect.", ko: "사람들과의 기억, 약속, 대화 조각이 이어지는 곳이에요." } },
   { id: "knowledge", tier: 2, parentId: "core", href: "/wiki", bubbleAction: "upload",
-    label: { en: "Wisdom Core", ko: "Wisdom Core" },
-    description: { en: "Saved knowledge, learning, and applied insight form useful patterns here.", ko: "저장한 지식, 배움, 삶에 적용된 통찰이 패턴으로 묶이는 Core예요." } },
+    label: { en: "Wisdom Core", ko: "배움과 지식" },
+    description: { en: "Where what you've learned and understood stacks up as knowledge.", ko: "배우고 이해한 것들이 지식 조각으로 쌓이는 곳이에요." } },
   { id: "records", tier: 2, parentId: "core", href: "/records",
-    label: { en: "Narrative Core", ko: "Narrative Core" },
-    description: { en: "Logs, memories, and saved pieces are sorted so you can find them again.", ko: "로그, 기억, 보관된 조각을 다시 찾기 쉽게 정리하는 Core예요." } },
+    label: { en: "Narrative Core", ko: "기록 보관소" },
+    description: { en: "Where every piece you've kept gathers so you can find it again.", ko: "남긴 모든 조각이 다시 찾아볼 수 있게 모이는 곳이에요." } },
   { id: "taste", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "taste" } },
-    label: { en: "Muse Core", ko: "Muse Core" },
-    description: { en: "Taste, inspiration, hobbies, and balance gather into a living thread here.", ko: "취향, 영감, 취미, 균형의 조각이 살아 있는 결로 모이는 Core예요." } },
+    label: { en: "Muse Core", ko: "취향과 영감" },
+    description: { en: "Where the things you like, are drawn to, and find inspiring gather.", ko: "좋아하는 것, 끌리는 것, 영감의 조각이 모이는 곳이에요." } },
 
-  // Tier 3 — Pattern Data clusters under each Pattern Core.
-  { id: "growth-career", tier: 3, parentId: "work", href: { pathname: "/records", params: { domain: "work" } },
-    label: { en: "Career path", ko: "커리어 경로" },
-    description: { en: "Pattern Data about work direction and growth steps.", ko: "일의 방향과 성장 단계에 관한 Pattern Data예요." } },
-  { id: "growth-skill", tier: 3, parentId: "work", href: "/insights",
-    label: { en: "Skill signals", ko: "역량 신호" },
-    description: { en: "Small signals about practice, strength, and next steps.", ko: "연습, 강점, 다음 단계의 작은 신호들이에요." } },
-  { id: "bond-people", tier: 3, parentId: "relation", href: { pathname: "/records", params: { domain: "relation" } },
-    label: { en: "People map", ko: "사람 지도" },
-    description: { en: "Pattern Data around people, trust, distance, and closeness.", ko: "사람, 신뢰, 거리감, 가까움에 관한 Pattern Data예요." } },
-  { id: "bond-timeline", tier: 3, parentId: "relation", href: "/interview",
-    label: { en: "Bond timeline", ko: "관계 타임라인" },
-    description: { en: "Older relationship logs that still shape today's links.", ko: "오늘의 연결에 남아 있는 오래된 관계 로그예요." } },
-  { id: "wisdom-sources", tier: 3, parentId: "knowledge", href: "/wiki",
-    label: { en: "Source stack", ko: "지식 자료" },
-    description: { en: "Captured sources and notes waiting to become useful wisdom.", ko: "쓸모 있는 지혜가 되기 위해 모인 자료와 메모예요." } },
-  { id: "wisdom-concepts", tier: 3, parentId: "knowledge", href: "/research",
-    label: { en: "Concept links", ko: "개념 연결" },
-    description: { en: "Concepts that keep linking across saved knowledge.", ko: "저장한 지식 사이에서 반복 연결되는 개념들이에요." } },
-  { id: "narrative-archive", tier: 3, parentId: "records", href: "/records",
-    label: { en: "Archive", ko: "보관소" },
-    description: { en: "Logs Foreman Momo can pull back out when needed.", ko: "Foreman Momo가 필요할 때 꺼내줄 수 있는 로그들이에요." } },
-  { id: "narrative-today", tier: 3, parentId: "records", href: "/capture",
-    label: { en: "Today's log", ko: "오늘의 로그" },
-    description: { en: "The newest small log before it becomes Pattern Data.", ko: "Pattern Data가 되기 전의 가장 작은 오늘 로그예요." } },
-  { id: "muse-taste", tier: 3, parentId: "taste", href: { pathname: "/records", params: { domain: "taste" } },
-    label: { en: "Taste thread", ko: "취향의 결" },
-    description: { en: "The repeated thread in what you like and choose.", ko: "좋아하고 선택하는 것들 사이에 반복되는 결이에요." } },
-  { id: "muse-spark", tier: 3, parentId: "taste", href: "/imagine",
-    label: { en: "Inspiration spark", ko: "영감 불씨" },
-    description: { en: "A small spark that can open into a new possibility.", ko: "새 가능성으로 펼쳐질 수 있는 작은 영감이에요." } },
+  // Tier 3 — real sub-places under a district; revealed on zoom/selection.
+  { id: "wiki-daily", tier: 3, parentId: "knowledge", href: "/wiki",
+    label: { en: "Daily Wiki", ko: "일상 지식" },
+    description: { en: "Everyday notes and captures.", ko: "일상의 메모와 자료." } },
+  { id: "wiki-pro", tier: 3, parentId: "knowledge", href: "/wiki",
+    label: { en: "Pro Wiki", ko: "일·전문 지식" },
+    description: { en: "Career-side references.", ko: "일·전문 쪽 자료." } },
+  { id: "past-childhood", tier: 3, parentId: "relation", href: "/interview",
+    label: { en: "Childhood", ko: "유년기" },
+    description: { en: "Before 12.", ko: "12세 이전." } },
+  { id: "past-teens", tier: 3, parentId: "relation", href: "/interview",
+    label: { en: "Teens", ko: "10대" },
+    description: { en: "12–19.", ko: "12–19세." } },
+  { id: "past-twenties", tier: 3, parentId: "relation", href: "/interview",
+    label: { en: "Twenties", ko: "20대" },
+    description: { en: "20–29.", ko: "20–29세." } },
+  { id: "past-thirties", tier: 3, parentId: "relation", href: "/interview",
+    label: { en: "Thirties", ko: "30대" },
+    description: { en: "30–39.", ko: "30–39세." } },
 ] as const;
-
-const PATTERN_CORE_COUNT = MENU_NODES.filter((n) => n.tier === 2).length;
 
 export const CENTER_NODE: NavNode = {
   id: "core",
@@ -197,12 +199,14 @@ export const CENTER_NODE: NavNode = {
   // bubbleAction removed (2026-05-28 user directive): the chat (세컨비)
   // entry moved out of the bubble to a floating button at the bottom-
   // right of the main screen. The bubble now only describes Core Brain.
-  // Dev name stays "Core Brain"; user-facing label uses the Soul Core name.
-  label: { en: "Soul Core", ko: "Soul Core" },
-  // Core Brain speaks as the team's voice — calm and central.
+  // Dev name stays "Core Brain"; user-facing label uses the village
+   // wording "나의 중심" / "Center of me" (handoff §7-2).
+  label: { en: "Soul Core", ko: "나의 중심" },
+  // Core Brain speaks as the team's voice — calm, plural ("우리 / we"),
+  // owns the cells. Surface this everywhere the user lands first.
   description: {
-    en: "The first layer of you. Logs become Pattern Data, Pattern Cores, and finally a clearer center.",
-    ko: "당신을 이루는 첫 번째 층이에요. Log가 Pattern Data와 Pattern Core를 지나 더 선명한 중심으로 모여요.",
+    en: "Center of you. The small ones and I keep your pieces in order.",
+    ko: "여기가 너의 중심이야. 작은 친구들이랑 함께 조각들을 정리해두고 있어.",
   },
 };
 
@@ -218,8 +222,11 @@ const ISLAND_FOR: Record<string, IslandId> = {
   taste: VILLAGE_UI.taste.island,
 };
 
-// Pattern Core → worker mapping. Asset ids are legacy; user-facing persona
-// names are Archon, Relia, Lumen, Foreman Momo, and Lumina.
+// Domain → worker mapping (worldview v-final, authoritative). Internal worker
+// ids (archi/gadi/lulu/momo/lumi/secondb) are unchanged; display names moved:
+//   일과 성장 = Archon, 관계와 사랑 = Relia, 배움과 지식 = Lumen,
+//   기록 보관소 = Foreman Momo, 취향과 영감 = Iris,
+//   나의 중심 = SecondB. Worker glow matches the core accent.
 const VILLAGE_WORKER: Record<string, WorkerId> = {
   work: VILLAGE_UI.work.worker,
   relation: VILLAGE_UI.relation.worker,
@@ -229,15 +236,6 @@ const VILLAGE_WORKER: Record<string, WorkerId> = {
 };
 
 type PatrolPoint = { x: number; y: number; angle: number };
-type CrewMember = {
-  id: string;
-  x: number;
-  y: number;
-  size: number;
-  opacity: number;
-  paused: boolean;
-  facing: 1 | -1;
-};
 
 function aroundVillage(p: PatrolPoint, radial: number, tangent: number): { x: number; y: number } {
   const rx = Math.cos(p.angle);
@@ -316,6 +314,19 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   const { width, height } = useWindowDimensions();
   const cx = width / 2;
   const cy = height / 2;
+
+  // Decorative crew count (worldview v-final "모모크루"). Scales with the user's
+  // on-graph Log nodes, bounded by the density preference + LOD. The crew sprite
+  // render is wired when the assets land; CrewLayer draws nothing until then.
+  const { count: crewCount, animated: crewAnimated } = useCrewCount(dataNodes.length);
+  // v3 momo-crew sprites behind EXPO_PUBLIC_USE_V3_ART. Default off →
+  // renderV3Crew is undefined → CrewLayer renders nothing (current behavior).
+  const renderV3Crew = getEnv().EXPO_PUBLIC_USE_V3_ART
+    ? (i: number, sz: number) => {
+        const Crew = V3_CREW_ART[i % V3_CREW_ART.length];
+        return <Crew width={sz} height={sz} />;
+      }
+    : undefined;
 
   // Zoom + pan — pinch to scale, 2-finger pan to translate. The root
   // ReAnimated.View applies the transform; individual node positions /
@@ -539,7 +550,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // space, then fitted to the viewport.
   const dataPositions = useMemo(() => {
     const vp = { width, height };
-    const worldData = worldDataPositions(dataNodes, worldMenu, "knowledge", 40, PATTERN_CORE_COUNT);
+    const worldData = worldDataPositions(dataNodes, worldMenu);
     const out = new Map<string, { x: number; y: number; parentId: string }>();
     for (const [id, wd] of worldData) {
       const s = worldToScreen({ x: wd.x, y: wd.y }, vp);
@@ -589,33 +600,6 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
 
     return out;
   }, [positions, cx, cy]);
-
-  const momoCrew = useMemo<CrewMember[]>(() => {
-    const anchors = [
-      { id: CENTER_NODE.id, x: cx, y: cy },
-      ...Array.from(positions.entries()).map(([id, p]) => ({ id, x: p.x, y: p.y })),
-      ...Array.from(dataPositions.entries()).map(([id, p]) => ({ id, x: p.x, y: p.y })),
-    ];
-    const count = Math.min(24, Math.max(6, Math.ceil((MENU_NODES.length + dataPositions.size) / 3)));
-    const crew: CrewMember[] = [];
-    for (let i = 0; i < count; i++) {
-      const anchor = anchors[i % anchors.length];
-      if (!anchor) continue;
-      const angle = seeded(`crew-${anchor.id}`, i + 11) * Math.PI * 2;
-      const radius = 10 + seeded(anchor.id, i + 17) * 34;
-      const layer = seeded(anchor.id, i + 23);
-      crew.push({
-        id: `crew-${anchor.id}-${i}`,
-        x: anchor.x + Math.cos(angle) * radius,
-        y: anchor.y + Math.sin(angle) * radius,
-        size: Math.max(9, Math.round(GRAPH_WORKER_SIZE * (0.42 + layer * 0.22))),
-        opacity: 0.32 + layer * 0.24,
-        paused: seeded(anchor.id, i + 29) > 0.45,
-        facing: seeded(anchor.id, i + 31) > 0.5 ? 1 : -1,
-      });
-    }
-    return crew;
-  }, [positions, dataPositions, cx, cy]);
 
   // Drift Animated.Values — one pair per node (sx, sy = sway offsets).
   // useNativeDriver=false because SVG props can't run on the native
@@ -694,12 +678,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // to the settled state with no audio.
   useEffect(() => {
     const allIds = [CENTER_NODE.id, ...MENU_NODES.map((n) => n.id), ...Array.from(dataPositions.keys())];
-    let alreadyPlayed = false;
-    try {
-      if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(SPAWN_SESSION_KEY) === "1") {
-        alreadyPlayed = true;
-      }
-    } catch { /* ignore — Private mode, native, etc. */ }
+    const alreadyPlayed = navGraphSpawnPlayed;
 
     for (const id of allIds) {
       if (!spawnValues.current.has(id)) {
@@ -751,7 +730,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         await delay(SPAWN_TIER_GAP_MS);
       }
       if (!cancelled) {
-        try { sessionStorage.setItem(SPAWN_SESSION_KEY, "1"); } catch { /* ignore */ }
+        navGraphSpawnPlayed = true;
       }
     };
     void run();
@@ -784,6 +763,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     return b;
   });
   const vis = tierVisibility(bucket < 1 ? 0.5 : bucket < 2 ? 1.5 : 2.0);
+  // Pattern Link proximity → edge weight (worldview v-final): zoomed-in (bucket
+  // 2) reads "closer" so edges thicken; zoomed-out stays thin. Recomputed when
+  // the zoom bucket flips (rare), so it's a live but render-cheap signal.
+  const linkStyle = patternLinkStyle(bucket / 2);
   const nodeVisible = (tier: Tier): boolean =>
     tier === 1 ? vis.tier1 : tier === 2 ? vis.tier2 : tier === 3 ? vis.tier3 : vis.tier4;
 
@@ -865,6 +848,39 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     ]).start();
   }, [activeId, bubbleAnim]);
 
+  // Centered village zoom-in overlay (graph-transition redesign): tapping a
+  // village island fills the screen center with that island, smoothly scaling
+  // in, while the graph recedes behind a soft dim. Decoupled from the pan/zoom
+  // camera so it can truly fill + center any district regardless of the camera
+  // clamp. The same island PNG renders on the village detail (SceneHero), so
+  // pressing 살펴보기 crossfades (route animation:"fade") from this overlay into
+  // the detail with visual continuity. zoomMountId keeps the island mounted
+  // through the fade-out.
+  const zoomIslandId = activeId && ISLAND_FOR[activeId] ? activeId : null;
+  const zoomReveal = useRef(new Animated.Value(0)).current;
+  const [zoomMountId, setZoomMountId] = useState<string | null>(null);
+  useEffect(() => {
+    const reduce = prefersReducedMotion();
+    if (zoomIslandId) {
+      setZoomMountId(zoomIslandId);
+      Animated.timing(zoomReveal, {
+        toValue: 1,
+        duration: reduce ? 0 : 280,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(zoomReveal, {
+        toValue: 0,
+        duration: reduce ? 0 : 200,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setZoomMountId(null);
+      });
+    }
+  }, [zoomIslandId, zoomReveal]);
+
   useEffect(() => {
     const id = setInterval(() => {
       // Pulse a random tier-2 or tier-3 node, skipping the active one.
@@ -923,24 +939,17 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     return Animated.add(new Animated.Value(baseY), s.sy) as unknown as Animated.AnimatedInterpolation<number>;
   }
 
-  // Build parent→child edges (Pattern Link web). Nearer links are thicker and
-  // brighter; distant Log/Data links stay thinner and dimmer without blur.
-  interface EdgeDef { fromId: string; toId: string; opacity: number; width: number; key: string }
+  // Build parent→child edges (drives the static line web).
+  interface EdgeDef { fromId: string; toId: string; opacity: number; key: string }
   const edges = useMemo<EdgeDef[]>(() => {
     const list: EdgeDef[] = [];
     for (const n of MENU_NODES) {
       if (n.parentId) {
-        list.push({
-          fromId: n.parentId,
-          toId: n.id,
-          opacity: n.tier === 2 ? 0.56 : 0.34,
-          width: n.tier === 2 ? 2.1 : 1.35,
-          key: `${n.parentId}->${n.id}`,
-        });
+        list.push({ fromId: n.parentId, toId: n.id, opacity: n.tier === 2 ? 0.45 : 0.3, key: `${n.parentId}->${n.id}` });
       }
     }
     for (const [id, p] of dataPositions) {
-      list.push({ fromId: p.parentId, toId: id, opacity: 0.16, width: 0.9, key: `${p.parentId}->${id}` });
+      list.push({ fromId: p.parentId, toId: id, opacity: 0.12, key: `${p.parentId}->${id}` });
     }
     // Relatedness edges (2026-05-31): connect pieces that share tags so the
     // graph shows actual associations between what the user added, not just
@@ -952,7 +961,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       // Slightly brighter than the faint parent→shard line, scaled by how
       // many tags they share, so stronger associations read stronger.
       const opacity = Math.min(0.34, 0.16 + e.weight * 0.06);
-      list.push({ fromId: e.from, toId: e.to, opacity, width: Math.min(1.8, 0.8 + e.weight * 0.22), key: `rel:${e.from}~${e.to}` });
+      list.push({ fromId: e.from, toId: e.to, opacity, key: `rel:${e.from}~${e.to}` });
     }
     return list;
   }, [dataPositions, dataNodes]);
@@ -1008,12 +1017,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   const dimFor = (id: string): boolean =>
     highlightDataId != null ? id !== highlightDataId : activeId != null && !isRelated(id);
 
-  // Soul Core v3 tier labels.
+  // Village type label per tier (overhaul §6/§7 sheet "노드 타입").
   const typeLabel = (tier: Tier): string => {
-    if (tier === 1) return "Tier 1 · Soul Core";
-    if (tier === 2) return "Tier 2 · Pattern Core";
-    if (tier === 3) return "Tier 3 · Pattern Data";
-    return "Tier 4 · Log";
+    if (tier === 1) return locale === "ko" ? "나의 중심" : "Soul Core";
+    if (tier === 2) return locale === "ko" ? "패턴 코어" : "Pattern Core";
+    if (tier === 3) return locale === "ko" ? "패턴 데이터" : "Pattern Data";
+    return locale === "ko" ? "기록 조각" : "Log";
   };
 
   // Tap a node (graph-ux-overhaul #6). For a tier-2 village we spring the
@@ -1023,24 +1032,30 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     const willOpen = id !== activeId;
     setActiveId(willOpen ? id : null);
     if (!willOpen) return;
+    // Village islands (the six tier-2 districts + the center) get the centered
+    // zoom-in overlay below instead of a camera spring: the overlay fills the
+    // screen with the island, so moving the graph camera behind it is both
+    // unnecessary and fights the pan clamp at high fill scales.
+    if (ISLAND_FOR[id]) return;
+    // Tier-3 sub-places keep the gentle sector focus into the upper area so the
+    // tapped place sits above the bottom sheet (#9/#10).
     const wp = worldMenu.get(id);
-    const focus = wp ? sectorFocus(wp, PATTERN_CORE_COUNT) : null;
+    const focus = wp ? sectorFocus(wp, MENU_NODES.filter((n) => n.tier === 2).length) : null;
     if (focus) {
-      // Fill the space ABOVE the bottom sheet with the village + its sector
-      // (#10): aim the sector into the upper ~38% of the screen and use a
-      // modest scale so it reads as a calm move, not a dizzy lunge (#9).
       focusWorldPoint(focus.focus.x, focus.focus.y, 1.5, height * 0.38);
-    } else if (id === CENTER_NODE.id) {
-      // Center tap re-centers the whole village at home scale.
-      focusWorldPoint(WORLD_CENTER.x, WORLD_CENTER.y, 1);
     }
   }
 
   function handleLook() {
     if (!activeNode?.href) return;
     const href = activeNode.href;
-    setActiveId(null);
+    // Crossfade into the village detail (route animation:"fade") with the
+    // zoomed island still on screen, so the big island resolves into the
+    // detail's hero (same PNG). Clear the focus AFTER the detail has taken over
+    // so a later BACK returns to a clean, settled graph. ~360ms ≈ the platform
+    // fade; tunable.
     router.push(href);
+    setTimeout(() => setActiveId(null), 360);
   }
 
   function handleAskSecondB() {
@@ -1057,8 +1072,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   }
 
   function handleImagine() {
-    // Graph node → SecondB Divergent handoff: keep the old sheet action but
-    // route it into the new mode switch instead of the separate workshop.
+    // Worldview v-final: 공상 is no longer a place — it's SecondB's Divergent
+    // chat mode. "공상으로 펼치기" opens the node in /jarvis with mode=divergent.
     const label = activeNode?.label[locale];
     setActiveId(null);
     const params: Record<string, string> = { mode: "divergent" };
@@ -1075,6 +1090,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     setActiveId(null);
     router.push(village?.href ?? "/records");
   }
+
+  // Fill size for the centered zoom-in island: large but fully visible above
+  // the bottom sheet ("크게 / 전체 보임"). Tunable on device.
+  const zoomFillSize = Math.min(width * 0.92, height * 0.5);
 
   return (
     <View ref={outerRef} style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -1119,10 +1138,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 y2={y2}
                 stroke={cosmic.signalMint}
                 strokeOpacity={animOpacity}
-                strokeWidth={e.width}
-                strokeLinecap="square"
+                strokeWidth={linkStyle.strokeWidth}
               />
-              {/* Active Pattern Link: a brighter pixel-current pass over the base link. */}
+              {/* 연결된 edge만 signal-mint 하이라이트 (§7) + C6 ambient glow. */}
               {incident ? (
                 <AnimatedLine
                   x1={x1}
@@ -1133,20 +1151,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                   strokeOpacity={
                     connGlow.interpolate({ inputRange: [0.25, 1], outputRange: [0.4, 0.95] }) as unknown as number
                   }
-                  strokeWidth={e.width + 1.25}
-                  strokeLinecap="square"
+                  strokeWidth={2}
                 />
               ) : glowIncident ? (
-                <Line
-                  x1={x1}
-                  y1={y1}
-                  x2={x2}
-                  y2={y2}
-                  stroke={cosmic.signalMint}
-                  strokeOpacity={0.7}
-                  strokeWidth={e.width + 0.75}
-                  strokeLinecap="square"
-                />
+                <Line x1={x1} y1={y1} x2={x2} y2={y2} stroke={cosmic.signalMint} strokeOpacity={0.7} strokeWidth={2} />
               ) : null}
             </Fragment>
           );
@@ -1277,8 +1285,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           ABOVE the island/node art (graph-ux #5: were hidden behind islands)
           yet still below the screen-fixed bottom sheet / FAB (#1). When a
           node sheet is open we hide them so nothing floats over the popup. */}
-      <MomoCrewLayer crew={momoCrew} hidden={activeId != null} />
       <CharacterPathLayer commutes={commutes} hidden={activeId != null} locale={locale} spriteSize={GRAPH_WORKER_SIZE} />
+      {/* Decorative Narrative crew (worldview v-final). Hidden while a sheet is
+          open; renders nothing until the GPT crew sprites land (renderCrew slot). */}
+      <CrewLayer count={crewCount} animated={crewAnimated} visible={activeId == null} width={width} height={height} renderCrew={renderV3Crew} />
 
       </ReAnimated.View>
     </GestureDetector>
@@ -1292,6 +1302,35 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
             <Text variant="caption" style={styles.resetText}>{locale === "ko" ? "원래대로" : "Reset"}</Text>
           </Pressable>
         </View>
+      ) : null}
+
+      {/* Centered village zoom-in (graph-transition redesign): sits above the
+          graph, below the bottom sheet (zIndex). The same island PNG renders on
+          the village detail, so 살펴보기 crossfades into it. */}
+      {zoomMountId && ISLAND_FOR[zoomMountId] ? (
+        <Animated.View pointerEvents="none" style={styles.zoomOverlay}>
+          <Animated.View
+            style={[StyleSheet.absoluteFill, styles.zoomBackdrop, { opacity: zoomReveal as never }]}
+          />
+          <Animated.View
+            style={[
+              styles.zoomIslandWrap,
+              {
+                opacity: zoomReveal as never,
+                transform: [
+                  {
+                    scale: zoomReveal.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.86, 1],
+                    }) as never,
+                  },
+                ],
+              },
+            ]}
+          >
+            <IslandArt id={ISLAND_FOR[zoomMountId]!} size={zoomFillSize} />
+          </Animated.View>
+        </Animated.View>
       ) : null}
 
       {/* Node bottom sheet (§7) — screen-fixed, outside the zoom transform. */}
@@ -1322,32 +1361,6 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           onClose={() => setActiveId(null)}
         />
       ) : null}
-    </View>
-  );
-}
-
-function MomoCrewLayer({ crew, hidden }: { crew: readonly CrewMember[]; hidden?: boolean }) {
-  if (hidden) return null;
-  return (
-    <View style={styles.momoCrewLayer} pointerEvents="none">
-      {crew.map((m) => (
-        <View
-          key={m.id}
-          style={[
-            styles.momoCrewSlot,
-            {
-              left: m.x - m.size / 2,
-              top: m.y - m.size,
-              width: m.size,
-              height: m.size + 3,
-              opacity: m.opacity,
-            },
-          ]}
-        >
-          <WorkerSprite id="momo" size={m.size} paused={m.paused} facing={m.facing} />
-          <View style={styles.momoCrewTaskDot} />
-        </View>
-      ))}
     </View>
   );
 }
@@ -1434,9 +1447,9 @@ function NodeSheet({
           style={styles.sheetActionBtn}
         />
       </View>
-      {/* Optional: open this node through SecondB's Divergent mode. */}
+      {/* Optional: unfold this node in the imagine workshop (imagine pack §7) */}
       <Pressable onPress={onImagine} hitSlop={6} style={styles.sheetImagine}>
-        <Text variant="caption" color="brand">{locale === "ko" ? "Divergent로 펼치기" : "Open in Divergent"}</Text>
+        <Text variant="caption" color="brand">{locale === "ko" ? "공상 모드로 펼치기" : "Open in Divergent"}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -1510,6 +1523,18 @@ function DataNodeSheet({
 
 const styles = StyleSheet.create({
   root: { ...StyleSheet.absoluteFill as object },
+  // Centered village zoom-in overlay (graph → detail transition).
+  zoomOverlay: {
+    ...(StyleSheet.absoluteFill as object),
+    alignItems: "center",
+    justifyContent: "center",
+    // Bias the island into the area ABOVE the bottom sheet so the popup never
+    // covers it ("팝업을 제외한 나머지 화면의 정 중앙"). Tunable on device.
+    paddingBottom: "34%",
+    zIndex: 18,
+  },
+  zoomBackdrop: { backgroundColor: "rgba(7,10,24,0.55)" },
+  zoomIslandWrap: { alignItems: "center", justifyContent: "center" },
   menuDotWrap: { position: "absolute", alignItems: "center", justifyContent: "center" },
   nodeArtWrap: {
     flex: 1,
@@ -1574,24 +1599,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   resetText: { color: cosmic.signalMint, letterSpacing: 0 },
-  momoCrewLayer: {
-    ...(StyleSheet.absoluteFill as object),
-    zIndex: 3,
-    elevation: 3,
-  },
-  momoCrewSlot: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "flex-start",
-  },
-  momoCrewTaskDot: {
-    width: 3,
-    height: 3,
-    marginTop: -2,
-    borderRadius: 1,
-    backgroundColor: cosmic.mistGray,
-    opacity: 0.64,
-  },
   shardWrap: { position: "absolute", width: 14, height: 14, alignItems: "center", justifyContent: "center" },
   // Highlight-on-return: a mint halo around the shard the user came back to.
   shardHighlight: {

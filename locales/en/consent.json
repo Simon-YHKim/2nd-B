@@ -6,5 +6,97 @@
     "approveForPublic": "Allow public display on our site",
     "agree": "I consent",
     "decline": "Not now"
+  },
+  "notice": {
+    "title": "A quick heads-up before you start",
+    "intro": "2nd-Brain keeps a private record of what you write and uses Google Gemini to help you understand yourself. Please review and agree before continuing.",
+    "purposesTitle": "What we collect and why",
+    "items": "Collected: your email, date of birth, and the entries you write (journals, notes, captures).",
+    "purposeService": "Used to run the service: saving your entries, your growth graph, and your assistant.",
+    "retention": "Kept while your account is active. You can delete entries or your whole account any time from Settings.",
+    "rights": "You can decline the optional item below and still use the app. Declining a required item means we cannot provide the service.",
+    "requiredLabel": "Required",
+    "optionalLabel": "Optional",
+    "agreeAll": "Agree to all required items",
+    "ackService": "I agree to the collection and use above so the service can run.",
+    "ackLlm": "I understand my entries are processed by Google Gemini to generate responses.",
+    "ackOverseas": "I agree my data may be processed outside my country by our providers (Google, Supabase).",
+    "ackSensitive": "I understand my entries may include sensitive details, and I agree to their handling.",
+    "optMarketing": "Send me occasional product updates (optional).",
+    "minorBanner": "You are signing up as a teen (14 to 17). High-privacy is on by default: sharing, ads, and outside analysis stay off, and your profile is never exported."
+  },
+  "privacy": {
+    "eyebrow": "Privacy",
+    "title": "You decide what stays in",
+    "subtitle": "Sharing, profiling, and outside processing. Everything starts off.",
+    "speech": "Off by default. Turn on only what you want. Teens stay locked to high-privacy.",
+    "sectionLabel": "Privacy controls",
+    "minorLockNote": "You are on a teen account, so high-privacy stays on. Long-term memory is the only switch you can turn on.",
+    "saveError": "Could not save that change. Please try again.",
+    "lockedTag": "Locked",
+    "keys": {
+      "ads": {
+        "label": "Personalized ads",
+        "desc": "Use your activity to tailor ads. Off keeps ads generic or absent."
+      },
+      "sharing": {
+        "label": "Sharing",
+        "desc": "Let you share entries or your profile outside the app."
+      },
+      "recommendations": {
+        "label": "Recommendations",
+        "desc": "Use your data to suggest content and prompts."
+      },
+      "external_analytics": {
+        "label": "External analytics",
+        "desc": "Send usage data to outside analytics services."
+      },
+      "llm_training": {
+        "label": "Model improvement",
+        "desc": "Allow your content to help improve models. Off keeps it out of training."
+      },
+      "persona_export": {
+        "label": "Profile export",
+        "desc": "Let you export your self-profile to a file."
+      },
+      "persona_share": {
+        "label": "Profile sharing",
+        "desc": "Let you share your self-profile with other people."
+      },
+      "long_term_memory": {
+        "label": "Long-term memory",
+        "desc": "Let your assistant remember across sessions for continuity."
+      }
+    }
+  },
+  "account": {
+    "eyebrow": "Account",
+    "title": "Your account, your call",
+    "subtitle": "Fix your details, manage privacy, or close your account.",
+    "speech": "Anything about your account lives here. No rush.",
+    "dob": {
+      "label": "Correct your date of birth",
+      "hint": "Fix a mistyped birth date. It must be a real date and meet the age floor.",
+      "save": "Save birth date",
+      "saved": "Birth date updated.",
+      "saveFailed": "Could not update your birth date"
+    },
+    "privacy": {
+      "label": "Privacy and consent",
+      "body": "Sharing, ads, recommendations, and outside processing are each off by default. Turn them on or off any time.",
+      "button": "Open privacy controls"
+    },
+    "delete": {
+      "label": "Delete account",
+      "body": "This erases your entries, captures, wiki, and assistant usage, then signs you out.",
+      "supportNote": "Full account removal is processed within 2 business days. Contact support if you need it sooner.",
+      "confirmHint": "Type \"{{phrase}}\" to enable the button.",
+      "button": "Delete my account",
+      "confirmTitle": "Delete your account?",
+      "confirmBody": "Your data will be erased and you will be signed out. This cannot be undone.",
+      "confirmCta": "Delete",
+      "cancel": "Cancel",
+      "failed": "Account deletion failed"
+    }
   }
 }
