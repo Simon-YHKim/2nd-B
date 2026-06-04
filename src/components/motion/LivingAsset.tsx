@@ -83,7 +83,7 @@ export function LivingAsset({
   return (
     <Animated.View
       pointerEvents={pointerEvents}
-      style={[size ? { width: size, height: size } : null, style, animatedStyle as StyleProp<ViewStyle>]}
+      style={[size ? { width: size, height: size, overflow: "visible" } : null, style, animatedStyle as StyleProp<ViewStyle>]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >

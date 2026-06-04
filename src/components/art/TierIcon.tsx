@@ -11,7 +11,6 @@ const TIER_ICONS = {
   link_capture: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/link_chain_premium.png"),
   file_source: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/file_page_premium.png"),
   cube_data: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/data_cube_premium.png"),
-  crystal_imagine: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/dream_crystal_premium.png"),
   seed_growth: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/seed_growth_premium.png"),
   heart_relationship: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/heart_connection_premium.png"),
   compass_inspiration: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/compass_premium.png"),
@@ -42,7 +41,6 @@ export const DOMAIN_TIER_ICON: Record<string, TierIconId> = {
   relation: "heart_relationship",
   knowledge: "book_wiki",
   records: "paper_journal",
-  imagine: "crystal_imagine",
   taste: "compass_inspiration",
 };
 
@@ -54,7 +52,6 @@ export function shardIconForSource(source: string): TierIconId {
     case "capture": return "link_capture";
     case "interview": return "heart_relationship";
     case "audit": return "compass_inspiration";
-    case "imagine": return "crystal_imagine";
     default: return "cube_data";
   }
 }
