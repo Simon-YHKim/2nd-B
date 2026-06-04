@@ -272,9 +272,9 @@ function curvedMid(a: { x: number; y: number }, b: { x: number; y: number }, cur
 function tierSize(t: Tier): number {
   // UI/UX overhaul §5 node sizes (touch target met via hitSlop).
   if (t === 1) return 88;
-  if (t === 2) return 64;
-  if (t === 3) return 48;
-  return 12;
+  if (t === 2) return 44;
+  if (t === 3) return 35;
+  return 28;
 }
 
 // Pattern Link depth palette (worldview v-final §8: "가까운 데이터일수록 두껍고 밝음").
@@ -321,11 +321,11 @@ const CENTER_SIZE = tierSize(1);
 const CORE_ART_SCALE = 1.0;
 const CORE_ART_OFFSET = (-CENTER_SIZE * (CORE_ART_SCALE - 1)) / 2;
 
-// Domain / tier-3 island art overflows its node box so a village reads larger
-// than its hit target. Scaled down 1.7 -> 1.5 (2026-06-01) so the six villages
-// breathe on the home view; the offset re-centers the oversized art on the box
-// (left/top = (1 - scale)/2 * size).
-const ISLAND_ART_SCALE = 1.5;
+// Domain / tier-2 island art. v48 tier-scale refactor (2026-06-04): the art now
+// fills its node box at 1.0 instead of bleeding 1.5x past the hit target, so the
+// six villages sit inside the new tier hierarchy. The offset re-centers any
+// overflow (left/top = (1 - scale)/2 * size) and is 0 at scale 1.0.
+const ISLAND_ART_SCALE = 1.0;
 const ISLAND_ART_OFFSET = (1 - ISLAND_ART_SCALE) / 2;
 // Match graph residents to the rendered village art scale. At 22% of the
 // tier-2 island art, a worker reads around twice the height of the records
@@ -1278,8 +1278,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               style={[
                 styles.shardWrap,
                 {
-                  left: p.x - 12,
-                  top: p.y - 9,
+                  left: p.x - 14,
+                  top: p.y - 10.5,
                   opacity: tier4Fade as never,
                   transform: swayTransform(id) as never,
                 },
@@ -1296,8 +1296,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               >
                 <FinalLogArt
                   id={finalLogIdForGraphPiece(p.parentId, piece?.tags, piece?.title)}
-                  width={24}
-                  height={18}
+                  width={28}
+                  height={21}
                 />
               </Pressable>
             </Animated.View>
@@ -1712,7 +1712,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   resetText: { color: cosmic.signalMint, letterSpacing: 0 },
-  shardWrap: { position: "absolute", width: 24, height: 18, alignItems: "center", justifyContent: "center" },
+  shardWrap: { position: "absolute", width: 28, height: 21, alignItems: "center", justifyContent: "center" },
   // Highlight-on-return: a mint halo around the shard the user came back to.
   shardHighlight: {
     shadowColor: cosmic.signalMint,
