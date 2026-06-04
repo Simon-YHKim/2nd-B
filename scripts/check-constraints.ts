@@ -104,7 +104,7 @@ results.push(
 results.push(
   check("C5", () => {
     const sql = read("db/migrations/0006_testimonials.sql");
-    const ok = sql.includes("consent_given_at         timestamptz NOT NULL") && sql.includes("share_with_judges_flag");
+    const ok = /consent_given_at\s+timestamptz\s+NOT\s+NULL/.test(sql) && sql.includes("share_with_judges_flag");
     return {
       id: "C5",
       status: ok ? "PASS" : "FAIL",

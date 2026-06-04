@@ -45,7 +45,7 @@ function formatCapturedAt(iso: string, locale: "en" | "ko"): string {
 
 export default function Inbox() {
   const { t, i18n } = useTranslation("inbox");
-  const { userId, loading: authLoading, hasProfile } = useAuth();
+  const { userId, loading: authLoading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [rows, setRows] = useState<SourceRow[]>([]);
@@ -108,7 +108,7 @@ export default function Inbox() {
     if (!userId) return;
     setPhase1Id(row.id);
     try {
-      const result = await runPhase1({ userId, sourceId: row.id, locale });
+      const result = await runPhase1({ userId, sourceId: row.id, locale, minor: isMinor === true });
       Alert.alert(
         locale === "ko" ? `요약 + 4개 질문 생성됨` : `Summary + 4 questions generated`,
         result.summary +

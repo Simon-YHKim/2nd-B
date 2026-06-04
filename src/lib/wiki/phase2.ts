@@ -70,7 +70,7 @@ export async function generateSourcePage(userId: string, sourceId: string): Prom
 
   // Phase 2 promotion implies the source is now part of the user's wiki —
   // mark it ingested so the inbox view reflects it.
-  if (!source.ingested) await markSourceIngested(sourceId);
+  if (!source.ingested) await markSourceIngested(userId, sourceId);
 
   return {
     page,

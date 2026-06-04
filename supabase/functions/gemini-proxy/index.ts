@@ -135,9 +135,15 @@ function hasCrisisTerm(text: string): boolean {
   return false;
 }
 
-function resolveOrigin(req: Request): string {
+// Build CORS headers. For a disallowed/absent Origin we OMIT the
+// Access-Control-Allow-Origin header entirely rather than emitting the literal
+// `null` (a value sandboxed iframes / file:// documents can match). Allowed
+// origins still get echoed back. `vary: origin` is always set for cache safety.
+function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') ?? '';
-  return ALLOWED_ORIGINS.has(origin) ? origin : 'null';
+  const headers: Record<string, string> = { 'vary': 'origin' };
+  if (ALLOWED_ORIGINS.has(origin)) headers['access-control-allow-origin'] = origin;
+  return headers;
 }
 
 function jsonResponse(req: Request, body: unknown, status = 200): Response {
@@ -145,8 +151,7 @@ function jsonResponse(req: Request, body: unknown, status = 200): Response {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      'access-control-allow-origin': resolveOrigin(req),
-      'vary': 'origin',
+      ...corsHeaders(req),
       'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
     },
   });
@@ -156,8 +161,7 @@ function corsPreflight(req: Request): Response {
   return new Response(null, {
     status: 204,
     headers: {
-      'access-control-allow-origin': resolveOrigin(req),
-      'vary': 'origin',
+      ...corsHeaders(req),
       'access-control-allow-methods': 'POST, OPTIONS',
       'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
       'access-control-max-age': '86400',

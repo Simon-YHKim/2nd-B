@@ -415,7 +415,7 @@ export default function Capture() {
       let simonRelevance: number | null = null;
       if (finalBody.length > 0) {
         try {
-          const cls = await classifyClipper(userId, finalBody, fallbackUrl, locale);
+          const cls = await classifyClipper(userId, finalBody, fallbackUrl, locale, isMinor === true);
           if (tagsEditable.length === 0) finalTags = cls.tags;
           suggestedTrack = cls.track;
           if (mode !== "ocr") kindOverride = cls.kind;
@@ -470,7 +470,7 @@ export default function Capture() {
     if (!userId || !proposalCtx || proposing) return;
     setProposing(true);
     try {
-      const p = await proposeClipperTemplate(userId, proposalCtx.content, proposalCtx.url, locale);
+      const p = await proposeClipperTemplate(userId, proposalCtx.content, proposalCtx.url, locale, isMinor === true);
       if (!p) {
         setProposalCtx(null);
         Alert.alert(

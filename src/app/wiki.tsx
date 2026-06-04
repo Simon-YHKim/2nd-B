@@ -81,7 +81,7 @@ function villageHref(village: VillageId): Href {
 
 export default function Wiki() {
   const { t, i18n } = useTranslation("wiki");
-  const { userId, loading: authLoading, hasProfile } = useAuth();
+  const { userId, loading: authLoading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [pages, setPages] = useState<WikiPageRow[]>([]);
@@ -233,7 +233,7 @@ export default function Wiki() {
     if (!userId || !page.source_id) return;
     setPhase1RunningId(page.id);
     try {
-      await runPhase1({ userId, sourceId: page.source_id, locale });
+      await runPhase1({ userId, sourceId: page.source_id, locale, minor: isMinor === true });
       // Reload to pick up the updated frontmatter on the source AND the
       // wiki page (the wiki page's frontmatter was copied at source-page
       // generation time, so we re-promote to refresh it).

@@ -69,7 +69,7 @@ export async function isPasswordBreached(password: string): Promise<boolean> {
   }
 }
 
-// birthDate format: ISO date (YYYY-MM-DD), UTC interpretation. Returns whole
+// birthDate format: ISO date (YYYY-MM-DD), parsed in local time by dayjs. Returns whole
 // years elapsed. The sign-up floor (MIN_SELF_CONSENT_AGE = 14) is applied by
 // the callers above; the DB no longer hard-codes an age CHECK (0028 relaxed the
 // legacy adult-only rule to a sanity range).

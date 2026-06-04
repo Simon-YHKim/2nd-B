@@ -2,10 +2,13 @@
 // PIPA right to deletion).
 //
 // Why a service-role function: most user-owned tables are erased only by an
-// ON DELETE CASCADE off public.users (records, ai_audit_log, testimonials,
+// ON DELETE CASCADE off public.users (records, testimonials,
 // personas, memorized_patterns, xp_events, self_contexts, chat_usage,
 // clipper_templates, consent_records, gemini_spend_daily, wiki_pages/links,
-// sources, guardian rows). Several of those (memorized_patterns, xp_events,
+// sources, guardian rows). ai_audit_log is the deliberate exception: its
+// user_id FK is ON DELETE SET NULL (0011), so its rows are RETAINED (user_id
+// nulled) as XPRIZE audit evidence rather than cascade-erased.
+// Several of those (memorized_patterns, xp_events,
 // personas, the append-only consent_records ledger) have NO client DELETE
 // policy, so a client-side wipe can never reach them. And public.users is NOT
 // FK-linked to auth.users, so deleting the auth row alone leaves public.users +

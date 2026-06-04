@@ -24,8 +24,8 @@ jest.mock("../queries", () => ({
     captured.push({ fn: "syncWikiLinks", args: [userId, page] });
     return Promise.resolve(fixtures.syncResult ?? { added: 0, removed: 0, dangling: [] });
   }),
-  markSourceIngested: jest.fn((sourceId: string) => {
-    captured.push({ fn: "markSourceIngested", args: [sourceId] });
+  markSourceIngested: jest.fn((userId: string, sourceId: string) => {
+    captured.push({ fn: "markSourceIngested", args: [userId, sourceId] });
     return Promise.resolve();
   }),
 }));

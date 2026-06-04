@@ -109,6 +109,9 @@ export interface RunPhase1Input {
   userId: string;
   sourceId: string;
   locale: "en" | "ko";
+  /** From AuthContext.isMinor at the call site; routes the youth crisis hotline
+   *  if the model output trips the safety classifier. Defaults to adult. */
+  minor?: boolean;
 }
 
 export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
@@ -122,6 +125,7 @@ export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
     userId: input.userId,
     locale: input.locale,
     purpose: "knowledge_lookup",
+    minor: input.minor,
     system: SYSTEM_PROMPT[input.locale],
     user: `Title: ${source.title}\n\n${body}`,
     model: "flash",
