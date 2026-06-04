@@ -27,17 +27,15 @@
 //   - Core tier-1 node (bubbleAction: 'jarvis'): bubble shows a 💬
 //     icon that opens /jarvis. Primary action: open /persona.
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
   Animated,
   Easing,
-  Image,
   Platform,
   Pressable,
   StyleSheet,
   View,
   useWindowDimensions,
-  type ImageStyle,
 } from "react-native";
 import Svg, { Line } from "react-native-svg";
 import { router, type Href } from "expo-router";
@@ -58,7 +56,12 @@ import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
-import { TierIcon, DOMAIN_TIER_ICON } from "@/components/art/TierIcon";
+import {
+  FinalLogArt,
+  FinalPatternDataArt,
+  finalLogIdForGraphPiece,
+  finalPatternDataIdForDomain,
+} from "@/components/art/SoulcoreFinalArt";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { getPersona } from "@/lib/chat/personas";
 import { relatedEdges } from "@/lib/graph/relatedness";
@@ -67,14 +70,18 @@ import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
 import { CrewLayer } from "./CrewLayer";
 import { useCrewCount } from "@/lib/settings/crew-density";
 import { getEnv } from "@/lib/env";
-import { V3_CREW_ART, V3_DATA_PNG, V3_DATA_PNG_DEFAULT, V3_LOG_PNG_DEFAULT } from "@/lib/assets/soulcore-v3";
+import { V3_CREW_ART } from "@/lib/assets/soulcore-v3";
 import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
 import { patternLinkStyle } from "@/lib/graph/pattern-link";
 import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus } from "./world-layout";
 
-const AnimatedLine = Animated.createAnimatedComponent(Line);
+function SvgLine({ collapsable: _collapsable, ...props }: ComponentProps<typeof Line> & { collapsable?: boolean }) {
+  return <Line {...props} />;
+}
+
+const AnimatedLine = Animated.createAnimatedComponent(SvgLine);
 
 // User directive (2026-05-27): tier-ordered "뽁!" spawn sequence after
 // the logo fade completes. Per tier, node order is randomized so two
@@ -339,7 +346,6 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // no blur/opacity) rather than an SVG component — Tier 3 per parent domain
   // (V3_DATA_PNG), Tier 4 a single Log chip (V3_LOG_PNG_DEFAULT).
   // imageRendering is web-only CSS, absent from RN's ImageStyle type.
-  const navPixelated = { imageRendering: "pixelated" } as unknown as ImageStyle;
   const renderV3Crew = useV3Art
     ? (i: number, sz: number) => {
         const Crew = V3_CREW_ART[i % V3_CREW_ART.length];
@@ -850,6 +856,27 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     if (activeId != null) lightConnections();
   }, [activeId, lightConnections]);
 
+  // Pattern Link life pass: a tiny travelling highlight over the edge reveal,
+  // so connections read as signal paths instead of static geometry.
+  const linkSignal = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (prefersReducedMotion()) {
+      linkSignal.setValue(0);
+      return;
+    }
+    linkSignal.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(linkSignal, {
+        toValue: 1,
+        duration: 1800,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [linkSignal]);
+
   // Bubble pop-in anim — 0 (hidden) → 1.2 (overshoot) → 1.0 (settled).
   // Re-triggered whenever activeId switches to a non-null value, so
   // tapping a different node makes the new bubble pop in.
@@ -1144,6 +1171,19 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           const animOpacity = ev
             ? (ev.interpolate({ inputRange: [0, 1], outputRange: [0, e.opacity * dimFactor] }) as unknown as number)
             : 0;
+          const flowOpacity = ev
+            ? (Animated.multiply(
+                ev,
+                linkSignal.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.82, 0] }),
+              ).interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, Math.min(0.85, e.opacity * dimFactor * 1.2)],
+              }) as unknown as number)
+            : 0;
+          const flowDashOffset = linkSignal.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, -28],
+          }) as unknown as number;
           const x1 = animX(e.fromId, fromBase.x) as unknown as number;
           const y1 = animY(e.fromId, fromBase.y) as unknown as number;
           const x2 = animX(e.toId, toBase.x) as unknown as number;
@@ -1158,6 +1198,18 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 stroke={useV3Art ? v3EdgeColor(tierOf(e.toId)) : cosmic.signalMint}
                 strokeOpacity={animOpacity}
                 strokeWidth={linkStyle.strokeWidth}
+              />
+              <AnimatedLine
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={cosmic.moonWhite}
+                strokeOpacity={flowOpacity}
+                strokeWidth={Math.max(1, linkStyle.strokeWidth + 0.5)}
+                strokeDasharray="4 10"
+                strokeDashoffset={flowDashOffset}
+                strokeLinecap="round"
               />
               {/* 연결된 edge만 signal-mint 하이라이트 (§7) + C6 ambient glow. */}
               {incident ? (
@@ -1182,13 +1234,15 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
 
       {/* Tier 4 data shards — fade in/out with zoom (§5 + graph-ux #8). */}
       {tier4Mounted
-        ? Array.from(dataPositions.entries()).map(([id, p]) => (
+        ? Array.from(dataPositions.entries()).map(([id, p]) => {
+            const piece = dataNodes.find((d) => d.id === id);
+            return (
             <Animated.View
               key={id}
               style={[
                 styles.shardWrap,
                 {
-                  left: p.x - 9,
+                  left: p.x - 12,
                   top: p.y - 9,
                   opacity: tier4Fade as never,
                   transform: swayTransform(id) as never,
@@ -1202,22 +1256,17 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               <Pressable
                 onPress={() => handleNodeTap(id)}
                 hitSlop={14}
-                accessibilityLabel={dataNodes.find((d) => d.id === id)?.title ?? "piece"}
+                accessibilityLabel={piece?.title ?? "piece"}
               >
-                {useV3Art ? (
-                  <Image
-                    source={V3_LOG_PNG_DEFAULT}
-                    style={[{ width: 18, height: 18 }, navPixelated]}
-                    resizeMode="contain"
-                    accessibilityElementsHidden
-                    importantForAccessibility="no-hide-descendants"
-                  />
-                ) : (
-                  <TierIcon id={p.parentId.startsWith("wiki") ? "book_wiki" : "cube_data"} size={18} />
-                )}
+                <FinalLogArt
+                  id={finalLogIdForGraphPiece(p.parentId, piece?.tags, piece?.title)}
+                  width={24}
+                  height={18}
+                />
               </Pressable>
             </Animated.View>
-          ))
+            );
+          })
         : null}
 
       {/* Tier 2 + 3 nodes — pixel-object art; tier 3 fades with zoom (§5 + #8) */}
@@ -1252,19 +1301,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
             >
               {ISLAND_FOR[n.id] ? (
                 <IslandArt id={ISLAND_FOR[n.id]!} size={size * ISLAND_ART_SCALE} style={{ position: "absolute", left: size * ISLAND_ART_OFFSET, top: size * ISLAND_ART_OFFSET }} />
-              ) : useV3Art ? (
-                // v3: Tier-3 = Pattern Data tesseract (flag on), tinted per parent domain.
-                <Image
-                  source={V3_DATA_PNG[n.parentId ?? ""] ?? V3_DATA_PNG_DEFAULT}
-                  style={[{ width: size, height: size }, navPixelated]}
-                  resizeMode="contain"
-                  accessibilityElementsHidden
-                  importantForAccessibility="no-hide-descendants"
-                />
               ) : (
-                // Tier-3 nodes are pieces, not robots (closeout-v3 #9): show the
-                // parent domain's signature tier icon (book / paper / heart …).
-                <TierIcon id={DOMAIN_TIER_ICON[n.parentId ?? ""] ?? "cube_data"} size={size} />
+                // Tier-3 nodes are Pattern Data pieces from the final tesseract pass.
+                <FinalPatternDataArt id={finalPatternDataIdForDomain(n.parentId)} size={size} />
               )}
               <Pressable
                 onPress={() => handleNodeTap(n.id)}
@@ -1637,7 +1676,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   resetText: { color: cosmic.signalMint, letterSpacing: 0 },
-  shardWrap: { position: "absolute", width: 14, height: 14, alignItems: "center", justifyContent: "center" },
+  shardWrap: { position: "absolute", width: 24, height: 18, alignItems: "center", justifyContent: "center" },
   // Highlight-on-return: a mint halo around the shard the user came back to.
   shardHighlight: {
     shadowColor: cosmic.signalMint,

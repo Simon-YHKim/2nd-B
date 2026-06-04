@@ -1,0 +1,95 @@
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { Animated, Easing, type StyleProp, type ViewStyle } from "react-native";
+
+import { prefersReducedMotion } from "@/lib/motion/signature";
+import {
+  LIVING_ASSET_MOTION,
+  livingAssetPhase,
+  type LivingAssetPreset,
+} from "@/lib/motion/living-assets";
+
+interface LivingAssetProps {
+  preset: LivingAssetPreset;
+  id?: string | number;
+  size?: number;
+  enabled?: boolean;
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  pointerEvents?: "box-none" | "none" | "box-only" | "auto";
+}
+
+export function LivingAsset({
+  preset,
+  id,
+  size,
+  enabled = true,
+  children,
+  style,
+  pointerEvents,
+}: LivingAssetProps) {
+  const motion = LIVING_ASSET_MOTION[preset];
+  const phase = useMemo(() => livingAssetPhase(id, preset), [id, preset]);
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!enabled || prefersReducedMotion()) {
+      progress.setValue(0);
+      return;
+    }
+    const delay = motion.delayMs + Math.round((phase / 1000) * motion.durationMs);
+    let loop: Animated.CompositeAnimation | null = null;
+    progress.setValue(0);
+    const timer = setTimeout(() => {
+      loop = Animated.loop(
+        Animated.timing(progress, {
+          toValue: 1,
+          duration: motion.durationMs,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      );
+      loop.start();
+    }, delay);
+    return () => {
+      clearTimeout(timer);
+      loop?.stop();
+    };
+  }, [enabled, motion.delayMs, motion.durationMs, phase, progress]);
+
+  const animatedStyle = enabled && !prefersReducedMotion()
+    ? {
+        opacity: progress.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [motion.opacityMin, 1, motion.opacityMin],
+        }),
+        transform: [
+          {
+            translateY: progress.interpolate({
+              inputRange: [0, 0.5, 1],
+              outputRange: [0, motion.translateY, 0],
+            }),
+          },
+          {
+            scale: progress.interpolate({
+              inputRange: [0, 0.5, 1],
+              outputRange: [1, motion.scale, 1],
+            }),
+          },
+        ],
+      }
+    : null;
+
+  return (
+    <Animated.View
+      pointerEvents={pointerEvents}
+      style={[size ? { width: size, height: size } : null, style, animatedStyle as StyleProp<ViewStyle>]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+export type { LivingAssetPreset };
