@@ -61,6 +61,7 @@ import {
   FinalPatternDataArtV49,
 } from "@/components/art/SoulcoreFinalArt";
 import { resolvePatternDataColor } from "@/lib/graph/pattern-data-color";
+import { depthStyleForTier } from "@/lib/graph/depth-style";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { getPersona } from "@/lib/chat/personas";
 import { relatedEdges } from "@/lib/graph/relatedness";
@@ -274,6 +275,20 @@ function tierSize(t: Tier): number {
   if (t === 2) return 44;
   if (t === 3) return 35;
   return 28;
+}
+
+// Distance feeling (v10 pass): deeper tiers desaturate slightly so they read
+// "farther" (scale-depth is already handled by tierSize — no extra shrink). The
+// CSS `filter` is web-only and absent from RN's style types, so we build it the
+// same way as the PIXELATED `imageRendering` hack: a plain object cast through
+// `unknown`. On native it is silently ignored (scale + opacity still convey
+// depth). Saturation is applied to the ART layer only, NOT the tier-1 Soul Core
+// (depthStyleForTier(1).saturate === 1 → no filter anyway, but tier 1 also skips
+// it explicitly to keep the core fully vivid).
+function depthSaturateStyle(tier: Tier): Record<string, unknown> | null {
+  const { saturate } = depthStyleForTier(tier);
+  if (saturate >= 1) return null;
+  return { filter: `saturate(${saturate})` };
 }
 
 // Pattern Link depth palette (worldview v-final §8: "가까운 데이터일수록 두껍고 밝음").
@@ -1293,13 +1308,18 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               ]}
             >
               {/* Each data shard is one of the user's classified pieces. Tapping
-                  it opens the piece popup (summary + hashtags + 자세히). */}
+                  it opens the piece popup (summary + hashtags + 자세히). Depth
+                  feeling: tier-4 art is the most distant — saturate + opacity
+                  fall off (depthStyleForTier(4)) while the hit target stays full
+                  strength (Pressable hitSlop unaffected by the art-only style). */}
               <Pressable
                 onPress={() => handleNodeTap(id)}
                 hitSlop={14}
                 accessibilityLabel={piece?.title ?? "piece"}
               >
-                <FinalLogArtV49 width={28} height={21} />
+                <View style={[{ opacity: depthStyleForTier(4).opacity }, depthSaturateStyle(4) as never]}>
+                  <FinalLogArtV49 width={28} height={21} />
+                </View>
               </Pressable>
             </Animated.View>
             );
@@ -1336,10 +1356,16 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 dim ? styles.dimmed : null,
               ]}
             >
+              {/* Distance feeling (v10): the tesseract art layer dims +
+                  desaturates with tier (depthStyleForTier) so deeper nodes read
+                  "farther"; scale-depth already comes from tierSize. Applied to
+                  the art wrapper only — the Pressable hit target + village label
+                  below stay full strength. */}
+              <View style={[StyleSheet.absoluteFill, styles.nodeArtDepth, { opacity: depthStyleForTier(n.tier).opacity }, depthSaturateStyle(n.tier) as never]}>
               {ISLAND_FOR[n.id] ? (
                 <IslandArt id={ISLAND_FOR[n.id]!} size={size * ISLAND_ART_SCALE} style={{ position: "absolute", left: size * ISLAND_ART_OFFSET, top: size * ISLAND_ART_OFFSET }} />
               ) : (
-                // Tier-3 nodes are Pattern Data pieces (v49 static tesseract). The
+                // Tier-3 nodes are Pattern Data pieces (v10 default tesseract). The
                 // category color is resolved deterministically from the node's
                 // label + description (EN+KO for keyword coverage), with the parent
                 // domain as an extra keyword and the node id as the stable-hash
@@ -1354,6 +1380,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                   size={size}
                 />
               )}
+              </View>
               <Pressable
                 onPress={() => handleNodeTap(n.id)}
                 hitSlop={14}
@@ -1668,6 +1695,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "stretch",
+  },
+  // Art-only depth layer (v10 distance feeling). Fills the node box and centers
+  // the art the same way nodeArtWrap does, so adding it doesn't shift layout;
+  // it just carries the tier opacity + (web-only) saturate filter. Sits behind
+  // the Pressable hit target (which renders after it via absoluteFill).
+  nodeArtDepth: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   // Village name plate under each tier-2 island. Pixel face on a dark glass
   // chip with a mint hairline so it reads against the cosmic background while
