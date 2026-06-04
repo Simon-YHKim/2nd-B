@@ -1178,6 +1178,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   return (
     <View ref={outerRef} style={StyleSheet.absoluteFill} pointerEvents="box-none">
     <GestureDetector gesture={composedGesture}>
+      {/* Static full-viewport gesture surface (pan/zoom dead-zone fix): the
+          camera transform lives INSIDE this untransformed catcher, so panning
+          or zooming out never shifts the touch surface off-screen, and the
+          pinch focal stays in true screen space (web: touch-action covers the
+          whole viewport so the browser never claims the gesture). */}
+      <View style={styles.root}>
       <ReAnimated.View style={[styles.root, zoomAnimatedStyle]}>
       {/* Full-size transparent hit surface (graph-ux #6): an opaque-to-touch
           layer spanning the whole graph so pan/pinch register from ANY empty
@@ -1404,6 +1410,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       <CrewLayer count={crewCount} animated={crewAnimated} visible={activeId == null} width={width} height={height} renderCrew={renderV3Crew} />
 
       </ReAnimated.View>
+      </View>
     </GestureDetector>
 
       {/* "원래대로" reset button (closeout-v3 #4) — fades in near the top when
