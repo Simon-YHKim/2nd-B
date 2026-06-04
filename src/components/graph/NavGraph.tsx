@@ -286,6 +286,29 @@ function v3EdgeColor(childTier: Tier): string {
   return childTier <= 2 ? cosmic.signalMint : childTier === 3 ? cosmic.signalBlue : cosmic.soulViolet;
 }
 
+// v47.2 (Simon-approved): Pattern Link signal speed is distance-tier based, so
+// the travelling highlight loops slower the "farther" an edge reads. Far
+// background links sit almost still while focused/near links feel alive.
+// The old single 1800ms loop becomes current 3000 / near 3600 / mid 6000 /
+// far 18000 (about 60/50/30/10% speed). The graph childTier to design-tier
+// mapping below is the implementation's choice (GPT/Simon: confirm in preview).
+const PATTERN_LINK_SIGNAL_DURATION_MS_BY_DISTANCE = {
+  current: 3000,
+  near: 3600,
+  mid: 6000,
+  far: 18000,
+} as const;
+type PatternLinkDistance = keyof typeof PATTERN_LINK_SIGNAL_DURATION_MS_BY_DISTANCE;
+
+// Focused/incident edge reads as "current"; otherwise deeper child tiers read
+// farther and slower: tier 2 -> near, tier 3 -> mid, tier 4 -> far.
+function patternLinkDistance(incident: boolean, childTier: Tier): PatternLinkDistance {
+  if (incident) return "current";
+  if (childTier <= 2) return "near";
+  if (childTier === 3) return "mid";
+  return "far";
+}
+
 // Center (tier 1) size — kept as a named constant since the center node
 // is positioned with explicit offsets in JSX.
 const CENTER_SIZE = tierSize(1);
@@ -857,25 +880,36 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   }, [activeId, lightConnections]);
 
   // Pattern Link life pass: a tiny travelling highlight over the edge reveal,
-  // so connections read as signal paths instead of static geometry.
-  const linkSignal = useRef(new Animated.Value(0)).current;
+  // so connections read as signal paths instead of static geometry. v47.2: one
+  // looping value per distance tier so each edge's signal speed matches its
+  // distance (see PATTERN_LINK_SIGNAL_DURATION_MS_BY_DISTANCE).
+  const linkSignals = useRef<Record<PatternLinkDistance, Animated.Value>>({
+    current: new Animated.Value(0),
+    near: new Animated.Value(0),
+    mid: new Animated.Value(0),
+    far: new Animated.Value(0),
+  }).current;
   useEffect(() => {
+    const keys = Object.keys(linkSignals) as PatternLinkDistance[];
     if (prefersReducedMotion()) {
-      linkSignal.setValue(0);
+      keys.forEach((k) => linkSignals[k].setValue(0));
       return;
     }
-    linkSignal.setValue(0);
-    const loop = Animated.loop(
-      Animated.timing(linkSignal, {
-        toValue: 1,
-        duration: 1800,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [linkSignal]);
+    const loops = keys.map((k) => {
+      linkSignals[k].setValue(0);
+      const loop = Animated.loop(
+        Animated.timing(linkSignals[k], {
+          toValue: 1,
+          duration: PATTERN_LINK_SIGNAL_DURATION_MS_BY_DISTANCE[k],
+          easing: Easing.linear,
+          useNativeDriver: false,
+        }),
+      );
+      loop.start();
+      return loop;
+    });
+    return () => loops.forEach((l) => l.stop());
+  }, [linkSignals]);
 
   // Bubble pop-in anim — 0 (hidden) → 1.2 (overshoot) → 1.0 (settled).
   // Re-triggered whenever activeId switches to a non-null value, so
@@ -1168,6 +1202,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           // §7: when a node is focused, dim the unrelated edges.
           const dimFactor = activeId != null && !incident ? 0.22 : 1;
           const ev = edgeValues.current.get(e.key);
+          // v47.2: pick the looping signal value for this edge's distance tier.
+          const linkSignal = linkSignals[patternLinkDistance(incident, tierOf(e.toId))];
           const animOpacity = ev
             ? (ev.interpolate({ inputRange: [0, 1], outputRange: [0, e.opacity * dimFactor] }) as unknown as number)
             : 0;
