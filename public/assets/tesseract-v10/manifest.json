@@ -1,0 +1,191 @@
+[
+  {
+    "id": "soul_core",
+    "tier": "core",
+    "file": "transparent_png/soul_core.png",
+    "source": "source_white/soul_core.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    }
+  },
+  {
+    "id": "growth_core",
+    "tier": "core",
+    "file": "transparent_png/growth_core.png",
+    "source": "source_white/growth_core.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    }
+  },
+  {
+    "id": "bond_core",
+    "tier": "core",
+    "file": "transparent_png/bond_core.png",
+    "source": "source_white/bond_core.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    }
+  },
+  {
+    "id": "wisdom_core",
+    "tier": "core",
+    "file": "transparent_png/wisdom_core.png",
+    "source": "source_white/wisdom_core.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    }
+  },
+  {
+    "id": "narrative_core",
+    "tier": "core",
+    "file": "transparent_png/narrative_core.png",
+    "source": "source_white/narrative_core.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    }
+  },
+  {
+    "id": "muse_core",
+    "tier": "core",
+    "file": "transparent_png/muse_core.png",
+    "source": "source_white/muse_core.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    }
+  },
+  {
+    "id": "pattern_data_red",
+    "tier": "pattern_data",
+    "file": "transparent_png/pattern_data_red.png",
+    "source": "source_white/pattern_data_red.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    },
+    "category_color": "red"
+  },
+  {
+    "id": "pattern_data_orange",
+    "tier": "pattern_data",
+    "file": "transparent_png/pattern_data_orange.png",
+    "source": "source_white/pattern_data_orange.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    },
+    "category_color": "orange"
+  },
+  {
+    "id": "pattern_data_yellow",
+    "tier": "pattern_data",
+    "file": "transparent_png/pattern_data_yellow.png",
+    "source": "source_white/pattern_data_yellow.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    },
+    "category_color": "yellow"
+  },
+  {
+    "id": "pattern_data_green",
+    "tier": "pattern_data",
+    "file": "transparent_png/pattern_data_green.png",
+    "source": "source_white/pattern_data_green.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    },
+    "category_color": "green"
+  },
+  {
+    "id": "pattern_data_blue",
+    "tier": "pattern_data",
+    "file": "transparent_png/pattern_data_blue.png",
+    "source": "source_white/pattern_data_blue.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    },
+    "category_color": "blue"
+  },
+  {
+    "id": "pattern_data_indigo",
+    "tier": "pattern_data",
+    "file": "transparent_png/pattern_data_indigo.png",
+    "source": "source_white/pattern_data_indigo.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    },
+    "category_color": "indigo"
+  },
+  {
+    "id": "pattern_data_violet",
+    "tier": "pattern_data",
+    "file": "transparent_png/pattern_data_violet.png",
+    "source": "source_white/pattern_data_violet.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    },
+    "category_color": "violet"
+  },
+  {
+    "id": "pattern_data_white",
+    "tier": "pattern_data",
+    "file": "transparent_png/pattern_data_white.png",
+    "source": "source_white/pattern_data_white.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    },
+    "category_color": "white"
+  },
+  {
+    "id": "pattern_data_black",
+    "tier": "pattern_data",
+    "file": "transparent_png/pattern_data_black.png",
+    "source": "source_white/pattern_data_black.png",
+    "cutout_method": "distance_cutout_plus_small_hole_repair",
+    "cutout_distance_threshold": 8,
+    "small_hole_repair": {
+      "max_area": 8000,
+      "max_dim": 250
+    },
+    "category_color": "black"
+  }
+]

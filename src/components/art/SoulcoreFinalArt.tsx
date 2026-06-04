@@ -55,11 +55,17 @@ const FINAL_PATTERN_LINK_ART: Record<FinalPatternLinkId, ImageSourcePropType> = 
 };
 
 // ─── v49 static tesseract art (cosmic-pixel-v4-tesseract-v49) ────────────────
-// Production now renders this set; the v45 maps above stay defined so v45 ↔ v49
-// remain comparable (selectable via the `variant` prop, default "v49"). v49 is
-// always app_256 — tier1/tier2 have no 128/96 in the manifest, and per the v49
-// pass production uses 256 everywhere (the staged 128/96 are reference only).
-export type AssetVariant = "v45" | "v49";
+// v49 stays defined so v45 ↔ v49 ↔ v10 remain comparable (selectable via the
+// `variant` prop). v49 is always app_256 — tier1/tier2 have no 128/96 in the
+// manifest, and per the v49 pass production used 256 everywhere (the staged
+// 128/96 are reference only).
+//
+// 2026-06-04 — v10 clean-cutout reviewed set (public/assets/tesseract-v10) is
+// the new PRODUCTION DEFAULT (better cutouts, 18px safe margins). v49 + v45
+// stay reachable for the preview routes. v10 covers tier1 cores + tier3
+// pattern-data only; tier-4 Log + pattern_link have no v10 art, so those keep
+// the v49 components unchanged.
+export type AssetVariant = "v45" | "v49" | "v10";
 
 const FINAL_CORE_ART_V49: Record<FinalCoreId, ImageSourcePropType> = {
   core: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier1_soul_core_v49_256.png"),
@@ -70,14 +76,32 @@ const FINAL_CORE_ART_V49: Record<FinalCoreId, ImageSourcePropType> = {
   inspiration: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_muse_core_v49_256.png"),
 };
 
+// v10 core map (FinalCoreId → v10 file). Simple flat filenames per the v10
+// manifest. NOTE: ids archi/gadi/lulu/momo/lumi are not renamed this PR (large
+// scope — asset filenames key off them); see TODO at finalPatternDataIdForDomain.
+const FINAL_CORE_ART_V10: Record<FinalCoreId, ImageSourcePropType> = {
+  core: require("../../../public/assets/tesseract-v10/soul_core.png"),
+  work_growth: require("../../../public/assets/tesseract-v10/growth_core.png"),
+  relationship: require("../../../public/assets/tesseract-v10/bond_core.png"),
+  knowledge: require("../../../public/assets/tesseract-v10/wisdom_core.png"),
+  records: require("../../../public/assets/tesseract-v10/narrative_core.png"),
+  inspiration: require("../../../public/assets/tesseract-v10/muse_core.png"),
+};
+
 const CORE_ART_BY_VARIANT: Record<AssetVariant, Record<FinalCoreId, ImageSourcePropType>> = {
   v45: FINAL_CORE_ART,
   v49: FINAL_CORE_ART_V49,
+  v10: FINAL_CORE_ART_V10,
 };
 
-// Tier-3 Pattern Data: 9 color variants (v49). Keyed by PatternDataColorKey,
-// resolved upstream by resolvePatternDataColor(). v45 had no color set (it was
-// domain-tinted), so this is v49-only.
+// Production default variant. Flip this to swap which tesseract set production
+// surfaces (NavGraph / IslandArt) render. Preview routes pass an explicit
+// variant, so they stay pinned to their own set regardless of this default.
+export const DEFAULT_ASSET_VARIANT: AssetVariant = "v10";
+
+// Tier-3 Pattern Data: 9 color variants. Keyed by PatternDataColorKey, resolved
+// upstream by resolvePatternDataColor(). v45 had no color set (it was domain-
+// tinted), so the color maps exist for v49 + v10 only.
 const FINAL_PATTERN_DATA_ART_V49: Record<PatternDataColorKey, ImageSourcePropType> = {
   red: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_red_v49_256.png"),
   orange: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_orange_v49_256.png"),
@@ -88,6 +112,27 @@ const FINAL_PATTERN_DATA_ART_V49: Record<PatternDataColorKey, ImageSourcePropTyp
   violet: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_violet_v49_256.png"),
   white: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_white_v49_256.png"),
   black: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_black_v49_256.png"),
+};
+
+// v10 pattern-data (9 colors). Flat filenames per the v10 manifest.
+const FINAL_PATTERN_DATA_ART_V10: Record<PatternDataColorKey, ImageSourcePropType> = {
+  red: require("../../../public/assets/tesseract-v10/pattern_data_red.png"),
+  orange: require("../../../public/assets/tesseract-v10/pattern_data_orange.png"),
+  yellow: require("../../../public/assets/tesseract-v10/pattern_data_yellow.png"),
+  green: require("../../../public/assets/tesseract-v10/pattern_data_green.png"),
+  blue: require("../../../public/assets/tesseract-v10/pattern_data_blue.png"),
+  indigo: require("../../../public/assets/tesseract-v10/pattern_data_indigo.png"),
+  violet: require("../../../public/assets/tesseract-v10/pattern_data_violet.png"),
+  white: require("../../../public/assets/tesseract-v10/pattern_data_white.png"),
+  black: require("../../../public/assets/tesseract-v10/pattern_data_black.png"),
+};
+
+// Pattern-data art by variant. v49 + v10 ship the 9-color set; v45 had none, so
+// it falls back to v49's color set (it was never the color-keyed default).
+const PATTERN_DATA_ART_BY_VARIANT: Record<AssetVariant, Record<PatternDataColorKey, ImageSourcePropType>> = {
+  v45: FINAL_PATTERN_DATA_ART_V49,
+  v49: FINAL_PATTERN_DATA_ART_V49,
+  v10: FINAL_PATTERN_DATA_ART_V10,
 };
 
 // Tier-4 Log: a single v49 logbook tesseract (no per-category variant in v49).
@@ -105,7 +150,7 @@ export function FinalCoreArt({
   size,
   style,
   animated = true,
-  variant = "v49",
+  variant = DEFAULT_ASSET_VARIANT,
 }: {
   id: FinalCoreId;
   size: number;
@@ -125,7 +170,7 @@ function SoulCoreArt({
   size,
   style,
   animated = true,
-  variant = "v49",
+  variant = DEFAULT_ASSET_VARIANT,
 }: {
   size: number;
   style?: StyleProp<ViewStyle>;
@@ -320,22 +365,27 @@ export function FinalPatternDataArt({
   );
 }
 
-// v49 Pattern Data — keyed by resolved color (9 variants). Production tier-3.
+// Pattern Data — keyed by resolved color (9 variants). Production tier-3.
 // Reuses the existing patternData motion wrapper (no new motion this pass).
+// Named "…V49" historically; now variant-aware (defaults to the production
+// DEFAULT_ASSET_VARIANT = v10). The v49 preview passes variant="v49" to stay
+// pinned to its own set. Kept this name so existing imports don't churn.
 export function FinalPatternDataArtV49({
   colorKey,
   size,
   style,
   animated = true,
+  variant = DEFAULT_ASSET_VARIANT,
 }: {
   colorKey: PatternDataColorKey;
   size: number;
   style?: StyleProp<ViewStyle>;
   animated?: boolean;
+  variant?: AssetVariant;
 }) {
   return (
     <LivingAsset preset="patternData" id={`pd-${colorKey}`} size={size} style={style} enabled={animated} pointerEvents="none">
-      <Image source={FINAL_PATTERN_DATA_ART_V49[colorKey]} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
+      <Image source={PATTERN_DATA_ART_BY_VARIANT[variant][colorKey]} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
     </LivingAsset>
   );
 }
@@ -421,6 +471,11 @@ export function FinalPatternLinkArt({
   );
 }
 
+// TODO(naming): internal worker/asset ids (archi/gadi/lulu/momo/lumi) are NOT
+// renamed to the display cast (Archon/Relia/Lumen/Foreman Momo/Lumina) in this
+// PR — that is large scope (asset filenames + personas key off these ids). The
+// user-facing display names are already correct in MENU_NODES / personas. Track
+// the id rename separately.
 export function finalPatternDataIdForDomain(domain: string | undefined): FinalPatternDataId {
   switch (domain) {
     case "work": return "growth";
