@@ -50,6 +50,8 @@ export function IslandArt({
 }) {
   // Worldview v-final: render the final transparent PNG tesseract set when it
   // exists; otherwise fall back to the legacy PNG for retired ids like imagine.
+  // FinalCoreArt defaults to the v49 static tesseract set (production); the v45
+  // set stays available via its `variant` prop for side-by-side comparison.
   const useFinalArt = hasFinalCoreArt(id);
   const preset = id === "core" ? "soulCore" : "patternCore";
   if (useFinalArt) return <FinalCoreArt id={id} size={size} style={style} animated={animated} />;

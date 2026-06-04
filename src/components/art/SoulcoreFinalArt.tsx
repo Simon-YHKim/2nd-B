@@ -13,6 +13,7 @@ import {
 
 import { LivingAsset } from "@/components/motion/LivingAsset";
 import { prefersReducedMotion } from "@/lib/motion/signature";
+import type { PatternDataColorKey } from "@/lib/graph/pattern-data-color";
 
 const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
 
@@ -53,6 +54,48 @@ const FINAL_PATTERN_LINK_ART: Record<FinalPatternLinkId, ImageSourcePropType> = 
   current: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_current_320x64.png"),
 };
 
+// ─── v49 static tesseract art (cosmic-pixel-v4-tesseract-v49) ────────────────
+// Production now renders this set; the v45 maps above stay defined so v45 ↔ v49
+// remain comparable (selectable via the `variant` prop, default "v49"). v49 is
+// always app_256 — tier1/tier2 have no 128/96 in the manifest, and per the v49
+// pass production uses 256 everywhere (the staged 128/96 are reference only).
+export type AssetVariant = "v45" | "v49";
+
+const FINAL_CORE_ART_V49: Record<FinalCoreId, ImageSourcePropType> = {
+  core: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier1_soul_core_v49_256.png"),
+  work_growth: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_growth_core_v49_256.png"),
+  relationship: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_bond_core_v49_256.png"),
+  knowledge: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_wisdom_core_v49_256.png"),
+  records: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_narrative_core_v49_256.png"),
+  inspiration: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_muse_core_v49_256.png"),
+};
+
+const CORE_ART_BY_VARIANT: Record<AssetVariant, Record<FinalCoreId, ImageSourcePropType>> = {
+  v45: FINAL_CORE_ART,
+  v49: FINAL_CORE_ART_V49,
+};
+
+// Tier-3 Pattern Data: 9 color variants (v49). Keyed by PatternDataColorKey,
+// resolved upstream by resolvePatternDataColor(). v45 had no color set (it was
+// domain-tinted), so this is v49-only.
+const FINAL_PATTERN_DATA_ART_V49: Record<PatternDataColorKey, ImageSourcePropType> = {
+  red: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_red_v49_256.png"),
+  orange: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_orange_v49_256.png"),
+  yellow: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_yellow_v49_256.png"),
+  green: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_green_v49_256.png"),
+  blue: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_blue_v49_256.png"),
+  indigo: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_indigo_v49_256.png"),
+  violet: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_violet_v49_256.png"),
+  white: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_white_v49_256.png"),
+  black: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_black_v49_256.png"),
+};
+
+// Tier-4 Log: a single v49 logbook tesseract (no per-category variant in v49).
+const FINAL_LOG_ART_V49: ImageSourcePropType = require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier4_log_v49_256.png");
+
+// Pattern Link conduit tile (v49). Static tile; not animated this pass.
+const FINAL_PATTERN_LINK_TILE_V49: ImageSourcePropType = require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/pattern_link/pattern-link-crystal-conduit-tile-v47-3.png");
+
 export function hasFinalCoreArt(id: string): id is FinalCoreId {
   return id in FINAL_CORE_ART;
 }
@@ -62,16 +105,18 @@ export function FinalCoreArt({
   size,
   style,
   animated = true,
+  variant = "v49",
 }: {
   id: FinalCoreId;
   size: number;
   style?: StyleProp<ViewStyle>;
   animated?: boolean;
+  variant?: AssetVariant;
 }) {
-  if (id === "core") return <SoulCoreArt size={size} style={style} animated={animated} />;
+  if (id === "core") return <SoulCoreArt size={size} style={style} animated={animated} variant={variant} />;
   return (
     <LivingAsset preset="patternCore" id={id} size={size} style={style} enabled={animated} pointerEvents="none">
-      <Image source={FINAL_CORE_ART[id]} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
+      <Image source={CORE_ART_BY_VARIANT[variant][id]} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
     </LivingAsset>
   );
 }
@@ -80,10 +125,12 @@ function SoulCoreArt({
   size,
   style,
   animated = true,
+  variant = "v49",
 }: {
   size: number;
   style?: StyleProp<ViewStyle>;
   animated?: boolean;
+  variant?: AssetVariant;
 }) {
   return (
     <View
@@ -92,7 +139,7 @@ function SoulCoreArt({
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <Image source={FINAL_CORE_ART.core} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
+      <Image source={CORE_ART_BY_VARIANT[variant].core} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
       <SoulFlameFlicker size={size} active={animated} />
     </View>
   );
@@ -273,6 +320,26 @@ export function FinalPatternDataArt({
   );
 }
 
+// v49 Pattern Data — keyed by resolved color (9 variants). Production tier-3.
+// Reuses the existing patternData motion wrapper (no new motion this pass).
+export function FinalPatternDataArtV49({
+  colorKey,
+  size,
+  style,
+  animated = true,
+}: {
+  colorKey: PatternDataColorKey;
+  size: number;
+  style?: StyleProp<ViewStyle>;
+  animated?: boolean;
+}) {
+  return (
+    <LivingAsset preset="patternData" id={`pd-${colorKey}`} size={size} style={style} enabled={animated} pointerEvents="none">
+      <Image source={FINAL_PATTERN_DATA_ART_V49[colorKey]} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
+    </LivingAsset>
+  );
+}
+
 export function FinalLogArt({
   id,
   width,
@@ -290,6 +357,47 @@ export function FinalLogArt({
     <LivingAsset preset="log" id={id} style={[{ width, height }, style]} enabled={animated} pointerEvents="none">
       <Image source={FINAL_LOG_ART[id]} style={[{ width, height }, PIXELATED]} resizeMode="contain" />
     </LivingAsset>
+  );
+}
+
+// v49 Log — single logbook tesseract (no per-category variant). Production tier-4.
+export function FinalLogArtV49({
+  width,
+  height,
+  style,
+  animated = true,
+}: {
+  width: number;
+  height: number;
+  style?: StyleProp<ViewStyle>;
+  animated?: boolean;
+}) {
+  return (
+    <LivingAsset preset="log" id="log-v49" style={[{ width, height }, style]} enabled={animated} pointerEvents="none">
+      <Image source={FINAL_LOG_ART_V49} style={[{ width, height }, PIXELATED]} resizeMode="contain" />
+    </LivingAsset>
+  );
+}
+
+// v49 Pattern Link conduit tile — static (no motion this pass). Used by the
+// v49 static preview; the graph still draws edges as styled lines.
+export function FinalPatternLinkTileV49({
+  width,
+  height,
+  style,
+}: {
+  width: number;
+  height: number;
+  style?: StyleProp<ImageStyle>;
+}) {
+  return (
+    <Image
+      source={FINAL_PATTERN_LINK_TILE_V49}
+      style={[{ width, height }, PIXELATED, style]}
+      resizeMode="contain"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    />
   );
 }
 
