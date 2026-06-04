@@ -57,11 +57,10 @@ import { prefersReducedMotion } from "@/lib/motion/signature";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import {
-  FinalLogArt,
-  FinalPatternDataArt,
-  finalLogIdForGraphPiece,
-  finalPatternDataIdForDomain,
+  FinalLogArtV49,
+  FinalPatternDataArtV49,
 } from "@/components/art/SoulcoreFinalArt";
+import { resolvePatternDataColor } from "@/lib/graph/pattern-data-color";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { getPersona } from "@/lib/chat/personas";
 import { relatedEdges } from "@/lib/graph/relatedness";
@@ -234,7 +233,7 @@ const ISLAND_FOR: Record<string, IslandId> = {
 // Domain → worker mapping (worldview v-final, authoritative). Internal worker
 // ids (archi/gadi/lulu/momo/lumi/secondb) are unchanged; display names moved:
 //   일과 성장 = Archon, 관계와 사랑 = Relia, 배움과 지식 = Lumen,
-//   기록 보관소 = Foreman Momo, 취향과 영감 = Iris,
+//   기록 보관소 = Foreman Momo, 취향과 영감 = Lumina,
 //   나의 중심 = SecondB. Worker glow matches the core accent.
 const VILLAGE_WORKER: Record<string, WorkerId> = {
   work: VILLAGE_UI.work.worker,
@@ -1300,11 +1299,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 hitSlop={14}
                 accessibilityLabel={piece?.title ?? "piece"}
               >
-                <FinalLogArt
-                  id={finalLogIdForGraphPiece(p.parentId, piece?.tags, piece?.title)}
-                  width={28}
-                  height={21}
-                />
+                <FinalLogArtV49 width={28} height={21} />
               </Pressable>
             </Animated.View>
             );
@@ -1344,8 +1339,20 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               {ISLAND_FOR[n.id] ? (
                 <IslandArt id={ISLAND_FOR[n.id]!} size={size * ISLAND_ART_SCALE} style={{ position: "absolute", left: size * ISLAND_ART_OFFSET, top: size * ISLAND_ART_OFFSET }} />
               ) : (
-                // Tier-3 nodes are Pattern Data pieces from the final tesseract pass.
-                <FinalPatternDataArt id={finalPatternDataIdForDomain(n.parentId)} size={size} />
+                // Tier-3 nodes are Pattern Data pieces (v49 static tesseract). The
+                // category color is resolved deterministically from the node's
+                // label + description (EN+KO for keyword coverage), with the parent
+                // domain as an extra keyword and the node id as the stable-hash
+                // fallback seed — so the same node always reads the same color.
+                <FinalPatternDataArtV49
+                  colorKey={resolvePatternDataColor({
+                    name: `${n.label.en} ${n.label.ko}`,
+                    description: `${n.description.en} ${n.description.ko}`,
+                    keywords: n.parentId ? [n.parentId] : [],
+                    id: n.id,
+                  })}
+                  size={size}
+                />
               )}
               <Pressable
                 onPress={() => handleNodeTap(n.id)}
