@@ -3,7 +3,7 @@
 // aware. Copy is warm + non-clinical; safety uses Gadi's calm rose tone.
 
 import { type ReactNode, useEffect, useRef } from "react";
-import { ActivityIndicator, Animated, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Animated, BackHandler, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, spacing } from "@/lib/theme/tokens";
@@ -23,6 +23,19 @@ export function PremiumBottomSheet({
   accessibilityLabel?: string;
 }) {
   const slide = useRef(new Animated.Value(0)).current;
+
+  // Android hardware back closes the sheet. It is a plain View (not a Modal), so
+  // it never gets Modal's onRequestClose — without this, back pops the route
+  // instead of dismissing the open sheet. Returning true consumes the event.
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
   useEffect(() => {
     if (!visible) return;
     if (prefersReducedMotion()) {
@@ -52,7 +65,7 @@ export function PremiumBottomSheet({
 /** Centered glassy modal. */
 export function PremiumModal({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
           {children}
@@ -131,6 +144,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.34,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
   sheetHandle: { alignSelf: "center", width: 42, height: 3, borderRadius: 2, backgroundColor: "rgba(114,242,199,0.52)", marginBottom: spacing.sm },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(2,4,10,0.8)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
@@ -143,6 +157,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(7,10,24,0.98)",
     padding: spacing.lg,
     gap: spacing.md,
+    elevation: 24,
   },
   toast: {
     flexDirection: "row",

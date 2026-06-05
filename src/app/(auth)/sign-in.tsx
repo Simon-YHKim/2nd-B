@@ -33,6 +33,7 @@ import {
 import { cosmicSky, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { CosmicBackground } from "@/components/premium";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
+import { useKeyboard } from "@/lib/ui/useKeyboard";
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
@@ -50,6 +51,7 @@ export default function SignIn() {
   const [submitting, setSubmitting] = useState(false);
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const kbHeight = useKeyboard();
 
   // Already signed in (OAuth redirect landed back here, or user hit
   // /sign-in directly while session was still alive). Bounce to root
@@ -98,8 +100,8 @@ export default function SignIn() {
       await signInWithEmail(email.trim(), password);
       // AuthContext picks up the new session; IntroGate plays the cell
       // LoadingScreen and then mounts the Stack. Route to /index so the
-      // post-loading hand-off lands on the graph view (the new main),
-      // not /journal. /journal stays reachable via the in-app nav.
+      // post-loading hand-off lands on the graph view (the new main).
+      // (/journal is retired; now a /capture deep-link redirect.)
       router.replace("/");
     } catch (e) {
       // Generic message to avoid email-enumeration. CSO finding R3.
@@ -132,7 +134,7 @@ export default function SignIn() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]} keyboardShouldPersistTaps="handled">
           {/* Top bar — brand left, locale toggle right. */}
           <View style={styles.topBar}>
             <Text style={styles.brand}>2ND-BRAIN</Text>

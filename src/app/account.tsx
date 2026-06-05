@@ -16,7 +16,7 @@ import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -32,8 +32,9 @@ import { VILLAGE_UI } from "@/lib/village-ui";
 const CONFIRM_PHRASE = "DELETE";
 
 export default function Account() {
-  const { t } = useTranslation("consent");
+  const { t, i18n } = useTranslation("consent");
   const { userId, loading } = useAuth();
+  const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
 
   const [origDob, setOrigDob] = useState<string | null>(null);
   const [birthDate, setBirthDate] = useState("");
@@ -117,7 +118,15 @@ export default function Account() {
     ]);
   }, [userId, t]);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "계정을 불러오는 중이에요…" : "Loading account…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) return <Redirect href="/sign-in" />;
 
   const dobSubmittable = canSubmitDobCorrection(origDob, birthDate);
@@ -208,6 +217,7 @@ export default function Account() {
 }
 
 const styles = StyleSheet.create({
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
   section: {
     backgroundColor: semantic.surface,

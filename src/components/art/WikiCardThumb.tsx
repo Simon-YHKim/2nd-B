@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 // Premium wiki facet thumbnails (production-premium-v1 pack). Transparent
 // 256x256 pixel illustrations for the three knowledge facets shown at the top
 // of /wiki (Core / Library / Imagine). Decorative — the card owns the label and
@@ -6,7 +7,7 @@
 // PNGs are require()'d so Metro bundles them for web + native. image-rendering
 // pixelated keeps the pixel art crisp when scaled (web-only CSS; ignored native).
 
-import { Image, type ImageStyle, type StyleProp } from "react-native";
+import { type ImageStyle, type StyleProp } from "react-native";
 
 const THUMBS = {
   core_brain: require("../../../public/assets/2ndb-production-premium-v1/wiki/wiki_card_thumb_core_brain_premium.png"),

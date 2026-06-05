@@ -25,6 +25,7 @@ import {
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import {
   listAccessibleTemplates,
@@ -46,6 +47,7 @@ export default function Formats() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale: Locale = i18n.language === "ko" ? "ko" : "en";
+  const kbHeight = useKeyboard();
 
   const [templates, setTemplates] = useState<CustomClipperTemplate[] | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -228,7 +230,7 @@ export default function Formats() {
   return (
     <PremiumAppShell>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]} keyboardShouldPersistTaps="handled">
           {editing ? (
             <TemplateEditor
               initial={editing}

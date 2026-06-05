@@ -7,7 +7,7 @@ import { View, StyleSheet, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -21,7 +21,15 @@ export default function ThemeScreen() {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const { mode, setMode } = useTheme();
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "테마를 불러오는 중이에요…" : "Loading theme…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) return <Redirect href="/sign-in" />;
 
   const options: { id: "dark" | "light"; label: string; sub: string }[] = [
@@ -81,6 +89,7 @@ export default function ThemeScreen() {
 
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   list: { gap: spacing.sm },
   row: {
     flexDirection: "row",

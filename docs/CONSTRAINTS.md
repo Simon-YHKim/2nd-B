@@ -75,14 +75,18 @@ The jest suite asserts the call order via mock spy.
 
 Sign-up requires `birth_date`, which sets an **age tier**:
 - **Adult (≥18)** and **self-consent minor (14–17)** register directly. Under PIPA, legal-representative consent is mandated only *below 14* (Article 22-2); users 14+ self-consent under the general provisions (Articles 15/17/22) with age-appropriate notice.
-- **Under-14** require **verifiable guardian consent** (PIPA Article 22-2 / COPPA): the
-  account starts in `account_status = 'pending_guardian_consent'`, held until a
-  guardian verifies via the `guardian_consents` ledger.
+- **Under-14** require **verifiable guardian consent** (PIPA Article 22-2; the US COPPA
+  threshold is separately *under-13* — global rollout branches by jurisdiction via the
+  matrix in `src/lib/auth/consent-age.ts`): the account starts in
+  `account_status = 'pending_guardian_consent'`, held until a guardian verifies via the
+  `guardian_consents` ledger.
 
 Enforcement (phased rollout):
-- **DB — done (`db/migrations/0028`):** legacy adult-only CHECK replaced by
-  `users_birth_date_sane`; adds `account_status`, `minor_tier`, and the
-  `guardian_consents` table with per-user RLS.
+- **DB — done (`db/migrations/0028`–`0030`):** `0028` replaces the legacy adult-only
+  CHECK with `users_birth_date_sane` and adds `account_status`, `minor_tier`, and the
+  `guardian_consents` table (per-user RLS); `0029` locks `guardian_consents`; **`0030`
+  adds the authoritative `enforce_user_age_tier()` BEFORE INSERT trigger that rejects
+  under-14 server-side — the real gate. `users_birth_date_sane` (0028) is only a sanity backstop.**
 - **Client — done:** `auth.ts` gates at `MIN_SELF_CONSENT_AGE` (14). 14-17
   self-consent minors and adults register directly; under-14 still throw `AgeGateError`
   pending the guardian-consent flow.

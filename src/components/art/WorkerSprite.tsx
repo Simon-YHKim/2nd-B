@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 // Worker sprite (production-premium-v1, redrawn readability pass). Six pixel
 // companions plus Lumi, each a 6-frame walk strip (768x128 = 6 x 128). The
 // walk cycle is driven by a GLOBAL
@@ -7,7 +8,7 @@
 // for the dedicated idle pose (a standing frame, not a frozen mid-stride).
 
 import { useEffect, useState } from "react";
-import { Image, StyleSheet, View, type ViewStyle, type ImageStyle, type StyleProp } from "react-native";
+import { StyleSheet, View, type ViewStyle, type ImageStyle, type StyleProp, AppState } from "react-native";
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { semantic } from "@/lib/theme/tokens";
@@ -49,6 +50,7 @@ let timer: ReturnType<typeof setInterval> | null = null;
 function ensureTicker() {
   if (timer) return;
   timer = setInterval(() => {
+    if (AppState.currentState !== "active") return;
     const now = Date.now();
     listeners.forEach((l) => l(now));
   }, FRAME_MS);

@@ -25,8 +25,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  Image,
 } from "react-native";
+import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
@@ -34,7 +34,7 @@ import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { PremiumCard, PremiumButton } from "@/components/premium";
+import { PremiumCard, PremiumButton, PremiumLoadingState } from "@/components/premium";
 import { ShardArt } from "@/components/art/IslandArt";
 import { Input } from "@/components/ui/Input";
 import { cosmic, radii, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
@@ -63,6 +63,7 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { useKeyboard } from "@/lib/ui/useKeyboard";
 
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
 // capture modes live on one screen. "일기" writes to `records` (createRecord —
@@ -177,6 +178,7 @@ export default function Capture() {
   const { i18n } = useTranslation("capture");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const kbHeight = useKeyboard();
 
   const [mode, setMode] = useState<Mode>("journal");
   const [track, setTrack] = useState<WikiTrack>("daily");
@@ -244,7 +246,15 @@ export default function Capture() {
     [linkClipKind, body],
   );
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "담기 화면을 불러오는 중이에요…" : "Loading capture…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
@@ -522,7 +532,7 @@ export default function Capture() {
   return (
     <PremiumAppShell>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 86) }]} keyboardShouldPersistTaps="handled">
           <SceneHero
             eyebrow={locale === "ko" ? "01. 조각 담기" : "01. Capture"}
             title={locale === "ko" ? "떠오른 조각을 마을로" : "Send a piece into the village"}
@@ -897,7 +907,7 @@ export default function Capture() {
           {mode === "ocr" && pickedImage ? (
             <View style={styles.previewCard}>
               <Text variant="caption" color="brand">{locale === "ko" ? "미리보기" : "Preview"}</Text>
-              <Image source={{ uri: pickedImage.uri }} style={styles.imagePreview} resizeMode="contain" />
+              <Image source={{ uri: pickedImage.uri }} style={styles.imagePreview} contentFit="contain" />
               <Button
                 label={locale === "ko" ? "추출하기" : "Extract text"}
                 variant="primary"
@@ -1050,6 +1060,7 @@ function HashtagAdder({ onAdd, locale }: { onAdd: (s: string) => void; locale: "
 }
 
 const styles = StyleSheet.create({
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   captureFlash: { position: "absolute", bottom: 40, right: 20 },
   // Journal-mode (일기) bits, ported from /journal.
   streakRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
@@ -1253,6 +1264,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: semantic.brand,
     borderRadius: radii.md,
+    elevation: 4,
     paddingVertical: spacing.md,
     alignItems: "center",
     justifyContent: "center",

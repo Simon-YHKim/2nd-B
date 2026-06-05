@@ -12,7 +12,7 @@ import { ScrollView, StyleSheet, Switch, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -28,9 +28,10 @@ import { setAnalyticsConsent } from "@/lib/analytics";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 export default function Privacy() {
-  const { t } = useTranslation("consent");
+  const { t, i18n } = useTranslation("consent");
   const { userId, isMinor, loading } = useAuth();
   const minor = isMinor === true;
+  const locale = i18n.language === "ko" ? "ko" : "en";
 
   const [prefs, setPrefs] = useState<PrivacyPrefs>(defaultPrivacyPrefs());
   const [ready, setReady] = useState(false);
@@ -87,7 +88,15 @@ export default function Privacy() {
     [userId, prefs, minor],
   );
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "개인정보 설정을 불러오는 중이에요…" : "Loading privacy settings…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) return <Redirect href="/sign-in" />;
 
   return (
@@ -159,6 +168,7 @@ export default function Privacy() {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   minorBanner: {
     backgroundColor: semantic.surface,
     borderColor: semantic.brand,

@@ -24,7 +24,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -74,7 +74,15 @@ export default function Interview() {
     }
   }, [turns.length]);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "인터뷰를 준비하는 중이에요…" : "Loading interview…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
@@ -264,7 +272,7 @@ export default function Interview() {
           </View>
         ) : null}
 
-        <ScrollView ref={scrollRef} contentContainerStyle={styles.chatScroll}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.chatScroll} keyboardShouldPersistTaps="handled">
           {turns.map((t, i) => (
             <View key={i} style={[styles.bubble, t.role === "interviewer" ? styles.qBubble : styles.aBubble]}>
               <View style={styles.bubbleHeader}>
@@ -338,6 +346,7 @@ export default function Interview() {
 
 const styles = StyleSheet.create({
   scroll: { padding: spacing.lg, gap: spacing.md },
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   header: { gap: spacing.sm },
   periodGrid: { gap: spacing.sm, marginVertical: spacing.md },
   periodCard: {
@@ -377,7 +386,7 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
   },
   bubbleHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  layerTag: { fontFamily: fontFamilies.mono, fontSize: 10, letterSpacing: 0 },
+  layerTag: { fontFamily: fontFamilies.mono, fontSize: 11, letterSpacing: 0 },
   qBubble: { backgroundColor: semantic.surface },
   aBubble: { backgroundColor: semantic.surfaceAlt },
   thinkingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },

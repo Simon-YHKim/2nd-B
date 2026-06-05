@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
+  AppState,
   Easing,
   Pressable,
   StyleSheet,
@@ -45,8 +46,10 @@ const logo = require("../../public/assets/2ndb-production-premium-v1/graph/islan
 // Sky drift — slow atmospheric color shift behind the logo.
 function useSkyDrift() {
   const tide = useRef(new Animated.Value(0)).current;
+  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
+
   useEffect(() => {
-    Animated.loop(
+    loopRef.current = Animated.loop(
       Animated.sequence([
         Animated.timing(tide, {
           toValue: 1,
@@ -61,7 +64,21 @@ function useSkyDrift() {
           useNativeDriver: false,
         }),
       ]),
-    ).start();
+    );
+    loopRef.current.start();
+
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        loopRef.current?.start();
+      } else {
+        loopRef.current?.stop();
+      }
+    });
+
+    return () => {
+      loopRef.current?.stop();
+      subscription.remove();
+    };
   }, [tide]);
   return tide.interpolate({
     inputRange: [0, 0.5, 1],
@@ -305,7 +322,9 @@ export default function Landing() {
         // attention on the card; tapping the backdrop does nothing — the user
         // dismisses via the card's "먼저 둘러볼게요" / ✕.
         <Animated.View
-          style={[styles.emptyGraphBackdrop, { opacity: contentOpacity }]}
+          // Android: pad past the system nav bar so the card's primary button is
+          // never hidden behind soft keys. Falls back to the base 88 on iOS/web.
+          style={[styles.emptyGraphBackdrop, { opacity: contentOpacity, paddingBottom: Math.max(88, insets.bottom + 64) }]}
           pointerEvents="auto"
         >
           <View style={styles.emptyGraphCard}>
@@ -339,7 +358,7 @@ export default function Landing() {
               </View>
             </View>
             <Pressable
-              onPress={() => router.push({ pathname: "/journal", params: { entry: "firstRun" } })}
+              onPress={() => router.push({ pathname: "/capture", params: { entry: "firstRun" } })}
               style={styles.emptyGraphCta}
             >
               <Text style={styles.emptyGraphCtaText}>
@@ -422,6 +441,7 @@ const styles = StyleSheet.create({
   emptyGraphBackdrop: {
     ...(StyleSheet.absoluteFill as object),
     zIndex: 100,
+    elevation: 100,
     backgroundColor: "rgba(5,7,15,0.38)",
     alignItems: "center",
     justifyContent: "flex-end",

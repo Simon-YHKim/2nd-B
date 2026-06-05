@@ -11,7 +11,7 @@ import { ScrollView, StyleSheet, View, ActivityIndicator, Alert, Linking, Pressa
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -70,7 +70,15 @@ export default function Research() {
       });
   }, [userId, locale]);
 
-  if (authLoading) return null;
+  if (authLoading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "자료실을 불러오는 중이에요…" : "Loading research…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }

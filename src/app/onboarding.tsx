@@ -3,12 +3,12 @@
 // (§9). Completion is recorded in localStorage (§4) so the index redirect
 // only sends a user here once.
 
-import { useState } from "react";
-import { View, StyleSheet, useWindowDimensions, Pressable } from "react-native";
+import { useEffect, useState } from "react";
+import { View, StyleSheet, useWindowDimensions, Pressable, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
@@ -32,8 +32,8 @@ const STEPS: Step[] = [
     art: "welcome",
     title: { ko: "내 생각 조각이 작은 지도가 돼요", en: "Your thoughts become a small map" },
     body: {
-      ko: "2ndB는 내가 남긴 기록과 지식을 연결해 나에게 맞는 다음 한 걸음을 함께 찾아주는 앱이에요.",
-      en: "2ndB links what you write and learn, then helps you find your next step.",
+      ko: "2ndB는 내가 남긴 기록과 지식을 연결해, 해볼 만한 다음 한 걸음을 보여줘요.",
+      en: "2ndB links what you write and learn, then surfaces a next step worth trying.",
     },
     cta: { ko: "시작하기", en: "Start" },
   },
@@ -46,7 +46,7 @@ const STEPS: Step[] = [
   {
     art: "secondb",
     title: { ko: "세컨비를 만나보세요", en: "Meet SecondB" },
-    body: { ko: "세컨비는 내 조각을 참고해서 대답하는 작은 AI 친구예요.", en: "SecondB is a small AI friend who answers using your own pieces." },
+    body: { ko: "세컨비는 내가 남긴 조각에서 답해요.", en: "SecondB answers from the pieces you've captured." },
     cta: { ko: "세컨비와 시작", en: "Start with SecondB" },
   },
   {
@@ -73,16 +73,37 @@ export default function Onboarding() {
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
 
-  if (loading) return null;
+  // Android hardware back steps backward through onboarding instead of exiting
+  // the app / blanking the screen. At step 0 it falls through to default back.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (index > 0) {
+        setIndex((i) => i - 1);
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [index]);
+
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "온보딩을 불러오는 중이에요…" : "Loading onboarding…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) return <Redirect href="/sign-in" />;
 
   const step = STEPS[index];
   const isLast = index === STEPS.length - 1;
   const artW = Math.min(width - spacing.lg * 2, 360);
 
-  function finishToJournal() {
+  function finishToCapture() {
     markOnboardingComplete();
-    router.replace({ pathname: "/journal", params: { entry: "firstRun" } });
+    router.replace({ pathname: "/capture", params: { entry: "firstRun" } });
   }
   function finishToGraph() {
     markOnboardingComplete();
@@ -90,7 +111,7 @@ export default function Onboarding() {
   }
 
   function onPrimary() {
-    if (isLast) finishToJournal();
+    if (isLast) finishToCapture();
     else setIndex((i) => i + 1);
   }
 
@@ -190,6 +211,7 @@ function OnboardingPremiumArt({ id, width }: { id: OnboardingArt; width: number 
 }
 
 const styles = StyleSheet.create({
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   root: { flex: 1, justifyContent: "space-between", paddingVertical: spacing.lg },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   dots: { flexDirection: "row", gap: spacing.xs, alignItems: "center" },

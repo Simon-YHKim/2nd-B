@@ -342,7 +342,8 @@ const styles = StyleSheet.create({
   brandChipSub: {
     color: cosmic.mistGray,
     fontFamily: fontFamilies.sans,
-    fontSize: 8,
+    fontSize: 11,
+    lineHeight: 14,
     letterSpacing: 0,
   },
   topBar: {

@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "2nd-Brain",
-    "tagline": "An AI that learns you."
+    "tagline": "A second brain built only from what you write."
   },
   "actions": {
     "continue": "Continue",

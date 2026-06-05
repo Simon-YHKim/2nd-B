@@ -118,8 +118,8 @@ const styles = StyleSheet.create({
   hotlineBadgeText: {
     color: "#FFFFFF",
     fontWeight: "700",
-    letterSpacing: 1,
-    fontSize: 10,
+    letterSpacing: 0,
+    fontSize: 12,
   },
   hotlineBox: {
     backgroundColor: semantic.surfaceAlt,

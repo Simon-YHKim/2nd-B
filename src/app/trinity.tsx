@@ -16,7 +16,7 @@ import { ScrollView, StyleSheet, View, ActivityIndicator, Pressable, Alert } fro
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -139,7 +139,15 @@ export default function Trinity() {
 
   const stats = useMemo(() => computeStats(records), [records]);
 
-  if (authLoading) return null;
+  if (authLoading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.shellCenter}>
+          <PremiumLoadingState message={locale === "ko" ? "4영역을 불러오는 중이에요…" : "Loading trinity…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
@@ -164,7 +172,7 @@ export default function Trinity() {
           }
           primaryAction={{
             label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
-            onPress: () => router.push("/journal"),
+            onPress: () => router.push("/capture"),
           }}        />
 
         {loading ? (
@@ -178,10 +186,10 @@ export default function Trinity() {
                 ? "이 4개 태그(health · app · brain · finance 또는 건강·앱·뇌·재정)가 붙은 기록이 없어요."
                 : "No records tagged with the four domains (health · app · brain · finance) yet."}
             </Text>
-            <Link href="/journal" asChild>
+            <Link href="/capture" asChild>
               <Pressable hitSlop={6}>
                 <Text variant="caption" color="brand">
-                  {locale === "ko" ? "일기에서 #건강 같은 태그를 달아 보세요" : "Try adding tags like #health in your journal"}
+                  {locale === "ko" ? "조각 담기에서 #건강 같은 태그를 달아 보세요" : "Try adding tags like #health in capture"}
                 </Text>
               </Pressable>
             </Link>
@@ -259,6 +267,7 @@ export default function Trinity() {
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
   header: { gap: spacing.xs },
+  shellCenter: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   center: { paddingVertical: spacing.xl, alignItems: "center" },
   emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, alignItems: "center", gap: spacing.sm },
   grid: { gap: spacing.sm },

@@ -50,6 +50,11 @@ The single source of truth for both runtime classification and CI scan is `src/l
 - Do not deviate from `DESIGN.md` without explicit user approval.
 - In QA mode, flag any code that doesn't match `DESIGN.md`.
 
+## Android Native QA Guidelines
+
+**CRITICAL**: Always read and adhere to `ANDROID_QA_GUIDELINES.md` before making any structural, UI, lifecycle, or data management changes.
+This document contains hard-learned prevention measures for Android runtime crashes (OOM, SVG rendering locks, AsyncStorage 2MB limits) and severe UX bugs (Shine-through z-index inversion, hardware BackHandler leaks). Failure to follow it will break the Android build.
+
 ## Verification
 
 `npm run verify` runs the full gauntlet: lint + type-check + i18n + lexicon + LLM boundary + constraints + jest.

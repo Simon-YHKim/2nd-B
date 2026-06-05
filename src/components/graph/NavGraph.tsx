@@ -30,6 +30,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
   Animated,
+  AppState,
   Easing,
   Platform,
   Pressable,
@@ -45,6 +46,7 @@ import ReAnimated, {
   useDerivedValue,
   useSharedValue,
   withSpring,
+  cancelAnimation,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
@@ -234,7 +236,7 @@ const ISLAND_FOR: Record<string, IslandId> = {
 // Domain → worker mapping (worldview v-final, authoritative). Internal worker
 // ids (archi/gadi/lulu/momo/lumi/secondb) are unchanged; display names moved:
 //   일과 성장 = Archon, 관계와 사랑 = Relia, 배움과 지식 = Lumen,
-//   기록 보관소 = Foreman Momo, 취향과 영감 = Lumina,
+//   기록 보관소 = Foreman Momo, 취향과 영감 = Iris,
 //   나의 중심 = SecondB. Worker glow matches the core accent.
 const VILLAGE_WORKER: Record<string, WorkerId> = {
   work: VILLAGE_UI.work.worker,
@@ -411,6 +413,14 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     zoomViewportW.value = width;
     zoomViewportH.value = height;
   }, [width, height, zoomViewportW, zoomViewportH]);
+
+  useEffect(() => {
+    return () => {
+      cancelAnimation(zoomScale);
+      cancelAnimation(zoomPanX);
+      cancelAnimation(zoomPanY);
+    };
+  }, [zoomScale, zoomPanX, zoomPanY]);
 
   // Web-only scroll-to-zoom (graph-ux #12): the mouse wheel / trackpad zooms
   // toward the cursor, reusing the SAME focal math as the pinch gesture so
@@ -598,6 +608,14 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // spawn / sheet machinery is unchanged.
   const worldMenu = useMemo(() => worldMenuPositions(MENU_NODES, CENTER_NODE.id), []);
 
+  const dataNodesMap = useMemo(() => {
+    const map = new Map<string, DataNode>();
+    for (const node of dataNodes) {
+      map.set(node.id, node);
+    }
+    return map;
+  }, [dataNodes]);
+
   const positions = useMemo(() => {
     const vp = { width, height };
     const map = new Map<string, { x: number; y: number; angle: number }>();
@@ -668,6 +686,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // driver. ~25 nodes stays well within the JS-thread budget.
   const swayRef = useRef<Map<string, { sx: Animated.AnimatedInterpolation<number>; sy: Animated.AnimatedInterpolation<number> }>>(new Map());
   const driftValues = useRef<Map<string, Animated.Value>>(new Map());
+  const driftLoops = useRef<Map<string, Animated.CompositeAnimation>>(new Map());
   const pulseValues = useRef<Map<string, Animated.Value>>(new Map());
   // Spawn anim per node — 0 (hidden) → 1.25 (overshoot) → 1.0 (settled).
   // Drives both transform scale and opacity for the pop-in effect.
@@ -676,6 +695,21 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // Triggered when both endpoints are in `spawnedIds`.
   const edgeValues = useRef<Map<string, Animated.Value>>(new Map());
   const [spawnedIds, setSpawnedIds] = useState<Set<string>>(new Set());
+
+  // Global background pauser for node drift loops
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        for (const loop of driftLoops.current.values()) loop.start();
+      } else {
+        for (const loop of driftLoops.current.values()) loop.stop();
+      }
+    });
+    return () => {
+      sub.remove();
+      for (const loop of driftLoops.current.values()) loop.stop();
+    };
+  }, []);
 
   useEffect(() => {
     const ids = [CENTER_NODE.id, ...MENU_NODES.map((n) => n.id), ...Array.from(dataPositions.keys())];
@@ -693,9 +727,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         const v = new Animated.Value(0);
         driftValues.current.set(id, v);
         const duration = 14000 + seeded(id, 6) * 6000; // 14–20s per cycle, gentler than before
-        Animated.loop(
+        const loop = Animated.loop(
           Animated.timing(v, { toValue: 1, duration, easing: Easing.linear, useNativeDriver: false }),
-        ).start();
+        );
+        driftLoops.current.set(id, loop);
+        if (AppState.currentState === "active") loop.start();
         // 9-point cosine/sine table — input 0 and input 1 are exactly
         // equal so the loop's wrap-around is invisible.
         const amp = 5 + seeded(id, 7) * 2; // 5..7 px sway
@@ -725,6 +761,19 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       }
       if (!pulseValues.current.has(id)) {
         pulseValues.current.set(id, new Animated.Value(1));
+      }
+    }
+    // Prune entries for data nodes that no longer exist, so drift loops do not
+    // keep running for removed ids (memory + background battery). CENTER_NODE
+    // and MENU_NODES are always in `ids`, so only stale data nodes are dropped.
+    const live = new Set(ids);
+    for (const id of Array.from(driftLoops.current.keys())) {
+      if (!live.has(id)) {
+        driftLoops.current.get(id)?.stop();
+        driftLoops.current.delete(id);
+        driftValues.current.delete(id);
+        swayRef.current.delete(id);
+        pulseValues.current.delete(id);
       }
     }
   }, [dataPositions]);
@@ -919,10 +968,22 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           useNativeDriver: false,
         }),
       );
-      loop.start();
+      if (AppState.currentState === "active") loop.start();
       return loop;
     });
-    return () => loops.forEach((l) => l.stop());
+    
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        loops.forEach((l) => l.start());
+      } else {
+        loops.forEach((l) => l.stop());
+      }
+    });
+
+    return () => {
+      sub.remove();
+      loops.forEach((l) => l.stop());
+    };
   }, [linkSignals]);
 
   // Bubble pop-in anim — 0 (hidden) → 1.2 (overshoot) → 1.0 (settled).
@@ -977,6 +1038,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
 
   useEffect(() => {
     const id = setInterval(() => {
+      if (AppState.currentState !== "active") return;
       // Pulse a random tier-2 or tier-3 node, skipping the active one.
       // Interval shortened ~30% per user (2026-05-27).
       const candidates = MENU_NODES.filter((n) => n.id !== activeId);
@@ -1291,7 +1353,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       {/* Tier 4 data shards — fade in/out with zoom (§5 + graph-ux #8). */}
       {tier4Mounted
         ? Array.from(dataPositions.entries()).map(([id, p]) => {
-            const piece = dataNodes.find((d) => d.id === id);
+            const piece = dataNodesMap.get(id);
             return (
             <Animated.View
               key={id}

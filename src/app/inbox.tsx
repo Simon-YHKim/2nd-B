@@ -7,7 +7,7 @@ import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, Refr
 import { useTranslation } from "react-i18next";
 import { Link, Redirect } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -73,7 +73,15 @@ export default function Inbox() {
     void load(userId).finally(() => setLoading(false));
   }, [userId, load]);
 
-  if (authLoading) return null;
+  if (authLoading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.loadingCenter}>
+          <PremiumLoadingState message={locale === "ko" ? "받은편지함을 불러오는 중이에요…" : "Loading inbox…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
@@ -415,6 +423,7 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
   actions: { gap: spacing.sm },
   center: { paddingVertical: spacing.xl, alignItems: "center" },
+  loadingCenter: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   errorCard: { padding: spacing.md, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, borderWidth: 1, borderColor: semantic.danger },
   emptyCard: {
     padding: spacing.lg,

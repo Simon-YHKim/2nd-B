@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 // Floating pixel island art (production-premium-v1 + refine premium packs).
 // Renders the transparent island / shard PNG sprites as decorative node artwork on the graph. The
 // image layer is decorative (the graph node owns the hitbox + label), so the
@@ -7,7 +8,7 @@
 // pixelated keeps the pixel art crisp when scaled up (web-only CSS; ignored
 // on native).
 
-import { Image, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
+import { type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
 
 import { LivingAsset } from "@/components/motion/LivingAsset";
 import { FinalCoreArt, hasFinalCoreArt } from "@/components/art/SoulcoreFinalArt";

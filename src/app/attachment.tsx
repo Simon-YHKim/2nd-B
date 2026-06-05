@@ -6,7 +6,7 @@ import { View, StyleSheet, Pressable, Alert, KeyboardAvoidingView, Platform } fr
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -36,7 +36,15 @@ export default function Attachment() {
 
   const result = useMemo(() => scoreEcr(responses), [responses]);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "검사를 불러오는 중이에요…" : "Loading assessment…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
@@ -186,6 +194,7 @@ export default function Attachment() {
 }
 
 const styles = StyleSheet.create({
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   header: {
     gap: spacing.xs,
     marginBottom: spacing.md,

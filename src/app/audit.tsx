@@ -142,9 +142,9 @@ export default function Audit() {
               onPress={() => router.replace("/persona")}
             />
             <Button
-              label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
+              label={locale === "ko" ? "조각 담기로 돌아가기" : "Back to capture"}
               variant="secondary"
-              onPress={() => router.replace("/journal")}
+              onPress={() => router.replace("/capture")}
             />
           </View>
         </View>
@@ -166,8 +166,8 @@ export default function Audit() {
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
               {locale === "ko"
-                ? "Big Five · 애착이론 · 자기결정성 이론에 기반한 질문들. 정답은 없고, 솔직하게 적은 만큼 페르소나가 정확해집니다."
-                : "Questions grounded in Big Five, Attachment Theory, and Self-Determination Theory. No right answer; the more honest you are, the sharper your Persona becomes."}
+                ? "Big Five · 애착이론 · 자기결정성 이론에 기반한 질문들. 정답은 없어요. 답이 쌓일수록 자기 모델의 패턴이 더 또렷해집니다."
+                : "Questions grounded in Big Five, Attachment Theory, and Self-Determination Theory. No right answer; the more you answer, the clearer the patterns in your self-model become."}
             </Text>
           </View>
         ) : null}
@@ -237,7 +237,7 @@ export default function Audit() {
         <Button
           label={locale === "ko" ? "나중에 하기" : "Continue later"}
           variant="secondary"
-          onPress={() => router.replace("/journal")}
+          onPress={() => router.replace("/capture")}
         />
       </ScrollView>
     </PremiumAppShell>
@@ -289,6 +289,6 @@ const styles = StyleSheet.create({
     color: semantic.text,
     fontWeight: "700",
     letterSpacing: 0,
-    fontSize: 10,
+    fontSize: 12,
   },
 });

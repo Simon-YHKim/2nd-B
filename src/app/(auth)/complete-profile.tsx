@@ -1,9 +1,10 @@
+import { Image } from "expo-image";
 // Post-OAuth profile completion. Users who sign in via Google land here when
 // the public.users row doesn't exist yet — we need their date of birth to
 // satisfy C10 (age gate) before letting them into the app.
 
 import { useMemo, useState } from "react";
-import { Image, View, StyleSheet, Alert, ScrollView } from "react-native";
+import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -21,6 +22,7 @@ import {
   buildSignUpConsentArgs,
 } from "@/lib/auth/consent-selections";
 import { recordConsentBestEffort } from "@/lib/supabase/consent";
+import { useKeyboard } from "@/lib/ui/useKeyboard";
 
 const ADULT_AGE = 18;
 
@@ -33,6 +35,7 @@ export default function CompleteProfile() {
   const [submitting, setSubmitting] = useState(false);
   const [consent, setConsent] = useState(emptyConsentSelections());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const kbHeight = useKeyboard();
 
   const age = ageInYears(birthDate);
   const isMinorAge = age >= MIN_SELF_CONSENT_AGE && age < ADULT_AGE;
@@ -105,7 +108,14 @@ export default function CompleteProfile() {
 
   return (
     <PremiumAppShell>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.header}>
           <Text variant="caption" color="brand">
             2nd-Brain
@@ -159,7 +169,8 @@ export default function CompleteProfile() {
             style={styles.submitButton}
           />
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </PremiumAppShell>
   );
 }

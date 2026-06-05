@@ -19,7 +19,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router, type Href } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -160,7 +160,15 @@ export default function Wiki() {
     router.replace(villageHref(VILLAGE_IDS[nextIndex]));
   }, []);
 
-  if (authLoading) return null;
+  if (authLoading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.shellCenter}>
+          <PremiumLoadingState message={locale === "ko" ? "서재를 불러오는 중이에요…" : "Loading wiki…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
@@ -388,7 +396,7 @@ export default function Wiki() {
             onPress={handleToggleStats}
             disabled={pages.length === 0}
           />
-          <Link href="/journal" asChild>
+          <Link href="/capture" asChild>
             <Button label={t("back")} variant="secondary" style={styles.actionBtn} />
           </Link>
         </View>
@@ -563,7 +571,7 @@ export default function Wiki() {
             </Text>
             {activeTags.length === 0 ? (
               <View style={styles.emptyCtaRow}>
-                <Link href="/journal" asChild>
+                <Link href="/capture" asChild>
                   <Button
                     label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
                     variant="primary"
@@ -896,6 +904,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: radii.sm,
   },
+  shellCenter: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   center: { paddingVertical: spacing.xl, alignItems: "center" },
   emptyCard: {
     padding: spacing.lg,

@@ -17,7 +17,7 @@ import { isPrimaryTabPath } from "@/lib/nav/tabs";
 import { cosmic } from "@/lib/theme/tokens";
 
 // Landing + pre-auth routes that hide the arrow (no "back to graph" there yet).
-const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile", "/asset-motion-preview"];
+const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile"];
 
 // Routes that hide the back arrow entirely: the pre-auth flow plus the graph
 // home ("/") itself — "/" IS the back target, so it gets no arrow. Every other

@@ -16,10 +16,11 @@ import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } f
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumCard, PremiumButton, PremiumTextarea, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumCard, PremiumButton, PremiumTextarea, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { callGemini } from "@/lib/llm/gemini";
 import {
@@ -38,13 +39,22 @@ export default function ImportExternal() {
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const ko = locale === "ko";
+  const kbHeight = useKeyboard();
 
   const [raw, setRaw] = useState("");
   const [phase, setPhase] = useState<Phase>("input");
   const [result, setResult] = useState<IngestResult | null>(null);
   const [copied, setCopied] = useState(false);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={ko ? "가져오기를 준비하는 중이에요…" : "Loading import…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) return <Redirect href="/sign-in" />;
   // No-profile OAuth session (DOB/consent not yet collected) must not reach this
   // LLM surface — route to /complete-profile (C10 age gate + PIPA consent).
@@ -109,7 +119,7 @@ export default function ImportExternal() {
   return (
     <PremiumAppShell>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]} keyboardShouldPersistTaps="handled">
           <SceneHero
             eyebrow={ko ? "08-5. 가져오기" : "08-5. Import"}
             title={ko ? "다른 곳의 나를 마을로 옮겨요" : "Bring outside self-knowledge home"}
@@ -237,6 +247,7 @@ const SECTION_ACCENT: Record<string, string> = {
 
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: 120 },
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.xs },
   tagChip: {
     borderWidth: 1,
