@@ -42,8 +42,15 @@ const PROMPTS_KO: string[] = [
   "오늘 일어난 일 중 작게나마 감사할 만한 것은?",
 ];
 
+// Anchor the rotation to KST wall-clock days, same as streak.ts. date.getTime()
+// is absolute epoch ms (timezone-independent), so adding +9h before flooring to
+// days makes the prompt flip at KST local midnight instead of UTC midnight
+// (which is 09:00 KST). Without this, Korean users saw the prompt rotate
+// mid-morning rather than overnight.
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
 function daysSinceEpoch(date: Date = new Date()): number {
-  return Math.floor(date.getTime() / 86_400_000);
+  return Math.floor((date.getTime() + KST_OFFSET_MS) / 86_400_000);
 }
 
 export function dailyPrompt(locale: "en" | "ko", date: Date = new Date()): string {

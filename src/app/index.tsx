@@ -40,6 +40,7 @@ import { useEmptyGraphDismissed } from "@/lib/onboarding/empty-card";
 import { domainForTags } from "@/lib/graph/relatedness";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 import { StarNoiseLayer } from "@/components/premium";
+import { prefersReducedMotion } from "@/lib/motion/signature";
 
 const logo = require("../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png");
 
@@ -49,6 +50,10 @@ function useSkyDrift() {
   const loopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
+    if (prefersReducedMotion()) {
+      tide.setValue(0.5);
+      return;
+    }
     loopRef.current = Animated.loop(
       Animated.sequence([
         Animated.timing(tide, {
@@ -68,6 +73,11 @@ function useSkyDrift() {
     loopRef.current.start();
 
     const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (prefersReducedMotion()) {
+        loopRef.current?.stop();
+        tide.setValue(0.5);
+        return;
+      }
       if (nextAppState === "active") {
         loopRef.current?.start();
       } else {

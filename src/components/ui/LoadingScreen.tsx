@@ -97,6 +97,12 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   const scale = useRef(new Animated.Value(1)).current;
   const hintOpacity = useRef(new Animated.Value(0)).current;
 
+  // Synchronous re-entry guard for the zoom. `phase` state is async, so a
+  // user tap and the auto-continue timer can both read a stale "ready"
+  // phase and each start a zoom (+ fire onContinue twice). This ref flips
+  // true the instant either path begins.
+  const zoomingRef = useRef(false);
+
   // ── min-intro gate
   useEffect(() => {
     const t = setTimeout(() => setMinElapsed(true), MIN_INTRO_MS);
@@ -191,7 +197,8 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   }, [phase]);
 
   function startZoom() {
-    if (phase === "zooming") return;
+    if (zoomingRef.current) return;
+    zoomingRef.current = true;
     setPhase("zooming");
     scale.stopAnimation();
     hintOpacity.stopAnimation();
@@ -220,27 +227,11 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       return;
     }
     if (phase !== "ready") return;
-    setPhase("zooming");
-    scale.stopAnimation();
-    hintOpacity.stopAnimation();
-    Animated.parallel([
-      // Dolly zoom ends at scale 4 — matches /index's entry initial
-      // scale so the loading→main handoff has no size jump. /index then
-      // settles to scale 1.6 + opacity 0.4 over 750ms.
-      Animated.timing(scale, {
-        toValue: 4,
-        duration: ZOOM_MS,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(hintOpacity, {
-        toValue: 0,
-        duration: ZOOM_MS * 0.4,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onContinue?.();
-    });
+    // Dolly zoom ends at scale 4 — matches /index's entry initial scale so
+    // the loading→main handoff has no size jump. /index then settles to
+    // scale 1.6 + opacity 0.4 over 750ms. Routed through the shared
+    // startZoom() so the tap and the auto-continue timer share one guard.
+    startZoom();
   }
 
   return (

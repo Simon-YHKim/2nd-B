@@ -4,7 +4,7 @@
 // Modal so it reliably covers the screen regardless of the host layout.
 // Honours reduced motion (shorter hold) and announces the message to readers.
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Modal, View, StyleSheet } from "react-native";
 
 import { Text } from "@/components/ui/Text";
@@ -16,12 +16,18 @@ import { spacing } from "@/lib/theme/tokens";
 const MOMENT = { companion: "momo", state: "store", cue: "journal_saved" } as const;
 
 export function QuantSaveCelebration({ message, onDone }: { message: string; onDone: () => void }) {
+  // Callers pass a fresh inline arrow for onDone each render, so keep the latest
+  // in a ref and start the timer once on mount; parent re-renders during the
+  // hold must not restart (and thus delay/cancel) the countdown.
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
   useEffect(() => {
     // CompanionMoment plays for ~1.5s; navigate just after it settles, or after
     // a short beat when motion is reduced (the moment then holds, doesn't fade).
-    const t = setTimeout(onDone, prefersReducedMotion() ? 900 : 1600);
+    const t = setTimeout(() => onDoneRef.current(), prefersReducedMotion() ? 900 : 1600);
     return () => clearTimeout(t);
-  }, [onDone]);
+  }, []);
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onDone}>
