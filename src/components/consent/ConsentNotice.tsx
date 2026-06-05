@@ -60,8 +60,11 @@ function CheckRow({
 }
 
 export function ConsentNotice({ minor, value, onChange }: ConsentNoticeProps) {
-  const { t } = useTranslation("consent");
+  const { t, i18n } = useTranslation("consent");
   const allChecked = allRequiredAcksChecked(value);
+  // KO group labels drop tracking to 0 (Hangul reads worse when tracked); EN
+  // keeps the stylized caption tracking.
+  const groupLabelTracking = { letterSpacing: i18n.language === "ko" ? 0 : 1 };
 
   function toggle(key: keyof ConsentSelections): void {
     onChange({ ...value, [key]: !value[key] });
@@ -85,7 +88,7 @@ export function ConsentNotice({ minor, value, onChange }: ConsentNoticeProps) {
       ) : null}
 
       <View style={styles.purposes}>
-        <Text variant="caption" color="brand" style={styles.groupLabel}>
+        <Text variant="caption" color="brand" style={[styles.groupLabel, groupLabelTracking]}>
           {t("notice.purposesTitle")}
         </Text>
         <Text variant="subtle" color="textMuted">
@@ -103,7 +106,7 @@ export function ConsentNotice({ minor, value, onChange }: ConsentNoticeProps) {
       </View>
 
       <View style={styles.group}>
-        <Text variant="caption" color="brand" style={styles.groupLabel}>
+        <Text variant="caption" color="brand" style={[styles.groupLabel, groupLabelTracking]}>
           {t("notice.requiredLabel")}
         </Text>
         <CheckRow
@@ -128,7 +131,7 @@ export function ConsentNotice({ minor, value, onChange }: ConsentNoticeProps) {
       </View>
 
       <View style={styles.group}>
-        <Text variant="caption" color="textMuted" style={styles.groupLabel}>
+        <Text variant="caption" color="textMuted" style={[styles.groupLabel, groupLabelTracking]}>
           {t("notice.optionalLabel")}
         </Text>
         <CheckRow checked={value.marketing} label={t("notice.optMarketing")} onToggle={() => toggle("marketing")} />
@@ -162,7 +165,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   group: { gap: spacing.xs },
-  groupLabel: { letterSpacing: 1, fontWeight: "700", marginTop: spacing.xs },
+  // Tracking is applied per-locale (groupLabelTracking) so KO is not over-spaced.
+  groupLabel: { fontWeight: "700", marginTop: spacing.xs },
   checkRow: {
     flexDirection: "row",
     alignItems: "flex-start",

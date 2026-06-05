@@ -414,7 +414,10 @@ export default function Landing() {
           hitSlop={8}
           style={{ flex: 1 }}
         >
-          <Text style={styles.insightEyebrow}>
+          {/* KO "오늘의 중심" reads worse when tracked + uppercased, so KO drops
+              tracking to 0 and stays sentence-case; EN keeps the stylized
+              uppercase eyebrow. */}
+          <Text style={[styles.insightEyebrow, locale === "ko" ? styles.insightEyebrowKo : styles.insightEyebrowEn]}>
             {locale === "ko" ? "오늘의 중심" : "Today's center"}
           </Text>
           <Text style={styles.insightText} numberOfLines={2}>
@@ -562,14 +565,21 @@ const styles = StyleSheet.create({
   },
   insightEyebrow: {
     color: cosmic.signalMint,
-    // KO "오늘의 중심" must stay legible: keep >=12px and trim tracking so the
-    // Korean label is not over-spaced. EN still reads as a stylized eyebrow.
+    // KO "오늘의 중심" must stay legible: keep >=12px. Tracking + uppercase are
+    // applied per-locale below so the Korean label is not over-spaced.
     fontSize: 12,
-    letterSpacing: 0.8,
     fontWeight: "700",
-    textTransform: "uppercase",
     marginBottom: 4,
     fontFamily: fontFamilies.sans,
+  },
+  // KO: no tracking, no uppercase — keeps Hangul legible.
+  insightEyebrowKo: {
+    letterSpacing: 0,
+  },
+  // EN: stylized uppercase eyebrow with light tracking.
+  insightEyebrowEn: {
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
   },
   insightText: {
     color: cosmic.moonWhite,

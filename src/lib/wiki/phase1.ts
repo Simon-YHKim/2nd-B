@@ -50,9 +50,9 @@ const SYSTEM_PROMPT = {
 
 /**
  * Best-effort JSON extraction from the LLM reply. Live Gemini honors the
- * responseSchema so the reply is already JSON; mock mode returns the
- * templated string. For mock we synthesize a stub so the UI can render
- * something while no real LLM is wired.
+ * responseSchema so the reply is already JSON; offline-preview mode returns
+ * the templated string. For offline preview we synthesize a fallback so the
+ * UI can render something while no live model is connected.
  */
 function parsePhase1Reply(text: string): Omit<Phase1Result, "generated_at" | "model"> | null {
   const trimmed = text.trim();
@@ -79,10 +79,14 @@ function parsePhase1Reply(text: string): Omit<Phase1Result, "generated_at" | "mo
   return null;
 }
 
+// Offline-preview fallback for the summarize step. Returned when no live model
+// is connected so the reflection questions still render. The text reads as
+// ordinary product copy; the internal "offline preview / no live model" marker
+// stays in this comment only.
 function mockStub(title: string, locale: "en" | "ko"): Omit<Phase1Result, "generated_at" | "model"> {
   return locale === "ko"
     ? {
-        summary: `[MOCK] "${title}"의 요약은 Gemini 키가 연결된 뒤 생성됩니다. 지금은 자리표시자입니다.`,
+        summary: `지금은 오프라인 미리보기예요. "${title}"의 요약은 온라인으로 연결하면 생성됩니다.`,
         entities: [],
         concepts: [],
         questions: [
@@ -93,7 +97,7 @@ function mockStub(title: string, locale: "en" | "ko"): Omit<Phase1Result, "gener
         ],
       }
     : {
-        summary: `[MOCK] Summary of "${title}" will be generated once a Gemini key is configured. This is a placeholder.`,
+        summary: `This is an offline preview. The summary of "${title}" will be generated once you go online.`,
         entities: [],
         concepts: [],
         questions: [

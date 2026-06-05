@@ -100,7 +100,15 @@ export default function Inbox() {
         const body = await downloadRawClipping(row.storage_path);
         setBodyById((prev) => ({ ...prev, [row.id]: body }));
       } catch (e) {
-        setBodyById((prev) => ({ ...prev, [row.id]: `_(${locale === "ko" ? "본문 로드 실패" : "body load failed"}: ${(e as Error).message})_` }));
+        // Raw error stays in logs only; users see calm product-tone copy.
+        console.warn("[inbox] downloadRawClipping failed", (e as Error).message);
+        setBodyById((prev) => ({
+          ...prev,
+          [row.id]:
+            locale === "ko"
+              ? "_(본문을 불러오지 못했어요. 잠시 후 다시 열어 주세요.)_"
+              : "_(Couldn't load this content. Tap to reopen in a moment.)_",
+        }));
       }
     }
   }
@@ -127,9 +135,13 @@ export default function Inbox() {
       );
       await load(userId);
     } catch (e) {
+      // Raw error stays in logs only; user sees product-tone copy + retry.
+      console.warn("[inbox] runPhase1 (summary + questions) failed", (e as Error).message);
       Alert.alert(
-        locale === "ko" ? "Phase 1 실패" : "Phase 1 failed",
-        (e as Error).message,
+        locale === "ko" ? "요약과 질문을 만들지 못했어요" : "Couldn't create the summary and questions",
+        locale === "ko"
+          ? "잠시 후 요약 + 4질문을 다시 시도해 주세요. 계속 안 되면 다른 소스를 먼저 정리해 볼 수 있어요."
+          : "Try generating the summary and 4 questions again in a moment. If it keeps failing, you can refine another source first.",
       );
     } finally {
       setPhase1Id(null);
@@ -237,8 +249,8 @@ export default function Inbox() {
             </Text>
             <Text variant="subtle" color="textSubtle" style={{ textAlign: "center", lineHeight: 18 }}>
               {locale === "ko"
-                ? "받은편지함은 캡처한 자료가 모이는 곳. 여기서 Phase 1(요약 + 4질문)을 돌리거나 위키 페이지로 발전시킬 수 있어요."
-                : "Your inbox holds captured sources. Run Phase 1 (summary + 4 questions) here, or promote a row to a wiki page."}
+                ? "받은편지함은 캡처한 자료가 모이는 곳. 여기서 요약과 질문(요약 + 4질문)을 만들거나 위키 페이지로 발전시킬 수 있어요."
+                : "Your inbox holds captured sources. Create a Source brief (summary + 4 questions) here, or promote a row to a wiki page."}
             </Text>
             <Link href="/capture" asChild>
               <Pressable hitSlop={6}>
@@ -307,9 +319,10 @@ export default function Inbox() {
                     <Pressable
                       onPress={(e) => {
                         e.stopPropagation();
+                        // Phase 1 = the stored summary + reflection questions (product term: "Source brief").
                         const p1 = readPhase1(r.frontmatter)!;
                         Alert.alert(
-                          locale === "ko" ? "Phase 1 결과" : "Phase 1 result",
+                          locale === "ko" ? "요약과 질문" : "Source brief",
                           p1.summary + "\n\n" + p1.questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
                         );
                       }}
@@ -317,7 +330,7 @@ export default function Inbox() {
                       hitSlop={4}
                     >
                       <Text variant="caption" color="success">
-                        {locale === "ko" ? "Phase 1 보기" : "View Phase 1"}
+                        {locale === "ko" ? "요약과 질문 보기" : "View Source brief"}
                       </Text>
                     </Pressable>
                   )}

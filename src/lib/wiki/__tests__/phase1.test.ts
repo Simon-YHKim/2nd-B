@@ -198,8 +198,9 @@ describe("runPhase1 — orchestration", () => {
 
     const r = await runPhase1({ userId: "u1", sourceId: "s1", locale: "ko" });
     expect(r.questions).toHaveLength(4);
-    // Korean mock stub starts with [MOCK]
-    expect(r.summary).toContain("[MOCK]");
+    // Korean mock stub is the offline-preview product copy (no internal [MOCK] token surfaced to users)
+    expect(r.summary).toContain("오프라인 미리보기");
+    expect(r.summary).not.toContain("[MOCK]");
     expect(r.summary).toContain("Article");
   });
 

@@ -76,39 +76,43 @@ function assertDirectEgressAllowed(env: ReturnType<typeof getEnv>): void {
   }
 }
 
-// Mock responses keyed by purpose + locale. Used when LLM_MODE=mock so the
-// UI can be exercised end-to-end without a Gemini API key. Safety classifier
-// still runs (C9 invariant) and audit log still records the call (C3).
+// Offline-preview responses keyed by purpose + locale. Used when LLM_MODE=mock
+// so the UI can be exercised end-to-end without a live model connection. Safety
+// classifier still runs (C9 invariant) and audit log still records the call (C3).
+// NOTE: these strings are user-facing in the offline-preview build, so they read
+// as ordinary product copy. The internal "mock"/no-key technical marker lives in
+// this comment and in modelUsed audit fields only.
 const MOCK_RESPONSES: Record<
   "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "jarvis_chat" | "interview_probe" | "imagine" | "import_ingest",
   Record<"en" | "ko", string>
 > = {
   journal_reflect: {
-    en: "[MOCK] What feeling came up most strongly in that moment? Try naming it in a single word.",
-    ko: "[MOCK] 그 순간 가장 또렷이 떠오른 감정이 무엇이었나요? 한 단어로 이름 붙여볼까요?",
+    en: "What feeling came up most strongly in that moment? Try naming it in a single word.",
+    ko: "그 순간 가장 또렷이 떠오른 감정이 무엇이었나요? 한 단어로 이름 붙여볼까요?",
   },
   audit_qa: {
-    en: "[MOCK] Looking back, who did you lean on most during that period — and what did they offer you?",
-    ko: "[MOCK] 그 시기를 돌아보면, 가장 의지했던 사람은 누구였고, 그 사람은 당신에게 무엇을 주었나요?",
+    en: "Looking back, who did you lean on most during that period, and what did they offer you?",
+    ko: "그 시기를 돌아보면, 가장 의지했던 사람은 누구였고, 그 사람은 당신에게 무엇을 주었나요?",
   },
   knowledge_lookup: {
-    en: "[MOCK] Curator stub — psychology references will appear here once a Gemini key is configured.",
-    ko: "[MOCK] 큐레이터 임시 응답 — Gemini 키 연결 후 검증된 자료가 표시됩니다.",
+    en: "This is an offline preview. Curated references will appear here when you go online.",
+    ko: "지금은 오프라인 미리보기예요. 온라인으로 연결하면 검증된 자료가 여기에 표시됩니다.",
   },
   persona_chat: {
-    en: "[MOCK] I'm noticing a pattern across your recent entries. Tell me more about how you decided.",
-    ko: "[MOCK] 최근 기록에서 반복되는 흐름이 보여요. 그 결정을 어떻게 내렸는지 더 들려주세요.",
+    en: "I'm noticing a pattern across your recent entries. Tell me more about how you decided.",
+    ko: "최근 기록에서 반복되는 흐름이 보여요. 그 결정을 어떻게 내렸는지 더 들려주세요.",
   },
   jarvis_chat: {
-    en: "[MOCK] SecondB stub — once Gemini is connected I'll consult your captured pages and answer with citations. For now I'm echoing the prompt structure.",
-    ko: "[MOCK] 세컨비 임시 응답 — Gemini 연결 후엔 캡처한 페이지를 참고해 인용과 함께 답해 드려요. 지금은 프롬프트 구조만 흉내내요.",
+    en: "This is an offline preview. When you go online I'll consult your captured pages and answer with citations. For now I'm following the same prompt structure.",
+    ko: "지금은 오프라인 미리보기예요. 온라인으로 연결하면 캡처한 페이지를 참고해 인용과 함께 답해 드려요. 지금은 같은 흐름으로 안내해요.",
   },
   interview_probe: {
-    en: "[MOCK] What part of what you just said feels most alive to you right now?",
-    ko: "[MOCK] 방금 말한 것 중에서 지금 가장 살아 있는 느낌이 드는 부분은 무엇인가요?",
+    en: "What part of what you just said feels most alive to you right now?",
+    ko: "방금 말한 것 중에서 지금 가장 살아 있는 느낌이 드는 부분은 무엇인가요?",
   },
-  // Structured "공상" stub in the :: delimited format parseImagineResult expects,
-  // so the result cards render in mock mode (the default deployed build).
+  // Structured "공상" sample in the :: delimited format parseImagineResult
+  // expects, so the result cards render in the offline-preview build (the
+  // default deployed build).
   imagine: {
     en:
       "TITLE :: A lantern in the night alley\n" +
@@ -135,11 +139,11 @@ const MOCK_RESPONSES: Record<
       "CHARACTER :: Lumen :: 쓸모 있는 새 조각을 가져오는 길잡이.\n" +
       "NEXTSTEP :: 오늘 떠오른 장면 한 줄을 기록으로 남겨보기.",
   },
-  // Structured JSON stub for the external-import ingest so /import works in
-  // the default mock build (parseIngestResult reads this shape).
+  // Structured JSON sample for the external-import ingest so /import works in
+  // the default offline-preview build (parseIngestResult reads this shape).
   import_ingest: {
     en: JSON.stringify({
-      summary: "[MOCK] A reflective, curious person who values growth and close relationships.",
+      summary: "A reflective, curious person who values growth and close relationships.",
       track: "daily",
       tags: ["imported", "growth", "reflection"],
       items: [
@@ -149,7 +153,7 @@ const MOCK_RESPONSES: Record<
       ],
     }),
     ko: JSON.stringify({
-      summary: "[MOCK] 성장과 가까운 관계를 중요하게 여기는, 호기심 많고 성찰적인 사람.",
+      summary: "성장과 가까운 관계를 중요하게 여기는, 호기심 많고 성찰적인 사람.",
       track: "daily",
       tags: ["imported", "성장", "성찰"],
       items: [
@@ -211,16 +215,18 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   const env = getEnv();
   const model = MODELS[input.model ?? "flash"];
 
-  // Mock mode: skip network. Useful for offline dev, CI, and demos without
-  // a Gemini API key. C3 audit log + C9 safety classifier still apply.
+  // Offline-preview mode: skip network. Useful for offline dev, CI, and demos
+  // without a live model connection. C3 audit log + C9 safety classifier still
+  // apply. The internal "mock" marker stays in the modelUsed audit field only;
+  // user-facing text below reads as ordinary product copy.
   if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
     const t0 = Date.now();
     // 'advisor' purpose flows through callAdvisor(), not callGemini(). For
-    // any unknown purpose, fall back to a generic mock reply.
+    // any unknown purpose, fall back to a generic offline-preview reply.
     const mockTable = MOCK_RESPONSES as Record<string, Record<"en" | "ko", string>>;
     const text =
       mockTable[input.purpose]?.[input.locale] ??
-      (input.locale === "ko" ? "[MOCK] 응답 준비 중이에요." : "[MOCK] Reply pending.");
+      (input.locale === "ko" ? "지금은 오프라인 미리보기예요." : "This is an offline preview.");
     const latencyMs = Date.now() - t0;
     const outputSafety = classifyInput(text, input.locale, { minor: input.minor });
     const audit = {
@@ -408,9 +414,11 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
 //   3. YELLOW → retrieveEvidence with listening-mode addendum, then Advisor LLM call.
 //   4. GREEN → retrieveEvidence with full Advisor prompt, then Advisor LLM call.
 //
-// Mock mode: GREEN/YELLOW returns a templated [MOCK] string but still routes through
-// retrieveEvidence so the system prompt assembly is exercised. RED still uses
-// fixedCrisisResponse and still inserts crisis_events.
+// Offline-preview mode (LLM_MODE=mock): GREEN/YELLOW returns a templated reply but
+// still routes through retrieveEvidence so the system prompt assembly is exercised.
+// RED still uses fixedCrisisResponse and still inserts crisis_events. The internal
+// "mock" marker stays in the modelUsed audit field; the returned text reads as
+// ordinary product copy.
 export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   const env = getEnv();
   const promptHash = djb2(input.userMessage);
@@ -477,12 +485,12 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
 
   const model = MODELS.pro; // Advisor uses Pro for nuance; Flash was the classifier.
 
-  // Mock mode short-circuit (still ran safety + retrieval).
+  // Offline-preview short-circuit (still ran safety + retrieval).
   if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
     const text =
       input.locale === "ko"
-        ? `[MOCK 어드바이저] 당신이 말한 것을 들었어요. 오늘 이 감정에 이름을 붙인다면 어떤 단어가 떠오르나요?`
-        : `[MOCK Advisor] I heard what you wrote. If you named the feeling under it today, what word comes up?`;
+        ? `당신이 말한 것을 들었어요. 오늘 이 감정에 이름을 붙인다면 어떤 단어가 떠오르나요?`
+        : `I heard what you wrote. If you named the feeling under it today, what word comes up?`;
     const audit = {
       promptHash: djb2(systemPrompt + input.userMessage),
       outputHash: djb2(text),

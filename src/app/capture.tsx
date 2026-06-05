@@ -179,6 +179,9 @@ export default function Capture() {
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
+  // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
+  // the light caption tracking.
+  const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.3 };
 
   const [mode, setMode] = useState<Mode>("journal");
   const [track, setTrack] = useState<WikiTrack>("daily");
@@ -579,7 +582,7 @@ export default function Capture() {
                 <Text variant="body" color="brand">{formatSavedMsg}</Text>
               ) : proposal ? (
                 <View style={{ gap: spacing.xs }}>
-                  <Text variant="caption" color="brand" style={styles.eyebrow}>
+                  <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
                     {locale === "ko" ? "새 형식 제안" : "Proposed new format"}
                   </Text>
                   <Text variant="body" style={{ fontWeight: "600" }}>
@@ -647,7 +650,7 @@ export default function Capture() {
           {/* Track toggle: 일상 / Pro — only for capture modes (not journal). */}
           {mode !== "journal" ? (
           <View style={styles.trackCard}>
-            <Text variant="caption" color="brand" style={styles.eyebrow}>
+            <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
               {locale === "ko" ? "어디로 갈까요?" : "Which wiki?"}
             </Text>
             <View style={styles.trackRow}>
@@ -711,7 +714,7 @@ export default function Capture() {
           ) : null}
           {mode === "journal" && !progression.loading && !journalGate.unlocked ? (
             <View style={styles.gateCard}>
-              <Text variant="subtle" color="brand" style={styles.gateEyebrow}>
+              <Text variant="subtle" color="brand" style={[styles.gateEyebrow, eyebrowTracking]}>
                 {locale === "ko" ? "일기 잠김" : "Journal locked"}
               </Text>
               <Text variant="body" style={{ marginTop: spacing.xs }}>
@@ -735,7 +738,7 @@ export default function Capture() {
           ) : null}
           {mode === "journal" && !progression.loading && journalGate.unlocked && !journalUsage.allowed ? (
             <View style={styles.limitCard}>
-              <Text variant="subtle" color="warning" style={styles.gateEyebrow}>
+              <Text variant="subtle" color="warning" style={[styles.gateEyebrow, eyebrowTracking]}>
                 {locale === "ko" ? "무료 일기를 다 썼어요" : "Free journal entries used up"}
               </Text>
               <Text variant="body" style={{ marginTop: spacing.xs }}>
@@ -1102,7 +1105,8 @@ const styles = StyleSheet.create({
   },
   advisorCheckOn: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   // 일기 gate cards (Lv3 lock / free-tier limit), ported from /journal.
-  gateEyebrow: { fontWeight: "700", letterSpacing: 0.3 },
+  // Tracking is applied per-locale (eyebrowTracking) so KO is not over-spaced.
+  gateEyebrow: { fontWeight: "700" },
   gateCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
@@ -1148,7 +1152,8 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     gap: spacing.xs,
   },
-  eyebrow: { letterSpacing: 0.3, fontWeight: "700" },
+  // Tracking is applied per-locale (eyebrowTracking) so KO is not over-spaced.
+  eyebrow: { fontWeight: "700" },
   trackRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   trackChip: {
     flex: 1,

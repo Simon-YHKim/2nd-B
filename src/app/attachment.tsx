@@ -159,7 +159,7 @@ export default function Attachment() {
                           key={v}
                           onPress={() => setResponse(item.id, v)}
                           style={[styles.scaleBtn, active && styles.scaleBtnActive]}
-                          hitSlop={2}
+                          hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
                         >
                           <Text variant="caption" color={active ? "background" : "textMuted"}>
                             {v}

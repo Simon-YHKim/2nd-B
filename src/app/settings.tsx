@@ -145,6 +145,25 @@ export default function Settings() {
     );
   }
 
+  // Surface a calm, product-tone failure with a retry. The raw error stays in
+  // the console for debugging and never appears in the user-facing Alert text.
+  function showActionError(
+    context: string,
+    error: unknown,
+    title: string,
+    body: string,
+    retry?: () => void,
+  ): void {
+    console.warn(`[settings] ${context} failed`, error);
+    const buttons = retry
+      ? [
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" as const },
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: retry },
+        ]
+      : [{ text: locale === "ko" ? "확인" : "OK", style: "cancel" as const }];
+    Alert.alert(title, body, buttons);
+  }
+
   async function runDeleteKind(kind: "journal" | "note" | "audit_response", label: string) {
     if (!userId) return;
     setBusy(label);
@@ -152,7 +171,15 @@ export default function Settings() {
       const n = await deleteRecordsByKind(userId, kind);
       Alert.alert(locale === "ko" ? "완료" : "Done", locale === "ko" ? `${n}개 삭제됨` : `Deleted ${n}`);
     } catch (e) {
-      Alert.alert(locale === "ko" ? "삭제 실패" : "Delete failed", (e as Error).message);
+      showActionError(
+        `deleteRecordsByKind(${kind})`,
+        e,
+        locale === "ko" ? "삭제하지 못했어요" : "Couldn't delete",
+        locale === "ko"
+          ? "기록을 지우는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+          : "Something went wrong while clearing these records. Please try again in a moment.",
+        () => void runDeleteKind(kind, label),
+      );
     } finally {
       setBusy(null);
     }
@@ -165,7 +192,15 @@ export default function Settings() {
       const n = await deleteRecordsByTag(userId, tags);
       Alert.alert(locale === "ko" ? "완료" : "Done", locale === "ko" ? `${n}개 삭제됨` : `Deleted ${n}`);
     } catch (e) {
-      Alert.alert(locale === "ko" ? "삭제 실패" : "Delete failed", (e as Error).message);
+      showActionError(
+        `deleteRecordsByTag(${tags.join(",")})`,
+        e,
+        locale === "ko" ? "삭제하지 못했어요" : "Couldn't delete",
+        locale === "ko"
+          ? "결과를 지우는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+          : "Something went wrong while clearing these results. Please try again in a moment.",
+        () => void runDeleteByTag(tags, label),
+      );
     } finally {
       setBusy(null);
     }
@@ -178,7 +213,15 @@ export default function Settings() {
       const n = await deleteAllWikiPages(userId);
       Alert.alert(locale === "ko" ? "완료" : "Done", locale === "ko" ? `${n}개 위키 페이지 삭제됨` : `Deleted ${n} wiki pages`);
     } catch (e) {
-      Alert.alert(locale === "ko" ? "삭제 실패" : "Delete failed", (e as Error).message);
+      showActionError(
+        "deleteAllWikiPages",
+        e,
+        locale === "ko" ? "삭제하지 못했어요" : "Couldn't delete",
+        locale === "ko"
+          ? "위키 페이지를 지우는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+          : "Something went wrong while clearing your wiki pages. Please try again in a moment.",
+        () => void runDeleteWikiPages(),
+      );
     } finally {
       setBusy(null);
     }
@@ -191,7 +234,15 @@ export default function Settings() {
       const n = await deleteUningestedSources(userId);
       Alert.alert(locale === "ko" ? "완료" : "Done", locale === "ko" ? `${n}개 캡처 삭제됨` : `Deleted ${n} captures`);
     } catch (e) {
-      Alert.alert(locale === "ko" ? "삭제 실패" : "Delete failed", (e as Error).message);
+      showActionError(
+        "deleteUningestedSources",
+        e,
+        locale === "ko" ? "삭제하지 못했어요" : "Couldn't delete",
+        locale === "ko"
+          ? "캡처를 지우는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+          : "Something went wrong while clearing these captures. Please try again in a moment.",
+        () => void runDeleteUningestedSources(),
+      );
     } finally {
       setBusy(null);
     }
@@ -204,7 +255,15 @@ export default function Settings() {
       const n = await deleteAllChatUsage(userId);
       Alert.alert(locale === "ko" ? "완료" : "Done", locale === "ko" ? `${n}일치 사용량 리셋됨` : `Reset ${n} days of usage`);
     } catch (e) {
-      Alert.alert(locale === "ko" ? "실패" : "Failed", (e as Error).message);
+      showActionError(
+        "deleteAllChatUsage",
+        e,
+        locale === "ko" ? "리셋하지 못했어요" : "Couldn't reset",
+        locale === "ko"
+          ? "사용량을 리셋하는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+          : "Something went wrong while resetting usage. Please try again in a moment.",
+        () => void runResetChatUsage(),
+      );
     } finally {
       setBusy(null);
     }
@@ -224,7 +283,15 @@ export default function Settings() {
       setFullDeleteConfirm("");
       router.replace("/capture");
     } catch (e) {
-      Alert.alert(locale === "ko" ? "전체 삭제 실패" : "Full wipe failed", (e as Error).message);
+      showActionError(
+        "deleteAllUserData",
+        e,
+        locale === "ko" ? "전체 삭제를 끝내지 못했어요" : "Couldn't finish the full wipe",
+        locale === "ko"
+          ? "일부 데이터가 남아 있을 수 있어요. 잠시 후 다시 시도하면 남은 데이터를 마저 정리합니다."
+          : "Some data may remain. Try again in a moment to finish clearing what's left.",
+        () => void runFullWipe(),
+      );
     } finally {
       setBusy(null);
     }
@@ -479,7 +546,14 @@ export default function Settings() {
                 // with a stale session before the SIGNED_OUT event lands.
                 router.replace("/sign-in");
               } catch (e) {
-                Alert.alert(locale === "ko" ? "로그아웃 실패" : "Sign-out failed", (e as Error).message);
+                showActionError(
+                  "signOut",
+                  e,
+                  locale === "ko" ? "로그아웃하지 못했어요" : "Couldn't sign out",
+                  locale === "ko"
+                    ? "로그아웃 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+                    : "Something went wrong while signing out. Please try again in a moment.",
+                );
               }
             }}
           />

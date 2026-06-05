@@ -28,7 +28,7 @@ const FAQ_KO = [
   },
   {
     q: "AI는 안전한가요?",
-    a: "AI는 정리와 연결을 돕는 보조 역할이에요. 진단이나 치료를 대신하지 않고, 판단은 항상 나에게 있어요.",
+    a: "AI는 정리와 연결을 돕는 보조 역할이며, 중요한 판단은 사용자가 직접 합니다.",
   },
 ];
 
@@ -43,7 +43,7 @@ const FAQ_EN = [
   },
   {
     q: "Is the AI safe?",
-    a: "The AI only helps you organize and connect your notes. It never diagnoses or treats, and the call is always yours.",
+    a: "The AI helps organize and connect your notes. Important decisions stay with you.",
   },
 ];
 

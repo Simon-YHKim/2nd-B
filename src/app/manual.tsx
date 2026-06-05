@@ -188,7 +188,8 @@ export default function Manual() {
                 ["캡처 (Capture)", "원본 자료를 받은편지함에 모으는 동작"],
                 ["인박스 (Inbox)", "캡처한 모든 소스의 목록"],
                 ["위키 페이지 (Wiki Page)", "캡처를 발전시킨 지식 항목 (소스/엔티티/개념)"],
-                ["Phase 1", "LLM이 소스를 요약하고 4개의 성찰 질문을 만드는 단계"],
+                // tech: internally "Phase 1"
+                ["요약과 질문", "LLM이 소스를 요약하고 4개의 성찰 질문을 만드는 단계"],
                 ["Phase 2", "소스를 위키 페이지로 승격하고 [[wikilink]] 연결을 만드는 단계"],
                 ["익스포트", "전체 위키를 한 번에 마크다운 번들로 추출 (Claude/ChatGPT에 붙여넣기용)"],
                 ["세컨비", "당신의 위키를 시스템 컨텍스트로 가진 RAG 챗봇"],
@@ -198,7 +199,8 @@ export default function Manual() {
                 ["Capture", "Adding raw content to your inbox"],
                 ["Inbox", "List of every captured source"],
                 ["Wiki page", "A developed knowledge node (source/entity/concept)"],
-                ["Phase 1", "LLM summarizes the source + emits 4 reflection questions"],
+                // tech: internally "Phase 1"
+                ["Source brief", "LLM summarizes the source + emits 4 reflection questions"],
                 ["Phase 2", "Promote a source into a wiki page and build [[wikilink]] edges"],
                 ["Export", "Pack the whole wiki into a markdown bundle (paste into Claude/ChatGPT)"],
                 ["SecondB", "A RAG chatbot with your wiki as system context"],

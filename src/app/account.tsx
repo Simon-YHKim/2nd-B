@@ -35,6 +35,9 @@ export default function Account() {
   const { t, i18n } = useTranslation("consent");
   const { userId, loading } = useAuth();
   const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
+  // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
+  // the light caption tracking.
+  const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.5 };
 
   const [origDob, setOrigDob] = useState<string | null>(null);
   const [birthDate, setBirthDate] = useState("");
@@ -146,7 +149,7 @@ export default function Account() {
 
         {/* DOB correction */}
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
-          <Text variant="caption" color="brand" style={styles.eyebrow}>
+          <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
             {t("account.dob.label")}
           </Text>
           <Text variant="subtle" color="textMuted">
@@ -169,7 +172,7 @@ export default function Account() {
 
         {/* Privacy & consent controls */}
         <View style={[styles.section, { borderLeftColor: cosmic.signalMint }]}>
-          <Text variant="caption" color="brand" style={styles.eyebrow}>
+          <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
             {t("account.privacy.label")}
           </Text>
           <Text variant="subtle" color="textMuted">
@@ -184,7 +187,7 @@ export default function Account() {
 
         {/* Danger zone: delete account */}
         <View style={[styles.section, { borderLeftColor: semantic.danger }]}>
-          <Text variant="caption" color="danger" style={styles.eyebrow}>
+          <Text variant="caption" color="danger" style={[styles.eyebrow, eyebrowTracking]}>
             {t("account.delete.label")}
           </Text>
           <Text variant="subtle" color="textMuted">
@@ -232,6 +235,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
-  // Trim eyebrow tracking so the KO section labels are not over-spaced (caption is 14px).
-  eyebrow: { letterSpacing: 0.5, fontWeight: "700" },
+  // Tracking is applied per-locale (eyebrowTracking) so KO labels are not
+  // over-spaced (caption is 14px); EN keeps the light caption tracking.
+  eyebrow: { fontWeight: "700" },
 });

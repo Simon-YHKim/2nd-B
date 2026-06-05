@@ -248,9 +248,18 @@ export default function Wiki() {
       await load(userId, activeTags);
       // 모모 labels the freshly organized page (companion pack §3).
       companion.fire("wikiSaved");
-      Alert.alert(locale === "ko" ? "Phase 1 완료" : "Phase 1 done");
+      Alert.alert(locale === "ko" ? "요약과 질문 준비됐어요" : "Source brief is ready");
     } catch (e) {
-      Alert.alert(locale === "ko" ? "Phase 1 실패" : "Phase 1 failed", (e as Error).message);
+      // Keep the raw implementation error in logs only; show product-tone copy + retry.
+      if (typeof console !== "undefined")
+        console.warn("[wiki] source brief failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "요약과 질문을 만들지 못했어요" : "Couldn't build the source brief",
+        locale === "ko"
+          ? "잠시 후 다시 시도해 주세요. 계속 안 되면 원본을 열어 확인해 보세요."
+          : "Please try again in a moment. If it keeps failing, open the source to check.",
+        [{ text: locale === "ko" ? "확인" : "OK" }],
+      );
     } finally {
       setPhase1RunningId(null);
     }
@@ -687,8 +696,8 @@ export default function Wiki() {
                                     ? "요약 중…"
                                     : "Summarizing…"
                                   : locale === "ko"
-                                    ? "Phase 1 실행 (요약 + 4질문)"
-                                    : "Run Phase 1 (summary + 4 questions)"}
+                                    ? "요약과 질문 만들기 (요약 + 4질문)"
+                                    : "Build source brief (summary + 4 questions)"}
                               </Text>
                             </Pressable>
                           );
@@ -697,7 +706,7 @@ export default function Wiki() {
                           <View style={styles.phase1Card}>
                             <View style={styles.phase1Header}>
                               <Text variant="caption" color="brand">
-                                {locale === "ko" ? "Phase 1 요약" : "Phase 1 summary"}
+                                {locale === "ko" ? "요약과 질문" : "Source brief"}
                               </Text>
                               <Text variant="subtle" color="textSubtle">
                                 {new Date(p1.generated_at).toLocaleDateString(
@@ -706,7 +715,9 @@ export default function Wiki() {
                                 )}
                                 {" · "}
                                 {p1.model.startsWith("mock:")
-                                  ? "MOCK"
+                                  ? locale === "ko"
+                                    ? "샘플"
+                                    : "Sample"
                                   : (p1.model.split("-").slice(-2, -1)[0] ?? p1.model)}
                               </Text>
                             </View>

@@ -30,15 +30,36 @@ export default function Persona() {
     // OAuth session (the render guard below redirects it to /complete-profile,
     // but the effect runs regardless, so gate it here too). C10 + consent.
     if (!userId || hasProfile === false) return;
-    setBuilding(true);
-    buildPersona(userId, locale, isMinor === true)
-      .then((p) => {
-        setPersona(p);
-        // 아치 builds the connections once a persona card synthesizes (companion pack §3).
-        if (p) fireCompanion("personaUpdated");
-      })
-      .catch((e) => Alert.alert("Persona failed", (e as Error).message))
-      .finally(() => setBuilding(false));
+    function runBuild() {
+      if (!userId) return;
+      setBuilding(true);
+      buildPersona(userId, locale, isMinor === true)
+        .then((p) => {
+          setPersona(p);
+          // 아치 builds the connections once a persona card synthesizes (companion pack §3).
+          if (p) fireCompanion("personaUpdated");
+        })
+        .catch((e) => {
+          // Raw error stays in logs only; users see product-tone copy + retry.
+          console.warn("[persona] build failed", (e as Error).message);
+          Alert.alert(
+            locale === "ko" ? "자기 모델을 만들지 못했어요" : "Couldn't build your self-model",
+            locale === "ko"
+              ? "조각을 모으는 중에 잠깐 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+              : "Something interrupted gathering your pieces. Please try again in a moment.",
+            [
+              { text: locale === "ko" ? "다시 시도" : "Try again", onPress: runBuild },
+              {
+                text: locale === "ko" ? "조각 담기로" : "Back to capture",
+                style: "cancel",
+                onPress: () => router.replace("/capture"),
+              },
+            ],
+          );
+        })
+        .finally(() => setBuilding(false));
+    }
+    runBuild();
   }, [userId, hasProfile, isMinor, locale, fireCompanion]);
 
   if (loading || building) {
@@ -116,7 +137,18 @@ export default function Persona() {
     try {
       await Share.share({ message: persona.markdownExport, title: "2nd-Brain Persona" });
     } catch (e) {
-      Alert.alert("Export failed", (e as Error).message);
+      // Raw error stays in logs only; users see product-tone copy + retry.
+      console.warn("[persona] export failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "내보내기를 마치지 못했어요" : "Couldn't finish the export",
+        locale === "ko"
+          ? "공유를 여는 중에 문제가 생겼어요. 다시 시도해 주세요."
+          : "Something went wrong opening the share sheet. Please try again.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void handleExport() },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
+      );
     }
   }
 
