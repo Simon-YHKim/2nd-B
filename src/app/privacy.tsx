@@ -25,6 +25,7 @@ import {
 } from "@/lib/privacy/prefs";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { setAnalyticsConsent } from "@/lib/analytics";
+import { createPrivacySaveQueue } from "@/lib/privacy/analytics-consent-queue";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 export default function Privacy() {
@@ -43,10 +44,16 @@ export default function Privacy() {
   // render-time `prefs` closure.
   const prefsRef = useRef(prefs);
   prefsRef.current = prefs;
-  // Serialize whole-object privacy writes: savePrivacyPrefs replaces the entire
-  // privacy_prefs object, so two concurrent saves could land out of order at the
-  // DB and resurrect a stale value. Chaining keeps writes in submission order.
-  const saveChain = useRef<Promise<void>>(Promise.resolve());
+  // Serializes whole-object privacy writes (so they land in submission order) and
+  // applies the analytics gate monotonically: an external_analytics opt-out takes
+  // effect immediately and no older save completion can re-enable it. See the
+  // analytics-consent-queue module (where the async ordering is unit-tested).
+  const saveQueue = useRef(
+    createPrivacySaveQueue({
+      applyAnalyticsConsent: setAnalyticsConsent,
+      latestAnalyticsOn: () => prefsRef.current.external_analytics,
+    }),
+  ).current;
   const [ready, setReady] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const mounted = useRef(true);
@@ -87,32 +94,27 @@ export default function Privacy() {
       prefsRef.current = updated;
       setPrefs(updated);
       setSaveError(false);
-      // Queue the persist behind any in-flight save so writes land in order. Each
-      // queued write sends the latest prefsRef (so collapsed rapid toggles still
-      // converge), and because saves are serialized the final completion sets the
-      // analytics gate from the final state instead of a stale one re-applying.
-      saveChain.current = saveChain.current
-        .catch(() => {})
-        .then(async () => {
-          const payload = prefsRef.current;
-          try {
-            await savePrivacyPrefs(userId, payload);
-            setAnalyticsConsent(payload.external_analytics);
-          } catch {
-            // Revert only this key off the latest state and tell the user, so a
-            // concurrent toggle of another key survives the revert. Pre-migration
-            // the privacy_prefs column may not exist yet, so this path is expected
-            // until the 0032 migration is applied.
-            if (mounted.current) {
-              const reverted: PrivacyPrefs = { ...prefsRef.current, [key]: !next };
-              prefsRef.current = reverted;
-              setPrefs(reverted);
-              setSaveError(true);
-            }
+      // Persist through the monotonic save queue: writes land in submission order,
+      // an external_analytics opt-out applies immediately, and no stale completion
+      // re-enables analytics. Each save sends the latest prefsRef at exec time.
+      saveQueue.submit({
+        save: () => savePrivacyPrefs(userId, prefsRef.current),
+        optOut: key === "external_analytics" && next === false,
+        onError: () => {
+          // Revert only this key off the latest state and tell the user, so a
+          // concurrent toggle of another key survives the revert. Pre-migration
+          // the privacy_prefs column may not exist yet, so this path is expected
+          // until the 0032 migration is applied.
+          if (mounted.current) {
+            const reverted: PrivacyPrefs = { ...prefsRef.current, [key]: !next };
+            prefsRef.current = reverted;
+            setPrefs(reverted);
+            setSaveError(true);
           }
-        });
+        },
+      });
     },
-    [userId, minor],
+    [userId, minor, saveQueue],
   );
 
   if (loading) {
