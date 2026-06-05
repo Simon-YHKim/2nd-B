@@ -341,7 +341,7 @@ export default function Landing() {
               </View>
             </View>
             <Pressable
-              onPress={() => router.push({ pathname: "/journal", params: { entry: "firstRun" } })}
+              onPress={() => router.push({ pathname: "/capture", params: { entry: "firstRun" } })}
               style={styles.emptyGraphCta}
             >
               <Text style={styles.emptyGraphCtaText}>
