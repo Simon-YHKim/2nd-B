@@ -1,9 +1,10 @@
+import { Image } from "expo-image";
 // Tier-icon art (refine premium pack). Tier-3/4 graph nodes are pieces of
 // knowledge — paper, books, links, files, cubes, crystals, seeds, hearts,
 // compasses, sparks — NOT generic robot glyphs. require()'d PNGs so Metro
 // bundles them for web + native; image-rendering pixelated keeps them crisp.
 
-import { Image, type ImageStyle, type StyleProp } from "react-native";
+import { type ImageStyle, type StyleProp } from "react-native";
 
 const TIER_ICONS = {
   paper_journal: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/flying_paper_premium.png"),

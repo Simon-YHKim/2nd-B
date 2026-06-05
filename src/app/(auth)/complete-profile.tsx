@@ -1,9 +1,10 @@
+import { Image } from "expo-image";
 // Post-OAuth profile completion. Users who sign in via Google land here when
 // the public.users row doesn't exist yet — we need their date of birth to
 // satisfy C10 (age gate) before letting them into the app.
 
 import { useMemo, useState } from "react";
-import { Image, View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
