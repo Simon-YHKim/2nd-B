@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   cellText: { fontSize: 11, fontWeight: "700", fontFamily: fontFamilies.mono },
   headerCell: { aspectRatio: undefined, paddingVertical: 4 },
   headerCellActive: {},
-  headerLabel: { fontSize: 10, color: semantic.textSubtle, letterSpacing: 0, fontWeight: "600" },
+  headerLabel: { fontSize: 11, color: semantic.textSubtle, letterSpacing: 0, fontWeight: "600" },
   headerLabelActive: { color: semantic.brand },
-  headerMicro: { fontSize: 9, color: semantic.textSubtle, letterSpacing: 0 },
+  headerMicro: { fontSize: 11, color: semantic.textSubtle, letterSpacing: 0 },
 });

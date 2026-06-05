@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
   },
   bubbleHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  layerTag: { fontFamily: fontFamilies.mono, fontSize: 10, letterSpacing: 0 },
+  layerTag: { fontFamily: fontFamilies.mono, fontSize: 11, letterSpacing: 0 },
   qBubble: { backgroundColor: semantic.surface },
   aBubble: { backgroundColor: semantic.surfaceAlt },
   thinkingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },

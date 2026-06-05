@@ -289,6 +289,6 @@ const styles = StyleSheet.create({
     color: semantic.text,
     fontWeight: "700",
     letterSpacing: 0,
-    fontSize: 10,
+    fontSize: 12,
   },
 });
