@@ -66,7 +66,11 @@ export default function CompleteProfile() {
       // Record the consent the user just gave. Await before navigating so a
       // web router.replace can't cancel the in-flight write (see sign-up).
       // Still best-effort: a failure logs at error level, never blocks entry.
-      if (userId) {
+      // Only on a fresh profile (created): when the users row already exists,
+      // ensureUserProfile returns early WITHOUT persisting this birth_date, so
+      // its age_band would be derived from a never-saved DOB — and the original
+      // sign-up consent already exists. Skip the write in that case.
+      if (userId && result.created) {
         await recordConsentBestEffort(
           buildSignUpConsentArgs({ userId, isMinor: isMinorAge, locale, selections: consent }),
         );

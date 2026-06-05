@@ -147,12 +147,24 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   return { id: data.id, followup: aiFollowup ?? undefined };
 }
 
-export async function listRecentRecords(userId: string, limit = 20) {
+// How far back the streak query looks, in days. A streak longer than this is
+// truncated, which is acceptable: the UI shows the active run, not lifetime.
+const STREAK_WINDOW_DAYS = 90;
+
+export async function listRecentRecords(userId: string, limit = 200) {
   const supabase = getSupabaseClient();
+  // Window the query to a wide date range rather than the most-recent N rows.
+  // The old 20-row cap saturated on engaged users: 20+ records over a day or
+  // two crowded out older capture days, so the daily-capture streak collapsed
+  // to 1 even with a long run. A ~90-day window keeps every distinct capture
+  // day in the result. Any record kind counts (streak.ts: "at least one record
+  // was created"); computeStreak de-dupes by KST day-key.
+  const sinceIso = new Date(Date.now() - STREAK_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from("records")
     .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at")
     .eq("user_id", userId)
+    .gte("created_at", sinceIso)
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw error;

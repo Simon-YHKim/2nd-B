@@ -29,6 +29,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { deleteWikiPage, getBacklinks, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import { exportUserWiki } from "@/lib/wiki/export";
 import { readPhase1, runPhase1 } from "@/lib/wiki/phase1";
+import { generateSourcePage } from "@/lib/wiki/phase2";
 import { computeGraphStats } from "@/lib/wiki/graph-stats";
 import type { WikiPageKind, WikiPageRow } from "@/lib/wiki/types";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
@@ -268,9 +269,14 @@ export default function Wiki() {
       setPhase1RunningId(page.id);
       try {
         await runPhase1({ userId, sourceId: page.source_id, locale, minor: isMinor === true });
-        // Reload to pick up the updated frontmatter on the source AND the
-        // wiki page (the wiki page's frontmatter was copied at source-page
-        // generation time, so we re-promote to refresh it).
+        // runPhase1 writes __phase1__ to the SOURCE frontmatter only; the wiki
+        // page's frontmatter was frozen at source-page generation time, so it
+        // still lacks the brief. Re-promote the source into wiki_pages so its
+        // frontmatter (now carrying __phase1__) is refreshed before we reload —
+        // otherwise readPhase1(page.frontmatter) returns null and the brief
+        // never appears.
+        await generateSourcePage(userId, page.source_id);
+        // Reload to pick up the refreshed frontmatter on the wiki page.
         await load(userId, activeTags);
         // 모모 labels the freshly organized page (companion pack §3).
         companion.fire("wikiSaved");

@@ -54,6 +54,7 @@ interface AuditResponseRow {
   prompt: string | null;
   body: string;
   created_at: string;
+  tags: string[] | null;
 }
 
 const DEFAULT_TRAITS: PersonaTraits = {
@@ -219,14 +220,21 @@ export async function buildPersona(
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("records")
-    .select("id, prompt, body, created_at")
+    .select("id, prompt, body, created_at, tags")
     .eq("user_id", userId)
     .eq("kind", "audit_response")
     .order("created_at", { ascending: true });
   if (error) throw error;
   const rows = (data ?? []) as AuditResponseRow[];
 
-  let traits = scoreFromAnswers(rows);
+  // Big Five proxy: exclude drill-interview transcripts. They share
+  // kind="audit_response" but carry the "interview" tag and pack a 50-turn
+  // session into one multi-thousand-char body, which saturates the
+  // length-driven openness heuristic in scoreFromAnswers. Scoring only the
+  // short single-answer life-audit rows keeps avgLen representative. The full
+  // rows set still feeds the narrative summary, values, and markdown below.
+  const proxyRows = rows.filter((r) => !(r.tags ?? []).includes("interview"));
+  let traits = scoreFromAnswers(proxyRows);
   let traitsSource: TraitsSource = "heuristic";
 
   // If a BFI-44 assessment exists, prefer it (1-5 → 0-1 normalize). BFI

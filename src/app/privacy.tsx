@@ -37,6 +37,12 @@ export default function Privacy() {
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.5 };
 
   const [prefs, setPrefs] = useState<PrivacyPrefs>(defaultPrivacyPrefs());
+  // Mirror the latest prefs into a ref kept current every render, so two rapid
+  // toggles in the same tick compose off the freshest value: the second toggle
+  // reads the first's synchronous prefsRef update in onToggle, not a stale
+  // render-time `prefs` closure.
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
   const [ready, setReady] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const mounted = useRef(true);
@@ -70,8 +76,11 @@ export default function Privacy() {
     async (key: PrivacyPrefKey, next: boolean) => {
       if (!userId) return;
       if (!isPrivacyPrefEditable(key, minor)) return;
-      const prev = prefs;
-      const updated: PrivacyPrefs = { ...prefs, [key]: next };
+      // Compose from prefsRef (kept current each render + updated synchronously
+      // below) so two rapid toggles in the same tick don't clobber each other:
+      // the second toggle reads the first's update here, not a stale closure.
+      const updated: PrivacyPrefs = { ...prefsRef.current, [key]: next };
+      prefsRef.current = updated;
       setPrefs(updated);
       setSaveError(false);
       try {
@@ -79,16 +88,19 @@ export default function Privacy() {
         // Sync the analytics consent gate with the saved external_analytics pref.
         setAnalyticsConsent(updated.external_analytics);
       } catch {
-        // Revert the optimistic flip and tell the user. Pre-migration the
-        // privacy_prefs column may not exist yet, so this path is expected
+        // Revert only this key off the latest state and tell the user, so a
+        // concurrent toggle of another key survives the revert. Pre-migration
+        // the privacy_prefs column may not exist yet, so this path is expected
         // until the 0032 migration is applied.
         if (mounted.current) {
-          setPrefs(prev);
+          const reverted: PrivacyPrefs = { ...prefsRef.current, [key]: !next };
+          prefsRef.current = reverted;
+          setPrefs(reverted);
           setSaveError(true);
         }
       }
     },
-    [userId, prefs, minor],
+    [userId, minor],
   );
 
   if (loading) {
