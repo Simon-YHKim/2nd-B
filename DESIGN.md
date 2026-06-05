@@ -322,7 +322,7 @@ Three brand moments get a named motion. Each pairs a character accent with a sin
 - Centered everything. Default-align text left (or right for RTL when we add it).
 - "Built for X" / "Designed for Y" landing copy.
 - Drop shadows on dark surfaces — they read as smudges.
-- `Inter`, `Roboto`, `Space Grotesk`, `Poppins`, `Montserrat` as primary fonts. Geist + Fraunces or nothing.
+- `Inter`, `Roboto`, `Space Grotesk`, `Poppins`, `Montserrat` as primary fonts. The active face is **NeoDunggeunmo** (numbers: NeoDunggeunmoCode); the earlier Geist + Fraunces pairing is superseded (2026-05-29, see Typography).
 
 ---
 
@@ -339,7 +339,7 @@ Three brand moments get a named motion. Each pairs a character accent with a sin
 | 2026-05-29 | Six pixel residents sanctioned despite the no-mascots rule | They are coded pixel sprites (one accent + one role each), the navigational cast of the graph — not decorative cartoon mascots. Roster is closed to `src/lib/characters.ts`. |
 | 2026-05-29 | "뽁" overshoot + 3 signature motions as the only bounce | Calmness is still the brand; the single 1.25×/400ms overshoot is the one sanctioned exception, reused across save / connection / imagine moments. |
 | 2026-05-29 | Light mode promoted from "deferred" to planned (`lightCosmic`) | Secondary surfaces (settings, sign-in) benefit from light; the graph stays dark. Palette work tracked as queue item G. |
-| 2026-05-25 | Fraunces (display) + Geist Sans (body) | Serif display says "this is writing." Geist body keeps UI chrome unobtrusive. Korean fallback via Pretendard. |
+| 2026-05-25 | Fraunces (display) + Geist Sans (body) | Serif display says "this is writing." Geist body keeps UI chrome unobtrusive. Korean fallback via Pretendard. **(Superseded 2026-05-29 → NeoDunggeunmo app-wide; see Typography section.)** |
 | 2026-05-25 | No gradients, no glass, no pills | Anti-slop. The category is full of meditation-app sameness; we look like a writing tool, not a wellness pillow. |
 | 2026-05-25 | Crisis hotline rendered in `brand` not `danger` | Crisis routing is care, not warning. Warm signal > alarm signal. |
 | 2026-06-02 | Worldview v-final: 5-tier model (Soul Core → Pattern Core ×5 → Pattern Data → Log + Pattern Link) | Canonical spatial/graph model. Mascots renamed (display only): Gadi→Relia (Bond), Lulu→Lumen (Wisdom), Momo→Foreman Momo (Narrative), Lumi→Iris (Muse), Archi→Archon (Growth); SecondB = Soul Core. Internal keys/asset filenames unchanged. See `docs/VISION.md`. |

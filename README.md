@@ -42,7 +42,7 @@ remote Supabase, real Gemini API calls) are deferred to Sprint 1.
 | Expo + TypeScript strict | done |
 | Single Gemini wrapper (C1/C2/C3/C9) | done |
 | 3-zone Safety Classifier (C9) | done |
-| Supabase migrations 0001–0010 | done |
+| Supabase migrations 0001–0040 | done |
 | ESLint + LLM import boundary | done |
 | i18n EN/KO with CI parity check (C7) | done |
 | Forbidden lexicon CI scan | done |
@@ -72,8 +72,11 @@ doc is the routing table.
 ## Design system
 
 UI color, spacing, radius, type scale and font pairing come from the
-phytoncide design tokens in `src/theme/` (Option C). Never hardcode hex
-literals in components. See [`docs/DESIGN_TOKENS.md`](./docs/DESIGN_TOKENS.md).
+**Cosmic Pixel Graph Village** design tokens in `src/lib/theme/tokens.ts`
+(`semantic.*` / `cosmic.*`). Never hardcode hex literals in components. The
+single source of truth is [`DESIGN.md`](./DESIGN.md). (The earlier *phytoncide*
+tokens in `src/theme/tokens.ts` + `docs/DESIGN_TOKENS.md` are superseded and
+should not be used by new screens.)
 
 ## Verification
 

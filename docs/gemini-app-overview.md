@@ -1,5 +1,7 @@
 # 2nd-Brain — Gemini 컨설팅 컨텍스트
 
+> ⚠️ **SUPERSEDED (2026-06-05):** v-final 월드뷰 전환(2026-06-02) 이전 스냅샷이다. 측정도구(TIPI·MBTI 16문항), Vela 캐릭터, `/imagine` 화면, 4-tier 명명은 폐기/변경됨. 현행 정본 = `CONTEXT.md`·`docs/VISION.md`·`DESIGN.md` + 코드. 컨설팅 이력 참고용으로만 보존.
+
 > Gemini (또는 다른 LLM) 에게 우리 앱의 세계관·UI·메타포를 컨설팅 받기 위해
 > 첨부하는 prompt-ready 문서. 우리 앱의 정체성, 화면 구성, 도구 13종, 안전·어휘 정책을
 > 한 자리에 정리.

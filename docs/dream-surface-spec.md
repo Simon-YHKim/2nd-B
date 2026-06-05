@@ -1,5 +1,7 @@
 # Dream Surface Spec — "공상 → 구체화"
 
+> ⚠️ **SUPERSEDED (2026-06-05):** 공상은 v-final에서 독립 화면/그래프 노드가 아니라 **SecondB의 Divergent 모드**로 재정의됨(`src/app/imagine.tsx` = redirect). 본 spec의 `/imagine` Tier-2 노드·dreamPink accent(현재 Muse/Iris 전용)는 폐기. 정본 = `DESIGN.md`(soulViolet2 pulse)·`src/app/jarvis.tsx`.
+
 > 비전 §3 의 구현 spec. `docs/VISION.md` 의 세 번째 축을 채우는 첫 표면.
 
 ---
