@@ -669,6 +669,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // driver. ~25 nodes stays well within the JS-thread budget.
   const swayRef = useRef<Map<string, { sx: Animated.AnimatedInterpolation<number>; sy: Animated.AnimatedInterpolation<number> }>>(new Map());
   const driftValues = useRef<Map<string, Animated.Value>>(new Map());
+  const driftLoops = useRef<Map<string, Animated.CompositeAnimation>>(new Map());
   const pulseValues = useRef<Map<string, Animated.Value>>(new Map());
   // Spawn anim per node — 0 (hidden) → 1.25 (overshoot) → 1.0 (settled).
   // Drives both transform scale and opacity for the pop-in effect.
@@ -677,6 +678,21 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // Triggered when both endpoints are in `spawnedIds`.
   const edgeValues = useRef<Map<string, Animated.Value>>(new Map());
   const [spawnedIds, setSpawnedIds] = useState<Set<string>>(new Set());
+
+  // Global background pauser for node drift loops
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        for (const loop of driftLoops.current.values()) loop.start();
+      } else {
+        for (const loop of driftLoops.current.values()) loop.stop();
+      }
+    });
+    return () => {
+      sub.remove();
+      for (const loop of driftLoops.current.values()) loop.stop();
+    };
+  }, []);
 
   useEffect(() => {
     const ids = [CENTER_NODE.id, ...MENU_NODES.map((n) => n.id), ...Array.from(dataPositions.keys())];
@@ -694,9 +710,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         const v = new Animated.Value(0);
         driftValues.current.set(id, v);
         const duration = 14000 + seeded(id, 6) * 6000; // 14–20s per cycle, gentler than before
-        Animated.loop(
+        const loop = Animated.loop(
           Animated.timing(v, { toValue: 1, duration, easing: Easing.linear, useNativeDriver: false }),
-        ).start();
+        );
+        driftLoops.current.set(id, loop);
+        if (AppState.currentState === "active") loop.start();
         // 9-point cosine/sine table — input 0 and input 1 are exactly
         // equal so the loop's wrap-around is invisible.
         const amp = 5 + seeded(id, 7) * 2; // 5..7 px sway
@@ -920,10 +938,22 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           useNativeDriver: false,
         }),
       );
-      loop.start();
+      if (AppState.currentState === "active") loop.start();
       return loop;
     });
-    return () => loops.forEach((l) => l.stop());
+    
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        loops.forEach((l) => l.start());
+      } else {
+        loops.forEach((l) => l.stop());
+      }
+    });
+
+    return () => {
+      sub.remove();
+      loops.forEach((l) => l.stop());
+    };
   }, [linkSignals]);
 
   // Bubble pop-in anim — 0 (hidden) → 1.2 (overshoot) → 1.0 (settled).

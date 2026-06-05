@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
+  AppState,
   Easing,
   Pressable,
   StyleSheet,
@@ -45,8 +46,10 @@ const logo = require("../../public/assets/2ndb-production-premium-v1/graph/islan
 // Sky drift — slow atmospheric color shift behind the logo.
 function useSkyDrift() {
   const tide = useRef(new Animated.Value(0)).current;
+  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
+
   useEffect(() => {
-    Animated.loop(
+    loopRef.current = Animated.loop(
       Animated.sequence([
         Animated.timing(tide, {
           toValue: 1,
@@ -61,7 +64,21 @@ function useSkyDrift() {
           useNativeDriver: false,
         }),
       ]),
-    ).start();
+    );
+    loopRef.current.start();
+
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        loopRef.current?.start();
+      } else {
+        loopRef.current?.stop();
+      }
+    });
+
+    return () => {
+      loopRef.current?.stop();
+      subscription.remove();
+    };
   }, [tide]);
   return tide.interpolate({
     inputRange: [0, 0.5, 1],
