@@ -25,8 +25,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  Image,
 } from "react-native";
+import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
@@ -907,7 +907,7 @@ export default function Capture() {
           {mode === "ocr" && pickedImage ? (
             <View style={styles.previewCard}>
               <Text variant="caption" color="brand">{locale === "ko" ? "미리보기" : "Preview"}</Text>
-              <Image source={{ uri: pickedImage.uri }} style={styles.imagePreview} resizeMode="contain" />
+              <Image source={{ uri: pickedImage.uri }} style={styles.imagePreview} contentFit="contain" />
               <Button
                 label={locale === "ko" ? "추출하기" : "Extract text"}
                 variant="primary"
