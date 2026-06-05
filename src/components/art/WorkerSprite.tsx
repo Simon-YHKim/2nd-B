@@ -7,7 +7,7 @@
 // for the dedicated idle pose (a standing frame, not a frozen mid-stride).
 
 import { useEffect, useState } from "react";
-import { Image, StyleSheet, View, type ViewStyle, type ImageStyle, type StyleProp } from "react-native";
+import { Image, StyleSheet, View, type ViewStyle, type ImageStyle, type StyleProp, AppState } from "react-native";
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { semantic } from "@/lib/theme/tokens";
@@ -49,6 +49,7 @@ let timer: ReturnType<typeof setInterval> | null = null;
 function ensureTicker() {
   if (timer) return;
   timer = setInterval(() => {
+    if (AppState.currentState !== "active") return;
     const now = Date.now();
     listeners.forEach((l) => l(now));
   }, FRAME_MS);

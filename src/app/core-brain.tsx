@@ -119,7 +119,7 @@ export default function CoreBrain() {
             <Button
               label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
               variant="primary"
-              onPress={() => router.push("/journal")}
+              onPress={() => router.push("/capture")}
             />
             <Button
               label={locale === "ko" ? "세컨비와 시작하기" : "Start with SecondB"}

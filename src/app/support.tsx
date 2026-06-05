@@ -6,7 +6,7 @@ import { View, StyleSheet, ScrollView, Linking } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -20,7 +20,15 @@ export default function Support() {
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "지원을 불러오는 중이에요…" : "Loading support…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) return <Redirect href="/sign-in" />;
 
   const ko = locale === "ko";
@@ -71,6 +79,7 @@ export default function Support() {
 
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   section: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,

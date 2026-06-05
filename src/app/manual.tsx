@@ -9,7 +9,7 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -118,7 +118,15 @@ export default function Manual() {
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "안내서를 불러오는 중이에요…" : "Loading manual…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
 
   return (
     <PremiumAppShell>
@@ -264,6 +272,7 @@ export default function Manual() {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   languageRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   languagePill: {
     borderWidth: 1,

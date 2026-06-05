@@ -16,7 +16,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -115,7 +115,15 @@ export default function Settings() {
   const [busy, setBusy] = useState<string | null>(null);
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "설정을 불러오는 중이에요…" : "Loading settings…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
@@ -214,7 +222,7 @@ export default function Settings() {
           : `records ${result.records} · sources ${result.sources} · wiki ${result.wikiPages} · usage ${result.chatUsage}`,
       );
       setFullDeleteConfirm("");
-      router.replace("/journal");
+      router.replace("/capture");
     } catch (e) {
       Alert.alert(locale === "ko" ? "전체 삭제 실패" : "Full wipe failed", (e as Error).message);
     } finally {
@@ -482,6 +490,7 @@ export default function Settings() {
 }
 
 const styles = StyleSheet.create({
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   section: {

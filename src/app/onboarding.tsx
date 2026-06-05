@@ -8,7 +8,7 @@ import { View, StyleSheet, useWindowDimensions, Pressable, BackHandler } from "r
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
@@ -86,16 +86,24 @@ export default function Onboarding() {
     return () => sub.remove();
   }, [index]);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "온보딩을 불러오는 중이에요…" : "Loading onboarding…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) return <Redirect href="/sign-in" />;
 
   const step = STEPS[index];
   const isLast = index === STEPS.length - 1;
   const artW = Math.min(width - spacing.lg * 2, 360);
 
-  function finishToJournal() {
+  function finishToCapture() {
     markOnboardingComplete();
-    router.replace({ pathname: "/journal", params: { entry: "firstRun" } });
+    router.replace({ pathname: "/capture", params: { entry: "firstRun" } });
   }
   function finishToGraph() {
     markOnboardingComplete();
@@ -103,7 +111,7 @@ export default function Onboarding() {
   }
 
   function onPrimary() {
-    if (isLast) finishToJournal();
+    if (isLast) finishToCapture();
     else setIndex((i) => i + 1);
   }
 
@@ -203,6 +211,7 @@ function OnboardingPremiumArt({ id, width }: { id: OnboardingArt; width: number 
 }
 
 const styles = StyleSheet.create({
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   root: { flex: 1, justifyContent: "space-between", paddingVertical: spacing.lg },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   dots: { flexDirection: "row", gap: spacing.xs, alignItems: "center" },

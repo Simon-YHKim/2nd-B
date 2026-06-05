@@ -38,9 +38,9 @@ export default function NotFound() {
           <Text variant="caption" color="textMuted" style={styles.destinationsTitle}>
             {locale === "ko" ? "또는, 자주 가는 곳" : "Or, common destinations"}
           </Text>
-          <Link href="/journal" style={styles.destinationLink}>
+          <Link href="/capture" style={styles.destinationLink}>
             <Text variant="body" color="brand">
-              {locale === "ko" ? "일기" : "Journal"}
+              {locale === "ko" ? "조각 담기" : "Capture"}
             </Text>
           </Link>
           <Link href="/audit" style={styles.destinationLink}>

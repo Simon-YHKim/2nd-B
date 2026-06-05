@@ -7,7 +7,7 @@ import { ScrollView, StyleSheet, View, ActivityIndicator, Alert, RefreshControl 
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -48,7 +48,15 @@ export default function Insights() {
     void load();
   }, [userId]);
 
-  if (authLoading) return null;
+  if (authLoading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "인사이트를 불러오는 중이에요…" : "Loading insights…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
@@ -80,8 +88,8 @@ export default function Insights() {
                 : "I need a few more pieces to see taste and repetition. Leave one today?"
             }
             primaryAction={{
-              label: locale === "ko" ? "일기 쓰러 가기" : "Go to journal",
-              onPress: () => router.push("/journal"),
+              label: locale === "ko" ? "조각 담기" : "Go to capture",
+              onPress: () => router.push("/capture"),
             }}          />
         </ScrollView>
       </PremiumAppShell>
@@ -120,7 +128,7 @@ export default function Insights() {
           }
           primaryAction={{
             label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
-            onPress: () => router.push("/journal"),
+            onPress: () => router.push("/capture"),
           }}        />
 
         <View style={styles.topRow}>

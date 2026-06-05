@@ -142,9 +142,9 @@ export default function Audit() {
               onPress={() => router.replace("/persona")}
             />
             <Button
-              label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
+              label={locale === "ko" ? "조각 담기로 돌아가기" : "Back to capture"}
               variant="secondary"
-              onPress={() => router.replace("/journal")}
+              onPress={() => router.replace("/capture")}
             />
           </View>
         </View>
@@ -237,7 +237,7 @@ export default function Audit() {
         <Button
           label={locale === "ko" ? "나중에 하기" : "Continue later"}
           variant="secondary"
-          onPress={() => router.replace("/journal")}
+          onPress={() => router.replace("/capture")}
         />
       </ScrollView>
     </PremiumAppShell>

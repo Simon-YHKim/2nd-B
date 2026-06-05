@@ -24,7 +24,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -74,7 +74,15 @@ export default function Interview() {
     }
   }, [turns.length]);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "인터뷰를 준비하는 중이에요…" : "Loading interview…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
@@ -338,6 +346,7 @@ export default function Interview() {
 
 const styles = StyleSheet.create({
   scroll: { padding: spacing.lg, gap: spacing.md },
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   header: { gap: spacing.sm },
   periodGrid: { gap: spacing.sm, marginVertical: spacing.md },
   periodCard: {

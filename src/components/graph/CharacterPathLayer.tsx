@@ -19,7 +19,7 @@
 // renders nodes in. Honours prefers-reduced-motion (workers hold still).
 
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, AppState } from "react-native";
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
@@ -121,7 +121,10 @@ function Worker({
     if (reduced) return;
     // Re-render on a shared cadence; the actual pose is recomputed from
     // Date.now() each frame so it never resets (and the bubble follows along).
-    const t = setInterval(() => setTick((n) => (n + 1) % 1000), 1000 / 20);
+    const t = setInterval(() => {
+      if (AppState.currentState !== "active") return;
+      setTick((n) => (n + 1) % 1000);
+    }, 1000 / 20);
     return () => clearInterval(t);
   }, [reduced]);
 

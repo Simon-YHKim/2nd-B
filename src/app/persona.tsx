@@ -307,9 +307,9 @@ export default function Persona() {
             onPress={() => router.replace("/attachment")}
           />
           <Button
-            label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}
+            label={locale === "ko" ? "조각 담기로 돌아가기" : "Back to capture"}
             variant="secondary"
-            onPress={() => router.replace("/journal")}
+            onPress={() => router.replace("/capture")}
           />
         </View>
       </ScrollView>

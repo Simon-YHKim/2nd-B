@@ -34,7 +34,7 @@ import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { PremiumCard, PremiumButton } from "@/components/premium";
+import { PremiumCard, PremiumButton, PremiumLoadingState } from "@/components/premium";
 import { ShardArt } from "@/components/art/IslandArt";
 import { Input } from "@/components/ui/Input";
 import { cosmic, radii, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
@@ -246,7 +246,15 @@ export default function Capture() {
     [linkClipKind, body],
   );
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "담기 화면을 불러오는 중이에요…" : "Loading capture…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
@@ -1052,6 +1060,7 @@ function HashtagAdder({ onAdd, locale }: { onAdd: (s: string) => void; locale: "
 }
 
 const styles = StyleSheet.create({
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   captureFlash: { position: "absolute", bottom: 40, right: 20 },
   // Journal-mode (일기) bits, ported from /journal.
   streakRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },

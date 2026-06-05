@@ -16,7 +16,7 @@ import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } f
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumCard, PremiumButton, PremiumTextarea, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumCard, PremiumButton, PremiumTextarea, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -46,7 +46,15 @@ export default function ImportExternal() {
   const [result, setResult] = useState<IngestResult | null>(null);
   const [copied, setCopied] = useState(false);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={ko ? "가져오기를 준비하는 중이에요…" : "Loading import…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!userId) return <Redirect href="/sign-in" />;
   // No-profile OAuth session (DOB/consent not yet collected) must not reach this
   // LLM surface — route to /complete-profile (C10 age gate + PIPA consent).
@@ -239,6 +247,7 @@ const SECTION_ACCENT: Record<string, string> = {
 
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: 120 },
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.xs },
   tagChip: {
     borderWidth: 1,
