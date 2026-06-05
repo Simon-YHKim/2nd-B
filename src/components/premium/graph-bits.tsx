@@ -3,7 +3,7 @@
 // character badge (companion avatar with a glow ring), and the context pill
 // shown when the chat is entered from a node.
 
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { Text } from "@/components/ui/Text";
@@ -13,7 +13,7 @@ import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionSprite, type CompanionName } from "@/components/art/CompanionSprite";
 
 /** A "참고한 조각" card — what an answer / center drew on. */
-export function ReferenceShardCard({
+export const ReferenceShardCard = memo(function ReferenceShardCard({
   title,
   meta,
   onPress,
@@ -39,10 +39,10 @@ export function ReferenceShardCard({
       </View>
     </Pressable>
   );
-}
+});
 
 /** Village island label chip with an optional warm-gold shard count. */
-export function GraphNodeChip({
+export const GraphNodeChip = memo(function GraphNodeChip({
   label,
   count,
   accent = cosmic.signalMint,
@@ -76,7 +76,7 @@ export function GraphNodeChip({
       {count != null ? <Text variant="caption" style={{ color: cosmic.pixelLamp }}>+{count}</Text> : null}
     </Pressable>
   );
-}
+});
 
 const COMPANION_ACCENT: Record<CharacterId, string> = {
   secondb: cosmic.soulViolet,
