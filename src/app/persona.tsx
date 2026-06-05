@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Share } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -24,12 +24,22 @@ export default function Persona() {
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [building, setBuilding] = useState(false);
   const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
+  // One build per resolved (userId, locale) — keyed so a relog or language
+  // switch rebuilds, but the auth resolve window (hasProfile/isMinor flipping
+  // from null) does not re-fire it.
+  const builtKey = useRef<string | null>(null);
 
   useEffect(() => {
-    // buildPersona() calls Gemini on mount — don't fire it for a no-profile
-    // OAuth session (the render guard below redirects it to /complete-profile,
-    // but the effect runs regardless, so gate it here too). C10 + consent.
-    if (!userId || hasProfile === false) return;
+    // buildPersona() calls Gemini on mount and forwards `minor` for crisis
+    // routing (C10). Wait for fully-resolved auth: while `loading` is true,
+    // hasProfile/isMinor are still null, so building now would (a) treat a
+    // minor as an adult on the crisis hotline and (b) re-fire once they
+    // resolve — an extra Gemini call + duplicate personas upsert. Gate on the
+    // settled state, and dedupe per (userId, locale) so it runs exactly once.
+    if (loading || !userId || hasProfile !== true) return;
+    const buildKey = `${userId}:${locale}`;
+    if (builtKey.current === buildKey) return;
+    builtKey.current = buildKey;
     function runBuild() {
       if (!userId) return;
       setBuilding(true);
@@ -60,7 +70,7 @@ export default function Persona() {
         .finally(() => setBuilding(false));
     }
     runBuild();
-  }, [userId, hasProfile, isMinor, locale, fireCompanion]);
+  }, [loading, userId, hasProfile, isMinor, locale, fireCompanion]);
 
   if (loading || building) {
     return (

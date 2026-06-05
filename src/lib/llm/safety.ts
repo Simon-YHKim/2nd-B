@@ -120,9 +120,21 @@ function lexiconToResult(text: string, locale: "en" | "ko"): SafetyResult {
 // Strongest result wins. RED > YELLOW > GREEN.
 function mergeResults(a: SafetyResult, b: SafetyResult): SafetyResult {
   const order: SafetyZone[] = ["red", "yellow", "green"];
-  const winner = order.indexOf(a.zone) <= order.indexOf(b.zone) ? a : b;
+  // Fail-closed ranking: an out-of-enum zone (e.g. an LLM hallucination not
+  // matching the enum) gives indexOf === -1, which would otherwise rank as the
+  // STRONGEST and let an unknown zone beat — and downgrade — a recognized RED.
+  // Treat any unrecognized zone as the RED-most rank (0) so it can never win
+  // over, nor downgrade, a recognized result; never fail open on a crisis.
+  const rank = (z: SafetyZone): number => {
+    const i = order.indexOf(z);
+    return i === -1 ? 0 : i;
+  };
+  const winner = rank(a.zone) <= rank(b.zone) ? a : b;
+  // If the winning result carries an unrecognized zone, emit the RED-most
+  // recognized zone instead of leaking the unknown string downstream.
+  const winnerZone: SafetyZone = order.includes(winner.zone) ? winner.zone : order[0];
   return {
-    zone: winner.zone,
+    zone: winnerZone,
     triggers: [...new Set([...a.triggers, ...b.triggers])],
     confidence: Math.max(a.confidence, b.confidence),
     cssrsLevel: a.cssrsLevel ?? b.cssrsLevel,

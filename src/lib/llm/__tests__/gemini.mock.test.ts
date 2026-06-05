@@ -14,6 +14,9 @@ jest.mock("@google/genai", () => ({
 jest.mock("../../supabase/audit", () => ({
   insertAiAuditLog: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock("../../supabase/crisis-events", () => ({
+  insertCrisisEvent: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock("../../env", () => ({
   getEnv: () => ({
