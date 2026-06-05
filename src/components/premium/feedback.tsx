@@ -144,6 +144,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.34,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
   sheetHandle: { alignSelf: "center", width: 42, height: 3, borderRadius: 2, backgroundColor: "rgba(114,242,199,0.52)", marginBottom: spacing.sm },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(2,4,10,0.8)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
@@ -156,6 +157,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(7,10,24,0.98)",
     padding: spacing.lg,
     gap: spacing.md,
+    elevation: 24,
   },
   toast: {
     flexDirection: "row",

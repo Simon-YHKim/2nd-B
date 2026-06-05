@@ -30,6 +30,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
   Animated,
+  AppState,
   Easing,
   Platform,
   Pressable,
@@ -977,6 +978,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
 
   useEffect(() => {
     const id = setInterval(() => {
+      if (AppState.currentState !== "active") return;
       // Pulse a random tier-2 or tier-3 node, skipping the active one.
       // Interval shortened ~30% per user (2026-05-27).
       const candidates = MENU_NODES.filter((n) => n.id !== activeId);

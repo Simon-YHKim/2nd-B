@@ -20,6 +20,7 @@ import { PremiumAppShell, PremiumCard, PremiumButton, PremiumTextarea, SceneHero
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { callGemini } from "@/lib/llm/gemini";
 import {
@@ -38,6 +39,7 @@ export default function ImportExternal() {
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const ko = locale === "ko";
+  const kbHeight = useKeyboard();
 
   const [raw, setRaw] = useState("");
   const [phase, setPhase] = useState<Phase>("input");
@@ -109,7 +111,7 @@ export default function ImportExternal() {
   return (
     <PremiumAppShell>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]} keyboardShouldPersistTaps="handled">
           <SceneHero
             eyebrow={ko ? "08-5. 가져오기" : "08-5. Import"}
             title={ko ? "다른 곳의 나를 마을로 옮겨요" : "Bring outside self-knowledge home"}
