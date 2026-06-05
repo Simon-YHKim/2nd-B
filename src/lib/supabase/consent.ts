@@ -69,25 +69,61 @@ export async function recordConsent(args: RecordConsentArgs): Promise<void> {
   if (error) throw error;
 }
 
+// A transient (network/timeout) failure should not lose a consent event, but a
+// permanent error (missing table pre-migration, schema/permission, integrity)
+// will never succeed on retry, so retrying it just wastes time. Distinguish the
+// two so we only back off + retry the transient case.
+const CONSENT_MAX_ATTEMPTS = 3;
+function isPermanentConsentError(e: unknown): boolean {
+  const code = String((e as { code?: string } | null)?.code ?? "");
+  const msg = String((e as { message?: string } | null)?.message ?? "").toLowerCase();
+  // PostgREST/Postgres: 42xxx undefined_table/column, 23xxx integrity, PGRSTxxx
+  // schema/permission. A plain Error (no code) from a missing relation carries a
+  // "does not exist" / "relation" message.
+  return (
+    code.startsWith("42") ||
+    code.startsWith("23") ||
+    code.startsWith("PGRST") ||
+    msg.includes("does not exist") ||
+    msg.includes("relation") ||
+    msg.includes("permission denied")
+  );
+}
+
+function consentRetryBackoff(attempt: number): Promise<void> {
+  // 400ms then 800ms: short enough not to stall the sign-up hand-off, long
+  // enough to ride out a brief network blip.
+  return new Promise((resolve) => setTimeout(resolve, attempt * 400));
+}
+
 // Best-effort variant for the sign-up / complete-profile path. The user has
 // already given the acknowledgements in the UI (the submit button gates on
 // them), so a failed ledger write must NOT block account creation. Before the
 // 0031 migration is applied to a given environment the consent_records table
-// does not exist yet — this no-ops with a warning; once applied it records
-// normally. Returns whether the row was written.
+// does not exist yet; that is a permanent error here and is NOT retried.
+// Transient write failures are retried with a short backoff so a flaky network
+// does not lose the consent event. Returns whether the row was written.
 export async function recordConsentBestEffort(args: RecordConsentArgs): Promise<boolean> {
-  try {
-    await recordConsent(args);
-    return true;
-  } catch (e) {
-    // PIPA accountability: a lost consent record is a compliance gap, so surface
-    // the failure at error level (captured by monitoring) instead of a swallowed
-    // warn. We still don't block account creation -- the caller acts on the
-    // returned `false`. Follow-up: a durable client-side retry queue so a
-    // transient write failure doesn't lose the consent event entirely.
-    if (typeof console !== "undefined") {
-      console.error("[consent] ledger write FAILED (account created without a consent record)", (e as Error).message);
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= CONSENT_MAX_ATTEMPTS; attempt++) {
+    try {
+      await recordConsent(args);
+      return true;
+    } catch (e) {
+      lastError = e;
+      if (isPermanentConsentError(e) || attempt === CONSENT_MAX_ATTEMPTS) break;
+      await consentRetryBackoff(attempt);
     }
-    return false;
   }
+  // PIPA accountability: a lost consent record is a compliance gap, so surface
+  // the failure at error level (captured by monitoring) instead of a swallowed
+  // warn. We still don't block account creation -- the caller acts on the
+  // returned `false`.
+  if (typeof console !== "undefined") {
+    console.error(
+      "[consent] ledger write FAILED after retries (account created without a consent record)",
+      (lastError as Error).message,
+    );
+  }
+  return false;
 }

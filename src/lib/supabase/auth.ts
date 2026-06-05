@@ -293,6 +293,19 @@ export function signInWithKakao(redirectTo?: string): Promise<OAuthRedirect | nu
   return signInWithProvider("kakao", redirectTo);
 }
 
+// Whether to SHOW a built-in social provider button. The provider must ALSO be
+// configured in the Supabase dashboard (client id/secret + redirect URL) to
+// actually authenticate; this only gates the UI so a deploy that has not set up
+// a provider can hide its otherwise-dead button via
+// EXPO_PUBLIC_ENABLE_<PROVIDER>=false. Defaults on (opt-out), mirroring how the
+// buttons were shown unconditionally before.
+export function isProviderEnabled(provider: OAuthProvider): boolean {
+  const env = getEnv();
+  if (provider === "google") return env.EXPO_PUBLIC_ENABLE_GOOGLE;
+  if (provider === "apple") return env.EXPO_PUBLIC_ENABLE_APPLE;
+  return env.EXPO_PUBLIC_ENABLE_KAKAO;
+}
+
 // --- Naver social login (custom OAuth via the oauth-naver edge function) ------
 //
 // Naver is NOT a Supabase-native provider, so we drive the OAuth ourselves:

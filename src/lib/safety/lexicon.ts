@@ -110,11 +110,12 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   // safety.ts cites the official Korean hotline name "정신건강위기상담전화"
   // verbatim. Same justification as the locale safety files.
   "src/lib/llm/safety.ts",
-  // Landing + persona cards carry the mandatory "not a diagnosis"
-  // disclosure per docs/research/CLAUDE.md §0 rule 5 — the term IS the
-  // policy text.
+  // The landing card carries the mandatory non-clinical disclosure per
+  // docs/research/CLAUDE.md §0 rule 5. persona.tsx was rephrased (2026-06-06,
+  // Simon decision) to a non-clinical "observed patterns, not a medical
+  // assessment" wording that avoids the banned 진단/diagnosis vocab entirely, so
+  // it no longer needs an allowlist entry and is scanned like every other surface.
   "src/app/index.tsx",
-  "src/app/persona.tsx",
   // Research artifacts cite academic terms by definition — they ARE the
   // policy reference, not user-facing copy. The user-facing copy in src/
   // and locales/ is still scanned.
