@@ -27,8 +27,8 @@
 
 | 표면 | 라우트 | 도구 종류 |
 |---|---|---|
-| Big Five (TIPI) | `/big-five` | 검증된 정량 |
-| MBTI 16-item | `/mbti` | 정량 (요청형) |
+| Big Five (BFI-44) | `/big-five` | 검증된 정량 |
+| MBTI 32-item (참고용) | `/mbti` | 참고·비검증 (Big Five 우선) |
 | Attachment (ECR-S) | `/attachment` | 검증된 정량 |
 | 과거의 나 | `/audit` | 시기 회고 |
 | 심층 인터뷰 | `/interview` | LLM drill-down 5×5 |
