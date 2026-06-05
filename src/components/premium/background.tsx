@@ -9,7 +9,7 @@
 
 import type { ReactNode } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname } from "expo-router";
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop, Circle } from "react-native-svg";
 
@@ -85,6 +85,7 @@ export function PremiumAppShell({
   padded?: boolean;
 }) {
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   // When the floating back arrow is shown it sits above the content lane;
   // reserve top padding so first headings never collide with it. This also
   // applies to tab destinations, which still render full screen titles.
@@ -94,20 +95,23 @@ export function PremiumAppShell({
   // hidden behind it. Applies regardless of `padded` (horizontal-only).
   const onTabBar = isTabPath(pathname);
 
+  // Safely combine manual padding with iOS notch/home-indicator insets
+  const computedPaddingTop = insets.top + (padded ? spacing.sm : 0) + (padded && needsArrowHeadroom ? 60 : 0);
+  const computedPaddingBottom = insets.bottom + (onTabBar ? TAB_BAR_HEIGHT + spacing.lg : 0);
+
   return (
     <ForceDark>
       <View style={styles.root}>
         <CosmicBackground glow={glow} stars={stars} />
-        <SafeAreaView
+        <View
           style={[
             styles.safe,
-            padded ? styles.padded : null,
-            padded && needsArrowHeadroom ? styles.arrowHeadroom : null,
-            onTabBar ? styles.tabBarClearance : null,
+            padded ? { paddingHorizontal: spacing.lg } : null,
+            { paddingTop: computedPaddingTop, paddingBottom: computedPaddingBottom }
           ]}
         >
           {children}
-        </SafeAreaView>
+        </View>
       </View>
     </ForceDark>
   );

@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  FlatList,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router, type Href } from "expo-router";
@@ -271,7 +272,9 @@ export default function Wiki() {
 
   return (
     <PremiumAppShell>
-      <ScrollView
+      <FlatList<WikiPageRow>
+        data={visiblePages}
+        keyExtractor={(p) => p.id}
         contentContainerStyle={styles.scroll}
         refreshControl={
           <RefreshControl
@@ -280,7 +283,12 @@ export default function Wiki() {
             tintColor={semantic.brand}
           />
         }
-      >
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
+        ListHeaderComponent={
+          <>
         <SceneHero
           eyebrow={locale === "ko" ? "04. 지식 창고" : "04. Knowledge store"}
           title={locale === "ko" ? "저장한 조각들이 서재가 돼요" : "Saved pieces become a library"}
@@ -554,8 +562,10 @@ export default function Wiki() {
             </View>
           </View>
         ) : null}
-
-        {loading ? (
+          </>
+        }
+        ListEmptyComponent={
+          loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={semantic.brand} />
           </View>
@@ -586,7 +596,7 @@ export default function Wiki() {
               </View>
             ) : null}
           </View>
-        ) : visiblePages.length === 0 ? (
+        ) : (
           <View style={styles.emptyCard}>
             <Text variant="body" color="textMuted" style={styles.emptyText}>
               {locale === "ko"
@@ -594,13 +604,14 @@ export default function Wiki() {
                 : `No pieces match '${query.trim()}'.`}
             </Text>
           </View>
-        ) : (
-          <View style={styles.list}>
-            {visiblePages.map((p) => {
-              const expanded = expandedId === p.id;
-              const inDeg = inDegreeById.get(p.id) ?? 0;
-              const isHub = hubIds.has(p.id);
-              return (
+        )
+        }
+        renderItem={({ item: p }) => {
+          const expanded = expandedId === p.id;
+          const inDeg = inDegreeById.get(p.id) ?? 0;
+          const isHub = hubIds.has(p.id);
+          return (
+            <View style={styles.list}>
                 <Pressable
                   key={p.id}
                   onPress={() => toggleExpand(p)}
@@ -812,11 +823,10 @@ export default function Wiki() {
                     </View>
                   ) : null}
                 </Pressable>
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
+              </View>
+            );
+        }}
+      />
       {/* 모모 appears briefly to label the organized page (companion pack §3) */}
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.companionFlash} />

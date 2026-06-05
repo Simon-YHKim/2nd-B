@@ -8,7 +8,7 @@
 // blank, and can be reached directly via URL.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, FlatList } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
@@ -166,102 +166,109 @@ export default function Records() {
 
   return (
     <PremiumAppShell>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <SceneHero
-          eyebrow={heroEyebrow}
-          title={heroTitle}
-          subtitle={heroSubtitle}
-          island={villageUi.island}
-          worker={villageUi.worker}
-          accent={villageUi.accent}
-          speech={villageUi.speech[locale]}
-          onSwipeLeft={() => swipeVillage(1)}
-          onSwipeRight={() => swipeVillage(-1)}
-        />
+      <FlatList
+        data={filtered}
+        keyExtractor={(s) => `${s.origin}:${s.id}`}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
+        ListHeaderComponent={
+          <>
+            <SceneHero
+              eyebrow={heroEyebrow}
+              title={heroTitle}
+              subtitle={heroSubtitle}
+              island={villageUi.island}
+              worker={villageUi.worker}
+              accent={villageUi.accent}
+              speech={villageUi.speech[locale]}
+              onSwipeLeft={() => swipeVillage(1)}
+              onSwipeRight={() => swipeVillage(-1)}
+            />
 
-        <Input
-          value={query}
-          onChangeText={setQuery}
-          placeholder={locale === "ko" ? "조각 검색" : "Search pieces"}
-          accessibilityLabel={locale === "ko" ? "기록 검색" : "Search records"}
-        />
+            <Input
+              value={query}
+              onChangeText={setQuery}
+              placeholder={locale === "ko" ? "조각 검색" : "Search pieces"}
+              accessibilityLabel={locale === "ko" ? "기록 검색" : "Search records"}
+            />
 
-        <Text variant="caption" color="textSubtle" style={styles.filterLabel}>
-          {locale === "ko" ? "종류" : "Type"}
-        </Text>
-        <ScrollView
-          horizontal
-          nestedScrollEnabled
-          keyboardShouldPersistTaps="handled"
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipStrip}
-          contentContainerStyle={styles.chipRow}
-        >
-          {TYPE_FILTERS.map((tf) => {
-            const active = tf === typeFilter;
-            const label = tf === "all" ? (locale === "ko" ? "전체" : "All") : evidenceTypeLabel(tf, locale);
-            return (
-              <Pressable
-                key={tf}
-                onPress={() => setTypeFilter(tf)}
-                style={[styles.chip, active ? styles.chipActive : null]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-              >
-                <Text variant="caption" color={active ? "background" : "textMuted"}>{label}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        {busy ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={semantic.brand} />
-          </View>
-        ) : error ? (
-          <View style={styles.stateBox}>
-            <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
-              {locale === "ko" ? "조각을 불러오지 못했어요." : "Couldn't load your pieces."}
+            <Text variant="caption" color="textSubtle" style={styles.filterLabel}>
+              {locale === "ko" ? "종류" : "Type"}
             </Text>
-            <Button label={locale === "ko" ? "다시 시도" : "Try again"} variant="secondary" onPress={reload} />
-          </View>
-        ) : filtered.length === 0 ? (
-          <View style={styles.stateBox}>
-            <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
-              {shards.length === 0
-                ? locale === "ko"
-                  ? "아직 남긴 조각이 없어요. 오늘의 조각을 하나 남겨볼까요?"
-                  : "No pieces yet. Want to leave today's piece?"
-                : locale === "ko"
-                  ? "조건에 맞는 조각이 없어요."
-                  : "No pieces match that filter."}
-            </Text>
-            {shards.length === 0 ? (
-              <Button label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"} variant="primary" onPress={() => router.push("/capture")} />
-            ) : null}
-          </View>
-        ) : (
+            <ScrollView
+              horizontal
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipStrip}
+              contentContainerStyle={styles.chipRow}
+            >
+              {TYPE_FILTERS.map((tf) => {
+                const active = tf === typeFilter;
+                const label = tf === "all" ? (locale === "ko" ? "전체" : "All") : evidenceTypeLabel(tf, locale);
+                return (
+                  <Pressable
+                    key={tf}
+                    onPress={() => setTypeFilter(tf)}
+                    style={[styles.chip, active ? styles.chipActive : null]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Text variant="caption" color={active ? "background" : "textMuted"}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </>
+        }
+        ListEmptyComponent={
+          busy ? (
+            <View style={styles.center}>
+              <ActivityIndicator color={semantic.brand} />
+            </View>
+          ) : error ? (
+            <View style={styles.stateBox}>
+              <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
+                {locale === "ko" ? "조각을 불러오지 못했어요." : "Couldn't load your pieces."}
+              </Text>
+              <Button label={locale === "ko" ? "다시 시도" : "Try again"} variant="secondary" onPress={reload} />
+            </View>
+          ) : (
+            <View style={styles.stateBox}>
+              <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
+                {shards.length === 0
+                  ? locale === "ko"
+                    ? "아직 남긴 조각이 없어요. 오늘의 조각을 하나 남겨볼까요?"
+                    : "No pieces yet. Want to leave today's piece?"
+                  : locale === "ko"
+                    ? "조건에 맞는 조각이 없어요."
+                    : "No pieces match that filter."}
+              </Text>
+              {shards.length === 0 ? (
+                <Button label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"} variant="primary" onPress={() => router.push("/capture")} />
+              ) : null}
+            </View>
+          )
+        }
+        renderItem={({ item: s }) => (
           <View style={styles.list}>
-            {filtered.map((s) => (
-              <ReferenceShardCard
-                key={`${s.origin}:${s.id}`}
-                title={s.title}
-                meta={[s.dateLabel, evidenceTypeLabel(s.type, locale)].filter(Boolean).join(" · ")}
-                accent={TYPE_ACCENT[s.type]}
-                onPress={() =>
-                  // `records`-origin shards open the record detail; `sources`-
-                  // origin shards (capture / imagine) live in the wiki store,
-                  // so open their wiki page instead of /record/[id] (which
-                  // only reads the records table).
-                  s.origin === "record"
-                    ? router.push({ pathname: "/record/[id]", params: { id: s.id } })
-                    : router.push(s.route)
-                }
-              />
-            ))}
+            <ReferenceShardCard
+              title={s.title}
+              meta={[s.dateLabel, evidenceTypeLabel(s.type, locale)].filter(Boolean).join(" · ")}
+              accent={TYPE_ACCENT[s.type]}
+              onPress={() =>
+                s.origin === "record"
+                  ? router.push({ pathname: "/record/[id]", params: { id: s.id } })
+                  : router.push(s.route)
+              }
+            />
           </View>
         )}
-      </ScrollView>
+      />
     </PremiumAppShell>
   );
 }

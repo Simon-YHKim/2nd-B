@@ -3,7 +3,7 @@
 // from Storage). A richer detail screen comes later in the RAG track.
 
 import { useCallback, useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, RefreshControl } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, RefreshControl, FlatList } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, Redirect } from "expo-router";
 
@@ -196,207 +196,215 @@ export default function Inbox() {
 
   return (
     <PremiumAppShell>
-      <ScrollView
+      <FlatList
+        data={rows}
+        keyExtractor={(r) => r.id}
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={semantic.brand} />}
-      >
-        <SceneHero
-          eyebrow={locale === "ko" ? "받은편지함" : "Inbox"}
-          title={locale === "ko" ? "잡아둔 조각을 다듬어요" : "Refine captured pieces"}
-          subtitle={locale === "ko" ? "요약 · 질문 · 위키 승격" : "Summaries · questions · wiki promotion"}
-          island={VILLAGE_UI.records.island}
-          worker={VILLAGE_UI.records.worker}
-          accent={VILLAGE_UI.records.accent}
-          speech={
-            locale === "ko"
-              ? "캡처한 자료는 여기서 요약하거나 위키 페이지로 키울 수 있어요."
-              : "Captured sources can be summarized here or promoted into wiki pages."
-          }
-        />
-
-        <View style={styles.actions}>
-          <Link href="/capture" asChild>
-            <Button label={t("captureMore")} variant="primary" />
-          </Link>
-        </View>
-
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={semantic.brand} />
-          </View>
-        ) : error ? (
-          <View style={styles.errorCard}>
-            <Text variant="body" color="textMuted">
-              {t("error")} {error}
-            </Text>
-          </View>
-        ) : rows.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text variant="body" color="textMuted" style={styles.emptyText}>
-              {t("empty")}
-            </Text>
-            <Text variant="subtle" color="textSubtle" style={{ textAlign: "center", lineHeight: 18 }}>
-              {locale === "ko"
-                ? "받은편지함은 캡처한 자료가 모이는 곳. 여기서 Phase 1(요약 + 4질문)을 돌리거나 위키 페이지로 발전시킬 수 있어요."
-                : "Your inbox holds captured sources. Run Phase 1 (summary + 4 questions) here, or promote a row to a wiki page."}
-            </Text>
-            <Link href="/capture" asChild>
-              <Pressable hitSlop={6}>
-                <Text variant="caption" color="brand">
-                  {locale === "ko" ? "첫 캡처 시작" : "Capture your first"}
-                </Text>
-              </Pressable>
-            </Link>
-          </View>
-        ) : (
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
+        ListHeaderComponent={
+          <>
+            <SceneHero
+              eyebrow={locale === "ko" ? "받은편지함" : "Inbox"}
+              title={locale === "ko" ? "잡아둔 조각을 다듬어요" : "Refine captured pieces"}
+              subtitle={locale === "ko" ? "요약 · 질문 · 위키 승격" : "Summaries · questions · wiki promotion"}
+              island={VILLAGE_UI.records.island}
+              worker={VILLAGE_UI.records.worker}
+              accent={VILLAGE_UI.records.accent}
+              speech={
+                locale === "ko"
+                  ? "캡처한 자료는 여기서 요약하거나 위키 페이지로 키울 수 있어요."
+                  : "Captured sources can be summarized here or promoted into wiki pages."
+              }
+            />
+            <View style={styles.actions}>
+              <Link href="/capture" asChild>
+                <Button label={t("captureMore")} variant="primary" />
+              </Link>
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.center}>
+              <ActivityIndicator color={semantic.brand} />
+            </View>
+          ) : error ? (
+            <View style={styles.errorCard}>
+              <Text variant="body" color="textMuted">
+                {t("error")} {error}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.emptyCard}>
+              <Text variant="body" color="textMuted" style={styles.emptyText}>
+                {t("empty")}
+              </Text>
+              <Text variant="subtle" color="textSubtle" style={{ textAlign: "center", lineHeight: 18 }}>
+                {locale === "ko"
+                  ? "받은편지함은 캡처한 자료가 모이는 곳. 여기서 Phase 1(요약 + 4질문)을 돌리거나 위키 페이지로 발전시킬 수 있어요."
+                  : "Your inbox holds captured sources. Run Phase 1 (summary + 4 questions) here, or promote a row to a wiki page."}
+              </Text>
+              <Link href="/capture" asChild>
+                <Pressable hitSlop={6}>
+                  <Text variant="caption" color="brand">
+                    {locale === "ko" ? "첫 캡처 시작" : "Capture your first"}
+                  </Text>
+                </Pressable>
+              </Link>
+            </View>
+          )
+        }
+        renderItem={({ item: r }) => (
           <View style={styles.list}>
-            {rows.map((r) => (
-              <Pressable key={r.id} onPress={() => handleRowPress(r)} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
-                <View style={styles.rowHeader}>
-                  <View style={[styles.kindChip, kindChipColor(r.kind)]}>
+            <Pressable onPress={() => handleRowPress(r)} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
+              <View style={styles.rowHeader}>
+                <View style={[styles.kindChip, kindChipColor(r.kind)]}>
+                  <Text variant="caption" color="textMuted">
+                    {KIND_LABEL[r.kind][locale]}
+                  </Text>
+                </View>
+                {r.ingested ? (
+                  <View style={[styles.kindChip, styles.ingestedChip]}>
                     <Text variant="caption" color="textMuted">
-                      {KIND_LABEL[r.kind][locale]}
+                      {t("ingested")}
                     </Text>
                   </View>
-                  {r.ingested ? (
-                    <View style={[styles.kindChip, styles.ingestedChip]}>
-                      <Text variant="caption" color="textMuted">
-                        {t("ingested")}
+                ) : null}
+                <Text variant="caption" color="textSubtle" style={styles.flexSpacer}>
+                  {formatCapturedAt(r.captured_at, locale)}
+                </Text>
+              </View>
+              <Text variant="body" style={styles.rowTitle} numberOfLines={2}>
+                {r.title}
+              </Text>
+              {r.source_url ? (
+                <Text variant="subtle" color="textSubtle" numberOfLines={1}>
+                  {r.source_url}
+                </Text>
+              ) : null}
+              {r.tags.length > 0 ? (
+                <Text variant="subtle" color="textSubtle" numberOfLines={1}>
+                  #{r.tags.join(" #")}
+                </Text>
+              ) : null}
+              <View style={styles.rowActions}>
+                {readPhase1(r.frontmatter) === null ? (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      void handleRunPhase1(r);
+                    }}
+                    style={[styles.generateBtn, phase1Id === r.id && styles.generateBtnDisabled]}
+                    disabled={phase1Id === r.id}
+                    hitSlop={4}
+                  >
+                    <Text variant="caption" color="brand">
+                      {phase1Id === r.id
+                        ? locale === "ko"
+                          ? "요약 중…"
+                          : "Summarizing…"
+                        : locale === "ko"
+                          ? "요약 + 4질문"
+                          : "Summarize + 4 questions"}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      const p1 = readPhase1(r.frontmatter)!;
+                      Alert.alert(
+                        locale === "ko" ? "Phase 1 결과" : "Phase 1 result",
+                        p1.summary + "\n\n" + p1.questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
+                      );
+                    }}
+                    style={styles.generateBtn}
+                    hitSlop={4}
+                  >
+                    <Text variant="caption" color="success">
+                      {locale === "ko" ? "Phase 1 보기" : "View Phase 1"}
+                    </Text>
+                  </Pressable>
+                )}
+                {!r.ingested ? (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      void handleGeneratePage(r);
+                    }}
+                    style={[styles.generateBtn, generatingId === r.id && styles.generateBtnDisabled]}
+                    disabled={generatingId === r.id}
+                    hitSlop={4}
+                  >
+                    <Text variant="caption" color="brand">
+                      {generatingId === r.id
+                        ? locale === "ko"
+                          ? "생성 중…"
+                          : "Generating…"
+                        : locale === "ko"
+                          ? "위키 페이지 생성"
+                          : "Generate wiki page"}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <Link href="/wiki" asChild>
+                    <Pressable style={styles.generateBtn} hitSlop={4} onPress={(e) => e.stopPropagation()}>
+                      <Text variant="caption" color="success">
+                        {locale === "ko" ? "위키에서 보기" : "View in wiki"}
                       </Text>
+                    </Pressable>
+                  </Link>
+                )}
+                {!r.ingested ? (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      void handleDeleteSource(r);
+                    }}
+                    style={[styles.generateBtn, styles.deleteBtn]}
+                    hitSlop={4}
+                  >
+                    <Text variant="caption" color="textSubtle">
+                      {locale === "ko" ? "삭제" : "Delete"}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+              {expandedId === r.id ? (
+                <View style={styles.expandedSection}>
+                  {Object.keys(r.frontmatter).length > 0 ? (
+                    <View style={styles.metaCard}>
+                      <Text variant="caption" color="textMuted">
+                        {locale === "ko" ? "메타데이터" : "Metadata"}
+                      </Text>
+                      {Object.entries(r.frontmatter)
+                        .filter(([k]) => k !== "__phase1__")
+                        .slice(0, 10)
+                        .map(([k, v]) => (
+                          <Text key={k} variant="subtle" color="textSubtle" numberOfLines={2}>
+                            <Text variant="subtle" color="textMuted">{k}:</Text>{" "}
+                            {Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v)}
+                          </Text>
+                        ))}
                     </View>
                   ) : null}
-                  <Text variant="caption" color="textSubtle" style={styles.flexSpacer}>
-                    {formatCapturedAt(r.captured_at, locale)}
-                  </Text>
-                </View>
-                <Text variant="body" style={styles.rowTitle} numberOfLines={2}>
-                  {r.title}
-                </Text>
-                {r.source_url ? (
-                  <Text variant="subtle" color="textSubtle" numberOfLines={1}>
-                    {r.source_url}
-                  </Text>
-                ) : null}
-                {r.tags.length > 0 ? (
-                  <Text variant="subtle" color="textSubtle" numberOfLines={1}>
-                    #{r.tags.join(" #")}
-                  </Text>
-                ) : null}
-                <View style={styles.rowActions}>
-                  {readPhase1(r.frontmatter) === null ? (
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        void handleRunPhase1(r);
-                      }}
-                      style={[styles.generateBtn, phase1Id === r.id && styles.generateBtnDisabled]}
-                      disabled={phase1Id === r.id}
-                      hitSlop={4}
-                    >
-                      <Text variant="caption" color="brand">
-                        {phase1Id === r.id
-                          ? locale === "ko"
-                            ? "요약 중…"
-                            : "Summarizing…"
-                          : locale === "ko"
-                            ? "요약 + 4질문"
-                            : "Summarize + 4 questions"}
-                      </Text>
-                    </Pressable>
+                  {bodyById[r.id] === undefined ? (
+                    <ActivityIndicator color={semantic.brand} />
                   ) : (
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        const p1 = readPhase1(r.frontmatter)!;
-                        Alert.alert(
-                          locale === "ko" ? "Phase 1 결과" : "Phase 1 result",
-                          p1.summary + "\n\n" + p1.questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
-                        );
-                      }}
-                      style={styles.generateBtn}
-                      hitSlop={4}
-                    >
-                      <Text variant="caption" color="success">
-                        {locale === "ko" ? "Phase 1 보기" : "View Phase 1"}
-                      </Text>
-                    </Pressable>
+                    <Text variant="subtle" color="textMuted" style={styles.body} selectable>
+                      {bodyById[r.id]}
+                    </Text>
                   )}
-                  {!r.ingested ? (
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        void handleGeneratePage(r);
-                      }}
-                      style={[styles.generateBtn, generatingId === r.id && styles.generateBtnDisabled]}
-                      disabled={generatingId === r.id}
-                      hitSlop={4}
-                    >
-                      <Text variant="caption" color="brand">
-                        {generatingId === r.id
-                          ? locale === "ko"
-                            ? "생성 중…"
-                            : "Generating…"
-                          : locale === "ko"
-                            ? "위키 페이지 생성"
-                            : "Generate wiki page"}
-                      </Text>
-                    </Pressable>
-                  ) : (
-                    <Link href="/wiki" asChild>
-                      <Pressable style={styles.generateBtn} hitSlop={4} onPress={(e) => e.stopPropagation()}>
-                        <Text variant="caption" color="success">
-                          {locale === "ko" ? "위키에서 보기" : "View in wiki"}
-                        </Text>
-                      </Pressable>
-                    </Link>
-                  )}
-                  {!r.ingested ? (
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        void handleDeleteSource(r);
-                      }}
-                      style={[styles.generateBtn, styles.deleteBtn]}
-                      hitSlop={4}
-                    >
-                      <Text variant="caption" color="textSubtle">
-                        {locale === "ko" ? "삭제" : "Delete"}
-                      </Text>
-                    </Pressable>
-                  ) : null}
                 </View>
-                {expandedId === r.id ? (
-                  <View style={styles.expandedSection}>
-                    {Object.keys(r.frontmatter).length > 0 ? (
-                      <View style={styles.metaCard}>
-                        <Text variant="caption" color="textMuted">
-                          {locale === "ko" ? "메타데이터" : "Metadata"}
-                        </Text>
-                        {Object.entries(r.frontmatter)
-                          .filter(([k]) => k !== "__phase1__")
-                          .slice(0, 10)
-                          .map(([k, v]) => (
-                            <Text key={k} variant="subtle" color="textSubtle" numberOfLines={2}>
-                              <Text variant="subtle" color="textMuted">{k}:</Text>{" "}
-                              {Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v)}
-                            </Text>
-                          ))}
-                      </View>
-                    ) : null}
-                    {bodyById[r.id] === undefined ? (
-                      <ActivityIndicator color={semantic.brand} />
-                    ) : (
-                      <Text variant="subtle" color="textMuted" style={styles.body} selectable>
-                        {bodyById[r.id]}
-                      </Text>
-                    )}
-                  </View>
-                ) : null}
-              </Pressable>
-            ))}
+              ) : null}
+            </Pressable>
           </View>
         )}
-      </ScrollView>
+      />
     </PremiumAppShell>
   );
 }
