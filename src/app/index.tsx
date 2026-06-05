@@ -305,7 +305,9 @@ export default function Landing() {
         // attention on the card; tapping the backdrop does nothing — the user
         // dismisses via the card's "먼저 둘러볼게요" / ✕.
         <Animated.View
-          style={[styles.emptyGraphBackdrop, { opacity: contentOpacity }]}
+          // Android: pad past the system nav bar so the card's primary button is
+          // never hidden behind soft keys. Falls back to the base 88 on iOS/web.
+          style={[styles.emptyGraphBackdrop, { opacity: contentOpacity, paddingBottom: Math.max(88, insets.bottom + 64) }]}
           pointerEvents="auto"
         >
           <View style={styles.emptyGraphCard}>
