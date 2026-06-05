@@ -23,15 +23,7 @@ export function PremiumBottomSheet({
   accessibilityLabel?: string;
 }) {
   const slide = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!visible) return;
-    if (prefersReducedMotion()) {
-      slide.setValue(1);
-      return;
-    }
-    slide.setValue(0);
-    Animated.timing(slide, { toValue: 1, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-  }, [visible, slide]);
+
   // Android hardware back closes the sheet. It is a plain View (not a Modal), so
   // it never gets Modal's onRequestClose — without this, back pops the route
   // instead of dismissing the open sheet. Returning true consumes the event.
@@ -43,6 +35,16 @@ export function PremiumBottomSheet({
     });
     return () => sub.remove();
   }, [visible, onClose]);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (prefersReducedMotion()) {
+      slide.setValue(1);
+      return;
+    }
+    slide.setValue(0);
+    Animated.timing(slide, { toValue: 1, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [visible, slide]);
   if (!visible) return null;
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [60, 0] });
   return (
