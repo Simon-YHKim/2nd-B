@@ -30,8 +30,8 @@ const SECTIONS: ManualSection[] = [
       ko: "두번째 뇌란",
     },
     body: {
-      en: "An AI that learns you. Daily journaling, past-me interviews, and clipper imports build a personal knowledge graph you own. Export to Claude or ChatGPT anytime; your second brain travels.",
-      ko: "당신을 배우는 AI예요. 매일의 일기, 과거의 나 인터뷰, 클리퍼 자료 캡처가 모여 당신만의 지식 그래프가 됩니다. Claude·ChatGPT로 언제든 내보낼 수 있고, 두번째 뇌는 함께 이동합니다.",
+      en: "A second brain built only from what you write. Daily journaling, past-me interviews, and clipper imports build a personal knowledge graph you own. Export to Claude or ChatGPT anytime; your second brain travels.",
+      ko: "당신이 쓴 것들로만 만드는 두번째 뇌예요. 매일의 일기, 과거의 나 인터뷰, 클리퍼 자료 캡처가 모여 당신만의 지식 그래프가 됩니다. Claude·ChatGPT로 언제든 내보낼 수 있고, 두번째 뇌는 함께 이동합니다.",
     },
   },
   {

@@ -32,8 +32,8 @@ const STEPS: Step[] = [
     art: "welcome",
     title: { ko: "내 생각 조각이 작은 지도가 돼요", en: "Your thoughts become a small map" },
     body: {
-      ko: "2ndB는 내가 남긴 기록과 지식을 연결해 나에게 맞는 다음 한 걸음을 함께 찾아주는 앱이에요.",
-      en: "2ndB links what you write and learn, then helps you find your next step.",
+      ko: "2ndB는 내가 남긴 기록과 지식을 연결해, 해볼 만한 다음 한 걸음을 보여줘요.",
+      en: "2ndB links what you write and learn, then surfaces a next step worth trying.",
     },
     cta: { ko: "시작하기", en: "Start" },
   },
@@ -46,7 +46,7 @@ const STEPS: Step[] = [
   {
     art: "secondb",
     title: { ko: "세컨비를 만나보세요", en: "Meet SecondB" },
-    body: { ko: "세컨비는 내 조각을 참고해서 대답하는 작은 AI 친구예요.", en: "SecondB is a small AI friend who answers using your own pieces." },
+    body: { ko: "세컨비는 내가 남긴 조각에서 답해요.", en: "SecondB answers from the pieces you've captured." },
     cta: { ko: "세컨비와 시작", en: "Start with SecondB" },
   },
   {

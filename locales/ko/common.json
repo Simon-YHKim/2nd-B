@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "두번째 뇌",
-    "tagline": "너를 배우는 AI."
+    "tagline": "당신이 쓴 것들로만 만드는 두번째 뇌."
   },
   "actions": {
     "continue": "계속",
