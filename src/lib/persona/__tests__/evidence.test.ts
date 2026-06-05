@@ -30,13 +30,22 @@ describe("recordKindToType", () => {
 });
 
 describe("evidenceRoute", () => {
-  test("each type maps to a real route", () => {
-    expect(evidenceRoute("journal")).toBe("/journal");
+  test("each type maps to its real (non-retired) destination", () => {
+    expect(evidenceRoute("journal")).toBe("/capture");
     expect(evidenceRoute("audit")).toBe("/audit");
     expect(evidenceRoute("interview")).toBe("/interview");
     expect(evidenceRoute("wiki")).toBe("/wiki");
-    expect(evidenceRoute("imagine")).toBe("/imagine");
+    expect(evidenceRoute("imagine")).toBe("/jarvis?mode=divergent");
     expect(evidenceRoute("capture")).toBe("/capture");
+  });
+  test("never emits a retired redirect route", () => {
+    const types = ["journal", "interview", "audit", "wiki", "imagine", "capture"] as const;
+    for (const t of types) {
+      const r = evidenceRoute(t);
+      expect(r).not.toMatch(/^\/journal\b/);
+      expect(r).not.toMatch(/^\/imagine\b/);
+      expect(r).not.toMatch(/^\/mbti\b/);
+    }
   });
 });
 
@@ -62,7 +71,7 @@ describe("toEvidenceShard", () => {
       { id: "r1", kind: "journal", topic: "아침 산책", created_at: "2026-05-12T00:00:00Z" },
       "ko",
     );
-    expect(s).toMatchObject({ id: "r1", type: "journal", title: "아침 산책", route: "/journal" });
+    expect(s).toMatchObject({ id: "r1", type: "journal", title: "아침 산책", route: "/capture" });
     expect(s.dateLabel.length).toBeGreaterThan(0);
   });
   test("falls back to the type label when topic is empty", () => {

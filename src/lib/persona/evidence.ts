@@ -28,11 +28,14 @@ export function recordKindToType(kind: string, tags: string[] = []): EvidenceTyp
 /** Route the user lands on when they open this kind of evidence. */
 export function evidenceRoute(type: EvidenceType): string {
   switch (type) {
-    case "journal": return "/journal";
+    // Retired routes still redirect for deep links, but emit the REAL destination
+    // here so the user lands where the label promises (no silent redirect tax):
+    // journal -> /capture, imagine -> /jarvis Divergent mode.
+    case "journal": return "/capture";
     case "interview": return "/interview";
     case "audit": return "/audit";
     case "wiki": return "/wiki";
-    case "imagine": return "/imagine";
+    case "imagine": return "/jarvis?mode=divergent";
     case "capture": return "/capture";
   }
 }

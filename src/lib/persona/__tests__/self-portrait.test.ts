@@ -61,15 +61,21 @@ describe("buildSelfPortrait — data contract", () => {
     expect(filledCount(fields)).toBe(2);
   });
 
-  it("routes each field to where its missing signal is added", () => {
+  it("routes each field to its real (non-retired) destination", () => {
     const fields = buildSelfPortrait({ persona: null }, "en");
     const byId = Object.fromEntries(fields.map((f) => [f.id, f.route]));
     expect(byId).toMatchObject({
       who: "/persona",
       forWhom: "/interview",
-      goal: "/imagine",
-      do: "/journal",
+      goal: "/jarvis?mode=divergent",
+      do: "/capture",
       fuel: "/audit",
     });
+    // No retired redirect route leaks back into an active field destination.
+    for (const route of Object.values(byId)) {
+      expect(route).not.toMatch(/^\/journal\b/);
+      expect(route).not.toMatch(/^\/imagine\b/);
+      expect(route).not.toMatch(/^\/mbti\b/);
+    }
   });
 });

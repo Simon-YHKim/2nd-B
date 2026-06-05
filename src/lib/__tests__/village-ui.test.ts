@@ -25,6 +25,14 @@ describe("village UI metadata", () => {
     }
   });
 
+  test("village primary CTAs never point at a retired redirect route", () => {
+    for (const id of VILLAGE_IDS) {
+      // /journal was retired to a /capture redirect; emitting it as a primary
+      // CTA created a silent redirect tax. Every village now opens /capture.
+      expect(VILLAGE_UI[id].primaryRoute).toBe("/capture");
+    }
+  });
+
   test("keeps the graph center owned by SecondB", () => {
     expect(CORE_VILLAGE_UI.island).toBe("core");
     expect(CORE_VILLAGE_UI.worker).toBe("secondb");
