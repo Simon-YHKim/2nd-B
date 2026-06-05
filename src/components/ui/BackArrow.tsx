@@ -44,7 +44,6 @@ const ROUTE_LABELS: Record<string, { en: string; ko: string }> = {
   "/interview": { en: "Interview", ko: "인터뷰" },
   "/jarvis": { en: "SecondB", ko: "세컨비" },
   "/manual": { en: "Manual", ko: "매뉴얼" },
-  "/mbti": { en: "MBTI", ko: "MBTI" },
   "/onboarding": { en: "Onboarding", ko: "온보딩" },
   "/permissions": { en: "Permissions", ko: "권한" },
   "/persona": { en: "Persona", ko: "페르소나" },

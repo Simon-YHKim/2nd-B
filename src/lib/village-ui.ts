@@ -1,7 +1,9 @@
 import { cosmic } from "@/lib/theme/tokens";
 import { type VillageId } from "@/lib/graph/relatedness";
 
-export type VillageRoute = "/journal" | "/capture";
+// All village primary CTAs now point at the unified capture screen (/journal was
+// retired to a redirect; emitting it here caused a silent redirect tax).
+export type VillageRoute = "/capture";
 
 export type VillageUiMeta = {
   island: "work_growth" | "relationship" | "knowledge" | "records" | "inspiration";
@@ -17,7 +19,7 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     island: "work_growth",
     worker: "archi",
     accent: cosmic.signalBlue,
-    primaryRoute: "/journal",
+    primaryRoute: "/capture",
     primaryLabel: { en: "Leave a growth piece", ko: "성장 조각 남기기" },
     speech: {
       en: "I can line up the pieces that show where you're growing.",
@@ -28,7 +30,7 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     island: "relationship",
     worker: "gadi",
     accent: cosmic.pixelLamp, // Bond Core / Relia — amber
-    primaryRoute: "/journal",
+    primaryRoute: "/capture",
     primaryLabel: { en: "Leave a people piece", ko: "관계 조각 남기기" },
     speech: {
       en: "People pieces need a steady hand. I'll keep them clear and gentle.",
@@ -50,7 +52,7 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     island: "records",
     worker: "momo",
     accent: cosmic.moonWhite, // Narrative Core / Foreman Momo — monochrome
-    primaryRoute: "/journal",
+    primaryRoute: "/capture",
     primaryLabel: { en: "Leave today's piece", ko: "오늘의 조각 남기기" },
     speech: {
       en: "Every piece is kept by time. Want to pull a memory back out?",
@@ -61,7 +63,7 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     island: "inspiration",
     worker: "lumi",
     accent: cosmic.dreamPink, // Muse Core / Iris
-    primaryRoute: "/journal",
+    primaryRoute: "/capture",
     primaryLabel: { en: "Leave an inspiration piece", ko: "영감 조각 남기기" },
     speech: {
       en: "What you keep liking often points toward the next spark.",
