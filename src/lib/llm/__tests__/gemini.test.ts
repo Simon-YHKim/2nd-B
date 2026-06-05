@@ -18,6 +18,9 @@ jest.mock("@google/genai", () => {
 jest.mock("../../supabase/audit", () => ({
   insertAiAuditLog: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock("../../supabase/crisis-events", () => ({
+  insertCrisisEvent: jest.fn().mockResolvedValue(undefined),
+}));
 
 // callGemini now re-classifies output via classifySafety (round-4 H1). This suite
 // tests audit + multimodal wiring, not the classifier, so stub it to a no-op

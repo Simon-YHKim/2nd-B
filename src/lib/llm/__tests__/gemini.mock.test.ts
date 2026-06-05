@@ -14,6 +14,9 @@ jest.mock("@google/genai", () => ({
 jest.mock("../../supabase/audit", () => ({
   insertAiAuditLog: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock("../../supabase/crisis-events", () => ({
+  insertCrisisEvent: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock("../../env", () => ({
   getEnv: () => ({
@@ -32,13 +35,16 @@ jest.mock("../../env", () => ({
 
 import { callGemini } from "../gemini";
 import { insertAiAuditLog } from "../../supabase/audit";
+import { insertCrisisEvent } from "../../supabase/crisis-events";
 
 const insertMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLog>;
+const crisisMock = insertCrisisEvent as jest.MockedFunction<typeof insertCrisisEvent>;
 
 describe("callGemini (mock mode)", () => {
   beforeEach(() => {
     mockGenerateContent.mockClear();
     insertMock.mockClear();
+    crisisMock.mockClear();
   });
 
   test("C9: red zone still short-circuits without producing a mock response", async () => {
@@ -52,6 +58,10 @@ describe("callGemini (mock mode)", () => {
     expect(r.text).not.toMatch(/^\[MOCK\]/);
     expect(r.text).toMatch(/988/);
     expect(mockGenerateContent).not.toHaveBeenCalled();
+    // routeCrisis must write the restricted crisis_events ledger (cycle-3 fix:
+    // every callGemini crisis interception is recorded, parity with callAdvisor).
+    expect(crisisMock).toHaveBeenCalledTimes(1);
+    expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("input_red");
   });
 
   test("C3: green-zone mock call records audit with modelUsed prefixed mock:", async () => {

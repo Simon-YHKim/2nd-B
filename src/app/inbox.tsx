@@ -49,6 +49,22 @@ function formatCapturedAt(iso: string, locale: "en" | "ko"): string {
 // when adding a new key past the cap, drop that oldest one. Re-adding an
 // existing key just overwrites it without growing the map.
 const BODY_CACHE_LIMIT = 5;
+
+// Known body-load error placeholders, keyed by locale. These are cached into
+// bodyById on a downloadRawClipping failure so the expanded row shows calm
+// product-tone copy instead of an infinite spinner. They are also treated as
+// retryable by handleRowPress: a re-tap re-fetches instead of re-showing the
+// stale error (the cached value is a defined string, not undefined, so the
+// plain `=== undefined` check alone would never retry until 5 other rows evict
+// it).
+const BODY_LOAD_ERROR: Record<"en" | "ko", string> = {
+  ko: "_(본문을 불러오지 못했어요. 잠시 후 다시 열어 주세요.)_",
+  en: "_(Couldn't load this content. Tap to reopen in a moment.)_",
+};
+function isBodyLoadError(body: string | undefined): boolean {
+  return body === BODY_LOAD_ERROR.ko || body === BODY_LOAD_ERROR.en;
+}
+
 function addBodyCapped(
   prev: Record<string, string>,
   id: string,
@@ -296,15 +312,7 @@ export default function Inbox() {
       } catch (e) {
         // Raw error stays in logs only; users see calm product-tone copy.
         console.warn("[inbox] downloadRawClipping failed", (e as Error).message);
-        setBodyById((prev) =>
-          addBodyCapped(
-            prev,
-            row.id,
-            locale === "ko"
-              ? "_(본문을 불러오지 못했어요. 잠시 후 다시 열어 주세요.)_"
-              : "_(Couldn't load this content. Tap to reopen in a moment.)_",
-          ),
-        );
+        setBodyById((prev) => addBodyCapped(prev, row.id, BODY_LOAD_ERROR[locale]));
       }
     },
     [locale],
@@ -317,9 +325,13 @@ export default function Inbox() {
       const wasExpanded = expandedIdRef.current === row.id;
       setExpandedId((prev) => (prev === row.id ? null : row.id));
       if (wasExpanded) return;
-      // First expand for this row, and body not cached yet: fetch it. Reading
-      // from the ref keeps this callback's identity stable.
-      if (bodyByIdRef.current[row.id] === undefined) {
+      // First expand for this row, and body not cached yet (or the cached value
+      // is a prior load-error placeholder): fetch it. Reading from the ref keeps
+      // this callback's identity stable. Treating the error placeholder as
+      // retryable is what makes the "tap to reopen" copy actually re-fetch
+      // instead of re-showing the stale error until 5 other rows evict it.
+      const cached = bodyByIdRef.current[row.id];
+      if (cached === undefined || isBodyLoadError(cached)) {
         void fetchBody(row);
       }
     },

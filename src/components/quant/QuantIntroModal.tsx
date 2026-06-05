@@ -79,11 +79,15 @@ export function QuantIntroModal({
     onStart();
   }
 
+  // Auto-start if user previously dismissed and chose "don't show again".
+  // We call onStart once the modal is hidden so the parent knows the intro is
+  // done. Running it in an effect (not render) keeps the side-effect out of
+  // render and fires it only after commit.
+  useEffect(() => {
+    if (!visible) onStart();
+  }, [visible]);
+
   if (!visible) {
-    // Auto-start if user previously dismissed and chose "don't show again".
-    // We still call onStart once on mount so the parent knows the modal is
-    // done. Using a microtask keeps the call out of render.
-    Promise.resolve().then(onStart);
     return null;
   }
 

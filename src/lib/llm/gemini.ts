@@ -195,6 +195,30 @@ async function routeCrisis(
   } catch (e) {
     if (typeof console !== "undefined") console.warn("[ai_audit_log] crisis insert failed", e);
   }
+  // Separate restricted ledger (crisis_events), parity with callAdvisor's input-RED
+  // path. Without this every callGemini surface (chat/journal/interview/persona/
+  // import/clipper/phase1) intercepted a crisis but left NO categorical trace in the
+  // restricted log. routeCrisis only has the lexicon classifier's fields, so map
+  // them conservatively (RED confidence 0.95 like lexiconToResult; no C-SSRS level;
+  // categories else "lexicon_match", tagged input_red to distinguish this short-
+  // circuit from the output_swap path). Best-effort — never throw out of routeCrisis.
+  try {
+    const lexCategories =
+      result.categories.length > 0
+        ? result.categories
+        : result.matched.length > 0
+          ? ["lexicon_match"]
+          : [];
+    await insertCrisisEvent({
+      classifierConfidence: 0.95,
+      triggerCategories: [...lexCategories, "input_red"],
+      cssrsLevel: null,
+      routingTemplateVersion: "routecrisis-inline-v1",
+      locale,
+    });
+  } catch (e) {
+    if (typeof console !== "undefined") console.warn("[crisis_events] crisis insert failed", e);
+  }
   return { text, safety: result, audit };
 }
 

@@ -41,6 +41,8 @@ export default function CoreBrain() {
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [evidence, setEvidence] = useState<EvidenceShard[]>([]);
   const [building, setBuilding] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
@@ -50,15 +52,23 @@ export default function CoreBrain() {
     if (!userId || hasProfile === false) return;
     let cancelled = false;
     setBuilding(true);
+    setLoadError(false);
     (async () => {
       try {
         const supabase = getSupabaseClient();
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("records")
           .select("id, kind, topic, created_at, tags")
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(24);
+        // A transient RLS/timeout/token-refresh error returns data null without
+        // throwing — surface it as an error state instead of a false empty one.
+        if (error) {
+          if (typeof console !== "undefined") console.warn("[core-brain] records query failed", error);
+          if (!cancelled) setLoadError(true);
+          return;
+        }
         const rows = (data ?? []) as RawRecordRow[];
         const ev = rows.map((r) => toEvidenceShard(r, locale));
         const p = ev.length > 0 ? await buildPersona(userId, locale, isMinor === true) : null;
@@ -70,6 +80,7 @@ export default function CoreBrain() {
         }
       } catch (e) {
         if (typeof console !== "undefined") console.warn("[core-brain] load failed", (e as Error).message);
+        if (!cancelled) setLoadError(true);
       } finally {
         if (!cancelled) setBuilding(false);
       }
@@ -77,7 +88,7 @@ export default function CoreBrain() {
     return () => {
       cancelled = true;
     };
-  }, [userId, hasProfile, isMinor, locale, fireCompanion]);
+  }, [userId, hasProfile, isMinor, locale, fireCompanion, reloadKey]);
 
   if (loading) {
     return (
@@ -96,6 +107,39 @@ export default function CoreBrain() {
       <PremiumAppShell>
         <View style={styles.center}>
           <PremiumLoadingState message={locale === "ko" ? "중심을 살펴보는 중이에요…" : "Looking at your center…"} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+
+  // Load error — a records query error must NOT masquerade as the empty state,
+  // or a user who has pieces sees "your center is still small" on a transient
+  // RLS/timeout/token-refresh failure. Offer a retry instead.
+  if (loadError) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <IslandArt id="core" size={140} />
+          <Text variant="heading" style={{ marginTop: spacing.lg, textAlign: "center" }}>
+            {locale === "ko" ? "중심을 잠깐 못 불러왔어요" : "We couldn't load your center just now"}
+          </Text>
+          <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
+            {locale === "ko"
+              ? "연결이 잠깐 흔들렸어요. 조각은 그대로 있으니 다시 시도해 주세요."
+              : "The connection wobbled for a moment. Your pieces are safe, so please try again."}
+          </Text>
+          <View style={styles.emptyActions}>
+            <Button
+              label={locale === "ko" ? "다시 시도하기" : "Try again"}
+              variant="primary"
+              onPress={() => setReloadKey((k) => k + 1)}
+            />
+            <Button
+              label={locale === "ko" ? "세컨비와 시작하기" : "Start with SecondB"}
+              variant="secondary"
+              onPress={() => router.push("/jarvis")}
+            />
+          </View>
         </View>
       </PremiumAppShell>
     );

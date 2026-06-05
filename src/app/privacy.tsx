@@ -37,6 +37,16 @@ export default function Privacy() {
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.5 };
 
   const [prefs, setPrefs] = useState<PrivacyPrefs>(defaultPrivacyPrefs());
+  // Mirror the latest prefs into a ref kept current every render, so two rapid
+  // toggles in the same tick compose off the freshest value: the second toggle
+  // reads the first's synchronous prefsRef update in onToggle, not a stale
+  // render-time `prefs` closure.
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
+  // Serialize whole-object privacy writes: savePrivacyPrefs replaces the entire
+  // privacy_prefs object, so two concurrent saves could land out of order at the
+  // DB and resurrect a stale value. Chaining keeps writes in submission order.
+  const saveChain = useRef<Promise<void>>(Promise.resolve());
   const [ready, setReady] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const mounted = useRef(true);
@@ -67,28 +77,42 @@ export default function Privacy() {
   }, [userId]);
 
   const onToggle = useCallback(
-    async (key: PrivacyPrefKey, next: boolean) => {
+    (key: PrivacyPrefKey, next: boolean) => {
       if (!userId) return;
       if (!isPrivacyPrefEditable(key, minor)) return;
-      const prev = prefs;
-      const updated: PrivacyPrefs = { ...prefs, [key]: next };
+      // Compose from prefsRef (kept current each render + updated synchronously
+      // here) so two rapid toggles in the same tick don't clobber each other:
+      // the second toggle reads the first's update here, not a stale closure.
+      const updated: PrivacyPrefs = { ...prefsRef.current, [key]: next };
+      prefsRef.current = updated;
       setPrefs(updated);
       setSaveError(false);
-      try {
-        await savePrivacyPrefs(userId, updated);
-        // Sync the analytics consent gate with the saved external_analytics pref.
-        setAnalyticsConsent(updated.external_analytics);
-      } catch {
-        // Revert the optimistic flip and tell the user. Pre-migration the
-        // privacy_prefs column may not exist yet, so this path is expected
-        // until the 0032 migration is applied.
-        if (mounted.current) {
-          setPrefs(prev);
-          setSaveError(true);
-        }
-      }
+      // Queue the persist behind any in-flight save so writes land in order. Each
+      // queued write sends the latest prefsRef (so collapsed rapid toggles still
+      // converge), and because saves are serialized the final completion sets the
+      // analytics gate from the final state instead of a stale one re-applying.
+      saveChain.current = saveChain.current
+        .catch(() => {})
+        .then(async () => {
+          const payload = prefsRef.current;
+          try {
+            await savePrivacyPrefs(userId, payload);
+            setAnalyticsConsent(payload.external_analytics);
+          } catch {
+            // Revert only this key off the latest state and tell the user, so a
+            // concurrent toggle of another key survives the revert. Pre-migration
+            // the privacy_prefs column may not exist yet, so this path is expected
+            // until the 0032 migration is applied.
+            if (mounted.current) {
+              const reverted: PrivacyPrefs = { ...prefsRef.current, [key]: !next };
+              prefsRef.current = reverted;
+              setPrefs(reverted);
+              setSaveError(true);
+            }
+          }
+        });
     },
-    [userId, prefs, minor],
+    [userId, minor],
   );
 
   if (loading) {

@@ -45,6 +45,7 @@ export default function ImportExternal() {
   const [phase, setPhase] = useState<Phase>("input");
   const [result, setResult] = useState<IngestResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   if (loading) {
     return (
@@ -69,12 +70,13 @@ export default function ImportExternal() {
         setTimeout(() => setCopied(false), 2000);
       } else {
         // Native / unsupported: drop it into the paste box so the user can
-        // long-press to copy it themselves.
-        setRaw(prompt);
+        // long-press to copy it themselves — but never clobber what they've
+        // already pasted.
+        if (raw.trim().length === 0) setRaw(prompt);
         Alert.alert(ko ? "프롬프트를 아래에 넣었어요" : "Prompt placed below", ko ? "길게 눌러 복사하세요." : "Long-press to copy it.");
       }
     } catch {
-      setRaw(prompt);
+      if (raw.trim().length === 0) setRaw(prompt);
     }
   }
 
@@ -94,7 +96,8 @@ export default function ImportExternal() {
   }
 
   async function save() {
-    if (!userId || !result) return;
+    if (!userId || !result || saving) return;
+    setSaving(true);
     try {
       await captureFromMarkdown({
         userId,
@@ -117,6 +120,8 @@ export default function ImportExternal() {
           { text: ko ? "다시 시도" : "Retry", onPress: () => { void save(); } },
         ],
       );
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -225,7 +230,7 @@ export default function ImportExternal() {
               ))}
 
               {phase === "result" ? (
-                <PremiumButton label={ko ? "마을에 보관하기" : "Keep it in the village"} variant="primary" onPress={save} full />
+                <PremiumButton label={ko ? "마을에 보관하기" : "Keep it in the village"} variant="primary" loading={saving} disabled={saving} onPress={save} full />
               ) : (
                 <PremiumCard accent={cosmic.signalMint} glow>
                   <Text variant="body" color="brand">{ko ? "잘 보관했어요" : "Saved"}</Text>
