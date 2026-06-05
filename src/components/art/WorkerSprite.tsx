@@ -50,10 +50,12 @@ let timer: ReturnType<typeof setInterval> | null = null;
 function ensureTicker() {
   if (timer) return;
   // Don't spin up the interval while backgrounded; the AppState listener
-  // below restarts it on the next "active" transition.
-  if (AppState.currentState !== "active") return;
+  // below restarts it on the next "active" transition. Treat unknown/null
+  // (cold-start before the first AppState event) as runnable so workers are
+  // not frozen on the first landing render.
+  if (AppState.currentState === "background" || AppState.currentState === "inactive") return;
   timer = setInterval(() => {
-    if (AppState.currentState !== "active") return; // belt-and-suspenders
+    if (AppState.currentState === "background" || AppState.currentState === "inactive") return; // belt-and-suspenders
     const now = Date.now();
     listeners.forEach((l) => l(now));
   }, FRAME_MS);

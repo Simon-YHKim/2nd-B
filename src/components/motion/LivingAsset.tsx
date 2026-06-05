@@ -41,6 +41,11 @@ export function LivingAsset({
     let loop: Animated.CompositeAnimation | null = null;
     progress.setValue(0);
     const startLoop = () => {
+      // Never spin up a loop while backgrounded — the delayed setTimeout can
+      // fire after the app has gone background — and never double-create on
+      // repeated "active" transitions.
+      if (AppState.currentState === "background" || AppState.currentState === "inactive") return;
+      if (loop) return;
       loop = Animated.loop(
         Animated.timing(progress, {
           toValue: 1,
@@ -51,17 +56,21 @@ export function LivingAsset({
       );
       loop.start();
     };
+    const stopLoop = () => {
+      loop?.stop();
+      loop = null;
+    };
     const timer = setTimeout(startLoop, delay);
     const appStateSub = AppState.addEventListener("change", (nextState) => {
       if (nextState === "background" || nextState === "inactive") {
-        loop?.stop();
-      } else if (nextState === "active" && loop) {
+        stopLoop();
+      } else if (nextState === "active") {
         startLoop();
       }
     });
     return () => {
       clearTimeout(timer);
-      loop?.stop();
+      stopLoop();
       appStateSub.remove();
     };
   }, [enabled, motion.delayMs, motion.durationMs, phase, progress]);

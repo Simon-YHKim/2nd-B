@@ -134,7 +134,9 @@ function Worker({
       clearInterval(t);
       t = null;
     };
-    if (AppState.currentState === "active") start();
+    // Treat unknown/null (cold-start before the first AppState event) as
+    // runnable so residents are not frozen on the first graph render.
+    if (AppState.currentState !== "background" && AppState.currentState !== "inactive") start();
     const sub = AppState.addEventListener("change", (next) => {
       if (next === "active") start();
       else stop();
