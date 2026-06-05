@@ -48,7 +48,6 @@ const HUB: HubSection[] = [
     items: [
       { route: "/persona", ko: "페르소나", en: "Persona" },
       { route: "/big-five", ko: "성격 5요인", en: "Big Five" },
-      { route: "/mbti", ko: "MBTI", en: "MBTI" },
       { route: "/attachment", ko: "애착 유형", en: "Attachment" },
       { route: "/audit", ko: "과거의 나", en: "Past me" },
       { route: "/interview", ko: "스무고개", en: "Interview" },

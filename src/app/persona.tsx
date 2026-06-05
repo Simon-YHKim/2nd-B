@@ -56,18 +56,16 @@ export default function Persona() {
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
   if (!persona) {
-    const toolCards: { label: string; sub: string; route: "/audit" | "/big-five" | "/mbti" | "/attachment" }[] =
+    const toolCards: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" }[] =
       locale === "ko"
         ? [
             { label: "라이프 오딧", sub: "25문항 · 약 8분", route: "/audit" },
             { label: "Big Five (BFI-44)", sub: "44문항 · 약 8분", route: "/big-five" },
-            { label: "MBTI 16유형", sub: "32문항 · 약 6분", route: "/mbti" },
             { label: "애착 스타일 (ECR-S)", sub: "12문항 · 약 3분", route: "/attachment" },
           ]
         : [
             { label: "Life audit", sub: "25 items · ~8 min", route: "/audit" },
             { label: "Big Five (BFI-44)", sub: "44 items · ~8 min", route: "/big-five" },
-            { label: "MBTI 16 types", sub: "32 items · ~6 min", route: "/mbti" },
             { label: "Attachment (ECR-S)", sub: "12 items · ~3 min", route: "/attachment" },
           ];
     return (
@@ -131,8 +129,8 @@ export default function Persona() {
           subtitle={
             persona.traitsSource === "bfi"
               ? locale === "ko"
-                ? "BFI-44 실측 · MBTI · 애착 합성"
-                : "BFI-44 measurement · MBTI · attachment combined"
+                ? "BFI-44 실측 · 애착 합성"
+                : "BFI-44 measurement · attachment combined"
               : locale === "ko"
                 ? "일기 기반 추정 · 평가하면 실측으로 업데이트"
                 : "Journal-based estimate · assessments update it"
@@ -237,10 +235,10 @@ export default function Persona() {
         {persona.mbti ? (
           <View style={styles.mbtiCard}>
             <Text variant="caption" color="textMuted">
-              {locale === "ko" ? "MBTI · 16유형 (참고용)" : "MBTI · 16 types (reference)"}
+              {locale === "ko" ? "MBTI 참고값" : "MBTI reference"}
             </Text>
             <View style={styles.mbtiRow}>
-              <Text variant="heading" color="brand" style={styles.mbtiType}>
+              <Text variant="heading" color="text" style={styles.mbtiType}>
                 {persona.mbti.type}
               </Text>
               <View style={{ flex: 1 }}>
@@ -307,11 +305,6 @@ export default function Persona() {
             label={locale === "ko" ? "애착 스타일 평가" : "Attachment style test"}
             variant="secondary"
             onPress={() => router.replace("/attachment")}
-          />
-          <Button
-            label={locale === "ko" ? "MBTI 평가" : "MBTI assessment"}
-            variant="secondary"
-            onPress={() => router.replace("/mbti")}
           />
           <Button
             label={locale === "ko" ? "일기로 돌아가기" : "Back to journal"}

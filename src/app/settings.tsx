@@ -352,13 +352,15 @@ export default function Settings() {
             {locale === "ko" ? "부분 삭제: 평가 결과" : "Partial: by assessment"}
           </Text>
           <Button
-            label={locale === "ko" ? "Big Five (TIPI) 결과 삭제" : "Delete Big Five (TIPI) results"}
+            label={locale === "ko" ? "Big Five (BFI-44) 결과 삭제" : "Delete Big Five (BFI-44) results"}
             variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
-                locale === "ko" ? "저장된 모든 TIPI 결과를 삭제합니다." : "Delete every saved TIPI result.",
-                () => runDeleteByTag(["tipi"], "tipi"),
+                locale === "ko"
+                  ? "저장된 모든 BFI-44 결과를 삭제합니다. 이전 TIPI 결과가 있으면 함께 삭제합니다."
+                  : "Delete every saved BFI-44 result. Include older TIPI records if present.",
+                () => runDeleteByTag(["bfi", "tipi"], "bfi"),
               )
             }
           />
@@ -374,12 +376,12 @@ export default function Settings() {
             }
           />
           <Button
-            label={locale === "ko" ? "MBTI 결과 삭제" : "Delete MBTI results"}
+            label={locale === "ko" ? "MBTI 참고 결과 삭제" : "Delete MBTI reference results"}
             variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
-                locale === "ko" ? "저장된 모든 MBTI 결과를 삭제합니다." : "Delete every saved MBTI result.",
+                locale === "ko" ? "저장된 모든 MBTI 참고 결과를 삭제합니다." : "Delete every saved MBTI reference result.",
                 () => runDeleteByTag(["mbti"], "mbti"),
               )
             }

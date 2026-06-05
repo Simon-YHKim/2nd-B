@@ -107,8 +107,8 @@ const SECTIONS: ManualSection[] = [
       ko: "검증된 심리학",
     },
     body: {
-      en: "We only cite Big Five, Self-Determination Theory, Attachment Theory, CBT, Erikson, VIA strengths. No MBTI, no astrology, no AI-invented frameworks. Every reference carries a DOI/URL.",
-      ko: "Big Five · 자기결정성 이론 · 애착이론 · CBT · 에릭슨 · VIA 성격 강점처럼 검증된 학술 프레임만 인용해요. MBTI, 점성술, AI가 만든 프레임은 사용하지 않아요. 모든 참고문헌에 DOI/URL이 있습니다.",
+      en: "2nd-B grounds explanations and recommendations in evidence-backed sources such as Big Five, Self-Determination Theory, Attachment Theory, CBT research, Erikson, and VIA strengths. MBTI, astrology, and AI-invented frameworks are not used as primary evidence. MBTI can be stored as a user-owned reference record, and every cited source still needs a DOI or URL.",
+      ko: "2nd-B의 설명과 추천은 Big Five, 자기결정성 이론, 애착이론, CBT 연구, 에릭슨, VIA 성격 강점처럼 근거가 있는 자료를 기준으로 합니다. MBTI와 점성술, AI가 만든 프레임은 주요 근거로 쓰지 않습니다. MBTI를 사용자가 남긴 참고 기록으로 보관할 수는 있지만, 모든 참고문헌에는 DOI 또는 URL이 있어야 합니다.",
     },
   },
 ];
@@ -213,7 +213,7 @@ export default function Manual() {
           </Text>
           {(locale === "ko"
             ? [
-                "Big Five (TIPI) · 애착 스타일 (ECR-S): 검증된 3분 평가",
+                "Big Five (BFI-44) · 애착 스타일 (ECR-S): 44문항과 12문항으로 남기는 자기 이해 평가",
                 "/insights: 매주 활동·자주 다룬 주제·결론 모음",
                 "/research: 어드바이저가 인용하는 학술 자료 브라우저",
                 "오늘의 성찰 질문 + 연속 기록 카운터",
@@ -221,7 +221,7 @@ export default function Manual() {
                 "캡처 시 종류 자동 감지 + 미리보기",
               ]
             : [
-                "Big Five (TIPI) + Attachment (ECR-S) 3-min validated tests",
+                "Big Five (BFI-44) and Attachment (ECR-S): self-knowledge assessments with 44 and 12 items",
                 "/insights: weekly activity, recurring topics, conclusion stream",
                 "/research: browse validated academic sources the Advisor cites",
                 "Daily reflection prompt + streak counter",

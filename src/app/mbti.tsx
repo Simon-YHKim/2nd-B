@@ -75,7 +75,7 @@ export default function Mbti() {
       {!started ? (
         <QuantIntroModal
           toolKey="mbti"
-          title={locale === "ko" ? "MBTI 16유형" : "MBTI 16 types"}
+          title={locale === "ko" ? "MBTI 16유형 (참고용)" : "MBTI 16 types (reference)"}
           itemCount={MBTI_ITEMS.length}
           estimatedMinutes={6}
           description={
