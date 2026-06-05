@@ -9,7 +9,11 @@
     "scheme": "secondbrain",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSCameraUsageDescription": "The app needs camera access to capture documents for OCR and memory storage.",
+        "NSPhotoLibraryUsageDescription": "The app needs photo library access to upload existing images for memory analysis."
+      }
     },
     "android": {
       "permissions": [
@@ -42,7 +46,12 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "2nd-Brain",
+      "shortName": "2nd-Brain",
+      "themeColor": "#070A18",
+      "backgroundColor": "#070A18",
+      "display": "standalone"
     },
     "plugins": [
       "expo-router",
