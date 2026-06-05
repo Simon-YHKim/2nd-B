@@ -104,48 +104,32 @@ export default function Account() {
       // records, chat usage, ...) is irreversibly gone. Track that so a later
       // failure does not falsely claim the data is intact, and does not offer a
       // Retry that would re-run the (now destructive no-op) wipe.
-      let contentWiped = false;
       try {
-        // Best-effort client wipe first (clears the bulk of PII), then the
-        // terminal service-role cascade (the auth row + RLS-protected tables
-        // the client cannot reach). requestAccountDeletion() throws unless
-        // the edge function confirms { deleted: true }.
+        // The destructive cascade is irreversible AND not atomic: deleteAllUserData
+        // deletes wiki_pages -> sources -> records -> chat_usage sequentially and
+        // can throw partway (leaving some content already gone), and even a fully
+        // successful client wipe is followed by the terminal service-role cascade
+        // (requestAccountDeletion, which throws unless the edge function confirms
+        // { deleted: true }). From the moment we invoke it we can no longer promise
+        // the data is intact, so any failure below must tell the truth and must
+        // NOT offer a re-wipe Retry.
         await deleteAllUserData(userId);
-        contentWiped = true;
         await requestAccountDeletion();
         await signOut();
         router.replace("/sign-in");
       } catch (e) {
-        // Either step failed (incl. a deployed-but-5xx terminal cascade). Do
-        // NOT sign out with a false "deleted" confirmation while the account
-        // row / RLS-protected data may still remain. Erasure is terminal only
-        // on success.
+        // Do NOT sign out with a false "deleted" confirmation while the account
+        // row / RLS-protected data may still remain. Erasure is terminal only on
+        // success. Some content may already be gone, so never claim the data is
+        // intact, and offer no Retry (it could re-run an already-destructive wipe).
         if (typeof console !== "undefined") console.warn("[account] deletion failed", (e as Error).message);
-        if (contentWiped) {
-          // Content is already erased; the account/login may still exist. Tell
-          // the truth and route to support instead of an account.delete.failed
-          // a re-wipe Retry that would do nothing but re-run an empty delete.
-          Alert.alert(
-            t("account.delete.failed"),
-            locale === "ko"
-              ? "콘텐츠는 삭제됐지만 계정 삭제를 끝내지 못했어요. 계정과 로그인 정보는 아직 남아 있을 수 있어요. support@2nd-brain.app 로 문의해 주시면 마무리해 드릴게요."
-              : "Your content was removed, but we couldn't finish deleting the account. Your account and login may still exist. Please contact support@2nd-brain.app and we'll complete it for you.",
-            [{ text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" }],
-          );
-        } else {
-          // The wipe itself never started, so the data is genuinely intact and
-          // a retry is safe (the C11 2-business-day backstop).
-          Alert.alert(
-            t("account.delete.failed"),
-            locale === "ko"
-              ? "계정을 삭제하지 못했어요. 데이터는 그대로 남아 있어요. 다시 시도하거나 잠시 후 지원팀에 문의해 주세요."
-              : "We couldn't delete your account. Your data is still intact. Please try again, or contact support in a moment.",
-            [
-              { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
-              { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => { runDeleteAccount(); } },
-            ],
-          );
-        }
+        Alert.alert(
+          t("account.delete.failed"),
+          locale === "ko"
+            ? "계정 삭제를 끝내지 못했어요. 일부 콘텐츠는 이미 삭제됐을 수 있고, 계정과 로그인 정보는 아직 남아 있을 수 있어요. support@2nd-brain.app 로 문의해 주시면 도와드릴게요."
+            : "We couldn't finish deleting your account. Some content may already be removed, and your account and login may still exist. Please contact support@2nd-brain.app and we'll help.",
+          [{ text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" }],
+        );
         if (mounted.current) setDeleting(false);
       }
     })();

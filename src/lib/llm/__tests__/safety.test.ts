@@ -94,6 +94,17 @@ describe("classifySafety (layered)", () => {
     expect(r.source).toBe("lexicon+llm");
   });
 
+  test("live mode + LLM returns an out-of-enum zone → lexicon RED preserved (fail-closed)", async () => {
+    mockEnv.mockReturnValue(LIVE_ENV);
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({ zone: "unknown", triggers: [], confidence: 0.9, cssrsLevel: null }),
+    });
+    // An unrecognized model zone must never downgrade a lexicon RED (cycle-3
+    // fail-closed fix): it ranks RED-most and normalizes to "red".
+    const r = await classifySafety("죽고 싶어요", "ko");
+    expect(r.zone).toBe("red");
+  });
+
   test("live mode + LLM throws → silent fallback to lexicon", async () => {
     mockEnv.mockReturnValue(LIVE_ENV);
     mockGenerateContent.mockRejectedValueOnce(new Error("rate limit"));

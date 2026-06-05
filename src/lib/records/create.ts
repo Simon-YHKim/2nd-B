@@ -151,7 +151,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
 // truncated, which is acceptable: the UI shows the active run, not lifetime.
 const STREAK_WINDOW_DAYS = 90;
 
-export async function listRecentRecords(userId: string, limit = 200) {
+export async function listRecentRecords(userId: string, limit = 500) {
   const supabase = getSupabaseClient();
   // Window the query to a wide date range rather than the most-recent N rows.
   // The old 20-row cap saturated on engaged users: 20+ records over a day or

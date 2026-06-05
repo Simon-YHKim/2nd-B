@@ -36,7 +36,10 @@ export default function Persona() {
     // minor as an adult on the crisis hotline and (b) re-fire once they
     // resolve — an extra Gemini call + duplicate personas upsert. Gate on the
     // settled state, and dedupe per (userId, locale) so it runs exactly once.
-    if (loading || !userId || hasProfile !== true) return;
+    // isMinor must be resolved before any crisis-capable build so a minor gets
+    // the youth hotline (C10), not just hasProfile — guard the residual edge
+    // where a profile resolves true while isMinor is still null.
+    if (loading || !userId || hasProfile !== true || isMinor === null) return;
     const buildKey = `${userId}:${locale}`;
     if (builtKey.current === buildKey) return;
     builtKey.current = buildKey;
