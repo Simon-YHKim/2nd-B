@@ -1,3 +1,13 @@
+-- ⚠️ SUPERSEDED / ORPHAN (2026-06-05). DO NOT RUN.
+-- This is a divergent, older DDL for knowledge_sources. The CANONICAL schema is
+-- `db/migrations/0007_knowledge_sources.sql` (+ 0009 RLS, 0013 extend, 0041 read
+-- policy), which is what CI (.github/.../supabase-dry-run.yml globs db/migrations)
+-- and the app code/types.gen.ts use. This file is NOT referenced by any runner.
+-- It diverges: no added_by/verified_by columns, `age_range NOT NULL`, bare
+-- `create table` (no IF NOT EXISTS). Running it via `supabase db push` would
+-- conflict or provision a schema the app + RLS do not match. Kept only as history;
+-- reconcile/delete once the supabase/migrations CLI path is settled (ops, careful).
+
 -- knowledge_sources: curated, DOI-verified psychology research used by the
 -- Advisor engine and life-audit interviews. Schema mirrors the spec in
 -- docs/research/psychology-handoff.md ("Project Context" section).
