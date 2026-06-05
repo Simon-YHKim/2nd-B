@@ -746,6 +746,19 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         pulseValues.current.set(id, new Animated.Value(1));
       }
     }
+    // Prune entries for data nodes that no longer exist, so drift loops do not
+    // keep running for removed ids (memory + background battery). CENTER_NODE
+    // and MENU_NODES are always in `ids`, so only stale data nodes are dropped.
+    const live = new Set(ids);
+    for (const id of Array.from(driftLoops.current.keys())) {
+      if (!live.has(id)) {
+        driftLoops.current.get(id)?.stop();
+        driftLoops.current.delete(id);
+        driftValues.current.delete(id);
+        swayRef.current.delete(id);
+        pulseValues.current.delete(id);
+      }
+    }
   }, [dataPositions]);
 
   // Spawn sequence — tier 1 → 2 → 3 → 4, randomized within each tier.
