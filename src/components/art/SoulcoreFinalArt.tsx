@@ -472,7 +472,7 @@ export function FinalPatternLinkArt({
 }
 
 // TODO(naming): internal worker/asset ids (archi/gadi/lulu/momo/lumi) are NOT
-// renamed to the display cast (Archon/Relia/Lumen/Foreman Momo/Lumina) in this
+// renamed to the display cast (Archon/Relia/Lumen/Foreman Momo/Iris) in this
 // PR — that is large scope (asset filenames + personas key off these ids). The
 // user-facing display names are already correct in MENU_NODES / personas. Track
 // the id rename separately.

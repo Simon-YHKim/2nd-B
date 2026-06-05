@@ -234,7 +234,7 @@ const ISLAND_FOR: Record<string, IslandId> = {
 // Domain → worker mapping (worldview v-final, authoritative). Internal worker
 // ids (archi/gadi/lulu/momo/lumi/secondb) are unchanged; display names moved:
 //   일과 성장 = Archon, 관계와 사랑 = Relia, 배움과 지식 = Lumen,
-//   기록 보관소 = Foreman Momo, 취향과 영감 = Lumina,
+//   기록 보관소 = Foreman Momo, 취향과 영감 = Iris,
 //   나의 중심 = SecondB. Worker glow matches the core accent.
 const VILLAGE_WORKER: Record<string, WorkerId> = {
   work: VILLAGE_UI.work.worker,

@@ -60,7 +60,7 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
   taste: {
     island: "inspiration",
     worker: "lumi",
-    accent: cosmic.dreamPink, // Muse Core / Lumina
+    accent: cosmic.dreamPink, // Muse Core / Iris
     primaryRoute: "/journal",
     primaryLabel: { en: "Leave an inspiration piece", ko: "영감 조각 남기기" },
     speech: {
