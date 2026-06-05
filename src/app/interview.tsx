@@ -264,7 +264,7 @@ export default function Interview() {
           </View>
         ) : null}
 
-        <ScrollView ref={scrollRef} contentContainerStyle={styles.chatScroll}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.chatScroll} keyboardShouldPersistTaps="handled">
           {turns.map((t, i) => (
             <View key={i} style={[styles.bubble, t.role === "interviewer" ? styles.qBubble : styles.aBubble]}>
               <View style={styles.bubbleHeader}>

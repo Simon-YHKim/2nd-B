@@ -32,6 +32,7 @@ export function Input(props: InputProps) {
           color: palette.text,
           shadowColor: focused ? palette.brand : "transparent",
           shadowOpacity: focused ? 0.32 : 0,
+          textAlignVertical: props.multiline ? "top" : "auto",
         },
         style,
       ]}
