@@ -65,7 +65,6 @@ export default function RootLayout() {
               <Stack.Screen name="trinity" />
               <Stack.Screen name="mbti" />
               <Stack.Screen name="settings" />
-              <Stack.Screen name="asset-motion-preview" />
               <Stack.Screen name="privacy" />
               <Stack.Screen name="account" />
               <Stack.Screen name="import" />
