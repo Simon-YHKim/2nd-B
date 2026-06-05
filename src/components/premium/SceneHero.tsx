@@ -9,6 +9,7 @@ import {
   type PanResponderGestureState,
   type StyleProp,
   type ViewStyle,
+  AppState,
 } from "react-native";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
@@ -177,7 +178,10 @@ export function SceneHero({
       setSpeechShown(true);
       return;
     }
-    const id = setInterval(() => setSpeechShown((v) => !v), 2500);
+    const id = setInterval(() => {
+      if (AppState.currentState !== "active") return;
+      setSpeechShown((v) => !v);
+    }, 2500);
     return () => clearInterval(id);
   }, [reducedMotion]);
 
