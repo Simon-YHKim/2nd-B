@@ -552,8 +552,10 @@ const styles = StyleSheet.create({
   },
   insightEyebrow: {
     color: cosmic.signalMint,
-    fontSize: 11,
-    letterSpacing: 1.5,
+    // KO "오늘의 중심" must stay legible: keep >=12px and trim tracking so the
+    // Korean label is not over-spaced. EN still reads as a stylized eyebrow.
+    fontSize: 12,
+    letterSpacing: 0.8,
     fontWeight: "700",
     textTransform: "uppercase",
     marginBottom: 4,

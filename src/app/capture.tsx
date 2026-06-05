@@ -736,15 +736,17 @@ export default function Capture() {
           {mode === "journal" && !progression.loading && journalGate.unlocked && !journalUsage.allowed ? (
             <View style={styles.limitCard}>
               <Text variant="subtle" color="warning" style={styles.gateEyebrow}>
-                {locale === "ko" ? "무료 한도 도달" : "Free limit reached"}
+                {locale === "ko" ? "무료 일기를 다 썼어요" : "Free journal entries used up"}
               </Text>
               <Text variant="body" style={{ marginTop: spacing.xs }}>
                 {locale === "ko"
-                  ? `무료 일기 ${journalUsage.limit}회를 모두 사용했어요. Soma 구독부터 일기를 무제한으로 쓸 수 있어요.`
-                  : `You have used all ${journalUsage.limit} free journal entries. The Soma plan and up unlock unlimited journaling.`}
+                  ? `무료로 쓸 수 있는 일기 ${journalUsage.limit}편을 모두 작성했어요. 지금까지 쓴 일기는 그대로 남아 있고, 언제든 다시 읽을 수 있어요.`
+                  : `You have written all ${journalUsage.limit} free journal entries. Everything you have written so far stays, and you can reread it anytime.`}
               </Text>
               <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
-                {locale === "ko" ? "구독 화면은 곧 추가됩니다." : "The subscription screen is coming soon."}
+                {locale === "ko"
+                  ? "메모 · 링크 · 문서 · 사진 담기는 한도 없이 계속 쓸 수 있어요."
+                  : "Memo, link, file, and photo capture stay open with no limit."}
               </Text>
             </View>
           ) : null}
@@ -765,7 +767,7 @@ export default function Capture() {
                 </View>
               ) : null}
               <View style={styles.dailyPromptCard}>
-                <Text variant="caption" color="brand" style={{ letterSpacing: 1.2 }}>
+                <Text variant="caption" color="brand" style={{ letterSpacing: locale === "ko" ? 0.3 : 1.2 }}>
                   {locale === "ko" ? "오늘의 성찰 질문" : "Today's reflection prompt"}
                 </Text>
                 <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }} selectable>
@@ -1100,7 +1102,7 @@ const styles = StyleSheet.create({
   },
   advisorCheckOn: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   // 일기 gate cards (Lv3 lock / free-tier limit), ported from /journal.
-  gateEyebrow: { fontWeight: "700", letterSpacing: 1 },
+  gateEyebrow: { fontWeight: "700", letterSpacing: 0.3 },
   gateCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
@@ -1146,7 +1148,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     gap: spacing.xs,
   },
-  eyebrow: { letterSpacing: 1, fontWeight: "700" },
+  eyebrow: { letterSpacing: 0.3, fontWeight: "700" },
   trackRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   trackChip: {
     flex: 1,

@@ -20,9 +20,9 @@ import { cosmic } from "@/lib/theme/tokens";
 const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile"];
 
 // Routes that hide the back arrow entirely: the pre-auth flow plus the graph
-// home ("/") itself — "/" IS the back target, so it gets no arrow. Every other
+// home ("/") itself - "/" IS the back target, so it gets no arrow. Every other
 // village screen keeps a top-left back-to-graph arrow, INCLUDING the tab
-// destinations (담기/세컨비/공상/나), per the 2026-06-02 directive ("every
+// destinations (그래프/담기/세컨비/나), per the 2026-06-02 directive ("every
 // village needs a back button"). On a tab screen the arrow is nudged right of
 // the brand chip (see below) so the two don't overlap.
 const HIDDEN_PATHS = new Set<string>([...PRE_AUTH_PATHS, "/"]);
@@ -30,6 +30,10 @@ const HIDDEN_PATHS = new Set<string>([...PRE_AUTH_PATHS, "/"]);
 type Locale = "en" | "ko";
 
 const ROUTE_LABELS: Record<string, { en: string; ko: string }> = {
+  "/account": { en: "Account", ko: "계정" },
+  "/attachment": { en: "Attachment", ko: "애착" },
+  "/audit": { en: "Audit", ko: "감사" },
+  "/big-five": { en: "Big Five", ko: "빅파이브" },
   "/capture": { en: "Capture", ko: "담기" },
   "/core-brain": { en: "Soul Core", ko: "나의 중심" },
   "/data": { en: "Data", ko: "데이터" },
@@ -40,6 +44,8 @@ const ROUTE_LABELS: Record<string, { en: string; ko: string }> = {
   "/interview": { en: "Interview", ko: "인터뷰" },
   "/jarvis": { en: "SecondB", ko: "세컨비" },
   "/manual": { en: "Manual", ko: "매뉴얼" },
+  "/mbti": { en: "MBTI", ko: "MBTI" },
+  "/onboarding": { en: "Onboarding", ko: "온보딩" },
   "/permissions": { en: "Permissions", ko: "권한" },
   "/persona": { en: "Persona", ko: "페르소나" },
   "/privacy": { en: "Privacy", ko: "개인정보" },

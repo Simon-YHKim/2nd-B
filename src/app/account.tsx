@@ -232,5 +232,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
-  eyebrow: { letterSpacing: 1, fontWeight: "700" },
+  // Trim eyebrow tracking so the KO section labels are not over-spaced (caption is 14px).
+  eyebrow: { letterSpacing: 0.5, fontWeight: "700" },
 });

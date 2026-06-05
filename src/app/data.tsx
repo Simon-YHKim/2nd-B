@@ -84,14 +84,9 @@ export default function DataManagement() {
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{ko ? "기기 설정" : "On this device"}</Text>
           <Text variant="body" color="textMuted">
             {ko
-              ? "이 기기에 저장된 화면 설정·첫 진입 안내 표시 여부 같은 가벼운 항목을 초기화해요. (곧 지원)"
-              : "Reset lightweight on-device bits like view preferences and the first-run hints. (coming soon)"}
+              ? "화면 설정이나 첫 진입 안내 표시 여부 같은 가벼운 항목은 이 기기에만 저장돼요. 내 조각 데이터와 달리 기기를 바꾸거나 앱 데이터를 지우면 함께 초기화돼요."
+              : "Lightweight bits like view preferences and first-run hints live only on this device. Unlike your pieces, they reset on their own when you switch devices or clear the app's data."}
           </Text>
-          <View style={styles.statusPill}>
-            <Text variant="caption" color="textSubtle">
-              {ko ? "곧 지원" : "Coming soon"}
-            </Text>
-          </View>
         </View>
       </ScrollView>
     </PremiumAppShell>
@@ -115,13 +110,4 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   eyebrow: { letterSpacing: 0 },
-  statusPill: {
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: semantic.border,
-    borderRadius: radii.sm,
-    backgroundColor: semantic.surfaceAlt,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
 });

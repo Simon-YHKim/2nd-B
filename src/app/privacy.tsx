@@ -188,7 +188,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.md,
   },
-  sectionEyebrow: { letterSpacing: 1, fontWeight: "700" },
+  // Trim eyebrow tracking so the KO section label is not over-spaced (caption is 14px).
+  sectionEyebrow: { letterSpacing: 0.5, fontWeight: "700" },
   prefRow: {
     flexDirection: "row",
     alignItems: "center",

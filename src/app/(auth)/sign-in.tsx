@@ -122,8 +122,8 @@ export default function SignIn() {
     Alert.alert(
       locale === "ko" ? "비밀번호 재설정" : "Reset password",
       locale === "ko"
-        ? "비밀번호 재설정 기능은 곧 추가됩니다. 그동안은 support@2nd-brain.app으로 연락해 주세요."
-        : "Password reset is coming soon. Contact support@2nd-brain.app in the meantime.",
+        ? "support@2nd-brain.app으로 가입 이메일과 함께 연락해 주시면 재설정을 도와드려요."
+        : "Email support@2nd-brain.app from your account address and we'll help you reset it.",
     );
   }
 

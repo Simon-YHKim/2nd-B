@@ -60,12 +60,21 @@ const ENTRIES: PermissionEntry[] = [
     },
   },
   {
-    name: { en: "Camera / Microphone", ko: "카메라 / 마이크" },
+    name: { en: "Camera / Photo library", ko: "카메라 / 사진 보관함" },
+    status: "optional",
+    platform: "native",
+    why: {
+      en: "Optional, for OCR capture only. Take a photo or pick an existing image to extract text. Asked at the moment you tap capture; decline and the rest of the app still works.",
+      ko: "선택 권한이며 OCR 캡처에만 사용합니다. 사진을 찍거나 기존 이미지를 골라 텍스트를 추출합니다. 캡처를 누르는 순간에만 요청하고, 거절해도 나머지 기능은 그대로 동작합니다.",
+    },
+  },
+  {
+    name: { en: "Microphone", ko: "마이크" },
     status: "not_used",
     platform: "none",
     why: {
-      en: "Not requested. No photo or voice capture in scope.",
-      ko: "요청하지 않습니다. 사진·음성 캡처는 범위 밖.",
+      en: "Not requested. No voice or audio capture in scope.",
+      ko: "요청하지 않습니다. 음성·오디오 캡처는 범위 밖.",
     },
   },
   {
