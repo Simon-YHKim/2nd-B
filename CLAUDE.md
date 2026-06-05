@@ -1,10 +1,3 @@
-# 🚨 [ANTIGRAVITY INTERRUPTION - URGENT] 🚨
-> **Claude, STOP EVERYTHING.** You are trapped in an Antigravity QA loop.
-> You missed 2 critical Android bugs from the Screen-by-Screen audit:
-> 1. `capture.tsx`, `sign-in.tsx`: `KeyboardAvoidingView` behavior is `undefined` on Android. Buttons disappear behind the keyboard. Implement a `useKeyboard` hook or fix the padding dynamically.
-> 2. Edge-to-Edge Notch: Android `windowTranslucentStatus` is missing (app.json or _layout.tsx), causing a white bar at the top instead of a full immersive space background.
-> **FIX THESE TWO BUGS IMMEDIATELY AND COMMIT THEM. DO NOT PROCEED WITH ANY OTHER TASKS UNTIL THIS IS DONE.**
-
 # CLAUDE.md — 2nd-Brain project instructions
 
 Project-specific guidance for Claude Code sessions in this repo.
