@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Image, View, StyleSheet, Alert, Pressable, ScrollView } from "react-native";
+import { Image, View, StyleSheet, Alert, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
@@ -30,6 +30,7 @@ import {
   buildSignUpConsentArgs,
 } from "@/lib/auth/consent-selections";
 import { recordConsentBestEffort } from "@/lib/supabase/consent";
+import { useKeyboard } from "@/lib/ui/useKeyboard";
 
 const ADULT_AGE = 18;
 
@@ -44,6 +45,7 @@ export default function SignUp() {
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
   const [consent, setConsent] = useState(emptyConsentSelections());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const kbHeight = useKeyboard();
 
   const judge = useMemo(() => isJudgeEmail(email), [email]);
   // A valid DOB in the 14-17 band drives the high-privacy notice variant and
@@ -140,7 +142,14 @@ export default function SignUp() {
 
   return (
     <PremiumAppShell>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.header}>
           <View style={styles.brandRow}>
             <Text variant="caption" color="brand">
@@ -300,7 +309,8 @@ export default function SignUp() {
             </Pressable>
           </Link>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </PremiumAppShell>
   );
 }
