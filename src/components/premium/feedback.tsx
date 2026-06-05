@@ -3,7 +3,7 @@
 // aware. Copy is warm + non-clinical; safety uses Gadi's calm rose tone.
 
 import { type ReactNode, useEffect, useRef } from "react";
-import { ActivityIndicator, Animated, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Animated, BackHandler, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, spacing } from "@/lib/theme/tokens";
@@ -32,6 +32,17 @@ export function PremiumBottomSheet({
     slide.setValue(0);
     Animated.timing(slide, { toValue: 1, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [visible, slide]);
+  // Android hardware back closes the sheet. It is a plain View (not a Modal), so
+  // it never gets Modal's onRequestClose — without this, back pops the route
+  // instead of dismissing the open sheet. Returning true consumes the event.
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, onClose]);
   if (!visible) return null;
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [60, 0] });
   return (
