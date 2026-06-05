@@ -78,9 +78,10 @@ export function useConnectionGlow() {
 }
 
 /**
- * 공상 / Imagine — "벨라 핑크 신호". A soft, continuous presence pulse for
- * Vela's sprite slot. Starts on mount; reduced-motion holds it at rest
- * opacity with no animation. Returns opacity + scale to bind into a style.
+ * Soft, continuous presence pulse for a sprite signal glow. (Legacy name:
+ * imagine/공상; that place is retired, Divergent mode now lives in /jarvis.)
+ * Starts on mount; reduced-motion holds it at rest opacity with no animation.
+ * Returns opacity + scale to bind into a style.
  */
 export function useImaginePulse(active = true) {
   const opacity = useRef(new Animated.Value(IMAGINE_MOTION.restOpacity)).current;
