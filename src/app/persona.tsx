@@ -225,8 +225,8 @@ export default function Persona() {
           })}
           <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.sm }}>
             {locale === "ko"
-              ? "Big Five 근사치 (v1). 의학적 평가가 아닌, 관찰된 패턴이에요."
-              : "Big Five proxy (v1). Observed patterns, not a medical assessment."}
+              ? "Big Five 근사치 (v1). 기록에서 보이는 패턴일 뿐, 판단이나 평가는 아니에요."
+              : "Big Five proxy (v1). A pattern view from your records, not an evaluation."}
           </Text>
         </View>
 

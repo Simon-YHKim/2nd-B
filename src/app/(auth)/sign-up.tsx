@@ -15,6 +15,7 @@ import {
   ageInYears,
   signUpWithEmail,
   isNaverEnabled,
+  isProviderEnabled,
   signInWithApple,
   signInWithGoogle,
   signInWithKakao,
@@ -44,6 +45,9 @@ export default function SignUp() {
   const [birthDate, setBirthDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
+  // A provider whose OAuth start failed with a "not configured" error is hidden
+  // for the rest of the session so the user is not left tapping a dead button.
+  const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
   const [consent, setConsent] = useState(emptyConsentSelections());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
@@ -116,12 +120,20 @@ export default function SignUp() {
       else await signInWithGoogle();
     } catch (e) {
       const name = provider === "apple" ? "Apple" : provider === "kakao" ? "Kakao" : "Google";
+      const msg = (e as Error).message ?? "";
+      // A provider that is not configured in Supabase fails to even start with a
+      // "provider is not enabled" error. Hide its button for the session so the
+      // user is not left tapping a dead control; email/password and any working
+      // provider remain.
+      if (/not enabled|unsupported provider|validation_failed/i.test(msg)) {
+        setHiddenProviders((prev) => new Set(prev).add(provider));
+      }
       Alert.alert(
         locale === "ko"
           ? `${name} 가입을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.`
           : `Could not start ${name} sign-up. Please try again in a moment.`,
       );
-      if (typeof console !== "undefined") console.warn(`[auth] ${provider} oauth error`, (e as Error).message);
+      if (typeof console !== "undefined") console.warn(`[auth] ${provider} oauth error`, msg);
     } finally {
       setOauthSubmitting(false);
     }
@@ -260,24 +272,30 @@ export default function SignUp() {
             <View style={styles.providerDividerLine} />
           </View>
 
-          <Button
-            label={t("signUp.continueWithGoogle")}
-            variant="secondary"
-            disabled={oauthSubmitting || submitting}
-            onPress={() => handleOAuth("google")}
-          />
-          <Button
-            label={t("signUp.continueWithApple")}
-            variant="secondary"
-            disabled={oauthSubmitting || submitting}
-            onPress={() => handleOAuth("apple")}
-          />
-          <Button
-            label={t("signUp.continueWithKakao")}
-            variant="secondary"
-            disabled={oauthSubmitting || submitting}
-            onPress={() => handleOAuth("kakao")}
-          />
+          {isProviderEnabled("google") && !hiddenProviders.has("google") ? (
+            <Button
+              label={t("signUp.continueWithGoogle")}
+              variant="secondary"
+              disabled={oauthSubmitting || submitting}
+              onPress={() => handleOAuth("google")}
+            />
+          ) : null}
+          {isProviderEnabled("apple") && !hiddenProviders.has("apple") ? (
+            <Button
+              label={t("signUp.continueWithApple")}
+              variant="secondary"
+              disabled={oauthSubmitting || submitting}
+              onPress={() => handleOAuth("apple")}
+            />
+          ) : null}
+          {isProviderEnabled("kakao") && !hiddenProviders.has("kakao") ? (
+            <Button
+              label={t("signUp.continueWithKakao")}
+              variant="secondary"
+              disabled={oauthSubmitting || submitting}
+              onPress={() => handleOAuth("kakao")}
+            />
+          ) : null}
           {isNaverEnabled() ? (
             <Button
               label={t("signUp.continueWithNaver")}
