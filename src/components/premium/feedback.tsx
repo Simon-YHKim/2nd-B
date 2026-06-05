@@ -65,7 +65,7 @@ export function PremiumBottomSheet({
 /** Centered glassy modal. */
 export function PremiumModal({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
           {children}
