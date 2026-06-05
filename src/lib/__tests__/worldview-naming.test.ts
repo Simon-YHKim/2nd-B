@@ -6,7 +6,7 @@ import { PERSONAS, personaIds } from "@/lib/chat/personas";
 import { CHARACTERS, CHARACTER_ORDER } from "@/lib/characters";
 import { VILLAGE_LABEL, VILLAGE_IDS } from "@/lib/graph/relatedness";
 
-const OLD_NAMES = ["Gadi", "Lulu", "Lumi", "Archi", "Vela", "Iris", "가디", "루루", "루미", "아치", "벨라", "아이리스"];
+const OLD_NAMES = ["Gadi", "Lulu", "Lumi", "Archi", "Vela", "가디", "루루", "루미", "아치", "벨라"];
 
 describe("worldview v-final naming", () => {
   test("Vela is fully retired from personas + characters", () => {
@@ -29,7 +29,7 @@ describe("worldview v-final naming", () => {
     expect(PERSONAS.gadi.name.en).toBe("Relia");
     expect(PERSONAS.lulu.name.en).toBe("Lumen");
     expect(PERSONAS.momo.name.en).toBe("Foreman Momo");
-    expect(PERSONAS.lumi.name.en).toBe("Lumina");
+    expect(PERSONAS.lumi.name.en).toBe("Iris");
     expect(PERSONAS.archi.name.en).toBe("Archon");
     expect(PERSONAS.secondb.name.en).toBe("SecondB");
   });
