@@ -60,11 +60,21 @@ const STRINGS = {
   },
 } as const;
 
+// Allowlist (fail-closed) of frontmatter keys safe to send to an external LLM.
+// Arbitrary clipper frontmatter (geolocation, tracking-token URLs, private
+// notes) is dropped by default; add a key here only after confirming it is safe
+// to egress. Replaces the prior underscore-denylist, which failed open: any
+// non-`_`-prefixed internal/private key leaked into the exported bundle.
+const EXPORT_SAFE_FRONTMATTER_KEYS = new Set([
+  "title", "summary", "summary_en", "summary_ko",
+  "aliases", "description", "lang", "category", "author", "published",
+]);
+
 function formatPage(page: WikiPageRow, bodyCharLimit: number | undefined, locale: "en" | "ko"): string {
-  // Drop internal frontmatter keys (underscore-prefixed, e.g. _body_fallback)
-  // so storage/internal markers never leak into the exported LLM context.
+  // Keep ONLY export-safe frontmatter keys (allowlist, fail-closed) so no
+  // internal/private clipper frontmatter leaks into the exported LLM context.
   const publicFrontmatter = Object.fromEntries(
-    Object.entries(page.frontmatter ?? {}).filter(([k]) => !k.startsWith("_")),
+    Object.entries(page.frontmatter ?? {}).filter(([k]) => EXPORT_SAFE_FRONTMATTER_KEYS.has(k)),
   );
   const headerFrontmatter = {
     slug: page.slug,

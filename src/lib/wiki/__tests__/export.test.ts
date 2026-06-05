@@ -130,4 +130,28 @@ describe("composeWikiExport", () => {
     const r = composeWikiExport([page({ slug: "foo-bar" })], [], {});
     expect(r.prompt).toMatch(/### \[\[foo-bar\]\]/);
   });
+
+  test("frontmatter allowlist drops non-safe keys (no PII/internal leak to the LLM bundle)", () => {
+    const r = composeWikiExport(
+      [
+        page({
+          slug: "p",
+          frontmatter: {
+            title: "Safe Title",
+            _body_fallback: "internal",
+            geolocation: "37.5665,126.9780",
+            trackingUrl: "https://t.co/abc?utm_source=x",
+            privateNote: "secret",
+          },
+        }),
+      ],
+      [],
+      {},
+    );
+    expect(r.prompt).toContain("title: Safe Title"); // allowlisted key kept
+    expect(r.prompt).not.toContain("geolocation");
+    expect(r.prompt).not.toContain("trackingUrl");
+    expect(r.prompt).not.toContain("privateNote");
+    expect(r.prompt).not.toContain("_body_fallback");
+  });
 });
