@@ -51,7 +51,7 @@ describe("createPrivacySaveQueue — external analytics opt-out monotonicity", (
     expect(applied[applied.length - 1]).toBe(false);
   });
 
-  test("a failed save does not re-enable analytics during optimistic revert", async () => {
+  test("a failed opt-in never enables analytics (no reconcile on failure)", async () => {
     let analyticsOn = false;
     const applied: boolean[] = [];
     const queue = createPrivacySaveQueue({
@@ -59,7 +59,7 @@ describe("createPrivacySaveQueue — external analytics opt-out monotonicity", (
       latestAnalyticsOn: () => analyticsOn,
     });
 
-    // User flips it on, but the save fails and the revert puts latest back to false.
+    // User flips it on, but the save fails and the optimistic revert puts it off.
     analyticsOn = true;
     queue.submit({
       save: () => Promise.reject(new Error("db down")),
@@ -71,6 +71,32 @@ describe("createPrivacySaveQueue — external analytics opt-out monotonicity", (
 
     await queue.idle();
     await flush();
+    // A failed write must never turn analytics on.
+    expect(applied).not.toContain(true);
+  });
+
+  test("a failed opt-out keeps analytics off (revert must not re-enable it)", async () => {
+    let analyticsOn = true; // currently on (a trusted load established consent)
+    const applied: boolean[] = [];
+    const queue = createPrivacySaveQueue({
+      applyAnalyticsConsent: (on) => applied.push(on),
+      latestAnalyticsOn: () => analyticsOn,
+    });
+
+    // User opts OUT, but the save fails and the optimistic revert flips the pref
+    // back on. The opt-out must still stick at the analytics gate.
+    analyticsOn = false; // optimistic local opt-out
+    queue.submit({
+      save: () => Promise.reject(new Error("db down")),
+      optOut: true,
+      onError: () => {
+        analyticsOn = true; // revert flips the pref back on
+      },
+    });
+
+    await queue.idle();
+    await flush();
+    // The immediate opt-out applied false; the failed save + revert must not re-enable.
     expect(applied).not.toContain(true);
     expect(applied[applied.length - 1]).toBe(false);
   });

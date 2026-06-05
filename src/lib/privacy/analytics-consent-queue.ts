@@ -3,11 +3,12 @@
 //
 //   1. Opt-out is immediate. The moment the user turns external_analytics off,
 //      the analytics gate is set false synchronously, before any save resolves.
-//   2. No stale completion can re-enable analytics. After each save settles (a
-//      success OR a handled failure-revert) the gate is reconciled from the
-//      LATEST committed pref, never the value captured when the save was queued.
-//      So an older in-flight save finishing after a newer opt-out cannot flip
-//      analytics back on.
+//   2. No stale OR failed completion can re-enable analytics. On a SUCCESSFUL
+//      save the gate reconciles from the LATEST committed pref (never the value
+//      captured when the save was queued), so an older in-flight save can't flip
+//      analytics back on. A FAILED save never reconciles the gate, so a failed
+//      opt-out's optimistic revert (which flips the pref back on) cannot re-enable
+//      it either. Consent turns ON only via a successful opt-in or a trusted load.
 //
 // Saves are chained so the whole-object writes (savePrivacyPrefs replaces the
 // entire privacy_prefs object) land in submission order. Extracted from
@@ -47,12 +48,15 @@ export function createPrivacySaveQueue(deps: PrivacySaveQueueDeps): PrivacySaveQ
         .then(async () => {
           try {
             await save();
+            // (2a) On SUCCESS reconcile from the LATEST committed pref, never a
+            // stale captured value, so an older completion applies current state.
+            deps.applyAnalyticsConsent(deps.latestAnalyticsOn());
           } catch {
+            // (2b) On FAILURE never reconcile the gate: a failed opt-out's
+            // optimistic revert flips the pref back on, but the immediate opt-out
+            // above keeps analytics off. A failed write must not re-enable consent.
             onError();
           }
-          // (2) Reconcile from the LATEST committed pref (post success or revert),
-          // never a stale captured value.
-          deps.applyAnalyticsConsent(deps.latestAnalyticsOn());
         });
     },
     idle() {
