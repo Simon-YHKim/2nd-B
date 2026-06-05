@@ -186,12 +186,22 @@ export default function Landing() {
       return;
     }
     entryFlourishPlayed = true;
-    Animated.timing(entryProgress, {
+    // PERF P2: entryProgress only drives transform (logoScale) and opacity
+    // (logoOpacity, contentOpacity) — no layout or color — so it runs on the
+    // native (UI) thread instead of the JS thread, removing startup jank on
+    // low-end devices. The animation plays once per session and naturally
+    // settles at toValue 1, so there is no loop to stop and nothing to clean
+    // up on unmount.
+    const flourish = Animated.timing(entryProgress, {
       toValue: 1,
       duration: 750,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
+      useNativeDriver: true,
+    });
+    flourish.start();
+    return () => {
+      flourish.stop();
+    };
   }, [entryProgress]);
 
   const logoScale = entryProgress.interpolate({ inputRange: [0, 1], outputRange: [4, 2] });
@@ -404,7 +414,10 @@ export default function Landing() {
           hitSlop={8}
           style={{ flex: 1 }}
         >
-          <Text style={styles.insightEyebrow}>
+          {/* KO "오늘의 중심" reads worse when tracked + uppercased, so KO drops
+              tracking to 0 and stays sentence-case; EN keeps the stylized
+              uppercase eyebrow. */}
+          <Text style={[styles.insightEyebrow, locale === "ko" ? styles.insightEyebrowKo : styles.insightEyebrowEn]}>
             {locale === "ko" ? "오늘의 중심" : "Today's center"}
           </Text>
           <Text style={styles.insightText} numberOfLines={2}>
@@ -552,12 +565,21 @@ const styles = StyleSheet.create({
   },
   insightEyebrow: {
     color: cosmic.signalMint,
-    fontSize: 11,
-    letterSpacing: 1.5,
+    // KO "오늘의 중심" must stay legible: keep >=12px. Tracking + uppercase are
+    // applied per-locale below so the Korean label is not over-spaced.
+    fontSize: 12,
     fontWeight: "700",
-    textTransform: "uppercase",
     marginBottom: 4,
     fontFamily: fontFamilies.sans,
+  },
+  // KO: no tracking, no uppercase — keeps Hangul legible.
+  insightEyebrowKo: {
+    letterSpacing: 0,
+  },
+  // EN: stylized uppercase eyebrow with light tracking.
+  insightEyebrowEn: {
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
   },
   insightText: {
     color: cosmic.moonWhite,

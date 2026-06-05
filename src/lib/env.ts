@@ -68,6 +68,25 @@ const schema = z.object({
     .union([z.literal("true"), z.literal("false")])
     .default("false")
     .transform((v) => v === "true"),
+  // Supabase-native social providers (Google / Apple / Kakao). Each must be
+  // configured in the Supabase dashboard (client id/secret + redirect URL) to
+  // actually work; these flags only control whether the app SHOWS the button.
+  // Default "true" (opt-out) preserves the prior unconditional buttons; set a
+  // provider to "false" on a deploy where it is not configured so users do not
+  // see a dead button. Sign-in also auto-hides a provider for the session if its
+  // OAuth start fails with a "provider not enabled" error.
+  EXPO_PUBLIC_ENABLE_GOOGLE: z
+    .union([z.literal("true"), z.literal("false")])
+    .default("true")
+    .transform((v) => v === "true"),
+  EXPO_PUBLIC_ENABLE_APPLE: z
+    .union([z.literal("true"), z.literal("false")])
+    .default("true")
+    .transform((v) => v === "true"),
+  EXPO_PUBLIC_ENABLE_KAKAO: z
+    .union([z.literal("true"), z.literal("false")])
+    .default("true")
+    .transform((v) => v === "true"),
   GOOGLE_CLOUD_PROJECT: z.string().optional(),
   GOOGLE_CLOUD_LOCATION: z.string().default("us-central1"),
   // GOOGLE_API_KEY without EXPO_PUBLIC_ is server-side only (native / Edge
@@ -125,6 +144,9 @@ function readRaw(): Record<string, string | undefined> {
   const useV3Art = process.env.EXPO_PUBLIC_USE_V3_ART;
   const naverClientId = process.env.EXPO_PUBLIC_NAVER_CLIENT_ID;
   const enableNaver = process.env.EXPO_PUBLIC_ENABLE_NAVER;
+  const enableGoogle = process.env.EXPO_PUBLIC_ENABLE_GOOGLE;
+  const enableApple = process.env.EXPO_PUBLIC_ENABLE_APPLE;
+  const enableKakao = process.env.EXPO_PUBLIC_ENABLE_KAKAO;
   const publicGoogleKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
   const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY;
   const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST;
@@ -154,6 +176,9 @@ function readRaw(): Record<string, string | undefined> {
     EXPO_PUBLIC_USE_V3_ART: useV3Art,
     EXPO_PUBLIC_NAVER_CLIENT_ID: naverClientId,
     EXPO_PUBLIC_ENABLE_NAVER: enableNaver,
+    EXPO_PUBLIC_ENABLE_GOOGLE: enableGoogle,
+    EXPO_PUBLIC_ENABLE_APPLE: enableApple,
+    EXPO_PUBLIC_ENABLE_KAKAO: enableKakao,
     GOOGLE_CLOUD_PROJECT: proc.GOOGLE_CLOUD_PROJECT,
     GOOGLE_CLOUD_LOCATION: proc.GOOGLE_CLOUD_LOCATION,
     // Prefer the inlined EXPO_PUBLIC_ variant when present (Web), fall back

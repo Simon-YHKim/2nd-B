@@ -73,7 +73,18 @@ export default function Audit() {
         setIndex(index + 1);
       }
     } catch (e) {
-      Alert.alert("Save failed", (e as Error).message);
+      // Raw error stays in logs only; users see product-tone copy + retry.
+      console.warn("[audit] save failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "답변을 저장하지 못했어요" : "Couldn't save your answer",
+        locale === "ko"
+          ? "잠깐 문제가 생겼어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
+          : "Something interrupted the save. Your answer is still here, so please try again.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void handleNext() },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
+      );
     } finally {
       setSubmitting(false);
     }

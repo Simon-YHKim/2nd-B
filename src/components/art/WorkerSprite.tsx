@@ -49,20 +49,41 @@ let listeners = new Set<(t: number) => void>();
 let timer: ReturnType<typeof setInterval> | null = null;
 function ensureTicker() {
   if (timer) return;
+  // Don't spin up the interval while backgrounded; the AppState listener
+  // below restarts it on the next "active" transition. Treat unknown/null
+  // (cold-start before the first AppState event) as runnable so workers are
+  // not frozen on the first landing render.
+  if (AppState.currentState === "background" || AppState.currentState === "inactive") return;
   timer = setInterval(() => {
-    if (AppState.currentState !== "active") return;
+    if (AppState.currentState === "background" || AppState.currentState === "inactive") return; // belt-and-suspenders
     const now = Date.now();
     listeners.forEach((l) => l(now));
   }, FRAME_MS);
 }
+function stopTicker() {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+}
+// Module-level AppState listener (set up once, since the ticker is global and
+// shared by every sprite): kill the setInterval timer entirely while
+// backgrounded/inactive so it stops draining CPU/battery, and rebuild it when
+// the app returns to foreground — but only if any sprite is still subscribed.
+AppState.addEventListener("change", (state) => {
+  if (state === "active") {
+    if (listeners.size > 0) ensureTicker();
+  } else {
+    stopTicker();
+  }
+});
 function subscribe(fn: (t: number) => void): () => void {
   listeners.add(fn);
   ensureTicker();
   return () => {
     listeners.delete(fn);
-    if (listeners.size === 0 && timer) {
-      clearInterval(timer);
-      timer = null;
+    if (listeners.size === 0) {
+      stopTicker();
     }
   };
 }

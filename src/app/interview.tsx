@@ -105,6 +105,39 @@ export default function Interview() {
     ]);
   }
 
+  // Runs the LLM probe against the turns/coverage already committed to state.
+  // Split out so a failed probe can be retried without re-submitting the draft
+  // (the user's answer is already in `turns` by the time this runs).
+  async function requestNextProbe(turnsSoFar: InterviewTurn[], coverageSoFar: Coverage) {
+    if (!userId || !period) return;
+    setThinking(true);
+    try {
+      const probe = await nextProbe(userId, locale, period, turnsSoFar, coverageSoFar, isMinor === true);
+      setTurns((prev) => [
+        ...prev,
+        { role: "interviewer", text: probe.question, period, layer: probe.layer },
+      ]);
+      setPendingLayer(probe.layer);
+    } catch (e) {
+      console.warn("[interview] next probe failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "다음 질문을 못 불러왔어요" : "Couldn't load the next question",
+        locale === "ko"
+          ? "잠시 연결이 흔들렸어요. 방금 답변은 그대로 있으니 다시 시도하면 이어서 물어볼게요."
+          : "The connection hiccuped for a moment. Your answer is safe. Try again and we'll pick up where we left off.",
+        [
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+          {
+            text: locale === "ko" ? "다시 시도" : "Retry",
+            onPress: () => void requestNextProbe(turnsSoFar, coverageSoFar),
+          },
+        ],
+      );
+    } finally {
+      setThinking(false);
+    }
+  }
+
   async function handleAnswer() {
     if (!userId || !period || !draft.trim() || thinking) return;
 
@@ -130,22 +163,7 @@ export default function Interview() {
       return;
     }
 
-    setThinking(true);
-    try {
-      const probe = await nextProbe(userId, locale, period, updatedTurns, updatedCoverage, isMinor === true);
-      setTurns((prev) => [
-        ...prev,
-        { role: "interviewer", text: probe.question, period, layer: probe.layer },
-      ]);
-      setPendingLayer(probe.layer);
-    } catch (e) {
-      Alert.alert(
-        locale === "ko" ? "다음 질문 실패" : "Next probe failed",
-        (e as Error).message,
-      );
-    } finally {
-      setThinking(false);
-    }
+    await requestNextProbe(updatedTurns, updatedCoverage);
   }
 
   async function handleSave() {
@@ -186,7 +204,17 @@ export default function Interview() {
       );
       router.replace("/persona");
     } catch (e) {
-      Alert.alert(locale === "ko" ? "저장 실패" : "Save failed", (e as Error).message);
+      console.warn("[interview] save failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "저장하지 못했어요" : "Couldn't save",
+        locale === "ko"
+          ? "인터뷰 내용은 화면에 그대로 남아 있어요. 잠시 후 다시 저장해 주세요."
+          : "Your interview is still here on the screen. Give it another try in a moment.",
+        [
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+          { text: locale === "ko" ? "다시 저장" : "Try again", onPress: () => void handleSave() },
+        ],
+      );
     } finally {
       setSaving(false);
     }

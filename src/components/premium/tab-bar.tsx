@@ -1,6 +1,6 @@
 // Premium bottom tab bar (A-to-Z premium pass — bottom navigator, enabled
 // per user directive 2026-05-29; supersedes the earlier "no bottom nav"
-// rule). Five primary village destinations on a glassy dark bar with a mint
+// rule). Four primary village destinations on a glassy dark bar with a mint
 // top-glow. Shows only on the primary routes; deeper screens keep the
 // top-left BackArrow. Pixel-style SVG glyphs (no emoji), mint when active.
 
@@ -13,11 +13,12 @@ import { Text } from "@/components/ui/Text";
 import { cosmic, spacing } from "@/lib/theme/tokens";
 import { PRIMARY_TAB_PATHS } from "@/lib/nav/tabs";
 
-// Menu restructure Phase 3 (2026-05-31): the five tabs are now the VISION
-// 3-axis IA — 그래프 / 담기 / 세컨비 / 공상 / 나. The old explore(/core-brain),
+// Menu restructure Phase 3 (2026-05-31): the four tabs are now the VISION
+// 3-axis IA - 그래프 / 담기 / 세컨비 / 나. The old explore(/core-brain),
 // records(/records) and store(/wiki) tabs were removed: core-brain folds into
 // the 나 hub (Phase 5), wiki + records are reached through the graph villages
-// (Phase 4 routes a village to its records domain filter).
+// (Phase 4 routes a village to its records domain filter). 공상(divergent) is
+// a mode inside 세컨비, not its own tab.
 type TabId = "graph" | "capture" | "jarvis" | "profile";
 
 interface Tab {

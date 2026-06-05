@@ -35,6 +35,9 @@ export default function Account() {
   const { t, i18n } = useTranslation("consent");
   const { userId, loading } = useAuth();
   const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
+  // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
+  // the light caption tracking.
+  const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.5 };
 
   const [origDob, setOrigDob] = useState<string | null>(null);
   const [birthDate, setBirthDate] = useState("");
@@ -77,11 +80,56 @@ export default function Account() {
         setDobSaved(true);
       }
     } catch (e) {
-      Alert.alert(t("account.dob.saveFailed"), (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[account] dob save failed", (e as Error).message);
+      Alert.alert(
+        t("account.dob.saveFailed"),
+        locale === "ko"
+          ? "생일을 저장하지 못했어요. 잠시 후 다시 시도해 주세요."
+          : "We couldn't save your birth date. Please try again in a moment.",
+        [
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+          { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => { void onSaveDob(); } },
+        ],
+      );
     } finally {
       if (mounted.current) setDobBusy(false);
     }
-  }, [userId, origDob, birthDate, t]);
+  }, [userId, origDob, birthDate, t, locale]);
+
+  const runDeleteAccount = useCallback(() => {
+    if (!userId) return;
+    void (async () => {
+      setDeleting(true);
+      try {
+        // Best-effort client wipe first (clears the bulk of PII), then the
+        // terminal service-role cascade (the auth row + RLS-protected tables
+        // the client cannot reach). requestAccountDeletion() throws unless
+        // the edge function confirms { deleted: true }.
+        await deleteAllUserData(userId);
+        await requestAccountDeletion();
+        await signOut();
+        router.replace("/sign-in");
+      } catch (e) {
+        // Either step failed (incl. a deployed-but-5xx terminal cascade). Do
+        // NOT sign out with a false "deleted" confirmation while the account
+        // row / RLS-protected data may still remain. Keep the user on screen
+        // with an actionable error so they can retry or reach support (the
+        // C11 2-business-day backstop). Erasure is terminal only on success.
+        if (typeof console !== "undefined") console.warn("[account] deletion failed", (e as Error).message);
+        Alert.alert(
+          t("account.delete.failed"),
+          locale === "ko"
+            ? "계정을 삭제하지 못했어요. 데이터는 그대로 남아 있어요. 다시 시도하거나 잠시 후 지원팀에 문의해 주세요."
+            : "We couldn't delete your account. Your data is still intact. Please try again, or contact support in a moment.",
+          [
+            { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+            { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => { runDeleteAccount(); } },
+          ],
+        );
+        if (mounted.current) setDeleting(false);
+      }
+    })();
+  }, [userId, t, locale]);
 
   const onDeleteAccount = useCallback(() => {
     if (!userId) return;
@@ -90,33 +138,10 @@ export default function Account() {
       {
         text: t("account.delete.confirmCta"),
         style: "destructive",
-        onPress: () => {
-          void (async () => {
-            setDeleting(true);
-            try {
-              // Best-effort client wipe first (clears the bulk of PII), then the
-              // terminal service-role cascade (the auth row + RLS-protected tables
-              // the client cannot reach). requestAccountDeletion() throws unless
-              // the edge function confirms { deleted: true }.
-              await deleteAllUserData(userId);
-              await requestAccountDeletion();
-              await signOut();
-              router.replace("/sign-in");
-            } catch (e) {
-              // Either step failed (incl. a deployed-but-5xx terminal cascade). Do
-              // NOT sign out with a false "deleted" confirmation while the account
-              // row / RLS-protected data may still remain — keep the user on screen
-              // with an actionable error so they can retry or reach support (the
-              // C11 2-business-day backstop). Erasure is terminal only on success.
-              if (typeof console !== "undefined") console.warn("[account] deletion failed", (e as Error).message);
-              Alert.alert(t("account.delete.failed"), (e as Error).message);
-              if (mounted.current) setDeleting(false);
-            }
-          })();
-        },
+        onPress: () => { runDeleteAccount(); },
       },
     ]);
-  }, [userId, t]);
+  }, [userId, t, runDeleteAccount]);
 
   if (loading) {
     return (
@@ -146,7 +171,7 @@ export default function Account() {
 
         {/* DOB correction */}
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
-          <Text variant="caption" color="brand" style={styles.eyebrow}>
+          <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
             {t("account.dob.label")}
           </Text>
           <Text variant="subtle" color="textMuted">
@@ -169,7 +194,7 @@ export default function Account() {
 
         {/* Privacy & consent controls */}
         <View style={[styles.section, { borderLeftColor: cosmic.signalMint }]}>
-          <Text variant="caption" color="brand" style={styles.eyebrow}>
+          <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
             {t("account.privacy.label")}
           </Text>
           <Text variant="subtle" color="textMuted">
@@ -184,7 +209,7 @@ export default function Account() {
 
         {/* Danger zone: delete account */}
         <View style={[styles.section, { borderLeftColor: semantic.danger }]}>
-          <Text variant="caption" color="danger" style={styles.eyebrow}>
+          <Text variant="caption" color="danger" style={[styles.eyebrow, eyebrowTracking]}>
             {t("account.delete.label")}
           </Text>
           <Text variant="subtle" color="textMuted">
@@ -232,5 +257,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
-  eyebrow: { letterSpacing: 1, fontWeight: "700" },
+  // Tracking is applied per-locale (eyebrowTracking) so KO labels are not
+  // over-spaced (caption is 14px); EN keeps the light caption tracking.
+  eyebrow: { fontWeight: "700" },
 });

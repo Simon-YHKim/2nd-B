@@ -80,7 +80,17 @@ export default function Attachment() {
       });
       setSaved(true);
     } catch (e) {
-      Alert.alert(locale === "ko" ? "저장 실패" : "Save failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[attachment] save failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "저장 실패" : "Save failed",
+        locale === "ko"
+          ? "검사 결과를 저장하지 못했어요. 답변은 그대로 남아 있어요. 잠시 후 다시 시도해 주세요."
+          : "We couldn't save your results. Your answers are still here. Please try again in a moment.",
+        [
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+          { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => { void handleSubmit(); } },
+        ],
+      );
     } finally {
       setSubmitting(false);
     }
@@ -159,7 +169,7 @@ export default function Attachment() {
                           key={v}
                           onPress={() => setResponse(item.id, v)}
                           style={[styles.scaleBtn, active && styles.scaleBtnActive]}
-                          hitSlop={2}
+                          hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
                         >
                           <Text variant="caption" color={active ? "background" : "textMuted"}>
                             {v}

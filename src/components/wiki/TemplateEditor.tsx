@@ -297,7 +297,7 @@ function SelectRow<T extends string>({
           <Pressable
             key={opt}
             onPress={() => onSelect(opt)}
-            hitSlop={2}
+            hitSlop={8}
             style={[styles.selChip, active && styles.selChipActive]}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
@@ -344,7 +344,7 @@ function TagField({
           key={t}
           onPress={() => onChange(values.filter((x) => x !== t))}
           style={styles.tagChip}
-          hitSlop={2}
+          hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={locale === "ko" ? `${t} 삭제` : `Remove ${t}`}
         >

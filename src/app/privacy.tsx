@@ -32,6 +32,9 @@ export default function Privacy() {
   const { userId, isMinor, loading } = useAuth();
   const minor = isMinor === true;
   const locale = i18n.language === "ko" ? "ko" : "en";
+  // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
+  // the light caption tracking.
+  const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.5 };
 
   const [prefs, setPrefs] = useState<PrivacyPrefs>(defaultPrivacyPrefs());
   const [ready, setReady] = useState(false);
@@ -127,7 +130,7 @@ export default function Privacy() {
         ) : null}
 
         <View style={styles.section}>
-          <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
+          <Text variant="caption" color="brand" style={[styles.sectionEyebrow, eyebrowTracking]}>
             {t("privacy.sectionLabel")}
           </Text>
           {PRIVACY_PREF_KEYS.map((key) => {
@@ -188,7 +191,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.md,
   },
-  sectionEyebrow: { letterSpacing: 1, fontWeight: "700" },
+  // Tracking is applied per-locale (eyebrowTracking) so the KO section label is
+  // not over-spaced (caption is 14px); EN keeps the light caption tracking.
+  sectionEyebrow: { fontWeight: "700" },
   prefRow: {
     flexDirection: "row",
     alignItems: "center",

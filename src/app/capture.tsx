@@ -179,6 +179,9 @@ export default function Capture() {
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
+  // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
+  // the light caption tracking.
+  const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.3 };
 
   const [mode, setMode] = useState<Mode>("journal");
   const [track, setTrack] = useState<WikiTrack>("daily");
@@ -291,9 +294,16 @@ export default function Capture() {
       setPickedImage(img);
       setBody(""); // clear any prior extraction; the user presses 추출하기 to fill
     } catch (e) {
+      if (typeof console !== "undefined") console.warn("[capture] image pick failed", (e as Error).message);
       Alert.alert(
-        locale === "ko" ? "이미지 선택 실패" : "Image pick failed",
-        (e as Error).message,
+        locale === "ko" ? "이미지를 불러오지 못했어요" : "Couldn't open that image",
+        locale === "ko"
+          ? "이미지를 가져오는 데 실패했어요. 잠시 후 다시 시도해 주세요."
+          : "We couldn't pull that image in. Please try again in a moment.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void pickImage(source) },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
       );
     }
   }
@@ -305,9 +315,16 @@ export default function Capture() {
       const md = await ocrImageAsset(userId, locale, pickedImage, isMinor === true);
       setBody(md);
     } catch (e) {
+      if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
       Alert.alert(
-        locale === "ko" ? "이미지 읽기 실패" : "OCR failed",
-        (e as Error).message,
+        locale === "ko" ? "글자를 읽지 못했어요" : "Couldn't read the text",
+        locale === "ko"
+          ? "이미지에서 글자를 읽어 오지 못했어요. 더 또렷한 사진으로 다시 시도해 보세요."
+          : "We couldn't read the text from that image. Try again with a clearer photo.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void runExtract() },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
       );
     } finally {
       setExtracting(false);
@@ -321,9 +338,16 @@ export default function Capture() {
       setPickedFile(f);
       if (f.textContent) setBody(f.textContent);
     } catch (e) {
+      if (typeof console !== "undefined") console.warn("[capture] file pick failed", (e as Error).message);
       Alert.alert(
-        locale === "ko" ? "파일 열기 실패" : "File pick failed",
-        (e as Error).message,
+        locale === "ko" ? "파일을 열지 못했어요" : "Couldn't open that file",
+        locale === "ko"
+          ? "파일을 불러오는 데 실패했어요. 다른 파일을 고르거나 잠시 후 다시 시도해 주세요."
+          : "We couldn't open that file. Pick another one or try again in a moment.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void runFilePick() },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
       );
     }
   }
@@ -383,7 +407,17 @@ export default function Capture() {
         })
         .catch(() => {});
     } catch (e) {
-      Alert.alert(locale === "ko" ? "저장 실패" : "Save failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] journal save failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "기록을 저장하지 못했어요" : "Couldn't save your entry",
+        locale === "ko"
+          ? "오늘의 조각을 저장하지 못했어요. 쓴 내용은 그대로 남아 있어요. 다시 시도해 주세요."
+          : "We couldn't save today's piece. What you wrote is still here. Please try again.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void handleJournalSubmit() },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
+      );
     } finally {
       setSubmitting(false);
     }
@@ -464,9 +498,16 @@ export default function Capture() {
         setProposalCtx({ content: finalBody, url: fallbackUrl });
       }
     } catch (e) {
+      if (typeof console !== "undefined") console.warn("[capture] capture save failed", (e as Error).message);
       Alert.alert(
-        locale === "ko" ? "저장 실패" : "Save failed",
-        (e as Error).message,
+        locale === "ko" ? "조각을 담지 못했어요" : "Couldn't save your piece",
+        locale === "ko"
+          ? "마을로 보내지 못했어요. 입력한 내용은 그대로 남아 있어요. 다시 시도해 주세요."
+          : "We couldn't send it to the village. What you entered is still here. Please try again.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void handleSubmit() },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
       );
     } finally {
       setSubmitting(false);
@@ -491,7 +532,17 @@ export default function Capture() {
       }
       setProposal(p);
     } catch (e) {
-      Alert.alert(locale === "ko" ? "제안 실패" : "Proposal failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] format propose failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "형식을 제안하지 못했어요" : "Couldn't draft a format",
+        locale === "ko"
+          ? "새 형식을 만드는 데 실패했어요. 잠시 후 다시 시도해 주세요."
+          : "We couldn't draft a new format right now. Please try again in a moment.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void runPropose() },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
+      );
     } finally {
       setProposing(false);
     }
@@ -525,7 +576,17 @@ export default function Capture() {
             : "Saved as your personal format.",
       );
     } catch (e) {
-      Alert.alert(locale === "ko" ? "형식 저장 실패" : "Save format failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] format save failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "형식을 저장하지 못했어요" : "Couldn't save the format",
+        locale === "ko"
+          ? "새 형식을 저장하지 못했어요. 제안은 그대로 남아 있어요. 다시 시도해 주세요."
+          : "We couldn't save the new format. Your proposal is still here. Please try again.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void saveProposed(share) },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
+      );
     }
   }
 
@@ -579,7 +640,7 @@ export default function Capture() {
                 <Text variant="body" color="brand">{formatSavedMsg}</Text>
               ) : proposal ? (
                 <View style={{ gap: spacing.xs }}>
-                  <Text variant="caption" color="brand" style={styles.eyebrow}>
+                  <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
                     {locale === "ko" ? "새 형식 제안" : "Proposed new format"}
                   </Text>
                   <Text variant="body" style={{ fontWeight: "600" }}>
@@ -647,7 +708,7 @@ export default function Capture() {
           {/* Track toggle: 일상 / Pro — only for capture modes (not journal). */}
           {mode !== "journal" ? (
           <View style={styles.trackCard}>
-            <Text variant="caption" color="brand" style={styles.eyebrow}>
+            <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
               {locale === "ko" ? "어디로 갈까요?" : "Which wiki?"}
             </Text>
             <View style={styles.trackRow}>
@@ -687,7 +748,7 @@ export default function Capture() {
                     // the memo/file box (2026-05-31 directive: inputs feel shared).
                     reset();
                   }}
-                  hitSlop={2}
+                  hitSlop={8}
                 >
                   <ModeGlyph mode={m} color={color} />
                   <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
@@ -711,7 +772,7 @@ export default function Capture() {
           ) : null}
           {mode === "journal" && !progression.loading && !journalGate.unlocked ? (
             <View style={styles.gateCard}>
-              <Text variant="subtle" color="brand" style={styles.gateEyebrow}>
+              <Text variant="subtle" color="brand" style={[styles.gateEyebrow, eyebrowTracking]}>
                 {locale === "ko" ? "일기 잠김" : "Journal locked"}
               </Text>
               <Text variant="body" style={{ marginTop: spacing.xs }}>
@@ -735,16 +796,18 @@ export default function Capture() {
           ) : null}
           {mode === "journal" && !progression.loading && journalGate.unlocked && !journalUsage.allowed ? (
             <View style={styles.limitCard}>
-              <Text variant="subtle" color="warning" style={styles.gateEyebrow}>
-                {locale === "ko" ? "무료 한도 도달" : "Free limit reached"}
+              <Text variant="subtle" color="warning" style={[styles.gateEyebrow, eyebrowTracking]}>
+                {locale === "ko" ? "무료 일기를 다 썼어요" : "Free journal entries used up"}
               </Text>
               <Text variant="body" style={{ marginTop: spacing.xs }}>
                 {locale === "ko"
-                  ? `무료 일기 ${journalUsage.limit}회를 모두 사용했어요. Soma 구독부터 일기를 무제한으로 쓸 수 있어요.`
-                  : `You have used all ${journalUsage.limit} free journal entries. The Soma plan and up unlock unlimited journaling.`}
+                  ? `무료로 쓸 수 있는 일기 ${journalUsage.limit}편을 모두 작성했어요. 지금까지 쓴 일기는 그대로 남아 있고, 언제든 다시 읽을 수 있어요.`
+                  : `You have written all ${journalUsage.limit} free journal entries. Everything you have written so far stays, and you can reread it anytime.`}
               </Text>
               <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
-                {locale === "ko" ? "구독 화면은 곧 추가됩니다." : "The subscription screen is coming soon."}
+                {locale === "ko"
+                  ? "메모 · 링크 · 문서 · 사진 담기는 한도 없이 계속 쓸 수 있어요."
+                  : "Memo, link, file, and photo capture stay open with no limit."}
               </Text>
             </View>
           ) : null}
@@ -765,7 +828,7 @@ export default function Capture() {
                 </View>
               ) : null}
               <View style={styles.dailyPromptCard}>
-                <Text variant="caption" color="brand" style={{ letterSpacing: 1.2 }}>
+                <Text variant="caption" color="brand" style={{ letterSpacing: locale === "ko" ? 0.3 : 1.2 }}>
                   {locale === "ko" ? "오늘의 성찰 질문" : "Today's reflection prompt"}
                 </Text>
                 <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }} selectable>
@@ -957,7 +1020,7 @@ export default function Capture() {
             </Text>
             <View style={styles.tagRow}>
               {tagsEditable.map((t) => (
-                <Pressable key={t} onPress={() => removeTag(t)} style={styles.tagChip} hitSlop={2}>
+                <Pressable key={t} onPress={() => removeTag(t)} style={styles.tagChip} hitSlop={8}>
                   <Text style={styles.tagChipText}>#{t} ✕</Text>
                 </Pressable>
               ))}
@@ -1100,7 +1163,8 @@ const styles = StyleSheet.create({
   },
   advisorCheckOn: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   // 일기 gate cards (Lv3 lock / free-tier limit), ported from /journal.
-  gateEyebrow: { fontWeight: "700", letterSpacing: 1 },
+  // Tracking is applied per-locale (eyebrowTracking) so KO is not over-spaced.
+  gateEyebrow: { fontWeight: "700" },
   gateCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
@@ -1146,7 +1210,8 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     gap: spacing.xs,
   },
-  eyebrow: { letterSpacing: 1, fontWeight: "700" },
+  // Tracking is applied per-locale (eyebrowTracking) so KO is not over-spaced.
+  eyebrow: { fontWeight: "700" },
   trackRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   trackChip: {
     flex: 1,

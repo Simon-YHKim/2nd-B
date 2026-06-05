@@ -7,8 +7,8 @@
 // Renders meaningful loading / empty / error states so the route is never
 // blank, and can be reached directly via URL.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { View, StyleSheet, ScrollView, FlatList, Pressable, ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
@@ -40,6 +40,28 @@ const TYPE_ACCENT: Record<EvidenceType, string> = {
   audit: cosmic.soulViolet,
   imagine: cosmic.dreamPink,
 };
+
+// Memoized row so FlatList recycling does not re-render every visible card on
+// each keystroke / filter change. Renders ONLY the card (no per-item wrapper
+// View) — inter-card spacing is owned by the list separator, not the row.
+const ShardRow = memo(function ShardRow({ shard: s, locale }: { shard: OriginShard; locale: "en" | "ko" }) {
+  return (
+    <ReferenceShardCard
+      title={s.title}
+      meta={[s.dateLabel, evidenceTypeLabel(s.type, locale)].filter(Boolean).join(" · ")}
+      accent={TYPE_ACCENT[s.type]}
+      onPress={() =>
+        // `records`-origin shards open the record detail; `sources`-origin
+        // shards (capture / imagine) live in the wiki store, so open their
+        // wiki page instead of /record/[id] (which only reads the records
+        // table).
+        s.origin === "record"
+          ? router.push({ pathname: "/record/[id]", params: { id: s.id } })
+          : router.push(s.route)
+      }
+    />
+  );
+});
 
 export default function Records() {
   const { i18n } = useTranslation();
@@ -164,110 +186,124 @@ export default function Records() {
       ? (locale === "ko" ? "일기 · 담기 · 검사 · 영감까지 한곳에" : "Journal, capture, assessments, and inspiration in one place")
       : (locale === "ko" ? "이 Core에 모인 로그만 골라 봅니다" : "Only the logs gathered in this Core");
 
+  // Header (hero + search + type chips) lives above the virtualized list, so it
+  // scrolls with the rows instead of pinning. The map of type chips stays a
+  // horizontal ScrollView — only the long vertical records list is virtualized.
+  const listHeader = (
+    <View style={styles.headerInner}>
+      <SceneHero
+        eyebrow={heroEyebrow}
+        title={heroTitle}
+        subtitle={heroSubtitle}
+        island={villageUi.island}
+        worker={villageUi.worker}
+        accent={villageUi.accent}
+        speech={villageUi.speech[locale]}
+        onSwipeLeft={() => swipeVillage(1)}
+        onSwipeRight={() => swipeVillage(-1)}
+      />
+
+      <Input
+        value={query}
+        onChangeText={setQuery}
+        placeholder={locale === "ko" ? "조각 검색" : "Search pieces"}
+        accessibilityLabel={locale === "ko" ? "기록 검색" : "Search records"}
+      />
+
+      <Text variant="caption" color="textSubtle" style={styles.filterLabel}>
+        {locale === "ko" ? "종류" : "Type"}
+      </Text>
+      <ScrollView
+        horizontal
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipStrip}
+        contentContainerStyle={styles.chipRow}
+      >
+        {TYPE_FILTERS.map((tf) => {
+          const active = tf === typeFilter;
+          const label = tf === "all" ? (locale === "ko" ? "전체" : "All") : evidenceTypeLabel(tf, locale);
+          return (
+            <Pressable
+              key={tf}
+              onPress={() => setTypeFilter(tf)}
+              style={[styles.chip, active ? styles.chipActive : null]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+            >
+              <Text variant="caption" color={active ? "background" : "textMuted"}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+
+  // Busy / error / empty share the one ListEmptyComponent slot: when busy or
+  // error we feed FlatList an empty data array, so this is what renders. The
+  // empty copy itself still distinguishes "no pieces at all" from "filter has
+  // no match" via shards.length.
+  const listEmpty = busy ? (
+    <View style={styles.center}>
+      <ActivityIndicator color={semantic.brand} />
+    </View>
+  ) : error ? (
+    <View style={styles.stateBox}>
+      <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
+        {locale === "ko" ? "조각을 불러오지 못했어요." : "Couldn't load your pieces."}
+      </Text>
+      <Button label={locale === "ko" ? "다시 시도" : "Try again"} variant="secondary" onPress={reload} />
+    </View>
+  ) : (
+    <View style={styles.stateBox}>
+      <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
+        {shards.length === 0
+          ? locale === "ko"
+            ? "아직 남긴 조각이 없어요. 오늘의 조각을 하나 남겨볼까요?"
+            : "No pieces yet. Want to leave today's piece?"
+          : locale === "ko"
+            ? "조건에 맞는 조각이 없어요."
+            : "No pieces match that filter."}
+      </Text>
+      {shards.length === 0 ? (
+        <Button label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"} variant="primary" onPress={() => router.push("/capture")} />
+      ) : null}
+    </View>
+  );
+
   return (
     <PremiumAppShell>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <SceneHero
-          eyebrow={heroEyebrow}
-          title={heroTitle}
-          subtitle={heroSubtitle}
-          island={villageUi.island}
-          worker={villageUi.worker}
-          accent={villageUi.accent}
-          speech={villageUi.speech[locale]}
-          onSwipeLeft={() => swipeVillage(1)}
-          onSwipeRight={() => swipeVillage(-1)}
-        />
-
-        <Input
-          value={query}
-          onChangeText={setQuery}
-          placeholder={locale === "ko" ? "조각 검색" : "Search pieces"}
-          accessibilityLabel={locale === "ko" ? "기록 검색" : "Search records"}
-        />
-
-        <Text variant="caption" color="textSubtle" style={styles.filterLabel}>
-          {locale === "ko" ? "종류" : "Type"}
-        </Text>
-        <ScrollView
-          horizontal
-          nestedScrollEnabled
-          keyboardShouldPersistTaps="handled"
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipStrip}
-          contentContainerStyle={styles.chipRow}
-        >
-          {TYPE_FILTERS.map((tf) => {
-            const active = tf === typeFilter;
-            const label = tf === "all" ? (locale === "ko" ? "전체" : "All") : evidenceTypeLabel(tf, locale);
-            return (
-              <Pressable
-                key={tf}
-                onPress={() => setTypeFilter(tf)}
-                style={[styles.chip, active ? styles.chipActive : null]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-              >
-                <Text variant="caption" color={active ? "background" : "textMuted"}>{label}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        {busy ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={semantic.brand} />
-          </View>
-        ) : error ? (
-          <View style={styles.stateBox}>
-            <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
-              {locale === "ko" ? "조각을 불러오지 못했어요." : "Couldn't load your pieces."}
-            </Text>
-            <Button label={locale === "ko" ? "다시 시도" : "Try again"} variant="secondary" onPress={reload} />
-          </View>
-        ) : filtered.length === 0 ? (
-          <View style={styles.stateBox}>
-            <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
-              {shards.length === 0
-                ? locale === "ko"
-                  ? "아직 남긴 조각이 없어요. 오늘의 조각을 하나 남겨볼까요?"
-                  : "No pieces yet. Want to leave today's piece?"
-                : locale === "ko"
-                  ? "조건에 맞는 조각이 없어요."
-                  : "No pieces match that filter."}
-            </Text>
-            {shards.length === 0 ? (
-              <Button label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"} variant="primary" onPress={() => router.push("/capture")} />
-            ) : null}
-          </View>
-        ) : (
-          <View style={styles.list}>
-            {filtered.map((s) => (
-              <ReferenceShardCard
-                key={`${s.origin}:${s.id}`}
-                title={s.title}
-                meta={[s.dateLabel, evidenceTypeLabel(s.type, locale)].filter(Boolean).join(" · ")}
-                accent={TYPE_ACCENT[s.type]}
-                onPress={() =>
-                  // `records`-origin shards open the record detail; `sources`-
-                  // origin shards (capture / imagine) live in the wiki store,
-                  // so open their wiki page instead of /record/[id] (which
-                  // only reads the records table).
-                  s.origin === "record"
-                    ? router.push({ pathname: "/record/[id]", params: { id: s.id } })
-                    : router.push(s.route)
-                }
-              />
-            ))}
-          </View>
-        )}
-      </ScrollView>
+      <FlatList
+        data={busy || error ? [] : filtered}
+        keyExtractor={(s) => `${s.origin}:${s.id}`}
+        renderItem={({ item }) => <ShardRow shard={item} locale={locale} />}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
+        ItemSeparatorComponent={ListSeparator}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
+      />
     </PremiumAppShell>
   );
 }
 
+// Inter-card spacing now lives in the separator (previously styles.list gap),
+// so no per-item wrapper is needed and the gap stays consistent.
+function ListSeparator() {
+  return <View style={styles.separator} />;
+}
+
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: 110 },
+  // Reproduces the old ScrollView's inter-element spacing (gap: lg) for the
+  // header block (hero / search / type label / chip strip) now that those live
+  // inside ListHeaderComponent instead of being direct ScrollView children.
+  headerInner: { gap: spacing.lg },
   center: { paddingVertical: spacing.xxl, alignItems: "center", justifyContent: "center" },
   stateBox: { paddingVertical: spacing.xl, gap: spacing.md, alignItems: "center" },
   chipStrip: { flexGrow: 0, marginHorizontal: -spacing.xs, paddingHorizontal: spacing.xs },
@@ -285,5 +321,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   chipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
-  list: { gap: spacing.xs },
+  // Was styles.list `gap: spacing.xs` between cards; the FlatList separator now
+  // reproduces that exact inter-card gap so spacing is unchanged.
+  separator: { height: spacing.xs },
 });

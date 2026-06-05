@@ -94,7 +94,9 @@ export function QuantIntroModal({
           <View style={styles.introHeader}>
             <CompanionSprite companion="momo" state="read" size={52} />
             <View style={styles.introHeaderText}>
-              <Text variant="caption" color="brand" style={{ letterSpacing: 1.5 }}>
+              {/* KO eyebrow drops tracking to 0 (Hangul reads worse when
+                  tracked); EN keeps the stylized caption tracking. */}
+              <Text variant="caption" color="brand" style={{ letterSpacing: locale === "ko" ? 0 : 1.5 }}>
                 {locale === "ko" ? "시작 전 안내" : "Before you start"}
               </Text>
               <Text variant="heading" style={{ marginTop: spacing.xs }}>{title}</Text>

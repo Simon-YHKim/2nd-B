@@ -61,7 +61,8 @@ describe("callGemini (mock mode)", () => {
       purpose: "audit_qa",
       user: "어떤 시기를 돌아보고 있어요.",
     });
-    expect(r.text).toMatch(/^\[MOCK\]/);
+    // Mock mode is tracked via modelUsed ("mock:...") below, not via a user-visible [MOCK] token.
+    expect(r.text).not.toContain("[MOCK]");
     expect(mockGenerateContent).not.toHaveBeenCalled();
     expect(insertMock).toHaveBeenCalledTimes(1);
     const arg = insertMock.mock.calls[0]![0]!;

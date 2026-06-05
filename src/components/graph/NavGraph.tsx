@@ -106,6 +106,15 @@ let navGraphSpawnPlayed = false;
 // Ambient pulse interval — was 4000ms before, user asked for ~30% faster
 // so the dots feel a touch more "breathing" without becoming jittery.
 const PULSE_INTERVAL_MS = 2800;
+// LOD (Codex 91-regate perf P1): per-node drift loops + per-edge fade run on the
+// JS thread (useNativeDriver=false because SVG props can't use the native
+// driver). Past this many tier-4 Log dots the JS-thread budget tightens, so
+// above the threshold tier-4 dots render static (no sway) and their edges snap
+// to full opacity without the per-edge fade timing. Tier 1-3 (the structural
+// village) always animate. A highlight-on-return pulse on a tapped tier-4 dot
+// still fires — that is a one-shot on user action, not a perpetual loop. The
+// ambient pulse already targets MENU_NODES only, so tier-4 never ambient-pulses.
+const LOD_TIER4_DRIFT_MAX = 30;
 // Bubble pop-in (말풍선 뽁) per user (2026-05-27): same overshoot feel as
 // the node spawn so the bubble feels emitted from the node.
 const BUBBLE_POP_OVERSHOOT_MS = 160;
@@ -639,6 +648,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     return out;
   }, [dataNodes, worldMenu, width, height]);
 
+  // LOD gate (Codex 91-regate perf P1): above LOD_TIER4_DRIFT_MAX tier-4 Log
+  // dots, drop per-node drift loops + per-edge fade for tier-4 so the JS thread
+  // stays smooth on big graphs. Tier 1-3 (the structural village) always animate.
+  const tier4DriftOn = dataPositions.size <= LOD_TIER4_DRIFT_MAX;
+
   // Worker commutes (graph-ux-overhaul #2): each companion endlessly travels
   // between villages along the real spokes (village → center → village →
   // center). Because the only tier-2 edges are center↔village, every
@@ -714,7 +728,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   useEffect(() => {
     const ids = [CENTER_NODE.id, ...MENU_NODES.map((n) => n.id), ...Array.from(dataPositions.keys())];
     for (const id of ids) {
-      if (!driftValues.current.has(id)) {
+      // LOD: tier-4 (data) dots skip the drift loop entirely above the threshold.
+      const isData = dataPositions.has(id);
+      if (!(isData && !tier4DriftOn) && !driftValues.current.has(id)) {
         // Seamless drift loop. Previously the value swung 0↔1↔0 via a
         // 2-step sequence, but the seeded starting value (0..1) meant
         // the first cycle began mid-curve and the loop re-entry from
@@ -768,15 +784,20 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     // and MENU_NODES are always in `ids`, so only stale data nodes are dropped.
     const live = new Set(ids);
     for (const id of Array.from(driftLoops.current.keys())) {
-      if (!live.has(id)) {
+      const stale = !live.has(id);
+      // LOD crossed its threshold while these dots stayed on stage: tear down
+      // their drift loops so they go static, but keep the pulse value so a
+      // highlight-on-return pulse can still fire on a tap.
+      const demoted = !tier4DriftOn && dataPositions.has(id);
+      if (stale || demoted) {
         driftLoops.current.get(id)?.stop();
         driftLoops.current.delete(id);
         driftValues.current.delete(id);
         swayRef.current.delete(id);
-        pulseValues.current.delete(id);
+        if (stale) pulseValues.current.delete(id);
       }
     }
-  }, [dataPositions]);
+  }, [dataPositions, tier4DriftOn]);
 
   // Spawn sequence — tier 1 → 2 → 3 → 4, randomized within each tier.
   // Each node: play "뽁!" pop sound + scale 0 → 1.25 → 1.0 + opacity 0 → 1.
@@ -1139,10 +1160,18 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       const tagged = v as Animated.Value & { __target?: number };
       if (bothShown && tagged.__target !== 1) {
         tagged.__target = 1;
-        Animated.timing(v, { toValue: 1, duration: EDGE_REVEAL_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+        // LOD: tier-4 (data + relatedness) edges snap to full opacity above the
+        // threshold instead of running a per-edge fade timing — keeps the JS
+        // thread free when many Log dots are on stage.
+        const isDataEdge = e.key.startsWith("rel:") || dataPositions.has(e.toId);
+        if (!tier4DriftOn && isDataEdge) {
+          v.setValue(1);
+        } else {
+          Animated.timing(v, { toValue: 1, duration: EDGE_REVEAL_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+        }
       }
     }
-  }, [spawnedIds, edges]);
+  }, [spawnedIds, edges, dataPositions, tier4DriftOn]);
 
   const activeNode = activeId === CENTER_NODE.id
     ? CENTER_NODE

@@ -15,6 +15,38 @@ import { VILLAGE_UI } from "@/lib/village-ui";
 
 const SUPPORT_EMAIL = "support@2nd-brain.app";
 
+// Minimal, honest FAQ covering the three topics users ask about most:
+// journaling, privacy/export, and AI safety. ko + en parity.
+const FAQ_KO = [
+  {
+    q: "기록은 어떻게 시작하나요?",
+    a: "담기 화면에서 떠오른 생각을 그대로 적으면 돼요. 정리는 나중에 조각마을이 도와드려요.",
+  },
+  {
+    q: "내 기록은 어떻게 보관되고, 내보낼 수 있나요?",
+    a: "기록은 내 계정에만 연결돼 보관돼요. 설정의 내보내기에서 언제든 내 데이터를 파일로 받아갈 수 있어요.",
+  },
+  {
+    q: "AI는 안전한가요?",
+    a: "AI는 정리와 연결을 돕는 보조 역할이며, 중요한 판단은 사용자가 직접 합니다.",
+  },
+];
+
+const FAQ_EN = [
+  {
+    q: "How do I start journaling?",
+    a: "Just write what comes to mind on the capture screen. The village helps you organize it later.",
+  },
+  {
+    q: "How is my data stored, and can I export it?",
+    a: "Your entries stay tied to your account only. Use Export in Settings to download your data as a file anytime.",
+  },
+  {
+    q: "Is the AI safe?",
+    a: "The AI helps organize and connect your notes. Important decisions stay with you.",
+  },
+];
+
 export default function Support() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
@@ -67,9 +99,12 @@ export default function Support() {
 
         <View style={[styles.section, { borderLeftColor: semantic.warning }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{ko ? "자주 묻는 질문" : "FAQ"}</Text>
-          <Text variant="subtle" color="textSubtle">
-            {ko ? "도움말 모음은 곧 준비할게요." : "A help center is on the way."}
-          </Text>
+          {(ko ? FAQ_KO : FAQ_EN).map((item, i) => (
+            <View key={item.q} style={i > 0 ? styles.faqItem : undefined}>
+              <Text variant="body" color="text" style={styles.faqQuestion}>{item.q}</Text>
+              <Text variant="subtle" color="textMuted">{item.a}</Text>
+            </View>
+          ))}
         </View>
 
       </ScrollView>
@@ -94,4 +129,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   eyebrow: { letterSpacing: 0 },
+  faqItem: {
+    marginTop: spacing.md,
+    borderTopColor: semantic.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: spacing.md,
+  },
+  faqQuestion: { marginBottom: spacing.xs },
 });

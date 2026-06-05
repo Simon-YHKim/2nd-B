@@ -48,7 +48,8 @@ export function AddFormatFlow({
         setProposed(p);
       }
     } catch (e) {
-      setError((e as Error).message);
+      console.warn("[AddFormatFlow] draft failed", (e as Error).message);
+      setError(ko ? "형식 초안을 만들지 못했어요. 잠시 후 다시 시도해 주세요." : "We couldn't draft the format. Please try again in a moment.");
     } finally {
       setGenerating(false);
     }
@@ -73,7 +74,8 @@ export function AddFormatFlow({
       });
       onSaved(saved);
     } catch (e) {
-      setError((e as Error).message);
+      console.warn("[AddFormatFlow] save failed", (e as Error).message);
+      setError(ko ? "형식을 저장하지 못했어요. 다시 시도해 주세요." : "We couldn't save the format. Please try again.");
     } finally {
       setSaving(false);
     }

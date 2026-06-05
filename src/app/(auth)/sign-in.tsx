@@ -24,6 +24,7 @@ import { Link, Redirect, router } from "expo-router";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   isNaverEnabled,
+  isProviderEnabled,
   signInWithApple,
   signInWithEmail,
   signInWithGoogle,
@@ -50,6 +51,9 @@ export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
+  // A provider whose OAuth start failed with a "not configured" error is hidden
+  // for the rest of the session so the user is not left tapping a dead button.
+  const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
 
@@ -67,13 +71,21 @@ export default function SignIn() {
       else await signInWithGoogle();
     } catch (e) {
       const name = provider === "apple" ? "Apple" : provider === "kakao" ? "Kakao" : "Google";
+      const msg = (e as Error).message ?? "";
+      // A provider that is not configured in Supabase fails to even start with a
+      // "provider is not enabled" error. Hide its button for the session so the
+      // user is not left tapping a dead control; email/password and any working
+      // provider remain.
+      if (/not enabled|unsupported provider|validation_failed/i.test(msg)) {
+        setHiddenProviders((prev) => new Set(prev).add(provider));
+      }
       Alert.alert(
         locale === "ko"
           ? `${name} 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.`
           : `Could not start ${name} sign-in. Please try again in a moment.`,
       );
       if (typeof console !== "undefined")
-        console.warn(`[auth] ${provider} oauth error`, (e as Error).message);
+        console.warn(`[auth] ${provider} oauth error`, msg);
     } finally {
       setOauthSubmitting(false);
     }
@@ -122,8 +134,8 @@ export default function SignIn() {
     Alert.alert(
       locale === "ko" ? "비밀번호 재설정" : "Reset password",
       locale === "ko"
-        ? "비밀번호 재설정 기능은 곧 추가됩니다. 그동안은 support@2nd-brain.app으로 연락해 주세요."
-        : "Password reset is coming soon. Contact support@2nd-brain.app in the meantime.",
+        ? "support@2nd-brain.app으로 가입 이메일과 함께 연락해 주시면 재설정을 도와드려요."
+        : "Email support@2nd-brain.app from your account address and we'll help you reset it.",
     );
   }
 
@@ -225,35 +237,41 @@ export default function SignIn() {
               <View style={styles.dividerLine} />
             </View>
 
-            <Pressable
-              onPress={() => handleOAuth("google")}
-              disabled={oauthSubmitting || submitting}
-              style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
-            >
-              <Text style={styles.secondaryBtnText}>
-                {oauthSubmitting ? "…" : t("signIn.continueWithGoogle")}
-              </Text>
-            </Pressable>
+            {isProviderEnabled("google") && !hiddenProviders.has("google") ? (
+              <Pressable
+                onPress={() => handleOAuth("google")}
+                disabled={oauthSubmitting || submitting}
+                style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+              >
+                <Text style={styles.secondaryBtnText}>
+                  {oauthSubmitting ? "…" : t("signIn.continueWithGoogle")}
+                </Text>
+              </Pressable>
+            ) : null}
 
-            <Pressable
-              onPress={() => handleOAuth("apple")}
-              disabled={oauthSubmitting || submitting}
-              style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
-            >
-              <Text style={styles.secondaryBtnText}>
-                {oauthSubmitting ? "…" : t("signIn.continueWithApple")}
-              </Text>
-            </Pressable>
+            {isProviderEnabled("apple") && !hiddenProviders.has("apple") ? (
+              <Pressable
+                onPress={() => handleOAuth("apple")}
+                disabled={oauthSubmitting || submitting}
+                style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+              >
+                <Text style={styles.secondaryBtnText}>
+                  {oauthSubmitting ? "…" : t("signIn.continueWithApple")}
+                </Text>
+              </Pressable>
+            ) : null}
 
-            <Pressable
-              onPress={() => handleOAuth("kakao")}
-              disabled={oauthSubmitting || submitting}
-              style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
-            >
-              <Text style={styles.secondaryBtnText}>
-                {oauthSubmitting ? "…" : t("signIn.continueWithKakao")}
-              </Text>
-            </Pressable>
+            {isProviderEnabled("kakao") && !hiddenProviders.has("kakao") ? (
+              <Pressable
+                onPress={() => handleOAuth("kakao")}
+                disabled={oauthSubmitting || submitting}
+                style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+              >
+                <Text style={styles.secondaryBtnText}>
+                  {oauthSubmitting ? "…" : t("signIn.continueWithKakao")}
+                </Text>
+              </Pressable>
+            ) : null}
 
             {isNaverEnabled() ? (
               <Pressable

@@ -121,11 +121,30 @@ function Worker({
     if (reduced) return;
     // Re-render on a shared cadence; the actual pose is recomputed from
     // Date.now() each frame so it never resets (and the bubble follows along).
-    const t = setInterval(() => {
-      if (AppState.currentState !== "active") return;
-      setTick((n) => (n + 1) % 1000);
-    }, 1000 / 20);
-    return () => clearInterval(t);
+    // Only run the timer while the app is foregrounded — stop it outright on
+    // background/inactive so it stops draining the battery, and restart it on
+    // resume (pose is time-based, so it picks up continuous on the next tick).
+    let t: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (t) return;
+      t = setInterval(() => setTick((n) => (n + 1) % 1000), 1000 / 20);
+    };
+    const stop = () => {
+      if (!t) return;
+      clearInterval(t);
+      t = null;
+    };
+    // Treat unknown/null (cold-start before the first AppState event) as
+    // runnable so residents are not frozen on the first graph render.
+    if (AppState.currentState !== "background" && AppState.currentState !== "inactive") start();
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") start();
+      else stop();
+    });
+    return () => {
+      stop();
+      sub.remove();
+    };
   }, [reduced]);
 
   // Closed-ring perimeter (incl. the wrap leg back to the first waypoint).

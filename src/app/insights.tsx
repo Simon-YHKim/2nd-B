@@ -37,7 +37,17 @@ export default function Insights() {
       if (error) throw error;
       setInsights(computeInsights(data ?? []));
     } catch (e) {
-      Alert.alert(locale === "ko" ? "로드 실패" : "Load failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[insights] load failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "불러오지 못했어요" : "Couldn't load",
+        locale === "ko"
+          ? "인사이트를 불러오는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+          : "Something went wrong while loading your insights. Please try again in a moment.",
+        [
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+          { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => { void load(); } },
+        ],
+      );
     } finally {
       setLoading(false);
     }

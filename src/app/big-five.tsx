@@ -87,9 +87,16 @@ export default function BigFive() {
       });
       setSaved(true);
     } catch (e) {
+      if (typeof console !== "undefined") console.warn("[big-five] save failed", (e as Error).message);
       Alert.alert(
-        locale === "ko" ? "저장 실패" : "Save failed",
-        (e as Error).message,
+        locale === "ko" ? "저장하지 못했어요" : "Couldn't save",
+        locale === "ko"
+          ? "결과를 저장하는 중 문제가 생겼어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
+          : "Something went wrong while saving your result. Your answers are still here, so please try again.",
+        [
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+          { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => { void handleSubmit(); } },
+        ],
       );
     } finally {
       setSubmitting(false);
@@ -161,7 +168,7 @@ export default function BigFive() {
                           key={s.value}
                           onPress={() => setResponse(item.id, s.value)}
                           style={[styles.scaleBtn, active && styles.scaleBtnActive]}
-                          hitSlop={2}
+                          hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
                         >
                           <Text variant="caption" color={active ? "background" : "textMuted"}>
                             {s.value}

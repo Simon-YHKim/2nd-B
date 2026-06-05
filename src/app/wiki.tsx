@@ -6,11 +6,12 @@
 // for now the list is sourced from any pages generated via the inbox's
 // "Generate page" path (PR follow-up wires that button).
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   StyleSheet,
   ScrollView,
+  FlatList,
   Pressable,
   ActivityIndicator,
   RefreshControl,
@@ -77,6 +78,29 @@ const FACETS: ReadonlyArray<{
 function villageHref(village: VillageId): Href {
   if (village === "knowledge") return "/wiki";
   return { pathname: "/records", params: { domain: village } };
+}
+
+// Memory prune: backlinks are only needed for the page the user is currently
+// reading, so cap the cache to the 5 most-recently-expanded pages. Re-setting
+// an existing id refreshes its recency (delete then re-add at the tail), and
+// when the map would exceed 5 we drop the oldest insertion. Keeps the cache
+// from growing unbounded across a long browse of 200 pages.
+const BACKLINKS_CACHE_LIMIT = 5;
+function pruneBacklinks(
+  prev: Record<string, WikiPageRow[]>,
+  id: string,
+  value: WikiPageRow[],
+): Record<string, WikiPageRow[]> {
+  const next: Record<string, WikiPageRow[]> = {};
+  for (const key of Object.keys(prev)) {
+    if (key !== id) next[key] = prev[key];
+  }
+  next[id] = value;
+  const keys = Object.keys(next);
+  if (keys.length > BACKLINKS_CACHE_LIMIT) {
+    for (const stale of keys.slice(0, keys.length - BACKLINKS_CACHE_LIMIT)) delete next[stale];
+  }
+  return next;
 }
 
 export default function Wiki() {
@@ -160,6 +184,184 @@ export default function Wiki() {
     router.replace(villageHref(VILLAGE_IDS[nextIndex]));
   }, []);
 
+  // Auth/profile gate lives BELOW (after all hooks/useCallbacks) so an early
+  // return never precedes a useCallback (react-hooks/rules-of-hooks).
+  function toggleTag(tag: string) {
+    setActiveTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+  }
+
+  const toggleExpand = useCallback(
+    async (page: WikiPageRow) => {
+      if (expandedId === page.id) {
+        setExpandedId(null);
+        return;
+      }
+      setExpandedId(page.id);
+      if (!userId) return;
+      if (backlinksById[page.id] === undefined) {
+        try {
+          const back = await getBacklinks(userId, page.id);
+          setBacklinksById((prev) => pruneBacklinks(prev, page.id, back));
+        } catch (e) {
+          if (typeof console !== "undefined")
+            console.warn("[wiki] backlinks load failed", (e as Error).message);
+          setBacklinksById((prev) => pruneBacklinks(prev, page.id, []));
+        }
+      }
+    },
+    [expandedId, userId, backlinksById],
+  );
+
+  async function handleRefresh(): Promise<void> {
+    if (!userId) return;
+    setRefreshing(true);
+    await load(userId, activeTags);
+    setRefreshing(false);
+  }
+
+  function handleToggleStats(): void {
+    // The headline numbers live in the always-on pulse strip now; this just
+    // reveals the fuller breakdown (hubs, tags, orphans) already in `stats`.
+    setStatsVisible((v) => !v);
+  }
+
+  const handleDeletePage = useCallback(
+    async (p: WikiPageRow): Promise<void> => {
+      if (!userId) return;
+      Alert.alert(
+      locale === "ko" ? "이 위키 페이지를 삭제할까요?" : "Delete this wiki page?",
+      locale === "ko"
+        ? "연결된 [[wikilink]]도 자동으로 정리돼요. 되돌릴 수 없습니다."
+        : "All [[wikilink]] edges to this page are cascaded. This cannot be undone.",
+      [
+        { text: locale === "ko" ? "취소" : "Cancel", style: "cancel" },
+        {
+          text: locale === "ko" ? "삭제" : "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteWikiPage(userId, p.id);
+              await load(userId, activeTags);
+            } catch (e) {
+              // Keep the raw error in logs only; show product-tone copy + retry.
+              if (typeof console !== "undefined")
+                console.warn("[wiki] delete page failed", (e as Error).message);
+              Alert.alert(
+                locale === "ko" ? "페이지를 삭제하지 못했어요" : "Couldn't delete the page",
+                locale === "ko"
+                  ? "잠시 후 다시 시도해 주세요. 계속 안 되면 새로고침한 뒤 다시 삭제해 보세요."
+                  : "Please try again in a moment. If it keeps failing, refresh and delete again.",
+                [{ text: locale === "ko" ? "확인" : "OK" }],
+              );
+            }
+          },
+        },
+      ],
+    );
+    },
+    [userId, locale, load, activeTags],
+  );
+
+  const handleRunPhase1OnPage = useCallback(
+    async (page: WikiPageRow): Promise<void> => {
+      if (!userId || !page.source_id) return;
+      setPhase1RunningId(page.id);
+      try {
+        await runPhase1({ userId, sourceId: page.source_id, locale, minor: isMinor === true });
+        // Reload to pick up the updated frontmatter on the source AND the
+        // wiki page (the wiki page's frontmatter was copied at source-page
+        // generation time, so we re-promote to refresh it).
+        await load(userId, activeTags);
+        // 모모 labels the freshly organized page (companion pack §3).
+        companion.fire("wikiSaved");
+        Alert.alert(locale === "ko" ? "요약과 질문 준비됐어요" : "Source brief is ready");
+      } catch (e) {
+        // Keep the raw implementation error in logs only; show product-tone copy + retry.
+        if (typeof console !== "undefined")
+          console.warn("[wiki] source brief failed", (e as Error).message);
+        Alert.alert(
+          locale === "ko" ? "요약과 질문을 만들지 못했어요" : "Couldn't build the source brief",
+          locale === "ko"
+            ? "잠시 후 다시 시도해 주세요. 계속 안 되면 원본을 열어 확인해 보세요."
+            : "Please try again in a moment. If it keeps failing, open the source to check.",
+          [{ text: locale === "ko" ? "확인" : "OK" }],
+        );
+      } finally {
+        setPhase1RunningId(null);
+      }
+    },
+    [userId, locale, isMinor, load, activeTags, companion],
+  );
+
+  async function handleExport(): Promise<void> {
+    if (!userId) return;
+    setExporting(true);
+    try {
+      const result = await exportUserWiki(userId, { locale, bodyCharLimit: 4000 });
+      setExportText(result.prompt);
+    } catch (e) {
+      // Keep the raw error in logs only; show product-tone copy + retry.
+      if (typeof console !== "undefined")
+        console.warn("[wiki] export failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "내보내기를 만들지 못했어요" : "Couldn't build the export",
+        locale === "ko"
+          ? "잠시 후 다시 시도해 주세요. 계속 안 되면 새로고침한 뒤 다시 내보내 보세요."
+          : "Please try again in a moment. If it keeps failing, refresh and export again.",
+        [{ text: locale === "ko" ? "확인" : "OK" }],
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  // Stable row callbacks so changing expandedId only re-renders the affected
+  // rows, not all 200. Functional setState keeps these out of the dep array.
+  const handleAddTag = useCallback((tag: string) => {
+    setActiveTags((prev) => (prev.includes(tag) ? prev : [...prev, tag]));
+  }, []);
+  const handleSeeInGraph = useCallback((pageId: string) => {
+    router.push({ pathname: "/", params: { highlightWikiPageId: pageId } });
+  }, []);
+  const handleAskSecondB = useCallback((title: string) => {
+    router.push({ pathname: "/jarvis", params: { fromNode: title } });
+  }, []);
+
+  const renderPage = useCallback(
+    ({ item: p }: { item: WikiPageRow }) => (
+      <WikiPageListRow
+        page={p}
+        locale={locale}
+        expanded={expandedId === p.id}
+        inDeg={inDegreeById.get(p.id) ?? 0}
+        isHub={hubIds.has(p.id)}
+        backlinks={backlinksById[p.id]}
+        phase1Running={phase1RunningId === p.id}
+        onToggleExpand={toggleExpand}
+        onAddTag={handleAddTag}
+        onRunPhase1={handleRunPhase1OnPage}
+        onDelete={handleDeletePage}
+        onSeeInGraph={handleSeeInGraph}
+        onAskSecondB={handleAskSecondB}
+      />
+    ),
+    [
+      locale,
+      expandedId,
+      inDegreeById,
+      hubIds,
+      backlinksById,
+      phase1RunningId,
+      toggleExpand,
+      handleAddTag,
+      handleRunPhase1OnPage,
+      handleDeletePage,
+      handleSeeInGraph,
+      handleAskSecondB,
+    ],
+  );
+
+  // Auth/profile gate — after all hooks so Rules of Hooks hold.
   if (authLoading) {
     return (
       <PremiumAppShell>
@@ -176,111 +378,11 @@ export default function Wiki() {
   // Gemini) before C10 age-gate + PIPA consent. (Root gate in _layout covers too.)
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  function toggleTag(tag: string) {
-    setActiveTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
-  }
-
-  async function toggleExpand(page: WikiPageRow) {
-    if (expandedId === page.id) {
-      setExpandedId(null);
-      return;
-    }
-    setExpandedId(page.id);
-    if (!userId) return;
-    if (backlinksById[page.id] === undefined) {
-      try {
-        const back = await getBacklinks(userId, page.id);
-        setBacklinksById((prev) => ({ ...prev, [page.id]: back }));
-      } catch (e) {
-        if (typeof console !== "undefined")
-          console.warn("[wiki] backlinks load failed", (e as Error).message);
-        setBacklinksById((prev) => ({ ...prev, [page.id]: [] }));
-      }
-    }
-  }
-
-  async function handleRefresh(): Promise<void> {
-    if (!userId) return;
-    setRefreshing(true);
-    await load(userId, activeTags);
-    setRefreshing(false);
-  }
-
-  function handleToggleStats(): void {
-    // The headline numbers live in the always-on pulse strip now; this just
-    // reveals the fuller breakdown (hubs, tags, orphans) already in `stats`.
-    setStatsVisible((v) => !v);
-  }
-
-  async function handleDeletePage(p: WikiPageRow): Promise<void> {
-    if (!userId) return;
-    Alert.alert(
-      locale === "ko" ? "이 위키 페이지를 삭제할까요?" : "Delete this wiki page?",
-      locale === "ko"
-        ? "연결된 [[wikilink]]도 자동으로 정리돼요. 되돌릴 수 없습니다."
-        : "All [[wikilink]] edges to this page are cascaded. This cannot be undone.",
-      [
-        { text: locale === "ko" ? "취소" : "Cancel", style: "cancel" },
-        {
-          text: locale === "ko" ? "삭제" : "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteWikiPage(userId, p.id);
-              await load(userId, activeTags);
-            } catch (e) {
-              Alert.alert(locale === "ko" ? "삭제 실패" : "Delete failed", (e as Error).message);
-            }
-          },
-        },
-      ],
-    );
-  }
-
-  async function handleRunPhase1OnPage(page: WikiPageRow): Promise<void> {
-    if (!userId || !page.source_id) return;
-    setPhase1RunningId(page.id);
-    try {
-      await runPhase1({ userId, sourceId: page.source_id, locale, minor: isMinor === true });
-      // Reload to pick up the updated frontmatter on the source AND the
-      // wiki page (the wiki page's frontmatter was copied at source-page
-      // generation time, so we re-promote to refresh it).
-      await load(userId, activeTags);
-      // 모모 labels the freshly organized page (companion pack §3).
-      companion.fire("wikiSaved");
-      Alert.alert(locale === "ko" ? "Phase 1 완료" : "Phase 1 done");
-    } catch (e) {
-      Alert.alert(locale === "ko" ? "Phase 1 실패" : "Phase 1 failed", (e as Error).message);
-    } finally {
-      setPhase1RunningId(null);
-    }
-  }
-
-  async function handleExport(): Promise<void> {
-    if (!userId) return;
-    setExporting(true);
-    try {
-      const result = await exportUserWiki(userId, { locale, bodyCharLimit: 4000 });
-      setExportText(result.prompt);
-    } catch (e) {
-      Alert.alert(locale === "ko" ? "익스포트 실패" : "Export failed", (e as Error).message);
-    } finally {
-      setExporting(false);
-    }
-  }
-
-  return (
-    <PremiumAppShell>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={semantic.brand}
-          />
-        }
-      >
+  // Everything above the page list (hero, facets, pulse, search, utility row,
+  // stats/export cards, tag filter) rides along as the FlatList header so the
+  // whole screen scrolls as one while only the rows virtualize.
+  const header = (
+    <View style={styles.headerWrap}>
         <SceneHero
           eyebrow={locale === "ko" ? "04. 지식 창고" : "04. Knowledge store"}
           title={locale === "ko" ? "저장한 조각들이 서재가 돼요" : "Saved pieces become a library"}
@@ -554,56 +656,121 @@ export default function Wiki() {
             </View>
           </View>
         ) : null}
+    </View>
+  );
 
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={semantic.brand} />
-          </View>
-        ) : pages.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <WikiCardThumb id="library" size={88} />
-            <Text variant="body" color="textMuted" style={styles.emptyText}>
-              {activeTags.length > 0
-                ? t("emptyForTags")
-                : locale === "ko"
-                  ? "아직 창고가 조용해요. 오늘의 조각이나 링크를 저장하면 여기서 다시 찾아볼 수 있어요."
-                  : "The store is quiet for now. Save a piece or a link and you'll find it here again."}
-            </Text>
-            {activeTags.length === 0 ? (
-              <View style={styles.emptyCtaRow}>
-                <Link href="/capture" asChild>
-                  <Button
-                    label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
-                    variant="primary"
-                  />
-                </Link>
-                <Link href="/capture" asChild>
-                  <Button
-                    label={locale === "ko" ? "조각 담기" : "Capture a piece"}
-                    variant="secondary"
-                  />
-                </Link>
-              </View>
-            ) : null}
-          </View>
-        ) : visiblePages.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text variant="body" color="textMuted" style={styles.emptyText}>
-              {locale === "ko"
-                ? `'${query.trim()}'에 맞는 조각이 없어요.`
-                : `No pieces match '${query.trim()}'.`}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.list}>
-            {visiblePages.map((p) => {
-              const expanded = expandedId === p.id;
-              const inDeg = inDegreeById.get(p.id) ?? 0;
-              const isHub = hubIds.has(p.id);
-              return (
+  // ListEmptyComponent covers the three "no rows" states the original chain
+  // rendered: still loading, no pages at all, or a search with no match.
+  const listEmpty = loading ? (
+    <View style={styles.center}>
+      <ActivityIndicator color={semantic.brand} />
+    </View>
+  ) : pages.length === 0 ? (
+    <View style={styles.emptyCard}>
+      <WikiCardThumb id="library" size={88} />
+      <Text variant="body" color="textMuted" style={styles.emptyText}>
+        {activeTags.length > 0
+          ? t("emptyForTags")
+          : locale === "ko"
+            ? "아직 창고가 조용해요. 오늘의 조각이나 링크를 저장하면 여기서 다시 찾아볼 수 있어요."
+            : "The store is quiet for now. Save a piece or a link and you'll find it here again."}
+      </Text>
+      {activeTags.length === 0 ? (
+        <View style={styles.emptyCtaRow}>
+          <Link href="/capture" asChild>
+            <Button
+              label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
+              variant="primary"
+            />
+          </Link>
+          <Link href="/capture" asChild>
+            <Button
+              label={locale === "ko" ? "조각 담기" : "Capture a piece"}
+              variant="secondary"
+            />
+          </Link>
+        </View>
+      ) : null}
+    </View>
+  ) : (
+    <View style={styles.emptyCard}>
+      <Text variant="body" color="textMuted" style={styles.emptyText}>
+        {locale === "ko"
+          ? `'${query.trim()}'에 맞는 조각이 없어요.`
+          : `No pieces match '${query.trim()}'.`}
+      </Text>
+    </View>
+  );
+
+  return (
+    <PremiumAppShell>
+      <FlatList
+        data={loading ? [] : visiblePages}
+        keyExtractor={(p) => p.id}
+        renderItem={renderPage}
+        ListHeaderComponent={header}
+        ListEmptyComponent={listEmpty}
+        contentContainerStyle={styles.scroll}
+        ItemSeparatorComponent={ListGap}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={semantic.brand}
+          />
+        }
+      />
+      {/* 모모 appears briefly to label the organized page (companion pack §3) */}
+      {companion.moment ? (
+        <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
+      ) : null}
+    </PremiumAppShell>
+  );
+}
+
+// Extracted, memoized row so flipping expandedId (or any single-row state)
+// re-renders only the affected rows, not all 200 pages. Named *ListRow to
+// avoid colliding with the WikiPageRow data type imported above.
+type WikiPageListRowProps = {
+  page: WikiPageRow;
+  locale: "en" | "ko";
+  expanded: boolean;
+  inDeg: number;
+  isHub: boolean;
+  backlinks: WikiPageRow[] | undefined;
+  phase1Running: boolean;
+  onToggleExpand: (page: WikiPageRow) => void;
+  onAddTag: (tag: string) => void;
+  onRunPhase1: (page: WikiPageRow) => void;
+  onDelete: (page: WikiPageRow) => void;
+  onSeeInGraph: (pageId: string) => void;
+  onAskSecondB: (title: string) => void;
+};
+
+const WikiPageListRow = React.memo(function WikiPageListRow({
+  page: p,
+  locale,
+  expanded,
+  inDeg,
+  isHub,
+  backlinks,
+  phase1Running,
+  onToggleExpand,
+  onAddTag,
+  onRunPhase1,
+  onDelete,
+  onSeeInGraph,
+  onAskSecondB,
+}: WikiPageListRowProps) {
+  const { t } = useTranslation("wiki");
+  return (
                 <Pressable
-                  key={p.id}
-                  onPress={() => toggleExpand(p)}
+                  onPress={() => onToggleExpand(p)}
                   style={[
                     styles.row,
                     { borderLeftColor: semantic[KIND_BORDER[p.kind]], borderLeftWidth: 3 },
@@ -647,9 +814,9 @@ export default function Wiki() {
                           key={tag}
                           onPress={(e) => {
                             e.stopPropagation();
-                            if (!activeTags.includes(tag)) setActiveTags([...activeTags, tag]);
+                            onAddTag(tag);
                           }}
-                          hitSlop={2}
+                          hitSlop={8}
                         >
                           <Text variant="subtle" color="textSubtle">
                             #{tag}
@@ -675,20 +842,20 @@ export default function Wiki() {
                             <Pressable
                               onPress={(e) => {
                                 e.stopPropagation();
-                                void handleRunPhase1OnPage(p);
+                                void onRunPhase1(p);
                               }}
-                              disabled={phase1RunningId === p.id}
+                              disabled={phase1Running}
                               style={styles.phase1Trigger}
                               hitSlop={4}
                             >
                               <Text variant="caption" color="brand">
-                                {phase1RunningId === p.id
+                                {phase1Running
                                   ? locale === "ko"
                                     ? "요약 중…"
                                     : "Summarizing…"
                                   : locale === "ko"
-                                    ? "Phase 1 실행 (요약 + 4질문)"
-                                    : "Run Phase 1 (summary + 4 questions)"}
+                                    ? "요약과 질문 만들기 (요약 + 4질문)"
+                                    : "Build source brief (summary + 4 questions)"}
                               </Text>
                             </Pressable>
                           );
@@ -697,7 +864,7 @@ export default function Wiki() {
                           <View style={styles.phase1Card}>
                             <View style={styles.phase1Header}>
                               <Text variant="caption" color="brand">
-                                {locale === "ko" ? "Phase 1 요약" : "Phase 1 summary"}
+                                {locale === "ko" ? "요약과 질문" : "Source brief"}
                               </Text>
                               <Text variant="subtle" color="textSubtle">
                                 {new Date(p1.generated_at).toLocaleDateString(
@@ -706,7 +873,9 @@ export default function Wiki() {
                                 )}
                                 {" · "}
                                 {p1.model.startsWith("mock:")
-                                  ? "MOCK"
+                                  ? locale === "ko"
+                                    ? "샘플"
+                                    : "Sample"
                                   : (p1.model.split("-").slice(-2, -1)[0] ?? p1.model)}
                               </Text>
                             </View>
@@ -759,10 +928,10 @@ export default function Wiki() {
                       )}
                       <View style={styles.backlinksHeader}>
                         <Text variant="caption" color="textMuted">
-                          {t("backlinks")} ({backlinksById[p.id]?.length ?? "…"})
+                          {t("backlinks")} ({backlinks?.length ?? "…"})
                         </Text>
                       </View>
-                      {(backlinksById[p.id] ?? []).map((b) => (
+                      {(backlinks ?? []).map((b) => (
                         <Text key={b.id} variant="subtle" color="textMuted">
                           ← [[{b.slug}]] {b.title}
                         </Text>
@@ -773,7 +942,7 @@ export default function Wiki() {
                         <Pressable
                           onPress={(e) => {
                             e.stopPropagation();
-                            router.push({ pathname: "/", params: { highlightWikiPageId: p.id } });
+                            onSeeInGraph(p.id);
                           }}
                           hitSlop={6}
                           style={styles.pageHandoffBtn}
@@ -786,7 +955,7 @@ export default function Wiki() {
                         <Pressable
                           onPress={(e) => {
                             e.stopPropagation();
-                            router.push({ pathname: "/jarvis", params: { fromNode: p.title } });
+                            onAskSecondB(p.title);
                           }}
                           hitSlop={6}
                           style={styles.pageHandoffBtn}
@@ -800,7 +969,7 @@ export default function Wiki() {
                       <Pressable
                         onPress={(e) => {
                           e.stopPropagation();
-                          void handleDeletePage(p);
+                          void onDelete(p);
                         }}
                         hitSlop={6}
                         style={{ alignSelf: "flex-end", marginTop: spacing.sm }}
@@ -812,17 +981,14 @@ export default function Wiki() {
                     </View>
                   ) : null}
                 </Pressable>
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
-      {/* 모모 appears briefly to label the organized page (companion pack §3) */}
-      {companion.moment ? (
-        <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
-      ) : null}
-    </PremiumAppShell>
   );
+});
+
+// Thin spacer between rows — replaces the old list container's `gap`. Kept as
+// its own component (not a per-item style wrapper) so it never sits inside a
+// row's pressable area or introduces the style-wrapper gap bug.
+function ListGap() {
+  return <View style={styles.rowGap} />;
 }
 
 // One cell of the living-brain pulse strip: a big number over a quiet label.
@@ -922,6 +1088,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   inlineTagRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  // Header rides as ListHeaderComponent; it owns the inter-section gap the
+  // ScrollView used to provide. The content container's own `gap` separates it
+  // from the first row, so no extra bottom margin here (avoids a doubled gap).
+  headerWrap: { gap: spacing.lg },
+  // Separator between virtualized rows — replaces the old list container's gap.
+  rowGap: { height: spacing.sm },
   list: { gap: spacing.sm },
   row: {
     backgroundColor: semantic.surface,
