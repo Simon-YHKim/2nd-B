@@ -100,8 +100,8 @@ export default function SignIn() {
       await signInWithEmail(email.trim(), password);
       // AuthContext picks up the new session; IntroGate plays the cell
       // LoadingScreen and then mounts the Stack. Route to /index so the
-      // post-loading hand-off lands on the graph view (the new main),
-      // not /journal. /journal stays reachable via the in-app nav.
+      // post-loading hand-off lands on the graph view (the new main).
+      // (/journal is retired; now a /capture deep-link redirect.)
       router.replace("/");
     } catch (e) {
       // Generic message to avoid email-enumeration. CSO finding R3.

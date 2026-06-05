@@ -2,7 +2,7 @@
 // 14 (design tokens) the tone is "warm but serious"; this screen is
 // the long-form companion to coachmarks shown on first visit.
 //
-// Reachable from /journal navRow and auto-shown right after sign-up
+// Reachable from the /capture navRow and auto-shown right after sign-up
 // (handled by AuthContext via users.coachmarks_seen).
 
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";

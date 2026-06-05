@@ -83,7 +83,7 @@ export default function SignUp() {
         }),
       );
       if (result.judgeMode) Alert.alert(t("judge.welcome"));
-      // Post-signup hand-off → graph view (main). /journal reachable via nav.
+      // Post-signup hand-off → graph view (main). (/journal retired → /capture redirect.)
       router.replace("/");
     } catch (e) {
       if (e instanceof AgeGateError) Alert.alert(t("errors.ageGate"));
