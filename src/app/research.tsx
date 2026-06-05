@@ -49,6 +49,7 @@ export default function Research() {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFramework, setActiveFramework] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!userId) return;
@@ -61,14 +62,24 @@ export default function Research() {
       .limit(200)
       .then(({ data, error }) => {
         if (error) {
-          Alert.alert(locale === "ko" ? "로드 실패" : "Load failed", error.message);
+          console.warn("[research] load sources failed", error.message);
+          Alert.alert(
+            locale === "ko" ? "자료를 못 불러왔어요" : "Couldn't load research",
+            locale === "ko"
+              ? "잠시 연결이 흔들렸어요. 다시 시도하면 자료실을 새로 불러올게요."
+              : "The connection hiccuped for a moment. Try again to reload the library.",
+            [
+              { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+              { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => setReloadKey((k) => k + 1) },
+            ],
+          );
           setSources([]);
         } else {
           setSources((data ?? []) as Source[]);
         }
         setLoading(false);
       });
-  }, [userId, locale]);
+  }, [userId, locale, reloadKey]);
 
   if (authLoading) {
     return (

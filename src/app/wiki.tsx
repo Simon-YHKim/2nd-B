@@ -243,7 +243,16 @@ export default function Wiki() {
               await deleteWikiPage(userId, p.id);
               await load(userId, activeTags);
             } catch (e) {
-              Alert.alert(locale === "ko" ? "삭제 실패" : "Delete failed", (e as Error).message);
+              // Keep the raw error in logs only; show product-tone copy + retry.
+              if (typeof console !== "undefined")
+                console.warn("[wiki] delete page failed", (e as Error).message);
+              Alert.alert(
+                locale === "ko" ? "페이지를 삭제하지 못했어요" : "Couldn't delete the page",
+                locale === "ko"
+                  ? "잠시 후 다시 시도해 주세요. 계속 안 되면 새로고침한 뒤 다시 삭제해 보세요."
+                  : "Please try again in a moment. If it keeps failing, refresh and delete again.",
+                [{ text: locale === "ko" ? "확인" : "OK" }],
+              );
             }
           },
         },
@@ -291,7 +300,16 @@ export default function Wiki() {
       const result = await exportUserWiki(userId, { locale, bodyCharLimit: 4000 });
       setExportText(result.prompt);
     } catch (e) {
-      Alert.alert(locale === "ko" ? "익스포트 실패" : "Export failed", (e as Error).message);
+      // Keep the raw error in logs only; show product-tone copy + retry.
+      if (typeof console !== "undefined")
+        console.warn("[wiki] export failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "내보내기를 만들지 못했어요" : "Couldn't build the export",
+        locale === "ko"
+          ? "잠시 후 다시 시도해 주세요. 계속 안 되면 새로고침한 뒤 다시 내보내 보세요."
+          : "Please try again in a moment. If it keeps failing, refresh and export again.",
+        [{ text: locale === "ko" ? "확인" : "OK" }],
+      );
     } finally {
       setExporting(false);
     }

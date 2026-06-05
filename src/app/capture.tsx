@@ -294,9 +294,16 @@ export default function Capture() {
       setPickedImage(img);
       setBody(""); // clear any prior extraction; the user presses 추출하기 to fill
     } catch (e) {
+      if (typeof console !== "undefined") console.warn("[capture] image pick failed", (e as Error).message);
       Alert.alert(
-        locale === "ko" ? "이미지 선택 실패" : "Image pick failed",
-        (e as Error).message,
+        locale === "ko" ? "이미지를 불러오지 못했어요" : "Couldn't open that image",
+        locale === "ko"
+          ? "이미지를 가져오는 데 실패했어요. 잠시 후 다시 시도해 주세요."
+          : "We couldn't pull that image in. Please try again in a moment.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void pickImage(source) },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
       );
     }
   }
@@ -308,9 +315,16 @@ export default function Capture() {
       const md = await ocrImageAsset(userId, locale, pickedImage, isMinor === true);
       setBody(md);
     } catch (e) {
+      if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
       Alert.alert(
-        locale === "ko" ? "이미지 읽기 실패" : "OCR failed",
-        (e as Error).message,
+        locale === "ko" ? "글자를 읽지 못했어요" : "Couldn't read the text",
+        locale === "ko"
+          ? "이미지에서 글자를 읽어 오지 못했어요. 더 또렷한 사진으로 다시 시도해 보세요."
+          : "We couldn't read the text from that image. Try again with a clearer photo.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void runExtract() },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
       );
     } finally {
       setExtracting(false);
@@ -324,9 +338,16 @@ export default function Capture() {
       setPickedFile(f);
       if (f.textContent) setBody(f.textContent);
     } catch (e) {
+      if (typeof console !== "undefined") console.warn("[capture] file pick failed", (e as Error).message);
       Alert.alert(
-        locale === "ko" ? "파일 열기 실패" : "File pick failed",
-        (e as Error).message,
+        locale === "ko" ? "파일을 열지 못했어요" : "Couldn't open that file",
+        locale === "ko"
+          ? "파일을 불러오는 데 실패했어요. 다른 파일을 고르거나 잠시 후 다시 시도해 주세요."
+          : "We couldn't open that file. Pick another one or try again in a moment.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void runFilePick() },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
       );
     }
   }
@@ -386,7 +407,17 @@ export default function Capture() {
         })
         .catch(() => {});
     } catch (e) {
-      Alert.alert(locale === "ko" ? "저장 실패" : "Save failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] journal save failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "기록을 저장하지 못했어요" : "Couldn't save your entry",
+        locale === "ko"
+          ? "오늘의 조각을 저장하지 못했어요. 쓴 내용은 그대로 남아 있어요. 다시 시도해 주세요."
+          : "We couldn't save today's piece. What you wrote is still here. Please try again.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void handleJournalSubmit() },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
+      );
     } finally {
       setSubmitting(false);
     }
@@ -467,9 +498,16 @@ export default function Capture() {
         setProposalCtx({ content: finalBody, url: fallbackUrl });
       }
     } catch (e) {
+      if (typeof console !== "undefined") console.warn("[capture] capture save failed", (e as Error).message);
       Alert.alert(
-        locale === "ko" ? "저장 실패" : "Save failed",
-        (e as Error).message,
+        locale === "ko" ? "조각을 담지 못했어요" : "Couldn't save your piece",
+        locale === "ko"
+          ? "마을로 보내지 못했어요. 입력한 내용은 그대로 남아 있어요. 다시 시도해 주세요."
+          : "We couldn't send it to the village. What you entered is still here. Please try again.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void handleSubmit() },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
       );
     } finally {
       setSubmitting(false);
@@ -494,7 +532,17 @@ export default function Capture() {
       }
       setProposal(p);
     } catch (e) {
-      Alert.alert(locale === "ko" ? "제안 실패" : "Proposal failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] format propose failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "형식을 제안하지 못했어요" : "Couldn't draft a format",
+        locale === "ko"
+          ? "새 형식을 만드는 데 실패했어요. 잠시 후 다시 시도해 주세요."
+          : "We couldn't draft a new format right now. Please try again in a moment.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void runPropose() },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
+      );
     } finally {
       setProposing(false);
     }
@@ -528,7 +576,17 @@ export default function Capture() {
             : "Saved as your personal format.",
       );
     } catch (e) {
-      Alert.alert(locale === "ko" ? "형식 저장 실패" : "Save format failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[capture] format save failed", (e as Error).message);
+      Alert.alert(
+        locale === "ko" ? "형식을 저장하지 못했어요" : "Couldn't save the format",
+        locale === "ko"
+          ? "새 형식을 저장하지 못했어요. 제안은 그대로 남아 있어요. 다시 시도해 주세요."
+          : "We couldn't save the new format. Your proposal is still here. Please try again.",
+        [
+          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void saveProposed(share) },
+          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+        ],
+      );
     }
   }
 

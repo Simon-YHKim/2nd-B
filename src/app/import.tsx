@@ -106,7 +106,17 @@ export default function ImportExternal() {
       });
       setPhase("saved");
     } catch (e) {
-      Alert.alert(ko ? "저장 실패" : "Save failed", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[import] save failed", (e as Error).message);
+      Alert.alert(
+        ko ? "보관하지 못했어요" : "Couldn't keep it",
+        ko
+          ? "마을에 보관하는 중 문제가 생겼어요. 정리한 내용은 그대로 있으니 다시 시도해 주세요."
+          : "Something went wrong while keeping this in the village. The sorted result is still here, so please try again.",
+        [
+          { text: ko ? "닫기" : "Dismiss", style: "cancel" },
+          { text: ko ? "다시 시도" : "Retry", onPress: () => { void save(); } },
+        ],
+      );
     }
   }
 

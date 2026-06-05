@@ -260,15 +260,24 @@ export default function Inbox() {
   const expandedIdRef = useRef(expandedId);
   expandedIdRef.current = expandedId;
 
-  const load = useCallback(async (uid: string) => {
-    setError(null);
-    try {
-      const data = await listSources(uid, { limit: 100 });
-      setRows(data);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }, []);
+  const load = useCallback(
+    async (uid: string) => {
+      setError(null);
+      try {
+        const data = await listSources(uid, { limit: 100 });
+        setRows(data);
+      } catch (e) {
+        // Keep the raw error in logs only; the error card shows product-tone copy + retry.
+        console.warn("[inbox] listSources failed", (e as Error).message);
+        setError(
+          locale === "ko"
+            ? "받은편지함을 불러오지 못했어요. 아래로 당겨 새로고침해 주세요."
+            : "Couldn't load your inbox. Pull down to refresh.",
+        );
+      }
+    },
+    [locale],
+  );
 
   useEffect(() => {
     if (!userId) return;
@@ -382,9 +391,14 @@ export default function Inbox() {
                 await deleteSource(userId, row.id);
                 await load(userId);
               } catch (e) {
+                // Keep the raw error in logs only; show product-tone copy + retry.
+                console.warn("[inbox] deleteSource failed", (e as Error).message);
                 Alert.alert(
-                  locale === "ko" ? "삭제 실패" : "Delete failed",
-                  (e as Error).message,
+                  locale === "ko" ? "캡처를 삭제하지 못했어요" : "Couldn't delete the capture",
+                  locale === "ko"
+                    ? "잠시 후 다시 시도해 주세요. 계속 안 되면 새로고침한 뒤 다시 삭제해 보세요."
+                    : "Please try again in a moment. If it keeps failing, refresh and delete again.",
+                  [{ text: locale === "ko" ? "확인" : "OK" }],
                 );
               }
             },
@@ -408,9 +422,14 @@ export default function Inbox() {
         Alert.alert(msg);
         await load(userId); // reflect ingested=true
       } catch (e) {
+        // Keep the raw error in logs only; show product-tone copy + retry.
+        console.warn("[inbox] generateSourcePage failed", (e as Error).message);
         Alert.alert(
-          locale === "ko" ? "위키 페이지 생성 실패" : "Could not generate wiki page",
-          (e as Error).message,
+          locale === "ko" ? "위키 페이지를 만들지 못했어요" : "Couldn't create the wiki page",
+          locale === "ko"
+            ? "잠시 후 다시 시도해 주세요. 계속 안 되면 먼저 요약 + 4질문을 만든 뒤 다시 시도해 보세요."
+            : "Please try again in a moment. If it keeps failing, create the summary and 4 questions first, then retry.",
+          [{ text: locale === "ko" ? "확인" : "OK" }],
         );
       } finally {
         setGeneratingId(null);
@@ -499,8 +518,13 @@ export default function Inbox() {
   ) : error ? (
     <View style={styles.errorCard}>
       <Text variant="body" color="textMuted">
-        {t("error")} {error}
+        {error}
       </Text>
+      <Pressable hitSlop={6} onPress={() => void handleRefresh()} style={styles.errorRetry}>
+        <Text variant="caption" color="brand">
+          {locale === "ko" ? "다시 시도" : "Try again"}
+        </Text>
+      </Pressable>
     </View>
   ) : (
     <View style={styles.emptyCard}>
@@ -578,7 +602,8 @@ const styles = StyleSheet.create({
   actions: { gap: spacing.sm },
   center: { paddingVertical: spacing.xl, alignItems: "center" },
   loadingCenter: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
-  errorCard: { padding: spacing.md, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, borderWidth: 1, borderColor: semantic.danger },
+  errorCard: { padding: spacing.md, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, borderWidth: 1, borderColor: semantic.danger, gap: spacing.sm },
+  errorRetry: { alignSelf: "flex-start" },
   emptyCard: {
     padding: spacing.lg,
     backgroundColor: semantic.surfaceAlt,

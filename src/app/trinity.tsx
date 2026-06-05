@@ -119,6 +119,7 @@ export default function Trinity() {
 
   const [records, setRecords] = useState<RecordLite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!userId) return;
@@ -131,11 +132,23 @@ export default function Trinity() {
       .order("created_at", { ascending: false })
       .limit(500)
       .then(({ data, error }) => {
-        if (error) Alert.alert(locale === "ko" ? "로드 실패" : "Load failed", error.message);
+        if (error) {
+          console.warn("[trinity] load records failed", error.message);
+          Alert.alert(
+            locale === "ko" ? "기록을 못 불러왔어요" : "Couldn't load records",
+            locale === "ko"
+              ? "잠시 연결이 흔들렸어요. 다시 시도하면 4영역을 새로 불러올게요."
+              : "The connection hiccuped for a moment. Try again to reload your four areas.",
+            [
+              { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+              { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => setReloadKey((k) => k + 1) },
+            ],
+          );
+        }
         setRecords((data ?? []) as RecordLite[]);
         setLoading(false);
       });
-  }, [userId, locale]);
+  }, [userId, locale, reloadKey]);
 
   const stats = useMemo(() => computeStats(records), [records]);
 
