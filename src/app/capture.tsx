@@ -532,7 +532,7 @@ export default function Capture() {
   return (
     <PremiumAppShell>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 86) }]} keyboardShouldPersistTaps="handled">
           <SceneHero
             eyebrow={locale === "ko" ? "01. 조각 담기" : "01. Capture"}
             title={locale === "ko" ? "떠오른 조각을 마을로" : "Send a piece into the village"}
@@ -1264,6 +1264,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: semantic.brand,
     borderRadius: radii.md,
+    elevation: 4,
     paddingVertical: spacing.md,
     alignItems: "center",
     justifyContent: "center",

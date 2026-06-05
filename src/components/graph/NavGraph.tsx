@@ -46,6 +46,7 @@ import ReAnimated, {
   useDerivedValue,
   useSharedValue,
   withSpring,
+  cancelAnimation,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
@@ -413,6 +414,14 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     zoomViewportH.value = height;
   }, [width, height, zoomViewportW, zoomViewportH]);
 
+  useEffect(() => {
+    return () => {
+      cancelAnimation(zoomScale);
+      cancelAnimation(zoomPanX);
+      cancelAnimation(zoomPanY);
+    };
+  }, [zoomScale, zoomPanX, zoomPanY]);
+
   // Web-only scroll-to-zoom (graph-ux #12): the mouse wheel / trackpad zooms
   // toward the cursor, reusing the SAME focal math as the pinch gesture so
   // wheel + pinch + pan stay one coherent camera model. Attached to the
@@ -598,6 +607,14 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // tier-1 lamp stays at (cx, cy) and the rest of the gesture / clamp /
   // spawn / sheet machinery is unchanged.
   const worldMenu = useMemo(() => worldMenuPositions(MENU_NODES, CENTER_NODE.id), []);
+
+  const dataNodesMap = useMemo(() => {
+    const map = new Map<string, DataNode>();
+    for (const node of dataNodes) {
+      map.set(node.id, node);
+    }
+    return map;
+  }, [dataNodes]);
 
   const positions = useMemo(() => {
     const vp = { width, height };
@@ -1336,7 +1353,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       {/* Tier 4 data shards — fade in/out with zoom (§5 + graph-ux #8). */}
       {tier4Mounted
         ? Array.from(dataPositions.entries()).map(([id, p]) => {
-            const piece = dataNodes.find((d) => d.id === id);
+            const piece = dataNodesMap.get(id);
             return (
             <Animated.View
               key={id}

@@ -441,6 +441,7 @@ const styles = StyleSheet.create({
   emptyGraphBackdrop: {
     ...(StyleSheet.absoluteFill as object),
     zIndex: 100,
+    elevation: 100,
     backgroundColor: "rgba(5,7,15,0.38)",
     alignItems: "center",
     justifyContent: "flex-end",
