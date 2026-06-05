@@ -748,7 +748,7 @@ export default function Capture() {
                     // the memo/file box (2026-05-31 directive: inputs feel shared).
                     reset();
                   }}
-                  hitSlop={2}
+                  hitSlop={8}
                 >
                   <ModeGlyph mode={m} color={color} />
                   <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
@@ -1020,7 +1020,7 @@ export default function Capture() {
             </Text>
             <View style={styles.tagRow}>
               {tagsEditable.map((t) => (
-                <Pressable key={t} onPress={() => removeTag(t)} style={styles.tagChip} hitSlop={2}>
+                <Pressable key={t} onPress={() => removeTag(t)} style={styles.tagChip} hitSlop={8}>
                   <Text style={styles.tagChipText}>#{t} ✕</Text>
                 </Pressable>
               ))}

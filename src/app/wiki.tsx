@@ -816,7 +816,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                             e.stopPropagation();
                             onAddTag(tag);
                           }}
-                          hitSlop={2}
+                          hitSlop={8}
                         >
                           <Text variant="subtle" color="textSubtle">
                             #{tag}
