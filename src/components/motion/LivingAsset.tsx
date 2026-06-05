@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
-import { Animated, Easing, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, AppState, Easing, type StyleProp, type ViewStyle } from "react-native";
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import {
@@ -40,7 +40,7 @@ export function LivingAsset({
     const delay = motion.delayMs + Math.round((phase / 1000) * motion.durationMs);
     let loop: Animated.CompositeAnimation | null = null;
     progress.setValue(0);
-    const timer = setTimeout(() => {
+    const startLoop = () => {
       loop = Animated.loop(
         Animated.timing(progress, {
           toValue: 1,
@@ -50,10 +50,19 @@ export function LivingAsset({
         }),
       );
       loop.start();
-    }, delay);
+    };
+    const timer = setTimeout(startLoop, delay);
+    const appStateSub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "background" || nextState === "inactive") {
+        loop?.stop();
+      } else if (nextState === "active" && loop) {
+        startLoop();
+      }
+    });
     return () => {
       clearTimeout(timer);
       loop?.stop();
+      appStateSub.remove();
     };
   }, [enabled, motion.delayMs, motion.durationMs, phase, progress]);
 

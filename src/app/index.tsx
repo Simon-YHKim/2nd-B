@@ -186,12 +186,22 @@ export default function Landing() {
       return;
     }
     entryFlourishPlayed = true;
-    Animated.timing(entryProgress, {
+    // PERF P2: entryProgress only drives transform (logoScale) and opacity
+    // (logoOpacity, contentOpacity) — no layout or color — so it runs on the
+    // native (UI) thread instead of the JS thread, removing startup jank on
+    // low-end devices. The animation plays once per session and naturally
+    // settles at toValue 1, so there is no loop to stop and nothing to clean
+    // up on unmount.
+    const flourish = Animated.timing(entryProgress, {
       toValue: 1,
       duration: 750,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
+      useNativeDriver: true,
+    });
+    flourish.start();
+    return () => {
+      flourish.stop();
+    };
   }, [entryProgress]);
 
   const logoScale = entryProgress.interpolate({ inputRange: [0, 1], outputRange: [4, 2] });
