@@ -3,8 +3,8 @@
 // (§9). Completion is recorded in localStorage (§4) so the index redirect
 // only sends a user here once.
 
-import { useState } from "react";
-import { View, StyleSheet, useWindowDimensions, Pressable } from "react-native";
+import { useEffect, useState } from "react";
+import { View, StyleSheet, useWindowDimensions, Pressable, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -72,6 +72,19 @@ export default function Onboarding() {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
+
+  // Android hardware back steps backward through onboarding instead of exiting
+  // the app / blanking the screen. At step 0 it falls through to default back.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (index > 0) {
+        setIndex((i) => i - 1);
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [index]);
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
