@@ -93,6 +93,8 @@ export default function Support() {
           <Button
             label={ko ? "메일 보내기" : "Send an email"}
             variant="secondary"
+            accessibilityLabel={ko ? "지원팀에 메일 보내기" : "Email support"}
+            accessibilityHint={ko ? "기본 메일 앱에서 지원 주소로 새 메일을 엽니다." : "Opens your mail app with the support address."}
             onPress={() => { void Linking.openURL(`mailto:${SUPPORT_EMAIL}`); }}
           />
         </View>

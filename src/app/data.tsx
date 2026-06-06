@@ -57,7 +57,12 @@ export default function DataManagement() {
               ? "다른 AI가 정리한 나, 예전에 한 성향·성격 검사 결과를 가져와 우리 구조에 맞게 분류해 보관해요."
               : "Bring in what another assistant gathered about you, or a past disposition/personality test, sorted into your structure."}
           </Text>
-          <Button label={ko ? "외부 자료 가져오기" : "Import external material"} variant="secondary" onPress={() => router.push("/import")} />
+          <Button
+            label={ko ? "외부 자료 가져오기" : "Import external material"}
+            variant="secondary"
+            onPress={() => router.push("/import")}
+            accessibilityHint={ko ? "외부 자료 가져오기 화면으로 이동합니다." : "Opens the import screen."}
+          />
         </View>
 
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
@@ -67,7 +72,12 @@ export default function DataManagement() {
               ? "지식 창고에서 내 조각들을 하나의 텍스트로 모아 복사할 수 있어요. 백업이나 다른 곳으로 옮길 때 쓰세요."
               : "From the store you can gather your pieces into one text to copy. Handy for a backup or moving elsewhere."}
           </Text>
-          <Button label={ko ? "지식 창고에서 내보내기" : "Export from the store"} variant="secondary" onPress={() => router.push("/wiki")} />
+          <Button
+            label={ko ? "지식 창고에서 내보내기" : "Export from the store"}
+            variant="secondary"
+            onPress={() => router.push("/wiki")}
+            accessibilityHint={ko ? "지식 창고 화면으로 이동합니다." : "Opens the knowledge store."}
+          />
         </View>
 
         <View style={[styles.section, { borderLeftColor: semantic.danger }]}>
@@ -77,7 +87,12 @@ export default function DataManagement() {
               ? "특정 종류만 지우거나, 전체를 한 번에 지울 수 있어요. 삭제는 되돌릴 수 없으니 내보내기를 먼저 권해요."
               : "Delete one kind, or everything at once. Deletion can't be undone, so export first."}
           </Text>
-          <Button label={ko ? "삭제 옵션 열기" : "Open delete options"} variant="secondary" onPress={() => router.push("/settings")} />
+          <Button
+            label={ko ? "삭제 옵션 열기" : "Open delete options"}
+            variant="secondary"
+            onPress={() => router.push("/settings")}
+            accessibilityHint={ko ? "설정 화면의 삭제 옵션으로 이동합니다." : "Opens delete options in Settings."}
+          />
         </View>
 
         <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>

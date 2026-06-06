@@ -68,6 +68,8 @@ export default function ThemeScreen() {
                     label={locale === "ko" ? "적용" : "Use"}
                     variant="secondary"
                     onPress={() => setMode(o.id)}
+                    accessibilityLabel={locale === "ko" ? `${o.label} 테마 적용` : `Use ${o.label} theme`}
+                    accessibilityHint={locale === "ko" ? "선택한 테마를 이 기기에 적용합니다." : "Applies the selected theme on this device."}
                   />
                 )}
               </View>
