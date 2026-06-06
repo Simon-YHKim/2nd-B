@@ -255,13 +255,13 @@ export default function Wiki() {
               // Keep the raw error in logs only; show product-tone copy + retry.
               if (typeof console !== "undefined")
                 console.warn("[wiki] delete page failed", (e as Error).message);
-              Alert.alert(
-                locale === "ko" ? "페이지를 삭제하지 못했어요" : "Couldn't delete the page",
-                locale === "ko"
-                  ? "잠시 후 다시 시도해 주세요. 계속 안 되면 새로고침한 뒤 다시 삭제해 보세요."
-                  : "Please try again in a moment. If it keeps failing, refresh and delete again.",
-                [{ text: locale === "ko" ? "확인" : "OK" }],
-              );
+              setToast({
+                tone: "danger",
+                message:
+                  locale === "ko"
+                    ? "페이지를 삭제하지 못했어요. 새로고침한 뒤 다시 시도해 주세요."
+                    : "Couldn't delete the page. Refresh and try again.",
+              });
             }
           },
         },
@@ -288,18 +288,21 @@ export default function Wiki() {
         await load(userId, activeTags);
         // 모모 labels the freshly organized page (companion pack §3).
         companion.fire("wikiSaved");
-        Alert.alert(locale === "ko" ? "요약과 질문 준비됐어요" : "Source brief is ready");
+        setToast({
+          tone: "success",
+          message: locale === "ko" ? "요약과 질문이 준비됐어요." : "Source brief is ready.",
+        });
       } catch (e) {
         // Keep the raw implementation error in logs only; show product-tone copy + retry.
         if (typeof console !== "undefined")
           console.warn("[wiki] source brief failed", (e as Error).message);
-        Alert.alert(
-          locale === "ko" ? "요약과 질문을 만들지 못했어요" : "Couldn't build the source brief",
-          locale === "ko"
-            ? "잠시 후 다시 시도해 주세요. 계속 안 되면 원본을 열어 확인해 보세요."
-            : "Please try again in a moment. If it keeps failing, open the source to check.",
-          [{ text: locale === "ko" ? "확인" : "OK" }],
-        );
+        setToast({
+          tone: "danger",
+          message:
+            locale === "ko"
+              ? "요약과 질문을 만들지 못했어요. 원본을 확인한 뒤 다시 시도해 주세요."
+              : "Couldn't build the source brief. Check the source and try again.",
+        });
       } finally {
         setPhase1RunningId(null);
       }
@@ -317,13 +320,13 @@ export default function Wiki() {
       // Keep the raw error in logs only; show product-tone copy + retry.
       if (typeof console !== "undefined")
         console.warn("[wiki] export failed", (e as Error).message);
-      Alert.alert(
-        locale === "ko" ? "내보내기를 만들지 못했어요" : "Couldn't build the export",
-        locale === "ko"
-          ? "잠시 후 다시 시도해 주세요. 계속 안 되면 새로고침한 뒤 다시 내보내 보세요."
-          : "Please try again in a moment. If it keeps failing, refresh and export again.",
-        [{ text: locale === "ko" ? "확인" : "OK" }],
-      );
+      setToast({
+        tone: "danger",
+        message:
+          locale === "ko"
+            ? "내보내기를 만들지 못했어요. 새로고침한 뒤 다시 시도해 주세요."
+            : "Couldn't build the export. Refresh and try again.",
+      });
     } finally {
       setExporting(false);
     }
