@@ -373,6 +373,13 @@ results.push(
       signIn.includes("accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}") &&
       signIn.includes("Reset password") &&
       signIn.includes("Switch sign-in language to Korean") &&
+      signIn.includes('accessibilityLabel={t("signIn.email")}') &&
+      signIn.includes("Enter the email address for your account.") &&
+      signIn.includes('accessibilityLabel={t("signIn.password")}') &&
+      signIn.includes("Enter your account password.") &&
+      signIn.includes("Hides the password characters again.") &&
+      signIn.includes("Shows the password characters on screen.") &&
+      signIn.includes("accessibilityState={{ selected: showPassword }}") &&
       signIn.includes("Shows instructions for requesting a reset by email.") &&
       signIn.includes("Opens the sign-up screen.") &&
       signIn.includes("Read the one-minute manual") &&

@@ -188,8 +188,15 @@ export default function SignIn() {
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
+              textContentType="emailAddress"
               placeholder="you@example.com"
               placeholderTextColor={PALETTE.textSubtle}
+              accessibilityLabel={t("signIn.email")}
+              accessibilityHint={
+                locale === "ko"
+                  ? "로그인할 계정의 이메일 주소를 입력합니다."
+                  : "Enter the email address for your account."
+              }
               style={styles.input}
             />
             <View style={styles.labelRow}>
@@ -207,6 +214,16 @@ export default function SignIn() {
                       ? "비밀번호 보기"
                       : "Show password"
                 }
+                accessibilityHint={
+                  showPassword
+                    ? locale === "ko"
+                      ? "비밀번호 입력값을 다시 가립니다."
+                      : "Hides the password characters again."
+                    : locale === "ko"
+                      ? "비밀번호 입력값을 화면에 표시합니다."
+                      : "Shows the password characters on screen."
+                }
+                accessibilityState={{ selected: showPassword }}
                 style={styles.eyeBtn}
               >
                 {showPassword ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
@@ -217,7 +234,14 @@ export default function SignIn() {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               autoComplete="current-password"
+              textContentType="password"
               placeholderTextColor={PALETTE.textSubtle}
+              accessibilityLabel={t("signIn.password")}
+              accessibilityHint={
+                locale === "ko"
+                  ? "계정 비밀번호를 입력합니다."
+                  : "Enter your account password."
+              }
               style={styles.input}
               returnKeyType="go"
               onSubmitEditing={() => {
