@@ -9,90 +9,77 @@ import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 export default function NotFound() {
-  const { i18n } = useTranslation();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const { t } = useTranslation("notFound");
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
-          eyebrow="404"
-          title={locale === "ko" ? "아직 놓이지 않은 길이에요" : "This path is not laid yet"}
-          subtitle={locale === "ko" ? "마을의 중심으로 돌아갈 수 있어요" : "Return to the village center"}
+          eyebrow={t("hero.eyebrow")}
+          title={t("hero.title")}
+          subtitle={t("hero.subtitle")}
           island={CORE_VILLAGE_UI.island}
           worker={CORE_VILLAGE_UI.worker}
           accent={CORE_VILLAGE_UI.accent}
-          speech={
-            locale === "ko"
-              ? "길이 끊긴 것 같아요. 중심에서 다시 이어볼게요."
-              : "Looks like the path broke. Let's reconnect from the center."
-          }
+          speech={t("hero.speech")}
         />
         <View style={styles.actions}>
           <Link href="/" asChild>
             <Button
-              label={locale === "ko" ? "마을 중심으로" : "Go home"}
+              label={t("actions.home")}
               variant="primary"
-              accessibilityHint={
-                locale === "ko" ? "마을 중심 화면으로 이동합니다." : "Opens the village center."
-              }
+              accessibilityHint={t("actions.homeHint")}
             />
           </Link>
         </View>
         <View style={styles.destinations}>
           <Text variant="caption" color="textMuted" style={styles.destinationsTitle}>
-            {locale === "ko" ? "또는, 자주 가는 곳" : "Or, common destinations"}
+            {t("destinations.title")}
           </Text>
           <Link href="/capture" asChild>
             <Pressable
               accessibilityRole="link"
-              accessibilityLabel={locale === "ko" ? "조각 담기" : "Capture"}
-              accessibilityHint={
-                locale === "ko" ? "새 조각을 남기는 화면을 엽니다." : "Opens capture from the not-found page."
-              }
+              accessibilityLabel={t("destinations.capture.label")}
+              accessibilityHint={t("destinations.capture.hint")}
               style={styles.destinationLink}
             >
               <Text variant="body" color="brand">
-                {locale === "ko" ? "조각 담기" : "Capture"}
+                {t("destinations.capture.label")}
               </Text>
             </Pressable>
           </Link>
           <Link href="/audit" asChild>
             <Pressable
               accessibilityRole="link"
-              accessibilityLabel={locale === "ko" ? "과거의 나" : "Past me"}
-              accessibilityHint={
-                locale === "ko" ? "과거 기록을 돌아보는 화면을 엽니다." : "Opens the past-me timeline."
-              }
+              accessibilityLabel={t("destinations.audit.label")}
+              accessibilityHint={t("destinations.audit.hint")}
               style={styles.destinationLink}
             >
               <Text variant="body" color="brand">
-                {locale === "ko" ? "과거의 나" : "Past me"}
+                {t("destinations.audit.label")}
               </Text>
             </Pressable>
           </Link>
           <Link href="/persona" asChild>
             <Pressable
               accessibilityRole="link"
-              accessibilityLabel={locale === "ko" ? "나의 모습" : "Persona"}
-              accessibilityHint={locale === "ko" ? "나의 모습 화면을 엽니다." : "Opens the persona screen."}
+              accessibilityLabel={t("destinations.persona.label")}
+              accessibilityHint={t("destinations.persona.hint")}
               style={styles.destinationLink}
             >
               <Text variant="body" color="brand">
-                {locale === "ko" ? "나의 모습" : "Persona"}
+                {t("destinations.persona.label")}
               </Text>
             </Pressable>
           </Link>
           <Link href="/manual" asChild>
             <Pressable
               accessibilityRole="link"
-              accessibilityLabel={locale === "ko" ? "사용 안내서" : "Manual"}
-              accessibilityHint={
-                locale === "ko" ? "앱 사용 안내서를 엽니다." : "Opens the app manual from the not-found page."
-              }
+              accessibilityLabel={t("destinations.manual.label")}
+              accessibilityHint={t("destinations.manual.hint")}
               style={styles.destinationLink}
             >
               <Text variant="body" color="brand">
-                {locale === "ko" ? "사용 안내서" : "Manual"}
+                {t("destinations.manual.label")}
               </Text>
             </Pressable>
           </Link>

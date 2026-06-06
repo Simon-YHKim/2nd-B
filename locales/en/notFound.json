@@ -1,0 +1,31 @@
+{
+  "hero": {
+    "eyebrow": "404",
+    "title": "This page does not exist",
+    "subtitle": "Start again from the home screen.",
+    "speech": "The link looks broken. Choose a safe place to continue."
+  },
+  "actions": {
+    "home": "Go home",
+    "homeHint": "Opens the home screen."
+  },
+  "destinations": {
+    "title": "Common destinations",
+    "capture": {
+      "label": "Capture",
+      "hint": "Opens capture from the not-found page."
+    },
+    "audit": {
+      "label": "Past me",
+      "hint": "Opens the past-me timeline."
+    },
+    "persona": {
+      "label": "Persona",
+      "hint": "Opens the persona screen."
+    },
+    "manual": {
+      "label": "Manual",
+      "hint": "Opens the app manual from the not-found page."
+    }
+  }
+}

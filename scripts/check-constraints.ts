@@ -764,11 +764,11 @@ results.push(
       completeProfile.includes("SecondB entry artwork") &&
       completeProfile.includes("Saves your date of birth and consent, then opens the app.") &&
       completeProfile.includes("Signs out and returns to sign-in.") &&
-      notFound.includes("Opens the village center.") &&
-      notFound.includes("Opens capture from the not-found page.") &&
-      notFound.includes("Opens the past-me timeline.") &&
-      notFound.includes("Opens the persona screen.") &&
-      notFound.includes("Opens the app manual from the not-found page.") &&
+        notFound.includes('accessibilityHint={t("actions.homeHint")}') &&
+        notFound.includes('accessibilityHint={t("destinations.capture.hint")}') &&
+        notFound.includes('accessibilityHint={t("destinations.audit.hint")}') &&
+        notFound.includes('accessibilityHint={t("destinations.persona.hint")}') &&
+        notFound.includes('accessibilityHint={t("destinations.manual.hint")}') &&
       homeRoles >= 4 &&
       home.includes("Opens capture to save your first piece") &&
       home.includes("Look around first") &&
@@ -1233,6 +1233,49 @@ results.push(
         note: ok
           ? "import screen copy lives in locale bundles and avoids old village metaphor copy"
           : "import screen should source user-facing copy from locale bundles and avoid old village metaphor copy",
+      };
+    }),
+  );
+
+  results.push(
+    check("NotFoundI18nCopy", () => {
+      const screen = read("src/app/+not-found.tsx");
+      const i18n = read("src/lib/i18n/index.ts");
+      const en = read("locales/en/notFound.json");
+      const ko = read("locales/ko/notFound.json");
+      const forbiddenScreenCopy = [
+        'locale === "ko"',
+        "Return to the village center",
+        "Opens the village center",
+        "This path is not laid yet",
+        "마을 중심",
+      ];
+      const forbiddenBundleCopy = [
+        "Return to the village center",
+        "Opens the village center",
+        "This path is not laid yet",
+        "마을 중심",
+      ];
+      const ok =
+        screen.includes('useTranslation("notFound")') &&
+        screen.includes('t("hero.title")') &&
+        screen.includes('t("actions.homeHint")') &&
+        screen.includes('t("destinations.capture.hint")') &&
+        i18n.includes("enNotFound") &&
+        i18n.includes("koNotFound") &&
+        i18n.includes('"notFound"') &&
+        i18n.includes("notFound: enNotFound") &&
+        i18n.includes("notFound: koNotFound") &&
+        en.includes("This page does not exist") &&
+        ko.includes("없는 화면이에요") &&
+        forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
+        forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
+      return {
+        id: "NotFoundI18nCopy",
+        status: ok ? "PASS" : "FAIL",
+        note: ok
+          ? "not-found screen copy lives in locale bundles and avoids old village-center copy"
+          : "not-found screen should source copy from locale bundles and avoid old village-center copy",
       };
     }),
   );
