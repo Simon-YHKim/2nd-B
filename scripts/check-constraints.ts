@@ -287,12 +287,14 @@ results.push(
     const manual = read("src/app/manual.tsx");
     const records = read("src/app/records.tsx");
     const trinity = read("src/app/trinity.tsx");
+    const signIn = read("src/app/(auth)/sign-in.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
     const researchTablists = (research.match(/accessibilityRole="tablist"/g) ?? []).length;
     const captureSelected = (capture.match(/accessibilityState=\{\{ selected: active \}\}/g) ?? []).length;
     const inboxRoles = (inbox.match(/accessibilityRole=/g) ?? []).length;
+    const signInRoles = (signIn.match(/accessibilityRole="button"/g) ?? []).length;
     const ok =
       captureTablists >= 2 && // track + mode rows
       captureSelected >= 2 && // track + mode chips
@@ -328,13 +330,22 @@ results.push(
       manual.includes("Manual language: switch to Korean") &&
       records.includes("Filter records by ${label}") &&
       trinity.includes('accessibilityRole="link"') &&
-      trinity.includes("Add domain tags in capture");
+      trinity.includes("Add domain tags in capture") &&
+      signInRoles >= 7 &&
+      signIn.includes('accessibilityLabel={t("signIn.submit")}') &&
+      signIn.includes("accessibilityState={{ disabled: !canSubmit, busy: submitting }}") &&
+      signIn.includes('accessibilityLabel={t("signIn.continueWithGoogle")}') &&
+      signIn.includes('accessibilityLabel={t("signIn.continueWithApple")}') &&
+      signIn.includes('accessibilityLabel={t("signIn.continueWithKakao")}') &&
+      signIn.includes('accessibilityLabel={t("signIn.continueWithNaver")}') &&
+      signIn.includes("accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}") &&
+      signIn.includes("Reset password");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in actions need accessibilityRole plus selected/checked state",
     };
   }),
 );

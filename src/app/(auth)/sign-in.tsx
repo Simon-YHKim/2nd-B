@@ -225,6 +225,9 @@ export default function SignIn() {
               onPress={handleSubmit}
               disabled={!canSubmit}
               style={[styles.primaryBtn, !canSubmit && styles.btnDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel={t("signIn.submit")}
+              accessibilityState={{ disabled: !canSubmit, busy: submitting }}
             >
               <Text style={styles.primaryBtnText}>
                 {submitting ? (locale === "ko" ? "들어가는 중…" : "Entering…") : t("signIn.submit")}
@@ -242,6 +245,9 @@ export default function SignIn() {
                 onPress={() => handleOAuth("google")}
                 disabled={oauthSubmitting || submitting}
                 style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+                accessibilityRole="button"
+                accessibilityLabel={t("signIn.continueWithGoogle")}
+                accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
                 <Text style={styles.secondaryBtnText}>
                   {oauthSubmitting ? "…" : t("signIn.continueWithGoogle")}
@@ -254,6 +260,9 @@ export default function SignIn() {
                 onPress={() => handleOAuth("apple")}
                 disabled={oauthSubmitting || submitting}
                 style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+                accessibilityRole="button"
+                accessibilityLabel={t("signIn.continueWithApple")}
+                accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
                 <Text style={styles.secondaryBtnText}>
                   {oauthSubmitting ? "…" : t("signIn.continueWithApple")}
@@ -266,6 +275,9 @@ export default function SignIn() {
                 onPress={() => handleOAuth("kakao")}
                 disabled={oauthSubmitting || submitting}
                 style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+                accessibilityRole="button"
+                accessibilityLabel={t("signIn.continueWithKakao")}
+                accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
                 <Text style={styles.secondaryBtnText}>
                   {oauthSubmitting ? "…" : t("signIn.continueWithKakao")}
@@ -278,12 +290,21 @@ export default function SignIn() {
                 onPress={handleNaver}
                 disabled={oauthSubmitting || submitting}
                 style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+                accessibilityRole="button"
+                accessibilityLabel={t("signIn.continueWithNaver")}
+                accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
                 <Text style={styles.secondaryBtnText}>{t("signIn.continueWithNaver")}</Text>
               </Pressable>
             ) : null}
 
-            <Pressable onPress={handleForgotPassword} hitSlop={8} style={styles.forgotRow}>
+            <Pressable
+              onPress={handleForgotPassword}
+              hitSlop={8}
+              style={styles.forgotRow}
+              accessibilityRole="button"
+              accessibilityLabel={locale === "ko" ? "비밀번호 재설정" : "Reset password"}
+            >
               <Text style={styles.subtleText}>
                 {locale === "ko" ? "비밀번호를 잊으셨나요?" : "Forgot password?"}
               </Text>
