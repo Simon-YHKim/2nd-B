@@ -493,6 +493,7 @@ results.push(
     const account = read("src/app/account.tsx");
     const settings = read("src/app/settings.tsx");
     const capture = read("src/app/capture.tsx");
+    const inbox = read("src/app/inbox.tsx");
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const signUp = read("src/app/(auth)/sign-up.tsx");
     const completeProfile = read("src/app/(auth)/complete-profile.tsx");
@@ -511,6 +512,7 @@ results.push(
       !account.includes("Alert.alert") &&
       !settings.includes("Alert.alert") &&
       !capture.includes("Alert.alert") &&
+      !inbox.includes("Alert.alert") &&
       !signIn.includes("Alert.alert") &&
       !signUp.includes("Alert.alert") &&
       !completeProfile.includes("Alert.alert") &&
@@ -568,6 +570,10 @@ results.push(
       capture.includes("PremiumModal") &&
       capture.includes("Capture feedback notice") &&
       capture.includes("Retries the failed capture action.") &&
+      inbox.includes("PremiumModal") &&
+      inbox.includes("PremiumToast") &&
+      inbox.includes("Inbox feedback notice") &&
+      inbox.includes("Inbox action confirmation") &&
       !wiki.includes("Claude / ChatGPT") &&
       bigFive.includes("toastWrap") &&
       attachment.includes("toastWrap") &&
@@ -579,8 +585,8 @@ results.push(
       id: "Feedback",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "Big Five, Attachment, Import, ESM, Insights, Research, Wiki, Trinity, Interview, Account, Settings, Capture, Sign-in, Sign-up, Audit, and Persona feedback use premium surfaces"
-        : "assessment/import/ESM/insights/research/wiki/trinity/interview/account/settings/capture/sign-in/sign-up/audit/persona feedback should use premium surfaces and avoid vendor-specific helper copy",
+        ? "Big Five, Attachment, Import, ESM, Insights, Research, Wiki, Trinity, Interview, Account, Settings, Capture, Inbox, Sign-in, Sign-up, Audit, and Persona feedback use premium surfaces"
+        : "assessment/import/ESM/insights/research/wiki/trinity/interview/account/settings/capture/inbox/sign-in/sign-up/audit/persona feedback should use premium surfaces and avoid vendor-specific helper copy",
     };
   }),
 );

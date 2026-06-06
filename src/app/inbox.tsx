@@ -1,14 +1,14 @@
 // Inbox / source list. Lists everything in `sources` for the current user.
-// Tapping a row opens a localized alert with the body preview (downloaded
-// from Storage). A richer detail screen comes later in the RAG track.
+// Tapping a row expands a localized body preview (downloaded from Storage).
+// A richer detail screen comes later in the RAG track.
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, StyleSheet, FlatList, Pressable, ActivityIndicator, Alert, RefreshControl } from "react-native";
+import { View, StyleSheet, FlatList, Pressable, ActivityIndicator, RefreshControl } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Link, Redirect } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -49,6 +49,12 @@ function formatCapturedAt(iso: string, locale: "en" | "ko"): string {
 // when adding a new key past the cap, drop that oldest one. Re-adding an
 // existing key just overwrites it without growing the map.
 const BODY_CACHE_LIMIT = 5;
+type InboxToast = { message: string; tone: "info" | "success" | "danger" };
+type InboxFeedbackModal = {
+  title: string;
+  body: string;
+  confirm?: { label: string; variant: "primary" | "danger"; onPress: () => void | Promise<void> };
+} | null;
 
 // Known body-load error placeholders, keyed by locale. These are cached into
 // bodyById on a downloadRawClipping failure so the expanded row shows calm
@@ -127,6 +133,7 @@ type InboxRowProps = {
   t: TFunction<"inbox">;
   onPress: (row: SourceRow) => void;
   onRunPhase1: (row: SourceRow) => void;
+  onViewPhase1: (row: SourceRow) => void;
   onGeneratePage: (row: SourceRow) => void;
   onDeleteSource: (row: SourceRow) => void;
 };
@@ -141,6 +148,7 @@ const InboxRow = React.memo(function InboxRow({
   t,
   onPress,
   onRunPhase1,
+  onViewPhase1,
   onGeneratePage,
   onDeleteSource,
 }: InboxRowProps) {
@@ -219,12 +227,7 @@ const InboxRow = React.memo(function InboxRow({
           <Pressable
             onPress={(e) => {
               e.stopPropagation();
-              // Phase 1 = the stored summary + reflection questions (product term: "Source brief").
-              const p1 = readPhase1(r.frontmatter)!;
-              Alert.alert(
-                locale === "ko" ? "요약과 질문" : "Source brief",
-                p1.summary + "\n\n" + p1.questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
-              );
+              onViewPhase1(r);
             }}
             style={styles.generateBtn}
             hitSlop={4}
@@ -332,6 +335,8 @@ export default function Inbox() {
   const [phase1Id, setPhase1Id] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [bodyById, setBodyById] = useState<Record<string, string>>({});
+  const [toast, setToast] = useState<InboxToast | null>(null);
+  const [feedbackModal, setFeedbackModal] = useState<InboxFeedbackModal>(null);
   // Mirror of bodyById so the stable handleRowPress callback can read the
   // latest cache without listing bodyById in its deps (which would change its
   // identity and defeat InboxRow memoization).
@@ -339,6 +344,26 @@ export default function Inbox() {
   bodyByIdRef.current = bodyById;
   const expandedIdRef = useRef(expandedId);
   expandedIdRef.current = expandedId;
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(timeout);
+  }, [toast]);
+
+  const showFeedback = useCallback((title: string, body: string): void => {
+    setFeedbackModal({ title, body });
+  }, []);
+
+  const showToast = useCallback((message: string, tone: InboxToast["tone"] = "info"): void => {
+    setToast({ message, tone });
+  }, []);
+
+  function runModalConfirm(): void {
+    const current = feedbackModal?.confirm;
+    setFeedbackModal(null);
+    if (current) void current.onPress();
+  }
 
   const load = useCallback(
     async (uid: string) => {
@@ -415,7 +440,7 @@ export default function Inbox() {
       setPhase1Id(row.id);
       try {
         const result = await runPhase1({ userId, sourceId: row.id, locale, minor: isMinor === true });
-        Alert.alert(
+        showFeedback(
           locale === "ko" ? `요약 + 4개 질문 생성됨` : `Summary + 4 questions generated`,
           result.summary +
             "\n\n" +
@@ -427,7 +452,7 @@ export default function Inbox() {
       } catch (e) {
         // Raw error stays in logs only; user sees product-tone copy + retry.
         console.warn("[inbox] runPhase1 (summary + questions) failed", (e as Error).message);
-        Alert.alert(
+        showFeedback(
           locale === "ko" ? "요약과 질문을 만들지 못했어요" : "Couldn't create the summary and questions",
           locale === "ko"
             ? "잠시 후 요약 + 4질문을 다시 시도해 주세요. 계속 안 되면 다른 소스를 먼저 정리해 볼 수 있어요."
@@ -437,14 +462,26 @@ export default function Inbox() {
         setPhase1Id(null);
       }
     },
-    [userId, locale, isMinor, load],
+    [userId, locale, isMinor, load, showFeedback],
+  );
+
+  const handleViewPhase1 = useCallback(
+    (row: SourceRow): void => {
+      const p1 = readPhase1(row.frontmatter);
+      if (!p1) return;
+      showFeedback(
+        locale === "ko" ? "요약과 질문" : "Source brief",
+        p1.summary + "\n\n" + p1.questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
+      );
+    },
+    [locale, showFeedback],
   );
 
   const handleDeleteSource = useCallback(
     async (row: SourceRow): Promise<void> => {
       if (!userId) return;
       if (row.ingested) {
-        Alert.alert(
+        showFeedback(
           locale === "ko" ? "삭제 불가" : "Cannot delete",
           locale === "ko"
             ? "위키 페이지로 승격된 소스는 먼저 위키에서 페이지를 삭제해야 해요."
@@ -452,37 +489,34 @@ export default function Inbox() {
         );
         return;
       }
-      Alert.alert(
-        locale === "ko" ? "이 캡처를 삭제할까요?" : "Delete this capture?",
-        locale === "ko"
+      setFeedbackModal({
+        title: locale === "ko" ? "이 캡처를 삭제할까요?" : "Delete this capture?",
+        body: locale === "ko"
           ? "첨부된 본문 파일이 계정에 남을 수 있어요. 받은편지함 항목은 삭제됩니다."
           : "The attached body file can remain on your account. The inbox item will be removed.",
-        [
-          { text: locale === "ko" ? "취소" : "Cancel", style: "cancel" },
-          {
-            text: locale === "ko" ? "삭제" : "Delete",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                await deleteSource(userId, row.id);
-                await load(userId);
-              } catch (e) {
-                // Keep the raw error in logs only; show product-tone copy + retry.
-                console.warn("[inbox] deleteSource failed", (e as Error).message);
-                Alert.alert(
-                  locale === "ko" ? "캡처를 삭제하지 못했어요" : "Couldn't delete the capture",
-                  locale === "ko"
-                    ? "잠시 후 다시 시도해 주세요. 계속 안 되면 새로고침한 뒤 다시 삭제해 보세요."
-                    : "Please try again in a moment. If it keeps failing, refresh and delete again.",
-                  [{ text: locale === "ko" ? "확인" : "OK" }],
-                );
-              }
-            },
+        confirm: {
+          label: locale === "ko" ? "삭제" : "Delete",
+          variant: "danger",
+          onPress: async () => {
+            try {
+              await deleteSource(userId, row.id);
+              await load(userId);
+              showToast(locale === "ko" ? "캡처를 삭제했어요." : "Capture deleted.", "success");
+            } catch (e) {
+              // Keep the raw error in logs only; show product-tone copy.
+              console.warn("[inbox] deleteSource failed", (e as Error).message);
+              showFeedback(
+                locale === "ko" ? "캡처를 삭제하지 못했어요" : "Couldn't delete the capture",
+                locale === "ko"
+                  ? "잠시 후 다시 시도해 주세요. 계속 안 되면 새로고침한 뒤 다시 삭제해 보세요."
+                  : "Please try again in a moment. If it keeps failing, refresh and delete again.",
+              );
+            }
           },
-        ],
-      );
+        },
+      });
     },
-    [userId, locale, load],
+    [userId, locale, load, showFeedback, showToast],
   );
 
   const handleGeneratePage = useCallback(
@@ -496,23 +530,22 @@ export default function Inbox() {
           locale === "ko"
             ? `${pageName} 위키 페이지를 만들었어요${result.danglingSlugs.length > 0 ? ` · 아직 연결할 참고 이름 ${result.danglingSlugs.length}개` : ""}`
             : `Created a wiki page for ${pageName}${result.danglingSlugs.length > 0 ? ` · ${result.danglingSlugs.length} reference name${result.danglingSlugs.length === 1 ? "" : "s"} still need a page` : ""}`;
-        Alert.alert(msg);
+        showToast(msg, "success");
         await load(userId); // reflect ingested=true
       } catch (e) {
         // Keep the raw error in logs only; show product-tone copy + retry.
         console.warn("[inbox] generateSourcePage failed", (e as Error).message);
-        Alert.alert(
+        showFeedback(
           locale === "ko" ? "위키 페이지를 만들지 못했어요" : "Couldn't create the wiki page",
           locale === "ko"
             ? "잠시 후 다시 시도해 주세요. 계속 안 되면 먼저 요약 + 4질문을 만든 뒤 다시 시도해 보세요."
             : "Please try again in a moment. If it keeps failing, create the summary and 4 questions first, then retry.",
-          [{ text: locale === "ko" ? "확인" : "OK" }],
         );
       } finally {
         setGeneratingId(null);
       }
     },
-    [userId, locale, load],
+    [userId, locale, load, showFeedback, showToast],
   );
 
   const renderRow = useCallback(
@@ -527,6 +560,7 @@ export default function Inbox() {
         t={t}
         onPress={handleRowPress}
         onRunPhase1={handleRunPhase1}
+        onViewPhase1={handleViewPhase1}
         onGeneratePage={handleGeneratePage}
         onDeleteSource={handleDeleteSource}
       />
@@ -540,6 +574,7 @@ export default function Inbox() {
       t,
       handleRowPress,
       handleRunPhase1,
+      handleViewPhase1,
       handleGeneratePage,
       handleDeleteSource,
     ],
@@ -658,6 +693,39 @@ export default function Inbox() {
         windowSize={5}
         removeClippedSubviews={true}
       />
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
+      ) : null}
+      <PremiumModal
+        visible={feedbackModal !== null}
+        onClose={() => setFeedbackModal(null)}
+        accessibilityLabel={feedbackModal?.confirm ? (locale === "ko" ? "받은편지함 작업 확인" : "Inbox action confirmation") : (locale === "ko" ? "받은편지함 피드백 안내" : "Inbox feedback notice")}
+      >
+        <Text variant="heading">{feedbackModal?.title}</Text>
+        <Text variant="body" color="textMuted" style={styles.modalBody}>
+          {feedbackModal?.body}
+        </Text>
+        <View style={styles.modalActions}>
+          <Button
+            label={feedbackModal?.confirm ? (locale === "ko" ? "취소" : "Cancel") : (locale === "ko" ? "닫기" : "Dismiss")}
+            variant="secondary"
+            onPress={() => setFeedbackModal(null)}
+            style={styles.modalButton}
+            accessibilityHint={locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice."}
+          />
+          {feedbackModal?.confirm ? (
+            <Button
+              label={feedbackModal.confirm.label}
+              variant={feedbackModal.confirm.variant}
+              onPress={runModalConfirm}
+              style={styles.modalButton}
+              accessibilityHint={locale === "ko" ? "선택한 받은편지함 작업을 실행합니다." : "Runs the selected inbox action."}
+            />
+          ) : null}
+        </View>
+      </PremiumModal>
     </PremiumAppShell>
   );
 }
@@ -710,6 +778,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   emptyText: { textAlign: "center" },
+  toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
+  modalBody: { lineHeight: 21 },
+  modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  modalButton: { flex: 1 },
   list: { gap: spacing.sm },
   row: {
     backgroundColor: semantic.surface,
