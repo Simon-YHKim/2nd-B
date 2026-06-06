@@ -242,7 +242,19 @@ export default function Interview() {
             }          />
           <View style={styles.periodGrid}>
             {(["childhood", "teens", "twenties", "thirties", "current"] as LifePeriod[]).map((p) => (
-              <Pressable key={p} onPress={() => startInterview(p)} style={styles.periodCard} hitSlop={4}>
+              <Pressable
+                key={p}
+                onPress={() => startInterview(p)}
+                style={styles.periodCard}
+                hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  locale === "ko"
+                    ? `${PERIOD_LABEL[locale][p]} 시기 인터뷰 시작`
+                    : `Start interview for ${PERIOD_LABEL[locale][p]}`
+                }
+                accessibilityHint={locale === "ko" ? "선택한 시기의 질문을 시작합니다" : "Starts questions for the selected life period"}
+              >
                 <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
                   {PERIOD_LABEL[locale][p]}
                 </Text>
