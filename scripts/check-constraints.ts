@@ -951,8 +951,8 @@ results.push(
       preferenceToggle.includes("accessibilityState={{ checked: value, disabled }}") &&
       privacy.includes("PreferenceToggleRow") &&
       formats.includes("PreferenceSwitch") &&
-      formats.includes('accessibilityLabel={locale === "ko" ? "형식 삭제 확인" : "Delete format confirmation"}') &&
-      formats.includes('accessibilityLabel={locale === "ko" ? "분류 기준 보기" : "View filing guide"}') &&
+      formats.includes('accessibilityLabel={tf("deleteModal.label")}') &&
+      formats.includes('accessibilityLabel={tf("guideModal.label")}') &&
       loadingScreen.includes('accessibilityRole="button"') &&
       loadingScreen.includes("accessibilityState={{ busy: phase !== \"ready\", disabled: phase === \"zooming\" }}") &&
       loadingScreen.includes("2nd-Brain 열기") &&
@@ -1969,6 +1969,90 @@ results.push(
       note: ok
         ? "formats screen community copy lives in locale bundles and avoids old village-sharing wording"
         : "formats screen should use locale-bundled community copy instead of old village-sharing wording",
+    };
+  }),
+);
+
+results.push(
+  check("FormatsOperationalI18nCopy", () => {
+    const formats = read("src/app/formats.tsx");
+    const enFormats = read("locales/en/formats.json");
+    const koFormats = read("locales/ko/formats.json");
+    const codeRequiredSnippets = [
+      'tf("toast.shareFailed")',
+      'tf("toast.deleteSuccess")',
+      'tf("toast.saveSuccess")',
+      'tf("loading.formats")',
+      'tf("builtIn.headingWithCount", { count: CLIPPER_TEMPLATE_LIST.length })',
+      'tf("labels.viewGuide")',
+      'tf("labels.tapViewGuide")',
+      'tf("error.loadTitle")',
+      'tf("mine.emptyTitle")',
+      'tf("mine.emptyBody")',
+      'tf("actions.goCapture")',
+      'tf("deleteModal.label")',
+      'tf("deleteModal.title")',
+      'tf("guideModal.label")',
+      'tf("actions.close")',
+    ];
+    const requiredLocaleKeys = [
+      '"builtIn"',
+      '"labels"',
+      '"actions"',
+      '"loading"',
+      '"error"',
+      '"toast"',
+      '"deleteModal"',
+      '"guideModal"',
+      '"emptyTitle"',
+      '"emptyBody"',
+    ];
+    const forbiddenScreenCopy = [
+      "Could not change sharing.",
+      "Format deleted.",
+      "Could not delete.",
+      "Format saved.",
+      "Could not save.",
+      "Format added.",
+      "Loading formats",
+      "Built-in formats",
+      "view filing guide",
+      "Tap to view filing guide",
+      "Couldn't load your formats",
+      "No formats yet",
+      "AI-proposed format",
+      "Delete format confirmation",
+      "Delete this format?",
+      "This can't be undone.",
+      "Filing guide",
+      "공유 설정을 바꾸지 못했어요",
+      "형식을 삭제했어요",
+      "삭제하지 못했어요",
+      "형식을 저장했어요",
+      "저장하지 못했어요",
+      "형식을 추가했어요",
+      "형식을 불러오는 중이에요",
+      "기본 형식",
+      "분류 기준 보기",
+      "눌러서 분류 기준 보기",
+      "아직 만든 형식이 없어요",
+      "새 형식을 제안받아",
+      "형식 삭제 확인",
+      "이 형식을 삭제할까요",
+      "삭제하면 되돌릴 수 없어요",
+    ];
+    const ok =
+      codeRequiredSnippets.every((snippet) => formats.includes(snippet)) &&
+      requiredLocaleKeys.every((key) => enFormats.includes(key) && koFormats.includes(key)) &&
+      enFormats.includes("SecondB-proposed format") &&
+      koFormats.includes("SecondB가 제안한 형식") &&
+      forbiddenScreenCopy.every((term) => !formats.includes(term));
+    return {
+      id: "FormatsOperationalI18nCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "formats operational loading, toast, list, and modal copy lives in the formats locale bundle"
+        : "formats operational copy should source visible strings from formats locale keys",
     };
   }),
 );

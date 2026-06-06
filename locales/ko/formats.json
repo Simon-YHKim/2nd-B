@@ -7,12 +7,61 @@
   },
   "mine": {
     "shared": "커뮤니티에 공유됨",
-    "private": "나만 보기"
+    "private": "나만 보기",
+    "heading": "내 형식",
+    "headingWithCount": "내 형식 ({{count}})",
+    "emptyTitle": "아직 만든 형식이 없어요",
+    "emptyBody": "캡처 중 SecondB가 제안한 형식을 저장하면 여기에 모여요."
   },
   "community": {
     "heading": "커뮤니티 형식",
     "headingWithCount": "커뮤니티 형식 ({{count}})",
     "empty": "아직 커뮤니티에 공유된 형식이 없어요. 누군가 형식을 공유하면 여기 나타나요."
+  },
+  "builtIn": {
+    "headingWithCount": "기본 형식 ({{count}})"
+  },
+  "labels": {
+    "untitled": "(이름 없음)",
+    "viewGuide": "분류 기준 보기",
+    "tapViewGuide": "눌러서 분류 기준 보기 ›",
+    "guide": "기준",
+    "share": "공유",
+    "delete": "삭제"
+  },
+  "actions": {
+    "addFormat": "형식 추가",
+    "goCapture": "담으러 가기",
+    "edit": "편집",
+    "delete": "삭제",
+    "cancel": "취소",
+    "close": "닫기"
+  },
+  "loading": {
+    "formats": "형식을 불러오는 중이에요…",
+    "generic": "불러오는 중이에요…"
+  },
+  "error": {
+    "loadTitle": "형식을 불러오지 못했어요",
+    "loadBody": "연결을 확인하고 다시 시도해 주세요.",
+    "retry": "다시 시도"
+  },
+  "toast": {
+    "shareFailed": "공유 설정을 바꾸지 못했어요.",
+    "deleteSuccess": "형식을 삭제했어요.",
+    "deleteFailed": "삭제하지 못했어요.",
+    "saveSuccess": "형식을 저장했어요.",
+    "saveFailed": "저장하지 못했어요.",
+    "addSuccess": "형식을 추가했어요."
+  },
+  "deleteModal": {
+    "label": "형식 삭제 확인",
+    "title": "이 형식을 삭제할까요?",
+    "body": "삭제하면 되돌릴 수 없어요."
+  },
+  "guideModal": {
+    "label": "분류 기준 보기",
+    "eyebrow": "분류 기준"
   },
   "add": {
     "title": "형식 추가",

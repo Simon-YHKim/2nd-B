@@ -114,7 +114,7 @@ export default function Formats() {
         if (typeof console !== "undefined") console.warn("[formats] share toggle failed", (e as Error).message);
         if (!mountedRef.current) return;
         setTemplates((prev) => (prev ? prev.map((x) => (x.id === t.id ? { ...x, isShared: !next } : x)) : prev));
-        flashToast(locale === "ko" ? "공유 설정을 바꾸지 못했어요." : "Could not change sharing.", "danger");
+        flashToast(tf("toast.shareFailed"), "danger");
       })
       .finally(() => {
         if (!mountedRef.current) return;
@@ -136,10 +136,10 @@ export default function Formats() {
       if (!mountedRef.current) return;
       setTemplates((prev) => (prev ? prev.filter((x) => x.id !== target.id) : prev));
       setConfirmDelete(null);
-      flashToast(locale === "ko" ? "형식을 삭제했어요." : "Format deleted.", "success");
+      flashToast(tf("toast.deleteSuccess"), "success");
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[formats] delete failed", (e as Error).message);
-      if (mountedRef.current) flashToast(locale === "ko" ? "삭제하지 못했어요." : "Could not delete.", "danger");
+      if (mountedRef.current) flashToast(tf("toast.deleteFailed"), "danger");
     } finally {
       if (mountedRef.current) setBusyId(null);
     }
@@ -173,10 +173,10 @@ export default function Formats() {
           : [saved, ...prev];
       });
       setEditing(null);
-      flashToast(locale === "ko" ? "형식을 저장했어요." : "Format saved.", "success");
+      flashToast(tf("toast.saveSuccess"), "success");
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[formats] save failed", (e as Error).message);
-      if (mountedRef.current) flashToast(locale === "ko" ? "저장하지 못했어요." : "Could not save.", "danger");
+      if (mountedRef.current) flashToast(tf("toast.saveFailed"), "danger");
     } finally {
       if (mountedRef.current) setSaving(false);
     }
@@ -186,7 +186,7 @@ export default function Formats() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "형식을 불러오는 중이에요…" : "Loading formats…"} />
+          <PremiumLoadingState message={tf("loading.formats")} />
         </View>
       </PremiumAppShell>
     );
@@ -196,7 +196,7 @@ export default function Formats() {
   const partition = templates ? partitionTemplates(templates, userId) : { mine: [], community: [] };
 
   function nameOf(t: CustomClipperTemplate): string {
-    return (locale === "ko" ? t.name.ko : t.name.en) || t.name.en || t.name.ko || (locale === "ko" ? "(이름 없음)" : "(untitled)");
+    return (locale === "ko" ? t.name.ko : t.name.en) || t.name.en || t.name.ko || tf("labels.untitled");
   }
   function whatOf(t: CustomClipperTemplate): string {
     return (locale === "ko" ? t.what.ko : t.what.en) || t.what.en || t.what.ko || "";
@@ -247,7 +247,7 @@ export default function Formats() {
               onSaved={(saved) => {
                 setTemplates((prev) => (prev ? [saved, ...prev.filter((x) => x.id !== saved.id)] : [saved]));
                 setAdding(false);
-                flashToast(locale === "ko" ? "형식을 추가했어요." : "Format added.", "success");
+                flashToast(tf("toast.addSuccess"), "success");
               }}
               onCancel={() => setAdding(false)}
             />
@@ -264,7 +264,7 @@ export default function Formats() {
               />
 
               <PremiumButton
-                label={locale === "ko" ? "형식 추가" : "Add format"}
+                label={tf("actions.addFormat")}
                 variant="primary"
                 onPress={() => setAdding(true)}
                 full
@@ -275,7 +275,7 @@ export default function Formats() {
                   any DB-stored custom format exists (and even if the load fails). */}
               <View style={styles.sectionHead}>
                 <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
-                  {locale === "ko" ? `기본 형식 (${CLIPPER_TEMPLATE_LIST.length})` : `Built-in formats (${CLIPPER_TEMPLATE_LIST.length})`}
+                  {tf("builtIn.headingWithCount", { count: CLIPPER_TEMPLATE_LIST.length })}
                 </Text>
               </View>
               {CLIPPER_TEMPLATE_LIST.map((t) => (
@@ -283,7 +283,7 @@ export default function Formats() {
                   key={t.id}
                   onPress={() => setViewing(schemaOfBundled(t))}
                   accessibilityRole="button"
-                  accessibilityLabel={`${(locale === "ko" ? t.name.ko : t.name.en) || t.name.en} ${locale === "ko" ? "분류 기준 보기" : "view filing guide"}`}
+                  accessibilityLabel={`${(locale === "ko" ? t.name.ko : t.name.en) || t.name.en} ${tf("labels.viewGuide")}`}
                 >
                   <PremiumCard
                     accent={semantic.brand}
@@ -294,41 +294,37 @@ export default function Formats() {
                       {locale === "ko" ? t.what.ko : t.what.en}
                     </Text>
                     <Text variant="subtle" color="brand" style={styles.shareNote}>
-                      {locale === "ko" ? "눌러서 분류 기준 보기 ›" : "Tap to view filing guide ›"}
+                      {tf("labels.tapViewGuide")}
                     </Text>
                   </PremiumCard>
                 </Pressable>
               ))}
 
               {templates === null && !loadError ? (
-                <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
+                <PremiumLoadingState message={tf("loading.generic")} />
               ) : loadError ? (
                 <PremiumErrorState
-                  title={locale === "ko" ? "형식을 불러오지 못했어요" : "Couldn't load your formats"}
-                  body={locale === "ko" ? "연결을 확인하고 다시 시도해 주세요." : "Check your connection and try again."}
+                  title={tf("error.loadTitle")}
+                  body={tf("error.loadBody")}
                   onRetry={reload}
-                  retryLabel={locale === "ko" ? "다시 시도" : "Try again"}
+                  retryLabel={tf("error.retry")}
                 />
               ) : (
                 <>
                   {/* Section 1 — my formats */}
                   <View style={styles.sectionHead}>
                     <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
-                      {locale === "ko" ? `내 형식${partition.mine.length ? ` (${partition.mine.length})` : ""}` : `My formats${partition.mine.length ? ` (${partition.mine.length})` : ""}`}
+                      {partition.mine.length ? tf("mine.headingWithCount", { count: partition.mine.length }) : tf("mine.heading")}
                     </Text>
                   </View>
 
                   {partition.mine.length === 0 ? (
                     <PremiumEmptyState
-                      title={locale === "ko" ? "아직 만든 형식이 없어요" : "No formats yet"}
-                      body={
-                        locale === "ko"
-                          ? "캡처 중 새 형식을 제안받아 저장하면 여기에 모여요."
-                          : "Save an AI-proposed format while capturing and it lands here."
-                      }
+                      title={tf("mine.emptyTitle")}
+                      body={tf("mine.emptyBody")}
                       action={
                         <PremiumButton
-                          label={locale === "ko" ? "담으러 가기" : "Go capture"}
+                          label={tf("actions.goCapture")}
                           variant="secondary"
                           onPress={() => router.push("/capture")}
                           full
@@ -347,7 +343,7 @@ export default function Formats() {
                             value={t.isShared}
                             onValueChange={(next) => toggleShare(t, next)}
                             disabled={pendingShareIds.has(t.id)}
-                            accessibilityLabel={`${nameOf(t)} ${locale === "ko" ? "공유" : "share"}`}
+                            accessibilityLabel={`${nameOf(t)} ${tf("labels.share")}`}
                           />
                         }
                       >
@@ -363,12 +359,12 @@ export default function Formats() {
                             style={styles.deleteLink}
                             hitSlop={6}
                             accessibilityRole="button"
-                            accessibilityLabel={`${nameOf(t)} ${locale === "ko" ? "분류 기준 보기" : "view filing guide"}`}
+                            accessibilityLabel={`${nameOf(t)} ${tf("labels.viewGuide")}`}
                           >
-                            <Text variant="subtle" color="brand">{locale === "ko" ? "기준" : "Guide"}</Text>
+                            <Text variant="subtle" color="brand">{tf("labels.guide")}</Text>
                           </Pressable>
                           <PremiumButton
-                            label={locale === "ko" ? "편집" : "Edit"}
+                            label={tf("actions.edit")}
                             variant="secondary"
                             onPress={() => setEditing(t)}
                             style={styles.editAction}
@@ -378,9 +374,9 @@ export default function Formats() {
                             style={styles.deleteLink}
                             hitSlop={6}
                             accessibilityRole="button"
-                            accessibilityLabel={`${nameOf(t)} ${locale === "ko" ? "삭제" : "delete"}`}
+                            accessibilityLabel={`${nameOf(t)} ${tf("labels.delete")}`}
                           >
-                            <Text variant="subtle" color="textMuted">{locale === "ko" ? "삭제" : "Delete"}</Text>
+                            <Text variant="subtle" color="textMuted">{tf("actions.delete")}</Text>
                           </Pressable>
                         </View>
                       </PremiumCard>
@@ -406,12 +402,12 @@ export default function Formats() {
                         key={t.id}
                         onPress={() => setViewing(schemaOfCustom(t))}
                         accessibilityRole="button"
-                        accessibilityLabel={`${nameOf(t)} ${locale === "ko" ? "분류 기준 보기" : "view filing guide"}`}
+                        accessibilityLabel={`${nameOf(t)} ${tf("labels.viewGuide")}`}
                       >
                         <PremiumCard accent={semantic.info} eyebrow={metaOf(t)} title={nameOf(t)}>
                           {whatOf(t) ? <Text variant="subtle" color="textMuted">{whatOf(t)}</Text> : null}
                           <Text variant="subtle" color="brand" style={styles.shareNote}>
-                            {locale === "ko" ? "눌러서 분류 기준 보기 ›" : "Tap to view filing guide ›"}
+                            {tf("labels.tapViewGuide")}
                           </Text>
                         </PremiumCard>
                       </Pressable>
@@ -429,27 +425,27 @@ export default function Formats() {
       <PremiumModal
         visible={!!confirmDelete}
         onClose={() => (busyId ? undefined : setConfirmDelete(null))}
-        accessibilityLabel={locale === "ko" ? "형식 삭제 확인" : "Delete format confirmation"}
+        accessibilityLabel={tf("deleteModal.label")}
       >
         <Text variant="heading" style={{ fontSize: 18 }}>
-          {locale === "ko" ? "이 형식을 삭제할까요?" : "Delete this format?"}
+          {tf("deleteModal.title")}
         </Text>
         <Text variant="body" color="textMuted">
           {confirmDelete ? nameOf(confirmDelete) : ""}
         </Text>
         <Text variant="subtle" color="textSubtle">
-          {locale === "ko" ? "삭제하면 되돌릴 수 없어요." : "This can't be undone."}
+          {tf("deleteModal.body")}
         </Text>
         <View style={styles.modalActions}>
           <PremiumButton
-            label={locale === "ko" ? "취소" : "Cancel"}
+            label={tf("actions.cancel")}
             variant="ghost"
             disabled={!!busyId}
             onPress={() => setConfirmDelete(null)}
             full
           />
           <PremiumButton
-            label={locale === "ko" ? "삭제" : "Delete"}
+            label={tf("actions.delete")}
             variant="danger"
             loading={!!busyId}
             onPress={confirmDeleteNow}
@@ -462,15 +458,15 @@ export default function Formats() {
       <PremiumModal
         visible={!!viewing}
         onClose={() => setViewing(null)}
-        accessibilityLabel={locale === "ko" ? "분류 기준 보기" : "View filing guide"}
+        accessibilityLabel={tf("guideModal.label")}
       >
         <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
-          {locale === "ko" ? "분류 기준" : "Filing guide"}
+          {tf("guideModal.eyebrow")}
         </Text>
         {viewing ? <FormatSchemaView schema={viewing} locale={locale} /> : null}
         <View style={styles.modalActions}>
           <PremiumButton
-            label={locale === "ko" ? "닫기" : "Close"}
+            label={tf("actions.close")}
             variant="secondary"
             onPress={() => setViewing(null)}
             full

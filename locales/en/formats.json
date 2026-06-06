@@ -7,12 +7,61 @@
   },
   "mine": {
     "shared": "Shared with the community",
-    "private": "Private to you"
+    "private": "Private to you",
+    "heading": "My formats",
+    "headingWithCount": "My formats ({{count}})",
+    "emptyTitle": "No formats yet",
+    "emptyBody": "Save a SecondB-proposed format while capturing and it lands here."
   },
   "community": {
     "heading": "Community formats",
     "headingWithCount": "Community formats ({{count}})",
     "empty": "No community formats yet. When someone shares one, it shows up here."
+  },
+  "builtIn": {
+    "headingWithCount": "Built-in formats ({{count}})"
+  },
+  "labels": {
+    "untitled": "(untitled)",
+    "viewGuide": "view filing guide",
+    "tapViewGuide": "Tap to view filing guide ›",
+    "guide": "Guide",
+    "share": "share",
+    "delete": "delete"
+  },
+  "actions": {
+    "addFormat": "Add format",
+    "goCapture": "Go capture",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "close": "Close"
+  },
+  "loading": {
+    "formats": "Loading formats…",
+    "generic": "Loading…"
+  },
+  "error": {
+    "loadTitle": "Couldn't load your formats",
+    "loadBody": "Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "toast": {
+    "shareFailed": "Could not change sharing.",
+    "deleteSuccess": "Format deleted.",
+    "deleteFailed": "Could not delete.",
+    "saveSuccess": "Format saved.",
+    "saveFailed": "Could not save.",
+    "addSuccess": "Format added."
+  },
+  "deleteModal": {
+    "label": "Delete format confirmation",
+    "title": "Delete this format?",
+    "body": "This can't be undone."
+  },
+  "guideModal": {
+    "label": "View filing guide",
+    "eyebrow": "Filing guide"
   },
   "add": {
     "title": "Add a format",
