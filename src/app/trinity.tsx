@@ -12,12 +12,13 @@
 // `건강`, `앱`, `뇌`, `재정` and the trinity classifier normalizes.
 
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View, ActivityIndicator, Pressable, Alert } from "react-native";
+import { ScrollView, StyleSheet, View, ActivityIndicator, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumModal, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -120,6 +121,7 @@ export default function Trinity() {
   const [records, setRecords] = useState<RecordLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
+  const [loadErrorOpen, setLoadErrorOpen] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -145,16 +147,7 @@ export default function Trinity() {
       ]);
       if (recRes.error) {
         console.warn("[trinity] load records failed", recRes.error.message);
-        Alert.alert(
-          locale === "ko" ? "기록을 못 불러왔어요" : "Couldn't load records",
-          locale === "ko"
-            ? "잠시 연결이 흔들렸어요. 다시 시도하면 4영역을 새로 불러올게요."
-            : "The connection hiccuped for a moment. Try again to reload your four areas.",
-          [
-            { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
-            { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => setReloadKey((k) => k + 1) },
-          ],
-        );
+        setLoadErrorOpen(true);
       }
       const recRows = (recRes.data ?? []) as RecordLite[];
       // Sources best-effort: map tagged captured pieces into the classifier shape.
@@ -300,6 +293,39 @@ export default function Trinity() {
         </View>
 
       </ScrollView>
+      <PremiumModal
+        visible={loadErrorOpen}
+        onClose={() => setLoadErrorOpen(false)}
+        accessibilityLabel={locale === "ko" ? "4영역 다시 불러오기 안내" : "Four-area reload notice"}
+      >
+        <Text variant="heading">
+          {locale === "ko" ? "기록을 못 불러왔어요" : "Couldn't load records"}
+        </Text>
+        <Text variant="body" color="textMuted" style={styles.modalBody}>
+          {locale === "ko"
+            ? "잠시 연결이 흔들렸어요. 다시 시도하면 4영역을 새로 불러올게요."
+            : "The connection hiccuped for a moment. Try again to reload your four areas."}
+        </Text>
+        <View style={styles.modalActions}>
+          <Button
+            label={locale === "ko" ? "닫기" : "Dismiss"}
+            variant="secondary"
+            onPress={() => setLoadErrorOpen(false)}
+            style={styles.modalButton}
+            accessibilityHint={locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice."}
+          />
+          <Button
+            label={locale === "ko" ? "다시 시도" : "Retry"}
+            variant="primary"
+            onPress={() => {
+              setLoadErrorOpen(false);
+              setReloadKey((k) => k + 1);
+            }}
+            style={styles.modalButton}
+            accessibilityHint={locale === "ko" ? "4영역 기록을 다시 불러옵니다." : "Reloads the four-area records."}
+          />
+        </View>
+      </PremiumModal>
     </PremiumAppShell>
   );
 }
@@ -325,4 +351,7 @@ const styles = StyleSheet.create({
   cardSection: { marginTop: spacing.xs, gap: 2 },
   tagGuide: { backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, padding: spacing.md, gap: spacing.xs },
   actions: { gap: spacing.sm },
+  modalBody: { lineHeight: 21 },
+  modalActions: { flexDirection: "row", gap: spacing.sm },
+  modalButton: { flex: 1 },
 });
