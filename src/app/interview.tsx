@@ -16,7 +16,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -24,7 +23,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -50,6 +49,11 @@ import {
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 const SOFT_CAP = 50;
+type InterviewToast = { message: string; tone: "info" | "success" | "danger" };
+type InterviewFeedbackModal =
+  | { kind: "probe"; turnsSoFar: InterviewTurn[]; coverageSoFar: Coverage }
+  | { kind: "save" }
+  | null;
 
 export default function Interview() {
   const { i18n } = useTranslation();
@@ -65,8 +69,16 @@ export default function Interview() {
   const [done, setDone] = useState(false);
   const [completionAcknowledged, setCompletionAcknowledged] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<InterviewToast | null>(null);
+  const [feedbackModal, setFeedbackModal] = useState<InterviewFeedbackModal>(null);
 
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(timeout);
+  }, [toast]);
 
   useEffect(() => {
     if (turns.length > 0) {
@@ -120,19 +132,7 @@ export default function Interview() {
       setPendingLayer(probe.layer);
     } catch (e) {
       console.warn("[interview] next probe failed", (e as Error).message);
-      Alert.alert(
-        locale === "ko" ? "다음 질문을 못 불러왔어요" : "Couldn't load the next question",
-        locale === "ko"
-          ? "잠시 연결이 흔들렸어요. 방금 답변은 그대로 있으니 다시 시도하면 이어서 물어볼게요."
-          : "The connection hiccuped for a moment. Your answer is safe. Try again and we'll pick up where we left off.",
-        [
-          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
-          {
-            text: locale === "ko" ? "다시 시도" : "Retry",
-            onPress: () => void requestNextProbe(turnsSoFar, coverageSoFar),
-          },
-        ],
-      );
+      setFeedbackModal({ kind: "probe", turnsSoFar, coverageSoFar });
     } finally {
       setThinking(false);
     }
@@ -169,6 +169,7 @@ export default function Interview() {
   async function handleSave() {
     if (!userId || !period || turns.length === 0) return;
     setSaving(true);
+    let navigatingAfterSave = false;
     try {
       const transcript = turns
         .map((t) => {
@@ -198,31 +199,59 @@ export default function Interview() {
         auditPeriod: period === "current" ? "current" : "past",
         withFollowup: false,
       });
-      Alert.alert(
-        locale === "ko" ? "저장됐어요" : "Saved",
-        locale === "ko" ? "우리가 페르소나 화면에서 다른 기록과 함께 묶어둘게요." : "We'll fold this in with your other records on the Persona screen.",
-      );
-      router.replace("/persona");
+      setToast({
+        tone: "success",
+        message:
+          locale === "ko"
+            ? "저장됐어요. 페르소나 화면에 함께 반영할게요."
+            : "Saved. We'll fold this in on the Persona screen.",
+      });
+      navigatingAfterSave = true;
+      setTimeout(() => router.replace("/persona"), 900);
+      return;
     } catch (e) {
       console.warn("[interview] save failed", (e as Error).message);
-      Alert.alert(
-        locale === "ko" ? "저장하지 못했어요" : "Couldn't save",
-        locale === "ko"
-          ? "인터뷰 내용은 화면에 그대로 남아 있어요. 잠시 후 다시 저장해 주세요."
-          : "Your interview is still here on the screen. Give it another try in a moment.",
-        [
-          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
-          { text: locale === "ko" ? "다시 저장" : "Try again", onPress: () => void handleSave() },
-        ],
-      );
+      setFeedbackModal({ kind: "save" });
     } finally {
-      setSaving(false);
+      if (!navigatingAfterSave) setSaving(false);
     }
   }
 
   const userAnswers = turns.filter((t) => t.role === "user").length;
   const periodComplete = period !== null && isPeriodComplete(coverage, period);
   const shouldSuggestWrap = periodComplete && !completionAcknowledged && !done;
+  const feedbackModalTitle = feedbackModal?.kind === "probe"
+    ? (locale === "ko" ? "다음 질문을 못 불러왔어요" : "Couldn't load the next question")
+    : (locale === "ko" ? "저장하지 못했어요" : "Couldn't save");
+  const feedbackModalBody = feedbackModal?.kind === "probe"
+    ? (
+        locale === "ko"
+          ? "잠시 연결이 흔들렸어요. 방금 답변은 그대로 남아 있어요. 다시 시도하면 이어서 물어볼게요."
+          : "The connection hiccuped for a moment. Your answer is safe. Try again and we'll pick up where we left off."
+      )
+    : (
+        locale === "ko"
+          ? "인터뷰 내용은 화면에 그대로 남아 있어요. 잠시 후 다시 저장해 주세요."
+          : "Your interview is still here on the screen. Give it another try in a moment."
+      );
+  const feedbackRetryLabel = feedbackModal?.kind === "probe"
+    ? (locale === "ko" ? "다시 시도" : "Retry")
+    : (locale === "ko" ? "다시 저장" : "Try again");
+  const feedbackRetryHint = feedbackModal?.kind === "probe"
+    ? (locale === "ko" ? "다음 질문을 다시 불러옵니다." : "Retry interview feedback by loading the next question.")
+    : (locale === "ko" ? "인터뷰 저장을 다시 시도합니다." : "Retry interview feedback by saving again.");
+
+  function retryFeedbackModal() {
+    const current = feedbackModal;
+    setFeedbackModal(null);
+    if (current?.kind === "probe") {
+      void requestNextProbe(current.turnsSoFar, current.coverageSoFar);
+      return;
+    }
+    if (current?.kind === "save") {
+      void handleSave();
+    }
+  }
 
   if (period === null) {
     return (
@@ -380,6 +409,38 @@ export default function Interview() {
           </View>
         )}
       </KeyboardAvoidingView>
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
+      ) : null}
+      <PremiumModal
+        visible={feedbackModal !== null}
+        onClose={() => setFeedbackModal(null)}
+        accessibilityLabel={locale === "ko" ? "인터뷰 피드백 안내" : "Interview feedback notice"}
+      >
+        <Text variant="heading">{feedbackModalTitle}</Text>
+        <Text variant="body" color="textMuted" style={styles.modalBody}>
+          {feedbackModalBody}
+        </Text>
+        <View style={styles.modalActions}>
+          <Button
+            label={locale === "ko" ? "닫기" : "Dismiss"}
+            variant="secondary"
+            onPress={() => setFeedbackModal(null)}
+            style={styles.modalButton}
+            accessibilityHint={locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice."}
+          />
+          <Button
+            label={feedbackRetryLabel}
+            variant="primary"
+            onPress={retryFeedbackModal}
+            loading={thinking || saving}
+            style={styles.modalButton}
+            accessibilityHint={feedbackRetryHint}
+          />
+        </View>
+      </PremiumModal>
     </PremiumAppShell>
   );
 }
@@ -437,4 +498,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   footerActions: { flexDirection: "row", justifyContent: "space-between", gap: spacing.sm },
+  toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
+  modalBody: { lineHeight: 21 },
+  modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  modalButton: { flex: 1 },
 });

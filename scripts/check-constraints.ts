@@ -489,6 +489,7 @@ results.push(
     const research = read("src/app/research.tsx");
     const wiki = read("src/app/wiki.tsx");
     const trinity = read("src/app/trinity.tsx");
+    const interview = read("src/app/interview.tsx");
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const signUp = read("src/app/(auth)/sign-up.tsx");
     const completeProfile = read("src/app/(auth)/complete-profile.tsx");
@@ -503,6 +504,7 @@ results.push(
       !insights.includes("Alert.alert") &&
       !research.includes("Alert.alert") &&
       !trinity.includes("Alert.alert") &&
+      !interview.includes("Alert.alert") &&
       !signIn.includes("Alert.alert") &&
       !signUp.includes("Alert.alert") &&
       !completeProfile.includes("Alert.alert") &&
@@ -547,6 +549,9 @@ results.push(
       trinity.includes("PremiumModal") &&
       trinity.includes("Four-area reload notice") &&
       trinity.includes("Reloads the four-area records.") &&
+      interview.includes("PremiumModal") &&
+      interview.includes("PremiumToast") &&
+      interview.includes("Retry interview feedback") &&
       !wiki.includes("Claude / ChatGPT") &&
       bigFive.includes("toastWrap") &&
       attachment.includes("toastWrap") &&
@@ -558,8 +563,8 @@ results.push(
       id: "Feedback",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "Big Five, Attachment, Import, ESM, Insights, Research, Wiki, Trinity, Sign-in, Sign-up, Audit, and Persona feedback use premium surfaces"
-        : "assessment/import/ESM/insights/research/wiki/trinity/sign-in/sign-up/audit/persona feedback should use premium surfaces and avoid vendor-specific helper copy",
+        ? "Big Five, Attachment, Import, ESM, Insights, Research, Wiki, Trinity, Interview, Sign-in, Sign-up, Audit, and Persona feedback use premium surfaces"
+        : "assessment/import/ESM/insights/research/wiki/trinity/interview/sign-in/sign-up/audit/persona feedback should use premium surfaces and avoid vendor-specific helper copy",
     };
   }),
 );
