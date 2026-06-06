@@ -1,4 +1,4 @@
-import { StyleSheet, Switch, View } from "react-native";
+import { Pressable, StyleSheet, Switch, View } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -80,6 +80,40 @@ export function PreferenceToggleRow({
   );
 }
 
+export function PreferenceCheckRow({
+  checked,
+  label,
+  onToggle,
+  emphasize,
+}: {
+  checked: boolean;
+  label: string;
+  onToggle: () => void;
+  emphasize?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="checkbox"
+      accessibilityLabel={label}
+      accessibilityState={{ checked }}
+      style={styles.checkRow}
+      hitSlop={6}
+    >
+      <View style={[styles.box, checked && styles.boxChecked]}>
+        {checked ? <View style={styles.boxInner} /> : null}
+      </View>
+      <Text
+        variant={emphasize ? "caption" : "subtle"}
+        color={checked ? "text" : "textMuted"}
+        style={styles.checkLabel}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
@@ -95,4 +129,29 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     paddingHorizontal: spacing.xs,
   },
+  checkRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    minHeight: 32,
+    paddingVertical: spacing.xs,
+  },
+  box: {
+    width: 20,
+    height: 20,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  boxChecked: { borderColor: semantic.brand },
+  boxInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+    backgroundColor: semantic.brand,
+  },
+  checkLabel: { flex: 1, lineHeight: 18 },
 });

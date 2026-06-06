@@ -542,7 +542,7 @@ results.push(
     const esmTabs = (esm.match(/accessibilityRole="tab"/g) ?? []).length;
     const esmRadios = (esm.match(/accessibilityRole="radio"/g) ?? []).length;
     const esmCheckboxes = (esm.match(/accessibilityRole="checkbox"/g) ?? []).length;
-    const consentCheckboxes = (consentNotice.match(/accessibilityRole="checkbox"/g) ?? []).length;
+    const preferenceCheckboxes = (preferenceToggle.match(/accessibilityRole="checkbox"/g) ?? []).length;
     const ok =
       captureTablists >= 2 && // track + mode rows
       captureSelected >= 2 && // track + mode chips
@@ -671,8 +671,9 @@ results.push(
       profile.includes('route: "/esm"') &&
       profile.includes("Check in now") &&
       profile.includes("Opens a lightweight check-in") &&
-      consentCheckboxes >= 1 &&
-      consentNotice.includes("accessibilityLabel={label}") &&
+      preferenceCheckboxes >= 1 &&
+      preferenceToggle.includes("accessibilityLabel={label}") &&
+      consentNotice.includes("PreferenceCheckRow") &&
       consentDialog.includes("accessibilityViewIsModal") &&
       consentDialog.includes('accessibilityLabel={t("testimonial.title")}') &&
       consentDialog.includes('accessibilityHint={t("testimonial.body")}') &&

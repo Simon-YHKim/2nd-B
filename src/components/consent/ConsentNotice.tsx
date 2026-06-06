@@ -9,10 +9,11 @@
 // (LEXICON_LAST_LEGAL_REVIEW is null). Refine the notice + version constants
 // before a real-user launch — do not treat this as final consent language.
 
-import { View, StyleSheet, Pressable } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
+import { PreferenceCheckRow } from "@/components/ui/PreferenceToggle";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import {
   allRequiredAcksChecked,
@@ -24,40 +25,6 @@ interface ConsentNoticeProps {
   minor: boolean;
   value: ConsentSelections;
   onChange: (next: ConsentSelections) => void;
-}
-
-function CheckRow({
-  checked,
-  label,
-  onToggle,
-  emphasize,
-}: {
-  checked: boolean;
-  label: string;
-  onToggle: () => void;
-  emphasize?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onToggle}
-      accessibilityRole="checkbox"
-      accessibilityLabel={label}
-      accessibilityState={{ checked }}
-      style={styles.checkRow}
-      hitSlop={6}
-    >
-      <View style={[styles.box, checked && styles.boxChecked]}>
-        {checked ? <View style={styles.boxInner} /> : null}
-      </View>
-      <Text
-        variant={emphasize ? "caption" : "subtle"}
-        color={checked ? "text" : "textMuted"}
-        style={styles.checkLabel}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
 }
 
 export function ConsentNotice({ minor, value, onChange }: ConsentNoticeProps) {
@@ -110,21 +77,21 @@ export function ConsentNotice({ minor, value, onChange }: ConsentNoticeProps) {
         <Text variant="caption" color="brand" style={[styles.groupLabel, groupLabelTracking]}>
           {t("notice.requiredLabel")}
         </Text>
-        <CheckRow
+        <PreferenceCheckRow
           checked={allChecked}
           label={t("notice.agreeAll")}
           emphasize
           onToggle={() => onChange(setAllRequiredAcks(value, !allChecked))}
         />
         <View style={styles.divider} />
-        <CheckRow checked={value.service} label={t("notice.ackService")} onToggle={() => toggle("service")} />
-        <CheckRow checked={value.llmProcessing} label={t("notice.ackLlm")} onToggle={() => toggle("llmProcessing")} />
-        <CheckRow
+        <PreferenceCheckRow checked={value.service} label={t("notice.ackService")} onToggle={() => toggle("service")} />
+        <PreferenceCheckRow checked={value.llmProcessing} label={t("notice.ackLlm")} onToggle={() => toggle("llmProcessing")} />
+        <PreferenceCheckRow
           checked={value.overseasTransfer}
           label={t("notice.ackOverseas")}
           onToggle={() => toggle("overseasTransfer")}
         />
-        <CheckRow
+        <PreferenceCheckRow
           checked={value.sensitiveData}
           label={t("notice.ackSensitive")}
           onToggle={() => toggle("sensitiveData")}
@@ -135,7 +102,7 @@ export function ConsentNotice({ minor, value, onChange }: ConsentNoticeProps) {
         <Text variant="caption" color="textMuted" style={[styles.groupLabel, groupLabelTracking]}>
           {t("notice.optionalLabel")}
         </Text>
-        <CheckRow checked={value.marketing} label={t("notice.optMarketing")} onToggle={() => toggle("marketing")} />
+        <PreferenceCheckRow checked={value.marketing} label={t("notice.optMarketing")} onToggle={() => toggle("marketing")} />
       </View>
     </View>
   );
@@ -168,30 +135,5 @@ const styles = StyleSheet.create({
   group: { gap: spacing.xs },
   // Tracking is applied per-locale (groupLabelTracking) so KO is not over-spaced.
   groupLabel: { fontWeight: "700", marginTop: spacing.xs },
-  checkRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: spacing.sm,
-    minHeight: 32,
-    paddingVertical: spacing.xs,
-  },
-  box: {
-    width: 20,
-    height: 20,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: semantic.border,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 1,
-  },
-  boxChecked: { borderColor: semantic.brand },
-  boxInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 2,
-    backgroundColor: semantic.brand,
-  },
-  checkLabel: { flex: 1, lineHeight: 18 },
   divider: { height: 1, backgroundColor: semantic.border, opacity: 0.5 },
 });
