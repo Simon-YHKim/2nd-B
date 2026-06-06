@@ -94,7 +94,12 @@ export function QuantIntroModal({
   return (
     <Modal visible={true} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.backdrop}>
-        <View style={styles.card}>
+        <View
+          style={styles.card}
+          accessibilityViewIsModal
+          accessibilityLabel={title}
+          accessibilityHint={description}
+        >
           <View style={styles.introHeader}>
             <CompanionSprite companion="momo" state="read" size={52} />
             <View style={styles.introHeaderText}>
