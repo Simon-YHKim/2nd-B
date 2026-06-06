@@ -12,11 +12,11 @@
 // from birth_date, so a former minor's locks lift automatically on /privacy.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View, KeyboardAvoidingView, Platform } from "react-native";
+import { ScrollView, StyleSheet, View, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumModal, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -30,6 +30,7 @@ import { deleteAllUserData, requestAccountDeletion } from "@/lib/records/delete-
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 const CONFIRM_PHRASE = "DELETE";
+type AccountFeedbackModal = "dobRetry" | "deleteConfirm" | "deleteFailed" | null;
 
 export default function Account() {
   const { t, i18n } = useTranslation("consent");
@@ -45,6 +46,7 @@ export default function Account() {
   const [dobSaved, setDobSaved] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [feedbackModal, setFeedbackModal] = useState<AccountFeedbackModal>(null);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -85,16 +87,7 @@ export default function Account() {
       }
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[account] dob save failed", (e as Error).message);
-      Alert.alert(
-        t("account.dob.saveFailed"),
-        locale === "ko"
-          ? "생일을 저장하지 못했어요. 잠시 후 다시 시도해 주세요."
-          : "We couldn't save your birth date. Please try again in a moment.",
-        [
-          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
-          { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => { void onSaveDob(); } },
-        ],
-      );
+      setFeedbackModal("dobRetry");
     } finally {
       if (mounted.current) setDobBusy(false);
     }
@@ -127,13 +120,7 @@ export default function Account() {
         // success. Some content may already be gone, so never claim the data is
         // intact, and offer no Retry (it could re-run an already-destructive wipe).
         if (typeof console !== "undefined") console.warn("[account] deletion failed", (e as Error).message);
-        Alert.alert(
-          t("account.delete.failed"),
-          locale === "ko"
-            ? "계정 삭제를 끝내지 못했어요. 일부 콘텐츠는 이미 삭제됐을 수 있고, 계정과 로그인 정보는 아직 남아 있을 수 있어요. support@2nd-brain.app 로 문의해 주시면 도와드릴게요."
-            : "We couldn't finish deleting your account. Some content may already be removed, and your account and login may still exist. Please contact support@2nd-brain.app and we'll help.",
-          [{ text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" }],
-        );
+        setFeedbackModal("deleteFailed");
         if (mounted.current) setDeleting(false);
       }
     })();
@@ -141,15 +128,8 @@ export default function Account() {
 
   const onDeleteAccount = useCallback(() => {
     if (!userId) return;
-    Alert.alert(t("account.delete.confirmTitle"), t("account.delete.confirmBody"), [
-      { text: t("account.delete.cancel"), style: "cancel" },
-      {
-        text: t("account.delete.confirmCta"),
-        style: "destructive",
-        onPress: () => { runDeleteAccount(); },
-      },
-    ]);
-  }, [userId, t, runDeleteAccount]);
+    setFeedbackModal("deleteConfirm");
+  }, [userId]);
 
   if (loading) {
     return (
@@ -163,6 +143,44 @@ export default function Account() {
   if (!userId) return <Redirect href="/sign-in" />;
 
   const dobSubmittable = canSubmitDobCorrection(origDob, birthDate);
+  const feedbackModalTitle =
+    feedbackModal === "deleteConfirm"
+      ? t("account.delete.confirmTitle")
+      : feedbackModal === "deleteFailed"
+        ? t("account.delete.failed")
+        : t("account.dob.saveFailed");
+  const feedbackModalBody =
+    feedbackModal === "deleteConfirm"
+      ? t("account.delete.confirmBody")
+      : feedbackModal === "deleteFailed"
+        ? (
+            locale === "ko"
+              ? "계정 삭제를 끝내지 못했어요. 일부 콘텐츠는 이미 삭제됐을 수 있고, 계정과 로그인 정보는 아직 남아 있을 수 있어요. support@2nd-brain.app 로 문의해 주시면 도와드릴게요."
+              : "We couldn't finish deleting your account. Some content may already be removed, and your account and login may still exist. Please contact support@2nd-brain.app and we'll help."
+          )
+        : (
+            locale === "ko"
+              ? "생일을 저장하지 못했어요. 잠시 후 다시 시도해 주세요."
+              : "We couldn't save your birth date. Please try again in a moment."
+          );
+  const modalPrimaryLabel = feedbackModal === "deleteConfirm"
+    ? t("account.delete.confirmCta")
+    : (locale === "ko" ? "다시 시도" : "Retry");
+  const modalAccessibilityLabel = feedbackModal === "deleteConfirm"
+    ? (locale === "ko" ? "계정 삭제 최종 확인" : "Account deletion confirmation")
+    : (locale === "ko" ? "계정 피드백 안내" : "Account feedback notice");
+
+  function handleFeedbackPrimary() {
+    const current = feedbackModal;
+    setFeedbackModal(null);
+    if (current === "deleteConfirm") {
+      runDeleteAccount();
+      return;
+    }
+    if (current === "dobRetry") {
+      void onSaveDob();
+    }
+  }
 
   return (
     <PremiumAppShell>
@@ -266,6 +284,47 @@ export default function Account() {
         </View>
       </ScrollView>
 </KeyboardAvoidingView>
+      <PremiumModal
+        visible={feedbackModal !== null}
+        onClose={() => setFeedbackModal(null)}
+        accessibilityLabel={modalAccessibilityLabel}
+      >
+        <Text variant="heading">{feedbackModalTitle}</Text>
+        <Text variant="body" color="textMuted" style={styles.modalBody}>
+          {feedbackModalBody}
+        </Text>
+        <View style={styles.modalActions}>
+          <Button
+            label={feedbackModal === "deleteConfirm" ? t("account.delete.cancel") : (locale === "ko" ? "닫기" : "Dismiss")}
+            variant="secondary"
+            onPress={() => setFeedbackModal(null)}
+            style={styles.modalButton}
+            accessibilityHint={locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice."}
+          />
+          {feedbackModal !== "deleteFailed" ? (
+            <Button
+              label={modalPrimaryLabel}
+              variant={feedbackModal === "deleteConfirm" ? "danger" : "primary"}
+              onPress={handleFeedbackPrimary}
+              loading={dobBusy || deleting}
+              style={styles.modalButton}
+              accessibilityHint={
+                feedbackModal === "deleteConfirm"
+                  ? (
+                      locale === "ko"
+                        ? "계정과 데이터 삭제를 시작합니다."
+                        : "Starts account and data deletion."
+                    )
+                  : (
+                      locale === "ko"
+                        ? "생년월일 저장을 다시 시도합니다."
+                        : "Retries saving your birth date."
+                    )
+              }
+            />
+          ) : null}
+        </View>
+      </PremiumModal>
     </PremiumAppShell>
   );
 }
@@ -289,4 +348,7 @@ const styles = StyleSheet.create({
   // Tracking is applied per-locale (eyebrowTracking) so KO labels are not
   // over-spaced (caption is 14px); EN keeps the light caption tracking.
   eyebrow: { fontWeight: "700" },
+  modalBody: { lineHeight: 21 },
+  modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  modalButton: { flex: 1 },
 });
