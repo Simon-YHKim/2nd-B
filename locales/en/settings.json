@@ -18,7 +18,21 @@
     "supportHint": "Opens support options."
   },
   "actions": {
-    "signOutHint": "Signs out and returns to the sign-in screen."
+    "signOutHint": "Signs out and returns to the sign-in screen.",
+    "darkThemeHint": "Applies dark theme on this device.",
+    "lightThemeHint": "Applies light theme on this device.",
+    "crewDensityHint": "Sets decorative graph crew density to {{density}}.",
+    "deleteJournalsHint": "Opens a confirmation before deleting every journal entry.",
+    "deleteNotesHint": "Opens a confirmation before deleting every note.",
+    "deleteAuditHint": "Opens a confirmation before deleting every audit response.",
+    "deleteBfiHint": "Opens a confirmation before deleting saved Big Five results.",
+    "deleteEcrHint": "Opens a confirmation before deleting saved Attachment results.",
+    "deleteMbtiHint": "Opens a confirmation before deleting saved MBTI reference results.",
+    "deleteWikiHint": "Opens a confirmation before deleting every wiki page.",
+    "deleteUningestedHint": "Opens a confirmation before deleting captures not yet promoted to wiki.",
+    "resetUsageHint": "Opens a confirmation before resetting daily usage counters.",
+    "fullWipeInputLabel": "Full wipe confirmation. Type {{phrase}} to enable the delete button.",
+    "fullWipeHint": "Requires typed DELETE confirmation before wiping records, sources, wiki pages, and usage."
   },
   "modals": {
     "confirm": {

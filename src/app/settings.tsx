@@ -399,7 +399,7 @@ export default function Settings() {
           <View style={styles.themeRow}>
             <Button
               label={locale === "ko" ? "다크" : "Dark"}
-              accessibilityHint={locale === "ko" ? "이 기기에 다크 테마를 적용합니다." : "Applies dark theme on this device."}
+              accessibilityHint={t("actions.darkThemeHint")}
               variant={mode === "dark" ? "primary" : "secondary"}
               selected={mode === "dark"}
               onPress={() => { if (mode !== "dark") toggle(); }}
@@ -407,7 +407,7 @@ export default function Settings() {
             />
             <Button
               label={locale === "ko" ? "라이트" : "Light"}
-              accessibilityHint={locale === "ko" ? "이 기기에 라이트 테마를 적용합니다." : "Applies light theme on this device."}
+              accessibilityHint={t("actions.lightThemeHint")}
               variant={mode === "light" ? "primary" : "secondary"}
               selected={mode === "light"}
               onPress={() => { if (mode !== "light") toggle(); }}
@@ -430,11 +430,7 @@ export default function Settings() {
               <Button
                 key={d}
                 label={CREW_DENSITY_LABEL[locale][d]}
-                accessibilityHint={
-                  locale === "ko"
-                    ? `장식 그래프 크루 밀도를 ${CREW_DENSITY_LABEL[locale][d]}로 설정합니다.`
-                    : `Sets decorative graph crew density to ${CREW_DENSITY_LABEL.en[d]}.`
-                }
+                accessibilityHint={t("actions.crewDensityHint", { density: CREW_DENSITY_LABEL[locale][d] })}
                 variant={crewDensity === d ? "primary" : "secondary"}
                 selected={crewDensity === d}
                 onPress={() => setCrewDensity(d)}
@@ -455,11 +451,7 @@ export default function Settings() {
           </Text>
           <Button
             label={locale === "ko" ? "모든 일기 삭제" : "Delete all journals"}
-            accessibilityHint={
-              locale === "ko"
-                ? "모든 일기를 삭제하기 전에 확인 대화상자를 엽니다."
-                : "Opens a confirmation before deleting every journal entry."
-            }
+            accessibilityHint={t("actions.deleteJournalsHint")}
             variant="danger"
             disabled={busy !== null}
             onPress={() =>
@@ -471,11 +463,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "모든 노트 삭제" : "Delete all notes"}
-            accessibilityHint={
-              locale === "ko"
-                ? "모든 노트를 삭제하기 전에 확인 대화상자를 엽니다."
-                : "Opens a confirmation before deleting every note."
-            }
+            accessibilityHint={t("actions.deleteNotesHint")}
             variant="danger"
             disabled={busy !== null}
             onPress={() =>
@@ -487,11 +475,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "과거의 나 응답 삭제" : "Delete audit responses"}
-            accessibilityHint={
-              locale === "ko"
-                ? "모든 과거의 나 응답을 삭제하기 전에 확인 대화상자를 엽니다."
-                : "Opens a confirmation before deleting every audit response."
-            }
+            accessibilityHint={t("actions.deleteAuditHint")}
             variant="danger"
             disabled={busy !== null}
             onPress={() =>
@@ -509,11 +493,7 @@ export default function Settings() {
           </Text>
           <Button
             label={locale === "ko" ? "Big Five (BFI-44) 결과 삭제" : "Delete Big Five (BFI-44) results"}
-            accessibilityHint={
-              locale === "ko"
-                ? "저장된 Big Five 결과를 삭제하기 전에 확인 대화상자를 엽니다."
-                : "Opens a confirmation before deleting saved Big Five results."
-            }
+            accessibilityHint={t("actions.deleteBfiHint")}
             variant="danger"
             disabled={busy !== null}
             onPress={() =>
@@ -527,11 +507,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "애착 (ECR) 결과 삭제" : "Delete Attachment (ECR) results"}
-            accessibilityHint={
-              locale === "ko"
-                ? "저장된 애착 결과를 삭제하기 전에 확인 대화상자를 엽니다."
-                : "Opens a confirmation before deleting saved Attachment results."
-            }
+            accessibilityHint={t("actions.deleteEcrHint")}
             variant="danger"
             disabled={busy !== null}
             onPress={() =>
@@ -543,11 +519,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "MBTI 참고 결과 삭제" : "Delete MBTI reference results"}
-            accessibilityHint={
-              locale === "ko"
-                ? "저장된 MBTI 참고 결과를 삭제하기 전에 확인 대화상자를 엽니다."
-                : "Opens a confirmation before deleting saved MBTI reference results."
-            }
+            accessibilityHint={t("actions.deleteMbtiHint")}
             variant="danger"
             disabled={busy !== null}
             onPress={() =>
@@ -565,11 +537,7 @@ export default function Settings() {
           </Text>
           <Button
             label={locale === "ko" ? "모든 위키 페이지 삭제" : "Delete all wiki pages"}
-            accessibilityHint={
-              locale === "ko"
-                ? "모든 위키 페이지를 삭제하기 전에 확인 대화상자를 엽니다."
-                : "Opens a confirmation before deleting every wiki page."
-            }
+            accessibilityHint={t("actions.deleteWikiHint")}
             variant="danger"
             disabled={busy !== null}
             onPress={() =>
@@ -583,11 +551,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "미발전 캡처 삭제 (받은편지함의 미정리분)" : "Delete un-ingested captures"}
-            accessibilityHint={
-              locale === "ko"
-                ? "아직 위키로 발전시키지 않은 캡처를 삭제하기 전에 확인 대화상자를 엽니다."
-                : "Opens a confirmation before deleting captures not yet promoted to wiki."
-            }
+            accessibilityHint={t("actions.deleteUningestedHint")}
             variant="danger"
             disabled={busy !== null}
             onPress={() =>
@@ -599,11 +563,7 @@ export default function Settings() {
           />
           <Button
             label={locale === "ko" ? "세컨비 일일 사용량 리셋" : "Reset SecondB daily usage"}
-            accessibilityHint={
-              locale === "ko"
-                ? "일일 사용량 카운터를 리셋하기 전에 확인 대화상자를 엽니다."
-                : "Opens a confirmation before resetting daily usage counters."
-            }
+            accessibilityHint={t("actions.resetUsageHint")}
             variant="danger"
             disabled={busy !== null}
             onPress={() =>
@@ -638,19 +598,11 @@ export default function Settings() {
             placeholder={CONFIRM_PHRASE}
             autoCapitalize="characters"
             autoCorrect={false}
-            accessibilityLabel={
-              locale === "ko"
-                ? `전체 삭제 확인. ${CONFIRM_PHRASE}를 입력하면 삭제 버튼이 켜집니다.`
-                : `Full wipe confirmation. Type ${CONFIRM_PHRASE} to enable the delete button.`
-            }
+            accessibilityLabel={t("actions.fullWipeInputLabel", { phrase: CONFIRM_PHRASE })}
           />
           <Button
             label={locale === "ko" ? "전체 데이터 삭제" : "Delete everything"}
-            accessibilityHint={
-              locale === "ko"
-                ? "기록, 캡처, 위키 페이지, 사용량을 모두 삭제하기 전에 DELETE 입력과 확인이 필요합니다."
-                : "Requires typed DELETE confirmation before wiping records, sources, wiki pages, and usage."
-            }
+            accessibilityHint={t("actions.fullWipeHint")}
             variant="danger"
             disabled={fullDeleteConfirm !== CONFIRM_PHRASE || busy !== null}
             loading={busy === "full"}

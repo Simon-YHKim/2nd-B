@@ -984,12 +984,12 @@ results.push(
       settings.includes('accessibilityHint={t("nav.privacyHint")}') &&
       settings.includes('accessibilityHint={t("nav.accountHint")}') &&
       settings.includes('accessibilityHint={t("nav.dataHint")}') &&
-      settings.includes("Applies dark theme on this device.") &&
-      settings.includes("Applies light theme on this device.") &&
-      settings.includes("Sets decorative graph crew density to") &&
-      settings.includes("Opens a confirmation before deleting every journal entry.") &&
-      settings.includes("Opens a confirmation before deleting saved Big Five results.") &&
-      settings.includes("Requires typed DELETE confirmation before wiping records, sources, wiki pages, and usage.") &&
+      settings.includes('accessibilityHint={t("actions.darkThemeHint")}') &&
+      settings.includes('accessibilityHint={t("actions.lightThemeHint")}') &&
+      settings.includes('accessibilityHint={t("actions.crewDensityHint", { density: CREW_DENSITY_LABEL[locale][d] })}') &&
+      settings.includes('accessibilityHint={t("actions.deleteJournalsHint")}') &&
+      settings.includes('accessibilityHint={t("actions.deleteBfiHint")}') &&
+      settings.includes('accessibilityHint={t("actions.fullWipeHint")}') &&
       settings.includes('accessibilityHint={t("actions.signOutHint")}') &&
       premiumSurfaces.includes("const resolvedAccessibilityLabel = accessibilityLabel ?? label") &&
       premiumSurfaces.includes("accessibilityLabel={resolvedAccessibilityLabel}") &&
@@ -1223,6 +1223,76 @@ results.push(
       note: ok
         ? "settings loading, nav hints, sign-out hint, and modal a11y copy live in the settings locale bundle"
         : "settings nav/modal helper copy should source visible and accessibility strings from locale keys",
+    };
+  }),
+);
+
+results.push(
+  check("SettingsActionHintsI18nCopy", () => {
+    const settings = read("src/app/settings.tsx");
+    const en = read("locales/en/settings.json");
+    const ko = read("locales/ko/settings.json");
+    const requiredCode = [
+      't("actions.darkThemeHint")',
+      't("actions.lightThemeHint")',
+      't("actions.crewDensityHint", { density: CREW_DENSITY_LABEL[locale][d] })',
+      't("actions.deleteJournalsHint")',
+      't("actions.deleteNotesHint")',
+      't("actions.deleteAuditHint")',
+      't("actions.deleteBfiHint")',
+      't("actions.deleteEcrHint")',
+      't("actions.deleteMbtiHint")',
+      't("actions.deleteWikiHint")',
+      't("actions.deleteUningestedHint")',
+      't("actions.resetUsageHint")',
+      't("actions.fullWipeInputLabel", { phrase: CONFIRM_PHRASE })',
+      't("actions.fullWipeHint")',
+    ];
+    const forbiddenInlineCopy = [
+      "Applies dark theme on this device.",
+      "Applies light theme on this device.",
+      "Sets decorative graph crew density to",
+      "Opens a confirmation before deleting every journal entry.",
+      "Opens a confirmation before deleting every note.",
+      "Opens a confirmation before deleting every audit response.",
+      "Opens a confirmation before deleting saved Big Five results.",
+      "Opens a confirmation before deleting saved Attachment results.",
+      "Opens a confirmation before deleting saved MBTI reference results.",
+      "Opens a confirmation before deleting every wiki page.",
+      "Opens a confirmation before deleting captures not yet promoted to wiki.",
+      "Opens a confirmation before resetting daily usage counters.",
+      "Full wipe confirmation.",
+      "Requires typed DELETE confirmation before wiping records, sources, wiki pages, and usage.",
+      "이 기기에 다크 테마를 적용합니다.",
+      "이 기기에 라이트 테마를 적용합니다.",
+      "장식 그래프 크루 밀도를",
+      "모든 일기를 삭제하기 전에 확인 대화상자를 엽니다.",
+      "모든 노트를 삭제하기 전에 확인 대화상자를 엽니다.",
+      "모든 과거의 나 응답을 삭제하기 전에 확인 대화상자를 엽니다.",
+      "저장된 Big Five 결과를 삭제하기 전에 확인 대화상자를 엽니다.",
+      "저장된 애착 결과를 삭제하기 전에 확인 대화상자를 엽니다.",
+      "저장된 MBTI 참고 결과를 삭제하기 전에 확인 대화상자를 엽니다.",
+      "모든 위키 페이지를 삭제하기 전에 확인 대화상자를 엽니다.",
+      "아직 위키로 발전시키지 않은 캡처를 삭제하기 전에 확인 대화상자를 엽니다.",
+      "일일 사용량 카운터를 리셋하기 전에 확인 대화상자를 엽니다.",
+      "전체 삭제 확인.",
+      "기록, 캡처, 위키 페이지, 사용량을 모두 삭제하기 전에 DELETE 입력과 확인이 필요합니다.",
+    ];
+    const ok =
+      requiredCode.every((snippet) => settings.includes(snippet)) &&
+      en.includes('"darkThemeHint": "Applies dark theme on this device."') &&
+      en.includes('"deleteJournalsHint": "Opens a confirmation before deleting every journal entry."') &&
+      en.includes('"fullWipeHint": "Requires typed DELETE confirmation before wiping records, sources, wiki pages, and usage."') &&
+      ko.includes('"darkThemeHint": "이 기기에 다크 테마를 적용합니다."') &&
+      ko.includes('"deleteJournalsHint": "모든 일기를 삭제하기 전에 확인 대화상자를 엽니다."') &&
+      ko.includes('"fullWipeHint": "기록, 캡처, 위키 페이지, 사용량을 모두 삭제하기 전에 DELETE 입력과 확인이 필요합니다."') &&
+      forbiddenInlineCopy.every((term) => !settings.includes(term));
+    return {
+      id: "SettingsActionHintsI18nCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "settings theme, crew, destructive action, and full-wipe helper hints live in the settings locale bundle"
+        : "settings action helper hints should source accessibility labels and hints from locale keys",
     };
   }),
 );
