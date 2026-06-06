@@ -82,6 +82,15 @@ function villageHref(village: VillageId): Href {
   return { pathname: "/records", params: { domain: village } };
 }
 
+function savedName(slug: string): string {
+  return slug.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim() || slug;
+}
+
+function displayPageName(page: { title: string; slug: string }): string {
+  const title = page.title.trim();
+  return title.length > 0 ? title : savedName(page.slug);
+}
+
 // Memory prune: backlinks are only needed for the page the user is currently
 // reading, so cap the cache to the 5 most-recently-expanded pages. Re-setting
 // an existing id refreshes its recency (delete then re-add at the tail), and
@@ -240,8 +249,8 @@ export default function Wiki() {
       Alert.alert(
       locale === "ko" ? "이 위키 페이지를 삭제할까요?" : "Delete this wiki page?",
       locale === "ko"
-        ? "연결된 [[wikilink]]도 자동으로 정리돼요. 되돌릴 수 없습니다."
-        : "All [[wikilink]] edges to this page are cascaded. This cannot be undone.",
+        ? "이 페이지와 연결된 정보도 함께 정리돼요. 되돌릴 수 없습니다."
+        : "Related links to this page are cleaned up too. This cannot be undone.",
       [
         { text: locale === "ko" ? "취소" : "Cancel", style: "cancel" },
         {
@@ -484,7 +493,7 @@ export default function Wiki() {
             value={query}
             onChangeText={setQuery}
             placeholder={
-              locale === "ko" ? "조각 검색: 제목이나 슬러그" : "Search pieces: title or slug"
+              locale === "ko" ? "조각 검색: 제목이나 저장 이름" : "Search pieces by title or saved name"
             }
             accessibilityLabel={locale === "ko" ? "지식 창고 검색" : "Search the knowledge store"}
           />
@@ -567,8 +576,8 @@ export default function Wiki() {
                 <Text variant="heading">{stats.pageCount}</Text>
                 <Text variant="subtle" color="textSubtle">
                   {locale === "ko"
-                    ? `소스 ${stats.countByKind.source} · 엔티티 ${stats.countByKind.entity} · 개념 ${stats.countByKind.concept}`
-                    : `${stats.countByKind.source} src · ${stats.countByKind.entity} ent · ${stats.countByKind.concept} cpt`}
+                    ? `자료 ${stats.countByKind.source} · 이름 ${stats.countByKind.entity} · 아이디어 ${stats.countByKind.concept}`
+                    : `${stats.countByKind.source} sources · ${stats.countByKind.entity} names · ${stats.countByKind.concept} ideas`}
                 </Text>
               </View>
               <View style={styles.statsBlock}>
@@ -590,7 +599,7 @@ export default function Wiki() {
                 </Text>
                 {stats.topHubs.map((h) => (
                   <Text key={h.id} variant="subtle" color="textMuted">
-                    [[{h.slug}]] · ← {h.inDegree}
+                    {displayPageName(h)} · {locale === "ko" ? `${h.inDegree}회 참고됨` : `cited ${h.inDegree} time${h.inDegree === 1 ? "" : "s"}`}
                   </Text>
                 ))}
               </View>
@@ -613,7 +622,7 @@ export default function Wiki() {
                 <Text variant="subtle" color="textMuted" numberOfLines={3}>
                   {stats.orphans
                     .slice(0, 8)
-                    .map((o) => `[[${o.slug}]]`)
+                    .map((o) => displayPageName(o))
                     .join(", ")}
                 </Text>
               </View>
@@ -882,7 +891,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                       numberOfLines={1}
                       style={styles.rowSlug}
                     >
-                      [[{p.slug}]]
+                      {locale === "ko" ? `저장 이름: ${savedName(p.slug)}` : `Saved as ${savedName(p.slug)}`}
                     </Text>
                     {inDeg > 0 ? (
                       <Text
@@ -1036,7 +1045,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                       </View>
                       {(backlinks ?? []).map((b) => (
                         <Text key={b.id} variant="subtle" color="textMuted">
-                          ← [[{b.slug}]] {b.title}
+                          ← {displayPageName(b)}
                         </Text>
                       ))}
                       {/* Handoffs (wiki-records §6/§7): jump to this page on

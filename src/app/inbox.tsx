@@ -78,6 +78,42 @@ function addBodyCapped(
   return next;
 }
 
+const META_LABELS: Record<string, { en: string; ko: string }> = {
+  title: { en: "Saved title", ko: "저장한 제목" },
+  source: { en: "Original source", ko: "원본 출처" },
+  url: { en: "Original link", ko: "원본 링크" },
+  kind: { en: "Source type", ko: "자료 종류" },
+  summary: { en: "Summary", ko: "요약" },
+  "target-category": { en: "Filing area", ko: "분류 위치" },
+  "simon-relevance": { en: "Why it matters", ko: "중요한 이유" },
+  "actionable-takeaway": { en: "Suggested next step", ko: "다음 행동" },
+};
+
+function humanizeMetaKey(key: string): string {
+  return key.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function formatMetaValue(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    const items = value.map((v) => (typeof v === "string" || typeof v === "number" ? String(v) : "")).filter(Boolean);
+    return items.length > 0 ? items.join(", ") : null;
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  return null;
+}
+
+function visibleMetadataEntries(frontmatter: SourceRow["frontmatter"], locale: "en" | "ko"): Array<{ label: string; value: string }> {
+  return Object.entries(frontmatter)
+    .filter(([key]) => key !== "__phase1__")
+    .map(([key, value]) => {
+      const formatted = formatMetaValue(value);
+      if (!formatted) return null;
+      return { label: META_LABELS[key]?.[locale] ?? humanizeMetaKey(key), value: formatted };
+    })
+    .filter((entry): entry is { label: string; value: string } => entry !== null)
+    .slice(0, 10);
+}
+
 // Memoized row so the whole list does not re-render on every parent state
 // change. It only receives the props it needs + stable callbacks (useCallback
 // in the parent), so React.memo can skip rows whose props are unchanged.
@@ -108,6 +144,7 @@ const InboxRow = React.memo(function InboxRow({
   onGeneratePage,
   onDeleteSource,
 }: InboxRowProps) {
+  const metaEntries = visibleMetadataEntries(r.frontmatter, locale);
   return (
     <Pressable
       onPress={() => onPress(r)}
@@ -256,18 +293,15 @@ const InboxRow = React.memo(function InboxRow({
       </View>
       {expanded ? (
         <View style={styles.expandedSection}>
-          {Object.keys(r.frontmatter).length > 0 ? (
+          {metaEntries.length > 0 ? (
             <View style={styles.metaCard}>
               <Text variant="caption" color="textMuted">
-                {locale === "ko" ? "메타데이터" : "Metadata"}
+                {locale === "ko" ? "저장 정보" : "Saved details"}
               </Text>
-              {Object.entries(r.frontmatter)
-                .filter(([k]) => k !== "__phase1__")
-                .slice(0, 10)
-                .map(([k, v]) => (
-                  <Text key={k} variant="subtle" color="textSubtle" numberOfLines={2}>
-                    <Text variant="subtle" color="textMuted">{k}:</Text>{" "}
-                    {Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v)}
+              {metaEntries.map((entry) => (
+                  <Text key={entry.label} variant="subtle" color="textSubtle" numberOfLines={2}>
+                    <Text variant="subtle" color="textMuted">{entry.label}:</Text>{" "}
+                    {entry.value}
                   </Text>
                 ))}
             </View>
@@ -457,10 +491,11 @@ export default function Inbox() {
       setGeneratingId(row.id);
       try {
         const result = await generateSourcePage(userId, row.id);
+        const pageName = row.title.trim().length > 0 ? row.title : result.slug.replace(/[-_]+/g, " ");
         const msg =
           locale === "ko"
-            ? `[[${result.slug}]] 위키 페이지 생성됨${result.danglingSlugs.length > 0 ? ` (연결 안 된 슬러그: ${result.danglingSlugs.length})` : ""}`
-            : `Generated wiki page [[${result.slug}]]${result.danglingSlugs.length > 0 ? ` (${result.danglingSlugs.length} dangling link${result.danglingSlugs.length === 1 ? "" : "s"})` : ""}`;
+            ? `${pageName} 위키 페이지를 만들었어요${result.danglingSlugs.length > 0 ? ` · 아직 연결할 참고 이름 ${result.danglingSlugs.length}개` : ""}`
+            : `Created a wiki page for ${pageName}${result.danglingSlugs.length > 0 ? ` · ${result.danglingSlugs.length} reference name${result.danglingSlugs.length === 1 ? "" : "s"} still need a page` : ""}`;
         Alert.alert(msg);
         await load(userId); // reflect ingested=true
       } catch (e) {

@@ -929,6 +929,49 @@ results.push(
   }),
 );
 
+results.push(
+  check("WikiLanguage", () => {
+    const inbox = read("src/app/inbox.tsx");
+    const wiki = read("src/app/wiki.tsx");
+    const forbiddenUserLanguage = [
+      "[[${result.slug}]]",
+      "Generated wiki page [[",
+      "연결 안 된 슬러그",
+      "dangling link",
+      "메타데이터",
+      ">Metadata<",
+      "제목이나 슬러그",
+      "Search pieces: title or slug",
+      "[[{p.slug}]]",
+      "[[{h.slug}]]",
+      "`[[${o.slug}]]`",
+      "← [[{b.slug}]]",
+      "[[wikilink]]",
+      "JSON.stringify(v)",
+    ];
+    const ok =
+      inbox.includes("visibleMetadataEntries") &&
+      inbox.includes("META_LABELS") &&
+      inbox.includes("Saved details") &&
+      inbox.includes("저장 정보") &&
+      inbox.includes("reference name") &&
+      wiki.includes("Search pieces by title or saved name") &&
+      wiki.includes("저장 이름") &&
+      wiki.includes("Saved as") &&
+      wiki.includes("displayPageName(h)") &&
+      wiki.includes("displayPageName(o)") &&
+      wiki.includes("displayPageName(b)") &&
+      forbiddenUserLanguage.every((term) => !inbox.includes(term) && !wiki.includes(term));
+    return {
+      id: "WikiLanguage",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "inbox/wiki user-facing copy hides raw slug/frontmatter syntax behind friendly names and labels"
+        : "inbox/wiki should avoid raw [[slug]], dangling-link, and JSON/frontmatter labels in visible user copy",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";
