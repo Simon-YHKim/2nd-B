@@ -316,6 +316,19 @@ export default function Settings() {
           }        />
 
         {/* Navigation hub (A-to-Z Phase 12) — the settings sub-screens. */}
+        {/* Destructive op in flight: a persistent banner explains why actions
+            and sign-out are disabled, instead of letting the user escape a
+            half-finished wipe by navigating away or signing out. */}
+        {busy !== null ? (
+          <View style={styles.busyBanner} accessibilityRole="alert" accessibilityLiveRegion="polite">
+            <Text variant="caption" color="textMuted">
+              {locale === "ko"
+                ? "작업을 처리하는 중이에요. 끝날 때까지 다른 작업과 로그아웃은 잠시 멈춰둘게요."
+                : "Working on it. Other actions and sign-out are paused until this finishes."}
+            </Text>
+          </View>
+        ) : null}
+
         <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
           <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
             {locale === "ko" ? "설정 항목" : "Settings"}
@@ -633,6 +646,7 @@ export default function Settings() {
             label={locale === "ko" ? "로그아웃" : "Sign out"}
             accessibilityHint={locale === "ko" ? "로그아웃한 뒤 로그인 화면으로 돌아갑니다." : "Signs out and returns to the sign-in screen."}
             variant="secondary"
+            disabled={busy !== null}
             onPress={async () => {
               try {
                 await signOut();
@@ -676,6 +690,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   sectionEyebrow: { letterSpacing: 0, fontWeight: "700" },
+  busyBanner: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
   settingsButton: {
     minHeight: 48,
     borderRadius: radii.md,
