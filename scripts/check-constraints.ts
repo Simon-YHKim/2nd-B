@@ -1842,6 +1842,34 @@ results.push(
 );
 
 results.push(
+  check("OldGuidanceCopyResidue", () => {
+    const manual = read("src/app/manual.tsx");
+    const settings = read("src/app/settings.tsx");
+    const forbiddenManual = [
+      "Advisor reflection",
+      "Advisor cites",
+      "어드바이저",
+    ];
+    const forbiddenSettings = ["Tune the village rules", "마을의 규칙"];
+    const ok =
+      manual.includes("ask SecondB for a reflection") &&
+      manual.includes("sources SecondB cites") &&
+      manual.includes("세컨비의 되묻기") &&
+      settings.includes("Tune your settings") &&
+      settings.includes("설정을 정리해요") &&
+      forbiddenManual.every((term) => !manual.includes(term)) &&
+      forbiddenSettings.every((term) => !settings.includes(term));
+    return {
+      id: "OldGuidanceCopyResidue",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "manual/settings visible guidance copy avoids old Advisor and village-rules wording"
+        : "manual/settings guidance copy should use SecondB/settings wording instead of old Advisor or village-rule wording",
+    };
+  }),
+);
+
+results.push(
   check("SignInHeroI18nCopy", () => {
     const screen = read("src/app/(auth)/sign-in.tsx");
     const en = read("locales/en/auth.json");

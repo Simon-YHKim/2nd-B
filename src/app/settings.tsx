@@ -310,7 +310,7 @@ export default function Settings() {
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <SceneHero
           eyebrow={locale === "ko" ? "08. 설정" : "08. Settings"}
-          title={locale === "ko" ? "마을의 규칙을 정리해요" : "Tune the village rules"}
+          title={locale === "ko" ? "설정을 정리해요" : "Tune your settings"}
           subtitle={
             locale === "ko"
               ? "테마 · 데이터 · 프로필 · 지원"

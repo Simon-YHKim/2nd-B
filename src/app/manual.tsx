@@ -41,8 +41,8 @@ const SECTIONS: ManualSection[] = [
       ko: "하루 루틴",
     },
     body: {
-      en: "Write a journal entry, tag it with a topic, then optionally ask for an Advisor reflection. Over weeks, recurring themes surface as observations, never verdicts.",
-      ko: "오늘 일기를 쓰고, 주제와 태그를 달고, 원하면 어드바이저의 되묻기를 받아요. 몇 주가 쌓이면 반복되는 주제가 단정이 아닌 관찰로 떠오릅니다.",
+      en: "Write a journal entry, tag it with a topic, then optionally ask SecondB for a reflection. Over weeks, recurring themes surface as observations, never verdicts.",
+      ko: "오늘 일기를 쓰고, 주제와 태그를 달고, 원하면 세컨비의 되묻기를 받아요. 몇 주가 쌓이면 반복되는 주제가 단정이 아닌 관찰로 떠오릅니다.",
     },
   },
   {
@@ -226,7 +226,7 @@ export default function Manual() {
             ? [
                 "성격 특성과 애착 스타일: 짧게 남기는 자기 이해 평가",
                 "인사이트 화면: 매주 활동·자주 다룬 주제·결론 모음",
-                "리서치 화면: 어드바이저가 인용하는 학술 자료 브라우저",
+                "리서치 화면: 세컨비가 인용하는 학술 자료 브라우저",
                 "오늘의 성찰 질문 + 연속 기록 카운터",
                 "기록 · 캡처 · 위키 페이지 삭제 가능",
                 "캡처 시 종류 자동 감지 + 미리보기",
@@ -234,7 +234,7 @@ export default function Manual() {
             : [
                 "Personality and attachment: short self-knowledge assessments",
                 "Insights screen: weekly activity, recurring topics, conclusion stream",
-                "Research screen: browse validated academic sources the Advisor cites",
+                "Research screen: browse validated academic sources SecondB cites",
                 "Daily reflection prompt + streak counter",
                 "Delete records, captures, and wiki pages",
                 "Auto-detect kind on capture + preview before save",
