@@ -260,7 +260,7 @@ const InboxRow = React.memo(function InboxRow({
             </Text>
           </Pressable>
         ) : (
-          <Link href="/wiki" asChild>
+          <Link href={{ pathname: "/wiki", params: { focusSourceId: r.id } }} asChild>
             <Pressable
               style={styles.generateBtn}
               hitSlop={4}

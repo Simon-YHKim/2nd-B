@@ -18,7 +18,7 @@ import {
   Alert,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Link, Redirect, router, type Href } from "expo-router";
+import { Link, Redirect, router, useLocalSearchParams, type Href } from "expo-router";
 
 import { PremiumAppShell, PremiumLoadingState, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -117,6 +117,9 @@ function pruneBacklinks(
 export default function Wiki() {
   const { t, i18n } = useTranslation("wiki");
   const { userId, loading: authLoading, hasProfile, isMinor } = useAuth();
+  const routeParams = useLocalSearchParams();
+  const focusSourceIdParam = routeParams.focusSourceId;
+  const focusSourceId = Array.isArray(focusSourceIdParam) ? focusSourceIdParam[0] : focusSourceIdParam;
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [pages, setPages] = useState<WikiPageRow[]>([]);
@@ -131,6 +134,7 @@ export default function Wiki() {
   const [toast, setToast] = useState<WikiToast | null>(null);
   const [phase1RunningId, setPhase1RunningId] = useState<string | null>(null);
   const [statsVisible, setStatsVisible] = useState(false);
+  const [handledFocusSourceId, setHandledFocusSourceId] = useState<string | null>(null);
   const [edges, setEdges] = useState<WikiEdge[] | null>(null);
   const companion = useCompanionMoment();
 
@@ -160,6 +164,29 @@ export default function Wiki() {
     const timeout = setTimeout(() => setToast(null), 2600);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  useEffect(() => {
+    if (!focusSourceId || handledFocusSourceId === focusSourceId) return;
+    if (activeTags.length > 0) {
+      setActiveTags([]);
+      return;
+    }
+    const page = pages.find((p) => p.source_id === focusSourceId);
+    if (!page) return;
+    const pageName = displayPageName(page);
+    setQuery(pageName);
+    setExpandedId(page.id);
+    setHandledFocusSourceId(focusSourceId);
+    setToast({
+      tone: "success",
+      message: locale === "ko" ? `${pageName} 페이지를 열었어요` : `Opened ${pageName}`,
+    });
+    if (userId && backlinksById[page.id] === undefined) {
+      void getBacklinks(userId, page.id)
+        .then((value) => setBacklinksById((prev) => pruneBacklinks(prev, page.id, value)))
+        .catch(() => setBacklinksById((prev) => pruneBacklinks(prev, page.id, [])));
+    }
+  }, [activeTags.length, backlinksById, focusSourceId, handledFocusSourceId, locale, pages, userId]);
 
   // Every tag that appears on at least one currently-visible page.
   // Sorted by frequency descending so the most useful filters surface first.

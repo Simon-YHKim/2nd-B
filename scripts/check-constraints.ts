@@ -1023,6 +1023,28 @@ results.push(
   }),
 );
 
+results.push(
+  check("InboxWikiTarget", () => {
+    const inbox = read("src/app/inbox.tsx");
+    const wiki = read("src/app/wiki.tsx");
+    const ok =
+      inbox.includes('pathname: "/wiki"') &&
+      inbox.includes("focusSourceId: r.id") &&
+      wiki.includes("useLocalSearchParams") &&
+      wiki.includes("focusSourceId") &&
+      wiki.includes("p.source_id === focusSourceId") &&
+      wiki.includes("setQuery(pageName)") &&
+      wiki.includes("setExpandedId(page.id)");
+    return {
+      id: "InboxWikiTarget",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "inbox view-in-wiki links focus the promoted source page"
+        : "inbox view-in-wiki should pass a source target and wiki should focus it",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";
