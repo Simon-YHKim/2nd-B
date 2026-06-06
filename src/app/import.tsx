@@ -48,6 +48,10 @@ export default function ImportExternal() {
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  // True when the AI sort failed and we fell back to the local parser, so the
+  // result view can disclose the degraded pass instead of presenting the basic
+  // local sort as if it were the full AI classification.
+  const [degraded, setDegraded] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -94,14 +98,17 @@ export default function ImportExternal() {
   async function analyze() {
     if (!userId || raw.trim().length === 0 || phase === "analyzing") return;
     setPhase("analyzing");
+    setDegraded(false);
     try {
       const reply = await callGemini({ userId, locale, purpose: "import_ingest", system: INGEST_SYSTEM, user: raw.trim(), minor: isMinor === true });
       setResult(parseIngestResult(reply.text, raw.trim()));
       setPhase("result");
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[import] analyze failed", (e as Error).message);
-      // Even if the LLM fails, fall back to the local parser so nothing is lost.
+      // Even if the LLM fails, fall back to the local parser so nothing is lost
+      // — but flag it so the result view discloses the degraded pass.
       setResult(parseIngestResult("", raw.trim()));
+      setDegraded(true);
       setPhase("result");
     }
   }
@@ -135,6 +142,7 @@ export default function ImportExternal() {
   function reset() {
     setRaw("");
     setResult(null);
+    setDegraded(false);
     setPhase("input");
   }
 
@@ -215,6 +223,15 @@ export default function ImportExternal() {
                 accent={cosmic.pixelLamp}
                 glow
               >
+                {degraded ? (
+                  <View style={styles.degradedNote} accessibilityRole="alert">
+                    <Text variant="subtle" color="textMuted">
+                      {ko
+                        ? "AI 분류가 잠시 안 돼서 기본 정리로 보여드려요. 다시 시도하면 더 정확하게 분류해요."
+                        : "AI sorting was unavailable, so this is a basic local pass. Try again for a richer sort."}
+                    </Text>
+                  </View>
+                ) : null}
                 {result.summary ? <Text variant="body">{result.summary}</Text> : null}
                 <View style={styles.tagRow}>
                   {result.tags.map((t) => (
@@ -275,6 +292,15 @@ const SECTION_ACCENT: Record<string, string> = {
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: 120 },
   center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
+  degradedNote: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+  },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.xs },
   tagChip: {
     borderWidth: 1,
