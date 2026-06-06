@@ -158,6 +158,7 @@ results.push(
       "submit",
       "submitting",
       "savedTitleFallback",
+      "loading",
       "hero.eyebrow",
       "hero.title",
       "hero.subtitle",
@@ -189,6 +190,38 @@ results.push(
       "linkClip.savedAsClip",
       "formatSaved.personal",
       "formatSaved.shared",
+      "saved.title",
+      "saved.seeGraph",
+      "saved.captureMore",
+      "proposal.heading",
+      "proposal.baseKind",
+      "proposal.saveMine",
+      "proposal.saveShare",
+      "proposal.dismissLabel",
+      "proposal.notNow",
+      "proposal.prompt",
+      "proposal.drafting",
+      "proposal.action",
+      "journal.locked.title",
+      "journal.locked.body",
+      "journal.locked.status",
+      "journal.locked.start",
+      "journal.limit.title",
+      "journal.limit.body",
+      "journal.limit.helper",
+      "journal.streak.label",
+      "journal.streak.missingToday",
+      "journal.prompt.heading",
+      "journal.prompt.useAsTopicLabel",
+      "journal.prompt.useAsTopicAction",
+      "journal.fields.topicPlaceholder",
+      "journal.fields.bodyPlaceholder",
+      "journal.conclusion.toggleLabel",
+      "journal.conclusion.show",
+      "journal.conclusion.hide",
+      "journal.conclusion.placeholder",
+      "journal.advisor.label",
+      "journal.advisor.helper",
       "alerts.common.retry",
       "alerts.common.dismiss",
       "alerts.imageOpen.title",
@@ -220,6 +253,7 @@ results.push(
       't("submit")',
       't("submitting")',
       't("savedTitleFallback")',
+      't("loading")',
       't("hero.eyebrow")',
       't("hero.title")',
       't("hero.subtitle")',
@@ -243,6 +277,37 @@ results.push(
       't("linkClip.savedAsClip")',
       't("formatSaved.shared")',
       't("formatSaved.personal")',
+      't("saved.title")',
+      't("saved.seeGraph")',
+      't("saved.captureMore")',
+      't("proposal.heading")',
+      't("proposal.baseKind", { kind: proposal.baseKind })',
+      't("proposal.saveMine")',
+      't("proposal.saveShare")',
+      't("proposal.dismissLabel")',
+      't("proposal.notNow")',
+      't("proposal.prompt")',
+      't("proposal.drafting")',
+      't("proposal.action")',
+      't("journal.locked.title")',
+      't("journal.locked.body", { level: journalGate.requiredLevel })',
+      't("journal.locked.status", { current: journalGate.currentLevel, required: journalGate.requiredLevel })',
+      't("journal.locked.start")',
+      't("journal.limit.title")',
+      't("journal.limit.body", { limit: journalUsage.limit })',
+      't("journal.limit.helper")',
+      't("journal.streak.label", { count: streak.current, suffix: streakMissingToday })',
+      't("journal.prompt.heading")',
+      't("journal.prompt.useAsTopicLabel")',
+      't("journal.prompt.useAsTopicAction")',
+      't("journal.fields.topicPlaceholder")',
+      't("journal.fields.bodyPlaceholder")',
+      't("journal.conclusion.toggleLabel")',
+      't("journal.conclusion.hide")',
+      't("journal.conclusion.show")',
+      't("journal.conclusion.placeholder")',
+      't("journal.advisor.label")',
+      't("journal.advisor.helper")',
       't("alerts.common.retry")',
       't("alerts.common.dismiss")',
       't("alerts.imageOpen.title")',
@@ -273,6 +338,11 @@ results.push(
       "Couldn't draft a format",
       "Couldn't save the format",
       "Manage my formats",
+      "Lumen brought a new piece",
+      "Proposed new format",
+      "Want the AI to propose a new one?",
+      "Ask Advisor on this entry",
+      "Start the past me",
       "Which wiki?",
       "Wiki selection",
       "Capture mode",
@@ -303,7 +373,7 @@ results.push(
       .every((value) => !/(markdown|frontmatter|Obsidian|Web Clipper|\bH1\b|마크다운|프런트매터|클리퍼)/i.test(value));
     const captureBundlePlainLanguageOk = flattenValues(enCapture)
       .concat(flattenValues(koCapture))
-      .every((value) => !/(Link\/Clip|\bOCR\b|workers|cells|영차영차|일꾼 세포)/i.test(value));
+      .every((value) => !/(Link\/Clip|\bOCR\b|workers|cells|village|\bAI\b|Advisor|영차영차|일꾼 세포|마을)/i.test(value));
     const captureBundleOk =
       codeUsesCaptureKeys &&
       inlineAlertCopyGone &&
@@ -688,9 +758,9 @@ results.push(
       inbox.includes("Opens capture to save your first source.") &&
       inbox.includes("accessibilityState={{ disabled: phase1Pending, busy: phase1Pending }}") &&
       inbox.includes("accessibilityState={{ disabled: generatePending, busy: generatePending }}") &&
-      capture.includes("Dismiss proposed format") &&
-      capture.includes("Use today's prompt as topic") &&
-      capture.includes("Toggle conclusion field") &&
+      capture.includes('accessibilityLabel={t("proposal.dismissLabel")}') &&
+      capture.includes('accessibilityLabel={t("journal.prompt.useAsTopicLabel")}') &&
+      capture.includes('accessibilityLabel={t("journal.conclusion.toggleLabel")}') &&
       capture.includes("accessibilityLabel={`${label}. ${help}`}") &&
       capture.includes("accessibilityHint={help}") &&
       capture.includes("ModeGlyph mode={m} color={color} label={label}") &&
@@ -700,6 +770,7 @@ results.push(
       capture.includes("accessibilityState={{ expanded: showExtras }}") &&
       capture.includes('accessibilityRole="checkbox"') &&
       capture.includes("accessibilityState={{ checked: askAdvisor }}") &&
+      capture.includes('accessibilityLabel={t("journal.advisor.label")}') &&
       capture.includes("Remove hashtag") &&
       manual.includes("Manual language: switch to English") &&
       manual.includes("Manual language: switch to Korean") &&

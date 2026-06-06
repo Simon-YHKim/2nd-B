@@ -14,6 +14,7 @@
   "submitting": "Saving...",
   "cancel": "Cancel",
   "savedTitleFallback": "Today's piece",
+  "loading": "Loading capture...",
   "hero": {
     "eyebrow": "01. Capture",
     "title": "Save a note or source",
@@ -49,7 +50,7 @@
   "modes": {
     "journal": {
       "label": "Journal",
-      "help": "Write today's reflection. It saves to your records, with optional Advisor feedback."
+      "help": "Write today's reflection. It saves to your records, with optional SecondB reflection."
     },
     "memo": {
       "label": "Note",
@@ -70,7 +71,59 @@
   },
   "formatSaved": {
     "personal": "Saved as your personal format.",
-    "shared": "Saved your new format and shared it with the village."
+    "shared": "Saved your new format and shared it with your formats."
+  },
+  "saved": {
+    "title": "Lumen saved a new piece",
+    "seeGraph": "See the graph",
+    "captureMore": "Capture more"
+  },
+  "proposal": {
+    "heading": "Suggested format",
+    "baseKind": "Based on: {{kind}}",
+    "saveMine": "Save as mine",
+    "saveShare": "Save and share",
+    "dismissLabel": "Dismiss suggested format",
+    "notNow": "Not now",
+    "prompt": "No saved format fits this well. Want SecondB to suggest one?",
+    "drafting": "Suggesting...",
+    "action": "Suggest a format"
+  },
+  "journal": {
+    "locked": {
+      "title": "Journal locked",
+      "body": "Finish the onboarding quest to reach Lv{{level}} and unlock journaling.",
+      "status": "Current Lv{{current}} / Lv{{required}} required",
+      "start": "Start onboarding"
+    },
+    "limit": {
+      "title": "Free journal entries used up",
+      "body": "You have written all {{limit}} free journal entries. Everything you have written so far stays, and you can reread it anytime.",
+      "helper": "Note, link, file, and photo capture stay open with no limit."
+    },
+    "streak": {
+      "label": "{{count}}-day streak{{suffix}}",
+      "missingToday": " (none today yet)"
+    },
+    "prompt": {
+      "heading": "Today's reflection prompt",
+      "useAsTopicLabel": "Use today's prompt as topic",
+      "useAsTopicAction": "Use this as topic"
+    },
+    "fields": {
+      "topicPlaceholder": "Topic (optional): one line",
+      "bodyPlaceholder": "What's on your mind today? One sentence is enough."
+    },
+    "conclusion": {
+      "toggleLabel": "Toggle conclusion field",
+      "show": "Add a one-line conclusion (optional)",
+      "hide": "Hide conclusion field",
+      "placeholder": "Conclusion: today's takeaway"
+    },
+    "advisor": {
+      "label": "Ask SecondB on this entry",
+      "helper": "Off by default. Turn on only when you want a reflection back."
+    }
   },
   "linkClip": {
     "label": "Link or saved article",
@@ -100,7 +153,7 @@
     },
     "pieceSave": {
       "title": "Couldn't save your piece",
-      "message": "We couldn't send it to the village. What you entered is still here. Please try again."
+      "message": "We couldn't save it yet. What you entered is still here. Please try again."
     },
     "proposeEmpty": {
       "title": "No format to suggest",

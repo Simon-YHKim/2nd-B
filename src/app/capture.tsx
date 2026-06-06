@@ -227,7 +227,7 @@ export default function Capture() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "담기 화면을 불러오는 중이에요…" : "Loading capture…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </PremiumAppShell>
     );
@@ -244,6 +244,7 @@ export default function Capture() {
   // gated, so this only constrains the journal mode.
   const journalGate = checkGate("journal", progression.totalXp);
   const journalUsage = checkUsage("journal", progression.tier, journalCount);
+  const streakMissingToday = streak.capturedToday ? "" : t("journal.streak.missingToday");
 
   function showFeedback(title: string, body: string, retry?: () => void): void {
     setFeedbackModal({ title, body, retry });
@@ -555,7 +556,7 @@ export default function Capture() {
                 <ShardArt id="capture_mint" size={48} />
                 <View style={{ flex: 1 }}>
                   <Text variant="body" color="brand" style={{ fontWeight: "600" }}>
-                    {locale === "ko" ? "Lumen이 새 조각을 가져왔어요" : "Lumen brought a new piece"}
+                    {t("saved.title")}
                   </Text>
                   <Text variant="subtle" color="textMuted" numberOfLines={1} style={{ marginTop: 2 }}>
                     {savedTitle}
@@ -563,8 +564,8 @@ export default function Capture() {
                 </View>
               </View>
               <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
-                <PremiumButton label={locale === "ko" ? "그래프 보기" : "See the graph"} variant="secondary" onPress={() => router.push("/")} style={{ flex: 1 }} />
-                <PremiumButton label={locale === "ko" ? "또 담기" : "Capture more"} variant="ghost" onPress={() => setSavedTitle(null)} style={{ flex: 1 }} />
+                <PremiumButton label={t("saved.seeGraph")} variant="secondary" onPress={() => router.push("/")} style={{ flex: 1 }} />
+                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => setSavedTitle(null)} style={{ flex: 1 }} />
               </View>
             </PremiumCard>
           ) : null}
@@ -578,7 +579,7 @@ export default function Capture() {
               ) : proposal ? (
                 <View style={{ gap: spacing.xs }}>
                   <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
-                    {locale === "ko" ? "새 형식 제안" : "Proposed new format"}
+                    {t("proposal.heading")}
                   </Text>
                   <Text variant="body" style={{ fontWeight: "600" }}>
                     {(locale === "ko" ? proposal.name.ko : proposal.name.en) || proposal.name.en || proposal.name.ko}
@@ -587,17 +588,17 @@ export default function Capture() {
                     {(locale === "ko" ? proposal.what.ko : proposal.what.en) || proposal.what.en}
                   </Text>
                   <Text variant="subtle" color="textSubtle">
-                    {locale === "ko" ? `기준 종류: ${proposal.baseKind}` : `Base kind: ${proposal.baseKind}`}
+                    {t("proposal.baseKind", { kind: proposal.baseKind })}
                   </Text>
                   <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
                     <PremiumButton
-                      label={locale === "ko" ? "내 형식으로 저장" : "Save as mine"}
+                      label={t("proposal.saveMine")}
                       variant="secondary"
                       onPress={() => saveProposed(false)}
                       style={{ flex: 1 }}
                     />
                     <PremiumButton
-                      label={locale === "ko" ? "저장하고 공유" : "Save & share"}
+                      label={t("proposal.saveShare")}
                       variant="primary"
                       onPress={() => saveProposed(true)}
                       style={{ flex: 1 }}
@@ -608,24 +609,18 @@ export default function Capture() {
                     hitSlop={4}
                     style={{ marginTop: 4 }}
                     accessibilityRole="button"
-                    accessibilityLabel={locale === "ko" ? "제안된 형식 닫기" : "Dismiss proposed format"}
+                    accessibilityLabel={t("proposal.dismissLabel")}
                   >
-                    <Text variant="caption" color="textSubtle">{locale === "ko" ? "안 만들래요" : "Not now"}</Text>
+                    <Text variant="caption" color="textSubtle">{t("proposal.notNow")}</Text>
                   </Pressable>
                 </View>
               ) : (
                 <View style={{ gap: spacing.xs }}>
                   <Text variant="subtle" color="textMuted">
-                    {locale === "ko"
-                      ? "이 자료에 딱 맞는 형식이 없네요. AI가 새 형식을 제안할까요?"
-                      : "No format fit this well. Want the AI to propose a new one?"}
+                    {t("proposal.prompt")}
                   </Text>
                   <PremiumButton
-                    label={
-                      proposing
-                        ? (locale === "ko" ? "제안 만드는 중..." : "Drafting...")
-                        : (locale === "ko" ? "새 형식 제안받기" : "Propose a new format")
-                    }
+                    label={proposing ? t("proposal.drafting") : t("proposal.action")}
                     variant="secondary"
                     onPress={runPropose}
                   />
@@ -759,21 +754,17 @@ export default function Capture() {
           {mode === "journal" && !progression.loading && !journalGate.unlocked ? (
             <View style={styles.gateCard}>
               <Text variant="subtle" color="brand" style={[styles.gateEyebrow, eyebrowTracking]}>
-                {locale === "ko" ? "일기 잠김" : "Journal locked"}
+                {t("journal.locked.title")}
               </Text>
               <Text variant="body" style={{ marginTop: spacing.xs }}>
-                {locale === "ko"
-                  ? `입문 퀘스트(과거의 나)를 완료하면 Lv${journalGate.requiredLevel}에 도달하고 일기가 열려요.`
-                  : `Finish the onboarding quest (past me) to reach Lv${journalGate.requiredLevel} and unlock journaling.`}
+                {t("journal.locked.body", { level: journalGate.requiredLevel })}
               </Text>
               <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
-                {locale === "ko"
-                  ? `현재 Lv${journalGate.currentLevel} / 필요 Lv${journalGate.requiredLevel}`
-                  : `Current Lv${journalGate.currentLevel} / Lv${journalGate.requiredLevel} required`}
+                {t("journal.locked.status", { current: journalGate.currentLevel, required: journalGate.requiredLevel })}
               </Text>
               <View style={{ marginTop: spacing.md }}>
                 <Button
-                  label={locale === "ko" ? "과거의 나 시작하기" : "Start the past me"}
+                  label={t("journal.locked.start")}
                   variant="secondary"
                   onPress={() => router.push("/audit")}
                 />
@@ -783,17 +774,13 @@ export default function Capture() {
           {mode === "journal" && !progression.loading && journalGate.unlocked && !journalUsage.allowed ? (
             <View style={styles.limitCard}>
               <Text variant="subtle" color="warning" style={[styles.gateEyebrow, eyebrowTracking]}>
-                {locale === "ko" ? "무료 일기를 다 썼어요" : "Free journal entries used up"}
+                {t("journal.limit.title")}
               </Text>
               <Text variant="body" style={{ marginTop: spacing.xs }}>
-                {locale === "ko"
-                  ? `무료로 쓸 수 있는 일기 ${journalUsage.limit}편을 모두 작성했어요. 지금까지 쓴 일기는 그대로 남아 있고, 언제든 다시 읽을 수 있어요.`
-                  : `You have written all ${journalUsage.limit} free journal entries. Everything you have written so far stays, and you can reread it anytime.`}
+                {t("journal.limit.body", { limit: journalUsage.limit })}
               </Text>
               <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
-                {locale === "ko"
-                  ? "메모 · 링크 · 문서 · 사진 담기는 한도 없이 계속 쓸 수 있어요."
-                  : "Memo, link, file, and photo capture stay open with no limit."}
+                {t("journal.limit.helper")}
               </Text>
             </View>
           ) : null}
@@ -807,15 +794,13 @@ export default function Capture() {
                 <View style={styles.streakRow}>
                   <View style={[styles.streakDot, streak.capturedToday && styles.streakDotOn]} />
                   <Text variant="subtle" color="textMuted">
-                    {locale === "ko"
-                      ? `${streak.current}일 연속 기록${streak.capturedToday ? "" : " (오늘은 아직)"}`
-                      : `${streak.current}-day streak${streak.capturedToday ? "" : " (none today yet)"}`}
+                    {t("journal.streak.label", { count: streak.current, suffix: streakMissingToday })}
                   </Text>
                 </View>
               ) : null}
               <View style={styles.dailyPromptCard}>
                 <Text variant="caption" color="brand" style={{ letterSpacing: locale === "ko" ? 0.3 : 1.2 }}>
-                  {locale === "ko" ? "오늘의 성찰 질문" : "Today's reflection prompt"}
+                  {t("journal.prompt.heading")}
                 </Text>
                 <Text variant="body" color="textMuted" style={{ marginTop: spacing.xs, lineHeight: 22 }} selectable>
                   {dailyPrompt(locale)}
@@ -826,10 +811,10 @@ export default function Capture() {
                     hitSlop={4}
                     style={{ marginTop: spacing.xs }}
                     accessibilityRole="button"
-                    accessibilityLabel={locale === "ko" ? "오늘의 질문을 주제로 사용" : "Use today's prompt as topic"}
+                    accessibilityLabel={t("journal.prompt.useAsTopicLabel")}
                   >
                     <Text variant="caption" color="brand">
-                      {locale === "ko" ? "이 질문을 주제로" : "Use this as topic"}
+                      {t("journal.prompt.useAsTopicAction")}
                     </Text>
                   </Pressable>
                 ) : null}
@@ -837,17 +822,13 @@ export default function Capture() {
               <Input
                 value={topic}
                 onChangeText={setTopic}
-                placeholder={locale === "ko" ? "주제 (선택): 한 줄로" : "Topic (optional): one line"}
+                placeholder={t("journal.fields.topicPlaceholder")}
                 autoCapitalize="sentences"
               />
               <Input
                 value={body}
                 onChangeText={setBody}
-                placeholder={
-                  locale === "ko"
-                    ? "오늘 떠오른 생각이나 느낌을 적어주세요. 한 문장이어도 충분해요."
-                    : "What's on your mind today? One sentence is enough."
-                }
+                placeholder={t("journal.fields.bodyPlaceholder")}
                 multiline
                 numberOfLines={6}
                 textAlignVertical="top"
@@ -858,19 +839,17 @@ export default function Capture() {
                 hitSlop={4}
                 accessibilityRole="button"
                 accessibilityState={{ expanded: showExtras }}
-                accessibilityLabel={locale === "ko" ? "결론 입력칸 토글" : "Toggle conclusion field"}
+                accessibilityLabel={t("journal.conclusion.toggleLabel")}
               >
                 <Text variant="caption" color="brand">
-                  {showExtras
-                    ? (locale === "ko" ? "결론 칸 닫기" : "Hide conclusion field")
-                    : (locale === "ko" ? "결론 한 줄로 (선택)" : "Add a one-line conclusion (optional)")}
+                  {showExtras ? t("journal.conclusion.hide") : t("journal.conclusion.show")}
                 </Text>
               </Pressable>
               {showExtras ? (
                 <Input
                   value={conclusion}
                   onChangeText={setConclusion}
-                  placeholder={locale === "ko" ? "결론: 오늘의 한 줄 깨달음" : "Conclusion: today's takeaway"}
+                  placeholder={t("journal.conclusion.placeholder")}
                   multiline
                   numberOfLines={2}
                   textAlignVertical="top"
@@ -882,17 +861,17 @@ export default function Capture() {
                 style={styles.advisorRow}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: askAdvisor }}
-                accessibilityLabel={locale === "ko" ? "이 기록에 AI 조언 받기" : "Ask Advisor on this entry"}
+                accessibilityLabel={t("journal.advisor.label")}
               >
                 <View style={[styles.advisorCheck, askAdvisor && styles.advisorCheckOn]}>
                   {askAdvisor ? <Text variant="caption" color="background">✓</Text> : null}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text variant="subtle" color={askAdvisor ? "brand" : "textMuted"}>
-                    {locale === "ko" ? "이 기록에 AI 조언 받기" : "Ask Advisor on this entry"}
+                    {t("journal.advisor.label")}
                   </Text>
                   <Text variant="subtle" color="textSubtle">
-                    {locale === "ko" ? "기본은 꺼짐. 되묻고 싶을 때만 켜세요." : "Off by default. Turn on only when you want a reflection back."}
+                    {t("journal.advisor.helper")}
                   </Text>
                 </View>
               </Pressable>
