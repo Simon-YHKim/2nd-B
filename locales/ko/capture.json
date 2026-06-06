@@ -6,9 +6,9 @@
     "placeholder": "https://example.com/article"
   },
   "body": {
-    "label": "본문 또는 붙여넣은 마크다운",
-    "placeholder": "클리퍼가 만든 마크다운(프런트매터 포함)을 붙여 넣거나, 자유롭게 쓰세요…",
-    "helper": "Obsidian 스타일 프런트매터나 일반 마크다운 모두 받아요. 첫 H1이 제목이 됩니다."
+    "label": "본문 또는 저장한 글",
+    "placeholder": "글 내용을 붙여 넣거나, 링크를 저장하거나, 자유롭게 쓰세요...",
+    "helper": "첫 줄을 또렷하게 쓰면 제목으로 쓸 수 있어요. 나머지는 본문으로 저장됩니다."
   },
   "submit": "저장",
   "cancel": "취소",
@@ -45,7 +45,7 @@
     },
     "linkclip": {
       "label": "링크/스크랩",
-      "help": "URL을 붙이거나, Web Clipper가 만든 마크다운을 붙여 넣으세요. 알아서 구분해요."
+      "help": "URL이나 저장한 글 내용을 붙여 넣으세요. 알아서 구분해요."
     },
     "ocr": {
       "label": "OCR",
@@ -59,6 +59,11 @@
   "formatSaved": {
     "personal": "새 형식을 내 형식으로 저장했어요.",
     "shared": "새 형식을 저장하고 마을에 공유했어요."
+  },
+  "linkClip": {
+    "label": "링크 또는 저장한 글",
+    "placeholder": "https://... 또는 글 내용을 붙여 넣으세요",
+    "savedAsClip": "글 내용으로 저장돼요"
   },
   "alerts": {
     "common": {

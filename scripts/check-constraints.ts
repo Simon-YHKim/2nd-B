@@ -169,6 +169,9 @@ results.push(
       "modes.ocr.help",
       "modes.file.label",
       "modes.file.help",
+      "linkClip.label",
+      "linkClip.placeholder",
+      "linkClip.savedAsClip",
       "formatSaved.personal",
       "formatSaved.shared",
       "alerts.common.retry",
@@ -208,6 +211,9 @@ results.push(
       't(`tracks.${id}.label`)',
       't(`modes.${m}.label`)',
       't(`modes.${mode}.help`)',
+      't("linkClip.label")',
+      't("linkClip.placeholder")',
+      't("linkClip.savedAsClip")',
       't("formatSaved.shared")',
       't("formatSaved.personal")',
       't("alerts.common.retry")',
@@ -249,10 +255,24 @@ results.push(
       "Paste a URL",
       "Pick an image or use the camera",
       "Pick a PDF / DOCX / .txt",
+      "clipper markdown",
     ].every((text) => !capture.includes(text));
+    const flattenValues = (obj: Record<string, unknown>): string[] => {
+      const out: string[] = [];
+      const visit = (value: unknown): void => {
+        if (typeof value === "string") out.push(value);
+        else if (value && typeof value === "object") Object.values(value).forEach(visit);
+      };
+      visit(obj);
+      return out;
+    };
+    const captureBundleJargonGone = flattenValues(enCapture)
+      .concat(flattenValues(koCapture))
+      .every((value) => !/(markdown|frontmatter|Obsidian|Web Clipper|\bH1\b|마크다운|프런트매터|클리퍼)/i.test(value));
     const captureBundleOk =
       codeUsesCaptureKeys &&
       inlineAlertCopyGone &&
+      captureBundleJargonGone &&
       captureKeys.every((key) => hasPath(enCapture, key) && hasPath(koCapture, key));
     const ok =
       exists("locales/en/common.json") &&
@@ -263,8 +283,8 @@ results.push(
       id: "C7",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "i18n locales + key-parity check script present; capture alert copy uses locale bundle"
-        : "i18n setup incomplete or capture alert copy not bundled",
+        ? "i18n locales + key-parity check script present; capture copy uses locale bundle without user-facing jargon"
+        : "i18n setup incomplete or capture copy not bundled / still exposes jargon",
     };
   }),
 );

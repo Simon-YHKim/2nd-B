@@ -889,16 +889,12 @@ export default function Capture() {
           {mode === "linkclip" ? (
             <View style={styles.fieldGroup}>
               <Text variant="caption" color="textMuted">
-                {locale === "ko" ? "링크 또는 스크랩" : "Link or clip"}
+                {t("linkClip.label")}
               </Text>
               <Input
                 value={body}
                 onChangeText={setBody}
-                placeholder={
-                  locale === "ko"
-                    ? "https://… 또는 클리퍼 마크다운을 붙여 넣으세요"
-                    : "https://… or paste clipper markdown"
-                }
+                placeholder={t("linkClip.placeholder")}
                 autoCapitalize="none"
                 autoCorrect={false}
                 multiline
@@ -912,7 +908,7 @@ export default function Capture() {
                 </Text>
               ) : linkClipKind === "markdown" ? (
                 <Text variant="subtle" color="textSubtle">
-                  {locale === "ko" ? "스크랩으로 저장돼요" : "Saved as a clip"}
+                  {t("linkClip.savedAsClip")}
                 </Text>
               ) : null}
             </View>

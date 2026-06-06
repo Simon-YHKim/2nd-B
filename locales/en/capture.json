@@ -6,9 +6,9 @@
     "placeholder": "https://example.com/article"
   },
   "body": {
-    "label": "Body or pasted markdown",
-    "placeholder": "Paste a clipped article (with frontmatter), or write a note...",
-    "helper": "We accept Obsidian-style frontmatter or plain markdown. The first H1 becomes the title."
+    "label": "Text or saved article",
+    "placeholder": "Paste article text, save a link, or write a note...",
+    "helper": "A clear first line can become the title. Everything else stays as the body."
   },
   "submit": "Capture",
   "cancel": "Cancel",
@@ -45,7 +45,7 @@
     },
     "linkclip": {
       "label": "Link/Clip",
-      "help": "Paste a URL, or paste the markdown your Web Clipper gave you. We'll detect which."
+      "help": "Paste a URL or saved article text. We'll detect which."
     },
     "ocr": {
       "label": "OCR",
@@ -59,6 +59,11 @@
   "formatSaved": {
     "personal": "Saved as your personal format.",
     "shared": "Saved your new format and shared it with the village."
+  },
+  "linkClip": {
+    "label": "Link or saved article",
+    "placeholder": "https://... or paste article text",
+    "savedAsClip": "Saved as article text"
   },
   "alerts": {
     "common": {
