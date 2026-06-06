@@ -1045,6 +1045,25 @@ results.push(
   }),
 );
 
+results.push(
+  check("QuantIntroHydration", () => {
+    const quantIntro = read("src/components/quant/QuantIntroModal.tsx");
+    const ok =
+      quantIntro.includes("useState<boolean | null>(null)") &&
+      quantIntro.includes("visible !== true") &&
+      quantIntro.includes("visible === false") &&
+      quantIntro.includes("autoStartedRef") &&
+      quantIntro.includes("if (!cancelled) setVisible(true)");
+    return {
+      id: "QuantIntroHydration",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "quant intro waits for storage hydration before showing or auto-starting"
+        : "quant intro should use a loading state to prevent first-frame modal flicker",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";

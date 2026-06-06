@@ -6,7 +6,7 @@
 // user explicitly resets it). The "skip next time" choice is implicit: the
 // modal returns false if dismissed without onStart.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal, View, StyleSheet, Pressable } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -33,8 +33,8 @@ export interface QuantIntroProps {
 }
 
 // `null` while loading, true once we know the modal should display.
-function useShouldShow(toolKey: string): { visible: boolean; markSeen: () => Promise<void> } {
-  const [visible, setVisible] = useState(true);
+function useShouldShow(toolKey: string): { visible: boolean | null; markSeen: () => Promise<void> } {
+  const [visible, setVisible] = useState<boolean | null>(null);
   const storageKey = `quant-intro-seen:${toolKey}`;
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +44,7 @@ function useShouldShow(toolKey: string): { visible: boolean; markSeen: () => Pro
       })
       .catch(() => {
         // Fallback to showing the modal if storage is unavailable.
+        if (!cancelled) setVisible(true);
       });
     return () => {
       cancelled = true;
@@ -73,6 +74,7 @@ export function QuantIntroModal({
 }: QuantIntroProps) {
   const { visible, markSeen } = useShouldShow(toolKey);
   const [dontShow, setDontShow] = useState(false);
+  const autoStartedRef = useRef(false);
 
   async function handleStart() {
     if (dontShow) await markSeen();
@@ -84,10 +86,13 @@ export function QuantIntroModal({
   // done. Running it in an effect (not render) keeps the side-effect out of
   // render and fires it only after commit.
   useEffect(() => {
-    if (!visible) onStart();
-  }, [visible]);
+    if (visible === false && !autoStartedRef.current) {
+      autoStartedRef.current = true;
+      onStart();
+    }
+  }, [onStart, visible]);
 
-  if (!visible) {
+  if (visible !== true) {
     return null;
   }
 
