@@ -612,6 +612,11 @@ export default function Settings() {
               ? "기록 · 캡처 · 위키 페이지 · 세컨비 사용량을 한 번에 모두 삭제합니다. 계정은 유지되지만 0부터 다시 시작합니다."
               : "Wipes records, sources, wiki pages, and SecondB usage in one shot. The account stays but you start from zero."}
           </Text>
+          <Text variant="subtle" color="danger">
+            {locale === "ko"
+              ? "이 작업은 되돌릴 수 없어요. 필요한 내용은 먼저 내보내기로 챙겨두세요."
+              : "This cannot be undone. Export anything you need first."}
+          </Text>
           <Text variant="subtle" color="textMuted">
             {locale === "ko" ? `진행하려면 "${CONFIRM_PHRASE}" 라고 입력하세요.` : `To proceed, type "${CONFIRM_PHRASE}" below.`}
           </Text>
@@ -621,6 +626,11 @@ export default function Settings() {
             placeholder={CONFIRM_PHRASE}
             autoCapitalize="characters"
             autoCorrect={false}
+            accessibilityLabel={
+              locale === "ko"
+                ? `전체 삭제 확인. ${CONFIRM_PHRASE}를 입력하면 삭제 버튼이 켜집니다.`
+                : `Full wipe confirmation. Type ${CONFIRM_PHRASE} to enable the delete button.`
+            }
           />
           <Button
             label={locale === "ko" ? "전체 데이터 삭제" : "Delete everything"}
