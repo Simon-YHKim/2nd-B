@@ -180,7 +180,13 @@ export default function Permissions() {
 
         <View style={styles.actions}>
           <Link href="/manual" asChild>
-            <Button label={locale === "ko" ? "사용 안내서로" : "Open the manual"} variant="secondary" />
+            <Button
+              label={locale === "ko" ? "사용 안내서로" : "Open the manual"}
+              variant="secondary"
+              accessibilityHint={
+                locale === "ko" ? "사용 안내서 화면으로 돌아갑니다." : "Opens the manual from the permissions screen."
+              }
+            />
           </Link>
         </View>
       </ScrollView>

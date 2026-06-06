@@ -308,6 +308,7 @@ results.push(
     const data = read("src/app/data.tsx");
     const support = read("src/app/support.tsx");
     const theme = read("src/app/theme.tsx");
+    const permissions = read("src/app/permissions.tsx");
     const settings = read("src/app/settings.tsx");
     const premiumSurfaces = read("src/components/premium/surfaces.tsx");
     const input = read("src/components/ui/Input.tsx");
@@ -475,6 +476,7 @@ results.push(
       support.includes("Opens your mail app with the support address.") &&
       theme.includes("accessibilityLabel={locale === \"ko\" ? `${o.label} 테마 적용` : `Use ${o.label} theme`}") &&
       theme.includes("Applies the selected theme on this device.") &&
+      permissions.includes("Opens the manual from the permissions screen.") &&
       settings.includes("accessibilityHint={accessibilityHint}") &&
       settings.includes("Opens profile settings.") &&
       settings.includes("Opens privacy settings.") &&
