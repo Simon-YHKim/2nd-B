@@ -70,7 +70,9 @@ function useSkyDrift() {
         }),
       ]),
     );
-    loopRef.current.start();
+    if (AppState.currentState === "active") {
+      loopRef.current.start();
+    }
 
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (prefersReducedMotion()) {

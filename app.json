@@ -17,6 +17,7 @@
     },
     "android": {
       "permissions": [
+        "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_EXTERNAL_STORAGE"
       ],
@@ -28,7 +29,6 @@
       },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
-      "windowTranslucentStatus": true,
       "intentFilters": [
         {
           "action": "VIEW",

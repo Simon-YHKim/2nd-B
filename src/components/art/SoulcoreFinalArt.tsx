@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import {
   Animated,
+  AppState,
   Easing,
   Image,
   StyleSheet,
@@ -214,11 +215,26 @@ function SoulFlameFlicker({ size, active }: { size: number; active: boolean }) {
         Animated.timing(spark, { toValue: 0, duration: 80, easing: Easing.linear, useNativeDriver: true }),
       ]),
     );
-    flameLoop.start();
-    sparkLoop.start();
+
+    if (AppState.currentState === "active") {
+      flameLoop.start();
+      sparkLoop.start();
+    }
+
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") {
+        flameLoop.start();
+        sparkLoop.start();
+      } else {
+        flameLoop.stop();
+        sparkLoop.stop();
+      }
+    });
+
     return () => {
       flameLoop.stop();
       sparkLoop.stop();
+      sub.remove();
     };
   }, [active, flicker, spark]);
 

@@ -4,7 +4,7 @@
 // the main village workers.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, View, type ViewStyle } from "react-native";
+import { Animated, Easing, StyleSheet, View, AppState, type ViewStyle } from "react-native";
 
 import { ShardArt } from "@/components/art/IslandArt";
 import { TierIcon } from "@/components/art/TierIcon";
@@ -38,8 +38,19 @@ function useFloat(enabled: boolean) {
         Animated.timing(ty, { toValue: 0, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ]),
     );
-    loop.start();
-    return () => loop.stop();
+    if (AppState.currentState === "active") {
+      loop.start();
+    }
+
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") loop.start();
+      else loop.stop();
+    });
+
+    return () => {
+      loop.stop();
+      sub.remove();
+    };
   }, [enabled, ty]);
   return ty;
 }
