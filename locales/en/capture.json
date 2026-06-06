@@ -31,7 +31,11 @@
       "accessibilityLabel": "Wiki selection"
     },
     "mode": {
-      "accessibilityLabel": "Capture mode"
+      "accessibilityLabel": "Capture mode",
+      "more": "More",
+      "moreHint": "Shows note, link, photo, and file options.",
+      "less": "Less",
+      "lessHint": "Hides extra capture options and returns to Journal if needed."
     }
   },
   "tracks": {

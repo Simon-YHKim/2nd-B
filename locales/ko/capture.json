@@ -31,7 +31,11 @@
       "accessibilityLabel": "위키 선택"
     },
     "mode": {
-      "accessibilityLabel": "담기 방식"
+      "accessibilityLabel": "담기 방식",
+      "more": "더보기",
+      "moreHint": "메모, 링크, 사진, 문서 선택지를 보여줍니다.",
+      "less": "줄이기",
+      "lessHint": "추가 담기 방식을 숨기고 필요하면 일기로 돌아갑니다."
     }
   },
   "tracks": {

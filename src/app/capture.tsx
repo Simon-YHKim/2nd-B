@@ -72,6 +72,7 @@ import { useKeyboard } from "@/lib/ui/useKeyboard";
 type Mode = "journal" | "memo" | "linkclip" | "ocr" | "file";
 
 const CAPTURE_MODES: Mode[] = ["journal", "memo", "linkclip", "ocr", "file"];
+const BASIC_CAPTURE_MODES: Mode[] = ["journal"];
 
 const TRACK_OPTIONS: WikiTrack[] = ["daily", "pro"];
 
@@ -153,6 +154,7 @@ export default function Capture() {
   const trackLabel = (id: WikiTrack) => t(`tracks.${id}.label`);
 
   const [mode, setMode] = useState<Mode>("journal");
+  const [showAdvancedModes, setShowAdvancedModes] = useState(false);
   const [track, setTrack] = useState<WikiTrack>("daily");
   const [body, setBody] = useState("");
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
@@ -217,6 +219,8 @@ export default function Capture() {
     () => (linkClipKind === "url" ? detectClipperKind(body.trim()) : "inbox"),
     [linkClipKind, body],
   );
+  const advancedModesExpanded = showAdvancedModes || mode !== "journal";
+  const visibleModes = advancedModesExpanded ? CAPTURE_MODES : BASIC_CAPTURE_MODES;
 
   if (loading) {
     return (
@@ -696,7 +700,7 @@ export default function Capture() {
             accessibilityRole="tablist"
             accessibilityLabel={t("sections.mode.accessibilityLabel")}
           >
-            {CAPTURE_MODES.map((m) => {
+            {visibleModes.map((m) => {
               const active = mode === m;
               const color = active ? semantic.background : semantic.textMuted;
               const label = modeLabel(m);
@@ -707,6 +711,7 @@ export default function Capture() {
                   style={[styles.modeTab, active && styles.modeTabActive]}
                   onPress={() => {
                     setMode(m);
+                    if (m !== "journal") setShowAdvancedModes(true);
                     // Clear all per-mode input so a URL box never "bleeds" into
                     // the memo/file box (2026-05-31 directive: inputs feel shared).
                     reset();
@@ -724,6 +729,30 @@ export default function Capture() {
                 </Pressable>
               );
             })}
+            <Pressable
+              key="advanced-toggle"
+              style={[styles.modeTab, styles.modeMoreTab, advancedModesExpanded && styles.modeMoreTabExpanded]}
+              onPress={() => {
+                if (advancedModesExpanded) {
+                  setShowAdvancedModes(false);
+                  if (mode !== "journal") {
+                    setMode("journal");
+                    reset();
+                  }
+                } else {
+                  setShowAdvancedModes(true);
+                }
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: advancedModesExpanded }}
+              accessibilityLabel={advancedModesExpanded ? t("sections.mode.less") : t("sections.mode.more")}
+              accessibilityHint={advancedModesExpanded ? t("sections.mode.lessHint") : t("sections.mode.moreHint")}
+            >
+              <Text style={styles.modeMoreLabel}>
+                {advancedModesExpanded ? t("sections.mode.less") : t("sections.mode.more")}
+              </Text>
+            </Pressable>
           </View>
 
           <Text variant="subtle" color="textMuted" style={styles.modeHelp}>
@@ -1221,6 +1250,7 @@ const styles = StyleSheet.create({
   trackChipTextActive: { color: semantic.background, fontWeight: "700" },
   modeRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.xs,
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
@@ -1230,16 +1260,26 @@ const styles = StyleSheet.create({
   },
   modeTab: {
     flex: 1,
+    minWidth: 72,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
     borderRadius: radii.sm,
     alignItems: "center",
+    justifyContent: "center",
     gap: 2,
   },
   modeTabActive: { backgroundColor: semantic.brand },
+  modeMoreTab: {
+    borderWidth: 1,
+    borderColor: semantic.border,
+    borderStyle: "dashed",
+    minHeight: 48,
+  },
+  modeMoreTabExpanded: { borderColor: semantic.brand },
   modeGlyph: { width: 24, height: 24 },
   modeLabel: { color: semantic.textMuted, fontSize: typography.sizes.xs, fontWeight: "600" },
   modeLabelActive: { color: semantic.background, fontWeight: "700" },
+  modeMoreLabel: { color: semantic.brand, fontSize: typography.sizes.sm, fontWeight: "700" },
   modeHelp: { lineHeight: 18, marginTop: -spacing.xs },
   fieldGroup: {
     gap: spacing.xs,

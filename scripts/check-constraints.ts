@@ -168,6 +168,10 @@ results.push(
       "sections.track.eyebrow",
       "sections.track.accessibilityLabel",
       "sections.mode.accessibilityLabel",
+      "sections.mode.more",
+      "sections.mode.moreHint",
+      "sections.mode.less",
+      "sections.mode.lessHint",
       "tracks.daily.label",
       "tracks.pro.label",
       "modes.journal.label",
@@ -226,6 +230,10 @@ results.push(
       't("sections.track.eyebrow")',
       't("sections.track.accessibilityLabel")',
       't("sections.mode.accessibilityLabel")',
+      't("sections.mode.more")',
+      't("sections.mode.moreHint")',
+      't("sections.mode.less")',
+      't("sections.mode.lessHint")',
       't(`tracks.${id}.label`)',
       't(`modes.${m}.label`)',
       't(`modes.${m}.help`)',
@@ -637,6 +645,9 @@ results.push(
       capture.includes("accessibilityLabel={`${label}. ${help}`}") &&
       capture.includes("accessibilityHint={help}") &&
       capture.includes("ModeGlyph mode={m} color={color} label={label}") &&
+      capture.includes("const BASIC_CAPTURE_MODES") &&
+      capture.includes("const visibleModes = advancedModesExpanded ? CAPTURE_MODES : BASIC_CAPTURE_MODES") &&
+      capture.includes("accessibilityState={{ expanded: advancedModesExpanded }}") &&
       capture.includes("accessibilityState={{ expanded: showExtras }}") &&
       capture.includes('accessibilityRole="checkbox"') &&
       capture.includes("accessibilityState={{ checked: askAdvisor }}") &&
