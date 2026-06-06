@@ -75,18 +75,18 @@ const CAPTURE_MODES: Mode[] = ["journal", "memo", "linkclip", "ocr", "file"];
 
 const TRACK_OPTIONS: WikiTrack[] = ["daily", "pro"];
 
-function ModeGlyph({ mode, color }: { mode: Mode; color: string }) {
+function ModeGlyph({ mode, color, label }: { mode: Mode; color: string; label: string }) {
   const sw = 1.8;
   switch (mode) {
     case "journal":
       return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph}>
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
           <Path d="M14 4 A8 8 0 1 0 14 20 A6 6 0 1 1 14 4 Z" fill={color} />
         </Svg>
       );
     case "memo":
       return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph}>
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
           <Path d="M7 17 L8 13 L16 5 L19 8 L11 16 Z" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
           <Line x1="13.5" y1="7.5" x2="16.5" y2="10.5" stroke={color} strokeWidth={sw} />
           <Line x1="6" y1="20" x2="18" y2="20" stroke={color} strokeWidth={sw} strokeLinecap="round" />
@@ -94,7 +94,7 @@ function ModeGlyph({ mode, color }: { mode: Mode; color: string }) {
       );
     case "linkclip":
       return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph}>
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
           <Path d="M9.5 14.5 L14.5 9.5" stroke={color} strokeWidth={sw} strokeLinecap="round" />
           <Path d="M10 8 L8.5 8 C6.5 8 5 9.5 5 11.5 C5 13.5 6.5 15 8.5 15 L10 15" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
           <Path d="M14 9 L15.5 9 C17.5 9 19 10.5 19 12.5 C19 14.5 17.5 16 15.5 16 L14 16" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
@@ -102,7 +102,7 @@ function ModeGlyph({ mode, color }: { mode: Mode; color: string }) {
       );
     case "ocr":
       return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph}>
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
           <Rect x="5" y="8" width="14" height="10" rx="1.5" stroke={color} strokeWidth={sw} fill="none" />
           <Path d="M9 8 L10 6 L14 6 L15 8" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
           <Circle cx="12" cy="13" r="2.4" stroke={color} strokeWidth={sw} fill="none" />
@@ -111,7 +111,7 @@ function ModeGlyph({ mode, color }: { mode: Mode; color: string }) {
       );
     case "file":
       return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph}>
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
           <Path d="M7 4 L14 4 L18 8 L18 20 L7 20 Z" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
           <Path d="M14 4 L14 8 L18 8" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
           <Line x1="9" y1="12" x2="15" y2="12" stroke={color} strokeWidth={sw} strokeLinecap="round" />
@@ -149,6 +149,7 @@ export default function Capture() {
   // the light caption tracking.
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.3 };
   const modeLabel = (m: Mode) => t(`modes.${m}.label`);
+  const modeHelp = (m: Mode) => t(`modes.${m}.help`);
   const trackLabel = (id: WikiTrack) => t(`tracks.${id}.label`);
 
   const [mode, setMode] = useState<Mode>("journal");
@@ -543,20 +544,14 @@ export default function Capture() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 86) }]} keyboardShouldPersistTaps="handled">
           <SceneHero
-            eyebrow={locale === "ko" ? "01. 조각 담기" : "01. Capture"}
-            title={locale === "ko" ? "떠오른 조각을 마을로" : "Send a piece into the village"}
-            subtitle={locale === "ko" ? "일기 · 메모 · 링크 · 파일 · 사진" : "Journal · memo · link · file · photo"}
+            eyebrow={t("hero.eyebrow")}
+            title={t("hero.title")}
+            subtitle={t("hero.subtitle")}
             island={VILLAGE_UI.knowledge.island}
             worker={VILLAGE_UI.knowledge.worker}
             accent={VILLAGE_UI.knowledge.accent}
             speech={
-              savedTitle
-                ? locale === "ko"
-                  ? "새 조각을 챙겼어요. 그래프에서 바로 확인할 수 있어요."
-                  : "I carried the new piece home. You can see it on the graph."
-                : locale === "ko"
-                  ? "아직 거칠어도 괜찮아요. 제가 조각으로 정리해둘게요."
-                  : "It can be rough. I'll carry it home as a piece."
+              savedTitle ? t("hero.speechSaved") : t("hero.speechIdle")
             }          />
 
           {/* Import success → graph link (journal-capture pack §3/§7) */}
@@ -705,6 +700,7 @@ export default function Capture() {
               const active = mode === m;
               const color = active ? semantic.background : semantic.textMuted;
               const label = modeLabel(m);
+              const help = modeHelp(m);
               return (
                 <Pressable
                   key={m}
@@ -718,9 +714,10 @@ export default function Capture() {
                   hitSlop={8}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: active }}
-                  accessibilityLabel={label}
+                  accessibilityLabel={`${label}. ${help}`}
+                  accessibilityHint={help}
                 >
-                  <ModeGlyph mode={m} color={color} />
+                  <ModeGlyph mode={m} color={color} label={label} />
                   <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
                     {label}
                   </Text>
@@ -926,7 +923,7 @@ export default function Capture() {
                 onChangeText={setBody}
                 placeholder={
                   mode === "ocr"
-                    ? (locale === "ko" ? "이미지를 고르면 여기에 추출된 글이 나와요." : "Pick an image to OCR text here.")
+                    ? (locale === "ko" ? "이미지를 고르면 여기에 추출된 글이 나와요." : "Pick an image to place extracted text here.")
                     : (locale === "ko" ? "자유롭게 적거나 붙여 넣으세요…" : "Write or paste freely…")
                 }
                 multiline
@@ -1041,8 +1038,8 @@ export default function Capture() {
             >
               <Text style={[styles.tossBtnText, !canSubmit && styles.tossBtnTextDisabled]}>
                 {submitting
-                  ? (locale === "ko" ? "던지는 중…" : "Tossing…")
-                  : (locale === "ko" ? "영차영차 던지기" : "Send to the cells")}
+                  ? t("submitting")
+                  : t("submit")}
               </Text>
             </Pressable>
           </View>
@@ -1313,8 +1310,8 @@ const styles = StyleSheet.create({
   tagAddHash: { color: semantic.brand, fontSize: typography.sizes.sm, fontWeight: "700" },
   tagAddInput: { flex: 1, fontSize: typography.sizes.sm, paddingVertical: 2, minWidth: 64 },
   submitRow: { gap: spacing.sm, marginTop: spacing.sm },
-  // 영차영차 던지기 — solid primary with a clear pressed beat (scale, no
-  // bounce per DESIGN.md) so the toss actually feels like it lands.
+  // Save button: solid primary with a clear pressed beat (scale, no
+  // bounce per DESIGN.md) so the action feels deliberate.
   tossBtn: {
     alignSelf: "stretch",
     backgroundColor: semantic.brand,

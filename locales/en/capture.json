@@ -10,9 +10,17 @@
     "placeholder": "Paste article text, save a link, or write a note...",
     "helper": "A clear first line can become the title. Everything else stays as the body."
   },
-  "submit": "Capture",
+  "submit": "Save piece",
+  "submitting": "Saving...",
   "cancel": "Cancel",
   "savedTitleFallback": "Today's piece",
+  "hero": {
+    "eyebrow": "01. Capture",
+    "title": "Save a note or source",
+    "subtitle": "Journal · note · link · photo · file",
+    "speechSaved": "Saved. You can see it on the graph.",
+    "speechIdle": "Write briefly or choose a source. We will organize it so you can find it later."
+  },
   "sections": {
     "manageFormats": {
       "accessibilityLabel": "Manage my formats",
@@ -37,23 +45,23 @@
   "modes": {
     "journal": {
       "label": "Journal",
-      "help": "Today's piece: a reflection saved to your records, with an optional Advisor reply."
+      "help": "Write today's reflection. It saves to your records, with optional Advisor feedback."
     },
     "memo": {
-      "label": "Memo",
-      "help": "Jot a short note. Tags and track get added automatically when you toss it."
+      "label": "Note",
+      "help": "Write a short note. Tags and filing are added automatically when you save."
     },
     "linkclip": {
-      "label": "Link/Clip",
-      "help": "Paste a URL or saved article text. We'll detect which."
+      "label": "Link",
+      "help": "Paste a URL or saved article text. We will recognize the source type."
     },
     "ocr": {
-      "label": "OCR",
-      "help": "Pick an image or use the camera. The workers will read the text out."
+      "label": "Photo",
+      "help": "Choose a photo or use the camera. We will read the text from the image."
     },
     "file": {
       "label": "File",
-      "help": "Pick a PDF / DOCX / .txt. Text is extracted and indexed."
+      "help": "Choose a PDF, DOCX, or text file. We save the readable text."
     }
   },
   "formatSaved": {

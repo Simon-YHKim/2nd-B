@@ -155,7 +155,14 @@ results.push(
     const enJarvis = JSON.parse(read("locales/en/jarvis.json")) as { intro_body?: string; reference_piece_meta?: string };
     const koJarvis = JSON.parse(read("locales/ko/jarvis.json")) as { intro_body?: string; reference_piece_meta?: string };
     const captureKeys = [
+      "submit",
+      "submitting",
       "savedTitleFallback",
+      "hero.eyebrow",
+      "hero.title",
+      "hero.subtitle",
+      "hero.speechSaved",
+      "hero.speechIdle",
       "sections.manageFormats.accessibilityLabel",
       "sections.manageFormats.link",
       "sections.track.eyebrow",
@@ -206,7 +213,14 @@ results.push(
       return typeof cur === "string" && cur.length > 0;
     };
     const codeRequiredSnippets = [
+      't("submit")',
+      't("submitting")',
       't("savedTitleFallback")',
+      't("hero.eyebrow")',
+      't("hero.title")',
+      't("hero.subtitle")',
+      't("hero.speechSaved")',
+      't("hero.speechIdle")',
       't("sections.manageFormats.accessibilityLabel")',
       't("sections.manageFormats.link")',
       't("sections.track.eyebrow")',
@@ -214,6 +228,7 @@ results.push(
       't("sections.mode.accessibilityLabel")',
       't(`tracks.${id}.label`)',
       't(`modes.${m}.label`)',
+      't(`modes.${m}.help`)',
       't(`modes.${mode}.help`)',
       't("linkClip.label")',
       't("linkClip.placeholder")',
@@ -259,6 +274,11 @@ results.push(
       "Paste a URL",
       "Pick an image or use the camera",
       "Pick a PDF / DOCX / .txt",
+      "Send to the cells",
+      "Send a piece into the village",
+      "I carried the new piece home",
+      "영차영차 던지기",
+      "Tossing…",
       "clipper markdown",
     ].every((text) => !capture.includes(text));
     const flattenValues = (obj: Record<string, unknown>): string[] => {
@@ -273,10 +293,14 @@ results.push(
     const captureBundleJargonGone = flattenValues(enCapture)
       .concat(flattenValues(koCapture))
       .every((value) => !/(markdown|frontmatter|Obsidian|Web Clipper|\bH1\b|마크다운|프런트매터|클리퍼)/i.test(value));
+    const captureBundlePlainLanguageOk = flattenValues(enCapture)
+      .concat(flattenValues(koCapture))
+      .every((value) => !/(Link\/Clip|\bOCR\b|workers|cells|영차영차|일꾼 세포)/i.test(value));
     const captureBundleOk =
       codeUsesCaptureKeys &&
       inlineAlertCopyGone &&
       captureBundleJargonGone &&
+      captureBundlePlainLanguageOk &&
       captureKeys.every((key) => hasPath(enCapture, key) && hasPath(koCapture, key));
     const jarvisCitationCopyOk =
       typeof enJarvis.intro_body === "string" &&
@@ -606,6 +630,9 @@ results.push(
       capture.includes("Dismiss proposed format") &&
       capture.includes("Use today's prompt as topic") &&
       capture.includes("Toggle conclusion field") &&
+      capture.includes("accessibilityLabel={`${label}. ${help}`}") &&
+      capture.includes("accessibilityHint={help}") &&
+      capture.includes("ModeGlyph mode={m} color={color} label={label}") &&
       capture.includes("accessibilityState={{ expanded: showExtras }}") &&
       capture.includes('accessibilityRole="checkbox"') &&
       capture.includes("accessibilityState={{ checked: askAdvisor }}") &&
