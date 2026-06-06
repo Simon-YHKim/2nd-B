@@ -564,7 +564,9 @@ export default function Settings() {
             disabled={busy !== null}
             onPress={() =>
               confirm(
-                locale === "ko" ? "위키 페이지와 [[wikilink]] 연결이 모두 삭제됩니다. 소스(받은편지함)는 남아요." : "Wiki pages and [[wikilink]] edges are wiped. Sources (inbox) stay.",
+                locale === "ko"
+                  ? "위키 페이지와 페이지 간 연결이 모두 삭제됩니다. 받은편지함 자료는 남아요."
+                  : "Wiki pages and their page-to-page links are wiped. Inbox sources stay.",
                 () => runDeleteWikiPages(),
               )
             }

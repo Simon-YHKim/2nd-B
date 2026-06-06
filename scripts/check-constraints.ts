@@ -972,6 +972,30 @@ results.push(
   }),
 );
 
+results.push(
+  check("SettingsLanguage", () => {
+    const settings = read("src/app/settings.tsx");
+    const forbiddenUserLanguage = [
+      "[[wikilink]]",
+      "wikilink edges",
+      "Sources (inbox) stay",
+    ];
+    const ok =
+      settings.includes("페이지 간 연결") &&
+      settings.includes("받은편지함 자료") &&
+      settings.includes("page-to-page links") &&
+      settings.includes("Inbox sources stay") &&
+      forbiddenUserLanguage.every((term) => !settings.includes(term));
+    return {
+      id: "SettingsLanguage",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "settings destructive wiki copy avoids raw wikilink syntax"
+        : "settings destructive wiki copy should use user-facing page-link language",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";
