@@ -160,21 +160,57 @@ export async function listWikiPages(userId: string, opts: ListWikiPagesOpts = {}
   return (data ?? []) as WikiPageRow[];
 }
 
+/** Inverse of markSourceIngested: return a source to the capture inbox so it
+ *  can be promoted again. Called when its promoted wiki page is deleted. */
+export async function markSourceNotIngested(userId: string, sourceId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("sources")
+    .update({ ingested: false, ingested_at: null })
+    .eq("user_id", userId)
+    .eq("id", sourceId);
+  if (error) throw error;
+}
+
 /**
  * Delete a wiki page. wiki_links rows on both sides cascade automatically
- * (ON DELETE CASCADE in 0022). The underlying sources row (if any) is
- * unaffected — wiki_pages.source_id is the FK, and that's the column being
- * deleted, not the parent. The user can re-promote later if they change
- * their mind.
+ * (ON DELETE CASCADE in 0022).
+ *
+ * If the page was promoted from a source, that source is returned to the
+ * un-ingested state so the capture inbox re-offers "Generate wiki page"
+ * instead of stranding it on a dead "View in wiki" link pointing at a page
+ * that no longer exists. (wiki_pages.source_id is the FK being deleted, so the
+ * sources row is otherwise untouched — we reset ingested explicitly.) The
+ * source reset is best-effort: the page deletion is the user's intent and has
+ * already committed, so a reset failure is logged, not surfaced as a failure.
  */
 export async function deleteWikiPage(userId: string, pageId: string): Promise<void> {
   const supabase = getSupabaseClient();
+  // Read the promoted-from source BEFORE deleting, while the FK still exists.
+  const { data: page, error: lookupErr } = await supabase
+    .from("wiki_pages")
+    .select("source_id")
+    .eq("user_id", userId)
+    .eq("id", pageId)
+    .maybeSingle();
+  if (lookupErr) throw lookupErr;
+
   const { error } = await supabase
     .from("wiki_pages")
     .delete()
     .eq("user_id", userId)
     .eq("id", pageId);
   if (error) throw error;
+
+  const sourceId = (page as { source_id: string | null } | null)?.source_id ?? null;
+  if (sourceId) {
+    try {
+      await markSourceNotIngested(userId, sourceId);
+    } catch (e) {
+      if (typeof console !== "undefined")
+        console.warn("[wiki] page deleted but source reset failed", (e as Error).message);
+    }
+  }
 }
 
 /** Pages whose body links TO the given page (i.e., wiki_links.to_page = pageId). */
