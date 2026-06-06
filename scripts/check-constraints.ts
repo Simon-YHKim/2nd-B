@@ -996,6 +996,33 @@ results.push(
   }),
 );
 
+results.push(
+  check("CaptureStorageLanguage", () => {
+    const inbox = read("src/app/inbox.tsx");
+    const capture = read("src/app/capture.tsx");
+    const forbiddenUserLanguage = [
+      "Supabase Storage",
+      "auto-cleanup ships in v2",
+      "자동 정리는 v2",
+      "Binary: metadata only",
+      "메타데이터만 저장",
+    ];
+    const ok =
+      inbox.includes("attached body file can remain on your account") &&
+      inbox.includes("첨부된 본문 파일이 계정에 남을 수 있어요") &&
+      capture.includes("Text preview is not available") &&
+      capture.includes("본문 미리보기는 지원하지 않아요") &&
+      forbiddenUserLanguage.every((term) => !inbox.includes(term) && !capture.includes(term));
+    return {
+      id: "CaptureStorageLanguage",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "capture and inbox storage copy avoids raw backend/version/metadata wording"
+        : "capture and inbox storage copy should avoid backend/version/metadata jargon in visible text",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";

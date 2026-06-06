@@ -455,8 +455,8 @@ export default function Inbox() {
       Alert.alert(
         locale === "ko" ? "이 캡처를 삭제할까요?" : "Delete this capture?",
         locale === "ko"
-          ? "본문 파일은 Supabase Storage에 남아 있을 수 있어요 (자동 정리는 v2)."
-          : "The body file may stay in Supabase Storage (auto-cleanup ships in v2).",
+          ? "첨부된 본문 파일이 계정에 남을 수 있어요. 받은편지함 항목은 삭제됩니다."
+          : "The attached body file can remain on your account. The inbox item will be removed.",
         [
           { text: locale === "ko" ? "취소" : "Cancel", style: "cancel" },
           {

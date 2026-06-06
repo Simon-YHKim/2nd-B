@@ -1016,7 +1016,7 @@ export default function Capture() {
                 </Text>
               ) : (
                 <Text variant="subtle" color="textSubtle" style={{ marginTop: 6 }}>
-                  {locale === "ko" ? "바이너리 파일: 메타데이터만 저장" : "Binary: metadata only"}
+                  {locale === "ko" ? "파일이 첨부됐어요. 본문 미리보기는 지원하지 않아요." : "File attached. Text preview is not available."}
                 </Text>
               )}
             </View>
