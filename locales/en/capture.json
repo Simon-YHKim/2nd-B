@@ -13,6 +13,49 @@
   "submit": "Capture",
   "cancel": "Cancel",
   "savedTitleFallback": "Today's piece",
+  "sections": {
+    "manageFormats": {
+      "accessibilityLabel": "Manage my formats",
+      "link": "Manage my formats"
+    },
+    "track": {
+      "eyebrow": "Which wiki?",
+      "accessibilityLabel": "Wiki selection"
+    },
+    "mode": {
+      "accessibilityLabel": "Capture mode"
+    }
+  },
+  "tracks": {
+    "daily": {
+      "label": "Daily Wiki"
+    },
+    "pro": {
+      "label": "Pro Wiki"
+    }
+  },
+  "modes": {
+    "journal": {
+      "label": "Journal",
+      "help": "Today's piece: a reflection saved to your records, with an optional Advisor reply."
+    },
+    "memo": {
+      "label": "Memo",
+      "help": "Jot a short note. Tags and track get added automatically when you toss it."
+    },
+    "linkclip": {
+      "label": "Link/Clip",
+      "help": "Paste a URL, or paste the markdown your Web Clipper gave you. We'll detect which."
+    },
+    "ocr": {
+      "label": "OCR",
+      "help": "Pick an image or use the camera. The workers will read the text out."
+    },
+    "file": {
+      "label": "File",
+      "help": "Pick a PDF / DOCX / .txt. Text is extracted and indexed."
+    }
+  },
   "formatSaved": {
     "personal": "Saved as your personal format.",
     "shared": "Saved your new format and shared it with the village."

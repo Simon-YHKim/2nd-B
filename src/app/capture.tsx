@@ -73,41 +73,7 @@ type Mode = "journal" | "memo" | "linkclip" | "ocr" | "file";
 
 const CAPTURE_MODES: Mode[] = ["journal", "memo", "linkclip", "ocr", "file"];
 
-const MODE_LABEL: Record<Mode, { en: string; ko: string }> = {
-  journal: { en: "Journal", ko: "일기" },
-  memo: { en: "Memo", ko: "메모" },
-  linkclip: { en: "Link/Clip", ko: "링크/스크랩" },
-  ocr: { en: "OCR", ko: "OCR" },
-  file: { en: "File", ko: "문서" },
-};
-
-const TRACK_OPTIONS: { id: WikiTrack; en: string; ko: string }[] = [
-  { id: "daily", en: "Daily Wiki", ko: "일상 Wiki" },
-  { id: "pro", en: "Pro Wiki", ko: "Pro Wiki" },
-];
-
-const MODE_HELP: Record<Mode, { en: string; ko: string }> = {
-  journal: {
-    en: "Today's piece: a reflection saved to your records, with an optional Advisor reply.",
-    ko: "오늘의 조각: 기록에 저장되는 성찰. 원하면 AI 조언도 받을 수 있어요.",
-  },
-  memo: {
-    en: "Jot a short note. Tags and track get added automatically when you toss it.",
-    ko: "한 줄 메모. 던지면 일꾼 세포가 알아서 분류·태그를 달아요.",
-  },
-  linkclip: {
-    en: "Paste a URL, or paste the markdown your Web Clipper gave you. We'll detect which.",
-    ko: "URL을 붙이거나, Web Clipper가 만든 마크다운을 붙여 넣으세요. 알아서 구분해요.",
-  },
-  ocr: {
-    en: "Pick an image or use the camera. The workers will read the text out.",
-    ko: "이미지를 고르세요. 일꾼 세포가 그 위 글자를 읽어 옵니다.",
-  },
-  file: {
-    en: "Pick a PDF / DOCX / .txt. Text is extracted and indexed.",
-    ko: "PDF · DOCX · .txt를 고르세요. 텍스트가 추출되어 색인됩니다.",
-  },
-};
+const TRACK_OPTIONS: WikiTrack[] = ["daily", "pro"];
 
 function ModeGlyph({ mode, color }: { mode: Mode; color: string }) {
   const sw = 1.8;
@@ -182,6 +148,8 @@ export default function Capture() {
   // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
   // the light caption tracking.
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.3 };
+  const modeLabel = (m: Mode) => t(`modes.${m}.label`);
+  const trackLabel = (id: WikiTrack) => t(`tracks.${id}.label`);
 
   const [mode, setMode] = useState<Mode>("journal");
   const [track, setTrack] = useState<WikiTrack>("daily");
@@ -684,10 +652,10 @@ export default function Capture() {
             hitSlop={6}
             style={styles.manageFormatsLink}
             accessibilityRole="button"
-            accessibilityLabel={locale === "ko" ? "내 형식 관리" : "Manage my formats"}
+            accessibilityLabel={t("sections.manageFormats.accessibilityLabel")}
           >
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "내 형식 관리하기" : "Manage my formats"}
+              {t("sections.manageFormats.link")}
             </Text>
           </Pressable>
 
@@ -695,29 +663,30 @@ export default function Capture() {
           {mode !== "journal" ? (
           <View style={styles.trackCard}>
             <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
-              {locale === "ko" ? "어디로 갈까요?" : "Which wiki?"}
+              {t("sections.track.eyebrow")}
             </Text>
             <View
               style={styles.trackRow}
               accessibilityRole="tablist"
-              accessibilityLabel={locale === "ko" ? "위키 선택" : "Wiki selection"}
+              accessibilityLabel={t("sections.track.accessibilityLabel")}
             >
               {TRACK_OPTIONS.map((option) => {
-                const active = track === option.id;
+                const active = track === option;
                 const color = active ? semantic.background : semantic.textMuted;
+                const label = trackLabel(option);
                 return (
                   <Pressable
-                    key={option.id}
+                    key={option}
                     style={[styles.trackChip, active && styles.trackChipActive]}
-                    onPress={() => setTrack(option.id)}
+                    onPress={() => setTrack(option)}
                     hitSlop={4}
                     accessibilityRole="tab"
                     accessibilityState={{ selected: active }}
-                    accessibilityLabel={option[locale]}
+                    accessibilityLabel={label}
                   >
-                    <TrackGlyph id={option.id} color={color} />
+                    <TrackGlyph id={option} color={color} />
                     <Text style={[styles.trackChipText, active && styles.trackChipTextActive]}>
-                      {option[locale]}
+                      {label}
                     </Text>
                   </Pressable>
                 );
@@ -730,11 +699,12 @@ export default function Capture() {
           <View
             style={styles.modeRow}
             accessibilityRole="tablist"
-            accessibilityLabel={locale === "ko" ? "담기 방식" : "Capture mode"}
+            accessibilityLabel={t("sections.mode.accessibilityLabel")}
           >
             {CAPTURE_MODES.map((m) => {
               const active = mode === m;
               const color = active ? semantic.background : semantic.textMuted;
+              const label = modeLabel(m);
               return (
                 <Pressable
                   key={m}
@@ -748,11 +718,11 @@ export default function Capture() {
                   hitSlop={8}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: active }}
-                  accessibilityLabel={MODE_LABEL[m][locale]}
+                  accessibilityLabel={label}
                 >
                   <ModeGlyph mode={m} color={color} />
                   <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
-                    {MODE_LABEL[m][locale]}
+                    {label}
                   </Text>
                 </Pressable>
               );
@@ -760,7 +730,7 @@ export default function Capture() {
           </View>
 
           <Text variant="subtle" color="textMuted" style={styles.modeHelp}>
-            {MODE_HELP[mode][locale]}
+            {t(`modes.${mode}.help`)}
           </Text>
 
           {/* Journal (일기) gate — Lv3 unlock then free-tier use limit, ported

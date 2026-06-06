@@ -13,6 +13,49 @@
   "submit": "저장",
   "cancel": "취소",
   "savedTitleFallback": "오늘의 조각",
+  "sections": {
+    "manageFormats": {
+      "accessibilityLabel": "내 형식 관리",
+      "link": "내 형식 관리하기"
+    },
+    "track": {
+      "eyebrow": "어디로 갈까요?",
+      "accessibilityLabel": "위키 선택"
+    },
+    "mode": {
+      "accessibilityLabel": "담기 방식"
+    }
+  },
+  "tracks": {
+    "daily": {
+      "label": "일상 Wiki"
+    },
+    "pro": {
+      "label": "Pro Wiki"
+    }
+  },
+  "modes": {
+    "journal": {
+      "label": "일기",
+      "help": "오늘의 조각: 기록에 저장되는 성찰. 원하면 AI 조언도 받을 수 있어요."
+    },
+    "memo": {
+      "label": "메모",
+      "help": "한 줄 메모. 던지면 일꾼 세포가 알아서 분류와 태그를 달아요."
+    },
+    "linkclip": {
+      "label": "링크/스크랩",
+      "help": "URL을 붙이거나, Web Clipper가 만든 마크다운을 붙여 넣으세요. 알아서 구분해요."
+    },
+    "ocr": {
+      "label": "OCR",
+      "help": "이미지를 고르세요. 일꾼 세포가 그 위 글자를 읽어 옵니다."
+    },
+    "file": {
+      "label": "문서",
+      "help": "PDF, DOCX, .txt를 고르세요. 텍스트가 추출되어 색인됩니다."
+    }
+  },
   "formatSaved": {
     "personal": "새 형식을 내 형식으로 저장했어요.",
     "shared": "새 형식을 저장하고 마을에 공유했어요."

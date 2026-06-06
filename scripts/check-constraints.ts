@@ -152,6 +152,23 @@ results.push(
     const koCapture = JSON.parse(read("locales/ko/capture.json")) as Record<string, unknown>;
     const captureKeys = [
       "savedTitleFallback",
+      "sections.manageFormats.accessibilityLabel",
+      "sections.manageFormats.link",
+      "sections.track.eyebrow",
+      "sections.track.accessibilityLabel",
+      "sections.mode.accessibilityLabel",
+      "tracks.daily.label",
+      "tracks.pro.label",
+      "modes.journal.label",
+      "modes.journal.help",
+      "modes.memo.label",
+      "modes.memo.help",
+      "modes.linkclip.label",
+      "modes.linkclip.help",
+      "modes.ocr.label",
+      "modes.ocr.help",
+      "modes.file.label",
+      "modes.file.help",
       "formatSaved.personal",
       "formatSaved.shared",
       "alerts.common.retry",
@@ -181,7 +198,38 @@ results.push(
       }
       return typeof cur === "string" && cur.length > 0;
     };
-    const codeUsesCaptureKeys = captureKeys.every((key) => capture.includes(`t("${key}")`));
+    const codeRequiredSnippets = [
+      't("savedTitleFallback")',
+      't("sections.manageFormats.accessibilityLabel")',
+      't("sections.manageFormats.link")',
+      't("sections.track.eyebrow")',
+      't("sections.track.accessibilityLabel")',
+      't("sections.mode.accessibilityLabel")',
+      't(`tracks.${id}.label`)',
+      't(`modes.${m}.label`)',
+      't(`modes.${mode}.help`)',
+      't("formatSaved.shared")',
+      't("formatSaved.personal")',
+      't("alerts.common.retry")',
+      't("alerts.common.dismiss")',
+      't("alerts.imageOpen.title")',
+      't("alerts.imageOpen.message")',
+      't("alerts.ocrRead.title")',
+      't("alerts.ocrRead.message")',
+      't("alerts.fileOpen.title")',
+      't("alerts.fileOpen.message")',
+      't("alerts.journalSave.title")',
+      't("alerts.journalSave.message")',
+      't("alerts.pieceSave.title")',
+      't("alerts.pieceSave.message")',
+      't("alerts.proposeEmpty.title")',
+      't("alerts.proposeEmpty.message")',
+      't("alerts.proposeFailed.title")',
+      't("alerts.proposeFailed.message")',
+      't("alerts.formatSave.title")',
+      't("alerts.formatSave.message")',
+    ];
+    const codeUsesCaptureKeys = codeRequiredSnippets.every((snippet) => capture.includes(snippet));
     const inlineAlertCopyGone = [
       "Couldn't open that image",
       "Couldn't read the text",
@@ -191,6 +239,16 @@ results.push(
       "No format to suggest",
       "Couldn't draft a format",
       "Couldn't save the format",
+      "Manage my formats",
+      "Which wiki?",
+      "Wiki selection",
+      "Capture mode",
+      "Daily Wiki",
+      "Today's piece: a reflection saved to your records",
+      "Jot a short note",
+      "Paste a URL",
+      "Pick an image or use the camera",
+      "Pick a PDF / DOCX / .txt",
     ].every((text) => !capture.includes(text));
     const captureBundleOk =
       codeUsesCaptureKeys &&
