@@ -459,6 +459,7 @@ results.push(
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const signUp = read("src/app/(auth)/sign-up.tsx");
     const audit = read("src/app/audit.tsx");
+    const persona = read("src/app/persona.tsx");
     const wikiAlertCount = (wiki.match(/Alert\.alert/g) ?? []).length;
     const ok =
       !bigFive.includes("Alert.alert") &&
@@ -470,6 +471,7 @@ results.push(
       !signIn.includes("Alert.alert") &&
       !signUp.includes("Alert.alert") &&
       !audit.includes("Alert.alert") &&
+      !persona.includes("Alert.alert") &&
       bigFive.includes("PremiumToast") &&
       attachment.includes("PremiumToast") &&
       importScreen.includes("PremiumToast") &&
@@ -485,6 +487,11 @@ results.push(
       audit.includes("PremiumToast") &&
       audit.includes("toastWrap") &&
       audit.includes("Couldn't save your answer. Your answer is still here, so try again.") &&
+      persona.includes("PremiumErrorState") &&
+      persona.includes("PremiumToast") &&
+      persona.includes("toastWrap") &&
+      persona.includes("Couldn't build your self-model") &&
+      persona.includes("Couldn't finish the export. Try again from the export button.") &&
       insights.includes("PremiumErrorState") &&
       research.includes("PremiumErrorState") &&
       wiki.includes("PremiumToast") &&
@@ -505,8 +512,8 @@ results.push(
       id: "Feedback",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "Big Five, Attachment, Import, ESM, Insights, Research, Wiki, Sign-in, Sign-up, and Audit feedback use premium surfaces"
-        : "assessment/import/ESM/insights/research/wiki/sign-in/sign-up/audit feedback should use premium surfaces and avoid vendor-specific helper copy",
+        ? "Big Five, Attachment, Import, ESM, Insights, Research, Wiki, Sign-in, Sign-up, Audit, and Persona feedback use premium surfaces"
+        : "assessment/import/ESM/insights/research/wiki/sign-in/sign-up/audit/persona feedback should use premium surfaces and avoid vendor-specific helper copy",
     };
   }),
 );

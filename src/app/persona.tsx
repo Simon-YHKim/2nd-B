@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Share } from "react-native";
+import { View, StyleSheet, ScrollView, Share } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumErrorState, PremiumLoadingState, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -17,17 +17,28 @@ import type { Framework } from "@/lib/audit/questions";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
+type PersonaToast = { message: string; tone: "info" | "success" | "danger" };
+
 export default function Persona() {
   const { i18n } = useTranslation();
   const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [building, setBuilding] = useState(false);
+  const [buildError, setBuildError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+  const [toast, setToast] = useState<PersonaToast | null>(null);
   const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
   // One build per resolved (userId, locale) — keyed so a relog or language
   // switch rebuilds, but the auth resolve window (hasProfile/isMinor flipping
   // from null) does not re-fire it.
   const builtKey = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(timeout);
+  }, [toast]);
 
   useEffect(() => {
     // buildPersona() calls Gemini on mount and forwards `minor` for crisis
@@ -40,55 +51,70 @@ export default function Persona() {
     // the youth hotline (C10), not just hasProfile — guard the residual edge
     // where a profile resolves true while isMinor is still null.
     if (loading || !userId || hasProfile !== true || isMinor === null) return;
-    const buildKey = `${userId}:${locale}`;
+    const buildKey = `${userId}:${locale}:${retryKey}`;
     if (builtKey.current === buildKey) return;
     builtKey.current = buildKey;
     function runBuild() {
       if (!userId) return;
       setBuilding(true);
+      setBuildError(false);
       buildPersona(userId, locale, isMinor === true)
         .then((p) => {
           setPersona(p);
+          setBuildError(false);
           // 아치 builds the connections once a persona card synthesizes (companion pack §3).
           if (p) fireCompanion("personaUpdated");
         })
         .catch((e) => {
           // Raw error stays in logs only; users see product-tone copy + retry.
           console.warn("[persona] build failed", (e as Error).message);
-          Alert.alert(
-            locale === "ko" ? "자기 모델을 만들지 못했어요" : "Couldn't build your self-model",
-            locale === "ko"
-              ? "조각을 모으는 중에 잠깐 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
-              : "Something interrupted gathering your pieces. Please try again in a moment.",
-            [
-              { text: locale === "ko" ? "다시 시도" : "Try again", onPress: runBuild },
-              {
-                text: locale === "ko" ? "조각 담기로" : "Back to capture",
-                style: "cancel",
-                onPress: () => router.replace("/capture"),
-              },
-            ],
-          );
+          builtKey.current = null;
+          setBuildError(true);
         })
         .finally(() => setBuilding(false));
     }
     runBuild();
-  }, [loading, userId, hasProfile, isMinor, locale, fireCompanion]);
+  }, [loading, userId, hasProfile, isMinor, locale, retryKey, fireCompanion]);
 
   if (loading || building) {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <ActivityIndicator color={semantic.brand} />
-          <Text variant="subtle" color="textMuted" style={{ marginTop: spacing.md }}>
-            {locale === "ko" ? "당신을 이루는 조각들을 모으는 중이에요..." : "Gathering the pieces of you..."}
-          </Text>
+          <PremiumLoadingState message={locale === "ko" ? "당신을 이루는 조각들을 모으는 중이에요..." : "Gathering the pieces of you..."} />
         </View>
       </PremiumAppShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  if (buildError) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumErrorState
+            title={locale === "ko" ? "자기 모델을 만들지 못했어요" : "Couldn't build your self-model"}
+            body={
+              locale === "ko"
+                ? "조각을 모으는 중에 잠깐 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+                : "Something interrupted gathering your pieces. Please try again in a moment."
+            }
+            retryLabel={locale === "ko" ? "다시 시도" : "Try again"}
+            onRetry={() => {
+              setBuildError(false);
+              setRetryKey((k) => k + 1);
+            }}
+          />
+          <View style={styles.errorActions}>
+            <Button
+              label={locale === "ko" ? "조각 담기로" : "Back to capture"}
+              variant="secondary"
+              onPress={() => router.replace("/capture")}
+            />
+          </View>
+        </View>
+      </PremiumAppShell>
+    );
+  }
   if (!persona) {
     const toolCards: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" }[] =
       locale === "ko"
@@ -152,16 +178,13 @@ export default function Persona() {
     } catch (e) {
       // Raw error stays in logs only; users see product-tone copy + retry.
       console.warn("[persona] export failed", (e as Error).message);
-      Alert.alert(
-        locale === "ko" ? "내보내기를 마치지 못했어요" : "Couldn't finish the export",
-        locale === "ko"
-          ? "공유를 여는 중에 문제가 생겼어요. 다시 시도해 주세요."
-          : "Something went wrong opening the share sheet. Please try again.",
-        [
-          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void handleExport() },
-          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
-        ],
-      );
+      setToast({
+        tone: "danger",
+        message:
+          locale === "ko"
+            ? "내보내기를 마치지 못했어요. 내보내기 버튼에서 다시 시도해 주세요."
+            : "Couldn't finish the export. Try again from the export button.",
+      });
     }
   }
 
@@ -362,6 +385,11 @@ export default function Persona() {
       {companionMoment ? (
         <CompanionMoment moment={companionMoment} style={styles.companionFlash} />
       ) : null}
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
+      ) : null}
     </PremiumAppShell>
   );
 }
@@ -411,6 +439,8 @@ const TRAIT_LABELS: Record<"en" | "ko", Record<"openness" | "conscientiousness" 
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.md },
+  errorActions: { width: "100%", maxWidth: 300 },
+  toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
   companionFlash: { position: "absolute", bottom: 40, right: 20 },
   centerSection: { gap: spacing.sm },
   centerCard: {
