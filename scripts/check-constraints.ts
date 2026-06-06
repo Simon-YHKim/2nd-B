@@ -797,13 +797,15 @@ results.push(
       esm.includes("prompt_kind: kind") &&
       esm.includes('scale_value: kind === "energy" ? scaleValue : null') &&
       esm.includes('context_tags: kind === "context" ? selectedTags : []') &&
-      esm.includes("No notifications. Only when you open it.") &&
-      esm.includes("not a judgment or label") &&
+      esm.includes('useTranslation("esm")') &&
+      esm.includes('t("hero.subtitle")') &&
+      esm.includes('t("note")') &&
       esmTabs >= 1 &&
       esm.includes('accessibilityRole="radiogroup"') &&
       esmRadios >= 1 &&
       esmCheckboxes >= 1 &&
-      esm.includes("Saves the ${activePrompt.en.toLowerCase()} check-in") &&
+      esm.includes('accessibilityHint={t("prompts.changeHint")}') &&
+      esm.includes("accessibilityHint={activePromptSaveHint}") &&
       profile.includes('key: "esm", route: "/esm"') &&
       profile.includes('accessibilityLabel={itemCopy.label}') &&
       profile.includes('accessibilityHint={itemCopy.hint}') &&
@@ -1362,6 +1364,46 @@ results.push(
         note: ok
           ? "permissions screen copy lives in locale bundles and avoids old AI-answer wording"
           : "permissions screen should source privacy copy from locale bundles and avoid old AI-answer wording",
+      };
+    }),
+  );
+
+  results.push(
+    check("EsmI18nCopy", () => {
+      const screen = read("src/app/esm.tsx");
+      const i18n = read("src/lib/i18n/index.ts");
+      const en = read("locales/en/esm.json");
+      const ko = read("locales/ko/esm.json");
+      const forbiddenScreenCopy = [
+        'locale === "ko"',
+        "Back to village",
+        "Preparing your check-in.",
+        "What kind of signal fits this moment?",
+        "No notifications. Only when you open it.",
+        "not a judgment or label",
+      ];
+      const forbiddenBundleCopy = ["Back to village", "마을로 돌아가기"];
+      const ok =
+        screen.includes('useTranslation("esm")') &&
+        screen.includes('t("hero.title")') &&
+        screen.includes('t("prompts.changeHint")') &&
+        screen.includes('t("actions.backHome")') &&
+        screen.includes("activePromptSaveHint") &&
+        i18n.includes("enEsm") &&
+        i18n.includes("koEsm") &&
+        i18n.includes('"esm"') &&
+        i18n.includes("esm: enEsm") &&
+        i18n.includes("esm: koEsm") &&
+        en.includes("Back home") &&
+        ko.includes("홈으로") &&
+        forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
+        forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
+      return {
+        id: "EsmI18nCopy",
+        status: ok ? "PASS" : "FAIL",
+        note: ok
+          ? "esm check-in copy lives in locale bundles and avoids old village-return wording"
+          : "esm check-in should source user-facing copy from locale bundles and avoid old village-return wording",
       };
     }),
   );

@@ -1,0 +1,51 @@
+{
+  "loading": "체크인을 준비하는 중입니다.",
+  "toast": {
+    "saveFailed": "저장하지 못했어요. 다시 시도해 주세요."
+  },
+  "hero": {
+    "eyebrow": "가벼운 체크인",
+    "title": "지금의 단서 하나",
+    "subtitle": "알림 없이, 내가 열었을 때만",
+    "speech": "판단이 아니라 지금 순간의 작은 신호만 남겨요."
+  },
+  "card": {
+    "eyebrow": "15초",
+    "title": "오늘은 어떤 단서로 남길까요?"
+  },
+  "prompts": {
+    "changeHint": "체크인 질문 종류를 바꿉니다.",
+    "context": {
+      "label": "맥락",
+      "saveHint": "맥락 체크인을 저장합니다."
+    },
+    "energy": {
+      "label": "에너지",
+      "saveHint": "에너지 체크인을 저장합니다."
+    }
+  },
+  "energy": {
+    "label": "에너지 선택",
+    "question": "지금 남아 있는 힘은 어느 정도인가요?",
+    "optionLabel": "에너지 {{value}}점"
+  },
+  "context": {
+    "question": "지금 어디에 누구와 있나요?",
+    "tags": {
+      "alone": "혼자",
+      "with_people": "사람들과",
+      "work_study": "일/공부",
+      "moving": "이동 중",
+      "resting": "쉬는 중",
+      "outside": "밖"
+    }
+  },
+  "note": "이 기록은 판단이나 꼬리표가 아니에요. 나중에 흐름을 더 선명하게 보는 작은 단서입니다.",
+  "actions": {
+    "save": "체크인 저장",
+    "saving": "저장 중",
+    "backHome": "홈으로",
+    "backHomeHint": "홈 화면으로 돌아갑니다."
+  },
+  "saved": "저장했습니다. 작은 단서 하나가 더해졌어요."
+}

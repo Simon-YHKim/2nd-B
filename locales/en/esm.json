@@ -1,0 +1,51 @@
+{
+  "loading": "Preparing your check-in.",
+  "toast": {
+    "saveFailed": "Couldn't save. Please try again."
+  },
+  "hero": {
+    "eyebrow": "Light check-in",
+    "title": "One signal from now",
+    "subtitle": "No notifications. Only when you open it.",
+    "speech": "No judgment. Just a small momentary signal."
+  },
+  "card": {
+    "eyebrow": "15 seconds",
+    "title": "What kind of signal fits this moment?"
+  },
+  "prompts": {
+    "changeHint": "Changes the check-in prompt type.",
+    "context": {
+      "label": "Context",
+      "saveHint": "Saves the context check-in."
+    },
+    "energy": {
+      "label": "Energy",
+      "saveHint": "Saves the energy check-in."
+    }
+  },
+  "energy": {
+    "label": "Energy level",
+    "question": "How much energy is available right now?",
+    "optionLabel": "Energy {{value}} of 5"
+  },
+  "context": {
+    "question": "What is around this moment?",
+    "tags": {
+      "alone": "Alone",
+      "with_people": "With people",
+      "work_study": "Work/study",
+      "moving": "Moving",
+      "resting": "Resting",
+      "outside": "Outside"
+    }
+  },
+  "note": "This is not a judgment or label. It is a small signal that sharpens your patterns later.",
+  "actions": {
+    "save": "Save check-in",
+    "saving": "Saving",
+    "backHome": "Back home",
+    "backHomeHint": "Returns to the home screen."
+  },
+  "saved": "Saved. One small signal was added."
+}

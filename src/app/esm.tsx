@@ -13,26 +13,15 @@ import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 type PromptKind = "context" | "energy";
 type Toast = { message: string; tone: "danger" | "info" | "success" };
 
-const PROMPT_OPTIONS: { id: PromptKind; en: string; ko: string }[] = [
-  { id: "context", en: "Context", ko: "맥락" },
-  { id: "energy", en: "Energy", ko: "에너지" },
-];
+const PROMPT_OPTIONS: { id: PromptKind }[] = [{ id: "context" }, { id: "energy" }];
 
-const CONTEXT_TAGS = [
-  { id: "alone", en: "Alone", ko: "혼자" },
-  { id: "with_people", en: "With people", ko: "사람들과" },
-  { id: "work_study", en: "Work/study", ko: "일/공부" },
-  { id: "moving", en: "Moving", ko: "움직이는 중" },
-  { id: "resting", en: "Resting", ko: "쉬는 중" },
-  { id: "outside", en: "Outside", ko: "밖" },
-];
+const CONTEXT_TAGS = ["alone", "with_people", "work_study", "moving", "resting", "outside"] as const;
 
 export default function EsmCheckIn() {
-  const { i18n } = useTranslation();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const { t } = useTranslation("esm");
   const { userId, loading: authLoading } = useAuth();
 
-  const [kind, setKind] = useState<PromptKind>(locale === "ko" ? "context" : "energy");
+  const [kind, setKind] = useState<PromptKind>("context");
   const [scaleValue, setScaleValue] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -41,6 +30,7 @@ export default function EsmCheckIn() {
 
   const canSubmit = kind === "energy" ? scaleValue !== null : selectedTags.length > 0;
   const activePrompt = useMemo(() => PROMPT_OPTIONS.find((p) => p.id === kind)!, [kind]);
+  const activePromptSaveHint = t(`prompts.${activePrompt.id}.saveHint`);
 
   useEffect(() => {
     if (!toast) return;
@@ -53,7 +43,7 @@ export default function EsmCheckIn() {
       <PremiumAppShell>
         <View style={styles.center}>
           <Text variant="body" color="textMuted">
-            {locale === "ko" ? "체크인을 준비하는 중입니다." : "Preparing your check-in."}
+            {t("loading")}
           </Text>
         </View>
       </PremiumAppShell>
@@ -86,7 +76,7 @@ export default function EsmCheckIn() {
     if (error) {
       setToast({
         tone: "danger",
-        message: locale === "ko" ? "저장하지 못했어요. 다시 시도해 주세요." : "Couldn't save. Please try again.",
+        message: t("toast.saveFailed"),
       });
       return;
     }
@@ -100,28 +90,20 @@ export default function EsmCheckIn() {
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
-          eyebrow={locale === "ko" ? "가벼운 체크인" : "Light check-in"}
-          title={locale === "ko" ? "지금의 단서 하나" : "One signal from now"}
-          subtitle={locale === "ko" ? "알림 없이, 내가 열었을 때만" : "No notifications. Only when you open it."}
+          eyebrow={t("hero.eyebrow")}
+          title={t("hero.title")}
+          subtitle={t("hero.subtitle")}
           island={CORE_VILLAGE_UI.island}
           worker={CORE_VILLAGE_UI.worker}
           accent={CORE_VILLAGE_UI.accent}
-          speech={
-            locale === "ko"
-              ? "판단이 아니라 작은 맥락만 남겨요."
-              : "No judgment. Just a small momentary signal."
-          }
+          speech={t("hero.speech")}
         />
 
-        <PremiumCard
-          eyebrow={locale === "ko" ? "15초" : "15 seconds"}
-          title={locale === "ko" ? "오늘은 어떤 단서로 남길까요?" : "What kind of signal fits this moment?"}
-          accent={semantic.brand}
-          glow
-        >
+        <PremiumCard eyebrow={t("card.eyebrow")} title={t("card.title")} accent={semantic.brand} glow>
           <View style={styles.promptTabs} accessibilityRole="tablist">
             {PROMPT_OPTIONS.map((option) => {
               const active = option.id === kind;
+              const label = t(`prompts.${option.id}.label`);
               return (
                 <Pressable
                   key={option.id}
@@ -132,13 +114,11 @@ export default function EsmCheckIn() {
                   style={[styles.promptTab, active && styles.promptTabActive]}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: active }}
-                  accessibilityLabel={locale === "ko" ? option.ko : option.en}
-                  accessibilityHint={
-                    locale === "ko" ? "체크인 질문 종류를 바꿉니다" : "Changes the check-in prompt type"
-                  }
+                  accessibilityLabel={label}
+                  accessibilityHint={t("prompts.changeHint")}
                 >
                   <Text variant="body" color={active ? "background" : "brand"} style={styles.promptTabText}>
-                    {locale === "ko" ? option.ko : option.en}
+                    {label}
                   </Text>
                 </Pressable>
               );
@@ -146,13 +126,9 @@ export default function EsmCheckIn() {
           </View>
 
           {kind === "energy" ? (
-            <View
-              style={styles.scaleBlock}
-              accessibilityRole="radiogroup"
-              accessibilityLabel={locale === "ko" ? "에너지 선택" : "Energy level"}
-            >
+            <View style={styles.scaleBlock} accessibilityRole="radiogroup" accessibilityLabel={t("energy.label")}>
               <Text variant="body" color="text">
-                {locale === "ko" ? "지금 남아 있는 힘은 어느 정도인가요?" : "How much energy is available right now?"}
+                {t("energy.question")}
               </Text>
               <View style={styles.scaleRow}>
                 {[1, 2, 3, 4, 5].map((value) => {
@@ -167,9 +143,7 @@ export default function EsmCheckIn() {
                       style={[styles.scaleDot, active && styles.scaleDotActive]}
                       accessibilityRole="radio"
                       accessibilityState={{ checked: active }}
-                      accessibilityLabel={
-                        locale === "ko" ? `에너지 ${value}점` : `Energy ${value} of 5`
-                      }
+                      accessibilityLabel={t("energy.optionLabel", { value })}
                     >
                       <Text variant="body" color={active ? "background" : "brand"} style={styles.scaleText}>
                         {value}
@@ -182,22 +156,23 @@ export default function EsmCheckIn() {
           ) : (
             <View style={styles.scaleBlock}>
               <Text variant="body" color="text">
-                {locale === "ko" ? "지금 어디에 누구와 있나요?" : "What is around this moment?"}
+                {t("context.question")}
               </Text>
               <View style={styles.tagGrid}>
                 {CONTEXT_TAGS.map((tag) => {
-                  const active = selectedTags.includes(tag.id);
+                  const active = selectedTags.includes(tag);
+                  const label = t(`context.tags.${tag}`);
                   return (
                     <Pressable
-                      key={tag.id}
-                      onPress={() => toggleTag(tag.id)}
+                      key={tag}
+                      onPress={() => toggleTag(tag)}
                       style={[styles.tagChip, active && styles.tagChipActive]}
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: active }}
-                      accessibilityLabel={locale === "ko" ? tag.ko : tag.en}
+                      accessibilityLabel={label}
                     >
                       <Text variant="caption" color={active ? "background" : "text"}>
-                        {locale === "ko" ? tag.ko : tag.en}
+                        {label}
                       </Text>
                     </Pressable>
                   );
@@ -207,30 +182,25 @@ export default function EsmCheckIn() {
           )}
 
           <Text variant="subtle" color="textMuted" style={styles.note}>
-            {locale === "ko"
-              ? "이 기록은 판단이나 꼬리표가 아니라, 나중에 패턴을 더 정확히 보는 작은 단서입니다."
-              : "This is not a judgment or label. It is a small signal that sharpens your patterns later."}
+            {t("note")}
           </Text>
 
           <View style={styles.actions}>
             <PremiumButton
-              label={saving ? (locale === "ko" ? "저장 중" : "Saving") : locale === "ko" ? "체크인 저장" : "Save check-in"}
+              label={saving ? t("actions.saving") : t("actions.save")}
               onPress={handleSubmit}
               disabled={!canSubmit}
               loading={saving}
               full
-              accessibilityLabel={locale === "ko" ? "체크인 저장" : "Save check-in"}
-              accessibilityHint={
-                locale === "ko"
-                  ? `${activePrompt.ko} 체크인을 저장합니다`
-                  : `Saves the ${activePrompt.en.toLowerCase()} check-in`
-              }
+              accessibilityLabel={t("actions.save")}
+              accessibilityHint={activePromptSaveHint}
             />
             <PremiumButton
-              label={locale === "ko" ? "마을로 돌아가기" : "Back to village"}
+              label={t("actions.backHome")}
               variant="ghost"
               onPress={() => router.push("/")}
               full
+              accessibilityHint={t("actions.backHomeHint")}
             />
           </View>
         </PremiumCard>
@@ -238,7 +208,7 @@ export default function EsmCheckIn() {
         {saved ? (
           <PremiumCard accent={cosmic.signalMint} style={styles.savedCard}>
             <Text variant="body" color="text">
-              {locale === "ko" ? "저장했습니다. 작은 단서 하나가 더해졌어요." : "Saved. One small signal was added."}
+              {t("saved")}
             </Text>
           </PremiumCard>
         ) : null}
