@@ -488,6 +488,11 @@ export default function Wiki() {
             onPress={handleExport}
             loading={exporting}
             disabled={exporting || pages.length === 0}
+            accessibilityHint={
+              locale === "ko"
+                ? "지식 창고 내보내기 미리보기를 만듭니다."
+                : "Builds a portable knowledge store export preview."
+            }
           />
           <Button
             label={
@@ -503,6 +508,16 @@ export default function Wiki() {
             style={styles.actionBtn}
             onPress={handleToggleStats}
             disabled={pages.length === 0}
+            accessibilityHint={
+              statsVisible
+                ? locale === "ko"
+                  ? "지식 그래프 세부 통계를 숨깁니다."
+                  : "Hides graph detail metrics."
+                : locale === "ko"
+                  ? "지식 그래프 세부 통계를 보여줍니다."
+                  : "Shows graph detail metrics."
+            }
+            accessibilityState={{ expanded: statsVisible }}
           />
           <Link href="/capture" asChild>
             <Button

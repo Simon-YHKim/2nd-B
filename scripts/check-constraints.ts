@@ -374,6 +374,10 @@ results.push(
       wiki.includes("Opens capture from the knowledge store.") &&
       wiki.includes("Opens capture to save today's piece.") &&
       wiki.includes("Opens capture to save a new piece.") &&
+      wiki.includes("Builds a portable knowledge store export preview.") &&
+      wiki.includes("Shows graph detail metrics.") &&
+      wiki.includes("Hides graph detail metrics.") &&
+      wiki.includes("accessibilityState={{ expanded: statsVisible }}") &&
       records.includes("Filter records by ${label}") &&
       trinity.includes('accessibilityRole="link"') &&
       trinity.includes("Add domain tags in capture") &&
