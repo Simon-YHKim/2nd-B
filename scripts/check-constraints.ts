@@ -648,7 +648,7 @@ results.push(
       esm.includes("PremiumToast") &&
       signIn.includes("PremiumToast") &&
       signIn.includes("resetHelpCard") &&
-      signIn.includes("Password reset instructions are shown below.") &&
+      signIn.includes('t("signIn.resetToast")') &&
       signIn.includes('t("errors.signInFailed")') &&
       signIn.includes('t("errors.oauthSignInStartFailed"') &&
       signUp.includes("PremiumToast") &&
@@ -859,38 +859,38 @@ results.push(
       signIn.includes('accessibilityLabel={t("signIn.continueWithKakao")}') &&
       signIn.includes('accessibilityLabel={t("signIn.continueWithNaver")}') &&
       signIn.includes("accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}") &&
-      signIn.includes("Reset password") &&
-      signIn.includes("Switch sign-in language to Korean") &&
+      signIn.includes('accessibilityLabel={t("signIn.resetLabel")}') &&
+      signIn.includes('t("language.switchToKoreanLabel")') &&
       signIn.includes('accessibilityLabel={t("signIn.email")}') &&
-      signIn.includes("Enter the email address for your account.") &&
+      signIn.includes('accessibilityHint={t("signIn.emailHint")}') &&
       signIn.includes('accessibilityLabel={t("signIn.password")}') &&
-      signIn.includes("Enter your account password.") &&
-      signIn.includes("Hides the password characters again.") &&
-      signIn.includes("Shows the password characters on screen.") &&
+      signIn.includes('accessibilityHint={t("signIn.passwordHint")}') &&
+      signIn.includes('t("signIn.hidePasswordHint")') &&
+      signIn.includes('t("signIn.showPasswordHint")') &&
       signIn.includes("accessibilityState={{ selected: showPassword }}") &&
-      signIn.includes("Shows instructions for requesting a reset by email.") &&
-      signIn.includes("Opens the sign-up screen.") &&
-      signIn.includes("Read the one-minute manual") &&
-      signIn.includes("Opens the app manual.") &&
+      signIn.includes('accessibilityHint={t("signIn.resetHint")}') &&
+      signIn.includes('accessibilityHint={t("signIn.signUpHint")}') &&
+      signIn.includes('accessibilityLabel={t("signIn.manualLabel")}') &&
+      signIn.includes('accessibilityHint={t("signIn.manualHint")}') &&
       signIn.includes('accessibilityRole="image"') &&
-      signIn.includes("SecondB entry artwork") &&
-      signUp.includes("Switch sign-up language to English") &&
+      signIn.includes('accessibilityLabel={t("common.entryArtwork")}') &&
+      signUp.includes('t("language.switchToEnglishLabel")') &&
       signUp.includes('accessibilityLabel={t("signUp.email")}') &&
-      signUp.includes("Enter the email address for the account you want to create.") &&
+      signUp.includes('accessibilityHint={t("signUp.emailHint")}') &&
       signUp.includes('accessibilityLabel={t("signUp.password")}') &&
-      signUp.includes("Enter the password for your new account.") &&
-      signUp.includes("회원가입 언어를 한국어로 변경") &&
-      signUp.includes("Opens the sign-in screen") &&
-      signUp.includes("Read the one-minute manual") &&
-      signUp.includes("Opens the app manual") &&
+      signUp.includes('accessibilityHint={t("signUp.passwordHint")}') &&
+      signUp.includes('t("language.switchToKoreanLabel")') &&
+      signUp.includes('accessibilityHint={t("signUp.signInHint")}') &&
+      signUp.includes('accessibilityLabel={t("signUp.manualLabel")}') &&
+      signUp.includes('accessibilityHint={t("signUp.manualHint")}') &&
       signUp.includes('accessibilityRole="image"') &&
-      signUp.includes("SecondB entry artwork") &&
+      signUp.includes('accessibilityLabel={t("common.entryArtwork")}') &&
       birthDateField.includes('accessibilityLabel={t("signUp.birthDate")}') &&
       birthDateField.includes('accessibilityHint={t("signUp.birthDateHelper")}') &&
       completeProfile.includes('accessibilityRole="image"') &&
-      completeProfile.includes("SecondB entry artwork") &&
-      completeProfile.includes("Saves your date of birth and consent, then opens the app.") &&
-      completeProfile.includes("Signs out and returns to sign-in.") &&
+      completeProfile.includes('accessibilityLabel={t("common.entryArtwork")}') &&
+      completeProfile.includes('accessibilityHint={t("completeProfile.submitHint")}') &&
+      completeProfile.includes('accessibilityHint={t("completeProfile.cancelHint")}') &&
         notFound.includes('accessibilityHint={t("actions.homeHint")}') &&
         notFound.includes('accessibilityHint={t("destinations.capture.hint")}') &&
         notFound.includes('accessibilityHint={t("destinations.audit.hint")}') &&
@@ -1700,6 +1700,87 @@ results.push(
         note: ok
           ? "auth sign-in/sign-up/profile failure toast copy lives in the auth locale bundle"
           : "auth failure toasts should source visible copy from auth locale keys",
+      };
+    }),
+  );
+
+  results.push(
+    check("AuthEntrySupplementalI18nCopy", () => {
+      const signIn = read("src/app/(auth)/sign-in.tsx");
+      const signUp = read("src/app/(auth)/sign-up.tsx");
+      const completeProfile = read("src/app/(auth)/complete-profile.tsx");
+      const en = read("locales/en/auth.json");
+      const ko = read("locales/ko/auth.json");
+      const screens = [signIn, signUp, completeProfile].join("\n");
+      const codeRequired = [
+        't("common.checking")',
+        't("common.entryArtwork")',
+        't("language.switchToEnglishLabel")',
+        't("language.switchToKoreanLabel")',
+        't("signIn.emailHint")',
+        't("signIn.passwordHint")',
+        't("signIn.showPasswordLabel")',
+        't("signIn.hidePasswordLabel")',
+        't("signIn.submitting")',
+        't("signIn.resetToast")',
+        't("signIn.resetBody")',
+        't("signIn.manualLink")',
+        't("signUp.emailHint")',
+        't("signUp.passwordHint")',
+        't("signUp.signInHint")',
+        't("signUp.manualLink")',
+        't("completeProfile.submitHint")',
+        't("completeProfile.cancelHint")',
+      ];
+      const localeRequired = [
+        '"common"',
+        '"language"',
+        '"checking": "Checking',
+        '"entryArtwork": "SecondB entry artwork"',
+        '"switchToEnglishLabel": "Switch auth language to English"',
+        '"switchToKoreanLabel": "Switch auth language to Korean"',
+        '"resetBody": "Email support@2nd-brain.app',
+        '"manualLink": "New here? Read the 1-min manual"',
+      ];
+      const koLocaleRequired = [
+        '"common"',
+        '"language"',
+        '"checking": "확인하는 중',
+        '"entryArtwork": "SecondB 입장 이미지"',
+        '"switchToEnglishLabel": "인증 화면 언어를 영어로 변경"',
+        '"switchToKoreanLabel": "인증 화면 언어를 한국어로 변경"',
+        '"resetBody": "가입 이메일 주소로 support@2nd-brain.app',
+        '"manualLink": "이 앱이 처음이라면 안내서 보기"',
+      ];
+      const forbiddenScreenCopy = [
+        "Checking…",
+        "SecondB entry artwork",
+        "Switch sign-up language to English",
+        "회원가입 언어를 한국어로 변경",
+        "Enter your account password.",
+        "Shows the password characters on screen.",
+        "Password reset instructions are shown below.",
+        "Forgot password?",
+        "Email support@2nd-brain.app from your account address",
+        "New here? Read the 1-min manual",
+        "확인하는 중…",
+        "SecondB 입장 이미지",
+        "비밀번호 입력값을 화면에 표시합니다.",
+        "비밀번호를 잊으셨나요?",
+        "가입 이메일 주소로 support@2nd-brain.app",
+        "이 앱이 처음이라면 안내서 보기",
+      ];
+      const ok =
+        codeRequired.every((snippet) => screens.includes(snippet)) &&
+        localeRequired.every((snippet) => en.includes(snippet)) &&
+        koLocaleRequired.every((snippet) => ko.includes(snippet)) &&
+        forbiddenScreenCopy.every((term) => !screens.includes(term));
+      return {
+        id: "AuthEntrySupplementalI18nCopy",
+        status: ok ? "PASS" : "FAIL",
+        note: ok
+          ? "auth entry loading, a11y hints, reset helper, and manual-link copy live in the auth locale bundle"
+          : "auth entry supplemental copy should source visible and accessibility strings from auth locale keys",
       };
     }),
   );

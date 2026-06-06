@@ -70,7 +70,7 @@ export default function SignIn() {
   // flashing the sign-in form to a user who turns out to be signed in (the
   // guest-only guard below reads userId === null during this window).
   if (loading) {
-    return <InlineLoader message={locale === "ko" ? "확인하는 중…" : "Checking…"} />;
+    return <InlineLoader message={t("common.checking")} />;
   }
 
   // Already signed in (OAuth redirect landed back here, or user hit
@@ -147,10 +147,7 @@ export default function SignIn() {
     setResetHelpVisible(true);
     setToast({
       tone: "info",
-      message:
-        locale === "ko"
-          ? "비밀번호 재설정 안내를 아래에 표시했어요."
-          : "Password reset instructions are shown below.",
+      message: t("signIn.resetToast"),
     });
   }
 
@@ -172,9 +169,9 @@ export default function SignIn() {
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={
-                locale === "ko" ? "로그인 언어를 영어로 변경" : "Switch sign-in language to Korean"
+                locale === "ko" ? t("language.switchToEnglishLabel") : t("language.switchToKoreanLabel")
               }
-              accessibilityHint={locale === "ko" ? "로그인 화면 문구를 영어로 바꿉니다." : "Changes the sign-in screen copy to Korean."}
+              accessibilityHint={locale === "ko" ? t("language.switchToEnglishHint") : t("language.switchToKoreanHint")}
               style={styles.localeButton}
             >
               <Text style={styles.localeToggle}>{locale === "ko" ? "EN" : "한국어"}</Text>
@@ -188,7 +185,7 @@ export default function SignIn() {
               style={styles.heroImg}
               resizeMode="contain"
               accessibilityRole="image"
-              accessibilityLabel={locale === "ko" ? "SecondB 입장 이미지" : "SecondB entry artwork"}
+              accessibilityLabel={t("common.entryArtwork")}
             />
             <Text style={styles.title}>{t("signIn.title")}</Text>
             <Text style={styles.subtitle}>{t("signIn.subtitle")}</Text>
@@ -207,11 +204,7 @@ export default function SignIn() {
               placeholder="you@example.com"
               placeholderTextColor={PALETTE.textSubtle}
               accessibilityLabel={t("signIn.email")}
-              accessibilityHint={
-                locale === "ko"
-                  ? "로그인할 계정의 이메일 주소를 입력합니다."
-                  : "Enter the email address for your account."
-              }
+              accessibilityHint={t("signIn.emailHint")}
               style={styles.input}
             />
             <View style={styles.labelRow}>
@@ -221,22 +214,10 @@ export default function SignIn() {
                 hitSlop={10}
                 accessibilityRole="button"
                 accessibilityLabel={
-                  showPassword
-                    ? locale === "ko"
-                      ? "비밀번호 숨기기"
-                      : "Hide password"
-                    : locale === "ko"
-                      ? "비밀번호 보기"
-                      : "Show password"
+                  showPassword ? t("signIn.hidePasswordLabel") : t("signIn.showPasswordLabel")
                 }
                 accessibilityHint={
-                  showPassword
-                    ? locale === "ko"
-                      ? "비밀번호 입력값을 다시 가립니다."
-                      : "Hides the password characters again."
-                    : locale === "ko"
-                      ? "비밀번호 입력값을 화면에 표시합니다."
-                      : "Shows the password characters on screen."
+                  showPassword ? t("signIn.hidePasswordHint") : t("signIn.showPasswordHint")
                 }
                 accessibilityState={{ selected: showPassword }}
                 style={styles.eyeBtn}
@@ -252,11 +233,7 @@ export default function SignIn() {
               textContentType="password"
               placeholderTextColor={PALETTE.textSubtle}
               accessibilityLabel={t("signIn.password")}
-              accessibilityHint={
-                locale === "ko"
-                  ? "계정 비밀번호를 입력합니다."
-                  : "Enter your account password."
-              }
+              accessibilityHint={t("signIn.passwordHint")}
               style={styles.input}
               returnKeyType="go"
               onSubmitEditing={() => {
@@ -273,7 +250,7 @@ export default function SignIn() {
               accessibilityState={{ disabled: !canSubmit, busy: submitting }}
             >
               <Text style={styles.primaryBtnText}>
-                {submitting ? (locale === "ko" ? "들어가는 중…" : "Entering…") : t("signIn.submit")}
+                {submitting ? t("signIn.submitting") : t("signIn.submit")}
               </Text>
             </Pressable>
 
@@ -346,27 +323,21 @@ export default function SignIn() {
               hitSlop={8}
               style={styles.forgotRow}
               accessibilityRole="button"
-              accessibilityLabel={locale === "ko" ? "비밀번호 재설정" : "Reset password"}
-              accessibilityHint={
-                locale === "ko"
-                  ? "지원팀에 이메일을 보내 재설정을 요청하는 안내를 엽니다."
-                  : "Shows instructions for requesting a reset by email."
-              }
+              accessibilityLabel={t("signIn.resetLabel")}
+              accessibilityHint={t("signIn.resetHint")}
             >
               <Text style={styles.subtleText}>
-                {locale === "ko" ? "비밀번호를 잊으셨나요?" : "Forgot password?"}
+                {t("signIn.forgotPassword")}
               </Text>
             </Pressable>
 
             {resetHelpVisible ? (
               <View style={styles.resetHelpCard} accessibilityRole="alert">
                 <Text style={styles.resetHelpTitle}>
-                  {locale === "ko" ? "비밀번호 재설정" : "Reset password"}
+                  {t("signIn.resetTitle")}
                 </Text>
                 <Text style={styles.resetHelpBody}>
-                  {locale === "ko"
-                    ? "가입 이메일 주소로 support@2nd-brain.app에 연락해 주세요. 확인 후 재설정을 도와드릴게요."
-                    : "Email support@2nd-brain.app from your account address and we will help you reset it."}
+                  {t("signIn.resetBody")}
                 </Text>
               </View>
             ) : null}
@@ -380,7 +351,7 @@ export default function SignIn() {
                 <Pressable
                   accessibilityRole="link"
                   accessibilityLabel={t("signIn.signUpLink")}
-                  accessibilityHint={locale === "ko" ? "회원가입 화면을 엽니다." : "Opens the sign-up screen."}
+                  accessibilityHint={t("signIn.signUpHint")}
                   style={styles.footerLinkHit}
                 >
                   <Text style={styles.linkText}>{t("signIn.signUpLink")}</Text>
@@ -390,14 +361,12 @@ export default function SignIn() {
             <Link href="/manual" asChild>
               <Pressable
                 accessibilityRole="link"
-                accessibilityLabel={locale === "ko" ? "앱 안내서 보기" : "Read the one-minute manual"}
-                accessibilityHint={locale === "ko" ? "앱 안내서를 엽니다." : "Opens the app manual."}
+                accessibilityLabel={t("signIn.manualLabel")}
+                accessibilityHint={t("signIn.manualHint")}
                 style={styles.manualLinkHit}
               >
                 <Text style={[styles.subtleText, styles.linkUnderline]}>
-                  {locale === "ko"
-                    ? "이 앱이 처음이라면 안내서 보기"
-                    : "New here? Read the 1-min manual"}
+                  {t("signIn.manualLink")}
                 </Text>
               </Pressable>
             </Link>

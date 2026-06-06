@@ -61,7 +61,7 @@ export default function CompleteProfile() {
   // redirects below read userId === null while loading, which would otherwise
   // bounce a freshly-signed-in OAuth user back to /sign-in before auth settles.
   if (loading) {
-    return <InlineLoader message={locale === "ko" ? "확인하는 중…" : "Checking…"} />;
+    return <InlineLoader message={t("common.checking")} />;
   }
 
   // Already has a profile — bounce to journal. Possible if the user navigates
@@ -155,7 +155,7 @@ export default function CompleteProfile() {
               style={styles.heroImg}
               resizeMode="contain"
               accessibilityRole="image"
-              accessibilityLabel={locale === "ko" ? "SecondB 입장 이미지" : "SecondB entry artwork"}
+              accessibilityLabel={t("common.entryArtwork")}
             />
           </View>
         </View>
@@ -184,11 +184,7 @@ export default function CompleteProfile() {
             disabled={!canSubmit}
             loading={submitting}
             onPress={handleSubmit}
-            accessibilityHint={
-              locale === "ko"
-                ? "생년월일과 동의 항목을 저장한 뒤 앱을 엽니다."
-                : "Saves your date of birth and consent, then opens the app."
-            }
+            accessibilityHint={t("completeProfile.submitHint")}
             full
             style={styles.submitButton}
           />
@@ -197,9 +193,7 @@ export default function CompleteProfile() {
             variant="secondary"
             onPress={handleCancel}
             disabled={submitting}
-            accessibilityHint={
-              locale === "ko" ? "로그아웃하고 로그인 화면으로 돌아갑니다." : "Signs out and returns to sign-in."
-            }
+            accessibilityHint={t("completeProfile.cancelHint")}
             full
             style={styles.submitButton}
           />

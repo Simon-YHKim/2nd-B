@@ -82,7 +82,7 @@ export default function SignUp() {
   // branded checking state rather than flashing the account-creation form; once
   // resolved, a signed-in user is bounced to root (mirrors the sign-in contract).
   if (loading) {
-    return <InlineLoader message={locale === "ko" ? "확인하는 중…" : "Checking…"} />;
+    return <InlineLoader message={t("common.checking")} />;
   }
   if (userId) return <Redirect href="/" />;
 
@@ -191,8 +191,9 @@ export default function SignUp() {
               hitSlop={6}
               accessibilityRole="button"
               accessibilityLabel={
-                locale === "ko" ? "Switch sign-up language to English" : "회원가입 언어를 한국어로 변경"
+                locale === "ko" ? t("language.switchToEnglishLabel") : t("language.switchToKoreanLabel")
               }
+              accessibilityHint={locale === "ko" ? t("language.switchToEnglishHint") : t("language.switchToKoreanHint")}
               style={styles.localeButton}
             >
               <Text variant="caption" color="brand">
@@ -217,7 +218,7 @@ export default function SignUp() {
               style={styles.heroImg}
               resizeMode="contain"
               accessibilityRole="image"
-              accessibilityLabel={locale === "ko" ? "SecondB 입장 이미지" : "SecondB entry artwork"}
+              accessibilityLabel={t("common.entryArtwork")}
             />
           </View>
           {judge ? (
@@ -240,11 +241,7 @@ export default function SignUp() {
               textContentType="emailAddress"
               placeholder="you@example.com"
               accessibilityLabel={t("signUp.email")}
-              accessibilityHint={
-                locale === "ko"
-                  ? "가입할 계정의 이메일 주소를 입력합니다."
-                  : "Enter the email address for the account you want to create."
-              }
+              accessibilityHint={t("signUp.emailHint")}
             />
             <Text variant="caption" color="textMuted" style={styles.fieldLabelSpaced}>
               {t("signUp.password")}
@@ -256,11 +253,7 @@ export default function SignUp() {
               autoComplete="new-password"
               textContentType="newPassword"
               accessibilityLabel={t("signUp.password")}
-              accessibilityHint={
-                locale === "ko"
-                  ? "새 계정에 사용할 비밀번호를 입력합니다."
-                  : "Enter the password for your new account."
-              }
+              accessibilityHint={t("signUp.passwordHint")}
             />
             <Text variant="subtle" color="textSubtle" style={styles.helper}>
               {t("signUp.passwordHelper")}
@@ -353,7 +346,7 @@ export default function SignUp() {
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel={t("signUp.signInLink")}
-                accessibilityHint={locale === "ko" ? "로그인 화면을 엽니다" : "Opens the sign-in screen"}
+                accessibilityHint={t("signUp.signInHint")}
                 style={styles.footerLinkHit}
               >
                 <Text variant="subtle" color="brand" style={styles.link}>
@@ -365,16 +358,12 @@ export default function SignUp() {
           <Link href="/manual" asChild>
             <Pressable
               accessibilityRole="link"
-              accessibilityLabel={
-                locale === "ko" ? "1분 안내서 보기" : "Read the one-minute manual"
-              }
-              accessibilityHint={locale === "ko" ? "앱 안내서를 엽니다" : "Opens the app manual"}
+              accessibilityLabel={t("signUp.manualLabel")}
+              accessibilityHint={t("signUp.manualHint")}
               style={styles.manualLinkHit}
             >
               <Text variant="subtle" color="textSubtle" style={styles.link}>
-                {locale === "ko"
-                  ? "이 앱이 처음이라면 안내서 보기"
-                  : "New here? Read the 1-min manual"}
+                {t("signUp.manualLink")}
               </Text>
             </Pressable>
           </Link>
