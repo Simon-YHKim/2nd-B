@@ -452,22 +452,26 @@ results.push(
     const bigFive = read("src/app/big-five.tsx");
     const attachment = read("src/app/attachment.tsx");
     const importScreen = read("src/app/import.tsx");
+    const esm = read("src/app/esm.tsx");
     const ok =
       !bigFive.includes("Alert.alert") &&
       !attachment.includes("Alert.alert") &&
       !importScreen.includes("Alert.alert") &&
+      !esm.includes("Alert.alert") &&
       bigFive.includes("PremiumToast") &&
       attachment.includes("PremiumToast") &&
       importScreen.includes("PremiumToast") &&
+      esm.includes("PremiumToast") &&
       bigFive.includes("toastWrap") &&
       attachment.includes("toastWrap") &&
-      importScreen.includes("toastWrap");
+      importScreen.includes("toastWrap") &&
+      esm.includes("toastWrap");
     return {
       id: "Feedback",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "Big Five, Attachment, and Import feedback use PremiumToast instead of native Alert.alert"
-        : "assessment/import feedback should use PremiumToast, not native Alert.alert",
+        ? "Big Five, Attachment, Import, and ESM feedback use PremiumToast instead of native Alert.alert"
+        : "assessment/import/ESM feedback should use PremiumToast, not native Alert.alert",
     };
   }),
 );

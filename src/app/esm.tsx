@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -11,6 +11,7 @@ import { cosmic, radii, semantic, spacing, typography, withAlpha } from "@/lib/t
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 type PromptKind = "context" | "energy";
+type Toast = { message: string; tone: "danger" | "info" | "success" };
 
 const PROMPT_OPTIONS: { id: PromptKind; en: string; ko: string }[] = [
   { id: "context", en: "Context", ko: "맥락" },
@@ -36,9 +37,16 @@ export default function EsmCheckIn() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [toast, setToast] = useState<Toast | null>(null);
 
   const canSubmit = kind === "energy" ? scaleValue !== null : selectedTags.length > 0;
   const activePrompt = useMemo(() => PROMPT_OPTIONS.find((p) => p.id === kind)!, [kind]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const h = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(h);
+  }, [toast]);
 
   if (authLoading) {
     return (
@@ -76,12 +84,10 @@ export default function EsmCheckIn() {
     setSaving(false);
 
     if (error) {
-      Alert.alert(
-        locale === "ko" ? "저장하지 못했습니다" : "Couldn't save",
-        locale === "ko"
-          ? "연결이 잠깐 흔들렸습니다. 다시 시도해 주세요."
-          : "The connection hiccuped. Please try again.",
-      );
+      setToast({
+        tone: "danger",
+        message: locale === "ko" ? "저장하지 못했어요. 다시 시도해 주세요." : "Couldn't save. Please try again.",
+      });
       return;
     }
 
@@ -237,6 +243,11 @@ export default function EsmCheckIn() {
           </PremiumCard>
         ) : null}
       </ScrollView>
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
+      ) : null}
     </PremiumAppShell>
   );
 }
@@ -335,4 +346,5 @@ const styles = StyleSheet.create({
   savedCard: {
     marginTop: -spacing.sm,
   },
+  toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
