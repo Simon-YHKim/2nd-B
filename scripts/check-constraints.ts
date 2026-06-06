@@ -288,6 +288,7 @@ results.push(
     const records = read("src/app/records.tsx");
     const trinity = read("src/app/trinity.tsx");
     const signIn = read("src/app/(auth)/sign-in.tsx");
+    const signUp = read("src/app/(auth)/sign-up.tsx");
     const home = read("src/app/index.tsx");
     const jarvis = read("src/app/jarvis.tsx");
     const navGraph = read("src/components/graph/NavGraph.tsx");
@@ -352,6 +353,11 @@ results.push(
       signIn.includes('accessibilityLabel={t("signIn.continueWithNaver")}') &&
       signIn.includes("accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}") &&
       signIn.includes("Reset password") &&
+      signUp.includes("Switch sign-up language to English") &&
+      signUp.includes("회원가입 언어를 한국어로 변경") &&
+      signUp.includes("Opens the sign-in screen") &&
+      signUp.includes("Read the one-minute manual") &&
+      signUp.includes("Opens the app manual") &&
       homeRoles >= 4 &&
       home.includes("Opens capture to save your first piece") &&
       home.includes("Look around first") &&
@@ -394,8 +400,8 @@ results.push(
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/home/jarvis/navgraph/esm/profile actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/home/jarvis/navgraph/esm/profile actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/home/jarvis/navgraph/esm/profile actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/home/jarvis/navgraph/esm/profile actions need accessibilityRole plus selected/checked state",
     };
   }),
 );

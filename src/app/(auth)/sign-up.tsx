@@ -174,6 +174,9 @@ export default function SignUp() {
               }}
               hitSlop={6}
               accessibilityRole="button"
+              accessibilityLabel={
+                locale === "ko" ? "Switch sign-up language to English" : "회원가입 언어를 한국어로 변경"
+              }
               style={styles.localeButton}
             >
               <Text variant="caption" color="brand">
@@ -311,7 +314,12 @@ export default function SignUp() {
               {t("signUp.alreadyHaveAccount")}
             </Text>
             <Link href="/sign-in" asChild>
-              <Pressable accessibilityRole="link" style={styles.footerLinkHit}>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel={t("signUp.signInLink")}
+                accessibilityHint={locale === "ko" ? "로그인 화면을 엽니다" : "Opens the sign-in screen"}
+                style={styles.footerLinkHit}
+              >
                 <Text variant="subtle" color="brand" style={styles.link}>
                   {t("signUp.signInLink")}
                 </Text>
@@ -319,7 +327,14 @@ export default function SignUp() {
             </Link>
           </View>
           <Link href="/manual" asChild>
-            <Pressable accessibilityRole="link" style={styles.manualLinkHit}>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={
+                locale === "ko" ? "1분 안내서 보기" : "Read the one-minute manual"
+              }
+              accessibilityHint={locale === "ko" ? "앱 안내서를 엽니다" : "Opens the app manual"}
+              style={styles.manualLinkHit}
+            >
               <Text variant="subtle" color="textSubtle" style={styles.link}>
                 {locale === "ko"
                   ? "이 앱이 처음이라면 안내서 보기"
