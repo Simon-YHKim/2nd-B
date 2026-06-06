@@ -30,6 +30,7 @@ const HIDDEN_PATHS = new Set<string>([...PRE_AUTH_PATHS, "/"]);
 type Locale = "en" | "ko";
 
 const ROUTE_LABELS: Record<string, { en: string; ko: string }> = {
+  "/+not-found": { en: "Not found", ko: "찾을 수 없음" },
   "/account": { en: "Account", ko: "계정" },
   "/attachment": { en: "Attachment", ko: "애착" },
   "/audit": { en: "Audit", ko: "감사" },
@@ -39,11 +40,14 @@ const ROUTE_LABELS: Record<string, { en: string; ko: string }> = {
   "/data": { en: "Data", ko: "데이터" },
   "/formats": { en: "Formats", ko: "형식" },
   "/import": { en: "Import", ko: "가져오기" },
+  "/imagine": { en: "Divergent mode", ko: "공상 모드" },
   "/inbox": { en: "Inbox", ko: "받은편지함" },
   "/insights": { en: "Insights", ko: "인사이트" },
   "/interview": { en: "Interview", ko: "인터뷰" },
   "/jarvis": { en: "SecondB", ko: "세컨비" },
+  "/journal": { en: "Journal", ko: "일기" },
   "/manual": { en: "Manual", ko: "매뉴얼" },
+  "/mbti": { en: "Persona", ko: "페르소나" },
   "/onboarding": { en: "Onboarding", ko: "온보딩" },
   "/permissions": { en: "Permissions", ko: "권한" },
   "/persona": { en: "Persona", ko: "페르소나" },
@@ -99,6 +103,7 @@ export function BackArrow() {
         hitSlop={16}
         accessibilityRole="button"
         accessibilityLabel={locale === "ko" ? "그래프로 돌아가기" : "Return to graph"}
+        accessibilityHint={locale === "ko" ? "그래프 홈 화면으로 이동합니다." : "Opens the graph home screen."}
         style={({ pressed }) => [styles.btn, pressed ? { opacity: 0.7 } : null]}
       >
         <View
