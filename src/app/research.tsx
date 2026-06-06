@@ -219,6 +219,11 @@ export default function Research() {
                           void Linking.openURL(target);
                         }}
                         hitSlop={4}
+                        accessibilityRole="link"
+                        accessibilityLabel={locale === "ko" ? `${s.title} 출처 링크 열기` : `Open source link for ${s.title}`}
+                        accessibilityHint={
+                          locale === "ko" ? "DOI 또는 원문 URL을 엽니다" : "Opens the DOI or source URL"
+                        }
                       >
                         <Text variant="subtle" color="brand" numberOfLines={1} style={{ marginTop: spacing.xs }}>
                           {s.doi ? `doi.org/${s.doi}` : s.url}

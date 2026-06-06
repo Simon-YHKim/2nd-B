@@ -296,6 +296,9 @@ results.push(
       researchTablists >= 1 &&
       research.includes("accessibilityState={{ selected: activeFramework === null }}") &&
       research.includes("accessibilityState={{ selected: active }}") &&
+      research.includes('accessibilityRole="link"') &&
+      research.includes("Open source link for") &&
+      research.includes("Opens the DOI or source URL") &&
       likert.includes('accessibilityRole="radiogroup"') &&
       likert.includes('accessibilityRole="radio"') &&
       likert.includes("accessibilityState={{ checked: active }}") &&
@@ -322,8 +325,8 @@ results.push(
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, assessment choices, inbox actions, and capture auxiliaries expose grouped/action state"
-        : "visual-selected controls, inbox row actions, or capture auxiliaries need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox actions, and capture auxiliaries expose grouped/action state"
+        : "visual-selected controls, research links, inbox row actions, or capture auxiliaries need accessibilityRole plus selected/checked state",
     };
   }),
 );
