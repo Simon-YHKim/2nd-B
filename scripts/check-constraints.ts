@@ -1143,6 +1143,29 @@ results.push(
   }),
 );
 
+results.push(
+  check("DynamicTypeGraphBits", () => {
+    const graphBits = read("src/components/premium/graph-bits.tsx");
+    const ok =
+      graphBits.includes("style={styles.shardText}") &&
+      graphBits.includes('variant="body" numberOfLines={2}') &&
+      graphBits.includes('color="textSubtle" numberOfLines={2}') &&
+      graphBits.includes("numberOfLines={2} style={styles.chipLabel}") &&
+      graphBits.includes("style={styles.pillText} numberOfLines={2}") &&
+      graphBits.includes("numberOfLines={2} style={styles.statLabel}") &&
+      graphBits.includes("shardText: { flex: 1, minWidth: 0 }") &&
+      graphBits.includes("chipLabel: { flexShrink: 1, minWidth: 0 }") &&
+      graphBits.includes("pillText: { flex: 1, minWidth: 0 }");
+    return {
+      id: "DynamicTypeGraphBits",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "graph reference cards, chips, context pills, and stat labels allow two-line wrapping"
+        : "premium graph bits should not hard-clamp shared labels to one line",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";

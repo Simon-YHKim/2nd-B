@@ -33,9 +33,9 @@ export const ReferenceShardCard = memo(function ReferenceShardCard({
       style={({ pressed }) => [styles.shard, pressed && onPress ? { opacity: 0.8 } : null]}
     >
       <View style={[styles.shardGem, { backgroundColor: accent, shadowColor: accent }]} />
-      <View style={{ flex: 1 }}>
-        <Text variant="body" numberOfLines={1}>{title}</Text>
-        {meta ? <Text variant="subtle" color="textSubtle" numberOfLines={1}>{meta}</Text> : null}
+      <View style={styles.shardText}>
+        <Text variant="body" numberOfLines={2}>{title}</Text>
+        {meta ? <Text variant="subtle" color="textSubtle" numberOfLines={2}>{meta}</Text> : null}
       </View>
     </Pressable>
   );
@@ -72,7 +72,7 @@ export const GraphNodeChip = memo(function GraphNodeChip({
       ]}
     >
       <View style={[styles.chipDot, { backgroundColor: accent }]} />
-      <Text variant="caption" numberOfLines={1}>{label}</Text>
+      <Text variant="caption" numberOfLines={2} style={styles.chipLabel}>{label}</Text>
       {count != null ? <Text variant="caption" style={{ color: cosmic.pixelLamp }}>+{count}</Text> : null}
     </Pressable>
   );
@@ -115,7 +115,7 @@ export function ContextPill({ label, onClose }: { label: string; onClose?: () =>
   return (
     <View style={styles.pill} accessibilityLabel={`${label}에서 질문`}>
       <View style={[styles.chipDot, { backgroundColor: cosmic.soulViolet }]} />
-      <Text variant="caption" color="textMuted" style={{ flex: 1 }} numberOfLines={1}>
+      <Text variant="caption" color="textMuted" style={styles.pillText} numberOfLines={2}>
         {label}에서 질문
       </Text>
       {onClose ? (
@@ -137,7 +137,7 @@ export function StatTile({ value, label, accent = cosmic.signalMint }: { value: 
   return (
     <View style={styles.stat}>
       <Text variant="heading" style={{ color: accent, fontSize: 18 }}>{value}</Text>
-      <Text variant="subtle" color="textSubtle" numberOfLines={1}>{label}</Text>
+      <Text variant="subtle" color="textSubtle" numberOfLines={2} style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
@@ -154,6 +154,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   shardGem: { width: 10, height: 10, borderRadius: 2, shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } },
+  shardText: { flex: 1, minWidth: 0 },
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -166,8 +167,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
+    minHeight: 44,
   },
   chipActive: { shadowOpacity: 0.6, backgroundColor: "rgba(114,242,199,0.08)" },
+  chipLabel: { flexShrink: 1, minWidth: 0 },
   chipDot: { width: 7, height: 7, borderRadius: 4 },
   badgeWrap: { alignItems: "center" },
   badgeRing: {
@@ -188,5 +191,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  pillText: { flex: 1, minWidth: 0 },
   stat: { alignItems: "center", gap: 2, minWidth: 64 },
+  statLabel: { textAlign: "center" },
 });
