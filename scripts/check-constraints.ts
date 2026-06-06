@@ -849,7 +849,7 @@ results.push(
       support.includes('accessibilityHint={t("contact.accessibilityHint")}') &&
       theme.includes('accessibilityLabel={t("actions.useThemeLabel", { label })}') &&
       theme.includes('accessibilityHint={t("actions.useThemeHint")}') &&
-      permissions.includes("Opens the manual from the permissions screen.") &&
+      permissions.includes('accessibilityHint={t("manual.accessibilityHint")}') &&
       settings.includes("accessibilityHint={accessibilityHint}") &&
       settings.includes("Opens profile settings.") &&
       settings.includes("Opens privacy settings.") &&
@@ -1321,6 +1321,47 @@ results.push(
         note: ok
           ? "profile hub copy lives in locale bundles and avoids old village-mark copy"
           : "profile hub should source user-facing copy from locale bundles and avoid old village-mark copy",
+      };
+    }),
+  );
+
+  results.push(
+    check("PermissionsI18nCopy", () => {
+      const screen = read("src/app/permissions.tsx");
+      const i18n = read("src/lib/i18n/index.ts");
+      const en = read("locales/en/permissions.json");
+      const ko = read("locales/ko/permissions.json");
+      const forbiddenScreenCopy = [
+        'locale === "ko"',
+        "AI answers",
+        "Network access",
+        "Use only what is needed",
+        "Permissions are requested only when useful",
+      ];
+      const forbiddenBundleCopy = [
+        "AI answers",
+      ];
+      const ok =
+        screen.includes('useTranslation("permissions")') &&
+        screen.includes('t("hero.title")') &&
+        screen.includes('t(`entries.${entry.key}.name`)') &&
+        screen.includes('t("principles.items", { returnObjects: true })') &&
+        screen.includes('t("manual.accessibilityHint")') &&
+        i18n.includes("enPermissions") &&
+        i18n.includes("koPermissions") &&
+        i18n.includes('"permissions"') &&
+        i18n.includes("permissions: enPermissions") &&
+        i18n.includes("permissions: koPermissions") &&
+        en.includes("SecondB replies") &&
+        ko.includes("SecondB 답변") &&
+        forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
+        forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
+      return {
+        id: "PermissionsI18nCopy",
+        status: ok ? "PASS" : "FAIL",
+        note: ok
+          ? "permissions screen copy lives in locale bundles and avoids old AI-answer wording"
+          : "permissions screen should source privacy copy from locale bundles and avoid old AI-answer wording",
       };
     }),
   );

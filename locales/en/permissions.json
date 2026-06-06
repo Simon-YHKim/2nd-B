@@ -1,0 +1,65 @@
+{
+  "hero": {
+    "eyebrow": "Permissions",
+    "title": "Use only what is needed",
+    "subtitle": "Network · clipboard · optional photo access",
+    "speech": "Permissions are requested only when useful, and optional ones can be declined."
+  },
+  "status": {
+    "inUse": "In use",
+    "optional": "Optional",
+    "planned": "Planned",
+    "notUsed": "Not used"
+  },
+  "platform": {
+    "label": "Platform:",
+    "both": "Web + Native",
+    "web": "Web",
+    "native": "Native",
+    "none": "N/A"
+  },
+  "entries": {
+    "network": {
+      "name": "Network access",
+      "why": "Required for sign-in, saving your records, and SecondB replies. Standard HTTPS."
+    },
+    "clipboard": {
+      "name": "Clipboard",
+      "why": "Used only when you tap Copy in export or message actions. 2nd-B never reads your clipboard in the background."
+    },
+    "calendar": {
+      "name": "Calendar",
+      "why": "A future reminder feature may offer optional calendar access. It is not requested today, and would ask first."
+    },
+    "cameraPhoto": {
+      "name": "Camera / Photo library",
+      "why": "Optional, for text capture from images only. Asked when you choose a photo action; decline and the rest of the app still works."
+    },
+    "microphone": {
+      "name": "Microphone",
+      "why": "Not requested. Voice and audio capture are not in the current product scope."
+    },
+    "location": {
+      "name": "Location",
+      "why": "Not requested. The app has no location-based features."
+    },
+    "contactsSms": {
+      "name": "Contacts / SMS",
+      "why": "Not requested. The app has no contact import, SMS, or messaging features."
+    }
+  },
+  "principles": {
+    "title": "Principles",
+    "items": [
+      "Minimum surface: every new feature is reviewed for permission impact.",
+      "Decline-friendly: optional permissions can be refused without breaking the rest of the app.",
+      "Only on tap: clipboard and photo access happen from visible user actions.",
+      "Explain the why: every permission prompt should have a short reason.",
+      "Your data, yours: each account can access only its own records, and export stays available."
+    ]
+  },
+  "manual": {
+    "button": "Open the manual",
+    "accessibilityHint": "Opens the manual from the permissions screen."
+  }
+}
