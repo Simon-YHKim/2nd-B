@@ -1,0 +1,31 @@
+{
+  "loading": "Loading data tools...",
+  "hero": {
+    "eyebrow": "08-1. Data management",
+    "title": "Move and manage your records",
+    "subtitle": "Import · export · delete",
+    "speech": "Before deleting anything important, export a backup first."
+  },
+  "import": {
+    "eyebrow": "Import",
+    "body": "Bring in what another assistant gathered about you, or a past disposition/personality test, sorted into your structure.",
+    "button": "Import external material",
+    "accessibilityHint": "Opens the import screen."
+  },
+  "export": {
+    "eyebrow": "Export",
+    "body": "From the store you can gather your records into one text to copy. Handy for a backup or moving elsewhere.",
+    "button": "Export from the store",
+    "accessibilityHint": "Opens the knowledge store."
+  },
+  "delete": {
+    "eyebrow": "Delete",
+    "body": "Delete one kind, or everything at once. Deletion can't be undone, so export first.",
+    "button": "Open delete options",
+    "accessibilityHint": "Opens delete options in Settings."
+  },
+  "device": {
+    "eyebrow": "On this device",
+    "body": "Lightweight bits like view preferences and first-run hints live only on this device. Unlike your saved records, they reset on their own when you switch devices or clear the app's data."
+  }
+}

@@ -842,9 +842,9 @@ results.push(
       account.includes("Account deletion confirmation phrase") &&
       account.includes("Type DELETE to enable the account deletion button.") &&
       account.includes("Opens a final confirmation before deleting your account and data.") &&
-      data.includes("Opens the import screen.") &&
-      data.includes("Opens the knowledge store.") &&
-      data.includes("Opens delete options in Settings.") &&
+      data.includes('accessibilityHint={t("import.accessibilityHint")}') &&
+      data.includes('accessibilityHint={t("export.accessibilityHint")}') &&
+      data.includes('accessibilityHint={t("delete.accessibilityHint")}') &&
       support.includes('accessibilityLabel={t("contact.accessibilityLabel")}') &&
       support.includes('accessibilityHint={t("contact.accessibilityHint")}') &&
       theme.includes("accessibilityLabel={locale === \"ko\" ? `${o.label} 테마 적용` : `Use ${o.label} theme`}") &&
@@ -1098,6 +1098,51 @@ results.push(
       note: ok
         ? "support screen copy lives in locale bundles without inline ko/en FAQ branches"
         : "support screen should source sensitive help/FAQ copy from support locale bundles",
+    };
+  }),
+);
+
+results.push(
+  check("DataI18nCopy", () => {
+    const data = read("src/app/data.tsx");
+    const i18n = read("src/lib/i18n/index.ts");
+    const en = read("locales/en/data.json");
+    const ko = read("locales/ko/data.json");
+    const forbiddenScreenCopy = [
+      'locale === "ko"',
+      "const ko =",
+      "Loading data tools",
+      "Move and organize your pieces",
+      "From the store you can gather your pieces",
+      "내 조각 데이터",
+    ];
+    const forbiddenBundleCopy = [
+      "Move and organize your pieces",
+      "From the store you can gather your pieces",
+      "내 조각 데이터",
+    ];
+    const ok =
+      data.includes('useTranslation("data")') &&
+      data.includes('t("hero.title")') &&
+      data.includes('t("import.body")') &&
+      data.includes('t("export.body")') &&
+      data.includes('t("delete.body")') &&
+      data.includes('t("device.body")') &&
+      i18n.includes("enData") &&
+      i18n.includes("koData") &&
+      i18n.includes('"data"') &&
+      i18n.includes("data: enData") &&
+      i18n.includes("data: koData") &&
+      en.includes("Move and manage your records") &&
+      ko.includes("기록을 옮기고 정리해요") &&
+      forbiddenScreenCopy.every((term) => !data.includes(term)) &&
+      forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
+    return {
+      id: "DataI18nCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "data management copy lives in locale bundles without inline ko/en data-control branches"
+        : "data management import/export/delete copy should source from data locale bundles",
     };
   }),
 );
