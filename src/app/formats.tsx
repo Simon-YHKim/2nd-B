@@ -203,7 +203,7 @@ export default function Formats() {
   function metaOf(t: CustomClipperTemplate): string {
     return t.targetCategory ? `${t.baseKind} · ${t.targetCategory}` : t.baseKind;
   }
-  // Normalize a format (bundled or custom) into the locale-resolved schema view.
+  // Normalize a format (bundled or custom) into the locale-resolved guide view.
   function schemaOfBundled(t: ClipperTemplate): FormatSchemaInput {
     return {
       name: (locale === "ko" ? t.name.ko : t.name.en) || t.name.en,
@@ -286,7 +286,7 @@ export default function Formats() {
                   key={t.id}
                   onPress={() => setViewing(schemaOfBundled(t))}
                   accessibilityRole="button"
-                  accessibilityLabel={`${(locale === "ko" ? t.name.ko : t.name.en) || t.name.en} ${locale === "ko" ? "양식 보기" : "view schema"}`}
+                  accessibilityLabel={`${(locale === "ko" ? t.name.ko : t.name.en) || t.name.en} ${locale === "ko" ? "분류 기준 보기" : "view filing guide"}`}
                 >
                   <PremiumCard
                     accent={semantic.brand}
@@ -297,7 +297,7 @@ export default function Formats() {
                       {locale === "ko" ? t.what.ko : t.what.en}
                     </Text>
                     <Text variant="subtle" color="brand" style={styles.shareNote}>
-                      {locale === "ko" ? "눌러서 분류 양식 보기 ›" : "Tap to view schema ›"}
+                      {locale === "ko" ? "눌러서 분류 기준 보기 ›" : "Tap to view filing guide ›"}
                     </Text>
                   </PremiumCard>
                 </Pressable>
@@ -370,9 +370,9 @@ export default function Formats() {
                             style={styles.deleteLink}
                             hitSlop={6}
                             accessibilityRole="button"
-                            accessibilityLabel={`${nameOf(t)} ${locale === "ko" ? "양식 보기" : "view schema"}`}
+                            accessibilityLabel={`${nameOf(t)} ${locale === "ko" ? "분류 기준 보기" : "view filing guide"}`}
                           >
-                            <Text variant="subtle" color="brand">{locale === "ko" ? "양식" : "Schema"}</Text>
+                            <Text variant="subtle" color="brand">{locale === "ko" ? "기준" : "Guide"}</Text>
                           </Pressable>
                           <PremiumButton
                             label={locale === "ko" ? "편집" : "Edit"}
@@ -413,12 +413,12 @@ export default function Formats() {
                         key={t.id}
                         onPress={() => setViewing(schemaOfCustom(t))}
                         accessibilityRole="button"
-                        accessibilityLabel={`${nameOf(t)} ${locale === "ko" ? "양식 보기" : "view schema"}`}
+                        accessibilityLabel={`${nameOf(t)} ${locale === "ko" ? "분류 기준 보기" : "view filing guide"}`}
                       >
                         <PremiumCard accent={semantic.info} eyebrow={metaOf(t)} title={nameOf(t)}>
                           {whatOf(t) ? <Text variant="subtle" color="textMuted">{whatOf(t)}</Text> : null}
                           <Text variant="subtle" color="brand" style={styles.shareNote}>
-                            {locale === "ko" ? "눌러서 분류 양식 보기 ›" : "Tap to view schema ›"}
+                            {locale === "ko" ? "눌러서 분류 기준 보기 ›" : "Tap to view filing guide ›"}
                           </Text>
                         </PremiumCard>
                       </Pressable>
@@ -461,10 +461,10 @@ export default function Formats() {
         </View>
       </PremiumModal>
 
-      {/* Item 1a: tap a format to see how it classifies (read-only schema). */}
+      {/* Item 1a: tap a format to see how it classifies (read-only guide). */}
       <PremiumModal visible={!!viewing} onClose={() => setViewing(null)}>
         <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
-          {locale === "ko" ? "분류 양식" : "Classification schema"}
+          {locale === "ko" ? "분류 기준" : "Filing guide"}
         </Text>
         {viewing ? <FormatSchemaView schema={viewing} locale={locale} /> : null}
         <View style={styles.modalActions}>

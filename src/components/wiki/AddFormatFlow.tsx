@@ -1,6 +1,6 @@
 // AI add-format flow (item 1b). Top: an AI chat input where the user describes
-// the kind of material + how they'd file it. AI drafts a clipper format (JSON,
-// via proposeClipperTemplate — C1/C3/C9 + C-vocabulary guard live there), shown
+// the kind of material + how they'd file it. AI drafts a clipper format
+// via proposeClipperTemplate (C1/C3/C9 + C-vocabulary guard live there), shown
 // as a read-only preview; on the user's consent it's saved via saveTemplate.
 //
 // proposeClipperTemplate returns null in mock mode / on a bad or filtered reply,
@@ -43,13 +43,13 @@ export function AddFormatFlow({
     try {
       const p = await proposeClipperTemplate(userId, input.trim(), null, locale);
       if (!p) {
-        setError(ko ? "형식을 만들지 못했어요. 더 구체적으로 적고 다시 시도해 주세요." : "Couldn't draft a format. Add detail and try again.");
+        setError(ko ? "정리 기준을 만들지 못했어요. 더 구체적으로 적고 다시 시도해 주세요." : "Couldn't draft a filing guide. Add detail and try again.");
       } else {
         setProposed(p);
       }
     } catch (e) {
       console.warn("[AddFormatFlow] draft failed", (e as Error).message);
-      setError(ko ? "형식 초안을 만들지 못했어요. 잠시 후 다시 시도해 주세요." : "We couldn't draft the format. Please try again in a moment.");
+      setError(ko ? "정리 기준을 만들지 못했어요. 잠시 후 다시 시도해 주세요." : "We couldn't draft the filing guide. Please try again in a moment.");
     } finally {
       setGenerating(false);
     }
@@ -102,8 +102,8 @@ export function AddFormatFlow({
       <Text variant="heading">{ko ? "형식 추가" : "Add a format"}</Text>
       <Text variant="subtle" color="textMuted">
         {ko
-          ? "어떤 자료를 어떻게 정리하고 싶은지 적어주세요. AI가 형식 초안을 JSON으로 만들어 드려요."
-          : "Describe the material and how you'd file it. AI drafts a format (JSON)."}
+          ? "어떤 자료를 어떻게 정리하고 싶은지 적어주세요. AI가 다시 쓸 수 있는 정리 기준을 제안해 드려요."
+          : "Describe the material and how you'd file it. AI suggests a reusable filing guide."}
       </Text>
 
       <Input
@@ -120,7 +120,7 @@ export function AddFormatFlow({
       />
 
       <PremiumButton
-        label={generating ? (ko ? "만드는 중…" : "Drafting…") : (ko ? "AI로 형식 만들기" : "Draft with AI")}
+        label={generating ? (ko ? "만드는 중…" : "Drafting…") : (ko ? "AI로 정리 기준 만들기" : "Draft filing guide with AI")}
         variant="primary"
         onPress={generate}
         loading={generating}
