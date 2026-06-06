@@ -97,7 +97,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
         <Text variant="caption" color="brand" style={styles.eyebrow}>
           {locale === "ko" ? "형식 편집" : "Edit format"}
         </Text>
-        <Text variant="heading" style={{ fontSize: 20 }} numberOfLines={1}>
+        <Text variant="heading" style={{ fontSize: 20 }} numberOfLines={2}>
           {headerName}
         </Text>
       </View>

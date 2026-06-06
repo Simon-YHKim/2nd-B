@@ -60,7 +60,7 @@ export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput
         <View style={styles.field}>
           <Text variant="caption" color="textMuted" style={styles.fieldLabel}>{ko ? "자동 매칭 링크" : "Auto-match links"}</Text>
           {schema.triggers.slice(0, 8).map((t) => (
-            <Text key={t} variant="subtle" color="textSubtle" numberOfLines={1}>{t}</Text>
+            <Text key={t} variant="subtle" color="textSubtle" numberOfLines={2}>{t}</Text>
           ))}
         </View>
       ) : null}
@@ -78,7 +78,7 @@ export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput
             <View key={p.name} style={styles.propRow}>
               <View style={styles.propHeader}>
                 <View style={styles.propDot} />
-                <Text variant="caption" style={styles.propName} numberOfLines={1}>
+                <Text variant="caption" style={styles.propName} numberOfLines={2}>
                   {p.name}
                 </Text>
                 <View style={styles.typeChip}>
@@ -118,9 +118,9 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
     padding: spacing.sm,
   },
-  propHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  propHeader: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.xs },
   propDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
-  propName: { flex: 1 },
+  propName: { flexGrow: 1, flexShrink: 1, minWidth: 96 },
   typeChip: {
     borderRadius: radii.sm,
     borderWidth: 1,

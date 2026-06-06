@@ -1166,6 +1166,26 @@ results.push(
   }),
 );
 
+results.push(
+  check("DynamicTypeFormatEditor", () => {
+    const editor = read("src/components/wiki/TemplateEditor.tsx");
+    const schemaView = read("src/components/wiki/FormatSchemaView.tsx");
+    const ok =
+      editor.includes('style={{ fontSize: 20 }} numberOfLines={2}') &&
+      schemaView.includes('color="textSubtle" numberOfLines={2}>{t}</Text>') &&
+      schemaView.includes('style={styles.propName} numberOfLines={2}') &&
+      schemaView.includes('propHeader: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.xs }') &&
+      schemaView.includes("propName: { flexGrow: 1, flexShrink: 1, minWidth: 96 }");
+    return {
+      id: "DynamicTypeFormatEditor",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "format editor headings and preview detail rows allow two-line wrapping"
+        : "format editor title, auto-match links, and detail names should not hard-clamp to one line",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";
