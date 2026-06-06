@@ -222,7 +222,13 @@ export default function SignUp() {
                 {t("signUp.ageNotice")}
               </Text>
             </View>
-            <Image source={authHero} style={styles.heroImg} resizeMode="contain" />
+            <Image
+              source={authHero}
+              style={styles.heroImg}
+              resizeMode="contain"
+              accessibilityRole="image"
+              accessibilityLabel={locale === "ko" ? "SecondB 입장 이미지" : "SecondB entry artwork"}
+            />
           </View>
           {judge ? (
             <View style={styles.badgeWrap}>

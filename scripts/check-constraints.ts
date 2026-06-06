@@ -676,6 +676,8 @@ results.push(
       signIn.includes("Opens the sign-up screen.") &&
       signIn.includes("Read the one-minute manual") &&
       signIn.includes("Opens the app manual.") &&
+      signIn.includes('accessibilityRole="image"') &&
+      signIn.includes("SecondB entry artwork") &&
       signUp.includes("Switch sign-up language to English") &&
       signUp.includes('accessibilityLabel={t("signUp.email")}') &&
       signUp.includes("Enter the email address for the account you want to create.") &&
@@ -685,8 +687,12 @@ results.push(
       signUp.includes("Opens the sign-in screen") &&
       signUp.includes("Read the one-minute manual") &&
       signUp.includes("Opens the app manual") &&
+      signUp.includes('accessibilityRole="image"') &&
+      signUp.includes("SecondB entry artwork") &&
       birthDateField.includes('accessibilityLabel={t("signUp.birthDate")}') &&
       birthDateField.includes('accessibilityHint={t("signUp.birthDateHelper")}') &&
+      completeProfile.includes('accessibilityRole="image"') &&
+      completeProfile.includes("SecondB entry artwork") &&
       completeProfile.includes("Saves your date of birth and consent, then opens the app.") &&
       completeProfile.includes("Signs out and returns to sign-in.") &&
       notFound.includes("Opens the village center.") &&

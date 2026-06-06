@@ -192,7 +192,13 @@ export default function SignIn() {
 
           {/* Logo + headline — premium SecondB gate hero. */}
           <View style={styles.hero}>
-            <Image source={authHero} style={styles.heroImg} resizeMode="contain" />
+            <Image
+              source={authHero}
+              style={styles.heroImg}
+              resizeMode="contain"
+              accessibilityRole="image"
+              accessibilityLabel={locale === "ko" ? "SecondB 입장 이미지" : "SecondB entry artwork"}
+            />
             <Text style={styles.title}>
               {locale === "ko" ? "밤빛 조각마을에 들어가기" : "Enter the night village"}
             </Text>
