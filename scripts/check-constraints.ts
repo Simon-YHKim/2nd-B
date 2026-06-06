@@ -1833,6 +1833,48 @@ results.push(
   check("FormatEditorLanguage", () => {
     const editor = read("src/components/wiki/TemplateEditor.tsx");
     const schemaView = read("src/components/wiki/FormatSchemaView.tsx");
+    const enFormats = read("locales/en/formats.json");
+    const koFormats = read("locales/ko/formats.json");
+    const codeRequired = [
+      'useTranslation("formats")',
+      'te("sourceType")',
+      'te("filingArea")',
+      'te("autoMatchLinks")',
+      'te("savedFolder")',
+      'te("detailsToSave")',
+      'te("detailNamePlaceholder")',
+      'te("removeDetail")',
+      'te("addDetail")',
+      'te("save")',
+      'te("cancel")',
+      'ts("sourceType")',
+      'ts("filingArea")',
+      'ts("defaultTags")',
+      'ts("detailsSaved")',
+      'ts("commonOnly")',
+    ];
+    const localeRequired = [
+      '"editor"',
+      '"schemaView"',
+      '"sourceType": "Source type"',
+      '"filingArea": "Filing area"',
+      '"autoMatchLinks": "Auto-match links"',
+      '"savedFolder": "Saved folder"',
+      '"detailsToSave": "Details to save"',
+      '"detailNamePlaceholder": "Detail name (e.g. topic area)"',
+      '"commonOnly": "Only common fields such as summary, tags, and relevance are saved."',
+    ];
+    const koLocaleRequired = [
+      '"editor"',
+      '"schemaView"',
+      '"sourceType": "자료 종류"',
+      '"filingArea": "분류 위치"',
+      '"autoMatchLinks": "자동 연결 조건"',
+      '"savedFolder": "저장 폴더"',
+      '"detailsToSave": "저장할 세부 정보"',
+      '"detailNamePlaceholder": "세부 정보 이름 (예: 주제 영역)"',
+      '"commonOnly": "요약, 해시태그, 관련도 같은 공통 항목만 저장해요."',
+    ];
     const forbidden = [
       '"Base kind"',
       '"Wiki bucket"',
@@ -1846,21 +1888,16 @@ results.push(
       '"Wiki area"',
     ];
     const ok =
-      editor.includes("Source type") &&
-      editor.includes("Filing area") &&
-      editor.includes("Auto-match links") &&
-      editor.includes("Saved folder") &&
-      editor.includes("Details to save") &&
-      editor.includes("Detail name (e.g. topic area)") &&
-      schemaView.includes("Source type") &&
-      schemaView.includes("Filing area") &&
+      codeRequired.every((snippet) => editor.includes(snippet) || schemaView.includes(snippet)) &&
+      localeRequired.every((snippet) => enFormats.includes(snippet)) &&
+      koLocaleRequired.every((snippet) => koFormats.includes(snippet)) &&
       forbidden.every((term) => !editor.includes(term) && !schemaView.includes(term));
     return {
       id: "FormatEditorLanguage",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "format editor uses user-facing filing language instead of schema/bucket/property jargon"
-        : "format editor should avoid schema/bucket/property jargon in visible labels",
+        ? "format editor and schema preview copy live in the formats locale bundle and avoid schema/bucket/property jargon"
+        : "format editor should source visible filing copy from locale keys and avoid schema/bucket/property jargon",
     };
   }),
 );

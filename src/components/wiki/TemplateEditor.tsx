@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
@@ -25,11 +26,6 @@ type Locale = "en" | "ko";
 type PropType = ClipperAiProperty["type"];
 
 const PROP_TYPES: PropType[] = ["text", "multitext", "number"];
-const PROP_TYPE_LABEL: Record<PropType, { en: string; ko: string }> = {
-  text: { en: "Text", ko: "텍스트" },
-  multitext: { en: "Long", ko: "여러 줄" },
-  number: { en: "Number", ko: "숫자" },
-};
 const TARGET_OPTIONS: (TargetCategory | "")[] = ["", ...TARGET_CATEGORIES];
 
 export interface TemplateEditorProps {
@@ -41,6 +37,7 @@ export interface TemplateEditorProps {
 }
 
 export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: TemplateEditorProps) {
+  const { t } = useTranslation("formats");
   const [nameKo, setNameKo] = useState(initial.name.ko);
   const [nameEn, setNameEn] = useState(initial.name.en);
   const [whatKo, setWhatKo] = useState(initial.what.ko);
@@ -90,12 +87,13 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
   }
 
   const headerName = (locale === "ko" ? initial.name.ko : initial.name.en) || initial.name.en || initial.name.ko;
+  const te = (key: string, options?: Record<string, string>) => t(`editor.${key}`, { lng: locale, ...options });
 
   return (
     <View style={styles.wrap}>
       <View style={styles.headerRow}>
         <Text variant="caption" color="brand" style={styles.eyebrow}>
-          {locale === "ko" ? "형식 편집" : "Edit format"}
+          {te("eyebrow")}
         </Text>
         <Text variant="heading" style={{ fontSize: 20 }} numberOfLines={2}>
           {headerName}
@@ -103,17 +101,17 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
       </View>
 
       {/* Name (both locales) */}
-      <Field label={locale === "ko" ? "이름" : "Name"}>
-        <Input value={nameKo} onChangeText={setNameKo} placeholder={locale === "ko" ? "한글 이름" : "Korean name"} />
-        <Input value={nameEn} onChangeText={setNameEn} placeholder={locale === "ko" ? "영어 이름" : "English name"} autoCapitalize="words" />
+      <Field label={te("name")}>
+        <Input value={nameKo} onChangeText={setNameKo} placeholder={te("nameKoPlaceholder")} />
+        <Input value={nameEn} onChangeText={setNameEn} placeholder={te("nameEnPlaceholder")} autoCapitalize="words" />
       </Field>
 
       {/* Description (both locales) */}
-      <Field label={locale === "ko" ? "설명" : "Description"} hint={locale === "ko" ? "이 형식이 무엇인지 한 줄로" : "One line on what this format is"}>
+      <Field label={te("description")} hint={te("descriptionHint")}>
         <Input
           value={whatKo}
           onChangeText={setWhatKo}
-          placeholder={locale === "ko" ? "한 줄 설명" : "Korean one-liner"}
+          placeholder={te("descriptionKoPlaceholder")}
           multiline
           numberOfLines={2}
           textAlignVertical="top"
@@ -122,7 +120,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
         <Input
           value={whatEn}
           onChangeText={setWhatEn}
-          placeholder={locale === "ko" ? "영어 한 줄 설명" : "English one-liner"}
+          placeholder={te("descriptionEnPlaceholder")}
           multiline
           numberOfLines={2}
           textAlignVertical="top"
@@ -131,7 +129,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
       </Field>
 
       {/* Source type */}
-      <Field label={locale === "ko" ? "자료 종류" : "Source type"} hint={locale === "ko" ? "저장할 때 어떤 자료로 분류할지 정해요" : "Choose how captures using this format are saved."}>
+      <Field label={te("sourceType")} hint={te("sourceTypeHint")}>
         <SelectRow
           options={SOURCE_KINDS}
           value={baseKind}
@@ -141,49 +139,49 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
       </Field>
 
       {/* Filing area */}
-      <Field label={locale === "ko" ? "분류 위치" : "Filing area"}>
+      <Field label={te("filingArea")}>
         <SelectRow
           options={TARGET_OPTIONS}
           value={targetCategory}
           onSelect={setTargetCategory}
-          labelOf={(c) => (c === "" ? (locale === "ko" ? "아직 정하지 않음" : "No area yet") : c)}
+          labelOf={(c) => (c === "" ? te("noArea") : c)}
         />
       </Field>
 
       {/* Auto-match links */}
-      <Field label={locale === "ko" ? "자동 연결 조건" : "Auto-match links"} hint={locale === "ko" ? "맞는 주소를 캡처하면 이 형식으로 자동 분류돼요." : "Matching links are filed with this format automatically."}>
+      <Field label={te("autoMatchLinks")} hint={te("autoMatchLinksHint")}>
         <TagField
           values={triggers}
           onChange={setTriggers}
           locale={locale}
-          addLabel={locale === "ko" ? "조건 추가" : "Add link rule"}
+          addLabel={te("addLinkRule")}
         />
       </Field>
 
       {/* Default tags (sanitized to lowercase-hyphen) */}
-      <Field label={locale === "ko" ? "기본 태그" : "Default tags"}>
+      <Field label={te("defaultTags")}>
         <TagField
           values={defaultTags}
           onChange={setDefaultTags}
           sanitize={sanitizeTag}
           locale={locale}
-          addLabel={locale === "ko" ? "태그 추가" : "Add tag"}
+          addLabel={te("addTag")}
         />
       </Field>
 
       {/* Saved folder */}
-      <Field label={locale === "ko" ? "저장 폴더" : "Saved folder"} hint={locale === "ko" ? "선택 사항이에요. 예: tools/" : "Optional folder name. For example: tools/"}>
+      <Field label={te("savedFolder")} hint={te("savedFolderHint")}>
         <Input value={wikiTarget} onChangeText={setWikiTarget} placeholder="tools/" autoCapitalize="none" autoCorrect={false} />
       </Field>
 
       {/* Details to save */}
       <Field
-        label={locale === "ko" ? "저장할 세부 정보" : "Details to save"}
-        hint={locale === "ko" ? "내용을 읽고 함께 저장할 항목이에요" : "Details to extract and save from each capture."}
+        label={te("detailsToSave")}
+        hint={te("detailsToSaveHint")}
       >
         {aiProps.length === 0 ? (
           <Text variant="subtle" color="textSubtle">
-            {locale === "ko" ? "아직 없음" : "None yet"}
+            {te("noneYet")}
           </Text>
         ) : null}
         {aiProps.map((p, i) => (
@@ -192,7 +190,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
               <Input
                 value={p.name}
                 onChangeText={(t) => updateProp(i, { name: t })}
-                placeholder={locale === "ko" ? "세부 정보 이름 (예: 주제 영역)" : "Detail name (e.g. topic area)"}
+                placeholder={te("detailNamePlaceholder")}
                 autoCapitalize="none"
                 autoCorrect={false}
                 style={styles.propNameInput}
@@ -202,26 +200,26 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
                 hitSlop={6}
                 style={styles.propRemove}
                 accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? "세부 정보 삭제" : "Remove detail"}
+                accessibilityLabel={te("removeDetail")}
               >
-                <Text variant="caption" color="textSubtle">{locale === "ko" ? "삭제" : "Remove"}</Text>
+                <Text variant="caption" color="textSubtle">{te("remove")}</Text>
               </Pressable>
             </View>
             <SelectRow
               options={PROP_TYPES}
               value={p.type}
               onSelect={(t) => updateProp(i, { type: t })}
-              labelOf={(t) => PROP_TYPE_LABEL[t][locale]}
+              labelOf={(t) => te(`propTypes.${t}`)}
             />
             <Input
               value={p.describe.ko}
               onChangeText={(t) => updateDescribe(i, "ko", t)}
-              placeholder={locale === "ko" ? "무엇을 채울지 (한글)" : "What to fill (Korean)"}
+              placeholder={te("fillKoPlaceholder")}
             />
             <Input
               value={p.describe.en}
               onChangeText={(t) => updateDescribe(i, "en", t)}
-              placeholder={locale === "ko" ? "무엇을 채울지 (영어)" : "What to fill (English)"}
+              placeholder={te("fillEnPlaceholder")}
             />
           </View>
         ))}
@@ -230,9 +228,9 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
           style={styles.addPropBtn}
           hitSlop={4}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "세부 정보 추가" : "Add detail"}
+          accessibilityLabel={te("addDetail")}
         >
-          <Text variant="caption" color="brand">{locale === "ko" ? "세부 정보 추가" : "Add detail"}</Text>
+          <Text variant="caption" color="brand">{te("addDetail")}</Text>
         </Pressable>
       </Field>
 
@@ -248,14 +246,14 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
 
       <View style={styles.actions}>
         <PremiumButton
-          label={saving ? (locale === "ko" ? "저장 중" : "Saving") : (locale === "ko" ? "저장" : "Save")}
+          label={saving ? te("saving") : te("save")}
           variant="primary"
           loading={saving}
           onPress={handleSave}
           full
         />
         <PremiumButton
-          label={locale === "ko" ? "취소" : "Cancel"}
+          label={te("cancel")}
           variant="ghost"
           disabled={saving}
           onPress={onCancel}
@@ -325,6 +323,8 @@ function TagField({
   locale: Locale;
   addLabel: string;
 }) {
+  const { t } = useTranslation("formats");
+  const te = (key: string, options?: Record<string, string>) => t(`editor.${key}`, { lng: locale, ...options });
   const [v, setV] = useState("");
   function add() {
     const raw = v.trim();
@@ -346,7 +346,7 @@ function TagField({
           style={styles.tagChip}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? `${t} 삭제` : `Remove ${t}`}
+          accessibilityLabel={te("removeValue", { value: t })}
         >
           <Text style={styles.tagChipText}>{t} ✕</Text>
         </Pressable>

@@ -4,6 +4,7 @@
 // already picked, so this component is locale-agnostic for the values.
 
 import { View, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -19,12 +20,6 @@ export interface FormatSchemaInput {
   aiProperties: readonly { name: string; type: string; describe: string }[];
 }
 
-function formatPropertyType(type: string, ko: boolean): string {
-  if (type === "number") return ko ? "숫자" : "Number";
-  if (type === "multitext") return ko ? "목록" : "List";
-  return ko ? "짧은 글" : "Text";
-}
-
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.field}>
@@ -35,19 +30,26 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput; locale: "en" | "ko" }) {
-  const ko = locale === "ko";
+  const { t } = useTranslation("formats");
+  const ts = (key: string) => t(`schemaView.${key}`, { lng: locale });
+  const formatPropertyType = (type: string) => {
+    if (type === "number") return ts("propTypes.number");
+    if (type === "multitext") return ts("propTypes.multitext");
+    return ts("propTypes.text");
+  };
+
   return (
     <View style={styles.wrap}>
-      <Field label={ko ? "이름" : "Name"} value={schema.name} />
-      {schema.what ? <Field label={ko ? "설명" : "What it is"} value={schema.what} /> : null}
-      <Field label={ko ? "자료 종류" : "Source type"} value={schema.baseKind} />
+      <Field label={ts("name")} value={schema.name} />
+      {schema.what ? <Field label={ts("what")} value={schema.what} /> : null}
+      <Field label={ts("sourceType")} value={schema.baseKind} />
       {schema.targetCategory ? (
-        <Field label={ko ? "분류 위치" : "Filing area"} value={schema.targetCategory} />
+        <Field label={ts("filingArea")} value={schema.targetCategory} />
       ) : null}
 
       {schema.defaultTags.length > 0 ? (
         <View style={styles.field}>
-          <Text variant="caption" color="textMuted" style={styles.fieldLabel}>{ko ? "기본 해시태그" : "Default tags"}</Text>
+          <Text variant="caption" color="textMuted" style={styles.fieldLabel}>{ts("defaultTags")}</Text>
           <View style={styles.chipRow}>
             {schema.defaultTags.map((t) => (
               <View key={t} style={styles.chip}><Text style={styles.chipText}>#{t}</Text></View>
@@ -58,7 +60,7 @@ export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput
 
       {schema.triggers.length > 0 ? (
         <View style={styles.field}>
-          <Text variant="caption" color="textMuted" style={styles.fieldLabel}>{ko ? "자동 매칭 링크" : "Auto-match links"}</Text>
+          <Text variant="caption" color="textMuted" style={styles.fieldLabel}>{ts("autoMatchLinks")}</Text>
           {schema.triggers.slice(0, 8).map((t) => (
             <Text key={t} variant="subtle" color="textSubtle" numberOfLines={2}>{t}</Text>
           ))}
@@ -67,11 +69,11 @@ export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput
 
       <View style={styles.field}>
         <Text variant="caption" color="textMuted" style={styles.fieldLabel}>
-          {ko ? "자료마다 저장하는 세부 항목" : "Details saved from each piece"}
+          {ts("detailsSaved")}
         </Text>
         {schema.aiProperties.length === 0 ? (
           <Text variant="subtle" color="textSubtle">
-            {ko ? "요약, 해시태그, 관련도 같은 공통 항목만 저장해요." : "Only common fields such as summary, tags, and relevance are saved."}
+            {ts("commonOnly")}
           </Text>
         ) : (
           schema.aiProperties.map((p) => (
@@ -82,7 +84,7 @@ export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput
                   {p.name}
                 </Text>
                 <View style={styles.typeChip}>
-                  <Text style={styles.typeText}>{formatPropertyType(p.type, ko)}</Text>
+                  <Text style={styles.typeText}>{formatPropertyType(p.type)}</Text>
                 </View>
               </View>
               {p.describe ? (
