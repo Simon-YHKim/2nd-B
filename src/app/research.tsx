@@ -7,11 +7,11 @@
 // verification metadata (C8).
 
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View, ActivityIndicator, Alert, Linking, Pressable } from "react-native";
+import { ScrollView, StyleSheet, View, ActivityIndicator, Linking, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumErrorState, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -48,12 +48,14 @@ export default function Research() {
 
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [activeFramework, setActiveFramework] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
+    setLoadError(false);
     const supabase = getSupabaseClient();
     void supabase
       .from("knowledge_sources")
@@ -63,17 +65,8 @@ export default function Research() {
       .then(({ data, error }) => {
         if (error) {
           console.warn("[research] load sources failed", error.message);
-          Alert.alert(
-            locale === "ko" ? "자료를 못 불러왔어요" : "Couldn't load research",
-            locale === "ko"
-              ? "잠시 연결이 흔들렸어요. 다시 시도하면 자료실을 새로 불러올게요."
-              : "The connection hiccuped for a moment. Try again to reload the library.",
-            [
-              { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
-              { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => setReloadKey((k) => k + 1) },
-            ],
-          );
           setSources([]);
+          setLoadError(true);
         } else {
           setSources((data ?? []) as Source[]);
         }
@@ -92,6 +85,25 @@ export default function Research() {
   }
   if (!userId) {
     return <Redirect href="/sign-in" />;
+  }
+
+  if (loadError) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumErrorState
+            title={locale === "ko" ? "자료를 불러오지 못했어요" : "Couldn't load research"}
+            body={
+              locale === "ko"
+                ? "잠시 연결이 흔들렸어요. 다시 시도하면 자료실을 새로 불러올게요."
+                : "The connection hiccuped for a moment. Try again to reload the library."
+            }
+            retryLabel={locale === "ko" ? "다시 시도" : "Try again"}
+            onRetry={() => setReloadKey((k) => k + 1)}
+          />
+        </View>
+      </PremiumAppShell>
+    );
   }
 
   const frameworks = [...new Set(sources.map((s) => s.framework).filter((f): f is string => !!f))];

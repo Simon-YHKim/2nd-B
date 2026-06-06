@@ -454,17 +454,20 @@ results.push(
     const importScreen = read("src/app/import.tsx");
     const esm = read("src/app/esm.tsx");
     const insights = read("src/app/insights.tsx");
+    const research = read("src/app/research.tsx");
     const ok =
       !bigFive.includes("Alert.alert") &&
       !attachment.includes("Alert.alert") &&
       !importScreen.includes("Alert.alert") &&
       !esm.includes("Alert.alert") &&
       !insights.includes("Alert.alert") &&
+      !research.includes("Alert.alert") &&
       bigFive.includes("PremiumToast") &&
       attachment.includes("PremiumToast") &&
       importScreen.includes("PremiumToast") &&
       esm.includes("PremiumToast") &&
       insights.includes("PremiumErrorState") &&
+      research.includes("PremiumErrorState") &&
       bigFive.includes("toastWrap") &&
       attachment.includes("toastWrap") &&
       importScreen.includes("toastWrap") &&
@@ -475,8 +478,8 @@ results.push(
       id: "Feedback",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "Big Five, Attachment, Import, ESM, and Insights feedback avoid native Alert.alert"
-        : "assessment/import/ESM/insights feedback should use premium feedback surfaces, not native Alert.alert",
+        ? "Big Five, Attachment, Import, ESM, Insights, and Research feedback avoid native Alert.alert"
+        : "assessment/import/ESM/insights/research feedback should use premium feedback surfaces, not native Alert.alert",
     };
   }),
 );
