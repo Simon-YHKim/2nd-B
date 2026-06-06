@@ -151,6 +151,10 @@ const BTN_DISABLED_BG = "rgba(167,139,250,0.20)";
 const BTN_DISABLED_BORDER = "rgba(167,139,250,0.48)";
 const BTN_DISABLED_FG = "rgba(232,236,248,0.72)";
 
+function textInputAccessibilityLabel(props: TextInputProps): string | undefined {
+  return props.accessibilityLabel ?? (typeof props.placeholder === "string" ? props.placeholder : undefined);
+}
+
 export interface PremiumButtonProps extends Omit<PressableProps, "children" | "style"> {
   label: string;
   variant?: BtnVariant;
@@ -320,6 +324,7 @@ export function PremiumInput(props: TextInputProps) {
     <TextInput
       placeholderTextColor={cosmic.quietGray}
       {...props}
+      accessibilityLabel={textInputAccessibilityLabel(props)}
       style={[styles.input, props.style]}
     />
   );
@@ -331,6 +336,7 @@ export function PremiumTextarea(props: TextInputProps) {
       placeholderTextColor={cosmic.quietGray}
       multiline
       {...props}
+      accessibilityLabel={textInputAccessibilityLabel(props)}
       style={[styles.input, styles.textarea, props.style]}
     />
   );

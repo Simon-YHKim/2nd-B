@@ -10,10 +10,14 @@ export type InputProps = TextInputProps;
 export function Input(props: InputProps) {
   const palette = useThemePalette();
   const [focused, setFocused] = useState(false);
-  const { style, onFocus, onBlur, ...rest } = props;
+  const { style, onFocus, onBlur, accessibilityLabel, placeholder, ...rest } = props;
+  const resolvedAccessibilityLabel =
+    accessibilityLabel ?? (typeof placeholder === "string" ? placeholder : undefined);
   return (
     <TextInput
       {...rest}
+      placeholder={placeholder}
+      accessibilityLabel={resolvedAccessibilityLabel}
       placeholderTextColor={palette.textSubtle}
       selectionColor={palette.brand}
       onFocus={(event) => {
