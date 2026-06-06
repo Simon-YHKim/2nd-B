@@ -1976,10 +1976,18 @@ results.push(
     const koCommon = read("locales/ko/common.json");
     const ok =
       enCommon.includes('"close": "Close"') &&
+      enCommon.includes('"retry": "Retry"') &&
+      enCommon.includes('"loading": "Loading') &&
       koCommon.includes('"close": "닫기"') &&
+      koCommon.includes('"retry": "다시 시도"') &&
+      koCommon.includes('"loading": "불러오는 중이에요') &&
       feedback.includes('useTranslation("common")') &&
       feedback.includes('accessibilityLabel={t("actions.close")}') &&
+      feedback.includes('title={message ?? t("states.loading")}') &&
+      feedback.includes('const resolvedRetryLabel = retryLabel ?? t("actions.retry")') &&
       !feedback.includes('accessibilityLabel="닫기"') &&
+      !feedback.includes('message ?? "불러오는 중이에요') &&
+      !feedback.includes('retryLabel = "다시 시도"') &&
       graphBits.includes("function useCurrentLocale()") &&
       graphBits.includes("meta.name[locale]") &&
       graphBits.includes("Question from ${label}") &&

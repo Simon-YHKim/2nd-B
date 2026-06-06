@@ -126,20 +126,23 @@ function StateShell({ glyph, title, body, action }: { glyph: ReactNode; title: s
 }
 
 export function PremiumLoadingState({ message }: { message?: string }) {
-  return <StateShell glyph={<ActivityIndicator color={cosmic.signalMint} />} title={message ?? "불러오는 중이에요…"} />;
+  const { t } = useTranslation("common");
+  return <StateShell glyph={<ActivityIndicator color={cosmic.signalMint} />} title={message ?? t("states.loading")} />;
 }
 
 export function PremiumEmptyState({ title, body, action }: { title: string; body?: string; action?: ReactNode }) {
   return <StateShell glyph={<View style={[styles.orb, { borderColor: cosmic.soulViolet }]} />} title={title} body={body} action={action} />;
 }
 
-export function PremiumErrorState({ title, body, onRetry, retryLabel = "다시 시도" }: { title: string; body?: string; onRetry?: () => void; retryLabel?: string }) {
+export function PremiumErrorState({ title, body, onRetry, retryLabel }: { title: string; body?: string; onRetry?: () => void; retryLabel?: string }) {
+  const { t } = useTranslation("common");
+  const resolvedRetryLabel = retryLabel ?? t("actions.retry");
   return (
     <StateShell
       glyph={<View style={[styles.orb, { borderColor: cosmic.guardRose }]} />}
       title={title}
       body={body}
-      action={onRetry ? <PremiumButton label={retryLabel} variant="secondary" onPress={onRetry} /> : undefined}
+      action={onRetry ? <PremiumButton label={resolvedRetryLabel} variant="secondary" onPress={onRetry} /> : undefined}
     />
   );
 }

@@ -8,9 +8,13 @@
     "back": "뒤로",
     "cancel": "취소",
     "close": "닫기",
+    "retry": "다시 시도",
     "save": "저장",
     "delete": "삭제",
     "signOut": "로그아웃"
+  },
+  "states": {
+    "loading": "불러오는 중이에요…"
   },
   "journal": {
     "privacyFootnote": "기록은 암호화되어 저장되며, 어떤 모델 학습에도 사용되지 않습니다.",

@@ -8,9 +8,13 @@
     "back": "Back",
     "cancel": "Cancel",
     "close": "Close",
+    "retry": "Retry",
     "save": "Save",
     "delete": "Delete",
     "signOut": "Sign out"
+  },
+  "states": {
+    "loading": "Loading…"
   },
   "journal": {
     "privacyFootnote": "Your entries stay encrypted and never train any model.",
