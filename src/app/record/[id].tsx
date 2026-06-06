@@ -24,6 +24,7 @@ import {
   evidenceDateLabel,
   type EvidenceType,
 } from "@/lib/persona/evidence";
+import { summarizeAssessmentBody } from "@/lib/persona/assessment-summary";
 
 interface RecordDetailRow {
   id: string;
@@ -115,6 +116,9 @@ export default function RecordDetail() {
   const type: EvidenceType = recordKindToType(row.kind, row.tags ?? []);
   const title = row.topic && row.topic.trim().length > 0 ? row.topic.trim() : evidenceTypeLabel(type, locale);
   const dateLabel = evidenceDateLabel(row.created_at, locale);
+  // Assessment records (MBTI/Big Five/ECR) store a JSON body — render it as
+  // friendly label/value lines instead of dumping raw JSON at the user.
+  const assessment = summarizeAssessmentBody(row.body, locale);
 
   return (
     <PremiumAppShell>
@@ -137,7 +141,19 @@ export default function RecordDetail() {
         ) : null}
 
         <View style={styles.bodyCard}>
-          {row.body && row.body.trim().length > 0 ? (
+          {assessment ? (
+            <View style={styles.assessment}>
+              <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
+                {assessment.label}
+              </Text>
+              {assessment.lines.map((line) => (
+                <View key={line.k} style={styles.assessmentRow}>
+                  <Text variant="subtle" color="textMuted">{line.k}</Text>
+                  <Text variant="body">{line.v}</Text>
+                </View>
+              ))}
+            </View>
+          ) : row.body && row.body.trim().length > 0 ? (
             <Text variant="body" selectable>{row.body}</Text>
           ) : (
             <Text variant="body" color="textMuted">
@@ -172,6 +188,8 @@ export default function RecordDetail() {
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg, padding: spacing.lg },
+  assessment: { gap: spacing.sm },
+  assessmentRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.md },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   tagChip: {
     borderWidth: 1,
