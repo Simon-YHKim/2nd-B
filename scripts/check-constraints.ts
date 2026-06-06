@@ -854,6 +854,38 @@ results.push(
   }),
 );
 
+results.push(
+  check("Onboarding", () => {
+    const onboarding = read("src/app/onboarding.tsx");
+    const stepEntries = onboarding.match(/^\s*\{\r?\n\s*art: "(welcome|trust|firstShard)"/gm) ?? [];
+    const forbiddenMetaphors = [
+      "Your thoughts become a small map",
+      "The graph is a village",
+      "Nodes are places",
+      "records are pieces",
+      "그래프가 곧 마을이에요",
+      "노드는 장소",
+      "기록은 조각",
+    ];
+    const ok =
+      stepEntries.length === 3 &&
+      onboarding.includes('title: { ko: "하루 생각을 짧게 남기세요", en: "Save the day in small notes" }') &&
+      onboarding.includes('title: { ko: "답은 내 기록에서 시작해요", en: "Answers start from your records" }') &&
+      onboarding.includes('title: { ko: "먼저 한 문장만 저장해요", en: "Start with one sentence" }') &&
+      onboarding.includes('cta: { ko: "첫 기록 저장", en: "Save my first note" }') &&
+      onboarding.includes("const progressText = `${index + 1} / ${STEPS.length}`") &&
+      onboarding.includes("style={styles.progressWrap}") &&
+      forbiddenMetaphors.every((term) => !onboarding.includes(term));
+    return {
+      id: "Onboarding",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "first-run onboarding is a concrete 3-step record flow with visible progress text and no village/node metaphor copy"
+        : "onboarding should stay concrete, 3-step, progress-visible, and free of village/node metaphor copy",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";

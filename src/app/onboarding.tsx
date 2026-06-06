@@ -1,7 +1,7 @@
-// First-run onboarding (onboarding pack §3) — a 5-step intro that ends at
-// the first shard. Copy is the village voice; no RAG/clinical/game wording
-// (§9). Completion is recorded in localStorage (§4) so the index redirect
-// only sends a user here once.
+// First-run onboarding (onboarding pack §3) — a short, concrete intro that
+// ends at the first saved record. No RAG/clinical/game wording (§9).
+// Completion is recorded in localStorage (§4) so the index redirect only sends
+// a user here once.
 
 import { useEffect, useState } from "react";
 import { View, StyleSheet, useWindowDimensions, Pressable, BackHandler } from "react-native";
@@ -30,39 +30,30 @@ interface Step {
 const STEPS: Step[] = [
   {
     art: "welcome",
-    title: { ko: "내 생각 조각이 작은 지도가 돼요", en: "Your thoughts become a small map" },
+    title: { ko: "하루 생각을 짧게 남기세요", en: "Save the day in small notes" },
     body: {
-      ko: "2ndB는 내가 남긴 기록과 지식을 연결해, 해볼 만한 다음 한 걸음을 보여줘요.",
-      en: "2ndB links what you write and learn, then surfaces a next step worth trying.",
+      ko: "일기, 메모, 링크를 저장하면 2ndB가 반복되는 관심사와 다음 행동을 찾기 쉽게 정리해요.",
+      en: "Save a journal line, memo, or link. 2ndB organizes them so patterns and next actions are easier to find.",
     },
-    cta: { ko: "시작하기", en: "Start" },
-  },
-  {
-    art: "village",
-    title: { ko: "그래프가 곧 마을이에요", en: "The graph is a village" },
-    body: { ko: "노드는 장소, 연결선은 길, 기록은 조각이 됩니다.", en: "Nodes are places, lines are roads, records are pieces." },
-    cta: { ko: "마을 둘러보기", en: "Look around the village" },
-  },
-  {
-    art: "secondb",
-    title: { ko: "세컨비를 만나보세요", en: "Meet SecondB" },
-    body: { ko: "세컨비는 내가 남긴 조각에서 답해요.", en: "SecondB answers from the pieces you've captured." },
-    cta: { ko: "세컨비와 시작", en: "Start with SecondB" },
+    cta: { ko: "기록 방법 보기", en: "See how it works" },
   },
   {
     art: "trust",
-    title: { ko: "내 조각은 조심히 다뤄요", en: "Your pieces are handled gently" },
-    body: { ko: "세컨비가 답할 때 어떤 조각을 참고했는지 함께 보여줘요.", en: "When SecondB answers, it shows which pieces it drew on." },
-    cta: { ko: "좋아요", en: "Sounds good" },
+    title: { ko: "답은 내 기록에서 시작해요", en: "Answers start from your records" },
+    body: {
+      ko: "세컨비가 답할 때 참고한 기록을 함께 보여줘요. 부족한 내용은 새 메모나 링크로 보태면 돼요.",
+      en: "When SecondB answers, it shows the records it used. If something is missing, save a note or link first.",
+    },
+    cta: { ko: "첫 기록 준비", en: "Get ready to save" },
   },
   {
     art: "firstShard",
-    title: { ko: "첫 조각을 남겨볼까요?", en: "Leave your first piece?" },
+    title: { ko: "먼저 한 문장만 저장해요", en: "Start with one sentence" },
     body: {
-      ko: "한 문장이어도 충분해요. 첫 조각이 들어오면 그래프에 작은 길이 켜져요.",
-      en: "One sentence is enough. Your first piece lights a small road in the graph.",
+      ko: "오늘 기억하고 싶은 일, 배운 것, 링크 하나면 충분해요. 저장한 뒤 그래프에서 다시 볼 수 있어요.",
+      en: "A thought, lesson, or link is enough. Save it now, then revisit it from the graph.",
     },
-    cta: { ko: "첫 조각 저장", en: "Save my first piece" },
+    cta: { ko: "첫 기록 저장", en: "Save my first note" },
   },
 ];
 
@@ -100,6 +91,7 @@ export default function Onboarding() {
   const step = STEPS[index];
   const isLast = index === STEPS.length - 1;
   const artW = Math.min(width - spacing.lg * 2, 360);
+  const progressText = `${index + 1} / ${STEPS.length}`;
   const openGraphHint = locale === "ko" ? "온보딩을 마치고 그래프로 이동합니다." : "Completes onboarding and opens the graph.";
   const primaryHint = isLast
     ? locale === "ko"
@@ -127,14 +119,17 @@ export default function Onboarding() {
     <PremiumAppShell>
       <View style={styles.root}>
         <View style={styles.topBar}>
-          <View
-            style={styles.dots}
-            accessible
-            accessibilityLabel={locale === "ko" ? `${index + 1} / ${STEPS.length} 단계` : `Step ${index + 1} of ${STEPS.length}`}
-          >
-            {STEPS.map((_, i) => (
-              <View key={i} style={[styles.dot, i === index ? styles.dotActive : null]} />
-            ))}
+          <View style={styles.progressWrap}>
+            <View
+              style={styles.dots}
+              accessible
+              accessibilityLabel={locale === "ko" ? `${index + 1} / ${STEPS.length} 단계` : `Step ${index + 1} of ${STEPS.length}`}
+            >
+              {STEPS.map((_, i) => (
+                <View key={i} style={[styles.dot, i === index ? styles.dotActive : null]} />
+              ))}
+            </View>
+            <Text variant="caption" color="textMuted" style={styles.progressText}>{progressText}</Text>
           </View>
           <Pressable
             onPress={() => finishToGraph()}
@@ -233,9 +228,11 @@ const styles = StyleSheet.create({
   center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   root: { flex: 1, justifyContent: "space-between", paddingVertical: spacing.lg },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  progressWrap: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
   dots: { flexDirection: "row", gap: spacing.xs, alignItems: "center" },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: semantic.border },
-  dotActive: { backgroundColor: cosmic.signalMint, width: 18 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: semantic.border },
+  dotActive: { backgroundColor: cosmic.signalMint, width: 22 },
+  progressText: { fontWeight: "700" },
   body: { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg },
   artStage: {
     minHeight: 220,
