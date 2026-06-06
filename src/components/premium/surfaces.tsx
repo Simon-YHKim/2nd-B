@@ -172,9 +172,16 @@ export function PremiumButton({
   onLongPress,
   onPressIn,
   onPressOut,
+  accessibilityRole,
+  accessibilityState,
+  accessibilityLabel,
+  accessibilityHint,
   ...rest
 }: PremiumButtonProps) {
   const isDisabled = disabled || loading;
+  // Merge caller a11y intent (e.g. selected on segmented controls) with the
+  // button's own disabled/busy ownership instead of overwriting it.
+  const a11yRole = accessibilityRole ?? "button";
   const glowColor =
     variant === "primary"
       ? cosmic.signalMint
@@ -214,8 +221,11 @@ export function PremiumButton({
   if (isDisabled) {
     return (
       <View
-        accessibilityRole="button"
-        accessibilityState={{ disabled: true, busy: loading }}
+        accessibilityRole={a11yRole}
+        accessibilityState={{ ...accessibilityState, disabled: true, busy: !!loading }}
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint={accessibilityHint}
+        accessible
         style={buttonStyle}
       >
         {buttonContent}
@@ -230,8 +240,10 @@ export function PremiumButton({
       onLongPress={onLongPress}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
-      accessibilityRole="button"
-      accessibilityState={{ disabled: false, busy: false }}
+      accessibilityRole={a11yRole}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ ...accessibilityState, disabled: false, busy: false }}
       style={({ pressed }) => [
         styles.btn,
         fullStyle,
