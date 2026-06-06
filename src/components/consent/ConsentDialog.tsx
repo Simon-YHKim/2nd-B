@@ -42,7 +42,13 @@ export function ConsentDialog({ visible, onSubmit, onDecline }: ConsentDialogPro
         accessibilityRole="button"
         accessibilityLabel={t("testimonial.decline")}
       >
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
+        <Pressable
+          style={styles.card}
+          onPress={(e) => e.stopPropagation()}
+          accessibilityViewIsModal
+          accessibilityLabel={t("testimonial.title")}
+          accessibilityHint={t("testimonial.body")}
+        >
           <Text variant="heading">{t("testimonial.title")}</Text>
           <Text variant="body" color="textMuted">{t("testimonial.body")}</Text>
 

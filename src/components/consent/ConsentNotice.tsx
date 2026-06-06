@@ -41,6 +41,7 @@ function CheckRow({
     <Pressable
       onPress={onToggle}
       accessibilityRole="checkbox"
+      accessibilityLabel={label}
       accessibilityState={{ checked }}
       style={styles.checkRow}
       hitSlop={6}

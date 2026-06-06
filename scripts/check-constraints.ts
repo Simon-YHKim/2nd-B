@@ -294,6 +294,8 @@ results.push(
     const navGraph = read("src/components/graph/NavGraph.tsx");
     const esm = read("src/app/esm.tsx");
     const profile = read("src/app/profile.tsx");
+    const consentNotice = read("src/components/consent/ConsentNotice.tsx");
+    const consentDialog = read("src/components/consent/ConsentDialog.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
@@ -308,6 +310,7 @@ results.push(
     const esmTabs = (esm.match(/accessibilityRole="tab"/g) ?? []).length;
     const esmRadios = (esm.match(/accessibilityRole="radio"/g) ?? []).length;
     const esmCheckboxes = (esm.match(/accessibilityRole="checkbox"/g) ?? []).length;
+    const consentCheckboxes = (consentNotice.match(/accessibilityRole="checkbox"/g) ?? []).length;
     const ok =
       captureTablists >= 2 && // track + mode rows
       captureSelected >= 2 && // track + mode chips
@@ -395,13 +398,18 @@ results.push(
       esm.includes("Saves the ${activePrompt.en.toLowerCase()} check-in") &&
       profile.includes('route: "/esm"') &&
       profile.includes("Check in now") &&
-      profile.includes("Opens a lightweight check-in");
+      profile.includes("Opens a lightweight check-in") &&
+      consentCheckboxes >= 1 &&
+      consentNotice.includes("accessibilityLabel={label}") &&
+      consentDialog.includes("accessibilityViewIsModal") &&
+      consentDialog.includes('accessibilityLabel={t("testimonial.title")}') &&
+      consentDialog.includes('accessibilityHint={t("testimonial.body")}');
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/home/jarvis/navgraph/esm/profile actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/home/jarvis/navgraph/esm/profile actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/home/jarvis/navgraph/esm/profile/consent actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/home/jarvis/navgraph/esm/profile/consent actions need accessibilityRole plus selected/checked state",
     };
   }),
 );
