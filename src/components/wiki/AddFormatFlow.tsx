@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
@@ -28,6 +29,7 @@ export function AddFormatFlow({
   onSaved: (t: CustomClipperTemplate) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation("formats");
   const ko = locale === "ko";
   const [input, setInput] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -43,13 +45,13 @@ export function AddFormatFlow({
     try {
       const p = await proposeClipperTemplate(userId, input.trim(), null, locale);
       if (!p) {
-        setError(ko ? "정리 기준을 만들지 못했어요. 더 구체적으로 적고 다시 시도해 주세요." : "Couldn't draft a filing guide. Add detail and try again.");
+        setError(t("add.errorNeedDetail"));
       } else {
         setProposed(p);
       }
     } catch (e) {
       console.warn("[AddFormatFlow] draft failed", (e as Error).message);
-      setError(ko ? "정리 기준을 만들지 못했어요. 잠시 후 다시 시도해 주세요." : "We couldn't draft the filing guide. Please try again in a moment.");
+      setError(t("add.errorDraft"));
     } finally {
       setGenerating(false);
     }
@@ -75,7 +77,7 @@ export function AddFormatFlow({
       onSaved(saved);
     } catch (e) {
       console.warn("[AddFormatFlow] save failed", (e as Error).message);
-      setError(ko ? "형식을 저장하지 못했어요. 다시 시도해 주세요." : "We couldn't save the format. Please try again.");
+      setError(t("add.errorSave"));
     } finally {
       setSaving(false);
     }
@@ -99,28 +101,22 @@ export function AddFormatFlow({
 
   return (
     <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-      <Text variant="heading">{ko ? "형식 추가" : "Add a format"}</Text>
+      <Text variant="heading">{t("add.title")}</Text>
       <Text variant="subtle" color="textMuted">
-        {ko
-          ? "어떤 자료를 어떻게 정리하고 싶은지 적어주세요. AI가 다시 쓸 수 있는 정리 기준을 제안해 드려요."
-          : "Describe the material and how you'd file it. AI suggests a reusable filing guide."}
+        {t("add.body")}
       </Text>
 
       <Input
         value={input}
         onChangeText={setInput}
-        placeholder={
-          ko
-            ? "예: 팟캐스트 에피소드 - 출연자와 핵심 주장을 정리하고 싶어요"
-            : "e.g. Podcast episodes - capture the guest and key claims"
-        }
+        placeholder={t("add.placeholder")}
         multiline
         numberOfLines={4}
         textAlignVertical="top"
       />
 
       <PremiumButton
-        label={generating ? (ko ? "만드는 중…" : "Drafting…") : (ko ? "AI로 정리 기준 만들기" : "Draft filing guide with AI")}
+        label={generating ? t("add.drafting") : t("add.draft")}
         variant="primary"
         onPress={generate}
         loading={generating}
@@ -131,11 +127,11 @@ export function AddFormatFlow({
       {error ? <Text variant="subtle" color="danger">{error}</Text> : null}
 
       {schema ? (
-        <PremiumCard accent={semantic.brand} eyebrow={ko ? "제안된 형식" : "Proposed format"} title={schema.name}>
+        <PremiumCard accent={semantic.brand} eyebrow={t("add.proposedEyebrow")} title={schema.name}>
           <FormatSchemaView schema={schema} locale={locale} />
           <View style={styles.actions}>
             <PremiumButton
-              label={ko ? "이 형식 추가" : "Add this format"}
+              label={t("add.addThis")}
               variant="primary"
               onPress={add}
               loading={saving}
@@ -143,7 +139,7 @@ export function AddFormatFlow({
               style={styles.primaryAction}
             />
             <PremiumButton
-              label={ko ? "다시" : "Redo"}
+              label={t("add.redo")}
               variant="secondary"
               onPress={() => setProposed(null)}
               disabled={saving}
@@ -153,7 +149,7 @@ export function AddFormatFlow({
         </PremiumCard>
       ) : null}
 
-      <PremiumButton label={ko ? "취소" : "Cancel"} variant="ghost" onPress={onCancel} disabled={saving} full />
+      <PremiumButton label={t("add.cancel")} variant="ghost" onPress={onCancel} disabled={saving} full />
     </ScrollView>
   );
 }

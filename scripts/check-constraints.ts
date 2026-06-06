@@ -1974,6 +1974,69 @@ results.push(
 );
 
 results.push(
+  check("AddFormatFlowI18nCopy", () => {
+    const flow = read("src/components/wiki/AddFormatFlow.tsx");
+    const enFormats = read("locales/en/formats.json");
+    const koFormats = read("locales/ko/formats.json");
+    const forbiddenFlowCopy = [
+      "Add a format",
+      "Describe the material and how you'd file it",
+      "AI suggests a reusable filing guide",
+      "Draft filing guide with AI",
+      "Couldn't draft a filing guide",
+      "We couldn't save the format",
+      "Proposed format",
+      "Add this format",
+      "형식 추가",
+      "AI가 다시 쓸 수 있는",
+      "AI로 정리 기준 만들기",
+      "정리 기준을 만들지 못했어요",
+      "형식을 저장하지 못했어요",
+      "제안된 형식",
+      "이 형식 추가",
+    ];
+    const requiredKeys = [
+      '"title"',
+      '"body"',
+      '"placeholder"',
+      '"draft"',
+      '"drafting"',
+      '"errorNeedDetail"',
+      '"errorDraft"',
+      '"errorSave"',
+      '"proposedEyebrow"',
+      '"addThis"',
+      '"redo"',
+      '"cancel"',
+    ];
+    const ok =
+      flow.includes('useTranslation("formats")') &&
+      flow.includes('t("add.title")') &&
+      flow.includes('t("add.body")') &&
+      flow.includes('placeholder={t("add.placeholder")}') &&
+      flow.includes('t("add.errorNeedDetail")') &&
+      flow.includes('t("add.errorDraft")') &&
+      flow.includes('t("add.errorSave")') &&
+      flow.includes('t("add.proposedEyebrow")') &&
+      flow.includes('t("add.addThis")') &&
+      flow.includes('t("add.cancel")') &&
+      enFormats.includes('"add"') &&
+      koFormats.includes('"add"') &&
+      enFormats.includes("SecondB suggests a reusable filing guide") &&
+      koFormats.includes("SecondB가 다시 쓸 수 있는 정리 기준") &&
+      requiredKeys.every((key) => enFormats.includes(key) && koFormats.includes(key)) &&
+      forbiddenFlowCopy.every((term) => !flow.includes(term));
+    return {
+      id: "AddFormatFlowI18nCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "add-format flow visible copy lives in the formats locale bundle and avoids old AI wording"
+        : "add-format flow should source visible copy from formats locale keys and avoid old AI wording",
+    };
+  }),
+);
+
+results.push(
   check("DynamicTypeGraphBits", () => {
     const graphBits = read("src/components/premium/graph-bits.tsx");
     const ok =

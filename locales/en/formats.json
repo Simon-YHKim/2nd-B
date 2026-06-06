@@ -13,5 +13,19 @@
     "heading": "Community formats",
     "headingWithCount": "Community formats ({{count}})",
     "empty": "No community formats yet. When someone shares one, it shows up here."
+  },
+  "add": {
+    "title": "Add a format",
+    "body": "Describe the material and how you'd file it. SecondB suggests a reusable filing guide.",
+    "placeholder": "e.g. Podcast episodes - capture the guest and key claims",
+    "draft": "Draft filing guide with SecondB",
+    "drafting": "Drafting…",
+    "errorNeedDetail": "Couldn't draft a filing guide. Add detail and try again.",
+    "errorDraft": "We couldn't draft the filing guide. Please try again in a moment.",
+    "errorSave": "We couldn't save the format. Please try again.",
+    "proposedEyebrow": "Proposed format",
+    "addThis": "Add this format",
+    "redo": "Redo",
+    "cancel": "Cancel"
   }
 }
