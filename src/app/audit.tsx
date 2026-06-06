@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { View, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { useEffect, useState } from "react";
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -18,6 +18,7 @@ const PERIOD_OPTIONS: { id: AuditPeriod; label: { en: string; ko: string } }[] =
   { id: "20s", label: { en: "Your 20s", ko: "20대" } },
   { id: "teens", label: { en: "Your teens", ko: "10대" } },
 ];
+type AuditToast = { message: string; tone: "info" | "success" | "danger" };
 
 export default function Audit() {
   const { i18n } = useTranslation();
@@ -31,7 +32,14 @@ export default function Audit() {
   const [answer, setAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [toast, setToast] = useState<AuditToast | null>(null);
   const companion = useCompanionMoment();
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(timeout);
+  }, [toast]);
 
   if (loading) {
     return (
@@ -75,16 +83,13 @@ export default function Audit() {
     } catch (e) {
       // Raw error stays in logs only; users see product-tone copy + retry.
       console.warn("[audit] save failed", (e as Error).message);
-      Alert.alert(
-        locale === "ko" ? "답변을 저장하지 못했어요" : "Couldn't save your answer",
-        locale === "ko"
-          ? "잠깐 문제가 생겼어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
-          : "Something interrupted the save. Your answer is still here, so please try again.",
-        [
-          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: () => void handleNext() },
-          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
-        ],
-      );
+      setToast({
+        tone: "danger",
+        message:
+          locale === "ko"
+            ? "답변을 저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
+            : "Couldn't save your answer. Your answer is still here, so try again.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -255,6 +260,11 @@ export default function Audit() {
         />
       </ScrollView>
 </KeyboardAvoidingView>
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
+      ) : null}
     </PremiumAppShell>
   );
 }
@@ -294,6 +304,13 @@ const styles = StyleSheet.create({
   progressDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.surfaceAlt },
   progressDotDone: { backgroundColor: semantic.brand, opacity: 0.5 },
   progressDotCurrent: { backgroundColor: semantic.brand, transform: [{ scale: 1.3 }] },
+  toastWrap: {
+    position: "absolute",
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.xl,
+    alignItems: "stretch",
+  },
   completeBadge: {
     backgroundColor: semantic.success,
     paddingHorizontal: spacing.md,

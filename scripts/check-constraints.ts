@@ -458,6 +458,7 @@ results.push(
     const wiki = read("src/app/wiki.tsx");
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const signUp = read("src/app/(auth)/sign-up.tsx");
+    const audit = read("src/app/audit.tsx");
     const wikiAlertCount = (wiki.match(/Alert\.alert/g) ?? []).length;
     const ok =
       !bigFive.includes("Alert.alert") &&
@@ -468,6 +469,7 @@ results.push(
       !research.includes("Alert.alert") &&
       !signIn.includes("Alert.alert") &&
       !signUp.includes("Alert.alert") &&
+      !audit.includes("Alert.alert") &&
       bigFive.includes("PremiumToast") &&
       attachment.includes("PremiumToast") &&
       importScreen.includes("PremiumToast") &&
@@ -480,6 +482,9 @@ results.push(
       signUp.includes("toastWrap") &&
       signUp.includes("Sign-up failed. Please try again in a moment.") &&
       signUp.includes("Could not start Naver sign-up. Please try again in a moment.") &&
+      audit.includes("PremiumToast") &&
+      audit.includes("toastWrap") &&
+      audit.includes("Couldn't save your answer. Your answer is still here, so try again.") &&
       insights.includes("PremiumErrorState") &&
       research.includes("PremiumErrorState") &&
       wiki.includes("PremiumToast") &&
@@ -500,8 +505,8 @@ results.push(
       id: "Feedback",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "Big Five, Attachment, Import, ESM, Insights, Research, Wiki, Sign-in, and Sign-up feedback use premium surfaces"
-        : "assessment/import/ESM/insights/research/wiki/sign-in/sign-up feedback should use premium surfaces and avoid vendor-specific helper copy",
+        ? "Big Five, Attachment, Import, ESM, Insights, Research, Wiki, Sign-in, Sign-up, and Audit feedback use premium surfaces"
+        : "assessment/import/ESM/insights/research/wiki/sign-in/sign-up/audit feedback should use premium surfaces and avoid vendor-specific helper copy",
     };
   }),
 );
