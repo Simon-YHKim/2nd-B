@@ -189,6 +189,7 @@ export function PremiumButton({
         ? cosmic.guardRose
         : cosmic.soulViolet;
   const fullStyle: ViewStyle | null = full ? { alignSelf: "stretch", width: "100%" } : null;
+  const resolvedAccessibilityLabel = accessibilityLabel ?? label;
   const colorStyle: ViewStyle = {
     backgroundColor: BTN_BG[variant],
     borderColor: BTN_BORDER[variant],
@@ -223,7 +224,7 @@ export function PremiumButton({
       <View
         accessibilityRole={a11yRole}
         accessibilityState={{ ...accessibilityState, disabled: true, busy: !!loading }}
-        accessibilityLabel={accessibilityLabel}
+        accessibilityLabel={resolvedAccessibilityLabel}
         accessibilityHint={accessibilityHint}
         accessible
         style={buttonStyle}
@@ -241,7 +242,7 @@ export function PremiumButton({
       onPressIn={onPressIn}
       onPressOut={onPressOut}
       accessibilityRole={a11yRole}
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={resolvedAccessibilityLabel}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ ...accessibilityState, disabled: false, busy: false }}
       style={({ pressed }) => [

@@ -305,6 +305,7 @@ results.push(
     const data = read("src/app/data.tsx");
     const support = read("src/app/support.tsx");
     const theme = read("src/app/theme.tsx");
+    const premiumSurfaces = read("src/components/premium/surfaces.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
@@ -435,13 +436,15 @@ results.push(
       support.includes("accessibilityLabel={ko ? \"지원팀에 메일 보내기\" : \"Email support\"}") &&
       support.includes("Opens your mail app with the support address.") &&
       theme.includes("accessibilityLabel={locale === \"ko\" ? `${o.label} 테마 적용` : `Use ${o.label} theme`}") &&
-      theme.includes("Applies the selected theme on this device.");
+      theme.includes("Applies the selected theme on this device.") &&
+      premiumSurfaces.includes("const resolvedAccessibilityLabel = accessibilityLabel ?? label") &&
+      premiumSurfaces.includes("accessibilityLabel={resolvedAccessibilityLabel}");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/home/jarvis/navgraph/esm/profile/consent/premium-modal/quant-intro/loading actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/home/jarvis/navgraph/esm/profile/consent/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/home/jarvis/navgraph/esm/profile/consent/premium-button/premium-modal/quant-intro/loading actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/home/jarvis/navgraph/esm/profile/consent/premium-button/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
     };
   }),
 );
