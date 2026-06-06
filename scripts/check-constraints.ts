@@ -310,13 +310,20 @@ results.push(
       inbox.includes("Retry loading inbox") &&
       inbox.includes("Capture your first source") &&
       inbox.includes("accessibilityState={{ disabled: phase1Pending, busy: phase1Pending }}") &&
-      inbox.includes("accessibilityState={{ disabled: generatePending, busy: generatePending }}");
+      inbox.includes("accessibilityState={{ disabled: generatePending, busy: generatePending }}") &&
+      capture.includes("Dismiss proposed format") &&
+      capture.includes("Use today's prompt as topic") &&
+      capture.includes("Toggle conclusion field") &&
+      capture.includes("accessibilityState={{ expanded: showExtras }}") &&
+      capture.includes('accessibilityRole="checkbox"') &&
+      capture.includes("accessibilityState={{ checked: askAdvisor }}") &&
+      capture.includes("Remove hashtag");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, assessment choices, and inbox actions expose grouped/action state"
-        : "visual-selected controls or inbox row actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, assessment choices, inbox actions, and capture auxiliaries expose grouped/action state"
+        : "visual-selected controls, inbox row actions, or capture auxiliaries need accessibilityRole plus selected/checked state",
     };
   }),
 );

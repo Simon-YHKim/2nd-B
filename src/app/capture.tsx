@@ -666,7 +666,13 @@ export default function Capture() {
                       style={{ flex: 1 }}
                     />
                   </View>
-                  <Pressable onPress={() => { setProposal(null); setProposalCtx(null); }} hitSlop={4} style={{ marginTop: 4 }}>
+                  <Pressable
+                    onPress={() => { setProposal(null); setProposalCtx(null); }}
+                    hitSlop={4}
+                    style={{ marginTop: 4 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={locale === "ko" ? "제안된 형식 닫기" : "Dismiss proposed format"}
+                  >
                     <Text variant="caption" color="textSubtle">{locale === "ko" ? "안 만들래요" : "Not now"}</Text>
                   </Pressable>
                 </View>
@@ -849,7 +855,13 @@ export default function Capture() {
                   {dailyPrompt(locale)}
                 </Text>
                 {topic.length === 0 ? (
-                  <Pressable onPress={() => setTopic(dailyPrompt(locale))} hitSlop={4} style={{ marginTop: spacing.xs }}>
+                  <Pressable
+                    onPress={() => setTopic(dailyPrompt(locale))}
+                    hitSlop={4}
+                    style={{ marginTop: spacing.xs }}
+                    accessibilityRole="button"
+                    accessibilityLabel={locale === "ko" ? "오늘의 질문을 주제로 사용" : "Use today's prompt as topic"}
+                  >
                     <Text variant="caption" color="brand">
                       {locale === "ko" ? "이 질문을 주제로" : "Use this as topic"}
                     </Text>
@@ -875,7 +887,13 @@ export default function Capture() {
                 textAlignVertical="top"
                 style={styles.textarea}
               />
-              <Pressable onPress={() => setShowExtras((v) => !v)} hitSlop={4}>
+              <Pressable
+                onPress={() => setShowExtras((v) => !v)}
+                hitSlop={4}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showExtras }}
+                accessibilityLabel={locale === "ko" ? "결론 입력칸 토글" : "Toggle conclusion field"}
+              >
                 <Text variant="caption" color="brand">
                   {showExtras
                     ? (locale === "ko" ? "결론 칸 닫기" : "Hide conclusion field")
@@ -892,7 +910,14 @@ export default function Capture() {
                   textAlignVertical="top"
                 />
               ) : null}
-              <Pressable onPress={() => setAskAdvisor((v) => !v)} hitSlop={4} style={styles.advisorRow}>
+              <Pressable
+                onPress={() => setAskAdvisor((v) => !v)}
+                hitSlop={4}
+                style={styles.advisorRow}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: askAdvisor }}
+                accessibilityLabel={locale === "ko" ? "이 기록에 AI 조언 받기" : "Ask Advisor on this entry"}
+              >
                 <View style={[styles.advisorCheck, askAdvisor && styles.advisorCheckOn]}>
                   {askAdvisor ? <Text variant="caption" color="background">✓</Text> : null}
                 </View>
@@ -1034,7 +1059,14 @@ export default function Capture() {
             </Text>
             <View style={styles.tagRow}>
               {tagsEditable.map((t) => (
-                <Pressable key={t} onPress={() => removeTag(t)} style={styles.tagChip} hitSlop={8}>
+                <Pressable
+                  key={t}
+                  onPress={() => removeTag(t)}
+                  style={styles.tagChip}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={locale === "ko" ? `${t} 해시태그 제거` : `Remove hashtag ${t}`}
+                >
                   <Text style={styles.tagChipText}>#{t} ✕</Text>
                 </Pressable>
               ))}
