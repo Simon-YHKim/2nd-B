@@ -68,7 +68,17 @@ export function PremiumBottomSheet({
 }
 
 /** Centered glassy modal. */
-export function PremiumModal({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
+export function PremiumModal({
+  visible,
+  onClose,
+  children,
+  accessibilityLabel,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  children: ReactNode;
+  accessibilityLabel?: string;
+}) {
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <Pressable
@@ -77,7 +87,12 @@ export function PremiumModal({ visible, onClose, children }: { visible: boolean;
         accessibilityRole="button"
         accessibilityLabel="닫기"
       >
-        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
+        <Pressable
+          style={styles.modalCard}
+          onPress={(e) => e.stopPropagation()}
+          accessibilityViewIsModal
+          accessibilityLabel={accessibilityLabel}
+        >
           {children}
         </Pressable>
       </Pressable>

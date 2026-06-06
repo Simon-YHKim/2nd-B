@@ -433,7 +433,11 @@ export default function Formats() {
 
       {/* Delete confirm — themed modal (RN Alert two-button dialogs don't render
           on the web export). The irreversibility lives in its own sentence. */}
-      <PremiumModal visible={!!confirmDelete} onClose={() => (busyId ? undefined : setConfirmDelete(null))}>
+      <PremiumModal
+        visible={!!confirmDelete}
+        onClose={() => (busyId ? undefined : setConfirmDelete(null))}
+        accessibilityLabel={locale === "ko" ? "형식 삭제 확인" : "Delete format confirmation"}
+      >
         <Text variant="heading" style={{ fontSize: 18 }}>
           {locale === "ko" ? "이 형식을 삭제할까요?" : "Delete this format?"}
         </Text>
@@ -462,7 +466,11 @@ export default function Formats() {
       </PremiumModal>
 
       {/* Item 1a: tap a format to see how it classifies (read-only guide). */}
-      <PremiumModal visible={!!viewing} onClose={() => setViewing(null)}>
+      <PremiumModal
+        visible={!!viewing}
+        onClose={() => setViewing(null)}
+        accessibilityLabel={locale === "ko" ? "분류 기준 보기" : "View filing guide"}
+      >
         <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
           {locale === "ko" ? "분류 기준" : "Filing guide"}
         </Text>
