@@ -1,12 +1,12 @@
 // Attachment style assessment (ECR-S, Wei et al. 2007). 12 items, two
 // subscales (anxiety + avoidance), 4 styles based on median splits.
 
-import { useMemo, useState } from "react";
-import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -33,6 +33,8 @@ const SCALE: { value: number; en: string; ko: string }[] = [
   { value: 7, en: "Strongly agree", ko: "매우 그렇다" },
 ];
 
+type Toast = { message: string; tone: "danger" | "info" | "success" };
+
 export default function Attachment() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
@@ -42,8 +44,15 @@ export default function Attachment() {
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [toast, setToast] = useState<Toast | null>(null);
 
   const result = useMemo(() => scoreEcr(responses), [responses]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const h = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(h);
+  }, [toast]);
 
   if (loading) {
     return (
@@ -90,16 +99,13 @@ export default function Attachment() {
       setSaved(true);
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[attachment] save failed", (e as Error).message);
-      Alert.alert(
-        locale === "ko" ? "저장 실패" : "Save failed",
-        locale === "ko"
-          ? "검사 결과를 저장하지 못했어요. 답변은 그대로 남아 있어요. 잠시 후 다시 시도해 주세요."
-          : "We couldn't save your results. Your answers are still here. Please try again in a moment.",
-        [
-          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
-          { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => { void handleSubmit(); } },
-        ],
-      );
+      setToast({
+        tone: "danger",
+        message:
+          locale === "ko"
+            ? "검사 결과를 저장하지 못했어요. 답변은 그대로 남아 있어요."
+            : "We couldn't save your results. Your answers are still here.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -198,6 +204,12 @@ export default function Attachment() {
           onDone={() => router.replace("/persona")}
         />
       ) : null}
+
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
+      ) : null}
     </PremiumAppShell>
   );
 }
@@ -227,4 +239,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   scaleLegend: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
+  toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });

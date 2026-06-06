@@ -3,12 +3,12 @@
 // 10-item screener (Sprint 5) for better per-trait precision. Result is
 // saved as a record so it surfaces in /persona and feeds Inference Engine.
 
-import { useMemo, useState } from "react";
-import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -33,6 +33,8 @@ const SCALE: { value: number; en: string; ko: string }[] = [
   { value: 5, en: "Strongly agree", ko: "매우 그렇다" },
 ];
 
+type Toast = { message: string; tone: "danger" | "info" | "success" };
+
 export default function BigFive() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
@@ -42,8 +44,15 @@ export default function BigFive() {
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [toast, setToast] = useState<Toast | null>(null);
 
   const result = useMemo(() => scoreBfi(responses), [responses]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const h = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(h);
+  }, [toast]);
 
   if (loading) {
     return (
@@ -89,16 +98,13 @@ export default function BigFive() {
       setSaved(true);
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[big-five] save failed", (e as Error).message);
-      Alert.alert(
-        locale === "ko" ? "저장하지 못했어요" : "Couldn't save",
-        locale === "ko"
-          ? "결과를 저장하는 중 문제가 생겼어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
-          : "Something went wrong while saving your result. Your answers are still here, so please try again.",
-        [
-          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
-          { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => { void handleSubmit(); } },
-        ],
-      );
+      setToast({
+        tone: "danger",
+        message:
+          locale === "ko"
+            ? "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
+            : "Couldn't save. Your answers are still here; please try again.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -189,6 +195,12 @@ export default function BigFive() {
           onDone={() => router.replace("/persona")}
         />
       ) : null}
+
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
+      ) : null}
     </PremiumAppShell>
   );
 }
@@ -218,4 +230,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   scaleLegend: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
+  toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });

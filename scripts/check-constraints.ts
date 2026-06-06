@@ -448,6 +448,27 @@ results.push({
 });
 
 results.push(
+  check("Feedback", () => {
+    const bigFive = read("src/app/big-five.tsx");
+    const attachment = read("src/app/attachment.tsx");
+    const ok =
+      !bigFive.includes("Alert.alert") &&
+      !attachment.includes("Alert.alert") &&
+      bigFive.includes("PremiumToast") &&
+      attachment.includes("PremiumToast") &&
+      bigFive.includes("toastWrap") &&
+      attachment.includes("toastWrap");
+    return {
+      id: "Feedback",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "Big Five and Attachment save failures use PremiumToast instead of native Alert.alert"
+        : "assessment save failures should use PremiumToast, not native Alert.alert",
+    };
+  }),
+);
+
+results.push(
   check("A11y", () => {
     const capture = read("src/app/capture.tsx");
     const research = read("src/app/research.tsx");
