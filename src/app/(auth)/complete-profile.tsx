@@ -15,6 +15,7 @@ import { BirthDateField } from "@/components/auth/BirthDateField";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { ageInYears, ensureUserProfile, AgeGateError, signOut, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ConsentNotice } from "@/components/consent/ConsentNotice";
 import {
   emptyConsentSelections,
@@ -30,7 +31,7 @@ const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth
 
 export default function CompleteProfile() {
   const { t, i18n } = useTranslation("auth");
-  const { userId, hasProfile } = useAuth();
+  const { userId, hasProfile, loading } = useAuth();
   const [birthDate, setBirthDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [consent, setConsent] = useState(emptyConsentSelections());
@@ -47,6 +48,13 @@ export default function CompleteProfile() {
       !submitting
     );
   }, [userId, birthDate, consent, submitting]);
+
+  // Still resolving the session/profile — show the branded checking state. The
+  // redirects below read userId === null while loading, which would otherwise
+  // bounce a freshly-signed-in OAuth user back to /sign-in before auth settles.
+  if (loading) {
+    return <InlineLoader message={locale === "ko" ? "확인하는 중…" : "Checking…"} />;
+  }
 
   // Already has a profile — bounce to journal. Possible if the user navigates
   // here manually after completing setup.

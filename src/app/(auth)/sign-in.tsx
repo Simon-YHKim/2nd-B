@@ -34,6 +34,7 @@ import {
 import { cosmicSky, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { CosmicBackground } from "@/components/premium";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
+import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
@@ -45,7 +46,7 @@ const PALETTE = cosmicSky;
 
 export default function SignIn() {
   const { t, i18n } = useTranslation("auth");
-  const { userId } = useAuth();
+  const { userId, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -56,6 +57,13 @@ export default function SignIn() {
   const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
+
+  // Still resolving the session — render the branded checking state instead of
+  // flashing the sign-in form to a user who turns out to be signed in (the
+  // guest-only guard below reads userId === null during this window).
+  if (loading) {
+    return <InlineLoader message={locale === "ko" ? "확인하는 중…" : "Checking…"} />;
+  }
 
   // Already signed in (OAuth redirect landed back here, or user hit
   // /sign-in directly while session was still alive). Bounce to root

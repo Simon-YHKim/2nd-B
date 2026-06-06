@@ -2,8 +2,10 @@ import { Image } from "expo-image";
 import { useMemo, useState } from "react";
 import { View, StyleSheet, Alert, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Link, router } from "expo-router";
+import { Link, Redirect, router } from "expo-router";
 
+import { useAuth } from "@/lib/auth/AuthContext";
+import { InlineLoader } from "@/components/ui/InlineLoader";
 import { PremiumAppShell } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -40,6 +42,7 @@ const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth
 
 export default function SignUp() {
   const { t, i18n } = useTranslation("auth");
+  const { userId, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -66,6 +69,14 @@ export default function SignUp() {
       !submitting
     );
   }, [email, password, birthDate, consent, submitting]);
+
+  // Guest-only guard, loading-aware. While the session resolves, show the
+  // branded checking state rather than flashing the account-creation form; once
+  // resolved, a signed-in user is bounced to root (mirrors the sign-in contract).
+  if (loading) {
+    return <InlineLoader message={locale === "ko" ? "확인하는 중…" : "Checking…"} />;
+  }
+  if (userId) return <Redirect href="/" />;
 
   async function handleSubmit(): Promise<void> {
     setSubmitting(true);
