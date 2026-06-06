@@ -109,7 +109,21 @@ const InboxRow = React.memo(function InboxRow({
   onDeleteSource,
 }: InboxRowProps) {
   return (
-    <Pressable onPress={() => onPress(r)} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
+    <Pressable
+      onPress={() => onPress(r)}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      accessibilityRole="button"
+      accessibilityLabel={locale === "ko" ? `${r.title} 열기` : `Open ${r.title}`}
+      accessibilityHint={
+        expanded
+          ? locale === "ko"
+            ? "본문 미리보기를 닫습니다"
+            : "Collapses the content preview"
+          : locale === "ko"
+            ? "본문 미리보기를 엽니다"
+            : "Expands the content preview"
+      }
+    >
       <View style={styles.rowHeader}>
         <View style={[styles.kindChip, kindChipColor(r.kind)]}>
           <Text variant="caption" color="textMuted">
@@ -150,6 +164,9 @@ const InboxRow = React.memo(function InboxRow({
             style={[styles.generateBtn, phase1Pending && styles.generateBtnDisabled]}
             disabled={phase1Pending}
             hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel={locale === "ko" ? `${r.title} 요약과 질문 만들기` : `Create Source brief for ${r.title}`}
+            accessibilityState={{ disabled: phase1Pending, busy: phase1Pending }}
           >
             <Text variant="caption" color="brand">
               {phase1Pending
@@ -174,6 +191,8 @@ const InboxRow = React.memo(function InboxRow({
             }}
             style={styles.generateBtn}
             hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel={locale === "ko" ? `${r.title} 요약과 질문 보기` : `View Source brief for ${r.title}`}
           >
             <Text variant="caption" color="success">
               {locale === "ko" ? "요약과 질문 보기" : "View Source brief"}
@@ -189,6 +208,9 @@ const InboxRow = React.memo(function InboxRow({
             style={[styles.generateBtn, generatePending && styles.generateBtnDisabled]}
             disabled={generatePending}
             hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel={locale === "ko" ? `${r.title} 위키 페이지 생성` : `Generate wiki page for ${r.title}`}
+            accessibilityState={{ disabled: generatePending, busy: generatePending }}
           >
             <Text variant="caption" color="brand">
               {generatePending
@@ -202,7 +224,13 @@ const InboxRow = React.memo(function InboxRow({
           </Pressable>
         ) : (
           <Link href="/wiki" asChild>
-            <Pressable style={styles.generateBtn} hitSlop={4} onPress={(e) => e.stopPropagation()}>
+            <Pressable
+              style={styles.generateBtn}
+              hitSlop={4}
+              onPress={(e) => e.stopPropagation()}
+              accessibilityRole="link"
+              accessibilityLabel={locale === "ko" ? `${r.title} 위키에서 보기` : `View ${r.title} in wiki`}
+            >
               <Text variant="caption" color="success">
                 {locale === "ko" ? "위키에서 보기" : "View in wiki"}
               </Text>
@@ -217,6 +245,8 @@ const InboxRow = React.memo(function InboxRow({
             }}
             style={[styles.generateBtn, styles.deleteBtn]}
             hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel={locale === "ko" ? `${r.title} 삭제` : `Delete ${r.title}`}
           >
             <Text variant="caption" color="textSubtle">
               {locale === "ko" ? "삭제" : "Delete"}
@@ -532,7 +562,13 @@ export default function Inbox() {
       <Text variant="body" color="textMuted">
         {error}
       </Text>
-      <Pressable hitSlop={6} onPress={() => void handleRefresh()} style={styles.errorRetry}>
+      <Pressable
+        hitSlop={6}
+        onPress={() => void handleRefresh()}
+        style={styles.errorRetry}
+        accessibilityRole="button"
+        accessibilityLabel={locale === "ko" ? "받은편지함 다시 시도" : "Retry loading inbox"}
+      >
         <Text variant="caption" color="brand">
           {locale === "ko" ? "다시 시도" : "Try again"}
         </Text>
@@ -549,7 +585,11 @@ export default function Inbox() {
           : "Your inbox holds captured sources. Create a Source brief (summary + 4 questions) here, or promote a row to a wiki page."}
       </Text>
       <Link href="/capture" asChild>
-        <Pressable hitSlop={6}>
+        <Pressable
+          hitSlop={6}
+          accessibilityRole="link"
+          accessibilityLabel={locale === "ko" ? "첫 캡처 시작" : "Capture your first source"}
+        >
           <Text variant="caption" color="brand">
             {locale === "ko" ? "첫 캡처 시작" : "Capture your first"}
           </Text>
