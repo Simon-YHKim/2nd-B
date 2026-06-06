@@ -1,15 +1,5 @@
-// 외부 자료 가져오기 / Import external self-knowledge (user request #2).
-//
-// Two ways in:
-//   A. Copy an extraction prompt → paste into another assistant (ChatGPT /
-//      Claude / Gemini) that has interviewed/analyzed you → paste its reply
-//      back here.
-//   B. Paste a past personality/disposition test result or free notes.
-//
-// Either way we don't just store it: callGemini(purpose "import_ingest")
-// classifies + tags it into our analysis structure, then we save it through
-// captureFromMarkdown so it enters the knowledge layer / graph like any piece
-// — classified, tagged, and indexed. Mock build returns a structured stub.
+// Import external self-knowledge. The route keeps LLM locale plumbing local,
+// while all user-facing copy lives in the import locale namespace.
 
 import { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, Platform, KeyboardAvoidingView } from "react-native";
@@ -36,10 +26,9 @@ type Phase = "input" | "analyzing" | "result" | "saved";
 type Toast = { message: string; tone: "danger" | "info" | "success" };
 
 export default function ImportExternal() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("import");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const ko = locale === "ko";
   const kbHeight = useKeyboard();
 
   const [raw, setRaw] = useState("");
@@ -48,9 +37,8 @@ export default function ImportExternal() {
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
-  // True when the AI sort failed and we fell back to the local parser, so the
-  // result view can disclose the degraded pass instead of presenting the basic
-  // local sort as if it were the full AI classification.
+  // True when the smart sort failed and we fell back to the local parser, so
+  // the result view can disclose the basic pass honestly.
   const [degraded, setDegraded] = useState(false);
 
   useEffect(() => {
@@ -63,14 +51,14 @@ export default function ImportExternal() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={ko ? "가져오기를 준비하는 중이에요…" : "Loading import…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </PremiumAppShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
-  // No-profile OAuth session (DOB/consent not yet collected) must not reach this
-  // LLM surface — route to /complete-profile (C10 age gate + PIPA consent).
+  // No-profile OAuth session must not reach this LLM surface; collect DOB and
+  // consent first on /complete-profile.
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
   async function copyPrompt() {
@@ -81,14 +69,10 @@ export default function ImportExternal() {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } else {
-        // Native / unsupported: drop it into the paste box so the user can
-        // long-press to copy it themselves — but never clobber what they've
-        // already pasted.
+        // Native / unsupported: place it in the paste box so the user can
+        // long-press to copy it without overwriting existing pasted material.
         if (raw.trim().length === 0) setRaw(prompt);
-        setToast({
-          tone: "info",
-          message: ko ? "프롬프트를 아래에 넣었어요. 길게 눌러 복사하세요." : "Prompt placed below. Long-press to copy it.",
-        });
+        setToast({ tone: "info", message: t("toast.promptPlaced") });
       }
     } catch {
       if (raw.trim().length === 0) setRaw(prompt);
@@ -105,8 +89,6 @@ export default function ImportExternal() {
       setPhase("result");
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[import] analyze failed", (e as Error).message);
-      // Even if the LLM fails, fall back to the local parser so nothing is lost
-      // — but flag it so the result view discloses the degraded pass.
       setResult(parseIngestResult("", raw.trim()));
       setDegraded(true);
       setPhase("result");
@@ -128,12 +110,7 @@ export default function ImportExternal() {
       setPhase("saved");
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[import] save failed", (e as Error).message);
-      setToast({
-        tone: "danger",
-        message: ko
-          ? "보관하지 못했어요. 정리한 내용은 그대로 있으니 다시 시도해 주세요."
-          : "Couldn't keep it. The sorted result is still here; please try again.",
-      });
+      setToast({ tone: "danger", message: t("toast.saveFailed") });
     } finally {
       setSaving(false);
     }
@@ -146,69 +123,63 @@ export default function ImportExternal() {
     setPhase("input");
   }
 
+  const trackLabel = result?.track === "pro" ? t("result.track.pro") : t("result.track.life");
+
   return (
     <PremiumAppShell>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]} keyboardShouldPersistTaps="handled">
           <SceneHero
-            eyebrow={ko ? "08-5. 가져오기" : "08-5. Import"}
-            title={ko ? "다른 곳의 나를 마을로 옮겨요" : "Bring outside self-knowledge home"}
-            subtitle={ko ? "외부 AI · 검사 결과 · 메모" : "Other assistants · tests · notes"}
+            eyebrow={t("hero.eyebrow")}
+            title={t("hero.title")}
+            subtitle={t("hero.subtitle")}
             island={VILLAGE_UI.knowledge.island}
             worker={VILLAGE_UI.knowledge.worker}
             accent={VILLAGE_UI.knowledge.accent}
-            speech={
-              ko
-                ? "붙여넣은 내용은 바로 저장하지 않고, 먼저 구조에 맞게 분류해 보여줄게요."
-                : "Pasted material is sorted first, then saved only when you confirm."
-            }
+            speech={t("hero.speech")}
           />
 
           {phase === "input" || phase === "analyzing" ? (
             <>
-              {/* Path A — extraction prompt */}
               <PremiumCard
-                eyebrow={ko ? "다른 AI에서 가져오기" : "From another assistant"}
-                title={ko ? "탐구 프롬프트 복사" : "Copy the extraction prompt"}
+                eyebrow={t("promptCard.eyebrow")}
+                title={t("promptCard.title")}
                 accent={cosmic.soulViolet}
               >
                 <Text variant="body" color="textMuted">
-                  {ko
-                    ? "나에 대해 많이 대화한 다른 AI가 있다면, 이 프롬프트를 붙여넣어 정리된 답을 받아 아래에 다시 붙여넣어요."
-                    : "If another assistant has talked with you a lot, paste this prompt there, then paste its reply below."}
+                  {t("promptCard.description")}
                 </Text>
                 <PremiumButton
-                  label={copied ? (ko ? "복사됐어요" : "Copied") : ko ? "프롬프트 복사" : "Copy prompt"}
+                  label={copied ? t("promptCard.copied") : t("promptCard.copy")}
                   variant="secondary"
                   onPress={copyPrompt}
+                  accessibilityHint={t("promptCard.copyHint")}
                 />
               </PremiumCard>
 
-              {/* Path B — paste */}
               <PremiumCard
-                eyebrow={ko ? "붙여넣기" : "Paste"}
-                title={ko ? "받은 답 또는 검사 결과" : "Reply or test result"}
+                eyebrow={t("pasteCard.eyebrow")}
+                title={t("pasteCard.title")}
                 accent={cosmic.signalMint}
               >
                 <Text variant="body" color="textMuted">
-                  {ko
-                    ? "위에서 받은 답, 예전에 한 성향·성격 검사 결과, 혹은 나에 대한 메모를 그대로 붙여넣어요. 우리 구조에 맞게 분류하고 태그를 달아 보관해요."
-                    : "Paste the reply, a past disposition/personality test result, or notes about you. We'll sort and tag it into your structure."}
+                  {t("pasteCard.description")}
                 </Text>
                 <PremiumTextarea
                   value={raw}
                   onChangeText={setRaw}
                   editable={phase !== "analyzing"}
-                  placeholder={ko ? "여기에 붙여넣기…" : "Paste here…"}
-                  accessibilityLabel={ko ? "가져올 자료" : "Material to import"}
+                  placeholder={t("pasteCard.placeholder")}
+                  accessibilityLabel={t("pasteCard.accessibilityLabel")}
                   style={{ minHeight: 160 }}
                 />
                 <PremiumButton
-                  label={ko ? "분류하고 정리하기" : "Sort & organize"}
+                  label={t("pasteCard.sort")}
                   variant="primary"
                   loading={phase === "analyzing"}
                   disabled={raw.trim().length === 0 || phase === "analyzing"}
                   onPress={analyze}
+                  accessibilityHint={t("pasteCard.sortHint")}
                   full
                 />
               </PremiumCard>
@@ -218,52 +189,58 @@ export default function ImportExternal() {
           {(phase === "result" || phase === "saved") && result ? (
             <>
               <PremiumCard
-                eyebrow={ko ? "이렇게 정리했어요" : "Here's how we sorted it"}
-                title={ko ? "가져온 조각" : "Imported piece"}
+                eyebrow={t("result.eyebrow")}
+                title={t("result.title")}
                 accent={cosmic.pixelLamp}
                 glow
               >
                 {degraded ? (
                   <View style={styles.degradedNote} accessibilityRole="alert">
                     <Text variant="subtle" color="textMuted">
-                      {ko
-                        ? "AI 분류가 잠시 안 돼서 기본 정리로 보여드려요. 다시 시도하면 더 정확하게 분류해요."
-                        : "AI sorting was unavailable, so this is a basic local pass. Try again for a richer sort."}
+                      {t("result.degraded")}
                     </Text>
                   </View>
                 ) : null}
                 {result.summary ? <Text variant="body">{result.summary}</Text> : null}
                 <View style={styles.tagRow}>
-                  {result.tags.map((t) => (
-                    <View key={t} style={styles.tagChip}><Text variant="caption" color="brand">#{t}</Text></View>
+                  {result.tags.map((tag) => (
+                    <View key={tag} style={styles.tagChip}><Text variant="caption" color="brand">#{tag}</Text></View>
                   ))}
                 </View>
                 <Text variant="subtle" color="textSubtle">
-                  {ko ? `${result.items.length}개 항목 · ${result.track === "pro" ? "일·전문" : "일상"}` : `${result.items.length} items · ${result.track}`}
+                  {t("result.meta", { count: result.items.length, track: trackLabel })}
                 </Text>
               </PremiumCard>
 
-              {result.items.map((it, i) => (
-                <View key={i} style={styles.itemRow}>
-                  <View style={[styles.itemDot, { backgroundColor: SECTION_ACCENT[it.section] }]} />
+              {result.items.map((item, index) => (
+                <View key={index} style={styles.itemRow}>
+                  <View style={[styles.itemDot, { backgroundColor: SECTION_ACCENT[item.section] }]} />
                   <View style={{ flex: 1 }}>
-                    <Text variant="body">{it.title}</Text>
-                    {it.detail ? <Text variant="subtle" color="textMuted">{it.detail}</Text> : null}
+                    <Text variant="body">{item.title}</Text>
+                    {item.detail ? <Text variant="subtle" color="textMuted">{item.detail}</Text> : null}
                   </View>
                 </View>
               ))}
 
               {phase === "result" ? (
-                <PremiumButton label={ko ? "마을에 보관하기" : "Keep it in the village"} variant="primary" loading={saving} disabled={saving} onPress={save} full />
+                <PremiumButton
+                  label={t("result.keep")}
+                  variant="primary"
+                  loading={saving}
+                  disabled={saving}
+                  onPress={save}
+                  accessibilityHint={t("result.keepHint")}
+                  full
+                />
               ) : (
                 <PremiumCard accent={cosmic.signalMint} glow>
-                  <Text variant="body" color="brand">{ko ? "잘 보관했어요" : "Saved"}</Text>
+                  <Text variant="body" color="brand">{t("saved.title")}</Text>
                   <Text variant="subtle" color="textMuted">
-                    {ko ? "이 조각들은 나의 중심과 세컨비가 참고해요." : "Your center and SecondB will draw on these."}
+                    {t("saved.body")}
                   </Text>
                   <View style={styles.savedActions}>
-                    <PremiumButton label={ko ? "그래프 보기" : "See the graph"} variant="secondary" onPress={() => router.push("/")} style={{ flex: 1 }} />
-                    <PremiumButton label={ko ? "더 가져오기" : "Import more"} variant="ghost" onPress={reset} style={{ flex: 1 }} />
+                    <PremiumButton label={t("saved.graph")} variant="secondary" onPress={() => router.push("/")} accessibilityHint={t("saved.graphHint")} style={{ flex: 1 }} />
+                    <PremiumButton label={t("saved.more")} variant="ghost" onPress={reset} accessibilityHint={t("saved.moreHint")} style={{ flex: 1 }} />
                   </View>
                 </PremiumCard>
               )}

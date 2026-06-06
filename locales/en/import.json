@@ -1,0 +1,50 @@
+{
+  "loading": "Loading import...",
+  "hero": {
+    "eyebrow": "08-5. Import",
+    "title": "Bring outside self-knowledge into 2nd-B",
+    "subtitle": "Other assistants · test results · notes",
+    "speech": "Pasted material is sorted first, then saved only when you confirm."
+  },
+  "promptCard": {
+    "eyebrow": "From another assistant",
+    "title": "Copy questions for another assistant",
+    "description": "If another assistant already knows your context, paste these questions there. Then bring its reply back here.",
+    "copy": "Copy questions",
+    "copied": "Copied",
+    "copyHint": "Copies the import questions to the clipboard."
+  },
+  "pasteCard": {
+    "eyebrow": "Paste",
+    "title": "Reply or test result",
+    "description": "Paste the reply, a past disposition or personality test result, or notes about you. 2nd-B will sort and tag it into your structure.",
+    "placeholder": "Paste here...",
+    "accessibilityLabel": "Material to import",
+    "sort": "Sort and organize",
+    "sortHint": "Sorts the pasted material before saving."
+  },
+  "toast": {
+    "promptPlaced": "The questions were placed below. Long-press to copy them.",
+    "saveFailed": "Couldn't save it. The sorted result is still here; please try again."
+  },
+  "result": {
+    "eyebrow": "Sorted result",
+    "title": "Imported record",
+    "degraded": "Deep sorting was unavailable, so this is a basic local pass. Try again for a richer sort.",
+    "meta": "{{count}} items · {{track}}",
+    "track": {
+      "pro": "work and specialist",
+      "life": "everyday"
+    },
+    "keep": "Save to 2nd-B",
+    "keepHint": "Saves this imported result to your records."
+  },
+  "saved": {
+    "title": "Saved",
+    "body": "Your center and SecondB can now draw on these records.",
+    "graph": "See the graph",
+    "graphHint": "Opens the main graph.",
+    "more": "Import more",
+    "moreHint": "Clears this import and starts another one."
+  }
+}

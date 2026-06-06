@@ -1147,9 +1147,9 @@ results.push(
   }),
 );
 
-results.push(
-  check("ThemeI18nCopy", () => {
-    const theme = read("src/app/theme.tsx");
+  results.push(
+    check("ThemeI18nCopy", () => {
+      const theme = read("src/app/theme.tsx");
     const i18n = read("src/lib/i18n/index.ts");
     const en = read("locales/en/theme.json");
     const ko = read("locales/ko/theme.json");
@@ -1185,11 +1185,60 @@ results.push(
         ? "theme screen copy lives in locale bundles and avoids old village-light metaphor copy"
         : "theme screen should source display-tone copy from locale bundles and avoid old village-light metaphor copy",
     };
-  }),
-);
+    }),
+  );
 
-results.push(
-  check("InboxWikiTarget", () => {
+  results.push(
+    check("ImportI18nCopy", () => {
+      const screen = read("src/app/import.tsx");
+      const i18n = read("src/lib/i18n/index.ts");
+      const en = read("locales/en/import.json");
+      const ko = read("locales/ko/import.json");
+      const forbiddenScreenCopy = [
+        "const ko =",
+        "Bring outside self-knowledge home",
+        "Keep it in the village",
+        "Prompt placed below",
+        "Copy the extraction prompt",
+        "AI sorting was unavailable",
+        "마을로 옮겨요",
+        "마을에 보관하기",
+      ];
+      const forbiddenBundleCopy = [
+        "Bring outside self-knowledge home",
+        "Keep it in the village",
+        "AI sorting was unavailable",
+        "마을로 옮겨요",
+        "마을에 보관하기",
+      ];
+      const ok =
+        screen.includes('useTranslation("import")') &&
+        screen.includes('t("hero.title")') &&
+        screen.includes('t("promptCard.copyHint")') &&
+        screen.includes('t("pasteCard.sortHint")') &&
+        screen.includes('t("result.keepHint")') &&
+        screen.includes('t("saved.moreHint")') &&
+        i18n.includes("enImport") &&
+        i18n.includes("koImport") &&
+        i18n.includes('"import"') &&
+        i18n.includes("import: enImport") &&
+        i18n.includes("import: koImport") &&
+        en.includes("Bring outside self-knowledge into 2nd-B") &&
+        ko.includes("밖에 있던 자기 이해를 2nd-B로 가져와요") &&
+        forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
+        forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
+      return {
+        id: "ImportI18nCopy",
+        status: ok ? "PASS" : "FAIL",
+        note: ok
+          ? "import screen copy lives in locale bundles and avoids old village metaphor copy"
+          : "import screen should source user-facing copy from locale bundles and avoid old village metaphor copy",
+      };
+    }),
+  );
+
+  results.push(
+    check("InboxWikiTarget", () => {
     const inbox = read("src/app/inbox.tsx");
     const wiki = read("src/app/wiki.tsx");
     const ok =
