@@ -51,13 +51,11 @@ const ShardRow = memo(function ShardRow({ shard: s, locale }: { shard: OriginSha
       meta={[s.dateLabel, evidenceTypeLabel(s.type, locale)].filter(Boolean).join(" · ")}
       accent={TYPE_ACCENT[s.type]}
       onPress={() =>
-        // `records`-origin shards open the record detail; `sources`-origin
-        // shards (capture / imagine) live in the wiki store, so open their
-        // wiki page instead of /record/[id] (which only reads the records
-        // table).
-        s.origin === "record"
-          ? router.push({ pathname: "/record/[id]", params: { id: s.id } })
-          : router.push(s.route)
+        // Both record- and source-origin shards open the unified detail screen;
+        // it reads the right table from the `origin` param (sources live in the
+        // wiki ingest store). This opens the SPECIFIC piece instead of dumping
+        // the user on the generic capture/wiki screen.
+        router.push({ pathname: "/record/[id]", params: { id: s.id, origin: s.origin } })
       }
     />
   );

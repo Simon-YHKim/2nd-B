@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   recordKindToType,
+  sourceKindToType,
   evidenceRoute,
   evidenceTypeLabel,
   evidenceDateLabel,
@@ -41,7 +42,8 @@ export default function RecordDetail() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, origin } = useLocalSearchParams<{ id: string; origin?: string }>();
+  const isSource = origin === "source";
 
   const [row, setRow] = useState<RecordDetailRow | null>(null);
   const [state, setState] = useState<LoadState>("loading");
@@ -53,6 +55,28 @@ export default function RecordDetail() {
     (async () => {
       try {
         const supabase = getSupabaseClient();
+        if (isSource) {
+          // Source-origin pieces (capture / imagine) live in the `sources`
+          // table with a different column shape (title/captured_at, no body).
+          // Map them onto RecordDetailRow so the detail view renders the
+          // specific piece instead of bouncing to the generic capture screen.
+          const { data, error } = await supabase
+            .from("sources")
+            .select("id, kind, title, captured_at, tags")
+            .eq("user_id", userId)
+            .eq("id", id)
+            .maybeSingle();
+          if (error) throw error;
+          if (cancelled) return;
+          if (!data) {
+            setState("missing");
+            return;
+          }
+          const s = data as { id: string; kind: string; title: string | null; captured_at: string; tags: string[] | null };
+          setRow({ id: s.id, kind: s.kind, topic: s.title, body: null, created_at: s.captured_at, tags: s.tags });
+          setState("ready");
+          return;
+        }
         const { data, error } = await supabase
           .from("records")
           .select("id, kind, topic, body, created_at, tags")
@@ -75,7 +99,7 @@ export default function RecordDetail() {
     return () => {
       cancelled = true;
     };
-  }, [userId, id]);
+  }, [userId, id, isSource]);
 
   if (loading) {
     return (
@@ -113,7 +137,9 @@ export default function RecordDetail() {
     );
   }
 
-  const type: EvidenceType = recordKindToType(row.kind, row.tags ?? []);
+  const type: EvidenceType = isSource
+    ? sourceKindToType(row.kind, row.tags ?? [])
+    : recordKindToType(row.kind, row.tags ?? []);
   const title = row.topic && row.topic.trim().length > 0 ? row.topic.trim() : evidenceTypeLabel(type, locale);
   const dateLabel = evidenceDateLabel(row.created_at, locale);
   // Assessment records (MBTI/Big Five/ECR) store a JSON body — render it as
@@ -157,7 +183,13 @@ export default function RecordDetail() {
             <Text variant="body" selectable>{row.body}</Text>
           ) : (
             <Text variant="body" color="textMuted">
-              {locale === "ko" ? "이 조각엔 본문이 없어요." : "This piece has no body text."}
+              {isSource
+                ? locale === "ko"
+                  ? "캡처한 자료예요. 아래 '원래 화면 열기'에서 전체 내용을 볼 수 있어요."
+                  : "A captured source. Open its screen below to see the full content."
+                : locale === "ko"
+                  ? "이 조각엔 본문이 없어요."
+                  : "This piece has no body text."}
             </Text>
           )}
         </View>
