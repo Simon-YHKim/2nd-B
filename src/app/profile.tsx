@@ -10,7 +10,7 @@ import { View, StyleSheet, ScrollView, ActivityIndicator, Pressable } from "reac
 import { useTranslation } from "react-i18next";
 import { Redirect, router, type Href } from "expo-router";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, SceneHero, PremiumLoadingState } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -127,7 +127,9 @@ export default function Profile() {
   if (loading) {
     return (
       <PremiumAppShell>
-        <View style={styles.center}><ActivityIndicator color={semantic.brand} /></View>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
+        </View>
       </PremiumAppShell>
     );
   }

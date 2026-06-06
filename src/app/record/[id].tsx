@@ -7,11 +7,11 @@
 // lands on a blank or crashing screen.
 
 import { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+import { View, StyleSheet, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -79,7 +79,9 @@ export default function RecordDetail() {
   if (loading) {
     return (
       <PremiumAppShell>
-        <View style={styles.center}><ActivityIndicator color={semantic.brand} /></View>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
+        </View>
       </PremiumAppShell>
     );
   }
@@ -88,7 +90,9 @@ export default function RecordDetail() {
   if (state === "loading") {
     return (
       <PremiumAppShell>
-        <View style={styles.center}><ActivityIndicator color={semantic.brand} /></View>
+        <View style={styles.center}>
+          <PremiumLoadingState message={locale === "ko" ? "기록을 불러오는 중이에요…" : "Loading this record…"} />
+        </View>
       </PremiumAppShell>
     );
   }

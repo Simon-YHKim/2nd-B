@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { View, StyleSheet, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -37,7 +37,7 @@ export default function Audit() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <ActivityIndicator color={semantic.brand} />
+          <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
         </View>
       </PremiumAppShell>
     );
