@@ -231,6 +231,7 @@ export default function Records() {
               style={[styles.chip, active ? styles.chipActive : null]}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
+              accessibilityLabel={locale === "ko" ? `${label} 기록 필터` : `Filter records by ${label}`}
             >
               <Text variant="caption" color={active ? "background" : "textMuted"}>{label}</Text>
             </Pressable>

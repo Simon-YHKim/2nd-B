@@ -284,6 +284,9 @@ results.push(
     const bigFive = read("src/app/big-five.tsx");
     const attachment = read("src/app/attachment.tsx");
     const inbox = read("src/app/inbox.tsx");
+    const manual = read("src/app/manual.tsx");
+    const records = read("src/app/records.tsx");
+    const trinity = read("src/app/trinity.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
@@ -320,13 +323,18 @@ results.push(
       capture.includes("accessibilityState={{ expanded: showExtras }}") &&
       capture.includes('accessibilityRole="checkbox"') &&
       capture.includes("accessibilityState={{ checked: askAdvisor }}") &&
-      capture.includes("Remove hashtag");
+      capture.includes("Remove hashtag") &&
+      manual.includes("Manual language: switch to English") &&
+      manual.includes("Manual language: switch to Korean") &&
+      records.includes("Filter records by ${label}") &&
+      trinity.includes('accessibilityRole="link"') &&
+      trinity.includes("Add domain tags in capture");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox actions, and capture auxiliaries expose grouped/action state"
-        : "visual-selected controls, research links, inbox row actions, or capture auxiliaries need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity actions need accessibilityRole plus selected/checked state",
     };
   }),
 );

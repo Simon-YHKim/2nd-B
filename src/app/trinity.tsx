@@ -221,7 +221,13 @@ export default function Trinity() {
                 : "No records tagged with the four domains (health · app · brain · finance) yet."}
             </Text>
             <Link href="/capture" asChild>
-              <Pressable hitSlop={6}>
+              <Pressable
+                hitSlop={6}
+                accessibilityRole="link"
+                accessibilityLabel={
+                  locale === "ko" ? "캡처에서 도메인 태그 추가하기" : "Add domain tags in capture"
+                }
+              >
                 <Text variant="caption" color="brand">
                   {locale === "ko" ? "조각 담기에서 #건강 같은 태그를 달아 보세요" : "Try adding tags like #health in capture"}
                 </Text>

@@ -140,6 +140,9 @@ export default function Manual() {
             hitSlop={6}
             style={styles.languagePill}
             accessibilityRole="button"
+            accessibilityLabel={
+              locale === "ko" ? "Manual language: switch to English" : "Manual language: switch to Korean"
+            }
           >
             <Text variant="caption" color="brand">
               {locale === "ko" ? "EN" : "한국어"}
