@@ -2,7 +2,7 @@
 // 2-business-day SLA (KST) from the product constraints (C11) + a contact
 // placeholder. Warm, non-clinical wording only.
 
-import { View, StyleSheet, ScrollView, Linking } from "react-native";
+import { View, StyleSheet, ScrollView, Linking, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
@@ -67,7 +67,8 @@ export default function Support() {
 
   return (
     <PremiumAppShell>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+<ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <SceneHero
           eyebrow={ko ? "08-3. 지원" : "08-3. Support"}
           title={ko ? "막힌 조각을 같이 풀어요" : "Untangle stuck pieces together"}
@@ -110,6 +111,7 @@ export default function Support() {
         </View>
 
       </ScrollView>
+</KeyboardAvoidingView>
     </PremiumAppShell>
   );
 }

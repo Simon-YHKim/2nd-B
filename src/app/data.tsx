@@ -4,7 +4,7 @@
 // settings danger zone; export lives on the wiki screen. This screen makes
 // the data-control surface discoverable and explains what each does.
 
-import { View, StyleSheet, ScrollView } from "react-native";
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -35,7 +35,8 @@ export default function DataManagement() {
 
   return (
     <PremiumAppShell>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+<ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <SceneHero
           eyebrow={ko ? "08-1. 데이터 관리" : "08-1. Data management"}
           title={ko ? "조각을 옮기고 정리해요" : "Move and organize your pieces"}
@@ -104,6 +105,7 @@ export default function DataManagement() {
           </Text>
         </View>
       </ScrollView>
+</KeyboardAvoidingView>
     </PremiumAppShell>
   );
 }

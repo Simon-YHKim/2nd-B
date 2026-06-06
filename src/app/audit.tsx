@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from "react-native";
+import { View, StyleSheet, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -93,7 +93,8 @@ export default function Audit() {
   if (period === null) {
     return (
       <PremiumAppShell>
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+<ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
               {locale === "ko" ? "과거의 나: 시기 선택" : "Past me: choose a period"}
@@ -125,6 +126,7 @@ export default function Audit() {
             />
           </View>
         </ScrollView>
+</KeyboardAvoidingView>
       </PremiumAppShell>
     );
   }
@@ -169,7 +171,8 @@ export default function Audit() {
 
   return (
     <PremiumAppShell>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+<ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {index === 0 ? (
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
@@ -251,6 +254,7 @@ export default function Audit() {
           onPress={() => router.replace("/capture")}
         />
       </ScrollView>
+</KeyboardAvoidingView>
     </PremiumAppShell>
   );
 }

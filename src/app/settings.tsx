@@ -3,16 +3,7 @@
 // /journal etc.), partial (per-kind / per-tag), and full (everything).
 
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -305,7 +296,8 @@ export default function Settings() {
 
   return (
     <PremiumAppShell>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+<ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <SceneHero
           eyebrow={locale === "ko" ? "08. 설정" : "08. Settings"}
           title={locale === "ko" ? "마을의 규칙을 정리해요" : "Tune the village rules"}
@@ -661,6 +653,7 @@ export default function Settings() {
           />
         </View>
       </ScrollView>
+</KeyboardAvoidingView>
     </PremiumAppShell>
   );
 }

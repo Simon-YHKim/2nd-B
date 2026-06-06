@@ -12,7 +12,7 @@
 // from birth_date, so a former minor's locks lift automatically on /privacy.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -162,7 +162,8 @@ export default function Account() {
 
   return (
     <PremiumAppShell>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+<ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <SceneHero
           eyebrow={t("account.eyebrow")}
           title={t("account.title")}
@@ -260,6 +261,7 @@ export default function Account() {
           />
         </View>
       </ScrollView>
+</KeyboardAvoidingView>
     </PremiumAppShell>
   );
 }
