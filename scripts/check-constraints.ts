@@ -613,6 +613,10 @@ results.push(
       likert.includes('accessibilityRole="radiogroup"') &&
       likert.includes('accessibilityRole="radio"') &&
       likert.includes("accessibilityState={{ checked: active }}") &&
+      likert.includes("accessibilityHint={active ? selectedHint : selectHint}") &&
+      likert.includes("minHeight: 48") &&
+      likert.includes("minWidth: 44") &&
+      likert.includes("fontSize: 16") &&
       bigFive.includes("LikertChoiceGroup") &&
       attachment.includes("LikertChoiceGroup") &&
       inboxRoles >= 8 &&
