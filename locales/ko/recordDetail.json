@@ -1,0 +1,20 @@
+{
+  "loading": {
+    "auth": "불러오는 중이에요...",
+    "record": "기록을 불러오는 중이에요..."
+  },
+  "state": {
+    "missingTitle": "조각을 찾을 수 없어요",
+    "errorTitle": "조각을 불러오지 못했어요"
+  },
+  "body": {
+    "sourceEmpty": "캡처한 자료예요. 아래 원래 화면 열기에서 전체 내용을 볼 수 있어요.",
+    "noText": "이 조각은 본문이 없어요."
+  },
+  "actions": {
+    "backToRecords": "기록으로",
+    "seeGraph": "그래프에서 보기",
+    "askSecondB": "세컨비에게 묻기",
+    "openSource": "원래 화면 열기"
+  }
+}

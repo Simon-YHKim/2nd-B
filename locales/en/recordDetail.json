@@ -1,0 +1,20 @@
+{
+  "loading": {
+    "auth": "Loading...",
+    "record": "Loading this record..."
+  },
+  "state": {
+    "missingTitle": "Piece not found",
+    "errorTitle": "Couldn't load this piece"
+  },
+  "body": {
+    "sourceEmpty": "A captured source. Open its screen below to see the full content.",
+    "noText": "This piece has no body text."
+  },
+  "actions": {
+    "backToRecords": "Back to records",
+    "seeGraph": "See in graph",
+    "askSecondB": "Ask SecondB",
+    "openSource": "Open its screen"
+  }
+}

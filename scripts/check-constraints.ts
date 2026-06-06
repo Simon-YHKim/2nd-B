@@ -1528,6 +1528,47 @@ results.push(
   );
 
   results.push(
+    check("RecordDetailI18nCopy", () => {
+      const screen = read("src/app/record/[id].tsx");
+      const i18n = read("src/lib/i18n/index.ts");
+      const en = read("locales/en/recordDetail.json");
+      const ko = read("locales/ko/recordDetail.json");
+      const forbiddenScreenCopy = [
+        'locale === "ko"',
+        "Loading this record",
+        "Piece not found",
+        "Couldn't load this piece",
+        "Back to records",
+        "This piece has no body text",
+        "See in graph",
+        "Ask SecondB",
+        "Open its screen",
+      ];
+      const ok =
+        screen.includes('useTranslation("recordDetail")') &&
+        screen.includes('t("loading.auth")') &&
+        screen.includes('t("state.missingTitle")') &&
+        screen.includes('t("body.sourceEmpty")') &&
+        screen.includes('t("actions.askSecondB")') &&
+        i18n.includes("enRecordDetail") &&
+        i18n.includes("koRecordDetail") &&
+        i18n.includes('"recordDetail"') &&
+        i18n.includes("recordDetail: enRecordDetail") &&
+        i18n.includes("recordDetail: koRecordDetail") &&
+        en.includes("Back to records") &&
+        ko.includes("기록으로") &&
+        forbiddenScreenCopy.every((term) => !screen.includes(term));
+      return {
+        id: "RecordDetailI18nCopy",
+        status: ok ? "PASS" : "FAIL",
+        note: ok
+          ? "record detail state and handoff copy lives in locale bundles while evidence labels keep locale-aware data formatting"
+          : "record detail should source loading/error/body/handoff copy from locale bundles",
+      };
+    }),
+  );
+
+  results.push(
     check("InboxWikiTarget", () => {
     const inbox = read("src/app/inbox.tsx");
     const wiki = read("src/app/wiki.tsx");

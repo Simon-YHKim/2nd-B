@@ -1,31 +1,31 @@
-// Record detail (queue B / A-to-Z Phase 6) — one saved piece in full.
+// Record detail (queue B / A-to-Z Phase 6) - one saved piece in full.
 // Reached from the records browser or the core-brain evidence drawer.
 // Shows the piece's type, date, topic and body, plus the standard handoffs
-// (그래프에서 보기 / 세컨비에게 묻기 / open the source screen).
+// (see in graph / ask SecondB / open the source screen).
 //
 // Renders loading / not-found / error / normal states so a direct URL never
 // lands on a blank or crashing screen.
 
 import { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
-import { useTranslation } from "react-i18next";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
-import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import {
-  recordKindToType,
-  sourceKindToType,
+  evidenceDateLabel,
   evidenceRoute,
   evidenceTypeLabel,
-  evidenceDateLabel,
+  recordKindToType,
+  sourceKindToType,
   type EvidenceType,
 } from "@/lib/persona/evidence";
 import { summarizeAssessmentBody } from "@/lib/persona/assessment-summary";
+import { getSupabaseClient } from "@/lib/supabase/client";
+import { radii, semantic, spacing } from "@/lib/theme/tokens";
 
 interface RecordDetailRow {
   id: string;
@@ -39,7 +39,7 @@ interface RecordDetailRow {
 type LoadState = "loading" | "ready" | "missing" | "error";
 
 export default function RecordDetail() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("recordDetail");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const { id, origin } = useLocalSearchParams<{ id: string; origin?: string }>();
@@ -105,7 +105,7 @@ export default function RecordDetail() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
+          <PremiumLoadingState message={t("loading.auth")} />
         </View>
       </PremiumAppShell>
     );
@@ -116,7 +116,7 @@ export default function RecordDetail() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "기록을 불러오는 중이에요…" : "Loading this record…"} />
+          <PremiumLoadingState message={t("loading.record")} />
         </View>
       </PremiumAppShell>
     );
@@ -127,22 +127,18 @@ export default function RecordDetail() {
       <PremiumAppShell>
         <View style={styles.center}>
           <Text variant="heading" style={{ textAlign: "center" }}>
-            {state === "missing"
-              ? locale === "ko" ? "조각을 찾을 수 없어요" : "Piece not found"
-              : locale === "ko" ? "조각을 불러오지 못했어요" : "Couldn't load this piece"}
+            {state === "missing" ? t("state.missingTitle") : t("state.errorTitle")}
           </Text>
-          <Button label={locale === "ko" ? "기록으로" : "Back to records"} variant="secondary" onPress={() => router.replace("/records")} />
+          <Button label={t("actions.backToRecords")} variant="secondary" onPress={() => router.replace("/records")} />
         </View>
       </PremiumAppShell>
     );
   }
 
-  const type: EvidenceType = isSource
-    ? sourceKindToType(row.kind, row.tags ?? [])
-    : recordKindToType(row.kind, row.tags ?? []);
+  const type: EvidenceType = isSource ? sourceKindToType(row.kind, row.tags ?? []) : recordKindToType(row.kind, row.tags ?? []);
   const title = row.topic && row.topic.trim().length > 0 ? row.topic.trim() : evidenceTypeLabel(type, locale);
   const dateLabel = evidenceDateLabel(row.created_at, locale);
-  // Assessment records (MBTI/Big Five/ECR) store a JSON body — render it as
+  // Assessment records (MBTI/Big Five/ECR) store a JSON body - render it as
   // friendly label/value lines instead of dumping raw JSON at the user.
   const assessment = summarizeAssessmentBody(row.body, locale);
 
@@ -158,9 +154,11 @@ export default function RecordDetail() {
 
         {row.tags && row.tags.length > 0 ? (
           <View style={styles.tagRow}>
-            {row.tags.map((t) => (
-              <View key={t} style={styles.tagChip}>
-                <Text variant="caption" color="textMuted">#{t}</Text>
+            {row.tags.map((tag) => (
+              <View key={tag} style={styles.tagChip}>
+                <Text variant="caption" color="textMuted">
+                  #{tag}
+                </Text>
               </View>
             ))}
           </View>
@@ -174,43 +172,36 @@ export default function RecordDetail() {
               </Text>
               {assessment.lines.map((line) => (
                 <View key={line.k} style={styles.assessmentRow}>
-                  <Text variant="subtle" color="textMuted">{line.k}</Text>
+                  <Text variant="subtle" color="textMuted">
+                    {line.k}
+                  </Text>
                   <Text variant="body">{line.v}</Text>
                 </View>
               ))}
             </View>
           ) : row.body && row.body.trim().length > 0 ? (
-            <Text variant="body" selectable>{row.body}</Text>
+            <Text variant="body" selectable>
+              {row.body}
+            </Text>
           ) : (
             <Text variant="body" color="textMuted">
-              {isSource
-                ? locale === "ko"
-                  ? "캡처한 자료예요. 아래 '원래 화면 열기'에서 전체 내용을 볼 수 있어요."
-                  : "A captured source. Open its screen below to see the full content."
-                : locale === "ko"
-                  ? "이 조각엔 본문이 없어요."
-                  : "This piece has no body text."}
+              {isSource ? t("body.sourceEmpty") : t("body.noText")}
             </Text>
           )}
         </View>
 
-        {/* Handoffs (A-to-Z Phase 13) */}
         <View style={styles.handoffs}>
           <Button
-            label={locale === "ko" ? "그래프에서 보기" : "See in graph"}
+            label={t("actions.seeGraph")}
             variant="secondary"
             onPress={() => router.push({ pathname: "/", params: { highlightRecordId: row.id } })}
           />
           <Button
-            label={locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
+            label={t("actions.askSecondB")}
             variant="secondary"
             onPress={() => router.push({ pathname: "/jarvis", params: { fromNode: title } })}
           />
-          <Button
-            label={locale === "ko" ? "원래 화면 열기" : "Open its screen"}
-            variant="primary"
-            onPress={() => router.push(evidenceRoute(type) as never)}
-          />
+          <Button label={t("actions.openSource")} variant="primary" onPress={() => router.push(evidenceRoute(type) as never)} />
         </View>
       </ScrollView>
     </PremiumAppShell>
