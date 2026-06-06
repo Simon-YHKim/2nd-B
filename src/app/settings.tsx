@@ -106,7 +106,7 @@ function Button(props: SettingsActionButtonProps) {
 }
 
 export default function Settings() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("settings");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const { mode, toggle } = useTheme();
@@ -128,7 +128,7 @@ export default function Settings() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "설정을 불러오는 중이에요…" : "Loading settings…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </PremiumAppShell>
     );
@@ -341,47 +341,47 @@ export default function Settings() {
 
         <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
           <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "설정 항목" : "Settings"}
+            {t("nav.eyebrow")}
           </Text>
           <Button
-            label={locale === "ko" ? "프로필" : "Profile"}
-            accessibilityHint={locale === "ko" ? "프로필 설정 화면으로 이동합니다." : "Opens profile settings."}
+            label={t("nav.profile")}
+            accessibilityHint={t("nav.profileHint")}
             variant="secondary"
             onPress={() => router.push("/profile")}
           />
           <Button
-            label={locale === "ko" ? "개인정보 보호" : "Privacy"}
-            accessibilityHint={locale === "ko" ? "개인정보 보호 설정 화면으로 이동합니다." : "Opens privacy settings."}
+            label={t("nav.privacy")}
+            accessibilityHint={t("nav.privacyHint")}
             variant="secondary"
             onPress={() => router.push("/privacy")}
           />
           <Button
-            label={locale === "ko" ? "계정 관리" : "Account"}
-            accessibilityHint={locale === "ko" ? "계정 관리 화면으로 이동합니다." : "Opens account settings."}
+            label={t("nav.account")}
+            accessibilityHint={t("nav.accountHint")}
             variant="secondary"
             onPress={() => router.push("/account")}
           />
           <Button
-            label={locale === "ko" ? "테마" : "Theme"}
-            accessibilityHint={locale === "ko" ? "테마 설정 화면으로 이동합니다." : "Opens theme settings."}
+            label={t("nav.theme")}
+            accessibilityHint={t("nav.themeHint")}
             variant="secondary"
             onPress={() => router.push("/theme")}
           />
           <Button
-            label={locale === "ko" ? "데이터 관리" : "Data management"}
-            accessibilityHint={locale === "ko" ? "데이터 관리 화면으로 이동합니다." : "Opens data management."}
+            label={t("nav.data")}
+            accessibilityHint={t("nav.dataHint")}
             variant="secondary"
             onPress={() => router.push("/data")}
           />
           <Button
-            label={locale === "ko" ? "기록" : "Records"}
-            accessibilityHint={locale === "ko" ? "저장된 기록 화면으로 이동합니다." : "Opens saved records."}
+            label={t("nav.records")}
+            accessibilityHint={t("nav.recordsHint")}
             variant="secondary"
             onPress={() => router.push("/records")}
           />
           <Button
-            label={locale === "ko" ? "지원" : "Support"}
-            accessibilityHint={locale === "ko" ? "지원 옵션 화면으로 이동합니다." : "Opens support options."}
+            label={t("nav.support")}
+            accessibilityHint={t("nav.supportHint")}
             variant="secondary"
             onPress={() => router.push("/support")}
           />
@@ -666,7 +666,7 @@ export default function Settings() {
         <View style={styles.actions}>
           <Button
             label={locale === "ko" ? "로그아웃" : "Sign out"}
-            accessibilityHint={locale === "ko" ? "로그아웃한 뒤 로그인 화면으로 돌아갑니다." : "Signs out and returns to the sign-in screen."}
+            accessibilityHint={t("actions.signOutHint")}
             variant="secondary"
             disabled={busy !== null}
             onPress={async () => {
@@ -698,34 +698,34 @@ export default function Settings() {
       <PremiumModal
         visible={pendingConfirm !== null}
         onClose={() => setPendingConfirm(null)}
-        accessibilityLabel={locale === "ko" ? "설정 삭제 확인" : "Settings confirmation dialog"}
+        accessibilityLabel={t("modals.confirm.label")}
       >
-        <Text variant="heading">{locale === "ko" ? "정말 진행할까요?" : "Are you sure?"}</Text>
+        <Text variant="heading">{t("modals.confirm.title")}</Text>
         <Text variant="body" color="textMuted" style={styles.modalBody}>
           {pendingConfirm?.message}
         </Text>
         <View style={styles.modalActions}>
           <Button
-            label={locale === "ko" ? "취소" : "Cancel"}
+            label={t("modals.confirm.cancel")}
             variant="secondary"
             onPress={() => setPendingConfirm(null)}
             style={styles.modalButton}
-            accessibilityHint={locale === "ko" ? "삭제 확인을 닫습니다." : "Closes this deletion confirmation."}
+            accessibilityHint={t("modals.confirm.cancelHint")}
           />
           <Button
-            label={locale === "ko" ? "삭제" : "Delete"}
+            label={t("modals.confirm.delete")}
             variant="danger"
             onPress={runPendingConfirm}
             loading={busy !== null}
             style={styles.modalButton}
-            accessibilityHint={locale === "ko" ? "선택한 삭제 작업을 시작합니다." : "Starts the selected deletion action."}
+            accessibilityHint={t("modals.confirm.deleteHint")}
           />
         </View>
       </PremiumModal>
       <PremiumModal
         visible={actionError !== null}
         onClose={() => setActionError(null)}
-        accessibilityLabel={locale === "ko" ? "설정 피드백 안내" : "Settings feedback notice"}
+        accessibilityLabel={t("modals.feedback.label")}
       >
         <Text variant="heading">{actionError?.title}</Text>
         <Text variant="body" color="textMuted" style={styles.modalBody}>
@@ -733,20 +733,20 @@ export default function Settings() {
         </Text>
         <View style={styles.modalActions}>
           <Button
-            label={locale === "ko" ? "닫기" : "Dismiss"}
+            label={t("modals.feedback.dismiss")}
             variant="secondary"
             onPress={() => setActionError(null)}
             style={styles.modalButton}
-            accessibilityHint={locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice."}
+            accessibilityHint={t("modals.feedback.dismissHint")}
           />
           {actionError?.retry ? (
             <Button
-              label={locale === "ko" ? "다시 시도" : "Try again"}
+              label={t("modals.feedback.retry")}
               variant="primary"
               onPress={retryActionError}
               loading={busy !== null}
               style={styles.modalButton}
-              accessibilityHint={locale === "ko" ? "방금 실패한 설정 작업을 다시 시도합니다." : "Retries the failed settings action."}
+              accessibilityHint={t("modals.feedback.retryHint")}
             />
           ) : null}
         </View>

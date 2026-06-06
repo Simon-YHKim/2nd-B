@@ -1,0 +1,40 @@
+{
+  "loading": "Loading settings…",
+  "nav": {
+    "eyebrow": "Settings",
+    "profile": "Profile",
+    "profileHint": "Opens profile settings.",
+    "privacy": "Privacy",
+    "privacyHint": "Opens privacy settings.",
+    "account": "Account",
+    "accountHint": "Opens account settings.",
+    "theme": "Theme",
+    "themeHint": "Opens theme settings.",
+    "data": "Data management",
+    "dataHint": "Opens data management.",
+    "records": "Records",
+    "recordsHint": "Opens saved records.",
+    "support": "Support",
+    "supportHint": "Opens support options."
+  },
+  "actions": {
+    "signOutHint": "Signs out and returns to the sign-in screen."
+  },
+  "modals": {
+    "confirm": {
+      "label": "Settings confirmation dialog",
+      "title": "Are you sure?",
+      "cancel": "Cancel",
+      "cancelHint": "Closes this deletion confirmation.",
+      "delete": "Delete",
+      "deleteHint": "Starts the selected deletion action."
+    },
+    "feedback": {
+      "label": "Settings feedback notice",
+      "dismiss": "Dismiss",
+      "dismissHint": "Dismisses this notice.",
+      "retry": "Try again",
+      "retryHint": "Retries the failed settings action."
+    }
+  }
+}

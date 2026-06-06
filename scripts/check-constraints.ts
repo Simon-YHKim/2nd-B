@@ -690,8 +690,8 @@ results.push(
       account.includes("Account deletion confirmation") &&
       settings.includes("PremiumModal") &&
       settings.includes("PremiumToast") &&
-      settings.includes("Settings confirmation dialog") &&
-      settings.includes("Settings feedback notice") &&
+      settings.includes('accessibilityLabel={t("modals.confirm.label")}') &&
+      settings.includes('accessibilityLabel={t("modals.feedback.label")}') &&
       capture.includes("PremiumModal") &&
       capture.includes('accessibilityLabel={t("feedback.accessibilityLabel")}') &&
       capture.includes('accessibilityHint={t("feedback.retryHint")}') &&
@@ -980,17 +980,17 @@ results.push(
       theme.includes('accessibilityHint={t("actions.useThemeHint")}') &&
       permissions.includes('accessibilityHint={t("manual.accessibilityHint")}') &&
       settings.includes("accessibilityHint={accessibilityHint}") &&
-      settings.includes("Opens profile settings.") &&
-      settings.includes("Opens privacy settings.") &&
-      settings.includes("Opens account settings.") &&
-      settings.includes("Opens data management.") &&
+      settings.includes('accessibilityHint={t("nav.profileHint")}') &&
+      settings.includes('accessibilityHint={t("nav.privacyHint")}') &&
+      settings.includes('accessibilityHint={t("nav.accountHint")}') &&
+      settings.includes('accessibilityHint={t("nav.dataHint")}') &&
       settings.includes("Applies dark theme on this device.") &&
       settings.includes("Applies light theme on this device.") &&
       settings.includes("Sets decorative graph crew density to") &&
       settings.includes("Opens a confirmation before deleting every journal entry.") &&
       settings.includes("Opens a confirmation before deleting saved Big Five results.") &&
       settings.includes("Requires typed DELETE confirmation before wiping records, sources, wiki pages, and usage.") &&
-      settings.includes("Signs out and returns to the sign-in screen.") &&
+      settings.includes('accessibilityHint={t("actions.signOutHint")}') &&
       premiumSurfaces.includes("const resolvedAccessibilityLabel = accessibilityLabel ?? label") &&
       premiumSurfaces.includes("accessibilityLabel={resolvedAccessibilityLabel}") &&
       premiumSurfaces.includes("function textInputAccessibilityLabel") &&
@@ -1162,6 +1162,67 @@ results.push(
       note: ok
         ? "settings destructive wiki copy avoids raw wikilink syntax"
         : "settings destructive wiki copy should use user-facing page-link language",
+    };
+  }),
+);
+
+results.push(
+  check("SettingsNavModalI18nCopy", () => {
+    const settings = read("src/app/settings.tsx");
+    const i18n = read("src/lib/i18n/index.ts");
+    const en = read("locales/en/settings.json");
+    const ko = read("locales/ko/settings.json");
+    const codeRequired = [
+      'useTranslation("settings")',
+      't("loading")',
+      't("nav.eyebrow")',
+      't("nav.profile")',
+      't("nav.profileHint")',
+      't("nav.data")',
+      't("nav.dataHint")',
+      't("actions.signOutHint")',
+      't("modals.confirm.label")',
+      't("modals.confirm.title")',
+      't("modals.confirm.deleteHint")',
+      't("modals.feedback.label")',
+      't("modals.feedback.retryHint")',
+    ];
+    const forbiddenInlineCopy = [
+      "Loading settings…",
+      "Settings confirmation dialog",
+      "Settings feedback notice",
+      "Opens profile settings.",
+      "Opens privacy settings.",
+      "Opens data management.",
+      "Signs out and returns to the sign-in screen.",
+      "설정을 불러오는 중이에요…",
+      "설정 삭제 확인",
+      "설정 피드백 안내",
+      "프로필 설정 화면으로 이동합니다.",
+      "개인정보 보호 설정 화면으로 이동합니다.",
+      "데이터 관리 화면으로 이동합니다.",
+      "로그아웃한 뒤 로그인 화면으로 돌아갑니다.",
+    ];
+    const ok =
+      codeRequired.every((snippet) => settings.includes(snippet)) &&
+      i18n.includes("enSettings") &&
+      i18n.includes("koSettings") &&
+      i18n.includes('"settings"') &&
+      i18n.includes("settings: enSettings") &&
+      i18n.includes("settings: koSettings") &&
+      en.includes('"nav"') &&
+      en.includes('"Settings confirmation dialog"') &&
+      en.includes('"Signs out and returns to the sign-in screen."') &&
+      ko.includes('"nav"') &&
+      ko.includes('"설정 삭제 확인"') &&
+      ko.includes('"로그아웃한 뒤 로그인 화면으로 돌아갑니다."') &&
+      forbiddenInlineCopy.every((term) => !settings.includes(term));
+    return {
+      id: "SettingsNavModalI18nCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "settings loading, nav hints, sign-out hint, and modal a11y copy live in the settings locale bundle"
+        : "settings nav/modal helper copy should source visible and accessibility strings from locale keys",
     };
   }),
 );
