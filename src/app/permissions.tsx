@@ -33,15 +33,6 @@ const ENTRIES: PermissionEntry[] = [
     },
   },
   {
-    name: { en: "Device notifications", ko: "기기 알림" },
-    status: "not_used",
-    platform: "none",
-    why: {
-      en: "Not requested in this build. Daily reminders stay off until a real notification feature is added and reviewed.",
-      ko: "현재 빌드에서는 요청하지 않습니다. 실제 알림 기능이 추가되고 검토되기 전까지 매일 리마인더는 꺼져 있습니다.",
-    },
-  },
-  {
     name: { en: "Clipboard", ko: "클립보드" },
     status: "optional",
     platform: "web",
