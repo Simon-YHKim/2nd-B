@@ -1,12 +1,12 @@
 import { Image } from "expo-image";
-import { useMemo, useState } from "react";
-import { View, StyleSheet, Alert, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { View, StyleSheet, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { InlineLoader } from "@/components/ui/InlineLoader";
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -37,6 +37,7 @@ import { recordConsentBestEffort } from "@/lib/supabase/consent";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 
 const ADULT_AGE = 18;
+type SignUpToast = { message: string; tone: "info" | "success" | "danger" };
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
@@ -48,12 +49,19 @@ export default function SignUp() {
   const [birthDate, setBirthDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
+  const [toast, setToast] = useState<SignUpToast | null>(null);
   // A provider whose OAuth start failed with a "not configured" error is hidden
   // for the rest of the session so the user is not left tapping a dead button.
   const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
   const [consent, setConsent] = useState(emptyConsentSelections());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(timeout);
+  }, [toast]);
 
   const judge = useMemo(() => isJudgeEmail(email), [email]);
   // A valid DOB in the 14-17 band drives the high-privacy notice variant and
@@ -100,18 +108,21 @@ export default function SignUp() {
           selections: consent,
         }),
       );
-      if (result.judgeMode) Alert.alert(t("judge.welcome"));
+      if (result.judgeMode) {
+        setToast({ tone: "success", message: t("judge.welcome") });
+      }
       // Post-signup hand-off → graph view (main). (/journal retired → /capture redirect.)
       router.replace("/");
     } catch (e) {
-      if (e instanceof AgeGateError) Alert.alert(t("errors.ageGate"));
-      else if (e instanceof BreachedPasswordError) Alert.alert(t("errors.breachedPassword"));
+      if (e instanceof AgeGateError) setToast({ tone: "danger", message: t("errors.ageGate") });
+      else if (e instanceof BreachedPasswordError)
+        setToast({ tone: "danger", message: t("errors.breachedPassword") });
       else {
         const msg =
           locale === "ko"
             ? "가입에 실패했어요. 잠시 후 다시 시도해 주세요."
             : "Sign-up failed. Please try again in a moment.";
-        Alert.alert(msg);
+        setToast({ tone: "danger", message: msg });
         if (typeof console !== "undefined")
           console.warn("[auth] signUp error", (e as Error).message);
       }
@@ -139,11 +150,13 @@ export default function SignUp() {
       if (/not enabled|unsupported provider|validation_failed/i.test(msg)) {
         setHiddenProviders((prev) => new Set(prev).add(provider));
       }
-      Alert.alert(
-        locale === "ko"
-          ? `${name} 가입을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.`
-          : `Could not start ${name} sign-up. Please try again in a moment.`,
-      );
+      setToast({
+        tone: "danger",
+        message:
+          locale === "ko"
+            ? `${name} 가입을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.`
+            : `Could not start ${name} sign-up. Please try again in a moment.`,
+      });
       if (typeof console !== "undefined") console.warn(`[auth] ${provider} oauth error`, msg);
     } finally {
       setOauthSubmitting(false);
@@ -155,11 +168,13 @@ export default function SignUp() {
     try {
       signInWithNaver();
     } catch (e) {
-      Alert.alert(
-        locale === "ko"
-          ? "Naver 가입을 시작하지 못했어요. 잠시 후 다시 시도해 주세요."
-          : "Could not start Naver sign-up. Please try again in a moment.",
-      );
+      setToast({
+        tone: "danger",
+        message:
+          locale === "ko"
+            ? "Naver 가입을 시작하지 못했어요. 잠시 후 다시 시도해 주세요."
+            : "Could not start Naver sign-up. Please try again in a moment.",
+      });
       if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
     }
   }
@@ -370,6 +385,11 @@ export default function SignUp() {
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
+      ) : null}
     </PremiumAppShell>
   );
 }
@@ -442,4 +462,11 @@ const styles = StyleSheet.create({
   providerDivider: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.xs },
   providerDividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: semantic.border },
   providerOr: { textTransform: "uppercase" },
+  toastWrap: {
+    position: "absolute",
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.xl,
+    alignItems: "stretch",
+  },
 });
