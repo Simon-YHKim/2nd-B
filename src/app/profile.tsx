@@ -21,6 +21,8 @@ interface HubLink {
   route: Href;
   ko: string;
   en: string;
+  hintKo?: string;
+  hintEn?: string;
 }
 interface HubSection {
   key: string;
@@ -38,7 +40,16 @@ const HUB: HubSection[] = [
     ko: "나의 중심",
     en: "Center of me",
     accent: semantic.brand,
-    items: [{ route: "/core-brain", ko: "나의 중심 열기", en: "Open center of me" }],
+    items: [
+      { route: "/core-brain", ko: "나의 중심 열기", en: "Open center of me" },
+      {
+        route: "/esm",
+        ko: "지금 체크인",
+        en: "Check in now",
+        hintKo: "가벼운 체크인 화면을 엽니다",
+        hintEn: "Opens a lightweight check-in",
+      },
+    ],
   },
   {
     key: "know",
@@ -170,6 +181,9 @@ export default function Profile() {
                   style={styles.chip}
                   accessibilityRole="button"
                   accessibilityLabel={locale === "ko" ? item.ko : item.en}
+                  accessibilityHint={
+                    locale === "ko" ? item.hintKo ?? "이 화면을 엽니다" : item.hintEn ?? "Opens this screen"
+                  }
                 >
                   <Text variant="subtle" color="textMuted">{locale === "ko" ? item.ko : item.en}</Text>
                 </Pressable>
