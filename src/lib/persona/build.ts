@@ -24,6 +24,27 @@ export interface PersonaTraits {
 
 export type TraitsSource = "bfi" | "heuristic";
 
+// Per-trait provenance + confidence (SOKA: accuracy comes from knowing WHICH
+// source a trait estimate rests on and HOW MANY observations back it). v1 uses
+// one source globally, but the structure is per-trait so future layers (ESM,
+// behavioral traces) can diverge confidence by trait. Powers anti-Barnum,
+// evidence-framed copy ("from N entries · medium confidence").
+export interface TraitConfidence {
+  source: "questionnaire" | "journal_text" | "default";
+  confidence: "low" | "medium" | "high";
+  observationCount: number;
+}
+
+/** Map a source + observation count to a confidence estimate. Validated
+ *  questionnaire (BFI) is high; heuristic journal_text scales with how many
+ *  entries back it (≈5-10 independent observations ≈ reliable). */
+export function traitConfidenceFor(source: TraitsSource, observationCount: number): TraitConfidence {
+  if (source === "bfi") return { source: "questionnaire", confidence: "high", observationCount: 1 };
+  if (observationCount <= 0) return { source: "default", confidence: "low", observationCount: 0 };
+  const confidence = observationCount >= 15 ? "high" : observationCount >= 5 ? "medium" : "low";
+  return { source: "journal_text", confidence, observationCount };
+}
+
 export interface PersonaMbti {
   type: string;
   scores: Record<"E" | "I" | "S" | "N" | "T" | "F" | "J" | "P", number>;
@@ -40,6 +61,9 @@ export interface PersonaCard {
   traits: PersonaTraits;
   /** Where `traits` came from — direct TIPI measurement or keyword heuristic. */
   traitsSource: TraitsSource;
+  /** Per-trait provenance + confidence (SOKA). v1: uniform across traits.
+   *  Optional so existing PersonaCard fixtures stay valid; buildPersona always sets it. */
+  traitConfidence?: Record<keyof PersonaTraits, TraitConfidence>;
   /** Latest MBTI 16-type result if the user has taken the screener. */
   mbti: PersonaMbti | null;
   /** Latest ECR-S attachment result if available. */
@@ -283,15 +307,24 @@ export async function buildPersona(
     patterns[`top_${kind}`] = `${count}`;
   }
 
+  // Per-trait confidence (SOKA). v1 uses one source globally, so all traits
+  // share it; observationCount = BFI run (1) or the journal rows behind the
+  // heuristic. Surfaced in markdown + available to UI for evidence framing.
+  const tc = traitConfidenceFor(traitsSource, traitsSource === "bfi" ? 1 : proxyRows.length);
+  const traitConfidence: Record<keyof PersonaTraits, TraitConfidence> = {
+    openness: tc, conscientiousness: tc, extraversion: tc, agreeableness: tc, neuroticism: tc,
+  };
+
   const persona: PersonaCard = {
     version: 1,
     traits,
     traitsSource,
+    traitConfidence,
     mbti,
     attachment,
     values: deriveValues(rows),
     patterns,
-    markdownExport: renderMarkdown(traits, rows, summaryRes.text, locale, topKinds, mbti, attachment),
+    markdownExport: renderMarkdown(traits, rows, summaryRes.text, locale, topKinds, mbti, attachment, tc),
   };
 
   // Persist for later reuse (RAG export, etc).
@@ -337,6 +370,7 @@ function renderMarkdown(
   topKinds: [string, number][] = [],
   mbti: PersonaMbti | null = null,
   attachment: PersonaAttachment | null = null,
+  tc: TraitConfidence | null = null,
 ): string {
   const title = locale === "ko" ? "# 두번째 뇌 — 페르소나 v1" : "# 2nd-Brain — Persona v1";
   const intro =
@@ -346,6 +380,19 @@ function renderMarkdown(
   const traitLines = Object.entries(traits)
     .map(([k, v]) => `- **${k}**: ${(v * 100).toFixed(0)} / 100`)
     .join("\n");
+  const confWord = (c: TraitConfidence["confidence"]) =>
+    locale === "ko" ? (c === "high" ? "높음" : c === "medium" ? "보통" : "낮음") : c;
+  const srcWord = (s: TraitConfidence["source"]) =>
+    s === "questionnaire"
+      ? locale === "ko" ? "검사 응답" : "questionnaire"
+      : s === "journal_text"
+        ? locale === "ko" ? "기록 분석" : "journal entries"
+        : locale === "ko" ? "기본값" : "default";
+  const confidenceNote = tc
+    ? locale === "ko"
+      ? `\n\n_추정 근거: ${srcWord(tc.source)} · 신뢰도 ${confWord(tc.confidence)} (관찰 ${tc.observationCount}건). 판단이 아니라 기록에서 보이는 패턴입니다._`
+      : `\n\n_Basis: ${srcWord(tc.source)} · ${confWord(tc.confidence)} confidence (${tc.observationCount} observations). Patterns seen in your records, not a verdict._`
+    : "";
   const entries = rows
     .slice(0, 5)
     .map((r) => `> ${r.body.slice(0, 200)}${r.body.length > 200 ? "…" : ""}`)
@@ -363,5 +410,5 @@ function renderMarkdown(
       `- ${locale === "ko" ? "불안" : "Anxiety"}: ${attachment.anxiety.toFixed(1)} / 7\n` +
       `- ${locale === "ko" ? "회피" : "Avoidance"}: ${attachment.avoidance.toFixed(1)} / 7`
     : "";
-  return `${title}\n\n${intro}\n\n## Traits (Big Five proxy)\n${traitLines}${mbtiSection}${attachmentSection}${patternsSection}\n\n## Narrative\n${summary}\n\n## Source entries\n${entries}\n`;
+  return `${title}\n\n${intro}\n\n## Traits (Big Five proxy)\n${traitLines}${confidenceNote}${mbtiSection}${attachmentSection}${patternsSection}\n\n## Narrative\n${summary}\n\n## Source entries\n${entries}\n`;
 }

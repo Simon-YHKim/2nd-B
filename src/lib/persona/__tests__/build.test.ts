@@ -48,12 +48,24 @@ jest.mock("../../llm/gemini", () => ({
   ),
 }));
 
-import { buildPersona } from "../build";
+import { buildPersona, traitConfidenceFor } from "../build";
 
 function reset() {
   for (const k of Object.keys(tableFixtures)) delete tableFixtures[k];
   upsertCalls.length = 0;
 }
+
+describe("traitConfidenceFor (SOKA per-trait confidence)", () => {
+  test("bfi → questionnaire / high", () => {
+    expect(traitConfidenceFor("bfi", 1)).toEqual({ source: "questionnaire", confidence: "high", observationCount: 1 });
+  });
+  test("heuristic scales confidence with observation count", () => {
+    expect(traitConfidenceFor("heuristic", 0)).toMatchObject({ source: "default", confidence: "low", observationCount: 0 });
+    expect(traitConfidenceFor("heuristic", 3)).toMatchObject({ source: "journal_text", confidence: "low" });
+    expect(traitConfidenceFor("heuristic", 8)).toMatchObject({ source: "journal_text", confidence: "medium" });
+    expect(traitConfidenceFor("heuristic", 20)).toMatchObject({ source: "journal_text", confidence: "high", observationCount: 20 });
+  });
+});
 
 describe("buildPersona", () => {
   beforeEach(reset);
