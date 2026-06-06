@@ -847,8 +847,8 @@ results.push(
       data.includes('accessibilityHint={t("delete.accessibilityHint")}') &&
       support.includes('accessibilityLabel={t("contact.accessibilityLabel")}') &&
       support.includes('accessibilityHint={t("contact.accessibilityHint")}') &&
-      theme.includes("accessibilityLabel={locale === \"ko\" ? `${o.label} 테마 적용` : `Use ${o.label} theme`}") &&
-      theme.includes("Applies the selected theme on this device.") &&
+      theme.includes('accessibilityLabel={t("actions.useThemeLabel", { label })}') &&
+      theme.includes('accessibilityHint={t("actions.useThemeHint")}') &&
       permissions.includes("Opens the manual from the permissions screen.") &&
       settings.includes("accessibilityHint={accessibilityHint}") &&
       settings.includes("Opens profile settings.") &&
@@ -1143,6 +1143,47 @@ results.push(
       note: ok
         ? "data management copy lives in locale bundles without inline ko/en data-control branches"
         : "data management import/export/delete copy should source from data locale bundles",
+    };
+  }),
+);
+
+results.push(
+  check("ThemeI18nCopy", () => {
+    const theme = read("src/app/theme.tsx");
+    const i18n = read("src/lib/i18n/index.ts");
+    const en = read("locales/en/theme.json");
+    const ko = read("locales/ko/theme.json");
+    const forbiddenScreenCopy = [
+      'locale === "ko"',
+      "Choose the village light",
+      "The graph village stays dark",
+      "밤빛 조각마을",
+    ];
+    const forbiddenBundleCopy = [
+      "Choose the village light",
+      "The graph village stays dark",
+      "밤빛 조각마을",
+    ];
+    const ok =
+      theme.includes('useTranslation("theme")') &&
+      theme.includes('t("hero.title")') &&
+      theme.includes('t("actions.useThemeLabel", { label })') &&
+      theme.includes('t("note")') &&
+      i18n.includes("enTheme") &&
+      i18n.includes("koTheme") &&
+      i18n.includes('"theme"') &&
+      i18n.includes("theme: enTheme") &&
+      i18n.includes("theme: koTheme") &&
+      en.includes("Choose your display tone") &&
+      ko.includes("화면 톤을 고르세요") &&
+      forbiddenScreenCopy.every((term) => !theme.includes(term)) &&
+      forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
+    return {
+      id: "ThemeI18nCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "theme screen copy lives in locale bundles and avoids old village-light metaphor copy"
+        : "theme screen should source display-tone copy from locale bundles and avoid old village-light metaphor copy",
     };
   }),
 );

@@ -11,6 +11,7 @@ import enJarvis from "../../../locales/en/jarvis.json";
 import enMascot from "../../../locales/en/mascot.json";
 import enSafety from "../../../locales/en/safety.json";
 import enSupport from "../../../locales/en/support.json";
+import enTheme from "../../../locales/en/theme.json";
 import enWiki from "../../../locales/en/wiki.json";
 import koAuth from "../../../locales/ko/auth.json";
 import koCapture from "../../../locales/ko/capture.json";
@@ -22,15 +23,16 @@ import koJarvis from "../../../locales/ko/jarvis.json";
 import koMascot from "../../../locales/ko/mascot.json";
 import koSafety from "../../../locales/ko/safety.json";
 import koSupport from "../../../locales/ko/support.json";
+import koTheme from "../../../locales/ko/theme.json";
 import koWiki from "../../../locales/ko/wiki.json";
 import { detectLanguage, saveLanguagePreference } from "./languageDetector";
 
-export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "jarvis", "wiki", "mascot", "support", "data"] as const;
+export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "jarvis", "wiki", "mascot", "support", "data", "theme"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
 export const resources = {
-  en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, jarvis: enJarvis, wiki: enWiki, mascot: enMascot, support: enSupport, data: enData },
-  ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, jarvis: koJarvis, wiki: koWiki, mascot: koMascot, support: koSupport, data: koData },
+  en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, jarvis: enJarvis, wiki: enWiki, mascot: enMascot, support: enSupport, data: enData, theme: enTheme },
+  ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, jarvis: koJarvis, wiki: koWiki, mascot: koMascot, support: koSupport, data: koData, theme: koTheme },
 } as const;
 
 let initialized = false;

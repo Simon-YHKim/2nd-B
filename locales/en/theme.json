@@ -1,0 +1,26 @@
+{
+  "loading": "Loading theme...",
+  "hero": {
+    "eyebrow": "08-4. Theme",
+    "title": "Choose your display tone",
+    "subtitle": "Dark default · bright secondary tone",
+    "speech": "The main graph always keeps the dark sky so stars and links stay crisp."
+  },
+  "options": {
+    "dark": {
+      "label": "Dark",
+      "sub": "The default night tone"
+    },
+    "light": {
+      "label": "Light",
+      "sub": "A bright paper tone"
+    }
+  },
+  "actions": {
+    "inUse": "In use",
+    "use": "Use",
+    "useThemeLabel": "Use {{label}} theme",
+    "useThemeHint": "Applies the selected theme on this device."
+  },
+  "note": "The main graph stays dark even in light mode. It is the background where stars and connections read best."
+}

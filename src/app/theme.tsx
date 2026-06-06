@@ -1,4 +1,4 @@
-// Theme (A-to-Z Phase 12) — user-facing "테마". Dark / Light wired through
+// Theme (A-to-Z Phase 12) - user-facing "테마". Dark / Light wired through
 // the ThemeContext. The main graph
 // stays dark even in light mode (non-negotiable constraint #4), surfaced as
 // a clear note.
@@ -16,60 +16,57 @@ import { useTheme } from "@/lib/theme/ThemeContext";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 export default function ThemeScreen() {
-  const { i18n } = useTranslation();
+  const { t } = useTranslation("theme");
   const { userId, loading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const { mode, setMode } = useTheme();
 
   if (loading) {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "테마를 불러오는 중이에요…" : "Loading theme…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </PremiumAppShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  const options: { id: "dark" | "light"; label: string; sub: string }[] = [
-    { id: "dark", label: locale === "ko" ? "다크" : "Dark", sub: locale === "ko" ? "밤빛 기본 톤" : "The default night tone" },
-    { id: "light", label: locale === "ko" ? "라이트" : "Light", sub: locale === "ko" ? "밝은 종이 톤" : "A bright paper tone" },
-  ];
+  const options: { id: "dark" | "light" }[] = [{ id: "dark" }, { id: "light" }];
 
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
-          eyebrow={locale === "ko" ? "08-4. 테마" : "08-4. Theme"}
-          title={locale === "ko" ? "마을의 빛을 고르세요" : "Choose the village light"}
-          subtitle={locale === "ko" ? "밤빛 기본 · 밝은 보조 톤" : "Night default · bright secondary tone"}
+          eyebrow={t("hero.eyebrow")}
+          title={t("hero.title")}
+          subtitle={t("hero.subtitle")}
           island={VILLAGE_UI.taste.island}
           worker={VILLAGE_UI.taste.worker}
           accent={VILLAGE_UI.taste.accent}
-          speech={locale === "ko" ? "메인 그래프는 언제나 밤빛이에요. 별과 연결이 가장 또렷하거든요." : "The main graph always keeps the night sky so stars and links stay crisp."}
+          speech={t("hero.speech")}
         />
 
         <View style={styles.list}>
           {options.map((o) => {
             const active = o.id === mode;
+            const label = t(`options.${o.id}.label`);
             return (
               <View key={o.id} style={[styles.row, active ? { borderColor: semantic.brand } : null]}>
                 <View style={{ flex: 1 }}>
-                  <Text variant="body">{o.label}</Text>
-                  <Text variant="subtle" color="textSubtle">{o.sub}</Text>
+                  <Text variant="body">{label}</Text>
+                  <Text variant="subtle" color="textSubtle">{t(`options.${o.id}.sub`)}</Text>
                 </View>
                 {active ? (
                   <View style={styles.statusPill}>
-                    <Text variant="caption" color="brand">{locale === "ko" ? "사용 중" : "In use"}</Text>
+                    <Text variant="caption" color="brand">{t("actions.inUse")}</Text>
                   </View>
                 ) : (
                   <Button
-                    label={locale === "ko" ? "적용" : "Use"}
+                    label={t("actions.use")}
                     variant="secondary"
                     onPress={() => setMode(o.id)}
-                    accessibilityLabel={locale === "ko" ? `${o.label} 테마 적용` : `Use ${o.label} theme`}
-                    accessibilityHint={locale === "ko" ? "선택한 테마를 이 기기에 적용합니다." : "Applies the selected theme on this device."}
+                    accessibilityLabel={t("actions.useThemeLabel", { label })}
+                    accessibilityHint={t("actions.useThemeHint")}
                   />
                 )}
               </View>
@@ -79,9 +76,7 @@ export default function ThemeScreen() {
 
         <View style={[styles.note, { borderLeftColor: cosmic.soulViolet }]}>
           <Text variant="subtle" color="textMuted">
-            {locale === "ko"
-              ? "밤빛 조각마을(메인 그래프)은 라이트 모드에서도 어두운 톤을 유지해요. 별과 연결이 가장 잘 보이는 배경이거든요."
-              : "The graph village stays dark even in light mode. It's the background where the stars and connections read best."}
+            {t("note")}
           </Text>
         </View>
       </ScrollView>
