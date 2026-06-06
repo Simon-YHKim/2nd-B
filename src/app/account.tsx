@@ -33,7 +33,7 @@ const CONFIRM_PHRASE = "DELETE";
 
 export default function Account() {
   const { t, i18n } = useTranslation("consent");
-  const { userId, loading } = useAuth();
+  const { userId, loading, refresh } = useAuth();
   const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
   // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
   // the light caption tracking.
@@ -75,6 +75,10 @@ export default function Account() {
     setDobSaved(false);
     try {
       await updateBirthDate(userId, birthDate);
+      // Re-probe auth so isMinor/hasProfile reflect the corrected birth_date
+      // immediately (minor locks + crisis routing depend on it) instead of
+      // staying stale until the next auth event.
+      void refresh();
       if (mounted.current) {
         setOrigDob(birthDate);
         setDobSaved(true);
@@ -94,7 +98,7 @@ export default function Account() {
     } finally {
       if (mounted.current) setDobBusy(false);
     }
-  }, [userId, origDob, birthDate, t, locale]);
+  }, [userId, origDob, birthDate, t, locale, refresh]);
 
   const runDeleteAccount = useCallback(() => {
     if (!userId) return;

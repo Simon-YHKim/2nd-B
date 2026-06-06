@@ -4,7 +4,7 @@
 // row exists; the app routes such users to /complete-profile rather than
 // /journal until they finish the birth-date (C10) prompt.
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getSupabaseClient } from "../supabase/client";
 import { ageInYears } from "../supabase/auth";
 
@@ -24,11 +24,19 @@ interface AuthState {
   loading: boolean;
 }
 
-const AuthContext = createContext<AuthState>({
+interface AuthContextValue extends AuthState {
+  /** Re-probe the current session's profile. Call after changing data that
+   *  feeds hasProfile/isMinor (e.g. a date-of-birth correction) so the cached
+   *  values update without waiting for the next auth event or an app restart. */
+  refresh: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextValue>({
   userId: null,
   hasProfile: null,
   isMinor: null,
   loading: true,
+  refresh: async () => {},
 });
 
 interface ProfileProbe {
@@ -161,10 +169,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const value = useMemo(() => state, [state]);
+  // Manual re-probe for the current session. Additive — the auth-event effect
+  // above is untouched; this just refreshes the cached profile on demand (DOB
+  // correction, etc.). Independent of the effect's in-place probe cache, so the
+  // value reflects the latest birth_date immediately.
+  const refresh = useCallback(async () => {
+    const supabase = getSupabaseClient();
+    let uid: string | null = null;
+    try {
+      const { data } = await supabase.auth.getSession();
+      uid = data.session?.user.id ?? null;
+    } catch {
+      uid = null;
+    }
+    if (!uid) {
+      setState({ userId: null, hasProfile: null, isMinor: null, loading: false });
+      return;
+    }
+    const probe = await withTimeout(fetchProfile(uid), PROFILE_PROBE_TIMEOUT_MS, {
+      hasProfile: false,
+      isMinor: null,
+    });
+    setState({ userId: uid, hasProfile: probe.hasProfile, isMinor: probe.isMinor, loading: false });
+  }, []);
+
+  const value = useMemo<AuthContextValue>(() => ({ ...state, refresh }), [state, refresh]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth(): AuthState {
+export function useAuth(): AuthContextValue {
   return useContext(AuthContext);
 }
