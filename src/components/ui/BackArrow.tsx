@@ -117,7 +117,7 @@ export function BackArrow() {
       </Pressable>
       {routeTitle ? (
         <View style={styles.labelPill} pointerEvents="none">
-          <Text variant="caption" color="text" numberOfLines={1} style={styles.labelText}>
+          <Text variant="caption" color="text" numberOfLines={2} style={styles.labelText}>
             {routeTitle}
           </Text>
         </View>
@@ -172,13 +172,15 @@ const styles = StyleSheet.create({
   },
   labelPill: {
     maxWidth: 220,
-    minHeight: 36,
+    minHeight: 44,
     justifyContent: "center",
+    alignItems: "center",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(114,242,199,0.28)",
     backgroundColor: "rgba(8,12,24,0.74)",
     paddingHorizontal: 12,
+    paddingVertical: 6,
     shadowColor: cosmic.signalMint,
     shadowOpacity: 0.18,
     shadowRadius: 8,
@@ -186,5 +188,6 @@ const styles = StyleSheet.create({
   },
   labelText: {
     letterSpacing: 0,
+    textAlign: "center",
   },
 });

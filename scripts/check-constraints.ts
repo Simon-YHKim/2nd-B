@@ -1084,6 +1084,29 @@ results.push(
   }),
 );
 
+results.push(
+  check("DynamicTypeHeader", () => {
+    const surfaces = read("src/components/premium/surfaces.tsx");
+    const backArrow = read("src/components/ui/BackArrow.tsx");
+    const ok =
+      surfaces.includes('style={styles.topBarTitle} numberOfLines={2}') &&
+      surfaces.includes('color="textSubtle" numberOfLines={2} style={styles.topBarSub}') &&
+      surfaces.includes('topBarCenter: { flex: 1, minWidth: 0, alignItems: "center" }') &&
+      backArrow.includes('color="text" numberOfLines={2} style={styles.labelText}') &&
+      backArrow.includes('labelPill: {') &&
+      backArrow.includes("minHeight: 44") &&
+      backArrow.includes("paddingVertical: 6") &&
+      backArrow.includes('textAlign: "center"');
+    return {
+      id: "DynamicTypeHeader",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "shared top bars and back labels allow two-line dynamic-type wrapping"
+        : "shared top bars and back labels should avoid one-line clipping under large text",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";

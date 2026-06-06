@@ -45,11 +45,11 @@ export function PremiumTopBar({
     <View style={styles.topBar}>
       <View style={styles.topBarSide}>{brand ? <BrandChip /> : null}</View>
       <View style={styles.topBarCenter}>
-        <Text variant="heading" style={styles.topBarTitle} numberOfLines={1}>
+        <Text variant="heading" style={styles.topBarTitle} numberOfLines={2}>
           {title}
         </Text>
         {subtitle ? (
-          <Text variant="subtle" color="textSubtle" numberOfLines={1} style={styles.topBarSub}>
+          <Text variant="subtle" color="textSubtle" numberOfLines={2} style={styles.topBarSub}>
             {subtitle}
           </Text>
         ) : null}
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   },
   topBarSide: { width: 64, justifyContent: "center" },
   topBarRight: { alignItems: "flex-end" },
-  topBarCenter: { flex: 1, alignItems: "center" },
+  topBarCenter: { flex: 1, minWidth: 0, alignItems: "center" },
   topBarTitle: { textAlign: "center" },
   topBarSub: { textAlign: "center", marginTop: 2 },
   panel: {
