@@ -380,6 +380,8 @@ results.push(
       wiki.includes("Hides graph detail metrics.") &&
       wiki.includes("accessibilityState={{ expanded: statsVisible }}") &&
       records.includes("Filter records by ${label}") &&
+      records.includes("Retries loading records and sources.") &&
+      records.includes("Opens capture to save today's piece.") &&
       trinity.includes('accessibilityRole="link"') &&
       trinity.includes("Add domain tags in capture") &&
       signInRoles >= 7 &&

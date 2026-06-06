@@ -254,7 +254,14 @@ export default function Records() {
       <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
         {locale === "ko" ? "조각을 불러오지 못했어요." : "Couldn't load your pieces."}
       </Text>
-      <Button label={locale === "ko" ? "다시 시도" : "Try again"} variant="secondary" onPress={reload} />
+      <Button
+        label={locale === "ko" ? "다시 시도" : "Try again"}
+        variant="secondary"
+        onPress={reload}
+        accessibilityHint={
+          locale === "ko" ? "기록과 소스 목록을 다시 불러옵니다." : "Retries loading records and sources."
+        }
+      />
     </View>
   ) : (
     <View style={styles.stateBox}>
@@ -268,7 +275,14 @@ export default function Records() {
             : "No pieces match that filter."}
       </Text>
       {shards.length === 0 ? (
-        <Button label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"} variant="primary" onPress={() => router.push("/capture")} />
+        <Button
+          label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
+          variant="primary"
+          onPress={() => router.push("/capture")}
+          accessibilityHint={
+            locale === "ko" ? "캡처 화면을 열어 오늘의 조각을 저장합니다." : "Opens capture to save today's piece."
+          }
+        />
       ) : null}
     </View>
   );
