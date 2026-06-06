@@ -128,7 +128,39 @@
   "linkClip": {
     "label": "링크 또는 저장한 글",
     "placeholder": "https://... 또는 글 내용을 붙여 넣으세요",
-    "savedAsClip": "글 내용으로 저장돼요"
+    "savedAsClip": "글 내용으로 저장돼요",
+    "detected": "링크 자동 인식: {{kind}}"
+  },
+  "inputs": {
+    "extractedLabel": "추출된 텍스트 (수정 가능)",
+    "bodyLabel": "본문",
+    "imagePlaceholder": "이미지를 고르면 여기에 추출된 글이 나와요.",
+    "memoPlaceholder": "자유롭게 적거나 붙여 넣으세요..."
+  },
+  "image": {
+    "camera": "카메라",
+    "library": "갤러리",
+    "preview": "미리보기",
+    "extract": "추출하기"
+  },
+  "file": {
+    "pick": "파일 선택",
+    "selected": "선택된 파일",
+    "textExtracted": "텍스트 추출됨: 본문에 채워졌어요",
+    "attachedNoPreview": "파일이 첨부됐어요. 본문 미리보기는 지원하지 않아요."
+  },
+  "tags": {
+    "title": "해시태그",
+    "removeLabel": "{{tag}} 해시태그 제거",
+    "emptyHelper": "비워 두면 저장할 때 SecondB가 자동으로 달아줘요. +로 직접 추가할 수도 있어요.",
+    "removeHelper": "태그를 누르면 삭제됩니다.",
+    "addLabel": "해시태그 추가",
+    "placeholder": "태그"
+  },
+  "feedback": {
+    "accessibilityLabel": "담기 피드백 안내",
+    "dismissHint": "안내를 닫습니다.",
+    "retryHint": "방금 실패한 담기 작업을 다시 시도합니다."
   },
   "alerts": {
     "common": {

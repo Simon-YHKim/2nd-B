@@ -188,6 +188,28 @@ results.push(
       "linkClip.label",
       "linkClip.placeholder",
       "linkClip.savedAsClip",
+      "linkClip.detected",
+      "inputs.extractedLabel",
+      "inputs.bodyLabel",
+      "inputs.imagePlaceholder",
+      "inputs.memoPlaceholder",
+      "image.camera",
+      "image.library",
+      "image.preview",
+      "image.extract",
+      "file.pick",
+      "file.selected",
+      "file.textExtracted",
+      "file.attachedNoPreview",
+      "tags.title",
+      "tags.removeLabel",
+      "tags.emptyHelper",
+      "tags.removeHelper",
+      "tags.addLabel",
+      "tags.placeholder",
+      "feedback.accessibilityLabel",
+      "feedback.dismissHint",
+      "feedback.retryHint",
       "formatSaved.personal",
       "formatSaved.shared",
       "saved.title",
@@ -275,6 +297,28 @@ results.push(
       't("linkClip.label")',
       't("linkClip.placeholder")',
       't("linkClip.savedAsClip")',
+      't("linkClip.detected", { kind: detectedKind })',
+      't("inputs.extractedLabel")',
+      't("inputs.bodyLabel")',
+      't("inputs.imagePlaceholder")',
+      't("inputs.memoPlaceholder")',
+      't("image.camera")',
+      't("image.library")',
+      't("image.preview")',
+      't("image.extract")',
+      't("file.pick")',
+      't("file.selected")',
+      't("file.textExtracted")',
+      't("file.attachedNoPreview")',
+      't("tags.title")',
+      't("tags.removeLabel", { tag })',
+      't("tags.emptyHelper")',
+      't("tags.removeHelper")',
+      't("tags.addLabel")',
+      't("tags.placeholder")',
+      't("feedback.accessibilityLabel")',
+      't("feedback.dismissHint")',
+      't("feedback.retryHint")',
       't("formatSaved.shared")',
       't("formatSaved.personal")',
       't("saved.title")',
@@ -343,6 +387,16 @@ results.push(
       "Want the AI to propose a new one?",
       "Ask Advisor on this entry",
       "Start the past me",
+      "Link detected:",
+      "Extracted text (editable)",
+      "Pick an image to place extracted text here.",
+      "Extract text",
+      "Selected file",
+      "Text preview is not available.",
+      "Hashtags",
+      "Add hashtag",
+      "Capture feedback notice",
+      "Retries the failed capture action.",
       "Which wiki?",
       "Wiki selection",
       "Capture mode",
@@ -638,8 +692,8 @@ results.push(
       settings.includes("Settings confirmation dialog") &&
       settings.includes("Settings feedback notice") &&
       capture.includes("PremiumModal") &&
-      capture.includes("Capture feedback notice") &&
-      capture.includes("Retries the failed capture action.") &&
+      capture.includes('accessibilityLabel={t("feedback.accessibilityLabel")}') &&
+      capture.includes('accessibilityHint={t("feedback.retryHint")}') &&
       inbox.includes("PremiumModal") &&
       inbox.includes("PremiumToast") &&
       inbox.includes("Inbox feedback notice") &&
@@ -771,7 +825,8 @@ results.push(
       capture.includes('accessibilityRole="checkbox"') &&
       capture.includes("accessibilityState={{ checked: askAdvisor }}") &&
       capture.includes('accessibilityLabel={t("journal.advisor.label")}') &&
-      capture.includes("Remove hashtag") &&
+      capture.includes('accessibilityLabel={t("tags.removeLabel", { tag })}') &&
+      capture.includes('accessibilityLabel={t("feedback.accessibilityLabel")}') &&
       manual.includes("Manual language: switch to English") &&
       manual.includes("Manual language: switch to Korean") &&
       manual.includes("Opens capture to save today's piece.") &&
@@ -1114,6 +1169,8 @@ results.push(
   check("CaptureStorageLanguage", () => {
     const inbox = read("src/app/inbox.tsx");
     const capture = read("src/app/capture.tsx");
+    const enCapture = JSON.parse(read("locales/en/capture.json")) as { file?: { attachedNoPreview?: string } };
+    const koCapture = JSON.parse(read("locales/ko/capture.json")) as { file?: { attachedNoPreview?: string } };
     const forbiddenUserLanguage = [
       "Supabase Storage",
       "auto-cleanup ships in v2",
@@ -1124,8 +1181,9 @@ results.push(
     const ok =
       inbox.includes("attached body file can remain on your account") &&
       inbox.includes("첨부된 본문 파일이 계정에 남을 수 있어요") &&
-      capture.includes("Text preview is not available") &&
-      capture.includes("본문 미리보기는 지원하지 않아요") &&
+      capture.includes('t("file.attachedNoPreview")') &&
+      enCapture.file?.attachedNoPreview === "File attached. Text preview is not available." &&
+      koCapture.file?.attachedNoPreview === "파일이 첨부됐어요. 본문 미리보기는 지원하지 않아요." &&
       forbiddenUserLanguage.every((term) => !inbox.includes(term) && !capture.includes(term));
     return {
       id: "CaptureStorageLanguage",

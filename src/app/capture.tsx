@@ -899,7 +899,7 @@ export default function Capture() {
               />
               {linkClipKind === "url" ? (
                 <Text variant="subtle" color="textSubtle">
-                  {locale === "ko" ? `링크 자동 인식: ${detectedKind}` : `Link detected: ${detectedKind}`}
+                  {t("linkClip.detected", { kind: detectedKind })}
                 </Text>
               ) : linkClipKind === "markdown" ? (
                 <Text variant="subtle" color="textSubtle">
@@ -912,18 +912,12 @@ export default function Capture() {
           {(mode === "memo" || mode === "ocr") ? (
             <View style={styles.fieldGroup}>
               <Text variant="caption" color="textMuted">
-                {mode === "ocr"
-                  ? (locale === "ko" ? "추출된 텍스트 (수정 가능)" : "Extracted text (editable)")
-                  : (locale === "ko" ? "본문" : "Body")}
+                {mode === "ocr" ? t("inputs.extractedLabel") : t("inputs.bodyLabel")}
               </Text>
               <Input
                 value={body}
                 onChangeText={setBody}
-                placeholder={
-                  mode === "ocr"
-                    ? (locale === "ko" ? "이미지를 고르면 여기에 추출된 글이 나와요." : "Pick an image to place extracted text here.")
-                    : (locale === "ko" ? "자유롭게 적거나 붙여 넣으세요…" : "Write or paste freely…")
-                }
+                placeholder={mode === "ocr" ? t("inputs.imagePlaceholder") : t("inputs.memoPlaceholder")}
                 multiline
                 numberOfLines={mode === "memo" ? 6 : 12}
                 textAlignVertical="top"
@@ -935,12 +929,12 @@ export default function Capture() {
           {mode === "ocr" ? (
             <View style={styles.actionRow}>
               <Button
-                label={locale === "ko" ? "카메라" : "Camera"}
+                label={t("image.camera")}
                 variant="secondary"
                 onPress={() => pickImage("camera")}
               />
               <Button
-                label={locale === "ko" ? "갤러리" : "Library"}
+                label={t("image.library")}
                 variant="secondary"
                 onPress={() => pickImage("library")}
               />
@@ -949,10 +943,10 @@ export default function Capture() {
 
           {mode === "ocr" && pickedImage ? (
             <View style={styles.previewCard}>
-              <Text variant="caption" color="brand">{locale === "ko" ? "미리보기" : "Preview"}</Text>
+              <Text variant="caption" color="brand">{t("image.preview")}</Text>
               <Image source={{ uri: pickedImage.uri }} style={styles.imagePreview} contentFit="contain" />
               <Button
-                label={locale === "ko" ? "추출하기" : "Extract text"}
+                label={t("image.extract")}
                 variant="primary"
                 onPress={runExtract}
                 loading={extracting}
@@ -965,7 +959,7 @@ export default function Capture() {
           {mode === "file" ? (
             <View style={styles.actionRow}>
               <Button
-                label={locale === "ko" ? "파일 선택" : "Pick file"}
+                label={t("file.pick")}
                 variant="secondary"
                 onPress={runFilePick}
               />
@@ -974,51 +968,47 @@ export default function Capture() {
 
           {mode === "file" && pickedFile ? (
             <View style={styles.previewCard}>
-              <Text variant="caption" color="brand">{locale === "ko" ? "선택된 파일" : "Selected file"}</Text>
+              <Text variant="caption" color="brand">{t("file.selected")}</Text>
               <Text variant="subtle" color="textMuted">{pickedFile.name}</Text>
               <Text variant="subtle" color="textSubtle">
                 {pickedFile.mimeType} · {(pickedFile.size / 1024).toFixed(1)} KB
               </Text>
               {pickedFile.textContent ? (
                 <Text variant="subtle" color="textMuted" style={{ marginTop: 6 }}>
-                  {locale === "ko" ? "텍스트 추출됨: 본문에 채워졌어요" : "Text extracted: filled into body"}
+                  {t("file.textExtracted")}
                 </Text>
               ) : (
                 <Text variant="subtle" color="textSubtle" style={{ marginTop: 6 }}>
-                  {locale === "ko" ? "파일이 첨부됐어요. 본문 미리보기는 지원하지 않아요." : "File attached. Text preview is not available."}
+                  {t("file.attachedNoPreview")}
                 </Text>
               )}
             </View>
           ) : null}
 
-          {/* Hashtags — always visible (2026-05-31 directive). No separate
+          {/* Tags are always visible (2026-05-31 directive). No separate
               auto-classify button: tossing auto-classifies if these are empty.
               Add tags one at a time via the + chip. */}
           <View style={styles.classifiedCard}>
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "해시태그" : "Hashtags"}
+              {t("tags.title")}
             </Text>
             <View style={styles.tagRow}>
-              {tagsEditable.map((t) => (
+              {tagsEditable.map((tag) => (
                 <Pressable
-                  key={t}
-                  onPress={() => removeTag(t)}
+                  key={tag}
+                  onPress={() => removeTag(tag)}
                   style={styles.tagChip}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel={locale === "ko" ? `${t} 해시태그 제거` : `Remove hashtag ${t}`}
+                  accessibilityLabel={t("tags.removeLabel", { tag })}
                 >
-                  <Text style={styles.tagChipText}>#{t} ✕</Text>
+                  <Text style={styles.tagChipText}>#{tag} ✕</Text>
                 </Pressable>
               ))}
-              <HashtagAdder onAdd={addTagFromInput} locale={locale} />
+              <HashtagAdder onAdd={addTagFromInput} />
             </View>
             <Text variant="subtle" color="textSubtle" style={{ marginTop: 6 }}>
-              {tagsEditable.length === 0
-                ? (locale === "ko"
-                    ? "비워 두면 던질 때 자동으로 달아줘요. +로 직접 추가할 수도 있어요."
-                    : "Leave empty and we'll tag it on toss, or add your own with +.")
-                : (locale === "ko" ? "태그를 누르면 삭제됩니다." : "Tap a tag to remove.")}
+              {tagsEditable.length === 0 ? t("tags.emptyHelper") : t("tags.removeHelper")}
             </Text>
           </View>
 
@@ -1050,7 +1040,7 @@ export default function Capture() {
       <PremiumModal
         visible={feedbackModal !== null}
         onClose={() => setFeedbackModal(null)}
-        accessibilityLabel={locale === "ko" ? "담기 피드백 안내" : "Capture feedback notice"}
+        accessibilityLabel={t("feedback.accessibilityLabel")}
       >
         <Text variant="heading">{feedbackModal?.title}</Text>
         <Text variant="body" color="textMuted" style={styles.modalBody}>
@@ -1062,7 +1052,7 @@ export default function Capture() {
             variant="secondary"
             onPress={() => setFeedbackModal(null)}
             style={styles.modalButton}
-            accessibilityHint={locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice."}
+            accessibilityHint={t("feedback.dismissHint")}
           />
           {feedbackModal?.retry ? (
             <Button
@@ -1071,7 +1061,7 @@ export default function Capture() {
               onPress={retryFeedbackModal}
               loading={extracting || submitting || proposing}
               style={styles.modalButton}
-              accessibilityHint={locale === "ko" ? "방금 실패한 담기 작업을 다시 시도합니다." : "Retries the failed capture action."}
+              accessibilityHint={t("feedback.retryHint")}
             />
           ) : null}
         </View>
@@ -1090,7 +1080,8 @@ export default function Capture() {
 // are entered one at a time at the hashtag location rather than in one big
 // shared box (2026-05-31 directive). Confirming a tag keeps the input open
 // for the next one; blur/empty-submit collapses it back to the "+" chip.
-function HashtagAdder({ onAdd, locale }: { onAdd: (s: string) => void; locale: "en" | "ko" }) {
+function HashtagAdder({ onAdd }: { onAdd: (s: string) => void }) {
+  const { t } = useTranslation("capture");
   const [open, setOpen] = useState(false);
   const [v, setV] = useState("");
 
@@ -1112,7 +1103,7 @@ function HashtagAdder({ onAdd, locale }: { onAdd: (s: string) => void; locale: "
         style={styles.tagAddChip}
         hitSlop={4}
         accessibilityRole="button"
-        accessibilityLabel={locale === "ko" ? "해시태그 추가" : "Add hashtag"}
+        accessibilityLabel={t("tags.addLabel")}
       >
         <Text style={styles.tagAddChipText}>+</Text>
       </Pressable>
@@ -1125,7 +1116,7 @@ function HashtagAdder({ onAdd, locale }: { onAdd: (s: string) => void; locale: "
       <Input
         value={v}
         onChangeText={setV}
-        placeholder={locale === "ko" ? "태그" : "tag"}
+        placeholder={t("tags.placeholder")}
         onSubmitEditing={commit}
         onBlur={() => { if (v.trim().length === 0) setOpen(false); }}
         autoFocus
