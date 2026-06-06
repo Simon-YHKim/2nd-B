@@ -36,25 +36,40 @@ export function ConsentDialog({ visible, onSubmit, onDecline }: ConsentDialogPro
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onDecline}>
-      <Pressable style={styles.backdrop} onPress={onDecline}>
-        <View style={styles.card}>
+      <Pressable
+        style={styles.backdrop}
+        onPress={onDecline}
+        accessibilityRole="button"
+        accessibilityLabel={t("testimonial.decline")}
+      >
+        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
           <Text variant="heading">{t("testimonial.title")}</Text>
           <Text variant="body" color="textMuted">{t("testimonial.body")}</Text>
 
           <View style={styles.row}>
             <Text variant="body">{t("testimonial.shareWithJudges")}</Text>
-            <Switch value={shareWithJudges} onValueChange={setShareWithJudges} />
+            <Switch
+              value={shareWithJudges}
+              onValueChange={setShareWithJudges}
+              accessibilityLabel={t("testimonial.shareWithJudges")}
+              accessibilityState={{ checked: shareWithJudges }}
+            />
           </View>
           <View style={styles.row}>
             <Text variant="body">{t("testimonial.approveForPublic")}</Text>
-            <Switch value={approvedPublic} onValueChange={setApprovedPublic} />
+            <Switch
+              value={approvedPublic}
+              onValueChange={setApprovedPublic}
+              accessibilityLabel={t("testimonial.approveForPublic")}
+              accessibilityState={{ checked: approvedPublic }}
+            />
           </View>
 
           <View style={styles.actions}>
             <Button label={t("testimonial.decline")} variant="secondary" onPress={onDecline} />
             <Button label={t("testimonial.agree")} variant="primary" onPress={handleAgree} />
           </View>
-        </View>
+        </Pressable>
       </Pressable>
     </Modal>
   );
