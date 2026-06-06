@@ -490,21 +490,33 @@ export default function Wiki() {
           />
         ) : null}
 
+        {pages.length > 0 ? (
+          <View style={styles.exportAction}>
+            <View style={styles.exportActionText}>
+              <Text variant="caption" color="brand">
+                {t("exportActionTitle")}
+              </Text>
+              <Text variant="body" color="textMuted">
+                {t("exportActionBody")}
+              </Text>
+              <Text variant="subtle" color="textSubtle">
+                {t("exportActionExample")}
+              </Text>
+            </View>
+            <Button
+              label={t("export")}
+              variant="primary"
+              style={styles.exportActionBtn}
+              onPress={handleExport}
+              loading={exporting}
+              disabled={exporting}
+              accessibilityHint={t("exportActionHint")}
+            />
+          </View>
+        ) : null}
+
         {/* Utility row: lower-frequency tools sit a step down the hierarchy. */}
         <View style={styles.actionsUtility}>
-          <Button
-            label={t("export")}
-            variant="secondary"
-            style={styles.actionBtn}
-            onPress={handleExport}
-            loading={exporting}
-            disabled={exporting || pages.length === 0}
-            accessibilityHint={
-              locale === "ko"
-                ? "지식 창고 내보내기 미리보기를 만듭니다."
-                : "Builds a portable knowledge store export preview."
-            }
-          />
           <Button
             label={
               statsVisible
@@ -671,9 +683,7 @@ export default function Wiki() {
               </Text>
             </ScrollView>
             <Text variant="subtle" color="textSubtle" style={styles.exportHelper}>
-              {locale === "ko"
-                ? "복사 버튼으로 전체 내용을 클립보드에 보내거나, 텍스트를 길게 눌러 직접 선택하세요. 원하는 곳에 붙여 넣으면 SecondB가 쓰는 같은 맥락으로 이어갈 수 있어요."
-                : "Tap Copy to send everything to your clipboard, or long-press the text to select manually. Paste it wherever you want to continue with the same context SecondB uses."}
+              {t("exportHelper")}
             </Text>
           </View>
         ) : null}
@@ -1141,6 +1151,16 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: spacing.sm },
   actionsUtility: { flexDirection: "row", gap: spacing.sm },
   actionBtn: { flex: 1 },
+  exportAction: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.brand,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  exportActionText: { gap: spacing.xs },
+  exportActionBtn: { alignSelf: "stretch" },
   tagFilterCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,

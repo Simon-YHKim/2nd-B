@@ -650,7 +650,12 @@ results.push(
       wiki.includes("Opens capture from the knowledge store.") &&
       wiki.includes("Opens capture to save today's piece.") &&
       wiki.includes("Opens capture to save a new piece.") &&
-      wiki.includes("Builds a portable knowledge store export preview.") &&
+      wiki.includes('t("exportActionTitle")') &&
+      wiki.includes('t("exportActionBody")') &&
+      wiki.includes('t("exportActionExample")') &&
+      wiki.includes('accessibilityHint={t("exportActionHint")}') &&
+      wiki.includes('variant="primary"') &&
+      wiki.includes('t("exportHelper")') &&
       wiki.includes("Shows graph detail metrics.") &&
       wiki.includes("Hides graph detail metrics.") &&
       wiki.includes("accessibilityState={{ expanded: statsVisible }}") &&

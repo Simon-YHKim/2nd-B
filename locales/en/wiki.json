@@ -2,7 +2,11 @@
   "title": "Wiki",
   "subtitle": "Your knowledge graph. Tap a page to read it and see what links back.",
   "capture": "Capture",
-  "export": "Export",
+  "export": "Create export",
+  "exportActionTitle": "Take your knowledge with you",
+  "exportActionBody": "Build a copy-ready bundle of your pages and sources.",
+  "exportActionExample": "Use it for backup, review, or continuing in another writing or research tool.",
+  "exportActionHint": "Creates a copy-ready preview of your knowledge store.",
   "back": "Back to journal",
   "filterByTag": "Filter by tag",
   "clear": "Clear",
@@ -10,5 +14,6 @@
   "emptyForTags": "No pages match these tags.",
   "emptyBody": "(no body content yet)",
   "backlinks": "Backlinks",
-  "exportTitle": "Wiki export bundle"
+  "exportTitle": "Copy-ready knowledge bundle",
+  "exportHelper": "Copy the bundle for backup, review, or another writing or research tool. Long-press the text if clipboard copy is unavailable."
 }

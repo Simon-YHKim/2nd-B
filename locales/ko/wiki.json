@@ -2,7 +2,11 @@
   "title": "위키",
   "subtitle": "당신의 지식 그래프. 페이지를 탭하면 본문과 백링크가 펼쳐져요.",
   "capture": "캡처",
-  "export": "익스포트",
+  "export": "내보내기 만들기",
+  "exportActionTitle": "내 지식을 밖에서도 쓰기",
+  "exportActionBody": "페이지와 소스를 복사하기 쉬운 묶음으로 준비합니다.",
+  "exportActionExample": "백업, 검토, 다른 글쓰기나 리서치 도구에서 이어갈 때 쓰세요.",
+  "exportActionHint": "지식 창고를 복사 가능한 미리보기로 만듭니다.",
   "back": "저널로 돌아가기",
   "filterByTag": "태그로 필터",
   "clear": "초기화",
@@ -10,5 +14,6 @@
   "emptyForTags": "선택한 태그에 해당하는 페이지가 없어요.",
   "emptyBody": "(아직 본문이 없어요)",
   "backlinks": "백링크",
-  "exportTitle": "위키 익스포트 번들"
+  "exportTitle": "복사 가능한 지식 묶음",
+  "exportHelper": "백업, 검토, 다른 글쓰기나 리서치 도구에서 이어갈 때 복사해 쓰세요. 클립보드 복사가 안 되면 텍스트를 길게 눌러 직접 선택하세요."
 }
