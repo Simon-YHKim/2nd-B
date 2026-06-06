@@ -27,7 +27,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
 import { buildCenterCards } from "@/lib/persona/center";
-import { toEvidenceShard, evidenceTypeLabel, type EvidenceShard, type RawRecordRow } from "@/lib/persona/evidence";
+import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { IslandArt } from "@/components/art/IslandArt";
@@ -56,21 +56,40 @@ export default function CoreBrain() {
     (async () => {
       try {
         const supabase = getSupabaseClient();
-        const { data, error } = await supabase
-          .from("records")
-          .select("id, kind, topic, created_at, tags")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(24);
+        // Core must count ALL saved pieces the user sees in /records, not just
+        // `records`: non-journal Capture/Import/Wiki land in `sources`. Reading
+        // only records gives source-only users a false "center is still small"
+        // empty state (data-truth gate). Mirrors /records' merged read.
+        const [recRes, srcRes] = await Promise.all([
+          supabase
+            .from("records")
+            .select("id, kind, topic, created_at, tags")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(24),
+          supabase
+            .from("sources")
+            .select("id, kind, title, captured_at, tags")
+            .eq("user_id", userId)
+            .order("captured_at", { ascending: false })
+            .limit(24),
+        ]);
         // A transient RLS/timeout/token-refresh error returns data null without
         // throwing — surface it as an error state instead of a false empty one.
-        if (error) {
-          if (typeof console !== "undefined") console.warn("[core-brain] records query failed", error);
+        if (recRes.error) {
+          if (typeof console !== "undefined") console.warn("[core-brain] records query failed", recRes.error);
           if (!cancelled) setLoadError(true);
           return;
         }
-        const rows = (data ?? []) as RawRecordRow[];
-        const ev = rows.map((r) => toEvidenceShard(r, locale));
+        const recRows = (recRes.data ?? []) as RawRecordRow[];
+        // Sources are best-effort: a sources failure degrades to records-only, never blanks Core.
+        let srcRows: RawSourceRow[] = [];
+        if (srcRes.error) {
+          if (typeof console !== "undefined") console.warn("[core-brain] sources query failed; records only", srcRes.error);
+        } else {
+          srcRows = (srcRes.data ?? []) as RawSourceRow[];
+        }
+        const ev = mergeEvidence(recRows, srcRows, locale);
         const p = ev.length > 0 ? await buildPersona(userId, locale, isMinor === true) : null;
         if (!cancelled) {
           setEvidence(ev);
