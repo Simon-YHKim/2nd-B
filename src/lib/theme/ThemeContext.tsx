@@ -6,11 +6,13 @@
 // be rewritten. useThemePalette() returns a same-shape object the
 // caller can spread over their styles.
 //
-// Persistence: localStorage on Web (matches our i18n detector pattern).
-// Native builds will layer AsyncStorage in a later refactor.
+// Persistence: localStorage on Web (synchronous, no first-paint flash; matches
+// our i18n detector pattern) + AsyncStorage on native (hydrated once on mount,
+// since native has no synchronous storage). setMode writes both.
 
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { semantic, semanticLight, darkSky, lightSky } from "./tokens";
 
@@ -56,6 +58,9 @@ function writeStored(m: ThemeMode): void {
   } catch {
     // silently skip — next session will fall back to default dark
   }
+  // Native persistence (and a web backstop): AsyncStorage. Fire-and-forget; a
+  // write failure just means the next session falls back to the default.
+  void AsyncStorage.setItem(STORAGE_KEY, m).catch(() => {});
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -64,14 +69,29 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // an already-coherent dark experience).
   const [mode, setModeState] = useState<ThemeMode>(() => readStored() ?? "dark");
 
-  // Hydrate once on mount in case readStored() was unavailable during
-  // initial render (e.g. SSR snapshot). The mount-only intent is the
-  // whole point — comparing against the initial `mode` value would
-  // miss user toggles, so we read fresh on every effect call and just
-  // bail when storage matches state.
+  // Hydrate once on mount. On web, readStored() (localStorage) is synchronous
+  // and authoritative. On native there is no synchronous storage, so fall back
+  // to the async AsyncStorage read to recover the user's persisted choice
+  // (a brief default first paint before hydration is acceptable). We read fresh
+  // here rather than comparing the initial `mode` so user toggles aren't undone.
   useEffect(() => {
-    const s = readStored();
-    setModeState((current) => (s && s !== current ? s : current));
+    const sync = readStored();
+    if (sync) {
+      setModeState((current) => (sync !== current ? sync : current));
+      return;
+    }
+    let cancelled = false;
+    void AsyncStorage.getItem(STORAGE_KEY)
+      .then((v) => {
+        if (cancelled) return;
+        if (v === "light" || v === "dark") {
+          setModeState((current) => (v !== current ? v : current));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function setMode(m: ThemeMode): void {
