@@ -527,12 +527,15 @@ results.push(
       insights.includes("PremiumErrorState") &&
       research.includes("PremiumErrorState") &&
       wiki.includes("PremiumToast") &&
+      wiki.includes("PremiumModal") &&
       wiki.includes("toastWrap") &&
+      wiki.includes("Delete wiki page confirmation") &&
+      wiki.includes("Wiki page deleted.") &&
       wiki.includes("Copy failed. Select the text below manually.") &&
       wiki.includes("Auto-copy is not supported here. Select the text below manually.") &&
       wiki.includes("Couldn't build the source brief. Check the source and try again.") &&
       wiki.includes("Couldn't build the export. Refresh and try again.") &&
-      wikiAlertCount === 1 &&
+      wikiAlertCount === 0 &&
       !wiki.includes("Claude / ChatGPT") &&
       bigFive.includes("toastWrap") &&
       attachment.includes("toastWrap") &&

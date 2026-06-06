@@ -15,12 +15,11 @@ import {
   Pressable,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router, useLocalSearchParams, type Href } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumToast, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -132,6 +131,8 @@ export default function Wiki() {
   const [exporting, setExporting] = useState(false);
   const [exportText, setExportText] = useState<string | null>(null);
   const [toast, setToast] = useState<WikiToast | null>(null);
+  const [pendingDeletePage, setPendingDeletePage] = useState<WikiPageRow | null>(null);
+  const [deletingPageId, setDeletingPageId] = useState<string | null>(null);
   const [phase1RunningId, setPhase1RunningId] = useState<string | null>(null);
   const [statsVisible, setStatsVisible] = useState(false);
   const [handledFocusSourceId, setHandledFocusSourceId] = useState<string | null>(null);
@@ -270,42 +271,37 @@ export default function Wiki() {
     setStatsVisible((v) => !v);
   }
 
-  const handleDeletePage = useCallback(
-    async (p: WikiPageRow): Promise<void> => {
-      if (!userId) return;
-      Alert.alert(
-      locale === "ko" ? "이 위키 페이지를 삭제할까요?" : "Delete this wiki page?",
-      locale === "ko"
-        ? "이 페이지와 연결된 정보도 함께 정리돼요. 되돌릴 수 없습니다."
-        : "Related links to this page are cleaned up too. This cannot be undone.",
-      [
-        { text: locale === "ko" ? "취소" : "Cancel", style: "cancel" },
-        {
-          text: locale === "ko" ? "삭제" : "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteWikiPage(userId, p.id);
-              await load(userId, activeTags);
-            } catch (e) {
-              // Keep the raw error in logs only; show product-tone copy + retry.
-              if (typeof console !== "undefined")
-                console.warn("[wiki] delete page failed", (e as Error).message);
-              setToast({
-                tone: "danger",
-                message:
-                  locale === "ko"
-                    ? "페이지를 삭제하지 못했어요. 새로고침한 뒤 다시 시도해 주세요."
-                    : "Couldn't delete the page. Refresh and try again.",
-              });
-            }
-          },
-        },
-      ],
-    );
-    },
-    [userId, locale, load, activeTags],
-  );
+  const handleDeletePage = useCallback((p: WikiPageRow): void => {
+    setPendingDeletePage(p);
+  }, []);
+
+  const confirmDeletePage = useCallback(async (): Promise<void> => {
+    if (!userId || !pendingDeletePage) return;
+    const page = pendingDeletePage;
+    setDeletingPageId(page.id);
+    try {
+      await deleteWikiPage(userId, page.id);
+      setPendingDeletePage(null);
+      setToast({
+        tone: "success",
+        message: locale === "ko" ? "위키 페이지를 삭제했어요." : "Wiki page deleted.",
+      });
+      await load(userId, activeTags);
+    } catch (e) {
+      // Keep the raw error in logs only; show product-tone copy + retry.
+      if (typeof console !== "undefined")
+        console.warn("[wiki] delete page failed", (e as Error).message);
+      setToast({
+        tone: "danger",
+        message:
+          locale === "ko"
+            ? "페이지를 삭제하지 못했어요. 새로고침한 뒤 다시 시도해 주세요."
+            : "Couldn't delete the page. Refresh and try again.",
+      });
+    } finally {
+      setDeletingPageId(null);
+    }
+  }, [userId, pendingDeletePage, locale, load, activeTags]);
 
   const handleRunPhase1OnPage = useCallback(
     async (page: WikiPageRow): Promise<void> => {
@@ -843,6 +839,50 @@ export default function Wiki() {
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
       ) : null}
+      <PremiumModal
+        visible={pendingDeletePage !== null}
+        onClose={() => {
+          if (deletingPageId === null) setPendingDeletePage(null);
+        }}
+        accessibilityLabel={locale === "ko" ? "위키 페이지 삭제 확인" : "Delete wiki page confirmation"}
+      >
+        <Text variant="heading">
+          {locale === "ko" ? "위키 페이지를 삭제할까요?" : "Delete this wiki page?"}
+        </Text>
+        <Text variant="body" color="textMuted" style={styles.deleteModalBody}>
+          {locale === "ko"
+            ? "이 페이지와 연결된 정보도 함께 정리돼요. 되돌릴 수 없습니다."
+            : "Related links to this page are cleaned up too. This cannot be undone."}
+        </Text>
+        {pendingDeletePage ? (
+          <Text variant="subtle" color="textSubtle" numberOfLines={2}>
+            {pendingDeletePage.title}
+          </Text>
+        ) : null}
+        <View style={styles.deleteModalActions}>
+          <Button
+            label={locale === "ko" ? "취소" : "Cancel"}
+            variant="secondary"
+            onPress={() => setPendingDeletePage(null)}
+            disabled={deletingPageId !== null}
+            style={styles.deleteModalButton}
+            accessibilityHint={locale === "ko" ? "삭제하지 않고 닫습니다." : "Closes without deleting."}
+          />
+          <Button
+            label={locale === "ko" ? "삭제" : "Delete"}
+            variant="danger"
+            onPress={() => void confirmDeletePage()}
+            loading={deletingPageId !== null}
+            disabled={deletingPageId !== null}
+            style={styles.deleteModalButton}
+            accessibilityHint={
+              locale === "ko"
+                ? "이 위키 페이지와 연결 정보를 삭제합니다."
+                : "Deletes this wiki page and its related links."
+            }
+          />
+        </View>
+      </PremiumModal>
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">
           <PremiumToast message={toast.message} tone={toast.tone} />
@@ -1305,6 +1345,9 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   exportHelper: { marginTop: spacing.xs },
+  deleteModalBody: { lineHeight: 21 },
+  deleteModalActions: { flexDirection: "row", gap: spacing.sm },
+  deleteModalButton: { flex: 1 },
   toastWrap: {
     position: "absolute",
     left: spacing.lg,
