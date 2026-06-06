@@ -1818,6 +1818,38 @@ results.push(
 );
 
 results.push(
+  check("FormatCommunityCopy", () => {
+    const formats = read("src/app/formats.tsx");
+    const enFormats = read("locales/en/formats.json");
+    const koFormats = read("locales/ko/formats.json");
+    const forbidden = [
+      "Formats you made and ones the village shared",
+      "Shared with the village",
+      "마을에 공유됨",
+      "마을 공유 형식",
+      "마을에 공유된 형식",
+    ];
+    const ok =
+      formats.includes('useTranslation("formats")') &&
+      formats.includes('tf("hero.subtitle")') &&
+      formats.includes('tf("mine.shared")') &&
+      formats.includes('tf("community.empty")') &&
+      enFormats.includes("Formats you made and ones the community shared") &&
+      enFormats.includes("Shared with the community") &&
+      koFormats.includes("커뮤니티가 공유한 형식") &&
+      koFormats.includes("커뮤니티에 공유됨") &&
+      forbidden.every((term) => !formats.includes(term) && !enFormats.includes(term) && !koFormats.includes(term));
+    return {
+      id: "FormatCommunityCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "formats screen community copy lives in locale bundles and avoids old village-sharing wording"
+        : "formats screen should use locale-bundled community copy instead of old village-sharing wording",
+    };
+  }),
+);
+
+results.push(
   check("DynamicTypeGraphBits", () => {
     const graphBits = read("src/components/premium/graph-bits.tsx");
     const ok =

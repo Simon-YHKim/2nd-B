@@ -7,6 +7,7 @@ import enCommon from "../../../locales/en/common.json";
 import enConsent from "../../../locales/en/consent.json";
 import enData from "../../../locales/en/data.json";
 import enEsm from "../../../locales/en/esm.json";
+import enFormats from "../../../locales/en/formats.json";
 import enImport from "../../../locales/en/import.json";
 import enInsights from "../../../locales/en/insights.json";
 import enInbox from "../../../locales/en/inbox.json";
@@ -27,6 +28,7 @@ import koCommon from "../../../locales/ko/common.json";
 import koConsent from "../../../locales/ko/consent.json";
 import koData from "../../../locales/ko/data.json";
 import koEsm from "../../../locales/ko/esm.json";
+import koFormats from "../../../locales/ko/formats.json";
 import koImport from "../../../locales/ko/import.json";
 import koInsights from "../../../locales/ko/insights.json";
 import koInbox from "../../../locales/ko/inbox.json";
@@ -43,12 +45,12 @@ import koTheme from "../../../locales/ko/theme.json";
 import koWiki from "../../../locales/ko/wiki.json";
 import { detectLanguage, saveLanguagePreference } from "./languageDetector";
 
-export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "jarvis", "wiki", "mascot", "support", "data", "esm", "insights", "research", "recordDetail", "theme", "import", "notFound", "profile", "permissions"] as const;
+export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "jarvis", "wiki", "mascot", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "profile", "permissions"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
 export const resources = {
-  en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, jarvis: enJarvis, wiki: enWiki, mascot: enMascot, support: enSupport, data: enData, esm: enEsm, insights: enInsights, research: enResearch, recordDetail: enRecordDetail, theme: enTheme, import: enImport, notFound: enNotFound, profile: enProfile, permissions: enPermissions },
-  ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, jarvis: koJarvis, wiki: koWiki, mascot: koMascot, support: koSupport, data: koData, esm: koEsm, insights: koInsights, research: koResearch, recordDetail: koRecordDetail, theme: koTheme, import: koImport, notFound: koNotFound, profile: koProfile, permissions: koPermissions },
+  en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, jarvis: enJarvis, wiki: enWiki, mascot: enMascot, support: enSupport, data: enData, esm: enEsm, formats: enFormats, insights: enInsights, research: enResearch, recordDetail: enRecordDetail, theme: enTheme, import: enImport, notFound: enNotFound, profile: enProfile, permissions: enPermissions },
+  ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, jarvis: koJarvis, wiki: koWiki, mascot: koMascot, support: koSupport, data: koData, esm: koEsm, formats: koFormats, insights: koInsights, research: koResearch, recordDetail: koRecordDetail, theme: koTheme, import: koImport, notFound: koNotFound, profile: koProfile, permissions: koPermissions },
 } as const;
 
 let initialized = false;

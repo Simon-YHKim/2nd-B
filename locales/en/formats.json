@@ -1,0 +1,17 @@
+{
+  "hero": {
+    "eyebrow": "Formats",
+    "title": "My clipper formats",
+    "subtitle": "Formats you made and ones the community shared",
+    "speech": "Tune a format and the next pieces file themselves better."
+  },
+  "mine": {
+    "shared": "Shared with the community",
+    "private": "Private to you"
+  },
+  "community": {
+    "heading": "Community formats",
+    "headingWithCount": "Community formats ({{count}})",
+    "empty": "No community formats yet. When someone shares one, it shows up here."
+  }
+}

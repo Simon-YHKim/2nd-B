@@ -45,7 +45,7 @@ type Locale = "en" | "ko";
 type Toast = { message: string; tone: "info" | "success" | "danger" };
 
 export default function Formats() {
-  const { i18n } = useTranslation();
+  const { i18n, t: tf } = useTranslation("formats");
   const { userId, loading } = useAuth();
   const locale: Locale = i18n.language === "ko" ? "ko" : "en";
   const kbHeight = useKeyboard();
@@ -254,17 +254,13 @@ export default function Formats() {
           ) : (
             <>
               <SceneHero
-                eyebrow={locale === "ko" ? "형식" : "Formats"}
-                title={locale === "ko" ? "내 클리퍼 형식" : "My clipper formats"}
-                subtitle={locale === "ko" ? "내가 만든 형식과 마을이 공유한 형식" : "Formats you made and ones the village shared"}
+                eyebrow={tf("hero.eyebrow")}
+                title={tf("hero.title")}
+                subtitle={tf("hero.subtitle")}
                 island={VILLAGE_UI.knowledge.island}
                 worker={VILLAGE_UI.knowledge.worker}
                 accent={VILLAGE_UI.knowledge.accent}
-                speech={
-                  locale === "ko"
-                    ? "형식을 다듬으면 다음 자료부터 더 잘 정리돼요."
-                    : "Tune a format and the next pieces file themselves better."
-                }
+                speech={tf("hero.speech")}
               />
 
               <PremiumButton
@@ -359,9 +355,7 @@ export default function Formats() {
                           <Text variant="subtle" color="textMuted">{whatOf(t)}</Text>
                         ) : null}
                         <Text variant="subtle" color={t.isShared ? "brand" : "textSubtle"} style={styles.shareNote}>
-                          {t.isShared
-                            ? locale === "ko" ? "마을에 공유됨" : "Shared with the village"
-                            : locale === "ko" ? "나만 보기" : "Private to you"}
+                          {t.isShared ? tf("mine.shared") : tf("mine.private")}
                         </Text>
                         <View style={styles.cardActions}>
                           <Pressable
@@ -396,15 +390,15 @@ export default function Formats() {
                   {/* Section 2 — community-shared formats (read-only) */}
                   <View style={styles.sectionHead}>
                     <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
-                      {locale === "ko" ? `마을 공유 형식${partition.community.length ? ` (${partition.community.length})` : ""}` : `Community formats${partition.community.length ? ` (${partition.community.length})` : ""}`}
+                      {partition.community.length
+                        ? tf("community.headingWithCount", { count: partition.community.length })
+                        : tf("community.heading")}
                     </Text>
                   </View>
 
                   {partition.community.length === 0 ? (
                     <Text variant="subtle" color="textSubtle" style={styles.communityEmpty}>
-                      {locale === "ko"
-                        ? "아직 마을에 공유된 형식이 없어요. 누군가 형식을 공유하면 여기 나타나요."
-                        : "No shared formats yet. When someone shares one, it shows up here."}
+                      {tf("community.empty")}
                     </Text>
                   ) : (
                     partition.community.map((t) => (
