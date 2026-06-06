@@ -384,7 +384,12 @@ export default function Jarvis() {
           {turns.length === 0 ? (
             <View style={styles.empty}>
               <View style={styles.emptySecondB}>
-                <SecondBSprite state="chat" size={96} float />
+                <SecondBSprite
+                  state="chat"
+                  size={96}
+                  float
+                  label={locale === "ko" ? "대화할 준비가 된 세컨드비" : "SecondB ready to chat"}
+                />
               </View>
               <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.md }}>
                 {t("empty")}

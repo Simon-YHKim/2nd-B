@@ -1186,6 +1186,34 @@ results.push(
   }),
 );
 
+results.push(
+  check("ArtA11ySemantics", () => {
+    const secondbSprite = read("src/components/art/SecondBSprite.tsx");
+    const islandArt = read("src/components/art/IslandArt.tsx");
+    const workerSprite = read("src/components/art/WorkerSprite.tsx");
+    const home = read("src/app/index.tsx");
+    const jarvis = read("src/app/jarvis.tsx");
+    const graphBits = read("src/components/premium/graph-bits.tsx");
+    const ok =
+      secondbSprite.includes('accessibilityRole: "image"') &&
+      home.includes("const mascotLabel") &&
+      home.includes("label={mascotLabel}") &&
+      jarvis.includes('label={locale === "ko" ? "대화할 준비가 된 세컨드비" : "SecondB ready to chat"}') &&
+      graphBits.includes('accessible accessibilityRole="image" accessibilityLabel={meta.name.ko}') &&
+      islandArt.includes("accessibilityElementsHidden") &&
+      islandArt.includes('importantForAccessibility="no-hide-descendants"') &&
+      workerSprite.includes("accessibilityElementsHidden") &&
+      workerSprite.includes('importantForAccessibility="no-hide-descendants"');
+    return {
+      id: "ArtA11ySemantics",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "meaningful SecondB/character sprites expose image labels while decorative island/worker art stays hidden"
+        : "art components should label meaningful sprites and hide decorative image layers from assistive tech",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";

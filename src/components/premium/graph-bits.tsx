@@ -91,7 +91,7 @@ export function CharacterBadge({ id, size = 48, label, glow = true }: { id: Char
   const accent = COMPANION_ACCENT[id];
   const meta = CHARACTERS[id];
   return (
-    <View style={styles.badgeWrap} accessibilityLabel={meta.name.ko}>
+    <View style={styles.badgeWrap} accessible accessibilityRole="image" accessibilityLabel={meta.name.ko}>
       <View
         style={[
           styles.badgeRing,

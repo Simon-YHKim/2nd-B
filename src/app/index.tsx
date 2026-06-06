@@ -300,6 +300,14 @@ export default function Landing() {
     sleepAfterMs: SLEEP_AFTER_MS,
     hasNotification: dataNodes.length > 0 && !centerSeen,
   });
+  const mascotLabel =
+    locale === "ko"
+      ? presence.mascot === "sleep"
+        ? "쉬고 있는 세컨드비"
+        : "세컨드비"
+      : presence.mascot === "sleep"
+        ? "SecondB resting"
+        : "SecondB";
   // Show only once the piece check has resolved to "none" (hasAnyPiece === false,
   // not null) AND the user hasn't dismissed (emptyDismissed hydrated to false,
   // not null). Both gates avoid a first-paint flash for users who do have pieces
@@ -420,11 +428,12 @@ export default function Landing() {
         pointerEvents="box-none"
       >
         {/* SecondB sprite slot. Same 52px footprint across idle/sleep states. */}
-        <View style={styles.mascotSlot} accessibilityLabel="SecondB">
+        <View style={styles.mascotSlot}>
           <SecondBSprite
             state={presence.mascot === "sleep" ? "sleep" : "idle"}
             size={46}
             float={presence.mascot !== "sleep"}
+            label={mascotLabel}
           />
         </View>
         <Pressable

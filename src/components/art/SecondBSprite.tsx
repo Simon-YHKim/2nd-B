@@ -115,7 +115,7 @@ export function SecondBSprite({
 }) {
   const ty = useFloat(float);
   const a11y = label
-    ? { accessible: true, accessibilityLabel: label }
+    ? { accessible: true, accessibilityRole: "image" as const, accessibilityLabel: label }
     : { accessibilityElementsHidden: true, importantForAccessibility: "no-hide-descendants" as const };
   const walking = state === "walk_1" || state === "walk_2";
 
