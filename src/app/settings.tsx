@@ -49,6 +49,8 @@ type SettingsActionButtonProps = {
   onPress?: () => void | Promise<void>;
   style?: StyleProp<ViewStyle>;
   full?: boolean;
+  /** Segmented/toggle membership — announces selected state to screen readers. */
+  selected?: boolean;
 };
 
 function SettingsActionButton({
@@ -59,6 +61,7 @@ function SettingsActionButton({
   onPress,
   style,
   full = true,
+  selected,
 }: SettingsActionButtonProps) {
   const isDisabled = disabled || loading;
   const labelColor = isDisabled
@@ -86,7 +89,7 @@ function SettingsActionButton({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
-        accessibilityState={{ disabled: isDisabled, busy: loading }}
+        accessibilityState={{ disabled: isDisabled, busy: loading, selected }}
         disabled={isDisabled}
         onPress={onPress ? () => void onPress() : undefined}
         style={({ pressed }) => [
@@ -344,12 +347,14 @@ export default function Settings() {
             <Button
               label={locale === "ko" ? "다크" : "Dark"}
               variant={mode === "dark" ? "primary" : "secondary"}
+              selected={mode === "dark"}
               onPress={() => { if (mode !== "dark") toggle(); }}
               style={styles.themeButton}
             />
             <Button
               label={locale === "ko" ? "라이트" : "Light"}
               variant={mode === "light" ? "primary" : "secondary"}
+              selected={mode === "light"}
               onPress={() => { if (mode !== "light") toggle(); }}
               style={styles.themeButton}
             />
@@ -371,6 +376,7 @@ export default function Settings() {
                 key={d}
                 label={CREW_DENSITY_LABEL[locale][d]}
                 variant={crewDensity === d ? "primary" : "secondary"}
+                selected={crewDensity === d}
                 onPress={() => setCrewDensity(d)}
                 full={false}
               />
