@@ -111,11 +111,7 @@ export default function CompleteProfile() {
         router.replace("/");
         return;
       }
-      const msg =
-        locale === "ko"
-          ? "프로필 저장에 실패했어요. 잠시 후 다시 시도해 주세요."
-          : "Could not save your profile. Please try again in a moment.";
-      setToast({ tone: "danger", message: msg });
+      setToast({ tone: "danger", message: t("errors.completeProfileSaveFailed") });
       if (typeof console !== "undefined") console.warn("[auth] completeProfile error", (e as Error).message);
     } finally {
       setSubmitting(false);

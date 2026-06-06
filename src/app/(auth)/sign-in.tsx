@@ -97,10 +97,7 @@ export default function SignIn() {
       }
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? `${name} 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.`
-            : `Could not start ${name} sign-in. Please try again in a moment.`,
+        message: t("errors.oauthSignInStartFailed", { provider: name }),
       });
       if (typeof console !== "undefined")
         console.warn(`[auth] ${provider} oauth error`, msg);
@@ -117,10 +114,7 @@ export default function SignIn() {
     } catch (e) {
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? "Naver 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요."
-            : "Could not start Naver sign-in. Please try again in a moment.",
+        message: t("errors.oauthSignInStartFailed", { provider: "Naver" }),
       });
       if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
     }
@@ -139,10 +133,7 @@ export default function SignIn() {
       // Generic message to avoid email-enumeration. CSO finding R3.
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? "로그인에 실패했어요. 이메일과 비밀번호를 다시 확인해 주세요."
-            : "Sign-in failed. Please check your email and password.",
+        message: t("errors.signInFailed"),
       });
       if (typeof console !== "undefined") console.warn("[auth] signIn error", (e as Error).message);
     } finally {

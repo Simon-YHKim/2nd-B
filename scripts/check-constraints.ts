@@ -649,14 +649,15 @@ results.push(
       signIn.includes("PremiumToast") &&
       signIn.includes("resetHelpCard") &&
       signIn.includes("Password reset instructions are shown below.") &&
-      signIn.includes("Sign-in failed. Please check your email and password.") &&
+      signIn.includes('t("errors.signInFailed")') &&
+      signIn.includes('t("errors.oauthSignInStartFailed"') &&
       signUp.includes("PremiumToast") &&
       signUp.includes("toastWrap") &&
-      signUp.includes("Sign-up failed. Please try again in a moment.") &&
-      signUp.includes("Could not start Naver sign-up. Please try again in a moment.") &&
+      signUp.includes('t("errors.signUpFailed")') &&
+      signUp.includes('t("errors.oauthSignUpStartFailed"') &&
       completeProfile.includes("PremiumToast") &&
       completeProfile.includes("toastWrap") &&
-      completeProfile.includes("Could not save your profile. Please try again in a moment.") &&
+      completeProfile.includes('t("errors.completeProfileSaveFailed")') &&
       completeProfile.includes("setToast({ tone: \"danger\", message: t(\"errors.ageGate\") })") &&
       audit.includes("PremiumToast") &&
       audit.includes("toastWrap") &&
@@ -1652,6 +1653,53 @@ results.push(
         note: ok
           ? "oauth callback failure copy lives in the auth locale bundle with key-based a11y"
           : "oauth callback should source failure copy and retry a11y from auth locale bundle",
+      };
+    }),
+  );
+
+results.push(
+  check("AuthFailureToastI18nCopy", () => {
+      const signIn = read("src/app/(auth)/sign-in.tsx");
+      const signUp = read("src/app/(auth)/sign-up.tsx");
+      const completeProfile = read("src/app/(auth)/complete-profile.tsx");
+      const en = read("locales/en/auth.json");
+      const ko = read("locales/ko/auth.json");
+      const forbiddenScreenCopy = [
+        "Could not start ${name} sign-in",
+        "Could not start Naver sign-in",
+        "Sign-in failed. Please check your email and password.",
+        "Could not start ${name} sign-up",
+        "Could not start Naver sign-up",
+        "Sign-up failed. Please try again in a moment.",
+        "Could not save your profile. Please try again in a moment.",
+        "로그인을 시작하지 못했어요",
+        "가입을 시작하지 못했어요",
+        "로그인에 실패했어요",
+        "가입에 실패했어요",
+        "프로필 저장에 실패했어요",
+      ];
+      const screens = [signIn, signUp, completeProfile].join("\n");
+      const ok =
+        signIn.includes('t("errors.oauthSignInStartFailed", { provider: name })') &&
+        signIn.includes('t("errors.oauthSignInStartFailed", { provider: "Naver" })') &&
+        signIn.includes('t("errors.signInFailed")') &&
+        signUp.includes('t("errors.signUpFailed")') &&
+        signUp.includes('t("errors.oauthSignUpStartFailed", { provider: name })') &&
+        signUp.includes('t("errors.oauthSignUpStartFailed", { provider: "Naver" })') &&
+        completeProfile.includes('t("errors.completeProfileSaveFailed")') &&
+        en.includes('"oauthSignInStartFailed"') &&
+        en.includes('"oauthSignUpStartFailed"') &&
+        en.includes('"completeProfileSaveFailed"') &&
+        ko.includes('"oauthSignInStartFailed"') &&
+        ko.includes('"oauthSignUpStartFailed"') &&
+        ko.includes('"completeProfileSaveFailed"') &&
+        forbiddenScreenCopy.every((term) => !screens.includes(term));
+      return {
+        id: "AuthFailureToastI18nCopy",
+        status: ok ? "PASS" : "FAIL",
+        note: ok
+          ? "auth sign-in/sign-up/profile failure toast copy lives in the auth locale bundle"
+          : "auth failure toasts should source visible copy from auth locale keys",
       };
     }),
   );

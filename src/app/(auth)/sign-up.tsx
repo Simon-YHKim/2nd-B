@@ -118,11 +118,7 @@ export default function SignUp() {
       else if (e instanceof BreachedPasswordError)
         setToast({ tone: "danger", message: t("errors.breachedPassword") });
       else {
-        const msg =
-          locale === "ko"
-            ? "가입에 실패했어요. 잠시 후 다시 시도해 주세요."
-            : "Sign-up failed. Please try again in a moment.";
-        setToast({ tone: "danger", message: msg });
+        setToast({ tone: "danger", message: t("errors.signUpFailed") });
         if (typeof console !== "undefined")
           console.warn("[auth] signUp error", (e as Error).message);
       }
@@ -152,10 +148,7 @@ export default function SignUp() {
       }
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? `${name} 가입을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.`
-            : `Could not start ${name} sign-up. Please try again in a moment.`,
+        message: t("errors.oauthSignUpStartFailed", { provider: name }),
       });
       if (typeof console !== "undefined") console.warn(`[auth] ${provider} oauth error`, msg);
     } finally {
@@ -170,10 +163,7 @@ export default function SignUp() {
     } catch (e) {
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? "Naver 가입을 시작하지 못했어요. 잠시 후 다시 시도해 주세요."
-            : "Could not start Naver sign-up. Please try again in a moment.",
+        message: t("errors.oauthSignUpStartFailed", { provider: "Naver" }),
       });
       if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
     }
