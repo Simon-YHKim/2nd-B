@@ -26,7 +26,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { getPersona, PERSONAS } from "@/lib/chat/personas";
-import { parseSourceCitations } from "@/lib/chat/sources";
+import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/components/premium";
@@ -451,7 +451,7 @@ export default function Jarvis() {
                       </Text>
                       {turn.chips.slice(0, 3).map((slug) => (
                         <View key={slug} style={styles.chip}>
-                          <Text variant="caption" color="brand">{slug}</Text>
+                          <Text variant="caption" color="brand">{formatSourceCitationLabel(slug)}</Text>
                         </View>
                       ))}
                       {turn.chips.length > 3 ? (
@@ -587,7 +587,7 @@ export default function Jarvis() {
             </Text>
             <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
               {(refDrawer ?? []).map((slug) => (
-                <ReferenceShardCard key={slug} title={slug} meta={locale === "ko" ? "참고한 조각" : "referenced piece"} />
+                <ReferenceShardCard key={slug} title={formatSourceCitationLabel(slug)} meta={t("reference_piece_meta")} />
               ))}
             </View>
             <Button

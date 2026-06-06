@@ -5,7 +5,8 @@
   "placeholder": "Ask 2ndB...",
   "send": "Send",
   "intro_title": "Hi, I'm 2ndB",
-  "intro_body": "I answer using your own wiki pages as context. My replies cite [[page-slug]] so you can trace what I leaned on. Meta questions like 'what patterns recur across this month?' are where I shine.",
+  "intro_body": "I answer using your own wiki pages. My replies show the page names I used so you can trace the answer. Meta questions like 'what patterns recur across this month?' are where I shine.",
+  "reference_piece_meta": "referenced piece",
   "intro_ok": "Got it",
   "intro_mute": "Don't show again today"
 }

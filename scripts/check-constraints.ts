@@ -148,8 +148,11 @@ results.push(
 results.push(
   check("C7", () => {
     const capture = read("src/app/capture.tsx");
+    const jarvis = read("src/app/jarvis.tsx");
     const enCapture = JSON.parse(read("locales/en/capture.json")) as Record<string, unknown>;
     const koCapture = JSON.parse(read("locales/ko/capture.json")) as Record<string, unknown>;
+    const enJarvis = JSON.parse(read("locales/en/jarvis.json")) as { intro_body?: string; reference_piece_meta?: string };
+    const koJarvis = JSON.parse(read("locales/ko/jarvis.json")) as { intro_body?: string; reference_piece_meta?: string };
     const captureKeys = [
       "savedTitleFallback",
       "sections.manageFormats.accessibilityLabel",
@@ -274,17 +277,30 @@ results.push(
       inlineAlertCopyGone &&
       captureBundleJargonGone &&
       captureKeys.every((key) => hasPath(enCapture, key) && hasPath(koCapture, key));
+    const jarvisCitationCopyOk =
+      typeof enJarvis.intro_body === "string" &&
+      typeof koJarvis.intro_body === "string" &&
+      typeof enJarvis.reference_piece_meta === "string" &&
+      typeof koJarvis.reference_piece_meta === "string" &&
+      !enJarvis.intro_body.includes("[[") &&
+      !koJarvis.intro_body.includes("[[") &&
+      !enJarvis.intro_body.toLowerCase().includes("slug") &&
+      !koJarvis.intro_body.includes("슬러그") &&
+      jarvis.includes("formatSourceCitationLabel(slug)") &&
+      jarvis.includes("title={formatSourceCitationLabel(slug)}") &&
+      jarvis.includes('meta={t("reference_piece_meta")}');
     const ok =
       exists("locales/en/common.json") &&
       exists("locales/ko/common.json") &&
       exists("scripts/check-i18n-keys.ts") &&
-      captureBundleOk;
+      captureBundleOk &&
+      jarvisCitationCopyOk;
     return {
       id: "C7",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "i18n locales + key-parity check script present; capture copy uses locale bundle without user-facing jargon"
-        : "i18n setup incomplete or capture copy not bundled / still exposes jargon",
+        ? "i18n locales + key-parity check script present; capture copy uses locale bundle without user-facing jargon; Jarvis citations render friendly labels"
+        : "i18n setup incomplete or capture/Jarvis copy contract failed",
     };
   }),
 );

@@ -5,13 +5,23 @@
 // raw brackets.
 
 export interface ParsedReply {
-  /** Reply text with [[slug]] markers unwrapped to plain slug text. */
+  /** Reply text with [[slug]] markers replaced by a friendly label. */
   display: string;
   /** Ordered, de-duplicated slugs the reply cited. Empty if none. */
   chips: string[];
 }
 
 const CITATION = /\[\[([^\]]+)\]\]/g;
+
+export function formatSourceCitationLabel(rawSlug: string): string {
+  const slug = rawSlug.trim();
+  const spaced = slug.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (spaced.length === 0) return slug;
+  if (/^[a-z0-9 ]+$/.test(spaced)) {
+    return spaced.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+  }
+  return spaced;
+}
 
 export function parseSourceCitations(text: string): ParsedReply {
   const chips: string[] = [];
@@ -25,6 +35,6 @@ export function parseSourceCitations(text: string): ParsedReply {
       chips.push(slug);
     }
   }
-  const display = text.replace(CITATION, (_full, slug: string) => slug.trim());
+  const display = text.replace(CITATION, (_full, slug: string) => formatSourceCitationLabel(slug));
   return { display, chips };
 }
