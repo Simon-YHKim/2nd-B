@@ -20,7 +20,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router, type Href } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -40,6 +40,7 @@ import { VILLAGE_IDS, type VillageId } from "@/lib/graph/relatedness";
 // listAllWikiLinks projects only the two endpoint columns — all the
 // living-brain summary and per-row connection counts need.
 type WikiEdge = { from_page: string; to_page: string };
+type WikiToast = { message: string; tone: "info" | "success" | "danger" };
 
 const KIND_LABEL: Record<WikiPageKind, { en: string; ko: string }> = {
   source: { en: "Source", ko: "소스" },
@@ -118,6 +119,7 @@ export default function Wiki() {
   const [backlinksById, setBacklinksById] = useState<Record<string, WikiPageRow[]>>({});
   const [exporting, setExporting] = useState(false);
   const [exportText, setExportText] = useState<string | null>(null);
+  const [toast, setToast] = useState<WikiToast | null>(null);
   const [phase1RunningId, setPhase1RunningId] = useState<string | null>(null);
   const [statsVisible, setStatsVisible] = useState(false);
   const [edges, setEdges] = useState<WikiEdge[] | null>(null);
@@ -143,6 +145,12 @@ export default function Wiki() {
     setLoading(true);
     void load(userId, activeTags).finally(() => setLoading(false));
   }, [userId, activeTags, load]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(timeout);
+  }, [toast]);
 
   // Every tag that appears on at least one currently-visible page.
   // Sorted by frequency descending so the most useful filters surface first.
@@ -611,20 +619,27 @@ export default function Wiki() {
                     if (typeof navigator !== "undefined" && navigator.clipboard) {
                       try {
                         await navigator.clipboard.writeText(exportText);
-                        Alert.alert(locale === "ko" ? "클립보드에 복사됨" : "Copied to clipboard");
+                        setToast({
+                          tone: "success",
+                          message: locale === "ko" ? "클립보드에 복사했어요." : "Copied to clipboard.",
+                        });
                       } catch {
-                        Alert.alert(
-                          locale === "ko"
-                            ? "복사 실패: 아래 텍스트를 직접 선택해 주세요"
-                            : "Copy failed: please select the text below manually",
-                        );
+                        setToast({
+                          tone: "danger",
+                          message:
+                            locale === "ko"
+                              ? "복사하지 못했어요. 아래 텍스트를 직접 선택해 주세요."
+                              : "Copy failed. Select the text below manually.",
+                        });
                       }
                     } else {
-                      Alert.alert(
-                        locale === "ko"
-                          ? "이 환경에서는 자동 복사가 지원되지 않아요"
-                          : "Auto-copy not supported in this environment",
-                      );
+                      setToast({
+                        tone: "info",
+                        message:
+                          locale === "ko"
+                            ? "자동 복사가 지원되지 않아요. 아래 텍스트를 직접 선택해 주세요."
+                            : "Auto-copy is not supported here. Select the text below manually.",
+                      });
                     }
                   }}
                   hitSlop={6}
@@ -654,8 +669,8 @@ export default function Wiki() {
             </ScrollView>
             <Text variant="subtle" color="textSubtle" style={styles.exportHelper}>
               {locale === "ko"
-                ? "위 복사 버튼으로 한 번에 클립보드로 옮기거나, 텍스트를 길게 눌러 직접 선택해도 됩니다. Claude · ChatGPT 새 대화에 붙여 넣으면 우리가 세컨비에서 보던 것과 같은 컨텍스트로 이어서 쓸 수 있어요."
-                : "Tap Copy to send everything to your clipboard, or long-press the text to select manually. Paste it into a new Claude / ChatGPT chat and you'll pick up with the same context we use in SecondB."}
+                ? "복사 버튼으로 전체 내용을 클립보드에 보내거나, 텍스트를 길게 눌러 직접 선택하세요. 원하는 곳에 붙여 넣으면 SecondB가 쓰는 같은 맥락으로 이어갈 수 있어요."
+                : "Tap Copy to send everything to your clipboard, or long-press the text to select manually. Paste it wherever you want to continue with the same context SecondB uses."}
             </Text>
           </View>
         ) : null}
@@ -778,6 +793,11 @@ export default function Wiki() {
       {/* 모모 appears briefly to label the organized page (companion pack §3) */}
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
+      ) : null}
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
       ) : null}
     </PremiumAppShell>
   );
@@ -1226,6 +1246,13 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   exportHelper: { marginTop: spacing.xs },
+  toastWrap: {
+    position: "absolute",
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.xl,
+    alignItems: "stretch",
+  },
   statsCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.brand,

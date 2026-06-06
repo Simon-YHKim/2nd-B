@@ -455,6 +455,7 @@ results.push(
     const esm = read("src/app/esm.tsx");
     const insights = read("src/app/insights.tsx");
     const research = read("src/app/research.tsx");
+    const wiki = read("src/app/wiki.tsx");
     const ok =
       !bigFive.includes("Alert.alert") &&
       !attachment.includes("Alert.alert") &&
@@ -468,6 +469,11 @@ results.push(
       esm.includes("PremiumToast") &&
       insights.includes("PremiumErrorState") &&
       research.includes("PremiumErrorState") &&
+      wiki.includes("PremiumToast") &&
+      wiki.includes("toastWrap") &&
+      wiki.includes("Copy failed. Select the text below manually.") &&
+      wiki.includes("Auto-copy is not supported here. Select the text below manually.") &&
+      !wiki.includes("Claude / ChatGPT") &&
       bigFive.includes("toastWrap") &&
       attachment.includes("toastWrap") &&
       importScreen.includes("toastWrap") &&
@@ -478,8 +484,8 @@ results.push(
       id: "Feedback",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "Big Five, Attachment, Import, ESM, Insights, and Research feedback avoid native Alert.alert"
-        : "assessment/import/ESM/insights/research feedback should use premium feedback surfaces, not native Alert.alert",
+        ? "Big Five, Attachment, Import, ESM, Insights, Research, and Wiki export feedback use premium surfaces"
+        : "assessment/import/ESM/insights/research/wiki export feedback should use premium surfaces and avoid vendor-specific helper copy",
     };
   }),
 );
