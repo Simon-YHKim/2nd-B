@@ -135,10 +135,17 @@ export default function Research() {
                 <Text variant="caption" color="textMuted">
                   {locale === "ko" ? "프레임으로 필터" : "Filter by framework"}
                 </Text>
-                <View style={styles.chipRow}>
+                <View
+                  style={styles.chipRow}
+                  accessibilityRole="tablist"
+                  accessibilityLabel={locale === "ko" ? "프레임 필터" : "Framework filters"}
+                >
                   <Pressable
                     onPress={() => setActiveFramework(null)}
                     style={[styles.chip, activeFramework === null && styles.chipActive]}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: activeFramework === null }}
+                    accessibilityLabel={locale === "ko" ? "전체" : "All"}
                   >
                     <Text variant="caption" color={activeFramework === null ? "background" : "textMuted"}>
                       {locale === "ko" ? "전체" : "All"}
@@ -152,6 +159,9 @@ export default function Research() {
                         key={f}
                         onPress={() => setActiveFramework(active ? null : f)}
                         style={[styles.chip, active && styles.chipActive]}
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected: active }}
+                        accessibilityLabel={label}
                       >
                         <Text variant="caption" color={active ? "background" : "textMuted"}>
                           {label}

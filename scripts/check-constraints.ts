@@ -276,6 +276,39 @@ results.push({
   note: `${FORBIDDEN_TERMS.en.length} EN forbidden, ${FORBIDDEN_TERMS.ko.length} KO forbidden, ${CRISIS_TERMS.en.length} EN crisis, ${CRISIS_TERMS.ko.length} KO crisis`,
 });
 
+results.push(
+  check("A11y", () => {
+    const capture = read("src/app/capture.tsx");
+    const research = read("src/app/research.tsx");
+    const likert = read("src/components/quant/LikertChoiceGroup.tsx");
+    const bigFive = read("src/app/big-five.tsx");
+    const attachment = read("src/app/attachment.tsx");
+    // Whitespace-robust: assert the a11y contract by attribute presence/count,
+    // not exact formatting (exact-prefix .includes break on harmless reflow).
+    const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
+    const researchTablists = (research.match(/accessibilityRole="tablist"/g) ?? []).length;
+    const captureSelected = (capture.match(/accessibilityState=\{\{ selected: active \}\}/g) ?? []).length;
+    const ok =
+      captureTablists >= 2 && // track + mode rows
+      captureSelected >= 2 && // track + mode chips
+      researchTablists >= 1 &&
+      research.includes("accessibilityState={{ selected: activeFramework === null }}") &&
+      research.includes("accessibilityState={{ selected: active }}") &&
+      likert.includes('accessibilityRole="radiogroup"') &&
+      likert.includes('accessibilityRole="radio"') &&
+      likert.includes("accessibilityState={{ checked: active }}") &&
+      bigFive.includes("LikertChoiceGroup") &&
+      attachment.includes("LikertChoiceGroup");
+    return {
+      id: "A11y",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "selected chips and assessment Likert choices expose grouped selected state"
+        : "visual-selected controls need accessibilityRole plus selected/checked state",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";

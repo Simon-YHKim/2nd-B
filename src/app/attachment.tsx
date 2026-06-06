@@ -2,7 +2,7 @@
 // subscales (anxiety + avoidance), 4 styles based on median splits.
 
 import { useMemo, useState } from "react";
-import { View, StyleSheet, Pressable, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -19,10 +19,19 @@ import {
   type EcrResponses,
 } from "@/lib/persona/attachment";
 import { QuantIntroModal } from "@/components/quant/QuantIntroModal";
+import { LikertChoiceGroup } from "@/components/quant/LikertChoiceGroup";
 import { QuantPager } from "@/components/quant/QuantPager";
 import { QuantSaveCelebration } from "@/components/quant/QuantSaveCelebration";
 
-const SCALE = [1, 2, 3, 4, 5, 6, 7];
+const SCALE: { value: number; en: string; ko: string }[] = [
+  { value: 1, en: "Strongly disagree", ko: "전혀 아니다" },
+  { value: 2, en: "Disagree", ko: "아니다" },
+  { value: 3, en: "Slightly disagree", ko: "조금 아니다" },
+  { value: 4, en: "Neutral", ko: "보통" },
+  { value: 5, en: "Slightly agree", ko: "조금 그렇다" },
+  { value: 6, en: "Agree", ko: "그렇다" },
+  { value: 7, en: "Strongly agree", ko: "매우 그렇다" },
+];
 
 export default function Attachment() {
   const { i18n } = useTranslation();
@@ -161,23 +170,13 @@ export default function Attachment() {
                   <Text variant="subtle" color="textSubtle" style={{ marginBottom: spacing.xs }}>
                     {locale === "ko" ? item.subtitleKo : item.subtitleEn}
                   </Text>
-                  <View style={styles.scaleRow}>
-                    {SCALE.map((v) => {
-                      const active = value === v;
-                      return (
-                        <Pressable
-                          key={v}
-                          onPress={() => setResponse(item.id, v)}
-                          style={[styles.scaleBtn, active && styles.scaleBtnActive]}
-                          hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
-                        >
-                          <Text variant="caption" color={active ? "background" : "textMuted"}>
-                            {v}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
+                  <LikertChoiceGroup
+                    choices={SCALE.map((s) => ({ value: s.value, label: s[locale] }))}
+                    locale={locale}
+                    onSelect={(next) => setResponse(item.id, next)}
+                    question={`${item.id}. ${locale === "ko" ? item.ko : item.en}`}
+                    value={value}
+                  />
                   <View style={styles.scaleLegend}>
                     <Text variant="subtle" color="textSubtle">
                       {locale === "ko" ? "전혀 아니다" : "Strongly disagree"}
@@ -227,16 +226,5 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
-  scaleRow: { flexDirection: "row", justifyContent: "space-between", gap: spacing.xs },
-  scaleBtn: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: semantic.border,
-    backgroundColor: semantic.surfaceAlt,
-    alignItems: "center",
-  },
-  scaleBtnActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   scaleLegend: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
 });

@@ -711,7 +711,11 @@ export default function Capture() {
             <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
               {locale === "ko" ? "어디로 갈까요?" : "Which wiki?"}
             </Text>
-            <View style={styles.trackRow}>
+            <View
+              style={styles.trackRow}
+              accessibilityRole="tablist"
+              accessibilityLabel={locale === "ko" ? "위키 선택" : "Wiki selection"}
+            >
               {TRACK_OPTIONS.map((option) => {
                 const active = track === option.id;
                 const color = active ? semantic.background : semantic.textMuted;
@@ -721,6 +725,9 @@ export default function Capture() {
                     style={[styles.trackChip, active && styles.trackChipActive]}
                     onPress={() => setTrack(option.id)}
                     hitSlop={4}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={option[locale]}
                   >
                     <TrackGlyph id={option.id} color={color} />
                     <Text style={[styles.trackChipText, active && styles.trackChipTextActive]}>
@@ -734,7 +741,11 @@ export default function Capture() {
           ) : null}
 
           {/* Mode tabs */}
-          <View style={styles.modeRow}>
+          <View
+            style={styles.modeRow}
+            accessibilityRole="tablist"
+            accessibilityLabel={locale === "ko" ? "담기 방식" : "Capture mode"}
+          >
             {CAPTURE_MODES.map((m) => {
               const active = mode === m;
               const color = active ? semantic.background : semantic.textMuted;
@@ -749,6 +760,9 @@ export default function Capture() {
                     reset();
                   }}
                   hitSlop={8}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={MODE_LABEL[m][locale]}
                 >
                   <ModeGlyph mode={m} color={color} />
                   <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
