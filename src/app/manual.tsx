@@ -52,8 +52,8 @@ const SECTIONS: ManualSection[] = [
       ko: "무엇이든 캡처",
     },
     body: {
-      en: "Paste an Obsidian-clipped article, a YouTube transcript, a paper, or a Reddit thread. /capture auto-detects the kind. Your inbox lists everything; tap 'Summarize + 4 questions' to ask Gemini for a reflection prompt.",
-      ko: "Obsidian 클리퍼로 캡처한 글, 유튜브 자막, 논문, 레딧 스레드를 붙여 넣을 수 있어요. /캡처에서 종류를 자동 인식합니다. 받은편지함에 다 모이고, '요약 + 4질문' 탭으로 Gemini의 성찰 질문을 받을 수 있어요.",
+      en: "Paste an Obsidian-clipped article, a YouTube transcript, a paper, or a Reddit thread. The capture screen auto-detects the kind. Your inbox lists everything; tap 'Summarize + 4 questions' to get a reflection prompt.",
+      ko: "Obsidian 클리퍼로 캡처한 글, 유튜브 자막, 논문, 레딧 스레드를 붙여 넣을 수 있어요. 캡처 화면에서 종류를 자동 인식합니다. 받은편지함에 다 모이고, '요약 + 4질문' 탭으로 성찰 질문을 받을 수 있어요.",
     },
   },
   {
@@ -63,8 +63,8 @@ const SECTIONS: ManualSection[] = [
       ko: "위키 그래프",
     },
     body: {
-      en: "Generate a wiki page from any source. Pages link to each other via [[wikilinks]]. Tap a tag to filter, tap a page to expand body and backlinks, and use the graph to see the whole network.",
-      ko: "받은편지함에서 '위키 페이지 생성'을 누르면 소스가 위키 페이지가 됩니다. [[위키링크]]로 페이지들이 서로 연결돼요. 태그를 탭하면 필터, 페이지를 탭하면 본문과 백링크가 펼쳐지고, 그래프에서 전체 연결을 볼 수 있습니다.",
+      en: "Generate a wiki page from any saved item. When one page mentions another by name, they connect automatically. Tap a tag to filter, tap a page to expand body and related references, and use the graph to see the whole network.",
+      ko: "받은편지함에서 '위키 페이지 생성'을 누르면 저장한 자료가 위키 페이지가 됩니다. 한 페이지가 다른 페이지 이름을 언급하면 자동으로 서로 연결돼요. 태그를 탭하면 필터, 페이지를 탭하면 본문과 관련 참조가 펼쳐지고, 그래프에서 전체 연결을 볼 수 있습니다.",
     },
   },
   {
@@ -74,8 +74,8 @@ const SECTIONS: ManualSection[] = [
       ko: "세컨비 (채팅)",
     },
     body: {
-      en: "SecondB (the /jarvis tab) is a chat that has your wiki as system context. Ask 'what patterns show up across my captures this month?' Replies cite [[slugs]] from your own pages. Daily limit per tier; resets at midnight KST.",
-      ko: "세컨비(/jarvis 탭)는 당신의 위키를 시스템 컨텍스트로 가진 채팅이에요. '이번 달 캡처에서 반복되는 패턴은?' 같은 질문에, 답이 당신의 [[페이지 슬러그]]를 인용합니다. 일일 한도는 등급별, KST 자정 리셋.",
+      en: "SecondB is a chat that answers from your saved records and wiki pages. Ask 'what patterns show up across my captures this month?' Replies point back to your own pages by name. Daily limit depends on your plan; resets at midnight KST.",
+      ko: "세컨비는 당신이 저장한 기록과 위키 페이지를 바탕으로 답하는 채팅이에요. '이번 달 캡처에서 반복되는 패턴은?' 같은 질문에, 답이 당신의 페이지 이름을 근거로 함께 보여줍니다. 일일 한도는 이용 플랜별로 다르고, KST 자정에 리셋됩니다.",
     },
   },
   {
@@ -85,8 +85,8 @@ const SECTIONS: ManualSection[] = [
       ko: "안전 우선",
     },
     body: {
-      en: "Every AI call passes a 3-zone safety classifier before generation. Red-zone input never reaches the LLM; you get hotline guidance (KR 109, US 988) instead. Audit log is mandatory for every call.",
-      ko: "모든 AI 호출은 생성 전에 3존 안전 분류기를 통과해요. 위기 신호(레드존)는 LLM에 닿지 않고 한국 109 / 미국 988 등 핫라인 안내로 라우팅됩니다. 모든 호출은 감사 로그에 남아요.",
+      en: "Before the app answers with AI, it checks whether your message may need urgent support. Crisis signals show help resources first, including KR 109 and US 988. Safety-related interactions are recorded for review.",
+      ko: "앱이 AI로 답하기 전에, 메시지에 긴급한 도움이 필요한 신호가 있는지 먼저 확인합니다. 위기 신호가 보이면 한국 109 / 미국 988 등 도움받을 연락처를 먼저 안내해요. 안전 관련 상호작용은 검토를 위해 기록됩니다.",
     },
   },
   {
@@ -96,8 +96,8 @@ const SECTIONS: ManualSection[] = [
       ko: "프라이버시 + 휴대성",
     },
     body: {
-      en: "Your data is yours. RLS scopes every read/write to your auth.uid(), so no one else can see your wiki. Export at any time as a single markdown bundle you can paste into any LLM. No lock-in.",
-      ko: "데이터는 당신 것이에요. RLS가 모든 읽기/쓰기를 auth.uid()로 격리해서 다른 누구도 당신의 위키를 보지 못합니다. 언제든 단일 마크다운 번들로 내보내 어떤 LLM에도 붙일 수 있어요. 락인 없음.",
+      en: "Your data is yours. Each account can access only its own records, so no one else can see your wiki. Export at any time as one portable text bundle you can paste into Claude, ChatGPT, or another AI assistant. No lock-in.",
+      ko: "데이터는 당신 것이에요. 각 계정은 본인 기록에만 접근할 수 있어 다른 누구도 당신의 위키를 보지 못합니다. 언제든 하나의 텍스트 묶음으로 내보내 Claude, ChatGPT 같은 AI 서비스에 붙여 넣을 수 있어요. 락인 없음.",
     },
   },
   {
@@ -186,25 +186,23 @@ export default function Manual() {
           {(locale === "ko"
             ? [
                 ["캡처 (Capture)", "원본 자료를 받은편지함에 모으는 동작"],
-                ["인박스 (Inbox)", "캡처한 모든 소스의 목록"],
-                ["위키 페이지 (Wiki Page)", "캡처를 발전시킨 지식 항목 (소스/엔티티/개념)"],
-                // tech: internally "Phase 1"
-                ["요약과 질문", "LLM이 소스를 요약하고 4개의 성찰 질문을 만드는 단계"],
-                ["Phase 2", "소스를 위키 페이지로 승격하고 [[wikilink]] 연결을 만드는 단계"],
-                ["익스포트", "전체 위키를 한 번에 마크다운 번들로 추출 (Claude/ChatGPT에 붙여넣기용)"],
-                ["세컨비", "당신의 위키를 시스템 컨텍스트로 가진 RAG 챗봇"],
-                ["3존 분류기", "Green/Yellow/Red 안전 라우팅 (Red는 LLM 차단 + 핫라인)"],
+                ["인박스 (Inbox)", "캡처한 모든 자료의 목록"],
+                ["위키 페이지 (Wiki Page)", "캡처한 자료를 발전시킨 지식 항목"],
+                ["요약과 질문", "AI가 자료를 요약하고 4개의 성찰 질문을 만드는 단계"],
+                ["위키로 만들기", "자료를 위키 페이지로 발전시키고 관련 페이지를 자동으로 연결하는 단계"],
+                ["내보내기", "전체 위키를 한 번에 텍스트 묶음으로 추출 (Claude/ChatGPT에 붙여넣기용)"],
+                ["세컨비", "당신이 저장한 기록과 위키를 바탕으로 답하는 채팅"],
+                ["안전 안내", "위기 신호가 보이면 AI 답변 대신 도움받을 연락처를 먼저 안내"],
               ]
             : [
                 ["Capture", "Adding raw content to your inbox"],
                 ["Inbox", "List of every captured source"],
-                ["Wiki page", "A developed knowledge node (source/entity/concept)"],
-                // tech: internally "Phase 1"
-                ["Source brief", "LLM summarizes the source + emits 4 reflection questions"],
-                ["Phase 2", "Promote a source into a wiki page and build [[wikilink]] edges"],
-                ["Export", "Pack the whole wiki into a markdown bundle (paste into Claude/ChatGPT)"],
-                ["SecondB", "A RAG chatbot with your wiki as system context"],
-                ["3-zone classifier", "Green/Yellow/Red safety routing (Red blocks the LLM + hotline)"],
+                ["Wiki page", "A developed knowledge page from a saved note, person, or idea"],
+                ["Summary + questions", "AI summarizes saved material and suggests 4 reflection questions"],
+                ["Build wiki pages", "Turn saved material into wiki pages and connect related pages automatically"],
+                ["Export", "Pack the whole wiki into a portable text bundle (paste into Claude/ChatGPT)"],
+                ["SecondB", "A chat that answers from your saved records and wiki pages"],
+                ["Safety check", "If a crisis signal appears, the app shows help resources before any AI answer"],
               ]).map(([term, def]) => (
             <View key={term} style={styles.glossaryRow}>
               <Text variant="caption" color="text" style={styles.glossaryTerm}>
@@ -224,18 +222,18 @@ export default function Manual() {
           {(locale === "ko"
             ? [
                 "Big Five (BFI-44) · 애착 스타일 (ECR-S): 44문항과 12문항으로 남기는 자기 이해 평가",
-                "/insights: 매주 활동·자주 다룬 주제·결론 모음",
-                "/research: 어드바이저가 인용하는 학술 자료 브라우저",
+                "인사이트 화면: 매주 활동·자주 다룬 주제·결론 모음",
+                "리서치 화면: 어드바이저가 인용하는 학술 자료 브라우저",
                 "오늘의 성찰 질문 + 연속 기록 카운터",
                 "기록 · 캡처 · 위키 페이지 삭제 가능",
                 "캡처 시 종류 자동 감지 + 미리보기",
               ]
             : [
                 "Big Five (BFI-44) and Attachment (ECR-S): self-knowledge assessments with 44 and 12 items",
-                "/insights: weekly activity, recurring topics, conclusion stream",
-                "/research: browse validated academic sources the Advisor cites",
+                "Insights screen: weekly activity, recurring topics, conclusion stream",
+                "Research screen: browse validated academic sources the Advisor cites",
                 "Daily reflection prompt + streak counter",
-                "Delete affordances for records, captures, wiki pages",
+                "Delete records, captures, and wiki pages",
                 "Auto-detect kind on capture + preview before save",
               ]).map((line, i) => (
             <Text key={i} variant="subtle" color="textMuted" style={styles.recentLine}>
