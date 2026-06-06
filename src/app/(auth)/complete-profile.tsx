@@ -161,6 +161,11 @@ export default function CompleteProfile() {
             disabled={!canSubmit}
             loading={submitting}
             onPress={handleSubmit}
+            accessibilityHint={
+              locale === "ko"
+                ? "생년월일과 동의 항목을 저장한 뒤 앱을 엽니다."
+                : "Saves your date of birth and consent, then opens the app."
+            }
             full
             style={styles.submitButton}
           />
@@ -169,6 +174,9 @@ export default function CompleteProfile() {
             variant="secondary"
             onPress={handleCancel}
             disabled={submitting}
+            accessibilityHint={
+              locale === "ko" ? "로그아웃하고 로그인 화면으로 돌아갑니다." : "Signs out and returns to sign-in."
+            }
             full
             style={styles.submitButton}
           />

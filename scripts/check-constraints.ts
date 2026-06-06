@@ -290,6 +290,7 @@ results.push(
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const signUp = read("src/app/(auth)/sign-up.tsx");
     const birthDateField = read("src/components/auth/BirthDateField.tsx");
+    const completeProfile = read("src/app/(auth)/complete-profile.tsx");
     const notFound = read("src/app/+not-found.tsx");
     const home = read("src/app/index.tsx");
     const jarvis = read("src/app/jarvis.tsx");
@@ -401,6 +402,8 @@ results.push(
       signUp.includes("Opens the app manual") &&
       birthDateField.includes('accessibilityLabel={t("signUp.birthDate")}') &&
       birthDateField.includes('accessibilityHint={t("signUp.birthDateHelper")}') &&
+      completeProfile.includes("Saves your date of birth and consent, then opens the app.") &&
+      completeProfile.includes("Signs out and returns to sign-in.") &&
       notFound.includes("Opens the village center.") &&
       notFound.includes("Opens capture from the not-found page.") &&
       notFound.includes("Opens the past-me timeline.") &&
