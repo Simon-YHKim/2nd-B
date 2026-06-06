@@ -11,12 +11,12 @@
 // captureFromMarkdown so it enters the knowledge layer / graph like any piece
 // — classified, tagged, and indexed. Mock build returns a structured stub.
 
-import { useState } from "react";
-import { View, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } from "react-native";
+import { useEffect, useState } from "react";
+import { View, StyleSheet, ScrollView, Platform, KeyboardAvoidingView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumCard, PremiumButton, PremiumTextarea, PremiumLoadingState, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumCard, PremiumButton, PremiumTextarea, PremiumLoadingState, SceneHero, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -33,6 +33,7 @@ import {
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 
 type Phase = "input" | "analyzing" | "result" | "saved";
+type Toast = { message: string; tone: "danger" | "info" | "success" };
 
 export default function ImportExternal() {
   const { i18n } = useTranslation();
@@ -46,6 +47,13 @@ export default function ImportExternal() {
   const [result, setResult] = useState<IngestResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<Toast | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const h = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(h);
+  }, [toast]);
 
   if (loading) {
     return (
@@ -73,7 +81,10 @@ export default function ImportExternal() {
         // long-press to copy it themselves — but never clobber what they've
         // already pasted.
         if (raw.trim().length === 0) setRaw(prompt);
-        Alert.alert(ko ? "프롬프트를 아래에 넣었어요" : "Prompt placed below", ko ? "길게 눌러 복사하세요." : "Long-press to copy it.");
+        setToast({
+          tone: "info",
+          message: ko ? "프롬프트를 아래에 넣었어요. 길게 눌러 복사하세요." : "Prompt placed below. Long-press to copy it.",
+        });
       }
     } catch {
       if (raw.trim().length === 0) setRaw(prompt);
@@ -110,16 +121,12 @@ export default function ImportExternal() {
       setPhase("saved");
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[import] save failed", (e as Error).message);
-      Alert.alert(
-        ko ? "보관하지 못했어요" : "Couldn't keep it",
-        ko
-          ? "마을에 보관하는 중 문제가 생겼어요. 정리한 내용은 그대로 있으니 다시 시도해 주세요."
-          : "Something went wrong while keeping this in the village. The sorted result is still here, so please try again.",
-        [
-          { text: ko ? "닫기" : "Dismiss", style: "cancel" },
-          { text: ko ? "다시 시도" : "Retry", onPress: () => { void save(); } },
-        ],
-      );
+      setToast({
+        tone: "danger",
+        message: ko
+          ? "보관하지 못했어요. 정리한 내용은 그대로 있으니 다시 시도해 주세요."
+          : "Couldn't keep it. The sorted result is still here; please try again.",
+      });
     } finally {
       setSaving(false);
     }
@@ -247,6 +254,11 @@ export default function ImportExternal() {
           ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
+      ) : null}
     </PremiumAppShell>
   );
 }
@@ -274,4 +286,5 @@ const styles = StyleSheet.create({
   itemRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, paddingHorizontal: spacing.sm },
   itemDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
   savedActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
