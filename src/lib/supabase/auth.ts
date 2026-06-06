@@ -10,6 +10,7 @@ import { digitalConsentAge } from "../auth/consent-age";
 import { isJudgeEmail } from "../judge/domains";
 import { getEnv } from "../env";
 import { getSupabaseClient } from "./client";
+import * as Crypto from "expo-crypto";
 
 // C10 age tiers: adult users and 14-17 minors self-consent and register
 // directly. Under PIPA, legal-representative consent is mandatory only below 14
@@ -41,19 +42,14 @@ export class BreachedPasswordError extends Error {
 // HIBP k-anonymity range check: SHA-1 the password locally, send ONLY the first
 // 5 hex chars to api.pwnedpasswords.com, and match the returned suffixes. The
 // plaintext (and even the full hash) never leave the device — the widely-used,
-// privacy-preserving HIBP model. Best-effort: if Web Crypto is unavailable (some
-// native runtimes) or the network/HIBP fails, we DON'T block sign-up (the >= 8
+// privacy-preserving HIBP model. Best-effort: if the network/HIBP fails, we DON'T block sign-up (the >= 8
 // length floor + Supabase's own checks remain). `Add-Padding` masks the prefix's
 // real result-count from the network.
+// Native devices use expo-crypto to offload the SHA-1 hash to a native module,
+// avoiding JS-thread blocking which can cause frame drops or ANRs during sign-up.
 export async function isPasswordBreached(password: string): Promise<boolean> {
   try {
-    const subtle = (globalThis.crypto as Crypto | undefined)?.subtle;
-    if (!subtle) return false;
-    const digest = await subtle.digest("SHA-1", new TextEncoder().encode(password));
-    const hex = Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("")
-      .toUpperCase();
+    const hex = (await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA1, password)).toUpperCase();
     const prefix = hex.slice(0, 5);
     const suffix = hex.slice(5);
     const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
