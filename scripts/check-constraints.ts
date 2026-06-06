@@ -589,6 +589,8 @@ results.push(
     const permissions = read("src/app/permissions.tsx");
     const settings = read("src/app/settings.tsx");
     const premiumSurfaces = read("src/components/premium/surfaces.tsx");
+    const tierIcon = read("src/components/art/TierIcon.tsx");
+    const tierIconContract = read("src/components/art/tier-icon-contract.ts");
     const input = read("src/components/ui/Input.tsx");
     const backArrow = read("src/components/ui/BackArrow.tsx");
     const characterPath = read("src/components/graph/CharacterPathLayer.tsx");
@@ -609,6 +611,12 @@ results.push(
     const esmRadios = (esm.match(/accessibilityRole="radio"/g) ?? []).length;
     const esmCheckboxes = (esm.match(/accessibilityRole="checkbox"/g) ?? []).length;
     const preferenceCheckboxes = (preferenceToggle.match(/accessibilityRole="checkbox"/g) ?? []).length;
+    const tierIconAssetsMapped = [
+      "archive_scroll_premium.png",
+      "clock_premium.png",
+      "dream_crystal_premium.png",
+      "idea_lamp_premium.png",
+    ].every((file) => tierIcon.includes(file));
     const ok =
       captureTablists >= 2 && // track + mode rows
       captureSelected >= 2 && // track + mode chips
@@ -765,6 +773,10 @@ results.push(
       consentDialog.includes('accessibilityLabel={t("testimonial.title")}') &&
       consentDialog.includes('accessibilityHint={t("testimonial.body")}') &&
       premiumFeedback.includes("accessibilityLabel={accessibilityLabel}") &&
+      tierIconContract.includes("export const TIER_ICON_IDS") &&
+      tierIconAssetsMapped &&
+      tierIconContract.includes('case "self_knowledge": return "dream_crystal"') &&
+      tierIconContract.includes('case "code": return "idea_lamp"') &&
       preferenceToggle.includes('accessibilityRole="switch"') &&
       preferenceToggle.includes("accessibilityState={{ checked: value, disabled }}") &&
       privacy.includes("PreferenceToggleRow") &&
