@@ -17,7 +17,7 @@ import { isPrimaryTabPath } from "@/lib/nav/tabs";
 import { cosmic } from "@/lib/theme/tokens";
 
 // Landing + pre-auth routes that hide the arrow (no "back to graph" there yet).
-const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile"];
+const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile", "/oauth-callback"];
 
 // Routes that hide the back arrow entirely: the pre-auth flow plus the graph
 // home ("/") itself - "/" IS the back target, so it gets no arrow. Every other
@@ -97,7 +97,8 @@ export function BackArrow() {
       <Pressable
         onPress={() => router.push("/")}
         hitSlop={16}
-        accessibilityLabel="Back"
+        accessibilityRole="button"
+        accessibilityLabel={locale === "ko" ? "그래프로 돌아가기" : "Return to graph"}
         style={({ pressed }) => [styles.btn, pressed ? { opacity: 0.7 } : null]}
       >
         <View
