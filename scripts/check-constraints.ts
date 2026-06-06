@@ -291,6 +291,7 @@ results.push(
     const home = read("src/app/index.tsx");
     const jarvis = read("src/app/jarvis.tsx");
     const navGraph = read("src/components/graph/NavGraph.tsx");
+    const esm = read("src/app/esm.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
@@ -302,6 +303,9 @@ results.push(
     const jarvisButtons = (jarvis.match(/accessibilityRole="button"/g) ?? []).length;
     const jarvisTabs = (jarvis.match(/accessibilityRole="tab"/g) ?? []).length;
     const navGraphButtons = (navGraph.match(/accessibilityRole="button"/g) ?? []).length;
+    const esmTabs = (esm.match(/accessibilityRole="tab"/g) ?? []).length;
+    const esmRadios = (esm.match(/accessibilityRole="radio"/g) ?? []).length;
+    const esmCheckboxes = (esm.match(/accessibilityRole="checkbox"/g) ?? []).length;
     const ok =
       captureTablists >= 2 && // track + mode rows
       captureSelected >= 2 && // track + mode chips
@@ -370,13 +374,24 @@ results.push(
       navGraph.includes("Closes the village detail panel") &&
       navGraph.includes("Open ${name} in Divergent") &&
       navGraph.includes("Opens this village in Divergent mode") &&
-      navGraph.includes("Closes the piece detail panel");
+      navGraph.includes("Closes the piece detail panel") &&
+      esm.includes('from("esm_responses").insert') &&
+      esm.includes("prompt_kind: kind") &&
+      esm.includes('scale_value: kind === "energy" ? scaleValue : null') &&
+      esm.includes('context_tags: kind === "context" ? selectedTags : []') &&
+      esm.includes("No notifications. Only when you open it.") &&
+      esm.includes("not a judgment or diagnosis") &&
+      esmTabs >= 1 &&
+      esm.includes('accessibilityRole="radiogroup"') &&
+      esmRadios >= 1 &&
+      esmCheckboxes >= 1 &&
+      esm.includes("Saves the ${activePrompt.en.toLowerCase()} check-in");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/home/jarvis/navgraph actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/home/jarvis/navgraph actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/home/jarvis/navgraph/esm actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/home/jarvis/navgraph/esm actions need accessibilityRole plus selected/checked state",
     };
   }),
 );
