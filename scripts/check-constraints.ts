@@ -686,8 +686,8 @@ results.push(
       interview.includes("PremiumToast") &&
       interview.includes("Retry interview feedback") &&
       account.includes("PremiumModal") &&
-      account.includes("Account feedback notice") &&
-      account.includes("Account deletion confirmation") &&
+      account.includes('t("account.feedback.label")') &&
+      account.includes('t("account.delete.confirmLabel")') &&
       settings.includes("PremiumModal") &&
       settings.includes("PremiumToast") &&
       settings.includes('accessibilityLabel={t("modals.confirm.label")}') &&
@@ -966,11 +966,11 @@ results.push(
       onboarding.includes("accessibilityHint={openGraphHint}") &&
       onboarding.includes("accessibilityHint={primaryHint}") &&
       onboarding.includes("Completes onboarding and opens the first capture screen.") &&
-      account.includes("Saves your birth date and updates age-based privacy settings.") &&
-      account.includes("Opens privacy and consent settings.") &&
-      account.includes("Account deletion confirmation phrase") &&
-      account.includes("Type DELETE to enable the account deletion button.") &&
-      account.includes("Opens a final confirmation before deleting your account and data.") &&
+      account.includes('accessibilityHint={t("account.dob.saveHint")}') &&
+      account.includes('accessibilityHint={t("account.privacy.buttonHint")}') &&
+      account.includes('accessibilityLabel={t("account.delete.inputLabel")}') &&
+      account.includes('accessibilityHint={t("account.delete.inputHint")}') &&
+      account.includes('accessibilityHint={t("account.delete.buttonHint")}') &&
       data.includes('accessibilityHint={t("import.accessibilityHint")}') &&
       data.includes('accessibilityHint={t("export.accessibilityHint")}') &&
       data.includes('accessibilityHint={t("delete.accessibilityHint")}') &&
@@ -1223,6 +1223,70 @@ results.push(
       note: ok
         ? "settings loading, nav hints, sign-out hint, and modal a11y copy live in the settings locale bundle"
         : "settings nav/modal helper copy should source visible and accessibility strings from locale keys",
+    };
+  }),
+);
+
+results.push(
+  check("AccountFeedbackI18nCopy", () => {
+    const account = read("src/app/account.tsx");
+    const en = read("locales/en/consent.json");
+    const ko = read("locales/ko/consent.json");
+    const requiredCode = [
+      't("account.loading")',
+      't("account.dob.saveFailedBody")',
+      't("account.dob.saveHint")',
+      't("account.dob.retry")',
+      't("account.dob.retryHint")',
+      't("account.privacy.buttonHint")',
+      't("account.feedback.label")',
+      't("account.feedback.dismiss")',
+      't("account.feedback.dismissHint")',
+      't("account.delete.failedBody")',
+      't("account.delete.confirmLabel")',
+      't("account.delete.inputLabel")',
+      't("account.delete.inputHint")',
+      't("account.delete.buttonHint")',
+      't("account.delete.confirmCtaHint")',
+    ];
+    const forbiddenInlineCopy = [
+      "Loading account…",
+      "We couldn't finish deleting your account.",
+      "We couldn't save your birth date.",
+      '"Retry"',
+      "Account deletion confirmation",
+      "Account feedback notice",
+      "Account deletion confirmation phrase",
+      "Type DELETE to enable the account deletion button.",
+      "Opens a final confirmation before deleting your account and data.",
+      "Starts account and data deletion.",
+      "계정을 불러오는 중이에요…",
+      "계정 삭제를 끝내지 못했어요.",
+      "생일을 저장하지 못했어요.",
+      "계정 삭제 최종 확인",
+      "계정 피드백 안내",
+      "계정 삭제 확인 문구",
+      "계정 삭제 버튼을 활성화하려면 DELETE를 입력합니다.",
+      "계정과 데이터를 삭제하기 전 최종 확인을 엽니다.",
+      "계정과 데이터 삭제를 시작합니다.",
+    ];
+    const ok =
+      requiredCode.every((snippet) => account.includes(snippet)) &&
+      en.includes('"loading": "Loading account…"') &&
+      en.includes('"label": "Account feedback notice"') &&
+      en.includes('"inputLabel": "Account deletion confirmation phrase"') &&
+      en.includes('"confirmCtaHint": "Starts account and data deletion."') &&
+      ko.includes('"loading": "계정을 불러오는 중이에요…"') &&
+      ko.includes('"label": "계정 피드백 안내"') &&
+      ko.includes('"inputLabel": "계정 삭제 확인 문구"') &&
+      ko.includes('"confirmCtaHint": "계정과 데이터 삭제를 시작합니다."') &&
+      forbiddenInlineCopy.every((term) => !account.includes(term));
+    return {
+      id: "AccountFeedbackI18nCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "account loading, feedback, deletion modal, and helper a11y copy live in the consent locale bundle"
+        : "account helper, feedback, and deletion modal copy should source visible and accessibility strings from locale keys",
     };
   }),
 );

@@ -74,6 +74,7 @@
     }
   },
   "account": {
+    "loading": "Loading account…",
     "eyebrow": "Account",
     "title": "Your account, your call",
     "subtitle": "Fix your details, manage privacy, or close your account.",
@@ -83,12 +84,22 @@
       "hint": "Fix a mistyped birth date. It must be a real date and meet the age floor.",
       "save": "Save birth date",
       "saved": "Birth date updated.",
-      "saveFailed": "Could not update your birth date"
+      "saveFailed": "Could not update your birth date",
+      "saveFailedBody": "We couldn't save your birth date. Please try again in a moment.",
+      "saveHint": "Saves your birth date and updates age-based privacy settings.",
+      "retry": "Retry",
+      "retryHint": "Retries saving your birth date."
     },
     "privacy": {
       "label": "Privacy and consent",
       "body": "Sharing, ads, recommendations, analytics, and model training are each off by default. Turn them on or off any time.",
-      "button": "Open privacy controls"
+      "button": "Open privacy controls",
+      "buttonHint": "Opens privacy and consent settings."
+    },
+    "feedback": {
+      "label": "Account feedback notice",
+      "dismiss": "Dismiss",
+      "dismissHint": "Dismisses this notice."
     },
     "delete": {
       "label": "Delete account",
@@ -100,7 +111,13 @@
       "confirmBody": "Your data will be erased and you will be signed out. This cannot be undone.",
       "confirmCta": "Delete",
       "cancel": "Cancel",
-      "failed": "Account deletion failed"
+      "failed": "Account deletion failed",
+      "failedBody": "We couldn't finish deleting your account. Some content may already be removed, and your account and login may still exist. Please contact support@2nd-brain.app and we'll help.",
+      "confirmLabel": "Account deletion confirmation",
+      "inputLabel": "Account deletion confirmation phrase",
+      "inputHint": "Type DELETE to enable the account deletion button.",
+      "buttonHint": "Opens a final confirmation before deleting your account and data.",
+      "confirmCtaHint": "Starts account and data deletion."
     }
   }
 }

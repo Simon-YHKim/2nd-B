@@ -91,7 +91,7 @@ export default function Account() {
     } finally {
       if (mounted.current) setDobBusy(false);
     }
-  }, [userId, origDob, birthDate, t, locale, refresh]);
+  }, [userId, origDob, birthDate, refresh]);
 
   const runDeleteAccount = useCallback(() => {
     if (!userId) return;
@@ -124,7 +124,7 @@ export default function Account() {
         if (mounted.current) setDeleting(false);
       }
     })();
-  }, [userId, t, locale]);
+  }, [userId]);
 
   const onDeleteAccount = useCallback(() => {
     if (!userId) return;
@@ -135,7 +135,7 @@ export default function Account() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "계정을 불러오는 중이에요…" : "Loading account…"} />
+          <PremiumLoadingState message={t("account.loading")} />
         </View>
       </PremiumAppShell>
     );
@@ -153,22 +153,14 @@ export default function Account() {
     feedbackModal === "deleteConfirm"
       ? t("account.delete.confirmBody")
       : feedbackModal === "deleteFailed"
-        ? (
-            locale === "ko"
-              ? "계정 삭제를 끝내지 못했어요. 일부 콘텐츠는 이미 삭제됐을 수 있고, 계정과 로그인 정보는 아직 남아 있을 수 있어요. support@2nd-brain.app 로 문의해 주시면 도와드릴게요."
-              : "We couldn't finish deleting your account. Some content may already be removed, and your account and login may still exist. Please contact support@2nd-brain.app and we'll help."
-          )
-        : (
-            locale === "ko"
-              ? "생일을 저장하지 못했어요. 잠시 후 다시 시도해 주세요."
-              : "We couldn't save your birth date. Please try again in a moment."
-          );
+        ? t("account.delete.failedBody")
+        : t("account.dob.saveFailedBody");
   const modalPrimaryLabel = feedbackModal === "deleteConfirm"
     ? t("account.delete.confirmCta")
-    : (locale === "ko" ? "다시 시도" : "Retry");
+    : t("account.dob.retry");
   const modalAccessibilityLabel = feedbackModal === "deleteConfirm"
-    ? (locale === "ko" ? "계정 삭제 최종 확인" : "Account deletion confirmation")
-    : (locale === "ko" ? "계정 피드백 안내" : "Account feedback notice");
+    ? t("account.delete.confirmLabel")
+    : t("account.feedback.label");
 
   function handleFeedbackPrimary() {
     const current = feedbackModal;
@@ -216,11 +208,7 @@ export default function Account() {
             disabled={!dobSubmittable || dobBusy}
             loading={dobBusy}
             onPress={() => { void onSaveDob(); }}
-            accessibilityHint={
-              locale === "ko"
-                ? "생년월일을 저장하고 나이 기반 개인정보 설정에 반영합니다."
-                : "Saves your birth date and updates age-based privacy settings."
-            }
+            accessibilityHint={t("account.dob.saveHint")}
           />
         </View>
 
@@ -236,9 +224,7 @@ export default function Account() {
             label={t("account.privacy.button")}
             variant="secondary"
             onPress={() => router.push("/privacy")}
-            accessibilityHint={
-              locale === "ko" ? "개인정보와 동의 설정 화면을 엽니다." : "Opens privacy and consent settings."
-            }
+            accessibilityHint={t("account.privacy.buttonHint")}
           />
         </View>
 
@@ -262,12 +248,8 @@ export default function Account() {
             placeholder={CONFIRM_PHRASE}
             autoCapitalize="characters"
             autoCorrect={false}
-            accessibilityLabel={locale === "ko" ? "계정 삭제 확인 문구" : "Account deletion confirmation phrase"}
-            accessibilityHint={
-              locale === "ko"
-                ? "계정 삭제 버튼을 활성화하려면 DELETE를 입력합니다."
-                : "Type DELETE to enable the account deletion button."
-            }
+            accessibilityLabel={t("account.delete.inputLabel")}
+            accessibilityHint={t("account.delete.inputHint")}
           />
           <Button
             label={t("account.delete.button")}
@@ -275,11 +257,7 @@ export default function Account() {
             disabled={deleteConfirm !== CONFIRM_PHRASE || deleting}
             loading={deleting}
             onPress={onDeleteAccount}
-            accessibilityHint={
-              locale === "ko"
-                ? "계정과 데이터를 삭제하기 전 최종 확인을 엽니다."
-                : "Opens a final confirmation before deleting your account and data."
-            }
+            accessibilityHint={t("account.delete.buttonHint")}
           />
         </View>
       </ScrollView>
@@ -295,11 +273,11 @@ export default function Account() {
         </Text>
         <View style={styles.modalActions}>
           <Button
-            label={feedbackModal === "deleteConfirm" ? t("account.delete.cancel") : (locale === "ko" ? "닫기" : "Dismiss")}
+            label={feedbackModal === "deleteConfirm" ? t("account.delete.cancel") : t("account.feedback.dismiss")}
             variant="secondary"
             onPress={() => setFeedbackModal(null)}
             style={styles.modalButton}
-            accessibilityHint={locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice."}
+            accessibilityHint={t("account.feedback.dismissHint")}
           />
           {feedbackModal !== "deleteFailed" ? (
             <Button
@@ -311,14 +289,10 @@ export default function Account() {
               accessibilityHint={
                 feedbackModal === "deleteConfirm"
                   ? (
-                      locale === "ko"
-                        ? "계정과 데이터 삭제를 시작합니다."
-                        : "Starts account and data deletion."
+                      t("account.delete.confirmCtaHint")
                     )
                   : (
-                      locale === "ko"
-                        ? "생년월일 저장을 다시 시도합니다."
-                        : "Retries saving your birth date."
+                      t("account.dob.retryHint")
                     )
               }
             />
