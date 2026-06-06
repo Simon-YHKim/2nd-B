@@ -606,12 +606,19 @@ export default function Wiki() {
                     }
                   }}
                   hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={locale === "ko" ? "내보낸 지식 창고 복사" : "Copy exported knowledge store"}
                 >
                   <Text variant="caption" color="brand">
                     {locale === "ko" ? "복사" : "Copy"}
                   </Text>
                 </Pressable>
-                <Pressable onPress={() => setExportText(null)} hitSlop={6}>
+                <Pressable
+                  onPress={() => setExportText(null)}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={locale === "ko" ? "내보내기 미리보기 닫기" : "Close export preview"}
+                >
                   <Text variant="caption" color="brand">
                     {locale === "ko" ? "닫기" : "Close"}
                   </Text>
@@ -645,6 +652,9 @@ export default function Wiki() {
                     onPress={() => toggleTag(tag)}
                     style={[styles.tagChip, active && styles.tagChipActive]}
                     hitSlop={4}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={locale === "ko" ? `${tag} 태그 필터` : `Filter by tag ${tag}`}
                   >
                     <Text variant="subtle" color={active ? "background" : "textMuted"}>
                       #{tag}
@@ -653,7 +663,13 @@ export default function Wiki() {
                 );
               })}
               {activeTags.length > 0 ? (
-                <Pressable onPress={() => setActiveTags([])} style={styles.clearChip} hitSlop={4}>
+                <Pressable
+                  onPress={() => setActiveTags([])}
+                  style={styles.clearChip}
+                  hitSlop={4}
+                  accessibilityRole="button"
+                  accessibilityLabel={locale === "ko" ? "태그 필터 모두 지우기" : "Clear all tag filters"}
+                >
                   <Text variant="subtle" color="textMuted">
                     {t("clear")}
                   </Text>
@@ -781,6 +797,17 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                     styles.row,
                     { borderLeftColor: semantic[KIND_BORDER[p.kind]], borderLeftWidth: 3 },
                   ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={locale === "ko" ? `${p.title} 위키 페이지 열기` : `Open wiki page ${p.title}`}
+                  accessibilityHint={
+                    expanded
+                      ? locale === "ko"
+                        ? "본문과 연결 정보를 닫습니다"
+                        : "Collapses body and link details"
+                      : locale === "ko"
+                        ? "본문과 연결 정보를 엽니다"
+                        : "Expands body and link details"
+                  }
                 >
                   <View style={styles.rowHeader}>
                     <View style={[styles.kindChip, { borderColor: semantic[KIND_BORDER[p.kind]] }]}>
@@ -823,6 +850,8 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                             onAddTag(tag);
                           }}
                           hitSlop={8}
+                          accessibilityRole="button"
+                          accessibilityLabel={locale === "ko" ? `${tag} 태그 필터 추가` : `Add tag filter ${tag}`}
                         >
                           <Text variant="subtle" color="textSubtle">
                             #{tag}
@@ -853,6 +882,13 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                               disabled={phase1Running}
                               style={styles.phase1Trigger}
                               hitSlop={4}
+                              accessibilityRole="button"
+                              accessibilityLabel={
+                                locale === "ko"
+                                  ? `${p.title} 요약과 질문 만들기`
+                                  : `Build source brief for ${p.title}`
+                              }
+                              accessibilityState={{ disabled: phase1Running, busy: phase1Running }}
                             >
                               <Text variant="caption" color="brand">
                                 {phase1Running
@@ -953,6 +989,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                           hitSlop={6}
                           style={styles.pageHandoffBtn}
                           accessibilityRole="button"
+                          accessibilityLabel={locale === "ko" ? `${p.title} 그래프에서 보기` : `See ${p.title} in graph`}
                         >
                           <Text variant="caption" color="brand">
                             {locale === "ko" ? "그래프에서 보기" : "See in graph"}
@@ -966,6 +1003,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                           hitSlop={6}
                           style={styles.pageHandoffBtn}
                           accessibilityRole="button"
+                          accessibilityLabel={locale === "ko" ? `${p.title}에 대해 세컨드비에게 묻기` : `Ask SecondB about ${p.title}`}
                         >
                           <Text variant="caption" color="brand">
                             {locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
@@ -979,6 +1017,8 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                         }}
                         hitSlop={6}
                         style={{ alignSelf: "flex-end", marginTop: spacing.sm }}
+                        accessibilityRole="button"
+                        accessibilityLabel={locale === "ko" ? `${p.title} 위키 페이지 삭제` : `Delete wiki page ${p.title}`}
                       >
                         <Text variant="caption" color="textSubtle">
                           {locale === "ko" ? "이 페이지 삭제" : "Delete page"}
