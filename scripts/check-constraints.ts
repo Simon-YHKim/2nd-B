@@ -306,6 +306,7 @@ results.push(
     const oauthCallback = read("src/app/(auth)/oauth-callback.tsx");
     const quantIntro = read("src/components/quant/QuantIntroModal.tsx");
     const onboarding = read("src/app/onboarding.tsx");
+    const account = read("src/app/account.tsx");
     const data = read("src/app/data.tsx");
     const support = read("src/app/support.tsx");
     const theme = read("src/app/theme.tsx");
@@ -479,6 +480,11 @@ results.push(
       onboarding.includes("accessibilityHint={openGraphHint}") &&
       onboarding.includes("accessibilityHint={primaryHint}") &&
       onboarding.includes("Completes onboarding and opens the first capture screen.") &&
+      account.includes("Saves your birth date and updates age-based privacy settings.") &&
+      account.includes("Opens privacy and consent settings.") &&
+      account.includes("Account deletion confirmation phrase") &&
+      account.includes("Type DELETE to enable the account deletion button.") &&
+      account.includes("Opens a final confirmation before deleting your account and data.") &&
       data.includes("Opens the import screen.") &&
       data.includes("Opens the knowledge store.") &&
       data.includes("Opens delete options in Settings.") &&

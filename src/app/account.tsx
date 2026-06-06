@@ -193,6 +193,11 @@ export default function Account() {
             disabled={!dobSubmittable || dobBusy}
             loading={dobBusy}
             onPress={() => { void onSaveDob(); }}
+            accessibilityHint={
+              locale === "ko"
+                ? "생년월일을 저장하고 나이 기반 개인정보 설정에 반영합니다."
+                : "Saves your birth date and updates age-based privacy settings."
+            }
           />
         </View>
 
@@ -208,6 +213,9 @@ export default function Account() {
             label={t("account.privacy.button")}
             variant="secondary"
             onPress={() => router.push("/privacy")}
+            accessibilityHint={
+              locale === "ko" ? "개인정보와 동의 설정 화면을 엽니다." : "Opens privacy and consent settings."
+            }
           />
         </View>
 
@@ -231,6 +239,12 @@ export default function Account() {
             placeholder={CONFIRM_PHRASE}
             autoCapitalize="characters"
             autoCorrect={false}
+            accessibilityLabel={locale === "ko" ? "계정 삭제 확인 문구" : "Account deletion confirmation phrase"}
+            accessibilityHint={
+              locale === "ko"
+                ? "계정 삭제 버튼을 활성화하려면 DELETE를 입력합니다."
+                : "Type DELETE to enable the account deletion button."
+            }
           />
           <Button
             label={t("account.delete.button")}
@@ -238,6 +252,11 @@ export default function Account() {
             disabled={deleteConfirm !== CONFIRM_PHRASE || deleting}
             loading={deleting}
             onPress={onDeleteAccount}
+            accessibilityHint={
+              locale === "ko"
+                ? "계정과 데이터를 삭제하기 전 최종 확인을 엽니다."
+                : "Opens a final confirmation before deleting your account and data."
+            }
           />
         </View>
       </ScrollView>
