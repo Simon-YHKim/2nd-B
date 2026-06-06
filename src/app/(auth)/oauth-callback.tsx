@@ -14,8 +14,7 @@ import { cosmic } from "@/lib/theme/tokens";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 
 export default function OAuthCallback() {
-  const { i18n } = useTranslation();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const { t } = useTranslation("auth");
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -48,12 +47,9 @@ export default function OAuthCallback() {
   }, []);
 
   if (failed) {
-    const failureMessage =
-      locale === "ko"
-        ? "로그인을 완료하지 못했어요. 다시 시도해 주세요."
-        : "Couldn't complete sign-in. Please try again.";
-    const retryLabel = locale === "ko" ? "로그인으로 돌아가기" : "Back to sign-in";
-    const retryHint = locale === "ko" ? "로그인 화면으로 이동합니다." : "Opens the sign-in screen.";
+    const failureMessage = t("oauthCallback.failureMessage");
+    const retryLabel = t("oauthCallback.retryLabel");
+    const retryHint = t("oauthCallback.retryHint");
 
     return (
       <View style={styles.root}>

@@ -1495,6 +1495,39 @@ results.push(
   );
 
   results.push(
+    check("OAuthCallbackI18nCopy", () => {
+      const screen = read("src/app/(auth)/oauth-callback.tsx");
+      const en = read("locales/en/auth.json");
+      const ko = read("locales/ko/auth.json");
+      const forbiddenScreenCopy = [
+        'locale === "ko"',
+        "Couldn't complete sign-in",
+        "Back to sign-in",
+        "Opens the sign-in screen.",
+      ];
+      const ok =
+        screen.includes('useTranslation("auth")') &&
+        screen.includes('t("oauthCallback.failureMessage")') &&
+        screen.includes('t("oauthCallback.retryLabel")') &&
+        screen.includes('t("oauthCallback.retryHint")') &&
+        screen.includes("accessibilityLabel={retryLabel}") &&
+        screen.includes("accessibilityHint={retryHint}") &&
+        en.includes('"oauthCallback"') &&
+        ko.includes('"oauthCallback"') &&
+        en.includes("Couldn't complete sign-in") &&
+        ko.includes("로그인을 완료하지 못했어요") &&
+        forbiddenScreenCopy.every((term) => !screen.includes(term));
+      return {
+        id: "OAuthCallbackI18nCopy",
+        status: ok ? "PASS" : "FAIL",
+        note: ok
+          ? "oauth callback failure copy lives in the auth locale bundle with key-based a11y"
+          : "oauth callback should source failure copy and retry a11y from auth locale bundle",
+      };
+    }),
+  );
+
+  results.push(
     check("InboxWikiTarget", () => {
     const inbox = read("src/app/inbox.tsx");
     const wiki = read("src/app/wiki.tsx");
