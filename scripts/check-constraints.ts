@@ -309,6 +309,7 @@ results.push(
     const premiumSurfaces = read("src/components/premium/surfaces.tsx");
     const input = read("src/components/ui/Input.tsx");
     const backArrow = read("src/components/ui/BackArrow.tsx");
+    const characterPath = read("src/components/graph/CharacterPathLayer.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
@@ -462,13 +463,17 @@ results.push(
       backArrow.includes('"/imagine": { en: "Divergent mode", ko: "공상 모드" }') &&
       backArrow.includes('"/journal": { en: "Journal", ko: "일기" }') &&
       backArrow.includes('"/mbti": { en: "Persona", ko: "페르소나" }') &&
-      backArrow.includes("Opens the graph home screen.");
+      backArrow.includes("Opens the graph home screen.") &&
+      characterPath.includes("Opens this resident's short self-talk bubble.") &&
+      characterPath.includes("accessibilityState={{ expanded: line != null }}") &&
+      characterPath.includes('accessibilityLiveRegion="polite"') &&
+      characterPath.includes("accessibilityLabel={text}");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
     };
   }),
 );

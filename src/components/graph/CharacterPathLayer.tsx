@@ -226,6 +226,8 @@ function Worker({
         style={[styles.spritePressable, { left: spriteLeft, top: spriteTop, width: spriteSize, height: spriteSize }]}
         accessibilityRole="button"
         accessibilityLabel={locale === "ko" ? `${getPersona(id).name.ko} 혼잣말 듣기` : `Hear ${getPersona(id).name.en} think aloud`}
+        accessibilityHint={locale === "ko" ? "짧은 혼잣말 말풍선을 엽니다." : "Opens this resident's short self-talk bubble."}
+        accessibilityState={{ expanded: line != null }}
       >
         <WorkerSprite id={id} size={spriteSize} facing={pose.facing} paused={pose.resting} />
       </Pressable>
@@ -239,7 +241,14 @@ function Worker({
 // village name-plate style (pixel font, mint border on dark).
 function SpeechBubble({ text, bottom, slotWidth }: { text: string; bottom: number; slotWidth: number }) {
   return (
-    <View style={[styles.bubbleWrap, { bottom, left: slotWidth / 2 - BUBBLE_W / 2 }]} pointerEvents="none">
+    <View
+      style={[styles.bubbleWrap, { bottom, left: slotWidth / 2 - BUBBLE_W / 2 }]}
+      pointerEvents="none"
+      accessible
+      accessibilityRole="text"
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={text}
+    >
       <View style={styles.bubble}>
         <Text style={styles.bubbleText} numberOfLines={3}>{text}</Text>
       </View>
