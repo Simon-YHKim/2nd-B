@@ -100,6 +100,14 @@ export default function Onboarding() {
   const step = STEPS[index];
   const isLast = index === STEPS.length - 1;
   const artW = Math.min(width - spacing.lg * 2, 360);
+  const openGraphHint = locale === "ko" ? "온보딩을 마치고 그래프로 이동합니다." : "Completes onboarding and opens the graph.";
+  const primaryHint = isLast
+    ? locale === "ko"
+      ? "온보딩을 마치고 첫 기록 화면으로 이동합니다."
+      : "Completes onboarding and opens the first capture screen."
+    : locale === "ko"
+      ? "다음 온보딩 단계로 이동합니다."
+      : "Moves to the next onboarding step.";
 
   function finishToCapture() {
     markOnboardingComplete();
@@ -119,7 +127,11 @@ export default function Onboarding() {
     <PremiumAppShell>
       <View style={styles.root}>
         <View style={styles.topBar}>
-          <View style={styles.dots} accessibilityLabel={locale === "ko" ? `${index + 1} / ${STEPS.length} 단계` : `Step ${index + 1} of ${STEPS.length}`}>
+          <View
+            style={styles.dots}
+            accessible
+            accessibilityLabel={locale === "ko" ? `${index + 1} / ${STEPS.length} 단계` : `Step ${index + 1} of ${STEPS.length}`}
+          >
             {STEPS.map((_, i) => (
               <View key={i} style={[styles.dot, i === index ? styles.dotActive : null]} />
             ))}
@@ -129,6 +141,7 @@ export default function Onboarding() {
             hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel={locale === "ko" ? "건너뛰기" : "Skip"}
+            accessibilityHint={openGraphHint}
           >
             <Text variant="caption" color="textMuted">{locale === "ko" ? "건너뛰기" : "Skip"}</Text>
           </Pressable>
@@ -143,12 +156,13 @@ export default function Onboarding() {
         </View>
 
         <View style={styles.actions}>
-          <Button label={step.cta[locale]} variant="primary" onPress={onPrimary} />
+          <Button label={step.cta[locale]} variant="primary" onPress={onPrimary} accessibilityHint={primaryHint} />
           {isLast ? (
             <Button
               label={locale === "ko" ? "건너뛰고 둘러보기" : "Skip and look around"}
               variant="secondary"
               onPress={() => finishToGraph()}
+              accessibilityHint={openGraphHint}
             />
           ) : null}
         </View>

@@ -301,6 +301,7 @@ results.push(
     const loadingScreen = read("src/components/ui/LoadingScreen.tsx");
     const oauthCallback = read("src/app/(auth)/oauth-callback.tsx");
     const quantIntro = read("src/components/quant/QuantIntroModal.tsx");
+    const onboarding = read("src/app/onboarding.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
@@ -421,13 +422,16 @@ results.push(
       oauthCallback.includes("accessibilityHint={retryHint}") &&
       quantIntro.includes("accessibilityViewIsModal") &&
       quantIntro.includes("accessibilityLabel={title}") &&
-      quantIntro.includes("accessibilityHint={description}");
+      quantIntro.includes("accessibilityHint={description}") &&
+      onboarding.includes("accessibilityHint={openGraphHint}") &&
+      onboarding.includes("accessibilityHint={primaryHint}") &&
+      onboarding.includes("Completes onboarding and opens the first capture screen.");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/home/jarvis/navgraph/esm/profile/consent/premium-modal/quant-intro/loading actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/home/jarvis/navgraph/esm/profile/consent/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/home/jarvis/navgraph/esm/profile/consent/premium-modal/quant-intro/loading actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/home/jarvis/navgraph/esm/profile/consent/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
     };
   }),
 );
