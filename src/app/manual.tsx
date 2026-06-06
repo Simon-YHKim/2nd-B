@@ -30,8 +30,8 @@ const SECTIONS: ManualSection[] = [
       ko: "두번째 뇌란",
     },
     body: {
-      en: "A second brain built only from what you write. Daily journaling, past-me interviews, and clipper imports build a personal knowledge graph you own. Export to Claude or ChatGPT anytime; your second brain travels.",
-      ko: "당신이 쓴 것들로만 만드는 두번째 뇌예요. 매일의 일기, 과거의 나 인터뷰, 클리퍼 자료 캡처가 모여 당신만의 지식 그래프가 됩니다. Claude·ChatGPT로 언제든 내보낼 수 있고, 두번째 뇌는 함께 이동합니다.",
+      en: "A second brain built only from what you write. Daily journaling, past-me interviews, and saved sources build a personal knowledge map you own. Export your notes anytime as a portable bundle.",
+      ko: "당신이 쓴 것들로만 만드는 두번째 뇌예요. 매일의 일기, 과거의 나 인터뷰, 저장한 자료가 모여 당신만의 지식 지도가 됩니다. 언제든 하나의 묶음으로 내보낼 수 있어요.",
     },
   },
   {
@@ -41,8 +41,8 @@ const SECTIONS: ManualSection[] = [
       ko: "하루 루틴",
     },
     body: {
-      en: "Write a journal entry, tag it with a topic, then optionally ask for an Advisor reflection. Over weeks, patterns surface (Big Five proxies, attachment cues, values) as observations, never verdicts.",
-      ko: "오늘 일기를 쓰고, 주제와 태그를 달고, 원하면 어드바이저의 되묻기를 받아요. 몇 주가 쌓이면 패턴(Big Five 근사, 애착 단서, 가치)이 단정이 아닌 관찰로 떠오릅니다.",
+      en: "Write a journal entry, tag it with a topic, then optionally ask for an Advisor reflection. Over weeks, recurring themes surface as observations, never verdicts.",
+      ko: "오늘 일기를 쓰고, 주제와 태그를 달고, 원하면 어드바이저의 되묻기를 받아요. 몇 주가 쌓이면 반복되는 주제가 단정이 아닌 관찰로 떠오릅니다.",
     },
   },
   {
@@ -52,8 +52,8 @@ const SECTIONS: ManualSection[] = [
       ko: "무엇이든 캡처",
     },
     body: {
-      en: "Paste an Obsidian-clipped article, a YouTube transcript, a paper, or a Reddit thread. The capture screen auto-detects the kind. Your inbox lists everything; tap 'Summarize + 4 questions' to get a reflection prompt.",
-      ko: "Obsidian 클리퍼로 캡처한 글, 유튜브 자막, 논문, 레딧 스레드를 붙여 넣을 수 있어요. 캡처 화면에서 종류를 자동 인식합니다. 받은편지함에 다 모이고, '요약 + 4질문' 탭으로 성찰 질문을 받을 수 있어요.",
+      en: "Paste an article, video transcript, paper, or discussion thread. The capture screen recognizes the kind. Your inbox lists everything; tap 'Summary + questions' to get a reflection prompt.",
+      ko: "글, 영상 자막, 논문, 대화 스레드를 붙여 넣을 수 있어요. 캡처 화면에서 종류를 알아봅니다. 받은편지함에 다 모이고, '요약과 질문' 탭으로 성찰 질문을 받을 수 있어요.",
     },
   },
   {
@@ -85,8 +85,8 @@ const SECTIONS: ManualSection[] = [
       ko: "안전 우선",
     },
     body: {
-      en: "Before the app answers with AI, it checks whether your message may need urgent support. Crisis signals show help resources first, including KR 109 and US 988. Safety-related interactions are recorded for review.",
-      ko: "앱이 AI로 답하기 전에, 메시지에 긴급한 도움이 필요한 신호가 있는지 먼저 확인합니다. 위기 신호가 보이면 한국 109 / 미국 988 등 도움받을 연락처를 먼저 안내해요. 안전 관련 상호작용은 검토를 위해 기록됩니다.",
+      en: "Before the app replies, it checks whether your message may need urgent support. Crisis signals show help resources first, including KR 109 and US 988. Safety-related interactions are recorded for review.",
+      ko: "앱이 답하기 전에, 메시지에 긴급한 도움이 필요한 신호가 있는지 먼저 확인합니다. 위기 신호가 보이면 한국 109 / 미국 988 등 도움받을 연락처를 먼저 안내해요. 안전 관련 상호작용은 검토를 위해 기록됩니다.",
     },
   },
   {
@@ -96,8 +96,8 @@ const SECTIONS: ManualSection[] = [
       ko: "프라이버시 + 휴대성",
     },
     body: {
-      en: "Your data is yours. Each account can access only its own records, so no one else can see your wiki. Export at any time as one portable text bundle you can paste into Claude, ChatGPT, or another AI assistant. No lock-in.",
-      ko: "데이터는 당신 것이에요. 각 계정은 본인 기록에만 접근할 수 있어 다른 누구도 당신의 위키를 보지 못합니다. 언제든 하나의 텍스트 묶음으로 내보내 Claude, ChatGPT 같은 AI 서비스에 붙여 넣을 수 있어요. 락인 없음.",
+      en: "Your data is yours. Each account can access only its own records, so no one else can see your wiki. Export at any time as one portable text bundle you can keep or paste elsewhere. No lock-in.",
+      ko: "데이터는 당신 것이에요. 각 계정은 본인 기록에만 접근할 수 있어 다른 누구도 당신의 위키를 보지 못합니다. 언제든 하나의 텍스트 묶음으로 내보내 보관하거나 다른 곳에 붙여 넣을 수 있어요. 락인 없음.",
     },
   },
   {
@@ -107,8 +107,8 @@ const SECTIONS: ManualSection[] = [
       ko: "검증된 심리학",
     },
     body: {
-      en: "2nd-B grounds explanations and recommendations in evidence-backed sources such as Big Five, Self-Determination Theory, Attachment Theory, CBT research, Erikson, and VIA strengths. MBTI, astrology, and AI-invented frameworks are not used as primary evidence. MBTI can be stored as a user-owned reference record, and every cited source still needs a DOI or URL.",
-      ko: "2nd-B의 설명과 추천은 Big Five, 자기결정성 이론, 애착이론, CBT 연구, 에릭슨, VIA 성격 강점처럼 근거가 있는 자료를 기준으로 합니다. MBTI와 점성술, AI가 만든 프레임은 주요 근거로 쓰지 않습니다. MBTI를 사용자가 남긴 참고 기록으로 보관할 수는 있지만, 모든 참고문헌에는 DOI 또는 URL이 있어야 합니다.",
+      en: "2nd-B grounds explanations and recommendations in established psychology research on traits, motivation, attachment, life stages, and strengths. It does not treat personality labels or astrology as proof. Research citations stay available in the library.",
+      ko: "2nd-B의 설명과 추천은 성격 특성, 동기, 애착, 생애 단계, 강점에 관한 검증된 심리학 연구를 기준으로 합니다. 성격 유형 이름이나 점성술을 근거처럼 쓰지 않습니다. 참고한 연구 자료는 리서치 화면에서 확인할 수 있어요.",
     },
   },
 ];
@@ -191,21 +191,21 @@ export default function Manual() {
                 ["캡처 (Capture)", "원본 자료를 받은편지함에 모으는 동작"],
                 ["인박스 (Inbox)", "캡처한 모든 자료의 목록"],
                 ["위키 페이지 (Wiki Page)", "캡처한 자료를 발전시킨 지식 항목"],
-                ["요약과 질문", "AI가 자료를 요약하고 4개의 성찰 질문을 만드는 단계"],
+                ["요약과 질문", "앱이 자료를 요약하고 4개의 성찰 질문을 만드는 단계"],
                 ["위키로 만들기", "자료를 위키 페이지로 발전시키고 관련 페이지를 자동으로 연결하는 단계"],
-                ["내보내기", "전체 위키를 한 번에 텍스트 묶음으로 추출 (Claude/ChatGPT에 붙여넣기용)"],
+                ["내보내기", "전체 위키를 한 번에 보관 가능한 텍스트 묶음으로 추출"],
                 ["세컨비", "당신이 저장한 기록과 위키를 바탕으로 답하는 채팅"],
-                ["안전 안내", "위기 신호가 보이면 AI 답변 대신 도움받을 연락처를 먼저 안내"],
+                ["안전 안내", "위기 신호가 보이면 답변보다 도움받을 연락처를 먼저 안내"],
               ]
             : [
                 ["Capture", "Adding raw content to your inbox"],
                 ["Inbox", "List of every captured source"],
                 ["Wiki page", "A developed knowledge page from a saved note, person, or idea"],
-                ["Summary + questions", "AI summarizes saved material and suggests 4 reflection questions"],
+                ["Summary + questions", "The app summarizes saved material and suggests 4 reflection questions"],
                 ["Build wiki pages", "Turn saved material into wiki pages and connect related pages automatically"],
-                ["Export", "Pack the whole wiki into a portable text bundle (paste into Claude/ChatGPT)"],
+                ["Export", "Pack the whole wiki into a portable text bundle you can keep or reuse"],
                 ["SecondB", "A chat that answers from your saved records and wiki pages"],
-                ["Safety check", "If a crisis signal appears, the app shows help resources before any AI answer"],
+                ["Safety check", "If a crisis signal appears, the app shows help resources before any reply"],
               ]).map(([term, def]) => (
             <View key={term} style={styles.glossaryRow}>
               <Text variant="caption" color="text" style={styles.glossaryTerm}>
@@ -224,7 +224,7 @@ export default function Manual() {
           </Text>
           {(locale === "ko"
             ? [
-                "Big Five (BFI-44) · 애착 스타일 (ECR-S): 44문항과 12문항으로 남기는 자기 이해 평가",
+                "성격 특성과 애착 스타일: 짧게 남기는 자기 이해 평가",
                 "인사이트 화면: 매주 활동·자주 다룬 주제·결론 모음",
                 "리서치 화면: 어드바이저가 인용하는 학술 자료 브라우저",
                 "오늘의 성찰 질문 + 연속 기록 카운터",
@@ -232,7 +232,7 @@ export default function Manual() {
                 "캡처 시 종류 자동 감지 + 미리보기",
               ]
             : [
-                "Big Five (BFI-44) and Attachment (ECR-S): self-knowledge assessments with 44 and 12 items",
+                "Personality and attachment: short self-knowledge assessments",
                 "Insights screen: weekly activity, recurring topics, conclusion stream",
                 "Research screen: browse validated academic sources the Advisor cites",
                 "Daily reflection prompt + streak counter",

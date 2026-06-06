@@ -149,6 +149,7 @@ results.push(
   check("C7", () => {
     const capture = read("src/app/capture.tsx");
     const jarvis = read("src/app/jarvis.tsx");
+    const manual = read("src/app/manual.tsx");
     const enCapture = JSON.parse(read("locales/en/capture.json")) as Record<string, unknown>;
     const koCapture = JSON.parse(read("locales/ko/capture.json")) as Record<string, unknown>;
     const enJarvis = JSON.parse(read("locales/en/jarvis.json")) as { intro_body?: string; reference_piece_meta?: string };
@@ -289,18 +290,39 @@ results.push(
       jarvis.includes("formatSourceCitationLabel(slug)") &&
       jarvis.includes("title={formatSourceCitationLabel(slug)}") &&
       jarvis.includes('meta={t("reference_piece_meta")}');
+    const manualForbiddenUserTerms = [
+      "Obsidian",
+      "Big Five",
+      "BFI-44",
+      "ECR-S",
+      "MBTI",
+      "CBT",
+      "VIA",
+      "DOI",
+      "URL",
+      "Claude",
+      "ChatGPT",
+      "LLM",
+      "RAG",
+      "Phase 2",
+      "RLS",
+      "classifier",
+      "[[",
+    ];
+    const manualJargonGone = manualForbiddenUserTerms.every((term) => !manual.includes(term)) && !/\bAI\b/.test(manual);
     const ok =
       exists("locales/en/common.json") &&
       exists("locales/ko/common.json") &&
       exists("scripts/check-i18n-keys.ts") &&
       captureBundleOk &&
-      jarvisCitationCopyOk;
+      jarvisCitationCopyOk &&
+      manualJargonGone;
     return {
       id: "C7",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "i18n locales + key-parity check script present; capture copy uses locale bundle without user-facing jargon; Jarvis citations render friendly labels"
-        : "i18n setup incomplete or capture/Jarvis copy contract failed",
+        ? "i18n locales + key-parity check script present; capture copy uses locale bundle without user-facing jargon; Jarvis citations render friendly labels; manual copy avoids covered jargon"
+        : "i18n setup incomplete or capture/Jarvis/manual copy contract failed",
     };
   }),
 );
