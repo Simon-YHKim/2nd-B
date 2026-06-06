@@ -505,7 +505,14 @@ export default function Wiki() {
             disabled={pages.length === 0}
           />
           <Link href="/capture" asChild>
-            <Button label={t("back")} variant="secondary" style={styles.actionBtn} />
+            <Button
+              label={t("back")}
+              variant="secondary"
+              style={styles.actionBtn}
+              accessibilityHint={
+                locale === "ko" ? "캡처 화면으로 돌아갑니다." : "Opens capture from the knowledge store."
+              }
+            />
           </Link>
         </View>
 
@@ -703,12 +710,18 @@ export default function Wiki() {
             <Button
               label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
               variant="primary"
+              accessibilityHint={
+                locale === "ko" ? "캡처 화면을 열어 오늘의 조각을 저장합니다." : "Opens capture to save today's piece."
+              }
             />
           </Link>
           <Link href="/capture" asChild>
             <Button
               label={locale === "ko" ? "조각 담기" : "Capture a piece"}
               variant="secondary"
+              accessibilityHint={
+                locale === "ko" ? "캡처 화면을 열어 새 조각을 저장합니다." : "Opens capture to save a new piece."
+              }
             />
           </Link>
         </View>

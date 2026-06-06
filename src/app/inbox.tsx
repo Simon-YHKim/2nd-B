@@ -544,7 +544,13 @@ export default function Inbox() {
 
       <View style={styles.actions}>
         <Link href="/capture" asChild>
-          <Button label={t("captureMore")} variant="primary" />
+          <Button
+            label={t("captureMore")}
+            variant="primary"
+            accessibilityHint={
+              locale === "ko" ? "캡처 화면을 열어 소스를 더 저장합니다." : "Opens capture to add another source."
+            }
+          />
         </Link>
       </View>
     </View>
@@ -589,6 +595,9 @@ export default function Inbox() {
           hitSlop={6}
           accessibilityRole="link"
           accessibilityLabel={locale === "ko" ? "첫 캡처 시작" : "Capture your first source"}
+          accessibilityHint={
+            locale === "ko" ? "캡처 화면을 열어 첫 소스를 저장합니다." : "Opens capture to save your first source."
+          }
         >
           <Text variant="caption" color="brand">
             {locale === "ko" ? "첫 캡처 시작" : "Capture your first"}

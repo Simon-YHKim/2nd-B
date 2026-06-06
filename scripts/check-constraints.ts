@@ -284,6 +284,7 @@ results.push(
     const bigFive = read("src/app/big-five.tsx");
     const attachment = read("src/app/attachment.tsx");
     const inbox = read("src/app/inbox.tsx");
+    const wiki = read("src/app/wiki.tsx");
     const manual = read("src/app/manual.tsx");
     const records = read("src/app/records.tsx");
     const trinity = read("src/app/trinity.tsx");
@@ -353,6 +354,8 @@ results.push(
       inbox.includes("Generate wiki page for") &&
       inbox.includes("Retry loading inbox") &&
       inbox.includes("Capture your first source") &&
+      inbox.includes("Opens capture to add another source.") &&
+      inbox.includes("Opens capture to save your first source.") &&
       inbox.includes("accessibilityState={{ disabled: phase1Pending, busy: phase1Pending }}") &&
       inbox.includes("accessibilityState={{ disabled: generatePending, busy: generatePending }}") &&
       capture.includes("Dismiss proposed format") &&
@@ -368,6 +371,9 @@ results.push(
       manual.includes("Opens the sign-up screen.") &&
       manual.includes("Opens the app permissions guide.") &&
       manual.includes("Opens the curated research library.") &&
+      wiki.includes("Opens capture from the knowledge store.") &&
+      wiki.includes("Opens capture to save today's piece.") &&
+      wiki.includes("Opens capture to save a new piece.") &&
       records.includes("Filter records by ${label}") &&
       trinity.includes('accessibilityRole="link"') &&
       trinity.includes("Add domain tags in capture") &&
