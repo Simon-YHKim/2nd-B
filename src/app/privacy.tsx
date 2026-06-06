@@ -8,12 +8,13 @@
 // reverts the optimistic toggle and surfaces a message.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Switch, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
 import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
+import { PreferenceToggleRow } from "@/components/ui/PreferenceToggle";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
@@ -162,31 +163,18 @@ export default function Privacy() {
           {PRIVACY_PREF_KEYS.map((key) => {
             const editable = isPrivacyPrefEditable(key, minor);
             return (
-              <View key={key} style={styles.prefRow}>
-                <View style={styles.prefCopy}>
-                  <View style={styles.prefLabelRow}>
-                    <Text variant="body" color={editable ? "text" : "textMuted"}>
-                      {t(`privacy.keys.${key}.label`)}
-                    </Text>
-                    {!editable ? (
-                      <Text variant="subtle" color="textSubtle" style={styles.lockedTag}>
-                        {t("privacy.lockedTag")}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <Text variant="subtle" color="textMuted">
-                    {t(`privacy.keys.${key}.desc`)}
-                  </Text>
-                </View>
-                <Switch
-                  value={prefs[key]}
-                  disabled={!ready || !editable}
-                  onValueChange={(v) => {
-                    void onToggle(key, v);
-                  }}
-                  trackColor={{ false: semantic.border, true: semantic.brand }}
-                />
-              </View>
+              <PreferenceToggleRow
+                key={key}
+                label={t(`privacy.keys.${key}.label`)}
+                description={t(`privacy.keys.${key}.desc`)}
+                value={prefs[key]}
+                disabled={!ready || !editable}
+                muted={!editable}
+                lockedLabel={!editable ? t("privacy.lockedTag") : undefined}
+                onValueChange={(v) => {
+                  void onToggle(key, v);
+                }}
+              />
             );
           })}
         </View>
@@ -220,18 +208,4 @@ const styles = StyleSheet.create({
   // Tracking is applied per-locale (eyebrowTracking) so the KO section label is
   // not over-spaced (caption is 14px); EN keeps the light caption tracking.
   sectionEyebrow: { fontWeight: "700" },
-  prefRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  prefCopy: { flex: 1, gap: 2 },
-  prefLabelRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  lockedTag: {
-    borderColor: semantic.border,
-    borderWidth: 1,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.xs,
-  },
 });

@@ -510,6 +510,8 @@ results.push(
     const consentDialog = read("src/components/consent/ConsentDialog.tsx");
     const premiumFeedback = read("src/components/premium/feedback.tsx");
     const formats = read("src/app/formats.tsx");
+    const privacy = read("src/app/privacy.tsx");
+    const preferenceToggle = read("src/components/ui/PreferenceToggle.tsx");
     const loadingScreen = read("src/components/ui/LoadingScreen.tsx");
     const oauthCallback = read("src/app/(auth)/oauth-callback.tsx");
     const quantIntro = read("src/components/quant/QuantIntroModal.tsx");
@@ -675,6 +677,10 @@ results.push(
       consentDialog.includes('accessibilityLabel={t("testimonial.title")}') &&
       consentDialog.includes('accessibilityHint={t("testimonial.body")}') &&
       premiumFeedback.includes("accessibilityLabel={accessibilityLabel}") &&
+      preferenceToggle.includes('accessibilityRole="switch"') &&
+      preferenceToggle.includes("accessibilityState={{ checked: value, disabled }}") &&
+      privacy.includes("PreferenceToggleRow") &&
+      formats.includes("PreferenceSwitch") &&
       formats.includes('accessibilityLabel={locale === "ko" ? "형식 삭제 확인" : "Delete format confirmation"}') &&
       formats.includes('accessibilityLabel={locale === "ko" ? "분류 기준 보기" : "View filing guide"}') &&
       loadingScreen.includes('accessibilityRole="button"') &&
@@ -742,8 +748,8 @@ results.push(
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
     };
   }),
 );

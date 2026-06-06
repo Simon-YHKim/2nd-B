@@ -7,7 +7,7 @@
 // from the /profile hub and a link on /capture. Token-only styling (DESIGN.md).
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, StyleSheet, ScrollView, Switch, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -23,6 +23,7 @@ import {
   PremiumToast,
 } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
+import { PreferenceSwitch } from "@/components/ui/PreferenceToggle";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
@@ -346,12 +347,10 @@ export default function Formats() {
                         eyebrow={metaOf(t)}
                         title={nameOf(t)}
                         right={
-                          <Switch
+                          <PreferenceSwitch
                             value={t.isShared}
                             onValueChange={(next) => toggleShare(t, next)}
                             disabled={pendingShareIds.has(t.id)}
-                            trackColor={{ true: semantic.brand, false: semantic.border }}
-                            thumbColor={semantic.text}
                             accessibilityLabel={`${nameOf(t)} ${locale === "ko" ? "공유" : "share"}`}
                           />
                         }
