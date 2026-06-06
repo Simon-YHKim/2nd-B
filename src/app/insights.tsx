@@ -12,7 +12,7 @@ import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { computeInsights, type InsightsResult } from "@/lib/journal/insights";
+import { computeInsights, sourceToInsightRecord, type InsightRecord, type InsightSource, type InsightsResult } from "@/lib/journal/insights";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 export default function Insights() {
@@ -29,13 +29,33 @@ export default function Insights() {
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
-      const { data, error } = await supabase
-        .from("records")
-        .select("id, created_at, topic, conclusion, tags, body")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      setInsights(computeInsights(data ?? []));
+      // Insights must cover ALL saved evidence the user sees in /records, not
+      // just journal `records`: non-journal Capture (memo/link/OCR/file) lands
+      // in `sources`. Counting only records shows a false-empty state to a
+      // source-only user (data-truth gate).
+      const [recRes, srcRes] = await Promise.all([
+        supabase
+          .from("records")
+          .select("id, created_at, topic, conclusion, tags, body")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("sources")
+          .select("id, captured_at, title, tags")
+          .eq("user_id", userId)
+          .order("captured_at", { ascending: true }),
+      ]);
+      if (recRes.error) throw recRes.error;
+      const recordRows = (recRes.data ?? []) as InsightRecord[];
+      // Sources are best-effort: a sources-query failure should degrade to a
+      // records-only view, never blank the whole screen.
+      let sourceRows: InsightRecord[] = [];
+      if (srcRes.error) {
+        if (typeof console !== "undefined") console.warn("[insights] sources load failed; records only", srcRes.error.message);
+      } else {
+        sourceRows = ((srcRes.data ?? []) as InsightSource[]).map(sourceToInsightRecord);
+      }
+      setInsights(computeInsights([...recordRows, ...sourceRows]));
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[insights] load failed", (e as Error).message);
       Alert.alert(

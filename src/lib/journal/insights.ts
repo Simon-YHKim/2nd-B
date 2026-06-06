@@ -36,6 +36,30 @@ function isoWeek(date: Date): string {
   return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
 }
 
+/** A captured Source row. Non-journal Capture modes (memo/link/OCR/file)
+ *  persist here instead of `records`, so /insights must include them or it
+ *  shows a false-empty state to source-only users (data-truth gate). */
+export interface InsightSource {
+  id: string;
+  captured_at: string;
+  title: string | null;
+  tags: string[] | null;
+}
+
+/** Map a captured Source into the shared InsightRecord shape. Sources carry no
+ *  conclusion or distinct body, so title doubles as topic/body. */
+export function sourceToInsightRecord(s: InsightSource): InsightRecord {
+  const title = s.title && s.title.length > 0 ? s.title : null;
+  return {
+    id: s.id,
+    created_at: s.captured_at,
+    topic: title,
+    conclusion: null,
+    tags: s.tags ?? [],
+    body: title ?? "",
+  };
+}
+
 export function computeInsights(records: InsightRecord[], opts: { tagLimit?: number; topicLimit?: number } = {}): InsightsResult {
   const tagLimit = opts.tagLimit ?? 8;
   const topicLimit = opts.topicLimit ?? 5;

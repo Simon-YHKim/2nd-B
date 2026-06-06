@@ -1,4 +1,4 @@
-import { computeInsights, type InsightRecord } from "../insights";
+import { computeInsights, sourceToInsightRecord, type InsightRecord, type InsightSource } from "../insights";
 
 function rec(over: Partial<InsightRecord>): InsightRecord {
   return {
@@ -93,5 +93,53 @@ describe("computeInsights", () => {
     ]);
     // (2 + 5) / 2 = 3.5 → 4
     expect(r.avgBodyChars).toBe(4);
+  });
+});
+
+function src(over: Partial<InsightSource>): InsightSource {
+  return {
+    id: over.id ?? "s",
+    captured_at: over.captured_at ?? "2026-05-25T00:00:00Z",
+    title: over.title ?? null,
+    tags: over.tags ?? [],
+  };
+}
+
+describe("sourceToInsightRecord", () => {
+  test("maps captured_at→created_at, title→topic/body, no conclusion", () => {
+    const r = sourceToInsightRecord(src({ id: "s1", captured_at: "2026-05-20T10:00:00Z", title: "A clipped article", tags: ["x"] }));
+    expect(r).toEqual({
+      id: "s1",
+      created_at: "2026-05-20T10:00:00Z",
+      topic: "A clipped article",
+      conclusion: null,
+      tags: ["x"],
+      body: "A clipped article",
+    });
+  });
+
+  test("null/empty title → topic null, body empty; null tags → []", () => {
+    expect(sourceToInsightRecord(src({ title: null, tags: null }))).toMatchObject({ topic: null, body: "", tags: [] });
+    expect(sourceToInsightRecord(src({ title: "" }))).toMatchObject({ topic: null, body: "" });
+  });
+});
+
+describe("insights data-truth: sources counted (false-empty gate)", () => {
+  test("sources-only user is NOT empty (recordCount reflects sources)", () => {
+    const sources = [
+      sourceToInsightRecord(src({ id: "s1", captured_at: "2026-05-20T10:00:00Z", title: "Memo", tags: ["a"] })),
+      sourceToInsightRecord(src({ id: "s2", captured_at: "2026-05-22T10:00:00Z", title: "Link clip", tags: ["a", "b"] })),
+    ];
+    const r = computeInsights([...[], ...sources]);
+    expect(r.recordCount).toBe(2); // would be 0 (false-empty) before the fix
+    expect(r.topTags[0]).toEqual({ tag: "a", count: 2 });
+  });
+
+  test("mixed records + sources counts both", () => {
+    const records: InsightRecord[] = [rec({ id: "r1", created_at: "2026-05-21T10:00:00Z", topic: "Career" })];
+    const sources = [sourceToInsightRecord(src({ id: "s1", captured_at: "2026-05-22T10:00:00Z", title: "Career" }))];
+    const r = computeInsights([...records, ...sources]);
+    expect(r.recordCount).toBe(2);
+    expect(r.topTopics).toContainEqual({ topic: "Career", count: 2 });
   });
 });
