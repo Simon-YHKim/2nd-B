@@ -1107,6 +1107,42 @@ results.push(
   }),
 );
 
+results.push(
+  check("FormatEditorLanguage", () => {
+    const editor = read("src/components/wiki/TemplateEditor.tsx");
+    const schemaView = read("src/components/wiki/FormatSchemaView.tsx");
+    const forbidden = [
+      '"Base kind"',
+      '"Wiki bucket"',
+      '"Wiki path"',
+      '"Triggers"',
+      '"AI properties"',
+      '"key (e.g. topic-area)"',
+      '"Remove property"',
+      '"Add property"',
+      '"Main type"',
+      '"Wiki area"',
+    ];
+    const ok =
+      editor.includes("Source type") &&
+      editor.includes("Filing area") &&
+      editor.includes("Auto-match links") &&
+      editor.includes("Saved folder") &&
+      editor.includes("Details to save") &&
+      editor.includes("Detail name (e.g. topic area)") &&
+      schemaView.includes("Source type") &&
+      schemaView.includes("Filing area") &&
+      forbidden.every((term) => !editor.includes(term) && !schemaView.includes(term));
+    return {
+      id: "FormatEditorLanguage",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "format editor uses user-facing filing language instead of schema/bucket/property jargon"
+        : "format editor should avoid schema/bucket/property jargon in visible labels",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";

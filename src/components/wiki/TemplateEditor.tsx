@@ -130,8 +130,8 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
         />
       </Field>
 
-      {/* Base kind */}
-      <Field label={locale === "ko" ? "기준 종류" : "Base kind"} hint={locale === "ko" ? "저장 시 기록의 종류로 쓰여요" : "Used as the stored record kind"}>
+      {/* Source type */}
+      <Field label={locale === "ko" ? "자료 종류" : "Source type"} hint={locale === "ko" ? "저장할 때 어떤 자료로 분류할지 정해요" : "Choose how captures using this format are saved."}>
         <SelectRow
           options={SOURCE_KINDS}
           value={baseKind}
@@ -140,23 +140,23 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
         />
       </Field>
 
-      {/* Target category (wiki bucket) */}
-      <Field label={locale === "ko" ? "분류 위치" : "Wiki bucket"}>
+      {/* Filing area */}
+      <Field label={locale === "ko" ? "분류 위치" : "Filing area"}>
         <SelectRow
           options={TARGET_OPTIONS}
           value={targetCategory}
           onSelect={setTargetCategory}
-          labelOf={(c) => (c === "" ? (locale === "ko" ? "미지정" : "Unset") : c)}
+          labelOf={(c) => (c === "" ? (locale === "ko" ? "아직 정하지 않음" : "No area yet") : c)}
         />
       </Field>
 
-      {/* Triggers (URL globs — freeform, not sanitized) */}
-      <Field label={locale === "ko" ? "트리거" : "Triggers"} hint={locale === "ko" ? "이 형식으로 자동 분류할 URL 조건. 맞는 주소를 캡처하면 이 형식으로 잡혀요." : "URL conditions that route matching captures into this format."}>
+      {/* Auto-match links */}
+      <Field label={locale === "ko" ? "자동 연결 조건" : "Auto-match links"} hint={locale === "ko" ? "맞는 주소를 캡처하면 이 형식으로 자동 분류돼요." : "Matching links are filed with this format automatically."}>
         <TagField
           values={triggers}
           onChange={setTriggers}
           locale={locale}
-          addLabel={locale === "ko" ? "트리거 추가" : "Add trigger"}
+          addLabel={locale === "ko" ? "조건 추가" : "Add link rule"}
         />
       </Field>
 
@@ -171,15 +171,15 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
         />
       </Field>
 
-      {/* Wiki path */}
-      <Field label={locale === "ko" ? "위키 경로" : "Wiki path"} hint={locale === "ko" ? "선택 - 하위 폴더 힌트 (예: tools/)" : "Optional - sub-folder hint (e.g. tools/)"}>
+      {/* Saved folder */}
+      <Field label={locale === "ko" ? "저장 폴더" : "Saved folder"} hint={locale === "ko" ? "선택 사항이에요. 예: tools/" : "Optional folder name. For example: tools/"}>
         <Input value={wikiTarget} onChangeText={setWikiTarget} placeholder="tools/" autoCapitalize="none" autoCorrect={false} />
       </Field>
 
-      {/* AI properties */}
+      {/* Details to save */}
       <Field
-        label={locale === "ko" ? "AI 속성" : "AI properties"}
-        hint={locale === "ko" ? "AI가 내용을 읽고 채울 항목" : "Fields the AI fills by reading the content"}
+        label={locale === "ko" ? "저장할 세부 정보" : "Details to save"}
+        hint={locale === "ko" ? "내용을 읽고 함께 저장할 항목이에요" : "Details to extract and save from each capture."}
       >
         {aiProps.length === 0 ? (
           <Text variant="subtle" color="textSubtle">
@@ -192,7 +192,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
               <Input
                 value={p.name}
                 onChangeText={(t) => updateProp(i, { name: t })}
-                placeholder={locale === "ko" ? "속성 키 (예: topic-area)" : "key (e.g. topic-area)"}
+                placeholder={locale === "ko" ? "세부 정보 이름 (예: 주제 영역)" : "Detail name (e.g. topic area)"}
                 autoCapitalize="none"
                 autoCorrect={false}
                 style={styles.propNameInput}
@@ -202,7 +202,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
                 hitSlop={6}
                 style={styles.propRemove}
                 accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? "속성 삭제" : "Remove property"}
+                accessibilityLabel={locale === "ko" ? "세부 정보 삭제" : "Remove detail"}
               >
                 <Text variant="caption" color="textSubtle">{locale === "ko" ? "삭제" : "Remove"}</Text>
               </Pressable>
@@ -230,9 +230,9 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
           style={styles.addPropBtn}
           hitSlop={4}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "속성 추가" : "Add property"}
+          accessibilityLabel={locale === "ko" ? "세부 정보 추가" : "Add detail"}
         >
-          <Text variant="caption" color="brand">{locale === "ko" ? "속성 추가" : "Add property"}</Text>
+          <Text variant="caption" color="brand">{locale === "ko" ? "세부 정보 추가" : "Add detail"}</Text>
         </Pressable>
       </Field>
 

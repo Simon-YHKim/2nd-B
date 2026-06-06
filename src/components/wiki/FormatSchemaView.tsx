@@ -40,9 +40,9 @@ export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput
     <View style={styles.wrap}>
       <Field label={ko ? "이름" : "Name"} value={schema.name} />
       {schema.what ? <Field label={ko ? "설명" : "What it is"} value={schema.what} /> : null}
-      <Field label={ko ? "기본 종류" : "Main type"} value={schema.baseKind} />
+      <Field label={ko ? "자료 종류" : "Source type"} value={schema.baseKind} />
       {schema.targetCategory ? (
-        <Field label={ko ? "위키 영역" : "Wiki area"} value={schema.targetCategory} />
+        <Field label={ko ? "분류 위치" : "Filing area"} value={schema.targetCategory} />
       ) : null}
 
       {schema.defaultTags.length > 0 ? (
