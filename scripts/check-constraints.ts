@@ -1623,8 +1623,8 @@ results.push(
     }),
   );
 
-  results.push(
-    check("OAuthCallbackI18nCopy", () => {
+results.push(
+  check("OAuthCallbackI18nCopy", () => {
       const screen = read("src/app/(auth)/oauth-callback.tsx");
       const en = read("locales/en/auth.json");
       const ko = read("locales/ko/auth.json");
@@ -1813,6 +1813,30 @@ results.push(
       note: ok
         ? "format editor uses user-facing filing language instead of schema/bucket/property jargon"
         : "format editor should avoid schema/bucket/property jargon in visible labels",
+    };
+  }),
+);
+
+results.push(
+  check("SignInHeroI18nCopy", () => {
+    const screen = read("src/app/(auth)/sign-in.tsx");
+    const en = read("locales/en/auth.json");
+    const ko = read("locales/ko/auth.json");
+    const forbidden = ["Enter the night village", "밤빛 조각마을에 들어가기"];
+    const ok =
+      screen.includes('t("signIn.title")') &&
+      screen.includes('t("signIn.subtitle")') &&
+      en.includes('"title": "Welcome back"') &&
+      en.includes('"subtitle": "Sign in to continue building your self-knowledge."') &&
+      ko.includes('"title"') &&
+      ko.includes('"subtitle"') &&
+      forbidden.every((term) => !screen.includes(term) && !en.includes(term) && !ko.includes(term));
+    return {
+      id: "SignInHeroI18nCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "sign-in hero copy uses the auth locale bundle and avoids old night-village wording"
+        : "sign-in hero should source title/subtitle from auth locale copy and avoid old night-village wording",
     };
   }),
 );

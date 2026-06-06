@@ -199,14 +199,8 @@ export default function SignIn() {
               accessibilityRole="image"
               accessibilityLabel={locale === "ko" ? "SecondB 입장 이미지" : "SecondB entry artwork"}
             />
-            <Text style={styles.title}>
-              {locale === "ko" ? "밤빛 조각마을에 들어가기" : "Enter the night village"}
-            </Text>
-            <Text style={styles.subtitle}>
-              {locale === "ko"
-                ? "내 조각들이 다시 연결될 준비를 하고 있어요."
-                : "Your pieces are getting ready to connect again."}
-            </Text>
+            <Text style={styles.title}>{t("signIn.title")}</Text>
+            <Text style={styles.subtitle}>{t("signIn.subtitle")}</Text>
           </View>
 
           {/* Form. */}
