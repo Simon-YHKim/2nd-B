@@ -362,6 +362,10 @@ results.push(
       capture.includes("Remove hashtag") &&
       manual.includes("Manual language: switch to English") &&
       manual.includes("Manual language: switch to Korean") &&
+      manual.includes("Opens capture to save today's piece.") &&
+      manual.includes("Opens the sign-up screen.") &&
+      manual.includes("Opens the app permissions guide.") &&
+      manual.includes("Opens the curated research library.") &&
       records.includes("Filter records by ${label}") &&
       trinity.includes('accessibilityRole="link"') &&
       trinity.includes("Add domain tags in capture") &&

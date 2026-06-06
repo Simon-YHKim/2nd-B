@@ -248,18 +248,40 @@ export default function Manual() {
         <View style={styles.actions}>
           {userId ? (
             <Link href="/capture" asChild>
-              <Button label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"} variant="primary" />
+              <Button
+                label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
+                variant="primary"
+                accessibilityHint={
+                  locale === "ko" ? "캡처 화면을 열어 오늘의 조각을 저장합니다." : "Opens capture to save today's piece."
+                }
+              />
             </Link>
           ) : (
             <Link href="/sign-up" asChild>
-              <Button label={locale === "ko" ? "시작하기" : "Get started"} variant="primary" />
+              <Button
+                label={locale === "ko" ? "시작하기" : "Get started"}
+                variant="primary"
+                accessibilityHint={locale === "ko" ? "회원가입 화면을 엽니다." : "Opens the sign-up screen."}
+              />
             </Link>
           )}
           <Link href="/permissions" asChild>
-            <Button label={locale === "ko" ? "권한 사용 안내" : "What the app accesses"} variant="secondary" />
+            <Button
+              label={locale === "ko" ? "권한 사용 안내" : "What the app accesses"}
+              variant="secondary"
+              accessibilityHint={
+                locale === "ko" ? "앱이 사용하는 권한 안내 화면을 엽니다." : "Opens the app permissions guide."
+              }
+            />
           </Link>
           <Link href="/research" asChild>
-            <Button label={locale === "ko" ? "큐레이션된 자료" : "Curated research"} variant="secondary" />
+            <Button
+              label={locale === "ko" ? "큐레이션된 자료" : "Curated research"}
+              variant="secondary"
+              accessibilityHint={
+                locale === "ko" ? "검증된 연구 자료 목록을 엽니다." : "Opens the curated research library."
+              }
+            />
           </Link>
         </View>
 
