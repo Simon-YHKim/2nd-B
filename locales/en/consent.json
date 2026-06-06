@@ -9,7 +9,9 @@
   },
   "notice": {
     "title": "A quick heads-up before you start",
-    "intro": "2nd-Brain keeps a private record of what you write and uses Google Gemini to help you understand yourself. Please review and agree before continuing.",
+    "intro": "2nd-Brain keeps your entries private, stores them encrypted, and uses Google Gemini only to generate the responses you ask for. Please review and agree before continuing.",
+    "trustTitle": "Your records are not for sale",
+    "trustBody": "By default, your entries are not used to train models. Optional sharing, analytics, ads, and model-improvement controls start off.",
     "purposesTitle": "What we collect and why",
     "items": "Collected: your email, date of birth, and the entries you write (journals, notes, captures).",
     "purposeService": "Used to run the service: saving your entries, your growth graph, and your assistant.",
@@ -19,17 +21,19 @@
     "optionalLabel": "Optional",
     "agreeAll": "Agree to all required items",
     "ackService": "I agree to the collection and use above so the service can run.",
-    "ackLlm": "I understand my entries are processed by Google Gemini to generate responses.",
-    "ackOverseas": "I agree my data may be processed outside my country by our providers (Google, Supabase).",
-    "ackSensitive": "I understand my entries may include sensitive details, and I agree to their handling.",
+    "ackLlm": "I understand my entries are sent to Google Gemini only when needed to generate responses I request.",
+    "ackOverseas": "I understand encrypted service data may be processed outside my country by Google or Supabase to run the app.",
+    "ackSensitive": "I understand my entries may include sensitive details, and 2nd-Brain treats them as private account data.",
     "optMarketing": "Send me occasional product updates (optional).",
-    "minorBanner": "You are signing up as a teen (14 to 17). High-privacy is on by default: sharing, ads, and outside analysis stay off, and your profile is never exported."
+    "minorBanner": "You are signing up as a teen (14 to 17). High-privacy is on by default: sharing, ads, analytics, model training, and outside analysis stay off."
   },
   "privacy": {
     "eyebrow": "Privacy",
-    "title": "You decide what stays in",
-    "subtitle": "Sharing, profiling, and outside processing. Everything starts off.",
-    "speech": "Off by default. Turn on only what you want. Teens stay locked to high-privacy.",
+    "title": "You decide what leaves your account",
+    "subtitle": "Sharing, profiling, analytics, and model training all start off.",
+    "speech": "Your records stay private unless you turn on a control. Teens stay locked to high-privacy.",
+    "trustTitle": "Default: private and off",
+    "trustBody": "Your entries are stored encrypted. Optional sharing, analytics, ads, recommendations, and model-training permissions are off until you choose otherwise.",
     "sectionLabel": "Privacy controls",
     "minorLockNote": "You are on a teen account, so high-privacy stays on. Long-term memory is the only switch you can turn on.",
     "saveError": "Could not save that change. Please try again.",
@@ -37,23 +41,23 @@
     "keys": {
       "ads": {
         "label": "Personalized ads",
-        "desc": "Use your activity to tailor ads. Off keeps ads generic or absent."
+        "desc": "Use app activity to tailor ads. Off keeps ads generic or absent."
       },
       "sharing": {
         "label": "Sharing",
-        "desc": "Let you share entries or your profile outside the app."
+        "desc": "Allow you to send entries or profile summaries outside the app."
       },
       "recommendations": {
         "label": "Recommendations",
-        "desc": "Use your data to suggest content and prompts."
+        "desc": "Use records inside your account to suggest prompts and next steps."
       },
       "external_analytics": {
         "label": "External analytics",
-        "desc": "Send usage data to outside analytics services."
+        "desc": "Send app usage signals, not entry text, to outside analytics services."
       },
       "llm_training": {
-        "label": "Model improvement",
-        "desc": "Allow your content to help improve models. Off keeps it out of training."
+        "label": "Model training permission",
+        "desc": "Keep off unless you choose to let content help improve models. Off keeps entries out of training."
       },
       "persona_export": {
         "label": "Profile export",
@@ -83,7 +87,7 @@
     },
     "privacy": {
       "label": "Privacy and consent",
-      "body": "Sharing, ads, recommendations, and outside processing are each off by default. Turn them on or off any time.",
+      "body": "Sharing, ads, recommendations, analytics, and model training are each off by default. Turn them on or off any time.",
       "button": "Open privacy controls"
     },
     "delete": {

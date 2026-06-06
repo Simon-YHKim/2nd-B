@@ -886,6 +886,49 @@ results.push(
   }),
 );
 
+results.push(
+  check("ConsentTrust", () => {
+    const enConsent = JSON.parse(read("locales/en/consent.json")) as {
+      notice: Record<string, string>;
+      privacy: Record<string, unknown> & { keys: Record<string, { label: string; desc: string }> };
+      account: { privacy: Record<string, string> };
+    };
+    const koConsent = JSON.parse(read("locales/ko/consent.json")) as typeof enConsent;
+    const notice = read("src/components/consent/ConsentNotice.tsx");
+    const privacy = read("src/app/privacy.tsx");
+    const consentBundle = JSON.stringify(enConsent) + JSON.stringify(koConsent);
+    const forbiddenTrustCopy = [
+      "I agree my data may be processed outside my country by our providers",
+      "I understand my entries are processed by Google Gemini to generate responses.",
+      "내 데이터가 제공업체(Google, Supabase)에 의해 국외에서 처리될 수 있음에 동의합니다.",
+      "내 기록이 응답 생성을 위해 Google Gemini로 처리됨을 이해합니다.",
+      "Use your data to suggest content and prompts.",
+      "사용 데이터를 외부 분석 서비스로 보냅니다.",
+    ];
+    const ok =
+      enConsent.notice.trustTitle === "Your records are not for sale" &&
+      koConsent.notice.trustTitle === "기록은 판매하지 않습니다" &&
+      enConsent.privacy.trustTitle === "Default: private and off" &&
+      koConsent.privacy.trustTitle === "기본값은 비공개와 꺼짐" &&
+      enConsent.notice.ackOverseas.includes("encrypted service data") &&
+      koConsent.notice.ackOverseas.includes("암호화된 서비스 데이터") &&
+      enConsent.privacy.keys.external_analytics.desc.includes("not entry text") &&
+      koConsent.privacy.keys.external_analytics.desc.includes("기록 본문이 아니라") &&
+      notice.includes('t("notice.trustTitle")') &&
+      notice.includes('t("notice.trustBody")') &&
+      privacy.includes('t("privacy.trustTitle")') &&
+      privacy.includes('t("privacy.trustBody")') &&
+      forbiddenTrustCopy.every((term) => !consentBundle.includes(term));
+    return {
+      id: "ConsentTrust",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "consent/privacy copy exposes trust notes, encrypted-service framing, and entry-text-safe analytics wording"
+        : "consent/privacy copy should avoid ambiguous overseas/processing wording and expose trust notes on notice + privacy screens",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";

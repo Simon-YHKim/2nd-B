@@ -47,6 +47,15 @@ export function ConsentNotice({ minor, value, onChange }: ConsentNoticeProps) {
         {t("notice.intro")}
       </Text>
 
+      <View style={styles.trustNote}>
+        <Text variant="caption" color="brand" style={[styles.groupLabel, groupLabelTracking]}>
+          {t("notice.trustTitle")}
+        </Text>
+        <Text variant="subtle" color="textMuted">
+          {t("notice.trustBody")}
+        </Text>
+      </View>
+
       {minor ? (
         <View style={styles.minorBanner}>
           <Text variant="subtle" color="text">
@@ -125,6 +134,14 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderRadius: radii.sm,
     padding: spacing.sm,
+  },
+  trustNote: {
+    backgroundColor: semantic.surface,
+    borderColor: "rgba(114,242,199,0.34)",
+    borderWidth: 1,
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+    gap: spacing.xs,
   },
   purposes: {
     gap: spacing.xs,

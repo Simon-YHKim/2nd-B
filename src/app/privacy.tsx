@@ -142,6 +142,15 @@ export default function Privacy() {
           speech={t("privacy.speech")}
         />
 
+        <View style={styles.trustNote}>
+          <Text variant="caption" color="brand" style={[styles.sectionEyebrow, eyebrowTracking]}>
+            {t("privacy.trustTitle")}
+          </Text>
+          <Text variant="subtle" color="textMuted">
+            {t("privacy.trustBody")}
+          </Text>
+        </View>
+
         {minor ? (
           <View style={styles.minorBanner}>
             <Text variant="subtle" color="text">
@@ -195,6 +204,14 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   saveError: { paddingHorizontal: spacing.xs },
+  trustNote: {
+    backgroundColor: semantic.surface,
+    borderColor: "rgba(114,242,199,0.34)",
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
   section: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
