@@ -479,18 +479,18 @@ export default function Settings() {
             disabled={busy !== null}
             onPress={() =>
               confirm(
-                locale === "ko" ? "위키 페이지와 [[wikilink]] 연결이 모두 삭제됩니다. 소스(받은편지함)는 남아요." : "Wiki pages and [[wikilink]] edges are wiped. Sources (inbox) stay.",
+                locale === "ko" ? "위키 페이지와 페이지 간 연결이 모두 삭제됩니다. 받은편지함의 원본 캡처는 남아요." : "Wiki pages and their page-to-page links are deleted. Original inbox captures stay.",
                 () => runDeleteWikiPages(),
               )
             }
           />
           <Button
-            label={locale === "ko" ? "미발전 캡처 삭제 (받은편지함의 미정리분)" : "Delete un-ingested captures"}
+            label={locale === "ko" ? "정리 전 캡처 삭제" : "Delete unorganized captures"}
             variant="danger"
             disabled={busy !== null}
             onPress={() =>
               confirm(
-                locale === "ko" ? "위키로 발전시키지 않은 캡처만 삭제합니다." : "Only sources that haven't been promoted to a wiki page.",
+                locale === "ko" ? "아직 위키 페이지로 정리하지 않은 받은편지함 캡처만 삭제합니다." : "Only inbox captures that have not been turned into wiki pages are deleted.",
                 () => runDeleteUningestedSources(),
               )
             }

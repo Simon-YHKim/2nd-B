@@ -232,8 +232,8 @@ export default function Wiki() {
       Alert.alert(
       locale === "ko" ? "이 위키 페이지를 삭제할까요?" : "Delete this wiki page?",
       locale === "ko"
-        ? "연결된 [[wikilink]]도 자동으로 정리돼요. 되돌릴 수 없습니다."
-        : "All [[wikilink]] edges to this page are cascaded. This cannot be undone.",
+        ? "연결된 페이지 간 연결도 함께 정리돼요. 되돌릴 수 없습니다."
+        : "Related page-to-page links are removed too. This cannot be undone.",
       [
         { text: locale === "ko" ? "취소" : "Cancel", style: "cancel" },
         {
