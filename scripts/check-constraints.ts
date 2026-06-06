@@ -289,6 +289,7 @@ results.push(
     const trinity = read("src/app/trinity.tsx");
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const home = read("src/app/index.tsx");
+    const jarvis = read("src/app/jarvis.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
@@ -297,6 +298,8 @@ results.push(
     const inboxRoles = (inbox.match(/accessibilityRole=/g) ?? []).length;
     const signInRoles = (signIn.match(/accessibilityRole="button"/g) ?? []).length;
     const homeRoles = (home.match(/accessibilityRole="button"/g) ?? []).length;
+    const jarvisButtons = (jarvis.match(/accessibilityRole="button"/g) ?? []).length;
+    const jarvisTabs = (jarvis.match(/accessibilityRole="tab"/g) ?? []).length;
     const ok =
       captureTablists >= 2 && // track + mode rows
       captureSelected >= 2 && // track + mode chips
@@ -346,13 +349,23 @@ results.push(
       home.includes("Opens capture to save your first piece") &&
       home.includes("Look around first") &&
       home.includes("Open today's center") &&
-      home.includes("Opens Core Brain");
+      home.includes("Opens Core Brain") &&
+      jarvisButtons >= 8 &&
+      jarvisTabs >= 1 &&
+      jarvis.includes("Clears the current conversation") &&
+      jarvis.includes("Analytic response mode") &&
+      jarvis.includes("Divergent response mode") &&
+      jarvis.includes("Long press to copy this message") &&
+      jarvis.includes("Dismisses the intro modal") &&
+      jarvis.includes('accessibilityLabel={t("intro_mute")}') &&
+      jarvis.includes('accessibilityLabel={t("intro_ok")}') &&
+      jarvis.includes("Dismisses the referenced pieces drawer");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/home actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/home actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/home/jarvis actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/home/jarvis actions need accessibilityRole plus selected/checked state",
     };
   }),
 );

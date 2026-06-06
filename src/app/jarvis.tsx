@@ -285,7 +285,14 @@ export default function Jarvis() {
               {usedDisplay} / {limit}
             </Text>
             {turns.length > 0 ? (
-              <Pressable onPress={() => setTurns([])} hitSlop={4} style={{ marginTop: spacing.xs }}>
+              <Pressable
+                onPress={() => setTurns([])}
+                hitSlop={4}
+                style={{ marginTop: spacing.xs }}
+                accessibilityRole="button"
+                accessibilityLabel={locale === "ko" ? "대화 비우기" : "Clear chat"}
+                accessibilityHint={locale === "ko" ? "현재 대화 내용을 지웁니다" : "Clears the current conversation"}
+              >
                 <Text variant="caption" color="brand">
                   {locale === "ko" ? "대화 비우기" : "Clear chat"}
                 </Text>
@@ -347,6 +354,18 @@ export default function Jarvis() {
                 style={[styles.modeTab, active ? styles.modeTabActive : null]}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: active }}
+                accessibilityLabel={
+                  m === "analytic"
+                    ? locale === "ko"
+                      ? "분석 응답 모드"
+                      : "Analytic response mode"
+                    : locale === "ko"
+                      ? "공상 응답 모드"
+                      : "Divergent response mode"
+                }
+                accessibilityHint={
+                  locale === "ko" ? "세컨비 답변 방식을 전환합니다" : "Changes how SecondB frames the answer"
+                }
               >
                 <Text variant="caption" color={active ? "background" : "brand"}>
                   {m === "analytic" ? "Analytic" : "Divergent"}
@@ -392,6 +411,19 @@ export default function Jarvis() {
                       styles.bubble,
                       turn.role === "user" ? styles.userBubble : styles.jarvisBubble,
                     ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      turn.role === "user"
+                        ? locale === "ko"
+                          ? "내 메시지"
+                          : "Your message"
+                        : locale === "ko"
+                          ? "세컨비 답변"
+                          : "SecondB answer"
+                    }
+                    accessibilityHint={
+                      locale === "ko" ? "길게 눌러 메시지를 복사합니다" : "Long press to copy this message"
+                    }
                   >
                     <Text
                       variant="body"
@@ -481,8 +513,19 @@ export default function Jarvis() {
 
       {/* 첫 진입 인사 모달 — 알았어요 / 오늘은 그만 볼래요 */}
       <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setIntroOpen(false)}>
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setIntroOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel={locale === "ko" ? "인사 모달 닫기" : "Close intro"}
+          accessibilityHint={locale === "ko" ? "세컨비 인사 모달을 닫습니다" : "Dismisses the intro modal"}
+        >
+          <Pressable
+            style={styles.modalCard}
+            onPress={(e) => e.stopPropagation()}
+            accessible={false}
+            accessibilityViewIsModal
+          >
             <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
               {t("intro_title")}
             </Text>
@@ -494,6 +537,8 @@ export default function Jarvis() {
                 onPress={() => { writeIntroDismissed("today"); setIntroOpen(false); }}
                 style={[styles.modalBtn, styles.modalBtnSecondary]}
                 hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel={t("intro_mute")}
               >
                 <Text variant="body" color="textMuted">{t("intro_mute")}</Text>
               </Pressable>
@@ -501,6 +546,8 @@ export default function Jarvis() {
                 onPress={() => { setIntroOpen(false); }}
                 style={[styles.modalBtn, styles.modalBtnPrimary]}
                 hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel={t("intro_ok")}
               >
                 <Text variant="body" color="background" style={{ fontWeight: "700" }}>
                   {t("intro_ok")}
@@ -518,7 +565,13 @@ export default function Jarvis() {
         animationType="slide"
         onRequestClose={() => setRefDrawer(null)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setRefDrawer(null)}>
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setRefDrawer(null)}
+          accessibilityRole="button"
+          accessibilityLabel={locale === "ko" ? "참고 조각 닫기" : "Close referenced pieces"}
+          accessibilityHint={locale === "ko" ? "참고 조각 서랍을 닫습니다" : "Dismisses the referenced pieces drawer"}
+        >
           <Pressable
             style={styles.drawer}
             onPress={(e) => e.stopPropagation()}
