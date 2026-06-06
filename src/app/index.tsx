@@ -380,6 +380,11 @@ export default function Landing() {
             <Pressable
               onPress={() => router.push({ pathname: "/capture", params: { entry: "firstRun" } })}
               style={styles.emptyGraphCta}
+              accessibilityRole="button"
+              accessibilityLabel={locale === "ko" ? "첫 조각 남기기" : "Leave a first piece"}
+              accessibilityHint={
+                locale === "ko" ? "캡처 화면으로 이동합니다" : "Opens capture to save your first piece"
+              }
             >
               <Text style={styles.emptyGraphCtaText}>
                 {locale === "ko" ? "첫 조각 남기기" : "Leave a first piece"}
@@ -389,6 +394,11 @@ export default function Landing() {
               onPress={dismissEmptyCard}
               hitSlop={8}
               style={styles.emptyGraphSkip}
+              accessibilityRole="button"
+              accessibilityLabel={locale === "ko" ? "먼저 둘러보기" : "Look around first"}
+              accessibilityHint={
+                locale === "ko" ? "첫 화면 카드를 닫고 마을을 둘러봅니다" : "Dismisses the first-run card"
+              }
             >
               <Text style={styles.emptyGraphSkipText}>
                 {locale === "ko" ? "먼저 둘러볼게요" : "I'll look around first"}
@@ -423,6 +433,9 @@ export default function Landing() {
           }}
           hitSlop={8}
           style={{ flex: 1 }}
+          accessibilityRole="button"
+          accessibilityLabel={locale === "ko" ? "오늘의 중심 보기" : "Open today's center"}
+          accessibilityHint={locale === "ko" ? "Core Brain 화면으로 이동합니다" : "Opens Core Brain"}
         >
           {/* KO "오늘의 중심" reads worse when tracked + uppercased, so KO drops
               tracking to 0 and stays sentence-case; EN keeps the stylized
