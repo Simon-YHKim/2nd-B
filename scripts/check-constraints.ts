@@ -290,6 +290,7 @@ results.push(
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const home = read("src/app/index.tsx");
     const jarvis = read("src/app/jarvis.tsx");
+    const navGraph = read("src/components/graph/NavGraph.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
@@ -300,6 +301,7 @@ results.push(
     const homeRoles = (home.match(/accessibilityRole="button"/g) ?? []).length;
     const jarvisButtons = (jarvis.match(/accessibilityRole="button"/g) ?? []).length;
     const jarvisTabs = (jarvis.match(/accessibilityRole="tab"/g) ?? []).length;
+    const navGraphButtons = (navGraph.match(/accessibilityRole="button"/g) ?? []).length;
     const ok =
       captureTablists >= 2 && // track + mode rows
       captureSelected >= 2 && // track + mode chips
@@ -359,13 +361,22 @@ results.push(
       jarvis.includes("Dismisses the intro modal") &&
       jarvis.includes('accessibilityLabel={t("intro_mute")}') &&
       jarvis.includes('accessibilityLabel={t("intro_ok")}') &&
-      jarvis.includes("Dismisses the referenced pieces drawer");
+      jarvis.includes("Dismisses the referenced pieces drawer") &&
+      navGraphButtons >= 7 &&
+      navGraph.includes("Opens this piece summary and tags") &&
+      navGraph.includes("Opens this village node") &&
+      navGraph.includes("Opens the center village") &&
+      navGraph.includes("Resets graph pan and zoom") &&
+      navGraph.includes("Closes the village detail panel") &&
+      navGraph.includes("Open ${name} in Divergent") &&
+      navGraph.includes("Opens this village in Divergent mode") &&
+      navGraph.includes("Closes the piece detail panel");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/home/jarvis actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/home/jarvis actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/home/jarvis/navgraph actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/home/jarvis/navgraph actions need accessibilityRole plus selected/checked state",
     };
   }),
 );

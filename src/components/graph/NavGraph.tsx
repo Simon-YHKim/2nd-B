@@ -1406,7 +1406,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               <Pressable
                 onPress={() => handleNodeTap(id)}
                 hitSlop={14}
+                accessibilityRole="button"
                 accessibilityLabel={piece?.title ?? "piece"}
+                accessibilityHint={
+                  locale === "ko" ? "조각 요약과 해시태그를 엽니다" : "Opens this piece summary and tags"
+                }
+                accessibilityState={{ selected: activeId === id }}
               >
                 <View style={[{ opacity: depthStyleForTier(4).opacity }, depthSaturateStyle(4) as never]}>
                   <FinalLogArtV49 width={28} height={21} />
@@ -1475,7 +1480,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               <Pressable
                 onPress={() => handleNodeTap(n.id)}
                 hitSlop={14}
+                accessibilityRole="button"
                 accessibilityLabel={n.label[locale]}
+                accessibilityHint={locale === "ko" ? "이 마을 조각을 엽니다" : "Opens this village node"}
+                accessibilityState={{ selected: activeId === n.id }}
                 style={StyleSheet.absoluteFill}
               />
             </View>
@@ -1519,7 +1527,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           <Pressable
             onPress={() => handleNodeTap(CENTER_NODE.id)}
             hitSlop={20}
+            accessibilityRole="button"
             accessibilityLabel={CENTER_NODE.label[locale]}
+            accessibilityHint={locale === "ko" ? "중심 마을을 엽니다" : "Opens the center village"}
+            accessibilityState={{ selected: activeId === CENTER_NODE.id }}
             style={StyleSheet.absoluteFill}
           />
         </View>
@@ -1543,7 +1554,13 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           double-tap. Screen-fixed; doesn't steal graph gestures. */}
       {offHome ? (
         <View style={styles.resetWrap} pointerEvents="box-none">
-          <Pressable onPress={() => resetCamera()} style={styles.resetBtn} accessibilityRole="button" accessibilityLabel={locale === "ko" ? "원래대로" : "Reset view"}>
+          <Pressable
+            onPress={() => resetCamera()}
+            style={styles.resetBtn}
+            accessibilityRole="button"
+            accessibilityLabel={locale === "ko" ? "원래대로" : "Reset view"}
+            accessibilityHint={locale === "ko" ? "그래프 위치와 확대를 초기화합니다" : "Resets graph pan and zoom"}
+          >
             <Text variant="caption" style={styles.resetText}>{locale === "ko" ? "원래대로" : "Reset"}</Text>
           </Pressable>
         </View>
@@ -1656,7 +1673,13 @@ function NodeSheet({
           <WorkerSprite id={character} size={32} />
           <Text variant="heading" style={styles.sheetName}>{name}</Text>
         </View>
-        <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={locale === "ko" ? "닫기" : "Close"}>
+        <Pressable
+          onPress={onClose}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={locale === "ko" ? "닫기" : "Close"}
+          accessibilityHint={locale === "ko" ? "마을 상세 패널을 닫습니다" : "Closes the village detail panel"}
+        >
           <Text style={styles.sheetClose}>✕</Text>
         </Pressable>
       </View>
@@ -1693,7 +1716,14 @@ function NodeSheet({
         />
       </View>
       {/* Optional: unfold this node in the imagine workshop (imagine pack §7) */}
-      <Pressable onPress={onImagine} hitSlop={6} style={styles.sheetImagine}>
+      <Pressable
+        onPress={onImagine}
+        hitSlop={6}
+        style={styles.sheetImagine}
+        accessibilityRole="button"
+        accessibilityLabel={locale === "ko" ? `${name} 공상 모드로 열기` : `Open ${name} in Divergent`}
+        accessibilityHint={locale === "ko" ? "이 마을을 공상 모드에서 엽니다" : "Opens this village in Divergent mode"}
+      >
         <Text variant="caption" color="brand">{locale === "ko" ? "공상 모드로 펼치기" : "Open in Divergent"}</Text>
       </Pressable>
     </Animated.View>
@@ -1734,7 +1764,13 @@ function DataNodeSheet({
       <View style={styles.sheetHandle} />
       <View style={styles.sheetHead}>
         <Text variant="heading" style={styles.sheetName} numberOfLines={2}>{title}</Text>
-        <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={locale === "ko" ? "닫기" : "Close"}>
+        <Pressable
+          onPress={onClose}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={locale === "ko" ? "닫기" : "Close"}
+          accessibilityHint={locale === "ko" ? "조각 상세 패널을 닫습니다" : "Closes the piece detail panel"}
+        >
           <Text style={styles.sheetClose}>✕</Text>
         </Pressable>
       </View>
