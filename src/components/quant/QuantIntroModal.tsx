@@ -136,7 +136,14 @@ export function QuantIntroModal({
             </View>
           ) : null}
 
-          <Pressable onPress={() => setDontShow((v) => !v)} style={styles.dontShowRow} hitSlop={6}>
+          <Pressable
+            onPress={() => setDontShow((v) => !v)}
+            style={styles.dontShowRow}
+            hitSlop={6}
+            accessibilityRole="checkbox"
+            accessibilityLabel={locale === "ko" ? "다음부터 이 안내 건너뛰기" : "Skip this intro next time"}
+            accessibilityState={{ checked: dontShow }}
+          >
             <View style={[styles.checkbox, dontShow && styles.checkboxOn]} />
             <Text variant="subtle" color="textMuted">
               {locale === "ko" ? "다음부터 이 안내 건너뛰기" : "Skip this intro next time"}

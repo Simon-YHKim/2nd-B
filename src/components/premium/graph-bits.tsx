@@ -119,7 +119,12 @@ export function ContextPill({ label, onClose }: { label: string; onClose?: () =>
         {label}에서 질문
       </Text>
       {onClose ? (
-        <Pressable onPress={onClose} hitSlop={8} accessibilityLabel="컨텍스트 지우기">
+        <Pressable
+          onPress={onClose}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="컨텍스트 지우기"
+        >
           <Text variant="caption" color="textSubtle">✕</Text>
         </Pressable>
       ) : null}
