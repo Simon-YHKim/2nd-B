@@ -1,5 +1,5 @@
 import { Link } from "expo-router";
-import { ScrollView, View, StyleSheet } from "react-native";
+import { Pressable, ScrollView, View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { PremiumAppShell, SceneHero } from "@/components/premium";
@@ -17,9 +17,7 @@ export default function NotFound() {
         <SceneHero
           eyebrow="404"
           title={locale === "ko" ? "아직 놓이지 않은 길이에요" : "This path is not laid yet"}
-          subtitle={
-            locale === "ko" ? "마을의 중심으로 돌아갈 수 있어요" : "Return to the village center"
-          }
+          subtitle={locale === "ko" ? "마을의 중심으로 돌아갈 수 있어요" : "Return to the village center"}
           island={CORE_VILLAGE_UI.island}
           worker={CORE_VILLAGE_UI.worker}
           accent={CORE_VILLAGE_UI.accent}
@@ -31,32 +29,72 @@ export default function NotFound() {
         />
         <View style={styles.actions}>
           <Link href="/" asChild>
-            <Button label={locale === "ko" ? "마을 중심으로" : "Go home"} variant="primary" />
+            <Button
+              label={locale === "ko" ? "마을 중심으로" : "Go home"}
+              variant="primary"
+              accessibilityHint={
+                locale === "ko" ? "마을 중심 화면으로 이동합니다." : "Opens the village center."
+              }
+            />
           </Link>
         </View>
         <View style={styles.destinations}>
           <Text variant="caption" color="textMuted" style={styles.destinationsTitle}>
             {locale === "ko" ? "또는, 자주 가는 곳" : "Or, common destinations"}
           </Text>
-          <Link href="/capture" style={styles.destinationLink}>
-            <Text variant="body" color="brand">
-              {locale === "ko" ? "조각 담기" : "Capture"}
-            </Text>
+          <Link href="/capture" asChild>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={locale === "ko" ? "조각 담기" : "Capture"}
+              accessibilityHint={
+                locale === "ko" ? "새 조각을 남기는 화면을 엽니다." : "Opens capture from the not-found page."
+              }
+              style={styles.destinationLink}
+            >
+              <Text variant="body" color="brand">
+                {locale === "ko" ? "조각 담기" : "Capture"}
+              </Text>
+            </Pressable>
           </Link>
-          <Link href="/audit" style={styles.destinationLink}>
-            <Text variant="body" color="brand">
-              {locale === "ko" ? "과거의 나" : "Past me"}
-            </Text>
+          <Link href="/audit" asChild>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={locale === "ko" ? "과거의 나" : "Past me"}
+              accessibilityHint={
+                locale === "ko" ? "과거 기록을 돌아보는 화면을 엽니다." : "Opens the past-me timeline."
+              }
+              style={styles.destinationLink}
+            >
+              <Text variant="body" color="brand">
+                {locale === "ko" ? "과거의 나" : "Past me"}
+              </Text>
+            </Pressable>
           </Link>
-          <Link href="/persona" style={styles.destinationLink}>
-            <Text variant="body" color="brand">
-              {locale === "ko" ? "나의 모습" : "Persona"}
-            </Text>
+          <Link href="/persona" asChild>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={locale === "ko" ? "나의 모습" : "Persona"}
+              accessibilityHint={locale === "ko" ? "나의 모습 화면을 엽니다." : "Opens the persona screen."}
+              style={styles.destinationLink}
+            >
+              <Text variant="body" color="brand">
+                {locale === "ko" ? "나의 모습" : "Persona"}
+              </Text>
+            </Pressable>
           </Link>
-          <Link href="/manual" style={styles.destinationLink}>
-            <Text variant="body" color="brand">
-              {locale === "ko" ? "사용 안내서" : "Manual"}
-            </Text>
+          <Link href="/manual" asChild>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={locale === "ko" ? "사용 안내서" : "Manual"}
+              accessibilityHint={
+                locale === "ko" ? "앱 사용 안내서를 엽니다." : "Opens the app manual from the not-found page."
+              }
+              style={styles.destinationLink}
+            >
+              <Text variant="body" color="brand">
+                {locale === "ko" ? "사용 안내서" : "Manual"}
+              </Text>
+            </Pressable>
           </Link>
         </View>
       </ScrollView>
@@ -83,7 +121,8 @@ const styles = StyleSheet.create({
   destinationLink: {
     minHeight: 44,
     alignSelf: "stretch",
-    textAlign: "center",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: spacing.sm,
   },
 });

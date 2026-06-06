@@ -290,6 +290,7 @@ results.push(
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const signUp = read("src/app/(auth)/sign-up.tsx");
     const birthDateField = read("src/components/auth/BirthDateField.tsx");
+    const notFound = read("src/app/+not-found.tsx");
     const home = read("src/app/index.tsx");
     const jarvis = read("src/app/jarvis.tsx");
     const navGraph = read("src/components/graph/NavGraph.tsx");
@@ -396,6 +397,11 @@ results.push(
       signUp.includes("Opens the app manual") &&
       birthDateField.includes('accessibilityLabel={t("signUp.birthDate")}') &&
       birthDateField.includes('accessibilityHint={t("signUp.birthDateHelper")}') &&
+      notFound.includes("Opens the village center.") &&
+      notFound.includes("Opens capture from the not-found page.") &&
+      notFound.includes("Opens the past-me timeline.") &&
+      notFound.includes("Opens the persona screen.") &&
+      notFound.includes("Opens the app manual from the not-found page.") &&
       homeRoles >= 4 &&
       home.includes("Opens capture to save your first piece") &&
       home.includes("Look around first") &&
