@@ -701,7 +701,7 @@ export default function Inbox() {
       <PremiumModal
         visible={feedbackModal !== null}
         onClose={() => setFeedbackModal(null)}
-        accessibilityLabel={feedbackModal?.confirm ? (locale === "ko" ? "받은편지함 작업 확인" : "Inbox action confirmation") : (locale === "ko" ? "받은편지함 피드백 안내" : "Inbox feedback notice")}
+        accessibilityLabel={feedbackModal?.confirm ? t("feedback.confirmLabel") : t("feedback.noticeLabel")}
       >
         <Text variant="heading">{feedbackModal?.title}</Text>
         <Text variant="body" color="textMuted" style={styles.modalBody}>
@@ -709,11 +709,11 @@ export default function Inbox() {
         </Text>
         <View style={styles.modalActions}>
           <Button
-            label={feedbackModal?.confirm ? (locale === "ko" ? "취소" : "Cancel") : (locale === "ko" ? "닫기" : "Dismiss")}
+            label={feedbackModal?.confirm ? t("feedback.cancel") : t("feedback.dismiss")}
             variant="secondary"
             onPress={() => setFeedbackModal(null)}
             style={styles.modalButton}
-            accessibilityHint={locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice."}
+            accessibilityHint={t("feedback.dismissHint")}
           />
           {feedbackModal?.confirm ? (
             <Button
@@ -721,7 +721,7 @@ export default function Inbox() {
               variant={feedbackModal.confirm.variant}
               onPress={runModalConfirm}
               style={styles.modalButton}
-              accessibilityHint={locale === "ko" ? "선택한 받은편지함 작업을 실행합니다." : "Runs the selected inbox action."}
+              accessibilityHint={t("feedback.confirmHint")}
             />
           ) : null}
         </View>

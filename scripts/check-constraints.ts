@@ -697,8 +697,8 @@ results.push(
       capture.includes('accessibilityHint={t("feedback.retryHint")}') &&
       inbox.includes("PremiumModal") &&
       inbox.includes("PremiumToast") &&
-      inbox.includes("Inbox feedback notice") &&
-      inbox.includes("Inbox action confirmation") &&
+      inbox.includes('accessibilityLabel={feedbackModal?.confirm ? t("feedback.confirmLabel") : t("feedback.noticeLabel")}') &&
+      inbox.includes('accessibilityHint={t("feedback.confirmHint")}') &&
       !wiki.includes("Claude / ChatGPT") &&
       bigFive.includes("toastWrap") &&
       attachment.includes("toastWrap") &&
@@ -1287,6 +1287,52 @@ results.push(
       note: ok
         ? "account loading, feedback, deletion modal, and helper a11y copy live in the consent locale bundle"
         : "account helper, feedback, and deletion modal copy should source visible and accessibility strings from locale keys",
+    };
+  }),
+);
+
+results.push(
+  check("InboxFeedbackI18nCopy", () => {
+    const inbox = read("src/app/inbox.tsx");
+    const en = read("locales/en/inbox.json");
+    const ko = read("locales/ko/inbox.json");
+    const requiredCode = [
+      't("feedback.confirmLabel")',
+      't("feedback.noticeLabel")',
+      't("feedback.cancel")',
+      't("feedback.dismiss")',
+      't("feedback.dismissHint")',
+      't("feedback.confirmHint")',
+    ];
+    const forbiddenInlineCopy = [
+      "Inbox feedback notice",
+      "Inbox action confirmation",
+      '"Cancel"',
+      '"Dismiss"',
+      "Dismisses this notice.",
+      "Runs the selected inbox action.",
+      "받은편지함 피드백 안내",
+      "받은편지함 작업 확인",
+      '"취소"',
+      '"닫기"',
+      "안내를 닫습니다.",
+      "선택한 받은편지함 작업을 실행합니다.",
+    ];
+    const ok =
+      requiredCode.every((snippet) => inbox.includes(snippet)) &&
+      en.includes('"noticeLabel": "Inbox feedback notice"') &&
+      en.includes('"confirmLabel": "Inbox action confirmation"') &&
+      en.includes('"confirmHint": "Runs the selected inbox action."') &&
+      ko.includes('"noticeLabel": "받은편지함 피드백 안내"') &&
+      ko.includes('"confirmLabel": "받은편지함 작업 확인"') &&
+      ko.includes('"confirmHint": "선택한 받은편지함 작업을 실행합니다."') &&
+      forbiddenInlineCopy.every((term) => !inbox.includes(term));
+    return {
+      id: "InboxFeedbackI18nCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "inbox feedback and confirmation modal a11y copy lives in the inbox locale bundle"
+        : "inbox feedback and confirmation modal copy should source labels and hints from locale keys",
     };
   }),
 );

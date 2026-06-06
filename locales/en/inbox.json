@@ -5,5 +5,13 @@
   "back": "Back to journal",
   "empty": "Nothing captured yet. Tap Capture to add your first.",
   "error": "Couldn't load your captures:",
-  "ingested": "Ingested"
+  "ingested": "Ingested",
+  "feedback": {
+    "noticeLabel": "Inbox feedback notice",
+    "confirmLabel": "Inbox action confirmation",
+    "cancel": "Cancel",
+    "dismiss": "Dismiss",
+    "dismissHint": "Dismisses this notice.",
+    "confirmHint": "Runs the selected inbox action."
+  }
 }
