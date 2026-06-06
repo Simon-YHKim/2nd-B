@@ -2,12 +2,12 @@
 // Three modes per user requirement: select-only (handled inline on
 // /journal etc.), partial (per-kind / per-tag), and full (everything).
 
-import { useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -26,6 +26,9 @@ import {
 } from "@/lib/records/delete-bulk";
 
 const CONFIRM_PHRASE = "DELETE";
+type SettingsToast = { message: string; tone: "info" | "success" | "danger" };
+type PendingConfirm = { message: string; onYes: () => Promise<void> } | null;
+type ActionError = { title: string; body: string; retry?: () => void } | null;
 
 const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
   en: { none: "None", few: "Few", some: "Some", many: "Many" },
@@ -111,6 +114,15 @@ export default function Settings() {
 
   const [busy, setBusy] = useState<string | null>(null);
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
+  const [toast, setToast] = useState<SettingsToast | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
+  const [actionError, setActionError] = useState<ActionError>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(timeout);
+  }, [toast]);
 
   if (loading) {
     return (
@@ -126,20 +138,7 @@ export default function Settings() {
   }
 
   function confirm(message: string, onYes: () => Promise<void>): void {
-    Alert.alert(
-      locale === "ko" ? "정말 진행할까요?" : "Are you sure?",
-      message,
-      [
-        { text: locale === "ko" ? "취소" : "Cancel", style: "cancel" },
-        {
-          text: locale === "ko" ? "삭제" : "Delete",
-          style: "destructive",
-          onPress: () => {
-            void onYes();
-          },
-        },
-      ],
-    );
+    setPendingConfirm({ message, onYes });
   }
 
   // Surface a calm, product-tone failure with a retry. The raw error stays in
@@ -152,13 +151,23 @@ export default function Settings() {
     retry?: () => void,
   ): void {
     console.warn(`[settings] ${context} failed`, error);
-    const buttons = retry
-      ? [
-          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" as const },
-          { text: locale === "ko" ? "다시 시도" : "Try again", onPress: retry },
-        ]
-      : [{ text: locale === "ko" ? "확인" : "OK", style: "cancel" as const }];
-    Alert.alert(title, body, buttons);
+    setActionError({ title, body, retry });
+  }
+
+  function showSuccess(message: string): void {
+    setToast({ tone: "success", message });
+  }
+
+  function runPendingConfirm(): void {
+    const current = pendingConfirm;
+    setPendingConfirm(null);
+    if (current) void current.onYes();
+  }
+
+  function retryActionError(): void {
+    const current = actionError;
+    setActionError(null);
+    current?.retry?.();
   }
 
   async function runDeleteKind(kind: "journal" | "note" | "audit_response", label: string) {
@@ -166,7 +175,7 @@ export default function Settings() {
     setBusy(label);
     try {
       const n = await deleteRecordsByKind(userId, kind);
-      Alert.alert(locale === "ko" ? "완료" : "Done", locale === "ko" ? `${n}개 삭제됨` : `Deleted ${n}`);
+      showSuccess(locale === "ko" ? `${n}개 삭제됨` : `Deleted ${n}`);
     } catch (e) {
       showActionError(
         `deleteRecordsByKind(${kind})`,
@@ -187,7 +196,7 @@ export default function Settings() {
     setBusy(label);
     try {
       const n = await deleteRecordsByTag(userId, tags);
-      Alert.alert(locale === "ko" ? "완료" : "Done", locale === "ko" ? `${n}개 삭제됨` : `Deleted ${n}`);
+      showSuccess(locale === "ko" ? `${n}개 삭제됨` : `Deleted ${n}`);
     } catch (e) {
       showActionError(
         `deleteRecordsByTag(${tags.join(",")})`,
@@ -208,7 +217,7 @@ export default function Settings() {
     setBusy("wikiPages");
     try {
       const n = await deleteAllWikiPages(userId);
-      Alert.alert(locale === "ko" ? "완료" : "Done", locale === "ko" ? `${n}개 위키 페이지 삭제됨` : `Deleted ${n} wiki pages`);
+      showSuccess(locale === "ko" ? `${n}개 위키 페이지 삭제됨` : `Deleted ${n} wiki pages`);
     } catch (e) {
       showActionError(
         "deleteAllWikiPages",
@@ -229,7 +238,7 @@ export default function Settings() {
     setBusy("sources");
     try {
       const n = await deleteUningestedSources(userId);
-      Alert.alert(locale === "ko" ? "완료" : "Done", locale === "ko" ? `${n}개 캡처 삭제됨` : `Deleted ${n} captures`);
+      showSuccess(locale === "ko" ? `${n}개 캡처 삭제됨` : `Deleted ${n} captures`);
     } catch (e) {
       showActionError(
         "deleteUningestedSources",
@@ -250,7 +259,7 @@ export default function Settings() {
     setBusy("chat");
     try {
       const n = await deleteAllChatUsage(userId);
-      Alert.alert(locale === "ko" ? "완료" : "Done", locale === "ko" ? `${n}일치 사용량 리셋됨` : `Reset ${n} days of usage`);
+      showSuccess(locale === "ko" ? `${n}일치 사용량 리셋됨` : `Reset ${n} days of usage`);
     } catch (e) {
       showActionError(
         "deleteAllChatUsage",
@@ -269,16 +278,17 @@ export default function Settings() {
   async function runFullWipe() {
     if (!userId) return;
     setBusy("full");
+    let routingAfterWipe = false;
     try {
       const result = await deleteAllUserData(userId);
-      Alert.alert(
-        locale === "ko" ? "전체 삭제 완료" : "Full wipe complete",
+      showSuccess(
         locale === "ko"
-          ? `기록 ${result.records} · 캡처 ${result.sources} · 위키 ${result.wikiPages} · 사용량 ${result.chatUsage}`
-          : `records ${result.records} · sources ${result.sources} · wiki ${result.wikiPages} · usage ${result.chatUsage}`,
+          ? `전체 삭제 완료: 기록 ${result.records} · 캡처 ${result.sources} · 위키 ${result.wikiPages} · 사용량 ${result.chatUsage}`
+          : `Full wipe complete: records ${result.records} · sources ${result.sources} · wiki ${result.wikiPages} · usage ${result.chatUsage}`,
       );
       setFullDeleteConfirm("");
-      router.replace("/capture");
+      routingAfterWipe = true;
+      setTimeout(() => router.replace("/capture"), 900);
     } catch (e) {
       showActionError(
         "deleteAllUserData",
@@ -290,7 +300,7 @@ export default function Settings() {
         () => void runFullWipe(),
       );
     } finally {
-      setBusy(null);
+      if (!routingAfterWipe) setBusy(null);
     }
   }
 
@@ -680,6 +690,67 @@ export default function Settings() {
         </View>
       </ScrollView>
 </KeyboardAvoidingView>
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
+      ) : null}
+      <PremiumModal
+        visible={pendingConfirm !== null}
+        onClose={() => setPendingConfirm(null)}
+        accessibilityLabel={locale === "ko" ? "설정 삭제 확인" : "Settings confirmation dialog"}
+      >
+        <Text variant="heading">{locale === "ko" ? "정말 진행할까요?" : "Are you sure?"}</Text>
+        <Text variant="body" color="textMuted" style={styles.modalBody}>
+          {pendingConfirm?.message}
+        </Text>
+        <View style={styles.modalActions}>
+          <Button
+            label={locale === "ko" ? "취소" : "Cancel"}
+            variant="secondary"
+            onPress={() => setPendingConfirm(null)}
+            style={styles.modalButton}
+            accessibilityHint={locale === "ko" ? "삭제 확인을 닫습니다." : "Closes this deletion confirmation."}
+          />
+          <Button
+            label={locale === "ko" ? "삭제" : "Delete"}
+            variant="danger"
+            onPress={runPendingConfirm}
+            loading={busy !== null}
+            style={styles.modalButton}
+            accessibilityHint={locale === "ko" ? "선택한 삭제 작업을 시작합니다." : "Starts the selected deletion action."}
+          />
+        </View>
+      </PremiumModal>
+      <PremiumModal
+        visible={actionError !== null}
+        onClose={() => setActionError(null)}
+        accessibilityLabel={locale === "ko" ? "설정 피드백 안내" : "Settings feedback notice"}
+      >
+        <Text variant="heading">{actionError?.title}</Text>
+        <Text variant="body" color="textMuted" style={styles.modalBody}>
+          {actionError?.body}
+        </Text>
+        <View style={styles.modalActions}>
+          <Button
+            label={locale === "ko" ? "닫기" : "Dismiss"}
+            variant="secondary"
+            onPress={() => setActionError(null)}
+            style={styles.modalButton}
+            accessibilityHint={locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice."}
+          />
+          {actionError?.retry ? (
+            <Button
+              label={locale === "ko" ? "다시 시도" : "Try again"}
+              variant="primary"
+              onPress={retryActionError}
+              loading={busy !== null}
+              style={styles.modalButton}
+              accessibilityHint={locale === "ko" ? "방금 실패한 설정 작업을 다시 시도합니다." : "Retries the failed settings action."}
+            />
+          ) : null}
+        </View>
+      </PremiumModal>
     </PremiumAppShell>
   );
 }
@@ -757,6 +828,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   actions: { gap: spacing.sm, marginTop: spacing.md },
+  toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
+  modalBody: { lineHeight: 21 },
+  modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  modalButton: { flex: 1 },
   themeRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   themeButton: {
     flex: 1,
