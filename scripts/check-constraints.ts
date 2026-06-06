@@ -490,6 +490,7 @@ results.push(
     const wiki = read("src/app/wiki.tsx");
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const signUp = read("src/app/(auth)/sign-up.tsx");
+    const completeProfile = read("src/app/(auth)/complete-profile.tsx");
     const audit = read("src/app/audit.tsx");
     const persona = read("src/app/persona.tsx");
     const wikiAlertCount = (wiki.match(/Alert\.alert/g) ?? []).length;
@@ -502,6 +503,7 @@ results.push(
       !research.includes("Alert.alert") &&
       !signIn.includes("Alert.alert") &&
       !signUp.includes("Alert.alert") &&
+      !completeProfile.includes("Alert.alert") &&
       !audit.includes("Alert.alert") &&
       !persona.includes("Alert.alert") &&
       bigFive.includes("PremiumToast") &&
@@ -516,6 +518,10 @@ results.push(
       signUp.includes("toastWrap") &&
       signUp.includes("Sign-up failed. Please try again in a moment.") &&
       signUp.includes("Could not start Naver sign-up. Please try again in a moment.") &&
+      completeProfile.includes("PremiumToast") &&
+      completeProfile.includes("toastWrap") &&
+      completeProfile.includes("Could not save your profile. Please try again in a moment.") &&
+      completeProfile.includes("setToast({ tone: \"danger\", message: t(\"errors.ageGate\") })") &&
       audit.includes("PremiumToast") &&
       audit.includes("toastWrap") &&
       audit.includes("Couldn't save your answer. Your answer is still here, so try again.") &&

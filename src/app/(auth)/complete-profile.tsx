@@ -3,12 +3,12 @@ import { Image } from "expo-image";
 // the public.users row doesn't exist yet — we need their date of birth to
 // satisfy C10 (age gate) before letting them into the app.
 
-import { useMemo, useState } from "react";
-import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell } from "@/components/premium";
+import { PremiumAppShell, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
@@ -26,6 +26,7 @@ import { recordConsentBestEffort } from "@/lib/supabase/consent";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 
 const ADULT_AGE = 18;
+type CompleteProfileToast = { message: string; tone: "info" | "success" | "danger" };
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
@@ -35,6 +36,7 @@ export default function CompleteProfile() {
   const [birthDate, setBirthDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [consent, setConsent] = useState(emptyConsentSelections());
+  const [toast, setToast] = useState<CompleteProfileToast | null>(null);
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
 
@@ -48,6 +50,12 @@ export default function CompleteProfile() {
       !submitting
     );
   }, [userId, birthDate, consent, submitting]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(timeout);
+  }, [toast]);
 
   // Still resolving the session/profile — show the branded checking state. The
   // redirects below read userId === null while loading, which would otherwise
@@ -83,11 +91,16 @@ export default function CompleteProfile() {
           buildSignUpConsentArgs({ userId, isMinor: isMinorAge, locale, selections: consent }),
         );
       }
-      if (result.judgeMode) Alert.alert(t("judge.welcome"));
+      if (result.judgeMode) {
+        setToast({ tone: "success", message: t("judge.welcome") });
+        setTimeout(() => router.replace("/"), 900);
+        return;
+      }
       router.replace("/");
     } catch (e) {
       if (e instanceof AgeGateError) {
-        Alert.alert(t("errors.ageGate"));
+        setToast({ tone: "danger", message: t("errors.ageGate") });
+        await new Promise((resolve) => setTimeout(resolve, 900));
         // C10: under-14 OAuth users are signed out immediately so the
         // session doesn't linger after the prompt is rejected.
         try {
@@ -102,7 +115,7 @@ export default function CompleteProfile() {
         locale === "ko"
           ? "프로필 저장에 실패했어요. 잠시 후 다시 시도해 주세요."
           : "Could not save your profile. Please try again in a moment.";
-      Alert.alert(msg);
+      setToast({ tone: "danger", message: msg });
       if (typeof console !== "undefined") console.warn("[auth] completeProfile error", (e as Error).message);
     } finally {
       setSubmitting(false);
@@ -197,6 +210,11 @@ export default function CompleteProfile() {
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
+      ) : null}
     </PremiumAppShell>
   );
 }
@@ -233,6 +251,7 @@ const styles = StyleSheet.create({
   },
   checklist: { gap: spacing.xs, marginTop: spacing.xs, marginBottom: spacing.xs },
   submitButton: { alignSelf: "stretch", width: "100%" },
+  toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
   checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   checkDot: { width: 8, height: 8, borderRadius: 4 },
 });
