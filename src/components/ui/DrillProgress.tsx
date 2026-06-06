@@ -55,8 +55,33 @@ function shortLayerLabel(l: DrillLayer, locale: "en" | "ko"): string {
 }
 
 export function DrillProgress({ coverage, locale, activePeriod, activeLayer }: Props) {
+  const totalAnswers = LIFE_PERIODS.reduce(
+    (sum, period) => sum + DRILL_LAYERS.reduce((layerSum, layer) => layerSum + coverage[period][layer], 0),
+    0,
+  );
+  const activeTarget =
+    activePeriod && activeLayer
+      ? `${PERIOD_LABEL[locale][activePeriod]} · ${LAYER_LABEL[locale][activeLayer]}`
+      : locale === "ko"
+        ? "아직 정해지지 않음"
+        : "not set yet";
+  const matrixLabel =
+    locale === "ko"
+      ? `인터뷰 진행 매트릭스. 총 응답 ${totalAnswers}개. 다음 질문 타깃: ${activeTarget}.`
+      : `Interview progress matrix. ${totalAnswers} total answers. Next question target: ${activeTarget}.`;
+
   return (
-    <View style={styles.wrap} accessibilityLabel={locale === "ko" ? "인터뷰 진행 매트릭스" : "Interview progress matrix"}>
+    <View
+      style={styles.wrap}
+      accessible
+      accessibilityRole="summary"
+      accessibilityLabel={matrixLabel}
+      accessibilityHint={
+        locale === "ko"
+          ? "셀 숫자는 시기와 질문 층별 응답 수를 나타냅니다."
+          : "Cell numbers show answer counts by life period and question layer."
+      }
+    >
       {/* Header row: period names */}
       <View style={styles.row}>
         <View style={[styles.cellSide, styles.headerCell]}>

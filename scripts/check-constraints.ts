@@ -310,6 +310,7 @@ results.push(
     const input = read("src/components/ui/Input.tsx");
     const backArrow = read("src/components/ui/BackArrow.tsx");
     const characterPath = read("src/components/graph/CharacterPathLayer.tsx");
+    const drillProgress = read("src/components/ui/DrillProgress.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
@@ -467,13 +468,17 @@ results.push(
       characterPath.includes("Opens this resident's short self-talk bubble.") &&
       characterPath.includes("accessibilityState={{ expanded: line != null }}") &&
       characterPath.includes('accessibilityLiveRegion="polite"') &&
-      characterPath.includes("accessibilityLabel={text}");
+      characterPath.includes("accessibilityLabel={text}") &&
+      drillProgress.includes('accessibilityRole="summary"') &&
+      drillProgress.includes("Interview progress matrix. ${totalAnswers} total answers.") &&
+      drillProgress.includes("Next question target: ${activeTarget}") &&
+      drillProgress.includes("Cell numbers show answer counts by life period and question layer.");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
     };
   }),
 );
