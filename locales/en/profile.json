@@ -1,0 +1,120 @@
+{
+  "loading": "Loading profile...",
+  "fallbackName": "Guest",
+  "hero": {
+    "eyebrow": "Me",
+    "title": "{{displayName}}'s profile hub",
+    "subtitle": "Know, use, and manage your profile",
+    "speech": "Everything about you is gathered here. Take your time."
+  },
+  "account": {
+    "eyebrow": "Account",
+    "emailUnavailable": "Email unavailable."
+  },
+  "sections": {
+    "center": {
+      "label": "Self center",
+      "items": {
+        "coreBrain": {
+          "label": "Open center",
+          "hint": "Opens your self center screen."
+        },
+        "esm": {
+          "label": "Check in now",
+          "hint": "Opens a lightweight check-in."
+        }
+      }
+    },
+    "know": {
+      "label": "Get to know me",
+      "items": {
+        "persona": {
+          "label": "Persona",
+          "hint": "Opens your persona screen."
+        },
+        "bigFive": {
+          "label": "Big Five",
+          "hint": "Opens the Big Five assessment."
+        },
+        "attachment": {
+          "label": "Attachment",
+          "hint": "Opens the attachment style assessment."
+        },
+        "audit": {
+          "label": "Past me",
+          "hint": "Opens the past-me timeline."
+        },
+        "interview": {
+          "label": "Interview",
+          "hint": "Opens the guided interview."
+        }
+      }
+    },
+    "analyze": {
+      "label": "Analysis",
+      "items": {
+        "insights": {
+          "label": "Insights",
+          "hint": "Opens your insight summaries."
+        },
+        "trinity": {
+          "label": "Trinity",
+          "hint": "Opens the four-area balance view."
+        },
+        "research": {
+          "label": "Research",
+          "hint": "Opens research-backed guidance."
+        }
+      }
+    },
+    "account": {
+      "label": "Account and settings",
+      "items": {
+        "settings": {
+          "label": "Settings",
+          "hint": "Opens app settings."
+        },
+        "privacy": {
+          "label": "Privacy",
+          "hint": "Opens privacy settings."
+        },
+        "account": {
+          "label": "Account",
+          "hint": "Opens account management."
+        },
+        "theme": {
+          "label": "Theme",
+          "hint": "Opens theme settings."
+        },
+        "data": {
+          "label": "Data",
+          "hint": "Opens data management."
+        },
+        "formats": {
+          "label": "My formats",
+          "hint": "Opens your filing formats."
+        },
+        "manual": {
+          "label": "Manual",
+          "hint": "Opens the app manual."
+        },
+        "import": {
+          "label": "Import",
+          "hint": "Opens external import."
+        },
+        "inbox": {
+          "label": "Inbox",
+          "hint": "Opens imported source review."
+        },
+        "support": {
+          "label": "Support",
+          "hint": "Opens support."
+        },
+        "permissions": {
+          "label": "Permissions",
+          "hint": "Opens permission details."
+        }
+      }
+    }
+  }
+}

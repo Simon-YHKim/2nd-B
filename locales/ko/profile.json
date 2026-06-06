@@ -1,0 +1,120 @@
+{
+  "loading": "프로필을 불러오는 중이에요...",
+  "fallbackName": "사용자",
+  "hero": {
+    "eyebrow": "나",
+    "title": "{{displayName}}님의 나 허브",
+    "subtitle": "나를 알아가고, 쓰고, 관리하는 곳",
+    "speech": "나에 관한 화면을 한곳에 모았어요. 천천히 둘러보세요."
+  },
+  "account": {
+    "eyebrow": "계정",
+    "emailUnavailable": "이메일 정보를 불러올 수 없어요."
+  },
+  "sections": {
+    "center": {
+      "label": "나의 중심",
+      "items": {
+        "coreBrain": {
+          "label": "중심 열기",
+          "hint": "나의 중심 화면을 엽니다."
+        },
+        "esm": {
+          "label": "지금 체크인",
+          "hint": "가벼운 체크인 화면을 엽니다."
+        }
+      }
+    },
+    "know": {
+      "label": "나를 알아가기",
+      "items": {
+        "persona": {
+          "label": "페르소나",
+          "hint": "페르소나 화면을 엽니다."
+        },
+        "bigFive": {
+          "label": "Big Five",
+          "hint": "Big Five 검사를 엽니다."
+        },
+        "attachment": {
+          "label": "애착 유형",
+          "hint": "애착 유형 검사를 엽니다."
+        },
+        "audit": {
+          "label": "과거의 나",
+          "hint": "과거 기록을 돌아보는 화면을 엽니다."
+        },
+        "interview": {
+          "label": "인터뷰",
+          "hint": "질문 인터뷰를 엽니다."
+        }
+      }
+    },
+    "analyze": {
+      "label": "분석",
+      "items": {
+        "insights": {
+          "label": "인사이트",
+          "hint": "인사이트 요약을 엽니다."
+        },
+        "trinity": {
+          "label": "Trinity",
+          "hint": "네 영역 균형 화면을 엽니다."
+        },
+        "research": {
+          "label": "리서치",
+          "hint": "근거 기반 안내를 엽니다."
+        }
+      }
+    },
+    "account": {
+      "label": "계정과 설정",
+      "items": {
+        "settings": {
+          "label": "설정",
+          "hint": "앱 설정을 엽니다."
+        },
+        "privacy": {
+          "label": "개인정보",
+          "hint": "개인정보 설정을 엽니다."
+        },
+        "account": {
+          "label": "계정",
+          "hint": "계정 관리 화면을 엽니다."
+        },
+        "theme": {
+          "label": "테마",
+          "hint": "테마 설정을 엽니다."
+        },
+        "data": {
+          "label": "데이터",
+          "hint": "데이터 관리 화면을 엽니다."
+        },
+        "formats": {
+          "label": "내 형식",
+          "hint": "내 정리 형식을 엽니다."
+        },
+        "manual": {
+          "label": "안내서",
+          "hint": "앱 사용 안내서를 엽니다."
+        },
+        "import": {
+          "label": "가져오기",
+          "hint": "외부 자료 가져오기를 엽니다."
+        },
+        "inbox": {
+          "label": "받은 자료",
+          "hint": "가져온 자료 확인 화면을 엽니다."
+        },
+        "support": {
+          "label": "지원",
+          "hint": "지원 화면을 엽니다."
+        },
+        "permissions": {
+          "label": "권한",
+          "hint": "권한 안내 화면을 엽니다."
+        }
+      }
+    }
+  }
+}

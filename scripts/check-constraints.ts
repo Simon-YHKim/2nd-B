@@ -804,9 +804,9 @@ results.push(
       esmRadios >= 1 &&
       esmCheckboxes >= 1 &&
       esm.includes("Saves the ${activePrompt.en.toLowerCase()} check-in") &&
-      profile.includes('route: "/esm"') &&
-      profile.includes("Check in now") &&
-      profile.includes("Opens a lightweight check-in") &&
+      profile.includes('key: "esm", route: "/esm"') &&
+      profile.includes('accessibilityLabel={itemCopy.label}') &&
+      profile.includes('accessibilityHint={itemCopy.hint}') &&
       preferenceCheckboxes >= 1 &&
       preferenceToggle.includes("accessibilityLabel={label}") &&
       consentNotice.includes("PreferenceCheckRow") &&
@@ -1276,6 +1276,51 @@ results.push(
         note: ok
           ? "not-found screen copy lives in locale bundles and avoids old village-center copy"
           : "not-found screen should source copy from locale bundles and avoid old village-center copy",
+      };
+    }),
+  );
+
+  results.push(
+    check("ProfileI18nCopy", () => {
+      const profile = read("src/app/profile.tsx");
+      const i18n = read("src/lib/i18n/index.ts");
+      const en = read("locales/en/profile.json");
+      const ko = read("locales/ko/profile.json");
+      const forbiddenScreenCopy = [
+        'locale === "ko"',
+        "Villager",
+        "village mark",
+        "마을 주민",
+        "마을 표식",
+        "Check in now",
+        "Opens a lightweight check-in",
+      ];
+      const forbiddenBundleCopy = [
+        "Villager",
+        "village mark",
+        "마을 주민",
+        "마을 표식",
+      ];
+      const ok =
+        profile.includes('useTranslation("profile")') &&
+        profile.includes('t("hero.title", { displayName })') &&
+        profile.includes('t("sections", { returnObjects: true })') &&
+        profile.includes("itemCopy.hint") &&
+        i18n.includes("enProfile") &&
+        i18n.includes("koProfile") &&
+        i18n.includes('"profile"') &&
+        i18n.includes("profile: enProfile") &&
+        i18n.includes("profile: koProfile") &&
+        en.includes("profile hub") &&
+        ko.includes("나 허브") &&
+        forbiddenScreenCopy.every((term) => !profile.includes(term)) &&
+        forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
+      return {
+        id: "ProfileI18nCopy",
+        status: ok ? "PASS" : "FAIL",
+        note: ok
+          ? "profile hub copy lives in locale bundles and avoids old village-mark copy"
+          : "profile hub should source user-facing copy from locale bundles and avoid old village-mark copy",
       };
     }),
   );

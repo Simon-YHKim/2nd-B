@@ -1,9 +1,5 @@
-// '나' hub (menu restructure Phase 5) — /profile is no longer a thin account
-// page. It's the 3-axis "me" hub that surfaces every self screen that used to
-// hang off a single buried entry point: 나의 중심 + 평가 (알아가기 축), 분석
-// (개인 비서 축), and 계정·설정. /trinity, which lost its graph entry in Phase 4,
-// is re-homed here under 분석. Routing is unchanged — /profile is already the 나
-// tab; only the screen body grows.
+// Profile hub. Route structure and accents stay in code; all user-facing hub
+// labels and hints live in the profile locale namespace.
 
 import { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, ActivityIndicator, Pressable } from "react-native";
@@ -17,89 +13,74 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
-interface HubLink {
-  route: Href;
-  ko: string;
-  en: string;
-  hintKo?: string;
-  hintEn?: string;
-}
-interface HubSection {
+interface HubRoute {
   key: string;
-  ko: string;
-  en: string;
-  accent: string;
-  items: HubLink[];
+  route: Href;
 }
 
-// Every "me" destination, grouped by axis. The chips link straight to the
-// existing screens — no new routes, just a single place they're all visible.
+interface HubSection {
+  key: string;
+  accent: string;
+  items: HubRoute[];
+}
+
+type HubCopy = {
+  label: string;
+  items: Record<string, { label: string; hint: string }>;
+};
+
 const HUB: HubSection[] = [
   {
     key: "center",
-    ko: "나의 중심",
-    en: "Center of me",
     accent: semantic.brand,
     items: [
-      { route: "/core-brain", ko: "나의 중심 열기", en: "Open center of me" },
-      {
-        route: "/esm",
-        ko: "지금 체크인",
-        en: "Check in now",
-        hintKo: "가벼운 체크인 화면을 엽니다",
-        hintEn: "Opens a lightweight check-in",
-      },
+      { key: "coreBrain", route: "/core-brain" },
+      { key: "esm", route: "/esm" },
     ],
   },
   {
     key: "know",
-    ko: "나를 알아가기",
-    en: "Get to know me",
     accent: cosmic.soulViolet,
     items: [
-      { route: "/persona", ko: "페르소나", en: "Persona" },
-      { route: "/big-five", ko: "성격 5요인", en: "Big Five" },
-      { route: "/attachment", ko: "애착 유형", en: "Attachment" },
-      { route: "/audit", ko: "과거의 나", en: "Past me" },
-      { route: "/interview", ko: "스무고개", en: "Interview" },
+      { key: "persona", route: "/persona" },
+      { key: "bigFive", route: "/big-five" },
+      { key: "attachment", route: "/attachment" },
+      { key: "audit", route: "/audit" },
+      { key: "interview", route: "/interview" },
     ],
   },
   {
     key: "analyze",
-    ko: "분석",
-    en: "Analysis",
     accent: cosmic.signalBlue,
     items: [
-      { route: "/insights", ko: "인사이트", en: "Insights" },
-      { route: "/trinity", ko: "Trinity", en: "Trinity" },
-      { route: "/research", ko: "리서치", en: "Research" },
+      { key: "insights", route: "/insights" },
+      { key: "trinity", route: "/trinity" },
+      { key: "research", route: "/research" },
     ],
   },
   {
     key: "account",
-    ko: "계정 · 설정",
-    en: "Account & settings",
     accent: cosmic.mistGray,
     items: [
-      { route: "/settings", ko: "설정", en: "Settings" },
-      { route: "/privacy", ko: "개인정보 보호", en: "Privacy" },
-      { route: "/account", ko: "계정 관리", en: "Account" },
-      { route: "/theme", ko: "테마", en: "Theme" },
-      { route: "/data", ko: "데이터 관리", en: "Data" },
-      { route: "/formats", ko: "내 형식", en: "My formats" },
-      { route: "/manual", ko: "안내서", en: "Manual" },
-      { route: "/import", ko: "가져오기", en: "Import" },
-      { route: "/inbox", ko: "받은편지함", en: "Inbox" },
-      { route: "/support", ko: "지원", en: "Support" },
-      { route: "/permissions", ko: "권한", en: "Permissions" },
+      { key: "settings", route: "/settings" },
+      { key: "privacy", route: "/privacy" },
+      { key: "account", route: "/account" },
+      { key: "theme", route: "/theme" },
+      { key: "data", route: "/data" },
+      { key: "formats", route: "/formats" },
+      { key: "manual", route: "/manual" },
+      { key: "import", route: "/import" },
+      { key: "inbox", route: "/inbox" },
+      { key: "support", route: "/support" },
+      { key: "permissions", route: "/permissions" },
     ],
   },
 ];
 
 export default function Profile() {
-  const { i18n } = useTranslation();
+  const { t } = useTranslation("profile");
   const { userId, loading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const sections = t("sections", { returnObjects: true }) as Record<string, HubCopy>;
 
   const [email, setEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
@@ -128,79 +109,75 @@ export default function Profile() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </PremiumAppShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  const displayName = email ? email.split("@")[0] : locale === "ko" ? "마을 주민" : "Villager";
+  const displayName = email ? email.split("@")[0] : t("fallbackName");
 
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
-          eyebrow={locale === "ko" ? "나" : "Me"}
-          title={locale === "ko" ? `${displayName}의 마을 표식` : `${displayName}'s village mark`}
-          subtitle={locale === "ko" ? "나를 알아가고 · 활용하고 · 관리하는 곳" : "Know, use, and manage yourself"}
+          eyebrow={t("hero.eyebrow")}
+          title={t("hero.title", { displayName })}
+          subtitle={t("hero.subtitle")}
           island={CORE_VILLAGE_UI.island}
           worker={CORE_VILLAGE_UI.worker}
           accent={CORE_VILLAGE_UI.accent}
-          speech={
-            locale === "ko"
-              ? "나에 관한 건 다 여기 모아 뒀어요. 천천히 둘러봐요."
-              : "Everything about you is gathered here. Take your time."
-          }
+          speech={t("hero.speech")}
         />
 
-        {/* Account — compact now that the hub is the focus. */}
         <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>
-            {locale === "ko" ? "계정" : "Account"}
+            {t("account.eyebrow")}
           </Text>
           <Text variant="heading" style={{ fontSize: 20 }}>{displayName}</Text>
           {busy ? (
             <ActivityIndicator color={semantic.brand} style={{ alignSelf: "flex-start" }} />
           ) : (
             <Text variant="body" color="textMuted">
-              {email ?? (locale === "ko" ? "이메일 정보를 불러올 수 없어요." : "Email unavailable.")}
+              {email ?? t("account.emailUnavailable")}
             </Text>
           )}
         </View>
 
-        {/* 3-axis hub — every "me" screen, grouped and one tap away. */}
-        {HUB.map((section) => (
-          <View key={section.key} style={[styles.section, { borderLeftColor: section.accent }]}>
-            <Text variant="caption" color="textMuted" style={styles.eyebrow}>
-              {locale === "ko" ? section.ko : section.en}
-            </Text>
-            <View style={styles.chipRow}>
-              {section.items.map((item) => (
-                <Pressable
-                  key={String(item.route)}
-                  onPress={() => router.push(item.route)}
-                  style={styles.chip}
-                  accessibilityRole="button"
-                  accessibilityLabel={locale === "ko" ? item.ko : item.en}
-                  accessibilityHint={
-                    locale === "ko" ? item.hintKo ?? "이 화면을 엽니다" : item.hintEn ?? "Opens this screen"
-                  }
-                >
-                  <Text variant="subtle" color="textMuted">{locale === "ko" ? item.ko : item.en}</Text>
-                </Pressable>
-              ))}
+        {HUB.map((section) => {
+          const sectionCopy = sections[section.key];
+          return (
+            <View key={section.key} style={[styles.section, { borderLeftColor: section.accent }]}>
+              <Text variant="caption" color="textMuted" style={styles.eyebrow}>
+                {sectionCopy.label}
+              </Text>
+              <View style={styles.chipRow}>
+                {section.items.map((item) => {
+                  const itemCopy = sectionCopy.items[item.key];
+                  return (
+                    <Pressable
+                      key={String(item.route)}
+                      onPress={() => router.push(item.route)}
+                      style={styles.chip}
+                      accessibilityRole="button"
+                      accessibilityLabel={itemCopy.label}
+                      accessibilityHint={itemCopy.hint}
+                    >
+                      <Text variant="subtle" color="textMuted">{itemCopy.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
     </PremiumAppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  // Bottom tab-bar clearance is handled centrally by PremiumAppShell now; keep
-  // only a normal content gap here so it doesn't double-pad.
   scroll: { gap: spacing.lg, paddingBottom: spacing.lg },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   section: {
