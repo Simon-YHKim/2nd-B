@@ -1,12 +1,10 @@
 // Expo Router web root HTML.
 //
-// 2026-05-27 / 2026-05-28 (user directive): the page itself must NOT zoom
-// AND must not reveal whitespace at the edges. Earlier the whole document
-// scaled when the user pinched/ctrl-wheeled (blew up the insights ribbon,
-// locale toggle, settings handle); later, scroll + bounce on web exposed
-// blank gutters around the constellation. We lock viewport to scale=1
-// AND lock html/body to 100vh × 100vw with overflow:hidden — the only
-// thing that can zoom is the NavGraph (its own pinch handler).
+// 2026-05-27 / 2026-05-28 (user directive): the web shell must not reveal
+// whitespace at the edges. Scroll + bounce on web exposed blank gutters around
+// the constellation, so html/body stay locked to the viewport with
+// overflow:hidden. Browser zoom remains available for accessibility; NavGraph
+// keeps its own pinch handler.
 
 import type { PropsWithChildren } from "react";
 import { ScrollViewStyleReset } from "expo-router/html";
@@ -30,6 +28,21 @@ html, body, #root, #__next {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
+:focus-visible {
+  outline: 2px solid #8FD6BF;
+  outline-offset: 3px;
+}
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible,
+[role="link"]:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 2px solid #8FD6BF;
+  outline-offset: 3px;
+}
 /* NeoDunggeunmo pixel font app-wide (user directive 2026-05-29). The
    @font-face for "NeoDunggeunmo" / "NeoDunggeunmoCode" is injected by
    expo-font's useFonts() after hydration; this sets the inherited base so
@@ -47,7 +60,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: PAGE_LOCK_CSS }} />

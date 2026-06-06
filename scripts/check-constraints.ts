@@ -1064,6 +1064,26 @@ results.push(
   }),
 );
 
+results.push(
+  check("WebZoomFocus", () => {
+    const html = read("src/app/+html.tsx");
+    const ok =
+      html.includes('content="width=device-width, initial-scale=1, viewport-fit=cover"') &&
+      html.includes(":focus-visible") &&
+      html.includes('[role="button"]:focus-visible') &&
+      !html.includes("user-scalable=no") &&
+      !html.includes("maximum-scale=1") &&
+      !html.includes("minimum-scale=1");
+    return {
+      id: "WebZoomFocus",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "web shell allows browser zoom and exposes keyboard focus outlines"
+        : "web shell should not disable browser zoom and should expose focus-visible outlines",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";
