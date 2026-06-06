@@ -283,11 +283,13 @@ results.push(
     const likert = read("src/components/quant/LikertChoiceGroup.tsx");
     const bigFive = read("src/app/big-five.tsx");
     const attachment = read("src/app/attachment.tsx");
+    const inbox = read("src/app/inbox.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
     const researchTablists = (research.match(/accessibilityRole="tablist"/g) ?? []).length;
     const captureSelected = (capture.match(/accessibilityState=\{\{ selected: active \}\}/g) ?? []).length;
+    const inboxRoles = (inbox.match(/accessibilityRole=/g) ?? []).length;
     const ok =
       captureTablists >= 2 && // track + mode rows
       captureSelected >= 2 && // track + mode chips
@@ -298,13 +300,23 @@ results.push(
       likert.includes('accessibilityRole="radio"') &&
       likert.includes("accessibilityState={{ checked: active }}") &&
       bigFive.includes("LikertChoiceGroup") &&
-      attachment.includes("LikertChoiceGroup");
+      attachment.includes("LikertChoiceGroup") &&
+      inboxRoles >= 8 &&
+      inbox.includes("Expands the content preview") &&
+      inbox.includes("Collapses the content preview") &&
+      inbox.includes("Create Source brief for") &&
+      inbox.includes("View Source brief for") &&
+      inbox.includes("Generate wiki page for") &&
+      inbox.includes("Retry loading inbox") &&
+      inbox.includes("Capture your first source") &&
+      inbox.includes("accessibilityState={{ disabled: phase1Pending, busy: phase1Pending }}") &&
+      inbox.includes("accessibilityState={{ disabled: generatePending, busy: generatePending }}");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips and assessment Likert choices expose grouped selected state"
-        : "visual-selected controls need accessibilityRole plus selected/checked state",
+        ? "selected chips, assessment choices, and inbox actions expose grouped/action state"
+        : "visual-selected controls or inbox row actions need accessibilityRole plus selected/checked state",
     };
   }),
 );
