@@ -48,15 +48,26 @@ export default function OAuthCallback() {
   }, []);
 
   if (failed) {
+    const failureMessage =
+      locale === "ko"
+        ? "로그인을 완료하지 못했어요. 다시 시도해 주세요."
+        : "Couldn't complete sign-in. Please try again.";
+    const retryLabel = locale === "ko" ? "로그인으로 돌아가기" : "Back to sign-in";
+    const retryHint = locale === "ko" ? "로그인 화면으로 이동합니다." : "Opens the sign-in screen.";
+
     return (
       <View style={styles.root}>
-        <Text style={styles.msg}>
-          {locale === "ko"
-            ? "로그인을 완료하지 못했어요. 다시 시도해 주세요."
-            : "Couldn't complete sign-in. Please try again."}
+        <Text style={styles.msg} accessibilityRole="alert">
+          {failureMessage}
         </Text>
-        <Pressable onPress={() => router.replace("/sign-in")} hitSlop={8} accessibilityRole="link">
-          <Text style={styles.link}>{locale === "ko" ? "로그인으로 돌아가기" : "Back to sign-in"}</Text>
+        <Pressable
+          onPress={() => router.replace("/sign-in")}
+          hitSlop={8}
+          accessibilityRole="link"
+          accessibilityLabel={retryLabel}
+          accessibilityHint={retryHint}
+        >
+          <Text style={styles.link}>{retryLabel}</Text>
         </Pressable>
       </View>
     );
