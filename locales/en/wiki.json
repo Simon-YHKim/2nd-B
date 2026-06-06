@@ -1,6 +1,12 @@
 {
   "title": "Wiki",
   "subtitle": "Your knowledge graph. Tap a page to read it and see what links back.",
+  "hero": {
+    "eyebrow": "04. Knowledge store",
+    "title": "Saved pieces become a library",
+    "subtitle": "Find the pieces you saved to SecondB",
+    "speech": "I've kept the pieces in order. Capture a new one or ask SecondB."
+  },
   "capture": "Capture",
   "export": "Create export",
   "exportActionTitle": "Take your knowledge with you",

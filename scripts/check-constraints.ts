@@ -1818,6 +1818,30 @@ results.push(
 );
 
 results.push(
+  check("WikiHeroI18nCopy", () => {
+    const wiki = read("src/app/wiki.tsx");
+    const en = read("locales/en/wiki.json");
+    const ko = read("locales/ko/wiki.json");
+    const forbidden = ["Find the pieces you saved to the village", "마을에 저장한 조각"];
+    const ok =
+      wiki.includes('t("hero.eyebrow")') &&
+      wiki.includes('t("hero.title")') &&
+      wiki.includes('t("hero.subtitle")') &&
+      wiki.includes('t("hero.speech")') &&
+      en.includes("Find the pieces you saved to SecondB") &&
+      ko.includes("SecondB에 저장한 조각을 다시 찾아보는 곳") &&
+      forbidden.every((term) => !wiki.includes(term) && !en.includes(term) && !ko.includes(term));
+    return {
+      id: "WikiHeroI18nCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "wiki hero copy lives in the wiki locale bundle and avoids old village-save wording"
+        : "wiki hero should source copy from locale keys and avoid old village-save wording",
+    };
+  }),
+);
+
+results.push(
   check("SignInHeroI18nCopy", () => {
     const screen = read("src/app/(auth)/sign-in.tsx");
     const en = read("locales/en/auth.json");

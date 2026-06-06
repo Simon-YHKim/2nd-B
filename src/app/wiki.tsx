@@ -433,21 +433,13 @@ export default function Wiki() {
   const header = (
     <View style={styles.headerWrap}>
         <SceneHero
-          eyebrow={locale === "ko" ? "04. 지식 창고" : "04. Knowledge store"}
-          title={locale === "ko" ? "저장한 조각들이 서재가 돼요" : "Saved pieces become a library"}
-          subtitle={
-            locale === "ko"
-              ? "마을에 저장한 조각을 다시 찾아보는 곳"
-              : "Find the pieces you saved to the village"
-          }
+          eyebrow={t("hero.eyebrow")}
+          title={t("hero.title")}
+          subtitle={t("hero.subtitle")}
           island={VILLAGE_UI.knowledge.island}
           worker={VILLAGE_UI.knowledge.worker}
           accent={VILLAGE_UI.knowledge.accent}
-          speech={
-            locale === "ko"
-              ? "조각들을 정리해뒀어요. 새 조각을 담거나 세컨비에게 물어볼 수 있어요."
-              : "I've kept the pieces in order. Capture a new one or ask SecondB."
-          }
+          speech={t("hero.speech")}
           primaryAction={{
             label: t("capture"),
             onPress: () => router.push("/capture"),
