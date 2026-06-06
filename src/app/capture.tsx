@@ -19,7 +19,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   View,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
@@ -31,7 +30,7 @@ import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
-import { PremiumAppShell, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumModal, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { PremiumCard, PremiumButton, PremiumLoadingState } from "@/components/premium";
@@ -70,6 +69,7 @@ import { useKeyboard } from "@/lib/ui/useKeyboard";
 // streak / reflection / optional Advisor); the rest write to `sources`
 // (captureFromMarkdown). Reads were already unified via mergeEvidence.
 type Mode = "journal" | "memo" | "linkclip" | "ocr" | "file";
+type CaptureFeedbackModal = { title: string; body: string; retry?: () => void } | null;
 
 const CAPTURE_MODES: Mode[] = ["journal", "memo", "linkclip", "ocr", "file"];
 const BASIC_CAPTURE_MODES: Mode[] = ["journal"];
@@ -172,6 +172,7 @@ export default function Capture() {
   const [proposal, setProposal] = useState<ProposedClipperTemplate | null>(null);
   const [proposing, setProposing] = useState(false);
   const [formatSavedMsg, setFormatSavedMsg] = useState<string | null>(null);
+  const [feedbackModal, setFeedbackModal] = useState<CaptureFeedbackModal>(null);
 
   // Journal-mode (일기) state — ported from /journal. Writes to records.
   const progression = useProgression();
@@ -244,6 +245,16 @@ export default function Capture() {
   const journalGate = checkGate("journal", progression.totalXp);
   const journalUsage = checkUsage("journal", progression.tier, journalCount);
 
+  function showFeedback(title: string, body: string, retry?: () => void): void {
+    setFeedbackModal({ title, body, retry });
+  }
+
+  function retryFeedbackModal(): void {
+    const current = feedbackModal;
+    setFeedbackModal(null);
+    current?.retry?.();
+  }
+
   function reset() {
     setBody("");
     setPickedFile(null);
@@ -268,13 +279,10 @@ export default function Capture() {
       setBody(""); // clear any prior extraction; the user presses 추출하기 to fill
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] image pick failed", (e as Error).message);
-      Alert.alert(
+      showFeedback(
         t("alerts.imageOpen.title"),
         t("alerts.imageOpen.message"),
-        [
-          { text: t("alerts.common.retry"), onPress: () => void pickImage(source) },
-          { text: t("alerts.common.dismiss"), style: "cancel" },
-        ],
+        () => void pickImage(source),
       );
     }
   }
@@ -287,13 +295,10 @@ export default function Capture() {
       setBody(md);
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
-      Alert.alert(
+      showFeedback(
         t("alerts.ocrRead.title"),
         t("alerts.ocrRead.message"),
-        [
-          { text: t("alerts.common.retry"), onPress: () => void runExtract() },
-          { text: t("alerts.common.dismiss"), style: "cancel" },
-        ],
+        () => void runExtract(),
       );
     } finally {
       setExtracting(false);
@@ -308,13 +313,10 @@ export default function Capture() {
       if (f.textContent) setBody(f.textContent);
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] file pick failed", (e as Error).message);
-      Alert.alert(
+      showFeedback(
         t("alerts.fileOpen.title"),
         t("alerts.fileOpen.message"),
-        [
-          { text: t("alerts.common.retry"), onPress: () => void runFilePick() },
-          { text: t("alerts.common.dismiss"), style: "cancel" },
-        ],
+        () => void runFilePick(),
       );
     }
   }
@@ -375,13 +377,10 @@ export default function Capture() {
         .catch(() => {});
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] journal save failed", (e as Error).message);
-      Alert.alert(
+      showFeedback(
         t("alerts.journalSave.title"),
         t("alerts.journalSave.message"),
-        [
-          { text: t("alerts.common.retry"), onPress: () => void handleJournalSubmit() },
-          { text: t("alerts.common.dismiss"), style: "cancel" },
-        ],
+        () => void handleJournalSubmit(),
       );
     } finally {
       setSubmitting(false);
@@ -464,13 +463,10 @@ export default function Capture() {
       }
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] capture save failed", (e as Error).message);
-      Alert.alert(
+      showFeedback(
         t("alerts.pieceSave.title"),
         t("alerts.pieceSave.message"),
-        [
-          { text: t("alerts.common.retry"), onPress: () => void handleSubmit() },
-          { text: t("alerts.common.dismiss"), style: "cancel" },
-        ],
+        () => void handleSubmit(),
       );
     } finally {
       setSubmitting(false);
@@ -487,7 +483,7 @@ export default function Capture() {
       const p = await proposeClipperTemplate(userId, proposalCtx.content, proposalCtx.url, locale, isMinor === true);
       if (!p) {
         setProposalCtx(null);
-        Alert.alert(
+        showFeedback(
           t("alerts.proposeEmpty.title"),
           t("alerts.proposeEmpty.message"),
         );
@@ -496,13 +492,10 @@ export default function Capture() {
       setProposal(p);
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] format propose failed", (e as Error).message);
-      Alert.alert(
+      showFeedback(
         t("alerts.proposeFailed.title"),
         t("alerts.proposeFailed.message"),
-        [
-          { text: t("alerts.common.retry"), onPress: () => void runPropose() },
-          { text: t("alerts.common.dismiss"), style: "cancel" },
-        ],
+        () => void runPropose(),
       );
     } finally {
       setProposing(false);
@@ -532,13 +525,10 @@ export default function Capture() {
       );
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] format save failed", (e as Error).message);
-      Alert.alert(
+      showFeedback(
         t("alerts.formatSave.title"),
         t("alerts.formatSave.message"),
-        [
-          { text: t("alerts.common.retry"), onPress: () => void saveProposed(share) },
-          { text: t("alerts.common.dismiss"), style: "cancel" },
-        ],
+        () => void saveProposed(share),
       );
     }
   }
@@ -1078,6 +1068,35 @@ export default function Capture() {
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.captureFlash} />
       ) : null}
+      <PremiumModal
+        visible={feedbackModal !== null}
+        onClose={() => setFeedbackModal(null)}
+        accessibilityLabel={locale === "ko" ? "담기 피드백 안내" : "Capture feedback notice"}
+      >
+        <Text variant="heading">{feedbackModal?.title}</Text>
+        <Text variant="body" color="textMuted" style={styles.modalBody}>
+          {feedbackModal?.body}
+        </Text>
+        <View style={styles.modalActions}>
+          <Button
+            label={t("alerts.common.dismiss")}
+            variant="secondary"
+            onPress={() => setFeedbackModal(null)}
+            style={styles.modalButton}
+            accessibilityHint={locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice."}
+          />
+          {feedbackModal?.retry ? (
+            <Button
+              label={t("alerts.common.retry")}
+              variant="primary"
+              onPress={retryFeedbackModal}
+              loading={extracting || submitting || proposing}
+              style={styles.modalButton}
+              accessibilityHint={locale === "ko" ? "방금 실패한 담기 작업을 다시 시도합니다." : "Retries the failed capture action."}
+            />
+          ) : null}
+        </View>
+      </PremiumModal>
       {/* Crisis routing for journal-mode entries (C9). */}
       <CrisisRouter
         visible={crisis.visible}
@@ -1143,6 +1162,9 @@ function HashtagAdder({ onAdd, locale }: { onAdd: (s: string) => void; locale: "
 const styles = StyleSheet.create({
   center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   captureFlash: { position: "absolute", bottom: 40, right: 20 },
+  modalBody: { lineHeight: 21 },
+  modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  modalButton: { flex: 1 },
   // Journal-mode (일기) bits, ported from /journal.
   streakRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   streakDot: {

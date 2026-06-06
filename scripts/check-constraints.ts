@@ -492,6 +492,7 @@ results.push(
     const interview = read("src/app/interview.tsx");
     const account = read("src/app/account.tsx");
     const settings = read("src/app/settings.tsx");
+    const capture = read("src/app/capture.tsx");
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const signUp = read("src/app/(auth)/sign-up.tsx");
     const completeProfile = read("src/app/(auth)/complete-profile.tsx");
@@ -509,6 +510,7 @@ results.push(
       !interview.includes("Alert.alert") &&
       !account.includes("Alert.alert") &&
       !settings.includes("Alert.alert") &&
+      !capture.includes("Alert.alert") &&
       !signIn.includes("Alert.alert") &&
       !signUp.includes("Alert.alert") &&
       !completeProfile.includes("Alert.alert") &&
@@ -563,6 +565,9 @@ results.push(
       settings.includes("PremiumToast") &&
       settings.includes("Settings confirmation dialog") &&
       settings.includes("Settings feedback notice") &&
+      capture.includes("PremiumModal") &&
+      capture.includes("Capture feedback notice") &&
+      capture.includes("Retries the failed capture action.") &&
       !wiki.includes("Claude / ChatGPT") &&
       bigFive.includes("toastWrap") &&
       attachment.includes("toastWrap") &&
@@ -574,8 +579,8 @@ results.push(
       id: "Feedback",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "Big Five, Attachment, Import, ESM, Insights, Research, Wiki, Trinity, Interview, Account, Settings, Sign-in, Sign-up, Audit, and Persona feedback use premium surfaces"
-        : "assessment/import/ESM/insights/research/wiki/trinity/interview/account/settings/sign-in/sign-up/audit/persona feedback should use premium surfaces and avoid vendor-specific helper copy",
+        ? "Big Five, Attachment, Import, ESM, Insights, Research, Wiki, Trinity, Interview, Account, Settings, Capture, Sign-in, Sign-up, Audit, and Persona feedback use premium surfaces"
+        : "assessment/import/ESM/insights/research/wiki/trinity/interview/account/settings/capture/sign-in/sign-up/audit/persona feedback should use premium surfaces and avoid vendor-specific helper copy",
     };
   }),
 );
