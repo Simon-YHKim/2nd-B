@@ -10,6 +10,7 @@ import { getEnv } from "../env";
 const IS_WEB = typeof document !== "undefined";
 
 let client: SupabaseClient | null = null;
+let isAppStateListenerAdded = false;
 
 export function getSupabaseClient(): SupabaseClient {
   if (client) return client;
@@ -23,6 +24,24 @@ export function getSupabaseClient(): SupabaseClient {
       storage,
     },
   });
+
+  if (!isAppStateListenerAdded && !IS_WEB) {
+    isAppStateListenerAdded = true;
+    try {
+      // Dynamically require to avoid choking node/jest test environments without RN runtime
+      const { AppState } = require("react-native");
+      AppState.addEventListener("change", (state: string) => {
+        if (state === "active") {
+          client?.auth.startAutoRefresh();
+        } else {
+          client?.auth.stopAutoRefresh();
+        }
+      });
+    } catch {
+      // test environment fallback
+    }
+  }
+
   return client;
 }
 
