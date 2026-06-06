@@ -5,9 +5,8 @@
 // On successful sign-in, the IntroGate in _layout plays the cell-team
 // loading sequence as the "we're building your second brain" hand-off.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -32,7 +31,7 @@ import {
   signInWithNaver,
 } from "@/lib/supabase/auth";
 import { cosmicSky, radii, semantic, spacing } from "@/lib/theme/tokens";
-import { CosmicBackground } from "@/components/premium";
+import { CosmicBackground, PremiumToast } from "@/components/premium";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
@@ -43,6 +42,7 @@ const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth
 // the first (unauthenticated) screen already reads as the Cosmic Pixel
 // Graph Village. Same shape as the legacy darkSky it replaced.
 const PALETTE = cosmicSky;
+type SignInToast = { message: string; tone: "info" | "success" | "danger" };
 
 export default function SignIn() {
   const { t, i18n } = useTranslation("auth");
@@ -52,11 +52,19 @@ export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
+  const [toast, setToast] = useState<SignInToast | null>(null);
+  const [resetHelpVisible, setResetHelpVisible] = useState(false);
   // A provider whose OAuth start failed with a "not configured" error is hidden
   // for the rest of the session so the user is not left tapping a dead button.
   const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(timeout);
+  }, [toast]);
 
   // Still resolving the session — render the branded checking state instead of
   // flashing the sign-in form to a user who turns out to be signed in (the
@@ -87,11 +95,13 @@ export default function SignIn() {
       if (/not enabled|unsupported provider|validation_failed/i.test(msg)) {
         setHiddenProviders((prev) => new Set(prev).add(provider));
       }
-      Alert.alert(
-        locale === "ko"
-          ? `${name} 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.`
-          : `Could not start ${name} sign-in. Please try again in a moment.`,
-      );
+      setToast({
+        tone: "danger",
+        message:
+          locale === "ko"
+            ? `${name} 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.`
+            : `Could not start ${name} sign-in. Please try again in a moment.`,
+      });
       if (typeof console !== "undefined")
         console.warn(`[auth] ${provider} oauth error`, msg);
     } finally {
@@ -105,11 +115,13 @@ export default function SignIn() {
     try {
       signInWithNaver();
     } catch (e) {
-      Alert.alert(
-        locale === "ko"
-          ? "Naver 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요."
-          : "Could not start Naver sign-in. Please try again in a moment.",
-      );
+      setToast({
+        tone: "danger",
+        message:
+          locale === "ko"
+            ? "Naver 로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요."
+            : "Could not start Naver sign-in. Please try again in a moment.",
+      });
       if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
     }
   }
@@ -125,11 +137,13 @@ export default function SignIn() {
       router.replace("/");
     } catch (e) {
       // Generic message to avoid email-enumeration. CSO finding R3.
-      Alert.alert(
-        locale === "ko"
-          ? "로그인에 실패했어요. 이메일과 비밀번호를 다시 확인해 주세요."
-          : "Sign-in failed. Please check your email and password.",
-      );
+      setToast({
+        tone: "danger",
+        message:
+          locale === "ko"
+            ? "로그인에 실패했어요. 이메일과 비밀번호를 다시 확인해 주세요."
+            : "Sign-in failed. Please check your email and password.",
+      });
       if (typeof console !== "undefined") console.warn("[auth] signIn error", (e as Error).message);
     } finally {
       setSubmitting(false);
@@ -139,12 +153,14 @@ export default function SignIn() {
   const canSubmit = email.includes("@") && password.length > 0 && !submitting;
 
   function handleForgotPassword() {
-    Alert.alert(
-      locale === "ko" ? "비밀번호 재설정" : "Reset password",
-      locale === "ko"
-        ? "support@2nd-brain.app으로 가입 이메일과 함께 연락해 주시면 재설정을 도와드려요."
-        : "Email support@2nd-brain.app from your account address and we'll help you reset it.",
-    );
+    setResetHelpVisible(true);
+    setToast({
+      tone: "info",
+      message:
+        locale === "ko"
+          ? "비밀번호 재설정 안내를 아래에 표시했어요."
+          : "Password reset instructions are shown below.",
+    });
   }
 
   return (
@@ -350,6 +366,19 @@ export default function SignIn() {
                 {locale === "ko" ? "비밀번호를 잊으셨나요?" : "Forgot password?"}
               </Text>
             </Pressable>
+
+            {resetHelpVisible ? (
+              <View style={styles.resetHelpCard} accessibilityRole="alert">
+                <Text style={styles.resetHelpTitle}>
+                  {locale === "ko" ? "비밀번호 재설정" : "Reset password"}
+                </Text>
+                <Text style={styles.resetHelpBody}>
+                  {locale === "ko"
+                    ? "가입 이메일 주소로 support@2nd-brain.app에 연락해 주세요. 확인 후 재설정을 도와드릴게요."
+                    : "Email support@2nd-brain.app from your account address and we will help you reset it."}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Footer — sign-up + manual link. */}
@@ -384,6 +413,11 @@ export default function SignIn() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      {toast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <PremiumToast message={toast.message} tone={toast.tone} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -503,6 +537,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 4,
+  },
+  resetHelpCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  resetHelpTitle: { color: PALETTE.text, fontSize: 14, fontWeight: "700", letterSpacing: 0 },
+  resetHelpBody: { color: PALETTE.textMuted, fontSize: 13, lineHeight: 20, letterSpacing: 0 },
+  toastWrap: {
+    position: "absolute",
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.xl,
+    alignItems: "stretch",
   },
   footer: { marginTop: 28, alignItems: "center" },
   footerRow: {

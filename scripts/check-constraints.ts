@@ -456,6 +456,7 @@ results.push(
     const insights = read("src/app/insights.tsx");
     const research = read("src/app/research.tsx");
     const wiki = read("src/app/wiki.tsx");
+    const signIn = read("src/app/(auth)/sign-in.tsx");
     const wikiAlertCount = (wiki.match(/Alert\.alert/g) ?? []).length;
     const ok =
       !bigFive.includes("Alert.alert") &&
@@ -464,10 +465,15 @@ results.push(
       !esm.includes("Alert.alert") &&
       !insights.includes("Alert.alert") &&
       !research.includes("Alert.alert") &&
+      !signIn.includes("Alert.alert") &&
       bigFive.includes("PremiumToast") &&
       attachment.includes("PremiumToast") &&
       importScreen.includes("PremiumToast") &&
       esm.includes("PremiumToast") &&
+      signIn.includes("PremiumToast") &&
+      signIn.includes("resetHelpCard") &&
+      signIn.includes("Password reset instructions are shown below.") &&
+      signIn.includes("Sign-in failed. Please check your email and password.") &&
       insights.includes("PremiumErrorState") &&
       research.includes("PremiumErrorState") &&
       wiki.includes("PremiumToast") &&
@@ -488,8 +494,8 @@ results.push(
       id: "Feedback",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "Big Five, Attachment, Import, ESM, Insights, Research, and Wiki action feedback use premium surfaces"
-        : "assessment/import/ESM/insights/research/wiki action feedback should use premium surfaces and avoid vendor-specific helper copy",
+        ? "Big Five, Attachment, Import, ESM, Insights, Research, Wiki, and Sign-in feedback use premium surfaces"
+        : "assessment/import/ESM/insights/research/wiki/sign-in feedback should use premium surfaces and avoid vendor-specific helper copy",
     };
   }),
 );
