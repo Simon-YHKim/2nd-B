@@ -845,8 +845,8 @@ results.push(
       data.includes("Opens the import screen.") &&
       data.includes("Opens the knowledge store.") &&
       data.includes("Opens delete options in Settings.") &&
-      support.includes("accessibilityLabel={ko ? \"지원팀에 메일 보내기\" : \"Email support\"}") &&
-      support.includes("Opens your mail app with the support address.") &&
+      support.includes('accessibilityLabel={t("contact.accessibilityLabel")}') &&
+      support.includes('accessibilityHint={t("contact.accessibilityHint")}') &&
       theme.includes("accessibilityLabel={locale === \"ko\" ? `${o.label} 테마 적용` : `Use ${o.label} theme`}") &&
       theme.includes("Applies the selected theme on this device.") &&
       permissions.includes("Opens the manual from the permissions screen.") &&
@@ -1060,6 +1060,44 @@ results.push(
       note: ok
         ? "capture and inbox storage copy avoids raw backend/version/metadata wording"
         : "capture and inbox storage copy should avoid backend/version/metadata jargon in visible text",
+    };
+  }),
+);
+
+results.push(
+  check("SupportI18nCopy", () => {
+    const support = read("src/app/support.tsx");
+    const i18n = read("src/lib/i18n/index.ts");
+    const en = read("locales/en/support.json");
+    const ko = read("locales/ko/support.json");
+    const forbiddenInlineCopy = [
+      "FAQ_KO",
+      "FAQ_EN",
+      'locale === "ko"',
+      "The village helps you organize it later.",
+      "조각마을이 도와드려요",
+    ];
+    const ok =
+      support.includes('useTranslation("support")') &&
+      support.includes('t("hero.title")') &&
+      support.includes('t("faq", { returnObjects: true })') &&
+      support.includes("type SupportFaq") &&
+      i18n.includes("enSupport") &&
+      i18n.includes("koSupport") &&
+      i18n.includes('"support"') &&
+      i18n.includes("support: enSupport") &&
+      i18n.includes("support: koSupport") &&
+      en.includes('"faq"') &&
+      ko.includes('"faq"') &&
+      en.includes("2nd-B helps organize it later.") &&
+      ko.includes("정리는 나중에 2nd-B가 도와드려요.") &&
+      forbiddenInlineCopy.every((term) => !support.includes(term) && !en.includes(term) && !ko.includes(term));
+    return {
+      id: "SupportI18nCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "support screen copy lives in locale bundles without inline ko/en FAQ branches"
+        : "support screen should source sensitive help/FAQ copy from support locale bundles",
     };
   }),
 );
