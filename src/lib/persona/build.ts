@@ -284,19 +284,34 @@ export async function buildPersona(
   ]);
 
   // Pull one short narrative summary from the LLM wrapper (mock or live).
-  // This still goes through callGemini, so C9 + C3 hold.
-  const summaryInput = rows
-    .map((r, i) => `${i + 1}. Q: ${r.prompt ?? "(audit)"}\n   A: ${r.body}`)
-    .join("\n");
-  const summaryRes = await callGemini({
-    userId,
-    locale,
-    purpose: "persona_chat",
-    user: summaryInput || "no entries yet",
-    minor,
-  });
+  // Data-truth: only summarize when there are actual written entries. With no
+  // audit/journal rows there is nothing to summarize, so we skip the LLM call
+  // entirely and surface an honest empty message instead of letting the model
+  // invent a generic (Barnum) persona from a "no entries yet" prompt. Traits,
+  // MBTI, and attachment still surface from their own assessments above; only
+  // this narrative slot is gated. (Also avoids a needless paid call.)
+  let summaryText: string;
+  if (rows.length > 0) {
+    const summaryInput = rows
+      .map((r, i) => `${i + 1}. Q: ${r.prompt ?? "(audit)"}\n   A: ${r.body}`)
+      .join("\n");
+    // This still goes through callGemini, so C9 + C3 hold.
+    const summaryRes = await callGemini({
+      userId,
+      locale,
+      purpose: "persona_chat",
+      user: summaryInput,
+      minor,
+    });
+    summaryText = summaryRes.text;
+  } else {
+    summaryText =
+      locale === "ko"
+        ? "아직 글로 남긴 기록이 없어서 요약할 이야기가 없어요. 한 줄이라도 적으면 여기에 패턴이 보이기 시작해요."
+        : "No written entries yet to summarize. Add even one and your patterns start to show here.";
+  }
 
-  const patterns: Record<string, string> = { summary: summaryRes.text };
+  const patterns: Record<string, string> = { summary: summaryText };
   // Surface the top-3 memorized pattern kinds as their own patterns entries
   // so the persona screen can show "you've been writing about attachment
   // (8x), career (3x)" beneath the LLM summary.
@@ -324,7 +339,7 @@ export async function buildPersona(
     attachment,
     values: deriveValues(rows),
     patterns,
-    markdownExport: renderMarkdown(traits, rows, summaryRes.text, locale, topKinds, mbti, attachment, tc),
+    markdownExport: renderMarkdown(traits, rows, summaryText, locale, topKinds, mbti, attachment, tc),
   };
 
   // Persist for later reuse (RAG export, etc).

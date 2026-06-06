@@ -49,6 +49,7 @@ jest.mock("../../llm/gemini", () => ({
 }));
 
 import { buildPersona, traitConfidenceFor } from "../build";
+import { callGemini } from "../../llm/gemini";
 
 function reset() {
   for (const k of Object.keys(tableFixtures)) delete tableFixtures[k];
@@ -79,6 +80,17 @@ describe("buildPersona", () => {
     expect(card.attachment).toBeNull();
     expect(card.version).toBe(1);
     expect(card.markdownExport).toContain("Persona v1");
+  });
+
+  test("no written entries → skips LLM summary (no Barnum fabrication), honest empty message", async () => {
+    (callGemini as jest.Mock).mockClear();
+    tableFixtures["records:select"] = { data: [], error: null };
+    tableFixtures["memorized_patterns:select"] = { data: [], error: null };
+    const card = await buildPersona("u1", "en");
+    // With zero audit/journal rows there is nothing to summarize: the LLM must
+    // not be asked to invent a narrative.
+    expect(callGemini).not.toHaveBeenCalled();
+    expect(card.patterns.summary).toContain("No written entries yet");
   });
 
   test("MBTI record present → mbti surfaced + markdown section", async () => {
