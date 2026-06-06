@@ -305,6 +305,7 @@ results.push(
     const data = read("src/app/data.tsx");
     const support = read("src/app/support.tsx");
     const theme = read("src/app/theme.tsx");
+    const settings = read("src/app/settings.tsx");
     const premiumSurfaces = read("src/components/premium/surfaces.tsx");
     const input = read("src/components/ui/Input.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
@@ -438,6 +439,18 @@ results.push(
       support.includes("Opens your mail app with the support address.") &&
       theme.includes("accessibilityLabel={locale === \"ko\" ? `${o.label} 테마 적용` : `Use ${o.label} theme`}") &&
       theme.includes("Applies the selected theme on this device.") &&
+      settings.includes("accessibilityHint={accessibilityHint}") &&
+      settings.includes("Opens profile settings.") &&
+      settings.includes("Opens privacy settings.") &&
+      settings.includes("Opens account settings.") &&
+      settings.includes("Opens data management.") &&
+      settings.includes("Applies dark theme on this device.") &&
+      settings.includes("Applies light theme on this device.") &&
+      settings.includes("Sets decorative graph crew density to") &&
+      settings.includes("Opens a confirmation before deleting every journal entry.") &&
+      settings.includes("Opens a confirmation before deleting saved Big Five results.") &&
+      settings.includes("Requires typed DELETE confirmation before wiping records, sources, wiki pages, and usage.") &&
+      settings.includes("Signs out and returns to the sign-in screen.") &&
       premiumSurfaces.includes("const resolvedAccessibilityLabel = accessibilityLabel ?? label") &&
       premiumSurfaces.includes("accessibilityLabel={resolvedAccessibilityLabel}") &&
       premiumSurfaces.includes("function textInputAccessibilityLabel") &&
@@ -448,8 +461,8 @@ results.push(
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/home/jarvis/navgraph/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/home/jarvis/navgraph/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/home/jarvis/navgraph/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/home/jarvis/navgraph/esm/profile/consent/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
     };
   }),
 );
