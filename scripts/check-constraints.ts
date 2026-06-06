@@ -372,6 +372,11 @@ results.push(
       signIn.includes('accessibilityLabel={t("signIn.continueWithNaver")}') &&
       signIn.includes("accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}") &&
       signIn.includes("Reset password") &&
+      signIn.includes("Switch sign-in language to Korean") &&
+      signIn.includes("Shows instructions for requesting a reset by email.") &&
+      signIn.includes("Opens the sign-up screen.") &&
+      signIn.includes("Read the one-minute manual") &&
+      signIn.includes("Opens the app manual.") &&
       signUp.includes("Switch sign-up language to English") &&
       signUp.includes("회원가입 언어를 한국어로 변경") &&
       signUp.includes("Opens the sign-in screen") &&

@@ -156,6 +156,10 @@ export default function SignIn() {
               }}
               hitSlop={8}
               accessibilityRole="button"
+              accessibilityLabel={
+                locale === "ko" ? "로그인 언어를 영어로 변경" : "Switch sign-in language to Korean"
+              }
+              accessibilityHint={locale === "ko" ? "로그인 화면 문구를 영어로 바꿉니다." : "Changes the sign-in screen copy to Korean."}
               style={styles.localeButton}
             >
               <Text style={styles.localeToggle}>{locale === "ko" ? "EN" : "한국어"}</Text>
@@ -304,6 +308,11 @@ export default function SignIn() {
               style={styles.forgotRow}
               accessibilityRole="button"
               accessibilityLabel={locale === "ko" ? "비밀번호 재설정" : "Reset password"}
+              accessibilityHint={
+                locale === "ko"
+                  ? "지원팀에 이메일을 보내 재설정을 요청하는 안내를 엽니다."
+                  : "Shows instructions for requesting a reset by email."
+              }
             >
               <Text style={styles.subtleText}>
                 {locale === "ko" ? "비밀번호를 잊으셨나요?" : "Forgot password?"}
@@ -316,13 +325,23 @@ export default function SignIn() {
             <View style={styles.footerRow}>
               <Text style={styles.subtleText}>{t("signIn.noAccount")}</Text>
               <Link href="/sign-up" asChild>
-                <Pressable accessibilityRole="link" style={styles.footerLinkHit}>
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel={t("signIn.signUpLink")}
+                  accessibilityHint={locale === "ko" ? "회원가입 화면을 엽니다." : "Opens the sign-up screen."}
+                  style={styles.footerLinkHit}
+                >
                   <Text style={styles.linkText}>{t("signIn.signUpLink")}</Text>
                 </Pressable>
               </Link>
             </View>
             <Link href="/manual" asChild>
-              <Pressable accessibilityRole="link" style={styles.manualLinkHit}>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel={locale === "ko" ? "앱 안내서 보기" : "Read the one-minute manual"}
+                accessibilityHint={locale === "ko" ? "앱 안내서를 엽니다." : "Opens the app manual."}
+                style={styles.manualLinkHit}
+              >
                 <Text style={[styles.subtleText, styles.linkUnderline]}>
                   {locale === "ko"
                     ? "이 앱이 처음이라면 안내서 보기"
