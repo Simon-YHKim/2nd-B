@@ -381,7 +381,7 @@ results.push(
       esm.includes('scale_value: kind === "energy" ? scaleValue : null') &&
       esm.includes('context_tags: kind === "context" ? selectedTags : []') &&
       esm.includes("No notifications. Only when you open it.") &&
-      esm.includes("not a judgment or diagnosis") &&
+      esm.includes("not a judgment or label") &&
       esmTabs >= 1 &&
       esm.includes('accessibilityRole="radiogroup"') &&
       esmRadios >= 1 &&

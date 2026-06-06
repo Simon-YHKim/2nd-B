@@ -202,8 +202,8 @@ export default function EsmCheckIn() {
 
           <Text variant="subtle" color="textMuted" style={styles.note}>
             {locale === "ko"
-              ? "이 기록은 판단이나 진단이 아니라, 나중에 패턴을 더 정확히 보는 작은 단서입니다."
-              : "This is not a judgment or diagnosis. It is a small signal for future pattern accuracy."}
+              ? "이 기록은 판단이나 꼬리표가 아니라, 나중에 패턴을 더 정확히 보는 작은 단서입니다."
+              : "This is not a judgment or label. It is a small signal that sharpens your patterns later."}
           </Text>
 
           <View style={styles.actions}>
