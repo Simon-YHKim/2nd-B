@@ -280,7 +280,16 @@ export default function CoreBrain() {
         {/* 6) 이걸 만든 조각들 — evidence */}
         <Section title={locale === "ko" ? "이걸 만든 조각들" : "The pieces behind this"} accent={cosmic.pixelLamp}>
           {pieces ? <Text variant="body" style={{ marginBottom: spacing.sm }}>{pieces.body}</Text> : null}
-          <Pressable onPress={() => setDrawerOpen(true)} style={styles.evidenceBtn} accessibilityRole="button">
+          <Pressable
+            onPress={() => setDrawerOpen(true)}
+            style={styles.evidenceBtn}
+            accessibilityRole="button"
+            accessibilityLabel={
+              locale === "ko"
+                ? `참고한 조각 ${evidence.length}개 보기`
+                : `See ${evidence.length} evidence pieces`
+            }
+          >
             <Text variant="body" color="brand">
               {locale === "ko" ? `참고한 조각 ${evidence.length}개 보기` : `See ${evidence.length} pieces`}
             </Text>
@@ -311,7 +320,12 @@ export default function CoreBrain() {
 
       {/* Evidence drawer (§5) */}
       <Modal visible={drawerOpen} transparent animationType="slide" onRequestClose={() => setDrawerOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setDrawerOpen(false)}>
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => setDrawerOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel={locale === "ko" ? "참고 조각 닫기" : "Close evidence drawer"}
+        >
           <Pressable style={styles.drawer} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
             <View style={styles.drawerHandle} />
             <Text variant="heading">{locale === "ko" ? "이걸 만든 조각들" : "The pieces behind this"}</Text>
@@ -329,6 +343,9 @@ export default function CoreBrain() {
                     setDrawerOpen(false);
                     router.push({ pathname: "/record/[id]", params: { id: ev.id } });
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={locale === "ko" ? `${ev.title} 기록 열기` : `Open record ${ev.title}`}
+                  accessibilityHint={evidenceLabel(ev, locale)}
                 >
                   <View style={styles.evDot} />
                   <View style={{ flex: 1 }}>
