@@ -1210,6 +1210,19 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     return locale === "ko" ? "기록 조각" : "Log";
   };
 
+  // Accessibility Navigation (E5)
+  const [navIndex, setNavIndex] = useState(-1);
+  const goNextCategory = () => {
+    const nextIdx = (navIndex + 1) % MENU_NODES.length;
+    setNavIndex(nextIdx);
+    handleNodeTap(MENU_NODES[nextIdx].id);
+  };
+  const goPrevCategory = () => {
+    const prevIdx = (navIndex - 1 + MENU_NODES.length) % MENU_NODES.length;
+    setNavIndex(prevIdx);
+    handleNodeTap(MENU_NODES[prevIdx].id);
+  };
+
   // Tap a node (graph-ux-overhaul #6). For a tier-2 village we spring the
   // camera so its sector fills the screen, then open the sheet. Tapping the
   // same node again (or a non-domain node) just toggles the sheet.
@@ -1595,6 +1608,37 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         </Animated.View>
       ) : null}
 
+      {/* E5 Accessibility / Settings Floating Buttons */}
+      <View style={styles.a11yNavWrap} pointerEvents="box-none">
+        <Pressable
+          onPress={goPrevCategory}
+          style={styles.a11yBtn}
+          accessibilityRole="button"
+          accessibilityLabel={locale === "ko" ? "이전 카테고리" : "Previous category"}
+          accessibilityHint={locale === "ko" ? "이전 마을을 선택합니다" : "Selects previous village"}
+        >
+          <Text style={styles.a11yBtnText}>{locale === "ko" ? "이전" : "Prev"}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push("/settings")}
+          style={styles.a11yBtn}
+          accessibilityRole="button"
+          accessibilityLabel={locale === "ko" ? "설정 열기" : "Open settings"}
+          accessibilityHint={locale === "ko" ? "설정 화면으로 이동합니다" : "Opens settings screen"}
+        >
+          <Text style={styles.a11yBtnText}>{locale === "ko" ? "설정" : "Settings"}</Text>
+        </Pressable>
+        <Pressable
+          onPress={goNextCategory}
+          style={styles.a11yBtn}
+          accessibilityRole="button"
+          accessibilityLabel={locale === "ko" ? "다음 카테고리" : "Next category"}
+          accessibilityHint={locale === "ko" ? "다음 마을을 선택합니다" : "Selects next village"}
+        >
+          <Text style={styles.a11yBtnText}>{locale === "ko" ? "다음" : "Next"}</Text>
+        </Pressable>
+      </View>
+
       {/* Node bottom sheet (§7) — screen-fixed, outside the zoom transform. */}
       {activeNode ? (
         <NodeSheet
@@ -1954,4 +1998,37 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   dataTagText: { color: cosmic.signalMint, fontSize: 12, fontFamily: fontFamilies.readable },
+  // E5 A11y Navigation
+  a11yNavWrap: {
+    position: "absolute",
+    bottom: 24,
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    zIndex: 20,
+  },
+  a11yBtn: {
+    minHeight: 48,
+    minWidth: 48,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    backgroundColor: "rgba(13,21,48,0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.5)",
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  a11yBtnText: {
+    color: cosmic.signalMint,
+    letterSpacing: 0,
+    fontFamily: fontFamilies.sans,
+    fontSize: 14,
+    fontWeight: "700",
+  },
 });
