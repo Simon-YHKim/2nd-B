@@ -16,9 +16,25 @@ export function XpBar({ progress, locale = "ko" }: { progress: LevelProgress; lo
     : locale === "ko"
       ? `다음 레벨까지 ${progress.xpToNextLevel} XP`
       : `${progress.xpToNextLevel} XP to next level`;
+  const accessibilityLabel =
+    locale === "ko"
+      ? `레벨 ${progress.level}, 경험치 진행률 ${pct}%`
+      : `Level ${progress.level}, XP progress ${pct}%`;
+  const accessibilityHint = progress.isMaxLevel
+    ? locale === "ko"
+      ? "이미 최고 레벨입니다."
+      : "Already at the max level."
+    : trailing;
 
   return (
-    <View style={styles.wrap} accessibilityRole="progressbar">
+    <View
+      style={styles.wrap}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityValue={{ min: 0, max: 100, now: pct, text: trailing }}
+      accessibilityHint={accessibilityHint}
+    >
       <View style={styles.row}>
         <Text variant="caption" color="brand" style={styles.lv}>
           Lv {progress.level}
