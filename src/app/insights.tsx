@@ -3,11 +3,11 @@
 // LLM each time.
 
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View, ActivityIndicator, Alert, RefreshControl } from "react-native";
+import { ScrollView, StyleSheet, View, ActivityIndicator, RefreshControl } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumErrorState, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -21,12 +21,14 @@ export default function Insights() {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [insights, setInsights] = useState<InsightsResult | null>(null);
 
   async function load() {
     if (!userId) return;
     setLoading(true);
+    setLoadError(false);
     try {
       const supabase = getSupabaseClient();
       // Insights must cover ALL saved evidence the user sees in /records, not
@@ -58,16 +60,8 @@ export default function Insights() {
       setInsights(computeInsights([...recordRows, ...sourceRows]));
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[insights] load failed", (e as Error).message);
-      Alert.alert(
-        locale === "ko" ? "불러오지 못했어요" : "Couldn't load",
-        locale === "ko"
-          ? "인사이트를 불러오는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
-          : "Something went wrong while loading your insights. Please try again in a moment.",
-        [
-          { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
-          { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => { void load(); } },
-        ],
-      );
+      setInsights(null);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -96,6 +90,25 @@ export default function Insights() {
       <PremiumAppShell>
         <View style={styles.center}>
           <ActivityIndicator color={semantic.brand} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumErrorState
+            title={locale === "ko" ? "인사이트를 불러오지 못했어요" : "Couldn't load insights"}
+            body={
+              locale === "ko"
+                ? "잠시 연결이 흔들렸어요. 다시 시도하면 기록 흐름을 새로 계산할게요."
+                : "The connection hiccuped for a moment. Try again to recompute your record flow."
+            }
+            retryLabel={locale === "ko" ? "다시 시도" : "Try again"}
+            onRetry={() => { void load(); }}
+          />
         </View>
       </PremiumAppShell>
     );
@@ -147,7 +160,7 @@ export default function Insights() {
         <SceneHero
           eyebrow={locale === "ko" ? "11. 인사이트" : "11. Insights"}
           title={locale === "ko" ? "최근 기록의 흐름 보기" : "See the flow in recent records"}
-          subtitle={locale === "ko" ? "AI 호출 없이 기록에서 바로 계산" : "Computed from records without an LLM call"}
+          subtitle={locale === "ko" ? "기록에서 바로 계산" : "Computed directly from records"}
           island={VILLAGE_UI.taste.island}
           worker={VILLAGE_UI.taste.worker}
           accent={VILLAGE_UI.taste.accent}

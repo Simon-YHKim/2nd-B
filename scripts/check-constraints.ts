@@ -453,25 +453,30 @@ results.push(
     const attachment = read("src/app/attachment.tsx");
     const importScreen = read("src/app/import.tsx");
     const esm = read("src/app/esm.tsx");
+    const insights = read("src/app/insights.tsx");
     const ok =
       !bigFive.includes("Alert.alert") &&
       !attachment.includes("Alert.alert") &&
       !importScreen.includes("Alert.alert") &&
       !esm.includes("Alert.alert") &&
+      !insights.includes("Alert.alert") &&
       bigFive.includes("PremiumToast") &&
       attachment.includes("PremiumToast") &&
       importScreen.includes("PremiumToast") &&
       esm.includes("PremiumToast") &&
+      insights.includes("PremiumErrorState") &&
       bigFive.includes("toastWrap") &&
       attachment.includes("toastWrap") &&
       importScreen.includes("toastWrap") &&
-      esm.includes("toastWrap");
+      esm.includes("toastWrap") &&
+      !insights.includes("LLM call") &&
+      !insights.includes("AI 호출");
     return {
       id: "Feedback",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "Big Five, Attachment, Import, and ESM feedback use PremiumToast instead of native Alert.alert"
-        : "assessment/import/ESM feedback should use PremiumToast, not native Alert.alert",
+        ? "Big Five, Attachment, Import, ESM, and Insights feedback avoid native Alert.alert"
+        : "assessment/import/ESM/insights feedback should use premium feedback surfaces, not native Alert.alert",
     };
   }),
 );
