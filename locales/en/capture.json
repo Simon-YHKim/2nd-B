@@ -11,5 +11,48 @@
     "helper": "We accept Obsidian-style frontmatter or plain markdown. The first H1 becomes the title."
   },
   "submit": "Capture",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "savedTitleFallback": "Today's piece",
+  "formatSaved": {
+    "personal": "Saved as your personal format.",
+    "shared": "Saved your new format and shared it with the village."
+  },
+  "alerts": {
+    "common": {
+      "retry": "Try again",
+      "dismiss": "Dismiss"
+    },
+    "imageOpen": {
+      "title": "Couldn't open that image",
+      "message": "We couldn't pull that image in. Please try again in a moment."
+    },
+    "ocrRead": {
+      "title": "Couldn't read the text",
+      "message": "We couldn't read the text from that image. Try again with a clearer photo."
+    },
+    "fileOpen": {
+      "title": "Couldn't open that file",
+      "message": "We couldn't open that file. Pick another one or try again in a moment."
+    },
+    "journalSave": {
+      "title": "Couldn't save your entry",
+      "message": "We couldn't save today's piece. What you wrote is still here. Please try again."
+    },
+    "pieceSave": {
+      "title": "Couldn't save your piece",
+      "message": "We couldn't send it to the village. What you entered is still here. Please try again."
+    },
+    "proposeEmpty": {
+      "title": "No format to suggest",
+      "message": "Couldn't draft a new format for this one."
+    },
+    "proposeFailed": {
+      "title": "Couldn't draft a format",
+      "message": "We couldn't draft a new format right now. Please try again in a moment."
+    },
+    "formatSave": {
+      "title": "Couldn't save the format",
+      "message": "We couldn't save the new format. Your proposal is still here. Please try again."
+    }
+  }
 }

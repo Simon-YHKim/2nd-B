@@ -147,11 +147,66 @@ results.push(
 
 results.push(
   check("C7", () => {
-    const ok = exists("locales/en/common.json") && exists("locales/ko/common.json") && exists("scripts/check-i18n-keys.ts");
+    const capture = read("src/app/capture.tsx");
+    const enCapture = JSON.parse(read("locales/en/capture.json")) as Record<string, unknown>;
+    const koCapture = JSON.parse(read("locales/ko/capture.json")) as Record<string, unknown>;
+    const captureKeys = [
+      "savedTitleFallback",
+      "formatSaved.personal",
+      "formatSaved.shared",
+      "alerts.common.retry",
+      "alerts.common.dismiss",
+      "alerts.imageOpen.title",
+      "alerts.imageOpen.message",
+      "alerts.ocrRead.title",
+      "alerts.ocrRead.message",
+      "alerts.fileOpen.title",
+      "alerts.fileOpen.message",
+      "alerts.journalSave.title",
+      "alerts.journalSave.message",
+      "alerts.pieceSave.title",
+      "alerts.pieceSave.message",
+      "alerts.proposeEmpty.title",
+      "alerts.proposeEmpty.message",
+      "alerts.proposeFailed.title",
+      "alerts.proposeFailed.message",
+      "alerts.formatSave.title",
+      "alerts.formatSave.message",
+    ];
+    const hasPath = (obj: Record<string, unknown>, path: string): boolean => {
+      let cur: unknown = obj;
+      for (const part of path.split(".")) {
+        if (!cur || typeof cur !== "object" || !(part in cur)) return false;
+        cur = (cur as Record<string, unknown>)[part];
+      }
+      return typeof cur === "string" && cur.length > 0;
+    };
+    const codeUsesCaptureKeys = captureKeys.every((key) => capture.includes(`t("${key}")`));
+    const inlineAlertCopyGone = [
+      "Couldn't open that image",
+      "Couldn't read the text",
+      "Couldn't open that file",
+      "Couldn't save your entry",
+      "Couldn't save your piece",
+      "No format to suggest",
+      "Couldn't draft a format",
+      "Couldn't save the format",
+    ].every((text) => !capture.includes(text));
+    const captureBundleOk =
+      codeUsesCaptureKeys &&
+      inlineAlertCopyGone &&
+      captureKeys.every((key) => hasPath(enCapture, key) && hasPath(koCapture, key));
+    const ok =
+      exists("locales/en/common.json") &&
+      exists("locales/ko/common.json") &&
+      exists("scripts/check-i18n-keys.ts") &&
+      captureBundleOk;
     return {
       id: "C7",
       status: ok ? "PASS" : "FAIL",
-      note: ok ? "i18n locales + key-parity check script present" : "i18n setup incomplete",
+      note: ok
+        ? "i18n locales + key-parity check script present; capture alert copy uses locale bundle"
+        : "i18n setup incomplete or capture alert copy not bundled",
     };
   }),
 );
