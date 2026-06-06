@@ -1,0 +1,34 @@
+{
+  "loading": "자료실을 불러오는 중이에요...",
+  "error": {
+    "title": "자료를 불러오지 못했어요",
+    "body": "연결이 잠시 흔들렸어요. 다시 시도하면 자료실을 새로 불러올게요.",
+    "retry": "다시 시도"
+  },
+  "hero": {
+    "eyebrow": "자료실",
+    "title": "검증된 근거를 모아둬요",
+    "subtitle": "Big Five · 애착 · CBT · VIA",
+    "speech": "세컨비가 참고할 수 있는 검증된 자료만 모아 보여줄게요."
+  },
+  "empty": "아직 등록된 자료가 없어요. 큐레이터 작업이 진행 중이에요.",
+  "filter": {
+    "label": "프레임으로 필터",
+    "accessibilityLabel": "프레임 필터",
+    "all": "전체"
+  },
+  "sourceCount": "{{visible}}개의 자료 (전체 {{total}}개)",
+  "verified": "검증됨",
+  "link": {
+    "label": "{{title}} 출처 링크 열기",
+    "hint": "DOI 또는 원문 URL을 엽니다"
+  },
+  "frameworks": {
+    "big_five": "Big Five",
+    "attachment": "애착 이론",
+    "sdt": "자기결정 이론",
+    "cbt": "CBT",
+    "erikson": "에릭슨 단계",
+    "via": "VIA 성격 강점"
+  }
+}

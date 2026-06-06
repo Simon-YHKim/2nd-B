@@ -665,8 +665,8 @@ results.push(
       research.includes("accessibilityState={{ selected: activeFramework === null }}") &&
       research.includes("accessibilityState={{ selected: active }}") &&
       research.includes('accessibilityRole="link"') &&
-      research.includes("Open source link for") &&
-      research.includes("Opens the DOI or source URL") &&
+      research.includes('accessibilityLabel={t("link.label", { title: s.title })}') &&
+      research.includes('accessibilityHint={t("link.hint")}') &&
       likert.includes('accessibilityRole="radiogroup"') &&
       likert.includes('accessibilityRole="radio"') &&
       likert.includes("accessibilityState={{ checked: active }}") &&
@@ -1447,6 +1447,49 @@ results.push(
         note: ok
           ? "insights screen copy lives in locale bundles while date formatting keeps locale awareness"
           : "insights screen should source user-facing copy from locale bundles and avoid inline ko/en branches",
+      };
+    }),
+  );
+
+  results.push(
+    check("ResearchI18nCopy", () => {
+      const screen = read("src/app/research.tsx");
+      const i18n = read("src/lib/i18n/index.ts");
+      const en = read("locales/en/research.json");
+      const ko = read("locales/ko/research.json");
+      const forbiddenScreenCopy = [
+        'locale === "ko"',
+        "Loading research",
+        "Couldn't load research",
+        "Keep the evidence visible",
+        "Filter by framework",
+        "Framework filters",
+        "No sources yet",
+        "Open source link for",
+        "Opens the DOI or source URL",
+      ];
+      const ok =
+        screen.includes('useTranslation("research")') &&
+        screen.includes('t("hero.title")') &&
+        screen.includes('t("filter.accessibilityLabel")') &&
+        screen.includes('t("sourceCount", { visible: visible.length') &&
+        screen.includes('t("link.label", { title: s.title })') &&
+        screen.includes('t("link.hint")') &&
+        screen.includes("const isKorean = i18n.language === \"ko\"") &&
+        i18n.includes("enResearch") &&
+        i18n.includes("koResearch") &&
+        i18n.includes('"research"') &&
+        i18n.includes("research: enResearch") &&
+        i18n.includes("research: koResearch") &&
+        en.includes("Keep the evidence visible") &&
+        ko.includes("검증된 근거") &&
+        forbiddenScreenCopy.every((term) => !screen.includes(term));
+      return {
+        id: "ResearchI18nCopy",
+        status: ok ? "PASS" : "FAIL",
+        note: ok
+          ? "research screen copy and link a11y live in locale bundles while source-summary locale selection stays explicit"
+          : "research screen should source user-facing copy and link a11y from locale bundles",
       };
     }),
   );

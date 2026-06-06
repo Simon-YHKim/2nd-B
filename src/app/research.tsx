@@ -7,15 +7,15 @@
 // verification metadata (C8).
 
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View, ActivityIndicator, Linking, Pressable } from "react-native";
-import { useTranslation } from "react-i18next";
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Redirect } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 import { PremiumAppShell, PremiumErrorState, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 interface Source {
@@ -32,19 +32,10 @@ interface Source {
   verified_at: string | null;
 }
 
-const FRAMEWORK_LABEL: Record<string, { en: string; ko: string }> = {
-  big_five: { en: "Big Five", ko: "Big Five" },
-  attachment: { en: "Attachment Theory", ko: "애착이론" },
-  sdt: { en: "Self-Determination", ko: "자기결정성 이론" },
-  cbt: { en: "CBT", ko: "CBT" },
-  erikson: { en: "Erikson Stages", ko: "에릭슨 단계" },
-  via: { en: "VIA Strengths", ko: "VIA 성격 강점" },
-};
-
 export default function Research() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("research");
   const { userId, loading: authLoading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const isKorean = i18n.language === "ko";
 
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,13 +63,13 @@ export default function Research() {
         }
         setLoading(false);
       });
-  }, [userId, locale, reloadKey]);
+  }, [userId, reloadKey]);
 
   if (authLoading) {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "자료실을 불러오는 중이에요…" : "Loading research…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </PremiumAppShell>
     );
@@ -92,13 +83,9 @@ export default function Research() {
       <PremiumAppShell>
         <View style={styles.center}>
           <PremiumErrorState
-            title={locale === "ko" ? "자료를 불러오지 못했어요" : "Couldn't load research"}
-            body={
-              locale === "ko"
-                ? "잠시 연결이 흔들렸어요. 다시 시도하면 자료실을 새로 불러올게요."
-                : "The connection hiccuped for a moment. Try again to reload the library."
-            }
-            retryLabel={locale === "ko" ? "다시 시도" : "Try again"}
+            title={t("error.title")}
+            body={t("error.body")}
+            retryLabel={t("error.retry")}
             onRetry={() => setReloadKey((k) => k + 1)}
           />
         </View>
@@ -107,25 +94,19 @@ export default function Research() {
   }
 
   const frameworks = [...new Set(sources.map((s) => s.framework).filter((f): f is string => !!f))];
-  const visible = activeFramework
-    ? sources.filter((s) => s.framework === activeFramework)
-    : sources;
+  const visible = activeFramework ? sources.filter((s) => s.framework === activeFramework) : sources;
 
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
-          eyebrow={locale === "ko" ? "자료실" : "Research"}
-          title={locale === "ko" ? "검증된 근거를 모아둬요" : "Keep the evidence visible"}
-          subtitle={locale === "ko" ? "Big Five · 애착 · CBT · VIA" : "Big Five · attachment · CBT · VIA"}
+          eyebrow={t("hero.eyebrow")}
+          title={t("hero.title")}
+          subtitle={t("hero.subtitle")}
           island={VILLAGE_UI.knowledge.island}
           worker={VILLAGE_UI.knowledge.worker}
           accent={VILLAGE_UI.knowledge.accent}
-          speech={
-            locale === "ko"
-              ? "세컨비가 참고하는 근거만 따로 모아 보여줄게요."
-              : "Only verified sources that SecondB can cite show up here."
-          }
+          speech={t("hero.speech")}
         />
 
         {loading ? (
@@ -135,9 +116,7 @@ export default function Research() {
         ) : sources.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text variant="body" color="textMuted">
-              {locale === "ko"
-                ? "아직 등록된 자료가 없어요. 큐레이터 워크플로가 진행 중이에요."
-                : "No sources yet. The curator workflow is in progress."}
+              {t("empty")}
             </Text>
           </View>
         ) : (
@@ -145,27 +124,23 @@ export default function Research() {
             {frameworks.length > 1 ? (
               <View style={styles.frameworkFilter}>
                 <Text variant="caption" color="textMuted">
-                  {locale === "ko" ? "프레임으로 필터" : "Filter by framework"}
+                  {t("filter.label")}
                 </Text>
-                <View
-                  style={styles.chipRow}
-                  accessibilityRole="tablist"
-                  accessibilityLabel={locale === "ko" ? "프레임 필터" : "Framework filters"}
-                >
+                <View style={styles.chipRow} accessibilityRole="tablist" accessibilityLabel={t("filter.accessibilityLabel")}>
                   <Pressable
                     onPress={() => setActiveFramework(null)}
                     style={[styles.chip, activeFramework === null && styles.chipActive]}
                     accessibilityRole="tab"
                     accessibilityState={{ selected: activeFramework === null }}
-                    accessibilityLabel={locale === "ko" ? "전체" : "All"}
+                    accessibilityLabel={t("filter.all")}
                   >
                     <Text variant="caption" color={activeFramework === null ? "background" : "textMuted"}>
-                      {locale === "ko" ? "전체" : "All"}
+                      {t("filter.all")}
                     </Text>
                   </Pressable>
                   {frameworks.map((f) => {
                     const active = activeFramework === f;
-                    const label = FRAMEWORK_LABEL[f]?.[locale] ?? f;
+                    const label = t(`frameworks.${f}`, { defaultValue: f });
                     return (
                       <Pressable
                         key={f}
@@ -186,27 +161,27 @@ export default function Research() {
             ) : null}
 
             <Text variant="subtle" color="textSubtle">
-              {locale === "ko"
-                ? `${visible.length}개의 자료 (전체 ${sources.length})`
-                : `${visible.length} source${visible.length === 1 ? "" : "s"} (of ${sources.length})`}
+              {t("sourceCount", { visible: visible.length, total: sources.length, plural: visible.length === 1 ? "" : "s" })}
             </Text>
 
             <View style={styles.list}>
               {visible.map((s) => {
-                const summary = locale === "ko" ? s.summary_ko ?? s.summary_en : s.summary_en ?? s.summary_ko;
-                const fwLabel = s.framework && FRAMEWORK_LABEL[s.framework]?.[locale];
+                const summary = isKorean ? s.summary_ko ?? s.summary_en : s.summary_en ?? s.summary_ko;
+                const fwLabel = s.framework ? t(`frameworks.${s.framework}`, { defaultValue: s.framework }) : null;
                 return (
                   <View key={s.id} style={styles.card}>
                     <View style={styles.cardHead}>
                       {fwLabel ? (
                         <View style={styles.fwChip}>
-                          <Text variant="caption" color="brand">{fwLabel}</Text>
+                          <Text variant="caption" color="brand">
+                            {fwLabel}
+                          </Text>
                         </View>
                       ) : null}
                       {s.verified_at ? (
                         <View style={[styles.fwChip, { borderColor: semantic.success }]}>
                           <Text variant="caption" color="success">
-                            {locale === "ko" ? "검증됨" : "Verified"}
+                            {t("verified")}
                           </Text>
                         </View>
                       ) : null}
@@ -216,7 +191,8 @@ export default function Research() {
                     </Text>
                     {s.authors && s.authors.length > 0 ? (
                       <Text variant="subtle" color="textSubtle" selectable>
-                        {s.authors.slice(0, 4).join(", ")}{s.authors.length > 4 ? " et al." : ""}
+                        {s.authors.slice(0, 4).join(", ")}
+                        {s.authors.length > 4 ? " et al." : ""}
                       </Text>
                     ) : null}
                     {summary ? (
@@ -232,10 +208,8 @@ export default function Research() {
                         }}
                         hitSlop={4}
                         accessibilityRole="link"
-                        accessibilityLabel={locale === "ko" ? `${s.title} 출처 링크 열기` : `Open source link for ${s.title}`}
-                        accessibilityHint={
-                          locale === "ko" ? "DOI 또는 원문 URL을 엽니다" : "Opens the DOI or source URL"
-                        }
+                        accessibilityLabel={t("link.label", { title: s.title })}
+                        accessibilityHint={t("link.hint")}
                       >
                         <Text variant="subtle" color="brand" numberOfLines={1} style={{ marginTop: spacing.xs }}>
                           {s.doi ? `doi.org/${s.doi}` : s.url}
@@ -248,7 +222,6 @@ export default function Research() {
             </View>
           </>
         )}
-
       </ScrollView>
     </PremiumAppShell>
   );
@@ -301,6 +274,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   cardHead: { flexDirection: "row", gap: spacing.xs },
-  fwChip: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radii.sm, borderWidth: 1, borderColor: semantic.brand, backgroundColor: semantic.surfaceAlt },
+  fwChip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: semantic.brand,
+    backgroundColor: semantic.surfaceAlt,
+  },
   cardTitle: { fontWeight: "600", marginTop: spacing.xs },
 });

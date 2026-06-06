@@ -1,0 +1,34 @@
+{
+  "loading": "Loading research...",
+  "error": {
+    "title": "Couldn't load research",
+    "body": "The connection paused for a moment. Try again to reload the library.",
+    "retry": "Try again"
+  },
+  "hero": {
+    "eyebrow": "Research",
+    "title": "Keep the evidence visible",
+    "subtitle": "Big Five · attachment · CBT · VIA",
+    "speech": "Only verified sources that SecondB can cite show up here."
+  },
+  "empty": "No sources yet. The curator workflow is in progress.",
+  "filter": {
+    "label": "Filter by framework",
+    "accessibilityLabel": "Framework filters",
+    "all": "All"
+  },
+  "sourceCount": "{{visible}} source{{plural}} (of {{total}})",
+  "verified": "Verified",
+  "link": {
+    "label": "Open source link for {{title}}",
+    "hint": "Opens the DOI or source URL"
+  },
+  "frameworks": {
+    "big_five": "Big Five",
+    "attachment": "Attachment Theory",
+    "sdt": "Self-Determination",
+    "cbt": "CBT",
+    "erikson": "Erikson Stages",
+    "via": "VIA Strengths"
+  }
+}
