@@ -3,22 +3,22 @@
 // LLM each time.
 
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View, ActivityIndicator, RefreshControl } from "react-native";
-import { useTranslation } from "react-i18next";
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Redirect, router } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 import { PremiumAppShell, PremiumErrorState, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import { computeInsights, sourceToInsightRecord, type InsightRecord, type InsightSource, type InsightsResult } from "@/lib/journal/insights";
+import { getSupabaseClient } from "@/lib/supabase/client";
+import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 export default function Insights() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("insights");
   const { userId, loading: authLoading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const dateLocale = i18n.language === "ko" ? "ko-KR" : "en-US";
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -76,7 +76,7 @@ export default function Insights() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "인사이트를 불러오는 중이에요…" : "Loading insights…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </PremiumAppShell>
     );
@@ -100,14 +100,12 @@ export default function Insights() {
       <PremiumAppShell>
         <View style={styles.center}>
           <PremiumErrorState
-            title={locale === "ko" ? "인사이트를 불러오지 못했어요" : "Couldn't load insights"}
-            body={
-              locale === "ko"
-                ? "잠시 연결이 흔들렸어요. 다시 시도하면 기록 흐름을 새로 계산할게요."
-                : "The connection hiccuped for a moment. Try again to recompute your record flow."
-            }
-            retryLabel={locale === "ko" ? "다시 시도" : "Try again"}
-            onRetry={() => { void load(); }}
+            title={t("error.title")}
+            body={t("error.body")}
+            retryLabel={t("error.retry")}
+            onRetry={() => {
+              void load();
+            }}
           />
         </View>
       </PremiumAppShell>
@@ -119,21 +117,18 @@ export default function Insights() {
       <PremiumAppShell>
         <ScrollView contentContainerStyle={styles.scroll}>
           <SceneHero
-            eyebrow={locale === "ko" ? "11. 인사이트" : "11. Insights"}
-            title={locale === "ko" ? "아직 뽑아낼 패턴이 작아요" : "Patterns are still small"}
-            subtitle={locale === "ko" ? "며칠 치 기록이 쌓이면 흐름이 보여요" : "A few days of records will reveal the flow"}
+            eyebrow={t("empty.hero.eyebrow")}
+            title={t("empty.hero.title")}
+            subtitle={t("empty.hero.subtitle")}
             island={VILLAGE_UI.taste.island}
             worker={VILLAGE_UI.taste.worker}
             accent={VILLAGE_UI.taste.accent}
-            speech={
-              locale === "ko"
-                ? "취향과 반복을 보려면 조각이 조금 더 필요해요. 오늘 하나 남겨볼까요?"
-                : "I need a few more pieces to see taste and repetition. Leave one today?"
-            }
+            speech={t("empty.hero.speech")}
             primaryAction={{
-              label: locale === "ko" ? "조각 담기" : "Go to capture",
+              label: t("empty.hero.action"),
               onPress: () => router.push("/capture"),
-            }}          />
+            }}
+          />
         </ScrollView>
       </PremiumAppShell>
     );
@@ -158,39 +153,36 @@ export default function Insights() {
         }
       >
         <SceneHero
-          eyebrow={locale === "ko" ? "11. 인사이트" : "11. Insights"}
-          title={locale === "ko" ? "최근 기록의 흐름 보기" : "See the flow in recent records"}
-          subtitle={locale === "ko" ? "기록에서 바로 계산" : "Computed directly from records"}
+          eyebrow={t("hero.eyebrow")}
+          title={t("hero.title")}
+          subtitle={t("hero.subtitle")}
           island={VILLAGE_UI.taste.island}
           worker={VILLAGE_UI.taste.worker}
           accent={VILLAGE_UI.taste.accent}
-          speech={
-            locale === "ko"
-              ? "반복되는 주제와 최근 결론을 모았어요. 끌리는 흐름을 같이 볼까요?"
-              : "I gathered recurring topics and recent conclusions. Shall we trace the pattern?"
-          }
+          speech={t("hero.speech")}
           primaryAction={{
-            label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
+            label: t("hero.action"),
             onPress: () => router.push("/capture"),
-          }}        />
+          }}
+        />
 
         <View style={styles.topRow}>
           <View style={styles.statBlock}>
             <Text variant="caption" color="textSubtle">
-              {locale === "ko" ? "총 기록" : "Total entries"}
+              {t("stats.total.label")}
             </Text>
             <Text variant="heading">{i.recordCount}</Text>
             <Text variant="subtle" color="textSubtle">
-              {locale === "ko" ? `${i.daySpan}일에 걸쳐` : `over ${i.daySpan} day${i.daySpan === 1 ? "" : "s"}`}
+              {t("stats.total.daySpan", { count: i.daySpan, plural: i.daySpan === 1 ? "" : "s" })}
             </Text>
           </View>
           <View style={styles.statBlock}>
             <Text variant="caption" color="textSubtle">
-              {locale === "ko" ? "평균 길이" : "Avg length"}
+              {t("stats.average.label")}
             </Text>
             <Text variant="heading">{i.avgBodyChars}</Text>
             <Text variant="subtle" color="textSubtle">
-              {locale === "ko" ? "자 / 기록" : "chars/entry"}
+              {t("stats.average.unit")}
             </Text>
           </View>
         </View>
@@ -198,7 +190,7 @@ export default function Insights() {
         {i.byWeek.length > 0 ? (
           <View style={styles.card}>
             <Text variant="caption" color="brand" style={styles.cardEyebrow}>
-              {locale === "ko" ? "주간 활동" : "Weekly activity"}
+              {t("sections.weekly")}
             </Text>
             {i.byWeek.map((w) => (
               <View key={w.week} style={styles.barRow}>
@@ -224,13 +216,13 @@ export default function Insights() {
         {i.topTopics.length > 0 ? (
           <View style={styles.card}>
             <Text variant="caption" color="brand" style={styles.cardEyebrow}>
-              {locale === "ko" ? "자주 다룬 주제" : "Recurring topics"}
+              {t("sections.topics")}
             </Text>
-            {i.topTopics.map((t) => (
-              <View key={t.topic} style={styles.kvRow}>
-                <Text variant="body">{t.topic}</Text>
+            {i.topTopics.map((topic) => (
+              <View key={topic.topic} style={styles.kvRow}>
+                <Text variant="body">{topic.topic}</Text>
                 <Text variant="subtle" color="textMuted">
-                  {locale === "ko" ? `${t.count}회` : `${t.count}×`}
+                  {t("topics.count", { count: topic.count })}
                 </Text>
               </View>
             ))}
@@ -240,10 +232,10 @@ export default function Insights() {
         {i.topTags.length > 0 ? (
           <View style={styles.card}>
             <Text variant="caption" color="brand" style={styles.cardEyebrow}>
-              {locale === "ko" ? "자주 쓰인 태그" : "Top tags"}
+              {t("sections.tags")}
             </Text>
             <Text variant="body" color="textMuted">
-              {i.topTags.map((t) => `#${t.tag} (${t.count})`).join("  ")}
+              {i.topTags.map((tag) => `#${tag.tag} (${tag.count})`).join("  ")}
             </Text>
           </View>
         ) : null}
@@ -251,24 +243,23 @@ export default function Insights() {
         {i.recentConclusions.length > 0 ? (
           <View style={styles.card}>
             <Text variant="caption" color="brand" style={styles.cardEyebrow}>
-              {locale === "ko" ? "최근 결론" : "Recent conclusions"}
+              {t("sections.conclusions")}
             </Text>
-            {i.recentConclusions.map((c, idx) => (
+            {i.recentConclusions.map((conclusion, idx) => (
               <View key={idx} style={styles.conclusionRow}>
                 <Text variant="subtle" color="textSubtle">
-                  {new Date(c.created_at).toLocaleDateString(locale === "ko" ? "ko-KR" : "en-US", {
+                  {new Date(conclusion.created_at).toLocaleDateString(dateLocale, {
                     month: "short",
                     day: "numeric",
                   })}
                 </Text>
                 <Text variant="body" color="textMuted" style={{ flex: 1 }} selectable>
-                  {c.conclusion}
+                  {conclusion.conclusion}
                 </Text>
               </View>
             ))}
           </View>
         ) : null}
-
       </ScrollView>
     </PremiumAppShell>
   );

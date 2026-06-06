@@ -8,6 +8,7 @@ import enConsent from "../../../locales/en/consent.json";
 import enData from "../../../locales/en/data.json";
 import enEsm from "../../../locales/en/esm.json";
 import enImport from "../../../locales/en/import.json";
+import enInsights from "../../../locales/en/insights.json";
 import enInbox from "../../../locales/en/inbox.json";
 import enJarvis from "../../../locales/en/jarvis.json";
 import enMascot from "../../../locales/en/mascot.json";
@@ -25,6 +26,7 @@ import koConsent from "../../../locales/ko/consent.json";
 import koData from "../../../locales/ko/data.json";
 import koEsm from "../../../locales/ko/esm.json";
 import koImport from "../../../locales/ko/import.json";
+import koInsights from "../../../locales/ko/insights.json";
 import koInbox from "../../../locales/ko/inbox.json";
 import koJarvis from "../../../locales/ko/jarvis.json";
 import koMascot from "../../../locales/ko/mascot.json";
@@ -37,12 +39,12 @@ import koTheme from "../../../locales/ko/theme.json";
 import koWiki from "../../../locales/ko/wiki.json";
 import { detectLanguage, saveLanguagePreference } from "./languageDetector";
 
-export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "jarvis", "wiki", "mascot", "support", "data", "esm", "theme", "import", "notFound", "profile", "permissions"] as const;
+export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "jarvis", "wiki", "mascot", "support", "data", "esm", "insights", "theme", "import", "notFound", "profile", "permissions"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
 export const resources = {
-  en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, jarvis: enJarvis, wiki: enWiki, mascot: enMascot, support: enSupport, data: enData, esm: enEsm, theme: enTheme, import: enImport, notFound: enNotFound, profile: enProfile, permissions: enPermissions },
-  ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, jarvis: koJarvis, wiki: koWiki, mascot: koMascot, support: koSupport, data: koData, esm: koEsm, theme: koTheme, import: koImport, notFound: koNotFound, profile: koProfile, permissions: koPermissions },
+  en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, jarvis: enJarvis, wiki: enWiki, mascot: enMascot, support: enSupport, data: enData, esm: enEsm, insights: enInsights, theme: enTheme, import: enImport, notFound: enNotFound, profile: enProfile, permissions: enPermissions },
+  ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, jarvis: koJarvis, wiki: koWiki, mascot: koMascot, support: koSupport, data: koData, esm: koEsm, insights: koInsights, theme: koTheme, import: koImport, notFound: koNotFound, profile: koProfile, permissions: koPermissions },
 } as const;
 
 let initialized = false;

@@ -1409,6 +1409,49 @@ results.push(
   );
 
   results.push(
+    check("InsightsI18nCopy", () => {
+      const screen = read("src/app/insights.tsx");
+      const i18n = read("src/lib/i18n/index.ts");
+      const en = read("locales/en/insights.json");
+      const ko = read("locales/ko/insights.json");
+      const forbiddenScreenCopy = [
+        'locale === "ko"',
+        "Loading insights",
+        "Couldn't load insights",
+        "Patterns are still small",
+        "See the flow in recent records",
+        "Total entries",
+        "Avg length",
+        "Weekly activity",
+        "Recurring topics",
+        "Recent conclusions",
+      ];
+      const ok =
+        screen.includes('useTranslation("insights")') &&
+        screen.includes('t("error.title")') &&
+        screen.includes('t("empty.hero.title")') &&
+        screen.includes('t("hero.title")') &&
+        screen.includes('t("stats.total.daySpan", { count: i.daySpan') &&
+        screen.includes("toLocaleDateString(dateLocale") &&
+        i18n.includes("enInsights") &&
+        i18n.includes("koInsights") &&
+        i18n.includes('"insights"') &&
+        i18n.includes("insights: enInsights") &&
+        i18n.includes("insights: koInsights") &&
+        en.includes("See the flow in recent records") &&
+        ko.includes("최근 기록의 흐름 보기") &&
+        forbiddenScreenCopy.every((term) => !screen.includes(term));
+      return {
+        id: "InsightsI18nCopy",
+        status: ok ? "PASS" : "FAIL",
+        note: ok
+          ? "insights screen copy lives in locale bundles while date formatting keeps locale awareness"
+          : "insights screen should source user-facing copy from locale bundles and avoid inline ko/en branches",
+      };
+    }),
+  );
+
+  results.push(
     check("InboxWikiTarget", () => {
     const inbox = read("src/app/inbox.tsx");
     const wiki = read("src/app/wiki.tsx");

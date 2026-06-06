@@ -1,0 +1,43 @@
+{
+  "loading": "Loading insights...",
+  "error": {
+    "title": "Couldn't load insights",
+    "body": "The connection paused for a moment. Try again to recompute your record flow.",
+    "retry": "Try again"
+  },
+  "empty": {
+    "hero": {
+      "eyebrow": "11. Insights",
+      "title": "Patterns are still small",
+      "subtitle": "A few days of records will reveal the flow",
+      "speech": "I need a few more pieces to see taste and repetition. Leave one today?",
+      "action": "Go to capture"
+    }
+  },
+  "hero": {
+    "eyebrow": "11. Insights",
+    "title": "See the flow in recent records",
+    "subtitle": "Computed directly from records",
+    "speech": "I gathered recurring topics and recent conclusions. Shall we trace the pattern?",
+    "action": "Leave today's piece"
+  },
+  "stats": {
+    "total": {
+      "label": "Total entries",
+      "daySpan": "over {{count}} day{{plural}}"
+    },
+    "average": {
+      "label": "Avg length",
+      "unit": "chars/entry"
+    }
+  },
+  "sections": {
+    "weekly": "Weekly activity",
+    "topics": "Recurring topics",
+    "tags": "Top tags",
+    "conclusions": "Recent conclusions"
+  },
+  "topics": {
+    "count": "{{count}}x"
+  }
+}
