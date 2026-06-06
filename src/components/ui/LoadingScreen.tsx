@@ -234,12 +234,20 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
     startZoom();
   }
 
+  const accessibilityLabel =
+    phase === "ready" ? "2nd-Brain 열기" : phase === "zooming" ? "2nd-Brain 여는 중" : "2nd-Brain 불러오는 중";
+  const accessibilityHint =
+    phase === "ready" ? "두 번 탭하면 메인 화면으로 이동합니다." : "두 번 탭하면 시작 애니메이션을 건너뜁니다.";
+
   return (
     <Pressable
       onPress={handlePress}
+      disabled={phase === "zooming"}
       style={styles.root}
-      accessibilityRole="progressbar"
-      accessibilityLabel="2nd-Brain 불러오는 중"
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ busy: phase !== "ready", disabled: phase === "zooming" }}
     >
       <CosmicBackground />
       <Animated.Image

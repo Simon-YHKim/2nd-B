@@ -298,6 +298,7 @@ results.push(
     const consentDialog = read("src/components/consent/ConsentDialog.tsx");
     const premiumFeedback = read("src/components/premium/feedback.tsx");
     const formats = read("src/app/formats.tsx");
+    const loadingScreen = read("src/components/ui/LoadingScreen.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
@@ -408,13 +409,17 @@ results.push(
       consentDialog.includes('accessibilityHint={t("testimonial.body")}') &&
       premiumFeedback.includes("accessibilityLabel={accessibilityLabel}") &&
       formats.includes('accessibilityLabel={locale === "ko" ? "형식 삭제 확인" : "Delete format confirmation"}') &&
-      formats.includes('accessibilityLabel={locale === "ko" ? "분류 기준 보기" : "View filing guide"}');
+      formats.includes('accessibilityLabel={locale === "ko" ? "분류 기준 보기" : "View filing guide"}') &&
+      loadingScreen.includes('accessibilityRole="button"') &&
+      loadingScreen.includes("accessibilityState={{ busy: phase !== \"ready\", disabled: phase === \"zooming\" }}") &&
+      loadingScreen.includes("2nd-Brain 열기") &&
+      loadingScreen.includes("두 번 탭하면 메인 화면으로 이동합니다.");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/home/jarvis/navgraph/esm/profile/consent/premium-modal actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/home/jarvis/navgraph/esm/profile/consent/premium-modal actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/home/jarvis/navgraph/esm/profile/consent/premium-modal/loading actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/home/jarvis/navgraph/esm/profile/consent/premium-modal/loading actions need accessibilityRole plus selected/checked state",
     };
   }),
 );
