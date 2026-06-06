@@ -42,6 +42,8 @@ export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
         onChangeText={onChange}
         autoCapitalize="none"
         keyboardType="numbers-and-punctuation"
+        accessibilityLabel={t("signUp.birthDate")}
+        accessibilityHint={t("signUp.birthDateHelper")}
       />
       <Text variant="subtle" color={showError ? "danger" : "textSubtle"}>
         {showError

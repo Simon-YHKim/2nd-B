@@ -215,7 +215,14 @@ export default function SignUp() {
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
+              textContentType="emailAddress"
               placeholder="you@example.com"
+              accessibilityLabel={t("signUp.email")}
+              accessibilityHint={
+                locale === "ko"
+                  ? "가입할 계정의 이메일 주소를 입력합니다."
+                  : "Enter the email address for the account you want to create."
+              }
             />
             <Text variant="caption" color="textMuted" style={styles.fieldLabelSpaced}>
               {t("signUp.password")}
@@ -225,6 +232,13 @@ export default function SignUp() {
               onChangeText={setPassword}
               secureTextEntry
               autoComplete="new-password"
+              textContentType="newPassword"
+              accessibilityLabel={t("signUp.password")}
+              accessibilityHint={
+                locale === "ko"
+                  ? "새 계정에 사용할 비밀번호를 입력합니다."
+                  : "Enter the password for your new account."
+              }
             />
             <Text variant="subtle" color="textSubtle" style={styles.helper}>
               {t("signUp.passwordHelper")}

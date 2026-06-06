@@ -289,6 +289,7 @@ results.push(
     const trinity = read("src/app/trinity.tsx");
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const signUp = read("src/app/(auth)/sign-up.tsx");
+    const birthDateField = read("src/components/auth/BirthDateField.tsx");
     const home = read("src/app/index.tsx");
     const jarvis = read("src/app/jarvis.tsx");
     const navGraph = read("src/components/graph/NavGraph.tsx");
@@ -385,10 +386,16 @@ results.push(
       signIn.includes("Read the one-minute manual") &&
       signIn.includes("Opens the app manual.") &&
       signUp.includes("Switch sign-up language to English") &&
+      signUp.includes('accessibilityLabel={t("signUp.email")}') &&
+      signUp.includes("Enter the email address for the account you want to create.") &&
+      signUp.includes('accessibilityLabel={t("signUp.password")}') &&
+      signUp.includes("Enter the password for your new account.") &&
       signUp.includes("회원가입 언어를 한국어로 변경") &&
       signUp.includes("Opens the sign-in screen") &&
       signUp.includes("Read the one-minute manual") &&
       signUp.includes("Opens the app manual") &&
+      birthDateField.includes('accessibilityLabel={t("signUp.birthDate")}') &&
+      birthDateField.includes('accessibilityHint={t("signUp.birthDateHelper")}') &&
       homeRoles >= 4 &&
       home.includes("Opens capture to save your first piece") &&
       home.includes("Look around first") &&
