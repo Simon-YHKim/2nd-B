@@ -49,7 +49,12 @@ export function PremiumBottomSheet({
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [60, 0] });
   return (
     <View style={styles.sheetWrap} pointerEvents="box-none">
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="닫기" />
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="닫기"
+      />
       <Animated.View
         style={[styles.sheet, { opacity: slide as never, transform: [{ translateY }] }]}
         accessibilityViewIsModal
@@ -66,7 +71,12 @@ export function PremiumBottomSheet({
 export function PremiumModal({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
+      <Pressable
+        style={styles.modalBackdrop}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="닫기"
+      >
         <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
           {children}
         </Pressable>
