@@ -124,7 +124,12 @@ export default function Onboarding() {
               <View key={i} style={[styles.dot, i === index ? styles.dotActive : null]} />
             ))}
           </View>
-          <Pressable onPress={() => finishToGraph()} hitSlop={8} accessibilityLabel={locale === "ko" ? "건너뛰기" : "Skip"}>
+          <Pressable
+            onPress={() => finishToGraph()}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={locale === "ko" ? "건너뛰기" : "Skip"}
+          >
             <Text variant="caption" color="textMuted">{locale === "ko" ? "건너뛰기" : "Skip"}</Text>
           </Pressable>
         </View>
