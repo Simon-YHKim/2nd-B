@@ -45,7 +45,8 @@ import ReAnimated, {
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
-  withSpring,
+  withTiming,
+  Easing as ReEasing,
   cancelAnimation,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -529,8 +530,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         width: zoomViewportW.value,
         height: zoomViewportH.value,
       });
-      zoomPanX.value = withSpring(clamped.x, { damping: 24, stiffness: 180, mass: 0.7 });
-      zoomPanY.value = withSpring(clamped.y, { damping: 24, stiffness: 180, mass: 0.7 });
+      zoomPanX.value = withTiming(clamped.x, { duration: 350, easing: ReEasing.out(ReEasing.cubic) });
+      zoomPanY.value = withTiming(clamped.y, { duration: 350, easing: ReEasing.out(ReEasing.cubic) });
       zoomSavedPanX.value = clamped.x;
       zoomSavedPanY.value = clamped.y;
     });
@@ -538,9 +539,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // Reset the camera to the home view (closeout-v3 #4): used by double-tap AND
   // the floating "원래대로" button. Spring so the village snaps home elastically.
   const resetCamera = () => {
-    zoomScale.value = withSpring(1, { damping: 22, stiffness: 170, mass: 0.7 });
-    zoomPanX.value = withSpring(0, { damping: 22, stiffness: 170, mass: 0.7 });
-    zoomPanY.value = withSpring(0, { damping: 22, stiffness: 170, mass: 0.7 });
+    zoomScale.value = withTiming(1, { duration: 400, easing: ReEasing.out(ReEasing.cubic) });
+    zoomPanX.value = withTiming(0, { duration: 400, easing: ReEasing.out(ReEasing.cubic) });
+    zoomPanY.value = withTiming(0, { duration: 400, easing: ReEasing.out(ReEasing.cubic) });
     zoomSavedScale.value = 1;
     zoomSavedPanX.value = 0;
     zoomSavedPanY.value = 0;
@@ -585,10 +586,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       targetScale,
       vp,
     );
-    const spring = { damping: 22, stiffness: 170, mass: 0.7 };
-    zoomScale.value = withSpring(targetScale, spring);
-    zoomPanX.value = withSpring(want.x, spring);
-    zoomPanY.value = withSpring(want.y, spring);
+    const timing = { duration: 450, easing: ReEasing.out(ReEasing.cubic) };
+    zoomScale.value = withTiming(targetScale, timing);
+    zoomPanX.value = withTiming(want.x, timing);
+    zoomPanY.value = withTiming(want.y, timing);
     zoomSavedScale.value = targetScale;
     zoomSavedPanX.value = want.x;
     zoomSavedPanY.value = want.y;
