@@ -19,6 +19,12 @@ export interface FormatSchemaInput {
   aiProperties: readonly { name: string; type: string; describe: string }[];
 }
 
+function formatPropertyType(type: string, ko: boolean): string {
+  if (type === "number") return ko ? "숫자" : "Number";
+  if (type === "multitext") return ko ? "목록" : "List";
+  return ko ? "짧은 글" : "Text";
+}
+
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.field}>
@@ -34,9 +40,9 @@ export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput
     <View style={styles.wrap}>
       <Field label={ko ? "이름" : "Name"} value={schema.name} />
       {schema.what ? <Field label={ko ? "설명" : "What it is"} value={schema.what} /> : null}
-      <Field label={ko ? "기본 분류" : "Base kind"} value={schema.baseKind} />
+      <Field label={ko ? "기본 종류" : "Main type"} value={schema.baseKind} />
       {schema.targetCategory ? (
-        <Field label={ko ? "대상 분류" : "Target category"} value={schema.targetCategory} />
+        <Field label={ko ? "위키 영역" : "Wiki area"} value={schema.targetCategory} />
       ) : null}
 
       {schema.defaultTags.length > 0 ? (
@@ -52,7 +58,7 @@ export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput
 
       {schema.triggers.length > 0 ? (
         <View style={styles.field}>
-          <Text variant="caption" color="textMuted" style={styles.fieldLabel}>{ko ? "자동 매칭 URL" : "Auto-match URLs"}</Text>
+          <Text variant="caption" color="textMuted" style={styles.fieldLabel}>{ko ? "자동 매칭 링크" : "Auto-match links"}</Text>
           {schema.triggers.slice(0, 8).map((t) => (
             <Text key={t} variant="subtle" color="textSubtle" numberOfLines={1}>{t}</Text>
           ))}
@@ -61,11 +67,11 @@ export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput
 
       <View style={styles.field}>
         <Text variant="caption" color="textMuted" style={styles.fieldLabel}>
-          {ko ? "AI가 내용을 읽고 채우는 항목" : "AI fills these from the content"}
+          {ko ? "자료마다 저장하는 세부 항목" : "Details saved from each piece"}
         </Text>
         {schema.aiProperties.length === 0 ? (
           <Text variant="subtle" color="textSubtle">
-            {ko ? "공통 항목(요약·해시태그·관련도)만 채워요." : "Only the common fields (summary, tags, relevance)."}
+            {ko ? "요약, 해시태그, 관련도 같은 공통 항목만 저장해요." : "Only common fields such as summary, tags, and relevance are saved."}
           </Text>
         ) : (
           schema.aiProperties.map((p) => (
@@ -76,7 +82,7 @@ export function FormatSchemaView({ schema, locale }: { schema: FormatSchemaInput
                   {p.name}
                 </Text>
                 <View style={styles.typeChip}>
-                  <Text style={styles.typeText}>{p.type}</Text>
+                  <Text style={styles.typeText}>{formatPropertyType(p.type, ko)}</Text>
                 </View>
               </View>
               {p.describe ? (
