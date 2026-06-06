@@ -4,6 +4,7 @@
 
 import { type ReactNode, useEffect, useRef } from "react";
 import { ActivityIndicator, Animated, BackHandler, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, spacing } from "@/lib/theme/tokens";
@@ -22,6 +23,7 @@ export function PremiumBottomSheet({
   children: ReactNode;
   accessibilityLabel?: string;
 }) {
+  const { t } = useTranslation("common");
   const slide = useRef(new Animated.Value(0)).current;
 
   // Android hardware back closes the sheet. It is a plain View (not a Modal), so
@@ -53,7 +55,7 @@ export function PremiumBottomSheet({
         style={StyleSheet.absoluteFill}
         onPress={onClose}
         accessibilityRole="button"
-        accessibilityLabel="닫기"
+        accessibilityLabel={t("actions.close")}
       />
       <Animated.View
         style={[styles.sheet, { opacity: slide as never, transform: [{ translateY }] }]}
@@ -79,13 +81,14 @@ export function PremiumModal({
   children: ReactNode;
   accessibilityLabel?: string;
 }) {
+  const { t } = useTranslation("common");
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <Pressable
         style={styles.modalBackdrop}
         onPress={onClose}
         accessibilityRole="button"
-        accessibilityLabel="닫기"
+        accessibilityLabel={t("actions.close")}
       >
         <Pressable
           style={styles.modalCard}

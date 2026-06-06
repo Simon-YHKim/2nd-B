@@ -1969,6 +1969,36 @@ results.push(
 );
 
 results.push(
+  check("PremiumA11yLocaleCopy", () => {
+    const feedback = read("src/components/premium/feedback.tsx");
+    const graphBits = read("src/components/premium/graph-bits.tsx");
+    const enCommon = read("locales/en/common.json");
+    const koCommon = read("locales/ko/common.json");
+    const ok =
+      enCommon.includes('"close": "Close"') &&
+      koCommon.includes('"close": "닫기"') &&
+      feedback.includes('useTranslation("common")') &&
+      feedback.includes('accessibilityLabel={t("actions.close")}') &&
+      !feedback.includes('accessibilityLabel="닫기"') &&
+      graphBits.includes("function useCurrentLocale()") &&
+      graphBits.includes("meta.name[locale]") &&
+      graphBits.includes("Question from ${label}") &&
+      graphBits.includes("Clear context") &&
+      graphBits.includes('accessibilityLabel={countLabel}') &&
+      graphBits.includes('accessibilityLabel={clearLabel}') &&
+      !graphBits.includes("accessibilityLabel={meta.name.ko}") &&
+      !graphBits.includes('accessibilityLabel="컨텍스트 지우기"');
+    return {
+      id: "PremiumA11yLocaleCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "premium close, graph chip, badge, and context labels are locale-aware"
+        : "premium shared components should avoid hardcoded Korean accessibility labels on EN screens",
+    };
+  }),
+);
+
+results.push(
   check("ArtA11ySemantics", () => {
     const secondbSprite = read("src/components/art/SecondBSprite.tsx");
     const islandArt = read("src/components/art/IslandArt.tsx");
@@ -1981,7 +2011,7 @@ results.push(
       home.includes("const mascotLabel") &&
       home.includes("label={mascotLabel}") &&
       jarvis.includes('label={locale === "ko" ? "대화할 준비가 된 세컨드비" : "SecondB ready to chat"}') &&
-      graphBits.includes('accessible accessibilityRole="image" accessibilityLabel={meta.name.ko}') &&
+      graphBits.includes('accessible accessibilityRole="image" accessibilityLabel={meta.name[locale]}') &&
       islandArt.includes("accessibilityElementsHidden") &&
       islandArt.includes('importantForAccessibility="no-hide-descendants"') &&
       workerSprite.includes("accessibilityElementsHidden") &&

@@ -5,12 +5,18 @@
 
 import { memo, type ReactNode } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, spacing } from "@/lib/theme/tokens";
 import { CHARACTERS, type CharacterId } from "@/lib/characters";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionSprite, type CompanionName } from "@/components/art/CompanionSprite";
+
+function useCurrentLocale(): "en" | "ko" {
+  const { i18n } = useTranslation();
+  return i18n.language === "ko" ? "ko" : "en";
+}
 
 /** A "참고한 조각" card — what an answer / center drew on. */
 export const ReferenceShardCard = memo(function ReferenceShardCard({
@@ -57,12 +63,19 @@ export const GraphNodeChip = memo(function GraphNodeChip({
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
+  const locale = useCurrentLocale();
+  const countLabel =
+    count == null
+      ? label
+      : locale === "ko"
+        ? `${label}, 조각 ${count}`
+        : `${label}, ${count} ${count === 1 ? "piece" : "pieces"}`;
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? "button" : undefined}
-      accessibilityLabel={count != null ? `${label}, 조각 ${count}` : label}
+      accessibilityLabel={countLabel}
       style={({ pressed }) => [
         styles.chip,
         { borderColor: active ? accent : cosmic.panelBorder, shadowColor: accent },
@@ -88,10 +101,11 @@ const COMPANION_ACCENT: Record<CharacterId, string> = {
 
 /** Companion avatar with a glowing ring. SecondB uses its own sprite. */
 export function CharacterBadge({ id, size = 48, label, glow = true }: { id: CharacterId; size?: number; label?: boolean; glow?: boolean }) {
+  const locale = useCurrentLocale();
   const accent = COMPANION_ACCENT[id];
   const meta = CHARACTERS[id];
   return (
-    <View style={styles.badgeWrap} accessible accessibilityRole="image" accessibilityLabel={meta.name.ko}>
+    <View style={styles.badgeWrap} accessible accessibilityRole="image" accessibilityLabel={meta.name[locale]}>
       <View
         style={[
           styles.badgeRing,
@@ -105,25 +119,28 @@ export function CharacterBadge({ id, size = 48, label, glow = true }: { id: Char
           <CompanionSprite companion={id as CompanionName} state="idle" size={size} />
         )}
       </View>
-      {label ? <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>{meta.name.ko}</Text> : null}
+      {label ? <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>{meta.name[locale]}</Text> : null}
     </View>
   );
 }
 
 /** Context pill — "○○에서 질문" when chat is entered from a node. */
 export function ContextPill({ label, onClose }: { label: string; onClose?: () => void }) {
+  const locale = useCurrentLocale();
+  const contextLabel = locale === "ko" ? `${label}에서 질문` : `Question from ${label}`;
+  const clearLabel = locale === "ko" ? "컨텍스트 지우기" : "Clear context";
   return (
-    <View style={styles.pill} accessibilityLabel={`${label}에서 질문`}>
+    <View style={styles.pill} accessibilityLabel={contextLabel}>
       <View style={[styles.chipDot, { backgroundColor: cosmic.soulViolet }]} />
       <Text variant="caption" color="textMuted" style={styles.pillText} numberOfLines={2}>
-        {label}에서 질문
+        {contextLabel}
       </Text>
       {onClose ? (
         <Pressable
           onPress={onClose}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="컨텍스트 지우기"
+          accessibilityLabel={clearLabel}
         >
           <Text variant="caption" color="textSubtle">✕</Text>
         </Pressable>
