@@ -125,29 +125,50 @@ export default function Trinity() {
     if (!userId) return;
     setLoading(true);
     const supabase = getSupabaseClient();
-    void supabase
-      .from("records")
-      .select("id, created_at, topic, conclusion, tags")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(500)
-      .then(({ data, error }) => {
-        if (error) {
-          console.warn("[trinity] load records failed", error.message);
-          Alert.alert(
-            locale === "ko" ? "기록을 못 불러왔어요" : "Couldn't load records",
-            locale === "ko"
-              ? "잠시 연결이 흔들렸어요. 다시 시도하면 4영역을 새로 불러올게요."
-              : "The connection hiccuped for a moment. Try again to reload your four areas.",
-            [
-              { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
-              { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => setReloadKey((k) => k + 1) },
-            ],
-          );
-        }
-        setRecords((data ?? []) as RecordLite[]);
-        setLoading(false);
-      });
+    void (async () => {
+      // Trinity is tag-driven, but non-journal Capture saves tagged pieces into
+      // `sources` — counting only `records` contradicts the screen's own "tag
+      // #health in Capture" guidance (source-tag false-empty/undercount gate).
+      const [recRes, srcRes] = await Promise.all([
+        supabase
+          .from("records")
+          .select("id, created_at, topic, conclusion, tags")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(500),
+        supabase
+          .from("sources")
+          .select("id, captured_at, title, tags")
+          .eq("user_id", userId)
+          .order("captured_at", { ascending: false })
+          .limit(500),
+      ]);
+      if (recRes.error) {
+        console.warn("[trinity] load records failed", recRes.error.message);
+        Alert.alert(
+          locale === "ko" ? "기록을 못 불러왔어요" : "Couldn't load records",
+          locale === "ko"
+            ? "잠시 연결이 흔들렸어요. 다시 시도하면 4영역을 새로 불러올게요."
+            : "The connection hiccuped for a moment. Try again to reload your four areas.",
+          [
+            { text: locale === "ko" ? "닫기" : "Dismiss", style: "cancel" },
+            { text: locale === "ko" ? "다시 시도" : "Retry", onPress: () => setReloadKey((k) => k + 1) },
+          ],
+        );
+      }
+      const recRows = (recRes.data ?? []) as RecordLite[];
+      // Sources best-effort: map tagged captured pieces into the classifier shape.
+      let srcRows: RecordLite[] = [];
+      if (srcRes.error) {
+        console.warn("[trinity] load sources failed; records only", srcRes.error.message);
+      } else {
+        srcRows = ((srcRes.data ?? []) as { id: string; captured_at: string; title: string | null; tags: string[] | null }[]).map(
+          (s) => ({ id: s.id, created_at: s.captured_at, topic: s.title, conclusion: null, tags: s.tags ?? [] }),
+        );
+      }
+      setRecords([...recRows, ...srcRows]);
+      setLoading(false);
+    })();
   }, [userId, locale, reloadKey]);
 
   const stats = useMemo(() => computeStats(records), [records]);
