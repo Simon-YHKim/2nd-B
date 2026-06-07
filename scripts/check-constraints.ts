@@ -2249,8 +2249,10 @@ results.push(
 
 results.push(
   check("OldGuidanceCopyResidue", () => {
+    const readme = read("README.md");
     const manual = read("src/app/manual.tsx");
     const settings = read("src/app/settings.tsx");
+    const forbiddenReadme = ["**Advisor**", "Toggle-mode guidance"];
     const forbiddenManual = [
       "Advisor reflection",
       "Advisor cites",
@@ -2258,19 +2260,22 @@ results.push(
     ];
     const forbiddenSettings = ["Tune the village rules", "마을의 규칙"];
     const ok =
+      readme.includes("**SecondB chat**") &&
+      readme.includes("grounded in saved records and validated frameworks") &&
       manual.includes("ask SecondB for a reflection") &&
       manual.includes("sources SecondB cites") &&
       manual.includes("세컨비의 되묻기") &&
       settings.includes("Tune your settings") &&
       settings.includes("설정을 정리해요") &&
+      forbiddenReadme.every((term) => !readme.includes(term)) &&
       forbiddenManual.every((term) => !manual.includes(term)) &&
       forbiddenSettings.every((term) => !settings.includes(term));
     return {
       id: "OldGuidanceCopyResidue",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "manual/settings visible guidance copy avoids old Advisor and village-rules wording"
-        : "manual/settings guidance copy should use SecondB/settings wording instead of old Advisor or village-rule wording",
+        ? "README/manual/settings visible guidance copy avoids old Advisor and village-rules wording"
+        : "README/manual/settings guidance copy should use SecondB/settings wording instead of old Advisor or village-rule wording",
     };
   }),
 );
