@@ -22,7 +22,7 @@ import ArchonIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companio
 import ReliaIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companions/sprites/relia/relia_idle.svg";
 import LumenIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companions/sprites/lumen/lumen_idle.svg";
 import ForemanMomoIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companions/sprites/foreman_momo/foreman_momo_idle.svg";
-import IrisIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companions/sprites/iris/iris_idle.svg";
+import LuminaIdle from "../../../public/assets/cosmic-pixel-v3-soulcore/companions/sprites/iris/iris_idle.svg";
 
 import CrewWorking from "../../../public/assets/cosmic-pixel-v3-soulcore/momo-crew/sprites/momo_crew_working.svg";
 import CrewIdlePlaying from "../../../public/assets/cosmic-pixel-v3-soulcore/momo-crew/sprites/momo_crew_idle_playing.svg";
@@ -61,7 +61,7 @@ export const V3_WORKER_ART: Record<string, FC<SvgProps>> = {
   gadi: ReliaIdle,
   lulu: LumenIdle,
   momo: ForemanMomoIdle,
-  lumi: IrisIdle,
+  lumi: LuminaIdle,
 };
 
 // Decorative momo-crew (Narrative Core) mood sprites. Indexed by crew index in

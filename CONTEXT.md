@@ -22,7 +22,7 @@
 | **Bond Core** | 관계와 사랑 | **Relia** (Gadi) | `relation` |
 | **Wisdom Core** | 배움과 지식 | **Lumen** (Lulu) | `knowledge` |
 | **Narrative Core** | 기록 보관소 | **Foreman Momo** (Momo) + crew | `records` |
-| **Muse Core** | 취향과 영감 | **Iris** (Lumi) | `taste` |
+| **Muse Core** | 취향과 영감 | **Lumina** (Lumi) | `taste` |
 | **Growth Core** | 일과 성장 | **Archon** (Archi) | `work` |
 
 > Internal route / slug / DB keys are unchanged; only the display names + concepts moved.
@@ -31,12 +31,12 @@
 
 | Name | Role (lexicon-safe concept) |
 |---|---|
-| **SecondB** | Soul Core navigator — calm, central, connects the whole graph. |
+| **SecondB** | Soul Core navigator — central AI that reads patterns (Analytic) and opens alternate angles (Divergent). |
 | **Archon** | Growth Core career consultant — growth directions tailored to the user's situation. |
 | **Relia** | Bond Core warm guide — personality / relationships / inner world, so the user feels calmer and more settled (never clinical). |
 | **Lumen** | Wisdom Core sage (Socratic / Confucius) — the *patterns of knowledge applied to life*, not raw facts. |
 | **Foreman Momo** | Narrative Core crew foreman — sorts inputs into categories and finds "what happened" (organizer / search, not advice). |
-| **Iris** | Muse Core trainer + curator — enjoy hobbies more, suggest new ones, healthy life balance. |
+| **Lumina** | Muse Core trainer + curator — enjoy hobbies more, suggest new ones, healthy life balance. |
 
 > **Vela** (the old Imagination mascot) is retired — 공상 is now a SecondB mode, not a place.
 

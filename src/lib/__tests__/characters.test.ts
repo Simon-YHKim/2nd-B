@@ -25,12 +25,12 @@ describe("characters palette mapping", () => {
     expect(characterColors.lulu).toBe("#72F2C7"); // Electric Mint (Wisdom / Lumen)
     expect(characterColors.archi).toBe("#4CC9F0"); // Signal Blue (Growth / Archon)
     expect(characterColors.gadi).toBe("#FFD166"); // Pixel Lamp (Bond / Relia — amber)
-    expect(characterColors.lumi).toBe("#FF9FD6"); // Dream Pink (Muse / Iris)
+    expect(characterColors.lumi).toBe("#FF9FD6"); // Dream Pink (Muse / Lumina)
   });
 });
 
 describe("CHARACTERS roster", () => {
-  test("has the 6 worldview-v-final residents (Vela retired, Iris included)", () => {
+  test("has the 6 worldview-v-final residents (Vela retired, Lumina included)", () => {
     expect(Object.keys(CHARACTERS).sort()).toEqual(
       ["archi", "gadi", "lulu", "lumi", "momo", "secondb"].sort(),
     );
@@ -43,6 +43,15 @@ describe("CHARACTERS roster", () => {
       expect(c.name.ko.length).toBeGreaterThan(0);
       expect(c.line.ko.length).toBeGreaterThan(3);
     }
+  });
+
+  test("role labels match Simon's canonical worldview concepts", () => {
+    expect(CHARACTERS.secondb.role.en).toBe("Soul Core navigator");
+    expect(CHARACTERS.archi.role.en).toBe("Career consultant");
+    expect(CHARACTERS.gadi.role.en).toBe("Warm relationship guide");
+    expect(CHARACTERS.lulu.role.en).toBe("Life-applied wisdom sage");
+    expect(CHARACTERS.momo.role.en).toBe("Narrative Core crew foreman");
+    expect(CHARACTERS.lumi.role.en).toBe("Trainer and curator");
   });
 
   test("character voice lines stay clear of forbidden clinical vocab", () => {

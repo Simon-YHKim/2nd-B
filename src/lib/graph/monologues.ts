@@ -8,35 +8,35 @@
 import type { WorkerId } from "@/components/art/WorkerSprite";
 
 const MONOLOGUES: Record<WorkerId, { en: readonly string[]; ko: readonly string[] }> = {
-  // 세컨비 — calm central navigator who connects the whole village.
+  // 세컨비 - central AI for Soul Core, spanning Analytic and Divergent modes.
   secondb: {
-    ko: ["오늘은 어느 마을부터 둘러볼까.", "다들 잘 지내나 한 바퀴 돌아봐야지.", "길이 조금씩 이어지고 있네.", "필요할 때 바로 꺼내 줄게요."],
-    en: ["Which village should I check first today?", "Let me make a round and see how everyone's doing.", "The roads are slowly linking up.", "I'll pull it up the moment you need it."],
+    ko: ["패턴은 또렷하게, 가능성은 넓게.", "중심에서 한 번 더 연결해 보자.", "이 길은 Analytic, 저 길은 Divergent.", "흩어진 조각들이 한 화면에 모이고 있어."],
+    en: ["Clear patterns first, wider possibilities next.", "Let me connect it once more from the center.", "This path is Analytic; that one is Divergent.", "The scattered pieces are gathering into one view."],
   },
-  // 아콘 (Archon) — Growth Core career consultant; big goals into one next step.
+  // 아콘 (Archon) - Growth Core career consultant; situation-matched growth.
   archi: {
-    ko: ["이번 일은 셋으로 쪼개면 되겠다.", "한 걸음, 또 한 걸음.", "큰 산도 결국 작은 계단이지.", "오늘 할 한 가지만 정하자."],
-    en: ["Split this into three and it's doable.", "One step, then another.", "Even a mountain is just small stairs.", "Pick the one thing for today."],
+    ko: ["성장 방향은 지금 상황에서 시작하지.", "커리어 단서부터 다시 재보자.", "다음 단계가 너무 크면 더 작게 나누면 돼.", "이번 패턴은 실전 계획으로 묶이겠어."],
+    en: ["Growth direction starts with the current situation.", "Measure the career clues again.", "If the next step is too large, split it smaller.", "This pattern can become a working plan."],
   },
-  // 릴리아 (Relia) — Bond Core warm guide; gentle, attentive.
+  // 릴리아 (Relia) - Bond Core warm guide; relationships and inner-world cues.
   gadi: {
-    ko: ["그 사람, 잘 지내려나.", "오늘은 마음이 좀 말랑한 날이네.", "연락 한번 해 볼까.", "고마웠다고 말할걸 그랬나."],
-    en: ["I wonder how they're doing.", "A soft-hearted kind of day.", "Maybe I'll reach out.", "I should've said thank you."],
+    ko: ["관계의 온도를 천천히 읽어 보자.", "말 사이에 남은 마음도 봐야지.", "사람은 방향보다 리듬이 먼저일 때가 있어.", "조금 더 편안한 연결을 찾아볼까."],
+    en: ["Read the temperature of this bond slowly.", "Notice what was left between the words.", "Sometimes people need rhythm before direction.", "Look for a steadier connection."],
   },
-  // 루멘 (Lumen) — Wisdom Core sage; connects knowledge to life.
+  // 루멘 (Lumen) - Wisdom Core sage; knowledge applied to life.
   lulu: {
-    ko: ["어, 이 조각이랑 저 조각이 이어지는데?", "이건 따로 모아 둬야지.", "오, 새 자료 냄새가 난다.", "연결고리를 또 하나 찾았어!"],
-    en: ["Oh, this piece links to that one.", "Better file this one away.", "I smell fresh material.", "Found another connection!"],
+    ko: ["지식은 삶에 닿을 때 빛나지.", "이 질문은 한 번 더 물어볼 만해.", "저장한 조각들이 작은 지혜로 모이고 있어.", "소크라테스는 묻고, 공자는 실천을 보겠지."],
+    en: ["Knowledge shines when it reaches life.", "This question is worth asking once more.", "The saved pieces are gathering into a small wisdom.", "Socrates would ask; Confucius would look for practice."],
   },
-  // 모모 반장 (Foreman Momo) — Narrative Core crew foreman; sort + retrieve.
+  // 모모 반장 (Foreman Momo) - Narrative Core archive foreman; sort + retrieve.
   momo: {
-    ko: ["작년 오늘은 뭘 적었더라.", "여기, 잘 보관해 둘게요.", "먼지 한 톨 없이 정리 완료.", "다 제자리에 있네, 좋아."],
-    en: ["What did I write a year ago today?", "Here, I'll keep this safe.", "Filed away, not a speck of dust.", "Everything in its place. Good."],
+    ko: ["새 기록은 카테고리부터 붙이자.", "언제 무슨 일이 있었는지 찾기 쉽게.", "기록 보관소 동선은 오늘도 깔끔.", "작은 로그도 제자리에 있으면 이야기가 돼."],
+    en: ["Start the new record with a category.", "Make it easy to find what happened when.", "The archive routes are tidy today.", "Even a small log becomes a story in the right place."],
   },
-  // 아이리스 (Iris) — Muse Core trainer & curator; notices patterns.
+  // 루미나 (Lumina) - Muse Core trainer and curator; taste, inspiration, balance.
   lumi: {
-    ko: ["요즘 자꾸 이런 게 눈에 들어와.", "이 색깔, 마음에 든다.", "끌리는 데는 다 이유가 있지.", "어, 이거 완전 취향 저격인데."],
-    en: ["This keeps catching my eye lately.", "I like this color.", "There's always a reason we're drawn in.", "Oh, this is exactly my taste."],
+    ko: ["취향도 운동처럼 조금씩 키워지지.", "이 추천은 생활 리듬에 맞을까.", "좋아하는 걸 건강하게 오래 즐기는 쪽으로.", "오늘의 영감은 어디서 반짝일까."],
+    en: ["Taste grows little by little, like training.", "Would this recommendation fit the day's rhythm?", "Keep what feels good enjoyable and balanced.", "Where will today's inspiration spark?"],
   },
 };
 
