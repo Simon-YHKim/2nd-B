@@ -95,14 +95,12 @@ export default function Jarvis() {
   const params = useLocalSearchParams<{ fromNode?: string; character?: string; mode?: string }>();
   const fromNode = typeof params.fromNode === "string" && params.fromNode.length > 0 ? params.fromNode : null;
   const characterParam = typeof params.character === "string" && params.character.length > 0 ? params.character : null;
-  const requestedMode: ChatMode = params.mode === "divergent" ? "divergent" : "analytic";
   const persona = useMemo(() => getPersona(characterParam), [characterParam]);
   // Only treat it as a character chat when a real worker was passed.
   const isCharacterChat = characterParam != null && characterParam in PERSONAS;
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState("");
-  const [mode, setMode] = useState<ChatMode>(requestedMode);
   const [sending, setSending] = useState(false);
   const [usedToday, setUsedToday] = useState<number | null>(null);
   const [introOpen, setIntroOpen] = useState(false);
@@ -127,9 +125,6 @@ export default function Jarvis() {
   // Seed once on entry: a character chat opens with that companion's greeting
   // as the first turn; a node entry pre-fills the composer with the context.
   const seededRef = useRef(false);
-  useEffect(() => {
-    setMode(requestedMode);
-  }, [requestedMode]);
 
   useEffect(() => {
     if (seededRef.current) return;
@@ -265,7 +260,7 @@ export default function Jarvis() {
               ? locale === "ko"
                 ? "참고한 조각들을 읽어오는 중이에요."
                 : "I'm reading the pieces that matter."
-              : mode === "divergent"
+              : chatMode === "divergent"
                 ? locale === "ko"
                   ? "Divergent 모드로 낯선 관점의 경로를 찾아볼게요."
                   : "Divergent mode is looking for an unexpected route."
@@ -343,37 +338,6 @@ export default function Jarvis() {
             <ContextPill label={fromNode} />
           </View>
         ) : null}
-
-        <View style={styles.modeSwitch} accessibilityRole="tablist">
-          {(["analytic", "divergent"] as const).map((m) => {
-            const active = mode === m;
-            return (
-              <Pressable
-                key={m}
-                onPress={() => setMode(m)}
-                style={[styles.modeTab, active ? styles.modeTabActive : null]}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={
-                  m === "analytic"
-                    ? locale === "ko"
-                      ? "분석 응답 모드"
-                      : "Analytic response mode"
-                    : locale === "ko"
-                      ? "공상 응답 모드"
-                      : "Divergent response mode"
-                }
-                accessibilityHint={
-                  locale === "ko" ? "세컨비 답변 방식을 전환합니다" : "Changes how SecondB frames the answer"
-                }
-              >
-                <Text variant="caption" color={active ? "background" : "brand"}>
-                  {m === "analytic" ? "Analytic" : "Divergent"}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
 
         <ScrollView
           ref={scrollRef}
@@ -720,28 +684,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   contextPillWrap: { marginTop: spacing.sm },
-  modeSwitch: {
-    flexDirection: "row",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomColor: semantic.border,
-    borderBottomWidth: 1,
-  },
-  modeTab: {
-    minHeight: 36,
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: semantic.border,
-    backgroundColor: semantic.surfaceAlt,
-  },
-  modeTabActive: {
-    borderColor: semantic.brand,
-    backgroundColor: semantic.brand,
-  },
   quickRow: { gap: spacing.sm, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
   quickChip: {
     backgroundColor: semantic.surfaceAlt,
