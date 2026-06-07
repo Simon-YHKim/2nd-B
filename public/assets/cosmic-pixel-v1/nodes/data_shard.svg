@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title desc" shape-rendering="crispEdges">
-  <title>Data Shard / 생각 조각</title>
-  <desc>Tier 4 data point / thought shard object.</desc>
-  <polygon points="30,4 54,22 48,56 18,62 6,28" fill="#16213E" stroke="#72F2C7" stroke-width="3"/>
-  <rect x="25" y="22" width="12" height="12" fill="#E8ECF8" opacity="0.85"/>
-  <rect x="18" y="42" width="8" height="8" fill="#FFD166" opacity="0.9"/>
-  <rect x="42" y="35" width="4" height="4" fill="#A78BFA"/>
-</svg>

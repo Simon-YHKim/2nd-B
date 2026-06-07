@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="176" height="44" viewBox="0 0 176 44" fill="none">
-  <rect x="1" y="1" width="174" height="42" rx="18" fill="#0D1530" fill-opacity="0.88" stroke="#72F2C7" stroke-opacity="0.55"/>
-  <path d="M28 14a8 8 0 1 0 6.8 12.2" stroke="#72F2C7" stroke-width="2" stroke-linecap="round"/>
-  <path d="M36 14v7h-7" stroke="#72F2C7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="55" y="27" fill="#E8ECF8" font-family="Pretendard, system-ui" font-size="15" font-weight="700">원래대로</text>
-</svg>
