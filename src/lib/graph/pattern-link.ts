@@ -31,11 +31,11 @@ export interface PatternLinkStyleOpts {
  */
 export function patternLinkStyle(proximity: number, opts: PatternLinkStyleOpts = {}): PatternLinkStyle {
   const p = Math.max(0, Math.min(1, Number.isFinite(proximity) ? proximity : 0));
-  const minW = opts.minWidth ?? 1;
-  const maxW = opts.maxWidth ?? 3;
-  const minO = opts.minOpacity ?? 0.18;
-  const maxO = opts.maxOpacity ?? 0.95;
-  const minS = opts.minSaturation ?? 0.35;
+  const minW = opts.minWidth ?? 2;
+  const maxW = opts.maxWidth ?? 5;
+  const minO = opts.minOpacity ?? 0.3;
+  const maxO = opts.maxOpacity ?? 1;
+  const minS = opts.minSaturation ?? 0.5;
   const maxS = opts.maxSaturation ?? 1;
   const lerp = (a: number, b: number): number => a + (b - a) * p;
   return {

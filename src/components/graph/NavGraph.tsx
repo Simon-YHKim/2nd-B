@@ -62,10 +62,7 @@ import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
-import {
-  FinalLogArtV49,
-  FinalPatternDataArtV49,
-} from "@/components/art/SoulcoreFinalArt";
+import { FinalPatternDataArtV49 } from "@/components/art/SoulcoreFinalArt";
 import { resolvePatternDataColor } from "@/lib/graph/pattern-data-color";
 import { depthStyleForTier } from "@/lib/graph/depth-style";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
@@ -285,11 +282,13 @@ function curvedMid(a: { x: number; y: number }, b: { x: number; y: number }, cur
 }
 
 function tierSize(t: Tier): number {
-  // UI/UX overhaul §5 node sizes (touch target met via hitSlop).
-  if (t === 1) return 88;
-  if (t === 2) return 44;
-  if (t === 3) return 35;
-  return 28;
+  // Simon's 2026-06-08 graph references read as crystal objects, not dots:
+  // Soul Core anchors, Pattern Cores stay legible, and Pattern Data keeps its
+  // flower/snowflake silhouette instead of collapsing to pixels.
+  if (t === 1) return 112;
+  if (t === 2) return 58;
+  if (t === 3) return 46;
+  return 42;
 }
 
 // Distance feeling (v10 pass): deeper tiers desaturate slightly so they read
@@ -341,6 +340,7 @@ function patternLinkDistance(incident: boolean, childTier: Tier): PatternLinkDis
 // Center (tier 1) size — kept as a named constant since the center node
 // is positioned with explicit offsets in JSX.
 const CENTER_SIZE = tierSize(1);
+const DATA_NODE_SIZE = tierSize(4);
 
 // Premium HQ core art scale (asset-replacement pass). The new core_center
 // HQ piece reads "heavier" than the old clean core, so it's drawn at ~1.0x
@@ -1371,6 +1371,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 stroke={useV3Art ? v3EdgeColor(tierOf(e.toId)) : cosmic.signalMint}
                 strokeOpacity={animOpacity}
                 strokeWidth={linkStyle.strokeWidth}
+                strokeLinecap="round"
               />
               <AnimatedLine
                 x1={x1}
@@ -1379,7 +1380,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 y2={y2}
                 stroke={cosmic.moonWhite}
                 strokeOpacity={flowOpacity}
-                strokeWidth={Math.max(1, linkStyle.strokeWidth + 0.5)}
+                strokeWidth={Math.max(2.5, linkStyle.strokeWidth + 1.25)}
                 strokeDasharray="4 10"
                 strokeDashoffset={flowDashOffset}
                 strokeLinecap="round"
@@ -1395,17 +1396,29 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                   strokeOpacity={
                     connGlow.interpolate({ inputRange: [0.25, 1], outputRange: [0.4, 0.95] }) as unknown as number
                   }
-                  strokeWidth={2}
+                  strokeWidth={Math.max(3, linkStyle.strokeWidth + 1)}
+                  strokeLinecap="round"
                 />
               ) : glowIncident ? (
-                <Line x1={x1} y1={y1} x2={x2} y2={y2} stroke={cosmic.signalMint} strokeOpacity={0.7} strokeWidth={2} />
+                <Line
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke={cosmic.signalMint}
+                  strokeOpacity={0.7}
+                  strokeWidth={Math.max(3, linkStyle.strokeWidth + 0.75)}
+                  strokeLinecap="round"
+                />
               ) : null}
             </Fragment>
           );
         })}
       </Svg>
 
-      {/* Tier 4 data shards — fade in/out with zoom (§5 + graph-ux #8). */}
+      {/* Tier 4 data nodes — fade in/out with zoom (§5 + graph-ux #8).
+          Simon's 2026-06-08 reference shows saved pieces as small Pattern Data
+          crystals connected by Pattern Links, not as generic log dots. */}
       {tier4Mounted
         ? Array.from(dataPositions.entries()).map(([id, p]) => {
             const piece = dataNodesMap.get(id);
@@ -1415,8 +1428,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               style={[
                 styles.shardWrap,
                 {
-                  left: p.x - 14,
-                  top: p.y - 10.5,
+                  left: p.x - DATA_NODE_SIZE / 2,
+                  top: p.y - DATA_NODE_SIZE / 2,
                   opacity: tier4Fade as never,
                   transform: swayTransform(id) as never,
                 },
@@ -1440,7 +1453,15 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 accessibilityState={{ selected: activeId === id }}
               >
                 <View style={[{ opacity: depthStyleForTier(4).opacity }, depthSaturateStyle(4) as never]}>
-                  <FinalLogArtV49 width={28} height={21} />
+                  <FinalPatternDataArtV49
+                    colorKey={resolvePatternDataColor({
+                      name: piece?.title ?? id,
+                      description: piece?.summary ?? "",
+                      keywords: [p.parentId, ...(piece?.tags ?? [])],
+                      id,
+                    })}
+                    size={DATA_NODE_SIZE}
+                  />
                 </View>
               </Pressable>
             </Animated.View>
@@ -1945,7 +1966,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   resetText: { color: cosmic.signalMint, letterSpacing: 0 },
-  shardWrap: { position: "absolute", width: 28, height: 21, alignItems: "center", justifyContent: "center" },
+  shardWrap: { position: "absolute", width: DATA_NODE_SIZE, height: DATA_NODE_SIZE, alignItems: "center", justifyContent: "center" },
   // Highlight-on-return: a mint halo around the shard the user came back to.
   shardHighlight: {
     shadowColor: cosmic.signalMint,
