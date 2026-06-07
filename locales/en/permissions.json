@@ -25,7 +25,7 @@
     },
     "clipboard": {
       "name": "Clipboard",
-      "why": "Used only when you tap Copy in export or message actions. 2nd-B never reads your clipboard in the background."
+      "why": "Used only when you tap Copy in export or message actions. 2nd-Brain never reads your clipboard in the background."
     },
     "calendar": {
       "name": "Calendar",
