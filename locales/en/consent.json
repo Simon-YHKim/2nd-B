@@ -33,7 +33,7 @@
     "subtitle": "Sharing, profiling, analytics, and model training all start off.",
     "speech": "Your records stay private unless you turn on a control. Teens stay locked to high-privacy.",
     "trustTitle": "Default: private and off",
-    "trustBody": "Your entries are stored encrypted. Optional sharing, analytics, ads, recommendations, and model-training permissions are off until you choose otherwise.",
+    "trustBody": "Your entries are stored encrypted, and the only optional data setting is external analytics (below), off by default. 2nd-B does not show ads or sell your data.",
     "sectionLabel": "Privacy controls",
     "minorLockNote": "You are on a teen account, so high-privacy stays on. Long-term memory is the only switch you can turn on.",
     "saveError": "Could not save that change. Please try again.",
@@ -71,7 +71,8 @@
         "label": "Long-term memory",
         "desc": "Let your assistant remember across sessions for continuity."
       }
-    }
+    },
+    "localFirstStatement": "Sharing, recommendations, and using your entries to train AI models are not features today. If any is ever added, it will be off by default and ask for your explicit consent at that point."
   },
   "account": {
     "loading": "Loading account…",

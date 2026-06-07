@@ -18,7 +18,7 @@ import { PreferenceToggleRow } from "@/components/ui/PreferenceToggle";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
-  PRIVACY_PREF_KEYS,
+  VISIBLE_PRIVACY_KEYS,
   defaultPrivacyPrefs,
   isPrivacyPrefEditable,
   type PrivacyPrefKey,
@@ -169,7 +169,10 @@ export default function Privacy() {
           <Text variant="caption" color="brand" style={[styles.sectionEyebrow, eyebrowTracking]}>
             {t("privacy.sectionLabel")}
           </Text>
-          {PRIVACY_PREF_KEYS.map((key) => {
+          {/* D-12: render ONLY enforced controls. The other privacy_prefs keys
+              are retained (prefs.ts) but were non-functional toggles — a false
+              promise — so they are replaced by the honest statement below. */}
+          {VISIBLE_PRIVACY_KEYS.map((key) => {
             const editable = isPrivacyPrefEditable(key, minor);
             return (
               <PreferenceToggleRow
@@ -186,6 +189,9 @@ export default function Privacy() {
               />
             );
           })}
+          <Text variant="subtle" color="textMuted" style={styles.localFirstNote}>
+            {t("privacy.localFirstStatement")}
+          </Text>
         </View>
       </ScrollView>
     </PremiumAppShell>
@@ -225,4 +231,5 @@ const styles = StyleSheet.create({
   // Tracking is applied per-locale (eyebrowTracking) so the KO section label is
   // not over-spaced (caption is 14px); EN keeps the light caption tracking.
   sectionEyebrow: { fontWeight: "700" },
+  localFirstNote: { marginTop: spacing.sm },
 });
