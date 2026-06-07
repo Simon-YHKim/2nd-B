@@ -14,6 +14,7 @@ describe("visible trust copy", () => {
   test("intro copy does not exclude saved sources", () => {
     const root = path.resolve(__dirname, "../../..");
     const files = [
+      "README.md",
       "locales/en/common.json",
       "locales/ko/common.json",
       "src/app/manual.tsx",

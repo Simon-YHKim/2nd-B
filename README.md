@@ -1,6 +1,6 @@
 # 2nd-Brain
 
-> **Not a note vault — a second brain built only from what you write.** Journal daily to build
+> **Not a note vault — a second brain built from what you write and save.** Journal daily to build
 > your self-knowledge base, get personalized guidance grounded in
 > validated psychology, and carry your data anywhere.
 
