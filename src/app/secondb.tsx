@@ -7,7 +7,7 @@
 // The chat_usage daily counter (server-side) is the persistent surface.
 //
 // 2026-05-27 (user directive):
-//   - Renamed Jarvis → "세컨비" / "2ndB" (locale-routed via secondb.json).
+//   - Renamed Jarvis → "세컨비" / "SecondB" (locale-routed via secondb.json).
 //   - "What I'm good at" card moved out of the chat panel into a
 //     one-time intro modal with [알았어요 / 오늘은 그만 볼래요]
 //     buttons. The modal is dismissed via localStorage so it doesn't

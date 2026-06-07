@@ -1462,7 +1462,7 @@ results.push(
       en.includes('"faq"') &&
       ko.includes('"faq"') &&
       en.includes("2nd-Brain helps organize it later.") &&
-      ko.includes("정리는 나중에 2nd-B가 도와드려요.") &&
+      ko.includes("정리는 나중에 2nd-Brain이 도와드려요.") &&
       forbiddenInlineCopy.every((term) => !support.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "SupportI18nCopy",
@@ -1596,7 +1596,7 @@ results.push(
         i18n.includes("import: enImport") &&
         i18n.includes("import: koImport") &&
         en.includes("Bring outside self-knowledge into 2nd-Brain") &&
-        ko.includes("밖에 있던 자기 이해를 2nd-B로 가져와요") &&
+        ko.includes("밖에 있던 자기 이해를 2nd-Brain으로 가져와요") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
         forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
       return {
