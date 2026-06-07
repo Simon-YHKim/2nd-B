@@ -13,7 +13,7 @@
 
 import { characters as characterColors } from "./theme/tokens";
 
-export type CharacterId = "secondb" | "momo" | "lulu" | "archi" | "gadi";
+export type CharacterId = "secondb" | "momo" | "lulu" | "archi" | "gadi" | "lumi";
 
 export interface CharacterMeta {
   id: CharacterId;
@@ -87,6 +87,19 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
       en: "Let's look at it together, gently.",
     },
   },
+  lumi: {
+    id: "lumi",
+    name: { ko: "아이리스", en: "Iris" },
+    role: { ko: "취향·영감 큐레이터", en: "Muse Core curator" },
+    accent: characterColors.lumi,
+    // Muse Core: taste + inspiration. No dedicated route screen; surfaces via
+    // personas / taste village (see chat/personas.ts, village-ui.ts).
+    routes: [],
+    line: {
+      ko: "요즘 끌리는 걸 더 즐겁게 해볼까?",
+      en: "Let's make what you're into more fun.",
+    },
+  },
 };
 
 /** Lookup the character that owns a given route, or null if none. */
@@ -98,4 +111,4 @@ export function characterForRoute(pathname: string): CharacterMeta | null {
 }
 
 /** All characters in display order — useful for sprite sheets / about pages. */
-export const CHARACTER_ORDER: CharacterId[] = ["secondb", "momo", "lulu", "archi", "gadi"];
+export const CHARACTER_ORDER: CharacterId[] = ["secondb", "momo", "lulu", "archi", "gadi", "lumi"];

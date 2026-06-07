@@ -191,6 +191,7 @@ export const characters = {
   lulu: cosmic.signalMint, // Wisdom Core / Lumen
   archi: cosmic.signalBlue, // Growth Core / Archon
   gadi: cosmic.pixelLamp, // Bond Core / Relia — amber (dual-context with zoneYellow; see DESIGN.md)
+  lumi: cosmic.dreamPink, // Muse Core / Iris — taste + inspiration
 } as const;
 
 export type CharacterName = keyof typeof characters;
