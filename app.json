@@ -28,6 +28,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": true,
+      "allowBackup": false,
       "softwareKeyboardLayoutMode": "resize",
       "intentFilters": [
         {
