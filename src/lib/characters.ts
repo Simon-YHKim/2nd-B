@@ -35,7 +35,7 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
     name: { ko: "세컨비", en: "SecondB" },
     role: { ko: "AI 안내자", en: "AI guide" },
     accent: characterColors.secondb,
-    routes: ["/jarvis", "/"],
+    routes: ["/secondb", "/"],
     line: {
       ko: "네 기록으로 다시 생각해볼게.",
       en: "I'll think it through with what you've written.",

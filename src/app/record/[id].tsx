@@ -199,7 +199,7 @@ export default function RecordDetail() {
           <Button
             label={t("actions.askSecondB")}
             variant="secondary"
-            onPress={() => router.push({ pathname: "/jarvis", params: { fromNode: title } })}
+            onPress={() => router.push({ pathname: "/secondb", params: { fromNode: title } })}
           />
           <Button label={t("actions.openSource")} variant="primary" onPress={() => router.push(evidenceRoute(type) as never)} />
         </View>

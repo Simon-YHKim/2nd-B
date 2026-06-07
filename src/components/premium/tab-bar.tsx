@@ -19,7 +19,7 @@ import { PRIMARY_TAB_PATHS } from "@/lib/nav/tabs";
 // the 나 hub (Phase 5), wiki + records are reached through the graph villages
 // (Phase 4 routes a village to its records domain filter). 공상(divergent) is
 // a mode inside 세컨비, not its own tab.
-type TabId = "graph" | "capture" | "jarvis" | "profile";
+type TabId = "graph" | "capture" | "secondb" | "profile";
 
 interface Tab {
   id: TabId;
@@ -31,7 +31,7 @@ interface Tab {
 const TABS: Tab[] = [
   { id: "graph", href: "/", ko: "그래프", en: "Graph" },
   { id: "capture", href: "/capture", ko: "담기", en: "Capture" },
-  { id: "jarvis", href: "/jarvis", ko: "세컨비", en: "SecondB" },
+  { id: "secondb", href: "/secondb", ko: "세컨비", en: "SecondB" },
   { id: "profile", href: "/profile", ko: "나", en: "Me" },
 ];
 
@@ -77,7 +77,7 @@ function TabIcon({ id, color }: { id: TabId; color: string }) {
           />
         </Svg>
       );
-    case "jarvis":
+    case "secondb":
       // 세컨비 — a chat speech bubble with two dots.
       return (
         <Svg width={22} height={22} viewBox="0 0 22 22">

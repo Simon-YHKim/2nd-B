@@ -373,7 +373,7 @@ export default function Wiki() {
     router.push({ pathname: "/", params: { highlightWikiPageId: pageId } });
   }, []);
   const handleAskSecondB = useCallback((title: string) => {
-    router.push({ pathname: "/jarvis", params: { fromNode: title } });
+    router.push({ pathname: "/secondb", params: { fromNode: title } });
   }, []);
 
   const renderPage = useCallback(

@@ -35,7 +35,7 @@ describe("evidenceRoute", () => {
     expect(evidenceRoute("audit")).toBe("/audit");
     expect(evidenceRoute("interview")).toBe("/interview");
     expect(evidenceRoute("wiki")).toBe("/wiki");
-    expect(evidenceRoute("imagine")).toBe("/jarvis?mode=divergent");
+    expect(evidenceRoute("imagine")).toBe("/secondb?mode=divergent");
     expect(evidenceRoute("capture")).toBe("/capture");
   });
   test("never emits a retired redirect route", () => {

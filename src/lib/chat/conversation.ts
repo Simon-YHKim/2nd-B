@@ -175,7 +175,7 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   const reply = await callGemini({
     userId: input.userId,
     locale: input.locale,
-    purpose: "jarvis_chat",
+    purpose: "secondb_chat",
     system,
     user: input.message,
     minor: input.minor,

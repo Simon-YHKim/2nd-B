@@ -67,12 +67,12 @@ const HINTS: Record<"en" | "ko", Record<SelfPortraitFieldId, string>> = {
   },
 };
 
-// Emit real destinations, not retired redirect routes (goal -> /jarvis Divergent
+// Emit real destinations, not retired redirect routes (goal -> /secondb Divergent
 // mode, do -> /capture), so each field opens where its copy promises.
 const ROUTES: Record<SelfPortraitFieldId, string> = {
   who: "/persona",
   forWhom: "/interview",
-  goal: "/jarvis?mode=divergent",
+  goal: "/secondb?mode=divergent",
   do: "/capture",
   fuel: "/audit",
 };

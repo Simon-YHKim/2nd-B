@@ -61,8 +61,8 @@ describe("CHARACTERS roster", () => {
 });
 
 describe("characterForRoute", () => {
-  test("/jarvis → SecondB", () => {
-    expect(characterForRoute("/jarvis")?.id).toBe("secondb");
+  test("/secondb → SecondB", () => {
+    expect(characterForRoute("/secondb")?.id).toBe("secondb");
   });
 
   test("/capture → Lulu", () => {
