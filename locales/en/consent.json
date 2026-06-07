@@ -33,7 +33,7 @@
     "subtitle": "Sharing, profiling, analytics, and model training all start off.",
     "speech": "Your records stay private unless you turn on a control. Teens stay locked to high-privacy.",
     "trustTitle": "Default: private and off",
-    "trustBody": "Your entries are stored encrypted, and the only optional data setting is external analytics (below), off by default. 2nd-B does not show ads or sell your data.",
+    "trustBody": "Your entries are stored encrypted, and the only optional data setting is external analytics (below), off by default. 2nd-Brain does not show ads or sell your data.",
     "sectionLabel": "Privacy controls",
     "minorLockNote": "You are on a teen account, so high-privacy stays on. Long-term memory is the only switch you can turn on.",
     "saveError": "Could not save that change. Please try again.",
@@ -93,7 +93,7 @@
     },
     "privacy": {
       "label": "Privacy and consent",
-      "body": "Sharing, ads, recommendations, analytics, and model training are each off by default. Turn them on or off any time.",
+      "body": "External analytics is the only setting here, off by default. Sharing, ads, recommendations, and model training are not features today, and any future one would stay off until you agree.",
       "button": "Open privacy controls",
       "buttonHint": "Opens privacy and consent settings."
     },
