@@ -65,3 +65,5 @@ coverage/
 
 # root probe scripts dropped by concurrent agents (never commit)
 test_*.js
+.codex-*.md
+.ag-*.md
