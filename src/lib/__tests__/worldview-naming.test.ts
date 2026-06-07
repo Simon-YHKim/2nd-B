@@ -34,12 +34,12 @@ describe("worldview v-final naming", () => {
     expect(PERSONAS.secondb.name.en).toBe("SecondB");
   });
 
-  test("village labels are the 5 Pattern Cores (no imagine, no 공상 작업실)", () => {
+  test("village labels stay concrete (no imagine, no 공상 작업실)", () => {
     expect(VILLAGE_IDS).not.toContain("imagine");
     for (const id of VILLAGE_IDS) {
       expect(VILLAGE_LABEL[id].ko).not.toContain("공상 작업실");
     }
     expect(VILLAGE_LABEL.relation.ko).toBe("관계와 사랑");
-    expect(VILLAGE_LABEL.relation.en).toBe("Bond Core");
+    expect(VILLAGE_LABEL.relation.en).toBe("Relationships");
   });
 });

@@ -40,8 +40,8 @@ import { prefersReducedMotion } from "@/lib/motion/signature";
 // the composer with a short follow-up in the village voice; the user sends.
 const QUICK_ACTIONS: { ko: string; en: string; mode?: "divergent"; prompt: { ko: string; en: string } }[] = [
   { ko: "다음 한 걸음", en: "Next step", prompt: { ko: "지금 할 수 있는 다음 한 걸음으로 줄여줘.", en: "Narrow this to one next step I can take today." } },
-  { ko: "공상 모드로", en: "Divergent mode", mode: "divergent", prompt: { ko: "이 생각을 전혀 다른 관점에서 펼쳐줘.", en: "Unfold this from a completely different angle." } },
-  { ko: "지식 창고에 저장", en: "Save to wiki", prompt: { ko: "이 답을 지식 창고에 저장할 수 있게 한 단락으로 정리해줘.", en: "Sum this up in one paragraph I can save to my wiki." } },
+  { ko: "새 관점으로", en: "New angle", mode: "divergent", prompt: { ko: "이 생각을 전혀 다른 관점에서 펼쳐줘.", en: "Unfold this from a completely different angle." } },
+  { ko: "위키에 저장", en: "Save to wiki", prompt: { ko: "이 답을 위키에 저장할 수 있게 한 단락으로 정리해줘.", en: "Sum this up in one paragraph I can save to my wiki." } },
   { ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 조각을 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
   { ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
 ];
@@ -106,8 +106,8 @@ export default function SecondBChat() {
   const [introOpen, setIntroOpen] = useState(false);
   // SecondB conversation mode (worldview v-final). Analytic = data-grounded
   // analysis; Divergent = data-grounded but explores radically different angles.
-  // Seeded from ?mode=divergent (e.g. a graph node's "공상 모드로 펼치기").
-  const [chatMode, setChatMode] = useState<"analytic" | "divergent">(
+  // Seeded from ?mode=divergent (e.g. a graph node's "새 관점으로 펼치기").
+  const [chatMode, setChatMode] = useState<ChatMode>(
     params.mode === "divergent" ? "divergent" : "analytic",
   );
   // Divergent signature motion (DESIGN.md): a soft soulViolet2 pulse while a
@@ -265,8 +265,8 @@ export default function SecondBChat() {
                 : "I'm reading the pieces that matter."
               : chatMode === "divergent"
                 ? locale === "ko"
-                  ? "Divergent 모드로 낯선 관점의 경로를 찾아볼게요."
-                  : "Divergent mode is looking for an unexpected route."
+                  ? "새 관점으로 낯선 가정을 짚어볼게요."
+                  : "A new angle is checking a different assumption."
               : locale === "ko"
                 ? "오늘의 기록을 읽어봤어요. 작은 한 걸음으로 시작해볼까요?"
                 : "I've read today's pieces. Shall we start with one small step?"
@@ -324,10 +324,10 @@ export default function SecondBChat() {
             style={[styles.modeChip, chatMode === "analytic" ? styles.modeChipAnalytic : null]}
             accessibilityRole="button"
             accessibilityState={{ selected: chatMode === "analytic" }}
-            accessibilityLabel={locale === "ko" ? "분석 모드" : "Analytic mode"}
+            accessibilityLabel={locale === "ko" ? "분석 모드" : "Analysis mode"}
           >
             <Text variant="caption" color={chatMode === "analytic" ? "background" : "textMuted"}>
-              {locale === "ko" ? "분석" : "Analytic"}
+              {locale === "ko" ? "분석" : "Analysis"}
             </Text>
           </Pressable>
           <Pressable
@@ -336,10 +336,10 @@ export default function SecondBChat() {
             style={[styles.modeChip, chatMode === "divergent" ? styles.modeChipDivergent : null]}
             accessibilityRole="button"
             accessibilityState={{ selected: chatMode === "divergent" }}
-            accessibilityLabel={locale === "ko" ? "공상 모드" : "Divergent mode"}
+            accessibilityLabel={locale === "ko" ? "새 관점 모드" : "New angle mode"}
           >
             <Text variant="caption" color={chatMode === "divergent" ? "text" : "textMuted"}>
-              {locale === "ko" ? "공상" : "Divergent"}
+              {locale === "ko" ? "새 관점" : "New angle"}
             </Text>
           </Pressable>
           {chatMode === "divergent" ? (

@@ -26,11 +26,11 @@ export const VILLAGE_IDS: readonly VillageId[] = [
  *  node labels). Single source for any surface that filters by village — e.g.
  *  the Records domain chips — so the wording can't drift from the graph. */
 export const VILLAGE_LABEL: Record<VillageId, { en: string; ko: string }> = {
-  work: { en: "Growth Core", ko: "일과 성장" },
-  relation: { en: "Bond Core", ko: "관계와 사랑" },
-  knowledge: { en: "Wisdom Core", ko: "배움과 지식" },
-  records: { en: "Narrative Core", ko: "기록 보관소" },
-  taste: { en: "Muse Core", ko: "취향과 영감" },
+  work: { en: "Work and growth", ko: "일과 성장" },
+  relation: { en: "Relationships", ko: "관계와 사랑" },
+  knowledge: { en: "Learning and knowledge", ko: "배움과 지식" },
+  records: { en: "Record archive", ko: "기록 보관소" },
+  taste: { en: "Taste and inspiration", ko: "취향과 영감" },
 };
 
 // Keyword → village. Lowercase substrings matched against a piece's tags

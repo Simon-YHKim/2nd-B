@@ -305,7 +305,7 @@ export default function CoreBrain() {
               : "Let's narrow this center into one next step."}
           </Text>
           <Button
-            label={locale === "ko" ? "공상 모드로 펼치기" : "Open in Divergent mode"}
+            label={locale === "ko" ? "새 관점으로 펼치기" : "Open a new angle"}
             variant="secondary"
             onPress={() => router.push({ pathname: "/secondb", params: { mode: "divergent" } })}
           />
