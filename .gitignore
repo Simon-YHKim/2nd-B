@@ -62,3 +62,6 @@ coverage/
 .env.bak
 .env.*.bak
 .env.local
+
+# root probe scripts dropped by concurrent agents (never commit)
+test_*.js
