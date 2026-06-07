@@ -65,8 +65,8 @@ const FACETS: ReadonlyArray<{
   {
     id: "core_brain",
     route: "/core-brain",
-    label: { en: "Core", ko: "코어" },
-    desc: { en: "Know yourself", ko: "나를 알기" },
+    label: { en: "My center", ko: "나의 중심" },
+    desc: { en: "Trace your patterns", ko: "내 패턴 보기" },
   },
   {
     id: "library",

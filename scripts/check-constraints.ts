@@ -899,7 +899,7 @@ results.push(
       home.includes("Opens capture to save your first piece") &&
       home.includes("Look around first") &&
       home.includes("Open today's center") &&
-      home.includes("Opens Core Brain") &&
+      home.includes("Opens My center") &&
       jarvisButtons >= 8 &&
       jarvis.includes("Clears the current conversation") &&
       jarvis.includes("Analysis mode") &&
