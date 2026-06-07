@@ -328,6 +328,9 @@ Three brand moments get a named motion. Each pairs a character accent with a sin
 
 ## Decisions Log
 
+> 2026-06-07: English graph UI uses concrete labels instead of Core suffixes.
+> Internal worldview terms remain Soul Core / Pattern Core, but user-facing English mirrors the concrete Korean labels: My center, Work and growth, Relationships, Learning and knowledge, Record archive, Taste and inspiration.
+
 | Date | Decision | Rationale |
 |------|----------|-----------|
 | 2026-05-25 | Initial design system created | Formalize what's already in `src/lib/theme/tokens.ts` + add typography, motion, accessibility, voice. Source: `/design-consultation`. |

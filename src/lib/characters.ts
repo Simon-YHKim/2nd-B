@@ -90,7 +90,7 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
   lumi: {
     id: "lumi",
     name: { ko: "아이리스", en: "Iris" },
-    role: { ko: "취향·영감 큐레이터", en: "Muse Core curator" },
+    role: { ko: "취향·영감 큐레이터", en: "Taste and inspiration curator" },
     accent: characterColors.lumi,
     // Muse Core: taste + inspiration. No dedicated route screen; surfaces via
     // personas / taste village (see chat/personas.ts, village-ui.ts).
