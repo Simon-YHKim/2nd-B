@@ -30,5 +30,37 @@
   "locale": {
     "en": "English",
     "ko": "한국어"
+  },
+  "worldview": {
+    "soulCore": "Soul Core",
+    "growthCore": "Growth Core",
+    "bondCore": "Bond Core",
+    "wisdomCore": "Wisdom Core",
+    "narrativeCore": "Narrative Core",
+    "museCore": "Muse Core",
+    "patternCore": "Pattern Core",
+    "patternData": "Pattern Data",
+    "log": "Log",
+    "patternLink": "Pattern Link"
+  },
+  "navGraph": {
+    "drilldown": {
+      "back": "Back to constellation",
+      "backHint": "Returns from the Pattern Core drilldown to the full constellation.",
+      "coreEyebrow": "Pattern Core",
+      "dataEyebrow": "Pattern Data",
+      "touch": "Touch!",
+      "coreIntro": {
+        "work": "This is the Growth Core. Your career and growth pieces gather here.",
+        "relation": "This is the Bond Core. Memories, promises, and conversations gather here.",
+        "knowledge": "This is the Wisdom Core. Learned and understood pieces gather here.",
+        "records": "This is the Narrative Core. Kept pieces gather here so you can find them again.",
+        "taste": "This is the Muse Core. Taste and inspiration pieces gather here."
+      },
+      "dataFallback": "A Pattern Data node from {{core}}.",
+      "noDataTitle": "No Pattern Data yet",
+      "noDataBody": "Leave a piece and this Pattern Core will grow a snowflake node.",
+      "dataDetailHint": "Opens the selected Pattern Data detail."
+    }
   }
 }
