@@ -375,7 +375,12 @@ export default function Capture() {
           setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at));
           setJournalCount(jc);
         })
-        .catch(() => {});
+        .catch((e) => {
+          // Post-save streak/count refresh is best-effort, but swallowing it left
+          // stale streak + journal-usage numbers on screen. Log and leave the
+          // prior values rather than masking the failure entirely.
+          if (typeof console !== "undefined") console.warn("[capture] streak refresh failed", (e as Error).message);
+        });
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] journal save failed", (e as Error).message);
       showFeedback(

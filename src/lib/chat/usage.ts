@@ -68,5 +68,10 @@ export async function bumpChatUsageIfUnderCap(
     }
     throw error;
   }
-  return data as number;
+  // The RPC returns the new integer count on success. Guard the cast: if the
+  // response is ever malformed (null/non-number), fail closed by throwing so the
+  // caller shows a retry instead of silently treating it as 0 used (which would
+  // hand out a fresh quota and let the daily cap be bypassed).
+  if (typeof data !== "number") throw new Error("invalid_chat_usage_response");
+  return data;
 }

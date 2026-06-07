@@ -261,8 +261,15 @@ export default function Wiki() {
   async function handleRefresh(): Promise<void> {
     if (!userId) return;
     setRefreshing(true);
-    await load(userId, activeTags);
-    setRefreshing(false);
+    try {
+      await load(userId, activeTags);
+    } catch (e) {
+      // load() surfaces its own in-view error state; here we just make sure a
+      // throw never leaves the pull-to-refresh spinner stuck on.
+      if (typeof console !== "undefined") console.warn("[wiki] refresh failed", (e as Error).message);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   function handleToggleStats(): void {
