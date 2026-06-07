@@ -228,7 +228,10 @@ export default function SecondBChat() {
     }
   }
 
-  const canSend = draft.trim().length > 0 && !sending;
+  // Disable send once the daily AI limit is reached (the server also rejects via
+  // ChatLimitExceededError, but the UI should not look actionable). usedToday===null
+  // means the count is still loading, so allow until we know.
+  const canSend = draft.trim().length > 0 && !sending && (usedToday === null || usedToday < limit);
   const usedDisplay = usedToday === null ? "..." : String(usedToday);
   const chatUiByWorker = {
     secondb: CORE_VILLAGE_UI,
@@ -285,8 +288,8 @@ export default function SecondBChat() {
             {usedToday !== null && usedToday >= limit ? (
               <Pressable
                 onPress={() => router.push("/plans")}
-                hitSlop={4}
-                style={{ marginTop: spacing.xs }}
+                hitSlop={8}
+                style={{ marginTop: spacing.xs, minHeight: 44, justifyContent: "center" }}
                 accessibilityRole="button"
                 accessibilityLabel={locale === "ko" ? "플랜 보기" : "View plans"}
                 accessibilityHint={locale === "ko" ? "요금제 화면을 엽니다" : "Opens the plans screen"}
@@ -299,8 +302,8 @@ export default function SecondBChat() {
             {turns.length > 0 ? (
               <Pressable
                 onPress={() => setTurns([])}
-                hitSlop={4}
-                style={{ marginTop: spacing.xs }}
+                hitSlop={8}
+                style={{ marginTop: spacing.xs, minHeight: 44, justifyContent: "center" }}
                 accessibilityRole="button"
                 accessibilityLabel={locale === "ko" ? "대화 비우기" : "Clear chat"}
                 accessibilityHint={locale === "ko" ? "현재 대화 내용을 지웁니다" : "Clears the current conversation"}
