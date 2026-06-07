@@ -56,6 +56,7 @@ export default function RootLayout() {
               <Stack.Screen name="formats" />
               <Stack.Screen name="secondb" />
               <Stack.Screen name="jarvis" />
+              <Stack.Screen name="plans" />
               <Stack.Screen name="wiki" options={{ animation: "fade" }} />
               <Stack.Screen name="manual" />
               <Stack.Screen name="big-five" />
