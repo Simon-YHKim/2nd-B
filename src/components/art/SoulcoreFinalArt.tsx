@@ -186,7 +186,10 @@ function SoulCoreArt({
       importantForAccessibility="no-hide-descendants"
     >
       <Image source={CORE_ART_BY_VARIANT[variant].core} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
-      <SoulFlameFlicker size={size} active={animated} />
+      {/* P3: the v10 soul_core.png already bakes a cyan lotus bloom; the warm
+          orange flame overlay clashed with the references' cool 3-colour
+          palette, so it only renders for the legacy v45 set. */}
+      {variant === "v45" ? <SoulFlameFlicker size={size} active={animated} /> : null}
     </View>
   );
 }
