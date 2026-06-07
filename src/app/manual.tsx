@@ -30,8 +30,8 @@ const SECTIONS: ManualSection[] = [
       ko: "두번째 뇌란",
     },
     body: {
-      en: "A second brain built only from what you write. Daily journaling, past-me interviews, and saved sources build a personal knowledge map you own. Export your notes anytime as a portable bundle.",
-      ko: "당신이 쓴 것들로만 만드는 두번째 뇌예요. 매일의 일기, 과거의 나 인터뷰, 저장한 자료가 모여 당신만의 지식 지도가 됩니다. 언제든 하나의 묶음으로 내보낼 수 있어요.",
+      en: "A second brain built from what you write and save. Daily journaling, past-me interviews, and saved sources build a personal knowledge map you own. Export your notes anytime as a portable bundle.",
+      ko: "당신이 쓰고 저장한 것들로 만드는 두번째 뇌예요. 매일의 일기, 과거의 나 인터뷰, 저장한 자료가 모여 당신만의 지식 지도가 됩니다. 언제든 하나의 묶음으로 내보낼 수 있어요.",
     },
   },
   {
