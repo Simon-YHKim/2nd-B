@@ -14,6 +14,27 @@
 <오더 내용. 어떤 화면/기능/수정인지 구체적으로. 라이브 확인 원하면 명시.>
 -->
 
+### [O-2 / 2026-06-08 03:48] O-1 정답: A+B 둘 다 — 그래프 레퍼런스 매칭(B) 끝까지
+Simon 확답: O-1의 **(A)와 (B) 둘 다** 의도. (A)는 머지+라이브 완료 확인. 이제 **(B)** 를 끝까지 진행:
+- 메인 그래프를 레퍼런스 2장에 맞추기 — 파란 꽃형 데이터노드 · 발광 링크 · 인사이트 "Touch!" 카드
+- Codex 아트 컴포넌트 + AG device 더블체크 마무리 → PR → CI green → 머지
+- **머지 후 갱신된 라이브 URL을 DONE에 공유** (https://simon-yhkim.github.io/2nd-B/ 그래프 화면 라이브 확인 원함)
+
+### [O-3 / 2026-06-08 03:48] 애널리틱스·수익화 스택 검토 후 적용 (Clarity·GA·Firebase·Play·AdMob)
+Simon 오더: **MS Clarity · Google Analytics(GA4) · Firebase Console · Google Play · Google AdMob** — "고민하고 적용하자". **먼저 짧은 플랜을 DONE에 올려 Simon 그린라이트 받고**, 그 뒤 작은 PR로 단계 적용.
+
+플랜에 담을 것 (RN + Expo SDK 56 기준):
+- **도구별 역할·권장 패키지**: Clarity(세션리플레이 `react-native-clarity`) / GA4(이벤트·퍼널, Firebase Analytics 경유 `@react-native-firebase/analytics`) / Firebase Console(프로젝트 허브·Crashlytics) / Google Play(내부테스트 트랙·데이터안전·정책) / AdMob(`react-native-google-mobile-ads`)
+- **free-tier/실비용**: 각 도구 $0/mo 유지 확인 (blueprint §5 약속). 초과 임계점 명시
+- **3축 비전** 연결(알아가기/비서/구체화) + **C4 revenue_events** 스키마(`month_bucket`·`is_related_party`·`customer_relation_type`)로 AdMob 수익 기록
+- **EAS / config plugin** 영향: 네이티브 모듈 추가 → dev build/EAS 재빌드 필요 여부
+- **동의·프라이버시**: PIPA 개인정보 동의·iOS ATT, **C10 연령정책**(14세 미만)과 분석/광고 충돌 점검
+
+안전레일 표기:
+- 🔑 secrets: GA/Firebase/Clarity/AdMob 키 **하드코딩 금지** — `.env`(gitignore) + `EXPO_PUBLIC_*` + EAS secrets
+- 💰 AdMob = 수익/광고 영역: **XPRIZE 심사용 교육앱에 광고 적절성**(심사정책·UX·연령)부터 의견 달 것. 실제 광고 노출은 **플래그 default OFF + Simon 명시 승인 전까지 코드만**
+- 📦 Google Play 실제 제출/배포는 플랜 체크리스트만(개인정보처리방침 URL·데이터안전 섹션), 제출은 Simon 승인 후
+
 (O-1 처리됨 → DONE 참조. 새 오더는 여기에.)
 
 ---
