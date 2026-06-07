@@ -34,10 +34,13 @@ import { cosmic } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
+import { WorkerSprite } from "@/components/art/WorkerSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
 import { useEmptyGraphDismissed } from "@/lib/onboarding/empty-card";
-import { domainForTags } from "@/lib/graph/relatedness";
+import { domainForTags, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
+import { VILLAGE_UI } from "@/lib/village-ui";
+import { getPersona } from "@/lib/chat/personas";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 import { StarNoiseLayer } from "@/components/premium";
 import { prefersReducedMotion } from "@/lib/motion/signature";
@@ -127,6 +130,15 @@ const INSIGHTS: Record<"en" | "ko", readonly string[]> = {
 function pickInsight(locale: "en" | "ko", salt: number): string {
   const bank = INSIGHTS[locale];
   return bank[salt % bank.length];
+}
+
+function isVillageId(value: string | undefined): value is VillageId {
+  return value === "work" || value === "relation" || value === "knowledge" || value === "records" || value === "taste";
+}
+
+function featuredVillageForCards(dataNodes: readonly DataNode[]): VillageId {
+  const parentId = dataNodes[0]?.parentId;
+  return isVillageId(parentId) ? parentId : "knowledge";
 }
 
 // Honest cold-start line: until there is at least one piece, the ribbon must NOT
@@ -245,6 +257,7 @@ export default function Landing() {
     () => (hasAnyPiece === true ? pickInsight(locale, Date.now() % 1000) : FIRST_PIECE_INSIGHT[locale]),
     [locale, hasAnyPiece],
   );
+  const featuredVillage = useMemo(() => featuredVillageForCards(dataNodes), [dataNodes]);
 
   // Fetch the user's classified pieces (clipper captures → `sources`) as the
   // tier-4 data dots. Each is placed in the village its tags point to
@@ -322,6 +335,27 @@ export default function Landing() {
       : presence.mascot === "sleep"
         ? "SecondB resting"
         : "SecondB";
+  const featuredCoreName = VILLAGE_LABEL[featuredVillage][locale];
+  const featuredWorker = VILLAGE_UI[featuredVillage].worker;
+  const featuredPersona = getPersona(featuredWorker);
+  const featuredPiece = dataNodes.find((node) => node.parentId === featuredVillage) ?? dataNodes[0] ?? null;
+  const soulCoreName = locale === "ko" ? "소울 코어" : "Soul Core";
+  const secondBCardBody =
+    locale === "ko"
+      ? featuredPiece
+        ? `${soulCoreName}에서 ${featuredCoreName} 쪽 새 조각을 찾았어요.`
+        : `${soulCoreName}에서 첫 조각이 들어올 자리를 비워 두었어요.`
+      : featuredPiece
+        ? `I found a fresh piece near ${featuredCoreName} from the ${soulCoreName}.`
+        : `The ${soulCoreName} is ready for the first piece you leave.`;
+  const coreCardBody =
+    locale === "ko"
+      ? featuredPiece
+        ? `${featuredCoreName}의 ${featuredPersona.name.ko}가 '${featuredPiece.title}' 조각을 보고 있어요.`
+        : `${featuredCoreName}의 ${featuredPersona.name.ko}가 관련 조각을 기다리고 있어요.`
+      : featuredPiece
+        ? `${featuredPersona.name.en} is reading "${featuredPiece.title}" inside ${featuredCoreName}.`
+        : `${featuredPersona.name.en} is waiting for pieces that belong in ${featuredCoreName}.`;
   // Show only once the piece check has resolved to "none" (hasAnyPiece === false,
   // not null) AND the user hasn't dismissed (emptyDismissed hydrated to false,
   // not null). Both gates avoid a first-paint flash for users who do have pieces
@@ -429,6 +463,61 @@ export default function Landing() {
               </Text>
             </Pressable>
           </View>
+        </Animated.View>
+      ) : null}
+
+      {!showingEmptyGraphCard ? (
+        <Animated.View
+          style={[
+            styles.insightCardStack,
+            { opacity: contentOpacity, bottom: Math.max(insets.bottom + 92, 104) },
+          ]}
+          pointerEvents="box-none"
+        >
+          <Pressable
+            onPress={() => {
+              wake();
+              setCenterSeen(true);
+              router.push({ pathname: "/secondb", params: { fromNode: soulCoreName } });
+            }}
+            style={styles.insightCard}
+            accessibilityRole="button"
+            accessibilityLabel={locale === "ko" ? "세컨비 Touch" : "SecondB Touch"}
+            accessibilityHint={locale === "ko" ? "세컨비 대화를 엽니다" : "Opens SecondB chat"}
+          >
+            <View style={styles.insightCardAvatar}>
+              <SecondBSprite state={presence.mascot === "sleep" ? "sleep" : "idle"} size={48} float={presence.mascot !== "sleep"} label={mascotLabel} />
+            </View>
+            <View style={styles.insightCardCopy}>
+              <Text style={styles.insightCardTitle}>{locale === "ko" ? "세컨비" : "SecondB"}</Text>
+              <Text style={styles.insightCardBody} numberOfLines={2}>{secondBCardBody}</Text>
+            </View>
+            <Text style={styles.insightCardCta}>Touch!</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              wake();
+              router.push({ pathname: "/secondb", params: { fromNode: featuredCoreName, character: featuredWorker } });
+            }}
+            style={styles.insightCard}
+            accessibilityRole="button"
+            accessibilityLabel={
+              locale === "ko"
+                ? `${featuredPersona.name.ko} Touch`
+                : `${featuredPersona.name.en} Touch`
+            }
+            accessibilityHint={locale === "ko" ? "관련 패턴 코어 캐릭터 대화를 엽니다" : "Opens the related Pattern Core character chat"}
+          >
+            <View style={styles.insightCardAvatar}>
+              <WorkerSprite id={featuredWorker} size={46} />
+            </View>
+            <View style={styles.insightCardCopy}>
+              <Text style={styles.insightCardTitle}>{featuredPersona.name[locale]}</Text>
+              <Text style={styles.insightCardBody} numberOfLines={3}>{coreCardBody}</Text>
+            </View>
+            <Text style={styles.insightCardCta}>Touch!</Text>
+          </Pressable>
         </Animated.View>
       ) : null}
 
@@ -580,6 +669,63 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fontFamilies.sans,
     textAlign: "center",
+  },
+  insightCardStack: {
+    position: "absolute",
+    left: 10,
+    right: 10,
+    gap: 10,
+    zIndex: 24,
+  },
+  insightCard: {
+    minHeight: 74,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.82)",
+    backgroundColor: "rgba(48,45,86,0.94)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    shadowColor: cosmic.signalMint,
+    shadowOpacity: 0.26,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  insightCardAvatar: {
+    width: 58,
+    height: 58,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  insightCardCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  insightCardTitle: {
+    color: cosmic.signalMint,
+    fontSize: 15,
+    lineHeight: 19,
+    fontFamily: fontFamilies.pixel,
+    letterSpacing: 0,
+    marginBottom: 4,
+  },
+  insightCardBody: {
+    color: cosmic.moonWhite,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: fontFamilies.readable,
+    letterSpacing: 0,
+  },
+  insightCardCta: {
+    alignSelf: "flex-end",
+    color: cosmic.signalMint,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: fontFamilies.sans,
+    fontWeight: "700",
+    letterSpacing: 0,
   },
   insightRibbon: {
     position: "absolute",
