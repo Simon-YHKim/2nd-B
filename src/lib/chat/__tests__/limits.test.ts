@@ -19,11 +19,11 @@ describe("checkChatLimit", () => {
     expect(r.upgradeTo).toBeNull();
   });
 
-  test("free tier at exact limit → blocked, hints upgrade to soma", () => {
+  test("free tier at exact limit → blocked, hints upgrade to Plus (cortex), not deprecated soma", () => {
     const r = checkChatLimit("free", 5);
     expect(r.allowed).toBe(false);
     expect(r.remaining).toBe(0);
-    expect(r.upgradeTo).toBe("soma");
+    expect(r.upgradeTo).toBe("cortex");
   });
 
   test("free tier over limit → blocked, remaining clamps to 0", () => {

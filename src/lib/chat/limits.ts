@@ -36,8 +36,11 @@ export interface ChatLimitCheck {
   upgradeTo: SubscriptionTier | null;
 }
 
+// D-09: soma is deprecated (enum kept for legacy rows). The launch upgrade
+// path is Free -> Plus (cortex) -> Pro (brain). A free user blocked at the limit
+// must be pointed at the live Plus tier, never the retired soma.
 const NEXT_TIER: Record<SubscriptionTier, SubscriptionTier | null> = {
-  free: "soma",
+  free: "cortex",
   soma: "cortex",
   cortex: "brain",
   brain: null,
