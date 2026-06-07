@@ -97,6 +97,7 @@ const COMPANION_ACCENT: Record<CharacterId, string> = {
   lulu: cosmic.signalMint,
   archi: cosmic.signalBlue,
   gadi: cosmic.pixelLamp, // Bond / Relia — amber
+  lumi: cosmic.dreamPink, // Muse / Iris
 };
 
 /** Companion avatar with a glowing ring. SecondB uses its own sprite. */

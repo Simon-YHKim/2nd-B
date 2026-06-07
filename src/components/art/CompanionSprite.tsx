@@ -11,7 +11,7 @@ import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { cosmic, semantic } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
-export type CompanionName = "momo" | "lulu" | "archi" | "gadi";
+export type CompanionName = "momo" | "lulu" | "archi" | "gadi" | "lumi";
 
 export type CompanionState =
   | "idle" | "note" | "store" | "read" | "label" | "happy" | "sleep"
@@ -28,6 +28,7 @@ export const companionAlt: Record<CompanionName, string> = {
   lulu: "Lumen, sage of wisdom",
   archi: "Archon, growth architect",
   gadi: "Relia, warm guide",
+  lumi: "Iris, Muse Core curator",
 };
 
 // Removed dead helpers getCompanionSpritePath / getCompanionCuePath (zero

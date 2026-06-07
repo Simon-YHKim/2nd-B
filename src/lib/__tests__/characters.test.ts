@@ -19,21 +19,22 @@ describe("Cosmic Pixel palette", () => {
 });
 
 describe("characters palette mapping", () => {
-  test("each of the 5 residents has the worldview-v-final accent", () => {
+  test("each of the 6 residents has the worldview-v-final accent", () => {
     expect(characterColors.secondb).toBe("#A78BFA"); // Soul Violet
     expect(characterColors.momo).toBe("#E8ECF8"); // Moon White (Narrative — monochrome)
     expect(characterColors.lulu).toBe("#72F2C7"); // Electric Mint (Wisdom / Lumen)
     expect(characterColors.archi).toBe("#4CC9F0"); // Signal Blue (Growth / Archon)
     expect(characterColors.gadi).toBe("#FFD166"); // Pixel Lamp (Bond / Relia — amber)
+    expect(characterColors.lumi).toBe("#FF9FD6"); // Dream Pink (Muse / Iris)
   });
 });
 
 describe("CHARACTERS roster", () => {
-  test("has the 5 worldview-v-final residents (Vela retired)", () => {
+  test("has the 6 worldview-v-final residents (Vela retired, Iris included)", () => {
     expect(Object.keys(CHARACTERS).sort()).toEqual(
-      ["archi", "gadi", "lulu", "momo", "secondb"].sort(),
+      ["archi", "gadi", "lulu", "lumi", "momo", "secondb"].sort(),
     );
-    expect(CHARACTER_ORDER).toHaveLength(5);
+    expect(CHARACTER_ORDER).toHaveLength(6);
   });
 
   test("each character has KO name + voice line", () => {
