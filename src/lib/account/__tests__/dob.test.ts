@@ -1,4 +1,4 @@
-import { dobCorrectionStatus, canSubmitDobCorrection } from "../dob";
+import { dobCorrectionStatus, canSubmitDobCorrection, formatBirthDateInput } from "../dob";
 
 // Anchor "today" so age math is deterministic. ageInYears uses the real clock,
 // so pick dates relative to a wide margin rather than exact birthdays.
@@ -39,5 +39,27 @@ describe("dob correction (task C)", () => {
     const iso = adult.toISOString().slice(0, 10);
     expect(dobCorrectionStatus(iso, iso)).toBe("same");
     expect(canSubmitDobCorrection(iso, iso)).toBe(false);
+  });
+});
+
+describe("formatBirthDateInput (PF-I: auto-mask for easier DOB entry)", () => {
+  test("inserts dashes as digits are typed", () => {
+    expect(formatBirthDateInput("1990")).toBe("1990");
+    expect(formatBirthDateInput("19900")).toBe("1990-0");
+    expect(formatBirthDateInput("199001")).toBe("1990-01");
+    expect(formatBirthDateInput("19900115")).toBe("1990-01-15");
+  });
+
+  test("strips non-digits and caps at 8 digits", () => {
+    expect(formatBirthDateInput("1990 / 01 / 15")).toBe("1990-01-15");
+    expect(formatBirthDateInput("199001159999")).toBe("1990-01-15");
+  });
+
+  test("backspacing over a trailing dash drops the preceding digit", () => {
+    expect(formatBirthDateInput("1990-")).toBe("1990");
+  });
+
+  test("empty stays empty", () => {
+    expect(formatBirthDateInput("")).toBe("");
   });
 });

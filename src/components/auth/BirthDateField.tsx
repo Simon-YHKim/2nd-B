@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 
 import { spacing } from "@/lib/theme/tokens";
 import { ageInYears, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
+import { formatBirthDateInput } from "@/lib/account/dob";
 import { Input } from "@/components/ui/Input";
 import { Text } from "@/components/ui/Text";
 
@@ -39,9 +40,10 @@ export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
       <Input
         value={value}
         placeholder="YYYY-MM-DD"
-        onChangeText={onChange}
+        onChangeText={(next) => onChange(formatBirthDateInput(next))}
         autoCapitalize="none"
-        keyboardType="numbers-and-punctuation"
+        keyboardType="number-pad"
+        maxLength={10}
         accessibilityLabel={t("signUp.birthDate")}
         accessibilityHint={t("signUp.birthDateHelper")}
       />
