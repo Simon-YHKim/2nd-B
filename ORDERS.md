@@ -14,33 +14,30 @@
 <오더 내용. 어떤 화면/기능/수정인지 구체적으로. 라이브 확인 원하면 명시.>
 -->
 
-### [O-4 / 2026-06-08 07:42] O-3 P1 그린라이트 + NavGraph 트리 재설계 전체 승인
-Simon 전체 승인. 두 가지 즉시 진행:
-
-**1. O-3 P1 (애널리틱스) — 즉시 시작:**
-- GA4 + Clarity 웹 활성화 + Sentry 에러트래킹 PR 작성 후 머지
-- GA4 Measurement ID / Clarity Project ID는 .env.example 슬롯 추가 후 Simon이 직접 값 주입 (EAS secret 경로 안내 포함)
-- 이벤트 taxonomy 3축(page_view·capture·secondb_session) 정의 포함
-- P2(Firebase+네이티브)/P3(AdMob코드)/P4(Play) 는 P1 완료 후 별도 오더로
-
-**2. NavGraph 4-AI 트리 재설계 — 결과 나오는 대로 즉시 구현:**
-- Coding-Infra 4-AI 워크플로우(world-layout.ts → tree-layout.ts) 완료 시 결과 ORDERS.md DONE에 공유
-- 구현 후 라이브 URL + 스크린샷 공유
-
-(### [O-5 / 2026-06-08 07:44] EXPO_PUBLIC_FORCE_TIER=off — 론치 전 필수
-.env.example의 기본값이 brain(페이월 전체 우회)로 되어있음. XPRIZE 심사 / 일반 릴리즈 전에 off로 전환 필요.
-
-**작업:**
-- .env.example에서 EXPO_PUBLIC_FORCE_TIER=brain → EXPO_PUBLIC_FORCE_TIER=off로 변경
-- env.test.ts의 "defaults to brain" 테스트도 off로 업데이트 (기대값 변경)
-- EAS eas.json production 프로필에 EXPO_PUBLIC_FORCE_TIER=off env 명시적 추가 (혹시 누락 시)
-- PR + CI green + 머지
-
-O-4 진행 중. 추가 오더는 위 O-4 블록 아래에.)
+### [O-4 part2] NavGraph 트리 재설계 — 🔄 단계별 진행중 (P1·P7 라이브)
+P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 참조. 남은 단계 P2(크기위계)·P5(시안링크)·P3(주황제거+큐브색)·P6(글로우)·P9(카드)·P11(모션) 계속 진행 중. 완료 시 DONE 갱신.
+(O-4 part1 애널리틱스 ✅·O-5 ✅ → DONE. 추가 오더는 여기에.)
 
 ---
 
 ## DONE (Claude 피드백)
+
+### [O-4 part1 / O-3 P1] 애널리틱스 활성화 — ✅ 머지 (Simon ID 주입 필요)
+[2026-06-08 / 08:26 KST] Claude — **#258 머지**(main `51f8da3`). Codex 구현+Claude 통합. GA4+Clarity+Sentry 웹 관측(동의 게이트, id없으면 no-op, **AdMob 없음**). PIPA 동의+C10 14세미만 분석/광고 OFF, GA4 광고동의 denied. 이벤트 3축(page_view·capture·secondb_session). 시크릿 하드코딩 0.
+**👉 Simon 액션(값 주입)**: 3개는 클라 공개 식별자(서버 시크릿 아님). 
+- **GitHub(웹 라이브)**: repo Settings→Secrets and variables→Actions→**Variables**에 `EXPO_PUBLIC_GA4_MEASUREMENT_ID`·`EXPO_PUBLIC_CLARITY_PROJECT_ID`·`EXPO_PUBLIC_SENTRY_DSN` 추가 후 web-deploy 재실행(빌드시 번들에 주입).
+- **EAS(네이티브)**: `eas env:create --environment production --visibility plaintext --name EXPO_PUBLIC_GA4_MEASUREMENT_ID --value <값>` (3개, plaintext — EXPO_PUBLIC은 secret 금지). 상세: agents/codex/outbox/20260608-codex-o3-p1-analytics.md
+- 값 주시면 제가 GitHub Variables 세팅까지 대행 가능(원하시면 한 줄).
+
+### [O-5] FORCE_TIER=off 론치 게이팅 — ✅ 머지
+[2026-06-08 / 08:26 KST] Claude — **#257 머지**(main `51f8da3` 포함). 페이월 우회(brain) 기본값을 **off**로(env.ts zod default가 실제 핵심) + .env.example + env.test + eas.json production 명시. 이제 릴리즈/심사 빌드가 실제 티어 과금 게이팅. 테스트 우회는 로컬 .env에 brain 명시.
+
+### [O-4 part2] 그래프 트리 재설계 — 🔄 P1·P7 라이브 (단계별)
+[2026-06-08 / 08:26 KST] Claude — 4AI 방향대로 **구조부터 단계 적용**:
+- **#255 P1**: 중앙 radial → **하단뿌리 상향 트리**. Soul Core un-pin(화면중앙 하드핀 제거) + world-layout 트리좌표(root 0.82·2-2-1 canopy·upward-cone 데이터) + 카드 framing + sectorFocus 재루팅. 테스트 18 재작성.
+- **#256 P7**: 파란 눈송이 Pattern Data를 **홈 화면 상시 노출**(전엔 zoom 1.8+에서만), tier-3 서브메뉴는 숨김.
+- 🔗 **라이브: https://simon-yhkim.github.io/2nd-B/** (로그인→그래프). **모바일로 구조 확인 부탁** — 뿌리가 하단·코어가 위로·눈송이 보이는지. 
+- 남은 단계 자체 진행: P2 큐브 크기위계↑ · P5 링크 전부 시안(현재 트렁크 green·잎 violet) · P3 주황 불꽃 제거+코어색 구분 · P6 글로우 · P9 카드(코어 스포트라이트) · P11 모션. 각 머지 시 갱신.
 
 ### [Simon 피드백] 그래프 재설계 — 4AI 방향 확정 ✅, 구현 착수 🔄
 [2026-06-08 / 07:50 KST] Claude — **4 AI 공동 방향수립 + adversarial 검증 완료.** 리포트: `agents/claude/outbox/preview/20260608-graph-redesign-direction-report.html` (PC 브라우저).
