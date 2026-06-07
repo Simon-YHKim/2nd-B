@@ -53,6 +53,13 @@ export function resolvePrivacyPrefs(stored: Record<string, unknown> | null | und
 // follow-up — this function alone is not a security boundary.
 export const MINOR_PROMOTABLE_KEYS: readonly PrivacyPrefKey[] = ["long_term_memory"];
 
+// D-12 (2026-06-07 consensus): only external_analytics is actually enforced
+// (analytics-consent-queue gates GA4/Clarity/PostHog). The other keys are kept
+// here for the single point of future wiring, but the settings UI MUST render
+// ONLY these enforced keys — showing a toggle that controls nothing is a false
+// privacy promise (esp. llm_training/sharing). privacy.tsx maps over this list.
+export const VISIBLE_PRIVACY_KEYS: readonly PrivacyPrefKey[] = ["external_analytics"];
+
 export function isPrivacyPrefEditable(key: PrivacyPrefKey, isMinor: boolean): boolean {
   if (!isMinor) return true;
   return MINOR_PROMOTABLE_KEYS.includes(key);

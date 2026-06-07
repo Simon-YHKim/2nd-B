@@ -169,7 +169,10 @@ export default function Privacy() {
           <Text variant="caption" color="brand" style={[styles.sectionEyebrow, eyebrowTracking]}>
             {t("privacy.sectionLabel")}
           </Text>
-          {PRIVACY_PREF_KEYS.map((key) => {
+          {/* D-12: render ONLY enforced controls. The other privacy_prefs keys
+              are retained (prefs.ts) but were non-functional toggles — a false
+              promise — so they are replaced by the honest statement below. */}
+          {VISIBLE_PRIVACY_KEYS.map((key) => {
             const editable = isPrivacyPrefEditable(key, minor);
             return (
               <PreferenceToggleRow
@@ -186,6 +189,9 @@ export default function Privacy() {
               />
             );
           })}
+          <Text variant="subtle" color="muted" style={styles.localFirstNote}>
+            {t("privacy.localFirstStatement")}
+          </Text>
         </View>
       </ScrollView>
     </PremiumAppShell>
