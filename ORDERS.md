@@ -27,7 +27,16 @@ Simon 전체 승인. 두 가지 즉시 진행:
 - Coding-Infra 4-AI 워크플로우(world-layout.ts → tree-layout.ts) 완료 시 결과 ORDERS.md DONE에 공유
 - 구현 후 라이브 URL + 스크린샷 공유
 
-(O-4 진행 중. 추가 오더는 위 O-4 블록 아래에.)
+(### [O-5 / 2026-06-08 07:44] EXPO_PUBLIC_FORCE_TIER=off — 론치 전 필수
+.env.example의 기본값이 brain(페이월 전체 우회)로 되어있음. XPRIZE 심사 / 일반 릴리즈 전에 off로 전환 필요.
+
+**작업:**
+- .env.example에서 EXPO_PUBLIC_FORCE_TIER=brain → EXPO_PUBLIC_FORCE_TIER=off로 변경
+- env.test.ts의 "defaults to brain" 테스트도 off로 업데이트 (기대값 변경)
+- EAS eas.json production 프로필에 EXPO_PUBLIC_FORCE_TIER=off env 명시적 추가 (혹시 누락 시)
+- PR + CI green + 머지
+
+O-4 진행 중. 추가 오더는 위 O-4 블록 아래에.)
 
 ---
 
