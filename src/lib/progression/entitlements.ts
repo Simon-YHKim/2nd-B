@@ -13,20 +13,18 @@ export const TIER_RANK: Record<SubscriptionTier, number> = {
   brain: 3,
 };
 
-// Free-tier "taste" limit per feature. A feature absent here is not
-// usage-limited (e.g. the onboarding audit is always unlimited).
-export const FREE_LIMIT: Partial<Record<GatedFeature, number>> = {
-  journal: 2,
-  note: 2,
-  self_context: 2, // counted per individual context
-};
+// Free-tier "taste" limit per feature. A feature absent here is NOT
+// usage-limited. D-09 M2 (2026-06-07 consensus): the local core is permanently
+// unlimited on Free — journal / note / self_context carry no cap. Gating moves
+// to the marginal-cost surfaces only (AI inference in chat/limits.ts, cloud
+// sync), never local journaling. A future cost-bearing feature may add its own
+// entry here; local writes stay uncapped.
+export const FREE_LIMIT: Partial<Record<GatedFeature, number>> = {};
 
-// The lowest tier at which a usage-limited feature becomes unlimited.
-export const UNLIMITED_AT_TIER: Partial<Record<GatedFeature, SubscriptionTier>> = {
-  journal: "soma",
-  note: "soma",
-  self_context: "cortex",
-};
+// The lowest tier at which a usage-limited feature becomes unlimited. Empty now
+// that the local core is free-unlimited (see FREE_LIMIT). Kept for future
+// cost-bearing usage-limited features.
+export const UNLIMITED_AT_TIER: Partial<Record<GatedFeature, SubscriptionTier>> = {};
 
 // Brain-only depth features.
 export type PremiumFeature = "advisor" | "planner";
