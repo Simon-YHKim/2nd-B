@@ -129,6 +129,14 @@ function pickInsight(locale: "en" | "ko", salt: number): string {
   return bank[salt % bank.length];
 }
 
+// Honest cold-start line: until there is at least one piece, the ribbon must NOT
+// claim "we noticed" patterns (there is no data to notice). Show an invitation
+// instead, so the ribbon never contradicts the empty-graph card.
+const FIRST_PIECE_INSIGHT: Record<"en" | "ko", string> = {
+  en: "Leave your first piece — patterns will show up here.",
+  ko: "첫 조각을 남기면 여기에서 패턴이 보이기 시작해요.",
+};
+
 // The logo→village entry flourish plays once per JS session. A module-level
 // flag survives the Stack pop's remount, so returning to "/" (e.g. BACK from a
 // village detail) snaps to the settled state instead of replaying the logo +
@@ -229,8 +237,14 @@ export default function Landing() {
     outputRange: [0, 0, 1],
   });
 
-  // Insight chosen once per Landing mount — different on each visit.
-  const insight = useMemo(() => pickInsight(locale, Date.now() % 1000), [locale]);
+  // Insight chosen once per Landing mount. Data-style "we noticed" lines only
+  // appear once the user actually has a piece; before that (or while the check
+  // is still resolving) show the honest invitation so the ribbon never claims
+  // patterns it cannot have.
+  const insight = useMemo(
+    () => (hasAnyPiece === true ? pickInsight(locale, Date.now() % 1000) : FIRST_PIECE_INSIGHT[locale]),
+    [locale, hasAnyPiece],
+  );
 
   // Fetch the user's classified pieces (clipper captures → `sources`) as the
   // tier-4 data dots. Each is placed in the village its tags point to
