@@ -100,6 +100,7 @@ const schema = z.object({
   // only use this for test keys. Production should route Gemini through a
   // Supabase Edge Function or Vertex with a service account.
   GOOGLE_API_KEY: z.string().optional(),
+  EXPO_PUBLIC_SENTRY_DSN: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
   EXPO_PUBLIC_POSTHOG_KEY: z.string().optional(),
   EXPO_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
@@ -152,6 +153,7 @@ function readRaw(): Record<string, string | undefined> {
   const enableApple = process.env.EXPO_PUBLIC_ENABLE_APPLE;
   const enableKakao = process.env.EXPO_PUBLIC_ENABLE_KAKAO;
   const publicGoogleKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
+  const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
   const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY;
   const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST;
   const ga4Id = process.env.EXPO_PUBLIC_GA4_MEASUREMENT_ID;
@@ -188,6 +190,7 @@ function readRaw(): Record<string, string | undefined> {
     // Prefer the inlined EXPO_PUBLIC_ variant when present (Web), fall back
     // to the non-public one (native / Edge Function).
     GOOGLE_API_KEY: (publicGoogleKey && publicGoogleKey.length > 0) ? publicGoogleKey : proc.GOOGLE_API_KEY,
+    EXPO_PUBLIC_SENTRY_DSN: sentryDsn,
     SENTRY_DSN: proc.SENTRY_DSN,
     EXPO_PUBLIC_POSTHOG_KEY: posthogKey,
     EXPO_PUBLIC_POSTHOG_HOST: posthogHost,

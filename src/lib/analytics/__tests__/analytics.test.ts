@@ -1,8 +1,19 @@
-// Smoke tests for the analytics abstraction. The actual PostHog/Sentry
-// SDKs are not installed (operator's choice when keys are configured),
-// so initAnalytics() should be a no-op without throwing.
+// Smoke tests for the analytics abstraction. SDK loading is gated by web
+// platform checks, env ids, and consent, so the default test path should be a
+// no-op without throwing.
 
-import { captureEvent, captureException, identifyUser, initAnalytics, setAnalyticsConsent, __resetAnalytics } from "../index";
+import {
+  canLoadProductAnalytics,
+  capture,
+  captureEvent,
+  captureException,
+  identifyUser,
+  initAnalytics,
+  pageView,
+  secondBSession,
+  setAnalyticsConsent,
+  __resetAnalytics,
+} from "../index";
 
 describe("analytics — no-op when no keys configured", () => {
   beforeEach(() => {
@@ -14,7 +25,7 @@ describe("analytics — no-op when no keys configured", () => {
   });
 
   test("captureEvent is silent when not initialized", () => {
-    expect(() => captureEvent({ name: "test" })).not.toThrow();
+    expect(() => captureEvent(pageView({ path: "/test" }))).not.toThrow();
   });
 
   test("identifyUser is silent when not initialized", () => {
@@ -39,8 +50,24 @@ describe("analytics — no-op when no keys configured", () => {
   test("setAnalyticsConsent is silent off-web and never loads SDKs without keys", () => {
     expect(() => setAnalyticsConsent(true)).not.toThrow();
     // product analytics stay no-ops (off-web in jest, and no keys configured)
-    expect(() => captureEvent({ name: "post_consent" })).not.toThrow();
+    expect(() => captureEvent(capture({ action: "saved", mode: "memo" }))).not.toThrow();
     expect(() => identifyUser("u2")).not.toThrow();
     expect(() => setAnalyticsConsent(false)).not.toThrow();
+  });
+
+  test("taxonomy helpers emit the three canonical event names", () => {
+    expect(pageView({ path: "/capture", locale: "ko" }).name).toBe("page_view");
+    expect(capture({ action: "started", mode: "link" }).name).toBe("capture");
+    expect(secondBSession({ action: "message_sent", mode: "chat", turn_count: 1 }).name).toBe(
+      "secondb_session",
+    );
+  });
+
+  test("PIPA/C10 gate blocks product analytics for minors and under-14 users", () => {
+    expect(canLoadProductAnalytics(true)).toBe(true);
+    expect(canLoadProductAnalytics(false)).toBe(false);
+    expect(canLoadProductAnalytics(true, { isMinor: true })).toBe(false);
+    expect(canLoadProductAnalytics(true, { underDigitalConsentAge: true })).toBe(false);
+    expect(() => setAnalyticsConsent(true, { underDigitalConsentAge: true })).not.toThrow();
   });
 });

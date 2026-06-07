@@ -1,8 +1,8 @@
 // Lightweight analytics + error-tracking abstraction.
 //
 // Why: the blueprint promises $0 fixed cost. PostHog, GA4, MS Clarity, and
-// Sentry all have free tiers, but we don't commit any SDK to the bundle until
-// it's actually configured. This module is a no-op when the relevant env id is
+// Sentry all have free tiers, but we do not load an SDK until it is actually
+// configured. This module is a no-op when the relevant env id is
 // unset (so dev/preview builds stay dependency-free) and wires up the real
 // tools when Simon adds the ids to GitHub Actions / EAS Variables.
 //
@@ -21,9 +21,57 @@ import { Platform } from "react-native";
 
 import { getEnv, type Env } from "../env";
 
-export interface AnalyticsEvent {
-  name: string;
-  props?: Record<string, string | number | boolean | null>;
+export type AnalyticsPropValue = string | number | boolean | null;
+export type AnalyticsProps = Record<string, AnalyticsPropValue | undefined>;
+export type AnalyticsEventName = "page_view" | "capture" | "secondb_session";
+
+export interface PageViewEventProps extends AnalyticsProps {
+  path: string;
+  title?: string;
+  locale?: "en" | "ko";
+}
+
+export type CaptureAction = "started" | "saved" | "failed" | "classified" | "promoted";
+export interface CaptureEventProps extends AnalyticsProps {
+  action: CaptureAction;
+  mode?: "journal" | "memo" | "link" | "clip" | "file" | "photo" | "ocr";
+  source_kind?: string;
+  has_file?: boolean;
+}
+
+export type SecondBSessionAction = "started" | "message_sent" | "message_received" | "ended" | "failed";
+export interface SecondBSessionEventProps extends AnalyticsProps {
+  action: SecondBSessionAction;
+  mode?: "chat" | "divergent" | "coach";
+  turn_count?: number;
+}
+
+export type PageViewAnalyticsEvent = { name: "page_view"; props: PageViewEventProps };
+export type CaptureAnalyticsEvent = { name: "capture"; props: CaptureEventProps };
+export type SecondBSessionAnalyticsEvent = { name: "secondb_session"; props: SecondBSessionEventProps };
+export type AnalyticsEvent = PageViewAnalyticsEvent | CaptureAnalyticsEvent | SecondBSessionAnalyticsEvent;
+
+export interface AnalyticsSubjectGate {
+  /** True for 14-17 high-privacy users. Product analytics stay off. */
+  isMinor?: boolean | null;
+  /** True below the KR/PIPA self-consent floor. Product analytics and ads stay off. */
+  underDigitalConsentAge?: boolean | null;
+}
+
+export function pageView(props: PageViewEventProps): PageViewAnalyticsEvent {
+  return { name: "page_view", props };
+}
+
+export function capture(props: CaptureEventProps): CaptureAnalyticsEvent {
+  return { name: "capture", props };
+}
+
+export function secondBSession(props: SecondBSessionEventProps): SecondBSessionAnalyticsEvent {
+  return { name: "secondb_session", props };
+}
+
+export function canLoadProductAnalytics(granted: boolean, gate?: AnalyticsSubjectGate): boolean {
+  return granted === true && gate?.isMinor !== true && gate?.underDigitalConsentAge !== true;
 }
 
 const CONSENT_KEY = "2ndb_analytics_consent";
@@ -47,18 +95,27 @@ function webWindow(): WebGlobal | null {
   return window as unknown as WebGlobal;
 }
 
+function cleanProps(props: AnalyticsProps | undefined): Record<string, AnalyticsPropValue> {
+  const out: Record<string, AnalyticsPropValue> = {};
+  if (!props) return out;
+  for (const [key, value] of Object.entries(props)) {
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
 /**
- * Lazy-initialize analytics. Safe to call multiple times — subsequent calls are
+ * Lazy-initialize analytics. Safe to call multiple times - subsequent calls are
  * no-ops. Called once from src/app/_layout.tsx as `void initAnalytics()`.
  *
- * Error tracking loads whenever SENTRY_DSN is set. Product analytics load only
+ * Error tracking loads whenever EXPO_PUBLIC_SENTRY_DSN is set. Product analytics load only
  * when analytics consent has been granted (explicit opt-in or a persisted prior
  * grant) AND the relevant id/key is configured.
  *
  * Failure modes (network, ad blockers, no ids, SSR): swallowed. Analytics must
  * never be a hard dependency for the app working.
  */
-export async function initAnalytics(opts?: { analyticsConsent?: boolean }): Promise<void> {
+export async function initAnalytics(opts?: { analyticsConsent?: boolean } & AnalyticsSubjectGate): Promise<void> {
   if (initialized) return;
   initialized = true;
 
@@ -72,18 +129,17 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean }): Prom
   // Web-only path. Native builds will get their own wiring later.
   if (!webWindow()) return; // also covers SSR / static export
 
-  // Sentry error tracking — operational, no PII, loads independently of the
+  // Sentry error tracking - operational, no PII, loads independently of the
   // analytics consent gate.
-  if (env.SENTRY_DSN) {
+  const sentryDsn = env.EXPO_PUBLIC_SENTRY_DSN || env.SENTRY_DSN;
+  if (sentryDsn) {
     try {
-      // @ts-expect-error — optional peer dep. Install @sentry/browser before
-      // configuring SENTRY_DSN.
       const mod = (await import("@sentry/browser")) as {
         init: (opts: Record<string, unknown>) => void;
         captureException: (err: unknown, context?: Record<string, unknown>) => void;
       };
       mod.init({
-        dsn: env.SENTRY_DSN,
+        dsn: sentryDsn,
         sendDefaultPii: false,
         tracesSampleRate: 0.1,
         replaysSessionSampleRate: 0,
@@ -96,14 +152,14 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean }): Prom
   }
 
   // M1 (round-4): do NOT trust the localStorage cache to auto-load product
-  // analytics at boot — a stale "granted", or a 14-17 minor who set the key in
+  // analytics at boot - a stale "granted", or a 14-17 minor who set the key in
   // devtools, would load GA4/Clarity/PostHog without re-checking the SERVER
   // decision. Product analytics now load ONLY from an explicit, server-derived
   // decision: initAnalytics({analyticsConsent}) or setAnalyticsConsent() once
   // AuthContext resolves external_analytics + minor status (see the
   // AnalyticsConsentSync effect in _layout). Sentry (above) is operational +
   // PII-free, so it loads regardless of this gate.
-  analyticsConsent = opts?.analyticsConsent ?? false;
+  analyticsConsent = canLoadProductAnalytics(opts?.analyticsConsent ?? false, opts);
   if (analyticsConsent) await loadProductAnalytics(env);
 }
 
@@ -120,7 +176,7 @@ async function loadProductAnalytics(env: Env): Promise<void> {
   // PostHog product analytics.
   if (!posthogClient && env.EXPO_PUBLIC_POSTHOG_KEY && env.EXPO_PUBLIC_POSTHOG_HOST) {
     try {
-      // @ts-expect-error — optional peer dep. The operator installs posthog-js
+      // @ts-expect-error - optional peer dep. The operator installs posthog-js
       // once ready to wire analytics; until then this dynamic import throws.
       const mod = (await import("posthog-js")) as {
         default: {
@@ -131,7 +187,7 @@ async function loadProductAnalytics(env: Env): Promise<void> {
       };
       mod.default.init(env.EXPO_PUBLIC_POSTHOG_KEY, {
         api_host: env.EXPO_PUBLIC_POSTHOG_HOST,
-        autocapture: false, // explicit events only — no input scraping
+        autocapture: false, // explicit events only - no input scraping
         capture_pageview: false, // screen-level events captured manually
         disable_session_recording: true, // privacy-first
         persistence: "memory", // no localStorage by default
@@ -142,7 +198,7 @@ async function loadProductAnalytics(env: Env): Promise<void> {
     }
   }
 
-  // GA4 (gtag.js) — public measurement id, privacy-hardened (IP anonymized, no
+  // GA4 (gtag.js) - public measurement id, privacy-hardened (IP anonymized, no
   // Google/ad signals). Inject the tag script once.
   if (!ga4Id && env.EXPO_PUBLIC_GA4_MEASUREMENT_ID) {
     try {
@@ -154,11 +210,17 @@ async function loadProductAnalytics(env: Env): Promise<void> {
       w.gtag = gtag;
       gtag("js", new Date());
       // Consent mode: we only reach here after explicit opt-in.
-      gtag("consent", "default", { analytics_storage: "granted", ad_storage: "denied" });
+      gtag("consent", "default", {
+        analytics_storage: "granted",
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+      });
       gtag("config", id, {
         anonymize_ip: true,
         allow_google_signals: false,
         allow_ad_personalization_signals: false,
+        send_page_view: false,
       });
       const s = document.createElement("script");
       s.async = true;
@@ -170,7 +232,7 @@ async function loadProductAnalytics(env: Env): Promise<void> {
     }
   }
 
-  // MS Clarity — loaded only post-consent. The project must be configured to
+  // MS Clarity - loaded only post-consent. The project must be configured to
   // mask text (sensitive content); signal cookie consent after load.
   if (!clarityLoaded && env.EXPO_PUBLIC_CLARITY_PROJECT_ID) {
     try {
@@ -196,19 +258,19 @@ async function loadProductAnalytics(env: Env): Promise<void> {
 
 /**
  * Record the user's analytics-consent decision. Persists it (web) so it gates
- * the next load, and — when granting in-session after init — loads the product
+ * the next load, and - when granting in-session after init - loads the product
  * analytics SDKs immediately. Revoking takes effect on the next reload (loaded
  * third-party SDKs can't be cleanly torn down mid-session).
  */
-export function setAnalyticsConsent(granted: boolean): void {
-  analyticsConsent = granted;
+export function setAnalyticsConsent(granted: boolean, gate?: AnalyticsSubjectGate): void {
+  analyticsConsent = canLoadProductAnalytics(granted, gate);
   const w = webWindow();
   try {
-    w?.localStorage?.setItem(CONSENT_KEY, granted ? "granted" : "denied");
+    w?.localStorage?.setItem(CONSENT_KEY, analyticsConsent ? "granted" : "denied");
   } catch {
     // ignore storage failures (private mode, etc.)
   }
-  if (granted && initialized && w) {
+  if (analyticsConsent && initialized && w) {
     let env: Env;
     try {
       env = getEnv();
@@ -221,7 +283,7 @@ export function setAnalyticsConsent(granted: boolean): void {
 
 /** Track a high-level product event. No-op until product analytics are loaded. */
 export function captureEvent(event: AnalyticsEvent): void {
-  const props = event.props ?? {};
+  const props = cleanProps(event.props);
   if (posthogClient) {
     try {
       posthogClient.capture(event.name, props);

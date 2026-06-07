@@ -21,6 +21,7 @@
   "dependencies": {
     "@google/genai": "^1.0.0",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@sentry/browser": "^10.56.0",
     "@supabase/supabase-js": "^2.45.0",
     "dayjs": "^1.11.13",
     "expo": "~56.0.8",
