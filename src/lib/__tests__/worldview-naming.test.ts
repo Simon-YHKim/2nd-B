@@ -29,7 +29,7 @@ describe("worldview v-final naming", () => {
     expect(PERSONAS.gadi.name.en).toBe("Relia");
     expect(PERSONAS.lulu.name.en).toBe("Lumen");
     expect(PERSONAS.momo.name.en).toBe("Foreman Momo");
-    expect(PERSONAS.lumi.name.en).toBe("Iris");
+    expect(PERSONAS.lumi.name.en).toBe("Lumina");
     expect(PERSONAS.archi.name.en).toBe("Archon");
     expect(PERSONAS.secondb.name.en).toBe("SecondB");
   });
