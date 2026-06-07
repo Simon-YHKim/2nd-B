@@ -11,7 +11,9 @@ import "../../global.css";
 import { initI18n } from "@/lib/i18n";
 import { initAnalytics, setAnalyticsConsent } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
+import { requiresGuardianConsent } from "@/lib/auth/consent-age";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { ageInYears } from "@/lib/supabase/auth";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { BackArrow } from "@/components/ui/BackArrow";
@@ -194,10 +196,11 @@ function IntroGate({ children }: { children: React.ReactNode }) {
 // M1 (round-4): gate product analytics on the SERVER decision, not the
 // localStorage cache (initAnalytics no longer auto-loads from it). Once auth
 // resolves, load GA4/Clarity/PostHog only when the user's stored
-// external_analytics pref is on AND they are not a 14-17 minor; otherwise clear
-// consent. A minor's privacy lock (0033/0038) already forces external_analytics
-// false server-side, so this is defense-in-depth against a stale/forged client
-// cache. Renders nothing; analytics never hard-fails the app.
+// external_analytics pref is on, they are not in the 14-17 high-privacy band,
+// and their birth date is not below the KR/PIPA self-consent floor. A minor's
+// privacy lock (0033/0038) already forces external_analytics false server-side,
+// so this is defense-in-depth against a stale/forged client cache. Renders
+// nothing; analytics never hard-fails the app.
 function AnalyticsConsentSync(): null {
   const { userId, isMinor, loading } = useAuth();
   useEffect(() => {
@@ -212,12 +215,14 @@ function AnalyticsConsentSync(): null {
         const supabase = getSupabaseClient();
         const { data } = await supabase
           .from("users")
-          .select("privacy_prefs")
+          .select("privacy_prefs,birth_date")
           .eq("id", userId)
           .maybeSingle();
         const ext =
           (data?.privacy_prefs as { external_analytics?: boolean } | null)?.external_analytics === true;
-        if (!cancelled) setAnalyticsConsent(ext && isMinor !== true);
+        const age = data?.birth_date ? ageInYears(data.birth_date as string) : null;
+        const underDigitalConsentAge = age !== null && requiresGuardianConsent(age, "KR");
+        if (!cancelled) setAnalyticsConsent(ext, { isMinor, underDigitalConsentAge });
       } catch {
         if (!cancelled) setAnalyticsConsent(false);
       }

@@ -67,6 +67,15 @@ describe("getEnv", () => {
     expect(env.GOOGLE_API_KEY).toBe("server-only");
   });
 
+  test("EXPO_PUBLIC_SENTRY_DSN parses as the web error-tracking DSN", async () => {
+    process.env.EXPO_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = "x".repeat(40);
+    process.env.EXPO_PUBLIC_SENTRY_DSN = "test-sentry-dsn";
+    const { getEnv } = await import("../env");
+    const env = getEnv();
+    expect(env.EXPO_PUBLIC_SENTRY_DSN).toBe("test-sentry-dsn");
+  });
+
   test("USE_VERTEX 'true' parses to boolean true", async () => {
     process.env.EXPO_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = "x".repeat(40);

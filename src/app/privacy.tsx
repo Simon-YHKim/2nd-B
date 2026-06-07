@@ -39,6 +39,8 @@ export default function Privacy() {
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.5 };
 
   const [prefs, setPrefs] = useState<PrivacyPrefs>(defaultPrivacyPrefs());
+  const minorRef = useRef(minor);
+  minorRef.current = minor;
   // Mirror the latest prefs into a ref kept current every render, so two rapid
   // toggles in the same tick compose off the freshest value: the second toggle
   // reads the first's synchronous prefsRef update in onToggle, not a stale
@@ -51,7 +53,7 @@ export default function Privacy() {
   // analytics-consent-queue module (where the async ordering is unit-tested).
   const saveQueue = useRef(
     createPrivacySaveQueue({
-      applyAnalyticsConsent: setAnalyticsConsent,
+      applyAnalyticsConsent: (granted) => setAnalyticsConsent(granted, { isMinor: minorRef.current }),
       latestAnalyticsOn: () => prefsRef.current.external_analytics,
     }),
   ).current;
@@ -76,7 +78,7 @@ export default function Privacy() {
         setReady(true);
         // Gate web analytics (GA4/Clarity/PostHog) on the external_analytics
         // pref — they load only when the user has opted in.
-        setAnalyticsConsent(loaded.external_analytics);
+        setAnalyticsConsent(loaded.external_analytics, { isMinor: minor });
       }
     })();
     return () => {
