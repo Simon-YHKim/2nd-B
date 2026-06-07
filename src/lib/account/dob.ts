@@ -23,3 +23,18 @@ export function dobCorrectionStatus(current: string | null, next: string): DobCo
 export function canSubmitDobCorrection(current: string | null, next: string): boolean {
   return dobCorrectionStatus(current, next) === "ok";
 }
+
+// Auto-format a raw entry into YYYY-MM-DD as the user types digits, so a
+// non-technical / older user types 8 digits on a number pad and the dashes
+// appear on their own (no manual punctuation). Re-derived from the digits each
+// keystroke, so backspacing over a dash naturally drops the digit before it.
+export function formatBirthDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  const y = digits.slice(0, 4);
+  const m = digits.slice(4, 6);
+  const d = digits.slice(6, 8);
+  let out = y;
+  if (digits.length > 4) out += `-${m}`;
+  if (digits.length > 6) out += `-${d}`;
+  return out;
+}
