@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 describe("visible brand copy", () => {
@@ -20,6 +20,30 @@ describe("visible brand copy", () => {
     for (const file of files) {
       const source = readFileSync(path.join(root, file), "utf8");
       expect(source).not.toMatch(/2nd-B(?!rain)|2ndB/);
+    }
+  });
+
+  test("Korean locale copy uses 세컨비 for the AI companion", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const localeDir = path.join(root, "locales/ko");
+
+    for (const file of readdirSync(localeDir).filter((name) => name.endsWith(".json"))) {
+      const source = readFileSync(path.join(localeDir, file), "utf8");
+      expect(source).not.toMatch(/\bSecondB\b/);
+    }
+
+    const appFiles = [
+      "src/app/core-brain.tsx",
+      "src/app/secondb.tsx",
+      "src/app/settings.tsx",
+      "src/app/wiki.tsx",
+      "src/components/premium/tab-bar.tsx",
+      "src/components/ui/BackArrow.tsx",
+    ];
+
+    for (const file of appFiles) {
+      const source = readFileSync(path.join(root, file), "utf8");
+      expect(source).not.toMatch(/세컨드비/);
     }
   });
 });

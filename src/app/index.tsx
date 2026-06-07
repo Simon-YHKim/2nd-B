@@ -317,8 +317,8 @@ export default function Landing() {
   const mascotLabel =
     locale === "ko"
       ? presence.mascot === "sleep"
-        ? "쉬고 있는 세컨드비"
-        : "세컨드비"
+        ? "쉬고 있는 세컨비"
+        : "세컨비"
       : presence.mascot === "sleep"
         ? "SecondB resting"
         : "SecondB";

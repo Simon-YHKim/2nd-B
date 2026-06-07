@@ -372,7 +372,7 @@ export default function SecondBChat() {
                   state="chat"
                   size={96}
                   float
-                  label={locale === "ko" ? "대화할 준비가 된 세컨드비" : "SecondB ready to chat"}
+                  label={locale === "ko" ? "대화할 준비가 된 세컨비" : "SecondB ready to chat"}
                 />
               </View>
               <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.md }}>

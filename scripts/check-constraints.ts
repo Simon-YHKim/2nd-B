@@ -1725,7 +1725,7 @@ results.push(
         i18n.includes("permissions: enPermissions") &&
         i18n.includes("permissions: koPermissions") &&
         en.includes("SecondB replies") &&
-        ko.includes("SecondB 답변") &&
+        ko.includes("세컨비 답변") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
         forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
       return {
@@ -1986,7 +1986,7 @@ results.push(
         '"common"',
         '"language"',
         '"checking": "확인하는 중',
-        '"entryArtwork": "SecondB 입장 이미지"',
+        '"entryArtwork": "세컨비 입장 이미지"',
         '"switchToEnglishLabel": "인증 화면 언어를 영어로 변경"',
         '"switchToKoreanLabel": "인증 화면 언어를 한국어로 변경"',
         '"resetBody": "가입 이메일 주소로 support@2nd-brain.app',
@@ -2004,7 +2004,7 @@ results.push(
         "Email support@2nd-brain.app from your account address",
         "New here? Read the 1-min manual",
         "확인하는 중…",
-        "SecondB 입장 이미지",
+        "세컨비 입장 이미지",
         "비밀번호 입력값을 화면에 표시합니다.",
         "비밀번호를 잊으셨나요?",
         "가입 이메일 주소로 support@2nd-brain.app",
@@ -2235,7 +2235,7 @@ results.push(
       wiki.includes('t("hero.subtitle")') &&
       wiki.includes('t("hero.speech")') &&
       en.includes("Find the pieces you saved to SecondB") &&
-      ko.includes("SecondB에 저장한 조각을 다시 찾아보는 곳") &&
+      ko.includes("2nd-Brain에 저장한 조각을 다시 찾아보는 곳") &&
       forbidden.every((term) => !wiki.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "WikiHeroI18nCopy",
@@ -2403,7 +2403,7 @@ results.push(
       codeRequiredSnippets.every((snippet) => formats.includes(snippet)) &&
       requiredLocaleKeys.every((key) => enFormats.includes(key) && koFormats.includes(key)) &&
       enFormats.includes("SecondB-proposed format") &&
-      koFormats.includes("SecondB가 제안한 형식") &&
+      koFormats.includes("세컨비가 제안한 형식") &&
       forbiddenScreenCopy.every((term) => !formats.includes(term));
     return {
       id: "FormatsOperationalI18nCopy",
@@ -2465,7 +2465,7 @@ results.push(
       enFormats.includes('"add"') &&
       koFormats.includes('"add"') &&
       enFormats.includes("SecondB suggests a reusable filing guide") &&
-      koFormats.includes("SecondB가 다시 쓸 수 있는 정리 기준") &&
+      koFormats.includes("세컨비가 다시 쓸 수 있는 정리 기준") &&
       requiredKeys.every((key) => enFormats.includes(key) && koFormats.includes(key)) &&
       forbiddenFlowCopy.every((term) => !flow.includes(term));
     return {
@@ -2571,7 +2571,7 @@ results.push(
       secondbSprite.includes('accessibilityRole: "image"') &&
       home.includes("const mascotLabel") &&
       home.includes("label={mascotLabel}") &&
-      jarvis.includes('label={locale === "ko" ? "대화할 준비가 된 세컨드비" : "SecondB ready to chat"}') &&
+      jarvis.includes('label={locale === "ko" ? "대화할 준비가 된 세컨비" : "SecondB ready to chat"}') &&
       graphBits.includes('accessible accessibilityRole="image" accessibilityLabel={meta.name[locale]}') &&
       islandArt.includes("accessibilityElementsHidden") &&
       islandArt.includes('importantForAccessibility="no-hide-descendants"') &&
