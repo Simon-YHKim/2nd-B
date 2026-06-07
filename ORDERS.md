@@ -1,4 +1,4 @@
-# ORDERS — Simon → Claude (외출 중 원격 오더 채널)
+﻿# ORDERS — Simon → Claude (외출 중 원격 오더 채널)
 
 > **목적**: Simon이 밖에서 모바일로 이 파일에 오더를 남기면, PC에서 도는 Claude의 2분 자율 루프가 매 틱 `git fetch` 후 이 파일을 읽어 **OPEN 오더를 수행하고 DONE에 피드백**을 남긴다. Simon은 모바일 AI로 이 파일의 DONE 피드백을 읽고 다음 오더를 남긴다. (양쪽 공유 매체 = 이 GitHub 파일.)
 >
@@ -14,7 +14,20 @@
 <오더 내용. 어떤 화면/기능/수정인지 구체적으로. 라이브 확인 원하면 명시.>
 -->
 
-(O-1·O-2·O-3 처리됨 → DONE 참조. 새 오더는 여기에.)
+### [O-4 / 2026-06-08 07:42] O-3 P1 그린라이트 + NavGraph 트리 재설계 전체 승인
+Simon 전체 승인. 두 가지 즉시 진행:
+
+**1. O-3 P1 (애널리틱스) — 즉시 시작:**
+- GA4 + Clarity 웹 활성화 + Sentry 에러트래킹 PR 작성 후 머지
+- GA4 Measurement ID / Clarity Project ID는 .env.example 슬롯 추가 후 Simon이 직접 값 주입 (EAS secret 경로 안내 포함)
+- 이벤트 taxonomy 3축(page_view·capture·secondb_session) 정의 포함
+- P2(Firebase+네이티브)/P3(AdMob코드)/P4(Play) 는 P1 완료 후 별도 오더로
+
+**2. NavGraph 4-AI 트리 재설계 — 결과 나오는 대로 즉시 구현:**
+- Coding-Infra 4-AI 워크플로우(world-layout.ts → tree-layout.ts) 완료 시 결과 ORDERS.md DONE에 공유
+- 구현 후 라이브 URL + 스크린샷 공유
+
+(O-4 진행 중. 추가 오더는 위 O-4 블록 아래에.)
 
 ---
 
