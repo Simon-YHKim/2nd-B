@@ -2,8 +2,9 @@
 //
 // 2026-05-27 — major redesign per user directive:
 //
-//   Tier 1 (centre, 1 node)     2nd Brain — user profile. Bubble has
-//                               a Jarvis quick-launch icon.
+//   Tier 1 (centre, 1 node)     2nd Brain — user profile. Chat opens from a
+//                               floating button (the bubble chat icon was
+//                               removed 2026-05-28).
 //   Tier 2 (3 nodes, mid ring)  현재의 나 / 과거의 나 / Wiki.
 //                               Wiki bubble has an upload icon.
 //   Tier 3 (~7 nodes, outer)    Wiki splits into 일상/Pro; 과거의 나
@@ -24,8 +25,9 @@
 //   - Wiki tier-2 node (bubbleAction: 'upload'): bubble shows a +
 //     icon that opens /capture. Bubble's primary action is "view 일상
 //     Wiki" but the icon offers the upload shortcut.
-//   - Core tier-1 node (bubbleAction: 'jarvis'): bubble shows a 💬
-//     icon that opens /secondb. Primary action: open /persona.
+//   - Core tier-1 node: primary action opens /persona. (The old chat
+//     bubble action was removed 2026-05-28; chat now opens from a floating
+//     button, so the centre node no longer carries a bubbleAction.)
 
 import { Fragment, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
@@ -148,7 +150,7 @@ export interface NavNode {
   href?: Href;
   label: { en: string; ko: string };
   description: { en: string; ko: string };
-  bubbleAction?: "jarvis" | "upload";
+  bubbleAction?: "upload";
 }
 
 export interface DataNode {
