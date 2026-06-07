@@ -49,9 +49,12 @@ const schema = z.object({
   //   - "soma" | "cortex" | "free": pin everyone to that tier to test a
   //     specific paywall boundary.
   // Restore real billing by setting EXPO_PUBLIC_FORCE_TIER=off.
+  // 2026-06-08 (O-5, launch prep): default is now "off" so a release/judge build
+  // gates billing for real. Set "brain" explicitly in a local .env only for
+  // testing-phase paywall bypass.
   EXPO_PUBLIC_FORCE_TIER: z
     .enum(["off", "free", "soma", "cortex", "brain"])
-    .default("brain"),
+    .default("off"),
   // Render the Soul Core v3 SVG art pack (public/assets/cosmic-pixel-v3-soulcore/)
   // instead of the legacy PNG art. Default true (Simon concept: the worldview
   // Soul/Pattern Core tesseract art + Foreman-Momo crew are the intended visuals).
