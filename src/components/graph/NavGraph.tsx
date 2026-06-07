@@ -33,6 +33,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ComponentProps } f
 import {
   Animated,
   AppState,
+  BackHandler,
   Easing,
   Platform,
   Pressable,
@@ -878,6 +879,15 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   const [activeId, setActiveId] = useState<string | null>(null);
   // Highlight-on-return (queue B): a tier-4 shard the user came back to see.
   const [highlightDataId, setHighlightDataId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeId == null) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setActiveId(null);
+      return true;
+    });
+    return () => sub.remove();
+  }, [activeId]);
 
   // Zoom-driven tier visibility (overhaul §5). Mirror the live pinch scale
   // into a coarse 0/1/2 bucket on the JS thread; the worklet only pushes a
