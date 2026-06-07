@@ -74,8 +74,9 @@ describe("sendChatMessage", () => {
     if (r.status !== "blocked") throw new Error("type narrowing");
     expect(r.limit).toBe(5);
     expect(r.used).toBe(5);
-    expect(r.upgradeTo).toBe("soma");
+    expect(r.upgradeTo).toBe("cortex");
     expect(r.hint).toContain("free chat limit (5)");
+    expect(r.hint).toContain("Plus");
 
     const callNames = captured.map((c) => c.fn);
     // R2: atomic-bump tries first, fails with ChatLimitExceededError, then

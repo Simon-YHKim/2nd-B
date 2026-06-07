@@ -106,14 +106,24 @@ const MODE_INSTRUCTION: Record<"analytic" | "divergent", { en: string; ko: strin
   },
 };
 
+// D-09 launch tier display names (Free / Plus / Pro). The raw enum (cortex,
+// brain, the deprecated soma) must never reach the UI; soma maps to Plus only as
+// a legacy fallback since it is no longer an upgrade target.
+const TIER_DISPLAY: Record<SubscriptionTier, string> = {
+  free: "Free",
+  soma: "Plus",
+  cortex: "Plus",
+  brain: "Pro",
+};
+
 const BLOCKED_HINT = {
   en: (limit: number, upgrade: SubscriptionTier | null) =>
     upgrade
-      ? `You've hit today's free chat limit (${limit}). Upgrade to ${upgrade.toUpperCase()} for more — limits reset at midnight KST.`
+      ? `You've hit today's free chat limit (${limit}). Upgrade to ${TIER_DISPLAY[upgrade]} for more — limits reset at midnight KST.`
       : `You've hit today's chat limit (${limit}). Limits reset at midnight KST.`,
   ko: (limit: number, upgrade: SubscriptionTier | null) =>
     upgrade
-      ? `오늘 채팅 한도(${limit}회)를 모두 사용했어요. ${upgrade.toUpperCase()} 플랜으로 업그레이드하면 더 많이 쓸 수 있어요 — 한도는 KST 자정에 초기화돼요.`
+      ? `오늘 채팅 한도(${limit}회)를 모두 사용했어요. ${TIER_DISPLAY[upgrade]} 플랜으로 업그레이드하면 더 많이 쓸 수 있어요 — 한도는 KST 자정에 초기화돼요.`
       : `오늘 채팅 한도(${limit}회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.`,
 };
 
