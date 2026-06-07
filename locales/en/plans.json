@@ -8,9 +8,7 @@
   },
   "current": "Current plan",
   "comingSoon": "Paid plans are coming soon",
-  "notify": "Notify me at launch",
-  "notifyHint": "We will let you know when Plus is ready. No charge until you choose it.",
-  "notified": "Thanks. We will reach out at launch.",
+  "comingSoonBody": "You will see Plus here when it is ready. No charge until you choose it.",
   "tiers": {
     "free": {
       "name": "Free",

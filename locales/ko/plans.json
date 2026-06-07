@@ -8,9 +8,7 @@
   },
   "current": "현재 플랜",
   "comingSoon": "유료 플랜은 곧 제공돼요",
-  "notify": "출시되면 알림 받기",
-  "notifyHint": "Plus가 준비되면 알려드릴게요. 직접 선택하기 전엔 과금되지 않아요.",
-  "notified": "고마워요. 출시되면 알려드릴게요.",
+  "comingSoonBody": "Plus가 준비되면 여기에서 보여드릴게요. 직접 선택하기 전엔 과금되지 않아요.",
   "tiers": {
     "free": {
       "name": "Free",

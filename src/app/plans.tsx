@@ -6,12 +6,11 @@
 // dead end (persona PF-D). The contextual entry point is the SecondB chat usage
 // panel, which links here when the daily AI limit is reached.
 
-import { useState } from "react";
 import { ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
-import { PremiumAppShell, SceneHero, PremiumButton } from "@/components/premium";
+import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useProgression } from "@/lib/progression/useProgression";
@@ -32,7 +31,6 @@ export default function Plans() {
   const locale = i18n.language === "ko" ? "ko" : "en";
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.5 };
   const progression = useProgression();
-  const [notified, setNotified] = useState(false);
 
   return (
     <PremiumAppShell>
@@ -53,7 +51,8 @@ export default function Plans() {
             <View
               key={key}
               style={[styles.card, highlight ? styles.cardHighlight : null]}
-              accessibilityLabel={`${t(`tiers.${key}.name`)} ${t(`tiers.${key}.price`)}`}
+              accessibilityRole="text"
+              accessibilityLabel={`${t(`tiers.${key}.name`)} ${t(`tiers.${key}.price`)}${isCurrent ? ", " + t("current") : ""}`}
             >
               <View style={styles.cardHead}>
                 <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
@@ -83,18 +82,12 @@ export default function Plans() {
           );
         })}
 
-        {/* D-09 M5: honest state. No fake checkout — real billing is gated on
-            Simon's PG setup (D-09 M3). */}
+        {/* D-09 M5: honest state. No fake checkout AND no notify-signup we cannot
+            honor (there is no email capture / backend yet) — just a truthful
+            status. Real billing is gated on Simon's PG setup (D-09 M3). */}
         <View style={styles.notifyPanel}>
           <Text variant="subtle" color="textMuted">{t("comingSoon")}</Text>
-          {notified ? (
-            <Text variant="body" color="brand" style={styles.notifiedText}>{t("notified")}</Text>
-          ) : (
-            <>
-              <PremiumButton label={t("notify")} variant="secondary" onPress={() => setNotified(true)} />
-              <Text variant="caption" color="textMuted" style={styles.notifyHint}>{t("notifyHint")}</Text>
-            </>
-          )}
+          <Text variant="caption" color="textMuted" style={styles.notifyHint}>{t("comingSoonBody")}</Text>
         </View>
 
         <Pressable
@@ -151,6 +144,5 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   notifyHint: { marginTop: spacing.xs },
-  notifiedText: { marginTop: spacing.xs },
-  back: { alignSelf: "center", marginTop: spacing.sm, padding: spacing.sm },
+  back: { alignSelf: "center", marginTop: spacing.sm, padding: spacing.sm, minHeight: 44, justifyContent: "center" },
 });
