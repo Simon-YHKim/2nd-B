@@ -1,10 +1,10 @@
 {
-  "title": "2ndB",
+  "title": "SecondB",
   "subtitle": "Your wiki, on tap. Ask anything - I'll cite the pages I used.",
   "empty": "Start a conversation. Try: \"What patterns show up across my captures this month?\"",
-  "placeholder": "Ask 2ndB...",
+  "placeholder": "Ask SecondB...",
   "send": "Send",
-  "intro_title": "Hi, I'm 2ndB",
+  "intro_title": "Hi, I'm SecondB",
   "intro_body": "I answer using your own wiki pages. My replies show the page names I used so you can trace the answer. Meta questions like 'what patterns recur across this month?' are where I shine.",
   "reference_piece_meta": "referenced piece",
   "intro_ok": "Got it",

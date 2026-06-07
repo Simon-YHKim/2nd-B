@@ -132,7 +132,7 @@ export default function Manual() {
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.languageRow}>
-          <Text variant="caption" color="brand">2ndB Guide</Text>
+          <Text variant="caption" color="brand">2nd-Brain Guide</Text>
           <Pressable
             onPress={() => {
               void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
