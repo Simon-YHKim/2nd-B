@@ -460,7 +460,7 @@ export default function Landing() {
           style={{ flex: 1 }}
           accessibilityRole="button"
           accessibilityLabel={locale === "ko" ? "오늘의 중심 보기" : "Open today's center"}
-          accessibilityHint={locale === "ko" ? "나의 중심 화면으로 이동합니다" : "Opens My center"}
+          accessibilityHint={locale === "ko" ? "나의 중심 화면으로 이동합니다" : "Opens Soul Core"}
         >
           {/* KO "오늘의 중심" reads worse when tracked + uppercased, so KO drops
               tracking to 0 and stays sentence-case; EN keeps the stylized
