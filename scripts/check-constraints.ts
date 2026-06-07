@@ -771,7 +771,6 @@ results.push(
     const signInRoles = (signIn.match(/accessibilityRole="button"/g) ?? []).length;
     const homeRoles = (home.match(/accessibilityRole="button"/g) ?? []).length;
     const jarvisButtons = (jarvis.match(/accessibilityRole="button"/g) ?? []).length;
-    const jarvisTabs = (jarvis.match(/accessibilityRole="tab"/g) ?? []).length;
     const navGraphButtons = (navGraph.match(/accessibilityRole="button"/g) ?? []).length;
     const esmTabs = (esm.match(/accessibilityRole="tab"/g) ?? []).length;
     const esmRadios = (esm.match(/accessibilityRole="radio"/g) ?? []).length;
@@ -902,10 +901,10 @@ results.push(
       home.includes("Open today's center") &&
       home.includes("Opens Core Brain") &&
       jarvisButtons >= 8 &&
-      jarvisTabs >= 1 &&
       jarvis.includes("Clears the current conversation") &&
-      jarvis.includes("Analytic response mode") &&
-      jarvis.includes("Divergent response mode") &&
+      jarvis.includes("Analytic mode") &&
+      jarvis.includes("Divergent mode") &&
+      jarvis.includes("selected: chatMode") &&
       jarvis.includes("Long press to copy this message") &&
       jarvis.includes("Dismisses the intro modal") &&
       jarvis.includes('accessibilityLabel={t("intro_mute")}') &&
