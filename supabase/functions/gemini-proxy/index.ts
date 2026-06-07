@@ -115,6 +115,7 @@ const CRISIS_TERMS_EN: readonly string[] = [
   'suicide', 'suicidal', 'kill myself', 'end my life', 'end it all',
   'ending it', 'self-harm', 'self harm', 'cutting myself', 'want to die',
   'i want to die', 'no reason to live',
+  'better off without me', 'burden to others', 'fade away',
 ];
 const CRISIS_TERMS_KO: readonly string[] = [
   '자살', '죽고 싶', '죽고싶', '살고 싶지 않', '사라지고 싶',
