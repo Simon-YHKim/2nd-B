@@ -180,19 +180,19 @@ export const MENU_NODES: readonly NavNode[] = [
   // Tier 2 — five Pattern Cores around the Soul Core (worldview v-final). The
   // former "imagine" core was removed: 공상 is now SecondB's Divergent mode.
   { id: "work", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "work" } },
-    label: { en: "Growth Core", ko: "일과 성장" },
+    label: { en: "Growth Core", ko: "그로스 코어" },
     description: { en: "Where the pieces that move today's you gather: work and growth.", ko: "오늘의 나를 움직이는 일과 성장의 조각들이 모이는 곳이에요." } },
   { id: "relation", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "relation" } },
-    label: { en: "Bond Core", ko: "관계와 사랑" },
+    label: { en: "Bond Core", ko: "본드 코어" },
     description: { en: "Where memories, promises, and conversations with people connect.", ko: "사람들과의 기억, 약속, 대화 조각이 이어지는 곳이에요." } },
   { id: "knowledge", tier: 2, parentId: "core", href: "/wiki", bubbleAction: "upload",
-    label: { en: "Wisdom Core", ko: "배움과 지식" },
+    label: { en: "Wisdom Core", ko: "위즈덤 코어" },
     description: { en: "Where what you've learned and understood stacks up as knowledge.", ko: "배우고 이해한 것들이 지식 조각으로 쌓이는 곳이에요." } },
   { id: "records", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "records" } },
-    label: { en: "Narrative Core", ko: "기록 보관소" },
+    label: { en: "Narrative Core", ko: "내러티브 코어" },
     description: { en: "Where every piece you've kept gathers so you can find it again.", ko: "남긴 모든 조각이 다시 찾아볼 수 있게 모이는 곳이에요." } },
   { id: "taste", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "taste" } },
-    label: { en: "Muse Core", ko: "취향과 영감" },
+    label: { en: "Muse Core", ko: "뮤즈 코어" },
     description: { en: "Where the things you like, are drawn to, and find inspiring gather.", ko: "좋아하는 것, 끌리는 것, 영감의 조각이 모이는 곳이에요." } },
 
   // Tier 3 — real sub-places under a district; revealed on zoom/selection.
@@ -225,7 +225,7 @@ export const CENTER_NODE: NavNode = {
   // right of the main screen. The bubble now only describes Core Brain.
   // Dev name stays "Core Brain"; user-facing label uses the village
   // wording "나의 중심" / "Soul Core" (handoff §7-2).
-  label: { en: "Soul Core", ko: "나의 중심" },
+  label: { en: "Soul Core", ko: "소울 코어" },
   // Core Brain speaks as the team's voice — calm, plural ("우리 / we"),
   // owns the cells. Surface this everywhere the user lands first.
   description: {
@@ -1217,7 +1217,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
 
   // Village type label per tier (overhaul §6/§7 sheet "노드 타입").
   const typeLabel = (tier: Tier): string => {
-    if (tier === 1) return locale === "ko" ? "나의 중심" : "Soul Core";
+    if (tier === 1) return locale === "ko" ? "소울 코어" : "Soul Core";
     if (tier === 2) return locale === "ko" ? "패턴 코어" : "Pattern Core";
     if (tier === 3) return locale === "ko" ? "패턴 데이터" : "Pattern Data";
     return locale === "ko" ? "로그" : "Log";

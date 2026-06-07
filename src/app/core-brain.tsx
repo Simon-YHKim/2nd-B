@@ -1,5 +1,5 @@
-// 나의 중심 / Core Brain screen (core-brain pack v2). Internal concept
-// stays "Core Brain"; user-facing name is "나의 중심". Reuses buildPersona
+// 소울 코어 / Core Brain screen (core-brain pack v2). Internal concept
+// stays "Core Brain"; user-facing name is "소울 코어". Reuses buildPersona
 // + buildCenterCards (the §7-2 cards) and a real records fetch for the
 // evidence drawer. Per the pack's data_contract we never fabricate
 // unsupported summaries — sections fall back to a collecting/empty state.
@@ -211,7 +211,7 @@ export default function CoreBrain() {
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
-          eyebrow={locale === "ko" ? "02. 나의 중심" : "02. Soul Core"}
+          eyebrow={locale === "ko" ? "02. 소울 코어" : "02. Soul Core"}
           title={locale === "ko" ? "내 조각들이 중심으로 모여요" : "Your pieces gather into a center"}
           subtitle={locale === "ko" ? "요즘 나의 연결 상태" : "How you're connecting lately"}
           island={CORE_VILLAGE_UI.island}
@@ -220,7 +220,7 @@ export default function CoreBrain() {
           speech={CORE_VILLAGE_UI.speech[locale]}
           primaryAction={{
             label: locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB",
-            onPress: () => router.push({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "나의 중심" : "my center" } }),
+            onPress: () => router.push({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "소울 코어" : "my center" } }),
           }}
         />
         <View style={styles.statRow}>
@@ -315,7 +315,7 @@ export default function CoreBrain() {
         <PremiumCTA
           label={locale === "ko" ? "세컨비에게 이 중심으로 묻기" : "Ask SecondB about this center"}
           variant="secondary"
-          onPress={() => router.push({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "나의 중심" : "my center" } })}
+          onPress={() => router.push({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "소울 코어" : "my center" } })}
         />
       </ScrollView>
 
@@ -332,7 +332,7 @@ export default function CoreBrain() {
             <Text variant="heading">{locale === "ko" ? "이걸 만든 조각들" : "The pieces behind this"}</Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
               {locale === "ko"
-                ? "세컨비와 나의 중심이 참고한 기록이에요."
+                ? "세컨비와 소울 코어이 참고한 기록이에요."
                 : "The records SecondB and your center drew on."}
             </Text>
             <ScrollView style={{ marginTop: spacing.md }} contentContainerStyle={{ gap: spacing.sm }}>

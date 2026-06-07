@@ -140,7 +140,7 @@ const FIRST_PIECE_INSIGHT: Record<"en" | "ko", string> = {
 // The logo→village entry flourish plays once per JS session. A module-level
 // flag survives the Stack pop's remount, so returning to "/" (e.g. BACK from a
 // village detail) snaps to the settled state instead of replaying the logo +
-// center-island ("나의 중심") fade — the old back-transition flash.
+// center-island ("소울 코어") fade — the old back-transition flash.
 let entryFlourishPlayed = false;
 
 export default function Landing() {
@@ -460,7 +460,7 @@ export default function Landing() {
           style={{ flex: 1 }}
           accessibilityRole="button"
           accessibilityLabel={locale === "ko" ? "오늘의 중심 보기" : "Open today's center"}
-          accessibilityHint={locale === "ko" ? "나의 중심 화면으로 이동합니다" : "Opens Soul Core"}
+          accessibilityHint={locale === "ko" ? "소울 코어 화면으로 이동합니다" : "Opens Soul Core"}
         >
           {/* KO "오늘의 중심" reads worse when tracked + uppercased, so KO drops
               tracking to 0 and stays sentence-case; EN keeps the stylized

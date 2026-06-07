@@ -212,7 +212,7 @@ export default function Persona() {
               : "I gathered the patterns that keep showing up. You can turn them into direction in your center."
           }
           primaryAction={{
-            label: locale === "ko" ? "나의 중심 보기" : "Open my center",
+            label: locale === "ko" ? "소울 코어 보기" : "Open my center",
             onPress: () => router.push("/core-brain"),
           }}
           secondaryAction={{
@@ -221,12 +221,12 @@ export default function Persona() {
             onPress: handleExport,
           }}        />
 
-        {/* 나의 중심 — §7-2 three-card summary in Core Brain voice.
+        {/* 소울 코어 — §7-2 three-card summary in Core Brain voice.
             Each card's meaning is coded by its left-border accent
             (mint / signal-blue / pixel-lamp), per DESIGN.md accent budget. */}
         <View style={styles.centerSection}>
           <Text variant="caption" color="textMuted" style={{ letterSpacing: 0 }}>
-            {locale === "ko" ? "나의 중심" : "Soul Core"}
+            {locale === "ko" ? "소울 코어" : "Soul Core"}
           </Text>
           {buildCenterCards(persona, locale).map((card) => (
             <View key={card.id} style={[styles.centerCard, { borderLeftColor: card.accent }]}>
