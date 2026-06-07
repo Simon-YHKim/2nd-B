@@ -36,7 +36,7 @@ const ROUTE_LABELS: Record<string, { en: string; ko: string }> = {
   "/audit": { en: "Audit", ko: "감사" },
   "/big-five": { en: "Big Five", ko: "빅파이브" },
   "/capture": { en: "Capture", ko: "담기" },
-  "/core-brain": { en: "Soul Core", ko: "나의 중심" },
+  "/core-brain": { en: "Soul Core", ko: "소울 코어" },
   "/data": { en: "Data", ko: "데이터" },
   "/formats": { en: "Formats", ko: "형식" },
   "/import": { en: "Import", ko: "가져오기" },

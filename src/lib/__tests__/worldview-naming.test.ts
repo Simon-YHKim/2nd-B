@@ -39,7 +39,7 @@ describe("worldview v-final naming", () => {
     for (const id of VILLAGE_IDS) {
       expect(VILLAGE_LABEL[id].ko).not.toContain("공상 작업실");
     }
-    expect(VILLAGE_LABEL.relation.ko).toBe("관계와 사랑");
+    expect(VILLAGE_LABEL.relation.ko).toBe("본드 코어");
     expect(VILLAGE_LABEL.relation.en).toBe("Bond Core");
   });
 });
