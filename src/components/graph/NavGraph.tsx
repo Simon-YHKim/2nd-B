@@ -43,6 +43,7 @@ import {
 } from "react-native";
 import Svg, { Line } from "react-native-svg";
 import { router, type Href } from "expo-router";
+import { useTranslation } from "react-i18next";
 import ReAnimated, {
   runOnJS,
   useAnimatedStyle,
@@ -79,6 +80,17 @@ import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } fr
 import { tierVisibility } from "./tier-visibility";
 import { patternLinkStyle } from "@/lib/graph/pattern-link";
 import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus } from "./world-layout";
+import {
+  drilldownCharacterForCore,
+  drilldownDataForCore,
+  drilldownDepthStyle,
+  enterCoreDrilldown,
+  exitDrilldown,
+  isPatternCoreId,
+  resolveDrilldownSelectedDataId,
+  selectDrilldownData,
+  type DrilldownState,
+} from "@/lib/graph/drilldown-nav";
 
 function SvgLine({ collapsable: _collapsable, ...props }: ComponentProps<typeof Line> & { collapsable?: boolean }) {
   return <Line {...props} />;
@@ -401,6 +413,7 @@ interface Props {
 }
 
 export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) {
+  const { t } = useTranslation("common");
   const { width, height } = useWindowDimensions();
   const cx = width / 2;
   const cy = height / 2;
@@ -562,9 +575,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // Reset the camera to the home view (closeout-v3 #4): used by double-tap AND
   // the floating "원래대로" button. Spring so the village snaps home elastically.
   const resetCamera = () => {
-    zoomScale.value = withTiming(1, { duration: 400, easing: ReEasing.out(ReEasing.cubic) });
-    zoomPanX.value = withTiming(0, { duration: 400, easing: ReEasing.out(ReEasing.cubic) });
-    zoomPanY.value = withTiming(0, { duration: 400, easing: ReEasing.out(ReEasing.cubic) });
+    const duration = prefersReducedMotion() ? 0 : 400;
+    zoomScale.value = withTiming(1, { duration, easing: ReEasing.out(ReEasing.cubic) });
+    zoomPanX.value = withTiming(0, { duration, easing: ReEasing.out(ReEasing.cubic) });
+    zoomPanY.value = withTiming(0, { duration, easing: ReEasing.out(ReEasing.cubic) });
     zoomSavedScale.value = 1;
     zoomSavedPanX.value = 0;
     zoomSavedPanY.value = 0;
@@ -897,17 +911,92 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   }, [dataPositions]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [drilldownState, setDrilldownState] = useState<DrilldownState>(exitDrilldown());
+  const drilldownCoreId = drilldownState.mode === "core" ? drilldownState.coreId : null;
+  const drilldownSelectedDataId = drilldownState.mode === "core" ? drilldownState.selectedDataId : null;
   // Highlight-on-return (queue B): a tier-4 shard the user came back to see.
   const [highlightDataId, setHighlightDataId] = useState<string | null>(null);
 
+  const drilldownDataNodes = useMemo(
+    () => (drilldownCoreId ? drilldownDataForCore(drilldownCoreId, dataNodes) : []),
+    [drilldownCoreId, dataNodes],
+  );
+  const drilldownDataIds = useMemo(
+    () => new Set(drilldownDataNodes.map((node) => node.id)),
+    [drilldownDataNodes],
+  );
+  const drilldownSelectedDataNode = useMemo(
+    () => drilldownDataNodes.find((node) => node.id === drilldownSelectedDataId) ?? null,
+    [drilldownDataNodes, drilldownSelectedDataId],
+  );
+  const drilldownCoreNode = useMemo(
+    () => (drilldownCoreId ? MENU_NODES.find((node) => node.id === drilldownCoreId) ?? null : null),
+    [drilldownCoreId],
+  );
+  const drilldownCharacter = drilldownCoreId ? drilldownCharacterForCore(drilldownCoreId) : "secondb";
+
   useEffect(() => {
-    if (activeId == null) return;
+    if (!drilldownCoreId) return;
+    const nextSelected = resolveDrilldownSelectedDataId(drilldownSelectedDataId, drilldownDataNodes);
+    if (nextSelected !== drilldownSelectedDataId) {
+      setDrilldownState({ mode: "core", coreId: drilldownCoreId, selectedDataId: nextSelected });
+    }
+  }, [drilldownCoreId, drilldownDataNodes, drilldownSelectedDataId]);
+
+  const drilldownCoreCenter = useMemo(
+    () => ({
+      x: cx,
+      y: Math.min(height * 0.56, Math.max(height * 0.42, height - 340)),
+    }),
+    [cx, height],
+  );
+
+  const renderPositions = useMemo(() => {
+    if (!drilldownCoreId) return positions;
+    const map = new Map(positions);
+    const current = positions.get(drilldownCoreId);
+    map.set(drilldownCoreId, {
+      x: drilldownCoreCenter.x,
+      y: drilldownCoreCenter.y,
+      angle: current?.angle ?? -Math.PI / 2,
+    });
+    return map;
+  }, [drilldownCoreCenter, drilldownCoreId, positions]);
+
+  const renderDataPositions = useMemo(() => {
+    if (!drilldownCoreId) return dataPositions;
+    const out = new Map<string, { x: number; y: number; parentId: string }>();
+    const visible = drilldownDataNodes.slice(0, 18);
+    const count = visible.length;
+    const minDimension = Math.min(width, height);
+    const baseRadius = Math.max(118, Math.min(220, minDimension * 0.29));
+    visible.forEach((node, index) => {
+      const tValue = count <= 1 ? 0.5 : index / (count - 1);
+      const angle = -Math.PI * 0.84 + Math.PI * 0.68 * tValue;
+      const ringOffset = count > 8 && index % 2 === 1 ? 34 : 0;
+      const radius = baseRadius + ringOffset;
+      out.set(node.id, {
+        x: drilldownCoreCenter.x + Math.cos(angle) * radius,
+        y: drilldownCoreCenter.y + Math.sin(angle) * radius,
+        parentId: drilldownCoreId,
+      });
+    });
+    return out;
+  }, [dataPositions, drilldownCoreCenter, drilldownCoreId, drilldownDataNodes, height, width]);
+
+  useEffect(() => {
+    if (activeId == null && drilldownCoreId == null) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (drilldownCoreId != null) {
+        setDrilldownState(exitDrilldown());
+        setActiveId(null);
+        return true;
+      }
       setActiveId(null);
       return true;
     });
     return () => sub.remove();
-  }, [activeId]);
+  }, [activeId, drilldownCoreId]);
 
   // Zoom-driven tier visibility (overhaul §5). Mirror the live pinch scale
   // into a coarse 0/1/2 bucket on the JS thread; the worklet only pushes a
@@ -1061,7 +1150,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // pressing 살펴보기 crossfades (route animation:"fade") from this overlay into
   // the detail with visual continuity. zoomMountId keeps the island mounted
   // through the fade-out.
-  const zoomIslandId = activeId && ISLAND_FOR[activeId] ? activeId : null;
+  const zoomIslandId = !drilldownCoreId && activeId && ISLAND_FOR[activeId] ? activeId : null;
   const zoomReveal = useRef(new Animated.Value(0)).current;
   const [zoomMountId, setZoomMountId] = useState<string | null>(null);
   useEffect(() => {
@@ -1086,6 +1175,16 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     }
   }, [zoomIslandId, zoomReveal]);
 
+  const drilldownReveal = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(drilldownReveal, {
+      toValue: drilldownCoreId ? 1 : 0,
+      duration: prefersReducedMotion() ? 0 : 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [drilldownCoreId, drilldownReveal]);
+
   useEffect(() => {
     const id = setInterval(() => {
       if (AppState.currentState !== "active") return;
@@ -1104,14 +1203,14 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     return () => clearInterval(id);
   }, [activeId]);
 
-  function swayTransform(id: string): unknown {
+  function swayTransform(id: string, extraScale = 1): unknown {
     // RN's transform union is fiddly to satisfy at compile time, but
     // the runtime contract is "array of single-key transform objects".
     // Each entry below is exactly one such object. Multiple `scale`
     // entries compose multiplicatively, which is exactly what we want:
     // spawn pop scale × ambient pulse scale.
     const s = swayRef.current.get(id);
-    const out: Array<Record<string, Animated.AnimatedInterpolation<number> | Animated.Value>> = [];
+    const out: Array<Record<string, Animated.AnimatedInterpolation<number> | Animated.Value | number>> = [];
     if (s) {
       out.push({ translateX: s.sx });
       out.push({ translateY: s.sy });
@@ -1120,6 +1219,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     if (sp) out.push({ scale: sp });
     const p = pulseValues.current.get(id);
     if (p) out.push({ scale: p });
+    if (extraScale !== 1) out.push({ scale: extraScale });
     return out;
   }
 
@@ -1228,15 +1328,17 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   const isRelated = (id: string): boolean =>
     activeId == null || id === activeId || activeNeighbors.has(id);
   // Dim predicate combining focus (activeId) and highlight-on-return.
-  const dimFor = (id: string): boolean =>
-    highlightDataId != null ? id !== highlightDataId : activeId != null && !isRelated(id);
+  const dimFor = (id: string): boolean => {
+    if (drilldownCoreId != null) return id !== drilldownCoreId && !drilldownDataIds.has(id);
+    return highlightDataId != null ? id !== highlightDataId : activeId != null && !isRelated(id);
+  };
 
   // Village type label per tier (overhaul §6/§7 sheet "노드 타입").
   const typeLabel = (tier: Tier): string => {
-    if (tier === 1) return locale === "ko" ? "소울 코어" : "Soul Core";
-    if (tier === 2) return locale === "ko" ? "패턴 코어" : "Pattern Core";
-    if (tier === 3) return locale === "ko" ? "패턴 데이터" : "Pattern Data";
-    return locale === "ko" ? "로그" : "Log";
+    if (tier === 1) return t("worldview.soulCore");
+    if (tier === 2) return t("worldview.patternCore");
+    if (tier === 3) return t("worldview.patternData");
+    return t("worldview.log");
   };
 
   // Accessibility Navigation (E5)
@@ -1256,6 +1358,19 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // camera so its sector fills the screen, then open the sheet. Tapping the
   // same node again (or a non-domain node) just toggles the sheet.
   function handleNodeTap(id: string) {
+    if (drilldownCoreId != null) {
+      if (drilldownDataIds.has(id)) {
+        setDrilldownState((prev) => selectDrilldownData(prev, id));
+      }
+      return;
+    }
+    if (isPatternCoreId(id)) {
+      const ids = drilldownDataForCore(id, dataNodes).map((node) => node.id);
+      resetCamera();
+      setActiveId(id);
+      setDrilldownState(enterCoreDrilldown(id, ids));
+      return;
+    }
     const willOpen = id !== activeId;
     setActiveId(willOpen ? id : null);
     if (!willOpen) return;
@@ -1271,6 +1386,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     if (focus) {
       focusWorldPoint(focus.focus.x, focus.focus.y, 1.5, height * 0.38);
     }
+  }
+
+  function handleExitDrilldown() {
+    setDrilldownState(exitDrilldown());
+    setActiveId(null);
   }
 
   function handleLook() {
@@ -1292,6 +1412,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     const label = activeNode?.label[locale];
     const worker = activeId ? VILLAGE_WORKER[activeId] : undefined;
     setActiveId(null);
+    setDrilldownState(exitDrilldown());
     const params: Record<string, string> = {};
     if (label) params.fromNode = label;
     if (worker) params.character = worker;
@@ -1303,6 +1424,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     // divergent chat mode from a new angle.
     const label = activeNode?.label[locale];
     setActiveId(null);
+    setDrilldownState(exitDrilldown());
     const params: Record<string, string> = { mode: "divergent" };
     if (label) params.fromNode = label;
     router.push({ pathname: "/secondb", params });
@@ -1315,6 +1437,14 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       ? MENU_NODES.find((n) => n.id === activeDataNode.parentId)
       : null;
     setActiveId(null);
+    router.push(village?.href ?? "/records");
+  }
+
+  function handleDrilldownDataTouch() {
+    if (!drilldownSelectedDataNode) return;
+    setActiveId(null);
+    setDrilldownState(exitDrilldown());
+    const village = MENU_NODES.find((n) => n.id === drilldownSelectedDataNode.parentId);
     router.push(village?.href ?? "/records");
   }
 
@@ -1336,24 +1466,40 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           layer spanning the whole graph so pan/pinch register from ANY empty
           area, not only on island art. Node Pressables render later (on top)
           so their taps still win; this only catches the gaps. */}
-      <View style={StyleSheet.absoluteFill} />
+      {drilldownCoreId ? (
+        <Pressable
+          onPress={handleExitDrilldown}
+          accessible={false}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : (
+        <View style={StyleSheet.absoluteFill} />
+      )}
       {/* Animated edges — endpoints track each node's drift. */}
       <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
         {edges.map((e) => {
           // Tier-gating (§5): hide edges whose endpoints aren't shown.
-          if (!idVisible(e.fromId) || !idVisible(e.toId)) return null;
+          if (drilldownCoreId != null) {
+            const fromData = drilldownDataIds.has(e.fromId);
+            const toData = drilldownDataIds.has(e.toId);
+            const keep =
+              (e.fromId === drilldownCoreId && toData) ||
+              (e.toId === drilldownCoreId && fromData) ||
+              (fromData && toData);
+            if (!keep) return null;
+          } else if (!idVisible(e.fromId) || !idVisible(e.toId)) return null;
           const fromBase = e.fromId === CENTER_NODE.id
             ? { x: cx, y: cy }
-            : positions.get(e.fromId) ?? dataPositions.get(e.fromId);
+            : renderPositions.get(e.fromId) ?? renderDataPositions.get(e.fromId);
           const toBase = e.toId === CENTER_NODE.id
             ? { x: cx, y: cy }
-            : positions.get(e.toId) ?? dataPositions.get(e.toId);
+            : renderPositions.get(e.toId) ?? renderDataPositions.get(e.toId);
           if (!fromBase || !toBase) return null;
           const incident = activeId != null && (e.fromId === activeId || e.toId === activeId);
           // C6: edge to the ambient-glow domain stays lit (no active needed).
           const glowIncident = glowNodeId != null && (e.fromId === glowNodeId || e.toId === glowNodeId);
           // §7: when a node is focused, dim the unrelated edges.
-          const dimFactor = activeId != null && !incident ? 0.22 : 1;
+          const dimFactor = drilldownCoreId != null ? 1 : activeId != null && !incident ? 0.22 : 1;
           const childTier = tierOf(e.toId);
           const edgeStyle = patternLinkStyle(patternLinkProximity({
             incident,
@@ -1444,9 +1590,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       {/* Tier 4 data nodes — fade in/out with zoom (§5 + graph-ux #8).
           Simon's 2026-06-08 reference shows saved pieces as small Pattern Data
           crystals connected by Pattern Links, not as generic log dots. */}
-      {tier4Mounted
-        ? Array.from(dataPositions.entries()).map(([id, p]) => {
+      {drilldownCoreId || tier4Mounted
+        ? Array.from(renderDataPositions.entries()).map(([id, p]) => {
             const piece = dataNodesMap.get(id);
+            const isDrilldownData = drilldownCoreId != null;
             return (
             <Animated.View
               key={id}
@@ -1455,10 +1602,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 {
                   left: p.x - DATA_NODE_SIZE / 2,
                   top: p.y - DATA_NODE_SIZE / 2,
-                  opacity: tier4Fade as never,
+                  opacity: (isDrilldownData ? spawnOpacity(id) : tier4Fade) as never,
                   transform: swayTransform(id) as never,
                 },
-                id === highlightDataId ? styles.shardHighlight : null,
+                id === highlightDataId || id === drilldownSelectedDataId ? styles.shardHighlight : null,
                 dimFor(id) ? styles.dimmed : null,
               ]}
             >
@@ -1473,9 +1620,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 accessibilityRole="button"
                 accessibilityLabel={piece?.title ?? "piece"}
                 accessibilityHint={
-                  locale === "ko" ? "조각 요약과 해시태그를 엽니다" : "Opens this piece summary and tags"
+                  isDrilldownData
+                    ? t("navGraph.drilldown.dataDetailHint")
+                    : locale === "ko" ? "조각 요약과 해시태그를 엽니다" : "Opens this piece summary and tags"
                 }
-                accessibilityState={{ selected: activeId === id }}
+                accessibilityState={{ selected: activeId === id || drilldownSelectedDataId === id }}
               >
                 <View style={[{ opacity: depthStyleForTier(4).opacity }, depthSaturateStyle(4) as never]}>
                   <FinalPatternDataSnowflakeArt
@@ -1496,11 +1645,13 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
 
       {/* Tier 2 + 3 nodes — pixel-object art; tier 3 fades with zoom (§5 + #8) */}
       {MENU_NODES.map((n) => {
+        if (drilldownCoreId != null && n.id !== drilldownCoreId) return null;
         // Tier 3 stays mounted through its fade-out; tier 2 is always shown.
         if (n.tier === 3 ? !tier3Mounted : !nodeVisible(n.tier)) return null;
-        const base = positions.get(n.id);
+        const base = renderPositions.get(n.id);
         if (!base) return null;
-        const size = tierSize(n.tier);
+        const coreDepth = drilldownCoreId === n.id ? drilldownDepthStyle("focusedCore", n.tier) : null;
+        const size = coreDepth ? Math.min(112, Math.max(88, width * 0.24)) : tierSize(n.tier);
         const dim = dimFor(n.id);
         return (
           <Animated.View
@@ -1513,7 +1664,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 width: size,
                 height: size,
                 opacity: (n.tier === 3 ? tier3Fade : spawnOpacity(n.id)) as never,
-                transform: swayTransform(n.id) as never,
+                transform: swayTransform(n.id, coreDepth?.scale ?? 1) as never,
               },
             ]}
           >
@@ -1575,6 +1726,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       })}
 
       {/* Center (tier 1) */}
+      {!drilldownCoreId ? (
       <Animated.View
         style={[
           styles.menuDotWrap,
@@ -1607,6 +1759,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           />
         </View>
       </Animated.View>
+      ) : null}
 
       {/* Working residents — render LAST inside the transform so they walk
           ABOVE the island/node art (graph-ux #5: were hidden behind islands)
@@ -1667,7 +1820,15 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         </Animated.View>
       ) : null}
 
+      {drilldownCoreId ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, styles.drilldownBackdrop, { opacity: drilldownReveal as never }]}
+        />
+      ) : null}
+
       {/* E5 Accessibility / Settings Floating Buttons */}
+      {!drilldownCoreId ? (
       <View style={styles.a11yNavWrap} pointerEvents="box-none">
         <Pressable
           onPress={goPrevCategory}
@@ -1697,9 +1858,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           <Text style={styles.a11yBtnText}>{locale === "ko" ? "다음" : "Next"}</Text>
         </Pressable>
       </View>
+      ) : null}
 
       {/* Node bottom sheet (§7) — screen-fixed, outside the zoom transform. */}
-      {activeNode ? (
+      {activeNode && !drilldownCoreId ? (
         <NodeSheet
           locale={locale}
           name={activeNode.label[locale]}
@@ -1716,7 +1878,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
 
       {/* Piece popup (2026-06-02) — a tapped tier-4 data node shows its summary
           + hashtags and a single 자세히 button. */}
-      {activeDataNode ? (
+      {!drilldownCoreId && activeDataNode ? (
         <DataNodeSheet
           locale={locale}
           title={activeDataNode.title}
@@ -1724,6 +1886,22 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           tags={activeDataNode.tags ?? []}
           onDetail={handlePieceDetail}
           onClose={() => setActiveId(null)}
+        />
+      ) : null}
+
+      {drilldownCoreNode ? (
+        <DrilldownSheet
+          locale={locale}
+          coreId={drilldownCoreNode.id}
+          coreName={drilldownCoreNode.label[locale]}
+          character={drilldownCharacter}
+          dataTitle={drilldownSelectedDataNode?.title ?? null}
+          dataSummary={drilldownSelectedDataNode?.summary ?? null}
+          dataTags={drilldownSelectedDataNode?.tags ?? []}
+          dataCount={drilldownDataNodes.length}
+          onBack={handleExitDrilldown}
+          onCoreTouch={handleAskSecondB}
+          onDataTouch={handleDrilldownDataTouch}
         />
       ) : null}
     </View>
@@ -1833,6 +2011,124 @@ function NodeSheet({
   );
 }
 
+function DrilldownSheet({
+  locale,
+  coreId,
+  coreName,
+  character,
+  dataTitle,
+  dataSummary,
+  dataTags,
+  dataCount,
+  onBack,
+  onCoreTouch,
+  onDataTouch,
+}: {
+  locale: "en" | "ko";
+  coreId: string;
+  coreName: string;
+  character: WorkerId;
+  dataTitle: string | null;
+  dataSummary: string | null;
+  dataTags: readonly string[];
+  dataCount: number;
+  onBack: () => void;
+  onCoreTouch: () => void;
+  onDataTouch: () => void;
+}) {
+  const { t } = useTranslation("common");
+  const { width } = useWindowDimensions();
+  const compact = width < 430;
+  const slide = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    slide.setValue(0);
+    Animated.timing(slide, {
+      toValue: 1,
+      duration: prefersReducedMotion() ? 0 : 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [coreId, slide]);
+  const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [34, 0] });
+  const persona = getPersona(character);
+  const dataBody =
+    dataTitle == null
+      ? t("navGraph.drilldown.noDataBody")
+      : dataSummary && dataSummary.trim().length > 0
+        ? dataSummary
+        : t("navGraph.drilldown.dataFallback", { core: coreName });
+
+  return (
+    <Animated.View style={[styles.sheet, styles.drilldownSheet, { opacity: slide as never, transform: [{ translateY }] }]}>
+      <View style={styles.sheetHandle} />
+      <View style={styles.sheetHead}>
+        <View style={styles.sheetTitleRow}>
+          <WorkerSprite id={character} size={32} />
+          <Text variant="heading" style={styles.sheetName}>{coreName}</Text>
+        </View>
+        <Pressable
+          onPress={onBack}
+          hitSlop={10}
+          style={styles.drilldownBack}
+          accessibilityRole="button"
+          accessibilityLabel={t("navGraph.drilldown.back")}
+          accessibilityHint={t("navGraph.drilldown.backHint")}
+        >
+          <Text variant="caption" style={styles.drilldownBackText}>{t("navGraph.drilldown.back")}</Text>
+        </Pressable>
+      </View>
+      <View style={[styles.drilldownCardRow, compact ? styles.drilldownCardColumn : null]}>
+        <View style={styles.drilldownCard}>
+          <Text variant="caption" color="brand" style={styles.sheetType}>
+            {t("navGraph.drilldown.coreEyebrow")}
+          </Text>
+          <Text variant="body" color="textMuted" style={styles.drilldownCardBody}>
+            {t(`navGraph.drilldown.coreIntro.${coreId}`)}
+          </Text>
+          <PremiumButton
+            label={`${persona.name[locale]} ${t("navGraph.drilldown.touch")}`}
+            variant="secondary"
+            onPress={onCoreTouch}
+            full
+            style={styles.drilldownCardButton}
+          />
+        </View>
+        <View style={styles.drilldownCard}>
+          <View style={styles.drilldownCardHead}>
+            <Text variant="caption" color="brand" style={styles.sheetType}>
+              {t("navGraph.drilldown.dataEyebrow")}
+            </Text>
+            <Text variant="subtle" color="textSubtle">{dataCount}</Text>
+          </View>
+          <Text variant="body" style={styles.drilldownDataTitle} numberOfLines={2}>
+            {dataTitle ?? t("navGraph.drilldown.noDataTitle")}
+          </Text>
+          <Text variant="subtle" color="textMuted" style={styles.drilldownCardBody} numberOfLines={3}>
+            {dataBody}
+          </Text>
+          {dataTags.length > 0 ? (
+            <View style={styles.dataTagRow}>
+              {dataTags.slice(0, 4).map((tag) => (
+                <View key={tag} style={styles.dataTagChip}>
+                  <Text style={styles.dataTagText}>#{tag}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+          <PremiumButton
+            label={t("navGraph.drilldown.touch")}
+            variant="primary"
+            onPress={onDataTouch}
+            disabled={dataTitle == null}
+            full
+            style={styles.drilldownCardButton}
+          />
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
 // Piece popup for a tapped tier-4 data node: the AI summary + hashtags and a
 // single 자세히 button that opens the piece's village (2026-06-02 directive).
 function DataNodeSheet({
@@ -1919,6 +2215,10 @@ const styles = StyleSheet.create({
   },
   zoomBackdrop: { backgroundColor: "rgba(7,10,24,0.55)" },
   zoomIslandWrap: { alignItems: "center", justifyContent: "center" },
+  drilldownBackdrop: {
+    backgroundColor: "rgba(7,10,24,0.36)",
+    zIndex: 17,
+  },
   menuDotWrap: { position: "absolute", alignItems: "center", justifyContent: "center" },
   nodeArtWrap: {
     flex: 1,
@@ -2047,6 +2347,62 @@ const styles = StyleSheet.create({
   sheetActions: { flexDirection: "row", gap: 10, marginTop: 16 },
   sheetActionBtn: { flex: 1 },
   sheetImagine: { alignSelf: "center", paddingVertical: 10 },
+  drilldownSheet: {
+    bottom: 78,
+    zIndex: 28,
+  },
+  drilldownBack: {
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(114,242,199,0.4)",
+    backgroundColor: "rgba(114,242,199,0.08)",
+  },
+  drilldownBackText: {
+    color: cosmic.signalMint,
+    letterSpacing: 0,
+    fontFamily: fontFamilies.readable,
+  },
+  drilldownCardRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 14,
+  },
+  drilldownCardColumn: {
+    flexDirection: "column",
+  },
+  drilldownCard: {
+    flex: 1,
+    minHeight: 172,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(141,152,184,0.42)",
+    backgroundColor: "rgba(13,21,48,0.72)",
+    padding: 12,
+  },
+  drilldownCardHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  drilldownCardBody: {
+    marginTop: 8,
+    lineHeight: 19,
+    fontFamily: fontFamilies.readable,
+  },
+  drilldownDataTitle: {
+    marginTop: 8,
+    color: cosmic.moonWhite,
+    fontFamily: fontFamilies.readable,
+    fontWeight: "700",
+  },
+  drilldownCardButton: {
+    marginTop: 12,
+  },
   dataTagRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 12 },
   dataTagChip: {
     borderRadius: 6,

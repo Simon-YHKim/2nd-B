@@ -30,5 +30,37 @@
   "locale": {
     "en": "English",
     "ko": "한국어"
+  },
+  "worldview": {
+    "soulCore": "소울 코어",
+    "growthCore": "그로스 코어",
+    "bondCore": "본드 코어",
+    "wisdomCore": "위즈덤 코어",
+    "narrativeCore": "내러티브 코어",
+    "museCore": "뮤즈 코어",
+    "patternCore": "패턴 코어",
+    "patternData": "패턴 데이터",
+    "log": "로그",
+    "patternLink": "패턴 링크"
+  },
+  "navGraph": {
+    "drilldown": {
+      "back": "전체 성좌로 돌아가기",
+      "backHint": "패턴 코어 드릴다운에서 전체 성좌로 돌아갑니다.",
+      "coreEyebrow": "패턴 코어",
+      "dataEyebrow": "패턴 데이터",
+      "touch": "Touch!",
+      "coreIntro": {
+        "work": "이곳은 그로스 코어예요. 커리어와 성장에 관련된 조각들이 모여 있어요.",
+        "relation": "이곳은 본드 코어예요. 사람들과의 기억, 약속, 대화 조각이 모여 있어요.",
+        "knowledge": "이곳은 위즈덤 코어예요. 배우고 이해한 조각들이 모여 있어요.",
+        "records": "이곳은 내러티브 코어예요. 남긴 조각을 다시 찾기 좋게 모아 두어요.",
+        "taste": "이곳은 뮤즈 코어예요. 취향과 영감의 조각들이 모여 있어요."
+      },
+      "dataFallback": "{{core}}의 패턴 데이터 노드예요.",
+      "noDataTitle": "아직 패턴 데이터가 없어요",
+      "noDataBody": "조각을 남기면 이 패턴 코어에 눈송이 노드가 자라나요.",
+      "dataDetailHint": "선택한 패턴 데이터 상세를 엽니다."
+    }
   }
 }
