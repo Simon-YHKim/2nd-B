@@ -7,5 +7,5 @@
 import { Redirect } from "expo-router";
 
 export default function Imagine() {
-  return <Redirect href={{ pathname: "/jarvis", params: { mode: "divergent" } }} />;
+  return <Redirect href={{ pathname: "/secondb", params: { mode: "divergent" } }} />;
 }

@@ -109,7 +109,7 @@ describe("sendChatMessage", () => {
     // System prompt was assembled from header + exportUserWiki output.
     const geminiCall = captured.find((c) => c.fn === "callGemini");
     const geminiArgs = geminiCall?.args[0] as { system: string; purpose: string; user: string };
-    expect(geminiArgs.purpose).toBe("jarvis_chat");
+    expect(geminiArgs.purpose).toBe("secondb_chat");
     expect(geminiArgs.user).toBe("hello");
     expect(geminiArgs.system).toContain("SecondB"); // header
   });

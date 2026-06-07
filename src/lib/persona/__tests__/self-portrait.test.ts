@@ -67,7 +67,7 @@ describe("buildSelfPortrait — data contract", () => {
     expect(byId).toMatchObject({
       who: "/persona",
       forWhom: "/interview",
-      goal: "/jarvis?mode=divergent",
+      goal: "/secondb?mode=divergent",
       do: "/capture",
       fuel: "/audit",
     });

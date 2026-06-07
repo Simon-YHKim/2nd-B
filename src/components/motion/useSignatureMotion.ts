@@ -79,7 +79,7 @@ export function useConnectionGlow() {
 
 /**
  * Soft, continuous presence pulse for a sprite signal glow. (Legacy name:
- * imagine/공상; that place is retired, Divergent mode now lives in /jarvis.)
+ * imagine/공상; that place is retired, Divergent mode now lives in /secondb.)
  * Starts on mount; reduced-motion holds it at rest opacity with no animation.
  * Returns opacity + scale to bind into a style.
  */

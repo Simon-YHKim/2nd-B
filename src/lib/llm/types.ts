@@ -8,7 +8,7 @@ export type PromptPurpose =
   | "knowledge_lookup"
   | "persona_chat"
   | "advisor"
-  | "jarvis_chat"
+  | "secondb_chat"
   | "interview_probe"
   | "capture_ocr"
   | "capture_classify"

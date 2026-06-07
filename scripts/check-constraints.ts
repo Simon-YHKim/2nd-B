@@ -148,12 +148,12 @@ results.push(
 results.push(
   check("C7", () => {
     const capture = read("src/app/capture.tsx");
-    const jarvis = read("src/app/jarvis.tsx");
+    const jarvis = read("src/app/secondb.tsx");
     const manual = read("src/app/manual.tsx");
     const enCapture = JSON.parse(read("locales/en/capture.json")) as Record<string, unknown>;
     const koCapture = JSON.parse(read("locales/ko/capture.json")) as Record<string, unknown>;
-    const enJarvis = JSON.parse(read("locales/en/jarvis.json")) as { intro_body?: string; reference_piece_meta?: string };
-    const koJarvis = JSON.parse(read("locales/ko/jarvis.json")) as { intro_body?: string; reference_piece_meta?: string };
+    const enJarvis = JSON.parse(read("locales/en/secondb.json")) as { intro_body?: string; reference_piece_meta?: string };
+    const koJarvis = JSON.parse(read("locales/ko/secondb.json")) as { intro_body?: string; reference_piece_meta?: string };
     const captureKeys = [
       "submit",
       "submitting",
@@ -734,7 +734,7 @@ results.push(
     const completeProfile = read("src/app/(auth)/complete-profile.tsx");
     const notFound = read("src/app/+not-found.tsx");
     const home = read("src/app/index.tsx");
-    const jarvis = read("src/app/jarvis.tsx");
+    const jarvis = read("src/app/secondb.tsx");
     const navGraph = read("src/components/graph/NavGraph.tsx");
     const esm = read("src/app/esm.tsx");
     const profile = read("src/app/profile.tsx");
@@ -2565,7 +2565,7 @@ results.push(
     const islandArt = read("src/components/art/IslandArt.tsx");
     const workerSprite = read("src/components/art/WorkerSprite.tsx");
     const home = read("src/app/index.tsx");
-    const jarvis = read("src/app/jarvis.tsx");
+    const jarvis = read("src/app/secondb.tsx");
     const graphBits = read("src/components/premium/graph-bits.tsx");
     const ok =
       secondbSprite.includes('accessibilityRole: "image"') &&

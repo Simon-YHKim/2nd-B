@@ -54,6 +54,7 @@ export default function RootLayout() {
               <Stack.Screen name="capture" />
               <Stack.Screen name="inbox" />
               <Stack.Screen name="formats" />
+              <Stack.Screen name="secondb" />
               <Stack.Screen name="jarvis" />
               <Stack.Screen name="wiki" options={{ animation: "fade" }} />
               <Stack.Screen name="manual" />

@@ -6,7 +6,7 @@
 // means those three can never drift apart again — the desync that briefly left
 // /core-brain, /records and /wiki with no back affordance AND no tab bar.
 
-export const PRIMARY_TAB_PATHS = ["/", "/capture", "/jarvis", "/profile"] as const;
+export const PRIMARY_TAB_PATHS = ["/", "/capture", "/secondb", "/profile"] as const;
 
 export type PrimaryTabPath = (typeof PRIMARY_TAB_PATHS)[number];
 

@@ -25,7 +25,7 @@
 //     icon that opens /capture. Bubble's primary action is "view 일상
 //     Wiki" but the icon offers the upload shortcut.
 //   - Core tier-1 node (bubbleAction: 'jarvis'): bubble shows a 💬
-//     icon that opens /jarvis. Primary action: open /persona.
+//     icon that opens /secondb. Primary action: open /persona.
 
 import { Fragment, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
@@ -805,7 +805,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   //
   // Session guard (2026-05-27 bug fix): playing the full pop sequence
   // every time the user re-navigates back to "/" — e.g. coming back
-  // from /jarvis or /capture — meant the cells popped & beeped on
+  // from /secondb or /capture — meant the cells popped & beeped on
   // every return. Now we mark the sequence as played in sessionStorage
   // for the rest of the tab session; subsequent mounts snap straight
   // to the settled state with no audio.
@@ -1267,17 +1267,17 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     const params: Record<string, string> = {};
     if (label) params.fromNode = label;
     if (worker) params.character = worker;
-    router.push(Object.keys(params).length > 0 ? { pathname: "/jarvis", params } : "/jarvis");
+    router.push(Object.keys(params).length > 0 ? { pathname: "/secondb", params } : "/secondb");
   }
 
   function handleImagine() {
     // Worldview v-final: 공상 is no longer a place — it's SecondB's Divergent
-    // chat mode. "공상으로 펼치기" opens the node in /jarvis with mode=divergent.
+    // chat mode. "공상으로 펼치기" opens the node in /secondb with mode=divergent.
     const label = activeNode?.label[locale];
     setActiveId(null);
     const params: Record<string, string> = { mode: "divergent" };
     if (label) params.fromNode = label;
-    router.push({ pathname: "/jarvis", params });
+    router.push({ pathname: "/secondb", params });
   }
 
   // "자세히" on a piece popup → open the piece's village screen, the space that

@@ -156,7 +156,7 @@ export default function CoreBrain() {
             <Button
               label={locale === "ko" ? "세컨비와 시작하기" : "Start with SecondB"}
               variant="secondary"
-              onPress={() => router.push("/jarvis")}
+              onPress={() => router.push("/secondb")}
             />
           </View>
         </View>
@@ -187,7 +187,7 @@ export default function CoreBrain() {
             <Button
               label={locale === "ko" ? "세컨비와 시작하기" : "Start with SecondB"}
               variant="secondary"
-              onPress={() => router.push("/jarvis")}
+              onPress={() => router.push("/secondb")}
             />
           </View>
         </View>
@@ -220,8 +220,9 @@ export default function CoreBrain() {
           speech={CORE_VILLAGE_UI.speech[locale]}
           primaryAction={{
             label: locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB",
-            onPress: () => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "나의 중심" : "my center" } }),
-          }}        />
+            onPress: () => router.push({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "나의 중심" : "my center" } }),
+          }}
+        />
         <View style={styles.statRow}>
           <StatTile value={evidence.length} label={locale === "ko" ? "조각" : "pieces"} accent={cosmic.pixelLamp} />
           <StatTile value={`${filledFields}/5`} label={locale === "ko" ? "나의 모습" : "self-portrait"} accent={cosmic.soulViolet} />
@@ -306,7 +307,7 @@ export default function CoreBrain() {
           <Button
             label={locale === "ko" ? "공상 모드로 펼치기" : "Open in Divergent mode"}
             variant="secondary"
-            onPress={() => router.push({ pathname: "/jarvis", params: { mode: "divergent" } })}
+            onPress={() => router.push({ pathname: "/secondb", params: { mode: "divergent" } })}
           />
         </Section>
 
@@ -314,7 +315,7 @@ export default function CoreBrain() {
         <PremiumCTA
           label={locale === "ko" ? "세컨비에게 이 중심으로 묻기" : "Ask SecondB about this center"}
           variant="secondary"
-          onPress={() => router.push({ pathname: "/jarvis", params: { fromNode: locale === "ko" ? "나의 중심" : "my center" } })}
+          onPress={() => router.push({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "나의 중심" : "my center" } })}
         />
       </ScrollView>
 

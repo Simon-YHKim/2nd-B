@@ -7,7 +7,7 @@
 // in-app entry points (hidden route), so nothing links here anymore.
 //
 // This route is intentionally KEPT (not deleted) as a deep-link compatibility
-// redirect, mirroring /journal → /capture and /imagine → /jarvis. External or
+// redirect, mirroring /journal → /capture and /imagine → /secondb. External or
 // saved deep links to "/mbti" must not 404; they now land on /persona, where
 // the assessment results used to surface. The whole change stays reversible:
 // revert this file to restore the old standalone MBTI screener.

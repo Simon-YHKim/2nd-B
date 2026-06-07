@@ -83,7 +83,7 @@ function assertDirectEgressAllowed(env: ReturnType<typeof getEnv>): void {
 // as ordinary product copy. The internal "mock"/no-key technical marker lives in
 // this comment and in modelUsed audit fields only.
 const MOCK_RESPONSES: Record<
-  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "jarvis_chat" | "interview_probe" | "imagine" | "import_ingest",
+  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest",
   Record<"en" | "ko", string>
 > = {
   journal_reflect: {
@@ -102,7 +102,7 @@ const MOCK_RESPONSES: Record<
     en: "I'm noticing a pattern across your recent entries. Tell me more about how you decided.",
     ko: "최근 기록에서 반복되는 흐름이 보여요. 그 결정을 어떻게 내렸는지 더 들려주세요.",
   },
-  jarvis_chat: {
+  secondb_chat: {
     en: "This is an offline preview. When you go online I'll consult your captured pages and answer with citations. For now I'm following the same prompt structure.",
     ko: "지금은 오프라인 미리보기예요. 온라인으로 연결하면 캡처한 페이지를 참고해 인용과 함께 답해 드려요. 지금은 같은 흐름으로 안내해요.",
   },
