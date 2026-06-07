@@ -3,7 +3,7 @@
 //
 //   1) 저장 / Save        "루루 뽁"        — one pop overshoot (+ playPop on web)
 //   2) 연결 발견 / Connect "아치 라인 켜짐"  — a line illuminates dim → bright
-//   3) 공상 / Imagine     "벨라 핑크 신호"  — a soft pink presence pulse
+//   3) 공상 / Imagine     "세컨비 신호"     — soft presence pulse (legacy/dormant; Vela retired, Imagine folded into Divergent mode)
 //
 // This module holds the PURE specs (timings, magnitudes, accents) so they
 // are a single source of truth, testable without a renderer, and exactly
