@@ -53,11 +53,12 @@ const schema = z.object({
     .enum(["off", "free", "soma", "cortex", "brain"])
     .default("brain"),
   // Render the Soul Core v3 SVG art pack (public/assets/cosmic-pixel-v3-soulcore/)
-  // instead of the legacy PNG art. Default false — the v3 pack is wired but not
-  // yet QA'd on-device; flip to "true" on a dev/QA build to preview it.
+  // instead of the legacy PNG art. Default true (Simon concept: the worldview
+  // Soul/Pattern Core tesseract art + Foreman-Momo crew are the intended visuals).
+  // Set "false" to fall back to the legacy PNG art.
   EXPO_PUBLIC_USE_V3_ART: z
     .union([z.literal("true"), z.literal("false")])
-    .default("false")
+    .default("true")
     .transform((v) => v === "true"),
   // Naver social login (custom OAuth via the oauth-naver edge function). The
   // REST client id is public (it appears in the authorize URL); the secret stays

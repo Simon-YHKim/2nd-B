@@ -89,7 +89,7 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
   },
   lumi: {
     id: "lumi",
-    name: { ko: "아이리스", en: "Iris" },
+    name: { ko: "루미나", en: "Lumina" },
     role: { ko: "취향·영감 큐레이터", en: "Taste and inspiration curator" },
     accent: characterColors.lumi,
     // Muse Core: taste + inspiration. No dedicated route screen; surfaces via

@@ -226,7 +226,7 @@ export default function Persona() {
             (mint / signal-blue / pixel-lamp), per DESIGN.md accent budget. */}
         <View style={styles.centerSection}>
           <Text variant="caption" color="textMuted" style={{ letterSpacing: 0 }}>
-            {locale === "ko" ? "나의 중심" : "My center"}
+            {locale === "ko" ? "나의 중심" : "Soul Core"}
           </Text>
           {buildCenterCards(persona, locale).map((card) => (
             <View key={card.id} style={[styles.centerCard, { borderLeftColor: card.accent }]}>
