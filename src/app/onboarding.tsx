@@ -32,8 +32,8 @@ const STEPS: Step[] = [
     art: "welcome",
     title: { ko: "하루 생각을 짧게 남기세요", en: "Save the day in small notes" },
     body: {
-      ko: "일기, 메모, 링크를 저장하면 2ndB가 반복되는 관심사와 다음 행동을 찾기 쉽게 정리해요.",
-      en: "Save a journal line, memo, or link. 2ndB organizes them so patterns and next actions are easier to find.",
+      ko: "일기, 메모, 링크를 저장하면 두번째 뇌가 반복되는 관심사와 다음 행동을 찾기 쉽게 정리해요.",
+      en: "Save a journal line, memo, or link. 2nd-Brain organizes them so patterns and next actions are easier to find.",
     },
     cta: { ko: "기록 방법 보기", en: "See how it works" },
   },
