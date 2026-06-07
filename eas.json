@@ -15,7 +15,10 @@
     },
     "production": {
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_FORCE_TIER": "off"
+      }
     }
   },
   "submit": {

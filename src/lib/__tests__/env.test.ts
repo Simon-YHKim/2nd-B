@@ -116,12 +116,12 @@ describe("getEnv", () => {
     expect(env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION).toBe(true);
   });
 
-  test("FORCE_TIER defaults to brain (testing-phase paywall bypass)", async () => {
+  test("FORCE_TIER defaults to off (launch: real billing gating)", async () => {
     process.env.EXPO_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = "x".repeat(40);
     delete process.env.EXPO_PUBLIC_FORCE_TIER;
     const { getEnv } = await import("../env");
-    expect(getEnv().EXPO_PUBLIC_FORCE_TIER).toBe("brain");
+    expect(getEnv().EXPO_PUBLIC_FORCE_TIER).toBe("off");
   });
 
   test("FORCE_TIER='off' parses through (restores real billing)", async () => {
