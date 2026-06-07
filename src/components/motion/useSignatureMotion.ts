@@ -70,7 +70,11 @@ export function useConnectionGlow() {
       toValue: CONNECTION_MOTION.toOpacity,
       duration: CONNECTION_MOTION.durationMs,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      // Drives strokeOpacity on NavGraph's <AnimatedLine>, whose x1/y1/x2/y2
+      // (drift) run on the JS thread (useNativeDriver:false — SVG props can't
+      // go native). Mixing native + JS drivers on one animated node hard-crashes
+      // on modal close ("animated node ... moved to 'native' earlier"). Keep JS.
+      useNativeDriver: false,
     }).start();
   }, [opacity]);
 
