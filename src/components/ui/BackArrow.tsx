@@ -40,7 +40,7 @@ const ROUTE_LABELS: Record<string, { en: string; ko: string }> = {
   "/data": { en: "Data", ko: "데이터" },
   "/formats": { en: "Formats", ko: "형식" },
   "/import": { en: "Import", ko: "가져오기" },
-  "/imagine": { en: "Divergent mode", ko: "공상 모드" },
+  "/imagine": { en: "New angle", ko: "새 관점" },
   "/inbox": { en: "Inbox", ko: "받은편지함" },
   "/insights": { en: "Insights", ko: "인사이트" },
   "/interview": { en: "Interview", ko: "인터뷰" },

@@ -902,8 +902,8 @@ results.push(
       home.includes("Opens Core Brain") &&
       jarvisButtons >= 8 &&
       jarvis.includes("Clears the current conversation") &&
-      jarvis.includes("Analytic mode") &&
-      jarvis.includes("Divergent mode") &&
+      jarvis.includes("Analysis mode") &&
+      jarvis.includes("New angle mode") &&
       jarvis.includes("selected: chatMode") &&
       jarvis.includes("Long press to copy this message") &&
       jarvis.includes("Dismisses the intro modal") &&
@@ -916,8 +916,8 @@ results.push(
       navGraph.includes("Opens the center village") &&
       navGraph.includes("Resets graph pan and zoom") &&
       navGraph.includes("Closes the village detail panel") &&
-      navGraph.includes("Open ${name} in Divergent") &&
-      navGraph.includes("Opens this village in Divergent mode") &&
+      navGraph.includes("Open ${name} from a new angle") &&
+      navGraph.includes("Opens this village in SecondB from a new angle") &&
       navGraph.includes("Closes the piece detail panel") &&
       esm.includes('from("esm_responses").insert') &&
       esm.includes("prompt_kind: kind") &&
@@ -997,7 +997,7 @@ results.push(
       input.includes("accessibilityLabel ?? (typeof placeholder === \"string\" ? placeholder : undefined)") &&
       input.includes("accessibilityLabel={resolvedAccessibilityLabel}") &&
       backArrow.includes('"/+not-found": { en: "Not found", ko: "찾을 수 없음" }') &&
-      backArrow.includes('"/imagine": { en: "Divergent mode", ko: "공상 모드" }') &&
+      backArrow.includes('"/imagine": { en: "New angle", ko: "새 관점" }') &&
       backArrow.includes('"/journal": { en: "Journal", ko: "일기" }') &&
       backArrow.includes('"/mbti": { en: "Persona", ko: "페르소나" }') &&
       backArrow.includes("Opens the graph home screen.") &&

@@ -1283,8 +1283,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   }
 
   function handleImagine() {
-    // Worldview v-final: 공상 is no longer a place — it's SecondB's Divergent
-    // chat mode. "공상으로 펼치기" opens the node in /secondb with mode=divergent.
+    // Worldview v-final: the retired imagine place now opens SecondB's
+    // divergent chat mode from a new angle.
     const label = activeNode?.label[locale];
     setActiveId(null);
     const params: Record<string, string> = { mode: "divergent" };
@@ -1772,16 +1772,16 @@ function NodeSheet({
           style={styles.sheetActionBtn}
         />
       </View>
-      {/* Optional: unfold this node in the imagine workshop (imagine pack §7) */}
+      {/* Optional: unfold this node through SecondB's new-angle path. */}
       <Pressable
         onPress={onImagine}
         hitSlop={6}
         style={styles.sheetImagine}
         accessibilityRole="button"
-        accessibilityLabel={locale === "ko" ? `${name} 공상 모드로 열기` : `Open ${name} in Divergent`}
-        accessibilityHint={locale === "ko" ? "이 마을을 공상 모드에서 엽니다" : "Opens this village in Divergent mode"}
+        accessibilityLabel={locale === "ko" ? `${name} 새 관점으로 열기` : `Open ${name} from a new angle`}
+        accessibilityHint={locale === "ko" ? "이 마을을 세컨비에서 새 관점으로 엽니다" : "Opens this village in SecondB from a new angle"}
       >
-        <Text variant="caption" color="brand">{locale === "ko" ? "공상 모드로 펼치기" : "Open in Divergent"}</Text>
+        <Text variant="caption" color="brand">{locale === "ko" ? "새 관점으로 펼치기" : "Open new angle"}</Text>
       </Pressable>
     </Animated.View>
   );

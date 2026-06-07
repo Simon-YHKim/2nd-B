@@ -54,14 +54,14 @@ const HINTS: Record<"en" | "ko", Record<SelfPortraitFieldId, string>> = {
   ko: {
     who: "평가를 하나 마치면 또렷해져요.",
     forWhom: "스무고개에서 사람 이야기를 남기면 보이기 시작해요.",
-    goal: "세컨비 공상(Divergent) 모드에서 다음 한 걸음을 펼쳐보면 모여요.",
+    goal: "세컨비의 새 관점 모드에서 다음 한 걸음을 펼쳐보면 모여요.",
     do: "오늘의 조각을 며칠 남기면 흐름이 보여요.",
     fuel: "라이프 오딧으로 가치를 짚어보면 켜져요.",
   },
   en: {
     who: "Finishing one assessment sharpens this.",
     forWhom: "Talk about the people in your life in an interview and this starts to show.",
-    goal: "Unfold a next step in SecondB's Divergent mode and this gathers.",
+    goal: "Unfold a next step in SecondB's new angle mode and this gathers.",
     do: "Leave today's piece for a few days and the pattern shows.",
     fuel: "Name a value in a life audit and this lights up.",
   },
