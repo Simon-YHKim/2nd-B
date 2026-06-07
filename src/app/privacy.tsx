@@ -18,7 +18,7 @@ import { PreferenceToggleRow } from "@/components/ui/PreferenceToggle";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
-  PRIVACY_PREF_KEYS,
+  VISIBLE_PRIVACY_KEYS,
   defaultPrivacyPrefs,
   isPrivacyPrefEditable,
   type PrivacyPrefKey,
@@ -189,7 +189,7 @@ export default function Privacy() {
               />
             );
           })}
-          <Text variant="subtle" color="muted" style={styles.localFirstNote}>
+          <Text variant="subtle" color="textMuted" style={styles.localFirstNote}>
             {t("privacy.localFirstStatement")}
           </Text>
         </View>
@@ -231,4 +231,5 @@ const styles = StyleSheet.create({
   // Tracking is applied per-locale (eyebrowTracking) so the KO section label is
   // not over-spaced (caption is 14px); EN keeps the light caption tracking.
   sectionEyebrow: { fontWeight: "700" },
+  localFirstNote: { marginTop: spacing.sm },
 });
