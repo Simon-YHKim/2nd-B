@@ -2587,6 +2587,55 @@ results.push(
   }),
 );
 
+results.push(
+  check("WorldviewConceptCoherence", () => {
+    const conceptFiles = [
+      "CONTEXT.md",
+      "DESIGN.md",
+      "docs/VISION.md",
+      "src/lib/characters.ts",
+      "src/lib/chat/personas.ts",
+      "src/lib/graph/monologues.ts",
+      "src/components/art/SoulcoreFinalArt.tsx",
+      "src/components/graph/NavGraph.tsx",
+      "src/components/premium/graph-bits.tsx",
+      "src/lib/assets/soulcore-v3.ts",
+      "src/lib/theme/tokens.ts",
+      "src/lib/village-ui.ts",
+    ];
+    const conceptText = conceptFiles.map((file) => read(file)).join("\n");
+    const characters = read("src/lib/characters.ts");
+    const personas = read("src/lib/chat/personas.ts");
+    const ok =
+      !/\bIris\b/.test(conceptText) &&
+      conceptText.includes("Lumina") &&
+      conceptText.includes("Soul Core") &&
+      conceptText.includes("Pattern Core") &&
+      conceptText.includes("Pattern Data") &&
+      conceptText.includes("Log") &&
+      conceptText.includes("Pattern Link") &&
+      characters.includes('en: "Soul Core navigator"') &&
+      characters.includes('en: "Career consultant"') &&
+      characters.includes('en: "Warm relationship guide"') &&
+      characters.includes('en: "Life-applied wisdom sage"') &&
+      characters.includes('en: "Narrative Core crew foreman"') &&
+      characters.includes('en: "Trainer and curator"') &&
+      personas.includes("central AI for the Soul Core") &&
+      personas.includes("career consultant for work and growth") &&
+      personas.includes("inner-world patterns") &&
+      personas.includes("Not raw facts") &&
+      personas.includes("you do NOT give advice") &&
+      personas.includes("healthy life balance");
+    return {
+      id: "WorldviewConceptCoherence",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "worldview docs/code keep Lumina and canonical Soul/Pattern/Narrative responsibilities aligned"
+        : "worldview docs/code should not regress to Iris or drift from Simon's canonical character responsibilities",
+    };
+  }),
+);
+
 let exit = 0;
 for (const r of results) {
   const tag = r.status === "PASS" ? "PASS " : r.status === "PARTIAL" ? "PART " : "FAIL ";

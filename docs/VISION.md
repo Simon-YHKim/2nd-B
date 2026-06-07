@@ -79,7 +79,7 @@
 | **Bond Core** | 관계와 사랑 | **Relia** (구 Gadi) | `relation` |
 | **Wisdom Core** | 배움과 지식 | **Lumen** (구 Lulu) | `knowledge` |
 | **Narrative Core** | 기록 보관소 | **Foreman Momo** (구 Momo) | `records` |
-| **Muse Core** | 취향과 영감 | **Iris** (구 Lumi) | `taste` |
+| **Muse Core** | 취향과 영감 | **Lumina** (구 Lumi) | `taste` |
 | **Growth Core** | 일과 성장 | **Archon** (구 Archi) | `work` |
 
 > 내부 route / slug / DB 키(work / relation / knowledge / records / taste)는 회귀 위험 때문에
@@ -109,7 +109,7 @@
 | Soul Core / SecondB | `soulViolet` | #A78BFA |
 | Growth Core / Archon | `signalBlue` | #4CC9F0 |
 | Wisdom Core / Lumen | `signalMint` | #72F2C7 |
-| Muse Core / Iris | `dreamPink` | #FF9FD6 |
+| Muse Core / Lumina | `dreamPink` | #FF9FD6 |
 | Bond Core / Relia | `pixelLamp` (amber) | #FFD166 |
 | Narrative Core / Foreman Momo + 크루 | monochrome `moonWhite` / `mistGray` | #E8ECF8 / #8D98B8 |
 | 안전 / 위기 (시스템 전용, 마스코트와 분리) | `guardRose` | #FF7A90 |

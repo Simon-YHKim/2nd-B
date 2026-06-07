@@ -36,7 +36,7 @@ export const cosmic = {
   soulViolet: "#A78BFA", // Soul Core / SecondB / AI presence
   soulViolet2: "#7C5EE8", // SecondB Divergent-mode variant (worldview v-final)
   pixelLamp: "#FFD166", // Bond Core / Relia accent + new-record/discovery + zoneYellow (dual-context)
-  dreamPink: "#FF9FD6", // Muse Core / Iris accent
+  dreamPink: "#FF9FD6", // Muse Core / Lumina accent
   guardRose: "#FF7A90", // Safety / crisis — system-only (no mascot)
 
   // Neutrals.
@@ -191,7 +191,7 @@ export const characters = {
   lulu: cosmic.signalMint, // Wisdom Core / Lumen
   archi: cosmic.signalBlue, // Growth Core / Archon
   gadi: cosmic.pixelLamp, // Bond Core / Relia — amber (dual-context with zoneYellow; see DESIGN.md)
-  lumi: cosmic.dreamPink, // Muse Core / Iris — taste + inspiration
+  lumi: cosmic.dreamPink, // Muse Core / Lumina — taste + inspiration
 } as const;
 
 export type CharacterName = keyof typeof characters;
