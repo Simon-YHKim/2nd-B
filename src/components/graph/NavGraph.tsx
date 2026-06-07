@@ -417,6 +417,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   const { width, height } = useWindowDimensions();
   const cx = width / 2;
   const cy = height / 2;
+  // Tree redesign: reserve the bottom band for the always-on insight cards so
+  // the bottom-rooted Soul Core frames ABOVE them, not behind (4-AI verdict
+  // Defect-1). The base layout fits the world into the viewport minus this band.
+  const cardReserve = Math.min(height * 0.4, 340);
 
   // Decorative crew count (worldview v-final "모모크루"). Scales with the user's
   // on-graph Log nodes, bounded by the density preference + LOD. The crew sprite
@@ -646,13 +650,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     ],
   }));
 
-  // World-coordinate layout (queue A): the village lives in a fixed
-  // 1200×1600 world and is fitted into the viewport, so districts keep
-  // their place as you pan/zoom (mobile-graph pack §3). The world ring
-  // arrangement is computed once; only the world→screen fit depends on the
-  // viewport. The world center maps exactly to the viewport center, so the
-  // tier-1 lamp stays at (cx, cy) and the rest of the gesture / clamp /
-  // spawn / sheet machinery is unchanged.
+  // World-coordinate layout (queue A): the graph lives in a fixed portrait
+  // world (tree redesign) and is fitted into the viewport minus the card band,
+  // so nodes keep their place as you pan/zoom. The Soul Core root is NOT pinned
+  // to viewport center — it lives at ROOT_ANCHOR (bottom-center) and the canopy
+  // grows upward. NavGraph reads the root's screen position from `positions`
+  // (rootScreen) for the center art, edges, worker hub, and drilldown.
   const worldMenu = useMemo(() => worldMenuPositions(MENU_NODES, CENTER_NODE.id), []);
 
   const dataNodesMap = useMemo(() => {
@@ -664,7 +667,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   }, [dataNodes]);
 
   const positions = useMemo(() => {
-    const vp = { width, height };
+    const vp = { width, height: Math.max(height - cardReserve, height * 0.5) };
     const map = new Map<string, { x: number; y: number; angle: number }>();
     for (const [id, wp] of worldMenu) {
       const s = worldToScreen({ x: wp.x, y: wp.y }, vp);
@@ -673,10 +676,14 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     return map;
   }, [worldMenu, width, height]);
 
+  // Soul Core screen position from the tree layout. Un-pin: the root is no
+  // longer hard-pinned to viewport center — render/edges/hub read it from here.
+  const rootScreen = positions.get(CENTER_NODE.id) ?? { x: cx, y: cy };
+
   // Tier 4 data positions — clustered around their wiki parent in world
   // space, then fitted to the viewport.
   const dataPositions = useMemo(() => {
-    const vp = { width, height };
+    const vp = { width, height: Math.max(height - cardReserve, height * 0.5) };
     const worldData = worldDataPositions(dataNodes, worldMenu);
     const out = new Map<string, { x: number; y: number; parentId: string }>();
     for (const [id, wd] of worldData) {
@@ -697,7 +704,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // village-to-village hop routes through the center — a true node-line-node
   // patrol. Built in the same screen-fitted coords NavGraph renders nodes in.
   const commutes = useMemo<Commute[]>(() => {
-    const center = { x: cx, y: cy };
+    const center = rootScreen;
     const placed = Object.keys(VILLAGE_WORKER)
       .map((id) => {
         const p = positions.get(id);
@@ -728,10 +735,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     // SecondB circles the hub instead of cutting through it, so the center
     // feels alive without a large sprite repeatedly crossing the core art.
     const tour = placed.map((p, k) => aroundHub(center, p.angle, k % 2 === 0 ? 72 : 108, k % 2 === 0 ? 18 : -18));
-    out.push({ id: "secondb", route: tour.length >= 2 ? tour : [center, { x: cx + 60, y: cy - 30 }] });
+    out.push({ id: "secondb", route: tour.length >= 2 ? tour : [center, { x: center.x + 60, y: center.y - 30 }] });
 
     return out;
-  }, [positions, cx, cy]);
+  }, [positions, rootScreen]);
 
   // Drift Animated.Values — one pair per node (sx, sy = sway offsets).
   // useNativeDriver=false because SVG props can't run on the native
@@ -945,10 +952,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
 
   const drilldownCoreCenter = useMemo(
     () => ({
-      x: cx,
-      y: Math.min(height * 0.56, Math.max(height * 0.42, height - 340)),
+      x: rootScreen.x,
+      // REF2: focused core sits low (root role) so its data fans upward.
+      y: Math.min(height * 0.72, height - 240),
     }),
-    [cx, height],
+    [rootScreen, height],
   );
 
   const renderPositions = useMemo(() => {
@@ -1488,12 +1496,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               (fromData && toData);
             if (!keep) return null;
           } else if (!idVisible(e.fromId) || !idVisible(e.toId)) return null;
-          const fromBase = e.fromId === CENTER_NODE.id
-            ? { x: cx, y: cy }
-            : renderPositions.get(e.fromId) ?? renderDataPositions.get(e.fromId);
-          const toBase = e.toId === CENTER_NODE.id
-            ? { x: cx, y: cy }
-            : renderPositions.get(e.toId) ?? renderDataPositions.get(e.toId);
+          // Un-pin: the center resolves from renderPositions (tree root), no
+          // longer special-cased to viewport center.
+          const fromBase = renderPositions.get(e.fromId) ?? renderDataPositions.get(e.fromId);
+          const toBase = renderPositions.get(e.toId) ?? renderDataPositions.get(e.toId);
           if (!fromBase || !toBase) return null;
           const incident = activeId != null && (e.fromId === activeId || e.toId === activeId);
           // C6: edge to the ambient-glow domain stays lit (no active needed).
@@ -1731,8 +1737,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         style={[
           styles.menuDotWrap,
           {
-            left: cx - CENTER_SIZE / 2,
-            top: cy - CENTER_SIZE / 2,
+            left: rootScreen.x - CENTER_SIZE / 2,
+            top: rootScreen.y - CENTER_SIZE / 2,
             width: CENTER_SIZE,
             height: CENTER_SIZE,
             opacity: spawnOpacity(CENTER_NODE.id) as never,

@@ -1,6 +1,7 @@
 import {
   WORLD,
   WORLD_CENTER,
+  rootPoint,
   fitScale,
   fitTranslate,
   worldToScreen,
@@ -12,37 +13,29 @@ import {
   type MenuLike,
 } from "../world-layout";
 
-// Normalize an angle delta into [-PI, PI].
-function angleDelta(a: number, b: number): number {
-  let d = a - b;
-  while (d > Math.PI) d -= Math.PI * 2;
-  while (d < -Math.PI) d += Math.PI * 2;
-  return d;
-}
+// Tree-redesign contract (2026-06-08): bottom-rooted, upward-growing crystalline
+// tree. The Soul Core root sits near bottom-center; all Pattern Cores sit above
+// the root; tier-3 children and data shards bloom upward off their parent.
 
 const MENU: MenuLike[] = [
-  { id: "now", tier: 2, parentId: "core" },
-  { id: "past", tier: 2, parentId: "core" },
-  { id: "wiki", tier: 2, parentId: "core" },
-  { id: "imagine", tier: 2, parentId: "core" },
-  { id: "wiki-daily", tier: 3, parentId: "wiki" },
-  { id: "wiki-pro", tier: 3, parentId: "wiki" },
-  { id: "past-teens", tier: 3, parentId: "past" },
-  { id: "insights", tier: 3, parentId: "now" },
+  { id: "work", tier: 2, parentId: "core" },
+  { id: "relation", tier: 2, parentId: "core" },
+  { id: "knowledge", tier: 2, parentId: "core" },
+  { id: "records", tier: 2, parentId: "core" },
+  { id: "taste", tier: 2, parentId: "core" },
+  { id: "wiki-daily", tier: 3, parentId: "knowledge" },
+  { id: "wiki-pro", tier: 3, parentId: "knowledge" },
+  { id: "past-teens", tier: 3, parentId: "records" },
 ];
 
 const VP = { width: 600, height: 800 };
 
 describe("fit math", () => {
-  it("contains the world (square-fit for a half-scale viewport)", () => {
-    // min(600/1200, 800/1600) = 0.5, * 0.92 padding
-    expect(fitScale(VP)).toBeCloseTo(0.46, 6);
-  });
-
-  it("centers the world: world center maps to viewport center", () => {
-    const s = worldToScreen(WORLD_CENTER, VP);
-    expect(s.x).toBeCloseTo(VP.width / 2, 6);
-    expect(s.y).toBeCloseTo(VP.height / 2, 6);
+  it("contains the portrait world", () => {
+    expect(fitScale(VP)).toBeCloseTo(
+      Math.min(VP.width / WORLD.width, VP.height / WORLD.height) * 0.92,
+      6,
+    );
   });
 
   it("fitTranslate centers the scaled world", () => {
@@ -52,28 +45,51 @@ describe("fit math", () => {
     expect(t.y).toBeCloseTo((VP.height - WORLD.height * s) / 2, 6);
   });
 
-  it("maps the world's top-left toward the viewport (origin offset)", () => {
-    const s = worldToScreen({ x: 0, y: 0 }, VP);
-    expect(s.x).toBeLessThan(VP.width / 2);
-    expect(s.y).toBeLessThan(VP.height / 2);
+  it("maps the world center to the viewport center", () => {
+    const s = worldToScreen(WORLD_CENTER, VP);
+    expect(s.x).toBeCloseTo(VP.width / 2, 6);
+    expect(s.y).toBeCloseTo(VP.height / 2, 6);
   });
 });
 
-describe("worldMenuPositions", () => {
+describe("worldMenuPositions (bottom-rooted tree)", () => {
   const pos = worldMenuPositions(MENU, "core");
+  const root = rootPoint();
 
-  it("places the center at the world center", () => {
-    expect(pos.get("core")).toEqual({ x: WORLD_CENTER.x, y: WORLD_CENTER.y, angle: 0, sector: -1 });
+  it("anchors the root (Soul Core) near bottom-center, not world center", () => {
+    const c = pos.get("core")!;
+    expect(c.x).toBeCloseTo(root.x, 6);
+    expect(c.y).toBeCloseTo(root.y, 6);
+    expect(c.sector).toBe(-1);
+    expect(c.y).toBeGreaterThan(WORLD.height * 0.5); // sits in the bottom area
   });
 
-  it("places every menu node plus the center", () => {
+  it("places every menu node plus the root", () => {
     expect(pos.size).toBe(MENU.length + 1);
   });
 
-  it("starts the first tier-2 node at the top of the ring", () => {
-    const now = pos.get("now")!;
-    expect(now.x).toBeCloseTo(WORLD_CENTER.x, 6);
-    expect(now.y).toBeLessThan(WORLD_CENTER.y); // above center
+  it("places ALL Pattern Cores above the root (canopy grows upward)", () => {
+    for (const id of ["work", "relation", "knowledge", "records", "taste"]) {
+      expect(pos.get(id)!.y).toBeLessThan(root.y);
+    }
+  });
+
+  it("fans tier-3 children above their parent core, same sector", () => {
+    for (const [child, parent] of [
+      ["wiki-daily", "knowledge"],
+      ["wiki-pro", "knowledge"],
+      ["past-teens", "records"],
+    ] as const) {
+      expect(pos.get(child)!.y).toBeLessThan(pos.get(parent)!.y);
+      expect(pos.get(child)!.sector).toBe(pos.get(parent)!.sector);
+    }
+  });
+
+  it("assigns each core its own sector index", () => {
+    const sectors = ["work", "relation", "knowledge", "records", "taste"].map(
+      (id) => pos.get(id)!.sector,
+    );
+    expect(new Set(sectors).size).toBe(5);
   });
 
   it("keeps all nodes inside the world bounds", () => {
@@ -91,13 +107,21 @@ describe("worldMenuPositions", () => {
   });
 });
 
-describe("worldDataPositions", () => {
+describe("worldDataPositions (upward bloom)", () => {
   const menuPos = worldMenuPositions(MENU, "core");
-  const data = Array.from({ length: 60 }, (_, i) => ({ id: `d${i}`, parentId: "wiki-daily" as const }));
+  const data = Array.from({ length: 60 }, (_, i) => ({ id: `d${i}`, parentId: "knowledge" as const }));
 
   it("caps the number of placed shards", () => {
-    const out = worldDataPositions(data, menuPos, "wiki-daily", 40);
+    const out = worldDataPositions(data, menuPos, "knowledge", 40);
     expect(out.size).toBe(40);
+  });
+
+  it("blooms shards above their parent core", () => {
+    const out = worldDataPositions(data, menuPos, "knowledge", 40);
+    const parentY = menuPos.get("knowledge")!.y;
+    for (const p of out.values()) {
+      expect(p.y).toBeLessThan(parentY);
+    }
   });
 
   it("keeps shards inside the world bounds", () => {
@@ -111,8 +135,14 @@ describe("worldDataPositions", () => {
   });
 
   it("records the resolved parent id", () => {
-    const out = worldDataPositions([{ id: "x" }], menuPos, "wiki-daily");
-    expect(out.get("x")!.parentId).toBe("wiki-daily");
+    const out = worldDataPositions([{ id: "x" }], menuPos, "knowledge");
+    expect(out.get("x")!.parentId).toBe("knowledge");
+  });
+
+  it("is deterministic", () => {
+    const a = worldDataPositions(data, menuPos, "knowledge", 40);
+    const b = worldDataPositions(data, menuPos, "knowledge", 40);
+    expect(b.get("d3")).toEqual(a.get("d3"));
   });
 });
 
@@ -125,51 +155,19 @@ describe("seeded", () => {
   });
 });
 
-describe("equal sectors + confinement (graph-ux-overhaul #5)", () => {
-  // Six real domains, each with a couple of children.
-  const SIX: MenuLike[] = [
-    { id: "work", tier: 2, parentId: "core" },
-    { id: "relation", tier: 2, parentId: "core" },
-    { id: "knowledge", tier: 2, parentId: "core" },
-    { id: "records", tier: 2, parentId: "core" },
-    { id: "imagine", tier: 2, parentId: "core" },
-    { id: "taste", tier: 2, parentId: "core" },
-    { id: "k1", tier: 3, parentId: "knowledge" },
-    { id: "k2", tier: 3, parentId: "knowledge" },
-    { id: "r1", tier: 3, parentId: "relation" },
-  ];
-  const pos = worldMenuPositions(SIX, "core");
+describe("sectorFocus (tree)", () => {
+  const pos = worldMenuPositions(MENU, "core");
 
-  it("assigns each domain its own sector index", () => {
-    const sectors = ["work", "relation", "knowledge", "records", "imagine", "taste"].map((id) => pos.get(id)!.sector);
-    expect(new Set(sectors).size).toBe(6);
-  });
-
-  it("keeps tier-3 children within their parent's sector half-width", () => {
-    const half = sectorHalfWidth(6);
-    for (const [child, parent] of [["k1", "knowledge"], ["k2", "knowledge"], ["r1", "relation"]] as const) {
-      const c = pos.get(child)!;
-      const p = pos.get(parent)!;
-      expect(c.sector).toBe(p.sector);
-      expect(Math.abs(angleDelta(c.angle, p.angle))).toBeLessThanOrEqual(half);
-    }
-  });
-
-  it("confines tier-4 shards to their domain's sector", () => {
-    const half = sectorHalfWidth(6);
-    const data = Array.from({ length: 30 }, (_, i) => ({ id: `s${i}`, parentId: "knowledge" }));
-    const out = worldDataPositions(data, pos, "knowledge", 40, 6);
-    const parentAngle = pos.get("knowledge")!.angle;
-    for (const p of out.values()) {
-      const ang = Math.atan2(p.y - WORLD_CENTER.y, p.x - WORLD_CENTER.x);
-      expect(Math.abs(angleDelta(ang, parentAngle))).toBeLessThanOrEqual(half);
-    }
-  });
-
-  it("sectorFocus returns a focus point for a domain, null for center", () => {
-    expect(sectorFocus(pos.get("core"), 6)).toBeNull();
-    const f = sectorFocus(pos.get("knowledge"), 6);
+  it("returns null for the root, a focus for a core", () => {
+    expect(sectorFocus(pos.get("core"), 5)).toBeNull();
+    const f = sectorFocus(pos.get("knowledge"), 5);
     expect(f).not.toBeNull();
-    expect(f!.halfWidth).toBeCloseTo(sectorHalfWidth(6), 6);
+    expect(f!.halfWidth).toBeCloseTo(sectorHalfWidth(5), 6);
+  });
+
+  it("aims at or above the tapped core, not the world center", () => {
+    const k = pos.get("knowledge")!;
+    const f = sectorFocus(k, 5)!;
+    expect(f.focus.y).toBeLessThanOrEqual(k.y);
   });
 });

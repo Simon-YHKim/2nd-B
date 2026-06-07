@@ -138,14 +138,15 @@ export function worldMenuPositions(menu: readonly MenuLike[], centerId: string):
   const sectorOf = new Map<string, number>();
   t2.forEach((n, i) => {
     const anchor = CORE_ANCHORS[n.id];
-    const pos = anchor
+    const raw = anchor
       ? { x: WORLD.width * anchor.x, y: WORLD.height * anchor.y }
       : // Fallback for unknown ids: even arc across the upper canopy.
         upwardConePoint(
           root,
-          (-0.6 + (t2.length === 1 ? 0.5 : i / (t2.length - 1)) * 1.2) * Math.PI * 0.5,
-          WORLD.height * 0.6,
+          (-0.5 + (t2.length === 1 ? 0.5 : i / (t2.length - 1)) * 1.0) * Math.PI * 0.5,
+          WORLD.height * 0.52,
         );
+    const pos = clampToWorld(raw);
     const angle = Math.atan2(pos.y - root.y, pos.x - root.x);
     angleOf.set(n.id, angle);
     sectorOf.set(n.id, i);
