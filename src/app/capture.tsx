@@ -33,7 +33,7 @@ import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import { PremiumAppShell, PremiumModal, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { PremiumCard, PremiumButton, PremiumLoadingState } from "@/components/premium";
+import { PremiumCard, PremiumButton, PremiumLoadingState, TAB_BAR_HEIGHT } from "@/components/premium";
 import { ShardArt } from "@/components/art/IslandArt";
 import { Input } from "@/components/ui/Input";
 import { cosmic, radii, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
@@ -63,6 +63,7 @@ import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
 // capture modes live on one screen. "일기" writes to `records` (createRecord —
@@ -146,6 +147,7 @@ export default function Capture() {
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
+  const insets = useSafeAreaInsets();
   // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
   // the light caption tracking.
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.3 };
@@ -542,7 +544,7 @@ export default function Capture() {
   return (
     <PremiumAppShell>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 86) }]} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, insets.bottom + TAB_BAR_HEIGHT + spacing.md, Platform.OS === "android" ? kbHeight + 86 : 0) }]} keyboardShouldPersistTaps="handled">
           <SceneHero
             eyebrow={t("hero.eyebrow")}
             title={t("hero.title")}
