@@ -32,7 +32,12 @@ export function tierVisibility(scale: number): TierVisibility {
   return {
     tier1: true,
     tier2: true,
+    // Tree redesign (P7): tier-3 are sub-menu CATEGORY nodes (wiki-daily,
+    // past-*) that do NOT appear in Simon's references — keep them hidden at the
+    // home view and only reveal on zoom. Pattern Data snowflakes (tier-4) DEFINE
+    // the reference's resting state, so they are always visible (count-capped in
+    // worldDataPositions + drift gated by LOD_TIER4_DRIFT_MAX for perf).
     tier3: bucket >= 1,
-    tier4: bucket >= 2,
+    tier4: true,
   };
 }

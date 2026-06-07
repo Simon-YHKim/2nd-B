@@ -16,14 +16,16 @@ describe("scaleBucket", () => {
 });
 
 describe("tierVisibility", () => {
-  it("default/far view shows tier 1 + 2 only", () => {
-    expect(tierVisibility(0.5)).toEqual({ tier1: true, tier2: true, tier3: false, tier4: false });
-    expect(tierVisibility(1)).toEqual({ tier1: true, tier2: true, tier3: false, tier4: false });
+  it("default/far view shows cores + data snowflakes, hides tier-3 sub-menus", () => {
+    // Tree redesign (P7): tier-4 Pattern Data snowflakes define the reference's
+    // resting state, so they show at home; tier-3 category nodes stay hidden.
+    expect(tierVisibility(0.5)).toEqual({ tier1: true, tier2: true, tier3: false, tier4: true });
+    expect(tierVisibility(1)).toEqual({ tier1: true, tier2: true, tier3: false, tier4: true });
   });
-  it("mid view adds tier 3", () => {
-    expect(tierVisibility(1.3)).toEqual({ tier1: true, tier2: true, tier3: true, tier4: false });
+  it("mid view reveals tier-3 sub-menus", () => {
+    expect(tierVisibility(1.3)).toEqual({ tier1: true, tier2: true, tier3: true, tier4: true });
   });
-  it("close view adds tier 4", () => {
+  it("close view keeps everything visible", () => {
     expect(tierVisibility(2.0)).toEqual({ tier1: true, tier2: true, tier3: true, tier4: true });
   });
 });
