@@ -97,12 +97,12 @@ function sanitizeUntrusted(s: string | null | undefined): string {
 // mode only shapes the system prompt.
 const MODE_INSTRUCTION: Record<"analytic" | "divergent", { en: string; ko: string }> = {
   analytic: {
-    en: "Analytic mode: ground every observation in the user's records and patterns, and give clear, practical analysis.",
-    ko: "Analytic 모드: 모든 관찰을 사용자의 기록과 패턴에 근거해 명확하고 실용적으로 분석하세요.",
+    en: "Analysis mode: ground every observation in the user's records and patterns, and give clear, practical analysis.",
+    ko: "분석 모드: 모든 관찰을 사용자의 기록과 패턴에 근거해 명확하고 실용적으로 분석하세요.",
   },
   divergent: {
-    en: "Divergent mode: stay grounded in the user's data, but deliberately explore radically different angles, assumptions, and unexpected possibilities. Clearly frame them as new perspectives or 'what if' hypotheses, not established facts.",
-    ko: "Divergent 모드: 사용자의 데이터에 근거하되, 전혀 다른 관점과 가정, 뜻밖의 가능성을 의도적으로 탐색하세요. 단정이 아니라 '새로운 관점 / 가정'으로 분명히 표시하세요.",
+    en: "New angle mode: stay grounded in the user's data, but deliberately explore radically different angles, assumptions, and unexpected possibilities. Clearly frame them as new perspectives or 'what if' hypotheses, not established facts.",
+    ko: "새 관점 모드: 사용자의 데이터에 근거하되, 전혀 다른 관점과 가정, 뜻밖의 가능성을 의도적으로 탐색하세요. 단정이 아니라 '새로운 관점 / 가정'으로 분명히 표시하세요.",
   },
 };
 

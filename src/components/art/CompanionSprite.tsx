@@ -28,7 +28,7 @@ export const companionAlt: Record<CompanionName, string> = {
   lulu: "Lumen, sage of wisdom",
   archi: "Archon, growth architect",
   gadi: "Relia, warm guide",
-  lumi: "Iris, Muse Core curator",
+  lumi: "Iris, taste and inspiration curator",
 };
 
 // Removed dead helpers getCompanionSpritePath / getCompanionCuePath (zero
