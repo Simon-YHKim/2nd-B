@@ -16,7 +16,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, Easing } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -280,6 +280,22 @@ export default function SecondBChat() {
             >
               {usedDisplay} / {limit}
             </Text>
+            {/* PF-D / D-09 M1: at the daily AI limit, offer a real next step
+                (the Plans screen) instead of a dead end. */}
+            {usedToday !== null && usedToday >= limit ? (
+              <Pressable
+                onPress={() => router.push("/plans")}
+                hitSlop={4}
+                style={{ marginTop: spacing.xs }}
+                accessibilityRole="button"
+                accessibilityLabel={locale === "ko" ? "플랜 보기" : "View plans"}
+                accessibilityHint={locale === "ko" ? "요금제 화면을 엽니다" : "Opens the plans screen"}
+              >
+                <Text variant="caption" color="brand">
+                  {locale === "ko" ? "플랜 보기" : "View plans"}
+                </Text>
+              </Pressable>
+            ) : null}
             {turns.length > 0 ? (
               <Pressable
                 onPress={() => setTurns([])}
