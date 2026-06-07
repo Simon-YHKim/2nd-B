@@ -1,8 +1,8 @@
 {
   "testimonial": {
     "title": "Share your story?",
-    "body": "We may show your words to XPRIZE judges as evidence that 2nd-Brain helps real people. You stay in control.",
-    "shareWithJudges": "Allow XPRIZE judges to read this testimonial",
+    "body": "We may share your words with our team and trusted reviewers as evidence that 2nd-Brain helps real people. You stay in control.",
+    "shareWithJudges": "Allow trusted reviewers to read this testimonial",
     "approveForPublic": "Allow public display on our site",
     "agree": "I consent",
     "decline": "Not now"
