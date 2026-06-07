@@ -19,12 +19,12 @@ import { Text } from "@/components/ui/Text";
 import { cosmic, radii, spacing } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
-/** 2B / 2ndB brand chip used at the top-left of premium screens. */
+/** Compact 2nd-Brain brand chip used at the top-left of premium screens. */
 export function BrandChip({ size = 44 }: { size?: number }) {
   return (
     <View style={[styles.brandChip, { width: size, height: size }]}>
       <Text style={styles.brandChipMain}>2B</Text>
-      <Text style={styles.brandChipSub}>2ndB</Text>
+      <Text style={styles.brandChipSub}>Brain</Text>
     </View>
   );
 }

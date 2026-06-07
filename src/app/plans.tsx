@@ -1,4 +1,4 @@
-// D-09 M1: the Plans screen. Free is the local-unlimited core; Plus (cortex) and
+// D-09 M1: the Plans screen. Free is the unlimited record core; Plus (cortex) and
 // Pro (brain) add AI room. Honest by design (D-09 M5): there is NO in-app
 // checkout here yet, because real billing goes through native IAP / Toss behind
 // Simon's payment-provider setup (D-09 M3). Until then this screen shows the

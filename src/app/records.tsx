@@ -174,15 +174,15 @@ export default function Records() {
   const heroEyebrow =
     domainFilter === "all"
       ? (locale === "ko" ? "05. 기록 보관소" : "05. Records")
-      : (locale === "ko" ? `${villageLabel} · Core 로그` : `${villageLabel} · core logs`);
+      : (locale === "ko" ? `${villageLabel} · 기록` : `${villageLabel} · records`);
   const heroTitle =
     domainFilter === "all"
       ? (locale === "ko" ? "남긴 조각을 다시 만나요" : "Revisit every piece you left")
-      : (locale === "ko" ? "이 Core의 조각" : "Core pieces");
+      : (locale === "ko" ? "이 영역의 조각" : "Pieces in this area");
   const heroSubtitle =
     domainFilter === "all"
       ? (locale === "ko" ? "일기 · 담기 · 검사 · 영감까지 한곳에" : "Journal, capture, assessments, and inspiration in one place")
-      : (locale === "ko" ? "이 Core에 모인 로그만 골라 봅니다" : "Only the logs gathered in this Core");
+      : (locale === "ko" ? "이 영역에 모인 기록만 골라 봅니다" : "Only the records gathered in this area");
 
   // Header (hero + search + type chips) lives above the virtualized list, so it
   // scrolls with the rows instead of pinning. The map of type chips stays a
