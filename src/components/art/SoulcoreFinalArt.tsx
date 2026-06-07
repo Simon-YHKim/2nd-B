@@ -39,7 +39,6 @@ const FINAL_PATTERN_DATA_ART: Record<FinalPatternDataId, ImageSourcePropType> = 
   muse: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/muse_pattern_data_96.png"),
   growth: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/growth_pattern_data_96.png"),
 };
-const FINAL_PATTERN_DATA_SNOWFLAKE_ART: ImageSourcePropType = require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/wisdom_pattern_data_96.png");
 
 const FINAL_LOG_ART: Record<FinalLogId, ImageSourcePropType> = {
   work: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/work_log_96x72.png"),
@@ -424,11 +423,13 @@ export function FinalPatternDataSnowflakeArt({
   size,
   style,
   animated = true,
+  variant = DEFAULT_ASSET_VARIANT,
 }: {
   colorKey: PatternDataColorKey;
   size: number;
   style?: StyleProp<ViewStyle>;
   animated?: boolean;
+  variant?: AssetVariant;
 }) {
   const px = Math.max(1.5, size * 0.045);
   return (
@@ -450,7 +451,11 @@ export function FinalPatternDataSnowflakeArt({
             ]}
           />
         ))}
-        <Image source={FINAL_PATTERN_DATA_SNOWFLAKE_ART} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
+        <Image
+          source={PATTERN_DATA_ART_BY_VARIANT[variant][colorKey]}
+          style={[styles.snowflakeImage, { width: size, height: size }, PIXELATED]}
+          resizeMode="contain"
+        />
       </View>
     </LivingAsset>
   );
@@ -606,5 +611,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.72,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 0 },
+  },
+  snowflakeImage: {
+    tintColor: undefined,
   },
 });
