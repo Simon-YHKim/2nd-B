@@ -211,7 +211,7 @@ export default function CoreBrain() {
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
-          eyebrow={locale === "ko" ? "02. 나의 중심" : "02. Core brain"}
+          eyebrow={locale === "ko" ? "02. 나의 중심" : "02. My center"}
           title={locale === "ko" ? "내 조각들이 중심으로 모여요" : "Your pieces gather into a center"}
           subtitle={locale === "ko" ? "요즘 나의 연결 상태" : "How you're connecting lately"}
           island={CORE_VILLAGE_UI.island}

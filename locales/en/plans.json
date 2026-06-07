@@ -3,8 +3,8 @@
   "hero": {
     "eyebrow": "Plans",
     "title": "Keep your 2nd-Brain unlimited",
-    "subtitle": "Your records stay free and on your device. Add more AI when you want it.",
-    "speech": "The core is yours, free. Plus just adds more room to think together."
+    "subtitle": "Your records stay available on Free. Add more AI when you want it.",
+    "speech": "The core stays free. Plus just adds more room to think together."
   },
   "current": "Current plan",
   "comingSoon": "Paid plans are coming soon",
@@ -13,9 +13,9 @@
     "free": {
       "name": "Free",
       "price": "Free",
-      "tagline": "Your whole local brain, unlimited",
+      "tagline": "Your everyday 2nd-Brain, unlimited",
       "f1": "Unlimited records, notes, and wiki",
-      "f2": "Everything stays on your device by default",
+      "f2": "Private account storage with export when you need it",
       "f3": "5 AI chats per day"
     },
     "plus": {

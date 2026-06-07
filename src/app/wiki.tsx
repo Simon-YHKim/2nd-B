@@ -65,8 +65,8 @@ const FACETS: ReadonlyArray<{
   {
     id: "core_brain",
     route: "/core-brain",
-    label: { en: "Core", ko: "코어" },
-    desc: { en: "Know yourself", ko: "나를 알기" },
+    label: { en: "My center", ko: "나의 중심" },
+    desc: { en: "Trace your patterns", ko: "내 패턴 보기" },
   },
   {
     id: "library",
@@ -1139,7 +1139,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                           hitSlop={6}
                           style={styles.pageHandoffBtn}
                           accessibilityRole="button"
-                          accessibilityLabel={locale === "ko" ? `${p.title}에 대해 세컨드비에게 묻기` : `Ask SecondB about ${p.title}`}
+                          accessibilityLabel={locale === "ko" ? `${p.title}에 대해 세컨비에게 묻기` : `Ask SecondB about ${p.title}`}
                         >
                           <Text variant="caption" color="brand">
                             {locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}

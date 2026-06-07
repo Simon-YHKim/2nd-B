@@ -317,8 +317,8 @@ export default function Landing() {
   const mascotLabel =
     locale === "ko"
       ? presence.mascot === "sleep"
-        ? "쉬고 있는 세컨드비"
-        : "세컨드비"
+        ? "쉬고 있는 세컨비"
+        : "세컨비"
       : presence.mascot === "sleep"
         ? "SecondB resting"
         : "SecondB";
@@ -460,7 +460,7 @@ export default function Landing() {
           style={{ flex: 1 }}
           accessibilityRole="button"
           accessibilityLabel={locale === "ko" ? "오늘의 중심 보기" : "Open today's center"}
-          accessibilityHint={locale === "ko" ? "Core Brain 화면으로 이동합니다" : "Opens Core Brain"}
+          accessibilityHint={locale === "ko" ? "나의 중심 화면으로 이동합니다" : "Opens My center"}
         >
           {/* KO "오늘의 중심" reads worse when tracked + uppercased, so KO drops
               tracking to 0 and stays sentence-case; EN keeps the stylized
