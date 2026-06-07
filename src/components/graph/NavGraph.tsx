@@ -297,10 +297,13 @@ function tierSize(t: Tier): number {
   // Simon's 2026-06-08 graph references read as crystal objects, not dots:
   // Soul Core anchors, Pattern Cores stay legible, and Pattern Data keeps its
   // flower/snowflake silhouette instead of collapsing to pixels.
-  if (t === 1) return 112;
-  if (t === 2) return 58;
-  if (t === 3) return 46;
-  return 42;
+  // P2 canonical hierarchy: the references read as big glowing cubes + tiny
+  // crystals. Soul:Core ≈ 1.56:1, Core:Data ≈ 2.7:1 so the cubes dominate and
+  // the snowflakes stay small. (tier-3 sub-menus are hidden at home — P7.)
+  if (t === 1) return 128;
+  if (t === 2) return 82;
+  if (t === 3) return 38;
+  return 30;
 }
 
 // Distance feeling (v10 pass): deeper tiers desaturate slightly so they read
@@ -322,8 +325,11 @@ function depthSaturateStyle(tier: Tier): Record<string, unknown> | null {
 // cooler (blue -> violet) so the link layers read as a neural signal path. Width
 // + per-edge opacity already fall off with depth; this adds the color layer.
 // Flag-gated in render — the legacy mint edge is unchanged when the flag is off.
-function v3EdgeColor(childTier: Tier): string {
-  return childTier <= 2 ? cosmic.signalMint : childTier === 3 ? cosmic.signalBlue : cosmic.soulViolet;
+function v3EdgeColor(_childTier: Tier): string {
+  // P5: the references show cyan neural links everywhere — no green trunk
+  // (signalMint) and no violet leaves (soulViolet). Trunk/branch/twig weight is
+  // conveyed by width + opacity (pattern-link.ts), not hue.
+  return cosmic.signalBlue;
 }
 
 // v47.2 (Simon-approved): Pattern Link signal speed is distance-tier based, so
@@ -1263,7 +1269,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       }
     }
     for (const [id, p] of dataPositions) {
-      list.push({ fromId: p.parentId, toId: id, opacity: 0.12, key: `${p.parentId}->${id}` });
+      // P5: core→snowflake links are visible at rest (was 0.12 ≈ invisible).
+      list.push({ fromId: p.parentId, toId: id, opacity: 0.3, key: `${p.parentId}->${id}` });
     }
     // Relatedness edges (2026-05-31): connect pieces that share tags so the
     // graph shows actual associations between what the user added, not just
@@ -1545,7 +1552,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke={useV3Art ? v3EdgeColor(tierOf(e.toId)) : cosmic.signalMint}
+                stroke={useV3Art ? v3EdgeColor(tierOf(e.toId)) : cosmic.signalBlue}
                 strokeOpacity={animOpacity}
                 strokeWidth={edgeStyle.strokeWidth}
                 strokeLinecap="round"
@@ -1555,21 +1562,21 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke={cosmic.moonWhite}
+                stroke={cosmic.signalBlue}
                 strokeOpacity={flowOpacity}
                 strokeWidth={Math.max(2.5, edgeStyle.strokeWidth + 1.25)}
                 strokeDasharray="4 10"
                 strokeDashoffset={flowDashOffset}
                 strokeLinecap="round"
               />
-              {/* 연결된 edge만 signal-mint 하이라이트 (§7) + C6 ambient glow. */}
+              {/* 연결된 edge만 cyan 하이라이트 (§7) + C6 ambient glow. */}
               {incident ? (
                 <AnimatedLine
                   x1={x1}
                   y1={y1}
                   x2={x2}
                   y2={y2}
-                  stroke={cosmic.signalMint}
+                  stroke={cosmic.signalBlue}
                   strokeOpacity={
                     connGlow.interpolate({ inputRange: [0.25, 1], outputRange: [0.4, 0.95] }) as unknown as number
                   }
@@ -1582,7 +1589,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                   y1={y1}
                   x2={x2}
                   y2={y2}
-                  stroke={cosmic.signalMint}
+                  stroke={cosmic.signalBlue}
                   strokeOpacity={0.7}
                   strokeWidth={Math.max(3, edgeStyle.strokeWidth + 0.75)}
                   strokeLinecap="round"
@@ -1657,7 +1664,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         const base = renderPositions.get(n.id);
         if (!base) return null;
         const coreDepth = drilldownCoreId === n.id ? drilldownDepthStyle("focusedCore", n.tier) : null;
-        const size = coreDepth ? Math.min(112, Math.max(88, width * 0.24)) : tierSize(n.tier);
+        const size = coreDepth ? Math.min(128, Math.max(96, width * 0.26)) : tierSize(n.tier);
         const dim = dimFor(n.id);
         return (
           <Animated.View
