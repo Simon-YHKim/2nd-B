@@ -57,3 +57,8 @@ coverage/
 # Local-only dev artifacts (never commit)
 .claude/launch.json
 .tmp_hq_pack/
+
+# stray env backups (never commit)
+.env.bak
+.env.*.bak
+.env.local
