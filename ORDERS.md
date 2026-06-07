@@ -14,28 +14,7 @@
 <오더 내용. 어떤 화면/기능/수정인지 구체적으로. 라이브 확인 원하면 명시.>
 -->
 
-### [O-2 / 2026-06-08 03:48] O-1 정답: A+B 둘 다 — 그래프 레퍼런스 매칭(B) 끝까지
-Simon 확답: O-1의 **(A)와 (B) 둘 다** 의도. (A)는 머지+라이브 완료 확인. 이제 **(B)** 를 끝까지 진행:
-- 메인 그래프를 레퍼런스 2장에 맞추기 — 파란 꽃형 데이터노드 · 발광 링크 · 인사이트 "Touch!" 카드
-- Codex 아트 컴포넌트 + AG device 더블체크 마무리 → PR → CI green → 머지
-- **머지 후 갱신된 라이브 URL을 DONE에 공유** (https://simon-yhkim.github.io/2nd-B/ 그래프 화면 라이브 확인 원함)
-
-### [O-3 / 2026-06-08 03:48] 애널리틱스·수익화 스택 검토 후 적용 (Clarity·GA·Firebase·Play·AdMob)
-Simon 오더: **MS Clarity · Google Analytics(GA4) · Firebase Console · Google Play · Google AdMob** — "고민하고 적용하자". **먼저 짧은 플랜을 DONE에 올려 Simon 그린라이트 받고**, 그 뒤 작은 PR로 단계 적용.
-
-플랜에 담을 것 (RN + Expo SDK 56 기준):
-- **도구별 역할·권장 패키지**: Clarity(세션리플레이 `react-native-clarity`) / GA4(이벤트·퍼널, Firebase Analytics 경유 `@react-native-firebase/analytics`) / Firebase Console(프로젝트 허브·Crashlytics) / Google Play(내부테스트 트랙·데이터안전·정책) / AdMob(`react-native-google-mobile-ads`)
-- **free-tier/실비용**: 각 도구 $0/mo 유지 확인 (blueprint §5 약속). 초과 임계점 명시
-- **3축 비전** 연결(알아가기/비서/구체화) + **C4 revenue_events** 스키마(`month_bucket`·`is_related_party`·`customer_relation_type`)로 AdMob 수익 기록
-- **EAS / config plugin** 영향: 네이티브 모듈 추가 → dev build/EAS 재빌드 필요 여부
-- **동의·프라이버시**: PIPA 개인정보 동의·iOS ATT, **C10 연령정책**(14세 미만)과 분석/광고 충돌 점검
-
-안전레일 표기:
-- 🔑 secrets: GA/Firebase/Clarity/AdMob 키 **하드코딩 금지** — `.env`(gitignore) + `EXPO_PUBLIC_*` + EAS secrets
-- 💰 AdMob = 수익/광고 영역: **XPRIZE 심사용 교육앱에 광고 적절성**(심사정책·UX·연령)부터 의견 달 것. 실제 광고 노출은 **플래그 default OFF + Simon 명시 승인 전까지 코드만**
-- 📦 Google Play 실제 제출/배포는 플랜 체크리스트만(개인정보처리방침 URL·데이터안전 섹션), 제출은 Simon 승인 후
-
-(O-1 처리됨 → DONE 참조. 새 오더는 여기에.)
+(O-1·O-2·O-3 처리됨 → DONE 참조. 새 오더는 여기에.)
 
 ---
 
@@ -46,6 +25,24 @@ Simon 오더: **MS Clarity · Google Analytics(GA4) · Firebase Console · Googl
 
 ### [O-0b / 채널 라이브 확인] Claude listening
 [2026-06-08 / 03:17:44 KST] ✅ Claude — 모바일 AI 셋업 수신. **채널 라이브, 2분 루프로 OPEN 감시 중.** 지금 열린 오더 없음 — `## OPEN`에 오더 올리면 2분 내 수행하고 여기에 결과/PR/질문을 적습니다. 병행 라이브 현황: worldview 복원·Lumina·v3 아트·KO 음역 머지됨(simon-yhkim.github.io/2nd-B). Codex 캐릭터 컨셉정합 PR #248 CI중. AG 그래프(레퍼런스) 더블체크 진행. **첫 오더 테스트로 가볍게 하나 올려보셔도 좋습니다.**
+
+### [O-2] (B) 그래프 레퍼런스 매칭 — 🔄 진행(1차 머지·라이브)
+[2026-06-08 / 03:57 KST] Claude — A+B 둘 다 확인 👍 (B) 1차 머지·라이브:
+- **#249 머지**: 노드 크기 정합(Soul Core 112·Pattern Core 58·Pattern Data 42) + tier-4 저장조각=파란 Pattern-Data 크리스탈 아트 + Pattern Link 발광 강화(굵기 2→5·opacity↑·둥근 stroke).
+- 🔗 **라이브(그래프): https://simon-yhkim.github.io/2nd-B/** (로그인→그래프, 방금 배포 ~2분 후 반영). 모바일로 레퍼런스 대비 피드백 주세요.
+- **잔여(B 마무리)**: 하단 'Touch!' 2카드(세컨비 + 해당 코어 캐릭터) Codex 진행 중 + AG device 더블체크. 완료 시 갱신 URL.
+- 참고: '파란 꽃형'은 현재 v3 크리스탈 노드로 근접. 정확한 꽃/눈송이 형태 원하면 한 줄 주세요(에셋 추가).
+
+### [O-3] 애널리틱스·수익화 스택 플랜 — ❓ 그린라이트 대기 (구현 전)
+[2026-06-08 / 03:57 KST] Claude — **플랜만 작성, 구현 X. 승인/단계 선택 주시면 작은 PR로 적용.**
+**현황(이미 있음)**: `src/lib/analytics/index.ts`=GA4·Clarity·PostHog·Sentry 추상화(웹, 동의게이트, id없으면 no-op). env에 GA4/Clarity id 슬롯 有. revenue_events(0005, month_bucket·is_related_party) 有. → **GA4·Clarity 웹은 id만 넣으면 활성(재빌드 불요)**. Firebase·AdMob=미존재(네이티브).
+**도구(RN+Expo56, 전부 $0/mo)**: Clarity(웹 스캐폴드됨·텍스트마스킹/네이티브=react-native-clarity) · GA4(웹 IP익명/네이티브=@react-native-firebase/analytics) · Firebase(Crashlytics, Spark무료) · Play(등록 1회 $25=실비용→Simon, 제출 체크리스트만) · AdMob(react-native-google-mobile-ads).
+**EAS**: 웹 GA4/Clarity=재빌드 불요(바로). Firebase/AdMob/네이티브분석=config plugin+EAS 재빌드 필요.
+**동의/프라이버시**: PIPA 동의+iOS ATT 게이트, **C10 14세미만=분석·광고 OFF 강제**(미성년 광고 법리스크).
+**💰 AdMob 적절성 의견(요청하심)**: **현 단계 비권장.** ①XPRIZE 심사=교육/웰빙앱 광고는 미션정합·인상 마이너스 ②UX=자기성찰·신뢰 톤 훼손 ③연령=14세미만 광고 COPPA/PIPA 리스크. → **수익화는 D-09 구독(Plus/Pro) 우선**, AdMob은 코드만(플래그 OFF), 심사 후·성인 비심사 맥락만 검토.
+**제안 단계**: P1(무재빌드)=GA4+Clarity 웹 활성(Simon이 id 주입)+Sentry+이벤트 taxonomy(3축). P2(EAS재빌드)=Firebase+네이티브 analytics/Crashlytics. P3(선택)=AdMob 코드 플래그OFF+revenue_events. P4=Play 내부테스트+데이터안전(개인정보처리방침 URL).
+🔑 모든 키=.env(gitignore)+EXPO_PUBLIC_*+EAS secrets, 하드코딩 0.
+👉 **어느 Phase부터 / AdMob 포함 여부 한 줄 주시면 시작합니다.**
 
 ### [O-1] 그래픽 작업 완료 시 머지 + 라이브 URL 공유 — 🔄 부분완료(A완료/B진행)
 [2026-06-08 / 03:21:37 KST] Claude — 첫 채널 오더 수신 👍 "진행 중인 그래픽 작업"을 두 갈래로 해석해 답합니다:
