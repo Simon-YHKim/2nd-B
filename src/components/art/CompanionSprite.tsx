@@ -30,27 +30,10 @@ export const companionAlt: Record<CompanionName, string> = {
   gadi: "Relia, warm guide",
 };
 
-const COMPANION_BASE = "/assets/2ndb-production-premium-v1/workers-redraw-v1";
-
-export function getCompanionSpritePath(
-  companion: CompanionName,
-  state: CompanionState = "idle",
-  basePath = COMPANION_BASE,
-): string {
-  const suffix = state === "idle" || state === "sleep" ? "idle" : "walk_strip_6f";
-  return `${basePath}/${companion}_premium_${suffix}.png`;
-}
-
-export function getCompanionCuePath(event: CompanionEvent, basePath = "/assets/2ndb-production-premium-v1"): string {
-  switch (event) {
-    case "journal_saved": return `${basePath}/shards/shard_journal_gold.png`;
-    case "capture_saved": return `${basePath}/shards/shard_capture_mint.png`;
-    case "imagine_ready": return `${basePath}/shards/shard_imagine_pink.png`;
-    case "link_found": return `${basePath}/tier-icons/link_chain_premium.png`;
-    case "safety_soft_stop": return `${basePath}/tier-icons/heart_connection_premium.png`;
-    default: return `${basePath}/tier-icons/star_spark_premium.png`;
-  }
-}
+// Removed dead helpers getCompanionSpritePath / getCompanionCuePath (zero
+// consumers, and they returned web-only string paths that would not resolve in
+// the native bundle which uses require() everywhere). Sprite/cue rendering goes
+// through WorkerSprite/eventCueArt (require-based). Coherence audit G6.
 
 export const companionEventMap = {
   journalSaved: { companion: "momo", state: "store", cue: "journal_saved" },
