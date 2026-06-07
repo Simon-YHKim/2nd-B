@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600" fill="none">
-<g opacity="0.26">
-<path d="M 538.6 654.2 L 266.8 96.9 A 760 760 0 0 1 933.2 96.9 L 661.4 654.2 A 140 140 0 0 0 538.6 654.2" stroke="#72F2C7" stroke-width="2" stroke-dasharray="6 10" fill="#72F2C7" fill-opacity="0.025"/>
-<path d="M 678.3 663.9 L 1025.0 149.9 A 760 760 0 0 1 1358.1 727.0 L 739.7 770.2 A 140 140 0 0 0 678.3 663.9" stroke="#FF9FD6" stroke-width="2" stroke-dasharray="6 10" fill="#FF9FD6" fill-opacity="0.025"/>
-<path d="M 739.7 789.8 L 1358.1 833.0 A 760 760 0 0 1 1025.0 1410.1 L 678.3 896.1 A 140 140 0 0 0 739.7 789.8" stroke="#4CC9F0" stroke-width="2" stroke-dasharray="6 10" fill="#4CC9F0" fill-opacity="0.025"/>
-<path d="M 661.4 905.8 L 933.2 1463.1 A 760 760 0 0 1 266.8 1463.1 L 538.6 905.8 A 140 140 0 0 0 661.4 905.8" stroke="#FFD166" stroke-width="2" stroke-dasharray="6 10" fill="#FFD166" fill-opacity="0.025"/>
-<path d="M 521.7 896.1 L 175.0 1410.1 A 760 760 0 0 1 -158.1 833.0 L 460.3 789.8 A 140 140 0 0 0 521.7 896.1" stroke="#FF9FD6" stroke-width="2" stroke-dasharray="6 10" fill="#FF9FD6" fill-opacity="0.025"/>
-<path d="M 460.3 770.2 L -158.1 727.0 A 760 760 0 0 1 175.0 149.9 L 521.7 663.9 A 140 140 0 0 0 460.3 770.2" stroke="#FFD166" stroke-width="2" stroke-dasharray="6 10" fill="#FFD166" fill-opacity="0.025"/>
-</g></svg>
