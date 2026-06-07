@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
   },
   hotlineBadgeText: {
-    color: "#FFFFFF",
+    color: semantic.text,
     fontWeight: "700",
     letterSpacing: 0,
     fontSize: 12,

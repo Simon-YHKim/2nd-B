@@ -44,7 +44,7 @@ export function CosmicBackground({ glow = true, stars = true }: { glow?: boolean
           <LinearGradient id="cosmicBg" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={cosmic.space900} />
             <Stop offset="0.5" stopColor={cosmic.space950} />
-            <Stop offset="1" stopColor="#05070F" />
+            <Stop offset="1" stopColor={cosmic.space950} />
           </LinearGradient>
           <RadialGradient id="violetGlow" cx="50%" cy="22%" r="60%">
             <Stop offset="0" stopColor={cosmic.soulViolet} stopOpacity="0.22" />

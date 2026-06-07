@@ -22,8 +22,8 @@ category. Solo build; deadline 2026-08-17 06:00 KST.
    patterns, character strengths.
 3. **Memory (RAG)** — Export a portable Markdown / JSON knowledge base
    that works with Claude, ChatGPT, or any LLM you prefer.
-4. **Advisor** — Toggle-mode guidance on career, learning, and habits,
-   grounded in validated psychology (Big Five, SDT, Attachment, VIA).
+4. **SecondB chat** — Analytic and new-angle reflections on career,
+   learning, and habits, grounded in saved records and validated frameworks.
 5. **Planner** — Personality-calibrated action plans (v1.1).
 6. **Curator** — AI-curated psychology references, verified by a human
    before inclusion.
