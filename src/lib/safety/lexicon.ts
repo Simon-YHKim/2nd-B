@@ -43,6 +43,11 @@ export const CRISIS_TERMS: Record<Locale, readonly string[]> = {
     "want to die",
     "i want to die",
     "no reason to live",
+    // Latent RED (EN parity with ko latent + classifier prompt markers, safety.ts).
+    // Apostrophe-free so the single-quoted gemini-proxy mirror stays valid (parity test).
+    "better off without me",
+    "burden to others",
+    "fade away",
   ],
   ko: [
     // Active RED (Suicide CARE 2.0, Na et al. 2020)
