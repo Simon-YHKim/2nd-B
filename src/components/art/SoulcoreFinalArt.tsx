@@ -39,6 +39,7 @@ const FINAL_PATTERN_DATA_ART: Record<FinalPatternDataId, ImageSourcePropType> = 
   muse: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/muse_pattern_data_96.png"),
   growth: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/growth_pattern_data_96.png"),
 };
+const FINAL_PATTERN_DATA_SNOWFLAKE_ART: ImageSourcePropType = require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier3_pattern_data/wisdom_pattern_data_96.png");
 
 const FINAL_LOG_ART: Record<FinalLogId, ImageSourcePropType> = {
   work: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier4_logs/work_log_96x72.png"),
@@ -363,6 +364,18 @@ const SPARK_CELLS: Array<{ x: number; y: number; w: number; h: number; color: st
   { x: 5, y: 0, w: 0.7, h: 0.7, color: "#FF8E1F", opacity: 0.8 },
 ];
 
+const SNOWFLAKE_CELLS: Array<{ x: number; y: number; w: number; h: number; color: string; opacity?: number }> = [
+  { x: 0.5, y: 0.04, w: 1, h: 1.6, color: "#BFF6FF" },
+  { x: 0.5, y: 0.96, w: 1, h: 1.6, color: "#58CFFF" },
+  { x: 0.04, y: 0.5, w: 1.6, h: 1, color: "#58CFFF" },
+  { x: 0.96, y: 0.5, w: 1.6, h: 1, color: "#BFF6FF" },
+  { x: 0.21, y: 0.21, w: 1.25, h: 1.25, color: "#7DE7FF", opacity: 0.92 },
+  { x: 0.79, y: 0.21, w: 1.25, h: 1.25, color: "#DFFBFF", opacity: 0.92 },
+  { x: 0.21, y: 0.79, w: 1.25, h: 1.25, color: "#DFFBFF", opacity: 0.86 },
+  { x: 0.79, y: 0.79, w: 1.25, h: 1.25, color: "#58CFFF", opacity: 0.88 },
+  { x: 0.5, y: 0.5, w: 1.7, h: 1.7, color: "#F4FFFF" },
+];
+
 export function FinalPatternDataArt({
   id,
   size,
@@ -402,6 +415,43 @@ export function FinalPatternDataArtV49({
   return (
     <LivingAsset preset="patternData" id={`pd-${colorKey}`} size={size} style={style} enabled={animated} pointerEvents="none">
       <Image source={PATTERN_DATA_ART_BY_VARIANT[variant][colorKey]} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
+    </LivingAsset>
+  );
+}
+
+export function FinalPatternDataSnowflakeArt({
+  colorKey,
+  size,
+  style,
+  animated = true,
+}: {
+  colorKey: PatternDataColorKey;
+  size: number;
+  style?: StyleProp<ViewStyle>;
+  animated?: boolean;
+}) {
+  const px = Math.max(1.5, size * 0.045);
+  return (
+    <LivingAsset preset="patternData" id={`pd-snow-${colorKey}`} size={size} style={style} enabled={animated} pointerEvents="none">
+      <View style={[styles.snowflakeFrame, { width: size, height: size }]}>
+        {SNOWFLAKE_CELLS.map((cell, i) => (
+          <View
+            key={`${cell.x}-${cell.y}-${i}`}
+            style={[
+              styles.snowflakeCell,
+              {
+                left: size * cell.x - (px * cell.w) / 2,
+                top: size * cell.y - (px * cell.h) / 2,
+                width: px * cell.w,
+                height: px * cell.h,
+                backgroundColor: cell.color,
+                opacity: cell.opacity ?? 1,
+              },
+            ]}
+          />
+        ))}
+        <Image source={FINAL_PATTERN_DATA_SNOWFLAKE_ART} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
+      </View>
     </LivingAsset>
   );
 }
@@ -538,6 +588,23 @@ const styles = StyleSheet.create({
     shadowColor: "#FFD83D",
     shadowOpacity: 0.55,
     shadowRadius: 3,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  snowflakeFrame: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#58CFFF",
+    shadowOpacity: 0.8,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  snowflakeCell: {
+    position: "absolute",
+    borderRadius: 1,
+    shadowColor: "#7DE7FF",
+    shadowOpacity: 0.72,
+    shadowRadius: 4,
     shadowOffset: { width: 0, height: 0 },
   },
 });

@@ -62,7 +62,7 @@ import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
-import { FinalPatternDataArtV49 } from "@/components/art/SoulcoreFinalArt";
+import { FinalPatternDataSnowflakeArt } from "@/components/art/SoulcoreFinalArt";
 import { resolvePatternDataColor } from "@/lib/graph/pattern-data-color";
 import { depthStyleForTier } from "@/lib/graph/depth-style";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
@@ -335,6 +335,26 @@ function patternLinkDistance(incident: boolean, childTier: Tier): PatternLinkDis
   if (childTier <= 2) return "near";
   if (childTier === 3) return "mid";
   return "far";
+}
+
+function patternLinkProximity({
+  incident,
+  glowIncident,
+  childTier,
+  zoomBucket,
+  baseOpacity,
+}: {
+  incident: boolean;
+  glowIncident: boolean;
+  childTier: Tier;
+  zoomBucket: 0 | 1 | 2;
+  baseOpacity: number;
+}): number {
+  const depth = childTier <= 2 ? 0.74 : childTier === 3 ? 0.52 : 0.34;
+  const zoom = zoomBucket * 0.11;
+  const focus = incident ? 0.28 : glowIncident ? 0.2 : 0;
+  const relation = Math.min(0.1, baseOpacity * 0.28);
+  return Math.max(0, Math.min(1, depth + zoom + focus + relation));
 }
 
 // Center (tier 1) size — kept as a named constant since the center node
@@ -908,10 +928,6 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     return b;
   });
   const vis = tierVisibility(bucket < 1 ? 0.5 : bucket < 2 ? 1.5 : 2.0);
-  // Pattern Link proximity → edge weight (worldview v-final): zoomed-in (bucket
-  // 2) reads "closer" so edges thicken; zoomed-out stays thin. Recomputed when
-  // the zoom bucket flips (rare), so it's a live but render-cheap signal.
-  const linkStyle = patternLinkStyle(bucket / 2);
   const nodeVisible = (tier: Tier): boolean =>
     tier === 1 ? vis.tier1 : tier === 2 ? vis.tier2 : tier === 3 ? vis.tier3 : vis.tier4;
 
@@ -1338,11 +1354,20 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           const glowIncident = glowNodeId != null && (e.fromId === glowNodeId || e.toId === glowNodeId);
           // §7: when a node is focused, dim the unrelated edges.
           const dimFactor = activeId != null && !incident ? 0.22 : 1;
+          const childTier = tierOf(e.toId);
+          const edgeStyle = patternLinkStyle(patternLinkProximity({
+            incident,
+            glowIncident,
+            childTier,
+            zoomBucket: bucket,
+            baseOpacity: e.opacity,
+          }));
           const ev = edgeValues.current.get(e.key);
           // v47.2: pick the looping signal value for this edge's distance tier.
-          const linkSignal = linkSignals[patternLinkDistance(incident, tierOf(e.toId))];
+          const linkSignal = linkSignals[patternLinkDistance(incident, childTier)];
+          const edgeOpacity = Math.min(1, e.opacity * edgeStyle.opacity * dimFactor);
           const animOpacity = ev
-            ? (ev.interpolate({ inputRange: [0, 1], outputRange: [0, e.opacity * dimFactor] }) as unknown as number)
+            ? (ev.interpolate({ inputRange: [0, 1], outputRange: [0, edgeOpacity] }) as unknown as number)
             : 0;
           const flowOpacity = ev
             ? (Animated.multiply(
@@ -1350,7 +1375,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 linkSignal.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.82, 0] }),
               ).interpolate({
                 inputRange: [0, 1],
-                outputRange: [0, Math.min(0.85, e.opacity * dimFactor * 1.2)],
+                outputRange: [0, Math.min(0.92, edgeOpacity * 1.55)],
               }) as unknown as number)
             : 0;
           const flowDashOffset = linkSignal.interpolate({
@@ -1370,7 +1395,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 y2={y2}
                 stroke={useV3Art ? v3EdgeColor(tierOf(e.toId)) : cosmic.signalMint}
                 strokeOpacity={animOpacity}
-                strokeWidth={linkStyle.strokeWidth}
+                strokeWidth={edgeStyle.strokeWidth}
                 strokeLinecap="round"
               />
               <AnimatedLine
@@ -1380,7 +1405,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 y2={y2}
                 stroke={cosmic.moonWhite}
                 strokeOpacity={flowOpacity}
-                strokeWidth={Math.max(2.5, linkStyle.strokeWidth + 1.25)}
+                strokeWidth={Math.max(2.5, edgeStyle.strokeWidth + 1.25)}
                 strokeDasharray="4 10"
                 strokeDashoffset={flowDashOffset}
                 strokeLinecap="round"
@@ -1396,7 +1421,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                   strokeOpacity={
                     connGlow.interpolate({ inputRange: [0.25, 1], outputRange: [0.4, 0.95] }) as unknown as number
                   }
-                  strokeWidth={Math.max(3, linkStyle.strokeWidth + 1)}
+                  strokeWidth={Math.max(3, edgeStyle.strokeWidth + 1)}
                   strokeLinecap="round"
                 />
               ) : glowIncident ? (
@@ -1407,7 +1432,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                   y2={y2}
                   stroke={cosmic.signalMint}
                   strokeOpacity={0.7}
-                  strokeWidth={Math.max(3, linkStyle.strokeWidth + 0.75)}
+                  strokeWidth={Math.max(3, edgeStyle.strokeWidth + 0.75)}
                   strokeLinecap="round"
                 />
               ) : null}
@@ -1453,7 +1478,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 accessibilityState={{ selected: activeId === id }}
               >
                 <View style={[{ opacity: depthStyleForTier(4).opacity }, depthSaturateStyle(4) as never]}>
-                  <FinalPatternDataArtV49
+                  <FinalPatternDataSnowflakeArt
                     colorKey={resolvePatternDataColor({
                       name: piece?.title ?? id,
                       description: piece?.summary ?? "",
@@ -1513,7 +1538,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 // label + description (EN+KO for keyword coverage), with the parent
                 // domain as an extra keyword and the node id as the stable-hash
                 // fallback seed — so the same node always reads the same color.
-                <FinalPatternDataArtV49
+                <FinalPatternDataSnowflakeArt
                   colorKey={resolvePatternDataColor({
                     name: `${n.label.en} ${n.label.ko}`,
                     description: `${n.description.en} ${n.description.ko}`,
