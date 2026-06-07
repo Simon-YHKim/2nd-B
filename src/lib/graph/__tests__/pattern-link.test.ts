@@ -11,7 +11,7 @@ describe("patternLinkStyle", () => {
   test("proximity 0 (far) → min width / opacity / saturation", () => {
     const s = patternLinkStyle(0);
     expect(s.strokeWidth).toBeCloseTo(2);
-    expect(s.opacity).toBeCloseTo(0.3);
+    expect(s.opacity).toBeCloseTo(0.45);
     expect(s.saturation).toBeCloseTo(0.5);
   });
 
