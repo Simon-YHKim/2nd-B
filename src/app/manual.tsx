@@ -153,7 +153,7 @@ export default function Manual() {
 
         <SceneHero
           eyebrow={locale === "ko" ? "안내서" : "Manual"}
-          title={locale === "ko" ? "마을을 읽는 짧은 지도" : "A compact map of the village"}
+          title={locale === "ko" ? "내 중심을 읽는 짧은 지도" : "A compact map of your core"}
           subtitle={locale === "ko" ? "루틴 · 캡처 · 위키 · 안전" : "Routine · capture · wiki · safety"}
           island={CORE_VILLAGE_UI.island}
           worker={CORE_VILLAGE_UI.worker}
@@ -280,7 +280,9 @@ export default function Manual() {
               label={locale === "ko" ? "큐레이션된 자료" : "Curated research"}
               variant="secondary"
               accessibilityHint={
-                locale === "ko" ? "검증된 연구 자료 목록을 엽니다." : "Opens the curated research library."
+                locale === "ko"
+                  ? "로그인 후 검증된 연구 자료 목록을 엽니다."
+                  : "Opens the curated research library. Sign-in required."
               }
             />
           </Link>
