@@ -67,3 +67,6 @@ coverage/
 test_*.js
 .codex-*.md
 .ag-*.md
+
+# stray hub paths accidentally written by AI worktrees (belong in E:/Coding Infra/AI Infra/Communication)
+/agents/
