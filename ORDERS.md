@@ -32,7 +32,12 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ### [O-5] FORCE_TIER=off 론치 게이팅 — ✅ 머지
 [2026-06-08 / 08:26 KST] Claude — **#257 머지**(main `51f8da3` 포함). 페이월 우회(brain) 기본값을 **off**로(env.ts zod default가 실제 핵심) + .env.example + env.test + eas.json production 명시. 이제 릴리즈/심사 빌드가 실제 티어 과금 게이팅. 테스트 우회는 로컬 .env에 brain 명시.
 
-### [O-4 part2] 그래프 트리 재설계 — 🔄 P1·P7 라이브 (단계별)
+### [O-4 part2] 그래프 트리 재설계 — ✅ P1-P11 코드 완결·라이브
+[2026-06-08 / 09:46 KST] Claude — **4AI 방향 전체(P1-P11) 머지·라이브 완료.** 🔗 **https://simon-yhkim.github.io/2nd-B/** (번들 e9ac7e95, 로그인→그래프). **모바일로 레퍼런스 2장 대비 최종 확인 부탁** — 하단뿌리 트리·위 큐브 코어·파란 눈송이·시안 신경링크·발광 블룸·2 인사이트 카드·트리 모션. 어긋난 곳 한 줄 주시면 즉시 반복.
+- 추가 머지: **#263 P4** 데이터 전부 파란 눈송이 · **#264 P6** 모든 노드 뒤 상시 시안 발광 블룸 · **#265 P11** 트리 인지 모션(트렁크 고요·잎 흔들림)+reduced-motion 가드.
+- **남음(코드 외/검증)**: ①narrative 큐브 PNG 은색 재틴트(wisdom와 파랑 충돌 — 이미지 작업) ②AG 에뮬 device QA(Android 글로우 가시성·#251 크래시 회귀·픽셀 대조) 의뢰함.
+
+<details><summary>단계별 경과 (P1·P7·P2·P5·P3·P9)</summary>
 [2026-06-08 / 08:26 KST] Claude — 4AI 방향대로 **구조부터 단계 적용**:
 - **#255 P1**: 중앙 radial → **하단뿌리 상향 트리**. Soul Core un-pin(화면중앙 하드핀 제거) + world-layout 트리좌표(root 0.82·2-2-1 canopy·upward-cone 데이터) + 카드 framing + sectorFocus 재루팅. 테스트 18 재작성.
 - **#256 P7**: 파란 눈송이 Pattern Data를 **홈 화면 상시 노출**(전엔 zoom 1.8+에서만), tier-3 서브메뉴는 숨김.
@@ -41,7 +46,8 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 - **#262 P9**: 오버뷰 2 카드 = 세컨비 리포트(최근/부족 코어) + **코어 스포트라이트**(큐브 아이콘+코어명). 페르소나 조사버그('아콘가') 수정.
 - (#261 glow-style·card-insights 모듈 foundation.)
 - 🔗 **라이브: https://simon-yhkim.github.io/2nd-B/** (로그인→그래프, 번들 4a57c1cf). **모바일로 확인 부탁** — 하단뿌리 트리·위 큐브 코어·파란 눈송이·시안 링크·2 인사이트 카드.
-- 남은 자체 진행: **P6**(상시 글로우/블룸 헤일로)·**P11**(모션 폴리시: 트렁크 고요·잎 흔들림·성장연출). 펀치리스트(이미지): narrative 큐브 은색 재틴트(wisdom와 파랑 충돌).
+- (P6 글로우·P11 모션은 위에서 완료.)
+</details>
 
 ### [Simon 피드백] 그래프 재설계 — 4AI 방향 확정 ✅, 구현 착수 🔄
 [2026-06-08 / 07:50 KST] Claude — **4 AI 공동 방향수립 + adversarial 검증 완료.** 리포트: `agents/claude/outbox/preview/20260608-graph-redesign-direction-report.html` (PC 브라우저).
