@@ -62,7 +62,6 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
 import { VILLAGE_UI } from "@/lib/village-ui";
-import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
@@ -146,8 +145,13 @@ export default function Capture() {
   const { t, i18n } = useTranslation("capture");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const kbHeight = useKeyboard();
   const insets = useSafeAreaInsets();
+  const keyboardBehavior = Platform.OS === "ios" ? "padding" : "height";
+  const keyboardVerticalOffset = Platform.OS === "ios" ? insets.top : 0;
+  const scrollBottomPadding = Math.max(
+    styles.scroll.paddingBottom,
+    insets.bottom + TAB_BAR_HEIGHT + spacing.md,
+  );
   // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
   // the light caption tracking.
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.3 };
@@ -543,8 +547,16 @@ export default function Capture() {
 
   return (
     <PremiumAppShell>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, insets.bottom + TAB_BAR_HEIGHT + spacing.md, Platform.OS === "android" ? kbHeight + 86 : 0) }]} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        behavior={keyboardBehavior}
+        keyboardVerticalOffset={keyboardVerticalOffset}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingBottom: scrollBottomPadding }]}
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          keyboardShouldPersistTaps="handled"
+        >
           <SceneHero
             eyebrow={t("hero.eyebrow")}
             title={t("hero.title")}

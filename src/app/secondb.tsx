@@ -35,6 +35,7 @@ import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
 import { CORE_VILLAGE_UI, VILLAGE_UI } from "@/lib/village-ui";
 import { prefersReducedMotion } from "@/lib/motion/signature";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Quick-action chips offered under an answer (chat pack §8). Each prefills
 // the composer with a short follow-up in the village voice; the user sends.
@@ -88,6 +89,10 @@ export default function SecondBChat() {
   const { userId, loading: authLoading, isMinor, hasProfile } = useAuth();
   const progression = useProgression();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const insets = useSafeAreaInsets();
+  const keyboardBehavior = Platform.OS === "ios" ? "padding" : "height";
+  const keyboardVerticalOffset = Platform.OS === "ios" ? insets.top : 0;
+  const messageListBottomPadding = Math.max(styles.scroll.paddingBottom, insets.bottom + spacing.md);
 
   // nodeContext entry (chat pack §3/§7): a graph node passed its label.
   // character (2026-05-31): tapping a village companion opens chat in that
@@ -250,7 +255,11 @@ export default function SecondBChat() {
 
   return (
     <PremiumAppShell>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={keyboardBehavior}
+        keyboardVerticalOffset={keyboardVerticalOffset}
+      >
         <SceneHero
           eyebrow={locale === "ko" ? "06. 세컨비 대화" : "06. SecondB chat"}
           title={isCharacterChat ? persona.name[locale] : t("title")}
@@ -362,7 +371,9 @@ export default function SecondBChat() {
         <ScrollView
           ref={scrollRef}
           style={{ flex: 1 }}
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scroll, { paddingBottom: messageListBottomPadding }]}
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           {turns.length === 0 ? (
@@ -639,7 +650,7 @@ const styles = StyleSheet.create({
   modeChipDivergent: { backgroundColor: cosmic.soulViolet2, borderColor: cosmic.soulViolet2 },
   modeHint: { flex: 1, marginLeft: spacing.xs },
   divergentPulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: cosmic.soulViolet2 },
-  scroll: { paddingVertical: spacing.md, gap: spacing.sm },
+  scroll: { paddingTop: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
   empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },
   emptySecondB: {
     width: 140,
