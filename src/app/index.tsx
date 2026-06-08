@@ -196,6 +196,8 @@ export default function Landing() {
   // O-12 Phase D (first-impression): insight cards stay hidden until the user
   // first touches the graph, so the initial screen is the clean graph alone.
   const [graphTouched, setGraphTouched] = useState(false);
+  // O-12 Phase C P1-1: hide overlay cards while a node sheet / drilldown is open.
+  const [sheetOpen, setSheetOpen] = useState(false);
   // First-run empty-graph card is dismissible so the user can just browse.
   // Dismissal persists (web localStorage / native AsyncStorage) so the card
   // doesn't re-appear on every return to the graph (it used to be mount-local
@@ -407,6 +409,7 @@ export default function Landing() {
           highlightId={highlightId}
           glowNodeId={dataNodes.length > 0 && !centerSeen ? "records" : null}
           onFirstInteraction={() => setGraphTouched(true)}
+          onActiveChange={setSheetOpen}
         />
       </Animated.View>
 
@@ -476,7 +479,7 @@ export default function Landing() {
         </Animated.View>
       ) : null}
 
-      {!showingEmptyGraphCard && graphTouched ? (
+      {!showingEmptyGraphCard && graphTouched && !sheetOpen ? (
         <Animated.View
           style={[
             styles.insightCardStack,

@@ -1261,20 +1261,22 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.lg,
   },
+  // O-12 Phase C P1-4: keep GB sharp corners (radius 0, 2px) so PremiumCard's
+  // PixelCorner brackets align — a rounded override left the markers floating.
   savedPanel: {
     backgroundColor: semantic.surfaceAlt,
     borderColor: semantic.success,
-    borderWidth: 1,
-    borderRadius: radii.md,
+    borderWidth: 2,
+    borderRadius: 0,
     padding: spacing.md,
   },
   proposalPanel: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
-    borderWidth: 1,
+    borderWidth: 2,
     borderLeftColor: semantic.brand,
     borderLeftWidth: 3,
-    borderRadius: radii.md,
+    borderRadius: 0,
     padding: spacing.md,
   },
   scroll: { paddingBottom: spacing.xl, gap: spacing.md },

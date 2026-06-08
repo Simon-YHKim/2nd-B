@@ -463,9 +463,13 @@ interface Props {
    *  with the graph (tap a node). Lets the host reveal the insight cards only
    *  after first touch, so the initial screen is the clean graph alone. */
   onFirstInteraction?: () => void;
+  /** O-12 Phase C P1-1: fired true when a node sheet / drilldown opens and false
+   *  when it closes, so the host can hide the overlay insight cards that would
+   *  otherwise cover the sheet's action buttons. */
+  onActiveChange?: (sheetOpen: boolean) => void;
 }
 
-export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstInteraction }: Props) {
+export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstInteraction, onActiveChange }: Props) {
   const { t } = useTranslation("common");
   const { width, height } = useWindowDimensions();
   const cx = width / 2;
@@ -1015,6 +1019,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
   const [drilldownState, setDrilldownState] = useState<DrilldownState>(exitDrilldown());
   const drilldownCoreId = drilldownState.mode === "core" ? drilldownState.coreId : null;
   const drilldownSelectedDataId = drilldownState.mode === "core" ? drilldownState.selectedDataId : null;
+  // O-12 Phase C P1-1: tell the host when a node sheet / drilldown is open so it
+  // hides the overlay insight cards that would cover the sheet's buttons.
+  useEffect(() => {
+    onActiveChange?.(activeId != null || drilldownCoreId != null);
+  }, [activeId, drilldownCoreId, onActiveChange]);
   // Highlight-on-return (queue B): a tier-4 shard the user came back to see.
   const [highlightDataId, setHighlightDataId] = useState<string | null>(null);
 
