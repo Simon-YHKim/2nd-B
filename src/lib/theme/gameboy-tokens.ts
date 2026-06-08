@@ -19,6 +19,7 @@ export const gameboy = {
 } as const;
 
 export type PixelShadowStyle = {
+  boxShadow: string;
   shadowColor: string;
   shadowOffset: {
     width: number;
@@ -29,8 +30,13 @@ export type PixelShadowStyle = {
   elevation: 0;
 };
 
+export function pixelShadowBoxShadow(shadowColor: string = gameboy.border): string {
+  return `${gameboy.pixelShadow.offsetX}px ${gameboy.pixelShadow.offsetY}px ${gameboy.pixelShadow.blur}px ${shadowColor}`;
+}
+
 export function pixelShadowStyle(shadowColor: string = gameboy.border): PixelShadowStyle {
   return {
+    boxShadow: pixelShadowBoxShadow(shadowColor),
     shadowColor,
     shadowOffset: {
       width: gameboy.pixelShadow.offsetX,

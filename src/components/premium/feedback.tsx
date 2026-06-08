@@ -1,18 +1,23 @@
 // Premium feedback surfaces (Part 1): bottom sheet, modal, toast, and the
-// empty / loading / error / safety states. Glassy, glowing, reduced-motion
-// aware. Copy is warm + non-clinical; safety uses Gadi's calm rose tone.
+// empty / loading / error / safety states. Pixel-framed and reduced-motion
+// aware. Copy is warm + non-clinical; safety uses the calm rose tone.
 
 import { type ReactNode, useEffect, useRef } from "react";
 import { ActivityIndicator, Animated, BackHandler, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
+import {
+  SCREEN_TRANSITION_DISTANCE_PX,
+  SCREEN_TRANSITION_MS,
+  pixelMotionDuration,
+} from "@/lib/motion/pixel-physical";
+import { prefersReducedMotion } from "@/lib/motion/signature";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, spacing, withAlpha } from "@/lib/theme/tokens";
-import { prefersReducedMotion } from "@/lib/motion/signature";
 import { PremiumButton } from "./surfaces";
 
-/** Slide-up glassy bottom sheet. Screen-fixed; renders nothing when closed. */
+/** Slide-up pixel bottom sheet. Screen-fixed; renders nothing when closed. */
 export function PremiumBottomSheet({
   visible,
   onClose,
@@ -46,10 +51,15 @@ export function PremiumBottomSheet({
       return;
     }
     slide.setValue(0);
-    Animated.timing(slide, { toValue: 1, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    Animated.timing(slide, {
+      toValue: 1,
+      duration: pixelMotionDuration(SCREEN_TRANSITION_MS),
+      easing: Easing.linear,
+      useNativeDriver: true,
+    }).start();
   }, [visible, slide]);
   if (!visible) return null;
-  const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [60, 0] });
+  const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [SCREEN_TRANSITION_DISTANCE_PX, 0] });
   return (
     <View style={styles.sheetWrap} pointerEvents="box-none">
       <Pressable

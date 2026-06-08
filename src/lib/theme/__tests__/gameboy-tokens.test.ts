@@ -1,5 +1,5 @@
 import { cosmic, withAlpha } from "../tokens";
-import { gameboy, pixelShadowStyle } from "../gameboy-tokens";
+import { gameboy, pixelShadowBoxShadow, pixelShadowStyle } from "../gameboy-tokens";
 
 describe("gameboy tokens", () => {
   it("locks the Deep Space Game Boy geometry tokens", () => {
@@ -21,6 +21,7 @@ describe("gameboy tokens", () => {
 
   it("creates a hard-offset React Native shadow style", () => {
     expect(pixelShadowStyle()).toEqual({
+      boxShadow: `3px 3px 0px ${withAlpha(cosmic.signalBlue, 0.35)}`,
       shadowColor: gameboy.border,
       shadowOffset: { width: 3, height: 3 },
       shadowRadius: 0,
@@ -31,5 +32,13 @@ describe("gameboy tokens", () => {
 
   it("allows a custom hard shadow color", () => {
     expect(pixelShadowStyle(gameboy.power).shadowColor).toBe(gameboy.power);
+    expect(pixelShadowBoxShadow(gameboy.power)).toBe("3px 3px 0px #72F2C7");
+  });
+
+  it("does not rely on Android elevation for the pixel shadow", () => {
+    const style = pixelShadowStyle();
+
+    expect(style.elevation).toBe(0);
+    expect(style.boxShadow).toBeTruthy();
   });
 });
