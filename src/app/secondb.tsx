@@ -604,11 +604,19 @@ export default function SecondBChat() {
                 ? "답변에 영향을 준 조각들이에요. 필요하면 하나씩 열어볼 수 있어요."
                 : "The pieces that shaped this answer. Open any one if you like."}
             </Text>
-            <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+            {/* List scrolls within the capped (62%) drawer so the Close button
+                below stays reachable even with many referenced pieces or on a
+                short / landscape screen (was a plain View: long lists pushed
+                Close off-screen). */}
+            <ScrollView
+              style={{ flexShrink: 1 }}
+              contentContainerStyle={{ marginTop: spacing.md, gap: spacing.sm, paddingBottom: spacing.sm }}
+              showsVerticalScrollIndicator={false}
+            >
               {(refDrawer ?? []).map((slug) => (
                 <ReferenceShardCard key={slug} title={formatSourceCitationLabel(slug)} meta={t("reference_piece_meta")} />
               ))}
-            </View>
+            </ScrollView>
             <Button
               label={locale === "ko" ? "닫기" : "Close"}
               variant="secondary"
