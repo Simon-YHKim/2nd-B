@@ -99,6 +99,15 @@ The app uses a 4-tier visual hierarchy. ALL visual changes must respect this:
 - Depth falloff and snowflake brightness must not contradict each other
 - This hierarchy applies to size, glow intensity, opacity, animation amplitude
 
+## Information Density — one message + one graphic per screen (Simon standing rule)
+
+Too much at once is as bad as overlap. Every screen earns attention with ONE thing.
+
+- **One core message per screen** — strip the rest of the text/labels.
+- **One graphic supports it** — the visual IS the explanation. If you need explanatory text, the graphic failed → change the graphic, not add copy.
+- **Progressive disclosure** — detail appears only AFTER a tap/drilldown. First screen = the lure, detail = the catch.
+- Pairs with the touch rule (O-7): one touch should SIMPLIFY the screen, never add an overlapping layer (use a screen transition or bottom sheet, never a modal over the node). Back lives in exactly one place.
+
 ## What never to do in this repo
 
 - Commit `.env`. (gitignored — verify before staging.)

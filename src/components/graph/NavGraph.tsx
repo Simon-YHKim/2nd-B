@@ -2018,7 +2018,7 @@ function NodeSheet({
         </View>
         <Pressable
           onPress={onClose}
-          hitSlop={10}
+          hitSlop={16}
           accessibilityRole="button"
           accessibilityLabel={locale === "ko" ? "닫기" : "Close"}
           accessibilityHint={locale === "ko" ? "마을 상세 패널을 닫습니다" : "Closes the village detail panel"}
@@ -2061,7 +2061,7 @@ function NodeSheet({
       {/* Optional: unfold this node through SecondB's new-angle path. */}
       <Pressable
         onPress={onImagine}
-        hitSlop={6}
+        hitSlop={16}
         style={styles.sheetImagine}
         accessibilityRole="button"
         accessibilityLabel={locale === "ko" ? `${name} 새 관점으로 열기` : `Open ${name} from a new angle`}
@@ -2130,7 +2130,7 @@ function DrilldownSheet({
         </View>
         <Pressable
           onPress={onBack}
-          hitSlop={10}
+          hitSlop={16}
           style={styles.drilldownBack}
           accessibilityRole="button"
           accessibilityLabel={t("navGraph.drilldown.back")}
@@ -2227,7 +2227,7 @@ function DataNodeSheet({
         <Text variant="heading" style={styles.sheetName} numberOfLines={2}>{title}</Text>
         <Pressable
           onPress={onClose}
-          hitSlop={10}
+          hitSlop={16}
           accessibilityRole="button"
           accessibilityLabel={locale === "ko" ? "닫기" : "Close"}
           accessibilityHint={locale === "ko" ? "조각 상세 패널을 닫습니다" : "Closes the piece detail panel"}
