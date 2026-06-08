@@ -24,6 +24,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { deleteWikiPage, getBacklinks, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import { exportUserWiki } from "@/lib/wiki/export";
@@ -1298,7 +1299,7 @@ const styles = StyleSheet.create({
   rowHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   rowSlug: { flex: 1 },
   rowInDeg: { marginLeft: spacing.sm },
-  rowTitle: { fontWeight: "600" },
+  rowTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600" },
   kindChip: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,

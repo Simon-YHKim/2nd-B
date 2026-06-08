@@ -14,6 +14,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 interface ManualSection {
@@ -326,7 +327,7 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   cardEyebrow: { letterSpacing: 0 },
-  cardTitle: { fontWeight: "600" },
+  cardTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600" },
   cardBody: { lineHeight: 22 },
   glossary: { backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, padding: spacing.md, gap: spacing.xs },
   glossaryTitle: { letterSpacing: 0, marginBottom: spacing.xs },

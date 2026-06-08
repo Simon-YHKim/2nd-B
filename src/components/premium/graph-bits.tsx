@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, spacing, typography } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { CHARACTERS, type CharacterId } from "@/lib/characters";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionSprite, type CompanionName } from "@/components/art/CompanionSprite";
@@ -40,7 +41,7 @@ export const ReferenceShardCard = memo(function ReferenceShardCard({
     >
       <View style={[styles.shardGem, { backgroundColor: accent, shadowColor: accent }]} />
       <View style={styles.shardText}>
-        <Text variant="body" numberOfLines={2}>{title}</Text>
+        <Text variant="body" numberOfLines={2} style={styles.shardTitle}>{title}</Text>
         {meta ? <Text variant="subtle" color="textSubtle" numberOfLines={2}>{meta}</Text> : null}
       </View>
     </Pressable>
@@ -173,6 +174,7 @@ const styles = StyleSheet.create({
   },
   shardGem: { width: 10, height: 10, borderRadius: 2, shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } },
   shardText: { flex: 1, minWidth: 0 },
+  shardTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600" },
   chip: {
     flexDirection: "row",
     alignItems: "center",
