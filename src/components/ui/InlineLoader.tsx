@@ -1,13 +1,16 @@
 // Branded inline loader for in-screen / inter-route loading (graph-ux #3).
-// Shows the cosmic backdrop + a glowing pixel orb + mint spinner so route
+// Shows the cosmic backdrop + a framed pixel indicator so route
 // transitions and per-screen auth/data waits read as *our* loading screen,
 // not a bare system spinner on a blank page. Self-contained: no font or
 // provider dependency (safe to render before context is ready).
 
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Svg, { Circle, Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
+import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic } from "@/lib/theme/tokens";
+
+const PIXEL_CELLS = [0, 1, 2] as const;
 
 export function InlineLoader({ message }: { message?: string } = {}) {
   return (
@@ -24,8 +27,18 @@ export function InlineLoader({ message }: { message?: string } = {}) {
         <Circle cx="50%" cy="44%" r="22" fill="none" stroke={cosmic.soulViolet} strokeOpacity={0.5} strokeWidth={2} />
         <Circle cx="50%" cy="44%" r="6" fill={cosmic.signalMint} />
       </Svg>
-      <View style={styles.spinner}>
-        <ActivityIndicator color={cosmic.signalMint} />
+      <View style={styles.pixelFrame} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <View style={styles.pixelRow}>
+          {PIXEL_CELLS.map((cell) => (
+            <View
+              key={cell}
+              style={[
+                styles.pixelCell,
+                cell === 1 ? styles.pixelCellActive : null,
+              ]}
+            />
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -38,5 +51,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: cosmic.space950,
   },
-  spinner: { marginTop: 120 },
+  pixelFrame: {
+    marginTop: 120,
+    borderWidth: gameboy.borderWidth,
+    borderColor: gameboy.border,
+    borderRadius: gameboy.radius,
+    backgroundColor: gameboy.screen,
+    padding: gameboy.grid,
+    ...pixelShadowStyle(),
+  },
+  pixelRow: {
+    flexDirection: "row",
+    gap: gameboy.grid,
+  },
+  pixelCell: {
+    width: gameboy.grid,
+    height: gameboy.grid,
+    borderRadius: gameboy.radius,
+    backgroundColor: cosmic.signalBlue,
+    opacity: 0.55,
+  },
+  pixelCellActive: {
+    backgroundColor: cosmic.signalMint,
+    opacity: 1,
+  },
 });

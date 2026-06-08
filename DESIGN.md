@@ -104,7 +104,7 @@ The `classifyInput()` result maps directly to UI affordance:
 
 ## Game Boy (Deep Space Game Boy)
 
-O-9 adds a pixel hardware layer on top of the existing cosmic palette: a "Deep Space Game Boy" — dark cosmic background with a pixel-art Game Boy chrome layer. Shipped across all four phases (#271 tokens+fonts · #273 components · #272 graph pixel glow · #275 motion):
+O-9/O-10 completed the "Deep Space Game Boy" pixel hardware layer on top of the existing cosmic palette: dark cosmic background with pixel-art Game Boy chrome. New surfaces, controls, graph chrome, loader states, and transition motion should use this layer instead of ad hoc borders, rounded chrome, or system spinners. Shipped across all four phases (#271 tokens+fonts · #273 components · #272 graph pixel glow · #275 motion):
 
 - **Tokens**: `gameboy.*` — `borderWidth:2`, `radius:0` (sharp pixel corners), `pixelShadow` 3px hard offset (no blur), 8px grid, `scanlineOpacity`. Palette aliases gb-screen/ink/accent/power/amber/border map to cosmic tokens (no raw hex in components). WCAG AA verified (gb-ink 16.7:1, gb-accent 10.3:1 on gb-screen).
 - **Fonts**: pixel for chrome (Galmuri11 KO / Press Start 2P EN) on titles/labels/buttons/tabs; **Pretendard `fontFamilies.readable` for long body/chat/journal** (pixel faces are hard to read at small body sizes).
@@ -116,7 +116,7 @@ Source: `src/lib/theme/gameboy-tokens.ts`, `src/lib/motion/pixel-physical.ts`.
 
 | Token | Value | Use |
 |---|---:|---|
-| `gameboy.borderWidth` | `2` | Pixel border width for future controls and panels. |
+| `gameboy.borderWidth` | `2` | Pixel border width for controls, panels, and framed loader states. |
 | `gameboy.radius` | `0` | Sharp square corners. |
 | `gameboy.pixelShadow` | `3px 3px 0` | Hard offset shadow with no blur. |
 | `gameboy.scanlineOpacity` | `0.04` | LCD scanline overlay opacity. |
@@ -131,7 +131,7 @@ Palette aliases preserve O-8 cosmic values:
 | `gameboy.accent` | `cosmic.signalBlue` | `#4CC9F0` |
 | `gameboy.power` | `cosmic.signalMint` | `#72F2C7` |
 | `gameboy.amber` | `cosmic.pixelLamp` | `#FFD166` |
-| `gameboy.border` | signal-blue alpha | `rgba(76,201,240,0.35)` |
+| `gameboy.border` | `withAlpha(cosmic.signalBlue, 0.35)` | `rgba(76,201,240,0.35)` |
 
 Typography hierarchy:
 
@@ -317,7 +317,7 @@ Calmness is the brand. Motion supports comprehension; it never performs.
 - **State transition** (modal open, screen push): 200ms, `ease-out` in, `ease-in` out.
 - **Press feedback**: 80ms opacity drop to `0.8`. No scale, no spring.
 - **AI follow-up card appearing**: 250ms opacity + 4px translate-up. Once per save.
-- **No skeleton shimmer**. Use the `<ActivityIndicator color={brand} />` for loading.
+- **No skeleton shimmer**. Use `<InlineLoader />` for route/auth/data waits and keep loading chrome inside the Game Boy pixel frame.
 - **No bouncy springs**, with one documented exception below.
 
 ### Bounce exception — the "뽁" overshoot
