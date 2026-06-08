@@ -75,7 +75,8 @@ import { CrewLayer } from "./CrewLayer";
 import { useCrewCount } from "@/lib/settings/crew-density";
 import { getEnv } from "@/lib/env";
 import { V3_CREW_ART } from "@/lib/assets/soulcore-v3";
-import { PremiumButton, StatTile } from "@/components/premium";
+import { PremiumButton, StatTile, TAB_BAR_HEIGHT } from "@/components/premium";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
 import { patternLinkStyle } from "@/lib/graph/pattern-link";
@@ -472,6 +473,7 @@ interface Props {
 export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstInteraction, onActiveChange }: Props) {
   const { t } = useTranslation("common");
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const cx = width / 2;
   const cy = height / 2;
   // Tree redesign: reserve the bottom band for the always-on insight cards so
@@ -1954,7 +1956,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
 
       {/* E5 Accessibility / Settings Floating Buttons */}
       {!drilldownCoreId ? (
-      <View style={styles.a11yNavWrap} pointerEvents="box-none">
+      <View style={[styles.a11yNavWrap, { bottom: TAB_BAR_HEIGHT + insets.bottom + 12 }]} pointerEvents="box-none">
         <Pressable
           onPress={goPrevCategory}
           style={styles.a11yBtn}
