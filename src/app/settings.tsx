@@ -2,7 +2,7 @@
 // Three modes per user requirement: select-only (handled inline on
 // /journal etc.), partial (per-kind / per-tag), and full (everything).
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -31,6 +31,7 @@ const CONFIRM_PHRASE = "DELETE";
 type SettingsToast = { message: string; tone: "info" | "success" | "danger" };
 type PendingConfirm = { message: string; onYes: () => Promise<void> } | null;
 type ActionError = { title: string; body: string; retry?: () => void } | null;
+type SettingsDisclosureKey = "theme" | "crew" | "data";
 
 const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
   en: { none: "None", few: "Few", some: "Some", many: "Many" },
@@ -107,6 +108,48 @@ function Button(props: SettingsActionButtonProps) {
   return <SettingsActionButton {...props} />;
 }
 
+type DisclosureSectionProps = {
+  title: string;
+  expanded: boolean;
+  onToggle: () => void;
+  tone?: "brand" | "warning";
+  children: ReactNode;
+};
+
+function DisclosureSection({
+  title,
+  expanded,
+  onToggle,
+  tone = "brand",
+  children,
+}: DisclosureSectionProps) {
+  const borderLeftColor = tone === "warning" ? semantic.warning : semantic.brand;
+  const textColor: keyof typeof semantic = tone === "warning" ? "warning" : "brand";
+
+  return (
+    <View style={[styles.section, { borderLeftColor }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityState={{ expanded }}
+        onPress={onToggle}
+        style={({ pressed }) => [
+          styles.disclosureHeader,
+          pressed ? styles.disclosureHeaderPressed : null,
+        ]}
+      >
+        <Text variant="caption" color={textColor} style={styles.sectionEyebrow}>
+          {title}
+        </Text>
+        <Text variant="caption" color={textColor} style={styles.disclosureIndicator}>
+          {expanded ? "-" : "+"}
+        </Text>
+      </Pressable>
+      {expanded ? <View style={styles.disclosureBody}>{children}</View> : null}
+    </View>
+  );
+}
+
 export default function Settings() {
   const { t, i18n } = useTranslation("settings");
   const { userId, loading } = useAuth();
@@ -119,6 +162,11 @@ export default function Settings() {
   const [toast, setToast] = useState<SettingsToast | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
   const [actionError, setActionError] = useState<ActionError>(null);
+  const [openDisclosures, setOpenDisclosures] = useState<Record<SettingsDisclosureKey, boolean>>({
+    theme: false,
+    crew: false,
+    data: false,
+  });
 
   useEffect(() => {
     if (!toast) return;
@@ -170,6 +218,10 @@ export default function Settings() {
     const current = actionError;
     setActionError(null);
     current?.retry?.();
+  }
+
+  function toggleDisclosure(key: SettingsDisclosureKey): void {
+    setOpenDisclosures((current) => ({ ...current, [key]: !current[key] }));
   }
 
   async function runDeleteKind(kind: "journal" | "note" | "audit_response", label: string) {
@@ -389,10 +441,11 @@ export default function Settings() {
           />
         </View>
 
-        <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
-          <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "테마 (빠른 전환)" : "Theme (quick toggle)"}
-          </Text>
+        <DisclosureSection
+          title={locale === "ko" ? "테마 (빠른 전환)" : "Theme (quick toggle)"}
+          expanded={openDisclosures.theme}
+          onToggle={() => toggleDisclosure("theme")}
+        >
           <Text variant="subtle" color="textMuted">
             {locale === "ko"
               ? "메인 화면의 어두운 하늘 톤이 기본. 밝은 톤도 시도해 보세요."
@@ -416,18 +469,19 @@ export default function Settings() {
               style={styles.themeButton}
             />
           </View>
-        </View>
+        </DisclosureSection>
 
-        <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
-          <Text variant="caption" color="brand" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "그래프 크루 (장식 로봇)" : "Graph crew (decorative)"}
-          </Text>
+        <DisclosureSection
+          title={locale === "ko" ? "그래프 크루 (장식 로봇)" : "Graph crew (decorative)"}
+          expanded={openDisclosures.crew}
+          onToggle={() => toggleDisclosure("crew")}
+        >
           <Text variant="subtle" color="textMuted">
             {locale === "ko"
               ? "기록 보관소 크루가 그래프를 돌아다니는 양. 노드 수에 비례하며, 없음~많이로 조절하거나 완전히 끌 수 있어요."
               : "How many records-crew sprites wander the graph. Scales with your node count; set anywhere from none to many."}
           </Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm }}>
+          <View style={styles.crewRow}>
             {CREW_DENSITY_ORDER.map((d) => (
               <Button
                 key={d}
@@ -440,182 +494,189 @@ export default function Settings() {
               />
             ))}
           </View>
-        </View>
+        </DisclosureSection>
 
-        <View style={[styles.section, { borderLeftColor: semantic.warning }]}>
-          <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "부분 삭제: 종류별" : "Partial: by kind"}
-          </Text>
-          <Text variant="subtle" color="textMuted">
-            {locale === "ko"
-              ? "특정 종류의 기록만 삭제. 다른 종류와 위키는 그대로 둡니다."
-              : "Delete one kind only. Other kinds and your wiki stay."}
-          </Text>
-          <Button
-            label={locale === "ko" ? "모든 일기 삭제" : "Delete all journals"}
-            accessibilityHint={t("actions.deleteJournalsHint")}
-            variant="danger"
-            disabled={busy !== null}
-            onPress={() =>
-              confirm(
-                locale === "ko" ? "모든 일기를 삭제합니다." : "Delete every journal entry.",
-                () => runDeleteKind("journal", "journal"),
-              )
-            }
-          />
-          <Button
-            label={locale === "ko" ? "모든 노트 삭제" : "Delete all notes"}
-            accessibilityHint={t("actions.deleteNotesHint")}
-            variant="danger"
-            disabled={busy !== null}
-            onPress={() =>
-              confirm(
-                locale === "ko" ? "모든 노트를 삭제합니다 (평가 결과 포함)." : "Delete every note (assessments included).",
-                () => runDeleteKind("note", "note"),
-              )
-            }
-          />
-          <Button
-            label={locale === "ko" ? "과거의 나 응답 삭제" : "Delete audit responses"}
-            accessibilityHint={t("actions.deleteAuditHint")}
-            variant="danger"
-            disabled={busy !== null}
-            onPress={() =>
-              confirm(
-                locale === "ko" ? "모든 과거의 나 응답을 삭제합니다." : "Delete every audit response.",
-                () => runDeleteKind("audit_response", "audit"),
-              )
-            }
-          />
-        </View>
+        <DisclosureSection
+          title={t("nav.data")}
+          expanded={openDisclosures.data}
+          onToggle={() => toggleDisclosure("data")}
+          tone="warning"
+        >
+          <View style={styles.destructiveGroup}>
+            <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
+              {locale === "ko" ? "부분 삭제: 종류별" : "Partial: by kind"}
+            </Text>
+            <Text variant="subtle" color="textMuted">
+              {locale === "ko"
+                ? "특정 종류의 기록만 삭제. 다른 종류와 위키는 그대로 둡니다."
+                : "Delete one kind only. Other kinds and your wiki stay."}
+            </Text>
+            <Button
+              label={locale === "ko" ? "모든 일기 삭제" : "Delete all journals"}
+              accessibilityHint={t("actions.deleteJournalsHint")}
+              variant="danger"
+              disabled={busy !== null}
+              onPress={() =>
+                confirm(
+                  locale === "ko" ? "모든 일기를 삭제합니다." : "Delete every journal entry.",
+                  () => runDeleteKind("journal", "journal"),
+                )
+              }
+            />
+            <Button
+              label={locale === "ko" ? "모든 노트 삭제" : "Delete all notes"}
+              accessibilityHint={t("actions.deleteNotesHint")}
+              variant="danger"
+              disabled={busy !== null}
+              onPress={() =>
+                confirm(
+                  locale === "ko" ? "모든 노트를 삭제합니다 (평가 결과 포함)." : "Delete every note (assessments included).",
+                  () => runDeleteKind("note", "note"),
+                )
+              }
+            />
+            <Button
+              label={locale === "ko" ? "과거의 나 응답 삭제" : "Delete audit responses"}
+              accessibilityHint={t("actions.deleteAuditHint")}
+              variant="danger"
+              disabled={busy !== null}
+              onPress={() =>
+                confirm(
+                  locale === "ko" ? "모든 과거의 나 응답을 삭제합니다." : "Delete every audit response.",
+                  () => runDeleteKind("audit_response", "audit"),
+                )
+              }
+            />
+          </View>
 
-        <View style={[styles.section, { borderLeftColor: semantic.warning }]}>
-          <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "부분 삭제: 평가 결과" : "Partial: by assessment"}
-          </Text>
-          <Button
-            label={locale === "ko" ? "Big Five (BFI-44) 결과 삭제" : "Delete Big Five (BFI-44) results"}
-            accessibilityHint={t("actions.deleteBfiHint")}
-            variant="danger"
-            disabled={busy !== null}
-            onPress={() =>
-              confirm(
-                locale === "ko"
-                  ? "저장된 모든 BFI-44 결과를 삭제합니다. 이전 TIPI 결과가 있으면 함께 삭제합니다."
-                  : "Delete every saved BFI-44 result. Include older TIPI records if present.",
-                () => runDeleteByTag(["bfi", "tipi"], "bfi"),
-              )
-            }
-          />
-          <Button
-            label={locale === "ko" ? "애착 (ECR) 결과 삭제" : "Delete Attachment (ECR) results"}
-            accessibilityHint={t("actions.deleteEcrHint")}
-            variant="danger"
-            disabled={busy !== null}
-            onPress={() =>
-              confirm(
-                locale === "ko" ? "저장된 모든 ECR 결과를 삭제합니다." : "Delete every saved ECR result.",
-                () => runDeleteByTag(["ecr"], "ecr"),
-              )
-            }
-          />
-          <Button
-            label={locale === "ko" ? "MBTI 참고 결과 삭제" : "Delete MBTI reference results"}
-            accessibilityHint={t("actions.deleteMbtiHint")}
-            variant="danger"
-            disabled={busy !== null}
-            onPress={() =>
-              confirm(
-                locale === "ko" ? "저장된 모든 MBTI 참고 결과를 삭제합니다." : "Delete every saved MBTI reference result.",
-                () => runDeleteByTag(["mbti"], "mbti"),
-              )
-            }
-          />
-        </View>
+          <View style={styles.destructiveGroup}>
+            <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
+              {locale === "ko" ? "부분 삭제: 평가 결과" : "Partial: by assessment"}
+            </Text>
+            <Button
+              label={locale === "ko" ? "Big Five (BFI-44) 결과 삭제" : "Delete Big Five (BFI-44) results"}
+              accessibilityHint={t("actions.deleteBfiHint")}
+              variant="danger"
+              disabled={busy !== null}
+              onPress={() =>
+                confirm(
+                  locale === "ko"
+                    ? "저장된 모든 BFI-44 결과를 삭제합니다. 이전 TIPI 결과가 있으면 함께 삭제합니다."
+                    : "Delete every saved BFI-44 result. Include older TIPI records if present.",
+                  () => runDeleteByTag(["bfi", "tipi"], "bfi"),
+                )
+              }
+            />
+            <Button
+              label={locale === "ko" ? "애착 (ECR) 결과 삭제" : "Delete Attachment (ECR) results"}
+              accessibilityHint={t("actions.deleteEcrHint")}
+              variant="danger"
+              disabled={busy !== null}
+              onPress={() =>
+                confirm(
+                  locale === "ko" ? "저장된 모든 ECR 결과를 삭제합니다." : "Delete every saved ECR result.",
+                  () => runDeleteByTag(["ecr"], "ecr"),
+                )
+              }
+            />
+            <Button
+              label={locale === "ko" ? "MBTI 참고 결과 삭제" : "Delete MBTI reference results"}
+              accessibilityHint={t("actions.deleteMbtiHint")}
+              variant="danger"
+              disabled={busy !== null}
+              onPress={() =>
+                confirm(
+                  locale === "ko" ? "저장된 모든 MBTI 참고 결과를 삭제합니다." : "Delete every saved MBTI reference result.",
+                  () => runDeleteByTag(["mbti"], "mbti"),
+                )
+              }
+            />
+          </View>
 
-        <View style={[styles.section, { borderLeftColor: semantic.warning }]}>
-          <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "부분 삭제: 위키/캡처/사용량" : "Partial: wiki / captures / usage"}
-          </Text>
-          <Button
-            label={locale === "ko" ? "모든 위키 페이지 삭제" : "Delete all wiki pages"}
-            accessibilityHint={t("actions.deleteWikiHint")}
-            variant="danger"
-            disabled={busy !== null}
-            onPress={() =>
-              confirm(
-                locale === "ko"
-                  ? "위키 페이지와 페이지 간 연결이 모두 삭제됩니다. 받은편지함 자료는 남아요."
-                  : "Wiki pages and their page-to-page links are wiped. Inbox sources stay.",
-                () => runDeleteWikiPages(),
-              )
-            }
-          />
-          <Button
-            label={locale === "ko" ? "미발전 캡처 삭제 (받은편지함의 미정리분)" : "Delete un-ingested captures"}
-            accessibilityHint={t("actions.deleteUningestedHint")}
-            variant="danger"
-            disabled={busy !== null}
-            onPress={() =>
-              confirm(
-                locale === "ko" ? "위키로 발전시키지 않은 캡처만 삭제합니다." : "Only sources that haven't been promoted to a wiki page.",
-                () => runDeleteUningestedSources(),
-              )
-            }
-          />
-          <Button
-            label={locale === "ko" ? "세컨비 일일 사용량 리셋" : "Reset SecondB daily usage"}
-            accessibilityHint={t("actions.resetUsageHint")}
-            variant="danger"
-            disabled={busy !== null}
-            onPress={() =>
-              confirm(
-                locale === "ko" ? "오늘과 과거 모든 사용량 카운터를 비웁니다." : "Clear today's and all past usage counters.",
-                () => runResetChatUsage(),
-              )
-            }
-          />
-        </View>
+          <View style={styles.destructiveGroup}>
+            <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
+              {locale === "ko" ? "부분 삭제: 위키/캡처/사용량" : "Partial: wiki / captures / usage"}
+            </Text>
+            <Button
+              label={locale === "ko" ? "모든 위키 페이지 삭제" : "Delete all wiki pages"}
+              accessibilityHint={t("actions.deleteWikiHint")}
+              variant="danger"
+              disabled={busy !== null}
+              onPress={() =>
+                confirm(
+                  locale === "ko"
+                    ? "위키 페이지와 페이지 간 연결이 모두 삭제됩니다. 받은편지함 자료는 남아요."
+                    : "Wiki pages and their page-to-page links are wiped. Inbox sources stay.",
+                  () => runDeleteWikiPages(),
+                )
+              }
+            />
+            <Button
+              label={locale === "ko" ? "미발전 캡처 삭제 (받은편지함의 미정리분)" : "Delete un-ingested captures"}
+              accessibilityHint={t("actions.deleteUningestedHint")}
+              variant="danger"
+              disabled={busy !== null}
+              onPress={() =>
+                confirm(
+                  locale === "ko" ? "위키로 발전시키지 않은 캡처만 삭제합니다." : "Only sources that haven't been promoted to a wiki page.",
+                  () => runDeleteUningestedSources(),
+                )
+              }
+            />
+            <Button
+              label={locale === "ko" ? "세컨비 일일 사용량 리셋" : "Reset SecondB daily usage"}
+              accessibilityHint={t("actions.resetUsageHint")}
+              variant="danger"
+              disabled={busy !== null}
+              onPress={() =>
+                confirm(
+                  locale === "ko" ? "오늘과 과거 모든 사용량 카운터를 비웁니다." : "Clear today's and all past usage counters.",
+                  () => runResetChatUsage(),
+                )
+              }
+            />
+          </View>
 
-        <View style={[styles.section, { borderLeftColor: semantic.danger }]}>
-          <Text variant="caption" color="danger" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "위험: 전체 삭제" : "Danger: full wipe"}
-          </Text>
-          <Text variant="subtle" color="textMuted">
-            {locale === "ko"
-              ? "기록 · 캡처 · 위키 페이지 · 세컨비 사용량을 한 번에 모두 삭제합니다. 계정은 유지되지만 0부터 다시 시작합니다."
-              : "Wipes records, sources, wiki pages, and SecondB usage in one shot. The account stays but you start from zero."}
-          </Text>
-          <Text variant="subtle" color="danger">
-            {locale === "ko"
-              ? "이 작업은 되돌릴 수 없어요. 필요한 내용은 먼저 내보내기로 챙겨두세요."
-              : "This cannot be undone. Export anything you need first."}
-          </Text>
-          <Text variant="subtle" color="textMuted">
-            {locale === "ko" ? `진행하려면 "${CONFIRM_PHRASE}" 라고 입력하세요.` : `To proceed, type "${CONFIRM_PHRASE}" below.`}
-          </Text>
-          <Input
-            value={fullDeleteConfirm}
-            onChangeText={setFullDeleteConfirm}
-            placeholder={CONFIRM_PHRASE}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            accessibilityLabel={t("actions.fullWipeInputLabel", { phrase: CONFIRM_PHRASE })}
-          />
-          <Button
-            label={locale === "ko" ? "전체 데이터 삭제" : "Delete everything"}
-            accessibilityHint={t("actions.fullWipeHint")}
-            variant="danger"
-            disabled={fullDeleteConfirm !== CONFIRM_PHRASE || busy !== null}
-            loading={busy === "full"}
-            onPress={() =>
-              confirm(
-                locale === "ko" ? "마지막 확인: 모든 데이터가 사라집니다. 익스포트는 미리 받으셨나요?" : "Final check: everything will be gone. Did you export first?",
-                () => runFullWipe(),
-              )
-            }
-          />
-        </View>
+          <View style={styles.destructiveGroup}>
+            <Text variant="caption" color="danger" style={styles.sectionEyebrow}>
+              {locale === "ko" ? "위험: 전체 삭제" : "Danger: full wipe"}
+            </Text>
+            <Text variant="subtle" color="textMuted">
+              {locale === "ko"
+                ? "기록 · 캡처 · 위키 페이지 · 세컨비 사용량을 한 번에 모두 삭제합니다. 계정은 유지되지만 0부터 다시 시작합니다."
+                : "Wipes records, sources, wiki pages, and SecondB usage in one shot. The account stays but you start from zero."}
+            </Text>
+            <Text variant="subtle" color="danger">
+              {locale === "ko"
+                ? "이 작업은 되돌릴 수 없어요. 필요한 내용은 먼저 내보내기로 챙겨두세요."
+                : "This cannot be undone. Export anything you need first."}
+            </Text>
+            <Text variant="subtle" color="textMuted">
+              {locale === "ko" ? `진행하려면 "${CONFIRM_PHRASE}" 라고 입력하세요.` : `To proceed, type "${CONFIRM_PHRASE}" below.`}
+            </Text>
+            <Input
+              value={fullDeleteConfirm}
+              onChangeText={setFullDeleteConfirm}
+              placeholder={CONFIRM_PHRASE}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              accessibilityLabel={t("actions.fullWipeInputLabel", { phrase: CONFIRM_PHRASE })}
+            />
+            <Button
+              label={locale === "ko" ? "전체 데이터 삭제" : "Delete everything"}
+              accessibilityHint={t("actions.fullWipeHint")}
+              variant="danger"
+              disabled={fullDeleteConfirm !== CONFIRM_PHRASE || busy !== null}
+              loading={busy === "full"}
+              onPress={() =>
+                confirm(
+                  locale === "ko" ? "마지막 확인: 모든 데이터가 사라집니다. 익스포트는 미리 받으셨나요?" : "Final check: everything will be gone. Did you export first?",
+                  () => runFullWipe(),
+                )
+              }
+            />
+          </View>
+        </DisclosureSection>
 
         <View style={styles.actions}>
           <Button
@@ -724,6 +785,30 @@ const styles = StyleSheet.create({
     ...pixelShadowStyle(),
   },
   sectionEyebrow: { letterSpacing: 0, fontWeight: "700" },
+  disclosureHeader: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  disclosureHeaderPressed: {
+    opacity: 0.78,
+  },
+  disclosureIndicator: {
+    minWidth: 24,
+    textAlign: "right",
+    fontWeight: "800",
+  },
+  disclosureBody: {
+    gap: spacing.sm,
+  },
+  destructiveGroup: {
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: gameboy.borderWidth,
+    borderTopColor: gameboy.border,
+  },
   busyBanner: {
     backgroundColor: semantic.surfaceAlt,
     borderColor: gameboy.border,
@@ -785,6 +870,7 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   modalButton: { flex: 1 },
   themeRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  crewRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
   themeButton: {
     flex: 1,
     minHeight: 48,
