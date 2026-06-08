@@ -122,8 +122,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
-  cardTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600", flex: 1 },
+  cardTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600", flex: 1, minWidth: 0 },
   tag: {
+    flexShrink: 0,
     minHeight: 32,
     justifyContent: "center",
     paddingHorizontal: spacing.sm,

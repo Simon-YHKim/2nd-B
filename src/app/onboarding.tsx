@@ -11,14 +11,15 @@ import { Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
+import { spacing } from "@/lib/theme/tokens";
+import { gameboy } from "@/lib/theme/gameboy-tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { markOnboardingComplete } from "@/lib/onboarding/state";
 import { IslandArt, ShardArt } from "@/components/art/IslandArt";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { WorkerSprite } from "@/components/art/WorkerSprite";
 
-type OnboardingArt = "welcome" | "village" | "secondb" | "trust" | "firstShard";
+type OnboardingArt = "welcome" | "trust" | "firstShard";
 
 interface Step {
   art: OnboardingArt;
@@ -131,15 +132,17 @@ export default function Onboarding() {
             </View>
             <Text variant="caption" color="textMuted" style={styles.progressText}>{progressText}</Text>
           </View>
-          <Pressable
-            onPress={() => finishToGraph()}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={locale === "ko" ? "건너뛰기" : "Skip"}
-            accessibilityHint={openGraphHint}
-          >
-            <Text variant="caption" color="textMuted">{locale === "ko" ? "건너뛰기" : "Skip"}</Text>
-          </Pressable>
+          {!isLast ? (
+            <Pressable
+              onPress={() => finishToGraph()}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={locale === "ko" ? "건너뛰기" : "Skip"}
+              accessibilityHint={openGraphHint}
+            >
+              <Text variant="caption" color="textMuted">{locale === "ko" ? "건너뛰기" : "Skip"}</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <View style={styles.body}>
@@ -169,31 +172,7 @@ export default function Onboarding() {
 function OnboardingPremiumArt({ id, width }: { id: OnboardingArt; width: number }) {
   const stageW = Math.min(width, 360);
   const islandSize = Math.min(220, stageW * 0.62);
-  const smallIsland = Math.min(118, stageW * 0.32);
   const shardSize = Math.min(76, stageW * 0.22);
-
-  if (id === "village") {
-    return (
-      <View style={[styles.artStage, { width: stageW }]}>
-        <View style={styles.villageRow}>
-          <IslandArt id="imagine" size={smallIsland} />
-          <IslandArt id="knowledge" size={smallIsland} />
-          <IslandArt id="work_growth" size={smallIsland} />
-        </View>
-        <IslandArt id="core" size={islandSize * 0.75} />
-      </View>
-    );
-  }
-
-  if (id === "secondb") {
-    return (
-      <View style={[styles.artStage, { width: stageW }]}>
-        <View style={styles.secondBFrame}>
-          <SecondBSprite state="wave_a" size={118} float />
-        </View>
-      </View>
-    );
-  }
 
   if (id === "trust") {
     return (
@@ -230,35 +209,14 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   progressWrap: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
   dots: { flexDirection: "row", gap: spacing.xs, alignItems: "center" },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: semantic.border },
-  dotActive: { backgroundColor: cosmic.signalMint, width: 22 },
+  dot: { width: 8, height: 8, borderRadius: gameboy.radius, backgroundColor: gameboy.border },
+  dotActive: { backgroundColor: gameboy.power, width: 22 },
   progressText: { fontWeight: "700" },
   body: { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg },
   artStage: {
     minHeight: 220,
     alignItems: "center",
     justifyContent: "center",
-  },
-  villageRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    marginBottom: -20,
-  },
-  secondBFrame: {
-    width: 160,
-    height: 160,
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.38)",
-    backgroundColor: "rgba(167,139,250,0.14)",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: cosmic.soulViolet,
-    shadowOpacity: 0.38,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 0 },
   },
   shardRow: {
     flexDirection: "row",
