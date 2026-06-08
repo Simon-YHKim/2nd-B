@@ -1,6 +1,8 @@
 import { prefersReducedMotion } from "./signature";
 
 export const BUTTON_PRESS_MS = 60;
+export const DRILLDOWN_TRANSITION_MS = 80;
+export const SCREEN_TRANSITION_DISTANCE_PX = 8;
 export const SCREEN_TRANSITION_MS = 100;
 
 type PixelStackAnimation = "simple_push" | "fade";

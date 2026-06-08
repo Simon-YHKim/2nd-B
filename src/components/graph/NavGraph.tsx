@@ -60,6 +60,11 @@ import { cosmic } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { pitchForTier, playPop } from "@/lib/audio/pop";
 import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
+import {
+  DRILLDOWN_TRANSITION_MS,
+  SCREEN_TRANSITION_MS,
+  pixelMotionDuration,
+} from "@/lib/motion/pixel-physical";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
@@ -137,7 +142,7 @@ const SPAWN_STAGGER_TIER4_MS = 35;
 const SPAWN_TIER_GAP_MS = 110;
 const SPAWN_POP_OVERSHOOT_MS = 180;
 const SPAWN_POP_SETTLE_MS = 220;
-const EDGE_REVEAL_MS = 260;
+const EDGE_REVEAL_MS = SCREEN_TRANSITION_MS;
 
 function shuffleInPlace<T>(arr: T[]): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -617,19 +622,25 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         width: zoomViewportW.value,
         height: zoomViewportH.value,
       });
-      zoomPanX.value = withTiming(clamped.x, { duration: 350, easing: ReEasing.out(ReEasing.cubic) });
-      zoomPanY.value = withTiming(clamped.y, { duration: 350, easing: ReEasing.out(ReEasing.cubic) });
+      zoomPanX.value = withTiming(clamped.x, {
+        duration: SCREEN_TRANSITION_MS,
+        easing: ReEasing.linear,
+      });
+      zoomPanY.value = withTiming(clamped.y, {
+        duration: SCREEN_TRANSITION_MS,
+        easing: ReEasing.linear,
+      });
       zoomSavedPanX.value = clamped.x;
       zoomSavedPanY.value = clamped.y;
     });
 
   // Reset the camera to the home view (closeout-v3 #4): used by double-tap AND
-  // the floating "원래대로" button. Spring so the village snaps home elastically.
+  // the floating "원래대로" button. O-10 keeps this mechanical and short.
   const resetCamera = () => {
-    const duration = prefersReducedMotion() ? 0 : 400;
-    zoomScale.value = withTiming(1, { duration, easing: ReEasing.out(ReEasing.cubic) });
-    zoomPanX.value = withTiming(0, { duration, easing: ReEasing.out(ReEasing.cubic) });
-    zoomPanY.value = withTiming(0, { duration, easing: ReEasing.out(ReEasing.cubic) });
+    const duration = pixelMotionDuration(SCREEN_TRANSITION_MS);
+    zoomScale.value = withTiming(1, { duration, easing: ReEasing.linear });
+    zoomPanX.value = withTiming(0, { duration, easing: ReEasing.linear });
+    zoomPanY.value = withTiming(0, { duration, easing: ReEasing.linear });
     zoomSavedScale.value = 1;
     zoomSavedPanX.value = 0;
     zoomSavedPanY.value = 0;
@@ -659,12 +670,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     return off;
   });
 
-  // Programmatic camera move (graph-ux-overhaul #6/#10): spring the village so
+  // Programmatic camera move (graph-ux-overhaul #6/#10): move the village so
   // a world point lands at a chosen screen Y (default viewport center). When a
   // bottom sheet will cover the lower part of the screen we aim the point into
   // the *visible* upper area instead, so the focused village fills the space
-  // ABOVE the sheet rather than hiding behind it. Springs are gentle + low
-  // overshoot (#9: small amplitude, no dizziness).
+  // ABOVE the sheet rather than hiding behind it. O-10 uses a short linear
+  // timing here so the detail view feels like a handheld screen change.
   const focusWorldPoint = (wx: number, wy: number, targetScale: number, screenY?: number) => {
     const vp = { width: zoomViewportW.value, height: zoomViewportH.value };
     const s = worldToScreen({ x: wx, y: wy }, vp);
@@ -674,7 +685,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
       targetScale,
       vp,
     );
-    const timing = { duration: 450, easing: ReEasing.out(ReEasing.cubic) };
+    const timing = {
+      duration: pixelMotionDuration(SCREEN_TRANSITION_MS),
+      easing: ReEasing.linear,
+    };
     zoomScale.value = withTiming(targetScale, timing);
     zoomPanX.value = withTiming(want.x, timing);
     zoomPanY.value = withTiming(want.y, timing);
@@ -1087,7 +1101,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     tier === 1 ? vis.tier1 : tier === 2 ? vis.tier2 : tier === 3 ? vis.tier3 : vis.tier4;
 
   // Soft tier fade (graph-ux-overhaul #8): instead of tier 3/4 popping in/out
-  // at the zoom threshold, ramp their opacity quickly (~180ms) and keep them
+  // at the zoom threshold, ramp their opacity quickly and keep them
   // mounted through the fade-out via `mounted` flags. Tied to the zoom bucket.
   const tier3Fade = useRef(new Animated.Value(vis.tier3 ? 1 : 0)).current;
   const tier4Fade = useRef(new Animated.Value(vis.tier4 ? 1 : 0)).current;
@@ -1095,12 +1109,22 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   const [tier4Mounted, setTier4Mounted] = useState(vis.tier4);
   useEffect(() => {
     if (vis.tier3) setTier3Mounted(true);
-    Animated.timing(tier3Fade, { toValue: vis.tier3 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false })
+    Animated.timing(tier3Fade, {
+      toValue: vis.tier3 ? 1 : 0,
+      duration: pixelMotionDuration(SCREEN_TRANSITION_MS),
+      easing: Easing.linear,
+      useNativeDriver: false,
+    })
       .start(() => { if (!vis.tier3) setTier3Mounted(false); });
   }, [vis.tier3, tier3Fade]);
   useEffect(() => {
     if (vis.tier4) setTier4Mounted(true);
-    Animated.timing(tier4Fade, { toValue: vis.tier4 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false })
+    Animated.timing(tier4Fade, {
+      toValue: vis.tier4 ? 1 : 0,
+      duration: pixelMotionDuration(SCREEN_TRANSITION_MS),
+      easing: Easing.linear,
+      useNativeDriver: false,
+    })
       .start(() => { if (!vis.tier4) setTier4Mounted(false); });
   }, [vis.tier4, tier4Fade]);
   const tierOf = (id: string): Tier =>
@@ -1220,20 +1244,19 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   const zoomReveal = useRef(new Animated.Value(0)).current;
   const [zoomMountId, setZoomMountId] = useState<string | null>(null);
   useEffect(() => {
-    const reduce = prefersReducedMotion();
     if (zoomIslandId) {
       setZoomMountId(zoomIslandId);
       Animated.timing(zoomReveal, {
         toValue: 1,
-        duration: reduce ? 0 : 280,
-        easing: Easing.out(Easing.cubic),
+        duration: pixelMotionDuration(SCREEN_TRANSITION_MS),
+        easing: Easing.linear,
         useNativeDriver: true,
       }).start();
     } else {
       Animated.timing(zoomReveal, {
         toValue: 0,
-        duration: reduce ? 0 : 200,
-        easing: Easing.in(Easing.quad),
+        duration: pixelMotionDuration(DRILLDOWN_TRANSITION_MS),
+        easing: Easing.linear,
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (finished) setZoomMountId(null);
@@ -1245,8 +1268,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   useEffect(() => {
     Animated.timing(drilldownReveal, {
       toValue: drilldownCoreId ? 1 : 0,
-      duration: prefersReducedMotion() ? 0 : 260,
-      easing: Easing.out(Easing.cubic),
+      duration: pixelMotionDuration(DRILLDOWN_TRANSITION_MS),
+      easing: Easing.linear,
       useNativeDriver: true,
     }).start();
   }, [drilldownCoreId, drilldownReveal]);
@@ -1365,7 +1388,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         if (!tier4DriftOn && isDataEdge) {
           v.setValue(1);
         } else {
-          Animated.timing(v, { toValue: 1, duration: EDGE_REVEAL_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+          Animated.timing(v, { toValue: 1, duration: EDGE_REVEAL_MS, easing: Easing.linear, useNativeDriver: false }).start();
         }
       }
     }
@@ -1431,7 +1454,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     handleNodeTap(MENU_NODES[prevIdx].id);
   };
 
-  // Tap a node (graph-ux-overhaul #6). For a tier-2 village we spring the
+  // Tap a node (graph-ux-overhaul #6). For a tier-2 village we move the
   // camera so its sector fills the screen, then open the sheet. Tapping the
   // same node again (or a non-domain node) just toggles the sheet.
   function handleNodeTap(id: string) {
@@ -1452,7 +1475,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     setActiveId(willOpen ? id : null);
     if (!willOpen) return;
     // Village islands (the six tier-2 districts + the center) get the centered
-    // zoom-in overlay below instead of a camera spring: the overlay fills the
+    // zoom-in overlay below instead of moving the graph camera: the overlay fills the
     // screen with the island, so moving the graph camera behind it is both
     // unnecessary and fights the pan clamp at high fill scales.
     if (ISLAND_FOR[id]) return;
@@ -2010,8 +2033,8 @@ function NodeSheet({
     slide.setValue(0);
     Animated.timing(slide, {
       toValue: 1,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
+      duration: pixelMotionDuration(SCREEN_TRANSITION_MS),
+      easing: Easing.linear,
       useNativeDriver: true,
     }).start();
   }, [slide, name]);
@@ -2116,8 +2139,8 @@ function DrilldownSheet({
     slide.setValue(0);
     Animated.timing(slide, {
       toValue: 1,
-      duration: prefersReducedMotion() ? 0 : 220,
-      easing: Easing.out(Easing.cubic),
+      duration: pixelMotionDuration(DRILLDOWN_TRANSITION_MS),
+      easing: Easing.linear,
       useNativeDriver: true,
     }).start();
   }, [coreId, slide]);
@@ -2129,6 +2152,14 @@ function DrilldownSheet({
       : dataSummary && dataSummary.trim().length > 0
         ? dataSummary
         : t("navGraph.drilldown.dataFallback", { core: coreName });
+  const dataTouchAccessibilityLabel =
+    dataTitle == null
+      ? t("navGraph.drilldown.noDataTitle")
+      : `${dataTitle} ${t("navGraph.drilldown.touch")}`;
+  const dataTouchAccessibilityHint =
+    dataTitle == null
+      ? t("navGraph.drilldown.noDataBody")
+      : t("navGraph.drilldown.dataDetailHint");
 
   return (
     <Animated.View style={[styles.sheet, styles.drilldownSheet, { opacity: slide as never, transform: [{ translateY }] }]}>
@@ -2193,6 +2224,8 @@ function DrilldownSheet({
             onPress={onDataTouch}
             disabled={dataTitle == null}
             full
+            accessibilityLabel={dataTouchAccessibilityLabel}
+            accessibilityHint={dataTouchAccessibilityHint}
             style={styles.drilldownCardButton}
           />
         </View>
@@ -2223,8 +2256,8 @@ function DataNodeSheet({
     slide.setValue(0);
     Animated.timing(slide, {
       toValue: 1,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
+      duration: pixelMotionDuration(SCREEN_TRANSITION_MS),
+      easing: Easing.linear,
       useNativeDriver: true,
     }).start();
   }, [slide, title]);
