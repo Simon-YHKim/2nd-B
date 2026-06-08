@@ -1297,8 +1297,8 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   rowHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  rowSlug: { flex: 1 },
-  rowInDeg: { marginLeft: spacing.sm },
+  rowSlug: { flex: 1, minWidth: 0 },
+  rowInDeg: { marginLeft: spacing.sm, flexShrink: 0 },
   rowTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600" },
   kindChip: {
     paddingHorizontal: spacing.sm,
