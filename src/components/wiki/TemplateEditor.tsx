@@ -295,7 +295,6 @@ function SelectRow<T extends string>({
           <Pressable
             key={opt}
             onPress={() => onSelect(opt)}
-            hitSlop={8}
             style={[styles.selChip, active && styles.selChipActive]}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
@@ -344,7 +343,6 @@ function TagField({
           key={t}
           onPress={() => onChange(values.filter((x) => x !== t))}
           style={styles.tagChip}
-          hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={te("removeValue", { value: t })}
         >
@@ -363,7 +361,7 @@ function TagField({
           autoCorrect={false}
           style={styles.tagInput}
         />
-        <Pressable onPress={add} style={styles.tagAddBtn} hitSlop={4} accessibilityRole="button" accessibilityLabel={addLabel}>
+        <Pressable onPress={add} style={styles.tagAddBtn} accessibilityRole="button" accessibilityLabel={addLabel}>
           <Text style={styles.tagAddBtnText}>+</Text>
         </Pressable>
       </View>

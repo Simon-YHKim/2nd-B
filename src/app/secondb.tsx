@@ -356,10 +356,9 @@ export default function SecondBChat() {
         {/* SecondB mode toggle (worldview v-final): Analytic / Divergent. Both
             run the same C9 -> C3 -> gemini.ts path; only the prompt shifts. */}
         <View style={styles.modeRow}>
-          <Pressable
-            onPress={() => setChatMode("analytic")}
-            hitSlop={6}
-            style={[styles.modeChip, chatMode === "analytic" ? styles.modeChipAnalytic : null]}
+            <Pressable
+              onPress={() => setChatMode("analytic")}
+              style={[styles.modeChip, chatMode === "analytic" ? styles.modeChipAnalytic : null]}
             accessibilityRole="button"
             accessibilityState={{ selected: chatMode === "analytic" }}
             accessibilityLabel={locale === "ko" ? "분석 모드" : "Analysis mode"}
@@ -368,10 +367,9 @@ export default function SecondBChat() {
               {locale === "ko" ? "분석" : "Analysis"}
             </Text>
           </Pressable>
-          <Pressable
-            onPress={() => setChatMode("divergent")}
-            hitSlop={6}
-            style={[styles.modeChip, chatMode === "divergent" ? styles.modeChipDivergent : null]}
+            <Pressable
+              onPress={() => setChatMode("divergent")}
+              style={[styles.modeChip, chatMode === "divergent" ? styles.modeChipDivergent : null]}
             accessibilityRole="button"
             accessibilityState={{ selected: chatMode === "divergent" }}
             accessibilityLabel={locale === "ko" ? "새 관점 모드" : "New angle mode"}
@@ -694,7 +692,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    minHeight: 36,
+    minHeight: 44,
     justifyContent: "center",
     ...pixelShadowStyle(),
   },
@@ -740,6 +738,8 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalBtn: {
+    minHeight: 44,
+    justifyContent: "center",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: gameboy.radius,
