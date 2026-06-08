@@ -64,7 +64,6 @@ import { prefersReducedMotion } from "@/lib/motion/signature";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { FinalPatternDataSnowflakeArt } from "@/components/art/SoulcoreFinalArt";
-import { resolvePatternDataColor } from "@/lib/graph/pattern-data-color";
 import { depthStyleForTier } from "@/lib/graph/depth-style";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { getPersona } from "@/lib/chat/personas";
@@ -1640,13 +1639,10 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 accessibilityState={{ selected: activeId === id || drilldownSelectedDataId === id }}
               >
                 <View style={[{ opacity: depthStyleForTier(4).opacity }, depthSaturateStyle(4) as never]}>
+                  {/* P4: the references show uniform blue snowflakes on the
+                      graph; the 9-color resolve stays for the detail/popup. */}
                   <FinalPatternDataSnowflakeArt
-                    colorKey={resolvePatternDataColor({
-                      name: piece?.title ?? id,
-                      description: piece?.summary ?? "",
-                      keywords: [p.parentId, ...(piece?.tags ?? [])],
-                      id,
-                    })}
+                    colorKey="blue"
                     size={DATA_NODE_SIZE}
                   />
                 </View>
@@ -1703,12 +1699,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 // domain as an extra keyword and the node id as the stable-hash
                 // fallback seed — so the same node always reads the same color.
                 <FinalPatternDataSnowflakeArt
-                  colorKey={resolvePatternDataColor({
-                    name: `${n.label.en} ${n.label.ko}`,
-                    description: `${n.description.en} ${n.description.ko}`,
-                    keywords: n.parentId ? [n.parentId] : [],
-                    id: n.id,
-                  })}
+                  colorKey="blue"
                   size={size}
                 />
               )}
