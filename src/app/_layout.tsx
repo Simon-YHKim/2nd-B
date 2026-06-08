@@ -18,6 +18,7 @@ import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { PremiumTabBar } from "@/components/premium";
+import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { fontAssets } from "@/theme/typography";
 import { ThemeProvider, useTheme, useThemePalette } from "@/lib/theme/ThemeContext";
 
@@ -27,6 +28,7 @@ void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets);
+  const fadeTransition = pixelStackTransition("fade");
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
@@ -59,7 +61,7 @@ export default function RootLayout() {
               <Stack.Screen name="secondb" />
               <Stack.Screen name="jarvis" />
               <Stack.Screen name="plans" />
-              <Stack.Screen name="wiki" options={{ animation: "fade" }} />
+              <Stack.Screen name="wiki" options={fadeTransition} />
               <Stack.Screen name="manual" />
               <Stack.Screen name="big-five" />
               <Stack.Screen name="insights" />
@@ -78,8 +80,8 @@ export default function RootLayout() {
                   screen, and BACK doesn't hard-cut to a re-popping graph. The
                   five Pattern Cores route to /records + /wiki; the center to
                   /core-brain. (/imagine is now a redirect into Divergent mode.) */}
-              <Stack.Screen name="records" options={{ animation: "fade" }} />
-              <Stack.Screen name="core-brain" options={{ animation: "fade" }} />
+              <Stack.Screen name="records" options={fadeTransition} />
+              <Stack.Screen name="core-brain" options={fadeTransition} />
               <Stack.Screen name="+not-found" />
               </ThemedStack>
               <BackArrow />
@@ -96,10 +98,12 @@ export default function RootLayout() {
  *  toggle without forcing every screen to set its own bg. */
 function ThemedStack({ children }: { children: React.ReactNode }) {
   const palette = useThemePalette();
+  const transition = pixelStackTransition();
   return (
     <Stack
       screenOptions={{
         headerShown: false,
+        ...transition,
         contentStyle: { backgroundColor: palette.background },
       }}
     >
