@@ -17,7 +17,7 @@ import {
 
 import { Text } from "@/components/ui/Text";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
 /** Compact 2nd-Brain brand chip used at the top-left of premium screens. */
@@ -129,19 +129,19 @@ const BTN_BG_REST: Record<BtnVariant, string> = {
   primary: gameboy.power,
   secondary: cosmic.space700,
   ghost: withAlpha(cosmic.mistGray, 0.08),
-  danger: withAlpha(cosmic.guardRose, 0.22),
+  danger: semantic.zoneRed,
 };
 const BTN_BG_HOVER: Record<BtnVariant, string> = {
   primary: gameboy.accent,
   secondary: cosmic.space800,
   ghost: withAlpha(cosmic.signalBlue, 0.16),
-  danger: withAlpha(cosmic.guardRose, 0.3),
+  danger: semantic.zoneRed,
 };
 const BTN_FG: Record<BtnVariant, string> = {
   primary: gameboy.screen,
   secondary: gameboy.ink,
   ghost: gameboy.ink,
-  danger: cosmic.guardRose,
+  danger: gameboy.ink,
 };
 const BTN_DISABLED_BG = withAlpha(cosmic.mistGray, 0.16);
 const BTN_DISABLED_BORDER = withAlpha(cosmic.mistGray, 0.46);

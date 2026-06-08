@@ -10,6 +10,7 @@ import { Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
+import { gameboy } from "@/lib/theme/gameboy-tokens";
 import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
@@ -65,7 +66,7 @@ function SettingsActionButton({
     : variant === "primary"
       ? cosmic.space950
       : variant === "danger"
-        ? cosmic.guardRose
+        ? gameboy.ink
         : cosmic.moonWhite;
 
   return (
@@ -757,8 +758,8 @@ const styles = StyleSheet.create({
     borderColor: withAlpha(cosmic.mistGray, 0.56),
   },
   settingsButtonDanger: {
-    backgroundColor: withAlpha(cosmic.guardRose, 0.22),
-    borderColor: cosmic.guardRose,
+    backgroundColor: semantic.zoneRed,
+    borderColor: semantic.zoneRed,
   },
   settingsButtonDisabled: {
     backgroundColor: withAlpha(cosmic.mistGray, 0.12),
