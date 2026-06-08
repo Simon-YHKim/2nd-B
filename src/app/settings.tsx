@@ -10,7 +10,7 @@ import { Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { useTheme } from "@/lib/theme/ThemeContext";
@@ -61,7 +61,7 @@ function SettingsActionButton({
 }: SettingsActionButtonProps) {
   const isDisabled = disabled || loading;
   const labelColor = isDisabled
-    ? "rgba(232,236,248,0.58)"
+    ? withAlpha(cosmic.moonWhite, 0.58)
     : variant === "primary"
       ? cosmic.space950
       : variant === "danger"
@@ -759,15 +759,15 @@ const styles = StyleSheet.create({
   },
   settingsButtonSecondary: {
     backgroundColor: cosmic.space700,
-    borderColor: "rgba(141,152,184,0.56)",
+    borderColor: withAlpha(cosmic.mistGray, 0.56),
   },
   settingsButtonDanger: {
-    backgroundColor: "rgba(255,122,144,0.22)",
+    backgroundColor: withAlpha(cosmic.guardRose, 0.22),
     borderColor: cosmic.guardRose,
   },
   settingsButtonDisabled: {
-    backgroundColor: "rgba(141,152,184,0.12)",
-    borderColor: "rgba(141,152,184,0.28)",
+    backgroundColor: withAlpha(cosmic.mistGray, 0.12),
+    borderColor: cosmic.edgeDefault,
     elevation: 0,
   },
   settingsButtonPressed: {
@@ -789,6 +789,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 48,
     backgroundColor: cosmic.space700,
-    borderColor: "rgba(141,152,184,0.56)",
+    borderColor: withAlpha(cosmic.mistGray, 0.56),
   },
 });

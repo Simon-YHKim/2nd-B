@@ -21,7 +21,7 @@ import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
@@ -657,8 +657,8 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.38)",
-    backgroundColor: "rgba(167,139,250,0.14)",
+    borderColor: withAlpha(cosmic.signalMint, 0.38),
+    backgroundColor: withAlpha(cosmic.soulViolet, 0.14),
     alignItems: "center",
     justifyContent: "center",
     shadowColor: cosmic.soulViolet,
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(8, 12, 24, 0.78)",
+    backgroundColor: semantic.backdrop,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
