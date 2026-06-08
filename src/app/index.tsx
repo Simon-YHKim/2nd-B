@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
     color: cosmic.mistGray,
     fontSize: 12,
     lineHeight: 17,
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.readable,
   },
   emptyGraphCta: {
     marginTop: 8,
@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
     color: cosmic.space950,
     fontWeight: "700",
     fontSize: 14,
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.readable,
     textAlign: "center",
   },
   insightCardStack: {
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
     color: cosmic.signalMint,
     fontSize: typography.sizes.sm,
     lineHeight: 18,
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.readable,
     fontWeight: "700",
     letterSpacing: 0,
   },
@@ -753,6 +753,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     letterSpacing: 0.2,
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.readable,
   },
 });

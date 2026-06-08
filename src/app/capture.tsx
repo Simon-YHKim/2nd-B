@@ -1363,7 +1363,7 @@ const styles = StyleSheet.create({
   textarea: {
     minHeight: 160,
     paddingTop: spacing.md,
-    fontFamily: fontFamilies.mono,
+    fontFamily: fontFamilies.readable,
     fontSize: typography.sizes.sm,
   },
   actionRow: { flexDirection: "row", gap: spacing.sm },

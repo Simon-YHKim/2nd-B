@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { Text } from "@/components/ui/Text";
 import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { isPrimaryTabPath } from "@/lib/nav/tabs";
-import { cosmic } from "@/lib/theme/tokens";
+import { cosmic, withAlpha } from "@/lib/theme/tokens";
 
 // Landing + pre-auth routes that hide the arrow (no "back to graph" there yet).
 const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile", "/oauth-callback"];
@@ -141,9 +141,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     // Premium glass backing so the arrow never visually merges with text.
     borderRadius: 12,
-    backgroundColor: "rgba(167,139,250,0.16)",
+    backgroundColor: withAlpha(cosmic.soulViolet, 0.16),
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.42)",
+    borderColor: withAlpha(cosmic.signalMint, 0.42),
     shadowColor: cosmic.signalMint,
     shadowOpacity: 0.28,
     shadowRadius: 10,
@@ -177,8 +177,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.28)",
-    backgroundColor: "rgba(8,12,24,0.74)",
+    borderColor: withAlpha(cosmic.signalMint, 0.28),
+    backgroundColor: withAlpha(cosmic.space950, 0.74),
     paddingHorizontal: 12,
     paddingVertical: 6,
     shadowColor: cosmic.signalMint,

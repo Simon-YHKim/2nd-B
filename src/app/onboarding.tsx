@@ -11,7 +11,7 @@ import { Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { markOnboardingComplete } from "@/lib/onboarding/state";
 import { IslandArt, ShardArt } from "@/components/art/IslandArt";
@@ -152,14 +152,6 @@ export default function Onboarding() {
 
         <View style={styles.actions}>
           <Button label={step.cta[locale]} variant="primary" onPress={onPrimary} accessibilityHint={primaryHint} />
-          {isLast ? (
-            <Button
-              label={locale === "ko" ? "건너뛰고 둘러보기" : "Skip and look around"}
-              variant="secondary"
-              onPress={() => finishToGraph()}
-              accessibilityHint={openGraphHint}
-            />
-          ) : null}
         </View>
       </View>
     </PremiumAppShell>
@@ -233,9 +225,10 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: semantic.border },
   dotActive: { backgroundColor: cosmic.signalMint, width: 22 },
   progressText: { fontWeight: "700" },
-  body: { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg },
+  body: { flex: 1, justifyContent: "center", alignItems: "stretch", gap: spacing.lg },
   artStage: {
     minHeight: 220,
+    alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -249,16 +242,12 @@ const styles = StyleSheet.create({
   secondBFrame: {
     width: 160,
     height: 160,
-    borderRadius: 32,
+    borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.38)",
-    backgroundColor: "rgba(167,139,250,0.14)",
+    borderColor: withAlpha(cosmic.signalMint, 0.38),
+    backgroundColor: withAlpha(cosmic.soulViolet, 0.14),
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: cosmic.soulViolet,
-    shadowOpacity: 0.38,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 0 },
   },
   shardRow: {
     flexDirection: "row",
@@ -266,7 +255,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.sm,
   },
-  title: { textAlign: "center" },
-  bodyText: { textAlign: "center", lineHeight: 22, paddingHorizontal: spacing.md },
+  title: { textAlign: "left" },
+  bodyText: { textAlign: "left", lineHeight: 22 },
   actions: { gap: spacing.sm },
 });
