@@ -71,13 +71,15 @@ describe("fontSize", () => {
 });
 
 describe("typography", () => {
-  it("resolves every face to the NeoDunggeunmo pixel font (user directive 2026-05-29)", () => {
-    // All proportional faces collapse to the one pixel face; mono uses the
-    // fixed-width variant. (ios values in the test env.)
+  it("keeps legacy pixel aliases and exposes O-9 Game Boy display fonts", () => {
+    // Existing proportional faces still collapse to NeoDunggeunmo; the new
+    // aliases are only loaded for Phase 1 and are not applied to screens yet.
     expect(fontFamilies.serifKo).toBe("NeoDunggeunmo");
     expect(fontFamilies.serifEn).toBe("NeoDunggeunmo");
     expect(fontFamilies.sans).toBe("NeoDunggeunmo");
     expect(fontFamilies.pixel).toBe("NeoDunggeunmo");
+    expect(fontFamilies.pixelKo).toBe("Galmuri11");
+    expect(fontFamilies.pixelEn).toBe("PressStart2P");
     expect(fontFamilies.mono).toBe("NeoDunggeunmoCode");
   });
 

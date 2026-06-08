@@ -102,6 +102,43 @@ The `classifyInput()` result maps directly to UI affordance:
 
 ---
 
+## Game Boy (Deep Space Game Boy)
+
+O-9 adds a pixel hardware layer on top of the existing cosmic palette. Phase 1 is foundation only: tokens, bundled font assets, and aliases. Do not restyle components, screens, or graph nodes until the later O-9 phases.
+
+Source: `src/lib/theme/gameboy-tokens.ts`.
+
+| Token | Value | Use |
+|---|---:|---|
+| `gameboy.borderWidth` | `2` | Pixel border width for future controls and panels. |
+| `gameboy.radius` | `0` | Sharp square corners. |
+| `gameboy.pixelShadow` | `3px 3px 0` | Hard offset shadow with no blur. |
+| `gameboy.scanlineOpacity` | `0.04` | LCD scanline overlay opacity. |
+| `gameboy.grid` | `8` | Pixel spacing grid. |
+
+Palette aliases preserve O-8 cosmic values:
+
+| Alias | Maps to | Value |
+|---|---|---|
+| `gameboy.screen` | `cosmic.space950` | `#070A18` |
+| `gameboy.ink` | `cosmic.moonWhite` | `#E8ECF8` |
+| `gameboy.accent` | `cosmic.signalBlue` | `#4CC9F0` |
+| `gameboy.power` | `cosmic.signalMint` | `#72F2C7` |
+| `gameboy.amber` | `cosmic.pixelLamp` | `#FFD166` |
+| `gameboy.border` | signal-blue alpha | `rgba(76,201,240,0.35)` |
+
+Typography hierarchy:
+
+| Surface | Font family |
+|---|---|
+| Screen titles, buttons, tabs, labels | `fontFamilies.pixelKo` for Korean-first UI, `fontFamilies.pixelEn` for English-only UI |
+| Long body copy, journal text, chat, explanations | `fontFamilies.readable` |
+| Existing pixel fallback | `fontFamilies.pixel` |
+
+`fontFamilies.pixelKo` loads Galmuri11 from the bundled `galmuri` package because `@expo-google-fonts/galmuri11` is not published on npm. `fontFamilies.pixelEn` loads Press Start 2P from `@expo-google-fonts/press-start-2p`. Both web font stacks fall back to the existing NeoDunggeunmo pixel face.
+
+---
+
 ## Typography
 
 **Active font (user directive 2026-05-29): NeoDunggeunmo (둥근모꼴 / 네오둥근모) — applied app-wide.** A crisp Korean+Latin pixel bitmap face that matches the Cosmic Pixel Graph Village aesthetic. SIL OFL 1.1. <https://neodgm.dalgona.dev/>

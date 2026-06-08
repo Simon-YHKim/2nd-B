@@ -36,6 +36,20 @@ const READABLE = Platform.select({
   default: "sans-serif",
 });
 
+const PIXEL_KO = Platform.select({
+  ios: "Galmuri11",
+  android: "Galmuri11",
+  web: '"Galmuri11", "NeoDunggeunmo", "둥근모꼴", monospace',
+  default: PIXEL,
+});
+
+const PIXEL_EN = Platform.select({
+  ios: "PressStart2P",
+  android: "PressStart2P",
+  web: '"PressStart2P", "NeoDunggeunmo", monospace',
+  default: PIXEL,
+});
+
 export const fontFamilies = {
   // All faces resolve to the one pixel face (user directive: 전부 적용).
   serifKo: PIXEL,
@@ -45,6 +59,10 @@ export const fontFamilies = {
   mono: PIXEL_MONO,
   // Explicit alias for callers that want to be unambiguous.
   pixel: PIXEL,
+  // Phase O-9 Game Boy display aliases. Existing NeoDunggeunmo remains the
+  // fallback so a font load error does not remove the current pixel voice.
+  pixelKo: PIXEL_KO,
+  pixelEn: PIXEL_EN,
   // Readable sans for long-form Korean copy.
   readable: READABLE,
 } as const;
@@ -61,4 +79,6 @@ export const fontWeights = {
 export const fontAssets = {
   NeoDunggeunmo: require("../../assets/fonts/NeoDunggeunmo-Regular.ttf"),
   NeoDunggeunmoCode: require("../../assets/fonts/NeoDunggeunmoCode-Regular.ttf"),
+  Galmuri11: require("galmuri/dist/Galmuri11.ttf"),
+  PressStart2P: require("@expo-google-fonts/press-start-2p/400Regular/PressStart2P_400Regular.ttf"),
 };
