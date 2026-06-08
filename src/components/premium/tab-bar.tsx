@@ -10,8 +10,10 @@ import { usePathname, router, type Href } from "expo-router";
 import Svg, { Circle, Line, Path } from "react-native-svg";
 
 import { Text } from "@/components/ui/Text";
-import { cosmic, spacing } from "@/lib/theme/tokens";
+import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
+import { spacing } from "@/lib/theme/tokens";
 import { PRIMARY_TAB_PATHS } from "@/lib/nav/tabs";
+import { fontFamilies } from "@/theme/typography";
 
 // Menu restructure Phase 3 (2026-05-31): the four tabs are now the VISION
 // 3-axis IA - 그래프 / 담기 / 세컨비 / 나. The old explore(/core-brain),
@@ -117,7 +119,7 @@ export function PremiumTabBar({ locale = "ko" }: { locale?: "en" | "ko" }) {
       <View style={styles.row}>
         {TABS.map((tab) => {
           const active = pathname === tab.href;
-          const color = active ? cosmic.signalMint : cosmic.mistGray;
+          const color = active ? gameboy.screen : gameboy.ink;
           return (
             <Pressable
               key={tab.id}
@@ -148,13 +150,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(7,10,24,0.96)",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(114,242,199,0.22)",
-    shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.32,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: -2 },
+    backgroundColor: gameboy.screen,
+    borderTopWidth: gameboy.borderWidth,
+    borderTopColor: gameboy.border,
+    ...pixelShadowStyle(),
   },
   row: {
     flexDirection: "row",
@@ -170,13 +169,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 2,
     paddingTop: spacing.xs,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "transparent",
+    borderRadius: gameboy.radius,
+    borderWidth: gameboy.borderWidth,
+    borderColor: gameboy.border,
+    backgroundColor: gameboy.screen,
   },
   tabActive: {
-    backgroundColor: "rgba(114,242,199,0.1)",
-    borderColor: "rgba(114,242,199,0.42)",
+    backgroundColor: gameboy.ink,
+    borderColor: gameboy.ink,
   },
-  label: { fontSize: 11, letterSpacing: 0, fontWeight: "600" },
+  label: { fontFamily: fontFamilies.pixelKo, fontSize: 11, letterSpacing: 0, fontWeight: "600" },
 });

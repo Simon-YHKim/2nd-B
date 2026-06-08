@@ -2,7 +2,7 @@
 // Glassy dark panels with accent borders, mint primary + violet secondary
 // CTAs, all reading from cosmic.* so the village identity stays consistent.
 
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -16,7 +16,8 @@ import {
 } from "react-native";
 
 import { Text } from "@/components/ui/Text";
-import { cosmic, radii, spacing } from "@/lib/theme/tokens";
+import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
+import { cosmic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
 /** Compact 2nd-Brain brand chip used at the top-left of premium screens. */
@@ -72,9 +73,9 @@ export function PremiumPanel({
   return (
     <View
       style={[
-        styles.panel,
-        accent ? { borderLeftWidth: 3, borderLeftColor: accent } : null,
         style,
+        styles.panel,
+        accent ? { borderLeftWidth: gameboy.borderWidth, borderLeftColor: accent } : null,
       ]}
     >
       {children}
@@ -124,27 +125,28 @@ export function PremiumCard({
 
 type BtnVariant = "primary" | "secondary" | "ghost" | "danger";
 
-const BTN_BG: Record<BtnVariant, string> = {
-  primary: cosmic.signalMint,
+const BTN_BG_REST: Record<BtnVariant, string> = {
+  primary: gameboy.power,
   secondary: cosmic.space700,
-  ghost: "rgba(141,152,184,0.08)",
-  danger: "rgba(255,122,144,0.22)",
+  ghost: withAlpha(cosmic.mistGray, 0.08),
+  danger: withAlpha(cosmic.guardRose, 0.22),
 };
-const BTN_BORDER: Record<BtnVariant, string> = {
-  primary: cosmic.signalMint,
-  secondary: "rgba(141,152,184,0.56)",
-  ghost: "rgba(141,152,184,0.46)",
-  danger: cosmic.guardRose,
+const BTN_BG_HOVER: Record<BtnVariant, string> = {
+  primary: gameboy.accent,
+  secondary: cosmic.space800,
+  ghost: withAlpha(cosmic.signalBlue, 0.16),
+  danger: withAlpha(cosmic.guardRose, 0.3),
 };
 const BTN_FG: Record<BtnVariant, string> = {
-  primary: cosmic.space950,
-  secondary: cosmic.moonWhite,
-  ghost: cosmic.moonWhite,
+  primary: gameboy.screen,
+  secondary: gameboy.ink,
+  ghost: gameboy.ink,
   danger: cosmic.guardRose,
 };
-const BTN_DISABLED_BG = "rgba(167,139,250,0.20)";
-const BTN_DISABLED_BORDER = "rgba(167,139,250,0.48)";
-const BTN_DISABLED_FG = "rgba(232,236,248,0.72)";
+const BTN_DISABLED_BG = withAlpha(cosmic.mistGray, 0.16);
+const BTN_DISABLED_BORDER = withAlpha(cosmic.mistGray, 0.46);
+const BTN_DISABLED_FG = withAlpha(cosmic.moonWhite, 0.58);
+const PRESSED_OFFSET = 2;
 
 function textInputAccessibilityLabel(props: TextInputProps): string | undefined {
   return props.accessibilityLabel ?? (typeof props.placeholder === "string" ? props.placeholder : undefined);
@@ -177,34 +179,40 @@ export function PremiumButton({
   accessibilityHint,
   ...rest
 }: PremiumButtonProps) {
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const isDisabled = disabled || loading;
   // Merge caller a11y intent (e.g. selected on segmented controls) with the
   // button's own disabled/busy ownership instead of overwriting it.
   const a11yRole = accessibilityRole ?? "button";
   const fullStyle: ViewStyle | null = full ? { alignSelf: "stretch", width: "100%" } : null;
   const resolvedAccessibilityLabel = accessibilityLabel ?? label;
-  const colorStyle: ViewStyle = {
-    backgroundColor: BTN_BG[variant],
-    borderColor: BTN_BORDER[variant],
-  };
-  const disabledStyle: ViewStyle | null = isDisabled
-    ? { backgroundColor: BTN_DISABLED_BG, borderColor: BTN_DISABLED_BORDER }
-    : null;
+  const colorStyle: ViewStyle = isDisabled
+    ? {
+        backgroundColor: BTN_DISABLED_BG,
+        borderColor: BTN_DISABLED_BORDER,
+        shadowColor: BTN_DISABLED_BORDER,
+      }
+    : {
+        backgroundColor: hovered || focused ? BTN_BG_HOVER[variant] : BTN_BG_REST[variant],
+        borderColor: focused ? gameboy.accent : gameboy.border,
+        shadowColor: focused ? gameboy.accent : gameboy.border,
+      };
   const buttonStyle: StyleProp<ViewStyle> = [
-    styles.btn,
-    fullStyle,
-    colorStyle,
-    disabledStyle,
     style,
+    fullStyle,
+    styles.btn,
+    colorStyle,
   ];
+  const foregroundColor = isDisabled ? BTN_DISABLED_FG : BTN_FG[variant];
   const buttonContent = (
     <>
       {loading ? (
-        <ActivityIndicator size="small" color={isDisabled ? BTN_DISABLED_FG : BTN_FG[variant]} style={styles.btnIcon} />
+        <ActivityIndicator size="small" color={foregroundColor} style={styles.btnIcon} />
       ) : icon ? (
         <View style={styles.btnIcon}>{icon}</View>
       ) : null}
-      <Text style={[styles.btnLabel, { color: isDisabled ? BTN_DISABLED_FG : BTN_FG[variant] }]}>
+      <Text style={[styles.btnLabel, { color: foregroundColor }]}>
         {label}
       </Text>
     </>
@@ -232,16 +240,32 @@ export function PremiumButton({
       onLongPress={onLongPress}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
+      onHoverIn={(event) => {
+        setHovered(true);
+        rest.onHoverIn?.(event);
+      }}
+      onHoverOut={(event) => {
+        setHovered(false);
+        rest.onHoverOut?.(event);
+      }}
+      onFocus={(event) => {
+        setFocused(true);
+        rest.onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        setFocused(false);
+        rest.onBlur?.(event);
+      }}
       accessibilityRole={a11yRole}
       accessibilityLabel={resolvedAccessibilityLabel}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ ...accessibilityState, disabled: false, busy: false }}
       style={({ pressed }) => [
-        styles.btn,
-        fullStyle,
-        colorStyle,
         style,
-        pressed ? { opacity: 0.82 } : null,
+        fullStyle,
+        styles.btn,
+        colorStyle,
+        pressed ? styles.btnPressed : null,
       ]}
     >
       {buttonContent}
@@ -296,8 +320,8 @@ export function PixelIconButton({
       accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => [
         styles.iconBtn,
-        { borderColor: accent },
-        pressed ? { opacity: 0.7 } : null,
+        { shadowColor: accent },
+        pressed ? styles.iconBtnPressed : null,
       ]}
     >
       {children}
@@ -305,48 +329,64 @@ export function PixelIconButton({
   );
 }
 
-export function PremiumInput(props: TextInputProps) {
+function GameBoyTextInput(props: TextInputProps) {
+  const [focused, setFocused] = useState(false);
+  const { style, onFocus, onBlur, ...rest } = props;
+
   return (
     <TextInput
       placeholderTextColor={cosmic.quietGray}
-      {...props}
+      selectionColor={gameboy.accent}
+      cursorColor={gameboy.accent}
+      {...rest}
+      onFocus={(event) => {
+        setFocused(true);
+        onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        setFocused(false);
+        onBlur?.(event);
+      }}
       accessibilityLabel={textInputAccessibilityLabel(props)}
-      style={[styles.input, props.style]}
+      style={[
+        styles.input,
+        props.multiline ? styles.textarea : null,
+        style,
+        styles.inputFrame,
+        focused ? styles.inputFocused : null,
+      ]}
     />
   );
 }
 
+export function PremiumInput(props: TextInputProps) {
+  return <GameBoyTextInput {...props} />;
+}
+
 export function PremiumTextarea(props: TextInputProps) {
-  return (
-    <TextInput
-      placeholderTextColor={cosmic.quietGray}
-      multiline
-      {...props}
-      accessibilityLabel={textInputAccessibilityLabel(props)}
-      style={[styles.input, styles.textarea, props.style]}
-    />
-  );
+  return <GameBoyTextInput {...props} multiline />;
 }
 
 const styles = StyleSheet.create({
   brandChip: {
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.5)",
-    backgroundColor: "rgba(114,242,199,0.08)",
+    borderRadius: gameboy.radius,
+    borderWidth: gameboy.borderWidth,
+    borderColor: gameboy.border,
+    backgroundColor: withAlpha(cosmic.signalMint, 0.08),
     alignItems: "center",
     justifyContent: "center",
+    ...pixelShadowStyle(gameboy.border),
   },
   brandChipMain: {
     color: cosmic.signalMint,
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.pixelKo,
     fontWeight: "800",
     fontSize: 16,
     lineHeight: 18,
   },
   brandChipSub: {
     color: cosmic.mistGray,
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.pixelKo,
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: 0,
@@ -355,24 +395,31 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
     gap: spacing.sm,
+    borderWidth: gameboy.borderWidth,
+    borderColor: gameboy.border,
+    borderRadius: gameboy.radius,
+    backgroundColor: gameboy.screen,
+    ...pixelShadowStyle(),
   },
   topBarSide: { width: 64, justifyContent: "center" },
   topBarRight: { alignItems: "flex-end" },
   topBarCenter: { flex: 1, minWidth: 0, alignItems: "center" },
-  topBarTitle: { textAlign: "center" },
+  topBarTitle: { textAlign: "center", fontFamily: fontFamilies.pixelKo },
   topBarSub: { textAlign: "center", marginTop: 2 },
   panel: {
     backgroundColor: cosmic.panelBg,
-    borderColor: cosmic.panelBorder,
-    borderWidth: 1,
-    borderRadius: radii.md,
+    borderColor: gameboy.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
     padding: spacing.lg,
     gap: spacing.sm,
+    ...pixelShadowStyle(),
   },
   cardHead: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-  eyebrow: { letterSpacing: 0, textTransform: "uppercase" },
-  cardTitle: { fontSize: 18, letterSpacing: 0 },
+  eyebrow: { fontFamily: fontFamilies.pixelKo, letterSpacing: 0, textTransform: "uppercase" },
+  cardTitle: { fontFamily: fontFamilies.pixelKo, fontSize: 18, letterSpacing: 0 },
   btn: {
     flexDirection: "row",
     alignItems: "center",
@@ -381,38 +428,58 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     minHeight: 44,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    borderRadius: gameboy.radius,
+    borderWidth: gameboy.borderWidth,
+    borderColor: gameboy.border,
+    ...pixelShadowStyle(),
+  },
+  btnPressed: {
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    transform: [{ translateX: PRESSED_OFFSET }, { translateY: PRESSED_OFFSET }],
   },
   btnIcon: {},
   btnLabel: {
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.pixelKo,
     fontWeight: "700",
     fontSize: 14,
     letterSpacing: 0,
     textAlign: "center",
   },
-  cta: { paddingVertical: spacing.lg, borderRadius: radii.md },
+  cta: { paddingVertical: spacing.lg },
   iconBtn: {
     width: 44,
     height: 44,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    borderRadius: gameboy.radius,
+    borderWidth: gameboy.borderWidth,
+    borderColor: gameboy.border,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(167,139,250,0.08)",
+    backgroundColor: withAlpha(cosmic.space800, 0.48),
+    ...pixelShadowStyle(),
+  },
+  iconBtnPressed: {
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    transform: [{ translateX: PRESSED_OFFSET }, { translateY: PRESSED_OFFSET }],
   },
   input: {
     minHeight: 46,
-    backgroundColor: "rgba(7,10,24,0.72)",
-    borderColor: cosmic.panelBorder,
-    borderWidth: 1,
-    borderRadius: radii.md,
     color: cosmic.moonWhite,
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.readable,
     fontSize: 15,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+  },
+  inputFrame: {
+    backgroundColor: gameboy.screen,
+    borderColor: gameboy.border,
+    borderWidth: 1,
+    borderRadius: gameboy.radius,
+  },
+  inputFocused: {
+    borderColor: gameboy.accent,
+    borderWidth: gameboy.borderWidth,
   },
   textarea: { minHeight: 110, textAlignVertical: "top" },
 });

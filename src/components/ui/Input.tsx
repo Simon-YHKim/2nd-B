@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { TextInput, type TextInputProps, StyleSheet } from "react-native";
 
-import { radii, spacing, typography } from "@/lib/theme/tokens";
+import { gameboy } from "@/lib/theme/gameboy-tokens";
+import { cosmic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
-import { useThemePalette } from "@/lib/theme/ThemeContext";
 
 export type InputProps = TextInputProps;
 
 export function Input(props: InputProps) {
-  const palette = useThemePalette();
   const [focused, setFocused] = useState(false);
   const { style, onFocus, onBlur, accessibilityLabel, placeholder, ...rest } = props;
   const resolvedAccessibilityLabel =
@@ -18,8 +17,9 @@ export function Input(props: InputProps) {
       {...rest}
       placeholder={placeholder}
       accessibilityLabel={resolvedAccessibilityLabel}
-      placeholderTextColor={palette.textSubtle}
-      selectionColor={palette.brand}
+      placeholderTextColor={cosmic.quietGray}
+      selectionColor={gameboy.accent}
+      cursorColor={gameboy.accent}
       onFocus={(event) => {
         setFocused(true);
         onFocus?.(event);
@@ -30,15 +30,14 @@ export function Input(props: InputProps) {
       }}
       style={[
         styles.base,
+        style,
         {
-          backgroundColor: palette.surface,
-          borderColor: focused ? palette.brand : palette.border,
-          color: palette.text,
-          shadowColor: focused ? palette.brand : "transparent",
-          shadowOpacity: focused ? 0.32 : 0,
+          backgroundColor: gameboy.screen,
+          borderColor: focused ? gameboy.accent : gameboy.border,
+          borderWidth: focused ? gameboy.borderWidth : 1,
+          color: gameboy.ink,
           textAlignVertical: props.multiline ? "top" : "auto",
         },
-        style,
       ]}
     />
   );
@@ -47,13 +46,10 @@ export function Input(props: InputProps) {
 const styles = StyleSheet.create({
   base: {
     minHeight: 46,
-    borderWidth: 1,
-    borderRadius: radii.md,
-    fontFamily: fontFamilies.sans,
+    borderRadius: gameboy.radius,
+    fontFamily: fontFamilies.readable,
     fontSize: typography.sizes.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
   },
 });

@@ -19,6 +19,14 @@ const VARIANT_STYLE: Record<Variant, { fontSize: number; fontWeight: "400" | "50
   subtle: { fontSize: typography.sizes.xs, fontWeight: "400" },
 };
 
+const VARIANT_FONT: Record<Variant, string | undefined> = {
+  display: fontFamilies.pixelKo,
+  heading: fontFamilies.pixelKo,
+  body: fontFamilies.readable,
+  caption: fontFamilies.pixelKo,
+  subtle: fontFamilies.readable,
+};
+
 export function Text({ variant = "body", color, style, ...rest }: TextProps) {
   const v = VARIANT_STYLE[variant];
   // useThemePalette returns the same-shape palette for the active mode
@@ -29,7 +37,7 @@ export function Text({ variant = "body", color, style, ...rest }: TextProps) {
     <RNText
       {...rest}
       style={[
-        { color: palette[color ?? "text"], fontSize: v.fontSize, fontWeight: v.fontWeight, fontFamily: fontFamilies.sans },
+        { color: palette[color ?? "text"], fontSize: v.fontSize, fontWeight: v.fontWeight, fontFamily: VARIANT_FONT[variant] },
         style,
       ]}
     />
