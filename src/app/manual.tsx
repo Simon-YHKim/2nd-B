@@ -104,8 +104,8 @@ const SECTIONS: ManualSection[] = [
   {
     emoji: "08",
     title: {
-      en: "Validated psychology",
-      ko: "검증된 심리학",
+      en: "Research-grounded self-understanding",
+      ko: "연구 기반 자기 이해",
     },
     body: {
       en: "2nd-Brain grounds explanations and recommendations in established psychology research on traits, motivation, attachment, life stages, and strengths. It does not treat personality labels or astrology as proof. Research citations stay available in the library.",
