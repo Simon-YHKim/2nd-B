@@ -947,7 +947,13 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
-### [타 AI 미처리 수거 + UI 점검 계속] — 🔄 진행 (Simon 지시)
+### [타 AI 미처리 수거 + UI 점검 계속] — ✅ Codex 발견 + Phase C P1 전부 완료
+[2026-06-08 / 20:07 KST] Claude — **타 AI 미처리 전부 수거 + Phase C UI 점검 P0/P1 전부 수정·라이브**(번들 4550f36). P2 polish만 남음.
+- Phase C P1 완료: #288(홈 시트가림·캡처 카드·48dp)·#289 CC-1(5화면 GB 토큰)·#290 P1-3(설정 declutter)·#291 P1-2(세컨비 마스코트 축소). + Codex 발견 4건(#286·#287).
+- **잔여 = P2 polish**: CC-3 modal→bottom-sheet(capture/secondb/settings 비차단 모달)·온보딩 dead-code/progress dot·픽셀 로더·캡처 본문 readable폰트 등. 다음 배치로.
+- 🔗 라이브 simon-yhkim.github.io/2nd-B — 모바일로 전화면 확인 부탁.
+
+<details><summary>경과</summary>
 [2026-06-08 / 19:25 KST] Claude — 유휴 중 놓친 Codex 리뷰 발견 전부 수거·수정 + Phase C UI 점검 계속:
 - **Codex 발견 4건 수정·머지**: ①초기줌 vp 불일치 P1(#286, rootScreen 기반 재계산 — Soul Core 55-114px 어긋남 해소) ②manual '마을 지도'→'내 중심 지도'(#286) ③research 'Sign-in required' 명시(#286) ④'검증된 심리학'→'연구 기반 자기 이해'(#287).
 - **Phase C UI 인스펙션 완료**(wymbe230o, 5화면): P0 없음. 수정·머지:
@@ -957,6 +963,8 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
   - 보류 P1-2(세컨비 빈상태 중복 그래픽): ArtA11ySemantics 가드가 SecondB 라벨 스프라이트 하드검증→단순 제거 불가, a11y-aware 재접근 필요.
 - 이미 양호 확인: Phase D 첫인상·티어위계·공유 프리미티브 GB. 리포트 agents/claude/outbox/20260608-o12-phasec-inspection-plan.md.
 - Grok=머스잉(비액션), AG 구파일. CONTROL=running. 라이브 simon-yhkim.github.io/2nd-B.
+</details>
+
 ### [O-12 follow-up] 폰트 A 확정 + Phase C/D 완주 — ✅ Phase D 완결·라이브
 [2026-06-08 / 16:46 KST] Claude — **폰트 A 확정 + Phase D 전부 완결·라이브** (번들 a2af5da):
 - 초기줌(#284): 첫 진입 Soul Core 크게 지배(노드 작게 보이던 문제 해소). 파워온(#285): 검정→시안 스캔라인 sweep→그래프 fade-in. + 기존 라벨숨김·카드 첫터치·순차 spawn.
