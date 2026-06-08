@@ -429,10 +429,10 @@ const styles = StyleSheet.create({
   propRemove: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, minHeight: 44, justifyContent: "center" },
   addPropBtn: {
     alignSelf: "flex-start",
-    borderWidth: 1,
+    // O-11 P2: GB language is solid 2px sharp corners, not dashed.
+    borderWidth: 2,
     borderColor: semantic.brand,
-    borderStyle: "dashed",
-    borderRadius: radii.sm,
+    borderRadius: 0,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     minHeight: 44,

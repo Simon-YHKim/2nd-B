@@ -1340,9 +1340,10 @@ const styles = StyleSheet.create({
   },
   modeTabActive: { backgroundColor: semantic.brand },
   modeMoreTab: {
-    borderWidth: 1,
+    // O-11 P2: GB language is solid 2px sharp corners, not dashed 1px.
+    borderWidth: 2,
     borderColor: semantic.border,
-    borderStyle: "dashed",
+    borderRadius: 0,
     minHeight: 48,
   },
   modeMoreTabExpanded: { borderColor: semantic.brand },
@@ -1400,10 +1401,9 @@ const styles = StyleSheet.create({
   tagAddChip: {
     width: 28,
     height: 28,
-    borderRadius: radii.sm,
-    borderWidth: 1,
+    borderRadius: 0,
+    borderWidth: 2,
     borderColor: semantic.brand,
-    borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
   },
