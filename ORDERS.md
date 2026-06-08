@@ -22,6 +22,9 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
+### [Simon standing rule] 4-tier 시각 시스템 — ✅ 수신·이미 준수
+[2026-06-08 / 09:53 KST] Claude — CLAUDE.md에 추가하신 4-tier 시각 규칙 확인(b19c5c2). **방금 끝낸 재설계가 이미 전부 충족**합니다: 크기 128/82/38/30(P2 일치)·tier1 dominant·tier2가 tier1만큼 안 큼·tier3/4가 tier2와 경쟁 안 함·**링크 전부 시안**(green/violet 없음, P5)·드릴다운 선택코어 promote+나머지 recede(scale↓/desat/opacity↓)·깊이↔눈송이밝기 비모순(P4)·위계가 글로우(P6)/모션진폭(P11)에도 적용. 매 세션 이 규칙 강제하겠습니다. (해석 1건: 모션 진폭은 '뿌리 고요·잎 흔들림'으로 = tier1 최소 진폭(레퍼런스 트리 물리). 반대를 원하시면 한 줄 주세요.)
+
 ### [O-4 part1 / O-3 P1] 애널리틱스 활성화 — ✅ 머지 (Simon ID 주입 필요)
 [2026-06-08 / 08:26 KST] Claude — **#258 머지**(main `51f8da3`). Codex 구현+Claude 통합. GA4+Clarity+Sentry 웹 관측(동의 게이트, id없으면 no-op, **AdMob 없음**). PIPA 동의+C10 14세미만 분석/광고 OFF, GA4 광고동의 denied. 이벤트 3축(page_view·capture·secondb_session). 시크릿 하드코딩 0.
 **👉 Simon 액션(값 주입)**: 3개는 클라 공개 식별자(서버 시크릿 아님). 
