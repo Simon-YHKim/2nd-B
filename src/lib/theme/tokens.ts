@@ -54,6 +54,10 @@ export const cosmic = {
   panelBorder: "rgba(141,152,184,0.34)", // --panel-border
   coreGlow: "rgba(167,139,250,0.42)", // --core-glow
   mintGlow: "rgba(114,242,199,0.34)", // --mint-glow
+  skyDriftBlue: "#1E88EE",
+  skyDriftViolet: "#8F70F0",
+  skyDriftCyan: "#00FFFF",
+  insightSurface: "#302D56",
 } as const;
 
 // Compose an rgba() string from a hex palette token + alpha (0..1). Lets
@@ -138,6 +142,7 @@ export const semantic = {
   surface: "rgba(13,21,48,0.84)", // glassy night panel, aligned to premium village cards
   surfaceAlt: "rgba(22,33,62,0.68)", // graph-slate wash for nested controls
   border: "rgba(141,152,184,0.3)",
+  backdrop: "rgba(0,0,0,0.6)",
   text: cosmic.moonWhite,
   textMuted: "#C9D0E6", // slightly above mist-gray for body text
   textSubtle: cosmic.mistGray,
@@ -164,6 +169,7 @@ export const semanticLight = {
   surface: lightCosmic.surface,
   surfaceAlt: lightCosmic.surfaceAlt,
   border: lightCosmic.border,
+  backdrop: "rgba(0,0,0,0.6)",
   text: lightCosmic.text,
   textMuted: lightCosmic.textMuted,
   textSubtle: lightCosmic.textSubtle,
