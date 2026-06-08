@@ -690,6 +690,7 @@ export default function Wiki() {
                     }
                   }}
                   hitSlop={6}
+                  style={styles.exportTextLink}
                   accessibilityRole="button"
                   accessibilityLabel={locale === "ko" ? "내보낸 지식 창고 복사" : "Copy exported knowledge store"}
                 >
@@ -700,6 +701,7 @@ export default function Wiki() {
                 <Pressable
                   onPress={() => setExportText(null)}
                   hitSlop={6}
+                  style={styles.exportTextLink}
                   accessibilityRole="button"
                   accessibilityLabel={locale === "ko" ? "내보내기 미리보기 닫기" : "Close export preview"}
                 >
@@ -733,7 +735,6 @@ export default function Wiki() {
                     key={tag}
                     onPress={() => toggleTag(tag)}
                     style={[styles.tagChip, active && styles.tagChipActive]}
-                    hitSlop={4}
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
                     accessibilityLabel={locale === "ko" ? `${tag} 태그 필터` : `Filter by tag ${tag}`}
@@ -748,7 +749,6 @@ export default function Wiki() {
                 <Pressable
                   onPress={() => setActiveTags([])}
                   style={styles.clearChip}
-                  hitSlop={4}
                   accessibilityRole="button"
                   accessibilityLabel={locale === "ko" ? "태그 필터 모두 지우기" : "Clear all tag filters"}
                 >
@@ -986,7 +986,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                             e.stopPropagation();
                             onAddTag(tag);
                           }}
-                          hitSlop={8}
+                          style={styles.inlineTagChip}
                           accessibilityRole="button"
                           accessibilityLabel={locale === "ko" ? `${tag} 태그 필터 추가` : `Add tag filter ${tag}`}
                         >
@@ -1153,7 +1153,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                           void onDelete(p);
                         }}
                         hitSlop={6}
-                        style={{ alignSelf: "flex-end", marginTop: spacing.sm }}
+                        style={styles.deletePageLink}
                         accessibilityRole="button"
                         accessibilityLabel={locale === "ko" ? `${p.title} 위키 페이지 삭제` : `Delete wiki page ${p.title}`}
                       >
@@ -1194,6 +1194,10 @@ const styles = StyleSheet.create({
   companionFlash: { position: "absolute", bottom: 40, right: 20 },
   pageHandoffs: { flexDirection: "row", gap: spacing.md, marginTop: spacing.sm },
   pageHandoffBtn: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: semantic.border,
     borderRadius: radii.sm,
@@ -1247,6 +1251,10 @@ const styles = StyleSheet.create({
   },
   tagChipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   tagChip: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: radii.sm,
@@ -1259,6 +1267,10 @@ const styles = StyleSheet.create({
     borderColor: semantic.brand,
   },
   clearChip: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: radii.sm,
@@ -1281,6 +1293,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   inlineTagRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  inlineTagChip: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: spacing.xs,
+  },
   // Header rides as ListHeaderComponent; it owns the inter-section gap the
   // ScrollView used to provide. The content container's own `gap` separates it
   // from the first row, so no extra bottom margin here (avoids a doubled gap).
@@ -1328,7 +1347,13 @@ const styles = StyleSheet.create({
   phase1Header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   phase1QHeader: { marginTop: spacing.xs },
   phase1Meta: { marginTop: spacing.xs, gap: 2 },
-  phase1Trigger: { paddingVertical: spacing.xs, marginBottom: spacing.sm },
+  phase1Trigger: { minHeight: 44, justifyContent: "center", paddingVertical: spacing.xs, marginBottom: spacing.sm },
+  exportTextLink: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
+  },
   exportCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.brand,
@@ -1345,6 +1370,14 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   exportHelper: { marginTop: spacing.xs },
+  deletePageLink: {
+    alignSelf: "flex-end",
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
   deleteModalBody: { lineHeight: 21 },
   deleteModalActions: { flexDirection: "row", gap: spacing.sm },
   deleteModalButton: { flex: 1 },
