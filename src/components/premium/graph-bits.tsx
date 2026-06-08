@@ -8,7 +8,8 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "rea
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
-import { cosmic, radii, spacing, typography } from "@/lib/theme/tokens";
+import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
+import { cosmic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { CHARACTERS, type CharacterId } from "@/lib/characters";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
@@ -39,7 +40,7 @@ export const ReferenceShardCard = memo(function ReferenceShardCard({
       accessibilityLabel={title}
       style={({ pressed }) => [styles.shard, pressed && onPress ? { opacity: 0.8 } : null]}
     >
-      <View style={[styles.shardGem, { backgroundColor: accent, shadowColor: accent }]} />
+      <View style={[styles.shardGem, { backgroundColor: accent }, pixelShadowStyle(accent)]} />
       <View style={styles.shardText}>
         <Text variant="body" numberOfLines={2} style={styles.shardTitle}>{title}</Text>
         {meta ? <Text variant="subtle" color="textSubtle" numberOfLines={2}>{meta}</Text> : null}
@@ -79,8 +80,9 @@ export const GraphNodeChip = memo(function GraphNodeChip({
       accessibilityLabel={countLabel}
       style={({ pressed }) => [
         styles.chip,
-        { borderColor: active ? accent : cosmic.panelBorder, shadowColor: accent },
+        { borderColor: active ? accent : gameboy.border },
         active ? styles.chipActive : null,
+        active ? pixelShadowStyle(accent) : null,
         pressed && onPress ? { opacity: 0.82 } : null,
         style,
       ]}
@@ -111,8 +113,8 @@ export function CharacterBadge({ id, size = 48, label, glow = true }: { id: Char
       <View
         style={[
           styles.badgeRing,
-          { width: size + 12, height: size + 12, borderRadius: (size + 12) / 2, borderColor: accent, shadowColor: accent },
-          glow ? styles.badgeGlow : null,
+          { width: size + 12, height: size + 12, borderRadius: (size + 12) / 2, borderColor: accent },
+          glow ? pixelShadowStyle(accent) : null,
         ]}
       >
         {id === "secondb" ? (
@@ -166,50 +168,48 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: "rgba(7,10,24,0.5)",
-    borderColor: cosmic.panelBorder,
-    borderWidth: 1,
-    borderRadius: radii.md,
+    backgroundColor: withAlpha(cosmic.space950, 0.5),
+    borderColor: gameboy.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
     padding: spacing.sm,
+    ...pixelShadowStyle(),
   },
-  shardGem: { width: 10, height: 10, borderRadius: 2, shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } },
+  shardGem: { width: 10, height: 10, borderRadius: gameboy.radius },
   shardText: { flex: 1, minWidth: 0 },
   shardTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600" },
   chip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    borderWidth: 1,
-    borderRadius: radii.xl,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
-    backgroundColor: "rgba(13,21,48,0.7)",
-    shadowOpacity: 0,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 0 },
+    backgroundColor: withAlpha(cosmic.space900, 0.7),
     minHeight: 44,
   },
-  chipActive: { shadowOpacity: 0.6, backgroundColor: "rgba(114,242,199,0.08)" },
+  chipActive: { backgroundColor: withAlpha(cosmic.signalMint, 0.08) },
   chipLabel: { flexShrink: 1, minWidth: 0 },
-  chipDot: { width: 7, height: 7, borderRadius: 4 },
+  chipDot: { width: 7, height: 7, borderRadius: gameboy.radius },
   badgeWrap: { alignItems: "center" },
   badgeRing: {
-    borderWidth: 1.5,
+    borderWidth: gameboy.borderWidth,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(13,21,48,0.6)",
+    backgroundColor: withAlpha(cosmic.space900, 0.6),
   },
-  badgeGlow: { shadowOpacity: 0.6, shadowRadius: 14, shadowOffset: { width: 0, height: 0 } },
   pill: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.45)",
-    backgroundColor: "rgba(167,139,250,0.1)",
-    borderRadius: radii.xl,
+    borderWidth: gameboy.borderWidth,
+    borderColor: gameboy.border,
+    backgroundColor: withAlpha(cosmic.soulViolet, 0.1),
+    borderRadius: gameboy.radius,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    ...pixelShadowStyle(cosmic.soulViolet),
   },
   pillText: { flex: 1, minWidth: 0 },
   stat: { alignItems: "center", gap: 2, minWidth: 64 },
