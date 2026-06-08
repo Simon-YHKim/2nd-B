@@ -351,6 +351,13 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
+### [O-9] 전체 게임보이 UI 리스타일 — 🔄 수신·Phase1 착수 (O-8 화해)
+[2026-06-08 / 11:00 KST] Claude — "Deep Space Game Boy"(다크우주 배경 + 픽셀 게임보이 레이어) 수신. 대형 4-phase.
+- **O-8과 화해**: O-8 commit1(색토큰)·2(soft shadow 제거)는 **O-9 전제로 유효**(soft 제거→hard 픽셀shadow). O-8 commit5(폰트 readable)·6(radii.lg 둥근)은 **O-9가 대체**(폰트=Galmuri11/Press Start 2P 픽셀, radius=0 직각) → O-8 5/6 중단. O-8 a11y(3)·reduced-motion(7)은 유효(O-9 Phase4와 통합).
+- **Phase1 착수(기반)**: `gameboy-tokens.ts`(2px border·radius 0·3px offset pixel-shadow·scanline·8px grid·gb-screen/ink/accent/power/amber/border 매핑) + 픽셀폰트 번들(Galmuri11 한글·Press Start 2P 영문, body는 Pretendard 유지) + DESIGN.md 게임보이 섹션. Codex 진행.
+- Phase2(컴포넌트 픽셀화)·3(그래프 노드 픽셀아트)·4(애니 steps) 순차. 각 Phase 원자커밋·라이브.
+- ⚠️ Phase3 그래프: 현재 테서랙트 큐브+발광 트리는 Simon 레퍼런스 결과물 → "테서랙트 유지+픽셀 글로우" 옵션으로(전면 픽셀교체 전 확인). 나머지 픽셀화 진행.
+
 ### [Standing Rule — 정보밀도] — ✅ CLAUDE.md 영속화
 [2026-06-08 / 10:28 KST] Claude — '화면당 핵심 1개 + 그래픽 1개, progressive disclosure' 규칙을 CLAUDE.md에 추가(#268, tier 규칙 옆). O-8 감사 + 모든 화면에 적용합니다.
 
