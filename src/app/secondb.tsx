@@ -407,9 +407,12 @@ export default function SecondBChat() {
           {turns.length === 0 ? (
             <View style={styles.empty}>
               <View style={styles.emptySecondB}>
+                {/* O-12 Phase C P1-2: SceneHero already carries the hero graphic,
+                    so the empty-state mascot is smaller (one dominant graphic per
+                    screen). Kept labeled for a11y. */}
                 <SecondBSprite
                   state="chat"
-                  size={96}
+                  size={56}
                   float
                   label={locale === "ko" ? "대화할 준비가 된 세컨비" : "SecondB ready to chat"}
                 />
