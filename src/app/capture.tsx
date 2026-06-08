@@ -19,7 +19,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   View,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -32,6 +31,7 @@ import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 import { PremiumAppShell, PremiumModal } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
+import { PixelLoaderGlyph } from "@/components/ui/PixelLoaderGlyph";
 import { Button } from "@/components/ui/Button";
 import { PremiumCard, PremiumButton, PremiumLoadingState, TAB_BAR_HEIGHT } from "@/components/premium";
 import { ShardArt } from "@/components/art/IslandArt";
@@ -796,7 +796,7 @@ export default function Capture() {
               from the retired /journal screen so the redirect can't bypass it. */}
           {mode === "journal" && progression.loading ? (
             <View style={styles.gateCard}>
-              <ActivityIndicator color={semantic.brand} />
+              <PixelLoaderGlyph />
             </View>
           ) : null}
           {mode === "journal" && !progression.loading && !journalGate.unlocked ? (
