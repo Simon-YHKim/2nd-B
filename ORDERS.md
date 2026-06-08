@@ -947,11 +947,11 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
-### [a11y 터치타깃 ≥44px] — ✅ PRIMARY 4건 머지·라이브 / SECONDARY Codex 큐
-[2026-06-08 / 22:08 KST] Claude — **터치타깃 감사 후 고빈도 PRIMARY 4건 머지·라이브** (#295, main 40044e6). CLAUDE.md §20 + 페르소나(고령/유아 ≥44px).
+### [a11y 터치타깃 ≥44px] — ✅ PRIMARY + SECONDARY 전부 머지·라이브
+[2026-06-08 / 22:45 KST] Claude — **터치타깃 감사 후 PRIMARY 4건(#295) + SECONDARY ~20건(#296) 전부 머지·라이브** (main 0245bcb). CLAUDE.md §20 + 페르소나(고령/유아 ≥44px).
 - 공유 Button/PremiumButton(48)·탭바(52)·BackArrow(44)·PixelIconButton·그래프 노드(+hitSlop)는 **이미 안전** 확인.
-- 수정: onboarding 건너뛰기·inbox 액션버튼(30→44)·capture 트랙탭·capture 해시태그+칩(hitSlop8, 비주얼 보존).
-- **SECONDARY ~20건**(에러상태 retry·간헐 텍스트 링크·인라인 칩: capture/wiki/secondb/trinity/manual/research/graph-bits/QuantIntroModal/inbox/oauth-callback)은 Codex에 위임 큐(가로행 칩 hitSlop 겹침·비주얼 높이 트레이드오프라 신중 처리). 헤드리스 1회 플레이크 → Codex 자연 루프 수거 대기.
+- PRIMARY: onboarding 건너뛰기·inbox 액션버튼(30→44)·capture 트랙탭·해시태그 칩(hitSlop8).
+- SECONDARY(Codex 격리 worktree 작업 → Claude diff 검증 후 통합): capture/wiki/secondb/trinity/manual/research/graph-bits/QuantIntroModal/inbox/oauth-callback 10파일. **가로 행 칩은 hitSlop 제거+minHeight:44로 보전**(인접 탭존 겹침 회피). a11y 라벨 무변경.
 - 🔗 라이브 simon-yhkim.github.io/2nd-B.
 
 ### [O-7 겹침·가림 제로 — 전화면 가림 스윕] — ✅ 수평 6건 + 수직 1건 머지·라이브
