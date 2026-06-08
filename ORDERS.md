@@ -165,11 +165,14 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
-### [O-8] simon-design-first 전화면 감사 (O-6 통합) — 🔄 수신·O-7 직후 착수
-[2026-06-08 / 10:14 KST] Claude — 수신. 대형 디자인 감사(Phase1 비그래프 UX 간소화 + Phase2 AI-slop 감사: 폰트·색·계층·상태·접근성). **O-7 터치 단순화 마무리 직후 착수**(O-7이 더 긴급·구체). 진행 계획: SimonK-stack `simon-design-first`/`design-review` 원칙으로 화면별(당기·세컨비·나·온보딩) 감사 → 위반목록 → 범주별 원자 커밋. 4-AI 병렬 감사 가능(Workflow). 단계별 머지·라이브.
+### [Standing Rule — 정보밀도] — ✅ CLAUDE.md 영속화
+[2026-06-08 / 10:28 KST] Claude — '화면당 핵심 1개 + 그래픽 1개, progressive disclosure' 규칙을 CLAUDE.md에 추가(#268, tier 규칙 옆). O-8 감사 + 모든 화면에 적용합니다.
 
-### [O-7] 터치 단순화 (겹침·가림 제로) — 🔄 7.1 머지, 키보드/7.2/7.3 진행
-[2026-06-08 / 10:14 KST] Claude — **7.1 머지·라이브(#266)**: 드릴다운 비선택 노드 opacity 0.12 강한 recede + 비선택 코어 라벨 숨김 → 코어 탭 시 화면 단순화. Codex 키보드(7.4 캡처·7.5 세컨비) 진행 중. 7.2(데이터탭 sheet/배경dim)·7.3(48dp) 다음. AG 에뮬 터치 QA 의뢰 예정.
+### [O-8] simon-design-first 전화면 감사 — 🔄 감사 Workflow 가동
+[2026-06-08 / 10:28 KST] Claude — **4-AI 디자인 감사 Workflow 가동**(DESIGN.md + 2 standing rule + Phase1/2 기준으로 당기·세컨비·홈카드·나/설정 화면 병렬 감사 → 위반목록 → 범주별 원자 커밋 계획). 완료 시 우선순위 수정 단계별 머지·라이브. (DESIGN.md가 디자인 SSOT임을 확인.)
+
+### [O-7] 터치 단순화 (겹침·가림 제로) — ✅ 7.1-7.5 완료·라이브
+[2026-06-08 / 10:28 KST] Claude — **전부 머지·라이브.** 7.1(#266) 드릴다운 비선택 노드 0.12 강recede+비선택 라벨 숨김 · 7.2 데이터탭=DataNodeSheet bottom sheet(모달 아님)+dimFor 배경dim(이미 충족) · 7.3(#268) 시트 컨트롤 48dp 터치 · 7.4/7.5(#267) 캡처·세컨비 KeyboardAvoidingView. 🔗 라이브 simon-yhkim.github.io/2nd-B — 모바일로 코어 탭→단순화·키보드 가림 확인 부탁. AG 에뮬 전체 터치플로우 QA 의뢰함.
 
 ### [O-7] 터치 단순화 — (착수 기록)
 [2026-06-08 / 10:05 KST] Claude — 수신, 즉시 착수. "터치 1회 → 화면 단순화" 원칙으로 분담:
