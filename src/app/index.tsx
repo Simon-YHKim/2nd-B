@@ -34,13 +34,12 @@ import { cosmic } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
-import { WorkerSprite } from "@/components/art/WorkerSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
 import { useEmptyGraphDismissed } from "@/lib/onboarding/empty-card";
 import { domainForTags, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { VILLAGE_UI } from "@/lib/village-ui";
-import { getPersona } from "@/lib/chat/personas";
+import { overviewCardSignals } from "@/lib/graph/card-insights";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 import { StarNoiseLayer } from "@/components/premium";
 import { prefersReducedMotion } from "@/lib/motion/signature";
@@ -335,27 +334,38 @@ export default function Landing() {
       : presence.mascot === "sleep"
         ? "SecondB resting"
         : "SecondB";
-  const featuredCoreName = VILLAGE_LABEL[featuredVillage][locale];
-  const featuredWorker = VILLAGE_UI[featuredVillage].worker;
-  const featuredPersona = getPersona(featuredWorker);
   const featuredPiece = dataNodes.find((node) => node.parentId === featuredVillage) ?? dataNodes[0] ?? null;
   const soulCoreName = locale === "ko" ? "소울 코어" : "Soul Core";
+
+  // P9: overview insight cards = a conversational "what changed / what to
+  // reinforce" report (card 1 = SecondB) + a Pattern Core spotlight (card 2),
+  // driven by real graph signals (card-insights.overviewCardSignals). Core-named
+  // copy (always ends in "코어", a vowel) is josa-safe, fixing the old persona
+  // particle bug ("아콘가/루멘가").
+  const cardSignals = overviewCardSignals(dataNodes);
+  const spotlightCore = cardSignals.recentCore ?? featuredVillage;
+  const spotlightCoreName = VILLAGE_LABEL[spotlightCore][locale];
+  const spotlightIsland = VILLAGE_UI[spotlightCore].island;
+  const spotlightWorker = VILLAGE_UI[spotlightCore].worker;
+  const sparseCoreName = cardSignals.sparseCore ? VILLAGE_LABEL[cardSignals.sparseCore][locale] : null;
+  const recentPieceTitle = cardSignals.recentPiece?.title ?? featuredPiece?.title ?? null;
+
   const secondBCardBody =
     locale === "ko"
       ? featuredPiece
-        ? `${soulCoreName}에서 ${featuredCoreName} 쪽 새 조각을 찾았어요.`
-        : `${soulCoreName}에서 첫 조각이 들어올 자리를 비워 두었어요.`
+        ? `최근 ${spotlightCoreName}에 새 조각을 더했어요.${sparseCoreName ? ` ${sparseCoreName}는 아직 비어 있어요.` : ""}`
+        : `${soulCoreName}가 첫 조각이 들어올 자리를 비워 두었어요.`
       : featuredPiece
-        ? `I found a fresh piece near ${featuredCoreName} from the ${soulCoreName}.`
+        ? `Added a fresh piece to ${spotlightCoreName}.${sparseCoreName ? ` ${sparseCoreName} is still sparse.` : ""}`
         : `The ${soulCoreName} is ready for the first piece you leave.`;
   const coreCardBody =
     locale === "ko"
-      ? featuredPiece
-        ? `${featuredCoreName}의 ${featuredPersona.name.ko}가 '${featuredPiece.title}' 조각을 보고 있어요.`
-        : `${featuredCoreName}의 ${featuredPersona.name.ko}가 관련 조각을 기다리고 있어요.`
-      : featuredPiece
-        ? `${featuredPersona.name.en} is reading "${featuredPiece.title}" inside ${featuredCoreName}.`
-        : `${featuredPersona.name.en} is waiting for pieces that belong in ${featuredCoreName}.`;
+      ? recentPieceTitle
+        ? `'${recentPieceTitle}' 조각이 최근 추가됐어요. 더 자세히 확인해보시겠어요?`
+        : `${spotlightCoreName}에 조각들이 모여 있어요. 더 자세히 확인해보시겠어요?`
+      : recentPieceTitle
+        ? `Your latest piece is about "${recentPieceTitle}". Want a closer look?`
+        : `Pieces are gathering in ${spotlightCoreName}. Want a closer look?`;
   // Show only once the piece check has resolved to "none" (hasAnyPiece === false,
   // not null) AND the user hasn't dismissed (emptyDismissed hydrated to false,
   // not null). Both gates avoid a first-paint flash for users who do have pieces
@@ -498,22 +508,18 @@ export default function Landing() {
           <Pressable
             onPress={() => {
               wake();
-              router.push({ pathname: "/secondb", params: { fromNode: featuredCoreName, character: featuredWorker } });
+              router.push({ pathname: "/secondb", params: { fromNode: spotlightCoreName, character: spotlightWorker } });
             }}
             style={styles.insightCard}
             accessibilityRole="button"
-            accessibilityLabel={
-              locale === "ko"
-                ? `${featuredPersona.name.ko} Touch`
-                : `${featuredPersona.name.en} Touch`
-            }
-            accessibilityHint={locale === "ko" ? "관련 패턴 코어 캐릭터 대화를 엽니다" : "Opens the related Pattern Core character chat"}
+            accessibilityLabel={`${spotlightCoreName} Touch`}
+            accessibilityHint={locale === "ko" ? "이 패턴 코어를 자세히 봅니다" : "Opens this Pattern Core in detail"}
           >
             <View style={styles.insightCardAvatar}>
-              <WorkerSprite id={featuredWorker} size={46} />
+              <IslandArt id={spotlightIsland} size={46} />
             </View>
             <View style={styles.insightCardCopy}>
-              <Text style={styles.insightCardTitle}>{featuredPersona.name[locale]}</Text>
+              <Text style={styles.insightCardTitle}>{spotlightCoreName}</Text>
               <Text style={styles.insightCardBody} numberOfLines={3}>{coreCardBody}</Text>
             </View>
             <Text style={styles.insightCardCta}>Touch!</Text>
