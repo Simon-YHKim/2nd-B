@@ -1,5 +1,5 @@
 // Premium surfaces — top bar, glass panels/cards, buttons, inputs (Part 1).
-// Glassy dark panels with glowing borders, mint primary + violet secondary
+// Glassy dark panels with accent borders, mint primary + violet secondary
 // CTAs, all reading from cosmic.* so the village identity stays consistent.
 
 import type { ReactNode } from "react";
@@ -59,16 +59,14 @@ export function PremiumTopBar({
   );
 }
 
-/** Glassy dark panel. `accent` adds a glowing left border; `glow` adds a halo. */
+/** Glassy dark panel. `accent` adds a left border. */
 export function PremiumPanel({
   children,
   accent,
-  glow = false,
   style,
 }: {
   children: ReactNode;
   accent?: string;
-  glow?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
@@ -76,7 +74,6 @@ export function PremiumPanel({
       style={[
         styles.panel,
         accent ? { borderLeftWidth: 3, borderLeftColor: accent } : null,
-        glow ? styles.panelGlow : null,
         style,
       ]}
     >
@@ -92,7 +89,6 @@ export function PremiumCard({
   accent = cosmic.soulViolet,
   right,
   children,
-  glow = false,
   style,
 }: {
   title?: string;
@@ -100,11 +96,10 @@ export function PremiumCard({
   accent?: string;
   right?: ReactNode;
   children?: ReactNode;
-  glow?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <PremiumPanel accent={accent} glow={glow} style={style}>
+    <PremiumPanel accent={accent} style={style}>
       {title || eyebrow || right ? (
         <View style={styles.cardHead}>
           <View style={{ flex: 1 }}>
@@ -186,27 +181,19 @@ export function PremiumButton({
   // Merge caller a11y intent (e.g. selected on segmented controls) with the
   // button's own disabled/busy ownership instead of overwriting it.
   const a11yRole = accessibilityRole ?? "button";
-  const glowColor =
-    variant === "primary"
-      ? cosmic.signalMint
-      : variant === "danger"
-        ? cosmic.guardRose
-        : cosmic.soulViolet;
   const fullStyle: ViewStyle | null = full ? { alignSelf: "stretch", width: "100%" } : null;
   const resolvedAccessibilityLabel = accessibilityLabel ?? label;
   const colorStyle: ViewStyle = {
     backgroundColor: BTN_BG[variant],
     borderColor: BTN_BORDER[variant],
-    shadowColor: glowColor,
   };
   const disabledStyle: ViewStyle | null = isDisabled
-    ? { backgroundColor: BTN_DISABLED_BG, borderColor: BTN_DISABLED_BORDER, shadowOpacity: 0 }
+    ? { backgroundColor: BTN_DISABLED_BG, borderColor: BTN_DISABLED_BORDER }
     : null;
   const buttonStyle: StyleProp<ViewStyle> = [
     styles.btn,
     fullStyle,
     colorStyle,
-    variant !== "ghost" ? styles.btnGlow : null,
     disabledStyle,
     style,
   ];
@@ -253,7 +240,6 @@ export function PremiumButton({
         styles.btn,
         fullStyle,
         colorStyle,
-        variant !== "ghost" ? styles.btnGlow : null,
         style,
         pressed ? { opacity: 0.82 } : null,
       ]}
@@ -383,16 +369,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.lg,
     gap: spacing.sm,
-    shadowColor: "#000",
-    shadowOpacity: 0.24,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-  },
-  panelGlow: {
-    shadowColor: cosmic.soulViolet,
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 0 },
   },
   cardHead: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   eyebrow: { letterSpacing: 0, textTransform: "uppercase" },
@@ -407,9 +383,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: radii.md,
     borderWidth: 1,
-    elevation: 1,
   },
-  btnGlow: { shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 0 } },
   btnIcon: {},
   btnLabel: {
     fontFamily: fontFamilies.sans,

@@ -601,7 +601,6 @@ const styles = StyleSheet.create({
   emptyGraphBackdrop: {
     ...(StyleSheet.absoluteFill as object),
     zIndex: 100,
-    elevation: 100,
     backgroundColor: semantic.backdrop,
     alignItems: "center",
     justifyContent: "flex-end",
@@ -617,10 +616,6 @@ const styles = StyleSheet.create({
     padding: 14,
     maxWidth: 380,
     width: "100%",
-    shadowColor: cosmic.soulViolet,
-    shadowOpacity: 0.32,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 0 },
   },
   emptyGraphClose: {
     position: "absolute",
@@ -668,10 +663,6 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
   },
   emptyGraphCtaText: {
     color: cosmic.space950,
@@ -698,10 +689,6 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(cosmic.insightSurface, 0.94),
     paddingHorizontal: 12,
     paddingVertical: 10,
-    shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.26,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 0 },
   },
   insightCardAvatar: {
     width: 58,
@@ -751,10 +738,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: withAlpha(cosmic.signalMint, 0.26),
     backgroundColor: withAlpha(cosmic.space950, 0.62),
-    shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 0 },
   },
   // SecondB sprite frame. Same 52px footprint across idle/sleep states.
   mascotSlot: {

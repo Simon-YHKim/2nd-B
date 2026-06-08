@@ -314,10 +314,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.sm,
-    shadowColor: cosmic.soulViolet,
-    shadowOpacity: 0.14,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
   },
   // Tracking is applied per-locale (eyebrowTracking) so KO labels are not
   // over-spaced (caption is 14px); EN keeps the light caption tracking.

@@ -192,7 +192,6 @@ export default function ImportExternal() {
                 eyebrow={t("result.eyebrow")}
                 title={t("result.title")}
                 accent={cosmic.pixelLamp}
-                glow
               >
                 {degraded ? (
                   <View style={styles.degradedNote} accessibilityRole="alert">
@@ -233,7 +232,7 @@ export default function ImportExternal() {
                   full
                 />
               ) : (
-                <PremiumCard accent={cosmic.signalMint} glow>
+                <PremiumCard accent={cosmic.signalMint}>
                   <Text variant="body" color="brand">{t("saved.title")}</Text>
                   <Text variant="subtle" color="textMuted">
                     {t("saved.body")}
