@@ -280,10 +280,10 @@ export default function SecondBChat() {
           <Text variant="caption" color="brand" numberOfLines={1} style={styles.compactTitle}>
             {isCharacterChat ? persona.name[locale] : t("title")}
           </Text>
-          <Text variant="caption" color={usageColor} numberOfLines={1}>
+          <Text variant="caption" color={usageColor} numberOfLines={1} style={{ flexShrink: 0 }}>
             {usedDisplay}/{limit}
           </Text>
-          <Text variant="caption" color="textMuted" numberOfLines={1}>
+          <Text variant="caption" color="textMuted" numberOfLines={1} style={{ flexShrink: 0 }}>
             {compactModeLabel}
           </Text>
           {hasTurns ? (
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     borderBottomColor: gameboy.border,
     borderBottomWidth: gameboy.borderWidth,
   },
-  compactTitle: { flex: 1 },
+  compactTitle: { flex: 1, minWidth: 0 },
   composerPrimary: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
   },
   modeChipAnalytic: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   modeChipDivergent: { backgroundColor: cosmic.soulViolet2, borderColor: cosmic.soulViolet2 },
-  modeHint: { flex: 1, marginLeft: spacing.xs },
+  modeHint: { flex: 1, minWidth: 0, marginLeft: spacing.xs },
   divergentPulseDot: { width: 8, height: 8, borderRadius: gameboy.radius, backgroundColor: cosmic.soulViolet2 },
   scroll: { paddingTop: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
   empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },
