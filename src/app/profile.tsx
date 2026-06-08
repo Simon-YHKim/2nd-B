@@ -9,7 +9,8 @@ import Svg, { Circle, Path } from "react-native-svg";
 
 import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
+import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { useProgression } from "@/lib/progression/useProgression";
@@ -209,21 +210,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: semantic.surface,
-    borderColor: semantic.border,
-    borderWidth: 1,
-    borderRadius: radii.md,
+    borderColor: gameboy.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
+    ...pixelShadowStyle(),
   },
   subscriptionCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: semantic.surface,
     borderColor: semantic.brand,
-    borderWidth: 1,
-    borderLeftWidth: 4,
+    borderWidth: gameboy.borderWidth,
+    borderLeftWidth: gameboy.borderWidth,
     borderLeftColor: semantic.brand,
-    borderRadius: radii.md,
+    borderRadius: gameboy.radius,
     padding: spacing.lg,
     gap: spacing.md,
+    ...pixelShadowStyle(semantic.brand),
   },
   planIcon: {
     width: 48,
@@ -231,9 +234,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: semantic.surfaceAlt,
-    borderColor: semantic.border,
-    borderWidth: 1,
-    borderRadius: radii.md,
+    borderColor: gameboy.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
+    ...pixelShadowStyle(),
   },
   accountStrip: {
     minHeight: 36,
@@ -248,12 +252,13 @@ const styles = StyleSheet.create({
   eyebrow: { letterSpacing: 0 },
   quickChip: {
     width: "48%",
-    borderWidth: 1,
-    borderRadius: radii.md,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     backgroundColor: semantic.surfaceAlt,
     minHeight: 44,
     justifyContent: "center",
+    ...pixelShadowStyle(),
   },
 });

@@ -10,8 +10,9 @@ import { Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
-import { gameboy } from "@/lib/theme/gameboy-tokens";
-import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
+import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { useTheme } from "@/lib/theme/ThemeContext";
@@ -714,27 +715,30 @@ const styles = StyleSheet.create({
   header: { gap: spacing.xs, marginBottom: spacing.md },
   section: {
     backgroundColor: semantic.surface,
-    borderColor: semantic.border,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-    borderRadius: radii.md,
+    borderColor: gameboy.border,
+    borderWidth: gameboy.borderWidth,
+    borderLeftWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
     padding: spacing.md,
     gap: spacing.sm,
+    ...pixelShadowStyle(),
   },
   sectionEyebrow: { letterSpacing: 0, fontWeight: "700" },
   busyBanner: {
     backgroundColor: semantic.surfaceAlt,
-    borderColor: semantic.border,
-    borderWidth: 1,
-    borderRadius: radii.md,
+    borderColor: gameboy.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    ...pixelShadowStyle(),
   },
   settingsButton: {
     minHeight: 48,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    borderRadius: gameboy.radius,
+    borderWidth: gameboy.borderWidth,
     overflow: "hidden",
+    ...pixelShadowStyle(),
   },
   settingsButtonFull: {
     alignSelf: "stretch",
@@ -755,7 +759,7 @@ const styles = StyleSheet.create({
   },
   settingsButtonSecondary: {
     backgroundColor: cosmic.space700,
-    borderColor: withAlpha(cosmic.mistGray, 0.56),
+    borderColor: gameboy.border,
   },
   settingsButtonDanger: {
     backgroundColor: semantic.zoneRed,
@@ -763,7 +767,7 @@ const styles = StyleSheet.create({
   },
   settingsButtonDisabled: {
     backgroundColor: withAlpha(cosmic.mistGray, 0.12),
-    borderColor: cosmic.edgeDefault,
+    borderColor: gameboy.border,
   },
   settingsButtonPressed: {
     opacity: 0.78,
@@ -773,6 +777,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0,
     textAlign: "center",
+    fontFamily: fontFamilies.pixelKo,
   },
   actions: { gap: spacing.sm, marginTop: spacing.md },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },

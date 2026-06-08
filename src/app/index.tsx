@@ -30,6 +30,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, semantic, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
@@ -611,12 +612,13 @@ const styles = StyleSheet.create({
   emptyGraphCard: {
     alignItems: "stretch",
     backgroundColor: withAlpha(cosmic.space950, 0.92),
-    borderColor: withAlpha(cosmic.soulViolet, 0.38),
-    borderWidth: 1,
-    borderRadius: 8,
+    borderColor: gameboy.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
     padding: 14,
     maxWidth: 380,
     width: "100%",
+    ...pixelShadowStyle(),
   },
   emptyGraphIntro: {
     minHeight: 104,
@@ -632,32 +634,35 @@ const styles = StyleSheet.create({
   },
   emptyGraphCopy: { flex: 1, gap: 4 },
   emptyGraphSkip: { minHeight: 44, marginTop: 6, justifyContent: "center", alignItems: "center" },
-  emptyGraphSkipText: { color: cosmic.mistGray, fontSize: typography.sizes.sm, fontFamily: fontFamilies.sans },
+  emptyGraphSkipText: { color: cosmic.mistGray, fontSize: typography.sizes.sm, fontFamily: fontFamilies.pixelKo },
   emptyGraphTitle: {
     color: cosmic.moonWhite,
     fontSize: typography.sizes.md,
     fontWeight: "700",
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.pixelKo,
   },
   emptyGraphBody: {
     color: cosmic.mistGray,
     fontSize: 12,
     lineHeight: 17,
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.readable,
   },
   emptyGraphCta: {
     marginTop: 8,
     backgroundColor: cosmic.signalMint,
-    borderRadius: 8,
+    borderRadius: gameboy.radius,
+    borderWidth: gameboy.borderWidth,
+    borderColor: gameboy.border,
     minHeight: 44,
     paddingVertical: 12,
     paddingHorizontal: 20,
+    ...pixelShadowStyle(),
   },
   emptyGraphCtaText: {
     color: cosmic.space950,
     fontWeight: "700",
     fontSize: 14,
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.pixelKo,
     textAlign: "center",
   },
   insightCardStack: {
@@ -672,12 +677,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: withAlpha(cosmic.signalMint, 0.82),
+    borderRadius: gameboy.radius,
+    borderWidth: gameboy.borderWidth,
+    borderColor: gameboy.border,
     backgroundColor: withAlpha(cosmic.insightSurface, 0.94),
     paddingHorizontal: 12,
     paddingVertical: 10,
+    ...pixelShadowStyle(cosmic.signalMint),
   },
   insightCardAvatar: {
     width: 58,
@@ -693,7 +699,7 @@ const styles = StyleSheet.create({
     color: cosmic.signalMint,
     fontSize: typography.sizes.md,
     lineHeight: 19,
-    fontFamily: fontFamilies.pixel,
+    fontFamily: fontFamilies.pixelKo,
     letterSpacing: 0,
     marginBottom: 4,
   },
@@ -709,7 +715,7 @@ const styles = StyleSheet.create({
     color: cosmic.signalMint,
     fontSize: typography.sizes.sm,
     lineHeight: 18,
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.pixelKo,
     fontWeight: "700",
     letterSpacing: 0,
   },
@@ -723,21 +729,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: withAlpha(cosmic.signalMint, 0.26),
+    borderRadius: gameboy.radius,
+    borderWidth: gameboy.borderWidth,
+    borderColor: gameboy.border,
     backgroundColor: withAlpha(cosmic.space950, 0.62),
+    ...pixelShadowStyle(),
   },
   // SecondB sprite frame. Same 52px footprint across idle/sleep states.
   mascotSlot: {
     width: 52,
     height: 52,
-    borderRadius: 8, // square-ish, pixel-block feel rather than round avatar
-    borderWidth: 1,
-    borderColor: cosmic.coreGlow,
+    borderRadius: gameboy.radius,
+    borderWidth: gameboy.borderWidth,
+    borderColor: gameboy.border,
     backgroundColor: withAlpha(cosmic.soulViolet, 0.16),
     alignItems: "center",
     justifyContent: "center",
+    ...pixelShadowStyle(cosmic.coreGlow),
   },
   insightEyebrow: {
     color: cosmic.signalMint,
@@ -746,7 +754,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     marginBottom: 4,
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.pixelKo,
   },
   // KO: no tracking, no uppercase — keeps Hangul legible.
   insightEyebrowKo: {
@@ -762,6 +770,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     letterSpacing: 0.2,
-    fontFamily: fontFamilies.sans,
+    fontFamily: fontFamilies.readable,
   },
 });
