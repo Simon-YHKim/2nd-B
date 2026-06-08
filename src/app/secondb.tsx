@@ -289,6 +289,7 @@ export default function SecondBChat() {
           {hasTurns ? (
             <Pressable
               onPress={() => setTurns([])}
+              style={styles.clearChatLink}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="Clear chat"
@@ -700,6 +701,7 @@ const styles = StyleSheet.create({
   modeChipAnalytic: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   modeChipDivergent: { backgroundColor: cosmic.soulViolet2, borderColor: cosmic.soulViolet2 },
   modeHint: { flex: 1, minWidth: 0, marginLeft: spacing.xs },
+  clearChatLink: { minHeight: 44, minWidth: 44, justifyContent: "center", paddingHorizontal: spacing.xs },
   divergentPulseDot: { width: 8, height: 8, borderRadius: gameboy.radius, backgroundColor: cosmic.soulViolet2 },
   scroll: { paddingTop: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
   empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },

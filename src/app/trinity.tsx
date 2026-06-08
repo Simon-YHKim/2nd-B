@@ -216,6 +216,7 @@ export default function Trinity() {
             <Link href="/capture" asChild>
               <Pressable
                 hitSlop={6}
+                style={styles.emptyLink}
                 accessibilityRole="link"
                 accessibilityLabel={
                   locale === "ko" ? "캡처에서 도메인 태그 추가하기" : "Add domain tags in capture"
@@ -336,6 +337,7 @@ const styles = StyleSheet.create({
   shellCenter: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   center: { paddingVertical: spacing.xl, alignItems: "center" },
   emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, alignItems: "center", gap: spacing.sm },
+  emptyLink: { minHeight: 44, minWidth: 44, justifyContent: "center", paddingHorizontal: spacing.xs },
   grid: { gap: spacing.sm },
   card: {
     backgroundColor: semantic.surface,

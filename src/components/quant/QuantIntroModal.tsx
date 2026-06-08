@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     padding: spacing.sm,
   },
-  dontShowRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.md },
+  dontShowRow: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.md },
   checkbox: {
     width: 16,
     height: 16,
