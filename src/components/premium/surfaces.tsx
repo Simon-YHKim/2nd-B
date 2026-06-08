@@ -4,7 +4,6 @@
 
 import { type ReactNode, useState, useRef } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Easing,
   Pressable,
@@ -153,10 +152,28 @@ const BTN_DISABLED_BG = withAlpha(cosmic.mistGray, 0.16);
 const BTN_DISABLED_BORDER = withAlpha(cosmic.mistGray, 0.46);
 const BTN_DISABLED_FG = withAlpha(cosmic.moonWhite, 0.58);
 const PRESSED_OFFSET = 2;
+const BUTTON_LOADING_CELLS = [0, 1, 2] as const;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function textInputAccessibilityLabel(props: TextInputProps): string | undefined {
   return props.accessibilityLabel ?? (typeof props.placeholder === "string" ? props.placeholder : undefined);
+}
+
+function PremiumButtonLoader({ color }: { color: string }) {
+  return (
+    <View style={styles.btnLoader} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {BUTTON_LOADING_CELLS.map((cell) => (
+        <View
+          key={cell}
+          style={[
+            styles.btnLoaderCell,
+            { backgroundColor: color },
+            cell === 1 ? styles.btnLoaderCellActive : null,
+          ]}
+        />
+      ))}
+    </View>
+  );
 }
 
 export interface PremiumButtonProps extends Omit<PressableProps, "children" | "style"> {
@@ -234,7 +251,7 @@ export function PremiumButton({
   const buttonContent = (
     <>
       {loading ? (
-        <ActivityIndicator size="small" color={foregroundColor} style={styles.btnIcon} />
+        <PremiumButtonLoader color={foregroundColor} />
       ) : icon ? (
         <View style={styles.btnIcon}>{icon}</View>
       ) : null}
@@ -473,6 +490,22 @@ const styles = StyleSheet.create({
   btnPressed: {
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0,
+  },
+  btnLoader: {
+    flexDirection: "row",
+    gap: 3,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 20,
+  },
+  btnLoaderCell: {
+    width: 4,
+    height: 4,
+    borderRadius: gameboy.radius,
+    opacity: 0.45,
+  },
+  btnLoaderCellActive: {
+    opacity: 1,
   },
   btnIcon: {},
   btnLabel: {
