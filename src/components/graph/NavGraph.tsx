@@ -1393,6 +1393,14 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
     return highlightDataId != null ? id !== highlightDataId : activeId != null && !isRelated(id);
   };
 
+  // O-7.1: in drilldown the non-selected nodes must fully recede (opacity ≤0.15)
+  // so one touch SIMPLIFIES the screen — only the focused core + its data read.
+  // Outside drilldown, the lighter 0.28 dim keeps context for tap-to-relate.
+  const dimStyleFor = (id: string): { opacity: number } | null => {
+    if (!dimFor(id)) return null;
+    return drilldownCoreId != null ? styles.recededHard : styles.dimmed;
+  };
+
   // Village type label per tier (overhaul §6/§7 sheet "노드 타입").
   const typeLabel = (tier: Tier): string => {
     if (tier === 1) return t("worldview.soulCore");
@@ -1664,7 +1672,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                   transform: swayTransform(id) as never,
                 },
                 id === highlightDataId || id === drilldownSelectedDataId ? styles.shardHighlight : null,
-                dimFor(id) ? styles.dimmed : null,
+                dimStyleFor(id),
               ]}
             >
               <NodeGlow tier={4} size={DATA_NODE_SIZE} />
@@ -1708,7 +1716,6 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         if (!base) return null;
         const coreDepth = drilldownCoreId === n.id ? drilldownDepthStyle("focusedCore", n.tier) : null;
         const size = coreDepth ? Math.min(128, Math.max(96, width * 0.26)) : tierSize(n.tier);
-        const dim = dimFor(n.id);
         return (
           <Animated.View
             key={n.id}
@@ -1728,7 +1735,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
               style={[
                 styles.nodeArtWrap,
                 n.id === activeId || n.id === glowNodeId ? styles.nodeFocused : null,
-                dim ? styles.dimmed : null,
+                dimStyleFor(n.id),
               ]}
             >
               <NodeGlow tier={n.tier as GlowTier} size={size} />
@@ -1766,7 +1773,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 name plate so first-time users can read what each village is
                 straight from the main graph. Tier-3 nodes get theirs only
                 when zoomed in (label shown in the bottom sheet on tap). */}
-            {n.tier === 2 ? (
+            {/* O-7.1: hide non-focused core name plates during drilldown so the
+                focused view has no label/card/node overlap clutter. */}
+            {n.tier === 2 && !(drilldownCoreId != null && dimFor(n.id)) ? (
               <View style={styles.villageTag} pointerEvents="none">
                 <Text style={styles.villageTagText} numberOfLines={1}>
                   {n.label[locale]}
@@ -1796,7 +1805,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
           style={[
             styles.centerArtWrap,
             CENTER_NODE.id === activeId ? styles.nodeFocused : null,
-            dimFor(CENTER_NODE.id) ? styles.dimmed : null,
+            dimStyleFor(CENTER_NODE.id),
           ]}
         >
           <NodeGlow tier={1} size={CENTER_SIZE} />
@@ -2362,6 +2371,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   dimmed: { opacity: 0.28 },
+  // O-7.1: drilldown recede — non-selected nodes nearly vanish so one touch
+  // simplifies the screen (Simon: 겹침·가림 제로).
+  recededHard: { opacity: 0.12 },
   // Node bottom sheet (§7) — screen-fixed, slides up from the bottom.
   sheet: {
     position: "absolute",
