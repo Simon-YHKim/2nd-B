@@ -41,7 +41,7 @@ import { domainForTags, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relate
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { overviewCardSignals } from "@/lib/graph/card-insights";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
-import { StarNoiseLayer } from "@/components/premium";
+import { PowerOnOverlay, StarNoiseLayer } from "@/components/premium";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
 const logo = require("../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png");
@@ -568,6 +568,8 @@ export default function Landing() {
           </Text>
         </Pressable>
       </Animated.View>
+
+      <PowerOnOverlay />
 
       {/* Top-right cluster removed (graph-ux #2/#4): language is auto-detected
           and lives in Settings; Settings is reachable from the Profile tab.
