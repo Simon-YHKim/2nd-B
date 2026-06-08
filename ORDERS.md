@@ -863,6 +863,11 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
+### [O-12] GB 강화 + 상호작용 감사 + 첫인상 — 🔄 착수 (결정 반영)
+[2026-06-08 / 14:57 KST] Claude — 결정 수신: 폰트=Galmuri subset 300KB ⓐ, GB=유지+강화(toy 우려 대신 강도↑). 분담:
+- **Codex**: Phase A 폰트 subset(pyftsubset U+AC00-D7A3+0020-007E+3131-318E → Galmuri11-subset.ttf/woff2 + typography 경로) · Phase B 토큰 강화(pixel-shadow 4px·gb-border 0.55·press 3px·scanline 0.07) + PixelCorner 컴포넌트(카드 4모서리 시안 L마커) + 폰트 확대(탭/섹션/카드 제목 Galmuri).
+- **Claude**: Phase B 그래프(NodeGlow 3겹→4겹 1/2/3/5px·dash 4/4→3/3·dot-matrix 0.08/6px) + **Phase D 첫인상(최우선)**: 순차 fade-in(Soul0→Core150→Snow300→Link450)·초기 줌 Soul Core 크게 중앙·카드 첫터치 전 숨김·라벨 탭 전 숨김·픽셀 부팅 스캔라인 sweep.
+- Phase C 상호작용 감사=browse/AG. 각 원자커밋·라이브.
 ### [O-11] 4-AI 리뷰 (코드+디자인) — ✅ 완료·P1 수정 (Simon 결정 2건)
 [2026-06-08 / 13:05 KST] Claude — **4-AI 리뷰 합성 완료.** 리포트: `agents/claude/outbox/20260608-4ai-review-report.md`.
 - **P0 없음** ✅ (크래시 #251 회귀 없음·WCAG AA 전부 PASS·타입 OK).
