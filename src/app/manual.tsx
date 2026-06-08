@@ -282,7 +282,7 @@ export default function Manual() {
               accessibilityHint={
                 locale === "ko"
                   ? "로그인 후 검증된 연구 자료 목록을 엽니다."
-                  : "Opens the curated research library (sign-in required)."
+                  : "Opens the curated research library. Sign-in required."
               }
             />
           </Link>
