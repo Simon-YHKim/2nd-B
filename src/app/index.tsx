@@ -148,7 +148,7 @@ function featuredVillageForCards(dataNodes: readonly DataNode[]): VillageId {
 // claim "we noticed" patterns (there is no data to notice). Show an invitation
 // instead, so the ribbon never contradicts the empty-graph card.
 const FIRST_PIECE_INSIGHT: Record<"en" | "ko", string> = {
-  en: "Leave your first piece — patterns will show up here.",
+  en: "Leave your first piece; patterns will show up here.",
   ko: "첫 조각을 남기면 여기에서 패턴이 보이기 시작해요.",
 };
 
@@ -412,7 +412,7 @@ export default function Landing() {
         // the absolute-fill view captures every touch (graph, 오늘의 중심 ribbon,
         // FAB), and the high zIndex keeps it above all siblings. The dim focuses
         // attention on the card; tapping the backdrop does nothing — the user
-        // dismisses via the card's "먼저 둘러볼게요" / ✕.
+        // dismisses via the card's "먼저 둘러볼게요".
         <Animated.View
           // Android: pad past the system nav bar so the card's primary button is
           // never hidden behind soft keys. Falls back to the base 88 on iOS/web.
@@ -420,16 +420,6 @@ export default function Landing() {
           pointerEvents="auto"
         >
           <View style={styles.emptyGraphCard}>
-            {/* Close — lets the user dismiss and browse the empty village. */}
-            <Pressable
-              onPress={dismissEmptyCard}
-              hitSlop={12}
-              style={styles.emptyGraphClose}
-              accessibilityRole="button"
-              accessibilityLabel={locale === "ko" ? "닫고 둘러보기" : "Dismiss and look around"}
-            >
-              <Text style={styles.emptyGraphCloseText}>✕</Text>
-            </Pressable>
             <View style={styles.emptyGraphIntro}>
               <View
                 style={styles.emptyGraphArt}
@@ -617,23 +607,11 @@ const styles = StyleSheet.create({
     maxWidth: 380,
     width: "100%",
   },
-  emptyGraphClose: {
-    position: "absolute",
-    top: 4,
-    right: 6,
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2,
-  },
-  emptyGraphCloseText: { color: cosmic.mistGray, fontSize: 16, fontFamily: fontFamilies.sans },
   emptyGraphIntro: {
     minHeight: 104,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingRight: 34,
   },
   emptyGraphArt: {
     width: 96,

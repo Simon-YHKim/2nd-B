@@ -75,6 +75,23 @@ const CAPTURE_MODES: Mode[] = ["journal", "memo", "linkclip", "ocr", "file"];
 const BASIC_CAPTURE_MODES: Mode[] = ["journal"];
 
 const TRACK_OPTIONS: WikiTrack[] = ["daily", "pro"];
+const X_PATH = "M 4 4 L 12 12 M 12 4 L 4 12";
+const CHECK_PATH = "M 3 7 L 7 11 L 13 5";
+
+function PathGlyph({ path, color, size = 16 }: { path: string; color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 16 16" accessibilityElementsHidden>
+      <Path
+        d={path}
+        stroke={color}
+        strokeWidth={2}
+        fill="none"
+        strokeLinecap="square"
+        strokeLinejoin="miter"
+      />
+    </Svg>
+  );
+}
 
 function ModeGlyph({ mode, color, label }: { mode: Mode; color: string; label: string }) {
   const sw = 1.8;
@@ -883,7 +900,7 @@ export default function Capture() {
                 accessibilityLabel={t("journal.advisor.label")}
               >
                 <View style={[styles.advisorCheck, askAdvisor && styles.advisorCheckOn]}>
-                  {askAdvisor ? <Text variant="caption" color="background">✓</Text> : null}
+                  {askAdvisor ? <PathGlyph path={CHECK_PATH} color={semantic.background} size={16} /> : null}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text variant="subtle" color={askAdvisor ? "brand" : "textMuted"}>
@@ -1021,7 +1038,10 @@ export default function Capture() {
                   accessibilityRole="button"
                   accessibilityLabel={t("tags.removeLabel", { tag })}
                 >
-                  <Text style={styles.tagChipText}>#{tag} ✕</Text>
+                  <View style={styles.tagChipContent}>
+                    <Text style={styles.tagChipText}>#{tag}</Text>
+                    <PathGlyph path={X_PATH} color={semantic.brand} size={14} />
+                  </View>
                 </Pressable>
               ))}
               <HashtagAdder onAdd={addTagFromInput} />
@@ -1331,6 +1351,7 @@ const styles = StyleSheet.create({
     borderColor: semantic.brand,
     backgroundColor: semantic.surfaceAlt,
   },
+  tagChipContent: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   tagChipText: { color: semantic.brand, fontSize: typography.sizes.xs, fontWeight: "600" },
   // "+" chip that opens the inline hashtag input (sits in the tag row).
   tagAddChip: {
