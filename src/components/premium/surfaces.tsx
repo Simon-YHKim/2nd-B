@@ -76,9 +76,12 @@ export function PremiumPanel({
   return (
     <View
       style={[
-        style,
         styles.panel,
         accent ? { borderLeftWidth: gameboy.borderWidth, borderLeftColor: accent } : null,
+        // O-11 P1 fix: caller style LAST so per-screen overrides win (the
+        // pre-#266 contract; Phase 2 had reversed it, silently dropping
+        // caller backgroundColor/border/padding).
+        style,
       ]}
     >
       {children}
@@ -205,10 +208,11 @@ export function PremiumButton({
         shadowColor: focused ? gameboy.accent : gameboy.border,
       };
   const buttonStyle: StyleProp<ViewStyle> = [
-    style,
     fullStyle,
     styles.btn,
     colorStyle,
+    // O-11 P1 fix: caller style LAST so overrides (e.g. PremiumCTA padding) win.
+    style,
   ];
   const foregroundColor = isDisabled ? BTN_DISABLED_FG : BTN_FG[variant];
   const pressTranslate = pressProgress.interpolate({
@@ -291,10 +295,11 @@ export function PremiumButton({
       accessibilityHint={accessibilityHint}
       accessibilityState={{ ...accessibilityState, disabled: false, busy: false }}
       style={[
-        style,
         fullStyle,
         styles.btn,
         colorStyle,
+        // O-11 P1 fix: caller style overrides base; press transforms stay last.
+        style,
         animatedPressStyle,
         pressed ? styles.btnPressed : null,
       ]}
@@ -382,8 +387,9 @@ function GameBoyTextInput(props: TextInputProps) {
       style={[
         styles.input,
         props.multiline ? styles.textarea : null,
-        style,
         styles.inputFrame,
+        // O-11 P1 fix: caller style overrides base frame; focus ring stays last.
+        style,
         focused ? styles.inputFocused : null,
       ]}
     />
