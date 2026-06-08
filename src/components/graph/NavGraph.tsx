@@ -1783,9 +1783,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 name plate so first-time users can read what each village is
                 straight from the main graph. Tier-3 nodes get theirs only
                 when zoomed in (label shown in the bottom sheet on tap). */}
-            {/* O-7.1: hide non-focused core name plates during drilldown so the
-                focused view has no label/card/node overlap clutter. */}
-            {n.tier === 2 && !(drilldownCoreId != null && dimFor(n.id)) ? (
+            {/* O-12 Phase D (first-impression): core name plates are hidden by
+                default so the first load is the clean crystal graph, not a wall
+                of labels — they appear on tap/focus/ambient-glow or when this is
+                the focused drilldown core (progressive disclosure, 터치 유도). */}
+            {n.tier === 2 &&
+            (n.id === activeId || n.id === glowNodeId || drilldownCoreId === n.id) ? (
               <View style={styles.villageTag} pointerEvents="none">
                 <Text style={styles.villageTagText} numberOfLines={1}>
                   {n.label[locale]}
