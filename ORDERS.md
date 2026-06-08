@@ -947,6 +947,13 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
+### [a11y 터치타깃 ≥44px] — ✅ PRIMARY 4건 머지·라이브 / SECONDARY Codex 큐
+[2026-06-08 / 22:08 KST] Claude — **터치타깃 감사 후 고빈도 PRIMARY 4건 머지·라이브** (#295, main 40044e6). CLAUDE.md §20 + 페르소나(고령/유아 ≥44px).
+- 공유 Button/PremiumButton(48)·탭바(52)·BackArrow(44)·PixelIconButton·그래프 노드(+hitSlop)는 **이미 안전** 확인.
+- 수정: onboarding 건너뛰기·inbox 액션버튼(30→44)·capture 트랙탭·capture 해시태그+칩(hitSlop8, 비주얼 보존).
+- **SECONDARY ~20건**(에러상태 retry·간헐 텍스트 링크·인라인 칩: capture/wiki/secondb/trinity/manual/research/graph-bits/QuantIntroModal/inbox/oauth-callback)은 Codex에 위임 큐(가로행 칩 hitSlop 겹침·비주얼 높이 트레이드오프라 신중 처리). 헤드리스 1회 플레이크 → Codex 자연 루프 수거 대기.
+- 🔗 라이브 simon-yhkim.github.io/2nd-B.
+
 ### [O-7 겹침·가림 제로 — 전화면 가림 스윕] — ✅ 수평 6건 + 수직 1건 머지·라이브
 [2026-06-08 / 21:41 KST] Claude — **O-7 가림 감사 전화면 스윕 완료** (main a4d8dab). Codex 라이브 발견 2건을 단서로 같은 근본원인을 Explore 정밀 감사로 전수 점검.
 - **수평 클리핑 6건**(#292·#293): manual·permissions(라이브 발견) + secondb 헤더/모드힌트·wiki 페이지행·NavGraph 시트(마을/드릴다운). 근본=react-native-web flex 텍스트 기본 `min-width:auto` → flex 텍스트 `minWidth:0`+고정요소 `flexShrink:0`.
