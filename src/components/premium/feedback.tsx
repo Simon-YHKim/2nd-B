@@ -6,6 +6,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { Animated, BackHandler, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
+import { PixelLoaderGlyph } from "@/components/ui/PixelLoaderGlyph";
 import { Text } from "@/components/ui/Text";
 import {
   SCREEN_TRANSITION_DISTANCE_PX,
@@ -16,8 +17,6 @@ import { prefersReducedMotion } from "@/lib/motion/signature";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { PremiumButton } from "./surfaces";
-
-const PREMIUM_LOADING_CELLS = [0, 1, 2] as const;
 
 /** Slide-up pixel bottom sheet. Screen-fixed; renders nothing when closed. */
 export function PremiumBottomSheet({
@@ -141,17 +140,7 @@ function StateShell({ glyph, title, body, action }: { glyph: ReactNode; title: s
 function PremiumStateLoader() {
   return (
     <View style={styles.loaderFrame} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={styles.loaderRow}>
-        {PREMIUM_LOADING_CELLS.map((cell) => (
-          <View
-            key={cell}
-            style={[
-              styles.loaderCell,
-              cell === 1 ? styles.loaderCellActive : null,
-            ]}
-          />
-        ))}
-      </View>
+      <PixelLoaderGlyph />
     </View>
   );
 }
@@ -252,21 +241,6 @@ const styles = StyleSheet.create({
     backgroundColor: gameboy.screen,
     padding: gameboy.grid,
     ...pixelShadowStyle(),
-  },
-  loaderRow: {
-    flexDirection: "row",
-    gap: gameboy.grid,
-  },
-  loaderCell: {
-    width: gameboy.grid,
-    height: gameboy.grid,
-    borderRadius: gameboy.radius,
-    backgroundColor: cosmic.signalBlue,
-    opacity: 0.55,
-  },
-  loaderCellActive: {
-    backgroundColor: cosmic.signalMint,
-    opacity: 1,
   },
   orb: {
     width: 64,

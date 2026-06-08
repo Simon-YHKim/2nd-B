@@ -6,8 +6,7 @@ describe("premium feedback state pixel contract", () => {
 
   test("uses a pixel loading glyph instead of the system spinner", () => {
     expect(source).not.toContain("ActivityIndicator");
-    expect(source).toContain("PREMIUM_LOADING_CELLS");
+    expect(source).toContain("PixelLoaderGlyph");
     expect(source).toContain("loaderFrame");
-    expect(source).toContain("loaderCellActive");
   });
 });

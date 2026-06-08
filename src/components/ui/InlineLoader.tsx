@@ -7,10 +7,9 @@
 import { StyleSheet, View } from "react-native";
 import Svg, { Circle, Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
+import { PixelLoaderGlyph } from "@/components/ui/PixelLoaderGlyph";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic } from "@/lib/theme/tokens";
-
-const PIXEL_CELLS = [0, 1, 2] as const;
 
 export function InlineLoader({ message }: { message?: string } = {}) {
   return (
@@ -28,17 +27,7 @@ export function InlineLoader({ message }: { message?: string } = {}) {
         <Circle cx="50%" cy="44%" r="6" fill={cosmic.signalMint} />
       </Svg>
       <View style={styles.pixelFrame} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <View style={styles.pixelRow}>
-          {PIXEL_CELLS.map((cell) => (
-            <View
-              key={cell}
-              style={[
-                styles.pixelCell,
-                cell === 1 ? styles.pixelCellActive : null,
-              ]}
-            />
-          ))}
-        </View>
+        <PixelLoaderGlyph />
       </View>
     </View>
   );
@@ -59,20 +48,5 @@ const styles = StyleSheet.create({
     backgroundColor: gameboy.screen,
     padding: gameboy.grid,
     ...pixelShadowStyle(),
-  },
-  pixelRow: {
-    flexDirection: "row",
-    gap: gameboy.grid,
-  },
-  pixelCell: {
-    width: gameboy.grid,
-    height: gameboy.grid,
-    borderRadius: gameboy.radius,
-    backgroundColor: cosmic.signalBlue,
-    opacity: 0.55,
-  },
-  pixelCellActive: {
-    backgroundColor: cosmic.signalMint,
-    opacity: 1,
   },
 });

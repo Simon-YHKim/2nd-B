@@ -6,8 +6,7 @@ describe("InlineLoader pixel contract", () => {
 
   test("uses a native pixel indicator instead of the system spinner", () => {
     expect(source).not.toContain("ActivityIndicator");
-    expect(source).toContain("PIXEL_CELLS");
+    expect(source).toContain("PixelLoaderGlyph");
     expect(source).toContain("pixelFrame");
-    expect(source).toContain("pixelCellActive");
   });
 });

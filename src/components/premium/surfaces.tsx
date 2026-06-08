@@ -16,6 +16,7 @@ import {
   type StyleProp,
 } from "react-native";
 
+import { PixelLoaderGlyph } from "@/components/ui/PixelLoaderGlyph";
 import { Text } from "@/components/ui/Text";
 import { BUTTON_PRESS_MS, pixelMotionDuration } from "@/lib/motion/pixel-physical";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
@@ -152,28 +153,10 @@ const BTN_DISABLED_BG = withAlpha(cosmic.mistGray, 0.16);
 const BTN_DISABLED_BORDER = withAlpha(cosmic.mistGray, 0.46);
 const BTN_DISABLED_FG = withAlpha(cosmic.moonWhite, 0.58);
 const PRESSED_OFFSET = 2;
-const BUTTON_LOADING_CELLS = [0, 1, 2] as const;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function textInputAccessibilityLabel(props: TextInputProps): string | undefined {
   return props.accessibilityLabel ?? (typeof props.placeholder === "string" ? props.placeholder : undefined);
-}
-
-function PremiumButtonLoader({ color }: { color: string }) {
-  return (
-    <View style={styles.btnLoader} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {BUTTON_LOADING_CELLS.map((cell) => (
-        <View
-          key={cell}
-          style={[
-            styles.btnLoaderCell,
-            { backgroundColor: color },
-            cell === 1 ? styles.btnLoaderCellActive : null,
-          ]}
-        />
-      ))}
-    </View>
-  );
 }
 
 export interface PremiumButtonProps extends Omit<PressableProps, "children" | "style"> {
@@ -251,7 +234,7 @@ export function PremiumButton({
   const buttonContent = (
     <>
       {loading ? (
-        <PremiumButtonLoader color={foregroundColor} />
+        <PixelLoaderGlyph color={foregroundColor} activeColor={foregroundColor} cellSize={4} gap={3} style={styles.btnLoader} />
       ) : icon ? (
         <View style={styles.btnIcon}>{icon}</View>
       ) : null}
@@ -492,20 +475,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
   },
   btnLoader: {
-    flexDirection: "row",
-    gap: 3,
-    alignItems: "center",
-    justifyContent: "center",
     minWidth: 20,
-  },
-  btnLoaderCell: {
-    width: 4,
-    height: 4,
-    borderRadius: gameboy.radius,
-    opacity: 0.45,
-  },
-  btnLoaderCellActive: {
-    opacity: 1,
   },
   btnIcon: {},
   btnLabel: {

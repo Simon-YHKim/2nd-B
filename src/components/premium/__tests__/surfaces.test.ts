@@ -6,8 +6,7 @@ describe("premium surface pixel contract", () => {
 
   test("uses a pixel button loading glyph instead of the system spinner", () => {
     expect(source).not.toContain("ActivityIndicator");
-    expect(source).toContain("BUTTON_LOADING_CELLS");
+    expect(source).toContain("PixelLoaderGlyph");
     expect(source).toContain("btnLoader");
-    expect(source).toContain("btnLoaderCellActive");
   });
 });
