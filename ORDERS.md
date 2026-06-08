@@ -947,6 +947,13 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
+### [Phase C P2 + 라이브 모바일 P1] — ✅ 클리핑 2건 + P2 폴리시 머지·라이브
+[2026-06-08 / 20:56 KST] Claude — **Codex 라이브 모바일(390x844) 검사 P1 2건 + P2 폴리시 배치 머지·라이브** (#292, main e0ebd6a).
+- **신규 P1(라이브 클리핑) 수정**: ①manual 섹션 카드 우측 텍스트 클리핑 ②permissions 우측 상태 칩 가림. 근본=react-native-web flex 텍스트 기본 `min-width:auto`로 pixelKo 긴 제목이 안 줄어듦 → 텍스트 `minWidth:0` + 고정 칩/eyebrow `flexShrink:0`. **O-7(겹침·가림 제로) 직결**.
+- **P2 폴리시**: 온보딩 dead-code 제거 + GB progress dots(radius 0) · feedback.tsx 픽셀 로딩 인디케이터. (캡처 본문 폰트는 이미 readable—빈 패치 skip.)
+- verify green(888) · CI green 확인 후 squash 머지 · NavGraph 미터치 · a11y/copy guard 보존.
+- 🔗 라이브 simon-yhkim.github.io/2nd-B — **manual·permissions 모바일 우측 잘림 해소 확인 부탁**.
+
 ### [타 AI 미처리 수거 + UI 점검 계속] — ✅ Codex 발견 + Phase C P1 전부 완료
 [2026-06-08 / 20:07 KST] Claude — **타 AI 미처리 전부 수거 + Phase C UI 점검 P0/P1 전부 수정·라이브**(번들 4550f36). P2 polish만 남음.
 - Phase C P1 완료: #288(홈 시트가림·캡처 카드·48dp)·#289 CC-1(5화면 GB 토큰)·#290 P1-3(설정 declutter)·#291 P1-2(세컨비 마스코트 축소). + Codex 발견 4건(#286·#287).
