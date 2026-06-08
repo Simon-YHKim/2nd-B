@@ -58,15 +58,15 @@ export const radius = {
 } as const;
 
 export const fontSize = {
-  xs: 10,
-  sm: 12,
-  base: 14,
-  md: 15,
-  lg: 17,
-  xl: 22,
-  "2xl": 30,
-  "3xl": 36,
-  "4xl": 48,
+  xs: 12,
+  sm: 14,
+  base: 16,
+  md: 20,
+  lg: 25,
+  xl: 31,
+  "2xl": 39,
+  "3xl": 39,
+  "4xl": 39,
 } as const;
 
 export type ColorToken = keyof typeof colors;

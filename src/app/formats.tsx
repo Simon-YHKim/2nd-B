@@ -24,7 +24,7 @@ import {
 } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { PreferenceSwitch } from "@/components/ui/PreferenceToggle";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { VILLAGE_UI } from "@/lib/village-ui";
@@ -427,7 +427,7 @@ export default function Formats() {
         onClose={() => (busyId ? undefined : setConfirmDelete(null))}
         accessibilityLabel={tf("deleteModal.label")}
       >
-        <Text variant="heading" style={{ fontSize: 18 }}>
+        <Text variant="heading" style={{ fontSize: typography.sizes.lg }}>
           {tf("deleteModal.title")}
         </Text>
         <Text variant="body" color="textMuted">

@@ -17,7 +17,7 @@ import {
 
 import { Text } from "@/components/ui/Text";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
 /** Compact 2nd-Brain brand chip used at the top-left of premium screens. */
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   brandChipSub: {
     color: cosmic.mistGray,
     fontFamily: fontFamilies.pixelKo,
-    fontSize: 11,
+    fontSize: typography.sizes.xs,
     lineHeight: 14,
     letterSpacing: 0,
   },
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
   },
   cardHead: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   eyebrow: { fontFamily: fontFamilies.pixelKo, letterSpacing: 0, textTransform: "uppercase" },
-  cardTitle: { fontFamily: fontFamilies.pixelKo, fontSize: 18, letterSpacing: 0 },
+  cardTitle: { fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.lg, letterSpacing: 0 },
   btn: {
     flexDirection: "row",
     alignItems: "center",
@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
     minHeight: 46,
     color: cosmic.moonWhite,
     fontFamily: fontFamilies.readable,
-    fontSize: 15,
+    fontSize: typography.sizes.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },

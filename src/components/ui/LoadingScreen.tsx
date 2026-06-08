@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text } from "react-native";
 
 import { CosmicBackground } from "@/components/premium";
-import { cosmic } from "@/lib/theme/tokens";
+import { cosmic, typography } from "@/lib/theme/tokens";
 
 const logo = require("../../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png");
 
@@ -281,14 +281,14 @@ const styles = StyleSheet.create({
   logo: { width: 220, height: 220 },
   text: {
     color: cosmic.moonWhite,
-    fontSize: 15,
+    fontSize: typography.sizes.md,
     letterSpacing: 0,
     minHeight: 22,
   },
   caret: { color: cosmic.signalMint, opacity: 0.85 },
   hint: {
     color: cosmic.soulViolet,
-    fontSize: 13,
+    fontSize: typography.sizes.sm,
     letterSpacing: 0,
     textAlign: "center",
   },

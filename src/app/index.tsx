@@ -30,7 +30,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, semantic, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
@@ -643,10 +643,10 @@ const styles = StyleSheet.create({
   },
   emptyGraphCopy: { flex: 1, gap: 4 },
   emptyGraphSkip: { minHeight: 44, marginTop: 6, justifyContent: "center", alignItems: "center" },
-  emptyGraphSkipText: { color: cosmic.mistGray, fontSize: 13, fontFamily: fontFamilies.sans },
+  emptyGraphSkipText: { color: cosmic.mistGray, fontSize: typography.sizes.sm, fontFamily: fontFamilies.sans },
   emptyGraphTitle: {
     color: cosmic.moonWhite,
-    fontSize: 15,
+    fontSize: typography.sizes.md,
     fontWeight: "700",
     fontFamily: fontFamilies.sans,
   },
@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
   },
   insightCardTitle: {
     color: cosmic.signalMint,
-    fontSize: 15,
+    fontSize: typography.sizes.md,
     lineHeight: 19,
     fontFamily: fontFamilies.pixel,
     letterSpacing: 0,
@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
   },
   insightCardBody: {
     color: cosmic.moonWhite,
-    fontSize: 13,
+    fontSize: typography.sizes.sm,
     lineHeight: 18,
     fontFamily: fontFamilies.readable,
     letterSpacing: 0,
@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
   insightCardCta: {
     alignSelf: "flex-end",
     color: cosmic.signalMint,
-    fontSize: 13,
+    fontSize: typography.sizes.sm,
     lineHeight: 18,
     fontFamily: fontFamilies.sans,
     fontWeight: "700",

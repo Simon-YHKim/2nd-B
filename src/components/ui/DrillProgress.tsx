@@ -22,7 +22,7 @@ import {
   type DrillLayer,
   type LifePeriod,
 } from "@/lib/interview/probe";
-import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, semantic, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
 interface Props {
@@ -163,10 +163,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
   },
-  cellText: { fontSize: 11, fontWeight: "700", fontFamily: fontFamilies.mono },
+  cellText: { fontSize: typography.sizes.xs, fontWeight: "700", fontFamily: fontFamilies.mono },
   headerCell: { aspectRatio: undefined, paddingVertical: 4 },
   headerCellActive: {},
-  headerLabel: { fontSize: 11, color: semantic.textSubtle, letterSpacing: 0, fontWeight: "600" },
+  headerLabel: { fontSize: typography.sizes.xs, color: semantic.textSubtle, letterSpacing: 0, fontWeight: "600" },
   headerLabelActive: { color: semantic.brand },
-  headerMicro: { fontSize: 11, color: semantic.textSubtle, letterSpacing: 0 },
+  headerMicro: { fontSize: typography.sizes.xs, color: semantic.textSubtle, letterSpacing: 0 },
 });

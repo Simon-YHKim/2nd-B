@@ -8,7 +8,7 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "rea
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
-import { cosmic, radii, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, spacing, typography } from "@/lib/theme/tokens";
 import { CHARACTERS, type CharacterId } from "@/lib/characters";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionSprite, type CompanionName } from "@/components/art/CompanionSprite";
@@ -154,7 +154,7 @@ export function ContextPill({ label, onClose }: { label: string; onClose?: () =>
 export function StatTile({ value, label, accent = cosmic.signalMint }: { value: ReactNode; label: string; accent?: string }) {
   return (
     <View style={styles.stat}>
-      <Text variant="heading" style={{ color: accent, fontSize: 18 }}>{value}</Text>
+      <Text variant="heading" style={{ color: accent, fontSize: typography.sizes.lg }}>{value}</Text>
       <Text variant="subtle" color="textSubtle" numberOfLines={2} style={styles.statLabel}>{label}</Text>
     </View>
   );

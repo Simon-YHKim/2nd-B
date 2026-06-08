@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
 import { completeNaverOAuth } from "@/lib/supabase/auth";
-import { cosmic } from "@/lib/theme/tokens";
+import { cosmic, typography } from "@/lib/theme/tokens";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 
 export default function OAuthCallback() {
@@ -80,6 +80,6 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 12,
   },
-  msg: { color: cosmic.moonWhite, fontSize: 15, textAlign: "center" },
-  link: { color: cosmic.signalMint, fontSize: 13, textDecorationLine: "underline" },
+  msg: { color: cosmic.moonWhite, fontSize: typography.sizes.md, textAlign: "center" },
+  link: { color: cosmic.signalMint, fontSize: typography.sizes.sm, textDecorationLine: "underline" },
 });

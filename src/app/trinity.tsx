@@ -19,7 +19,7 @@ import { Link, Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumLoadingState, PremiumModal, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { VILLAGE_UI } from "@/lib/village-ui";
@@ -238,7 +238,7 @@ export default function Trinity() {
                     <Text variant="caption" color={accent} style={styles.cardEyebrow}>
                       {labels[d]}
                     </Text>
-                    <Text variant="heading" style={{ fontSize: 26 }}>
+                    <Text variant="heading" style={{ fontSize: typography.sizes.xl }}>
                       {s.count}
                     </Text>
                   </View>
