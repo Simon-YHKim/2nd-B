@@ -2,9 +2,11 @@
 // Glassy dark panels with accent borders, mint primary + violet secondary
 // CTAs, all reading from cosmic.* so the village identity stays consistent.
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useState, useRef } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Pressable,
   type PressableProps,
   StyleSheet,
@@ -16,6 +18,7 @@ import {
 } from "react-native";
 
 import { Text } from "@/components/ui/Text";
+import { BUTTON_PRESS_MS, pixelMotionDuration } from "@/lib/motion/pixel-physical";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -147,6 +150,7 @@ const BTN_DISABLED_BG = withAlpha(cosmic.mistGray, 0.16);
 const BTN_DISABLED_BORDER = withAlpha(cosmic.mistGray, 0.46);
 const BTN_DISABLED_FG = withAlpha(cosmic.moonWhite, 0.58);
 const PRESSED_OFFSET = 2;
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function textInputAccessibilityLabel(props: TextInputProps): string | undefined {
   return props.accessibilityLabel ?? (typeof props.placeholder === "string" ? props.placeholder : undefined);
@@ -181,6 +185,8 @@ export function PremiumButton({
 }: PremiumButtonProps) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  const pressProgress = useRef(new Animated.Value(0)).current;
   const isDisabled = disabled || loading;
   // Merge caller a11y intent (e.g. selected on segmented controls) with the
   // button's own disabled/busy ownership instead of overwriting it.
@@ -205,6 +211,22 @@ export function PremiumButton({
     colorStyle,
   ];
   const foregroundColor = isDisabled ? BTN_DISABLED_FG : BTN_FG[variant];
+  const pressTranslate = pressProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, PRESSED_OFFSET],
+  });
+  const animatedPressStyle = {
+    transform: [{ translateX: pressTranslate }, { translateY: pressTranslate }],
+  };
+  const animatePress = (toValue: number) => {
+    pressProgress.stopAnimation();
+    Animated.timing(pressProgress, {
+      toValue,
+      duration: pixelMotionDuration(BUTTON_PRESS_MS),
+      easing: Easing.linear,
+      useNativeDriver: true,
+    }).start();
+  };
   const buttonContent = (
     <>
       {loading ? (
@@ -234,12 +256,20 @@ export function PremiumButton({
   }
 
   return (
-    <Pressable
+    <AnimatedPressable
       {...rest}
       onPress={onPress}
       onLongPress={onLongPress}
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
+      onPressIn={(event) => {
+        setPressed(true);
+        animatePress(1);
+        onPressIn?.(event);
+      }}
+      onPressOut={(event) => {
+        setPressed(false);
+        animatePress(0);
+        onPressOut?.(event);
+      }}
       onHoverIn={(event) => {
         setHovered(true);
         rest.onHoverIn?.(event);
@@ -260,16 +290,17 @@ export function PremiumButton({
       accessibilityLabel={resolvedAccessibilityLabel}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ ...accessibilityState, disabled: false, busy: false }}
-      style={({ pressed }) => [
+      style={[
         style,
         fullStyle,
         styles.btn,
         colorStyle,
+        animatedPressStyle,
         pressed ? styles.btnPressed : null,
       ]}
     >
       {buttonContent}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -436,7 +467,6 @@ const styles = StyleSheet.create({
   btnPressed: {
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0,
-    transform: [{ translateX: PRESSED_OFFSET }, { translateY: PRESSED_OFFSET }],
   },
   btnIcon: {},
   btnLabel: {
