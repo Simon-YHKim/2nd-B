@@ -810,10 +810,19 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
 
   useEffect(() => {
     const ids = [CENTER_NODE.id, ...MENU_NODES.map((n) => n.id), ...Array.from(dataPositions.keys())];
+    // P11: honor reduced-motion (no ambient drift) + tree-aware sway so the
+    // trunk reads near-still and the leaves sway the most.
+    const reduce = prefersReducedMotion();
+    const driftTierAmp = (id: string): number => {
+      if (id === CENTER_NODE.id) return 0.16; // Soul Core root: near-still
+      const m = MENU_NODES.find((n) => n.id === id);
+      if (m) return m.tier === 2 ? 0.4 : 0.7; // Pattern Cores steady, sub-nodes more
+      return 1; // Pattern Data leaves sway the most
+    };
     for (const id of ids) {
       // LOD: tier-4 (data) dots skip the drift loop entirely above the threshold.
       const isData = dataPositions.has(id);
-      if (!(isData && !tier4DriftOn) && !driftValues.current.has(id)) {
+      if (!reduce && !(isData && !tier4DriftOn) && !driftValues.current.has(id)) {
         // Seamless drift loop. Previously the value swung 0↔1↔0 via a
         // 2-step sequence, but the seeded starting value (0..1) meant
         // the first cycle began mid-curve and the loop re-entry from
@@ -833,7 +842,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
         if (AppState.currentState === "active") loop.start();
         // 9-point cosine/sine table — input 0 and input 1 are exactly
         // equal so the loop's wrap-around is invisible.
-        const amp = 5 + seeded(id, 7) * 2; // 5..7 px sway
+        const amp = (5 + seeded(id, 7) * 2) * driftTierAmp(id); // tier-scaled sway
         const phase = seeded(id, 8) * Math.PI * 2;
         const cosTable = (offset: number) => {
           const pts = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(
@@ -893,7 +902,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // to the settled state with no audio.
   useEffect(() => {
     const allIds = [CENTER_NODE.id, ...MENU_NODES.map((n) => n.id), ...Array.from(dataPositions.keys())];
-    const alreadyPlayed = navGraphSpawnPlayed;
+    // P11: reduced-motion snaps straight to the settled state (no pop overshoot,
+    // no spawn audio), same as a replay.
+    const alreadyPlayed = navGraphSpawnPlayed || prefersReducedMotion();
 
     for (const id of allIds) {
       if (!spawnValues.current.has(id)) {
@@ -1232,6 +1243,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   }, [drilldownCoreId, drilldownReveal]);
 
   useEffect(() => {
+    // P11: no ambient pulsing when the user prefers reduced motion.
+    if (prefersReducedMotion()) return;
     const id = setInterval(() => {
       if (AppState.currentState !== "active") return;
       // Pulse a random tier-2 or tier-3 node, skipping the active one.
