@@ -99,7 +99,7 @@ export default function EsmCheckIn() {
           speech={t("hero.speech")}
         />
 
-        <PremiumCard eyebrow={t("card.eyebrow")} title={t("card.title")} accent={semantic.brand} glow>
+        <PremiumCard eyebrow={t("card.eyebrow")} title={t("card.title")} accent={semantic.brand}>
           <View style={styles.promptTabs} accessibilityRole="tablist">
             {PROMPT_OPTIONS.map((option) => {
               const active = option.id === kind;

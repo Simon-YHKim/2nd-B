@@ -719,10 +719,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.sm,
-    shadowColor: cosmic.soulViolet,
-    shadowOpacity: 0.14,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
   },
   sectionEyebrow: { letterSpacing: 0, fontWeight: "700" },
   busyBanner: {
@@ -737,7 +733,6 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderRadius: radii.md,
     borderWidth: 1,
-    elevation: 1,
     overflow: "hidden",
   },
   settingsButtonFull: {
@@ -768,7 +763,6 @@ const styles = StyleSheet.create({
   settingsButtonDisabled: {
     backgroundColor: withAlpha(cosmic.mistGray, 0.12),
     borderColor: cosmic.edgeDefault,
-    elevation: 0,
   },
   settingsButtonPressed: {
     opacity: 0.78,

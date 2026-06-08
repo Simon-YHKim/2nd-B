@@ -661,10 +661,6 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(cosmic.soulViolet, 0.14),
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: cosmic.soulViolet,
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 0 },
   },
   modalBackdrop: {
     flex: 1,

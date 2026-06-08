@@ -570,7 +570,7 @@ export default function Capture() {
 
           {/* Import success → graph link (journal-capture pack §3/§7) */}
           {savedTitle ? (
-            <PremiumCard glow style={styles.savedPanel}>
+            <PremiumCard style={styles.savedPanel}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <ShardArt id="capture_mint" size={48} />
                 <View style={{ flex: 1 }}>
@@ -1167,10 +1167,6 @@ const styles = StyleSheet.create({
   streakDotOn: {
     borderColor: semantic.brand,
     backgroundColor: semantic.brand,
-    shadowColor: semantic.brand,
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
   },
   dailyPromptCard: {
     backgroundColor: semantic.surfaceAlt,
@@ -1369,20 +1365,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: semantic.brand,
     borderRadius: radii.md,
-    elevation: 4,
     paddingVertical: spacing.md,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: semantic.brand,
-    shadowOpacity: 0.36,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
   },
   tossBtnPressed: { transform: [{ scale: 0.97 }], opacity: 0.9 },
   tossBtnDisabled: {
     backgroundColor: withAlpha(cosmic.space900, 0.86),
     borderColor: withAlpha(cosmic.mistGray, 0.36),
-    shadowOpacity: 0,
   },
   tossBtnText: { color: semantic.background, fontSize: typography.sizes.md, fontWeight: "700" },
   tossBtnTextDisabled: { color: withAlpha(cosmic.moonWhite, 0.72) },
