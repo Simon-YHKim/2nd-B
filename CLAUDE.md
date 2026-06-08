@@ -1,4 +1,4 @@
-# CLAUDE.md — 2nd-Brain project instructions
+﻿# CLAUDE.md — 2nd-Brain project instructions
 
 Project-specific guidance for Claude Code sessions in this repo.
 
@@ -78,6 +78,26 @@ When the user's request matches an available skill, invoke it via the Skill tool
 - Security audit → `/cso`
 - Save progress → `/checkpoint` (snapshot work state)
 - Resume context → `/checkpoint` (resume) or `/context-guardian` (recovery mode after disconnect)
+
+
+## Visual Tier System — always enforce (Simon standing rule)
+
+The app uses a 4-tier visual hierarchy. ALL visual changes must respect this:
+
+| Tier | Node | Size | Opacity/Glow | Notes |
+|------|------|------|--------------|-------|
+| 1 | Soul Core | 128px | Full brightness, max glow bloom | Root/hero — must be clearly dominant |
+| 2 | Pattern Core (×5) | 82px | High brightness, strong glow | Secondary nodes, each color-coded |
+| 3 | Pattern Data (snowflake) | 38px | Medium opacity, softer glow | Blue snowflakes, visible in overview |
+| 4 | Pattern Link (crystal) | 30px | Lower opacity, subtle | Sub-nodes, recede in overview |
+
+**Rules:**
+- Never make tier-2 nodes look as large/bright as tier-1
+- Never make tier-3/4 nodes compete visually with tier-2
+- In drilldown (focused) view: selected core tier-2 = promoted near tier-1; others recede (scale↓, desaturation, opacity↓)
+- Link colors: ALL links = cyan (no green trunks, no violet leaves)
+- Depth falloff and snowflake brightness must not contradict each other
+- This hierarchy applies to size, glow intensity, opacity, animation amplitude
 
 ## What never to do in this repo
 
