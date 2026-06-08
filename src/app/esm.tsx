@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   tagChip: {
-    minHeight: 40,
+    minHeight: 44,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: withAlpha(cosmic.soulViolet, 0.42),

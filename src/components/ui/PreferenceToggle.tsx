@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: spacing.sm,
-    minHeight: 32,
+    minHeight: 44,
     paddingVertical: spacing.xs,
   },
   box: {
