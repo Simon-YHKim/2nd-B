@@ -2,7 +2,7 @@
 // accidental edit (wrong hex, dropped key) fails CI.
 
 import { colors, spacing, radius, fontSize } from "../tokens";
-import { fontFamilies, fontWeights } from "../typography";
+import { fontAssets, fontFamilies, fontWeights } from "../typography";
 
 describe("colors", () => {
   const required = [
@@ -88,5 +88,10 @@ describe("typography", () => {
     expect(fontWeights.semibold).toBe("600");
     expect(fontWeights.bold).toBe("700");
     expect(fontWeights.extrabold).toBe("800");
+  });
+
+  it("loads the bundled Game Boy font assets", () => {
+    expect(fontAssets).toHaveProperty("Galmuri11");
+    expect(fontAssets).toHaveProperty("PressStart2P");
   });
 });

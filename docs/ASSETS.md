@@ -21,6 +21,10 @@ libraries used under their respective licenses. The full list:
 - `i18next`, `react-i18next` — MIT
 - `zod` — MIT
 - `dayjs` — MIT
+- Pixel fonts: `galmuri` - SIL OFL 1.1, including repo-owned
+  `Galmuri11-subset.ttf` / `Galmuri11-subset.woff2` generated from
+  `node_modules/galmuri/dist/Galmuri11.ttf`; `@expo-google-fonts/press-start-2p`
+  - OFL-1.1; NeoDunggeunmo font files under `assets/fonts/` - SIL OFL 1.1.
 - Development tooling: TypeScript, ESLint, Prettier, Jest, tsx, globby —
   MIT / Apache-2.0
 

@@ -141,7 +141,7 @@ Typography hierarchy:
 | Long body copy, journal text, chat, explanations | `fontFamilies.readable` |
 | Existing pixel fallback | `fontFamilies.pixel` |
 
-`fontFamilies.pixelKo` loads Galmuri11 from the bundled `galmuri` package because `@expo-google-fonts/galmuri11` is not published on npm. `fontFamilies.pixelEn` loads Press Start 2P from `@expo-google-fonts/press-start-2p`. Both web font stacks fall back to the existing NeoDunggeunmo pixel face.
+`fontFamilies.pixelKo` loads repo-owned Galmuri11 subset assets generated from the bundled `galmuri` package because `@expo-google-fonts/galmuri11` is not published on npm. Web uses `assets/fonts/Galmuri11-subset.woff2`; native uses `assets/fonts/Galmuri11-subset.ttf`. `fontFamilies.pixelEn` loads Press Start 2P from `@expo-google-fonts/press-start-2p`. Both web font stacks fall back to the existing NeoDunggeunmo pixel face.
 
 ---
 

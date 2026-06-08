@@ -75,10 +75,14 @@ export const fontWeights = {
 } as const;
 
 // expo-font useFonts() input. Asset paths resolve to the root assets/ dir.
-// The font ships a single weight; weight props degrade gracefully.
+// Galmuri11 is repo-owned subset output from the galmuri package so the web
+// demo avoids loading the full 5.3MB TTF. Weight props degrade gracefully.
 export const fontAssets = {
   NeoDunggeunmo: require("../../assets/fonts/NeoDunggeunmo-Regular.ttf"),
   NeoDunggeunmoCode: require("../../assets/fonts/NeoDunggeunmoCode-Regular.ttf"),
-  Galmuri11: require("galmuri/dist/Galmuri11.ttf"),
+  Galmuri11:
+    Platform.OS === "web"
+      ? require("../../assets/fonts/Galmuri11-subset.woff2")
+      : require("../../assets/fonts/Galmuri11-subset.ttf"),
   PressStart2P: require("@expo-google-fonts/press-start-2p/400Regular/PressStart2P_400Regular.ttf"),
 };
