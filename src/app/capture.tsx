@@ -1174,7 +1174,7 @@ function HashtagAdder({ onAdd }: { onAdd: (s: string) => void }) {
       <Pressable
         onPress={() => setOpen(true)}
         style={styles.tagAddChip}
-        hitSlop={4}
+        hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel={t("tags.addLabel")}
       >
@@ -1313,6 +1313,7 @@ const styles = StyleSheet.create({
   trackRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   trackChip: {
     flex: 1,
+    minHeight: 44,
     flexDirection: "row",
     justifyContent: "center",
     gap: spacing.xs,
