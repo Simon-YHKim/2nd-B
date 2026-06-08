@@ -58,6 +58,7 @@ export default function OAuthCallback() {
         </Text>
         <Pressable
           onPress={() => router.replace("/sign-in")}
+          style={styles.retryLink}
           hitSlop={8}
           accessibilityRole="link"
           accessibilityLabel={retryLabel}
@@ -81,5 +82,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   msg: { color: cosmic.moonWhite, fontSize: typography.sizes.md, textAlign: "center" },
+  retryLink: { minHeight: 44, minWidth: 44, justifyContent: "center", paddingHorizontal: 8 },
   link: { color: cosmic.signalMint, fontSize: typography.sizes.sm, textDecorationLine: "underline" },
 });

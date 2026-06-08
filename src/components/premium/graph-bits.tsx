@@ -142,6 +142,7 @@ export function ContextPill({ label, onClose }: { label: string; onClose?: () =>
       {onClose ? (
         <Pressable
           onPress={onClose}
+          style={styles.pillClose}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={clearLabel}
@@ -212,6 +213,13 @@ const styles = StyleSheet.create({
     ...pixelShadowStyle(cosmic.soulViolet),
   },
   pillText: { flex: 1, minWidth: 0 },
+  pillClose: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: gameboy.radius,
+  },
   stat: { alignItems: "center", gap: 2, minWidth: 64 },
   statLabel: { textAlign: "center" },
 });

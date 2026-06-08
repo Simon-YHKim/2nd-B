@@ -664,6 +664,7 @@ export default function Inbox() {
       <Link href="/capture" asChild>
         <Pressable
           hitSlop={6}
+          style={styles.emptyLink}
           accessibilityRole="link"
           accessibilityLabel={locale === "ko" ? "첫 캡처 시작" : "Capture your first source"}
           accessibilityHint={
@@ -768,7 +769,13 @@ const styles = StyleSheet.create({
   center: { paddingVertical: spacing.xl, alignItems: "center" },
   loadingCenter: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   errorCard: { padding: spacing.md, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, borderWidth: 1, borderColor: semantic.danger, gap: spacing.sm },
-  errorRetry: { alignSelf: "flex-start" },
+  errorRetry: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
+  },
   emptyCard: {
     padding: spacing.lg,
     backgroundColor: semantic.surfaceAlt,
@@ -779,6 +786,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   emptyText: { textAlign: "center" },
+  emptyLink: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
+  },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
   modalBody: { lineHeight: 21 },
   modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },

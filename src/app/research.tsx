@@ -207,6 +207,7 @@ export default function Research() {
                           const target = s.doi ? `https://doi.org/${s.doi}` : (s.url as string);
                           void Linking.openURL(target);
                         }}
+                        style={styles.sourceLink}
                         hitSlop={4}
                         accessibilityRole="link"
                         accessibilityLabel={t("link.label", { title: s.title })}
@@ -275,6 +276,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   cardHead: { flexDirection: "row", gap: spacing.xs },
+  sourceLink: { minHeight: 44, justifyContent: "center", paddingVertical: spacing.xs },
   fwChip: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
