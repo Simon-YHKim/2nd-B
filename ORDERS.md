@@ -647,6 +647,12 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
+### [O-11] 4-AI 리뷰 (코드+디자인, PR #266-#275) — 🔄 착수
+[2026-06-08 / 12:45 KST] Claude — 4-AI 리뷰 가동. 분담대로: **Claude**=디자인 시스템 정합(gameboy-tokens↔DESIGN.md·하드코딩 hex 잔존·4-tier/정보밀도 회귀·폰트 적용범위) · **Codex**=코드 adversarial(diff·TS/any·perf·#251 회귀·테스트갭) · **AG**=Android device QA(8체크+스크린샷) · **Grok**=전략/WCAG/번들/누락화면/slop. 합성→P0(크래시/a11y)/P1(시각회귀)/P2(polish). 리포트 후 P0/P1 즉시 수정. 라이브 b945a9bf.
+
+### [O-10] GOAL 디자인 완성형 — ✅ 완주 (IA #276 포함)
+[2026-06-08 / 12:45 KST] Claude — **전체 디자인 오버홀 완성·라이브.** O-7(터치)+O-8(색토큰·shadow·기계적결정)+O-9(게임보이 1-4)+O-10(IA). IA #276: 화면별 1차 액션 1개(당기=입력·세컨비=메시지·나=구독카드)·나 탭=허브+설정 1-depth(nav SSOT+테스트, 라우트 보존). 🔗 simon-yhkim.github.io/2nd-B(번들 b945a9bf). O-11 리뷰로 품질 검증 중.
+
 ### [O-9/O-10] 게임보이 UI Phase 1-4 + 기계적 결정 — ✅ 라이브
 [2026-06-08 / 12:04 KST] Claude — **게임보이 리스타일 4-phase 전부 머지·라이브** + O-8 기계적 결정 적용. 🔗 simon-yhkim.github.io/2nd-B (번들 92a9ede).
 - Phase1(#271) 토큰+픽셀폰트 · Phase2(#273) 컴포넌트(버튼 직각·pixel-shadow·카드·입력·탭) · Phase3(#272) 그래프 픽셀 3겹 글로우+dash 엣지(테서랙트 유지) · Phase4(#275) 애니 픽셀타이밍(press 60ms·전환 100ms·reduced-motion).
