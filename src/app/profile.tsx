@@ -5,23 +5,20 @@ import { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, ActivityIndicator, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, type Href } from "expo-router";
+import Svg, { Circle, Path } from "react-native-svg";
 
-import { PremiumAppShell, SceneHero, PremiumLoadingState } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { CORE_VILLAGE_UI } from "@/lib/village-ui";
+import { useProgression } from "@/lib/progression/useProgression";
 
 interface HubRoute {
+  sectionKey: string;
   key: string;
   route: Href;
-}
-
-interface HubSection {
-  key: string;
   accent: string;
-  items: HubRoute[];
 }
 
 type HubCopy = {
@@ -29,57 +26,41 @@ type HubCopy = {
   items: Record<string, { label: string; hint: string }>;
 };
 
-const HUB: HubSection[] = [
-  {
-    key: "center",
-    accent: semantic.brand,
-    items: [
-      { key: "coreBrain", route: "/core-brain" },
-      { key: "esm", route: "/esm" },
-    ],
-  },
-  {
-    key: "know",
-    accent: cosmic.soulViolet,
-    items: [
-      { key: "persona", route: "/persona" },
-      { key: "bigFive", route: "/big-five" },
-      { key: "attachment", route: "/attachment" },
-      { key: "audit", route: "/audit" },
-      { key: "interview", route: "/interview" },
-    ],
-  },
-  {
-    key: "analyze",
-    accent: cosmic.signalBlue,
-    items: [
-      { key: "insights", route: "/insights" },
-      { key: "trinity", route: "/trinity" },
-      { key: "research", route: "/research" },
-    ],
-  },
-  {
-    key: "account",
-    accent: cosmic.mistGray,
-    items: [
-      { key: "settings", route: "/settings" },
-      { key: "privacy", route: "/privacy" },
-      { key: "account", route: "/account" },
-      { key: "theme", route: "/theme" },
-      { key: "data", route: "/data" },
-      { key: "formats", route: "/formats" },
-      { key: "manual", route: "/manual" },
-      { key: "import", route: "/import" },
-      { key: "inbox", route: "/inbox" },
-      { key: "support", route: "/support" },
-      { key: "permissions", route: "/permissions" },
-    ],
-  },
+const PRIMARY_HUB_ITEMS: HubRoute[] = [
+  { sectionKey: "center", key: "coreBrain", route: "/core-brain", accent: semantic.brand },
+  { sectionKey: "center", key: "esm", route: "/esm", accent: semantic.brand },
+  { sectionKey: "know", key: "persona", route: "/persona", accent: cosmic.soulViolet },
+  { sectionKey: "analyze", key: "insights", route: "/insights", accent: cosmic.signalBlue },
 ];
+
+function SettingsGlyph({ color }: { color: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 22 22" accessibilityElementsHidden>
+      <Circle cx="11" cy="11" r="3" stroke={color} strokeWidth={1.8} fill="none" />
+      <Path
+        d="M11 3 L11 5 M11 17 L11 19 M3 11 L5 11 M17 11 L19 11 M5.4 5.4 L6.8 6.8 M15.2 15.2 L16.6 16.6 M16.6 5.4 L15.2 6.8 M6.8 15.2 L5.4 16.6"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="square"
+      />
+    </Svg>
+  );
+}
+
+function PlanGlyph({ color }: { color: string }) {
+  return (
+    <Svg width={34} height={34} viewBox="0 0 34 34" accessibilityElementsHidden>
+      <Path d="M8 8 L26 8 L26 26 L8 26 Z" stroke={color} strokeWidth={2} fill="none" />
+      <Path d="M12 17 L16 21 L23 13" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" strokeLinejoin="miter" />
+    </Svg>
+  );
+}
 
 export default function Profile() {
   const { t } = useTranslation("profile");
+  const { t: tPlans } = useTranslation("plans");
   const { userId, loading } = useAuth();
+  const progression = useProgression();
   const sections = t("sections", { returnObjects: true }) as Record<string, HubCopy>;
 
   const [email, setEmail] = useState<string | null>(null);
@@ -117,61 +98,97 @@ export default function Profile() {
   if (!userId) return <Redirect href="/sign-in" />;
 
   const displayName = email ? email.split("@")[0] : t("fallbackName");
+  const profileTitle = t("hero.title", { displayName });
+  const planKey =
+    progression.tier === "brain"
+      ? "pro"
+      : progression.tier === "cortex" || progression.tier === "soma"
+        ? "plus"
+        : "free";
+  const planName = progression.loading ? tPlans("loading") : tPlans(`tiers.${planKey}.name`);
+  const planTagline = tPlans(`tiers.${planKey}.tagline`);
+  const settingsCopy = sections.account.items.settings;
 
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <SceneHero
-          eyebrow={t("hero.eyebrow")}
-          title={t("hero.title", { displayName })}
-          subtitle={t("hero.subtitle")}
-          island={CORE_VILLAGE_UI.island}
-          worker={CORE_VILLAGE_UI.worker}
-          accent={CORE_VILLAGE_UI.accent}
-          speech={t("hero.speech")}
-        />
+        <View style={styles.topBar} accessible accessibilityLabel={profileTitle}>
+          <View style={{ flex: 1 }}>
+            <Text variant="caption" color="textMuted" style={styles.eyebrow}>
+              {t("hero.eyebrow")}
+            </Text>
+            <Text variant="heading" numberOfLines={1}>
+              {displayName}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => router.push("/settings")}
+            hitSlop={8}
+            style={styles.settingsButton}
+            accessibilityRole="button"
+            accessibilityLabel={settingsCopy.label}
+            accessibilityHint={settingsCopy.hint}
+          >
+            <SettingsGlyph color={semantic.brand} />
+          </Pressable>
+        </View>
 
-        <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
-          <Text variant="caption" color="textMuted" style={styles.eyebrow}>
-            {t("account.eyebrow")}
-          </Text>
-          <Text variant="heading" style={{ fontSize: 20 }}>{displayName}</Text>
-          {busy ? (
-            <ActivityIndicator color={semantic.brand} style={{ alignSelf: "flex-start" }} />
+        <Pressable
+          onPress={() => router.push("/plans")}
+          style={styles.subscriptionCard}
+          accessibilityRole="button"
+          accessibilityLabel={`${tPlans("current")}: ${planName}`}
+        >
+          <View style={styles.planIcon}>
+            <PlanGlyph color={semantic.brand} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text variant="caption" color="brand" style={styles.eyebrow}>
+              {tPlans("current")}
+            </Text>
+            <Text variant="heading">{planName}</Text>
+            <Text variant="subtle" color="textMuted" numberOfLines={2}>
+              {planTagline}
+            </Text>
+          </View>
+          {progression.loading ? (
+            <ActivityIndicator color={semantic.brand} />
           ) : (
-            <Text variant="body" color="textMuted">
+            <Text variant="caption" color="brand">
+              {tPlans("hero.eyebrow")}
+            </Text>
+          )}
+        </Pressable>
+
+        <View style={styles.accountStrip}>
+          {busy ? (
+            <ActivityIndicator color={semantic.brand} />
+          ) : (
+            <Text variant="subtle" color="textMuted" numberOfLines={1}>
               {email ?? t("account.emailUnavailable")}
             </Text>
           )}
         </View>
 
-        {HUB.map((section) => {
-          const sectionCopy = sections[section.key];
-          return (
-            <View key={section.key} style={[styles.section, { borderLeftColor: section.accent }]}>
-              <Text variant="caption" color="textMuted" style={styles.eyebrow}>
-                {sectionCopy.label}
-              </Text>
-              <View style={styles.chipRow}>
-                {section.items.map((item) => {
-                  const itemCopy = sectionCopy.items[item.key];
-                  return (
-                    <Pressable
-                      key={String(item.route)}
-                      onPress={() => router.push(item.route)}
-                      style={styles.chip}
-                      accessibilityRole="button"
-                      accessibilityLabel={itemCopy.label}
-                      accessibilityHint={itemCopy.hint}
-                    >
-                      <Text variant="subtle" color="textMuted">{itemCopy.label}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          );
-        })}
+        <View style={styles.quickGrid}>
+          {PRIMARY_HUB_ITEMS.map((item) => {
+            const itemCopy = sections[item.sectionKey].items[item.key];
+            return (
+              <Pressable
+                key={String(item.route)}
+                onPress={() => router.push(item.route)}
+                style={[styles.quickChip, { borderColor: item.accent }]}
+                accessibilityRole="button"
+                accessibilityLabel={itemCopy.label}
+                accessibilityHint={itemCopy.hint}
+              >
+                <Text variant="caption" color="textMuted" numberOfLines={1}>
+                  {itemCopy.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </ScrollView>
     </PremiumAppShell>
   );
@@ -180,23 +197,63 @@ export default function Profile() {
 const styles = StyleSheet.create({
   scroll: { gap: spacing.lg, paddingBottom: spacing.lg },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  section: {
+  topBar: {
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
+    borderRadius: radii.md,
+  },
+  subscriptionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: semantic.surface,
+    borderColor: semantic.brand,
+    borderWidth: 1,
     borderLeftWidth: 4,
+    borderLeftColor: semantic.brand,
     borderRadius: radii.md,
     padding: spacing.lg,
+    gap: spacing.md,
+  },
+  planIcon: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+  },
+  accountStrip: {
+    minHeight: 36,
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+  },
+  quickGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
   },
   eyebrow: { letterSpacing: 0 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.xs },
-  chip: {
+  quickChip: {
+    width: "48%",
     borderWidth: 1,
-    borderColor: semantic.border,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     backgroundColor: semantic.surfaceAlt,
+    minHeight: 44,
+    justifyContent: "center",
   },
 });
