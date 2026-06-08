@@ -79,7 +79,7 @@ import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
 import { patternLinkStyle } from "@/lib/graph/pattern-link";
-import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus } from "./world-layout";
+import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus, rootPoint } from "./world-layout";
 import {
   drilldownCharacterForCore,
   drilldownDataForCore,
@@ -691,6 +691,18 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
     zoomSavedPanX.value = want.x;
     zoomSavedPanY.value = want.y;
   };
+
+  // O-12 Phase D: on first mount, gently zoom so the Soul Core dominates the
+  // opening view (Simon: nodes shouldn't read tiny; Soul Core owns first gaze).
+  // Reuses focusWorldPoint's tested clamp so the root stays framed. Runs once.
+  const initialCameraDone = useRef(false);
+  useEffect(() => {
+    if (initialCameraDone.current || width === 0 || height === 0) return;
+    initialCameraDone.current = true;
+    const root = rootPoint();
+    focusWorldPoint(root.x, root.y, 1.5, height * 0.6);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [width, height]);
 
   const composedGesture = Gesture.Simultaneous(
     pinchGesture,
