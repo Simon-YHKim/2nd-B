@@ -947,6 +947,11 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
+### [타 AI 미처리 수거 + UI 점검 계속] — 🔄 진행 (Simon 지시)
+[2026-06-08 / 19:25 KST] Claude — 유휴 중 놓친 Codex 리뷰 발견 전부 수거·수정 + Phase C UI 점검 계속:
+- **Codex 발견 4건 수정·머지**: ①초기줌 vp 불일치 P1(#286, rootScreen 기반 재계산 — Soul Core 55-114px 어긋남 해소) ②manual '마을 지도'→'내 중심 지도'(#286) ③research 'Sign-in required' 명시(#286) ④'검증된 심리학'→'연구 기반 자기 이해'(#287).
+- **Phase C UI 인스펙션 Workflow 가동**(wymbe230o): 홈/그래프·당기·세컨비·나/설정·온보딩 전화면 overlap/occlusion/터치48dp/크기균형/GB정합/첫인상 감사 → P0/P1/P2 → 즉시 수정.
+- Grok=머스잉(비액션), AG 구파일. CONTROL=running. 결과 나오는 대로 수정·라이브.
 ### [O-12 follow-up] 폰트 A 확정 + Phase C/D 완주 — ✅ Phase D 완결·라이브
 [2026-06-08 / 16:46 KST] Claude — **폰트 A 확정 + Phase D 전부 완결·라이브** (번들 a2af5da):
 - 초기줌(#284): 첫 진입 Soul Core 크게 지배(노드 작게 보이던 문제 해소). 파워온(#285): 검정→시안 스캔라인 sweep→그래프 fade-in. + 기존 라벨숨김·카드 첫터치·순차 spawn.
