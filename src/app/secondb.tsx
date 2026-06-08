@@ -252,6 +252,14 @@ export default function SecondBChat() {
     isCharacterChat && persona.id in chatUiByWorker ? persona.id : "secondb"
   ) as keyof typeof chatUiByWorker;
   const chatUi = chatUiByWorker[chatWorker];
+  const hasTurns = turns.length > 0;
+  const usageColor: keyof typeof semantic =
+    usedToday !== null && usedToday >= limit
+      ? "danger"
+      : usedToday !== null && limit - usedToday <= 2
+        ? "warning"
+        : "textMuted";
+  const compactModeLabel = chatMode === "divergent" ? "New angle" : "Analysis";
 
   return (
     <PremiumAppShell>
@@ -260,6 +268,66 @@ export default function SecondBChat() {
         behavior={keyboardBehavior}
         keyboardVerticalOffset={keyboardVerticalOffset}
       >
+        <View style={styles.compactHeader}>
+          {hasTurns ? (
+            <SecondBSprite
+              state="chat"
+              size={28}
+              label={isCharacterChat ? persona.name[locale] : t("title")}
+            />
+          ) : null}
+          <Text variant="caption" color="brand" numberOfLines={1} style={styles.compactTitle}>
+            {isCharacterChat ? persona.name[locale] : t("title")}
+          </Text>
+          <Text variant="caption" color={usageColor} numberOfLines={1}>
+            {usedDisplay}/{limit}
+          </Text>
+          <Text variant="caption" color="textMuted" numberOfLines={1}>
+            {compactModeLabel}
+          </Text>
+          {hasTurns ? (
+            <Pressable
+              onPress={() => setTurns([])}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Clear chat"
+              accessibilityHint="Clears the current conversation"
+            >
+              <Text variant="caption" color="brand">
+                Clear
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <View style={styles.composerPrimary}>
+          <Input
+            value={draft}
+            onChangeText={setDraft}
+            placeholder={t("placeholder")}
+            multiline
+            style={styles.composerInput}
+            accessibilityLabel="Ask SecondB"
+          />
+          <Button label={t("send")} variant="primary" onPress={handleSend} disabled={!canSend} loading={sending} />
+        </View>
+
+        {usedToday !== null && usedToday >= limit ? (
+          <Pressable
+            onPress={() => router.push("/plans")}
+            hitSlop={8}
+            style={styles.limitLink}
+            accessibilityRole="button"
+            accessibilityLabel="View plans"
+            accessibilityHint="Opens the plans screen"
+          >
+            <Text variant="caption" color="brand">
+              View plans
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {!hasTurns ? (
         <SceneHero
           eyebrow={locale === "ko" ? "06. 세컨비 대화" : "06. SecondB chat"}
           title={isCharacterChat ? persona.name[locale] : t("title")}
@@ -281,48 +349,7 @@ export default function SecondBChat() {
                 : "I've read today's pieces. Shall we start with one small step?"
           }
         />
-
-        <View style={styles.usagePanel}>
-            <Text variant="caption" color="textMuted">
-              {locale === "ko" ? "오늘" : "Today"}
-            </Text>
-            <Text
-              variant="body"
-              color={usedToday !== null && usedToday >= limit ? "danger" : usedToday !== null && limit - usedToday <= 2 ? "warning" : "textMuted"}
-            >
-              {usedDisplay} / {limit}
-            </Text>
-            {/* PF-D / D-09 M1: at the daily AI limit, offer a real next step
-                (the Plans screen) instead of a dead end. */}
-            {usedToday !== null && usedToday >= limit ? (
-              <Pressable
-                onPress={() => router.push("/plans")}
-                hitSlop={8}
-                style={{ marginTop: spacing.xs, minHeight: 44, justifyContent: "center" }}
-                accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? "플랜 보기" : "View plans"}
-                accessibilityHint={locale === "ko" ? "요금제 화면을 엽니다" : "Opens the plans screen"}
-              >
-                <Text variant="caption" color="brand">
-                  {locale === "ko" ? "플랜 보기" : "View plans"}
-                </Text>
-              </Pressable>
-            ) : null}
-            {turns.length > 0 ? (
-              <Pressable
-                onPress={() => setTurns([])}
-                hitSlop={8}
-                style={{ marginTop: spacing.xs, minHeight: 44, justifyContent: "center" }}
-                accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? "대화 비우기" : "Clear chat"}
-                accessibilityHint={locale === "ko" ? "현재 대화 내용을 지웁니다" : "Clears the current conversation"}
-              >
-                <Text variant="caption" color="brand">
-                  {locale === "ko" ? "대화 비우기" : "Clear chat"}
-                </Text>
-              </Pressable>
-            ) : null}
-        </View>
+        ) : null}
 
         {/* SecondB mode toggle (worldview v-final): Analytic / Divergent. Both
             run the same C9 -> C3 -> gemini.ts path; only the prompt shifts. */}
@@ -498,17 +525,6 @@ export default function SecondBChat() {
           </ScrollView>
         ) : null}
 
-        <View style={styles.composer}>
-          <Input
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={t("placeholder")}
-            multiline
-            style={styles.composerInput}
-            accessibilityLabel={locale === "ko" ? "세컨비에게 물어보기" : "Ask SecondB"}
-          />
-          <Button label={t("send")} variant="primary" onPress={handleSend} disabled={!canSend} loading={sending} />
-        </View>
       </KeyboardAvoidingView>
 
       {/* 첫 진입 인사 모달 — 알았어요 / 오늘은 그만 볼래요 */}
@@ -608,6 +624,35 @@ export default function SecondBChat() {
 
 const styles = StyleSheet.create({
   companionFlash: { position: "absolute", bottom: 90, right: 20 },
+  compactHeader: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderBottomColor: semantic.border,
+    borderBottomWidth: 1,
+  },
+  compactTitle: { flex: 1 },
+  composerPrimary: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    marginHorizontal: spacing.md,
+    padding: spacing.sm,
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+  },
+  limitLink: {
+    alignSelf: "flex-end",
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+  },
   header: {
     flexDirection: "row",
     alignItems: "flex-start",
