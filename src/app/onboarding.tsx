@@ -136,6 +136,7 @@ export default function Onboarding() {
             <Pressable
               onPress={() => finishToGraph()}
               hitSlop={8}
+              style={{ minHeight: 44, justifyContent: "center" }}
               accessibilityRole="button"
               accessibilityLabel={locale === "ko" ? "건너뛰기" : "Skip"}
               accessibilityHint={openGraphHint}

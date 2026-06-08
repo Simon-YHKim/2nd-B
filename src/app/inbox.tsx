@@ -809,7 +809,7 @@ const styles = StyleSheet.create({
   ingestedChip: { backgroundColor: semantic.surface, borderColor: semantic.success },
   rowActions: { marginTop: spacing.xs, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, alignItems: "center" },
   generateBtn: {
-    minHeight: 30,
+    minHeight: 44,
     justifyContent: "center",
     paddingVertical: 5,
     paddingHorizontal: spacing.sm,
