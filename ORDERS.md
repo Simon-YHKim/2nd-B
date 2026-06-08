@@ -2,13 +2,109 @@
 
 > **목적**: Simon이 밖에서 모바일로 이 파일에 오더를 남기면, PC에서 도는 Claude의 2분 자율 루프가 매 틱 `git fetch` 후 이 파일을 읽어 **OPEN 오더를 수행하고 DONE에 피드백**을 남긴다. Simon은 모바일 AI로 이 파일의 DONE 피드백을 읽고 다음 오더를 남긴다. (양쪽 공유 매체 = 이 GitHub 파일.)
 >
-> **포맷**: Simon은 `## OPEN` 밑에 새 오더 블록 추가(아래 템플릿). Claude는 수행 후 그 블록을 `## DONE` 으로 옮기고 결과/PR/커밋 + 타임스탬프를 적는다.
+> **포맷**: Simon은 `## OPEN
+
+### [O-8 / 2026-06-08] simon-design-first 감사 + 비그래프 화면 UX 간소화 (O-6 통합)
+Simon: SimonK Stack 디자인 스킬을 전 화면에 적용해서 감사·수정하자. O-6(비그래프 화면 UX 간소화)도 함께 통합.
+
+**배경**: E:\SimonK-stack의 simon-design-first·design-review·design-chapters 스킬 원칙 적용.
+
+#### Phase 1 — 비그래프 화면 UX 간소화 (당기·세컨비·나·온보딩)
+**원칙**: "처음 3초 안에 손이 가는 곳이 1개만 보여야 한다"
+- 각 화면 첫 CTA → 단 1개만 남김 (나머지는 2차 동선)
+- 레이블 최대 7자, 설명 텍스트 2줄 이하
+- 여백 충분히 — 4px 그리드 기반, density 낮춤
+- 빈 상태(empty state) 전 화면 문구 정의
+
+#### Phase 2 — simon-design-first AI Slop 감사 · 수정
+**폰트**
+- Pretendard Variable 사용 확인 (Inter·System UI 금지)
+- word-break: keep-all 전 한국어 텍스트 확인
+- 타입 스케일 준수: 12/14/16/20/25/31/39px (1.25배율) — 임의 사이즈 제거
+
+**색상**
+- 한 화면 활성 브랜드 컬러 3개 이하 준수
+- 보라→핑크 그라디언트 패턴 탐색·제거
+- 순수 #000/#fff 하드코딩 탐색 → cosmic 팔레트 토큰으로 교체
+
+**계층 (4가지 도구만: Scale·Color·Weight·Spacing)**
+- 그림자·테두리·아이콘·배지로 계층 나타내는 패턴 제거
+- 정당화 못 하는 요소 삭제 (존재 이유 없으면 OUT)
+- 가운데 정렬(all-center) 패턴 → 좌정렬 개편
+
+**인터랙션 상태**
+- 버튼/탭/입력창 8상태: rest·hover·focus·active·disabled·loading·success·error
+- 로딩·에러·빈 상태 전 화면 정의 확인
+
+**AI 슬롭 패턴 제거**
+- emoji 아이콘 → SVG 아이콘으로 교체
+- bouncy/spring easing → ease-in-out cubic으로 교체
+- 모든 요소 4px 스냅 확인 (8px 기본 여백, 16/24/32 spacing ladder)
+
+**접근성**
+- WCAG AA: 텍스트 4.5:1 / UI 컴포넌트 3:1 대조비
+- 터치 타깃 44×44dp 이상 (O-7 48dp 기준과 정합)
+- reduced-motion 미처리 애니메이션 전수 확인
+
+#### 산출물
+- 화면별 before/after 스크린샷 (당기·세컨비·나·그래프 드릴다운)
+- 위반 항목 목록 + 수정 커밋 (원자적, 한 커밋 = 한 범주)
+- 라이브 확인 URL 갱신
+` 밑에 새 오더 블록 추가(아래 템플릿). Claude는 수행 후 그 블록을 `## DONE` 으로 옮기고 결과/PR/커밋 + 타임스탬프를 적는다.
 >
 > **규칙(허브 PROTOCOL §33 연동)**: Claude는 안전레일(파괴·실비용·secrets·안전임상·법무) 외 오더는 무확인 수행. 각 응답에 `[YYYY-MM-DD / HH:MM:SS KST]`. 머지는 CI green 별도확인 후. ORDERS.md 편집 전 `git fetch`+ff로 충돌 회피(Simon과 동시편집 가능).
 
 ---
 
 ## OPEN
+
+### [O-8 / 2026-06-08] simon-design-first 감사 + 비그래프 화면 UX 간소화 (O-6 통합)
+Simon: SimonK Stack 디자인 스킬을 전 화면에 적용해서 감사·수정하자. O-6(비그래프 화면 UX 간소화)도 함께 통합.
+
+**배경**: E:\SimonK-stack의 simon-design-first·design-review·design-chapters 스킬 원칙 적용.
+
+#### Phase 1 — 비그래프 화면 UX 간소화 (당기·세컨비·나·온보딩)
+**원칙**: "처음 3초 안에 손이 가는 곳이 1개만 보여야 한다"
+- 각 화면 첫 CTA → 단 1개만 남김 (나머지는 2차 동선)
+- 레이블 최대 7자, 설명 텍스트 2줄 이하
+- 여백 충분히 — 4px 그리드 기반, density 낮춤
+- 빈 상태(empty state) 전 화면 문구 정의
+
+#### Phase 2 — simon-design-first AI Slop 감사 · 수정
+**폰트**
+- Pretendard Variable 사용 확인 (Inter·System UI 금지)
+- word-break: keep-all 전 한국어 텍스트 확인
+- 타입 스케일 준수: 12/14/16/20/25/31/39px (1.25배율) — 임의 사이즈 제거
+
+**색상**
+- 한 화면 활성 브랜드 컬러 3개 이하 준수
+- 보라→핑크 그라디언트 패턴 탐색·제거
+- 순수 #000/#fff 하드코딩 탐색 → cosmic 팔레트 토큰으로 교체
+
+**계층 (4가지 도구만: Scale·Color·Weight·Spacing)**
+- 그림자·테두리·아이콘·배지로 계층 나타내는 패턴 제거
+- 정당화 못 하는 요소 삭제 (존재 이유 없으면 OUT)
+- 가운데 정렬(all-center) 패턴 → 좌정렬 개편
+
+**인터랙션 상태**
+- 버튼/탭/입력창 8상태: rest·hover·focus·active·disabled·loading·success·error
+- 로딩·에러·빈 상태 전 화면 정의 확인
+
+**AI 슬롭 패턴 제거**
+- emoji 아이콘 → SVG 아이콘으로 교체
+- bouncy/spring easing → ease-in-out cubic으로 교체
+- 모든 요소 4px 스냅 확인 (8px 기본 여백, 16/24/32 spacing ladder)
+
+**접근성**
+- WCAG AA: 텍스트 4.5:1 / UI 컴포넌트 3:1 대조비
+- 터치 타깃 44×44dp 이상 (O-7 48dp 기준과 정합)
+- reduced-motion 미처리 애니메이션 전수 확인
+
+#### 산출물
+- 화면별 before/after 스크린샷 (당기·세컨비·나·그래프 드릴다운)
+- 위반 항목 목록 + 수정 커밋 (원자적, 한 커밋 = 한 범주)
+- 라이브 확인 URL 갱신
+
 
 ### [O-7 / 2026-06-08] 터치 인터랙션 단순화 — 겹침·가림 제로
 Simon: 터치할 때마다 너무 복잡하다. 겹치는 것 없게, 가려지는 것 없게.
@@ -102,10 +198,106 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 - 안전: SVG는 JS 드라이버 유지(#251 크래시 재발 없음 확인), verify 866 tests green. Codex 구현 + Claude 리뷰·통합 + AG device QA 진행 중.
 
 ### [O-0 / 채널 개통] 원격 오더 채널 셋업
-[2026-06-08 / 03:0x KST] ✅ Claude — 이 `ORDERS.md` 채널을 개통했습니다. 제 2분 루프가 매 틱 이 파일을 읽습니다. Simon은 모바일 AI로 `## OPEN`에 오더를 추가→push 하면, 제가 수행 후 여기 DONE에 결과를 적습니다. 모바일 AI용 프롬프트는 Simon에게 별도 전달됨.
+[2026-06-08 / 03:0x KST] ✅ Claude — 이 `ORDERS.md` 채널을 개통했습니다. 제 2분 루프가 매 틱 이 파일을 읽습니다. Simon은 모바일 AI로 `## OPEN
+
+### [O-8 / 2026-06-08] simon-design-first 감사 + 비그래프 화면 UX 간소화 (O-6 통합)
+Simon: SimonK Stack 디자인 스킬을 전 화면에 적용해서 감사·수정하자. O-6(비그래프 화면 UX 간소화)도 함께 통합.
+
+**배경**: E:\SimonK-stack의 simon-design-first·design-review·design-chapters 스킬 원칙 적용.
+
+#### Phase 1 — 비그래프 화면 UX 간소화 (당기·세컨비·나·온보딩)
+**원칙**: "처음 3초 안에 손이 가는 곳이 1개만 보여야 한다"
+- 각 화면 첫 CTA → 단 1개만 남김 (나머지는 2차 동선)
+- 레이블 최대 7자, 설명 텍스트 2줄 이하
+- 여백 충분히 — 4px 그리드 기반, density 낮춤
+- 빈 상태(empty state) 전 화면 문구 정의
+
+#### Phase 2 — simon-design-first AI Slop 감사 · 수정
+**폰트**
+- Pretendard Variable 사용 확인 (Inter·System UI 금지)
+- word-break: keep-all 전 한국어 텍스트 확인
+- 타입 스케일 준수: 12/14/16/20/25/31/39px (1.25배율) — 임의 사이즈 제거
+
+**색상**
+- 한 화면 활성 브랜드 컬러 3개 이하 준수
+- 보라→핑크 그라디언트 패턴 탐색·제거
+- 순수 #000/#fff 하드코딩 탐색 → cosmic 팔레트 토큰으로 교체
+
+**계층 (4가지 도구만: Scale·Color·Weight·Spacing)**
+- 그림자·테두리·아이콘·배지로 계층 나타내는 패턴 제거
+- 정당화 못 하는 요소 삭제 (존재 이유 없으면 OUT)
+- 가운데 정렬(all-center) 패턴 → 좌정렬 개편
+
+**인터랙션 상태**
+- 버튼/탭/입력창 8상태: rest·hover·focus·active·disabled·loading·success·error
+- 로딩·에러·빈 상태 전 화면 정의 확인
+
+**AI 슬롭 패턴 제거**
+- emoji 아이콘 → SVG 아이콘으로 교체
+- bouncy/spring easing → ease-in-out cubic으로 교체
+- 모든 요소 4px 스냅 확인 (8px 기본 여백, 16/24/32 spacing ladder)
+
+**접근성**
+- WCAG AA: 텍스트 4.5:1 / UI 컴포넌트 3:1 대조비
+- 터치 타깃 44×44dp 이상 (O-7 48dp 기준과 정합)
+- reduced-motion 미처리 애니메이션 전수 확인
+
+#### 산출물
+- 화면별 before/after 스크린샷 (당기·세컨비·나·그래프 드릴다운)
+- 위반 항목 목록 + 수정 커밋 (원자적, 한 커밋 = 한 범주)
+- 라이브 확인 URL 갱신
+`에 오더를 추가→push 하면, 제가 수행 후 여기 DONE에 결과를 적습니다. 모바일 AI용 프롬프트는 Simon에게 별도 전달됨.
 
 ### [O-0b / 채널 라이브 확인] Claude listening
-[2026-06-08 / 03:17:44 KST] ✅ Claude — 모바일 AI 셋업 수신. **채널 라이브, 2분 루프로 OPEN 감시 중.** 지금 열린 오더 없음 — `## OPEN`에 오더 올리면 2분 내 수행하고 여기에 결과/PR/질문을 적습니다. 병행 라이브 현황: worldview 복원·Lumina·v3 아트·KO 음역 머지됨(simon-yhkim.github.io/2nd-B). Codex 캐릭터 컨셉정합 PR #248 CI중. AG 그래프(레퍼런스) 더블체크 진행. **첫 오더 테스트로 가볍게 하나 올려보셔도 좋습니다.**
+[2026-06-08 / 03:17:44 KST] ✅ Claude — 모바일 AI 셋업 수신. **채널 라이브, 2분 루프로 OPEN 감시 중.** 지금 열린 오더 없음 — `## OPEN
+
+### [O-8 / 2026-06-08] simon-design-first 감사 + 비그래프 화면 UX 간소화 (O-6 통합)
+Simon: SimonK Stack 디자인 스킬을 전 화면에 적용해서 감사·수정하자. O-6(비그래프 화면 UX 간소화)도 함께 통합.
+
+**배경**: E:\SimonK-stack의 simon-design-first·design-review·design-chapters 스킬 원칙 적용.
+
+#### Phase 1 — 비그래프 화면 UX 간소화 (당기·세컨비·나·온보딩)
+**원칙**: "처음 3초 안에 손이 가는 곳이 1개만 보여야 한다"
+- 각 화면 첫 CTA → 단 1개만 남김 (나머지는 2차 동선)
+- 레이블 최대 7자, 설명 텍스트 2줄 이하
+- 여백 충분히 — 4px 그리드 기반, density 낮춤
+- 빈 상태(empty state) 전 화면 문구 정의
+
+#### Phase 2 — simon-design-first AI Slop 감사 · 수정
+**폰트**
+- Pretendard Variable 사용 확인 (Inter·System UI 금지)
+- word-break: keep-all 전 한국어 텍스트 확인
+- 타입 스케일 준수: 12/14/16/20/25/31/39px (1.25배율) — 임의 사이즈 제거
+
+**색상**
+- 한 화면 활성 브랜드 컬러 3개 이하 준수
+- 보라→핑크 그라디언트 패턴 탐색·제거
+- 순수 #000/#fff 하드코딩 탐색 → cosmic 팔레트 토큰으로 교체
+
+**계층 (4가지 도구만: Scale·Color·Weight·Spacing)**
+- 그림자·테두리·아이콘·배지로 계층 나타내는 패턴 제거
+- 정당화 못 하는 요소 삭제 (존재 이유 없으면 OUT)
+- 가운데 정렬(all-center) 패턴 → 좌정렬 개편
+
+**인터랙션 상태**
+- 버튼/탭/입력창 8상태: rest·hover·focus·active·disabled·loading·success·error
+- 로딩·에러·빈 상태 전 화면 정의 확인
+
+**AI 슬롭 패턴 제거**
+- emoji 아이콘 → SVG 아이콘으로 교체
+- bouncy/spring easing → ease-in-out cubic으로 교체
+- 모든 요소 4px 스냅 확인 (8px 기본 여백, 16/24/32 spacing ladder)
+
+**접근성**
+- WCAG AA: 텍스트 4.5:1 / UI 컴포넌트 3:1 대조비
+- 터치 타깃 44×44dp 이상 (O-7 48dp 기준과 정합)
+- reduced-motion 미처리 애니메이션 전수 확인
+
+#### 산출물
+- 화면별 before/after 스크린샷 (당기·세컨비·나·그래프 드릴다운)
+- 위반 항목 목록 + 수정 커밋 (원자적, 한 커밋 = 한 범주)
+- 라이브 확인 URL 갱신
+`에 오더 올리면 2분 내 수행하고 여기에 결과/PR/질문을 적습니다. 병행 라이브 현황: worldview 복원·Lumina·v3 아트·KO 음역 머지됨(simon-yhkim.github.io/2nd-B). Codex 캐릭터 컨셉정합 PR #248 CI중. AG 그래프(레퍼런스) 더블체크 진행. **첫 오더 테스트로 가볍게 하나 올려보셔도 좋습니다.**
 
 ### [O-2] (B) 그래프 레퍼런스 매칭 — ✅ 완료(머지·라이브)
 [2026-06-08 / 04:16 KST] Claude — **(B) 마무리 머지 완료, 라이브 반영.** Codex 아트 통합(#250) + AG 크래시 수정(#251):
@@ -139,3 +331,4 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
   🔗 **라이브: https://simon-yhkim.github.io/2nd-B/** (로그인→그래프. 한글=소울 코어·본드 코어·위즈덤 코어 / 영어=Soul/Bond/Wisdom Core)
 - **(B) 메인 그래프를 레퍼런스 2장(파란 꽃형 데이터노드·발광 링크·인사이트 Touch! 카드)에 맞추기** → **진행 중**(Codex art 컴포넌트 + AG device 더블체크). 완료·머지 시 이 DONE에 갱신 URL 적겠습니다.
 - 어느 쪽을 의도하셨는지(또는 docs/V3_ASSET_BRIEF.md 에셋 트랙인지) 한 줄 주시면 정확히 맞춥니다. **(B)면 곧 PR로 올라옵니다.**
+
