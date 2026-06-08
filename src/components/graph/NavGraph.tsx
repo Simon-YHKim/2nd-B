@@ -65,6 +65,7 @@ import { prefersReducedMotion } from "@/lib/motion/signature";
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { FinalPatternDataSnowflakeArt } from "@/components/art/SoulcoreFinalArt";
 import { depthStyleForTier } from "@/lib/graph/depth-style";
+import { glowForTier, type GlowTier } from "@/lib/graph/glow-style";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { getPersona } from "@/lib/chat/personas";
 import { relatedEdges } from "@/lib/graph/relatedness";
@@ -303,6 +304,38 @@ function tierSize(t: Tier): number {
   if (t === 2) return 82;
   if (t === 3) return 38;
   return 30;
+}
+
+// P6: a soft resting bloom behind every node so the graph reads as a LIVING
+// crystalline tree (the references show each cube/crystal glowing at rest). A
+// low-opacity cyan disc scaled past the art is the bloom; shadow* softens the
+// edge on iOS/web (Android ignores shadowRadius, so the translucent disc itself
+// carries the glow). Pure View — no animation, no #251 line-driver crash risk.
+function NodeGlow({ tier, size }: { tier: GlowTier; size: number }) {
+  const g = glowForTier(tier);
+  const d = size * g.haloScale;
+  // Absolute children ignore the wrap's center alignment, so center the disc on
+  // the size×size node box explicitly.
+  const offset = (size - d) / 2;
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        left: offset,
+        top: offset,
+        width: d,
+        height: d,
+        borderRadius: d / 2,
+        backgroundColor: g.color,
+        opacity: g.opacity * 0.32,
+        shadowColor: g.color,
+        shadowOpacity: g.opacity,
+        shadowRadius: g.radius,
+        shadowOffset: { width: 0, height: 0 },
+      }}
+    />
+  );
 }
 
 // Distance feeling (v10 pass): deeper tiers desaturate slightly so they read
@@ -1621,6 +1654,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 dimFor(id) ? styles.dimmed : null,
               ]}
             >
+              <NodeGlow tier={4} size={DATA_NODE_SIZE} />
               {/* Each data shard is one of the user's classified pieces. Tapping
                   it opens the piece popup (summary + hashtags + 자세히). Depth
                   feeling: tier-4 art is the most distant — saturate + opacity
@@ -1684,6 +1718,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 dim ? styles.dimmed : null,
               ]}
             >
+              <NodeGlow tier={n.tier as GlowTier} size={size} />
               {/* Distance feeling (v10): the tesseract art layer dims +
                   desaturates with tier (depthStyleForTier) so deeper nodes read
                   "farther"; scale-depth already comes from tierSize. Applied to
@@ -1751,6 +1786,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
             dimFor(CENTER_NODE.id) ? styles.dimmed : null,
           ]}
         >
+          <NodeGlow tier={1} size={CENTER_SIZE} />
           <IslandArt id="core" size={CENTER_SIZE * CORE_ART_SCALE} style={{ position: "absolute", left: CORE_ART_OFFSET, top: CORE_ART_OFFSET }} />
           <Pressable
             onPress={() => handleNodeTap(CENTER_NODE.id)}
