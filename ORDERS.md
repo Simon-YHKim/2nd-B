@@ -947,6 +947,14 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
+### [O-7 겹침·가림 제로 — 전화면 가림 스윕] — ✅ 수평 6건 + 수직 1건 머지·라이브
+[2026-06-08 / 21:41 KST] Claude — **O-7 가림 감사 전화면 스윕 완료** (main a4d8dab). Codex 라이브 발견 2건을 단서로 같은 근본원인을 Explore 정밀 감사로 전수 점검.
+- **수평 클리핑 6건**(#292·#293): manual·permissions(라이브 발견) + secondb 헤더/모드힌트·wiki 페이지행·NavGraph 시트(마을/드릴다운). 근본=react-native-web flex 텍스트 기본 `min-width:auto` → flex 텍스트 `minWidth:0`+고정요소 `flexShrink:0`.
+- **수직 가림 1건**(#294): 그래프 `이전/설정/다음` a11y 플로팅 버튼이 하단 탭바 밴드와 겹침(웹에서도 24~62px) → `bottom: TAB_BAR_HEIGHT+insets.bottom+12`로 탭바 위 배치.
+- **전역 안전 확인**: PremiumAppShell이 탭바 클리어런스(`TAB_BAR_HEIGHT+spacing.lg`+SafeArea insets)를 전 탭 화면에 자동 적용 → capture·secondb·profile 등 하단 CTA 가림 없음.
+- **보류(저위험)**: NavGraph 시트는 iPhone 네이티브(insets>30)에서만 4~18px 챙 겹침, 라이브 웹 안전 + 네이티브 빌드 현재 막힘 → 추후.
+- 🔗 라이브 simon-yhkim.github.io/2nd-B — **manual·permissions 우측 잘림 해소 + 그래프 하단 버튼 겹침 해소 확인 부탁**.
+
 ### [Phase C P2 + 라이브 모바일 P1] — ✅ 클리핑 2건 + P2 폴리시 머지·라이브
 [2026-06-08 / 20:56 KST] Claude — **Codex 라이브 모바일(390x844) 검사 P1 2건 + P2 폴리시 배치 머지·라이브** (#292, main e0ebd6a).
 - **신규 P1(라이브 클리핑) 수정**: ①manual 섹션 카드 우측 텍스트 클리핑 ②permissions 우측 상태 칩 가림. 근본=react-native-web flex 텍스트 기본 `min-width:auto`로 pixelKo 긴 제목이 안 줄어듦 → 텍스트 `minWidth:0` + 고정 칩/eyebrow `flexShrink:0`. **O-7(겹침·가림 제로) 직결**.
