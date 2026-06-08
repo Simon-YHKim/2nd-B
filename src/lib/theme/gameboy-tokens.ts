@@ -1,4 +1,4 @@
-import { cosmic } from "./tokens";
+import { cosmic, withAlpha } from "./tokens";
 
 export const gameboy = {
   borderWidth: 2,
@@ -15,7 +15,7 @@ export const gameboy = {
   accent: cosmic.signalBlue,
   power: cosmic.signalMint,
   amber: cosmic.pixelLamp,
-  border: "rgba(76,201,240,0.35)",
+  border: withAlpha(cosmic.signalBlue, 0.35),
 } as const;
 
 export type PixelShadowStyle = {

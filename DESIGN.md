@@ -104,9 +104,15 @@ The `classifyInput()` result maps directly to UI affordance:
 
 ## Game Boy (Deep Space Game Boy)
 
-O-9 adds a pixel hardware layer on top of the existing cosmic palette. Phase 1 is foundation only: tokens, bundled font assets, and aliases. Do not restyle components, screens, or graph nodes until the later O-9 phases.
+O-9 adds a pixel hardware layer on top of the existing cosmic palette: a "Deep Space Game Boy" — dark cosmic background with a pixel-art Game Boy chrome layer. Shipped across all four phases (#271 tokens+fonts · #273 components · #272 graph pixel glow · #275 motion):
 
-Source: `src/lib/theme/gameboy-tokens.ts`.
+- **Tokens**: `gameboy.*` — `borderWidth:2`, `radius:0` (sharp pixel corners), `pixelShadow` 3px hard offset (no blur), 8px grid, `scanlineOpacity`. Palette aliases gb-screen/ink/accent/power/amber/border map to cosmic tokens (no raw hex in components). WCAG AA verified (gb-ink 16.7:1, gb-accent 10.3:1 on gb-screen).
+- **Fonts**: pixel for chrome (Galmuri11 KO / Press Start 2P EN) on titles/labels/buttons/tabs; **Pretendard `fontFamilies.readable` for long body/chat/journal** (pixel faces are hard to read at small body sizes).
+- **Components**: shared `PremiumButton`/`PremiumCard`/`PremiumInput`/tab-bar pixelated (radius 0, 2px border, pixel-shadow, pressed block-translate). Caller `style` overrides base (precedence restored in #277).
+- **Graph**: tesseract cube art kept; resting glow = 3-ring pixel halo (alpha falloff), edges dashed 4/4 cyan.
+- **Motion**: pixel-physical timing (press 60ms, transitions ~100ms, reduced-motion → instant).
+
+Source: `src/lib/theme/gameboy-tokens.ts`, `src/lib/motion/pixel-physical.ts`.
 
 | Token | Value | Use |
 |---|---:|---|
