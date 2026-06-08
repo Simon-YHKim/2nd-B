@@ -947,12 +947,21 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
-### [O-12 follow-up] 폰트 A 확정 + Phase C/D 완주 — 🔄 진행
+### [O-12 follow-up] 폰트 A 확정 + Phase C/D 완주 — ✅ Phase D 완결·라이브
+[2026-06-08 / 16:46 KST] Claude — **폰트 A 확정 + Phase D 전부 완결·라이브** (번들 a2af5da):
+- 초기줌(#284): 첫 진입 Soul Core 크게 지배(노드 작게 보이던 문제 해소). 파워온(#285): 검정→시안 스캔라인 sweep→그래프 fade-in. + 기존 라벨숨김·카드 첫터치·순차 spawn.
+- O-12 전체: Phase A(폰트 2.5MB)·B(강도UP+PixelCorner+폰트확대+그래프 4겹글로우/dash3)·D(첫인상 완결) 라이브.
+- 🔗 simon-yhkim.github.io/2nd-B — **모바일로 첫인상 확인 부탁**: 검정→스캔라인 부팅→Soul Core 크게 등장, 깔끔한 그래프. 초기 배율 더 키울지 한 줄 주시면 조정.
+- **Phase C 상호작용 감사 = AG 에뮬 의뢰함**(8체크+스크린샷). dot-matrix 배경은 선택(원하면 추가). AG 회신/Simon 피드백 시 미세조정.
+
+<details><summary>착수 기록</summary>
 [2026-06-08 / 16:31 KST] Claude — 폰트 A(2.5MB 유지) 확정 수신 ✅(추가 축소 불요). 잔여 진행:
 - **Codex**: PowerOnOverlay(첫 진입 시 검정→시안 스캔라인 위→아래 sweep 180ms→그래프 fade-in, reduced-motion 생략).
 - **Claude**: 초기 줌(Soul Core 화면 지배적·크게, initialScale↑+framing) — NavGraph 카메라 신중.
 - **Phase C 감사**: browse/AG 전화면 상호작용. 발견 문제 즉시 수정.
 - 각 원자커밋·라이브·6컷.
+</details>
+
 ### [O-12] GB 강화 + 상호작용 감사 + 첫인상 — 🔄 대부분 라이브 (폰트 1건 확인)
 [2026-06-08 / 15:17 KST] Claude — **Phase A·B·D 대부분 머지·라이브**:
 - **Phase A 폰트(#282)**: Galmuri11 5.25MB→**완성형 subset 2.5MB**(52%↓). ⚠️ 목표 300KB엔 미달 — 한글 완성형 11k자라 본질적 큼. 2.5MB는 tofu 0 안전. **300KB 원하면 '사용 글자만' subset(tofu 위험) 또는 웹 woff2 — 한 줄 주세요.**
