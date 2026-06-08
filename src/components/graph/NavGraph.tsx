@@ -312,10 +312,12 @@ function tierSize(t: Tier): number {
 // platform (Android ignores shadowRadius anyway). Tier scales the alpha via
 // glowForTier (hierarchy standing rule). Pure Views — no animation, no #251
 // line-driver crash risk.
+// O-12 Phase B: intensified to a 4-ring pixel halo (1/2/3/5px, alpha falloff).
 const GLOW_RINGS = [
-  { grow: 0.18, border: 1, alpha: 0.6 },
-  { grow: 0.36, border: 2, alpha: 0.3 },
-  { grow: 0.58, border: 4, alpha: 0.1 },
+  { grow: 0.16, border: 1, alpha: 0.65 },
+  { grow: 0.32, border: 2, alpha: 0.35 },
+  { grow: 0.5, border: 3, alpha: 0.18 },
+  { grow: 0.72, border: 5, alpha: 0.06 },
 ] as const;
 function NodeGlow({ tier, size }: { tier: GlowTier; size: number }) {
   const g = glowForTier(tier);
@@ -1630,7 +1632,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
                 strokeOpacity={animOpacity}
                 strokeWidth={edgeStyle.strokeWidth}
                 strokeLinecap="butt"
-                strokeDasharray="4 4"
+                strokeDasharray="3 3"
               />
               <AnimatedLine
                 x1={x1}
