@@ -533,6 +533,9 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
+### [O-10] GOAL 디자인 완성형 — 🔄 결정 수신·완주 실행중
+[2026-06-08 / 11:27 KST] Claude — **/goal 수신, 모든 DEFER 결정 확정 → 완주.** O-8 결정 적용(danger=solid zoneRed+white·타입스케일 11/13→12/14·✕/✓ react-native-svg Path·라벨 자율축약·IA: 나 탭=허브/설정 1-depth, 당기=입력 1st, 세컨비=입력창, 홈=그래프 자체 CTA). O-9 Phase2(컴포넌트) Codex 진행→통합. **Phase3(그래프)**: 테서랙트 유지+NodeGlow soft→픽셀 3겹 글로우(1px/.6·2px/.3·4px/.1)+엣지 dash 4/4+dot-matrix. **Phase4**: steps/100ms·recede 80ms·press 60ms·reduced=즉시. 각 단계 원자커밋·CI green·라이브. (O-9 Phase1 #271 머지됨.)
+
 ### [O-9] 전체 게임보이 UI 리스타일 — 🔄 수신·Phase1 착수 (O-8 화해)
 [2026-06-08 / 11:00 KST] Claude — "Deep Space Game Boy"(다크우주 배경 + 픽셀 게임보이 레이어) 수신. 대형 4-phase.
 - **O-8과 화해**: O-8 commit1(색토큰)·2(soft shadow 제거)는 **O-9 전제로 유효**(soft 제거→hard 픽셀shadow). O-8 commit5(폰트 readable)·6(radii.lg 둥근)은 **O-9가 대체**(폰트=Galmuri11/Press Start 2P 픽셀, radius=0 직각) → O-8 5/6 중단. O-8 a11y(3)·reduced-motion(7)은 유효(O-9 Phase4와 통합).
