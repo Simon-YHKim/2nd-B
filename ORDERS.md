@@ -647,8 +647,15 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
-### [O-11] 4-AI 리뷰 (코드+디자인, PR #266-#275) — 🔄 착수
-[2026-06-08 / 12:45 KST] Claude — 4-AI 리뷰 가동. 분담대로: **Claude**=디자인 시스템 정합(gameboy-tokens↔DESIGN.md·하드코딩 hex 잔존·4-tier/정보밀도 회귀·폰트 적용범위) · **Codex**=코드 adversarial(diff·TS/any·perf·#251 회귀·테스트갭) · **AG**=Android device QA(8체크+스크린샷) · **Grok**=전략/WCAG/번들/누락화면/slop. 합성→P0(크래시/a11y)/P1(시각회귀)/P2(polish). 리포트 후 P0/P1 즉시 수정. 라이브 b945a9bf.
+### [O-11] 4-AI 리뷰 (코드+디자인) — ✅ 완료·P1 수정 (Simon 결정 2건)
+[2026-06-08 / 13:05 KST] Claude — **4-AI 리뷰 합성 완료.** 리포트: `agents/claude/outbox/20260608-4ai-review-report.md`.
+- **P0 없음** ✅ (크래시 #251 회귀 없음·WCAG AA 전부 PASS·타입 OK).
+- **P1 수정완료**: surfaces caller-style 순서 회귀(Codex 게이트-FAIL) → **#277 머지**(화면별 오버라이드 복원).
+- **❓ Simon 결정 2건**:
+  1. **Galmuri11 폰트 5.25MB**(번들 비대, XPRIZE web 데모 지연) → ⓐsubset ~300KB(권장, 폰트 유지) ⓑNeoDunggeunmo(650KB, 기존)로 대체 ⓒweb lazy. 어느 쪽?
+  2. **게임보이 "toy 인상" 리스크**(XPRIZE 심사·온보딩) → GB 강도 정책(on/soft/off, 온보딩/empty/error에 `framed` GB-exempt + anchoring copy)? 
+- **P2 자율 진행**: dashed 비-GB 잔재 통일·pixel-physical steps+테스트·픽셀 로더·DESIGN.md phase 문서 갱신·ORDERS 위생·gb border withAlpha.
+- AG device QA(Android 픽셀shadow·폰트로드·48dp) 회신 시 보강. 결정 2건 주시면 즉시, 그 외 자율.
 
 ### [O-10] GOAL 디자인 완성형 — ✅ 완주 (IA #276 포함)
 [2026-06-08 / 12:45 KST] Claude — **전체 디자인 오버홀 완성·라이브.** O-7(터치)+O-8(색토큰·shadow·기계적결정)+O-9(게임보이 1-4)+O-10(IA). IA #276: 화면별 1차 액션 1개(당기=입력·세컨비=메시지·나=구독카드)·나 탭=허브+설정 1-depth(nav SSOT+테스트, 라우트 보존). 🔗 simon-yhkim.github.io/2nd-B(번들 b945a9bf). O-11 리뷰로 품질 검증 중.
