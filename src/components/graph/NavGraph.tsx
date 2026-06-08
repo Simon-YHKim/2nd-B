@@ -457,9 +457,13 @@ interface Props {
    *  talking about. Glows that island + lights its edge to the center WITHOUT
    *  opening a sheet or dimming the rest. */
   glowNodeId?: string | null;
+  /** O-12 Phase D (first-impression): fired the first time the user interacts
+   *  with the graph (tap a node). Lets the host reveal the insight cards only
+   *  after first touch, so the initial screen is the clean graph alone. */
+  onFirstInteraction?: () => void;
 }
 
-export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) {
+export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstInteraction }: Props) {
   const { t } = useTranslation("common");
   const { width, height } = useWindowDimensions();
   const cx = width / 2;
@@ -468,6 +472,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // the bottom-rooted Soul Core frames ABOVE them, not behind (4-AI verdict
   // Defect-1). The base layout fits the world into the viewport minus this band.
   const cardReserve = Math.min(height * 0.4, 340);
+  // O-12 Phase D: tracks whether the user has touched the graph yet (gates the
+  // first-touch reveal of the host's insight cards).
+  const firstInteractionDone = useRef(false);
 
   // Decorative crew count (worldview v-final "모모크루"). Scales with the user's
   // on-graph Log nodes, bounded by the density preference + LOD. The crew sprite
@@ -1435,6 +1442,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
   // camera so its sector fills the screen, then open the sheet. Tapping the
   // same node again (or a non-domain node) just toggles the sheet.
   function handleNodeTap(id: string) {
+    // O-12 Phase D: first graph interaction reveals the insight cards.
+    if (!firstInteractionDone.current) {
+      firstInteractionDone.current = true;
+      onFirstInteraction?.();
+    }
     if (drilldownCoreId != null) {
       if (drilldownDataIds.has(id)) {
         setDrilldownState((prev) => selectDrilldownData(prev, id));
