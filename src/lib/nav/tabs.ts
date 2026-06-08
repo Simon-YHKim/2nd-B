@@ -10,8 +10,19 @@ export const PRIMARY_TAB_PATHS = ["/", "/capture", "/secondb", "/profile"] as co
 
 export type PrimaryTabPath = (typeof PRIMARY_TAB_PATHS)[number];
 
+// Settings is a retained stack route reached from /profile. It is intentionally
+// not a primary tab destination.
+export const PROFILE_CHILD_PATHS = ["/settings"] as const;
+
+export type ProfileChildPath = (typeof PROFILE_CHILD_PATHS)[number];
+
 /** True when the route is a primary tab destination (shows the bottom tab bar
  *  and therefore hides the floating back arrow). */
 export function isPrimaryTabPath(pathname: string): boolean {
   return (PRIMARY_TAB_PATHS as readonly string[]).includes(pathname);
+}
+
+/** True when the route is one depth under the profile hub. */
+export function isProfileChildPath(pathname: string): boolean {
+  return (PROFILE_CHILD_PATHS as readonly string[]).includes(pathname);
 }
