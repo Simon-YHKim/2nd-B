@@ -346,6 +346,8 @@ export default function Landing() {
   // driven by real graph signals (card-insights.overviewCardSignals). Core-named
   // copy (always ends in "코어", a vowel) is josa-safe, fixing the old persona
   // particle bug ("아콘가/루멘가").
+  // (pure + cheap; not memoized — call site sits after an early return so a hook
+  // here would violate rules-of-hooks.)
   const cardSignals = overviewCardSignals(dataNodes);
   const spotlightCore = cardSignals.recentCore ?? featuredVillage;
   const spotlightCoreName = VILLAGE_LABEL[spotlightCore][locale];
