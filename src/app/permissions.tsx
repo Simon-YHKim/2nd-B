@@ -9,6 +9,7 @@ import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 type Status = "inUse" | "optional" | "planned" | "notUsed";
@@ -121,7 +122,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
-  cardTitle: { fontWeight: "600", flex: 1 },
+  cardTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600", flex: 1 },
   tag: {
     minHeight: 32,
     justifyContent: "center",

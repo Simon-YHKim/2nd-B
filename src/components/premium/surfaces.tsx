@@ -22,6 +22,7 @@ import { BUTTON_PRESS_MS, pixelMotionDuration } from "@/lib/motion/pixel-physica
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { PixelCorner } from "./PixelCorner";
 
 /** Compact 2nd-Brain brand chip used at the top-left of premium screens. */
 export function BrandChip({ size = 44 }: { size?: number }) {
@@ -97,6 +98,7 @@ export function PremiumCard({
   right,
   children,
   style,
+  pixelCorners = true,
 }: {
   title?: string;
   eyebrow?: string;
@@ -104,9 +106,18 @@ export function PremiumCard({
   right?: ReactNode;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
+  pixelCorners?: boolean;
 }) {
   return (
     <PremiumPanel accent={accent} style={style}>
+      {pixelCorners ? (
+        <>
+          <PixelCorner corner="top-left" />
+          <PixelCorner corner="top-right" />
+          <PixelCorner corner="bottom-left" />
+          <PixelCorner corner="bottom-right" />
+        </>
+      ) : null}
       {title || eyebrow || right ? (
         <View style={styles.cardHead}>
           <View style={{ flex: 1 }}>
@@ -152,7 +163,7 @@ const BTN_FG: Record<BtnVariant, string> = {
 const BTN_DISABLED_BG = withAlpha(cosmic.mistGray, 0.16);
 const BTN_DISABLED_BORDER = withAlpha(cosmic.mistGray, 0.46);
 const BTN_DISABLED_FG = withAlpha(cosmic.moonWhite, 0.58);
-const PRESSED_OFFSET = 2;
+const PRESSED_OFFSET = 3;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function textInputAccessibilityLabel(props: TextInputProps): string | undefined {
@@ -446,6 +457,7 @@ const styles = StyleSheet.create({
   topBarTitle: { textAlign: "center", fontFamily: fontFamilies.pixelKo },
   topBarSub: { textAlign: "center", marginTop: 2 },
   panel: {
+    position: "relative",
     backgroundColor: cosmic.panelBg,
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
