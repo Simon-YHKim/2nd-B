@@ -30,7 +30,7 @@ import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
-import { PremiumAppShell, PremiumModal, SceneHero } from "@/components/premium";
+import { PremiumAppShell, PremiumModal } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { PremiumCard, PremiumButton, PremiumLoadingState, TAB_BAR_HEIGHT } from "@/components/premium";
@@ -61,7 +61,6 @@ import type { HotlineId } from "@/lib/safety/lexicon";
 import { useProgression } from "@/lib/progression/useProgression";
 import { checkGate } from "@/lib/progression/gates";
 import { checkUsage } from "@/lib/progression/entitlements";
-import { VILLAGE_UI } from "@/lib/village-ui";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
@@ -244,6 +243,7 @@ export default function Capture() {
     [linkClipKind, body],
   );
   const advancedModesExpanded = showAdvancedModes || mode !== "journal";
+  const secondaryOpen = advancedModesExpanded;
   const visibleModes = advancedModesExpanded ? CAPTURE_MODES : BASIC_CAPTURE_MODES;
 
   if (loading) {
@@ -574,16 +574,22 @@ export default function Capture() {
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           keyboardShouldPersistTaps="handled"
         >
-          <SceneHero
-            eyebrow={t("hero.eyebrow")}
-            title={t("hero.title")}
-            subtitle={t("hero.subtitle")}
-            island={VILLAGE_UI.knowledge.island}
-            worker={VILLAGE_UI.knowledge.worker}
-            accent={VILLAGE_UI.knowledge.accent}
-            speech={
-              savedTitle ? t("hero.speechSaved") : t("hero.speechIdle")
-            }          />
+          <View
+            style={styles.primaryHeader}
+            accessible
+            accessibilityLabel={`${t("hero.title")} ${t("hero.subtitle")}`}
+            accessibilityHint={savedTitle ? t("hero.speechSaved") : t("hero.speechIdle")}
+          >
+            <ShardArt id="capture_mint" size={44} />
+            <View style={{ flex: 1 }}>
+              <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
+                {t("hero.eyebrow")}
+              </Text>
+              <Text variant="heading" numberOfLines={2}>
+                {savedTitle ? t("saved.title") : t("hero.title")}
+              </Text>
+            </View>
+          </View>
 
           {/* Import success → graph link (journal-capture pack §3/§7) */}
           {savedTitle ? (
@@ -667,20 +673,22 @@ export default function Capture() {
 
           {/* Entry to the format-manager (/formats): list, share, edit, or delete
               the clipper formats — including any just proposed above. */}
-          <Pressable
-            onPress={() => router.push("/formats")}
-            hitSlop={6}
-            style={styles.manageFormatsLink}
-            accessibilityRole="button"
-            accessibilityLabel={t("sections.manageFormats.accessibilityLabel")}
-          >
-            <Text variant="caption" color="brand">
-              {t("sections.manageFormats.link")}
-            </Text>
-          </Pressable>
+          {secondaryOpen ? (
+            <Pressable
+              onPress={() => router.push("/formats")}
+              hitSlop={6}
+              style={styles.manageFormatsLink}
+              accessibilityRole="button"
+              accessibilityLabel={t("sections.manageFormats.accessibilityLabel")}
+            >
+              <Text variant="caption" color="brand">
+                {t("sections.manageFormats.link")}
+              </Text>
+            </Pressable>
+          ) : null}
 
           {/* Track toggle: 일상 / Pro — only for capture modes (not journal). */}
-          {mode !== "journal" ? (
+          {secondaryOpen && mode !== "journal" ? (
           <View style={styles.trackCard}>
             <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
               {t("sections.track.eyebrow")}
@@ -715,70 +723,74 @@ export default function Capture() {
           </View>
           ) : null}
 
-          {/* Mode tabs */}
-          <View
-            style={styles.modeRow}
-            accessibilityRole="tablist"
-            accessibilityLabel={t("sections.mode.accessibilityLabel")}
-          >
-            {visibleModes.map((m) => {
-              const active = mode === m;
-              const color = active ? semantic.background : semantic.textMuted;
-              const label = modeLabel(m);
-              const help = modeHelp(m);
-              return (
+          {secondaryOpen ? (
+            <>
+              {/* Mode tabs */}
+              <View
+                style={styles.modeRow}
+                accessibilityRole="tablist"
+                accessibilityLabel={t("sections.mode.accessibilityLabel")}
+              >
+                {visibleModes.map((m) => {
+                  const active = mode === m;
+                  const color = active ? semantic.background : semantic.textMuted;
+                  const label = modeLabel(m);
+                  const help = modeHelp(m);
+                  return (
+                    <Pressable
+                      key={m}
+                      style={[styles.modeTab, active && styles.modeTabActive]}
+                      onPress={() => {
+                        setMode(m);
+                        if (m !== "journal") setShowAdvancedModes(true);
+                        // Clear all per-mode input so a URL box never "bleeds" into
+                        // the memo/file box (2026-05-31 directive: inputs feel shared).
+                        reset();
+                      }}
+                      hitSlop={8}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={`${label}. ${help}`}
+                      accessibilityHint={help}
+                    >
+                      <ModeGlyph mode={m} color={color} label={label} />
+                      <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
                 <Pressable
-                  key={m}
-                  style={[styles.modeTab, active && styles.modeTabActive]}
+                  key="advanced-toggle"
+                  style={[styles.modeTab, styles.modeMoreTab, advancedModesExpanded && styles.modeMoreTabExpanded]}
                   onPress={() => {
-                    setMode(m);
-                    if (m !== "journal") setShowAdvancedModes(true);
-                    // Clear all per-mode input so a URL box never "bleeds" into
-                    // the memo/file box (2026-05-31 directive: inputs feel shared).
-                    reset();
+                    if (advancedModesExpanded) {
+                      setShowAdvancedModes(false);
+                      if (mode !== "journal") {
+                        setMode("journal");
+                        reset();
+                      }
+                    } else {
+                      setShowAdvancedModes(true);
+                    }
                   }}
                   hitSlop={8}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={`${label}. ${help}`}
-                  accessibilityHint={help}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: advancedModesExpanded }}
+                  accessibilityLabel={advancedModesExpanded ? t("sections.mode.less") : t("sections.mode.more")}
+                  accessibilityHint={advancedModesExpanded ? t("sections.mode.lessHint") : t("sections.mode.moreHint")}
                 >
-                  <ModeGlyph mode={m} color={color} label={label} />
-                  <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
-                    {label}
+                  <Text style={styles.modeMoreLabel}>
+                    {advancedModesExpanded ? t("sections.mode.less") : t("sections.mode.more")}
                   </Text>
                 </Pressable>
-              );
-            })}
-            <Pressable
-              key="advanced-toggle"
-              style={[styles.modeTab, styles.modeMoreTab, advancedModesExpanded && styles.modeMoreTabExpanded]}
-              onPress={() => {
-                if (advancedModesExpanded) {
-                  setShowAdvancedModes(false);
-                  if (mode !== "journal") {
-                    setMode("journal");
-                    reset();
-                  }
-                } else {
-                  setShowAdvancedModes(true);
-                }
-              }}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: advancedModesExpanded }}
-              accessibilityLabel={advancedModesExpanded ? t("sections.mode.less") : t("sections.mode.more")}
-              accessibilityHint={advancedModesExpanded ? t("sections.mode.lessHint") : t("sections.mode.moreHint")}
-            >
-              <Text style={styles.modeMoreLabel}>
-                {advancedModesExpanded ? t("sections.mode.less") : t("sections.mode.more")}
-              </Text>
-            </Pressable>
-          </View>
+              </View>
 
-          <Text variant="subtle" color="textMuted" style={styles.modeHelp}>
-            {t(`modes.${mode}.help`)}
-          </Text>
+              <Text variant="subtle" color="textMuted" style={styles.modeHelp} numberOfLines={2}>
+                {t(`modes.${mode}.help`)}
+              </Text>
+            </>
+          ) : null}
 
           {/* Journal (일기) gate — Lv3 unlock then free-tier use limit, ported
               from the retired /journal screen so the redirect can't bypass it. */}
@@ -826,6 +838,17 @@ export default function Capture() {
               when unlocked and within the free-tier limit. */}
           {mode === "journal" && !progression.loading && journalGate.unlocked && journalUsage.allowed ? (
             <View style={styles.fieldGroup}>
+              <Input
+                value={body}
+                onChangeText={setBody}
+                placeholder={t("journal.fields.bodyPlaceholder")}
+                multiline
+                numberOfLines={6}
+                textAlignVertical="top"
+                style={styles.textarea}
+              />
+              {secondaryOpen ? (
+                <>
               {streak.current > 0 ? (
                 <View style={styles.streakRow}>
                   <View style={[styles.streakDot, streak.capturedToday && styles.streakDotOn]} />
@@ -860,15 +883,6 @@ export default function Capture() {
                 onChangeText={setTopic}
                 placeholder={t("journal.fields.topicPlaceholder")}
                 autoCapitalize="sentences"
-              />
-              <Input
-                value={body}
-                onChangeText={setBody}
-                placeholder={t("journal.fields.bodyPlaceholder")}
-                multiline
-                numberOfLines={6}
-                textAlignVertical="top"
-                style={styles.textarea}
               />
               <Pressable
                 onPress={() => setShowExtras((v) => !v)}
@@ -911,6 +925,8 @@ export default function Capture() {
                   </Text>
                 </View>
               </Pressable>
+                </>
+              ) : null}
             </View>
           ) : null}
 
@@ -1021,35 +1037,36 @@ export default function Capture() {
             </View>
           ) : null}
 
-          {/* Tags are always visible (2026-05-31 directive). No separate
-              auto-classify button: tossing auto-classifies if these are empty.
-              Add tags one at a time via the + chip. */}
-          <View style={styles.classifiedCard}>
-            <Text variant="caption" color="brand">
-              {t("tags.title")}
-            </Text>
-            <View style={styles.tagRow}>
-              {tagsEditable.map((tag) => (
-                <Pressable
-                  key={tag}
-                  onPress={() => removeTag(tag)}
-                  style={styles.tagChip}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("tags.removeLabel", { tag })}
-                >
-                  <View style={styles.tagChipContent}>
-                    <Text style={styles.tagChipText}>#{tag}</Text>
-                    <PathGlyph path={X_PATH} color={semantic.brand} size={14} />
-                  </View>
-                </Pressable>
-              ))}
-              <HashtagAdder onAdd={addTagFromInput} />
+          {/* Secondary hashtag controls stay behind disclosure. Tossing still
+              auto-classifies when the user leaves these empty. */}
+          {secondaryOpen ? (
+            <View style={styles.classifiedCard}>
+              <Text variant="caption" color="brand">
+                {t("tags.title")}
+              </Text>
+              <View style={styles.tagRow}>
+                {tagsEditable.map((tag) => (
+                  <Pressable
+                    key={tag}
+                    onPress={() => removeTag(tag)}
+                    style={styles.tagChip}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("tags.removeLabel", { tag })}
+                  >
+                    <View style={styles.tagChipContent}>
+                      <Text style={styles.tagChipText}>#{tag}</Text>
+                      <PathGlyph path={X_PATH} color={semantic.brand} size={14} />
+                    </View>
+                  </Pressable>
+                ))}
+                <HashtagAdder onAdd={addTagFromInput} />
+              </View>
+              <Text variant="subtle" color="textSubtle" style={{ marginTop: 6 }}>
+                {tagsEditable.length === 0 ? t("tags.emptyHelper") : t("tags.removeHelper")}
+              </Text>
             </View>
-            <Text variant="subtle" color="textSubtle" style={{ marginTop: 6 }}>
-              {tagsEditable.length === 0 ? t("tags.emptyHelper") : t("tags.removeHelper")}
-            </Text>
-          </View>
+          ) : null}
 
           <View style={styles.submitRow}>
             <Pressable
@@ -1070,6 +1087,22 @@ export default function Capture() {
               </Text>
             </Pressable>
           </View>
+
+          {!secondaryOpen ? (
+            <Pressable
+              onPress={() => setShowAdvancedModes(true)}
+              hitSlop={6}
+              style={styles.secondaryDisclosure}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: false }}
+              accessibilityLabel={t("sections.mode.more")}
+              accessibilityHint={t("sections.mode.moreHint")}
+            >
+              <Text variant="caption" color="brand">
+                {t("sections.mode.more")}
+              </Text>
+            </Pressable>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
       {/* 루루 appears briefly to carry the new shard (companion pack §3) */}
@@ -1245,6 +1278,16 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   scroll: { paddingBottom: spacing.xl, gap: spacing.md },
+  primaryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+  },
   manageFormatsLink: { alignSelf: "flex-end", paddingVertical: spacing.xs, paddingHorizontal: spacing.xs },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   trackCard: {
@@ -1378,6 +1421,13 @@ const styles = StyleSheet.create({
   tagAddHash: { color: semantic.brand, fontSize: typography.sizes.sm, fontWeight: "700" },
   tagAddInput: { flex: 1, fontSize: typography.sizes.sm, paddingVertical: 2, minWidth: 64 },
   submitRow: { gap: spacing.sm, marginTop: spacing.sm },
+  secondaryDisclosure: {
+    alignSelf: "center",
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
   // Save button: solid primary with a clear pressed beat (scale, no
   // bounce per DESIGN.md) so the action feels deliberate.
   tossBtn: {
