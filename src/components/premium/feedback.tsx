@@ -3,7 +3,7 @@
 // aware. Copy is warm + non-clinical; safety uses Gadi's calm rose tone.
 
 import { type ReactNode, useEffect, useRef } from "react";
-import { ActivityIndicator, Animated, BackHandler, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
+import { Animated, BackHandler, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
@@ -11,6 +11,8 @@ import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { PremiumButton } from "./surfaces";
+
+const LOADING_DOT_PATTERN = [true, true, true, true, false, true, true, true, true];
 
 /** Slide-up glassy bottom sheet. Screen-fixed; renders nothing when closed. */
 export function PremiumBottomSheet({
@@ -128,7 +130,45 @@ function StateShell({ glyph, title, body, action }: { glyph: ReactNode; title: s
 
 export function PremiumLoadingState({ message }: { message?: string }) {
   const { t } = useTranslation("common");
-  return <StateShell glyph={<ActivityIndicator color={cosmic.signalMint} />} title={message ?? t("states.loading")} />;
+  return <StateShell glyph={<PixelLoadingGlyph />} title={message ?? t("states.loading")} />;
+}
+
+function PixelLoadingGlyph() {
+  const opacity = useRef(new Animated.Value(1)).current;
+  const reduceMotion = prefersReducedMotion();
+
+  useEffect(() => {
+    if (reduceMotion) {
+      opacity.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.28, duration: 360, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 360, easing: Easing.linear, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity, reduceMotion]);
+
+  return (
+    <View style={styles.loadingGlyph} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={styles.loadingMatrix}>
+        {LOADING_DOT_PATTERN.map((filled, i) => (
+          <Animated.View
+            key={i}
+            style={[
+              styles.loadingDot,
+              filled ? styles.loadingDotOn : styles.loadingDotOff,
+              filled && !reduceMotion ? { opacity } : null,
+            ]}
+          />
+        ))}
+      </View>
+      <Animated.View style={[styles.loadingBlink, !reduceMotion ? { opacity } : null]} />
+    </View>
+  );
 }
 
 export function PremiumEmptyState({ title, body, action }: { title: string; body?: string; action?: ReactNode }) {
@@ -215,6 +255,44 @@ const styles = StyleSheet.create({
   state: { alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
   stateGlyph: { marginBottom: spacing.xs },
   stateAction: { marginTop: spacing.sm, width: "100%", maxWidth: 300, gap: spacing.sm },
+  loadingGlyph: {
+    width: 58,
+    height: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: gameboy.borderWidth,
+    borderColor: gameboy.border,
+    borderRadius: gameboy.radius,
+    backgroundColor: gameboy.screen,
+    ...pixelShadowStyle(gameboy.power),
+  },
+  loadingMatrix: {
+    width: 28,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 3,
+  },
+  loadingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: gameboy.radius,
+    borderWidth: gameboy.borderWidth,
+  },
+  loadingDotOn: {
+    borderColor: gameboy.power,
+    backgroundColor: gameboy.power,
+  },
+  loadingDotOff: {
+    borderColor: gameboy.border,
+    backgroundColor: "transparent",
+  },
+  loadingBlink: {
+    width: 28,
+    height: 4,
+    borderRadius: gameboy.radius,
+    backgroundColor: gameboy.power,
+  },
   orb: {
     width: 64,
     height: 64,
