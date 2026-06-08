@@ -79,6 +79,6 @@ export const fontWeights = {
 export const fontAssets = {
   NeoDunggeunmo: require("../../assets/fonts/NeoDunggeunmo-Regular.ttf"),
   NeoDunggeunmoCode: require("../../assets/fonts/NeoDunggeunmoCode-Regular.ttf"),
-  Galmuri11: require("galmuri/dist/Galmuri11.ttf"),
+  Galmuri11: require("../../assets/fonts/Galmuri11-subset.ttf"),
   PressStart2P: require("@expo-google-fonts/press-start-2p/400Regular/PressStart2P_400Regular.ttf"),
 };
