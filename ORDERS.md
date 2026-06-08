@@ -953,7 +953,8 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 - **수직 가림 1건**(#294): 그래프 `이전/설정/다음` a11y 플로팅 버튼이 하단 탭바 밴드와 겹침(웹에서도 24~62px) → `bottom: TAB_BAR_HEIGHT+insets.bottom+12`로 탭바 위 배치.
 - **전역 안전 확인**: PremiumAppShell이 탭바 클리어런스(`TAB_BAR_HEIGHT+spacing.lg`+SafeArea insets)를 전 탭 화면에 자동 적용 → capture·secondb·profile 등 하단 CTA 가림 없음.
 - **보류(저위험)**: NavGraph 시트는 iPhone 네이티브(insets>30)에서만 4~18px 챙 겹침, 라이브 웹 안전 + 네이티브 빌드 현재 막힘 → 추후.
-- 🔗 라이브 simon-yhkim.github.io/2nd-B — **manual·permissions 우측 잘림 해소 + 그래프 하단 버튼 겹침 해소 확인 부탁**.
+- 🔗 라이브 simon-yhkim.github.io/2nd-B — **manual·permissions 우측 잘림 해소 + 그래프 하단 버튼 겹침 해소 확인 부탁**. (공개 라이브는 sign-in 게이트라 secondb/wiki/그래프 시트는 **Simon 모바일 로그인 상태에서** 보임 → 그쪽 우측 잘림도 같이 봐주면 검증 닫힘.)
+- **결정 노트(Skia, Simon 참고)**: AG가 그래프 글로우 60fps용 @shopify/react-native-skia 렌더러 마이그레이션 제안. **나는 현 SVG 유지로 결정**(보류) — ①라이브 검증면이 웹이라 CanvasKit WASM 수MB 번들 부담(방금 폰트 2.5MB로 깎은 맥락) ②네이티브 빌드 현재 막힘이라 60fps 이득 미수확 ③현 글로우는 SVG 필터 아닌 픽셀 halo+opacity라 #251 크래시 이미 회피. 네이티브 해금+노드수 병목 시 재평가. 뒤집을 의향 있으면 한 줄 주시면 전환.
 
 ### [Phase C P2 + 라이브 모바일 P1] — ✅ 클리핑 2건 + P2 폴리시 머지·라이브
 [2026-06-08 / 20:56 KST] Claude — **Codex 라이브 모바일(390x844) 검사 P1 2건 + P2 폴리시 배치 머지·라이브** (#292, main e0ebd6a).
