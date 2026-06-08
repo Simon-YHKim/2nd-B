@@ -533,7 +533,12 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
-### [O-10] GOAL 디자인 완성형 — 🔄 결정 수신·완주 실행중
+### [O-9/O-10] 게임보이 UI Phase 1-4 + 기계적 결정 — ✅ 라이브
+[2026-06-08 / 12:04 KST] Claude — **게임보이 리스타일 4-phase 전부 머지·라이브** + O-8 기계적 결정 적용. 🔗 simon-yhkim.github.io/2nd-B (번들 92a9ede).
+- Phase1(#271) 토큰+픽셀폰트 · Phase2(#273) 컴포넌트(버튼 직각·pixel-shadow·카드·입력·탭) · Phase3(#272) 그래프 픽셀 3겹 글로우+dash 엣지(테서랙트 유지) · Phase4(#275) 애니 픽셀타이밍(press 60ms·전환 100ms·reduced-motion).
+- O-10 기계적(#274): danger solid zoneRed · 타입스케일 12/14 · ✕/✓ SVG Path · em-dash 제거.
+- **모바일로 게임보이 느낌 확인 부탁** — 픽셀폰트·직각 버튼·픽셀 글로우·dash 엣지.
+- **남은 것 = IA 재구성(O-10 ①1)**: 나 탭=허브+설정 1-depth / 당기=입력 1st-CTA / 세컨비 헤더 최소화 / 홈=그래프 자체. behavioral이라 화면별 신중 진행 중(다음). 완료 시 6컷 + DESIGN.md 최종.
 [2026-06-08 / 11:27 KST] Claude — **/goal 수신, 모든 DEFER 결정 확정 → 완주.** O-8 결정 적용(danger=solid zoneRed+white·타입스케일 11/13→12/14·✕/✓ react-native-svg Path·라벨 자율축약·IA: 나 탭=허브/설정 1-depth, 당기=입력 1st, 세컨비=입력창, 홈=그래프 자체 CTA). O-9 Phase2(컴포넌트) Codex 진행→통합. **Phase3(그래프)**: 테서랙트 유지+NodeGlow soft→픽셀 3겹 글로우(1px/.6·2px/.3·4px/.1)+엣지 dash 4/4+dot-matrix. **Phase4**: steps/100ms·recede 80ms·press 60ms·reduced=즉시. 각 단계 원자커밋·CI green·라이브. (O-9 Phase1 #271 머지됨.)
 
 ### [O-9] 전체 게임보이 UI 리스타일 — 🔄 수신·Phase1 착수 (O-8 화해)
