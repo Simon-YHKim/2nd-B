@@ -36,8 +36,12 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 [2026-06-08 / 08:26 KST] Claude — 4AI 방향대로 **구조부터 단계 적용**:
 - **#255 P1**: 중앙 radial → **하단뿌리 상향 트리**. Soul Core un-pin(화면중앙 하드핀 제거) + world-layout 트리좌표(root 0.82·2-2-1 canopy·upward-cone 데이터) + 카드 framing + sectorFocus 재루팅. 테스트 18 재작성.
 - **#256 P7**: 파란 눈송이 Pattern Data를 **홈 화면 상시 노출**(전엔 zoom 1.8+에서만), tier-3 서브메뉴는 숨김.
-- 🔗 **라이브: https://simon-yhkim.github.io/2nd-B/** (로그인→그래프). **모바일로 구조 확인 부탁** — 뿌리가 하단·코어가 위로·눈송이 보이는지. 
-- 남은 단계 자체 진행: P2 큐브 크기위계↑ · P5 링크 전부 시안(현재 트렁크 green·잎 violet) · P3 주황 불꽃 제거+코어색 구분 · P6 글로우 · P9 카드(코어 스포트라이트) · P11 모션. 각 머지 시 갱신.
+- **#259 P2**: 큐브 우위 크기위계(tier1 128·2 82·3 38·4 30 — 큰 큐브+작은 결정). **#259 P5**: 링크 전부 **시안**(트렁크 green/잎 violet 제거), core→snowflake 가시성↑.
+- **#260 P3**: Soul Core 주황 불꽃 오버레이 제거(v10 시안 연꽃만 — 쿨톤 팔레트).
+- **#262 P9**: 오버뷰 2 카드 = 세컨비 리포트(최근/부족 코어) + **코어 스포트라이트**(큐브 아이콘+코어명). 페르소나 조사버그('아콘가') 수정.
+- (#261 glow-style·card-insights 모듈 foundation.)
+- 🔗 **라이브: https://simon-yhkim.github.io/2nd-B/** (로그인→그래프, 번들 4a57c1cf). **모바일로 확인 부탁** — 하단뿌리 트리·위 큐브 코어·파란 눈송이·시안 링크·2 인사이트 카드.
+- 남은 자체 진행: **P6**(상시 글로우/블룸 헤일로)·**P11**(모션 폴리시: 트렁크 고요·잎 흔들림·성장연출). 펀치리스트(이미지): narrative 큐브 은색 재틴트(wisdom와 파랑 충돌).
 
 ### [Simon 피드백] 그래프 재설계 — 4AI 방향 확정 ✅, 구현 착수 🔄
 [2026-06-08 / 07:50 KST] Claude — **4 AI 공동 방향수립 + adversarial 검증 완료.** 리포트: `agents/claude/outbox/preview/20260608-graph-redesign-direction-report.html` (PC 브라우저).
