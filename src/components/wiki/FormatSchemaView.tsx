@@ -7,7 +7,7 @@ import { View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 
 export interface FormatSchemaInput {
   name: string;
@@ -130,6 +130,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
   },
-  typeText: { color: semantic.textSubtle, fontSize: 11, lineHeight: 14 },
+  typeText: { color: semantic.textSubtle, fontSize: typography.sizes.xs, lineHeight: 14 },
   propDesc: { lineHeight: 18 },
 });

@@ -16,7 +16,7 @@ import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { Text } from "@/components/ui/Text";
 import { prefersReducedMotion } from "@/lib/motion/signature";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { PremiumButton } from "./surfaces";
 
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   bubbleText: {
     color: semantic.text,
     fontFamily: fontFamilies.pixel,
-    fontSize: 13,
+    fontSize: typography.sizes.sm,
     lineHeight: 18,
     letterSpacing: 0,
     textAlign: "center",

@@ -30,7 +30,7 @@ import {
   signInWithKakao,
   signInWithNaver,
 } from "@/lib/supabase/auth";
-import { cosmicSky, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmicSky, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { CosmicBackground, PremiumToast } from "@/components/premium";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -393,13 +393,13 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   brand: {
     color: PALETTE.brand,
-    fontSize: 11,
+    fontSize: typography.sizes.xs,
     fontWeight: "700",
     letterSpacing: 0,
   },
   localeToggle: {
     color: PALETTE.accent,
-    fontSize: 11,
+    fontSize: typography.sizes.xs,
     fontWeight: "700",
     letterSpacing: 0,
   },
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   heroImg: { width: 188, height: 188, marginBottom: 6 },
   title: {
     color: PALETTE.text,
-    fontSize: 22,
+    fontSize: typography.sizes.xl,
     fontWeight: "700",
     letterSpacing: 0,
     textAlign: "center",
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: PALETTE.textMuted,
-    fontSize: 11,
+    fontSize: typography.sizes.xs,
     fontWeight: "600",
     letterSpacing: 0,
     textTransform: "uppercase",
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radii.md,
     color: PALETTE.text,
-    fontSize: 15,
+    fontSize: typography.sizes.md,
     minHeight: 46,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
-  primaryBtnText: { color: PALETTE.bg, fontSize: 15, fontWeight: "700", letterSpacing: 0 },
+  primaryBtnText: { color: PALETTE.bg, fontSize: typography.sizes.md, fontWeight: "700", letterSpacing: 0 },
   secondaryBtn: {
     backgroundColor: semantic.surfaceAlt,
     borderColor: semantic.border,
@@ -481,13 +481,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: "center",
   },
-  secondaryBtnText: { color: PALETTE.text, fontSize: 15, fontWeight: "600", letterSpacing: 0 },
+  secondaryBtnText: { color: PALETTE.text, fontSize: typography.sizes.md, fontWeight: "600", letterSpacing: 0 },
   btnDisabled: { opacity: 0.4 },
   dividerRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginVertical: spacing.sm },
   dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: PALETTE.border },
   dividerLabel: {
     color: PALETTE.textSubtle,
-    fontSize: 11,
+    fontSize: typography.sizes.xs,
     letterSpacing: 0,
     textTransform: "uppercase",
   },
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   resetHelpTitle: { color: PALETTE.text, fontSize: 14, fontWeight: "700", letterSpacing: 0 },
-  resetHelpBody: { color: PALETTE.textMuted, fontSize: 13, lineHeight: 20, letterSpacing: 0 },
+  resetHelpBody: { color: PALETTE.textMuted, fontSize: typography.sizes.sm, lineHeight: 20, letterSpacing: 0 },
   toastWrap: {
     position: "absolute",
     left: spacing.lg,
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
   },
   footerLinkHit: { minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center" },
   manualLinkHit: { minHeight: 44, justifyContent: "center", alignItems: "center", marginTop: 4 },
-  subtleText: { color: PALETTE.textMuted, fontSize: 13 },
-  linkText: { color: PALETTE.brand, fontSize: 13, fontWeight: "600" },
+  subtleText: { color: PALETTE.textMuted, fontSize: typography.sizes.sm },
+  linkText: { color: PALETTE.brand, fontSize: typography.sizes.sm, fontWeight: "600" },
   linkUnderline: { textDecorationLine: "underline" },
 });

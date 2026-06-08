@@ -11,7 +11,7 @@ import Svg, { Circle, Line, Path } from "react-native-svg";
 
 import { Text } from "@/components/ui/Text";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { spacing } from "@/lib/theme/tokens";
+import { spacing, typography } from "@/lib/theme/tokens";
 import { PRIMARY_TAB_PATHS } from "@/lib/nav/tabs";
 import { fontFamilies } from "@/theme/typography";
 
@@ -178,5 +178,5 @@ const styles = StyleSheet.create({
     backgroundColor: gameboy.ink,
     borderColor: gameboy.ink,
   },
-  label: { fontFamily: fontFamilies.pixelKo, fontSize: 11, letterSpacing: 0, fontWeight: "600" },
+  label: { fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, letterSpacing: 0, fontWeight: "600" },
 });
