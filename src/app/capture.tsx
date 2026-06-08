@@ -649,8 +649,7 @@ export default function Capture() {
                   </View>
                   <Pressable
                     onPress={() => { setProposal(null); setProposalCtx(null); }}
-                    hitSlop={4}
-                    style={{ marginTop: 4 }}
+                    style={styles.proposalDismissLink}
                     accessibilityRole="button"
                     accessibilityLabel={t("proposal.dismissLabel")}
                   >
@@ -868,8 +867,7 @@ export default function Capture() {
                 {topic.length === 0 ? (
                   <Pressable
                     onPress={() => setTopic(dailyPrompt(locale))}
-                    hitSlop={4}
-                    style={{ marginTop: spacing.xs }}
+                    style={styles.useTopicLink}
                     accessibilityRole="button"
                     accessibilityLabel={t("journal.prompt.useAsTopicLabel")}
                   >
@@ -887,7 +885,7 @@ export default function Capture() {
               />
               <Pressable
                 onPress={() => setShowExtras((v) => !v)}
-                hitSlop={4}
+                style={styles.extrasToggleLink}
                 accessibilityRole="button"
                 accessibilityState={{ expanded: showExtras }}
                 accessibilityLabel={t("journal.conclusion.toggleLabel")}
@@ -1051,7 +1049,6 @@ export default function Capture() {
                     key={tag}
                     onPress={() => removeTag(tag)}
                     style={styles.tagChip}
-                    hitSlop={8}
                     accessibilityRole="button"
                     accessibilityLabel={t("tags.removeLabel", { tag })}
                   >
@@ -1230,7 +1227,13 @@ const styles = StyleSheet.create({
     borderLeftColor: semantic.brand,
     ...pixelShadowStyle(),
   },
-  advisorRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, marginTop: spacing.xs },
+  advisorRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
   advisorCheck: {
     width: 22,
     height: 22,
@@ -1297,7 +1300,22 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     ...pixelShadowStyle(),
   },
-  manageFormatsLink: { alignSelf: "flex-end", paddingVertical: spacing.xs, paddingHorizontal: spacing.xs },
+  proposalDismissLink: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    marginTop: 4,
+    paddingHorizontal: spacing.xs,
+  },
+  manageFormatsLink: {
+    alignSelf: "flex-end",
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   trackCard: {
     backgroundColor: semantic.surface,
@@ -1380,6 +1398,21 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
   },
   actionRow: { flexDirection: "row", gap: spacing.sm },
+  useTopicLink: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  extrasToggleLink: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
+  },
   previewCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
@@ -1403,6 +1436,9 @@ const styles = StyleSheet.create({
   },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.xs },
   tagChip: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: gameboy.radius,
