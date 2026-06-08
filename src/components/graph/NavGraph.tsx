@@ -306,35 +306,44 @@ function tierSize(t: Tier): number {
   return 30;
 }
 
-// P6: a soft resting bloom behind every node so the graph reads as a LIVING
-// crystalline tree (the references show each cube/crystal glowing at rest). A
-// low-opacity cyan disc scaled past the art is the bloom; shadow* softens the
-// edge on iOS/web (Android ignores shadowRadius, so the translucent disc itself
-// carries the glow). Pure View — no animation, no #251 line-driver crash risk.
+// O-9 Phase 3 (Game Boy pixel glow): the resting bloom is no longer a blurred
+// CSS shadow — it's a PIXEL HALO of 3 nested hard-border rings with alpha
+// falloff (1px/0.6, 2px/0.3, 4px/0.1), so it reads as a crisp LCD glow on every
+// platform (Android ignores shadowRadius anyway). Tier scales the alpha via
+// glowForTier (hierarchy standing rule). Pure Views — no animation, no #251
+// line-driver crash risk.
+const GLOW_RINGS = [
+  { grow: 0.18, border: 1, alpha: 0.6 },
+  { grow: 0.36, border: 2, alpha: 0.3 },
+  { grow: 0.58, border: 4, alpha: 0.1 },
+] as const;
 function NodeGlow({ tier, size }: { tier: GlowTier; size: number }) {
   const g = glowForTier(tier);
-  const d = size * g.haloScale;
-  // Absolute children ignore the wrap's center alignment, so center the disc on
-  // the size×size node box explicitly.
-  const offset = (size - d) / 2;
+  const tierScale = g.opacity / 0.7; // tier1 full, deeper tiers fainter
   return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: "absolute",
-        left: offset,
-        top: offset,
-        width: d,
-        height: d,
-        borderRadius: d / 2,
-        backgroundColor: g.color,
-        opacity: g.opacity * 0.32,
-        shadowColor: g.color,
-        shadowOpacity: g.opacity,
-        shadowRadius: g.radius,
-        shadowOffset: { width: 0, height: 0 },
-      }}
-    />
+    <>
+      {GLOW_RINGS.map((r, i) => {
+        const d = size * (1 + r.grow) + r.border * 2;
+        const off = (size - d) / 2;
+        return (
+          <View
+            key={i}
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              left: off,
+              top: off,
+              width: d,
+              height: d,
+              borderWidth: r.border,
+              borderColor: g.color,
+              opacity: Math.max(0.04, r.alpha * tierScale),
+              borderRadius: 2,
+            }}
+          />
+        );
+      })}
+    </>
   );
 }
 
@@ -1608,7 +1617,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId }: Props) 
                 stroke={useV3Art ? v3EdgeColor(tierOf(e.toId)) : cosmic.signalBlue}
                 strokeOpacity={animOpacity}
                 strokeWidth={edgeStyle.strokeWidth}
-                strokeLinecap="round"
+                strokeLinecap="butt"
+                strokeDasharray="4 4"
               />
               <AnimatedLine
                 x1={x1}
