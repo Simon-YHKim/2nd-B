@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    minHeight: 44,
+    minHeight: 48, // O-12 Phase C CC-2: 48dp touch target (app-wide button base)
     borderRadius: gameboy.radius,
     borderWidth: gameboy.borderWidth,
     borderColor: gameboy.border,
