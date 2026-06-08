@@ -193,6 +193,9 @@ export default function Landing() {
   // the center for yet. `wake()` resets the idle timer on any interaction.
   const [sleeping, setSleeping] = useState(false);
   const [centerSeen, setCenterSeen] = useState(false);
+  // O-12 Phase D (first-impression): insight cards stay hidden until the user
+  // first touches the graph, so the initial screen is the clean graph alone.
+  const [graphTouched, setGraphTouched] = useState(false);
   // First-run empty-graph card is dismissible so the user can just browse.
   // Dismissal persists (web localStorage / native AsyncStorage) so the card
   // doesn't re-appear on every return to the graph (it used to be mount-local
@@ -403,6 +406,7 @@ export default function Landing() {
           dataNodes={dataNodes}
           highlightId={highlightId}
           glowNodeId={dataNodes.length > 0 && !centerSeen ? "records" : null}
+          onFirstInteraction={() => setGraphTouched(true)}
         />
       </Animated.View>
 
@@ -472,7 +476,7 @@ export default function Landing() {
         </Animated.View>
       ) : null}
 
-      {!showingEmptyGraphCard ? (
+      {!showingEmptyGraphCard && graphTouched ? (
         <Animated.View
           style={[
             styles.insightCardStack,
