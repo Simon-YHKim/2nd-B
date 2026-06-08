@@ -79,7 +79,7 @@ import { PremiumButton, StatTile } from "@/components/premium";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
 import { patternLinkStyle } from "@/lib/graph/pattern-link";
-import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus, rootPoint } from "./world-layout";
+import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus } from "./world-layout";
 import {
   drilldownCharacterForCore,
   drilldownDataForCore,
@@ -694,13 +694,28 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
 
   // O-12 Phase D: on first mount, gently zoom so the Soul Core dominates the
   // opening view (Simon: nodes shouldn't read tiny; Soul Core owns first gaze).
-  // Reuses focusWorldPoint's tested clamp so the root stays framed. Runs once.
+  // Codex P1 fix: compute the pan from `rootScreen` (the node's ACTUAL rendered
+  // position via the reduced/card-aware viewport), NOT focusWorldPoint() which
+  // maps through the full-height viewport — that mismatch landed the root
+  // ~55-114px off target. Pan bounds still clamp against the full viewport.
   const initialCameraDone = useRef(false);
   useEffect(() => {
     if (initialCameraDone.current || width === 0 || height === 0) return;
     initialCameraDone.current = true;
-    const root = rootPoint();
-    focusWorldPoint(root.x, root.y, 1.5, height * 0.6);
+    const s = 1.5;
+    const targetY = height * 0.6;
+    const want = clampPan(
+      { x: cx - rootScreen.x * s, y: targetY - rootScreen.y * s },
+      s,
+      { width, height },
+    );
+    const timing = { duration: 450, easing: ReEasing.out(ReEasing.cubic) };
+    zoomScale.value = withTiming(s, timing);
+    zoomPanX.value = withTiming(want.x, timing);
+    zoomPanY.value = withTiming(want.y, timing);
+    zoomSavedScale.value = s;
+    zoomSavedPanX.value = want.x;
+    zoomSavedPanY.value = want.y;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [width, height]);
 
