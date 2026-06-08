@@ -168,8 +168,17 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ### [Standing Rule — 정보밀도] — ✅ CLAUDE.md 영속화
 [2026-06-08 / 10:28 KST] Claude — '화면당 핵심 1개 + 그래픽 1개, progressive disclosure' 규칙을 CLAUDE.md에 추가(#268, tier 규칙 옆). O-8 감사 + 모든 화면에 적용합니다.
 
-### [O-8] simon-design-first 전화면 감사 — 🔄 감사 Workflow 가동
-[2026-06-08 / 10:28 KST] Claude — **4-AI 디자인 감사 Workflow 가동**(DESIGN.md + 2 standing rule + Phase1/2 기준으로 당기·세컨비·홈카드·나/설정 화면 병렬 감사 → 위반목록 → 범주별 원자 커밋 계획). 완료 시 우선순위 수정 단계별 머지·라이브. (DESIGN.md가 디자인 SSOT임을 확인.)
+### [O-8] simon-design-first 전화면 감사 — 🔄 계획완료·기계적 수정 실행중
+[2026-06-08 / 10:40 KST] Claude — **4-AI 감사 완료**, 11 cross-cutting 위반 + 10 원자커밋 계획. 전체: `agents/claude/outbox/20260608-o8-design-audit-plan.md`.
+- **중요 정정**: DESIGN.md(SSOT)는 폰트가 **NeoDunggeunmo 픽셀**(O-8의 'Pretendard Variable'은 일반원칙 — repo DESIGN.md가 우선). 픽셀=라벨/배지, 긴 한국어 본문=`fontFamilies.readable`.
+- **자율 실행(기계적·저위험)**: commit1 색 raw rgba/hex→토큰+semantic.backdrop(Codex 진행중) · commit2 다크표면 shadow/glow 제거 · commit3 터치≥44dp · commit5 본문 readable폰트 · commit6 4px그리드/radii · commit7 reduced-motion 전수 · commit8 ✕ glyph→SVG/em-dash · commit10 dead style 정리. 단계별 머지·라이브.
+- **❓ Simon 결정 필요(DEFER)**:
+  1. **정보밀도 IA(commit9)**: 각 화면 'ONE 핵심 액션'이 뭔가? 당기 12블록 중 기본화면에 남길 것 / 세컨비·홈 카드 축소 / **프로필↔설정 중복 네비 — 어느 게 허브?**
+  2. **danger 버튼 색**: 현재 faint-rose, DESIGN spec=solid zoneRed+white. 브랜드 가시 변경이라 확인.
+  3. **타입스케일**: tokens 11/13 vs 12/14 불일치 — 정본 알려주시면 그리드 스냅 진행.
+  4. **카피/라벨**(7자↑): 당기·설정 라벨 축약, **"Touch!"→한글** 여부.
+  5. **✕/✓ SVG 에셋**: 새 벡터 만들지 / 기존 react-native-svg Path 재사용.
+  한 줄씩 주시면 해당 커밋 바로 진행. 그 외는 자율로 계속.
 
 ### [O-7] 터치 단순화 (겹침·가림 제로) — ✅ 7.1-7.5 완료·라이브
 [2026-06-08 / 10:28 KST] Claude — **전부 머지·라이브.** 7.1(#266) 드릴다운 비선택 노드 0.12 강recede+비선택 라벨 숨김 · 7.2 데이터탭=DataNodeSheet bottom sheet(모달 아님)+dimFor 배경dim(이미 충족) · 7.3(#268) 시트 컨트롤 48dp 터치 · 7.4/7.5(#267) 캡처·세컨비 KeyboardAvoidingView. 🔗 라이브 simon-yhkim.github.io/2nd-B — 모바일로 코어 탭→단순화·키보드 가림 확인 부탁. AG 에뮬 전체 터치플로우 QA 의뢰함.
