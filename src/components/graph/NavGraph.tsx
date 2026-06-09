@@ -719,13 +719,19 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
   // the *visible* upper area instead, so the focused village fills the space
   // ABOVE the sheet rather than hiding behind it.
   const focusWorldPoint = (wx: number, wy: number, targetScale: number, screenY?: number) => {
-    const vp = { width: zoomViewportW.value, height: zoomViewportH.value };
-    const s = worldToScreen({ x: wx, y: wy }, vp);
+    // Project through the SAME card-reduced viewport that `positions` uses so
+    // the world point maps to the node's ACTUAL rendered position, then clamp
+    // the pan against the full viewport. Mirrors the initial-camera rootScreen
+    // fix (L741): projecting through the full-height viewport landed the target
+    // tens-to-150px off, so tier-3 taps scrolled to the wrong place.
+    const layoutVp = { width, height: Math.max(height - cardReserve, height * 0.5) };
+    const fullVp = { width: zoomViewportW.value, height: zoomViewportH.value };
+    const s = worldToScreen({ x: wx, y: wy }, layoutVp);
     const targetY = screenY ?? cy;
     const want = clampPan(
       { x: cx - s.x * targetScale, y: targetY - s.y * targetScale },
       targetScale,
-      vp,
+      fullVp,
     );
     const timing = { duration: 450, easing: ReEasing.out(ReEasing.cubic) };
     zoomScale.value = withTiming(targetScale, timing);
