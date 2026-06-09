@@ -25,7 +25,7 @@ export function WikiCardThumb({ id, size, style }: { id: WikiCardThumbId; size: 
     <Image
       source={THUMBS[id]}
       style={[{ width: size, height: size }, PIXELATED, style]}
-      resizeMode="contain"
+      contentFit="contain"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     />

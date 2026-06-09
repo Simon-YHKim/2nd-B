@@ -1,9 +1,9 @@
+import { Image } from "expo-image";
 import { useEffect, useRef } from "react";
 import {
   Animated,
   AppState,
   Easing,
-  Image,
   StyleSheet,
   View,
   type ImageSourcePropType,
@@ -162,7 +162,7 @@ export function FinalCoreArt({
   if (id === "core") return <SoulCoreArt size={size} style={style} animated={animated} variant={variant} />;
   return (
     <LivingAsset preset="patternCore" id={id} size={size} style={style} enabled={animated} pointerEvents="none">
-      <Image source={CORE_ART_BY_VARIANT[variant][id]} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
+      <Image source={CORE_ART_BY_VARIANT[variant][id]} style={[{ width: size, height: size }, PIXELATED]} contentFit="contain" />
     </LivingAsset>
   );
 }
@@ -185,7 +185,7 @@ function SoulCoreArt({
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <Image source={CORE_ART_BY_VARIANT[variant].core} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
+      <Image source={CORE_ART_BY_VARIANT[variant].core} style={[{ width: size, height: size }, PIXELATED]} contentFit="contain" />
       {/* P3: the v10 soul_core.png already bakes a cyan lotus bloom; the warm
           orange flame overlay clashed with the references' cool 3-colour
           palette, so it only renders for the legacy v45 set. */}
@@ -391,7 +391,7 @@ export function FinalPatternDataArt({
 }) {
   return (
     <LivingAsset preset="patternData" id={id} size={size} style={style} enabled={animated} pointerEvents="none">
-      <Image source={FINAL_PATTERN_DATA_ART[id]} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
+      <Image source={FINAL_PATTERN_DATA_ART[id]} style={[{ width: size, height: size }, PIXELATED]} contentFit="contain" />
     </LivingAsset>
   );
 }
@@ -416,7 +416,7 @@ export function FinalPatternDataArtV49({
 }) {
   return (
     <LivingAsset preset="patternData" id={`pd-${colorKey}`} size={size} style={style} enabled={animated} pointerEvents="none">
-      <Image source={PATTERN_DATA_ART_BY_VARIANT[variant][colorKey]} style={[{ width: size, height: size }, PIXELATED]} resizeMode="contain" />
+      <Image source={PATTERN_DATA_ART_BY_VARIANT[variant][colorKey]} style={[{ width: size, height: size }, PIXELATED]} contentFit="contain" />
     </LivingAsset>
   );
 }
@@ -457,7 +457,7 @@ export function FinalPatternDataSnowflakeArt({
         <Image
           source={PATTERN_DATA_ART_BY_VARIANT[variant][colorKey]}
           style={[styles.snowflakeImage, { width: size, height: size }, PIXELATED]}
-          resizeMode="contain"
+          contentFit="contain"
         />
       </View>
     </LivingAsset>
@@ -479,7 +479,7 @@ export function FinalLogArt({
 }) {
   return (
     <LivingAsset preset="log" id={id} style={[{ width, height }, style]} enabled={animated} pointerEvents="none">
-      <Image source={FINAL_LOG_ART[id]} style={[{ width, height }, PIXELATED]} resizeMode="contain" />
+      <Image source={FINAL_LOG_ART[id]} style={[{ width, height }, PIXELATED]} contentFit="contain" />
     </LivingAsset>
   );
 }
@@ -498,7 +498,7 @@ export function FinalLogArtV49({
 }) {
   return (
     <LivingAsset preset="log" id="log-v49" style={[{ width, height }, style]} enabled={animated} pointerEvents="none">
-      <Image source={FINAL_LOG_ART_V49} style={[{ width, height }, PIXELATED]} resizeMode="contain" />
+      <Image source={FINAL_LOG_ART_V49} style={[{ width, height }, PIXELATED]} contentFit="contain" />
     </LivingAsset>
   );
 }
@@ -518,7 +518,7 @@ export function FinalPatternLinkTileV49({
     <Image
       source={FINAL_PATTERN_LINK_TILE_V49}
       style={[{ width, height }, PIXELATED, style]}
-      resizeMode="contain"
+      contentFit="contain"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     />
@@ -540,7 +540,7 @@ export function FinalPatternLinkArt({
 }) {
   return (
     <LivingAsset preset="patternLink" id={id} style={[{ width, height }, style]} enabled={animated} pointerEvents="none">
-      <Image source={FINAL_PATTERN_LINK_ART[id]} style={[{ width, height }, PIXELATED]} resizeMode="contain" />
+      <Image source={FINAL_PATTERN_LINK_ART[id]} style={[{ width, height }, PIXELATED]} contentFit="contain" />
     </LivingAsset>
   );
 }

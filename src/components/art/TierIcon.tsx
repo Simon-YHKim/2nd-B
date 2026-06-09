@@ -33,7 +33,7 @@ export function TierIcon({ id, size, style }: { id: TierIconId; size: number; st
     <Image
       source={TIER_ICONS[id]}
       style={[{ width: size, height: size }, PIXELATED, style]}
-      resizeMode="contain"
+      contentFit="contain"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     />

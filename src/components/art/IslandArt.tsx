@@ -61,7 +61,7 @@ export function IslandArt({
       <Image
         source={ISLANDS[id]}
         style={[{ width: size, height: size }, PIXELATED]}
-        resizeMode="contain"
+        contentFit="contain"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       />
@@ -85,7 +85,7 @@ export function ShardArt({
       <Image
         source={SHARDS[id]}
         style={[{ width: size, height: size }, PIXELATED]}
-        resizeMode="contain"
+        contentFit="contain"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       />

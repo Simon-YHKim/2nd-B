@@ -168,7 +168,7 @@ export function WorkerSprite({
     return (
       <View style={[{ width: size, height: size, transform: flip }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <ContactShadow size={size} />
-        <Image source={IDLES[id]} style={[PIXELATED, { width: size, height: size }]} resizeMode="contain" />
+        <Image source={IDLES[id]} style={[PIXELATED, { width: size, height: size }]} contentFit="contain" />
       </View>
     );
   }
@@ -182,7 +182,7 @@ export function WorkerSprite({
           PIXELATED,
           { width: size * FRAMES, height: size, transform: [{ translateX: -size * frame }] },
         ]}
-        resizeMode="cover"
+        contentFit="cover"
       />
     </View>
   );
