@@ -122,6 +122,35 @@ describe("classifySafety (layered)", () => {
     expect(r.source).toBe("lexicon-fallback");
   });
 
+  test("C3: a completed-but-malformed payload still audits (parse failure must not skip the insert)", async () => {
+    mockEnv.mockReturnValue(LIVE_ENV);
+    mockGenerateContent.mockResolvedValueOnce({ text: "not json" });
+    const r = await classifySafety("그냥 산책 갔어요", "ko", { userId: "u1" });
+    expect(r.source).toBe("lexicon-fallback"); // degraded to lexicon
+    expect(mockInsertAudit).toHaveBeenCalledTimes(1); // but the billed call IS audited
+  });
+
+  test("off-scale cssrsLevel from the LLM is nulled, not passed to the crisis ledger", async () => {
+    mockEnv.mockReturnValue(LIVE_ENV);
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({ zone: "red", triggers: ["passive_ideation"], confidence: 0.9, cssrsLevel: 0 }),
+    });
+    // DB CHECK is BETWEEN 1 AND 6; a 0 would void the swallowed ledger insert.
+    const r = await classifySafety("죽고 싶어요", "ko");
+    expect(r.zone).toBe("red");
+    expect(r.cssrsLevel).toBeNull();
+  });
+
+  test("fractional in-range cssrsLevel is rounded; out-of-range confidence is clamped", async () => {
+    mockEnv.mockReturnValue(LIVE_ENV);
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({ zone: "red", triggers: [], confidence: 1.4, cssrsLevel: 4.6 }),
+    });
+    const r = await classifySafety("그냥 모든 게 무의미하게 느껴져요", "ko");
+    expect(r.cssrsLevel).toBe(5);
+    expect(r.confidence).toBeLessThanOrEqual(1);
+  });
+
   test("C3: audits the Flash classifier call when a userId is supplied", async () => {
     mockEnv.mockReturnValue(LIVE_ENV);
     mockGenerateContent.mockResolvedValueOnce({

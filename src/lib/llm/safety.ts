@@ -151,6 +151,18 @@ function djb2(s: string): string {
   return (h >>> 0).toString(16);
 }
 
+// The responseSchema declares cssrsLevel only as number|null — no range. The
+// crisis ledger column is CHECK (cssrs_level BETWEEN 1 AND 6), so an off-scale
+// or fractional value would violate the CHECK inside log_crisis_event and the
+// swallowed insert error would silently drop the RED ledger row. Round
+// in-range values; map off-scale ones to null (the column is nullable) rather
+// than fabricating a C-SSRS level the model never validly produced.
+function sanitizeCssrsLevel(v: unknown): SafetyResult["cssrsLevel"] {
+  if (typeof v !== "number" || !Number.isFinite(v)) return null;
+  const r = Math.round(v);
+  return r >= 1 && r <= 6 ? (r as SafetyResult["cssrsLevel"]) : null;
+}
+
 export async function classifySafety(
   userMessage: string,
   locale: "en" | "ko",
@@ -190,21 +202,34 @@ export async function classifySafety(
     const text = (res.text ?? "").trim();
     let result: SafetyResult = lex;
     if (text) {
-      const parsed = JSON.parse(text) as {
-        zone: SafetyZone;
-        triggers?: string[];
-        confidence?: number;
-        cssrsLevel?: number | null;
-      };
-      const llm: SafetyResult = {
-        zone: parsed.zone,
-        triggers: parsed.triggers ?? [],
-        confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.5,
-        cssrsLevel: (parsed.cssrsLevel as SafetyResult["cssrsLevel"]) ?? null,
-        source: "llm",
-        routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
-      };
-      result = mergeResults(lex, llm);
+      // Inner try: a completed-but-malformed Flash payload must degrade to the
+      // lexicon result WITHOUT skipping the C3 audit below — the call already
+      // happened (and billed). Only transport errors (no completed call) may
+      // reach the outer catch.
+      try {
+        const parsed = JSON.parse(text) as {
+          zone: SafetyZone;
+          triggers?: string[];
+          confidence?: number;
+          cssrsLevel?: number | null;
+        };
+        const llm: SafetyResult = {
+          zone: parsed.zone,
+          triggers: parsed.triggers ?? [],
+          // Ledger column classifier_confidence is CHECK (0..1) — clamp so an
+          // off-range model value can't void the crisis-ledger insert.
+          confidence:
+            typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
+              ? Math.min(1, Math.max(0, parsed.confidence))
+              : 0.5,
+          cssrsLevel: sanitizeCssrsLevel(parsed.cssrsLevel),
+          source: "llm",
+          routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
+        };
+        result = mergeResults(lex, llm);
+      } catch (e) {
+        if (typeof console !== "undefined") console.warn("[safety] classifier payload unparseable, using lexicon", e);
+      }
     }
     // C3: a real Gemini Flash call happened. The classifier runs client-side (not
     // via the gemini-proxy), so the proxy never logs it — audit it here,
