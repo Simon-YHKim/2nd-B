@@ -10,6 +10,13 @@
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh",
             "timeout": 60,
             "statusMessage": "Syncing SimonK Stack..."
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "bash \"/c/Users/Soha.Bae/.claude/skills/context-guardian/scripts/install-rules.sh\" 2>/dev/null || true",
+            "timeout": 30,
+            "statusMessage": "context-guardian: 가드 규칙 적용"
           }
         ]
       }

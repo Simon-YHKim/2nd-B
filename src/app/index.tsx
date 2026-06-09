@@ -45,7 +45,7 @@ import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 import { PowerOnOverlay, StarNoiseLayer } from "@/components/premium";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
-const logo = require("../../public/assets/premium/graph/islands/core_center_premium_hq.png");
+const logo = require("../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png");
 
 // Sky drift — slow atmospheric color shift behind the logo.
 function useSkyDrift() {

@@ -156,6 +156,13 @@ export default function Records() {
     });
   }, [shards, query, typeFilter, domainFilter]);
 
+  // Memoized here — before any early return — so hook order stays stable across
+  // renders (FlatList renderItem perf without violating rules-of-hooks).
+  const renderRow = useCallback(
+    ({ item }: { item: OriginShard }) => <ShardRow shard={item} locale={locale} />,
+    [locale],
+  );
+
   if (loading) {
     return (
       <PremiumAppShell>
@@ -238,11 +245,6 @@ export default function Records() {
         })}
       </ScrollView>
     </View>
-  );
-
-  const renderRow = useCallback(
-    ({ item }: { item: OriginShard }) => <ShardRow shard={item} locale={locale} />,
-    [locale],
   );
 
   // Busy / error / empty share the one ListEmptyComponent slot: when busy or

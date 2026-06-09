@@ -10,19 +10,19 @@ import { type TierIconId } from "@/components/art/tier-icon-contract";
 export { TIER_ICON_IDS, shardIconForSource, type TierIconId } from "@/components/art/tier-icon-contract";
 
 const TIER_ICONS = {
-  archive_scroll: require("../../../public/assets/premium/tier-icons/archive_scroll_premium.png"),
-  paper_journal: require("../../../public/assets/premium/tier-icons/flying_paper_premium.png"),
-  book_wiki: require("../../../public/assets/premium/tier-icons/book_premium.png"),
-  link_capture: require("../../../public/assets/premium/tier-icons/link_chain_premium.png"),
-  file_source: require("../../../public/assets/premium/tier-icons/file_page_premium.png"),
-  cube_data: require("../../../public/assets/premium/tier-icons/data_cube_premium.png"),
-  clock_time: require("../../../public/assets/premium/tier-icons/clock_premium.png"),
-  dream_crystal: require("../../../public/assets/premium/tier-icons/dream_crystal_premium.png"),
-  idea_lamp: require("../../../public/assets/premium/tier-icons/idea_lamp_premium.png"),
-  seed_growth: require("../../../public/assets/premium/tier-icons/seed_growth_premium.png"),
-  heart_relationship: require("../../../public/assets/premium/tier-icons/heart_connection_premium.png"),
-  compass_inspiration: require("../../../public/assets/premium/tier-icons/compass_premium.png"),
-  spark_recent: require("../../../public/assets/premium/tier-icons/star_spark_premium.png"),
+  archive_scroll: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/archive_scroll_premium.png"),
+  paper_journal: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/flying_paper_premium.png"),
+  book_wiki: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/book_premium.png"),
+  link_capture: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/link_chain_premium.png"),
+  file_source: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/file_page_premium.png"),
+  cube_data: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/data_cube_premium.png"),
+  clock_time: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/clock_premium.png"),
+  dream_crystal: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/dream_crystal_premium.png"),
+  idea_lamp: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/idea_lamp_premium.png"),
+  seed_growth: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/seed_growth_premium.png"),
+  heart_relationship: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/heart_connection_premium.png"),
+  compass_inspiration: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/compass_premium.png"),
+  spark_recent: require("../../../public/assets/2ndb-production-premium-v1/tier-icons/star_spark_premium.png"),
 } as const satisfies Record<TierIconId, unknown>;
 
 // imageRendering is a web-only CSS prop, not in RN's ImageStyle type.

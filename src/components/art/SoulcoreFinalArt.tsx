@@ -55,13 +55,13 @@ const FINAL_PATTERN_LINK_ART: Record<FinalPatternLinkId, ImageSourcePropType> = 
   current: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/pattern_links/pattern_link_current_320x64.png"),
 };
 
-// ─── v49 static tesseract art (tesseract-pixel) ────────────────
+// ─── v49 static tesseract art (cosmic-pixel-v4-tesseract-v49) ────────────────
 // v49 stays defined so v45 ↔ v49 ↔ v10 remain comparable (selectable via the
 // `variant` prop). v49 is always app_256 — tier1/tier2 have no 128/96 in the
 // manifest, and per the v49 pass production used 256 everywhere (the staged
 // 128/96 are reference only).
 //
-// 2026-06-04 — v10 clean-cutout reviewed set (public/assets/tesseract) is
+// 2026-06-04 — v10 clean-cutout reviewed set (public/assets/tesseract-v10) is
 // the new PRODUCTION DEFAULT (better cutouts, 18px safe margins). v49 + v45
 // stay reachable for the preview routes. v10 covers tier1 cores + tier3
 // pattern-data only; tier-4 Log + pattern_link have no v10 art, so those keep
@@ -69,24 +69,24 @@ const FINAL_PATTERN_LINK_ART: Record<FinalPatternLinkId, ImageSourcePropType> = 
 export type AssetVariant = "v45" | "v49" | "v10";
 
 const FINAL_CORE_ART_V49: Record<FinalCoreId, ImageSourcePropType> = {
-  core: require("../../../public/assets/tesseract-pixel/app_256/tier1_soul_core_v49_256.png"),
-  work_growth: require("../../../public/assets/tesseract-pixel/app_256/tier2_growth_core_v49_256.png"),
-  relationship: require("../../../public/assets/tesseract-pixel/app_256/tier2_bond_core_v49_256.png"),
-  knowledge: require("../../../public/assets/tesseract-pixel/app_256/tier2_wisdom_core_v49_256.png"),
-  records: require("../../../public/assets/tesseract-pixel/app_256/tier2_narrative_core_v49_256.png"),
-  inspiration: require("../../../public/assets/tesseract-pixel/app_256/tier2_muse_core_v49_256.png"),
+  core: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier1_soul_core_v49_256.png"),
+  work_growth: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_growth_core_v49_256.png"),
+  relationship: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_bond_core_v49_256.png"),
+  knowledge: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_wisdom_core_v49_256.png"),
+  records: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_narrative_core_v49_256.png"),
+  inspiration: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_muse_core_v49_256.png"),
 };
 
 // v10 core map (FinalCoreId → v10 file). Simple flat filenames per the v10
 // manifest. NOTE: ids archi/gadi/lulu/momo/lumi are not renamed this PR (large
 // scope — asset filenames key off them); see TODO at finalPatternDataIdForDomain.
 const FINAL_CORE_ART_V10: Record<FinalCoreId, ImageSourcePropType> = {
-  core: require("../../../public/assets/tesseract/soul_core.png"),
-  work_growth: require("../../../public/assets/tesseract/growth_core.png"),
-  relationship: require("../../../public/assets/tesseract/bond_core.png"),
-  knowledge: require("../../../public/assets/tesseract/wisdom_core.png"),
-  records: require("../../../public/assets/tesseract/narrative_core.png"),
-  inspiration: require("../../../public/assets/tesseract/muse_core.png"),
+  core: require("../../../public/assets/tesseract-v10/soul_core.png"),
+  work_growth: require("../../../public/assets/tesseract-v10/growth_core.png"),
+  relationship: require("../../../public/assets/tesseract-v10/bond_core.png"),
+  knowledge: require("../../../public/assets/tesseract-v10/wisdom_core.png"),
+  records: require("../../../public/assets/tesseract-v10/narrative_core.png"),
+  inspiration: require("../../../public/assets/tesseract-v10/muse_core.png"),
 };
 
 const CORE_ART_BY_VARIANT: Record<AssetVariant, Record<FinalCoreId, ImageSourcePropType>> = {
@@ -104,28 +104,28 @@ export const DEFAULT_ASSET_VARIANT: AssetVariant = "v10";
 // upstream by resolvePatternDataColor(). v45 had no color set (it was domain-
 // tinted), so the color maps exist for v49 + v10 only.
 const FINAL_PATTERN_DATA_ART_V49: Record<PatternDataColorKey, ImageSourcePropType> = {
-  red: require("../../../public/assets/tesseract-pixel/app_256/tier3_pattern_data_red_v49_256.png"),
-  orange: require("../../../public/assets/tesseract-pixel/app_256/tier3_pattern_data_orange_v49_256.png"),
-  yellow: require("../../../public/assets/tesseract-pixel/app_256/tier3_pattern_data_yellow_v49_256.png"),
-  green: require("../../../public/assets/tesseract-pixel/app_256/tier3_pattern_data_green_v49_256.png"),
-  blue: require("../../../public/assets/tesseract-pixel/app_256/tier3_pattern_data_blue_v49_256.png"),
-  indigo: require("../../../public/assets/tesseract-pixel/app_256/tier3_pattern_data_indigo_v49_256.png"),
-  violet: require("../../../public/assets/tesseract-pixel/app_256/tier3_pattern_data_violet_v49_256.png"),
-  white: require("../../../public/assets/tesseract-pixel/app_256/tier3_pattern_data_white_v49_256.png"),
-  black: require("../../../public/assets/tesseract-pixel/app_256/tier3_pattern_data_black_v49_256.png"),
+  red: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_red_v49_256.png"),
+  orange: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_orange_v49_256.png"),
+  yellow: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_yellow_v49_256.png"),
+  green: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_green_v49_256.png"),
+  blue: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_blue_v49_256.png"),
+  indigo: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_indigo_v49_256.png"),
+  violet: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_violet_v49_256.png"),
+  white: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_white_v49_256.png"),
+  black: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_black_v49_256.png"),
 };
 
 // v10 pattern-data (9 colors). Flat filenames per the v10 manifest.
 const FINAL_PATTERN_DATA_ART_V10: Record<PatternDataColorKey, ImageSourcePropType> = {
-  red: require("../../../public/assets/tesseract/pattern_data_red.png"),
-  orange: require("../../../public/assets/tesseract/pattern_data_orange.png"),
-  yellow: require("../../../public/assets/tesseract/pattern_data_yellow.png"),
-  green: require("../../../public/assets/tesseract/pattern_data_green.png"),
-  blue: require("../../../public/assets/tesseract/pattern_data_blue.png"),
-  indigo: require("../../../public/assets/tesseract/pattern_data_indigo.png"),
-  violet: require("../../../public/assets/tesseract/pattern_data_violet.png"),
-  white: require("../../../public/assets/tesseract/pattern_data_white.png"),
-  black: require("../../../public/assets/tesseract/pattern_data_black.png"),
+  red: require("../../../public/assets/tesseract-v10/pattern_data_red.png"),
+  orange: require("../../../public/assets/tesseract-v10/pattern_data_orange.png"),
+  yellow: require("../../../public/assets/tesseract-v10/pattern_data_yellow.png"),
+  green: require("../../../public/assets/tesseract-v10/pattern_data_green.png"),
+  blue: require("../../../public/assets/tesseract-v10/pattern_data_blue.png"),
+  indigo: require("../../../public/assets/tesseract-v10/pattern_data_indigo.png"),
+  violet: require("../../../public/assets/tesseract-v10/pattern_data_violet.png"),
+  white: require("../../../public/assets/tesseract-v10/pattern_data_white.png"),
+  black: require("../../../public/assets/tesseract-v10/pattern_data_black.png"),
 };
 
 // Pattern-data art by variant. v49 + v10 ship the 9-color set; v45 had none, so
@@ -137,10 +137,10 @@ const PATTERN_DATA_ART_BY_VARIANT: Record<AssetVariant, Record<PatternDataColorK
 };
 
 // Tier-4 Log: a single v49 logbook tesseract (no per-category variant in v49).
-const FINAL_LOG_ART_V49: ImageSourcePropType = require("../../../public/assets/tesseract-pixel/app_256/tier4_log_v49_256.png");
+const FINAL_LOG_ART_V49: ImageSourcePropType = require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier4_log_v49_256.png");
 
 // Pattern Link conduit tile (v49). Static tile; not animated this pass.
-const FINAL_PATTERN_LINK_TILE_V49: ImageSourcePropType = require("../../../public/assets/tesseract-pixel/pattern_link/pattern-link-crystal-conduit-tile-v47-3.png");
+const FINAL_PATTERN_LINK_TILE_V49: ImageSourcePropType = require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/pattern_link/pattern-link-crystal-conduit-tile-v47-3.png");
 
 export function hasFinalCoreArt(id: string): id is FinalCoreId {
   return id in FINAL_CORE_ART;

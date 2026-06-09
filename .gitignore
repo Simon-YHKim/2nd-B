@@ -3,6 +3,10 @@
 # dependencies
 node_modules/
 
+# context-guardian (per-session state, not committed)
+SESSION_RECOVERY.md
+context_limit_log.json
+
 # Expo
 .expo/
 dist/
@@ -68,5 +72,5 @@ test_*.js
 .codex-*.md
 .ag-*.md
 
-# stray hub paths accidentally written by AI worktrees (belong in E:/Coding Infra/AI Infra/Communication)
+# stray hub paths accidentally written by AI worktrees (belong in C:/Coding/AI Infra/Communication)
 /agents/

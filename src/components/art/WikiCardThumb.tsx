@@ -10,9 +10,9 @@ import { Image } from "expo-image";
 import { type ImageStyle, type StyleProp } from "react-native";
 
 const THUMBS = {
-  core_brain: require("../../../public/assets/premium/wiki/wiki_card_thumb_core_brain_premium.png"),
-  library: require("../../../public/assets/premium/wiki/wiki_card_thumb_library_premium.png"),
-  imagine: require("../../../public/assets/premium/wiki/wiki_card_thumb_imagine_premium.png"),
+  core_brain: require("../../../public/assets/2ndb-production-premium-v1/wiki/wiki_card_thumb_core_brain_premium.png"),
+  library: require("../../../public/assets/2ndb-production-premium-v1/wiki/wiki_card_thumb_library_premium.png"),
+  imagine: require("../../../public/assets/2ndb-production-premium-v1/wiki/wiki_card_thumb_imagine_premium.png"),
 } as const;
 
 export type WikiCardThumbId = keyof typeof THUMBS;

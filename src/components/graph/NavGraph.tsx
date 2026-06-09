@@ -74,7 +74,7 @@ import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
 import { CrewLayer } from "./CrewLayer";
 import { useCrewCount } from "@/lib/settings/crew-density";
 import { getEnv } from "@/lib/env";
-import { V3_CREW_ART } from "@/lib/assets/soulcore";
+import { V3_CREW_ART } from "@/lib/assets/soulcore-v3";
 import { PremiumButton, StatTile, TAB_BAR_HEIGHT } from "@/components/premium";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
