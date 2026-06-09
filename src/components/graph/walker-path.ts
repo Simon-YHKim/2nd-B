@@ -1,3 +1,4 @@
+'worklet';
 // Walker path math for the village residents (CharacterPathLayer) — pure,
 // side-effect-free, so the patrol motion has a single tested source of
 // truth. Phase-E evolves the residents from "drift around one anchor" to

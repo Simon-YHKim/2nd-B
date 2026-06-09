@@ -20,6 +20,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View, AppState } from "react-native";
+import ReAnimated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing as ReEasing, useDerivedValue, runOnJS } from "react-native-reanimated";
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
@@ -115,37 +116,10 @@ function Worker({
 }) {
   const { id, route } = commute;
   const reduced = prefersReducedMotion();
-  const [, setTick] = useState(0);
 
-  useEffect(() => {
-    if (reduced) return;
-    // Re-render on a shared cadence; the actual pose is recomputed from
-    // Date.now() each frame so it never resets (and the bubble follows along).
-    // Only run the timer while the app is foregrounded — stop it outright on
-    // background/inactive so it stops draining the battery, and restart it on
-    // resume (pose is time-based, so it picks up continuous on the next tick).
-    let t: ReturnType<typeof setInterval> | null = null;
-    const start = () => {
-      if (t) return;
-      t = setInterval(() => setTick((n) => (n + 1) % 1000), 1000 / 20);
-    };
-    const stop = () => {
-      if (!t) return;
-      clearInterval(t);
-      t = null;
-    };
-    // Treat unknown/null (cold-start before the first AppState event) as
-    // runnable so residents are not frozen on the first graph render.
-    if (AppState.currentState !== "background" && AppState.currentState !== "inactive") start();
-    const sub = AppState.addEventListener("change", (next) => {
-      if (next === "active") start();
-      else stop();
-    });
-    return () => {
-      stop();
-      sub.remove();
-    };
-  }, [reduced]);
+  // We only need React state for facing and resting, which change rarely.
+  const [facing, setFacing] = useState<1 | -1>(1);
+  const [resting, setResting] = useState<boolean>(true);
 
   // Closed-ring perimeter (incl. the wrap leg back to the first waypoint).
   const routeLen = useMemo(() => {
@@ -162,11 +136,51 @@ function Worker({
   // the dwell stretches the cycle by (1 + DWELL). Phase keeps them out of step.
   const phase = PHASE[id];
   const period = Math.max(MIN_PERIOD, (routeLen * (1 + DWELL)) / SPEED);
-  const now = reduced ? 0 : Date.now();
-  const t = ((now + phase) % period) / period; // 0..1 around the loop
-  const pose = walkerRoutePose(t, route, { arc: ARC, dwell: DWELL });
-  const ground = walkerRoutePose(t, route, { arc: 0, dwell: DWELL });
-  const lift = Math.max(0, ground.y - pose.y);
+
+  // UI-thread global continuous time driver
+  const time = useSharedValue(reduced ? 0 : Date.now());
+  useEffect(() => {
+    if (reduced) return;
+    // Keep JS thread free, advance time continuously on UI thread
+    time.value = Date.now();
+    time.value = withRepeat(
+      withTiming(time.value + 1e8, { duration: 1e8, easing: ReEasing.linear }),
+      -1,
+      false
+    );
+  }, [reduced]);
+
+  // Compute pose on the UI thread
+  const derivedPose = useDerivedValue(() => {
+    if (reduced) {
+      return { ...walkerRoutePose(0, route, { arc: ARC, dwell: DWELL }), lift: 0, groundX: route[0]?.x ?? 0, groundY: route[0]?.y ?? 0 };
+    }
+    const t = ((time.value + phase) % period) / period;
+    const pose = walkerRoutePose(t, route, { arc: ARC, dwell: DWELL });
+    const ground = walkerRoutePose(t, route, { arc: 0, dwell: DWELL });
+    return {
+      x: pose.x,
+      y: pose.y,
+      facing: pose.facing,
+      resting: pose.resting,
+      lift: Math.max(0, ground.y - pose.y),
+      groundX: ground.x,
+      groundY: ground.y,
+    };
+  }, [route, reduced, period, phase]);
+
+  // Sync low-frequency state (facing, resting) back to JS for the Sprite component
+  const lastSync = useSharedValue({ facing: 1 as 1 | -1, resting: true });
+  useDerivedValue(() => {
+    const f = derivedPose.value.facing;
+    const r = derivedPose.value.resting;
+    if (f !== lastSync.value.facing || r !== lastSync.value.resting) {
+      lastSync.value = { facing: f, resting: r };
+      runOnJS(setFacing)(f);
+      runOnJS(setResting)(r);
+    }
+  });
+
   const footInset = Math.max(1, Math.round(spriteSize * FOOT_INSET_RATIO));
   const shadowWidth = Math.max(10, Math.round(spriteSize * SHADOW_WIDTH_RATIO));
   const shadowHeight = Math.max(3, Math.round(spriteSize * SHADOW_HEIGHT_RATIO));
@@ -175,27 +189,43 @@ function Worker({
   const slotWidth = Math.round(spriteSize * 1.28);
   const slotHeight = spriteSize + ARC + shadowHeight + footInset + 4;
   const groundY = slotHeight - 1;
-  const spriteTop = Math.max(0, groundY - spriteSize - lift + footInset);
+  const spriteTop = Math.max(0, groundY - spriteSize + footInset);
   const spriteLeft = (slotWidth - spriteSize) / 2;
   const shadowLeft = (slotWidth - shadowWidth) / 2;
   const contactLeft = (slotWidth - contactWidth) / 2;
   const bubbleBottom = slotHeight - spriteTop + 4;
 
+  const animatedSlotStyle = useAnimatedStyle(() => ({
+    left: derivedPose.value.groundX - slotWidth / 2,
+    top: derivedPose.value.groundY - slotHeight,
+  }));
+
+  const animatedShadowStyle = useAnimatedStyle(() => ({
+    opacity: derivedPose.value.resting ? 0.7 : Math.max(0.46, 0.62 - derivedPose.value.lift * 0.05),
+  }));
+
+  const animatedContactStyle = useAnimatedStyle(() => ({
+    opacity: derivedPose.value.resting ? 0.72 : Math.max(0.42, 0.62 - derivedPose.value.lift * 0.06),
+  }));
+
+  const animatedSpriteStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -derivedPose.value.lift }],
+  }));
+
   return (
-    <View
+    <ReAnimated.View
       style={[
         styles.spriteSlot,
         {
           width: slotWidth,
           height: slotHeight,
-          left: ground.x - slotWidth / 2,
-          top: ground.y - slotHeight,
           zIndex: line ? ACTIVE_SPEECH_LAYER : WORKER_LAYER,
           elevation: line ? ACTIVE_SPEECH_LAYER : WORKER_LAYER,
         },
+        animatedSlotStyle
       ]}
     >
-      <View
+      <ReAnimated.View
         style={[
           styles.groundShadow,
           {
@@ -204,11 +234,11 @@ function Worker({
             borderRadius: shadowHeight / 2,
             left: shadowLeft,
             top: groundY - shadowHeight,
-            opacity: pose.resting ? 0.7 : Math.max(0.46, 0.62 - lift * 0.05),
           },
+          animatedShadowStyle
         ]}
       />
-      <View
+      <ReAnimated.View
         style={[
           styles.footContact,
           {
@@ -216,23 +246,25 @@ function Worker({
             height: contactHeight,
             left: contactLeft,
             top: groundY - Math.max(1, Math.round(shadowHeight * 0.46)),
-            opacity: pose.resting ? 0.72 : Math.max(0.42, 0.62 - lift * 0.06),
           },
+          animatedContactStyle
         ]}
       />
-      <Pressable
-        onPress={onTap}
-        hitSlop={18}
-        style={[styles.spritePressable, { left: spriteLeft, top: spriteTop, width: spriteSize, height: spriteSize }]}
-        accessibilityRole="button"
-        accessibilityLabel={locale === "ko" ? `${getPersona(id).name.ko} 혼잣말 듣기` : `Hear ${getPersona(id).name.en} think aloud`}
-        accessibilityHint={locale === "ko" ? "짧은 혼잣말 말풍선을 엽니다." : "Opens this resident's short self-talk bubble."}
-        accessibilityState={{ expanded: line != null }}
-      >
-        <WorkerSprite id={id} size={spriteSize} facing={pose.facing} paused={pose.resting} />
-      </Pressable>
+      <ReAnimated.View style={[{ position: 'absolute', left: spriteLeft, top: spriteTop, width: spriteSize, height: spriteSize }, animatedSpriteStyle]}>
+        <Pressable
+          onPress={onTap}
+          hitSlop={18}
+          style={StyleSheet.absoluteFill}
+          accessibilityRole="button"
+          accessibilityLabel={locale === "ko" ? `${getPersona(id).name.ko} 혼잣말 듣기` : `Hear ${getPersona(id).name.en} think aloud`}
+          accessibilityHint={locale === "ko" ? "짧은 혼잣말 말풍선을 엽니다." : "Opens this resident's short self-talk bubble."}
+          accessibilityState={{ expanded: line != null }}
+        >
+          <WorkerSprite id={id} size={spriteSize} facing={facing} paused={resting} />
+        </Pressable>
+      </ReAnimated.View>
       {line ? <SpeechBubble text={line} bottom={bubbleBottom} slotWidth={slotWidth} /> : null}
-    </View>
+    </ReAnimated.View>
   );
 }
 
