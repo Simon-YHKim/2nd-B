@@ -3,7 +3,7 @@
 // A richer detail screen comes later in the RAG track.
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, StyleSheet, FlatList, Pressable, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
+import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Link, Redirect } from "expo-router";

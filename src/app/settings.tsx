@@ -3,7 +3,7 @@
 // /journal etc.), partial (per-kind / per-tag), and full (everything).
 
 import { type ReactNode, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, TouchableOpacity, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
+import { ActivityIndicator, TouchableOpacity, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 

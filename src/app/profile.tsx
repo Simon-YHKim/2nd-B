@@ -2,7 +2,7 @@
 // labels and hints live in the profile locale namespace.
 
 import { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, ActivityIndicator, Pressable, TouchableOpacity } from "react-native";
+import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, type Href } from "expo-router";
 import Svg, { Circle, Path } from "react-native-svg";
