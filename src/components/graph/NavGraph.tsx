@@ -1179,13 +1179,18 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
   const [tier4Mounted, setTier4Mounted] = useState(vis.tier4);
   useEffect(() => {
     if (vis.tier3) setTier3Mounted(true);
+    // Guard the unmount on `finished`: a quick zoom-out-then-in across the
+    // threshold interrupts the fade-out, firing this callback with
+    // finished=false while it still closes over the stale (false) vis. Without
+    // the guard it would unmount tier-3 nodes that should now be visible,
+    // leaving them hidden until the next threshold crossing.
     Animated.timing(tier3Fade, { toValue: vis.tier3 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false })
-      .start(() => { if (!vis.tier3) setTier3Mounted(false); });
+      .start(({ finished }) => { if (finished && !vis.tier3) setTier3Mounted(false); });
   }, [vis.tier3, tier3Fade]);
   useEffect(() => {
     if (vis.tier4) setTier4Mounted(true);
     Animated.timing(tier4Fade, { toValue: vis.tier4 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false })
-      .start(() => { if (!vis.tier4) setTier4Mounted(false); });
+      .start(({ finished }) => { if (finished && !vis.tier4) setTier4Mounted(false); });
   }, [vis.tier4, tier4Fade]);
   const tierOf = (id: string): Tier =>
     id === CENTER_NODE.id ? 1 : MENU_NODES.find((n) => n.id === id)?.tier ?? 4;
