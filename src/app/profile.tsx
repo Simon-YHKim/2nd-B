@@ -2,7 +2,7 @@
 // labels and hints live in the profile locale namespace.
 
 import { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, ActivityIndicator, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, ActivityIndicator, Pressable, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, type Href } from "expo-router";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -122,20 +122,22 @@ export default function Profile() {
               {displayName}
             </Text>
           </View>
-          <Pressable
+          <TouchableOpacity
             onPress={() => router.push("/settings")}
             hitSlop={8}
+            activeOpacity={0.7}
             style={styles.settingsButton}
             accessibilityRole="button"
             accessibilityLabel={settingsCopy.label}
             accessibilityHint={settingsCopy.hint}
           >
             <SettingsGlyph color={semantic.brand} />
-          </Pressable>
+          </TouchableOpacity>
         </View>
 
-        <Pressable
+        <TouchableOpacity
           onPress={() => router.push("/plans")}
+          activeOpacity={0.7}
           style={styles.subscriptionCard}
           accessibilityRole="button"
           accessibilityLabel={`${tPlans("current")}: ${planName}`}
@@ -159,7 +161,7 @@ export default function Profile() {
               {tPlans("hero.eyebrow")}
             </Text>
           )}
-        </Pressable>
+        </TouchableOpacity>
 
         <View style={styles.accountStrip}>
           {busy ? (
@@ -175,9 +177,10 @@ export default function Profile() {
           {PRIMARY_HUB_ITEMS.map((item) => {
             const itemCopy = sections[item.sectionKey].items[item.key];
             return (
-              <Pressable
+              <TouchableOpacity
                 key={String(item.route)}
                 onPress={() => router.push(item.route)}
+                activeOpacity={0.7}
                 style={[styles.quickChip, { borderColor: item.accent }]}
                 accessibilityRole="button"
                 accessibilityLabel={itemCopy.label}
@@ -186,7 +189,7 @@ export default function Profile() {
                 <Text variant="caption" color="textMuted" numberOfLines={1}>
                   {itemCopy.label}
                 </Text>
-              </Pressable>
+              </TouchableOpacity>
             );
           })}
         </View>

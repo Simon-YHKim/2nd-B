@@ -27,14 +27,20 @@ const VARIANT_FONT: Record<Variant, string | undefined> = {
   subtle: fontFamilies.readable,
 };
 
-export function Text({ variant = "body", color, style, ...rest }: TextProps) {
+export function Text({ variant = "body", color, style, maxFontSizeMultiplier, ...rest }: TextProps) {
   const v = VARIANT_STYLE[variant];
   // useThemePalette returns the same-shape palette for the active mode
   // (dark default / light when the user toggles). Every <Text/> across
   // the app picks the right tone automatically without per-screen edits.
   const palette = useThemePalette();
+  
+  // Set logical font scale limits based on variant.
+  // Large headers shouldn't scale up as much as body text to avoid breaking layout.
+  const defaultMultiplier = (variant === "display" || variant === "heading") ? 1.3 : 1.7;
+
   return (
     <RNText
+      maxFontSizeMultiplier={maxFontSizeMultiplier ?? defaultMultiplier}
       {...rest}
       style={[
         { color: palette[color ?? "text"], fontSize: v.fontSize, fontWeight: v.fontWeight, fontFamily: VARIANT_FONT[variant] },
