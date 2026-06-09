@@ -8,7 +8,7 @@
 // blank, and can be reached directly via URL.
 
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, FlatList, Pressable, ActivityIndicator } from "react-native";
+import { View, StyleSheet, ScrollView, FlatList, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
@@ -223,20 +223,26 @@ export default function Records() {
           const active = tf === typeFilter;
           const label = tf === "all" ? (locale === "ko" ? "전체" : "All") : evidenceTypeLabel(tf, locale);
           return (
-            <Pressable
+            <TouchableOpacity
               key={tf}
               onPress={() => setTypeFilter(tf)}
               style={[styles.chip, active ? styles.chipActive : null]}
+              activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               accessibilityLabel={locale === "ko" ? `${label} 기록 필터` : `Filter records by ${label}`}
             >
               <Text variant="caption" color={active ? "background" : "textMuted"}>{label}</Text>
-            </Pressable>
+            </TouchableOpacity>
           );
         })}
       </ScrollView>
     </View>
+  );
+
+  const renderRow = useCallback(
+    ({ item }: { item: OriginShard }) => <ShardRow shard={item} locale={locale} />,
+    [locale],
   );
 
   // Busy / error / empty share the one ListEmptyComponent slot: when busy or
@@ -290,7 +296,7 @@ export default function Records() {
       <FlatList
         data={busy || error ? [] : filtered}
         keyExtractor={(s) => `${s.origin}:${s.id}`}
-        renderItem={({ item }) => <ShardRow shard={item} locale={locale} />}
+        renderItem={renderRow}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
         ItemSeparatorComponent={ListSeparator}

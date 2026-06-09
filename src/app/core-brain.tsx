@@ -9,7 +9,7 @@
 // 세컨비에게 이 중심으로 묻기.
 
 import { useEffect, useState, type ReactNode } from "react";
-import { View, StyleSheet, ScrollView, Modal, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, Modal, Pressable, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -247,9 +247,10 @@ export default function CoreBrain() {
         <Section title={locale === "ko" ? "자주 보이는 나의 모습" : "A side of me I keep seeing"} accent={cosmic.soulViolet}>
           <View style={styles.fieldList}>
             {portrait.map((field) => (
-              <Pressable
+              <TouchableOpacity
                 key={field.id}
                 style={styles.fieldRow}
+                activeOpacity={0.7}
                 onPress={() => router.push(field.route as never)}
                 accessibilityRole="button"
                 accessibilityLabel={field.label}
@@ -268,7 +269,7 @@ export default function CoreBrain() {
                 {field.status === "collecting" ? (
                   <Text variant="caption" color="brand">{locale === "ko" ? "채우기" : "Fill"}</Text>
                 ) : null}
-              </Pressable>
+              </TouchableOpacity>
             ))}
           </View>
           <Button
@@ -281,7 +282,8 @@ export default function CoreBrain() {
         {/* 6) 이걸 만든 조각들 — evidence */}
         <Section title={locale === "ko" ? "이걸 만든 조각들" : "The pieces behind this"} accent={cosmic.pixelLamp}>
           {pieces ? <Text variant="body" style={{ marginBottom: spacing.sm }}>{pieces.body}</Text> : null}
-          <Pressable
+          <TouchableOpacity
+            activeOpacity={0.7}
             onPress={() => setDrawerOpen(true)}
             style={styles.evidenceBtn}
             accessibilityRole="button"
@@ -294,7 +296,7 @@ export default function CoreBrain() {
             <Text variant="body" color="brand">
               {locale === "ko" ? `참고한 조각 ${evidence.length}개 보기` : `See ${evidence.length} pieces`}
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         </Section>
 
         {/* 7) 다음 한 걸음 */}
@@ -337,9 +339,10 @@ export default function CoreBrain() {
             </Text>
             <ScrollView style={{ marginTop: spacing.md }} contentContainerStyle={{ gap: spacing.sm }}>
               {evidence.map((ev) => (
-                <Pressable
+                <TouchableOpacity
                   key={ev.id}
                   style={styles.evRow}
+                  activeOpacity={0.7}
                   onPress={() => {
                     setDrawerOpen(false);
                     router.push({ pathname: "/record/[id]", params: { id: ev.id } });
@@ -355,7 +358,7 @@ export default function CoreBrain() {
                       {evidenceLabel(ev, locale)}
                     </Text>
                   </View>
-                </Pressable>
+                </TouchableOpacity>
               ))}
             </ScrollView>
             <Button
