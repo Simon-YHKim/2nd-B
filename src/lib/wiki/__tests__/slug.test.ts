@@ -1,4 +1,4 @@
-import { isValidSlug, toSlug } from "../slug";
+import { isValidSlug, slugForTitle, toSlug } from "../slug";
 
 describe("toSlug", () => {
   test("lowercases ASCII", () => {
@@ -44,6 +44,28 @@ describe("toSlug", () => {
   test("returns empty string when nothing to keep", () => {
     expect(toSlug("!!!")).toBe("");
     expect(toSlug("   ")).toBe("");
+  });
+});
+
+describe("slugForTitle", () => {
+  test("matches toSlug when the title keeps something", () => {
+    expect(slugForTitle("Big Five")).toBe("big-five");
+    expect(slugForTitle("민지의 성장 노트")).toBe("민지의-성장-노트");
+  });
+
+  test("never returns empty for non-Latin/non-Hangul scripts or pure symbols", () => {
+    for (const title of ["日本語ノート", "你好世界", "Привет", "สวัสดี", "!!!"]) {
+      expect(slugForTitle(title).length).toBeGreaterThan(0);
+    }
+  });
+
+  test("gives distinct titles distinct slugs (no '' collision)", () => {
+    expect(slugForTitle("日本語ノート")).not.toBe(slugForTitle("你好世界"));
+    expect(slugForTitle("Привет")).not.toBe(slugForTitle("สวัสดี"));
+  });
+
+  test("is stable for the same title (idempotent re-promotion)", () => {
+    expect(slugForTitle("日本語ノート")).toBe(slugForTitle("日本語ノート"));
   });
 });
 

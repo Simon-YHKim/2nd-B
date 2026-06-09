@@ -6,7 +6,7 @@
 
 import { detectClipperKind } from "./clipper-kind";
 import { extractCommonFields, splitFrontmatter } from "./frontmatter";
-import { toSlug } from "./slug";
+import { slugForTitle } from "./slug";
 import type { SourceKind } from "./types";
 
 export interface SourcePayload {
@@ -90,6 +90,6 @@ export function buildSourcePayload(
     },
     body,
     hadFrontmatter,
-    suggested_slug: toSlug(title),
+    suggested_slug: slugForTitle(title),
   };
 }

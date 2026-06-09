@@ -13,7 +13,7 @@
 
 import { readPhase1 } from "./phase1";
 import { getSource, markSourceIngested, syncWikiLinks, upsertWikiPage } from "./queries";
-import { toSlug } from "./slug";
+import { slugForTitle, toSlug } from "./slug";
 import { downloadRawClipping } from "./storage";
 import type { WikiPageRow } from "./types";
 
@@ -44,7 +44,10 @@ export async function generateSourcePage(userId: string, sourceId: string): Prom
   if (!source) throw new SourceNotFoundError(sourceId);
 
   const body = await downloadRawClipping(source.storage_path);
-  const slug = toSlug(source.title);
+  // slugForTitle (not toSlug) so a title written purely in CJK/Cyrillic/Thai
+  // doesn't collapse to "" and overwrite another foreign-titled page on the
+  // (user_id, slug) upsert key.
+  const slug = slugForTitle(source.title);
 
   // Merge Phase 1 concepts into tags (when present). Concepts are the
   // LLM's distilled abstract ideas — natural tag candidates. Dedupe to
