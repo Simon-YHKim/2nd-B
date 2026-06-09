@@ -766,7 +766,6 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
     zoomSavedScale.value = s;
     zoomSavedPanX.value = want.x;
     zoomSavedPanY.value = want.y;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [width, height]);
 
   const composedGesture = Gesture.Simultaneous(

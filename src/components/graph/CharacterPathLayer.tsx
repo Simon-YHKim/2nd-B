@@ -19,7 +19,7 @@
 // renders nodes in. Honours prefers-reduced-motion (workers hold still).
 
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View, AppState } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import ReAnimated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing as ReEasing, useDerivedValue, runOnJS } from "react-native-reanimated";
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
