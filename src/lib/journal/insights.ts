@@ -80,7 +80,13 @@ export function computeInsights(records: InsightRecord[], opts: { tagLimit?: num
   const sorted = [...records].sort((a, b) => a.created_at.localeCompare(b.created_at));
   const firstDate = new Date(sorted[0].created_at);
   const lastDate = new Date(sorted[sorted.length - 1].created_at);
-  const daySpan = Math.max(1, Math.round((lastDate.getTime() - firstDate.getTime()) / 86_400_000) + 1);
+  // Inclusive calendar-day span: count whole days between the first and last
+  // record's calendar dates, not the rounded elapsed time. Comparing the raw
+  // ms delta over-counts when two records fall on the same day more than ~12h
+  // apart (rounds to 1 → span 2). Zero out the time-of-day first.
+  const startDay = new Date(firstDate.getFullYear(), firstDate.getMonth(), firstDate.getDate());
+  const endDay = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
+  const daySpan = Math.max(1, Math.round((endDay.getTime() - startDay.getTime()) / 86_400_000) + 1);
 
   // By-week: a continuous run from the first to the most recent record's ISO
   // week, gaps filled with 0, capped to the last 8. Filling gaps keeps the

@@ -32,6 +32,17 @@ describe("computeInsights", () => {
     expect(r.daySpan).toBe(6); // inclusive
   });
 
+  test("day span counts inclusive calendar days, not rounded elapsed time", () => {
+    // Two records on the SAME calendar day, 13h apart. Rounding the raw ms delta
+    // would yield 2; the inclusive calendar span is 1. Fixture times (00:30Z /
+    // 13:30Z) stay on 2026-05-20 in both UTC and KST so the test is TZ-stable.
+    const r = computeInsights([
+      rec({ id: "1", created_at: "2026-05-20T00:30:00Z" }),
+      rec({ id: "2", created_at: "2026-05-20T13:30:00Z" }),
+    ]);
+    expect(r.daySpan).toBe(1);
+  });
+
   test("top tags sorted by frequency desc + capped", () => {
     const r = computeInsights(
       [
