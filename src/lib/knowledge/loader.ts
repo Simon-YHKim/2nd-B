@@ -100,6 +100,13 @@ export async function queryRows(filters: QueryFilters = {}): Promise<KnowledgeRo
     // 'lifespan' rows are surfaced regardless of user age.
     q = q.in("age_range", [filters.ageRange, "lifespan"]);
   }
+  // Defense-in-depth (security audit 2026-06-10): only curated seeds
+  // (added_by IS NULL, per 0013/0041) or curator-verified rows may ground an
+  // Advisor prompt. RLS (0041 + 0043 trust-flag lock) already blocks
+  // cross-user reach; this also keeps a user's own unverified submission —
+  // and any future RLS regression — out of the "curated research" evidence
+  // the model is told to trust.
+  q = q.or("added_by.is.null,verified_at.not.is.null");
   q = q.limit(filters.limit ?? 10);
 
   const { data, error } = await q;

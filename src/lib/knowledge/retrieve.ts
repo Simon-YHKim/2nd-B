@@ -117,12 +117,18 @@ function routeBatches(userMessage: string): string[] {
       for (const b of batches) matched.add(b);
     }
   }
-  for (const b of ALWAYS_LOAD) matched.add(b);
-  if (matched.size === 1) {
-    // Only ALWAYS_LOAD matched. Add the generic baseline.
+  // ALWAYS_LOAD batches hold reserved seats. Appending them and slicing the
+  // combined set used to evict crisis-detection whenever a routing entry
+  // contributed MAX_BATCHES batches on its own (the identity/purpose entry
+  // does) — dropping crisis grounding on exactly the existential messages
+  // where it matters most. Cap the routed batches first, then prepend.
+  for (const b of ALWAYS_LOAD) matched.delete(b);
+  if (matched.size === 0) {
+    // Nothing routed. Add the generic baseline.
     for (const b of FALLBACK_BATCHES) matched.add(b);
   }
-  return [...matched].slice(0, MAX_BATCHES);
+  const routed = [...matched].slice(0, Math.max(0, MAX_BATCHES - ALWAYS_LOAD.length));
+  return [...ALWAYS_LOAD, ...routed];
 }
 
 // Map our routing slugs to the framework values actually present in

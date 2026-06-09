@@ -10,6 +10,7 @@ jest.mock("../../supabase/client", () => ({
       select: () => ({
         in: function () { return this; },
         eq: function () { return this; },
+        or: function () { return this; },
         limit: function () { return Promise.resolve({ data: [], error: null }); },
       }),
     }),
@@ -65,6 +66,18 @@ describe("retrieveEvidence — routing table", () => {
     const r = await retrieveEvidence({ userMessage: "Who am I, really?", userLocale: "en" });
     expect(r.matchedBatches).toContain("erikson");
     expect(r.matchedBatches).toContain("sdt");
+  });
+
+  test("identity/purpose routing can never evict the always-load crisis batch", async () => {
+    // The identity entry contributes a full MAX_BATCHES worth of batches; the
+    // old append-then-slice routing dropped crisis-detection for exactly these
+    // existential messages. ALWAYS_LOAD now holds a reserved seat.
+    const r = await retrieveEvidence({
+      userMessage: "Who am I and what is my purpose and meaning?",
+      userLocale: "en",
+    });
+    expect(r.matchedBatches).toContain("crisis-detection");
+    expect(r.matchedBatches.length).toBeLessThanOrEqual(4);
   });
 
   test("Korean midlife → erikson + soc-successful-aging", async () => {
