@@ -1123,7 +1123,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                             e.stopPropagation();
                             onSeeInGraph(p.id);
                           }}
-                          hitSlop={6}
+                          hitSlop={14}
                           style={styles.pageHandoffBtn}
                           accessibilityRole="button"
                           accessibilityLabel={locale === "ko" ? `${p.title} 그래프에서 보기` : `See ${p.title} in graph`}
@@ -1137,7 +1137,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                             e.stopPropagation();
                             onAskSecondB(p.title);
                           }}
-                          hitSlop={6}
+                          hitSlop={14}
                           style={styles.pageHandoffBtn}
                           accessibilityRole="button"
                           accessibilityLabel={locale === "ko" ? `${p.title}에 대해 세컨비에게 묻기` : `Ask SecondB about ${p.title}`}
@@ -1152,7 +1152,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                           e.stopPropagation();
                           void onDelete(p);
                         }}
-                        hitSlop={6}
+                        hitSlop={14}
                         style={styles.deletePageLink}
                         accessibilityRole="button"
                         accessibilityLabel={locale === "ko" ? `${p.title} 위키 페이지 삭제` : `Delete wiki page ${p.title}`}

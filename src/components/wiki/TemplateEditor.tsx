@@ -197,7 +197,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
               />
               <Pressable
                 onPress={() => removeProp(i)}
-                hitSlop={6}
+                hitSlop={14}
                 style={styles.propRemove}
                 accessibilityRole="button"
                 accessibilityLabel={te("removeDetail")}
@@ -226,7 +226,7 @@ export function TemplateEditor({ initial, locale, saving, onSave, onCancel }: Te
         <Pressable
           onPress={addProp}
           style={styles.addPropBtn}
-          hitSlop={4}
+          hitSlop={14}
           accessibilityRole="button"
           accessibilityLabel={te("addDetail")}
         >
@@ -343,6 +343,7 @@ function TagField({
           key={t}
           onPress={() => onChange(values.filter((x) => x !== t))}
           style={styles.tagChip}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={te("removeValue", { value: t })}
         >
