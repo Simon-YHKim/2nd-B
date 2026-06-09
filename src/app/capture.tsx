@@ -167,7 +167,7 @@ export default function Capture() {
   const keyboardVerticalOffset = Platform.OS === "ios" ? insets.top : 0;
   const scrollBottomPadding = Math.max(
     styles.scroll.paddingBottom,
-    insets.bottom + TAB_BAR_HEIGHT + spacing.md,
+    insets.bottom + TAB_BAR_HEIGHT + spacing.xxl + spacing.md,
   );
   // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
   // the light caption tracking.
