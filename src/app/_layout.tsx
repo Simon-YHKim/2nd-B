@@ -20,7 +20,7 @@ import { BackArrow } from "@/components/ui/BackArrow";
 import { PremiumTabBar } from "@/components/premium";
 import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { fontAssets } from "@/theme/typography";
-import { ThemeProvider, useTheme, useThemePalette } from "@/lib/theme/ThemeContext";
+import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
 
 initI18n();
 void initAnalytics();
@@ -118,10 +118,14 @@ function AppTabBar() {
   return <PremiumTabBar locale={i18n.language === "ko" ? "ko" : "en"} />;
 }
 
-/** StatusBar style follows the active mode. */
+/**
+ * App content is always dark — every screen is wrapped in PremiumAppShell's
+ * ForceDark and useThemePalette returns the dark palette even in Light mode
+ * (the "village stays dark" design rule). So status-bar icons must always be
+ * light to stay visible; tying them to `mode` rendered dark-on-dark in Light.
+ */
 function ThemedStatusBar() {
-  const { mode } = useTheme();
-  return <StatusBar style={mode === "dark" ? "light" : "dark"} />;
+  return <StatusBar style="light" />;
 }
 
 /**
