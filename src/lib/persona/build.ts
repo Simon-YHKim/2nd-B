@@ -360,14 +360,26 @@ export async function buildPersona(
   return persona;
 }
 
-function deriveValues(rows: AuditResponseRow[]): string[] {
-  // Take frameworks of questions the user actually answered; deduplicate.
+export function deriveValues(rows: AuditResponseRow[]): string[] {
+  // Frameworks of questions the user actually answered, ranked by how many of
+  // each framework's questions they answered (descending). values[0] is then
+  // the framework they engaged most — matching the "most-frequented" / top-fuel
+  // framing in the persona center + self-portrait. Previously this returned
+  // frameworks in AUDIT_QUESTIONS declaration order, so values[0] was just the
+  // earliest-declared answered framework (pinned to sdt:autonomy for most
+  // users) regardless of actual engagement. Declaration order breaks ties.
   const answeredIds = new Set(rows.map((r) => r.prompt ?? "").map(matchQuestionId));
-  const frameworks = new Set<Framework>();
+  const counts = new Map<Framework, number>();
+  const firstSeen = new Map<Framework, number>();
+  let order = 0;
   for (const q of AUDIT_QUESTIONS) {
-    if (answeredIds.has(q.id)) frameworks.add(q.framework);
+    if (!answeredIds.has(q.id)) continue;
+    if (!counts.has(q.framework)) firstSeen.set(q.framework, order++);
+    counts.set(q.framework, (counts.get(q.framework) ?? 0) + 1);
   }
-  return [...frameworks];
+  return [...counts.keys()].sort(
+    (a, b) => (counts.get(b)! - counts.get(a)!) || (firstSeen.get(a)! - firstSeen.get(b)!),
+  );
 }
 
 function matchQuestionId(prompt: string): string | null {

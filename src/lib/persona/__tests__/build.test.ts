@@ -48,8 +48,9 @@ jest.mock("../../llm/gemini", () => ({
   ),
 }));
 
-import { buildPersona, traitConfidenceFor } from "../build";
+import { buildPersona, deriveValues, traitConfidenceFor } from "../build";
 import { callGemini } from "../../llm/gemini";
+import { AUDIT_QUESTIONS } from "../../audit/questions";
 
 function reset() {
   for (const k of Object.keys(tableFixtures)) delete tableFixtures[k];
@@ -65,6 +66,35 @@ describe("traitConfidenceFor (SOKA per-trait confidence)", () => {
     expect(traitConfidenceFor("heuristic", 3)).toMatchObject({ source: "journal_text", confidence: "low" });
     expect(traitConfidenceFor("heuristic", 8)).toMatchObject({ source: "journal_text", confidence: "medium" });
     expect(traitConfidenceFor("heuristic", 20)).toMatchObject({ source: "journal_text", confidence: "high", observationCount: 20 });
+  });
+});
+
+describe("deriveValues", () => {
+  // deriveValues only reads `.prompt`, so cast lightweight rows to the row type.
+  function answer(ids: string[]) {
+    return AUDIT_QUESTIONS.filter((q) => ids.includes(q.id)).map((q) => ({
+      prompt: q.prompt.en,
+    })) as unknown as Parameters<typeof deriveValues>[0];
+  }
+
+  test("ranks frameworks by answered count, not AUDIT_QUESTIONS declaration order", () => {
+    const byFw = new Map<string, string[]>();
+    for (const q of AUDIT_QUESTIONS) {
+      const a = byFw.get(q.framework) ?? [];
+      a.push(q.id);
+      byFw.set(q.framework, a);
+    }
+    const heavy = [...byFw.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+    const early = AUDIT_QUESTIONS[0].framework; // declared first (sdt:autonomy)
+    expect(heavy[0]).not.toBe(early); // precondition: a heavier, later framework exists
+    // Answer ALL of the heavy framework + ONE question of the earlier one.
+    const values = deriveValues(answer([...heavy[1], byFw.get(early)![0]]));
+    expect(values[0]).toBe(heavy[0]); // most-answered wins over declaration order
+    expect(values.indexOf(early)).toBeGreaterThan(0); // earlier framework present but not first
+  });
+
+  test("returns empty when nothing was answered", () => {
+    expect(deriveValues(answer([]))).toEqual([]);
   });
 });
 
