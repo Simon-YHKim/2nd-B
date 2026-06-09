@@ -21,7 +21,7 @@ const WORLDVIEW_CONCEPT_FILES = [
   "src/components/art/SoulcoreFinalArt.tsx",
   "src/components/graph/NavGraph.tsx",
   "src/components/premium/graph-bits.tsx",
-  "src/lib/assets/soulcore-v3.ts",
+  "src/lib/assets/soulcore.ts",
   "src/lib/theme/tokens.ts",
   "src/lib/village-ui.ts",
 ] as const;
