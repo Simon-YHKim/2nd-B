@@ -82,16 +82,29 @@ export function computeInsights(records: InsightRecord[], opts: { tagLimit?: num
   const lastDate = new Date(sorted[sorted.length - 1].created_at);
   const daySpan = Math.max(1, Math.round((lastDate.getTime() - firstDate.getTime()) / 86_400_000) + 1);
 
-  // By-week (last 8 weeks of records).
+  // By-week: a continuous run from the first to the most recent record's ISO
+  // week, gaps filled with 0, capped to the last 8. Filling gaps keeps the
+  // trend chart honest — a zero-activity week renders as an empty bar instead
+  // of silently collapsing, which previously made non-adjacent weeks look
+  // consecutive.
   const weekCounts = new Map<string, number>();
   for (const r of sorted) {
     const w = isoWeek(new Date(r.created_at));
     weekCounts.set(w, (weekCounts.get(w) ?? 0) + 1);
   }
-  const byWeek = [...weekCounts.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .slice(-8)
-    .map(([week, count]) => ({ week, count }));
+  const WEEK_MS = 7 * 86_400_000;
+  const byWeekFull: { week: string; count: number }[] = [];
+  const seenWeeks = new Set<string>();
+  for (let t = firstDate.getTime(); t <= lastDate.getTime(); t += WEEK_MS) {
+    const w = isoWeek(new Date(t));
+    if (seenWeeks.has(w)) continue;
+    seenWeeks.add(w);
+    byWeekFull.push({ week: w, count: weekCounts.get(w) ?? 0 });
+  }
+  // The 7-day step can land just before lastDate's own week — make sure it's in.
+  const lastWeek = isoWeek(lastDate);
+  if (!seenWeeks.has(lastWeek)) byWeekFull.push({ week: lastWeek, count: weekCounts.get(lastWeek) ?? 0 });
+  const byWeek = byWeekFull.slice(-8);
 
   // Top tags.
   const tagFreq = new Map<string, number>();

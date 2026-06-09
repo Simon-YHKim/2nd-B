@@ -86,6 +86,16 @@ describe("computeInsights", () => {
     expect(r.byWeek).toHaveLength(8);
   });
 
+  test("byWeek fills empty weeks with 0 (continuous trend, no collapsed gaps)", () => {
+    const r = computeInsights([
+      rec({ id: "1", created_at: "2026-01-05T00:00:00Z" }), // ISO 2026-W02
+      rec({ id: "2", created_at: "2026-01-19T00:00:00Z" }), // ISO 2026-W04
+    ]);
+    // The empty middle week (W03) is filled with 0 instead of disappearing.
+    expect(r.byWeek).toHaveLength(3);
+    expect(r.byWeek.map((w) => w.count)).toEqual([1, 0, 1]);
+  });
+
   test("avgBodyChars rounds to nearest int", () => {
     const r = computeInsights([
       rec({ id: "1", body: "ab" }), // 2
