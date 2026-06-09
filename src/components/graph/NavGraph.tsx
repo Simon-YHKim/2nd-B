@@ -1768,7 +1768,13 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
                 {
                   left: p.x - DATA_NODE_SIZE / 2,
                   top: p.y - DATA_NODE_SIZE / 2,
-                  opacity: (isDrilldownData ? spawnOpacity(id) : tier4Fade) as never,
+                  // Drilldown can show pieces beyond the 40-node overview cap,
+                  // which were never seeded a spawn value (only overview nodes
+                  // are). spawnOpacity returns 0 for those, rendering the whole
+                  // ring invisible — fall back to fully visible in drilldown.
+                  opacity: (isDrilldownData
+                    ? (spawnValues.current.has(id) ? spawnOpacity(id) : 1)
+                    : tier4Fade) as never,
                   transform: swayTransform(id) as never,
                 },
                 id === highlightDataId || id === drilldownSelectedDataId ? styles.shardHighlight : null,
