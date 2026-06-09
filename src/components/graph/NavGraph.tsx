@@ -2061,6 +2061,8 @@ function NodeSheet({
   onClose: () => void;
 }) {
   const slide = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const safeBottom = Math.max(92, TAB_BAR_HEIGHT + insets.bottom + 12);
   useEffect(() => {
     slide.setValue(0);
     Animated.timing(slide, {
@@ -2073,7 +2075,7 @@ function NodeSheet({
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
 
   return (
-    <Animated.View style={[styles.sheet, { opacity: slide as never, transform: [{ translateY }] }]}>
+    <Animated.View style={[styles.sheet, { bottom: safeBottom, opacity: slide as never, transform: [{ translateY }] }]}>
       <View style={styles.sheetHandle} />
       <View style={styles.sheetHead}>
         <View style={styles.sheetTitleRow}>
@@ -2167,6 +2169,8 @@ function DrilldownSheet({
   const { width } = useWindowDimensions();
   const compact = width < 430;
   const slide = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const safeBottom = Math.max(78, TAB_BAR_HEIGHT + insets.bottom + 12);
   useEffect(() => {
     slide.setValue(0);
     Animated.timing(slide, {
@@ -2186,7 +2190,7 @@ function DrilldownSheet({
         : t("navGraph.drilldown.dataFallback", { core: coreName });
 
   return (
-    <Animated.View style={[styles.sheet, styles.drilldownSheet, { opacity: slide as never, transform: [{ translateY }] }]}>
+    <Animated.View style={[styles.sheet, styles.drilldownSheet, { bottom: safeBottom, opacity: slide as never, transform: [{ translateY }] }]}>
       <View style={styles.sheetHandle} />
       <View style={styles.sheetHead}>
         <View style={styles.sheetTitleRow}>
@@ -2274,6 +2278,8 @@ function DataNodeSheet({
   onClose: () => void;
 }) {
   const slide = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const safeBottom = Math.max(92, TAB_BAR_HEIGHT + insets.bottom + 12);
   useEffect(() => {
     slide.setValue(0);
     Animated.timing(slide, {
@@ -2286,7 +2292,7 @@ function DataNodeSheet({
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
 
   return (
-    <Animated.View style={[styles.sheet, { opacity: slide as never, transform: [{ translateY }] }]}>
+    <Animated.View style={[styles.sheet, { bottom: safeBottom, opacity: slide as never, transform: [{ translateY }] }]}>
       <View style={styles.sheetHandle} />
       <View style={styles.sheetHead}>
         <Text variant="heading" style={styles.sheetName} numberOfLines={2}>{title}</Text>
@@ -2445,7 +2451,6 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
     // Above the premium bottom tab bar.
-    bottom: 92,
     zIndex: 25,
     borderRadius: 8,
     borderWidth: 1,
@@ -2478,7 +2483,6 @@ const styles = StyleSheet.create({
   sheetActionBtn: { flex: 1 },
   sheetImagine: { alignSelf: "center", paddingVertical: 10 },
   drilldownSheet: {
-    bottom: 78,
     zIndex: 28,
   },
   drilldownBack: {
