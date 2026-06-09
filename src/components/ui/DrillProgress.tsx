@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     minHeight: 28,
     alignItems: "flex-end",
     justifyContent: "center",
-    paddingRight: 4,
+    paddingEnd: 4,
   },
   cell: {
     flex: 1,

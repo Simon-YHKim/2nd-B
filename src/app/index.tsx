@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
     height: 220,
     top: "50%",
     left: "50%",
-    marginLeft: -110,
+    marginStart: -110,
     marginTop: -110,
   },
   contentLayer: { ...(StyleSheet.absoluteFill as object) },

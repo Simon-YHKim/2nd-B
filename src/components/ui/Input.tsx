@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TextInput, type TextInputProps, StyleSheet } from "react-native";
+import { TextInput, type TextInputProps, StyleSheet, Platform } from "react-native";
 
 import { gameboy } from "@/lib/theme/gameboy-tokens";
 import { cosmic, spacing, typography } from "@/lib/theme/tokens";
@@ -11,7 +11,9 @@ export function Input(props: InputProps) {
   const [focused, setFocused] = useState(false);
   const { style, onFocus, onBlur, accessibilityLabel, placeholder, ...rest } = props;
   const resolvedAccessibilityLabel =
-    accessibilityLabel ?? (typeof placeholder === "string" ? placeholder : undefined);
+    Platform.OS === "web"
+      ? accessibilityLabel ?? (typeof placeholder === "string" ? placeholder : undefined)
+      : accessibilityLabel;
   return (
     <TextInput
       {...rest}

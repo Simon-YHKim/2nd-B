@@ -287,8 +287,8 @@ const styles = StyleSheet.create({
   introCard: {
     backgroundColor: semantic.surfaceAlt,
     borderRadius: radii.sm,
-    borderLeftColor: semantic.brand,
-    borderLeftWidth: 3,
+    borderStartColor: semantic.brand,
+    borderStartWidth: 3,
     padding: spacing.sm,
     marginBottom: spacing.md,
   },

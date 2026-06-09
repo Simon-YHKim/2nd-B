@@ -384,7 +384,7 @@ function evidenceLabel(ev: EvidenceShard, locale: "en" | "ko"): string {
 
 function Section({ title, accent, children }: { title: string; accent: string; children: ReactNode }) {
   return (
-    <View style={[styles.section, { borderLeftColor: accent }]}>
+    <View style={[styles.section, { borderStartColor: accent }]}>
       <Text variant="caption" color="textMuted" style={styles.sectionTitle}>{title}</Text>
       {children}
     </View>
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderLeftWidth: 3,
+    borderStartWidth: 3,
     borderRadius: radii.lg,
     padding: spacing.lg,
     gap: spacing.sm,

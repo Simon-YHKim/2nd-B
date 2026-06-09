@@ -811,7 +811,7 @@ const styles = StyleSheet.create({
   },
   rowPressed: { opacity: 0.7 },
   rowHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  flexSpacer: { marginLeft: "auto" },
+  flexSpacer: { marginStart: "auto" },
   rowTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600" },
   kindChip: {
     paddingHorizontal: spacing.sm,

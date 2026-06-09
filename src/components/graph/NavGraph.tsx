@@ -2376,7 +2376,7 @@ const styles = StyleSheet.create({
     top: "104%",
     left: "50%",
     width: 150,
-    marginLeft: -75,
+    marginStart: -75,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,

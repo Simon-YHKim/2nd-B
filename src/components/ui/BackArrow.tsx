@@ -6,7 +6,7 @@
 // back there. Mounted once at root (`_layout.tsx`) as an overlay, so
 // individual screens don't need to remember to render it.
 
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View, I18nManager } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -96,8 +96,13 @@ export function BackArrow() {
   const left = isPrimaryTabPath(pathname) ? leftBase + 52 : leftBase;
   const routeTitle = titleForRoute(pathname, params.domain, locale);
 
+  // E20 RTL Support: Position right instead of left, flip arrow direction.
+  const isRTL = I18nManager.isRTL;
+  const positionStyle = isRTL ? { right: left } : { left };
+  const chevronFlipStyle = isRTL ? { transform: [{ scaleX: -1 }] } : undefined;
+
   return (
-    <View style={[styles.wrap, { top: insets.top + 8, left }]} pointerEvents="box-none">
+    <View style={[styles.wrap, { top: insets.top + 8 }, positionStyle]} pointerEvents="box-none">
       <Pressable
         onPress={() => router.push("/")}
         hitSlop={16}
@@ -107,7 +112,7 @@ export function BackArrow() {
         style={({ pressed }) => [styles.btn, pressed ? { opacity: 0.7 } : null]}
       >
         <View
-          style={styles.chevron}
+          style={[styles.chevron, chevronFlipStyle]}
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         >

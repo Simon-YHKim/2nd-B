@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.brand,
     borderWidth: 1,
-    borderLeftWidth: 4,
+    borderStartWidth: 4,
     borderRadius: radii.sm,
     padding: spacing.sm,
   },

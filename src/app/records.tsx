@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   center: { paddingVertical: spacing.xxl, alignItems: "center", justifyContent: "center" },
   stateBox: { paddingVertical: spacing.xl, gap: spacing.md, alignItems: "center" },
   chipStrip: { flexGrow: 0, marginHorizontal: -spacing.xs, paddingHorizontal: spacing.xs },
-  chipRow: { gap: spacing.sm, paddingVertical: spacing.xs, paddingRight: spacing.lg },
+  chipRow: { gap: spacing.sm, paddingVertical: spacing.xs, paddingEnd: spacing.lg },
   // Pull each chip row up under its small section label (scroll gap is lg).
   filterLabel: { marginBottom: -spacing.sm, letterSpacing: 0 },
   chip: {

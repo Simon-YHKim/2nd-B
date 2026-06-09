@@ -117,8 +117,8 @@ const styles = StyleSheet.create({
   },
   cardHighlight: {
     borderColor: semantic.brand,
-    borderLeftWidth: 4,
-    borderLeftColor: semantic.brand,
+    borderStartWidth: 4,
+    borderStartColor: semantic.brand,
   },
   cardHead: {
     flexDirection: "row",

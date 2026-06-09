@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     borderWidth: 1,
     borderColor: semantic.danger,
-    borderLeftWidth: 3,
+    borderStartWidth: 3,
     borderRadius: radii.md,
     padding: spacing.md,
     backgroundColor: semantic.surface,

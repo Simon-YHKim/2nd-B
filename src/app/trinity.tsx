@@ -234,7 +234,7 @@ export default function Trinity() {
               const s = stats[d];
               const accent = DOMAIN_ACCENT[d];
               return (
-                <View key={d} style={[styles.card, { borderLeftColor: semantic[accent] }]}>
+                <View key={d} style={[styles.card, { borderStartColor: semantic[accent] }]}>
                   <View style={styles.cardHead}>
                     <Text variant="caption" color={accent} style={styles.cardEyebrow}>
                       {labels[d]}
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderLeftWidth: 4,
+    borderStartWidth: 4,
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.xs,

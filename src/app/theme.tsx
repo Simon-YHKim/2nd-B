@@ -74,7 +74,7 @@ export default function ThemeScreen() {
           })}
         </View>
 
-        <View style={[styles.note, { borderLeftColor: cosmic.soulViolet }]}>
+        <View style={[styles.note, { borderStartColor: cosmic.soulViolet }]}>
           <Text variant="subtle" color="textMuted">
             {t("note")}
           </Text>
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   },
   note: {
     backgroundColor: semantic.surfaceAlt,
-    borderLeftWidth: 3,
+    borderStartWidth: 3,
     borderRadius: radii.md,
     padding: spacing.lg,
   },

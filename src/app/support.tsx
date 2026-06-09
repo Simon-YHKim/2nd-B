@@ -47,14 +47,14 @@ export default function Support() {
           speech={t("hero.speech")}
         />
 
-        <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
+        <View style={[styles.section, { borderStartColor: semantic.brand }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("response.eyebrow")}</Text>
           <Text variant="body" color="textMuted">
             {t("response.body")}
           </Text>
         </View>
 
-        <View style={[styles.section, { borderLeftColor: semantic.info }]}>
+        <View style={[styles.section, { borderStartColor: semantic.info }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("contact.eyebrow")}</Text>
           <Text variant="body" color="textMuted">{SUPPORT_EMAIL}</Text>
           <Button
@@ -66,7 +66,7 @@ export default function Support() {
           />
         </View>
 
-        <View style={[styles.section, { borderLeftColor: semantic.warning }]}>
+        <View style={[styles.section, { borderStartColor: semantic.warning }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("faqLabel")}</Text>
           {faq.map((item, i) => (
             <View key={item.question} style={i > 0 ? styles.faqItem : undefined}>
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderLeftWidth: 4,
+    borderStartWidth: 4,
     borderRadius: radii.md,
     padding: spacing.lg,
     gap: spacing.sm,

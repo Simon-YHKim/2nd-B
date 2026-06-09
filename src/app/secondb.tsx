@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
   },
   modeChipAnalytic: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   modeChipDivergent: { backgroundColor: cosmic.soulViolet2, borderColor: cosmic.soulViolet2 },
-  modeHint: { flex: 1, minWidth: 0, marginLeft: spacing.xs },
+  modeHint: { flex: 1, minWidth: 0, marginStart: spacing.xs },
   clearChatLink: { minHeight: 44, minWidth: 44, justifyContent: "center", paddingHorizontal: spacing.xs },
   divergentPulseDot: { width: 8, height: 8, borderRadius: gameboy.radius, backgroundColor: cosmic.soulViolet2 },
   scroll: { paddingTop: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },

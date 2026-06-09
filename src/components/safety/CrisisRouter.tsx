@@ -126,8 +126,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    borderLeftWidth: 3,
-    borderLeftColor: semantic.brand,
+    borderStartWidth: 3,
+    borderStartColor: semantic.brand,
   },
   hotlineBoxPressed: {
     backgroundColor: semantic.surface,

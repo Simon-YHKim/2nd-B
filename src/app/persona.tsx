@@ -229,7 +229,7 @@ export default function Persona() {
             {locale === "ko" ? "소울 코어" : "Soul Core"}
           </Text>
           {buildCenterCards(persona, locale).map((card) => (
-            <View key={card.id} style={[styles.centerCard, { borderLeftColor: card.accent }]}>
+            <View key={card.id} style={[styles.centerCard, { borderStartColor: card.accent }]}>
               <Text variant="caption" color="textMuted">{card.title}</Text>
               <Text variant="body" style={{ marginTop: 2 }}>{card.body}</Text>
             </View>
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderLeftWidth: 3,
+    borderStartWidth: 3,
     borderRadius: radii.md,
     padding: spacing.md,
   },

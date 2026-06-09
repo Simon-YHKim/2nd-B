@@ -189,7 +189,7 @@ export default function Account() {
         />
 
         {/* DOB correction */}
-        <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
+        <View style={[styles.section, { borderStartColor: semantic.brand }]}>
           <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
             {t("account.dob.label")}
           </Text>
@@ -213,7 +213,7 @@ export default function Account() {
         </View>
 
         {/* Privacy & consent controls */}
-        <View style={[styles.section, { borderLeftColor: cosmic.signalMint }]}>
+        <View style={[styles.section, { borderStartColor: cosmic.signalMint }]}>
           <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
             {t("account.privacy.label")}
           </Text>
@@ -229,7 +229,7 @@ export default function Account() {
         </View>
 
         {/* Danger zone: delete account */}
-        <View style={[styles.section, { borderLeftColor: semantic.danger }]}>
+        <View style={[styles.section, { borderStartColor: semantic.danger }]}>
           <Text variant="caption" color="danger" style={[styles.eyebrow, eyebrowTracking]}>
             {t("account.delete.label")}
           </Text>
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderLeftWidth: 4,
+    borderStartWidth: 4,
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.sm,

@@ -932,7 +932,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                   onPress={() => onToggleExpand(p)}
                   style={[
                     styles.row,
-                    { borderLeftColor: semantic[KIND_BORDER[p.kind]], borderLeftWidth: 3 },
+                    { borderStartColor: semantic[KIND_BORDER[p.kind]], borderStartWidth: 3 },
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel={locale === "ko" ? `${p.title} 위키 페이지 열기` : `Open wiki page ${p.title}`}
@@ -1317,7 +1317,7 @@ const styles = StyleSheet.create({
   },
   rowHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   rowSlug: { flex: 1, minWidth: 0 },
-  rowInDeg: { marginLeft: spacing.sm, flexShrink: 0 },
+  rowInDeg: { marginStart: spacing.sm, flexShrink: 0 },
   rowTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600" },
   kindChip: {
     paddingHorizontal: spacing.sm,
@@ -1338,7 +1338,7 @@ const styles = StyleSheet.create({
   phase1Card: {
     backgroundColor: semantic.surfaceAlt,
     borderColor: semantic.brand,
-    borderLeftWidth: 3,
+    borderStartWidth: 3,
     borderRadius: radii.sm,
     padding: spacing.sm,
     gap: spacing.xs,
@@ -1392,7 +1392,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.brand,
     borderWidth: 1,
-    borderLeftWidth: 3,
+    borderStartWidth: 3,
     borderRadius: radii.md,
     padding: spacing.md,
     gap: spacing.sm,

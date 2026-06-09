@@ -78,7 +78,7 @@ export function PremiumPanel({
     <View
       style={[
         styles.panel,
-        accent ? { borderLeftWidth: gameboy.borderWidth, borderLeftColor: accent } : null,
+        accent ? { borderStartWidth: gameboy.borderWidth, borderStartColor: accent } : null,
         // O-11 P1 fix: caller style LAST so per-screen overrides win (the
         // pre-#266 contract; Phase 2 had reversed it, silently dropping
         // caller backgroundColor/border/padding).

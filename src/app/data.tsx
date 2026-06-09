@@ -44,7 +44,7 @@ export default function DataManagement() {
           speech={t("hero.speech")}
         />
 
-        <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
+        <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("import.eyebrow")}</Text>
           <Text variant="body" color="textMuted">
             {t("import.body")}
@@ -57,7 +57,7 @@ export default function DataManagement() {
           />
         </View>
 
-        <View style={[styles.section, { borderLeftColor: semantic.brand }]}>
+        <View style={[styles.section, { borderStartColor: semantic.brand }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("export.eyebrow")}</Text>
           <Text variant="body" color="textMuted">
             {t("export.body")}
@@ -70,7 +70,7 @@ export default function DataManagement() {
           />
         </View>
 
-        <View style={[styles.section, { borderLeftColor: semantic.danger }]}>
+        <View style={[styles.section, { borderStartColor: semantic.danger }]}>
           <Text variant="caption" color="danger" style={styles.eyebrow}>{t("delete.eyebrow")}</Text>
           <Text variant="body" color="textMuted">
             {t("delete.body")}
@@ -83,7 +83,7 @@ export default function DataManagement() {
           />
         </View>
 
-        <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
+        <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("device.eyebrow")}</Text>
           <Text variant="body" color="textMuted">
             {t("device.body")}
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderLeftWidth: 4,
+    borderStartWidth: 4,
     borderRadius: radii.md,
     padding: spacing.lg,
     gap: spacing.sm,

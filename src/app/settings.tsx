@@ -123,11 +123,11 @@ function DisclosureSection({
   tone = "brand",
   children,
 }: DisclosureSectionProps) {
-  const borderLeftColor = tone === "warning" ? semantic.warning : semantic.brand;
+  const borderStartColor = tone === "warning" ? semantic.warning : semantic.brand;
   const textColor: keyof typeof semantic = tone === "warning" ? "warning" : "brand";
 
   return (
-    <View style={[styles.section, { borderLeftColor }]}>
+    <View style={[styles.section, { borderStartColor }]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={title}
@@ -393,7 +393,7 @@ export default function Settings() {
           </View>
         ) : null}
 
-        <View style={[styles.section, { borderLeftColor: cosmic.soulViolet }]}>
+        <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
           <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
             {t("nav.eyebrow")}
           </Text>
@@ -778,7 +778,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
-    borderLeftWidth: gameboy.borderWidth,
+    borderStartWidth: gameboy.borderWidth,
     borderRadius: gameboy.radius,
     padding: spacing.md,
     gap: spacing.sm,
