@@ -3,7 +3,7 @@
 // /journal etc.), partial (per-kind / per-tag), and full (everything).
 
 import { type ReactNode, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
+import { ActivityIndicator, Pressable, TouchableOpacity, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -85,21 +85,19 @@ function SettingsActionButton({
         isDisabled ? styles.settingsButtonDisabled : null,
       ]}
     >
-      <Pressable
+      <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityHint={accessibilityHint}
         accessibilityState={{ disabled: isDisabled, busy: loading, selected }}
         disabled={isDisabled}
         onPress={onPress ? () => void onPress() : undefined}
-        style={({ pressed }) => [
-          styles.settingsButtonPressable,
-          pressed ? styles.settingsButtonPressed : null,
-        ]}
+        style={styles.settingsButtonPressable}
+        activeOpacity={0.78}
       >
         {loading ? <ActivityIndicator size="small" color={labelColor} /> : null}
         <Text style={[styles.settingsButtonLabel, { color: labelColor }]}>{label}</Text>
-      </Pressable>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -128,15 +126,13 @@ function DisclosureSection({
 
   return (
     <View style={[styles.section, { borderStartColor }]}>
-      <Pressable
+      <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel={title}
         accessibilityState={{ expanded }}
         onPress={onToggle}
-        style={({ pressed }) => [
-          styles.disclosureHeader,
-          pressed ? styles.disclosureHeaderPressed : null,
-        ]}
+        style={styles.disclosureHeader}
+        activeOpacity={0.78}
       >
         <Text variant="caption" color={textColor} style={styles.sectionEyebrow}>
           {title}
@@ -144,7 +140,7 @@ function DisclosureSection({
         <Text variant="caption" color={textColor} style={styles.disclosureIndicator}>
           {expanded ? "-" : "+"}
         </Text>
-      </Pressable>
+      </TouchableOpacity>
       {expanded ? <View style={styles.disclosureBody}>{children}</View> : null}
     </View>
   );

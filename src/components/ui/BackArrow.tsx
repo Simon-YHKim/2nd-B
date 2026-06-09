@@ -6,7 +6,7 @@
 // back there. Mounted once at root (`_layout.tsx`) as an overlay, so
 // individual screens don't need to remember to render it.
 
-import { Pressable, StyleSheet, View, I18nManager } from "react-native";
+import { TouchableOpacity, StyleSheet, View, I18nManager } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -103,13 +103,14 @@ export function BackArrow() {
 
   return (
     <View style={[styles.wrap, { top: insets.top + 8 }, positionStyle]} pointerEvents="box-none">
-      <Pressable
+      <TouchableOpacity
         onPress={() => router.push("/")}
         hitSlop={16}
         accessibilityRole="button"
         accessibilityLabel={locale === "ko" ? "그래프로 돌아가기" : "Return to graph"}
         accessibilityHint={locale === "ko" ? "그래프 홈 화면으로 이동합니다." : "Opens the graph home screen."}
-        style={({ pressed }) => [styles.btn, pressed ? { opacity: 0.7 } : null]}
+        style={styles.btn}
+        activeOpacity={0.7}
       >
         <View
           style={[styles.chevron, chevronFlipStyle]}
@@ -119,7 +120,7 @@ export function BackArrow() {
           <View style={[styles.chevronStroke, styles.chevronTop]} />
           <View style={[styles.chevronStroke, styles.chevronBottom]} />
         </View>
-      </Pressable>
+      </TouchableOpacity>
       {routeTitle ? (
         <View style={styles.labelPill} pointerEvents="none">
           <Text variant="caption" color="text" numberOfLines={2} style={styles.labelText}>

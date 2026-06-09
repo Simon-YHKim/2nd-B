@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Switch, View } from "react-native";
+import { TouchableOpacity, StyleSheet, Switch, View } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -92,13 +92,14 @@ export function PreferenceCheckRow({
   emphasize?: boolean;
 }) {
   return (
-    <Pressable
+    <TouchableOpacity
       onPress={onToggle}
       accessibilityRole="checkbox"
       accessibilityLabel={label}
       accessibilityState={{ checked }}
       style={styles.checkRow}
       hitSlop={6}
+      activeOpacity={0.7}
     >
       <View style={[styles.box, checked && styles.boxChecked]}>
         {checked ? <View style={styles.boxInner} /> : null}
@@ -110,7 +111,7 @@ export function PreferenceCheckRow({
       >
         {label}
       </Text>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 

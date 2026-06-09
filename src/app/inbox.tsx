@@ -3,7 +3,7 @@
 // A richer detail screen comes later in the RAG track.
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, StyleSheet, FlatList, Pressable, ActivityIndicator, RefreshControl } from "react-native";
+import { View, StyleSheet, FlatList, Pressable, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Link, Redirect } from "expo-router";
@@ -155,9 +155,9 @@ const InboxRow = React.memo(function InboxRow({
 }: InboxRowProps) {
   const metaEntries = visibleMetadataEntries(r.frontmatter, locale);
   return (
-    <Pressable
+    <TouchableOpacity activeOpacity={0.7}
       onPress={() => onPress(r)}
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      style={styles.row}
       accessibilityRole="button"
       accessibilityLabel={locale === "ko" ? `${r.title} 열기` : `Open ${r.title}`}
       accessibilityHint={
@@ -202,7 +202,7 @@ const InboxRow = React.memo(function InboxRow({
       ) : null}
       <View style={styles.rowActions}>
         {readPhase1(r.frontmatter) === null ? (
-          <Pressable
+          <TouchableOpacity activeOpacity={0.7}
             onPress={(e) => {
               e.stopPropagation();
               void onRunPhase1(r);
@@ -223,9 +223,9 @@ const InboxRow = React.memo(function InboxRow({
                   ? "요약 + 4질문"
                   : "Summarize + 4 questions"}
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         ) : (
-          <Pressable
+          <TouchableOpacity activeOpacity={0.7}
             onPress={(e) => {
               e.stopPropagation();
               onViewPhase1(r);
@@ -238,10 +238,10 @@ const InboxRow = React.memo(function InboxRow({
             <Text variant="caption" color="success">
               {locale === "ko" ? "요약과 질문 보기" : "View Source brief"}
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         )}
         {!r.ingested ? (
-          <Pressable
+          <TouchableOpacity activeOpacity={0.7}
             onPress={(e) => {
               e.stopPropagation();
               void onGeneratePage(r);
@@ -262,10 +262,10 @@ const InboxRow = React.memo(function InboxRow({
                   ? "위키 페이지 생성"
                   : "Generate wiki page"}
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         ) : (
           <Link href={{ pathname: "/wiki", params: { focusSourceId: r.id } }} asChild>
-            <Pressable
+            <TouchableOpacity activeOpacity={0.7}
               style={styles.generateBtn}
               hitSlop={4}
               onPress={(e) => e.stopPropagation()}
@@ -275,11 +275,11 @@ const InboxRow = React.memo(function InboxRow({
               <Text variant="caption" color="success">
                 {locale === "ko" ? "위키에서 보기" : "View in wiki"}
               </Text>
-            </Pressable>
+            </TouchableOpacity>
           </Link>
         )}
         {!r.ingested ? (
-          <Pressable
+          <TouchableOpacity activeOpacity={0.7}
             onPress={(e) => {
               e.stopPropagation();
               void onDeleteSource(r);
@@ -292,7 +292,7 @@ const InboxRow = React.memo(function InboxRow({
             <Text variant="caption" color="textSubtle">
               {locale === "ko" ? "삭제" : "Delete"}
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         ) : null}
       </View>
       {expanded ? (
@@ -319,7 +319,7 @@ const InboxRow = React.memo(function InboxRow({
           )}
         </View>
       ) : null}
-    </Pressable>
+    </TouchableOpacity>
   );
 });
 
@@ -639,7 +639,7 @@ export default function Inbox() {
       <Text variant="body" color="textMuted">
         {error}
       </Text>
-      <Pressable
+      <TouchableOpacity activeOpacity={0.7}
         hitSlop={6}
         onPress={() => void handleRefresh()}
         style={styles.errorRetry}
@@ -649,7 +649,7 @@ export default function Inbox() {
         <Text variant="caption" color="brand">
           {locale === "ko" ? "다시 시도" : "Try again"}
         </Text>
-      </Pressable>
+      </TouchableOpacity>
     </View>
   ) : (
     <View style={styles.emptyCard}>
@@ -662,7 +662,7 @@ export default function Inbox() {
           : "Your inbox holds captured sources. Create a Source brief (summary + 4 questions) here, or promote a row to a wiki page."}
       </Text>
       <Link href="/capture" asChild>
-        <Pressable
+        <TouchableOpacity activeOpacity={0.7}
           hitSlop={6}
           style={styles.emptyLink}
           accessibilityRole="link"
@@ -674,7 +674,7 @@ export default function Inbox() {
           <Text variant="caption" color="brand">
             {locale === "ko" ? "첫 캡처 시작" : "Capture your first"}
           </Text>
-        </Pressable>
+        </TouchableOpacity>
       </Link>
     </View>
   );
