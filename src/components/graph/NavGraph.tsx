@@ -56,9 +56,8 @@ import ReAnimated, {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 import { Text } from "@/components/ui/Text";
-import { cosmic } from "@/lib/theme/tokens";
+import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
-import { pitchForTier, playPop } from "@/lib/audio/pop";
 import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
@@ -99,17 +98,9 @@ function SvgLine({ collapsable: _collapsable, ...props }: ComponentProps<typeof 
 
 const AnimatedLine = Animated.createAnimatedComponent(SvgLine);
 
-// User directive (2026-05-27): tier-ordered "뽁!" spawn sequence after
-// the logo fade completes. Per tier, node order is randomized so two
-// visits feel different. Each pop = scale 0 → 1.25 → 1.0 (overshoot)
-// + brief "뽁" Web Audio synth tone. When a newly-spawned node has a
-// graph relation to a node that's already on stage, its incoming edge
-// fades in alongside the pop so the connection appears to "draw itself".
-//
-// DESIGN.md note: the global rule forbids bounce/elastic easing, but
-// the user explicitly asked for the pulse / overshoot feel here. The
-// overshoot is small (1.25x → 1.0x, ~400ms total) so it stays inside
-// the tight, controlled feel of the rest of the design.
+// Tier-ordered reveal after the logo fade completes. Per tier, node order is
+// randomized so two visits feel different. Each node now eases in with a small
+// lift and fade on a single calm curve.
 const SPAWN_LOGO_DELAY_MS = 620;     // logo fade is ~750ms; start when it's mostly faded
 // Spawn-once guard. Was sessionStorage("navGraphSpawned_v1"), but sessionStorage
 // is absent on native, so the tier-ordered "뽁" spawn replayed on every return
@@ -129,16 +120,24 @@ const PULSE_INTERVAL_MS = 2800;
 // still fires — that is a one-shot on user action, not a perpetual loop. The
 // ambient pulse already targets MENU_NODES only, so tier-4 never ambient-pulses.
 const LOD_TIER4_DRIFT_MAX = 30;
-// Bubble pop-in (말풍선 뽁) per user (2026-05-27): same overshoot feel as
-// the node spawn so the bubble feels emitted from the node.
-const BUBBLE_POP_OVERSHOOT_MS = 160;
-const BUBBLE_POP_SETTLE_MS = 200;
 const SPAWN_STAGGER_HIGH_TIER_MS = 130;
 const SPAWN_STAGGER_TIER4_MS = 35;
 const SPAWN_TIER_GAP_MS = 110;
-const SPAWN_POP_OVERSHOOT_MS = 180;
-const SPAWN_POP_SETTLE_MS = 220;
+const SPAWN_REVEAL_MS = 320;
 const EDGE_REVEAL_MS = 260;
+const GRAPH_SPACE_BACKDROP = withAlpha(cosmic.space950, 0.55);
+const GRAPH_SPACE_BACKDROP_SOFT = withAlpha(cosmic.space950, 0.36);
+const GRAPH_TAG_BG = withAlpha(cosmic.space950, 0.86);
+const GRAPH_PANEL_BG = withAlpha(cosmic.space950, 0.97);
+const GRAPH_PANEL_BG_SOFT = withAlpha(cosmic.space900, 0.72);
+const GRAPH_CONTROL_BG = withAlpha(cosmic.space900, 0.92);
+const GRAPH_MINT_SURFACE = withAlpha(cosmic.signalMint, 0.1);
+const GRAPH_MINT_SURFACE_FAINT = withAlpha(cosmic.signalMint, 0.08);
+const GRAPH_MINT_BORDER = withAlpha(cosmic.signalMint, 0.5);
+const GRAPH_MINT_BORDER_SOFT = withAlpha(cosmic.signalMint, 0.4);
+const GRAPH_MINT_HANDLE = withAlpha(cosmic.signalMint, 0.52);
+const GRAPH_VIOLET_BORDER = withAlpha(cosmic.soulViolet, 0.44);
+const GRAPH_DIM_BORDER = withAlpha(cosmic.mistGray, 0.42);
 
 function shuffleInPlace<T>(arr: T[]): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -269,6 +268,45 @@ const VILLAGE_WORKER: Record<string, WorkerId> = {
   taste: VILLAGE_UI.taste.worker,
 };
 
+const GRAPH_ACCENT_BY_ID: Record<string, string> = {
+  core: cosmic.soulViolet,
+  work: VILLAGE_UI.work.accent,
+  relation: VILLAGE_UI.relation.accent,
+  knowledge: VILLAGE_UI.knowledge.accent,
+  records: VILLAGE_UI.records.accent,
+  taste: VILLAGE_UI.taste.accent,
+};
+
+const GRAPH_ACCENT_BY_WORKER: Record<WorkerId, string> = {
+  secondb: cosmic.soulViolet,
+  archi: VILLAGE_UI.work.accent,
+  gadi: VILLAGE_UI.relation.accent,
+  lulu: VILLAGE_UI.knowledge.accent,
+  momo: VILLAGE_UI.records.accent,
+  lumi: VILLAGE_UI.taste.accent,
+};
+
+function accentForGraphId(id?: string | null): string {
+  if (!id) return semantic.brand;
+  return GRAPH_ACCENT_BY_ID[id] ?? semantic.info;
+}
+
+function accentForWorker(id: WorkerId): string {
+  return GRAPH_ACCENT_BY_WORKER[id] ?? semantic.info;
+}
+
+function focusChromeFor(id: string): { shadowColor: string } {
+  return { shadowColor: accentForGraphId(id) };
+}
+
+function labelChromeFor(id: string): { borderColor: string; shadowColor: string } {
+  const accent = accentForGraphId(id);
+  return {
+    borderColor: withAlpha(accent, id === "records" ? 0.52 : 0.48),
+    shadowColor: accent,
+  };
+}
+
 type PatrolPoint = { x: number; y: number; angle: number };
 
 function aroundVillage(p: PatrolPoint, radial: number, tangent: number): { x: number; y: number } {
@@ -320,8 +358,9 @@ const GLOW_RINGS = [
   { grow: 0.5, border: 3, alpha: 0.18 },
   { grow: 0.72, border: 5, alpha: 0.06 },
 ] as const;
-function NodeGlow({ tier, size }: { tier: GlowTier; size: number }) {
-  const g = glowForTier(tier);
+function NodeGlow({ tier, size, color }: { tier: GlowTier; size: number; color?: string }) {
+  const baseGlow = glowForTier(tier);
+  const g = color ? { ...baseGlow, color } : baseGlow;
   const tierScale = g.opacity / 0.7; // tier1 full, deeper tiers fainter
   return (
     <>
@@ -639,7 +678,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
     });
 
   // Reset the camera to the home view (closeout-v3 #4): used by double-tap AND
-  // the floating "원래대로" button. Spring so the village snaps home elastically.
+  // the floating "원래대로" button. Ease the village back to its settled frame.
   const resetCamera = () => {
     const duration = prefersReducedMotion() ? 0 : 400;
     zoomScale.value = withTiming(1, { duration, easing: ReEasing.out(ReEasing.cubic) });
@@ -674,12 +713,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
     return off;
   });
 
-  // Programmatic camera move (graph-ux-overhaul #6/#10): spring the village so
+  // Programmatic camera move (graph-ux-overhaul #6/#10): ease the village so
   // a world point lands at a chosen screen Y (default viewport center). When a
   // bottom sheet will cover the lower part of the screen we aim the point into
   // the *visible* upper area instead, so the focused village fills the space
-  // ABOVE the sheet rather than hiding behind it. Springs are gentle + low
-  // overshoot (#9: small amplitude, no dizziness).
+  // ABOVE the sheet rather than hiding behind it.
   const focusWorldPoint = (wx: number, wy: number, targetScale: number, screenY?: number) => {
     const vp = { width: zoomViewportW.value, height: zoomViewportH.value };
     const s = worldToScreen({ x: wx, y: wy }, vp);
@@ -836,8 +874,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
   const driftValues = useRef<Map<string, Animated.Value>>(new Map());
   const driftLoops = useRef<Map<string, Animated.CompositeAnimation>>(new Map());
   const pulseValues = useRef<Map<string, Animated.Value>>(new Map());
-  // Spawn anim per node — 0 (hidden) → 1.25 (overshoot) → 1.0 (settled).
-  // Drives both transform scale and opacity for the pop-in effect.
+  // Spawn anim per node, from hidden to settled.
+  // Drives both transform lift/scale and opacity for the reveal.
   const spawnValues = useRef<Map<string, Animated.Value>>(new Map());
   // Edge fade-in anim per edge key — 0..1, multiplied into edge opacity.
   // Triggered when both endpoints are in `spawnedIds`.
@@ -942,8 +980,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
     }
   }, [dataPositions, tier4DriftOn]);
 
-  // Spawn sequence — tier 1 → 2 → 3 → 4, randomized within each tier.
-  // Each node: play "뽁!" pop sound + scale 0 → 1.25 → 1.0 + opacity 0 → 1.
+  // Spawn sequence: tier 1 to 4, randomized within each tier.
+  // Each node fades in with a small lift so the tree appears on a calm ease.
   //
   // Session guard (2026-05-27 bug fix): playing the full pop sequence
   // every time the user re-navigates back to "/" — e.g. coming back
@@ -953,8 +991,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
   // to the settled state with no audio.
   useEffect(() => {
     const allIds = [CENTER_NODE.id, ...MENU_NODES.map((n) => n.id), ...Array.from(dataPositions.keys())];
-    // P11: reduced-motion snaps straight to the settled state (no pop overshoot,
-    // no spawn audio), same as a replay.
+    // P11: reduced-motion snaps straight to the settled state, same as a replay.
     const alreadyPlayed = navGraphSpawnPlayed || prefersReducedMotion();
 
     for (const id of allIds) {
@@ -985,10 +1022,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
         if (cancelled) return;
         const ids = shuffleInPlace([...byTier[tier]]);
         const stagger = tier === 4 ? SPAWN_STAGGER_TIER4_MS : SPAWN_STAGGER_HIGH_TIER_MS;
-        const volume = tier === 4 ? 0.05 : tier === 1 ? 0.22 : 0.16;
         for (const id of ids) {
           if (cancelled) return;
-          playPop(pitchForTier(tier), volume);
           setSpawnedIds((prev) => {
             if (prev.has(id)) return prev;
             const next = new Set(prev);
@@ -997,10 +1032,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
           });
           const v = spawnValues.current.get(id);
           if (v) {
-            Animated.sequence([
-              Animated.timing(v, { toValue: 1.25, duration: SPAWN_POP_OVERSHOOT_MS, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-              Animated.timing(v, { toValue: 1.0, duration: SPAWN_POP_SETTLE_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
-            ]).start();
+            Animated.timing(v, {
+              toValue: 1,
+              duration: SPAWN_REVEAL_MS,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: false,
+            }).start();
           }
           await delay(stagger);
         }
@@ -1238,23 +1275,6 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
     };
   }, [linkSignals]);
 
-  // Bubble pop-in anim — 0 (hidden) → 1.2 (overshoot) → 1.0 (settled).
-  // Re-triggered whenever activeId switches to a non-null value, so
-  // tapping a different node makes the new bubble pop in.
-  const bubbleAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (activeId == null) {
-      bubbleAnim.setValue(0);
-      return;
-    }
-    bubbleAnim.setValue(0);
-    playPop(pitchForTier(2), 0.14);
-    Animated.sequence([
-      Animated.timing(bubbleAnim, { toValue: 1.2, duration: BUBBLE_POP_OVERSHOOT_MS, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-      Animated.timing(bubbleAnim, { toValue: 1.0, duration: BUBBLE_POP_SETTLE_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
-    ]).start();
-  }, [activeId, bubbleAnim]);
-
   // Centered village zoom-in overlay (graph-transition redesign): tapping a
   // village island fills the screen center with that island, smoothly scaling
   // in, while the graph recedes behind a soft dim. Decoupled from the pan/zoom
@@ -1331,20 +1351,33 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
       out.push({ translateY: s.sy });
     }
     const sp = spawnValues.current.get(id);
-    if (sp) out.push({ scale: sp });
+    if (sp) {
+      out.push({
+        translateY: sp.interpolate({
+          inputRange: [0, 1],
+          outputRange: [6, 0],
+        }) as unknown as Animated.AnimatedInterpolation<number>,
+      });
+      out.push({
+        scale: sp.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.96, 1],
+        }) as unknown as Animated.AnimatedInterpolation<number>,
+      });
+    }
     const p = pulseValues.current.get(id);
     if (p) out.push({ scale: p });
     if (extraScale !== 1) out.push({ scale: extraScale });
     return out;
   }
 
-  /** Spawn opacity (0..1) — used to keep nodes invisible until their pop fires. */
+  /** Spawn opacity (0..1), used to keep nodes invisible until their reveal starts. */
   function spawnOpacity(id: string): Animated.Value | number {
     const v = spawnValues.current.get(id);
     if (!v) return 0;
     return v.interpolate({
-      inputRange: [0, 0.4, 1],
-      outputRange: [0, 1, 1],
+      inputRange: [0, 1],
+      outputRange: [0, 1],
     }) as unknown as Animated.Value;
   }
 
@@ -1478,7 +1511,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
     handleNodeTap(MENU_NODES[prevIdx].id);
   };
 
-  // Tap a node (graph-ux-overhaul #6). For a tier-2 village we spring the
+  // Tap a node (graph-ux-overhaul #6). For a tier-2 village we ease the
   // camera so its sector fills the screen, then open the sheet. Tapping the
   // same node again (or a non-domain node) just toggles the sheet.
   function handleNodeTap(id: string) {
@@ -1504,7 +1537,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
     setActiveId(willOpen ? id : null);
     if (!willOpen) return;
     // Village islands (the six tier-2 districts + the center) get the centered
-    // zoom-in overlay below instead of a camera spring: the overlay fills the
+    // zoom-in overlay below instead of a camera move: the overlay fills the
     // screen with the island, so moving the graph camera behind it is both
     // unnecessary and fights the pan clamp at high fill scales.
     if (ISLAND_FOR[id]) return;
@@ -1737,7 +1770,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
                 dimStyleFor(id),
               ]}
             >
-              <NodeGlow tier={4} size={DATA_NODE_SIZE} />
+              <NodeGlow tier={4} size={DATA_NODE_SIZE} color={accentForGraphId(p.parentId)} />
               {/* Each data shard is one of the user's classified pieces. Tapping
                   it opens the piece popup (summary + hashtags + 자세히). Depth
                   feeling: tier-4 art is the most distant — saturate + opacity
@@ -1796,11 +1829,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
             <View
               style={[
                 styles.nodeArtWrap,
-                n.id === activeId || n.id === glowNodeId ? styles.nodeFocused : null,
+                n.id === activeId || n.id === glowNodeId ? [styles.nodeFocused, focusChromeFor(n.id)] : null,
                 dimStyleFor(n.id),
               ]}
             >
-              <NodeGlow tier={n.tier as GlowTier} size={size} />
+              <NodeGlow tier={n.tier as GlowTier} size={size} color={accentForGraphId(n.id)} />
               {/* Distance feeling (v10): the tesseract art layer dims +
                   desaturates with tier (depthStyleForTier) so deeper nodes read
                   "farther"; scale-depth already comes from tierSize. Applied to
@@ -1841,8 +1874,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
                 the focused drilldown core (progressive disclosure, 터치 유도). */}
             {n.tier === 2 &&
             (n.id === activeId || n.id === glowNodeId || drilldownCoreId === n.id) ? (
-              <View style={styles.villageTag} pointerEvents="none">
-                <Text style={styles.villageTagText} numberOfLines={1}>
+              <View style={[styles.villageTag, labelChromeFor(n.id)]} pointerEvents="none">
+                <Text style={[styles.villageTagText, { color: accentForGraphId(n.id) }]} numberOfLines={1}>
                   {n.label[locale]}
                 </Text>
               </View>
@@ -1869,11 +1902,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
         <View
           style={[
             styles.centerArtWrap,
-            CENTER_NODE.id === activeId ? styles.nodeFocused : null,
+            CENTER_NODE.id === activeId ? [styles.nodeFocused, focusChromeFor(CENTER_NODE.id)] : null,
             dimStyleFor(CENTER_NODE.id),
           ]}
         >
-          <NodeGlow tier={1} size={CENTER_SIZE} />
+          <NodeGlow tier={1} size={CENTER_SIZE} color={accentForGraphId(CENTER_NODE.id)} />
           <IslandArt id="core" size={CENTER_SIZE * CORE_ART_SCALE} style={{ position: "absolute", left: CORE_ART_OFFSET, top: CORE_ART_OFFSET }} />
           <Pressable
             onPress={() => handleNodeTap(CENTER_NODE.id)}
@@ -2063,6 +2096,7 @@ function NodeSheet({
   const slide = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const safeBottom = Math.max(92, TAB_BAR_HEIGHT + insets.bottom + 12);
+  const accent = accentForWorker(character);
   useEffect(() => {
     slide.setValue(0);
     Animated.timing(slide, {
@@ -2075,8 +2109,19 @@ function NodeSheet({
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
 
   return (
-    <Animated.View style={[styles.sheet, { bottom: safeBottom, opacity: slide as never, transform: [{ translateY }] }]}>
-      <View style={styles.sheetHandle} />
+    <Animated.View
+      style={[
+        styles.sheet,
+        {
+          bottom: safeBottom,
+          borderColor: withAlpha(accent, character === "momo" ? 0.5 : 0.44),
+          shadowColor: accent,
+          opacity: slide as never,
+          transform: [{ translateY }],
+        },
+      ]}
+    >
+      <View style={[styles.sheetHandle, { backgroundColor: withAlpha(accent, 0.52) }]} />
       <View style={styles.sheetHead}>
         <View style={styles.sheetTitleRow}>
           {/* 아치 — connection guide, appears on the highlight moment (§9) */}
@@ -2094,7 +2139,7 @@ function NodeSheet({
         </Pressable>
       </View>
       <View style={styles.sheetMetaRow}>
-        <Text variant="caption" color="brand" style={styles.sheetType}>{type}</Text>
+        <Text variant="caption" style={[styles.sheetType, { color: accent }]}>{type}</Text>
         {connectedCount > 0 ? (
           <Text variant="subtle" color="textMuted">
             {locale === "ko" ? `연결된 조각 ${connectedCount}개` : `${connectedCount} connected`}
@@ -2134,7 +2179,7 @@ function NodeSheet({
         accessibilityLabel={locale === "ko" ? `${name} 새 관점으로 열기` : `Open ${name} from a new angle`}
         accessibilityHint={locale === "ko" ? "이 마을을 세컨비에서 새 관점으로 엽니다" : "Opens this village in SecondB from a new angle"}
       >
-        <Text variant="caption" color="brand">{locale === "ko" ? "새 관점으로 펼치기" : "Open new angle"}</Text>
+        <Text variant="caption" style={{ color: accent }}>{locale === "ko" ? "새 관점으로 펼치기" : "Open new angle"}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -2171,6 +2216,7 @@ function DrilldownSheet({
   const slide = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const safeBottom = Math.max(78, TAB_BAR_HEIGHT + insets.bottom + 12);
+  const accent = accentForWorker(character);
   useEffect(() => {
     slide.setValue(0);
     Animated.timing(slide, {
@@ -2190,8 +2236,20 @@ function DrilldownSheet({
         : t("navGraph.drilldown.dataFallback", { core: coreName });
 
   return (
-    <Animated.View style={[styles.sheet, styles.drilldownSheet, { bottom: safeBottom, opacity: slide as never, transform: [{ translateY }] }]}>
-      <View style={styles.sheetHandle} />
+    <Animated.View
+      style={[
+        styles.sheet,
+        styles.drilldownSheet,
+        {
+          bottom: safeBottom,
+          borderColor: withAlpha(accent, character === "momo" ? 0.5 : 0.44),
+          shadowColor: accent,
+          opacity: slide as never,
+          transform: [{ translateY }],
+        },
+      ]}
+    >
+      <View style={[styles.sheetHandle, { backgroundColor: withAlpha(accent, 0.52) }]} />
       <View style={styles.sheetHead}>
         <View style={styles.sheetTitleRow}>
           <WorkerSprite id={character} size={32} />
@@ -2200,17 +2258,23 @@ function DrilldownSheet({
         <Pressable
           onPress={onBack}
           hitSlop={16}
-          style={styles.drilldownBack}
+          style={[
+            styles.drilldownBack,
+            {
+              borderColor: withAlpha(accent, 0.4),
+              backgroundColor: withAlpha(accent, 0.08),
+            },
+          ]}
           accessibilityRole="button"
           accessibilityLabel={t("navGraph.drilldown.back")}
           accessibilityHint={t("navGraph.drilldown.backHint")}
         >
-          <Text variant="caption" style={styles.drilldownBackText}>{t("navGraph.drilldown.back")}</Text>
+          <Text variant="caption" style={[styles.drilldownBackText, { color: accent }]}>{t("navGraph.drilldown.back")}</Text>
         </Pressable>
       </View>
       <View style={[styles.drilldownCardRow, compact ? styles.drilldownCardColumn : null]}>
         <View style={styles.drilldownCard}>
-          <Text variant="caption" color="brand" style={styles.sheetType}>
+          <Text variant="caption" style={[styles.sheetType, { color: accent }]}>
             {t("navGraph.drilldown.coreEyebrow")}
           </Text>
           <Text variant="body" color="textMuted" style={styles.drilldownCardBody}>
@@ -2226,7 +2290,7 @@ function DrilldownSheet({
         </View>
         <View style={styles.drilldownCard}>
           <View style={styles.drilldownCardHead}>
-            <Text variant="caption" color="brand" style={styles.sheetType}>
+            <Text variant="caption" style={[styles.sheetType, { color: accent }]}>
               {t("navGraph.drilldown.dataEyebrow")}
             </Text>
             <Text variant="subtle" color="textSubtle">{dataCount}</Text>
@@ -2346,10 +2410,10 @@ const styles = StyleSheet.create({
     paddingBottom: "34%",
     zIndex: 18,
   },
-  zoomBackdrop: { backgroundColor: "rgba(7,10,24,0.55)" },
+  zoomBackdrop: { backgroundColor: GRAPH_SPACE_BACKDROP },
   zoomIslandWrap: { alignItems: "center", justifyContent: "center" },
   drilldownBackdrop: {
-    backgroundColor: "rgba(7,10,24,0.36)",
+    backgroundColor: GRAPH_SPACE_BACKDROP_SOFT,
     zIndex: 17,
   },
   menuDotWrap: { position: "absolute", alignItems: "center", justifyContent: "center" },
@@ -2380,16 +2444,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    backgroundColor: "rgba(7,10,24,0.86)",
+    backgroundColor: GRAPH_TAG_BG,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.48)",
-    shadowColor: cosmic.signalMint,
+    borderColor: GRAPH_MINT_BORDER,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.24,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
   },
   villageTagText: {
-    color: cosmic.moonWhite,
+    color: semantic.text,
     fontFamily: fontFamilies.pixel,
     fontSize: 11,
     letterSpacing: 0,
@@ -2415,15 +2479,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 8,
-    backgroundColor: "rgba(13,21,48,0.92)",
+    backgroundColor: GRAPH_CONTROL_BG,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.5)",
-    shadowColor: cosmic.signalMint,
+    borderColor: GRAPH_MINT_BORDER,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.4,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
-  resetText: { color: cosmic.signalMint, letterSpacing: 0 },
+  resetText: { color: semantic.brand, letterSpacing: 0 },
   shardWrap: { position: "absolute", width: DATA_NODE_SIZE, height: DATA_NODE_SIZE, alignItems: "center", justifyContent: "center" },
   // Highlight-on-return: a mint halo around the shard the user came back to.
   shardHighlight: {
@@ -2435,8 +2499,8 @@ const styles = StyleSheet.create({
   // Selection states (§7).
   nodeFocused: {
     // Round halo (closeout-v3 #2): no square backing behind focused art.
-    borderRadius: 999,
-    shadowColor: cosmic.signalMint,
+    borderRadius: CENTER_SIZE / 2,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.95,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
@@ -2454,8 +2518,8 @@ const styles = StyleSheet.create({
     zIndex: 25,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.44)",
-    backgroundColor: "rgba(7,10,24,0.97)",
+    borderColor: GRAPH_VIOLET_BORDER,
+    backgroundColor: GRAPH_PANEL_BG,
     padding: 16,
     shadowColor: cosmic.soulViolet,
     shadowOpacity: 0.36,
@@ -2467,7 +2531,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 3,
     borderRadius: 2,
-    backgroundColor: "rgba(114,242,199,0.52)",
+    backgroundColor: GRAPH_MINT_HANDLE,
     marginBottom: 12,
   },
   sheetHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -2493,11 +2557,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.4)",
-    backgroundColor: "rgba(114,242,199,0.08)",
+    borderColor: GRAPH_MINT_BORDER_SOFT,
+    backgroundColor: GRAPH_MINT_SURFACE_FAINT,
   },
   drilldownBackText: {
-    color: cosmic.signalMint,
+    color: semantic.brand,
     letterSpacing: 0,
     fontFamily: fontFamilies.readable,
   },
@@ -2514,8 +2578,8 @@ const styles = StyleSheet.create({
     minHeight: 172,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(141,152,184,0.42)",
-    backgroundColor: "rgba(13,21,48,0.72)",
+    borderColor: GRAPH_DIM_BORDER,
+    backgroundColor: GRAPH_PANEL_BG_SOFT,
     padding: 12,
   },
   drilldownCardHead: {
@@ -2541,12 +2605,12 @@ const styles = StyleSheet.create({
   dataTagChip: {
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.4)",
-    backgroundColor: "rgba(114,242,199,0.1)",
+    borderColor: GRAPH_MINT_BORDER_SOFT,
+    backgroundColor: GRAPH_MINT_SURFACE,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  dataTagText: { color: cosmic.signalMint, fontSize: 12, fontFamily: fontFamilies.readable },
+  dataTagText: { color: semantic.brand, fontSize: 12, fontFamily: fontFamilies.readable },
   // E5 A11y Navigation
   a11yNavWrap: {
     position: "absolute",
@@ -2562,11 +2626,11 @@ const styles = StyleSheet.create({
     minHeight: 48,
     minWidth: 48,
     paddingHorizontal: 16,
-    borderRadius: 24,
-    backgroundColor: "rgba(13,21,48,0.92)",
+    borderRadius: 8,
+    backgroundColor: GRAPH_CONTROL_BG,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.5)",
-    shadowColor: cosmic.signalMint,
+    borderColor: GRAPH_MINT_BORDER,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.4,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
@@ -2574,7 +2638,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   a11yBtnText: {
-    color: cosmic.signalMint,
+    color: semantic.brand,
     letterSpacing: 0,
     fontFamily: fontFamilies.sans,
     fontSize: 14,
