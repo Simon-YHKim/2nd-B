@@ -947,6 +947,11 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
+### [O-PING / 2026-06-10] 원격 라운드트립 테스트 — ✅ PONG
+PONG [2026-06-10 / 08:58:13 KST]
+- 진행 중: 폰 원격제어 셋업 — RDP ✅ · Tailscale ✅ (`soha` / 100.76.82.42) · gh 인증 ✅ · VS Code Tunnel 인증 대기. O-12 follow-up 흐름은 유지.
+- 다음 틱: 10분 자율 루프(§12.1) — Cowork-Claude(데스크톱)가 로컬 Cron으로 오늘 등록·가동, 매 틱 fetch→ORDERS 확인.
+
 ### [a11y 터치타깃 ≥44px] — ✅ PRIMARY + SECONDARY 전부 머지·라이브
 [2026-06-08 / 22:45 KST] Claude — **터치타깃 감사 후 PRIMARY 4건(#295) + SECONDARY ~20건(#296) 전부 머지·라이브** (main 0245bcb). CLAUDE.md §20 + 페르소나(고령/유아 ≥44px).
 - 공유 Button/PremiumButton(48)·탭바(52)·BackArrow(44)·PixelIconButton·그래프 노드(+hitSlop)는 **이미 안전** 확인.
