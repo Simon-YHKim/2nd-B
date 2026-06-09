@@ -283,6 +283,10 @@ export function setAnalyticsConsent(granted: boolean, gate?: AnalyticsSubjectGat
 
 /** Track a high-level product event. No-op until product analytics are loaded. */
 export function captureEvent(event: AnalyticsEvent): void {
+  // Opt-out must be immediate: loaded SDKs can't be torn down mid-session, but
+  // all emission is app-driven (autocapture/page_view off), so gating here stops
+  // every GA4/PostHog hit the instant consent is revoked.
+  if (!analyticsConsent) return;
   const props = cleanProps(event.props);
   if (posthogClient) {
     try {
@@ -303,6 +307,8 @@ export function captureEvent(event: AnalyticsEvent): void {
 
 /** Pin events to the current user id (call after sign-in). No-op until loaded. */
 export function identifyUser(userId: string): void {
+  // Respect a revoked consent the same way captureEvent does.
+  if (!analyticsConsent) return;
   if (posthogClient) {
     try {
       posthogClient.identify(userId);
