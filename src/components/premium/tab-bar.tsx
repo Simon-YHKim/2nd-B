@@ -1,6 +1,6 @@
 // Premium bottom tab bar (A-to-Z premium pass — bottom navigator, enabled
 // per user directive 2026-05-29; supersedes the earlier "no bottom nav"
-// rule). Four primary village destinations on a glassy dark bar with a mint
+// rule). Four primary village destinations on a layered dark bar with a mint
 // top-glow. Shows only on the primary routes; deeper screens keep the
 // top-left BackArrow. Pixel-style SVG glyphs (no emoji), mint when active.
 

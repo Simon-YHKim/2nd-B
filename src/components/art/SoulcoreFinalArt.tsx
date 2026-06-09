@@ -15,8 +15,14 @@ import {
 import { LivingAsset } from "@/components/motion/LivingAsset";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import type { PatternDataColorKey } from "@/lib/graph/pattern-data-color";
+import { cosmic } from "@/lib/theme/tokens";
 
 const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
+const SOUL_FLAME_HOT = cosmic.moonWhite;
+const SOUL_FLAME_WARM = cosmic.pixelLamp;
+const SOUL_FLAME_DEEP = cosmic.soulViolet;
+const SNOW_CRYSTAL_HOT = cosmic.moonWhite;
+const SNOW_CRYSTAL_COOL = cosmic.signalBlue;
 
 export type FinalCoreId = "core" | "work_growth" | "relationship" | "knowledge" | "records" | "inspiration";
 export type FinalPatternDataId = "bond" | "wisdom" | "narrative" | "muse" | "growth";
@@ -332,50 +338,52 @@ function SoulFlameFlicker({ size, active }: { size: number; active: boolean }) {
   );
 }
 
-const FLAME_CELLS: Array<{ x: number; y: number; w: number; h: number; color: string; opacity?: number }> = [
-  { x: 4, y: 0, w: 1, h: 1, color: "#FFF7A8" },
-  { x: 4, y: 1, w: 1, h: 1, color: "#FFD83D" },
-  { x: 3, y: 2, w: 1, h: 1, color: "#FF7A1A" },
-  { x: 4, y: 2, w: 1, h: 1, color: "#FFF06B" },
-  { x: 5, y: 2, w: 1, h: 1, color: "#FF8E1F" },
-  { x: 3, y: 3, w: 1, h: 1, color: "#FF5E00" },
-  { x: 4, y: 3, w: 1, h: 1, color: "#FFD83D" },
-  { x: 5, y: 3, w: 1, h: 1, color: "#FF6C00" },
-  { x: 2, y: 4, w: 1, h: 1, color: "#FF6C00", opacity: 0.85 },
-  { x: 3, y: 4, w: 1, h: 1, color: "#FFA51F" },
-  { x: 4, y: 4, w: 1, h: 1, color: "#FFFFD2" },
-  { x: 5, y: 4, w: 1, h: 1, color: "#FFC928" },
-  { x: 6, y: 4, w: 1, h: 1, color: "#FF6C00", opacity: 0.85 },
-  { x: 2, y: 5, w: 1, h: 1, color: "#FF4D00", opacity: 0.8 },
-  { x: 3, y: 5, w: 1, h: 1, color: "#FFB329" },
-  { x: 4, y: 5, w: 1, h: 1, color: "#FFF8C7" },
-  { x: 5, y: 5, w: 1, h: 1, color: "#FFB329" },
-  { x: 6, y: 5, w: 1, h: 1, color: "#FF4D00", opacity: 0.8 },
-  { x: 3, y: 6, w: 1, h: 1, color: "#FF8317" },
-  { x: 4, y: 6, w: 1, h: 1, color: "#FFE45C" },
-  { x: 5, y: 6, w: 1, h: 1, color: "#FF8317" },
-  { x: 3, y: 7, w: 1, h: 1, color: "#FF5E00", opacity: 0.72 },
-  { x: 4, y: 7, w: 1, h: 1, color: "#FFB329" },
-  { x: 5, y: 7, w: 1, h: 1, color: "#FF5E00", opacity: 0.72 },
-  { x: 4, y: 8, w: 1, h: 1, color: "#FF7A1A", opacity: 0.7 },
+type PixelCell = { x: number; y: number; w: number; h: number; color: string; opacity?: number };
+
+const FLAME_CELLS: PixelCell[] = [
+  { x: 4, y: 0, w: 1, h: 1, color: SOUL_FLAME_HOT },
+  { x: 4, y: 1, w: 1, h: 1, color: SOUL_FLAME_WARM },
+  { x: 3, y: 2, w: 1, h: 1, color: SOUL_FLAME_DEEP },
+  { x: 4, y: 2, w: 1, h: 1, color: SOUL_FLAME_WARM },
+  { x: 5, y: 2, w: 1, h: 1, color: SOUL_FLAME_DEEP },
+  { x: 3, y: 3, w: 1, h: 1, color: SOUL_FLAME_DEEP },
+  { x: 4, y: 3, w: 1, h: 1, color: SOUL_FLAME_WARM },
+  { x: 5, y: 3, w: 1, h: 1, color: SOUL_FLAME_DEEP },
+  { x: 2, y: 4, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.85 },
+  { x: 3, y: 4, w: 1, h: 1, color: SOUL_FLAME_WARM },
+  { x: 4, y: 4, w: 1, h: 1, color: SOUL_FLAME_HOT },
+  { x: 5, y: 4, w: 1, h: 1, color: SOUL_FLAME_WARM },
+  { x: 6, y: 4, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.85 },
+  { x: 2, y: 5, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.8 },
+  { x: 3, y: 5, w: 1, h: 1, color: SOUL_FLAME_WARM },
+  { x: 4, y: 5, w: 1, h: 1, color: SOUL_FLAME_HOT },
+  { x: 5, y: 5, w: 1, h: 1, color: SOUL_FLAME_WARM },
+  { x: 6, y: 5, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.8 },
+  { x: 3, y: 6, w: 1, h: 1, color: SOUL_FLAME_DEEP },
+  { x: 4, y: 6, w: 1, h: 1, color: SOUL_FLAME_WARM },
+  { x: 5, y: 6, w: 1, h: 1, color: SOUL_FLAME_DEEP },
+  { x: 3, y: 7, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.72 },
+  { x: 4, y: 7, w: 1, h: 1, color: SOUL_FLAME_WARM },
+  { x: 5, y: 7, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.72 },
+  { x: 4, y: 8, w: 1, h: 1, color: SOUL_FLAME_DEEP, opacity: 0.7 },
 ];
 
-const SPARK_CELLS: Array<{ x: number; y: number; w: number; h: number; color: string; opacity?: number }> = [
-  { x: 3, y: 2, w: 0.8, h: 0.8, color: "#FFF8C7" },
-  { x: 6, y: 3, w: 0.75, h: 0.75, color: "#FFD83D", opacity: 0.85 },
-  { x: 5, y: 0, w: 0.7, h: 0.7, color: "#FF8E1F", opacity: 0.8 },
+const SPARK_CELLS: PixelCell[] = [
+  { x: 3, y: 2, w: 0.8, h: 0.8, color: SOUL_FLAME_HOT },
+  { x: 6, y: 3, w: 0.75, h: 0.75, color: SOUL_FLAME_WARM, opacity: 0.85 },
+  { x: 5, y: 0, w: 0.7, h: 0.7, color: SOUL_FLAME_DEEP, opacity: 0.8 },
 ];
 
-const SNOWFLAKE_CELLS: Array<{ x: number; y: number; w: number; h: number; color: string; opacity?: number }> = [
-  { x: 0.5, y: 0.04, w: 1, h: 1.6, color: "#BFF6FF" },
-  { x: 0.5, y: 0.96, w: 1, h: 1.6, color: "#58CFFF" },
-  { x: 0.04, y: 0.5, w: 1.6, h: 1, color: "#58CFFF" },
-  { x: 0.96, y: 0.5, w: 1.6, h: 1, color: "#BFF6FF" },
-  { x: 0.21, y: 0.21, w: 1.25, h: 1.25, color: "#7DE7FF", opacity: 0.92 },
-  { x: 0.79, y: 0.21, w: 1.25, h: 1.25, color: "#DFFBFF", opacity: 0.92 },
-  { x: 0.21, y: 0.79, w: 1.25, h: 1.25, color: "#DFFBFF", opacity: 0.86 },
-  { x: 0.79, y: 0.79, w: 1.25, h: 1.25, color: "#58CFFF", opacity: 0.88 },
-  { x: 0.5, y: 0.5, w: 1.7, h: 1.7, color: "#F4FFFF" },
+const SNOWFLAKE_CELLS: PixelCell[] = [
+  { x: 0.5, y: 0.04, w: 1, h: 1.6, color: SNOW_CRYSTAL_HOT },
+  { x: 0.5, y: 0.96, w: 1, h: 1.6, color: SNOW_CRYSTAL_COOL },
+  { x: 0.04, y: 0.5, w: 1.6, h: 1, color: SNOW_CRYSTAL_COOL },
+  { x: 0.96, y: 0.5, w: 1.6, h: 1, color: SNOW_CRYSTAL_HOT },
+  { x: 0.21, y: 0.21, w: 1.25, h: 1.25, color: SNOW_CRYSTAL_COOL, opacity: 0.92 },
+  { x: 0.79, y: 0.21, w: 1.25, h: 1.25, color: SNOW_CRYSTAL_HOT, opacity: 0.92 },
+  { x: 0.21, y: 0.79, w: 1.25, h: 1.25, color: SNOW_CRYSTAL_HOT, opacity: 0.86 },
+  { x: 0.79, y: 0.79, w: 1.25, h: 1.25, color: SNOW_CRYSTAL_COOL, opacity: 0.88 },
+  { x: 0.5, y: 0.5, w: 1.7, h: 1.7, color: SNOW_CRYSTAL_HOT },
 ];
 
 export function FinalPatternDataArt({
@@ -577,9 +585,9 @@ const styles = StyleSheet.create({
   },
   flameGlow: {
     position: "absolute",
-    borderRadius: 999,
-    backgroundColor: "#FF9A22",
-    shadowColor: "#FFD83D",
+    borderRadius: 48,
+    backgroundColor: SOUL_FLAME_WARM,
+    shadowColor: SOUL_FLAME_WARM,
     shadowOpacity: 0.8,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
@@ -593,7 +601,7 @@ const styles = StyleSheet.create({
   },
   flameCell: {
     position: "absolute",
-    shadowColor: "#FFD83D",
+    shadowColor: SOUL_FLAME_WARM,
     shadowOpacity: 0.55,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 0 },
@@ -602,7 +610,7 @@ const styles = StyleSheet.create({
     position: "relative",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#58CFFF",
+    shadowColor: SNOW_CRYSTAL_COOL,
     shadowOpacity: 0.8,
     shadowRadius: 9,
     shadowOffset: { width: 0, height: 0 },
@@ -610,7 +618,7 @@ const styles = StyleSheet.create({
   snowflakeCell: {
     position: "absolute",
     borderRadius: 1,
-    shadowColor: "#7DE7FF",
+    shadowColor: SNOW_CRYSTAL_COOL,
     shadowOpacity: 0.72,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 0 },

@@ -1,4 +1,4 @@
-// Premium surfaces — top bar, glass panels/cards, buttons, inputs (Part 1).
+// Premium surfaces — top bar, panels/cards, buttons, inputs (Part 1).
 // Glassy dark panels with accent borders, mint primary + violet secondary
 // CTAs, all reading from cosmic.* so the village identity stays consistent.
 
@@ -80,7 +80,7 @@ export function PremiumPanel({
         styles.panel,
         accent ? { borderStartWidth: gameboy.borderWidth, borderStartColor: accent } : null,
         // O-11 P1 fix: caller style LAST so per-screen overrides win (the
-        // pre-#266 contract; Phase 2 had reversed it, silently dropping
+        // pre-PR 266 contract; Phase 2 had reversed it, silently dropping
         // caller backgroundColor/border/padding).
         style,
       ]}

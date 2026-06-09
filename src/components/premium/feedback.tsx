@@ -14,7 +14,7 @@ import { PremiumButton } from "./surfaces";
 
 const LOADING_DOT_PATTERN = [true, true, true, true, false, true, true, true, true];
 
-/** Slide-up glassy bottom sheet. Screen-fixed; renders nothing when closed. */
+/** Slide-up premium bottom sheet. Screen-fixed; renders nothing when closed. */
 export function PremiumBottomSheet({
   visible,
   onClose,
@@ -72,7 +72,7 @@ export function PremiumBottomSheet({
   );
 }
 
-/** Centered glassy modal. */
+/** Centered premium modal. */
 export function PremiumModal({
   visible,
   onClose,

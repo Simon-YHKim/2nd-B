@@ -349,7 +349,7 @@ function tierSize(t: Tier): number {
 // CSS shadow — it's a PIXEL HALO of 3 nested hard-border rings with alpha
 // falloff (1px/0.6, 2px/0.3, 4px/0.1), so it reads as a crisp LCD glow on every
 // platform (Android ignores shadowRadius anyway). Tier scales the alpha via
-// glowForTier (hierarchy standing rule). Pure Views — no animation, no #251
+// glowForTier (hierarchy standing rule). Pure Views, no animation, no issue 251
 // line-driver crash risk.
 // O-12 Phase B: intensified to a 4-ring pixel halo (1/2/3/5px, alpha falloff).
 const GLOW_RINGS = [
@@ -2431,7 +2431,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Village name plate under each tier-2 island. Pixel face on a dark glass
+  // Village name plate under each tier-2 island. Pixel face on a dark token
   // chip with a mint hairline so it reads against the cosmic background while
   // staying in the pixel-art register. Centered under the node; overflows the
   // node box (which is only `size` wide) so the full name shows.

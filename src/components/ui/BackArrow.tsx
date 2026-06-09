@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { Text } from "@/components/ui/Text";
 import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { isPrimaryTabPath } from "@/lib/nav/tabs";
-import { cosmic } from "@/lib/theme/tokens";
+import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
 
 // Landing + pre-auth routes that hide the arrow (no "back to graph" there yet).
 const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile", "/oauth-callback"];
@@ -26,6 +26,10 @@ const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile", "/oauth-cal
 // village needs a back button"). On a tab screen the arrow is nudged right of
 // the brand chip (see below) so the two don't overlap.
 const HIDDEN_PATHS = new Set<string>([...PRE_AUTH_PATHS, "/"]);
+const BACK_ARROW_BG = withAlpha(cosmic.soulViolet, 0.16);
+const BACK_ARROW_BORDER = withAlpha(cosmic.signalMint, 0.42);
+const BACK_LABEL_BG = withAlpha(cosmic.space950, 0.74);
+const BACK_LABEL_BORDER = withAlpha(cosmic.signalMint, 0.28);
 
 type Locale = "en" | "ko";
 
@@ -145,12 +149,12 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    // Premium glass backing so the arrow never visually merges with text.
+    // Premium token backing so the arrow never visually merges with text.
     borderRadius: 12,
-    backgroundColor: "rgba(167,139,250,0.16)",
+    backgroundColor: BACK_ARROW_BG,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.42)",
-    shadowColor: cosmic.signalMint,
+    borderColor: BACK_ARROW_BORDER,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.28,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
@@ -166,7 +170,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 3,
     borderRadius: 2,
-    backgroundColor: cosmic.signalMint,
+    backgroundColor: semantic.brand,
   },
   chevronTop: {
     transform: [{ rotate: "-42deg" }],
@@ -183,11 +187,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(114,242,199,0.28)",
-    backgroundColor: "rgba(8,12,24,0.74)",
+    borderColor: BACK_LABEL_BORDER,
+    backgroundColor: BACK_LABEL_BG,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    shadowColor: cosmic.signalMint,
+    shadowColor: semantic.brand,
     shadowOpacity: 0.18,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },

@@ -3,6 +3,7 @@ import { Animated, Easing, StyleSheet, useWindowDimensions } from "react-native"
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { gameboy } from "@/lib/theme/gameboy-tokens";
+import { cosmic } from "@/lib/theme/tokens";
 
 import { POWER_ON_STORAGE_KEY, powerOnStartState } from "./power-on-state";
 
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
     ...(StyleSheet.absoluteFill as object),
     zIndex: 1000,
     elevation: 1000,
-    backgroundColor: "#000000",
+    backgroundColor: cosmic.space950,
   },
   scanline: {
     position: "absolute",
