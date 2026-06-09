@@ -437,7 +437,7 @@ export default function Capture() {
         finalBody = `# ${body.trim()}\n\n${body.trim()}`;
       }
       if (mode === "file" && pickedFile && finalBody.length === 0) {
-        finalBody = `# ${pickedFile.name}\n\nFile attachment — ${pickedFile.mimeType}, ${pickedFile.size} bytes.`;
+        finalBody = `# ${pickedFile.name}\n\nFile attachment - ${pickedFile.mimeType}, ${pickedFile.size} bytes.`;
       }
 
       // AI clipper classification on toss (2026-06-01 directive): one call
