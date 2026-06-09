@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   fieldDot: { width: 8, height: 8, borderRadius: 4 },
   evidenceBtn: { paddingVertical: spacing.xs },
   emptyActions: { gap: spacing.md, marginTop: spacing.xl, width: "100%", maxWidth: 320 },
-  backdrop: { flex: 1, backgroundColor: "rgba(2,4,10,0.78)", justifyContent: "flex-end" },
+  backdrop: { flex: 1, backgroundColor: semantic.backdrop, justifyContent: "flex-end" },
   drawer: {
     backgroundColor: semantic.surface,
     borderTopLeftRadius: radii.xl,

@@ -9,6 +9,8 @@
 import type { PropsWithChildren } from "react";
 import { ScrollViewStyleReset } from "expo-router/html";
 
+import { semantic } from "@/lib/theme/tokens";
+
 // Reset inline so the rule lands in the first paint. The dark background
 // matches cosmic.space950 (Deep Space Ink) so the white flash that would
 // otherwise show during the initial render is hidden, and the very first
@@ -22,14 +24,14 @@ html, body, #root, #__next {
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: pan-x pan-y;
-  background-color: #070A18;
+  background-color: ${semantic.background};
 }
 *, *::before, *::after {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 :focus-visible {
-  outline: 2px solid #8FD6BF;
+  outline: 2px solid ${semantic.brand};
   outline-offset: 3px;
 }
 a:focus-visible,
@@ -40,7 +42,7 @@ select:focus-visible,
 [role="button"]:focus-visible,
 [role="link"]:focus-visible,
 [role="tab"]:focus-visible {
-  outline: 2px solid #8FD6BF;
+  outline: 2px solid ${semantic.brand};
   outline-offset: 3px;
 }
 /* NeoDunggeunmo pixel font app-wide (user directive 2026-05-29). The

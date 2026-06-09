@@ -15,7 +15,7 @@ import { Redirect } from "expo-router";
 import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { PreferenceToggleRow } from "@/components/ui/PreferenceToggle";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   VISIBLE_PRIVACY_KEYS,
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   saveError: { paddingHorizontal: spacing.xs },
   trustNote: {
     backgroundColor: semantic.surface,
-    borderColor: "rgba(114,242,199,0.34)",
+    borderColor: withAlpha(cosmic.signalMint, 0.34),
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.md,
