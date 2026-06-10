@@ -1015,8 +1015,8 @@ results.push(
       settings.includes('accessibilityHint={t("nav.privacyHint")}') &&
       settings.includes('accessibilityHint={t("nav.accountHint")}') &&
       settings.includes('accessibilityHint={t("nav.dataHint")}') &&
-      settings.includes('accessibilityHint={t("actions.darkThemeHint")}') &&
-      settings.includes('accessibilityHint={t("actions.lightThemeHint")}') &&
+      // (theme quick-toggle hints removed with the duplicate disclosure —
+      // /theme owns theme switching; see O-R1 settings restructure.)
       settings.includes('accessibilityHint={t("actions.crewDensityHint", { density: CREW_DENSITY_LABEL[locale][d] })}') &&
       settings.includes('accessibilityHint={t("actions.deleteJournalsHint")}') &&
       settings.includes('accessibilityHint={t("actions.deleteBfiHint")}') &&
@@ -1222,7 +1222,6 @@ results.push(
     const codeRequired = [
       'useTranslation("settings")',
       't("loading")',
-      't("nav.eyebrow")',
       't("nav.profile")',
       't("nav.profileHint")',
       't("nav.data")',
@@ -1280,8 +1279,6 @@ results.push(
     const en = read("locales/en/settings.json");
     const ko = read("locales/ko/settings.json");
     const requiredCode = [
-      't("actions.darkThemeHint")',
-      't("actions.lightThemeHint")',
       't("actions.crewDensityHint", { density: CREW_DENSITY_LABEL[locale][d] })',
       't("actions.deleteJournalsHint")',
       't("actions.deleteNotesHint")',
@@ -1327,10 +1324,8 @@ results.push(
     ];
     const ok =
       requiredCode.every((snippet) => settings.includes(snippet)) &&
-      en.includes('"darkThemeHint": "Applies dark theme on this device."') &&
       en.includes('"deleteJournalsHint": "Opens a confirmation before deleting every journal entry."') &&
       en.includes('"fullWipeHint": "Requires typed DELETE confirmation before wiping records, sources, wiki pages, and usage."') &&
-      ko.includes('"darkThemeHint": "이 기기에 다크 테마를 적용합니다."') &&
       ko.includes('"deleteJournalsHint": "모든 일기를 삭제하기 전에 확인 대화상자를 엽니다."') &&
       ko.includes('"fullWipeHint": "기록, 캡처, 위키 페이지, 사용량을 모두 삭제하기 전에 DELETE 입력과 확인이 필요합니다."') &&
       forbiddenInlineCopy.every((term) => !settings.includes(term));
