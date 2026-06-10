@@ -4,7 +4,7 @@
 // row exists; the app routes such users to /complete-profile rather than
 // /journal until they finish the birth-date (C10) prompt.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getSupabaseClient } from "../supabase/client";
 import { ageInYears } from "../supabase/auth";
 
@@ -99,26 +99,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading: true,
   });
 
+  // Last resolved user + probe, so repeated auth events (TOKEN_REFRESHED, a
+  // fresh SIGNED_IN for the same user on re-entry) don't re-strand the UI in
+  // loading while we re-probe — we keep showing the app. Refs (not effect
+  // closure variables) because refresh() must update this cache too: after
+  // /complete-profile refreshes hasProfile to true, the next auth event would
+  // otherwise re-publish the stale pre-refresh probe (hasProfile=false) and
+  // bounce the user back to /complete-profile mid-session (E2E-1 family).
+  const lastUserIdRef = useRef<string | null>(null);
+  const lastProbeRef = useRef<ProfileProbe | null>(null);
+  // Resolution generation: every new resolution (auth event or refresh()) takes
+  // ++gen; an async probe only publishes if its gen is still current. Without
+  // this, a slow in-flight probe that started BEFORE a profile change could
+  // resolve last and overwrite the fresher state/cache with a stale snapshot
+  // (e.g. re-publishing hasProfile=false right after /complete-profile created
+  // the row, bouncing the user back through the index/IntroGate guards).
+  const probeGenRef = useRef(0);
+
   useEffect(() => {
     const supabase = getSupabaseClient();
     let cancelled = false;
-    // Remember the last resolved user so repeated auth events (TOKEN_REFRESHED,
-    // a fresh SIGNED_IN for the same user on re-entry) don't re-strand the UI
-    // in loading while we re-probe — we keep showing the app.
-    let lastUserId: string | null = null;
-    let lastProbe: ProfileProbe | null = null;
 
     async function resolveSession(userId: string | null) {
       if (cancelled) return;
+      const gen = ++probeGenRef.current;
       if (!userId) {
-        lastUserId = null;
-        lastProbe = null;
+        lastUserIdRef.current = null;
+        lastProbeRef.current = null;
         setState({ userId: null, hasProfile: null, isMinor: null, loading: false });
         return;
       }
       // Same user we already resolved — don't flip back to loading (avoids the
       // re-entry infinite-loader). Re-probe quietly and update in place.
-      if (userId === lastUserId && lastProbe !== null) {
+      const lastProbe = lastProbeRef.current;
+      if (userId === lastUserIdRef.current && lastProbe !== null) {
         setState({
           userId,
           hasProfile: lastProbe.hasProfile,
@@ -126,8 +140,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           loading: false,
         });
         const refreshed = await withTimeout(fetchProfile(userId), PROFILE_PROBE_TIMEOUT_MS, lastProbe);
-        if (cancelled) return;
-        lastProbe = refreshed;
+        if (cancelled || gen !== probeGenRef.current) return;
+        lastProbeRef.current = refreshed;
         setState({
           userId,
           hasProfile: refreshed.hasProfile,
@@ -142,9 +156,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasProfile: false,
         isMinor: null,
       });
-      if (cancelled) return;
-      lastUserId = userId;
-      lastProbe = probe;
+      if (cancelled || gen !== probeGenRef.current) return;
+      lastUserIdRef.current = userId;
+      lastProbeRef.current = probe;
       setState({ userId, hasProfile: probe.hasProfile, isMinor: probe.isMinor, loading: false });
     }
 
@@ -169,12 +183,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Manual re-probe for the current session. Additive — the auth-event effect
-  // above is untouched; this just refreshes the cached profile on demand (DOB
-  // correction, etc.). Independent of the effect's in-place probe cache, so the
-  // value reflects the latest birth_date immediately.
+  // Manual re-probe for the current session: refreshes the published state AND
+  // the probe cache on demand (profile completion, DOB correction, sign-out
+  // settling). Writing the cache keeps the next auth event's in-place publish
+  // consistent with what we just learned, instead of re-surfacing a stale probe.
   const refresh = useCallback(async () => {
     const supabase = getSupabaseClient();
+    const gen = ++probeGenRef.current;
     let uid: string | null = null;
     try {
       const { data } = await supabase.auth.getSession();
@@ -182,14 +197,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       uid = null;
     }
+    if (gen !== probeGenRef.current) return; // a newer resolution superseded us
     if (!uid) {
+      lastUserIdRef.current = null;
+      lastProbeRef.current = null;
       setState({ userId: null, hasProfile: null, isMinor: null, loading: false });
       return;
     }
-    const probe = await withTimeout(fetchProfile(uid), PROFILE_PROBE_TIMEOUT_MS, {
-      hasProfile: false,
-      isMinor: null,
-    });
+    // Timeout fallback: keep the last known-good probe for the SAME user
+    // instead of hard-coding hasProfile:false — a flaky re-probe must not
+    // poison the cache and yank an in-app user back to /complete-profile.
+    const fallback: ProfileProbe =
+      lastUserIdRef.current === uid && lastProbeRef.current !== null
+        ? lastProbeRef.current
+        : { hasProfile: false, isMinor: null };
+    const probe = await withTimeout(fetchProfile(uid), PROFILE_PROBE_TIMEOUT_MS, fallback);
+    if (gen !== probeGenRef.current) return;
+    lastUserIdRef.current = uid;
+    lastProbeRef.current = probe;
     setState({ userId: uid, hasProfile: probe.hasProfile, isMinor: probe.isMinor, loading: false });
   }, []);
 

@@ -22,6 +22,7 @@ import {
   allRequiredAcksChecked,
   buildSignUpConsentArgs,
 } from "@/lib/auth/consent-selections";
+import { submitCompleteProfile, signOutAndSettle } from "@/lib/auth/complete-profile-flow";
 import { recordConsentBestEffort } from "@/lib/supabase/consent";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 
@@ -32,9 +33,15 @@ const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth
 
 export default function CompleteProfile() {
   const { t, i18n } = useTranslation("auth");
-  const { userId, hasProfile, loading } = useAuth();
+  const { userId, hasProfile, loading, refresh } = useAuth();
   const [birthDate, setBirthDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  // Judge accounts (C6) get a 900ms welcome toast before entering. The flow's
+  // refresh publishes hasProfile=true, which would make the redirect guard
+  // below unmount the toast at zero frames — this flag holds the guard open
+  // until the delayed router.replace runs.
+  const [judgeWelcome, setJudgeWelcome] = useState(false);
   const [consent, setConsent] = useState(emptyConsentSelections());
   const [toast, setToast] = useState<CompleteProfileToast | null>(null);
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -65,8 +72,11 @@ export default function CompleteProfile() {
   }
 
   // Already has a profile — bounce to journal. Possible if the user navigates
-  // here manually after completing setup.
-  if (userId && hasProfile) {
+  // here manually after completing setup. Held open mid-submit and during the
+  // judge welcome: the submit flow refreshes the context (hasProfile flips
+  // true) BEFORE the handler navigates, and this guard must not unmount the
+  // screen (killing toasts and the handler's own navigation) in that window.
+  if (userId && hasProfile && !submitting && !judgeWelcome) {
     return <Redirect href="/" />;
   }
 
@@ -75,56 +85,83 @@ export default function CompleteProfile() {
     return <Redirect href="/sign-in" />;
   }
 
+  // E2E-1/E2E-2 (e2e-shots-20260610): both P0s were ordering bugs between this
+  // screen's navigation and the AuthContext cache, so the sequencing lives in
+  // complete-profile-flow.ts (unit-tested). The flow settles the context
+  // (refresh) BEFORE returning; this screen only maps results to UI.
   async function handleSubmit(): Promise<void> {
     setSubmitting(true);
     try {
-      const result = await ensureUserProfile({ birthDate, locale });
-      // Record the consent the user just gave. Await before navigating so a
-      // web router.replace can't cancel the in-flight write (see sign-up).
-      // Still best-effort: a failure logs at error level, never blocks entry.
-      // Only on a fresh profile (created): when the users row already exists,
-      // ensureUserProfile returns early WITHOUT persisting this birth_date, so
-      // its age_band would be derived from a never-saved DOB — and the original
-      // sign-up consent already exists. Skip the write in that case.
-      if (userId && result.created) {
-        await recordConsentBestEffort(
-          buildSignUpConsentArgs({ userId, isMinor: isMinorAge, locale, selections: consent }),
-        );
-      }
-      if (result.judgeMode) {
-        setToast({ tone: "success", message: t("judge.welcome") });
-        setTimeout(() => router.replace("/"), 900);
-        return;
-      }
-      router.replace("/");
-    } catch (e) {
-      if (e instanceof AgeGateError) {
-        setToast({ tone: "danger", message: t("errors.ageGate") });
-        await new Promise((resolve) => setTimeout(resolve, 900));
-        // C10: under-14 OAuth users are signed out immediately so the
-        // session doesn't linger after the prompt is rejected.
-        try {
-          await signOut();
-        } catch {
-          // best effort
+      const result = await submitCompleteProfile({
+        ensureProfile: () => ensureUserProfile({ birthDate, locale }),
+        // Record the consent the user just gave, awaited before navigation so
+        // a web router.replace can't cancel the in-flight write (see sign-up).
+        // Still best-effort: a failure logs at error level, never blocks entry.
+        // The flow calls this only on a fresh profile (created): when the users
+        // row already exists, ensureUserProfile returns early WITHOUT
+        // persisting this birth_date, so its age_band would be derived from a
+        // never-saved DOB — and the original sign-up consent already exists.
+        recordConsent: () =>
+          userId
+            ? recordConsentBestEffort(
+                buildSignUpConsentArgs({ userId, isMinor: isMinorAge, locale, selections: consent }),
+              )
+            : Promise.resolve(),
+        refreshAuth: refresh,
+        signOutUser: signOut,
+        isAgeGateError: (e) => e instanceof AgeGateError,
+      });
+      if (result.kind === "entered") {
+        // The context already knows hasProfile=true (flow refreshed), so the
+        // "/" guard lets the user through instead of bouncing back here — the
+        // old silent Continue loop.
+        if (result.judgeMode) {
+          setJudgeWelcome(true); // hold the redirect guard open for the toast
+          setToast({ tone: "success", message: t("judge.welcome") });
+          setTimeout(() => router.replace("/"), 900);
+          return;
         }
         router.replace("/");
         return;
       }
+      if (result.kind === "ageGate") {
+        // The flow deliberately did NOT sign out yet: the toast must paint
+        // while the screen is still mounted (a refresh would flip userId to
+        // null and the guard above would unmount it instantly).
+        setToast({ tone: "danger", message: t("errors.ageGate") });
+        await new Promise((resolve) => setTimeout(resolve, 900));
+        // C10: now sign the under-14 session out and settle the context, then
+        // land on /sign-in directly — routing via "/" with a not-yet-settled
+        // session is what redirect-warred with IntroGate (E2E-2). If the
+        // sign-out failed the session is still live, so stay on the form.
+        const { signedOut } = await signOutAndSettle({ signOutUser: signOut, refreshAuth: refresh });
+        if (signedOut) router.replace("/sign-in");
+        return;
+      }
       setToast({ tone: "danger", message: t("errors.completeProfileSaveFailed") });
-      if (typeof console !== "undefined") console.warn("[auth] completeProfile error", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[auth] completeProfile error", result.message);
     } finally {
       setSubmitting(false);
     }
   }
 
   async function handleCancel(): Promise<void> {
+    setCancelling(true);
     try {
-      await signOut();
-    } catch {
-      // best effort
+      const { signedOut } = await signOutAndSettle({ signOutUser: signOut, refreshAuth: refresh });
+      if (signedOut) {
+        // The flow settled the context (userId is null) before we navigate, and
+        // we go straight to /sign-in — not via "/" — so no guard ever sees the
+        // contradictory signed-in-without-profile snapshot that crashed with
+        // "Maximum update depth exceeded" (E2E-2; settings.tsx documents the
+        // same stale-session race on its sign-out button).
+        router.replace("/sign-in");
+        return;
+      }
+      setToast({ tone: "danger", message: t("errors.signOutFailed") });
+    } finally {
+      setCancelling(false);
     }
-    router.replace("/");
   }
 
   return (
@@ -181,7 +218,7 @@ export default function CompleteProfile() {
           <Button
             label={t("completeProfile.submit")}
             variant="primary"
-            disabled={!canSubmit}
+            disabled={!canSubmit || cancelling}
             loading={submitting}
             onPress={handleSubmit}
             accessibilityHint={t("completeProfile.submitHint")}
@@ -195,7 +232,8 @@ export default function CompleteProfile() {
             // submit is the only prominent action.
             variant="ghost"
             onPress={handleCancel}
-            disabled={submitting}
+            disabled={submitting || cancelling}
+            loading={cancelling}
             accessibilityHint={t("completeProfile.cancelHint")}
             full
             style={styles.submitButton}
