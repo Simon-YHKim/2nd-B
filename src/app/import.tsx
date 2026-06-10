@@ -99,7 +99,7 @@ export default function ImportExternal() {
     if (!userId || !result || saving) return;
     setSaving(true);
     try {
-      await captureFromMarkdown({
+      const captureResult = await captureFromMarkdown({
         userId,
         rawMd: renderIngestMarkdown(result, locale),
         fallbackUrl: null,
@@ -108,6 +108,11 @@ export default function ImportExternal() {
         track: result.track,
       });
       setPhase("saved");
+      // Honest degraded-success surface (parity with /capture saved panel):
+      // the row saved but the Storage copy didn't land (_body_fallback inline).
+      if (captureResult.storagePending) {
+        setToast({ tone: "info", message: t("toast.storagePending") });
+      }
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[import] save failed", (e as Error).message);
       setToast({ tone: "danger", message: t("toast.saveFailed") });

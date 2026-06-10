@@ -126,6 +126,13 @@ describe("computeInsights", () => {
     expect(r.byWeek.map((w) => w.count)).toEqual([1, 0, 1]);
   });
 
+  test("weekly buckets anchor to KST (late UTC Sunday lands in the KST Monday week)", () => {
+    // 2026-05-24T16:00:00Z is Sunday 16:00 UTC (ISO 2026-W21) but Monday
+    // 01:00 KST (2026-W22). Buckets must follow the KST day convention.
+    const r = computeInsights([rec({ id: "1", created_at: "2026-05-24T16:00:00Z" })]);
+    expect(r.byWeek).toEqual([{ week: "2026-W22", count: 1 }]);
+  });
+
   test("avgBodyChars rounds to nearest int", () => {
     const r = computeInsights([
       rec({ id: "1", body: "ab" }), // 2
