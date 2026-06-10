@@ -3,7 +3,7 @@
 // /journal etc.), partial (per-kind / per-tag), and full (everything).
 
 import { type ReactNode, useEffect, useState } from "react";
-import { ActivityIndicator, TouchableOpacity, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
+import { ActivityIndicator, TouchableOpacity, ScrollView, StyleSheet, View, type AccessibilityRole, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -31,6 +31,9 @@ type SettingsToast = { message: string; tone: "info" | "success" | "danger" };
 type PendingConfirm = { message: string; onYes: () => Promise<void> } | null;
 type ActionError = { title: string; body: string; retry?: () => void } | null;
 type SettingsDisclosureKey = "crew" | "data";
+type DataDeleteStep = "records" | "assessments" | "library" | "full";
+
+const DATA_DELETE_STEPS: DataDeleteStep[] = ["records", "assessments", "library", "full"];
 
 const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
   en: { none: "None", few: "Few", some: "Some", many: "Many" },
@@ -39,7 +42,9 @@ const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
 
 type SettingsActionButtonProps = {
   label: string;
+  accessibilityLabel?: string;
   accessibilityHint?: string;
+  accessibilityRole?: AccessibilityRole;
   variant?: "primary" | "secondary" | "danger";
   disabled?: boolean;
   loading?: boolean;
@@ -52,7 +57,9 @@ type SettingsActionButtonProps = {
 
 function SettingsActionButton({
   label,
+  accessibilityLabel,
   accessibilityHint,
+  accessibilityRole = "button",
   variant = "secondary",
   disabled,
   loading,
@@ -85,8 +92,8 @@ function SettingsActionButton({
       ]}
     >
       <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityRole={accessibilityRole}
+        accessibilityLabel={accessibilityLabel ?? label}
         accessibilityHint={accessibilityHint}
         accessibilityState={{ disabled: isDisabled, busy: loading, selected }}
         disabled={isDisabled}
@@ -156,6 +163,7 @@ export default function Settings() {
   const [toast, setToast] = useState<SettingsToast | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
   const [actionError, setActionError] = useState<ActionError>(null);
+  const [dataDeleteStep, setDataDeleteStep] = useState<DataDeleteStep>("records");
   const [openDisclosures, setOpenDisclosures] = useState<Record<SettingsDisclosureKey, boolean>>({
     crew: false,
     data: false,
@@ -478,6 +486,39 @@ export default function Settings() {
           onToggle={() => toggleDisclosure("data")}
           tone="warning"
         >
+          <Text variant="subtle" color="textMuted">
+            {t("dataWizard.body")}
+          </Text>
+          <View style={styles.deleteWizardGrid}>
+            {DATA_DELETE_STEPS.map((step, index) => {
+              const stepSelected = dataDeleteStep === step;
+              const stepLabel = t(`dataWizard.${step}.label`);
+              return (
+                <Button
+                  key={step}
+                  label={stepLabel}
+                  accessibilityRole="radio"
+                  accessibilityLabel={t("dataWizard.optionA11yLabel", {
+                    label: stepLabel,
+                    index: index + 1,
+                    total: DATA_DELETE_STEPS.length,
+                    state: stepSelected ? t("dataWizard.stateSelected") : t("dataWizard.stateAvailable"),
+                  })}
+                  accessibilityHint={stepSelected ? t("dataWizard.selectedHint") : t(`dataWizard.${step}.hint`)}
+                  variant={stepSelected ? (step === "full" ? "danger" : "primary") : "secondary"}
+                  selected={stepSelected}
+                  onPress={() => setDataDeleteStep(step)}
+                  full={false}
+                  style={styles.deleteWizardOption}
+                />
+              );
+            })}
+          </View>
+          <Text variant="subtle" color={dataDeleteStep === "full" ? "danger" : "textMuted"}>
+            {t(`dataWizard.${dataDeleteStep}.body`)}
+          </Text>
+
+          {dataDeleteStep === "records" ? (
           <View style={styles.destructiveGroup}>
             <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
               {locale === "ko" ? "부분 삭제: 종류별" : "Partial: by kind"}
@@ -524,7 +565,9 @@ export default function Settings() {
               }
             />
           </View>
+          ) : null}
 
+          {dataDeleteStep === "assessments" ? (
           <View style={styles.destructiveGroup}>
             <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
               {locale === "ko" ? "부분 삭제: 평가 결과" : "Partial: by assessment"}
@@ -568,7 +611,9 @@ export default function Settings() {
               }
             />
           </View>
+          ) : null}
 
+          {dataDeleteStep === "library" ? (
           <View style={styles.destructiveGroup}>
             <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
               {locale === "ko" ? "부분 삭제: 위키/캡처/사용량" : "Partial: wiki / captures / usage"}
@@ -612,7 +657,9 @@ export default function Settings() {
               }
             />
           </View>
+          ) : null}
 
+          {dataDeleteStep === "full" ? (
           <View style={styles.destructiveGroup}>
             <Text variant="caption" color="danger" style={styles.sectionEyebrow}>
               {locale === "ko" ? "위험: 전체 삭제" : "Danger: full wipe"}
@@ -621,6 +668,9 @@ export default function Settings() {
               {locale === "ko"
                 ? "기록 · 캡처 · 위키 페이지 · 세컨비 사용량을 한 번에 모두 삭제합니다. 계정은 유지되지만 0부터 다시 시작합니다."
                 : "Wipes records, sources, wiki pages, and SecondB usage in one shot. The account stays but you start from zero."}
+            </Text>
+            <Text variant="subtle" color="textMuted">
+              {t("dataWizard.full.retained")}
             </Text>
             <Text variant="subtle" color="danger">
               {locale === "ko"
@@ -652,6 +702,7 @@ export default function Settings() {
               }
             />
           </View>
+          ) : null}
         </DisclosureSection>
 
         <View style={styles.actions}>
@@ -784,6 +835,16 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     borderTopWidth: gameboy.borderWidth,
     borderTopColor: gameboy.border,
+  },
+  deleteWizardGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  deleteWizardOption: {
+    flexGrow: 1,
+    flexBasis: "47%",
+    minWidth: 148,
   },
   busyBanner: {
     backgroundColor: semantic.surfaceAlt,
