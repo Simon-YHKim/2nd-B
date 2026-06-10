@@ -212,6 +212,7 @@ results.push(
       "feedback.retryHint",
       "formatSaved.personal",
       "formatSaved.shared",
+      "firstRun.hint",
       "saved.title",
       "saved.seeGraph",
       "saved.seeRecords",
@@ -1040,7 +1041,11 @@ results.push(
 results.push(
   check("Onboarding", () => {
     const onboarding = read("src/app/onboarding.tsx");
-    const stepEntries = onboarding.match(/^\s*\{\r?\n\s*art: "(welcome|trust|firstShard)"/gm) ?? [];
+    // J4: onboarding is ONE step by contract (the user already typed
+    // email+password+DOB+consent at sign-up; extra gate screens before the
+    // first piece of value regress the journey). Pin the single actionable
+    // step, the honest where-it-lives promise, and the absence of the old
+    // multi-step scaffolding.
     const forbiddenMetaphors = [
       "Your thoughts become a small map",
       "The graph is a village",
@@ -1051,20 +1056,24 @@ results.push(
       "기록은 조각",
     ];
     const ok =
-      stepEntries.length === 3 &&
-      onboarding.includes('title: { ko: "하루 생각을 짧게 남기세요", en: "Save the day in small notes" }') &&
-      onboarding.includes('title: { ko: "답은 내 기록에서 시작해요", en: "Answers start from your records" }') &&
+      onboarding.includes('art: "firstShard"') &&
+      !onboarding.includes('art: "welcome"') &&
+      !onboarding.includes('art: "trust"') &&
       onboarding.includes('title: { ko: "먼저 한 문장만 저장해요", en: "Start with one sentence" }') &&
+      onboarding.includes("기록 보관소") &&
       onboarding.includes('cta: { ko: "첫 기록 저장", en: "Save my first note" }') &&
-      onboarding.includes("const progressText = `${index + 1} / ${STEPS.length}`") &&
-      onboarding.includes("style={styles.progressWrap}") &&
+      onboarding.includes('params: { entry: "firstRun" }') &&
+      onboarding.includes("저장한 조각은 기록 보관소에 모이고") &&
+      onboarding.includes("const STEP: Step =") &&
+      !onboarding.includes("STEPS") &&
+      !onboarding.includes("progressText") &&
       forbiddenMetaphors.every((term) => !onboarding.includes(term));
     return {
       id: "Onboarding",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "first-run onboarding is a concrete 3-step record flow with visible progress text and no village/node metaphor copy"
-        : "onboarding should stay concrete, 3-step, progress-visible, and free of village/node metaphor copy",
+        ? "first-run onboarding is a SINGLE actionable step (one sentence in, honest records promise, firstRun hand-off) with no village/node metaphor copy"
+        : "onboarding must stay ONE step (J4): single STEP, honest 기록 보관소 promise in the body, firstRun hand-off to capture, no multi-step scaffolding or metaphor copy",
     };
   }),
 );

@@ -74,6 +74,9 @@
     "personal": "Saved as your personal format.",
     "shared": "Saved your new format and shared it with your formats."
   },
+  "firstRun": {
+    "hint": "One sentence is enough. You can always add more later."
+  },
   "saved": {
     "title": "Lumen saved a new piece",
     "seeGraph": "See the graph",

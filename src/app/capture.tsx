@@ -27,7 +27,7 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 import { PremiumAppShell, PremiumModal } from "@/components/premium";
@@ -175,6 +175,12 @@ export default function Capture() {
   const modeLabel = (m: Mode) => t(`modes.${m}.label`);
   const modeHelp = (m: Mode) => t(`modes.${m}.help`);
   const trackLabel = (id: WikiTrack) => t(`tracks.${id}.label`);
+
+  // J4: onboarding hands off with entry=firstRun; until now the param was
+  // accepted and never read. First-run framing lowers the blank-page bar
+  // ("one sentence is enough") for the journey's very first save.
+  const { entry } = useLocalSearchParams<{ entry?: string }>();
+  const firstRun = entry === "firstRun";
 
   const [mode, setMode] = useState<Mode>("journal");
   const [showAdvancedModes, setShowAdvancedModes] = useState(false);
@@ -616,6 +622,15 @@ export default function Capture() {
               <Text variant="heading" numberOfLines={2}>
                 {savedTitle ? t("saved.title") : t("hero.title")}
               </Text>
+              {firstRun && !savedTitle && mode === "journal" ? (
+                // J4: first-run framing under the hero — one quiet line that
+                // lowers the blank-page bar for the journal default. Hidden in
+                // the other modes ("one sentence" reads wrong over a PDF pick)
+                // and once a save lands.
+                <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
+                  {t("firstRun.hint")}
+                </Text>
+              ) : null}
             </View>
           </View>
 
