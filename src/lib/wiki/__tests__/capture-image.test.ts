@@ -256,6 +256,33 @@ describe("capture image OCR payload guards", () => {
     ).rejects.toBe(error);
   });
 
+  test.each([
+    ["llm_image_invalid_data", IMAGE_OCR_INVALID_DATA_ERROR],
+    ["llm_image_too_large", IMAGE_OCR_TOO_LARGE_ERROR],
+    ["llm_image_unsupported_type", IMAGE_OCR_UNSUPPORTED_TYPE_ERROR],
+  ])("maps callGemini image preflight error %s to the capture sentinel", async (marker, expected) => {
+    mockCallGemini.mockRejectedValueOnce(new Error(marker));
+
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/png",
+        base64: PNG_IMAGE_BASE64,
+      }),
+    ).rejects.toThrow(expected);
+  });
+
+  test("does not remap non-image callGemini errors during OCR", async () => {
+    const error = new Error("network_down");
+    mockCallGemini.mockRejectedValueOnce(error);
+
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/png",
+        base64: PNG_IMAGE_BASE64,
+      }),
+    ).rejects.toBe(error);
+  });
+
   test("rejects denied camera permission before launching the camera", async () => {
     imagePickerMock.requestCameraPermissionsAsync.mockResolvedValue({ status: "denied" });
 

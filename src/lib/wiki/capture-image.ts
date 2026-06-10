@@ -43,6 +43,12 @@ const OCR_IMAGE_MIME_ALIASES: Record<string, string> = {
   "image/x-png": "image/png",
 };
 
+const LLM_IMAGE_ERROR_TO_OCR_ERROR: Record<string, string> = {
+  llm_image_invalid_data: IMAGE_OCR_INVALID_DATA_ERROR,
+  llm_image_too_large: IMAGE_OCR_TOO_LARGE_ERROR,
+  llm_image_unsupported_type: IMAGE_OCR_UNSUPPORTED_TYPE_ERROR,
+};
+
 const BASE64_DATA_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const BASE64_VALUES = new Map(Array.from(BASE64_ALPHABET, (char, value) => [char, value]));
@@ -203,6 +209,9 @@ function areOcrImageMimeTypesCompatible(declared: string, sniffed: AllowedOcrIma
 }
 
 async function proxyImagePayloadErrorMessage(error: unknown): Promise<string | null> {
+  const llmImageError = error instanceof Error ? LLM_IMAGE_ERROR_TO_OCR_ERROR[error.message] : null;
+  if (llmImageError) return llmImageError;
+
   if (!error || typeof error !== "object") return null;
   const ctx = (error as { context?: { status?: number; clone?: unknown; json?: unknown } }).context;
   if (!ctx || typeof ctx !== "object") return null;
