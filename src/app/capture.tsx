@@ -1097,7 +1097,15 @@ export default function Capture() {
               </Text>
               {hasOcrDraft ? (
                 <>
-                  <Text variant="subtle" color="textSubtle" style={styles.ocrDisclosureText}>
+                  {/* liveRegion: the approve button disables itself on tap, so
+                      without this announce a screen-reader user only hears
+                      "disabled" and never the approved confirmation. */}
+                  <Text
+                    variant="subtle"
+                    color="textSubtle"
+                    style={styles.ocrDisclosureText}
+                    accessibilityLiveRegion="polite"
+                  >
                     {ocrReviewApproved ? t("ocrReview.approved") : t("ocrReview.body")}
                   </Text>
                   <Button

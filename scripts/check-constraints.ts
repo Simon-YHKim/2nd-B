@@ -841,6 +841,10 @@ results.push(
       capture.includes('accessibilityLabel={t("journal.advisor.label")}') &&
       capture.includes('accessibilityLabel={t("tags.removeLabel", { tag })}') &&
       capture.includes("const [ocrReviewApproved, setOcrReviewApproved] = useState(false)") &&
+      // Pin the gate BODY, not just the state declaration — without this a
+      // refactor could revert the OCR canSubmit branch to body-only while
+      // every check stays green (split-③ review finding).
+      capture.includes('(mode === "ocr" && hasOcrDraft && ocrReviewApproved)') &&
       capture.includes('accessibilityHint={t("ocrReview.approveHint")}') &&
       capture.includes('accessibilityRole="image"') &&
       capture.includes('accessibilityLabel={t("feedback.accessibilityLabel")}') &&
