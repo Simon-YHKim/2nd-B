@@ -255,7 +255,11 @@ export default function SignUp() {
               accessibilityLabel={t("signUp.password")}
               accessibilityHint={t("signUp.passwordHint")}
             />
-            <Text variant="subtle" color="textSubtle" style={styles.helper}>
+            {/* O-R1.4 (persona sim, low-vision): this line GATES submission
+                (8+ chars feeds canSubmit), so it cannot be the smallest,
+                most muted text on the form — a user who can't read it never
+                learns why the button stays disabled. */}
+            <Text variant="body" color="textMuted" style={styles.helper}>
               {t("signUp.passwordHelper")}
             </Text>
           </View>
