@@ -563,6 +563,7 @@ describe("capture image OCR payload guards", () => {
 
     expect(normalizeOcrTextResult("\n  OCR text  \n")).toBe("OCR text");
     expect(normalizeOcrTextResult("\r\nLine 1\r\nLine 2\rLine 3\r\n")).toBe("Line 1\nLine 2\nLine 3");
+    expect(normalizeOcrTextResult("Row A\u2028Row B\u2029Row C")).toBe("Row A\nRow B\nRow C");
   });
 
   test("unwraps full-response OCR markdown fences but preserves real code fences", async () => {

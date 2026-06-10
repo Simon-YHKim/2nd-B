@@ -148,7 +148,7 @@ export function normalizeOcrTextResult(text: string, locale: "en" | "ko" = "en")
 }
 
 function normalizeOcrLineEndings(text: string): string {
-  return text.replace(/\r\n?/g, "\n");
+  return text.replace(/\r\n?|[\u2028\u2029]/g, "\n");
 }
 
 function unwrapOcrMarkdownFence(text: string): string {
