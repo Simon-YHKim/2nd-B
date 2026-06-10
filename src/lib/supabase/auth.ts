@@ -194,20 +194,6 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
   return { userId: user.id, judgeMode, created: true };
 }
 
-export async function signInWithEmail(email: string, password: string): Promise<{ userId: string }> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  if (!data.user) throw new Error("Sign-in returned no user");
-  return { userId: data.user.id };
-}
-
-export async function signOut(): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
-}
-
 // --- OAuth (Google / Apple / Kakao) --------------------------------------
 //
 // Google, Apple, and Kakao are Supabase-native social providers, so they all
@@ -234,8 +220,17 @@ function isWebRuntime(): boolean {
   return typeof window !== "undefined" && typeof document !== "undefined";
 }
 
+function authRedirectTo(pathname: string): string | undefined {
+  if (!isWebRuntime()) return nativeRedirectTo(pathname);
+  // expo-router base path is '/2nd-B/' on GitHub Pages, '/' in dev.
+  // Detect by looking at the current pathname's prefix.
+  const path = window.location.pathname;
+  const base = path.startsWith("/2nd-B/") ? "/2nd-B/" : "/";
+  return `${window.location.origin}${base}${pathname.replace(/^\//, "")}`;
+}
+
 function defaultRedirectTo(): string | undefined {
-  if (!isWebRuntime()) return nativeRedirectTo();
+  if (!isWebRuntime()) return nativeRedirectTo("/");
   // ALWAYS return to the app root, not window.location.pathname.
   // If the user clicked Google from /sign-in, using pathname would
   // send them back to /sign-in post-OAuth — they'd see the sign-in
@@ -243,17 +238,17 @@ function defaultRedirectTo(): string | undefined {
   // IntroGate play the cell loader and /index decide where the
   // signed-in user actually belongs (/complete-profile or graph).
   //
-  // expo-router base path is '/2nd-B/' on GitHub Pages, '/' in dev.
-  // Detect by looking at the current pathname's prefix.
-  const path = window.location.pathname;
-  const base = path.startsWith("/2nd-B/") ? "/2nd-B/" : "/";
-  return `${window.location.origin}${base}`;
+  return authRedirectTo("/");
 }
 
-function nativeRedirectTo(): string | undefined {
+function passwordResetRedirectTo(): string | undefined {
+  return authRedirectTo("/reset-password");
+}
+
+function nativeRedirectTo(pathname: string): string | undefined {
   try {
     const Linking = require("expo-linking") as ExpoLinkingModule;
-    return Linking.createURL("/");
+    return Linking.createURL(pathname);
   } catch {
     return undefined;
   }
@@ -300,6 +295,34 @@ async function openNativeOAuthSession(
   if (result.type !== "success") return null;
   await createNativeSessionFromUrl(supabase, result.url);
   return { url: result.url };
+}
+
+export async function signInWithEmail(email: string, password: string): Promise<{ userId: string }> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  if (!data.user) throw new Error("Sign-in returned no user");
+  return { userId: data.user.id };
+}
+
+export async function sendPasswordResetEmail(email: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: passwordResetRedirectTo(),
+  });
+  if (error) throw error;
+}
+
+export async function updatePassword(password: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
+}
+
+export async function signOut(): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
 }
 
 // Start a Supabase social-login redirect for the given provider. On Web,
