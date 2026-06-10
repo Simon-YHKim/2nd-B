@@ -32,7 +32,7 @@ export interface TierPricing {
 export const TIER_PRICING: Record<PaidTier, TierPricing> = {
   soma: { krwMonthly: 4_900, krwYearly: 49_000, usdMonthly: 4.99, usdYearly: 49.9 },
   cortex: { krwMonthly: 9_900, krwYearly: 99_000, usdMonthly: 9.99, usdYearly: 99.9 },
-  brain: { krwMonthly: 19_900, krwYearly: 199_000, usdMonthly: 19.99, usdYearly: 199.8 },
+  brain: { krwMonthly: 19_900, krwYearly: 199_000, usdMonthly: 19.99, usdYearly: 199.9 },
 };
 
 // Brain lifetime (one-time purchase). Subscription-fatigue escape hatch:
