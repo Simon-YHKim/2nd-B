@@ -207,6 +207,7 @@ export default function Capture() {
   // pointing its CTA at the graph sent the very first save to an unchanged
   // screen; classified captures (`sources`) DO become graph nodes.
   const [savedKind, setSavedKind] = useState<"records" | "source" | null>(null);
+  const [savedMode, setSavedMode] = useState<Mode | null>(null);
   // True when the last capture saved its body inline because the Storage
   // upload failed (CaptureResult.storagePending) — surfaced as a one-line
   // note in the saved panel instead of a silent clean-success.
@@ -319,6 +320,7 @@ export default function Capture() {
     setProposalCtx(null);
     setProposal(null);
     setFormatSavedMsg(null);
+    setSavedMode(null);
   }
 
   async function pickImage(source: "library" | "camera") {
@@ -408,6 +410,7 @@ export default function Capture() {
   }
 
   const hasOcrDraft = mode === "ocr" && body.trim().length > 0;
+  const savedIsOcr = savedKind === "source" && savedMode === "ocr";
 
   const canSubmit = !!userId && !submitting && (
     (mode === "journal" && journalGate.unlocked && journalUsage.allowed && body.trim().length > 0) ||
@@ -443,6 +446,7 @@ export default function Capture() {
       companion.fire("journalSaved");
       setSavedTitle(savedTopic.length > 0 ? savedTopic : t("savedTitleFallback"));
       setSavedKind("records");
+      setSavedMode("journal");
       setSavedPending(false);
       // Refresh streak + journal use count (free-tier limit) + XP (the entry
       // earns progression, mirroring the retired /journal screen).
@@ -542,6 +546,7 @@ export default function Capture() {
       // Inline success panel (journal-capture pack §3/§7) replaces the alert.
       setSavedTitle(result.source.title);
       setSavedKind("source");
+      setSavedMode(mode);
       setSavedPending(result.storagePending);
       // G3: a capture that landed as "inbox" (no specific format fit) is the
       // signal to offer an AI-proposed new format. Gate on body length so
@@ -644,6 +649,8 @@ export default function Capture() {
               savedTitle
                 ? savedKind === "records"
                   ? t("hero.speechSavedRecords")
+                  : savedIsOcr
+                    ? t("hero.speechSavedOcr")
                   : t("hero.speechSaved")
                 : t("hero.speechIdle")
             }
@@ -654,7 +661,7 @@ export default function Capture() {
                 {t("hero.eyebrow")}
               </Text>
               <Text variant="heading" numberOfLines={2}>
-                {savedTitle ? t("saved.title") : t("hero.title")}
+                {savedTitle ? (savedIsOcr ? t("saved.ocrTitle") : t("saved.title")) : t("hero.title")}
               </Text>
               {firstRun && !savedTitle && mode === "journal" ? (
                 // J4: first-run framing under the hero — one quiet line that
@@ -675,10 +682,10 @@ export default function Capture() {
                 <ShardArt id="capture_mint" size={48} />
                 <View style={{ flex: 1 }}>
                   <Text variant="body" color="brand" style={{ fontWeight: "600" }}>
-                    {t("saved.title")}
+                    {savedIsOcr ? t("saved.ocrTitle") : t("saved.title")}
                   </Text>
                   <Text variant="subtle" color="textMuted" numberOfLines={1} style={{ marginTop: 2 }}>
-                    {savedTitle}
+                    {savedIsOcr ? t("saved.ocrBody") : savedTitle}
                   </Text>
                   {savedPending ? (
                     <Text variant="subtle" color="textSubtle" style={{ marginTop: 2 }}>
@@ -694,9 +701,9 @@ export default function Capture() {
                 {savedKind === "records" ? (
                   <PremiumButton label={t("saved.seeRecords")} variant="secondary" onPress={() => router.push("/records")} style={{ flex: 1 }} />
                 ) : (
-                  <PremiumButton label={t("saved.seeGraph")} variant="secondary" onPress={() => router.push("/")} style={{ flex: 1 }} />
+                  <PremiumButton label={savedIsOcr ? t("saved.seeOcrGraph") : t("saved.seeGraph")} variant="secondary" onPress={() => router.push("/")} style={{ flex: 1 }} />
                 )}
-                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedKind(null); setSavedPending(false); }} style={{ flex: 1 }} />
+                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedKind(null); setSavedMode(null); setSavedPending(false); }} style={{ flex: 1 }} />
               </View>
             </PremiumCard>
           ) : null}
