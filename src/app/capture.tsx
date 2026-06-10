@@ -42,7 +42,12 @@ import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { detectClipperKind } from "@/lib/wiki/clipper-kind";
-import { pickImageAsset, ocrImageAsset, isImageOcrTooLargeError } from "@/lib/wiki/capture-image";
+import {
+  pickImageAsset,
+  ocrImageAsset,
+  isImageOcrTooLargeError,
+  isImageOcrUnsupportedTypeError,
+} from "@/lib/wiki/capture-image";
 import { pickFile, type PickedFile } from "@/lib/wiki/capture-file";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
@@ -329,10 +334,17 @@ export default function Capture() {
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
       const imageTooLarge = isImageOcrTooLargeError(e);
+      const unsupportedImageType = isImageOcrUnsupportedTypeError(e);
+      const imageCannotRetry = imageTooLarge || unsupportedImageType;
+      const alertKey = imageTooLarge
+        ? "alerts.ocrTooLarge"
+        : unsupportedImageType
+          ? "alerts.ocrUnsupportedType"
+          : "alerts.ocrRead";
       showFeedback(
-        t(imageTooLarge ? "alerts.ocrTooLarge.title" : "alerts.ocrRead.title"),
-        t(imageTooLarge ? "alerts.ocrTooLarge.message" : "alerts.ocrRead.message"),
-        imageTooLarge ? undefined : () => void runExtract(),
+        t(`${alertKey}.title`),
+        t(`${alertKey}.message`),
+        imageCannotRetry ? undefined : () => void runExtract(),
       );
     } finally {
       setExtracting(false);

@@ -183,6 +183,10 @@
       "title": "Image is too large",
       "message": "This photo is too large to read safely. Choose a smaller image or crop it, then try again."
     },
+    "ocrUnsupportedType": {
+      "title": "Image type is not supported",
+      "message": "Choose a JPG, PNG, WEBP, HEIC, or HEIF image, then try again."
+    },
     "fileOpen": {
       "title": "Couldn't open that file",
       "message": "We couldn't open that file. Pick another one or try again in a moment."
