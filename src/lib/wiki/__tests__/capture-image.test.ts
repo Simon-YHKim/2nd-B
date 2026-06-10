@@ -157,6 +157,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiProxySource).toContain("imageMimeCompatible");
     expect(geminiProxySource).toContain("normalizeImageMimeType");
     expect(geminiProxySource).toContain("parseImageBase64Input");
+    expect(geminiProxySource).toContain("GENERIC_IMAGE_MIME");
     expect(geminiProxySource).toContain("IMAGE_MIME_ALIASES[normalized] ?? normalized");
     expect(geminiProxySource).toContain("!imageMimeCompatible(parsedData.mimeType, declaredMime)");
     expect(geminiProxySource).toContain("rawData.length > MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN");
@@ -176,6 +177,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiWrapperSource).toContain("sniffInlineImageMimeType");
     expect(geminiWrapperSource).toContain("inlineImageMimeCompatible");
     expect(geminiWrapperSource).toContain("parsePromptImageData");
+    expect(geminiWrapperSource).toContain("GENERIC_INLINE_IMAGE_MIME");
     expect(geminiWrapperSource).toContain("!inlineImageMimeCompatible(parsed.mimeType, outerMimeType)");
     expect(geminiWrapperSource).toContain("INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType");
     expect(geminiWrapperSource).toContain("image.data.length > MAX_INLINE_IMAGE_RAW_BASE64_LEN");
@@ -569,6 +571,13 @@ describe("capture image OCR payload guards", () => {
       mimeType: "image/png",
       base64: PNG_IMAGE_BASE64,
     });
+    expect(normalizeOcrImagePayload({
+      mimeType: "application/octet-stream",
+      base64: `data:image/png;base64,${PNG_IMAGE_BASE64}`,
+    })).toEqual({
+      mimeType: "image/png",
+      base64: PNG_IMAGE_BASE64,
+    });
   });
 
   test("rejects malformed or unsupported data URL image payloads before calling Gemini", async () => {
@@ -583,6 +592,13 @@ describe("capture image OCR payload guards", () => {
       ocrImageAsset("u1", "en", {
         mimeType: "",
         base64: `data:image/gif;base64,${PNG_IMAGE_BASE64}`,
+      }),
+    ).rejects.toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
+
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/gif",
+        base64: `data:image/png;base64,${PNG_IMAGE_BASE64}`,
       }),
     ).rejects.toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
 

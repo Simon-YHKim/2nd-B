@@ -105,6 +105,7 @@ const IMAGE_MIME_ALIASES: Record<string, string> = {
   'image/pjpeg': 'image/jpeg',
   'image/x-png': 'image/png',
 };
+const GENERIC_IMAGE_MIME = new Set(['application/octet-stream']);
 const BASE64_IMAGE_DATA_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const BASE64_IMAGE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 const BASE64_IMAGE_VALUES = new Map(Array.from(BASE64_IMAGE_ALPHABET, (char, value) => [char, value]));
@@ -347,13 +348,13 @@ Deno.serve(async (req: Request) => {
     if (!parsedData) {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);
     }
-    if (
-      parsedData.mimeType &&
-      declaredMime &&
-      ALLOWED_IMAGE_MIME.has(declaredMime) &&
-      !imageMimeCompatible(parsedData.mimeType, declaredMime)
-    ) {
-      return jsonResponse(req, { error: 'image_invalid_data' }, 400);
+    if (parsedData.mimeType && declaredMime && !GENERIC_IMAGE_MIME.has(declaredMime)) {
+      if (!ALLOWED_IMAGE_MIME.has(declaredMime)) {
+        return jsonResponse(req, { error: 'image_mime_not_allowed', got: declaredMime }, 415);
+      }
+      if (!imageMimeCompatible(parsedData.mimeType, declaredMime)) {
+        return jsonResponse(req, { error: 'image_invalid_data' }, 400);
+      }
     }
     const mime = parsedData.mimeType ?? declaredMime;
     if (!mime) {

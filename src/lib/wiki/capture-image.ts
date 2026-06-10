@@ -44,6 +44,7 @@ const OCR_IMAGE_MIME_ALIASES: Record<string, string> = {
   "image/pjpeg": "image/jpeg",
   "image/x-png": "image/png",
 };
+const GENERIC_OCR_IMAGE_MIME_TYPES = new Set(["application/octet-stream"]);
 
 const LLM_IMAGE_ERROR_TO_OCR_ERROR: Record<string, string> = {
   llm_image_invalid_data: IMAGE_OCR_INVALID_DATA_ERROR,
@@ -137,13 +138,13 @@ export function normalizeOcrImagePayload(image: {
     throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
   }
   const outerMimeType = normalizeDeclaredOcrImageMimeType(image.mimeType);
-  if (
-    parsed.mimeType &&
-    outerMimeType &&
-    ALLOWED_OCR_IMAGE_MIME_TYPE_SET.has(outerMimeType) &&
-    !areOcrImageMimeTypesCompatible(parsed.mimeType as AllowedOcrImageMimeType, outerMimeType as AllowedOcrImageMimeType)
-  ) {
-    throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
+  if (parsed.mimeType && outerMimeType && !GENERIC_OCR_IMAGE_MIME_TYPES.has(outerMimeType)) {
+    if (!ALLOWED_OCR_IMAGE_MIME_TYPE_SET.has(outerMimeType)) {
+      throw new Error(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
+    }
+    if (!areOcrImageMimeTypesCompatible(parsed.mimeType as AllowedOcrImageMimeType, outerMimeType as AllowedOcrImageMimeType)) {
+      throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
+    }
   }
   const declaredMimeType = parsed.mimeType ?? outerMimeType;
   if (declaredMimeType && !ALLOWED_OCR_IMAGE_MIME_TYPE_SET.has(declaredMimeType)) {

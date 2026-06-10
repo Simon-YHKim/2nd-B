@@ -155,7 +155,7 @@ describe("callGemini", () => {
       locale: "en",
       purpose: "capture_ocr",
       user: "Transcribe the text in this image.",
-      image: { mimeType: "", data: `data:image/x-png;charset=utf-8;base64, ${PNG_IMAGE_BASE64.slice(0, 8)}\n${PNG_IMAGE_BASE64.slice(8)}` },
+      image: { mimeType: "application/octet-stream", data: `data:image/x-png;charset=utf-8;base64, ${PNG_IMAGE_BASE64.slice(0, 8)}\n${PNG_IMAGE_BASE64.slice(8)}` },
     });
 
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
@@ -215,6 +215,16 @@ describe("callGemini", () => {
         purpose: "capture_ocr",
         user: "Transcribe the text in this image.",
         image: { mimeType: "image/gif", data: PNG_IMAGE_BASE64 },
+      }),
+    ).rejects.toThrow("llm_image_unsupported_type");
+
+    await expect(
+      callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "capture_ocr",
+        user: "Transcribe the text in this image.",
+        image: { mimeType: "image/gif", data: `data:image/png;base64,${PNG_IMAGE_BASE64}` },
       }),
     ).rejects.toThrow("llm_image_unsupported_type");
 

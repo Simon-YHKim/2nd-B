@@ -34,6 +34,7 @@ const INLINE_IMAGE_MIME_ALIASES: Record<string, string> = {
   "image/pjpeg": "image/jpeg",
   "image/x-png": "image/png",
 };
+const GENERIC_INLINE_IMAGE_MIME = new Set(["application/octet-stream"]);
 const BASE64_INLINE_IMAGE_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const BASE64_INLINE_IMAGE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const BASE64_INLINE_IMAGE_VALUES = new Map(Array.from(BASE64_INLINE_IMAGE_ALPHABET, (char, value) => [char, value]));
@@ -52,13 +53,13 @@ function normalizePromptImage(image: { mimeType: string; data: string }): { mime
   const parsed = parsePromptImageData(image.data);
   const normalizedMimeType = image.mimeType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
   const outerMimeType = INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType;
-  if (
-    parsed.mimeType &&
-    outerMimeType &&
-    ALLOWED_INLINE_IMAGE_MIME.has(outerMimeType) &&
-    !inlineImageMimeCompatible(parsed.mimeType, outerMimeType)
-  ) {
-    throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
+  if (parsed.mimeType && outerMimeType && !GENERIC_INLINE_IMAGE_MIME.has(outerMimeType)) {
+    if (!ALLOWED_INLINE_IMAGE_MIME.has(outerMimeType)) {
+      throw new Error(LLM_IMAGE_UNSUPPORTED_TYPE_ERROR);
+    }
+    if (!inlineImageMimeCompatible(parsed.mimeType, outerMimeType)) {
+      throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
+    }
   }
   const mimeType = parsed.mimeType ?? outerMimeType;
   if (!ALLOWED_INLINE_IMAGE_MIME.has(mimeType)) {
