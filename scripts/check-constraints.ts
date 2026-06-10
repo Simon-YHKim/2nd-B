@@ -1025,7 +1025,8 @@ results.push(
       settings.includes('accessibilityHint={t("nav.dataHint")}') &&
       // (theme quick-toggle hints removed with the duplicate disclosure —
       // /theme owns theme switching; see O-R1 settings restructure.)
-      settings.includes('accessibilityHint={t("actions.crewDensityHint", { density: CREW_DENSITY_LABEL[locale][d] })}') &&
+      settings.includes('accessibilityHint={t("actions.crewDensityHint",') &&
+      settings.includes("density: CREW_DENSITY_LABEL[locale][d]") &&
       settings.includes('accessibilityHint={t("actions.deleteJournalsHint")}') &&
       settings.includes('accessibilityHint={t("actions.deleteBfiHint")}') &&
       settings.includes('accessibilityHint={t("actions.fullWipeHint")}') &&
@@ -1287,7 +1288,8 @@ results.push(
     const en = read("locales/en/settings.json");
     const ko = read("locales/ko/settings.json");
     const requiredCode = [
-      't("actions.crewDensityHint", { density: CREW_DENSITY_LABEL[locale][d] })',
+      't("actions.crewDensityHint",',
+      "density: CREW_DENSITY_LABEL[locale][d]",
       't("actions.deleteJournalsHint")',
       't("actions.deleteNotesHint")',
       't("actions.deleteAuditHint")',
@@ -1343,6 +1345,44 @@ results.push(
       note: ok
         ? "settings theme, crew, destructive action, and full-wipe helper hints live in the settings locale bundle"
         : "settings action helper hints should source accessibility labels and hints from locale keys",
+    };
+  }),
+);
+
+results.push(
+  check("SettingsDataDeleteWizard", () => {
+    const settings = read("src/app/settings.tsx");
+    const en = read("locales/en/settings.json");
+    const ko = read("locales/ko/settings.json");
+    const requiredCode = [
+      'type DataDeleteStep = "records" | "assessments" | "library" | "full"',
+      'const DATA_DELETE_STEPS: DataDeleteStep[] = ["records", "assessments", "library", "full"]',
+      'const [dataDeleteStep, setDataDeleteStep] = useState<DataDeleteStep>("records")',
+      't("dataWizard.body")',
+      "t(`dataWizard.${step}.label`)",
+      "t(`dataWizard.${step}.hint`)",
+      "t(`dataWizard.${dataDeleteStep}.body`)",
+      "dataDeleteStep === step",
+      'step === "full" ? "danger" : "primary"',
+      'dataDeleteStep === "records"',
+      'dataDeleteStep === "assessments"',
+      'dataDeleteStep === "library"',
+      'dataDeleteStep === "full"',
+    ];
+    const ok =
+      requiredCode.every((snippet) => settings.includes(snippet)) &&
+      en.includes('"dataWizard"') &&
+      en.includes('"Choose one deletion area at a time. The exact actions appear only after you pick a group."') &&
+      en.includes('"Shows the typed confirmation for deleting all records, sources, wiki pages, and usage."') &&
+      ko.includes('"dataWizard"') &&
+      ko.includes('"한 번에 하나의 삭제 영역만 고르세요. 정확한 삭제 버튼은 영역을 선택한 뒤에만 보여요."') &&
+      ko.includes('"기록, 캡처, 위키 페이지, 사용량 전체 삭제를 위한 입력 확인을 보여줍니다."');
+    return {
+      id: "SettingsDataDeleteWizard",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "settings danger zone shows one selected destructive cluster at a time with localized labels and hints"
+        : "settings danger zone should hide destructive clusters behind a localized one-area-at-a-time selector",
     };
   }),
 );

@@ -31,6 +31,9 @@ type SettingsToast = { message: string; tone: "info" | "success" | "danger" };
 type PendingConfirm = { message: string; onYes: () => Promise<void> } | null;
 type ActionError = { title: string; body: string; retry?: () => void } | null;
 type SettingsDisclosureKey = "crew" | "data";
+type DataDeleteStep = "records" | "assessments" | "library" | "full";
+
+const DATA_DELETE_STEPS: DataDeleteStep[] = ["records", "assessments", "library", "full"];
 
 const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
   en: { none: "None", few: "Few", some: "Some", many: "Many" },
@@ -156,6 +159,7 @@ export default function Settings() {
   const [toast, setToast] = useState<SettingsToast | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
   const [actionError, setActionError] = useState<ActionError>(null);
+  const [dataDeleteStep, setDataDeleteStep] = useState<DataDeleteStep>("records");
   const [openDisclosures, setOpenDisclosures] = useState<Record<SettingsDisclosureKey, boolean>>({
     crew: false,
     data: false,
@@ -478,6 +482,28 @@ export default function Settings() {
           onToggle={() => toggleDisclosure("data")}
           tone="warning"
         >
+          <Text variant="subtle" color="textMuted">
+            {t("dataWizard.body")}
+          </Text>
+          <View style={styles.deleteWizardGrid}>
+            {DATA_DELETE_STEPS.map((step) => (
+              <Button
+                key={step}
+                label={t(`dataWizard.${step}.label`)}
+                accessibilityHint={t(`dataWizard.${step}.hint`)}
+                variant={dataDeleteStep === step ? (step === "full" ? "danger" : "primary") : "secondary"}
+                selected={dataDeleteStep === step}
+                onPress={() => setDataDeleteStep(step)}
+                full={false}
+                style={styles.deleteWizardOption}
+              />
+            ))}
+          </View>
+          <Text variant="subtle" color={dataDeleteStep === "full" ? "danger" : "textMuted"}>
+            {t(`dataWizard.${dataDeleteStep}.body`)}
+          </Text>
+
+          {dataDeleteStep === "records" ? (
           <View style={styles.destructiveGroup}>
             <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
               {locale === "ko" ? "부분 삭제: 종류별" : "Partial: by kind"}
@@ -524,7 +550,9 @@ export default function Settings() {
               }
             />
           </View>
+          ) : null}
 
+          {dataDeleteStep === "assessments" ? (
           <View style={styles.destructiveGroup}>
             <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
               {locale === "ko" ? "부분 삭제: 평가 결과" : "Partial: by assessment"}
@@ -568,7 +596,9 @@ export default function Settings() {
               }
             />
           </View>
+          ) : null}
 
+          {dataDeleteStep === "library" ? (
           <View style={styles.destructiveGroup}>
             <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
               {locale === "ko" ? "부분 삭제: 위키/캡처/사용량" : "Partial: wiki / captures / usage"}
@@ -612,7 +642,9 @@ export default function Settings() {
               }
             />
           </View>
+          ) : null}
 
+          {dataDeleteStep === "full" ? (
           <View style={styles.destructiveGroup}>
             <Text variant="caption" color="danger" style={styles.sectionEyebrow}>
               {locale === "ko" ? "위험: 전체 삭제" : "Danger: full wipe"}
@@ -652,6 +684,7 @@ export default function Settings() {
               }
             />
           </View>
+          ) : null}
         </DisclosureSection>
 
         <View style={styles.actions}>
@@ -784,6 +817,16 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     borderTopWidth: gameboy.borderWidth,
     borderTopColor: gameboy.border,
+  },
+  deleteWizardGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  deleteWizardOption: {
+    flexGrow: 1,
+    flexBasis: "47%",
+    minWidth: 148,
   },
   busyBanner: {
     backgroundColor: semantic.surfaceAlt,
