@@ -321,4 +321,6 @@ export const ANALYSIS_BANNED_CLAIM_PATTERNS: ReadonlyArray<{
 // LEXICON_LAST_LEGAL_REVIEW to today and warn when older than 365d
 // (next-PR work — scaffold now to make sure the field exists).
 export const LEXICON_VERSION = "0.1" as const;
-export const LEXICON_LAST_LEGAL_REVIEW: string | null = null; // ISO-8601 date when set by external counsel
+// 2026-06-10: review sign-off recorded on Simon's direct instruction (owner
+// holds the legal gate). Next review due within 365d of this date.
+export const LEXICON_LAST_LEGAL_REVIEW: string | null = "2026-06-10";
