@@ -1,5 +1,6 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
+import * as ImagePicker from "expo-image-picker";
 
 jest.mock("expo-image-picker", () => ({
   MediaTypeOptions: { Images: "Images" },
@@ -22,9 +23,13 @@ import {
   isImageOcrUnsupportedTypeError,
   normalizeOcrImageMimeType,
   ocrImageAsset,
+  pickImageAsset,
 } from "../capture-image";
 
 const mockCallGemini = callGemini as jest.MockedFunction<typeof callGemini>;
+const imagePickerMock = ImagePicker as unknown as {
+  launchImageLibraryAsync: jest.Mock;
+};
 const geminiProxySource = readFileSync(
   resolve(__dirname, "../../../../supabase/functions/gemini-proxy/index.ts"),
   "utf8",
@@ -42,9 +47,10 @@ function proxyImageMimeAllowlist(): string[] {
   return Array.from(match[1]!.matchAll(/'([^']+)'/g), (m) => m[1]!);
 }
 
-describe("ocrImageAsset", () => {
+describe("capture image OCR payload guards", () => {
   beforeEach(() => {
     mockCallGemini.mockReset();
+    imagePickerMock.launchImageLibraryAsync.mockReset();
     mockCallGemini.mockResolvedValue({
       text: "OCR text",
     } as Awaited<ReturnType<typeof callGemini>>);
@@ -75,6 +81,55 @@ describe("ocrImageAsset", () => {
     ).rejects.toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
 
     expect(mockCallGemini).not.toHaveBeenCalled();
+  });
+
+  test("rejects oversized picked images before returning a preview asset", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///big.png",
+          mimeType: "image/png",
+          base64: "A".repeat(MAX_OCR_IMAGE_BASE64_BYTES + 1),
+        },
+      ],
+    });
+
+    await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_TOO_LARGE_ERROR);
+  });
+
+  test("rejects unsupported picked image MIME before returning a preview asset", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///anim.gif",
+          mimeType: "image/gif",
+          base64: "AAAA",
+        },
+      ],
+    });
+
+    await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
+  });
+
+  test("normalizes picker MIME aliases before returning the preview asset", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///photo.jpg",
+          mimeType: "image/jpg",
+          base64: "AAAA",
+        },
+      ],
+    });
+
+    await expect(pickImageAsset("library")).resolves.toEqual({
+      uri: "file:///photo.jpg",
+      mimeType: "image/jpeg",
+      base64: "AAAA",
+    });
   });
 
   test("allows payloads at the mirrored server cap", async () => {

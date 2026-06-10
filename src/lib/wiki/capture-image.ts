@@ -93,7 +93,9 @@ export async function pickImageAsset(
   const asset = result.assets?.[0];
   if (!asset || !asset.base64) return null;
 
-  return { uri: asset.uri, base64: asset.base64, mimeType: normalizeOcrImageMimeType(asset.mimeType) };
+  const picked = { uri: asset.uri, base64: asset.base64, mimeType: normalizeOcrImageMimeType(asset.mimeType) };
+  assertImageOcrPayloadAllowed(picked);
+  return picked;
 }
 
 // Step 2 — run Gemini multimodal OCR on a picked image. Triggered by the

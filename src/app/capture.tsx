@@ -293,6 +293,16 @@ export default function Capture() {
     current?.retry?.();
   }
 
+  function imageOcrFeedback(error: unknown): { key: string; retryable: boolean } {
+    if (isImageOcrTooLargeError(error)) {
+      return { key: "alerts.ocrTooLarge", retryable: false };
+    }
+    if (isImageOcrUnsupportedTypeError(error)) {
+      return { key: "alerts.ocrUnsupportedType", retryable: false };
+    }
+    return { key: "alerts.ocrRead", retryable: true };
+  }
+
   function reset() {
     setBody("");
     setPickedFile(null);
@@ -317,10 +327,11 @@ export default function Capture() {
       setBody(""); // clear any prior extraction; the user presses 추출하기 to fill
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] image pick failed", (e as Error).message);
+      const feedback = imageOcrFeedback(e);
       showFeedback(
-        t("alerts.imageOpen.title"),
-        t("alerts.imageOpen.message"),
-        () => void pickImage(source),
+        t(feedback.retryable ? "alerts.imageOpen.title" : `${feedback.key}.title`),
+        t(feedback.retryable ? "alerts.imageOpen.message" : `${feedback.key}.message`),
+        feedback.retryable ? () => void pickImage(source) : undefined,
       );
     }
   }
@@ -333,18 +344,11 @@ export default function Capture() {
       setBody(md);
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
-      const imageTooLarge = isImageOcrTooLargeError(e);
-      const unsupportedImageType = isImageOcrUnsupportedTypeError(e);
-      const imageCannotRetry = imageTooLarge || unsupportedImageType;
-      const alertKey = imageTooLarge
-        ? "alerts.ocrTooLarge"
-        : unsupportedImageType
-          ? "alerts.ocrUnsupportedType"
-          : "alerts.ocrRead";
+      const feedback = imageOcrFeedback(e);
       showFeedback(
-        t(`${alertKey}.title`),
-        t(`${alertKey}.message`),
-        imageCannotRetry ? undefined : () => void runExtract(),
+        t(`${feedback.key}.title`),
+        t(`${feedback.key}.message`),
+        feedback.retryable ? () => void runExtract() : undefined,
       );
     } finally {
       setExtracting(false);
