@@ -10,7 +10,7 @@ import { Modal, View, StyleSheet } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { CompanionMoment } from "@/components/art/CompanionSprite";
 import { prefersReducedMotion } from "@/lib/motion/signature";
-import { spacing } from "@/lib/theme/tokens";
+import { semantic, spacing } from "@/lib/theme/tokens";
 
 // Momo filing the freshly-saved record + the journal-saved premium cue burst.
 const MOMENT = { companion: "momo", state: "store", cue: "journal_saved" } as const;
@@ -44,7 +44,7 @@ export function QuantSaveCelebration({ message, onDone }: { message: string; onD
 const styles = StyleSheet.create({
   scrim: {
     flex: 1,
-    backgroundColor: "rgba(2, 4, 10, 0.78)",
+    backgroundColor: semantic.backdropStrong,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.md,

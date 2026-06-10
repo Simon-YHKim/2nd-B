@@ -143,6 +143,10 @@ export const semantic = {
   surfaceAlt: "rgba(22,33,62,0.68)", // graph-slate wash for nested controls
   border: "rgba(141,152,184,0.3)",
   backdrop: "rgba(0,0,0,0.6)",
+  // Stronger tinted scrim for full-screen takeover modals (quant intro /
+  // celebration) — deeper + blue-tinted so the cosmic background fully
+  // recedes. Same value in both modes, like backdrop.
+  backdropStrong: "rgba(2,4,10,0.78)",
   text: cosmic.moonWhite,
   textMuted: "#C9D0E6", // slightly above mist-gray for body text
   textSubtle: cosmic.mistGray,
@@ -170,6 +174,7 @@ export const semanticLight = {
   surfaceAlt: lightCosmic.surfaceAlt,
   border: lightCosmic.border,
   backdrop: "rgba(0,0,0,0.6)",
+  backdropStrong: "rgba(2,4,10,0.78)",
   text: lightCosmic.text,
   textMuted: lightCosmic.textMuted,
   textSubtle: lightCosmic.textSubtle,

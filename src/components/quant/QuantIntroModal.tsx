@@ -190,7 +190,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(2, 4, 10, 0.78)",
+    backgroundColor: semantic.backdropStrong,
     justifyContent: "center",
     alignItems: "center",
     padding: spacing.lg,
