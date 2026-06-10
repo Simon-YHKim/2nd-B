@@ -25,6 +25,8 @@ import {
   type PromptInput,
 } from "./types";
 
+const IMAGE_GENERATION_CONFIG = { maxOutputTokens: 4096, temperature: 0.2 } as const;
+
 // Web Crypto SubtleCrypto fallback to a simple non-cryptographic hash when
 // running outside a browser/RN runtime (e.g. node tests). Audit hashes are
 // for traceability, not for security — collisions are acceptable here.
@@ -371,6 +373,10 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     const { client, vertex } = getClient();
 
     const t0 = Date.now();
+    const config = {
+      ...(input.responseSchema ? { responseMimeType: "application/json", responseSchema: input.responseSchema } : {}),
+      ...(input.image ? IMAGE_GENERATION_CONFIG : {}),
+    };
     const res = await client.models.generateContent({
       model,
       contents: [
@@ -388,9 +394,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
           ],
         },
       ],
-      config: input.responseSchema
-        ? { responseMimeType: "application/json", responseSchema: input.responseSchema }
-        : undefined,
+      config: Object.keys(config).length > 0 ? config : undefined,
     });
     latencyMs = Date.now() - t0;
     text = res.text ?? "";

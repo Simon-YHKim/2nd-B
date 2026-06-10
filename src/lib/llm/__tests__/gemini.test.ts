@@ -133,6 +133,7 @@ describe("callGemini", () => {
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     const callArg = mockGenerateContent.mock.calls[0]![0] as {
       contents: { role: string; parts: Record<string, unknown>[] }[];
+      config?: { maxOutputTokens?: number; temperature?: number };
     };
     const userMsg = callArg.contents[callArg.contents.length - 1]!;
     const hasImagePart = userMsg.parts.some(
@@ -141,6 +142,7 @@ describe("callGemini", () => {
         (p.inlineData as { mimeType?: string } | undefined)?.mimeType === "image/png",
     );
     expect(hasImagePart).toBe(true);
+    expect(callArg.config).toMatchObject({ maxOutputTokens: 4096, temperature: 0.2 });
   });
 
   test("C9: minor flag routes KO crisis to youth 1388 + 109 (adult gets 109)", async () => {
