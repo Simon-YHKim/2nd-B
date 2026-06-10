@@ -1090,6 +1090,7 @@ export default function Capture() {
                 value={body}
                 onChangeText={setBody}
                 placeholder={t("linkClip.placeholder")}
+                accessibilityLabel={t("linkClip.label")}
                 autoCapitalize="none"
                 autoCorrect={false}
                 multiline
@@ -1118,6 +1119,7 @@ export default function Capture() {
                 value={body}
                 onChangeText={setBody}
                 placeholder={mode === "ocr" ? t("inputs.imagePlaceholder") : t("inputs.memoPlaceholder")}
+                accessibilityLabel={mode === "ocr" ? t("inputs.extractedLabel") : t("inputs.bodyLabel")}
                 editable={mode === "ocr" ? !extracting : true}
                 multiline
                 numberOfLines={mode === "memo" ? 6 : 12}
