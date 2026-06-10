@@ -90,6 +90,21 @@ describe("extractText", () => {
     expect(normalizeFileMimeType("   ")).toBe("application/octet-stream");
   });
 
+  test("infers supported MIME from filename when picker returns generic metadata", async () => {
+    mockFetch("from markdown extension");
+
+    expect(normalizeFileMimeType("application/octet-stream", "line-study.MD")).toBe("text/markdown");
+    expect(normalizeFileMimeType(undefined, "scan.PDF")).toBe("application/pdf");
+    expect(normalizeFileMimeType("text/plain", "wrong.pdf")).toBe("text/plain");
+
+    const r = await extractText(
+      "file:///line-study.md",
+      normalizeFileMimeType("application/octet-stream", "line-study.md"),
+      100,
+    );
+    expect(r).toBe("from markdown extension");
+  });
+
   test("caps extracted text with an explicit marker before it reaches capture body", async () => {
     const longText = `${"x".repeat(MAX_EXTRACTED_FILE_TEXT_CHARS + 17)}\n`;
     mockFetch(longText);
@@ -146,6 +161,29 @@ describe("extractText", () => {
       mimeType: "text/plain",
       size: 123,
       textContent: "picked file body",
+    });
+  });
+
+  test("pickFile uses filename inference when MIME is missing or generic", async () => {
+    mockFetch("picked markdown body");
+    documentPickerMock.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///picked.md",
+          name: "picked.md",
+          mimeType: "application/octet-stream",
+          size: 456,
+        },
+      ],
+    });
+
+    await expect(pickFile()).resolves.toEqual({
+      uri: "file:///picked.md",
+      name: "picked.md",
+      mimeType: "text/markdown",
+      size: 456,
+      textContent: "picked markdown body",
     });
   });
 

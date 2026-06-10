@@ -37,15 +37,44 @@ const DOCX_MIMES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
 
+const GENERIC_FILE_MIMES = new Set([
+  "application/octet-stream",
+  "binary/octet-stream",
+  "application/x-unknown",
+]);
+
+const FILE_EXTENSION_MIMES: Record<string, string> = {
+  txt: "text/plain",
+  md: "text/markdown",
+  markdown: "text/markdown",
+  csv: "text/csv",
+  json: "application/json",
+  xml: "application/xml",
+  html: "text/html",
+  htm: "text/html",
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+
 // Hard caps: avoid blowing up the JS heap on huge scans, and keep extracted
 // text small enough for the capture input + downstream classifier prompt.
 // The user still gets the filename + MIME back when binary extraction is skipped.
 const MAX_EXTRACT_BYTES = 10 * 1024 * 1024;
 export const MAX_EXTRACTED_FILE_TEXT_CHARS = 60_000;
 
-export function normalizeFileMimeType(mimeType: string | null | undefined): string {
+export function normalizeFileMimeType(mimeType: string | null | undefined, fileName?: string | null): string {
   const normalized = mimeType?.trim().toLowerCase().split(";")[0]?.trim();
-  return normalized || "application/octet-stream";
+  if (normalized && !GENERIC_FILE_MIMES.has(normalized)) return normalized;
+  const inferred = inferFileMimeTypeFromName(fileName);
+  return inferred ?? (normalized || "application/octet-stream");
+}
+
+function inferFileMimeTypeFromName(fileName: string | null | undefined): string | null {
+  const cleanName = fileName?.trim().split(/[?#]/)[0];
+  if (!cleanName) return null;
+  const match = /\.([A-Za-z0-9]+)$/.exec(cleanName);
+  if (!match) return null;
+  return FILE_EXTENSION_MIMES[match[1].toLowerCase()] ?? null;
 }
 
 export function normalizeFileTextResult(text: string): string {
@@ -73,7 +102,7 @@ export async function pickFile(): Promise<PickedFile | null> {
   const asset = res.assets?.[0];
   if (!asset) return null;
 
-  const mimeType = normalizeFileMimeType(asset.mimeType);
+  const mimeType = normalizeFileMimeType(asset.mimeType, asset.name);
   const size = asset.size ?? 0;
   const text = await extractText(asset.uri, mimeType, size);
 
