@@ -856,7 +856,9 @@ results.push(
       capture.includes("const [savedSourceId, setSavedSourceId] = useState<string | null>(null)") &&
       capture.includes('const savedIsOcr = savedKind === "source" && savedMode === "ocr"') &&
       capture.includes("router.push({ pathname: \"/\", params: { highlightRecordId: savedSourceId } })") &&
-      capture.includes('setSavedMode(mode)') &&
+      // (drafts-all-modes refactor: the submitted mode is captured into a
+      // local before async work, so the pin follows the safer form.)
+      capture.includes("setSavedMode(submittedMode)") &&
       capture.includes("setSavedSourceId(result.source.id)") &&
       capture.includes('accessibilityHint={savedIsOcr ? t("saved.seeOcrGraphHint") : t("saved.seeGraphHint")}') &&
       capture.includes("const [ocrReviewApproved, setOcrReviewApproved] = useState(false)") &&
