@@ -46,6 +46,7 @@ import {
   pickImageAsset,
   ocrImageAsset,
   isImageCameraPermissionDeniedError,
+  isImageOcrEmptyResultError,
   isImageOcrInvalidDataError,
   isImageOcrMissingDataError,
   isImageOcrRepickRequiredError,
@@ -309,6 +310,9 @@ export default function Capture() {
     }
     if (isImageOcrInvalidDataError(error)) {
       return { key: "alerts.ocrInvalidData", retryable: false };
+    }
+    if (isImageOcrEmptyResultError(error)) {
+      return { key: "alerts.ocrRead", retryable: true };
     }
     return { key: "alerts.ocrRead", retryable: true };
   }

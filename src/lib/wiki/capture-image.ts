@@ -22,6 +22,7 @@ export const IMAGE_OCR_UNSUPPORTED_TYPE_ERROR = "image_ocr_unsupported_type";
 export const IMAGE_CAMERA_PERMISSION_DENIED_ERROR = "camera_permission_denied";
 export const IMAGE_OCR_MISSING_DATA_ERROR = "image_ocr_missing_data";
 export const IMAGE_OCR_INVALID_DATA_ERROR = "image_ocr_invalid_data";
+export const IMAGE_OCR_EMPTY_RESULT_ERROR = "image_ocr_empty_result";
 
 export const ALLOWED_OCR_IMAGE_MIME_TYPES = [
   "image/jpeg",
@@ -73,6 +74,10 @@ export function isImageOcrInvalidDataError(error: unknown): boolean {
   return error instanceof Error && error.message === IMAGE_OCR_INVALID_DATA_ERROR;
 }
 
+export function isImageOcrEmptyResultError(error: unknown): boolean {
+  return error instanceof Error && error.message === IMAGE_OCR_EMPTY_RESULT_ERROR;
+}
+
 export function isImageOcrRepickRequiredError(error: unknown): boolean {
   return (
     isImageOcrTooLargeError(error) ||
@@ -88,6 +93,10 @@ export function normalizeOcrImageMimeType(mimeType: string | null | undefined): 
 
 export function normalizeOcrImageBase64Data(data: string): string {
   return data.replace(/\s+/g, "");
+}
+
+export function normalizeOcrTextResult(text: string): string {
+  return text.trim();
 }
 
 export function normalizeOcrImagePayload(image: {
@@ -249,5 +258,9 @@ export async function ocrImageAsset(
     image: { mimeType, data },
     minor,
   });
-  return reply.text;
+  const text = normalizeOcrTextResult(reply.text);
+  if (text.length === 0) {
+    throw new Error(IMAGE_OCR_EMPTY_RESULT_ERROR);
+  }
+  return text;
 }
