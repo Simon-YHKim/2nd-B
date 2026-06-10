@@ -24,6 +24,15 @@ libraries used under their respective licenses. The full list:
 - Development tooling: TypeScript, ESLint, Prettier, Jest, tsx, globby —
   MIT / Apache-2.0
 
+## Bundled fonts (assets/fonts/)
+
+- `NeoDunggeunmo-Regular.ttf`, `NeoDunggeunmoCode-Regular.ttf` —
+  Neo둥근모 (Neo Dunggeunmo), SIL OFL 1.1
+- `Galmuri11-subset.ttf`, `Galmuri11-subset.woff2` — Galmuri11,
+  SIL OFL 1.1; subset derived from the `galmuri` npm package (^2.40.3)
+- Press Start 2P — SIL OFL, loaded via
+  `@expo-google-fonts/press-start-2p` (^0.4.1)
+
 ## Pre-existing materials owned by Simon
 
 - Google Play developer account (existing, used for app submission)
@@ -31,7 +40,7 @@ libraries used under their respective licenses. The full list:
 
 ## What is in scope for the competition
 
-All app code under `src/`, `app/`, `components/`, `lib/`, all database
+All app code under `src/app/`, `src/components/`, `src/lib/`, all database
 migrations under `db/`, all CI workflows under `.github/`, and all
 documentation under `docs/` were written between 2026-05-25 and the
 submission deadline of 2026-08-17.
