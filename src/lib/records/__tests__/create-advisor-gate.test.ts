@@ -6,10 +6,12 @@
 
 const mockCallAdvisor = jest.fn();
 const mockCallGemini = jest.fn();
+const mockClassifyRecordCrisis = jest.fn();
 
 jest.mock("../../llm/gemini", () => ({
   callAdvisor: (...args: unknown[]) => mockCallAdvisor(...args),
   callGemini: (...args: unknown[]) => mockCallGemini(...args),
+  classifyRecordTextForCrisis: (...args: unknown[]) => mockClassifyRecordCrisis(...args),
 }));
 
 jest.mock("../../progression/xp", () => ({
@@ -53,7 +55,72 @@ describe("createRecord — Advisor premium gate", () => {
   beforeEach(() => {
     mockCallAdvisor.mockReset().mockResolvedValue(ADVISOR_OK);
     mockCallGemini.mockReset().mockResolvedValue({ text: "ok", safety: { zone: "green" } });
+    mockClassifyRecordCrisis.mockReset().mockResolvedValue(null);
     mockInsert.mockClear();
+  });
+
+  test("C9 is not premium: a free-tier journal save still runs the local crisis classifier", async () => {
+    await createRecord({
+      userId: "u1",
+      locale: "ko",
+      kind: "journal",
+      body: "오늘 하루.",
+      withFollowup: true,
+      tier: "free",
+      minor: true,
+    });
+
+    expect(mockClassifyRecordCrisis).toHaveBeenCalledWith("오늘 하루.", "ko", "u1", true);
+    expect(mockCallAdvisor).not.toHaveBeenCalled();
+  });
+
+  test("free-tier red-zone journal: hotline follow-up attaches as a fixed template and the entry STILL saves", async () => {
+    mockClassifyRecordCrisis.mockResolvedValue({ text: "지금 많이 힘드신 것 같아요. 109로 연락해 주세요." });
+
+    const r = await createRecord({
+      userId: "u1",
+      locale: "ko",
+      kind: "journal",
+      body: "red zone text",
+      withFollowup: true,
+      tier: "free",
+    });
+
+    expect(r.id).toBe("r1");
+    expect(r.followup).toEqual(
+      expect.objectContaining({ zone: "red", fixedTemplate: true }),
+    );
+    expect(mockInsert).toHaveBeenCalledTimes(1); // the entry itself still lands
+  });
+
+  test("a crisis-fallback failure never blocks the save (best-effort)", async () => {
+    mockClassifyRecordCrisis.mockRejectedValue(new Error("network down"));
+
+    const r = await createRecord({
+      userId: "u1",
+      locale: "en",
+      kind: "journal",
+      body: "Today went well.",
+      withFollowup: true,
+      tier: "free",
+    });
+
+    expect(r.id).toBe("r1");
+    expect(r.followup).toBeUndefined();
+  });
+
+  test("brain tier (advisor path): the fallback classifier does NOT double-run", async () => {
+    await createRecord({
+      userId: "u1",
+      locale: "en",
+      kind: "journal",
+      body: "Today went well.",
+      withFollowup: true,
+      tier: "brain",
+    });
+
+    expect(mockCallAdvisor).toHaveBeenCalledTimes(1);
+    expect(mockClassifyRecordCrisis).not.toHaveBeenCalled();
   });
 
   test("free tier: journal entry saves, Advisor is NOT called", async () => {

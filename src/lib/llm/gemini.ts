@@ -208,6 +208,22 @@ function proxyCrisisSafetyResult(locale: "en" | "ko", minor = false): SafetyResu
   };
 }
 
+// C9 fallback for record saves that do NOT pass through callAdvisor/callGemini
+// at all (free-tier journal, advisor toggle off, plain notes — persona sim
+// P1-1): classify locally (zero LLM cost) and, on red, run the SAME audited
+// crisis routing as every LLM surface (ai_audit_log + crisis_events + the
+// fixed hotline text). Returns null when the text is not red.
+export async function classifyRecordTextForCrisis(
+  text: string,
+  locale: "en" | "ko",
+  userId: string,
+  minor = false,
+): Promise<GeminiResult<string> | null> {
+  const safety = classifyInput(text, locale, { minor });
+  if (safety.zone !== "red") return null;
+  return routeCrisis(safety, locale, userId, djb2(text), minor, "record_save_red");
+}
+
 async function routeCrisis(
   result: SafetyResult,
   locale: "en" | "ko",
