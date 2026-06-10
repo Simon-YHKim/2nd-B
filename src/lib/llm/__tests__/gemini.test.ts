@@ -132,7 +132,7 @@ describe("callGemini", () => {
       locale: "en",
       purpose: "capture_ocr",
       user: "Transcribe the text in this image.",
-      image: { mimeType: " IMAGE/PNG ", data: `${PNG_IMAGE_BASE64.slice(0, 8)}\n${PNG_IMAGE_BASE64.slice(8)}` },
+      image: { mimeType: " IMAGE/PNG; charset=binary ", data: `${PNG_IMAGE_BASE64.slice(0, 8)}\n${PNG_IMAGE_BASE64.slice(8)}` },
     });
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     const callArg = mockGenerateContent.mock.calls[0]![0] as {

@@ -150,7 +150,7 @@ export function assertImageOcrPayloadAllowed(image: { base64: string; mimeType: 
 }
 
 function normalizeDeclaredOcrImageMimeType(mimeType: string | null | undefined): string | null {
-  const normalized = mimeType?.trim().toLowerCase();
+  const normalized = mimeType?.trim().toLowerCase().split(";")[0]?.trim();
   if (!normalized) return null;
   return OCR_IMAGE_MIME_ALIASES[normalized] ?? normalized;
 }

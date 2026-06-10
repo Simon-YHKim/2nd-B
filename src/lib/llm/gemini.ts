@@ -40,7 +40,7 @@ const LLM_IMAGE_TOO_LARGE_ERROR = "llm_image_too_large";
 const LLM_IMAGE_UNSUPPORTED_TYPE_ERROR = "llm_image_unsupported_type";
 
 function normalizePromptImage(image: { mimeType: string; data: string }): { mimeType: string; data: string } {
-  const mimeType = image.mimeType.trim().toLowerCase();
+  const mimeType = image.mimeType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
   if (!ALLOWED_INLINE_IMAGE_MIME.has(mimeType)) {
     throw new Error(LLM_IMAGE_UNSUPPORTED_TYPE_ERROR);
   }

@@ -324,7 +324,7 @@ describe("capture image OCR payload guards", () => {
       assets: [
         {
           uri: "file:///photo.jpg",
-          mimeType: "image/jpg",
+          mimeType: "image/jpg; charset=binary",
           base64: JPEG_IMAGE_BASE64,
         },
       ],
@@ -476,7 +476,7 @@ describe("capture image OCR payload guards", () => {
 
   test("normalizes common image MIME aliases before calling Gemini", async () => {
     await ocrImageAsset("u1", "en", {
-      mimeType: "IMAGE/JPG",
+      mimeType: "IMAGE/JPG; charset=binary",
       base64: JPEG_IMAGE_BASE64,
     });
 
@@ -485,7 +485,7 @@ describe("capture image OCR payload guards", () => {
         image: { mimeType: "image/jpeg", data: JPEG_IMAGE_BASE64 },
       }),
     );
-    expect(normalizeOcrImageMimeType(" image/x-png ")).toBe("image/png");
+    expect(normalizeOcrImageMimeType(" image/x-png ; version=1 ")).toBe("image/png");
     expect(normalizeOcrImageMimeType(undefined)).toBe("image/jpeg");
     expect(normalizeOcrImagePayload({ base64: PNG_IMAGE_BASE64 }).mimeType).toBe("image/png");
   });
