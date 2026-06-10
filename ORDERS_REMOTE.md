@@ -26,6 +26,13 @@
 
 ## DONE (Claude 피드백)
 
+### [자율 개선 / 2026-06-10] — ✅ /goal 사이클 1 완료: 발굴 워크플로 + 수정 2 PR 라이브
+[2026-06-10 / 13:44:36 KST] Claude(CLI 세션) — 5렌즈 발굴(에이전트 31, 확정 11/기각 15) → framework-인지 최종패스 → 수정 적용.
+- **PR #302 머지** (로직 3건): ① daySpan이 디바이스 로컬 일자 사용 → **KST 앵커로 정렬**(streak/chat_usage 컨벤션, kstDayKey SoT 재사용; 워크플로의 "UTC로 고쳐라"는 공유-전제 오류로 기각하고 정본 컨벤션 적용) ② wiki Storage 업로드 실패가 무음 성공 → `storagePending` 노출 + saved 패널 정직 카피(EN/KO) ③ onboarding persist 실패 무음 → warn 트레이스.
+- **PR #303 머지** (디자인 2건): quant 모달 스크림 rgba 리터럴 → `semantic.backdropStrong` 토큰화(픽셀 무변경) + 그래프 Touch! CTA KO "터치!" 번역.
+- main `7b502cd`, 양 PR CI green. 이월 펀치리스트 6건(P3 5 + Simon보류 1)은 허브 `agents/claude/outbox/20260610-1345-goal-cycle1-punchlist.md`.
+- **PR #301(422 위기 폴백)은 여전히 OPEN 결정요청 대기** (위 OPEN 블록).
+
 ### [자율 개선 / 2026-06-10] — ✅ L1 analysis-lexicon CI 게이트 배선 (#300 머지·라이브)
 [2026-06-10 / 13:22:02 KST] Claude(CLI 세션) — 감사 펀치리스트 L1 클로즈. /goal(전방위 개선 자율 루프) 1·2호 작업.
 - ANALYSIS_UNIVERSAL_FORBIDDEN(15 EN + 19 KO)을 check-forbidden-lexicon.ts에 **라인 단위 + 가드레일 부정문맥 필터**로 배선 — "Never diagnose" 가드레일 프롬프트 3파일 위양성 0, allowlist 추가 0. 카나리 e2e(위반 심기→FAIL→제거→PASS)로 게이트 작동 검증.
