@@ -1,0 +1,24 @@
+{
+  "name": "Soul Core Symbol Pilot",
+  "spec_id": "b920d990",
+  "status": "pilot_for_simon_review",
+  "native_rect": {
+    "x": 0,
+    "y": 0,
+    "width": 128,
+    "height": 128
+  },
+  "export_rect": {
+    "x": 0,
+    "y": 0,
+    "width": 512,
+    "height": 512
+  },
+  "semantic_read_order": [
+    "living soul flame",
+    "heart core",
+    "memory fragments",
+    "rear tesseract halo"
+  ],
+  "replaces": "direction only; does not replace production assets yet"
+}

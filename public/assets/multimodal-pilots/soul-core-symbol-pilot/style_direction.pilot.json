@@ -1,0 +1,27 @@
+{
+  "name": "2nd-B Soul Core Symbol Pilot",
+  "status": "pilot_for_simon_review",
+  "native_canvas": [
+    128,
+    128
+  ],
+  "export_size": [
+    512,
+    512
+  ],
+  "core_correction": "The Soul Core must read as a living soul flame / heart core first. The tesseract is a thin rear halo, not the subject.",
+  "composition_ratio": {
+    "living_soul_heart": "70%+",
+    "tesseract_halo": "30%-"
+  },
+  "batch_rule": "Do not batch-generate remaining cores until this pilot is approved; use this only as a direction checkpoint.",
+  "visual_targets": [
+    "heart/flame silhouette readable at thumbnail size",
+    "FireRed-like native low-res density",
+    "18-24 visible colors",
+    "one top-left light direction",
+    "strong ink outline with selective colored rim",
+    "memory fragments inside the core",
+    "tesseract support recedes behind the symbol"
+  ]
+}
