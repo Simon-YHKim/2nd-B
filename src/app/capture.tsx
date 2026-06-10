@@ -49,7 +49,16 @@ import {
   isImageOcrEmptyResultError,
 } from "@/lib/wiki/capture-image";
 import { pickFile, type PickedFile } from "@/lib/wiki/capture-file";
-import { loadCaptureDraft, saveCaptureDraft, clearCaptureDraft } from "@/lib/capture/draft";
+import {
+  DEFAULT_CAPTURE_DRAFT_MODE,
+  clearCaptureDraft,
+  isCaptureDraftMode,
+  loadCaptureDraftState,
+  saveCaptureDraftState,
+  type CaptureDraft,
+  type CaptureDraftMode,
+  type CaptureDrafts,
+} from "@/lib/capture/draft";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
 import { saveTemplate } from "@/lib/wiki/template-queries";
@@ -74,7 +83,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // capture modes live on one screen. "일기" writes to `records` (createRecord —
 // streak / reflection / optional Advisor); the rest write to `sources`
 // (captureFromMarkdown). Reads were already unified via mergeEvidence.
-type Mode = "journal" | "memo" | "linkclip" | "ocr" | "file";
+type Mode = CaptureDraftMode;
 type CaptureFeedbackModal = { title: string; body: string; retry?: () => void } | null;
 
 const CAPTURE_MODES: Mode[] = ["journal", "memo", "linkclip", "ocr", "file"];
@@ -192,6 +201,9 @@ export default function Capture() {
   const [showAdvancedModes, setShowAdvancedModes] = useState(false);
   const [track, setTrack] = useState<WikiTrack>("daily");
   const [body, setBody] = useState("");
+  const draftsRef = useRef<CaptureDrafts>({});
+  const draftHydratedRef = useRef(false);
+  const draftUserRef = useRef<string | null>(null);
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
   const [extracting, setExtracting] = useState(false);
@@ -235,32 +247,80 @@ export default function Capture() {
   });
   const streak = useMemo(() => computeStreak(recentDates), [recentDates]);
 
-  // P1-5 (persona sim): the journal draft used to live only in useState — an
-  // app switch, a tab move (router.replace remounts this screen), or a stray
-  // mode-tab touch destroyed it. Restore once on mount (only into an empty
-  // journal field, never over text the user already typed), then persist
-  // debounced while typing. Successful saves clear it (handleJournalSubmit);
-  // reset()/mode switches deliberately leave storage alone — switching away
-  // and coming back without losing the draft IS the recovery path.
-  const draftRestoredRef = useRef(false);
+  // P1-5 (persona sim): capture drafts must survive app switches, tab remounts,
+  // and accidental mode taps. Persist text-sized fields only; file/image blobs
+  // stay in memory.
+  function hasRestorableDraft(draft: CaptureDraft | undefined): draft is CaptureDraft {
+    return !!draft && (
+      draft.body.trim().length > 0 ||
+      draft.topic.trim().length > 0 ||
+      (draft.conclusion ?? "").trim().length > 0
+    );
+  }
+
+  function draftFromFields(targetMode: Mode): CaptureDraft {
+    return {
+      body,
+      topic: targetMode === "journal" ? topic : "",
+      conclusion: targetMode === "journal" ? conclusion : "",
+      ocrReviewApproved: targetMode === "ocr" && ocrReviewApproved,
+    };
+  }
+
+  function storeDraftForMode(targetMode: Mode, draft: CaptureDraft): void {
+    const next = { ...draftsRef.current };
+    if (hasRestorableDraft(draft)) next[targetMode] = draft;
+    else delete next[targetMode];
+    draftsRef.current = next;
+  }
+
+  function rememberCurrentDraft(): void {
+    storeDraftForMode(mode, draftFromFields(mode));
+  }
+
+  function persistDrafts(lastMode: Mode): void {
+    if (!userId || !draftHydratedRef.current || draftUserRef.current !== userId) return;
+    saveCaptureDraftState(userId, { drafts: draftsRef.current, lastMode });
+  }
+
+  function applyDraftToFields(targetMode: Mode, draft: CaptureDraft | undefined): void {
+    const conclusionDraft = targetMode === "journal" ? draft?.conclusion ?? "" : "";
+    setBody(draft?.body ?? "");
+    setTopic(targetMode === "journal" ? draft?.topic ?? "" : "");
+    setConclusion(conclusionDraft);
+    setShowExtras(targetMode === "journal" && conclusionDraft.trim().length > 0);
+    setOcrReviewApproved(targetMode === "ocr" && draft?.ocrReviewApproved === true && (draft?.body ?? "").trim().length > 0);
+  }
   useEffect(() => {
-    // Restore only into the journal mode (a deep-linked OCR/file entry must
-    // not get journal text injected); arriving at journal later still
-    // restores because the ref is only marked once we actually run.
-    if (!userId || mode !== "journal" || draftRestoredRef.current) return;
-    draftRestoredRef.current = true;
-    void loadCaptureDraft(userId).then((draft) => {
-      if (!draft) return;
-      // Only fill an untouched journal screen — never clobber live input.
-      setBody((current) => (current.length === 0 ? draft.body : current));
-      setTopic((current) => (current.length === 0 ? draft.topic : current));
+    if (!userId) {
+      draftsRef.current = {};
+      draftHydratedRef.current = false;
+      draftUserRef.current = null;
+      return;
+    }
+    if (draftUserRef.current === userId && draftHydratedRef.current) return;
+    let cancelled = false;
+    draftHydratedRef.current = false;
+    draftUserRef.current = userId;
+    void loadCaptureDraftState(userId).then((state) => {
+      if (cancelled) return;
+      draftsRef.current = state.drafts;
+      draftHydratedRef.current = true;
+      const restoredMode = isCaptureDraftMode(state.lastMode) ? state.lastMode : DEFAULT_CAPTURE_DRAFT_MODE;
+      if (restoredMode !== "journal") setShowAdvancedModes(true);
+      setMode(restoredMode);
+      applyDraftToFields(restoredMode, state.drafts[restoredMode]);
     });
-  }, [userId, mode]);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
   useEffect(() => {
-    if (!userId || mode !== "journal" || !draftRestoredRef.current) return;
-    const handle = setTimeout(() => saveCaptureDraft(userId, { body, topic }), 800);
+    if (!userId || !draftHydratedRef.current || draftUserRef.current !== userId) return;
+    storeDraftForMode(mode, draftFromFields(mode));
+    const handle = setTimeout(() => persistDrafts(mode), 800);
     return () => clearTimeout(handle);
-  }, [userId, mode, body, topic]);
+  }, [userId, mode, body, topic, conclusion, ocrReviewApproved]);
 
   // Load recent record dates (journal streak) + journal use count (free-tier
   // limit) once we have a user.
@@ -335,22 +395,43 @@ export default function Capture() {
     current?.retry?.();
   }
 
-  function reset() {
-    setBody("");
+  function resetTransientCaptureState() {
     setPickedFile(null);
     setPickedImage(null);
     setExtracting(false);
-    setOcrReviewApproved(false);
     setTagsEditable([]);
-    setTopic("");
-    setConclusion("");
-    setShowExtras(false);
     setAskAdvisor(false);
     setProposalCtx(null);
     setProposal(null);
     setFormatSavedMsg(null);
     setSavedMode(null);
     setSavedSourceId(null);
+  }
+
+  function reset() {
+    setBody("");
+    setOcrReviewApproved(false);
+    setTopic("");
+    setConclusion("");
+    setShowExtras(false);
+    resetTransientCaptureState();
+  }
+
+  function clearModeDraft(targetMode: Mode): void {
+    const next = { ...draftsRef.current };
+    delete next[targetMode];
+    draftsRef.current = next;
+    if (userId) clearCaptureDraft(userId, targetMode);
+  }
+
+  function switchCaptureMode(nextMode: Mode): void {
+    if (nextMode === mode) return;
+    rememberCurrentDraft();
+    resetTransientCaptureState();
+    setMode(nextMode);
+    if (nextMode !== "journal") setShowAdvancedModes(true);
+    applyDraftToFields(nextMode, draftsRef.current[nextMode]);
+    persistDrafts(nextMode);
   }
 
   async function pickImage(source: "library" | "camera") {
@@ -483,7 +564,7 @@ export default function Capture() {
       companion.fire("journalSaved");
       // The entry is in records now — the persisted draft has served its
       // purpose and must not resurrect on the next visit.
-      clearCaptureDraft(userId);
+      clearModeDraft("journal");
       setSavedTitle(savedTopic.length > 0 ? savedTopic : t("savedTitleFallback"));
       setSavedKind("records");
       setSavedMode("journal");
@@ -521,6 +602,7 @@ export default function Capture() {
   async function handleSubmit() {
     if (!userId) return;
     if (mode === "journal") return handleJournalSubmit();
+    const submittedMode = mode;
     setSubmitting(true);
     try {
       // Compose the body that captureFromMarkdown will index.
@@ -582,12 +664,13 @@ export default function Capture() {
       });
 
       reset();
+      clearModeDraft(submittedMode);
       // 루루 carries the shard home; an imported link gets the "success" beat.
       companion.fire(isBareLink ? "linkImported" : "captureSaved");
       // Inline success panel (journal-capture pack §3/§7) replaces the alert.
       setSavedTitle(result.source.title);
       setSavedKind("source");
-      setSavedMode(mode);
+      setSavedMode(submittedMode);
       setSavedSourceId(result.source.id);
       setSavedPending(result.storagePending);
       // G3: a capture that landed as "inbox" (no specific format fit) is the
@@ -884,11 +967,7 @@ export default function Capture() {
                       key={m}
                       style={[styles.modeTab, active && styles.modeTabActive]}
                       onPress={() => {
-                        setMode(m);
-                        if (m !== "journal") setShowAdvancedModes(true);
-                        // Clear all per-mode input so a URL box never "bleeds" into
-                        // the memo/file box (2026-05-31 directive: inputs feel shared).
-                        reset();
+                        switchCaptureMode(m);
                       }}
                       hitSlop={8}
                       accessibilityRole="tab"
@@ -910,8 +989,7 @@ export default function Capture() {
                     if (advancedModesExpanded) {
                       setShowAdvancedModes(false);
                       if (mode !== "journal") {
-                        setMode("journal");
-                        reset();
+                        switchCaptureMode("journal");
                       }
                     } else {
                       setShowAdvancedModes(true);
