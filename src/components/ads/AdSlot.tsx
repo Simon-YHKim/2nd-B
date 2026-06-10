@@ -5,11 +5,9 @@
 // consent, non-sensitive route. Native is a no-op — AdMob ships with the
 // native build track (docs/ADS.md).
 //
-// NOTE: the ads-consent toggle is not wired into the privacy screen yet, so
-// `adsConsent` is currently always null and this slot is structurally
-// inert even when the env flags are set. That is deliberate staged rollout:
-// policy + placement land first, the consent wiring (privacy toggle I1 work)
-// flips it on. KEEP the consent default null — never default-on.
+// Ads consent comes from users.privacy_prefs.ads (the privacy screen toggle,
+// default false, minors locked off server-side by 0032) — fetched once per
+// mount; until it resolves the policy fails closed. Never default it on.
 
 import { useEffect, useRef, useState } from "react";
 import { Platform, View, StyleSheet } from "react-native";
@@ -21,6 +19,7 @@ import { getEnv } from "@/lib/env";
 import { canShowAds } from "@/lib/ads/policy";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
+import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { semantic, radii, spacing } from "@/lib/theme/tokens";
 
 declare global {
@@ -42,10 +41,12 @@ function ensureAdsenseScript(client: string): void {
 
 export function AdSlot({ slotEnvKey }: { slotEnvKey: "EXPO_PUBLIC_ADSENSE_SLOT_RECORDS" }) {
   const { t } = useTranslation("common");
-  const { isMinor } = useAuth();
+  const { userId, isMinor } = useAuth();
   const progression = useProgression();
   const pathname = usePathname();
   const hostRef = useRef<View | null>(null);
+  // users.privacy_prefs.ads — null until resolved (policy fails closed).
+  const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
   // AdBlock / load-failure fallback: when the ad never fills, show the quiet
   // subscription upsell instead of a blank box (ads → "remove ads with a
   // subscription" loop).
@@ -54,6 +55,24 @@ export function AdSlot({ slotEnvKey }: { slotEnvKey: "EXPO_PUBLIC_ADSENSE_SLOT_R
   const env = getEnv();
   const client = env.EXPO_PUBLIC_ADSENSE_CLIENT;
   const slot = env[slotEnvKey];
+
+  // Resolve the ads consent pref. Only bother on web with a configured slot —
+  // native and unconfigured builds stay a pure no-op with zero extra fetches.
+  useEffect(() => {
+    if (Platform.OS !== "web" || !slot || !userId) return;
+    let cancelled = false;
+    fetchPrivacyPrefs(userId)
+      .then((prefs) => {
+        if (!cancelled) setAdsConsent(prefs.ads === true);
+      })
+      .catch(() => {
+        if (!cancelled) setAdsConsent(false); // fetch failure = no ads
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slot, userId]);
+
   const allowed =
     Platform.OS === "web" &&
     !!slot &&
@@ -62,9 +81,7 @@ export function AdSlot({ slotEnvKey }: { slotEnvKey: "EXPO_PUBLIC_ADSENSE_SLOT_R
       // closed so a subscriber never sees an ad flash during the fetch.
       tier: progression.loading ? null : progression.tier,
       isMinor,
-      // Ads consent is not collected yet (privacy toggle wiring pending) —
-      // null keeps the slot inert by policy rule 3.
-      adsConsent: null,
+      adsConsent,
       route: pathname ?? "/",
     });
 
