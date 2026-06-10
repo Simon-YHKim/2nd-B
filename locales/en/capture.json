@@ -123,7 +123,10 @@
     },
     "advisor": {
       "label": "Ask SecondB on this entry",
-      "helper": "Off by default. Turn on only when you want a reflection back."
+      "helper": "Off by default. Turn on only when you want a reflection back.",
+      "lockedLabel": "Ask SecondB on this entry (Brain)",
+      "lockedHelper": "Reflections on entries unlock with the Brain plan. Tap to view plans.",
+      "lockedHint": "Opens the plans screen"
     }
   },
   "linkClip": {

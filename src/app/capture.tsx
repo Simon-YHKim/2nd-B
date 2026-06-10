@@ -61,7 +61,7 @@ import type { HotlineId } from "@/lib/safety/lexicon";
 // doesn't bypass progression gating.
 import { useProgression } from "@/lib/progression/useProgression";
 import { checkGate } from "@/lib/progression/gates";
-import { checkUsage } from "@/lib/progression/entitlements";
+import { canUsePremium, checkUsage } from "@/lib/progression/entitlements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
@@ -272,6 +272,10 @@ export default function Capture() {
   // gated, so this only constrains the journal mode.
   const journalGate = checkGate("journal", progression.totalXp);
   const journalUsage = checkUsage("journal", progression.tier, journalCount);
+  // Brain entitlement for the opt-in Advisor follow-up (cycle-5 wiring of the
+  // previously dead canUsePremium — the AI reflection is the marginal-cost
+  // surface, mirroring the chat daily cap).
+  const advisorUnlocked = canUsePremium("advisor", progression.tier);
   const streakMissingToday = streak.capturedToday ? "" : t("journal.streak.missingToday");
 
   function showFeedback(title: string, body: string, retry?: () => void): void {
@@ -383,7 +387,8 @@ export default function Capture() {
         topic: topic.trim().length > 0 ? topic.trim() : undefined,
         tags: tagsEditable.length > 0 ? tagsEditable : undefined,
         conclusion: conclusion.trim().length > 0 ? conclusion.trim() : undefined,
-        withFollowup: askAdvisor,
+        withFollowup: askAdvisor && advisorUnlocked,
+        tier: progression.tier,
       });
       if (res.followup?.zone === "red") {
         setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
@@ -915,26 +920,47 @@ export default function Capture() {
                   textAlignVertical="top"
                 />
               ) : null}
-              <Pressable
-                onPress={() => setAskAdvisor((v) => !v)}
-                hitSlop={4}
-                style={styles.advisorRow}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: askAdvisor }}
-                accessibilityLabel={t("journal.advisor.label")}
-              >
-                <View style={[styles.advisorCheck, askAdvisor && styles.advisorCheckOn]}>
-                  {askAdvisor ? <PathGlyph path={CHECK_PATH} color={semantic.background} size={16} /> : null}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text variant="subtle" color={askAdvisor ? "brand" : "textMuted"}>
-                    {t("journal.advisor.label")}
-                  </Text>
-                  <Text variant="subtle" color="textSubtle">
-                    {t("journal.advisor.helper")}
-                  </Text>
-                </View>
-              </Pressable>
+              {advisorUnlocked ? (
+                <Pressable
+                  onPress={() => setAskAdvisor((v) => !v)}
+                  hitSlop={4}
+                  style={styles.advisorRow}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: askAdvisor }}
+                  accessibilityLabel={t("journal.advisor.label")}
+                >
+                  <View style={[styles.advisorCheck, askAdvisor && styles.advisorCheckOn]}>
+                    {askAdvisor ? <PathGlyph path={CHECK_PATH} color={semantic.background} size={16} /> : null}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="subtle" color={askAdvisor ? "brand" : "textMuted"}>
+                      {t("journal.advisor.label")}
+                    </Text>
+                    <Text variant="subtle" color="textSubtle">
+                      {t("journal.advisor.helper")}
+                    </Text>
+                  </View>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => router.push("/plans")}
+                  hitSlop={4}
+                  style={styles.advisorRow}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("journal.advisor.lockedLabel")}
+                  accessibilityHint={t("journal.advisor.lockedHint")}
+                >
+                  <View style={styles.advisorCheck} />
+                  <View style={{ flex: 1 }}>
+                    <Text variant="subtle" color="textMuted">
+                      {t("journal.advisor.lockedLabel")}
+                    </Text>
+                    <Text variant="subtle" color="textSubtle">
+                      {t("journal.advisor.lockedHelper")}
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
                 </>
               ) : null}
             </View>

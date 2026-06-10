@@ -10,6 +10,7 @@
 
 import { buildMemorizedPattern } from "../knowledge/engines";
 import { callAdvisor, callGemini } from "../llm/gemini";
+import { canUsePremium, type SubscriptionTier } from "../progression/entitlements";
 import { awardXpSafe, type XpAction } from "../progression/xp";
 import { getSupabaseClient } from "../supabase/client";
 
@@ -26,6 +27,14 @@ export interface CreateRecordArgs {
   // C10 safety: forwarded to callAdvisor/callGemini so a minor's crisis
   // routing uses the youth hotline. From AuthContext.isMinor at the call site.
   minor?: boolean;
+  /**
+   * Caller's subscription tier. When provided, the journal Advisor follow-up
+   * is entitlement-checked (canUsePremium, Brain floor) — defense in depth
+   * behind the capture-screen gate, since this is the only client path that
+   * reaches callAdvisor. Omitted = legacy callers keep their behavior. The
+   * audit_response follow-up (Lv1-3 core loop) is never tier-gated.
+   */
+  tier?: SubscriptionTier;
   // Per master blueprint: every entry should surface tags, topic,
   // summary, conclusion alongside the body. All optional — the LLM
   // follow-up (Phase 1 / Advisor) can fill them in later.
@@ -66,8 +75,14 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   const supabase = getSupabaseClient();
 
   let aiFollowup: RecordFollowup | null = null;
+  // Premium gate (Brain floor): the Advisor follow-up is the marginal-cost
+  // surface; when the caller names its tier, enforce the entitlement here
+  // too so a stale/bypassed toggle can't reach callAdvisor.
+  const advisorAllowed = args.tier === undefined || canUsePremium("advisor", args.tier);
   if (args.withFollowup !== false && args.kind !== "note") {
-    if (args.kind === "journal") {
+    if (args.kind === "journal" && !advisorAllowed) {
+      // Entry still saves normally — only the AI follow-up is withheld.
+    } else if (args.kind === "journal") {
       // Engine 4 Advisor flow: layered safety + Path A RAG.
       const res = await callAdvisor({
         userId: args.userId,
