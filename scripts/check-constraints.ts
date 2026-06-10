@@ -196,6 +196,7 @@ results.push(
       "inputs.memoPlaceholder",
       "ocrReview.heading",
       "ocrReview.disclosure",
+      "ocrReview.privateAfterApprove",
       "ocrReview.body",
       "ocrReview.approve",
       "ocrReview.approved",
@@ -870,6 +871,7 @@ results.push(
       // every check stays green (split-③ review finding).
       capture.includes('(mode === "ocr" && hasOcrDraft && ocrReviewApproved)') &&
       capture.includes('accessibilityHint={t("ocrReview.approveHint")}') &&
+      capture.includes('t("ocrReview.privateAfterApprove")') &&
       capture.includes('accessibilityRole="image"') &&
       capture.includes('accessibilityLabel={t("feedback.accessibilityLabel")}') &&
       manual.includes("Manual language: switch to English") &&

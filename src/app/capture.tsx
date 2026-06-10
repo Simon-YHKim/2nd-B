@@ -1283,6 +1283,9 @@ export default function Capture() {
               <Text variant="subtle" color="textMuted" style={styles.ocrDisclosureText}>
                 {t("ocrReview.disclosure")}
               </Text>
+              <Text variant="subtle" color="textSubtle" style={styles.ocrDisclosureText}>
+                {t("ocrReview.privateAfterApprove")}
+              </Text>
               {hasOcrDraft ? (
                 <>
                   {/* liveRegion: the approve button disables itself on tap, so
