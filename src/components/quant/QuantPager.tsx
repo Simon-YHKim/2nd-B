@@ -95,7 +95,9 @@ export function QuantPager({
         <View style={styles.navRow}>
           <Button
             label={locale === "ko" ? "이전" : "Back"}
-            variant="secondary"
+            // O-R1 P1: mid-assessment Back must read quieter than Next/Save
+            // so the forward action stays the one prominent choice.
+            variant="ghost"
             onPress={prev}
             disabled={isFirstPage}
           />

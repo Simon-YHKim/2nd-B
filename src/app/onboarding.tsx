@@ -159,7 +159,9 @@ export default function Onboarding() {
           {isLast ? (
             <Button
               label={locale === "ko" ? "건너뛰고 둘러보기" : "Skip and look around"}
-              variant="secondary"
+              // O-R1 P1: the escape hatch must not weigh the same as the
+              // primary CTA — one clearly dominant action per screen.
+              variant="ghost"
               onPress={() => finishToGraph()}
               accessibilityHint={openGraphHint}
             />
