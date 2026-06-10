@@ -16,6 +16,30 @@
 
 (새 오더를 여기 아래에 추가)
 
+### [HANDOFF-CRASH / 2026-06-11 08:55 KST] PC 크래시 — 로컬 세션 중단, 클라우드 세션 인계 (Simon 지시)
+**작성: 신규 로컬 CLI Claude 세션 (크래시 후 상태 재구성). 다음 실행 주체 = 클라우드 Claude 세션.**
+
+**무슨 일이 있었나**: 로컬 PC가 다운되어 O-R1 자율 사이클을 돌던 CLI 세션이 **2026-06-11 06:38 KST경 사망**(마지막 활동 = PR #348 머지 06:37:48). 사이클 28~30의 원장 기록 직전에 끊겨 **기록 갭**이 있다. Simon 지시: 2nd-B 작업은 클라우드에서 이어간다.
+
+**현재 진실 (main = `8e8e262`, origin 동기화 완료, CI 상태는 미확인 — 인수 시 `gh run list` 확인 요)**:
+- 머지됐으나 **원장·BOARD 기록 누락분 3건**: #346(Codex 첫기록 핸드오프 카피), #347(Codex OCR trust disclosure), #348(Codex auth self-service password reset). → 인수 후 이 DONE 기록부터 보정하고 사이클 재개.
+- 오늘 누적 48 PR(#300~#348). 원장 DONE은 cycle-27(#345)까지만 기록됨.
+
+**이어갈 작업 (O-R1 / O-R1-b 상시 오더 그대로 유효)**:
+1. 시뮬 P2 잔여: **P2-4** OCR 이미지 다운스케일(expo-image-manipulator 추가 필요) · **P2-10** 읽기쉬운 폰트 옵션(디자인 판단).
+2. P1 잔여 3건 = 전부 Simon 게이트: trustBody 광고 모순 카피 · 비KR 핫라인 디렉터리 · ackLlm 법무.
+3. cycle-25에 적힌 사이클-11 이월 잔여 항목.
+4. settings 이월(파괴작업 위저드화 · dead 키 정리), 광고는 Simon AdSense 콘솔 단계만 잔존(docs/ADS.md).
+
+**클라우드에서 알아야 할 로컬 전용 상태 (GitHub에 없음)**:
+- 허브(AI Infra/Communication)는 로컬 전용 git — 클라우드에서 접근 불가. 이 레포의 이 파일이 유일한 공유 채널이다. Grok 루프는 cycle 40까지 돌았음.
+- **Codex 미커밋 WIP**: 로컬 워크트리 `codex/free-journal-crisis-guard-20260611`에 capture/OCR 계열 8파일 수정이 미커밋으로 남아 죽음(미푸시). 같은 영역(무료 일기 위기 가드) 작업 시 중복/충돌 인지.
+- AG `antigravity/work` 로컬이 origin 대비 ahead 121 (미푸시, AG quota-out 상태 지속).
+- 로컬 main 워크트리에 expo `~56.0.8→~56.0.9` bump가 락파일 미동반 미커밋 상태로 남음(미완성 WIP — 클라우드에서 무시 가능).
+- **에셋 리팩토링 오더 문서 2종 + 스타일 레퍼런스 이미지**를 `claude/handoff-pc-crash-20260611` 브랜치로 푸시함: `assets/2ndb_asset_refactor_prompts_tiered_list.txt`(이미지AI 재제작 프롬프트 티어 리스트) · `assets/2ndBbuttoninventory.txt`(전 버튼 인벤토리) · ChatGPT 레퍼런스 PNG. 에셋 작업 시 이 브랜치에서 가져갈 것.
+
+**중복 실행 방지**: 이 블록이 OPEN에 있는 동안 **로컬 CLI/Cowork 루프는 이 파일 실행 금지** — 클라우드 세션 전담. 해제 = Simon 지시 또는 클라우드 세션이 이 블록을 DONE으로 이동.
+
 ### [O-R1-b / 2026-06-10 17:55] Simon 후속 지시 3건 — O-R1 보강
 (인터랙티브 CLI 세션 대필 [2026-06-10 / 17:55:42 KST])
 1. **그래프 홈 Hick P1 보류 해제**: Simon 확정 — "과다한 건 의도가 아니다. 정리해라." 보류했던 그래프 홈 선택지 과다 건을 P1로 복귀시켜 정리 진행 (정보위계 + 점진 공개로, 비주얼 티어 시스템은 불가침).
