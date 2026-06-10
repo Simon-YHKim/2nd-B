@@ -21,6 +21,8 @@
 //   GEMINI_API_KEY          — the Google AI Studio key
 //   GEMINI_DAILY_CALL_CAP   — optional; per-user/day proxy-call ceiling
 //                             (cost backstop; default 500)
+//   GEMINI_FREE_DAILY_CALL_CAP — optional; lower ceiling for sub-brain tiers
+//                             (default 150; see PREMIUM_PURPOSES note)
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected automatically and used
 // for the server-side spend cap + ai_audit_log write.
 //
@@ -36,7 +38,8 @@
 //     system: string | null,
 //     user: string,
 //     model: 'gemini-2.5-flash' | 'gemini-2.5-pro',
-//     image?: { mimeType: string, data: string }   // base64 (no data: URL prefix)
+//     image?: { mimeType: string, data: string },  // base64 (no data: URL prefix)
+//     purpose?: string                              // caller's PromptPurpose label
 //   }
 //
 // Response shape:
@@ -64,6 +67,31 @@ const UPSTREAM_DETAIL_TRUNCATE = 80;
 // a bypassed/replayed JWT from looping paid gemini-2.5-pro calls. Override via
 // the GEMINI_DAILY_CALL_CAP secret.
 const DEFAULT_DAILY_CALL_CAP = 500;
+
+// Server-side entitlement defense (#312 punch item: the client gates premium
+// surfaces behind canUsePremium, but the proxy was tier-blind — a bypassed or
+// replayed JWT could loop premium Advisor replies on a free account). Two
+// layers, because the purpose label is self-reported:
+//   1. purpose gate — an honest client labels its premium calls; a labeled
+//      premium call on a sub-brain tier is rejected (403) before any paid
+//      upstream call.
+//   2. tier-aware daily cap — the hard ceiling no label can dodge: sub-brain
+//      users get GEMINI_FREE_DAILY_CALL_CAP (default 150, sized for the free
+//      surfaces: clipper classification, OCR, wiki ingest, capped chat)
+//      instead of the brain-tier GEMINI_DAILY_CALL_CAP.
+// Mirror of src/lib/progression/entitlements.ts — KEEP IN SYNC:
+// TIER_RANK free<soma<cortex<brain; PREMIUM_MIN_TIER advisor/planner=brain.
+// Caps are rank-stepped so paying soma/cortex users (chat 30/80 per day plus
+// deliberately-uncapped capture surfaces) don't share the free ceiling. A tier
+// LOOKUP ERROR keeps premium purposes available (fail-open for availability)
+// but takes the FREE cap — an outage must not raise the cost ceiling.
+// Sub-brain calls are also pinned to flash: the pro model is the expensive
+// half of the worst-case call, and no sub-brain surface needs it.
+const PREMIUM_PURPOSES = new Set(['advisor', 'planner']);
+const TIER_RANK: Record<string, number> = { free: 0, soma: 1, cortex: 2, brain: 3 };
+const BRAIN_RANK = TIER_RANK.brain;
+const DEFAULT_FREE_DAILY_CALL_CAP = 200;
+const DEFAULT_SUB_DAILY_CALL_CAP = 350;
 
 // Mirror of src/lib/llm/gemini.ts:djb2 so the proxy's ai_audit_log row hashes
 // prompt/output identically to the client wrapper.
@@ -217,7 +245,7 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; responseSchema?: unknown };
+  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; responseSchema?: unknown; purpose?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -227,6 +255,7 @@ Deno.serve(async (req: Request) => {
   const userText: string = typeof body?.user === 'string' ? body.user : '';
   const systemText: string | null = typeof body?.system === 'string' ? body.system : null;
   const model: string = typeof body?.model === 'string' ? body.model : 'gemini-2.5-flash';
+  const purpose: string | null = typeof body?.purpose === 'string' ? body.purpose : null;
   // Structured-output schema (parity with the direct-client path). Threaded
   // into generationConfig below so edge-routed callers (e.g. phase1) get JSON.
   const responseSchema =
@@ -312,10 +341,51 @@ Deno.serve(async (req: Request) => {
     gc.responseSchema = responseSchema;
   }
 
+  // Tier lookup (service-role, same client as the spend cap). Fail-open on a
+  // lookup ERROR — availability first, the daily cap below still bounds the
+  // damage — but an explicit sub-brain row fails CLOSED for premium purposes.
+  let tierRank: number | null = null;
+  {
+    const { data: tierRow, error: tierErr } = await supabaseAdmin
+      .from('users')
+      .select('subscription_tier')
+      .eq('id', userId)
+      .maybeSingle();
+    if (tierErr) {
+      console.error('[gemini-proxy] tier lookup failed:', tierErr.message ?? String(tierErr));
+    } else {
+      const t = (tierRow?.subscription_tier as string | null) ?? 'free';
+      tierRank = TIER_RANK[t] ?? 0;
+    }
+  }
+  if (purpose && PREMIUM_PURPOSES.has(purpose) && tierRank !== null && tierRank < BRAIN_RANK) {
+    return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
+  }
+
+  // Sub-brain calls are pinned to flash: pro is the expensive half of the
+  // worst-case call and no sub-brain surface needs it. Silent downgrade (not
+  // 403) keeps a mislabeled-but-honest caller working. Lookup-error (null
+  // rank) keeps the requested model — availability for an unknown brain user.
+  const effectiveModel =
+    tierRank !== null && tierRank < BRAIN_RANK && model === 'gemini-2.5-pro'
+      ? 'gemini-2.5-flash'
+      : model;
+
   // Spend cap (cost backstop) — server-authoritative, BEFORE any paid upstream
   // call. bump_gemini_spend raises gemini_spend_exceeded at the per-user/day
-  // ceiling.
-  const dailyCap = Number(Deno.env.get('GEMINI_DAILY_CALL_CAP')) || DEFAULT_DAILY_CALL_CAP;
+  // ceiling. Rank-stepped: free < soma/cortex < brain; a tier LOOKUP ERROR
+  // takes the free cap so an outage never raises the cost ceiling.
+  const brainCap = Number(Deno.env.get('GEMINI_DAILY_CALL_CAP')) || DEFAULT_DAILY_CALL_CAP;
+  const subCap = Number(Deno.env.get('GEMINI_SUB_DAILY_CALL_CAP')) || DEFAULT_SUB_DAILY_CALL_CAP;
+  const freeCap = Number(Deno.env.get('GEMINI_FREE_DAILY_CALL_CAP')) || DEFAULT_FREE_DAILY_CALL_CAP;
+  const dailyCap =
+    tierRank === null
+      ? freeCap
+      : tierRank >= BRAIN_RANK
+        ? brainCap
+        : tierRank >= TIER_RANK.soma
+          ? subCap
+          : freeCap;
   const { error: spendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
     p_user_id: userId,
     p_day: utcDay(),
@@ -346,7 +416,7 @@ Deno.serve(async (req: Request) => {
   const t0 = Date.now();
   let upstream: Response;
   try {
-    upstream = await fetch(GEMINI_ENDPOINT(model), {
+    upstream = await fetch(GEMINI_ENDPOINT(effectiveModel), {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -370,7 +440,7 @@ Deno.serve(async (req: Request) => {
 
   const data = await upstream.json();
   const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-  const modelUsed: string = data?.modelVersion ?? model;
+  const modelUsed: string = data?.modelVersion ?? effectiveModel;
 
   // C3: write the audit row server-side so a bypassed/replayed POST is still
   // logged. safety_zone is coarse here (crisis re-check on the output) vs the
