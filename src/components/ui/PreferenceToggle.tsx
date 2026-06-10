@@ -1,4 +1,4 @@
-import { TouchableOpacity, StyleSheet, Switch, View } from "react-native";
+import { Pressable, TouchableOpacity, StyleSheet, Switch, View } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -51,7 +51,20 @@ export function PreferenceToggleRow({
   onValueChange: (next: boolean) => void;
 }) {
   return (
-    <View style={styles.row}>
+    // P2-13 (persona sim, low-vision): the only touchable used to be the
+    // 51x31 Switch itself — a tiny motor target. The WHOLE row now toggles
+    // (in-repo precedent: capture's advisor checkbox row); the Switch stays
+    // for the visual state but is hidden from the accessibility tree so the
+    // row reads as one switch instead of two nested ones.
+    <Pressable
+      style={styles.row}
+      onPress={disabled ? undefined : () => onValueChange(!value)}
+      disabled={disabled}
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint ?? description}
+      accessibilityState={{ checked: value, disabled }}
+    >
       <View style={styles.copy}>
         <View style={styles.labelRow}>
           <Text variant="body" color={muted ? "textMuted" : "text"}>
@@ -69,14 +82,16 @@ export function PreferenceToggleRow({
           </Text>
         ) : null}
       </View>
-      <PreferenceSwitch
-        value={value}
-        disabled={disabled}
-        onValueChange={onValueChange}
-        accessibilityLabel={label}
-        accessibilityHint={accessibilityHint ?? description}
-      />
-    </View>
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <PreferenceSwitch
+          value={value}
+          disabled={disabled}
+          onValueChange={onValueChange}
+          accessibilityLabel={label}
+          accessibilityHint={accessibilityHint ?? description}
+        />
+      </View>
+    </Pressable>
   );
 }
 

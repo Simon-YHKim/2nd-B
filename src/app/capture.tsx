@@ -47,6 +47,11 @@ import {
   ocrImageAsset,
   isImageOcrCrisisResultError,
   isImageOcrEmptyResultError,
+  isImageCameraPermissionDeniedError,
+  isImageOcrTooLargeError,
+  isImageOcrUnsupportedTypeError,
+  isImageOcrInvalidDataError,
+  isImageOcrMissingDataError,
 } from "@/lib/wiki/capture-image";
 import { pickFile, type PickedFile } from "@/lib/wiki/capture-file";
 import {
@@ -444,6 +449,27 @@ export default function Capture() {
       setBody(""); // clear any prior extraction; the user presses 추출하기 to fill
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] image pick failed", (e as Error).message);
+      // P2-5: deterministic failures get their own copy — the generic "try
+      // again in a moment" framing misdiagnoses them. Camera permission keeps
+      // a retry (granting permission makes it succeed); an unsupported or
+      // damaged file does NOT (the same file will fail forever — no retry
+      // button, the user must pick a different image).
+      if (isImageCameraPermissionDeniedError(e)) {
+        showFeedback(t("alerts.cameraPermission.title"), t("alerts.cameraPermission.message"), () => void pickImage(source));
+        return;
+      }
+      if (isImageOcrTooLargeError(e)) {
+        showFeedback(t("alerts.ocrTooLarge.title"), t("alerts.ocrTooLarge.message"));
+        return;
+      }
+      if (isImageOcrUnsupportedTypeError(e)) {
+        showFeedback(t("alerts.ocrUnsupportedType.title"), t("alerts.ocrUnsupportedType.message"));
+        return;
+      }
+      if (isImageOcrInvalidDataError(e) || isImageOcrMissingDataError(e)) {
+        showFeedback(t("alerts.ocrInvalidData.title"), t("alerts.ocrInvalidData.message"));
+        return;
+      }
       showFeedback(
         t("alerts.imageOpen.title"),
         t("alerts.imageOpen.message"),
@@ -476,6 +502,21 @@ export default function Capture() {
           t("alerts.ocrEmptyResult.message"),
           () => void runExtract(),
         );
+        return;
+      }
+      // P2-5: the size/type/data guards can also fire at extract time (e.g. a
+      // payload normalized past the cap). Same deterministic-failure rule: no
+      // retry button when retrying the same image cannot succeed.
+      if (isImageOcrTooLargeError(e)) {
+        showFeedback(t("alerts.ocrTooLarge.title"), t("alerts.ocrTooLarge.message"));
+        return;
+      }
+      if (isImageOcrUnsupportedTypeError(e)) {
+        showFeedback(t("alerts.ocrUnsupportedType.title"), t("alerts.ocrUnsupportedType.message"));
+        return;
+      }
+      if (isImageOcrInvalidDataError(e) || isImageOcrMissingDataError(e)) {
+        showFeedback(t("alerts.ocrInvalidData.title"), t("alerts.ocrInvalidData.message"));
         return;
       }
       if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
@@ -766,7 +807,15 @@ export default function Capture() {
           <View
             style={styles.primaryHeader}
             accessible
-            accessibilityLabel={`${t("hero.title")} ${t("hero.subtitle")}`}
+            accessibilityLabel={
+              // P2-12: the firstRun hint renders INSIDE this accessible
+              // container, so the fixed label swallowed it — TalkBack users
+              // never heard "one sentence is enough" on their very first
+              // capture. Fold it into the spoken label while it is visible.
+              firstRun && !savedTitle && mode === "journal"
+                ? `${t("hero.title")} ${t("hero.subtitle")} ${t("firstRun.hint")}`
+                : `${t("hero.title")} ${t("hero.subtitle")}`
+            }
             accessibilityHint={
               // J1: the spoken hint must match where the piece actually went —
               // the old graph promise on a journal save re-broke the journey
