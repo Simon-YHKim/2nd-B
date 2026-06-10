@@ -27,6 +27,7 @@ import {
 
 const IMAGE_GENERATION_CONFIG = { maxOutputTokens: 4096, temperature: 0.2 } as const;
 const MAX_INLINE_IMAGE_BASE64_LEN = 2_700_000;
+const MAX_INLINE_IMAGE_RAW_BASE64_LEN = MAX_INLINE_IMAGE_BASE64_LEN + 100_000;
 const ALLOWED_INLINE_IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
 const INLINE_IMAGE_MIME_ALIASES: Record<string, string> = {
   "image/jpg": "image/jpeg",
@@ -49,6 +50,9 @@ function normalizePromptImage(image: { mimeType: string; data: string }): { mime
   const mimeType = INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType;
   if (!ALLOWED_INLINE_IMAGE_MIME.has(mimeType)) {
     throw new Error(LLM_IMAGE_UNSUPPORTED_TYPE_ERROR);
+  }
+  if (image.data.length > MAX_INLINE_IMAGE_RAW_BASE64_LEN) {
+    throw new Error(LLM_IMAGE_TOO_LARGE_ERROR);
   }
   const data = image.data.replace(/\s+/g, "");
   if (data.length === 0) {

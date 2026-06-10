@@ -24,6 +24,7 @@ import {
   IMAGE_OCR_UNSUPPORTED_TYPE_ERROR,
   IMAGE_OCR_TOO_LARGE_ERROR,
   MAX_OCR_IMAGE_BASE64_BYTES,
+  MAX_OCR_IMAGE_RAW_BASE64_BYTES,
   MAX_OCR_TEXT_CHARS,
   isImageCameraPermissionDeniedError,
   isImageOcrCrisisResultError,
@@ -104,6 +105,12 @@ function llmInlineImageBase64Cap(): number {
   return Number(match[1]!.replace(/_/g, ""));
 }
 
+function llmInlineImageRawEnvelopeDelta(): number {
+  const match = geminiWrapperSource.match(/const MAX_INLINE_IMAGE_RAW_BASE64_LEN = MAX_INLINE_IMAGE_BASE64_LEN \+ ([\d_]+);/);
+  if (!match) throw new Error("callGemini raw image envelope cap not found");
+  return Number(match[1]!.replace(/_/g, ""));
+}
+
 function llmInlineImageMimeAllowlist(): string[] {
   const match = geminiWrapperSource.match(/const ALLOWED_INLINE_IMAGE_MIME = new Set\(\[([^\]]+)\]\);/);
   if (!match) throw new Error("callGemini inline image MIME allowlist not found");
@@ -140,6 +147,7 @@ describe("capture image OCR payload guards", () => {
 
   test("mirrors gemini-proxy image payload policy exactly", () => {
     expect(MAX_OCR_IMAGE_BASE64_BYTES).toBe(proxyImageBase64Cap());
+    expect(MAX_OCR_IMAGE_RAW_BASE64_BYTES).toBe(MAX_OCR_IMAGE_BASE64_BYTES + proxyImageRawEnvelopeDelta());
     expect(proxyImageRawEnvelopeDelta()).toBe(100_000);
     expect([...ALLOWED_OCR_IMAGE_MIME_TYPES]).toEqual(proxyImageMimeAllowlist());
     expect(proxyImageMimeAliases()).toEqual(ocrImageMimeAliases());
@@ -157,6 +165,8 @@ describe("capture image OCR payload guards", () => {
 
   test("mirrors callGemini inline image preflight policy exactly", () => {
     expect(MAX_OCR_IMAGE_BASE64_BYTES).toBe(llmInlineImageBase64Cap());
+    expect(MAX_OCR_IMAGE_RAW_BASE64_BYTES).toBe(MAX_OCR_IMAGE_BASE64_BYTES + llmInlineImageRawEnvelopeDelta());
+    expect(llmInlineImageRawEnvelopeDelta()).toBe(proxyImageRawEnvelopeDelta());
     expect([...ALLOWED_OCR_IMAGE_MIME_TYPES]).toEqual(llmInlineImageMimeAllowlist());
     expect(llmInlineImageMimeAliases()).toEqual(ocrImageMimeAliases());
     expect(geminiWrapperSource).toContain("BASE64_INLINE_IMAGE_RE");
@@ -164,6 +174,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiWrapperSource).toContain("sniffInlineImageMimeType");
     expect(geminiWrapperSource).toContain("inlineImageMimeCompatible");
     expect(geminiWrapperSource).toContain("INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType");
+    expect(geminiWrapperSource).toContain("image.data.length > MAX_INLINE_IMAGE_RAW_BASE64_LEN");
     expect(geminiWrapperSource).toContain("llm_image_invalid_data");
   });
 
@@ -175,6 +186,20 @@ describe("capture image OCR payload guards", () => {
       }),
     ).rejects.toThrow(IMAGE_OCR_TOO_LARGE_ERROR);
 
+    expect(mockCallGemini).not.toHaveBeenCalled();
+  });
+
+  test("rejects whitespace-heavy raw base64 envelopes before normalization", async () => {
+    const padded = `${PNG_IMAGE_BASE64}${" ".repeat(MAX_OCR_IMAGE_RAW_BASE64_BYTES - PNG_IMAGE_BASE64.length + 1)}`;
+
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/png",
+        base64: padded,
+      }),
+    ).rejects.toThrow(IMAGE_OCR_TOO_LARGE_ERROR);
+
+    expect(normalizeOcrImageBase64Data(padded)).toBe(PNG_IMAGE_BASE64);
     expect(mockCallGemini).not.toHaveBeenCalled();
   });
 

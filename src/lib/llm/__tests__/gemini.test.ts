@@ -204,6 +204,23 @@ describe("callGemini", () => {
     expect(insertMock).not.toHaveBeenCalled();
   });
 
+  test("multimodal: whitespace-heavy image envelopes are rejected before normalization", async () => {
+    const padded = `${PNG_IMAGE_BASE64}${" ".repeat(2_800_001 - PNG_IMAGE_BASE64.length)}`;
+
+    await expect(
+      callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "capture_ocr",
+        user: "Transcribe the text in this image.",
+        image: { mimeType: "image/png", data: padded },
+      }),
+    ).rejects.toThrow("llm_image_too_large");
+
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
   test("C9: minor flag routes KO crisis to youth 1388 + 109 (adult gets 109)", async () => {
     const minorR = await callGemini({
       userId: "u1",
