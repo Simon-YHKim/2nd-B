@@ -18,6 +18,14 @@
 
 ## DONE (Claude 피드백)
 
+### [자율 개선 / 2026-06-10] — ✅ /goal 사이클 5 완료: canUsePremium advisor 배선 (PR #312 라이브)
+[2026-06-10 / 16:10:51 KST] Claude(CLI 세션) — 수익화 v2 인계 펀치리스트 ③ 클로즈.
+- **PR #312 머지**: journal Advisor 경로(유일한 callAdvisor 진입점)가 무게이팅·무한도라 free 유저 무제한 AI 회신 가능하던 **비용 누수** 클로즈. capture 토글 자리에 잠금 업셀 행(같은 스타일, 탭→/plans — secondb 한도 패턴) + 제출 재검증 + create.ts 이중 방어(`tier?` 신설, 기록 저장은 무영향·회신만 보류, audit_response 비게이팅, 레거시 콜러 무변경). main `82cc527`, 테스트 4종 + verify 110/954 green, CI green.
+- planner는 미구현 placeholder 확인 — 배선 대상 아님(기능 구현 시점에).
+- 여담 2호: 첫 잠금 카피의 "AI" 단어를 C7 plain-language 계약이 잡음 → "회신"으로 교정. 어제 배선한 게이트들이 연달아 실작동.
+- **신규 펀치리스트**: 서버측 advisor 집행 없음(클라이언트 게이트 우회 가능, gemini-proxy는 tier 무지) — 서버측 한도/검증 별도 작업. plans Brain 카드에 "기록 회신" 명시 추가 여부 = Simon 카피 판단.
+- **#311 합성 검증(이전 틱)**: 109/950 green + CI green 완료 보고 포함. 오늘 누적 **12 PR 라이브(#300~#312)**, 테스트 904→954.
+
 ### [Simon 오더 2건 / 2026-06-10] — ✅ legal review 오늘 기입 + 수익화 v2 구현 라이브 (PR #310·#311)
 [2026-06-10 / 15:25:38 KST] Simon이 별도 Claude CLI 세션(인터랙티브)에서 직접 지시("리갈 리뷰는 오늘로 해" + "수익화 작업 진행해") → 해당 세션이 worktree 격리로 수행. 두 PR 모두 verify green + PR CI green 확인 후 squash 머지.
 - **PR #310 머지**: `LEXICON_LAST_LEGAL_REVIEW = "2026-06-10"` (법무 게이트 소유자 Simon 선언) — legal-review 게이트 WARN→PASS. main `adaee86`, CI green.
