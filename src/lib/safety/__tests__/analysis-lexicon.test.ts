@@ -20,6 +20,7 @@ import {
   LEXICON_LAST_LEGAL_REVIEW,
   type Jurisdiction,
 } from "../lexicon";
+import { containsAnalysisForbidden } from "../classifier";
 
 describe("analysis lexicon — universal forbidden", () => {
   test("EN list contains the core IQ/diagnosis terms", () => {
@@ -44,6 +45,29 @@ describe("analysis lexicon — universal forbidden", () => {
     // be substantial enough to cover the FTC/Practice-Act surface.
     expect(ANALYSIS_UNIVERSAL_FORBIDDEN.en.length).toBeGreaterThanOrEqual(10);
     expect(ANALYSIS_UNIVERSAL_FORBIDDEN.ko.length).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe("analysis lexicon — runtime matcher (containsAnalysisForbidden)", () => {
+  test("EN: affirmative claims are caught with word boundaries", () => {
+    expect(containsAnalysisForbidden("Your IQ score went up!", "en")).toEqual(["IQ score"]);
+    expect(containsAnalysisForbidden("This is scientifically proven.", "en")).toEqual([
+      "scientifically proven",
+    ]);
+    // Boundary check: a term embedded inside a longer word does not match.
+    expect(containsAnalysisForbidden("misdiagnoses are common", "en")).toEqual([]);
+  });
+
+  test("KO: substring matching catches inflected verdict phrasing", () => {
+    expect(containsAnalysisForbidden("당신의 지능지수가 올랐습니다", "ko")).toEqual(["지능지수"]);
+    expect(containsAnalysisForbidden("임상적으로 검증된 방법입니다", "ko")).toEqual([
+      "임상적으로 검증된",
+    ]);
+  });
+
+  test("clean reflective copy matches nothing in either locale", () => {
+    expect(containsAnalysisForbidden("patterns shifted in your records", "en")).toEqual([]);
+    expect(containsAnalysisForbidden("기록에서 관찰된 패턴이에요", "ko")).toEqual([]);
   });
 });
 
