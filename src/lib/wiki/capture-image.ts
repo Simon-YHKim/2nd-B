@@ -19,6 +19,7 @@ export interface PickedImage {
 export const MAX_OCR_IMAGE_BASE64_BYTES = 2_700_000;
 export const IMAGE_OCR_TOO_LARGE_ERROR = "image_ocr_too_large";
 export const IMAGE_OCR_UNSUPPORTED_TYPE_ERROR = "image_ocr_unsupported_type";
+export const IMAGE_CAMERA_PERMISSION_DENIED_ERROR = "camera_permission_denied";
 
 export const ALLOWED_OCR_IMAGE_MIME_TYPES = [
   "image/jpeg",
@@ -49,6 +50,10 @@ export function isImageOcrUnsupportedTypeError(error: unknown): boolean {
   return error instanceof Error && error.message === IMAGE_OCR_UNSUPPORTED_TYPE_ERROR;
 }
 
+export function isImageCameraPermissionDeniedError(error: unknown): boolean {
+  return error instanceof Error && error.message === IMAGE_CAMERA_PERMISSION_DENIED_ERROR;
+}
+
 export function normalizeOcrImageMimeType(mimeType: string | null | undefined): string {
   const normalized = mimeType?.trim().toLowerCase() || "image/jpeg";
   return OCR_IMAGE_MIME_ALIASES[normalized] ?? normalized;
@@ -72,7 +77,7 @@ export async function pickImageAsset(
   // camera path needs an explicit permission ask.
   if (source === "camera") {
     const cam = await ImagePicker.requestCameraPermissionsAsync();
-    if (cam.status !== "granted") throw new Error("camera_permission_denied");
+    if (cam.status !== "granted") throw new Error(IMAGE_CAMERA_PERMISSION_DENIED_ERROR);
   }
 
   const result = source === "camera"

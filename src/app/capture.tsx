@@ -45,6 +45,7 @@ import { detectClipperKind } from "@/lib/wiki/clipper-kind";
 import {
   pickImageAsset,
   ocrImageAsset,
+  isImageCameraPermissionDeniedError,
   isImageOcrTooLargeError,
   isImageOcrUnsupportedTypeError,
 } from "@/lib/wiki/capture-image";
@@ -303,6 +304,16 @@ export default function Capture() {
     return { key: "alerts.ocrRead", retryable: true };
   }
 
+  function imagePickFeedback(error: unknown): { key: string; retryable: boolean } {
+    if (isImageCameraPermissionDeniedError(error)) {
+      return { key: "alerts.cameraPermission", retryable: false };
+    }
+    if (isImageOcrTooLargeError(error) || isImageOcrUnsupportedTypeError(error)) {
+      return imageOcrFeedback(error);
+    }
+    return { key: "alerts.imageOpen", retryable: true };
+  }
+
   function reset() {
     setBody("");
     setPickedFile(null);
@@ -327,10 +338,10 @@ export default function Capture() {
       setBody(""); // clear any prior extraction; the user presses 추출하기 to fill
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] image pick failed", (e as Error).message);
-      const feedback = imageOcrFeedback(e);
+      const feedback = imagePickFeedback(e);
       showFeedback(
-        t(feedback.retryable ? "alerts.imageOpen.title" : `${feedback.key}.title`),
-        t(feedback.retryable ? "alerts.imageOpen.message" : `${feedback.key}.message`),
+        t(`${feedback.key}.title`),
+        t(`${feedback.key}.message`),
         feedback.retryable ? () => void pickImage(source) : undefined,
       );
     }

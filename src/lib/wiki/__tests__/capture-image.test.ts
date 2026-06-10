@@ -16,9 +16,11 @@ jest.mock("../../llm/gemini", () => ({
 import { callGemini } from "../../llm/gemini";
 import {
   ALLOWED_OCR_IMAGE_MIME_TYPES,
+  IMAGE_CAMERA_PERMISSION_DENIED_ERROR,
   IMAGE_OCR_UNSUPPORTED_TYPE_ERROR,
   IMAGE_OCR_TOO_LARGE_ERROR,
   MAX_OCR_IMAGE_BASE64_BYTES,
+  isImageCameraPermissionDeniedError,
   isImageOcrTooLargeError,
   isImageOcrUnsupportedTypeError,
   normalizeOcrImageMimeType,
@@ -28,7 +30,9 @@ import {
 
 const mockCallGemini = callGemini as jest.MockedFunction<typeof callGemini>;
 const imagePickerMock = ImagePicker as unknown as {
+  launchCameraAsync: jest.Mock;
   launchImageLibraryAsync: jest.Mock;
+  requestCameraPermissionsAsync: jest.Mock;
 };
 const geminiProxySource = readFileSync(
   resolve(__dirname, "../../../../supabase/functions/gemini-proxy/index.ts"),
@@ -50,7 +54,9 @@ function proxyImageMimeAllowlist(): string[] {
 describe("capture image OCR payload guards", () => {
   beforeEach(() => {
     mockCallGemini.mockReset();
+    imagePickerMock.launchCameraAsync.mockReset();
     imagePickerMock.launchImageLibraryAsync.mockReset();
+    imagePickerMock.requestCameraPermissionsAsync.mockReset();
     mockCallGemini.mockResolvedValue({
       text: "OCR text",
     } as Awaited<ReturnType<typeof callGemini>>);
@@ -111,6 +117,13 @@ describe("capture image OCR payload guards", () => {
     });
 
     await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
+  });
+
+  test("rejects denied camera permission before launching the camera", async () => {
+    imagePickerMock.requestCameraPermissionsAsync.mockResolvedValue({ status: "denied" });
+
+    await expect(pickImageAsset("camera")).rejects.toThrow(IMAGE_CAMERA_PERMISSION_DENIED_ERROR);
+    expect(imagePickerMock.launchCameraAsync).not.toHaveBeenCalled();
   });
 
   test("normalizes picker MIME aliases before returning the preview asset", async () => {
@@ -176,5 +189,9 @@ describe("capture image OCR payload guards", () => {
     expect(isImageOcrUnsupportedTypeError(new Error(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR))).toBe(true);
     expect(isImageOcrUnsupportedTypeError(new Error(IMAGE_OCR_TOO_LARGE_ERROR))).toBe(false);
     expect(isImageOcrUnsupportedTypeError("image_ocr_unsupported_type")).toBe(false);
+
+    expect(isImageCameraPermissionDeniedError(new Error(IMAGE_CAMERA_PERMISSION_DENIED_ERROR))).toBe(true);
+    expect(isImageCameraPermissionDeniedError(new Error(IMAGE_OCR_TOO_LARGE_ERROR))).toBe(false);
+    expect(isImageCameraPermissionDeniedError("camera_permission_denied")).toBe(false);
   });
 });

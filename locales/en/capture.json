@@ -175,6 +175,10 @@
       "title": "Couldn't open that image",
       "message": "We couldn't pull that image in. Please try again in a moment."
     },
+    "cameraPermission": {
+      "title": "Camera permission is off",
+      "message": "Allow camera access in your device settings, or choose an image from your library."
+    },
     "ocrRead": {
       "title": "Couldn't read the text",
       "message": "We couldn't read the text from that image. Try again with a clearer photo."
