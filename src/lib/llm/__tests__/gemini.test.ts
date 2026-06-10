@@ -193,6 +193,16 @@ describe("callGemini", () => {
       }),
     ).rejects.toThrow("llm_image_invalid_data");
 
+    await expect(
+      callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "capture_ocr",
+        user: "Transcribe the text in this image.",
+        image: { mimeType: "image/jpeg", data: `data:image/png;base64,${PNG_IMAGE_BASE64}` },
+      }),
+    ).rejects.toThrow("llm_image_invalid_data");
+
     expect(mockGenerateContent).not.toHaveBeenCalled();
     expect(insertMock).not.toHaveBeenCalled();
   });

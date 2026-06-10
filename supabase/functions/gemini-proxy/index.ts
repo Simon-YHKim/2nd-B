@@ -347,6 +347,14 @@ Deno.serve(async (req: Request) => {
     if (!parsedData) {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);
     }
+    if (
+      parsedData.mimeType &&
+      declaredMime &&
+      ALLOWED_IMAGE_MIME.has(declaredMime) &&
+      !imageMimeCompatible(parsedData.mimeType, declaredMime)
+    ) {
+      return jsonResponse(req, { error: 'image_invalid_data' }, 400);
+    }
     const mime = parsedData.mimeType ?? declaredMime;
     if (!mime) {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);

@@ -136,7 +136,16 @@ export function normalizeOcrImagePayload(image: {
   if (!BASE64_DATA_RE.test(base64)) {
     throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
   }
-  const declaredMimeType = parsed.mimeType ?? normalizeDeclaredOcrImageMimeType(image.mimeType);
+  const outerMimeType = normalizeDeclaredOcrImageMimeType(image.mimeType);
+  if (
+    parsed.mimeType &&
+    outerMimeType &&
+    ALLOWED_OCR_IMAGE_MIME_TYPE_SET.has(outerMimeType) &&
+    !areOcrImageMimeTypesCompatible(parsed.mimeType as AllowedOcrImageMimeType, outerMimeType as AllowedOcrImageMimeType)
+  ) {
+    throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
+  }
+  const declaredMimeType = parsed.mimeType ?? outerMimeType;
   if (declaredMimeType && !ALLOWED_OCR_IMAGE_MIME_TYPE_SET.has(declaredMimeType)) {
     throw new Error(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
   }

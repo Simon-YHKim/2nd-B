@@ -51,7 +51,16 @@ function normalizePromptImage(image: { mimeType: string; data: string }): { mime
   }
   const parsed = parsePromptImageData(image.data);
   const normalizedMimeType = image.mimeType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
-  const mimeType = parsed.mimeType ?? (INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType);
+  const outerMimeType = INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType;
+  if (
+    parsed.mimeType &&
+    outerMimeType &&
+    ALLOWED_INLINE_IMAGE_MIME.has(outerMimeType) &&
+    !inlineImageMimeCompatible(parsed.mimeType, outerMimeType)
+  ) {
+    throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
+  }
+  const mimeType = parsed.mimeType ?? outerMimeType;
   if (!ALLOWED_INLINE_IMAGE_MIME.has(mimeType)) {
     throw new Error(LLM_IMAGE_UNSUPPORTED_TYPE_ERROR);
   }

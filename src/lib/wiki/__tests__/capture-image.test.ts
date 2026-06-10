@@ -158,6 +158,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiProxySource).toContain("normalizeImageMimeType");
     expect(geminiProxySource).toContain("parseImageBase64Input");
     expect(geminiProxySource).toContain("IMAGE_MIME_ALIASES[normalized] ?? normalized");
+    expect(geminiProxySource).toContain("!imageMimeCompatible(parsedData.mimeType, declaredMime)");
     expect(geminiProxySource).toContain("rawData.length > MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN");
     expect(geminiProxySource).toContain("normalizedData.length > MAX_IMAGE_BASE64_LEN");
     expect(geminiProxySource).toContain("got: normalizedData.length");
@@ -175,6 +176,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiWrapperSource).toContain("sniffInlineImageMimeType");
     expect(geminiWrapperSource).toContain("inlineImageMimeCompatible");
     expect(geminiWrapperSource).toContain("parsePromptImageData");
+    expect(geminiWrapperSource).toContain("!inlineImageMimeCompatible(parsed.mimeType, outerMimeType)");
     expect(geminiWrapperSource).toContain("INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType");
     expect(geminiWrapperSource).toContain("image.data.length > MAX_INLINE_IMAGE_RAW_BASE64_LEN");
     expect(geminiWrapperSource).toContain("llm_image_invalid_data");
@@ -583,6 +585,13 @@ describe("capture image OCR payload guards", () => {
         base64: `data:image/gif;base64,${PNG_IMAGE_BASE64}`,
       }),
     ).rejects.toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
+
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/jpeg",
+        base64: `data:image/png;base64,${PNG_IMAGE_BASE64}`,
+      }),
+    ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
 
     expect(mockCallGemini).not.toHaveBeenCalled();
   });
