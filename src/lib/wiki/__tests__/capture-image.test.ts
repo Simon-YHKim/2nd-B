@@ -577,6 +577,7 @@ describe("capture image OCR payload guards", () => {
     ).resolves.toBe("# Machine log\n\n| tact | UPH |\n| --- | --- |\n| 42s | 85 |");
 
     expect(normalizeOcrTextResult("```text\r\nplain text\r\n```")).toBe("plain text");
+    expect(normalizeOcrTextResult("```md\nsingle line```")).toBe("single line");
     expect(normalizeOcrTextResult("```python\nprint('ocr')\n```")).toBe("```python\nprint('ocr')\n```");
   });
 
@@ -786,6 +787,7 @@ describe("capture image OCR payload guards", () => {
     expect(enPrompt).toContain("cycle time");
     expect(enPrompt).toContain("UPH");
     expect(enPrompt).toContain("[?]");
+    expect(enPrompt).toContain("Do not wrap the answer in code fences.");
 
     mockCallGemini.mockClear();
 

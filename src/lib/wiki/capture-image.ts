@@ -44,6 +44,7 @@ const OCR_IMAGE_MIME_ALIASES: Record<string, string> = {
   "image/pjpeg": "image/jpeg",
   "image/x-png": "image/png",
 };
+const OCR_OUTPUT_GUARD = "Return only the transcription or brief no-text description. Do not add prefaces. Do not wrap the answer in code fences.";
 const GENERIC_OCR_IMAGE_MIME_TYPES = new Set(["application/octet-stream"]);
 
 const LLM_IMAGE_ERROR_TO_OCR_ERROR: Record<string, string> = {
@@ -126,7 +127,7 @@ export function normalizeOcrTextResult(text: string, locale: "en" | "ko" = "en")
 }
 
 function unwrapOcrMarkdownFence(text: string): string {
-  const match = text.match(/^```(?:markdown|md|text)[ \t]*\r?\n([\s\S]*?)\r?\n```$/i);
+  const match = text.match(/^```(?:markdown|md|text)[ \t]*\r?\n([\s\S]*?)(?:\r?\n)?```$/i);
   return match?.[1] ?? text;
 }
 
@@ -384,7 +385,7 @@ export async function ocrImageAsset(
       userId,
       locale,
       purpose: "capture_ocr",
-      user: OCR_PROMPT[locale],
+      user: `${OCR_PROMPT[locale]}\n\n${OCR_OUTPUT_GUARD}`,
       image: { mimeType, data },
       minor,
     });
