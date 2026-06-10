@@ -39,6 +39,23 @@ export class BreachedPasswordError extends Error {
   }
 }
 
+// J3 (e2e journey register): GoTrue answers a sign-up on an already-registered
+// email with an enumeration-safe FAKE success (obfuscated user, no session).
+// Our auto-confirm flow then tries signInWithPassword with the just-typed
+// password, which fails with invalid credentials — and the user used to loop
+// on a generic "sign-up failed" toast with no way out. This error marks that
+// specific shape so the screen can suggest the recovery path (sign in / reset
+// password). It is a SUGGESTION, never an assertion: the same shape could in
+// principle be a misconfigured confirm flow, and we must not confirm to a
+// third party that the email exists (CSO R3 stays intact — the copy is
+// conditional and the server told us nothing).
+export class ExistingAccountLikelyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ExistingAccountLikelyError";
+  }
+}
+
 // HIBP k-anonymity range check: SHA-1 the password locally, send ONLY the first
 // 5 hex chars to api.pwnedpasswords.com, and match the returned suffixes. The
 // plaintext (and even the full hash) never leave the device — the widely-used,
@@ -85,6 +102,10 @@ export interface SignUpArgs {
 export interface SignUpResult {
   userId: string;
   judgeMode: boolean;
+  /** False when the users row already existed (a fully-registered user
+   *  re-signed-up with their CORRECT password — effectively a sign-in).
+   *  The caller must not re-record sign-up consent in that case. */
+  created: boolean;
 }
 
 export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
@@ -112,7 +133,20 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
       email: args.email,
       password: args.password,
     });
-    if (signInErr) throw signInErr;
+    if (signInErr) {
+      // J3: no-session signUp + invalid-credentials sign-in is the shape of
+      // "this email is already registered with a different password" (GoTrue's
+      // enumeration-safe fake success). Mark it so the screen can offer the
+      // sign-in / reset recovery instead of a dead generic failure loop.
+      // Match the stable AuthApiError code first; the message regex stays as
+      // a fallback for older GoTrue builds (wording drift degrades gracefully
+      // to the generic toast, never mislabels).
+      const code = (signInErr as { code?: string }).code;
+      if (code === "invalid_credentials" || /invalid login credentials/i.test(signInErr.message ?? "")) {
+        throw new ExistingAccountLikelyError(signInErr.message);
+      }
+      throw signInErr;
+    }
     session = signInData.session;
     user = signInData.user;
   }
@@ -129,6 +163,20 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
   // DB trigger auto_judge_mode also enforces judgeMode; the client-side
   // value is best-effort for instant UI updates. The trigger is authoritative.
   if (insertErr) {
+    // J3 (the correct-password variant): a fully-registered user re-signing-up
+    // with their own password authenticates fine above, then the INSERT hits
+    // the users PK collision. They proved who they are — treating that as a
+    // failure (the old rollback signed their VALID session back out and showed
+    // a generic error loop) punished a successful sign-in. Probe for the
+    // existing row; if it's there, hand the session through as a sign-in.
+    const { data: existing } = await supabase
+      .from("users")
+      .select("id, judge_mode")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (existing) {
+      return { userId: user.id, judgeMode: existing.judge_mode === true, created: false };
+    }
     // The auth.users account already exists with an authenticated session, but
     // the profile row failed (age-gate trigger, citext-unique email collision,
     // RLS/network). Leaving the session live would strand the user: profile-less
@@ -143,7 +191,7 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
     throw insertErr;
   }
 
-  return { userId: user.id, judgeMode };
+  return { userId: user.id, judgeMode, created: true };
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<{ userId: string }> {

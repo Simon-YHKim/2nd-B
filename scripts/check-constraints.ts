@@ -656,6 +656,7 @@ results.push(
       signIn.includes('t("errors.oauthSignInStartFailed"') &&
       signUp.includes("PremiumToast") &&
       signUp.includes("toastWrap") &&
+      signUp.includes("existingHelpCard") &&
       signUp.includes('t("errors.signUpFailed")') &&
       signUp.includes('t("errors.oauthSignUpStartFailed"') &&
       completeProfile.includes("PremiumToast") &&
@@ -1982,6 +1983,10 @@ results.push(
         't("signUp.passwordHint")',
         't("signUp.signInHint")',
         't("signUp.manualLink")',
+        // J3 recovery card (sign-up): mirrors the resetHelpCard pins above.
+        't("signUp.existingAccountTitle")',
+        't("signUp.existingAccountBody")',
+        't("signUp.existingAccountSignIn")',
         't("completeProfile.submitHint")',
         't("completeProfile.cancelHint")',
       ];
@@ -1994,6 +1999,7 @@ results.push(
         '"switchToKoreanLabel": "Switch auth language to Korean"',
         '"resetBody": "Email support@2nd-brain.app',
         '"manualLink": "New here? Read the 1-min manual"',
+        '"existingAccountBody": "If this email is already registered',
       ];
       const koLocaleRequired = [
         '"common"',
@@ -2004,6 +2010,7 @@ results.push(
         '"switchToKoreanLabel": "인증 화면 언어를 한국어로 변경"',
         '"resetBody": "가입 이메일 주소로 support@2nd-brain.app',
         '"manualLink": "이 앱이 처음이라면 안내서 보기"',
+        '"existingAccountBody": "이 이메일로 가입된 계정이 있다면',
       ];
       const forbiddenScreenCopy = [
         "Checking…",
