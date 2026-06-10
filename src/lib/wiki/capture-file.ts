@@ -37,10 +37,51 @@ const DOCX_MIMES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
 
-// Hard cap: refuse to extract >10MB so we don't blow up the JS heap on
-// huge scans. The user still gets the filename + MIME back; the LLM can
-// classify those.
+const GENERIC_FILE_MIMES = new Set([
+  "application/octet-stream",
+  "binary/octet-stream",
+  "application/x-unknown",
+]);
+
+const FILE_EXTENSION_MIMES: Record<string, string> = {
+  txt: "text/plain",
+  md: "text/markdown",
+  markdown: "text/markdown",
+  csv: "text/csv",
+  json: "application/json",
+  xml: "application/xml",
+  html: "text/html",
+  htm: "text/html",
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+
+// Hard caps: avoid blowing up the JS heap on huge scans, and keep extracted
+// text small enough for the capture input + downstream classifier prompt.
+// The user still gets the filename + MIME back when binary extraction is skipped.
 const MAX_EXTRACT_BYTES = 10 * 1024 * 1024;
+export const MAX_EXTRACTED_FILE_TEXT_CHARS = 60_000;
+
+export function normalizeFileMimeType(mimeType: string | null | undefined, fileName?: string | null): string {
+  const normalized = mimeType?.trim().toLowerCase().split(";")[0]?.trim();
+  if (normalized && !GENERIC_FILE_MIMES.has(normalized)) return normalized;
+  const inferred = inferFileMimeTypeFromName(fileName);
+  return inferred ?? (normalized || "application/octet-stream");
+}
+
+function inferFileMimeTypeFromName(fileName: string | null | undefined): string | null {
+  const cleanName = fileName?.trim().split(/[?#]/)[0];
+  if (!cleanName) return null;
+  const match = /\.([A-Za-z0-9]+)$/.exec(cleanName);
+  if (!match) return null;
+  return FILE_EXTENSION_MIMES[match[1].toLowerCase()] ?? null;
+}
+
+export function normalizeFileTextResult(text: string): string {
+  if (text.length <= MAX_EXTRACTED_FILE_TEXT_CHARS) return text;
+  const marker = `\n\n[File text truncated: original ${text.length} chars]`;
+  return `${text.slice(0, MAX_EXTRACTED_FILE_TEXT_CHARS).trimEnd()}${marker}`;
+}
 
 export async function pickFile(): Promise<PickedFile | null> {
   const res = await DocumentPicker.getDocumentAsync({
@@ -61,7 +102,7 @@ export async function pickFile(): Promise<PickedFile | null> {
   const asset = res.assets?.[0];
   if (!asset) return null;
 
-  const mimeType = asset.mimeType ?? "application/octet-stream";
+  const mimeType = normalizeFileMimeType(asset.mimeType, asset.name);
   const size = asset.size ?? 0;
   const text = await extractText(asset.uri, mimeType, size);
 
@@ -79,24 +120,27 @@ export async function pickFile(): Promise<PickedFile | null> {
 export async function extractText(uri: string, mimeType: string, size: number): Promise<string | null> {
   if (size > MAX_EXTRACT_BYTES) return null;
   if (typeof globalThis.fetch !== "function") return null;
+  const normalizedMimeType = normalizeFileMimeType(mimeType);
 
   try {
-    if (TEXT_MIMES.has(mimeType)) {
+    if (TEXT_MIMES.has(normalizedMimeType)) {
       const blob = await fetch(uri);
-      return await blob.text();
+      return normalizeFileTextResult(await blob.text());
     }
     // PDF + DOCX extraction is web-only. Native picks the file but the
     // LLM gets metadata only — the user can still paste relevant excerpts
     // into the memo field manually.
     if (Platform.OS !== "web") return null;
 
-    if (PDF_MIMES.has(mimeType)) {
+    if (PDF_MIMES.has(normalizedMimeType)) {
       const buf = await (await fetch(uri)).arrayBuffer();
-      return await extractPdfText(buf);
+      const text = await extractPdfText(buf);
+      return text == null ? null : normalizeFileTextResult(text);
     }
-    if (DOCX_MIMES.has(mimeType)) {
+    if (DOCX_MIMES.has(normalizedMimeType)) {
       const buf = await (await fetch(uri)).arrayBuffer();
-      return await extractDocxText(buf);
+      const text = await extractDocxText(buf);
+      return text == null ? null : normalizeFileTextResult(text);
     }
     return null;
   } catch {

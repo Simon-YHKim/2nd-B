@@ -177,9 +177,29 @@
       "title": "Couldn't open that image",
       "message": "We couldn't pull that image in. Please try again in a moment."
     },
+    "cameraPermission": {
+      "title": "Camera permission is off",
+      "message": "Allow camera access in your device settings, or choose an image from your library."
+    },
     "ocrRead": {
       "title": "Couldn't read the text",
       "message": "We couldn't read the text from that image. Try again with a clearer photo."
+    },
+    "ocrTooLarge": {
+      "title": "Image is too large",
+      "message": "This photo is too large to read safely. Choose a smaller image or crop it, then try again."
+    },
+    "ocrUnsupportedType": {
+      "title": "Image type is not supported",
+      "message": "Choose a JPG, PNG, WEBP, HEIC, or HEIF image, then try again."
+    },
+    "ocrMissingData": {
+      "title": "Image data is missing",
+      "message": "We couldn't read this image file from the picker. Choose it again or try a different image."
+    },
+    "ocrInvalidData": {
+      "title": "Image data is damaged",
+      "message": "This image data is not readable. Choose the image again or use a different file."
     },
     "fileOpen": {
       "title": "Couldn't open that file",
