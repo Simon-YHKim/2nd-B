@@ -254,6 +254,24 @@ export default function SignIn() {
               </Text>
             </Pressable>
 
+            {/* E2E-5 (e2e-shots-20260610 05): the sign-up entry point is a new
+                user's primary path on the cold-start screen, but it lived in
+                the footer below the fold. Keep it ghost-weight (the primary
+                action stays Sign in) directly under the CTA, in viewport. */}
+            <View style={styles.signUpRow}>
+              <Text style={styles.subtleText}>{t("signIn.noAccount")}</Text>
+              <Link href="/sign-up" asChild>
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel={t("signIn.signUpLink")}
+                  accessibilityHint={t("signIn.signUpHint")}
+                  style={styles.footerLinkHit}
+                >
+                  <Text style={styles.linkText}>{t("signIn.signUpLink")}</Text>
+                </Pressable>
+              </Link>
+            </View>
+
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerLabel}>{t("signIn.or")}</Text>
@@ -343,21 +361,9 @@ export default function SignIn() {
             ) : null}
           </View>
 
-          {/* Footer — sign-up + manual link. */}
+          {/* Footer — manual link. (The sign-up row moved into the form card,
+              first viewport — E2E-5.) */}
           <View style={styles.footer}>
-            <View style={styles.footerRow}>
-              <Text style={styles.subtleText}>{t("signIn.noAccount")}</Text>
-              <Link href="/sign-up" asChild>
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel={t("signIn.signUpLink")}
-                  accessibilityHint={t("signIn.signUpHint")}
-                  style={styles.footerLinkHit}
-                >
-                  <Text style={styles.linkText}>{t("signIn.signUpLink")}</Text>
-                </Pressable>
-              </Link>
-            </View>
             <Link href="/manual" asChild>
               <Pressable
                 accessibilityRole="link"
@@ -520,12 +526,13 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
   },
   footer: { marginTop: 28, alignItems: "center" },
-  footerRow: {
+  signUpRow: {
     minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+    marginTop: 2,
   },
   footerLinkHit: { minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center" },
   manualLinkHit: { minHeight: 44, justifyContent: "center", alignItems: "center", marginTop: 4 },

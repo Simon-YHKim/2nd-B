@@ -2285,12 +2285,20 @@ results.push(
     const screen = read("src/app/(auth)/sign-in.tsx");
     const en = read("locales/en/auth.json");
     const ko = read("locales/ko/auth.json");
-    const forbidden = ["Enter the night village", "밤빛 조각마을에 들어가기"];
+    // "Welcome back" joined the forbidden list with E2E-6 (e2e-shots-20260610):
+    // the cold-start landing greets FIRST-TIME visitors too, so the hero must
+    // not assume a returning user.
+    const forbidden = [
+      "Enter the night village",
+      "밤빛 조각마을에 들어가기",
+      '"title": "Welcome back"',
+      '"title": "다시 오셨네요"',
+    ];
     const ok =
       screen.includes('t("signIn.title")') &&
       screen.includes('t("signIn.subtitle")') &&
-      en.includes('"title": "Welcome back"') &&
-      en.includes('"subtitle": "Sign in to continue building your self-knowledge."') &&
+      en.includes('"title": "Welcome"') &&
+      en.includes('"subtitle": "Sign in to build your self-knowledge."') &&
       ko.includes('"title"') &&
       ko.includes('"subtitle"') &&
       forbidden.every((term) => !screen.includes(term) && !en.includes(term) && !ko.includes(term));

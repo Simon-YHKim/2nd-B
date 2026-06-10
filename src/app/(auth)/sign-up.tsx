@@ -33,6 +33,7 @@ import {
   allRequiredAcksChecked,
   buildSignUpConsentArgs,
 } from "@/lib/auth/consent-selections";
+import { submitSignUp } from "@/lib/auth/sign-up-flow";
 import { recordConsentBestEffort } from "@/lib/supabase/consent";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 
@@ -43,12 +44,16 @@ const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth
 
 export default function SignUp() {
   const { t, i18n } = useTranslation("auth");
-  const { userId, loading } = useAuth();
+  const { userId, loading, refresh } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
+  // Judge accounts (C6) get a 900ms welcome toast before entering; this flag
+  // holds the guest guard below open until the delayed router.replace runs
+  // (mirrors complete-profile.tsx).
+  const [judgeWelcome, setJudgeWelcome] = useState(false);
   const [toast, setToast] = useState<SignUpToast | null>(null);
   // A provider whose OAuth start failed with a "not configured" error is hidden
   // for the rest of the session so the user is not left tapping a dead button.
@@ -81,47 +86,71 @@ export default function SignUp() {
   // Guest-only guard, loading-aware. While the session resolves, show the
   // branded checking state rather than flashing the account-creation form; once
   // resolved, a signed-in user is bounced to root (mirrors the sign-in contract).
+  // Held open mid-submit, during the judge welcome, and while a toast paints:
+  // signUpWithEmail signs in internally, so SIGNED_IN flips userId while the
+  // flow is still running — an unconditional redirect here unmounted the form
+  // mid-submit, which is how a failed sign-up dropped the user on /sign-in with
+  // its toast never painted (E2E-3; IntroGate carries the matching (auth)
+  // exemption so a parent swap can't undo this hold). The !toast hold covers
+  // the rare failure where the rollback sign-out ALSO failed (session live,
+  // profile-less): the error stays readable for its full duration, then the
+  // redirect routes the live session to /complete-profile recovery. OAuth
+  // sign-ups don't set `submitting`, so their redirect-driven hand-off
+  // (→ /complete-profile) is unchanged.
   if (loading) {
     return <InlineLoader message={t("common.checking")} />;
   }
-  if (userId) return <Redirect href="/" />;
+  if (userId && !submitting && !judgeWelcome && !toast) return <Redirect href="/" />;
 
+  // E2E-3/E2E-4 (e2e-shots-20260610): the submit sequencing lives in
+  // sign-up-flow.ts (unit-tested). The flow settles the context (refresh)
+  // BEFORE returning; this screen only maps results to UI.
   async function handleSubmit(): Promise<void> {
     setSubmitting(true);
     try {
-      const result = await signUpWithEmail({
-        email: email.trim(),
-        password,
-        birthDate,
-        locale,
+      const result = await submitSignUp({
+        signUp: () => signUpWithEmail({ email: email.trim(), password, birthDate, locale }),
+        // Record the consent the user just gave. Awaited BEFORE navigating: on
+        // web a router.replace tears down the page and cancels an in-flight
+        // fire-and-forget request, which could silently drop the PIPA consent
+        // row. Still best-effort -- a write failure logs at error level and
+        // must not undo a created account; pre-migration it no-ops.
+        recordConsent: (newUserId) =>
+          recordConsentBestEffort(
+            buildSignUpConsentArgs({ userId: newUserId, isMinor: isMinorAge, locale, selections: consent }),
+          ),
+        refreshAuth: refresh,
+        isAgeGateError: (e) => e instanceof AgeGateError,
+        isBreachedPasswordError: (e) => e instanceof BreachedPasswordError,
       });
-      // Record the consent the user just gave. Await it BEFORE navigating: on
-      // web a router.replace tears down the page and cancels an in-flight
-      // fire-and-forget request, which could silently drop the PIPA consent
-      // row. Still best-effort -- a write failure logs at error level and must
-      // not undo a created account; pre-migration it no-ops.
-      await recordConsentBestEffort(
-        buildSignUpConsentArgs({
-          userId: result.userId,
-          isMinor: isMinorAge,
-          locale,
-          selections: consent,
-        }),
-      );
-      if (result.judgeMode) {
-        setToast({ tone: "success", message: t("judge.welcome") });
+      if (result.kind === "entered") {
+        // The context already knows hasProfile=true (flow refreshed), so the
+        // "/" guard lets the brand-new user through instead of bouncing them
+        // to /complete-profile to re-type DOB + consent (E2E-4).
+        if (result.judgeMode) {
+          setJudgeWelcome(true); // hold the guest guard open for the toast
+          setToast({ tone: "success", message: t("judge.welcome") });
+          setTimeout(() => router.replace("/"), 900);
+          return;
+        }
+        // Post-signup hand-off → graph view (main). (/journal retired → /capture redirect.)
+        router.replace("/");
+        return;
       }
-      // Post-signup hand-off → graph view (main). (/journal retired → /capture redirect.)
-      router.replace("/");
-    } catch (e) {
-      if (e instanceof AgeGateError) setToast({ tone: "danger", message: t("errors.ageGate") });
-      else if (e instanceof BreachedPasswordError)
+      if (result.kind === "ageGate") {
+        setToast({ tone: "danger", message: t("errors.ageGate") });
+        return;
+      }
+      if (result.kind === "breachedPassword") {
         setToast({ tone: "danger", message: t("errors.breachedPassword") });
-      else {
-        setToast({ tone: "danger", message: t("errors.signUpFailed") });
-        if (typeof console !== "undefined")
-          console.warn("[auth] signUp error", (e as Error).message);
+        return;
       }
+      // The form is still mounted (guard held open here, parent swap blocked
+      // by IntroGate's (auth) exemption), so this toast is visible and the
+      // user's values are intact for a retry — never the old silent drop to
+      // /sign-in (E2E-3).
+      setToast({ tone: "danger", message: t("errors.signUpFailed") });
+      if (typeof console !== "undefined") console.warn("[auth] signUp error", result.message);
     } finally {
       setSubmitting(false);
     }
