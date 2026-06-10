@@ -30,6 +30,7 @@ export const ALLOWED_OCR_IMAGE_MIME_TYPES = [
   "image/heic",
   "image/heif",
 ] as const;
+type AllowedOcrImageMimeType = (typeof ALLOWED_OCR_IMAGE_MIME_TYPES)[number];
 
 const ALLOWED_OCR_IMAGE_MIME_TYPE_SET = new Set<string>(ALLOWED_OCR_IMAGE_MIME_TYPES);
 
@@ -40,6 +41,11 @@ const OCR_IMAGE_MIME_ALIASES: Record<string, string> = {
 };
 
 const BASE64_DATA_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const BASE64_VALUES = new Map(Array.from(BASE64_ALPHABET, (char, value) => [char, value]));
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const ISO_HEIC_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs"]);
+const ISO_HEIF_BRANDS = new Set(["mif1", "msf1"]);
 
 const OCR_PROMPT: Record<"en" | "ko", string> = {
   en: "Transcribe all text in this image as clean markdown. Preserve line breaks, headings, and lists where visible. If the image has no readable text, describe what you see in 1–2 sentences in English.",
@@ -67,15 +73,17 @@ export function isImageOcrInvalidDataError(error: unknown): boolean {
 }
 
 export function normalizeOcrImageMimeType(mimeType: string | null | undefined): string {
-  const normalized = mimeType?.trim().toLowerCase() || "image/jpeg";
-  return OCR_IMAGE_MIME_ALIASES[normalized] ?? normalized;
+  return normalizeDeclaredOcrImageMimeType(mimeType) ?? "image/jpeg";
 }
 
 export function normalizeOcrImageBase64Data(data: string): string {
   return data.replace(/\s+/g, "");
 }
 
-export function assertImageOcrPayloadAllowed(image: { base64: string; mimeType: string }): void {
+export function normalizeOcrImagePayload(image: {
+  base64: string;
+  mimeType?: string | null;
+}): { base64: string; mimeType: AllowedOcrImageMimeType } {
   const base64 = normalizeOcrImageBase64Data(image.base64);
   if (base64.length === 0) {
     throw new Error(IMAGE_OCR_MISSING_DATA_ERROR);
@@ -86,9 +94,85 @@ export function assertImageOcrPayloadAllowed(image: { base64: string; mimeType: 
   if (!BASE64_DATA_RE.test(base64)) {
     throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
   }
-  if (!ALLOWED_OCR_IMAGE_MIME_TYPE_SET.has(normalizeOcrImageMimeType(image.mimeType))) {
+  const declaredMimeType = normalizeDeclaredOcrImageMimeType(image.mimeType);
+  if (declaredMimeType && !ALLOWED_OCR_IMAGE_MIME_TYPE_SET.has(declaredMimeType)) {
     throw new Error(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
   }
+  const sniffedMimeType = sniffOcrImageMimeType(base64);
+  if (!sniffedMimeType) {
+    throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
+  }
+  if (declaredMimeType && !areOcrImageMimeTypesCompatible(declaredMimeType, sniffedMimeType)) {
+    throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
+  }
+  return { base64, mimeType: (declaredMimeType ?? sniffedMimeType) as AllowedOcrImageMimeType };
+}
+
+export function assertImageOcrPayloadAllowed(image: { base64: string; mimeType: string }): void {
+  normalizeOcrImagePayload(image);
+}
+
+function normalizeDeclaredOcrImageMimeType(mimeType: string | null | undefined): string | null {
+  const normalized = mimeType?.trim().toLowerCase();
+  if (!normalized) return null;
+  return OCR_IMAGE_MIME_ALIASES[normalized] ?? normalized;
+}
+
+function sniffOcrImageMimeType(base64: string): AllowedOcrImageMimeType | null {
+  const bytes = decodeBase64Prefix(base64, 32);
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytesStartWith(bytes, PNG_SIGNATURE)) return "image/png";
+  if (asciiAt(bytes, 0, 4) === "RIFF" && asciiAt(bytes, 8, 4) === "WEBP") return "image/webp";
+  if (asciiAt(bytes, 4, 4) !== "ftyp") return null;
+  const brand = isoImageBrand(bytes);
+  if (brand && ISO_HEIC_BRANDS.has(brand)) return "image/heic";
+  if (brand && ISO_HEIF_BRANDS.has(brand)) return "image/heif";
+  return null;
+}
+
+function decodeBase64Prefix(base64: string, maxBytes: number): number[] {
+  const bytes: number[] = [];
+  for (let i = 0; i < base64.length && bytes.length < maxBytes; i += 4) {
+    const chunk = base64.slice(i, i + 4);
+    const a = base64Value(chunk[0]);
+    const b = base64Value(chunk[1]);
+    const c = chunk[2] === "=" ? 0 : base64Value(chunk[2]);
+    const d = chunk[3] === "=" ? 0 : base64Value(chunk[3]);
+    const value = (a << 18) | (b << 12) | (c << 6) | d;
+    bytes.push((value >> 16) & 0xff);
+    if (chunk[2] !== "=" && bytes.length < maxBytes) bytes.push((value >> 8) & 0xff);
+    if (chunk[3] !== "=" && bytes.length < maxBytes) bytes.push(value & 0xff);
+  }
+  return bytes;
+}
+
+function base64Value(char: string | undefined): number {
+  return char ? (BASE64_VALUES.get(char) ?? 0) : 0;
+}
+
+function bytesStartWith(bytes: number[], signature: number[]): boolean {
+  return signature.every((byte, index) => bytes[index] === byte);
+}
+
+function asciiAt(bytes: number[], start: number, length: number): string {
+  if (bytes.length < start + length) return "";
+  return String.fromCharCode(...bytes.slice(start, start + length));
+}
+
+function isoImageBrand(bytes: number[]): string | null {
+  for (let offset = 8; offset + 4 <= bytes.length; offset += 4) {
+    const brand = asciiAt(bytes, offset, 4);
+    if (ISO_HEIC_BRANDS.has(brand) || ISO_HEIF_BRANDS.has(brand)) return brand;
+  }
+  return null;
+}
+
+function areOcrImageMimeTypesCompatible(declared: string, sniffed: AllowedOcrImageMimeType): boolean {
+  if (declared === sniffed) return true;
+  if ((declared === "image/heic" || declared === "image/heif") && (sniffed === "image/heic" || sniffed === "image/heif")) {
+    return true;
+  }
+  return false;
 }
 
 // Step 1 — pick an image (library or camera). No network: just returns the
@@ -122,12 +206,15 @@ export async function pickImageAsset(
   if (!asset) return null;
   if (!asset.base64) throw new Error(IMAGE_OCR_MISSING_DATA_ERROR);
 
+  const payload = normalizeOcrImagePayload({
+    base64: asset.base64,
+    mimeType: asset.mimeType,
+  });
   const picked = {
     uri: asset.uri,
-    base64: normalizeOcrImageBase64Data(asset.base64),
-    mimeType: normalizeOcrImageMimeType(asset.mimeType),
+    base64: payload.base64,
+    mimeType: payload.mimeType,
   };
-  assertImageOcrPayloadAllowed(picked);
   return picked;
 }
 
@@ -142,9 +229,7 @@ export async function ocrImageAsset(
   // classifier) routes to the youth hotline. Defaults to adult routing.
   minor = false,
 ): Promise<string> {
-  assertImageOcrPayloadAllowed(image);
-  const mimeType = normalizeOcrImageMimeType(image.mimeType);
-  const data = normalizeOcrImageBase64Data(image.base64);
+  const { base64: data, mimeType } = normalizeOcrImagePayload(image);
   const reply = await callGemini({
     userId,
     locale,
