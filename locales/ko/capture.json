@@ -138,10 +138,19 @@
     "detected": "링크 자동 인식: {{kind}}"
   },
   "inputs": {
-    "extractedLabel": "추출된 텍스트 (수정 가능)",
+    "extractedLabel": "내 추출 텍스트 (수정 가능)",
     "bodyLabel": "본문",
     "imagePlaceholder": "이미지를 고르면 여기에 추출된 글이 나와요.",
     "memoPlaceholder": "자유롭게 적거나 붙여 넣으세요..."
+  },
+  "ocrReview": {
+    "heading": "저장 전 확인",
+    "disclosure": "이미지를 외부 글자 읽기 서비스로 보냅니다. 2nd-B는 이미지를 보관하지 않고 학습에 쓰지 않습니다.",
+    "body": "추출된 텍스트를 확인하고 필요하면 고친 뒤 저장 전에 확인해 주세요.",
+    "approve": "내 추출 텍스트 확인 완료",
+    "approved": "내 추출 텍스트를 저장해도 좋다고 확인했어요.",
+    "approveHint": "이 추출 텍스트를 저장할 수 있게 합니다.",
+    "submitHint": "추출 텍스트를 확인 완료해야 저장할 수 있어요."
   },
   "image": {
     "camera": "카메라",

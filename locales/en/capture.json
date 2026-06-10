@@ -138,10 +138,19 @@
     "detected": "Link detected: {{kind}}"
   },
   "inputs": {
-    "extractedLabel": "Extracted text (editable)",
+    "extractedLabel": "My extracted text (editable)",
     "bodyLabel": "Body",
     "imagePlaceholder": "Pick an image to place extracted text here.",
     "memoPlaceholder": "Write or paste freely..."
+  },
+  "ocrReview": {
+    "heading": "Review before saving",
+    "disclosure": "This sends the image to an external text-reading service. 2nd-B does not keep the image or use it to train anything.",
+    "body": "Edit the extracted text, then approve it before saving.",
+    "approve": "Approve my extracted text",
+    "approved": "My extracted text is approved for saving.",
+    "approveHint": "Enables saving this extracted text.",
+    "submitHint": "Review and approve the extracted text before saving."
   },
   "image": {
     "camera": "Camera",
