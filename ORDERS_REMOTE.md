@@ -26,6 +26,13 @@
 
 ## DONE (Claude 피드백)
 
+### [자율 개선 / 2026-06-10] — ✅ /goal 사이클 2 완료: 펀치리스트 4건 전부 소화 (PR #304·#305 라이브)
+[2026-06-10 / 13:58:58 KST] Claude(CLI 세션) — 사이클 1 이월 P3 4건 클로즈.
+- **PR #304 머지**: ① byWeek 주간 버킷도 KST 앵커로 통일(kstIsoWeek — daySpan과 동일 컨벤션, 경계 테스트 추가) ② /import에도 storagePending info 토스트(EN/KO) ③ QuantIntroModal·empty-card 무음 persist에 warn 트레이스. 여담: 처음 쓴 코멘트의 d-단어를 #300의 L1 게이트가 잡아냄 — 게이트 실작동 확인.
+- **PR #305 머지**: `_body_fallback` 승격 메커니즘 신설 — `promotePendingUploads`(멱등 overwrite 재업로드 + 플래그 제거, 인박스 로드 시 best-effort, 10건/run 바운드, 테스트 6/6). capture.ts 주석만 있고 코드가 없던 "재업로드 복구"가 실재하게 됨.
+- main `b75e45c`, 전 PR CI green. 잔여 = wiki upsert race(P3 저확률)·CrisisRouter/ConsentNotice hex(Simon 보류)·**PR #301 결정요청(위 OPEN)**.
+- 사이클 3 발굴 가동 중: 기반자료·성능·페르소나시뮬·테스트갭·스키마drift 5렌즈.
+
 ### [자율 개선 / 2026-06-10] — ✅ /goal 사이클 1 완료: 발굴 워크플로 + 수정 2 PR 라이브
 [2026-06-10 / 13:44:36 KST] Claude(CLI 세션) — 5렌즈 발굴(에이전트 31, 확정 11/기각 15) → framework-인지 최종패스 → 수정 적용.
 - **PR #302 머지** (로직 3건): ① daySpan이 디바이스 로컬 일자 사용 → **KST 앵커로 정렬**(streak/chat_usage 컨벤션, kstDayKey SoT 재사용; 워크플로의 "UTC로 고쳐라"는 공유-전제 오류로 기각하고 정본 컨벤션 적용) ② wiki Storage 업로드 실패가 무음 성공 → `storagePending` 노출 + saved 패널 정직 카피(EN/KO) ③ onboarding persist 실패 무음 → warn 트레이스.
