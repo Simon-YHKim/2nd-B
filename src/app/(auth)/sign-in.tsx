@@ -24,6 +24,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import {
   isNaverEnabled,
   isProviderEnabled,
+  sendPasswordResetEmail,
   signInWithApple,
   signInWithEmail,
   signInWithGoogle,
@@ -54,6 +55,8 @@ export default function SignIn() {
   const [oauthSubmitting, setOauthSubmitting] = useState(false);
   const [toast, setToast] = useState<SignInToast | null>(null);
   const [resetHelpVisible, setResetHelpVisible] = useState(false);
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   // A provider whose OAuth start failed with a "not configured" error is hidden
   // for the rest of the session so the user is not left tapping a dead button.
   const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
@@ -143,12 +146,34 @@ export default function SignIn() {
 
   const canSubmit = email.includes("@") && password.length > 0 && !submitting;
 
-  function handleForgotPassword() {
+  async function handleForgotPassword() {
     setResetHelpVisible(true);
-    setToast({
-      tone: "info",
-      message: t("signIn.resetToast"),
-    });
+    setResetEmailSent(false);
+    const resetEmail = email.trim();
+    if (!resetEmail.includes("@")) {
+      setToast({
+        tone: "info",
+        message: t("signIn.resetToast"),
+      });
+      return;
+    }
+    setResetSubmitting(true);
+    try {
+      await sendPasswordResetEmail(resetEmail);
+      setResetEmailSent(true);
+      setToast({
+        tone: "success",
+        message: t("signIn.resetSentToast"),
+      });
+    } catch (e) {
+      setToast({
+        tone: "danger",
+        message: t("errors.passwordResetFailed"),
+      });
+      if (typeof console !== "undefined") console.warn("[auth] password reset email error", (e as Error).message);
+    } finally {
+      setResetSubmitting(false);
+    }
   }
 
   return (
@@ -337,25 +362,29 @@ export default function SignIn() {
             ) : null}
 
             <Pressable
-              onPress={handleForgotPassword}
+              onPress={() => {
+                void handleForgotPassword();
+              }}
+              disabled={resetSubmitting}
               hitSlop={8}
-              style={styles.forgotRow}
+              style={[styles.forgotRow, resetSubmitting && styles.btnDisabled]}
               accessibilityRole="button"
               accessibilityLabel={t("signIn.resetLabel")}
               accessibilityHint={t("signIn.resetHint")}
+              accessibilityState={{ disabled: resetSubmitting, busy: resetSubmitting }}
             >
               <Text style={styles.subtleText}>
-                {t("signIn.forgotPassword")}
+                {resetSubmitting ? t("signIn.resetSending") : t("signIn.forgotPassword")}
               </Text>
             </Pressable>
 
             {resetHelpVisible ? (
               <View style={styles.resetHelpCard} accessibilityRole="alert">
                 <Text style={styles.resetHelpTitle}>
-                  {t("signIn.resetTitle")}
+                  {resetEmailSent ? t("signIn.resetSentTitle") : t("signIn.resetTitle")}
                 </Text>
                 <Text style={styles.resetHelpBody}>
-                  {t("signIn.resetBody")}
+                  {resetEmailSent ? t("signIn.resetSentBody", { email: email.trim() }) : t("signIn.resetBody")}
                 </Text>
               </View>
             ) : null}

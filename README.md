@@ -47,7 +47,7 @@ remote Supabase, real Gemini API calls) are deferred to Sprint 1.
 | i18n EN/KO with CI parity check (C7) | done |
 | Forbidden lexicon CI scan | done |
 | Aggregated constraints self-check | done |
-| Auth flow with birth-date age gate (C10) | done |
+| Auth flow with birth-date age gate + email password reset (C10) | done |
 | Judge mode auto-detect (C6) | done |
 | Pre-existing assets section (C12) | done |
 | Support SLA section (C11) | done (auto-responder Sprint 1) |

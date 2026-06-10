@@ -646,6 +646,7 @@ results.push(
     const inbox = read("src/app/inbox.tsx");
     const signIn = read("src/app/(auth)/sign-in.tsx");
     const signUp = read("src/app/(auth)/sign-up.tsx");
+    const resetPassword = read("src/app/(auth)/reset-password.tsx");
     const completeProfile = read("src/app/(auth)/complete-profile.tsx");
     const audit = read("src/app/audit.tsx");
     const persona = read("src/app/persona.tsx");
@@ -665,6 +666,7 @@ results.push(
       !inbox.includes("Alert.alert") &&
       !signIn.includes("Alert.alert") &&
       !signUp.includes("Alert.alert") &&
+      !resetPassword.includes("Alert.alert") &&
       !completeProfile.includes("Alert.alert") &&
       !audit.includes("Alert.alert") &&
       !persona.includes("Alert.alert") &&
@@ -675,6 +677,7 @@ results.push(
       signIn.includes("PremiumToast") &&
       signIn.includes("resetHelpCard") &&
       signIn.includes('t("signIn.resetToast")') &&
+      signIn.includes("sendPasswordResetEmail") &&
       signIn.includes('t("errors.signInFailed")') &&
       signIn.includes('t("errors.oauthSignInStartFailed"') &&
       signUp.includes("PremiumToast") &&
@@ -682,6 +685,10 @@ results.push(
       signUp.includes("existingHelpCard") &&
       signUp.includes('t("errors.signUpFailed")') &&
       signUp.includes('t("errors.oauthSignUpStartFailed"') &&
+      resetPassword.includes("PremiumToast") &&
+      resetPassword.includes("updatePassword") &&
+      resetPassword.includes('t("resetPassword.submit")') &&
+      resetPassword.includes('t("errors.passwordUpdateFailed")') &&
       completeProfile.includes("PremiumToast") &&
       completeProfile.includes("toastWrap") &&
       completeProfile.includes('t("errors.completeProfileSaveFailed")') &&
@@ -2056,10 +2063,11 @@ results.push(
     check("AuthEntrySupplementalI18nCopy", () => {
       const signIn = read("src/app/(auth)/sign-in.tsx");
       const signUp = read("src/app/(auth)/sign-up.tsx");
+      const resetPassword = read("src/app/(auth)/reset-password.tsx");
       const completeProfile = read("src/app/(auth)/complete-profile.tsx");
       const en = read("locales/en/auth.json");
       const ko = read("locales/ko/auth.json");
-      const screens = [signIn, signUp, completeProfile].join("\n");
+      const screens = [signIn, signUp, resetPassword, completeProfile].join("\n");
       const codeRequired = [
         't("common.checking")',
         't("common.entryArtwork")',
@@ -2072,7 +2080,13 @@ results.push(
         't("signIn.submitting")',
         't("signIn.resetToast")',
         't("signIn.resetBody")',
+        't("signIn.resetSentBody", { email: email.trim() })',
         't("signIn.manualLink")',
+        't("resetPassword.newPasswordHint")',
+        't("resetPassword.confirmPasswordHint")',
+        '"resetPassword.passwordMismatch"',
+        't("resetPassword.submitHint")',
+        't("resetPassword.expiredBody")',
         't("signUp.emailHint")',
         't("signUp.passwordHint")',
         't("signUp.signInHint")',
@@ -2091,7 +2105,10 @@ results.push(
         '"entryArtwork": "SecondB entry artwork"',
         '"switchToEnglishLabel": "Switch auth language to English"',
         '"switchToKoreanLabel": "Switch auth language to Korean"',
-        '"resetBody": "Email support@2nd-brain.app',
+        '"resetBody": "Enter the email for your account above',
+        '"resetSentBody": "If an account exists for {{email}}',
+        '"resetPassword"',
+        '"expiredBody": "This screen needs the secure session',
         '"manualLink": "New here? Read the 1-min manual"',
         '"existingAccountBody": "If this email is already registered',
       ];
@@ -2102,7 +2119,10 @@ results.push(
         '"entryArtwork": "세컨비 입장 이미지"',
         '"switchToEnglishLabel": "인증 화면 언어를 영어로 변경"',
         '"switchToKoreanLabel": "인증 화면 언어를 한국어로 변경"',
-        '"resetBody": "가입 이메일 주소로 support@2nd-brain.app',
+        '"resetBody": "위에 계정 이메일을 입력한 뒤',
+        '"resetSentBody": "{{email}} 계정이 있다면',
+        '"resetPassword"',
+        '"expiredBody": "이 화면은 재설정 이메일의 보안 세션',
         '"manualLink": "이 앱이 처음이라면 안내서 보기"',
         '"existingAccountBody": "이 이메일로 가입된 계정이 있다면',
       ];
