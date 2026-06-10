@@ -24,11 +24,14 @@ export interface SignUpFlowDeps {
   /** Creates the auth user + signs in + inserts the users row
    *  (signUpWithEmail). Throws AgeGateError / BreachedPasswordError /
    *  the profile-INSERT error (after signing the half-provisioned session
-   *  back out). */
-  signUp: () => Promise<{ userId: string; judgeMode: boolean }>;
+   *  back out). created:false = the row already existed (a registered user
+   *  re-signed-up with their correct password — effectively a sign-in). */
+  signUp: () => Promise<{ userId: string; judgeMode: boolean; created: boolean }>;
   /** Persists the consent the user just gave, keyed by the fresh userId.
    *  Awaited BEFORE navigation so a web router.replace can't cancel the
-   *  in-flight PIPA consent write. Best-effort by contract; the result is
+   *  in-flight PIPA consent write. Only called on a fresh profile (created):
+   *  an existing row already has its original sign-up consent, and a second
+   *  ledger row would be a duplicate. Best-effort by contract; the result is
    *  awaited but never read. */
   recordConsent: (userId: string) => Promise<unknown>;
   /** AuthContext.refresh — re-probes the profile so hasProfile is current
@@ -38,6 +41,7 @@ export interface SignUpFlowDeps {
   /** Error discriminators, injectable so tests need no real error classes. */
   isAgeGateError: (e: unknown) => boolean;
   isBreachedPasswordError: (e: unknown) => boolean;
+  isExistingAccountLikelyError: (e: unknown) => boolean;
 }
 
 export type SignUpSubmitResult =
@@ -48,6 +52,11 @@ export type SignUpSubmitResult =
   | { kind: "ageGate" }
   /** Password found in the HIBP breach corpus. No session was created. */
   | { kind: "breachedPassword" }
+  /** The enumeration-safe "already registered" shape (J3): GoTrue faked the
+   *  sign-up success without a session and the immediate sign-in failed with
+   *  invalid credentials. The screen suggests sign-in / password reset —
+   *  conditionally worded, never asserting the account exists. */
+  | { kind: "maybeExistingAccount" }
   /** Sign-up failed after the pre-checks (profile INSERT, network). signUp
    *  already rolled the session back; the screen stays on the form with the
    *  user's values intact so they can retry — never a silent drop. */
@@ -56,7 +65,9 @@ export type SignUpSubmitResult =
 export async function submitSignUp(deps: SignUpFlowDeps): Promise<SignUpSubmitResult> {
   try {
     const result = await deps.signUp();
-    await deps.recordConsent(result.userId);
+    if (result.created) {
+      await deps.recordConsent(result.userId);
+    }
     // The fix for E2E-4: the context must learn hasProfile=true before the
     // screen calls router.replace("/"), or the index/IntroGate guards read the
     // stale mid-signup probe (hasProfile=false) and bounce the brand-new user
@@ -69,6 +80,7 @@ export async function submitSignUp(deps: SignUpFlowDeps): Promise<SignUpSubmitRe
   } catch (e) {
     if (deps.isAgeGateError(e)) return { kind: "ageGate" };
     if (deps.isBreachedPasswordError(e)) return { kind: "breachedPassword" };
+    if (deps.isExistingAccountLikelyError(e)) return { kind: "maybeExistingAccount" };
     return { kind: "failed", message: e instanceof Error ? e.message : String(e) };
   }
 }

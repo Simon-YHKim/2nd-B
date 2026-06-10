@@ -24,6 +24,7 @@ import {
   signInWithNaver,
   AgeGateError,
   BreachedPasswordError,
+  ExistingAccountLikelyError,
   MIN_SELF_CONSENT_AGE,
 } from "@/lib/supabase/auth";
 import { isJudgeEmail } from "@/lib/judge/domains";
@@ -55,6 +56,10 @@ export default function SignUp() {
   // (mirrors complete-profile.tsx).
   const [judgeWelcome, setJudgeWelcome] = useState(false);
   const [toast, setToast] = useState<SignUpToast | null>(null);
+  // J3: persistent recovery card for the likely-already-registered shape — a
+  // toast alone vanishes in 2.8s, which left the user looping on a generic
+  // failure with no way out. Conditionally worded (enumeration-safe).
+  const [existingAccountHelp, setExistingAccountHelp] = useState(false);
   // A provider whose OAuth start failed with a "not configured" error is hidden
   // for the rest of the session so the user is not left tapping a dead button.
   const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
@@ -107,6 +112,7 @@ export default function SignUp() {
   // BEFORE returning; this screen only maps results to UI.
   async function handleSubmit(): Promise<void> {
     setSubmitting(true);
+    setExistingAccountHelp(false);
     try {
       const result = await submitSignUp({
         signUp: () => signUpWithEmail({ email: email.trim(), password, birthDate, locale }),
@@ -122,6 +128,7 @@ export default function SignUp() {
         refreshAuth: refresh,
         isAgeGateError: (e) => e instanceof AgeGateError,
         isBreachedPasswordError: (e) => e instanceof BreachedPasswordError,
+        isExistingAccountLikelyError: (e) => e instanceof ExistingAccountLikelyError,
       });
       if (result.kind === "entered") {
         // The context already knows hasProfile=true (flow refreshed), so the
@@ -143,6 +150,12 @@ export default function SignUp() {
       }
       if (result.kind === "breachedPassword") {
         setToast({ tone: "danger", message: t("errors.breachedPassword") });
+        return;
+      }
+      if (result.kind === "maybeExistingAccount") {
+        // J3: persistent card (not a toast) with the recovery path. The copy is
+        // conditional — we never confirm the email exists (CSO R3).
+        setExistingAccountHelp(true);
         return;
       }
       // The form is still mounted (guard held open here, parent swap blocked
@@ -263,7 +276,12 @@ export default function SignUp() {
             </Text>
             <Input
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(value) => {
+                setEmail(value);
+                // The recovery card is keyed to the email that failed; editing
+                // the address makes it stale, so retire it immediately.
+                if (existingAccountHelp) setExistingAccountHelp(false);
+              }}
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
@@ -328,6 +346,27 @@ export default function SignUp() {
             full
             style={styles.submitButton}
           />
+
+          {existingAccountHelp ? (
+            // accessibilityLiveRegion: role="alert" alone announces only on
+            // web; Android needs the live region (settings.tsx precedent), and
+            // this result kind deliberately has no toast to announce instead.
+            <View style={styles.existingHelpCard} accessibilityRole="alert" accessibilityLiveRegion="polite">
+              <Text variant="body" style={styles.existingHelpTitle}>
+                {t("signUp.existingAccountTitle")}
+              </Text>
+              <Text variant="subtle" color="textMuted">
+                {t("signUp.existingAccountBody")}
+              </Text>
+              <Button
+                label={t("signUp.existingAccountSignIn")}
+                variant="secondary"
+                onPress={() => router.push("/sign-in")}
+                accessibilityHint={t("signUp.signInHint")}
+                full
+              />
+            </View>
+          ) : null}
 
           <View style={styles.providerDivider}>
             <View style={styles.providerDividerLine} />
@@ -463,6 +502,16 @@ const styles = StyleSheet.create({
   helper: { marginTop: -spacing.xs },
   checklist: { gap: spacing.xs, marginTop: spacing.xs, marginBottom: spacing.xs },
   submitButton: { alignSelf: "stretch", width: "100%" },
+  existingHelpCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  existingHelpTitle: { fontWeight: "600" },
   checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   checkDot: { width: 8, height: 8, borderRadius: 4 },
   footer: { marginTop: spacing.xl, alignItems: "center" },

@@ -2,14 +2,16 @@ import { submitSignUp, type SignUpFlowDeps } from "../sign-up-flow";
 
 class FakeAgeGateError extends Error {}
 class FakeBreachedPasswordError extends Error {}
+class FakeExistingAccountLikelyError extends Error {}
 
 function makeDeps(overrides: Partial<SignUpFlowDeps> = {}): SignUpFlowDeps {
   return {
-    signUp: jest.fn().mockResolvedValue({ userId: "user-1", judgeMode: false }),
+    signUp: jest.fn().mockResolvedValue({ userId: "user-1", judgeMode: false, created: true }),
     recordConsent: jest.fn().mockResolvedValue(undefined),
     refreshAuth: jest.fn().mockResolvedValue(undefined),
     isAgeGateError: (e: unknown) => e instanceof FakeAgeGateError,
     isBreachedPasswordError: (e: unknown) => e instanceof FakeBreachedPasswordError,
+    isExistingAccountLikelyError: (e: unknown) => e instanceof FakeExistingAccountLikelyError,
     ...overrides,
   };
 }
@@ -66,10 +68,21 @@ describe("submitSignUp (E2E-3 silent drop / E2E-4 double entry)", () => {
 
   test("judge mode propagates so the screen can hold the guard open for the welcome toast", async () => {
     const deps = makeDeps({
-      signUp: jest.fn().mockResolvedValue({ userId: "judge-1", judgeMode: true }),
+      signUp: jest.fn().mockResolvedValue({ userId: "judge-1", judgeMode: true, created: true }),
     });
     const result = await submitSignUp(deps);
     expect(result).toEqual({ kind: "entered", judgeMode: true });
+  });
+
+  test("existing row with the correct password (created:false — effectively a sign-in): enters WITHOUT re-recording consent, still refreshes", async () => {
+    const deps = makeDeps({
+      signUp: jest.fn().mockResolvedValue({ userId: "user-1", judgeMode: false, created: false }),
+    });
+    const result = await submitSignUp(deps);
+
+    expect(result).toEqual({ kind: "entered", judgeMode: false });
+    expect(deps.recordConsent).not.toHaveBeenCalled();
+    expect(deps.refreshAuth).toHaveBeenCalledTimes(1);
   });
 
   test("age gate: reports ageGate without consent or refresh — no session was created", async () => {
@@ -90,6 +103,17 @@ describe("submitSignUp (E2E-3 silent drop / E2E-4 double entry)", () => {
     const result = await submitSignUp(deps);
 
     expect(result).toEqual({ kind: "breachedPassword" });
+    expect(deps.recordConsent).not.toHaveBeenCalled();
+    expect(deps.refreshAuth).not.toHaveBeenCalled();
+  });
+
+  test("likely-existing account (J3): reports maybeExistingAccount so the screen can suggest sign-in, without consent or refresh", async () => {
+    const deps = makeDeps({
+      signUp: jest.fn().mockRejectedValue(new FakeExistingAccountLikelyError("invalid login credentials")),
+    });
+    const result = await submitSignUp(deps);
+
+    expect(result).toEqual({ kind: "maybeExistingAccount" });
     expect(deps.recordConsent).not.toHaveBeenCalled();
     expect(deps.refreshAuth).not.toHaveBeenCalled();
   });
