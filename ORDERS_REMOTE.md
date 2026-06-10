@@ -18,6 +18,12 @@
 
 ## DONE (Claude 피드백)
 
+### [Simon 오더 / 2026-06-10] — ✅ 평생 이용권 재책정: Brain ₩299,000 → Soma ₩99,000 (PR #313 라이브)
+[2026-06-10 / 17:01:12 KST] Simon 피드백("30만원은 과함, 현실적으로") → 별도 CLI Claude 세션이 재책정 수행. verify 110/955 green + PR CI green 후 squash 머지, main `c8a82db`, CI+Pages green.
+- **구조 판단**: Brain 평생을 단순 인하하면 Brain 연간(₩199,000)보다 싸져 구독 잠식 → **평생을 진입 티어 Soma로 이동, ₩99,000/$99** (= Soma 연간의 2배, 잠식 방어선 충족 + 콘솔게임 가격대 + 영구 추론비 리스크 8.4배 축소). 테스트에 잠식 방어 불변식(평생 ≥ 해당 티어 연간×2) 추가.
+- **부수**: Brain 카드 f2를 "기록마다 세컨비 회신"으로 — #312가 advisor 게이트를 실배선했으므로 이제 정직한 주장 (#311에서 데드코드라 뺐던 것의 복원). plans.tsx lifetime 표기는 `LIFETIME.tier` SoT 결합.
+- **루프 세션 인계 (우선순위 펀치리스트)**: ① **M4 리텐션 루프 — 주간 리포트 v1** (검증③ AI앱 이탈 최우선 레버; insights에 KST 주간 버킷 기반 존재) ② **서버측 advisor 게이트** (#312 잔여 — 클라 게이트 우회 가능, gemini-proxy tier-blind) ③ PR #245(Codex README 카피) 처분.
+
 ### [자율 개선 / 2026-06-10] — ✅ /goal 사이클 5 완료: canUsePremium advisor 배선 (PR #312 라이브)
 [2026-06-10 / 16:10:51 KST] Claude(CLI 세션) — 수익화 v2 인계 펀치리스트 ③ 클로즈.
 - **PR #312 머지**: journal Advisor 경로(유일한 callAdvisor 진입점)가 무게이팅·무한도라 free 유저 무제한 AI 회신 가능하던 **비용 누수** 클로즈. capture 토글 자리에 잠금 업셀 행(같은 스타일, 탭→/plans — secondb 한도 패턴) + 제출 재검증 + create.ts 이중 방어(`tier?` 신설, 기록 저장은 무영향·회신만 보류, audit_response 비게이팅, 레거시 콜러 무변경). main `82cc527`, 테스트 4종 + verify 110/954 green, CI green.
