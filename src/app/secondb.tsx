@@ -292,11 +292,11 @@ export default function SecondBChat() {
               style={styles.clearChatLink}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Clear chat"
-              accessibilityHint="Clears the current conversation"
+              accessibilityLabel={t("clearChatA11y")}
+              accessibilityHint={t("clearChatHint")}
             >
               <Text variant="caption" color="brand">
-                Clear
+                {t("clearChat")}
               </Text>
             </Pressable>
           ) : null}
@@ -309,7 +309,7 @@ export default function SecondBChat() {
             placeholder={t("placeholder")}
             multiline
             style={styles.composerInput}
-            accessibilityLabel="Ask SecondB"
+            accessibilityLabel={t("inputA11y")}
           />
           <Button label={t("send")} variant="primary" onPress={handleSend} disabled={!canSend} loading={sending} />
         </View>
@@ -320,11 +320,11 @@ export default function SecondBChat() {
             hitSlop={8}
             style={styles.limitLink}
             accessibilityRole="button"
-            accessibilityLabel="View plans"
-            accessibilityHint="Opens the plans screen"
+            accessibilityLabel={t("viewPlans")}
+            accessibilityHint={t("viewPlansHint")}
           >
             <Text variant="caption" color="brand">
-              View plans
+              {t("viewPlans")}
             </Text>
           </Pressable>
         ) : null}

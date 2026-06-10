@@ -901,7 +901,7 @@ results.push(
       home.includes("Open today's center") &&
       home.includes("Opens Soul Core") &&
       jarvisButtons >= 8 &&
-      jarvis.includes("Clears the current conversation") &&
+      jarvis.includes('accessibilityHint={t("clearChatHint")}') &&
       jarvis.includes("Analysis mode") &&
       jarvis.includes("New angle mode") &&
       jarvis.includes("selected: chatMode") &&

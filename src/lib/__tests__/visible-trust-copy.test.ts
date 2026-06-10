@@ -26,4 +26,16 @@ describe("visible trust copy", () => {
     expect(text).toMatch(/what you write and save/i);
     expect(text).toMatch(/쓰고 저장한 것들/);
   });
+
+  test("SecondB limit and composer actions are locale-backed", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const screen = readFileSync(path.join(root, "src/app/secondb.tsx"), "utf8");
+    const en = readFileSync(path.join(root, "locales/en/secondb.json"), "utf8");
+    const ko = readFileSync(path.join(root, "locales/ko/secondb.json"), "utf8");
+
+    expect(screen).not.toMatch(/accessibilityLabel="(?:Ask SecondB|View plans|Clear chat)"/);
+    expect(screen).not.toMatch(/>\s*(?:Clear|View plans)\s*</);
+    expect(en).toMatch(/"viewPlans": "View plans"/);
+    expect(ko).toMatch(/"viewPlans": "플랜 보기"/);
+  });
 });
