@@ -42,6 +42,11 @@ const DOCX_MIMES = new Set([
 // classify those.
 const MAX_EXTRACT_BYTES = 10 * 1024 * 1024;
 
+export function normalizeFileMimeType(mimeType: string | null | undefined): string {
+  const normalized = mimeType?.trim().toLowerCase().split(";")[0]?.trim();
+  return normalized || "application/octet-stream";
+}
+
 export async function pickFile(): Promise<PickedFile | null> {
   const res = await DocumentPicker.getDocumentAsync({
     type: [
@@ -61,7 +66,7 @@ export async function pickFile(): Promise<PickedFile | null> {
   const asset = res.assets?.[0];
   if (!asset) return null;
 
-  const mimeType = asset.mimeType ?? "application/octet-stream";
+  const mimeType = normalizeFileMimeType(asset.mimeType);
   const size = asset.size ?? 0;
   const text = await extractText(asset.uri, mimeType, size);
 
@@ -79,9 +84,10 @@ export async function pickFile(): Promise<PickedFile | null> {
 export async function extractText(uri: string, mimeType: string, size: number): Promise<string | null> {
   if (size > MAX_EXTRACT_BYTES) return null;
   if (typeof globalThis.fetch !== "function") return null;
+  const normalizedMimeType = normalizeFileMimeType(mimeType);
 
   try {
-    if (TEXT_MIMES.has(mimeType)) {
+    if (TEXT_MIMES.has(normalizedMimeType)) {
       const blob = await fetch(uri);
       return await blob.text();
     }
@@ -90,11 +96,11 @@ export async function extractText(uri: string, mimeType: string, size: number): 
     // into the memo field manually.
     if (Platform.OS !== "web") return null;
 
-    if (PDF_MIMES.has(mimeType)) {
+    if (PDF_MIMES.has(normalizedMimeType)) {
       const buf = await (await fetch(uri)).arrayBuffer();
       return await extractPdfText(buf);
     }
-    if (DOCX_MIMES.has(mimeType)) {
+    if (DOCX_MIMES.has(normalizedMimeType)) {
       const buf = await (await fetch(uri)).arrayBuffer();
       return await extractDocxText(buf);
     }

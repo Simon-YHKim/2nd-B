@@ -4,6 +4,7 @@
 // boundary; the assertions only verify dispatching + size cap + null safety.
 
 import { Platform } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
 
 const originalFetch = globalThis.fetch;
 
@@ -43,7 +44,11 @@ jest.mock(
   { virtual: true },
 );
 
-import { extractText } from "../capture-file";
+import { extractText, normalizeFileMimeType, pickFile } from "../capture-file";
+
+const documentPickerMock = DocumentPicker as unknown as {
+  getDocumentAsync: jest.Mock;
+};
 
 function mockFetch(body: string | ArrayBuffer) {
   globalThis.fetch = jest.fn().mockResolvedValue({
@@ -54,6 +59,8 @@ function mockFetch(body: string | ArrayBuffer) {
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  documentPickerMock.getDocumentAsync.mockReset();
+  (Platform as { OS: string }).OS = "web";
 });
 
 describe("extractText", () => {
@@ -69,6 +76,14 @@ describe("extractText", () => {
     expect(r).toContain("# Title");
   });
 
+  test("normalizes MIME case and parameters before text extraction", async () => {
+    mockFetch("hello charset");
+    const r = await extractText("file:///x.txt", " TEXT/PLAIN; charset=UTF-8 ", 100);
+    expect(r).toBe("hello charset");
+    expect(normalizeFileMimeType(" Application/PDF; version=1.7 ")).toBe("application/pdf");
+    expect(normalizeFileMimeType("   ")).toBe("application/octet-stream");
+  });
+
   test("file > 10MB cap → null without fetching", async () => {
     const fetchSpy = jest.fn();
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
@@ -79,7 +94,7 @@ describe("extractText", () => {
 
   test("application/pdf → dynamic import + concatenated page text", async () => {
     mockFetch(new ArrayBuffer(8));
-    const r = await extractText("file:///doc.pdf", "application/pdf", 1000);
+    const r = await extractText("file:///doc.pdf", "APPLICATION/PDF; charset=binary", 1000);
     expect(r).toContain("page1-word1");
     expect(r).toContain("page2-word2");
   });
@@ -88,10 +103,33 @@ describe("extractText", () => {
     mockFetch(new ArrayBuffer(8));
     const r = await extractText(
       "file:///doc.docx",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      " APPLICATION/VND.OPENXMLFORMATS-OFFICEDOCUMENT.WORDPROCESSINGML.DOCUMENT ",
       1000,
     );
     expect(r).toBe("Hello DOCX");
+  });
+
+  test("pickFile returns normalized MIME metadata and extracted text", async () => {
+    mockFetch("picked file body");
+    documentPickerMock.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///picked.txt",
+          name: "picked.txt",
+          mimeType: " Text/Plain; Charset=UTF-8 ",
+          size: 123,
+        },
+      ],
+    });
+
+    await expect(pickFile()).resolves.toEqual({
+      uri: "file:///picked.txt",
+      name: "picked.txt",
+      mimeType: "text/plain",
+      size: 123,
+      textContent: "picked file body",
+    });
   });
 
   test("native platform → PDF returns null, no extraction", async () => {
@@ -99,7 +137,6 @@ describe("extractText", () => {
     mockFetch(new ArrayBuffer(8));
     const r = await extractText("file:///doc.pdf", "application/pdf", 1000);
     expect(r).toBeNull();
-    (Platform as { OS: string }).OS = "web"; // restore
   });
 
   test("fetch throws → returns null (never propagates)", async () => {
