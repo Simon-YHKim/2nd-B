@@ -133,9 +133,10 @@ function parseImageBase64Input(input: string): { data: string; mimeType: string 
   const parts = header.split(';').map((part) => part.trim()).filter(Boolean);
   const rawMimeType = parts.shift();
   if (!rawMimeType || !parts.some((part) => part.toLowerCase() === 'base64')) return null;
+  const dataUrlMimeType = normalizeImageMimeType(rawMimeType);
   return {
     data: trimmed.slice(commaIndex + 1),
-    mimeType: normalizeImageMimeType(rawMimeType),
+    mimeType: GENERIC_IMAGE_MIME.has(dataUrlMimeType) ? null : dataUrlMimeType,
   };
 }
 
@@ -356,12 +357,9 @@ Deno.serve(async (req: Request) => {
         return jsonResponse(req, { error: 'image_invalid_data' }, 400);
       }
     }
-    const mime = parsedData.mimeType ?? declaredMime;
-    if (!mime) {
-      return jsonResponse(req, { error: 'image_invalid_data' }, 400);
-    }
-    if (!ALLOWED_IMAGE_MIME.has(mime)) {
-      return jsonResponse(req, { error: 'image_mime_not_allowed', got: mime }, 415);
+    const declaredImageMime = (parsedData.mimeType ?? declaredMime) || null;
+    if (declaredImageMime && !ALLOWED_IMAGE_MIME.has(declaredImageMime)) {
+      return jsonResponse(req, { error: 'image_mime_not_allowed', got: declaredImageMime }, 415);
     }
     const normalizedData = normalizeImageBase64Data(parsedData.data);
     if (normalizedData.length === 0) {
@@ -374,10 +372,10 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);
     }
     const sniffedMime = sniffImageMimeType(normalizedData);
-    if (!sniffedMime || !imageMimeCompatible(mime, sniffedMime)) {
+    if (!sniffedMime || (declaredImageMime && !imageMimeCompatible(declaredImageMime, sniffedMime))) {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);
     }
-    imagePart = { mimeType: mime, data: normalizedData };
+    imagePart = { mimeType: declaredImageMime ?? sniffedMime, data: normalizedData };
   }
 
   if (userText.length === 0) return jsonResponse(req, { error: 'user_required' }, 400);

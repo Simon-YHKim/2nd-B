@@ -158,6 +158,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiProxySource).toContain("normalizeImageMimeType");
     expect(geminiProxySource).toContain("parseImageBase64Input");
     expect(geminiProxySource).toContain("GENERIC_IMAGE_MIME");
+    expect(geminiProxySource).toContain("GENERIC_IMAGE_MIME.has(dataUrlMimeType) ? null : dataUrlMimeType");
     expect(geminiProxySource).toContain("IMAGE_MIME_ALIASES[normalized] ?? normalized");
     expect(geminiProxySource).toContain("!imageMimeCompatible(parsedData.mimeType, declaredMime)");
     expect(geminiProxySource).toContain("rawData.length > MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN");
@@ -178,6 +179,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiWrapperSource).toContain("inlineImageMimeCompatible");
     expect(geminiWrapperSource).toContain("parsePromptImageData");
     expect(geminiWrapperSource).toContain("GENERIC_INLINE_IMAGE_MIME");
+    expect(geminiWrapperSource).toContain("GENERIC_INLINE_IMAGE_MIME.has(dataUrlMimeType) ? null : dataUrlMimeType");
     expect(geminiWrapperSource).toContain("!inlineImageMimeCompatible(parsed.mimeType, outerMimeType)");
     expect(geminiWrapperSource).toContain("INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType");
     expect(geminiWrapperSource).toContain("image.data.length > MAX_INLINE_IMAGE_RAW_BASE64_LEN");
@@ -578,6 +580,36 @@ describe("capture image OCR payload guards", () => {
       mimeType: "image/png",
       base64: PNG_IMAGE_BASE64,
     });
+  });
+
+  test("accepts generic data URL image payloads by sniffing the image signature", async () => {
+    await ocrImageAsset("u1", "en", {
+      mimeType: "",
+      base64: `data:application/octet-stream;base64,${PNG_IMAGE_BASE64}`,
+    });
+
+    expect(mockCallGemini).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image: { mimeType: "image/png", data: PNG_IMAGE_BASE64 },
+      }),
+    );
+    expect(normalizeOcrImagePayload({
+      base64: `data:application/octet-stream;base64,${PNG_IMAGE_BASE64}`,
+    })).toEqual({
+      mimeType: "image/png",
+      base64: PNG_IMAGE_BASE64,
+    });
+    expect(normalizeOcrImagePayload({
+      mimeType: "image/png",
+      base64: `data:application/octet-stream;base64,${PNG_IMAGE_BASE64}`,
+    })).toEqual({
+      mimeType: "image/png",
+      base64: PNG_IMAGE_BASE64,
+    });
+    expect(() => normalizeOcrImagePayload({
+      mimeType: "image/jpeg",
+      base64: `data:application/octet-stream;base64,${PNG_IMAGE_BASE64}`,
+    })).toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
   });
 
   test("rejects malformed or unsupported data URL image payloads before calling Gemini", async () => {

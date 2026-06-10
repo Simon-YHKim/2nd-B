@@ -61,8 +61,8 @@ function normalizePromptImage(image: { mimeType: string; data: string }): { mime
       throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
     }
   }
-  const mimeType = parsed.mimeType ?? outerMimeType;
-  if (!ALLOWED_INLINE_IMAGE_MIME.has(mimeType)) {
+  const declaredMimeType = (parsed.mimeType ?? outerMimeType) || null;
+  if (declaredMimeType && !ALLOWED_INLINE_IMAGE_MIME.has(declaredMimeType)) {
     throw new Error(LLM_IMAGE_UNSUPPORTED_TYPE_ERROR);
   }
   const data = parsed.data.replace(/\s+/g, "");
@@ -76,10 +76,10 @@ function normalizePromptImage(image: { mimeType: string; data: string }): { mime
     throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
   }
   const sniffedMime = sniffInlineImageMimeType(data);
-  if (!sniffedMime || !inlineImageMimeCompatible(mimeType, sniffedMime)) {
+  if (!sniffedMime || (declaredMimeType && !inlineImageMimeCompatible(declaredMimeType, sniffedMime))) {
     throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
   }
-  return { mimeType, data };
+  return { mimeType: declaredMimeType ?? sniffedMime, data };
 }
 
 function parsePromptImageData(data: string): { data: string; mimeType: string | null } {
@@ -97,9 +97,10 @@ function parsePromptImageData(data: string): { data: string; mimeType: string | 
     throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
   }
   const normalizedMimeType = rawMimeType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
+  const dataUrlMimeType = INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType;
   return {
     data: trimmed.slice(commaIndex + 1),
-    mimeType: INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType,
+    mimeType: GENERIC_INLINE_IMAGE_MIME.has(dataUrlMimeType) ? null : dataUrlMimeType,
   };
 }
 

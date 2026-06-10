@@ -184,9 +184,10 @@ function parseOcrImageBase64Input(input: string): { base64: string; mimeType: st
   if (!rawMimeType || !parts.some((part) => part.toLowerCase() === "base64")) {
     throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
   }
+  const dataUrlMimeType = normalizeDeclaredOcrImageMimeType(rawMimeType);
   return {
     base64: trimmed.slice(commaIndex + 1),
-    mimeType: normalizeDeclaredOcrImageMimeType(rawMimeType),
+    mimeType: dataUrlMimeType && GENERIC_OCR_IMAGE_MIME_TYPES.has(dataUrlMimeType) ? null : dataUrlMimeType,
   };
 }
 
