@@ -25,7 +25,10 @@ const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile", "/oauth-cal
 // destinations (그래프/담기/세컨비/나), per the 2026-06-02 directive ("every
 // village needs a back button"). On a tab screen the arrow is nudged right of
 // the brand chip (see below) so the two don't overlap.
-const HIDDEN_PATHS = new Set<string>([...PRE_AUTH_PATHS, "/"]);
+// /onboarding (J5): the arrow pushed "/" which index immediately bounced back
+// to /onboarding - a visible control whose only effect was resetting the
+// stepper to step 0. The in-screen Skip is the designed exit.
+const HIDDEN_PATHS = new Set<string>([...PRE_AUTH_PATHS, "/", "/onboarding"]);
 const BACK_ARROW_BG = withAlpha(cosmic.soulViolet, 0.16);
 const BACK_ARROW_BORDER = withAlpha(cosmic.signalMint, 0.42);
 const BACK_LABEL_BG = withAlpha(cosmic.space950, 0.74);

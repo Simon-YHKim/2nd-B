@@ -276,6 +276,9 @@ export default function Landing() {
   // records-only user gets the honest "saved in your records" line (J1), and
   // before any piece at all (or while the check resolves) the invitation —
   // the ribbon never claims patterns it cannot have.
+  // Records-only: the user has pieces but none are graph nodes yet — the
+  // ribbon line AND its tap destination both follow this state.
+  const recordsOnly = dataNodes.length === 0 && hasAnyPiece === true;
   const insight = useMemo(
     () =>
       dataNodes.length > 0
@@ -548,13 +551,25 @@ export default function Landing() {
           onPress={() => {
             wake();
             setCenterSeen(true);
-            router.push("/core-brain");
+            // J1 carry-over: in the records-only state the ribbon SAYS the
+            // piece lives in 기록 보관소, so tapping it must land there -
+            // routing to Soul Core right after that sentence was the same
+            // promise-break one tap later.
+            router.push(recordsOnly ? "/records" : "/core-brain");
           }}
           hitSlop={8}
           style={{ flex: 1 }}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "오늘의 중심 보기" : "Open today's center"}
-          accessibilityHint={locale === "ko" ? "소울 코어 화면으로 이동합니다" : "Opens Soul Core"}
+          accessibilityLabel={
+            recordsOnly
+              ? locale === "ko" ? "기록 보관소 보기" : "Open my records"
+              : locale === "ko" ? "오늘의 중심 보기" : "Open today's center"
+          }
+          accessibilityHint={
+            recordsOnly
+              ? locale === "ko" ? "기록 보관소 화면으로 이동합니다" : "Opens the records archive"
+              : locale === "ko" ? "소울 코어 화면으로 이동합니다" : "Opens Soul Core"
+          }
         >
           {/* KO "오늘의 중심" reads worse when tracked + uppercased, so KO drops
               tracking to 0 and stays sentence-case; EN keeps the stylized

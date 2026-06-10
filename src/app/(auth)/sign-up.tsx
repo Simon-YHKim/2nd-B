@@ -84,9 +84,13 @@ export default function SignUp() {
       password.length >= 8 &&
       ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE &&
       allRequiredAcksChecked(consent) &&
-      !submitting
+      !submitting &&
+      // R3: the OAuth buttons cross-disable against `submitting`, but the
+      // email submit stayed tappable while an OAuth browser was opening -
+      // two concurrent auth flows racing the same guard.
+      !oauthSubmitting
     );
-  }, [email, password, birthDate, consent, submitting]);
+  }, [email, password, birthDate, consent, submitting, oauthSubmitting]);
 
   // Guest-only guard, loading-aware. While the session resolves, show the
   // branded checking state rather than flashing the account-creation form; once
