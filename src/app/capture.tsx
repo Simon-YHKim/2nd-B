@@ -190,6 +190,11 @@ export default function Capture() {
   const companion = useCompanionMoment();
   // Title of the just-saved piece — drives the inline success panel.
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
+  // J1: where the saved piece actually lives drives the success CTA. A journal
+  // entry lands in `records` (기록 보관소) and gains the graph nothing, so
+  // pointing its CTA at the graph sent the very first save to an unchanged
+  // screen; classified captures (`sources`) DO become graph nodes.
+  const [savedKind, setSavedKind] = useState<"records" | "source" | null>(null);
   // True when the last capture saved its body inline because the Storage
   // upload failed (CaptureResult.storagePending) — surfaced as a one-line
   // note in the saved panel instead of a silent clean-success.
@@ -397,6 +402,7 @@ export default function Capture() {
       reset();
       companion.fire("journalSaved");
       setSavedTitle(savedTopic.length > 0 ? savedTopic : t("savedTitleFallback"));
+      setSavedKind("records");
       setSavedPending(false);
       // Refresh streak + journal use count (free-tier limit) + XP (the entry
       // earns progression, mirroring the retired /journal screen).
@@ -495,6 +501,7 @@ export default function Capture() {
       companion.fire(isBareLink ? "linkImported" : "captureSaved");
       // Inline success panel (journal-capture pack §3/§7) replaces the alert.
       setSavedTitle(result.source.title);
+      setSavedKind("source");
       setSavedPending(result.storagePending);
       // G3: a capture that landed as "inbox" (no specific format fit) is the
       // signal to offer an AI-proposed new format. Gate on body length so
@@ -590,7 +597,16 @@ export default function Capture() {
             style={styles.primaryHeader}
             accessible
             accessibilityLabel={`${t("hero.title")} ${t("hero.subtitle")}`}
-            accessibilityHint={savedTitle ? t("hero.speechSaved") : t("hero.speechIdle")}
+            accessibilityHint={
+              // J1: the spoken hint must match where the piece actually went —
+              // the old graph promise on a journal save re-broke the journey
+              // for screen-reader users right above the corrected CTA.
+              savedTitle
+                ? savedKind === "records"
+                  ? t("hero.speechSavedRecords")
+                  : t("hero.speechSaved")
+                : t("hero.speechIdle")
+            }
           >
             <ShardArt id="capture_mint" size={44} />
             <View style={{ flex: 1 }}>
@@ -623,8 +639,15 @@ export default function Capture() {
                 </View>
               </View>
               <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
-                <PremiumButton label={t("saved.seeGraph")} variant="secondary" onPress={() => router.push("/")} style={{ flex: 1 }} />
-                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedPending(false); }} style={{ flex: 1 }} />
+                {/* J1: send the user where the piece actually IS — a journal
+                    save opens 기록 보관소 (it adds no graph node), a classified
+                    capture opens the graph it just lit up. */}
+                {savedKind === "records" ? (
+                  <PremiumButton label={t("saved.seeRecords")} variant="secondary" onPress={() => router.push("/records")} style={{ flex: 1 }} />
+                ) : (
+                  <PremiumButton label={t("saved.seeGraph")} variant="secondary" onPress={() => router.push("/")} style={{ flex: 1 }} />
+                )}
+                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedKind(null); setSavedPending(false); }} style={{ flex: 1 }} />
               </View>
             </PremiumCard>
           ) : null}

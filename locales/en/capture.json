@@ -20,6 +20,7 @@
     "title": "Save a note or source",
     "subtitle": "Journal · note · link · photo · file",
     "speechSaved": "Saved. You can see it on the graph.",
+    "speechSavedRecords": "Saved. You can find it in your records.",
     "speechIdle": "Write briefly or choose a source. We will organize it so you can find it later."
   },
   "sections": {
@@ -76,6 +77,7 @@
   "saved": {
     "title": "Lumen saved a new piece",
     "seeGraph": "See the graph",
+    "seeRecords": "View my records",
     "captureMore": "Capture more",
     "storagePending": "Saved, but the backup file copy didn't upload this time. Your text is kept safely."
   },

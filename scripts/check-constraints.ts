@@ -214,6 +214,7 @@ results.push(
       "formatSaved.shared",
       "saved.title",
       "saved.seeGraph",
+      "saved.seeRecords",
       "saved.captureMore",
       "proposal.heading",
       "proposal.baseKind",
@@ -280,6 +281,7 @@ results.push(
       't("hero.title")',
       't("hero.subtitle")',
       't("hero.speechSaved")',
+      't("hero.speechSavedRecords")',
       't("hero.speechIdle")',
       't("sections.manageFormats.accessibilityLabel")',
       't("sections.manageFormats.link")',
@@ -323,6 +325,7 @@ results.push(
       't("formatSaved.personal")',
       't("saved.title")',
       't("saved.seeGraph")',
+      't("saved.seeRecords")',
       't("saved.captureMore")',
       't("proposal.heading")',
       't("proposal.baseKind", { kind: proposal.baseKind })',
@@ -2308,6 +2311,33 @@ results.push(
       note: ok
         ? "sign-in hero copy uses the auth locale bundle and avoids old night-village wording"
         : "sign-in hero should source title/subtitle from auth locale copy and avoid old night-village wording",
+    };
+  }),
+);
+
+// J1 (e2e journey register, 2026-06-11): journal saves land in `records`, not
+// `sources`, so the graph gains nothing from them. Every first-save surface
+// must stay honest about that: the landing ribbon needs the records-only line,
+// the fabricated insight bank and the spotlight card must be gated on real
+// graph nodes, the capture success CTA must point a journal save at /records,
+// and the record-detail graph handoff must only exist for source-origin pieces.
+results.push(
+  check("FirstSaveHonestSurfaces", () => {
+    const landing = read("src/app/index.tsx");
+    const captureScreen = read("src/app/capture.tsx");
+    const recordDetail = read("src/app/record/[id].tsx");
+    const ok =
+      landing.includes("RECORDS_ONLY_INSIGHT") &&
+      landing.includes("!sheetOpen && dataNodes.length > 0") &&
+      captureScreen.includes('savedKind === "records"') &&
+      captureScreen.includes('router.push("/records")') &&
+      recordDetail.includes("{isSource ? (");
+    return {
+      id: "FirstSaveHonestSurfaces",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "first-save surfaces stay honest: records-only ribbon, node-gated spotlight, records CTA, source-only graph handoff"
+        : "J1 regression: a records-only first save must not surface graph claims (ribbon, spotlight, capture CTA, record-detail handoff)",
     };
   }),
 );

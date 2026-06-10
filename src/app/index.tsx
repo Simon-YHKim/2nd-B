@@ -153,6 +153,19 @@ const FIRST_PIECE_INSIGHT: Record<"en" | "ko", string> = {
   ko: "첫 조각을 남기면 여기에서 패턴이 보이기 시작해요.",
 };
 
+// J1 (e2e journey register): the default first save is a journal entry, which
+// lands in `records` — NOT in `sources`, so the graph gains zero nodes. The
+// "we noticed" bank used to kick in here anyway (hasAnyPiece counts records),
+// fabricating patterns over an empty graph right after onboarding promised the
+// piece would be findable again. Acknowledge the save honestly and say where
+// the piece actually lives, until a classified capture lights the first node.
+const RECORDS_ONLY_INSIGHT: Record<"en" | "ko", string> = {
+  // Kept under the 2-line ribbon budget at 360dp — the actionable second
+  // clause must not be the part that ellipsizes.
+  en: "Saved in your records. Clip a link to light the graph.",
+  ko: "조각은 기록 보관소에 있어요. 링크를 담으면 별이 떠요.",
+};
+
 // The logo→village entry flourish plays once per JS session. A module-level
 // flag survives the Stack pop's remount, so returning to "/" (e.g. BACK from a
 // village detail) snaps to the settled state instead of replaying the logo +
@@ -259,12 +272,18 @@ export default function Landing() {
   });
 
   // Insight chosen once per Landing mount. Data-style "we noticed" lines only
-  // appear once the user actually has a piece; before that (or while the check
-  // is still resolving) show the honest invitation so the ribbon never claims
-  // patterns it cannot have.
+  // appear once the GRAPH actually has nodes (classified `sources`); a
+  // records-only user gets the honest "saved in your records" line (J1), and
+  // before any piece at all (or while the check resolves) the invitation —
+  // the ribbon never claims patterns it cannot have.
   const insight = useMemo(
-    () => (hasAnyPiece === true ? pickInsight(locale, Date.now() % 1000) : FIRST_PIECE_INSIGHT[locale]),
-    [locale, hasAnyPiece],
+    () =>
+      dataNodes.length > 0
+        ? pickInsight(locale, Date.now() % 1000)
+        : hasAnyPiece === true
+          ? RECORDS_ONLY_INSIGHT[locale]
+          : FIRST_PIECE_INSIGHT[locale],
+    [locale, hasAnyPiece, dataNodes],
   );
   const featuredVillage = useMemo(() => featuredVillageForCards(dataNodes), [dataNodes]);
 
@@ -473,8 +492,11 @@ export default function Landing() {
           SecondB card was a third route into /secondb (the tab bar and the
           spotlight card both go there) and a second SecondB face on screen.
           One personalized spotlight card remains — graph stays the primary
-          action, the card is the single suggestion, in the thumb zone. */}
-      {!showingEmptyGraphCard && graphTouched && !sheetOpen ? (
+          action, the card is the single suggestion, in the thumb zone.
+          J1: only once the graph has real nodes — with zero dataNodes the
+          card claimed "pieces are gathering in <core>" over an empty graph
+          (the records-only first save), a fabricated signal. */}
+      {!showingEmptyGraphCard && graphTouched && !sheetOpen && dataNodes.length > 0 ? (
         <Animated.View
           style={[
             styles.insightCardStack,

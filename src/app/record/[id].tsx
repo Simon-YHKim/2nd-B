@@ -191,11 +191,17 @@ export default function RecordDetail() {
         </View>
 
         <View style={styles.handoffs}>
-          <Button
-            label={t("actions.seeGraph")}
-            variant="secondary"
-            onPress={() => router.push({ pathname: "/", params: { highlightRecordId: row.id } })}
-          />
+          {/* J1: only source-origin pieces exist as graph nodes; for a journal
+              or note record the highlight matched nothing and the button
+              landed on an unchanged graph (the broken-promise class the
+              capture CTA fix routes users straight into). */}
+          {isSource ? (
+            <Button
+              label={t("actions.seeGraph")}
+              variant="secondary"
+              onPress={() => router.push({ pathname: "/", params: { highlightRecordId: row.id } })}
+            />
+          ) : null}
           <Button
             label={t("actions.askSecondB")}
             variant="secondary"
