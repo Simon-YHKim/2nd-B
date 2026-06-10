@@ -1,10 +1,12 @@
-// D-09 M1: the Plans screen. Free is the unlimited record core; Plus (cortex) and
-// Pro (brain) add AI room. Honest by design (D-09 M5): there is NO in-app
-// checkout here yet, because real billing goes through native IAP / Toss behind
-// Simon's payment-provider setup (D-09 M3). Until then this screen shows the
-// value and an honest "notify me at launch" CTA so the AI limit is never a
-// dead end (persona PF-D). The contextual entry point is the SecondB chat usage
-// panel, which links here when the daily AI limit is reached.
+// Monetization v2 Plans screen (Simon-approved 2026-06-10). Free is the
+// unlimited record core; Soma / Cortex / Brain add AI room at the confirmed
+// list prices (src/lib/progression/pricing.ts is the SoT; pricing.test.ts
+// guards this screen's copy against drift). Honest by design: there is NO
+// in-app checkout yet — real billing goes through native IAP (+ Small
+// Business Program) behind Simon's store setup. Until then this screen shows
+// the final prices and a truthful coming-soon status so the AI limit is never
+// a dead end (persona PF-D). The contextual entry point is the SecondB chat
+// usage panel, which links here when the daily AI limit is reached.
 
 import { ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -17,13 +19,14 @@ import { useProgression } from "@/lib/progression/useProgression";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
-// Maps each displayed card to the SubscriptionTier(s) that count as "you are
-// here". soma is a deprecated alias of Plus (D-09), so a legacy soma user still
-// sees Plus highlighted as current.
-const CARD_TIERS: { key: "free" | "plus" | "pro"; matches: SubscriptionTier[]; highlight: boolean }[] = [
-  { key: "free", matches: ["free"], highlight: false },
-  { key: "plus", matches: ["cortex", "soma"], highlight: true },
-  { key: "pro", matches: ["brain"], highlight: false },
+// Every tier sells under its own enum name (v2: soma is live again as the
+// entry tier). The highlighted card is soma — the step the free AI limit
+// points at (NEXT_TIER in src/lib/chat/limits.ts).
+const CARD_TIERS: { key: SubscriptionTier; highlight: boolean }[] = [
+  { key: "free", highlight: false },
+  { key: "soma", highlight: true },
+  { key: "cortex", highlight: false },
+  { key: "brain", highlight: false },
 ];
 
 export default function Plans() {
@@ -45,8 +48,8 @@ export default function Plans() {
           speech={t("hero.speech")}
         />
 
-        {CARD_TIERS.map(({ key, matches, highlight }) => {
-          const isCurrent = !progression.loading && matches.includes(progression.tier);
+        {CARD_TIERS.map(({ key, highlight }) => {
+          const isCurrent = !progression.loading && progression.tier === key;
           return (
             <View
               key={key}
@@ -65,8 +68,8 @@ export default function Plans() {
                 ) : null}
               </View>
               <Text variant="heading">{t(`tiers.${key}.price`)}</Text>
-              {key === "plus" ? (
-                <Text variant="caption" color="textMuted">{t("tiers.plus.priceNote")}</Text>
+              {key !== "free" ? (
+                <Text variant="caption" color="textMuted">{t(`tiers.${key}.priceNote`)}</Text>
               ) : null}
               <Text variant="subtle" color="textMuted" style={styles.tagline}>
                 {t(`tiers.${key}.tagline`)}
@@ -78,13 +81,18 @@ export default function Plans() {
                   </Text>
                 ))}
               </View>
+              {key === "brain" ? (
+                <Text variant="caption" color="textMuted" style={styles.lifetimeNote}>
+                  {t("tiers.brain.lifetimeNote")}
+                </Text>
+              ) : null}
             </View>
           );
         })}
 
-        {/* D-09 M5: honest state. No fake checkout AND no notify-signup we cannot
+        {/* Honest state. No fake checkout AND no notify-signup we cannot
             honor (there is no email capture / backend yet) — just a truthful
-            status. Real billing is gated on Simon's PG setup (D-09 M3). */}
+            status. Real billing is gated on Simon's store/IAP setup. */}
         <View style={styles.notifyPanel}>
           <Text variant="subtle" color="textMuted">{t("comingSoon")}</Text>
           <Text variant="caption" color="textMuted" style={styles.notifyHint}>{t("comingSoonBody")}</Text>
@@ -135,6 +143,7 @@ const styles = StyleSheet.create({
   tagline: { marginTop: 2 },
   features: { marginTop: spacing.sm, gap: spacing.xs },
   feature: {},
+  lifetimeNote: { marginTop: spacing.xs },
   notifyPanel: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,

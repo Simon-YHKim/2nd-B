@@ -1,13 +1,16 @@
-// Jarvis daily chat limits per handoff v3 §4.B. Maps SubscriptionTier to
-// the daily turn limit. Limits reset at KST midnight via the `day` column
-// stored in chat_usage — callers compute the KST date with kstDateToday().
+// Daily AI chat limits per monetization v2 (Simon-approved 2026-06-10).
+// The free tier is a deliberate taste (Rosebud-style 2/day) — journaling
+// stays unlimited; the conversion gate sits on AI usage only. Limits reset
+// at KST midnight via the `day` column stored in chat_usage — callers
+// compute the KST date with kstDateToday(). Prices live in
+// src/lib/progression/pricing.ts.
 
 import dayjs from "dayjs";
 
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
 export const CHAT_DAILY_LIMIT: Record<SubscriptionTier, number> = {
-  free: 5,
+  free: 2,
   soma: 30,
   cortex: 80,
   brain: 250,
@@ -36,11 +39,11 @@ export interface ChatLimitCheck {
   upgradeTo: SubscriptionTier | null;
 }
 
-// D-09: soma is deprecated (enum kept for legacy rows). The launch upgrade
-// path is Free -> Plus (cortex) -> Pro (brain). A free user blocked at the limit
-// must be pointed at the live Plus tier, never the retired soma.
+// Monetization v2 (2026-06-10): soma sells again as the entry tier, so the
+// upgrade ladder walks every paid step — free -> soma -> cortex -> brain.
+// (D-09 had retired soma; v2 supersedes that with the entry price point.)
 const NEXT_TIER: Record<SubscriptionTier, SubscriptionTier | null> = {
-  free: "cortex",
+  free: "soma",
   soma: "cortex",
   cortex: "brain",
   brain: null,

@@ -68,15 +68,15 @@ describe("sendChatMessage", () => {
   beforeEach(reset);
 
   test("blocked when over the tier limit → returns hint without calling Gemini", async () => {
-    fixtures.used = 5; // free tier max
+    fixtures.used = 2; // free tier max (monetization v2)
     const r = await sendChatMessage({ userId: "u1", message: "hi", locale: "en", tier: "free" });
     expect(r.status).toBe("blocked");
     if (r.status !== "blocked") throw new Error("type narrowing");
-    expect(r.limit).toBe(5);
-    expect(r.used).toBe(5);
-    expect(r.upgradeTo).toBe("cortex");
-    expect(r.hint).toContain("free chat limit (5)");
-    expect(r.hint).toContain("Plus");
+    expect(r.limit).toBe(2);
+    expect(r.used).toBe(2);
+    expect(r.upgradeTo).toBe("soma");
+    expect(r.hint).toContain("chat limit (2)");
+    expect(r.hint).toContain("Soma");
 
     const callNames = captured.map((c) => c.fn);
     // R2: atomic-bump tries first, fails with ChatLimitExceededError, then
@@ -97,12 +97,12 @@ describe("sendChatMessage", () => {
   });
 
   test("happy path: atomic-bumps usage → exports wiki → calls Gemini", async () => {
-    fixtures.used = 2;
+    fixtures.used = 1;
     const r = await sendChatMessage({ userId: "u1", message: "hello", locale: "en", tier: "free" });
     expect(r.status).toBe("ok");
     if (r.status !== "ok") throw new Error("type narrowing");
-    expect(r.used).toBe(3); // post-bump
-    expect(r.remaining).toBe(2); // 5 - 3
+    expect(r.used).toBe(2); // post-bump
+    expect(r.remaining).toBe(0); // 2 - 2
 
     const callNames = captured.map((c) => c.fn);
     expect(callNames).toEqual(["bumpChatUsageIfUnderCap", "exportUserWiki", "callGemini"]);
@@ -120,7 +120,7 @@ describe("sendChatMessage", () => {
     // LLM call. Crisis-routed turns are no longer free. This is the
     // deliberate trade-off documented in
     // docs/security/2026-05-26-codex-challenge.md.
-    fixtures.used = 2;
+    fixtures.used = 1;
     fixtures.geminiResult = {
       text: "Please call hotline...",
       safety: { zone: "red" },

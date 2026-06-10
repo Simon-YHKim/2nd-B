@@ -254,10 +254,13 @@ export default function SecondBChat() {
   ) as keyof typeof chatUiByWorker;
   const chatUi = chatUiByWorker[chatWorker];
   const hasTurns = turns.length > 0;
+  // Near-limit warning threshold scales down with small caps so the free
+  // tier (limit 2, monetization v2) still has a reachable neutral state.
+  const warnAt = Math.min(2, limit - 1);
   const usageColor: keyof typeof semantic =
     usedToday !== null && usedToday >= limit
       ? "danger"
-      : usedToday !== null && limit - usedToday <= 2
+      : usedToday !== null && limit - usedToday <= warnAt
         ? "warning"
         : "textMuted";
   const compactModeLabel = chatMode === "divergent" ? "New angle" : "Analysis";
