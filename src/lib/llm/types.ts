@@ -50,8 +50,8 @@ export interface PromptInput {
   // When provided, response is constrained to this JSON schema (Gemini structured output).
   responseSchema?: Record<string, unknown>;
   // Optional inline image for multimodal prompts (OCR, vision). Base64 *only*,
-  // no `data:` URL prefix. Mime allowlist + size cap enforced server-side by
-  // the gemini-proxy Edge Function.
+  // no `data:` URL prefix. Callers may mirror the size cap client-side, while
+  // gemini-proxy remains the authoritative MIME allowlist + size-cap gate.
   image?: { mimeType: string; data: string };
   // C10 safety: when the signed-in user is a minor (<18; in practice 14-17),
   // crisis routing points to a youth-appropriate hotline (KO -> 1388). Defaults

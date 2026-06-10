@@ -1,8 +1,8 @@
 // Image OCR via Gemini multimodal.
 //
-// Flow: pick image (picker) → base64 (built-in) → callGemini({ image })
-// → text back. The Edge Function (gemini-proxy) enforces a mime allowlist
-// + 2.7MB base64 cap server-side; this client just hands the bytes over.
+// Flow: pick image (picker) → base64 (built-in) → local payload guard
+// → callGemini({ image }) → text back. The Edge Function (gemini-proxy)
+// still enforces the authoritative MIME allowlist + 2.7MB base64 cap.
 
 import * as ImagePicker from "expo-image-picker";
 
@@ -16,10 +16,23 @@ export interface PickedImage {
   mimeType: string;
 }
 
+export const MAX_OCR_IMAGE_BASE64_BYTES = Math.floor(2.7 * 1024 * 1024);
+export const IMAGE_OCR_TOO_LARGE_ERROR = "image_ocr_too_large";
+
 const OCR_PROMPT: Record<"en" | "ko", string> = {
   en: "Transcribe all text in this image as clean markdown. Preserve line breaks, headings, and lists where visible. If the image has no readable text, describe what you see in 1–2 sentences in English.",
   ko: "이 이미지의 모든 텍스트를 깔끔한 마크다운으로 옮겨 적어주세요. 줄바꿈·제목·목록 구조는 보이는 대로 유지. 읽을 수 있는 텍스트가 없다면 이미지를 한국어 1-2문장으로 묘사해 주세요.",
 };
+
+export function isImageOcrTooLargeError(error: unknown): boolean {
+  return error instanceof Error && error.message === IMAGE_OCR_TOO_LARGE_ERROR;
+}
+
+export function assertImageOcrPayloadWithinLimit(image: { base64: string }): void {
+  if (image.base64.length > MAX_OCR_IMAGE_BASE64_BYTES) {
+    throw new Error(IMAGE_OCR_TOO_LARGE_ERROR);
+  }
+}
 
 // Step 1 — pick an image (library or camera). No network: just returns the
 // bytes so the UI can preview them before the user commits to an OCR call.
@@ -65,6 +78,7 @@ export async function ocrImageAsset(
   // classifier) routes to the youth hotline. Defaults to adult routing.
   minor = false,
 ): Promise<string> {
+  assertImageOcrPayloadWithinLimit(image);
   const reply = await callGemini({
     userId,
     locale,
