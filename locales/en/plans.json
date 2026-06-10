@@ -25,7 +25,8 @@
       "tagline": "Daily AI alongside your records",
       "f1": "30 AI chats per day",
       "f2": "Everything in Free",
-      "f3": "The first step past the daily limit"
+      "f3": "The first step past the daily limit",
+      "lifetimeNote": "Or $99 once for lifetime access"
     },
     "cortex": {
       "name": "Cortex",
@@ -42,9 +43,8 @@
       "priceNote": "$199.90 / yr (2 months free)",
       "tagline": "The full second brain",
       "f1": "250 AI chats per day",
-      "f2": "Everything in Cortex",
-      "f3": "The most room to think together",
-      "lifetimeNote": "Or $299 once for lifetime access"
+      "f2": "Reflections on your entries",
+      "f3": "Everything in Cortex"
     }
   },
   "back": "Back"

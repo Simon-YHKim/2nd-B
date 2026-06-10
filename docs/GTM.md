@@ -32,7 +32,7 @@
 
 - **Core**: 영구 무료 + local Markdown + 기본 reflection. (Obsidian/Logseq/Harbour Journal 성공 사례가 검증.)
 - **AI layer**: 별도 "Pattern Co-pilot" (usage 기반 또는 저가 월정액). "내 생각을 저장하려면 매달 돈 내세요"는 금지.
-- **티어**: Free / Soma / Cortex / Brain (수익화 v2, 2026-06-10 Simon 확정 — D-09의 Plus/Pro 명명과 soma 미판매를 대체). 월 ₩4,900/9,900/19,900 · 연간 = 월x10(2개월 무료) · Brain 평생 ₩299,000. SoT = `src/lib/progression/pricing.ts`. FORCE_TIER off 전 결제 비활성.
+- **티어**: Free / Soma / Cortex / Brain (수익화 v2, 2026-06-10 Simon 확정 — D-09의 Plus/Pro 명명과 soma 미판매를 대체). 월 ₩4,900/9,900/19,900 · 연간 = 월x10(2개월 무료) · Soma 평생 ₩99,000(2026-06-10 재책정 — Brain 평생 ₩299,000은 KR 시장가 괴리 + 영구 추론비용 리스크로 폐기). SoT = `src/lib/progression/pricing.ts`. FORCE_TIER off 전 결제 비활성.
 - **KR**: 런치 초기 더 관대한 무료티어 + 한국어 고품질로 초기 lock-in.
 - **신호 근거**: 구독 피로 4개+ 독립 출처 + "local first no sub" indie 성공 다수.
 
@@ -54,7 +54,7 @@
 ## 7. 미결정 (Simon, §15)
 
 > 2026-06-10 Simon 승인(수익화 v2)으로 M1·M2 확정, M3·M4 방향 확정:
-> - ✅ M1 가격: ₩4,900/9,900/19,900 월 + 연간(2개월 무료) + Brain 평생 ₩299,000 (`pricing.ts`)
+> - ✅ M1 가격: ₩4,900/9,900/19,900 월 + 연간(2개월 무료) + Soma 평생 ₩99,000 (`pricing.ts`, 동일 재책정 — 잠식 방어선 = 해당 티어 연간의 2배)
 > - ✅ M2 무료티어: 기록 무제한 유지, 게이트는 AI 사용 한도만 (free 2회/일, Rosebud식)
 > - 🔶 M3 방향: Apple/Google IAP + Small Business Program(15%) 우선, KR 외부PG 후순위 + PPP 현지화 — **실계약/스토어 설정은 미결(Simon)**
 > - 🔶 M4 구조: 단일구독·연간·평생 확정 — Brain 리텐션 루프(주간 리포트·장기 메모리)는 미구현 펀치리스트
