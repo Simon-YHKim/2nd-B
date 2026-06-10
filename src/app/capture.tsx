@@ -79,6 +79,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // streak / reflection / optional Advisor); the rest write to `sources`
 // (captureFromMarkdown). Reads were already unified via mergeEvidence.
 type Mode = "journal" | "memo" | "linkclip" | "ocr" | "file";
+type CaptureFeedbackKey =
+  | "alerts.imageOpen"
+  | "alerts.cameraPermission"
+  | "alerts.ocrRead"
+  | "alerts.ocrTooLarge"
+  | "alerts.ocrUnsupportedType"
+  | "alerts.ocrMissingData"
+  | "alerts.ocrInvalidData";
 type CaptureFeedbackModal = { title: string; body: string; retry?: () => void } | null;
 
 const CAPTURE_MODES: Mode[] = ["journal", "memo", "linkclip", "ocr", "file"];
@@ -298,7 +306,26 @@ export default function Capture() {
     current?.retry?.();
   }
 
-  function imageOcrFeedback(error: unknown): { key: string; retryable: boolean } {
+  function feedbackCopy(key: CaptureFeedbackKey): { title: string; message: string } {
+    switch (key) {
+      case "alerts.imageOpen":
+        return { title: t("alerts.imageOpen.title"), message: t("alerts.imageOpen.message") };
+      case "alerts.cameraPermission":
+        return { title: t("alerts.cameraPermission.title"), message: t("alerts.cameraPermission.message") };
+      case "alerts.ocrRead":
+        return { title: t("alerts.ocrRead.title"), message: t("alerts.ocrRead.message") };
+      case "alerts.ocrTooLarge":
+        return { title: t("alerts.ocrTooLarge.title"), message: t("alerts.ocrTooLarge.message") };
+      case "alerts.ocrUnsupportedType":
+        return { title: t("alerts.ocrUnsupportedType.title"), message: t("alerts.ocrUnsupportedType.message") };
+      case "alerts.ocrMissingData":
+        return { title: t("alerts.ocrMissingData.title"), message: t("alerts.ocrMissingData.message") };
+      case "alerts.ocrInvalidData":
+        return { title: t("alerts.ocrInvalidData.title"), message: t("alerts.ocrInvalidData.message") };
+    }
+  }
+
+  function imageOcrFeedback(error: unknown): { key: CaptureFeedbackKey; retryable: boolean } {
     if (isImageOcrTooLargeError(error)) {
       return { key: "alerts.ocrTooLarge", retryable: false };
     }
@@ -317,7 +344,7 @@ export default function Capture() {
     return { key: "alerts.ocrRead", retryable: true };
   }
 
-  function imagePickFeedback(error: unknown): { key: string; retryable: boolean } {
+  function imagePickFeedback(error: unknown): { key: CaptureFeedbackKey; retryable: boolean } {
     if (isImageCameraPermissionDeniedError(error)) {
       return { key: "alerts.cameraPermission", retryable: false };
     }
@@ -352,10 +379,11 @@ export default function Capture() {
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] image pick failed", (e as Error).message);
       const feedback = imagePickFeedback(e);
+      const copy = feedbackCopy(feedback.key);
       if (isImageOcrRepickRequiredError(e)) setPickedImage(null);
       showFeedback(
-        t(`${feedback.key}.title`),
-        t(`${feedback.key}.message`),
+        copy.title,
+        copy.message,
         feedback.retryable ? () => void pickImage(source) : undefined,
       );
     }
@@ -370,10 +398,11 @@ export default function Capture() {
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
       const feedback = imageOcrFeedback(e);
+      const copy = feedbackCopy(feedback.key);
       if (isImageOcrRepickRequiredError(e)) setPickedImage(null);
       showFeedback(
-        t(`${feedback.key}.title`),
-        t(`${feedback.key}.message`),
+        copy.title,
+        copy.message,
         feedback.retryable ? () => void runExtract() : undefined,
       );
     } finally {
@@ -1049,6 +1078,7 @@ export default function Capture() {
                 value={body}
                 onChangeText={setBody}
                 placeholder={mode === "ocr" ? t("inputs.imagePlaceholder") : t("inputs.memoPlaceholder")}
+                editable={mode === "ocr" ? !extracting : true}
                 multiline
                 numberOfLines={mode === "memo" ? 6 : 12}
                 textAlignVertical="top"
@@ -1063,11 +1093,13 @@ export default function Capture() {
                 label={t("image.camera")}
                 variant="secondary"
                 onPress={() => pickImage("camera")}
+                disabled={extracting}
               />
               <Button
                 label={t("image.library")}
                 variant="secondary"
                 onPress={() => pickImage("library")}
+                disabled={extracting}
               />
             </View>
           ) : null}
