@@ -47,6 +47,18 @@ export function tierAtLeast(tier: SubscriptionTier, min: SubscriptionTier): bool
   return TIER_RANK[tier] >= TIER_RANK[min];
 }
 
+// The single chokepoint deciding whether the QA paywall override
+// (EXPO_PUBLIC_FORCE_TIER) masks the user's real tier. Every gate that keys
+// off progression.tier flows through this — audit MED: a non-"off" override
+// in a release build opens the paywall for every user, so the mapping must
+// never silently invert ("off" must mean the REAL tier).
+export function resolveTier(
+  forced: SubscriptionTier | "off",
+  real: SubscriptionTier,
+): SubscriptionTier {
+  return forced === "off" ? real : forced;
+}
+
 // Can the user create one more of `feature`, given their tier and how many
 // they have already used? For self_context, pass the per-context count.
 export function checkUsage(

@@ -2,6 +2,7 @@ import {
   checkUsage,
   canUsePremium,
   tierAtLeast,
+  resolveTier,
   FREE_LIMIT,
 } from "../entitlements";
 
@@ -10,6 +11,25 @@ describe("tierAtLeast", () => {
     expect(tierAtLeast("brain", "cortex")).toBe(true);
     expect(tierAtLeast("soma", "cortex")).toBe(false);
     expect(tierAtLeast("free", "free")).toBe(true);
+  });
+});
+
+// EXPO_PUBLIC_FORCE_TIER chokepoint (cycle-3 test gap #4). Every gate keying
+// off progression.tier flows through resolveTier — "off" MUST mean the real
+// per-user tier (a silent inversion would open or close the paywall for
+// every user in a release build).
+describe("resolveTier (QA paywall override)", () => {
+  it("'off' honours the real per-user tier", () => {
+    expect(resolveTier("off", "free")).toBe("free");
+    expect(resolveTier("off", "brain")).toBe("brain");
+  });
+
+  it("a forced tier masks the real tier in BOTH directions", () => {
+    // Upgrade mask (testing-phase bypass)…
+    expect(resolveTier("brain", "free")).toBe("brain");
+    // …and downgrade mask (pinning a paywall boundary to test it).
+    expect(resolveTier("free", "brain")).toBe("free");
+    expect(resolveTier("soma", "cortex")).toBe("soma");
   });
 });
 

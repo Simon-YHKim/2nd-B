@@ -8,7 +8,7 @@ import { useAuth } from "../auth/AuthContext";
 import { getEnv } from "../env";
 import { getSupabaseClient } from "../supabase/client";
 import { levelForXp, levelProgress, type LevelProgress } from "./levels";
-import type { SubscriptionTier } from "./entitlements";
+import { resolveTier, type SubscriptionTier } from "./entitlements";
 
 export interface Progression {
   totalXp: number;
@@ -63,7 +63,7 @@ export function useProgression(): Progression {
     totalXp,
     level: levelForXp(totalXp),
     progress: levelProgress(totalXp),
-    tier: forcedTier === "off" ? tier : forcedTier,
+    tier: resolveTier(forcedTier, tier),
     loading,
     refresh,
   };
