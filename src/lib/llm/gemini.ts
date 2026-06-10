@@ -165,12 +165,56 @@ const MOCK_RESPONSES: Record<
   },
 };
 
+// C9 fallback (2026-06-10 audit follow-up): gemini-proxy is the second,
+// server-authoritative crisis gate. When a crisis phrasing slips past the
+// client lexicon but the proxy's hasCrisisTerm catches it, functions.invoke
+// rejects with a FunctionsHttpError (status 422, body
+// { error: "safety_red_zone" }). Before this check the caller surfaced a
+// generic failure modal — a user in crisis saw a raw error instead of
+// hotline routing.
+async function isProxyCrisisRejection(error: unknown): Promise<boolean> {
+  if (!error || typeof error !== "object") return false;
+  const ctx = (error as { context?: { status?: number; clone?: unknown; json?: unknown } })
+    .context;
+  if (!ctx || typeof ctx !== "object" || ctx.status !== 422) return false;
+  // Confirm the marker when the body is readable. The proxy's only 422 source
+  // today is the crisis gate, so an unreadable body still counts as crisis —
+  // over-routing shows a dismissible hotline modal; under-routing shows a raw
+  // error to someone in crisis. A readable body with a DIFFERENT error marker
+  // (a future non-crisis 422) is rethrown by the callers.
+  try {
+    const target =
+      typeof ctx.clone === "function"
+        ? ((ctx.clone as () => { json?: () => Promise<unknown> })())
+        : (ctx as { json?: () => Promise<unknown> });
+    if (typeof target.json !== "function") return true;
+    const body = (await target.json()) as { error?: unknown } | null;
+    return body == null || typeof body.error !== "string" || body.error === "safety_red_zone";
+  } catch {
+    return true;
+  }
+}
+
+// RED SafetyResult for a proxy-detected crisis. The client classifier
+// returned green/yellow, so there is no matched-term list — the proxy body
+// intentionally never echoes the matched term (no oracle).
+function proxyCrisisSafetyResult(locale: "en" | "ko", minor = false): SafetyResult {
+  const h = crisisHotlines(locale, minor)[0];
+  return {
+    zone: "red",
+    matched: [],
+    categories: ["crisis"],
+    crisisRouting: { hotline: h.id, label: h.label, number: h.number },
+  };
+}
+
 async function routeCrisis(
   result: SafetyResult,
   locale: "en" | "ko",
   userId: string,
   promptHash: string,
   minor = false,
+  sourceTag = "input_red",
 ): Promise<GeminiResult<string>> {
   // Same hotline set as the Advisor path (single source of truth):
   // KO adult -> 109, KO minor -> 1388 + 109, EN -> 988.
@@ -200,8 +244,10 @@ async function routeCrisis(
   // import/clipper/phase1) intercepted a crisis but left NO categorical trace in the
   // restricted log. routeCrisis only has the lexicon classifier's fields, so map
   // them conservatively (RED confidence 0.95 like lexiconToResult; no C-SSRS level;
-  // categories else "lexicon_match", tagged input_red to distinguish this short-
-  // circuit from the output_swap path). Best-effort — never throw out of routeCrisis.
+  // categories else "lexicon_match", tagged with sourceTag — input_red for the
+  // client short-circuit, proxy_input_red for the server-gate 422 fallback —
+  // to distinguish from the output_swap path). Best-effort — never throw out
+  // of routeCrisis.
   try {
     const lexCategories =
       result.categories.length > 0
@@ -211,7 +257,7 @@ async function routeCrisis(
           : [];
     await insertCrisisEvent({
       classifierConfidence: 0.95,
-      triggerCategories: [...lexCategories, "input_red"],
+      triggerCategories: [...lexCategories, sourceTag],
       cssrsLevel: null,
       routingTemplateVersion: "routecrisis-inline-v1",
       locale,
@@ -296,7 +342,24 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       },
     });
     latencyMs = Date.now() - t0;
-    if (error) throw error;
+    if (error) {
+      // C9 fallback: the server gate caught what the client lexicon missed —
+      // surface the same hotline routing as a client-side RED, never the raw
+      // FunctionsHttpError. The proxy does not audit its 422 rejection (it
+      // audits only successful Gemini calls), so routeCrisis writing the
+      // audit + crisis_events rows here is the only record — no double-log.
+      if (await isProxyCrisisRejection(error)) {
+        return (await routeCrisis(
+          proxyCrisisSafetyResult(input.locale, input.minor),
+          input.locale,
+          input.userId,
+          promptHash,
+          input.minor,
+          "proxy_input_red",
+        )) as unknown as GeminiResult<T>;
+      }
+      throw error;
+    }
     const payload = data as { text?: string; modelUsed?: string; audited?: boolean } | null;
     text = payload?.text ?? "";
     modelUsedForAudit = payload?.modelUsed ?? model;
@@ -443,6 +506,53 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
 // RED still uses fixedCrisisResponse and still inserts crisis_events. The internal
 // "mock" marker stays in the modelUsed audit field; the returned text reads as
 // ordinary product copy.
+// Advisor-shaped result for a proxy-detected crisis (C9 fallback). Mirrors
+// the input-RED block in callAdvisor: same fixed template, same audit +
+// crisis_events bookkeeping — but with proxy-derived metadata (confidence
+// 0.95 parity with routeCrisis inline; no C-SSRS level; proxy_input_red tag
+// distinguishes the server-gate catch in the restricted ledger).
+async function advisorProxyCrisisResult(
+  input: AdvisorInput,
+  promptHash: string,
+  vertexBackend: boolean,
+): Promise<AdvisorResult> {
+  const fixed = fixedCrisisResponse(input.locale, input.minor);
+  const audit = {
+    promptHash,
+    outputHash: djb2(fixed.text),
+    modelUsed: `none-crisis-routed-proxy:${fixed.version}`,
+    vertexBackend,
+    safetyZone: "red" as const,
+    latencyMs: 0,
+  };
+  try {
+    await insertAiAuditLog({ userId: input.userId, ...audit });
+  } catch (e) {
+    if (typeof console !== "undefined") console.warn("[advisor] proxy-crisis audit failed", e);
+  }
+  try {
+    await insertCrisisEvent({
+      classifierConfidence: 0.95,
+      triggerCategories: ["proxy_input_red"],
+      cssrsLevel: null,
+      routingTemplateVersion: fixed.version,
+      locale: input.locale,
+    });
+  } catch (e) {
+    if (typeof console !== "undefined") console.warn("[advisor] proxy-crisis crisis_events failed", e);
+  }
+  return {
+    text: fixed.text,
+    zone: "red",
+    triggers: ["proxy_input_red"],
+    cssrsLevel: null,
+    fixedTemplate: true,
+    matchedBatches: ["crisis-detection"],
+    evidence: [],
+    audit,
+  };
+}
+
 export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   const env = getEnv();
   const promptHash = djb2(input.userMessage);
@@ -568,7 +678,16 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       body: { system: systemPrompt, user: input.userMessage, model },
     });
     latencyMs = Date.now() - t0;
-    if (error) throw error;
+    if (error) {
+      // C9 fallback, Advisor surface: mirror the input-RED path (fixed
+      // template + audit + crisis_events) instead of leaking the raw 422.
+      // The proxy does not audit its rejection, so the client rows below are
+      // the only record.
+      if (await isProxyCrisisRejection(error)) {
+        return advisorProxyCrisisResult(input, promptHash, env.EXPO_PUBLIC_USE_VERTEX);
+      }
+      throw error;
+    }
     const payload = data as { text?: string; audited?: boolean } | null;
     text = payload?.text ?? "";
     proxyAudited = payload?.audited === true;
