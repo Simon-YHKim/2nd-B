@@ -117,12 +117,17 @@ export function normalizeOcrImageBase64Data(data: string): string {
 }
 
 export function normalizeOcrTextResult(text: string, locale: "en" | "ko" = "en"): string {
-  const trimmed = text.trim();
+  const trimmed = unwrapOcrMarkdownFence(text.trim()).trim();
   if (trimmed.length <= MAX_OCR_TEXT_CHARS) return trimmed;
   const marker = locale === "ko"
     ? `\n\n[OCR 텍스트 잘림: 원본 ${trimmed.length}자]`
     : `\n\n[OCR text truncated: original ${trimmed.length} chars]`;
   return `${trimmed.slice(0, MAX_OCR_TEXT_CHARS).trimEnd()}${marker}`;
+}
+
+function unwrapOcrMarkdownFence(text: string): string {
+  const match = text.match(/^```(?:markdown|md|text)[ \t]*\r?\n([\s\S]*?)\r?\n```$/i);
+  return match?.[1] ?? text;
 }
 
 export function normalizeOcrImagePayload(image: {

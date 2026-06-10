@@ -564,6 +564,22 @@ describe("capture image OCR payload guards", () => {
     expect(normalizeOcrTextResult("\n  OCR text  \n")).toBe("OCR text");
   });
 
+  test("unwraps full-response OCR markdown fences but preserves real code fences", async () => {
+    mockCallGemini.mockResolvedValueOnce({
+      text: "```markdown\n# Machine log\n\n| tact | UPH |\n| --- | --- |\n| 42s | 85 |\n```",
+    } as Awaited<ReturnType<typeof callGemini>>);
+
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/png",
+        base64: PNG_IMAGE_BASE64,
+      }),
+    ).resolves.toBe("# Machine log\n\n| tact | UPH |\n| --- | --- |\n| 42s | 85 |");
+
+    expect(normalizeOcrTextResult("```text\r\nplain text\r\n```")).toBe("plain text");
+    expect(normalizeOcrTextResult("```python\nprint('ocr')\n```")).toBe("```python\nprint('ocr')\n```");
+  });
+
   test("truncates oversized OCR text results with an explicit marker", async () => {
     const longText = `\n${"x".repeat(MAX_OCR_TEXT_CHARS + 17)}\n`;
     mockCallGemini.mockResolvedValueOnce({
