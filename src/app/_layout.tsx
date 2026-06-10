@@ -178,6 +178,16 @@ function IntroGate({ children }: { children: React.ReactNode }) {
     return <Redirect href="/complete-profile" />;
   }
 
+  // Never swap the Stack for the intro while the user is INSIDE the (auth)
+  // group (E2E-3 cold-start variant): signUpWithEmail fires SIGNED_IN
+  // mid-submit, and on native introDone is false on every cold start
+  // (sessionStorage is web-only), so this gate used to replace the sign-up
+  // form with the LoadingScreen from the parent — destroying the typed
+  // email/DOB/consent and any failure toast, which the screen's own
+  // guard-hold cannot prevent. The intro still plays at the designed
+  // hand-off: the post-auth arrival at "/" flips segments out of (auth).
+  if (segments[0] === "(auth)") return <>{children}</>;
+
   // Once the intro has played this session, just render the app/children —
   // auth re-resolves quietly without re-gating the UI.
   if (introDone) return <>{children}</>;
