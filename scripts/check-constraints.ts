@@ -226,6 +226,8 @@ results.push(
       "saved.ocrBody",
       "saved.seeGraph",
       "saved.seeOcrGraph",
+      "saved.seeGraphHint",
+      "saved.seeOcrGraphHint",
       "saved.seeRecords",
       "saved.captureMore",
       "proposal.heading",
@@ -341,6 +343,8 @@ results.push(
       't("saved.ocrBody")',
       't("saved.seeGraph")',
       't("saved.seeOcrGraph")',
+      't("saved.seeGraphHint")',
+      't("saved.seeOcrGraphHint")',
       't("saved.seeRecords")',
       't("saved.captureMore")',
       't("proposal.heading")',
@@ -849,8 +853,12 @@ results.push(
       capture.includes('accessibilityLabel={t("journal.advisor.label")}') &&
       capture.includes('accessibilityLabel={t("tags.removeLabel", { tag })}') &&
       capture.includes("const [savedMode, setSavedMode] = useState<Mode | null>(null)") &&
+      capture.includes("const [savedSourceId, setSavedSourceId] = useState<string | null>(null)") &&
       capture.includes('const savedIsOcr = savedKind === "source" && savedMode === "ocr"') &&
+      capture.includes("router.push({ pathname: \"/\", params: { highlightRecordId: savedSourceId } })") &&
       capture.includes('setSavedMode(mode)') &&
+      capture.includes("setSavedSourceId(result.source.id)") &&
+      capture.includes('accessibilityHint={savedIsOcr ? t("saved.seeOcrGraphHint") : t("saved.seeGraphHint")}') &&
       capture.includes("const [ocrReviewApproved, setOcrReviewApproved] = useState(false)") &&
       // Pin the gate BODY, not just the state declaration — without this a
       // refactor could revert the OCR canSubmit branch to body-only while

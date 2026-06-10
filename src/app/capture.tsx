@@ -208,6 +208,7 @@ export default function Capture() {
   // screen; classified captures (`sources`) DO become graph nodes.
   const [savedKind, setSavedKind] = useState<"records" | "source" | null>(null);
   const [savedMode, setSavedMode] = useState<Mode | null>(null);
+  const [savedSourceId, setSavedSourceId] = useState<string | null>(null);
   // True when the last capture saved its body inline because the Storage
   // upload failed (CaptureResult.storagePending) — surfaced as a one-line
   // note in the saved panel instead of a silent clean-success.
@@ -321,6 +322,7 @@ export default function Capture() {
     setProposal(null);
     setFormatSavedMsg(null);
     setSavedMode(null);
+    setSavedSourceId(null);
   }
 
   async function pickImage(source: "library" | "camera") {
@@ -411,6 +413,13 @@ export default function Capture() {
 
   const hasOcrDraft = mode === "ocr" && body.trim().length > 0;
   const savedIsOcr = savedKind === "source" && savedMode === "ocr";
+  const openSavedGraph = () => {
+    if (savedSourceId) {
+      router.push({ pathname: "/", params: { highlightRecordId: savedSourceId } });
+      return;
+    }
+    router.push("/");
+  };
 
   const canSubmit = !!userId && !submitting && (
     (mode === "journal" && journalGate.unlocked && journalUsage.allowed && body.trim().length > 0) ||
@@ -447,6 +456,7 @@ export default function Capture() {
       setSavedTitle(savedTopic.length > 0 ? savedTopic : t("savedTitleFallback"));
       setSavedKind("records");
       setSavedMode("journal");
+      setSavedSourceId(null);
       setSavedPending(false);
       // Refresh streak + journal use count (free-tier limit) + XP (the entry
       // earns progression, mirroring the retired /journal screen).
@@ -547,6 +557,7 @@ export default function Capture() {
       setSavedTitle(result.source.title);
       setSavedKind("source");
       setSavedMode(mode);
+      setSavedSourceId(result.source.id);
       setSavedPending(result.storagePending);
       // G3: a capture that landed as "inbox" (no specific format fit) is the
       // signal to offer an AI-proposed new format. Gate on body length so
@@ -701,9 +712,15 @@ export default function Capture() {
                 {savedKind === "records" ? (
                   <PremiumButton label={t("saved.seeRecords")} variant="secondary" onPress={() => router.push("/records")} style={{ flex: 1 }} />
                 ) : (
-                  <PremiumButton label={savedIsOcr ? t("saved.seeOcrGraph") : t("saved.seeGraph")} variant="secondary" onPress={() => router.push("/")} style={{ flex: 1 }} />
+                  <PremiumButton
+                    label={savedIsOcr ? t("saved.seeOcrGraph") : t("saved.seeGraph")}
+                    variant="secondary"
+                    onPress={openSavedGraph}
+                    accessibilityHint={savedIsOcr ? t("saved.seeOcrGraphHint") : t("saved.seeGraphHint")}
+                    style={{ flex: 1 }}
+                  />
                 )}
-                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedKind(null); setSavedMode(null); setSavedPending(false); }} style={{ flex: 1 }} />
+                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedKind(null); setSavedMode(null); setSavedSourceId(null); setSavedPending(false); }} style={{ flex: 1 }} />
               </View>
             </PremiumCard>
           ) : null}
