@@ -194,6 +194,7 @@ export default function Capture() {
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
   const [extracting, setExtracting] = useState(false);
+  const [ocrReviewApproved, setOcrReviewApproved] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [tagsEditable, setTagsEditable] = useState<string[]>([]);
@@ -309,6 +310,7 @@ export default function Capture() {
     setPickedFile(null);
     setPickedImage(null);
     setExtracting(false);
+    setOcrReviewApproved(false);
     setTagsEditable([]);
     setTopic("");
     setConclusion("");
@@ -325,6 +327,7 @@ export default function Capture() {
       const img = await pickImageAsset(source);
       if (!img) return;
       setPickedImage(img);
+      setOcrReviewApproved(false);
       setBody(""); // clear any prior extraction; the user presses 추출하기 to fill
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] image pick failed", (e as Error).message);
@@ -342,6 +345,7 @@ export default function Capture() {
     try {
       const md = await ocrImageAsset(userId, locale, pickedImage, isMinor === true);
       setBody(md);
+      setOcrReviewApproved(false);
     } catch (e) {
       // Split-② guards turned the crisis output swap into a typed throw; the
       // generic "clearer photo" alert here would HIDE the hotline from a user
@@ -398,11 +402,18 @@ export default function Capture() {
     setTagsEditable((prev) => [...prev, norm].slice(0, 10));
   }
 
+  function updateOcrBody(text: string) {
+    setBody(text);
+    setOcrReviewApproved(false);
+  }
+
+  const hasOcrDraft = mode === "ocr" && body.trim().length > 0;
+
   const canSubmit = !!userId && !submitting && (
     (mode === "journal" && journalGate.unlocked && journalUsage.allowed && body.trim().length > 0) ||
     (mode === "memo" && body.trim().length > 0) ||
     (mode === "linkclip" && body.trim().length > 0) ||
-    (mode === "ocr" && body.trim().length > 0) ||
+    (mode === "ocr" && hasOcrDraft && ocrReviewApproved) ||
     (mode === "file" && (!!pickedFile || body.trim().length > 0))
   );
 
@@ -1065,13 +1076,40 @@ export default function Capture() {
               </Text>
               <Input
                 value={body}
-                onChangeText={setBody}
+                onChangeText={mode === "ocr" ? updateOcrBody : setBody}
                 placeholder={mode === "ocr" ? t("inputs.imagePlaceholder") : t("inputs.memoPlaceholder")}
                 multiline
                 numberOfLines={mode === "memo" ? 6 : 12}
                 textAlignVertical="top"
                 style={styles.textarea}
+                accessibilityLabel={mode === "ocr" ? t("inputs.extractedLabel") : t("inputs.bodyLabel")}
               />
+            </View>
+          ) : null}
+
+          {mode === "ocr" ? (
+            <View style={styles.ocrDisclosureCard}>
+              <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
+                {t("ocrReview.heading")}
+              </Text>
+              <Text variant="subtle" color="textMuted" style={styles.ocrDisclosureText}>
+                {t("ocrReview.disclosure")}
+              </Text>
+              {hasOcrDraft ? (
+                <>
+                  <Text variant="subtle" color="textSubtle" style={styles.ocrDisclosureText}>
+                    {ocrReviewApproved ? t("ocrReview.approved") : t("ocrReview.body")}
+                  </Text>
+                  <Button
+                    label={t("ocrReview.approve")}
+                    variant={ocrReviewApproved ? "secondary" : "primary"}
+                    onPress={() => setOcrReviewApproved(true)}
+                    disabled={ocrReviewApproved}
+                    accessibilityHint={t("ocrReview.approveHint")}
+                    style={{ marginTop: spacing.xs }}
+                  />
+                </>
+              ) : null}
             </View>
           ) : null}
 
@@ -1093,7 +1131,13 @@ export default function Capture() {
           {mode === "ocr" && pickedImage ? (
             <View style={styles.previewCard}>
               <Text variant="caption" color="brand">{t("image.preview")}</Text>
-              <Image source={{ uri: pickedImage.uri }} style={styles.imagePreview} contentFit="contain" />
+              <Image
+                source={{ uri: pickedImage.uri }}
+                style={styles.imagePreview}
+                contentFit="contain"
+                accessibilityRole="image"
+                accessibilityLabel={t("image.preview")}
+              />
               <Button
                 label={t("image.extract")}
                 variant="primary"
@@ -1175,6 +1219,7 @@ export default function Capture() {
               }
               accessibilityRole="button"
               accessibilityState={{ disabled: !canSubmit, busy: submitting }}
+              accessibilityHint={mode === "ocr" && hasOcrDraft && !ocrReviewApproved ? t("ocrReview.submitHint") : undefined}
             >
               <Text style={[styles.tossBtnText, !canSubmit && styles.tossBtnTextDisabled]}>
                 {submitting
@@ -1496,6 +1541,18 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
   },
   actionRow: { flexDirection: "row", gap: spacing.sm },
+  ocrDisclosureCard: {
+    backgroundColor: semantic.surfaceAlt,
+    borderColor: semantic.border,
+    borderWidth: gameboy.borderWidth,
+    borderStartColor: semantic.brand,
+    borderStartWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
+    padding: spacing.md,
+    gap: spacing.xs,
+    ...pixelShadowStyle(),
+  },
+  ocrDisclosureText: { lineHeight: 20 },
   useTopicLink: {
     alignSelf: "flex-start",
     minHeight: 44,
