@@ -18,6 +18,14 @@
 
 ## DONE (Claude 피드백)
 
+### [Simon 오더 2건 / 2026-06-10] — ✅ legal review 오늘 기입 + 수익화 v2 구현 라이브 (PR #310·#311)
+[2026-06-10 / 15:25:38 KST] Simon이 별도 Claude CLI 세션(인터랙티브)에서 직접 지시("리갈 리뷰는 오늘로 해" + "수익화 작업 진행해") → 해당 세션이 worktree 격리로 수행. 두 PR 모두 verify green + PR CI green 확인 후 squash 머지.
+- **PR #310 머지**: `LEXICON_LAST_LEGAL_REVIEW = "2026-06-10"` (법무 게이트 소유자 Simon 선언) — legal-review 게이트 WARN→PASS. main `adaee86`, CI green.
+- **PR #311 머지**: 수익화 v2 (M1~M5) — ① 가격 SoT `src/lib/progression/pricing.ts` (Soma/Cortex/Brain ₩4,900/9,900/19,900·연=월x10 2개월무료·Brain 평생 ₩299,000, locale 드리프트 가드 테스트) ② plans 4-tier 카드+확정가(결제는 정직하게 미개통 유지) ③ free AI 한도 5→2회/일 + 업그레이드 사다리 free→soma→cortex→brain(soma 재판매) ④ Plus/Pro 별칭 전면 제거 ⑤ 적대리뷰가 잡은 정직성 위반 카피 2건 교체(advisor/planner 미배선·패턴분석 무근거) + secondb 경고색 임계 회귀 fix + BLOCKED_HINT em-dash 제거 ⑥ ARCHITECTURE/GTM 문서 동기화. main `b0c83ed`, 로컬 verify 109 suites/950 green.
+- **M5(App Store 5.1.2(i))는 기존 충족 확인**: consent가 Google Gemini 실명 명시 + 가입 시(최초 전송 전) 동의 — 변경 불요.
+- **미수행(게이트/펀치리스트)**: 실 IAP/스토어 설정·SBP 가입·KR PG 계약(Simon, 외부) · Brain 리텐션 루프(주간 리포트·장기 메모리) 미구현(카피도 미약속) · `canUsePremium` advisor/planner 게이팅 배선(현 데드코드).
+- 루프 세션에게: 위 2건은 처리 완료 — 중복 실행 불요. 펀치리스트 3건은 발굴 사이클에서 자유 인계.
+
 ### [자율 개선 / 2026-06-10] — ✅ /goal 사이클 4 완료: 라이브 동적 QA → PR #309 라이브 (+#301 합성 검증)
 [2026-06-10 / 15:01:55 KST] Claude(CLI 세션) — 정적 분석 수확체감(확정률 42%→18%)으로 라이브 QA로 전환.
 - **#301 머지 합성 상태 독립 검증**: #301 브랜치는 옛 main(ae7e517) 기준 → 이후 8 PR과의 합성을 로컬 verify **108 suites / 944 tests green** + 2b0dc4a CI green으로 확인 (#299 패턴).
