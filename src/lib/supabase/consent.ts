@@ -6,10 +6,11 @@
 // (general consent §15/§17/§22 + §23 sensitive-data ack + overseas-transfer
 // notice for Gemini/Supabase processing).
 //
-// NOT YET WIRED at sign-up: the consent NOTICE + ack checkboxes are a UI
-// surface (delegated to the design pass). Call recordConsent() only AFTER the
-// UI has actually collected the acknowledgements — never record a consent the
-// user did not give.
+// WIRED at sign-up: recordConsentBestEffort() is called after the consent UI
+// collects the acknowledgements — src/app/(auth)/sign-up.tsx:103 and
+// src/app/(auth)/complete-profile.tsx:90. Invariant stands: only record a
+// consent AFTER the UI has actually collected it — never one the user did
+// not give.
 //
 // TODO(legal): the version constants below MUST track the published Privacy
 // Policy / Terms documents. Bump them when the notice, purposes, or documents
