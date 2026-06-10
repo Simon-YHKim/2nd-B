@@ -23,6 +23,7 @@ import {
   IMAGE_OCR_UNSUPPORTED_TYPE_ERROR,
   IMAGE_OCR_TOO_LARGE_ERROR,
   MAX_OCR_IMAGE_BASE64_BYTES,
+  MAX_OCR_TEXT_CHARS,
   isImageCameraPermissionDeniedError,
   isImageOcrEmptyResultError,
   isImageOcrInvalidDataError,
@@ -321,6 +322,24 @@ describe("capture image OCR payload guards", () => {
     ).resolves.toBe("Clean markdown text");
 
     expect(normalizeOcrTextResult("\n  OCR text  \n")).toBe("OCR text");
+  });
+
+  test("truncates oversized OCR text results with an explicit marker", async () => {
+    const longText = `\n${"x".repeat(MAX_OCR_TEXT_CHARS + 17)}\n`;
+    mockCallGemini.mockResolvedValueOnce({
+      text: longText,
+    } as Awaited<ReturnType<typeof callGemini>>);
+
+    const text = await ocrImageAsset("u1", "en", {
+      mimeType: "image/png",
+      base64: PNG_IMAGE_BASE64,
+    });
+
+    expect(text.startsWith("x".repeat(MAX_OCR_TEXT_CHARS))).toBe(true);
+    expect(text).toContain(`[OCR text truncated: original ${MAX_OCR_TEXT_CHARS + 17} chars]`);
+    expect(normalizeOcrTextResult("가".repeat(MAX_OCR_TEXT_CHARS + 1), "ko")).toContain(
+      `[OCR 텍스트 잘림: 원본 ${MAX_OCR_TEXT_CHARS + 1}자]`,
+    );
   });
 
   test("rejects blank OCR text results as a read failure", async () => {

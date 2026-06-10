@@ -17,6 +17,7 @@ export interface PickedImage {
 }
 
 export const MAX_OCR_IMAGE_BASE64_BYTES = 2_700_000;
+export const MAX_OCR_TEXT_CHARS = 12_000;
 export const IMAGE_OCR_TOO_LARGE_ERROR = "image_ocr_too_large";
 export const IMAGE_OCR_UNSUPPORTED_TYPE_ERROR = "image_ocr_unsupported_type";
 export const IMAGE_CAMERA_PERMISSION_DENIED_ERROR = "camera_permission_denied";
@@ -95,8 +96,13 @@ export function normalizeOcrImageBase64Data(data: string): string {
   return data.replace(/\s+/g, "");
 }
 
-export function normalizeOcrTextResult(text: string): string {
-  return text.trim();
+export function normalizeOcrTextResult(text: string, locale: "en" | "ko" = "en"): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= MAX_OCR_TEXT_CHARS) return trimmed;
+  const marker = locale === "ko"
+    ? `\n\n[OCR 텍스트 잘림: 원본 ${trimmed.length}자]`
+    : `\n\n[OCR text truncated: original ${trimmed.length} chars]`;
+  return `${trimmed.slice(0, MAX_OCR_TEXT_CHARS).trimEnd()}${marker}`;
 }
 
 export function normalizeOcrImagePayload(image: {
@@ -258,7 +264,7 @@ export async function ocrImageAsset(
     image: { mimeType, data },
     minor,
   });
-  const text = normalizeOcrTextResult(reply.text);
+  const text = normalizeOcrTextResult(reply.text, locale);
   if (text.length === 0) {
     throw new Error(IMAGE_OCR_EMPTY_RESULT_ERROR);
   }
