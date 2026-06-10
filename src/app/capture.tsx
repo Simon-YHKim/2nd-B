@@ -15,7 +15,7 @@
 //     Editable chips, track toggle stays user-final.
 //   - Submit: persists via captureFromMarkdown + tag updates.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -201,6 +201,8 @@ export default function Capture() {
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
   const [extracting, setExtracting] = useState(false);
+  const extractingRef = useRef(false);
+  const ocrRunRef = useRef(0);
 
   const [submitting, setSubmitting] = useState(false);
   const [tagsEditable, setTagsEditable] = useState<string[]>([]);
@@ -355,6 +357,8 @@ export default function Capture() {
   }
 
   function reset() {
+    ocrRunRef.current += 1;
+    extractingRef.current = false;
     setBody("");
     setPickedFile(null);
     setPickedImage(null);
@@ -370,7 +374,7 @@ export default function Capture() {
   }
 
   async function pickImage(source: "library" | "camera") {
-    if (!userId) return;
+    if (!userId || extractingRef.current) return;
     try {
       const img = await pickImageAsset(source);
       if (!img) return;
@@ -390,12 +394,18 @@ export default function Capture() {
   }
 
   async function runExtract() {
-    if (!userId || !pickedImage) return;
+    if (!userId || !pickedImage || extractingRef.current) return;
+    const image = pickedImage;
+    const runId = ocrRunRef.current + 1;
+    ocrRunRef.current = runId;
+    extractingRef.current = true;
     setExtracting(true);
     try {
-      const md = await ocrImageAsset(userId, locale, pickedImage, isMinor === true);
+      const md = await ocrImageAsset(userId, locale, image, isMinor === true);
+      if (ocrRunRef.current !== runId) return;
       setBody(md);
     } catch (e) {
+      if (ocrRunRef.current !== runId) return;
       if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
       const feedback = imageOcrFeedback(e);
       const copy = feedbackCopy(feedback.key);
@@ -406,7 +416,10 @@ export default function Capture() {
         feedback.retryable ? () => void runExtract() : undefined,
       );
     } finally {
-      setExtracting(false);
+      if (ocrRunRef.current === runId) {
+        extractingRef.current = false;
+        setExtracting(false);
+      }
     }
   }
 
@@ -436,7 +449,7 @@ export default function Capture() {
     setTagsEditable((prev) => [...prev, norm].slice(0, 10));
   }
 
-  const canSubmit = !!userId && !submitting && (
+  const canSubmit = !!userId && !submitting && !extracting && (
     (mode === "journal" && journalGate.unlocked && journalUsage.allowed && body.trim().length > 0) ||
     (mode === "memo" && body.trim().length > 0) ||
     (mode === "linkclip" && body.trim().length > 0) ||
@@ -827,7 +840,8 @@ export default function Capture() {
                   return (
                     <Pressable
                       key={m}
-                      style={[styles.modeTab, active && styles.modeTabActive]}
+                      style={[styles.modeTab, active && styles.modeTabActive, extracting && styles.modeTabDisabled]}
+                      disabled={extracting}
                       onPress={() => {
                         setMode(m);
                         if (m !== "journal") setShowAdvancedModes(true);
@@ -837,7 +851,7 @@ export default function Capture() {
                       }}
                       hitSlop={8}
                       accessibilityRole="tab"
-                      accessibilityState={{ selected: active }}
+                      accessibilityState={{ selected: active, disabled: extracting }}
                       accessibilityLabel={`${label}. ${help}`}
                       accessibilityHint={help}
                     >
@@ -850,7 +864,13 @@ export default function Capture() {
                 })}
                 <Pressable
                   key="advanced-toggle"
-                  style={[styles.modeTab, styles.modeMoreTab, advancedModesExpanded && styles.modeMoreTabExpanded]}
+                  style={[
+                    styles.modeTab,
+                    styles.modeMoreTab,
+                    advancedModesExpanded && styles.modeMoreTabExpanded,
+                    extracting && styles.modeTabDisabled,
+                  ]}
+                  disabled={extracting}
                   onPress={() => {
                     if (advancedModesExpanded) {
                       setShowAdvancedModes(false);
@@ -864,7 +884,7 @@ export default function Capture() {
                   }}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityState={{ expanded: advancedModesExpanded }}
+                  accessibilityState={{ expanded: advancedModesExpanded, disabled: extracting }}
                   accessibilityLabel={advancedModesExpanded ? t("sections.mode.less") : t("sections.mode.more")}
                   accessibilityHint={advancedModesExpanded ? t("sections.mode.lessHint") : t("sections.mode.moreHint")}
                 >
@@ -1188,7 +1208,7 @@ export default function Capture() {
                   : ({ pressed }) => [styles.tossBtn, pressed && styles.tossBtnPressed]
               }
               accessibilityRole="button"
-              accessibilityState={{ disabled: !canSubmit, busy: submitting }}
+              accessibilityState={{ disabled: !canSubmit, busy: submitting || extracting }}
             >
               <Text style={[styles.tossBtnText, !canSubmit && styles.tossBtnTextDisabled]}>
                 {submitting
@@ -1481,6 +1501,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   modeTabActive: { backgroundColor: semantic.brand },
+  modeTabDisabled: { opacity: 0.55 },
   modeMoreTab: {
     // O-11 P2: GB language is solid 2px sharp corners, not dashed 1px.
     borderWidth: gameboy.borderWidth,

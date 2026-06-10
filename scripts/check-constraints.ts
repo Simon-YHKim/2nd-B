@@ -766,7 +766,7 @@ results.push(
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
     const researchTablists = (research.match(/accessibilityRole="tablist"/g) ?? []).length;
-    const captureSelected = (capture.match(/accessibilityState=\{\{ selected: active \}\}/g) ?? []).length;
+    const captureSelected = (capture.match(/accessibilityState=\{\{ selected: active(?:, disabled: extracting)? \}\}/g) ?? []).length;
     const inboxRoles = (inbox.match(/accessibilityRole=/g) ?? []).length;
     const signInRoles = (signIn.match(/accessibilityRole="button"/g) ?? []).length;
     const homeRoles = (home.match(/accessibilityRole="button"/g) ?? []).length;
@@ -820,7 +820,7 @@ results.push(
       capture.includes("ModeGlyph mode={m} color={color} label={label}") &&
       capture.includes("const BASIC_CAPTURE_MODES") &&
       capture.includes("const visibleModes = advancedModesExpanded ? CAPTURE_MODES : BASIC_CAPTURE_MODES") &&
-      capture.includes("accessibilityState={{ expanded: advancedModesExpanded }}") &&
+      /accessibilityState=\{\{ expanded: advancedModesExpanded(?:, disabled: extracting)? \}\}/.test(capture) &&
       capture.includes("accessibilityState={{ expanded: showExtras }}") &&
       capture.includes('accessibilityRole="checkbox"') &&
       capture.includes("accessibilityState={{ checked: askAdvisor }}") &&
@@ -1019,6 +1019,29 @@ results.push(
       note: ok
         ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
         : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
+    };
+  }),
+);
+
+results.push(
+  check("CaptureOcrBusyGuard", () => {
+    const capture = read("src/app/capture.tsx");
+    const ok =
+      capture.includes("const extractingRef = useRef(false);") &&
+      capture.includes("const ocrRunRef = useRef(0);") &&
+      capture.includes("if (!userId || !pickedImage || extractingRef.current) return;") &&
+      capture.includes("if (ocrRunRef.current !== runId) return;") &&
+      capture.includes("!!userId && !submitting && !extracting") &&
+      capture.includes("disabled={extracting}") &&
+      capture.includes("accessibilityState={{ selected: active, disabled: extracting }}") &&
+      capture.includes("accessibilityState={{ expanded: advancedModesExpanded, disabled: extracting }}") &&
+      capture.includes("accessibilityState={{ disabled: !canSubmit, busy: submitting || extracting }}");
+    return {
+      id: "CaptureOcrBusyGuard",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "capture OCR blocks stale extraction writes, duplicate runs, submit, and mode toggles while extracting"
+        : "capture OCR busy state must guard duplicate/stale extraction writes and disable submit/mode controls",
     };
   }),
 );
