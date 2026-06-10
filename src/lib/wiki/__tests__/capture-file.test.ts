@@ -44,7 +44,13 @@ jest.mock(
   { virtual: true },
 );
 
-import { extractText, normalizeFileMimeType, pickFile } from "../capture-file";
+import {
+  MAX_EXTRACTED_FILE_TEXT_CHARS,
+  extractText,
+  normalizeFileMimeType,
+  normalizeFileTextResult,
+  pickFile,
+} from "../capture-file";
 
 const documentPickerMock = DocumentPicker as unknown as {
   getDocumentAsync: jest.Mock;
@@ -82,6 +88,17 @@ describe("extractText", () => {
     expect(r).toBe("hello charset");
     expect(normalizeFileMimeType(" Application/PDF; version=1.7 ")).toBe("application/pdf");
     expect(normalizeFileMimeType("   ")).toBe("application/octet-stream");
+  });
+
+  test("caps extracted text with an explicit marker before it reaches capture body", async () => {
+    const longText = `${"x".repeat(MAX_EXTRACTED_FILE_TEXT_CHARS + 17)}\n`;
+    mockFetch(longText);
+
+    const r = await extractText("file:///long.txt", "text/plain", 100);
+
+    expect(r?.startsWith("x".repeat(MAX_EXTRACTED_FILE_TEXT_CHARS))).toBe(true);
+    expect(r).toContain(`[File text truncated: original ${MAX_EXTRACTED_FILE_TEXT_CHARS + 18} chars]`);
+    expect(normalizeFileTextResult("short text")).toBe("short text");
   });
 
   test("file > 10MB cap → null without fetching", async () => {

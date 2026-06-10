@@ -37,14 +37,21 @@ const DOCX_MIMES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
 
-// Hard cap: refuse to extract >10MB so we don't blow up the JS heap on
-// huge scans. The user still gets the filename + MIME back; the LLM can
-// classify those.
+// Hard caps: avoid blowing up the JS heap on huge scans, and keep extracted
+// text small enough for the capture input + downstream classifier prompt.
+// The user still gets the filename + MIME back when binary extraction is skipped.
 const MAX_EXTRACT_BYTES = 10 * 1024 * 1024;
+export const MAX_EXTRACTED_FILE_TEXT_CHARS = 60_000;
 
 export function normalizeFileMimeType(mimeType: string | null | undefined): string {
   const normalized = mimeType?.trim().toLowerCase().split(";")[0]?.trim();
   return normalized || "application/octet-stream";
+}
+
+export function normalizeFileTextResult(text: string): string {
+  if (text.length <= MAX_EXTRACTED_FILE_TEXT_CHARS) return text;
+  const marker = `\n\n[File text truncated: original ${text.length} chars]`;
+  return `${text.slice(0, MAX_EXTRACTED_FILE_TEXT_CHARS).trimEnd()}${marker}`;
 }
 
 export async function pickFile(): Promise<PickedFile | null> {
@@ -89,7 +96,7 @@ export async function extractText(uri: string, mimeType: string, size: number): 
   try {
     if (TEXT_MIMES.has(normalizedMimeType)) {
       const blob = await fetch(uri);
-      return await blob.text();
+      return normalizeFileTextResult(await blob.text());
     }
     // PDF + DOCX extraction is web-only. Native picks the file but the
     // LLM gets metadata only — the user can still paste relevant excerpts
@@ -98,11 +105,13 @@ export async function extractText(uri: string, mimeType: string, size: number): 
 
     if (PDF_MIMES.has(normalizedMimeType)) {
       const buf = await (await fetch(uri)).arrayBuffer();
-      return await extractPdfText(buf);
+      const text = await extractPdfText(buf);
+      return text == null ? null : normalizeFileTextResult(text);
     }
     if (DOCX_MIMES.has(normalizedMimeType)) {
       const buf = await (await fetch(uri)).arrayBuffer();
-      return await extractDocxText(buf);
+      const text = await extractDocxText(buf);
+      return text == null ? null : normalizeFileTextResult(text);
     }
     return null;
   } catch {
