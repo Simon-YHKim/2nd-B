@@ -16,6 +16,7 @@ import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { deleteSource, listSources } from "@/lib/wiki/queries";
+import { promotePendingUploads } from "@/lib/wiki/promote-pending";
 import { runPhase1, readPhase1 } from "@/lib/wiki/phase1";
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { downloadRawClipping } from "@/lib/wiki/storage";
@@ -370,6 +371,12 @@ export default function Inbox() {
     async (uid: string) => {
       setError(null);
       try {
+        // Best-effort recovery before listing: clippings whose Storage copy
+        // didn't land at capture time (_body_fallback) get re-uploaded and
+        // their pending flag cleared. Cheap when nothing is pending.
+        await promotePendingUploads(uid).catch((e) => {
+          console.warn("[inbox] promote-pending failed", (e as Error).message);
+        });
         const data = await listSources(uid, { limit: 100 });
         setRows(data);
       } catch (e) {

@@ -94,6 +94,38 @@ export async function deleteSource(userId: string, sourceId: string): Promise<vo
   if (error) throw error;
 }
 
+/** Sources whose Storage upload failed at capture time (frontmatter carries
+ *  _storage_pending + _body_fallback, see capture.ts). Oldest first, bounded —
+ *  promote-pending retries opportunistically, not exhaustively. */
+export async function listStoragePendingSources(userId: string, limit = 10): Promise<SourceRow[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("sources")
+    .select("*")
+    .eq("user_id", userId)
+    .contains("frontmatter", { _storage_pending: true })
+    .order("captured_at", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as SourceRow[];
+}
+
+/** Replace a source's frontmatter wholesale (promote-pending clears the
+ *  _storage_pending/_body_fallback pair after a successful re-upload). */
+export async function updateSourceFrontmatter(
+  userId: string,
+  sourceId: string,
+  frontmatter: Record<string, unknown>,
+): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("sources")
+    .update({ frontmatter })
+    .eq("user_id", userId)
+    .eq("id", sourceId);
+  if (error) throw error;
+}
+
 // --- wiki_pages --------------------------------------------------------
 
 export interface UpsertWikiPageInput {
