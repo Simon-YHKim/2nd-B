@@ -794,6 +794,7 @@ describe("capture image OCR payload guards", () => {
     expect(enPrompt).toContain("tray");
     expect(enPrompt).toContain("panel");
     expect(enPrompt).toContain("[?]");
+    expect(enPrompt).toContain("brief no-text description in English");
     expect(enPrompt).toContain("Do not wrap the answer in code fences.");
 
     mockCallGemini.mockClear();
@@ -813,7 +814,10 @@ describe("capture image OCR payload guards", () => {
     expect(koPrompt).toContain("by-pass");
     expect(koPrompt).toContain("LOT");
     expect(koPrompt).toContain("WIP");
+    expect(koPrompt).toContain("Keep no-text descriptions in Korean.");
+    expect(koPrompt).toContain("brief no-text description in Korean");
     expect(koPrompt).toContain("[?]");
+    expect(koPrompt).toContain("Do not wrap the answer in code fences.");
   });
 
   test("exposes a narrow sentinel helper for UI branching", () => {

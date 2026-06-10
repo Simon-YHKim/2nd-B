@@ -45,7 +45,14 @@ const OCR_IMAGE_MIME_ALIASES: Record<string, string> = {
   "image/x-png": "image/png",
 };
 const OCR_DOMAIN_TERMS = "tact time, takt time, cycle time, CT, C/T, UPH, bottleneck, bypass, by-pass, rework, LOT, WIP, station, line, tray, unit, panel";
-const OCR_OUTPUT_GUARD = "Return only the transcription or brief no-text description. Do not add prefaces. Do not wrap the answer in code fences.";
+const OCR_DOMAIN_GUARD: Record<"en" | "ko", string> = {
+  en: `Preserve manufacturing/IE terms and abbreviations such as ${OCR_DOMAIN_TERMS} exactly as shown.`,
+  ko: `Preserve manufacturing/IE terms and abbreviations such as ${OCR_DOMAIN_TERMS} exactly as shown. Keep no-text descriptions in Korean.`,
+};
+const OCR_OUTPUT_GUARD: Record<"en" | "ko", string> = {
+  en: "Return only the transcription or brief no-text description in English. Do not add prefaces. Do not wrap the answer in code fences.",
+  ko: "Return only the transcription or brief no-text description in Korean. Do not add prefaces. Do not wrap the answer in code fences.",
+};
 const GENERIC_OCR_IMAGE_MIME_TYPES = new Set(["application/octet-stream"]);
 
 const LLM_IMAGE_ERROR_TO_OCR_ERROR: Record<string, string> = {
@@ -69,7 +76,7 @@ const OCR_PROMPT: Record<"en" | "ko", string> = {
 };
 
 function ocrPromptForLocale(locale: "en" | "ko"): string {
-  return `${OCR_PROMPT[locale]}\n\nPreserve manufacturing/IE terms and abbreviations such as ${OCR_DOMAIN_TERMS} exactly as shown.\n\n${OCR_OUTPUT_GUARD}`;
+  return `${OCR_PROMPT[locale]}\n\n${OCR_DOMAIN_GUARD[locale]}\n\n${OCR_OUTPUT_GUARD[locale]}`;
 }
 
 export function isImageOcrTooLargeError(error: unknown): boolean {
