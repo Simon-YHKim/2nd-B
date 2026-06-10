@@ -57,6 +57,15 @@ const PNG_IMAGE_BASE64 = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
   0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00,
 ]).toString("base64");
+const GIF_IMAGE_BASE64 = Buffer.from([
+  0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01,
+  0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+]).toString("base64");
+const AVIF_IMAGE_BASE64 = Buffer.from([
+  0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x61,
+  0x76, 0x69, 0x66, 0x00, 0x00, 0x00, 0x00, 0x61, 0x76,
+  0x69, 0x66,
+]).toString("base64");
 
 const mockCallGemini = callGemini as jest.MockedFunction<typeof callGemini>;
 const imagePickerMock = ImagePicker as unknown as {
@@ -160,6 +169,8 @@ describe("capture image OCR payload guards", () => {
     expect(geminiProxySource).toContain("BASE64_IMAGE_DATA_RE");
     expect(geminiProxySource).toContain("MIN_IMAGE_SIGNATURE_BYTES = 12");
     expect(geminiProxySource).toContain("sniffImageMimeType");
+    expect(geminiProxySource).toContain("sniffUnsupportedImageMimeType");
+    expect(geminiProxySource).toContain("ISO_UNSUPPORTED_IMAGE_BRANDS");
     expect(geminiProxySource).toContain("imageMimeCompatible");
     expect(geminiProxySource).toContain("normalizeImageMimeType");
     expect(geminiProxySource).toContain("parseImageBase64Input");
@@ -184,6 +195,8 @@ describe("capture image OCR payload guards", () => {
     expect(geminiWrapperSource).toContain("BASE64_INLINE_IMAGE_RE");
     expect(geminiWrapperSource).toContain("MIN_INLINE_IMAGE_SIGNATURE_BYTES = 12");
     expect(geminiWrapperSource).toContain("sniffInlineImageMimeType");
+    expect(geminiWrapperSource).toContain("sniffUnsupportedInlineImageMimeType");
+    expect(geminiWrapperSource).toContain("ISO_UNSUPPORTED_IMAGE_BRANDS");
     expect(geminiWrapperSource).toContain("inlineImageMimeCompatible");
     expect(geminiWrapperSource).toContain("parsePromptImageData");
     expect(geminiWrapperSource).toContain("GENERIC_INLINE_IMAGE_MIME");
@@ -721,6 +734,25 @@ describe("capture image OCR payload guards", () => {
         base64: `data:image/png;base64,${PNG_IMAGE_BASE64}`,
       }),
     ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
+
+    expect(mockCallGemini).not.toHaveBeenCalled();
+  });
+
+  test("rejects known unsupported image signatures without declared MIME before calling Gemini", async () => {
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "",
+        base64: `data:application/octet-stream;base64,${GIF_IMAGE_BASE64}`,
+      }),
+    ).rejects.toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
+
+    expect(() => normalizeOcrImagePayload({
+      base64: GIF_IMAGE_BASE64,
+    })).toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
+
+    expect(() => normalizeOcrImagePayload({
+      base64: `data:application/octet-stream;base64,${AVIF_IMAGE_BASE64}`,
+    })).toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
 
     expect(mockCallGemini).not.toHaveBeenCalled();
   });

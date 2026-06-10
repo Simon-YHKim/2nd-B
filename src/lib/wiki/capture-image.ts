@@ -59,6 +59,7 @@ const MIN_OCR_IMAGE_SIGNATURE_BYTES = 12;
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const ISO_HEIC_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs"]);
 const ISO_HEIF_BRANDS = new Set(["mif1", "msf1"]);
+const ISO_UNSUPPORTED_IMAGE_BRANDS = new Set(["avif", "avis"]);
 
 const OCR_PROMPT: Record<"en" | "ko", string> = {
   en: "Transcribe all readable text in this image as clean markdown. Preserve visible line breaks, headings, lists, and markdown tables where possible. Capture numeric values, units, labels, timestamps, checkboxes, and engineering terms such as tact time, cycle time, and UPH exactly as shown. Mark unclear characters with [?] instead of guessing. If the image has no readable text, describe what you see in 1-2 sentences in English.",
@@ -157,6 +158,9 @@ export function normalizeOcrImagePayload(image: {
   }
   const sniffedMimeType = sniffOcrImageMimeType(base64);
   if (!sniffedMimeType) {
+    if (sniffUnsupportedOcrImageMimeType(base64)) {
+      throw new Error(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
+    }
     throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
   }
   if (declaredMimeType && !areOcrImageMimeTypesCompatible(declaredMimeType, sniffedMimeType)) {
@@ -218,6 +222,25 @@ function sniffOcrImageMimeType(base64: string): AllowedOcrImageMimeType | null {
   return null;
 }
 
+function sniffUnsupportedOcrImageMimeType(base64: string): string | null {
+  const bytes = decodeBase64Prefix(base64, 32);
+  if (bytes.length < MIN_OCR_IMAGE_SIGNATURE_BYTES) return null;
+  const gifSignature = asciiAt(bytes, 0, 6);
+  if (gifSignature === "GIF87a" || gifSignature === "GIF89a") return "image/gif";
+  if (asciiAt(bytes, 0, 2) === "BM") return "image/bmp";
+  if (
+    (bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00) ||
+    (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a)
+  ) {
+    return "image/tiff";
+  }
+  if (asciiAt(bytes, 4, 4) === "ftyp") {
+    const brand = isoImageBrand(bytes);
+    if (brand && ISO_UNSUPPORTED_IMAGE_BRANDS.has(brand)) return "image/avif";
+  }
+  return null;
+}
+
 function decodeBase64Prefix(base64: string, maxBytes: number): number[] {
   const bytes: number[] = [];
   for (let i = 0; i < base64.length && bytes.length < maxBytes; i += 4) {
@@ -250,7 +273,7 @@ function asciiAt(bytes: number[], start: number, length: number): string {
 function isoImageBrand(bytes: number[]): string | null {
   for (let offset = 8; offset + 4 <= bytes.length; offset += 4) {
     const brand = asciiAt(bytes, offset, 4);
-    if (ISO_HEIC_BRANDS.has(brand) || ISO_HEIF_BRANDS.has(brand)) return brand;
+    if (ISO_HEIC_BRANDS.has(brand) || ISO_HEIF_BRANDS.has(brand) || ISO_UNSUPPORTED_IMAGE_BRANDS.has(brand)) return brand;
   }
   return null;
 }

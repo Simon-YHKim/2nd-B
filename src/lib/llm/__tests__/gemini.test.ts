@@ -20,6 +20,15 @@ const PNG_IMAGE_BASE64 = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
   0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00,
 ]).toString("base64");
+const GIF_IMAGE_BASE64 = Buffer.from([
+  0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01,
+  0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+]).toString("base64");
+const AVIF_IMAGE_BASE64 = Buffer.from([
+  0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x61,
+  0x76, 0x69, 0x66, 0x00, 0x00, 0x00, 0x00, 0x61, 0x76,
+  0x69, 0x66,
+]).toString("base64");
 
 jest.mock("@google/genai", () => {
   return {
@@ -369,6 +378,26 @@ describe("callGemini", () => {
         purpose: "capture_ocr",
         user: "Transcribe the text in this image.",
         image: { mimeType: "image/gif", data: `data:image/png;base64,${PNG_IMAGE_BASE64}` },
+      }),
+    ).rejects.toThrow("llm_image_unsupported_type");
+
+    await expect(
+      callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "capture_ocr",
+        user: "Transcribe the text in this image.",
+        image: { mimeType: "", data: `data:application/octet-stream;base64,${GIF_IMAGE_BASE64}` },
+      }),
+    ).rejects.toThrow("llm_image_unsupported_type");
+
+    await expect(
+      callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "capture_ocr",
+        user: "Transcribe the text in this image.",
+        image: { mimeType: "", data: AVIF_IMAGE_BASE64 },
       }),
     ).rejects.toThrow("llm_image_unsupported_type");
 

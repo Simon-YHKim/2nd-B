@@ -113,6 +113,7 @@ const MIN_IMAGE_SIGNATURE_BYTES = 12;
 const PNG_IMAGE_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const ISO_HEIC_BRANDS = new Set(['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs']);
 const ISO_HEIF_BRANDS = new Set(['mif1', 'msf1']);
+const ISO_UNSUPPORTED_IMAGE_BRANDS = new Set(['avif', 'avis']);
 
 function normalizeImageBase64Data(data: string): string {
   const normalized = data.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
@@ -169,6 +170,25 @@ function sniffImageMimeType(base64: string): string | null {
   return null;
 }
 
+function sniffUnsupportedImageMimeType(base64: string): string | null {
+  const bytes = decodeBase64Prefix(base64, 32);
+  if (bytes.length < MIN_IMAGE_SIGNATURE_BYTES) return null;
+  const gifSignature = asciiAt(bytes, 0, 6);
+  if (gifSignature === 'GIF87a' || gifSignature === 'GIF89a') return 'image/gif';
+  if (asciiAt(bytes, 0, 2) === 'BM') return 'image/bmp';
+  if (
+    (bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00) ||
+    (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a)
+  ) {
+    return 'image/tiff';
+  }
+  if (asciiAt(bytes, 4, 4) === 'ftyp') {
+    const brand = isoImageBrand(bytes);
+    if (brand && ISO_UNSUPPORTED_IMAGE_BRANDS.has(brand)) return 'image/avif';
+  }
+  return null;
+}
+
 function decodeBase64Prefix(base64: string, maxBytes: number): number[] {
   const bytes: number[] = [];
   for (let i = 0; i < base64.length && bytes.length < maxBytes; i += 4) {
@@ -201,7 +221,7 @@ function asciiAt(bytes: number[], start: number, length: number): string {
 function isoImageBrand(bytes: number[]): string | null {
   for (let offset = 8; offset + 4 <= bytes.length; offset += 4) {
     const brand = asciiAt(bytes, offset, 4);
-    if (ISO_HEIC_BRANDS.has(brand) || ISO_HEIF_BRANDS.has(brand)) return brand;
+    if (ISO_HEIC_BRANDS.has(brand) || ISO_HEIF_BRANDS.has(brand) || ISO_UNSUPPORTED_IMAGE_BRANDS.has(brand)) return brand;
   }
   return null;
 }
@@ -388,7 +408,14 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);
     }
     const sniffedMime = sniffImageMimeType(normalizedData);
-    if (!sniffedMime || (declaredImageMime && !imageMimeCompatible(declaredImageMime, sniffedMime))) {
+    if (!sniffedMime) {
+      const unsupportedMime = sniffUnsupportedImageMimeType(normalizedData);
+      if (unsupportedMime) {
+        return jsonResponse(req, { error: 'image_mime_not_allowed', got: unsupportedMime }, 415);
+      }
+      return jsonResponse(req, { error: 'image_invalid_data' }, 400);
+    }
+    if (declaredImageMime && !imageMimeCompatible(declaredImageMime, sniffedMime)) {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);
     }
     imagePart = { mimeType: declaredImageMime ?? sniffedMime, data: normalizedData };

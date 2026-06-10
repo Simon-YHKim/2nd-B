@@ -42,6 +42,7 @@ const MIN_INLINE_IMAGE_SIGNATURE_BYTES = 12;
 const PNG_INLINE_IMAGE_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const ISO_HEIC_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs"]);
 const ISO_HEIF_BRANDS = new Set(["mif1", "msf1"]);
+const ISO_UNSUPPORTED_IMAGE_BRANDS = new Set(["avif", "avis"]);
 const LLM_IMAGE_INVALID_DATA_ERROR = "llm_image_invalid_data";
 const LLM_IMAGE_TOO_LARGE_ERROR = "llm_image_too_large";
 const LLM_IMAGE_UNSUPPORTED_TYPE_ERROR = "llm_image_unsupported_type";
@@ -76,7 +77,13 @@ function normalizePromptImage(image: { mimeType: string; data: string }): { mime
     throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
   }
   const sniffedMime = sniffInlineImageMimeType(data);
-  if (!sniffedMime || (declaredMimeType && !inlineImageMimeCompatible(declaredMimeType, sniffedMime))) {
+  if (!sniffedMime) {
+    if (sniffUnsupportedInlineImageMimeType(data)) {
+      throw new Error(LLM_IMAGE_UNSUPPORTED_TYPE_ERROR);
+    }
+    throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
+  }
+  if (declaredMimeType && !inlineImageMimeCompatible(declaredMimeType, sniffedMime)) {
     throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
   }
   return { mimeType: declaredMimeType ?? sniffedMime, data };
@@ -135,6 +142,25 @@ function sniffInlineImageMimeType(base64: string): string | null {
   return null;
 }
 
+function sniffUnsupportedInlineImageMimeType(base64: string): string | null {
+  const bytes = decodeBase64Prefix(base64, 32);
+  if (bytes.length < MIN_INLINE_IMAGE_SIGNATURE_BYTES) return null;
+  const gifSignature = asciiAt(bytes, 0, 6);
+  if (gifSignature === "GIF87a" || gifSignature === "GIF89a") return "image/gif";
+  if (asciiAt(bytes, 0, 2) === "BM") return "image/bmp";
+  if (
+    (bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00) ||
+    (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a)
+  ) {
+    return "image/tiff";
+  }
+  if (asciiAt(bytes, 4, 4) === "ftyp") {
+    const brand = isoImageBrand(bytes);
+    if (brand && ISO_UNSUPPORTED_IMAGE_BRANDS.has(brand)) return "image/avif";
+  }
+  return null;
+}
+
 function decodeBase64Prefix(base64: string, maxBytes: number): number[] {
   const bytes: number[] = [];
   for (let i = 0; i < base64.length && bytes.length < maxBytes; i += 4) {
@@ -167,7 +193,7 @@ function asciiAt(bytes: number[], start: number, length: number): string {
 function isoImageBrand(bytes: number[]): string | null {
   for (let offset = 8; offset + 4 <= bytes.length; offset += 4) {
     const brand = asciiAt(bytes, offset, 4);
-    if (ISO_HEIC_BRANDS.has(brand) || ISO_HEIF_BRANDS.has(brand)) return brand;
+    if (ISO_HEIC_BRANDS.has(brand) || ISO_HEIF_BRANDS.has(brand) || ISO_UNSUPPORTED_IMAGE_BRANDS.has(brand)) return brand;
   }
   return null;
 }
