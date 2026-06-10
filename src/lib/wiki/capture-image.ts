@@ -191,9 +191,18 @@ function parseOcrImageBase64Input(input: string): { base64: string; mimeType: st
   }
   const dataUrlMimeType = normalizeDeclaredOcrImageMimeType(rawMimeType);
   return {
-    base64: trimmed.slice(commaIndex + 1),
+    base64: decodeOcrImageDataUrlPayload(trimmed.slice(commaIndex + 1)),
     mimeType: dataUrlMimeType && GENERIC_OCR_IMAGE_MIME_TYPES.has(dataUrlMimeType) ? null : dataUrlMimeType,
   };
+}
+
+function decodeOcrImageDataUrlPayload(payload: string): string {
+  if (!payload.includes("%")) return payload;
+  try {
+    return decodeURIComponent(payload);
+  } catch {
+    throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
+  }
 }
 
 function sniffOcrImageMimeType(base64: string): AllowedOcrImageMimeType | null {

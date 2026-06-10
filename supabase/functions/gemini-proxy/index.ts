@@ -139,10 +139,21 @@ function parseImageBase64Input(input: string): { data: string; mimeType: string 
   const rawMimeType = parts.shift() ?? '';
   if (!parts.some((part) => part.toLowerCase() === 'base64')) return null;
   const dataUrlMimeType = normalizeImageMimeType(rawMimeType);
+  const decodedData = decodeImageDataUrlPayload(trimmed.slice(commaIndex + 1));
+  if (decodedData == null) return null;
   return {
-    data: trimmed.slice(commaIndex + 1),
+    data: decodedData,
     mimeType: GENERIC_IMAGE_MIME.has(dataUrlMimeType) ? null : dataUrlMimeType,
   };
+}
+
+function decodeImageDataUrlPayload(payload: string): string | null {
+  if (!payload.includes('%')) return payload;
+  try {
+    return decodeURIComponent(payload);
+  } catch {
+    return null;
+  }
 }
 
 function sniffImageMimeType(base64: string): string | null {

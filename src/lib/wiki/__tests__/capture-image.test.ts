@@ -165,6 +165,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiProxySource).toContain("parseImageBase64Input");
     expect(geminiProxySource).toContain("GENERIC_IMAGE_MIME");
     expect(geminiProxySource).toContain("replace(/-/g, '+').replace(/_/g, '/')");
+    expect(geminiProxySource).toContain("decodeImageDataUrlPayload");
     expect(geminiProxySource).toContain("GENERIC_IMAGE_MIME.has(dataUrlMimeType) ? null : dataUrlMimeType");
     expect(geminiProxySource).toContain("IMAGE_MIME_ALIASES[normalized] ?? normalized");
     expect(geminiProxySource).toContain("!imageMimeCompatible(parsedData.mimeType, declaredMime)");
@@ -187,6 +188,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiWrapperSource).toContain("parsePromptImageData");
     expect(geminiWrapperSource).toContain("GENERIC_INLINE_IMAGE_MIME");
     expect(geminiWrapperSource).toContain('replace(/-/g, "+").replace(/_/g, "/")');
+    expect(geminiWrapperSource).toContain("decodePromptImageDataUrlPayload");
     expect(geminiWrapperSource).toContain("GENERIC_INLINE_IMAGE_MIME.has(dataUrlMimeType) ? null : dataUrlMimeType");
     expect(geminiWrapperSource).toContain("!inlineImageMimeCompatible(parsed.mimeType, outerMimeType)");
     expect(geminiWrapperSource).toContain("INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType");
@@ -494,6 +496,25 @@ describe("capture image OCR payload guards", () => {
     expect(normalizeOcrImageBase64Data(JPEG_PADDED_IMAGE_BASE64_URL)).toBe(JPEG_PADDED_IMAGE_BASE64);
   });
 
+  test("decodes percent-encoded data URL image payloads before calling Gemini", async () => {
+    await ocrImageAsset("u1", "en", {
+      mimeType: "image/jpeg",
+      base64: `data:image/jpeg;base64,${encodeURIComponent(JPEG_PADDED_IMAGE_BASE64)}`,
+    });
+
+    expect(mockCallGemini).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image: { mimeType: "image/jpeg", data: JPEG_PADDED_IMAGE_BASE64 },
+      }),
+    );
+    expect(normalizeOcrImagePayload({
+      base64: `data:image/jpeg;base64,${encodeURIComponent(JPEG_PADDED_IMAGE_BASE64)}`,
+    })).toEqual({
+      mimeType: "image/jpeg",
+      base64: JPEG_PADDED_IMAGE_BASE64,
+    });
+  });
+
   test("allows payloads at the mirrored server cap", async () => {
     const base64 = JPEG_IMAGE_BASE64 + "A".repeat(MAX_OCR_IMAGE_BASE64_BYTES - JPEG_IMAGE_BASE64.length);
 
@@ -670,6 +691,13 @@ describe("capture image OCR payload guards", () => {
       ocrImageAsset("u1", "en", {
         mimeType: "",
         base64: `data:base64,${PNG_IMAGE_BASE64}`,
+      }),
+    ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
+
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/jpeg",
+        base64: `data:image/jpeg;base64,%E0%A4%A`,
       }),
     ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
 

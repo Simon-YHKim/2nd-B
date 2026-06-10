@@ -108,9 +108,18 @@ function parsePromptImageData(data: string): { data: string; mimeType: string | 
   const normalizedMimeType = rawMimeType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
   const dataUrlMimeType = INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType;
   return {
-    data: trimmed.slice(commaIndex + 1),
+    data: decodePromptImageDataUrlPayload(trimmed.slice(commaIndex + 1)),
     mimeType: GENERIC_INLINE_IMAGE_MIME.has(dataUrlMimeType) ? null : dataUrlMimeType,
   };
+}
+
+function decodePromptImageDataUrlPayload(payload: string): string {
+  if (!payload.includes("%")) return payload;
+  try {
+    return decodeURIComponent(payload);
+  } catch {
+    throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
+  }
 }
 
 function sniffInlineImageMimeType(base64: string): string | null {
