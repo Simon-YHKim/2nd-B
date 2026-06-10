@@ -86,6 +86,11 @@ describe("capture image OCR payload guards", () => {
   test("mirrors gemini-proxy image payload policy exactly", () => {
     expect(MAX_OCR_IMAGE_BASE64_BYTES).toBe(proxyImageBase64Cap());
     expect([...ALLOWED_OCR_IMAGE_MIME_TYPES]).toEqual(proxyImageMimeAllowlist());
+    expect(geminiProxySource).toContain("BASE64_IMAGE_DATA_RE");
+    expect(geminiProxySource).toContain("MIN_IMAGE_SIGNATURE_BYTES = 12");
+    expect(geminiProxySource).toContain("sniffImageMimeType");
+    expect(geminiProxySource).toContain("imageMimeCompatible");
+    expect(geminiProxySource).toContain("image_invalid_data");
   });
 
   test("rejects oversized base64 before calling Gemini", async () => {
