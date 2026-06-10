@@ -28,6 +28,11 @@ import {
 const IMAGE_GENERATION_CONFIG = { maxOutputTokens: 4096, temperature: 0.2 } as const;
 const MAX_INLINE_IMAGE_BASE64_LEN = 2_700_000;
 const ALLOWED_INLINE_IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+const INLINE_IMAGE_MIME_ALIASES: Record<string, string> = {
+  "image/jpg": "image/jpeg",
+  "image/pjpeg": "image/jpeg",
+  "image/x-png": "image/png",
+};
 const BASE64_INLINE_IMAGE_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const BASE64_INLINE_IMAGE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const BASE64_INLINE_IMAGE_VALUES = new Map(Array.from(BASE64_INLINE_IMAGE_ALPHABET, (char, value) => [char, value]));
@@ -40,7 +45,8 @@ const LLM_IMAGE_TOO_LARGE_ERROR = "llm_image_too_large";
 const LLM_IMAGE_UNSUPPORTED_TYPE_ERROR = "llm_image_unsupported_type";
 
 function normalizePromptImage(image: { mimeType: string; data: string }): { mimeType: string; data: string } {
-  const mimeType = image.mimeType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
+  const normalizedMimeType = image.mimeType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
+  const mimeType = INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType;
   if (!ALLOWED_INLINE_IMAGE_MIME.has(mimeType)) {
     throw new Error(LLM_IMAGE_UNSUPPORTED_TYPE_ERROR);
   }

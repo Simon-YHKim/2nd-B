@@ -110,6 +110,12 @@ function llmInlineImageMimeAllowlist(): string[] {
   return Array.from(match[1]!.matchAll(/"([^"]+)"/g), (m) => m[1]!);
 }
 
+function llmInlineImageMimeAliases(): Record<string, string> {
+  const match = geminiWrapperSource.match(/const INLINE_IMAGE_MIME_ALIASES: Record<string, string> = \{([\s\S]*?)\};/);
+  if (!match) throw new Error("callGemini inline image MIME alias map not found");
+  return Object.fromEntries(Array.from(match[1]!.matchAll(/"([^"]+)": "([^"]+)"/g), (m) => [m[1]!, m[2]!]));
+}
+
 function proxyHttpError(status: number, error: string): Error {
   return Object.assign(new Error("proxy request failed"), {
     context: {
@@ -152,11 +158,12 @@ describe("capture image OCR payload guards", () => {
   test("mirrors callGemini inline image preflight policy exactly", () => {
     expect(MAX_OCR_IMAGE_BASE64_BYTES).toBe(llmInlineImageBase64Cap());
     expect([...ALLOWED_OCR_IMAGE_MIME_TYPES]).toEqual(llmInlineImageMimeAllowlist());
+    expect(llmInlineImageMimeAliases()).toEqual(ocrImageMimeAliases());
     expect(geminiWrapperSource).toContain("BASE64_INLINE_IMAGE_RE");
     expect(geminiWrapperSource).toContain("MIN_INLINE_IMAGE_SIGNATURE_BYTES = 12");
     expect(geminiWrapperSource).toContain("sniffInlineImageMimeType");
     expect(geminiWrapperSource).toContain("inlineImageMimeCompatible");
-    expect(geminiWrapperSource).toContain('split(";")[0]?.trim() ?? ""');
+    expect(geminiWrapperSource).toContain("INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType");
     expect(geminiWrapperSource).toContain("llm_image_invalid_data");
   });
 
