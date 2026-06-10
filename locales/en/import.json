@@ -25,7 +25,8 @@
   },
   "toast": {
     "promptPlaced": "The questions were placed below. Long-press to copy them.",
-    "saveFailed": "Couldn't save it. The sorted result is still here; please try again."
+    "saveFailed": "Couldn't save it. The sorted result is still here; please try again.",
+    "storagePending": "Saved. The backup file copy didn't upload this time; your text is kept safely."
   },
   "result": {
     "eyebrow": "Sorted result",

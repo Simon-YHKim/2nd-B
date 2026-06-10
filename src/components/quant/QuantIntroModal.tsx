@@ -53,8 +53,10 @@ function useShouldShow(toolKey: string): { visible: boolean | null; markSeen: ()
   const markSeen = async () => {
     try {
       await AsyncStorage.setItem(storageKey, "1");
-    } catch {
-      // Best-effort; failing storage shouldn't block flow.
+    } catch (e) {
+      // Best-effort; failing storage shouldn't block flow — but leave a
+      // trace, or "intro keeps reappearing" bugs are undiagnosable.
+      if (typeof console !== "undefined") console.warn("[quant-intro] persist failed", e);
     }
   };
   return { visible, markSeen };

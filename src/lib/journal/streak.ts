@@ -6,7 +6,7 @@
 //
 // Pure function — caller passes the ISO timestamps of created records.
 
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+export const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 // Exported: the single "what day is this record" convention (KST-anchored).
 // insights.ts daySpan reuses it so streak and insights never disagree on a

@@ -1,7 +1,7 @@
 // Aggregate insights over a user's records. Pure function — caller fetches
 // the rows. Powers /insights and the "patterns" surface on the persona card.
 
-import { kstDayKey } from "./streak";
+import { KST_OFFSET_MS, kstDayKey } from "./streak";
 
 export interface InsightRecord {
   id: string;
@@ -36,6 +36,13 @@ function isoWeek(date: Date): string {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   const weekNum = Math.ceil(((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
   return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+}
+
+// KST-anchored ISO week: shift the instant by +9h so isoWeek's UTC getters
+// read KST wall-clock parts — the same anchoring trick as kstDayKey, keeping
+// weekly buckets on the same day convention as daySpan/streak/chat_usage.
+function kstIsoWeek(ms: number): string {
+  return isoWeek(new Date(ms + KST_OFFSET_MS));
 }
 
 /** A captured Source row. Non-journal Capture modes (memo/link/OCR/file)
@@ -95,26 +102,26 @@ export function computeInsights(records: InsightRecord[], opts: { tagLimit?: num
   );
 
   // By-week: a continuous run from the first to the most recent record's ISO
-  // week, gaps filled with 0, capped to the last 8. Filling gaps keeps the
-  // trend chart honest — a zero-activity week renders as an empty bar instead
-  // of silently collapsing, which previously made non-adjacent weeks look
-  // consecutive.
+  // week (KST-anchored, same convention as daySpan/streak), gaps filled with
+  // 0, capped to the last 8. Filling gaps keeps the trend chart honest — a
+  // zero-activity week renders as an empty bar instead of silently
+  // collapsing, which previously made non-adjacent weeks look consecutive.
   const weekCounts = new Map<string, number>();
   for (const r of sorted) {
-    const w = isoWeek(new Date(r.created_at));
+    const w = kstIsoWeek(Date.parse(r.created_at));
     weekCounts.set(w, (weekCounts.get(w) ?? 0) + 1);
   }
   const WEEK_MS = 7 * 86_400_000;
   const byWeekFull: { week: string; count: number }[] = [];
   const seenWeeks = new Set<string>();
   for (let t = firstDate.getTime(); t <= lastDate.getTime(); t += WEEK_MS) {
-    const w = isoWeek(new Date(t));
+    const w = kstIsoWeek(t);
     if (seenWeeks.has(w)) continue;
     seenWeeks.add(w);
     byWeekFull.push({ week: w, count: weekCounts.get(w) ?? 0 });
   }
   // The 7-day step can land just before lastDate's own week — make sure it's in.
-  const lastWeek = isoWeek(lastDate);
+  const lastWeek = kstIsoWeek(lastDate.getTime());
   if (!seenWeeks.has(lastWeek)) byWeekFull.push({ week: lastWeek, count: weekCounts.get(lastWeek) ?? 0 });
   const byWeek = byWeekFull.slice(-8);
 

@@ -44,7 +44,12 @@ export function markEmptyGraphDismissed(): void {
   memoryHydrated = true;
   ls()?.setItem(EMPTY_GRAPH_DISMISSED_KEY, at);
   const storage = nativeStorage();
-  if (storage) void storage.setItem(EMPTY_GRAPH_DISMISSED_KEY, at).catch(() => undefined);
+  // Best-effort persist with a trace (parity with onboarding/state.ts) — a
+  // silent failure means the empty-graph card reappears with nothing to debug.
+  if (storage)
+    void storage.setItem(EMPTY_GRAPH_DISMISSED_KEY, at).catch((e) => {
+      if (typeof console !== "undefined") console.warn("[empty-card] persist failed", e);
+    });
 }
 
 // `dismissed`: true = persisted dismissal, false = not dismissed, null = still
