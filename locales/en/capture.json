@@ -87,6 +87,7 @@
     "seeGraphHint": "Opens the graph and highlights this piece.",
     "seeOcrGraphHint": "Opens the graph and highlights this photo note.",
     "seeRecords": "View my records",
+    "seeRecordsHint": "Opens your records so you can find this entry again.",
     "captureMore": "Capture more",
     "storagePending": "Saved, but the backup file copy didn't upload this time. Your text is kept safely."
   },
@@ -104,7 +105,7 @@
   "journal": {
     "locked": {
       "title": "Journal locked",
-      "body": "Finish the onboarding quest to reach Lv{{level}} and unlock journaling.",
+      "body": "Reach Lv{{level}} to unlock journaling.",
       "status": "Current Lv{{current}} / Lv{{required}} required",
       "start": "Start onboarding"
     },
