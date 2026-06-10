@@ -393,7 +393,11 @@ function ChecklistItem({ ok, label }: { ok: boolean; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.xl },
+  scroll: {
+    paddingBottom: spacing.xl,
+    // Web only: cap the auth column (cycle-4 live QA) — no-op on native.
+    ...(Platform.OS === "web" ? { width: "100%" as const, maxWidth: 520, alignSelf: "center" as const } : {}),
+  },
   header: { gap: spacing.sm, marginBottom: spacing.lg },
   brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   localeButton: { minWidth: 44, minHeight: 44, alignItems: "flex-end", justifyContent: "center" },

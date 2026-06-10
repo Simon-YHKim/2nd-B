@@ -389,6 +389,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 56,
     paddingBottom: 32,
+    // Web only: cap the auth column so desktop viewports don't stretch the
+    // inputs and CTA edge-to-edge (cycle-4 live QA). Native screens are
+    // narrower than the cap, so this is a no-op there.
+    ...(Platform.OS === "web" ? { width: "100%" as const, maxWidth: 520, alignSelf: "center" as const } : {}),
   },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   brand: {
