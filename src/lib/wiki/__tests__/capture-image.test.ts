@@ -581,6 +581,32 @@ describe("capture image OCR payload guards", () => {
     expect(normalizeOcrTextResult("```python\nprint('ocr')\n```")).toBe("```python\nprint('ocr')\n```");
   });
 
+  test("removes assistant prefaces from OCR text without dropping real headings", async () => {
+    mockCallGemini.mockResolvedValueOnce({
+      text: "Here is the transcription:\n\n# Machine log\n- C/T: 42s",
+    } as Awaited<ReturnType<typeof callGemini>>);
+
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/png",
+        base64: PNG_IMAGE_BASE64,
+      }),
+    ).resolves.toBe("# Machine log\n- C/T: 42s");
+
+    expect(normalizeOcrTextResult("The text in the image reads:\n\nTray A\nUPH 85")).toBe(
+      "Tray A\nUPH 85",
+    );
+    expect(
+      normalizeOcrTextResult("Here is the extracted text:\n\n```md\n| LOT | WIP |\n| --- | --- |\n| A1 | 12 |\n```"),
+    ).toBe("| LOT | WIP |\n| --- | --- |\n| A1 | 12 |");
+    expect(normalizeOcrTextResult("다음은 이미지의 전사입니다:\n\n라인 1\nC/T 42초", "ko")).toBe(
+      "라인 1\nC/T 42초",
+    );
+    expect(normalizeOcrTextResult("Transcription:\nActual screen heading")).toBe(
+      "Transcription:\nActual screen heading",
+    );
+  });
+
   test("truncates oversized OCR text results with an explicit marker", async () => {
     const longText = `\n${"x".repeat(MAX_OCR_TEXT_CHARS + 17)}\n`;
     mockCallGemini.mockResolvedValueOnce({

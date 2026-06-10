@@ -69,6 +69,12 @@ const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const ISO_HEIC_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs"]);
 const ISO_HEIF_BRANDS = new Set(["mif1", "msf1"]);
 const ISO_UNSUPPORTED_IMAGE_BRANDS = new Set(["avif", "avis"]);
+const OCR_ASSISTANT_PREFACE_PATTERNS = [
+  /^(?:here(?:'s| is)|below is)\s+(?:the\s+)?(?:transcription|extracted text|image text|text from the image)\s*[:：]?\s*(?:\r?\n)+/i,
+  /^the\s+(?:text|content)\s+in\s+the\s+image\s+(?:is|reads)\s*[:：]?\s*(?:\r?\n)+/i,
+  /^(?:다음은|아래는)\s*(?:이미지(?:에서|의)?\s*)?(?:읽은\s*)?(?:텍스트|전사(?:문| 결과)?|추출된 텍스트)(?:입니다)?\s*[:：]?\s*(?:\r?\n)+/i,
+  /^이미지(?:에서|의)\s*(?:읽은|추출한)?\s*(?:텍스트|내용)(?:입니다)?\s*[:：]?\s*(?:\r?\n)+/i,
+];
 
 const OCR_PROMPT: Record<"en" | "ko", string> = {
   en: "Transcribe all readable text in this image as clean markdown. Preserve visible line breaks, headings, lists, and markdown tables where possible. Capture numeric values, units, labels, timestamps, checkboxes, and engineering terms such as tact time, cycle time, and UPH exactly as shown. Mark unclear characters with [?] instead of guessing. If the image has no readable text, describe what you see in 1-2 sentences in English.",
@@ -130,7 +136,9 @@ export function normalizeOcrImageBase64Data(data: string): string {
 }
 
 export function normalizeOcrTextResult(text: string, locale: "en" | "ko" = "en"): string {
-  const trimmed = unwrapOcrMarkdownFence(text.trim()).trim();
+  const trimmed = stripOcrAssistantPreface(
+    unwrapOcrMarkdownFence(stripOcrAssistantPreface(text.trim()).trim()).trim(),
+  ).trim();
   if (trimmed.length <= MAX_OCR_TEXT_CHARS) return trimmed;
   const marker = locale === "ko"
     ? `\n\n[OCR 텍스트 잘림: 원본 ${trimmed.length}자]`
@@ -141,6 +149,11 @@ export function normalizeOcrTextResult(text: string, locale: "en" | "ko" = "en")
 function unwrapOcrMarkdownFence(text: string): string {
   const match = text.match(/^```(?:markdown|md|text)[ \t]*\r?\n([\s\S]*?)(?:\r?\n)?```$/i);
   return match?.[1] ?? text;
+}
+
+function stripOcrAssistantPreface(text: string): string {
+  const pattern = OCR_ASSISTANT_PREFACE_PATTERNS.find((candidate) => candidate.test(text));
+  return pattern ? text.replace(pattern, "") : text;
 }
 
 export function normalizeOcrImagePayload(image: {
