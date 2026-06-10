@@ -89,6 +89,9 @@ describe("callAdvisor — live edge path (2026-06-03 re-audit fix)", () => {
     // ...while the curated RAG prompt (with crisis-reference text) rides in the
     // un-scanned `system` channel.
     expect(String(body.system)).toMatch(/Columbia-Suicide/);
+    // The advisor label puts the call behind the proxy's server-side
+    // entitlement gate (brain tier) — the canUsePremium mirror (#312).
+    expect(body.purpose).toBe("advisor");
     // proxy audited:true => no client double-write (C3 1:1)
     expect(auditMock).not.toHaveBeenCalled();
   });

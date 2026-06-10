@@ -333,6 +333,10 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
         system: input.system ?? null,
         user: input.user,
         model,
+        // Purpose label: lets the proxy apply purpose-aware policy (premium
+        // entitlement gate) and gives server logs call attribution. Labels are
+        // self-reported, so the proxy's tier-aware cap is the hard ceiling.
+        purpose: input.purpose,
         // Optional image payload for multimodal OCR / vision prompts.
         ...(input.image ? { image: input.image } : {}),
         // Structured-output schema (e.g. phase1). The proxy sets
@@ -675,7 +679,10 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       // fixes the prior false 422 AND keeps the server-side crisis gate effective
       // (a bypassed client can't smuggle crisis content through an unscanned
       // `user` channel — the gate scans exactly what is forwarded as the turn).
-      body: { system: systemPrompt, user: input.userMessage, model },
+      // purpose:"advisor" puts this call behind the proxy's server-side
+      // entitlement gate (brain tier) — the client's canUsePremium gate
+      // mirrored on the server (#312 punch item).
+      body: { system: systemPrompt, user: input.userMessage, model, purpose: "advisor" },
     });
     latencyMs = Date.now() - t0;
     if (error) {

@@ -84,55 +84,73 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       // Entry still saves normally — only the AI follow-up is withheld.
     } else if (args.kind === "journal") {
       // Engine 4 Advisor flow: layered safety + Path A RAG.
-      const res = await callAdvisor({
-        userId: args.userId,
-        userMessage: args.body,
-        locale: args.locale,
-        minor: args.minor,
-      });
-      const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
-      aiFollowup = {
-        text: cappedText,
-        zone: res.zone,
-        fixedTemplate: res.fixedTemplate,
-        matchedBatches: res.matchedBatches.slice(0, 4),
-        // Cap evidence stored on the row to keep ai_followup under 8 KB.
-        evidence: res.evidence.slice(0, 3).map((e) => ({
-          title: e.title.slice(0, 200),
-          doi: e.doi,
-          summary: e.summary ? e.summary.slice(0, 300) : null,
-        })),
-      };
+      // Best-effort by contract ("Entry still saves normally — only the AI
+      // follow-up is withheld"): crisis paths come BACK as fixed-template
+      // RESULTS (never thrown), so anything that throws here is an
+      // infrastructure or entitlement failure (e.g. the proxy's server-side
+      // 403 when the client tier was stale/forced) — the user's entry must
+      // still save without a follow-up, never fail the whole submit.
+      try {
+        const res = await callAdvisor({
+          userId: args.userId,
+          userMessage: args.body,
+          locale: args.locale,
+          minor: args.minor,
+        });
+        const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
+        aiFollowup = {
+          text: cappedText,
+          zone: res.zone,
+          fixedTemplate: res.fixedTemplate,
+          matchedBatches: res.matchedBatches.slice(0, 4),
+          // Cap evidence stored on the row to keep ai_followup under 8 KB.
+          evidence: res.evidence.slice(0, 3).map((e) => ({
+            title: e.title.slice(0, 200),
+            doi: e.doi,
+            summary: e.summary ? e.summary.slice(0, 300) : null,
+          })),
+        };
 
-      // Engine 6 (memorize): persist the observed pattern keyed by user.
-      // Skip RED zone (handled separately via crisis_events, never co-located
-      // with normal patterns) and skip fixed-template responses (which carry
-      // no inference signal). Best-effort: never block UX on memorize.
-      if (!res.fixedTemplate && res.zone !== "red") {
-        try {
-          const pattern = buildMemorizedPattern({
-            userId: args.userId,
-            matchedBatches: res.matchedBatches,
-            triggers: res.triggers,
-            text: `${args.body}\n\n${res.text}`,
-            zone: res.zone,
-          });
-          await supabase.from("memorized_patterns").insert(pattern);
-        } catch (e) {
-          if (typeof console !== "undefined") console.warn("[memorize] insert failed", e);
+        // Engine 6 (memorize): persist the observed pattern keyed by user.
+        // Skip RED zone (handled separately via crisis_events, never co-located
+        // with normal patterns) and skip fixed-template responses (which carry
+        // no inference signal). Best-effort: never block UX on memorize.
+        if (!res.fixedTemplate && res.zone !== "red") {
+          try {
+            const pattern = buildMemorizedPattern({
+              userId: args.userId,
+              matchedBatches: res.matchedBatches,
+              triggers: res.triggers,
+              text: `${args.body}\n\n${res.text}`,
+              zone: res.zone,
+            });
+            await supabase.from("memorized_patterns").insert(pattern);
+          } catch (e) {
+            if (typeof console !== "undefined") console.warn("[memorize] insert failed", e);
+          }
         }
+      } catch (e) {
+        if (typeof console !== "undefined")
+          console.warn("[records] advisor follow-up failed; saving without it", (e as Error).message);
       }
     } else {
-      // Audit response: lighter, no retrieval.
-      const res = await callGemini({
-        userId: args.userId,
-        locale: args.locale,
-        purpose: "audit_qa",
-        user: args.body,
-        minor: args.minor,
-      });
-      const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
-      aiFollowup = { text: cappedText, zone: res.safety.zone };
+      // Audit response: lighter, no retrieval. Same best-effort contract as
+      // the Advisor branch — a follow-up failure (rate limit, proxy error)
+      // must not lose the user's typed answer.
+      try {
+        const res = await callGemini({
+          userId: args.userId,
+          locale: args.locale,
+          purpose: "audit_qa",
+          user: args.body,
+          minor: args.minor,
+        });
+        const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
+        aiFollowup = { text: cappedText, zone: res.safety.zone };
+      } catch (e) {
+        if (typeof console !== "undefined")
+          console.warn("[records] audit follow-up failed; saving without it", (e as Error).message);
+      }
     }
   }
 
