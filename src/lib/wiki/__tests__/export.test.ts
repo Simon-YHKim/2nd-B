@@ -48,6 +48,47 @@ describe("composeWikiExport", () => {
     expect(r.prompt).toContain("_(no sources yet)_");
   });
 
+  test("records are OPT-IN (P2-2): omitted entirely by default so the chat RAG snapshot stays byte-stable", () => {
+    const r = composeWikiExport([], [], { asOf: "2026-05-25" });
+    expect(r.recordCount).toBe(0);
+    expect(r.prompt).not.toContain("## Records");
+    expect(r.prompt).not.toContain("## 기록");
+  });
+
+  test("opted-in records render with date, kind label, topic, tags, and the body (the pre-delete backup promise)", () => {
+    const r = composeWikiExport([], [], { asOf: "2026-05-25" }, [
+      {
+        kind: "journal",
+        topic: "하루",
+        body: "오늘 배달 사이에 쓴 일기.",
+        created_at: "2026-06-11T03:00:00Z",
+        tags: ["daily"],
+      },
+      { kind: "note", topic: null, body: "short note", created_at: "2026-06-10T01:00:00Z", tags: null },
+    ]);
+    expect(r.recordCount).toBe(2);
+    expect(r.prompt).toContain("## Records (journal & notes)");
+    expect(r.prompt).toContain("### 2026-06-11 · Journal — 하루 · tags: daily");
+    expect(r.prompt).toContain("오늘 배달 사이에 쓴 일기.");
+    expect(r.prompt).toContain("### 2026-06-10 · Note");
+    expect(r.prompt).toContain("short note");
+  });
+
+  test("opted-in but empty records render the section with the empty marker", () => {
+    const r = composeWikiExport([], [], { asOf: "2026-05-25", locale: "ko" }, []);
+    expect(r.recordCount).toBe(0);
+    expect(r.prompt).toContain("## 기록 (일기·노트)");
+    expect(r.prompt).toContain("_(아직 기록이 없어요)_");
+  });
+
+  test("record bodies honor the same truncation contract as pages", () => {
+    const longBody = "x".repeat(500);
+    const r = composeWikiExport([], [], { asOf: "2026-05-25", bodyCharLimit: 100 }, [
+      { kind: "journal", topic: null, body: longBody, created_at: "2026-06-11T00:00:00Z", tags: null },
+    ]);
+    expect(r.prompt).toContain("_(body truncated — original is 500 chars)_");
+  });
+
   test("page formatted with slug heading, frontmatter, body", () => {
     const r = composeWikiExport(
       [page({ slug: "big-five", title: "Big Five", body_md: "## Section\n\nText", tags: ["psychology"] })],

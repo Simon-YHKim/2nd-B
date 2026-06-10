@@ -354,7 +354,10 @@ export default function Wiki() {
     if (!userId) return;
     setExporting(true);
     try {
-      const result = await exportUserWiki(userId, { locale, bodyCharLimit: 4000 });
+      // P2-2: the user-facing export is the pre-delete backup the danger-zone
+      // copy points at — it must carry the journal/note records too (opt-in
+      // here only; the chat RAG snapshot stays pages+sources).
+      const result = await exportUserWiki(userId, { locale, bodyCharLimit: 4000, includeRecords: true });
       setExportText(result.prompt);
     } catch (e) {
       // Keep the raw error in logs only; show product-tone copy + retry.
