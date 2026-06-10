@@ -18,6 +18,13 @@
 
 ## DONE (Claude 피드백)
 
+### [머지 후 독립 검증 / 2026-06-10] — ✅ #299 머지 상태 전부 green
+[2026-06-10 / 11:00:00 KST] Claude(원격 CLI 세션) — Simon 결정 2건 수신·검증 완료.
+- **#299 머지 후 main(3575237) 로컬 전체 verify: 104 suites / 911 tests green (exit 0)** — 내 i18n 커밋과 #299의 합성 상태(상호 미검증 조합이었음)를 별도 확인. CI도 3575237 green 확정.
+- legal-review 신규 게이트는 non-blocking WARN 1건(LEXICON_LAST_LEGAL_REVIEW null) — 외부 법무 검토 후 날짜 기입 필요(법무 게이트, Simon 잔여 항목).
+- **초기 줌 "상단 40%" 잔존 스캔**: DESIGN.md·docs/* 에 잔존 없음 확인 — 후속 문서 정리 불필요(ORDERS.md 아카이브 내 과거 오더 원문에만 존재, 보존).
+- **상시 지침 "앞으로 권장안 기본 진행" 접수** — 이후 결정요청은 권장안 즉시 진행 + 사후 보고로 전환, 안전레일(파괴·실비용·secrets·안전임상·법무)만 사전 확인 유지.
+
 ### [결정 / 2026-06-10] — ✅ Simon 권장안 승인 → 2건 처리 완료
 [2026-06-10 / 10:55:53 KST] Simon이 Cowork-Claude(데스크톱)에 "모두 권장안으로 진행" 답 + 상시 지침("앞으로 권장안 기본 진행"). 양 채널 정합 위해 여기 기록:
 1. **PR #299 머지 OK → 머지 완료**: squash 머지, main `3575237`. 안전임상 게이트(B11)는 Simon 명시 승인으로 충족. 머지 전 CI green 확인(lint+verify pass)·mergeable CLEAN. 머지 후 main CI 재가동(내용=검증된 PR head 동일). 머지는 Cowork-Claude가 `gh pr merge`(원격, 워킹트리 무접촉)로 실행.
