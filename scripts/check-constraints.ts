@@ -1038,6 +1038,8 @@ results.push(
       capture.includes("if (ocrRunRef.current !== runId) return;") &&
       capture.includes("!!userId && !submitting && !extracting") &&
       capture.includes("disabled={extracting || submitting}") &&
+      capture.includes('accessibilityRole="image"') &&
+      capture.includes('accessibilityLabel={t("image.preview")}') &&
       captureBusyUiGuards >= 2 &&
       capture.includes("accessibilityState={{ selected: active, disabled: extracting || submitting }}") &&
       capture.includes("accessibilityState={{ expanded: advancedModesExpanded, disabled: extracting || submitting }}") &&
@@ -1046,8 +1048,8 @@ results.push(
       id: "CaptureOcrBusyGuard",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "capture OCR blocks stale extraction writes, duplicate runs, submit, source picking, and mode toggles while busy"
-        : "capture OCR busy state must guard duplicate/stale extraction writes and disable submit/source-pick/mode controls",
+        ? "capture OCR blocks stale extraction writes, duplicate runs, submit, source picking, mode toggles, and labels image previews"
+        : "capture OCR busy state must guard duplicate/stale extraction writes, disable submit/source-pick/mode controls, and label image previews",
     };
   }),
 );

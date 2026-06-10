@@ -1147,7 +1147,13 @@ export default function Capture() {
           {mode === "ocr" && pickedImage ? (
             <View style={styles.previewCard}>
               <Text variant="caption" color="brand">{t("image.preview")}</Text>
-              <Image source={{ uri: pickedImage.uri }} style={styles.imagePreview} contentFit="contain" />
+              <Image
+                source={{ uri: pickedImage.uri }}
+                style={styles.imagePreview}
+                contentFit="contain"
+                accessibilityRole="image"
+                accessibilityLabel={t("image.preview")}
+              />
               <Button
                 label={t("image.extract")}
                 variant="primary"
