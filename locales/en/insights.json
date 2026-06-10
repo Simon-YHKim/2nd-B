@@ -31,6 +31,15 @@
       "unit": "chars/entry"
     }
   },
+  "weeklyReport": {
+    "eyebrow": "Weekly report",
+    "thisWeekLabel": "This week",
+    "lastWeekLabel": "Last week",
+    "deltaUp": "{{count}} more than last week",
+    "deltaDown": "{{count}} fewer than last week",
+    "deltaFlat": "Same pace as last week",
+    "firstWeek": "Your first week of records"
+  },
   "sections": {
     "weekly": "Weekly activity",
     "topics": "Recurring topics",
