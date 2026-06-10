@@ -61,6 +61,10 @@ const geminiProxySource = readFileSync(
   resolve(__dirname, "../../../../supabase/functions/gemini-proxy/index.ts"),
   "utf8",
 );
+const geminiWrapperSource = readFileSync(
+  resolve(__dirname, "../../llm/gemini.ts"),
+  "utf8",
+);
 
 function proxyImageBase64Cap(): number {
   const match = geminiProxySource.match(/const MAX_IMAGE_BASE64_LEN = ([\d_]+);/);
@@ -72,6 +76,18 @@ function proxyImageMimeAllowlist(): string[] {
   const match = geminiProxySource.match(/const ALLOWED_IMAGE_MIME = new Set\(\[([^\]]+)\]\);/);
   if (!match) throw new Error("gemini-proxy image MIME allowlist not found");
   return Array.from(match[1]!.matchAll(/'([^']+)'/g), (m) => m[1]!);
+}
+
+function llmInlineImageBase64Cap(): number {
+  const match = geminiWrapperSource.match(/const MAX_INLINE_IMAGE_BASE64_LEN = ([\d_]+);/);
+  if (!match) throw new Error("callGemini inline image cap constant not found");
+  return Number(match[1]!.replace(/_/g, ""));
+}
+
+function llmInlineImageMimeAllowlist(): string[] {
+  const match = geminiWrapperSource.match(/const ALLOWED_INLINE_IMAGE_MIME = new Set\(\[([^\]]+)\]\);/);
+  if (!match) throw new Error("callGemini inline image MIME allowlist not found");
+  return Array.from(match[1]!.matchAll(/"([^"]+)"/g), (m) => m[1]!);
 }
 
 function proxyHttpError(status: number, error: string): Error {
@@ -104,6 +120,16 @@ describe("capture image OCR payload guards", () => {
     expect(geminiProxySource).toContain("sniffImageMimeType");
     expect(geminiProxySource).toContain("imageMimeCompatible");
     expect(geminiProxySource).toContain("image_invalid_data");
+  });
+
+  test("mirrors callGemini inline image preflight policy exactly", () => {
+    expect(MAX_OCR_IMAGE_BASE64_BYTES).toBe(llmInlineImageBase64Cap());
+    expect([...ALLOWED_OCR_IMAGE_MIME_TYPES]).toEqual(llmInlineImageMimeAllowlist());
+    expect(geminiWrapperSource).toContain("BASE64_INLINE_IMAGE_RE");
+    expect(geminiWrapperSource).toContain("MIN_INLINE_IMAGE_SIGNATURE_BYTES = 12");
+    expect(geminiWrapperSource).toContain("sniffInlineImageMimeType");
+    expect(geminiWrapperSource).toContain("inlineImageMimeCompatible");
+    expect(geminiWrapperSource).toContain("llm_image_invalid_data");
   });
 
   test("rejects oversized base64 before calling Gemini", async () => {
