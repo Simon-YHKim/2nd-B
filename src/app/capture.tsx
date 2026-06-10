@@ -42,7 +42,12 @@ import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { detectClipperKind } from "@/lib/wiki/clipper-kind";
-import { pickImageAsset, ocrImageAsset } from "@/lib/wiki/capture-image";
+import {
+  pickImageAsset,
+  ocrImageAsset,
+  isImageOcrCrisisResultError,
+  isImageOcrEmptyResultError,
+} from "@/lib/wiki/capture-image";
 import { pickFile, type PickedFile } from "@/lib/wiki/capture-file";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
@@ -338,6 +343,24 @@ export default function Capture() {
       const md = await ocrImageAsset(userId, locale, pickedImage, isMinor === true);
       setBody(md);
     } catch (e) {
+      // Split-② guards turned the crisis output swap into a typed throw; the
+      // generic "clearer photo" alert here would HIDE the hotline from a user
+      // who just photographed crisis content and invite paid retries (review
+      // blocking finding). Route to the crisis modal like the journal path.
+      if (isImageOcrCrisisResultError(e)) {
+        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        return;
+      }
+      if (isImageOcrEmptyResultError(e)) {
+        // Honest empty state: a retry CAN help here (closer, better-lit photo),
+        // unlike the generic read-failure framing.
+        showFeedback(
+          t("alerts.ocrEmptyResult.title"),
+          t("alerts.ocrEmptyResult.message"),
+          () => void runExtract(),
+        );
+        return;
+      }
       if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
       showFeedback(
         t("alerts.ocrRead.title"),
