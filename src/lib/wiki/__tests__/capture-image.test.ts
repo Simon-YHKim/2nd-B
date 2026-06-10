@@ -72,6 +72,12 @@ function proxyImageBase64Cap(): number {
   return Number(match[1]!.replace(/_/g, ""));
 }
 
+function proxyImageRawEnvelopeDelta(): number {
+  const match = geminiProxySource.match(/const MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN = MAX_IMAGE_BASE64_LEN \+ ([\d_]+);/);
+  if (!match) throw new Error("gemini-proxy raw image envelope cap not found");
+  return Number(match[1]!.replace(/_/g, ""));
+}
+
 function proxyImageMimeAllowlist(): string[] {
   const match = geminiProxySource.match(/const ALLOWED_IMAGE_MIME = new Set\(\[([^\]]+)\]\);/);
   if (!match) throw new Error("gemini-proxy image MIME allowlist not found");
@@ -114,12 +120,16 @@ describe("capture image OCR payload guards", () => {
 
   test("mirrors gemini-proxy image payload policy exactly", () => {
     expect(MAX_OCR_IMAGE_BASE64_BYTES).toBe(proxyImageBase64Cap());
+    expect(proxyImageRawEnvelopeDelta()).toBe(100_000);
     expect([...ALLOWED_OCR_IMAGE_MIME_TYPES]).toEqual(proxyImageMimeAllowlist());
     expect(geminiProxySource).toContain("BASE64_IMAGE_DATA_RE");
     expect(geminiProxySource).toContain("MIN_IMAGE_SIGNATURE_BYTES = 12");
     expect(geminiProxySource).toContain("sniffImageMimeType");
     expect(geminiProxySource).toContain("imageMimeCompatible");
     expect(geminiProxySource).toContain("split(';')[0]?.trim() ?? ''");
+    expect(geminiProxySource).toContain("data.length > MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN");
+    expect(geminiProxySource).toContain("normalizedData.length > MAX_IMAGE_BASE64_LEN");
+    expect(geminiProxySource).toContain("got: normalizedData.length");
     expect(geminiProxySource).toContain("image_invalid_data");
   });
 

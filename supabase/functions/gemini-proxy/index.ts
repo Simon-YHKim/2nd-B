@@ -96,6 +96,9 @@ function utcDay(): string {
 // Gemini Flash accepts up to 20MB but the proxy stays defensively small
 // so a single oversized OCR request can't bomb the request body cap.
 const MAX_IMAGE_BASE64_LEN = 2_700_000;
+// Allow ordinary line-wrapped base64 to normalize under the real cap, while
+// still failing closed on whitespace-heavy request-body abuse before parsing.
+const MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN = MAX_IMAGE_BASE64_LEN + 100_000;
 const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
 const BASE64_IMAGE_DATA_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const BASE64_IMAGE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -316,15 +319,17 @@ Deno.serve(async (req: Request) => {
     if (!ALLOWED_IMAGE_MIME.has(mime)) {
       return jsonResponse(req, { error: 'image_mime_not_allowed', got: mime }, 415);
     }
-    if (data.length > MAX_IMAGE_BASE64_LEN) {
-      return jsonResponse(req, { error: 'image_too_large', max: MAX_IMAGE_BASE64_LEN, got: data.length }, 413);
+    if (data.length > MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN) {
+      return jsonResponse(req, { error: 'image_too_large', max: MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN, got: data.length }, 413);
     }
     const normalizedData = normalizeImageBase64Data(data);
-    if (
-      normalizedData.length === 0 ||
-      normalizedData.length > MAX_IMAGE_BASE64_LEN ||
-      !BASE64_IMAGE_DATA_RE.test(normalizedData)
-    ) {
+    if (normalizedData.length === 0) {
+      return jsonResponse(req, { error: 'image_invalid_data' }, 400);
+    }
+    if (normalizedData.length > MAX_IMAGE_BASE64_LEN) {
+      return jsonResponse(req, { error: 'image_too_large', max: MAX_IMAGE_BASE64_LEN, got: normalizedData.length }, 413);
+    }
+    if (!BASE64_IMAGE_DATA_RE.test(normalizedData)) {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);
     }
     const sniffedMime = sniffImageMimeType(normalizedData);
