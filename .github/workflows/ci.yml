@@ -27,5 +27,7 @@ jobs:
         run: npm run check:llm-boundary
       - name: Constraints aggregate (C1~C12)
         run: npm run check:constraints
+      - name: No em dashes
+        run: npm run check:emdash
       - name: Unit tests (C9 ordering, C3 audit)
         run: npm test -- --ci
