@@ -76,7 +76,8 @@
   "saved": {
     "title": "Lumen saved a new piece",
     "seeGraph": "See the graph",
-    "captureMore": "Capture more"
+    "captureMore": "Capture more",
+    "storagePending": "Saved, but the backup file copy didn't upload this time. Your text is kept safely."
   },
   "proposal": {
     "heading": "Suggested format",

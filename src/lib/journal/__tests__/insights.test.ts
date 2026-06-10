@@ -43,6 +43,25 @@ describe("computeInsights", () => {
     expect(r.daySpan).toBe(1);
   });
 
+  test("day span uses KST day boundaries (streak/chat_usage parity), not UTC or device-local", () => {
+    // 14:00Z = 23:00 KST May 20; 16:00Z = 01:00 KST May 21 — one UTC calendar
+    // day but two KST days. Span must be 2 on every device timezone.
+    const r = computeInsights([
+      rec({ id: "1", created_at: "2026-05-20T14:00:00Z" }),
+      rec({ id: "2", created_at: "2026-05-20T16:00:00Z" }),
+    ]);
+    expect(r.daySpan).toBe(2);
+  });
+
+  test("records crossing UTC midnight inside one KST day stay span 1", () => {
+    // 22:00Z May 20 = 07:00 KST May 21; 02:00Z May 21 = 11:00 KST May 21.
+    const r = computeInsights([
+      rec({ id: "1", created_at: "2026-05-20T22:00:00Z" }),
+      rec({ id: "2", created_at: "2026-05-21T02:00:00Z" }),
+    ]);
+    expect(r.daySpan).toBe(1);
+  });
+
   test("top tags sorted by frequency desc + capped", () => {
     const r = computeInsights(
       [

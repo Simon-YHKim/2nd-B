@@ -49,7 +49,13 @@ export function markOnboardingComplete(): void {
   memoryHydrated = true;
   ls()?.setItem(ONBOARDING_KEY, completedAt);
   const storage = nativeStorage();
-  if (storage) void storage.setItem(ONBOARDING_KEY, completedAt).catch(() => undefined);
+  // Persistence is best-effort (memory + localStorage layers still hold the
+  // flag for this session), but a swallowed failure means silent re-onboarding
+  // on next launch — leave a trace for debugging.
+  if (storage)
+    void storage.setItem(ONBOARDING_KEY, completedAt).catch((e) => {
+      if (typeof console !== "undefined") console.warn("[onboarding] persist failed", e);
+    });
 }
 
 export function useOnboardingComplete(): boolean | null {

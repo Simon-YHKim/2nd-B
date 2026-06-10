@@ -190,6 +190,10 @@ export default function Capture() {
   const companion = useCompanionMoment();
   // Title of the just-saved piece — drives the inline success panel.
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
+  // True when the last capture saved its body inline because the Storage
+  // upload failed (CaptureResult.storagePending) — surfaced as a one-line
+  // note in the saved panel instead of a silent clean-success.
+  const [savedPending, setSavedPending] = useState(false);
   // G3: AI-proposed new clipper format flow (opt-in, offered after an inbox capture).
   const [proposalCtx, setProposalCtx] = useState<{ content: string; url: string | null } | null>(null);
   const [proposal, setProposal] = useState<ProposedClipperTemplate | null>(null);
@@ -388,6 +392,7 @@ export default function Capture() {
       reset();
       companion.fire("journalSaved");
       setSavedTitle(savedTopic.length > 0 ? savedTopic : t("savedTitleFallback"));
+      setSavedPending(false);
       // Refresh streak + journal use count (free-tier limit) + XP (the entry
       // earns progression, mirroring the retired /journal screen).
       void progression.refresh();
@@ -485,6 +490,7 @@ export default function Capture() {
       companion.fire(isBareLink ? "linkImported" : "captureSaved");
       // Inline success panel (journal-capture pack §3/§7) replaces the alert.
       setSavedTitle(result.source.title);
+      setSavedPending(result.storagePending);
       // G3: a capture that landed as "inbox" (no specific format fit) is the
       // signal to offer an AI-proposed new format. Gate on body length so
       // trivial memos don't prompt. Opt-in: nothing runs until the user taps.
@@ -604,11 +610,16 @@ export default function Capture() {
                   <Text variant="subtle" color="textMuted" numberOfLines={1} style={{ marginTop: 2 }}>
                     {savedTitle}
                   </Text>
+                  {savedPending ? (
+                    <Text variant="subtle" color="textSubtle" style={{ marginTop: 2 }}>
+                      {t("saved.storagePending")}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
               <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
                 <PremiumButton label={t("saved.seeGraph")} variant="secondary" onPress={() => router.push("/")} style={{ flex: 1 }} />
-                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => setSavedTitle(null)} style={{ flex: 1 }} />
+                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedPending(false); }} style={{ flex: 1 }} />
               </View>
             </PremiumCard>
           ) : null}

@@ -226,5 +226,14 @@ Body.`;
     expect(arg.frontmatter._storage_pending).toBe(true);
     expect(arg.frontmatter._body_fallback).toContain("Important body.");
     expect(r.source).toBe(fixtures.sourceRow);
+    // The degraded state must be visible to the caller, not a silent success
+    // (capture screen surfaces it as a one-line note in the saved panel).
+    expect(r.storagePending).toBe(true);
+  });
+
+  test("clean upload reports storagePending false", async () => {
+    fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "inbox", title: "T", tags: [] };
+    const r = await captureFromMarkdown({ userId: "u1", rawMd: "# T\n\nBody." });
+    expect(r.storagePending).toBe(false);
   });
 });

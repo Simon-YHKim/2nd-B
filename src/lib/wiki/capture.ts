@@ -49,6 +49,10 @@ export interface CaptureResult {
   hadFrontmatter: boolean;
   /** Slug used for the storage path (also a sensible starting slug for the source's wiki page). */
   suggested_slug: string;
+  /** True when the Storage upload failed and the body landed inline as
+   *  frontmatter._body_fallback. The piece is safe, but callers should
+   *  surface the degraded state instead of reporting a clean success. */
+  storagePending: boolean;
 }
 
 export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureResult> {
@@ -97,6 +101,7 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     storage_path: path,
     hadFrontmatter: built.hadFrontmatter,
     suggested_slug: built.suggested_slug,
+    storagePending: !storedToStorage,
   };
 }
 

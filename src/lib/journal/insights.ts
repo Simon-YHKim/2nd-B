@@ -1,6 +1,8 @@
 // Aggregate insights over a user's records. Pure function — caller fetches
 // the rows. Powers /insights and the "patterns" surface on the persona card.
 
+import { kstDayKey } from "./streak";
+
 export interface InsightRecord {
   id: string;
   created_at: string;
@@ -80,13 +82,17 @@ export function computeInsights(records: InsightRecord[], opts: { tagLimit?: num
   const sorted = [...records].sort((a, b) => a.created_at.localeCompare(b.created_at));
   const firstDate = new Date(sorted[0].created_at);
   const lastDate = new Date(sorted[sorted.length - 1].created_at);
-  // Inclusive calendar-day span: count whole days between the first and last
-  // record's calendar dates, not the rounded elapsed time. Comparing the raw
-  // ms delta over-counts when two records fall on the same day more than ~12h
-  // apart (rounds to 1 → span 2). Zero out the time-of-day first.
-  const startDay = new Date(firstDate.getFullYear(), firstDate.getMonth(), firstDate.getDate());
-  const endDay = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
-  const daySpan = Math.max(1, Math.round((endDay.getTime() - startDay.getTime()) / 86_400_000) + 1);
+  // Inclusive calendar-day span over KST-anchored day keys — the same "day"
+  // convention as streak.ts/chat_usage, so streak and insights never disagree
+  // on a boundary. Device-local components here drifted on non-KST devices
+  // (and CI's UTC masked it); raw ms-delta rounding over-counted same-day
+  // pairs more than ~12h apart.
+  const startKey = kstDayKey(sorted[0].created_at);
+  const endKey = kstDayKey(sorted[sorted.length - 1].created_at);
+  const daySpan = Math.max(
+    1,
+    Math.round((Date.parse(`${endKey}T00:00:00Z`) - Date.parse(`${startKey}T00:00:00Z`)) / 86_400_000) + 1,
+  );
 
   // By-week: a continuous run from the first to the most recent record's ISO
   // week, gaps filled with 0, capped to the last 8. Filling gaps keeps the

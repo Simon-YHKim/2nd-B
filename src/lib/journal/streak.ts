@@ -8,7 +8,10 @@
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
-function kstDayKey(iso: string): string {
+// Exported: the single "what day is this record" convention (KST-anchored).
+// insights.ts daySpan reuses it so streak and insights never disagree on a
+// day boundary.
+export function kstDayKey(iso: string): string {
   // new Date(iso).getTime() is absolute epoch ms (timezone-independent), so to
   // read the KST wall-clock day we add +9h and take the UTC parts. The previous
   // version also added the *device* timezone offset, which made the day boundary
