@@ -72,6 +72,17 @@ function proxyImageMimeAllowlist(): string[] {
   return Array.from(match[1]!.matchAll(/'([^']+)'/g), (m) => m[1]!);
 }
 
+function proxyHttpError(status: number, error: string): Error {
+  return Object.assign(new Error("proxy request failed"), {
+    context: {
+      status,
+      clone: () => ({
+        json: async () => ({ error }),
+      }),
+    },
+  });
+}
+
 describe("capture image OCR payload guards", () => {
   beforeEach(() => {
     mockCallGemini.mockReset();
@@ -216,6 +227,33 @@ describe("capture image OCR payload guards", () => {
     ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
 
     expect(mockCallGemini).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    [400, "image_invalid_data", IMAGE_OCR_INVALID_DATA_ERROR],
+    [413, "image_too_large", IMAGE_OCR_TOO_LARGE_ERROR],
+    [415, "image_mime_not_allowed", IMAGE_OCR_UNSUPPORTED_TYPE_ERROR],
+  ])("maps gemini-proxy OCR image error %s/%s to the capture sentinel", async (status, marker, expected) => {
+    mockCallGemini.mockRejectedValueOnce(proxyHttpError(status as number, marker as string));
+
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/png",
+        base64: PNG_IMAGE_BASE64,
+      }),
+    ).rejects.toThrow(expected as string);
+  });
+
+  test("does not remap non-image proxy errors during OCR", async () => {
+    const error = proxyHttpError(400, "user_required");
+    mockCallGemini.mockRejectedValueOnce(error);
+
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/png",
+        base64: PNG_IMAGE_BASE64,
+      }),
+    ).rejects.toBe(error);
   });
 
   test("rejects denied camera permission before launching the camera", async () => {

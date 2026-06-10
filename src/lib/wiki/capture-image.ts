@@ -7,6 +7,7 @@
 import * as ImagePicker from "expo-image-picker";
 
 import { callGemini } from "../llm/gemini";
+import type { GeminiResult } from "../llm/types";
 
 export interface PickedImage {
   /** Local URI for the preview thumbnail. */
@@ -201,6 +202,35 @@ function areOcrImageMimeTypesCompatible(declared: string, sniffed: AllowedOcrIma
   return false;
 }
 
+async function proxyImagePayloadErrorMessage(error: unknown): Promise<string | null> {
+  if (!error || typeof error !== "object") return null;
+  const ctx = (error as { context?: { status?: number; clone?: unknown; json?: unknown } }).context;
+  if (!ctx || typeof ctx !== "object") return null;
+  const status = ctx.status;
+  if (status !== 400 && status !== 413 && status !== 415) return null;
+
+  try {
+    const target =
+      typeof ctx.clone === "function"
+        ? ((ctx.clone as () => { json?: () => Promise<unknown> })())
+        : (ctx as { json?: () => Promise<unknown> });
+    if (typeof target.json !== "function") return null;
+    const body = (await target.json()) as { error?: unknown } | null;
+    switch (body?.error) {
+      case "image_invalid_data":
+        return IMAGE_OCR_INVALID_DATA_ERROR;
+      case "image_too_large":
+        return IMAGE_OCR_TOO_LARGE_ERROR;
+      case "image_mime_not_allowed":
+        return IMAGE_OCR_UNSUPPORTED_TYPE_ERROR;
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
 // Step 1 — pick an image (library or camera). No network: just returns the
 // bytes so the UI can preview them before the user commits to an OCR call.
 export async function pickImageAsset(
@@ -256,14 +286,21 @@ export async function ocrImageAsset(
   minor = false,
 ): Promise<string> {
   const { base64: data, mimeType } = normalizeOcrImagePayload(image);
-  const reply = await callGemini({
-    userId,
-    locale,
-    purpose: "capture_ocr",
-    user: OCR_PROMPT[locale],
-    image: { mimeType, data },
-    minor,
-  });
+  let reply: GeminiResult<string>;
+  try {
+    reply = await callGemini({
+      userId,
+      locale,
+      purpose: "capture_ocr",
+      user: OCR_PROMPT[locale],
+      image: { mimeType, data },
+      minor,
+    });
+  } catch (error) {
+    const proxyImageError = await proxyImagePayloadErrorMessage(error);
+    if (proxyImageError) throw new Error(proxyImageError);
+    throw error;
+  }
   const text = normalizeOcrTextResult(reply.text, locale);
   if (text.length === 0) {
     throw new Error(IMAGE_OCR_EMPTY_RESULT_ERROR);
