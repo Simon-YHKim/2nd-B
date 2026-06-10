@@ -7,7 +7,7 @@ import * as path from "path";
 
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
 import { TIER_RANK } from "../entitlements";
-import { BRAIN_LIFETIME, TIER_PRICING, type PaidTier } from "../pricing";
+import { LIFETIME, TIER_PRICING, type PaidTier } from "../pricing";
 
 const PAID_TIERS: PaidTier[] = ["soma", "cortex", "brain"];
 
@@ -42,12 +42,18 @@ describe("TIER_PRICING invariants", () => {
     }
   });
 
-  test("v2 list prices (Simon-approved 2026-06-10)", () => {
+  test("v2 list prices (Simon-approved 2026-06-10, lifetime repriced same day)", () => {
     expect(TIER_PRICING.soma.krwMonthly).toBe(4900);
     expect(TIER_PRICING.cortex.krwMonthly).toBe(9900);
     expect(TIER_PRICING.brain.krwMonthly).toBe(19900);
-    expect(BRAIN_LIFETIME.krw).toBe(299000);
-    expect(BRAIN_LIFETIME.usd).toBe(299);
+    expect(LIFETIME.tier).toBe("soma");
+    expect(LIFETIME.krw).toBe(99000);
+    expect(LIFETIME.usd).toBe(99);
+  });
+
+  test("lifetime cannot cannibalize its tier subscription (>= 2x yearly)", () => {
+    expect(LIFETIME.krw).toBeGreaterThanOrEqual(TIER_PRICING[LIFETIME.tier].krwYearly * 2);
+    expect(LIFETIME.usd).toBeGreaterThanOrEqual(TIER_PRICING[LIFETIME.tier].usdYearly * 1.9);
   });
 });
 
@@ -65,9 +71,11 @@ describe("plans.json copy matches the pricing SoT", () => {
     }
   });
 
-  test("brain lifetime note carries the one-time price", () => {
-    expect(en.tiers.brain.lifetimeNote).toContain(`$${BRAIN_LIFETIME.usd}`);
-    expect(ko.tiers.brain.lifetimeNote).toContain(`₩${fmt(BRAIN_LIFETIME.krw)}`);
+  test("lifetime note lives on the LIFETIME tier card and carries the one-time price", () => {
+    expect(en.tiers[LIFETIME.tier].lifetimeNote).toContain(`$${LIFETIME.usd}`);
+    expect(ko.tiers[LIFETIME.tier].lifetimeNote).toContain(`₩${fmt(LIFETIME.krw)}`);
+    expect(en.tiers.brain.lifetimeNote).toBeUndefined();
+    expect(ko.tiers.brain.lifetimeNote).toBeUndefined();
   });
 
   test("AI chat counts in copy match CHAT_DAILY_LIMIT", () => {

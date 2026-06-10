@@ -35,10 +35,18 @@ export const TIER_PRICING: Record<PaidTier, TierPricing> = {
   brain: { krwMonthly: 19_900, krwYearly: 199_000, usdMonthly: 19.99, usdYearly: 199.9 },
 };
 
-// Brain lifetime (one-time purchase). Subscription-fatigue escape hatch:
-// lifestyle-category one-time purchases are 26% of revenue and rising
-// (Adapty 2026). Lifetime complements the subscription, never replaces it.
-export const BRAIN_LIFETIME = { krw: 299_000, usd: 299 } as const;
+// Lifetime (one-time purchase) sits on the ENTRY tier, not Brain
+// (repriced 2026-06-10, Simon: 299k was unrealistic for the KR market).
+// Two structural reasons beyond the sticker:
+// - Cannibalization guard: a lifetime must cost at least ~2x its tier's
+//   yearly price (industry 2-3x) or it eats the subscription. 99,000 =
+//   2x soma yearly. A "realistic" Brain lifetime would sit BELOW Brain's
+//   own yearly (199,000) and break that floor.
+// - Unit economics: AI inference recurs forever. Selling forever-250/day
+//   (Brain) for one payment is a long-term cost bomb; forever-30/day
+//   (soma) is bounded. Subscription-fatigue buyers (one-time = 26% of
+//   lifestyle revenue, Adapty 2026) get a real entry option instead.
+export const LIFETIME = { tier: "soma", krw: 99_000, usd: 99 } as const;
 
 // The yearly anchor used across plan copy ("2 months free").
 export const YEARLY_MONTHS_FREE = 2;

@@ -17,6 +17,7 @@ import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useProgression } from "@/lib/progression/useProgression";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
+import { LIFETIME } from "@/lib/progression/pricing";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 // Every tier sells under its own enum name (v2: soma is live again as the
@@ -81,9 +82,9 @@ export default function Plans() {
                   </Text>
                 ))}
               </View>
-              {key === "brain" ? (
+              {key === LIFETIME.tier ? (
                 <Text variant="caption" color="textMuted" style={styles.lifetimeNote}>
-                  {t("tiers.brain.lifetimeNote")}
+                  {t(`tiers.${LIFETIME.tier}.lifetimeNote`)}
                 </Text>
               ) : null}
             </View>
