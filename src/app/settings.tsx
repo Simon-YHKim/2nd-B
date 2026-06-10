@@ -3,7 +3,7 @@
 // /journal etc.), partial (per-kind / per-tag), and full (everything).
 
 import { type ReactNode, useEffect, useState } from "react";
-import { ActivityIndicator, TouchableOpacity, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
+import { ActivityIndicator, TouchableOpacity, ScrollView, StyleSheet, View, type AccessibilityRole, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -42,7 +42,9 @@ const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
 
 type SettingsActionButtonProps = {
   label: string;
+  accessibilityLabel?: string;
   accessibilityHint?: string;
+  accessibilityRole?: AccessibilityRole;
   variant?: "primary" | "secondary" | "danger";
   disabled?: boolean;
   loading?: boolean;
@@ -55,7 +57,9 @@ type SettingsActionButtonProps = {
 
 function SettingsActionButton({
   label,
+  accessibilityLabel,
   accessibilityHint,
+  accessibilityRole = "button",
   variant = "secondary",
   disabled,
   loading,
@@ -88,8 +92,8 @@ function SettingsActionButton({
       ]}
     >
       <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityRole={accessibilityRole}
+        accessibilityLabel={accessibilityLabel ?? label}
         accessibilityHint={accessibilityHint}
         accessibilityState={{ disabled: isDisabled, busy: loading, selected }}
         disabled={isDisabled}
@@ -486,18 +490,29 @@ export default function Settings() {
             {t("dataWizard.body")}
           </Text>
           <View style={styles.deleteWizardGrid}>
-            {DATA_DELETE_STEPS.map((step) => (
-              <Button
-                key={step}
-                label={t(`dataWizard.${step}.label`)}
-                accessibilityHint={t(`dataWizard.${step}.hint`)}
-                variant={dataDeleteStep === step ? (step === "full" ? "danger" : "primary") : "secondary"}
-                selected={dataDeleteStep === step}
-                onPress={() => setDataDeleteStep(step)}
-                full={false}
-                style={styles.deleteWizardOption}
-              />
-            ))}
+            {DATA_DELETE_STEPS.map((step, index) => {
+              const stepSelected = dataDeleteStep === step;
+              const stepLabel = t(`dataWizard.${step}.label`);
+              return (
+                <Button
+                  key={step}
+                  label={stepLabel}
+                  accessibilityRole="radio"
+                  accessibilityLabel={t("dataWizard.optionA11yLabel", {
+                    label: stepLabel,
+                    index: index + 1,
+                    total: DATA_DELETE_STEPS.length,
+                    state: stepSelected ? t("dataWizard.stateSelected") : t("dataWizard.stateAvailable"),
+                  })}
+                  accessibilityHint={stepSelected ? t("dataWizard.selectedHint") : t(`dataWizard.${step}.hint`)}
+                  variant={stepSelected ? (step === "full" ? "danger" : "primary") : "secondary"}
+                  selected={stepSelected}
+                  onPress={() => setDataDeleteStep(step)}
+                  full={false}
+                  style={styles.deleteWizardOption}
+                />
+              );
+            })}
           </View>
           <Text variant="subtle" color={dataDeleteStep === "full" ? "danger" : "textMuted"}>
             {t(`dataWizard.${dataDeleteStep}.body`)}
@@ -653,6 +668,9 @@ export default function Settings() {
               {locale === "ko"
                 ? "기록 · 캡처 · 위키 페이지 · 세컨비 사용량을 한 번에 모두 삭제합니다. 계정은 유지되지만 0부터 다시 시작합니다."
                 : "Wipes records, sources, wiki pages, and SecondB usage in one shot. The account stays but you start from zero."}
+            </Text>
+            <Text variant="subtle" color="textMuted">
+              {t("dataWizard.full.retained")}
             </Text>
             <Text variant="subtle" color="danger">
               {locale === "ko"

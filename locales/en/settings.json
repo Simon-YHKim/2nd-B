@@ -35,11 +35,15 @@
     "fullWipeHint": "Requires typed DELETE confirmation before wiping records, sources, wiki pages, and usage."
   },
   "dataWizard": {
-    "body": "Choose one deletion area at a time. The exact actions appear only after you pick a group.",
+    "body": "Choose one deletion area at a time. Your private 2nd-B content stays split into records, assessments, wiki/captures, and full wipe.",
+    "optionA11yLabel": "{{label}}, option {{index}} of {{total}}, {{state}}.",
+    "stateSelected": "selected",
+    "stateAvailable": "not selected",
+    "selectedHint": "This deletion area is already selected. Its actions are shown below.",
     "records": {
       "label": "Records",
       "hint": "Shows deletion actions for journals, notes, and audit responses.",
-      "body": "Clear one record type while keeping the rest of your graph and wiki intact."
+      "body": "Clear one private record type while keeping the rest of your graph and wiki intact."
     },
     "assessments": {
       "label": "Assessments",
@@ -49,12 +53,13 @@
     "library": {
       "label": "Wiki and captures",
       "hint": "Shows deletion actions for wiki pages, un-ingested captures, and usage counters.",
-      "body": "Clean library surfaces separately from personal records."
+      "body": "Clean wiki and capture surfaces separately from private records and shared graph references."
     },
     "full": {
       "label": "Full wipe",
       "hint": "Shows the typed confirmation for deleting all records, sources, wiki pages, and usage.",
-      "body": "This is the irreversible path. Export first, then type DELETE only if you are sure."
+      "body": "This is the irreversible content-wipe path. Export first, then type DELETE only if you are sure.",
+      "retained": "This clears private 2nd-B content in this account. Account details, consent history, and service accountability records stay."
     }
   },
   "modals": {

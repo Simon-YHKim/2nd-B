@@ -1360,8 +1360,14 @@ results.push(
       'const [dataDeleteStep, setDataDeleteStep] = useState<DataDeleteStep>("records")',
       't("dataWizard.body")',
       "t(`dataWizard.${step}.label`)",
+      'accessibilityRole="radio"',
+      't("dataWizard.optionA11yLabel"',
+      't("dataWizard.stateSelected")',
+      't("dataWizard.stateAvailable")',
+      't("dataWizard.selectedHint")',
       "t(`dataWizard.${step}.hint`)",
       "t(`dataWizard.${dataDeleteStep}.body`)",
+      't("dataWizard.full.retained")',
       "dataDeleteStep === step",
       'step === "full" ? "danger" : "primary"',
       'dataDeleteStep === "records"',
@@ -1372,11 +1378,15 @@ results.push(
     const ok =
       requiredCode.every((snippet) => settings.includes(snippet)) &&
       en.includes('"dataWizard"') &&
-      en.includes('"Choose one deletion area at a time. The exact actions appear only after you pick a group."') &&
+      en.includes('"Choose one deletion area at a time. Your private 2nd-B content stays split into records, assessments, wiki/captures, and full wipe."') &&
+      en.includes('"{{label}}, option {{index}} of {{total}}, {{state}}."') &&
       en.includes('"Shows the typed confirmation for deleting all records, sources, wiki pages, and usage."') &&
+      en.includes('"This clears private 2nd-B content in this account. Account details, consent history, and service accountability records stay."') &&
       ko.includes('"dataWizard"') &&
-      ko.includes('"한 번에 하나의 삭제 영역만 고르세요. 정확한 삭제 버튼은 영역을 선택한 뒤에만 보여요."') &&
-      ko.includes('"기록, 캡처, 위키 페이지, 사용량 전체 삭제를 위한 입력 확인을 보여줍니다."');
+      ko.includes('"한 번에 하나의 삭제 영역만 고르세요. 기록, 평가 결과, 위키/캡처, 전체 삭제를 분리해서 보여줍니다."') &&
+      ko.includes('"{{label}}, {{total}}개 중 {{index}}번째, {{state}}."') &&
+      ko.includes('"기록, 캡처, 위키 페이지, 사용량 전체 삭제를 위한 입력 확인을 보여줍니다."') &&
+      ko.includes('"이 작업은 이 계정의 2nd-B 개인 콘텐츠를 비웁니다. 계정 정보, 동의 이력, 서비스 책임 기록은 유지됩니다."');
     return {
       id: "SettingsDataDeleteWizard",
       status: ok ? "PASS" : "FAIL",
