@@ -71,7 +71,7 @@ import { dailyPrompt } from "@/lib/journal/daily-prompts";
 import { listRecentRecords, countRecordsByKind } from "@/lib/records/create";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
-// Journal-mode (일기) entitlement: Lv3 unlock + free-tier use limit, ported
+// Journal-mode (일기) entitlement: feature gate + free-tier use limit, ported
 // from the retired /journal screen so the /journal→/capture redirect (Phase 3)
 // doesn't bypass progression gating.
 import { useProgression } from "@/lib/progression/useProgression";
@@ -374,7 +374,7 @@ export default function Capture() {
   // no-profile session must not reach the capture/OCR LLM path (C10 + consent).
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  // 일기(journal) entitlement — unlocks at Lv3, then the free tier allows a
+  // 일기(journal) entitlement — feature gate first, then the free tier allows a
   // fixed number of entries. Other modes write to `sources` and were never
   // gated, so this only constrains the journal mode.
   const journalGate = checkGate("journal", progression.totalXp);
@@ -824,7 +824,13 @@ export default function Capture() {
                     save opens 기록 보관소 (it adds no graph node), a classified
                     capture opens the graph it just lit up. */}
                 {savedKind === "records" ? (
-                  <PremiumButton label={t("saved.seeRecords")} variant="secondary" onPress={() => router.push("/records")} style={{ flex: 1 }} />
+                  <PremiumButton
+                    label={t("saved.seeRecords")}
+                    variant="secondary"
+                    onPress={() => router.push("/records")}
+                    accessibilityHint={t("saved.seeRecordsHint")}
+                    style={{ flex: 1 }}
+                  />
                 ) : (
                   <PremiumButton
                     label={savedIsOcr ? t("saved.seeOcrGraph") : t("saved.seeGraph")}
@@ -1013,7 +1019,7 @@ export default function Capture() {
             </>
           ) : null}
 
-          {/* Journal (일기) gate — Lv3 unlock then free-tier use limit, ported
+          {/* Journal (일기) gate — feature unlock then free-tier use limit, ported
               from the retired /journal screen so the redirect can't bypass it. */}
           {mode === "journal" && progression.loading ? (
             <View style={styles.gateCard}>
@@ -1529,7 +1535,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   advisorCheckOn: { backgroundColor: semantic.brand, borderColor: semantic.brand },
-  // 일기 gate cards (Lv3 lock / free-tier limit), ported from /journal.
+  // 일기 gate cards (feature lock / free-tier limit), ported from /journal.
   // Tracking is applied per-locale (eyebrowTracking) so KO is not over-spaced.
   gateEyebrow: { fontWeight: "700" },
   gateCard: {

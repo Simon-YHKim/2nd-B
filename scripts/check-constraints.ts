@@ -229,6 +229,7 @@ results.push(
       "saved.seeGraphHint",
       "saved.seeOcrGraphHint",
       "saved.seeRecords",
+      "saved.seeRecordsHint",
       "saved.captureMore",
       "proposal.heading",
       "proposal.baseKind",
@@ -346,6 +347,7 @@ results.push(
       't("saved.seeGraphHint")',
       't("saved.seeOcrGraphHint")',
       't("saved.seeRecords")',
+      't("saved.seeRecordsHint")',
       't("saved.captureMore")',
       't("proposal.heading")',
       't("proposal.baseKind", { kind: proposal.baseKind })',
@@ -861,6 +863,7 @@ results.push(
       capture.includes("setSavedMode(submittedMode)") &&
       capture.includes("setSavedSourceId(result.source.id)") &&
       capture.includes('accessibilityHint={savedIsOcr ? t("saved.seeOcrGraphHint") : t("saved.seeGraphHint")}') &&
+      capture.includes('accessibilityHint={t("saved.seeRecordsHint")}') &&
       capture.includes("const [ocrReviewApproved, setOcrReviewApproved] = useState(false)") &&
       // Pin the gate BODY, not just the state declaration — without this a
       // refactor could revert the OCR canSubmit branch to body-only while
