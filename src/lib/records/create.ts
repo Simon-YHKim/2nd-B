@@ -9,7 +9,7 @@
 // Every successful capture also awards quest XP (best-effort) — see award_xp RPC.
 
 import { buildMemorizedPattern } from "../knowledge/engines";
-import { callAdvisor, callGemini } from "../llm/gemini";
+import { callAdvisor, callGemini, classifyRecordTextForCrisis } from "../llm/gemini";
 import { canUsePremium, type SubscriptionTier } from "../progression/entitlements";
 import { awardXpSafe, type XpAction } from "../progression/xp";
 import { getSupabaseClient } from "../supabase/client";
@@ -79,9 +79,40 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   // surface; when the caller names its tier, enforce the entitlement here
   // too so a stale/bypassed toggle can't reach callAdvisor.
   const advisorAllowed = args.tier === undefined || canUsePremium("advisor", args.tier);
+
+  // C9 (persona sim P1-1): the safety classifier is NOT a premium feature.
+  // Saves that skip the LLM paths entirely — free-tier journal, advisor
+  // toggle off, plain notes — used to skip crisis detection with them: a
+  // minor could write a red-zone journal entry and get NO hotline while the
+  // photo/OCR path classifies for every tier. Run the local lexicon
+  // classifier (zero LLM cost) on every such save; on red, the same audited
+  // routing as every LLM surface, surfaced as a fixed-template follow-up so
+  // the screens' existing crisis-modal wiring fires unchanged. Best-effort:
+  // a routing failure must not block the save.
+  const llmPathWillClassify =
+    args.withFollowup !== false &&
+    (args.kind === "audit_response" || (args.kind === "journal" && advisorAllowed));
+  if (!llmPathWillClassify) {
+    try {
+      const crisis = await classifyRecordTextForCrisis(
+        args.body,
+        args.locale,
+        args.userId,
+        args.minor === true,
+      );
+      if (crisis) {
+        aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+      }
+    } catch (e) {
+      if (typeof console !== "undefined")
+        console.warn("[records] crisis fallback classify failed", (e as Error).message);
+    }
+  }
+
   if (args.withFollowup !== false && args.kind !== "note") {
     if (args.kind === "journal" && !advisorAllowed) {
       // Entry still saves normally — only the AI follow-up is withheld.
+      // (Crisis classification already ran above — it is not premium.)
     } else if (args.kind === "journal") {
       // Engine 4 Advisor flow: layered safety + Path A RAG.
       // Best-effort by contract ("Entry still saves normally — only the AI
@@ -132,6 +163,21 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       } catch (e) {
         if (typeof console !== "undefined")
           console.warn("[records] advisor follow-up failed; saving without it", (e as Error).message);
+        // The advisor call carried the crisis classification with it — when
+        // the infrastructure fails, the LOCAL classifier must still run so a
+        // red-zone entry never saves silently (same fallback as the
+        // non-LLM paths above).
+        try {
+          const crisis = await classifyRecordTextForCrisis(
+            args.body,
+            args.locale,
+            args.userId,
+            args.minor === true,
+          );
+          if (crisis) aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+        } catch {
+          /* best-effort — never block the save */
+        }
       }
     } else {
       // Audit response: lighter, no retrieval. Same best-effort contract as
