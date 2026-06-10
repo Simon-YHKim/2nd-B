@@ -141,13 +141,15 @@ Typography hierarchy:
 | Long body copy, journal text, chat, explanations | `fontFamilies.readable` |
 | Existing pixel fallback | `fontFamilies.pixel` |
 
-`fontFamilies.pixelKo` loads Galmuri11 from the bundled `galmuri` package because `@expo-google-fonts/galmuri11` is not published on npm. `fontFamilies.pixelEn` loads Press Start 2P from `@expo-google-fonts/press-start-2p`. Both web font stacks fall back to the existing NeoDunggeunmo pixel face.
+`fontFamilies.pixelKo` loads Galmuri11 from the bundled subset `assets/fonts/Galmuri11-subset.ttf` (derived from the `galmuri` npm package; `@expo-google-fonts/galmuri11` is not published on npm). `fontFamilies.pixelEn` loads Press Start 2P from `@expo-google-fonts/press-start-2p`. Both web font stacks fall back to the existing NeoDunggeunmo pixel face.
 
 ---
 
 ## Typography
 
 **Active font (user directive 2026-05-29): NeoDunggeunmo (둥근모꼴 / 네오둥근모) — applied app-wide.** A crisp Korean+Latin pixel bitmap face that matches the Cosmic Pixel Graph Village aesthetic. SIL OFL 1.1. <https://neodgm.dalgona.dev/>
+
+> (부분 superseded — O-9 이후 크롬=Galmuri11/Press Start 2P, 본문=Pretendard; 110행이 현행)
 
 Source: `src/theme/typography.ts:fontFamilies` (every face resolves to `NeoDunggeunmo`; `mono` → `NeoDunggeunmoCode`). Loaded via `expo-font` in `src/app/_layout.tsx`; applied through the shared `Text` / `Button` / `Input` components and a web base rule in `src/app/+html.tsx`. The earlier Fraunces / Geist / Pretendard recommendation below is superseded for the current build.
 
