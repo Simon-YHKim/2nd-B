@@ -118,7 +118,7 @@ All four are owner-only RLS. `users.id ON DELETE CASCADE` propagates.
 
 | Module | What |
 |---|---|
-| `limits.ts` | `CHAT_DAILY_LIMIT` per tier (free 5 · Soma 30 · Cortex 80 · Brain 250) + `kstDateToday` + `checkChatLimit`. |
+| `limits.ts` | `CHAT_DAILY_LIMIT` per tier (free 2 · Soma 30 · Cortex 80 · Brain 250, monetization v2 2026-06-10) + `kstDateToday` + `checkChatLimit`. |
 | `usage.ts` | `readChatUsage` + `bumpChatUsage` (calls the `bump_chat_usage` RPC). |
 | `conversation.ts` | `sendChatMessage` — checks limit, builds RAG context bundle via `exportUserWiki`, calls `callGemini(purpose='jarvis_chat')`, bumps usage on success. Crisis-routed turns (C9 red-zone short-circuit) don't burn quota. |
 

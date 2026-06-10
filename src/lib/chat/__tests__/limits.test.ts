@@ -1,8 +1,8 @@
 import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "../limits";
 
 describe("CHAT_DAILY_LIMIT", () => {
-  test("matches handoff v3 §4.B numbers", () => {
-    expect(CHAT_DAILY_LIMIT.free).toBe(5);
+  test("matches monetization v2 numbers (Simon-approved 2026-06-10)", () => {
+    expect(CHAT_DAILY_LIMIT.free).toBe(2);
     expect(CHAT_DAILY_LIMIT.soma).toBe(30);
     expect(CHAT_DAILY_LIMIT.cortex).toBe(80);
     expect(CHAT_DAILY_LIMIT.brain).toBe(250);
@@ -11,19 +11,19 @@ describe("CHAT_DAILY_LIMIT", () => {
 
 describe("checkChatLimit", () => {
   test("free tier under limit → allowed, with remaining count", () => {
-    const r = checkChatLimit("free", 2);
+    const r = checkChatLimit("free", 1);
     expect(r.allowed).toBe(true);
-    expect(r.limit).toBe(5);
-    expect(r.used).toBe(2);
-    expect(r.remaining).toBe(3);
+    expect(r.limit).toBe(2);
+    expect(r.used).toBe(1);
+    expect(r.remaining).toBe(1);
     expect(r.upgradeTo).toBeNull();
   });
 
-  test("free tier at exact limit → blocked, hints upgrade to Plus (cortex), not deprecated soma", () => {
-    const r = checkChatLimit("free", 5);
+  test("free tier at exact limit → blocked, hints upgrade to the soma entry tier", () => {
+    const r = checkChatLimit("free", 2);
     expect(r.allowed).toBe(false);
     expect(r.remaining).toBe(0);
-    expect(r.upgradeTo).toBe("cortex");
+    expect(r.upgradeTo).toBe("soma");
   });
 
   test("free tier over limit → blocked, remaining clamps to 0", () => {
@@ -32,7 +32,7 @@ describe("checkChatLimit", () => {
     expect(r.remaining).toBe(0);
   });
 
-  test("soma tier blocked hints cortex; cortex hints brain; brain hints null", () => {
+  test("upgrade ladder walks every paid step: soma → cortex → brain → null", () => {
     expect(checkChatLimit("soma", 30).upgradeTo).toBe("cortex");
     expect(checkChatLimit("cortex", 80).upgradeTo).toBe("brain");
     expect(checkChatLimit("brain", 250).upgradeTo).toBeNull();

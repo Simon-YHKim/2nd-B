@@ -100,12 +100,9 @@ export default function Profile() {
 
   const displayName = email ? email.split("@")[0] : t("fallbackName");
   const profileTitle = t("hero.title", { displayName });
-  const planKey =
-    progression.tier === "brain"
-      ? "pro"
-      : progression.tier === "cortex" || progression.tier === "soma"
-        ? "plus"
-        : "free";
+  // Monetization v2 (2026-06-10): every tier sells under its own name, so the
+  // enum value is the plans.json card key directly (soma is live again).
+  const planKey = progression.tier;
   const planName = progression.loading ? tPlans("loading") : tPlans(`tiers.${planKey}.name`);
   const planTagline = tPlans(`tiers.${planKey}.tagline`);
   const settingsCopy = sections.account.items.settings;

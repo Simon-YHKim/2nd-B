@@ -3,37 +3,48 @@
   "hero": {
     "eyebrow": "Plans",
     "title": "Keep your 2nd-Brain unlimited",
-    "subtitle": "Your records stay available on Free. Add more AI when you want it.",
-    "speech": "The core stays free. Plus just adds more room to think together."
+    "subtitle": "Records stay free without limits. Paid plans add more room to think with AI.",
+    "speech": "The core stays free. Paid plans just add more room to think together."
   },
   "current": "Current plan",
   "comingSoon": "Paid plans are coming soon",
-  "comingSoonBody": "You will see Plus here when it is ready. No charge until you choose it.",
+  "comingSoonBody": "Checkout is not open yet. Prices are final, and nothing is charged until you choose a plan here.",
   "tiers": {
     "free": {
       "name": "Free",
       "price": "Free",
-      "tagline": "Your everyday 2nd-Brain, unlimited",
+      "tagline": "Your everyday 2nd-Brain, unlimited records",
       "f1": "Unlimited records, notes, and wiki",
       "f2": "Private account storage with export when you need it",
-      "f3": "5 AI chats per day"
+      "f3": "2 AI chats per day"
     },
-    "plus": {
-      "name": "Plus",
+    "soma": {
+      "name": "Soma",
       "price": "$4.99 / mo",
-      "priceNote": "2 months free on yearly",
-      "tagline": "More room to think with AI",
-      "f1": "80 AI chats per day",
-      "f2": "Deeper pattern analysis",
-      "f3": "Priority on new features"
+      "priceNote": "$49.90 / yr (2 months free)",
+      "tagline": "Daily AI alongside your records",
+      "f1": "30 AI chats per day",
+      "f2": "Everything in Free",
+      "f3": "The first step past the daily limit"
     },
-    "pro": {
-      "name": "Pro",
-      "price": "Coming later",
-      "tagline": "On the roadmap",
-      "f1": "Everything in Plus",
-      "f2": "Highest AI limits",
-      "f3": "Early access to new tools"
+    "cortex": {
+      "name": "Cortex",
+      "price": "$9.99 / mo",
+      "priceNote": "$99.90 / yr (2 months free)",
+      "tagline": "Room for daily deep dives",
+      "f1": "80 AI chats per day",
+      "f2": "Everything in Soma",
+      "f3": "Headroom for long sessions"
+    },
+    "brain": {
+      "name": "Brain",
+      "price": "$19.99 / mo",
+      "priceNote": "$199.90 / yr (2 months free)",
+      "tagline": "The full second brain",
+      "f1": "250 AI chats per day",
+      "f2": "Everything in Cortex",
+      "f3": "The most room to think together",
+      "lifetimeNote": "Or $299 once for lifetime access"
     }
   },
   "back": "Back"

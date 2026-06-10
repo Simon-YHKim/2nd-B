@@ -1,7 +1,7 @@
 // Jarvis chat orchestrator.
 //
 //   1. Read today's chat_usage row for the user.
-//   2. Check the tier limit (free 5, Soma 30, Cortex 80, Brain 250).
+//   2. Check the tier limit (free 2, Soma 30, Cortex 80, Brain 250).
 //   3. If allowed, build a system prompt with a compact wiki snapshot,
 //      call callGemini (which enforces C1/C3/C9 automatically), and
 //      atomically bump today's chat_usage.
@@ -106,24 +106,23 @@ const MODE_INSTRUCTION: Record<"analytic" | "divergent", { en: string; ko: strin
   },
 };
 
-// D-09 launch tier display names (Free / Plus / Pro). The raw enum (cortex,
-// brain, the deprecated soma) must never reach the UI; soma maps to Plus only as
-// a legacy fallback since it is no longer an upgrade target.
+// Monetization v2 tier display names (2026-06-10): every tier sells under its
+// enum name — Soma is the entry tier again, so no more Plus/Pro aliasing.
 const TIER_DISPLAY: Record<SubscriptionTier, string> = {
   free: "Free",
-  soma: "Plus",
-  cortex: "Plus",
-  brain: "Pro",
+  soma: "Soma",
+  cortex: "Cortex",
+  brain: "Brain",
 };
 
 const BLOCKED_HINT = {
   en: (limit: number, upgrade: SubscriptionTier | null) =>
     upgrade
-      ? `You've hit today's free chat limit (${limit}). Upgrade to ${TIER_DISPLAY[upgrade]} for more — limits reset at midnight KST.`
+      ? `You've hit today's chat limit (${limit}). Upgrade to ${TIER_DISPLAY[upgrade]} for more. Limits reset at midnight KST.`
       : `You've hit today's chat limit (${limit}). Limits reset at midnight KST.`,
   ko: (limit: number, upgrade: SubscriptionTier | null) =>
     upgrade
-      ? `오늘 채팅 한도(${limit}회)를 모두 사용했어요. ${TIER_DISPLAY[upgrade]} 플랜으로 업그레이드하면 더 많이 쓸 수 있어요 — 한도는 KST 자정에 초기화돼요.`
+      ? `오늘 채팅 한도(${limit}회)를 모두 사용했어요. ${TIER_DISPLAY[upgrade]} 플랜으로 업그레이드하면 더 많이 쓸 수 있어요. 한도는 KST 자정에 초기화돼요.`
       : `오늘 채팅 한도(${limit}회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.`,
 };
 
