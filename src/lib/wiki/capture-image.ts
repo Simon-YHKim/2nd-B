@@ -43,6 +43,7 @@ const OCR_IMAGE_MIME_ALIASES: Record<string, string> = {
 const BASE64_DATA_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const BASE64_VALUES = new Map(Array.from(BASE64_ALPHABET, (char, value) => [char, value]));
+const MIN_OCR_IMAGE_SIGNATURE_BYTES = 12;
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const ISO_HEIC_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs"]);
 const ISO_HEIF_BRANDS = new Set(["mif1", "msf1"]);
@@ -129,6 +130,7 @@ function normalizeDeclaredOcrImageMimeType(mimeType: string | null | undefined):
 
 function sniffOcrImageMimeType(base64: string): AllowedOcrImageMimeType | null {
   const bytes = decodeBase64Prefix(base64, 32);
+  if (bytes.length < MIN_OCR_IMAGE_SIGNATURE_BYTES) return null;
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
   if (bytesStartWith(bytes, PNG_SIGNATURE)) return "image/png";
   if (asciiAt(bytes, 0, 4) === "RIFF" && asciiAt(bytes, 8, 4) === "WEBP") return "image/webp";

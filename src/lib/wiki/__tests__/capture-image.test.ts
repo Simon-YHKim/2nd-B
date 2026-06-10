@@ -35,8 +35,15 @@ import {
   pickImageAsset,
 } from "../capture-image";
 
-const JPEG_HEADER_BASE64 = "/9j/";
-const PNG_HEADER_BASE64 = "iVBORw0KGgo=";
+const JPEG_SIGNATURE_BASE64 = Buffer.from([0xff, 0xd8, 0xff]).toString("base64");
+const JPEG_IMAGE_BASE64 = Buffer.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49,
+  0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01,
+]).toString("base64");
+const PNG_IMAGE_BASE64 = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
+  0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00,
+]).toString("base64");
 
 const mockCallGemini = callGemini as jest.MockedFunction<typeof callGemini>;
 const imagePickerMock = ImagePicker as unknown as {
@@ -92,7 +99,7 @@ describe("capture image OCR payload guards", () => {
     await expect(
       ocrImageAsset("u1", "en", {
         mimeType: "image/gif",
-        base64: PNG_HEADER_BASE64,
+        base64: PNG_IMAGE_BASE64,
       }),
     ).rejects.toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
 
@@ -121,7 +128,7 @@ describe("capture image OCR payload guards", () => {
         {
           uri: "file:///anim.gif",
           mimeType: "image/gif",
-          base64: PNG_HEADER_BASE64,
+          base64: PNG_IMAGE_BASE64,
         },
       ],
     });
@@ -180,11 +187,22 @@ describe("capture image OCR payload guards", () => {
     expect(mockCallGemini).not.toHaveBeenCalled();
   });
 
+  test("rejects truncated image signatures before calling Gemini", async () => {
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/jpeg",
+        base64: JPEG_SIGNATURE_BASE64,
+      }),
+    ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
+
+    expect(mockCallGemini).not.toHaveBeenCalled();
+  });
+
   test("rejects declared image MIME that conflicts with the image signature", async () => {
     await expect(
       ocrImageAsset("u1", "en", {
         mimeType: "image/jpeg",
-        base64: PNG_HEADER_BASE64,
+        base64: PNG_IMAGE_BASE64,
       }),
     ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
 
@@ -205,7 +223,7 @@ describe("capture image OCR payload guards", () => {
         {
           uri: "file:///photo.jpg",
           mimeType: "image/jpg",
-          base64: JPEG_HEADER_BASE64,
+          base64: JPEG_IMAGE_BASE64,
         },
       ],
     });
@@ -213,7 +231,7 @@ describe("capture image OCR payload guards", () => {
     await expect(pickImageAsset("library")).resolves.toEqual({
       uri: "file:///photo.jpg",
       mimeType: "image/jpeg",
-      base64: JPEG_HEADER_BASE64,
+      base64: JPEG_IMAGE_BASE64,
     });
   });
 
@@ -223,7 +241,7 @@ describe("capture image OCR payload guards", () => {
       assets: [
         {
           uri: "file:///photo-without-mime.png",
-          base64: PNG_HEADER_BASE64,
+          base64: PNG_IMAGE_BASE64,
         },
       ],
     });
@@ -231,7 +249,7 @@ describe("capture image OCR payload guards", () => {
     await expect(pickImageAsset("library")).resolves.toEqual({
       uri: "file:///photo-without-mime.png",
       mimeType: "image/png",
-      base64: PNG_HEADER_BASE64,
+      base64: PNG_IMAGE_BASE64,
     });
   });
 
@@ -242,7 +260,7 @@ describe("capture image OCR payload guards", () => {
         {
           uri: "file:///wrapped.png",
           mimeType: "image/png",
-          base64: "iVBOR\nw0KGgo=",
+          base64: `${PNG_IMAGE_BASE64.slice(0, 8)}\n${PNG_IMAGE_BASE64.slice(8)}`,
         },
       ],
     });
@@ -250,24 +268,24 @@ describe("capture image OCR payload guards", () => {
     await expect(pickImageAsset("library")).resolves.toEqual({
       uri: "file:///wrapped.png",
       mimeType: "image/png",
-      base64: PNG_HEADER_BASE64,
+      base64: PNG_IMAGE_BASE64,
     });
 
     await ocrImageAsset("u1", "en", {
       mimeType: "image/png",
-      base64: "iVBOR\nw0KGgo=",
+      base64: `${PNG_IMAGE_BASE64.slice(0, 8)}\n${PNG_IMAGE_BASE64.slice(8)}`,
     });
 
     expect(mockCallGemini).toHaveBeenCalledWith(
       expect.objectContaining({
-        image: { mimeType: "image/png", data: PNG_HEADER_BASE64 },
+        image: { mimeType: "image/png", data: PNG_IMAGE_BASE64 },
       }),
     );
-    expect(normalizeOcrImageBase64Data(" iVBOR\nw0KGgo= ")).toBe(PNG_HEADER_BASE64);
+    expect(normalizeOcrImageBase64Data(` ${PNG_IMAGE_BASE64.slice(0, 8)}\n${PNG_IMAGE_BASE64.slice(8)} `)).toBe(PNG_IMAGE_BASE64);
   });
 
   test("allows payloads at the mirrored server cap", async () => {
-    const base64 = JPEG_HEADER_BASE64 + "A".repeat(MAX_OCR_IMAGE_BASE64_BYTES - JPEG_HEADER_BASE64.length);
+    const base64 = JPEG_IMAGE_BASE64 + "A".repeat(MAX_OCR_IMAGE_BASE64_BYTES - JPEG_IMAGE_BASE64.length);
 
     await expect(
       ocrImageAsset("u1", "ko", {
@@ -290,17 +308,17 @@ describe("capture image OCR payload guards", () => {
   test("normalizes common image MIME aliases before calling Gemini", async () => {
     await ocrImageAsset("u1", "en", {
       mimeType: "IMAGE/JPG",
-      base64: JPEG_HEADER_BASE64,
+      base64: JPEG_IMAGE_BASE64,
     });
 
     expect(mockCallGemini).toHaveBeenCalledWith(
       expect.objectContaining({
-        image: { mimeType: "image/jpeg", data: JPEG_HEADER_BASE64 },
+        image: { mimeType: "image/jpeg", data: JPEG_IMAGE_BASE64 },
       }),
     );
     expect(normalizeOcrImageMimeType(" image/x-png ")).toBe("image/png");
     expect(normalizeOcrImageMimeType(undefined)).toBe("image/jpeg");
-    expect(normalizeOcrImagePayload({ base64: PNG_HEADER_BASE64 }).mimeType).toBe("image/png");
+    expect(normalizeOcrImagePayload({ base64: PNG_IMAGE_BASE64 }).mimeType).toBe("image/png");
   });
 
   test("exposes a narrow sentinel helper for UI branching", () => {
