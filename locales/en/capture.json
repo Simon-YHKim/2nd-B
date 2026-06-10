@@ -20,7 +20,7 @@
     "title": "Save a note or source",
     "subtitle": "Journal · note · link · photo · file",
     "speechSaved": "Saved. You can see it on the graph.",
-    "speechSavedOcr": "Your photo note is saved. It is yours and visible on the graph.",
+    "speechSavedOcr": "Your photo note is saved. It is a private piece in your graph.",
     "speechSavedRecords": "Saved. You can find it in your records.",
     "speechIdle": "Write briefly or choose a source. We will organize it so you can find it later."
   },
@@ -81,9 +81,11 @@
   "saved": {
     "title": "Lumen saved a new piece",
     "ocrTitle": "Your photo note is saved",
-    "ocrBody": "It is yours and visible on the graph.",
+    "ocrBody": "A private piece in your graph.",
     "seeGraph": "See the graph",
     "seeOcrGraph": "See it in the graph",
+    "seeGraphHint": "Opens the graph and highlights this piece.",
+    "seeOcrGraphHint": "Opens the graph and highlights this photo note.",
     "seeRecords": "View my records",
     "captureMore": "Capture more",
     "storagePending": "Saved, but the backup file copy didn't upload this time. Your text is kept safely."
