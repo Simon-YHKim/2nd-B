@@ -15,7 +15,7 @@
 //     Editable chips, track toggle stays user-final.
 //   - Submit: persists via captureFromMarkdown + tag updates.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -49,6 +49,7 @@ import {
   isImageOcrEmptyResultError,
 } from "@/lib/wiki/capture-image";
 import { pickFile, type PickedFile } from "@/lib/wiki/capture-file";
+import { loadCaptureDraft, saveCaptureDraft, clearCaptureDraft } from "@/lib/capture/draft";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
 import { saveTemplate } from "@/lib/wiki/template-queries";
@@ -233,6 +234,33 @@ export default function Capture() {
     hotline: "GLOBAL_988",
   });
   const streak = useMemo(() => computeStreak(recentDates), [recentDates]);
+
+  // P1-5 (persona sim): the journal draft used to live only in useState — an
+  // app switch, a tab move (router.replace remounts this screen), or a stray
+  // mode-tab touch destroyed it. Restore once on mount (only into an empty
+  // journal field, never over text the user already typed), then persist
+  // debounced while typing. Successful saves clear it (handleJournalSubmit);
+  // reset()/mode switches deliberately leave storage alone — switching away
+  // and coming back without losing the draft IS the recovery path.
+  const draftRestoredRef = useRef(false);
+  useEffect(() => {
+    // Restore only into the journal mode (a deep-linked OCR/file entry must
+    // not get journal text injected); arriving at journal later still
+    // restores because the ref is only marked once we actually run.
+    if (!userId || mode !== "journal" || draftRestoredRef.current) return;
+    draftRestoredRef.current = true;
+    void loadCaptureDraft(userId).then((draft) => {
+      if (!draft) return;
+      // Only fill an untouched journal screen — never clobber live input.
+      setBody((current) => (current.length === 0 ? draft.body : current));
+      setTopic((current) => (current.length === 0 ? draft.topic : current));
+    });
+  }, [userId, mode]);
+  useEffect(() => {
+    if (!userId || mode !== "journal" || !draftRestoredRef.current) return;
+    const handle = setTimeout(() => saveCaptureDraft(userId, { body, topic }), 800);
+    return () => clearTimeout(handle);
+  }, [userId, mode, body, topic]);
 
   // Load recent record dates (journal streak) + journal use count (free-tier
   // limit) once we have a user.
@@ -453,6 +481,9 @@ export default function Capture() {
       const savedTopic = topic.trim();
       reset();
       companion.fire("journalSaved");
+      // The entry is in records now — the persisted draft has served its
+      // purpose and must not resurrect on the next visit.
+      clearCaptureDraft(userId);
       setSavedTitle(savedTopic.length > 0 ? savedTopic : t("savedTitleFallback"));
       setSavedKind("records");
       setSavedMode("journal");
