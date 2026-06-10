@@ -190,7 +190,10 @@ export default function CompleteProfile() {
           />
           <Button
             label={t("completeProfile.cancel")}
-            variant="secondary"
+            // O-R1 P1: cancel here SIGNS OUT (destructive in effect) yet sat
+            // at near-primary weight — demote so the required DOB+consent
+            // submit is the only prominent action.
+            variant="ghost"
             onPress={handleCancel}
             disabled={submitting}
             accessibilityHint={t("completeProfile.cancelHint")}
