@@ -45,6 +45,43 @@ function kstIsoWeek(ms: number): string {
   return isoWeek(new Date(ms + KST_OFFSET_MS));
 }
 
+export interface WeekComparison {
+  /** KST ISO week key of the current calendar week (e.g. "2026-W24"). */
+  thisWeek: string;
+  thisWeekCount: number;
+  lastWeek: string;
+  lastWeekCount: number;
+  /** thisWeekCount - lastWeekCount. */
+  delta: number;
+  /** True when every bucket is the current week — the user's first week. */
+  firstWeek: boolean;
+}
+
+// Weekly-report comparison anchored to the CURRENT KST calendar week — NOT
+// byWeek's last element, which is the week of the LAST RECORD: a user who
+// has not written this week must see an honest 0 (that nudge is the whole
+// retention point), never last month relabeled as "this week". `now` is
+// injectable for tests; counts default to 0 for weeks outside the buckets.
+export function getWeekComparison(
+  byWeek: { week: string; count: number }[],
+  now: Date = new Date(),
+): WeekComparison | null {
+  if (byWeek.length === 0) return null;
+  const thisWeek = kstIsoWeek(now.getTime());
+  const lastWeek = kstIsoWeek(now.getTime() - 7 * 86_400_000);
+  const countOf = (week: string) => byWeek.find((w) => w.week === week)?.count ?? 0;
+  const thisWeekCount = countOf(thisWeek);
+  const lastWeekCount = countOf(lastWeek);
+  return {
+    thisWeek,
+    thisWeekCount,
+    lastWeek,
+    lastWeekCount,
+    delta: thisWeekCount - lastWeekCount,
+    firstWeek: byWeek.every((w) => w.week === thisWeek),
+  };
+}
+
 /** A captured Source row. Non-journal Capture modes (memo/link/OCR/file)
  *  persist here instead of `records`, so /insights must include them or it
  *  shows a false-empty state to source-only users (data-truth gate). */

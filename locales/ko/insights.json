@@ -31,6 +31,15 @@
       "unit": "자 / 기록"
     }
   },
+  "weeklyReport": {
+    "eyebrow": "주간 리포트",
+    "thisWeekLabel": "이번 주",
+    "lastWeekLabel": "지난주",
+    "deltaUp": "지난주보다 {{count}}개 더 남겼어요",
+    "deltaDown": "지난주보다 {{count}}개 적어요",
+    "deltaFlat": "지난주와 같은 흐름이에요",
+    "firstWeek": "기록을 시작한 첫 주예요"
+  },
   "sections": {
     "weekly": "주간 활동",
     "topics": "자주 다룬 주제",

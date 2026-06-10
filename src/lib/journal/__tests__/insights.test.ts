@@ -1,4 +1,49 @@
-import { computeInsights, sourceToInsightRecord, type InsightRecord, type InsightSource } from "../insights";
+import {
+  computeInsights,
+  getWeekComparison,
+  sourceToInsightRecord,
+  type InsightRecord,
+  type InsightSource,
+} from "../insights";
+
+describe("getWeekComparison (weekly report, current-KST-week anchored)", () => {
+  // 2026-05-25T03:00:00Z = Monday 12:00 KST → ISO week 2026-W22 in KST.
+  const NOW = new Date("2026-05-25T03:00:00Z");
+
+  test("compares the CURRENT calendar week against the previous one", () => {
+    const wc = getWeekComparison(
+      [
+        { week: "2026-W21", count: 3 },
+        { week: "2026-W22", count: 5 },
+      ],
+      NOW,
+    );
+    expect(wc).toMatchObject({
+      thisWeek: "2026-W22",
+      thisWeekCount: 5,
+      lastWeek: "2026-W21",
+      lastWeekCount: 3,
+      delta: 2,
+      firstWeek: false,
+    });
+  });
+
+  test("a quiet current week reads as an honest 0, not the last active week", () => {
+    // byWeek ends at the last RECORD's week — the user wrote nothing in W22.
+    const wc = getWeekComparison([{ week: "2026-W21", count: 3 }], NOW);
+    expect(wc).toMatchObject({ thisWeekCount: 0, lastWeekCount: 3, delta: -3 });
+  });
+
+  test("first week of records is flagged", () => {
+    const wc = getWeekComparison([{ week: "2026-W22", count: 2 }], NOW);
+    expect(wc?.firstWeek).toBe(true);
+    expect(wc?.lastWeekCount).toBe(0);
+  });
+
+  test("no buckets → null (empty state owns the screen)", () => {
+    expect(getWeekComparison([], NOW)).toBeNull();
+  });
+});
 
 function rec(over: Partial<InsightRecord>): InsightRecord {
   return {

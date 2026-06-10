@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { PremiumAppShell, PremiumErrorState, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { computeInsights, sourceToInsightRecord, type InsightRecord, type InsightSource, type InsightsResult } from "@/lib/journal/insights";
+import { computeInsights, getWeekComparison, sourceToInsightRecord, type InsightRecord, type InsightSource, type InsightsResult } from "@/lib/journal/insights";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { VILLAGE_UI } from "@/lib/village-ui";
@@ -187,6 +187,44 @@ export default function Insights() {
           </View>
         </View>
 
+        {/* M4 retention: weekly report anchored to the CURRENT KST week, so
+            a quiet week reads as an honest 0 (the nudge), never as last
+            month relabeled. Pure aggregation — no model call. */}
+        {(() => {
+          const wc = getWeekComparison(i.byWeek);
+          if (!wc) return null;
+          return (
+            <View style={styles.card}>
+              <Text variant="caption" color="brand" style={styles.cardEyebrow}>
+                {t("weeklyReport.eyebrow")}
+              </Text>
+              <View style={styles.weeklyRow}>
+                <View style={styles.statBlock}>
+                  <Text variant="caption" color="textSubtle">
+                    {t("weeklyReport.thisWeekLabel")}
+                  </Text>
+                  <Text variant="heading">{wc.thisWeekCount}</Text>
+                </View>
+                <View style={styles.statBlock}>
+                  <Text variant="caption" color="textSubtle">
+                    {t("weeklyReport.lastWeekLabel")}
+                  </Text>
+                  <Text variant="heading">{wc.lastWeekCount}</Text>
+                </View>
+              </View>
+              <Text variant="subtle" color={wc.delta > 0 ? "brand" : "textMuted"}>
+                {wc.firstWeek
+                  ? t("weeklyReport.firstWeek")
+                  : wc.delta > 0
+                    ? t("weeklyReport.deltaUp", { count: wc.delta })
+                    : wc.delta < 0
+                      ? t("weeklyReport.deltaDown", { count: Math.abs(wc.delta) })
+                      : t("weeklyReport.deltaFlat")}
+              </Text>
+            </View>
+          );
+        })()}
+
         {i.byWeek.length > 0 ? (
           <View style={styles.card}>
             <Text variant="caption" color="brand" style={styles.cardEyebrow}>
@@ -270,6 +308,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: spacing.lg, gap: spacing.sm },
   header: { gap: spacing.xs },
   topRow: { flexDirection: "row", gap: spacing.md },
+  weeklyRow: { flexDirection: "row", gap: spacing.md },
   statBlock: {
     flex: 1,
     backgroundColor: semantic.surface,
