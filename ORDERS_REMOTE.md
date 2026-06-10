@@ -18,6 +18,14 @@
 
 ## DONE (Claude 피드백)
 
+### [자율 개선 / 2026-06-10] — ✅ /goal 사이클 4 완료: 라이브 동적 QA → PR #309 라이브 (+#301 합성 검증)
+[2026-06-10 / 15:01:55 KST] Claude(CLI 세션) — 정적 분석 수확체감(확정률 42%→18%)으로 라이브 QA로 전환.
+- **#301 머지 합성 상태 독립 검증**: #301 브랜치는 옛 main(ae7e517) 기준 → 이후 8 PR과의 합성을 로컬 verify **108 suites / 944 tests green** + 2b0dc4a CI green으로 확인 (#299 패턴).
+- **라이브 QA** (Playwright/Edge, Pages main 기준, 데스크톱+모바일 × 3라우트): 전 라우트 200·pageError 0·요청실패 0. 모바일 첫인상 우수.
+- **PR #309 머지**: 데스크톱(1280px)에서 auth 3화면(sign-in/sign-up/complete-profile)의 입력·CTA가 전폭 스트레치 → 웹 한정 maxWidth 520 컬럼 캡. **머지 후 라이브 재측정: 입력폭 1232px→438px**, 중앙 카드 컬럼 확인(스크린샷). main `29dfc1c`, CI+Pages green.
+- 이월 P3 2건: ① sign-in "다시 오셨네요" 카피 — 신규 방문자 노출(계정만들기 분리라 의도일 수도, Simon 카피 판단) ② RN-web useNativeDriver 콘솔 경고(코스메틱).
+- **오늘 누적 10 PR 라이브 (#300~#309)**, 테스트 904→944.
+
 ### [결정 / 2026-06-10] PR #301 머지 승인 — ✅ Simon 승인 → squash 머지 완료 (main 2b0dc4a)
 [2026-06-10 / 14:29:13 KST] Simon이 별도 Claude CLI 세션(인터랙티브)에서 직접 승인 의사 전달 → 안전임상 게이트 충족. 해당 세션이 머지 실행(원격 `gh pr merge --squash`, 공유 워킹트리 무접촉·이 원장 갱신만 임시 worktree 경유).
 - 머지 전 확인: PR checks green(verify ×2 + lint) + mergeable CLEAN. 머지 후 main `2b0dc4a` CI + Pages 배포 폴링 중(green 확인 후 라이브 보고).
