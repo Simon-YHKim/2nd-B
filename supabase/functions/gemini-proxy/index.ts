@@ -36,7 +36,7 @@
 //     system: string | null,
 //     user: string,
 //     model: 'gemini-2.5-flash' | 'gemini-2.5-pro',
-//     image?: { mimeType: string, data: string }   // base64 (no data: URL prefix)
+//     image?: { mimeType?: string, data: string }  // base64 or data:image/...;base64,...
 //   }
 //
 // Response shape:
@@ -120,6 +120,22 @@ function normalizeImageBase64Data(data: string): string {
 function normalizeImageMimeType(mimeType: string): string {
   const normalized = mimeType.trim().toLowerCase().split(';')[0]?.trim() ?? '';
   return IMAGE_MIME_ALIASES[normalized] ?? normalized;
+}
+
+function parseImageBase64Input(input: string): { data: string; mimeType: string | null } | null {
+  const trimmed = input.trim();
+  if (!trimmed.toLowerCase().startsWith('data:')) return { data: input, mimeType: null };
+
+  const commaIndex = trimmed.indexOf(',');
+  if (commaIndex === -1) return null;
+  const header = trimmed.slice('data:'.length, commaIndex);
+  const parts = header.split(';').map((part) => part.trim()).filter(Boolean);
+  const rawMimeType = parts.shift();
+  if (!rawMimeType || !parts.some((part) => part.toLowerCase() === 'base64')) return null;
+  return {
+    data: trimmed.slice(commaIndex + 1),
+    mimeType: normalizeImageMimeType(rawMimeType),
+  };
 }
 
 function sniffImageMimeType(base64: string): string | null {
@@ -319,18 +335,26 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);
     }
     const imgObj = body.image as Record<string, unknown>;
-    const mime = typeof imgObj.mimeType === 'string' ? normalizeImageMimeType(imgObj.mimeType) : '';
-    const data = typeof imgObj.data === 'string' ? imgObj.data : '';
-    if (!mime || !data) {
+    const declaredMime = typeof imgObj.mimeType === 'string' ? normalizeImageMimeType(imgObj.mimeType) : '';
+    const rawData = typeof imgObj.data === 'string' ? imgObj.data : '';
+    if (!rawData) {
+      return jsonResponse(req, { error: 'image_invalid_data' }, 400);
+    }
+    if (rawData.length > MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN) {
+      return jsonResponse(req, { error: 'image_too_large', max: MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN, got: rawData.length }, 413);
+    }
+    const parsedData = parseImageBase64Input(rawData);
+    if (!parsedData) {
+      return jsonResponse(req, { error: 'image_invalid_data' }, 400);
+    }
+    const mime = parsedData.mimeType ?? declaredMime;
+    if (!mime) {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);
     }
     if (!ALLOWED_IMAGE_MIME.has(mime)) {
       return jsonResponse(req, { error: 'image_mime_not_allowed', got: mime }, 415);
     }
-    if (data.length > MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN) {
-      return jsonResponse(req, { error: 'image_too_large', max: MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN, got: data.length }, 413);
-    }
-    const normalizedData = normalizeImageBase64Data(data);
+    const normalizedData = normalizeImageBase64Data(parsedData.data);
     if (normalizedData.length === 0) {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);
     }

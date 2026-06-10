@@ -12,7 +12,7 @@ import type { GeminiResult } from "../llm/types";
 export interface PickedImage {
   /** Local URI for the preview thumbnail. */
   uri: string;
-  /** Base64 bytes (no `data:` prefix) handed to the Edge Function for OCR. */
+  /** Normalized base64 bytes handed to the Edge Function for OCR. */
   base64: string;
   mimeType: string;
 }
@@ -125,7 +125,8 @@ export function normalizeOcrImagePayload(image: {
   if (image.base64.length > MAX_OCR_IMAGE_RAW_BASE64_BYTES) {
     throw new Error(IMAGE_OCR_TOO_LARGE_ERROR);
   }
-  const base64 = normalizeOcrImageBase64Data(image.base64);
+  const parsed = parseOcrImageBase64Input(image.base64);
+  const base64 = normalizeOcrImageBase64Data(parsed.base64);
   if (base64.length === 0) {
     throw new Error(IMAGE_OCR_MISSING_DATA_ERROR);
   }
@@ -135,7 +136,7 @@ export function normalizeOcrImagePayload(image: {
   if (!BASE64_DATA_RE.test(base64)) {
     throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
   }
-  const declaredMimeType = normalizeDeclaredOcrImageMimeType(image.mimeType);
+  const declaredMimeType = parsed.mimeType ?? normalizeDeclaredOcrImageMimeType(image.mimeType);
   if (declaredMimeType && !ALLOWED_OCR_IMAGE_MIME_TYPE_SET.has(declaredMimeType)) {
     throw new Error(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
   }
@@ -157,6 +158,26 @@ function normalizeDeclaredOcrImageMimeType(mimeType: string | null | undefined):
   const normalized = mimeType?.trim().toLowerCase().split(";")[0]?.trim();
   if (!normalized) return null;
   return OCR_IMAGE_MIME_ALIASES[normalized] ?? normalized;
+}
+
+function parseOcrImageBase64Input(input: string): { base64: string; mimeType: string | null } {
+  const trimmed = input.trim();
+  if (!trimmed.toLowerCase().startsWith("data:")) return { base64: input, mimeType: null };
+
+  const commaIndex = trimmed.indexOf(",");
+  if (commaIndex === -1) {
+    throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
+  }
+  const header = trimmed.slice("data:".length, commaIndex);
+  const parts = header.split(";").map((part) => part.trim()).filter(Boolean);
+  const rawMimeType = parts.shift();
+  if (!rawMimeType || !parts.some((part) => part.toLowerCase() === "base64")) {
+    throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
+  }
+  return {
+    base64: trimmed.slice(commaIndex + 1),
+    mimeType: normalizeDeclaredOcrImageMimeType(rawMimeType),
+  };
 }
 
 function sniffOcrImageMimeType(base64: string): AllowedOcrImageMimeType | null {

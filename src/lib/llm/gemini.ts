@@ -46,15 +46,16 @@ const LLM_IMAGE_TOO_LARGE_ERROR = "llm_image_too_large";
 const LLM_IMAGE_UNSUPPORTED_TYPE_ERROR = "llm_image_unsupported_type";
 
 function normalizePromptImage(image: { mimeType: string; data: string }): { mimeType: string; data: string } {
-  const normalizedMimeType = image.mimeType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
-  const mimeType = INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType;
-  if (!ALLOWED_INLINE_IMAGE_MIME.has(mimeType)) {
-    throw new Error(LLM_IMAGE_UNSUPPORTED_TYPE_ERROR);
-  }
   if (image.data.length > MAX_INLINE_IMAGE_RAW_BASE64_LEN) {
     throw new Error(LLM_IMAGE_TOO_LARGE_ERROR);
   }
-  const data = image.data.replace(/\s+/g, "");
+  const parsed = parsePromptImageData(image.data);
+  const normalizedMimeType = image.mimeType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
+  const mimeType = parsed.mimeType ?? (INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType);
+  if (!ALLOWED_INLINE_IMAGE_MIME.has(mimeType)) {
+    throw new Error(LLM_IMAGE_UNSUPPORTED_TYPE_ERROR);
+  }
+  const data = parsed.data.replace(/\s+/g, "");
   if (data.length === 0) {
     throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
   }
@@ -69,6 +70,27 @@ function normalizePromptImage(image: { mimeType: string; data: string }): { mime
     throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
   }
   return { mimeType, data };
+}
+
+function parsePromptImageData(data: string): { data: string; mimeType: string | null } {
+  const trimmed = data.trim();
+  if (!trimmed.toLowerCase().startsWith("data:")) return { data, mimeType: null };
+
+  const commaIndex = trimmed.indexOf(",");
+  if (commaIndex === -1) {
+    throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
+  }
+  const header = trimmed.slice("data:".length, commaIndex);
+  const parts = header.split(";").map((part) => part.trim()).filter(Boolean);
+  const rawMimeType = parts.shift();
+  if (!rawMimeType || !parts.some((part) => part.toLowerCase() === "base64")) {
+    throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
+  }
+  const normalizedMimeType = rawMimeType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
+  return {
+    data: trimmed.slice(commaIndex + 1),
+    mimeType: INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType,
+  };
 }
 
 function sniffInlineImageMimeType(base64: string): string | null {

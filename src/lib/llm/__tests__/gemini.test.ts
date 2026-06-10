@@ -149,6 +149,29 @@ describe("callGemini", () => {
     expect(callArg.config).toMatchObject({ maxOutputTokens: 4096, temperature: 0.2 });
   });
 
+  test("multimodal: data URL images are normalized before the direct/Vertex SDK call", async () => {
+    await callGemini({
+      userId: "u1",
+      locale: "en",
+      purpose: "capture_ocr",
+      user: "Transcribe the text in this image.",
+      image: { mimeType: "", data: `data:image/x-png;charset=utf-8;base64, ${PNG_IMAGE_BASE64.slice(0, 8)}\n${PNG_IMAGE_BASE64.slice(8)}` },
+    });
+
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    const callArg = mockGenerateContent.mock.calls[0]![0] as {
+      contents: { role: string; parts: Record<string, unknown>[] }[];
+    };
+    const userMsg = callArg.contents[callArg.contents.length - 1]!;
+    expect(userMsg.parts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          inlineData: { mimeType: "image/png", data: PNG_IMAGE_BASE64 },
+        }),
+      ]),
+    );
+  });
+
   test("multimodal: invalid image data is rejected before the direct/Vertex SDK call", async () => {
     await expect(
       callGemini({
