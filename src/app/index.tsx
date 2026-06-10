@@ -624,7 +624,10 @@ export default function Landing() {
           <Text style={[styles.insightEyebrow, locale === "ko" ? styles.insightEyebrowKo : styles.insightEyebrowEn]}>
             {locale === "ko" ? "오늘의 중심" : "Today's center"}
           </Text>
-          <Text style={styles.insightText} numberOfLines={2}>
+          {/* P2-11: at 200% font scale the 2-line clamp ellipsized exactly the
+              actionable clause of the records-only/offline lines. Three lines
+              keeps the ribbon one message while surviving large type. */}
+          <Text style={styles.insightText} numberOfLines={3}>
             {insight}
           </Text>
         </Pressable>

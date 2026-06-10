@@ -807,7 +807,15 @@ export default function Capture() {
           <View
             style={styles.primaryHeader}
             accessible
-            accessibilityLabel={`${t("hero.title")} ${t("hero.subtitle")}`}
+            accessibilityLabel={
+              // P2-12: the firstRun hint renders INSIDE this accessible
+              // container, so the fixed label swallowed it — TalkBack users
+              // never heard "one sentence is enough" on their very first
+              // capture. Fold it into the spoken label while it is visible.
+              firstRun && !savedTitle && mode === "journal"
+                ? `${t("hero.title")} ${t("hero.subtitle")} ${t("firstRun.hint")}`
+                : `${t("hero.title")} ${t("hero.subtitle")}`
+            }
             accessibilityHint={
               // J1: the spoken hint must match where the piece actually went —
               // the old graph promise on a journal save re-broke the journey
