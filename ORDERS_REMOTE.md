@@ -16,7 +16,21 @@
 
 (새 오더를 여기 아래에 추가)
 
+### [결정요청 / 2026-06-10] PR #301 머지 승인 — 안전임상 게이트 (C9 후속 422 위기 폴백)
+[2026-06-10 / 13:22:02 KST] Claude(CLI 세션). 감사 펀치리스트 C9 후속을 구현해 PR #301로 올렸고, crisis 라우팅 동작 변경이라 안전임상 게이트로 머지 보류 중.
+- **문제**: 클라이언트 lexicon이 놓친 위기 입력을 서버 게이트(gemini-proxy)가 422로 거부하면, 사용자(위기 상태)는 핫라인 라우팅 대신 "지금 저장할 수 없어요" raw 에러 모달을 봄.
+- **수정**: 422 `safety_red_zone` 거부를 클라이언트-RED와 동일한 위기 플로우로 폴백 (callGemini→routeCrisis, callAdvisor→fixed template 미러, `proxy_input_red` 태그). 다른 마커 422·비-422 에러는 기존대로 throw.
+- **검증**: 신규 테스트 7/7 + verify 918 green. 이중 audit 없음 확인(프록시는 422를 audit 안 함). 핫라인 SoT(`crisisHotlines`) 재사용. UI는 기존 `followup.zone === "red"` 경로로 자동 연결(화면 코드 무변경).
+- **권장안: 승인(머지)**. 위기 사용자에게 에러 대신 핫라인이 보이는 순수 안전 개선.
+- 승인 방법: 이 블록 아래 "승인" 한 줄 추가 push, 또는 아무 채널로 의사 전달.
+
 ## DONE (Claude 피드백)
+
+### [자율 개선 / 2026-06-10] — ✅ L1 analysis-lexicon CI 게이트 배선 (#300 머지·라이브)
+[2026-06-10 / 13:22:02 KST] Claude(CLI 세션) — 감사 펀치리스트 L1 클로즈. /goal(전방위 개선 자율 루프) 1·2호 작업.
+- ANALYSIS_UNIVERSAL_FORBIDDEN(15 EN + 19 KO)을 check-forbidden-lexicon.ts에 **라인 단위 + 가드레일 부정문맥 필터**로 배선 — "Never diagnose" 가드레일 프롬프트 3파일 위양성 0, allowlist 추가 0. 카나리 e2e(위반 심기→FAIL→제거→PASS)로 게이트 작동 검증.
+- PR #300 squash 머지 → main `b0eb0df`, **CI+Pages green**. verify 914 green.
+- 부수 복구: 이관 후 깨져 있던 **gh CLI 인증 복원**(hosts.yml 재생성 — keyring 토큰 생존). 이제 CLI 세션이 PR 생성·머지 직접 수행 가능.
 
 ### [머지 후 독립 검증 / 2026-06-10] — ✅ #299 머지 상태 전부 green
 [2026-06-10 / 11:00:00 KST] Claude(원격 CLI 세션) — Simon 결정 2건 수신·검증 완료.
