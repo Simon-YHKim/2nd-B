@@ -26,6 +26,14 @@
 
 ## DONE (Claude 피드백)
 
+### [자율 개선 / 2026-06-10] — ✅ /goal 사이클 3 완료: 신규 5렌즈 발굴 → 4 PR 라이브 (#306~#308)
+[2026-06-10 / 14:26:27 KST] Claude(CLI 세션) — 사이클 3 (기반자료·성능·페르소나시뮬·테스트갭·스키마drift, 에이전트 44, 확정 7/기각 32) 클로즈.
+- **PR #306**: Analysis Lexicon **정본 미러링 갭** — 법무 문서가 금지한 therapy·therapeutic 등 10개 EN + 치료·처방·정신과 등 5개 KO가 코드 리스트에 빠져 CI가 못 잡던 것 보강 (floor 15→25 EN, 19→24 KO). KO 명령형 금지("~지 마") 가드레일 패턴 추가, 위양성 0.
+- **PR #307**: **types.gen.ts 재생성** (Supabase MCP, 0043 기준) — esm_responses·gemini_spend_daily·guardian_consents·clipper_templates·consent_records 5개 테이블 + added_by 컬럼이 타입 밖에 있던 것 해소. tsc clean = 스키마-클라이언트 실정합 증명.
+- **PR #308**: **코어 루프 테스트 갭** — XP award 매핑·once-only·무던짐 계약 6케이스, EXPO_PUBLIC_FORCE_TIER chokepoint를 resolveTier 순수 함수로 추출+양방향 마스킹 테스트(릴리스 페이월 리스크 회귀 가드), empty-card 영속 3케이스.
+- 기각 1건(Claude 최종패스): probe.ts 위기 규칙 "도달불가" 주장 — 분류기 통과한 미묘 입력에 대한 의도된 계층 방어로 판단, 유지.
+- main `082fb10`, 전 PR CI green. **오늘 누적: PR 8개 라이브(#300·302~308) + 게이트 1건(#301) 대기.**
+
 ### [자율 개선 / 2026-06-10] — ✅ /goal 사이클 2 완료: 펀치리스트 4건 전부 소화 (PR #304·#305 라이브)
 [2026-06-10 / 13:58:58 KST] Claude(CLI 세션) — 사이클 1 이월 P3 4건 클로즈.
 - **PR #304 머지**: ① byWeek 주간 버킷도 KST 앵커로 통일(kstIsoWeek — daySpan과 동일 컨벤션, 경계 테스트 추가) ② /import에도 storagePending info 토스트(EN/KO) ③ QuantIntroModal·empty-card 무음 persist에 warn 트레이스. 여담: 처음 쓴 코멘트의 d-단어를 #300의 L1 게이트가 잡아냄 — 게이트 실작동 확인.
