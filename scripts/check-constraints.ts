@@ -1067,6 +1067,24 @@ results.push(
 );
 
 results.push(
+  check("CaptureFileBodySync", () => {
+    const capture = read("src/app/capture.tsx");
+    const ok =
+      capture.includes("setPickedFile(f);") &&
+      capture.includes('setBody(f.textContent ?? "");') &&
+      capture.includes('if (mode === "file" && pickedFile && finalBody.length === 0)') &&
+      capture.includes("File attachment - ${pickedFile.mimeType}, ${pickedFile.size} bytes.");
+    return {
+      id: "CaptureFileBodySync",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "file capture clears stale extracted text when a new file has no preview text"
+        : "file capture must sync body to each picked file so an unsupported new file cannot reuse stale extracted text",
+    };
+  }),
+);
+
+results.push(
   check("Onboarding", () => {
     const onboarding = read("src/app/onboarding.tsx");
     const stepEntries = onboarding.match(/^\s*\{\r?\n\s*art: "(welcome|trust|firstShard)"/gm) ?? [];

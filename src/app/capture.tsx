@@ -433,7 +433,7 @@ export default function Capture() {
       const f = await pickFile();
       if (!f) return;
       setPickedFile(f);
-      if (f.textContent) setBody(f.textContent);
+      setBody(f.textContent ?? "");
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] file pick failed", (e as Error).message);
       showFeedback(
