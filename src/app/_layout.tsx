@@ -142,9 +142,40 @@ function ThemedStatusBar() {
  */
 const INTRO_SEEN_KEY = "secondB_intro_played_v1";
 
+// P2-9 (persona sim): the seen-flag was sessionStorage-only, which simply
+// does not exist on native — every cold start replayed the >=2.5s tap-gated
+// intro, a real tax on the 60-90 second between-jobs sessions. Web keeps the
+// once-per-tab-session behavior ("reloading your brain" on a fresh tab);
+// native persists once-per-device via AsyncStorage (onboarding/state.ts
+// pattern). The hydrate is async, so IntroGate also checks it in an effect.
+interface AsyncStorageLike {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+}
+
+function nativeIntroStorage(): AsyncStorageLike | null {
+  const nav = globalThis.navigator as { product?: string } | undefined;
+  if (nav?.product !== "ReactNative") return null;
+  try {
+    return require("@react-native-async-storage/async-storage").default as AsyncStorageLike;
+  } catch {
+    return null;
+  }
+}
+
 function introAlreadyPlayed(): boolean {
   try {
     return typeof sessionStorage !== "undefined" && sessionStorage.getItem(INTRO_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+async function introAlreadyPlayedNative(): Promise<boolean> {
+  const store = nativeIntroStorage();
+  if (!store) return false;
+  try {
+    return (await store.getItem(INTRO_SEEN_KEY)) === "1";
   } catch {
     return false;
   }
@@ -154,8 +185,13 @@ function markIntroPlayed(): void {
   try {
     if (typeof sessionStorage !== "undefined") sessionStorage.setItem(INTRO_SEEN_KEY, "1");
   } catch {
-    /* ignore — private mode / native */
+    /* ignore — private mode */
   }
+  void nativeIntroStorage()
+    ?.setItem(INTRO_SEEN_KEY, "1")
+    .catch(() => {
+      /* best-effort */
+    });
 }
 
 function IntroGate({ children }: { children: React.ReactNode }) {
@@ -166,6 +202,22 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // app instead of re-showing the loader that waits for a tap — that was the
   // "infinite loading on re-entry" report.
   const [introDone, setIntroDone] = useState(introAlreadyPlayed);
+  // Native (P2-9): the seen-flag persists in AsyncStorage; hydrate it once.
+  // A returning user skips the intro instead of paying 2.5s + a tap on every
+  // cold start. Web is unaffected (the native store is null there).
+  useEffect(() => {
+    if (introDone) return;
+    let cancelled = false;
+    void introAlreadyPlayedNative().then((seen) => {
+      if (seen && !cancelled) setIntroDone(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Hydrate exactly once on mount — introDone is read but deliberately not
+    // a dependency (it only flips one way and the effect self-noops then).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Global C10 + PIPA-consent gate (re-audit 2026-06-03: per-screen gating was
   // leaky — inbox/wiki kept slipping through). An authenticated session with NO
