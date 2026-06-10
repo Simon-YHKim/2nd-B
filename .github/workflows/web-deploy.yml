@@ -54,6 +54,15 @@ jobs:
           # inlined into the public web bundle. REQUIRED for live web: set repo
           # Variable EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true alongside LLM_MODE=live.
           EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: ${{ vars.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || 'false' }}
+          # Naver social sign-up (code + oauth-naver edge function are already
+          # in-repo, OFF by default). To go live: register the app at
+          # developers.naver.com (callback: <origin>/2nd-B/oauth-callback),
+          # deploy the oauth-naver function with its server secrets, then set
+          # repo Variables EXPO_PUBLIC_ENABLE_NAVER=true and
+          # EXPO_PUBLIC_NAVER_CLIENT_ID. The '|| false' fallback keeps an
+          # unset Variable from feeding zod an empty string.
+          EXPO_PUBLIC_ENABLE_NAVER: ${{ vars.EXPO_PUBLIC_ENABLE_NAVER || 'false' }}
+          EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID }}
           EXPO_USE_STATIC: "true"
         run: |
           # base-path (/2nd-B) comes from expo.experiments.baseUrl in app.json,
