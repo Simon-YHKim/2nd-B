@@ -184,6 +184,10 @@
       "title": "Camera permission is off",
       "message": "Allow camera access in your device settings, or choose an image from your library."
     },
+    "ocrEmptyResult": {
+      "title": "No text found",
+      "message": "We couldn't find readable text in this image. Try a closer, well-lit photo."
+    },
     "ocrRead": {
       "title": "Couldn't read the text",
       "message": "We couldn't read the text from that image. Try again with a clearer photo."
