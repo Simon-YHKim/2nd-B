@@ -100,6 +100,11 @@ const MAX_IMAGE_BASE64_LEN = 2_700_000;
 // still failing closed on whitespace-heavy request-body abuse before parsing.
 const MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN = MAX_IMAGE_BASE64_LEN + 100_000;
 const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+const IMAGE_MIME_ALIASES: Record<string, string> = {
+  'image/jpg': 'image/jpeg',
+  'image/pjpeg': 'image/jpeg',
+  'image/x-png': 'image/png',
+};
 const BASE64_IMAGE_DATA_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const BASE64_IMAGE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 const BASE64_IMAGE_VALUES = new Map(Array.from(BASE64_IMAGE_ALPHABET, (char, value) => [char, value]));
@@ -110,6 +115,11 @@ const ISO_HEIF_BRANDS = new Set(['mif1', 'msf1']);
 
 function normalizeImageBase64Data(data: string): string {
   return data.replace(/\s+/g, '');
+}
+
+function normalizeImageMimeType(mimeType: string): string {
+  const normalized = mimeType.trim().toLowerCase().split(';')[0]?.trim() ?? '';
+  return IMAGE_MIME_ALIASES[normalized] ?? normalized;
 }
 
 function sniffImageMimeType(base64: string): string | null {
@@ -309,9 +319,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);
     }
     const imgObj = body.image as Record<string, unknown>;
-    const mime = typeof imgObj.mimeType === 'string'
-      ? imgObj.mimeType.trim().toLowerCase().split(';')[0]?.trim() ?? ''
-      : '';
+    const mime = typeof imgObj.mimeType === 'string' ? normalizeImageMimeType(imgObj.mimeType) : '';
     const data = typeof imgObj.data === 'string' ? imgObj.data : '';
     if (!mime || !data) {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);

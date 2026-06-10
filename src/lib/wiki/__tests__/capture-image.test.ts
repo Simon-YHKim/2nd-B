@@ -84,6 +84,20 @@ function proxyImageMimeAllowlist(): string[] {
   return Array.from(match[1]!.matchAll(/'([^']+)'/g), (m) => m[1]!);
 }
 
+function proxyImageMimeAliases(): Record<string, string> {
+  const match = geminiProxySource.match(/const IMAGE_MIME_ALIASES: Record<string, string> = \{([\s\S]*?)\};/);
+  if (!match) throw new Error("gemini-proxy image MIME alias map not found");
+  return Object.fromEntries(Array.from(match[1]!.matchAll(/'([^']+)': '([^']+)'/g), (m) => [m[1]!, m[2]!]));
+}
+
+function ocrImageMimeAliases(): Record<string, string> {
+  const match = readFileSync(resolve(__dirname, "../capture-image.ts"), "utf8").match(
+    /const OCR_IMAGE_MIME_ALIASES: Record<string, string> = \{([\s\S]*?)\};/,
+  );
+  if (!match) throw new Error("OCR image MIME alias map not found");
+  return Object.fromEntries(Array.from(match[1]!.matchAll(/"([^"]+)": "([^"]+)"/g), (m) => [m[1]!, m[2]!]));
+}
+
 function llmInlineImageBase64Cap(): number {
   const match = geminiWrapperSource.match(/const MAX_INLINE_IMAGE_BASE64_LEN = ([\d_]+);/);
   if (!match) throw new Error("callGemini inline image cap constant not found");
@@ -122,11 +136,13 @@ describe("capture image OCR payload guards", () => {
     expect(MAX_OCR_IMAGE_BASE64_BYTES).toBe(proxyImageBase64Cap());
     expect(proxyImageRawEnvelopeDelta()).toBe(100_000);
     expect([...ALLOWED_OCR_IMAGE_MIME_TYPES]).toEqual(proxyImageMimeAllowlist());
+    expect(proxyImageMimeAliases()).toEqual(ocrImageMimeAliases());
     expect(geminiProxySource).toContain("BASE64_IMAGE_DATA_RE");
     expect(geminiProxySource).toContain("MIN_IMAGE_SIGNATURE_BYTES = 12");
     expect(geminiProxySource).toContain("sniffImageMimeType");
     expect(geminiProxySource).toContain("imageMimeCompatible");
-    expect(geminiProxySource).toContain("split(';')[0]?.trim() ?? ''");
+    expect(geminiProxySource).toContain("normalizeImageMimeType");
+    expect(geminiProxySource).toContain("IMAGE_MIME_ALIASES[normalized] ?? normalized");
     expect(geminiProxySource).toContain("data.length > MAX_IMAGE_RAW_BASE64_ENVELOPE_LEN");
     expect(geminiProxySource).toContain("normalizedData.length > MAX_IMAGE_BASE64_LEN");
     expect(geminiProxySource).toContain("got: normalizedData.length");
