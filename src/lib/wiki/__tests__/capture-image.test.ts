@@ -25,6 +25,7 @@ import {
   isImageCameraPermissionDeniedError,
   isImageOcrInvalidDataError,
   isImageOcrMissingDataError,
+  isImageOcrRepickRequiredError,
   isImageOcrTooLargeError,
   isImageOcrUnsupportedTypeError,
   normalizeOcrImageMimeType,
@@ -322,5 +323,12 @@ describe("capture image OCR payload guards", () => {
     expect(isImageOcrInvalidDataError(new Error(IMAGE_OCR_INVALID_DATA_ERROR))).toBe(true);
     expect(isImageOcrInvalidDataError(new Error(IMAGE_OCR_TOO_LARGE_ERROR))).toBe(false);
     expect(isImageOcrInvalidDataError("image_ocr_invalid_data")).toBe(false);
+
+    expect(isImageOcrRepickRequiredError(new Error(IMAGE_OCR_TOO_LARGE_ERROR))).toBe(true);
+    expect(isImageOcrRepickRequiredError(new Error(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR))).toBe(true);
+    expect(isImageOcrRepickRequiredError(new Error(IMAGE_OCR_MISSING_DATA_ERROR))).toBe(true);
+    expect(isImageOcrRepickRequiredError(new Error(IMAGE_OCR_INVALID_DATA_ERROR))).toBe(true);
+    expect(isImageOcrRepickRequiredError(new Error(IMAGE_CAMERA_PERMISSION_DENIED_ERROR))).toBe(false);
+    expect(isImageOcrRepickRequiredError(new Error("network_down"))).toBe(false);
   });
 });

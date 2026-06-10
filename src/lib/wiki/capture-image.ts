@@ -72,6 +72,15 @@ export function isImageOcrInvalidDataError(error: unknown): boolean {
   return error instanceof Error && error.message === IMAGE_OCR_INVALID_DATA_ERROR;
 }
 
+export function isImageOcrRepickRequiredError(error: unknown): boolean {
+  return (
+    isImageOcrTooLargeError(error) ||
+    isImageOcrUnsupportedTypeError(error) ||
+    isImageOcrMissingDataError(error) ||
+    isImageOcrInvalidDataError(error)
+  );
+}
+
 export function normalizeOcrImageMimeType(mimeType: string | null | undefined): string {
   return normalizeDeclaredOcrImageMimeType(mimeType) ?? "image/jpeg";
 }

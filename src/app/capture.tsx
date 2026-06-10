@@ -48,6 +48,7 @@ import {
   isImageCameraPermissionDeniedError,
   isImageOcrInvalidDataError,
   isImageOcrMissingDataError,
+  isImageOcrRepickRequiredError,
   isImageOcrTooLargeError,
   isImageOcrUnsupportedTypeError,
 } from "@/lib/wiki/capture-image";
@@ -316,12 +317,7 @@ export default function Capture() {
     if (isImageCameraPermissionDeniedError(error)) {
       return { key: "alerts.cameraPermission", retryable: false };
     }
-    if (
-      isImageOcrTooLargeError(error) ||
-      isImageOcrUnsupportedTypeError(error) ||
-      isImageOcrMissingDataError(error) ||
-      isImageOcrInvalidDataError(error)
-    ) {
+    if (isImageOcrRepickRequiredError(error)) {
       return imageOcrFeedback(error);
     }
     return { key: "alerts.imageOpen", retryable: true };
@@ -352,6 +348,7 @@ export default function Capture() {
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] image pick failed", (e as Error).message);
       const feedback = imagePickFeedback(e);
+      if (isImageOcrRepickRequiredError(e)) setPickedImage(null);
       showFeedback(
         t(`${feedback.key}.title`),
         t(`${feedback.key}.message`),
@@ -369,6 +366,7 @@ export default function Capture() {
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
       const feedback = imageOcrFeedback(e);
+      if (isImageOcrRepickRequiredError(e)) setPickedImage(null);
       showFeedback(
         t(`${feedback.key}.title`),
         t(`${feedback.key}.message`),
