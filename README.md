@@ -42,7 +42,7 @@ remote Supabase, real Gemini API calls) are deferred to Sprint 1.
 | Expo + TypeScript strict | done |
 | Single Gemini wrapper (C1/C2/C3/C9) | done |
 | 3-zone Safety Classifier (C9) | done |
-| Supabase migrations 0001–0040 | done |
+| Supabase migrations 0001–0043 | done |
 | ESLint + LLM import boundary | done |
 | i18n EN/KO with CI parity check (C7) | done |
 | Forbidden lexicon CI scan | done |
@@ -51,6 +51,12 @@ remote Supabase, real Gemini API calls) are deferred to Sprint 1.
 | Judge mode auto-detect (C6) | done |
 | Pre-existing assets section (C12) | done |
 | Support SLA section (C11) | done (auto-responder Sprint 1) |
+
+> **Age-gate jurisdiction (current):** there is no country/jurisdiction detection
+> yet, so all users are gated on the KR rule (self-consent age 14, PIPA §22-2).
+> This is valid for the KR-first launch and holds until country detection lands.
+> Accurate non-KR gates (US COPPA under-13, EU GDPR Art.8) ship in a follow-up PR.
+> See `docs/CONSTRAINTS.md` C10 and `src/lib/auth/consent-age.ts`.
 
 ## Quick start
 

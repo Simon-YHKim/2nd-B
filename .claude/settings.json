@@ -14,7 +14,7 @@
           {
             "type": "command",
             "shell": "bash",
-            "command": "bash \"/c/Users/Soha.Bae/.claude/skills/context-guardian/scripts/install-rules.sh\" 2>/dev/null || true",
+            "command": "bash \"$HOME/.claude/skills/context-guardian/scripts/install-rules.sh\" 2>/dev/null || true",
             "timeout": 30,
             "statusMessage": "context-guardian: 가드 규칙 적용"
           }

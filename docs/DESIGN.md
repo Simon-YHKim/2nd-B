@@ -1,7 +1,9 @@
 # DESIGN.md — 2nd-Brain 브랜드 컨셉 가이드
 
-> 이 문서는 **모든 UI 카피와 시각 결정의 단일 출처(SoT)**이다.
-> CLAUDE.md의 디자인 정책이 가리키는 곳도 여기.
+> ⚠ SUPERSEDED — 정본은 루트 DESIGN.md (2026-05-29 Cosmic Pixel 전환). 본 문서는 구버전 보존용.
+
+> (구) 이 문서는 모든 UI 카피와 시각 결정의 단일 출처(SoT)였다.
+> (구) CLAUDE.md의 디자인 정책이 가리키는 곳은 현재 루트 DESIGN.md.
 > 기술 토큰(컬러·간격·타이포)은 `docs/DESIGN_TOKENS.md`, 이 문서는 **세계관·말투**.
 
 ---

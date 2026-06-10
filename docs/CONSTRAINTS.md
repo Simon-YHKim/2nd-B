@@ -94,6 +94,16 @@ Enforcement (phased rollout):
   through the record/chat/interview/LLM chain. KO minors route to 1388 + 109,
   adults to the unified 109 line (1393 retired 2024-01), EN to 988.
 
+**Jurisdiction (current limitation):** the app does not yet collect a reliable
+country/jurisdiction signal (locale `en`/`ko` is not a country). Until country
+detection lands, **all users are gated on the KR rule (self-consent floor 14,
+PIPA Article 22-2)** via `digitalConsentAge("KR")` in
+`src/lib/auth/consent-age.ts`. This is valid for the KR-first launch and remains
+in effect until a country-detection landing. Accurate non-KR age gates (US COPPA
+under-13, EU GDPR Art.8 13-16) require the jurisdiction signal plus legal
+sign-off and ship in a follow-up PR; the per-jurisdiction values already exist in
+`consent-age.ts` but are not wired to a live signal yet.
+
 CI: `check:constraints` asserts the guardian-consent schema + client age logic;
 `supabase-dry-run` asserts `users_birth_date_sane` + `guardian_consents`.
 

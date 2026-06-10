@@ -13,10 +13,11 @@
     "test": "jest",
     "check:i18n": "tsx scripts/check-i18n-keys.ts",
     "check:lexicon": "tsx scripts/check-forbidden-lexicon.ts",
+    "check:legal-review": "tsx scripts/check-legal-review.ts",
     "check:llm-boundary": "tsx scripts/check-llm-import-boundary.ts",
     "check:constraints": "tsx scripts/check-constraints.ts",
     "check:emdash": "tsx scripts/check-no-emdash.ts",
-    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:lexicon && npm run check:llm-boundary && npm run check:constraints && npm run check:emdash && npm test -- --ci"
+    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:lexicon && npm run check:legal-review && npm run check:llm-boundary && npm run check:constraints && npm run check:emdash && npm test -- --ci"
   },
   "dependencies": {
     "@expo-google-fonts/press-start-2p": "^0.4.1",

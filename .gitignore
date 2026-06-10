@@ -74,3 +74,11 @@ test_*.js
 
 # stray hub paths accidentally written by AI worktrees (belong in C:/Coding/AI Infra/Communication)
 /agents/
+
+# IDE / agent-local dirs (never commit)
+.idea/
+.codex/
+
+# local asset staging (generated art + pixy skill clone — canonical assets live in assets/images etc.)
+assets/generated/
+assets/pixy/

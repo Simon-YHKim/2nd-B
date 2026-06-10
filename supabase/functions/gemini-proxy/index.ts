@@ -125,10 +125,30 @@ const CRISIS_TERMS_KO: readonly string[] = [
   '영영 잠들고 싶',
 ];
 
+// EN terms match only at word boundaries — ported from
+// src/lib/safety/classifier.ts:matchesTerm so a benign substring (e.g.
+// "spending it" containing "ending it") doesn't 422 a legitimate prompt.
+// KO terms remain substring matches (Hangul has no whitespace word
+// boundaries). KEEP THE MATCHING SEMANTICS IN SYNC with the client
+// classifier; the parity test extracts and exercises this code.
+function matchesTermEn(lowerHaystack: string, term: string): boolean {
+  const t = term.toLowerCase();
+  if (t.length === 0) return false;
+  const isBoundary = (ch: string) => /[^a-z0-9]/i.test(ch);
+  // Scan every occurrence: a term embedded in a larger word at its first
+  // position must not mask a later standalone one.
+  for (let idx = lowerHaystack.indexOf(t); idx !== -1; idx = lowerHaystack.indexOf(t, idx + 1)) {
+    const before = idx === 0 ? ' ' : lowerHaystack[idx - 1];
+    const after = idx + t.length >= lowerHaystack.length ? ' ' : lowerHaystack[idx + t.length];
+    if (isBoundary(before) && isBoundary(after)) return true;
+  }
+  return false;
+}
+
 function hasCrisisTerm(text: string): boolean {
   const lower = text.toLowerCase();
   for (const term of CRISIS_TERMS_EN) {
-    if (lower.includes(term)) return true;
+    if (matchesTermEn(lower, term)) return true;
   }
   for (const term of CRISIS_TERMS_KO) {
     if (text.includes(term)) return true;
