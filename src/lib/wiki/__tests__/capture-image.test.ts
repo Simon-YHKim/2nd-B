@@ -17,15 +17,18 @@ import { callGemini } from "../../llm/gemini";
 import {
   ALLOWED_OCR_IMAGE_MIME_TYPES,
   IMAGE_CAMERA_PERMISSION_DENIED_ERROR,
+  IMAGE_OCR_INVALID_DATA_ERROR,
   IMAGE_OCR_MISSING_DATA_ERROR,
   IMAGE_OCR_UNSUPPORTED_TYPE_ERROR,
   IMAGE_OCR_TOO_LARGE_ERROR,
   MAX_OCR_IMAGE_BASE64_BYTES,
   isImageCameraPermissionDeniedError,
+  isImageOcrInvalidDataError,
   isImageOcrMissingDataError,
   isImageOcrTooLargeError,
   isImageOcrUnsupportedTypeError,
   normalizeOcrImageMimeType,
+  normalizeOcrImageBase64Data,
   ocrImageAsset,
   pickImageAsset,
 } from "../capture-image";
@@ -135,6 +138,32 @@ describe("capture image OCR payload guards", () => {
     await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_MISSING_DATA_ERROR);
   });
 
+  test("rejects blank picked image base64 data as missing data", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///blank.png",
+          mimeType: "image/png",
+          base64: " \n\t ",
+        },
+      ],
+    });
+
+    await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_MISSING_DATA_ERROR);
+  });
+
+  test("rejects invalid base64 image data before calling Gemini", async () => {
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/png",
+        base64: "not-base64!!!",
+      }),
+    ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
+
+    expect(mockCallGemini).not.toHaveBeenCalled();
+  });
+
   test("rejects denied camera permission before launching the camera", async () => {
     imagePickerMock.requestCameraPermissionsAsync.mockResolvedValue({ status: "denied" });
 
@@ -159,6 +188,37 @@ describe("capture image OCR payload guards", () => {
       mimeType: "image/jpeg",
       base64: "AAAA",
     });
+  });
+
+  test("normalizes base64 whitespace before returning and sending image data", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///wrapped.png",
+          mimeType: "image/png",
+          base64: "QUJD\nRA==",
+        },
+      ],
+    });
+
+    await expect(pickImageAsset("library")).resolves.toEqual({
+      uri: "file:///wrapped.png",
+      mimeType: "image/png",
+      base64: "QUJDRA==",
+    });
+
+    await ocrImageAsset("u1", "en", {
+      mimeType: "image/png",
+      base64: "QUJD\nRA==",
+    });
+
+    expect(mockCallGemini).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image: { mimeType: "image/png", data: "QUJDRA==" },
+      }),
+    );
+    expect(normalizeOcrImageBase64Data(" QUJD\nRA== ")).toBe("QUJDRA==");
   });
 
   test("allows payloads at the mirrored server cap", async () => {
@@ -213,5 +273,9 @@ describe("capture image OCR payload guards", () => {
     expect(isImageOcrMissingDataError(new Error(IMAGE_OCR_MISSING_DATA_ERROR))).toBe(true);
     expect(isImageOcrMissingDataError(new Error(IMAGE_OCR_TOO_LARGE_ERROR))).toBe(false);
     expect(isImageOcrMissingDataError("image_ocr_missing_data")).toBe(false);
+
+    expect(isImageOcrInvalidDataError(new Error(IMAGE_OCR_INVALID_DATA_ERROR))).toBe(true);
+    expect(isImageOcrInvalidDataError(new Error(IMAGE_OCR_TOO_LARGE_ERROR))).toBe(false);
+    expect(isImageOcrInvalidDataError("image_ocr_invalid_data")).toBe(false);
   });
 });

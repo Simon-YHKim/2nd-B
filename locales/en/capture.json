@@ -195,6 +195,10 @@
       "title": "Image data is missing",
       "message": "We couldn't read this image file from the picker. Choose it again or try a different image."
     },
+    "ocrInvalidData": {
+      "title": "Image data is damaged",
+      "message": "This image data is not readable. Choose the image again or use a different file."
+    },
     "fileOpen": {
       "title": "Couldn't open that file",
       "message": "We couldn't open that file. Pick another one or try again in a moment."

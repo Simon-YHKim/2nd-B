@@ -21,6 +21,7 @@ export const IMAGE_OCR_TOO_LARGE_ERROR = "image_ocr_too_large";
 export const IMAGE_OCR_UNSUPPORTED_TYPE_ERROR = "image_ocr_unsupported_type";
 export const IMAGE_CAMERA_PERMISSION_DENIED_ERROR = "camera_permission_denied";
 export const IMAGE_OCR_MISSING_DATA_ERROR = "image_ocr_missing_data";
+export const IMAGE_OCR_INVALID_DATA_ERROR = "image_ocr_invalid_data";
 
 export const ALLOWED_OCR_IMAGE_MIME_TYPES = [
   "image/jpeg",
@@ -37,6 +38,8 @@ const OCR_IMAGE_MIME_ALIASES: Record<string, string> = {
   "image/pjpeg": "image/jpeg",
   "image/x-png": "image/png",
 };
+
+const BASE64_DATA_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 const OCR_PROMPT: Record<"en" | "ko", string> = {
   en: "Transcribe all text in this image as clean markdown. Preserve line breaks, headings, and lists where visible. If the image has no readable text, describe what you see in 1–2 sentences in English.",
@@ -59,14 +62,29 @@ export function isImageOcrMissingDataError(error: unknown): boolean {
   return error instanceof Error && error.message === IMAGE_OCR_MISSING_DATA_ERROR;
 }
 
+export function isImageOcrInvalidDataError(error: unknown): boolean {
+  return error instanceof Error && error.message === IMAGE_OCR_INVALID_DATA_ERROR;
+}
+
 export function normalizeOcrImageMimeType(mimeType: string | null | undefined): string {
   const normalized = mimeType?.trim().toLowerCase() || "image/jpeg";
   return OCR_IMAGE_MIME_ALIASES[normalized] ?? normalized;
 }
 
+export function normalizeOcrImageBase64Data(data: string): string {
+  return data.replace(/\s+/g, "");
+}
+
 export function assertImageOcrPayloadAllowed(image: { base64: string; mimeType: string }): void {
-  if (image.base64.length > MAX_OCR_IMAGE_BASE64_BYTES) {
+  const base64 = normalizeOcrImageBase64Data(image.base64);
+  if (base64.length === 0) {
+    throw new Error(IMAGE_OCR_MISSING_DATA_ERROR);
+  }
+  if (base64.length > MAX_OCR_IMAGE_BASE64_BYTES) {
     throw new Error(IMAGE_OCR_TOO_LARGE_ERROR);
+  }
+  if (!BASE64_DATA_RE.test(base64)) {
+    throw new Error(IMAGE_OCR_INVALID_DATA_ERROR);
   }
   if (!ALLOWED_OCR_IMAGE_MIME_TYPE_SET.has(normalizeOcrImageMimeType(image.mimeType))) {
     throw new Error(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
@@ -104,7 +122,11 @@ export async function pickImageAsset(
   if (!asset) return null;
   if (!asset.base64) throw new Error(IMAGE_OCR_MISSING_DATA_ERROR);
 
-  const picked = { uri: asset.uri, base64: asset.base64, mimeType: normalizeOcrImageMimeType(asset.mimeType) };
+  const picked = {
+    uri: asset.uri,
+    base64: normalizeOcrImageBase64Data(asset.base64),
+    mimeType: normalizeOcrImageMimeType(asset.mimeType),
+  };
   assertImageOcrPayloadAllowed(picked);
   return picked;
 }
@@ -122,12 +144,13 @@ export async function ocrImageAsset(
 ): Promise<string> {
   assertImageOcrPayloadAllowed(image);
   const mimeType = normalizeOcrImageMimeType(image.mimeType);
+  const data = normalizeOcrImageBase64Data(image.base64);
   const reply = await callGemini({
     userId,
     locale,
     purpose: "capture_ocr",
     user: OCR_PROMPT[locale],
-    image: { mimeType, data: image.base64 },
+    image: { mimeType, data },
     minor,
   });
   return reply.text;

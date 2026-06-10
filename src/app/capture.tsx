@@ -46,6 +46,7 @@ import {
   pickImageAsset,
   ocrImageAsset,
   isImageCameraPermissionDeniedError,
+  isImageOcrInvalidDataError,
   isImageOcrMissingDataError,
   isImageOcrTooLargeError,
   isImageOcrUnsupportedTypeError,
@@ -305,6 +306,9 @@ export default function Capture() {
     if (isImageOcrMissingDataError(error)) {
       return { key: "alerts.ocrMissingData", retryable: false };
     }
+    if (isImageOcrInvalidDataError(error)) {
+      return { key: "alerts.ocrInvalidData", retryable: false };
+    }
     return { key: "alerts.ocrRead", retryable: true };
   }
 
@@ -315,7 +319,8 @@ export default function Capture() {
     if (
       isImageOcrTooLargeError(error) ||
       isImageOcrUnsupportedTypeError(error) ||
-      isImageOcrMissingDataError(error)
+      isImageOcrMissingDataError(error) ||
+      isImageOcrInvalidDataError(error)
     ) {
       return imageOcrFeedback(error);
     }
