@@ -578,6 +578,9 @@ describe("capture image OCR payload guards", () => {
 
     expect(normalizeOcrTextResult("```text\r\nplain text\r\n```")).toBe("plain text");
     expect(normalizeOcrTextResult("```md\nsingle line```")).toBe("single line");
+    expect(normalizeOcrTextResult("```plain\nplain OCR text\n```")).toBe("plain OCR text");
+    expect(normalizeOcrTextResult("```plaintext\nanother OCR line\n```")).toBe("another OCR line");
+    expect(normalizeOcrTextResult("```ocr\n# Scan\n- UPH 85\n```")).toBe("# Scan\n- UPH 85");
     expect(normalizeOcrTextResult("```python\nprint('ocr')\n```")).toBe("```python\nprint('ocr')\n```");
   });
 

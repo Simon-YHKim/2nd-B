@@ -147,7 +147,7 @@ export function normalizeOcrTextResult(text: string, locale: "en" | "ko" = "en")
 }
 
 function unwrapOcrMarkdownFence(text: string): string {
-  const match = text.match(/^```(?:markdown|md|text)[ \t]*\r?\n([\s\S]*?)(?:\r?\n)?```$/i);
+  const match = text.match(/^```(?:markdown|md|text|plain|plaintext|ocr)[ \t]*\r?\n([\s\S]*?)(?:\r?\n)?```$/i);
   return match?.[1] ?? text;
 }
 
