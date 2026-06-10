@@ -306,7 +306,9 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);
     }
     const imgObj = body.image as Record<string, unknown>;
-    const mime = typeof imgObj.mimeType === 'string' ? imgObj.mimeType.trim().toLowerCase() : '';
+    const mime = typeof imgObj.mimeType === 'string'
+      ? imgObj.mimeType.trim().toLowerCase().split(';')[0]?.trim() ?? ''
+      : '';
     const data = typeof imgObj.data === 'string' ? imgObj.data : '';
     if (!mime || !data) {
       return jsonResponse(req, { error: 'image_invalid_data' }, 400);

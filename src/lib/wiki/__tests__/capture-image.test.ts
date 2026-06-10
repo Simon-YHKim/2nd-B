@@ -119,6 +119,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiProxySource).toContain("MIN_IMAGE_SIGNATURE_BYTES = 12");
     expect(geminiProxySource).toContain("sniffImageMimeType");
     expect(geminiProxySource).toContain("imageMimeCompatible");
+    expect(geminiProxySource).toContain("split(';')[0]?.trim() ?? ''");
     expect(geminiProxySource).toContain("image_invalid_data");
   });
 
@@ -129,6 +130,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiWrapperSource).toContain("MIN_INLINE_IMAGE_SIGNATURE_BYTES = 12");
     expect(geminiWrapperSource).toContain("sniffInlineImageMimeType");
     expect(geminiWrapperSource).toContain("inlineImageMimeCompatible");
+    expect(geminiWrapperSource).toContain('split(";")[0]?.trim() ?? ""');
     expect(geminiWrapperSource).toContain("llm_image_invalid_data");
   });
 
