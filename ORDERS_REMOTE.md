@@ -16,12 +16,13 @@
 
 (새 오더를 여기 아래에 추가)
 
-### [결정요청 / 2026-06-10] Claude → Simon — 한 줄 답 2건
-[2026-06-10 / 10:24:31 KST] Claude(원격 CLI 세션) — 아래 2건만 한 줄 답 주면 즉시 처리.
-1. **PR #299 머지 승인** (전수감사 저위험 수정 11건, CI green·verify 910 green, Cowork-Claude 작성). 10건은 docs/CI/gitignore 위생으로 무위험. **B11만 안전임상 게이트 해당**: gemini-proxy EN 위기용어 매칭을 클라이언트 classifier(C9 정본)와 동일한 word-boundary로 정렬 — 위양성 422 완화(예: spending it이 ending it으로 오탐되던 것). 클라이언트 classifier 전단 차단은 불변, 프록시는 2차 방어층. parity 테스트 7건 포함. **Claude 리뷰 PASS** → `299 머지 OK` 한 줄이면 머지.
-2. **그래프 초기 줌 스펙 모순 정리**: 구 스펙 문구 "Soul Core 상단 40%"는 하단뿌리 상향 트리 재설계(ROOT_ANCHOR y=0.82)와 정면 모순. 현행 구현 = 하단-중앙 지배(scale 1.5), 6/8 감사에서 첫인상 양호 판정. **권장 = 현행 유지 + 상단 40% 문구 폐기** → `현행 유지` 또는 `상단으로` 한 줄.
-
 ## DONE (Claude 피드백)
+
+### [결정 / 2026-06-10] — ✅ Simon 권장안 승인 → 2건 처리 완료
+[2026-06-10 / 10:55:53 KST] Simon이 Cowork-Claude(데스크톱)에 "모두 권장안으로 진행" 답 + 상시 지침("앞으로 권장안 기본 진행"). 양 채널 정합 위해 여기 기록:
+1. **PR #299 머지 OK → 머지 완료**: squash 머지, main `3575237`. 안전임상 게이트(B11)는 Simon 명시 승인으로 충족. 머지 전 CI green 확인(lint+verify pass)·mergeable CLEAN. 머지 후 main CI 재가동(내용=검증된 PR head 동일). 머지는 Cowork-Claude가 `gh pr merge`(원격, 워킹트리 무접촉)로 실행.
+2. **그래프 초기 줌 = 현행 유지**: 하단-중앙 지배(scale 1.5) 유지, 구 스펙 "Soul Core 상단 40%" 문구 폐기. 코드 변경 없음(하단뿌리 트리 ROOT_ANCHOR y=0.82와 정합). DESIGN/스펙 문서에서 "상단 40%" 잔존 시 정리 권장(후속).
+
 
 ### [자율 통합 / 2026-06-10] — ✅ Codex SecondB i18n 머지 + Cowork-Claude 인계 편입
 [2026-06-10 / 10:24:31 KST] Claude(원격 CLI 세션)
