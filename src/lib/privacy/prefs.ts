@@ -53,12 +53,16 @@ export function resolvePrivacyPrefs(stored: Record<string, unknown> | null | und
 // follow-up — this function alone is not a security boundary.
 export const MINOR_PROMOTABLE_KEYS: readonly PrivacyPrefKey[] = ["long_term_memory"];
 
-// D-12 (2026-06-07 consensus): only external_analytics is actually enforced
-// (analytics-consent-queue gates GA4/Clarity/PostHog). The other keys are kept
-// here for the single point of future wiring, but the settings UI MUST render
-// ONLY these enforced keys — showing a toggle that controls nothing is a false
-// privacy promise (esp. llm_training/sharing). privacy.tsx maps over this list.
-export const VISIBLE_PRIVACY_KEYS: readonly PrivacyPrefKey[] = ["external_analytics"];
+// D-12 (2026-06-07 consensus): the settings UI MUST render ONLY enforced keys
+// — showing a toggle that controls nothing is a false privacy promise (esp.
+// llm_training/sharing). Enforced today:
+//   - external_analytics: analytics-consent-queue gates GA4/Clarity/PostHog.
+//   - ads (2026-06-11): AdSlot reads this pref as the explicit ads consent
+//     (policy rule 3, src/lib/ads/policy.ts) — OFF means no ads at all, not
+//     non-personalized ones. Minors stay locked OFF here AND suppressed
+//     again inside the ad policy (defense in depth).
+// The other keys remain here as the single point of future wiring.
+export const VISIBLE_PRIVACY_KEYS: readonly PrivacyPrefKey[] = ["external_analytics", "ads"];
 
 export function isPrivacyPrefEditable(key: PrivacyPrefKey, isMinor: boolean): boolean {
   if (!isMinor) return true;

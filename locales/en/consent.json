@@ -40,8 +40,8 @@
     "lockedTag": "Locked",
     "keys": {
       "ads": {
-        "label": "Personalized ads",
-        "desc": "Use app activity to tailor ads. Off keeps ads generic or absent."
+        "label": "Ads",
+        "desc": "Allow ads while on the free plan. Off means no ads at all."
       },
       "sharing": {
         "label": "Sharing",
