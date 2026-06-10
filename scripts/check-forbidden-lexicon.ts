@@ -72,7 +72,9 @@ function isAllowed(relPath: string): boolean {
 // in the same file is still caught.
 const GUARDRAIL_LINE: Record<Locale, RegExp> = {
   en: /\b(?:never|not|no(?:n)?-|don'?t|doesn'?t|do not|does not|avoid|forbidden|banned|prohibited|without)\b/i,
-  ko: /않|안 |안된|안 된|금지|아님|아닙|아니|없(?:는|습|음|이|다)|말 것|말것|마세요/,
+  // 지 마/지마: imperative prohibition ("쓰지 마", "하지마") — the LLM prompt
+  // guardrails phrase bans this way.
+  ko: /않|안 |안된|안 된|금지|아님|아닙|아니|없(?:는|습|음|이|다)|말 것|말것|마세요|지 마|지마/,
 };
 
 function analysisHits(content: string, locale: Locale): string[] {
