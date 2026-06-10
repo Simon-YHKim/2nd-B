@@ -123,7 +123,10 @@
     },
     "advisor": {
       "label": "이 기록을 세컨비에게 물어보기",
-      "helper": "기본은 꺼짐. 되묻고 싶을 때만 켜세요."
+      "helper": "기본은 꺼짐. 되묻고 싶을 때만 켜세요.",
+      "lockedLabel": "이 기록을 세컨비에게 물어보기 (Brain)",
+      "lockedHelper": "기록 회신은 Brain 플랜에서 열려요. 눌러서 플랜을 볼 수 있어요.",
+      "lockedHint": "플랜 화면을 엽니다"
     }
   },
   "linkClip": {
