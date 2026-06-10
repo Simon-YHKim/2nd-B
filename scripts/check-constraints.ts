@@ -1029,10 +1029,12 @@ results.push(
     const ok =
       capture.includes("const extractingRef = useRef(false);") &&
       capture.includes("const ocrRunRef = useRef(0);") &&
-      capture.includes("if (!userId || !pickedImage || extractingRef.current) return;") &&
+      capture.includes("if (!userId || submitting || extractingRef.current) return;") &&
+      capture.includes("if (!userId || !pickedImage || submitting || extractingRef.current) return;") &&
+      capture.includes("if (submitting || extracting || extractingRef.current) return;") &&
       capture.includes("if (ocrRunRef.current !== runId) return;") &&
       capture.includes("!!userId && !submitting && !extracting") &&
-      capture.includes("disabled={extracting}") &&
+      capture.includes("disabled={extracting || submitting}") &&
       capture.includes("accessibilityState={{ selected: active, disabled: extracting }}") &&
       capture.includes("accessibilityState={{ expanded: advancedModesExpanded, disabled: extracting }}") &&
       capture.includes("accessibilityState={{ disabled: !canSubmit, busy: submitting || extracting }}");
@@ -1040,8 +1042,8 @@ results.push(
       id: "CaptureOcrBusyGuard",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "capture OCR blocks stale extraction writes, duplicate runs, submit, and mode toggles while extracting"
-        : "capture OCR busy state must guard duplicate/stale extraction writes and disable submit/mode controls",
+        ? "capture OCR blocks stale extraction writes, duplicate runs, submit, source picking, and mode toggles while busy"
+        : "capture OCR busy state must guard duplicate/stale extraction writes and disable submit/source-pick/mode controls",
     };
   }),
 );

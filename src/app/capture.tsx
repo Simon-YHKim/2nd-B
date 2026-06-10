@@ -375,7 +375,7 @@ export default function Capture() {
   }
 
   async function pickImage(source: "library" | "camera") {
-    if (!userId || extractingRef.current) return;
+    if (!userId || submitting || extractingRef.current) return;
     try {
       const img = await pickImageAsset(source);
       if (!img) return;
@@ -395,7 +395,7 @@ export default function Capture() {
   }
 
   async function runExtract() {
-    if (!userId || !pickedImage || extractingRef.current) return;
+    if (!userId || !pickedImage || submitting || extractingRef.current) return;
     const image = pickedImage;
     const runId = ocrRunRef.current + 1;
     ocrRunRef.current = runId;
@@ -429,6 +429,7 @@ export default function Capture() {
   }
 
   async function runFilePick() {
+    if (submitting || extracting || extractingRef.current) return;
     try {
       const f = await pickFile();
       if (!f) return;
@@ -1118,13 +1119,13 @@ export default function Capture() {
                 label={t("image.camera")}
                 variant="secondary"
                 onPress={() => pickImage("camera")}
-                disabled={extracting}
+                disabled={extracting || submitting}
               />
               <Button
                 label={t("image.library")}
                 variant="secondary"
                 onPress={() => pickImage("library")}
-                disabled={extracting}
+                disabled={extracting || submitting}
               />
             </View>
           ) : null}
@@ -1138,7 +1139,7 @@ export default function Capture() {
                 variant="primary"
                 onPress={runExtract}
                 loading={extracting}
-                disabled={extracting}
+                disabled={extracting || submitting}
                 style={{ marginTop: spacing.sm }}
               />
             </View>
@@ -1150,6 +1151,7 @@ export default function Capture() {
                 label={t("file.pick")}
                 variant="secondary"
                 onPress={runFilePick}
+                disabled={extracting || submitting}
               />
             </View>
           ) : null}
