@@ -12,6 +12,7 @@
 // TODO(legal): per-EU-member values + the jurisdiction signal itself need legal
 // sign-off before relying on this for non-KR markets (LEXICON_LAST_LEGAL_REVIEW
 // is still null). Until then, callers should pass "KR" (or accept DEFAULT=16).
+// (문서화됨: docs/CONSTRAINTS.md C10)
 
 export type Jurisdiction = "KR" | "US" | "EU" | "DEFAULT";
 
