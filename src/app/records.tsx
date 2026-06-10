@@ -16,6 +16,7 @@ import { PremiumAppShell, ReferenceShardCard, SceneHero } from "@/components/pre
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { AdSlot } from "@/components/ads/AdSlot";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -306,6 +307,15 @@ export default function Records() {
         renderItem={renderRow}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
+        // First (and only) ad placement: list FOOTER, never between pieces —
+        // policy-gated (free adult + consent + env), structurally inert until
+        // the ads-consent toggle ships. Suppressed on loading/error/empty:
+        // empty states guide the next action, they don't monetize (canon).
+        ListFooterComponent={
+          !busy && !error && filtered.length > 0 ? (
+            <AdSlot slotEnvKey="EXPO_PUBLIC_ADSENSE_SLOT_RECORDS" />
+          ) : null
+        }
         ItemSeparatorComponent={ListSeparator}
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"

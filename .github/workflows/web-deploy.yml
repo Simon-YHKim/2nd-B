@@ -63,6 +63,25 @@ jobs:
           # unset Variable from feeding zod an empty string.
           EXPO_PUBLIC_ENABLE_NAVER: ${{ vars.EXPO_PUBLIC_ENABLE_NAVER || 'false' }}
           EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID }}
+          # Analytics (Simon directive 2026-06-11): the client code has been
+          # consent-gated and wired since #258, but the build never injected
+          # the ids, so live collection was a no-op. All optional: an unset
+          # Variable keeps that tool off. Set the four Variables to activate
+          # (GA4 G-xxxx, Clarity project id, Sentry DSN, PostHog key).
+          EXPO_PUBLIC_GA4_MEASUREMENT_ID: ${{ vars.EXPO_PUBLIC_GA4_MEASUREMENT_ID }}
+          EXPO_PUBLIC_CLARITY_PROJECT_ID: ${{ vars.EXPO_PUBLIC_CLARITY_PROJECT_ID }}
+          EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY }}
+          # PostHog needs BOTH key and host (analytics/index.ts gates on the
+          # pair) plus the posthog-js package — see docs/ADS.md before relying
+          # on it.
+          EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST }}
+          # Ads (web AdSense), OFF until the Variables are set AND the
+          # in-app policy passes (free adult + explicit ads consent + neutral
+          # route — src/lib/ads/policy.ts). See docs/ADS.md for go-live steps.
+          EXPO_PUBLIC_ENABLE_ADS: ${{ vars.EXPO_PUBLIC_ENABLE_ADS || 'false' }}
+          EXPO_PUBLIC_ADSENSE_CLIENT: ${{ vars.EXPO_PUBLIC_ADSENSE_CLIENT }}
+          EXPO_PUBLIC_ADSENSE_SLOT_RECORDS: ${{ vars.EXPO_PUBLIC_ADSENSE_SLOT_RECORDS }}
           EXPO_USE_STATIC: "true"
         run: |
           # base-path (/2nd-B) comes from expo.experiments.baseUrl in app.json,
