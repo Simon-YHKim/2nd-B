@@ -1,5 +1,7 @@
 # Design Tokens — Phytoncide (Option C)
 
+> ⚠ SUPERSEDED — 정본은 루트 DESIGN.md (2026-05-29 Cosmic Pixel 전환). 본 문서는 구버전 보존용.
+
 The phytoncide design system. "5월 아침 편백 숲의 그린" — the same world as
 the logo (hill, brain-tree, sky). All UI color, spacing, radius, type scale
 and font pairing come from here. **Never hardcode a hex literal in a component.**
