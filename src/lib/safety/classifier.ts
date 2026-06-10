@@ -1,4 +1,11 @@
-import { CRISIS_TERMS, FORBIDDEN_TERMS, HOTLINES, type HotlineId, type Locale } from "./lexicon";
+import {
+  ANALYSIS_UNIVERSAL_FORBIDDEN,
+  CRISIS_TERMS,
+  FORBIDDEN_TERMS,
+  HOTLINES,
+  type HotlineId,
+  type Locale,
+} from "./lexicon";
 
 export type SafetyZone = "green" | "yellow" | "red";
 
@@ -101,6 +108,17 @@ export function classifyInput(text: string, locale: Locale, opts: ClassifyOption
 export function containsForbiddenLexicon(text: string, locale: Locale): string[] {
   const hits: string[] = [];
   for (const term of FORBIDDEN_TERMS[locale]) {
+    if (matchesTerm(text, term, locale)) hits.push(term);
+  }
+  return hits;
+}
+
+// Same boundary semantics as containsForbiddenLexicon, over the Analysis
+// Lexicon universal floor (lexicon.ts §Analysis Lexicon v0.1). Used by the
+// CI scanner; available to runtime output filtering when Voice work lands.
+export function containsAnalysisForbidden(text: string, locale: Locale): string[] {
+  const hits: string[] = [];
+  for (const term of ANALYSIS_UNIVERSAL_FORBIDDEN[locale]) {
     if (matchesTerm(text, term, locale)) hits.push(term);
   }
   return hits;

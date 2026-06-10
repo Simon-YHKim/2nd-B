@@ -162,10 +162,11 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
 // jurisdiction. They are the universal floor. Jurisdiction-specific
 // additions are below.
 //
-// The CI scanner does NOT enforce these lists yet (next PR wires them
-// into scripts/check-forbidden-lexicon.ts) — this PR establishes the
-// authoritative source so taxonomy / theory matrix / Voice work in
-// parallel sessions can reference a stable list.
+// CI enforcement: ANALYSIS_UNIVERSAL_FORBIDDEN is wired into
+// scripts/check-forbidden-lexicon.ts (line-granular, with a guardrail-
+// negation filter so safety prompts like "Never diagnose" pass).
+// Jurisdiction lists + claim patterns below are not CI-wired yet —
+// they activate per-market at distribution time.
 
 export const ANALYSIS_UNIVERSAL_FORBIDDEN: Record<Locale, readonly string[]> = {
   en: [
