@@ -163,6 +163,7 @@ results.push(
       "hero.title",
       "hero.subtitle",
       "hero.speechSaved",
+      "hero.speechSavedOcr",
       "hero.speechIdle",
       "sections.manageFormats.accessibilityLabel",
       "sections.manageFormats.link",
@@ -221,7 +222,10 @@ results.push(
       "formatSaved.shared",
       "firstRun.hint",
       "saved.title",
+      "saved.ocrTitle",
+      "saved.ocrBody",
       "saved.seeGraph",
+      "saved.seeOcrGraph",
       "saved.seeRecords",
       "saved.captureMore",
       "proposal.heading",
@@ -289,6 +293,7 @@ results.push(
       't("hero.title")',
       't("hero.subtitle")',
       't("hero.speechSaved")',
+      't("hero.speechSavedOcr")',
       't("hero.speechSavedRecords")',
       't("hero.speechIdle")',
       't("sections.manageFormats.accessibilityLabel")',
@@ -332,7 +337,10 @@ results.push(
       't("formatSaved.shared")',
       't("formatSaved.personal")',
       't("saved.title")',
+      't("saved.ocrTitle")',
+      't("saved.ocrBody")',
       't("saved.seeGraph")',
+      't("saved.seeOcrGraph")',
       't("saved.seeRecords")',
       't("saved.captureMore")',
       't("proposal.heading")',
@@ -840,6 +848,9 @@ results.push(
       capture.includes("accessibilityState={{ checked: askAdvisor }}") &&
       capture.includes('accessibilityLabel={t("journal.advisor.label")}') &&
       capture.includes('accessibilityLabel={t("tags.removeLabel", { tag })}') &&
+      capture.includes("const [savedMode, setSavedMode] = useState<Mode | null>(null)") &&
+      capture.includes('const savedIsOcr = savedKind === "source" && savedMode === "ocr"') &&
+      capture.includes('setSavedMode(mode)') &&
       capture.includes("const [ocrReviewApproved, setOcrReviewApproved] = useState(false)") &&
       // Pin the gate BODY, not just the state declaration — without this a
       // refactor could revert the OCR canSubmit branch to body-only while
