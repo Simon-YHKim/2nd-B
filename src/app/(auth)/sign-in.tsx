@@ -401,6 +401,7 @@ const styles = StyleSheet.create({
     ...(Platform.OS === "web" ? { width: "100%" as const, maxWidth: 520, alignSelf: "center" as const } : {}),
   },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  // (R4: the unused `logo` style was removed - the hero renders heroImg.)
   brand: {
     color: PALETTE.brand,
     fontSize: typography.sizes.xs,
@@ -415,7 +416,6 @@ const styles = StyleSheet.create({
   },
   localeButton: { minWidth: 44, minHeight: 44, alignItems: "flex-end", justifyContent: "center" },
   hero: { alignItems: "center", marginTop: 28, marginBottom: 22, gap: 8 },
-  logo: { width: 84, height: 84, marginBottom: 6 },
   // HQ gate hero is ~square (740x746); render it in a square box so it
   // floats on the cosmic background instead of letterboxing into a sliver.
   heroImg: { width: 188, height: 188, marginBottom: 6 },

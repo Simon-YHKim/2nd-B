@@ -48,7 +48,12 @@ const ShardRow = memo(function ShardRow({ shard: s, locale }: { shard: OriginSha
   return (
     <ReferenceShardCard
       title={s.title}
-      meta={[s.dateLabel, evidenceTypeLabel(s.type, locale)].filter(Boolean).join(" · ")}
+      // A topic-less piece falls back to the type label as its title; repeating
+      // the same label in the meta line read as "오늘의 조각 · 오늘의 조각" on
+      // the very row the first-save CTA lands on.
+      meta={[s.dateLabel, evidenceTypeLabel(s.type, locale)]
+        .filter((part) => part && part !== s.title)
+        .join(" · ")}
       accent={TYPE_ACCENT[s.type]}
       onPress={() =>
         // Both record- and source-origin shards open the unified detail screen;

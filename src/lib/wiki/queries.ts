@@ -146,7 +146,17 @@ export async function upsertWikiPage(input: UpsertWikiPageInput): Promise<WikiPa
     .upsert(input, { onConflict: "user_id,slug" })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    // Stale source_id race (goal-cycle1 punch #1): the user can delete a
+    // source while phase2 ingest is still building its wiki page, so the FK
+    // INSERT fails (23503) even though wiki_pages.source_id is ON DELETE SET
+    // NULL by design. Persist the page without the vanished link instead of
+    // surfacing an opaque FK error and losing the generated content.
+    if ((error as { code?: string }).code === "23503" && input.source_id) {
+      return upsertWikiPage({ ...input, source_id: null });
+    }
+    throw error;
+  }
   return data as WikiPageRow;
 }
 
