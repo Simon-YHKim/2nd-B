@@ -26,6 +26,95 @@ import {
 } from "./types";
 
 const IMAGE_GENERATION_CONFIG = { maxOutputTokens: 4096, temperature: 0.2 } as const;
+const MAX_INLINE_IMAGE_BASE64_LEN = 2_700_000;
+const ALLOWED_INLINE_IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+const BASE64_INLINE_IMAGE_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const BASE64_INLINE_IMAGE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const BASE64_INLINE_IMAGE_VALUES = new Map(Array.from(BASE64_INLINE_IMAGE_ALPHABET, (char, value) => [char, value]));
+const MIN_INLINE_IMAGE_SIGNATURE_BYTES = 12;
+const PNG_INLINE_IMAGE_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const ISO_HEIC_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs"]);
+const ISO_HEIF_BRANDS = new Set(["mif1", "msf1"]);
+const LLM_IMAGE_INVALID_DATA_ERROR = "llm_image_invalid_data";
+const LLM_IMAGE_TOO_LARGE_ERROR = "llm_image_too_large";
+const LLM_IMAGE_UNSUPPORTED_TYPE_ERROR = "llm_image_unsupported_type";
+
+function normalizePromptImage(image: { mimeType: string; data: string }): { mimeType: string; data: string } {
+  const mimeType = image.mimeType.trim().toLowerCase();
+  if (!ALLOWED_INLINE_IMAGE_MIME.has(mimeType)) {
+    throw new Error(LLM_IMAGE_UNSUPPORTED_TYPE_ERROR);
+  }
+  const data = image.data.replace(/\s+/g, "");
+  if (data.length === 0) {
+    throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
+  }
+  if (data.length > MAX_INLINE_IMAGE_BASE64_LEN) {
+    throw new Error(LLM_IMAGE_TOO_LARGE_ERROR);
+  }
+  if (!BASE64_INLINE_IMAGE_RE.test(data)) {
+    throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
+  }
+  const sniffedMime = sniffInlineImageMimeType(data);
+  if (!sniffedMime || !inlineImageMimeCompatible(mimeType, sniffedMime)) {
+    throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
+  }
+  return { mimeType, data };
+}
+
+function sniffInlineImageMimeType(base64: string): string | null {
+  const bytes = decodeBase64Prefix(base64, 32);
+  if (bytes.length < MIN_INLINE_IMAGE_SIGNATURE_BYTES) return null;
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytesStartWith(bytes, PNG_INLINE_IMAGE_SIGNATURE)) return "image/png";
+  if (asciiAt(bytes, 0, 4) === "RIFF" && asciiAt(bytes, 8, 4) === "WEBP") return "image/webp";
+  if (asciiAt(bytes, 4, 4) !== "ftyp") return null;
+  const brand = isoImageBrand(bytes);
+  if (brand && ISO_HEIC_BRANDS.has(brand)) return "image/heic";
+  if (brand && ISO_HEIF_BRANDS.has(brand)) return "image/heif";
+  return null;
+}
+
+function decodeBase64Prefix(base64: string, maxBytes: number): number[] {
+  const bytes: number[] = [];
+  for (let i = 0; i < base64.length && bytes.length < maxBytes; i += 4) {
+    const chunk = base64.slice(i, i + 4);
+    const a = base64Value(chunk[0]);
+    const b = base64Value(chunk[1]);
+    const c = chunk[2] === "=" ? 0 : base64Value(chunk[2]);
+    const d = chunk[3] === "=" ? 0 : base64Value(chunk[3]);
+    const value = (a << 18) | (b << 12) | (c << 6) | d;
+    bytes.push((value >> 16) & 0xff);
+    if (chunk[2] !== "=" && bytes.length < maxBytes) bytes.push((value >> 8) & 0xff);
+    if (chunk[3] !== "=" && bytes.length < maxBytes) bytes.push(value & 0xff);
+  }
+  return bytes;
+}
+
+function base64Value(char: string | undefined): number {
+  return char ? (BASE64_INLINE_IMAGE_VALUES.get(char) ?? 0) : 0;
+}
+
+function bytesStartWith(bytes: number[], signature: number[]): boolean {
+  return signature.every((byte, index) => bytes[index] === byte);
+}
+
+function asciiAt(bytes: number[], start: number, length: number): string {
+  if (bytes.length < start + length) return "";
+  return String.fromCharCode(...bytes.slice(start, start + length));
+}
+
+function isoImageBrand(bytes: number[]): string | null {
+  for (let offset = 8; offset + 4 <= bytes.length; offset += 4) {
+    const brand = asciiAt(bytes, offset, 4);
+    if (ISO_HEIC_BRANDS.has(brand) || ISO_HEIF_BRANDS.has(brand)) return brand;
+  }
+  return null;
+}
+
+function inlineImageMimeCompatible(declared: string, sniffed: string): boolean {
+  if (declared === sniffed) return true;
+  return (declared === "image/heic" || declared === "image/heif") && (sniffed === "image/heic" || sniffed === "image/heif");
+}
 
 // Web Crypto SubtleCrypto fallback to a simple non-cryptographic hash when
 // running outside a browser/RN runtime (e.g. node tests). Audit hashes are
@@ -283,6 +372,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       input.minor,
     )) as unknown as GeminiResult<T>;
   }
+  const image = input.image ? normalizePromptImage(input.image) : null;
 
   const env = getEnv();
   const model = MODELS[input.model ?? "flash"];
@@ -336,7 +426,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
         user: input.user,
         model,
         // Optional image payload for multimodal OCR / vision prompts.
-        ...(input.image ? { image: input.image } : {}),
+        ...(image ? { image } : {}),
         // Structured-output schema (e.g. phase1). The proxy sets
         // responseMimeType=application/json + responseSchema when present so
         // edge-routed callers reach parity with the direct-client path.
@@ -375,7 +465,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     const t0 = Date.now();
     const config = {
       ...(input.responseSchema ? { responseMimeType: "application/json", responseSchema: input.responseSchema } : {}),
-      ...(input.image ? IMAGE_GENERATION_CONFIG : {}),
+      ...(image ? IMAGE_GENERATION_CONFIG : {}),
     };
     const res = await client.models.generateContent({
       model,
@@ -387,8 +477,8 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
             // Multimodal: attach the image first (Gemini's OCR/vision best
             // practice), mirroring the edge-function path. Without this the
             // direct/Vertex path silently dropped input.image.
-            ...(input.image
-              ? [{ inlineData: { mimeType: input.image.mimeType, data: input.image.data } }]
+            ...(image
+              ? [{ inlineData: { mimeType: image.mimeType, data: image.data } }]
               : []),
             { text: input.user },
           ],

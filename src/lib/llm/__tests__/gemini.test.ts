@@ -6,6 +6,10 @@
 import type { GeminiResult } from "../types";
 
 const mockGenerateContent = jest.fn().mockResolvedValue({ text: "OK reflection" });
+const PNG_IMAGE_BASE64 = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
+  0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00,
+]).toString("base64");
 
 jest.mock("@google/genai", () => {
   return {
@@ -128,7 +132,7 @@ describe("callGemini", () => {
       locale: "en",
       purpose: "capture_ocr",
       user: "Transcribe the text in this image.",
-      image: { mimeType: "image/png", data: "QkFTRTY0SU1BR0U=" },
+      image: { mimeType: " IMAGE/PNG ", data: `${PNG_IMAGE_BASE64.slice(0, 8)}\n${PNG_IMAGE_BASE64.slice(8)}` },
     });
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     const callArg = mockGenerateContent.mock.calls[0]![0] as {
@@ -138,11 +142,66 @@ describe("callGemini", () => {
     const userMsg = callArg.contents[callArg.contents.length - 1]!;
     const hasImagePart = userMsg.parts.some(
       (p) =>
-        (p.inlineData as { mimeType?: string; data?: string } | undefined)?.data === "QkFTRTY0SU1BR0U=" &&
+        (p.inlineData as { mimeType?: string; data?: string } | undefined)?.data === PNG_IMAGE_BASE64 &&
         (p.inlineData as { mimeType?: string } | undefined)?.mimeType === "image/png",
     );
     expect(hasImagePart).toBe(true);
     expect(callArg.config).toMatchObject({ maxOutputTokens: 4096, temperature: 0.2 });
+  });
+
+  test("multimodal: invalid image data is rejected before the direct/Vertex SDK call", async () => {
+    await expect(
+      callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "capture_ocr",
+        user: "Transcribe the text in this image.",
+        image: { mimeType: "image/png", data: "not-base64!!!" },
+      }),
+    ).rejects.toThrow("llm_image_invalid_data");
+
+    await expect(
+      callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "capture_ocr",
+        user: "Transcribe the text in this image.",
+        image: { mimeType: "image/png", data: "QUJDRA==" },
+      }),
+    ).rejects.toThrow("llm_image_invalid_data");
+
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  test("multimodal: unsupported image MIME is rejected before the direct/Vertex SDK call", async () => {
+    await expect(
+      callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "capture_ocr",
+        user: "Transcribe the text in this image.",
+        image: { mimeType: "image/gif", data: PNG_IMAGE_BASE64 },
+      }),
+    ).rejects.toThrow("llm_image_unsupported_type");
+
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  test("multimodal: oversized image data is rejected before base64 parsing and SDK calls", async () => {
+    await expect(
+      callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "capture_ocr",
+        user: "Transcribe the text in this image.",
+        image: { mimeType: "image/png", data: "A".repeat(2_700_001) },
+      }),
+    ).rejects.toThrow("llm_image_too_large");
+
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
   });
 
   test("C9: minor flag routes KO crisis to youth 1388 + 109 (adult gets 109)", async () => {
