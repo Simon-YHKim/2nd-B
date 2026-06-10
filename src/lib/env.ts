@@ -110,6 +110,17 @@ const schema = z.object({
   // clarity.microsoft.com. Set as repo/EAS Variables to activate.
   EXPO_PUBLIC_GA4_MEASUREMENT_ID: z.string().optional(),
   EXPO_PUBLIC_CLARITY_PROJECT_ID: z.string().optional(),
+  // Ads (Simon directive 2026-06-11): web AdSense, OFF by default. These env
+  // values only make ad surfaces POSSIBLE, never sufficient — the policy
+  // layer (src/lib/ads/policy.ts) additionally suppresses ads for paying
+  // tiers, minors, missing ads consent, and sensitive routes. AdMob (native)
+  // ships with the native build track; see docs/ADS.md.
+  EXPO_PUBLIC_ENABLE_ADS: z
+    .union([z.literal("true"), z.literal("false")])
+    .default("false")
+    .transform((v) => v === "true"),
+  EXPO_PUBLIC_ADSENSE_CLIENT: z.string().optional(),
+  EXPO_PUBLIC_ADSENSE_SLOT_RECORDS: z.string().optional(),
 });
 
 // C2: when Vertex is enabled, GOOGLE_CLOUD_PROJECT must be set.
@@ -158,6 +169,9 @@ function readRaw(): Record<string, string | undefined> {
   const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST;
   const ga4Id = process.env.EXPO_PUBLIC_GA4_MEASUREMENT_ID;
   const clarityId = process.env.EXPO_PUBLIC_CLARITY_PROJECT_ID;
+  const enableAds = process.env.EXPO_PUBLIC_ENABLE_ADS;
+  const adsenseClient = process.env.EXPO_PUBLIC_ADSENSE_CLIENT;
+  const adsenseSlotRecords = process.env.EXPO_PUBLIC_ADSENSE_SLOT_RECORDS;
   // Non-public vars (no EXPO_PUBLIC_ prefix) are never inlined into the client
   // bundle by design; they resolve from the real process.env on native / node
   // and are simply undefined on web. Aliasing is safe for these.
@@ -196,6 +210,9 @@ function readRaw(): Record<string, string | undefined> {
     EXPO_PUBLIC_POSTHOG_HOST: posthogHost,
     EXPO_PUBLIC_GA4_MEASUREMENT_ID: ga4Id,
     EXPO_PUBLIC_CLARITY_PROJECT_ID: clarityId,
+    EXPO_PUBLIC_ENABLE_ADS: enableAds,
+    EXPO_PUBLIC_ADSENSE_CLIENT: adsenseClient,
+    EXPO_PUBLIC_ADSENSE_SLOT_RECORDS: adsenseSlotRecords,
   };
 }
 
