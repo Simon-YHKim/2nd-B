@@ -170,13 +170,26 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
 
 export const ANALYSIS_UNIVERSAL_FORBIDDEN: Record<Locale, readonly string[]> = {
   en: [
+    // Full mirror of the doc's universal-floor table (lexicon-draft-v0.1 §2,
+    // rows L25-L30). 2026-06-10: therapy/therapeutic + the L26/L28-L30
+    // derivatives were doc-listed but missing here (cycle-3 audit).
+    "IQ",
     "IQ score",
     "intelligence quotient",
     "diagnose",
     "diagnosis",
+    "diagnosing",
+    "therapy",
     "psychotherapy",
+    "therapeutic",
+    "psychologist",
     "psychological evaluation",
     "psychiatric",
+    "treatment",
+    "cure",
+    "heal",
+    "healing",
+    "mental illness",
     "mental disorder",
     "scientifically proven",
     "clinically validated",
@@ -186,15 +199,24 @@ export const ANALYSIS_UNIVERSAL_FORBIDDEN: Record<Locale, readonly string[]> = {
     "increase your IQ",
     "boost brainpower",
   ],
+  // KO uses substring matching (no Hangul word boundaries), so several doc
+  // rows are deliberately NARROWED to inflected forms (정상이 / 장애가 있 /
+  // 우월한 …) to avoid flagging benign compounds (정상적으로, 장애물). Keep
+  // that narrowing when mirroring new rows from the doc.
   ko: [
     "지능지수",
     "아이큐 점수",
     "진단명",
     "정신과적",
     "정신질환",
+    "정신건강의학",
+    "정신과",
     "심리치료",
+    "심리상담",
     "심리상담사",
     "임상심리사",
+    "치료",
+    "처방",
     "당신은 ~한 사람입니다",
     "과학적으로 입증된",
     "임상적으로 검증된",

@@ -31,11 +31,25 @@ describe("analysis lexicon — universal forbidden", () => {
     );
   });
 
+  test("EN list mirrors the doc's full universal floor (therapy/therapeutic gap, 2026-06-10)", () => {
+    // lexicon-draft-v0.1.md §2 rows L25-L30 — these were doc-listed but
+    // missing from the code list until the cycle-3 audit.
+    expect(ANALYSIS_UNIVERSAL_FORBIDDEN.en).toEqual(
+      expect.arrayContaining(["therapy", "therapeutic", "psychologist", "mental illness", "treatment"]),
+    );
+  });
+
   test("KO list contains 의료법 §27 trigger terms", () => {
     // 진단명 / 정신질환 / 심리치료 / 임상심리사 are the KR 의료법
     // Title-Act floor. Losing them is direct legal exposure in KR.
     expect(ANALYSIS_UNIVERSAL_FORBIDDEN.ko).toEqual(
       expect.arrayContaining(["진단명", "정신질환", "심리치료", "임상심리사"]),
+    );
+  });
+
+  test("KO list mirrors the doc's 의료법 rows added 2026-06-10 (치료/처방/정신과)", () => {
+    expect(ANALYSIS_UNIVERSAL_FORBIDDEN.ko).toEqual(
+      expect.arrayContaining(["치료", "처방", "정신과", "심리상담"]),
     );
   });
 
@@ -50,7 +64,8 @@ describe("analysis lexicon — universal forbidden", () => {
 
 describe("analysis lexicon — runtime matcher (containsAnalysisForbidden)", () => {
   test("EN: affirmative claims are caught with word boundaries", () => {
-    expect(containsAnalysisForbidden("Your IQ score went up!", "en")).toEqual(["IQ score"]);
+    // Standalone "IQ" (doc row L25) matches alongside the phrase form.
+    expect(containsAnalysisForbidden("Your IQ score went up!", "en")).toEqual(["IQ", "IQ score"]);
     expect(containsAnalysisForbidden("This is scientifically proven.", "en")).toEqual([
       "scientifically proven",
     ]);
