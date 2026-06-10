@@ -15,7 +15,6 @@ import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
-import { useTheme } from "@/lib/theme/ThemeContext";
 import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/settings/crew-density";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import {
@@ -31,7 +30,7 @@ const CONFIRM_PHRASE = "DELETE";
 type SettingsToast = { message: string; tone: "info" | "success" | "danger" };
 type PendingConfirm = { message: string; onYes: () => Promise<void> } | null;
 type ActionError = { title: string; body: string; retry?: () => void } | null;
-type SettingsDisclosureKey = "theme" | "crew" | "data";
+type SettingsDisclosureKey = "crew" | "data";
 
 const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
   en: { none: "None", few: "Few", some: "Some", many: "Many" },
@@ -150,7 +149,6 @@ export default function Settings() {
   const { t, i18n } = useTranslation("settings");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const { mode, toggle } = useTheme();
   const { density: crewDensity, setDensity: setCrewDensity } = useCrewDensity();
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -159,7 +157,6 @@ export default function Settings() {
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
   const [actionError, setActionError] = useState<ActionError>(null);
   const [openDisclosures, setOpenDisclosures] = useState<Record<SettingsDisclosureKey, boolean>>({
-    theme: false,
     crew: false,
     data: false,
   });
@@ -389,9 +386,14 @@ export default function Settings() {
           </View>
         ) : null}
 
+        {/* O-R1 settings restructure (39-screen audit, 4.5/10: "25+ choices,
+            no grouping"): the seven equal-weight nav buttons split into two
+            scannable groups (Gestalt: same meaning, same cluster), and the
+            "Theme (quick toggle)" disclosure is GONE — it duplicated the
+            /theme page button two rows above it (same action, two places). */}
         <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
           <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
-            {t("nav.eyebrow")}
+            {locale === "ko" ? "내 계정" : "My account"}
           </Text>
           <Button
             label={t("nav.profile")}
@@ -411,6 +413,12 @@ export default function Settings() {
             variant="secondary"
             onPress={() => router.push("/account")}
           />
+        </View>
+
+        <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
+          <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
+            {locale === "ko" ? "앱" : "App"}
+          </Text>
           <Button
             label={t("nav.theme")}
             accessibilityHint={t("nav.themeHint")}
@@ -438,36 +446,6 @@ export default function Settings() {
         </View>
 
         <DisclosureSection
-          title={locale === "ko" ? "테마 (빠른 전환)" : "Theme (quick toggle)"}
-          expanded={openDisclosures.theme}
-          onToggle={() => toggleDisclosure("theme")}
-        >
-          <Text variant="subtle" color="textMuted">
-            {locale === "ko"
-              ? "메인 화면의 어두운 하늘 톤이 기본. 밝은 톤도 시도해 보세요."
-              : "Defaults to the loader's dark-sky tone. Light is also available."}
-          </Text>
-          <View style={styles.themeRow}>
-            <Button
-              label={locale === "ko" ? "다크" : "Dark"}
-              accessibilityHint={t("actions.darkThemeHint")}
-              variant={mode === "dark" ? "primary" : "secondary"}
-              selected={mode === "dark"}
-              onPress={() => { if (mode !== "dark") toggle(); }}
-              style={styles.themeButton}
-            />
-            <Button
-              label={locale === "ko" ? "라이트" : "Light"}
-              accessibilityHint={t("actions.lightThemeHint")}
-              variant={mode === "light" ? "primary" : "secondary"}
-              selected={mode === "light"}
-              onPress={() => { if (mode !== "light") toggle(); }}
-              style={styles.themeButton}
-            />
-          </View>
-        </DisclosureSection>
-
-        <DisclosureSection
           title={locale === "ko" ? "그래프 크루 (장식 로봇)" : "Graph crew (decorative)"}
           expanded={openDisclosures.crew}
           onToggle={() => toggleDisclosure("crew")}
@@ -493,7 +471,9 @@ export default function Settings() {
         </DisclosureSection>
 
         <DisclosureSection
-          title={t("nav.data")}
+          // Was titled identically to the nav.data button above (two controls,
+          // same name, different destinations — audit confusion finding).
+          title={locale === "ko" ? "데이터 삭제 (위험 구역)" : "Delete data (danger zone)"}
           expanded={openDisclosures.data}
           onToggle={() => toggleDisclosure("data")}
           tone="warning"
@@ -865,12 +845,5 @@ const styles = StyleSheet.create({
   modalBody: { lineHeight: 21 },
   modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   modalButton: { flex: 1 },
-  themeRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   crewRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
-  themeButton: {
-    flex: 1,
-    minHeight: 48,
-    backgroundColor: cosmic.space700,
-    borderColor: withAlpha(cosmic.mistGray, 0.56),
-  },
 });
