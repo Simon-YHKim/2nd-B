@@ -785,7 +785,14 @@ describe("capture image OCR payload guards", () => {
     expect(enPrompt).toContain("numeric values");
     expect(enPrompt).toContain("tact time");
     expect(enPrompt).toContain("cycle time");
+    expect(enPrompt).toContain("C/T");
     expect(enPrompt).toContain("UPH");
+    expect(enPrompt).toContain("by-pass");
+    expect(enPrompt).toContain("rework");
+    expect(enPrompt).toContain("LOT");
+    expect(enPrompt).toContain("WIP");
+    expect(enPrompt).toContain("tray");
+    expect(enPrompt).toContain("panel");
     expect(enPrompt).toContain("[?]");
     expect(enPrompt).toContain("Do not wrap the answer in code fences.");
 
@@ -801,7 +808,11 @@ describe("capture image OCR payload guards", () => {
     expect(koPrompt).toContain("숫자");
     expect(koPrompt).toContain("체크박스");
     expect(koPrompt).toContain("tact time");
+    expect(koPrompt).toContain("C/T");
     expect(koPrompt).toContain("UPH");
+    expect(koPrompt).toContain("by-pass");
+    expect(koPrompt).toContain("LOT");
+    expect(koPrompt).toContain("WIP");
     expect(koPrompt).toContain("[?]");
   });
 

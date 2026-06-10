@@ -44,6 +44,7 @@ const OCR_IMAGE_MIME_ALIASES: Record<string, string> = {
   "image/pjpeg": "image/jpeg",
   "image/x-png": "image/png",
 };
+const OCR_DOMAIN_TERMS = "tact time, takt time, cycle time, CT, C/T, UPH, bottleneck, bypass, by-pass, rework, LOT, WIP, station, line, tray, unit, panel";
 const OCR_OUTPUT_GUARD = "Return only the transcription or brief no-text description. Do not add prefaces. Do not wrap the answer in code fences.";
 const GENERIC_OCR_IMAGE_MIME_TYPES = new Set(["application/octet-stream"]);
 
@@ -66,6 +67,10 @@ const OCR_PROMPT: Record<"en" | "ko", string> = {
   en: "Transcribe all readable text in this image as clean markdown. Preserve visible line breaks, headings, lists, and markdown tables where possible. Capture numeric values, units, labels, timestamps, checkboxes, and engineering terms such as tact time, cycle time, and UPH exactly as shown. Mark unclear characters with [?] instead of guessing. If the image has no readable text, describe what you see in 1-2 sentences in English.",
   ko: "이미지의 모든 읽을 수 있는 텍스트를 깔끔한 마크다운으로 전사하세요. 보이는 줄바꿈, 제목, 목록을 유지하고, 표는 가능한 한 마크다운 표로 보존하세요. 숫자, 단위, 라벨, 시간, 체크박스, tact time, cycle time, UPH 같은 엔지니어링 용어는 보이는 대로 정확히 적으세요. 불확실한 글자는 추측하지 말고 [?]로 표시하세요. 읽을 수 있는 텍스트가 없으면 이미지 내용을 한국어 1-2문장으로 설명하세요.",
 };
+
+function ocrPromptForLocale(locale: "en" | "ko"): string {
+  return `${OCR_PROMPT[locale]}\n\nPreserve manufacturing/IE terms and abbreviations such as ${OCR_DOMAIN_TERMS} exactly as shown.\n\n${OCR_OUTPUT_GUARD}`;
+}
 
 export function isImageOcrTooLargeError(error: unknown): boolean {
   return error instanceof Error && error.message === IMAGE_OCR_TOO_LARGE_ERROR;
@@ -385,7 +390,7 @@ export async function ocrImageAsset(
       userId,
       locale,
       purpose: "capture_ocr",
-      user: `${OCR_PROMPT[locale]}\n\n${OCR_OUTPUT_GUARD}`,
+      user: ocrPromptForLocale(locale),
       image: { mimeType, data },
       minor,
     });
