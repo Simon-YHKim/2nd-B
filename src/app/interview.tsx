@@ -274,7 +274,10 @@ export default function Interview() {
               <Pressable
                 key={p}
                 onPress={() => startInterview(p)}
-                style={styles.periodCard}
+                // O-R1.2 (Hick): five identical cards gave no entry point —
+                // "current" is the recommended start (most recall, least
+                // friction), so it carries the brand accent and a hint line.
+                style={[styles.periodCard, p === "current" && styles.periodCardRecommended]}
                 hitSlop={4}
                 accessibilityRole="button"
                 accessibilityLabel={
@@ -287,6 +290,11 @@ export default function Interview() {
                 <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
                   {PERIOD_LABEL[locale][p]}
                 </Text>
+                {p === "current" ? (
+                  <Text variant="subtle" color="textSubtle" style={{ marginTop: 2 }}>
+                    {locale === "ko" ? "여기서 시작하면 좋아요" : "A good place to start"}
+                  </Text>
+                ) : null}
               </Pressable>
             ))}
           </View>
@@ -303,7 +311,10 @@ export default function Interview() {
             {PERIOD_LABEL[locale][period]}
           </Text>
           <Text variant="subtle" color="textSubtle">
-            {locale === "ko" ? `${userAnswers}턴 · 다음: ${LAYER_LABEL.ko[pendingLayer]}` : `${userAnswers} turns · next: ${LAYER_LABEL.en[pendingLayer]}`}
+            {/* O-R1.2: next-layer text removed — DrillProgress already shows
+                the active layer; two indicators saying the same thing was
+                the audit's triple-progress finding. */}
+            {locale === "ko" ? `${userAnswers}턴` : `${userAnswers} turns`}
           </Text>
         </View>
 
@@ -315,31 +326,6 @@ export default function Interview() {
             activeLayer={pendingLayer}
           />
         </View>
-
-        {shouldSuggestWrap ? (
-          <View style={styles.completionBanner}>
-            <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
-              {locale === "ko" ? "충분한 깊이 도달" : "Sufficient depth reached"}
-            </Text>
-            <Text variant="body" color="textMuted" style={{ marginTop: 4 }}>
-              {locale === "ko"
-                ? "5개 층 모두 들었어요. 여기서 마무리해도 좋고, 더 가도 좋아요."
-                : "All five layers covered. You can wrap up now or keep going."}
-            </Text>
-            <View style={styles.completionActions}>
-              <Button
-                label={locale === "ko" ? "마무리하기" : "Wrap up"}
-                variant="primary"
-                onPress={() => setDone(true)}
-              />
-              <Button
-                label={locale === "ko" ? "더 갈게요" : "Keep going"}
-                variant="secondary"
-                onPress={() => setCompletionAcknowledged(true)}
-              />
-            </View>
-          </View>
-        ) : null}
 
         <ScrollView ref={scrollRef} contentContainerStyle={styles.chatScroll} keyboardShouldPersistTaps="handled">
           {turns.map((t, i) => (
@@ -369,6 +355,35 @@ export default function Interview() {
           ) : null}
         </ScrollView>
 
+        {/* O-R1.2: the depth-reached decision moved from a banner wedged
+            between progress and chat (mid-flow interruption, layout shift)
+            to the end of the scan, directly above the composer — the
+            canonical decision position. Keep-going is the escape hatch. */}
+        {shouldSuggestWrap ? (
+          <View style={styles.completionBanner}>
+            <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
+              {locale === "ko" ? "충분한 깊이 도달" : "Sufficient depth reached"}
+            </Text>
+            <Text variant="body" color="textMuted" style={{ marginTop: 4 }}>
+              {locale === "ko"
+                ? "5개 층 모두 들었어요. 여기서 마무리해도 좋고, 더 가도 좋아요."
+                : "All five layers covered. You can wrap up now or keep going."}
+            </Text>
+            <View style={styles.completionActions}>
+              <Button
+                label={locale === "ko" ? "마무리하기" : "Wrap up"}
+                variant="primary"
+                onPress={() => setDone(true)}
+              />
+              <Button
+                label={locale === "ko" ? "더 갈게요" : "Keep going"}
+                variant="ghost"
+                onPress={() => setCompletionAcknowledged(true)}
+              />
+            </View>
+          </View>
+        ) : null}
+
         {done ? (
           <View style={styles.footer}>
             <Text variant="caption" color="brand">
@@ -395,7 +410,8 @@ export default function Interview() {
             <View style={styles.footerActions}>
               <Button
                 label={locale === "ko" ? "그만하기" : "Stop"}
-                variant="secondary"
+                // O-R1 escape-hatch pattern: Stop must read quieter than Send.
+                variant="ghost"
                 onPress={() => setDone(true)}
               />
               <Button
@@ -456,6 +472,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: semantic.border,
     backgroundColor: semantic.surface,
+  },
+  // Recommended entry point (O-R1.2 Hick fix) — brand accent edge, same
+  // pattern as gateCard accents elsewhere.
+  periodCardRecommended: {
+    borderColor: semantic.brand,
+    borderStartWidth: 3,
+    borderStartColor: semantic.brand,
   },
   topBar: {
     flexDirection: "row",
