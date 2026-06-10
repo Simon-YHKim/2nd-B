@@ -354,6 +354,44 @@ Three brand moments get a named motion. Each pairs a character accent with a sin
 
 ---
 
+## Interaction Principles
+
+> Canonized 2026-06-10 (standing order O-R1). Every UI PR is reviewed against
+> these eight principles plus the four-axis product rules (CLAUDE.md, §20).
+> They consolidate the Nielsen/Norman usability heuristics (visibility of
+> status, recognition over recall, consistency, minimalist design) and mobile
+> ergonomics research (Fitts's law, Hick's law, one-handed thumb-reach
+> studies, Apple HIG 44pt / Material 48dp touch minimums) onto this product.
+
+1. **Simple is best.** One primary action per screen, minimum visible
+   elements, detail behind progressive disclosure. Same axis as the standing
+   Information Density rule in CLAUDE.md; when they conflict, that rule wins.
+2. **Visual flow.** Mobile reads top to bottom in a single column. Nothing
+   may break the scan line: no left/right zigzag, no banner wedged mid-flow.
+   Order content title, then evidence, then action; the primary CTA sits at
+   the end of the scan (or in the thumb zone).
+3. **Fitts's law.** Frequent targets are bigger and closer. Primary actions
+   live in the thumb zone (bottom third of the screen); destructive actions
+   live OUTSIDE it and always confirm. Touch targets stay at 44px or larger
+   (existing rule).
+4. **Hick's law.** Minimize simultaneous choices. More than 5 menu items or
+   options: group them or split into steps.
+5. **Gestalt (proximity, similarity, continuity).** Related elements sit
+   together; unrelated elements get space. Spacing IS hierarchy: same
+   meaning, same gap, same pattern.
+6. **Consistency.** The same action uses the same component in the same
+   position on every screen. Back lives in exactly one place (O-7).
+7. **State completeness.** Every screen designs all four states: loading
+   (skeleton), empty (with a next action), error (with retry), offline. An
+   empty state that does not point somewhere is a dead end.
+8. **Real-world use.** Design for one hand, bright outdoor light (contrast),
+   flaky networks, 1-3 minute sessions (enter journal, write, save in under
+   a minute), and mid-flow entry from a notification.
+
+Audit scoring (O-R1 register): P1 blocks the core loop, P2 is visible
+friction, P3 is polish.
+
+---
 ## What we never do
 
 - Gradients of any kind (except the documented 5%-opacity sky-drift overlay).
