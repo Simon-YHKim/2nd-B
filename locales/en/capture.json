@@ -191,6 +191,10 @@
       "title": "Image type is not supported",
       "message": "Choose a JPG, PNG, WEBP, HEIC, or HEIF image, then try again."
     },
+    "ocrMissingData": {
+      "title": "Image data is missing",
+      "message": "We couldn't read this image file from the picker. Choose it again or try a different image."
+    },
     "fileOpen": {
       "title": "Couldn't open that file",
       "message": "We couldn't open that file. Pick another one or try again in a moment."

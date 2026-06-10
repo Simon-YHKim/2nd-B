@@ -17,10 +17,12 @@ import { callGemini } from "../../llm/gemini";
 import {
   ALLOWED_OCR_IMAGE_MIME_TYPES,
   IMAGE_CAMERA_PERMISSION_DENIED_ERROR,
+  IMAGE_OCR_MISSING_DATA_ERROR,
   IMAGE_OCR_UNSUPPORTED_TYPE_ERROR,
   IMAGE_OCR_TOO_LARGE_ERROR,
   MAX_OCR_IMAGE_BASE64_BYTES,
   isImageCameraPermissionDeniedError,
+  isImageOcrMissingDataError,
   isImageOcrTooLargeError,
   isImageOcrUnsupportedTypeError,
   normalizeOcrImageMimeType,
@@ -119,6 +121,20 @@ describe("capture image OCR payload guards", () => {
     await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
   });
 
+  test("rejects picked image assets that are missing base64 data", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///missing-data.png",
+          mimeType: "image/png",
+        },
+      ],
+    });
+
+    await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_MISSING_DATA_ERROR);
+  });
+
   test("rejects denied camera permission before launching the camera", async () => {
     imagePickerMock.requestCameraPermissionsAsync.mockResolvedValue({ status: "denied" });
 
@@ -193,5 +209,9 @@ describe("capture image OCR payload guards", () => {
     expect(isImageCameraPermissionDeniedError(new Error(IMAGE_CAMERA_PERMISSION_DENIED_ERROR))).toBe(true);
     expect(isImageCameraPermissionDeniedError(new Error(IMAGE_OCR_TOO_LARGE_ERROR))).toBe(false);
     expect(isImageCameraPermissionDeniedError("camera_permission_denied")).toBe(false);
+
+    expect(isImageOcrMissingDataError(new Error(IMAGE_OCR_MISSING_DATA_ERROR))).toBe(true);
+    expect(isImageOcrMissingDataError(new Error(IMAGE_OCR_TOO_LARGE_ERROR))).toBe(false);
+    expect(isImageOcrMissingDataError("image_ocr_missing_data")).toBe(false);
   });
 });

@@ -46,6 +46,7 @@ import {
   pickImageAsset,
   ocrImageAsset,
   isImageCameraPermissionDeniedError,
+  isImageOcrMissingDataError,
   isImageOcrTooLargeError,
   isImageOcrUnsupportedTypeError,
 } from "@/lib/wiki/capture-image";
@@ -301,6 +302,9 @@ export default function Capture() {
     if (isImageOcrUnsupportedTypeError(error)) {
       return { key: "alerts.ocrUnsupportedType", retryable: false };
     }
+    if (isImageOcrMissingDataError(error)) {
+      return { key: "alerts.ocrMissingData", retryable: false };
+    }
     return { key: "alerts.ocrRead", retryable: true };
   }
 
@@ -308,7 +312,11 @@ export default function Capture() {
     if (isImageCameraPermissionDeniedError(error)) {
       return { key: "alerts.cameraPermission", retryable: false };
     }
-    if (isImageOcrTooLargeError(error) || isImageOcrUnsupportedTypeError(error)) {
+    if (
+      isImageOcrTooLargeError(error) ||
+      isImageOcrUnsupportedTypeError(error) ||
+      isImageOcrMissingDataError(error)
+    ) {
       return imageOcrFeedback(error);
     }
     return { key: "alerts.imageOpen", retryable: true };
