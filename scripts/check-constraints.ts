@@ -762,6 +762,8 @@ results.push(
     const characterPath = read("src/components/graph/CharacterPathLayer.tsx");
     const drillProgress = read("src/components/ui/DrillProgress.tsx");
     const xpBar = read("src/components/progression/XpBar.tsx");
+    const quantPager = read("src/components/quant/QuantPager.tsx");
+    const interview = read("src/app/interview.tsx");
     // Whitespace-robust: assert the a11y contract by attribute presence/count,
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
@@ -1012,13 +1014,21 @@ results.push(
       xpBar.includes('accessibilityRole="progressbar"') &&
       xpBar.includes("accessibilityLabel={accessibilityLabel}") &&
       xpBar.includes("accessibilityValue={{ min: 0, max: 100, now: pct, text: trailing }}") &&
-      xpBar.includes("Already at the max level.");
+      xpBar.includes("Already at the max level.") &&
+      interview.includes("const kbHeight = useKeyboard()") &&
+      interview.includes("paddingBottom: kbHeight + spacing.sm") &&
+      interview.includes("minHeight: 48") &&
+      quantPager.includes('accessibilityRole="progressbar"') &&
+      quantPager.includes("accessibilityValue={{ min: 0, max: 100, now: progressPercent, text: progressLabel }}") &&
+      quantPager.includes("accessibilityHint={prevHint}") &&
+      quantPager.includes("accessibilityHint={nextHint}") &&
+      quantPager.includes("accessibilityHint={submitHint}");
     return {
       id: "A11y",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
-        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
+        ? "selected chips, research links, assessment choices, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions expose grouped/action state"
+        : "visual-selected controls, research links, inbox/capture/manual/records/trinity/sign-in/sign-up/oauth/onboarding/data/support/theme/settings/backarrow/home/jarvis/navgraph/characterpath/drillprogress/xpbar/quantpager/interview/esm/profile/consent/privacy/formats/preference-toggle/premium-button/premium-input/premium-modal/quant-intro/loading actions need accessibilityRole plus selected/checked state",
     };
   }),
 );

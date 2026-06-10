@@ -32,6 +32,7 @@ import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
+import { useKeyboard } from "@/lib/ui/useKeyboard";
 import {
   PERIOD_LABEL,
   LAYER_LABEL,
@@ -59,6 +60,7 @@ export default function Interview() {
   const { i18n } = useTranslation();
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const kbHeight = useKeyboard();
 
   const [period, setPeriod] = useState<LifePeriod | null>(null);
   const [turns, setTurns] = useState<InterviewTurn[]>([]);
@@ -240,6 +242,10 @@ export default function Interview() {
   const feedbackRetryHint = feedbackModal?.kind === "probe"
     ? (locale === "ko" ? "다음 질문을 다시 불러옵니다." : "Retry interview feedback by loading the next question.")
     : (locale === "ko" ? "인터뷰 저장을 다시 시도합니다." : "Retry interview feedback by saving again.");
+  const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;
+  const footerStyle = Platform.OS === "android" && kbHeight > 0
+    ? [styles.footer, { paddingBottom: kbHeight + spacing.sm }]
+    : styles.footer;
 
   function retryFeedbackModal() {
     const current = feedbackModal;
@@ -305,7 +311,7 @@ export default function Interview() {
 
   return (
     <PremiumAppShell>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={keyboardBehavior}>
         <View style={styles.topBar}>
           <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
             {PERIOD_LABEL[locale][period]}
@@ -385,7 +391,7 @@ export default function Interview() {
         ) : null}
 
         {done ? (
-          <View style={styles.footer}>
+          <View style={footerStyle}>
             <Text variant="caption" color="brand">
               {locale === "ko"
                 ? (userAnswers >= SOFT_CAP ? "긴 인터뷰가 끝났어요" : "인터뷰 마무리")
@@ -399,7 +405,7 @@ export default function Interview() {
             />
           </View>
         ) : (
-          <View style={styles.footer}>
+          <View style={footerStyle}>
             <Input
               value={draft}
               onChangeText={setDraft}
@@ -467,6 +473,7 @@ const styles = StyleSheet.create({
   header: { gap: spacing.sm },
   periodGrid: { gap: spacing.sm, marginVertical: spacing.md },
   periodCard: {
+    minHeight: 48,
     padding: spacing.md,
     borderRadius: radii.md,
     borderWidth: 1,

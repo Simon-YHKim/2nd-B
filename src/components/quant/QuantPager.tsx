@@ -53,8 +53,13 @@ export function QuantPager({
   }, [page, perPage, totalItems]);
 
   const progressPct = totalItems > 0 ? Math.min(1, answered / totalItems) : 0;
+  const progressPercent = Math.round(progressPct * 100);
   const onLastPage = page >= totalPages - 1;
   const isFirstPage = page === 0;
+  const progressLabel = locale === "ko" ? `응답 진행률 ${progressPercent}%` : `Answer progress ${progressPercent}%`;
+  const prevHint = locale === "ko" ? "이전 문항 페이지로 이동합니다." : "Moves to the previous question page.";
+  const nextHint = locale === "ko" ? "다음 문항 페이지로 이동합니다." : "Moves to the next question page.";
+  const submitHint = locale === "ko" ? "응답을 저장하고 결과 화면으로 이동합니다." : "Saves your answers and opens the result screen.";
 
   function next() {
     if (!onLastPage) setPage((p) => p + 1);
@@ -76,7 +81,12 @@ export function QuantPager({
               : `${answered} / ${totalItems} answered${complete ? " · ready to save" : ""}`}
           </Text>
         </View>
-        <View style={styles.progressBarOuter}>
+        <View
+          style={styles.progressBarOuter}
+          accessibilityRole="progressbar"
+          accessibilityLabel={progressLabel}
+          accessibilityValue={{ min: 0, max: 100, now: progressPercent, text: progressLabel }}
+        >
           <View style={[styles.progressBarInner, { width: `${progressPct * 100}%` }]} />
         </View>
       </View>
@@ -100,6 +110,7 @@ export function QuantPager({
             variant="ghost"
             onPress={prev}
             disabled={isFirstPage}
+            accessibilityHint={prevHint}
           />
           {onLastPage ? (
             <Button
@@ -108,12 +119,14 @@ export function QuantPager({
               onPress={onSubmit}
               disabled={submitDisabled}
               loading={submitLoading}
+              accessibilityHint={submitHint}
             />
           ) : (
             <Button
               label={locale === "ko" ? "다음" : "Next"}
               variant="primary"
               onPress={next}
+              accessibilityHint={nextHint}
             />
           )}
         </View>
