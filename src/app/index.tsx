@@ -42,7 +42,7 @@ import { domainForTags, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relate
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { overviewCardSignals } from "@/lib/graph/card-insights";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
-import { PowerOnOverlay, StarNoiseLayer } from "@/components/premium";
+import { PowerOnOverlay, StarNoiseLayer, TAB_BAR_HEIGHT } from "@/components/premium";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
 const logo = require("../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png");
@@ -345,13 +345,12 @@ export default function Landing() {
         ? "SecondB resting"
         : "SecondB";
   const featuredPiece = dataNodes.find((node) => node.parentId === featuredVillage) ?? dataNodes[0] ?? null;
-  const soulCoreName = locale === "ko" ? "소울 코어" : "Soul Core";
 
-  // P9: overview insight cards = a conversational "what changed / what to
-  // reinforce" report (card 1 = SecondB) + a Pattern Core spotlight (card 2),
-  // driven by real graph signals (card-insights.overviewCardSignals). Core-named
-  // copy (always ends in "코어", a vowel) is josa-safe, fixing the old persona
-  // particle bug ("아콘가/루멘가").
+  // P9 → O-R1.3: ONE overview insight card — the Pattern Core spotlight,
+  // driven by real graph signals (card-insights.overviewCardSignals). The
+  // former SecondB card duplicated the tab-bar /secondb entry and a second
+  // SecondB face; cut per Simon's clutter greenlight. Core-named copy
+  // (always ends in "코어", a vowel) is josa-safe.
   // (pure + cheap; not memoized — call site sits after an early return so a hook
   // here would violate rules-of-hooks.)
   const cardSignals = overviewCardSignals(dataNodes);
@@ -359,17 +358,7 @@ export default function Landing() {
   const spotlightCoreName = VILLAGE_LABEL[spotlightCore][locale];
   const spotlightIsland = VILLAGE_UI[spotlightCore].island;
   const spotlightWorker = VILLAGE_UI[spotlightCore].worker;
-  const sparseCoreName = cardSignals.sparseCore ? VILLAGE_LABEL[cardSignals.sparseCore][locale] : null;
   const recentPieceTitle = cardSignals.recentPiece?.title ?? featuredPiece?.title ?? null;
-
-  const secondBCardBody =
-    locale === "ko"
-      ? featuredPiece
-        ? `최근 ${spotlightCoreName}에 새 조각을 더했어요.${sparseCoreName ? ` ${sparseCoreName}는 아직 비어 있어요.` : ""}`
-        : `${soulCoreName}가 첫 조각이 들어올 자리를 비워 두었어요.`
-      : featuredPiece
-        ? `Added a fresh piece to ${spotlightCoreName}.${sparseCoreName ? ` ${sparseCoreName} is still sparse.` : ""}`
-        : `The ${soulCoreName} is ready for the first piece you leave.`;
   const coreCardBody =
     locale === "ko"
       ? recentPieceTitle
@@ -480,35 +469,19 @@ export default function Landing() {
         </Animated.View>
       ) : null}
 
+      {/* O-R1.3 (Simon greenlight: "과다한 건 의도가 아니다"): the generic
+          SecondB card was a third route into /secondb (the tab bar and the
+          spotlight card both go there) and a second SecondB face on screen.
+          One personalized spotlight card remains — graph stays the primary
+          action, the card is the single suggestion, in the thumb zone. */}
       {!showingEmptyGraphCard && graphTouched && !sheetOpen ? (
         <Animated.View
           style={[
             styles.insightCardStack,
-            { opacity: contentOpacity, bottom: Math.max(insets.bottom + 92, 104) },
+            { opacity: contentOpacity, bottom: insets.bottom + TAB_BAR_HEIGHT + 12 },
           ]}
           pointerEvents="box-none"
         >
-          <Pressable
-            onPress={() => {
-              wake();
-              setCenterSeen(true);
-              router.push({ pathname: "/secondb", params: { fromNode: soulCoreName } });
-            }}
-            style={styles.insightCard}
-            accessibilityRole="button"
-            accessibilityLabel={locale === "ko" ? "세컨비 Touch" : "SecondB Touch"}
-            accessibilityHint={locale === "ko" ? "세컨비 대화를 엽니다" : "Opens SecondB chat"}
-          >
-            <View style={styles.insightCardAvatar}>
-              <SecondBSprite state={presence.mascot === "sleep" ? "sleep" : "idle"} size={48} float={presence.mascot !== "sleep"} label={mascotLabel} />
-            </View>
-            <View style={styles.insightCardCopy}>
-              <Text style={styles.insightCardTitle}>{locale === "ko" ? "세컨비" : "SecondB"}</Text>
-              <Text style={styles.insightCardBody} numberOfLines={2}>{secondBCardBody}</Text>
-            </View>
-            <Text style={styles.insightCardCta}>Touch!</Text>
-          </Pressable>
-
           <Pressable
             onPress={() => {
               wake();
