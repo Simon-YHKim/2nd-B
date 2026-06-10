@@ -6,6 +6,16 @@
 import type { GeminiResult } from "../types";
 
 const mockGenerateContent = jest.fn().mockResolvedValue({ text: "OK reflection" });
+const JPEG_IMAGE_BASE64 = Buffer.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49,
+  0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01,
+]).toString("base64");
+const JPEG_PADDED_IMAGE_BASE64 = Buffer.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49,
+  0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x02,
+]).toString("base64");
+const JPEG_IMAGE_BASE64_URL = JPEG_IMAGE_BASE64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+const JPEG_PADDED_IMAGE_BASE64_URL = JPEG_PADDED_IMAGE_BASE64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 const PNG_IMAGE_BASE64 = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
   0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00,
@@ -213,6 +223,51 @@ describe("callGemini", () => {
       expect.arrayContaining([
         expect.objectContaining({
           inlineData: { mimeType: "image/png", data: PNG_IMAGE_BASE64 },
+        }),
+      ]),
+    );
+  });
+
+  test("multimodal: base64url images are normalized before the direct/Vertex SDK call", async () => {
+    await callGemini({
+      userId: "u1",
+      locale: "en",
+      purpose: "capture_ocr",
+      user: "Transcribe the text in this image.",
+      image: { mimeType: "image/jpeg", data: `data:image/jpeg;base64,${JPEG_PADDED_IMAGE_BASE64_URL}` },
+    });
+
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    const callArg = mockGenerateContent.mock.calls[0]![0] as {
+      contents: { role: string; parts: Record<string, unknown>[] }[];
+    };
+    const userMsg = callArg.contents[callArg.contents.length - 1]!;
+    expect(userMsg.parts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          inlineData: { mimeType: "image/jpeg", data: JPEG_PADDED_IMAGE_BASE64 },
+        }),
+      ]),
+    );
+
+    mockGenerateContent.mockClear();
+
+    await callGemini({
+      userId: "u1",
+      locale: "en",
+      purpose: "capture_ocr",
+      user: "Transcribe the text in this image.",
+      image: { mimeType: "image/jpeg", data: JPEG_IMAGE_BASE64_URL },
+    });
+
+    const secondCallArg = mockGenerateContent.mock.calls[0]![0] as {
+      contents: { role: string; parts: Record<string, unknown>[] }[];
+    };
+    const secondUserMsg = secondCallArg.contents[secondCallArg.contents.length - 1]!;
+    expect(secondUserMsg.parts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          inlineData: { mimeType: "image/jpeg", data: JPEG_IMAGE_BASE64 },
         }),
       ]),
     );

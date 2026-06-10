@@ -47,6 +47,12 @@ const JPEG_IMAGE_BASE64 = Buffer.from([
   0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49,
   0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01,
 ]).toString("base64");
+const JPEG_PADDED_IMAGE_BASE64 = Buffer.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49,
+  0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x02,
+]).toString("base64");
+const JPEG_IMAGE_BASE64_URL = JPEG_IMAGE_BASE64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+const JPEG_PADDED_IMAGE_BASE64_URL = JPEG_PADDED_IMAGE_BASE64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 const PNG_IMAGE_BASE64 = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
   0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00,
@@ -158,6 +164,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiProxySource).toContain("normalizeImageMimeType");
     expect(geminiProxySource).toContain("parseImageBase64Input");
     expect(geminiProxySource).toContain("GENERIC_IMAGE_MIME");
+    expect(geminiProxySource).toContain("replace(/-/g, '+').replace(/_/g, '/')");
     expect(geminiProxySource).toContain("GENERIC_IMAGE_MIME.has(dataUrlMimeType) ? null : dataUrlMimeType");
     expect(geminiProxySource).toContain("IMAGE_MIME_ALIASES[normalized] ?? normalized");
     expect(geminiProxySource).toContain("!imageMimeCompatible(parsedData.mimeType, declaredMime)");
@@ -179,6 +186,7 @@ describe("capture image OCR payload guards", () => {
     expect(geminiWrapperSource).toContain("inlineImageMimeCompatible");
     expect(geminiWrapperSource).toContain("parsePromptImageData");
     expect(geminiWrapperSource).toContain("GENERIC_INLINE_IMAGE_MIME");
+    expect(geminiWrapperSource).toContain('replace(/-/g, "+").replace(/_/g, "/")');
     expect(geminiWrapperSource).toContain("GENERIC_INLINE_IMAGE_MIME.has(dataUrlMimeType) ? null : dataUrlMimeType");
     expect(geminiWrapperSource).toContain("!inlineImageMimeCompatible(parsed.mimeType, outerMimeType)");
     expect(geminiWrapperSource).toContain("INLINE_IMAGE_MIME_ALIASES[normalizedMimeType] ?? normalizedMimeType");
@@ -452,6 +460,38 @@ describe("capture image OCR payload guards", () => {
       }),
     );
     expect(normalizeOcrImageBase64Data(` ${PNG_IMAGE_BASE64.slice(0, 8)}\n${PNG_IMAGE_BASE64.slice(8)} `)).toBe(PNG_IMAGE_BASE64);
+  });
+
+  test("normalizes base64url image data before returning and sending image data", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///url-safe.jpg",
+          mimeType: "image/jpeg",
+          base64: JPEG_IMAGE_BASE64_URL,
+        },
+      ],
+    });
+
+    await expect(pickImageAsset("library")).resolves.toEqual({
+      uri: "file:///url-safe.jpg",
+      mimeType: "image/jpeg",
+      base64: JPEG_IMAGE_BASE64,
+    });
+
+    await ocrImageAsset("u1", "en", {
+      mimeType: "image/jpeg",
+      base64: `data:image/jpeg;base64,${JPEG_PADDED_IMAGE_BASE64_URL}`,
+    });
+
+    expect(mockCallGemini).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image: { mimeType: "image/jpeg", data: JPEG_PADDED_IMAGE_BASE64 },
+      }),
+    );
+    expect(normalizeOcrImageBase64Data(JPEG_IMAGE_BASE64_URL)).toBe(JPEG_IMAGE_BASE64);
+    expect(normalizeOcrImageBase64Data(JPEG_PADDED_IMAGE_BASE64_URL)).toBe(JPEG_PADDED_IMAGE_BASE64);
   });
 
   test("allows payloads at the mirrored server cap", async () => {

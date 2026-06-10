@@ -107,7 +107,12 @@ export function normalizeOcrImageMimeType(mimeType: string | null | undefined): 
 }
 
 export function normalizeOcrImageBase64Data(data: string): string {
-  return data.replace(/\s+/g, "");
+  const normalized = data.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+  const remainder = normalized.length % 4;
+  if (remainder === 2 || remainder === 3) {
+    return `${normalized}${"=".repeat(4 - remainder)}`;
+  }
+  return normalized;
 }
 
 export function normalizeOcrTextResult(text: string, locale: "en" | "ko" = "en"): string {

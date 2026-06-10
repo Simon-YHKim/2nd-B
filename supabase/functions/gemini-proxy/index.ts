@@ -115,7 +115,12 @@ const ISO_HEIC_BRANDS = new Set(['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis',
 const ISO_HEIF_BRANDS = new Set(['mif1', 'msf1']);
 
 function normalizeImageBase64Data(data: string): string {
-  return data.replace(/\s+/g, '');
+  const normalized = data.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+  const remainder = normalized.length % 4;
+  if (remainder === 2 || remainder === 3) {
+    return `${normalized}${'='.repeat(4 - remainder)}`;
+  }
+  return normalized;
 }
 
 function normalizeImageMimeType(mimeType: string): string {

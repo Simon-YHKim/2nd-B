@@ -65,7 +65,7 @@ function normalizePromptImage(image: { mimeType: string; data: string }): { mime
   if (declaredMimeType && !ALLOWED_INLINE_IMAGE_MIME.has(declaredMimeType)) {
     throw new Error(LLM_IMAGE_UNSUPPORTED_TYPE_ERROR);
   }
-  const data = parsed.data.replace(/\s+/g, "");
+  const data = normalizeInlineImageBase64Data(parsed.data);
   if (data.length === 0) {
     throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
   }
@@ -80,6 +80,15 @@ function normalizePromptImage(image: { mimeType: string; data: string }): { mime
     throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
   }
   return { mimeType: declaredMimeType ?? sniffedMime, data };
+}
+
+function normalizeInlineImageBase64Data(data: string): string {
+  const normalized = data.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+  const remainder = normalized.length % 4;
+  if (remainder === 2 || remainder === 3) {
+    return `${normalized}${"=".repeat(4 - remainder)}`;
+  }
+  return normalized;
 }
 
 function parsePromptImageData(data: string): { data: string; mimeType: string | null } {
