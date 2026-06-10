@@ -812,11 +812,19 @@ export default function Capture() {
                 return (
                   <Pressable
                     key={option}
-                    style={[styles.trackChip, active && styles.trackChipActive]}
-                    onPress={() => setTrack(option)}
+                    style={[
+                      styles.trackChip,
+                      active && styles.trackChipActive,
+                      (extracting || submitting) && styles.trackChipDisabled,
+                    ]}
+                    disabled={extracting || submitting}
+                    onPress={() => {
+                      if (extracting || submitting) return;
+                      setTrack(option);
+                    }}
                     hitSlop={4}
                     accessibilityRole="tab"
-                    accessibilityState={{ selected: active }}
+                    accessibilityState={{ selected: active, disabled: extracting || submitting }}
                     accessibilityLabel={label}
                   >
                     <TrackGlyph id={option} color={color} />
@@ -846,9 +854,14 @@ export default function Capture() {
                   return (
                     <Pressable
                       key={m}
-                      style={[styles.modeTab, active && styles.modeTabActive, extracting && styles.modeTabDisabled]}
-                      disabled={extracting}
+                      style={[
+                        styles.modeTab,
+                        active && styles.modeTabActive,
+                        (extracting || submitting) && styles.modeTabDisabled,
+                      ]}
+                      disabled={extracting || submitting}
                       onPress={() => {
+                        if (extracting || submitting) return;
                         setMode(m);
                         if (m !== "journal") setShowAdvancedModes(true);
                         // Clear all per-mode input so a URL box never "bleeds" into
@@ -857,7 +870,7 @@ export default function Capture() {
                       }}
                       hitSlop={8}
                       accessibilityRole="tab"
-                      accessibilityState={{ selected: active, disabled: extracting }}
+                      accessibilityState={{ selected: active, disabled: extracting || submitting }}
                       accessibilityLabel={`${label}. ${help}`}
                       accessibilityHint={help}
                     >
@@ -874,10 +887,11 @@ export default function Capture() {
                     styles.modeTab,
                     styles.modeMoreTab,
                     advancedModesExpanded && styles.modeMoreTabExpanded,
-                    extracting && styles.modeTabDisabled,
+                    (extracting || submitting) && styles.modeTabDisabled,
                   ]}
-                  disabled={extracting}
+                  disabled={extracting || submitting}
                   onPress={() => {
+                    if (extracting || submitting) return;
                     if (advancedModesExpanded) {
                       setShowAdvancedModes(false);
                       if (mode !== "journal") {
@@ -890,7 +904,7 @@ export default function Capture() {
                   }}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityState={{ expanded: advancedModesExpanded, disabled: extracting }}
+                  accessibilityState={{ expanded: advancedModesExpanded, disabled: extracting || submitting }}
                   accessibilityLabel={advancedModesExpanded ? t("sections.mode.less") : t("sections.mode.more")}
                   accessibilityHint={advancedModesExpanded ? t("sections.mode.lessHint") : t("sections.mode.moreHint")}
                 >
@@ -1483,6 +1497,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   trackChipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
+  trackChipDisabled: { opacity: 0.55 },
   trackGlyph: { width: 16, height: 16 },
   trackChipText: { color: semantic.textMuted, fontSize: typography.sizes.sm, fontWeight: "600", fontFamily: fontFamilies.pixelKo },
   trackChipTextActive: { color: semantic.background, fontWeight: "700" },

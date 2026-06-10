@@ -766,7 +766,9 @@ results.push(
     // not exact formatting (exact-prefix .includes break on harmless reflow).
     const captureTablists = (capture.match(/accessibilityRole="tablist"/g) ?? []).length;
     const researchTablists = (research.match(/accessibilityRole="tablist"/g) ?? []).length;
-    const captureSelected = (capture.match(/accessibilityState=\{\{ selected: active(?:, disabled: extracting)? \}\}/g) ?? []).length;
+    const captureSelected = (
+      capture.match(/accessibilityState=\{\{ selected: active(?:, disabled: extracting(?: \|\| submitting)?)? \}\}/g) ?? []
+    ).length;
     const inboxRoles = (inbox.match(/accessibilityRole=/g) ?? []).length;
     const signInRoles = (signIn.match(/accessibilityRole="button"/g) ?? []).length;
     const homeRoles = (home.match(/accessibilityRole="button"/g) ?? []).length;
@@ -820,7 +822,7 @@ results.push(
       capture.includes("ModeGlyph mode={m} color={color} label={label}") &&
       capture.includes("const BASIC_CAPTURE_MODES") &&
       capture.includes("const visibleModes = advancedModesExpanded ? CAPTURE_MODES : BASIC_CAPTURE_MODES") &&
-      /accessibilityState=\{\{ expanded: advancedModesExpanded(?:, disabled: extracting)? \}\}/.test(capture) &&
+      /accessibilityState=\{\{ expanded: advancedModesExpanded(?:, disabled: extracting(?: \|\| submitting)?)? \}\}/.test(capture) &&
       capture.includes("accessibilityState={{ expanded: showExtras }}") &&
       capture.includes('accessibilityRole="checkbox"') &&
       capture.includes("accessibilityState={{ checked: askAdvisor }}") &&
@@ -1026,6 +1028,7 @@ results.push(
 results.push(
   check("CaptureOcrBusyGuard", () => {
     const capture = read("src/app/capture.tsx");
+    const captureBusyUiGuards = (capture.match(/if \(extracting \|\| submitting\) return;/g) ?? []).length;
     const ok =
       capture.includes("const extractingRef = useRef(false);") &&
       capture.includes("const ocrRunRef = useRef(0);") &&
@@ -1035,8 +1038,9 @@ results.push(
       capture.includes("if (ocrRunRef.current !== runId) return;") &&
       capture.includes("!!userId && !submitting && !extracting") &&
       capture.includes("disabled={extracting || submitting}") &&
-      capture.includes("accessibilityState={{ selected: active, disabled: extracting }}") &&
-      capture.includes("accessibilityState={{ expanded: advancedModesExpanded, disabled: extracting }}") &&
+      captureBusyUiGuards >= 2 &&
+      capture.includes("accessibilityState={{ selected: active, disabled: extracting || submitting }}") &&
+      capture.includes("accessibilityState={{ expanded: advancedModesExpanded, disabled: extracting || submitting }}") &&
       capture.includes("accessibilityState={{ disabled: !canSubmit, busy: submitting || extracting }}");
     return {
       id: "CaptureOcrBusyGuard",
