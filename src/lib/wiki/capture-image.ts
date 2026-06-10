@@ -58,8 +58,8 @@ const ISO_HEIC_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis",
 const ISO_HEIF_BRANDS = new Set(["mif1", "msf1"]);
 
 const OCR_PROMPT: Record<"en" | "ko", string> = {
-  en: "Transcribe all text in this image as clean markdown. Preserve line breaks, headings, and lists where visible. If the image has no readable text, describe what you see in 1–2 sentences in English.",
-  ko: "이 이미지의 모든 텍스트를 깔끔한 마크다운으로 옮겨 적어주세요. 줄바꿈·제목·목록 구조는 보이는 대로 유지. 읽을 수 있는 텍스트가 없다면 이미지를 한국어 1-2문장으로 묘사해 주세요.",
+  en: "Transcribe all readable text in this image as clean markdown. Preserve visible line breaks, headings, lists, and markdown tables where possible. Capture numeric values, units, labels, timestamps, checkboxes, and engineering terms such as tact time, cycle time, and UPH exactly as shown. Mark unclear characters with [?] instead of guessing. If the image has no readable text, describe what you see in 1-2 sentences in English.",
+  ko: "이미지의 모든 읽을 수 있는 텍스트를 깔끔한 마크다운으로 전사하세요. 보이는 줄바꿈, 제목, 목록을 유지하고, 표는 가능한 한 마크다운 표로 보존하세요. 숫자, 단위, 라벨, 시간, 체크박스, tact time, cycle time, UPH 같은 엔지니어링 용어는 보이는 대로 정확히 적으세요. 불확실한 글자는 추측하지 말고 [?]로 표시하세요. 읽을 수 있는 텍스트가 없으면 이미지 내용을 한국어 1-2문장으로 설명하세요.",
 };
 
 export function isImageOcrTooLargeError(error: unknown): boolean {

@@ -443,6 +443,36 @@ describe("capture image OCR payload guards", () => {
     expect(normalizeOcrImagePayload({ base64: PNG_IMAGE_BASE64 }).mimeType).toBe("image/png");
   });
 
+  test("uses a domain-aware OCR prompt for tables, units, and uncertain text", async () => {
+    await ocrImageAsset("u1", "en", {
+      mimeType: "image/png",
+      base64: PNG_IMAGE_BASE64,
+    });
+
+    const enPrompt = mockCallGemini.mock.calls[0]![0].user;
+    expect(enPrompt).toContain("markdown tables");
+    expect(enPrompt).toContain("numeric values");
+    expect(enPrompt).toContain("tact time");
+    expect(enPrompt).toContain("cycle time");
+    expect(enPrompt).toContain("UPH");
+    expect(enPrompt).toContain("[?]");
+
+    mockCallGemini.mockClear();
+
+    await ocrImageAsset("u1", "ko", {
+      mimeType: "image/png",
+      base64: PNG_IMAGE_BASE64,
+    });
+
+    const koPrompt = mockCallGemini.mock.calls[0]![0].user;
+    expect(koPrompt).toContain("마크다운 표");
+    expect(koPrompt).toContain("숫자");
+    expect(koPrompt).toContain("체크박스");
+    expect(koPrompt).toContain("tact time");
+    expect(koPrompt).toContain("UPH");
+    expect(koPrompt).toContain("[?]");
+  });
+
   test("exposes a narrow sentinel helper for UI branching", () => {
     expect(isImageOcrTooLargeError(new Error(IMAGE_OCR_TOO_LARGE_ERROR))).toBe(true);
     expect(isImageOcrTooLargeError(new Error("network_down"))).toBe(false);
