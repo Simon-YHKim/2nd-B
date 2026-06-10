@@ -155,7 +155,7 @@
   },
   "ocrReview": {
     "heading": "Review before saving",
-    "disclosure": "This photo is used only to read text. 2nd-B does not keep the image or use it to train anything.",
+    "disclosure": "This photo goes to a text-reading service only to read its text. 2nd-B does not keep the image or use it to train anything.",
     "privateAfterApprove": "After you approve it, only the editable text is saved as your private record.",
     "body": "Edit the extracted text, then approve it before saving.",
     "approve": "Approve my extracted text",
