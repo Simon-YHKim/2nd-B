@@ -42,7 +42,7 @@ remote Supabase, real Gemini API calls) are deferred to Sprint 1.
 | Expo + TypeScript strict | done |
 | Single Gemini wrapper (C1/C2/C3/C9) | done |
 | 3-zone Safety Classifier (C9) | done |
-| Supabase migrations 0001–0040 | done |
+| Supabase migrations 0001–0043 | done |
 | ESLint + LLM import boundary | done |
 | i18n EN/KO with CI parity check (C7) | done |
 | Forbidden lexicon CI scan | done |
