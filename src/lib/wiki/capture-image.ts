@@ -25,6 +25,7 @@ export const IMAGE_CAMERA_PERMISSION_DENIED_ERROR = "camera_permission_denied";
 export const IMAGE_OCR_MISSING_DATA_ERROR = "image_ocr_missing_data";
 export const IMAGE_OCR_INVALID_DATA_ERROR = "image_ocr_invalid_data";
 export const IMAGE_OCR_EMPTY_RESULT_ERROR = "image_ocr_empty_result";
+export const IMAGE_OCR_CRISIS_RESULT_ERROR = "image_ocr_crisis_result";
 
 export const ALLOWED_OCR_IMAGE_MIME_TYPES = [
   "image/jpeg",
@@ -84,6 +85,10 @@ export function isImageOcrInvalidDataError(error: unknown): boolean {
 
 export function isImageOcrEmptyResultError(error: unknown): boolean {
   return error instanceof Error && error.message === IMAGE_OCR_EMPTY_RESULT_ERROR;
+}
+
+export function isImageOcrCrisisResultError(error: unknown): boolean {
+  return error instanceof Error && error.message === IMAGE_OCR_CRISIS_RESULT_ERROR;
 }
 
 export function isImageOcrRepickRequiredError(error: unknown): boolean {
@@ -309,6 +314,9 @@ export async function ocrImageAsset(
     const proxyImageError = await proxyImagePayloadErrorMessage(error);
     if (proxyImageError) throw new Error(proxyImageError);
     throw error;
+  }
+  if (reply.safety?.zone === "red") {
+    throw new Error(IMAGE_OCR_CRISIS_RESULT_ERROR);
   }
   const text = normalizeOcrTextResult(reply.text, locale);
   if (text.length === 0) {

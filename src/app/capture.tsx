@@ -46,6 +46,7 @@ import {
   pickImageAsset,
   ocrImageAsset,
   isImageCameraPermissionDeniedError,
+  isImageOcrCrisisResultError,
   isImageOcrEmptyResultError,
   isImageOcrInvalidDataError,
   isImageOcrMissingDataError,
@@ -406,6 +407,10 @@ export default function Capture() {
       setBody(md);
     } catch (e) {
       if (ocrRunRef.current !== runId) return;
+      if (isImageOcrCrisisResultError(e)) {
+        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        return;
+      }
       if (typeof console !== "undefined") console.warn("[capture] OCR extract failed", (e as Error).message);
       const feedback = imageOcrFeedback(e);
       const copy = feedbackCopy(feedback.key);

@@ -1047,6 +1047,26 @@ results.push(
 );
 
 results.push(
+  check("CaptureOcrCrisisRouting", () => {
+    const capture = read("src/app/capture.tsx");
+    const captureImage = read("src/lib/wiki/capture-image.ts");
+    const ok =
+      captureImage.includes('IMAGE_OCR_CRISIS_RESULT_ERROR = "image_ocr_crisis_result"') &&
+      captureImage.includes('reply.safety?.zone === "red"') &&
+      capture.includes("isImageOcrCrisisResultError") &&
+      capture.includes("if (isImageOcrCrisisResultError(e))") &&
+      capture.includes('setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" })');
+    return {
+      id: "CaptureOcrCrisisRouting",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "red-zone OCR output opens the crisis router instead of filling the extracted-text field"
+        : "capture OCR must route red-zone OCR output to CrisisRouter rather than returning the safety template as extracted text",
+    };
+  }),
+);
+
+results.push(
   check("Onboarding", () => {
     const onboarding = read("src/app/onboarding.tsx");
     const stepEntries = onboarding.match(/^\s*\{\r?\n\s*art: "(welcome|trust|firstShard)"/gm) ?? [];

@@ -17,6 +17,7 @@ import { callGemini } from "../../llm/gemini";
 import {
   ALLOWED_OCR_IMAGE_MIME_TYPES,
   IMAGE_CAMERA_PERMISSION_DENIED_ERROR,
+  IMAGE_OCR_CRISIS_RESULT_ERROR,
   IMAGE_OCR_EMPTY_RESULT_ERROR,
   IMAGE_OCR_INVALID_DATA_ERROR,
   IMAGE_OCR_MISSING_DATA_ERROR,
@@ -25,6 +26,7 @@ import {
   MAX_OCR_IMAGE_BASE64_BYTES,
   MAX_OCR_TEXT_CHARS,
   isImageCameraPermissionDeniedError,
+  isImageOcrCrisisResultError,
   isImageOcrEmptyResultError,
   isImageOcrInvalidDataError,
   isImageOcrMissingDataError,
@@ -427,6 +429,25 @@ describe("capture image OCR payload guards", () => {
     expect(mockCallGemini).toHaveBeenCalledTimes(1);
   });
 
+  test("routes red-zone OCR output through a crisis sentinel instead of returning the safety template", async () => {
+    mockCallGemini.mockResolvedValueOnce({
+      text: "Call 988 now.",
+      safety: {
+        zone: "red",
+        matched: ["suicide"],
+        categories: ["crisis"],
+        crisisRouting: { hotline: "GLOBAL_988", label: "988", number: "988" },
+      },
+    } as Awaited<ReturnType<typeof callGemini>>);
+
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "image/png",
+        base64: PNG_IMAGE_BASE64,
+      }),
+    ).rejects.toThrow(IMAGE_OCR_CRISIS_RESULT_ERROR);
+  });
+
   test("normalizes common image MIME aliases before calling Gemini", async () => {
     await ocrImageAsset("u1", "en", {
       mimeType: "IMAGE/JPG",
@@ -497,6 +518,10 @@ describe("capture image OCR payload guards", () => {
     expect(isImageOcrEmptyResultError(new Error(IMAGE_OCR_EMPTY_RESULT_ERROR))).toBe(true);
     expect(isImageOcrEmptyResultError(new Error(IMAGE_OCR_INVALID_DATA_ERROR))).toBe(false);
     expect(isImageOcrEmptyResultError("image_ocr_empty_result")).toBe(false);
+
+    expect(isImageOcrCrisisResultError(new Error(IMAGE_OCR_CRISIS_RESULT_ERROR))).toBe(true);
+    expect(isImageOcrCrisisResultError(new Error(IMAGE_OCR_EMPTY_RESULT_ERROR))).toBe(false);
+    expect(isImageOcrCrisisResultError("image_ocr_crisis_result")).toBe(false);
 
     expect(isImageOcrRepickRequiredError(new Error(IMAGE_OCR_TOO_LARGE_ERROR))).toBe(true);
     expect(isImageOcrRepickRequiredError(new Error(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR))).toBe(true);
