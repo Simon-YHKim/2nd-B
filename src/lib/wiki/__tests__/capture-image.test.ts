@@ -551,7 +551,7 @@ describe("capture image OCR payload guards", () => {
 
   test("normalizes OCR text before returning it", async () => {
     mockCallGemini.mockResolvedValueOnce({
-      text: "\n  Clean markdown text  \n",
+      text: "\r\n  Clean markdown text\r\n| A | B |\r| - | - |  \r\n",
     } as Awaited<ReturnType<typeof callGemini>>);
 
     await expect(
@@ -559,9 +559,10 @@ describe("capture image OCR payload guards", () => {
         mimeType: "image/png",
         base64: PNG_IMAGE_BASE64,
       }),
-    ).resolves.toBe("Clean markdown text");
+    ).resolves.toBe("Clean markdown text\n| A | B |\n| - | - |");
 
     expect(normalizeOcrTextResult("\n  OCR text  \n")).toBe("OCR text");
+    expect(normalizeOcrTextResult("\r\nLine 1\r\nLine 2\rLine 3\r\n")).toBe("Line 1\nLine 2\nLine 3");
   });
 
   test("unwraps full-response OCR markdown fences but preserves real code fences", async () => {
