@@ -166,6 +166,15 @@ const RECORDS_ONLY_INSIGHT: Record<"en" | "ko", string> = {
   ko: "조각은 기록 보관소에 있어요. 링크를 담으면 별이 떠요.",
 };
 
+// P2-6 (persona sim): when the graph data fetch fails (metered connection
+// dropping mid-ride), the ribbon must say so honestly instead of falling back
+// to the first-piece invitation — telling someone who JUST saved that they
+// have nothing yet is the exact gaslighting the honest-UI rule forbids.
+const OFFLINE_INSIGHT: Record<"en" | "ko", string> = {
+  en: "Connection is shaky. Your pieces are safe. Tap to retry.",
+  ko: "연결이 불안정해요. 조각은 안전해요. 눌러서 다시 시도.",
+};
+
 // The logo→village entry flourish plays once per JS session. A module-level
 // flag survives the Stack pop's remount, so returning to "/" (e.g. BACK from a
 // village detail) snaps to the settled state instead of replaying the logo +
@@ -188,6 +197,11 @@ export default function Landing() {
   // never nagged to "leave a first piece" (prev bug: the card keyed off
   // `sources` only, so any journal save left it showing forever).
   const [hasAnyPiece, setHasAnyPiece] = useState<boolean | null>(null);
+  // P2-6: graph data fetch failed (offline/flaky) — drives the honest ribbon
+  // line + tap-to-retry, and suppresses the empty-graph card (we don't KNOW
+  // the graph is empty). reloadKey bumps re-run the fetch effect.
+  const [dataLoadFailed, setDataLoadFailed] = useState(false);
+  const [graphReloadKey, setGraphReloadKey] = useState(0);
 
   // Highlight-on-return (queue B): a record / wiki detail can deep-link back
   // to the graph and ask it to focus a specific node.
@@ -281,12 +295,14 @@ export default function Landing() {
   const recordsOnly = dataNodes.length === 0 && hasAnyPiece === true;
   const insight = useMemo(
     () =>
-      dataNodes.length > 0
-        ? pickInsight(locale, Date.now() % 1000)
-        : hasAnyPiece === true
-          ? RECORDS_ONLY_INSIGHT[locale]
-          : FIRST_PIECE_INSIGHT[locale],
-    [locale, hasAnyPiece, dataNodes],
+      dataLoadFailed
+        ? OFFLINE_INSIGHT[locale]
+        : dataNodes.length > 0
+          ? pickInsight(locale, Date.now() % 1000)
+          : hasAnyPiece === true
+            ? RECORDS_ONLY_INSIGHT[locale]
+            : FIRST_PIECE_INSIGHT[locale],
+    [locale, hasAnyPiece, dataNodes, dataLoadFailed],
   );
   const featuredVillage = useMemo(() => featuredVillageForCards(dataNodes), [dataNodes]);
 
@@ -303,11 +319,16 @@ export default function Landing() {
     }
     const supabase = getSupabaseClient();
     let cancelled = false;
+    setDataLoadFailed(false);
     // Two reads settle together: `sources` → the tier-4 graph dots (classified
     // clipper captures); `records` (journal + note, head-only count) → the
     // user's authored pieces. The empty-graph card's emptiness check considers
     // both, so leaving a journal "조각" clears it. audit_response is excluded —
     // it's onboarding-guided Q&A, not a free-form piece.
+    // P2-6: supabase responses don't reject — they carry an `error` field —
+    // and a true network exception rejects the Promise.all. Both used to fall
+    // through silently, leaving hasAnyPiece null and the ribbon claiming the
+    // user has no pieces. Surface either as the honest offline state.
     Promise.all([
       supabase
         .from("sources")
@@ -320,29 +341,44 @@ export default function Landing() {
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
         .in("kind", ["journal", "note"]),
-    ]).then(([sourcesRes, recordsRes]) => {
-      if (cancelled) return;
-      const sources = sourcesRes.data ?? [];
-      setDataNodes(
-        sources.map((p) => {
-          const tags = (p.tags ?? []) as string[];
-          const fm = (p.frontmatter ?? {}) as Record<string, unknown>;
-          const summary = typeof fm.summary === "string" ? fm.summary : "";
-          return {
-            id: p.id,
-            title: p.title,
-            parentId: domainForTags(tags, p.title),
-            tags,
-            summary,
-          };
-        }),
-      );
-      setHasAnyPiece(sources.length > 0 || (recordsRes.count ?? 0) > 0);
-    });
+    ])
+      .then(([sourcesRes, recordsRes]) => {
+        if (cancelled) return;
+        if (sourcesRes.error || recordsRes.error) {
+          if (typeof console !== "undefined")
+            console.warn(
+              "[graph] data load failed",
+              sourcesRes.error?.message ?? recordsRes.error?.message,
+            );
+          setDataLoadFailed(true);
+          return;
+        }
+        const sources = sourcesRes.data ?? [];
+        setDataNodes(
+          sources.map((p) => {
+            const tags = (p.tags ?? []) as string[];
+            const fm = (p.frontmatter ?? {}) as Record<string, unknown>;
+            const summary = typeof fm.summary === "string" ? fm.summary : "";
+            return {
+              id: p.id,
+              title: p.title,
+              parentId: domainForTags(tags, p.title),
+              tags,
+              summary,
+            };
+          }),
+        );
+        setHasAnyPiece(sources.length > 0 || (recordsRes.count ?? 0) > 0);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        if (typeof console !== "undefined") console.warn("[graph] data load threw", (e as Error).message);
+        setDataLoadFailed(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, graphReloadKey]);
 
   if (loading) return <InlineLoader />;
   if (!userId) return <Redirect href="/sign-in" />;
@@ -393,7 +429,8 @@ export default function Landing() {
   // not null) AND the user hasn't dismissed (emptyDismissed hydrated to false,
   // not null). Both gates avoid a first-paint flash for users who do have pieces
   // or who previously dismissed.
-  const showingEmptyGraphCard = hasAnyPiece === false && emptyDismissed === false;
+  // P2-6: never claim an empty graph while the load FAILED — we don't know.
+  const showingEmptyGraphCard = hasAnyPiece === false && emptyDismissed === false && !dataLoadFailed;
 
   return (
     <View style={styles.skyContainer}>
@@ -550,6 +587,12 @@ export default function Landing() {
         <Pressable
           onPress={() => {
             wake();
+            // P2-6: in the failed state the ribbon promises a retry — tapping
+            // must retry, not navigate away from the broken screen.
+            if (dataLoadFailed) {
+              setGraphReloadKey((k) => k + 1);
+              return;
+            }
             setCenterSeen(true);
             // J1 carry-over: in the records-only state the ribbon SAYS the
             // piece lives in 기록 보관소, so tapping it must land there -
@@ -561,14 +604,18 @@ export default function Landing() {
           style={{ flex: 1 }}
           accessibilityRole="button"
           accessibilityLabel={
-            recordsOnly
-              ? locale === "ko" ? "기록 보관소 보기" : "Open my records"
-              : locale === "ko" ? "오늘의 중심 보기" : "Open today's center"
+            dataLoadFailed
+              ? locale === "ko" ? "다시 불러오기" : "Retry loading"
+              : recordsOnly
+                ? locale === "ko" ? "기록 보관소 보기" : "Open my records"
+                : locale === "ko" ? "오늘의 중심 보기" : "Open today's center"
           }
           accessibilityHint={
-            recordsOnly
-              ? locale === "ko" ? "기록 보관소 화면으로 이동합니다" : "Opens the records archive"
-              : locale === "ko" ? "소울 코어 화면으로 이동합니다" : "Opens Soul Core"
+            dataLoadFailed
+              ? locale === "ko" ? "그래프 데이터를 다시 불러옵니다" : "Retries loading your graph data"
+              : recordsOnly
+                ? locale === "ko" ? "기록 보관소 화면으로 이동합니다" : "Opens the records archive"
+                : locale === "ko" ? "소울 코어 화면으로 이동합니다" : "Opens Soul Core"
           }
         >
           {/* KO "오늘의 중심" reads worse when tracked + uppercased, so KO drops
