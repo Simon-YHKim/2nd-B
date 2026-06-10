@@ -20,13 +20,15 @@ export const MAX_OCR_IMAGE_BASE64_BYTES = 2_700_000;
 export const IMAGE_OCR_TOO_LARGE_ERROR = "image_ocr_too_large";
 export const IMAGE_OCR_UNSUPPORTED_TYPE_ERROR = "image_ocr_unsupported_type";
 
-const ALLOWED_OCR_IMAGE_MIME_TYPES = new Set([
+export const ALLOWED_OCR_IMAGE_MIME_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/heic",
   "image/heif",
-]);
+] as const;
+
+const ALLOWED_OCR_IMAGE_MIME_TYPE_SET = new Set<string>(ALLOWED_OCR_IMAGE_MIME_TYPES);
 
 const OCR_IMAGE_MIME_ALIASES: Record<string, string> = {
   "image/jpg": "image/jpeg",
@@ -56,7 +58,7 @@ export function assertImageOcrPayloadAllowed(image: { base64: string; mimeType: 
   if (image.base64.length > MAX_OCR_IMAGE_BASE64_BYTES) {
     throw new Error(IMAGE_OCR_TOO_LARGE_ERROR);
   }
-  if (!ALLOWED_OCR_IMAGE_MIME_TYPES.has(normalizeOcrImageMimeType(image.mimeType))) {
+  if (!ALLOWED_OCR_IMAGE_MIME_TYPE_SET.has(normalizeOcrImageMimeType(image.mimeType))) {
     throw new Error(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
   }
 }

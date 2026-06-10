@@ -1,3 +1,6 @@
+import { readFileSync } from "fs";
+import { resolve } from "path";
+
 jest.mock("expo-image-picker", () => ({
   MediaTypeOptions: { Images: "Images" },
   launchCameraAsync: jest.fn(),
@@ -11,6 +14,7 @@ jest.mock("../../llm/gemini", () => ({
 
 import { callGemini } from "../../llm/gemini";
 import {
+  ALLOWED_OCR_IMAGE_MIME_TYPES,
   IMAGE_OCR_UNSUPPORTED_TYPE_ERROR,
   IMAGE_OCR_TOO_LARGE_ERROR,
   MAX_OCR_IMAGE_BASE64_BYTES,
@@ -21,6 +25,22 @@ import {
 } from "../capture-image";
 
 const mockCallGemini = callGemini as jest.MockedFunction<typeof callGemini>;
+const geminiProxySource = readFileSync(
+  resolve(__dirname, "../../../../supabase/functions/gemini-proxy/index.ts"),
+  "utf8",
+);
+
+function proxyImageBase64Cap(): number {
+  const match = geminiProxySource.match(/const MAX_IMAGE_BASE64_LEN = ([\d_]+);/);
+  if (!match) throw new Error("gemini-proxy image cap constant not found");
+  return Number(match[1]!.replace(/_/g, ""));
+}
+
+function proxyImageMimeAllowlist(): string[] {
+  const match = geminiProxySource.match(/const ALLOWED_IMAGE_MIME = new Set\(\[([^\]]+)\]\);/);
+  if (!match) throw new Error("gemini-proxy image MIME allowlist not found");
+  return Array.from(match[1]!.matchAll(/'([^']+)'/g), (m) => m[1]!);
+}
 
 describe("ocrImageAsset", () => {
   beforeEach(() => {
@@ -30,8 +50,9 @@ describe("ocrImageAsset", () => {
     } as Awaited<ReturnType<typeof callGemini>>);
   });
 
-  test("mirrors the gemini-proxy image payload cap exactly", () => {
-    expect(MAX_OCR_IMAGE_BASE64_BYTES).toBe(2_700_000);
+  test("mirrors gemini-proxy image payload policy exactly", () => {
+    expect(MAX_OCR_IMAGE_BASE64_BYTES).toBe(proxyImageBase64Cap());
+    expect([...ALLOWED_OCR_IMAGE_MIME_TYPES]).toEqual(proxyImageMimeAllowlist());
   });
 
   test("rejects oversized base64 before calling Gemini", async () => {
