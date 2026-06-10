@@ -606,6 +606,12 @@ describe("capture image OCR payload guards", () => {
       mimeType: "image/png",
       base64: PNG_IMAGE_BASE64,
     });
+    expect(normalizeOcrImagePayload({
+      base64: `data:;base64,${PNG_IMAGE_BASE64}`,
+    })).toEqual({
+      mimeType: "image/png",
+      base64: PNG_IMAGE_BASE64,
+    });
     expect(() => normalizeOcrImagePayload({
       mimeType: "image/jpeg",
       base64: `data:application/octet-stream;base64,${PNG_IMAGE_BASE64}`,
@@ -617,6 +623,13 @@ describe("capture image OCR payload guards", () => {
       ocrImageAsset("u1", "en", {
         mimeType: "",
         base64: `data:image/png,${PNG_IMAGE_BASE64}`,
+      }),
+    ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
+
+    await expect(
+      ocrImageAsset("u1", "en", {
+        mimeType: "",
+        base64: `data:base64,${PNG_IMAGE_BASE64}`,
       }),
     ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
 

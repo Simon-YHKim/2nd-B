@@ -130,9 +130,9 @@ function parseImageBase64Input(input: string): { data: string; mimeType: string 
   const commaIndex = trimmed.indexOf(',');
   if (commaIndex === -1) return null;
   const header = trimmed.slice('data:'.length, commaIndex);
-  const parts = header.split(';').map((part) => part.trim()).filter(Boolean);
-  const rawMimeType = parts.shift();
-  if (!rawMimeType || !parts.some((part) => part.toLowerCase() === 'base64')) return null;
+  const parts = header.split(';').map((part) => part.trim());
+  const rawMimeType = parts.shift() ?? '';
+  if (!parts.some((part) => part.toLowerCase() === 'base64')) return null;
   const dataUrlMimeType = normalizeImageMimeType(rawMimeType);
   return {
     data: trimmed.slice(commaIndex + 1),

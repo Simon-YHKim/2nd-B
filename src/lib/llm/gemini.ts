@@ -91,9 +91,9 @@ function parsePromptImageData(data: string): { data: string; mimeType: string | 
     throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
   }
   const header = trimmed.slice("data:".length, commaIndex);
-  const parts = header.split(";").map((part) => part.trim()).filter(Boolean);
-  const rawMimeType = parts.shift();
-  if (!rawMimeType || !parts.some((part) => part.toLowerCase() === "base64")) {
+  const parts = header.split(";").map((part) => part.trim());
+  const rawMimeType = parts.shift() ?? "";
+  if (!parts.some((part) => part.toLowerCase() === "base64")) {
     throw new Error(LLM_IMAGE_INVALID_DATA_ERROR);
   }
   const normalizedMimeType = rawMimeType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
