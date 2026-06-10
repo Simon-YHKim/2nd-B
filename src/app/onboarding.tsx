@@ -50,9 +50,13 @@ const STEPS: Step[] = [
   {
     art: "firstShard",
     title: { ko: "먼저 한 문장만 저장해요", en: "Start with one sentence" },
+    // J1: journal saves land in 기록 보관소 (`records`), not on the graph
+    // (`sources` only become nodes). The old "revisit it from the graph"
+    // promise broke the very first save — the user looked where we told
+    // them and found nothing.
     body: {
-      ko: "오늘 기억하고 싶은 일, 배운 것, 링크 하나면 충분해요. 저장한 뒤 그래프에서 다시 볼 수 있어요.",
-      en: "A thought, lesson, or link is enough. Save it now, then revisit it from the graph.",
+      ko: "오늘 기억하고 싶은 일, 배운 것, 링크 하나면 충분해요. 저장한 조각은 기록 보관소에서 다시 볼 수 있어요.",
+      en: "A thought, lesson, or link is enough. Save it now, then revisit it in your records.",
     },
     cta: { ko: "첫 기록 저장", en: "Save my first note" },
   },
