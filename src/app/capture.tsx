@@ -64,6 +64,7 @@ import {
   type CaptureDraftMode,
   type CaptureDrafts,
 } from "@/lib/capture/draft";
+import { classifyRecordTextForCrisis } from "@/lib/llm/gemini";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
 import { saveTemplate } from "@/lib/wiki/template-queries";
@@ -703,6 +704,24 @@ export default function Capture() {
         extraFrontmatter,
         simonRelevance,
       });
+
+      // Memo is self-authored text like journal, but it lands on the sources
+      // path which never ran crisis classification — a red-zone memo surfaced
+      // NO hotline while journal (records path) and OCR both protect (same
+      // gap class as persona-sim P1-1). Reuse the local classifier + audited
+      // routing; the save above already succeeded and stays untouched.
+      // linkclip/file stay excluded: clipped web articles about a tragedy are
+      // not the user's own words (false-positive surface).
+      if (submittedMode === "memo") {
+        try {
+          const crisis = await classifyRecordTextForCrisis(finalBody, locale, userId, isMinor === true);
+          if (crisis) {
+            setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+          }
+        } catch (e) {
+          if (typeof console !== "undefined") console.warn("[capture] memo crisis classify failed", (e as Error).message);
+        }
+      }
 
       reset();
       clearModeDraft(submittedMode);
