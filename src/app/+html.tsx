@@ -52,6 +52,14 @@ select:focus-visible,
 html, body, #root, #__next, button, input, textarea, select {
   font-family: "NeoDunggeunmo", "NeoDunggeunmoCode", monospace;
 }
+/* P2-10 readable-font preference: useFontStyle() flips data-font on <html>
+   so raw DOM text and form controls follow the option. The family chain
+   mirrors fontFamilies.readable (src/theme/typography.ts). */
+html[data-font="readable"], html[data-font="readable"] body,
+html[data-font="readable"] button, html[data-font="readable"] input,
+html[data-font="readable"] textarea, html[data-font="readable"] select {
+  font-family: "Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
 `;
 
 export default function Root({ children }: PropsWithChildren) {

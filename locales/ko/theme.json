@@ -16,6 +16,21 @@
       "sub": "밝은 종이 톤"
     }
   },
+  "font": {
+    "title": "글꼴",
+    "options": {
+      "pixel": {
+        "label": "픽셀 글꼴",
+        "sub": "마을 고유의 픽셀 글자"
+      },
+      "readable": {
+        "label": "읽기 쉬운 글꼴",
+        "sub": "눈이 편한 부드러운 글꼴"
+      }
+    },
+    "useFontLabel": "{{label}} 적용",
+    "useFontHint": "선택한 글꼴을 이 기기의 제목과 본문에 적용합니다."
+  },
   "actions": {
     "inUse": "사용 중",
     "use": "적용",

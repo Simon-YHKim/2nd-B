@@ -12,6 +12,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useFontStyle, type FontStyle } from "@/lib/settings/readable-font";
 import { useTheme } from "@/lib/theme/ThemeContext";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
@@ -19,6 +20,7 @@ export default function ThemeScreen() {
   const { t } = useTranslation("theme");
   const { userId, loading } = useAuth();
   const { mode, setMode } = useTheme();
+  const { fontStyle, setFontStyle } = useFontStyle();
 
   if (loading) {
     return (
@@ -32,6 +34,9 @@ export default function ThemeScreen() {
   if (!userId) return <Redirect href="/sign-in" />;
 
   const options: { id: "dark" | "light" }[] = [{ id: "dark" }, { id: "light" }];
+  // P2-10: font choice mirrors the theme rows — same radio pattern, no new UI
+  // grammar. Pixel is the village identity; readable is the low-vision option.
+  const fontOptions: { id: FontStyle }[] = [{ id: "pixel" }, { id: "readable" }];
 
   return (
     <PremiumAppShell>
@@ -67,6 +72,35 @@ export default function ThemeScreen() {
                     onPress={() => setMode(o.id)}
                     accessibilityLabel={t("actions.useThemeLabel", { label })}
                     accessibilityHint={t("actions.useThemeHint")}
+                  />
+                )}
+              </View>
+            );
+          })}
+        </View>
+
+        <Text variant="caption" color="textSubtle">{t("font.title")}</Text>
+        <View style={styles.list}>
+          {fontOptions.map((o) => {
+            const active = o.id === fontStyle;
+            const label = t(`font.options.${o.id}.label`);
+            return (
+              <View key={o.id} style={[styles.row, active ? { borderColor: semantic.brand } : null]}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="body">{label}</Text>
+                  <Text variant="subtle" color="textSubtle">{t(`font.options.${o.id}.sub`)}</Text>
+                </View>
+                {active ? (
+                  <View style={styles.statusPill}>
+                    <Text variant="caption" color="brand">{t("actions.inUse")}</Text>
+                  </View>
+                ) : (
+                  <Button
+                    label={t("actions.use")}
+                    variant="secondary"
+                    onPress={() => setFontStyle(o.id)}
+                    accessibilityLabel={t("font.useFontLabel", { label })}
+                    accessibilityHint={t("font.useFontHint")}
                   />
                 )}
               </View>
