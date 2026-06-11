@@ -72,6 +72,12 @@ export default function Root({ children }: PropsWithChildren) {
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
+        {/* PWA manifest (O-R2 scrap track): registers the install metadata and
+            the Web Share Target so Android share sheets can send pages into
+            /capture. The href is rooted at the Pages base path
+            (expo.experiments.baseUrl = /2nd-B); on the local dev server the
+            link 404s, which browsers treat as "no manifest" - harmless. */}
+        <link rel="manifest" href="/2nd-B/manifest.webmanifest" />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: PAGE_LOCK_CSS }} />
       </head>

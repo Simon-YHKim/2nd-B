@@ -70,6 +70,8 @@ import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki
 import { saveTemplate } from "@/lib/wiki/template-queries";
 import type { SourceKind } from "@/lib/wiki/types";
 import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
+import { normalizeSharedCaptureParams } from "@/lib/capture/share-params";
+import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { createRecord } from "@/lib/records/create";
 import { computeStreak } from "@/lib/journal/streak";
@@ -200,8 +202,15 @@ export default function Capture() {
   // J4: onboarding hands off with entry=firstRun; until now the param was
   // accepted and never read. First-run framing lowers the blank-page bar
   // ("one sentence is enough") for the journey's very first save.
-  const { entry } = useLocalSearchParams<{ entry?: string }>();
+  // url/text/title arrive from the Web Share Target (manifest.webmanifest):
+  // sharing a page from another app opens /capture with the payload here.
+  const { entry, url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam } =
+    useLocalSearchParams<{ entry?: string; url?: string; text?: string; title?: string }>();
   const firstRun = entry === "firstRun";
+  const shared = useMemo(
+    () => normalizeSharedCaptureParams({ url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam }),
+    [sharedUrlParam, sharedTextParam, sharedTitleParam],
+  );
 
   const [mode, setMode] = useState<Mode>("journal");
   const [showAdvancedModes, setShowAdvancedModes] = useState(false);
@@ -209,7 +218,16 @@ export default function Capture() {
   const [body, setBody] = useState("");
   const draftsRef = useRef<CaptureDrafts>({});
   const draftHydratedRef = useRef(false);
+  // State mirror of draftHydratedRef so the shared-content effect below can
+  // sequence itself AFTER hydration (refs don't re-run effects).
+  const [draftHydrated, setDraftHydrated] = useState(false);
   const draftUserRef = useRef<string | null>(null);
+  // Shared payload bookkeeping: consumed-once per params identity, and a
+  // render-synced pending flag the hydration callback reads so the lastMode
+  // restore doesn't flash a different mode right before the share applies.
+  const sharedConsumedRef = useRef<string | null>(null);
+  const pendingSharedRef = useRef(false);
+  pendingSharedRef.current = !!shared && sharedConsumedRef.current !== shared.key;
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
   const [extracting, setExtracting] = useState(false);
@@ -217,6 +235,10 @@ export default function Capture() {
 
   const [submitting, setSubmitting] = useState(false);
   const [tagsEditable, setTagsEditable] = useState<string[]>([]);
+  // Clipboard paste offer (⑥-b-i): availability comes from a presence-only
+  // probe; the one-line empty note covers the probe-then-cleared race.
+  const [clipboardAvailable, setClipboardAvailable] = useState(false);
+  const [clipboardEmptyNote, setClipboardEmptyNote] = useState(false);
   // 루루 brief event moment on capture (companion pack §3: captureSaved → lulu).
   const companion = useCompanionMoment();
   // Title of the just-saved piece — drives the inline success panel.
@@ -310,6 +332,7 @@ export default function Capture() {
     if (!userId) {
       draftsRef.current = {};
       draftHydratedRef.current = false;
+      setDraftHydrated(false);
       draftUserRef.current = null;
       preHydrationDirtyRef.current = false;
       return;
@@ -317,14 +340,20 @@ export default function Capture() {
     if (draftUserRef.current === userId && draftHydratedRef.current) return;
     let cancelled = false;
     draftHydratedRef.current = false;
+    setDraftHydrated(false);
     draftUserRef.current = userId;
     void loadCaptureDraftState(userId).then((state) => {
       if (cancelled) return;
       draftsRef.current = state.drafts;
       draftHydratedRef.current = true;
+      setDraftHydrated(true);
       // The user got here first — keep their live typing (and their mode);
       // the loaded drafts stay in the ref for the other modes.
       if (preHydrationDirtyRef.current) return;
+      // An unconsumed share owns the first applied state (the effect below
+      // runs right after hydration flips) — skip the lastMode restore so the
+      // screen doesn't flash a different mode first.
+      if (pendingSharedRef.current) return;
       const restoredMode = isCaptureDraftMode(state.lastMode) ? state.lastMode : DEFAULT_CAPTURE_DRAFT_MODE;
       if (restoredMode !== "journal") setShowAdvancedModes(true);
       setMode(restoredMode);
@@ -334,6 +363,48 @@ export default function Capture() {
       cancelled = true;
     };
   }, [userId]);
+  // Shared-content reception (O-R2 scrap track): apply the share-sheet payload
+  // to the link-or-clip box once drafts are hydrated. Existing linkclip draft
+  // text is never destroyed — the payload appends below it.
+  useEffect(() => {
+    if (!shared || !userId || !draftHydrated) return;
+    if (sharedConsumedRef.current === shared.key) return;
+    sharedConsumedRef.current = shared.key;
+    rememberCurrentDraft();
+    resetTransientCaptureState();
+    const existing = (draftsRef.current.linkclip?.body ?? "").trim();
+    const mergedBody =
+      existing.length === 0
+        ? shared.content
+        : existing.includes(shared.content)
+          ? existing
+          : `${existing}\n\n${shared.content}`;
+    const draft = { body: mergedBody, topic: "", conclusion: "" };
+    storeDraftForMode("linkclip", draft);
+    setShowAdvancedModes(true);
+    setMode("linkclip");
+    applyDraftToFields("linkclip", draft);
+    persistDrafts("linkclip");
+    // Strip the consumed payload from the URL so a web refresh (or back/
+    // forward) doesn't resurrect content the user may have since edited away.
+    router.setParams({ url: undefined, text: undefined, title: undefined });
+  }, [shared, userId, draftHydrated]);
+  // Clipboard offer probe: presence-only (no content read, no OS notice) when
+  // the user lands on the link box. Native-only inside the helper; web stays
+  // on its natural in-page paste.
+  useEffect(() => {
+    if (mode !== "linkclip") {
+      setClipboardEmptyNote(false);
+      return;
+    }
+    let cancelled = false;
+    void clipboardHasContent().then((has) => {
+      if (!cancelled) setClipboardAvailable(has);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
   useEffect(() => {
     if (!userId || !draftHydratedRef.current || draftUserRef.current !== userId) return;
     storeDraftForMode(mode, draftFromFields(mode));
@@ -457,6 +528,23 @@ export default function Capture() {
     if (nextMode !== "journal") setShowAdvancedModes(true);
     applyDraftToFields(nextMode, draftsRef.current[nextMode]);
     persistDrafts(nextMode);
+  }
+
+  // Explicit user action — the OS paste notice firing here is the contract.
+  async function pasteCopiedContent(): Promise<void> {
+    const text = await readClipboardText();
+    if (!text) {
+      // Presence said yes but the read came back empty (cleared in between,
+      // or an image-only clipboard) — say so instead of doing nothing.
+      setClipboardAvailable(false);
+      setClipboardEmptyNote(true);
+      return;
+    }
+    setClipboardEmptyNote(false);
+    setBody((prev) => {
+      const current = prev.trim();
+      return current.length === 0 ? text : `${prev.trimEnd()}\n\n${text}`;
+    });
   }
 
   async function pickImage(source: "library" | "camera") {
@@ -1301,6 +1389,23 @@ export default function Capture() {
                 <Text variant="subtle" color="textSubtle">
                   {t("linkClip.savedAsClip")}
                 </Text>
+              ) : clipboardAvailable ? (
+                <Pressable
+                  onPress={() => void pasteCopiedContent()}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("linkClip.pasteOffer")}
+                  accessibilityHint={t("linkClip.pasteOfferHint")}
+                  hitSlop={4}
+                  style={styles.pasteOfferRow}
+                >
+                  <Text variant="subtle" color="brand">
+                    {t("linkClip.pasteOffer")}
+                  </Text>
+                </Pressable>
+              ) : clipboardEmptyNote ? (
+                <Text variant="subtle" color="textSubtle">
+                  {t("linkClip.pasteOfferEmpty")}
+                </Text>
               ) : null}
             </View>
           ) : null}
@@ -1623,6 +1728,11 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: spacing.sm,
     marginTop: spacing.xs,
+  },
+  pasteOfferRow: {
+    minHeight: 44,
+    justifyContent: "center",
+    alignSelf: "stretch",
   },
   advisorCheck: {
     width: 22,

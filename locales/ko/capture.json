@@ -133,7 +133,10 @@
     "label": "링크 또는 저장한 글",
     "placeholder": "https://... 또는 글 내용을 붙여 넣으세요",
     "savedAsClip": "글 내용으로 저장돼요",
-    "detected": "링크 자동 인식: {{kind}}"
+    "detected": "링크 자동 인식: {{kind}}",
+    "pasteOffer": "복사해 둔 내용 붙여넣기",
+    "pasteOfferHint": "마지막으로 복사한 내용을 입력칸에 채워요. 누를 때만 읽어요.",
+    "pasteOfferEmpty": "붙여넣을 내용이 없어요."
   },
   "inputs": {
     "extractedLabel": "내 추출 텍스트 (수정 가능)",
