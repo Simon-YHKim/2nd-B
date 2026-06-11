@@ -73,6 +73,12 @@
           "photosPermission": "The app needs photo library access so you can pick an image for OCR capture.",
           "cameraPermission": "The app needs camera access to take a photo for OCR capture."
         }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "The app uses your calendar only to add routine items you approve on screen."
+        }
       ]
     ],
     "experiments": {

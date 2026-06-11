@@ -26,6 +26,7 @@ import type { PrivacyPrefs } from "@/lib/privacy/prefs";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 import { recommendForDomain, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildChecklistShareText, buildGoogleCalendarUrl, buildIcsEvent } from "@/lib/ops/push";
+import { addEventToDeviceCalendar, deviceCalendarSupported } from "@/lib/ops/device-calendar";
 import { OPS_DAILY_LIMIT, bumpOpsUsage, readOpsUsage } from "@/lib/ops/usage";
 
 type RunState = "idle" | "working" | "empty" | "error" | "limit";
@@ -55,7 +56,11 @@ export default function Ops() {
   const [usedToday, setUsedToday] = useState(0);
   const [prefs, setPrefs] = useState<PrivacyPrefs | null>(null);
   const [consentOpen, setConsentOpen] = useState(false);
+  // One-line outcome of the last device-calendar hand-off (saved/denied).
+  const [pushNote, setPushNote] = useState<"saved" | "denied" | null>(null);
   const pendingPushRef = useRef<(() => void) | null>(null);
+  // Stable for the lifetime of the screen: native runtime + module present.
+  const deviceCalendar = useMemo(() => deviceCalendarSupported(), []);
 
   useEffect(() => {
     if (!userId) return;
@@ -100,6 +105,7 @@ export default function Ops() {
     }
     setRunState("working");
     setRecs([]);
+    setPushNote(null);
     try {
       const out = await recommendForDomain({
         userId,
@@ -193,6 +199,22 @@ export default function Ops() {
     void Share.share({ message }).catch((e) => {
       if (typeof console !== "undefined") console.warn("[ops] share failed", (e as Error).message);
     });
+  }
+
+  // P2: prefilled OS event form - the user reviews and saves inside their own
+  // calendar app (Samsung/Google/Apple all sit behind the device provider).
+  async function addToDeviceCalendar(rec: OpsRecommendation): Promise<void> {
+    setPushNote(null);
+    const result = await addEventToDeviceCalendar({
+      title: rec.title,
+      description: rec.reason,
+      startsAtIso: rec.startsAtIso ?? nextMorningIso(),
+      durationMinutes: rec.durationMinutes,
+      recurrence: rec.recurrence,
+    });
+    if (result === "saved") setPushNote("saved");
+    else if (result === "denied") setPushNote("denied");
+    // canceled: the user closed the OS form on purpose - no copy needed.
   }
 
   return (
@@ -326,6 +348,15 @@ export default function Ops() {
               </Text>
             ) : null}
             <View style={styles.actionRow}>
+              {deviceCalendar ? (
+                <Button
+                  label={t("card.addDevice")}
+                  accessibilityHint={t("card.addDeviceHint")}
+                  variant="secondary"
+                  onPress={() => requestPush(() => void addToDeviceCalendar(rec))}
+                  full={false}
+                />
+              ) : null}
               <Button
                 label={t("card.addGoogle")}
                 accessibilityHint={t("card.addGoogleHint")}
@@ -352,6 +383,18 @@ export default function Ops() {
             </View>
           </View>
         ))}
+
+        {pushNote ? (
+          // liveRegion: the OS form already closed, so without this announce a
+          // screen-reader user gets no confirmation of where the item went.
+          <Text
+            variant="subtle"
+            color={pushNote === "denied" ? "danger" : "textMuted"}
+            accessibilityLiveRegion="polite"
+          >
+            {t(pushNote === "denied" ? "push.deniedNote" : "push.savedNote")}
+          </Text>
+        ) : null}
 
         {recs.length > 0 ? (
           <Text variant="subtle" color="textSubtle">

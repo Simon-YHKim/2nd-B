@@ -29,7 +29,7 @@
     },
     "calendar": {
       "name": "Calendar",
-      "why": "A future reminder feature may offer optional calendar access. It is not requested today, and would ask first."
+      "why": "Optional, used only by Routines: when you hand an approved item to your calendar, the OS asks once and the event form opens for you to confirm. Deny it and everything else still works."
     },
     "cameraPhoto": {
       "name": "Camera / Photo library",
