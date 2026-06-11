@@ -15,6 +15,7 @@ export const PRIVACY_PREF_KEYS = [
   "persona_export",
   "persona_share",
   "long_term_memory",
+  "ops_push",
 ] as const;
 
 export type PrivacyPrefKey = (typeof PRIVACY_PREF_KEYS)[number];
@@ -51,7 +52,11 @@ export function resolvePrivacyPrefs(stored: Record<string, unknown> | null | und
 // for minors on sign-up (migration 0032). Server-side enforcement of minor
 // *updates* (so a tampered client cannot enable a locked key) is a separate
 // follow-up — this function alone is not a security boundary.
-export const MINOR_PROMOTABLE_KEYS: readonly PrivacyPrefKey[] = ["long_term_memory"];
+// ops_push joins the exception list (Simon, 2026-06-11): it hands an event
+// the user just approved on screen to their OWN device calendar/share sheet —
+// a device-local hand-off, not an outward data flow — so a minor may promote
+// it like long_term_memory.
+export const MINOR_PROMOTABLE_KEYS: readonly PrivacyPrefKey[] = ["long_term_memory", "ops_push"];
 
 // D-12 (2026-06-07 consensus): the settings UI MUST render ONLY enforced keys
 // — showing a toggle that controls nothing is a false privacy promise (esp.
@@ -61,8 +66,11 @@ export const MINOR_PROMOTABLE_KEYS: readonly PrivacyPrefKey[] = ["long_term_memo
 //     (policy rule 3, src/lib/ads/policy.ts) — OFF means no ads at all, not
 //     non-personalized ones. Minors stay locked OFF here AND suppressed
 //     again inside the ad policy (defense in depth).
+//   - ops_push (2026-06-11, O-R3): standing consent for routine push hand-offs
+//     (/ops reads it before opening calendar links / the share sheet). The
+//     first push asks once and stores true; this toggle is the off switch.
 // The other keys remain here as the single point of future wiring.
-export const VISIBLE_PRIVACY_KEYS: readonly PrivacyPrefKey[] = ["external_analytics", "ads"];
+export const VISIBLE_PRIVACY_KEYS: readonly PrivacyPrefKey[] = ["external_analytics", "ads", "ops_push"];
 
 export function isPrivacyPrefEditable(key: PrivacyPrefKey, isMinor: boolean): boolean {
   if (!isMinor) return true;

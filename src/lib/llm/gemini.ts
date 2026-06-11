@@ -83,7 +83,7 @@ function assertDirectEgressAllowed(env: ReturnType<typeof getEnv>): void {
 // as ordinary product copy. The internal "mock"/no-key technical marker lives in
 // this comment and in modelUsed audit fields only.
 const MOCK_RESPONSES: Record<
-  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest",
+  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest" | "ops_recommend",
   Record<"en" | "ko", string>
 > = {
   journal_reflect: {
@@ -141,6 +141,38 @@ const MOCK_RESPONSES: Record<
   },
   // Structured JSON sample for the external-import ingest so /import works in
   // the default offline-preview build (parseIngestResult reads this shape).
+  ops_recommend: {
+    en: JSON.stringify([
+      {
+        title: "10-minute evening reset",
+        reason: "Offline preview: a small, repeatable step that fits any day.",
+        durationMinutes: 10,
+        recurrence: "daily",
+        checklist: ["Clear one surface", "Lay out tomorrow's first task"],
+      },
+      {
+        title: "Pick this week's one focus",
+        reason: "Offline preview: your notes work best with a single anchor.",
+        durationMinutes: 15,
+        recurrence: "weekly",
+      },
+    ]),
+    ko: JSON.stringify([
+      {
+        title: "저녁 10분 리셋",
+        reason: "오프라인 미리보기: 어떤 하루에도 들어가는 작은 반복이에요.",
+        durationMinutes: 10,
+        recurrence: "daily",
+        checklist: ["한 군데만 정리하기", "내일 첫 할 일 꺼내두기"],
+      },
+      {
+        title: "이번 주 집중 한 가지 고르기",
+        reason: "오프라인 미리보기: 기록은 하나의 닻이 있을 때 가장 잘 움직여요.",
+        durationMinutes: 15,
+        recurrence: "weekly",
+      },
+    ]),
+  },
   import_ingest: {
     en: JSON.stringify({
       summary: "A reflective, curious person who values growth and close relationships.",

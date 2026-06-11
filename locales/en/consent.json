@@ -43,6 +43,10 @@
         "label": "Ads",
         "desc": "Allow ads while on the free plan. Off means no ads at all."
       },
+      "ops_push": {
+        "label": "Routine push",
+        "desc": "Keep handing approved routine items to your calendar and share sheet without asking each time. Off asks again on the next push."
+      },
       "sharing": {
         "label": "Sharing",
         "desc": "Allow you to send entries or profile summaries outside the app."

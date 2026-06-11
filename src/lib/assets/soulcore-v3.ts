@@ -119,6 +119,8 @@ export const V3_CORE_PNG: Record<string, number> = {
   records: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/narrative_core_128.png"),
   inspiration: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/muse_core_128.png"),
   work_growth: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/growth_core_128.png"),
+  // PLACEHOLDER (O-R3 G1): overwrite rhythm_core_128.png to apply the real asset.
+  routine: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/rhythm_core_128.png"),
 };
 
 // Tier-3 Pattern Data PNG, keyed by the internal domain id (NavGraph node

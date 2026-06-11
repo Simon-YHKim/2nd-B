@@ -3,10 +3,12 @@ import { type VillageId } from "@/lib/graph/relatedness";
 
 // All village primary CTAs now point at the unified capture screen (/journal was
 // retired to a redirect; emitting it here caused a silent redirect tax).
-export type VillageRoute = "/capture";
+// Exception: Rhythm Core opens /ops — its value is the routine assistant
+// surface itself, not another capture entry.
+export type VillageRoute = "/capture" | "/ops";
 
 export type VillageUiMeta = {
-  island: "work_growth" | "relationship" | "knowledge" | "records" | "inspiration";
+  island: "work_growth" | "relationship" | "knowledge" | "records" | "inspiration" | "routine";
   worker: "archi" | "gadi" | "lulu" | "momo" | "lumi";
   accent: string;
   primaryRoute: VillageRoute;
@@ -68,6 +70,19 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     speech: {
       en: "What you keep liking often points toward the next spark.",
       ko: "좋아하는 것들이 다음 불빛을 알려줄 때가 있어요.",
+    },
+  },
+  rhythm: {
+    island: "routine",
+    // TEMP (O-R3 G1): borrows Archi until the Rhythm crew character ships
+    // with Simon's color-wheel pass; accent likewise provisional.
+    worker: "archi",
+    accent: cosmic.soulViolet2,
+    primaryRoute: "/ops",
+    primaryLabel: { en: "Open my routines", ko: "내 루틴 열기" },
+    speech: {
+      en: "Small repeats shape the days. Want a hand lining yours up?",
+      ko: "작은 반복이 하루를 만들어요. 같이 정리해볼까요?",
     },
   },
 };

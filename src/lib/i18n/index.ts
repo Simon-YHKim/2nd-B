@@ -13,6 +13,7 @@ import enInsights from "../../../locales/en/insights.json";
 import enInbox from "../../../locales/en/inbox.json";
 import enSecondb from "../../../locales/en/secondb.json";
 import enPlans from "../../../locales/en/plans.json";
+import enOps from "../../../locales/en/ops.json";
 import enNotFound from "../../../locales/en/notFound.json";
 import enPermissions from "../../../locales/en/permissions.json";
 import enProfile from "../../../locales/en/profile.json";
@@ -35,6 +36,7 @@ import koInsights from "../../../locales/ko/insights.json";
 import koInbox from "../../../locales/ko/inbox.json";
 import koSecondb from "../../../locales/ko/secondb.json";
 import koPlans from "../../../locales/ko/plans.json";
+import koOps from "../../../locales/ko/ops.json";
 import koNotFound from "../../../locales/ko/notFound.json";
 import koPermissions from "../../../locales/ko/permissions.json";
 import koProfile from "../../../locales/ko/profile.json";
@@ -57,6 +59,7 @@ import esInsights from "../../../locales/es/insights.json";
 import esInbox from "../../../locales/es/inbox.json";
 import esSecondb from "../../../locales/es/secondb.json";
 import esPlans from "../../../locales/es/plans.json";
+import esOps from "../../../locales/es/ops.json";
 import esNotFound from "../../../locales/es/notFound.json";
 import esPermissions from "../../../locales/es/permissions.json";
 import esProfile from "../../../locales/es/profile.json";
@@ -70,19 +73,19 @@ import esWiki from "../../../locales/es/wiki.json";
 import { detectLanguage, loadNativeLanguagePreference, saveLanguagePreference } from "./languageDetector";
 import { isAvailableUiLocale, type AvailableUiLocale } from "./locales";
 
-export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "profile", "permissions", "settings"] as const;
+export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "ops", "profile", "permissions", "settings"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
 // Keyed by AVAILABLE_UI_LOCALES (locales.ts is the single source of truth):
 // shipping a new pack = add its bundle imports here + the code to that list,
 // and the `satisfies` below fails the build if either side is missed.
 export const resources = {
-  en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, secondb: enSecondb, plans: enPlans, wiki: enWiki, support: enSupport, data: enData, esm: enEsm, formats: enFormats, insights: enInsights, research: enResearch, recordDetail: enRecordDetail, theme: enTheme, import: enImport, notFound: enNotFound, profile: enProfile, permissions: enPermissions, settings: enSettings },
-  ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, secondb: koSecondb, plans: koPlans, wiki: koWiki, support: koSupport, data: koData, esm: koEsm, formats: koFormats, insights: koInsights, research: koResearch, recordDetail: koRecordDetail, theme: koTheme, import: koImport, notFound: koNotFound, profile: koProfile, permissions: koPermissions, settings: koSettings },
+  en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, secondb: enSecondb, plans: enPlans, wiki: enWiki, support: enSupport, data: enData, esm: enEsm, formats: enFormats, insights: enInsights, research: enResearch, recordDetail: enRecordDetail, theme: enTheme, import: enImport, notFound: enNotFound, ops: enOps, profile: enProfile, permissions: enPermissions, settings: enSettings },
+  ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, secondb: koSecondb, plans: koPlans, wiki: koWiki, support: koSupport, data: koData, esm: koEsm, formats: koFormats, insights: koInsights, research: koResearch, recordDetail: koRecordDetail, theme: koTheme, import: koImport, notFound: koNotFound, ops: koOps, profile: koProfile, permissions: koPermissions, settings: koSettings },
   // ES pack (O-R2 (2)-b, machine-translated + beta label). safety/consent are
   // EN copies on purpose: crisis and legal copy is never machine-translated
   // (gate policy 2026-06-11) - they ship localized only after human review.
-  es: { common: esCommon, auth: esAuth, safety: esSafety, consent: esConsent, capture: esCapture, inbox: esInbox, secondb: esSecondb, plans: esPlans, wiki: esWiki, support: esSupport, data: esData, esm: esEsm, formats: esFormats, insights: esInsights, research: esResearch, recordDetail: esRecordDetail, theme: esTheme, import: esImport, notFound: esNotFound, profile: esProfile, permissions: esPermissions, settings: esSettings },
+  es: { common: esCommon, auth: esAuth, safety: esSafety, consent: esConsent, capture: esCapture, inbox: esInbox, secondb: esSecondb, plans: esPlans, wiki: esWiki, support: esSupport, data: esData, esm: esEsm, formats: esFormats, insights: esInsights, research: esResearch, recordDetail: esRecordDetail, theme: esTheme, import: esImport, notFound: esNotFound, ops: esOps, profile: esProfile, permissions: esPermissions, settings: esSettings },
 } as const satisfies Record<AvailableUiLocale, Record<Namespace, unknown>>;
 
 let initialized = false;

@@ -45,6 +45,7 @@ describe("overviewCardSignals", () => {
       { id: "knowledge-1", parentId: "knowledge" },
       { id: "records-1", parentId: "records" },
       { id: "taste-1", parentId: "taste" },
+      { id: "rhythm-1", parentId: "rhythm" },
     ]);
 
     expect(signals.sparseCore).toBe("relation");
@@ -57,6 +58,7 @@ describe("overviewCardSignals", () => {
       { id: "knowledge-1", parentId: "knowledge" },
       { id: "records-1", parentId: "records" },
       { id: "taste-1", parentId: "taste" },
+      { id: "rhythm-1", parentId: "rhythm" },
     ]);
 
     expect(signals.sparseCore).toBe("work");

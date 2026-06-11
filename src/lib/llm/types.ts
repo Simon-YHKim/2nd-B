@@ -15,7 +15,8 @@ export type PromptPurpose =
   | "clipper_classify"
   | "clipper_template_propose"
   | "import_ingest"
-  | "imagine";
+  | "imagine"
+  | "ops_recommend";
 
 export interface AdvisorInput {
   userId: string;
