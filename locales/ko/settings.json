@@ -37,7 +37,7 @@
     "optionA11yLabel": "{{label}}, {{total}}개 중 {{index}}번째, {{state}}.",
     "stateSelected": "선택됨",
     "stateAvailable": "선택되지 않음",
-    "selectedHint": "이미 선택한 삭제 영역입니다. 아래에 해당 삭제 버튼이 보여요.",
+    "selectedHint": "이미 선택한 삭제 영역입니다. 아래에 해당 삭제 버튼이 보입니다.",
     "records": {
       "label": "기록",
       "hint": "일기, 노트, 과거의 나 응답 삭제 작업을 보여줍니다.",

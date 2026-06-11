@@ -1,6 +1,6 @@
 {
-  "loading": "프로필을 불러오는 중이에요...",
-  "fallbackName": "사용자",
+  "loading": "프로필을 불러오는 중이에요…",
+  "fallbackName": "게스트",
   "hero": {
     "eyebrow": "나",
     "title": "{{displayName}}님의 나 허브",
@@ -103,7 +103,7 @@
           "hint": "외부 자료 가져오기를 엽니다."
         },
         "inbox": {
-          "label": "받은 자료",
+          "label": "받은편지함",
           "hint": "가져온 자료 확인 화면을 엽니다."
         },
         "support": {

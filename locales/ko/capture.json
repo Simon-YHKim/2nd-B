@@ -1,8 +1,8 @@
 {
   "submit": "기록 저장",
-  "submitting": "저장 중...",
+  "submitting": "저장 중…",
   "savedTitleFallback": "오늘의 조각",
-  "loading": "담기 화면을 불러오는 중이에요...",
+  "loading": "담기 화면을 불러오는 중이에요…",
   "hero": {
     "eyebrow": "01. 조각 담기",
     "title": "기록과 자료를 저장해요",
@@ -87,7 +87,7 @@
     "dismissLabel": "추천 형식 닫기",
     "notNow": "안 만들래요",
     "prompt": "이 자료에 딱 맞는 저장 형식이 없네요. 세컨비가 하나 제안할까요?",
-    "drafting": "제안 만드는 중...",
+    "drafting": "제안 만드는 중…",
     "action": "형식 제안받기"
   },
   "journal": {
@@ -123,10 +123,10 @@
     },
     "advisor": {
       "label": "이 기록을 세컨비에게 물어보기",
-      "helper": "기본은 꺼짐. 되묻고 싶을 때만 켜세요.",
+      "helper": "기본은 꺼짐. 세컨비의 되짚기를 받고 싶을 때만 켜세요.",
       "lockedLabel": "이 기록을 세컨비에게 물어보기 (Brain)",
       "lockedHelper": "기록 회신은 Brain 플랜에서 열려요. 눌러서 플랜을 볼 수 있어요.",
-      "lockedHint": "플랜 화면을 엽니다"
+      "lockedHint": "플랜 화면을 엽니다."
     }
   },
   "linkClip": {
@@ -135,24 +135,24 @@
     "savedAsClip": "글 내용으로 저장돼요",
     "detected": "링크 자동 인식: {{kind}}",
     "pasteOffer": "복사해 둔 내용 붙여넣기",
-    "pasteOfferHint": "마지막으로 복사한 내용을 입력칸에 채워요. 누를 때만 읽어요.",
+    "pasteOfferHint": "마지막으로 복사한 내용을 입력칸에 채웁니다. 누를 때만 읽습니다.",
     "pasteOfferEmpty": "붙여넣을 내용이 없어요."
   },
   "inputs": {
     "extractedLabel": "내 추출 텍스트 (수정 가능)",
     "bodyLabel": "본문",
     "imagePlaceholder": "이미지를 고르면 여기에 추출된 글이 나와요.",
-    "memoPlaceholder": "자유롭게 적거나 붙여 넣으세요..."
+    "memoPlaceholder": "자유롭게 적거나 붙여 넣으세요…"
   },
   "ocrReview": {
     "heading": "저장 전 확인",
-    "disclosure": "사진은 글자를 읽기 위해서만 글자 읽기 서비스로 전송돼요. 2nd-B는 이미지를 보관하지 않고 학습에 쓰지 않아요.",
+    "disclosure": "사진은 글자를 읽기 위해서만 글자 읽기 서비스로 전송돼요. 2nd-Brain은 이미지를 보관하지 않고 학습에 쓰지 않아요.",
     "privateAfterApprove": "승인한 뒤에는 수정 가능한 텍스트만 내 개인 기록으로 저장돼요.",
     "body": "추출된 텍스트를 확인하고 필요하면 고친 뒤 저장 전에 확인해 주세요.",
     "approve": "추출 텍스트 승인하기",
     "approved": "내 추출 텍스트를 저장해도 좋다고 확인했어요.",
     "approveHint": "이 추출 텍스트를 저장할 수 있게 합니다.",
-    "submitHint": "추출 텍스트를 승인해야 저장할 수 있어요."
+    "submitHint": "추출 텍스트를 승인해야 저장할 수 있습니다."
   },
   "image": {
     "camera": "카메라",
@@ -170,7 +170,7 @@
     "title": "해시태그",
     "removeLabel": "{{tag}} 해시태그 제거",
     "emptyHelper": "비워 두면 저장할 때 세컨비가 자동으로 달아줘요. +로 직접 추가할 수도 있어요.",
-    "removeHelper": "태그를 누르면 삭제됩니다.",
+    "removeHelper": "태그를 누르면 삭제돼요.",
     "addLabel": "해시태그 추가",
     "placeholder": "태그"
   },
