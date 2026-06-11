@@ -46,14 +46,18 @@ import koSupport from "../../../locales/ko/support.json";
 import koTheme from "../../../locales/ko/theme.json";
 import koWiki from "../../../locales/ko/wiki.json";
 import { detectLanguage, saveLanguagePreference } from "./languageDetector";
+import { isAvailableUiLocale, type AvailableUiLocale } from "./locales";
 
 export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "profile", "permissions", "settings"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
+// Keyed by AVAILABLE_UI_LOCALES (locales.ts is the single source of truth):
+// shipping a new pack = add its bundle imports here + the code to that list,
+// and the `satisfies` below fails the build if either side is missed.
 export const resources = {
   en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, secondb: enSecondb, plans: enPlans, wiki: enWiki, support: enSupport, data: enData, esm: enEsm, formats: enFormats, insights: enInsights, research: enResearch, recordDetail: enRecordDetail, theme: enTheme, import: enImport, notFound: enNotFound, profile: enProfile, permissions: enPermissions, settings: enSettings },
   ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, secondb: koSecondb, plans: koPlans, wiki: koWiki, support: koSupport, data: koData, esm: koEsm, formats: koFormats, insights: koInsights, research: koResearch, recordDetail: koRecordDetail, theme: koTheme, import: koImport, notFound: koNotFound, profile: koProfile, permissions: koPermissions, settings: koSettings },
-} as const;
+} as const satisfies Record<AvailableUiLocale, Record<Namespace, unknown>>;
 
 let initialized = false;
 export function initI18n(): typeof i18next {
@@ -62,15 +66,24 @@ export function initI18n(): typeof i18next {
   void i18next.use(initReactI18next).init({
     resources,
     lng: detectLanguage(),
+    // EN is canonical (C7) and the universal fallback: a beta pack with a
+    // missing key renders the EN string, never a raw key name.
     fallbackLng: "en",
     ns: [...NAMESPACES],
     defaultNS: "common",
     interpolation: { escapeValue: false },
     compatibilityJSON: "v3",
   });
-  // Persist whenever the user (or any code path) flips the active language.
+  // Persist whenever the user (or any code path) flips the active language,
+  // and keep the web document language in sync (screen readers pick their
+  // voice from <html lang>; the static export defaults to "ko").
   i18next.on("languageChanged", (lng) => {
-    if (lng === "en" || lng === "ko") saveLanguagePreference(lng);
+    if (isAvailableUiLocale(lng)) saveLanguagePreference(lng);
+    try {
+      if (typeof document !== "undefined") document.documentElement.lang = lng;
+    } catch {
+      // native: no document
+    }
   });
   return i18next;
 }

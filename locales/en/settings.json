@@ -17,6 +17,14 @@
     "support": "Support",
     "supportHint": "Opens support options."
   },
+  "language": {
+    "body": "Choose the app language. New languages appear here as their packs ship.",
+    "optionA11yLabel": "{{label}}, option {{index}} of {{total}}, {{state}}.",
+    "stateSelected": "selected",
+    "stateAvailable": "available",
+    "useLanguageHint": "Switches the app language to {{label}}.",
+    "betaTag": "(beta)"
+  },
   "actions": {
     "signOutHint": "Signs out and returns to the sign-in screen.",
     "crewDensityHint": "Sets decorative graph crew density to {{density}}.",
