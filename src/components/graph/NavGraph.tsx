@@ -1818,7 +1818,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
                 onPress={() => handleNodeTap(id)}
                 hitSlop={14}
                 accessibilityRole="button"
-                accessibilityLabel={piece?.title ?? "piece"}
+                accessibilityLabel={piece?.title ?? (locale === "ko" ? "조각" : "piece")}
                 accessibilityHint={
                   isDrilldownData
                     ? t("navGraph.drilldown.dataDetailHint")
