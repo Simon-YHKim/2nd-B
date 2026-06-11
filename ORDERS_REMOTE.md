@@ -24,8 +24,13 @@ Simon: ① 에셋·UI·문장·문구·대화 스타일의 일관성 확보 ② 
 2. **⑥-b 스크랩 UX**: (i) 클립보드 감지 제안("복사한 링크를 붙여넣을까요?" — 권한·프라이버시 주의: iOS 클립보드 접근 고지), (ii) **OS 공유 시트 수신**(Android share intent / iOS share extension, `expo-share-intent` — 네이티브 빌드 필요 = EAS 트랙), (iii) 홈스크린 퀵액션. (i)부터 — JS만으로 가능.
 3. **③ 저사양 옵션** (1사이클): 기존 레버 재사용 — crew density("none"), reduced-motion, 그래프 glow/halo 렌더 LOD — 를 "가벼운 모드" 단일 토글로 묶음(theme 화면, P2-10 글꼴 옵션 옆). 신규 렌더 코드 없이 기존 플래그 통합.
 4. **① 일관성 패스** (1-2사이클): (a) 카피 — 해요체/존댓말 혼용·용어(기록/조각/노드) 표준화 사전 작성 후 locale 전수 패스, (b) UI — 화면별 동일 액션 동일 위치(O-R1 캐논 재사용), (c) 에셋 — 에셋 리팩토링 오더 문서(`claude/handoff-pc-crash-20260611` 브랜치)와 통합 진행.
-5. **② top-10 언어팩** (대형, 분할): 제안 목록 = EN·KO(기존) + ES·ZH-Hans·HI·AR(RTL!)·PT·RU·JA·FR·DE·ID. **🔐 Simon 게이트 2건**: (i) 목록 확정 (ii) 기계번역 품질 정책(베타 라벨 여부). AR는 RTL 레이아웃 작업 동반 — 별도 사이클. 위기 핫라인 로케일 라우팅(P1-3)과 결합 필요.
-6. **⑤ 앱 연계** (기획 1사이클 → 보고서): KR(카카오톡 공유·카카오 캘린더·네이버 클립?) + 글로벌(Google Calendar·Notion·Obsidian export·Readwise). 코드 전 **Simon 승인 게이트**(free-tier·프라이버시 서약 영향).
+5. **② top-10 언어팩** (대형, 분할) — **✅ Simon 확정 (2026-06-11): 기준 = 전 세계 사용량 순위, 유사 언어는 대표 언어로 병합.**
+   - **확정 목록 (기존 EN·KO + 신규 10)**: ZH-Hans(중화권 대표) · ES · HI(힌디·우르두 병합 대표) · AR · PT · RU · JA · FR · DE · ID(말레이권 병합 대표).
+   - **단계**: (a) 인프라 사이클 — 코드 전반에 locale이 `"en"|"ko"`로 타입 고정돼 있으므로 **UI 로케일(12종)과 시스템 로케일(LLM·안전 = en/ko 매핑) 분리**가 선행 필수 + 언어 선택 설정 UI + EN 폴백 체인. (b) 팩 생성 — 사이클당 1언어(935키), 일반 네임스페이스는 기계번역 + **베타 라벨**(기본 정책 — Simon 이견 시 지시), **safety·consent 네임스페이스는 기계번역 금지, EN/KO 유지**(위기·법무 카피). (c) AR는 RTL 레이아웃 사이클 동반. (d) P1-3 핫라인 디렉터리(findahelpline)와 로케일 라우팅 결합.
+6. **⑤ 앱 연계** — **✅ Simon 확정 (2026-06-11): 정보량 많은 플랫폼 전부 지원 방향 — Notion · Slack · Chrome · Edge · Safari · Firefox · Reddit 등.** 트랙 분해:
+   - **(i) Web Share Target + capture 파라미터 수신** (최우선, JS만): PWA manifest `share_target` + capture가 `?url=&text=&title=` 수신 → Android에서 **모든 앱(브라우저·Reddit 앱 포함)의 공유 시트**가 2nd-B 진입점이 됨. ⑥-b와 동일 트랙.
+   - **(ii) 브라우저 확장**: Chromium 확장 1종이 Chrome+Edge 동시 커버, Firefox는 WebExtension 포트, Safari는 Xcode 변환(후순위). 출력 = 기존 클리퍼 markdown 포맷(link-or-clip이 이미 수신 가능) → 신규 백엔드 불필요.
+   - **(iii) Importer (Notion·Slack·Reddit)**: OAuth + API. **free-tier 영향·프라이버시 서약(D-03) 검토 동반** — 설계 보고 후 구현.
 7. **④ 편의 옵션**: O-R1 감사에서 나오는 P2를 옵션화 기준으로 흡수(예: 폰트 크기, 햅틱 토글, 자동 저장 주기).
 
 ### [HANDOFF-CRASH / 2026-06-11 08:55 KST] PC 크래시 — 로컬 세션 중단, 클라우드 세션 인계 (Simon 지시)
