@@ -24,7 +24,6 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
-import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { deleteWikiPage, getBacklinks, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import { exportUserWiki } from "@/lib/wiki/export";
@@ -1321,7 +1320,8 @@ const styles = StyleSheet.create({
   rowHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   rowSlug: { flex: 1, minWidth: 0 },
   rowInDeg: { marginStart: spacing.sm, flexShrink: 0 },
-  rowTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600" },
+  // A-6: user-authored titles follow the P2-10 font preference via <Text variant="body">.
+  rowTitle: { fontWeight: "600" },
   kindChip: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,

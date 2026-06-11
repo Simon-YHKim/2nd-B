@@ -1,18 +1,6 @@
 {
-  "title": "Capture",
-  "subtitle": "Drop a link, paste a clipped article, or jot a self-note. We'll route it.",
-  "url": {
-    "label": "Source URL (optional)",
-    "placeholder": "https://example.com/article"
-  },
-  "body": {
-    "label": "Text or saved article",
-    "placeholder": "Paste article text, save a link, or write a note...",
-    "helper": "A clear first line can become the title. Everything else stays as the body."
-  },
   "submit": "Save piece",
   "submitting": "Saving...",
-  "cancel": "Cancel",
   "savedTitleFallback": "Today's piece",
   "loading": "Loading capture...",
   "hero": {
