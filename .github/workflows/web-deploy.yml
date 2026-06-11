@@ -62,6 +62,14 @@ jobs:
           # EXPO_PUBLIC_NAVER_CLIENT_ID. The '|| false' fallback keeps an
           # unset Variable from feeding zod an empty string.
           EXPO_PUBLIC_ENABLE_NAVER: ${{ vars.EXPO_PUBLIC_ENABLE_NAVER || 'false' }}
+          # Supabase-native social providers. Buttons show only when the
+          # provider is actually enabled in the Supabase console AND the
+          # matching Variable is "true" (live QA 2026-06-11: Apple/Kakao were
+          # not enabled and users hit a raw JSON error - defaults are now
+          # google=true (verified working), apple/kakao=false).
+          EXPO_PUBLIC_ENABLE_GOOGLE: ${{ vars.EXPO_PUBLIC_ENABLE_GOOGLE || 'true' }}
+          EXPO_PUBLIC_ENABLE_APPLE: ${{ vars.EXPO_PUBLIC_ENABLE_APPLE || 'false' }}
+          EXPO_PUBLIC_ENABLE_KAKAO: ${{ vars.EXPO_PUBLIC_ENABLE_KAKAO || 'false' }}
           EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID }}
           # Analytics (Simon directive 2026-06-11): the client code has been
           # consent-gated and wired since #258, but the build never injected

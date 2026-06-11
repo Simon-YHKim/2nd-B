@@ -32,6 +32,10 @@ const PRIMARY_HUB_ITEMS: HubRoute[] = [
   { sectionKey: "center", key: "esm", route: "/esm", accent: semantic.brand },
   { sectionKey: "know", key: "persona", route: "/persona", accent: cosmic.soulViolet },
   { sectionKey: "analyze", key: "insights", route: "/insights", accent: cosmic.signalBlue },
+  // Live QA 2026-06-11: /inbox (클립 수신함) had NO forward entry anywhere in
+  // the app - the locale label existed but no surface rendered it. This row
+  // is its single entry point (home -> 나 -> 받은편지함, 2 taps).
+  { sectionKey: "account", key: "inbox", route: "/inbox", accent: cosmic.signalMint },
 ];
 
 function SettingsGlyph({ color }: { color: string }) {
