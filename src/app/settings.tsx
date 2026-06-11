@@ -16,6 +16,7 @@ import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/settings/crew-density";
+import { AVAILABLE_UI_LOCALES, UI_LOCALE_META } from "@/lib/i18n/locales";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import {
   deleteAllChatUsage,
@@ -30,7 +31,7 @@ const CONFIRM_PHRASE = "DELETE";
 type SettingsToast = { message: string; tone: "info" | "success" | "danger" };
 type PendingConfirm = { message: string; onYes: () => Promise<void> } | null;
 type ActionError = { title: string; body: string; retry?: () => void } | null;
-type SettingsDisclosureKey = "crew" | "data";
+type SettingsDisclosureKey = "crew" | "data" | "language";
 type DataDeleteStep = "records" | "assessments" | "library" | "full";
 
 const DATA_DELETE_STEPS: DataDeleteStep[] = ["records", "assessments", "library", "full"];
@@ -167,6 +168,7 @@ export default function Settings() {
   const [openDisclosures, setOpenDisclosures] = useState<Record<SettingsDisclosureKey, boolean>>({
     crew: false,
     data: false,
+    language: false,
   });
 
   useEffect(() => {
@@ -452,6 +454,46 @@ export default function Settings() {
             onPress={() => router.push("/support")}
           />
         </View>
+
+        <DisclosureSection
+          // O-R2 (2) language-pack infra: first in-app language switch for
+          // signed-in users (auth screens had a toggle, settings had none).
+          // Renders from AVAILABLE_UI_LOCALES - options appear as packs ship.
+          title={locale === "ko" ? "언어" : "Language"}
+          expanded={openDisclosures.language}
+          onToggle={() => toggleDisclosure("language")}
+        >
+          <Text variant="subtle" color="textMuted">
+            {t("language.body")}
+          </Text>
+          <View style={styles.crewRow}>
+            {AVAILABLE_UI_LOCALES.map((code, index) => {
+              const meta = UI_LOCALE_META[code];
+              const optionLabel = meta.beta ? `${meta.nativeName} ${t("language.betaTag")}` : meta.nativeName;
+              const isActive = i18n.language === code;
+              return (
+                <Button
+                  key={code}
+                  label={optionLabel}
+                  accessibilityRole="radio"
+                  accessibilityLabel={t("language.optionA11yLabel", {
+                    label: optionLabel,
+                    index: index + 1,
+                    total: AVAILABLE_UI_LOCALES.length,
+                    state: isActive ? t("language.stateSelected") : t("language.stateAvailable"),
+                  })}
+                  accessibilityHint={t("language.useLanguageHint", { label: optionLabel })}
+                  variant={isActive ? "primary" : "secondary"}
+                  selected={isActive}
+                  onPress={() => {
+                    void i18n.changeLanguage(code);
+                  }}
+                  full={false}
+                />
+              );
+            })}
+          </View>
+        </DisclosureSection>
 
         <DisclosureSection
           title={locale === "ko" ? "그래프 크루 (장식 로봇)" : "Graph crew (decorative)"}

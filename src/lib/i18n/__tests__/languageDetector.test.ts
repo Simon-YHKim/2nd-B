@@ -84,6 +84,27 @@ describe("detectLanguage", () => {
     (Localization.getLocales as jest.Mock).mockReturnValue([]);
     expect(detectLanguage()).toBe("en");
   });
+
+  test("walks the device preference list to the first SHIPPED locale", () => {
+    unsetLocalStorage();
+    // JA is registry-confirmed but unshipped: the second preference wins.
+    (Localization.getLocales as jest.Mock).mockReturnValue([
+      { languageCode: "ja", languageScriptCode: null },
+      { languageCode: "ko", languageScriptCode: null },
+    ]);
+    expect(detectLanguage()).toBe("ko");
+  });
+
+  test("zh-Hant devices walk past Simplified to their next preference", () => {
+    unsetLocalStorage();
+    // Pins the languageScriptCode field name end-to-end: Traditional script
+    // must never resolve to the (future) zh-Hans pack - it walks on.
+    (Localization.getLocales as jest.Mock).mockReturnValue([
+      { languageCode: "zh", languageScriptCode: "Hant" },
+      { languageCode: "ko", languageScriptCode: null },
+    ]);
+    expect(detectLanguage()).toBe("ko");
+  });
 });
 
 describe("saveLanguagePreference", () => {

@@ -1,14 +1,18 @@
-// C7: enforce EN ↔ KO key parity. EN is the canonical source.
+// C7: enforce key parity across every shipped locale. EN is the canonical
+// source; every other locales/<code>/ folder must mirror its namespace files
+// and keys exactly (O-R2 language-pack infra: a pack ships complete or not
+// at all - a partial folder would silently fall back per-key and rot).
 // Fails CI when:
-//   - a key exists in EN but missing from KO (or vice versa)
+//   - a locale folder is missing a namespace file EN has (or has extras)
+//   - a key exists in EN but is missing from a locale (or vice versa)
 //   - any value is an empty string
-//   - any value is not a string (nested objects allowed; we flatten)
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative, basename } from "node:path";
+import { join, basename } from "node:path";
 
 const ROOT = process.cwd();
 const LOCALES = join(ROOT, "locales");
+const CANONICAL = "en";
 
 type FlatMap = Record<string, string>;
 
@@ -41,26 +45,48 @@ function load(dir: string): { ns: string; flat: FlatMap }[] {
   });
 }
 
-const enBundles = load(join(LOCALES, "en"));
-const koBundles = load(join(LOCALES, "ko"));
+// C7 names the EN ↔ KO pair: generalizing the scan to every shipped locale
+// must not let the named pair vanish silently (a deleted ko/ tree would
+// otherwise "pass" with one locale).
+const REQUIRED_LOCALES = [CANONICAL, "ko"];
 
+const localeDirs = readdirSync(LOCALES).filter((entry) =>
+  statSync(join(LOCALES, entry)).isDirectory(),
+);
+for (const required of REQUIRED_LOCALES) {
+  if (!localeDirs.includes(required)) {
+    console.error(`C7 i18n key check FAILED: required locales/${required}/ is missing`);
+    process.exit(1);
+  }
+}
+const otherLocales = localeDirs.filter((d) => d !== CANONICAL).sort();
+
+const enBundles = load(join(LOCALES, CANONICAL));
 const failures: string[] = [];
 
-const enNs = new Set(enBundles.map((b) => b.ns));
-const koNs = new Set(koBundles.map((b) => b.ns));
-for (const ns of enNs) if (!koNs.has(ns)) failures.push(`Missing namespace in ko/: ${ns}`);
-for (const ns of koNs) if (!enNs.has(ns)) failures.push(`Missing namespace in en/: ${ns}`);
-
 for (const en of enBundles) {
-  const ko = koBundles.find((b) => b.ns === en.ns);
-  if (!ko) continue;
-  for (const key of Object.keys(en.flat)) {
-    if (!(key in ko.flat)) failures.push(`[${en.ns}] missing in ko: ${key}`);
-    if (en.flat[key] === "") failures.push(`[${en.ns}] empty value in en: ${key}`);
+  for (const [key, value] of Object.entries(en.flat)) {
+    if (value === "") failures.push(`[${en.ns}] empty value in ${CANONICAL}: ${key}`);
   }
-  for (const key of Object.keys(ko.flat)) {
-    if (!(key in en.flat)) failures.push(`[${en.ns}] missing in en: ${key}`);
-    if (ko.flat[key] === "") failures.push(`[${en.ns}] empty value in ko: ${key}`);
+}
+
+for (const localeCode of otherLocales) {
+  const bundles = load(join(LOCALES, localeCode));
+  const ns = new Set(bundles.map((b) => b.ns));
+  const enNs = new Set(enBundles.map((b) => b.ns));
+  for (const n of enNs) if (!ns.has(n)) failures.push(`Missing namespace in ${localeCode}/: ${n}`);
+  for (const n of ns) if (!enNs.has(n)) failures.push(`Extra namespace in ${localeCode}/ (not in ${CANONICAL}): ${n}`);
+
+  for (const en of enBundles) {
+    const other = bundles.find((b) => b.ns === en.ns);
+    if (!other) continue;
+    for (const key of Object.keys(en.flat)) {
+      if (!(key in other.flat)) failures.push(`[${en.ns}] missing in ${localeCode}: ${key}`);
+    }
+    for (const key of Object.keys(other.flat)) {
+      if (!(key in en.flat)) failures.push(`[${en.ns}] missing in ${CANONICAL} (extra in ${localeCode}): ${key}`);
+      if (other.flat[key] === "") failures.push(`[${en.ns}] empty value in ${localeCode}: ${key}`);
+    }
   }
 }
 
@@ -71,5 +97,6 @@ if (failures.length > 0) {
 }
 
 const totalKeys = enBundles.reduce((sum, b) => sum + Object.keys(b.flat).length, 0);
-console.log(`C7 PASS  i18n keys aligned across en/ko (${totalKeys} keys, ${enBundles.length} namespaces)`);
-void relative;
+console.log(
+  `C7 PASS  i18n keys aligned across ${[CANONICAL, ...otherLocales].join("+")} (${totalKeys} keys, ${enBundles.length} namespaces, ${localeDirs.length} locales)`,
+);
