@@ -1,9 +1,11 @@
 // Image OCR via Gemini multimodal.
 //
-// Flow: pick image (picker) → base64 (built-in) → local payload guard
-// → callGemini({ image }) → text back. The Edge Function (gemini-proxy)
-// still enforces the authoritative MIME allowlist + 2.7MB base64 cap.
+// Flow: pick image (picker) → base64 (built-in) → downscale when over the
+// payload cap (P2-4) → local payload guard → callGemini({ image }) → text
+// back. The Edge Function (gemini-proxy) still enforces the authoritative
+// MIME allowlist + 2.7MB base64 cap.
 
+import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 
 import { callGemini } from "../llm/gemini";
@@ -19,6 +21,12 @@ export interface PickedImage {
 
 export const MAX_OCR_IMAGE_BASE64_BYTES = 2_700_000;
 export const MAX_OCR_IMAGE_RAW_BASE64_BYTES = MAX_OCR_IMAGE_BASE64_BYTES + 100_000;
+// P2-4: longest-side targets tried in order until the payload fits the cap.
+// 1600px keeps document text comfortably legible for OCR; below 800px small
+// print starts to degrade, so anything that still does not fit after the last
+// target falls back to the deterministic too-large error (repick required).
+export const OCR_IMAGE_DOWNSCALE_DIMENSIONS = [1600, 1280, 1024, 800] as const;
+export const OCR_IMAGE_DOWNSCALE_COMPRESS = 0.7;
 export const MAX_OCR_TEXT_CHARS = 12_000;
 export const IMAGE_OCR_TOO_LARGE_ERROR = "image_ocr_too_large";
 export const IMAGE_OCR_UNSUPPORTED_TYPE_ERROR = "image_ocr_unsupported_type";
@@ -354,6 +362,47 @@ async function proxyImagePayloadErrorMessage(error: unknown): Promise<string | n
   }
 }
 
+// P2-4: a modern phone photo (12MP+ HEIC/JPEG) routinely exceeds the 2.7MB
+// base64 cap, which used to dead-end the user with a deterministic too-large
+// error and a repick. OCR does not need full resolution, so shrink the longest
+// side stepwise (re-encoding as JPEG) until the payload fits. Returns null when
+// the image cannot be brought under the cap (or the platform fails to decode
+// it) so the caller falls through to the original too-large guard.
+async function downscaleOcrImageAsset(asset: {
+  uri: string;
+  width?: number;
+  height?: number;
+}): Promise<PickedImage | null> {
+  const width = asset.width ?? 0;
+  const height = asset.height ?? 0;
+  const longestSide = Math.max(width, height);
+  // Each attempt resizes the longest side (aspect ratio preserved). When the
+  // dimensions are unknown or already small (a dense screenshot can be heavy
+  // at low resolution), a single JPEG re-encode pass still applies compression.
+  const resizeActions: ImageManipulator.Action[][] = OCR_IMAGE_DOWNSCALE_DIMENSIONS
+    .filter((target) => longestSide > target)
+    .map((target) => [{ resize: width >= height ? { width: target } : { height: target } }]);
+  if (resizeActions.length === 0) resizeActions.push([]);
+
+  for (const actions of resizeActions) {
+    let result: ImageManipulator.ImageResult | undefined;
+    try {
+      result = await ImageManipulator.manipulateAsync(asset.uri, actions, {
+        compress: OCR_IMAGE_DOWNSCALE_COMPRESS,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: true,
+      });
+    } catch {
+      return null;
+    }
+    const base64 = result?.base64;
+    if (base64 && base64.length <= MAX_OCR_IMAGE_BASE64_BYTES) {
+      return { uri: result.uri, base64, mimeType: "image/jpeg" };
+    }
+  }
+  return null;
+}
+
 // Step 1 — pick an image (library or camera). No network: just returns the
 // bytes so the UI can preview them before the user commits to an OCR call.
 export async function pickImageAsset(
@@ -385,12 +434,26 @@ export async function pickImageAsset(
   if (!asset) return null;
   if (!asset.base64) throw new Error(IMAGE_OCR_MISSING_DATA_ERROR);
 
-  const payload = normalizeOcrImagePayload({
+  // P2-4: oversized images get a downscale pass instead of an immediate
+  // too-large rejection. The downscaled payload still goes through the same
+  // guard below (signature sniff, MIME allowlist) — only the size pressure
+  // is relieved, never the validation.
+  let candidate: { uri: string; base64: string; mimeType: string | null | undefined } = {
+    uri: asset.uri,
     base64: asset.base64,
     mimeType: asset.mimeType,
+  };
+  if (asset.base64.length > MAX_OCR_IMAGE_BASE64_BYTES) {
+    const downscaled = await downscaleOcrImageAsset(asset);
+    if (downscaled) candidate = downscaled;
+  }
+
+  const payload = normalizeOcrImagePayload({
+    base64: candidate.base64,
+    mimeType: candidate.mimeType,
   });
   const picked = {
-    uri: asset.uri,
+    uri: candidate.uri,
     base64: payload.base64,
     mimeType: payload.mimeType,
   };
