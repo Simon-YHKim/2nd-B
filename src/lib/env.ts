@@ -103,13 +103,18 @@ const schema = z.object({
     .union([z.literal("true"), z.literal("false")])
     .default("true")
     .transform((v) => v === "true"),
+  // 2026-06-11 live QA: Apple/Kakao providers are NOT enabled in the Supabase
+  // console, and the OAuth start is a full-page redirect - the "auto-hide on
+  // failure" path never runs on web, so users hit a raw JSON error page.
+  // Default OFF until Simon enables each provider server-side (then flip the
+  // repo Variable to "true" - the Naver pattern). Google is verified working.
   EXPO_PUBLIC_ENABLE_APPLE: z
     .union([z.literal("true"), z.literal("false")])
-    .default("true")
+    .default("false")
     .transform((v) => v === "true"),
   EXPO_PUBLIC_ENABLE_KAKAO: z
     .union([z.literal("true"), z.literal("false")])
-    .default("true")
+    .default("false")
     .transform((v) => v === "true"),
   GOOGLE_CLOUD_PROJECT: z.string().optional(),
   GOOGLE_CLOUD_LOCATION: z.string().default("us-central1"),
@@ -224,16 +229,16 @@ function readRaw(): Record<string, string | undefined> {
   return {
     EXPO_PUBLIC_SUPABASE_URL: supaUrl && supaUrl.length > 0 ? supaUrl : DEMO_SUPABASE_URL,
     EXPO_PUBLIC_SUPABASE_ANON_KEY: supaKey && supaKey.length > 0 ? supaKey : DEMO_SUPABASE_ANON_KEY,
-    EXPO_PUBLIC_LLM_MODE: llmMode,
-    EXPO_PUBLIC_USE_VERTEX: useVertex,
-    EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: viaEdge,
-    EXPO_PUBLIC_FORCE_TIER: forceTier,
-    EXPO_PUBLIC_USE_V3_ART: useV3Art,
-    EXPO_PUBLIC_NAVER_CLIENT_ID: naverClientId,
-    EXPO_PUBLIC_ENABLE_NAVER: enableNaver,
-    EXPO_PUBLIC_ENABLE_GOOGLE: enableGoogle,
-    EXPO_PUBLIC_ENABLE_APPLE: enableApple,
-    EXPO_PUBLIC_ENABLE_KAKAO: enableKakao,
+    EXPO_PUBLIC_LLM_MODE: presentOrUndefined(llmMode),
+    EXPO_PUBLIC_USE_VERTEX: presentOrUndefined(useVertex),
+    EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: presentOrUndefined(viaEdge),
+    EXPO_PUBLIC_FORCE_TIER: presentOrUndefined(forceTier),
+    EXPO_PUBLIC_USE_V3_ART: presentOrUndefined(useV3Art),
+    EXPO_PUBLIC_NAVER_CLIENT_ID: presentOrUndefined(naverClientId),
+    EXPO_PUBLIC_ENABLE_NAVER: presentOrUndefined(enableNaver),
+    EXPO_PUBLIC_ENABLE_GOOGLE: presentOrUndefined(enableGoogle),
+    EXPO_PUBLIC_ENABLE_APPLE: presentOrUndefined(enableApple),
+    EXPO_PUBLIC_ENABLE_KAKAO: presentOrUndefined(enableKakao),
     GOOGLE_CLOUD_PROJECT: proc.GOOGLE_CLOUD_PROJECT,
     GOOGLE_CLOUD_LOCATION: proc.GOOGLE_CLOUD_LOCATION,
     // Prefer the inlined EXPO_PUBLIC_ variant when present (Web), fall back
@@ -245,7 +250,7 @@ function readRaw(): Record<string, string | undefined> {
     EXPO_PUBLIC_POSTHOG_HOST: presentOrUndefined(posthogHost),
     EXPO_PUBLIC_GA4_MEASUREMENT_ID: presentOrUndefined(ga4Id),
     EXPO_PUBLIC_CLARITY_PROJECT_ID: presentOrUndefined(clarityId),
-    EXPO_PUBLIC_ENABLE_ADS: enableAds,
+    EXPO_PUBLIC_ENABLE_ADS: presentOrUndefined(enableAds),
     EXPO_PUBLIC_ADSENSE_CLIENT: presentOrUndefined(adsenseClient),
     EXPO_PUBLIC_ADSENSE_SLOT_RECORDS: presentOrUndefined(adsenseSlotRecords),
   };

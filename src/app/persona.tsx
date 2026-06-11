@@ -116,17 +116,21 @@ export default function Persona() {
     );
   }
   if (!persona) {
-    const toolCards: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" }[] =
+    const toolCards: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" | "/mbti" }[] =
       locale === "ko"
         ? [
             { label: "라이프 오딧", sub: "25문항 · 약 8분", route: "/audit" },
             { label: "Big Five (BFI-44)", sub: "44문항 · 약 8분", route: "/big-five" },
             { label: "애착 스타일 (ECR-S)", sub: "12문항 · 약 3분", route: "/attachment" },
+            // Live QA 2026-06-11: /mbti 검사 화면에 진입점이 없었음 - 결과 카드는
+            // 데이터가 있어야만 떠서, 검사를 시작할 방법 자체가 없었다.
+            { label: "MBTI", sub: "유형 입력 · 약 3분", route: "/mbti" },
           ]
         : [
             { label: "Life audit", sub: "25 items · ~8 min", route: "/audit" },
             { label: "Big Five (BFI-44)", sub: "44 items · ~8 min", route: "/big-five" },
             { label: "Attachment (ECR-S)", sub: "12 items · ~3 min", route: "/attachment" },
+            { label: "MBTI", sub: "Type check-in · ~3 min", route: "/mbti" },
           ];
     return (
       <PremiumAppShell>
@@ -150,7 +154,8 @@ export default function Persona() {
             primaryAction={{
               label: locale === "ko" ? "라이프 오딧 시작" : "Start life audit",
               onPress: () => router.push("/audit"),
-            }}          />
+            }}
+          />
           <View style={styles.toolGrid}>
             {toolCards.map((t) => (
               <View key={t.route} style={styles.toolCard}>
@@ -219,7 +224,8 @@ export default function Persona() {
             label: locale === "ko" ? "내보내기" : "Export",
             variant: "secondary",
             onPress: handleExport,
-          }}        />
+          }}
+        />
 
         {/* 소울 코어 — §7-2 three-card summary in Core Brain voice.
             Each card's meaning is coded by its left-border accent
