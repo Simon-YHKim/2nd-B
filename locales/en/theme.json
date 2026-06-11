@@ -31,6 +31,21 @@
     "useFontLabel": "Use the {{label}}",
     "useFontHint": "Applies the selected font to titles and text on this device."
   },
+  "performance": {
+    "title": "Performance",
+    "options": {
+      "full": {
+        "label": "Full effects",
+        "sub": "Every motion, glow, and background character"
+      },
+      "lite": {
+        "label": "Lite mode",
+        "sub": "Fewer effects for a smooth ride on older phones"
+      }
+    },
+    "usePerformanceLabel": "Use {{label}}",
+    "usePerformanceHint": "Applies the selected performance setting on this device."
+  },
   "actions": {
     "inUse": "In use",
     "use": "Use",

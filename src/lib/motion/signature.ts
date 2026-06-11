@@ -14,6 +14,7 @@
 // (cap 1.25x, settle ~400ms). Everything else is ease-out, no spring.
 
 import type { CharacterId } from "../characters";
+import { isLiteModeEnabled } from "../settings/lite-mode";
 
 export interface SaveMotionSpec {
   /** Scale value the pop dips to before the overshoot. */
@@ -79,11 +80,19 @@ export function savePopTotalMs(spec: SaveMotionSpec = SAVE_MOTION): number {
 }
 
 /**
- * Whether motion should be suppressed. On web we honour the OS
- * `prefers-reduced-motion` setting; on native (no matchMedia) we always
- * animate. Pure + side-effect-free read, safe to call in render.
+ * Whether motion should be suppressed: the user's lite-mode preference OR the
+ * OS `prefers-reduced-motion` setting (web matchMedia; absent on native).
+ *
+ * NOT a render-path API anymore: the result is user-mutable mid-session and
+ * the React Compiler memoizes zero-input render calls per instance, freezing
+ * them at mount. Components (and effects gating ambient loops) use
+ * `useReducedMotionPref()` from `src/lib/motion/use-reduced-motion.ts`;
+ * one-shot effect/handler reads may keep this function.
  */
 export function prefersReducedMotion(): boolean {
+  // Lite mode (O-R2 ③) forces the reduced path through this same chokepoint
+  // every animation consumer already honors - one flag, zero new branches.
+  if (isLiteModeEnabled()) return true;
   const g = globalThis as unknown as {
     matchMedia?: (q: string) => { matches: boolean };
   };

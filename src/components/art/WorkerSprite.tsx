@@ -10,7 +10,7 @@ import { Image } from "expo-image";
 import { useEffect, useState } from "react";
 import { StyleSheet, View, type ViewStyle, type ImageStyle, type StyleProp, AppState } from "react-native";
 
-import { prefersReducedMotion } from "@/lib/motion/signature";
+import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { semantic } from "@/lib/theme/tokens";
 import { getEnv } from "@/lib/env";
 import { V3_WORKER_ART } from "@/lib/assets/soulcore-v3";
@@ -129,7 +129,7 @@ export function WorkerSprite({
   facing?: 1 | -1;
   paused?: boolean;
 }) {
-  const reduced = prefersReducedMotion();
+  const reduced = useReducedMotionPref();
   const [frame, setFrame] = useState(0);
 
   // Walk frames only advance when actually walking — frozen under reduced

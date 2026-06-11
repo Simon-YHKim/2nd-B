@@ -13,7 +13,7 @@ import {
 } from "react-native";
 
 import { LivingAsset } from "@/components/motion/LivingAsset";
-import { prefersReducedMotion } from "@/lib/motion/signature";
+import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import type { PatternDataColorKey } from "@/lib/graph/pattern-data-color";
 import { cosmic } from "@/lib/theme/tokens";
 
@@ -203,9 +203,12 @@ function SoulCoreArt({
 function SoulFlameFlicker({ size, active }: { size: number; active: boolean }) {
   const flicker = useRef(new Animated.Value(0)).current;
   const spark = useRef(new Animated.Value(0)).current;
+  // Subscribed read: a lite-mode toggle must stop/restart the flame loops on
+  // the mounted core (the pure function would freeze at its mount value).
+  const reduced = useReducedMotionPref();
 
   useEffect(() => {
-    if (!active || prefersReducedMotion()) {
+    if (!active || reduced) {
       flicker.setValue(0);
       spark.setValue(0);
       return;
@@ -245,9 +248,9 @@ function SoulFlameFlicker({ size, active }: { size: number; active: boolean }) {
       sparkLoop.stop();
       sub.remove();
     };
-  }, [active, flicker, spark]);
+  }, [active, reduced, flicker, spark]);
 
-  if (!active || prefersReducedMotion()) return null;
+  if (!active || reduced) return null;
 
   const overlayW = size * 0.25;
   const overlayH = size * 0.34;

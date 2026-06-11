@@ -72,6 +72,7 @@ import { VILLAGE_UI } from "@/lib/village-ui";
 import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
 import { CrewLayer } from "./CrewLayer";
 import { useCrewCount } from "@/lib/settings/crew-density";
+import { useLiteMode } from "@/lib/settings/lite-mode";
 import { getEnv } from "@/lib/env";
 import { V3_CREW_ART } from "@/lib/assets/soulcore-v3";
 import { PremiumButton, StatTile, TAB_BAR_HEIGHT } from "@/components/premium";
@@ -362,9 +363,14 @@ function NodeGlow({ tier, size, color }: { tier: GlowTier; size: number; color?:
   const baseGlow = glowForTier(tier);
   const g = color ? { ...baseGlow, color } : baseGlow;
   const tierScale = g.opacity / 0.7; // tier1 full, deeper tiers fainter
+  // Lite mode (O-R2 ③): keep the two inner rings, drop the two faint outer
+  // ones - halves the glow view count per node. tierScale is untouched, so
+  // the per-tier brightness hierarchy (visual tier standing rule) holds.
+  const { liteMode } = useLiteMode();
+  const rings = liteMode ? GLOW_RINGS.slice(0, 2) : GLOW_RINGS;
   return (
     <>
-      {GLOW_RINGS.map((r, i) => {
+      {rings.map((r, i) => {
         const d = size * (1 + r.grow) + r.border * 2;
         const off = (size - d) / 2;
         return (
@@ -527,6 +533,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
   // on-graph Log nodes, bounded by the density preference + LOD. The crew sprite
   // render is wired when the assets land; CrewLayer draws nothing until then.
   const { count: crewCount, animated: crewAnimated } = useCrewCount(dataNodes.length);
+  // Lite-mode subscription (review #1): the ambient effects below close over
+  // prefersReducedMotion() at effect time, so they must RE-RUN when the user
+  // toggles lite - otherwise already-started drift/signal/pulse loops keep
+  // burning the JS thread until the screen unmounts.
+  const { liteMode } = useLiteMode();
   // v3 momo-crew sprites behind EXPO_PUBLIC_USE_V3_ART. Default off →
   // renderV3Crew is undefined → CrewLayer renders nothing (current behavior).
   const useV3Art = getEnv().EXPO_PUBLIC_USE_V3_ART;
@@ -973,9 +984,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
       const stale = !live.has(id);
       // LOD crossed its threshold while these dots stayed on stage: tear down
       // their drift loops so they go static, but keep the pulse value so a
-      // highlight-on-return pulse can still fire on a tap.
+      // highlight-on-return pulse can still fire on a tap. A mid-session
+      // reduce/lite flip tears down EVERY drift loop the same way - the
+      // creation guard above stops making new ones, this stops the running
+      // ones (review #1).
       const demoted = !tier4DriftOn && dataPositions.has(id);
-      if (stale || demoted) {
+      if (stale || demoted || reduce) {
         driftLoops.current.get(id)?.stop();
         driftLoops.current.delete(id);
         driftValues.current.delete(id);
@@ -983,7 +997,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
         if (stale) pulseValues.current.delete(id);
       }
     }
-  }, [dataPositions, tier4DriftOn]);
+  }, [dataPositions, tier4DriftOn, liteMode]);
 
   // Spawn sequence: tier 1 to 4, randomized within each tier.
   // Each node fades in with a small lift so the tree appears on a calm ease.
@@ -1283,7 +1297,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
       sub.remove();
       loops.forEach((l) => l.stop());
     };
-  }, [linkSignals]);
+    // liteMode: a mid-session toggle must stop (cleanup) or restart the
+    // signal loops - the reduce read above happens at effect time (review #1).
+  }, [linkSignals, liteMode]);
 
   // Centered village zoom-in overlay (graph-transition redesign): tapping a
   // village island fills the screen center with that island, smoothly scaling
@@ -1346,7 +1362,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
       ]).start();
     }, PULSE_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [activeId]);
+    // liteMode: re-evaluate the reduced-motion gate on toggle (review #1).
+  }, [activeId, liteMode]);
 
   function swayTransform(id: string, extraScale = 1): unknown {
     // RN's transform union is fiddly to satisfy at compile time, but
