@@ -45,7 +45,7 @@ import koSettings from "../../../locales/ko/settings.json";
 import koSupport from "../../../locales/ko/support.json";
 import koTheme from "../../../locales/ko/theme.json";
 import koWiki from "../../../locales/ko/wiki.json";
-import { detectLanguage, saveLanguagePreference } from "./languageDetector";
+import { detectLanguage, loadNativeLanguagePreference, saveLanguagePreference } from "./languageDetector";
 import { isAvailableUiLocale, type AvailableUiLocale } from "./locales";
 
 export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "profile", "permissions", "settings"] as const;
@@ -76,14 +76,25 @@ export function initI18n(): typeof i18next {
   });
   // Persist whenever the user (or any code path) flips the active language,
   // and keep the web document language in sync (screen readers pick their
-  // voice from <html lang>; the static export defaults to "ko").
+  // voice from <html lang>; the static export defaults to "ko"). Both stay
+  // inside the available-guard: stamping lang for a locale whose content
+  // falls back to EN would point screen readers at the wrong voice.
   i18next.on("languageChanged", (lng) => {
-    if (isAvailableUiLocale(lng)) saveLanguagePreference(lng);
+    if (!isAvailableUiLocale(lng)) return;
+    saveLanguagePreference(lng);
     try {
       if (typeof document !== "undefined") document.documentElement.lang = lng;
     } catch {
       // native: no document
     }
   });
+  // Native: the persisted manual choice lives in AsyncStorage (async), so it
+  // can't make the synchronous first paint - apply it once it resolves.
+  // No-op on web and when it matches what detection already picked.
+  void loadNativeLanguagePreference()
+    .then((saved) => {
+      if (saved && saved !== i18next.language) void i18next.changeLanguage(saved);
+    })
+    .catch(() => {});
   return i18next;
 }

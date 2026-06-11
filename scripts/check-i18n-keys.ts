@@ -45,12 +45,19 @@ function load(dir: string): { ns: string; flat: FlatMap }[] {
   });
 }
 
+// C7 names the EN ↔ KO pair: generalizing the scan to every shipped locale
+// must not let the named pair vanish silently (a deleted ko/ tree would
+// otherwise "pass" with one locale).
+const REQUIRED_LOCALES = [CANONICAL, "ko"];
+
 const localeDirs = readdirSync(LOCALES).filter((entry) =>
   statSync(join(LOCALES, entry)).isDirectory(),
 );
-if (!localeDirs.includes(CANONICAL)) {
-  console.error(`C7 i18n key check FAILED: canonical locales/${CANONICAL}/ is missing`);
-  process.exit(1);
+for (const required of REQUIRED_LOCALES) {
+  if (!localeDirs.includes(required)) {
+    console.error(`C7 i18n key check FAILED: required locales/${required}/ is missing`);
+    process.exit(1);
+  }
 }
 const otherLocales = localeDirs.filter((d) => d !== CANONICAL).sort();
 
