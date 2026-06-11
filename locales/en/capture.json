@@ -133,7 +133,10 @@
     "label": "Link or saved article",
     "placeholder": "https://... or paste article text",
     "savedAsClip": "Saved as article text",
-    "detected": "Link detected: {{kind}}"
+    "detected": "Link detected: {{kind}}",
+    "pasteOffer": "Paste what you copied",
+    "pasteOfferHint": "Fills the box with your last copied content. It is read only when you tap.",
+    "pasteOfferEmpty": "Nothing to paste was found."
   },
   "inputs": {
     "extractedLabel": "My extracted text (editable)",
