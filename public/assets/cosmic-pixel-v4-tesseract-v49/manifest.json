@@ -203,6 +203,17 @@
       "app96": null
     },
     {
+      "id": "rhythm_core",
+      "tier": "tier2",
+      "displayName": "Rhythm Core",
+      "description": "Tier 2 routine and life-ops core. PLACEHOLDER: narrative core copy until the dedicated asset lands - overwrite this file to apply.",
+      "sourceWhite": null,
+      "transparentOriginal": null,
+      "app256": "app_256/tier2_rhythm_core_v49_256.png",
+      "app128": null,
+      "app96": null
+    },
+    {
       "id": "log",
       "tier": "tier4",
       "displayName": "Log",

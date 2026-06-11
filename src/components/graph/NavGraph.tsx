@@ -204,6 +204,11 @@ export const MENU_NODES: readonly NavNode[] = [
   { id: "taste", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "taste" } },
     label: { en: "Muse Core", ko: "뮤즈 코어" },
     description: { en: "Where the things you like, are drawn to, and find inspiring gather.", ko: "좋아하는 것, 끌리는 것, 영감의 조각이 모이는 곳이에요." } },
+  // O-R3 assistant ops axis. Art/accent/worker are provisional (G1: Simon's
+  // color-wheel pass) - swap the rhythm_core placeholder PNGs to restyle.
+  { id: "rhythm", tier: 2, parentId: "core", href: "/ops",
+    label: { en: "Rhythm Core", ko: "리듬 코어" },
+    description: { en: "Where routines and plans for the days ahead take shape.", ko: "하루하루의 루틴과 계획이 모양을 잡는 곳이에요." } },
 
   // Tier 3 — real sub-places under a district; revealed on zoom/selection.
   { id: "wiki-daily", tier: 3, parentId: "knowledge", href: "/wiki",

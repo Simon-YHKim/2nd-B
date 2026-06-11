@@ -1,0 +1,68 @@
+{
+  "loading": "Opening your routines…",
+  "hero": {
+    "title": "Routines",
+    "subtitle": "Pick one area. Get a few concrete next steps."
+  },
+  "groups": {
+    "body": "Body",
+    "learning": "Learning",
+    "worklife": "Work & money",
+    "living": "Everyday",
+    "creative": "Creative"
+  },
+  "domains": {
+    "exercise_routine": "Exercise routine",
+    "exercise_ideas": "Exercise ideas",
+    "health_routine": "Health routine",
+    "weekly_meals": "Weekly meal plan",
+    "simple_meals": "Simple meal ideas",
+    "reading_list": "Reading & study list",
+    "learning_goals": "Learning goals",
+    "language_practice": "Language practice",
+    "career_check": "Career growth check",
+    "money_check": "Money check",
+    "daily_focus": "Daily focus plan",
+    "home_reset": "Home reset checklist",
+    "news_digest": "Quick news digest",
+    "side_project": "Creative side project"
+  },
+  "picker": {
+    "groupHint": "Shows the areas in this group.",
+    "domainHint": "Builds suggestions for this area.",
+    "optionA11yLabel": "{{label}}, option {{index}} of {{total}}, {{state}}.",
+    "stateSelected": "selected",
+    "stateAvailable": "available"
+  },
+  "recommend": {
+    "cta": "Suggest next steps",
+    "ctaHint": "Reads your saved pieces and drafts a few suggestions.",
+    "working": "Lining up suggestions…",
+    "empty": "Nothing usable came back. Try again, or pick another area.",
+    "error": "The suggestion run didn't finish. Your pieces are safe. Try again.",
+    "limit": "Today's free suggestions are used up. They reset tomorrow.",
+    "disclaimerBody": "Ideas and plans, not professional advice."
+  },
+  "card": {
+    "durationLabel": "{{minutes}} min",
+    "daily": "Every day",
+    "weekly": "Every week",
+    "addGoogle": "Google Calendar",
+    "addGoogleHint": "Opens Google Calendar with this event prefilled.",
+    "downloadIcs": "Calendar file",
+    "downloadIcsHint": "Downloads an .ics file that opens in your calendar app.",
+    "shareList": "Send checklist",
+    "shareListHint": "Opens the share sheet with this checklist as text."
+  },
+  "consent": {
+    "title": "Hand items to your apps?",
+    "body": "Approved items go to your calendar or share sheet. Asked once: keep allowing from now on, and turn it off anytime in Privacy.",
+    "agree": "Allow and continue",
+    "agreeHint": "Saves the choice and performs this push.",
+    "later": "Not now",
+    "laterHint": "Closes without pushing. The item stays on this screen."
+  },
+  "states": {
+    "emptyDomain": "Pick an area above to get started."
+  }
+}

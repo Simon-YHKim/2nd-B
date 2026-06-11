@@ -24,7 +24,7 @@ const SOUL_FLAME_DEEP = cosmic.soulViolet;
 const SNOW_CRYSTAL_HOT = cosmic.moonWhite;
 const SNOW_CRYSTAL_COOL = cosmic.signalBlue;
 
-export type FinalCoreId = "core" | "work_growth" | "relationship" | "knowledge" | "records" | "inspiration";
+export type FinalCoreId = "core" | "work_growth" | "relationship" | "knowledge" | "records" | "inspiration" | "routine";
 export type FinalPatternDataId = "bond" | "wisdom" | "narrative" | "muse" | "growth";
 export type FinalLogId = "work" | "relationship" | "knowledge" | "love" | "hobby";
 export type FinalPatternLinkId = "near" | "mid" | "far" | "current";
@@ -36,6 +36,8 @@ const FINAL_CORE_ART: Record<FinalCoreId, ImageSourcePropType> = {
   knowledge: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/wisdom_core_256.png"),
   records: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/narrative_core_256.png"),
   inspiration: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/muse_core_256.png"),
+  // PLACEHOLDER (O-R3 G1): narrative copy - overwrite rhythm_core_256.png to apply the real asset.
+  routine: require("../../../public/assets/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/rhythm_core_256.png"),
 };
 
 const FINAL_PATTERN_DATA_ART: Record<FinalPatternDataId, ImageSourcePropType> = {
@@ -81,6 +83,8 @@ const FINAL_CORE_ART_V49: Record<FinalCoreId, ImageSourcePropType> = {
   knowledge: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_wisdom_core_v49_256.png"),
   records: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_narrative_core_v49_256.png"),
   inspiration: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_muse_core_v49_256.png"),
+  // PLACEHOLDER (O-R3 G1): overwrite tier2_rhythm_core_v49_256.png to apply.
+  routine: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_rhythm_core_v49_256.png"),
 };
 
 // v10 core map (FinalCoreId → v10 file). Simple flat filenames per the v10
@@ -93,6 +97,8 @@ const FINAL_CORE_ART_V10: Record<FinalCoreId, ImageSourcePropType> = {
   knowledge: require("../../../public/assets/tesseract-v10/wisdom_core.png"),
   records: require("../../../public/assets/tesseract-v10/narrative_core.png"),
   inspiration: require("../../../public/assets/tesseract-v10/muse_core.png"),
+  // PLACEHOLDER (O-R3 G1): production default variant - overwrite rhythm_core.png to apply.
+  routine: require("../../../public/assets/tesseract-v10/rhythm_core.png"),
 };
 
 const CORE_ART_BY_VARIANT: Record<AssetVariant, Record<FinalCoreId, ImageSourcePropType>> = {

@@ -1,0 +1,68 @@
+{
+  "loading": "Abriendo tus rutinas…",
+  "hero": {
+    "title": "Rutinas",
+    "subtitle": "Elige un área. Recibe unos pasos concretos."
+  },
+  "groups": {
+    "body": "Cuerpo",
+    "learning": "Aprendizaje",
+    "worklife": "Trabajo y dinero",
+    "living": "Día a día",
+    "creative": "Creatividad"
+  },
+  "domains": {
+    "exercise_routine": "Rutina de ejercicio",
+    "exercise_ideas": "Ideas de ejercicio",
+    "health_routine": "Rutina de salud",
+    "weekly_meals": "Plan de comidas semanal",
+    "simple_meals": "Ideas de comidas sencillas",
+    "reading_list": "Lista de lectura y estudio",
+    "learning_goals": "Metas de aprendizaje",
+    "language_practice": "Práctica de idiomas",
+    "career_check": "Revisión de carrera",
+    "money_check": "Revisión de finanzas",
+    "daily_focus": "Plan de enfoque diario",
+    "home_reset": "Lista para ordenar la casa",
+    "news_digest": "Resumen rápido de noticias",
+    "side_project": "Proyecto creativo personal"
+  },
+  "picker": {
+    "groupHint": "Muestra las áreas de este grupo.",
+    "domainHint": "Crea sugerencias para esta área.",
+    "optionA11yLabel": "{{label}}, opción {{index}} de {{total}}, {{state}}.",
+    "stateSelected": "seleccionada",
+    "stateAvailable": "disponible"
+  },
+  "recommend": {
+    "cta": "Sugerir próximos pasos",
+    "ctaHint": "Lee tus piezas guardadas y redacta algunas sugerencias.",
+    "working": "Preparando sugerencias…",
+    "empty": "No salió nada útil. Intenta de nuevo o elige otra área.",
+    "error": "La sugerencia no terminó. Tus piezas están a salvo. Intenta de nuevo.",
+    "limit": "Las sugerencias gratis de hoy se agotaron. Vuelven mañana.",
+    "disclaimerBody": "Ideas y planes, no asesoría profesional."
+  },
+  "card": {
+    "durationLabel": "{{minutes}} min",
+    "daily": "Cada día",
+    "weekly": "Cada semana",
+    "addGoogle": "Google Calendar",
+    "addGoogleHint": "Abre Google Calendar con este evento prellenado.",
+    "downloadIcs": "Archivo de calendario",
+    "downloadIcsHint": "Descarga un archivo .ics que se abre en tu app de calendario.",
+    "shareList": "Enviar lista",
+    "shareListHint": "Abre la hoja de compartir con esta lista como texto."
+  },
+  "consent": {
+    "title": "¿Enviar elementos a tus apps?",
+    "body": "Los elementos aprobados van a tu calendario u hoja de compartir. Se pregunta una vez: sigue permitiéndolo desde ahora y apágalo cuando quieras en Privacidad.",
+    "agree": "Permitir y continuar",
+    "agreeHint": "Guarda la elección y realiza este envío.",
+    "later": "Ahora no",
+    "laterHint": "Cierra sin enviar. El elemento queda en esta pantalla."
+  },
+  "states": {
+    "emptyDomain": "Elige un área arriba para empezar."
+  }
+}

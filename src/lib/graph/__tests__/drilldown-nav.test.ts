@@ -43,12 +43,13 @@ describe("drilldown navigation state", () => {
 });
 
 describe("drilldown core mapping", () => {
-  test("recognizes only the five Pattern Core ids", () => {
+  test("recognizes only the Pattern Core ids", () => {
     expect(isPatternCoreId("work")).toBe(true);
     expect(isPatternCoreId("relation")).toBe(true);
     expect(isPatternCoreId("knowledge")).toBe(true);
     expect(isPatternCoreId("records")).toBe(true);
     expect(isPatternCoreId("taste")).toBe(true);
+    expect(isPatternCoreId("rhythm")).toBe(true);
     expect(isPatternCoreId("core")).toBe(false);
     expect(isPatternCoreId("wiki-daily")).toBe(false);
   });
@@ -60,6 +61,7 @@ describe("drilldown core mapping", () => {
       knowledge: "lulu",
       records: "momo",
       taste: "lumi",
+      rhythm: "archi",
     });
     expect(drilldownCharacterForCore("work")).toBe("archi");
   });

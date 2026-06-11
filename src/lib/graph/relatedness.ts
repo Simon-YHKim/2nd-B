@@ -9,10 +9,12 @@
 //
 // Vocabulary stays in the project register (no clinical/technical terms).
 
-// The five tier-2 Pattern Cores (NavGraph MENU_NODES tier-2 ids). The former
+// The tier-2 Pattern Cores (NavGraph MENU_NODES tier-2 ids). The former
 // "imagine" district was removed in worldview v-final (공상 → SecondB Divergent
 // mode); its keywords fold into `taste` (Muse Core). Internal ids unchanged.
-export type VillageId = "work" | "relation" | "knowledge" | "records" | "taste";
+// `rhythm` (O-R3 assistant ops axis) is appended LAST on purpose: VILLAGE_IDS
+// order breaks classification ties, so existing pieces keep their villages.
+export type VillageId = "work" | "relation" | "knowledge" | "records" | "taste" | "rhythm";
 
 export const VILLAGE_IDS: readonly VillageId[] = [
   "work",
@@ -20,6 +22,7 @@ export const VILLAGE_IDS: readonly VillageId[] = [
   "knowledge",
   "records",
   "taste",
+  "rhythm",
 ];
 
 /** Canonical user-facing village names (kept in step with NavGraph's tier-2
@@ -31,6 +34,7 @@ export const VILLAGE_LABEL: Record<VillageId, { en: string; ko: string }> = {
   knowledge: { en: "Wisdom Core", ko: "위즈덤 코어" },
   records: { en: "Narrative Core", ko: "내러티브 코어" },
   taste: { en: "Muse Core", ko: "뮤즈 코어" },
+  rhythm: { en: "Rhythm Core", ko: "리듬 코어" },
 };
 
 // Keyword → village. Lowercase substrings matched against a piece's tags
@@ -64,6 +68,13 @@ const DOMAIN_KEYWORDS: Record<VillageId, readonly string[]> = {
     "imagine", "idea-spark", "dream", "fiction", "story", "creative",
     "imagination", "what-if", "scene",
     "공상", "상상", "꿈", "이야기", "창작", "장면", "아이디어",
+  ],
+  rhythm: [
+    "routine", "habit", "schedule", "plan", "todo", "checklist", "exercise",
+    "workout", "meal", "diet", "sleep", "morning", "evening", "weekly",
+    "reminder", "calendar",
+    "루틴", "습관", "일정", "계획", "할일", "체크리스트", "운동", "식단",
+    "수면", "아침", "저녁", "리마인더", "캘린더",
   ],
 };
 

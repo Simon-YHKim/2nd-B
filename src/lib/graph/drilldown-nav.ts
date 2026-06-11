@@ -26,6 +26,7 @@ export const CORE_CHARACTER: Record<PatternCoreId, WorkerId> = {
   knowledge: VILLAGE_UI.knowledge.worker,
   records: VILLAGE_UI.records.worker,
   taste: VILLAGE_UI.taste.worker,
+  rhythm: VILLAGE_UI.rhythm.worker,
 };
 
 export function isPatternCoreId(id: string | null | undefined): id is PatternCoreId {

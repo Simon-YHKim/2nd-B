@@ -27,8 +27,11 @@ describe("privacy prefs (task D)", () => {
     expect(resolvePrivacyPrefs({})).toEqual(defaultPrivacyPrefs());
   });
 
-  test("the seeded minor key set matches the migration (0032)", () => {
+  test("the seeded minor key set matches the migration (0032) plus post-seed keys", () => {
     // Guard against drift between src and the SQL jsonb_build_object keys.
+    // Keys after the 0032 seed (ops_push, 2026-06-11) default to false via
+    // resolvePrivacyPrefs when absent from the stored jsonb, so they don't
+    // require a new migration - but they MUST stay listed here on purpose.
     expect([...PRIVACY_PREF_KEYS]).toEqual([
       "ads",
       "sharing",
@@ -38,6 +41,7 @@ describe("privacy prefs (task D)", () => {
       "persona_export",
       "persona_share",
       "long_term_memory",
+      "ops_push",
     ]);
   });
 
@@ -48,15 +52,17 @@ describe("privacy prefs (task D)", () => {
       }
     });
 
-    test("minors may only promote long_term_memory; all outward keys are locked", () => {
+    test("minors may promote only the device-local exceptions; outward keys stay locked", () => {
       for (const k of PRIVACY_PREF_KEYS) {
         const editable = isPrivacyPrefEditable(k, true);
-        expect(editable).toBe(k === "long_term_memory");
+        expect(editable).toBe(k === "long_term_memory" || k === "ops_push");
       }
     });
 
-    test("the only minor-promotable key is long_term_memory", () => {
-      expect([...MINOR_PROMOTABLE_KEYS]).toEqual(["long_term_memory"]);
+    test("the minor-promotable exceptions are exactly long_term_memory and ops_push", () => {
+      // ops_push hands an on-screen-approved item to the user's OWN device
+      // calendar/share sheet (no outward data flow) - Simon, 2026-06-11.
+      expect([...MINOR_PROMOTABLE_KEYS]).toEqual(["long_term_memory", "ops_push"]);
     });
   });
 });

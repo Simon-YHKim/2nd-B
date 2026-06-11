@@ -21,6 +21,8 @@ const ISLANDS = {
   records: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_records_premium_hq.png"),
   imagine: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_imagine_premium_hq.png"),
   inspiration: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_inspiration_premium_hq.png"),
+  // PLACEHOLDER (O-R3 G1): records-island copy until the Rhythm asset lands.
+  routine: require("../../../public/assets/2ndb-production-premium-v1/graph/islands/domain_routine_premium_hq.png"),
 } as const;
 
 export type IslandId = keyof typeof ISLANDS;

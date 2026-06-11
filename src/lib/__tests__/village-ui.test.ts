@@ -28,8 +28,9 @@ describe("village UI metadata", () => {
   test("village primary CTAs never point at a retired redirect route", () => {
     for (const id of VILLAGE_IDS) {
       // /journal was retired to a /capture redirect; emitting it as a primary
-      // CTA created a silent redirect tax. Every village now opens /capture.
-      expect(VILLAGE_UI[id].primaryRoute).toBe("/capture");
+      // CTA created a silent redirect tax. Capture villages open /capture;
+      // Rhythm Core opens its own real surface, /ops (O-R3).
+      expect(VILLAGE_UI[id].primaryRoute).toBe(id === "rhythm" ? "/ops" : "/capture");
     }
   });
 
