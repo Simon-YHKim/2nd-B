@@ -10,6 +10,7 @@
 // (Chrome shares title + text=url); the spec's `url` field is rarely filled.
 
 import { firstUrlIn } from "../wiki/link-or-clip";
+import type { CaptureDraft, CaptureDraftMode, CaptureDrafts } from "./draft";
 
 export interface SharedCapturePayload {
   /** Text for the link-or-clip box. A bare URL when the share was link-only. */
@@ -53,4 +54,59 @@ export function normalizeSharedCaptureParams(params: {
   const content = lines.join("\n\n").trim();
   if (content.length === 0) return null;
   return { content, key: JSON.stringify([rawUrl, rawText, rawTitle]) };
+}
+
+function hasRestorableDraft(draft: CaptureDraft): boolean {
+  return (
+    draft.body.trim().length > 0 ||
+    draft.topic.trim().length > 0 ||
+    (draft.conclusion ?? "").trim().length > 0
+  );
+}
+
+export interface ShareConsumeInput {
+  /** Hydrated per-mode drafts (draftsRef contents). */
+  drafts: CaptureDrafts;
+  /** Snapshot of the live fields for the mode the user is leaving. */
+  liveDraft: CaptureDraft;
+  liveMode: CaptureDraftMode;
+  /**
+   * True when the hydration restore was skipped because this share was
+   * pending: the live fields were never populated, so folding them back in
+   * would DELETE the stored draft for the default mode (cold-start share
+   * arriving over an existing journal draft - the P1-5 survival contract).
+   */
+  restoreSkipped: boolean;
+  /** Normalized share payload (normalizeSharedCaptureParams().content). */
+  content: string;
+}
+
+export interface ShareConsumeResult {
+  drafts: CaptureDrafts;
+  linkclipDraft: CaptureDraft;
+}
+
+/**
+ * Folds a shared payload into the draft set: the leaving mode's live fields
+ * are remembered (unless the restore never ran), and the payload lands in the
+ * linkclip draft - appended below existing text, never replacing it.
+ */
+export function consumeSharedIntoDrafts(input: ShareConsumeInput): ShareConsumeResult {
+  const next: CaptureDrafts = { ...input.drafts };
+  if (!input.restoreSkipped) {
+    // Same semantics as the screen's storeDraftForMode: an all-empty live
+    // draft means the user cleared it - the stored copy goes too.
+    if (hasRestorableDraft(input.liveDraft)) next[input.liveMode] = input.liveDraft;
+    else delete next[input.liveMode];
+  }
+  const existing = (next.linkclip?.body ?? "").trim();
+  const mergedBody =
+    existing.length === 0
+      ? input.content
+      : existing.includes(input.content)
+        ? existing
+        : `${existing}\n\n${input.content}`;
+  const linkclipDraft: CaptureDraft = { body: mergedBody, topic: "", conclusion: "" };
+  next.linkclip = linkclipDraft;
+  return { drafts: next, linkclipDraft };
 }

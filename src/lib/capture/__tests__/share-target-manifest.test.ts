@@ -42,7 +42,14 @@ describe("PWA share-target manifest", () => {
     expect(sizes).toEqual(["192x192", "512x512"]);
     for (const icon of manifest.icons) {
       const rel = icon.src.replace(/^\/2nd-B\//, "");
-      expect(existsSync(join(root, "public", rel))).toBe(true);
+      const file = join(root, "public", rel);
+      expect(existsSync(file)).toBe(true);
+      // Declared sizes must match the real pixels (PNG IHDR width/height at
+      // byte offsets 16/20) or Chrome drops the icon from installability.
+      const buf = readFileSync(file);
+      const width = buf.readUInt32BE(16);
+      const height = buf.readUInt32BE(20);
+      expect(`${width}x${height}`).toBe(icon.sizes);
     }
   });
 
