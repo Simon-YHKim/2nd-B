@@ -60,8 +60,9 @@ export function parseLiteMode(v: string | null | undefined): boolean | null {
 
 // Native cold start: pull the stored value into the memory cache once so the
 // sync getter (and with it the motion chokepoint) converges without waiting
-// for a settings screen to mount. Idempotent, best-effort.
-function ensureNativeHydration(): void {
+// for a settings screen to mount. Idempotent, best-effort. Exported so the
+// pre-hydration no-clobber guard below is testable.
+export function ensureLiteModeHydration(): void {
   if (nativeHydrationStarted || memoryLiteMode !== null || ls()) return;
   const storage = nativeStorage();
   if (!storage) return;
@@ -77,14 +78,19 @@ function ensureNativeHydration(): void {
     .catch(() => undefined);
 }
 
-/** Sync read for pure call sites (motion chokepoint). */
+/** Sync read for pure call sites (motion chokepoint). No side effects: the
+ *  native hydration kickoff lives at module scope + in the hook, never in a
+ *  render-path read (React Compiler / StrictMode purity contract). */
 export function isLiteModeEnabled(): boolean {
   const local = ls();
   if (local) return parseLiteMode(local.getItem(LITE_MODE_KEY)) ?? DEFAULT_LITE_MODE;
   if (memoryLiteMode !== null) return memoryLiteMode;
-  ensureNativeHydration();
   return DEFAULT_LITE_MODE;
 }
+
+// Kick the native hydration once at module load (web no-ops via the ls()
+// guard, node tests no-op via the runtime guard).
+ensureLiteModeHydration();
 
 export function setLiteMode(enabled: boolean): void {
   memoryLiteMode = enabled;
@@ -102,7 +108,7 @@ export function useLiteMode(): { liteMode: boolean; setLiteMode: (enabled: boole
   useEffect(() => {
     const listener = (enabled: boolean) => setLiteModeState(enabled);
     listeners.add(listener);
-    ensureNativeHydration();
+    ensureLiteModeHydration();
     return () => {
       listeners.delete(listener);
     };

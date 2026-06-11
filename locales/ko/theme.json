@@ -36,15 +36,15 @@
     "options": {
       "full": {
         "label": "전체 효과",
-        "sub": "모든 움직임과 빛, 배경 캐릭터를 보여줘요"
+        "sub": "모든 움직임과 빛, 배경 캐릭터"
       },
       "lite": {
         "label": "가벼운 모드",
-        "sub": "움직임과 효과를 줄여 오래된 폰에서도 부드럽게 써요"
+        "sub": "오래된 폰을 위한 가벼운 화면 효과"
       }
     },
     "usePerformanceLabel": "{{label}} 사용",
-    "usePerformanceHint": "선택한 성능 설정을 이 기기에 적용해요."
+    "usePerformanceHint": "선택한 성능 설정을 이 기기에 적용합니다."
   },
   "actions": {
     "inUse": "사용 중",

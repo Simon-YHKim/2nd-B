@@ -20,9 +20,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import ReAnimated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing as ReEasing, useDerivedValue, runOnJS } from "react-native-reanimated";
+import ReAnimated, { cancelAnimation, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing as ReEasing, useDerivedValue, runOnJS } from "react-native-reanimated";
 
-import { prefersReducedMotion } from "@/lib/motion/signature";
+import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { getPersona } from "@/lib/chat/personas";
 import { fontFamilies } from "@/theme/typography";
@@ -115,7 +115,9 @@ function Worker({
   onTap: () => void;
 }) {
   const { id, route } = commute;
-  const reduced = prefersReducedMotion();
+  // Subscribed read: a lite-mode toggle must stop/restart the commute driver
+  // on mounted workers (the pure function would freeze at its mount value).
+  const reduced = useReducedMotionPref();
 
   // We only need React state for facing and resting, which change rarely.
   const [facing, setFacing] = useState<1 | -1>(1);
@@ -148,7 +150,10 @@ function Worker({
       -1,
       false
     );
-  }, [reduced]);
+    // Lite-mode toggle (or unmount) parks the UI-thread ticker instead of
+    // letting the repeat run behind a frozen pose.
+    return () => cancelAnimation(time);
+  }, [reduced, time]);
 
   // Compute pose on the UI thread
   const derivedPose = useDerivedValue(() => {

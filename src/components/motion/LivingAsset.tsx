@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
 import { Animated, AppState, Easing, type StyleProp, type ViewStyle } from "react-native";
 
-import { prefersReducedMotion } from "@/lib/motion/signature";
+import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import {
   LIVING_ASSET_MOTION,
   livingAssetPhase,
@@ -31,9 +31,12 @@ export function LivingAsset({
   const motion = LIVING_ASSET_MOTION[preset];
   const phase = useMemo(() => livingAssetPhase(id, preset), [id, preset]);
   const progress = useRef(new Animated.Value(0)).current;
+  // Subscribed (not the pure read): a lite-mode toggle must stop/restart the
+  // breathing loop on mounted assets, not wait for a remount.
+  const reduced = useReducedMotionPref();
 
   useEffect(() => {
-    if (!enabled || prefersReducedMotion()) {
+    if (!enabled || reduced) {
       progress.setValue(0);
       return;
     }
@@ -73,9 +76,9 @@ export function LivingAsset({
       stopLoop();
       appStateSub.remove();
     };
-  }, [enabled, motion.delayMs, motion.durationMs, phase, progress]);
+  }, [enabled, reduced, motion.delayMs, motion.durationMs, phase, progress]);
 
-  const animatedStyle = enabled && !prefersReducedMotion()
+  const animatedStyle = enabled && !reduced
     ? {
         opacity: progress.interpolate({
           inputRange: [0, 0.5, 1],

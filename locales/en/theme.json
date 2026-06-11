@@ -40,7 +40,7 @@
       },
       "lite": {
         "label": "Lite mode",
-        "sub": "Calms motion and effects so older phones stay smooth"
+        "sub": "Fewer effects for a smooth ride on older phones"
       }
     },
     "usePerformanceLabel": "Use {{label}}",

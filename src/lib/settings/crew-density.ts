@@ -137,7 +137,10 @@ export function useCrewCount(
 ): { count: number; animated: boolean; density: CrewDensity } {
   const { density } = useCrewDensity();
   const { liteMode } = useLiteMode();
-  const animated = !prefersReducedMotion();
+  // liteMode is part of the expression so `animated` is REACTIVE to a lite
+  // toggle (the pure read alone would be frozen per-instance by the React
+  // Compiler and crew could come back with locked walk cycles).
+  const animated = !liteMode && !prefersReducedMotion();
   const count = liteMode ? 0 : crewCountForDensity(density, nodeCount, opts);
   return { count, animated, density };
 }

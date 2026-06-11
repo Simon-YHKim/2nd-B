@@ -80,9 +80,14 @@ export function savePopTotalMs(spec: SaveMotionSpec = SAVE_MOTION): number {
 }
 
 /**
- * Whether motion should be suppressed. On web we honour the OS
- * `prefers-reduced-motion` setting; on native (no matchMedia) we always
- * animate. Pure + side-effect-free read, safe to call in render.
+ * Whether motion should be suppressed: the user's lite-mode preference OR the
+ * OS `prefers-reduced-motion` setting (web matchMedia; absent on native).
+ *
+ * NOT a render-path API anymore: the result is user-mutable mid-session and
+ * the React Compiler memoizes zero-input render calls per instance, freezing
+ * them at mount. Components (and effects gating ambient loops) use
+ * `useReducedMotionPref()` from `src/lib/motion/use-reduced-motion.ts`;
+ * one-shot effect/handler reads may keep this function.
  */
 export function prefersReducedMotion(): boolean {
   // Lite mode (O-R2 ③) forces the reduced path through this same chokepoint

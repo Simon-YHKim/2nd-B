@@ -15,7 +15,7 @@ import {
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { Text } from "@/components/ui/Text";
-import { prefersReducedMotion } from "@/lib/motion/signature";
+import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { cosmic, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { PremiumButton } from "./surfaces";
@@ -71,7 +71,7 @@ export function SceneHero({
   style?: StyleProp<ViewStyle>;
 }) {
   const ownerSize = Math.min(workerSize, Math.max(44, Math.round(islandSize * WORKER_TO_ISLAND_SCALE)));
-  const reducedMotion = prefersReducedMotion();
+  const reducedMotion = useReducedMotionPref();
   // 2026-06-02: village headers show the TITLE only — eyebrow + subtitle are no
   // longer rendered. Kept in the props for API compatibility with the callers.
   void eyebrow;

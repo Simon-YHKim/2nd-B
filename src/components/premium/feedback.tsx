@@ -10,6 +10,7 @@ import { Text } from "@/components/ui/Text";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
+import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { PremiumButton } from "./surfaces";
 
 const LOADING_DOT_PATTERN = [true, true, true, true, false, true, true, true, true];
@@ -135,7 +136,8 @@ export function PremiumLoadingState({ message }: { message?: string }) {
 
 function PixelLoadingGlyph() {
   const opacity = useRef(new Animated.Value(1)).current;
-  const reduceMotion = prefersReducedMotion();
+  // Subscribed read: the blink loop must stop/restart on a lite-mode toggle.
+  const reduceMotion = useReducedMotionPref();
 
   useEffect(() => {
     if (reduceMotion) {
