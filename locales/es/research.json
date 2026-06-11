@@ -1,0 +1,34 @@
+{
+  "loading": "Cargando investigación...",
+  "error": {
+    "title": "No se pudo cargar la investigación",
+    "body": "La conexión se pausó un momento. Inténtalo de nuevo para recargar la biblioteca.",
+    "retry": "Intentar de nuevo"
+  },
+  "hero": {
+    "eyebrow": "Investigación",
+    "title": "Mantén la evidencia visible",
+    "subtitle": "Big Five · attachment · CBT · VIA",
+    "speech": "Aquí solo aparecen las fuentes verificadas que SecondB puede citar."
+  },
+  "empty": "Aún no hay fuentes. El flujo de curación está en progreso.",
+  "filter": {
+    "label": "Filtrar por marco",
+    "accessibilityLabel": "Filtros de marco",
+    "all": "Todos"
+  },
+  "sourceCount": "{{visible}} fuente{{plural}} (de {{total}})",
+  "verified": "Verificado",
+  "link": {
+    "label": "Abrir enlace de fuente de {{title}}",
+    "hint": "Abre el DOI o la URL de la fuente"
+  },
+  "frameworks": {
+    "big_five": "Big Five",
+    "attachment": "Teoría del apego",
+    "sdt": "Autodeterminación",
+    "cbt": "CBT",
+    "erikson": "Etapas de Erikson",
+    "via": "Fortalezas VIA"
+  }
+}

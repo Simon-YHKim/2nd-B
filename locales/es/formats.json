@@ -1,0 +1,134 @@
+{
+  "hero": {
+    "eyebrow": "Formatos",
+    "title": "Mis formatos de captura",
+    "subtitle": "Formatos que creaste y los que la comunidad compartió",
+    "speech": "Ajusta un formato y las próximas piezas se archivan solas mejor."
+  },
+  "mine": {
+    "shared": "Compartido con la comunidad",
+    "private": "Solo para ti",
+    "heading": "Mis formatos",
+    "headingWithCount": "Mis formatos ({{count}})",
+    "emptyTitle": "Aún no hay formatos",
+    "emptyBody": "Guarda un formato sugerido por SecondB al capturar y aparecerá aquí."
+  },
+  "community": {
+    "heading": "Formatos de la comunidad",
+    "headingWithCount": "Formatos de la comunidad ({{count}})",
+    "empty": "Aún no hay formatos de la comunidad. Cuando alguien comparta uno, aparecerá aquí."
+  },
+  "builtIn": {
+    "headingWithCount": "Formatos integrados ({{count}})"
+  },
+  "labels": {
+    "untitled": "(sin título)",
+    "viewGuide": "ver guía de archivo",
+    "tapViewGuide": "Toca para ver la guía de archivo ›",
+    "guide": "Guía",
+    "share": "compartir",
+    "delete": "eliminar"
+  },
+  "actions": {
+    "addFormat": "Agregar formato",
+    "goCapture": "Ir a capturar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "close": "Cerrar"
+  },
+  "loading": {
+    "formats": "Cargando formatos…",
+    "generic": "Cargando…"
+  },
+  "error": {
+    "loadTitle": "No se pudieron cargar tus formatos",
+    "loadBody": "Revisa tu conexión e inténtalo de nuevo.",
+    "retry": "Intentar de nuevo"
+  },
+  "toast": {
+    "shareFailed": "No se pudo cambiar el estado de compartir.",
+    "deleteSuccess": "Formato eliminado.",
+    "deleteFailed": "No se pudo eliminar.",
+    "saveSuccess": "Formato guardado.",
+    "saveFailed": "No se pudo guardar.",
+    "addSuccess": "Formato agregado."
+  },
+  "deleteModal": {
+    "label": "Confirmación de eliminación de formato",
+    "title": "¿Eliminar este formato?",
+    "body": "Esta acción no se puede deshacer."
+  },
+  "guideModal": {
+    "label": "Ver guía de archivo",
+    "eyebrow": "Guía de archivo"
+  },
+  "editor": {
+    "eyebrow": "Editar formato",
+    "name": "Nombre",
+    "nameKoPlaceholder": "Nombre en coreano",
+    "nameEnPlaceholder": "Nombre en inglés",
+    "description": "Descripción",
+    "descriptionHint": "Una línea sobre qué es este formato",
+    "descriptionKoPlaceholder": "Línea en coreano",
+    "descriptionEnPlaceholder": "Línea en inglés",
+    "sourceType": "Tipo de fuente",
+    "sourceTypeHint": "Elige cómo se guardan las capturas que usan este formato.",
+    "filingArea": "Área de archivo",
+    "noArea": "Sin área aún",
+    "autoMatchLinks": "Coincidencia automática de enlaces",
+    "autoMatchLinksHint": "Los enlaces coincidentes se archivan con este formato automáticamente.",
+    "addLinkRule": "Agregar regla de enlace",
+    "defaultTags": "Hashtags predeterminados",
+    "addTag": "Agregar hashtag",
+    "savedFolder": "Carpeta guardada",
+    "savedFolderHint": "Nombre de carpeta opcional. Por ejemplo: herramientas/",
+    "detailsToSave": "Detalles a guardar",
+    "detailsToSaveHint": "Detalles a extraer y guardar de cada captura.",
+    "noneYet": "Ninguno aún",
+    "detailNamePlaceholder": "Nombre del detalle (p.ej. área temática)",
+    "removeDetail": "Quitar detalle",
+    "remove": "Quitar",
+    "addDetail": "Agregar detalle",
+    "fillKoPlaceholder": "Qué completar (coreano)",
+    "fillEnPlaceholder": "Qué completar (inglés)",
+    "removeValue": "Quitar {{value}}",
+    "saving": "Guardando",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "propTypes": {
+      "text": "Texto",
+      "multitext": "Largo",
+      "number": "Número"
+    }
+  },
+  "schemaView": {
+    "name": "Nombre",
+    "what": "Qué es",
+    "sourceType": "Tipo de fuente",
+    "filingArea": "Área de archivo",
+    "defaultTags": "Hashtags predeterminados",
+    "autoMatchLinks": "Coincidencia automática de enlaces",
+    "detailsSaved": "Detalles guardados de cada pieza",
+    "commonOnly": "Solo se guardan campos comunes como resumen, hashtags y relevancia.",
+    "propTypes": {
+      "text": "Texto",
+      "multitext": "Lista",
+      "number": "Número"
+    }
+  },
+  "add": {
+    "title": "Agregar un formato",
+    "body": "Describe el material y cómo lo archivarías. SecondB sugiere una guía de archivo reutilizable.",
+    "placeholder": "p.ej. Episodios de podcast - captura al invitado y las ideas clave",
+    "draft": "Crear borrador de guía de archivo con SecondB",
+    "drafting": "Creando borrador…",
+    "errorNeedDetail": "No se pudo crear el borrador. Agrega más detalle e inténtalo de nuevo.",
+    "errorDraft": "No pudimos crear el borrador de la guía. Inténtalo de nuevo en un momento.",
+    "errorSave": "No pudimos guardar el formato. Inténtalo de nuevo.",
+    "proposedEyebrow": "Formato propuesto",
+    "addThis": "Agregar este formato",
+    "redo": "Rehacer",
+    "cancel": "Cancelar"
+  }
+}

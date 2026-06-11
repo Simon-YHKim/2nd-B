@@ -1,0 +1,31 @@
+{
+  "loading": "Cargando herramientas de datos...",
+  "hero": {
+    "eyebrow": "08-1. Gestión de datos",
+    "title": "Mueve y gestiona tus registros",
+    "subtitle": "Importar · exportar · eliminar",
+    "speech": "Antes de eliminar algo importante, exporta una copia de seguridad primero."
+  },
+  "import": {
+    "eyebrow": "Importar",
+    "body": "Trae lo que otro asistente reunió sobre ti, o una prueba de personalidad o disposición pasada, organizado en tu estructura.",
+    "button": "Importar material externo",
+    "accessibilityHint": "Abre la pantalla de importación."
+  },
+  "export": {
+    "eyebrow": "Exportar",
+    "body": "Desde el almacén puedes reunir tus registros en un texto para copiar. Útil como copia de seguridad o para llevarte la información.",
+    "button": "Exportar desde el almacén",
+    "accessibilityHint": "Abre el almacén de conocimiento."
+  },
+  "delete": {
+    "eyebrow": "Eliminar",
+    "body": "Elimina un tipo de dato o todo a la vez. La eliminación no se puede deshacer, así que exporta primero.",
+    "button": "Abrir opciones de eliminación",
+    "accessibilityHint": "Abre las opciones de eliminación en Ajustes."
+  },
+  "device": {
+    "eyebrow": "En este dispositivo",
+    "body": "Elementos ligeros como preferencias de vista y pistas de primer uso viven solo en este dispositivo. A diferencia de tus registros guardados, se reinician solos cuando cambias de dispositivo o limpias los datos de la app."
+  }
+}

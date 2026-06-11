@@ -1,0 +1,51 @@
+{
+  "loading": "Preparando tu registro rápido.",
+  "toast": {
+    "saveFailed": "No se pudo guardar. Inténtalo de nuevo."
+  },
+  "hero": {
+    "eyebrow": "Registro rápido",
+    "title": "Una señal del momento",
+    "subtitle": "Sin notificaciones. Solo cuando lo abres.",
+    "speech": "Sin juicios. Solo una pequeña señal momentánea."
+  },
+  "card": {
+    "eyebrow": "15 segundos",
+    "title": "¿Qué tipo de señal encaja en este momento?"
+  },
+  "prompts": {
+    "changeHint": "Cambia el tipo de registro rápido.",
+    "context": {
+      "label": "Contexto",
+      "saveHint": "Guarda el registro rápido de contexto."
+    },
+    "energy": {
+      "label": "Energía",
+      "saveHint": "Guarda el registro rápido de energía."
+    }
+  },
+  "energy": {
+    "label": "Nivel de energía",
+    "question": "¿Cuánta energía tienes disponible ahora mismo?",
+    "optionLabel": "Energía {{value}} de 5"
+  },
+  "context": {
+    "question": "¿Qué hay alrededor de este momento?",
+    "tags": {
+      "alone": "Solo",
+      "with_people": "Con personas",
+      "work_study": "Trabajo/estudio",
+      "moving": "En movimiento",
+      "resting": "Descansando",
+      "outside": "Afuera"
+    }
+  },
+  "note": "Esto no es un juicio ni una etiqueta. Es una pequeña señal que afina tus patrones más adelante.",
+  "actions": {
+    "save": "Guardar registro",
+    "saving": "Guardando",
+    "backHome": "Volver al inicio",
+    "backHomeHint": "Regresa a la pantalla de inicio."
+  },
+  "saved": "Guardado. Se agregó una pequeña señal."
+}

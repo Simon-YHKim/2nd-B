@@ -99,9 +99,12 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   "src/lib/safety/lexicon.ts",
   "src/lib/safety/__tests__/**",
   // Government-mandated hotline labels (e.g. "자살예방상담전화"/"정신건강위기상담전화")
-  // must use their official names.
+  // must use their official names. Language packs ship safety.json as an EN
+  // copy (crisis copy is never machine-translated - O-R2 gate policy), so
+  // each shipped pack adds its path here in the same PR.
   "locales/en/safety.json",
   "locales/ko/safety.json",
+  "locales/es/safety.json",
   "docs/CONSTRAINTS.md",
   // VISION.md restates the vocabulary policy in a ❌/✅ table so future
   // contributors see it on first read — table entries must be verbatim.

@@ -1,0 +1,52 @@
+{
+  "loading": "Cargando hallazgos...",
+  "error": {
+    "title": "No se pudieron cargar los hallazgos",
+    "body": "La conexión se pausó un momento. Inténtalo de nuevo para recalcular el flujo de tus registros.",
+    "retry": "Intentar de nuevo"
+  },
+  "empty": {
+    "hero": {
+      "eyebrow": "11. Hallazgos",
+      "title": "Los patrones aún son pequeños",
+      "subtitle": "Unos días de registros revelarán el flujo",
+      "speech": "Necesito unas piezas más para ver gustos y repeticiones. ¿Dejas una hoy?",
+      "action": "Ir a capturar"
+    }
+  },
+  "hero": {
+    "eyebrow": "11. Hallazgos",
+    "title": "Ve el flujo en los registros recientes",
+    "subtitle": "Calculado directamente desde tus registros",
+    "speech": "Reuní los temas recurrentes y las conclusiones recientes. ¿Rastreamos el patrón?",
+    "action": "Dejar la pieza de hoy"
+  },
+  "stats": {
+    "total": {
+      "label": "Entradas totales",
+      "daySpan": "en {{count}} día{{plural}}"
+    },
+    "average": {
+      "label": "Longitud promedio",
+      "unit": "caracteres/entrada"
+    }
+  },
+  "weeklyReport": {
+    "eyebrow": "Informe semanal",
+    "thisWeekLabel": "Esta semana",
+    "lastWeekLabel": "La semana pasada",
+    "deltaUp": "{{count}} más que la semana pasada",
+    "deltaDown": "{{count}} menos que la semana pasada",
+    "deltaFlat": "El mismo ritmo que la semana pasada",
+    "firstWeek": "Tu primera semana de registros"
+  },
+  "sections": {
+    "weekly": "Actividad semanal",
+    "topics": "Temas recurrentes",
+    "tags": "Etiquetas principales",
+    "conclusions": "Conclusiones recientes"
+  },
+  "topics": {
+    "count": "{{count}}x"
+  }
+}

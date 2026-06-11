@@ -1,0 +1,65 @@
+{
+  "hero": {
+    "eyebrow": "Permisos",
+    "title": "Solo lo necesario",
+    "subtitle": "Red · portapapeles · acceso opcional a fotos",
+    "speech": "Los permisos se solicitan solo cuando son útiles, y los opcionales pueden rechazarse."
+  },
+  "status": {
+    "inUse": "En uso",
+    "optional": "Opcional",
+    "planned": "Planificado",
+    "notUsed": "No usado"
+  },
+  "platform": {
+    "label": "Plataforma:",
+    "both": "Web + Nativa",
+    "web": "Web",
+    "native": "Nativa",
+    "none": "N/A"
+  },
+  "entries": {
+    "network": {
+      "name": "Acceso a la red",
+      "why": "Necesario para iniciar sesión, guardar tus registros y recibir respuestas de SecondB. HTTPS estándar."
+    },
+    "clipboard": {
+      "name": "Portapapeles",
+      "why": "Solo se usa cuando tocas Copiar en exportar o acciones de mensaje. 2nd-Brain nunca lee tu portapapeles en segundo plano."
+    },
+    "calendar": {
+      "name": "Calendario",
+      "why": "Una futura función de recordatorios podría ofrecer acceso opcional al calendario. Hoy no se solicita, y preguntaría primero."
+    },
+    "cameraPhoto": {
+      "name": "Cámara / Biblioteca de fotos",
+      "why": "Opcional, solo para capturar texto desde imágenes. Se solicita cuando eliges una acción de foto; si rechazas, el resto de la app sigue funcionando."
+    },
+    "microphone": {
+      "name": "Micrófono",
+      "why": "No se solicita. La captura de voz y audio no está en el alcance actual del producto."
+    },
+    "location": {
+      "name": "Ubicación",
+      "why": "No se solicita. La app no tiene funciones basadas en ubicación."
+    },
+    "contactsSms": {
+      "name": "Contactos / SMS",
+      "why": "No se solicita. La app no tiene funciones de importación de contactos, SMS ni mensajería."
+    }
+  },
+  "principles": {
+    "title": "Principios",
+    "items": [
+      "Superficie mínima: cada nueva función se revisa por su impacto en permisos.",
+      "Sin presión al rechazar: los permisos opcionales se pueden denegar sin romper el resto de la app.",
+      "Solo al tocar: el portapapeles y las fotos se activan desde acciones visibles del usuario.",
+      "Explicar el porqué: cada solicitud de permiso debe tener una razón breve.",
+      "Tus datos, tuyos: cada cuenta puede acceder solo a sus propios registros, y la exportación siempre está disponible."
+    ]
+  },
+  "manual": {
+    "button": "Abrir el manual",
+    "accessibilityHint": "Abre el manual desde la pantalla de permisos."
+  }
+}
