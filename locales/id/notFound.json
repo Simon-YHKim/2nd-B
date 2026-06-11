@@ -1,0 +1,31 @@
+{
+  "hero": {
+    "eyebrow": "404",
+    "title": "Halaman ini tidak ada",
+    "subtitle": "Mulai lagi dari layar beranda.",
+    "speech": "Tautan tampaknya rusak. Pilih tempat yang aman untuk melanjutkan."
+  },
+  "actions": {
+    "home": "Ke beranda",
+    "homeHint": "Membuka layar beranda."
+  },
+  "destinations": {
+    "title": "Tujuan umum",
+    "capture": {
+      "label": "Tangkap",
+      "hint": "Membuka tangkapan dari halaman tidak ditemukan."
+    },
+    "audit": {
+      "label": "Aku masa lalu",
+      "hint": "Membuka linimasa masa lalu."
+    },
+    "persona": {
+      "label": "Persona",
+      "hint": "Membuka layar persona."
+    },
+    "manual": {
+      "label": "Manual",
+      "hint": "Membuka manual aplikasi dari halaman tidak ditemukan."
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "loading": {
+    "auth": "Memuat...",
+    "record": "Memuat catatan ini..."
+  },
+  "state": {
+    "missingTitle": "Kepingan tidak ditemukan",
+    "errorTitle": "Gagal memuat kepingan ini"
+  },
+  "body": {
+    "sourceEmpty": "Sebuah sumber yang ditangkap. Buka layarnya di bawah untuk melihat isi lengkapnya.",
+    "noText": "Kepingan ini tidak memiliki teks isi."
+  },
+  "actions": {
+    "backToRecords": "Kembali ke catatan",
+    "seeGraph": "Lihat di graf",
+    "askSecondB": "Tanya SecondB",
+    "openSource": "Buka layarnya"
+  }
+}

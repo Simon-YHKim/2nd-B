@@ -1,0 +1,25 @@
+{
+  "title": "Wiki",
+  "subtitle": "Graf pengetahuanmu. Ketuk halaman untuk membacanya dan melihat apa yang tertaut balik.",
+  "hero": {
+    "eyebrow": "04. Penyimpanan pengetahuan",
+    "title": "Kepingan tersimpan menjadi perpustakaan",
+    "subtitle": "Temukan kepingan yang kamu simpan ke SecondB",
+    "speech": "Saya menjaga kepingan tetap teratur. Tambahkan yang baru atau tanya SecondB."
+  },
+  "capture": "Tambah tangkapan",
+  "export": "Buat ekspor",
+  "exportActionTitle": "Bawa pengetahuanmu bersamamu",
+  "exportActionBody": "Buat bundel siap salin dari halaman dan sumber-sumbermu.",
+  "exportActionExample": "Gunakan untuk cadangan, tinjauan, atau melanjutkan di alat tulis atau penelitian lain.",
+  "exportActionHint": "Membuat pratinjau siap salin dari penyimpanan pengetahuanmu.",
+  "back": "Kembali ke jurnal",
+  "filterByTag": "Filter berdasarkan tag",
+  "clear": "Hapus",
+  "empty": "Belum ada halaman. Tambahkan tangkapan dan buat halamannya dari kotak masuk.",
+  "emptyForTags": "Tidak ada halaman yang cocok dengan tag ini.",
+  "emptyBody": "(belum ada isi)",
+  "backlinks": "Backlink",
+  "exportTitle": "Bundel pengetahuan siap salin",
+  "exportHelper": "Salin bundel untuk cadangan, tinjauan, atau alat tulis atau penelitian lain. Tekan lama teks jika salin ke papan klip tidak tersedia."
+}

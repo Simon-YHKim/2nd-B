@@ -1,0 +1,79 @@
+{
+  "loading": "Membuka rutinitasmu…",
+  "hero": {
+    "title": "Rutinitas",
+    "subtitle": "Pilih satu area. Dapatkan beberapa langkah konkret berikutnya."
+  },
+  "groups": {
+    "body": "Tubuh",
+    "learning": "Belajar",
+    "worklife": "Kerja & keuangan",
+    "living": "Sehari-hari",
+    "creative": "Kreatif"
+  },
+  "domains": {
+    "exercise_routine": "Rutinitas olahraga",
+    "exercise_ideas": "Ide olahraga",
+    "health_routine": "Rutinitas kesehatan",
+    "weekly_meals": "Rencana makan mingguan",
+    "simple_meals": "Ide makan sederhana",
+    "reading_list": "Daftar baca dan belajar",
+    "learning_goals": "Tujuan belajar",
+    "language_practice": "Latihan bahasa",
+    "career_check": "Cek pertumbuhan karier",
+    "money_check": "Cek keuangan",
+    "daily_focus": "Rencana fokus harian",
+    "home_reset": "Checklist bersih-bersih rumah",
+    "news_digest": "Ringkasan berita cepat",
+    "side_project": "Proyek sampingan kreatif"
+  },
+  "picker": {
+    "groupHint": "Menampilkan area dalam grup ini.",
+    "domainHint": "Membuat saran untuk area ini.",
+    "optionA11yLabel": "{{label}}, opsi {{index}} dari {{total}}, {{state}}.",
+    "stateSelected": "dipilih",
+    "stateAvailable": "tersedia"
+  },
+  "recommend": {
+    "cta": "Sarankan langkah berikutnya",
+    "ctaHint": "Membaca kepingan tersimpanmu dan menyusun beberapa saran.",
+    "working": "Menyiapkan saran…",
+    "empty": "Tidak ada yang berguna dikembalikan. Coba lagi, atau pilih area lain.",
+    "error": "Proses saran tidak selesai. Kepinganmu aman. Coba lagi.",
+    "limit": "Saran gratis hari ini habis. Akan direset besok.",
+    "disclaimerBody": "Ide dan rencana, bukan saran profesional."
+  },
+  "card": {
+    "durationLabel": "{{minutes}} mnt",
+    "daily": "Setiap hari",
+    "weekly": "Setiap minggu",
+    "addDevice": "Kalenderku",
+    "addDeviceHint": "Membuka formulir kalender perangkatmu dengan item ini terisi.",
+    "addGoogle": "Google Calendar",
+    "addGoogleHint": "Membuka Google Calendar dengan acara ini terisi.",
+    "downloadIcs": "File kalender",
+    "downloadIcsHint": "Mengunduh file .ics yang terbuka di aplikasi kalendermu.",
+    "shareList": "Kirim checklist",
+    "shareListHint": "Membuka lembar berbagi dengan checklist ini sebagai teks.",
+    "remind": "Ingatkan saya",
+    "remindHint": "Menjadwalkan pengingat di perangkat ini pada waktu item ini."
+  },
+  "consent": {
+    "title": "Kirim item ke aplikasimu?",
+    "body": "Item yang disetujui dikirim ke kalender atau lembar berbagi. Ditanya sekali: tetap izinkan mulai sekarang, dan matikan kapan saja di Privasi.",
+    "agree": "Izinkan dan lanjutkan",
+    "agreeHint": "Menyimpan pilihan dan melakukan pengiriman ini.",
+    "later": "Nanti saja",
+    "laterHint": "Menutup tanpa mengirim. Item tetap ada di layar ini."
+  },
+  "states": {
+    "emptyDomain": "Pilih area di atas untuk memulai."
+  },
+  "push": {
+    "savedNote": "Dikirim ke kalendermu.",
+    "deniedNote": "Izin kalender nonaktif. Izinkan di pengaturan perangkatmu untuk menggunakannya.",
+    "reminderSetNote": "Pengingat diatur di perangkat ini.",
+    "reminderDeniedNote": "Izin notifikasi nonaktif. Izinkan di pengaturan perangkatmu untuk menggunakan pengingat.",
+    "reminderFailedNote": "Pengingat tidak bisa diatur. Periksa waktu item dan coba lagi."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "title": "SecondB",
+  "subtitle": "Wiki-mu, siap pakai. Tanya apa saja - saya akan kutip halaman yang saya gunakan.",
+  "empty": "Mulai percakapan. Coba: \"Pola apa yang muncul di tangkapan bulan ini?\"",
+  "placeholder": "Tanya SecondB...",
+  "inputA11y": "Tanya SecondB",
+  "send": "Kirim",
+  "clearChat": "Hapus",
+  "clearChatA11y": "Hapus obrolan",
+  "clearChatHint": "Menghapus percakapan saat ini.",
+  "viewPlans": "Lihat paket",
+  "viewPlansHint": "Membuka layar paket.",
+  "intro_title": "Hai, saya SecondB",
+  "intro_body": "Saya menjawab menggunakan halaman wiki-mu sendiri. Balasan saya menampilkan nama halaman yang saya gunakan agar kamu bisa melacak jawabannya. Pertanyaan meta seperti 'pola apa yang berulang bulan ini?' adalah keahlian saya.",
+  "reference_piece_meta": "kepingan yang dirujuk",
+  "intro_ok": "Mengerti",
+  "intro_mute": "Jangan tampilkan lagi hari ini"
+}

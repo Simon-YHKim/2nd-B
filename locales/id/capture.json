@@ -1,0 +1,244 @@
+{
+  "submit": "Simpan kepingan",
+  "submitting": "Menyimpan...",
+  "savedTitleFallback": "Kepingan hari ini",
+  "loading": "Memuat tangkapan...",
+  "hero": {
+    "eyebrow": "01. Tangkapan",
+    "title": "Simpan catatan atau sumber",
+    "subtitle": "Jurnal · catatan · tautan · foto · file",
+    "speechSaved": "Tersimpan. Kamu bisa melihatnya di graf.",
+    "speechSavedOcr": "Catatan foto kamu tersimpan. Ini kepingan pribadi di grafmu.",
+    "speechSavedRecords": "Tersimpan. Kamu bisa menemukannya di catatanmu.",
+    "speechIdle": "Tulis singkat atau pilih sumber. Kami akan mengaturnya agar mudah ditemukan nanti."
+  },
+  "sections": {
+    "manageFormats": {
+      "accessibilityLabel": "Kelola format saya",
+      "link": "Kelola format saya"
+    },
+    "track": {
+      "eyebrow": "Wiki mana?",
+      "accessibilityLabel": "Pilihan wiki"
+    },
+    "mode": {
+      "accessibilityLabel": "Mode tangkapan",
+      "more": "Lainnya",
+      "moreHint": "Menampilkan opsi catatan, tautan, foto, dan file.",
+      "less": "Lebih sedikit",
+      "lessHint": "Menyembunyikan opsi tangkapan tambahan dan kembali ke Jurnal jika diperlukan."
+    }
+  },
+  "tracks": {
+    "daily": {
+      "label": "Wiki Harian"
+    },
+    "pro": {
+      "label": "Wiki Pro"
+    }
+  },
+  "modes": {
+    "journal": {
+      "label": "Jurnal",
+      "help": "Tulis refleksi hari ini. Tersimpan ke catatanmu, dengan refleksi SecondB opsional."
+    },
+    "memo": {
+      "label": "Catatan",
+      "help": "Tulis catatan singkat. Tagar dan pengarsipan ditambahkan otomatis saat kamu menyimpan."
+    },
+    "linkclip": {
+      "label": "Tautan",
+      "help": "Tempel URL atau teks artikel tersimpan. Kami akan mengenali jenis sumbernya."
+    },
+    "ocr": {
+      "label": "Foto",
+      "help": "Pilih foto atau gunakan kamera. Kami akan membaca teks dari gambar."
+    },
+    "file": {
+      "label": "File",
+      "help": "Pilih file PDF, DOCX, atau teks. Kami menyimpan teks yang bisa dibaca."
+    }
+  },
+  "formatSaved": {
+    "personal": "Tersimpan sebagai format pribadimu.",
+    "shared": "Format baru tersimpan dan dibagikan ke formatmu."
+  },
+  "firstRun": {
+    "hint": "Satu kalimat sudah cukup. Kamu bisa menambah lebih banyak nanti."
+  },
+  "saved": {
+    "title": "Lumen menyimpan kepingan baru",
+    "ocrTitle": "Catatan foto kamu tersimpan",
+    "ocrBody": "Kepingan pribadi di grafmu.",
+    "seeGraph": "Lihat graf",
+    "seeOcrGraph": "Lihat di graf",
+    "seeGraphHint": "Membuka graf dan menandai kepingan ini.",
+    "seeOcrGraphHint": "Membuka graf dan menandai catatan foto ini.",
+    "seeRecords": "Lihat catatanku",
+    "seeRecordsHint": "Membuka catatanmu agar kamu bisa menemukan entri ini lagi.",
+    "captureMore": "Tangkap lagi",
+    "storagePending": "Tersimpan, tapi salinan file cadangan belum terunggah kali ini. Teksmu aman tersimpan."
+  },
+  "proposal": {
+    "heading": "Format yang disarankan",
+    "baseKind": "Berdasarkan: {{kind}}",
+    "saveMine": "Simpan sebagai milikku",
+    "saveShare": "Simpan dan bagikan",
+    "dismissLabel": "Abaikan format yang disarankan",
+    "notNow": "Nanti saja",
+    "prompt": "Tidak ada format tersimpan yang cocok. Mau SecondB menyarankan satu?",
+    "drafting": "Menyarankan...",
+    "action": "Sarankan format"
+  },
+  "journal": {
+    "locked": {
+      "title": "Jurnal terkunci",
+      "body": "Capai Lv{{level}} untuk membuka jurnal.",
+      "status": "Lv{{current}} saat ini / Lv{{required}} diperlukan",
+      "start": "Mulai orientasi"
+    },
+    "limit": {
+      "title": "Entri jurnal gratis habis",
+      "body": "Kamu sudah menulis semua {{limit}} entri jurnal gratis. Semua yang telah kamu tulis tetap ada dan bisa dibaca kapan saja.",
+      "helper": "Tangkapan catatan, tautan, file, dan foto tetap terbuka tanpa batas."
+    },
+    "streak": {
+      "label": "Streak {{count}} hari{{suffix}}",
+      "missingToday": " (belum ada hari ini)"
+    },
+    "prompt": {
+      "heading": "Topik refleksi hari ini",
+      "useAsTopicLabel": "Gunakan topik hari ini",
+      "useAsTopicAction": "Gunakan sebagai topik"
+    },
+    "fields": {
+      "topicPlaceholder": "Topik (opsional): satu baris",
+      "bodyPlaceholder": "Apa yang ada di pikiranmu hari ini? Satu kalimat sudah cukup."
+    },
+    "conclusion": {
+      "toggleLabel": "Tampilkan atau sembunyikan kolom kesimpulan",
+      "show": "Tambah kesimpulan satu baris (opsional)",
+      "hide": "Sembunyikan kolom kesimpulan",
+      "placeholder": "Kesimpulan: pelajaran hari ini"
+    },
+    "advisor": {
+      "label": "Tanya SecondB soal entri ini",
+      "helper": "Mati secara default. Nyalakan hanya saat kamu ingin mendapat refleksi balik.",
+      "lockedLabel": "Tanya SecondB soal entri ini (Brain)",
+      "lockedHelper": "Refleksi atas entri terbuka dengan paket Brain. Ketuk untuk lihat paket.",
+      "lockedHint": "Membuka layar paket."
+    }
+  },
+  "linkClip": {
+    "label": "Tautan atau artikel tersimpan",
+    "placeholder": "https://... atau tempel teks artikel",
+    "savedAsClip": "Tersimpan sebagai teks artikel",
+    "detected": "Tautan terdeteksi: {{kind}}",
+    "pasteOffer": "Tempel yang kamu salin",
+    "pasteOfferHint": "Mengisi kotak dengan konten terakhir yang kamu salin. Dibaca hanya saat kamu mengetuk.",
+    "pasteOfferEmpty": "Tidak ada yang bisa ditempel."
+  },
+  "inputs": {
+    "extractedLabel": "Teks yang diekstrak (bisa diedit)",
+    "bodyLabel": "Isi",
+    "imagePlaceholder": "Pilih gambar untuk menempatkan teks yang diekstrak di sini.",
+    "memoPlaceholder": "Tulis atau tempel bebas..."
+  },
+  "ocrReview": {
+    "heading": "Tinjau sebelum menyimpan",
+    "disclosure": "Foto ini dikirim ke layanan pembaca teks hanya untuk membaca teksnya. 2nd-B tidak menyimpan gambar atau menggunakannya untuk melatih apa pun.",
+    "privateAfterApprove": "Setelah kamu setujui, hanya teks yang bisa diedit yang disimpan sebagai catatan pribadimu.",
+    "body": "Edit teks yang diekstrak, lalu setujui sebelum menyimpan.",
+    "approve": "Setujui teks yang diekstrak",
+    "approved": "Teks yang diekstrak disetujui untuk disimpan.",
+    "approveHint": "Mengaktifkan penyimpanan teks yang diekstrak ini.",
+    "submitHint": "Tinjau dan setujui teks yang diekstrak sebelum menyimpan."
+  },
+  "image": {
+    "camera": "Kamera",
+    "library": "Galeri",
+    "preview": "Pratinjau",
+    "extract": "Ekstrak teks"
+  },
+  "file": {
+    "pick": "Pilih file",
+    "selected": "File dipilih",
+    "textExtracted": "Teks diekstrak: dimasukkan ke isi",
+    "attachedNoPreview": "File terlampir. Pratinjau teks tidak tersedia."
+  },
+  "tags": {
+    "title": "Tagar",
+    "removeLabel": "Hapus tagar {{tag}}",
+    "emptyHelper": "Biarkan kosong dan SecondB akan menandainya saat disimpan, atau tambah sendiri dengan +.",
+    "removeHelper": "Ketuk tagar untuk menghapus.",
+    "addLabel": "Tambah tagar",
+    "placeholder": "tagar"
+  },
+  "feedback": {
+    "accessibilityLabel": "Pemberitahuan umpan balik tangkapan",
+    "dismissHint": "Menutup pemberitahuan ini.",
+    "retryHint": "Mencoba ulang tindakan tangkapan yang gagal."
+  },
+  "alerts": {
+    "common": {
+      "retry": "Coba lagi",
+      "dismiss": "Tutup"
+    },
+    "imageOpen": {
+      "title": "Tidak bisa membuka gambar itu",
+      "message": "Kami tidak bisa mengambil gambar itu. Coba lagi sebentar lagi."
+    },
+    "cameraPermission": {
+      "title": "Izin kamera nonaktif",
+      "message": "Izinkan akses kamera di pengaturan perangkatmu, atau pilih gambar dari galeri."
+    },
+    "ocrEmptyResult": {
+      "title": "Teks tidak ditemukan",
+      "message": "Kami tidak menemukan teks yang bisa dibaca di gambar ini. Coba foto lebih dekat dengan pencahayaan baik."
+    },
+    "ocrRead": {
+      "title": "Tidak bisa membaca teks",
+      "message": "Kami tidak bisa membaca teks dari gambar itu. Coba lagi dengan foto yang lebih jelas."
+    },
+    "ocrTooLarge": {
+      "title": "Gambar terlalu besar",
+      "message": "Foto ini terlalu besar untuk dibaca dengan aman. Pilih gambar lebih kecil atau crop, lalu coba lagi."
+    },
+    "ocrUnsupportedType": {
+      "title": "Jenis gambar tidak didukung",
+      "message": "Pilih gambar JPG, PNG, WEBP, HEIC, atau HEIF, lalu coba lagi."
+    },
+    "ocrMissingData": {
+      "title": "Data gambar hilang",
+      "message": "Kami tidak bisa membaca file gambar ini dari pemilih. Pilih lagi atau coba gambar lain."
+    },
+    "ocrInvalidData": {
+      "title": "Data gambar rusak",
+      "message": "Data gambar ini tidak bisa dibaca. Pilih gambar lagi atau gunakan file lain."
+    },
+    "fileOpen": {
+      "title": "Tidak bisa membuka file itu",
+      "message": "Kami tidak bisa membuka file itu. Pilih yang lain atau coba lagi sebentar lagi."
+    },
+    "journalSave": {
+      "title": "Tidak bisa menyimpan entri",
+      "message": "Kami tidak bisa menyimpan kepingan hari ini. Yang kamu tulis masih ada. Coba lagi."
+    },
+    "pieceSave": {
+      "title": "Tidak bisa menyimpan kepinganmu",
+      "message": "Kami belum bisa menyimpannya. Yang kamu masukkan masih ada. Coba lagi."
+    },
+    "proposeEmpty": {
+      "title": "Tidak ada format untuk disarankan",
+      "message": "Tidak bisa membuat format baru untuk yang ini."
+    },
+    "proposeFailed": {
+      "title": "Tidak bisa membuat format",
+      "message": "Kami tidak bisa membuat format baru sekarang. Coba lagi sebentar lagi."
+    },
+    "formatSave": {
+      "title": "Tidak bisa menyimpan format",
+      "message": "Kami tidak bisa menyimpan format baru. Proposalmu masih ada. Coba lagi."
+    }
+  }
+}

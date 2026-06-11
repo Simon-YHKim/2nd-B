@@ -1,0 +1,31 @@
+{
+  "loading": "Memuat alat data...",
+  "hero": {
+    "eyebrow": "08-1. Manajemen data",
+    "title": "Pindahkan dan kelola catatanmu",
+    "subtitle": "Impor · ekspor · hapus",
+    "speech": "Sebelum menghapus sesuatu yang penting, ekspor cadangan dulu."
+  },
+  "import": {
+    "eyebrow": "Impor",
+    "body": "Masukkan apa yang dikumpulkan asisten lain tentang kamu, atau tes watak/kepribadian masa lalu, yang sudah diurutkan ke dalam strukturmu.",
+    "button": "Impor materi eksternal",
+    "accessibilityHint": "Membuka layar impor."
+  },
+  "export": {
+    "eyebrow": "Ekspor",
+    "body": "Dari penyimpanan kamu bisa mengumpulkan catatanmu menjadi satu teks untuk disalin. Berguna untuk cadangan atau pindah ke tempat lain.",
+    "button": "Ekspor dari penyimpanan",
+    "accessibilityHint": "Membuka penyimpanan pengetahuan."
+  },
+  "delete": {
+    "eyebrow": "Hapus",
+    "body": "Hapus satu jenis, atau semuanya sekaligus. Penghapusan tidak bisa dibatalkan, jadi ekspor dulu.",
+    "button": "Buka opsi hapus",
+    "accessibilityHint": "Membuka opsi hapus di Pengaturan."
+  },
+  "device": {
+    "eyebrow": "Di perangkat ini",
+    "body": "Bit ringan seperti preferensi tampilan dan petunjuk pertama kali hanya ada di perangkat ini. Tidak seperti catatan tersimpanmu, mereka diatur ulang sendiri saat kamu ganti perangkat atau hapus data aplikasi."
+  }
+}

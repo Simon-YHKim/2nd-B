@@ -1,0 +1,70 @@
+{
+  "ads": {
+    "label": "Bersponsor",
+    "removeUpsell": "Lebih suka tanpa iklan? Langganan menghilangkannya."
+  },
+  "app": {
+    "name": "2nd-Brain",
+    "tagline": "Otak kedua yang dibangun dari apa yang kamu tulis dan simpan."
+  },
+  "actions": {
+    "continue": "Lanjutkan",
+    "back": "Kembali",
+    "cancel": "Batal",
+    "close": "Tutup",
+    "retry": "Coba lagi",
+    "save": "Simpan",
+    "delete": "Hapus",
+    "signOut": "Keluar"
+  },
+  "states": {
+    "loading": "Memuat…"
+  },
+  "journal": {
+    "privacyFootnote": "Entri jurnalmu dienkripsi dan tidak pernah melatih model apa pun.",
+    "relativeJustNow": "baru saja",
+    "relativeMinutes": "{{n}} mnt lalu",
+    "relativeHours": "{{n}} jam lalu",
+    "relativeYesterday": "kemarin"
+  },
+  "errors": {
+    "unknown": "Terjadi kesalahan. Coba lagi.",
+    "network": "Kami tidak bisa menjangkau server. Periksa koneksimu."
+  },
+  "locale": {
+    "en": "English",
+    "ko": "한국어"
+  },
+  "worldview": {
+    "soulCore": "Soul Core",
+    "growthCore": "Growth Core",
+    "bondCore": "Bond Core",
+    "wisdomCore": "Wisdom Core",
+    "narrativeCore": "Narrative Core",
+    "museCore": "Muse Core",
+    "patternCore": "Pattern Core",
+    "patternData": "Pattern Data",
+    "log": "Log",
+    "patternLink": "Pattern Link"
+  },
+  "navGraph": {
+    "drilldown": {
+      "back": "Kembali ke konstelasi",
+      "backHint": "Kembali dari drilldown Pattern Core ke konstelasi penuh.",
+      "coreEyebrow": "Pattern Core",
+      "dataEyebrow": "Pattern Data",
+      "touch": "Sentuh!",
+      "coreIntro": {
+        "work": "Ini adalah Growth Core. Kepingan karier dan pertumbuhanmu berkumpul di sini.",
+        "relation": "Ini adalah Bond Core. Kenangan, janji, dan percakapan berkumpul di sini.",
+        "knowledge": "Ini adalah Wisdom Core. Kepingan yang dipelajari dan dipahami berkumpul di sini.",
+        "records": "Ini adalah Narrative Core. Kepingan yang disimpan berkumpul di sini agar mudah ditemukan lagi.",
+        "taste": "Ini adalah Muse Core. Kepingan selera dan inspirasi berkumpul di sini."
+      },
+      "dataFallback": "Node Pattern Data dari {{core}}.",
+      "noDataTitle": "Belum ada Pattern Data",
+      "noDataBody": "Tinggalkan kepingan dan Pattern Core ini akan menumbuhkan node kepingan salju.",
+      "dataDetailHint": "Membuka detail Pattern Data yang dipilih."
+    }
+  }
+}

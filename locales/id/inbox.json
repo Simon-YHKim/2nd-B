@@ -1,0 +1,17 @@
+{
+  "title": "Kotak Masuk",
+  "subtitle": "Semua yang kamu tangkap. Ketuk untuk pratinjau.",
+  "captureMore": "Tangkap lagi",
+  "back": "Kembali ke jurnal",
+  "empty": "Belum ada yang ditangkap. Ketuk Tangkap untuk menambah yang pertama.",
+  "error": "Tidak bisa memuat tangkapanmu:",
+  "ingested": "Telah diproses",
+  "feedback": {
+    "noticeLabel": "Pemberitahuan umpan balik kotak masuk",
+    "confirmLabel": "Konfirmasi tindakan kotak masuk",
+    "cancel": "Batal",
+    "dismiss": "Tutup",
+    "dismissHint": "Menutup pemberitahuan ini.",
+    "confirmHint": "Menjalankan tindakan kotak masuk yang dipilih."
+  }
+}

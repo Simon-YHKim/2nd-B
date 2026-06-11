@@ -93,6 +93,29 @@ import ptSettings from "../../../locales/pt/settings.json";
 import ptSupport from "../../../locales/pt/support.json";
 import ptTheme from "../../../locales/pt/theme.json";
 import ptWiki from "../../../locales/pt/wiki.json";
+import idAuth from "../../../locales/id/auth.json";
+import idCapture from "../../../locales/id/capture.json";
+import idCommon from "../../../locales/id/common.json";
+import idConsent from "../../../locales/id/consent.json";
+import idData from "../../../locales/id/data.json";
+import idEsm from "../../../locales/id/esm.json";
+import idFormats from "../../../locales/id/formats.json";
+import idImport from "../../../locales/id/import.json";
+import idInsights from "../../../locales/id/insights.json";
+import idInbox from "../../../locales/id/inbox.json";
+import idSecondb from "../../../locales/id/secondb.json";
+import idPlans from "../../../locales/id/plans.json";
+import idOps from "../../../locales/id/ops.json";
+import idNotFound from "../../../locales/id/notFound.json";
+import idPermissions from "../../../locales/id/permissions.json";
+import idProfile from "../../../locales/id/profile.json";
+import idRecordDetail from "../../../locales/id/recordDetail.json";
+import idResearch from "../../../locales/id/research.json";
+import idSafety from "../../../locales/id/safety.json";
+import idSettings from "../../../locales/id/settings.json";
+import idSupport from "../../../locales/id/support.json";
+import idTheme from "../../../locales/id/theme.json";
+import idWiki from "../../../locales/id/wiki.json";
 import { detectLanguage, loadNativeLanguagePreference, saveLanguagePreference } from "./languageDetector";
 import { isAvailableUiLocale, type AvailableUiLocale } from "./locales";
 
@@ -112,6 +135,9 @@ export const resources = {
   // PT pack (O-R2 (2)-b, machine-translated + beta label). safety/consent are
   // EN copies by policy - localized only after human review.
   pt: { common: ptCommon, auth: ptAuth, safety: ptSafety, consent: ptConsent, capture: ptCapture, inbox: ptInbox, secondb: ptSecondb, plans: ptPlans, wiki: ptWiki, support: ptSupport, data: ptData, esm: ptEsm, formats: ptFormats, insights: ptInsights, research: ptResearch, recordDetail: ptRecordDetail, theme: ptTheme, import: ptImport, notFound: ptNotFound, ops: ptOps, profile: ptProfile, permissions: ptPermissions, settings: ptSettings },
+  // ID pack (O-R2 (2)-b, machine-translated + beta label). safety/consent are
+  // EN copies by policy - localized only after human review.
+  id: { common: idCommon, auth: idAuth, safety: idSafety, consent: idConsent, capture: idCapture, inbox: idInbox, secondb: idSecondb, plans: idPlans, wiki: idWiki, support: idSupport, data: idData, esm: idEsm, formats: idFormats, insights: idInsights, research: idResearch, recordDetail: idRecordDetail, theme: idTheme, import: idImport, notFound: idNotFound, ops: idOps, profile: idProfile, permissions: idPermissions, settings: idSettings },
 } as const satisfies Record<AvailableUiLocale, Record<Namespace, unknown>>;
 
 let initialized = false;

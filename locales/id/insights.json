@@ -1,0 +1,52 @@
+{
+  "loading": "Memuat wawasan...",
+  "error": {
+    "title": "Gagal memuat wawasan",
+    "body": "Koneksi terputus sejenak. Coba lagi untuk menghitung ulang alur catatanmu.",
+    "retry": "Coba lagi"
+  },
+  "empty": {
+    "hero": {
+      "eyebrow": "11. Wawasan",
+      "title": "Polanya masih sedikit",
+      "subtitle": "Beberapa hari catatan akan mengungkap alurnya",
+      "speech": "Saya butuh beberapa kepingan lagi untuk melihat selera dan pengulangan. Tambahkan satu hari ini?",
+      "action": "Pergi ke tangkapan"
+    }
+  },
+  "hero": {
+    "eyebrow": "11. Wawasan",
+    "title": "Lihat alur di catatan terbaru",
+    "subtitle": "Dihitung langsung dari catatan",
+    "speech": "Saya mengumpulkan topik berulang dan kesimpulan terbaru. Kita lacak polanya?",
+    "action": "Tambahkan kepingan hari ini"
+  },
+  "stats": {
+    "total": {
+      "label": "Total entri",
+      "daySpan": "selama {{count}} hari{{plural}}"
+    },
+    "average": {
+      "label": "Panjang rata-rata",
+      "unit": "karakter/entri"
+    }
+  },
+  "weeklyReport": {
+    "eyebrow": "Laporan mingguan",
+    "thisWeekLabel": "Minggu ini",
+    "lastWeekLabel": "Minggu lalu",
+    "deltaUp": "{{count}} lebih banyak dari minggu lalu",
+    "deltaDown": "{{count}} lebih sedikit dari minggu lalu",
+    "deltaFlat": "Kecepatan sama seperti minggu lalu",
+    "firstWeek": "Minggu pertama catatanmu"
+  },
+  "sections": {
+    "weekly": "Aktivitas mingguan",
+    "topics": "Topik berulang",
+    "tags": "Tag teratas",
+    "conclusions": "Kesimpulan terbaru"
+  },
+  "topics": {
+    "count": "{{count}}x"
+  }
+}

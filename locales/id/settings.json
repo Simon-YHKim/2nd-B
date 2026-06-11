@@ -1,0 +1,88 @@
+{
+  "loading": "Memuat pengaturan…",
+  "nav": {
+    "eyebrow": "Pengaturan",
+    "profile": "Profil",
+    "profileHint": "Membuka pengaturan profil.",
+    "privacy": "Privasi",
+    "privacyHint": "Membuka pengaturan privasi.",
+    "account": "Akun",
+    "accountHint": "Membuka pengaturan akun.",
+    "theme": "Tema",
+    "themeHint": "Membuka pengaturan tema.",
+    "data": "Manajemen data",
+    "dataHint": "Membuka manajemen data.",
+    "records": "Catatan",
+    "recordsHint": "Membuka catatan tersimpan.",
+    "support": "Dukungan",
+    "supportHint": "Membuka opsi dukungan."
+  },
+  "language": {
+    "body": "Pilih bahasa aplikasi. Bahasa baru muncul di sini setelah paketnya tersedia.",
+    "optionA11yLabel": "{{label}}, opsi {{index}} dari {{total}}, {{state}}.",
+    "stateSelected": "dipilih",
+    "stateAvailable": "tersedia",
+    "useLanguageHint": "Mengubah bahasa aplikasi ke {{label}}.",
+    "betaTag": "(beta)"
+  },
+  "actions": {
+    "signOutHint": "Keluar dan kembali ke layar masuk.",
+    "crewDensityHint": "Mengatur kepadatan kru graf dekoratif ke {{density}}.",
+    "deleteJournalsHint": "Membuka konfirmasi sebelum menghapus semua entri jurnal.",
+    "deleteNotesHint": "Membuka konfirmasi sebelum menghapus semua catatan.",
+    "deleteAuditHint": "Membuka konfirmasi sebelum menghapus semua respons audit.",
+    "deleteBfiHint": "Membuka konfirmasi sebelum menghapus hasil Big Five tersimpan.",
+    "deleteEcrHint": "Membuka konfirmasi sebelum menghapus hasil Attachment tersimpan.",
+    "deleteMbtiHint": "Membuka konfirmasi sebelum menghapus hasil referensi MBTI tersimpan.",
+    "deleteWikiHint": "Membuka konfirmasi sebelum menghapus semua halaman wiki.",
+    "deleteUningestedHint": "Membuka konfirmasi sebelum menghapus tangkapan yang belum dipromosikan ke wiki.",
+    "resetUsageHint": "Membuka konfirmasi sebelum mengatur ulang penghitung penggunaan harian.",
+    "fullWipeInputLabel": "Konfirmasi hapus penuh. Ketik {{phrase}} untuk mengaktifkan tombol hapus.",
+    "fullWipeHint": "Memerlukan konfirmasi DELETE yang diketik sebelum menghapus catatan, sumber, halaman wiki, dan penggunaan."
+  },
+  "dataWizard": {
+    "body": "Pilih satu area penghapusan sekaligus. Konten pribadi 2nd-B kamu dibagi menjadi catatan, asesmen, wiki/tangkapan, dan hapus penuh.",
+    "optionA11yLabel": "{{label}}, opsi {{index}} dari {{total}}, {{state}}.",
+    "stateSelected": "dipilih",
+    "stateAvailable": "belum dipilih",
+    "selectedHint": "Area penghapusan ini sudah dipilih. Tindakannya ditampilkan di bawah.",
+    "records": {
+      "label": "Catatan",
+      "hint": "Menampilkan tindakan hapus untuk jurnal, catatan, dan respons audit.",
+      "body": "Hapus satu jenis catatan pribadi sambil menjaga sisa graf dan wiki tetap utuh."
+    },
+    "assessments": {
+      "label": "Asesmen",
+      "hint": "Menampilkan tindakan hapus untuk hasil asesmen tersimpan.",
+      "body": "Hapus hasil referensi tersimpan tanpa menyentuh jurnal, tangkapan, atau halaman wiki."
+    },
+    "library": {
+      "label": "Wiki dan tangkapan",
+      "hint": "Menampilkan tindakan hapus untuk halaman wiki, tangkapan belum masuk, dan penghitung penggunaan.",
+      "body": "Bersihkan permukaan wiki dan tangkapan secara terpisah dari catatan pribadi dan referensi graf bersama."
+    },
+    "full": {
+      "label": "Hapus penuh",
+      "hint": "Menampilkan konfirmasi yang diketik untuk menghapus semua catatan, sumber, halaman wiki, dan penggunaan.",
+      "body": "Ini adalah jalur hapus konten yang tidak bisa dibatalkan. Ekspor dulu, lalu ketik DELETE hanya jika kamu yakin.",
+      "retained": "Ini menghapus konten pribadi 2nd-B di akun ini. Detail akun, riwayat persetujuan, dan catatan akuntabilitas layanan tetap ada."
+    }
+  },
+  "modals": {
+    "confirm": {
+      "label": "Dialog konfirmasi pengaturan",
+      "title": "Kamu yakin?",
+      "cancel": "Batal",
+      "cancelHint": "Menutup konfirmasi penghapusan ini.",
+      "delete": "Hapus",
+      "deleteHint": "Memulai tindakan penghapusan yang dipilih."
+    },
+    "feedback": {
+      "label": "Pemberitahuan masukan pengaturan",
+      "dismiss": "Tutup",
+      "dismissHint": "Menutup pemberitahuan ini.",
+      "retry": "Coba lagi",
+      "retryHint": "Mencoba ulang tindakan pengaturan yang gagal."
+    }
+  }
+}

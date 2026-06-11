@@ -1,0 +1,34 @@
+{
+  "loading": "Memuat dukungan...",
+  "hero": {
+    "eyebrow": "08-3. Dukungan",
+    "title": "Urai kepingan yang macet bersama",
+    "subtitle": "Waktu respons - kontak - bantuan",
+    "speech": "Kirimkan apa yang macet. Kami akan mulai dari konteksnya."
+  },
+  "response": {
+    "eyebrow": "Waktu respons",
+    "body": "Kami membalas pesan dalam 2 hari kerja (KST)."
+  },
+  "contact": {
+    "eyebrow": "Hubungi kami",
+    "button": "Kirim email",
+    "accessibilityLabel": "Email dukungan",
+    "accessibilityHint": "Membuka aplikasi email dengan alamat dukungan."
+  },
+  "faqLabel": "FAQ",
+  "faq": [
+    {
+      "question": "Bagaimana cara mulai menangkap?",
+      "answer": "Tulis apa yang terlintas di pikiran di layar tangkapan. 2nd-Brain membantu mengorganisirnya nanti."
+    },
+    {
+      "question": "Bagaimana data saya disimpan, dan bisakah saya mengekspornya?",
+      "answer": "Catatanmu hanya terhubung ke akunmu. Gunakan Ekspor di Pengaturan untuk mengunduh datamu sebagai file kapan saja."
+    },
+    {
+      "question": "Apakah AI-nya aman?",
+      "answer": "AI membantu mengorganisir dan menghubungkan catatanmu. Keputusan penting tetap ada di tanganmu."
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "hero": {
+    "eyebrow": "Izin",
+    "title": "Gunakan hanya yang diperlukan",
+    "subtitle": "Jaringan · clipboard · akses foto opsional",
+    "speech": "Izin diminta hanya saat diperlukan, dan yang opsional bisa ditolak."
+  },
+  "status": {
+    "inUse": "Digunakan",
+    "optional": "Opsional",
+    "planned": "Direncanakan",
+    "notUsed": "Tidak digunakan"
+  },
+  "platform": {
+    "label": "Platform:",
+    "both": "Web + Native",
+    "web": "Web",
+    "native": "Native",
+    "none": "N/A"
+  },
+  "entries": {
+    "network": {
+      "name": "Akses jaringan",
+      "why": "Diperlukan untuk masuk, menyimpan catatanmu, dan balasan SecondB. HTTPS standar."
+    },
+    "clipboard": {
+      "name": "Clipboard",
+      "why": "Digunakan hanya saat kamu mengetuk Salin di tindakan ekspor atau pesan. 2nd-Brain tidak pernah membaca clipboard-mu di latar belakang."
+    },
+    "calendar": {
+      "name": "Kalender",
+      "why": "Opsional, digunakan hanya oleh Rutinitas: saat kamu menyerahkan item yang disetujui ke kalender, OS meminta sekali dan formulir acara terbuka untuk kamu konfirmasi. Tolak dan semua fitur lain tetap berfungsi."
+    },
+    "notifications": {
+      "name": "Notifikasi",
+      "why": "Opsional, digunakan hanya untuk pengingat Rutinitas: menjadwalkan satu pengingat meminta OS sekali, dan setiap pengingat tetap di perangkat ini. Tolak dan semua fitur lain tetap berfungsi."
+    },
+    "cameraPhoto": {
+      "name": "Kamera / Perpustakaan foto",
+      "why": "Opsional, untuk tangkapan teks dari gambar saja. Diminta saat kamu memilih tindakan foto; tolak dan sisa aplikasi tetap berfungsi."
+    },
+    "microphone": {
+      "name": "Mikrofon",
+      "why": "Tidak diminta. Tangkapan suara dan audio tidak termasuk dalam cakupan produk saat ini."
+    },
+    "location": {
+      "name": "Lokasi",
+      "why": "Tidak diminta. Aplikasi tidak memiliki fitur berbasis lokasi."
+    },
+    "contactsSms": {
+      "name": "Kontak / SMS",
+      "why": "Tidak diminta. Aplikasi tidak memiliki fitur impor kontak, SMS, atau pesan."
+    }
+  },
+  "principles": {
+    "title": "Prinsip",
+    "items": [
+      "Permukaan minimal: setiap fitur baru ditinjau dampak izinnya.",
+      "Ramah penolakan: izin opsional bisa ditolak tanpa merusak fungsi lain.",
+      "Hanya saat diketuk: clipboard dan akses foto terjadi dari tindakan yang terlihat oleh pengguna.",
+      "Jelaskan alasannya: setiap permintaan izin harus disertai alasan singkat.",
+      "Datamu, milikmu: setiap akun hanya bisa mengakses catatannya sendiri, dan ekspor selalu tersedia."
+    ]
+  },
+  "manual": {
+    "button": "Buka manual",
+    "accessibilityHint": "Membuka manual dari layar izin."
+  }
+}
