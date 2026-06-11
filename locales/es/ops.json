@@ -47,6 +47,8 @@
     "durationLabel": "{{minutes}} min",
     "daily": "Cada día",
     "weekly": "Cada semana",
+    "addDevice": "Mi calendario",
+    "addDeviceHint": "Abre el formulario del calendario de tu dispositivo con este elemento prellenado.",
     "addGoogle": "Google Calendar",
     "addGoogleHint": "Abre Google Calendar con este evento prellenado.",
     "downloadIcs": "Archivo de calendario",
@@ -64,5 +66,9 @@
   },
   "states": {
     "emptyDomain": "Elige un área arriba para empezar."
+  },
+  "push": {
+    "savedNote": "Enviado a tu calendario.",
+    "deniedNote": "El permiso de calendario está apagado. Actívalo en los ajustes del dispositivo para usar esto."
   }
 }

@@ -47,6 +47,8 @@
     "durationLabel": "{{minutes}}분",
     "daily": "매일",
     "weekly": "매주",
+    "addDevice": "내 캘린더",
+    "addDeviceHint": "이 항목이 미리 채워진 기기 캘린더 작성 화면을 엽니다.",
     "addGoogle": "Google 캘린더",
     "addGoogleHint": "이 일정이 미리 채워진 Google 캘린더를 엽니다.",
     "downloadIcs": "캘린더 파일",
@@ -64,5 +66,9 @@
   },
   "states": {
     "emptyDomain": "위에서 영역을 골라 시작해요."
+  },
+  "push": {
+    "savedNote": "캘린더로 보냈어요.",
+    "deniedNote": "캘린더 권한이 꺼져 있어요. 기기 설정에서 허용하면 쓸 수 있어요."
   }
 }

@@ -47,6 +47,8 @@
     "durationLabel": "{{minutes}} min",
     "daily": "Every day",
     "weekly": "Every week",
+    "addDevice": "My calendar",
+    "addDeviceHint": "Opens your device calendar form with this item prefilled.",
     "addGoogle": "Google Calendar",
     "addGoogleHint": "Opens Google Calendar with this event prefilled.",
     "downloadIcs": "Calendar file",
@@ -64,5 +66,9 @@
   },
   "states": {
     "emptyDomain": "Pick an area above to get started."
+  },
+  "push": {
+    "savedNote": "Handed to your calendar.",
+    "deniedNote": "Calendar permission is off. Allow it in your device settings to use this."
   }
 }

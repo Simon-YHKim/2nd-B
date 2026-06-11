@@ -29,7 +29,7 @@
     },
     "calendar": {
       "name": "Calendario",
-      "why": "Una futura función de recordatorios podría ofrecer acceso opcional al calendario. Hoy no se solicita, y preguntaría primero."
+      "why": "Opcional, solo lo usa Rutinas: al enviar un elemento aprobado a tu calendario, el sistema pregunta una vez y se abre el formulario del evento para que confirmes. Si lo niegas, todo lo demás sigue funcionando."
     },
     "cameraPhoto": {
       "name": "Cámara / Biblioteca de fotos",
