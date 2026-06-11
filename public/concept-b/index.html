@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>2ndB · Concept B — 나라는 자산</title>
+<meta name="description" content="2nd-Brain UI/UX 컨셉 B — 매일의 축적 루프를 중심에 둔 대안 디자인 프로토타입">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F3EC;
+  --surface:#FFFFFF;
+  --ink:#22211D;
+  --sub:#75705F;
+  --faint:#A8A293;
+  --line:#E6E1D4;
+  --accent:#5B4FC9;        /* SecondB violet-ink */
+  --accent-soft:#EEECFA;
+  --divergent:#8A4FB6;
+  --divergent-soft:#F4ECFA;
+  --growth:#3E6B8C;  --growth-soft:#E8EFF4;
+  --bond:#C26D4B;    --bond-soft:#F8EDE7;
+  --wisdom:#5E7D4F;  --wisdom-soft:#ECF1E8;
+  --muse:#8C5B7C;    --muse-soft:#F4ECF1;
+  --narrative:#8A7B5C; --narrative-soft:#F2EFE7;
+  --serif:'Noto Serif KR',serif;
+  --sans:'Noto Sans KR',sans-serif;
+  --radius:14px;
+  --shadow:0 1px 3px rgba(34,33,29,.06),0 8px 24px rgba(34,33,29,.07);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:#EDE9DF;
+  font-family:var(--sans);
+  color:var(--ink);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+#frame{
+  max-width:520px;margin:0 auto;min-height:100dvh;
+  background:var(--bg);
+  display:flex;flex-direction:column;
+  position:relative;
+  box-shadow:0 0 60px rgba(34,33,29,.12);
+}
+/* ---------- top bar ---------- */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 22px 10px;
+  position:sticky;top:0;z-index:20;
+  background:linear-gradient(var(--bg) 75%,rgba(246,243,236,0));
+}
+.topbar .brand{font-family:var(--serif);font-weight:700;font-size:17px;letter-spacing:.02em}
+.topbar .brand small{font-family:var(--sans);font-weight:500;font-size:11px;color:var(--faint);margin-left:8px;vertical-align:2px}
+.iconbtn{
+  width:36px;height:36px;border-radius:50%;border:1px solid var(--line);
+  background:var(--surface);color:var(--sub);font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+/* ---------- main ---------- */
+main{flex:1;padding:6px 22px 120px;overflow-x:hidden}
+.view{display:none;animation:rise .35s ease both}
+.view.active{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+h1.screen{
+  font-family:var(--serif);font-size:26px;font-weight:700;line-height:1.4;
+  margin:18px 0 6px;letter-spacing:-.01em;
+}
+.screen-sub{color:var(--sub);font-size:13.5px;margin-bottom:22px}
+
+/* ---------- cards ---------- */
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px;box-shadow:var(--shadow);margin-bottom:14px;
+}
+.card.flat{box-shadow:none}
+.label{
+  font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--faint);
+  text-transform:uppercase;margin-bottom:10px;
+}
+
+/* ---------- today ---------- */
+.daymeta{display:flex;align-items:baseline;gap:10px;margin-top:14px}
+.daymeta .date{font-size:13px;color:var(--sub)}
+.streak{
+  font-size:12px;font-weight:700;color:var(--bond);
+  background:var(--bond-soft);border-radius:20px;padding:3px 11px;
+}
+.q-card{padding:26px 22px}
+.q-card .q{
+  font-family:var(--serif);font-size:21px;font-weight:600;line-height:1.55;margin:8px 0 18px;
+}
+.q-card textarea{
+  width:100%;border:none;outline:none;resize:none;background:transparent;
+  font-family:var(--sans);font-size:15.5px;line-height:1.7;color:var(--ink);
+  min-height:84px;
+}
+.q-card textarea::placeholder{color:var(--faint)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}
+.chip{
+  border:1px solid var(--line);background:var(--surface);border-radius:20px;
+  font-size:12.5px;font-weight:500;color:var(--sub);padding:5px 13px;cursor:pointer;
+  transition:all .15s;
+}
+.chip.sel{color:#fff;border-color:transparent}
+.chip.sel.c-work{background:var(--growth)} .chip.sel.c-relation{background:var(--bond)}
+.chip.sel.c-knowledge{background:var(--wisdom)} .chip.sel.c-taste{background:var(--muse)}
+.chip.sel.c-records{background:var(--narrative)}
+.btn{
+  display:block;width:100%;border:none;border-radius:12px;cursor:pointer;
+  background:var(--ink);color:#fff;font-family:var(--sans);
+  font-size:15px;font-weight:700;padding:14px;margin-top:16px;
+  transition:transform .12s, opacity .2s;
+}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.3;cursor:default}
+.btn.ghost{background:transparent;color:var(--sub);border:1px solid var(--line);font-weight:500}
+.btn.accent{background:var(--accent)}
+
+.balance{display:flex;align-items:flex-end;justify-content:space-between}
+.balance .num{font-family:var(--serif);font-size:40px;font-weight:700;line-height:1.1}
+.balance .unit{font-size:13px;color:var(--sub);margin-left:4px}
+.balance .delta{font-size:12.5px;font-weight:700;color:var(--wisdom)}
+.spark{display:flex;align-items:flex-end;gap:4px;height:38px;margin-top:14px}
+.spark i{flex:1;background:var(--line);border-radius:3px 3px 0 0;min-height:4px;transition:height .5s ease}
+.spark i.hot{background:var(--accent)}
+
+.done-note{
+  text-align:center;padding:30px 10px;color:var(--sub);font-size:14px;
+}
+.done-note .big{font-family:var(--serif);font-size:20px;font-weight:600;color:var(--ink);margin-bottom:6px}
+
+/* ---------- records / archive ---------- */
+.rec{
+  display:flex;gap:14px;padding:15px 2px;border-bottom:1px solid var(--line);
+}
+.rec:last-child{border-bottom:none}
+.rec .dot{width:9px;height:9px;border-radius:50%;margin-top:8px;flex-shrink:0}
+.rec .body .txt{font-size:14.5px;line-height:1.65}
+.rec .body .meta{font-size:11.5px;color:var(--faint);margin-top:3px}
+.dot.c-work{background:var(--growth)} .dot.c-relation{background:var(--bond)}
+.dot.c-knowledge{background:var(--wisdom)} .dot.c-taste{background:var(--muse)}
+.dot.c-records{background:var(--narrative)}
+.daygroup{
+  font-size:12px;font-weight:700;color:var(--faint);letter-spacing:.06em;
+  margin:22px 0 4px;
+}
+.empty{
+  text-align:center;color:var(--faint);font-size:13.5px;padding:48px 20px;line-height:1.8;
+}
+.searchbar{
+  display:flex;align-items:center;gap:10px;background:var(--surface);
+  border:1px solid var(--line);border-radius:12px;padding:11px 16px;margin-bottom:6px;
+}
+.searchbar input{border:none;outline:none;flex:1;font-family:var(--sans);font-size:14.5px;background:transparent;color:var(--ink)}
+.filterrow{display:flex;gap:8px;overflow-x:auto;padding:10px 0 16px;scrollbar-width:none}
+.filterrow::-webkit-scrollbar{display:none}
+
+/* ---------- me ---------- */
+.corerow{
+  display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--line);cursor:pointer;
+}
+.corerow:last-child{border-bottom:none}
+.ring{position:relative;width:52px;height:52px;flex-shrink:0}
+.ring svg{transform:rotate(-90deg)}
+.ring .pct{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;
+}
+.corerow .info{flex:1}
+.corerow .name{font-weight:700;font-size:15px}
+.corerow .desc{font-size:12px;color:var(--sub)}
+.corerow .cnt{font-size:12px;color:var(--faint);font-weight:500}
+.corerow .arrow{color:var(--faint);font-size:18px}
+.coredetail{display:none;padding:4px 0 14px 68px}
+.coredetail.open{display:block}
+.coredetail .nudge{
+  font-size:13px;color:var(--sub);background:var(--bg);border-radius:10px;
+  padding:10px 14px;margin-top:8px;
+}
+.traits{display:flex;flex-wrap:wrap;gap:8px}
+.trait{
+  font-family:var(--serif);font-size:14px;font-weight:600;
+  background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 14px;
+}
+.assessrow{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:13px 0;border-bottom:1px solid var(--line);
+}
+.assessrow:last-child{border-bottom:none}
+.assessrow .nm{font-weight:600;font-size:14.5px}
+.assessrow .st{font-size:12px;color:var(--faint)}
+.assessrow .go{
+  font-size:12.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);
+  border:none;border-radius:18px;padding:6px 14px;cursor:pointer;
+}
+.assessrow .done-tag{font-size:12px;font-weight:700;color:var(--wisdom)}
+
+/* ---------- assessment flow ---------- */
+.assess-prog{display:flex;gap:6px;justify-content:center;margin:26px 0 38px}
+.assess-prog i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.assess-prog i.on{background:var(--ink)}
+.assess-q{
+  font-family:var(--serif);font-size:23px;font-weight:600;line-height:1.6;
+  text-align:center;padding:0 8px;margin-bottom:42px;min-height:110px;
+  display:flex;align-items:center;justify-content:center;
+}
+.likert{display:flex;flex-direction:column;gap:10px}
+.likert button{
+  border:1px solid var(--line);background:var(--surface);border-radius:12px;
+  font-family:var(--sans);font-size:15px;font-weight:500;color:var(--ink);
+  padding:15px;cursor:pointer;transition:all .15s;
+}
+.likert button:active{background:var(--accent-soft);border-color:var(--accent)}
+
+/* ---------- chat ---------- */
+.ctxstrip{
+  display:flex;align-items:center;gap:8px;
+  font-size:11.5px;color:var(--sub);
+  background:var(--surface);border:1px solid var(--line);border-radius:20px;
+  padding:7px 14px;margin-bottom:14px;width:fit-content;
+}
+.ctxstrip .eye{font-size:13px}
+.modetoggle{
+  display:flex;background:var(--surface);border:1px solid var(--line);
+  border-radius:12px;padding:4px;margin-bottom:18px;
+}
+.modetoggle button{
+  flex:1;border:none;background:transparent;border-radius:9px;
+  font-family:var(--sans);font-size:13px;font-weight:700;color:var(--faint);
+  padding:9px;cursor:pointer;transition:all .2s;
+}
+.modetoggle button.on.analytic{background:var(--accent-soft);color:var(--accent)}
+.modetoggle button.on.divergent{background:var(--divergent-soft);color:var(--divergent)}
+.modetoggle .hint{display:block;font-size:10.5px;font-weight:500;margin-top:1px}
+.chatlog{display:flex;flex-direction:column;gap:12px;min-height:200px;padding-bottom:16px}
+.msg{max-width:84%;padding:12px 16px;border-radius:16px;font-size:14.5px;line-height:1.65;animation:rise .3s ease both}
+.msg.user{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:5px}
+.msg.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:5px}
+.msg.bot.dv{border-color:#E2D2EF;background:var(--divergent-soft)}
+.msg .modetag{display:block;font-size:10.5px;font-weight:700;letter-spacing:.08em;margin-bottom:5px}
+.msg .modetag.an{color:var(--accent)} .msg .modetag.dv{color:var(--divergent)}
+.msg cite{
+  display:block;font-style:normal;font-size:12px;color:var(--sub);
+  border-left:2px solid var(--line);padding-left:10px;margin-top:8px;
+}
+.chatinput{
+  display:flex;gap:10px;background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;padding:8px 8px 8px 18px;align-items:center;
+  position:sticky;bottom:96px;box-shadow:var(--shadow);
+}
+.chatinput input{border:none;outline:none;flex:1;font-family:var(--sans);font-size:14.5px;background:transparent;color:var(--ink)}
+.chatinput button{
+  width:38px;height:38px;border-radius:11px;border:none;background:var(--accent);
+  color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;
+}
+.chatinput button.dv{background:var(--divergent)}
+
+/* ---------- tabbar ---------- */
+.tabbar{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:520px;z-index:30;
+  display:flex;align-items:flex-end;justify-content:space-around;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);
+  padding:8px 10px calc(10px + env(safe-area-inset-bottom));
+}
+.tab{
+  flex:1;border:none;background:transparent;cursor:pointer;
+  font-family:var(--sans);font-size:10.5px;font-weight:600;color:var(--faint);
+  display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0;
+}
+.tab .ic{font-size:20px;line-height:1}
+.tab.on{color:var(--ink)}
+.fab{
+  flex:0 0 auto;width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;
+  background:var(--ink);color:#fff;font-size:24px;font-weight:300;
+  margin:0 6px -2px;box-shadow:0 6px 18px rgba(34,33,29,.3);
+  transition:transform .15s;
+}
+.fab:active{transform:scale(.92)}
+
+/* ---------- capture sheet ---------- */
+.sheetwrap{position:fixed;inset:0;z-index:40;display:none}
+.sheetwrap.open{display:block}
+.sheetwrap .dim{position:absolute;inset:0;background:rgba(34,33,29,.35);animation:fadein .25s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.sheet{
+  position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:520px;background:var(--surface);
+  border-radius:22px 22px 0 0;padding:14px 22px calc(26px + env(safe-area-inset-bottom));
+  animation:slideup .3s cubic-bezier(.2,.9,.3,1) both;
+}
+@keyframes slideup{from{transform:translate(-50%,100%)}to{transform:translate(-50%,0)}}
+.sheet .grip{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 18px}
+.sheet h3{font-family:var(--serif);font-size:18px;margin-bottom:14px}
+.sheet textarea{
+  width:100%;border:1px solid var(--line);border-radius:12px;padding:14px;
+  font-family:var(--sans);font-size:15px;line-height:1.6;resize:none;outline:none;
+  min-height:96px;background:var(--bg);color:var(--ink);
+}
+.modes{display:flex;gap:8px;margin:14px 0 4px}
+.modes button{
+  flex:1;border:1px solid var(--line);background:var(--surface);border-radius:10px;
+  font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--sub);
+  padding:9px 4px;cursor:pointer;
+}
+.modes button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* ---------- onboarding / rationale ---------- */
+.overlay{
+  position:fixed;inset:0;z-index:50;background:var(--bg);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:36px 30px;text-align:center;
+}
+.overlay.open{display:flex}
+.overlay .inner{max-width:400px;width:100%}
+.overlay .step-ic{font-size:44px;margin-bottom:22px}
+.overlay h2{font-family:var(--serif);font-size:25px;font-weight:700;line-height:1.5;margin-bottom:14px}
+.overlay p{font-size:14.5px;color:var(--sub);line-height:1.8;margin-bottom:34px}
+.overlay .dots{display:flex;gap:7px;justify-content:center;margin-bottom:30px}
+.overlay .dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.overlay .dots i.on{background:var(--ink)}
+.modal{
+  position:fixed;inset:0;z-index:60;display:none;align-items:flex-end;justify-content:center;
+}
+.modal.open{display:flex}
+.modal .dim{position:absolute;inset:0;background:rgba(34,33,29,.4)}
+.modal .panel{
+  position:relative;width:100%;max-width:520px;max-height:82dvh;overflow-y:auto;
+  background:var(--surface);border-radius:22px 22px 0 0;
+  padding:16px 26px calc(30px + env(safe-area-inset-bottom));
+  animation:slideup .3s cubic-bezier(.2,.9,.3,1) both;
+}
+.modal h3{font-family:var(--serif);font-size:20px;margin:14px 0 18px}
+.principle{padding:13px 0;border-bottom:1px solid var(--line)}
+.principle:last-of-type{border-bottom:none}
+.principle b{display:block;font-size:14.5px;margin-bottom:3px}
+.principle span{font-size:13px;color:var(--sub);line-height:1.7}
+.toast{
+  position:fixed;bottom:110px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:#fff;font-size:13.5px;font-weight:500;
+  border-radius:24px;padding:10px 22px;z-index:70;opacity:0;pointer-events:none;
+  transition:all .3s ease;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* ---------- mascot ---------- */
+.mascot-zone{display:flex;align-items:center;gap:16px;margin:18px 0 20px}
+.mascot{
+  position:relative;flex-shrink:0;background:var(--accent);
+  border-radius:46% 54% 50% 50%/55% 50% 50% 45%;
+  animation:bob 3.4s ease-in-out infinite;
+}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(2deg)}}
+.mascot .eye{position:absolute;width:12%;height:14%;background:#fff;border-radius:50%;top:37%}
+.mascot .eye.l{left:26%}.mascot .eye.r{right:26%}
+.mascot .mouth{position:absolute;left:50%;transform:translateX(-50%);top:56%;width:24%;height:12%;border-bottom:3px solid #fff;border-radius:0 0 50% 50%}
+.mascot .cheek{position:absolute;width:14%;height:9%;background:rgba(255,255,255,.32);border-radius:50%;top:55%}
+.mascot .cheek.l{left:12%}.mascot .cheek.r{right:12%}
+.mascot .spark{position:absolute;top:-12px;right:-8px;font-size:17px;color:var(--accent);animation:twinkle 1.8s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:.4;transform:scale(.9)}50%{opacity:1;transform:scale(1.2)}}
+.mascot.bounce{animation:bounce .65s ease}
+@keyframes bounce{0%{transform:scale(1)}35%{transform:scale(1.2) rotate(-5deg)}70%{transform:scale(.94)}100%{transform:scale(1)}}
+.mascot-zone .say{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  border-bottom-left-radius:4px;padding:10px 15px;font-size:13px;color:var(--sub);line-height:1.6;
+}
+.mascot-zone .lv{font-size:11px;font-weight:700;color:var(--accent);display:block;margin-bottom:2px}
+.recall-card{border-left:4px solid var(--narrative);background:var(--narrative-soft);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+.recall-card .label{margin-bottom:6px;color:var(--narrative)}
+.recall-card .txt{font-size:14px;line-height:1.65}
+.recall-card .when{font-size:11.5px;color:var(--faint);margin-top:5px}
+.confetti-dot{position:fixed;width:9px;height:9px;border-radius:50%;z-index:80;pointer-events:none}
+@media (max-width:540px){ body{background:var(--bg)} #frame{box-shadow:none} }
+</style>
+</head>
+<body>
+<div id="frame">
+  <header class="topbar">
+    <div class="brand">2ndB <small>CONCEPT B · 프로토타입</small></div>
+    <button class="iconbtn" onclick="openRationale()" title="이 디자인의 의도">?</button>
+  </header>
+
+  <main>
+    <!-- ============ TODAY ============ -->
+    <section class="view active" id="view-today">
+      <div class="daymeta">
+        <span class="date" id="todayDate"></span>
+        <span class="streak" id="streakBadge" style="display:none"></span>
+      </div>
+      <h1 class="screen" id="greeting">세컨비가<br>오늘 이야기를 기다려요</h1>
+      <div class="screen-sub">하루 1분, 질문 하나면 충분해요.</div>
+
+      <div class="mascot-zone" id="mascotZone"></div>
+      <div id="todayPrompt"></div>
+      <div id="recallCard"></div>
+
+      <div class="card" style="margin-top:22px">
+        <div class="label">쌓인 조각</div>
+        <div class="balance">
+          <div><span class="num" id="balNum">0</span><span class="unit">개의 조각</span></div>
+          <div class="delta" id="balDelta"></div>
+        </div>
+        <div class="spark" id="spark"></div>
+        <div style="font-size:11.5px;color:var(--faint);margin-top:8px">기록 하나 = 조각 하나. 조각을 먹고 세컨비가 자라요 · 최근 14일</div>
+      </div>
+
+      <div class="card flat" id="todayList" style="display:none">
+        <div class="label">오늘 쌓인 기록</div>
+        <div id="todayRecs"></div>
+      </div>
+    </section>
+
+    <!-- ============ ME ============ -->
+    <section class="view" id="view-me">
+      <h1 class="screen">나의 지도</h1>
+      <div class="screen-sub">기록이 쌓일수록 다섯 가지 내가 차올라요.</div>
+
+      <div class="card">
+        <div class="label">다섯 가지 나</div>
+        <div id="coreRows"></div>
+      </div>
+
+      <div class="card">
+        <div class="label">지금까지 보이는 나 · 페르소나 v<span id="personaVer">1</span></div>
+        <div class="traits" id="traits"></div>
+        <div style="font-size:12px;color:var(--faint);margin-top:12px" id="traitNote"></div>
+      </div>
+
+      <div class="card">
+        <div class="label">더 깊이 알아가기</div>
+        <div id="assessList"></div>
+      </div>
+    </section>
+
+    <!-- ============ ASSESS (one question per screen) ============ -->
+    <section class="view" id="view-assess">
+      <div class="assess-prog" id="assessProg"></div>
+      <div class="assess-q" id="assessQ"></div>
+      <div class="likert" id="assessOpts"></div>
+      <button class="btn ghost" style="margin-top:28px" onclick="quitAssess()">그만두기</button>
+    </section>
+
+    <!-- ============ CHAT ============ -->
+    <section class="view" id="view-chat">
+      <h1 class="screen">세컨비</h1>
+      <div class="screen-sub">당신의 기록 위에서만 말하는 비서.</div>
+
+      <div class="ctxstrip"><span class="eye">👁</span><span id="ctxInfo"></span></div>
+
+      <div class="modetoggle">
+        <button class="analytic on" id="modeAn" onclick="setMode('an')">분석 모드<span class="hint">내 데이터 기반 조언</span></button>
+        <button class="divergent" id="modeDv" onclick="setMode('dv')">발산 모드<span class="hint">전혀 다른 관점의 가정</span></button>
+      </div>
+
+      <div class="chatlog" id="chatlog"></div>
+
+      <div class="chatinput">
+        <input id="chatText" placeholder="세컨비에게 물어보기…" onkeydown="if(event.key==='Enter')sendChat()">
+        <button id="chatSend" onclick="sendChat()">↑</button>
+      </div>
+    </section>
+
+    <!-- ============ ARCHIVE ============ -->
+    <section class="view" id="view-archive">
+      <h1 class="screen">기록</h1>
+      <div class="screen-sub">쌓인 모든 것. 시간 순서 그대로.</div>
+      <div class="searchbar">🔍<input id="searchText" placeholder="기록 검색" oninput="renderArchive()"></div>
+      <div class="filterrow" id="filterRow"></div>
+      <div id="archiveList"></div>
+    </section>
+  </main>
+
+  <!-- ============ TAB BAR ============ -->
+  <nav class="tabbar">
+    <button class="tab on" data-tab="today" onclick="go('today')"><span class="ic">☀</span>오늘</button>
+    <button class="tab" data-tab="me" onclick="go('me')"><span class="ic">◐</span>나</button>
+    <button class="fab" onclick="openCapture()" title="캡처">+</button>
+    <button class="tab" data-tab="chat" onclick="go('chat')"><span class="ic">✦</span>세컨비</button>
+    <button class="tab" data-tab="archive" onclick="go('archive')"><span class="ic">≡</span>기록</button>
+  </nav>
+
+  <!-- ============ CAPTURE SHEET ============ -->
+  <div class="sheetwrap" id="captureSheet">
+    <div class="dim" onclick="closeCapture()"></div>
+    <div class="sheet">
+      <div class="grip"></div>
+      <h3>지금 떠오른 것</h3>
+      <textarea id="capText" placeholder="메모, 생각, 링크 — 무엇이든. 분류는 나중에 해도 됩니다."></textarea>
+      <div class="modes" id="capModes">
+        <button class="on" data-m="memo">메모</button>
+        <button data-m="thought">생각</button>
+        <button data-m="link">링크</button>
+      </div>
+      <div class="chips" id="capChips"></div>
+      <button class="btn" onclick="saveCapture()">쌓기</button>
+    </div>
+  </div>
+
+  <!-- ============ ONBOARDING ============ -->
+  <div class="overlay" id="onboard">
+    <div class="inner" id="onboardInner"></div>
+  </div>
+
+  <!-- ============ RATIONALE ============ -->
+  <div class="modal" id="rationale">
+    <div class="dim" onclick="closeRationale()"></div>
+    <div class="panel">
+      <div class="grip" style="width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto"></div>
+      <h3>이 디자인의 의도 — Concept B</h3>
+      <div class="principle"><b>1 · 축적이 보여야 계속한다</b><span>이 앱의 가치는 그래프의 아름다움이 아니라 매일 쌓이는 데이터에서 나옵니다. 그래서 홈은 별자리가 아니라 "오늘의 질문 하나 + 자산 잔고"입니다. 잔고가 늘어나는 것 자체가 보상입니다.</span></div>
+      <div class="principle"><b>2 · 캡처 마찰 = 0</b><span>기록 도구는 떠올랐을 때 한 탭 안에 있어야 합니다. 가운데 + 버튼은 어느 화면에서든 같은 자리. 분류는 선택 사항 — 일단 쌓고 나중에 정리해도 됩니다.</span></div>
+      <div class="principle"><b>3 · AI 투명성</b><span>세컨비 화면 상단의 👁 스트립은 "AI가 지금 나의 어떤 데이터를 보고 있는지"를 항상 보여줍니다. 내 데이터 위에서 작동한다는 약속을 UI로 증명합니다.</span></div>
+      <div class="principle"><b>4 · 한 화면, 한 질문</b><span>성향 진단도 설문지가 아니라 한 화면에 한 문항. 진행점 7개가 끝을 약속하므로 부담 없이 시작할 수 있습니다.</span></div>
+      <div class="principle"><b>5 · 종이와 잉크</b><span>"나를 기록하는 도구"는 차가운 우주보다 따뜻한 노트에 가깝다고 보았습니다. 아이보리 종이, 세리프 제목, 다섯 영역의 차분한 잉크색 — 매일 펴고 싶은 물성을 지향합니다.</span></div>
+      <div class="principle"><b>6 · 오래 머무르게 하는 세 가지 루프</b><span>① 기록을 먹고 자라는 세컨비(키우기 — 전 연령이 직관적으로 이해하는 동기), ② 답하면 한 장 더 뽑을 수 있는 보너스 질문(자발적 연장), ③ "그날의 나" 추억 카드(과거 기록이 매일 새 콘텐츠가 됨). 광고식 다크패턴 없이, 쌓인 데이터 자체가 다시 머물 이유가 되도록 설계했습니다.</span></div>
+      <p style="font-size:12px;color:var(--faint);margin-top:18px">· 데이터는 이 브라우저(localStorage)에만 저장됩니다. 세컨비 응답은 데모 스크립트이며 실제 모델은 연결되어 있지 않습니다.</p>
+      <button class="btn ghost" onclick="resetAll()" style="margin-top:14px">데모 초기화 (데이터 삭제)</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* ================= state ================= */
+const CORES=[
+  {key:'work',     name:'일과 성장',  desc:'커리어 · 프로젝트 · 배움의 실행', cls:'c-work',     color:'var(--growth)'},
+  {key:'relation', name:'관계',      desc:'사람 · 마음의 거리 · 대화',       cls:'c-relation', color:'var(--bond)'},
+  {key:'knowledge',name:'지식',      desc:'읽고 알게 된 것들',               cls:'c-knowledge',color:'var(--wisdom)'},
+  {key:'taste',    name:'취향',      desc:'좋아하는 것 · 영감 · 감각',       cls:'c-taste',    color:'var(--muse)'},
+  {key:'records',  name:'일상',      desc:'그날의 사실과 장면',              cls:'c-records',  color:'var(--narrative)'},
+];
+const CORE_TARGET=12;
+const QUESTIONS=[
+  '오늘 가장 오래 머문 생각은 무엇이었나요?',
+  '오늘 누군가에게 들은 말 중 기억에 남는 한마디는?',
+  '요즘 나를 가장 자주 웃게 하는 것은 무엇인가요?',
+  '오늘 하루 중 시간이 가장 빨리 간 순간은 언제였나요?',
+  '지금 미루고 있는 일 하나와, 미루는 진짜 이유는?',
+  '오늘의 나에게 점수를 준다면 몇 점, 그 이유는?',
+  '최근에 새로 알게 된 것 중 누군가에게 말해주고 싶은 것은?',
+  '오늘 몸이 보낸 신호 중 알아챈 것이 있나요?',
+  '요즘 반복해서 듣는 노래나 보는 것이 있다면?',
+  '1년 뒤의 내가 오늘을 본다면 뭐라고 할까요?',
+  '오늘 가장 아까웠던 시간은 언제였나요?',
+  '요즘 나에게 에너지를 주는 사람은 누구인가요?',
+  '오늘 하지 않아서 다행이었던 것은?',
+  '지금 책상 위(혹은 가방 속)가 나에 대해 말해주는 것은?',
+];
+const ASSESS_ITEMS=[
+  {q:'처음 보는 사람들과의 자리에서도 에너지를 얻는 편이다', axis:'social'},
+  {q:'계획이 틀어지면 스트레스보다 호기심이 먼저 든다', axis:'open'},
+  {q:'결정할 때 데이터보다 직감을 더 신뢰한다', axis:'intuit'},
+  {q:'하나에 깊게 파는 것이 여럿을 넓게 아는 것보다 좋다', axis:'depth'},
+  {q:'나의 하루는 루틴이 지킬 때 가장 잘 굴러간다', axis:'routine'},
+  {q:'감정이 올라오면 일단 적어야 정리가 된다', axis:'verbal'},
+  {q:'미래의 가능성을 상상하는 시간이 과거를 돌아보는 시간보다 길다', axis:'future'},
+];
+const LIKERT=['전혀 아니다','아닌 편이다','보통이다','그런 편이다','매우 그렇다'];
+
+const SAMPLE=[
+  {d:0,core:'work',t:'사이드 프로젝트 그래프 화면, 노드가 늘어나니 성능이 출렁인다. 가상화 먼저 검토.'},
+  {d:0,core:'taste',t:'퇴근길에 들은 시티팝 플레이리스트. 요즘 계속 80년대로 돌아간다.'},
+  {d:1,core:'relation',t:'소하랑 주말 계획 얘기하다가 내가 일 얘기만 한다는 걸 깨달음.'},
+  {d:1,core:'knowledge',t:'RAG에서 retrieval 순서보다 컨텍스트 압축이 답변 품질에 더 크게 작용한다는 글.'},
+  {d:2,core:'records',t:'아침 6시 기상 3일째. 몸은 힘든데 오전 시간의 밀도가 다르다.'},
+  {d:2,core:'work',t:'XPRIZE 제출까지 남은 큰 덩어리 셋: 온보딩, 데모 영상, 심사위원 모드.'},
+  {d:3,core:'taste',t:'필름 카메라 한 롤 현상 맡김. 실패 컷이 더 마음에 드는 이유가 뭘까.'},
+  {d:4,core:'knowledge',t:'BFI-44가 TIPI보다 신뢰도가 높은 이유 정리해둠. 문항 수와 facet 커버리지.'},
+  {d:4,core:'relation',t:'오랜만에 대학 동기에게 먼저 연락했다. 잘했다.'},
+  {d:5,core:'records',t:'야근. 저녁을 또 대충 때웠다. 패턴이 보인다 — 수요일마다 무너짐.'},
+  {d:6,core:'work',t:'평일 저녁 2시간 + 주말 = 일주일 12시간. 이 안에서 끝낼 수 있는 단위로 쪼개자.'},
+  {d:8,core:'taste',t:'전시 다녀옴. 여백이 많은 그림 앞에서 제일 오래 서 있었다.'},
+];
+
+let S=load();
+function load(){
+  try{const s=JSON.parse(localStorage.getItem('ndb_concept'));if(s&&s.records)return s;}catch(e){}
+  return {records:[],onboarded:false,chat:[],snapshot:null,answeredToday:{}};
+}
+function save(){localStorage.setItem('ndb_concept',JSON.stringify(S));}
+function uid(){return Date.now()+''+Math.floor(Math.random()*999);}
+function dkey(d){return d.toISOString().slice(0,10);}
+const TODAY=dkey(new Date());
+
+/* ================= nav ================= */
+function go(tab){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+tab).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===tab));
+  if(tab==='today')renderToday();
+  if(tab==='me')renderMe();
+  if(tab==='chat')renderChat();
+  if(tab==='archive')renderArchive();
+  window.scrollTo({top:0});
+}
+
+/* ================= today ================= */
+function questionOfDay(){
+  const n=Math.floor(new Date(TODAY).getTime()/86400000);
+  return QUESTIONS[n%QUESTIONS.length];
+}
+function streak(){
+  const days=new Set(S.records.map(r=>r.day));
+  let n=0;const d=new Date();
+  if(!days.has(dkey(d))){d.setDate(d.getDate()-1);}
+  while(days.has(dkey(d))){n++;d.setDate(d.getDate()-1);}
+  return n;
+}
+let qCore=null;
+function renderToday(){
+  const now=new Date();
+  document.getElementById('todayDate').textContent=
+    now.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'});
+  const st=streak();
+  const sb=document.getElementById('streakBadge');
+  if(st>0){sb.style.display='inline';sb.textContent='🔥 '+st+'일째 쌓는 중';}else sb.style.display='none';
+
+  renderMascot();
+  renderRecall();
+  const answered=S.answeredToday[TODAY];
+  const box=document.getElementById('todayPrompt');
+  if(answered&&bonusQ){
+    document.getElementById('greeting').innerHTML='좋아요,<br>한 장 더!';
+    box.innerHTML=`<div class="card q-card">
+      <div class="label">보너스 질문</div>
+      <div class="q">${bonusQ}</div>
+      <textarea id="qAnswer" placeholder="생각나는 대로, 다듬지 말고."></textarea>
+      <div class="chips" id="qChips"></div>
+      <button class="btn" id="qSave" onclick="saveAnswer(true)">조각 쌓기</button>
+    </div>`;
+    buildQChips();
+  }else if(answered){
+    box.innerHTML=`<div class="card q-card"><div class="done-note">
+      <div class="big">오늘 몫 완료! 🎉</div>
+      세컨비가 맛있게 받아먹었어요.<br>더 들려주고 싶은 이야기가 있다면 —</div>
+      <button class="btn ghost" onclick="drawBonus()">질문 한 장 더 뽑기</button></div>`;
+    document.getElementById('greeting').innerHTML='오늘도<br>한 조각 쌓였어요';
+  }else{
+    document.getElementById('greeting').innerHTML='세컨비가<br>오늘 이야기를 기다려요';
+    box.innerHTML=`<div class="card q-card">
+      <div class="label">오늘의 질문</div>
+      <div class="q">${questionOfDay()}</div>
+      <textarea id="qAnswer" placeholder="생각나는 대로, 다듬지 말고."></textarea>
+      <div class="chips" id="qChips"></div>
+      <button class="btn" id="qSave" onclick="saveAnswer()">오늘 몫 쌓기</button>
+    </div>`;
+  }
+  // balance
+  document.getElementById('balNum').textContent=S.records.length;
+  const week=S.records.filter(r=>(Date.now()-new Date(r.day).getTime())<7*86400000).length;
+  document.getElementById('balDelta').textContent=week>0?'+'+week+' 이번 주':'';
+  // spark 14d
+  const sp=document.getElementById('spark');sp.innerHTML='';
+  for(let i=13;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const cnt=S.records.filter(r=>r.day===dkey(d)).length;
+    const bar=document.createElement('i');
+    bar.style.height=Math.min(4+cnt*11,38)+'px';
+    if(cnt>0)bar.classList.add('hot');
+    sp.appendChild(bar);
+  }
+  // today's records
+  const tr=S.records.filter(r=>r.day===TODAY);
+  const list=document.getElementById('todayList');
+  if(tr.length){list.style.display='block';
+    document.getElementById('todayRecs').innerHTML=tr.map(recHTML).join('');
+  }else list.style.display='none';
+}
+function buildQChips(){
+  const chips=document.getElementById('qChips');
+  if(!chips)return;
+  chips.innerHTML='';qCore=null;
+  CORES.forEach(c=>{
+    const b=document.createElement('button');
+    b.className='chip';b.textContent=c.name;
+    b.onclick=()=>{qCore=(qCore===c.key)?null:c.key;
+      chips.querySelectorAll('.chip').forEach((el,i)=>{
+        el.className='chip'+(CORES[i].key===qCore?' sel '+CORES[i].cls:'');});};
+    chips.appendChild(b);
+  });
+}
+let bonusQ=null;
+function drawBonus(){
+  const used=new Set(S.records.filter(r=>r.q).map(r=>r.q));
+  const pool=QUESTIONS.filter(q=>!used.has(q)&&q!==questionOfDay());
+  bonusQ=pool.length?pool[Math.floor(Math.random()*pool.length)]:QUESTIONS[Math.floor(Math.random()*QUESTIONS.length)];
+  renderToday();
+  setTimeout(()=>{const ta=document.getElementById('qAnswer');if(ta)ta.focus();},250);
+}
+function saveAnswer(isBonus){
+  const t=document.getElementById('qAnswer').value.trim();
+  if(!t){toast('한 줄이면 충분해요');return;}
+  const q=isBonus?bonusQ:questionOfDay();
+  S.records.unshift({id:uid(),day:TODAY,core:qCore||'records',type:'reflect',text:t,q});
+  S.answeredToday[TODAY]=true;bonusQ=null;save();
+  confetti();
+  toast(isBonus?'냠냠! 세컨비가 또 한 조각 🎁':'냠! 세컨비가 한 조각 받았어요 🔥');
+  renderToday();
+  const m=document.getElementById('mascotBody');
+  if(m){m.classList.remove('bounce');void m.offsetWidth;m.classList.add('bounce');}
+}
+function mascotStage(){
+  const n=S.records.length;
+  if(n>=30)return{lv:4,name:'반짝 세컨비',size:88,spark:true};
+  if(n>=16)return{lv:3,name:'자란 세컨비',size:78,spark:false};
+  if(n>=6) return{lv:2,name:'어린 세컨비',size:68,spark:false};
+  return{lv:1,name:'새싹 세컨비',size:58,spark:false};
+}
+function mascotSay(){
+  const n=S.records.length;
+  if(S.answeredToday[TODAY])return '오늘 이야기 잘 먹었어요! 내일 또 들려줄 거죠?';
+  if(n===0)return '처음 뵙네요! 당신의 이야기를 먹고 자라요. 한 입만 주세요.';
+  if(streak()>=3)return streak()+'일 연속이에요! 오늘 것도 기다리고 있어요.';
+  return '오늘의 질문에 답해주면 한 뼘 더 자랄 수 있어요.';
+}
+function renderMascot(){
+  const st=mascotStage();
+  document.getElementById('mascotZone').innerHTML=`
+    <div class="mascot" id="mascotBody" style="width:${st.size}px;height:${st.size}px">
+      <div class="eye l"></div><div class="eye r"></div><div class="mouth"></div>
+      <div class="cheek l"></div><div class="cheek r"></div>
+      ${st.spark?'<span class="spark">✦</span>':''}</div>
+    <div class="say"><span class="lv">Lv.${st.lv} ${st.name} · 조각 ${S.records.length}개로 자라는 중</span>${mascotSay()}</div>`;
+}
+function renderRecall(){
+  const el=document.getElementById('recallCard');
+  const old=S.records.filter(r=>r.day<TODAY);
+  if(old.length<3){el.innerHTML='';return;}
+  const pick=old[Math.floor(new Date(TODAY).getTime()/86400000)%old.length];
+  const c=CORES.find(x=>x.key===pick.core)||CORES[4];
+  const d=new Date(pick.day);
+  el.innerHTML=`<div class="recall-card">
+    <div class="label">그날의 나 · 다시 보기</div>
+    <div class="txt">"${esc(pick.text)}"</div>
+    <div class="when">${d.toLocaleDateString('ko-KR',{month:'long',day:'numeric'})} · ${c.name}</div></div>`;
+}
+function confetti(){
+  const colors=['#5B4FC9','#C26D4B','#5E7D4F','#8C5B7C','#3E6B8C','#FFD166'];
+  for(let i=0;i<20;i++){
+    const d=document.createElement('div');d.className='confetti-dot';
+    d.style.background=colors[i%colors.length];
+    d.style.left=(46+Math.random()*8)+'%';d.style.top='48%';
+    document.body.appendChild(d);
+    const ang=Math.random()*Math.PI*2,dist=80+Math.random()*140;
+    d.animate(
+      [{transform:'translate(0,0) scale(1)',opacity:1},
+       {transform:`translate(${Math.cos(ang)*dist}px,${Math.sin(ang)*dist-90}px) scale(.5)`,opacity:0}],
+      {duration:750+Math.random()*450,easing:'cubic-bezier(.2,.8,.3,1)'});
+    setTimeout(()=>d.remove(),1250);
+  }
+}
+function recHTML(r){
+  const c=CORES.find(x=>x.key===r.core)||CORES[4];
+  const typeLabel={reflect:'오늘의 질문',memo:'메모',thought:'생각',link:'링크'}[r.type]||'기록';
+  return `<div class="rec"><div class="dot ${c.cls}"></div><div class="body">
+    <div class="txt">${esc(r.text)}</div>
+    <div class="meta">${c.name} · ${typeLabel}</div></div></div>`;
+}
+function esc(s){return s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+
+/* ================= capture ================= */
+let capMode='memo',capCore=null;
+function openCapture(){
+  document.getElementById('captureSheet').classList.add('open');
+  const chips=document.getElementById('capChips');chips.innerHTML='';
+  capCore=null;
+  CORES.forEach(c=>{
+    const b=document.createElement('button');
+    b.className='chip';b.textContent=c.name;
+    b.onclick=()=>{capCore=(capCore===c.key)?null:c.key;
+      chips.querySelectorAll('.chip').forEach((el,i)=>{
+        el.className='chip'+(CORES[i].key===capCore?' sel '+CORES[i].cls:'');});};
+    chips.appendChild(b);
+  });
+  document.querySelectorAll('#capModes button').forEach(b=>{
+    b.onclick=()=>{capMode=b.dataset.m;
+      document.querySelectorAll('#capModes button').forEach(x=>x.classList.toggle('on',x===b));};
+  });
+  setTimeout(()=>document.getElementById('capText').focus(),350);
+}
+function closeCapture(){document.getElementById('captureSheet').classList.remove('open');}
+function saveCapture(){
+  const t=document.getElementById('capText').value.trim();
+  if(!t){toast('내용을 입력해주세요');return;}
+  S.records.unshift({id:uid(),day:TODAY,core:capCore||'records',type:capMode,text:t});
+  save();document.getElementById('capText').value='';
+  closeCapture();confetti();toast('냠 — 세컨비가 받아먹었어요 +1');
+  const active=document.querySelector('.view.active').id.replace('view-','');
+  go(active);
+}
+
+/* ================= me ================= */
+let openCore=null;
+function renderMe(){
+  const rows=document.getElementById('coreRows');rows.innerHTML='';
+  CORES.forEach(c=>{
+    const cnt=S.records.filter(r=>r.core===c.key).length;
+    const pct=Math.min(100,Math.round(cnt/CORE_TARGET*100));
+    const circ=2*Math.PI*22;
+    const row=document.createElement('div');
+    row.innerHTML=`
+      <div class="corerow" onclick="toggleCore('${c.key}')">
+        <div class="ring">
+          <svg width="52" height="52"><circle cx="26" cy="26" r="22" fill="none" stroke="var(--line)" stroke-width="5"/>
+          <circle cx="26" cy="26" r="22" fill="none" stroke="${c.color}" stroke-width="5" stroke-linecap="round"
+            stroke-dasharray="${circ}" stroke-dashoffset="${circ*(1-pct/100)}"/></svg>
+          <div class="pct" style="color:${c.color}">${pct}%</div>
+        </div>
+        <div class="info"><div class="name">${c.name}</div><div class="desc">${c.desc}</div></div>
+        <div class="cnt">${cnt}개</div><div class="arrow">›</div>
+      </div>
+      <div class="coredetail ${openCore===c.key?'open':''}" id="cd-${c.key}"></div>`;
+    rows.appendChild(row);
+    if(openCore===c.key)fillCoreDetail(c);
+  });
+  // persona traits
+  const traits=deriveTraits();
+  document.getElementById('traits').innerHTML=
+    traits.length?traits.map(t=>`<div class="trait">${t}</div>`).join('')
+    :'<div style="font-size:13px;color:var(--faint)">기록이 5개 이상 쌓이면 패턴이 보이기 시작합니다.</div>';
+  document.getElementById('personaVer').textContent=1+Math.floor(S.records.length/10);
+  document.getElementById('traitNote').textContent=
+    traits.length?'기록 '+S.records.length+'개의 분포에서 도출 · 기록이 늘면 갱신됩니다':'';
+  // assessments
+  const al=document.getElementById('assessList');
+  const snapDone=!!S.snapshot;
+  al.innerHTML=`
+    <div class="assessrow"><div><div class="nm">성향 스냅샷 · 7문항</div>
+      <div class="st">${snapDone?'완료 · '+S.snapshot.tags.join(' · '):'2분 · 한 화면에 한 질문'}</div></div>
+      ${snapDone?'<span class="done-tag">완료 ✓</span>':'<button class="go" onclick="startAssess()">시작</button>'}</div>
+    <div class="assessrow"><div><div class="nm">Big Five (BFI-44)</div>
+      <div class="st">검증된 정량 · 본편에서 제공</div></div><span class="st">본편</span></div>
+    <div class="assessrow"><div><div class="nm">심층 인터뷰 5×5</div>
+      <div class="st">AI가 꼬리 질문으로 파고드는 25칸 · 본편에서 제공</div></div><span class="st">본편</span></div>`;
+}
+function toggleCore(key){openCore=(openCore===key)?null:key;renderMe();}
+function fillCoreDetail(c){
+  const recs=S.records.filter(r=>r.core===c.key).slice(0,3);
+  const cnt=S.records.filter(r=>r.core===c.key).length;
+  const nudges={
+    work:'이번 주 일에서 가장 잘한 결정 하나를 기록해보세요.',
+    relation:'최근 대화 중 마음에 남은 장면 하나를 남겨보세요.',
+    knowledge:'오늘 알게 된 것 하나를 한 줄로 요약해보세요.',
+    taste:'요즘 자꾸 손이 가는 것의 공통점을 적어보세요.',
+    records:'오늘 있었던 일 중 사진처럼 남기고 싶은 장면은?'};
+  document.getElementById('cd-'+c.key).innerHTML=
+    (recs.length?recs.map(r=>`<div style="font-size:13px;color:var(--sub);padding:5px 0">· ${esc(r.text.slice(0,46))}${r.text.length>46?'…':''}</div>`).join(''):'')
+    +(cnt<CORE_TARGET?`<div class="nudge">✏ ${nudges[c.key]}</div>`:'');
+}
+function deriveTraits(){
+  if(S.records.length<5)return [];
+  const cnt={};CORES.forEach(c=>cnt[c.key]=S.records.filter(r=>r.core===c.key).length);
+  const sorted=Object.entries(cnt).sort((a,b)=>b[1]-a[1]);
+  const phrases={
+    work:'실행으로 생각하는 사람',relation:'관계의 온도를 살피는 사람',
+    knowledge:'알게 된 것을 쌓아두는 사람',taste:'감각의 결을 따라가는 사람',
+    records:'하루를 장면으로 남기는 사람'};
+  const out=sorted.filter(([k,v])=>v>0).slice(0,3).map(([k])=>phrases[k]);
+  if(S.snapshot)out.push(...S.snapshot.tags.slice(0,1));
+  return out.slice(0,4);
+}
+
+/* ================= assess ================= */
+let aIdx=0,aAns=[];
+function startAssess(){aIdx=0;aAns=[];go('assess');renderAssess();}
+function renderAssess(){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-assess').classList.add('active');
+  const prog=document.getElementById('assessProg');
+  prog.innerHTML=ASSESS_ITEMS.map((_,i)=>`<i class="${i<=aIdx?'on':''}"></i>`).join('');
+  document.getElementById('assessQ').textContent=ASSESS_ITEMS[aIdx].q;
+  document.getElementById('assessOpts').innerHTML=LIKERT.map((l,i)=>
+    `<button onclick="answerAssess(${i})">${l}</button>`).join('');
+}
+function answerAssess(v){
+  aAns.push(v);
+  if(++aIdx<ASSESS_ITEMS.length){renderAssess();}
+  else{
+    const tags=[];
+    if(aAns[0]>=3)tags.push('사람에게서 충전');else tags.push('혼자만의 충전');
+    if(aAns[1]>=3||aAns[6]>=3)tags.push('가능성 탐험가');else tags.push('현재에 단단히');
+    if(aAns[3]>=3)tags.push('깊게 파는 타입');else tags.push('넓게 잇는 타입');
+    if(aAns[4]>=3)tags.push('루틴이 무기');
+    S.snapshot={tags:tags.slice(0,3),at:TODAY};save();
+    toast('스냅샷 완료 — 페르소나에 반영됐어요');
+    go('me');
+  }
+}
+function quitAssess(){go('me');}
+
+/* ================= chat ================= */
+let mode='an';
+function setMode(m){
+  mode=m;
+  document.getElementById('modeAn').classList.toggle('on',m==='an');
+  document.getElementById('modeDv').classList.toggle('on',m==='dv');
+  document.getElementById('chatSend').classList.toggle('dv',m==='dv');
+}
+function renderChat(){
+  const n=S.records.length;
+  const week=S.records.filter(r=>(Date.now()-new Date(r.day).getTime())<7*86400000).length;
+  document.getElementById('ctxInfo').textContent=
+    `세컨비가 보고 있는 것: 기록 ${n}개 · 최근 7일 ${week}개 · 페르소나 v${1+Math.floor(n/10)}`;
+  const log=document.getElementById('chatlog');
+  if(!S.chat.length){
+    log.innerHTML=`<div class="msg bot"><span class="modetag an">세컨비</span>
+      ${n>0?'당신이 준 조각 '+n+'개를 다 기억하고 있어요. 무엇이든 물어보세요 — 저는 당신의 이야기 위에서만 답해요.'
+      :'아직 받은 조각이 없어요. 오늘의 질문에 답하거나 + 버튼으로 첫 조각을 주시면, 그때부터 당신에게 맞춰 답할 수 있어요.'}</div>`;
+  }else{
+    log.innerHTML=S.chat.map(m=>{
+      if(m.role==='user')return `<div class="msg user">${esc(m.text)}</div>`;
+      return `<div class="msg bot ${m.mode==='dv'?'dv':''}">
+        <span class="modetag ${m.mode}">${m.mode==='dv'?'발산 모드 · 새로운 관점/가정':'분석 모드 · 데이터 기반'}</span>
+        ${m.text}${m.cite?`<cite>근거가 된 기록 — "${esc(m.cite)}"</cite>`:''}</div>`;
+    }).join('');
+  }
+  log.scrollTop=log.scrollHeight;
+}
+function sendChat(){
+  const inp=document.getElementById('chatText');
+  const t=inp.value.trim();if(!t)return;
+  inp.value='';
+  S.chat.push({role:'user',text:t});
+  save();renderChat();
+  setTimeout(()=>{
+    S.chat.push(makeReply(t));save();renderChat();
+    window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+  },700);
+}
+function makeReply(q){
+  const recent=S.records.slice(0,6);
+  const pick=recent.length?recent[Math.floor(Math.random()*recent.length)]:null;
+  const coreCnt={};CORES.forEach(c=>coreCnt[c.key]=S.records.filter(r=>r.core===c.key).length);
+  const top=CORES.find(c=>c.key===Object.entries(coreCnt).sort((a,b)=>b[1]-a[1])[0][0]);
+  if(!pick){
+    return {role:'bot',mode,text:'아직 기록이 없어서 당신답게 답하기 어려워요. 먼저 오늘의 질문 하나에 답해주시면, 그 위에서 다시 이야기해볼게요. <i style="font-size:12px;color:var(--faint)">(데모 응답)</i>'};
+  }
+  if(mode==='an'){
+    return {role:'bot',mode:'an',cite:pick.text.slice(0,42)+(pick.text.length>42?'…':''),
+      text:`최근 기록을 보면 요즘 당신의 무게중심은 <b>${top.name}</b> 쪽에 있어요 (${coreCnt[top.key]}개). 질문하신 것과 연결해보면 — 이미 답의 절반은 기록 안에 있습니다. 가장 최근 기록에서 한 걸음만 구체화해볼까요? <i style="font-size:12px;color:var(--faint)">(데모 응답 — 실제 모델 미연결)</i>`};
+  }
+  return {role:'bot',mode:'dv',cite:pick.text.slice(0,42)+(pick.text.length>42?'…':''),
+    text:`전혀 다른 가정 하나: 만약 이 고민의 전제를 뒤집는다면요? 당신의 기록 결을 보면 평소엔 ${top.name}의 관점으로 접근하는데, 이번엔 정반대 영역의 눈으로 보면 새 문이 열릴 수도 있어요. 가정이에요 — 검증은 당신의 몫. <i style="font-size:12px;color:var(--faint)">(데모 응답 — 실제 모델 미연결)</i>`};
+}
+
+/* ================= archive ================= */
+let filterCore='all';
+function renderArchive(){
+  const fr=document.getElementById('filterRow');
+  fr.innerHTML='';
+  const all=document.createElement('button');
+  all.className='chip'+(filterCore==='all'?' sel':'');
+  if(filterCore==='all'){all.style.background='var(--ink)';all.style.color='#fff';all.style.borderColor='transparent';}
+  all.textContent='전체';all.onclick=()=>{filterCore='all';renderArchive();};
+  fr.appendChild(all);
+  CORES.forEach(c=>{
+    const b=document.createElement('button');
+    b.className='chip'+(filterCore===c.key?' sel '+c.cls:'');
+    b.textContent=c.name;b.onclick=()=>{filterCore=c.key;renderArchive();};
+    fr.appendChild(b);
+  });
+  const q=(document.getElementById('searchText').value||'').toLowerCase();
+  let recs=S.records.filter(r=>filterCore==='all'||r.core===filterCore);
+  if(q)recs=recs.filter(r=>r.text.toLowerCase().includes(q));
+  const list=document.getElementById('archiveList');
+  if(!recs.length){list.innerHTML='<div class="empty">아직 여기엔 아무것도 없어요.<br>+ 버튼으로 첫 기록을 쌓아보세요.</div>';return;}
+  const groups={};
+  recs.forEach(r=>{(groups[r.day]=groups[r.day]||[]).push(r);});
+  list.innerHTML=Object.keys(groups).sort().reverse().map(day=>{
+    const d=new Date(day);
+    const label=day===TODAY?'오늘':d.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
+    return `<div class="daygroup">${label}</div><div class="card flat" style="padding:6px 18px">${groups[day].map(recHTML).join('')}</div>`;
+  }).join('');
+}
+
+/* ================= onboarding ================= */
+const OB=[
+  {ic:'◐',h:'AI 시대,<br>가장 가치있는 것은<br>나 자신입니다',p:'누구나 같은 답을 받는 시대 — 차이를 만드는 건 나의 이야기, 취향, 패턴이에요. 이 앱은 그것을 차곡차곡 쌓는 곳입니다.'},
+  {ic:'☀',h:'하루 1분,<br>질문 하나',p:'매일 하나의 질문에 한 줄로 답하면 끝. 떠오른 건 + 버튼으로 언제든 던져 넣으세요. 분류는 나중에 해도 괜찮아요.'},
+  {ic:'✦',h:'이야기를 먹고 자라는<br>나만의 세컨비',p:'기록 하나하나가 세컨비의 양식이에요. 쌓일수록 자라고, 자랄수록 당신을 닮은 답을 해요. 무엇을 보고 답하는지는 항상 화면에 보여드릴게요.'},
+];
+let obIdx=0;
+function renderOnboard(){
+  const o=OB[obIdx];
+  document.getElementById('onboardInner').innerHTML=`
+    <div class="step-ic">${o.ic}</div>
+    <h2 style="font-family:var(--serif)">${o.h}</h2><p>${o.p}</p>
+    <div class="dots">${OB.map((_,i)=>`<i class="${i===obIdx?'on':''}"></i>`).join('')}</div>
+    ${obIdx<OB.length-1
+      ?`<button class="btn" onclick="obNext()">다음</button>`
+      :`<button class="btn" onclick="finishOnboard(true)">샘플 데이터로 둘러보기</button>
+        <button class="btn ghost" onclick="finishOnboard(false)">빈 상태로 시작하기</button>`}`;
+}
+function obNext(){obIdx++;renderOnboard();}
+function finishOnboard(seed){
+  if(seed){
+    SAMPLE.forEach(s=>{
+      const d=new Date();d.setDate(d.getDate()-s.d);
+      S.records.push({id:uid(),day:dkey(d),core:s.core,type:'memo',text:s.t});
+    });
+    S.records.sort((a,b)=>b.day.localeCompare(a.day));
+  }
+  S.onboarded=true;save();
+  document.getElementById('onboard').classList.remove('open');
+  renderToday();
+}
+
+/* ================= misc ================= */
+function openRationale(){document.getElementById('rationale').classList.add('open');}
+function closeRationale(){document.getElementById('rationale').classList.remove('open');}
+function resetAll(){localStorage.removeItem('ndb_concept');location.reload();}
+let toastTimer;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* ================= boot ================= */
+if(!S.onboarded){document.getElementById('onboard').classList.add('open');renderOnboard();}
+renderToday();
+</script>
+</body>
+</html>
