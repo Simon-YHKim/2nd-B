@@ -12,7 +12,6 @@ import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, Scene
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
-import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { deleteSource, listSources } from "@/lib/wiki/queries";
@@ -819,7 +818,8 @@ const styles = StyleSheet.create({
   rowPressed: { opacity: 0.7 },
   rowHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   flexSpacer: { marginStart: "auto" },
-  rowTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600" },
+  // A-6: user-authored titles follow the P2-10 font preference via <Text variant="body">.
+  rowTitle: { fontWeight: "600" },
   kindChip: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,

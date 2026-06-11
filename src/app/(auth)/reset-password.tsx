@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -12,11 +12,12 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
+import { useURL } from "expo-linking";
 
 import { CosmicBackground, PremiumToast } from "@/components/premium";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { updatePassword } from "@/lib/supabase/auth";
+import { consumeAuthCallbackUrl, updatePassword } from "@/lib/supabase/auth";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { cosmicSky, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 
@@ -40,6 +41,22 @@ export default function ResetPassword() {
     if (confirmPassword.length > 0 && confirmPassword !== password) return "resetPassword.passwordMismatch";
     return "resetPassword.passwordHelper";
   }, [confirmPassword, password]);
+
+  // Native: the recovery email's deep link carries the session tokens, but
+  // detectSessionInUrl is web-only — without consuming the URL here the
+  // screen always dead-ends at "expired" (audit A-1). useURL covers both the
+  // cold-start initial URL and a warm-app link event; AuthContext picks up
+  // the resulting session and userId flips the form on.
+  const deepLinkUrl = useURL();
+  const consumedUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (Platform.OS === "web" || !deepLinkUrl || userId) return;
+    if (consumedUrlRef.current === deepLinkUrl) return;
+    consumedUrlRef.current = deepLinkUrl;
+    consumeAuthCallbackUrl(deepLinkUrl).catch((e) => {
+      if (typeof console !== "undefined") console.warn("[auth] recovery link consume failed", (e as Error).message);
+    });
+  }, [deepLinkUrl, userId]);
 
   if (loading) {
     return <InlineLoader message={t("common.checking")} />;

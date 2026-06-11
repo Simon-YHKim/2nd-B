@@ -37,6 +37,7 @@ import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
+import { useCoreHintDismissed } from "@/lib/onboarding/core-hint";
 import { useEmptyGraphDismissed } from "@/lib/onboarding/empty-card";
 import { domainForTags, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { VILLAGE_UI } from "@/lib/village-ui";
@@ -232,6 +233,10 @@ export default function Landing() {
   // useState, which reset each visit).
   const { dismissed: emptyDismissed, dismiss: dismissEmptyCard } =
     useEmptyGraphDismissed();
+  // B-1 coach hint: nodes exist but the graph was never touched — one line
+  // in the spotlight slot until the first interaction dismisses it for good.
+  const { dismissed: coreHintDismissed, dismiss: dismissCoreHint } =
+    useCoreHintDismissed();
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wake = useCallback(() => {
     setSleeping(false);
@@ -457,7 +462,11 @@ export default function Landing() {
           dataNodes={dataNodes}
           highlightId={highlightId}
           glowNodeId={dataNodes.length > 0 && !centerSeen ? "records" : null}
-          onFirstInteraction={() => setGraphTouched(true)}
+          onFirstInteraction={() => {
+            setGraphTouched(true);
+            // The hint's job is done the moment the graph is touched.
+            if (coreHintDismissed === false) dismissCoreHint();
+          }}
           onActiveChange={setSheetOpen}
         />
       </Animated.View>
@@ -536,6 +545,34 @@ export default function Landing() {
           J1: only once the graph has real nodes — with zero dataNodes the
           card claimed "pieces are gathering in <core>" over an empty graph
           (the records-only first save), a fabricated signal. */}
+      {/* B-1 coach hint — nodes exist, graph never touched. Lives in the same
+          bottom slot the spotlight card uses (never both: complementary
+          graphTouched conditions), so the one-message rule holds. The first
+          graph interaction or a tap on the hint dismisses it permanently. */}
+      {!showingEmptyGraphCard && !graphTouched && !sheetOpen && dataNodes.length > 0 && coreHintDismissed === false ? (
+        <Animated.View
+          style={[
+            styles.insightCardStack,
+            { opacity: contentOpacity, bottom: insets.bottom + TAB_BAR_HEIGHT + 12 },
+          ]}
+          pointerEvents="box-none"
+        >
+          <Pressable
+            onPress={dismissCoreHint}
+            style={[styles.insightCard, styles.coreHintCard]}
+            accessibilityRole="button"
+            accessibilityLabel={locale === "ko" ? "그래프 안내" : "Graph hint"}
+            accessibilityHint={locale === "ko" ? "안내를 닫습니다" : "Closes this hint"}
+          >
+            <Text style={styles.insightCardBody}>
+              {locale === "ko"
+                ? "빛나는 코어를 누르면 그 패턴을 가까이 볼 수 있어요"
+                : "Tap a glowing core to look closer at that pattern"}
+            </Text>
+          </Pressable>
+        </Animated.View>
+      ) : null}
+
       {!showingEmptyGraphCard && graphTouched && !sheetOpen && dataNodes.length > 0 ? (
         <Animated.View
           style={[
@@ -731,6 +768,13 @@ const styles = StyleSheet.create({
     right: 10,
     gap: 10,
     zIndex: 24,
+  },
+  // B-1 coach hint: same card voice, single-line weight (no 74px presence —
+  // it must read as a whisper next to the graph, not a competing surface).
+  coreHintCard: {
+    minHeight: 0,
+    justifyContent: "center",
+    paddingVertical: 8,
   },
   insightCard: {
     minHeight: 74,

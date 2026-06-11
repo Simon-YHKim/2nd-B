@@ -305,6 +305,16 @@ export async function signInWithEmail(email: string, password: string): Promise<
   return { userId: data.user.id };
 }
 
+// Native recovery deep links (password-reset email) carry the session in the
+// URL, but `detectSessionInUrl` is web-only and the only consumer of callback
+// URLs was the in-app OAuth browser path — so on Android/iOS the reset screen
+// always dead-ended at "expired" with no session. The reset screen feeds the
+// deep link here to establish the recovery session.
+export async function consumeAuthCallbackUrl(url: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  await createNativeSessionFromUrl(supabase, url);
+}
+
 export async function sendPasswordResetEmail(email: string): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {

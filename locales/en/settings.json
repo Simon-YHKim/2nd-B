@@ -19,8 +19,6 @@
   },
   "actions": {
     "signOutHint": "Signs out and returns to the sign-in screen.",
-    "darkThemeHint": "Applies dark theme on this device.",
-    "lightThemeHint": "Applies light theme on this device.",
     "crewDensityHint": "Sets decorative graph crew density to {{density}}.",
     "deleteJournalsHint": "Opens a confirmation before deleting every journal entry.",
     "deleteNotesHint": "Opens a confirmation before deleting every note.",

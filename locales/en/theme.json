@@ -16,6 +16,21 @@
       "sub": "A bright paper tone"
     }
   },
+  "font": {
+    "title": "Font",
+    "options": {
+      "pixel": {
+        "label": "Pixel font",
+        "sub": "The village's signature pixel letters"
+      },
+      "readable": {
+        "label": "Readable font",
+        "sub": "A smooth font that is easier on the eyes"
+      }
+    },
+    "useFontLabel": "Use the {{label}}",
+    "useFontHint": "Applies the selected font to titles and text on this device."
+  },
   "actions": {
     "inUse": "In use",
     "use": "Use",

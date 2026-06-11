@@ -7,6 +7,13 @@ jest.mock("expo-image-picker", () => ({
   requestCameraPermissionsAsync: jest.fn(),
 }));
 
+jest.mock("expo-image-manipulator", () => ({
+  SaveFormat: { JPEG: "jpeg" },
+  manipulateAsync: jest.fn(),
+}));
+
+import * as ImageManipulator from "expo-image-manipulator";
+
 jest.mock("../../llm/gemini", () => ({
   callGemini: jest.fn(),
 }));
@@ -70,6 +77,9 @@ const imagePickerMock = ImagePicker as unknown as {
   launchImageLibraryAsync: jest.Mock;
   requestCameraPermissionsAsync: jest.Mock;
 };
+const imageManipulatorMock = ImageManipulator as unknown as {
+  manipulateAsync: jest.Mock;
+};
 
 function proxyHttpError(status: number, error: string): Error {
   return Object.assign(new Error("proxy request failed"), {
@@ -88,6 +98,7 @@ describe("capture image OCR payload guards", () => {
     imagePickerMock.launchCameraAsync.mockReset();
     imagePickerMock.launchImageLibraryAsync.mockReset();
     imagePickerMock.requestCameraPermissionsAsync.mockReset();
+    imageManipulatorMock.manipulateAsync.mockReset();
     mockCallGemini.mockResolvedValue({
       text: "OCR text",
     } as Awaited<ReturnType<typeof callGemini>>);
@@ -129,7 +140,87 @@ describe("capture image OCR payload guards", () => {
     expect(mockCallGemini).not.toHaveBeenCalled();
   });
 
-  test("rejects oversized picked images before returning a preview asset", async () => {
+  test("downscales oversized picked images instead of rejecting them (P2-4)", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///big.jpg",
+          mimeType: "image/jpeg",
+          width: 4000,
+          height: 3000,
+          base64: "A".repeat(MAX_OCR_IMAGE_BASE64_BYTES + 1),
+        },
+      ],
+    });
+    imageManipulatorMock.manipulateAsync.mockResolvedValue({
+      uri: "file:///big-downscaled.jpg",
+      base64: JPEG_IMAGE_BASE64,
+    });
+
+    await expect(pickImageAsset("library")).resolves.toEqual({
+      uri: "file:///big-downscaled.jpg",
+      base64: JPEG_IMAGE_BASE64,
+      mimeType: "image/jpeg",
+    });
+    expect(imageManipulatorMock.manipulateAsync).toHaveBeenCalledTimes(1);
+    expect(imageManipulatorMock.manipulateAsync).toHaveBeenCalledWith(
+      "file:///big.jpg",
+      [{ resize: { width: 1600 } }],
+      { compress: 0.7, format: "jpeg", base64: true },
+    );
+  });
+
+  test("downscales oversized portrait images along the height axis (P2-4)", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///tall.jpg",
+          mimeType: "image/jpeg",
+          width: 3000,
+          height: 4000,
+          base64: "A".repeat(MAX_OCR_IMAGE_BASE64_BYTES + 1),
+        },
+      ],
+    });
+    imageManipulatorMock.manipulateAsync.mockResolvedValue({
+      uri: "file:///tall-downscaled.jpg",
+      base64: JPEG_IMAGE_BASE64,
+    });
+
+    await expect(pickImageAsset("library")).resolves.toMatchObject({ mimeType: "image/jpeg" });
+    expect(imageManipulatorMock.manipulateAsync).toHaveBeenCalledWith(
+      "file:///tall.jpg",
+      [{ resize: { height: 1600 } }],
+      expect.objectContaining({ format: "jpeg" }),
+    );
+  });
+
+  test("rejects oversized picked images when downscaling cannot fit the cap", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///big.jpg",
+          mimeType: "image/jpeg",
+          width: 4000,
+          height: 3000,
+          base64: "A".repeat(MAX_OCR_IMAGE_BASE64_BYTES + 1),
+        },
+      ],
+    });
+    imageManipulatorMock.manipulateAsync.mockResolvedValue({
+      uri: "file:///still-big.jpg",
+      base64: "B".repeat(MAX_OCR_IMAGE_BASE64_BYTES + 1),
+    });
+
+    await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_TOO_LARGE_ERROR);
+    // One attempt per downscale target before giving up.
+    expect(imageManipulatorMock.manipulateAsync).toHaveBeenCalledTimes(4);
+  });
+
+  test("rejects oversized picked images when the downscaler itself fails", async () => {
     imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
       canceled: false,
       assets: [
@@ -140,8 +231,29 @@ describe("capture image OCR payload guards", () => {
         },
       ],
     });
+    imageManipulatorMock.manipulateAsync.mockRejectedValue(new Error("decode failed"));
 
     await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_TOO_LARGE_ERROR);
+  });
+
+  test("does not downscale picked images that already fit the cap", async () => {
+    imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///small.jpg",
+          mimeType: "image/jpeg",
+          base64: JPEG_IMAGE_BASE64,
+        },
+      ],
+    });
+
+    await expect(pickImageAsset("library")).resolves.toEqual({
+      uri: "file:///small.jpg",
+      base64: JPEG_IMAGE_BASE64,
+      mimeType: "image/jpeg",
+    });
+    expect(imageManipulatorMock.manipulateAsync).not.toHaveBeenCalled();
   });
 
   test("rejects unsupported picked image MIME before returning a preview asset", async () => {

@@ -64,6 +64,7 @@ import {
   type CaptureDraftMode,
   type CaptureDrafts,
 } from "@/lib/capture/draft";
+import { classifyRecordTextForCrisis } from "@/lib/llm/gemini";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
 import { saveTemplate } from "@/lib/wiki/template-queries";
@@ -296,11 +297,21 @@ export default function Capture() {
     setShowExtras(targetMode === "journal" && conclusionDraft.trim().length > 0);
     setOcrReviewApproved(targetMode === "ocr" && draft?.ocrReviewApproved === true && (draft?.body ?? "").trim().length > 0);
   }
+  // A fast first sentence typed before AsyncStorage hydration resolved used to
+  // be silently overwritten by the restored draft (audit A-3) — track live
+  // input so the restore only applies to untouched fields.
+  const preHydrationDirtyRef = useRef(false);
+  useEffect(() => {
+    if (!draftHydratedRef.current && (body.length > 0 || topic.length > 0 || conclusion.length > 0)) {
+      preHydrationDirtyRef.current = true;
+    }
+  }, [body, topic, conclusion]);
   useEffect(() => {
     if (!userId) {
       draftsRef.current = {};
       draftHydratedRef.current = false;
       draftUserRef.current = null;
+      preHydrationDirtyRef.current = false;
       return;
     }
     if (draftUserRef.current === userId && draftHydratedRef.current) return;
@@ -311,6 +322,9 @@ export default function Capture() {
       if (cancelled) return;
       draftsRef.current = state.drafts;
       draftHydratedRef.current = true;
+      // The user got here first — keep their live typing (and their mode);
+      // the loaded drafts stay in the ref for the other modes.
+      if (preHydrationDirtyRef.current) return;
       const restoredMode = isCaptureDraftMode(state.lastMode) ? state.lastMode : DEFAULT_CAPTURE_DRAFT_MODE;
       if (restoredMode !== "journal") setShowAdvancedModes(true);
       setMode(restoredMode);
@@ -409,8 +423,14 @@ export default function Capture() {
     setProposalCtx(null);
     setProposal(null);
     setFormatSavedMsg(null);
+    // Clear the WHOLE saved panel, not half of it: leaving savedTitle/Kind
+    // while nulling savedMode degraded an OCR success panel to generic copy
+    // and left a "see the graph" CTA whose highlight id was gone (audit A-2).
     setSavedMode(null);
     setSavedSourceId(null);
+    setSavedTitle(null);
+    setSavedKind(null);
+    setSavedPending(false);
   }
 
   function reset() {
@@ -466,7 +486,13 @@ export default function Capture() {
         showFeedback(t("alerts.ocrUnsupportedType.title"), t("alerts.ocrUnsupportedType.message"));
         return;
       }
-      if (isImageOcrInvalidDataError(e) || isImageOcrMissingDataError(e)) {
+      // C-2: missing data has its own accurate copy ("couldn't read the file
+      // from the picker") — folding it into "damaged" misdiagnosed it.
+      if (isImageOcrMissingDataError(e)) {
+        showFeedback(t("alerts.ocrMissingData.title"), t("alerts.ocrMissingData.message"));
+        return;
+      }
+      if (isImageOcrInvalidDataError(e)) {
         showFeedback(t("alerts.ocrInvalidData.title"), t("alerts.ocrInvalidData.message"));
         return;
       }
@@ -515,7 +541,11 @@ export default function Capture() {
         showFeedback(t("alerts.ocrUnsupportedType.title"), t("alerts.ocrUnsupportedType.message"));
         return;
       }
-      if (isImageOcrInvalidDataError(e) || isImageOcrMissingDataError(e)) {
+      if (isImageOcrMissingDataError(e)) {
+        showFeedback(t("alerts.ocrMissingData.title"), t("alerts.ocrMissingData.message"));
+        return;
+      }
+      if (isImageOcrInvalidDataError(e)) {
         showFeedback(t("alerts.ocrInvalidData.title"), t("alerts.ocrInvalidData.message"));
         return;
       }
@@ -703,6 +733,24 @@ export default function Capture() {
         extraFrontmatter,
         simonRelevance,
       });
+
+      // Memo is self-authored text like journal, but it lands on the sources
+      // path which never ran crisis classification — a red-zone memo surfaced
+      // NO hotline while journal (records path) and OCR both protect (same
+      // gap class as persona-sim P1-1). Reuse the local classifier + audited
+      // routing; the save above already succeeded and stays untouched.
+      // linkclip/file stay excluded: clipped web articles about a tragedy are
+      // not the user's own words (false-positive surface).
+      if (submittedMode === "memo") {
+        try {
+          const crisis = await classifyRecordTextForCrisis(finalBody, locale, userId, isMinor === true);
+          if (crisis) {
+            setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+          }
+        } catch (e) {
+          if (typeof console !== "undefined") console.warn("[capture] memo crisis classify failed", (e as Error).message);
+        }
+      }
 
       reset();
       clearModeDraft(submittedMode);

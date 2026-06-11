@@ -24,6 +24,12 @@ export interface CrisisRouterProps {
   onClose: () => void;
 }
 
+// P1-3 (Simon-approved option A, 2026-06-11): 988 serves the US, but the EN
+// locale also reaches users in countries we have no number for. ThroughLine's
+// findahelpline.com (the directory WHO and major platforms point to) covers
+// the rest — surfaced as a secondary row, never replacing the call box.
+export const CRISIS_DIRECTORY_URL = "https://findahelpline.com";
+
 export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
   const { t } = useTranslation("safety");
   const number = HOTLINES[hotline].number;
@@ -41,6 +47,12 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
       // the number is also visible as text.
     });
   }, [number]);
+
+  const handleDirectory = useCallback(() => {
+    void Linking.openURL(CRISIS_DIRECTORY_URL).catch(() => {
+      // Browser open failed — the hotline number above is still actionable.
+    });
+  }, []);
 
   return (
     <Modal
@@ -82,6 +94,17 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
               {isKorean ? "탭하여 전화 걸기" : "Tap to call"}
             </Text>
           </Pressable>
+          {hotline === "GLOBAL_988" ? (
+            <Pressable
+              onPress={handleDirectory}
+              accessibilityRole="link"
+              accessibilityLabel={t("red.directoryLabel")}
+              accessibilityHint={t("red.directoryHint")}
+              style={({ pressed }) => [styles.directoryRow, pressed && styles.hotlineBoxPressed]}
+            >
+              <Text variant="caption" color="brand">{t("red.directoryLabel")}</Text>
+            </Pressable>
+          ) : null}
           <Button label={t("red.dismiss")} variant="secondary" onPress={onClose} />
         </View>
       </View>
@@ -132,6 +155,12 @@ const styles = StyleSheet.create({
   hotlineBoxPressed: {
     backgroundColor: semantic.surface,
     opacity: 0.85,
+  },
+  directoryRow: {
+    backgroundColor: semantic.surfaceAlt,
+    borderRadius: radii.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   hotline: {
     color: semantic.brand,

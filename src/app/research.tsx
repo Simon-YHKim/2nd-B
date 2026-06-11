@@ -16,7 +16,6 @@ import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
-import { fontFamilies } from "@/theme/typography";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 interface Source {
@@ -285,5 +284,6 @@ const styles = StyleSheet.create({
     borderColor: semantic.brand,
     backgroundColor: semantic.surfaceAlt,
   },
-  cardTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600", marginTop: spacing.xs },
+  // A-6: user-authored titles follow the P2-10 font preference via <Text variant="body">.
+  cardTitle: { fontWeight: "600", marginTop: spacing.xs },
 });
