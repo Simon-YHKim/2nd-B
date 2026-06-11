@@ -1,9 +1,11 @@
 import { __setSupabaseClientForTests } from "../client";
-import { sendPasswordResetEmail, updatePassword } from "../auth";
+import { consumeAuthCallbackUrl, sendPasswordResetEmail, updatePassword } from "../auth";
 
 type MockSupabaseAuth = {
   resetPasswordForEmail: jest.Mock;
   updateUser: jest.Mock;
+  setSession?: jest.Mock;
+  exchangeCodeForSession?: jest.Mock;
 };
 
 function setWebLocation(pathname: string): void {
@@ -57,5 +59,49 @@ describe("password reset helpers", () => {
     await updatePassword("new-password-123");
 
     expect(auth.updateUser).toHaveBeenCalledWith({ password: "new-password-123" });
+  });
+
+  test("consumeAuthCallbackUrl turns recovery-link tokens into a session (A-1)", async () => {
+    const auth: MockSupabaseAuth = {
+      resetPasswordForEmail: jest.fn(),
+      updateUser: jest.fn(),
+      setSession: jest.fn().mockResolvedValue({ error: null }),
+    };
+    installClient(auth);
+
+    await consumeAuthCallbackUrl(
+      "secondb:///reset-password#access_token=at-1&refresh_token=rt-1&type=recovery",
+    );
+
+    expect(auth.setSession).toHaveBeenCalledWith({ access_token: "at-1", refresh_token: "rt-1" });
+  });
+
+  test("consumeAuthCallbackUrl exchanges a PKCE code when present", async () => {
+    const auth: MockSupabaseAuth = {
+      resetPasswordForEmail: jest.fn(),
+      updateUser: jest.fn(),
+      exchangeCodeForSession: jest.fn().mockResolvedValue({ error: null }),
+    };
+    installClient(auth);
+
+    await consumeAuthCallbackUrl("secondb:///reset-password?code=pkce-code-1");
+
+    expect(auth.exchangeCodeForSession).toHaveBeenCalledWith("pkce-code-1");
+  });
+
+  test("consumeAuthCallbackUrl surfaces provider error codes", async () => {
+    const auth: MockSupabaseAuth = {
+      resetPasswordForEmail: jest.fn(),
+      updateUser: jest.fn(),
+      setSession: jest.fn(),
+    };
+    installClient(auth);
+
+    await expect(
+      consumeAuthCallbackUrl(
+        "secondb:///reset-password#error_code=otp_expired&error_description=Link+expired",
+      ),
+    ).rejects.toThrow();
+    expect(auth.setSession).not.toHaveBeenCalled();
   });
 });
