@@ -1,0 +1,31 @@
+{
+  "hero": {
+    "eyebrow": "404",
+    "title": "Esta página não existe",
+    "subtitle": "Comece novamente pela tela inicial.",
+    "speech": "O link parece quebrado. Escolha um lugar seguro para continuar."
+  },
+  "actions": {
+    "home": "Ir para o início",
+    "homeHint": "Abre a tela inicial."
+  },
+  "destinations": {
+    "title": "Destinos comuns",
+    "capture": {
+      "label": "Captura",
+      "hint": "Abre a captura a partir da página não encontrada."
+    },
+    "audit": {
+      "label": "Eu do passado",
+      "hint": "Abre a linha do tempo do eu passado."
+    },
+    "persona": {
+      "label": "Persona",
+      "hint": "Abre a tela da persona."
+    },
+    "manual": {
+      "label": "Manual",
+      "hint": "Abre o manual do app a partir da página não encontrada."
+    }
+  }
+}

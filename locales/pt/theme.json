@@ -1,0 +1,56 @@
+{
+  "loading": "Carregando tema...",
+  "hero": {
+    "eyebrow": "08-4. Tema",
+    "title": "Escolha o tom de exibição",
+    "subtitle": "Escuro padrão · tom claro secundário",
+    "speech": "O grafo principal sempre mantém o céu escuro para que as estrelas e conexões fiquem nítidas."
+  },
+  "options": {
+    "dark": {
+      "label": "Escuro",
+      "sub": "O tom noturno padrão"
+    },
+    "light": {
+      "label": "Claro",
+      "sub": "Um tom claro de papel"
+    }
+  },
+  "font": {
+    "title": "Fonte",
+    "options": {
+      "pixel": {
+        "label": "Fonte pixel",
+        "sub": "As letras pixel características da vila"
+      },
+      "readable": {
+        "label": "Fonte legível",
+        "sub": "Uma fonte suave mais fácil de ler"
+      }
+    },
+    "useFontLabel": "Usar {{label}}",
+    "useFontHint": "Aplica a fonte selecionada aos títulos e textos neste dispositivo."
+  },
+  "performance": {
+    "title": "Desempenho",
+    "options": {
+      "full": {
+        "label": "Efeitos completos",
+        "sub": "Todos os movimentos, brilhos e personagens de fundo"
+      },
+      "lite": {
+        "label": "Modo leve",
+        "sub": "Menos efeitos para uma experiência suave em celulares mais antigos"
+      }
+    },
+    "usePerformanceLabel": "Usar {{label}}",
+    "usePerformanceHint": "Aplica a configuração de desempenho selecionada neste dispositivo."
+  },
+  "actions": {
+    "inUse": "Em uso",
+    "use": "Usar",
+    "useThemeLabel": "Usar tema {{label}}",
+    "useThemeHint": "Aplica o tema selecionado neste dispositivo."
+  },
+  "note": "O grafo principal permanece escuro mesmo no modo claro. É o fundo onde as estrelas e conexões ficam mais visíveis."
+}

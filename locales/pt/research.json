@@ -1,0 +1,34 @@
+{
+  "loading": "Carregando pesquisa...",
+  "error": {
+    "title": "Não foi possível carregar a pesquisa",
+    "body": "A conexão pausou por um momento. Tente novamente para recarregar a biblioteca.",
+    "retry": "Tentar novamente"
+  },
+  "hero": {
+    "eyebrow": "Pesquisa",
+    "title": "Mantenha as evidências visíveis",
+    "subtitle": "Big Five - apego - CBT - VIA",
+    "speech": "Apenas fontes verificadas que o SecondB pode citar aparecem aqui."
+  },
+  "empty": "Nenhuma fonte ainda. O fluxo de curadoria está em andamento.",
+  "filter": {
+    "label": "Filtrar por framework",
+    "accessibilityLabel": "Filtros de framework",
+    "all": "Todos"
+  },
+  "sourceCount": "{{visible}} fonte{{plural}} (de {{total}})",
+  "verified": "Verificado",
+  "link": {
+    "label": "Abrir link da fonte para {{title}}",
+    "hint": "Abre o DOI ou a URL da fonte"
+  },
+  "frameworks": {
+    "big_five": "Big Five",
+    "attachment": "Teoria do apego",
+    "sdt": "Autodeterminação",
+    "cbt": "CBT",
+    "erikson": "Estágios de Erikson",
+    "via": "VIA Strengths"
+  }
+}

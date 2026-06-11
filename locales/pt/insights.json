@@ -1,0 +1,52 @@
+{
+  "loading": "Carregando descobertas...",
+  "error": {
+    "title": "Não foi possível carregar as descobertas",
+    "body": "A conexão pausou por um momento. Tente novamente para recalcular o fluxo dos seus registros.",
+    "retry": "Tentar novamente"
+  },
+  "empty": {
+    "hero": {
+      "eyebrow": "11. Descobertas",
+      "title": "Os padrões ainda são poucos",
+      "subtitle": "Alguns dias de registros vão revelar o fluxo",
+      "speech": "Preciso de mais algumas peças para ver gostos e repetições. Deixa uma hoje?",
+      "action": "Ir para captura"
+    }
+  },
+  "hero": {
+    "eyebrow": "11. Descobertas",
+    "title": "Veja o fluxo nos registros recentes",
+    "subtitle": "Calculado diretamente dos registros",
+    "speech": "Reuni tópicos recorrentes e conclusões recentes. Vamos traçar o padrão?",
+    "action": "Deixar a peça de hoje"
+  },
+  "stats": {
+    "total": {
+      "label": "Total de entradas",
+      "daySpan": "ao longo de {{count}} dia{{plural}}"
+    },
+    "average": {
+      "label": "Comprimento médio",
+      "unit": "chars/entrada"
+    }
+  },
+  "weeklyReport": {
+    "eyebrow": "Relatório semanal",
+    "thisWeekLabel": "Esta semana",
+    "lastWeekLabel": "Semana passada",
+    "deltaUp": "{{count}} a mais que a semana passada",
+    "deltaDown": "{{count}} a menos que a semana passada",
+    "deltaFlat": "Mesmo ritmo da semana passada",
+    "firstWeek": "Sua primeira semana de registros"
+  },
+  "sections": {
+    "weekly": "Atividade semanal",
+    "topics": "Tópicos recorrentes",
+    "tags": "Tags principais",
+    "conclusions": "Conclusões recentes"
+  },
+  "topics": {
+    "count": "{{count}}x"
+  }
+}

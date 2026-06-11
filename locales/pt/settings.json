@@ -1,0 +1,88 @@
+{
+  "loading": "Carregando configurações…",
+  "nav": {
+    "eyebrow": "Configurações",
+    "profile": "Perfil",
+    "profileHint": "Abre as configurações de perfil.",
+    "privacy": "Privacidade",
+    "privacyHint": "Abre as configurações de privacidade.",
+    "account": "Conta",
+    "accountHint": "Abre as configurações de conta.",
+    "theme": "Tema",
+    "themeHint": "Abre as configurações de tema.",
+    "data": "Gestão de dados",
+    "dataHint": "Abre a gestão de dados.",
+    "records": "Registros",
+    "recordsHint": "Abre os registros salvos.",
+    "support": "Suporte",
+    "supportHint": "Abre as opções de suporte."
+  },
+  "language": {
+    "body": "Escolha o idioma do app. Novos idiomas aparecem aqui conforme os pacotes são lançados.",
+    "optionA11yLabel": "{{label}}, opção {{index}} de {{total}}, {{state}}.",
+    "stateSelected": "selecionado",
+    "stateAvailable": "disponível",
+    "useLanguageHint": "Muda o idioma do app para {{label}}.",
+    "betaTag": "(beta)"
+  },
+  "actions": {
+    "signOutHint": "Sai da conta e volta para a tela de login.",
+    "crewDensityHint": "Define a densidade decorativa da equipe no grafo para {{density}}.",
+    "deleteJournalsHint": "Abre uma confirmação antes de apagar todas as entradas do diário.",
+    "deleteNotesHint": "Abre uma confirmação antes de apagar todas as notas.",
+    "deleteAuditHint": "Abre uma confirmação antes de apagar todas as respostas de avaliação.",
+    "deleteBfiHint": "Abre uma confirmação antes de apagar os resultados salvos do Big Five.",
+    "deleteEcrHint": "Abre uma confirmação antes de apagar os resultados salvos de Apego.",
+    "deleteMbtiHint": "Abre uma confirmação antes de apagar os resultados de referência MBTI salvos.",
+    "deleteWikiHint": "Abre uma confirmação antes de apagar todas as páginas da wiki.",
+    "deleteUningestedHint": "Abre uma confirmação antes de apagar capturas ainda não promovidas para a wiki.",
+    "resetUsageHint": "Abre uma confirmação antes de redefinir os contadores de uso diário.",
+    "fullWipeInputLabel": "Confirmação de exclusão total. Digite {{phrase}} para ativar o botão de apagar.",
+    "fullWipeHint": "Exige a confirmação digitada DELETE antes de apagar registros, fontes, páginas da wiki e uso."
+  },
+  "dataWizard": {
+    "body": "Escolha uma área de exclusão por vez. Seu conteúdo privado do 2nd-B fica dividido em registros, avaliações, wiki/capturas e exclusão total.",
+    "optionA11yLabel": "{{label}}, opção {{index}} de {{total}}, {{state}}.",
+    "stateSelected": "selecionado",
+    "stateAvailable": "não selecionado",
+    "selectedHint": "Esta área de exclusão já está selecionada. As ações dela aparecem abaixo.",
+    "records": {
+      "label": "Registros",
+      "hint": "Mostra ações de exclusão para diários, notas e respostas de avaliação.",
+      "body": "Limpe um tipo de registro privado mantendo o restante do seu grafo e wiki intactos."
+    },
+    "assessments": {
+      "label": "Avaliações",
+      "hint": "Mostra ações de exclusão para resultados de avaliação salvos.",
+      "body": "Remova resultados de referência salvos sem mexer nos diários, capturas ou páginas da wiki."
+    },
+    "library": {
+      "label": "Wiki e capturas",
+      "hint": "Mostra ações de exclusão para páginas da wiki, capturas não ingeridas e contadores de uso.",
+      "body": "Limpe a wiki e as capturas separadamente dos registros privados e referências do grafo."
+    },
+    "full": {
+      "label": "Exclusão total",
+      "hint": "Mostra a confirmação digitada para apagar todos os registros, fontes, páginas da wiki e uso.",
+      "body": "Este é o caminho irreversível de exclusão de conteúdo. Exporte primeiro, depois digite DELETE só se tiver certeza.",
+      "retained": "Isso limpa o conteúdo privado do 2nd-B nesta conta. Dados da conta, histórico de consentimento e registros de responsabilidade do serviço permanecem."
+    }
+  },
+  "modals": {
+    "confirm": {
+      "label": "Diálogo de confirmação de configurações",
+      "title": "Tem certeza?",
+      "cancel": "Cancelar",
+      "cancelHint": "Fecha esta confirmação de exclusão.",
+      "delete": "Apagar",
+      "deleteHint": "Inicia a ação de exclusão selecionada."
+    },
+    "feedback": {
+      "label": "Aviso de feedback das configurações",
+      "dismiss": "Fechar",
+      "dismissHint": "Fecha este aviso.",
+      "retry": "Tentar novamente",
+      "retryHint": "Tenta novamente a ação de configuração que falhou."
+    }
+  }
+}

@@ -1,0 +1,134 @@
+{
+  "hero": {
+    "eyebrow": "Formatos",
+    "title": "Meus formatos de captura",
+    "subtitle": "Formatos que você criou e os que a comunidade compartilhou",
+    "speech": "Ajuste um formato e as próximas peças se organizam melhor sozinhas."
+  },
+  "mine": {
+    "shared": "Compartilhado com a comunidade",
+    "private": "Privado para você",
+    "heading": "Meus formatos",
+    "headingWithCount": "Meus formatos ({{count}})",
+    "emptyTitle": "Nenhum formato ainda",
+    "emptyBody": "Salve um formato sugerido pelo SecondB durante uma captura e ele aparece aqui."
+  },
+  "community": {
+    "heading": "Formatos da comunidade",
+    "headingWithCount": "Formatos da comunidade ({{count}})",
+    "empty": "Nenhum formato da comunidade ainda. Quando alguém compartilhar um, ele aparece aqui."
+  },
+  "builtIn": {
+    "headingWithCount": "Formatos padrão ({{count}})"
+  },
+  "labels": {
+    "untitled": "(sem título)",
+    "viewGuide": "ver guia de arquivamento",
+    "tapViewGuide": "Toque para ver o guia de arquivamento ›",
+    "guide": "Guia",
+    "share": "compartilhar",
+    "delete": "apagar"
+  },
+  "actions": {
+    "addFormat": "Adicionar formato",
+    "goCapture": "Ir para captura",
+    "edit": "Editar",
+    "delete": "Apagar",
+    "cancel": "Cancelar",
+    "close": "Fechar"
+  },
+  "loading": {
+    "formats": "Carregando formatos…",
+    "generic": "Carregando…"
+  },
+  "error": {
+    "loadTitle": "Não foi possível carregar seus formatos",
+    "loadBody": "Verifique sua conexão e tente novamente.",
+    "retry": "Tentar novamente"
+  },
+  "toast": {
+    "shareFailed": "Não foi possível alterar o compartilhamento.",
+    "deleteSuccess": "Formato apagado.",
+    "deleteFailed": "Não foi possível apagar.",
+    "saveSuccess": "Formato salvo.",
+    "saveFailed": "Não foi possível salvar.",
+    "addSuccess": "Formato adicionado."
+  },
+  "deleteModal": {
+    "label": "Confirmação de exclusão de formato",
+    "title": "Apagar este formato?",
+    "body": "Isso não pode ser desfeito."
+  },
+  "guideModal": {
+    "label": "Ver guia de arquivamento",
+    "eyebrow": "Guia de arquivamento"
+  },
+  "editor": {
+    "eyebrow": "Editar formato",
+    "name": "Nome",
+    "nameKoPlaceholder": "Nome em coreano",
+    "nameEnPlaceholder": "Nome em inglês",
+    "description": "Descrição",
+    "descriptionHint": "Uma linha sobre o que é este formato",
+    "descriptionKoPlaceholder": "Resumo em coreano",
+    "descriptionEnPlaceholder": "Resumo em inglês",
+    "sourceType": "Tipo de fonte",
+    "sourceTypeHint": "Escolha como as capturas com este formato são salvas.",
+    "filingArea": "Área de arquivamento",
+    "noArea": "Nenhuma área ainda",
+    "autoMatchLinks": "Correspondência automática de links",
+    "autoMatchLinksHint": "Links correspondentes são arquivados com este formato automaticamente.",
+    "addLinkRule": "Adicionar regra de link",
+    "defaultTags": "Hashtags padrão",
+    "addTag": "Adicionar hashtag",
+    "savedFolder": "Pasta salva",
+    "savedFolderHint": "Nome de pasta opcional. Por exemplo: tools/",
+    "detailsToSave": "Detalhes a salvar",
+    "detailsToSaveHint": "Detalhes a extrair e salvar de cada captura.",
+    "noneYet": "Nenhum ainda",
+    "detailNamePlaceholder": "Nome do detalhe (ex.: área temática)",
+    "removeDetail": "Remover detalhe",
+    "remove": "Remover",
+    "addDetail": "Adicionar detalhe",
+    "fillKoPlaceholder": "O que preencher (coreano)",
+    "fillEnPlaceholder": "O que preencher (inglês)",
+    "removeValue": "Remover {{value}}",
+    "saving": "Salvando",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "propTypes": {
+      "text": "Texto",
+      "multitext": "Longo",
+      "number": "Número"
+    }
+  },
+  "schemaView": {
+    "name": "Nome",
+    "what": "O que é",
+    "sourceType": "Tipo de fonte",
+    "filingArea": "Área de arquivamento",
+    "defaultTags": "Hashtags padrão",
+    "autoMatchLinks": "Correspondência automática de links",
+    "detailsSaved": "Detalhes salvos de cada peça",
+    "commonOnly": "Apenas campos comuns como resumo, hashtags e relevância são salvos.",
+    "propTypes": {
+      "text": "Texto",
+      "multitext": "Lista",
+      "number": "Número"
+    }
+  },
+  "add": {
+    "title": "Adicionar um formato",
+    "body": "Descreva o material e como você o arquivaria. SecondB sugere um guia de arquivamento reutilizável.",
+    "placeholder": "ex.: Episódios de podcast - capturar o convidado e as principais ideias",
+    "draft": "Rascunhar guia de arquivamento com SecondB",
+    "drafting": "Rascunhando…",
+    "errorNeedDetail": "Não foi possível rascunhar um guia de arquivamento. Adicione mais detalhes e tente novamente.",
+    "errorDraft": "Não conseguimos rascunhar o guia de arquivamento. Tente novamente em instantes.",
+    "errorSave": "Não conseguimos salvar o formato. Por favor, tente novamente.",
+    "proposedEyebrow": "Formato proposto",
+    "addThis": "Adicionar este formato",
+    "redo": "Refazer",
+    "cancel": "Cancelar"
+  }
+}

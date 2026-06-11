@@ -1,0 +1,17 @@
+{
+  "title": "Caixa de entrada",
+  "subtitle": "Tudo o que você capturou. Toque para visualizar.",
+  "captureMore": "Capturar mais",
+  "back": "Voltar ao diário",
+  "empty": "Nada capturado ainda. Toque em Capturar para adicionar o primeiro.",
+  "error": "Não foi possível carregar suas capturas:",
+  "ingested": "Processado",
+  "feedback": {
+    "noticeLabel": "Aviso de feedback da caixa de entrada",
+    "confirmLabel": "Confirmação de ação da caixa de entrada",
+    "cancel": "Cancelar",
+    "dismiss": "Descartar",
+    "dismissHint": "Descarta este aviso.",
+    "confirmHint": "Executa a ação selecionada na caixa de entrada."
+  }
+}

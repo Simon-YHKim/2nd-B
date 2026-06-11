@@ -1,0 +1,25 @@
+{
+  "title": "Wiki",
+  "subtitle": "Seu grafo de conhecimento. Toque em uma página para ler e ver o que aponta para ela.",
+  "hero": {
+    "eyebrow": "04. Repositório de conhecimento",
+    "title": "Peças salvas viram uma biblioteca",
+    "subtitle": "Encontre as peças que você salvou no SecondB",
+    "speech": "Mantive as peças em ordem. Capture uma nova ou pergunte ao SecondB."
+  },
+  "capture": "Captura",
+  "export": "Criar exportação",
+  "exportActionTitle": "Leve seu conhecimento com você",
+  "exportActionBody": "Gere um pacote pronto para copiar com suas páginas e fontes.",
+  "exportActionExample": "Use para backup, revisão ou para continuar em outra ferramenta de escrita ou pesquisa.",
+  "exportActionHint": "Cria uma prévia pronta para copiar do seu repositório de conhecimento.",
+  "back": "Voltar ao diário",
+  "filterByTag": "Filtrar por tag",
+  "clear": "Limpar",
+  "empty": "Nenhuma página ainda. Capture algo e gere a página a partir da caixa de entrada.",
+  "emptyForTags": "Nenhuma página corresponde a essas tags.",
+  "emptyBody": "(sem conteúdo ainda)",
+  "backlinks": "Backlinks",
+  "exportTitle": "Pacote de conhecimento pronto para copiar",
+  "exportHelper": "Copie o pacote para backup, revisão ou outra ferramenta de escrita ou pesquisa. Mantenha o dedo pressionado no texto se a cópia para a área de transferência não estiver disponível."
+}

@@ -1,0 +1,20 @@
+{
+  "loading": {
+    "auth": "Carregando...",
+    "record": "Carregando este registro..."
+  },
+  "state": {
+    "missingTitle": "Peça não encontrada",
+    "errorTitle": "Não foi possível carregar esta peça"
+  },
+  "body": {
+    "sourceEmpty": "Uma fonte capturada. Abra a tela abaixo para ver o conteúdo completo.",
+    "noText": "Esta peça não tem texto."
+  },
+  "actions": {
+    "backToRecords": "Voltar aos registros",
+    "seeGraph": "Ver no grafo",
+    "askSecondB": "Perguntar ao SecondB",
+    "openSource": "Abrir a tela"
+  }
+}
