@@ -72,6 +72,7 @@ import { VILLAGE_UI } from "@/lib/village-ui";
 import { CharacterPathLayer, type Commute } from "./CharacterPathLayer";
 import { CrewLayer } from "./CrewLayer";
 import { useCrewCount } from "@/lib/settings/crew-density";
+import { useLiteMode } from "@/lib/settings/lite-mode";
 import { getEnv } from "@/lib/env";
 import { V3_CREW_ART } from "@/lib/assets/soulcore-v3";
 import { PremiumButton, StatTile, TAB_BAR_HEIGHT } from "@/components/premium";
@@ -362,9 +363,14 @@ function NodeGlow({ tier, size, color }: { tier: GlowTier; size: number; color?:
   const baseGlow = glowForTier(tier);
   const g = color ? { ...baseGlow, color } : baseGlow;
   const tierScale = g.opacity / 0.7; // tier1 full, deeper tiers fainter
+  // Lite mode (O-R2 ③): keep the two inner rings, drop the two faint outer
+  // ones - halves the glow view count per node. tierScale is untouched, so
+  // the per-tier brightness hierarchy (visual tier standing rule) holds.
+  const { liteMode } = useLiteMode();
+  const rings = liteMode ? GLOW_RINGS.slice(0, 2) : GLOW_RINGS;
   return (
     <>
-      {GLOW_RINGS.map((r, i) => {
+      {rings.map((r, i) => {
         const d = size * (1 + r.grow) + r.border * 2;
         const off = (size - d) / 2;
         return (

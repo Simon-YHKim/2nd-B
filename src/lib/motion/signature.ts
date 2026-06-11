@@ -14,6 +14,7 @@
 // (cap 1.25x, settle ~400ms). Everything else is ease-out, no spring.
 
 import type { CharacterId } from "../characters";
+import { isLiteModeEnabled } from "../settings/lite-mode";
 
 export interface SaveMotionSpec {
   /** Scale value the pop dips to before the overshoot. */
@@ -84,6 +85,9 @@ export function savePopTotalMs(spec: SaveMotionSpec = SAVE_MOTION): number {
  * animate. Pure + side-effect-free read, safe to call in render.
  */
 export function prefersReducedMotion(): boolean {
+  // Lite mode (O-R2 ③) forces the reduced path through this same chokepoint
+  // every animation consumer already honors - one flag, zero new branches.
+  if (isLiteModeEnabled()) return true;
   const g = globalThis as unknown as {
     matchMedia?: (q: string) => { matches: boolean };
   };

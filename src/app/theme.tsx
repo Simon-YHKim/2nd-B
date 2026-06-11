@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useFontStyle, type FontStyle } from "@/lib/settings/readable-font";
+import { useLiteMode } from "@/lib/settings/lite-mode";
 import { useTheme } from "@/lib/theme/ThemeContext";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
@@ -21,6 +22,7 @@ export default function ThemeScreen() {
   const { userId, loading } = useAuth();
   const { mode, setMode } = useTheme();
   const { fontStyle, setFontStyle } = useFontStyle();
+  const { liteMode, setLiteMode } = useLiteMode();
 
   if (loading) {
     return (
@@ -37,6 +39,10 @@ export default function ThemeScreen() {
   // P2-10: font choice mirrors the theme rows — same radio pattern, no new UI
   // grammar. Pixel is the village identity; readable is the low-vision option.
   const fontOptions: { id: FontStyle }[] = [{ id: "pixel" }, { id: "readable" }];
+  // O-R2 ③: lite mode reuses the same row grammar (full / lite) so the screen
+  // stays one pattern. Lite routes motion, decorative crew, and the graph glow
+  // LOD to their lightest existing settings for budget phones.
+  const performanceOptions: { id: "full" | "lite" }[] = [{ id: "full" }, { id: "lite" }];
 
   return (
     <PremiumAppShell>
@@ -101,6 +107,35 @@ export default function ThemeScreen() {
                     onPress={() => setFontStyle(o.id)}
                     accessibilityLabel={t("font.useFontLabel", { label })}
                     accessibilityHint={t("font.useFontHint")}
+                  />
+                )}
+              </View>
+            );
+          })}
+        </View>
+
+        <Text variant="caption" color="textSubtle">{t("performance.title")}</Text>
+        <View style={styles.list}>
+          {performanceOptions.map((o) => {
+            const active = (o.id === "lite") === liteMode;
+            const label = t(`performance.options.${o.id}.label`);
+            return (
+              <View key={o.id} style={[styles.row, active ? { borderColor: semantic.brand } : null]}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="body">{label}</Text>
+                  <Text variant="subtle" color="textSubtle">{t(`performance.options.${o.id}.sub`)}</Text>
+                </View>
+                {active ? (
+                  <View style={styles.statusPill}>
+                    <Text variant="caption" color="brand">{t("actions.inUse")}</Text>
+                  </View>
+                ) : (
+                  <Button
+                    label={t("actions.use")}
+                    variant="secondary"
+                    onPress={() => setLiteMode(o.id === "lite")}
+                    accessibilityLabel={t("performance.usePerformanceLabel", { label })}
+                    accessibilityHint={t("performance.usePerformanceHint")}
                   />
                 )}
               </View>

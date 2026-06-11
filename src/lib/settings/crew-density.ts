@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
+import { useLiteMode } from "@/lib/settings/lite-mode";
 
 export type CrewDensity = "none" | "few" | "some" | "many";
 export const CREW_DENSITY_ORDER: readonly CrewDensity[] = ["none", "few", "some", "many"];
@@ -127,14 +128,17 @@ export function useCrewDensity(): { density: CrewDensity; setDensity: (d: CrewDe
 }
 
 /** Derived crew render contract: count (density + node count + LOD) + whether
- *  the walk cycle should animate (off under prefers-reduced-motion). */
+ *  the walk cycle should animate (off under prefers-reduced-motion). Lite mode
+ *  (O-R2 ③) zeroes the decorative sprites entirely without touching the
+ *  stored density preference - switching lite off restores it. */
 export function useCrewCount(
   nodeCount: number,
   opts: CrewCountOpts = {},
 ): { count: number; animated: boolean; density: CrewDensity } {
   const { density } = useCrewDensity();
+  const { liteMode } = useLiteMode();
   const animated = !prefersReducedMotion();
-  const count = crewCountForDensity(density, nodeCount, opts);
+  const count = liteMode ? 0 : crewCountForDensity(density, nodeCount, opts);
   return { count, animated, density };
 }
 
