@@ -1,5 +1,5 @@
 {
-  "loading": "자료실을 불러오는 중이에요...",
+  "loading": "자료실을 불러오는 중이에요…",
   "error": {
     "title": "자료를 불러오지 못했어요",
     "body": "연결이 잠시 흔들렸어요. 다시 시도하면 자료실을 새로 불러올게요.",
@@ -21,7 +21,7 @@
   "verified": "검증됨",
   "link": {
     "label": "{{title}} 출처 링크 열기",
-    "hint": "DOI 또는 원문 URL을 엽니다"
+    "hint": "DOI 또는 원문 URL을 엽니다."
   },
   "frameworks": {
     "big_five": "Big Five",
