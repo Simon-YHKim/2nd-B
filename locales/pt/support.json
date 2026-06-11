@@ -1,0 +1,34 @@
+{
+  "loading": "Carregando suporte...",
+  "hero": {
+    "eyebrow": "08-3. Suporte",
+    "title": "Resolva peças travadas juntos",
+    "subtitle": "Tempo de resposta - contato - ajuda",
+    "speech": "Nos envie o que travou. Começamos pelo contexto."
+  },
+  "response": {
+    "eyebrow": "Tempo de resposta",
+    "body": "Respondemos às mensagens em até 2 dias úteis (KST)."
+  },
+  "contact": {
+    "eyebrow": "Entre em contato",
+    "button": "Enviar um e-mail",
+    "accessibilityLabel": "E-mail de suporte",
+    "accessibilityHint": "Abre o aplicativo de e-mail com o endereço de suporte."
+  },
+  "faqLabel": "FAQ",
+  "faq": [
+    {
+      "question": "Como começo a capturar?",
+      "answer": "Escreva o que vem à mente na tela de captura. O 2nd-Brain ajuda a organizar depois."
+    },
+    {
+      "question": "Como meus dados são armazenados e posso exportá-los?",
+      "answer": "Suas entradas ficam vinculadas apenas à sua conta. Use Exportar em Configurações para baixar seus dados como arquivo a qualquer momento."
+    },
+    {
+      "question": "A IA é segura?",
+      "answer": "A IA ajuda a organizar e conectar suas notas. Decisões importantes ficam com você."
+    }
+  ]
+}

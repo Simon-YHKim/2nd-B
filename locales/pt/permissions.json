@@ -1,0 +1,69 @@
+{
+  "hero": {
+    "eyebrow": "Permissões",
+    "title": "Use apenas o necessário",
+    "subtitle": "Rede · área de transferência · acesso opcional a fotos",
+    "speech": "As permissões são solicitadas só quando útil, e as opcionais podem ser recusadas."
+  },
+  "status": {
+    "inUse": "Em uso",
+    "optional": "Opcional",
+    "planned": "Planejado",
+    "notUsed": "Não usado"
+  },
+  "platform": {
+    "label": "Plataforma:",
+    "both": "Web + Nativo",
+    "web": "Web",
+    "native": "Nativo",
+    "none": "N/A"
+  },
+  "entries": {
+    "network": {
+      "name": "Acesso à rede",
+      "why": "Necessário para login, salvar seus registros e respostas do SecondB. HTTPS padrão."
+    },
+    "clipboard": {
+      "name": "Área de transferência",
+      "why": "Usada apenas quando você toca em Copiar em ações de exportação ou mensagem. O 2nd-Brain nunca lê sua área de transferência em segundo plano."
+    },
+    "calendar": {
+      "name": "Calendário",
+      "why": "Opcional, usado apenas por Rotinas: quando você envia um item aprovado ao seu calendário, o sistema solicita uma vez e o formulário de evento abre para você confirmar. Recuse e todo o resto continua funcionando."
+    },
+    "notifications": {
+      "name": "Notificações",
+      "why": "Opcional, usado apenas pelos lembretes de Rotinas: agendar um lembrete solicita ao sistema uma vez, e cada lembrete fica neste dispositivo. Recuse e todo o resto continua funcionando."
+    },
+    "cameraPhoto": {
+      "name": "Câmera / Biblioteca de fotos",
+      "why": "Opcional, apenas para captura de texto a partir de imagens. Solicitado quando você escolhe uma ação de foto; recuse e o restante do app ainda funciona."
+    },
+    "microphone": {
+      "name": "Microfone",
+      "why": "Não solicitado. Captura de voz e áudio não estão no escopo atual do produto."
+    },
+    "location": {
+      "name": "Localização",
+      "why": "Não solicitada. O app não possui recursos baseados em localização."
+    },
+    "contactsSms": {
+      "name": "Contatos / SMS",
+      "why": "Não solicitados. O app não possui importação de contatos, SMS ou recursos de mensagens."
+    }
+  },
+  "principles": {
+    "title": "Princípios",
+    "items": [
+      "Superfície mínima: cada novo recurso é avaliado quanto ao impacto em permissões.",
+      "Amigável à recusa: permissões opcionais podem ser negadas sem quebrar o restante do app.",
+      "Somente no toque: área de transferência e acesso a fotos ocorrem a partir de ações visíveis do usuário.",
+      "Explique o porquê: cada solicitação de permissão deve ter uma razão breve.",
+      "Seus dados, seus: cada conta acessa apenas seus próprios registros, e a exportação fica disponível."
+    ]
+  },
+  "manual": {
+    "button": "Abrir o manual",
+    "accessibilityHint": "Abre o manual a partir da tela de permissões."
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "loading": "Abrindo suas rotinas…",
+  "hero": {
+    "title": "Rotinas",
+    "subtitle": "Escolha uma área. Receba alguns próximos passos concretos."
+  },
+  "groups": {
+    "body": "Corpo",
+    "learning": "Aprendizado",
+    "worklife": "Trabalho e dinheiro",
+    "living": "Dia a dia",
+    "creative": "Criatividade"
+  },
+  "domains": {
+    "exercise_routine": "Rotina de exercícios",
+    "exercise_ideas": "Ideias de exercícios",
+    "health_routine": "Rotina de saúde",
+    "weekly_meals": "Plano de refeições semanal",
+    "simple_meals": "Ideias de refeições simples",
+    "reading_list": "Lista de leitura e estudo",
+    "learning_goals": "Metas de aprendizado",
+    "language_practice": "Prática de idiomas",
+    "career_check": "Revisão de crescimento profissional",
+    "money_check": "Revisão financeira",
+    "daily_focus": "Plano de foco diário",
+    "home_reset": "Checklist de organização da casa",
+    "news_digest": "Resumo rápido de notícias",
+    "side_project": "Projeto criativo paralelo"
+  },
+  "picker": {
+    "groupHint": "Mostra as áreas deste grupo.",
+    "domainHint": "Cria sugestões para esta área.",
+    "optionA11yLabel": "{{label}}, opção {{index}} de {{total}}, {{state}}.",
+    "stateSelected": "selecionada",
+    "stateAvailable": "disponível"
+  },
+  "recommend": {
+    "cta": "Sugerir próximos passos",
+    "ctaHint": "Lê suas peças salvas e cria algumas sugestões.",
+    "working": "Preparando sugestões…",
+    "empty": "Nada aproveitável retornou. Tente novamente ou escolha outra área.",
+    "error": "A sugestão não foi concluída. Suas peças estão seguras. Tente novamente.",
+    "limit": "As sugestões gratuitas de hoje foram usadas. Elas renovam amanhã.",
+    "disclaimerBody": "Ideias e planos, não orientação profissional."
+  },
+  "card": {
+    "durationLabel": "{{minutes}} min",
+    "daily": "Todo dia",
+    "weekly": "Toda semana",
+    "addDevice": "Meu calendário",
+    "addDeviceHint": "Abre o formulário de calendário do dispositivo com este item preenchido.",
+    "addGoogle": "Google Calendar",
+    "addGoogleHint": "Abre o Google Calendar com este evento preenchido.",
+    "downloadIcs": "Arquivo de calendário",
+    "downloadIcsHint": "Baixa um arquivo .ics que abre no seu app de calendário.",
+    "shareList": "Enviar checklist",
+    "shareListHint": "Abre o compartilhamento com este checklist como texto.",
+    "remind": "Me lembrar",
+    "remindHint": "Agenda um lembrete no dispositivo no horário deste item."
+  },
+  "consent": {
+    "title": "Enviar itens para seus apps?",
+    "body": "Os itens aprovados vão para seu calendário ou compartilhamento. Perguntado uma vez: continue permitindo a partir de agora e desative quando quiser em Privacidade.",
+    "agree": "Permitir e continuar",
+    "agreeHint": "Salva a escolha e realiza este envio.",
+    "later": "Agora não",
+    "laterHint": "Fecha sem enviar. O item permanece nesta tela."
+  },
+  "states": {
+    "emptyDomain": "Escolha uma área acima para começar."
+  },
+  "push": {
+    "savedNote": "Enviado ao seu calendário.",
+    "deniedNote": "Permissão de calendário desativada. Permita nas configurações do dispositivo para usar isso.",
+    "reminderSetNote": "Lembrete definido neste dispositivo.",
+    "reminderDeniedNote": "Permissão de notificações desativada. Permita nas configurações do dispositivo para usar lembretes.",
+    "reminderFailedNote": "Não foi possível definir o lembrete. Verifique o horário do item e tente novamente."
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "ads": {
+    "label": "Patrocinado",
+    "removeUpsell": "Prefere sem anúncios? As assinaturas os removem."
+  },
+  "app": {
+    "name": "2nd-Brain",
+    "tagline": "Um segundo cérebro construído com o que você escreve e salva."
+  },
+  "actions": {
+    "continue": "Continuar",
+    "back": "Voltar",
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "retry": "Tentar novamente",
+    "save": "Salvar",
+    "delete": "Excluir",
+    "signOut": "Sair"
+  },
+  "states": {
+    "loading": "Carregando…"
+  },
+  "journal": {
+    "privacyFootnote": "Suas entradas ficam criptografadas e nunca treinam nenhum modelo.",
+    "relativeJustNow": "agora mesmo",
+    "relativeMinutes": "há {{n}} min",
+    "relativeHours": "há {{n}} h",
+    "relativeYesterday": "ontem"
+  },
+  "errors": {
+    "unknown": "Algo deu errado. Por favor, tente novamente.",
+    "network": "Não conseguimos alcançar o servidor. Verifique sua conexão."
+  },
+  "locale": {
+    "en": "English",
+    "ko": "한국어"
+  },
+  "worldview": {
+    "soulCore": "Soul Core",
+    "growthCore": "Growth Core",
+    "bondCore": "Bond Core",
+    "wisdomCore": "Wisdom Core",
+    "narrativeCore": "Narrative Core",
+    "museCore": "Muse Core",
+    "patternCore": "Pattern Core",
+    "patternData": "Pattern Data",
+    "log": "Log",
+    "patternLink": "Pattern Link"
+  },
+  "navGraph": {
+    "drilldown": {
+      "back": "Voltar à constelação",
+      "backHint": "Volta do detalhamento do Pattern Core para a constelação completa.",
+      "coreEyebrow": "Pattern Core",
+      "dataEyebrow": "Pattern Data",
+      "touch": "Toque!",
+      "coreIntro": {
+        "work": "Este é o Growth Core. Suas peças de carreira e crescimento se reúnem aqui.",
+        "relation": "Este é o Bond Core. Memórias, promessas e conversas se reúnem aqui.",
+        "knowledge": "Este é o Wisdom Core. Peças aprendidas e compreendidas se reúnem aqui.",
+        "records": "Este é o Narrative Core. Peças guardadas se reúnem aqui para você encontrá-las novamente.",
+        "taste": "Este é o Muse Core. Peças de gosto e inspiração se reúnem aqui."
+      },
+      "dataFallback": "Um nó Pattern Data de {{core}}.",
+      "noDataTitle": "Nenhum Pattern Data ainda",
+      "noDataBody": "Deixe uma peça e este Pattern Core vai crescer um nó floco de neve.",
+      "dataDetailHint": "Abre o detalhe do Pattern Data selecionado."
+    }
+  }
+}

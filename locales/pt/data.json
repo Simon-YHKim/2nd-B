@@ -1,0 +1,31 @@
+{
+  "loading": "Carregando ferramentas de dados...",
+  "hero": {
+    "eyebrow": "08-1. Gestão de dados",
+    "title": "Mova e gerencie seus registros",
+    "subtitle": "Importar · exportar · apagar",
+    "speech": "Antes de apagar algo importante, exporte um backup primeiro."
+  },
+  "import": {
+    "eyebrow": "Importar",
+    "body": "Traga o que outro assistente reuniu sobre você, ou um teste de personalidade/disposição anterior, organizado na sua estrutura.",
+    "button": "Importar material externo",
+    "accessibilityHint": "Abre a tela de importação."
+  },
+  "export": {
+    "eyebrow": "Exportar",
+    "body": "No arquivo você pode reunir seus registros em um texto para copiar. Ótimo para backup ou para migrar para outro lugar.",
+    "button": "Exportar do arquivo",
+    "accessibilityHint": "Abre o arquivo de conhecimento."
+  },
+  "delete": {
+    "eyebrow": "Apagar",
+    "body": "Apague um tipo de dado ou tudo de uma vez. A exclusão não pode ser desfeita, então exporte primeiro.",
+    "button": "Abrir opções de exclusão",
+    "accessibilityHint": "Abre as opções de exclusão nas Configurações."
+  },
+  "device": {
+    "eyebrow": "Neste dispositivo",
+    "body": "Itens leves como preferências de visualização e dicas iniciais ficam só neste dispositivo. Diferente dos seus registros salvos, eles se redefinem sozinhos quando você troca de dispositivo ou limpa os dados do app."
+  }
+}

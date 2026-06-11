@@ -34,7 +34,7 @@ export const UI_LOCALES = [
 ] as const;
 export type UiLocale = (typeof UI_LOCALES)[number];
 
-export const AVAILABLE_UI_LOCALES = ["en", "ko", "es"] as const satisfies readonly UiLocale[];
+export const AVAILABLE_UI_LOCALES = ["en", "ko", "es", "pt"] as const satisfies readonly UiLocale[];
 export type AvailableUiLocale = (typeof AVAILABLE_UI_LOCALES)[number];
 
 export interface UiLocaleMeta {

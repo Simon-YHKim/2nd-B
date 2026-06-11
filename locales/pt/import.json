@@ -1,0 +1,51 @@
+{
+  "loading": "Carregando importação...",
+  "hero": {
+    "eyebrow": "08-5. Importar",
+    "title": "Traga autoconhecimento externo para o 2nd-Brain",
+    "subtitle": "Outros assistentes - resultados de testes - notas",
+    "speech": "O material colado é organizado primeiro e salvo só quando você confirmar."
+  },
+  "promptCard": {
+    "eyebrow": "De outro assistente",
+    "title": "Copie perguntas para outro assistente",
+    "description": "Se outro assistente já conhece seu contexto, cole essas perguntas lá. Depois traga a resposta de volta aqui.",
+    "copy": "Copiar perguntas",
+    "copied": "Copiado",
+    "copyHint": "Copia as perguntas de importação para a área de transferência."
+  },
+  "pasteCard": {
+    "eyebrow": "Colar",
+    "title": "Resposta ou resultado de teste",
+    "description": "Cole a resposta, uma disposição anterior ou resultado de teste de personalidade, ou notas sobre você. O 2nd-Brain vai organizar e marcar tudo na sua estrutura.",
+    "placeholder": "Cole aqui...",
+    "accessibilityLabel": "Material a importar",
+    "sort": "Organizar e classificar",
+    "sortHint": "Organiza o material colado antes de salvar."
+  },
+  "toast": {
+    "promptPlaced": "As perguntas foram colocadas abaixo. Mantenha pressionado para copiá-las.",
+    "saveFailed": "Não foi possível salvar. O resultado organizado ainda está aqui, tente novamente.",
+    "storagePending": "Salvo. A cópia do arquivo de backup não subiu desta vez, seu texto está guardado com segurança."
+  },
+  "result": {
+    "eyebrow": "Resultado organizado",
+    "title": "Registro importado",
+    "degraded": "A organização profunda estava indisponível, então este é um processamento local básico. Tente novamente para uma organização mais completa.",
+    "meta": "{{count}} itens - {{track}}",
+    "track": {
+      "pro": "trabalho e especialidade",
+      "life": "cotidiano"
+    },
+    "keep": "Salvar no 2nd-Brain",
+    "keepHint": "Salva este resultado importado nos seus registros."
+  },
+  "saved": {
+    "title": "Salvo",
+    "body": "Seu centro e o SecondB agora podem usar esses registros.",
+    "graph": "Ver o grafo",
+    "graphHint": "Abre o grafo principal.",
+    "more": "Importar mais",
+    "moreHint": "Limpa esta importação e inicia outra."
+  }
+}

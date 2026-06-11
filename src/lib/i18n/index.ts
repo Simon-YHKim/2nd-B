@@ -70,6 +70,29 @@ import esSettings from "../../../locales/es/settings.json";
 import esSupport from "../../../locales/es/support.json";
 import esTheme from "../../../locales/es/theme.json";
 import esWiki from "../../../locales/es/wiki.json";
+import ptAuth from "../../../locales/pt/auth.json";
+import ptCapture from "../../../locales/pt/capture.json";
+import ptCommon from "../../../locales/pt/common.json";
+import ptConsent from "../../../locales/pt/consent.json";
+import ptData from "../../../locales/pt/data.json";
+import ptEsm from "../../../locales/pt/esm.json";
+import ptFormats from "../../../locales/pt/formats.json";
+import ptImport from "../../../locales/pt/import.json";
+import ptInsights from "../../../locales/pt/insights.json";
+import ptInbox from "../../../locales/pt/inbox.json";
+import ptSecondb from "../../../locales/pt/secondb.json";
+import ptPlans from "../../../locales/pt/plans.json";
+import ptOps from "../../../locales/pt/ops.json";
+import ptNotFound from "../../../locales/pt/notFound.json";
+import ptPermissions from "../../../locales/pt/permissions.json";
+import ptProfile from "../../../locales/pt/profile.json";
+import ptRecordDetail from "../../../locales/pt/recordDetail.json";
+import ptResearch from "../../../locales/pt/research.json";
+import ptSafety from "../../../locales/pt/safety.json";
+import ptSettings from "../../../locales/pt/settings.json";
+import ptSupport from "../../../locales/pt/support.json";
+import ptTheme from "../../../locales/pt/theme.json";
+import ptWiki from "../../../locales/pt/wiki.json";
 import { detectLanguage, loadNativeLanguagePreference, saveLanguagePreference } from "./languageDetector";
 import { isAvailableUiLocale, type AvailableUiLocale } from "./locales";
 
@@ -86,6 +109,9 @@ export const resources = {
   // EN copies on purpose: crisis and legal copy is never machine-translated
   // (gate policy 2026-06-11) - they ship localized only after human review.
   es: { common: esCommon, auth: esAuth, safety: esSafety, consent: esConsent, capture: esCapture, inbox: esInbox, secondb: esSecondb, plans: esPlans, wiki: esWiki, support: esSupport, data: esData, esm: esEsm, formats: esFormats, insights: esInsights, research: esResearch, recordDetail: esRecordDetail, theme: esTheme, import: esImport, notFound: esNotFound, ops: esOps, profile: esProfile, permissions: esPermissions, settings: esSettings },
+  // PT pack (O-R2 (2)-b, machine-translated + beta label). safety/consent are
+  // EN copies by policy - localized only after human review.
+  pt: { common: ptCommon, auth: ptAuth, safety: ptSafety, consent: ptConsent, capture: ptCapture, inbox: ptInbox, secondb: ptSecondb, plans: ptPlans, wiki: ptWiki, support: ptSupport, data: ptData, esm: ptEsm, formats: ptFormats, insights: ptInsights, research: ptResearch, recordDetail: ptRecordDetail, theme: ptTheme, import: ptImport, notFound: ptNotFound, ops: ptOps, profile: ptProfile, permissions: ptPermissions, settings: ptSettings },
 } as const satisfies Record<AvailableUiLocale, Record<Namespace, unknown>>;
 
 let initialized = false;

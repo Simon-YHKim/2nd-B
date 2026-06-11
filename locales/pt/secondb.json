@@ -1,0 +1,18 @@
+{
+  "title": "SecondB",
+  "subtitle": "Sua wiki, sempre à mão. Pergunte qualquer coisa - vou citar as páginas que usei.",
+  "empty": "Comece uma conversa. Tente: \"Quais padrões aparecem nas minhas capturas este mês?\"",
+  "placeholder": "Pergunte ao SecondB...",
+  "inputA11y": "Pergunte ao SecondB",
+  "send": "Enviar",
+  "clearChat": "Limpar",
+  "clearChatA11y": "Limpar conversa",
+  "clearChatHint": "Limpa a conversa atual.",
+  "viewPlans": "Ver planos",
+  "viewPlansHint": "Abre a tela de planos.",
+  "intro_title": "Olá, sou o SecondB",
+  "intro_body": "Respondo usando suas próprias páginas da wiki. Minhas respostas mostram os nomes das páginas que usei para você rastrear a resposta. Perguntas meta como 'quais padrões se repetem este mês?' são onde brilho.",
+  "reference_piece_meta": "peça referenciada",
+  "intro_ok": "Entendi",
+  "intro_mute": "Não mostrar hoje"
+}

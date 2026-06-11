@@ -1,0 +1,51 @@
+{
+  "loading": "Carregando planos...",
+  "hero": {
+    "eyebrow": "Planos",
+    "title": "Mantenha seu 2nd-Brain sem limites",
+    "subtitle": "Registros ficam gratuitos sem restrições. Planos pagos adicionam mais espaço para pensar com IA.",
+    "speech": "O núcleo é gratuito. Planos pagos só adicionam mais espaço para pensar juntos."
+  },
+  "current": "Plano atual",
+  "comingSoon": "Planos pagos chegam em breve",
+  "comingSoonBody": "O checkout ainda não está aberto. Os preços são definitivos e nada é cobrado até você escolher um plano aqui.",
+  "tiers": {
+    "free": {
+      "name": "Free",
+      "price": "Grátis",
+      "tagline": "Seu 2nd-Brain do dia a dia, registros ilimitados",
+      "f1": "Registros, notas e wiki ilimitados",
+      "f2": "Armazenamento privado na conta com exportação quando precisar",
+      "f3": "2 conversas com IA por dia"
+    },
+    "soma": {
+      "name": "Soma",
+      "price": "$4.99 / mo",
+      "priceNote": "$49.90 / yr (2 meses grátis)",
+      "tagline": "IA diária junto aos seus registros",
+      "f1": "30 conversas com IA por dia",
+      "f2": "Tudo do Free",
+      "f3": "O primeiro passo além do limite diário",
+      "lifetimeNote": "Ou $99 uma vez para acesso vitalício"
+    },
+    "cortex": {
+      "name": "Cortex",
+      "price": "$9.99 / mo",
+      "priceNote": "$99.90 / yr (2 meses grátis)",
+      "tagline": "Espaço para mergulhos diários profundos",
+      "f1": "80 conversas com IA por dia",
+      "f2": "Tudo do Soma",
+      "f3": "Fôlego para sessões longas"
+    },
+    "brain": {
+      "name": "Brain",
+      "price": "$19.99 / mo",
+      "priceNote": "$199.90 / yr (2 meses grátis)",
+      "tagline": "O segundo cérebro completo",
+      "f1": "250 conversas com IA por dia",
+      "f2": "Reflexões sobre suas entradas",
+      "f3": "Tudo do Cortex"
+    }
+  },
+  "back": "Voltar"
+}
