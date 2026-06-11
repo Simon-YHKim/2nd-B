@@ -54,7 +54,9 @@
     "downloadIcs": "캘린더 파일",
     "downloadIcsHint": "캘린더 앱에서 열리는 .ics 파일을 내려받습니다.",
     "shareList": "체크리스트 보내기",
-    "shareListHint": "이 체크리스트를 텍스트로 공유 시트에 엽니다."
+    "shareListHint": "이 체크리스트를 텍스트로 공유 시트에 엽니다.",
+    "remind": "리마인더",
+    "remindHint": "이 항목의 시간에 맞춰 기기 알림을 예약합니다."
   },
   "consent": {
     "title": "내 앱으로 보낼까요?",
@@ -69,6 +71,9 @@
   },
   "push": {
     "savedNote": "캘린더로 보냈어요.",
-    "deniedNote": "캘린더 권한이 꺼져 있어요. 기기 설정에서 허용하면 쓸 수 있어요."
+    "deniedNote": "캘린더 권한이 꺼져 있어요. 기기 설정에서 허용하면 쓸 수 있어요.",
+    "reminderSetNote": "이 기기에 리마인더를 설정했어요.",
+    "reminderDeniedNote": "알림 권한이 꺼져 있어요. 기기 설정에서 허용하면 리마인더를 쓸 수 있어요.",
+    "reminderFailedNote": "리마인더를 설정하지 못했어요. 항목의 시간을 확인하고 다시 시도해 보세요."
   }
 }

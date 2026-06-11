@@ -27,6 +27,7 @@ import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } fro
 import { recommendForDomain, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildChecklistShareText, buildGoogleCalendarUrl, buildIcsEvent } from "@/lib/ops/push";
 import { addEventToDeviceCalendar, deviceCalendarSupported } from "@/lib/ops/device-calendar";
+import { remindersSupported, scheduleRoutineReminder } from "@/lib/ops/reminders";
 import { OPS_DAILY_LIMIT, bumpOpsUsage, readOpsUsage } from "@/lib/ops/usage";
 
 type RunState = "idle" | "working" | "empty" | "error" | "limit";
@@ -56,11 +57,14 @@ export default function Ops() {
   const [usedToday, setUsedToday] = useState(0);
   const [prefs, setPrefs] = useState<PrivacyPrefs | null>(null);
   const [consentOpen, setConsentOpen] = useState(false);
-  // One-line outcome of the last device-calendar hand-off (saved/denied).
-  const [pushNote, setPushNote] = useState<"saved" | "denied" | null>(null);
+  // One-line outcome of the last device hand-off / reminder attempt.
+  const [pushNote, setPushNote] = useState<
+    "saved" | "denied" | "reminded" | "remindDenied" | "remindFailed" | null
+  >(null);
   const pendingPushRef = useRef<(() => void) | null>(null);
   // Stable for the lifetime of the screen: native runtime + module present.
   const deviceCalendar = useMemo(() => deviceCalendarSupported(), []);
+  const deviceReminders = useMemo(() => remindersSupported(), []);
 
   useEffect(() => {
     if (!userId) return;
@@ -216,6 +220,31 @@ export default function Ops() {
     else if (result === "denied") setPushNote("denied");
     // canceled: the user closed the OS form on purpose - no copy needed.
   }
+
+  // On-device reminder: NOT behind the ops_push gate - nothing leaves the
+  // device or this app; the explicit tap + the OS notification permission
+  // prompt are the consent (see src/lib/ops/reminders.ts).
+  async function remindRoutine(rec: OpsRecommendation): Promise<void> {
+    setPushNote(null);
+    const result = await scheduleRoutineReminder({
+      title: rec.title,
+      description: rec.reason,
+      startsAtIso: rec.startsAtIso ?? nextMorningIso(),
+      recurrence: rec.recurrence,
+    });
+    if (result === "scheduled") setPushNote("reminded");
+    else if (result === "denied") setPushNote("remindDenied");
+    else if (result === "error") setPushNote("remindFailed");
+  }
+
+  const PUSH_NOTE_KEY: Record<NonNullable<typeof pushNote>, string> = {
+    saved: "push.savedNote",
+    denied: "push.deniedNote",
+    reminded: "push.reminderSetNote",
+    remindDenied: "push.reminderDeniedNote",
+    remindFailed: "push.reminderFailedNote",
+  };
+  const pushNoteIsDanger = pushNote === "denied" || pushNote === "remindDenied" || pushNote === "remindFailed";
 
   return (
     <PremiumAppShell>
@@ -380,19 +409,28 @@ export default function Ops() {
                 onPress={() => requestPush(() => shareChecklist(rec))}
                 full={false}
               />
+              {deviceReminders ? (
+                <Button
+                  label={t("card.remind")}
+                  accessibilityHint={t("card.remindHint")}
+                  variant="secondary"
+                  onPress={() => void remindRoutine(rec)}
+                  full={false}
+                />
+              ) : null}
             </View>
           </View>
         ))}
 
         {pushNote ? (
-          // liveRegion: the OS form already closed, so without this announce a
-          // screen-reader user gets no confirmation of where the item went.
+          // liveRegion: the OS form/prompt already closed, so without this
+          // announce a screen-reader user gets no confirmation of the outcome.
           <Text
             variant="subtle"
-            color={pushNote === "denied" ? "danger" : "textMuted"}
+            color={pushNoteIsDanger ? "danger" : "textMuted"}
             accessibilityLiveRegion="polite"
           >
-            {t(pushNote === "denied" ? "push.deniedNote" : "push.savedNote")}
+            {t(PUSH_NOTE_KEY[pushNote])}
           </Text>
         ) : null}
 

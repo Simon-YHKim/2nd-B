@@ -24,7 +24,10 @@ interface PermissionEntry {
 const ENTRIES: PermissionEntry[] = [
   { key: "network", status: "inUse", platform: "both" },
   { key: "clipboard", status: "optional", platform: "web" },
-  { key: "calendar", status: "planned", platform: "native" },
+  // O-R3 P2: Routines actually requests these on first use now (calendar
+  // hand-off / on-device reminders) - "planned" would be a stale promise.
+  { key: "calendar", status: "optional", platform: "native" },
+  { key: "notifications", status: "optional", platform: "native" },
   { key: "cameraPhoto", status: "optional", platform: "native" },
   { key: "microphone", status: "notUsed", platform: "none" },
   { key: "location", status: "notUsed", platform: "none" },

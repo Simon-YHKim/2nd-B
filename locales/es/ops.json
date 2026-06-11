@@ -54,7 +54,9 @@
     "downloadIcs": "Archivo de calendario",
     "downloadIcsHint": "Descarga un archivo .ics que se abre en tu app de calendario.",
     "shareList": "Enviar lista",
-    "shareListHint": "Abre la hoja de compartir con esta lista como texto."
+    "shareListHint": "Abre la hoja de compartir con esta lista como texto.",
+    "remind": "Recordarme",
+    "remindHint": "Programa un recordatorio en el dispositivo a la hora de este elemento."
   },
   "consent": {
     "title": "¿Enviar elementos a tus apps?",
@@ -69,6 +71,9 @@
   },
   "push": {
     "savedNote": "Enviado a tu calendario.",
-    "deniedNote": "El permiso de calendario está apagado. Actívalo en los ajustes del dispositivo para usar esto."
+    "deniedNote": "El permiso de calendario está apagado. Actívalo en los ajustes del dispositivo para usar esto.",
+    "reminderSetNote": "Recordatorio configurado en este dispositivo.",
+    "reminderDeniedNote": "El permiso de notificaciones está apagado. Actívalo en los ajustes del dispositivo para usar recordatorios.",
+    "reminderFailedNote": "No se pudo configurar el recordatorio. Revisa la hora del elemento e intenta de nuevo."
   }
 }
