@@ -45,6 +45,28 @@ import koSettings from "../../../locales/ko/settings.json";
 import koSupport from "../../../locales/ko/support.json";
 import koTheme from "../../../locales/ko/theme.json";
 import koWiki from "../../../locales/ko/wiki.json";
+import esAuth from "../../../locales/es/auth.json";
+import esCapture from "../../../locales/es/capture.json";
+import esCommon from "../../../locales/es/common.json";
+import esConsent from "../../../locales/es/consent.json";
+import esData from "../../../locales/es/data.json";
+import esEsm from "../../../locales/es/esm.json";
+import esFormats from "../../../locales/es/formats.json";
+import esImport from "../../../locales/es/import.json";
+import esInsights from "../../../locales/es/insights.json";
+import esInbox from "../../../locales/es/inbox.json";
+import esSecondb from "../../../locales/es/secondb.json";
+import esPlans from "../../../locales/es/plans.json";
+import esNotFound from "../../../locales/es/notFound.json";
+import esPermissions from "../../../locales/es/permissions.json";
+import esProfile from "../../../locales/es/profile.json";
+import esRecordDetail from "../../../locales/es/recordDetail.json";
+import esResearch from "../../../locales/es/research.json";
+import esSafety from "../../../locales/es/safety.json";
+import esSettings from "../../../locales/es/settings.json";
+import esSupport from "../../../locales/es/support.json";
+import esTheme from "../../../locales/es/theme.json";
+import esWiki from "../../../locales/es/wiki.json";
 import { detectLanguage, loadNativeLanguagePreference, saveLanguagePreference } from "./languageDetector";
 import { isAvailableUiLocale, type AvailableUiLocale } from "./locales";
 
@@ -57,6 +79,10 @@ export type Namespace = (typeof NAMESPACES)[number];
 export const resources = {
   en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, secondb: enSecondb, plans: enPlans, wiki: enWiki, support: enSupport, data: enData, esm: enEsm, formats: enFormats, insights: enInsights, research: enResearch, recordDetail: enRecordDetail, theme: enTheme, import: enImport, notFound: enNotFound, profile: enProfile, permissions: enPermissions, settings: enSettings },
   ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, secondb: koSecondb, plans: koPlans, wiki: koWiki, support: koSupport, data: koData, esm: koEsm, formats: koFormats, insights: koInsights, research: koResearch, recordDetail: koRecordDetail, theme: koTheme, import: koImport, notFound: koNotFound, profile: koProfile, permissions: koPermissions, settings: koSettings },
+  // ES pack (O-R2 (2)-b, machine-translated + beta label). safety/consent are
+  // EN copies on purpose: crisis and legal copy is never machine-translated
+  // (gate policy 2026-06-11) - they ship localized only after human review.
+  es: { common: esCommon, auth: esAuth, safety: esSafety, consent: esConsent, capture: esCapture, inbox: esInbox, secondb: esSecondb, plans: esPlans, wiki: esWiki, support: esSupport, data: esData, esm: esEsm, formats: esFormats, insights: esInsights, research: esResearch, recordDetail: esRecordDetail, theme: esTheme, import: esImport, notFound: esNotFound, profile: esProfile, permissions: esPermissions, settings: esSettings },
 } as const satisfies Record<AvailableUiLocale, Record<Namespace, unknown>>;
 
 let initialized = false;

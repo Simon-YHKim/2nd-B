@@ -1,0 +1,25 @@
+{
+  "title": "Wiki",
+  "subtitle": "Tu grafo de conocimiento. Toca una página para leerla y ver qué retroenlaces tiene.",
+  "hero": {
+    "eyebrow": "04. Almacén de conocimiento",
+    "title": "Las piezas guardadas se vuelven una biblioteca",
+    "subtitle": "Encuentra las piezas que guardaste en SecondB",
+    "speech": "He mantenido las piezas en orden. Captura una nueva o pregúntale a SecondB."
+  },
+  "capture": "Capturar",
+  "export": "Crear exportación",
+  "exportActionTitle": "Llévate tu conocimiento contigo",
+  "exportActionBody": "Genera un paquete listo para copiar con tus páginas y fuentes.",
+  "exportActionExample": "Úsalo para respaldo, revisión o para continuar en otra herramienta de escritura o investigación.",
+  "exportActionHint": "Crea una vista previa lista para copiar de tu almacén de conocimiento.",
+  "back": "Volver al diario",
+  "filterByTag": "Filtrar por etiqueta",
+  "clear": "Borrar",
+  "empty": "Aún no hay páginas. Captura algo y genera su página desde la bandeja de entrada.",
+  "emptyForTags": "Ninguna página coincide con estas etiquetas.",
+  "emptyBody": "(sin contenido aún)",
+  "backlinks": "Retroenlaces",
+  "exportTitle": "Paquete de conocimiento listo para copiar",
+  "exportHelper": "Copia el paquete para respaldo, revisión u otra herramienta de escritura o investigación. Mantén pulsado el texto si el copiado al portapapeles no está disponible."
+}

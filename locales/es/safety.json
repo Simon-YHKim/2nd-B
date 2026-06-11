@@ -1,0 +1,22 @@
+{
+  "red": {
+    "title": "We hear you.",
+    "body": "What you're going through sounds heavy. You don't have to carry it alone.",
+    "hotline": {
+      "GLOBAL_988": "Call or text 988 - Suicide & Crisis Lifeline (24/7)",
+      "KR_109": "전화 109 - 자살예방상담전화 (24시간, 무료)",
+      "KR_1393": "전화 1393 - 자살예방상담전화 (24시간)",
+      "KR_1577_0199": "전화 1577-0199 - 정신건강위기상담전화",
+      "KR_1388": "전화 1388 - 청소년상담전화 (24시간)"
+    },
+    "dismiss": "Close",
+    "directoryLabel": "Outside the US? Find a helpline in your country",
+    "directoryHint": "Opens findahelpline.com in your browser"
+  },
+  "yellow": {
+    "rephraseHint": "We focus on self-understanding and growth. Try describing what you're noticing rather than naming a condition."
+  },
+  "green": {
+    "placeholder": "What's on your mind?"
+  }
+}

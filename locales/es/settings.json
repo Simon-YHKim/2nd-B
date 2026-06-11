@@ -1,0 +1,88 @@
+{
+  "loading": "Cargando ajustes…",
+  "nav": {
+    "eyebrow": "Ajustes",
+    "profile": "Perfil",
+    "profileHint": "Abre los ajustes de perfil.",
+    "privacy": "Privacidad",
+    "privacyHint": "Abre los ajustes de privacidad.",
+    "account": "Cuenta",
+    "accountHint": "Abre los ajustes de cuenta.",
+    "theme": "Tema",
+    "themeHint": "Abre los ajustes de tema.",
+    "data": "Gestión de datos",
+    "dataHint": "Abre la gestión de datos.",
+    "records": "Registros",
+    "recordsHint": "Abre los registros guardados.",
+    "support": "Soporte",
+    "supportHint": "Abre las opciones de soporte."
+  },
+  "language": {
+    "body": "Elige el idioma de la app. Los nuevos idiomas aparecen aquí cuando sus paquetes están listos.",
+    "optionA11yLabel": "{{label}}, opción {{index}} de {{total}}, {{state}}.",
+    "stateSelected": "seleccionado",
+    "stateAvailable": "disponible",
+    "useLanguageHint": "Cambia el idioma de la app a {{label}}.",
+    "betaTag": "(beta)"
+  },
+  "actions": {
+    "signOutHint": "Cierra sesión y regresa a la pantalla de inicio de sesión.",
+    "crewDensityHint": "Ajusta la densidad decorativa de la tripulación del grafo a {{density}}.",
+    "deleteJournalsHint": "Abre una confirmación antes de eliminar todas las entradas del diario.",
+    "deleteNotesHint": "Abre una confirmación antes de eliminar todas las notas.",
+    "deleteAuditHint": "Abre una confirmación antes de eliminar todas las respuestas de auditoría.",
+    "deleteBfiHint": "Abre una confirmación antes de eliminar los resultados guardados del Big Five.",
+    "deleteEcrHint": "Abre una confirmación antes de eliminar los resultados guardados de Apego.",
+    "deleteMbtiHint": "Abre una confirmación antes de eliminar los resultados de referencia MBTI guardados.",
+    "deleteWikiHint": "Abre una confirmación antes de eliminar todas las páginas de la wiki.",
+    "deleteUningestedHint": "Abre una confirmación antes de eliminar capturas no promovidas a la wiki.",
+    "resetUsageHint": "Abre una confirmación antes de reiniciar los contadores de uso diario.",
+    "fullWipeInputLabel": "Confirmación de borrado total. Escribe {{phrase}} para habilitar el botón de eliminar.",
+    "fullWipeHint": "Requiere escribir DELETE para borrar registros, fuentes, páginas de wiki y uso."
+  },
+  "dataWizard": {
+    "body": "Elige un área de eliminación a la vez. Tu contenido privado de 2nd-B se divide en registros, evaluaciones, wiki/capturas y borrado total.",
+    "optionA11yLabel": "{{label}}, opción {{index}} de {{total}}, {{state}}.",
+    "stateSelected": "seleccionado",
+    "stateAvailable": "no seleccionado",
+    "selectedHint": "Esta área de eliminación ya está seleccionada. Sus acciones se muestran abajo.",
+    "records": {
+      "label": "Registros",
+      "hint": "Muestra acciones de eliminación para diarios, notas y respuestas de auditoría.",
+      "body": "Limpia un tipo de registro privado sin afectar el resto de tu grafo y wiki."
+    },
+    "assessments": {
+      "label": "Evaluaciones",
+      "hint": "Muestra acciones de eliminación para resultados de evaluaciones guardados.",
+      "body": "Elimina resultados de referencia guardados sin tocar diarios, capturas ni páginas de wiki."
+    },
+    "library": {
+      "label": "Wiki y capturas",
+      "hint": "Muestra acciones de eliminación para páginas de wiki, capturas sin procesar y contadores de uso.",
+      "body": "Limpia la wiki y las capturas por separado de los registros privados y referencias del grafo."
+    },
+    "full": {
+      "label": "Borrado total",
+      "hint": "Muestra la confirmación escrita para eliminar todos los registros, fuentes, páginas de wiki y uso.",
+      "body": "Esta es la ruta de borrado irreversible. Exporta primero, luego escribe DELETE solo si estás seguro.",
+      "retained": "Esto limpia el contenido privado de 2nd-B en esta cuenta. Los datos de cuenta, el historial de consentimiento y los registros de responsabilidad del servicio se conservan."
+    }
+  },
+  "modals": {
+    "confirm": {
+      "label": "Diálogo de confirmación de ajustes",
+      "title": "¿Estás seguro?",
+      "cancel": "Cancelar",
+      "cancelHint": "Cierra esta confirmación de eliminación.",
+      "delete": "Eliminar",
+      "deleteHint": "Inicia la acción de eliminación seleccionada."
+    },
+    "feedback": {
+      "label": "Aviso de respuesta de ajustes",
+      "dismiss": "Descartar",
+      "dismissHint": "Descarta este aviso.",
+      "retry": "Intentar de nuevo",
+      "retryHint": "Reintenta la acción de ajustes fallida."
+    }
+  }
+}

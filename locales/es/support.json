@@ -1,0 +1,34 @@
+{
+  "loading": "Cargando soporte...",
+  "hero": {
+    "eyebrow": "08-3. Soporte",
+    "title": "Resolvemos juntos lo que se haya atascado",
+    "subtitle": "Tiempo de respuesta · contacto · ayuda",
+    "speech": "Cuéntanos qué se atascó. Empezaremos desde el contexto."
+  },
+  "response": {
+    "eyebrow": "Tiempo de respuesta",
+    "body": "Respondemos los mensajes en un plazo de 2 días hábiles (KST)."
+  },
+  "contact": {
+    "eyebrow": "Ponte en contacto",
+    "button": "Enviar un correo",
+    "accessibilityLabel": "Soporte por correo",
+    "accessibilityHint": "Abre tu app de correo con la dirección de soporte."
+  },
+  "faqLabel": "FAQ",
+  "faq": [
+    {
+      "question": "¿Cómo empiezo a capturar?",
+      "answer": "Escribe lo que se te venga a la mente en la pantalla de captura. 2nd-Brain te ayuda a organizarlo después."
+    },
+    {
+      "question": "¿Cómo se almacenan mis datos y puedo exportarlos?",
+      "answer": "Tus entradas están vinculadas únicamente a tu cuenta. Usa Exportar en Configuración para descargar tus datos como archivo cuando quieras."
+    },
+    {
+      "question": "¿Es segura la IA?",
+      "answer": "La IA ayuda a organizar y conectar tus notas. Las decisiones importantes siguen siendo tuyas."
+    }
+  ]
+}

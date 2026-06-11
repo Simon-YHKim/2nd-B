@@ -1,0 +1,124 @@
+{
+  "testimonial": {
+    "title": "Share your story?",
+    "body": "We may share your words with our team and trusted reviewers as evidence that 2nd-Brain helps real people. You stay in control.",
+    "shareWithJudges": "Allow trusted reviewers to read this testimonial",
+    "approveForPublic": "Allow public display on our site",
+    "agree": "I consent",
+    "decline": "Not now"
+  },
+  "notice": {
+    "title": "A quick heads-up before you start",
+    "intro": "2nd-Brain keeps your entries private, stores them encrypted, and uses Google Gemini only to generate the responses you ask for. Please review and agree before continuing.",
+    "trustTitle": "Your records are not for sale",
+    "trustBody": "By default, your entries are not used to train models. Optional sharing, analytics, ads, and model-improvement controls start off.",
+    "purposesTitle": "What we collect and why",
+    "items": "Collected: your email, date of birth, and the entries you write (journals, notes, captures).",
+    "purposeService": "Used to run the service: saving your entries, your growth graph, and your assistant.",
+    "retention": "Kept while your account is active. You can delete entries or your whole account any time from Settings.",
+    "rights": "You can decline the optional item below and still use the app. Declining a required item means we cannot provide the service.",
+    "requiredLabel": "Required",
+    "optionalLabel": "Optional",
+    "agreeAll": "Agree to all required items",
+    "ackService": "I agree to the collection and use above so the service can run.",
+    "ackLlm": "I understand my entries are processed only when needed to generate responses I request, for automatic safety checks, and for service audit records, and only in those cases may be sent to Google Gemini.",
+    "ackOverseas": "I understand encrypted service data may be processed outside my country by Google or Supabase to run the app.",
+    "ackSensitive": "I understand my entries may include sensitive details, and 2nd-Brain treats them as private account data.",
+    "optMarketing": "Send me occasional product updates (optional).",
+    "minorBanner": "You are signing up as a teen (14 to 17). High-privacy is on by default: sharing, ads, analytics, model training, and outside analysis stay off."
+  },
+  "privacy": {
+    "eyebrow": "Privacy",
+    "title": "You decide what leaves your account",
+    "subtitle": "Sharing, profiling, analytics, and model training all start off.",
+    "speech": "Your records stay private unless you turn on a control. Teens stay locked to high-privacy.",
+    "trustTitle": "Default: private and off",
+    "trustBody": "Your entries are stored encrypted. Ads never appear unless you turn them on yourself, and even then your entries are never used for ads. 2nd-Brain does not sell your data.",
+    "sectionLabel": "Privacy controls",
+    "minorLockNote": "You are on a teen account, so high-privacy stays on. Long-term memory is the only switch you can turn on.",
+    "saveError": "Could not save that change. Please try again.",
+    "lockedTag": "Locked",
+    "keys": {
+      "ads": {
+        "label": "Ads",
+        "desc": "Allow ads while on the free plan. Off means no ads at all."
+      },
+      "sharing": {
+        "label": "Sharing",
+        "desc": "Allow you to send entries or profile summaries outside the app."
+      },
+      "recommendations": {
+        "label": "Recommendations",
+        "desc": "Use records inside your account to suggest prompts and next steps."
+      },
+      "external_analytics": {
+        "label": "External analytics",
+        "desc": "Send app usage signals, not entry text, to outside analytics services."
+      },
+      "llm_training": {
+        "label": "Model training permission",
+        "desc": "Keep off unless you choose to let content help improve models. Off keeps entries out of training."
+      },
+      "persona_export": {
+        "label": "Profile export",
+        "desc": "Let you export your self-profile to a file."
+      },
+      "persona_share": {
+        "label": "Profile sharing",
+        "desc": "Let you share your self-profile with other people."
+      },
+      "long_term_memory": {
+        "label": "Long-term memory",
+        "desc": "Let your assistant remember across sessions for continuity."
+      }
+    },
+    "localFirstStatement": "Sharing, recommendations, and using your entries to train AI models are not features today. If any is ever added, it will be off by default and ask for your explicit consent at that point."
+  },
+  "account": {
+    "loading": "Loading account…",
+    "eyebrow": "Account",
+    "title": "Your account, your call",
+    "subtitle": "Fix your details, manage privacy, or close your account.",
+    "speech": "Anything about your account lives here. No rush.",
+    "dob": {
+      "label": "Correct your date of birth",
+      "hint": "Fix a mistyped birth date. It must be a real date and meet the age floor.",
+      "save": "Save birth date",
+      "saved": "Birth date updated.",
+      "saveFailed": "Could not update your birth date",
+      "saveFailedBody": "We couldn't save your birth date. Please try again in a moment.",
+      "saveHint": "Saves your birth date and updates age-based privacy settings.",
+      "retry": "Retry",
+      "retryHint": "Retries saving your birth date."
+    },
+    "privacy": {
+      "label": "Privacy and consent",
+      "body": "External analytics is the only setting here, off by default. Sharing, ads, recommendations, and model training are not features today, and any future one would stay off until you agree.",
+      "button": "Open privacy controls",
+      "buttonHint": "Opens privacy and consent settings."
+    },
+    "feedback": {
+      "label": "Account feedback notice",
+      "dismiss": "Dismiss",
+      "dismissHint": "Dismisses this notice."
+    },
+    "delete": {
+      "label": "Delete account",
+      "body": "This erases your entries, captures, wiki, and assistant usage, then signs you out.",
+      "supportNote": "Full account removal is processed within 2 business days. Contact support if you need it sooner.",
+      "confirmHint": "Type \"{{phrase}}\" to enable the button.",
+      "button": "Delete my account",
+      "confirmTitle": "Delete your account?",
+      "confirmBody": "Your data will be erased and you will be signed out. This cannot be undone.",
+      "confirmCta": "Delete",
+      "cancel": "Cancel",
+      "failed": "Account deletion failed",
+      "failedBody": "We couldn't finish deleting your account. Some content may already be removed, and your account and login may still exist. Please contact support@2nd-brain.app and we'll help.",
+      "confirmLabel": "Account deletion confirmation",
+      "inputLabel": "Account deletion confirmation phrase",
+      "inputHint": "Type DELETE to enable the account deletion button.",
+      "buttonHint": "Opens a final confirmation before deleting your account and data.",
+      "confirmCtaHint": "Starts account and data deletion."
+    }
+  }
+}

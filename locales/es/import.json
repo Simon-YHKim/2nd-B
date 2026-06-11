@@ -1,0 +1,51 @@
+{
+  "loading": "Cargando importación...",
+  "hero": {
+    "eyebrow": "08-5. Importar",
+    "title": "Trae tu autoconocimiento externo a 2nd-Brain",
+    "subtitle": "Otros asistentes · resultados de pruebas · notas",
+    "speech": "El material pegado se clasifica primero y se guarda solo cuando tú lo confirmas."
+  },
+  "promptCard": {
+    "eyebrow": "Desde otro asistente",
+    "title": "Copia preguntas para otro asistente",
+    "description": "Si otro asistente ya conoce tu contexto, pega estas preguntas allí. Luego trae su respuesta aquí.",
+    "copy": "Copiar preguntas",
+    "copied": "Copiado",
+    "copyHint": "Copia las preguntas de importación al portapapeles."
+  },
+  "pasteCard": {
+    "eyebrow": "Pegar",
+    "title": "Respuesta o resultado de prueba",
+    "description": "Pega la respuesta, un resultado pasado de un test de personalidad o disposición, o notas sobre ti. 2nd-Brain lo clasificará y etiquetará en tu estructura.",
+    "placeholder": "Pega aquí...",
+    "accessibilityLabel": "Material para importar",
+    "sort": "Clasificar y organizar",
+    "sortHint": "Clasifica el material pegado antes de guardarlo."
+  },
+  "toast": {
+    "promptPlaced": "Las preguntas se colocaron abajo. Mantén pulsado para copiarlas.",
+    "saveFailed": "No se pudo guardar. El resultado clasificado sigue aquí; inténtalo de nuevo.",
+    "storagePending": "Guardado. La copia de respaldo no se subió esta vez; tu texto está seguro."
+  },
+  "result": {
+    "eyebrow": "Resultado clasificado",
+    "title": "Registro importado",
+    "degraded": "La clasificación profunda no estuvo disponible, así que este es un pase local básico. Inténtalo de nuevo para una clasificación más completa.",
+    "meta": "{{count}} elementos · {{track}}",
+    "track": {
+      "pro": "trabajo y especialización",
+      "life": "cotidiano"
+    },
+    "keep": "Guardar en 2nd-Brain",
+    "keepHint": "Guarda este resultado importado en tus registros."
+  },
+  "saved": {
+    "title": "Guardado",
+    "body": "Tu centro y SecondB ahora pueden apoyarse en estos registros.",
+    "graph": "Ver el grafo",
+    "graphHint": "Abre el grafo principal.",
+    "more": "Importar más",
+    "moreHint": "Borra esta importación y comienza otra."
+  }
+}

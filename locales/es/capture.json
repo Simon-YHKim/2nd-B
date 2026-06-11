@@ -1,0 +1,244 @@
+{
+  "submit": "Guardar pieza",
+  "submitting": "Guardando...",
+  "savedTitleFallback": "Pieza de hoy",
+  "loading": "Cargando captura...",
+  "hero": {
+    "eyebrow": "01. Capturar",
+    "title": "Guarda una nota o fuente",
+    "subtitle": "Diario · nota · enlace · foto · archivo",
+    "speechSaved": "Guardado. Puedes verlo en el grafo.",
+    "speechSavedOcr": "Tu nota de foto está guardada. Es una pieza privada en tu grafo.",
+    "speechSavedRecords": "Guardado. Puedes encontrarlo en tus registros.",
+    "speechIdle": "Escribe brevemente o elige una fuente. Lo organizaremos para que puedas encontrarlo después."
+  },
+  "sections": {
+    "manageFormats": {
+      "accessibilityLabel": "Gestionar mis formatos",
+      "link": "Gestionar mis formatos"
+    },
+    "track": {
+      "eyebrow": "¿Qué wiki?",
+      "accessibilityLabel": "Selección de wiki"
+    },
+    "mode": {
+      "accessibilityLabel": "Modo de captura",
+      "more": "Más",
+      "moreHint": "Muestra opciones de nota, enlace, foto y archivo.",
+      "less": "Menos",
+      "lessHint": "Oculta las opciones extra de captura y vuelve al Diario si es necesario."
+    }
+  },
+  "tracks": {
+    "daily": {
+      "label": "Wiki diaria"
+    },
+    "pro": {
+      "label": "Wiki Pro"
+    }
+  },
+  "modes": {
+    "journal": {
+      "label": "Diario",
+      "help": "Escribe tu reflexión de hoy. Se guarda en tus registros, con reflexión opcional de SecondB."
+    },
+    "memo": {
+      "label": "Nota",
+      "help": "Escribe una nota corta. Los hashtags y el archivo se añaden automáticamente al guardar."
+    },
+    "linkclip": {
+      "label": "Enlace",
+      "help": "Pega una URL o el texto de un artículo guardado. Reconoceremos el tipo de fuente."
+    },
+    "ocr": {
+      "label": "Foto",
+      "help": "Elige una foto o usa la cámara. Leeremos el texto de la imagen."
+    },
+    "file": {
+      "label": "Archivo",
+      "help": "Elige un PDF, DOCX o archivo de texto. Guardamos el texto legible."
+    }
+  },
+  "formatSaved": {
+    "personal": "Guardado como tu formato personal.",
+    "shared": "Guardaste tu nuevo formato y lo compartiste con tus formatos."
+  },
+  "firstRun": {
+    "hint": "Con una oración es suficiente. Siempre puedes agregar más después."
+  },
+  "saved": {
+    "title": "Lumen guardó una nueva pieza",
+    "ocrTitle": "Tu nota de foto está guardada",
+    "ocrBody": "Una pieza privada en tu grafo.",
+    "seeGraph": "Ver el grafo",
+    "seeOcrGraph": "Verla en el grafo",
+    "seeGraphHint": "Abre el grafo y resalta esta pieza.",
+    "seeOcrGraphHint": "Abre el grafo y resalta esta nota de foto.",
+    "seeRecords": "Ver mis registros",
+    "seeRecordsHint": "Abre tus registros para que puedas encontrar esta entrada de nuevo.",
+    "captureMore": "Capturar más",
+    "storagePending": "Guardado, pero la copia de respaldo no se subió esta vez. Tu texto está a salvo."
+  },
+  "proposal": {
+    "heading": "Formato sugerido",
+    "baseKind": "Basado en: {{kind}}",
+    "saveMine": "Guardar como mío",
+    "saveShare": "Guardar y compartir",
+    "dismissLabel": "Descartar formato sugerido",
+    "notNow": "Ahora no",
+    "prompt": "Ningún formato guardado encaja bien aquí. ¿Quieres que SecondB sugiera uno?",
+    "drafting": "Sugiriendo...",
+    "action": "Sugerir un formato"
+  },
+  "journal": {
+    "locked": {
+      "title": "Diario bloqueado",
+      "body": "Llega al Nv{{level}} para desbloquear el diario.",
+      "status": "Nv{{current}} actual / Nv{{required}} requerido",
+      "start": "Comenzar introducción"
+    },
+    "limit": {
+      "title": "Entradas gratuitas del diario agotadas",
+      "body": "Escribiste las {{limit}} entradas gratuitas del diario. Todo lo que escribiste hasta ahora se conserva y puedes releerlo cuando quieras.",
+      "helper": "La captura de notas, enlaces, archivos y fotos sigue disponible sin límite."
+    },
+    "streak": {
+      "label": "Racha de {{count}} día(s){{suffix}}",
+      "missingToday": " (ninguna hoy todavía)"
+    },
+    "prompt": {
+      "heading": "Pregunta de reflexión de hoy",
+      "useAsTopicLabel": "Usar la pregunta de hoy como tema",
+      "useAsTopicAction": "Usar esto como tema"
+    },
+    "fields": {
+      "topicPlaceholder": "Tema (opcional): una línea",
+      "bodyPlaceholder": "¿Qué tienes en mente hoy? Con una oración es suficiente."
+    },
+    "conclusion": {
+      "toggleLabel": "Mostrar u ocultar campo de conclusión",
+      "show": "Añadir una conclusión en una línea (opcional)",
+      "hide": "Ocultar campo de conclusión",
+      "placeholder": "Conclusión: lo que te llevas de hoy"
+    },
+    "advisor": {
+      "label": "Preguntarle a SecondB sobre esta entrada",
+      "helper": "Desactivado por defecto. Actívalo solo cuando quieras recibir una reflexión.",
+      "lockedLabel": "Preguntarle a SecondB sobre esta entrada (Brain)",
+      "lockedHelper": "Las reflexiones sobre entradas se desbloquean con el plan Brain. Toca para ver los planes.",
+      "lockedHint": "Abre la pantalla de planes."
+    }
+  },
+  "linkClip": {
+    "label": "Enlace o artículo guardado",
+    "placeholder": "https://... o pega el texto del artículo",
+    "savedAsClip": "Guardado como texto de artículo",
+    "detected": "Enlace detectado: {{kind}}",
+    "pasteOffer": "Pegar lo que copiaste",
+    "pasteOfferHint": "Rellena el campo con tu último contenido copiado. Se lee solo cuando tocas.",
+    "pasteOfferEmpty": "No se encontró nada para pegar."
+  },
+  "inputs": {
+    "extractedLabel": "Mi texto extraído (editable)",
+    "bodyLabel": "Cuerpo",
+    "imagePlaceholder": "Elige una imagen para colocar aquí el texto extraído.",
+    "memoPlaceholder": "Escribe o pega libremente..."
+  },
+  "ocrReview": {
+    "heading": "Revisar antes de guardar",
+    "disclosure": "Esta foto va a un servicio de lectura de texto solo para leer su contenido. 2nd-B no conserva la imagen ni la usa para entrenar nada.",
+    "privateAfterApprove": "Después de que la apruebes, solo el texto editable se guarda como tu registro privado.",
+    "body": "Edita el texto extraído y apruébalo antes de guardar.",
+    "approve": "Aprobar mi texto extraído",
+    "approved": "Mi texto extraído está aprobado para guardar.",
+    "approveHint": "Habilita guardar este texto extraído.",
+    "submitHint": "Revisa y aprueba el texto extraído antes de guardar."
+  },
+  "image": {
+    "camera": "Cámara",
+    "library": "Biblioteca",
+    "preview": "Vista previa",
+    "extract": "Extraer texto"
+  },
+  "file": {
+    "pick": "Elegir archivo",
+    "selected": "Archivo seleccionado",
+    "textExtracted": "Texto extraído: añadido al cuerpo",
+    "attachedNoPreview": "Archivo adjunto. La vista previa de texto no está disponible."
+  },
+  "tags": {
+    "title": "Hashtags",
+    "removeLabel": "Eliminar hashtag {{tag}}",
+    "emptyHelper": "Déjalo vacío y SecondB lo etiquetará al guardar, o añade el tuyo con +.",
+    "removeHelper": "Toca un hashtag para eliminarlo.",
+    "addLabel": "Añadir hashtag",
+    "placeholder": "hashtag"
+  },
+  "feedback": {
+    "accessibilityLabel": "Aviso de captura",
+    "dismissHint": "Descarta este aviso.",
+    "retryHint": "Reintenta la acción de captura fallida."
+  },
+  "alerts": {
+    "common": {
+      "retry": "Intentar de nuevo",
+      "dismiss": "Descartar"
+    },
+    "imageOpen": {
+      "title": "No se pudo abrir esa imagen",
+      "message": "No pudimos cargar esa imagen. Por favor, inténtalo de nuevo en un momento."
+    },
+    "cameraPermission": {
+      "title": "El permiso de cámara está desactivado",
+      "message": "Permite el acceso a la cámara en la configuración de tu dispositivo, o elige una imagen de tu biblioteca."
+    },
+    "ocrEmptyResult": {
+      "title": "No se encontró texto",
+      "message": "No encontramos texto legible en esta imagen. Intenta con una foto más cercana y bien iluminada."
+    },
+    "ocrRead": {
+      "title": "No se pudo leer el texto",
+      "message": "No pudimos leer el texto de esa imagen. Inténtalo de nuevo con una foto más clara."
+    },
+    "ocrTooLarge": {
+      "title": "La imagen es demasiado grande",
+      "message": "Esta foto es demasiado grande para procesarla. Elige una imagen más pequeña o recórtala e inténtalo de nuevo."
+    },
+    "ocrUnsupportedType": {
+      "title": "Tipo de imagen no compatible",
+      "message": "Elige una imagen JPG, PNG, WEBP, HEIC o HEIF e inténtalo de nuevo."
+    },
+    "ocrMissingData": {
+      "title": "Faltan datos de la imagen",
+      "message": "No pudimos leer este archivo de imagen desde el selector. Elige la imagen de nuevo o prueba con otra."
+    },
+    "ocrInvalidData": {
+      "title": "Los datos de la imagen están dañados",
+      "message": "Estos datos de imagen no son legibles. Elige la imagen de nuevo o usa un archivo diferente."
+    },
+    "fileOpen": {
+      "title": "No se pudo abrir ese archivo",
+      "message": "No pudimos abrir ese archivo. Elige otro o inténtalo de nuevo en un momento."
+    },
+    "journalSave": {
+      "title": "No se pudo guardar tu entrada",
+      "message": "No pudimos guardar la pieza de hoy. Lo que escribiste sigue aquí. Por favor, inténtalo de nuevo."
+    },
+    "pieceSave": {
+      "title": "No se pudo guardar tu pieza",
+      "message": "No pudimos guardarla todavía. Lo que ingresaste sigue aquí. Por favor, inténtalo de nuevo."
+    },
+    "proposeEmpty": {
+      "title": "No hay formato para sugerir",
+      "message": "No se pudo crear un nuevo formato para esto."
+    },
+    "proposeFailed": {
+      "title": "No se pudo crear un formato",
+      "message": "No pudimos crear un nuevo formato en este momento. Por favor, inténtalo de nuevo en un momento."
+    },
+    "formatSave": {
+      "title": "No se pudo guardar el formato",
+      "message": "No pudimos guardar el nuevo formato. Tu propuesta sigue aquí. Por favor, inténtalo de nuevo."
+    }
+  }
+}

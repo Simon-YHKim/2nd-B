@@ -1,0 +1,17 @@
+{
+  "title": "Bandeja de entrada",
+  "subtitle": "Todo lo que capturaste. Toca para ver una vista previa.",
+  "captureMore": "Capturar más",
+  "back": "Volver al diario",
+  "empty": "Aún no capturaste nada. Toca Capturar para añadir el primero.",
+  "error": "No se pudieron cargar tus capturas:",
+  "ingested": "Procesado",
+  "feedback": {
+    "noticeLabel": "Aviso de la bandeja de entrada",
+    "confirmLabel": "Confirmación de acción en la bandeja de entrada",
+    "cancel": "Cancelar",
+    "dismiss": "Descartar",
+    "dismissHint": "Descarta este aviso.",
+    "confirmHint": "Ejecuta la acción seleccionada en la bandeja de entrada."
+  }
+}

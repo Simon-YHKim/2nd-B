@@ -1,0 +1,120 @@
+{
+  "loading": "Cargando perfil...",
+  "fallbackName": "Invitado",
+  "hero": {
+    "eyebrow": "Yo",
+    "title": "Centro de perfil de {{displayName}}",
+    "subtitle": "Conoce, usa y gestiona tu perfil",
+    "speech": "Todo sobre ti está reunido aquí. Tómate tu tiempo."
+  },
+  "account": {
+    "eyebrow": "Cuenta",
+    "emailUnavailable": "Correo electrónico no disponible."
+  },
+  "sections": {
+    "center": {
+      "label": "Centro personal",
+      "items": {
+        "coreBrain": {
+          "label": "Abrir centro",
+          "hint": "Abre tu pantalla de centro personal."
+        },
+        "esm": {
+          "label": "Registrar ahora",
+          "hint": "Abre un registro rápido."
+        }
+      }
+    },
+    "know": {
+      "label": "Conócete mejor",
+      "items": {
+        "persona": {
+          "label": "Persona",
+          "hint": "Abre tu pantalla de persona."
+        },
+        "bigFive": {
+          "label": "Big Five",
+          "hint": "Abre la evaluación Big Five."
+        },
+        "attachment": {
+          "label": "Apego",
+          "hint": "Abre la evaluación de estilo de apego."
+        },
+        "audit": {
+          "label": "Yo del pasado",
+          "hint": "Abre la línea de tiempo del yo pasado."
+        },
+        "interview": {
+          "label": "Entrevista",
+          "hint": "Abre la entrevista guiada."
+        }
+      }
+    },
+    "analyze": {
+      "label": "Análisis",
+      "items": {
+        "insights": {
+          "label": "Hallazgos",
+          "hint": "Abre tus resúmenes de hallazgos."
+        },
+        "trinity": {
+          "label": "Trinity",
+          "hint": "Abre la vista de equilibrio de cuatro áreas."
+        },
+        "research": {
+          "label": "Investigación",
+          "hint": "Abre orientación respaldada por investigación."
+        }
+      }
+    },
+    "account": {
+      "label": "Cuenta y ajustes",
+      "items": {
+        "settings": {
+          "label": "Ajustes",
+          "hint": "Abre los ajustes de la app."
+        },
+        "privacy": {
+          "label": "Privacidad",
+          "hint": "Abre los ajustes de privacidad."
+        },
+        "account": {
+          "label": "Cuenta",
+          "hint": "Abre la gestión de cuenta."
+        },
+        "theme": {
+          "label": "Tema",
+          "hint": "Abre los ajustes de tema."
+        },
+        "data": {
+          "label": "Datos",
+          "hint": "Abre la gestión de datos."
+        },
+        "formats": {
+          "label": "Mis formatos",
+          "hint": "Abre tus formatos de archivo."
+        },
+        "manual": {
+          "label": "Manual",
+          "hint": "Abre el manual de la app."
+        },
+        "import": {
+          "label": "Importar",
+          "hint": "Abre la importación externa."
+        },
+        "inbox": {
+          "label": "Bandeja de entrada",
+          "hint": "Abre la revisión de fuentes importadas."
+        },
+        "support": {
+          "label": "Soporte",
+          "hint": "Abre el soporte."
+        },
+        "permissions": {
+          "label": "Permisos",
+          "hint": "Abre los detalles de permisos."
+        }
+      }
+    }
+  }
+}
