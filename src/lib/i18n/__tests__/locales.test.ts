@@ -49,6 +49,7 @@ describe("locale registry (O-R2 language-pack infra)", () => {
     expect(matchDeviceLocale("en")).toBe("en");
     expect(matchDeviceLocale("es")).toBe("es");
     expect(matchDeviceLocale("pt")).toBe("pt");
+    expect(matchDeviceLocale("id")).toBe("id");
     // Confirmed for the registry but not shipped yet - caller must keep
     // walking. Update these expectations in the SAME PR that ships a pack
     // (the null here is the shipped-set pin, not the mapping rule).
@@ -65,6 +66,7 @@ describe("locale registry (O-R2 language-pack infra)", () => {
     expect(isAvailableUiLocale("ko")).toBe(true);
     expect(isAvailableUiLocale("es")).toBe(true);
     expect(isAvailableUiLocale("pt")).toBe(true);
+    expect(isAvailableUiLocale("id")).toBe(true);
     expect(isAvailableUiLocale("ja")).toBe(false);
     expect(isAvailableUiLocale("zh-Hans")).toBe(false);
     expect(isAvailableUiLocale(42)).toBe(false);

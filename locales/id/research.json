@@ -1,0 +1,34 @@
+{
+  "loading": "Memuat penelitian...",
+  "error": {
+    "title": "Gagal memuat penelitian",
+    "body": "Koneksi terputus sejenak. Coba lagi untuk memuat ulang perpustakaan.",
+    "retry": "Coba lagi"
+  },
+  "hero": {
+    "eyebrow": "Penelitian",
+    "title": "Buat buktinya tetap terlihat",
+    "subtitle": "Big Five - kelekatan - CBT - VIA",
+    "speech": "Hanya sumber terverifikasi yang bisa dikutip SecondB yang tampil di sini."
+  },
+  "empty": "Belum ada sumber. Alur kurasi sedang dalam proses.",
+  "filter": {
+    "label": "Filter berdasarkan kerangka",
+    "accessibilityLabel": "Filter kerangka",
+    "all": "Semua"
+  },
+  "sourceCount": "{{visible}} sumber{{plural}} (dari {{total}})",
+  "verified": "Terverifikasi",
+  "link": {
+    "label": "Buka tautan sumber untuk {{title}}",
+    "hint": "Membuka DOI atau URL sumber."
+  },
+  "frameworks": {
+    "big_five": "Big Five",
+    "attachment": "Teori kelekatan",
+    "sdt": "Penentuan Diri",
+    "cbt": "CBT",
+    "erikson": "Tahapan Erikson",
+    "via": "VIA Strengths"
+  }
+}

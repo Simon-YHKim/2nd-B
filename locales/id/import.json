@@ -1,0 +1,51 @@
+{
+  "loading": "Memuat impor...",
+  "hero": {
+    "eyebrow": "08-5. Impor",
+    "title": "Bawa pengetahuan diri dari luar ke 2nd-Brain",
+    "subtitle": "Asisten lain - hasil tes - catatan",
+    "speech": "Materi yang ditempel diurutkan dulu, lalu disimpan hanya setelah kamu konfirmasi."
+  },
+  "promptCard": {
+    "eyebrow": "Dari asisten lain",
+    "title": "Salin pertanyaan untuk asisten lain",
+    "description": "Jika asisten lain sudah mengenal konteksmu, tempel pertanyaan ini di sana. Lalu bawa balasannya ke sini.",
+    "copy": "Salin pertanyaan",
+    "copied": "Tersalin",
+    "copyHint": "Menyalin pertanyaan impor ke papan klip."
+  },
+  "pasteCard": {
+    "eyebrow": "Tempel",
+    "title": "Balasan atau hasil tes",
+    "description": "Tempel balasan, hasil tes disposisi atau kepribadian yang lalu, atau catatan tentang dirimu. 2nd-Brain akan mengurut dan menandainya ke strukturmu.",
+    "placeholder": "Tempel di sini...",
+    "accessibilityLabel": "Materi yang akan diimpor",
+    "sort": "Urutkan dan atur",
+    "sortHint": "Mengurutkan materi yang ditempel sebelum disimpan."
+  },
+  "toast": {
+    "promptPlaced": "Pertanyaan sudah ditempatkan di bawah. Tekan lama untuk menyalinnya.",
+    "saveFailed": "Gagal menyimpan. Hasil urutan masih ada di sini; coba lagi.",
+    "storagePending": "Tersimpan. Salinan file cadangan tidak terunggah kali ini; teksmu tetap aman."
+  },
+  "result": {
+    "eyebrow": "Hasil urutan",
+    "title": "Catatan yang diimpor",
+    "degraded": "Pengurutan mendalam tidak tersedia, jadi ini adalah hasil lokal dasar. Coba lagi untuk urutan yang lebih kaya.",
+    "meta": "{{count}} item - {{track}}",
+    "track": {
+      "pro": "pekerjaan dan spesialis",
+      "life": "keseharian"
+    },
+    "keep": "Simpan ke 2nd-Brain",
+    "keepHint": "Menyimpan hasil impor ini ke catatanmu."
+  },
+  "saved": {
+    "title": "Tersimpan",
+    "body": "Pusat dan SecondB kini bisa menggunakan catatan-catatan ini.",
+    "graph": "Lihat graf",
+    "graphHint": "Membuka graf utama.",
+    "more": "Impor lagi",
+    "moreHint": "Mengosongkan impor ini dan memulai yang baru."
+  }
+}

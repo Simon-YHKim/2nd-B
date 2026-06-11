@@ -1,0 +1,51 @@
+{
+  "loading": "Menyiapkan check-in-mu.",
+  "toast": {
+    "saveFailed": "Tidak bisa menyimpan. Coba lagi."
+  },
+  "hero": {
+    "eyebrow": "Check-in ringan",
+    "title": "Satu sinyal dari sekarang",
+    "subtitle": "Tanpa notifikasi. Hanya saat kamu membukanya.",
+    "speech": "Tanpa penilaian. Hanya sinyal kecil sesaat."
+  },
+  "card": {
+    "eyebrow": "15 detik",
+    "title": "Sinyal apa yang cocok untuk momen ini?"
+  },
+  "prompts": {
+    "changeHint": "Mengubah jenis prompt check-in.",
+    "context": {
+      "label": "Konteks",
+      "saveHint": "Menyimpan check-in konteks."
+    },
+    "energy": {
+      "label": "Energi",
+      "saveHint": "Menyimpan check-in energi."
+    }
+  },
+  "energy": {
+    "label": "Level energi",
+    "question": "Berapa banyak energi yang tersedia sekarang?",
+    "optionLabel": "Energi {{value}} dari 5"
+  },
+  "context": {
+    "question": "Apa yang ada di sekitar momen ini?",
+    "tags": {
+      "alone": "Sendiri",
+      "with_people": "Bersama orang lain",
+      "work_study": "Kerja/belajar",
+      "moving": "Bergerak",
+      "resting": "Istirahat",
+      "outside": "Di luar"
+    }
+  },
+  "note": "Ini bukan penilaian atau label. Ini adalah sinyal kecil yang mempertajam polamu nanti.",
+  "actions": {
+    "save": "Simpan check-in",
+    "saving": "Menyimpan",
+    "backHome": "Kembali ke beranda",
+    "backHomeHint": "Kembali ke layar beranda."
+  },
+  "saved": "Tersimpan. Satu sinyal kecil ditambahkan."
+}

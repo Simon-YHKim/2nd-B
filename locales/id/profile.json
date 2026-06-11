@@ -1,0 +1,120 @@
+{
+  "loading": "Memuat profil...",
+  "fallbackName": "Tamu",
+  "hero": {
+    "eyebrow": "Aku",
+    "title": "Pusat profil {{displayName}}",
+    "subtitle": "Kenali, gunakan, dan kelola profilmu",
+    "speech": "Semua tentang kamu ada di sini. Santai saja."
+  },
+  "account": {
+    "eyebrow": "Akun",
+    "emailUnavailable": "Email tidak tersedia."
+  },
+  "sections": {
+    "center": {
+      "label": "Pusat diri",
+      "items": {
+        "coreBrain": {
+          "label": "Buka pusat",
+          "hint": "Membuka layar pusat diri."
+        },
+        "esm": {
+          "label": "Check-in sekarang",
+          "hint": "Membuka check-in ringan."
+        }
+      }
+    },
+    "know": {
+      "label": "Kenali aku lebih dalam",
+      "items": {
+        "persona": {
+          "label": "Persona",
+          "hint": "Membuka layar persona."
+        },
+        "bigFive": {
+          "label": "Big Five",
+          "hint": "Membuka asesmen Big Five."
+        },
+        "attachment": {
+          "label": "Attachment",
+          "hint": "Membuka asesmen gaya attachment."
+        },
+        "audit": {
+          "label": "Aku masa lalu",
+          "hint": "Membuka linimasa masa lalu."
+        },
+        "interview": {
+          "label": "Wawancara",
+          "hint": "Membuka wawancara terpandu."
+        }
+      }
+    },
+    "analyze": {
+      "label": "Analisis",
+      "items": {
+        "insights": {
+          "label": "Wawasan",
+          "hint": "Membuka ringkasan wawasanmu."
+        },
+        "trinity": {
+          "label": "Trinity",
+          "hint": "Membuka tampilan keseimbangan empat area."
+        },
+        "research": {
+          "label": "Riset",
+          "hint": "Membuka panduan berbasis riset."
+        }
+      }
+    },
+    "account": {
+      "label": "Akun dan pengaturan",
+      "items": {
+        "settings": {
+          "label": "Pengaturan",
+          "hint": "Membuka pengaturan aplikasi."
+        },
+        "privacy": {
+          "label": "Privasi",
+          "hint": "Membuka pengaturan privasi."
+        },
+        "account": {
+          "label": "Akun",
+          "hint": "Membuka manajemen akun."
+        },
+        "theme": {
+          "label": "Tema",
+          "hint": "Membuka pengaturan tema."
+        },
+        "data": {
+          "label": "Data",
+          "hint": "Membuka manajemen data."
+        },
+        "formats": {
+          "label": "Format-ku",
+          "hint": "Membuka format pengarsipanmu."
+        },
+        "manual": {
+          "label": "Manual",
+          "hint": "Membuka manual aplikasi."
+        },
+        "import": {
+          "label": "Impor",
+          "hint": "Membuka impor eksternal."
+        },
+        "inbox": {
+          "label": "Kotak masuk",
+          "hint": "Membuka tinjauan sumber yang diimpor."
+        },
+        "support": {
+          "label": "Dukungan",
+          "hint": "Membuka dukungan."
+        },
+        "permissions": {
+          "label": "Izin",
+          "hint": "Membuka detail izin."
+        }
+      }
+    }
+  }
+}

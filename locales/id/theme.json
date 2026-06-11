@@ -1,0 +1,56 @@
+{
+  "loading": "Memuat tema...",
+  "hero": {
+    "eyebrow": "08-4. Tema",
+    "title": "Pilih nada tampilan-mu",
+    "subtitle": "Gelap bawaan · nada terang sekunder",
+    "speech": "Graf utama selalu menjaga langit gelap agar bintang dan tautan tetap tajam."
+  },
+  "options": {
+    "dark": {
+      "label": "Gelap",
+      "sub": "Nada malam bawaan"
+    },
+    "light": {
+      "label": "Terang",
+      "sub": "Nada kertas yang cerah"
+    }
+  },
+  "font": {
+    "title": "Font",
+    "options": {
+      "pixel": {
+        "label": "Font pixel",
+        "sub": "Huruf pixel khas desa"
+      },
+      "readable": {
+        "label": "Font mudah dibaca",
+        "sub": "Font halus yang lebih nyaman di mata"
+      }
+    },
+    "useFontLabel": "Gunakan {{label}}",
+    "useFontHint": "Menerapkan font yang dipilih pada judul dan teks di perangkat ini."
+  },
+  "performance": {
+    "title": "Performa",
+    "options": {
+      "full": {
+        "label": "Efek penuh",
+        "sub": "Semua gerak, cahaya, dan karakter latar"
+      },
+      "lite": {
+        "label": "Mode ringan",
+        "sub": "Efek lebih sedikit untuk pengalaman lancar di ponsel lama"
+      }
+    },
+    "usePerformanceLabel": "Gunakan {{label}}",
+    "usePerformanceHint": "Menerapkan pengaturan performa yang dipilih di perangkat ini."
+  },
+  "actions": {
+    "inUse": "Digunakan",
+    "use": "Gunakan",
+    "useThemeLabel": "Gunakan tema {{label}}",
+    "useThemeHint": "Menerapkan tema yang dipilih di perangkat ini."
+  },
+  "note": "Graf utama tetap gelap bahkan dalam mode terang. Ini adalah latar di mana bintang dan koneksi paling jelas terbaca."
+}

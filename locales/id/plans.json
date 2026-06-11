@@ -1,0 +1,51 @@
+{
+  "loading": "Memuat paket...",
+  "hero": {
+    "eyebrow": "Paket",
+    "title": "Buat 2nd-Brain-mu tanpa batas",
+    "subtitle": "Catatan tetap gratis tanpa batas. Paket berbayar memberi lebih banyak ruang untuk berpikir bersama AI.",
+    "speech": "Fitur utama tetap gratis. Paket berbayar hanya menambah ruang untuk berpikir bersama."
+  },
+  "current": "Paket saat ini",
+  "comingSoon": "Paket berbayar segera hadir",
+  "comingSoonBody": "Pembayaran belum dibuka. Harga sudah final, dan tidak ada yang ditagih sampai kamu memilih paket di sini.",
+  "tiers": {
+    "free": {
+      "name": "Free",
+      "price": "Gratis",
+      "tagline": "2nd-Brain harianmu, catatan tanpa batas",
+      "f1": "Catatan, memo, dan wiki tanpa batas",
+      "f2": "Penyimpanan akun pribadi dengan ekspor kapan saja",
+      "f3": "2 obrolan AI per hari"
+    },
+    "soma": {
+      "name": "Soma",
+      "price": "$4.99 / mo",
+      "priceNote": "$49.90 / yr (2 bulan gratis)",
+      "tagline": "AI harian bersama catatanmu",
+      "f1": "30 obrolan AI per hari",
+      "f2": "Semua fitur di Free",
+      "f3": "Langkah pertama melampaui batas harian",
+      "lifetimeNote": "Atau $99 sekali bayar untuk akses seumur hidup"
+    },
+    "cortex": {
+      "name": "Cortex",
+      "price": "$9.99 / mo",
+      "priceNote": "$99.90 / yr (2 bulan gratis)",
+      "tagline": "Ruang untuk eksplorasi mendalam setiap hari",
+      "f1": "80 obrolan AI per hari",
+      "f2": "Semua fitur di Soma",
+      "f3": "Kapasitas ekstra untuk sesi panjang"
+    },
+    "brain": {
+      "name": "Brain",
+      "price": "$19.99 / mo",
+      "priceNote": "$199.90 / yr (2 bulan gratis)",
+      "tagline": "Otak kedua yang lengkap",
+      "f1": "250 obrolan AI per hari",
+      "f2": "Refleksi atas catatan-catatanmu",
+      "f3": "Semua fitur di Cortex"
+    }
+  },
+  "back": "Kembali"
+}

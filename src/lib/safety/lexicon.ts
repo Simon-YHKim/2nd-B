@@ -106,6 +106,7 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   "locales/ko/safety.json",
   "locales/es/safety.json",
   "locales/pt/safety.json",
+  "locales/id/safety.json",
   "docs/CONSTRAINTS.md",
   // VISION.md restates the vocabulary policy in a ❌/✅ table so future
   // contributors see it on first read — table entries must be verbatim.

@@ -1,0 +1,134 @@
+{
+  "hero": {
+    "eyebrow": "Format",
+    "title": "Format clipper-ku",
+    "subtitle": "Format buatanmu dan yang dibagikan komunitas",
+    "speech": "Sesuaikan format dan kepingan berikutnya tersimpan lebih rapi."
+  },
+  "mine": {
+    "shared": "Dibagikan ke komunitas",
+    "private": "Privat untuk kamu",
+    "heading": "Format-ku",
+    "headingWithCount": "Format-ku ({{count}})",
+    "emptyTitle": "Belum ada format",
+    "emptyBody": "Simpan format yang disarankan SecondB saat menangkap dan format itu akan muncul di sini."
+  },
+  "community": {
+    "heading": "Format komunitas",
+    "headingWithCount": "Format komunitas ({{count}})",
+    "empty": "Belum ada format komunitas. Saat seseorang membagikannya, format itu akan tampil di sini."
+  },
+  "builtIn": {
+    "headingWithCount": "Format bawaan ({{count}})"
+  },
+  "labels": {
+    "untitled": "(tanpa judul)",
+    "viewGuide": "lihat panduan pengarsipan",
+    "tapViewGuide": "Ketuk untuk melihat panduan pengarsipan ›",
+    "guide": "Panduan",
+    "share": "bagikan",
+    "delete": "hapus"
+  },
+  "actions": {
+    "addFormat": "Tambah format",
+    "goCapture": "Mulai tangkap",
+    "edit": "Edit",
+    "delete": "Hapus",
+    "cancel": "Batal",
+    "close": "Tutup"
+  },
+  "loading": {
+    "formats": "Memuat format…",
+    "generic": "Memuat…"
+  },
+  "error": {
+    "loadTitle": "Format-mu tidak bisa dimuat",
+    "loadBody": "Periksa koneksimu dan coba lagi.",
+    "retry": "Coba lagi"
+  },
+  "toast": {
+    "shareFailed": "Tidak bisa mengubah berbagi.",
+    "deleteSuccess": "Format dihapus.",
+    "deleteFailed": "Tidak bisa menghapus.",
+    "saveSuccess": "Format disimpan.",
+    "saveFailed": "Tidak bisa menyimpan.",
+    "addSuccess": "Format ditambahkan."
+  },
+  "deleteModal": {
+    "label": "Konfirmasi hapus format",
+    "title": "Hapus format ini?",
+    "body": "Tindakan ini tidak bisa dibatalkan."
+  },
+  "guideModal": {
+    "label": "Lihat panduan pengarsipan",
+    "eyebrow": "Panduan pengarsipan"
+  },
+  "editor": {
+    "eyebrow": "Edit format",
+    "name": "Nama",
+    "nameKoPlaceholder": "Nama dalam bahasa Korea",
+    "nameEnPlaceholder": "Nama dalam bahasa Inggris",
+    "description": "Deskripsi",
+    "descriptionHint": "Satu baris tentang apa format ini",
+    "descriptionKoPlaceholder": "Satu kalimat dalam bahasa Korea",
+    "descriptionEnPlaceholder": "Satu kalimat dalam bahasa Inggris",
+    "sourceType": "Tipe sumber",
+    "sourceTypeHint": "Pilih cara tangkapan dengan format ini disimpan.",
+    "filingArea": "Area pengarsipan",
+    "noArea": "Belum ada area",
+    "autoMatchLinks": "Cocokkan tautan otomatis",
+    "autoMatchLinksHint": "Tautan yang cocok diarsipkan dengan format ini secara otomatis.",
+    "addLinkRule": "Tambah aturan tautan",
+    "defaultTags": "Tagar bawaan",
+    "addTag": "Tambah tagar",
+    "savedFolder": "Folder tersimpan",
+    "savedFolderHint": "Nama folder opsional. Contoh: tools/",
+    "detailsToSave": "Detail yang disimpan",
+    "detailsToSaveHint": "Detail yang diekstrak dan disimpan dari setiap tangkapan.",
+    "noneYet": "Belum ada",
+    "detailNamePlaceholder": "Nama detail (mis. area topik)",
+    "removeDetail": "Hapus detail",
+    "remove": "Hapus",
+    "addDetail": "Tambah detail",
+    "fillKoPlaceholder": "Apa yang diisi (Korea)",
+    "fillEnPlaceholder": "Apa yang diisi (Inggris)",
+    "removeValue": "Hapus {{value}}",
+    "saving": "Menyimpan",
+    "save": "Simpan",
+    "cancel": "Batal",
+    "propTypes": {
+      "text": "Teks",
+      "multitext": "Panjang",
+      "number": "Angka"
+    }
+  },
+  "schemaView": {
+    "name": "Nama",
+    "what": "Apa itu",
+    "sourceType": "Tipe sumber",
+    "filingArea": "Area pengarsipan",
+    "defaultTags": "Tagar bawaan",
+    "autoMatchLinks": "Cocokkan tautan otomatis",
+    "detailsSaved": "Detail yang disimpan dari setiap kepingan",
+    "commonOnly": "Hanya bidang umum seperti ringkasan, tagar, dan relevansi yang disimpan.",
+    "propTypes": {
+      "text": "Teks",
+      "multitext": "Daftar",
+      "number": "Angka"
+    }
+  },
+  "add": {
+    "title": "Tambah format",
+    "body": "Jelaskan materi dan cara kamu mengarsipkannya. SecondB menyarankan panduan pengarsipan yang bisa dipakai ulang.",
+    "placeholder": "mis. Episode podcast - tangkap tamu dan klaim utama",
+    "draft": "Rancang panduan pengarsipan dengan SecondB",
+    "drafting": "Merancang…",
+    "errorNeedDetail": "Tidak bisa merancang panduan pengarsipan. Tambahkan detail dan coba lagi.",
+    "errorDraft": "Kami tidak bisa merancang panduan pengarsipan. Coba lagi sebentar lagi.",
+    "errorSave": "Kami tidak bisa menyimpan format. Coba lagi.",
+    "proposedEyebrow": "Format yang diusulkan",
+    "addThis": "Tambahkan format ini",
+    "redo": "Ulangi",
+    "cancel": "Batal"
+  }
+}
