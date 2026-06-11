@@ -31,6 +31,10 @@
       "name": "Calendar",
       "why": "Optional, used only by Routines: when you hand an approved item to your calendar, the OS asks once and the event form opens for you to confirm. Deny it and everything else still works."
     },
+    "notifications": {
+      "name": "Notifications",
+      "why": "Optional, used only by Routines reminders: scheduling one asks the OS once, and every reminder stays on this device. Deny it and everything else still works."
+    },
     "cameraPhoto": {
       "name": "Camera / Photo library",
       "why": "Optional, for text capture from images only. Asked when you choose a photo action; decline and the rest of the app still works."

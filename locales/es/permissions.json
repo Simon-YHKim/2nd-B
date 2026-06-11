@@ -31,6 +31,10 @@
       "name": "Calendario",
       "why": "Opcional, solo lo usa Rutinas: al enviar un elemento aprobado a tu calendario, el sistema pregunta una vez y se abre el formulario del evento para que confirmes. Si lo niegas, todo lo demás sigue funcionando."
     },
+    "notifications": {
+      "name": "Notificaciones",
+      "why": "Opcional, solo lo usan los recordatorios de Rutinas: al programar uno, el sistema pregunta una vez y cada recordatorio queda en este dispositivo. Si lo niegas, todo lo demás sigue funcionando."
+    },
     "cameraPhoto": {
       "name": "Cámara / Biblioteca de fotos",
       "why": "Opcional, solo para capturar texto desde imágenes. Se solicita cuando eliges una acción de foto; si rechazas, el resto de la app sigue funcionando."

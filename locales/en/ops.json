@@ -54,7 +54,9 @@
     "downloadIcs": "Calendar file",
     "downloadIcsHint": "Downloads an .ics file that opens in your calendar app.",
     "shareList": "Send checklist",
-    "shareListHint": "Opens the share sheet with this checklist as text."
+    "shareListHint": "Opens the share sheet with this checklist as text.",
+    "remind": "Remind me",
+    "remindHint": "Schedules an on-device reminder at this item's time."
   },
   "consent": {
     "title": "Hand items to your apps?",
@@ -69,6 +71,9 @@
   },
   "push": {
     "savedNote": "Handed to your calendar.",
-    "deniedNote": "Calendar permission is off. Allow it in your device settings to use this."
+    "deniedNote": "Calendar permission is off. Allow it in your device settings to use this.",
+    "reminderSetNote": "Reminder set on this device.",
+    "reminderDeniedNote": "Notification permission is off. Allow it in your device settings to use reminders.",
+    "reminderFailedNote": "The reminder could not be set. Check the item's time and try again."
   }
 }
