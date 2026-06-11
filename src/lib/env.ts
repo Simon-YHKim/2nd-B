@@ -15,6 +15,26 @@ const DEMO_SUPABASE_ANON_KEY = "demo-key-placeholder-20-chars-min";
 export const IS_DEMO_BUILD = (raw: string | undefined): boolean =>
   !raw || raw === "" || raw === DEMO_SUPABASE_URL;
 
+// Tolerant URL normalization for ANALYTICS-ONLY fields. Core fields (Supabase)
+// keep strict validation - the app genuinely cannot run without them. A
+// telemetry endpoint is the opposite: the only acceptable failure mode is
+// "analytics off", never "app down". Exported for unit tests.
+export function normalizeAnalyticsUrl(name: string, value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    // eslint-disable-next-line no-new
+    new URL(candidate);
+    return candidate;
+  } catch {
+    if (typeof console !== "undefined") {
+      console.warn(`[env] ${name} is not a usable URL ("${trimmed}") - this analytics integration stays off.`);
+    }
+    return undefined;
+  }
+}
+
 // Runtime-validated env. Read once at module import; failures throw early
 // so misconfiguration surfaces before any LLM/auth call.
 const schema = z.object({
@@ -103,7 +123,17 @@ const schema = z.object({
   EXPO_PUBLIC_SENTRY_DSN: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
   EXPO_PUBLIC_POSTHOG_KEY: z.string().optional(),
-  EXPO_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
+  // Telemetry endpoints must NEVER brick the app. The previous .url() check
+  // threw at module init, and because the deploy workflow renders an unset
+  // repo Variable as the EMPTY STRING, every visitor got a dead black screen
+  // (live outage, 2026-06-11: ZodError on EXPO_PUBLIC_POSTHOG_HOST took the
+  // whole site down). Now: empty -> off, scheme-less host -> https:// is
+  // assumed (the common paste form "us.i.posthog.com"), anything else -> a
+  // loud console warning and analytics stays off. The app always boots.
+  EXPO_PUBLIC_POSTHOG_HOST: z
+    .string()
+    .optional()
+    .transform((value) => normalizeAnalyticsUrl("EXPO_PUBLIC_POSTHOG_HOST", value)),
   // Web usage analytics — public client-side ids (not secrets). Both no-op until
   // set, and only load after the user grants analytics consent (PIPA). GA4 =
   // "G-XXXXXXX" measurement id (gtag); Clarity = the project id from
@@ -143,6 +173,11 @@ const refined = schema
   );
 
 function readRaw(): Record<string, string | undefined> {
+  // The deploy workflow renders an UNSET repo Variable as the empty string,
+  // so optional analytics ids routinely arrive as "" - treat that as absent
+  // (the 2026-06-11 outage came from "" reaching a strict .url() check).
+  const presentOrUndefined = (v: string | undefined): string | undefined =>
+    v && v.trim().length > 0 ? v : undefined;
   // CRITICAL: every EXPO_PUBLIC_* value must be read as a *direct*
   // `process.env.EXPO_PUBLIC_X` member expression. babel-preset-expo replaces
   // exactly that syntactic pattern with the literal value at build time.
@@ -204,15 +239,15 @@ function readRaw(): Record<string, string | undefined> {
     // Prefer the inlined EXPO_PUBLIC_ variant when present (Web), fall back
     // to the non-public one (native / Edge Function).
     GOOGLE_API_KEY: (publicGoogleKey && publicGoogleKey.length > 0) ? publicGoogleKey : proc.GOOGLE_API_KEY,
-    EXPO_PUBLIC_SENTRY_DSN: sentryDsn,
+    EXPO_PUBLIC_SENTRY_DSN: presentOrUndefined(sentryDsn),
     SENTRY_DSN: proc.SENTRY_DSN,
-    EXPO_PUBLIC_POSTHOG_KEY: posthogKey,
-    EXPO_PUBLIC_POSTHOG_HOST: posthogHost,
-    EXPO_PUBLIC_GA4_MEASUREMENT_ID: ga4Id,
-    EXPO_PUBLIC_CLARITY_PROJECT_ID: clarityId,
+    EXPO_PUBLIC_POSTHOG_KEY: presentOrUndefined(posthogKey),
+    EXPO_PUBLIC_POSTHOG_HOST: presentOrUndefined(posthogHost),
+    EXPO_PUBLIC_GA4_MEASUREMENT_ID: presentOrUndefined(ga4Id),
+    EXPO_PUBLIC_CLARITY_PROJECT_ID: presentOrUndefined(clarityId),
     EXPO_PUBLIC_ENABLE_ADS: enableAds,
-    EXPO_PUBLIC_ADSENSE_CLIENT: adsenseClient,
-    EXPO_PUBLIC_ADSENSE_SLOT_RECORDS: adsenseSlotRecords,
+    EXPO_PUBLIC_ADSENSE_CLIENT: presentOrUndefined(adsenseClient),
+    EXPO_PUBLIC_ADSENSE_SLOT_RECORDS: presentOrUndefined(adsenseSlotRecords),
   };
 }
 
