@@ -31,13 +31,15 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, semantic, typography, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
 import { useCoreHintDismissed } from "@/lib/onboarding/core-hint";
+import { useComfortOfferDismissed } from "@/lib/onboarding/comfort-offer";
+import { useFontStyle } from "@/lib/settings/readable-font";
 import { useEmptyGraphDismissed } from "@/lib/onboarding/empty-card";
 import { domainForTags, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { VILLAGE_UI } from "@/lib/village-ui";
@@ -237,6 +239,13 @@ export default function Landing() {
   // in the spotlight slot until the first interaction dismisses it for good.
   const { dismissed: coreHintDismissed, dismiss: dismissCoreHint } =
     useCoreHintDismissed();
+  // Persona sim v2 P1-1: one-time comfort offer. The readable-font option
+  // exists (P2-10) but every 60+ persona stalled on the pixel-dark default
+  // before finding 설정 > 테마. Ask ONCE where they land; accepting changes
+  // the screen instantly, either choice dismisses forever.
+  const { dismissed: comfortDismissed, dismiss: dismissComfortOffer } =
+    useComfortOfferDismissed();
+  const { fontStyle, setFontStyle } = useFontStyle();
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wake = useCallback(() => {
     setSleeping(false);
@@ -435,7 +444,11 @@ export default function Landing() {
   // not null). Both gates avoid a first-paint flash for users who do have pieces
   // or who previously dismissed.
   // P2-6: never claim an empty graph while the load FAILED — we don't know.
-  const showingEmptyGraphCard = hasAnyPiece === false && emptyDismissed === false && !dataLoadFailed;
+  // The comfort offer owns the bottom slot until answered (one message per
+  // screen): empty card, coach hint and spotlight all wait behind it.
+  const showComfortOffer = comfortDismissed === false && fontStyle === "pixel" && !sheetOpen;
+  const showingEmptyGraphCard =
+    !showComfortOffer && hasAnyPiece === false && emptyDismissed === false && !dataLoadFailed;
 
   return (
     <View style={styles.skyContainer}>
@@ -549,7 +562,67 @@ export default function Landing() {
           bottom slot the spotlight card uses (never both: complementary
           graphTouched conditions), so the one-message rule holds. The first
           graph interaction or a tap on the hint dismisses it permanently. */}
-      {!showingEmptyGraphCard && !graphTouched && !sheetOpen && dataNodes.length > 0 && coreHintDismissed === false ? (
+      {/* Persona sim v2 P1-1 — one-time appearance offer, highest slot
+          priority. Accepting applies the readable font on the spot (the
+          change itself is the feedback); both choices dismiss forever and
+          the line under the buttons names the way back (설정 > 테마). */}
+      {showComfortOffer ? (
+        <Animated.View
+          style={[
+            styles.insightCardStack,
+            { opacity: contentOpacity, bottom: insets.bottom + TAB_BAR_HEIGHT + 12 },
+          ]}
+          pointerEvents="box-none"
+        >
+          <View style={[styles.insightCard, styles.comfortCard]}>
+            {/* The offer itself must be legible to the person it targets -
+                this one card renders in the readable face even on pixel default. */}
+            <Text style={styles.comfortBody}>
+              {locale === "ko"
+                ? "글자가 작거나 흐리게 보이면 읽기 쉬운 글꼴로 바꿔드릴게요"
+                : "If the letters feel small or dim, I can switch to the readable font"}
+            </Text>
+            <View style={styles.comfortActions}>
+              <Pressable
+                onPress={() => {
+                  setFontStyle("readable");
+                  dismissComfortOffer();
+                }}
+                style={[styles.comfortButton, styles.comfortButtonPrimary]}
+                accessibilityRole="button"
+                accessibilityLabel={locale === "ko" ? "읽기 쉽게 보기" : "Make it readable"}
+                accessibilityHint={
+                  locale === "ko" ? "글꼴이 지금 바로 바뀝니다." : "The font changes right away."
+                }
+              >
+                <Text style={styles.comfortButtonPrimaryLabel}>
+                  {locale === "ko" ? "읽기 쉽게 보기" : "Make it readable"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={dismissComfortOffer}
+                style={styles.comfortButton}
+                accessibilityRole="button"
+                accessibilityLabel={locale === "ko" ? "지금이 좋아요" : "I like it as is"}
+                accessibilityHint={
+                  locale === "ko" ? "이 안내를 닫습니다." : "Closes this offer."
+                }
+              >
+                <Text style={styles.comfortButtonLabel}>
+                  {locale === "ko" ? "지금이 좋아요" : "I like it as is"}
+                </Text>
+              </Pressable>
+            </View>
+            <Text style={styles.comfortFootnote}>
+              {locale === "ko"
+                ? "설정 > 테마에서 언제든 바꿀 수 있어요"
+                : "Change anytime in Settings > Theme"}
+            </Text>
+          </View>
+        </Animated.View>
+      ) : null}
+
+      {!showComfortOffer && !showingEmptyGraphCard && !graphTouched && !sheetOpen && dataNodes.length > 0 && coreHintDismissed === false ? (
         <Animated.View
           style={[
             styles.insightCardStack,
@@ -573,7 +646,7 @@ export default function Landing() {
         </Animated.View>
       ) : null}
 
-      {!showingEmptyGraphCard && graphTouched && !sheetOpen && dataNodes.length > 0 ? (
+      {!showComfortOffer && !showingEmptyGraphCard && graphTouched && !sheetOpen && dataNodes.length > 0 ? (
         <Animated.View
           style={[
             styles.insightCardStack,
@@ -771,6 +844,47 @@ const styles = StyleSheet.create({
   },
   // B-1 coach hint: same card voice, single-line weight (no 74px presence —
   // it must read as a whisper next to the graph, not a competing surface).
+  comfortCard: {
+    gap: spacing.sm,
+  },
+  comfortBody: {
+    color: cosmic.moonWhite,
+    fontFamily: fontFamilies.readable,
+    fontSize: 16,
+    lineHeight: 23,
+  },
+  comfortActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  comfortButton: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    borderRadius: gameboy.radius,
+    borderWidth: gameboy.borderWidth,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surface,
+  },
+  comfortButtonPrimary: {
+    backgroundColor: semantic.brand,
+    borderColor: semantic.brand,
+  },
+  comfortButtonPrimaryLabel: {
+    color: cosmic.space950,
+    fontFamily: fontFamilies.readable,
+    fontSize: 15,
+  },
+  comfortButtonLabel: {
+    color: cosmic.moonWhite,
+    fontFamily: fontFamilies.readable,
+    fontSize: 15,
+  },
+  comfortFootnote: {
+    color: cosmic.quietGray,
+    fontSize: 12,
+  },
   coreHintCard: {
     minHeight: 0,
     justifyContent: "center",
