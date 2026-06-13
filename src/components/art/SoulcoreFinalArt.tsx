@@ -11,6 +11,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import Svg, { Polygon, Rect } from "react-native-svg";
 
 import { LivingAsset } from "@/components/motion/LivingAsset";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
@@ -127,26 +128,50 @@ const FINAL_PATTERN_DATA_ART_V49: Record<PatternDataColorKey, ImageSourcePropTyp
   black: require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier3_pattern_data_black_v49_256.png"),
 };
 
-// v10 pattern-data (9 colors). Flat filenames per the v10 manifest.
-const FINAL_PATTERN_DATA_ART_V10: Record<PatternDataColorKey, ImageSourcePropType> = {
-  red: require("../../../public/assets/tesseract-v10/pattern_data_red.png"),
-  orange: require("../../../public/assets/tesseract-v10/pattern_data_orange.png"),
-  yellow: require("../../../public/assets/tesseract-v10/pattern_data_yellow.png"),
-  green: require("../../../public/assets/tesseract-v10/pattern_data_green.png"),
-  blue: require("../../../public/assets/tesseract-v10/pattern_data_blue.png"),
-  indigo: require("../../../public/assets/tesseract-v10/pattern_data_indigo.png"),
-  violet: require("../../../public/assets/tesseract-v10/pattern_data_violet.png"),
-  white: require("../../../public/assets/tesseract-v10/pattern_data_white.png"),
-  black: require("../../../public/assets/tesseract-v10/pattern_data_black.png"),
-};
-
-// Pattern-data art by variant. v49 + v10 ship the 9-color set; v45 had none, so
-// it falls back to v49's color set (it was never the color-keyed default).
-const PATTERN_DATA_ART_BY_VARIANT: Record<AssetVariant, Record<PatternDataColorKey, ImageSourcePropType>> = {
+// Pattern-data art by static PNG variant. v10 no longer ships 9 large color
+// PNGs; it uses the recolorable vector renderer below to keep the v10 crystal
+// look without adding about 16 MB of color-duplicate assets.
+const STATIC_PATTERN_DATA_ART_BY_VARIANT: Record<Exclude<AssetVariant, "v10">, Record<PatternDataColorKey, ImageSourcePropType>> = {
   v45: FINAL_PATTERN_DATA_ART_V49,
   v49: FINAL_PATTERN_DATA_ART_V49,
-  v10: FINAL_PATTERN_DATA_ART_V10,
 };
+
+type PatternVectorTone = "shadow" | "base" | "mid" | "hot" | "glint";
+
+const V10_PATTERN_DATA_PALETTE: Record<PatternDataColorKey, Record<PatternVectorTone, string>> = {
+  red: { shadow: cosmic.space800, base: cosmic.guardRose, mid: cosmic.dreamPink, hot: cosmic.pixelLamp, glint: cosmic.moonWhite },
+  orange: { shadow: cosmic.space800, base: cosmic.pixelLamp, mid: cosmic.guardRose, hot: cosmic.moonWhite, glint: cosmic.softWhite },
+  yellow: { shadow: cosmic.space800, base: cosmic.pixelLamp, mid: cosmic.signalMint, hot: cosmic.moonWhite, glint: cosmic.softWhite },
+  green: { shadow: cosmic.space800, base: cosmic.signalMint, mid: cosmic.signalBlue, hot: cosmic.moonWhite, glint: cosmic.softWhite },
+  blue: { shadow: cosmic.space800, base: cosmic.signalBlue, mid: cosmic.signalMint, hot: cosmic.moonWhite, glint: cosmic.softWhite },
+  indigo: { shadow: cosmic.space800, base: cosmic.soulViolet2, mid: cosmic.signalBlue, hot: cosmic.moonWhite, glint: cosmic.softWhite },
+  violet: { shadow: cosmic.space800, base: cosmic.soulViolet, mid: cosmic.dreamPink, hot: cosmic.moonWhite, glint: cosmic.softWhite },
+  white: { shadow: cosmic.space700, base: cosmic.moonWhite, mid: cosmic.mistGray, hot: cosmic.signalMint, glint: cosmic.softWhite },
+  black: { shadow: cosmic.space950, base: cosmic.space700, mid: cosmic.lineDim, hot: cosmic.mistGray, glint: cosmic.moonWhite },
+};
+
+const V10_PATTERN_DATA_FACETS: readonly { points: string; tone: PatternVectorTone; opacity?: number }[] = [
+  { points: "48,5 76,19 90,48 74,79 48,91 22,79 6,48 20,19", tone: "shadow", opacity: 0.86 },
+  { points: "48,11 72,23 83,48 68,73 48,84 28,73 13,48 24,23", tone: "base", opacity: 0.9 },
+  { points: "48,11 72,23 55,43 48,48 41,43 24,23", tone: "mid", opacity: 0.78 },
+  { points: "13,48 41,43 48,48 28,73", tone: "base", opacity: 0.74 },
+  { points: "83,48 55,43 48,48 68,73", tone: "hot", opacity: 0.74 },
+  { points: "28,73 48,48 68,73 48,84", tone: "mid", opacity: 0.7 },
+  { points: "41,43 48,11 55,43 48,48", tone: "glint", opacity: 0.72 },
+];
+
+const V10_PATTERN_DATA_PIXELS: readonly { x: number; y: number; size: number; tone: PatternVectorTone; opacity?: number }[] = [
+  { x: 45, y: 18, size: 6, tone: "glint", opacity: 0.9 },
+  { x: 33, y: 28, size: 5, tone: "hot", opacity: 0.82 },
+  { x: 58, y: 29, size: 5, tone: "glint", opacity: 0.76 },
+  { x: 24, y: 45, size: 6, tone: "mid", opacity: 0.82 },
+  { x: 67, y: 45, size: 6, tone: "hot", opacity: 0.8 },
+  { x: 39, y: 54, size: 5, tone: "glint", opacity: 0.7 },
+  { x: 52, y: 58, size: 5, tone: "mid", opacity: 0.74 },
+  { x: 45, y: 72, size: 6, tone: "base", opacity: 0.8 },
+  { x: 14, y: 38, size: 4, tone: "hot", opacity: 0.65 },
+  { x: 78, y: 38, size: 4, tone: "glint", opacity: 0.65 },
+];
 
 // Tier-4 Log: a single v49 logbook tesseract (no per-category variant in v49).
 const FINAL_LOG_ART_V49: ImageSourcePropType = require("../../../public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier4_log_v49_256.png");
@@ -433,7 +458,7 @@ export function FinalPatternDataArtV49({
 }) {
   return (
     <LivingAsset preset="patternData" id={`pd-${colorKey}`} size={size} style={style} enabled={animated} pointerEvents="none">
-      <Image source={PATTERN_DATA_ART_BY_VARIANT[variant][colorKey]} style={[{ width: size, height: size }, PIXELATED]} contentFit="contain" />
+      <PatternDataByVariant colorKey={colorKey} size={size} variant={variant} />
     </LivingAsset>
   );
 }
@@ -471,13 +496,76 @@ export function FinalPatternDataSnowflakeArt({
             ]}
           />
         ))}
-        <Image
-          source={PATTERN_DATA_ART_BY_VARIANT[variant][colorKey]}
-          style={[styles.snowflakeImage, { width: size, height: size }, PIXELATED]}
-          contentFit="contain"
-        />
+        <PatternDataByVariant colorKey={colorKey} size={size} variant={variant} style={styles.snowflakeImage} />
       </View>
     </LivingAsset>
+  );
+}
+
+function PatternDataByVariant({
+  colorKey,
+  size,
+  variant,
+  style,
+}: {
+  colorKey: PatternDataColorKey;
+  size: number;
+  variant: AssetVariant;
+  style?: StyleProp<ViewStyle>;
+}) {
+  if (variant === "v10") return <V10PatternDataVector colorKey={colorKey} size={size} style={style} />;
+  return (
+    <Image
+      source={STATIC_PATTERN_DATA_ART_BY_VARIANT[variant][colorKey]}
+      style={[{ width: size, height: size }, PIXELATED, style as StyleProp<ImageStyle>]}
+      contentFit="contain"
+    />
+  );
+}
+
+function V10PatternDataVector({
+  colorKey,
+  size,
+  style,
+}: {
+  colorKey: PatternDataColorKey;
+  size: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const palette = V10_PATTERN_DATA_PALETTE[colorKey];
+  return (
+    <View
+      pointerEvents="none"
+      style={[{ width: size, height: size }, style]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Svg width={size} height={size} viewBox="0 0 96 96" focusable={false}>
+        <Rect x={28} y={8} width={40} height={80} fill={palette.shadow} opacity={0.1} />
+        <Rect x={8} y={28} width={80} height={40} fill={palette.shadow} opacity={0.1} />
+        {V10_PATTERN_DATA_FACETS.map((facet, index) => (
+          <Polygon
+            key={`${facet.points}-${index}`}
+            points={facet.points}
+            fill={palette[facet.tone]}
+            opacity={facet.opacity ?? 1}
+          />
+        ))}
+        <Rect x={22} y={22} width={52} height={52} fill="none" stroke={palette.glint} strokeWidth={2} opacity={0.36} />
+        <Rect x={30} y={30} width={36} height={36} fill="none" stroke={palette.hot} strokeWidth={2} opacity={0.42} />
+        {V10_PATTERN_DATA_PIXELS.map((pixel, index) => (
+          <Rect
+            key={`${pixel.x}-${pixel.y}-${index}`}
+            x={pixel.x}
+            y={pixel.y}
+            width={pixel.size}
+            height={pixel.size}
+            fill={palette[pixel.tone]}
+            opacity={pixel.opacity ?? 1}
+          />
+        ))}
+      </Svg>
+    </View>
   );
 }
 
@@ -633,6 +721,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   snowflakeImage: {
-    tintColor: undefined,
+    position: "absolute",
   },
 });

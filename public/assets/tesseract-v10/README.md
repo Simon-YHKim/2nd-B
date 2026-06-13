@@ -18,4 +18,6 @@
 - `manifest.json`: 에셋 매핑 정보
 
 ## 적용 메모
-이번 패키지는 정적 에셋만 포함합니다. 애니메이션은 포함하지 않습니다.
+- Core 계열은 정적 PNG를 유지합니다.
+- Pattern Data 9색 PNG는 번들 무게 때문에 제거했습니다. 앱은 `src/components/art/SoulcoreFinalArt.tsx`의 `V10PatternDataVector` 단일 SVG 렌더러에 `PatternDataColorKey` 팔레트를 입혀 v10 계열 룩을 유지합니다.
+- 애니메이션은 에셋 파일이 아니라 앱의 `LivingAsset` 래퍼에서 적용합니다.

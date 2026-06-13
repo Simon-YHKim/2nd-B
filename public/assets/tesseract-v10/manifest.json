@@ -74,8 +74,8 @@
   {
     "id": "pattern_data_red",
     "tier": "pattern_data",
-    "file": "transparent_png/pattern_data_red.png",
-    "source": "source_white/pattern_data_red.png",
+    "file": "runtime_svg:src/components/art/SoulcoreFinalArt.tsx#V10PatternDataVector",
+    "source": "runtime_recolorable_vector",
     "cutout_method": "distance_cutout_plus_small_hole_repair",
     "cutout_distance_threshold": 8,
     "small_hole_repair": {
@@ -87,8 +87,8 @@
   {
     "id": "pattern_data_orange",
     "tier": "pattern_data",
-    "file": "transparent_png/pattern_data_orange.png",
-    "source": "source_white/pattern_data_orange.png",
+    "file": "runtime_svg:src/components/art/SoulcoreFinalArt.tsx#V10PatternDataVector",
+    "source": "runtime_recolorable_vector",
     "cutout_method": "distance_cutout_plus_small_hole_repair",
     "cutout_distance_threshold": 8,
     "small_hole_repair": {
@@ -100,8 +100,8 @@
   {
     "id": "pattern_data_yellow",
     "tier": "pattern_data",
-    "file": "transparent_png/pattern_data_yellow.png",
-    "source": "source_white/pattern_data_yellow.png",
+    "file": "runtime_svg:src/components/art/SoulcoreFinalArt.tsx#V10PatternDataVector",
+    "source": "runtime_recolorable_vector",
     "cutout_method": "distance_cutout_plus_small_hole_repair",
     "cutout_distance_threshold": 8,
     "small_hole_repair": {
@@ -113,8 +113,8 @@
   {
     "id": "pattern_data_green",
     "tier": "pattern_data",
-    "file": "transparent_png/pattern_data_green.png",
-    "source": "source_white/pattern_data_green.png",
+    "file": "runtime_svg:src/components/art/SoulcoreFinalArt.tsx#V10PatternDataVector",
+    "source": "runtime_recolorable_vector",
     "cutout_method": "distance_cutout_plus_small_hole_repair",
     "cutout_distance_threshold": 8,
     "small_hole_repair": {
@@ -126,8 +126,8 @@
   {
     "id": "pattern_data_blue",
     "tier": "pattern_data",
-    "file": "transparent_png/pattern_data_blue.png",
-    "source": "source_white/pattern_data_blue.png",
+    "file": "runtime_svg:src/components/art/SoulcoreFinalArt.tsx#V10PatternDataVector",
+    "source": "runtime_recolorable_vector",
     "cutout_method": "distance_cutout_plus_small_hole_repair",
     "cutout_distance_threshold": 8,
     "small_hole_repair": {
@@ -139,8 +139,8 @@
   {
     "id": "pattern_data_indigo",
     "tier": "pattern_data",
-    "file": "transparent_png/pattern_data_indigo.png",
-    "source": "source_white/pattern_data_indigo.png",
+    "file": "runtime_svg:src/components/art/SoulcoreFinalArt.tsx#V10PatternDataVector",
+    "source": "runtime_recolorable_vector",
     "cutout_method": "distance_cutout_plus_small_hole_repair",
     "cutout_distance_threshold": 8,
     "small_hole_repair": {
@@ -152,8 +152,8 @@
   {
     "id": "pattern_data_violet",
     "tier": "pattern_data",
-    "file": "transparent_png/pattern_data_violet.png",
-    "source": "source_white/pattern_data_violet.png",
+    "file": "runtime_svg:src/components/art/SoulcoreFinalArt.tsx#V10PatternDataVector",
+    "source": "runtime_recolorable_vector",
     "cutout_method": "distance_cutout_plus_small_hole_repair",
     "cutout_distance_threshold": 8,
     "small_hole_repair": {
@@ -165,8 +165,8 @@
   {
     "id": "pattern_data_white",
     "tier": "pattern_data",
-    "file": "transparent_png/pattern_data_white.png",
-    "source": "source_white/pattern_data_white.png",
+    "file": "runtime_svg:src/components/art/SoulcoreFinalArt.tsx#V10PatternDataVector",
+    "source": "runtime_recolorable_vector",
     "cutout_method": "distance_cutout_plus_small_hole_repair",
     "cutout_distance_threshold": 8,
     "small_hole_repair": {
@@ -178,8 +178,8 @@
   {
     "id": "pattern_data_black",
     "tier": "pattern_data",
-    "file": "transparent_png/pattern_data_black.png",
-    "source": "source_white/pattern_data_black.png",
+    "file": "runtime_svg:src/components/art/SoulcoreFinalArt.tsx#V10PatternDataVector",
+    "source": "runtime_recolorable_vector",
     "cutout_method": "distance_cutout_plus_small_hole_repair",
     "cutout_distance_threshold": 8,
     "small_hole_repair": {
