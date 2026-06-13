@@ -9,6 +9,7 @@
     "scheme": "secondbrain",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.anonymous.x2ndbrain",
       "icon": "./assets/expo.icon",
       "infoPlist": {
         "NSCameraUsageDescription": "The app needs camera access to capture documents for OCR and memory storage.",
@@ -19,7 +20,10 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#070A18",
@@ -86,6 +90,12 @@
       "typedRoutes": true,
       "reactCompiler": true,
       "baseUrl": "/2nd-B"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "439c4c86-39a7-4a47-8bfa-0426f9fe18c9"
+      }
     }
   }
 }
