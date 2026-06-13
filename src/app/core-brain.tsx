@@ -32,6 +32,44 @@ import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
+
+async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promise<EvidenceShard[]> {
+  const supabase = getSupabaseClient();
+  // Core must count ALL saved pieces the user sees in /records, not just
+  // `records`: non-journal Capture/Import/Wiki land in `sources`. Reading
+  // only records gives source-only users a false "center is still small"
+  // empty state (data-truth gate). Mirrors /records' merged read.
+  const [recRes, srcRes] = await Promise.all([
+    supabase
+      .from("records")
+      .select("id, kind, topic, created_at, tags")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(24),
+    supabase
+      .from("sources")
+      .select("id, kind, title, captured_at, tags")
+      .eq("user_id", userId)
+      .order("captured_at", { ascending: false })
+      .limit(24),
+  ]);
+  // A transient RLS/timeout/token-refresh error returns data null without
+  // throwing — surface it as an error state instead of a false empty one.
+  if (recRes.error) {
+    if (typeof console !== "undefined") console.warn("[core-brain] records query failed", recRes.error);
+    throw recRes.error;
+  }
+  const recRows = (recRes.data ?? []) as RawRecordRow[];
+  // Sources are best-effort: a sources failure degrades to records-only, never blanks Core.
+  let srcRows: RawSourceRow[] = [];
+  if (srcRes.error) {
+    if (typeof console !== "undefined") console.warn("[core-brain] sources query failed; records only", srcRes.error);
+  } else {
+    srcRows = (srcRes.data ?? []) as RawSourceRow[];
+  }
+  return mergeEvidence(recRows, srcRows, locale);
+}
 
 export default function CoreBrain() {
   const { i18n } = useTranslation();
@@ -43,6 +81,7 @@ export default function CoreBrain() {
   const [building, setBuilding] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [evidenceReloadKey, setEvidenceReloadKey] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
@@ -55,41 +94,7 @@ export default function CoreBrain() {
     setLoadError(false);
     (async () => {
       try {
-        const supabase = getSupabaseClient();
-        // Core must count ALL saved pieces the user sees in /records, not just
-        // `records`: non-journal Capture/Import/Wiki land in `sources`. Reading
-        // only records gives source-only users a false "center is still small"
-        // empty state (data-truth gate). Mirrors /records' merged read.
-        const [recRes, srcRes] = await Promise.all([
-          supabase
-            .from("records")
-            .select("id, kind, topic, created_at, tags")
-            .eq("user_id", userId)
-            .order("created_at", { ascending: false })
-            .limit(24),
-          supabase
-            .from("sources")
-            .select("id, kind, title, captured_at, tags")
-            .eq("user_id", userId)
-            .order("captured_at", { ascending: false })
-            .limit(24),
-        ]);
-        // A transient RLS/timeout/token-refresh error returns data null without
-        // throwing — surface it as an error state instead of a false empty one.
-        if (recRes.error) {
-          if (typeof console !== "undefined") console.warn("[core-brain] records query failed", recRes.error);
-          if (!cancelled) setLoadError(true);
-          return;
-        }
-        const recRows = (recRes.data ?? []) as RawRecordRow[];
-        // Sources are best-effort: a sources failure degrades to records-only, never blanks Core.
-        let srcRows: RawSourceRow[] = [];
-        if (srcRes.error) {
-          if (typeof console !== "undefined") console.warn("[core-brain] sources query failed; records only", srcRes.error);
-        } else {
-          srcRows = (srcRes.data ?? []) as RawSourceRow[];
-        }
-        const ev = mergeEvidence(recRows, srcRows, locale);
+        const ev = await loadCoreBrainEvidence(userId, locale);
         const p = ev.length > 0 ? await buildPersona(userId, locale, isMinor === true) : null;
         if (!cancelled) {
           setEvidence(ev);
@@ -108,10 +113,29 @@ export default function CoreBrain() {
       cancelled = true;
     };
   }, [userId, hasProfile, isMinor, locale, fireCompanion, reloadKey]);
-  // Core Brain intentionally does NOT focus-refetch: its load path runs buildPersona()
-  // (uncached Gemini), so re-focus would re-bill an LLM call on simple back-navigation
-  // (codex blocker 20260614). Reloads on mount/deps only. Follow-up: split the cheap
-  // evidence query from persona synthesis so focus can refresh evidence without Gemini.
+  // Re-focus refreshes only cheap DB evidence. The initial/manual path above is
+  // the only path that may run buildPersona(), because buildPersona calls Gemini.
+  useFocusRefetch(() => setEvidenceReloadKey((k) => k + 1), Boolean(userId && hasProfile !== false));
+
+  useEffect(() => {
+    if (evidenceReloadKey === 0 || !userId || hasProfile === false) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const ev = await loadCoreBrainEvidence(userId, locale);
+        if (!cancelled) {
+          setEvidence(ev);
+          setLoadError(false);
+        }
+      } catch (e) {
+        if (typeof console !== "undefined") console.warn("[core-brain] evidence refresh failed", (e as Error).message);
+        if (!cancelled) setLoadError(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, hasProfile, locale, evidenceReloadKey]);
 
   if (loading) {
     return (

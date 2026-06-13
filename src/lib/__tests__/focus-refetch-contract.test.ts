@@ -11,6 +11,7 @@ describe("core-loop focus refetch contract", () => {
   const screens = [
     "src/app/index.tsx",
     "src/app/records.tsx",
+    "src/app/core-brain.tsx",
     "src/app/insights.tsx",
     "src/app/trinity.tsx",
     "src/app/record/[id].tsx",
@@ -34,10 +35,18 @@ describe("core-loop focus refetch contract", () => {
     }
   });
 
-  it("excludes Core Brain from focus refetch (buildPersona is uncached Gemini — re-focus would re-bill)", () => {
+  it("keeps Core Brain focus refresh evidence-only so re-focus does not re-bill Gemini", () => {
     const source = read("src/app/core-brain.tsx");
-    expect(source).not.toContain("useFocusRefetch(");
+    expect(source).toContain("function loadCoreBrainEvidence");
+    expect(source).toContain("useFocusRefetch(() => setEvidenceReloadKey((k) => k + 1), Boolean(userId && hasProfile !== false))");
     expect(source).toContain("buildPersona");
+
+    const evidenceRefreshEffect = source.slice(
+      source.indexOf("if (evidenceReloadKey === 0"),
+      source.indexOf("}, [userId, hasProfile, locale, evidenceReloadKey]"),
+    );
+    expect(evidenceRefreshEffect).toContain("loadCoreBrainEvidence(userId, locale)");
+    expect(evidenceRefreshEffect).not.toContain("buildPersona");
   });
 
   it("keeps Home data-node identity stabilization in the refetch path", () => {
