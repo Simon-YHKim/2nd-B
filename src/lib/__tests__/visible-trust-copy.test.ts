@@ -74,6 +74,17 @@ describe("visible trust copy", () => {
     expect(combined).not.toMatch(/그래프|로컬|기기|계정 없이/);
   });
 
+  test("first-run graph card does not promise a journal save lights the graph", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const screen = readFileSync(path.join(root, "src/app/index.tsx"), "utf8");
+
+    expect(screen).toContain("Your first piece is saved in Records");
+    expect(screen).toContain("첫 조각은 기록 보관소에 저장돼요");
+    expect(screen).toContain("Links and captures light the graph as they connect");
+    expect(screen).not.toContain("Leave a first piece and the roads light up");
+    expect(screen).not.toContain("첫 조각을 남기면 길이 조금씩 켜져요");
+  });
+
   test("sign-in exposes account creation as a route and reset as inline help", () => {
     const root = path.resolve(__dirname, "../../..");
     const screen = readFileSync(path.join(root, "src/app/(auth)/sign-in.tsx"), "utf8");

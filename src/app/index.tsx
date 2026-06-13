@@ -553,8 +553,8 @@ export default function Landing() {
                 </Text>
                 <Text style={styles.emptyGraphBody}>
                   {locale === "ko"
-                    ? "첫 조각을 남기면 길이 조금씩 켜져요."
-                    : "Leave a first piece and the roads light up."}
+                    ? "첫 조각은 기록 보관소에 저장돼요. 링크와 캡처가 연결되면 그래프가 켜져요."
+                    : "Your first piece is saved in Records. Links and captures light the graph as they connect."}
                 </Text>
               </View>
             </View>
