@@ -10,6 +10,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.anonymous.x2ndbrain",
+      "jsEngine": "jsc",
       "icon": "./assets/expo.icon",
       "infoPlist": {
         "NSCameraUsageDescription": "The app needs camera access to capture documents for OCR and memory storage.",
