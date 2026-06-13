@@ -1,12 +1,13 @@
 // Premium feedback surfaces (Part 1): bottom sheet, modal, toast, and the
 // empty / loading / error / safety states. Glassy, glowing, reduced-motion
-// aware. Copy is warm + non-clinical; safety uses Gadi's calm rose tone.
+// aware. Copy is warm + non-clinical; safety uses the system-only rose tone.
 
 import { type ReactNode, useEffect, useRef } from "react";
 import { Animated, BackHandler, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
+import { V3_DATA_ART, V3_LOG_ART } from "@/lib/assets/soulcore-v3";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
@@ -14,6 +15,7 @@ import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { PremiumButton } from "./surfaces";
 
 const LOADING_DOT_PATTERN = [true, true, true, true, false, true, true, true, true];
+type FeedbackStateKind = "empty" | "error";
 
 /** Slide-up premium bottom sheet. Screen-fixed; renders nothing when closed. */
 export function PremiumBottomSheet({
@@ -174,7 +176,7 @@ function PixelLoadingGlyph() {
 }
 
 export function PremiumEmptyState({ title, body, action }: { title: string; body?: string; action?: ReactNode }) {
-  return <StateShell glyph={<View style={[styles.orb, { borderColor: cosmic.soulViolet }]} />} title={title} body={body} action={action} />;
+  return <StateShell glyph={<FeedbackStateAsset kind="empty" />} title={title} body={body} action={action} />;
 }
 
 export function PremiumErrorState({ title, body, onRetry, retryLabel }: { title: string; body?: string; onRetry?: () => void; retryLabel?: string }) {
@@ -182,7 +184,7 @@ export function PremiumErrorState({ title, body, onRetry, retryLabel }: { title:
   const resolvedRetryLabel = retryLabel ?? t("actions.retry");
   return (
     <StateShell
-      glyph={<View style={[styles.orb, { borderColor: cosmic.guardRose }]} />}
+      glyph={<FeedbackStateAsset kind="error" />}
       title={title}
       body={body}
       action={onRetry ? <PremiumButton label={resolvedRetryLabel} variant="secondary" onPress={onRetry} /> : undefined}
@@ -190,7 +192,25 @@ export function PremiumErrorState({ title, body, onRetry, retryLabel }: { title:
   );
 }
 
-/** Calm safety notice (Gadi). Non-clinical, supportive copy + optional action. */
+function FeedbackStateAsset({ kind }: { kind: FeedbackStateKind }) {
+  const Asset = kind === "empty" ? V3_LOG_ART : V3_DATA_ART;
+  const tone = kind === "empty" ? cosmic.soulViolet : cosmic.guardRose;
+  const glow = kind === "empty" ? cosmic.signalMint : cosmic.guardRose;
+
+  return (
+    <View
+      style={[styles.stateAssetShell, { borderColor: tone, backgroundColor: withAlpha(tone, 0.08), shadowColor: glow }]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <View style={[styles.stateAssetGlow, { borderColor: withAlpha(glow, 0.7) }]} />
+      <Asset width={42} height={42} />
+      {kind === "error" ? <View style={[styles.stateAssetFault, { backgroundColor: cosmic.guardRose }]} /> : null}
+    </View>
+  );
+}
+
+/** Calm safety notice. Non-clinical, supportive copy + optional action. */
 export function SafetyNoticePanel({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
     <View style={styles.safety} accessibilityRole="alert">
@@ -295,13 +315,30 @@ const styles = StyleSheet.create({
     borderRadius: gameboy.radius,
     backgroundColor: gameboy.power,
   },
-  orb: {
+  stateAssetShell: {
     width: 64,
     height: 64,
     borderRadius: gameboy.radius,
     borderWidth: gameboy.borderWidth,
-    backgroundColor: withAlpha(cosmic.soulViolet, 0.08),
+    alignItems: "center",
+    justifyContent: "center",
     ...pixelShadowStyle(cosmic.soulViolet),
+  },
+  stateAssetGlow: {
+    position: "absolute",
+    width: 46,
+    height: 46,
+    borderRadius: gameboy.radius,
+    borderWidth: gameboy.borderWidth,
+    opacity: 0.45,
+  },
+  stateAssetFault: {
+    position: "absolute",
+    right: 8,
+    bottom: 8,
+    width: 10,
+    height: 10,
+    borderRadius: gameboy.radius,
   },
   safety: {
     borderWidth: gameboy.borderWidth,

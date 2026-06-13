@@ -2734,6 +2734,26 @@ results.push(
 );
 
 results.push(
+  check("PremiumFeedbackStateAssets", () => {
+    const feedback = read("src/components/premium/feedback.tsx");
+    const ok =
+      feedback.includes('import { V3_DATA_ART, V3_LOG_ART } from "@/lib/assets/soulcore-v3"') &&
+      feedback.includes("type FeedbackStateKind = \"empty\" | \"error\"") &&
+      feedback.includes("function FeedbackStateAsset") &&
+      feedback.includes('glyph={<FeedbackStateAsset kind="empty" />}') &&
+      feedback.includes('glyph={<FeedbackStateAsset kind="error" />}') &&
+      !feedback.includes("styles.orb");
+    return {
+      id: "PremiumFeedbackStateAssets",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "premium empty/error states use distinct v3 state assets instead of the same placeholder rectangle"
+        : "premium empty/error states should keep distinct v3 state-asset glyphs and avoid reverting to the old shared rectangle",
+    };
+  }),
+);
+
+results.push(
   check("ArtA11ySemantics", () => {
     const secondbSprite = read("src/components/art/SecondBSprite.tsx");
     const islandArt = read("src/components/art/IslandArt.tsx");
