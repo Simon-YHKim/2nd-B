@@ -158,13 +158,15 @@
     "camera": "카메라",
     "library": "갤러리",
     "preview": "미리보기",
-    "extract": "추출하기"
+    "extract": "추출하기",
+    "dataUsageHint": "사진 추출 시 데이터 사용료가 발생할 수 있어요. 가급적 Wi-Fi 환경을 권장해요."
   },
   "file": {
     "pick": "파일 선택",
     "selected": "선택된 파일",
     "textExtracted": "텍스트 추출됨: 본문에 채워졌어요",
-    "attachedNoPreview": "파일이 첨부됐어요. 본문 미리보기는 지원하지 않아요."
+    "attachedNoPreview": "파일이 첨부됐어요. 본문 미리보기는 지원하지 않아요.",
+    "dataUsageHint": "문서 업로드 시 데이터 사용료가 발생할 수 있어요. 가급적 Wi-Fi 환경을 권장해요."
   },
   "tags": {
     "title": "해시태그",

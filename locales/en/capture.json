@@ -158,13 +158,15 @@
     "camera": "Camera",
     "library": "Library",
     "preview": "Preview",
-    "extract": "Extract text"
+    "extract": "Extract text",
+    "dataUsageHint": "Extracting text from photos may incur data charges. Wi-Fi is recommended."
   },
   "file": {
     "pick": "Pick file",
     "selected": "Selected file",
     "textExtracted": "Text extracted: filled into body",
-    "attachedNoPreview": "File attached. Text preview is not available."
+    "attachedNoPreview": "File attached. Text preview is not available.",
+    "dataUsageHint": "Uploading files may incur data charges. Wi-Fi is recommended."
   },
   "tags": {
     "title": "Hashtags",

@@ -1498,17 +1498,22 @@ export default function Capture() {
           ) : null}
 
           {mode === "ocr" ? (
-            <View style={styles.actionRow}>
-              <Button
-                label={t("image.camera")}
-                variant="secondary"
-                onPress={() => pickImage("camera")}
-              />
-              <Button
-                label={t("image.library")}
-                variant="secondary"
-                onPress={() => pickImage("library")}
-              />
+            <View style={{ gap: spacing.sm }}>
+              <View style={styles.actionRow}>
+                <Button
+                  label={t("image.camera")}
+                  variant="secondary"
+                  onPress={() => pickImage("camera")}
+                />
+                <Button
+                  label={t("image.library")}
+                  variant="secondary"
+                  onPress={() => pickImage("library")}
+                />
+              </View>
+              <Text variant="caption" color="textSubtle" style={{ textAlign: "center", paddingHorizontal: spacing.md }}>
+                {t("image.dataUsageHint")}
+              </Text>
             </View>
           ) : null}
 
@@ -1534,12 +1539,17 @@ export default function Capture() {
           ) : null}
 
           {mode === "file" ? (
-            <View style={styles.actionRow}>
-              <Button
-                label={t("file.pick")}
-                variant="secondary"
-                onPress={runFilePick}
-              />
+            <View style={{ gap: spacing.sm }}>
+              <View style={styles.actionRow}>
+                <Button
+                  label={t("file.pick")}
+                  variant="secondary"
+                  onPress={runFilePick}
+                />
+              </View>
+              <Text variant="caption" color="textSubtle" style={{ textAlign: "center", paddingHorizontal: spacing.md }}>
+                {t("file.dataUsageHint")}
+              </Text>
             </View>
           ) : null}
 
