@@ -25,6 +25,7 @@ import {
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
 import { buildCenterCards } from "@/lib/persona/center";
 import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
@@ -108,6 +109,7 @@ export default function CoreBrain() {
       cancelled = true;
     };
   }, [userId, hasProfile, isMinor, locale, fireCompanion, reloadKey]);
+  useFocusRefetch(() => setReloadKey((k) => k + 1), Boolean(userId && hasProfile !== false));
 
   if (loading) {
     return (

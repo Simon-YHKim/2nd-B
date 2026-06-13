@@ -25,6 +25,7 @@ import {
 } from "@/lib/persona/evidence";
 import { summarizeAssessmentBody } from "@/lib/persona/assessment-summary";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 
 interface RecordDetailRow {
@@ -47,6 +48,7 @@ export default function RecordDetail() {
 
   const [row, setRow] = useState<RecordDetailRow | null>(null);
   const [state, setState] = useState<LoadState>("loading");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!userId || !id) return;
@@ -99,7 +101,8 @@ export default function RecordDetail() {
     return () => {
       cancelled = true;
     };
-  }, [userId, id, isSource]);
+  }, [userId, id, isSource, reloadKey]);
+  useFocusRefetch(() => setReloadKey((k) => k + 1), Boolean(userId && id));
 
   if (loading) {
     return (

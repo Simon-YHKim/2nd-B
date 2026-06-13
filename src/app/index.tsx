@@ -46,6 +46,7 @@ import { useFontStyle } from "@/lib/settings/readable-font";
 import { useEmptyGraphDismissed } from "@/lib/onboarding/empty-card";
 import { VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { retainStableDataNodes, sourceRowsToDataNodes } from "@/lib/graph/data-nodes";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { overviewCardSignals } from "@/lib/graph/card-insights";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
@@ -426,6 +427,7 @@ export default function Landing() {
       cancelled = true;
     };
   }, [userId, graphReloadKey]);
+  useFocusRefetch(() => setGraphReloadKey((k) => k + 1), Boolean(userId));
   const handleGraphFirstInteraction = useCallback(() => {
     setGraphTouched(true);
     // The hint's job is done the moment the graph is touched.

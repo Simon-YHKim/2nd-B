@@ -20,6 +20,7 @@ import { AdSlot } from "@/components/ads/AdSlot";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import {
   mergeEvidence,
   evidenceTypeLabel,
@@ -129,6 +130,7 @@ export default function Records() {
       cancelled = true;
     };
   }, [userId, locale, reloadKey]);
+  useFocusRefetch(() => setReloadKey((k) => k + 1), Boolean(userId));
 
   // Re-sync the filter when the URL domain changes (tapping a different village
   // re-enters /records with a new ?domain). A manual chip pick sticks until then.

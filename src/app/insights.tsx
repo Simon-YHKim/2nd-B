@@ -11,6 +11,7 @@ import { PremiumAppShell, PremiumErrorState, PremiumLoadingState, SceneHero } fr
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { computeInsights, getWeekComparison, sourceToInsightRecord, type InsightRecord, type InsightSource, type InsightsResult } from "@/lib/journal/insights";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { VILLAGE_UI } from "@/lib/village-ui";
@@ -71,6 +72,9 @@ export default function Insights() {
     if (!userId) return;
     void load();
   }, [userId]);
+  useFocusRefetch(() => {
+    void load();
+  }, Boolean(userId));
 
   if (authLoading) {
     return (

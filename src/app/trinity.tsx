@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 export type TrinityDomain = "health" | "app" | "brain" | "finance";
@@ -163,6 +164,7 @@ export default function Trinity() {
       setLoading(false);
     })();
   }, [userId, locale, reloadKey]);
+  useFocusRefetch(() => setReloadKey((k) => k + 1), Boolean(userId));
 
   const stats = useMemo(() => computeStats(records), [records]);
 
