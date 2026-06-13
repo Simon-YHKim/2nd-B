@@ -82,3 +82,8 @@ test_*.js
 # local asset staging (generated art + pixy skill clone — canonical assets live in assets/images etc.)
 assets/generated/
 assets/pixy/
+
+# iOS build artifacts (bloat prevention)
+ios-sim-build.tar.gz
+eas-build.log
+*.tar.gz
