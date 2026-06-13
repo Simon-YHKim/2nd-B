@@ -34,4 +34,20 @@ describe("Android elevation coverage", () => {
       expect(count).toBeGreaterThanOrEqual(minCount);
     }
   });
+
+  it("keeps secondary card screens on the shared card elevation", () => {
+    // Closes the remaining Android-flat gap surfaced after the first rollout:
+    // assessment + info screens that had iOS shadow* but no Android elevation.
+    const secondaryScreens = [
+      "src/app/big-five.tsx",
+      "src/app/attachment.tsx",
+      "src/app/manual.tsx",
+      "src/app/permissions.tsx",
+      "src/app/support.tsx",
+    ];
+
+    for (const file of secondaryScreens) {
+      expect(readProjectFile(file)).toContain("androidElevationStyle(androidElevation.card)");
+    }
+  });
 });

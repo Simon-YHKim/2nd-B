@@ -9,6 +9,7 @@ import { Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumLoadingState, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import {
@@ -237,6 +238,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
+    ...androidElevationStyle(androidElevation.card),
   },
   scaleLegend: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },

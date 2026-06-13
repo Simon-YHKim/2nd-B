@@ -14,6 +14,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { fontFamilies } from "@/theme/typography";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
@@ -327,6 +328,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
+    ...androidElevationStyle(androidElevation.card),
   },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   cardEyebrow: { letterSpacing: 0, flexShrink: 0 },

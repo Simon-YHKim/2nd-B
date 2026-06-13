@@ -9,6 +9,7 @@ import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { fontFamilies } from "@/theme/typography";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
@@ -123,6 +124,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
+    ...androidElevationStyle(androidElevation.card),
   },
   cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
   cardTitle: { fontFamily: fontFamilies.pixelKo, fontWeight: "600", flex: 1, minWidth: 0 },
