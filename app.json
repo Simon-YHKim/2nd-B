@@ -84,7 +84,8 @@
           "calendarPermission": "The app uses your calendar only to add routine items you approve on screen."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
