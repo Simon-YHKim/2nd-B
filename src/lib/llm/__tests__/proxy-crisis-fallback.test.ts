@@ -8,9 +8,10 @@
 // failure modal to a user in crisis instead of hotline routing.
 //
 // These tests pin the fallback: a proxy 422 crisis rejection must produce
-// the same RED result shape as a client-side catch (hotline text, audit row,
-// crisis_events row tagged proxy_input_red), while genuinely different
-// errors keep throwing.
+// the same RED UX shape as a client-side catch (hotline text + audit row).
+// The restricted crisis_events row is written only when the proxy marker is
+// readable and explicit; unreadable 422s still fail safe in UX but do not
+// over-record a crisis event.
 
 const mockInvoke = jest.fn();
 const mockClassifySafety = jest.fn();
@@ -160,7 +161,7 @@ describe("callGemini — proxy 422 crisis fallback (C9 follow-up)", () => {
     expect(crisisMock).not.toHaveBeenCalled();
   });
 
-  test("a 422 with an unreadable body still throws instead of auto-routing crisis", async () => {
+  test("a 422 with an unreadable body routes fail-safe without writing crisis_events", async () => {
     const unreadable = {
       context: {
         status: 422,
@@ -171,14 +172,16 @@ describe("callGemini — proxy 422 crisis fallback (C9 follow-up)", () => {
     };
     mockInvoke.mockResolvedValueOnce({ data: null, error: unreadable });
 
-    await expect(
-      callGemini({
-        userId: "u1",
-        locale: "en",
-        purpose: "interview_probe",
-        user: BENIGN_EN,
-      }),
-    ).rejects.toBe(unreadable);
+    const r = await callGemini({
+      userId: "u1",
+      locale: "en",
+      purpose: "interview_probe",
+      user: BENIGN_EN,
+    });
+
+    expect(r.safety.zone).toBe("red");
+    expect(r.text).toMatch(/988/);
+    expect(auditMock).toHaveBeenCalledTimes(1);
     expect(crisisMock).not.toHaveBeenCalled();
   });
 });
@@ -220,6 +223,28 @@ describe("callAdvisor — proxy 422 crisis fallback (C9 follow-up)", () => {
     await expect(
       callAdvisor({ userId: "u1", locale: "en", userMessage: BENIGN_EN }),
     ).rejects.toBe(boom);
+    expect(crisisMock).not.toHaveBeenCalled();
+  });
+
+  test("an unreadable 422 returns the fixed template but skips crisis_events", async () => {
+    mockClassifySafety.mockResolvedValueOnce(GREEN);
+    const unreadable = {
+      context: {
+        status: 422,
+        json: async () => {
+          throw new Error("body already consumed");
+        },
+      },
+    };
+    mockInvoke.mockResolvedValueOnce({ data: null, error: unreadable });
+
+    const r = await callAdvisor({ userId: "u1", locale: "en", userMessage: BENIGN_EN });
+
+    expect(r.zone).toBe("red");
+    expect(r.fixedTemplate).toBe(true);
+    expect(r.text).toMatch(/988/);
+    expect(r.triggers).toContain("proxy_input_red_unconfirmed");
+    expect(auditMock).toHaveBeenCalledTimes(1);
     expect(crisisMock).not.toHaveBeenCalled();
   });
 });
