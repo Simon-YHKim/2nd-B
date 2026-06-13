@@ -66,26 +66,55 @@ describe("visible trust copy", () => {
       firstRun: { hint: string };
       saved: { recordsOwnership: string; recordsAiOptIn: string };
     };
+    const es = JSON.parse(readFileSync(path.join(root, "locales/es/capture.json"), "utf8")) as {
+      firstRun: { hint: string };
+      saved: { recordsOwnership: string; recordsAiOptIn: string };
+    };
+    const pt = JSON.parse(readFileSync(path.join(root, "locales/pt/capture.json"), "utf8")) as {
+      firstRun: { hint: string };
+      saved: { recordsOwnership: string; recordsAiOptIn: string };
+    };
+    const id = JSON.parse(readFileSync(path.join(root, "locales/id/capture.json"), "utf8")) as {
+      firstRun: { hint: string };
+      saved: { recordsOwnership: string; recordsAiOptIn: string };
+    };
     const combined = [
       en.firstRun.hint,
       ko.firstRun.hint,
+      es.firstRun.hint,
+      pt.firstRun.hint,
+      id.firstRun.hint,
       en.saved.recordsOwnership,
       en.saved.recordsAiOptIn,
       ko.saved.recordsOwnership,
       ko.saved.recordsAiOptIn,
+      es.saved.recordsOwnership,
+      es.saved.recordsAiOptIn,
+      pt.saved.recordsOwnership,
+      pt.saved.recordsAiOptIn,
+      id.saved.recordsOwnership,
+      id.saved.recordsAiOptIn,
     ].join("\n");
 
     expect(en.firstRun.hint).toContain("first saved record");
     expect(en.firstRun.hint).toContain("Records");
     expect(en.saved.recordsOwnership).toContain("Records");
     expect(en.saved.recordsOwnership).toContain("export");
+    expect(en.saved.recordsOwnership).toContain("One sentence is enough");
     expect(en.saved.recordsAiOptIn).toContain("only");
     expect(en.saved.recordsAiOptIn).toContain("turn that switch on");
     expect(ko.firstRun.hint).toContain("첫 기록");
     expect(ko.firstRun.hint).toContain("기록 보관소");
     expect(ko.saved.recordsOwnership).toContain("기록 보관소");
     expect(ko.saved.recordsOwnership).toContain("내보내기");
+    expect(ko.saved.recordsOwnership).toContain("작심이틀도 괜찮아요");
     expect(ko.saved.recordsAiOptIn).toContain("켰을 때만");
+    expect(es.firstRun.hint).toContain("primer registro guardado");
+    expect(es.saved.recordsOwnership).toContain("Una oración basta");
+    expect(pt.firstRun.hint).toContain("primeiro registro salvo");
+    expect(pt.saved.recordsOwnership).toContain("Uma frase já basta");
+    expect(id.firstRun.hint).toContain("catatan tersimpan pertamamu");
+    expect(id.saved.recordsOwnership).toContain("Satu kalimat cukup");
     expect(combined).not.toMatch(/graph|local|device|anonymous|no sign-up|no signup/i);
     expect(combined).not.toMatch(/그래프|로컬|기기|계정 없이/);
   });

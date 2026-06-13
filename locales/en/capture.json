@@ -85,7 +85,7 @@
     "seeRecords": "View my records",
     "seeRecordsHint": "Opens your records so you can find this entry again.",
     "captureMore": "Capture more",
-    "recordsOwnership": "This entry is in Records. You can reread it and include it in an export later.",
+    "recordsOwnership": "One sentence is enough for today. This entry is in Records, so you can reread it and include it in an export later.",
     "recordsAiOptIn": "SecondB only reflects on this entry when you turn that switch on.",
     "storagePending": "Saved, but the backup file copy didn't upload this time. Your text is kept safely."
   },

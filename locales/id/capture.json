@@ -72,7 +72,7 @@
     "shared": "Format baru tersimpan dan dibagikan ke formatmu."
   },
   "firstRun": {
-    "hint": "Satu kalimat sudah cukup. Kamu bisa menambah lebih banyak nanti."
+    "hint": "Satu kalimat menjadi catatan tersimpan pertamamu. Kamu bisa menemukannya lagi di Catatan."
   },
   "saved": {
     "title": "Lumen menyimpan kepingan baru",
@@ -85,7 +85,7 @@
     "seeRecords": "Lihat catatanku",
     "seeRecordsHint": "Membuka catatanmu agar kamu bisa menemukan entri ini lagi.",
     "captureMore": "Tangkap lagi",
-    "recordsOwnership": "Entri ini ada di Catatan. Kamu bisa membacanya lagi dan memasukkannya ke ekspor nanti.",
+    "recordsOwnership": "Satu kalimat cukup untuk hari ini. Entri ini ada di Catatan, jadi kamu bisa membacanya lagi dan memasukkannya ke ekspor nanti.",
     "recordsAiOptIn": "SecondB hanya merefleksikan entri ini saat kamu menyalakan tombol itu.",
     "storagePending": "Tersimpan, tapi salinan file cadangan belum terunggah kali ini. Teksmu aman tersimpan."
   },

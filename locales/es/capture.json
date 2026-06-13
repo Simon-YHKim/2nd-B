@@ -72,7 +72,7 @@
     "shared": "Guardaste tu nuevo formato y lo compartiste con tus formatos."
   },
   "firstRun": {
-    "hint": "Con una oración es suficiente. Siempre puedes agregar más después."
+    "hint": "Una oración se convierte en tu primer registro guardado. Puedes encontrarlo de nuevo en Registros."
   },
   "saved": {
     "title": "Lumen guardó una nueva pieza",
@@ -85,7 +85,7 @@
     "seeRecords": "Ver mis registros",
     "seeRecordsHint": "Abre tus registros para que puedas encontrar esta entrada de nuevo.",
     "captureMore": "Capturar más",
-    "recordsOwnership": "Esta entrada está en Registros. Puedes releerla e incluirla en una exportación más tarde.",
+    "recordsOwnership": "Una oración basta por hoy. Esta entrada está en Registros, así que puedes releerla e incluirla en una exportación más tarde.",
     "recordsAiOptIn": "SecondB solo reflexiona sobre esta entrada cuando activas ese interruptor.",
     "storagePending": "Guardado, pero la copia de respaldo no se subió esta vez. Tu texto está a salvo."
   },
