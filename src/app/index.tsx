@@ -12,16 +12,19 @@
 //   • authenticated + no profile → /complete-profile (C10)
 //   • signed-in → tier dot opens bubble → confirm → router.push
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
   AppState,
   Easing,
   Pressable,
+  type PressableProps,
   StyleSheet,
+  type StyleProp,
   Text,
   View,
+  type ViewStyle,
   useWindowDimensions,
 } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
@@ -45,10 +48,46 @@ import { domainForTags, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relate
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { overviewCardSignals } from "@/lib/graph/card-insights";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
-import { PowerOnOverlay, StarNoiseLayer, TAB_BAR_HEIGHT } from "@/components/premium";
+import { PowerOnOverlay, PremiumButton, StarNoiseLayer, TAB_BAR_HEIGHT } from "@/components/premium";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
 const logo = require("../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png");
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+interface HomePressableProps extends Omit<PressableProps, "style" | "children"> {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}
+
+function HomePressable({ children, style, onPressIn, onPressOut, ...props }: HomePressableProps) {
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  const animateOpacity = (toValue: number) => {
+    Animated.timing(opacity, {
+      toValue,
+      duration: 80,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <AnimatedPressable
+      {...props}
+      onPressIn={(event) => {
+        animateOpacity(0.8);
+        onPressIn?.(event);
+      }}
+      onPressOut={(event) => {
+        animateOpacity(1);
+        onPressOut?.(event);
+      }}
+      style={[style, { opacity }]}
+    >
+      {children}
+    </AnimatedPressable>
+  );
+}
 
 // Sky drift — slow atmospheric color shift behind the logo.
 function useSkyDrift() {
@@ -519,33 +558,29 @@ export default function Landing() {
                 </Text>
               </View>
             </View>
-            <Pressable
+            <PremiumButton
+              label={locale === "ko" ? "첫 조각 남기기" : "Leave a first piece"}
               onPress={() => router.push({ pathname: "/capture", params: { entry: "firstRun" } })}
+              full
               style={styles.emptyGraphCta}
               accessibilityRole="button"
               accessibilityLabel={locale === "ko" ? "첫 조각 남기기" : "Leave a first piece"}
               accessibilityHint={
                 locale === "ko" ? "캡처 화면으로 이동합니다" : "Opens capture to save your first piece"
               }
-            >
-              <Text style={styles.emptyGraphCtaText}>
-                {locale === "ko" ? "첫 조각 남기기" : "Leave a first piece"}
-              </Text>
-            </Pressable>
-            <Pressable
+            />
+            <PremiumButton
+              label={locale === "ko" ? "먼저 둘러볼게요" : "I'll look around first"}
+              variant="ghost"
               onPress={dismissEmptyCard}
-              hitSlop={14}
+              full
               style={styles.emptyGraphSkip}
               accessibilityRole="button"
               accessibilityLabel={locale === "ko" ? "먼저 둘러보기" : "Look around first"}
               accessibilityHint={
                 locale === "ko" ? "첫 화면 카드를 닫고 마을을 둘러봅니다" : "Dismisses the first-run card"
               }
-            >
-              <Text style={styles.emptyGraphSkipText}>
-                {locale === "ko" ? "먼저 둘러볼게요" : "I'll look around first"}
-              </Text>
-            </Pressable>
+            />
           </View>
         </Animated.View>
       ) : null}
@@ -583,23 +618,22 @@ export default function Landing() {
                 : "If the letters feel small or dim, I can switch to the readable font"}
             </Text>
             <View style={styles.comfortActions}>
-              <Pressable
+              <PremiumButton
+                label={locale === "ko" ? "읽기 쉽게 보기" : "Make it readable"}
                 onPress={() => {
                   setFontStyle("readable");
                   dismissComfortOffer();
                 }}
-                style={[styles.comfortButton, styles.comfortButtonPrimary]}
+                style={styles.comfortButton}
                 accessibilityRole="button"
                 accessibilityLabel={locale === "ko" ? "읽기 쉽게 보기" : "Make it readable"}
                 accessibilityHint={
                   locale === "ko" ? "글꼴이 지금 바로 바뀝니다." : "The font changes right away."
                 }
-              >
-                <Text style={styles.comfortButtonPrimaryLabel}>
-                  {locale === "ko" ? "읽기 쉽게 보기" : "Make it readable"}
-                </Text>
-              </Pressable>
-              <Pressable
+              />
+              <PremiumButton
+                label={locale === "ko" ? "지금이 좋아요" : "I like it as is"}
+                variant="ghost"
                 onPress={dismissComfortOffer}
                 style={styles.comfortButton}
                 accessibilityRole="button"
@@ -607,11 +641,7 @@ export default function Landing() {
                 accessibilityHint={
                   locale === "ko" ? "이 안내를 닫습니다." : "Closes this offer."
                 }
-              >
-                <Text style={styles.comfortButtonLabel}>
-                  {locale === "ko" ? "지금이 좋아요" : "I like it as is"}
-                </Text>
-              </Pressable>
+              />
             </View>
             <Text style={styles.comfortFootnote}>
               {locale === "ko"
@@ -630,7 +660,7 @@ export default function Landing() {
           ]}
           pointerEvents="box-none"
         >
-          <Pressable
+          <HomePressable
             onPress={dismissCoreHint}
             style={[styles.insightCard, styles.coreHintCard]}
             accessibilityRole="button"
@@ -642,7 +672,7 @@ export default function Landing() {
                 ? "빛나는 코어를 누르면 그 패턴을 가까이 볼 수 있어요"
                 : "Tap a glowing core to look closer at that pattern"}
             </Text>
-          </Pressable>
+          </HomePressable>
         </Animated.View>
       ) : null}
 
@@ -654,7 +684,7 @@ export default function Landing() {
           ]}
           pointerEvents="box-none"
         >
-          <Pressable
+          <HomePressable
             onPress={() => {
               wake();
               router.push({ pathname: "/secondb", params: { fromNode: spotlightCoreName, character: spotlightWorker } });
@@ -672,7 +702,7 @@ export default function Landing() {
               <Text style={styles.insightCardBody} numberOfLines={3}>{coreCardBody}</Text>
             </View>
             <Text style={styles.insightCardCta}>Touch!</Text>
-          </Pressable>
+          </HomePressable>
         </Animated.View>
       ) : null}
 
@@ -803,8 +833,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   emptyGraphCopy: { flex: 1, gap: 4 },
-  emptyGraphSkip: { minHeight: 44, marginTop: 6, justifyContent: "center", alignItems: "center" },
-  emptyGraphSkipText: { color: cosmic.mistGray, fontSize: typography.sizes.sm, fontFamily: fontFamilies.pixelKo },
+  emptyGraphSkip: { marginTop: 6 },
   emptyGraphTitle: {
     color: cosmic.moonWhite,
     fontSize: typography.sizes.md,
@@ -819,21 +848,6 @@ const styles = StyleSheet.create({
   },
   emptyGraphCta: {
     marginTop: 8,
-    backgroundColor: cosmic.signalMint,
-    borderRadius: gameboy.radius,
-    borderWidth: gameboy.borderWidth,
-    borderColor: gameboy.border,
-    minHeight: 44,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    ...pixelShadowStyle(),
-  },
-  emptyGraphCtaText: {
-    color: cosmic.space950,
-    fontWeight: "700",
-    fontSize: 14,
-    fontFamily: fontFamilies.pixelKo,
-    textAlign: "center",
   },
   insightCardStack: {
     position: "absolute",
@@ -859,27 +873,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   comfortButton: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: spacing.md,
-    borderRadius: gameboy.radius,
-    borderWidth: gameboy.borderWidth,
-    borderColor: semantic.border,
-    backgroundColor: semantic.surface,
-  },
-  comfortButtonPrimary: {
-    backgroundColor: semantic.brand,
-    borderColor: semantic.brand,
-  },
-  comfortButtonPrimaryLabel: {
-    color: cosmic.space950,
-    fontFamily: fontFamilies.readable,
-    fontSize: 15,
-  },
-  comfortButtonLabel: {
-    color: cosmic.moonWhite,
-    fontFamily: fontFamilies.readable,
-    fontSize: 15,
+    flexGrow: 1,
   },
   comfortFootnote: {
     color: cosmic.quietGray,
