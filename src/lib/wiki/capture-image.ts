@@ -5,11 +5,36 @@
 // back. The Edge Function (gemini-proxy) still enforces the authoritative
 // MIME allowlist + 2.7MB base64 cap.
 
-import * as ImageManipulator from "expo-image-manipulator";
-import * as ImagePicker from "expo-image-picker";
-
 import { callGemini } from "../llm/gemini";
 import type { GeminiResult } from "../llm/types";
+
+type ImageManipulatorModule = typeof import("expo-image-manipulator");
+type ImageManipulatorAction = import("expo-image-manipulator").Action;
+type ImageManipulatorResult = import("expo-image-manipulator").ImageResult;
+type ImagePickerModule = typeof import("expo-image-picker");
+
+let imageManipulatorModule: ImageManipulatorModule | null | undefined;
+let imagePickerModule: ImagePickerModule | null | undefined;
+
+function loadImageManipulatorModule(): ImageManipulatorModule | null {
+  if (imageManipulatorModule !== undefined) return imageManipulatorModule;
+  try {
+    imageManipulatorModule = require("expo-image-manipulator") as ImageManipulatorModule;
+  } catch {
+    imageManipulatorModule = null;
+  }
+  return imageManipulatorModule;
+}
+
+function loadImagePickerModule(): ImagePickerModule | null {
+  if (imagePickerModule !== undefined) return imagePickerModule;
+  try {
+    imagePickerModule = require("expo-image-picker") as ImagePickerModule;
+  } catch {
+    imagePickerModule = null;
+  }
+  return imagePickerModule;
+}
 
 export interface PickedImage {
   /** Local URI for the preview thumbnail. */
@@ -373,19 +398,21 @@ async function downscaleOcrImageAsset(asset: {
   width?: number;
   height?: number;
 }): Promise<PickedImage | null> {
+  const ImageManipulator = loadImageManipulatorModule();
+  if (!ImageManipulator || typeof ImageManipulator.manipulateAsync !== "function") return null;
   const width = asset.width ?? 0;
   const height = asset.height ?? 0;
   const longestSide = Math.max(width, height);
   // Each attempt resizes the longest side (aspect ratio preserved). When the
   // dimensions are unknown or already small (a dense screenshot can be heavy
   // at low resolution), a single JPEG re-encode pass still applies compression.
-  const resizeActions: ImageManipulator.Action[][] = OCR_IMAGE_DOWNSCALE_DIMENSIONS
+  const resizeActions: ImageManipulatorAction[][] = OCR_IMAGE_DOWNSCALE_DIMENSIONS
     .filter((target) => longestSide > target)
     .map((target) => [{ resize: width >= height ? { width: target } : { height: target } }]);
   if (resizeActions.length === 0) resizeActions.push([]);
 
   for (const actions of resizeActions) {
-    let result: ImageManipulator.ImageResult | undefined;
+    let result: ImageManipulatorResult | undefined;
     try {
       result = await ImageManipulator.manipulateAsync(asset.uri, actions, {
         compress: OCR_IMAGE_DOWNSCALE_COMPRESS,
@@ -408,21 +435,29 @@ async function downscaleOcrImageAsset(asset: {
 export async function pickImageAsset(
   source: "library" | "camera" = "library",
 ): Promise<PickedImage | null> {
+  const ImagePicker = loadImagePickerModule();
+  if (!ImagePicker) return null;
   // Library permission is silently re-prompted by Expo when needed; the
   // camera path needs an explicit permission ask.
   if (source === "camera") {
+    if (typeof ImagePicker.requestCameraPermissionsAsync !== "function") return null;
     const cam = await ImagePicker.requestCameraPermissionsAsync();
     if (cam.status !== "granted") throw new Error(IMAGE_CAMERA_PERMISSION_DENIED_ERROR);
   }
 
+  const launchCamera = ImagePicker.launchCameraAsync;
+  const launchLibrary = ImagePicker.launchImageLibraryAsync;
+  if (source === "camera" && typeof launchCamera !== "function") return null;
+  if (source === "library" && typeof launchLibrary !== "function") return null;
+
   const result = source === "camera"
-    ? await ImagePicker.launchCameraAsync({
+    ? await launchCamera({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         base64: true,
         quality: 0.8,
         allowsEditing: false,
       })
-    : await ImagePicker.launchImageLibraryAsync({
+    : await launchLibrary({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         base64: true,
         quality: 0.8,

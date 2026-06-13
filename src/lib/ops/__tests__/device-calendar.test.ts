@@ -89,4 +89,22 @@ describe("device calendar hand-off (O-R3 P2)", () => {
     expect(form.recurrenceRule).toBeUndefined();
     expect((form.endDate as Date).toISOString()).toBe("2026-06-12T21:30:00.000Z");
   });
+
+  test("reports unavailable when the native calendar module cannot be loaded", async () => {
+    setNavigatorProduct("ReactNative");
+    jest.resetModules();
+    jest.doMock("expo-calendar", () => {
+      throw new Error("removed from Expo Go");
+    });
+
+    try {
+      const unavailableCalendar = require("../device-calendar") as typeof import("../device-calendar");
+      expect(unavailableCalendar.deviceCalendarSupported()).toBe(false);
+      await expect(unavailableCalendar.addEventToDeviceCalendar(EVENT)).resolves.toBe("unavailable");
+      expect(requestCalendarPermissions).not.toHaveBeenCalled();
+    } finally {
+      jest.dontMock("expo-calendar");
+      jest.resetModules();
+    }
+  });
 });

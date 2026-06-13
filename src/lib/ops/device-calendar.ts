@@ -8,9 +8,23 @@
 // deploys every entry point degrades to "unavailable" and the /ops screen
 // simply doesn't render the button. No silent failures.
 
-import * as ExpoCalendarModule from "expo-calendar";
-
 import type { OpsEventInput } from "./push";
+
+type ExpoCalendarModule = typeof import("expo-calendar");
+type CalendarRecurrenceRule = import("expo-calendar").RecurrenceRule;
+
+let expoCalendarModule: ExpoCalendarModule | null | undefined;
+
+function loadExpoCalendarModule(): ExpoCalendarModule | null {
+  if (expoCalendarModule !== undefined) return expoCalendarModule;
+  try {
+    expoCalendarModule = require("expo-calendar") as ExpoCalendarModule;
+  } catch {
+    // Expo Go / web may not have this native module available.
+    expoCalendarModule = null;
+  }
+  return expoCalendarModule;
+}
 
 export type DeviceCalendarResult =
   // "done" is Android's only answer (the OS doesn't say whether the user
@@ -29,16 +43,24 @@ function isReactNativeRuntime(): boolean {
 /** True when the native module is present AND we're on a native runtime. */
 export function deviceCalendarSupported(): boolean {
   if (!isReactNativeRuntime()) return false;
+  const Calendar = loadExpoCalendarModule();
+  if (!Calendar) return false;
   try {
-    return typeof ExpoCalendarModule.requestCalendarPermissions === "function";
+    return (
+      typeof Calendar.requestCalendarPermissions === "function" &&
+      typeof Calendar.getDefaultCalendarSync === "function"
+    );
   } catch {
     return false;
   }
 }
 
-function recurrenceFor(input: OpsEventInput): ExpoCalendarModule.RecurrenceRule | undefined {
-  if (input.recurrence === "daily") return { frequency: ExpoCalendarModule.Frequency.DAILY };
-  if (input.recurrence === "weekly") return { frequency: ExpoCalendarModule.Frequency.WEEKLY };
+function recurrenceFor(
+  input: OpsEventInput,
+  Calendar: ExpoCalendarModule,
+): CalendarRecurrenceRule | undefined {
+  if (input.recurrence === "daily") return { frequency: Calendar.Frequency.DAILY };
+  if (input.recurrence === "weekly") return { frequency: Calendar.Frequency.WEEKLY };
   return undefined;
 }
 
@@ -50,6 +72,8 @@ const DEFAULT_DURATION_MIN = 30;
  */
 export async function addEventToDeviceCalendar(input: OpsEventInput): Promise<DeviceCalendarResult> {
   if (!deviceCalendarSupported()) return "unavailable";
+  const Calendar = loadExpoCalendarModule();
+  if (!Calendar) return "unavailable";
   const start = new Date(input.startsAtIso);
   if (Number.isNaN(start.getTime())) return "error";
   const minutes =
@@ -60,15 +84,15 @@ export async function addEventToDeviceCalendar(input: OpsEventInput): Promise<De
   try {
     // writeOnly: iOS grants event creation without exposing existing
     // calendars/events - the narrowest permission that does the job.
-    const permission = await ExpoCalendarModule.requestCalendarPermissions(true);
+    const permission = await Calendar.requestCalendarPermissions(true);
     if (!permission.granted) return "denied";
-    const calendar = ExpoCalendarModule.getDefaultCalendarSync();
+    const calendar = Calendar.getDefaultCalendarSync();
     const result = await calendar.addEventWithForm({
       title: input.title,
       notes: input.description,
       startDate: start,
       endDate: end,
-      recurrenceRule: recurrenceFor(input),
+      recurrenceRule: recurrenceFor(input, Calendar),
     });
     if (result.action === "canceled") return "canceled";
     return "saved";

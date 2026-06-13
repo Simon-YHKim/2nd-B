@@ -236,6 +236,56 @@ describe("capture image OCR payload guards", () => {
     await expect(pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_TOO_LARGE_ERROR);
   });
 
+  test("returns null when the native image picker module cannot be loaded", async () => {
+    jest.resetModules();
+    jest.doMock("expo-image-picker", () => {
+      throw new Error("removed from Expo Go");
+    });
+
+    try {
+      const unavailableCapture = require("../capture-image") as typeof import("../capture-image");
+      await expect(unavailableCapture.pickImageAsset("library")).resolves.toBeNull();
+    } finally {
+      jest.dontMock("expo-image-picker");
+      jest.resetModules();
+    }
+  });
+
+  test("keeps the oversized guard when the native image manipulator module cannot be loaded", async () => {
+    jest.resetModules();
+    const launchImageLibraryAsync = jest.fn().mockResolvedValue({
+      canceled: false,
+      assets: [
+        {
+          uri: "file:///big.jpg",
+          mimeType: "image/jpeg",
+          width: 4000,
+          height: 3000,
+          base64: "A".repeat(MAX_OCR_IMAGE_BASE64_BYTES + 1),
+        },
+      ],
+    });
+    jest.doMock("expo-image-picker", () => ({
+      MediaTypeOptions: { Images: "Images" },
+      launchCameraAsync: jest.fn(),
+      launchImageLibraryAsync,
+      requestCameraPermissionsAsync: jest.fn(),
+    }));
+    jest.doMock("expo-image-manipulator", () => {
+      throw new Error("removed from Expo Go");
+    });
+
+    try {
+      const guardedCapture = require("../capture-image") as typeof import("../capture-image");
+      await expect(guardedCapture.pickImageAsset("library")).rejects.toThrow(IMAGE_OCR_TOO_LARGE_ERROR);
+      expect(launchImageLibraryAsync).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.dontMock("expo-image-picker");
+      jest.dontMock("expo-image-manipulator");
+      jest.resetModules();
+    }
+  });
+
   test("does not downscale picked images that already fit the cap", async () => {
     imagePickerMock.launchImageLibraryAsync.mockResolvedValue({
       canceled: false,
