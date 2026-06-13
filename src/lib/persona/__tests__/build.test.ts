@@ -192,6 +192,23 @@ describe("buildPersona", () => {
     expect(card.traits.openness).toBeCloseTo((4 - 1) / 4, 5);
   });
 
+  test("partial BFI score rows are ignored instead of zeroing missing traits", async () => {
+    tableFixtures["records:select"] = {
+      data: [
+        {
+          body: JSON.stringify({ scores: { openness: 4 } }),
+          created_at: "2026-05-01T00:00:00Z",
+        },
+      ],
+      error: null,
+    };
+    tableFixtures["memorized_patterns:select"] = { data: [], error: null };
+    const card = await buildPersona("u1", "en");
+    expect(card.traitsSource).toBe("heuristic");
+    expect(card.traits.conscientiousness).toBeGreaterThan(0);
+    expect(card.traitConfidence?.conscientiousness.source).toBe("journal_text");
+  });
+
   test("persona row upserted with version 1", async () => {
     tableFixtures["records:select"] = { data: [], error: null };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };

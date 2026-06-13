@@ -81,6 +81,20 @@ interface AuditResponseRow {
   tags: string[] | null;
 }
 
+const BFI_TRAIT_KEYS = [
+  "openness",
+  "conscientiousness",
+  "extraversion",
+  "agreeableness",
+  "neuroticism",
+] as const;
+type BfiTraitKey = (typeof BFI_TRAIT_KEYS)[number];
+type BfiScores = Record<BfiTraitKey, number>;
+
+function hasCompleteBfiScores(scores: Partial<BfiScores> | undefined): scores is BfiScores {
+  return !!scores && BFI_TRAIT_KEYS.every((key) => Number.isFinite(scores[key]));
+}
+
 const DEFAULT_TRAITS: PersonaTraits = {
   openness: 0.5,
   conscientiousness: 0.5,
@@ -218,16 +232,16 @@ async function loadLatestBfi(
   if (error || !data || data.length === 0) return null;
   try {
     const parsed = JSON.parse((data[0] as { body: string }).body) as {
-      scores?: { openness?: number; conscientiousness?: number; extraversion?: number; agreeableness?: number; neuroticism?: number };
+      scores?: Partial<BfiScores>;
     };
     const s = parsed.scores;
-    if (!s || typeof s.openness !== "number") return null;
+    if (!hasCompleteBfiScores(s)) return null;
     return {
       openness: s.openness,
-      conscientiousness: s.conscientiousness ?? 0,
-      extraversion: s.extraversion ?? 0,
-      agreeableness: s.agreeableness ?? 0,
-      neuroticism: s.neuroticism ?? 0,
+      conscientiousness: s.conscientiousness,
+      extraversion: s.extraversion,
+      agreeableness: s.agreeableness,
+      neuroticism: s.neuroticism,
     };
   } catch {
     return null;
