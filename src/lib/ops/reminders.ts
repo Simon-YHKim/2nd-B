@@ -6,7 +6,12 @@
 //
 // Native-only (G4: needs a dev/EAS build). Web keeps calendar-based paths.
 
-import * as Notifications from "expo-notifications";
+let Notifications: typeof import("expo-notifications") = null as any;
+try {
+  Notifications = require("expo-notifications");
+} catch {
+  // Expo Go (SDK 53+) throws when requiring expo-notifications.
+}
 
 import type { OpsEventInput } from "./push";
 
