@@ -2432,9 +2432,9 @@ results.push(
       screen.includes('t("signIn.title")') &&
       screen.includes('t("signIn.subtitle")') &&
       en.includes('"title": "Welcome"') &&
-      en.includes('"subtitle": "Sign in to build your self-knowledge."') &&
+      en.includes('"subtitle": "Write one line a day. Later, it becomes self-knowledge."') &&
       ko.includes('"title"') &&
-      ko.includes('"subtitle"') &&
+      ko.includes('"subtitle": "매일 한 줄을 남기면, 나중에 자기 이해의 단서가 쌓여요."') &&
       forbidden.every((term) => !screen.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "SignInHeroI18nCopy",

@@ -11,7 +11,7 @@
     "title": "A quick heads-up before you start",
     "intro": "2nd-Brain keeps your entries private, stores them encrypted, and uses Google Gemini only to generate the responses you ask for. Please review and agree before continuing.",
     "trustTitle": "Your records are not for sale",
-    "trustBody": "By default, your entries are not used to train models. Optional sharing, analytics, ads, and model-improvement controls start off.",
+    "trustBody": "Your entries are private by default. They are processed only for responses you ask for, automatic safety checks, and service audit records.",
     "purposesTitle": "What we collect and why",
     "items": "Collected: your email, date of birth, and the entries you write (journals, notes, captures).",
     "purposeService": "Used to run the service: saving your entries, your growth graph, and your assistant.",
