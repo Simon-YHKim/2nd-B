@@ -25,7 +25,7 @@ describe("gameboy tokens", () => {
       shadowOffset: { width: 4, height: 4 },
       shadowRadius: 0,
       shadowOpacity: 1,
-      elevation: 0,
+      elevation: 4,
     });
   });
 
