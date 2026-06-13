@@ -1,6 +1,6 @@
 // Orchestration tests for sendChatMessage. Verifies the call sequence,
-// the C9 short-circuit accounting (red-zone routes don't burn quota), and
-// the blocked-tier path that returns a localized hint.
+// the atomic quota accounting, and the blocked-tier path that returns a
+// localized hint.
 
 interface CapturedCall {
   fn: string;
@@ -40,7 +40,14 @@ jest.mock("../usage", () => ({
 jest.mock("../../wiki/export", () => ({
   exportUserWiki: jest.fn(() => {
     captured.push({ fn: "exportUserWiki", args: [], ret: fixtures.exportPrompt });
-    return Promise.resolve({ prompt: fixtures.exportPrompt ?? "stub wiki", pageCount: 0, sourceCount: 0, pageCountsByKind: { source: 0, entity: 0, concept: 0 } });
+    if (fixtures.exportError) return Promise.reject(fixtures.exportError);
+    return Promise.resolve({
+      prompt: fixtures.exportPrompt ?? "stub wiki",
+      pageCount: 0,
+      sourceCount: 0,
+      recordCount: 0,
+      pageCountsByKind: { source: 0, entity: 0, concept: 0 },
+    });
   }),
 }));
 
@@ -79,10 +86,8 @@ describe("sendChatMessage", () => {
     expect(r.hint).toContain("Soma");
 
     const callNames = captured.map((c) => c.fn);
-    // R2: atomic-bump tries first, fails with ChatLimitExceededError, then
-    // readChatUsage runs to compose the localized hint.
-    expect(callNames).toContain("bumpChatUsageIfUnderCap");
     expect(callNames).toContain("readChatUsage");
+    expect(callNames).not.toContain("bumpChatUsageIfUnderCap");
     expect(callNames).not.toContain("callGemini");
     expect(callNames).not.toContain("exportUserWiki");
   });
@@ -105,7 +110,7 @@ describe("sendChatMessage", () => {
     expect(r.remaining).toBe(0); // 2 - 2
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["bumpChatUsageIfUnderCap", "exportUserWiki", "callGemini"]);
+    expect(callNames).toEqual(["readChatUsage", "exportUserWiki", "bumpChatUsageIfUnderCap", "callGemini"]);
 
     // System prompt was assembled from header + exportUserWiki output.
     const geminiCall = captured.find((c) => c.fn === "callGemini");
@@ -132,6 +137,19 @@ describe("sendChatMessage", () => {
     const callNames = captured.map((c) => c.fn);
     expect(callNames).toContain("bumpChatUsageIfUnderCap");
     expect(callNames).toContain("callGemini");
+  });
+
+  test("does not consume quota when wiki snapshot export fails before the LLM call", async () => {
+    fixtures.used = 0;
+    fixtures.exportError = new Error("wiki query failed");
+    await expect(sendChatMessage({ userId: "u1", message: "ping", locale: "en", tier: "soma" })).rejects.toThrow(
+      "wiki query failed",
+    );
+
+    const callNames = captured.map((c) => c.fn);
+    expect(callNames).toEqual(["readChatUsage", "exportUserWiki"]);
+    expect(callNames).not.toContain("bumpChatUsageIfUnderCap");
+    expect(callNames).not.toContain("callGemini");
   });
 
   test("includes the export bundle as the system prompt context", async () => {

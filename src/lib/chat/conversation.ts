@@ -130,16 +130,37 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   const day = kstDateToday();
   const limit = CHAT_DAILY_LIMIT[input.tier];
 
+  const usedBefore = await readChatUsage(input.userId, day);
+  const precheck = checkChatLimit(input.tier, usedBefore);
+  if (!precheck.allowed) {
+    return {
+      status: "blocked",
+      reason: "limit_reached",
+      limit: precheck.limit,
+      used: precheck.used,
+      upgradeTo: precheck.upgradeTo,
+      hint: BLOCKED_HINT[input.locale](precheck.limit, precheck.upgradeTo),
+    };
+  }
+
+  // RAG context: compact wiki snapshot. Capped so the chat stays inside the
+  // Gemini Flash context window even for users with hundreds of pages.
+  const snapshot = await exportUserWiki(input.userId, {
+    locale: input.locale,
+    bodyCharLimit: 600,
+    pageLimit: 50,
+    sourceLimit: 100,
+  });
+
   // Atomic check-and-bump (codex R2): the RPC inserts/increments the row
-  // ONLY if the existing count is below `limit`. Otherwise it raises
-  // chat_limit_exceeded and we return a blocked result without ever
-  // calling Gemini. This closes the TOCTOU race where N parallel callers
-  // could all see used<limit and all bill an LLM call.
+  // ONLY if the existing count is below `limit`. It remains the final gate
+  // immediately before Gemini, so concurrent callers cannot overspend LLM
+  // quota. The earlier read is only a no-cost preflight: if wiki export fails,
+  // the user gets no reply but also does not lose a daily chat turn.
   //
-  // Trade-off vs. the previous design: red-zone (crisis-routed) turns now
-  // ALSO count against the daily quota. The alternative — bump after the
-  // LLM call — would reopen the race. We accept the 1-count penalty on
-  // crisis turns; a future PR can add a refund RPC if it matters.
+  // Trade-off vs. the previous design: red-zone (crisis-routed) turns still
+  // count against the daily quota because the bump must land before the LLM
+  // call to close the race. A future PR can add a refund RPC if it matters.
   let newCount: number;
   try {
     newCount = await bumpChatUsageIfUnderCap(input.userId, limit, day);
@@ -158,15 +179,6 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
     }
     throw e;
   }
-
-  // RAG context: compact wiki snapshot. Capped so the chat stays inside the
-  // Gemini Flash context window even for users with hundreds of pages.
-  const snapshot = await exportUserWiki(input.userId, {
-    locale: input.locale,
-    bodyCharLimit: 600,
-    pageLimit: 50,
-    sourceLimit: 100,
-  });
 
   const personaLine = input.personaHint ? `${input.personaHint}\n\n` : "";
   const modeLine = `${MODE_INSTRUCTION[input.mode ?? "analytic"][input.locale]}\n\n`;
