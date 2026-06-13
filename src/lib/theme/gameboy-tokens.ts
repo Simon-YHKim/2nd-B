@@ -26,7 +26,7 @@ export type PixelShadowStyle = {
   };
   shadowRadius: number;
   shadowOpacity: number;
-  elevation: 0;
+  elevation: number;
 };
 
 export function pixelShadowStyle(shadowColor: string = gameboy.border): PixelShadowStyle {
@@ -38,6 +38,8 @@ export function pixelShadowStyle(shadowColor: string = gameboy.border): PixelSha
     },
     shadowRadius: gameboy.pixelShadow.blur,
     shadowOpacity: 1,
-    elevation: 0,
+    // Android ignores shadow* and uses elevation; 0 rendered flat (no depth).
+    // Give material depth so cards/forms are not flat on Android (AG native review 2026-06-13).
+    elevation: 4,
   };
 }

@@ -511,6 +511,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 0 },
+    // Android ignores shadow* (iOS glow above) — modest elevation so the form is not flat (AG native review 2026-06-13).
+    elevation: 3,
   },
   fieldGroup: { gap: spacing.sm },
   fieldLabelSpaced: { marginTop: spacing.sm },
