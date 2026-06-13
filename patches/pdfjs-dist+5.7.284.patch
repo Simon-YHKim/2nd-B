@@ -1,0 +1,16 @@
+diff --git a/node_modules/pdfjs-dist/build/pdf.mjs b/node_modules/pdfjs-dist/build/pdf.mjs
+index 3b08593..ab7f8e8 100644
+--- a/node_modules/pdfjs-dist/build/pdf.mjs
++++ b/node_modules/pdfjs-dist/build/pdf.mjs
+@@ -15752,10 +15752,7 @@ class PDFWorker {
+       if (this.#mainThreadWorkerMessageHandler) {
+         return this.#mainThreadWorkerMessageHandler;
+       }
+-      const worker = await import(
+-      /*webpackIgnore: true*/
+-      /*@vite-ignore*/
+-      this.workerSrc);
++      const worker = await Promise.reject(new Error("pdfjs: dynamic worker import disabled on native (Hermes incompatible)"));
+       return worker.WorkerMessageHandler;
+     };
+     return shadow(this, "_setupFakeWorkerGlobal", loader());
