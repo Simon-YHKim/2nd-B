@@ -178,4 +178,41 @@ describe("createRecord — Advisor premium gate", () => {
     expect(mockCallGemini).toHaveBeenCalledTimes(1);
     expect(mockCallAdvisor).not.toHaveBeenCalled();
   });
+
+  test("audit_response LLM failure falls back to local crisis classification and still saves", async () => {
+    mockCallGemini.mockRejectedValueOnce(new Error("proxy down"));
+    mockClassifyRecordCrisis.mockResolvedValueOnce({
+      text: "Please contact 988 now.",
+    });
+
+    const r = await createRecord({
+      userId: "u1",
+      locale: "en",
+      kind: "audit_response",
+      body: "red zone answer",
+      withFollowup: true,
+      tier: "free",
+      minor: false,
+    });
+
+    expect(mockCallGemini).toHaveBeenCalledTimes(1);
+    expect(mockClassifyRecordCrisis).toHaveBeenCalledWith("red zone answer", "en", "u1", false);
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ai_followup: expect.objectContaining({
+          text: "Please contact 988 now.",
+          zone: "red",
+          fixedTemplate: true,
+        }),
+      }),
+    );
+    expect(r.followup).toEqual(
+      expect.objectContaining({
+        text: "Please contact 988 now.",
+        zone: "red",
+        fixedTemplate: true,
+      }),
+    );
+  });
 });

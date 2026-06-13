@@ -196,6 +196,20 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       } catch (e) {
         if (typeof console !== "undefined")
           console.warn("[records] audit follow-up failed; saving without it", (e as Error).message);
+        // Same safety fallback as the journal Advisor path: if the LLM path
+        // fails before returning its C9 result, run the zero-cost local
+        // classifier so red-zone audit answers do not save silently.
+        try {
+          const crisis = await classifyRecordTextForCrisis(
+            args.body,
+            args.locale,
+            args.userId,
+            args.minor === true,
+          );
+          if (crisis) aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+        } catch {
+          /* best-effort — never block the save */
+        }
       }
     }
   }
