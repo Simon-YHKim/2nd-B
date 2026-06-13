@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
+import { gameboy } from "@/lib/theme/gameboy-tokens";
 import { cosmic, withAlpha } from "@/lib/theme/tokens";
 
 const root = path.resolve(__dirname, "../../..");
@@ -68,6 +69,15 @@ describe("PremiumButton disabled accessibility", () => {
 
     expect(disabledFg.alpha).toBeGreaterThanOrEqual(0.72);
     expect(contrastRatio(fgOnBg, bgOnSurface)).toBeGreaterThanOrEqual(3);
+  });
+
+  test("secondary button edge contrast clears the non-text floor", () => {
+    const secondaryBg = parseHex(cosmic.space700);
+    const border = parseRgba(gameboy.border);
+    const borderOnSecondary = composite(border.rgb, secondaryBg, border.alpha);
+
+    expect(gameboy.border).toBe(withAlpha(cosmic.signalBlue, 0.68));
+    expect(contrastRatio(borderOnSecondary, secondaryBg)).toBeGreaterThanOrEqual(3);
   });
 
   test("capture disabled save gate exposes localized reason hints", () => {

@@ -15,7 +15,7 @@ export const gameboy = {
   accent: cosmic.signalBlue,
   power: cosmic.signalMint,
   amber: cosmic.pixelLamp,
-  border: withAlpha(cosmic.signalBlue, 0.55),
+  border: withAlpha(cosmic.signalBlue, 0.68),
 } as const;
 
 export const androidElevation = {

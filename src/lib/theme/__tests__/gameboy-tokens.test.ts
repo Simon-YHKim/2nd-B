@@ -16,7 +16,7 @@ describe("gameboy tokens", () => {
     expect(gameboy.accent).toBe(cosmic.signalBlue);
     expect(gameboy.power).toBe(cosmic.signalMint);
     expect(gameboy.amber).toBe(cosmic.pixelLamp);
-    expect(gameboy.border).toBe(withAlpha(cosmic.signalBlue, 0.55));
+    expect(gameboy.border).toBe(withAlpha(cosmic.signalBlue, 0.68));
   });
 
   it("creates a hard-offset React Native shadow style", () => {

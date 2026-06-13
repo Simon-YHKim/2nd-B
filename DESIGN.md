@@ -131,7 +131,7 @@ Palette aliases preserve O-8 cosmic values:
 | `gameboy.accent` | `cosmic.signalBlue` | `#4CC9F0` |
 | `gameboy.power` | `cosmic.signalMint` | `#72F2C7` |
 | `gameboy.amber` | `cosmic.pixelLamp` | `#FFD166` |
-| `gameboy.border` | signal-blue alpha | `rgba(76,201,240,0.35)` |
+| `gameboy.border` | signal-blue alpha | `rgba(76,201,240,0.68)` |
 
 Typography hierarchy:
 

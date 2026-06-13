@@ -132,8 +132,12 @@ export function PremiumTabBar({ locale = "ko" }: { locale?: "en" | "ko" }) {
               accessibilityLabel={locale === "ko" ? tab.ko : tab.en}
               hitSlop={14}
             >
+              {active ? <View style={styles.activeCue} /> : null}
               <TabIcon id={tab.id} color={color} />
-              <Text variant="subtle" style={[styles.label, { color }]}>
+              <Text
+                variant="subtle"
+                style={[styles.label, active ? styles.labelActive : null, { color }]}
+              >
                 {locale === "ko" ? tab.ko : tab.en}
               </Text>
             </Pressable>
@@ -173,10 +177,27 @@ const styles = StyleSheet.create({
     borderWidth: gameboy.borderWidth,
     borderColor: gameboy.border,
     backgroundColor: gameboy.screen,
+    position: "relative",
   },
   tabActive: {
     backgroundColor: gameboy.ink,
     borderColor: gameboy.ink,
   },
-  label: { fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, letterSpacing: 0, fontWeight: "600" },
+  activeCue: {
+    position: "absolute",
+    top: 4,
+    alignSelf: "center",
+    width: 28,
+    height: gameboy.borderWidth,
+    borderRadius: gameboy.borderWidth,
+    backgroundColor: gameboy.power,
+  },
+  label: {
+    fontFamily: fontFamilies.pixelKo,
+    fontSize: typography.sizes.sm,
+    lineHeight: 16,
+    letterSpacing: 0,
+    fontWeight: "600",
+  },
+  labelActive: { fontWeight: "800" },
 });
