@@ -1,3 +1,5 @@
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
 import type { SourceRow, WikiPageRow } from "../wiki/types";
 
 type InsertRecordRow = {
@@ -11,6 +13,7 @@ type InsertRecordRow = {
 const recordRows: Array<InsertRecordRow & { id: string; created_at: string }> = [];
 const sourceRows: SourceRow[] = [];
 const wikiRows: WikiPageRow[] = [];
+const repoRoot = path.resolve(__dirname, "../../..");
 
 jest.mock("../llm/gemini", () => ({
   callAdvisor: jest.fn(),
@@ -91,6 +94,90 @@ import { mergeEvidence } from "../persona/evidence";
 import { captureFromMarkdown } from "../wiki/capture";
 import { exportUserWiki } from "../wiki/export";
 
+function walkTsFiles(dir: string, out: string[] = []): string[] {
+  for (const name of readdirSync(dir)) {
+    const full = path.join(dir, name);
+    const stat = statSync(full);
+    if (stat.isDirectory()) {
+      if (name !== "__tests__") walkTsFiles(full, out);
+      continue;
+    }
+    if (/\.(?:ts|tsx)$/.test(name)) out.push(full);
+  }
+  return out;
+}
+
+function sourcesQueryBlocks(source: string): string[] {
+  const blocks: string[] = [];
+  const fromSources = /\.from\(\s*["']sources["']\s*\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = fromSources.exec(source)) !== null) {
+    const start = match.index;
+    const nextFrom = source.indexOf(".from(", start + 1);
+    const nextSemicolon = source.indexOf(";", start);
+    const candidates = [nextFrom, nextSemicolon].filter((index) => index > start);
+    const end = candidates.length > 0 ? Math.min(...candidates) : Math.min(source.length, start + 1200);
+    blocks.push(source.slice(start, end));
+  }
+  return blocks;
+}
+
+function selectArgs(block: string): string[] {
+  const args: string[] = [];
+  const selectCall = /\.select\s*\(\s*(["'`])([\s\S]*?)\1/g;
+  let match: RegExpExecArray | null;
+  while ((match = selectCall.exec(block)) !== null) {
+    args.push(match[2] ?? "");
+  }
+  return args;
+}
+
+function topLevelSelectItems(selectArg: string): string[] {
+  const items: string[] = [];
+  let depth = 0;
+  let item = "";
+
+  for (const char of selectArg) {
+    if (char === "(") depth += 1;
+    if (char === ")") depth = Math.max(0, depth - 1);
+    if (char === "," && depth === 0) {
+      items.push(item.trim());
+      item = "";
+      continue;
+    }
+    item += char;
+  }
+
+  if (item.trim()) items.push(item.trim());
+  return items;
+}
+
+function selectsTopLevelCreatedAt(selectArg: string): boolean {
+  return topLevelSelectItems(selectArg).some((item) => {
+    const normalized = item.replace(/\s+/g, "");
+    const column = normalized.includes(":") ? normalized.split(":").at(-1) : normalized;
+    return column === "created_at";
+  });
+}
+
+function sourcesCreatedAtViolations(): string[] {
+  const files = [...walkTsFiles(path.join(repoRoot, "src", "app")), ...walkTsFiles(path.join(repoRoot, "src", "lib"))];
+  const violations: string[] = [];
+  for (const file of files) {
+    const rel = path.relative(repoRoot, file).split(path.sep).join("/");
+    const source = readFileSync(file, "utf8");
+    for (const block of sourcesQueryBlocks(source)) {
+      if (/\.order\s*\(\s*["'`]created_at["'`]/.test(block)) {
+        violations.push(`${rel}: sources query orders by created_at`);
+      }
+      if (selectArgs(block).some(selectsTopLevelCreatedAt)) {
+        violations.push(`${rel}: sources query selects created_at`);
+      }
+    }
+  }
+  return violations;
+}
+
 describe("records and sources data-shape contract", () => {
   beforeEach(() => {
     recordRows.length = 0;
@@ -144,5 +231,9 @@ describe("records and sources data-shape contract", () => {
     expect(exported.prompt).toMatch(/Journal\s+\S+\s+Morning review/);
     expect(exported.prompt).toContain("tags: daily, work");
     expect(exported.prompt).toContain("Journal body that should survive export.");
+  });
+
+  test("sources queries use captured_at instead of created_at", () => {
+    expect(sourcesCreatedAtViolations()).toEqual([]);
   });
 });
