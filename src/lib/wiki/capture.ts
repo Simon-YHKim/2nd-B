@@ -6,6 +6,7 @@
 // perspective operation.
 
 import { buildSourcePayload } from "./ingest-helpers";
+import { throwIfAborted } from "../async/abort";
 import { createSource } from "./queries";
 import { rawClippingPath, uploadRawClipping } from "./storage";
 import type { SourceKind, SourceRow } from "./types";
@@ -40,6 +41,8 @@ export interface CaptureInput {
   extraFrontmatter?: Record<string, unknown> | null;
   /** AI-estimated 0..1 relevance; overrides the frontmatter-derived value. */
   simonRelevance?: number | null;
+  /** Optional UI-owned cancellation signal for capture submit flows. */
+  signal?: AbortSignal;
 }
 
 export interface CaptureResult {
@@ -56,7 +59,9 @@ export interface CaptureResult {
 }
 
 export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureResult> {
+  throwIfAborted(input.signal);
   const built = buildSourcePayload(input.rawMd, input.fallbackUrl ?? null, input.kindOverride ?? null);
+  throwIfAborted(input.signal);
 
   // The body-only markdown is persisted to Storage; the frontmatter also lives
   // in sources.frontmatter (jsonb). The upload is BEST-EFFORT: a transient
@@ -69,9 +74,11 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
   try {
     await uploadRawClipping(input.userId, built.suggested_slug, built.body);
   } catch (e) {
+    throwIfAborted(input.signal);
     storedToStorage = false;
     if (typeof console !== "undefined") console.warn("[capture] storage upload failed; saving body inline", e);
   }
+  throwIfAborted(input.signal);
 
   // Merge LLM-classifier output (user-final) with whatever the frontmatter
   // already carried. Tags get deduped + lowercased. Track lives in frontmatter
@@ -94,7 +101,8 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     frontmatter: mergedFrontmatter,
     tags: mergedTags,
     simon_relevance: scaleAiRelevance(input.simonRelevance) ?? built.payload.simon_relevance,
-  });
+  }, input.signal);
+  throwIfAborted(input.signal);
 
   return {
     source,

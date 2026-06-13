@@ -15,7 +15,7 @@
 //     Editable chips, track toggle stays user-final.
 //   - Submit: persists via captureFromMarkdown + tag updates.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -28,7 +28,7 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 import { PremiumAppShell, PremiumModal } from "@/components/premium";
@@ -42,6 +42,7 @@ import { cosmic, semantic, spacing, typography, withAlpha } from "@/lib/theme/to
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
+import { isAbortError } from "@/lib/async/abort";
 import { detectClipperKind } from "@/lib/wiki/clipper-kind";
 import {
   pickImageAsset,
@@ -274,6 +275,7 @@ export default function Capture() {
   const [proposing, setProposing] = useState(false);
   const [formatSavedMsg, setFormatSavedMsg] = useState<string | null>(null);
   const [feedbackModal, setFeedbackModal] = useState<CaptureFeedbackModal>(null);
+  const submitAbortRef = useRef<AbortController | null>(null);
 
   // Journal-mode (일기) state — ported from /journal. Writes to records.
   const progression = useProgression();
@@ -479,6 +481,17 @@ export default function Capture() {
   const advancedModesExpanded = showAdvancedModes || mode !== "journal";
   const secondaryOpen = advancedModesExpanded;
   const visibleModes = advancedModesExpanded ? CAPTURE_MODES : BASIC_CAPTURE_MODES;
+  const abortSubmitRequest = useCallback((): void => {
+    const active = submitAbortRef.current;
+    if (!active) return;
+    active.abort();
+    submitAbortRef.current = null;
+    setSubmitting(false);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => abortSubmitRequest, [abortSubmitRequest]),
+  );
 
   if (loading) {
     return (
@@ -509,6 +522,10 @@ export default function Capture() {
 
   function showFeedback(title: string, body: string, retry?: () => void): void {
     setFeedbackModal({ title, body, retry });
+  }
+
+  function submitIsCurrent(controller: AbortController): boolean {
+    return submitAbortRef.current === controller && !controller.signal.aborted;
   }
 
   function retryFeedbackModal(): void {
@@ -808,7 +825,12 @@ export default function Capture() {
   async function handleSubmit() {
     if (!userId) return;
     if (mode === "journal") return handleJournalSubmit();
+    if (submitting) return;
     const submittedMode = mode;
+    submitAbortRef.current?.abort();
+    const submitController = new AbortController();
+    submitAbortRef.current = submitController;
+    const submitSignal = submitController.signal;
     setSubmitting(true);
     try {
       // Compose the body that captureFromMarkdown will index.
@@ -842,7 +864,8 @@ export default function Capture() {
       let simonRelevance: number | null = null;
       if (finalBody.length > 0) {
         try {
-          const cls = await classifyClipper(userId, finalBody, fallbackUrl, locale, isMinor === true);
+          const cls = await classifyClipper(userId, finalBody, fallbackUrl, locale, isMinor === true, submitSignal);
+          if (!submitIsCurrent(submitController)) return;
           if (tagsEditable.length === 0) finalTags = cls.tags;
           suggestedTrack = cls.track;
           if (mode !== "ocr") kindOverride = cls.kind;
@@ -854,9 +877,11 @@ export default function Capture() {
           };
           simonRelevance = cls.simonRelevance;
         } catch (e) {
+          if (isAbortError(e) || !submitIsCurrent(submitController)) return;
           if (typeof console !== "undefined") console.warn("[capture] auto-classify failed", (e as Error).message);
         }
       }
+      if (!submitIsCurrent(submitController)) return;
 
       const result = await captureFromMarkdown({
         userId,
@@ -867,7 +892,9 @@ export default function Capture() {
         track: suggestedTrack,
         extraFrontmatter,
         simonRelevance,
+        signal: submitSignal,
       });
+      if (!submitIsCurrent(submitController)) return;
 
       // Memo is self-authored text like journal, but it lands on the sources
       // path which never ran crisis classification — a red-zone memo surfaced
@@ -878,14 +905,18 @@ export default function Capture() {
       // not the user's own words (false-positive surface).
       if (submittedMode === "memo") {
         try {
+          if (!submitIsCurrent(submitController)) return;
           const crisis = await classifyRecordTextForCrisis(finalBody, locale, userId, isMinor === true);
+          if (!submitIsCurrent(submitController)) return;
           if (crisis) {
             setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
           }
         } catch (e) {
+          if (!submitIsCurrent(submitController)) return;
           if (typeof console !== "undefined") console.warn("[capture] memo crisis classify failed", (e as Error).message);
         }
       }
+      if (!submitIsCurrent(submitController)) return;
 
       reset();
       clearModeDraft(submittedMode);
@@ -904,6 +935,7 @@ export default function Capture() {
         setProposalCtx({ content: finalBody, url: fallbackUrl });
       }
     } catch (e) {
+      if (isAbortError(e) || !submitIsCurrent(submitController)) return;
       if (typeof console !== "undefined") console.warn("[capture] capture save failed", (e as Error).message);
       showFeedback(
         t("alerts.pieceSave.title"),
@@ -911,7 +943,10 @@ export default function Capture() {
         () => void handleSubmit(),
       );
     } finally {
-      setSubmitting(false);
+      if (submitAbortRef.current === submitController) {
+        submitAbortRef.current = null;
+        setSubmitting(false);
+      }
     }
   }
 

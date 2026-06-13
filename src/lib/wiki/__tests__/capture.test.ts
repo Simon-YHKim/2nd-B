@@ -20,8 +20,8 @@ jest.mock("../storage", () => ({
 }));
 
 jest.mock("../queries", () => ({
-  createSource: jest.fn((input: unknown) => {
-    captured.push({ fn: "createSource", args: [input] });
+  createSource: jest.fn((input: unknown, signal?: AbortSignal) => {
+    captured.push({ fn: "createSource", args: [input, signal] });
     return Promise.resolve(fixtures.sourceRow);
   }),
 }));
@@ -235,5 +235,31 @@ Body.`;
     fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "inbox", title: "T", tags: [] };
     const r = await captureFromMarkdown({ userId: "u1", rawMd: "# T\n\nBody." });
     expect(r.storagePending).toBe(false);
+  });
+
+  test("pre-aborted signal stops before storage upload or source insert", async () => {
+    fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "inbox", title: "T", tags: [] };
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      captureFromMarkdown({
+        userId: "u1",
+        rawMd: "# T\n\nBody.",
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+
+    expect(captured).toEqual([]);
+  });
+
+  test("capture signal reaches source insert", async () => {
+    fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "inbox", title: "T", tags: [] };
+    const controller = new AbortController();
+
+    await captureFromMarkdown({ userId: "u1", rawMd: "# T\n\nBody.", signal: controller.signal });
+
+    const insert = captured.find((c) => c.fn === "createSource")!;
+    expect(insert.args[1]).toBe(controller.signal);
   });
 });

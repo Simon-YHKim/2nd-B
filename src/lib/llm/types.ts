@@ -58,6 +58,10 @@ export interface PromptInput {
   // crisis routing points to a youth-appropriate hotline (KO -> 1388). Defaults
   // to adult routing when unset. Threaded from AuthContext.isMinor by callers.
   minor?: boolean;
+  // Optional client-side cancellation for UI-owned LLM calls. C9/C3 ordering
+  // still holds for any request that reaches the model; a pre-aborted signal
+  // exits before egress.
+  signal?: AbortSignal;
 }
 
 export interface AuditMeta {

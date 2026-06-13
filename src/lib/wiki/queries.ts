@@ -27,9 +27,10 @@ export interface CreateSourceInput {
   simon_relevance: number | null;
 }
 
-export async function createSource(input: CreateSourceInput): Promise<SourceRow> {
+export async function createSource(input: CreateSourceInput, signal?: AbortSignal): Promise<SourceRow> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from("sources").insert(input).select().single();
+  const query = supabase.from("sources").insert(input).select();
+  const { data, error } = await (signal ? query.abortSignal(signal) : query).single();
   if (error) throw error;
   return data as SourceRow;
 }

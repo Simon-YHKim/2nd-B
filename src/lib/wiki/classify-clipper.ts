@@ -214,6 +214,7 @@ export async function classifyClipper(
   url: string | null,
   locale: "en" | "ko",
   minor = false,
+  signal?: AbortSignal,
 ): Promise<ClipperClassification> {
   let baselineKind: SourceKind = url ? detectClipperKind(url) : "inbox";
   const trimmed = content.trim();
@@ -242,7 +243,7 @@ export async function classifyClipper(
   if (matchedFormat) baselineKind = matchedFormat.baseKind;
 
   const { system, user } = buildClipperPrompt(baselineKind, trimmed, url, locale, customFormats, matchedFormat?.aiProperties);
-  const reply = await callGemini({ userId, locale, purpose: "clipper_classify", system, user, minor });
+  const reply = await callGemini({ userId, locale, purpose: "clipper_classify", system, user, minor, signal });
   // A matched trigger is an explicit routing override, so force the kind and its
   // prop schema to the authored format rather than letting the model pick.
   const classification = parseClipperResult(reply.text, baselineKind, matchedFormat?.baseKind, matchedFormat?.aiProperties);

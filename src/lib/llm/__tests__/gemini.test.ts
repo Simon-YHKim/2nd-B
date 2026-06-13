@@ -143,6 +143,39 @@ describe("callGemini", () => {
     expect(hasImagePart).toBe(true);
   });
 
+  test("abort signal is passed to the direct Gemini request config", async () => {
+    const controller = new AbortController();
+    await callGemini({
+      userId: "u1",
+      locale: "en",
+      purpose: "journal_reflect",
+      user: "Today I wrote a note.",
+      signal: controller.signal,
+    });
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    const callArg = mockGenerateContent.mock.calls[0]![0] as {
+      config?: { abortSignal?: AbortSignal };
+    };
+    expect(callArg.config?.abortSignal).toBe(controller.signal);
+  });
+
+  test("pre-aborted calls do not reach Gemini or audit", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "journal_reflect",
+        user: "A normal note.",
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
   test("C9: minor flag routes KO crisis to youth 1388 + 109 (adult gets 109)", async () => {
     const minorR = await callGemini({
       userId: "u1",

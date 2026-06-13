@@ -10,6 +10,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 
+import { throwIfAborted } from "../async/abort";
 import { getEnv } from "../env";
 import { retrieveEvidence } from "../knowledge/retrieve";
 import { classifyInput, crisisHotlines, type SafetyResult } from "../safety/classifier";
@@ -317,6 +318,7 @@ async function routeCrisis(
 }
 
 export async function callGemini<T = string>(input: PromptInput): Promise<GeminiResult<T>> {
+  throwIfAborted(input.signal);
   // C9: pre-call classification of user input. Red zone never reaches the LLM.
   const inputSafety = classifyInput(input.user, input.locale, { minor: input.minor });
   const promptHash = djb2(`${input.system ?? ""}${input.user}`);
@@ -392,6 +394,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
         // edge-routed callers reach parity with the direct-client path.
         ...(input.responseSchema ? { responseSchema: input.responseSchema } : {}),
       },
+      signal: input.signal,
     });
     latencyMs = Date.now() - t0;
     if (error) {
@@ -423,6 +426,10 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     const { client, vertex } = getClient();
 
     const t0 = Date.now();
+    const config = {
+      ...(input.responseSchema ? { responseMimeType: "application/json", responseSchema: input.responseSchema } : {}),
+      ...(input.signal ? { abortSignal: input.signal } : {}),
+    };
     const res = await client.models.generateContent({
       model,
       contents: [
@@ -440,9 +447,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
           ],
         },
       ],
-      config: input.responseSchema
-        ? { responseMimeType: "application/json", responseSchema: input.responseSchema }
-        : undefined,
+      config: Object.keys(config).length > 0 ? config : undefined,
     });
     latencyMs = Date.now() - t0;
     text = res.text ?? "";
