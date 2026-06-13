@@ -125,7 +125,7 @@ export default function Profile() {
           </View>
           <TouchableOpacity
             onPress={() => router.push("/settings")}
-            hitSlop={8}
+            hitSlop={14}
             activeOpacity={0.7}
             style={styles.settingsButton}
             accessibilityRole="button"

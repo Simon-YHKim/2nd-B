@@ -208,7 +208,7 @@ export default function Research() {
                           void Linking.openURL(target);
                         }}
                         style={styles.sourceLink}
-                        hitSlop={4}
+                        hitSlop={14}
                         accessibilityRole="link"
                         accessibilityLabel={t("link.label", { title: s.title })}
                         accessibilityHint={t("link.hint")}

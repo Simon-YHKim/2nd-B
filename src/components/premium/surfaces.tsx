@@ -362,7 +362,7 @@ export function PixelIconButton({
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={10}
+      hitSlop={14}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => [

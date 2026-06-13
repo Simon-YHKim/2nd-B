@@ -274,7 +274,8 @@ export default function Interview() {
               locale === "ko"
                 ? "해석보다 먼저 듣겠습니다. 어느 시기부터 살펴볼까요?"
                 : "I'll listen before interpreting. Which period should we start with?"
-            }          />
+            }
+          />
           <View style={styles.periodGrid}>
             {(["childhood", "teens", "twenties", "thirties", "current"] as LifePeriod[]).map((p) => (
               <Pressable
@@ -284,7 +285,7 @@ export default function Interview() {
                 // "current" is the recommended start (most recall, least
                 // friction), so it carries the brand accent and a hint line.
                 style={[styles.periodCard, p === "current" && styles.periodCardRecommended]}
-                hitSlop={4}
+                hitSlop={14}
                 accessibilityRole="button"
                 accessibilityLabel={
                   locale === "ko"

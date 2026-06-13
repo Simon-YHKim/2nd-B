@@ -113,7 +113,7 @@ export function PreferenceCheckRow({
       accessibilityLabel={label}
       accessibilityState={{ checked }}
       style={styles.checkRow}
-      hitSlop={6}
+      hitSlop={14}
       activeOpacity={0.7}
     >
       <View style={[styles.box, checked && styles.boxChecked]}>

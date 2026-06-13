@@ -293,7 +293,7 @@ export default function SecondBChat() {
             <Pressable
               onPress={() => setTurns([])}
               style={styles.clearChatLink}
-              hitSlop={8}
+              hitSlop={14}
               accessibilityRole="button"
               accessibilityLabel={t("clearChatA11y")}
               accessibilityHint={t("clearChatHint")}
@@ -320,7 +320,7 @@ export default function SecondBChat() {
         {usedToday !== null && usedToday >= limit ? (
           <Pressable
             onPress={() => router.push("/plans")}
-            hitSlop={8}
+            hitSlop={14}
             style={styles.limitLink}
             accessibilityRole="button"
             accessibilityLabel={t("viewPlans")}
@@ -558,7 +558,7 @@ export default function SecondBChat() {
               <Pressable
                 onPress={() => { writeIntroDismissed("today"); setIntroOpen(false); }}
                 style={[styles.modalBtn, styles.modalBtnSecondary]}
-                hitSlop={4}
+                hitSlop={14}
                 accessibilityRole="button"
                 accessibilityLabel={t("intro_mute")}
               >
@@ -567,7 +567,7 @@ export default function SecondBChat() {
               <Pressable
                 onPress={() => { setIntroOpen(false); }}
                 style={[styles.modalBtn, styles.modalBtnPrimary]}
-                hitSlop={4}
+                hitSlop={14}
                 accessibilityRole="button"
                 accessibilityLabel={t("intro_ok")}
               >

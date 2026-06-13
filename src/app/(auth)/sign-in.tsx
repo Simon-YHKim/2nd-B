@@ -192,7 +192,7 @@ export default function SignIn() {
               onPress={() => {
                 void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
               }}
-              hitSlop={8}
+              hitSlop={14}
               accessibilityRole="button"
               accessibilityLabel={
                 locale === "ko" ? t("language.switchToEnglishLabel") : t("language.switchToKoreanLabel")
@@ -237,7 +237,7 @@ export default function SignIn() {
               <Text style={styles.label}>{t("signIn.password")}</Text>
               <Pressable
                 onPress={() => setShowPassword((v) => !v)}
-                hitSlop={10}
+                hitSlop={14}
                 accessibilityRole="button"
                 accessibilityLabel={
                   showPassword ? t("signIn.hidePasswordLabel") : t("signIn.showPasswordLabel")
@@ -367,7 +367,7 @@ export default function SignIn() {
                 void handleForgotPassword();
               }}
               disabled={resetSubmitting}
-              hitSlop={8}
+              hitSlop={14}
               style={[styles.forgotRow, resetSubmitting && styles.btnDisabled]}
               accessibilityRole="button"
               accessibilityLabel={t("signIn.resetLabel")}

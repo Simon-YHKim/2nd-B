@@ -210,7 +210,7 @@ const InboxRow = React.memo(function InboxRow({
             }}
             style={[styles.generateBtn, phase1Pending && styles.generateBtnDisabled]}
             disabled={phase1Pending}
-            hitSlop={4}
+            hitSlop={14}
             accessibilityRole="button"
             accessibilityLabel={locale === "ko" ? `${r.title} 요약과 질문 만들기` : `Create Source brief for ${r.title}`}
             accessibilityState={{ disabled: phase1Pending, busy: phase1Pending }}
@@ -232,7 +232,7 @@ const InboxRow = React.memo(function InboxRow({
               onViewPhase1(r);
             }}
             style={styles.generateBtn}
-            hitSlop={4}
+            hitSlop={14}
             accessibilityRole="button"
             accessibilityLabel={locale === "ko" ? `${r.title} 요약과 질문 보기` : `View Source brief for ${r.title}`}
           >
@@ -249,7 +249,7 @@ const InboxRow = React.memo(function InboxRow({
             }}
             style={[styles.generateBtn, generatePending && styles.generateBtnDisabled]}
             disabled={generatePending}
-            hitSlop={4}
+            hitSlop={14}
             accessibilityRole="button"
             accessibilityLabel={locale === "ko" ? `${r.title} 위키 페이지 생성` : `Generate wiki page for ${r.title}`}
             accessibilityState={{ disabled: generatePending, busy: generatePending }}
@@ -268,7 +268,7 @@ const InboxRow = React.memo(function InboxRow({
           <Link href={{ pathname: "/wiki", params: { focusSourceId: r.id } }} asChild>
             <TouchableOpacity activeOpacity={0.7}
               style={styles.generateBtn}
-              hitSlop={4}
+              hitSlop={14}
               onPress={(e) => e.stopPropagation()}
               accessibilityRole="link"
               accessibilityLabel={locale === "ko" ? `${r.title} 위키에서 보기` : `View ${r.title} in wiki`}
@@ -286,7 +286,7 @@ const InboxRow = React.memo(function InboxRow({
               void onDeleteSource(r);
             }}
             style={[styles.generateBtn, styles.deleteBtn]}
-            hitSlop={4}
+            hitSlop={14}
             accessibilityRole="button"
             accessibilityLabel={locale === "ko" ? `${r.title} 삭제` : `Delete ${r.title}`}
           >
@@ -647,7 +647,7 @@ export default function Inbox() {
         {error}
       </Text>
       <TouchableOpacity activeOpacity={0.7}
-        hitSlop={6}
+        hitSlop={14}
         onPress={() => void handleRefresh()}
         style={styles.errorRetry}
         accessibilityRole="button"
@@ -670,7 +670,7 @@ export default function Inbox() {
       </Text>
       <Link href="/capture" asChild>
         <TouchableOpacity activeOpacity={0.7}
-          hitSlop={6}
+          hitSlop={14}
           style={styles.emptyLink}
           accessibilityRole="link"
           accessibilityLabel={locale === "ko" ? "첫 캡처 시작" : "Capture your first source"}

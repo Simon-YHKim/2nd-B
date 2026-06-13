@@ -1125,7 +1125,7 @@ export default function Capture() {
           {secondaryOpen ? (
             <Pressable
               onPress={() => router.push("/formats")}
-              hitSlop={6}
+              hitSlop={14}
               style={styles.manageFormatsLink}
               accessibilityRole="button"
               accessibilityLabel={t("sections.manageFormats.accessibilityLabel")}
@@ -1156,7 +1156,7 @@ export default function Capture() {
                     key={option}
                     style={[styles.trackChip, active && styles.trackChipActive]}
                     onPress={() => setTrack(option)}
-                    hitSlop={4}
+                    hitSlop={14}
                     accessibilityRole="tab"
                     accessibilityState={{ selected: active }}
                     accessibilityLabel={label}
@@ -1192,7 +1192,7 @@ export default function Capture() {
                       onPress={() => {
                         switchCaptureMode(m);
                       }}
-                      hitSlop={8}
+                      hitSlop={14}
                       accessibilityRole="tab"
                       accessibilityState={{ selected: active }}
                       accessibilityLabel={`${label}. ${help}`}
@@ -1218,7 +1218,7 @@ export default function Capture() {
                       setShowAdvancedModes(true);
                     }
                   }}
-                  hitSlop={8}
+                  hitSlop={14}
                   accessibilityRole="button"
                   accessibilityState={{ expanded: advancedModesExpanded }}
                   accessibilityLabel={advancedModesExpanded ? t("sections.mode.less") : t("sections.mode.more")}
@@ -1351,7 +1351,7 @@ export default function Capture() {
               {advisorUnlocked ? (
                 <Pressable
                   onPress={() => setAskAdvisor((v) => !v)}
-                  hitSlop={4}
+                  hitSlop={14}
                   style={styles.advisorRow}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: askAdvisor }}
@@ -1372,7 +1372,7 @@ export default function Capture() {
               ) : (
                 <Pressable
                   onPress={() => router.push("/plans")}
-                  hitSlop={4}
+                  hitSlop={14}
                   style={styles.advisorRow}
                   accessibilityRole="button"
                   accessibilityLabel={t("journal.advisor.lockedLabel")}
@@ -1427,7 +1427,7 @@ export default function Capture() {
                   accessibilityRole="button"
                   accessibilityLabel={t("linkClip.pasteOffer")}
                   accessibilityHint={t("linkClip.pasteOfferHint")}
-                  hitSlop={4}
+                  hitSlop={14}
                   style={styles.pasteOfferRow}
                 >
                   <Text variant="subtle" color="brand">
@@ -1616,7 +1616,7 @@ export default function Capture() {
           {!secondaryOpen ? (
             <Pressable
               onPress={() => setShowAdvancedModes(true)}
-              hitSlop={6}
+              hitSlop={14}
               style={styles.secondaryDisclosure}
               accessibilityRole="button"
               accessibilityState={{ expanded: false }}
@@ -1698,7 +1698,7 @@ function HashtagAdder({ onAdd }: { onAdd: (s: string) => void }) {
       <Pressable
         onPress={() => setOpen(true)}
         style={styles.tagAddChip}
-        hitSlop={8}
+        hitSlop={14}
         accessibilityRole="button"
         accessibilityLabel={t("tags.addLabel")}
       >

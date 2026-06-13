@@ -130,7 +130,7 @@ export function PremiumTabBar({ locale = "ko" }: { locale?: "en" | "ko" }) {
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
               accessibilityLabel={locale === "ko" ? tab.ko : tab.en}
-              hitSlop={6}
+              hitSlop={14}
             >
               <TabIcon id={tab.id} color={color} />
               <Text variant="subtle" style={[styles.label, { color }]}>

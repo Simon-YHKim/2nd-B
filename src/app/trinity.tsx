@@ -200,7 +200,8 @@ export default function Trinity() {
           primaryAction={{
             label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
             onPress: () => router.push("/capture"),
-          }}        />
+          }}
+        />
 
         {loading ? (
           <View style={styles.center}>
@@ -215,7 +216,7 @@ export default function Trinity() {
             </Text>
             <Link href="/capture" asChild>
               <Pressable
-                hitSlop={6}
+                hitSlop={14}
                 style={styles.emptyLink}
                 accessibilityRole="link"
                 accessibilityLabel={

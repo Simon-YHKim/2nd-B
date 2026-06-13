@@ -143,7 +143,7 @@ export function ContextPill({ label, onClose }: { label: string; onClose?: () =>
         <Pressable
           onPress={onClose}
           style={styles.pillClose}
-          hitSlop={8}
+          hitSlop={14}
           accessibilityRole="button"
           accessibilityLabel={clearLabel}
         >

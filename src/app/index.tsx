@@ -534,7 +534,7 @@ export default function Landing() {
             </Pressable>
             <Pressable
               onPress={dismissEmptyCard}
-              hitSlop={8}
+              hitSlop={14}
               style={styles.emptyGraphSkip}
               accessibilityRole="button"
               accessibilityLabel={locale === "ko" ? "먼저 둘러보기" : "Look around first"}
@@ -710,7 +710,7 @@ export default function Landing() {
             // promise-break one tap later.
             router.push(recordsOnly ? "/records" : "/core-brain");
           }}
-          hitSlop={8}
+          hitSlop={14}
           style={{ flex: 1 }}
           accessibilityRole="button"
           accessibilityLabel={

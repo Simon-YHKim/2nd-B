@@ -489,7 +489,7 @@ export default function Wiki() {
                 accessibilityRole="button"
                 accessibilityLabel={f.label[locale]}
                 accessibilityHint={f.desc[locale]}
-                hitSlop={4}
+                hitSlop={14}
               >
                 {body}
               </Pressable>
@@ -691,7 +691,7 @@ export default function Wiki() {
                       });
                     }
                   }}
-                  hitSlop={6}
+                  hitSlop={14}
                   style={styles.exportTextLink}
                   accessibilityRole="button"
                   accessibilityLabel={locale === "ko" ? "내보낸 지식 창고 복사" : "Copy exported knowledge store"}
@@ -702,7 +702,7 @@ export default function Wiki() {
                 </Pressable>
                 <Pressable
                   onPress={() => setExportText(null)}
-                  hitSlop={6}
+                  hitSlop={14}
                   style={styles.exportTextLink}
                   accessibilityRole="button"
                   accessibilityLabel={locale === "ko" ? "내보내기 미리보기 닫기" : "Close export preview"}
@@ -1020,7 +1020,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                               }}
                               disabled={phase1Running}
                               style={styles.phase1Trigger}
-                              hitSlop={4}
+                              hitSlop={14}
                               accessibilityRole="button"
                               accessibilityLabel={
                                 locale === "ko"

@@ -139,7 +139,7 @@ export default function Manual() {
             onPress={() => {
               void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
             }}
-            hitSlop={6}
+            hitSlop={14}
             style={styles.languagePill}
             accessibilityRole="button"
             accessibilityLabel={

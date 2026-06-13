@@ -59,7 +59,7 @@ export default function OAuthCallback() {
         <Pressable
           onPress={() => router.replace("/sign-in")}
           style={styles.retryLink}
-          hitSlop={8}
+          hitSlop={14}
           accessibilityRole="link"
           accessibilityLabel={retryLabel}
           accessibilityHint={retryHint}

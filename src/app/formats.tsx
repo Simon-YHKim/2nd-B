@@ -357,7 +357,7 @@ export default function Formats() {
                           <Pressable
                             onPress={() => setViewing(schemaOfCustom(t))}
                             style={styles.deleteLink}
-                            hitSlop={6}
+                            hitSlop={14}
                             accessibilityRole="button"
                             accessibilityLabel={`${nameOf(t)} ${tf("labels.viewGuide")}`}
                           >
@@ -372,7 +372,7 @@ export default function Formats() {
                           <Pressable
                             onPress={() => setConfirmDelete(t)}
                             style={styles.deleteLink}
-                            hitSlop={6}
+                            hitSlop={14}
                             accessibilityRole="button"
                             accessibilityLabel={`${nameOf(t)} ${tf("labels.delete")}`}
                           >

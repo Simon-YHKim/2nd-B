@@ -235,7 +235,7 @@ export default function SignUp() {
               onPress={() => {
                 void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
               }}
-              hitSlop={6}
+              hitSlop={14}
               accessibilityRole="button"
               accessibilityLabel={
                 locale === "ko" ? t("language.switchToEnglishLabel") : t("language.switchToKoreanLabel")

@@ -101,7 +101,7 @@ export default function Plans() {
 
         <Pressable
           onPress={() => router.back()}
-          hitSlop={6}
+          hitSlop={14}
           style={styles.back}
           accessibilityRole="button"
           accessibilityLabel={t("back")}
