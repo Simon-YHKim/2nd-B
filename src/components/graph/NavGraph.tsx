@@ -29,7 +29,7 @@
 //     bubble action was removed 2026-05-28; chat now opens from a floating
 //     button, so the centre node no longer carries a bubbleAction.)
 
-import { Fragment, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+import { Fragment, memo, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
   Animated,
   AppState,
@@ -80,6 +80,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { clampPan, clampPanFree, clampScale, panForFocalZoom, cameraOffHome } from "./zoom-math";
 import { tierVisibility } from "./tier-visibility";
 import { patternLinkStyle } from "@/lib/graph/pattern-link";
+import { areNavGraphPropsEqual } from "@/lib/graph/navgraph-memo";
 import { worldMenuPositions, worldDataPositions, worldToScreen, sectorFocus } from "./world-layout";
 import {
   drilldownCharacterForCore,
@@ -521,7 +522,7 @@ interface Props {
   onActiveChange?: (sheetOpen: boolean) => void;
 }
 
-export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstInteraction, onActiveChange }: Props) {
+function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirstInteraction, onActiveChange }: Props) {
   const { t } = useTranslation("common");
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -1061,7 +1062,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
               toValue: 1,
               duration: SPAWN_REVEAL_MS,
               easing: Easing.out(Easing.cubic),
-              useNativeDriver: false,
+              useNativeDriver: true,
             }).start();
           }
           await delay(stagger);
@@ -1209,12 +1210,12 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
     // finished=false while it still closes over the stale (false) vis. Without
     // the guard it would unmount tier-3 nodes that should now be visible,
     // leaving them hidden until the next threshold crossing.
-    Animated.timing(tier3Fade, { toValue: vis.tier3 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false })
+    Animated.timing(tier3Fade, { toValue: vis.tier3 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true })
       .start(({ finished }) => { if (finished && !vis.tier3) setTier3Mounted(false); });
   }, [vis.tier3, tier3Fade]);
   useEffect(() => {
     if (vis.tier4) setTier4Mounted(true);
-    Animated.timing(tier4Fade, { toValue: vis.tier4 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false })
+    Animated.timing(tier4Fade, { toValue: vis.tier4 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true })
       .start(({ finished }) => { if (finished && !vis.tier4) setTier4Mounted(false); });
   }, [vis.tier4, tier4Fade]);
   const tierOf = (id: string): Tier =>
@@ -1241,11 +1242,11 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
     const v = pulseValues.current.get(highlightId);
     if (v) {
       Animated.sequence([
-        Animated.timing(v, { toValue: 1.9, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.9, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
         Animated.delay(400),
-        Animated.timing(v, { toValue: 1.6, duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.6, duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]).start();
     }
     const t = setTimeout(() => setHighlightDataId(null), 2800);
@@ -1363,8 +1364,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
       const v = pulseValues.current.get(pick.id);
       if (!v) return;
       Animated.sequence([
-        Animated.timing(v, { toValue: 1.18, duration: 280, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-        Animated.timing(v, { toValue: 1.0, duration: 360, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.18, duration: 280, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1.0, duration: 360, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]).start();
     }, PULSE_INTERVAL_MS);
     return () => clearInterval(id);
@@ -2439,6 +2440,9 @@ function DataNodeSheet({
     </Animated.View>
   );
 }
+
+export const NavGraph = memo(NavGraphComponent, areNavGraphPropsEqual);
+NavGraph.displayName = "NavGraph";
 
 const styles = StyleSheet.create({
   root: { ...StyleSheet.absoluteFill as object },

@@ -44,7 +44,8 @@ import { useCoreHintDismissed } from "@/lib/onboarding/core-hint";
 import { useComfortOfferDismissed } from "@/lib/onboarding/comfort-offer";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useEmptyGraphDismissed } from "@/lib/onboarding/empty-card";
-import { domainForTags, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
+import { VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
+import { retainStableDataNodes, sourceRowsToDataNodes } from "@/lib/graph/data-nodes";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { overviewCardSignals } from "@/lib/graph/card-insights";
 import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
@@ -232,6 +233,7 @@ export default function Landing() {
   const skyOverlay = useSkyDrift();
 
   const [dataNodes, setDataNodes] = useState<DataNode[]>([]);
+  const dataNodesRef = useRef<DataNode[]>([]);
   // Whether the user has left ANY piece yet, across BOTH stores: classified
   // clipper captures (`sources`, which also become graph nodes) and journal /
   // note pieces (`records`, which don't surface as nodes yet). `null` until the
@@ -366,7 +368,9 @@ export default function Landing() {
   // them on tap. relatedness edges are computed inside NavGraph.
   useEffect(() => {
     if (!userId) {
-      setDataNodes([]);
+      const empty: DataNode[] = [];
+      dataNodesRef.current = empty;
+      setDataNodes(empty);
       setHasAnyPiece(null);
       return;
     }
@@ -407,20 +411,10 @@ export default function Landing() {
           return;
         }
         const sources = sourcesRes.data ?? [];
-        setDataNodes(
-          sources.map((p) => {
-            const tags = (p.tags ?? []) as string[];
-            const fm = (p.frontmatter ?? {}) as Record<string, unknown>;
-            const summary = typeof fm.summary === "string" ? fm.summary : "";
-            return {
-              id: p.id,
-              title: p.title,
-              parentId: domainForTags(tags, p.title),
-              tags,
-              summary,
-            };
-          }),
-        );
+        const nextDataNodes = sourceRowsToDataNodes(sources) as DataNode[];
+        const stableDataNodes = retainStableDataNodes(dataNodesRef.current, nextDataNodes);
+        dataNodesRef.current = stableDataNodes;
+        setDataNodes(stableDataNodes);
         setHasAnyPiece(sources.length > 0 || (recordsRes.count ?? 0) > 0);
       })
       .catch((e) => {
@@ -432,6 +426,11 @@ export default function Landing() {
       cancelled = true;
     };
   }, [userId, graphReloadKey]);
+  const handleGraphFirstInteraction = useCallback(() => {
+    setGraphTouched(true);
+    // The hint's job is done the moment the graph is touched.
+    if (coreHintDismissed === false) dismissCoreHint();
+  }, [coreHintDismissed, dismissCoreHint]);
 
   if (loading) return <InlineLoader />;
   if (!userId) return <Redirect href="/sign-in" />;
@@ -514,11 +513,7 @@ export default function Landing() {
           dataNodes={dataNodes}
           highlightId={highlightId}
           glowNodeId={dataNodes.length > 0 && !centerSeen ? "records" : null}
-          onFirstInteraction={() => {
-            setGraphTouched(true);
-            // The hint's job is done the moment the graph is touched.
-            if (coreHintDismissed === false) dismissCoreHint();
-          }}
+          onFirstInteraction={handleGraphFirstInteraction}
           onActiveChange={setSheetOpen}
         />
       </Animated.View>
