@@ -85,6 +85,8 @@
     "seeRecords": "Lihat catatanku",
     "seeRecordsHint": "Membuka catatanmu agar kamu bisa menemukan entri ini lagi.",
     "captureMore": "Tangkap lagi",
+    "recordsOwnership": "Entri ini ada di Catatan. Kamu bisa membacanya lagi dan memasukkannya ke ekspor nanti.",
+    "recordsAiOptIn": "SecondB hanya merefleksikan entri ini saat kamu menyalakan tombol itu.",
     "storagePending": "Tersimpan, tapi salinan file cadangan belum terunggah kali ini. Teksmu aman tersimpan."
   },
   "proposal": {

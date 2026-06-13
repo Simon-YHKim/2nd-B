@@ -85,6 +85,8 @@
     "seeRecords": "Ver meus registros",
     "seeRecordsHint": "Abre seus registros para você encontrar esta entrada novamente.",
     "captureMore": "Capturar mais",
+    "recordsOwnership": "Esta entrada está em Registros. Você pode reler e incluir em uma exportação mais tarde.",
+    "recordsAiOptIn": "O SecondB só reflete sobre esta entrada quando você ativa esse interruptor.",
     "storagePending": "Salvo, mas o backup do arquivo não foi enviado desta vez. Seu texto está guardado com segurança."
   },
   "proposal": {

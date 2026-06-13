@@ -85,6 +85,8 @@
     "seeRecords": "기록 보관소 보기",
     "seeRecordsHint": "기록 보관소를 열어 방금 저장한 기록을 다시 찾습니다.",
     "captureMore": "또 담기",
+    "recordsOwnership": "이 기록은 기록 보관소에 남아요. 나중에 다시 읽거나 내보내기에 포함할 수 있어요.",
+    "recordsAiOptIn": "세컨비 되짚기는 이 스위치를 켰을 때만 이 기록을 읽어요.",
     "storagePending": "저장은 됐지만 백업 파일 사본은 이번에 업로드되지 않았어요. 내용은 안전하게 보관돼 있어요."
   },
   "proposal": {

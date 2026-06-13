@@ -1084,6 +1084,16 @@ export default function Capture() {
                       {t("saved.storagePending")}
                     </Text>
                   ) : null}
+                  {savedKind === "records" ? (
+                    <View style={styles.savedRecordTruth}>
+                      <Text variant="subtle" color="textMuted">
+                        {t("saved.recordsOwnership")}
+                      </Text>
+                      <Text variant="subtle" color="textSubtle">
+                        {t("saved.recordsAiOptIn")}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               </View>
               <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
@@ -1869,6 +1879,10 @@ const styles = StyleSheet.create({
     borderRadius: gameboy.radius,
     padding: spacing.md,
     ...pixelShadowStyle(semantic.success),
+  },
+  savedRecordTruth: {
+    gap: spacing.xs,
+    marginTop: spacing.sm,
   },
   proposalPanel: {
     backgroundColor: semantic.surface,
