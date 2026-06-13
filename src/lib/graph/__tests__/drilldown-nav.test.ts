@@ -9,6 +9,8 @@ import {
   resolveDrilldownSelectedDataId,
   selectDrilldownData,
 } from "../drilldown-nav";
+import { VILLAGE_UI } from "@/lib/village-ui";
+import { cosmic } from "@/lib/theme/tokens";
 
 describe("drilldown navigation state", () => {
   const data = [
@@ -64,6 +66,16 @@ describe("drilldown core mapping", () => {
       rhythm: "archi",
     });
     expect(drilldownCharacterForCore("work")).toBe("archi");
+  });
+
+  test("locks Narrative Core drilldown to Momo and monochrome retint", () => {
+    expect(CORE_CHARACTER.records).toBe("momo");
+    expect(drilldownCharacterForCore("records")).toBe("momo");
+    expect(VILLAGE_UI.records.worker).toBe("momo");
+    expect(VILLAGE_UI.records.accent).toBe(cosmic.moonWhite);
+    expect(VILLAGE_UI.records.accent).not.toBe(cosmic.dreamPink);
+    expect(VILLAGE_UI.records.accent).not.toBe(cosmic.soulViolet);
+    expect(VILLAGE_UI.records.accent).not.toBe(cosmic.guardRose);
   });
 
   test("reuses depth style while making non-focused graph objects recede", () => {
