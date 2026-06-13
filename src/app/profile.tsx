@@ -61,6 +61,48 @@ function PlanGlyph({ color }: { color: string }) {
   );
 }
 
+function HubGlyph({ itemKey, color }: { itemKey: string; color: string }) {
+  switch (itemKey) {
+    case "coreBrain":
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
+          <Circle cx="12" cy="12" r="7" stroke={color} strokeWidth={2} fill="none" />
+          <Circle cx="12" cy="12" r="2" fill={color} />
+          <Path d="M12 5 L12 2 M12 22 L12 19 M5 12 L2 12 M22 12 L19 12" stroke={color} strokeWidth={2} strokeLinecap="square" />
+        </Svg>
+      );
+    case "esm":
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
+          <Path d="M5 12 L9 16 L19 7" stroke={color} strokeWidth={2.4} fill="none" strokeLinecap="square" strokeLinejoin="miter" />
+          <Path d="M5 19 L19 19" stroke={color} strokeWidth={2} strokeLinecap="square" />
+        </Svg>
+      );
+    case "persona":
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
+          <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth={2} fill="none" />
+          <Path d="M5 21 C6.5 16.5 9 15 12 15 C15 15 17.5 16.5 19 21" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" />
+        </Svg>
+      );
+    case "insights":
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
+          <Path d="M5 18 L9 13 L13 15 L19 6" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" strokeLinejoin="miter" />
+          <Path d="M5 21 L19 21" stroke={color} strokeWidth={2} strokeLinecap="square" />
+          <Circle cx="19" cy="6" r="2" fill={color} />
+        </Svg>
+      );
+    default:
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
+          <Path d="M4 7 L20 7 L20 19 L4 19 Z" stroke={color} strokeWidth={2} fill="none" />
+          <Path d="M4 13 L9 13 L11 16 L13 16 L15 13 L20 13" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" />
+        </Svg>
+      );
+  }
+}
+
 export default function Profile() {
   const { t } = useTranslation("profile");
   const { t: tPlans } = useTranslation("plans");
@@ -187,9 +229,17 @@ export default function Profile() {
                 accessibilityLabel={itemCopy.label}
                 accessibilityHint={itemCopy.hint}
               >
-                <Text variant="caption" color="textMuted" numberOfLines={1}>
-                  {itemCopy.label}
-                </Text>
+                <View style={styles.quickChipIcon}>
+                  <HubGlyph itemKey={item.key} color={item.accent} />
+                </View>
+                <View style={styles.quickChipCopy}>
+                  <Text variant="body" color="text" numberOfLines={2} style={styles.quickChipLabel}>
+                    {itemCopy.label}
+                  </Text>
+                  <Text variant="subtle" color="textMuted" numberOfLines={2} style={styles.quickChipHint}>
+                    {itemCopy.hint}
+                  </Text>
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -255,14 +305,30 @@ const styles = StyleSheet.create({
   },
   eyebrow: { letterSpacing: 0 },
   quickChip: {
-    width: "48%",
+    flexBasis: "48%",
+    flexGrow: 1,
     borderWidth: gameboy.borderWidth,
     borderRadius: gameboy.radius,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     backgroundColor: semantic.surfaceAlt,
-    minHeight: 44,
-    justifyContent: "center",
+    minHeight: 84,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
     ...pixelShadowStyle(),
   },
+  quickChipIcon: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: semantic.surface,
+    borderColor: gameboy.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
+  },
+  quickChipCopy: { flex: 1, minWidth: 0, gap: 2 },
+  quickChipLabel: { lineHeight: 20 },
+  quickChipHint: { lineHeight: 16 },
 });
