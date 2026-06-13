@@ -387,7 +387,7 @@ export default function Landing() {
         .from("sources")
         .select("id, title, tags, frontmatter")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false })
+        .order("captured_at", { ascending: false })
         .limit(120),
       supabase
         .from("records")
