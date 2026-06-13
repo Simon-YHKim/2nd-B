@@ -11,7 +11,6 @@ describe("core-loop focus refetch contract", () => {
   const screens = [
     "src/app/index.tsx",
     "src/app/records.tsx",
-    "src/app/core-brain.tsx",
     "src/app/insights.tsx",
     "src/app/trinity.tsx",
     "src/app/record/[id].tsx",
@@ -33,6 +32,12 @@ describe("core-loop focus refetch contract", () => {
       expect(source).toContain('from "@/lib/nav/use-focus-refetch"');
       expect(source).toContain("useFocusRefetch(");
     }
+  });
+
+  it("excludes Core Brain from focus refetch (buildPersona is uncached Gemini — re-focus would re-bill)", () => {
+    const source = read("src/app/core-brain.tsx");
+    expect(source).not.toContain("useFocusRefetch(");
+    expect(source).toContain("buildPersona");
   });
 
   it("keeps Home data-node identity stabilization in the refetch path", () => {
