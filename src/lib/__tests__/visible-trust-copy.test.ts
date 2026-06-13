@@ -73,4 +73,27 @@ describe("visible trust copy", () => {
     expect(combined).not.toMatch(/graph|local|device|anonymous|no sign-up|no signup/i);
     expect(combined).not.toMatch(/그래프|로컬|기기|계정 없이/);
   });
+
+  test("sign-in exposes account creation as a route and reset as inline help", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const screen = readFileSync(path.join(root, "src/app/(auth)/sign-in.tsx"), "utf8");
+    const en = readFileSync(path.join(root, "locales/en/auth.json"), "utf8");
+    const ko = readFileSync(path.join(root, "locales/ko/auth.json"), "utf8");
+
+    const submitIdx = screen.indexOf('accessibilityLabel={t("signIn.submit")}');
+    const signUpIdx = screen.indexOf('<Link href="/sign-up" asChild>');
+    const resetIdx = screen.indexOf("handleForgotPassword");
+    const providerIdx = screen.indexOf('t("signIn.continueWithGoogle")');
+
+    expect(submitIdx).toBeGreaterThan(-1);
+    expect(signUpIdx).toBeGreaterThan(-1);
+    expect(resetIdx).toBeGreaterThan(-1);
+    expect(providerIdx).toBeGreaterThan(-1);
+    expect(signUpIdx).toBeGreaterThan(submitIdx);
+    expect(signUpIdx).toBeLessThan(providerIdx);
+    expect(screen).not.toContain('<Link href="/reset-password"');
+    expect(screen).toContain("setResetHelpVisible(true)");
+    expect(en).toContain('"signUpLink": "Create one"');
+    expect(ko).toContain('"signUpLink": "계정 만들기"');
+  });
 });
