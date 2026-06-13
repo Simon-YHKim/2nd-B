@@ -20,6 +20,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { consumeAuthCallbackUrl, updatePassword } from "@/lib/supabase/auth";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { cosmicSky, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
@@ -229,6 +230,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
+    ...androidElevationStyle(androidElevation.authForm),
   },
   label: {
     color: PALETTE.textMuted,

@@ -12,6 +12,7 @@ import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, Scene
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { deleteSource, listSources } from "@/lib/wiki/queries";
@@ -814,6 +815,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
+    ...androidElevationStyle(androidElevation.card),
   },
   rowPressed: { opacity: 0.7 },
   rowHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },

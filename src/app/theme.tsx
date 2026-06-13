@@ -11,6 +11,7 @@ import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/pr
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useFontStyle, type FontStyle } from "@/lib/settings/readable-font";
 import { useLiteMode } from "@/lib/settings/lite-mode";
@@ -170,6 +171,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.16,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
+    ...androidElevationStyle(androidElevation.card),
   },
   note: {
     backgroundColor: semantic.surfaceAlt,

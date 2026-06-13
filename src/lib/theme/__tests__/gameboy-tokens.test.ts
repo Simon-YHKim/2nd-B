@@ -1,5 +1,5 @@
 import { cosmic, withAlpha } from "../tokens";
-import { gameboy, pixelShadowStyle } from "../gameboy-tokens";
+import { androidElevation, androidElevationStyle, gameboy, pixelShadowStyle } from "../gameboy-tokens";
 
 describe("gameboy tokens", () => {
   it("locks the Deep Space Game Boy geometry tokens", () => {
@@ -31,5 +31,15 @@ describe("gameboy tokens", () => {
 
   it("allows a custom hard shadow color", () => {
     expect(pixelShadowStyle(gameboy.power).shadowColor).toBe(gameboy.power);
+  });
+
+  it("locks shared Android elevation depths", () => {
+    expect(androidElevation).toEqual({
+      pixelShadow: 4,
+      authForm: 3,
+      card: 2,
+    });
+    expect(androidElevationStyle()).toEqual({ elevation: androidElevation.card });
+    expect(androidElevationStyle(androidElevation.authForm)).toEqual({ elevation: 3 });
   });
 });

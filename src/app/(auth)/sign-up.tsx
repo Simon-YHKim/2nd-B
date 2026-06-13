@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/Input";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { JudgeBadge } from "@/components/auth/JudgeBadge";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import {
   ageInYears,
   signUpWithEmail,
@@ -511,8 +512,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 0 },
-    // Android ignores shadow* (iOS glow above) — modest elevation so the form is not flat (AG native review 2026-06-13).
-    elevation: 3,
+    ...androidElevationStyle(androidElevation.authForm),
   },
   fieldGroup: { gap: spacing.sm },
   fieldLabelSpaced: { marginTop: spacing.sm },

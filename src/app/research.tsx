@@ -16,6 +16,7 @@ import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 interface Source {
@@ -250,6 +251,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.14,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
+    ...androidElevationStyle(androidElevation.card),
   },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   chip: {
@@ -273,6 +275,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
+    ...androidElevationStyle(androidElevation.card),
   },
   cardHead: { flexDirection: "row", gap: spacing.xs },
   sourceLink: { minHeight: 44, justifyContent: "center", paddingVertical: spacing.xs },

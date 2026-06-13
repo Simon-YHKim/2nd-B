@@ -18,6 +18,16 @@ export const gameboy = {
   border: withAlpha(cosmic.signalBlue, 0.55),
 } as const;
 
+export const androidElevation = {
+  pixelShadow: 4,
+  authForm: 3,
+  card: 2,
+} as const;
+
+export type AndroidElevationStyle = {
+  elevation: number;
+};
+
 export type PixelShadowStyle = {
   shadowColor: string;
   shadowOffset: {
@@ -28,6 +38,10 @@ export type PixelShadowStyle = {
   shadowOpacity: number;
   elevation: number;
 };
+
+export function androidElevationStyle(elevation: number = androidElevation.card): AndroidElevationStyle {
+  return { elevation };
+}
 
 export function pixelShadowStyle(shadowColor: string = gameboy.border): PixelShadowStyle {
   return {
@@ -40,6 +54,6 @@ export function pixelShadowStyle(shadowColor: string = gameboy.border): PixelSha
     shadowOpacity: 1,
     // Android ignores shadow* and uses elevation; 0 rendered flat (no depth).
     // Give material depth so cards/forms are not flat on Android (AG native review 2026-06-13).
-    elevation: 4,
+    ...androidElevationStyle(androidElevation.pixelShadow),
   };
 }

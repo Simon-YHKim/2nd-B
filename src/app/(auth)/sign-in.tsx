@@ -32,6 +32,7 @@ import {
   signInWithNaver,
 } from "@/lib/supabase/auth";
 import { cosmicSky, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { CosmicBackground, PremiumToast } from "@/components/premium";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -472,6 +473,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
+    ...androidElevationStyle(androidElevation.authForm),
   },
   label: {
     color: PALETTE.textMuted,
