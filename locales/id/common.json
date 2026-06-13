@@ -61,9 +61,9 @@
         "records": "Ini adalah Narrative Core. Kepingan yang disimpan berkumpul di sini agar mudah ditemukan lagi.",
         "taste": "Ini adalah Muse Core. Kepingan selera dan inspirasi berkumpul di sini."
       },
-      "dataFallback": "Node Pattern Data dari {{core}}.",
+      "dataFallback": "Kepingan yang kamu hubungkan ke {{core}}.",
       "noDataTitle": "Belum ada Pattern Data",
-      "noDataBody": "Tinggalkan kepingan dan Pattern Core ini akan menumbuhkan node kepingan salju.",
+      "noDataBody": "Hanya kepingan yang kamu tulis atau simpan sendiri yang muncul di sini. Tinggalkan satu kepingan dan core ini akan menumbuhkan node kepingan salju ringan.",
       "dataDetailHint": "Membuka detail Pattern Data yang dipilih."
     }
   }

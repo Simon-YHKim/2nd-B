@@ -64,6 +64,14 @@ export function drilldownDataForCore<T extends DrilldownDataLike>(
   return nodes.filter((node) => node.parentId === coreId);
 }
 
+export function userConnectedPieceCountForNode(
+  nodeId: string,
+  nodes: readonly DrilldownDataLike[],
+): number {
+  if (nodeId === "core") return nodes.length;
+  return nodes.filter((node) => node.parentId === nodeId).length;
+}
+
 export function resolveDrilldownSelectedDataId(
   selectedDataId: string | null,
   nodes: readonly DrilldownDataLike[],

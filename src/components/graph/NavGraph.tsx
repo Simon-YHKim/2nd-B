@@ -90,6 +90,7 @@ import {
   isPatternCoreId,
   resolveDrilldownSelectedDataId,
   selectDrilldownData,
+  userConnectedPieceCountForNode,
   type DrilldownState,
 } from "@/lib/graph/drilldown-nav";
 
@@ -1495,7 +1496,8 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
   );
 
   // Neighbours of the focused node — drives edge highlight + node dimming
-  // (overhaul §7). Also the "연결된 조각 수" the sheet reports.
+  // (overhaul §7). The sheet count is separate: it only counts user-owned data
+  // nodes, so structural menu links never masquerade as "my pieces".
   const activeNeighbors = useMemo(() => {
     const s = new Set<string>();
     if (activeId == null) return s;
@@ -1505,7 +1507,9 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
     }
     return s;
   }, [activeId, edges]);
-  const connectedCount = activeNeighbors.size;
+  const connectedPieceCount = activeNode
+    ? userConnectedPieceCountForNode(activeNode.id, dataNodes)
+    : 0;
   const isRelated = (id: string): boolean =>
     activeId == null || id === activeId || activeNeighbors.has(id);
   // Dim predicate combining focus (activeId) and highlight-on-return.
@@ -2065,7 +2069,7 @@ export function NavGraph({ locale, dataNodes, highlightId, glowNodeId, onFirstIn
           name={activeNode.label[locale]}
           type={typeLabel(activeNode.tier)}
           character={activeId ? VILLAGE_WORKER[activeId] ?? "secondb" : "secondb"}
-          connectedCount={connectedCount}
+          connectedCount={connectedPieceCount}
           description={activeNode.description[locale]}
           onLook={handleLook}
           onAsk={handleAskSecondB}
@@ -2180,14 +2184,14 @@ function NodeSheet({
         <Text variant="caption" style={[styles.sheetType, { color: accent }]}>{type}</Text>
         {connectedCount > 0 ? (
           <Text variant="subtle" color="textMuted">
-            {locale === "ko" ? `연결된 조각 ${connectedCount}개` : `${connectedCount} connected`}
+            {locale === "ko" ? `내가 연결한 조각 ${connectedCount}개` : `${connectedCount} pieces I connected`}
           </Text>
         ) : null}
       </View>
       <Text variant="body" color="textMuted" style={styles.sheetDesc}>{description}</Text>
       {connectedCount > 0 ? (
         <View style={styles.sheetStats}>
-          <StatTile value={connectedCount} label={locale === "ko" ? "연결된 조각" : "connected"} accent={cosmic.signalMint} />
+          <StatTile value={connectedCount} label={locale === "ko" ? "내가 연결한 조각" : "pieces I connected"} accent={cosmic.signalMint} />
         </View>
       ) : null}
       <View style={styles.sheetActions}>

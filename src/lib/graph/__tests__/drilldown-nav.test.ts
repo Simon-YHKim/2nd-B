@@ -8,6 +8,7 @@ import {
   isPatternCoreId,
   resolveDrilldownSelectedDataId,
   selectDrilldownData,
+  userConnectedPieceCountForNode,
 } from "../drilldown-nav";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { cosmic } from "@/lib/theme/tokens";
@@ -41,6 +42,13 @@ describe("drilldown navigation state", () => {
     expect(resolveDrilldownSelectedDataId("missing", drilldownDataForCore("work", data))).toBe("growth-1");
     expect(resolveDrilldownSelectedDataId("growth-2", drilldownDataForCore("work", data))).toBe("growth-2");
     expect(resolveDrilldownSelectedDataId("missing", [])).toBeNull();
+  });
+
+  test("counts only user-owned pieces, not structural graph links", () => {
+    expect(userConnectedPieceCountForNode("core", data)).toBe(3);
+    expect(userConnectedPieceCountForNode("work", data)).toBe(2);
+    expect(userConnectedPieceCountForNode("relation", data)).toBe(1);
+    expect(userConnectedPieceCountForNode("knowledge", data)).toBe(0);
   });
 });
 

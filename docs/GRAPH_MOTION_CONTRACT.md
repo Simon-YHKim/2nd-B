@@ -4,6 +4,9 @@ This file locks the P11 graph feel after the 2026-06-13 AG native QA pass. It is
 
 ## Motion Rules
 
+- Default graph mode is light/progressive: show the calm tree first, then reveal
+  labels, data leaves, and ornate detail only after touch, zoom, or explicit
+  opt-in settings.
 - Use calm cubic easing for graph entry and drilldown sheets.
 - Do not use bounce, elastic, or spring motion for graph transitions.
 - Node spawn reveals by tier and should not replay on every return in the same session.
@@ -11,7 +14,16 @@ This file locks the P11 graph feel after the 2026-06-13 AG native QA pass. It is
 - Drift amplitude stays tiered: Soul Core near-still, Pattern Cores steady, Pattern Data leaves most active.
 - Reduced-motion and lite-mode users get a settled graph without ambient drift.
 - Backgrounded app state stops running drift loops.
-- SVG line animation remains JS-driven unless device profiling proves a different renderer is needed.
+- SVG line animation remains JS-driven unless device profiling proves a different
+  renderer is needed. Skia remains deferred and measure-gated.
+
+## Ownership Copy
+
+The graph should emphasize "only what I connected myself":
+
+- sheet counts must count user-owned data pieces, not structural core links
+- empty states must say saved/written pieces grow the graph
+- do not imply imported, inferred, or template data appears before the user saves it
 
 ## Narrative Core Retint
 

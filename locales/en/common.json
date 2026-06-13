@@ -61,9 +61,9 @@
         "records": "This is the Narrative Core. Kept pieces gather here so you can find them again.",
         "taste": "This is the Muse Core. Taste and inspiration pieces gather here."
       },
-      "dataFallback": "A Pattern Data node from {{core}}.",
+      "dataFallback": "One piece you connected to {{core}}.",
       "noDataTitle": "No Pattern Data yet",
-      "noDataBody": "Leave a piece and this Pattern Core will grow a snowflake node.",
+      "noDataBody": "Only pieces you write or save yourself appear here. Leave one piece and this core will grow a light snowflake node.",
       "dataDetailHint": "Opens the selected Pattern Data detail."
     }
   }

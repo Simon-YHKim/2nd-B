@@ -61,9 +61,9 @@
         "records": "Este é o Narrative Core. Peças guardadas se reúnem aqui para você encontrá-las novamente.",
         "taste": "Este é o Muse Core. Peças de gosto e inspiração se reúnem aqui."
       },
-      "dataFallback": "Um nó Pattern Data de {{core}}.",
+      "dataFallback": "Uma peça que você conectou a {{core}}.",
       "noDataTitle": "Nenhum Pattern Data ainda",
-      "noDataBody": "Deixe uma peça e este Pattern Core vai crescer um nó floco de neve.",
+      "noDataBody": "Só aparecem aqui as peças que você escreve ou salva. Deixe uma peça e este núcleo fará crescer um nó floco de neve leve.",
       "dataDetailHint": "Abre o detalhe do Pattern Data selecionado."
     }
   }
