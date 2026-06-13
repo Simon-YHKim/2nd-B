@@ -55,4 +55,22 @@ describe("visible trust copy", () => {
     expect(en).toContain('"browseBeforeCommit": "Browse first, then decide"');
     expect(ko).toContain('"browseBeforeCommit": "먼저 둘러보고 결정하기"');
   });
+
+  test("first-run capture copy stays honest about records, not guest graph storage", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const en = JSON.parse(readFileSync(path.join(root, "locales/en/capture.json"), "utf8")) as {
+      firstRun: { hint: string };
+    };
+    const ko = JSON.parse(readFileSync(path.join(root, "locales/ko/capture.json"), "utf8")) as {
+      firstRun: { hint: string };
+    };
+    const combined = `${en.firstRun.hint}\n${ko.firstRun.hint}`;
+
+    expect(en.firstRun.hint).toContain("first saved record");
+    expect(en.firstRun.hint).toContain("Records");
+    expect(ko.firstRun.hint).toContain("첫 기록");
+    expect(ko.firstRun.hint).toContain("기록 보관소");
+    expect(combined).not.toMatch(/graph|local|device|anonymous|no sign-up|no signup/i);
+    expect(combined).not.toMatch(/그래프|로컬|기기|계정 없이/);
+  });
 });
