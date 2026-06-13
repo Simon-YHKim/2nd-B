@@ -27,6 +27,11 @@ describe("summarizeAssessmentBody", () => {
     ]);
   });
 
+  test("partial Big Five-shaped bodies are not rendered as generic structured results", () => {
+    expect(summarizeAssessmentBody(JSON.stringify({ scores: { openness: 4 } }), "en")).toBeNull();
+    expect(summarizeAssessmentBody(JSON.stringify({ openness: 4, neuroticism: 2 }), "en")).toBeNull();
+  });
+
   test("ECR attachment body -> style + anxiety + avoidance", () => {
     const body = JSON.stringify({ style: "secure", anxiety: 2.5, avoidance: 1.8 });
     const s = summarizeAssessmentBody(body, "ko");

@@ -24,6 +24,14 @@ const BFI_LABEL: Record<"en" | "ko", Record<(typeof BFI_KEYS)[number], string>> 
   en: { openness: "Openness", conscientiousness: "Conscientiousness", extraversion: "Extraversion", agreeableness: "Agreeableness", neuroticism: "Neuroticism" },
 };
 
+function hasAnyBfiKey(scores: Record<string, unknown>): boolean {
+  return BFI_KEYS.some((k) => k in scores);
+}
+
+function hasCompleteBfiScores(scores: Record<string, unknown>): boolean {
+  return BFI_KEYS.every((k) => Number.isFinite(scores[k]));
+}
+
 /**
  * Turn an assessment record body into friendly summary lines, or null when the
  * body is not a structured assessment (plain journal/audit text renders as-is).
@@ -54,12 +62,13 @@ export function summarizeAssessmentBody(
   }
 
   // Big Five: { scores: { openness, ... } } or flat { openness, ... }
-  if (BFI_KEYS.every((k) => typeof scores[k] === "number")) {
+  if (hasCompleteBfiScores(scores)) {
     return {
       label: locale === "ko" ? "Big Five 결과" : "Big Five result",
       lines: BFI_KEYS.map((k) => ({ k: BFI_LABEL[locale][k], v: fmt(scores[k] as number) })),
     };
   }
+  if (hasAnyBfiKey(scores)) return null;
 
   // ECR-S attachment: { style, anxiety, avoidance }
   if (typeof o.style === "string" && (typeof o.anxiety === "number" || typeof o.avoidance === "number")) {
