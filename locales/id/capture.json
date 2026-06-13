@@ -1,6 +1,14 @@
 {
   "submit": "Simpan kepingan",
   "submitting": "Menyimpan...",
+  "submitHints": {
+    "writeFirst": "Tambahkan satu kalimat sebelum menyimpan.",
+    "fileRequired": "Pilih file atau tempel teks yang dapat dibaca sebelum menyimpan.",
+    "ocrRequired": "Pilih foto dan tinjau teks yang diekstrak sebelum menyimpan.",
+    "journalLocked": "Capai Lv{{level}} sebelum menyimpan entri jurnal.",
+    "journalLimit": "Entri jurnal gratis sudah habis. Mode tangkap lain masih tersedia.",
+    "saving": "Penyimpanan sedang berlangsung."
+  },
   "savedTitleFallback": "Kepingan hari ini",
   "loading": "Memuat tangkapan...",
   "hero": {

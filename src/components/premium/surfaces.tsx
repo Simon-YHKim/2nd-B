@@ -162,7 +162,7 @@ const BTN_FG: Record<BtnVariant, string> = {
 };
 const BTN_DISABLED_BG = withAlpha(cosmic.mistGray, 0.16);
 const BTN_DISABLED_BORDER = withAlpha(cosmic.mistGray, 0.46);
-const BTN_DISABLED_FG = withAlpha(cosmic.moonWhite, 0.58);
+const BTN_DISABLED_FG = withAlpha(cosmic.moonWhite, 0.72);
 const PRESSED_OFFSET = 3;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -218,13 +218,6 @@ export function PremiumButton({
         borderColor: focused ? gameboy.accent : gameboy.border,
         shadowColor: focused ? gameboy.accent : gameboy.border,
       };
-  const buttonStyle: StyleProp<ViewStyle> = [
-    fullStyle,
-    styles.btn,
-    colorStyle,
-    // O-11 P1 fix: caller style LAST so overrides (e.g. PremiumCTA padding) win.
-    style,
-  ];
   const foregroundColor = isDisabled ? BTN_DISABLED_FG : BTN_FG[variant];
   const pressTranslate = pressProgress.interpolate({
     inputRange: [0, 1],
@@ -255,24 +248,10 @@ export function PremiumButton({
     </>
   );
 
-  if (isDisabled) {
-    return (
-      <View
-        accessibilityRole={a11yRole}
-        accessibilityState={{ ...accessibilityState, disabled: true, busy: !!loading }}
-        accessibilityLabel={resolvedAccessibilityLabel}
-        accessibilityHint={accessibilityHint}
-        accessible
-        style={buttonStyle}
-      >
-        {buttonContent}
-      </View>
-    );
-  }
-
   return (
     <AnimatedPressable
       {...rest}
+      disabled={isDisabled}
       onPress={onPress}
       onLongPress={onLongPress}
       onPressIn={(event) => {
@@ -304,15 +283,15 @@ export function PremiumButton({
       accessibilityRole={a11yRole}
       accessibilityLabel={resolvedAccessibilityLabel}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ ...accessibilityState, disabled: false, busy: false }}
+      accessibilityState={{ ...accessibilityState, disabled: !!isDisabled, busy: !!loading }}
       style={[
         fullStyle,
         styles.btn,
         colorStyle,
         // O-11 P1 fix: caller style overrides base; press transforms stay last.
         style,
-        animatedPressStyle,
-        pressed ? styles.btnPressed : null,
+        !isDisabled ? animatedPressStyle : null,
+        !isDisabled && pressed ? styles.btnPressed : null,
       ]}
     >
       {buttonContent}

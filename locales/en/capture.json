@@ -1,6 +1,14 @@
 {
   "submit": "Save piece",
   "submitting": "Saving...",
+  "submitHints": {
+    "writeFirst": "Add a sentence before saving.",
+    "fileRequired": "Choose a file or paste readable text before saving.",
+    "ocrRequired": "Choose a photo and review the extracted text before saving.",
+    "journalLocked": "Reach Lv{{level}} before saving a journal entry.",
+    "journalLimit": "Free journal entries are used up. Other capture modes are still available.",
+    "saving": "Saving is already in progress."
+  },
   "savedTitleFallback": "Today's piece",
   "loading": "Loading capture...",
   "hero": {

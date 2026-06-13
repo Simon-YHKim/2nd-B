@@ -1,6 +1,14 @@
 {
   "submit": "Salvar peça",
   "submitting": "Salvando...",
+  "submitHints": {
+    "writeFirst": "Adicione uma frase antes de salvar.",
+    "fileRequired": "Escolha um arquivo ou cole um texto legível antes de salvar.",
+    "ocrRequired": "Escolha uma foto e revise o texto extraído antes de salvar.",
+    "journalLocked": "Alcance Lv{{level}} antes de salvar uma entrada de diário.",
+    "journalLimit": "As entradas gratuitas do diário acabaram. Outros modos de captura ainda estão disponíveis.",
+    "saving": "O salvamento já está em andamento."
+  },
   "savedTitleFallback": "Peça de hoje",
   "loading": "Carregando captura...",
   "hero": {

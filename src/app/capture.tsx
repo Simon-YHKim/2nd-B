@@ -728,6 +728,21 @@ export default function Capture() {
     (mode === "ocr" && hasOcrDraft && ocrReviewApproved) ||
     (mode === "file" && (!!pickedFile || body.trim().length > 0))
   );
+  const submitAccessibilityHint = canSubmit
+    ? undefined
+    : submitting
+      ? t("submitHints.saving")
+      : mode === "journal" && !journalGate.unlocked
+        ? t("submitHints.journalLocked", { level: journalGate.requiredLevel })
+        : mode === "journal" && !journalUsage.allowed
+          ? t("submitHints.journalLimit")
+          : mode === "ocr" && hasOcrDraft && !ocrReviewApproved
+            ? t("ocrReview.submitHint")
+            : mode === "ocr"
+              ? t("submitHints.ocrRequired")
+              : mode === "file"
+                ? t("submitHints.fileRequired")
+                : t("submitHints.writeFirst");
 
   // 일기(journal) mode writes to `records` via createRecord: streak, optional
   // topic/conclusion, and an opt-in Advisor reply. Crisis routing is honoured.
@@ -1613,7 +1628,7 @@ export default function Capture() {
               }
               accessibilityRole="button"
               accessibilityState={{ disabled: !canSubmit, busy: submitting }}
-              accessibilityHint={mode === "ocr" && hasOcrDraft && !ocrReviewApproved ? t("ocrReview.submitHint") : undefined}
+              accessibilityHint={submitAccessibilityHint}
             >
               <Text style={[styles.tossBtnText, !canSubmit && styles.tossBtnTextDisabled]}>
                 {submitting

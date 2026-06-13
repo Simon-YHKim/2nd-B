@@ -1,6 +1,14 @@
 {
   "submit": "Guardar pieza",
   "submitting": "Guardando...",
+  "submitHints": {
+    "writeFirst": "Agrega una oración antes de guardar.",
+    "fileRequired": "Elige un archivo o pega texto legible antes de guardar.",
+    "ocrRequired": "Elige una foto y revisa el texto extraído antes de guardar.",
+    "journalLocked": "Alcanza Lv{{level}} antes de guardar una entrada de diario.",
+    "journalLimit": "Ya usaste las entradas gratuitas del diario. Los otros modos de captura siguen disponibles.",
+    "saving": "El guardado ya está en curso."
+  },
   "savedTitleFallback": "Pieza de hoy",
   "loading": "Cargando captura...",
   "hero": {
