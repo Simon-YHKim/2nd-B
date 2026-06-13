@@ -258,6 +258,18 @@ export default function SignUp() {
               <Text variant="subtle" color="textMuted" style={styles.ageNotice}>
                 {t("signUp.ageNotice")}
               </Text>
+              <Link href="/manual" asChild>
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel={t("signUp.browseBeforeCommit")}
+                  accessibilityHint={t("signUp.browseBeforeCommitHint")}
+                  style={styles.browseLinkHit}
+                >
+                  <Text variant="subtle" color="brand" style={styles.link}>
+                    {t("signUp.browseBeforeCommit")}
+                  </Text>
+                </Pressable>
+              </Link>
             </View>
             <Image
               source={authHero}
@@ -482,6 +494,11 @@ const styles = StyleSheet.create({
   heroImg: { width: 112, height: 112 },
   title: { marginTop: 0 },
   ageNotice: { marginTop: spacing.xs },
+  browseLinkHit: {
+    minHeight: 44,
+    alignSelf: "flex-start",
+    justifyContent: "center",
+  },
   badgeWrap: { marginTop: spacing.sm },
   form: {
     gap: spacing.sm,

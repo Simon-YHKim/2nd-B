@@ -38,4 +38,21 @@ describe("visible trust copy", () => {
     expect(en).toMatch(/"viewPlans": "View plans"/);
     expect(ko).toMatch(/"viewPlans": "플랜 보기"/);
   });
+
+  test("sign-up offers a browse-before-commit path before account fields", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const screen = readFileSync(path.join(root, "src/app/(auth)/sign-up.tsx"), "utf8");
+    const en = readFileSync(path.join(root, "locales/en/auth.json"), "utf8");
+    const ko = readFileSync(path.join(root, "locales/ko/auth.json"), "utf8");
+
+    const browseIdx = screen.indexOf('t("signUp.browseBeforeCommit")');
+    const emailIdx = screen.indexOf('t("signUp.email")');
+
+    expect(browseIdx).toBeGreaterThan(-1);
+    expect(emailIdx).toBeGreaterThan(-1);
+    expect(browseIdx).toBeLessThan(emailIdx);
+    expect(screen).toContain('<Link href="/manual" asChild>');
+    expect(en).toContain('"browseBeforeCommit": "Browse first, then decide"');
+    expect(ko).toContain('"browseBeforeCommit": "먼저 둘러보고 결정하기"');
+  });
 });
