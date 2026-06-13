@@ -1327,14 +1327,14 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
         toValue: 1,
         duration: reduce ? 0 : 280,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     } else {
       Animated.timing(zoomReveal, {
         toValue: 0,
         duration: reduce ? 0 : 200,
         easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start(({ finished }) => {
         if (finished) setZoomMountId(null);
       });
@@ -1347,7 +1347,7 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
       toValue: drilldownCoreId ? 1 : 0,
       duration: prefersReducedMotion() ? 0 : 260,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   }, [drilldownCoreId, drilldownReveal]);
 
@@ -2146,7 +2146,7 @@ function NodeSheet({
       toValue: 1,
       duration: 220,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   }, [slide, name]);
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
@@ -2266,7 +2266,7 @@ function DrilldownSheet({
       toValue: 1,
       duration: prefersReducedMotion() ? 0 : 220,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   }, [coreId, slide]);
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [34, 0] });
@@ -2393,7 +2393,7 @@ function DataNodeSheet({
       toValue: 1,
       duration: 220,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   }, [slide, title]);
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
