@@ -71,13 +71,18 @@ results.push(
 results.push(
   check("C3", () => {
     const wrapper = read("src/lib/llm/gemini.ts");
+    const auditOutbox = read("src/lib/llm/audit-write-outbox.ts");
     const sql = read("db/migrations/0004_ai_audit_log.sql");
-    const ok = wrapper.includes("insertAiAuditLog") && sql.includes("ai_audit_log") && sql.includes("vertex_backend");
+    const ok =
+      wrapper.includes("enqueueAuditWrite") &&
+      auditOutbox.includes("insertAiAuditLog") &&
+      sql.includes("ai_audit_log") &&
+      sql.includes("vertex_backend");
     return {
       id: "C3",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "wrapper calls insertAiAuditLog; ai_audit_log has vertex_backend column"
+        ? "wrapper enqueues audit writes; ai_audit_log has vertex_backend column"
         : "audit log integration incomplete",
     };
   }),

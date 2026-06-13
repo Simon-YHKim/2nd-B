@@ -6,6 +6,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { AppState } from "react-native";
 
 import "../../global.css";
 import { initI18n } from "@/lib/i18n";
@@ -13,6 +14,7 @@ import { initAnalytics, setAnalyticsConsent } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
 import { requiresGuardianConsent } from "@/lib/auth/consent-age";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { ageInYears } from "@/lib/supabase/auth";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -48,6 +50,7 @@ export default function RootLayout() {
           <AuthProvider>
             <ThemedStatusBar />
             <AnalyticsConsentSync />
+            <AuditWriteOutboxSync />
             <IntroGate>
               <ThemedStack>
               <Stack.Screen name="index" />
@@ -301,5 +304,32 @@ function AnalyticsConsentSync(): null {
       cancelled = true;
     };
   }, [userId, isMinor, loading]);
+  return null;
+}
+
+function AuditWriteOutboxSync(): null {
+  const { userId, loading } = useAuth();
+  useEffect(() => {
+    if (loading || !userId) return;
+
+    const flush = () => {
+      void flushAuditWriteOutbox(userId);
+    };
+
+    flush();
+    const appStateSub = AppState.addEventListener("change", (state) => {
+      if (state === "active") flush();
+    });
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+      window.addEventListener("online", flush);
+      return () => {
+        appStateSub.remove();
+        window.removeEventListener("online", flush);
+      };
+    }
+    return () => {
+      appStateSub.remove();
+    };
+  }, [loading, userId]);
   return null;
 }

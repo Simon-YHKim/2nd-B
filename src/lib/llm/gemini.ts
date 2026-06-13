@@ -3,7 +3,7 @@
 //   C1: Only this file imports @google/genai (enforced by ESLint + boundary script).
 //   C2: When EXPO_PUBLIC_USE_VERTEX=true, the @google/genai client is constructed
 //       with vertexai:true, satisfying the XPRIZE "Google Cloud product" mandate.
-//   C3: After every call, ai_audit_log receives an INSERT via insertAiAuditLog().
+//   C3: After every call, ai_audit_log receives a queued write via audit-write outbox.
 //   C9: classifyInput() runs BEFORE the network call. Red zone short-circuits.
 //
 // Tests in __tests__/gemini.test.ts assert the ordering.
@@ -14,13 +14,14 @@ import { throwIfAborted } from "../async/abort";
 import { getEnv } from "../env";
 import { retrieveEvidence } from "../knowledge/retrieve";
 import { classifyInput, crisisHotlines, type SafetyResult } from "../safety/classifier";
-import { insertAiAuditLog } from "../supabase/audit";
 import { getSupabaseClient } from "../supabase/client";
-import { insertCrisisEvent } from "../supabase/crisis-events";
+import type { CrisisEventInsert } from "../supabase/crisis-events";
+import { enqueueAuditWrite } from "./audit-write-outbox";
 import { classifySafety, fixedCrisisResponse } from "./safety";
 import {
   MODELS,
   type AdvisorInput,
+  type AuditMeta,
   type AdvisorResult,
   type GeminiResult,
   type PromptInput,
@@ -75,6 +76,28 @@ function assertDirectEgressAllowed(env: ReturnType<typeof getEnv>): void {
         "which enforces the per-user/day spend cap, or use Vertex (EXPO_PUBLIC_USE_VERTEX=true).",
     );
   }
+}
+
+async function writeAiAuditLog(userId: string, audit: AuditMeta, warnLabel: string): Promise<void> {
+  await enqueueAuditWrite({
+    kind: "ai_audit_log",
+    ownerUserId: userId,
+    payload: { userId, ...audit },
+    warnLabel,
+  });
+}
+
+async function writeCrisisEvent(
+  userId: string,
+  payload: CrisisEventInsert,
+  warnLabel: string,
+): Promise<void> {
+  await enqueueAuditWrite({
+    kind: "crisis_event",
+    ownerUserId: userId,
+    payload,
+    warnLabel,
+  });
 }
 
 // Offline-preview responses keyed by purpose + locale. Used when LLM_MODE=mock
@@ -210,21 +233,18 @@ async function isProxyCrisisRejection(error: unknown): Promise<boolean> {
   const ctx = (error as { context?: { status?: number; clone?: unknown; json?: unknown } })
     .context;
   if (!ctx || typeof ctx !== "object" || ctx.status !== 422) return false;
-  // Confirm the marker when the body is readable. The proxy's only 422 source
-  // today is the crisis gate, so an unreadable body still counts as crisis —
-  // over-routing shows a dismissible hotline modal; under-routing shows a raw
-  // error to someone in crisis. A readable body with a DIFFERENT error marker
-  // (a future non-crisis 422) is rethrown by the callers.
+  // Confirm the marker explicitly. Non-crisis 422s share this transport status,
+  // so an unreadable body must not be auto-classified as crisis.
   try {
     const target =
       typeof ctx.clone === "function"
         ? ((ctx.clone as () => { json?: () => Promise<unknown> })())
         : (ctx as { json?: () => Promise<unknown> });
-    if (typeof target.json !== "function") return true;
+    if (typeof target.json !== "function") return false;
     const body = (await target.json()) as { error?: unknown } | null;
-    return body == null || typeof body.error !== "string" || body.error === "safety_red_zone";
+    return body?.error === "safety_red_zone";
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -283,11 +303,7 @@ async function routeCrisis(
   };
   // C3: crisis routing MUST be audited. The whole point of audit_log is the
   // judges' ability to prove the safety classifier intercepted dangerous input.
-  try {
-    await insertAiAuditLog({ userId, ...audit });
-  } catch (e) {
-    if (typeof console !== "undefined") console.warn("[ai_audit_log] crisis insert failed", e);
-  }
+  await writeAiAuditLog(userId, audit, "[ai_audit_log] crisis insert failed");
   // Separate restricted ledger (crisis_events), parity with callAdvisor's input-RED
   // path. Without this every callGemini surface (chat/journal/interview/persona/
   // import/clipper/phase1) intercepted a crisis but left NO categorical trace in the
@@ -297,23 +313,23 @@ async function routeCrisis(
   // client short-circuit, proxy_input_red for the server-gate 422 fallback —
   // to distinguish from the output_swap path). Best-effort — never throw out
   // of routeCrisis.
-  try {
-    const lexCategories =
-      result.categories.length > 0
-        ? result.categories
-        : result.matched.length > 0
-          ? ["lexicon_match"]
-          : [];
-    await insertCrisisEvent({
+  const lexCategories =
+    result.categories.length > 0
+      ? result.categories
+      : result.matched.length > 0
+        ? ["lexicon_match"]
+        : [];
+  await writeCrisisEvent(
+    userId,
+    {
       classifierConfidence: 0.95,
       triggerCategories: [...lexCategories, sourceTag],
       cssrsLevel: null,
       routingTemplateVersion: "routecrisis-inline-v1",
       locale,
-    });
-  } catch (e) {
-    if (typeof console !== "undefined") console.warn("[crisis_events] crisis insert failed", e);
-  }
+    },
+    "[crisis_events] crisis insert failed",
+  );
   return { text, safety: result, audit };
 }
 
@@ -357,11 +373,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       safetyZone: outputSafety.zone,
       latencyMs,
     };
-    try {
-      await insertAiAuditLog({ userId: input.userId, ...audit });
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[ai_audit_log] insert failed (mock)", e);
-    }
+    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] insert failed (mock)");
     return { text: text as unknown as T, safety: outputSafety, audit };
   }
 
@@ -492,14 +504,11 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       latencyMs,
     };
     if (!proxyAudited) {
-      try {
-        await insertAiAuditLog({ userId: input.userId, ...swapAudit });
-      } catch (e) {
-        if (typeof console !== "undefined") console.warn("[ai_audit_log] output-swap insert failed", e);
-      }
+      await writeAiAuditLog(input.userId, swapAudit, "[ai_audit_log] output-swap insert failed");
     }
-    try {
-      await insertCrisisEvent({
+    await writeCrisisEvent(
+      input.userId,
+      {
         // Carry the semantic classifier's confidence / triggers / C-SSRS level
         // when present (Flash); on the lexicon-only fallback these are the
         // lexicon's conservative values.
@@ -508,10 +517,9 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
         cssrsLevel: semantic.cssrsLevel,
         routingTemplateVersion: fixed.version,
         locale: input.locale,
-      });
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[crisis_events] output-swap insert failed", e);
-    }
+      },
+      "[crisis_events] output-swap insert failed",
+    );
     return {
       text: fixed.text as unknown as T,
       safety: outputSafety,
@@ -533,11 +541,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   // duplicate; we still write here on the direct path and whenever the proxy
   // did not confirm an audit (deploy-safe fallback).
   if (!proxyAudited) {
-    try {
-      await insertAiAuditLog({ userId: input.userId, ...audit });
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[ai_audit_log] insert failed", e);
-    }
+    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] insert failed");
   }
 
   return {
@@ -582,22 +586,18 @@ async function advisorProxyCrisisResult(
     safetyZone: "red" as const,
     latencyMs: 0,
   };
-  try {
-    await insertAiAuditLog({ userId: input.userId, ...audit });
-  } catch (e) {
-    if (typeof console !== "undefined") console.warn("[advisor] proxy-crisis audit failed", e);
-  }
-  try {
-    await insertCrisisEvent({
+  await writeAiAuditLog(input.userId, audit, "[advisor] proxy-crisis audit failed");
+  await writeCrisisEvent(
+    input.userId,
+    {
       classifierConfidence: 0.95,
       triggerCategories: ["proxy_input_red"],
       cssrsLevel: null,
       routingTemplateVersion: fixed.version,
       locale: input.locale,
-    });
-  } catch (e) {
-    if (typeof console !== "undefined") console.warn("[advisor] proxy-crisis crisis_events failed", e);
-  }
+    },
+    "[advisor] proxy-crisis crisis_events failed",
+  );
   return {
     text: fixed.text,
     zone: "red",
@@ -628,23 +628,19 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       latencyMs: 0,
     };
     // C3: audit log.
-    try {
-      await insertAiAuditLog({ userId: input.userId, ...audit });
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[advisor] audit insert failed", e);
-    }
+    await writeAiAuditLog(input.userId, audit, "[advisor] audit insert failed");
     // Separate restricted log (crisis_events). Categorical only.
-    try {
-      await insertCrisisEvent({
+    await writeCrisisEvent(
+      input.userId,
+      {
         classifierConfidence: safety.confidence,
         triggerCategories: safety.triggers,
         cssrsLevel: safety.cssrsLevel,
         routingTemplateVersion: fixed.version,
         locale: input.locale,
-      });
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[advisor] crisis_events insert failed", e);
-    }
+      },
+      "[advisor] crisis_events insert failed",
+    );
     return {
       text: fixed.text,
       zone: "red",
@@ -690,11 +686,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       safetyZone: safety.zone,
       latencyMs: 0,
     };
-    try {
-      await insertAiAuditLog({ userId: input.userId, ...audit });
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[advisor] mock audit failed", e);
-    }
+    await writeAiAuditLog(input.userId, audit, "[advisor] mock audit failed");
     return {
       text,
       zone: safety.zone,
@@ -786,23 +778,19 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     // Skip when the proxy already wrote the row (proxyAudited); the swap itself
     // is still recorded in crisis_events below regardless.
     if (!proxyAudited) {
-      try {
-        await insertAiAuditLog({ userId: input.userId, ...audit });
-      } catch (e) {
-        if (typeof console !== "undefined") console.warn("[advisor] output-swap audit failed", e);
-      }
+      await writeAiAuditLog(input.userId, audit, "[advisor] output-swap audit failed");
     }
-    try {
-      await insertCrisisEvent({
+    await writeCrisisEvent(
+      input.userId,
+      {
         classifierConfidence: outputSafety.confidence,
         triggerCategories: [...outputSafety.triggers, "output_swap"],
         cssrsLevel: outputSafety.cssrsLevel,
         routingTemplateVersion: fixed.version,
         locale: input.locale,
-      });
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[advisor] output-swap crisis_events failed", e);
-    }
+      },
+      "[advisor] output-swap crisis_events failed",
+    );
     return {
       text: fixed.text,
       zone: "red",
@@ -828,11 +816,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     latencyMs,
   };
   if (!proxyAudited) {
-    try {
-      await insertAiAuditLog({ userId: input.userId, ...audit });
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[advisor] audit failed", e);
-    }
+    await writeAiAuditLog(input.userId, audit, "[advisor] audit failed");
   }
   return {
     text,

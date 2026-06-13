@@ -34,6 +34,11 @@ jest.mock("../../env", () => ({
 }));
 
 import { callGemini } from "../gemini";
+import {
+  flushAuditWriteOutbox,
+  getAuditWriteOutboxForTests,
+  resetAuditWriteOutboxForTests,
+} from "../audit-write-outbox";
 import { insertAiAuditLog } from "../../supabase/audit";
 import { insertCrisisEvent } from "../../supabase/crisis-events";
 
@@ -41,10 +46,13 @@ const insertMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditL
 const crisisMock = insertCrisisEvent as jest.MockedFunction<typeof insertCrisisEvent>;
 
 describe("callGemini (mock mode)", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await resetAuditWriteOutboxForTests();
     mockGenerateContent.mockClear();
     insertMock.mockClear();
+    insertMock.mockResolvedValue(undefined);
     crisisMock.mockClear();
+    crisisMock.mockResolvedValue(undefined);
   });
 
   test("C9: red zone still short-circuits without producing a mock response", async () => {
@@ -91,5 +99,9 @@ describe("callGemini (mock mode)", () => {
         user: "A normal day.",
       }),
     ).resolves.toBeDefined();
+    expect(await getAuditWriteOutboxForTests()).toHaveLength(1);
+    await flushAuditWriteOutbox("u1");
+    expect(insertMock).toHaveBeenCalledTimes(2);
+    expect(await getAuditWriteOutboxForTests()).toHaveLength(0);
   });
 });

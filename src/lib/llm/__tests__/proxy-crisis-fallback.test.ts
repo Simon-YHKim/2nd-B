@@ -160,7 +160,7 @@ describe("callGemini — proxy 422 crisis fallback (C9 follow-up)", () => {
     expect(crisisMock).not.toHaveBeenCalled();
   });
 
-  test("a 422 with an unreadable body routes conservatively (crisis)", async () => {
+  test("a 422 with an unreadable body still throws instead of auto-routing crisis", async () => {
     const unreadable = {
       context: {
         status: 422,
@@ -171,15 +171,15 @@ describe("callGemini — proxy 422 crisis fallback (C9 follow-up)", () => {
     };
     mockInvoke.mockResolvedValueOnce({ data: null, error: unreadable });
 
-    const r = await callGemini({
-      userId: "u1",
-      locale: "en",
-      purpose: "interview_probe",
-      user: BENIGN_EN,
-    });
-
-    expect(r.safety.zone).toBe("red");
-    expect(crisisMock).toHaveBeenCalledTimes(1);
+    await expect(
+      callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "interview_probe",
+        user: BENIGN_EN,
+      }),
+    ).rejects.toBe(unreadable);
+    expect(crisisMock).not.toHaveBeenCalled();
   });
 });
 

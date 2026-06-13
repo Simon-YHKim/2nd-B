@@ -4,7 +4,7 @@
 //   - Global rule blocks all foreign LLM SDKs and @google/genai
 //   - Overrides re-enable @google/genai inside src/lib/llm/gemini.ts only
 //   - Separate override blocks direct import of src/lib/supabase/audit.ts
-//     from anywhere except src/lib/llm/gemini.ts (C3 bypass prevention)
+//     from anywhere except sanctioned LLM-boundary modules (C3 bypass prevention)
 
 import tsParser from "@typescript-eslint/parser";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
@@ -82,12 +82,14 @@ export default [
       ],
     },
   },
-  // Block direct import of audit / crisis-events modules from outside the wrapper.
+  // Block direct import of audit / crisis-events modules from outside the wrapper
+  // and its durable write-outbox helper.
   // Tests for the wrapper need to import them to mock; allow them explicitly.
   {
     files: ["**/*.{ts,tsx}"],
     ignores: [
       "src/lib/llm/gemini.ts",
+      "src/lib/llm/audit-write-outbox.ts",
       "src/lib/llm/safety.ts",
       "src/lib/supabase/audit.ts",
       "src/lib/supabase/crisis-events.ts",

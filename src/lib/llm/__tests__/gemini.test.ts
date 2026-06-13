@@ -1,6 +1,6 @@
 // C9 assertion: classifyInput runs before any LLM network call, and
 // red-zone input short-circuits without invoking the SDK.
-// C3 assertion: insertAiAuditLog is called for normal flows.
+// C3 assertion: normal flows enqueue and flush insertAiAuditLog.
 // We mock both @google/genai and the audit helper.
 
 import type { GeminiResult } from "../types";
@@ -56,14 +56,21 @@ jest.mock("../../env", () => ({
 }));
 
 import { callGemini } from "../gemini";
+import {
+  flushAuditWriteOutbox,
+  getAuditWriteOutboxForTests,
+  resetAuditWriteOutboxForTests,
+} from "../audit-write-outbox";
 import { insertAiAuditLog } from "../../supabase/audit";
 
 const insertMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLog>;
 
 describe("callGemini", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await resetAuditWriteOutboxForTests();
     mockGenerateContent.mockClear();
     insertMock.mockClear();
+    insertMock.mockResolvedValue(undefined);
   });
 
   test("C9: red-zone input short-circuits and does NOT call Gemini SDK", async () => {
@@ -104,6 +111,10 @@ describe("callGemini", () => {
         user: "A normal day.",
       }),
     ).resolves.toBeDefined();
+    expect(await getAuditWriteOutboxForTests()).toHaveLength(1);
+    await flushAuditWriteOutbox("u1");
+    expect(insertMock).toHaveBeenCalledTimes(2);
+    expect(await getAuditWriteOutboxForTests()).toHaveLength(0);
   });
 
   test("C3 + C9: red zone is also audited (crisis event recorded for judges)", async () => {
