@@ -6,11 +6,12 @@
 //
 // Native-only (G4: needs a dev/EAS build). Web keeps calendar-based paths.
 
-let Notifications: typeof import("expo-notifications") = null as any;
+let Notifications: typeof import("expo-notifications") | null = null;
 try {
-  Notifications = require("expo-notifications");
+  Notifications = require("expo-notifications") as typeof import("expo-notifications");
 } catch {
   // Expo Go (SDK 53+) throws when requiring expo-notifications.
+  Notifications = null;
 }
 
 import type { OpsEventInput } from "./push";
@@ -26,7 +27,7 @@ function isReactNativeRuntime(): boolean {
 
 /** True when the native module is present AND we're on a native runtime. */
 export function remindersSupported(): boolean {
-  if (!isReactNativeRuntime()) return false;
+  if (!isReactNativeRuntime() || !Notifications) return false;
   try {
     return typeof Notifications.scheduleNotificationAsync === "function";
   } catch {
@@ -37,6 +38,7 @@ export function remindersSupported(): boolean {
 // Android 8+ requires a channel; the call resolves to null elsewhere. Failure
 // must not block scheduling (the OS falls back to the default channel).
 async function ensureChannel(): Promise<void> {
+  if (!Notifications) return;
   try {
     await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
       name: "Routines",
@@ -52,7 +54,7 @@ async function ensureChannel(): Promise<void> {
  * local wall-clock time for daily/weekly routines, one-shot otherwise.
  */
 export async function scheduleRoutineReminder(input: OpsEventInput): Promise<ReminderResult> {
-  if (!remindersSupported()) return "unavailable";
+  if (!remindersSupported() || !Notifications) return "unavailable";
   const start = new Date(input.startsAtIso);
   if (Number.isNaN(start.getTime())) return "error";
   try {

@@ -158,13 +158,15 @@
     "camera": "Câmera",
     "library": "Biblioteca",
     "preview": "Visualizar",
-    "extract": "Extrair texto"
+    "extract": "Extrair texto",
+    "dataUsageHint": "Extrair texto de fotos pode gerar cobranca de dados. Recomenda-se Wi-Fi."
   },
   "file": {
     "pick": "Escolher arquivo",
     "selected": "Arquivo selecionado",
     "textExtracted": "Texto extraído: preenchido no corpo",
-    "attachedNoPreview": "Arquivo anexado. A visualização do texto não está disponível."
+    "attachedNoPreview": "Arquivo anexado. A visualização do texto não está disponível.",
+    "dataUsageHint": "O envio de arquivos pode gerar cobranca de dados. Recomenda-se Wi-Fi."
   },
   "tags": {
     "title": "Hashtags",

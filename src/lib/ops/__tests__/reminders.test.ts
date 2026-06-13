@@ -116,4 +116,27 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     const trigger = (scheduleNotificationAsync.mock.calls[0][0] as { trigger: { type: string } }).trigger;
     expect(trigger.type).toBe("date");
   });
+
+  test("reports unavailable when the native notifications module cannot be loaded", async () => {
+    setNavigatorProduct("ReactNative");
+    jest.resetModules();
+    jest.doMock("expo-notifications", () => {
+      throw new Error("removed from Expo Go");
+    });
+
+    try {
+      const unavailableReminders = require("../reminders") as typeof import("../reminders");
+      expect(unavailableReminders.remindersSupported()).toBe(false);
+      await expect(
+        unavailableReminders.scheduleRoutineReminder({
+          title: "x",
+          startsAtIso: "2026-06-12T09:00:00.000Z",
+        }),
+      ).resolves.toBe("unavailable");
+      expect(requestPermissionsAsync).not.toHaveBeenCalled();
+    } finally {
+      jest.dontMock("expo-notifications");
+      jest.resetModules();
+    }
+  });
 });

@@ -158,13 +158,15 @@
     "camera": "Cámara",
     "library": "Biblioteca",
     "preview": "Vista previa",
-    "extract": "Extraer texto"
+    "extract": "Extraer texto",
+    "dataUsageHint": "Extraer texto de fotos puede generar cargos de datos. Se recomienda usar Wi-Fi."
   },
   "file": {
     "pick": "Elegir archivo",
     "selected": "Archivo seleccionado",
     "textExtracted": "Texto extraído: añadido al cuerpo",
-    "attachedNoPreview": "Archivo adjunto. La vista previa de texto no está disponible."
+    "attachedNoPreview": "Archivo adjunto. La vista previa de texto no está disponible.",
+    "dataUsageHint": "Subir archivos puede generar cargos de datos. Se recomienda usar Wi-Fi."
   },
   "tags": {
     "title": "Hashtags",

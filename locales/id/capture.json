@@ -158,13 +158,15 @@
     "camera": "Kamera",
     "library": "Galeri",
     "preview": "Pratinjau",
-    "extract": "Ekstrak teks"
+    "extract": "Ekstrak teks",
+    "dataUsageHint": "Ekstraksi teks dari foto dapat memakai kuota data. Wi-Fi disarankan."
   },
   "file": {
     "pick": "Pilih file",
     "selected": "File dipilih",
     "textExtracted": "Teks diekstrak: dimasukkan ke isi",
-    "attachedNoPreview": "File terlampir. Pratinjau teks tidak tersedia."
+    "attachedNoPreview": "File terlampir. Pratinjau teks tidak tersedia.",
+    "dataUsageHint": "Mengunggah file dapat memakai kuota data. Wi-Fi disarankan."
   },
   "tags": {
     "title": "Tagar",
