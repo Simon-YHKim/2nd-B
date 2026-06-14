@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 describe("visible trust copy", () => {
@@ -62,6 +62,27 @@ describe("visible trust copy", () => {
     expect(ko).toContain('"browseBeforeCommit": "먼저 둘러보고 결정하기"');
     expect(en).toContain('"manualLink": "New here? Read the 1-min manual"');
     expect(ko).toContain('"manualLink": "이 앱이 처음이라면 안내서 보기"');
+  });
+
+  test("auth entry copy does not promise pre-account or local-device capture", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const localeRoot = path.join(root, "locales");
+    const authBundles = readdirSync(localeRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => readFileSync(path.join(localeRoot, entry.name, "auth.json"), "utf8"));
+    const authScreens = [
+      "src/app/(auth)/sign-in.tsx",
+      "src/app/(auth)/sign-up.tsx",
+    ].map((file) => readFileSync(path.join(root, file), "utf8"));
+    const text = [...authBundles, ...authScreens].join("\n");
+
+    expect(text).not.toMatch(
+      /no account (?:required|needed)|without an? account|account-free|no sign-up|no signup|start without/i,
+    );
+    expect(text).not.toMatch(
+      /on your device|stays on your device|kept on your device|local-only|local first|local-first|local vault/i,
+    );
+    expect(text).not.toMatch(/계정\s*없이|가입\s*없이|로그인\s*없이|내\s*기기|기기\s*안|로컬/);
   });
 
   test("sign-up dense consent and input borders avoid first-viewport regressions", () => {
