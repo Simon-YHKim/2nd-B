@@ -2524,6 +2524,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 7,
+    minHeight: 44,
     borderRadius: 8,
     backgroundColor: GRAPH_CONTROL_BG,
     borderWidth: 1,

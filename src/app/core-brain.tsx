@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   fieldRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs },
   fieldLabel: { letterSpacing: 0 },
   fieldDot: { width: 8, height: 8, borderRadius: 4 },
-  evidenceBtn: { paddingVertical: spacing.xs },
+  evidenceBtn: { paddingVertical: spacing.xs, minHeight: 44, justifyContent: "center" },
   emptyActions: { gap: spacing.md, marginTop: spacing.xl, width: "100%", maxWidth: 320 },
   backdrop: { flex: 1, backgroundColor: semantic.backdrop, justifyContent: "flex-end" },
   drawer: {

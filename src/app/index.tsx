@@ -873,7 +873,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   comfortFootnote: {
-    color: cosmic.quietGray,
+    color: cosmic.mistGray,
     fontSize: 12,
   },
   coreHintCard: {

@@ -774,6 +774,8 @@ const styles = StyleSheet.create({
   contextPillWrap: { marginTop: spacing.sm },
   quickRow: { gap: spacing.sm, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
   quickChip: {
+    minHeight: 44,
+    justifyContent: "center",
     backgroundColor: semantic.surfaceAlt,
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
