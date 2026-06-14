@@ -516,8 +516,8 @@ export async function ensureUserProfile(args: CompleteProfileArgs): Promise<Comp
 
   // Idempotent: if the profile already exists, we're done. This protects
   // against double-submits and Supabase auth refresh loops.
-  const { data: existing } = await supabase.from("users").select("id").eq("id", user.id).maybeSingle();
-  if (existing) return { created: false, judgeMode: false };
+  const { data: existing } = await supabase.from("users").select("id, judge_mode").eq("id", user.id).maybeSingle();
+  if (existing) return { created: false, judgeMode: existing.judge_mode === true };
 
   const judgeMode = isJudgeEmail(user.email ?? "");
   const { error: insertErr } = await supabase.from("users").insert({

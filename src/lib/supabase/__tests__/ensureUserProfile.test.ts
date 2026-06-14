@@ -70,4 +70,29 @@ describe("ensureUserProfile — C10 age gate (OAuth path)", () => {
     await expect(ensureUserProfile({ birthDate: "", locale: "ko" })).rejects.toBeInstanceOf(AgeGateError);
     expect(supabaseMock.auth.getUser).not.toHaveBeenCalled();
   });
+
+  test("existing judge profile preserves judgeMode on the idempotent OAuth path", async () => {
+    const adult = new Date();
+    adult.setFullYear(adult.getFullYear() - 30);
+    const iso = adult.toISOString().slice(0, 10);
+    const maybeSingle = jest.fn().mockResolvedValue({ data: { id: "judge-1", judge_mode: true }, error: null });
+    const eq = jest.fn().mockReturnValue({ maybeSingle });
+    const select = jest.fn().mockReturnValue({ eq });
+    const insert = jest.fn();
+
+    supabaseMock.auth.getUser.mockResolvedValue({
+      data: { user: { id: "judge-1", email: "judge@example.com" } },
+      error: null,
+    });
+    supabaseMock.from.mockReturnValue({ select, insert });
+
+    await expect(ensureUserProfile({ birthDate: iso, locale: "en" })).resolves.toEqual({
+      created: false,
+      judgeMode: true,
+    });
+
+    expect(select).toHaveBeenCalledWith("id, judge_mode");
+    expect(eq).toHaveBeenCalledWith("id", "judge-1");
+    expect(insert).not.toHaveBeenCalled();
+  });
 });
