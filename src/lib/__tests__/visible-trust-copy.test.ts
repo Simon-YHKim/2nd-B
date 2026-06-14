@@ -157,8 +157,10 @@ describe("visible trust copy", () => {
     expect(pt.saved.recordsOwnership).toContain("Uma frase já basta");
     expect(id.firstRun.hint).toContain("catatan tersimpan pertamamu");
     expect(id.saved.recordsOwnership).toContain("Satu kalimat cukup");
-    expect(combined).not.toMatch(/graph|local|device|anonymous|no sign-up|no signup/i);
-    expect(combined).not.toMatch(/그래프|로컬|기기|계정 없이/);
+    expect(combined).not.toMatch(
+      /graph|local|local-first|local-only|device|on your device|not the app|anonymous|no account|without account|account-free|no sign-up|no signup/i,
+    );
+    expect(combined).not.toMatch(/그래프|로컬|기기|내 기기|기기 안|계정 없이|계정 없이도|가입 없이/);
   });
 
   test("first-run graph card does not promise a journal save lights the graph", () => {
