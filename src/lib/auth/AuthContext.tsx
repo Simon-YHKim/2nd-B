@@ -7,6 +7,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getSupabaseClient } from "../supabase/client";
 import { ageInYears } from "../supabase/auth";
+import { preserveKnownMinorForMissingProfile, type ProfileProbe } from "./profile-probe";
 
 // A signed-in user counts as a minor for safety routing when under 18 (in
 // practice 14-17, since <14 cannot register — C10). Crisis routing uses this
@@ -38,11 +39,6 @@ const AuthContext = createContext<AuthContextValue>({
   loading: true,
   refresh: async () => {},
 });
-
-interface ProfileProbe {
-  hasProfile: boolean;
-  isMinor: boolean | null;
-}
 
 async function fetchProfile(userId: string): Promise<ProfileProbe> {
   const supabase = getSupabaseClient();
@@ -139,7 +135,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isMinor: lastProbe.isMinor,
           loading: false,
         });
-        const refreshed = await withTimeout(fetchProfile(userId), PROFILE_PROBE_TIMEOUT_MS, lastProbe);
+        const refreshed = preserveKnownMinorForMissingProfile(
+          await withTimeout(fetchProfile(userId), PROFILE_PROBE_TIMEOUT_MS, lastProbe),
+          lastProbe,
+        );
         if (cancelled || gen !== probeGenRef.current) return;
         lastProbeRef.current = refreshed;
         setState({
@@ -211,7 +210,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastUserIdRef.current === uid && lastProbeRef.current !== null
         ? lastProbeRef.current
         : { hasProfile: false, isMinor: null };
-    const probe = await withTimeout(fetchProfile(uid), PROFILE_PROBE_TIMEOUT_MS, fallback);
+    const probe = preserveKnownMinorForMissingProfile(
+      await withTimeout(fetchProfile(uid), PROFILE_PROBE_TIMEOUT_MS, fallback),
+      lastUserIdRef.current === uid ? lastProbeRef.current : null,
+    );
     if (gen !== probeGenRef.current) return;
     lastUserIdRef.current = uid;
     lastProbeRef.current = probe;
