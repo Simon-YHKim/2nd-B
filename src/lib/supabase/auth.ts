@@ -86,7 +86,27 @@ export async function isPasswordBreached(password: string): Promise<boolean> {
 // years elapsed. The sign-up floor (MIN_SELF_CONSENT_AGE = 14) is applied by
 // the callers above; the DB no longer hard-codes an age CHECK (0028 relaxed the
 // legacy adult-only rule to a sanity range).
+const ISO_BIRTH_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) return isLeapYear(year) ? 29 : 28;
+  if ([4, 6, 9, 11].includes(month)) return 30;
+  return 31;
+}
+
 export function ageInYears(birthDate: string, now: Date = new Date()): number {
+  const match = ISO_BIRTH_DATE.exec(birthDate);
+  if (!match) return -1;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12) return -1;
+  if (day < 1 || day > daysInMonth(year, month)) return -1;
+
   const b = dayjs(birthDate);
   if (!b.isValid()) return -1;
   return dayjs(now).diff(b, "year");

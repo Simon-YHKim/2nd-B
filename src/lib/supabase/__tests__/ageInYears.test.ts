@@ -29,6 +29,11 @@ describe("ageInYears", () => {
   test("malformed date returns -1", () => {
     expect(ageInYears("not-a-date", today)).toBe(-1);
     expect(ageInYears("", today)).toBe(-1);
+    expect(ageInYears("2010-2-03", today)).toBe(-1);
+    expect(ageInYears("2010-02-31", today)).toBe(-1);
+    expect(ageInYears("2010-13-01", today)).toBe(-1);
+    expect(ageInYears("2010-00-10", today)).toBe(-1);
+    expect(ageInYears("2010-11-31", today)).toBe(-1);
   });
 
   test("leap-year birthday — non-leap target year clamps to last of Feb", () => {
