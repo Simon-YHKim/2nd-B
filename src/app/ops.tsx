@@ -24,13 +24,13 @@ import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import type { PrivacyPrefs } from "@/lib/privacy/prefs";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
-import { recommendForDomain, type OpsRecommendation } from "@/lib/ops/recommend";
+import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildChecklistShareText, buildGoogleCalendarUrl, buildIcsEvent } from "@/lib/ops/push";
 import { addEventToDeviceCalendar, deviceCalendarSupported } from "@/lib/ops/device-calendar";
 import { remindersSupported, scheduleRoutineReminder } from "@/lib/ops/reminders";
 import { OPS_DAILY_LIMIT, bumpOpsUsage, readOpsUsage } from "@/lib/ops/usage";
 
-type RunState = "idle" | "working" | "empty" | "error" | "limit";
+type RunState = "idle" | "working" | "empty" | "error" | "limit" | "off";
 
 // Recommendations without their own time still need one for calendar hand-off;
 // "tomorrow morning" is an honest, editable default (the user's calendar app
@@ -103,6 +103,13 @@ export default function Ops() {
 
   async function runRecommend(): Promise<void> {
     if (!userId || !domain || runState === "working") return;
+    // D-20 / PROTOCOL §36: honor the minor recommendations lock at the gate. `recommendations`
+    // is server-clamped OFF and non-promotable for 14-17 minors (privacy/prefs.ts); without this
+    // the wiki snapshot reached the recommend LLM call ungated. Adults are unaffected.
+    if (!recommendationsAllowed(isMinor, prefs?.recommendations)) {
+      setRunState("off");
+      return;
+    }
     if (limitReached) {
       setRunState("limit");
       return;
@@ -329,6 +336,11 @@ export default function Ops() {
         {runState === "error" ? (
           <Text variant="subtle" color="danger">
             {t("recommend.error")}
+          </Text>
+        ) : null}
+        {runState === "off" ? (
+          <Text variant="subtle" color="textMuted">
+            {t("recommend.off")}
           </Text>
         ) : null}
 

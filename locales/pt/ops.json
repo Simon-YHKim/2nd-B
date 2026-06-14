@@ -35,6 +35,7 @@
     "stateAvailable": "disponível"
   },
   "recommend": {
+    "off": "As sugestões de rotina estão desativadas nesta conta, então suas anotações ficam privadas.",
     "cta": "Sugerir próximos passos",
     "ctaHint": "Lê suas peças salvas e cria algumas sugestões.",
     "working": "Preparando sugestões…",
