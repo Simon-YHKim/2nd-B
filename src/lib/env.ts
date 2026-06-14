@@ -24,7 +24,6 @@ export function normalizeAnalyticsUrl(name: string, value: string | undefined): 
   if (!trimmed) return undefined;
   const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   try {
-    // eslint-disable-next-line no-new
     new URL(candidate);
     return candidate;
   } catch {

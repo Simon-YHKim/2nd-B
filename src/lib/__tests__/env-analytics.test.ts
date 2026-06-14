@@ -33,7 +33,6 @@ describe("normalizeAnalyticsUrl (analytics endpoints never brick the app)", () =
       const prev = process.env.EXPO_PUBLIC_POSTHOG_HOST;
       process.env.EXPO_PUBLIC_POSTHOG_HOST = "";
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { getEnv } = require("../env") as typeof import("../env");
         expect(() => getEnv()).not.toThrow();
         expect(getEnv().EXPO_PUBLIC_POSTHOG_HOST).toBeUndefined();
@@ -56,7 +55,6 @@ describe("provider toggles survive the ''-for-unset workflow behavior", () => {
         else process.env[k] = v;
       }
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         result = (require("../env") as typeof import("../env")).getEnv();
       } finally {
         for (const [k, v] of Object.entries(prev)) {

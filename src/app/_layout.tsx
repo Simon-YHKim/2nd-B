@@ -219,7 +219,6 @@ function IntroGate({ children }: { children: React.ReactNode }) {
     };
     // Hydrate exactly once on mount — introDone is read but deliberately not
     // a dependency (it only flips one way and the effect self-noops then).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Global C10 + PIPA-consent gate (re-audit 2026-06-03: per-screen gating was
