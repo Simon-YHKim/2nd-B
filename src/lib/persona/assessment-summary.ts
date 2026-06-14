@@ -4,6 +4,8 @@
 // turns that JSON into readable label/value lines; it returns null for plain
 // text bodies (journal, audit, capture) so those render unchanged.
 
+import { hasAnyMbtiSignal, isValidMbtiResult } from "./assessment-shapes";
+
 export interface AssessmentLine {
   k: string;
   v: string;
@@ -54,12 +56,13 @@ export function summarizeAssessmentBody(
   const scores = o.scores && typeof o.scores === "object" ? (o.scores as Record<string, unknown>) : o;
 
   // MBTI: { type: "INTJ", scores: { E, I, S, N, T, F, J, P } }
-  if (typeof o.type === "string" && o.scores && typeof o.scores === "object" && "E" in (o.scores as object)) {
+  if (isValidMbtiResult(o)) {
     return {
       label: locale === "ko" ? "MBTI 결과" : "MBTI result",
       lines: [{ k: locale === "ko" ? "유형" : "Type", v: String(o.type) }],
     };
   }
+  if (hasAnyMbtiSignal(o)) return null;
 
   // Big Five: { scores: { openness, ... } } or flat { openness, ... }
   if (hasCompleteBfiScores(scores)) {

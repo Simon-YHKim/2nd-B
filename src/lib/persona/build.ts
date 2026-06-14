@@ -13,6 +13,7 @@
 import { AUDIT_QUESTIONS, type Framework } from "../audit/questions";
 import { callGemini } from "../llm/gemini";
 import { getSupabaseClient } from "../supabase/client";
+import { isValidMbtiResult, type MbtiScores } from "./assessment-shapes";
 
 export interface PersonaTraits {
   openness: number;
@@ -47,7 +48,7 @@ export function traitConfidenceFor(source: TraitsSource, observationCount: numbe
 
 export interface PersonaMbti {
   type: string;
-  scores: Record<"E" | "I" | "S" | "N" | "T" | "F" | "J" | "P", number>;
+  scores: MbtiScores;
 }
 
 export interface PersonaAttachment {
@@ -174,11 +175,8 @@ async function loadLatestMbti(
     .limit(1);
   if (error || !data || data.length === 0) return null;
   try {
-    const parsed = JSON.parse((data[0] as { body: string }).body) as {
-      type?: string;
-      scores?: Record<"E" | "I" | "S" | "N" | "T" | "F" | "J" | "P", number>;
-    };
-    if (typeof parsed.type !== "string" || parsed.type.length !== 4 || !parsed.scores) return null;
+    const parsed = JSON.parse((data[0] as { body: string }).body);
+    if (!isValidMbtiResult(parsed)) return null;
     return { type: parsed.type, scores: parsed.scores };
   } catch {
     return null;

@@ -14,6 +14,16 @@ describe("summarizeAssessmentBody", () => {
     expect(s?.lines).toEqual([{ k: "유형", v: "INTJ" }]);
   });
 
+  test("malformed MBTI-shaped bodies are not rendered as generic structured results", () => {
+    expect(summarizeAssessmentBody(JSON.stringify({ type: "XXXX", scores: { E: 1, I: 2 } }), "en")).toBeNull();
+    expect(
+      summarizeAssessmentBody(
+        JSON.stringify({ type: "INTJ", scores: { E: 0, I: 4, S: 0, N: 4, T: 4, F: 0, J: 4 } }),
+        "en",
+      ),
+    ).toBeNull();
+  });
+
   test("Big Five body -> five trait lines, decimals trimmed", () => {
     const body = JSON.stringify({ scores: { openness: 4, conscientiousness: 3.5, extraversion: 2, agreeableness: 4, neuroticism: 1.5 } });
     const s = summarizeAssessmentBody(body, "en");

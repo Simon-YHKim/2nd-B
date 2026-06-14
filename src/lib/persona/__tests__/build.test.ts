@@ -149,6 +149,25 @@ describe("buildPersona", () => {
     expect(card.markdownExport).toContain("INTJ");
   });
 
+  test("malformed MBTI rows are ignored instead of surfaced as identity truth", async () => {
+    tableFixtures["records:select"] = {
+      data: [
+        {
+          body: JSON.stringify({
+            type: "XXXX",
+            scores: { E: 0, I: 4, S: 0, N: 4, T: 4, F: 0, J: 4, P: 0 },
+          }),
+          created_at: "2026-05-01T00:00:00Z",
+        },
+      ],
+      error: null,
+    };
+    tableFixtures["memorized_patterns:select"] = { data: [], error: null };
+    const card = await buildPersona("u1", "en");
+    expect(card.mbti).toBeNull();
+    expect(card.markdownExport).not.toContain("## MBTI");
+  });
+
   test("ECR-S attachment record → attachment surfaced + markdown section", async () => {
     tableFixtures["records:select"] = {
       data: [
