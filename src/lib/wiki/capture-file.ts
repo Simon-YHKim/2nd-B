@@ -59,7 +59,7 @@ const FILE_EXTENSION_MIMES: Record<string, string> = {
 // Hard caps: avoid blowing up the JS heap on huge scans, and keep extracted
 // text small enough for the capture input + downstream classifier prompt.
 // The user still gets the filename + MIME back when binary extraction is skipped.
-const MAX_EXTRACT_BYTES = 10 * 1024 * 1024;
+export const MAX_EXTRACT_BYTES = 10 * 1024 * 1024;
 export const MAX_EXTRACTED_FILE_TEXT_CHARS = 60_000;
 
 export function normalizeFileMimeType(mimeType: string | null | undefined, fileName?: string | null): string {
@@ -118,14 +118,15 @@ export async function pickFile(): Promise<PickedFile | null> {
 // Branches by MIME. Returns null on any extraction failure so the caller
 // can still surface the file metadata; never throws.
 export async function extractText(uri: string, mimeType: string, size: number): Promise<string | null> {
-  if (size > MAX_EXTRACT_BYTES) return null;
+  if (!Number.isFinite(size) || size < 0 || size > MAX_EXTRACT_BYTES) return null;
   if (typeof globalThis.fetch !== "function") return null;
   const normalizedMimeType = normalizeFileMimeType(mimeType);
 
   try {
     if (TEXT_MIMES.has(normalizedMimeType)) {
-      const blob = await fetch(uri);
-      return normalizeFileTextResult(await blob.text());
+      const res = await fetchWithinCap(uri);
+      if (!res) return null;
+      return normalizeFileTextResult(await res.text());
     }
     // PDF + DOCX extraction is web-only. Native picks the file but the
     // LLM gets metadata only — the user can still paste relevant excerpts
@@ -133,12 +134,14 @@ export async function extractText(uri: string, mimeType: string, size: number): 
     if (Platform.OS !== "web") return null;
 
     if (PDF_MIMES.has(normalizedMimeType)) {
-      const buf = await (await fetch(uri)).arrayBuffer();
+      const buf = await fetchArrayBufferWithinCap(uri);
+      if (!buf) return null;
       const text = await extractPdfText(buf);
       return text == null ? null : normalizeFileTextResult(text);
     }
     if (DOCX_MIMES.has(normalizedMimeType)) {
-      const buf = await (await fetch(uri)).arrayBuffer();
+      const buf = await fetchArrayBufferWithinCap(uri);
+      if (!buf) return null;
       const text = await extractDocxText(buf);
       return text == null ? null : normalizeFileTextResult(text);
     }
@@ -146,6 +149,28 @@ export async function extractText(uri: string, mimeType: string, size: number): 
   } catch {
     return null;
   }
+}
+
+async function fetchWithinCap(uri: string): Promise<Response | null> {
+  const res = await fetch(uri);
+  const contentLength = responseContentLength(res);
+  if (contentLength != null && contentLength > MAX_EXTRACT_BYTES) return null;
+  return res;
+}
+
+async function fetchArrayBufferWithinCap(uri: string): Promise<ArrayBuffer | null> {
+  const res = await fetchWithinCap(uri);
+  if (!res) return null;
+  const buf = await res.arrayBuffer();
+  if (buf.byteLength > MAX_EXTRACT_BYTES) return null;
+  return buf;
+}
+
+function responseContentLength(res: Response): number | null {
+  const raw = res.headers?.get?.("content-length");
+  if (!raw) return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 // Dynamically import pdfjs-dist so the ~2MB worker bundle only loads when

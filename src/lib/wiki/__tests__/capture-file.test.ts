@@ -45,6 +45,7 @@ jest.mock(
 );
 
 import {
+  MAX_EXTRACT_BYTES,
   MAX_EXTRACTED_FILE_TEXT_CHARS,
   extractText,
   normalizeFileMimeType,
@@ -58,6 +59,7 @@ const documentPickerMock = DocumentPicker as unknown as {
 
 function mockFetch(body: string | ArrayBuffer) {
   globalThis.fetch = jest.fn().mockResolvedValue({
+    headers: { get: jest.fn(() => null) },
     text: () => Promise.resolve(typeof body === "string" ? body : ""),
     arrayBuffer: () => Promise.resolve(body instanceof ArrayBuffer ? body : new ArrayBuffer(0)),
   }) as unknown as typeof fetch;
@@ -122,6 +124,44 @@ describe("extractText", () => {
     const r = await extractText("file:///big.pdf", "application/pdf", 11 * 1024 * 1024);
     expect(r).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test("invalid picker size metadata is treated as unsafe and does not fetch", async () => {
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    await expect(extractText("file:///unknown.txt", "text/plain", Number.NaN)).resolves.toBeNull();
+    await expect(extractText("file:///negative.txt", "text/plain", -1)).resolves.toBeNull();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test("content-length over the cap returns null before reading text", async () => {
+    const text = jest.fn();
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      headers: { get: jest.fn(() => String(MAX_EXTRACT_BYTES + 1)) },
+      text,
+    }) as unknown as typeof fetch;
+
+    const r = await extractText("file:///unknown-size.txt", "text/plain", 0);
+
+    expect(r).toBeNull();
+    expect(text).not.toHaveBeenCalled();
+  });
+
+  test("binary extraction re-checks fetched bytes when metadata was missing", async () => {
+    const pdfjs = require("pdfjs-dist") as { getDocument: jest.Mock };
+    const arrayBuffer = jest.fn(() => Promise.resolve(new ArrayBuffer(MAX_EXTRACT_BYTES + 1)));
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      headers: { get: jest.fn(() => null) },
+      arrayBuffer,
+    }) as unknown as typeof fetch;
+
+    const r = await extractText("file:///unknown-size.pdf", "application/pdf", 0);
+
+    expect(r).toBeNull();
+    expect(arrayBuffer).toHaveBeenCalled();
+    expect(pdfjs.getDocument).not.toHaveBeenCalled();
   });
 
   test("application/pdf → dynamic import + concatenated page text", async () => {
