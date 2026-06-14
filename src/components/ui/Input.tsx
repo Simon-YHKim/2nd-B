@@ -19,7 +19,7 @@ export function Input(props: InputProps) {
       {...rest}
       placeholder={placeholder}
       accessibilityLabel={resolvedAccessibilityLabel}
-      placeholderTextColor={cosmic.quietGray}
+      placeholderTextColor={cosmic.mistGray}
       selectionColor={gameboy.accent}
       cursorColor={gameboy.accent}
       onFocus={(event) => {

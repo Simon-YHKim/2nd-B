@@ -361,7 +361,7 @@ function GameBoyTextInput(props: TextInputProps) {
 
   return (
     <TextInput
-      placeholderTextColor={cosmic.quietGray}
+      placeholderTextColor={cosmic.mistGray}
       selectionColor={gameboy.accent}
       cursorColor={gameboy.accent}
       {...rest}
