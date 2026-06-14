@@ -41,7 +41,7 @@ import { useKeyboard } from "@/lib/ui/useKeyboard";
 
 const ADULT_AGE = 18;
 const SIGNUP_STICKY_CTA_HEIGHT = 84;
-const SIGNUP_SCROLL_BOTTOM_PADDING = SIGNUP_STICKY_CTA_HEIGHT + spacing.xl;
+const SIGNUP_SCROLL_BOTTOM_PADDING = spacing.lg;
 type SignUpToast = { message: string; tone: "info" | "success" | "danger" };
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
@@ -225,10 +225,11 @@ export default function SignUp() {
         style={{ flex: 1 }}
       >
         <ScrollView
+          style={styles.scroller}
           contentContainerStyle={[
             styles.scroll,
             Platform.OS === "android" && {
-              paddingBottom: Math.max(SIGNUP_SCROLL_BOTTOM_PADDING, kbHeight + SIGNUP_STICKY_CTA_HEIGHT + spacing.lg),
+              paddingBottom: Math.max(SIGNUP_SCROLL_BOTTOM_PADDING, kbHeight + spacing.lg),
             },
           ]}
           keyboardShouldPersistTaps="handled"
@@ -444,12 +445,7 @@ export default function SignUp() {
           </Link>
         </View>
         </ScrollView>
-        <View
-          style={[
-            styles.stickyCta,
-            Platform.OS === "android" && kbHeight > 0 ? { bottom: kbHeight } : null,
-          ]}
-        >
+        <View style={styles.stickyCta}>
           <View style={styles.stickyCtaInner}>
             <Button
               label={t("signUp.submit")}
@@ -487,6 +483,7 @@ function ChecklistItem({ ok, label }: { ok: boolean; label: string }) {
 }
 
 const styles = StyleSheet.create({
+  scroller: { flex: 1 },
   scroll: {
     paddingBottom: SIGNUP_SCROLL_BOTTOM_PADDING,
     // Web only: cap the auth column (cycle-4 live QA) — no-op on native.
@@ -530,10 +527,8 @@ const styles = StyleSheet.create({
   helper: { marginTop: -spacing.xs },
   checklist: { gap: spacing.xs, marginTop: spacing.xs, marginBottom: spacing.xs },
   stickyCta: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+    minHeight: SIGNUP_STICKY_CTA_HEIGHT,
+    justifyContent: "center",
     paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
     backgroundColor: cosmic.panelBg,
