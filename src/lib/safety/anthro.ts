@@ -15,16 +15,16 @@ export interface AnthroPattern {
 
 export const ANTHRO_FORBIDDEN: AnthroPattern[] = [
   // companion attachment (first-person emotional dependency)
-  { id: "missed-you", re: /\bI (?:really )?(?:miss|missed|will miss|'ll miss) you\b/i },
-  { id: "here-for-you", re: /\bI(?:'?m| am) (?:always |right )?here for you\b/i },
-  { id: "dont-leave", re: /\bdon'?t leave me\b/i },
+  { id: "missed-you", re: /\bI(?: |['’]ll )(?:really )?(?:miss|missed|will miss) you\b/i },
+  { id: "here-for-you", re: /\bI(?:['’]?m| am) (?:always |right )?here for you\b/i },
+  { id: "dont-leave", re: /\bdon['’]?t leave me\b/i },
   { id: "stay-with-me", re: /\bstay with me\b/i },
   { id: "love-you", re: /\bI love you\b/i },
   { id: "lonely-without", re: /\bI (?:was |felt )?(?:lonely|waiting) (?:for you|without you)\b/i },
   // over-claiming self-knowledge (Lane 3 calibrated-humility)
   { id: "real-self-is", re: /\byour (?:real|true) self is\b/i },
   { id: "know-you-better", re: /\bknow you better than you know yourself\b/i },
-  { id: "not-honest-self", re: /\byou(?:'?re| are) not being honest with yourself\b/i },
+  { id: "not-honest-self", re: /\byou(?:['’]?re| are) not being honest with yourself\b/i },
   // KO companion attachment
   { id: "ko-missed", re: /보고\s?싶었/ },
   { id: "ko-lonely", re: /외로웠/ },
