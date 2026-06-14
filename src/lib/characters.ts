@@ -12,6 +12,7 @@
 // roster. Adding a new route to a character means editing one line.
 
 import { characters as characterColors } from "./theme/tokens";
+import { tLocale } from "@/lib/i18n/text";
 
 export type CharacterId = "secondb" | "momo" | "lulu" | "archi" | "gadi" | "lumi";
 
@@ -29,6 +30,10 @@ export interface CharacterMeta {
   line: { ko: string; en: string };
 }
 
+function t(locale: "en" | "ko", key: string): string {
+  return tLocale(locale, "secondb", key);
+}
+
 export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
   secondb: {
     id: "secondb",
@@ -37,8 +42,8 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
     accent: characterColors.secondb,
     routes: ["/secondb", "/"],
     line: {
-      ko: "패턴을 보고, 다른 길도 열어볼게.",
-      en: "I'll read the pattern and open another angle.",
+      ko: t("ko", "characters.secondb.line"),
+      en: t("en", "characters.secondb.line"),
     },
   },
   momo: {
@@ -48,8 +53,8 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
     accent: characterColors.momo,
     routes: ["/journal", "/audit", "/wiki"],
     line: {
-      ko: "무슨 일이 있었는지 찾기 쉽게 정리할게.",
-      en: "I'll file it so we can find what happened.",
+      ko: t("ko", "characters.momo.line"),
+      en: t("en", "characters.momo.line"),
     },
   },
   lulu: {
@@ -59,8 +64,8 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
     accent: characterColors.lulu,
     routes: ["/capture"],
     line: {
-      ko: "이 지식이 삶에서 어디로 이어질까?",
-      en: "Where does this knowledge connect to life?",
+      ko: t("ko", "characters.lulu.line"),
+      en: t("en", "characters.lulu.line"),
     },
   },
   archi: {
@@ -70,8 +75,8 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
     accent: characterColors.archi,
     routes: ["/persona", "/core-brain", "/trinity", "/insights"],
     line: {
-      ko: "지금 상황에 맞는 성장 방향을 잡아볼게.",
-      en: "I'll map a growth direction for this situation.",
+      ko: t("ko", "characters.archi.line"),
+      en: t("en", "characters.archi.line"),
     },
   },
   gadi: {
@@ -83,8 +88,8 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
     // no mascot), so Relia owns relationship warmth, not safety events.
     routes: [],
     line: {
-      ko: "사람과 마음의 결을 천천히 볼게.",
-      en: "I'll look gently at the people and feelings around this.",
+      ko: t("ko", "characters.gadi.line"),
+      en: t("en", "characters.gadi.line"),
     },
   },
   lumi: {
@@ -96,8 +101,8 @@ export const CHARACTERS: Record<CharacterId, CharacterMeta> = {
     // personas / taste village (see chat/personas.ts, village-ui.ts).
     routes: [],
     line: {
-      ko: "끌리는 걸 더 즐겁고 건강하게 이어볼게.",
-      en: "Let's keep what you're drawn to fun and balanced.",
+      ko: t("ko", "characters.lumi.line"),
+      en: t("en", "characters.lumi.line"),
     },
   },
 };
