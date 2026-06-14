@@ -79,6 +79,14 @@
     "localFirstStatement": "Sharing, recommendations, and using your entries to train AI models are not features today. If any is ever added, it will be off by default and ask for your explicit consent at that point."
   },
   "account": {
+    "export": {
+      "label": "Your data",
+      "body": "Download everything saved on your account as a structured JSON file.",
+      "button": "Export my data",
+      "buttonHint": "Builds a complete JSON export of your account data.",
+      "done": "Export ready.",
+      "failed": "Couldn't build the export. Try again."
+    },
     "loading": "Loading account…",
     "eyebrow": "Account",
     "title": "Your account, your call",
