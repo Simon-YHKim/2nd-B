@@ -57,7 +57,7 @@ export default function SignIn() {
   const [toast, setToast] = useState<SignInToast | null>(null);
   const [resetHelpVisible, setResetHelpVisible] = useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
-  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resetEmailSentTo, setResetEmailSentTo] = useState<string | null>(null);
   // A provider whose OAuth start failed with a "not configured" error is hidden
   // for the rest of the session so the user is not left tapping a dead button.
   const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
@@ -149,7 +149,7 @@ export default function SignIn() {
 
   async function handleForgotPassword() {
     setResetHelpVisible(true);
-    setResetEmailSent(false);
+    setResetEmailSentTo(null);
     const resetEmail = email.trim();
     if (!resetEmail.includes("@")) {
       setToast({
@@ -161,7 +161,7 @@ export default function SignIn() {
     setResetSubmitting(true);
     try {
       await sendPasswordResetEmail(resetEmail);
-      setResetEmailSent(true);
+      setResetEmailSentTo(resetEmail);
       setToast({
         tone: "success",
         message: t("signIn.resetSentToast"),
@@ -222,7 +222,12 @@ export default function SignIn() {
             <Text style={styles.label}>{t("signIn.email")}</Text>
             <TextInput
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(value) => {
+                setEmail(value);
+                if (resetEmailSentTo && value.trim() !== resetEmailSentTo) {
+                  setResetEmailSentTo(null);
+                }
+              }}
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
@@ -382,10 +387,10 @@ export default function SignIn() {
             {resetHelpVisible ? (
               <View style={styles.resetHelpCard} accessibilityRole="alert">
                 <Text style={styles.resetHelpTitle}>
-                  {resetEmailSent ? t("signIn.resetSentTitle") : t("signIn.resetTitle")}
+                  {resetEmailSentTo ? t("signIn.resetSentTitle") : t("signIn.resetTitle")}
                 </Text>
                 <Text style={styles.resetHelpBody}>
-                  {resetEmailSent ? t("signIn.resetSentBody", { email: email.trim() }) : t("signIn.resetBody")}
+                  {resetEmailSentTo ? t("signIn.resetSentBody", { email: resetEmailSentTo }) : t("signIn.resetBody")}
                 </Text>
               </View>
             ) : null}
