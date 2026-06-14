@@ -11,6 +11,12 @@
     "sourceEmpty": "Sebuah sumber yang ditangkap. Buka layarnya di bawah untuk melihat isi lengkapnya.",
     "noText": "Kepingan ini tidak memiliki teks isi."
   },
+  "advisor": {
+    "heading": "Catatan SecondB",
+    "sources": "Sumber",
+    "whyThis": "Mengapa ini",
+    "evidenceFallback": "Sumber tercantum tanpa catatan singkat."
+  },
   "actions": {
     "backToRecords": "Kembali ke catatan",
     "seeGraph": "Lihat di graf",

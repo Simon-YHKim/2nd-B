@@ -87,7 +87,13 @@
     "captureMore": "Tangkap lagi",
     "recordsOwnership": "Satu kalimat cukup untuk hari ini. Entri ini ada di Catatan, jadi kamu bisa membacanya lagi dan memasukkannya ke ekspor nanti.",
     "recordsAiOptIn": "SecondB hanya merefleksikan entri ini saat kamu menyalakan tombol itu.",
-    "storagePending": "Tersimpan, tapi salinan file cadangan belum terunggah kali ini. Teksmu aman tersimpan."
+    "storagePending": "Tersimpan, tapi salinan file cadangan belum terunggah kali ini. Teksmu aman tersimpan.",
+    "advisor": {
+      "heading": "Catatan SecondB",
+      "sources": "Sumber",
+      "whyThis": "Mengapa ini",
+      "evidenceFallback": "Sumber tercantum tanpa catatan singkat."
+    }
   },
   "proposal": {
     "heading": "Format yang disarankan",

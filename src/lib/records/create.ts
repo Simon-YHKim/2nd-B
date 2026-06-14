@@ -13,6 +13,7 @@ import { callAdvisor, callGemini, classifyRecordTextForCrisis } from "../llm/gem
 import { canUsePremium, type SubscriptionTier } from "../progression/entitlements";
 import { awardXpSafe, type XpAction } from "../progression/xp";
 import { getSupabaseClient } from "../supabase/client";
+import type { RecordFollowup } from "./followup";
 
 export type RecordKind = "journal" | "note" | "audit_response";
 
@@ -44,19 +45,7 @@ export interface CreateRecordArgs {
   tags?: string[];
 }
 
-export interface RecordedEvidence {
-  title: string;
-  doi: string | null;
-  summary: string | null;
-}
-
-export interface RecordFollowup {
-  text: string;
-  zone: "green" | "yellow" | "red";
-  fixedTemplate?: boolean;
-  matchedBatches?: string[];
-  evidence?: RecordedEvidence[];
-}
+export type { RecordedEvidence, RecordFollowup } from "./followup";
 
 export interface CreatedRecord {
   id: string;

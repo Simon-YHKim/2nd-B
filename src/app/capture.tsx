@@ -75,7 +75,9 @@ import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
 import { consumeSharedIntoDrafts, normalizeSharedCaptureParams } from "@/lib/capture/share-params";
 import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+import { AdvisorFollowupNote } from "@/components/records/AdvisorFollowupNote";
 import { createRecord } from "@/lib/records/create";
+import type { RecordFollowup } from "@/lib/records/followup";
 import { computeStreak } from "@/lib/journal/streak";
 import { dailyPrompt } from "@/lib/journal/daily-prompts";
 import { listRecentRecords, countRecordsByKind } from "@/lib/records/create";
@@ -265,6 +267,7 @@ export default function Capture() {
   const [savedKind, setSavedKind] = useState<"records" | "source" | null>(null);
   const [savedMode, setSavedMode] = useState<Mode | null>(null);
   const [savedSourceId, setSavedSourceId] = useState<string | null>(null);
+  const [savedFollowup, setSavedFollowup] = useState<RecordFollowup | null>(null);
   // True when the last capture saved its body inline because the Storage
   // upload failed (CaptureResult.storagePending) — surfaced as a one-line
   // note in the saved panel instead of a silent clean-success.
@@ -550,6 +553,7 @@ export default function Capture() {
     setSavedSourceId(null);
     setSavedTitle(null);
     setSavedKind(null);
+    setSavedFollowup(null);
     setSavedPending(false);
   }
 
@@ -792,6 +796,7 @@ export default function Capture() {
       setSavedKind("records");
       setSavedMode("journal");
       setSavedSourceId(null);
+      setSavedFollowup(res.followup ?? null);
       setSavedPending(false);
       // Refresh streak + journal use count (free-tier limit) + XP (the entry
       // earns progression, mirroring the retired /journal screen).
@@ -927,6 +932,7 @@ export default function Capture() {
       setSavedKind("source");
       setSavedMode(submittedMode);
       setSavedSourceId(result.source.id);
+      setSavedFollowup(null);
       setSavedPending(result.storagePending);
       // G3: a capture that landed as "inbox" (no specific format fit) is the
       // signal to offer an AI-proposed new format. Gate on body length so
@@ -1070,7 +1076,7 @@ export default function Capture() {
           {/* Import success → graph link (journal-capture pack §3/§7) */}
           {savedTitle ? (
             <PremiumCard style={styles.savedPanel}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
                 <ShardArt id="capture_mint" size={48} />
                 <View style={{ flex: 1 }}>
                   <Text variant="body" color="brand" style={{ fontWeight: "600" }}>
@@ -1093,6 +1099,19 @@ export default function Capture() {
                         {t("saved.recordsAiOptIn")}
                       </Text>
                     </View>
+                  ) : null}
+                  {savedKind === "records" && savedFollowup ? (
+                    <AdvisorFollowupNote
+                      followup={savedFollowup}
+                      labels={{
+                        heading: t("saved.advisor.heading"),
+                        sources: t("saved.advisor.sources"),
+                        whyThis: t("saved.advisor.whyThis"),
+                        evidenceFallback: t("saved.advisor.evidenceFallback"),
+                      }}
+                      style={styles.savedAdvisorNote}
+                      testID="capture-advisor-followup"
+                    />
                   ) : null}
                 </View>
               </View>
@@ -1117,7 +1136,7 @@ export default function Capture() {
                     style={{ flex: 1 }}
                   />
                 )}
-                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedKind(null); setSavedMode(null); setSavedSourceId(null); setSavedPending(false); }} style={{ flex: 1 }} />
+                <PremiumButton label={t("saved.captureMore")} variant="ghost" onPress={() => { setSavedTitle(null); setSavedKind(null); setSavedMode(null); setSavedSourceId(null); setSavedFollowup(null); setSavedPending(false); }} style={{ flex: 1 }} />
               </View>
             </PremiumCard>
           ) : null}
@@ -1884,6 +1903,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     marginTop: spacing.sm,
   },
+  savedAdvisorNote: { marginTop: spacing.sm },
   proposalPanel: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
