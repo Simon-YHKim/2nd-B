@@ -120,10 +120,16 @@ export default function Profile() {
     (async () => {
       try {
         const supabase = getSupabaseClient();
-        const { data } = await supabase.auth.getUser();
-        if (!cancelled) setEmail(data.user?.email ?? null);
+        // Identity display must be offline-resilient. getUser() hits the network to
+        // re-validate the JWT, so when the backend is unreachable a signed-in user's
+        // email returns null and the profile falls back to "Guest" / "Email unavailable"
+        // -- misleading them into thinking they are signed out. getSession() reads the
+        // locally-persisted session, so the real email shows even offline; "Guest" then
+        // means genuinely signed out (no session), not "backend currently unreachable".
+        const { data } = await supabase.auth.getSession();
+        if (!cancelled) setEmail(data.session?.user?.email ?? null);
       } catch (e) {
-        if (typeof console !== "undefined") console.warn("[profile] getUser failed", (e as Error).message);
+        if (typeof console !== "undefined") console.warn("[profile] getSession failed", (e as Error).message);
       } finally {
         if (!cancelled) setBusy(false);
       }
