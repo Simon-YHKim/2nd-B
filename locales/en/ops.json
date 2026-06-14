@@ -35,6 +35,7 @@
     "stateAvailable": "available"
   },
   "recommend": {
+    "off": "Routine suggestions are off for this account, so your saved pieces stay private.",
     "cta": "Suggest next steps",
     "ctaHint": "Reads your saved pieces and drafts a few suggestions.",
     "working": "Lining up suggestions…",

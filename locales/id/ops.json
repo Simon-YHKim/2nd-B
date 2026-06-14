@@ -35,6 +35,7 @@
     "stateAvailable": "tersedia"
   },
   "recommend": {
+    "off": "Saran rutinitas dinonaktifkan untuk akun ini, jadi catatanmu tetap privat.",
     "cta": "Sarankan langkah berikutnya",
     "ctaHint": "Membaca kepingan tersimpanmu dan menyusun beberapa saran.",
     "working": "Menyiapkan saran…",

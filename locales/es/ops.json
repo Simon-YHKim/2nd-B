@@ -35,6 +35,7 @@
     "stateAvailable": "disponible"
   },
   "recommend": {
+    "off": "Las sugerencias de rutinas están desactivadas en esta cuenta, así tus notas se mantienen privadas.",
     "cta": "Sugerir próximos pasos",
     "ctaHint": "Lee tus piezas guardadas y redacta algunas sugerencias.",
     "working": "Preparando sugerencias…",
