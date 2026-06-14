@@ -342,16 +342,10 @@ export default function SecondBChat() {
           accent={chatUi.accent}
           speech={
             sending
-              ? locale === "ko"
-                ? "참고한 조각들을 읽어오는 중이에요."
-                : "I'm reading the pieces that matter."
+              ? t("heroSpeech.sending")
               : chatMode === "divergent"
-                ? locale === "ko"
-                  ? "새 관점으로 낯선 가정을 짚어볼게요."
-                  : "A new angle is checking a different assumption."
-              : locale === "ko"
-                ? "오늘의 기록을 읽어봤어요. 작은 한 걸음으로 시작해볼까요?"
-                : "I've read today's pieces. Shall we start with one small step?"
+                ? t("heroSpeech.divergent")
+                : t("heroSpeech.default")
           }
         />
         ) : null}
