@@ -87,7 +87,13 @@
     "captureMore": "Capture more",
     "recordsOwnership": "One sentence is enough for today. This entry is in Records, so you can reread it and include it in an export later.",
     "recordsAiOptIn": "SecondB only reflects on this entry when you turn that switch on.",
-    "storagePending": "Saved, but the backup file copy didn't upload this time. Your text is kept safely."
+    "storagePending": "Saved, but the backup file copy didn't upload this time. Your text is kept safely.",
+    "advisor": {
+      "heading": "SecondB note",
+      "sources": "Sources",
+      "whyThis": "Why this",
+      "evidenceFallback": "Source listed without a short note."
+    }
   },
   "proposal": {
     "heading": "Suggested format",

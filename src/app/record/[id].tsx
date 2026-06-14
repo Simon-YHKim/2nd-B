@@ -12,6 +12,7 @@ import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
+import { AdvisorFollowupNote } from "@/components/records/AdvisorFollowupNote";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -24,6 +25,7 @@ import {
   type EvidenceType,
 } from "@/lib/persona/evidence";
 import { summarizeAssessmentBody } from "@/lib/persona/assessment-summary";
+import { normalizeRecordFollowup, type RecordFollowup } from "@/lib/records/followup";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -33,6 +35,7 @@ interface RecordDetailRow {
   kind: string;
   topic: string | null;
   body: string | null;
+  ai_followup: RecordFollowup | null;
   created_at: string;
   tags: string[] | null;
 }
@@ -75,13 +78,13 @@ export default function RecordDetail() {
             return;
           }
           const s = data as { id: string; kind: string; title: string | null; captured_at: string; tags: string[] | null };
-          setRow({ id: s.id, kind: s.kind, topic: s.title, body: null, created_at: s.captured_at, tags: s.tags });
+          setRow({ id: s.id, kind: s.kind, topic: s.title, body: null, ai_followup: null, created_at: s.captured_at, tags: s.tags });
           setState("ready");
           return;
         }
         const { data, error } = await supabase
           .from("records")
-          .select("id, kind, topic, body, created_at, tags")
+          .select("id, kind, topic, body, ai_followup, created_at, tags")
           .eq("user_id", userId)
           .eq("id", id)
           .maybeSingle();
@@ -91,7 +94,8 @@ export default function RecordDetail() {
           setState("missing");
           return;
         }
-        setRow(data as RecordDetailRow);
+        const record = data as Omit<RecordDetailRow, "ai_followup"> & { ai_followup: unknown };
+        setRow({ ...record, ai_followup: normalizeRecordFollowup(record.ai_followup) });
         setState("ready");
       } catch (e) {
         if (typeof console !== "undefined") console.warn("[record] load failed", (e as Error).message);
@@ -192,6 +196,19 @@ export default function RecordDetail() {
             </Text>
           )}
         </View>
+
+        {row.ai_followup ? (
+          <AdvisorFollowupNote
+            followup={row.ai_followup}
+            labels={{
+              heading: t("advisor.heading"),
+              sources: t("advisor.sources"),
+              whyThis: t("advisor.whyThis"),
+              evidenceFallback: t("advisor.evidenceFallback"),
+            }}
+            testID="record-advisor-followup"
+          />
+        ) : null}
 
         <View style={styles.handoffs}>
           {/* J1: only source-origin pieces exist as graph nodes; for a journal

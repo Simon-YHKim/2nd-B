@@ -11,6 +11,12 @@
     "sourceEmpty": "Uma fonte capturada. Abra a tela abaixo para ver o conteúdo completo.",
     "noText": "Esta peça não tem texto."
   },
+  "advisor": {
+    "heading": "Nota do SecondB",
+    "sources": "Fontes",
+    "whyThis": "Por que isto",
+    "evidenceFallback": "Fonte listada sem nota curta."
+  },
   "actions": {
     "backToRecords": "Voltar aos registros",
     "seeGraph": "Ver no grafo",

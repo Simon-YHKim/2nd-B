@@ -11,6 +11,12 @@
     "sourceEmpty": "A captured source. Open its screen below to see the full content.",
     "noText": "This piece has no body text."
   },
+  "advisor": {
+    "heading": "SecondB note",
+    "sources": "Sources",
+    "whyThis": "Why this",
+    "evidenceFallback": "Source listed without a short note."
+  },
   "actions": {
     "backToRecords": "Back to records",
     "seeGraph": "See in graph",

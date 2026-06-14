@@ -87,7 +87,13 @@
     "captureMore": "Capturar mais",
     "recordsOwnership": "Uma frase já basta por hoje. Esta entrada está em Registros, então você pode reler e incluir em uma exportação mais tarde.",
     "recordsAiOptIn": "O SecondB só reflete sobre esta entrada quando você ativa esse interruptor.",
-    "storagePending": "Salvo, mas o backup do arquivo não foi enviado desta vez. Seu texto está guardado com segurança."
+    "storagePending": "Salvo, mas o backup do arquivo não foi enviado desta vez. Seu texto está guardado com segurança.",
+    "advisor": {
+      "heading": "Nota do SecondB",
+      "sources": "Fontes",
+      "whyThis": "Por que isto",
+      "evidenceFallback": "Fonte listada sem nota curta."
+    }
   },
   "proposal": {
     "heading": "Formato sugerido",
