@@ -112,6 +112,10 @@ export interface IngestResult {
   items: ImportItem[];
 }
 
+export const IMPORT_SUMMARY_MAX_CHARS = 1000;
+export const IMPORT_ITEM_TITLE_MAX_CHARS = 120;
+export const IMPORT_ITEM_DETAIL_MAX_CHARS = 1500;
+
 function asSection(v: unknown): ImportSection {
   return (IMPORT_SECTIONS as readonly string[]).includes(v as string)
     ? (v as ImportSection)
@@ -124,6 +128,11 @@ function asConfidence(v: unknown): "low" | "medium" | "high" {
 
 function normalizeTag(s: string): string {
   return s.trim().toLowerCase().replace(/^#+/, "").replace(/\s+/g, "-").replace(/[^a-z0-9가-힣-]/g, "");
+}
+
+function normalizeTextField(value: unknown, maxChars: number): string {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, maxChars);
 }
 
 /**
@@ -167,8 +176,8 @@ export function parseIngestResult(raw: string, fallbackText = ""): IngestResult 
       const o = (it ?? {}) as Record<string, unknown>;
       return {
         section: asSection(o.section),
-        title: typeof o.title === "string" ? o.title.trim() : "",
-        detail: typeof o.detail === "string" ? o.detail.trim() : "",
+        title: normalizeTextField(o.title, IMPORT_ITEM_TITLE_MAX_CHARS),
+        detail: normalizeTextField(o.detail, IMPORT_ITEM_DETAIL_MAX_CHARS),
         confidence: asConfidence(o.confidence),
       };
     })
@@ -188,7 +197,7 @@ export function parseIngestResult(raw: string, fallbackText = ""): IngestResult 
   if (!tags.includes("imported")) tags.unshift("imported");
 
   return {
-    summary: typeof json.summary === "string" ? json.summary.trim() : "",
+    summary: normalizeTextField(json.summary, IMPORT_SUMMARY_MAX_CHARS),
     track: json.track === "pro" ? "pro" : "daily",
     tags: tags.slice(0, 8),
     items,

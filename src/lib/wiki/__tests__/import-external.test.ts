@@ -3,6 +3,9 @@ import {
   parseIngestResult,
   renderIngestMarkdown,
   IMPORT_SECTIONS,
+  IMPORT_ITEM_DETAIL_MAX_CHARS,
+  IMPORT_ITEM_TITLE_MAX_CHARS,
+  IMPORT_SUMMARY_MAX_CHARS,
 } from "../import-external";
 
 describe("buildExtractionPrompt", () => {
@@ -63,6 +66,27 @@ describe("parseIngestResult", () => {
     const r = parseIngestResult(JSON.stringify({ summary: "", track: "??", tags: ["a"], items: [] }));
     expect(r.track).toBe("daily");
     expect(r.tags[0]).toBe("imported");
+  });
+
+  it("caps oversized valid JSON fields before rendering or saving", () => {
+    const r = parseIngestResult(JSON.stringify({
+      summary: ` ${"s".repeat(IMPORT_SUMMARY_MAX_CHARS + 50)} `,
+      track: "daily",
+      tags: ["import"],
+      items: [
+        {
+          section: "context",
+          title: ` ${"t".repeat(IMPORT_ITEM_TITLE_MAX_CHARS + 20)} `,
+          detail: ` ${"d".repeat(IMPORT_ITEM_DETAIL_MAX_CHARS + 100)} `,
+          confidence: "high",
+        },
+      ],
+    }));
+
+    expect(r.summary).toHaveLength(IMPORT_SUMMARY_MAX_CHARS);
+    expect(r.items[0].title).toHaveLength(IMPORT_ITEM_TITLE_MAX_CHARS);
+    expect(r.items[0].detail).toHaveLength(IMPORT_ITEM_DETAIL_MAX_CHARS);
+    expect(renderIngestMarkdown(r, "en")).toContain("Imported self-knowledge");
   });
 });
 
