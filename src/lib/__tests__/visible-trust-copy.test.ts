@@ -39,21 +39,42 @@ describe("visible trust copy", () => {
     expect(ko).toMatch(/"viewPlans": "플랜 보기"/);
   });
 
-  test("sign-up offers a browse-before-commit path before account fields", () => {
+  test("sign-up keeps the primary account CTA in the first viewport", () => {
     const root = path.resolve(__dirname, "../../..");
     const screen = readFileSync(path.join(root, "src/app/(auth)/sign-up.tsx"), "utf8");
     const en = readFileSync(path.join(root, "locales/en/auth.json"), "utf8");
     const ko = readFileSync(path.join(root, "locales/ko/auth.json"), "utf8");
 
-    const browseIdx = screen.indexOf('t("signUp.browseBeforeCommit")');
+    const stickyIdx = screen.indexOf("styles.stickyCta");
+    const manualIdx = screen.indexOf('t("signUp.manualLink")');
     const emailIdx = screen.indexOf('t("signUp.email")');
 
-    expect(browseIdx).toBeGreaterThan(-1);
+    expect(stickyIdx).toBeGreaterThan(-1);
+    expect(screen).toContain("SIGNUP_STICKY_CTA_HEIGHT");
+    expect(screen).toContain("SIGNUP_SCROLL_BOTTOM_PADDING");
+    expect(screen).toContain('accessibilityLabel={t("signUp.submit")}');
+    expect(screen).toContain("stars={false}");
+    expect(manualIdx).toBeGreaterThan(-1);
     expect(emailIdx).toBeGreaterThan(-1);
-    expect(browseIdx).toBeLessThan(emailIdx);
+    expect(manualIdx).toBeGreaterThan(emailIdx);
     expect(screen).toContain('<Link href="/manual" asChild>');
     expect(en).toContain('"browseBeforeCommit": "Browse first, then decide"');
     expect(ko).toContain('"browseBeforeCommit": "먼저 둘러보고 결정하기"');
+    expect(en).toContain('"manualLink": "New here? Read the 1-min manual"');
+    expect(ko).toContain('"manualLink": "이 앱이 처음이라면 안내서 보기"');
+  });
+
+  test("sign-up dense consent and input borders avoid first-viewport regressions", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const koConsent = readFileSync(path.join(root, "locales/ko/consent.json"), "utf8");
+    const notice = readFileSync(path.join(root, "src/components/consent/ConsentNotice.tsx"), "utf8");
+    const input = readFileSync(path.join(root, "src/components/ui/Input.tsx"), "utf8");
+
+    expect(koConsent).toContain("주세\\u2060요");
+    expect(notice).toContain('<Text variant="body" style={styles.title}>');
+    expect(notice).toContain("borderColor: cosmic.mintGlow");
+    expect(input).toContain("focused ? gameboy.accent : semantic.border");
+    expect(input).not.toContain("focused ? gameboy.accent : gameboy.border");
   });
 
   test("first-run capture copy stays honest about records, not guest graph storage", () => {

@@ -40,12 +40,14 @@ import { recordConsentBestEffort } from "@/lib/supabase/consent";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 
 const ADULT_AGE = 18;
+const SIGNUP_STICKY_CTA_HEIGHT = 84;
+const SIGNUP_SCROLL_BOTTOM_PADDING = SIGNUP_STICKY_CTA_HEIGHT + spacing.xl;
 type SignUpToast = { message: string; tone: "info" | "success" | "danger" };
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
 export default function SignUp() {
-  const { t, i18n } = useTranslation("auth");
+  const { t, i18n } = useTranslation(["auth", "common"]);
   const { userId, loading, refresh } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -217,19 +219,24 @@ export default function SignUp() {
   }
 
   return (
-    <PremiumAppShell>
+    <PremiumAppShell stars={false}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]}
+          contentContainerStyle={[
+            styles.scroll,
+            Platform.OS === "android" && {
+              paddingBottom: Math.max(SIGNUP_SCROLL_BOTTOM_PADDING, kbHeight + SIGNUP_STICKY_CTA_HEIGHT + spacing.lg),
+            },
+          ]}
           keyboardShouldPersistTaps="handled"
         >
         <View style={styles.header}>
           <View style={styles.brandRow}>
             <Text variant="caption" color="brand">
-              2nd-Brain
+              {t("common:app.name")}
             </Text>
             <Pressable
               onPress={() => {
@@ -259,18 +266,6 @@ export default function SignUp() {
               <Text variant="subtle" color="textMuted" style={styles.ageNotice}>
                 {t("signUp.ageNotice")}
               </Text>
-              <Link href="/manual" asChild>
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel={t("signUp.browseBeforeCommit")}
-                  accessibilityHint={t("signUp.browseBeforeCommitHint")}
-                  style={styles.browseLinkHit}
-                >
-                  <Text variant="subtle" color="brand" style={styles.link}>
-                    {t("signUp.browseBeforeCommit")}
-                  </Text>
-                </Pressable>
-              </Link>
             </View>
             <Image
               source={authHero}
@@ -354,15 +349,6 @@ export default function SignUp() {
             </View>
           ) : null}
           <ConsentNotice minor={isMinorAge} value={consent} onChange={setConsent} />
-          <Button
-            label={t("signUp.submit")}
-            variant="primary"
-            disabled={!canSubmit}
-            loading={submitting}
-            onPress={handleSubmit}
-            full
-            style={styles.submitButton}
-          />
 
           {existingAccountHelp ? (
             // accessibilityLiveRegion: role="alert" alone announces only on
@@ -449,7 +435,7 @@ export default function SignUp() {
               accessibilityRole="link"
               accessibilityLabel={t("signUp.manualLabel")}
               accessibilityHint={t("signUp.manualHint")}
-              style={styles.manualLinkHit}
+              style={styles.browseLinkHit}
             >
               <Text variant="subtle" color="textSubtle" style={styles.link}>
                 {t("signUp.manualLink")}
@@ -458,6 +444,25 @@ export default function SignUp() {
           </Link>
         </View>
         </ScrollView>
+        <View
+          style={[
+            styles.stickyCta,
+            Platform.OS === "android" && kbHeight > 0 ? { bottom: kbHeight } : null,
+          ]}
+        >
+          <View style={styles.stickyCtaInner}>
+            <Button
+              label={t("signUp.submit")}
+              variant="primary"
+              disabled={!canSubmit}
+              loading={submitting}
+              onPress={handleSubmit}
+              full
+              style={styles.stickySubmitButton}
+              accessibilityLabel={t("signUp.submit")}
+            />
+          </View>
+        </View>
       </KeyboardAvoidingView>
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">
@@ -483,21 +488,21 @@ function ChecklistItem({ ok, label }: { ok: boolean; label: string }) {
 
 const styles = StyleSheet.create({
   scroll: {
-    paddingBottom: spacing.xl,
+    paddingBottom: SIGNUP_SCROLL_BOTTOM_PADDING,
     // Web only: cap the auth column (cycle-4 live QA) — no-op on native.
     ...(Platform.OS === "web" ? { width: "100%" as const, maxWidth: 520, alignSelf: "center" as const } : {}),
   },
-  header: { gap: spacing.sm, marginBottom: spacing.lg },
+  header: { gap: spacing.sm, marginBottom: spacing.md },
   brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   localeButton: { minWidth: 44, minHeight: 44, alignItems: "flex-end", justifyContent: "center" },
-  heroRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  heroRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   heroCopy: { flex: 1, gap: spacing.xs },
-  heroImg: { width: 112, height: 112 },
+  heroImg: { width: 80, height: 80 },
   title: { marginTop: 0 },
   ageNotice: { marginTop: spacing.xs },
   browseLinkHit: {
     minHeight: 44,
-    alignSelf: "flex-start",
+    alignSelf: "center",
     justifyContent: "center",
   },
   badgeWrap: { marginTop: spacing.sm },
@@ -524,7 +529,22 @@ const styles = StyleSheet.create({
   },
   helper: { marginTop: -spacing.xs },
   checklist: { gap: spacing.xs, marginTop: spacing.xs, marginBottom: spacing.xs },
-  submitButton: { alignSelf: "stretch", width: "100%" },
+  stickyCta: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    backgroundColor: cosmic.panelBg,
+    borderTopColor: semantic.border,
+    borderTopWidth: 1,
+  },
+  stickyCtaInner: {
+    width: "100%",
+    ...(Platform.OS === "web" ? { maxWidth: 520, alignSelf: "center" as const } : {}),
+  },
+  stickySubmitButton: { alignSelf: "stretch", width: "100%" },
   existingHelpCard: {
     backgroundColor: semantic.surfaceAlt,
     borderColor: semantic.border,

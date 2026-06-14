@@ -2,6 +2,16 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 describe("visible brand copy", () => {
+  test("auth screens render the canonical app-name token", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const signIn = readFileSync(path.join(root, "src/app/(auth)/sign-in.tsx"), "utf8");
+    const signUp = readFileSync(path.join(root, "src/app/(auth)/sign-up.tsx"), "utf8");
+
+    expect(signIn).toContain('t("common:app.name")');
+    expect(signUp).toContain('t("common:app.name")');
+    expect(signIn).not.toContain("2ND-BRAIN");
+  });
+
   test("app surfaces use 2nd-Brain instead of informal 2nd-B or 2ndB", () => {
     const root = path.resolve(__dirname, "../../..");
     const files = [

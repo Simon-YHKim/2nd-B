@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { PreferenceCheckRow } from "@/components/ui/PreferenceToggle";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import {
   allRequiredAcksChecked,
   setAllRequiredAcks,
@@ -40,7 +40,7 @@ export function ConsentNotice({ minor, value, onChange }: ConsentNoticeProps) {
 
   return (
     <View style={styles.card}>
-      <Text variant="heading" style={styles.title}>
+      <Text variant="body" style={styles.title}>
         {t("notice.title")}
       </Text>
       <Text variant="body" color="textMuted">
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
   },
-  title: { marginTop: 0 },
+  title: { marginTop: 0, fontWeight: "700" },
   minorBanner: {
     backgroundColor: semantic.surface,
     borderColor: semantic.brand,
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   trustNote: {
     backgroundColor: semantic.surface,
-    borderColor: "rgba(114,242,199,0.34)",
+    borderColor: cosmic.mintGlow,
     borderWidth: 1,
     borderRadius: radii.sm,
     padding: spacing.sm,
