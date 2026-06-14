@@ -73,7 +73,7 @@
       },
       "long_term_memory": {
         "label": "Long-term memory",
-        "desc": "Let your assistant remember across sessions for continuity."
+        "desc": "Let your saved entries carry over between sessions so the tool can reference them."
       }
     },
     "localFirstStatement": "Sharing, recommendations, and using your entries to train AI models are not features today. If any is ever added, it will be off by default and ask for your explicit consent at that point."
