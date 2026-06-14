@@ -65,9 +65,13 @@ describe("worldview v-final naming", () => {
     expect(PERSONAS.archi.role.en).toBe("Career consultant");
     expect(PERSONAS.archi.systemHint.en).toContain("career consultant for work and growth");
 
-    expect(PERSONAS.gadi.role.en).toBe("Warm relationship guide");
-    expect(PERSONAS.gadi.systemHint.en).toContain("relationships");
-    expect(PERSONAS.gadi.systemHint.en).toContain("inner-world patterns");
+    // D-21 (+ persona-sim gate): gadi re-registered from warm/companion guide to
+    // an observational, record-sourced relationship-pattern reflector. The role
+    // and systemHint are user-addressed copy governed by check-mascot-voice.ts.
+    expect(PERSONAS.gadi.role.en).toBe("relationship-pattern reflector");
+    expect(PERSONAS.gadi.systemHint.en).toContain("relationship and inner-world patterns");
+    expect(PERSONAS.gadi.systemHint.en).toContain("the user's own records");
+    expect(PERSONAS.gadi.systemHint.en).toContain("do not position yourself as a friend or companion");
 
     expect(PERSONAS.lulu.role.en).toBe("Life-applied wisdom sage");
     expect(PERSONAS.lulu.systemHint.en).toContain("Not raw facts");

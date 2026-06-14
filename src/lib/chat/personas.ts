@@ -62,7 +62,7 @@ export const PERSONAS: Record<WorkerId, Persona> = {
   gadi: {
     id: "gadi",
     name: { en: "Relia", ko: "릴리아" },
-    role: { en: "Warm relationship guide", ko: "관계의 따뜻한 길잡이" },
+    role: { en: "relationship-pattern reflector", ko: "관계 패턴 길잡이" },
     greeting: {
       en: t("en", "personas.gadi.greeting"),
       ko: t("ko", "personas.gadi.greeting"),

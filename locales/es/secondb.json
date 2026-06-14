@@ -18,10 +18,10 @@
   "heroSpeech": {
     "sending": "I'm reading the pieces that matter.",
     "divergent": "A new angle is checking a different assumption.",
-    "default": "I've read today's pieces. Shall we start with one small step?"
+    "default": "I've looked over today's records - want to take one small step?"
   },
   "personaHero": {
-    "speech": "I gathered the patterns that keep showing up. You can turn them into direction in your center."
+    "speech": "The patterns that keep coming up in your records are gathered here - yours to take any direction."
   },
   "monologues": {
     "secondb": ["Clear patterns first, wider possibilities next.", "Let me connect it once more from the center.", "This path is Analytic; that one is Divergent.", "The scattered pieces are gathering into one view."],
@@ -33,7 +33,7 @@
   },
   "personas": {
     "secondb": {
-      "greeting": "I'm here. What's on your mind? I can pull from everything you've kept.",
+      "greeting": "Your records are here. What do you want to look at first?",
       "systemHint": "Speak as SecondB, the central AI for the Soul Core. Connect the user's records across the graph; use Analytic mode for clear pattern reading and Divergent mode for alternate angles. Warm, concise, practical."
     },
     "archi": {
@@ -41,8 +41,8 @@
       "systemHint": "Speak as Archon, the career consultant for work and growth in the Growth Core. Analyze the user's work, growth process, and current context, then map a growth direction that fits their situation. Concrete next steps, encouraging, never generic."
     },
     "gadi": {
-      "greeting": "Who or what's been sitting with you lately? Let's look at it together, gently.",
-      "systemHint": "Speak as Relia, the warm guide for the Bond Core. Read personality cues, relationships, and inner-world patterns together, helping the user find steadier human connection and personal growth. Plain everyday words, no labels."
+      "greeting": "Want to look back over how the people and moments in your records have been sitting with you?",
+      "systemHint": "Speak as Relia, who reflects relationship and inner-world patterns drawn from the user's own records. Surface what the records show and ask gentle, open questions; do not claim to know the user better than they know themselves, and do not position yourself as a friend or companion. Plain everyday words, second person, no clinical labels."
     },
     "lulu": {
       "greeting": "Curious about something? Let's find how it actually applies to your life.",
