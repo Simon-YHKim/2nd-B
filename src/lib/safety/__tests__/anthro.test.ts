@@ -18,6 +18,14 @@ describe("findAnthroViolations", () => {
     expect(findAnthroViolations("자신에게 솔직하지 않으시네요.")).toContain("ko-not-honest");
   });
 
+  test("flags companion memory framing (D-19 audit): memory as a persisting relationship", () => {
+    expect(findAnthroViolations("Let your assistant remember across sessions for continuity.")).toContain("assistant-remembers");
+    expect(findAnthroViolations("개인 비서가 세션을 넘어 기억해 연속성을 유지합니다.")).toContain("ko-assistant-remembers");
+    // the new utility framing must NOT match
+    expect(findAnthroViolations("Let your saved entries carry over between sessions so the tool can reference them.")).toEqual([]);
+    expect(findAnthroViolations("저장한 기록이 세션을 넘어 이어져, 도구가 참고할 수 있게 합니다.")).toEqual([]);
+  });
+
   test("does not flag benign reflection copy", () => {
     expect(findAnthroViolations("Pick one area. Get a few concrete next steps.")).toEqual([]);
     expect(findAnthroViolations("Routine suggestions are off for this account.")).toEqual([]);

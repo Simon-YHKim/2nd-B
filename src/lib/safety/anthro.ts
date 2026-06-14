@@ -34,6 +34,10 @@ export const ANTHRO_FORBIDDEN: AnthroPattern[] = [
   // KO over-claiming
   { id: "ko-real-you", re: /(?:너|당신)의?\s?진짜\s?모습은/ },
   { id: "ko-not-honest", re: /자신(?:에게|을)\s?솔직하지\s?(?:않|못)/ },
+  // companion memory framing (D-19 audit): frame memory as a persisting relationship rather
+  // than a utility ("your assistant remembers ... for continuity" / "비서가 ... 기억").
+  { id: "assistant-remembers", re: /\bassistant (?:will |can )?remembers?\b/i },
+  { id: "ko-assistant-remembers", re: /비서가.{0,12}기억/ },
 ];
 
 // Exact strings that legitimately match a pattern but are not companion copy.
