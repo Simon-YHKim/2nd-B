@@ -47,7 +47,7 @@ const PALETTE = cosmicSky;
 type SignInToast = { message: string; tone: "info" | "success" | "danger" };
 
 export default function SignIn() {
-  const { t, i18n } = useTranslation("auth");
+  const { t, i18n } = useTranslation(["auth", "common"]);
   const { userId, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -187,7 +187,7 @@ export default function SignIn() {
         <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]} keyboardShouldPersistTaps="handled">
           {/* Top bar — brand left, locale toggle right. */}
           <View style={styles.topBar}>
-            <Text style={styles.brand}>2ND-BRAIN</Text>
+            <Text style={styles.brand}>{t("common:app.name")}</Text>
             <Pressable
               onPress={() => {
                 void i18n.changeLanguage(locale === "ko" ? "en" : "ko");

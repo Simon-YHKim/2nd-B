@@ -2,7 +2,7 @@ import { useState } from "react";
 import { TextInput, type TextInputProps, StyleSheet, Platform } from "react-native";
 
 import { gameboy } from "@/lib/theme/gameboy-tokens";
-import { cosmic, spacing, typography } from "@/lib/theme/tokens";
+import { cosmic, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
 export type InputProps = TextInputProps;
@@ -35,7 +35,7 @@ export function Input(props: InputProps) {
         style,
         {
           backgroundColor: gameboy.screen,
-          borderColor: focused ? gameboy.accent : gameboy.border,
+          borderColor: focused ? gameboy.accent : semantic.border,
           borderWidth: focused ? gameboy.borderWidth : 1,
           color: gameboy.ink,
           textAlignVertical: props.multiline ? "top" : "auto",
