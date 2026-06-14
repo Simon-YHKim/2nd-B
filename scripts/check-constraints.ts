@@ -2806,6 +2806,8 @@ results.push(
     const conceptText = conceptFiles.map((file) => read(file)).join("\n");
     const characters = read("src/lib/characters.ts");
     const personas = read("src/lib/chat/personas.ts");
+    const personaLocale = read("locales/en/secondb.json");
+    const personaText = `${personas}\n${personaLocale}`;
     const ok =
       !/\bIris\b/.test(conceptText) &&
       conceptText.includes("Lumina") &&
@@ -2820,12 +2822,12 @@ results.push(
       characters.includes('en: "Life-applied wisdom sage"') &&
       characters.includes('en: "Narrative Core crew foreman"') &&
       characters.includes('en: "Trainer and curator"') &&
-      personas.includes("central AI for the Soul Core") &&
-      personas.includes("career consultant for work and growth") &&
-      personas.includes("inner-world patterns") &&
-      personas.includes("Not raw facts") &&
-      personas.includes("you do NOT give advice") &&
-      personas.includes("healthy life balance");
+      personaText.includes("central AI for the Soul Core") &&
+      personaText.includes("career consultant for work and growth") &&
+      personaText.includes("inner-world patterns") &&
+      personaText.includes("Not raw facts") &&
+      personaText.includes("you do NOT give advice") &&
+      personaText.includes("healthy life balance");
     return {
       id: "WorldviewConceptCoherence",
       status: ok ? "PASS" : "FAIL",

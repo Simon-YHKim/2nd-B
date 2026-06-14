@@ -20,7 +20,7 @@ import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 type PersonaToast = { message: string; tone: "info" | "success" | "danger" };
 
 export default function Persona() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("secondb");
   const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const [persona, setPersona] = useState<PersonaCard | null>(null);
@@ -211,11 +211,7 @@ export default function Persona() {
           island={CORE_VILLAGE_UI.island}
           worker={CORE_VILLAGE_UI.worker}
           accent={CORE_VILLAGE_UI.accent}
-          speech={
-            locale === "ko"
-              ? "반복해서 보이는 모습들을 모았어요. 중심 화면에서 방향으로 이어볼 수 있어요."
-              : "I gathered the patterns that keep showing up. You can turn them into direction in your center."
-          }
+          speech={t("personaHero.speech")}
           primaryAction={{
             label: locale === "ko" ? "소울 코어 보기" : "Open my center",
             onPress: () => router.push("/core-brain"),
