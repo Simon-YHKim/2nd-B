@@ -36,7 +36,7 @@ export function useProgression(): Progression {
         .from("users")
         .select("total_xp, subscription_tier")
         .eq("id", userId)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       setTotalXp(data?.total_xp ?? 0);
       setTier(((data?.subscription_tier as SubscriptionTier) ?? "free"));
