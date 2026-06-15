@@ -1222,6 +1222,16 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-28 ✅ / 2026-06-15 21:48 KST] 배경 시안 ⑤ 채택 + ⑤-rev 개정(밝기 2/3↑·다양화) — AG 구상·Codex 그림 — 완료
+**🔴 보드 LIVE: https://simon-yhkim.github.io/2nd-B/landing/bg-concepts/** — ⑤-rev 추가(⑤ vs ⑤-rev 비교, ⑤-rev 강조 카드).
+**Simon 방향 확정 = ⑤(혼합·저자극)**. 개정본 ⑤-rev 제작(5조정):
+- **🟩 AG=구상**(허브 agy): 밝기 67%(bg #0A0E1A·cyan alpha 0.2~0.5, box-shadow/glare 제외=밝기만↑) · 랜덤성↑(좌표·delay·드리프트 Math.random) · 3단 depth 레이어(먼 레이어 blur(1px)+저투명, parallax 계수 차등) · 크기 1~6px 다양 · 밝기 opacity 0.1~0.8 다양.
+- **🟨 Codex=그림**(허브 codex): `concept-5b-hybrid-rev.html` — AG 스펙 충실. 3 depth 레이어·랜덤 산포·크기/밝기 편차·캐릭터 rim 오버레이.
+- **Claude**: 디스패치·스샷·보드 ⑤-rev 카드(채택방향 강조)+썸네일 추가·배포.
+**검증**: 스샷=⑤ 대비 분명히 밝아짐(중앙 nebula·신경망 라인 가시화), 거리/크기/밝기 다양·자연 산포, 글레어 계속 억제(차분). 경량 유지(box-shadow 제외).
+**다음(별도 오더)**: ⑤ vs ⑤-rev 중 Simon 최종 확정 → 본체 새UI 배경(`buildBackdrop`/deep-space 셸)에 반영.
+
+
 ### [O-27 🔄 landing 데모 / 2026-06-15 21:30 KST] WoW 레벨업 연출(눈색 cyan) — landing 구현·데모 (진행중→RN 포팅)
 **landing 데모 완료**(public/landing, 라이브 simon-yhkim.github.io/2nd-B/landing/): WoW 레벨업 "딩" 시그니처를 **눈색 cyan화**.
 - **연출**: 대상 둘레 **수직 광주(--accent #46b6ff) + 확장 링버스트(--accent-bright #ccfaff) + 스파클 파티클(--ink #5fd4ff)** 0.7~1.0s. 토큰·opacity 레이어링만(gradient/glass 금지, DESIGN.md 준수). 끝나면 잔상 0(단발 self-remove DOM).
