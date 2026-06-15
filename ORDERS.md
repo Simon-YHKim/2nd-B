@@ -1185,6 +1185,15 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-26 ✅ / 2026-06-15 20:18 KST] 에뮬 dev 서버 연결 환경이슈 영구해결 — 완료
+**증상**: AG 네이티브 QA(O-23 Stage④) 에뮬 콘솔 `Cannot connect to Expo CLI`/`10.0.2.2:8081` — 에뮬이 PC Metro(8081) 미연결. 앱버그 아님=dev환경. (Reanimated `Reduced motion` 경고=무관, 에뮬 동작줄이기 OFF 권고.)
+**해결(재발방지·영구화)**:
+- **`scripts/pre-emulator-qa.ps1`**(신규): 매 네이티브 QA 전 4조건 자동보장 — ①adb 해석(PATH 또는 LOCALAPPDATA platform-tools) ②에뮬 device 인식 ③Metro packager-status:running@8081(`-StartMetro`로 자동기동) ④`adb reverse tcp:8081 tcp:8081` 멱등 재설정(에뮬/Metro 재시작 시 소실되므로). exit 0=보장완료, 2/3/4/6=각 조건 미충족+조치안내.
+- **런북 명문화**: 허브 `RUNBOOK.md §7`(커밋 7a98fc0) — pre-QA 절차 + 트랩(Metro /status byte[] 디코딩) 기록. AG는 매 QA 전 `pwsh -File E:\2ndB\scripts\pre-emulator-qa.ps1 -StartMetro` 실행.
+**실테스트 확인로그**(현 에뮬 가동 중): `[pre-qa] adb: ...platform-tools\adb.exe` → `device OK: emulator-5554` → `Metro OK: packager-status:running on 8081` → `adb reverse OK: tcp:8081 -> tcp:8081` → `PRE-QA OK -- Cannot connect to Expo CLI should not occur` **exit 0**.
+**근본버그 추가수정**: Metro `/status`가 Content-Type 없어 PS `Invoke-WebRequest.Content`를 byte[]로 반환→문자열 match 오탐. `[Text.Encoding]::ASCII.GetString()` 디코딩으로 헬스체크 정확화. **수용기준 충족**: 4조건 보장 스크립트+런북 반영, 에뮬 연결 검증.
+
+
 ### [O-23 🔄 Stage④⑤ / 2026-06-15 19:52 KST] persona-sim 검증 + findings 수정 (진행중)
 **Stage④ persona-sim 완료**(`docs/deep-space-persona-sim.md`): deep-space 첫실행(셸)을 §20 4축(연령/직업/소득/문화) 워크. findings 우선순위표:
 - **F1 P1 접근성**: 머리 아이콘 38px<44px 터치타깃(고령/유아/motor 오탭).
