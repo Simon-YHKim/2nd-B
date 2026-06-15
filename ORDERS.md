@@ -1077,6 +1077,10 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
+
+### [O-18 ✅ / 2026-06-15 09:49 KST] landing 머리 추적 — 손가락 떼면 정면 복귀 (작은 버그·완료)
+**완료**: `main.js` — touchmove로만 갱신되던 gaze pointer를 **touchend·touchcancel·window blur·document mouseleave/pointerleave**에서 (0,0)으로 리셋 → 기존 LOOK.ease가 머리를 부드럽게 정면 복귀. 데스크톱 hover는 sticky 유지(창 떠날 때만 복귀, Simon 권고 반영). 캐시 v7c→v7d. 렌더 회귀 0(헤드리스 스샷=정면 응시·시안 눈 확인), `node --check` OK. landing gitignored→로컬 8777 검증. O-17 #4(얼굴탭 복귀)와 동일 메커니즘으로 선해결.
+
 ### [O-16 🔄 Stage①+② / 2026-06-15 09:31 KST] landing→2ndb 전기능 앱 — IA·토큰(①) + 레이아웃·눈색(②) (다단계, 진행중)
 **Stage ② 완료(09:31)**: req1 nav 재배치(머리→[프로필◓·설정⚙ 아이콘]→말풍선→메뉴) + **눈색 cyan 토큰 전면 적용**(`--accent #46B6FF`·`--text #5FD4FF`·`--bg #0A0E1A`, 모노톤 "캐릭터 몸통 화면") + 메뉴=4 primary(records/위키→그래프 2차). 프로필/설정 아이콘→화면 라우팅 작동(설정 화면 스텁 추가). 데스크톱 nav+설정 검증 OK. 다음=③전기능 simple 스켈레톤(Codex 분산)→④와이어링. (landing gitignored→코드 git 미포함, 8777 검증.)
 PC Claude — **Stage ① 완료** (IA맵 + 토큰). §35 ai-debate(wf wcc7h4bjy, 3관점 minimalist/completeness/consumer → 별도심판, 코드검증). **DECISIONS D-22** 기록.
