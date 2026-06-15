@@ -133,6 +133,8 @@ const faceMotion = {
   mouthScaleY: 1,
   mouthOffsetY: 0,
   yawnAmount: 0,
+  winkLeft: 1,  // O-26 #4: per-eye close (1 = open) for a one-eyed wink
+  winkRight: 1,
 };
 const behavior = {
   blinkStart: 0,
@@ -145,6 +147,9 @@ const behavior = {
   previousExpression: 0,
   isYawning: false,
   reactionUntil: 0, // O-17 #2: while > now, an event reaction is held (idle drift paused)
+  winkStart: 0,     // O-26 #4: one-eye wink overlay (0 = not winking)
+  winkSide: "right",
+  winkDuration: 300,
 };
 
 let headGroup = null;
@@ -390,6 +395,10 @@ buildBackdrop();
 
 const pointer = { x: 0, y: 0 };
 let lastInputAt = Date.now(); // O-22 #1: timestamp of the last real pointer/touch input
+// O-26 #1: is a finger/pointer currently held down? While held we keep tracking the
+// touch (no idle-recenter), so that when an emotion ends mid-touch the head can resume
+// tracking the live touch position instead of having drifted back to front.
+let pointerActive = false;
 
 function setPointerFromClient(clientX, clientY) {
   pointer.x = (clientX / window.innerWidth) * 2 - 1;
@@ -408,6 +417,20 @@ window.addEventListener("touchmove", (event) => {
   if (touch) setPointerFromClient(touch.clientX, touch.clientY);
 }, { passive: true });
 
+// O-26 #1: press-down begins an active touch (immediately gaze toward it); lift ends it.
+window.addEventListener("pointerdown", (event) => {
+  pointerActive = true;
+  setPointerFromClient(event.clientX, event.clientY);
+});
+window.addEventListener("touchstart", (event) => {
+  const touch = event.touches[0];
+  if (touch) { pointerActive = true; setPointerFromClient(touch.clientX, touch.clientY); }
+}, { passive: true });
+// Lift just clears the "held" flag. Touch lift also recenters (handler below); mouse
+// release stays sticky-hover on purpose (desktop keeps following the cursor).
+window.addEventListener("pointerup", () => { pointerActive = false; });
+window.addEventListener("pointercancel", () => { pointerActive = false; });
+
 // O-18 / O-17#4: head returns to front (gaze re-centers) when the finger lifts
 // or the cursor leaves the window. The animate() ease(LOOK.ease) handles the
 // smooth glide back — we only have to null the pointer target.
@@ -416,6 +439,7 @@ window.addEventListener("touchmove", (event) => {
 function recenterGaze() {
   pointer.x = 0;
   pointer.y = 0;
+  pointerActive = false; // O-26 #1: the touch is gone — stop holding the gaze target
   lastInputAt = Date.now();
 }
 // O-22 #1: robust front-return — if there's no input for a beat (finger lifted, cursor
@@ -431,8 +455,10 @@ function animate() {
   requestAnimationFrame(animate);
   const now = Date.now();
 
-  // O-22 #1: no input for a beat -> null the gaze target so the head eases to front
-  if ((pointer.x !== 0 || pointer.y !== 0) && now - lastInputAt > IDLE_RECENTER_MS) {
+  // O-22 #1: no input for a beat -> null the gaze target so the head eases to front.
+  // O-26 #1: but NOT while a finger is held down — a still finger is still "touching",
+  // so we keep its position as the target and resume tracking it after any emotion.
+  if (!pointerActive && (pointer.x !== 0 || pointer.y !== 0) && now - lastInputAt > IDLE_RECENTER_MS) {
     pointer.x = 0;
     pointer.y = 0;
   }
@@ -445,12 +471,25 @@ function animate() {
     starfield.material.opacity = 0.7 + 0.15 * Math.sin(now * 0.0009);
   }
 
-  const targetYaw = clamp(pointer.x * LOOK.turnMax, -LOOK.turnMax, LOOK.turnMax);
-  const targetPitch = clamp(pointer.y * LOOK.pitchMax, -LOOK.pitchMax, LOOK.pitchMax);
-  const targetX = clamp(pointer.x * LOOK.driftX, -LOOK.driftX, LOOK.driftX);
-  const targetY = clamp(-pointer.y * LOOK.driftY, -LOOK.driftY, LOOK.driftY);
-  const targetEyeX = clamp(pointer.x * FACE.travel.x, -FACE.travel.x, FACE.travel.x);
-  const targetEyeY = clamp(-pointer.y * FACE.travel.y, -FACE.travel.y, FACE.travel.y);
+  // O-26 #1: while an emotion expression is held, the character faces FRONT (gaze target
+  // = centre) so the expression reads clearly head-on. When the hold ends, the target
+  // snaps back to the live pointer below — so if the finger is still down the head
+  // immediately resumes tracking the touch (pointerActive kept it from recentering).
+  const facingFront = now < behavior.reactionUntil;
+  // O-26 #3: tracking pivots on the HEAD, not the screen centre. Measure the touch
+  // RELATIVE to the head's current on-screen position so the gaze is correct even when
+  // the head has retreated to the nav/screen corner (headRender world pos -> screen NDC).
+  const headNdcX = worldHalfW ? headRender.x / worldHalfW : 0;
+  const headNdcY = worldHalfH ? -headRender.y / worldHalfH : 0; // world +y up -> screen +y down
+  const gx = facingFront ? 0 : pointer.x - headNdcX;
+  const gy = facingFront ? 0 : pointer.y - headNdcY;
+
+  const targetYaw = clamp(gx * LOOK.turnMax, -LOOK.turnMax, LOOK.turnMax);
+  const targetPitch = clamp(gy * LOOK.pitchMax, -LOOK.pitchMax, LOOK.pitchMax);
+  const targetX = clamp(gx * LOOK.driftX, -LOOK.driftX, LOOK.driftX);
+  const targetY = clamp(-gy * LOOK.driftY, -LOOK.driftY, LOOK.driftY);
+  const targetEyeX = clamp(gx * FACE.travel.x, -FACE.travel.x, FACE.travel.x);
+  const targetEyeY = clamp(-gy * FACE.travel.y, -FACE.travel.y, FACE.travel.y);
 
   head.yaw += (targetYaw - head.yaw) * LOOK.ease;
   head.pitch += (targetPitch - head.pitch) * LOOK.ease;
@@ -707,6 +746,23 @@ function updateFaceBehavior(now) {
     faceMotion.blink += (1 - faceMotion.blink) * 0.4;
   }
 
+  // O-26 #4: one-eye wink overlay — a quick close of a single eye, independent of the
+  // symmetric blink, so a button tap can read as a playful wink.
+  if (behavior.winkStart) {
+    const winkProgress = clamp((now - behavior.winkStart) / behavior.winkDuration, 0, 1);
+    const close = lerp(1, 0.06, Math.sin(winkProgress * Math.PI));
+    faceMotion.winkLeft = behavior.winkSide === "left" ? close : 1;
+    faceMotion.winkRight = behavior.winkSide === "right" ? close : 1;
+    if (winkProgress >= 1) {
+      behavior.winkStart = 0;
+      faceMotion.winkLeft = 1;
+      faceMotion.winkRight = 1;
+    }
+  } else {
+    faceMotion.winkLeft += (1 - faceMotion.winkLeft) * 0.4;
+    faceMotion.winkRight += (1 - faceMotion.winkRight) * 0.4;
+  }
+
   const t = now * 0.001;
   const talk = (Math.sin(t * 10.5) + Math.sin(t * 17.0)) * 0.5;
   const slow = Math.sin(t * 2.6);
@@ -793,6 +849,38 @@ function react(eventName) {
   return true;
 }
 
+/* =========================================================================
+   O-26 #4 — every button press gets a light emotion (smile / wink / "오!").
+   Kept short (~900ms) and front-facing (reactionUntil drives the face-front in
+   animate()), so it punctuates the tap without hijacking the gaze. Buttons that
+   already fire a richer reaction (save/chat/avatar) override this on their click.
+   ========================================================================= */
+function triggerWink() {
+  const now = Date.now();
+  behavior.winkStart = now;
+  behavior.winkDuration = 300;
+  behavior.winkSide = Math.random() < 0.5 ? "left" : "right";
+  setExpression("happy", { manual: true }); // a small smile carries the wink
+  behavior.reactionUntil = now + 900;
+  behavior.nextMoodAt = behavior.reactionUntil + randomBetween(300, 800);
+}
+const LIGHT_TAPS = ["smile", "wink", "oh"];
+function lightTapReact() {
+  const kind = LIGHT_TAPS[Math.floor(Math.random() * LIGHT_TAPS.length)];
+  if (kind === "wink") { triggerWink(); return; }
+  setExpression(kind === "oh" ? "surprised" : "happy", { manual: true });
+  const now = Date.now();
+  behavior.reactionUntil = now + 900;
+  behavior.nextMoodAt = behavior.reactionUntil + randomBetween(300, 800);
+}
+// Fire on any real button press. pointerdown (not click) lands the instant the finger
+// goes down; capture phase so element handlers that stopPropagation on click can't
+// suppress it. Every interactive control on this page is a <button> element.
+window.addEventListener("pointerdown", (event) => {
+  const el = event.target;
+  if (el && el.closest && el.closest("button")) lightTapReact();
+}, true);
+
 // O-20 #3: classify a chat line's emotional tone (shared by user + bot-reply paths).
 function classifyTone(text) {
   const t = String(text || "").toLowerCase().trim();
@@ -837,6 +925,9 @@ window.secondB = {
   reactToChat,
   setExpression,
   setAge,
+  wink: triggerWink,    // O-26 #4
+  tap: lightTapReact,   // O-26 #4
+  name: "세컨비",        // O-26 #2: the character's name
   expressions: () => EXPRESSIONS.map((e) => e.key),
   ages: () => Object.keys(AGE_PROFILES),
 };
@@ -901,9 +992,10 @@ function updateHeadAnimation() {
     eye.position.y = eye.userData.baseY
       + eyes.y * LOOK.charHeight
       + faceMotion.yawnAmount * LOOK.charHeight * 0.004;
+    const wink = eye.userData.side === "left" ? faceMotion.winkLeft : faceMotion.winkRight;
     const eyeScaleY = Math.max(
       0.035,
-      expressionPose.eyeScaleY * faceMotion.blink * (1 - faceMotion.yawnAmount * 0.42)
+      expressionPose.eyeScaleY * faceMotion.blink * wink * (1 - faceMotion.yawnAmount * 0.42)
     );
     eye.scale.set(expressionPose.eyeScaleX, eyeScaleY, 1);
     eye.rotation.z = expressionPose.eyeTilt * side;
