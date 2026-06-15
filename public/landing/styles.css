@@ -624,3 +624,34 @@ body.is-nav .home-icons { opacity: 1; transform: translateX(0); }
   .home-bubble { top: 42%; }
   .home-menu { top: 56%; }
 }
+
+/* O-27: WoW-style level-up burst, eye-cyan. Token + opacity layering only (no
+   gradient/glass per DESIGN.md). Single-shot, self-removing, GPU transform/opacity. */
+.lvlup { position: fixed; z-index: 80; width: 0; height: 0; pointer-events: none; }
+.lvlup__pillar {
+  position: absolute; left: -4px; bottom: 0; width: 8px; height: 130px;
+  background: var(--accent); border-radius: 4px; opacity: 0;
+  transform: scaleY(0); transform-origin: bottom center; will-change: transform, opacity;
+}
+.lvlup--strong .lvlup__pillar { left: -6px; width: 12px; height: 210px; }
+.lvlup.is-on .lvlup__pillar { animation: lvlupPillar 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+@keyframes lvlupPillar { 0% { transform: scaleY(0); opacity: 0; } 22% { opacity: 0.9; } 100% { transform: scaleY(1); opacity: 0; } }
+.lvlup__ring {
+  position: absolute; left: 0; top: 0; width: 30px; height: 30px; margin: -15px 0 0 -15px;
+  border: 2px solid var(--accent-bright); border-radius: 50%; opacity: 0; will-change: transform, opacity;
+}
+.lvlup--strong .lvlup__ring { width: 44px; height: 44px; margin: -22px 0 0 -22px; }
+.lvlup.is-on .lvlup__ring { animation: lvlupRing 0.6s ease-out forwards; }
+@keyframes lvlupRing { 0% { opacity: 0.9; transform: scale(0.4); } 100% { opacity: 0; transform: scale(2.6); } }
+.lvlup__spark {
+  position: absolute; left: 0; top: 0; width: 4px; height: 4px; margin: -2px 0 0 -2px;
+  background: var(--ink); border-radius: 50%; opacity: 0; will-change: transform, opacity;
+}
+.lvlup.is-on .lvlup__spark { animation: lvlupSpark 0.72s ease-out forwards; }
+@keyframes lvlupSpark { 0% { opacity: 1; transform: translate(0, 0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); } }
+/* reduced-motion fallback: a brief static glow pulse, no pillar/particles */
+.lvlup--pulse {
+  width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%;
+  background: var(--accent); opacity: 0; animation: lvlupPulse 0.42s ease;
+}
+@keyframes lvlupPulse { 0% { opacity: 0; } 45% { opacity: 0.32; } 100% { opacity: 0; } }

@@ -25,6 +25,7 @@ const HEAD_PAGE_QUERY = "?head-follow-v7c";
 // Read before the replaceState below wipes the query string.
 const QA_EXPR = new URLSearchParams(location.search).get("expr");
 const QA_AGE = new URLSearchParams(location.search).get("age");
+const QA_LVLUP = new URLSearchParams(location.search).get("lvlup"); // O-27 burst demo
 
 if (location.search !== HEAD_PAGE_QUERY) {
   history.replaceState(null, "", `${location.pathname}${HEAD_PAGE_QUERY}${location.hash}`);
@@ -1236,6 +1237,48 @@ if (backBtn) {
 
 // O-17 #2 demo hooks: drive contextual reactions from the prototype screens so
 // the "save success / fail / chat tone" behavior is visible without a real backend.
+// O-27: WoW-style level-up burst, eye-cyan. Fires when (a) a datum accumulates or
+// (b) a new structure appears. Vertical light pillar + ring burst + sparkles (0.6-1s),
+// cyan tokens only. Tier intensity ("core" strong / "data" mini) so it never eats the
+// Soul Core. Reduced-motion -> a short static glow pulse (no pillar/particles). Single-
+// shot DOM that self-removes (no per-frame work / persistent decoration = low-end safe).
+const PREFERS_REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)");
+function levelUpBurst(anchorEl, tier = "data", forceFull = false) {
+  if (!anchorEl) return;
+  const rect = anchorEl.getBoundingClientRect();
+  const layer = document.createElement("div");
+  layer.className = "lvlup" + (tier === "core" ? " lvlup--strong" : "");
+  layer.style.left = `${rect.left + rect.width / 2}px`;
+  layer.style.top = `${rect.top + rect.height / 2}px`;
+  if (PREFERS_REDUCED.matches && !forceFull) {
+    layer.classList.add("lvlup--pulse");
+    document.body.appendChild(layer);
+    window.setTimeout(() => layer.remove(), 440);
+    return;
+  }
+  const pillar = document.createElement("div");
+  pillar.className = "lvlup__pillar";
+  const ring = document.createElement("div");
+  ring.className = "lvlup__ring";
+  layer.appendChild(pillar);
+  layer.appendChild(ring);
+  const strong = tier === "core";
+  const n = strong ? 10 : 5;
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement("div");
+    s.className = "lvlup__spark";
+    const ang = (Math.PI * 2 * i) / n + (Math.random() - 0.5) * 0.5;
+    const dist = (strong ? 58 : 34) + Math.random() * 18;
+    s.style.setProperty("--dx", `${Math.cos(ang) * dist}px`);
+    s.style.setProperty("--dy", `${Math.sin(ang) * dist - (strong ? 28 : 16)}px`);
+    layer.appendChild(s);
+  }
+  document.body.appendChild(layer);
+  if (navigator.vibrate) navigator.vibrate(strong ? 18 : 10); // light haptic (RN app: expo-haptics)
+  requestAnimationFrame(() => layer.classList.add("is-on"));
+  window.setTimeout(() => layer.remove(), strong ? 1000 : 720);
+}
+
 const captureCta = document.querySelector('[data-screen="capture"] .screen__cta');
 const captureInput = document.querySelector('[data-screen="capture"] .capture-input');
 if (captureCta) {
@@ -1243,9 +1286,53 @@ if (captureCta) {
     event.stopPropagation();
     const text = ((captureInput && captureInput.value) || "").trim();
     react(text ? "saveSuccess" : "saveFail"); // empty capture -> mild fail (annoyed; repeats -> angry)
+    if (text) levelUpBurst(captureCta, "data"); // (a) a datum accumulated -> mini burst
     if (captureInput && text) captureInput.value = "";
   });
 }
+
+// O-27 QA: ?lvlup=core|data repeatedly fires a burst at the stage centre for demo capture.
+if (QA_LVLUP === "hold") {
+  // Static demo: render the burst frozen at a visible mid-frame (animation off) so a
+  // headless screenshot reliably captures it. The live effect animates; this is QA-only.
+  const a = document.getElementById("stage") || document.body;
+  const r = a.getBoundingClientRect();
+  const layer = document.createElement("div");
+  layer.className = "lvlup lvlup--strong";
+  layer.style.left = `${r.left + r.width / 2}px`;
+  layer.style.top = `${r.top + r.height / 2}px`;
+  const pillar = document.createElement("div");
+  pillar.className = "lvlup__pillar";
+  pillar.style.cssText = "animation:none;transform:scaleY(0.82);opacity:0.75";
+  const ring = document.createElement("div");
+  ring.className = "lvlup__ring";
+  ring.style.cssText = "animation:none;transform:scale(1.7);opacity:0.6";
+  layer.appendChild(pillar);
+  layer.appendChild(ring);
+  for (let i = 0; i < 10; i++) {
+    const s = document.createElement("div");
+    s.className = "lvlup__spark";
+    const ang = (Math.PI * 2 * i) / 10;
+    s.style.cssText = `animation:none;opacity:0.85;transform:translate(${Math.cos(ang) * 42}px,${Math.sin(ang) * 42 - 26}px)`;
+    layer.appendChild(s);
+  }
+  document.body.appendChild(layer);
+} else if (QA_LVLUP) {
+  // forceFull so the demo shows the full pillar/ring/sparkle even where the headless
+  // browser reports prefers-reduced-motion (the real reduced fallback is the pulse).
+  const fire = () => levelUpBurst(document.getElementById("stage") || document.body, QA_LVLUP === "core" ? "core" : "data", true);
+  window.setTimeout(fire, 300);
+  window.setInterval(fire, 850);
+}
+
+// O-27 (b): tapping a graph node fires a level-up burst — core node = strong tier,
+// the rest = mini (so tier-1 Soul Core/큰 구조물 reads as the bigger moment).
+document.querySelectorAll('[data-screen="graph"] .graph-node').forEach((node) => {
+  node.addEventListener("click", (event) => {
+    event.stopPropagation();
+    levelUpBurst(node, node.classList.contains("graph-node--core") ? "core" : "data");
+  });
+});
 const chatSend = document.querySelector('[data-screen="secondb"] .chat__send');
 const chatField = document.querySelector('[data-screen="secondb"] .chat__field');
 const chatBox = document.querySelector('[data-screen="secondb"] .chat');

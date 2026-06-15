@@ -1208,6 +1208,17 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-27 🔄 landing 데모 / 2026-06-15 21:30 KST] WoW 레벨업 연출(눈색 cyan) — landing 구현·데모 (진행중→RN 포팅)
+**landing 데모 완료**(public/landing, 라이브 simon-yhkim.github.io/2nd-B/landing/): WoW 레벨업 "딩" 시그니처를 **눈색 cyan화**.
+- **연출**: 대상 둘레 **수직 광주(--accent #46b6ff) + 확장 링버스트(--accent-bright #ccfaff) + 스파클 파티클(--ink #5fd4ff)** 0.7~1.0s. 토큰·opacity 레이어링만(gradient/glass 금지, DESIGN.md 준수). 끝나면 잔상 0(단발 self-remove DOM).
+- **트리거 2종**: **(a)** 담기(캡처) 저장 시 데이터 적립=mini 버스트(`captureCta` 핸들러) · **(b)** 그래프 노드 탭 시 새 구조물=`graph-node--core`→강(core tier)·그외→mini(`.graph-node` 핸들러).
+- **tier 차등**(Visual Tier System): core=강(광주 210px·링 44px·스파클10)·data=약(130px·30px·5). Soul Core 안 잡아먹게.
+- **reduced-motion 폴백**: `matchMedia(prefers-reduced-motion)` → 광주/파티클 생략, 짧은 정적 글로우 펄스(0.42s).
+- **저사양 경량**: 단발 DOM·self-remove·will-change transform/opacity, 연속 파티클/매프레임 SVG 리렌더 없음. 라이트 햅틱=navigator.vibrate(RN앱=expo-haptics).
+- **검증**: `?lvlup=hold` held 데모 스샷=광주+링+스파클 cyan 정상 렌더. node --check OK. 캐시 v7n/o27a. landing=public/라 export 포함·verify 무관(green 유지).
+**남은 RN 포팅(본체 적용·verify/export 게이트)**: `LevelUpBurst` Reanimated 컴포넌트 + LevelUpProvider/useLevelUp 훅 + expo-haptics + 실 트리거(capture save·record/source add·interview answer·graph 신규노드) 배선. landing 데모로 cyan-WoW 컨셉 확정 후 본체 통합.
+
+
 ### [O-26 ✅ / 2026-06-15 20:18 KST] 에뮬 dev 서버 연결 환경이슈 영구해결 — 완료
 **증상**: AG 네이티브 QA(O-23 Stage④) 에뮬 콘솔 `Cannot connect to Expo CLI`/`10.0.2.2:8081` — 에뮬이 PC Metro(8081) 미연결. 앱버그 아님=dev환경. (Reanimated `Reduced motion` 경고=무관, 에뮬 동작줄이기 OFF 권고.)
 **해결(재발방지·영구화)**:
