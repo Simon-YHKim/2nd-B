@@ -10,13 +10,13 @@
  * for now the menu gives honest "coming next" feedback so nothing reads as broken.
  */
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, type Href } from "expo-router";
 import Svg, { Circle, Path } from "react-native-svg";
 
 import { deepSpace } from "@/lib/theme/tokens";
-import { isCharacterFallback } from "@/lib/ui-mode";
 
 const CHARACTER = require("../../../assets/deep-space/character-front.png");
 
@@ -29,7 +29,13 @@ const PRIMARY: { key: string; ko: string; en: string; route: Href }[] = [
   { key: "profile", ko: "나", en: "profile", route: "/profile" },
 ];
 
+const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 export function DeepSpaceShell() {
+  // O-23 Stage⑤ (F2/F3): the shell speaks the user's locale — non-Korean users get
+  // a readable CTA + menu instead of hardcoded Korean (persona-sim culture-axis gap).
+  const { i18n } = useTranslation();
+  const isKo = i18n.language === "ko";
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
       {/* O-23 Stage③ finish: head-right icons (D-22 nav). Settings is an icon, not
@@ -67,7 +73,9 @@ export function DeepSpaceShell() {
         />
 
         <View style={styles.bubble}>
-          <Text style={styles.bubbleText}>무엇을 기록해볼까?</Text>
+          <Text style={styles.bubbleText}>
+            {isKo ? "무엇을 기록해볼까?" : "What would you like to note?"}
+          </Text>
         </View>
 
         <View style={styles.menu}>
@@ -77,17 +85,13 @@ export function DeepSpaceShell() {
               style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
               onPress={() => router.push(item.route)}
               accessibilityRole="button"
-              accessibilityLabel={item.ko}
+              accessibilityLabel={isKo ? item.ko : titleCase(item.en)}
             >
-              <Text style={styles.itemKo}>{item.ko}</Text>
-              <Text style={styles.itemEn}>{item.en}</Text>
+              <Text style={styles.itemKo}>{isKo ? item.ko : titleCase(item.en)}</Text>
+              {isKo ? <Text style={styles.itemEn}>{item.en}</Text> : null}
             </Pressable>
           ))}
         </View>
-
-        <Text style={styles.note}>
-          {isCharacterFallback() ? "deep-space · 정적 캐릭터" : "deep-space"}
-        </Text>
       </View>
     </SafeAreaView>
   );
@@ -97,9 +101,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: deepSpace.bg },
   icons: { position: "absolute", top: 0, right: 18, zIndex: 2, flexDirection: "row", gap: 10, paddingTop: 12 },
   icon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 44, // O-23 Stage⑤ (F1): >= 44px touch target (persona-sim a11y)
+    height: 44,
+    borderRadius: 11,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
@@ -135,5 +139,4 @@ const styles = StyleSheet.create({
   itemPressed: { borderColor: deepSpace.accent, backgroundColor: "rgba(70,182,255,0.12)" },
   itemKo: { color: deepSpace.text, fontSize: 15, marginBottom: 2 },
   itemEn: { color: deepSpace.textMuted, fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase" },
-  note: { color: deepSpace.textMuted, fontSize: 11, marginTop: 22 },
 });
