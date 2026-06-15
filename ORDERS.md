@@ -1143,6 +1143,14 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-23 🔄 Stage③ 착수 / 2026-06-15 17:10 KST] 전기능 연결 — nav 계약 문서화(선행, mandated) (진행중)
+**Stage③ 선행단계 완료**(`docs/deep-space-nav-contract.md`): D-23/Grok 리스크가 명시한 **"nav 계약 문서화+E2E 선행"** 충족. 실제 router 리워크 전 spec 확정:
+- **아키텍처 해소**: Stack은 양 모드 전 라우트 마운트 유지(Stage① 전체대체 revert). `index` 분기(legacy=그래프·deep-space=DeepSpaceShell). **그래프↔홈 충돌 해소** = 그래프뷰를 공유 `GraphScreen` 컴포넌트로 추출 → 신규 `/graph` 라우트(deep-space 그래프 메뉴 타깃), index.tsx 로직 포크 없음.
+- **D-22 IA → 40 라우트 매핑표**(누락0 검증): 4 primary(그래프/graph·담기/capture·세컨비/secondb·나/profile) + 2차(위키/기록/리서치·형식/import/inbox/manual·소울코어/나의모습/통찰·자기검사7=big-five/mbti/attachment/trinity/esm/interview/audit·설정8=account/plans/privacy/permissions/data/theme/support/ops).
+- **back/딥링크/탭 동작 + E2E 체크리스트 7항**(per-PR 게이트) + 재테마는 Stage③ 범위 외(연결만, 재테마는 후속 Codex 분배).
+**다음(구현, spec 따름)**: _layout 리워크(전라우트 마운트)+index 분기+GraphScreen 추출+/graph+메뉴 router.push 와이어링 → E2E(deep-space web export 메뉴 네비 검증)+legacy 회귀 → PR/CI verify+export green 머지. 다파일 비가역이라 신선 컨텍스트 집중. 그 후 ④persona-sim →⑤findings.
+
+
 ### [O-23 🔄 Stage② 완료 / 2026-06-15 16:38 KST] deep-space 새 셸 골격 (진행중)
 **Stage② 완료**(PR #391 머지, main ad8f4be, CI verify green + deep-space 플래그 expo export green):
 - **`deepSpace` 토큰**(tokens.ts): 눈색 monotone(accent #46B6FF·accentBright #CCFAFF·text #5FD4FF·bg #0A0E1A·cardLine, ≤3 core색 D-22, landing 컨셉 정합). legacy 토큰 무변화.
