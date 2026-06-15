@@ -162,6 +162,23 @@ export const semantic = {
   danger: cosmic.guardRose,
 } as const;
 
+// O-23 (D-22/D-23): deep-space character UI track tokens. Eye-cyan monotone so the
+// whole UI reads as the character's body/screen — kept to <=3 core colors per D-22
+// (accent + text + bg), matching the live landing concept (public/landing). Used
+// only by the deep-space shell (EXPO_PUBLIC_UI=deep-space); the legacy palette is
+// untouched. danger keeps a functional exception.
+export const deepSpace = {
+  bg: "#0A0E1A", // deep-space body (tinted near-black, never pure black)
+  bgEdge: "#070A13", // darker frame edges
+  accent: "#46B6FF", // eye outer cyan = primary accent
+  accentBright: "#CCFAFF", // eye inner bright highlight
+  text: "#5FD4FF", // cyan body text (the character's mouth color)
+  textMuted: "rgba(95,212,255,0.62)",
+  card: "rgba(70,182,255,0.06)",
+  cardLine: "rgba(70,182,255,0.24)",
+  danger: cosmic.guardRose, // functional-color exception only
+} as const;
+
 // Same-shape light palette. Returned by useThemePalette() when the active
 // mode is "light". Now built on the cosmic-light palette (queue item G)
 // rather than sky-blue, so light mode carries the same mint/violet

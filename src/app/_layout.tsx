@@ -52,8 +52,13 @@ export default function RootLayout() {
             <AnalyticsConsentSync />
             <AuditWriteOutboxSync />
             <IntroGate>
+              {/* O-23 Stage③: the Stack mounts every route in BOTH UI modes (the
+                  flag only swaps which component `index` renders — see index.tsx —
+                  and adds the deep-space /graph alias). This is the nav-contract
+                  architecture: no feature is dropped by the deep-space track. */}
               <ThemedStack>
               <Stack.Screen name="index" />
+              <Stack.Screen name="graph" />
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="journal" />
               <Stack.Screen name="audit" />
@@ -120,6 +125,7 @@ function AppTabBar() {
   const { i18n } = useTranslation();
   return <PremiumTabBar locale={i18n.language === "ko" ? "ko" : "en"} />;
 }
+
 
 /**
  * App content is always dark — every screen is wrapped in PremiumAppShell's

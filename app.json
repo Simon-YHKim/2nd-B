@@ -47,7 +47,8 @@
             "DEFAULT"
           ]
         }
-      ]
+      ],
+      "package": "com.anonymous.x2ndbrain"
     },
     "web": {
       "output": "static",

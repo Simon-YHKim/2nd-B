@@ -1062,7 +1062,7 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
               toValue: 1,
               duration: SPAWN_REVEAL_MS,
               easing: Easing.out(Easing.cubic),
-              useNativeDriver: true,
+              useNativeDriver: false, // spawnValues feed SVG opacity/scale — JS-driven only (see NavGraph native-driver note)
             }).start();
           }
           await delay(stagger);
@@ -1210,12 +1210,12 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
     // finished=false while it still closes over the stale (false) vis. Without
     // the guard it would unmount tier-3 nodes that should now be visible,
     // leaving them hidden until the next threshold crossing.
-    Animated.timing(tier3Fade, { toValue: vis.tier3 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true })
+    Animated.timing(tier3Fade, { toValue: vis.tier3 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false })
       .start(({ finished }) => { if (finished && !vis.tier3) setTier3Mounted(false); });
   }, [vis.tier3, tier3Fade]);
   useEffect(() => {
     if (vis.tier4) setTier4Mounted(true);
-    Animated.timing(tier4Fade, { toValue: vis.tier4 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true })
+    Animated.timing(tier4Fade, { toValue: vis.tier4 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false })
       .start(({ finished }) => { if (finished && !vis.tier4) setTier4Mounted(false); });
   }, [vis.tier4, tier4Fade]);
   const tierOf = (id: string): Tier =>
@@ -1241,12 +1241,17 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
     zoomSavedScale.value = revealed;
     const v = pulseValues.current.get(highlightId);
     if (v) {
+      // useNativeDriver MUST stay false: `v` is a pulseValue consumed as an SVG
+      // transform.scale (see out.push({ scale: p })), which cannot run on the native
+      // driver. Animating it native-driven moves the node to native, then the JS-driven
+      // SVG read throws "moved to native" → first-render RedBox → whole app blank.
+      // (Regressed once by 45ae380f; fixed before by 84be3a8. Do not flip back to true.)
       Animated.sequence([
-        Animated.timing(v, { toValue: 1.9, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1.9, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
         Animated.delay(400),
-        Animated.timing(v, { toValue: 1.6, duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1.6, duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
       ]).start();
     }
     const t = setTimeout(() => setHighlightDataId(null), 2800);
@@ -1363,9 +1368,11 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
       if (!pick) return;
       const v = pulseValues.current.get(pick.id);
       if (!v) return;
+      // useNativeDriver false — `v` (pulseValue) feeds an SVG transform.scale; native
+      // driver here throws "moved to native" on the JS-driven SVG read (see block above).
       Animated.sequence([
-        Animated.timing(v, { toValue: 1.18, duration: 280, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 1.0, duration: 360, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1.18, duration: 280, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.0, duration: 360, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
       ]).start();
     }, PULSE_INTERVAL_MS);
     return () => clearInterval(id);
