@@ -1143,6 +1143,14 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-23 🔄 Stage① 완료 / 2026-06-15 16:14 KST] 레거시 분리 + UI 트랙 플래그 스캐폴딩 (진행중)
+**Stage① 완료**(PR #390 머지, main 60ea64b, CI verify+export green):
+- **`src/lib/ui-mode.ts`**(신규): `EXPO_PUBLIC_UI=legacy|deep-space`(기본 legacy) + `EXPO_PUBLIC_CHARACTER=3d|fallback`(기본 3d) 플래그 + helper(isDeepSpaceUI/isLegacyUI/isCharacterFallback). **legacy 기본** = 미설정/오타 플래그도 안전, **플래그 플립 = 전체 롤백 경로**(D-23).
+- **`src/app/_layout.tsx`**: 루트 IntroGate 내부를 `isDeepSpaceUI()`로 분기. legacy=**기존 gameboy 트리 그대로(무변화·삭제0·보존)**, deep-space=최소 placeholder 셸(Stage②가 실제 테마 셸로 교체).
+- **제로리스크**: 기본(미설정)=legacy → 기존 앱 동작 완전 동일. type-check+lint green, CI verify(1m30s)+expo export green.
+**다음 Stage②**: deep-space 새 셸 골격 — 루트 네비 + deep-space semantic 토큰(눈색 ≤3색, D-22) + 홈 셸(캐릭터 3d/fallback 하이브리드). landing(public/landing) 컨셉을 RN 셸로. **Stage③ 전 40기능 연결 착수 전 nav 계약(라우트맵·딥링크·back/탭중첩) 문서화+E2E**(Grok 리스크). 4-AI 분산.
+
+
 ### [O-23 🔄 Stage⓪ / 2026-06-15 15:42 KST] 새 UI 본체승격 — §35 ai-debate 완료·아키텍처 결정 (대규모·비가역, 진행중)
 **§35 게이트 준수(주문 명시)**: 비가역(앱 전체 UI 교체)이라 코드 착수 전 **허브 3-AI 헤드리스 패널**(AG 네이티브/Codex UI아키/Grok 소비자) → Claude 종합. **DECISIONS D-23 기록**(허브).
 **recon**: 새 UI=정적 HTML+Three.js(public/landing, 라이브). 기존=RN/expo-router SDK56 ~40화면(gameboy-tokens, EXPO_PUBLIC_UI 플래그 부재). 긴장=Three.js 프로토를 RN 본체에 편입.
