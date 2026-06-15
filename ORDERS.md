@@ -1078,6 +1078,12 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-17 🔄 / 2026-06-15 09:52 KST] landing 캐릭터 폴리시 — AG 조언 락 + 구현계획 (진행중)
+**#1 배경 rim-light → AG 조언 수신·채택**: agy 헤드리스 컨설트(허브) 결과 **② 파란빛 우주(nebula/starfield)** 채택. 근거(AG): 바이올렛 몸통+시안 눈+하늘색 rim과 가장 부드럽게 연결, "살짝 귀여운 deep-space" 톤 부합, 신경망(무거운 선)·중력장(과한 왜곡) 대비 여백 보존. **구현 스펙(AG)**: three.js `Points` 시안/블루 별가루 최소 부유 + 캐릭터 뒤 custom shader(Simplex-noise gradient glow)로 rim-light가 배경으로 번지게. deep-space 검정 여백 유지, slop 금지.
+**#2 표정 상황연동 / #3 다양화(듀오링고) / #4 얼굴탭 복귀**: 현 EXPRESSIONS 9종(neutral/happy/curious/excited/surprised/sad/annoyed/sleepy/yawn) + behavior(blink/yawn/mood-cycle ~6.5~10.5s) 확인. setExpression은 window.setSecondBExpression로 이미 노출(이벤트훅 기반). #4(얼굴탭 복귀)는 **O-18에서 동일 메커니즘(touchend/blur recenter)으로 선해결**.
+**구현 순서(다음 사이클)**: ① nebula bg(AG 스펙, composer 파이프라인 비파괴 검증 필수) → ②③ 표정 확장(기존 mouth 타입 재사용 우선, 저장/실패/채팅 이벤트→setExpression 훅) → 스샷 per-expression 검증. landing gitignored→로컬 8777 검증. **합리적 분할**: 셰이더는 렌더 깨짐 리스크라 거대세션 꼬리 급조 회피, 집중 사이클로 이관.
+
+
 ### [O-18 ✅ / 2026-06-15 09:49 KST] landing 머리 추적 — 손가락 떼면 정면 복귀 (작은 버그·완료)
 **완료**: `main.js` — touchmove로만 갱신되던 gaze pointer를 **touchend·touchcancel·window blur·document mouseleave/pointerleave**에서 (0,0)으로 리셋 → 기존 LOOK.ease가 머리를 부드럽게 정면 복귀. 데스크톱 hover는 sticky 유지(창 떠날 때만 복귀, Simon 권고 반영). 캐시 v7c→v7d. 렌더 회귀 0(헤드리스 스샷=정면 응시·시안 눈 확인), `node --check` OK. landing gitignored→로컬 8777 검증. O-17 #4(얼굴탭 복귀)와 동일 메커니즘으로 선해결.
 
