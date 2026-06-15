@@ -1113,6 +1113,16 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-21 ✅ / 2026-06-15 11:38 KST] landing-clone → 2nd-B 정식 통합 + 진짜 라이브 — 완료
+**🔴 LIVE: https://simon-yhkim.github.io/2nd-B/landing/** (8777 로컬/터널 졸업 → GitHub Pages 진짜 라이브)
+**접근(후보① Expo public/ 정적 호스팅, 실행자 판단)**: gitignored `landing-clone`(O-13~O-20 반영본: nebula·표정 상황연동/다양화·nav IA·눈색토큰·idle/숨쉬기·얼굴탭 hit-test·사람 아이콘)을 **`public/landing/`로 승격** → `expo export --platform web`가 `dist/landing/`로 복사 → Pages 배포. RN 앱 **미변경**(Three.js 포팅 대공사 회피, 비용대비 정적이 정답).
+**verify 게이트 무영향 검증**: `public/**`는 eslint.config.mjs ignore + tsconfig include 밖 + 모든 `check:*`(emdash=locales json만·lexicon=src+supabase·anti-anthro/mascot=특정 src·constraints=하드코딩 src) 스캔범위 밖. → 통합이 게이트 안 건드림(분석 후 진행).
+**경량화**: billboard PNG 1개(860KB)만 번들(미사용 앵글변형 20MB는 로컬 프로토타입 잔류). 전부 상대경로+CDN importmap → `/landing/` 서브패스 base-path 변경 불필요.
+**파이프라인 검증**: PR #389 → CI **verify green**(lint+type-check+8 checks+jest, 1m25~32s ×2) → squash 머지(187bad1) → web-deploy.yml(main push) 배포 success(2m) → **라이브 200**(/landing/ + PNG asset) → **헤드리스 라이브 렌더 확인**(캐릭터·nebula·별가루 정상). `npm run verify`+`expo export` green 게이트 통과.
+**후속 메모**: 이제 `public/landing/`이 **정본(추적·배포)**. 향후 landing 수정은 여기서 → push 시 자동 재배포. (로컬 `landing-clone`은 8777 dev/풀에셋 보관용으로 잔존, 드리프트 주의.)
+**남은 큐**: O-20 #3(mock 채팅톤)·#5(프로필+사진)·#2(연령축) → 다음 사이클. 이제 작업분이 라이브로 바로 보임.
+
+
 ### [O-20 🔄 3/6 / 2026-06-15 11:24 KST] landing 감사 보강 — 폴리시 3종 완료 (진행중)
 **완료 (`landing-clone`, 8777 검증)**:
 - **#1 idle 상시 생동감**: neutral/curious의 `mouthMotion:"idle"`이 입 완전정지였음 → updateFaceBehavior에 idle 케이스 추가(두 느린 sine 오물오물 ~4.5%+2%) + **숨쉬기 bob 배선**(dead였던 `LOOK.bob` 0→0.035, updateHeadAnimation에 `sin(t)·bob·headScale` 적용). 감정 무관 상시 미세 생동.
