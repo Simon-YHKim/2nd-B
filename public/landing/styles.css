@@ -1,0 +1,559 @@
+/* =========================================================================
+   Landing-clone — structure / interaction study of johwska.com
+   Content is fictional placeholder. See README.md.
+   ========================================================================= */
+
+:root {
+  /* O-16: deep-space ground + character eye-cyan accent (<=3 hues, "body screen") */
+  --bg-edge: #0a0e1a;        /* deep-space, tinted neutral (not pure black) */
+  --bg-core: #11182e;        /* lifted deep-space for the radial veil */
+
+  --accent: #46b6ff;         /* eye OUTER iris — the one accent (active, CTA, focus) */
+  --accent-bright: #ccfaff;  /* eye INNER highlight — accent tint, used sparingly */
+
+  --ink: #5fd4ff;            /* eye/mouth cyan — primary text (same being as the character) */
+  --ink-soft: rgba(95, 212, 255, 0.66); /* mono labels */
+  --ink-faint: rgba(95, 212, 255, 0.40);
+
+  --card: rgba(18, 34, 54, 0.46);        /* deep-space card */
+  --card-line: rgba(70, 182, 255, 0.24); /* eye-cyan hairline */
+
+  --mono: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --serif: Georgia, "Times New Roman", Times, serif;
+
+  --panel-w: 200px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-edge);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* WebGL canvas fills the viewport */
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* loading veil fades out once the scene is ready */
+#veil {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(120% 120% at 50% 42%, var(--bg-core), var(--bg-edge));
+  z-index: 50;
+  transition: opacity 1.1s ease;
+  pointer-events: none;
+}
+#veil.is-hidden { opacity: 0; }
+
+/* =========================================================================
+   Floating widget
+   ========================================================================= */
+.panel {
+  position: fixed;
+  left: 28px;
+  bottom: 26px;
+  z-index: 20;
+  width: var(--panel-w);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  user-select: none;
+}
+
+/* card chrome appears only when expanded */
+.panel:not(.is-collapsed) {
+  padding: 14px 14px 8px;
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 5px;
+  backdrop-filter: blur(7px) saturate(1.1);
+  -webkit-backdrop-filter: blur(7px) saturate(1.1);
+  box-shadow: 0 18px 40px -24px rgba(60, 40, 40, 0.5);
+}
+
+/* the always-present name / toggle */
+.panel__toggle {
+  all: unset;
+  display: inline-flex;
+  align-items: baseline;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 11px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  transition: color 0.25s ease;
+}
+.panel__toggle:hover { color: var(--ink); }
+.panel:not(.is-collapsed) .panel__toggle {
+  display: block;
+  text-align: center;
+  width: 100%;
+  cursor: grab;            /* header doubles as the drag handle */
+}
+.panel.is-dragging .panel__toggle { cursor: grabbing; }
+
+.panel__sign { transition: transform 0.25s ease; }
+.panel:not(.is-collapsed) .panel__sign { display: none; }
+
+/* expanded body */
+.panel__body {
+  display: none;
+  margin-top: 10px;
+}
+.panel:not(.is-collapsed) .panel__body { display: block; }
+
+.panel__nav {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.panel__link {
+  all: unset;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 10px;
+  color: var(--ink-faint);
+  padding-bottom: 1px;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.panel__link:hover { color: var(--ink-soft); }
+.panel__link.is-active {
+  color: var(--ink);
+  border-color: var(--ink-soft);
+}
+
+/* scroll region shared by both views */
+.view {
+  max-height: 46vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+/* thin custom scrollbar */
+.view::-webkit-scrollbar { width: 4px; }
+.view::-webkit-scrollbar-thumb {
+  background: var(--ink-faint);
+  border-radius: 4px;
+}
+.view { scrollbar-width: thin; scrollbar-color: var(--ink-faint) transparent; }
+
+/* =========================================================================
+   WORK grid — placeholder generative tiles
+   ========================================================================= */
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+.grid li {
+  position: relative;
+  aspect-ratio: 1 / 1.08;
+  border-radius: 2px;
+  overflow: hidden;
+  cursor: pointer;
+  filter: saturate(0.92);
+  transition: transform 0.35s ease, filter 0.35s ease;
+}
+.grid li::after {
+  /* faint glass sheen over every tile */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(150deg, rgba(255,255,255,0.28), transparent 55%);
+  mix-blend-mode: screen;
+}
+.grid li:hover {
+  transform: scale(1.04);
+  filter: saturate(1.1) brightness(1.04);
+  z-index: 1;
+}
+
+/* =========================================================================
+   INFO — contact + bio
+   ========================================================================= */
+.contact {
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0 0 14px;
+}
+.contact a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--ink-faint);
+}
+.contact a:hover { border-color: var(--ink); }
+
+.bio {
+  font-family: var(--serif);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.bio p { margin: 0 0 11px; }
+.bio__quote { font-style: italic; color: var(--ink-soft); }
+
+/* =========================================================================
+   Responsive
+   ========================================================================= */
+@media (max-width: 600px) {
+  .panel { left: 16px; bottom: 16px; --panel-w: 168px; }
+  .view { max-height: 40vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #veil { transition: none; }
+  .grid li, .panel__toggle, .panel__link { transition: none; }
+}
+
+/* =========================================================================
+   O-13/O-14 — home nav UI. Responsive (10% side margins, scales 360..1280+),
+   2ndb IA menu (primary 4 + secondary 2). Deep-space tokens, crisp, no bounce.
+   The WebGL head retreats to the top-left of the 80% content box (see main.js
+   fitScale/navOffset); bubble + menu sit to its right (desktop) or below (phone).
+   ========================================================================= */
+#home-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;            /* empty areas pass clicks to window (exit nav) */
+  font-family: var(--mono);
+  opacity: 0;                      /* hide whole home UI (incl. divider/label) until nav */
+  transition: opacity 0.25s ease;
+}
+body.is-nav #home-ui { opacity: 1; }
+
+/* speech bubble — right of the retreated head, inside the 80% content box */
+.home-bubble {
+  position: absolute;
+  top: 9%;
+  left: 50%;                        /* head spans ~10%..47% of viewport in nav */
+  right: 10%;
+  max-width: 320px;
+  padding: 12px 16px;
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 4px 13px 13px 13px;
+  color: var(--ink);
+  font-size: clamp(12px, 1.5vw, 14px);
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  pointer-events: auto;
+  backdrop-filter: blur(7px) saturate(1.1);
+  -webkit-backdrop-filter: blur(7px) saturate(1.1);
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition-delay: 0.16s;          /* appear just after the head settles */
+}
+.home-bubble::before {              /* small tail pointing back toward the head */
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: 17px;
+  width: 12px;
+  height: 12px;
+  background: var(--card);
+  border-left: 1px solid var(--card-line);
+  border-bottom: 1px solid var(--card-line);
+  transform: rotate(45deg);
+}
+
+/* function menu — below the bubble */
+.home-menu {
+  position: absolute;
+  top: 25%;
+  left: 50%;
+  right: 10%;
+  max-width: 360px;
+}
+.home-menu__primary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.home-menu__secondary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid var(--card-line);   /* visual separation of 2nd-tier */
+}
+.home-menu__seclabel {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+.home-item {
+  all: unset;
+  pointer-events: auto;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 11px 14px;
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 4px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(9px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: opacity 0.26s ease,
+              transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1),
+              color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.home-item__ko { font-size: 13px; color: var(--ink); letter-spacing: 0.02em; }
+.home-item__en {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--ink-faint);
+}
+.home-item:hover {
+  border-color: var(--ink-soft);
+  background: rgba(48, 42, 82, 0.55);
+}
+.home-item[data-pressed] { transform: translateY(0) scale(0.96); }
+
+/* secondary chips — dimmer, lighter, clearly 2nd-tier (마을 경유) */
+.home-item--sec {
+  flex-direction: row;
+  padding: 7px 12px;
+  background: transparent;
+  border-color: rgba(150, 130, 220, 0.16);
+}
+.home-item--sec .home-item__ko { font-size: 12px; color: var(--ink-soft); }
+.home-item--sec:hover { background: rgba(48, 42, 82, 0.4); }
+
+/* reveal sequence: head settles -> bubble -> primary (stagger) -> secondary */
+body.is-nav .home-bubble { opacity: 1; transform: translateX(0); }
+body.is-nav .home-item { opacity: 1; transform: translateY(0); }
+body.is-nav .home-menu__primary .home-item:nth-child(1) { transition-delay: 0.24s; }
+body.is-nav .home-menu__primary .home-item:nth-child(2) { transition-delay: 0.29s; }
+body.is-nav .home-menu__primary .home-item:nth-child(3) { transition-delay: 0.34s; }
+body.is-nav .home-menu__primary .home-item:nth-child(4) { transition-delay: 0.39s; }
+body.is-nav .home-menu__secondary .home-item:nth-child(2) { transition-delay: 0.44s; }
+body.is-nav .home-menu__secondary .home-item:nth-child(3) { transition-delay: 0.48s; }
+
+/* declutter the johwska-clone widget while the home UI is up */
+body.is-nav .panel {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+/* phone (narrow): head stays small top-left; stack bubble + menu below it,
+   full 80% content width so nothing overlaps the head vertically */
+@media (max-width: 600px) {
+  /* explicit width + right:auto removes the left/right vs max-width ambiguity */
+  .home-bubble { left: 10%; right: auto; width: 80%; top: 44%; max-width: none; }
+  .home-menu { left: 10%; right: auto; width: 80%; top: 59%; max-width: none; }
+  .home-menu__primary { gap: 7px; }
+  .home-item { padding: 9px 6px; }
+  .home-item__ko { font-size: 12px; }
+  .home-item__en { font-size: 8px; letter-spacing: 0.12em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-bubble, .home-item { transition-duration: 0.001s; transition-delay: 0s; transform: none; }
+}
+
+/* =========================================================================
+   O-14 D — client-routed screens (deep-space functional skeletons).
+   Shown in mode-screen while the mascot shrinks to a top-left companion.
+   ========================================================================= */
+#screens {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  padding: 9% 10% 8%;             /* 10% side margins */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  font-family: var(--mono);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+body.mode-screen #screens { opacity: 1; }
+body.mode-screen #screens > * { pointer-events: auto; }
+
+.screen-back {
+  all: unset;
+  position: absolute;
+  top: 7%;
+  right: 10%;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  padding: 7px 13px;
+  border: 1px solid var(--card-line);
+  border-radius: 4px;
+  background: var(--card);
+  pointer-events: auto;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.screen-back:hover { color: var(--ink); border-color: var(--ink-soft); }
+
+.screen { max-width: 560px; width: 100%; margin: 0 auto; }
+.screen__title { font-size: 20px; font-weight: 700; color: var(--ink); margin: 0 0 18px; letter-spacing: -0.01em; }
+.screen__title span { font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-faint); margin-left: 8px; }
+.screen__hint { font-size: 12px; color: var(--ink-faint); margin-top: 14px; }
+.screen__cta {
+  all: unset; cursor: pointer; margin-top: 12px; display: inline-block;
+  padding: 11px 22px; border-radius: 4px;
+  background: var(--ink-soft); color: var(--bg-edge); font-weight: 700; font-size: 13px;
+  transition: opacity 0.2s ease;
+}
+.screen__cta:hover { opacity: 0.85; }
+
+/* graph skeleton */
+.graph-nodes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.graph-node {
+  padding: 14px 18px; border: 1px solid var(--card-line); border-radius: 4px;
+  background: var(--card); color: var(--ink-soft); font-size: 13px; cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.graph-node:hover { color: var(--ink); border-color: var(--ink-soft); background: rgba(48, 42, 82, 0.5); }
+.graph-node--core { color: var(--ink); border-color: rgba(150, 130, 220, 0.4); }
+
+/* capture skeleton */
+.capture-input {
+  width: 100%; box-sizing: border-box; resize: vertical;
+  padding: 14px 16px; border: 1px solid var(--card-line); border-radius: 4px;
+  background: var(--card); color: var(--ink); font-family: var(--mono); font-size: 14px; line-height: 1.5;
+}
+.capture-input::placeholder { color: var(--ink-faint); }
+.capture-input:focus { outline: none; border-color: var(--ink-soft); }
+
+/* secondb chat skeleton */
+.chat { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+.chat__msg { max-width: 78%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.45; }
+.chat__msg--bot { align-self: flex-start; background: var(--card); border: 1px solid var(--card-line); color: var(--ink); border-bottom-left-radius: 4px; }
+.chat__msg--me { align-self: flex-end; background: rgba(92, 108, 228, 0.26); border: 1px solid var(--card-line); color: var(--ink); border-bottom-right-radius: 4px; }
+.chat__bar { display: flex; gap: 8px; }
+.chat__field {
+  flex: 1; padding: 11px 14px; border: 1px solid var(--card-line); border-radius: 4px;
+  background: var(--card); color: var(--ink); font-family: var(--mono); font-size: 13px;
+}
+.chat__field::placeholder { color: var(--ink-faint); }
+.chat__field:focus { outline: none; border-color: var(--ink-soft); }
+.chat__send {
+  all: unset; cursor: pointer; padding: 0 16px; display: flex; align-items: center;
+  border: 1px solid var(--card-line); border-radius: 4px; background: var(--card); color: var(--ink-soft); font-size: 16px;
+}
+.chat__send:hover { color: var(--ink); border-color: var(--ink-soft); }
+
+/* profile skeleton */
+.profile-card {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 28px 22px; border: 1px solid var(--card-line); border-radius: 6px; background: var(--card);
+  max-width: 280px;
+}
+.profile-card__avatar { width: 64px; height: 64px; border-radius: 50%; background: rgba(108, 124, 240, 0.45); border: 1px solid var(--card-line); }
+.profile-card__name { font-size: 15px; color: var(--ink); }
+.profile-card__stats { display: flex; gap: 16px; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; }
+
+/* declutter the johwska panel in screen mode too */
+body.mode-screen .panel { opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+
+@media (max-width: 600px) {
+  #screens { padding: 26% 10% 8%; }   /* clear the small top-left head on phones */
+  .screen__title { font-size: 18px; }
+}
+
+/* =========================================================================
+   O-16 Stage 2 — nav reorder (head -> [profile+settings icons] -> bubble -> menu)
+   + eye-cyan accents. Menu = 4 primaries only (records/wiki -> graph 2nd-tier).
+   ========================================================================= */
+.home-icons {
+  position: absolute;
+  top: 7%;
+  left: 50%;
+  right: 10%;
+  display: flex;
+  gap: 9px;
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: opacity 0.26s ease, transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition-delay: 0.12s;
+}
+.home-icon {
+  all: unset;
+  pointer-events: auto;
+  cursor: pointer;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 16px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.home-icon:hover { border-color: var(--accent); color: var(--accent-bright); background: rgba(70, 182, 255, 0.1); }
+body.is-nav .home-icons { opacity: 1; transform: translateX(0); }
+
+/* req1 order: bubble + menu sit below the icons row */
+.home-bubble { top: 18%; }
+.home-menu { top: 33%; }
+
+/* eye-cyan accent on active/hover affordances (one accent, §20 위계) */
+.home-item:hover { border-color: var(--accent); }
+.home-item[data-pressed] { border-color: var(--accent); }
+.screen__cta { background: var(--accent); color: var(--bg-edge); }
+.screen-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+.graph-node--core { border-color: var(--accent); }
+
+/* settings skeleton list */
+.settings-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-width: 360px; }
+.settings-list li {
+  padding: 13px 16px;
+  border: 1px solid var(--card-line);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink-soft);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.settings-list li:hover { color: var(--ink); border-color: var(--accent); }
+
+@media (max-width: 600px) {
+  .home-icons { top: 35%; left: 10%; right: auto; }
+  .home-bubble { top: 42%; }
+  .home-menu { top: 56%; }
+}

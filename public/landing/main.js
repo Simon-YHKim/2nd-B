@@ -1,0 +1,1187 @@
+/* =========================================================================
+   landing-clone — Three.js stage + UI
+   Structure / interaction study of johwska.com, with the SecondB head mascot.
+
+   The head uses one high-quality front render as a billboard. The whole head
+   follows the cursor with a subtle 2.5D transform, while the screen face is
+   rebuilt as separate eye/mouth layers so it can track and emote cleanly.
+   ========================================================================= */
+
+import * as THREE from "three";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { HorizontalBlurShader } from "three/addons/shaders/HorizontalBlurShader.js";
+import { VerticalBlurShader } from "three/addons/shaders/VerticalBlurShader.js";
+
+const HEAD_TEXTURE_URL =
+  "./assets/head-angle-v2/secondb_head_angle_v2_r02_level_c01_front.png";
+const HEAD_DEBUG_VERSION = "head-follow-v7c";
+const HEAD_PAGE_QUERY = "?head-follow-v7c";
+
+// QA: ?expr=<key> forces+holds an expression for screenshot verification.
+// Read before the replaceState below wipes the query string.
+const QA_EXPR = new URLSearchParams(location.search).get("expr");
+
+if (location.search !== HEAD_PAGE_QUERY) {
+  history.replaceState(null, "", `${location.pathname}${HEAD_PAGE_QUERY}${location.hash}`);
+}
+
+const FACE = {
+  screen: { x: 0.5, y: 0.587, w: 0.46, h: 0.225 },
+  leftEye: { x: 0.385, y: 0.595 },
+  rightEye: { x: 0.615, y: 0.595 },
+  mouth: { x: 0.5, y: 0.648 },
+  eyePx: { w: 56, h: 72 },
+  mouthPx: { w: 72, h: 18 },
+  travel: { x: 0.032, y: 0.018 },
+};
+
+const EXPRESSIONS = [
+  { key: "neutral", eyeScaleX: 1, eyeScaleY: 1, eyeTilt: 0, mouth: "flat", mouthScaleX: 1, mouthScaleY: 1, mouthOffsetY: 0, mouthMotion: "idle", blinkMin: 0.08 },
+  { key: "happy", eyeScaleX: 1.08, eyeScaleY: 0.68, eyeTilt: 0, mouth: "smile", mouthScaleX: 1.2, mouthScaleY: 1.05, mouthOffsetY: 0.006, mouthMotion: "mumble", blinkMin: 0.1 },
+  { key: "curious", eyeScaleX: 0.9, eyeScaleY: 1.08, eyeTilt: 0.12, mouth: "curious", mouthScaleX: 0.9, mouthScaleY: 0.9, mouthOffsetY: -0.002, mouthMotion: "idle", blinkMin: 0.08 },
+  { key: "excited", eyeScaleX: 1.08, eyeScaleY: 1.04, eyeTilt: -0.04, mouth: "grin", mouthScaleX: 1.24, mouthScaleY: 1.18, mouthOffsetY: 0.006, mouthMotion: "talk", blinkMin: 0.12 },
+  { key: "surprised", eyeScaleX: 1.1, eyeScaleY: 1.14, eyeTilt: 0, mouth: "dot", mouthScaleX: 0.62, mouthScaleY: 1.6, mouthOffsetY: 0.004, mouthMotion: "breath", blinkMin: 0.1 },
+  { key: "sad", eyeScaleX: 1.04, eyeScaleY: 0.58, eyeTilt: -0.12, mouth: "frown", mouthScaleX: 1.02, mouthScaleY: 1, mouthOffsetY: 0.006, mouthMotion: "slow", blinkMin: 0.07 },
+  { key: "annoyed", eyeScaleX: 1.12, eyeScaleY: 0.42, eyeTilt: 0.16, mouth: "flat", mouthScaleX: 0.92, mouthScaleY: 0.72, mouthOffsetY: 0.002, mouthMotion: "none", blinkMin: 0.06 },
+  { key: "sleepy", eyeScaleX: 1.12, eyeScaleY: 0.26, eyeTilt: -0.04, mouth: "sleepy", mouthScaleX: 0.86, mouthScaleY: 0.64, mouthOffsetY: 0.004, mouthMotion: "slow", blinkMin: 0.04 },
+  { key: "yawn", eyeScaleX: 1.1, eyeScaleY: 0.2, eyeTilt: -0.02, mouth: "yawn", mouthScaleX: 1.08, mouthScaleY: 1.9, mouthOffsetY: 0.012, mouthMotion: "yawn", blinkMin: 0.05 },
+  // O-17 #3: Duolingo-style variety. Event-only (NOT in the idle mood pool) so the
+  // character reacts to context instead of just cycling through emotions. All reuse
+  // existing mouth styles — no new mouth textures needed.
+  { key: "angry", eyeScaleX: 1.15, eyeScaleY: 0.4, eyeTilt: 0.22, mouth: "frown", mouthScaleX: 0.85, mouthScaleY: 0.72, mouthOffsetY: 0.004, mouthMotion: "none", blinkMin: 0.05 },
+  { key: "proud", eyeScaleX: 1.0, eyeScaleY: 0.72, eyeTilt: -0.06, mouth: "smile", mouthScaleX: 1.26, mouthScaleY: 1.12, mouthOffsetY: 0.006, mouthMotion: "idle", blinkMin: 0.1 },
+  { key: "love", eyeScaleX: 1.14, eyeScaleY: 1.14, eyeTilt: 0, mouth: "grin", mouthScaleX: 1.2, mouthScaleY: 1.16, mouthOffsetY: 0.006, mouthMotion: "mumble", blinkMin: 0.12 },
+  { key: "thinking", eyeScaleX: 0.92, eyeScaleY: 1.0, eyeTilt: 0.14, mouth: "curious", mouthScaleX: 0.84, mouthScaleY: 0.85, mouthOffsetY: -0.002, mouthMotion: "idle", blinkMin: 0.08 },
+  { key: "laughing", eyeScaleX: 1.05, eyeScaleY: 0.42, eyeTilt: -0.05, mouth: "grin", mouthScaleX: 1.3, mouthScaleY: 1.24, mouthOffsetY: 0.008, mouthMotion: "talk", blinkMin: 0.12 },
+  { key: "determined", eyeScaleX: 1.0, eyeScaleY: 0.55, eyeTilt: 0.08, mouth: "flat", mouthScaleX: 1.0, mouthScaleY: 0.8, mouthOffsetY: 0.002, mouthMotion: "none", blinkMin: 0.07 },
+  { key: "shy", eyeScaleX: 0.85, eyeScaleY: 0.7, eyeTilt: -0.1, mouth: "sleepy", mouthScaleX: 0.8, mouthScaleY: 0.72, mouthOffsetY: 0.004, mouthMotion: "idle", blinkMin: 0.1 },
+];
+
+// O-17 #2: idle mood pool stays calm/lifelike (ambient drift). Dramatic emotions
+// fire only on events via react(), so the face responds to context — not a slideshow.
+const IDLE_MOODS = ["neutral", "curious", "happy", "sleepy"];
+
+const LOOK = {
+  exposure: 1.0,
+  bloom: { strength: 0.0, radius: 0.5, threshold: 0.8 },
+  blur: 0.0,
+  aberration: 0.0,
+  turnMax: 0.3,
+  pitchMax: 0.18,
+  driftX: 0.24,
+  driftY: 0.12,
+  ease: 0.085,
+  eyeEase: 0.18,
+  bob: 0.035, // O-20 #1: gentle breathing float (world units, scaled by head size)
+  charHeight: 4.9,
+  fallbackBg: 0x080a14,
+};
+
+const head = { yaw: 0, pitch: 0, x: 0, y: 0 };
+const eyes = { x: 0, y: 0 };
+
+// O-13: hero <-> nav state machine. In 'nav' the head retreats to the top-left
+// and shrinks while the home UI (speech bubble + function menu) reveals.
+const ui = { mode: "hero", screen: null }; // hero | nav | screen
+const NAV = { scale: 0.46 };     // nav head shrink
+const SCREEN = { scale: 0.3 };   // screen-mode head shrink (small companion)
+const ART = 0.86;                // head art occupies ~86% of its plane
+const headRender = { x: 0, y: 0, s: 1 }; // eased actual head transform
+let fitScale = 1;                // responsive base (recomputed in onResize)
+let worldHalfW = 1;
+let worldHalfH = 1;
+const expressionPose = {
+  eyeScaleX: 1,
+  eyeScaleY: 1,
+  eyeTilt: 0,
+  mouthScaleX: 1,
+  mouthScaleY: 1,
+  mouthOffsetY: 0,
+};
+const faceMotion = {
+  blink: 1,
+  mouthScaleX: 1,
+  mouthScaleY: 1,
+  mouthOffsetY: 0,
+  yawnAmount: 0,
+};
+const behavior = {
+  blinkStart: 0,
+  blinkDuration: 150,
+  nextBlinkAt: Date.now() + randomBetween(900, 2200),
+  nextMoodAt: Date.now() + randomBetween(6500, 9500),
+  yawnStart: 0,
+  yawnDuration: 2800,
+  nextYawnAt: Date.now() + randomBetween(16000, 24000),
+  previousExpression: 0,
+  isYawning: false,
+  reactionUntil: 0, // O-17 #2: while > now, an event reaction is held (idle drift paused)
+};
+
+let headGroup = null;
+let headMesh = null;
+let headTexture = null;
+let faceGroup = null;
+const eyeMeshes = [];
+let mouthMesh = null;
+const mouthTextures = new Map();
+let expressionIndex = 0;
+
+document.documentElement.dataset.secondBHeadModule = HEAD_DEBUG_VERSION;
+document.documentElement.dataset.secondBHeadState = "loading";
+
+const canvas = document.getElementById("stage");
+const veil = document.getElementById("veil");
+
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,
+  powerPreference: "high-performance",
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = LOOK.exposure;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(LOOK.fallbackBg);
+
+const camera = new THREE.PerspectiveCamera(38, aspect(), 0.1, 100);
+camera.position.set(0, 0, 6);
+
+const pivot = new THREE.Group();
+scene.add(pivot);
+
+loadHeadTexture()
+  .then((texture) => {
+    headTexture = texture;
+    initHeadBillboard();
+    updateHeadAnimation();
+    revealStage();
+  })
+  .catch((error) => {
+    console.warn("Head texture loading failed; showing fallback orb.", error);
+    setHeadDebugStatus({ error: String(error) });
+    const orb = new THREE.Mesh(
+      new THREE.SphereGeometry(1.15, 48, 48),
+      new THREE.MeshBasicMaterial({ color: 0x7b5cff })
+    );
+    pivot.add(orb);
+    revealStage();
+  });
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+const hBlur = new ShaderPass(HorizontalBlurShader);
+const vBlur = new ShaderPass(VerticalBlurShader);
+composer.addPass(hBlur);
+composer.addPass(vBlur);
+
+const bloom = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  LOOK.bloom.strength,
+  LOOK.bloom.radius,
+  LOOK.bloom.threshold
+);
+composer.addPass(bloom);
+
+const Aberration = {
+  uniforms: { tDiffuse: { value: null }, amount: { value: LOOK.aberration } },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: /* glsl */ `
+    uniform sampler2D tDiffuse;
+    uniform float amount;
+    varying vec2 vUv;
+    void main() {
+      vec2 dir = vUv - 0.5;
+      float d = dot(dir, dir);
+      vec2 off = dir * amount * (0.35 + d * 4.0);
+      float r = texture2D(tDiffuse, vUv + off).r;
+      float g = texture2D(tDiffuse, vUv - off).g;
+      float b = texture2D(tDiffuse, vUv + off).b;
+      float a = texture2D(tDiffuse, vUv).a;
+      gl_FragColor = vec4(r, g, b, a);
+    }`,
+};
+composer.addPass(new ShaderPass(Aberration));
+composer.addPass(new OutputPass());
+
+/* =========================================================================
+   O-17 #1 — deep-space backdrop ("파란빛 우주", AG-recommended candidate 2).
+   The character's cyan rim-light bleeds into a faint simplex-noise nebula with
+   a thin layer of slowly drifting blue star-dust. Both are plain scene objects
+   behind the head, so the existing composer pipeline renders them untouched
+   (non-destructive: no new passes; bloom/aberration stay at 0).
+   ========================================================================= */
+let nebulaMat = null;
+let nebulaMesh = null;
+let starfield = null;
+const NEBULA_Z = -14;
+
+function buildBackdrop() {
+  // --- nebula glow plane (farthest back, fills the frame at any aspect) ---
+  nebulaMat = new THREE.ShaderMaterial({
+    depthWrite: false,
+    uniforms: {
+      uTime: { value: 0 },
+      uAspect: { value: aspect() },
+      uCore: { value: new THREE.Color(0x1a4878) }, // dim cyan-blue glow behind the head
+      uMid: { value: new THREE.Color(0x0b2142) },  // mid blue
+      uEdge: { value: new THREE.Color(0x05070e) }, // deep-space (keeps the negative space dark)
+    },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: /* glsl */ `
+      varying vec2 vUv;
+      uniform float uTime;
+      uniform float uAspect;
+      uniform vec3 uCore;
+      uniform vec3 uMid;
+      uniform vec3 uEdge;
+      vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
+      vec2 mod289(vec2 x){return x-floor(x*(1.0/289.0))*289.0;}
+      vec3 permute(vec3 x){return mod289(((x*34.0)+1.0)*x);}
+      float snoise(vec2 v){
+        const vec4 C=vec4(0.211324865405187,0.366025403784439,-0.577350269189626,0.024390243902439);
+        vec2 i=floor(v+dot(v,C.yy));
+        vec2 x0=v-i+dot(i,C.xx);
+        vec2 i1=(x0.x>x0.y)?vec2(1.0,0.0):vec2(0.0,1.0);
+        vec4 x12=x0.xyxy+C.xxzz; x12.xy-=i1;
+        i=mod289(i);
+        vec3 p=permute(permute(i.y+vec3(0.0,i1.y,1.0))+i.x+vec3(0.0,i1.x,1.0));
+        vec3 m=max(0.5-vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)),0.0);
+        m=m*m; m=m*m;
+        vec3 x=2.0*fract(p*C.www)-1.0;
+        vec3 h=abs(x)-0.5;
+        vec3 ox=floor(x+0.5);
+        vec3 a0=x-ox;
+        m*=1.79284291400159-0.85373472095314*(a0*a0+h*h);
+        vec3 g;
+        g.x=a0.x*x0.x+h.x*x0.y;
+        g.yz=a0.yz*x12.xz+h.yz*x12.yw;
+        return 130.0*dot(m,g);
+      }
+      float fbm(vec2 p){
+        float s=0.0, a=0.5;
+        for(int i=0;i<4;i++){ s+=a*snoise(p); p*=2.0; a*=0.5; }
+        return s;
+      }
+      void main(){
+        vec2 p = vUv - vec2(0.5, 0.46);         // glow sits just behind the head
+        p.x *= uAspect;                         // keep the glow circular
+        float r = length(p);
+        vec2 q = p*2.1 + vec2(0.0, uTime*0.03);
+        float n = fbm(q + fbm(q*1.7 - uTime*0.02));
+        n = 0.5 + 0.5*n;
+        float glow = pow(smoothstep(0.62, 0.0, r), 2.4); // soft central glow -> deep-space edges
+        float density = glow * (0.28 + 0.55*n);
+        vec3 col = mix(uEdge, uMid, clamp(density*1.25, 0.0, 1.0));
+        col = mix(col, uCore, clamp((density-0.52)*1.5, 0.0, 1.0));
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+  });
+  nebulaMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), nebulaMat);
+  nebulaMesh.position.z = NEBULA_Z;
+  nebulaMesh.renderOrder = -2;
+  scene.add(nebulaMesh);
+  sizeNebula();
+
+  // --- star-dust: a thin layer of slow cyan/blue points behind the head ---
+  const STAR_COUNT = 150;
+  const positions = new Float32Array(STAR_COUNT * 3);
+  const colors = new Float32Array(STAR_COUNT * 3);
+  const cyan = new THREE.Color(0x7fe3ff);
+  const blue = new THREE.Color(0x3b7bff);
+  const tmp = new THREE.Color();
+  for (let i = 0; i < STAR_COUNT; i++) {
+    positions[i * 3] = (pseudoRandom(i * 3 + 1) * 2 - 1) * 11;       // x
+    positions[i * 3 + 1] = (pseudoRandom(i * 3 + 2) * 2 - 1) * 7;    // y
+    positions[i * 3 + 2] = -3 - pseudoRandom(i * 3 + 3) * 6;         // z: -3..-9 (behind head)
+    tmp.copy(cyan).lerp(blue, pseudoRandom(i * 7 + 5));
+    colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b;
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  starGeo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  const starMat = new THREE.PointsMaterial({
+    size: 0.09,
+    map: makeStarSprite(),
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  });
+  starfield = new THREE.Points(starGeo, starMat);
+  starfield.renderOrder = -1;
+  scene.add(starfield);
+}
+
+// scale the 1x1 nebula plane to exactly fill the frame at its depth (+5% overscan)
+function sizeNebula() {
+  if (!nebulaMesh) return;
+  const dist = camera.position.z - NEBULA_Z;
+  const halfH = Math.tan((camera.fov * Math.PI) / 360) * dist;
+  nebulaMesh.scale.set(halfH * 2 * camera.aspect * 1.05, halfH * 2 * 1.05, 1);
+}
+
+// deterministic [0,1) so the starfield is identical every load (no Math.random)
+function pseudoRandom(seed) {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+// soft round sprite (white core -> transparent) for additive star glow
+function makeStarSprite() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0, "rgba(255,255,255,1)");
+  grd.addColorStop(0.35, "rgba(255,255,255,0.55)");
+  grd.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+buildBackdrop();
+
+const pointer = { x: 0, y: 0 };
+
+function setPointerFromClient(clientX, clientY) {
+  pointer.x = (clientX / window.innerWidth) * 2 - 1;
+  pointer.y = (clientY / window.innerHeight) * 2 - 1;
+}
+
+window.addEventListener("pointermove", (event) => {
+  setPointerFromClient(event.clientX, event.clientY);
+});
+window.addEventListener("mousemove", (event) => {
+  setPointerFromClient(event.clientX, event.clientY);
+});
+window.addEventListener("touchmove", (event) => {
+  const touch = event.touches[0];
+  if (touch) setPointerFromClient(touch.clientX, touch.clientY);
+}, { passive: true });
+
+// O-18 / O-17#4: head returns to front (gaze re-centers) when the finger lifts
+// or the cursor leaves the window. The animate() ease(LOOK.ease) handles the
+// smooth glide back — we only have to null the pointer target.
+// Desktop hover stays "sticky" on purpose; we only re-center when the pointer
+// truly leaves the window (touchend / blur / mouseleave), not on every move.
+function recenterGaze() {
+  pointer.x = 0;
+  pointer.y = 0;
+}
+window.addEventListener("touchend", recenterGaze, { passive: true });
+window.addEventListener("touchcancel", recenterGaze, { passive: true });
+window.addEventListener("blur", recenterGaze);
+document.addEventListener("mouseleave", recenterGaze);
+document.addEventListener("pointerleave", recenterGaze);
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = Date.now();
+
+  // O-17 #1: drive the nebula + drift the star-dust (slow, ambient — no slop)
+  if (nebulaMat) nebulaMat.uniforms.uTime.value = now * 0.001;
+  if (starfield) {
+    starfield.rotation.z = now * 0.00002;
+    starfield.position.y = Math.sin(now * 0.0002) * 0.18;
+    starfield.material.opacity = 0.7 + 0.15 * Math.sin(now * 0.0009);
+  }
+
+  const targetYaw = clamp(pointer.x * LOOK.turnMax, -LOOK.turnMax, LOOK.turnMax);
+  const targetPitch = clamp(pointer.y * LOOK.pitchMax, -LOOK.pitchMax, LOOK.pitchMax);
+  const targetX = clamp(pointer.x * LOOK.driftX, -LOOK.driftX, LOOK.driftX);
+  const targetY = clamp(-pointer.y * LOOK.driftY, -LOOK.driftY, LOOK.driftY);
+  const targetEyeX = clamp(pointer.x * FACE.travel.x, -FACE.travel.x, FACE.travel.x);
+  const targetEyeY = clamp(-pointer.y * FACE.travel.y, -FACE.travel.y, FACE.travel.y);
+
+  head.yaw += (targetYaw - head.yaw) * LOOK.ease;
+  head.pitch += (targetPitch - head.pitch) * LOOK.ease;
+  head.x += (targetX - head.x) * LOOK.ease;
+  head.y += (targetY - head.y) * LOOK.ease;
+  eyes.x += (targetEyeX - eyes.x) * LOOK.eyeEase;
+  eyes.y += (targetEyeY - eyes.y) * LOOK.eyeEase;
+
+  // O-14: ease the head toward its current-mode target (hero center / nav+screen top-left)
+  const ht = currentHeadTarget();
+  headRender.x += (ht.x - headRender.x) * 0.14;
+  headRender.y += (ht.y - headRender.y) * 0.14;
+  headRender.s += (ht.s - headRender.s) * 0.14;
+
+  updateFaceBehavior(now);
+  updateExpressionPose();
+  updateHeadAnimation();
+  composer.render();
+}
+animate();
+
+window.addEventListener("resize", onResize);
+onResize();
+
+// O-20 #4: only a tap on the HEAD changes mode — empty space is ignored.
+// Raycast the click against the head billboard (plane bbox) instead of treating
+// any canvas click as a hit (the previous behavior was the opposite of the spec).
+const headRaycaster = new THREE.Raycaster();
+const ndcPoint = new THREE.Vector2();
+function headHitTest(clientX, clientY) {
+  if (!headMesh) return false;
+  ndcPoint.x = (clientX / window.innerWidth) * 2 - 1;
+  ndcPoint.y = -(clientY / window.innerHeight) * 2 + 1;
+  headRaycaster.setFromCamera(ndcPoint, camera);
+  return headRaycaster.intersectObject(headMesh, true).length > 0;
+}
+window.addEventListener("click", (event) => {
+  if (event.target.closest?.("#panel")) return;
+  if (event.target.closest?.("#home-ui")) return;  // menu/bubble handle their own
+  if (event.target.closest?.("#screens")) return;   // screen UI handles its own
+  if (!headHitTest(event.clientX, event.clientY)) return; // empty space -> ignore
+  // O-14/O-20: head tap — screen -> nav (back), else hero <-> nav
+  if (ui.mode === "screen") setMode("nav");
+  else setMode(ui.mode === "hero" ? "nav" : "hero");
+});
+window.setSecondBExpression = setExpression;
+
+function aspect() { return window.innerWidth / window.innerHeight; }
+function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
+function onResize() {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  renderer.setSize(width, height);
+  composer.setSize(width, height);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  // O-14: responsive fit — head art fills ~80% of viewport width (capped ~78% height),
+  // scaling from narrow phones (360) to wide desktops (1280+). 10% margins each side.
+  worldHalfH = Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
+  worldHalfW = worldHalfH * camera.aspect;
+  const fitW = (0.8 * 2 * worldHalfW) / (LOOK.charHeight * ART);
+  const fitH = (0.78 * 2 * worldHalfH) / (LOOK.charHeight * ART);
+  fitScale = Math.min(fitW, fitH);
+  hBlur.uniforms.h.value = (LOOK.blur / width) * renderer.getPixelRatio();
+  vBlur.uniforms.v.value = (LOOK.blur / height) * renderer.getPixelRatio();
+  bloom.setSize(width, height);
+  if (nebulaMat) nebulaMat.uniforms.uAspect.value = camera.aspect;
+  sizeNebula();
+}
+
+function revealStage() {
+  veil.classList.add("is-hidden");
+}
+
+function loadTexture(url) {
+  return new Promise((resolve, reject) => {
+    new THREE.TextureLoader().load(
+      url,
+      (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        resolve(texture);
+      },
+      undefined,
+      () => reject(new Error(`Failed to load ${url}`))
+    );
+  });
+}
+
+function loadHeadTexture() {
+  return loadTexture(HEAD_TEXTURE_URL);
+}
+
+function initHeadBillboard() {
+  headGroup = new THREE.Group();
+  pivot.add(headGroup);
+
+  const material = new THREE.MeshBasicMaterial({
+    map: headTexture,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    toneMapped: true,
+  });
+  headMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(LOOK.charHeight, LOOK.charHeight),
+    material
+  );
+  headMesh.renderOrder = 1;
+  headGroup.add(headMesh);
+
+  initFaceOverlay();
+}
+
+function initFaceOverlay() {
+  const [screenX, screenY] = toHeadPlane(FACE.screen.x, FACE.screen.y);
+  const patch = new THREE.Mesh(
+    new THREE.PlaneGeometry(FACE.screen.w * LOOK.charHeight, FACE.screen.h * LOOK.charHeight),
+    new THREE.MeshBasicMaterial({
+      map: makeScreenPatch(),
+      transparent: true,
+      depthWrite: false,
+      toneMapped: true,
+    })
+  );
+  patch.position.set(screenX, screenY, 0.018);
+  patch.renderOrder = 2;
+  headGroup.add(patch);
+
+  faceGroup = new THREE.Group();
+  faceGroup.position.z = 0.034;
+  faceGroup.renderOrder = 3;
+  headGroup.add(faceGroup);
+
+  for (const expression of EXPRESSIONS) {
+    mouthTextures.set(expression.mouth, makeMouthTexture(expression.mouth));
+  }
+
+  const leftEye = makeFaceSprite("eye", FACE.leftEye, FACE.eyePx, 16, "left");
+  const rightEye = makeFaceSprite("eye", FACE.rightEye, FACE.eyePx, 16, "right");
+  eyeMeshes.push(leftEye, rightEye);
+  faceGroup.add(leftEye);
+  faceGroup.add(rightEye);
+
+  mouthMesh = makeFaceSprite("mouth", FACE.mouth, FACE.mouthPx, 12);
+  faceGroup.add(mouthMesh);
+  setExpression(0);
+}
+
+function toHeadPlane(nx, ny) {
+  return [(nx - 0.5) * LOOK.charHeight, (0.5 - ny) * LOOK.charHeight];
+}
+
+function makeFaceSprite(kind, anchor, corePx, pad, side = "center") {
+  const texture = kind === "mouth"
+    ? mouthTextures.get("flat") || makeMouthTexture("flat")
+    : makeGlow(corePx.w, corePx.h, pad, [70, 182, 255], [204, 250, 255]);
+  const width = ((corePx.w + pad * 4) / 1254) * LOOK.charHeight;
+  const height = ((corePx.h + pad * 4) / 1254) * LOOK.charHeight;
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, height),
+    new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false,
+      toneMapped: true,
+    })
+  );
+  const [x, y] = toHeadPlane(anchor.x, anchor.y);
+  mesh.userData.baseX = x;
+  mesh.userData.baseY = y;
+  mesh.userData.side = side;
+  mesh.position.set(x, y, 0);
+  mesh.renderOrder = 3;
+  return mesh;
+}
+
+function currentExpression() {
+  return EXPRESSIONS[expressionIndex] || EXPRESSIONS[0];
+}
+
+function setExpression(value, options = {}) {
+  const nextIndex = typeof value === "string"
+    ? EXPRESSIONS.findIndex((expression) => expression.key === value)
+    : value;
+  if (nextIndex < 0 || nextIndex >= EXPRESSIONS.length) return;
+  if (options.manual) {
+    behavior.isYawning = false;
+    behavior.nextMoodAt = Date.now() + randomBetween(7000, 11000);
+    behavior.nextYawnAt = Date.now() + randomBetween(16000, 26000);
+  }
+  expressionIndex = nextIndex;
+  const expression = currentExpression();
+  if (mouthMesh) {
+    mouthMesh.material.map = mouthTextures.get(expression.mouth);
+    mouthMesh.material.needsUpdate = true;
+  }
+}
+
+function cycleExpression() {
+  setExpression((expressionIndex + 1) % EXPRESSIONS.length, { manual: true });
+}
+
+function updateFaceBehavior(now) {
+  if (!behavior.isYawning && now >= behavior.reactionUntil && now >= behavior.nextYawnAt) {
+    behavior.isYawning = true;
+    behavior.yawnStart = now;
+    behavior.previousExpression = expressionIndex;
+    setExpression("yawn");
+  }
+
+  if (behavior.isYawning) {
+    const yawnProgress = clamp((now - behavior.yawnStart) / behavior.yawnDuration, 0, 1);
+    faceMotion.yawnAmount = Math.sin(yawnProgress * Math.PI);
+    if (yawnProgress >= 1) {
+      behavior.isYawning = false;
+      faceMotion.yawnAmount = 0;
+      setExpression(behavior.previousExpression);
+      behavior.nextYawnAt = now + randomBetween(18000, 28000);
+      behavior.nextMoodAt = now + randomBetween(5000, 8000);
+    }
+  } else {
+    faceMotion.yawnAmount *= 0.82;
+  }
+
+  // O-17 #2: hold an event reaction; only drift idle moods once it expires
+  if (!behavior.isYawning && now >= behavior.reactionUntil && now >= behavior.nextMoodAt) {
+    setExpression(randomExpressionIndex());
+    behavior.nextMoodAt = now + randomBetween(6500, 10500);
+  }
+
+  const expression = currentExpression();
+  if (!behavior.blinkStart && now >= behavior.nextBlinkAt) {
+    behavior.blinkStart = now;
+    behavior.blinkDuration = expression.key === "sleepy" ? randomBetween(220, 320) : randomBetween(120, 180);
+  }
+
+  if (behavior.blinkStart) {
+    const blinkProgress = clamp((now - behavior.blinkStart) / behavior.blinkDuration, 0, 1);
+    faceMotion.blink = lerp(1, expression.blinkMin ?? 0.08, Math.sin(blinkProgress * Math.PI));
+    if (blinkProgress >= 1) {
+      behavior.blinkStart = 0;
+      faceMotion.blink = 1;
+      const baseDelay = expression.key === "sleepy" ? randomBetween(800, 1800) : randomBetween(2200, 4700);
+      behavior.nextBlinkAt = now + baseDelay;
+    }
+  } else {
+    faceMotion.blink += (1 - faceMotion.blink) * 0.4;
+  }
+
+  const t = now * 0.001;
+  const talk = (Math.sin(t * 10.5) + Math.sin(t * 17.0)) * 0.5;
+  const slow = Math.sin(t * 2.6);
+  const breath = Math.sin(t * 4.0);
+
+  let mouthPulse = 0;
+  if (expression.mouthMotion === "talk") mouthPulse = Math.abs(talk) * 0.34;
+  else if (expression.mouthMotion === "mumble") mouthPulse = Math.abs(talk) * 0.18;
+  else if (expression.mouthMotion === "slow") mouthPulse = Math.max(0, slow) * 0.1;
+  else if (expression.mouthMotion === "breath") mouthPulse = Math.max(0, breath) * 0.12;
+  // O-20 #1: even "idle" gets a faint 오물오물 (two slow sines) so the face is never
+  // fully frozen — ambient liveliness independent of emotion.
+  else if (expression.mouthMotion === "idle") mouthPulse = Math.abs(Math.sin(t * 1.8)) * 0.045 + Math.abs(Math.sin(t * 3.3)) * 0.02;
+
+  faceMotion.mouthScaleY = 1 + mouthPulse + faceMotion.yawnAmount * 0.5;
+  faceMotion.mouthScaleX = 1 - mouthPulse * 0.08 + faceMotion.yawnAmount * 0.04;
+  faceMotion.mouthOffsetY = faceMotion.yawnAmount * 0.01;
+}
+
+function updateExpressionPose() {
+  const expression = currentExpression();
+  const ease = 0.14;
+  expressionPose.eyeScaleX += (expression.eyeScaleX - expressionPose.eyeScaleX) * ease;
+  expressionPose.eyeScaleY += (expression.eyeScaleY - expressionPose.eyeScaleY) * ease;
+  expressionPose.eyeTilt += (expression.eyeTilt - expressionPose.eyeTilt) * ease;
+  expressionPose.mouthScaleX += (expression.mouthScaleX - expressionPose.mouthScaleX) * ease;
+  expressionPose.mouthScaleY += (expression.mouthScaleY - expressionPose.mouthScaleY) * ease;
+  expressionPose.mouthOffsetY += (expression.mouthOffsetY - expressionPose.mouthOffsetY) * ease;
+}
+
+function randomExpressionIndex() {
+  // O-17 #2: drift only among calm idle moods (dramatic emotions are event-only)
+  const choices = EXPRESSIONS
+    .map((expression, index) => ({ expression, index }))
+    .filter((item) => IDLE_MOODS.includes(item.expression.key) && item.index !== expressionIndex);
+  return choices[Math.floor(Math.random() * choices.length)]?.index ?? 0;
+}
+
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+/* =========================================================================
+   O-17 #2 — contextual reactions. App events (save ok/fail, chat tone, …) call
+   react()/reactToChat(), which holds an emotional expression for a beat, then
+   lets the calm idle drift resume. Repeated failures escalate annoyed -> angry.
+   Exposed on window.secondB so the host app (or the demo screens) can drive it.
+   ========================================================================= */
+const REACTIONS = {
+  saveSuccess: { key: "excited", hold: 2600 },
+  saveOk:      { key: "happy",   hold: 2200 },
+  saveFail:    { key: "annoyed", hold: 2400 },
+  repeatedFail:{ key: "angry",   hold: 2800 },
+  celebrate:   { key: "proud",   hold: 3000 },
+  thinking:    { key: "thinking",hold: 2200 },
+  love:        { key: "love",    hold: 2600 },
+  laugh:       { key: "laughing",hold: 2400 },
+  focus:       { key: "determined", hold: 2600 },
+  shy:         { key: "shy",     hold: 2200 },
+  surprised:   { key: "surprised", hold: 1800 },
+  sad:         { key: "sad",     hold: 2600 },
+};
+let failStreak = 0;
+
+function react(eventName) {
+  let entry;
+  if (eventName === "saveFail") {
+    failStreak += 1;
+    entry = failStreak >= 2 ? REACTIONS.repeatedFail : REACTIONS.saveFail;
+  } else {
+    if (eventName === "saveSuccess" || eventName === "saveOk") failStreak = 0;
+    entry = REACTIONS[eventName];
+  }
+  if (!entry) return false;
+  setExpression(entry.key, { manual: true });
+  behavior.reactionUntil = Date.now() + entry.hold;
+  behavior.nextMoodAt = behavior.reactionUntil + randomBetween(400, 1200);
+  return true;
+}
+
+// Lightweight tone heuristic for the chat hook (no LLM needed in the prototype).
+function reactToChat(text) {
+  const t = String(text || "").toLowerCase();
+  if (!t.trim()) return false;
+  const positive = /(고마|좋|사랑|행복|기뻐|최고|^ㅎ|ㅎㅎ|ㅋㅋ|happy|love|thank|great|nice|😊|😄|❤|🥰)/.test(t);
+  const negative = /(싫|화나|짜증|슬프|우울|힘들|최악|안돼|망했|sad|angry|hate|terrible|awful|😢|😭|😠)/.test(t);
+  const question = /[?？]\s*$/.test(t.trim());
+  if (negative) return react("sad");
+  if (positive) return react("love");
+  if (question) return react("thinking");
+  return react("saveOk"); // acknowledged
+}
+
+window.secondB = {
+  react,
+  reactToChat,
+  setExpression,
+  expressions: () => EXPRESSIONS.map((e) => e.key),
+};
+
+if (QA_EXPR) {
+  window.setTimeout(() => {
+    setExpression(QA_EXPR, { manual: true });
+    behavior.reactionUntil = Date.now() + 60000; // hold steady for the QA screenshot
+    behavior.nextMoodAt = Date.now() + 60000;
+    behavior.nextYawnAt = Date.now() + 60000;
+  }, 600);
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function setHeadDebugStatus(debug) {
+  window.__secondBHeadDebug = debug;
+
+  const root = document.documentElement;
+  root.dataset.secondBHeadModule = HEAD_DEBUG_VERSION;
+  if (debug.error) {
+    root.dataset.secondBHeadState = "error";
+    root.dataset.secondBHeadError = debug.error;
+    return;
+  }
+
+  root.dataset.secondBHeadState = "ready";
+  root.dataset.secondBHeadYaw = debug.yaw.toFixed(3);
+  root.dataset.secondBHeadPitch = debug.pitch.toFixed(3);
+  root.dataset.secondBHeadX = debug.x.toFixed(3);
+  root.dataset.secondBHeadY = debug.y.toFixed(3);
+  root.dataset.secondBFaceX = debug.faceX.toFixed(3);
+  root.dataset.secondBFaceY = debug.faceY.toFixed(3);
+  root.dataset.secondBExpression = debug.expression;
+  root.dataset.secondBBlink = debug.blink.toFixed(3);
+  root.dataset.secondBYawn = debug.yawn.toFixed(3);
+  root.dataset.secondBHeadActive = debug.active;
+}
+
+function updateHeadAnimation() {
+  if (!headGroup || !headMesh) return;
+
+  // O-14: eased head transform (hero center / nav+screen top-left); gaze stays live
+  // O-20 #1: + a slow breathing bob so the character is always subtly alive
+  const breathBob = Math.sin(Date.now() * 0.0015) * LOOK.bob * headRender.s;
+  headGroup.position.x = headRender.x + head.x * headRender.s;
+  headGroup.position.y = headRender.y + head.y * headRender.s + breathBob;
+  headGroup.scale.set(headRender.s, headRender.s, 1);
+  headGroup.rotation.x = head.pitch;
+  headGroup.rotation.y = head.yaw;
+  headGroup.rotation.z = head.yaw * 0.035;
+
+  for (const eye of eyeMeshes) {
+    const side = eye.userData.side === "left" ? -1 : 1;
+    eye.position.x = eye.userData.baseX + eyes.x * LOOK.charHeight;
+    eye.position.y = eye.userData.baseY
+      + eyes.y * LOOK.charHeight
+      + faceMotion.yawnAmount * LOOK.charHeight * 0.004;
+    const eyeScaleY = Math.max(
+      0.035,
+      expressionPose.eyeScaleY * faceMotion.blink * (1 - faceMotion.yawnAmount * 0.42)
+    );
+    eye.scale.set(expressionPose.eyeScaleX, eyeScaleY, 1);
+    eye.rotation.z = expressionPose.eyeTilt * side;
+  }
+
+  if (mouthMesh) {
+    mouthMesh.position.x = mouthMesh.userData.baseX + eyes.x * LOOK.charHeight * 0.38;
+    mouthMesh.position.y = mouthMesh.userData.baseY
+      + eyes.y * LOOK.charHeight * 0.38
+      + (expressionPose.mouthOffsetY + faceMotion.mouthOffsetY) * LOOK.charHeight;
+    mouthMesh.scale.set(
+      expressionPose.mouthScaleX * faceMotion.mouthScaleX,
+      expressionPose.mouthScaleY * faceMotion.mouthScaleY,
+      1
+    );
+    mouthMesh.rotation.z = expressionPose.eyeTilt * 0.18;
+  }
+
+  setHeadDebugStatus({
+    yaw: head.yaw,
+    pitch: head.pitch,
+    x: head.x,
+    y: head.y,
+    faceX: eyes.x,
+    faceY: eyes.y,
+    expression: currentExpression().key,
+    blink: faceMotion.blink,
+    yawn: faceMotion.yawnAmount,
+    active: "level:front:continuous-transform+face-track+emotions",
+  });
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+}
+
+function makeScreenPatch() {
+  const width = 640;
+  const height = 310;
+  const c = document.createElement("canvas");
+  c.width = width;
+  c.height = height;
+  const ctx = c.getContext("2d");
+
+  ctx.shadowColor = "rgba(0, 8, 35, 0.9)";
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = "rgb(0, 4, 20)";
+  roundRect(ctx, 18, 18, width - 36, height - 36, 54);
+  ctx.fill();
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  for (const hx of [0.14, 0.86]) {
+    const g = ctx.createRadialGradient(width * hx, height * 0.18, 2, width * hx, height * 0.18, width * 0.14);
+    g.addColorStop(0, "rgba(190, 205, 255, 0.18)");
+    g.addColorStop(1, "rgba(190, 205, 255, 0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  const texture = new THREE.CanvasTexture(c);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return texture;
+}
+
+function makeMouthTexture(style) {
+  const width = 260;
+  const height = 120;
+  const c = document.createElement("canvas");
+  c.width = width;
+  c.height = height;
+  const ctx = c.getContext("2d");
+  const cyan = "rgb(95, 212, 255)";
+
+  ctx.shadowBlur = 0;   // crisp mouth, no glow/glare
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = cyan;
+  ctx.fillStyle = cyan;
+  ctx.lineWidth = 18;
+
+  if (style === "smile") {
+    ctx.beginPath();
+    ctx.arc(width / 2, height * 0.28, width * 0.22, 0.22 * Math.PI, 0.78 * Math.PI);
+    ctx.stroke();
+  } else if (style === "grin") {
+    roundRect(ctx, width / 2 - 58, height / 2 - 13, 116, 26, 13);
+    ctx.fill();
+    ctx.globalCompositeOperation = "destination-out";
+    roundRect(ctx, width / 2 - 43, height / 2 - 5, 86, 10, 5);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+  } else if (style === "dot") {
+    roundRect(ctx, width / 2 - 26, height / 2 - 28, 52, 56, 24);
+    ctx.fill();
+  } else if (style === "yawn") {
+    ctx.beginPath();
+    ctx.ellipse(width / 2, height / 2, 36, 46, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (style === "curious") {
+    ctx.save();
+    ctx.translate(width / 2, height / 2);
+    ctx.rotate(-0.16);
+    roundRect(ctx, -42, -8, 84, 16, 8);
+    ctx.fill();
+    ctx.restore();
+  } else if (style === "frown") {
+    ctx.beginPath();
+    ctx.arc(width / 2, height * 0.78, width * 0.22, 1.22 * Math.PI, 1.78 * Math.PI);
+    ctx.stroke();
+  } else if (style === "sleepy") {
+    roundRect(ctx, width / 2 - 34, height / 2 - 5, 68, 10, 5);
+    ctx.fill();
+  } else {
+    roundRect(ctx, width / 2 - 46, height / 2 - 8, 92, 16, 8);
+    ctx.fill();
+  }
+
+  const texture = new THREE.CanvasTexture(c);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return texture;
+}
+
+function makeGlow(coreW, coreH, pad, rgb, inner) {
+  const scale = 3;
+  const margin = pad * 2;
+  const width = (coreW + 2 * margin) * scale;
+  const height = (coreH + 2 * margin) * scale;
+  const c = document.createElement("canvas");
+  c.width = width;
+  c.height = height;
+  const ctx = c.getContext("2d");
+  const cx = width / 2;
+  const cy = height / 2;
+  const radius = Math.min(coreW, coreH) * scale * 0.34;
+
+  ctx.shadowBlur = 0;   // crisp eyes, no glow/glare
+  ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+  roundRect(ctx, cx - (coreW * scale) / 2, cy - (coreH * scale) / 2, coreW * scale, coreH * scale, radius);
+  ctx.fill();
+
+  if (inner) {
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = `rgb(${inner[0]}, ${inner[1]}, ${inner[2]})`;
+    const innerWidth = coreW * scale * 0.58;
+    const innerHeight = coreH * scale * 0.6;
+    roundRect(ctx, cx - innerWidth / 2, cy - innerHeight / 2, innerWidth, innerHeight, radius * 0.6);
+    ctx.fill();
+  }
+
+  const texture = new THREE.CanvasTexture(c);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return texture;
+}
+
+const panel = document.getElementById("panel");
+const toggle = document.getElementById("toggle");
+const grid = document.getElementById("grid");
+
+const TILE_GRADIENTS = [
+  "conic-gradient(from 210deg, #6d5cc0, #b86fd0, #5aa0d6, #6d5cc0)",
+  "linear-gradient(135deg, #14162a, #3a3f78 70%)",
+  "radial-gradient(circle at 60% 40%, #b07cf0, #3a2f6b)",
+  "conic-gradient(from 30deg, #5f74d6, #a86fd0, #6f9cd8, #5f74d6)",
+  "linear-gradient(160deg, #5ad0e0, #2f5f9f)",
+  "radial-gradient(circle at 40% 30%, #c9a8ff, #3e2f6e)",
+  "linear-gradient(135deg, #7a5cd0, #b78fff)",
+  "conic-gradient(from 90deg, #5c6ce4, #b36fd8, #5fb0cf, #5c6ce4)",
+  "radial-gradient(circle at 50% 50%, #6c7cf0, #1b2038)",
+  "linear-gradient(150deg, #b06cff, #5a3f9f)",
+  "conic-gradient(from 250deg, #8a6ce0, #5fb0d6, #c86fe0, #8a6ce0)",
+  "radial-gradient(circle at 55% 35%, #9a7cff, #2a2452)",
+  "linear-gradient(135deg, #5c8ce2, #6a4f9f)",
+  "radial-gradient(circle at 45% 45%, #c879ff, #4a2f80)",
+  "conic-gradient(from 160deg, #6c8ce0, #b070d8, #6fd0c4, #6c8ce0)",
+];
+
+TILE_GRADIENTS.forEach((background, index) => {
+  const li = document.createElement("li");
+  li.style.background = background;
+  li.title = `Project ${String(index + 1).padStart(2, "0")}`;
+  grid.appendChild(li);
+});
+
+let dragMoved = false;
+toggle.addEventListener("click", () => {
+  if (dragMoved) {
+    dragMoved = false;
+    return;
+  }
+  const collapsed = panel.classList.toggle("is-collapsed");
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+  if (!collapsed) setView(panel.dataset.view === "info" ? "info" : "work");
+});
+
+function setView(name) {
+  panel.dataset.view = name;
+  panel.querySelectorAll("[data-view-panel]").forEach((element) => {
+    element.hidden = element.dataset.viewPanel !== name;
+  });
+  panel.querySelectorAll(".panel__link").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.go === name);
+  });
+}
+
+panel.querySelectorAll(".panel__link").forEach((button) => {
+  button.addEventListener("click", () => setView(button.dataset.go));
+});
+setView("work");
+
+let pDrag = null;
+toggle.addEventListener("pointerdown", (event) => {
+  if (panel.classList.contains("is-collapsed")) return;
+  const rect = panel.getBoundingClientRect();
+  pDrag = { dx: event.clientX - rect.left, dy: event.clientY - rect.top };
+  dragMoved = false;
+  panel.classList.add("is-dragging");
+  toggle.setPointerCapture(event.pointerId);
+});
+
+toggle.addEventListener("pointermove", (event) => {
+  if (!pDrag) return;
+  dragMoved = true;
+  const x = clamp(event.clientX - pDrag.dx, 8, window.innerWidth - panel.offsetWidth - 8);
+  const y = clamp(event.clientY - pDrag.dy, 8, window.innerHeight - panel.offsetHeight - 8);
+  panel.style.left = `${x}px`;
+  panel.style.top = `${y}px`;
+  panel.style.bottom = "auto";
+});
+
+toggle.addEventListener("pointerup", () => {
+  pDrag = null;
+  panel.classList.remove("is-dragging");
+});
+
+/* =========================================================================
+   O-13 — hero <-> nav mode control + home function menu
+   ========================================================================= */
+const screensEl = document.getElementById("screens");
+const screenSections = screensEl ? Array.from(screensEl.querySelectorAll(".screen")) : [];
+const SCREEN_NAMES = screenSections.map((s) => s.dataset.screen);
+
+// head target per mode — hero centred, nav/screen retreated to the 80% content top-left
+function currentHeadTarget() {
+  if (ui.mode === "hero" || !worldHalfW) return { x: 0, y: 0, s: fitScale };
+  const sc = (ui.mode === "screen" ? SCREEN.scale : NAV.scale) * fitScale;
+  const half = (LOOK.charHeight * sc * ART) / 2;
+  return {
+    x: -0.8 * worldHalfW + half + 0.02 * worldHalfW,
+    y: 0.8 * worldHalfH - half - 0.02 * worldHalfH,
+    s: sc,
+  };
+}
+
+function applyMode() {
+  const m = ui.mode;
+  const body = document.body;
+  body.classList.toggle("mode-hero", m === "hero");
+  body.classList.toggle("mode-nav", m === "nav");
+  body.classList.toggle("mode-screen", m === "screen");
+  body.classList.toggle("is-nav", m === "nav");   // keeps the panel-declutter + reveal rules
+  document.documentElement.dataset.secondBHeadMode = m;
+  document.documentElement.dataset.secondBScreen = ui.screen || "";
+  const homeUi = document.getElementById("home-ui");
+  if (homeUi) homeUi.setAttribute("aria-hidden", m === "nav" ? "false" : "true");
+  if (screensEl) screensEl.setAttribute("aria-hidden", m === "screen" ? "false" : "true");
+  for (const s of screenSections) s.hidden = !(m === "screen" && s.dataset.screen === ui.screen);
+}
+
+function setMode(mode) {
+  if (ui.mode === mode && mode !== "screen") return;
+  ui.mode = mode;
+  if (mode !== "screen") ui.screen = null;
+  applyMode();
+}
+
+function openScreen(name) {
+  if (!SCREEN_NAMES.includes(name)) return;
+  ui.mode = "screen";
+  ui.screen = name;
+  applyMode();
+  try { history.pushState({ screen: name }, "", `#${name}`); } catch (_) {}
+}
+
+window.addEventListener("popstate", (event) => {
+  const sc = event.state && event.state.screen;
+  if (sc && SCREEN_NAMES.includes(sc)) { ui.mode = "screen"; ui.screen = sc; applyMode(); }
+  else setMode("nav");
+});
+
+// nav menu buttons -> open the matching screen (real client-side view routing)
+document.querySelectorAll("#home-menu .home-item").forEach((button) => {
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    button.dataset.pressed = "1";
+    window.setTimeout(() => delete button.dataset.pressed, 180);
+    openScreen(button.dataset.go);
+  });
+});
+
+// O-16 req1: profile + settings icons (right of head) -> open their screens
+document.querySelectorAll("#home-ui .home-icon").forEach((button) => {
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openScreen(button.dataset.go);
+  });
+});
+
+// back affordance inside a screen -> nav
+const backBtn = document.getElementById("screen-back");
+if (backBtn) {
+  backBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (history.state && history.state.screen) history.back();
+    else setMode("nav");
+  });
+}
+
+// O-17 #2 demo hooks: drive contextual reactions from the prototype screens so
+// the "save success / fail / chat tone" behavior is visible without a real backend.
+const captureCta = document.querySelector('[data-screen="capture"] .screen__cta');
+const captureInput = document.querySelector('[data-screen="capture"] .capture-input');
+if (captureCta) {
+  captureCta.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const text = ((captureInput && captureInput.value) || "").trim();
+    react(text ? "saveSuccess" : "saveFail"); // empty capture -> mild fail (annoyed; repeats -> angry)
+    if (captureInput && text) captureInput.value = "";
+  });
+}
+const chatSend = document.querySelector('[data-screen="secondb"] .chat__send');
+const chatField = document.querySelector('[data-screen="secondb"] .chat__field');
+if (chatSend && chatField) {
+  const sendChat = () => {
+    const text = chatField.value.trim();
+    if (!text) return;
+    reactToChat(text); // tone -> love / sad / thinking / ack
+    chatField.value = "";
+  };
+  chatSend.addEventListener("click", (event) => { event.stopPropagation(); sendChat(); });
+  chatField.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") { event.preventDefault(); sendChat(); }
+  });
+}
+
+applyMode();
+window.setSecondBMode = setMode;
+window.setSecondBScreen = openScreen;
+// QA deep-links: #nav or #<screen>
+if (location.hash === "#nav") setMode("nav");
+else if (location.hash && SCREEN_NAMES.includes(location.hash.slice(1))) openScreen(location.hash.slice(1));
