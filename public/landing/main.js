@@ -745,17 +745,43 @@ function react(eventName) {
   return true;
 }
 
-// Lightweight tone heuristic for the chat hook (no LLM needed in the prototype).
-function reactToChat(text) {
-  const t = String(text || "").toLowerCase();
-  if (!t.trim()) return false;
+// O-20 #3: classify a chat line's emotional tone (shared by user + bot-reply paths).
+function classifyTone(text) {
+  const t = String(text || "").toLowerCase().trim();
+  if (!t) return "neutral";
   const positive = /(고마|좋|사랑|행복|기뻐|최고|^ㅎ|ㅎㅎ|ㅋㅋ|happy|love|thank|great|nice|😊|😄|❤|🥰)/.test(t);
   const negative = /(싫|화나|짜증|슬프|우울|힘들|최악|안돼|망했|sad|angry|hate|terrible|awful|😢|😭|😠)/.test(t);
-  const question = /[?？]\s*$/.test(t.trim());
-  if (negative) return react("sad");
-  if (positive) return react("love");
-  if (question) return react("thinking");
-  return react("saveOk"); // acknowledged
+  const question = /[?？]\s*$/.test(t);
+  if (negative) return "negative";
+  if (positive) return "positive";
+  if (question) return "question";
+  return "neutral";
+}
+function reactToTone(tone) {
+  if (tone === "negative") return react("sad");   // gentle, empathetic concern
+  if (tone === "positive") return react("love");
+  if (tone === "question") return react("thinking");
+  return react("saveOk");
+}
+// Back-compat: react to one line's own tone.
+function reactToChat(text) {
+  const t = String(text || "").trim();
+  if (!t) return false;
+  return reactToTone(classifyTone(t));
+}
+// O-20 #3: the prototype generates a mock SecondB *reply*, and the robot's face
+// reflects the reply's tone (its own emotion) — not the user's text directly.
+// Real reply generation/tone lives in the 2nd-B app (src/lib/llm/gemini.ts).
+const MOCK_REPLIES = {
+  positive: ["그 마음 참 좋다 — 꼭 기록해둘게 ㅎㅎ", "오, 좋은 순간이었네! 잊지 않게 남겨둘게."],
+  negative: ["많이 힘들었겠다… 천천히 말해줘, 내가 들을게.", "그런 날도 있지. 오늘 네 마음, 잘 적어둘게."],
+  question: ["음… 그건 같이 천천히 생각해볼까?", "흠, 그건 이렇게도 볼 수 있어 — 어떻게 느껴?"],
+  neutral: ["응, 차분히 적어뒀어.", "그렇구나, 기록해뒀어."],
+};
+let mockReplyTick = 0;
+function mockSecondBReply(userText) {
+  const bank = MOCK_REPLIES[classifyTone(userText)] || MOCK_REPLIES.neutral;
+  return bank[(mockReplyTick++) % bank.length];
 }
 
 window.secondB = {
@@ -1166,16 +1192,78 @@ if (captureCta) {
 }
 const chatSend = document.querySelector('[data-screen="secondb"] .chat__send');
 const chatField = document.querySelector('[data-screen="secondb"] .chat__field');
+const chatBox = document.querySelector('[data-screen="secondb"] .chat');
+function appendChatMsg(text, who) {
+  if (!chatBox) return;
+  const div = document.createElement("div");
+  div.className = "chat__msg chat__msg--" + who;
+  div.textContent = text;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
 if (chatSend && chatField) {
   const sendChat = () => {
     const text = chatField.value.trim();
     if (!text) return;
-    reactToChat(text); // tone -> love / sad / thinking / ack
+    appendChatMsg(text, "me");
     chatField.value = "";
+    // O-20 #3: SecondB replies, and the face mirrors the REPLY's tone (its emotion).
+    const reply = mockSecondBReply(text);
+    window.setTimeout(() => {
+      appendChatMsg(reply, "bot");
+      reactToTone(classifyTone(reply));
+    }, 480);
   };
   chatSend.addEventListener("click", (event) => { event.stopPropagation(); sendChat(); });
   chatField.addEventListener("keydown", (event) => {
     if (event.key === "Enter") { event.preventDefault(); sendChat(); }
+  });
+}
+
+// O-20 #5: profile photo upload. The picked image is downscaled on a canvas
+// (<=256px JPEG) to stay well under the localStorage quota, persisted, restored on
+// load, and shown both on the profile-card avatar and the nav profile icon.
+const AVATAR_KEY = "secondb.avatar.v1";
+const avatarBtn = document.getElementById("avatar-btn");
+const avatarInput = document.getElementById("avatar-input");
+const navProfileIcon = document.querySelector('#home-ui .home-icon[data-go="profile"]');
+function applyAvatar(dataUrl) {
+  if (!dataUrl) return;
+  for (const el of [avatarBtn, navProfileIcon]) {
+    if (!el) continue;
+    el.style.backgroundImage = 'url("' + dataUrl + '")';
+    el.classList.add("has-photo"); // CSS: cover the bg, hide the placeholder glyph/SVG
+  }
+}
+try { const saved = localStorage.getItem(AVATAR_KEY); if (saved) applyAvatar(saved); } catch (_) {}
+function downscaleToDataUrl(file, maxSize, done) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      try { done(c.toDataURL("image/jpeg", 0.85)); } catch (_) { done(String(reader.result || "")); }
+    };
+    img.onerror = () => done(String(reader.result || ""));
+    img.src = String(reader.result || "");
+  };
+  reader.readAsDataURL(file);
+}
+if (avatarBtn && avatarInput) {
+  avatarBtn.addEventListener("click", (event) => { event.stopPropagation(); avatarInput.click(); });
+  avatarInput.addEventListener("change", () => {
+    const file = avatarInput.files && avatarInput.files[0];
+    if (!file) return;
+    downscaleToDataUrl(file, 256, (dataUrl) => {
+      applyAvatar(dataUrl);
+      try { localStorage.setItem(AVATAR_KEY, dataUrl); } catch (_) {}
+      react("love"); // a little delight when the photo is set
+    });
   });
 }
 

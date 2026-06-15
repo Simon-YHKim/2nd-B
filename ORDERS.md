@@ -1113,6 +1113,13 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-20 ✅ 5/6 / 2026-06-15 12:14 KST] landing 감사보강 #3·#5 완료 (#2 연령축만 잔여)
+**#3 채팅 감정연동 정정**(`public/landing/main.js`): 기존엔 사용자 입력 텍스트 톤만 분석 → **mock 세컨비 응답 생성→그 응답의 톤 분류→표정**으로 정정. `classifyTone()`(positive/negative/question/neutral) + `mockSecondBReply()`(유저 톤별 응답 뱅크) + `reactToTone()`. 채팅 전송 시 유저 말풍선 추가→480ms 후 봇 응답 말풍선 추가+그 응답 톤으로 표정(긍정→love·부정→sad 공감·질문→thinking·중립→ack). node 단위검증=4톤 구분 매핑 확인. (실제 LLM 톤은 본체 gemini.ts.)
+**#5 프로필+사진 업로드**(index.html+main.js+styles.css): 프로필 화면 아바타를 **업로드 버튼**으로(`<input type=file accept=image/*>`). 선택 시 **canvas 256px 다운스케일→JPEG dataURL**(localStorage 쿼터 안전)→아바타 적용+`localStorage("secondb.avatar.v1")` 영속+로드시 복원. **nav 프로필 아이콘도 사진 반영**(has-photo→커버 bg, SVG 숨김). 빈 상태=＋힌트+"사진을 눌러 바꿔보세요". 사진 설정 시 love 반응. 프로필 화면 스샷 검증.
+**검증**: node --check OK, 프로필 화면 헤드리스 렌더 OK, 채팅 톤 매핑 node 검증. landing 정본=public/landing → push 시 자동 라이브.
+**잔여 #2 표정 연령축**(같은 감정의 연령대별 포즈/스케일 변형, 듀오링고풍): 단순 데이터 추가가 아닌 **설계 결정**(연령축을 표정셋에 어떻게 직교시킬지 — 별도 age 파라미터 vs 표정×연령 매트릭스, 에셋 한계 내 포즈변형 범위) → §35 ai-debate 후보로 다음 사이클 별도 처리.
+
+
 ### [O-21 ✅ / 2026-06-15 11:38 KST] landing-clone → 2nd-B 정식 통합 + 진짜 라이브 — 완료
 **🔴 LIVE: https://simon-yhkim.github.io/2nd-B/landing/** (8777 로컬/터널 졸업 → GitHub Pages 진짜 라이브)
 **접근(후보① Expo public/ 정적 호스팅, 실행자 판단)**: gitignored `landing-clone`(O-13~O-20 반영본: nebula·표정 상황연동/다양화·nav IA·눈색토큰·idle/숨쉬기·얼굴탭 hit-test·사람 아이콘)을 **`public/landing/`로 승격** → `expo export --platform web`가 `dist/landing/`로 복사 → Pages 배포. RN 앱 **미변경**(Three.js 포팅 대공사 회피, 비용대비 정적이 정답).

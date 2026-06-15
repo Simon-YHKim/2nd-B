@@ -478,7 +478,21 @@ body.mode-screen #screens > * { pointer-events: auto; }
   padding: 28px 22px; border: 1px solid var(--card-line); border-radius: 6px; background: var(--card);
   max-width: 280px;
 }
-.profile-card__avatar { width: 64px; height: 64px; border-radius: 50%; background: rgba(108, 124, 240, 0.45); border: 1px solid var(--card-line); }
+.profile-card__avatar {
+  all: unset;
+  box-sizing: border-box;
+  width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(108, 124, 240, 0.45) center / cover no-repeat;
+  border: 1px solid var(--card-line);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+.profile-card__avatar:hover { border-color: var(--accent); transform: translateY(-1px); }
+.profile-card__avatar-hint { font-size: 22px; line-height: 1; color: var(--ink-faint); }
+.profile-card__avatar.has-photo .profile-card__avatar-hint { display: none; }
+.profile-card__edit { font-size: 11px; color: var(--ink-faint); margin: 2px 0 0; }
 .profile-card__name { font-size: 15px; color: var(--ink); }
 .profile-card__stats { display: flex; gap: 16px; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; }
 
@@ -525,6 +539,9 @@ body.mode-screen .panel { opacity: 0; pointer-events: none; transition: opacity 
   transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
 }
 .home-icon:hover { border-color: var(--accent); color: var(--accent-bright); background: rgba(70, 182, 255, 0.1); }
+/* O-20 #5: once a profile photo is set, the nav icon shows it (cover) instead of the SVG */
+.home-icon.has-photo { background-size: cover; background-position: center; overflow: hidden; }
+.home-icon.has-photo svg { display: none; }
 body.is-nav .home-icons { opacity: 1; transform: translateX(0); }
 
 /* req1 order: bubble + menu sit below the icons row */

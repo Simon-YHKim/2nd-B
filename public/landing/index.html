@@ -22,7 +22,7 @@
     href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="./styles.css?v=o16a" />
+  <link rel="stylesheet" href="./styles.css?v=o20b" />
 
   <script type="importmap">
     {
@@ -145,9 +145,13 @@
     <section class="screen" data-screen="profile" hidden>
       <h2 class="screen__title">나 <span>profile</span></h2>
       <div class="profile-card">
-        <div class="profile-card__avatar"></div>
+        <button class="profile-card__avatar" id="avatar-btn" type="button" aria-label="프로필 사진 변경" title="사진 변경">
+          <span class="profile-card__avatar-hint" aria-hidden="true">＋</span>
+          <input type="file" id="avatar-input" accept="image/*" hidden />
+        </button>
         <div class="profile-card__name">나의 세컨드 브레인</div>
         <div class="profile-card__stats"><span>기록 0</span><span>패턴 0</span><span>Lv.1</span></div>
+        <p class="profile-card__edit">사진을 눌러 바꿔보세요</p>
       </div>
       <p class="screen__hint">소울 코어 · 나의 모습 · 통찰 · 자기검사 (Stage ③에서 추가)</p>
     </section>
@@ -161,6 +165,6 @@
     </section>
   </div>
 
-  <script type="module" src="./main.js?v=head-follow-v7i"></script>
+  <script type="module" src="./main.js?v=head-follow-v7j"></script>
 </body>
 </html>
