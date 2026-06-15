@@ -1185,6 +1185,15 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-23 🔄 Stage④⑤ / 2026-06-15 19:52 KST] persona-sim 검증 + findings 수정 (진행중)
+**Stage④ persona-sim 완료**(`docs/deep-space-persona-sim.md`): deep-space 첫실행(셸)을 §20 4축(연령/직업/소득/문화) 워크. findings 우선순위표:
+- **F1 P1 접근성**: 머리 아이콘 38px<44px 터치타깃(고령/유아/motor 오탭).
+- **F2 P1 글로벌**: 말풍선·note 하드코딩 한국어 → 비한국어 1차 CTA 못읽음(문화축 최대 갭).
+- **F3 P2**: 메뉴 로케일 무관 한국어 우선. **F4 P2**: dev note "정적 캐릭터" 프로덕션 노출(불신). **F5 P2**: 메뉴↔탭바 중복. **F6 P3**: 세컨비 라벨 추상.
+**Stage⑤ 바운디드 수정**(PR #394 머지, CI verify+export green): **F1** 아이콘 44px(+터치타깃) · **F2/F3** 말풍선+메뉴 로케일 인식(`i18n.language`; 비-ko=영문 CTA·Title-case 메뉴) · **F4** dev note 제거. type-check+lint+deep-space export green, 셸 렌더 검증(아이콘 커짐·note 사라짐·ko 정상).
+**남은 findings(폴리시/별도)**: F5 nav dedup·F6 라벨 명료화 = deep-space 재테마/폴리시 패스. **O-23 ⓪~⑤ 코어 완료**(토론·플래그·셸·연결·검증·수정). 잔여 폴리시(탭/메뉴 dedup·40화면 재테마·O-24/25 채택배경·캐릭터 3d)는 Simon 방향/별도 오더.
+
+
 ### [O-25 ✅ / 2026-06-15 19:30 KST] 배경 시안 ⑤ 추가(혼합·저눈부심) — AG 구상·Codex 그림 — 완료
 **🔴 보드 LIVE(①~⑤): https://simon-yhkim.github.io/2nd-B/landing/bg-concepts/** — 시안 ⑤ 추가. 채택 Simon.
 **O-24 후속(Simon이 ①·② 보고 요청)**: 시안 ⑤=①신경망+②우주 혼합 + **밝기 낮춤 + 눈부심 대폭감소**(눈 편한 저자극).
