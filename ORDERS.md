@@ -1078,6 +1078,11 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-17 🔄 #1 완료 / 2026-06-15 10:09 KST] landing nebula 배경(파란빛 우주) 구현·검증 (진행중)
+**#1 배경 rim-light 완료(AG 후보② 채택)**: `main.js` buildBackdrop() — composer 무수정(비파괴). ⓐ **nebula glow plane**(z=-14, ShaderMaterial+Simplex-noise fbm, deep-space 검정→은은한 블루 radial glow, 캐릭터 뒤 0.46 중심) ⓑ **별가루 Points 150개**(시안0x7fe3ff~블루0x3b7bff, AdditiveBlending, 느린 회전·bob·twinkle, deterministic 시드=재현성). plane은 z=-14 프레임에 맞춰 sizeNebula()로 스케일(과대→radial 안보임 1차버그 수정). 팔레트 어둡게+falloff 가파르게 튜닝(1차 단색카드 slop 제거). **검증**: portrait(510×900)+wide(1280×800) 헤드리스 스샷 = deep-space 여백 보존·코너 어둠·캐릭터 뒤 은은한 글로우·별가루 부유 확인. 캐시 v7e→v7f. node --check OK.
+**남음**: #2 표정 상황연동(저장/실패/채팅 이벤트→setExpression 훅) · #3 표정 다양화(현 9종→듀오링고 참고 확장, 기존 mouth 타입 재사용 우선) → 다음 집중 사이클(표정별 스샷 검증). landing gitignored→로컬 8777 검증.
+
+
 ### [O-17 🔄 / 2026-06-15 09:52 KST] landing 캐릭터 폴리시 — AG 조언 락 + 구현계획 (진행중)
 **#1 배경 rim-light → AG 조언 수신·채택**: agy 헤드리스 컨설트(허브) 결과 **② 파란빛 우주(nebula/starfield)** 채택. 근거(AG): 바이올렛 몸통+시안 눈+하늘색 rim과 가장 부드럽게 연결, "살짝 귀여운 deep-space" 톤 부합, 신경망(무거운 선)·중력장(과한 왜곡) 대비 여백 보존. **구현 스펙(AG)**: three.js `Points` 시안/블루 별가루 최소 부유 + 캐릭터 뒤 custom shader(Simplex-noise gradient glow)로 rim-light가 배경으로 번지게. deep-space 검정 여백 유지, slop 금지.
 **#2 표정 상황연동 / #3 다양화(듀오링고) / #4 얼굴탭 복귀**: 현 EXPRESSIONS 9종(neutral/happy/curious/excited/surprised/sad/annoyed/sleepy/yawn) + behavior(blink/yawn/mood-cycle ~6.5~10.5s) 확인. setExpression은 window.setSecondBExpression로 이미 노출(이벤트훅 기반). #4(얼굴탭 복귀)는 **O-18에서 동일 메커니즘(touchend/blur recenter)으로 선해결**.
