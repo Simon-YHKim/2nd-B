@@ -6,10 +6,11 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { AppState, View, Text } from "react-native";
+import { AppState } from "react-native";
 
 import "../../global.css";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceShell } from "@/components/deep-space/DeepSpaceShell";
 import { initI18n } from "@/lib/i18n";
 import { initAnalytics, setAnalyticsConsent } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
@@ -128,34 +129,6 @@ function AppTabBar() {
   return <PremiumTabBar locale={i18n.language === "ko" ? "ko" : "en"} />;
 }
 
-/**
- * O-23 Stage① placeholder for the deep-space UI track (D-23 architecture C).
- * Reached only when EXPO_PUBLIC_UI=deep-space; the default legacy track is
- * untouched. Stage② replaces this with the real deep-space shell (themed root
- * navigation that connects the existing routes). Kept intentionally minimal so
- * the flag/branch seam is verifiable without shipping unfinished UI by default.
- */
-function DeepSpaceShell() {
-  const palette = useThemePalette();
-  return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-        backgroundColor: palette.background,
-      }}
-    >
-      <Text style={{ color: palette.text, fontSize: 16, textAlign: "center", marginBottom: 8 }}>
-        딥스페이스 UI
-      </Text>
-      <Text style={{ color: palette.textMuted, fontSize: 13, textAlign: "center" }}>
-        새 셸을 준비 중이에요 (O-23 Stage②)
-      </Text>
-    </View>
-  );
-}
 
 /**
  * App content is always dark — every screen is wrapped in PremiumAppShell's
