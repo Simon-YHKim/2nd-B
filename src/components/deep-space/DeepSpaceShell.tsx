@@ -9,32 +9,26 @@
  * becomes the router home + the nav contract / deeplinks get documented + E2E'd);
  * for now the menu gives honest "coming next" feedback so nothing reads as broken.
  */
-import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router, type Href } from "expo-router";
 
 import { deepSpace } from "@/lib/theme/tokens";
 import { isCharacterFallback } from "@/lib/ui-mode";
 
 const CHARACTER = require("../../../assets/deep-space/character-front.png");
 
-const PRIMARY = [
-  { key: "graph", ko: "그래프", en: "graph" },
-  { key: "capture", ko: "담기", en: "capture" },
-  { key: "secondb", ko: "세컨비", en: "secondb" },
-  { key: "profile", ko: "나", en: "profile" },
-] as const;
+// O-23 Stage③: the 4 primaries route into the existing screens (graph -> the
+// shared /graph route; the rest to their own routes). See nav contract.
+const PRIMARY: { key: string; ko: string; en: string; route: Href }[] = [
+  { key: "graph", ko: "그래프", en: "graph", route: "/graph" },
+  { key: "capture", ko: "담기", en: "capture", route: "/capture" },
+  { key: "secondb", ko: "세컨비", en: "secondb", route: "/secondb" },
+  { key: "profile", ko: "나", en: "profile", route: "/profile" },
+];
 
 export function DeepSpaceShell() {
-  const [pending, setPending] = useState(false);
-
-  // Stage② placeholder interaction: honest feedback until Stage③ wires routing.
-  const onPrimary = () => {
-    setPending(true);
-    setTimeout(() => setPending(false), 1400);
-  };
-
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
       <View style={styles.stage}>
@@ -57,7 +51,7 @@ export function DeepSpaceShell() {
             <Pressable
               key={item.key}
               style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-              onPress={onPrimary}
+              onPress={() => router.push(item.route)}
               accessibilityRole="button"
               accessibilityLabel={item.ko}
             >
@@ -68,7 +62,7 @@ export function DeepSpaceShell() {
         </View>
 
         <Text style={styles.note}>
-          {pending ? "곧 연결됩니다 (Stage③)" : isCharacterFallback() ? "deep-space · 정적 캐릭터" : "deep-space"}
+          {isCharacterFallback() ? "deep-space · 정적 캐릭터" : "deep-space"}
         </Text>
       </View>
     </SafeAreaView>

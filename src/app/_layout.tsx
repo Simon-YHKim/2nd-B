@@ -9,8 +9,6 @@ import { StatusBar } from "expo-status-bar";
 import { AppState } from "react-native";
 
 import "../../global.css";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceShell } from "@/components/deep-space/DeepSpaceShell";
 import { initI18n } from "@/lib/i18n";
 import { initAnalytics, setAnalyticsConsent } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
@@ -54,12 +52,13 @@ export default function RootLayout() {
             <AnalyticsConsentSync />
             <AuditWriteOutboxSync />
             <IntroGate>
-              {isDeepSpaceUI() ? (
-                <DeepSpaceShell />
-              ) : (
-              <>
+              {/* O-23 Stage③: the Stack mounts every route in BOTH UI modes (the
+                  flag only swaps which component `index` renders — see index.tsx —
+                  and adds the deep-space /graph alias). This is the nav-contract
+                  architecture: no feature is dropped by the deep-space track. */}
               <ThemedStack>
               <Stack.Screen name="index" />
+              <Stack.Screen name="graph" />
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="journal" />
               <Stack.Screen name="audit" />
@@ -95,8 +94,6 @@ export default function RootLayout() {
               </ThemedStack>
               <BackArrow />
               <AppTabBar />
-              </>
-              )}
             </IntroGate>
           </AuthProvider>
         </ThemeProvider>
