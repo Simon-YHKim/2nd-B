@@ -1070,7 +1070,8 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 
 ## DONE (Claude 피드백)
 
-### [O-16 🔄 Stage① / 2026-06-15 09:11 KST] landing→2ndb 전기능 앱 — IA맵 + 디자인토큰 (다단계, 진행중)
+### [O-16 🔄 Stage①+② / 2026-06-15 09:31 KST] landing→2ndb 전기능 앱 — IA·토큰(①) + 레이아웃·눈색(②) (다단계, 진행중)
+**Stage ② 완료(09:31)**: req1 nav 재배치(머리→[프로필◓·설정⚙ 아이콘]→말풍선→메뉴) + **눈색 cyan 토큰 전면 적용**(`--accent #46B6FF`·`--text #5FD4FF`·`--bg #0A0E1A`, 모노톤 "캐릭터 몸통 화면") + 메뉴=4 primary(records/위키→그래프 2차). 프로필/설정 아이콘→화면 라우팅 작동(설정 화면 스텁 추가). 데스크톱 nav+설정 검증 OK. 다음=③전기능 simple 스켈레톤(Codex 분산)→④와이어링. (landing gitignored→코드 git 미포함, 8777 검증.)
 PC Claude — **Stage ① 완료** (IA맵 + 토큰). §35 ai-debate(wf wcc7h4bjy, 3관점 minimalist/completeness/consumer → 별도심판, 코드검증). **DECISIONS D-22** 기록.
 - **IA 맵 (0 orphan, 32 라우트)**: 4 primary 탭 = 그래프(/)·담기(/capture)·세컨비(/secondb)·나(/profile). **설정 = 머리 우측 아이콘 → profile-child 스택(탭 아님)**.
   - 그래프 → 위키·기록(→record/[id])·리서치 · 담기 → 형식·가져오기·받은항목(inbox)·수동입력 · 세컨비 → 모드토글(자비스/공상, 라우트 아님) · 나 → 소울코어·나의모습·통찰 + **자기검사 허브**(빅5·MBTI·애착·네영역·순간기록·인터뷰·자기점검) · 설정 → 계정·요금제·개인정보·권한·데이터·테마·지원·운영진단.
