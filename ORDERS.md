@@ -1102,6 +1102,16 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-19 ✅ / 2026-06-15 11:08 KST] hub-health git락 hang 근본수정 — 완료
+**증상**: `hub-health -Json`이 데몬 커밋 중 hub-repo index.lock 대기로 22초+ hang → 폰 헬스탭 차단. **원인**: read-only git 호출(status/log/rev-parse)이 timeout 없이 직접 실행 + `git status`가 optional index-refresh 락을 커밋 중인 데몬과 경합.
+**수정**(`tools/hub-health.ps1`, 허브레포 로컬커밋 7d7f819):
+- **`Invoke-GitRO` 헬퍼**: `git --no-optional-locks -C $root …`를 짧은 timeout(4s, 프로세스 kill 백스톱)으로 실행. status가 더 이상 락을 안 기다림(근본).
+- **work-tree 체크 재작성**: rev-parse/status를 헬퍼로 + **index.lock을 나이로 판별** — fresh(<30s)=transient "commit in progress" WARN(skip), stale(≥30s)=FAIL. (부수: 기존 "활성 락도 stale FAIL 오판" 결함 동시수정.)
+- **BOARD author `git log`**도 헬퍼+timeout.
+- **`-Quick` 스위치**: 5개 PowerShell-spawn 툴실행 스모크(콜드스타트 ~1.5s×5 = baseline 주범) 스킵 → 폰 헬스탭용 sub-5s 무결성 스냅샷. 풀 스모크는 기본 유지. SKIP 상태=exit 중립.
+**검증**: Quick `-Json` **2.5s**(index.lock 존재 시에도 2.5s, hang 0) · Full `-Json` 9.0s FAIL=0(회귀 0) · PowerShell 파싱 OK. **목표 "5초 이내" 달성**(폰 탭은 `-Quick` 사용 권장).
+
+
 ### [O-17 ✅ 완료 / 2026-06-15 10:52 KST] landing 캐릭터 폴리시 전체 완료 (#1~#4)
 **#2 표정 상황연동 + #3 다양화 완료** (`main.js`):
 - **#3 표정 9→16종**: angry·proud·love·thinking·laughing·determined·shy 추가. **전부 기존 mouth 타입(frown/smile/grin/curious/flat/sleepy) 재사용** → makeMouthTexture 무수정(저위험), mouthTextures 자동 생성. 표정별 헤드리스 스샷 8종 검증(`?expr=<key>` QA 훅 추가, replaceState 전 캡처).
