@@ -1,7 +1,7 @@
 // Premium component library — Cosmic Pixel Graph Village visual system
 // (A-to-Z premium pass, Part 1 foundation). Import from "@/components/premium".
 
-export { CosmicBackground, StarNoiseLayer, PremiumAppShell } from "./background";
+export { CosmicBackground, StarNoiseLayer, ConstellationLayer, PremiumAppShell } from "./background";
 export {
   BrandChip,
   PremiumTopBar,
