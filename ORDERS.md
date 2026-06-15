@@ -1143,6 +1143,18 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-23 🔄 Stage⓪ / 2026-06-15 15:42 KST] 새 UI 본체승격 — §35 ai-debate 완료·아키텍처 결정 (대규모·비가역, 진행중)
+**§35 게이트 준수(주문 명시)**: 비가역(앱 전체 UI 교체)이라 코드 착수 전 **허브 3-AI 헤드리스 패널**(AG 네이티브/Codex UI아키/Grok 소비자) → Claude 종합. **DECISIONS D-23 기록**(허브).
+**recon**: 새 UI=정적 HTML+Three.js(public/landing, 라이브). 기존=RN/expo-router SDK56 ~40화면(gameboy-tokens, EXPO_PUBLIC_UI 플래그 부재). 긴장=Three.js 프로토를 RN 본체에 편입.
+**결정(만장일치 C)**:
+- **아키텍처 C**: 새 deep-space 셸 = `EXPO_PUBLIC_UI=deep-space|legacy` 루트레이아웃 분기. 기존 40 라우트 그대로 연결 + 점진 리테마(semantic 토큰). **B(웹셸) 전원 비추천**. (Codex: C 출시구조→A 점진수렴.)
+- **레거시 롤백**: legacy=기존 gameboy `_layout` 트리 마운트, 플래그 플립만으로 즉시 롤백(OTA/빌드 0, 삭제0·보존). 만장일치.
+- **캐릭터 하이브리드(핵심 리스크)**: 메인 홈 셸만 r3f/expo-gl(성능검증 후), 서브+저사양은 정적/Lottie(`EXPO_PUBLIC_CHARACTER=fallback`).
+- **착수 전 nav 계약(라우트맵·딥링크·back/탭중첩) 문서화+E2E**(Grok 리스크).
+**다음 단계(주문 ①~⑤)**: ①레거시분리+EXPO_PUBLIC_UI 플래그 스캐폴딩 → ②새셸 골격(deep-space 토큰+홈) → ③전 40기능 연결(누락0) → ④persona-sim 4축교차 검증 → ⑤findings 수정. 각 verify+export green. 4-AI 분산(Claude 구현·머지, Codex UI/에셋, AG 에뮬QA, Grok 소비자). 비가역이라 단계별 DONE 보고 + 게이트 시 Simon 확인.
+**남은 캐릭터 정적폴백 소수의견(Grok)**: 몰입 포기 우려 → 메인 3D 유지로 흡수.
+
+
 ### [O-22 ✅ / 2026-06-15 14:08 KST] landing 라이브 버그 3건 수정 — 완료
 대상=`public/landing` (정본). Simon 디렉터 코드진단 기반.
 **버그3 캐시버스팅(근본·우선)**: `main.js?v=고정` → **`<script type=module>import("./main.js?t="+Date.now())</script>` 동적 로드**로 교체. 매 로드 유니크 쿼리 → GitHub Pages/브라우저가 절대 stale main.js 안 줌(새로고침 불필요). ("결과물 안 보임"의 핵심 원인 제거.) styles.css는 ?v 수동버전(변경 시 bump).
