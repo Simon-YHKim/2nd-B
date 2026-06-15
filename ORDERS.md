@@ -1128,6 +1128,14 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-22 ✅ / 2026-06-15 14:08 KST] landing 라이브 버그 3건 수정 — 완료
+대상=`public/landing` (정본). Simon 디렉터 코드진단 기반.
+**버그3 캐시버스팅(근본·우선)**: `main.js?v=고정` → **`<script type=module>import("./main.js?t="+Date.now())</script>` 동적 로드**로 교체. 매 로드 유니크 쿼리 → GitHub Pages/브라우저가 절대 stale main.js 안 줌(새로고침 불필요). ("결과물 안 보임"의 핵심 원인 제거.) styles.css는 ?v 수동버전(변경 시 bump).
+**버그2 hero 숨은 메뉴 오터치(확정 코드버그)**: 자식 `.home-item/.home-icon/.home-bubble`의 `pointer-events:auto`가 hero/screen에서도 살아있어 opacity:0 메뉴가 클릭됨 → CSS `body:not(.is-nav) {그 3종} pointer-events:none`으로 nav 모드에서만 인터랙티브. + 클릭핸들러 모드화: **hero=어디든 탭→nav 전환만(숨은 메뉴 무반응)**, screen/nav=머리 적중만 전환(O-20#4 유지). O-20#4↔O-22 화해.
+**버그1 머리 정면복귀 강건화**: 기존 touchend/blur recenterGaze(O-18) 유지 + **idle-timeout recenter**(2.2s 입력 없으면 animate에서 pointer→0 → 기존 ease로 정면 복귀). 손 뗌·idle·포인터 이탈 모두 커버. lastInputAt 추적.
+**검증**: hero 동적import 렌더 OK(정면 응시), node --check OK, CSS pointer-events 게이트 결정적. 라이브 배포 후 Simon 실검증.
+
+
 ### [O-16 ✅ Stage④ 완료 / 2026-06-15 13:50 KST] 와이어링 — 서브뷰 라우팅. O-16 전체(①②③④) 완결
 **Stage④ 완료**(`public/landing`): Stage③ "곧 준비" 토스트 placeholder를 **실제 딥링크 서브뷰 라우팅**으로 대체.
 - **재사용 메커니즘 1개로 17타일 전부 연결**(타일별 17화면 하드코딩 회피, DRY): `SUBVIEWS` 맵(id→{label,parent,body 한글설명}) + `#subview` 오버레이 1개. 타일 탭→openSubview(부모화면 보장+오버레이+pushState `#sub-<id>`)+캐릭터 thinking 반응.

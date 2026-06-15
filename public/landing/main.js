@@ -388,10 +388,12 @@ function makeStarSprite() {
 buildBackdrop();
 
 const pointer = { x: 0, y: 0 };
+let lastInputAt = Date.now(); // O-22 #1: timestamp of the last real pointer/touch input
 
 function setPointerFromClient(clientX, clientY) {
   pointer.x = (clientX / window.innerWidth) * 2 - 1;
   pointer.y = (clientY / window.innerHeight) * 2 - 1;
+  lastInputAt = Date.now();
 }
 
 window.addEventListener("pointermove", (event) => {
@@ -413,7 +415,11 @@ window.addEventListener("touchmove", (event) => {
 function recenterGaze() {
   pointer.x = 0;
   pointer.y = 0;
+  lastInputAt = Date.now();
 }
+// O-22 #1: robust front-return — if there's no input for a beat (finger lifted, cursor
+// idle/left), guarantee the gaze eases back to centre even if a touchend was missed.
+const IDLE_RECENTER_MS = 2200;
 window.addEventListener("touchend", recenterGaze, { passive: true });
 window.addEventListener("touchcancel", recenterGaze, { passive: true });
 window.addEventListener("blur", recenterGaze);
@@ -423,6 +429,12 @@ document.addEventListener("pointerleave", recenterGaze);
 function animate() {
   requestAnimationFrame(animate);
   const now = Date.now();
+
+  // O-22 #1: no input for a beat -> null the gaze target so the head eases to front
+  if ((pointer.x !== 0 || pointer.y !== 0) && now - lastInputAt > IDLE_RECENTER_MS) {
+    pointer.x = 0;
+    pointer.y = 0;
+  }
 
   // O-17 #1: drive the nebula + drift the star-dust (slow, ambient — no slop)
   if (nebulaMat) nebulaMat.uniforms.uTime.value = now * 0.001;
@@ -478,10 +490,14 @@ window.addEventListener("click", (event) => {
   if (event.target.closest?.("#panel")) return;
   if (event.target.closest?.("#home-ui")) return;  // menu/bubble handle their own
   if (event.target.closest?.("#screens")) return;   // screen UI handles its own
-  if (!headHitTest(event.clientX, event.clientY)) return; // empty space -> ignore
-  // O-14/O-20: head tap — screen -> nav (back), else hero <-> nav
+  if (event.target.closest?.("#subview")) return;    // sub-view handles its own
+  // O-22: in hero the menu is hidden + non-clickable, so ANY tap reveals nav (a tap
+  // where the menu sits no longer fires it). In nav/screen, keep O-20 #4: only a tap
+  // on the head transitions — empty space is ignored (no accidental collapse/back).
+  if (ui.mode === "hero") { setMode("nav"); return; }
+  if (!headHitTest(event.clientX, event.clientY)) return;
   if (ui.mode === "screen") setMode("nav");
-  else setMode(ui.mode === "hero" ? "nav" : "hero");
+  else setMode("hero"); // nav -> hero
 });
 window.setSecondBExpression = setExpression;
 

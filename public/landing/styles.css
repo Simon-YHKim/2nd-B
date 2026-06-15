@@ -242,6 +242,12 @@ html, body {
   transition: opacity 0.25s ease;
 }
 body.is-nav #home-ui { opacity: 1; }
+/* O-22 #2: the home UI is only interactive in nav mode. Children set pointer-events:auto
+   for their own hit areas, which (without this) stayed clickable while opacity:0 in hero/
+   screen — so a tap where the hidden menu sits would fire it. Gate them on nav mode. */
+body:not(.is-nav) .home-item,
+body:not(.is-nav) .home-icon,
+body:not(.is-nav) .home-bubble { pointer-events: none; }
 
 /* speech bubble — right of the retreated head, inside the 80% content box */
 .home-bubble {
