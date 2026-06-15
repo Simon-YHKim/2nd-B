@@ -1169,6 +1169,15 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-25 ✅ / 2026-06-15 19:30 KST] 배경 시안 ⑤ 추가(혼합·저눈부심) — AG 구상·Codex 그림 — 완료
+**🔴 보드 LIVE(①~⑤): https://simon-yhkim.github.io/2nd-B/landing/bg-concepts/** — 시안 ⑤ 추가. 채택 Simon.
+**O-24 후속(Simon이 ①·② 보고 요청)**: 시안 ⑤=①신경망+②우주 혼합 + **밝기 낮춤 + 눈부심 대폭감소**(눈 편한 저자극).
+- **🟩 AG=구상**(허브 agy): 성운40%+노드60% 혼합, bg #05070A(더 어둡게), cyan 토큰 명도·채도·alpha(0.1~0.3) 낮춤, bloom/glow/blur/aberration 완전배제·shadowBlur 금지·source-over 저opacity, 미세 0.1x 호흡 모션, 둥글 귀여움.
+- **🟨 Codex=그림**(허브 codex): `concept-5-hybrid-dim.html` 렌더러 — AG 스펙 충실. 옅은 성운(극저투명 radial-gradient)+가는 노드망(SVG)+캐릭터 rim 오버레이.
+- **Claude**: 디스패치·스샷·보드 5번 카드+썸네일 추가·배포.
+**결과**: 스샷 검증=확연히 어둡고 차분, 발광 억제, 캐릭터 rim만 도드라짐(눈 편함). 비교보드 ①~⑤ 5종으로 갱신, 경량 유지. 채택본 본배경 반영은 별도 오더.
+
+
 ### [O-23 ✅ Stage③ 완료 / 2026-06-15 18:34 KST] 전기능 연결 완료 (진행중→④)
 **Stage③ 완전 완료**(PR #393 머지, CI verify+export green): 핵심연결(#392)에 이어 셸 **머리-우측 아이콘**(프로필→/profile·설정→/settings) 추가 — D-22 nav 레이아웃, 설정은 탭 아닌 아이콘이라 셸의 유일 /settings 진입. **설정 reachability 확보=마지막 누락 해소**. deep-space export 셸 렌더 검증(아이콘+캐릭터+4메뉴+탭바).
 **누락0 달성**: 셸→4 primary(메뉴+탭바)·머리아이콘(프로필/설정)→기존화면, 2차 진입(위키/기록/리서치·자기검사7·설정8)은 각 화면 자체 네비로 reachable(nav계약 충족). 전 40라우트 양모드 마운트+resolve.
