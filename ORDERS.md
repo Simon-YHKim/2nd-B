@@ -1113,6 +1113,19 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-20 🔄 3/6 / 2026-06-15 11:24 KST] landing 감사 보강 — 폴리시 3종 완료 (진행중)
+**완료 (`landing-clone`, 8777 검증)**:
+- **#1 idle 상시 생동감**: neutral/curious의 `mouthMotion:"idle"`이 입 완전정지였음 → updateFaceBehavior에 idle 케이스 추가(두 느린 sine 오물오물 ~4.5%+2%) + **숨쉬기 bob 배선**(dead였던 `LOOK.bob` 0→0.035, updateHeadAnimation에 `sin(t)·bob·headScale` 적용). 감정 무관 상시 미세 생동.
+- **#4 얼굴탭 복귀 정정(O-18 우선)**: click 핸들러가 hit-test 없이 **빈 공간 클릭도 모드전환**(요구 반대)이던 것 → **THREE.Raycaster로 headMesh 적중 시만** 전환, 빈 공간 무시. (touch 탭=click 이벤트로 커버.)
+- **#6 버튼 직관성**: 프로필 아이콘 `◓`→**사람 실루엣 inline SVG**(모노톤 currentColor, 이모지 금지 준수) + title="나·프로필". 채팅 `chat__send` aria-label/title="보내기", chat__field aria-label, 설정 아이콘 title. nav 스샷 검증=사람 아이콘 명확.
+- 회귀 0(nav+기본 렌더 정상), node --check OK. 캐시 v7h→v7i.
+**남음 (다음 사이클 분할)**:
+- **#3 채팅 감정연동 정정**: 현재 사용자 입력만 휴리스틱 → **mock 세컨비 응답 생성→그 응답 톤 분류→표정**으로 변경(실제 LLM은 2ndb 본체 gemini.ts).
+- **#5 프로필+사진 업로드**: nav 우측 프로필 카드(아바타+이름) + `<input type=file>`/FileReader/objectURL→아바타 + localStorage 영속.
+- **#2 표정 연령축**: 같은 감정의 연령대별(아동/청소년/청년/어른) 포즈·스케일 변형 — 설계 고민 필요(듀오링고풍 유지), §35 ai-debate 후보.
+landing gitignored→로컬 8777 검증.
+
+
 ### [O-19 ✅ / 2026-06-15 11:08 KST] hub-health git락 hang 근본수정 — 완료
 **증상**: `hub-health -Json`이 데몬 커밋 중 hub-repo index.lock 대기로 22초+ hang → 폰 헬스탭 차단. **원인**: read-only git 호출(status/log/rev-parse)이 timeout 없이 직접 실행 + `git status`가 optional index-refresh 락을 커밋 중인 데몬과 경합.
 **수정**(`tools/hub-health.ps1`, 허브레포 로컬커밋 7d7f819):
