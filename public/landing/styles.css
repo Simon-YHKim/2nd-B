@@ -655,3 +655,20 @@ body.is-nav .home-icons { opacity: 1; transform: translateX(0); }
   background: var(--accent); opacity: 0; animation: lvlupPulse 0.42s ease;
 }
 @keyframes lvlupPulse { 0% { opacity: 0; } 45% { opacity: 0.32; } 100% { opacity: 0; } }
+
+/* =========================================================================
+   O-29 fix — invisible-but-clickable nav menu.
+   backdrop-filter over the WebGL canvas can composite these nav controls as
+   FULLY TRANSPARENT (yet still in layout → clickable, finger cursor) on some
+   GPU/driver combos. Symptom: tap head → nav, menu reveals but is invisible.
+   Fix: drop the filter and use an opaque deep-space fill so the menu is always
+   visible regardless of backdrop-filter support/compositing. (Same eye-cyan
+   border + text, so the look is preserved — just a solid card instead of glass.)
+   ========================================================================= */
+.home-item,
+.home-icon,
+.home-bubble {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(16, 30, 52, 0.92);
+}
