@@ -161,6 +161,41 @@ describe("visible trust copy", () => {
     expect(combined).not.toMatch(/그래프|로컬|기기|계정 없이/);
   });
 
+  test("journal record-day copy stays low-pressure instead of streak-based", () => {
+    type CaptureLocale = {
+      journal: { streak: { label: string; missingToday: string } };
+    };
+    const root = path.resolve(__dirname, "../../..");
+    const en = JSON.parse(readFileSync(path.join(root, "locales/en/capture.json"), "utf8")) as CaptureLocale;
+    const ko = JSON.parse(readFileSync(path.join(root, "locales/ko/capture.json"), "utf8")) as CaptureLocale;
+    const es = JSON.parse(readFileSync(path.join(root, "locales/es/capture.json"), "utf8")) as CaptureLocale;
+    const pt = JSON.parse(readFileSync(path.join(root, "locales/pt/capture.json"), "utf8")) as CaptureLocale;
+    const id = JSON.parse(readFileSync(path.join(root, "locales/id/capture.json"), "utf8")) as CaptureLocale;
+    const manual = readFileSync(path.join(root, "src/app/manual.tsx"), "utf8");
+    const visible = [
+      en.journal.streak.label,
+      en.journal.streak.missingToday,
+      ko.journal.streak.label,
+      ko.journal.streak.missingToday,
+      es.journal.streak.label,
+      es.journal.streak.missingToday,
+      pt.journal.streak.label,
+      pt.journal.streak.missingToday,
+      id.journal.streak.label,
+      id.journal.streak.missingToday,
+      manual,
+    ].join("\n");
+
+    expect(en.journal.streak.label).toBe("Days recorded: {{count}}{{suffix}}");
+    expect(ko.journal.streak.label).toBe("기록한 날: {{count}}일{{suffix}}");
+    expect(en.journal.streak.missingToday).toContain("optional");
+    expect(ko.journal.streak.missingToday).toContain("선택");
+    expect(manual).toContain("gentle record-day counter");
+    expect(manual).toContain("부담 없는 기록일 카운터");
+    expect(visible).not.toMatch(/streak|don't break|none today yet|missing today|racha|sequ[eê]ncia/i);
+    expect(visible).not.toMatch(/스트릭|연속 기록|오늘은 아직|압박/);
+  });
+
   test("first-run graph card does not promise a journal save lights the graph", () => {
     const root = path.resolve(__dirname, "../../..");
     const screen = readFileSync(path.join(root, "src/app/index.tsx"), "utf8");
