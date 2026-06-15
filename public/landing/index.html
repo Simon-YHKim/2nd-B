@@ -22,7 +22,7 @@
     href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="./styles.css?v=o16s3b" />
+  <link rel="stylesheet" href="./styles.css?v=o16s4" />
 
   <script type="importmap">
     {
@@ -202,6 +202,17 @@
     </section>
   </div>
 
-  <script type="module" src="./main.js?v=head-follow-v7l"></script>
+  <!-- O-16 Stage④: reusable sub-view overlay — every data-skel tile routes here -->
+  <div id="subview" class="subview" aria-hidden="true">
+    <button id="subview-back" class="screen-back subview__back" type="button" aria-label="뒤로">← 뒤로</button>
+    <div class="subview__card">
+      <p class="subview__kicker" id="subview-kicker">—</p>
+      <h3 class="subview__title" id="subview-title">—</h3>
+      <p class="subview__body" id="subview-body">—</p>
+      <p class="subview__note">준비 중인 기능이에요 — 곧 채워질 예정 (스켈레톤)</p>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js?v=head-follow-v7m"></script>
 </body>
 </html>

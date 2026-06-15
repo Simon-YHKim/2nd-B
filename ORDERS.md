@@ -1128,6 +1128,15 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-16 ✅ Stage④ 완료 / 2026-06-15 13:50 KST] 와이어링 — 서브뷰 라우팅. O-16 전체(①②③④) 완결
+**Stage④ 완료**(`public/landing`): Stage③ "곧 준비" 토스트 placeholder를 **실제 딥링크 서브뷰 라우팅**으로 대체.
+- **재사용 메커니즘 1개로 17타일 전부 연결**(타일별 17화면 하드코딩 회피, DRY): `SUBVIEWS` 맵(id→{label,parent,body 한글설명}) + `#subview` 오버레이 1개. 타일 탭→openSubview(부모화면 보장+오버레이+pushState `#sub-<id>`)+캐릭터 thinking 반응.
+- **실제 라우트**: `#sub-<id>` 딥링크(부모화면+오버레이 복원), 뒤로=history.back→popstate→서브뷰 닫고 부모 복귀. popstate/deep-link 핸들러에 sub 통합.
+- 17 서브뷰 = 그래프(위키·기록·리서치)·담기(형식·가져오기·받은항목·수동입력)·나(소울코어·나의모습·통찰)·자기검사(빅5·MBTI·애착·네영역·순간기록·인터뷰·자기점검). 각 한글 제목+kicker(부모)+설명 스켈레톤+back.
+- **검증**: `#sub-big5` 딥링크=나 화면 위 서브뷰 오버레이(제목 빅5+설명) 렌더 / 일반 `#profile`=서브뷰 미표시·스켈레톤 타일 정상(회귀0). node --check OK. 캐시 v7l→v7m.
+**→ O-16 5단계 전부 완결**(①IA·토큰 ②레이아웃·눈색 ③전기능 스켈레톤 ④와이어링). landing→2ndb 전기능 앱 IA가 라이브로 탐색 가능. 정본=public/landing→자동 라이브.
+
+
 ### [O-16 🔄 Stage③ / 2026-06-15 13:18 KST] 전기능 simple 스켈레톤 — D-22 IA 트리 가시화 (진행중)
 **Stage③ 완료**(`public/landing` index.html+styles.css+main.js): D-22 IA맵의 2차 진입을 각 화면에 **스켈레톤 타일**로 가시화(눈색 토큰, slop 0):
 - **그래프** → [위키·기록·리서치] 서브타일(마을 노드 하단).

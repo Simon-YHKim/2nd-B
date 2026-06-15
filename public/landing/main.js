@@ -1182,8 +1182,11 @@ function openScreen(name) {
 }
 
 window.addEventListener("popstate", (event) => {
-  const sc = event.state && event.state.screen;
-  if (sc && SCREEN_NAMES.includes(sc)) { ui.mode = "screen"; ui.screen = sc; applyMode(); }
+  const st = event.state || {};
+  // O-16 Stage④: a #sub-<id> state opens its sub-view; otherwise close any sub-view first
+  if (st.sub && SUBVIEWS[st.sub]) { openSubview(st.sub, true); return; }
+  closeSubview();
+  if (st.screen && SCREEN_NAMES.includes(st.screen)) { ui.mode = "screen"; ui.screen = st.screen; applyMode(); }
   else setMode("nav");
 });
 
@@ -1309,27 +1312,72 @@ document.querySelectorAll("#age-chips .age-chip").forEach((chip) => {
   chip.addEventListener("click", (event) => { event.stopPropagation(); setAge(chip.dataset.age); });
 });
 
-// O-16 Stage③: sub-tiles are skeletons — give honest tap feedback so nothing looks
-// dead (Stage④ will route each to a real sub-view). The companion acknowledges.
-const skelToast = document.createElement("div");
-skelToast.className = "skel-toast";
-skelToast.setAttribute("role", "status");
-document.body.appendChild(skelToast);
-let skelToastTimer = 0;
+// O-16 Stage④: every data-skel tile routes to one reusable, deep-linkable sub-view
+// overlay (#sub-<id>) — real navigation + back, replacing the Stage③ toast. Content
+// is still skeletal but each tile now opens its own titled, back-navigable view.
+const SUBVIEWS = {
+  wiki:         { label: "위키",      parent: "graph",   body: "내 지식과 노트를 위키처럼 — 노드끼리 링크로 이어져요." },
+  record:       { label: "기록",      parent: "graph",   body: "한 줄부터 긴 글까지, 기록을 시간순으로 모아봐요." },
+  research:     { label: "리서치",    parent: "graph",   body: "관심 주제를 깊게 파보는 리서치 공간이에요." },
+  format:       { label: "형식",      parent: "capture", body: "담을 형식을 골라요 — 메모·할 일·링크·이미지." },
+  import:       { label: "가져오기",  parent: "capture", body: "다른 앱이나 파일에서 한 번에 가져와요." },
+  inbox:        { label: "받은 항목", parent: "capture", body: "받은 항목을 모아 정리하기 전에 먼저 검토해요." },
+  manual:       { label: "수동 입력", parent: "capture", body: "직접 입력해서 그 자리에서 담아요." },
+  "core-brain": { label: "소울 코어", parent: "profile", body: "나를 이루는 중심 노드 — 모든 기록이 여기로 모여요." },
+  persona:      { label: "나의 모습", parent: "profile", body: "지금의 나를 비추는 화면이에요." },
+  insight:      { label: "통찰",      parent: "profile", body: "기록 속에서 발견한 패턴을 보여줘요." },
+  big5:         { label: "빅5",       parent: "profile", body: "다섯 요인으로 나의 성격을 들여다봐요." },
+  mbti:         { label: "MBTI",      parent: "profile", body: "16가지 유형으로 나를 이해해요." },
+  attach:       { label: "애착",      parent: "profile", body: "관계 속 나의 애착 패턴을 살펴봐요." },
+  trinity:      { label: "네 영역",   parent: "profile", body: "삶의 네 영역 균형을 점검해요." },
+  esm:          { label: "순간기록",  parent: "profile", body: "지금 이 순간의 상태를 가볍게 남겨요." },
+  interview:    { label: "인터뷰",    parent: "profile", body: "질문을 따라가며 나를 깊이 탐색해요." },
+  selfcheck:    { label: "자기점검",  parent: "profile", body: "오늘의 나를 가볍게 체크해요." },
+};
+const PARENT_LABEL = { graph: "그래프", capture: "담기", profile: "나", secondb: "세컨비", settings: "설정" };
+const subviewEl = document.getElementById("subview");
+const subviewKicker = document.getElementById("subview-kicker");
+const subviewTitle = document.getElementById("subview-title");
+const subviewBody = document.getElementById("subview-body");
+function renderSubview(id) {
+  const v = SUBVIEWS[id];
+  if (!v || !subviewEl) return false;
+  if (subviewKicker) subviewKicker.textContent = PARENT_LABEL[v.parent] || "";
+  if (subviewTitle) subviewTitle.textContent = v.label;
+  if (subviewBody) subviewBody.textContent = v.body;
+  subviewEl.classList.add("is-open");
+  subviewEl.setAttribute("aria-hidden", "false");
+  return true;
+}
+function openSubview(id, fromPop) {
+  const v = SUBVIEWS[id];
+  if (!v) return;
+  if (ui.screen !== v.parent) { ui.mode = "screen"; ui.screen = v.parent; applyMode(); }
+  if (!renderSubview(id)) return;
+  if (!fromPop) { try { history.pushState({ screen: v.parent, sub: id }, "", "#sub-" + id); } catch (_) {} }
+  react("thinking");
+}
+function closeSubview() {
+  if (!subviewEl) return;
+  subviewEl.classList.remove("is-open");
+  subviewEl.setAttribute("aria-hidden", "true");
+}
 document.querySelectorAll(".sub-tile[data-skel]").forEach((tile) => {
-  tile.addEventListener("click", (event) => {
-    event.stopPropagation();
-    skelToast.textContent = tile.textContent.trim() + " — 곧 준비될 기능이에요";
-    skelToast.classList.add("is-show");
-    window.clearTimeout(skelToastTimer);
-    skelToastTimer = window.setTimeout(() => skelToast.classList.remove("is-show"), 1600);
-    react("thinking");
-  });
+  tile.addEventListener("click", (event) => { event.stopPropagation(); openSubview(tile.dataset.skel); });
 });
+const subviewBack = document.getElementById("subview-back");
+if (subviewBack) {
+  subviewBack.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (history.state && history.state.sub) history.back();
+    else closeSubview();
+  });
+}
 
 applyMode();
 window.setSecondBMode = setMode;
 window.setSecondBScreen = openScreen;
-// QA deep-links: #nav or #<screen>
+// QA deep-links: #nav or #<screen> or #sub-<id> (O-16 Stage④)
 if (location.hash === "#nav") setMode("nav");
+else if (location.hash.startsWith("#sub-") && SUBVIEWS[location.hash.slice(5)]) openSubview(location.hash.slice(5), true);
 else if (location.hash && SCREEN_NAMES.includes(location.hash.slice(1))) openScreen(location.hash.slice(1));
