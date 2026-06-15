@@ -36,6 +36,8 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceShell } from "@/components/deep-space/DeepSpaceShell";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { IslandArt } from "@/components/art/IslandArt";
@@ -225,7 +227,16 @@ const OFFLINE_INSIGHT: Record<"en" | "ko", string> = {
 // center-island ("소울 코어") fade — the old back-transition flash.
 let entryFlourishPlayed = false;
 
-export default function Landing() {
+// O-23 Stage③: `index` (/) branches on the UI flag. Legacy renders the village
+// graph (GraphScreen, this file's original body); deep-space renders the character
+// shell. The graph stays reachable in deep-space via the /graph route (graph.tsx
+// re-exports GraphScreen), so no logic is forked — see docs/deep-space-nav-contract.md.
+export default function Index() {
+  if (isDeepSpaceUI()) return <DeepSpaceShell />;
+  return <GraphScreen />;
+}
+
+export function GraphScreen() {
   const { i18n } = useTranslation();
   const { userId, hasProfile, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
