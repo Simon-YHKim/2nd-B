@@ -1113,6 +1113,16 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-20 ✅ 6/6 완료 / 2026-06-15 12:46 KST] landing 감사보강 #2 표정 연령축 — O-20 전항목 완결
+**#2 표정 연령축 완료**(`public/landing` main.js+index.html+styles.css):
+- **설계 판단(§35 후보였으나 명백·가역이라 실행자 결정)**: 16표정×4연령=64 하드코딩(매트릭스)은 조합폭발 → **연령 = 표정 위 modifier 레이어**. AGE_PROFILES{child/teen/young/adult}가 eyeScale·eyeRound·tilt·motion·bob·blink 배수로 *같은 감정*을 연령대별로 변조. 에셋 추가 0(포즈/스케일/모션 변형), 듀오링고풍 유지, 16표정 전부에 직교 적용.
+- **연령감**: child=눈 크고 둥글게+모션 bouncy+잦은 blink+큰 bob / teen=tilt↑(태도) / young=기준 / adult=눈 작고 차분+느린 모션+적은 bob.
+- 적용점: updateExpressionPose(눈 타깃), updateFaceBehavior(mouthPulse·blink율), updateHeadAnimation(breathBob). `window.secondB.setAge` + `?age=` QA훅 + localStorage(secondb.age.v1) 영속+로드복원.
+- **UI**: 프로필 화면에 연령 칩 4개(아이/청소년/청년/어른, 탭→즉시 표정 톤 변화+영속). 한 줄 정렬, 활성=시안.
+- **검증**: child/young/adult happy 비교 스샷(child 눈 크고 둥글·adult 차분 확인) + 칩 화면 스샷 + node --check OK.
+**→ O-20 6항목 전부 완결**(#1 idle생동·#2 연령축·#3 채팅톤·#4 얼굴탭·#5 프로필사진·#6 버튼직관). landing 정본=public/landing→push 시 자동 라이브.
+
+
 ### [O-20 ✅ 5/6 / 2026-06-15 12:14 KST] landing 감사보강 #3·#5 완료 (#2 연령축만 잔여)
 **#3 채팅 감정연동 정정**(`public/landing/main.js`): 기존엔 사용자 입력 텍스트 톤만 분석 → **mock 세컨비 응답 생성→그 응답의 톤 분류→표정**으로 정정. `classifyTone()`(positive/negative/question/neutral) + `mockSecondBReply()`(유저 톤별 응답 뱅크) + `reactToTone()`. 채팅 전송 시 유저 말풍선 추가→480ms 후 봇 응답 말풍선 추가+그 응답 톤으로 표정(긍정→love·부정→sad 공감·질문→thinking·중립→ack). node 단위검증=4톤 구분 매핑 확인. (실제 LLM 톤은 본체 gemini.ts.)
 **#5 프로필+사진 업로드**(index.html+main.js+styles.css): 프로필 화면 아바타를 **업로드 버튼**으로(`<input type=file accept=image/*>`). 선택 시 **canvas 256px 다운스케일→JPEG dataURL**(localStorage 쿼터 안전)→아바타 적용+`localStorage("secondb.avatar.v1")` 영속+로드시 복원. **nav 프로필 아이콘도 사진 반영**(has-photo→커버 bg, SVG 숨김). 빈 상태=＋힌트+"사진을 눌러 바꿔보세요". 사진 설정 시 love 반응. 프로필 화면 스샷 검증.

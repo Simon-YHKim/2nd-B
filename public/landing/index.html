@@ -22,7 +22,7 @@
     href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="./styles.css?v=o20b" />
+  <link rel="stylesheet" href="./styles.css?v=o20d" />
 
   <script type="importmap">
     {
@@ -152,8 +152,14 @@
         <div class="profile-card__name">나의 세컨드 브레인</div>
         <div class="profile-card__stats"><span>기록 0</span><span>패턴 0</span><span>Lv.1</span></div>
         <p class="profile-card__edit">사진을 눌러 바꿔보세요</p>
+        <div class="age-chips" id="age-chips" role="group" aria-label="캐릭터 연령">
+          <button class="age-chip" type="button" data-age="child">아이</button>
+          <button class="age-chip" type="button" data-age="teen">청소년</button>
+          <button class="age-chip is-active" type="button" data-age="young">청년</button>
+          <button class="age-chip" type="button" data-age="adult">어른</button>
+        </div>
       </div>
-      <p class="screen__hint">소울 코어 · 나의 모습 · 통찰 · 자기검사 (Stage ③에서 추가)</p>
+      <p class="screen__hint">소울 코어 · 나의 모습 · 통찰 · 자기검사 — 연령은 캐릭터 표정 톤을 바꿔요 (Stage ③에서 확장)</p>
     </section>
 
     <section class="screen" data-screen="settings" hidden>
@@ -165,6 +171,6 @@
     </section>
   </div>
 
-  <script type="module" src="./main.js?v=head-follow-v7j"></script>
+  <script type="module" src="./main.js?v=head-follow-v7k"></script>
 </body>
 </html>

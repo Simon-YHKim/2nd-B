@@ -495,6 +495,15 @@ body.mode-screen #screens > * { pointer-events: auto; }
 .profile-card__edit { font-size: 11px; color: var(--ink-faint); margin: 2px 0 0; }
 .profile-card__name { font-size: 15px; color: var(--ink); }
 .profile-card__stats { display: flex; gap: 16px; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; }
+/* O-20 #2: age band chips */
+.age-chips { display: flex; gap: 5px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+.age-chip {
+  all: unset; cursor: pointer; padding: 5px 10px; font-size: 11px; color: var(--ink-faint);
+  border: 1px solid var(--card-line); border-radius: 999px; white-space: nowrap;
+  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+.age-chip:hover { color: var(--ink); border-color: var(--accent); }
+.age-chip.is-active { color: var(--bg-edge); background: var(--accent); border-color: var(--accent); }
 
 /* declutter the johwska panel in screen mode too */
 body.mode-screen .panel { opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }

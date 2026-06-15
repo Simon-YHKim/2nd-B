@@ -21,9 +21,10 @@ const HEAD_TEXTURE_URL =
 const HEAD_DEBUG_VERSION = "head-follow-v7c";
 const HEAD_PAGE_QUERY = "?head-follow-v7c";
 
-// QA: ?expr=<key> forces+holds an expression for screenshot verification.
+// QA: ?expr=<key> / ?age=<band> force a state for screenshot verification.
 // Read before the replaceState below wipes the query string.
 const QA_EXPR = new URLSearchParams(location.search).get("expr");
+const QA_AGE = new URLSearchParams(location.search).get("age");
 
 if (location.search !== HEAD_PAGE_QUERY) {
   history.replaceState(null, "", `${location.pathname}${HEAD_PAGE_QUERY}${location.hash}`);
@@ -64,6 +65,29 @@ const EXPRESSIONS = [
 // O-17 #2: idle mood pool stays calm/lifelike (ambient drift). Dramatic emotions
 // fire only on events via react(), so the face responds to context — not a slideshow.
 const IDLE_MOODS = ["neutral", "curious", "happy", "sleepy"];
+
+// O-20 #2: age as an orthogonal MODIFIER layer over the 16 expressions (not a 16x4
+// matrix). Each band scales pose/motion so the SAME emotion reads younger/older:
+// child = big round eyes + bouncy + frequent blinks; adult = composed + calmer.
+// Keeps Duolingo-style variety with no new sprites (asset-limit friendly).
+const AGE_PROFILES = {
+  child: { eyeScale: 1.16, eyeRound: 0.20, tilt: 0.7, motion: 1.4, bob: 1.7, blink: 1.45, label: "아이" },
+  teen:  { eyeScale: 1.05, eyeRound: 0.07, tilt: 1.2, motion: 1.12, bob: 1.15, blink: 1.12, label: "청소년" },
+  young: { eyeScale: 1.0,  eyeRound: 0.0,  tilt: 1.0, motion: 1.0, bob: 1.0, blink: 1.0, label: "청년" },
+  adult: { eyeScale: 0.9,  eyeRound: -0.06, tilt: 0.85, motion: 0.78, bob: 0.68, blink: 0.85, label: "어른" },
+};
+const AGE_KEY = "secondb.age.v1";
+let ageBand = "young";
+function currentAge() { return AGE_PROFILES[ageBand] || AGE_PROFILES.young; }
+function setAge(band) {
+  if (!AGE_PROFILES[band]) return false;
+  ageBand = band;
+  try { localStorage.setItem(AGE_KEY, band); } catch (_) {}
+  document.querySelectorAll("#age-chips .age-chip").forEach((c) => {
+    c.classList.toggle("is-active", c.dataset.age === band);
+  });
+  return true;
+}
 
 const LOOK = {
   exposure: 1.0,
@@ -659,7 +683,8 @@ function updateFaceBehavior(now) {
       behavior.blinkStart = 0;
       faceMotion.blink = 1;
       const baseDelay = expression.key === "sleepy" ? randomBetween(800, 1800) : randomBetween(2200, 4700);
-      behavior.nextBlinkAt = now + baseDelay;
+      behavior.nextBlinkAt = now + baseDelay / currentAge().blink; // O-20 #2: younger blinks more
+
     }
   } else {
     faceMotion.blink += (1 - faceMotion.blink) * 0.4;
@@ -679,6 +704,7 @@ function updateFaceBehavior(now) {
   // fully frozen — ambient liveliness independent of emotion.
   else if (expression.mouthMotion === "idle") mouthPulse = Math.abs(Math.sin(t * 1.8)) * 0.045 + Math.abs(Math.sin(t * 3.3)) * 0.02;
 
+  mouthPulse *= currentAge().motion; // O-20 #2: younger = bouncier mouth motion
   faceMotion.mouthScaleY = 1 + mouthPulse + faceMotion.yawnAmount * 0.5;
   faceMotion.mouthScaleX = 1 - mouthPulse * 0.08 + faceMotion.yawnAmount * 0.04;
   faceMotion.mouthOffsetY = faceMotion.yawnAmount * 0.01;
@@ -686,10 +712,15 @@ function updateFaceBehavior(now) {
 
 function updateExpressionPose() {
   const expression = currentExpression();
+  const age = currentAge();
   const ease = 0.14;
-  expressionPose.eyeScaleX += (expression.eyeScaleX - expressionPose.eyeScaleX) * ease;
-  expressionPose.eyeScaleY += (expression.eyeScaleY - expressionPose.eyeScaleY) * ease;
-  expressionPose.eyeTilt += (expression.eyeTilt - expressionPose.eyeTilt) * ease;
+  // O-20 #2: age modulates the eye targets (bigger/rounder for younger, composed for older)
+  const tgtEyeX = expression.eyeScaleX * age.eyeScale;
+  const tgtEyeY = expression.eyeScaleY * age.eyeScale + age.eyeRound;
+  const tgtTilt = expression.eyeTilt * age.tilt;
+  expressionPose.eyeScaleX += (tgtEyeX - expressionPose.eyeScaleX) * ease;
+  expressionPose.eyeScaleY += (tgtEyeY - expressionPose.eyeScaleY) * ease;
+  expressionPose.eyeTilt += (tgtTilt - expressionPose.eyeTilt) * ease;
   expressionPose.mouthScaleX += (expression.mouthScaleX - expressionPose.mouthScaleX) * ease;
   expressionPose.mouthScaleY += (expression.mouthScaleY - expressionPose.mouthScaleY) * ease;
   expressionPose.mouthOffsetY += (expression.mouthOffsetY - expressionPose.mouthOffsetY) * ease;
@@ -788,8 +819,14 @@ window.secondB = {
   react,
   reactToChat,
   setExpression,
+  setAge,
   expressions: () => EXPRESSIONS.map((e) => e.key),
+  ages: () => Object.keys(AGE_PROFILES),
 };
+
+// O-20 #2: restore saved age band; ?age=<band> QA override (QA_AGE read up top).
+try { const savedAge = localStorage.getItem(AGE_KEY); if (savedAge) setAge(savedAge); } catch (_) {}
+if (QA_AGE) window.setTimeout(() => setAge(QA_AGE), 80);
 
 if (QA_EXPR) {
   window.setTimeout(() => {
@@ -833,7 +870,7 @@ function updateHeadAnimation() {
 
   // O-14: eased head transform (hero center / nav+screen top-left); gaze stays live
   // O-20 #1: + a slow breathing bob so the character is always subtly alive
-  const breathBob = Math.sin(Date.now() * 0.0015) * LOOK.bob * headRender.s;
+  const breathBob = Math.sin(Date.now() * 0.0015) * LOOK.bob * headRender.s * currentAge().bob;
   headGroup.position.x = headRender.x + head.x * headRender.s;
   headGroup.position.y = headRender.y + head.y * headRender.s + breathBob;
   headGroup.scale.set(headRender.s, headRender.s, 1);
@@ -1266,6 +1303,11 @@ if (avatarBtn && avatarInput) {
     });
   });
 }
+
+// O-20 #2: age chips in the profile screen switch the companion's age tone.
+document.querySelectorAll("#age-chips .age-chip").forEach((chip) => {
+  chip.addEventListener("click", (event) => { event.stopPropagation(); setAge(chip.dataset.age); });
+});
 
 applyMode();
 window.setSecondBMode = setMode;
