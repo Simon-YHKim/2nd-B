@@ -1143,6 +1143,15 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-23 🔄 Stage② 완료 / 2026-06-15 16:38 KST] deep-space 새 셸 골격 (진행중)
+**Stage② 완료**(PR #391 머지, main ad8f4be, CI verify green + deep-space 플래그 expo export green):
+- **`deepSpace` 토큰**(tokens.ts): 눈색 monotone(accent #46B6FF·accentBright #CCFAFF·text #5FD4FF·bg #0A0E1A·cardLine, ≤3 core색 D-22, landing 컨셉 정합). legacy 토큰 무변화.
+- **`DeepSpaceShell.tsx`**(신규): deep-space bg + **캐릭터(정적 fallback PNG via expo-image** — D-23 하이브리드 기본, r3f/expo-gl 미설치라 정적부터·RN-Image OOM 회피) + 말풍선 + 4 primary 메뉴(그래프/담기/세컨비/나, 눈색 토큰). `assets/deep-space/character-front.png`(860KB).
+- **`_layout.tsx`**: placeholder→실제 셸 컴포넌트.
+- **비주얼 검증(실제 RN web export)**: `EXPO_PUBLIC_UI=deep-space` export→서빙(/2nd-B/base)→스샷 = deep-space bg+캐릭터+눈색 메뉴+말풍선 정확 렌더. type-check+lint+export 전부 green. legacy 기본=라이브 앱 무변화.
+**다음 Stage③(전 40기능 연결, 가장 큰 단계)**: 셸을 expo-router 안에 편입(현재는 Stack 전체 대체) → 메뉴→기존 40화면 라우팅(누락0) + **nav 계약(라우트맵·딥링크·back/탭중첩) 문서화+E2E 선행**(Grok 리스크). 신선한 컨텍스트 집중 사이클. 그 후 ④persona-sim 4축 →⑤findings.
+
+
 ### [O-23 🔄 Stage① 완료 / 2026-06-15 16:14 KST] 레거시 분리 + UI 트랙 플래그 스캐폴딩 (진행중)
 **Stage① 완료**(PR #390 머지, main 60ea64b, CI verify+export green):
 - **`src/lib/ui-mode.ts`**(신규): `EXPO_PUBLIC_UI=legacy|deep-space`(기본 legacy) + `EXPO_PUBLIC_CHARACTER=3d|fallback`(기본 3d) 플래그 + helper(isDeepSpaceUI/isLegacyUI/isCharacterFallback). **legacy 기본** = 미설정/오타 플래그도 안전, **플래그 플립 = 전체 롤백 경로**(D-23).
