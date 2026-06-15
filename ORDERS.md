@@ -1161,6 +1161,16 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-24 ✅ / 2026-06-15 18:08 KST] landing 배경 시안 4종 — 멀티모달(AG 구상·Codex 그림) + 비교보드 — 완료
+**🔴 비교 보드 LIVE: https://simon-yhkim.github.io/2nd-B/landing/bg-concepts/** (썸네일→라이브 모션, Simon 폰 비교 가능). **채택은 Simon.**
+**역할 분담 실행(§19 멀티모달, Simon 지정)**:
+- **🟩 AG=구상**: 4종 컨셉 무드/디테일 명세 문서(색 시안토큰 일관·모션·rim 조화·살짝 귀여운 톤·저사양 폴백·구현힌트). 허브 agy 헤드리스.
+- **🟨 Codex=그림**: AG 스펙 기반 4종 self-contained HTML 렌더러 생성(canvas/SVG/shader, 캐릭터 오버레이로 rim 조화 표시). 허브 codex 헤드리스.
+- **Claude=오케스트레이션**: 디스패치·스샷·비교보드 조립·라이브 배포.
+**시안 4종**: ①하늘색 신경망(시안 노드/엣지 브리딩) ②파란빛 우주(nebula/starfield, 현 채택본 비교기준) ③파란빛 중력장(머리 중심 동심원 파동, 가장 distinctive) ④로봇 내부(몸통=화면 회로/데이터흐름). 전부 deep-space·시안·귀여움·subtle, slop 0.
+**산출**: AG 구상문서 + Codex 4 렌더러(live) + 비교보드(2×2 썸네일+라이브링크+블러브). 레포 경량(썸네일 다운스케일·캐릭터 기존에셋 참조, 572KB). 채택본 본배경 반영은 별도 오더.
+
+
 ### [O-23 🔄 Stage③ 핵심연결 / 2026-06-15 17:38 KST] 전기능 연결 — router 리워크+4 primary 와이어링 (진행중)
 **Stage③ 핵심 완료**(PR #392 머지, main 09283d8, CI verify+export green): nav 계약(docs/deep-space-nav-contract.md) 구현.
 - **router 리워크**: `_layout` Stack이 **양 모드 전 라우트 마운트**(Stage① 전체대체 revert) → 모든 화면 reachable. `index` 분기(legacy 그래프=GraphScreen·deep-space DeepSpaceShell). **그래프↔홈 충돌 해소**: `Landing`→named `GraphScreen` + `/graph` 라우트(graph.tsx 재export, index 포크 0).
