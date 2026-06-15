@@ -1160,6 +1160,14 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-23 🔄 Stage③ 핵심연결 / 2026-06-15 17:38 KST] 전기능 연결 — router 리워크+4 primary 와이어링 (진행중)
+**Stage③ 핵심 완료**(PR #392 머지, main 09283d8, CI verify+export green): nav 계약(docs/deep-space-nav-contract.md) 구현.
+- **router 리워크**: `_layout` Stack이 **양 모드 전 라우트 마운트**(Stage① 전체대체 revert) → 모든 화면 reachable. `index` 분기(legacy 그래프=GraphScreen·deep-space DeepSpaceShell). **그래프↔홈 충돌 해소**: `Landing`→named `GraphScreen` + `/graph` 라우트(graph.tsx 재export, index 포크 0).
+- **4 primary 메뉴 router.push 와이어링**: 그래프→/graph·담기→/capture·세컨비→/secondb·나→/profile. 셸→기존화면 진입 작동.
+- **검증**: type-check+lint+**deep-space expo export green(42 라우트 생성)**. 홈 셸 렌더 + 확장자없는 라우트 resolve(무세션→sign-in auth-gate=정상, not-found 아님). legacy 기본 무변화.
+**Stage③ 잔여(마감)**: ①설정/머리-우측 아이콘(설정) 셸 노출 ②2차 진입(위키/기록/리서치·자기검사7·설정8)은 현재 기존화면 자체 네비로 reachable(누락0 만족), deep-space-native 서브메뉴 노출은 폴리시 ③40화면 deep-space 재테마=별도(연결만, 계약상 범위 외). **다음=Stage④ persona-sim 4축교차**(연령·직업·소득·문화, 첫실행+핵심루프 막힘/이탈/불신, KR+글로벌·고령/유아) →⑤findings수정.
+
+
 ### [O-23 🔄 Stage③ 착수 / 2026-06-15 17:10 KST] 전기능 연결 — nav 계약 문서화(선행, mandated) (진행중)
 **Stage③ 선행단계 완료**(`docs/deep-space-nav-contract.md`): D-23/Grok 리스크가 명시한 **"nav 계약 문서화+E2E 선행"** 충족. 실제 router 리워크 전 spec 확정:
 - **아키텍처 해소**: Stack은 양 모드 전 라우트 마운트 유지(Stage① 전체대체 revert). `index` 분기(legacy=그래프·deep-space=DeepSpaceShell). **그래프↔홈 충돌 해소** = 그래프뷰를 공유 `GraphScreen` 컴포넌트로 추출 → 신규 `/graph` 라우트(deep-space 그래프 메뉴 타깃), index.tsx 로직 포크 없음.
