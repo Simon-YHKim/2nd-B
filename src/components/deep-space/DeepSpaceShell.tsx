@@ -13,6 +13,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, type Href } from "expo-router";
+import Svg, { Circle, Path } from "react-native-svg";
 
 import { deepSpace } from "@/lib/theme/tokens";
 import { isCharacterFallback } from "@/lib/ui-mode";
@@ -31,6 +32,29 @@ const PRIMARY: { key: string; ko: string; en: string; route: Href }[] = [
 export function DeepSpaceShell() {
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
+      {/* O-23 Stage③ finish: head-right icons (D-22 nav). Settings is an icon, not
+          a tab — this is the only entry point for /settings from the shell. */}
+      <View style={styles.icons}>
+        <Pressable
+          style={({ pressed }) => [styles.icon, pressed && styles.iconPressed]}
+          onPress={() => router.push("/profile")}
+          accessibilityRole="button"
+          accessibilityLabel="나 · 프로필"
+        >
+          <Svg width={18} height={18} viewBox="0 0 24 24">
+            <Circle cx={12} cy={8} r={4} fill={deepSpace.text} />
+            <Path d="M4 20.5c0-4.4 3.6-7.5 8-7.5s8 3.1 8 7.5z" fill={deepSpace.text} />
+          </Svg>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.icon, pressed && styles.iconPressed]}
+          onPress={() => router.push("/settings")}
+          accessibilityRole="button"
+          accessibilityLabel="설정"
+        >
+          <Text style={styles.iconGlyph}>⚙</Text>
+        </Pressable>
+      </View>
       <View style={styles.stage}>
         <Image
           source={CHARACTER}
@@ -71,6 +95,19 @@ export function DeepSpaceShell() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: deepSpace.bg },
+  icons: { position: "absolute", top: 0, right: 18, zIndex: 2, flexDirection: "row", gap: 10, paddingTop: 12 },
+  icon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconPressed: { borderColor: deepSpace.accent, backgroundColor: "rgba(70,182,255,0.12)" },
+  iconGlyph: { color: deepSpace.text, fontSize: 17 },
   stage: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
   character: { width: 260, height: 260, marginBottom: 18 },
   bubble: {
