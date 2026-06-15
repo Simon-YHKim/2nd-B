@@ -22,7 +22,7 @@
     href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="./styles.css?v=o20d" />
+  <link rel="stylesheet" href="./styles.css?v=o16s3b" />
 
   <script type="importmap">
     {
@@ -123,13 +123,26 @@
         <li class="graph-node">일</li>
         <li class="graph-node">취미</li>
       </ul>
-      <p class="screen__hint">노드를 눌러 마을로 — 기록·위키는 여기서 진입 (스켈레톤)</p>
+      <!-- O-16 Stage③: D-22 IA 2차 진입 (skeleton) -->
+      <div class="sub-tiles" role="group" aria-label="그래프 기능">
+        <button class="sub-tile" type="button" data-skel="wiki">위키</button>
+        <button class="sub-tile" type="button" data-skel="record">기록</button>
+        <button class="sub-tile" type="button" data-skel="research">리서치</button>
+      </div>
+      <p class="screen__hint">노드를 눌러 마을로 — 위키·기록·리서치는 여기서 진입 (스켈레톤)</p>
     </section>
 
     <section class="screen" data-screen="capture" hidden>
       <h2 class="screen__title">담기 <span>capture</span></h2>
       <textarea class="capture-input" placeholder="오늘 한 줄을 적어보세요…" rows="3"></textarea>
       <button class="screen__cta" type="button">담기</button>
+      <!-- O-16 Stage③: D-22 IA 담기 방식 (skeleton) -->
+      <div class="sub-tiles sub-tiles--wrap" role="group" aria-label="담기 방식">
+        <button class="sub-tile sub-tile--sm" type="button" data-skel="format">형식</button>
+        <button class="sub-tile sub-tile--sm" type="button" data-skel="import">가져오기</button>
+        <button class="sub-tile sub-tile--sm" type="button" data-skel="inbox">받은 항목</button>
+        <button class="sub-tile sub-tile--sm" type="button" data-skel="manual">수동 입력</button>
+      </div>
     </section>
 
     <section class="screen" data-screen="secondb" hidden>
@@ -159,18 +172,36 @@
           <button class="age-chip" type="button" data-age="adult">어른</button>
         </div>
       </div>
-      <p class="screen__hint">소울 코어 · 나의 모습 · 통찰 · 자기검사 — 연령은 캐릭터 표정 톤을 바꿔요 (Stage ③에서 확장)</p>
+      <!-- O-16 Stage③: D-22 IA 나 = 소울코어·나의모습·통찰 + 자기검사 허브 (skeleton) -->
+      <div class="sub-tiles" role="group" aria-label="나 기능">
+        <button class="sub-tile" type="button" data-skel="core-brain">소울 코어</button>
+        <button class="sub-tile" type="button" data-skel="persona">나의 모습</button>
+        <button class="sub-tile" type="button" data-skel="insight">통찰</button>
+      </div>
+      <div class="sub-hub">
+        <p class="sub-hub__title">자기검사</p>
+        <div class="sub-tiles sub-tiles--wrap" role="group" aria-label="자기검사">
+          <button class="sub-tile sub-tile--sm" type="button" data-skel="big5">빅5</button>
+          <button class="sub-tile sub-tile--sm" type="button" data-skel="mbti">MBTI</button>
+          <button class="sub-tile sub-tile--sm" type="button" data-skel="attach">애착</button>
+          <button class="sub-tile sub-tile--sm" type="button" data-skel="trinity">네 영역</button>
+          <button class="sub-tile sub-tile--sm" type="button" data-skel="esm">순간기록</button>
+          <button class="sub-tile sub-tile--sm" type="button" data-skel="interview">인터뷰</button>
+          <button class="sub-tile sub-tile--sm" type="button" data-skel="selfcheck">자기점검</button>
+        </div>
+      </div>
+      <p class="screen__hint">연령 칩은 캐릭터 표정 톤을 바꿔요 · 자기검사는 새 화면(/self-tests) (스켈레톤)</p>
     </section>
 
     <section class="screen" data-screen="settings" hidden>
       <h2 class="screen__title">설정 <span>settings</span></h2>
       <ul class="settings-list">
-        <li>계정</li><li>요금제</li><li>개인정보</li><li>권한</li><li>데이터</li><li>테마</li><li>지원</li>
+        <li>계정</li><li>요금제</li><li>개인정보</li><li>권한</li><li>데이터</li><li>테마</li><li>지원</li><li class="settings-list__dev">운영 · 진단 <span class="dev-flag">dev</span></li>
       </ul>
-      <p class="screen__hint">set-and-forget — 일상 목적지 아님 (Stage ③ 골격)</p>
+      <p class="screen__hint">set-and-forget — 일상 목적지 아님 · 운영·진단은 dev 플래그 (Stage ③ 골격)</p>
     </section>
   </div>
 
-  <script type="module" src="./main.js?v=head-follow-v7k"></script>
+  <script type="module" src="./main.js?v=head-follow-v7l"></script>
 </body>
 </html>

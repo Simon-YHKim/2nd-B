@@ -1309,6 +1309,24 @@ document.querySelectorAll("#age-chips .age-chip").forEach((chip) => {
   chip.addEventListener("click", (event) => { event.stopPropagation(); setAge(chip.dataset.age); });
 });
 
+// O-16 Stage③: sub-tiles are skeletons — give honest tap feedback so nothing looks
+// dead (Stage④ will route each to a real sub-view). The companion acknowledges.
+const skelToast = document.createElement("div");
+skelToast.className = "skel-toast";
+skelToast.setAttribute("role", "status");
+document.body.appendChild(skelToast);
+let skelToastTimer = 0;
+document.querySelectorAll(".sub-tile[data-skel]").forEach((tile) => {
+  tile.addEventListener("click", (event) => {
+    event.stopPropagation();
+    skelToast.textContent = tile.textContent.trim() + " — 곧 준비될 기능이에요";
+    skelToast.classList.add("is-show");
+    window.clearTimeout(skelToastTimer);
+    skelToastTimer = window.setTimeout(() => skelToast.classList.remove("is-show"), 1600);
+    react("thinking");
+  });
+});
+
 applyMode();
 window.setSecondBMode = setMode;
 window.setSecondBScreen = openScreen;

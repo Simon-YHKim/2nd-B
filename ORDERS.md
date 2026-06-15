@@ -1113,6 +1113,16 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [O-16 🔄 Stage③ / 2026-06-15 13:18 KST] 전기능 simple 스켈레톤 — D-22 IA 트리 가시화 (진행중)
+**Stage③ 완료**(`public/landing` index.html+styles.css+main.js): D-22 IA맵의 2차 진입을 각 화면에 **스켈레톤 타일**로 가시화(눈색 토큰, slop 0):
+- **그래프** → [위키·기록·리서치] 서브타일(마을 노드 하단).
+- **담기** → [형식·가져오기·받은 항목·수동 입력] (추천기본=inbox 담기 채택).
+- **나** → [소울 코어·나의 모습·통찰] + **자기검사 허브**[빅5·MBTI·애착·네 영역·순간기록·인터뷰·자기점검] 7항목(D-22 신규=/self-tests, 슬러그→한글: trinity→네 영역·esm→순간기록 등).
+- **설정** → [운영·진단 **dev** 플래그] 추가(추천기본=ops 운영진단 dev-flag 채택). audit는 자기검사 잔류(추천기본).
+- **정직한 스켈레톤**: data-skel 타일 탭 시 "곧 준비될 기능이에요" 토스트 + 캐릭터 thinking 반응(죽은 버튼 0, 직관성 원칙). 4화면 헤드리스 스샷 검증, node --check OK.
+**남은 Stage④**(와이어링): data-skel 타일 → 실제 서브뷰/라우트 연결(현재는 토스트 placeholder). 미회신 결정4건=추천기본값 전부 반영(리서치 유지+부제·inbox 담기·audit 검사잔류·ops dev-flag). landing 정본=public/landing→자동 라이브.
+
+
 ### [O-20 ✅ 6/6 완료 / 2026-06-15 12:46 KST] landing 감사보강 #2 표정 연령축 — O-20 전항목 완결
 **#2 표정 연령축 완료**(`public/landing` main.js+index.html+styles.css):
 - **설계 판단(§35 후보였으나 명백·가역이라 실행자 결정)**: 16표정×4연령=64 하드코딩(매트릭스)은 조합폭발 → **연령 = 표정 위 modifier 레이어**. AGE_PROFILES{child/teen/young/adult}가 eyeScale·eyeRound·tilt·motion·bob·blink 배수로 *같은 감정*을 연령대별로 변조. 에셋 추가 0(포즈/스케일/모션 변형), 듀오링고풍 유지, 16표정 전부에 직교 적용.
