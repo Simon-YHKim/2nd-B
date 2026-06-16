@@ -18,6 +18,7 @@ import { VILLAGE_UI } from "@/lib/village-ui";
 
 export default function DataManagement() {
   const { t } = useTranslation("data");
+  const { t: tIden } = useTranslation("iden");
   const { userId, loading } = useAuth();
 
   if (loading) {
@@ -68,6 +69,19 @@ export default function DataManagement() {
             variant="secondary"
             onPress={() => router.push("/wiki")}
             accessibilityHint={t("export.accessibilityHint")}
+          />
+        </View>
+
+        <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
+          <Text variant="caption" color="textMuted" style={styles.eyebrow}>{tIden("entry.eyebrow")}</Text>
+          <Text variant="body" color="textMuted">
+            {tIden("entry.body")}
+          </Text>
+          <Button
+            label={tIden("entry.button")}
+            variant="secondary"
+            onPress={() => router.push("/iden")}
+            accessibilityHint={tIden("entry.accessibilityHint")}
           />
         </View>
 

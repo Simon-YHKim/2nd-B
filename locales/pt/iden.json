@@ -1,0 +1,32 @@
+{
+  "loading": "Carregando sua exportação de identidade...",
+  "hero": {
+    "eyebrow": "Exportar identidade",
+    "title": "Sua identidade como um arquivo portátil",
+    "subtitle": "Um arquivo que qualquer IA lê, e um perfil de uma página que você lê",
+    "speech": "Este é você, pronto para qualquer assistente entender."
+  },
+  "intro": {
+    "body": "O IDEN reúne o que você aprendeu sobre si mesmo em um único arquivo portátil. Cole em qualquer IA para dar o seu contexto, ou abra a folha de uma página."
+  },
+  "generate": {
+    "button": "Criar meu IDEN",
+    "accessibilityHint": "Gera seu arquivo de identidade a partir dos seus dados salvos."
+  },
+  "result": {
+    "title": "Seu IDEN está pronto",
+    "hint": "Cole no ChatGPT, Gemini ou Claude para dar o seu contexto. Seu pedido vai no final.",
+    "copy": "Copiar .iden",
+    "copied": "Copiado para a área de transferência",
+    "share": "Compartilhar",
+    "openSheet": "Abrir folha de uma página",
+    "close": "Fechar"
+  },
+  "error": "Não foi possível criar seu IDEN. Atualize e tente novamente.",
+  "entry": {
+    "eyebrow": "Exportar identidade",
+    "body": "Transforme o que você aprendeu sobre si mesmo em um arquivo portátil que qualquer IA pode ler, e um perfil de uma página.",
+    "button": "Abrir exportação de identidade",
+    "accessibilityHint": "Abre a tela de exportação de identidade IDEN."
+  }
+}

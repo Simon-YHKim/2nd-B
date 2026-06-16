@@ -1,0 +1,32 @@
+{
+  "loading": "Loading your identity export...",
+  "hero": {
+    "eyebrow": "Identity export",
+    "title": "Your identity as one portable file",
+    "subtitle": "A file any AI reads, and a one-page profile you read",
+    "speech": "This is the you that any assistant can pick up and understand."
+  },
+  "intro": {
+    "body": "IDEN gathers what you've learned about yourself into a single portable file. Copy it into any AI to give it your context, or open the one-page sheet."
+  },
+  "generate": {
+    "button": "Build my IDEN",
+    "accessibilityHint": "Generates your identity file from your saved data."
+  },
+  "result": {
+    "title": "Your IDEN is ready",
+    "hint": "Copy this into ChatGPT, Gemini, or Claude to give it your context. Your request goes at the very bottom.",
+    "copy": "Copy .iden",
+    "copied": "Copied to clipboard",
+    "share": "Share",
+    "openSheet": "Open one-page sheet",
+    "close": "Close"
+  },
+  "error": "Couldn't build your IDEN. Refresh and try again.",
+  "entry": {
+    "eyebrow": "Identity export",
+    "body": "Turn what you've learned about yourself into one portable file any AI can read, plus a one-page profile.",
+    "button": "Open identity export",
+    "accessibilityHint": "Opens the IDEN identity export screen."
+  }
+}
