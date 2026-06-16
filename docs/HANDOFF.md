@@ -3,6 +3,30 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest -- 2026-06-16 (cont.2) / §6 Personal Context Pack (내보내기 2층 재설계) — moat 구현 (verify green, PR #396)
+
+### 무엇을 / 왜
+- **축**: (1) 알아가기의 출력 + (2) 개인 비서 — AI-OS §6 "내보내기 = 제품의 해자(moat)". 로드맵 #3(★★★, "심사 차별점", 사용자 핵심 우려). §1 다음으로 가장 가치 높고 **외부 게이트 없이 자율 완결 가능**한 단위라 선택.
+- 기존 `export.ts`는 §6가 *틀린 접근*이라 지적한 "큰 단일 덤프". 이를 **2층 Personal Context Pack**으로 업그레이드.
+
+### 구현 (`src/lib/wiki/context-pack.ts`, 순수 + 페처)
+- **Layer 1 헤더(라우터/색인)**: SKILL.md/AGENTS.md 프레이밍(YAML frontmatter + 헤딩). identity(이름·한줄·반복 패턴) + **"사용 규칙"(맨 위)** + 색인(무엇이 들어있는지 + 카운트 + 반복 주제 태그). **Gemini Gems 4K 안에 graceful degrade** — 헤더 단독으로 동작.
+- **Layer 2 상세**: 위키 페이지/소스/기록 전문 (export.ts `formatPage/formatSource/formatRecord` 재사용 — export로 노출만, 동작 변화 0).
+- **`full` = 헤더 + 상세 + 맨 끝 "## Your task" placeholder** → Anthropic query-at-end(+30%) 충족. 규칙은 위, 세션 요청은 맨 아래.
+- 어휘 lexicon-clean(임상어 0, "자기 이해와 성장" voice). EN/KO. `fitsHeaderOnly`로 Gems/CustomGPT 한도 적합 보고.
+- `composeContextPack`(순수) + `exportContextPack(userId)`(페치+합성). identity는 선택 — 없으면 안전 폴백(테스트됨).
+- 테스트 10개: 규칙-위치/query-at-end/헤더 자족성/Gems 4K 적합/identity weaving/색인/records opt-in/빈 데이터 폴백/KO/lexicon-clean.
+
+### UI 연결 (안전 — 텍스트 내용만 변경)
+- `src/app/wiki.tsx` `handleExport`: 사용자-facing export를 `exportUserWiki().prompt` → **`exportContextPack().full`** 로 스왑. records 포함 유지(pre-delete 백업 의도). 구조/레이아웃/라이프사이클 변화 없음(ANDROID_QA 안전). **chat RAG 스냅샷(conversation.ts/recommend.ts)은 exportUserWiki 그대로** — 영향 없음.
+
+### 상태 / 남은 것
+- **`npm run verify` green** — 1279 tests / 155 suites. working tree clean. PR #396에 누적.
+- **후속(작은 자율)**: identity 브릿지 — PersonaCard/self-portrait(who/forWhom/goal)에서 `PackIdentity` 구성해 헤더를 실제 정체성으로 채우기. 현재는 graceful 폴백.
+- **후속(UI·i18n·QA)**: `/data`나 `/wiki`에 "Context Pack" 별도 버튼 + 다운로드(.md)/공유 + i18n 키. 기기 QA 필요라 전용 패스 권장.
+
+---
+
 ## Latest -- 2026-06-16 (cont.) / §1 인제스트 게이트 A·B·C·E + D-core 완료 (verify green, PR #396)
 
 ### 어디까지 왔나

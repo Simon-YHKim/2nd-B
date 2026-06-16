@@ -55,7 +55,7 @@ export interface WikiExport {
   recordCount: number;
 }
 
-const STRINGS = {
+export const STRINGS = {
   en: {
     header: (n: number, m: number, date: string, name: string | null) =>
       `# 2nd-Brain knowledge export — ${date}\n\nYou are consulting${name ? ` ${name}'s` : ""} 2nd-Brain — a personal knowledge graph of ${n} wiki page(s) and ${m} source(s). Pages use Obsidian-style [[wikilinks]] that resolve to other slugs in this bundle. When you cite a page in a reply, use its slug in [[double brackets]].`,
@@ -90,7 +90,7 @@ const EXPORT_SAFE_FRONTMATTER_KEYS = new Set([
   "aliases", "description", "lang", "category", "author", "published",
 ]);
 
-function formatPage(page: WikiPageRow, bodyCharLimit: number | undefined, locale: "en" | "ko"): string {
+export function formatPage(page: WikiPageRow, bodyCharLimit: number | undefined, locale: "en" | "ko"): string {
   // Keep ONLY export-safe frontmatter keys (allowlist, fail-closed) so no
   // internal/private clipper frontmatter leaks into the exported LLM context.
   const publicFrontmatter = Object.fromEntries(
@@ -110,7 +110,7 @@ function formatPage(page: WikiPageRow, bodyCharLimit: number | undefined, locale
   return `### [[${page.slug}]]\n\n${md}`;
 }
 
-function formatSource(s: SourceRow, locale: "en" | "ko"): string {
+export function formatSource(s: SourceRow, locale: "en" | "ko"): string {
   const labelByKind: Record<SourceKind, { en: string; ko: string }> = {
     inbox: { en: "Inbox", ko: "받은편지함" },
     article: { en: "Article", ko: "아티클" },
@@ -128,7 +128,7 @@ function formatSource(s: SourceRow, locale: "en" | "ko"): string {
   return `- [${labelByKind[s.kind][locale]}] ${s.title}${url}${tags}${rel}${ingest}`;
 }
 
-function formatRecord(r: ExportRecordRow, bodyCharLimit: number | undefined, locale: "en" | "ko"): string {
+export function formatRecord(r: ExportRecordRow, bodyCharLimit: number | undefined, locale: "en" | "ko"): string {
   const kindLabel: Record<string, { en: string; ko: string }> = {
     journal: { en: "Journal", ko: "일기" },
     note: { en: "Note", ko: "노트" },
