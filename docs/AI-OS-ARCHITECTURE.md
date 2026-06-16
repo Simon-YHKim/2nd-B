@@ -30,14 +30,14 @@
 
 ## 2. 빌드 블록
 
-각 블록 = [근거] → [2nd-B 현재] → [처방]. 기존 7-Engine 로드맵(Capture/Inference/Memory-RAG/...)의
+각 블록 = [근거] → [2nd-B 현재] → [방안]. 기존 7-Engine 로드맵(Capture/Inference/Memory-RAG/...)의
 당겨오기 + 보강이며 재설계가 아니다.
 
 ### §1 클리핑 → 고정 스키마 자동정리 (Engine 1 보강)
 
 **근거**: 클리핑+정형화가 인덱싱의 1차 재료. garbage-in이면 엣지·인덱스·내보내기가 전부 오염.
 
-**처방 — 저장 전 게이트 + 2-pass 정규화:**
+**방안 — 저장 전 게이트 + 2-pass 정규화:**
 ```
 유입
  → ① PII 스크럽 (Presidio 패턴: regex+checksum → NER. 복원 필요시 reversible tokenization)
@@ -62,7 +62,7 @@
 
 **근거**: 큰 컨텍스트 윈도우가 커버리지를 보장하지 않음(반증). 동기 처리는 타임아웃/부분실패에 취약.
 
-**처방**:
+**방안**:
 - **pgmq + pg_cron + Edge Functions** 3단: collect → distribute `limit(50)` → process `limit(1)`.
 - try-finally 격리(한 건 실패가 큐를 막지 않게), **멱등키 = content hash**(재덤프는 §1-②에서 단락).
 - 거대 단일 문서 → **map-reduce 요약 fan-out**(분할 → 병렬요약 → 병합).
@@ -70,7 +70,7 @@
 
 ### §3 청킹 + 컨텍스트 헤더 (Engine 3 입력단)
 
-**처방**:
+**방안**:
 - **Recursive 400~512토큰, ~15% 오버랩.** semantic chunking은 비용 대비 이득 없음(NAACL 2025 반증), 과도 오버랩 무익(반증).
 - **Contextual Retrieval**(청크마다 "이게 어디 속하는지" 50~100토큰 헤더 선부착) = 검색실패 **35%↓**, 리랭킹 결합 시 **67%↓**. Flash 한 번/청크로 저렴. 단일 최고 ROI.
 
@@ -78,7 +78,7 @@
 
 **근거**: 현재 매 대화마다 위키 전체를 600자 truncate해 주입 → 데이터 증가 시 붕괴. context rot(Chroma, 18개 모델 전부 입력 증가 시 성능 저하), NoLiMa(32K에서 11/13 모델 성능 반토막).
 
-**처방 — 2단 검색("스캔 후 드릴다운")**:
+**방안 — 2단 검색("스캔 후 드릴다운")**:
 - Stage1: LLM이 **한 줄 요약 인덱스 + 타입드 이웃**을 스캔 → 관련 node ID 지명.
 - Stage2: 그 노드만 풀로 fetch.
 - **RAPTOR식 클러스터 요약** = **Pattern Data 티어(snowflake)**에 자연 매핑. 본문 truncate 폐기, 요약 노드로 대체.
@@ -87,7 +87,7 @@
 
 ### §5 타입드 엣지 — 양시간 (G3/G7)
 
-**처방**:
+**방안**:
 - 고정 enum 6개: **인과(enables) / 시간(precedes) / 모순(contradicts) / 강화(reinforces) / 부분(part-of) / 감정연합.** RDF 풀스택 대신 property-graph 라벨만 차용.
 - `edges` 테이블(또는 `wiki_links` 확장): `relationship_type` + **`valid_from`/`valid_until`**.
 - **모순 시 둘 다 보존**(Zep/Graphiti bi-temporal, LongMemEval 94.8%) → 저널링에서 "변하는 나" 표현. SimonKWiki 반항권("그건 옛날 나")과 동형.
