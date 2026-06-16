@@ -78,6 +78,10 @@ jest.mock("../../supabase/client", () => ({
 }));
 
 import { readPhase1, runPhase1 } from "../phase1";
+// Reference a banned term from the lexicon rather than spelling one out, so this
+// test file stays clean for the forbidden-lexicon CI scan (wiki/__tests__ is not
+// allowlisted) while still exercising the post-generation tag filter.
+import { FORBIDDEN_TERMS } from "../../safety/lexicon";
 
 function resetOrchestration() {
   captured.length = 0;
@@ -220,5 +224,89 @@ describe("runPhase1 — orchestration", () => {
     const r = await runPhase1({ userId: "u1", sourceId: "s1", locale: "en" });
     expect(r.summary.toLowerCase()).toContain("article");
     expect(r.questions[0].toLowerCase()).toMatch(/sentence|piece|stayed/);
+  });
+});
+
+describe("runPhase1 — §1 ingest normalization fields", () => {
+  beforeEach(resetOrchestration);
+
+  const baseSource = {
+    id: "s1",
+    user_id: "u1",
+    title: "Article",
+    storage_path: "u1/a.md",
+    frontmatter: {},
+  };
+
+  function replyWith(extra: Record<string, unknown>) {
+    return {
+      text: JSON.stringify({
+        summary: "s",
+        entities: [],
+        concepts: [],
+        questions: ["q1", "q2", "q3", "q4"],
+        ...extra,
+      }),
+      safety: { zone: "green" },
+      audit: { modelUsed: "gemini-2.5-flash" },
+    };
+  }
+
+  test("parses category, tags, relevance, keep from the reply", async () => {
+    fixtures.source = { ...baseSource };
+    fixtures.geminiReply = replyWith({
+      category: "knowledge",
+      tags: ["psychology", "big-five"],
+      relevance: 5,
+      keep: true,
+    });
+    const r = await runPhase1({ userId: "u1", sourceId: "s1", locale: "en" });
+    expect(r.category).toBe("knowledge");
+    expect(r.tags).toEqual(["psychology", "big-five"]);
+    expect(r.relevance).toBe(5);
+    expect(r.keep).toBe(true);
+  });
+
+  test("strips clinical terms from tags post-generation (C3)", async () => {
+    fixtures.source = { ...baseSource };
+    const clinical = FORBIDDEN_TERMS.en[0];
+    fixtures.geminiReply = replyWith({
+      category: "knowledge",
+      tags: [clinical, "self-understanding"],
+      relevance: 4,
+      keep: true,
+    });
+    const r = await runPhase1({ userId: "u1", sourceId: "s1", locale: "en" });
+    expect(r.tags).toEqual(["self-understanding"]);
+    expect(r.tags).not.toContain(clinical);
+  });
+
+  test("derives keep=false when relevance is below threshold and keep omitted", async () => {
+    fixtures.source = { ...baseSource };
+    fixtures.geminiReply = replyWith({ category: "records", tags: [], relevance: 1 });
+    const r = await runPhase1({ userId: "u1", sourceId: "s1", locale: "en" });
+    expect(r.relevance).toBe(1);
+    expect(r.keep).toBe(false);
+  });
+
+  test("backward-compat: reply without ingest fields keeps by default", async () => {
+    fixtures.source = { ...baseSource };
+    fixtures.geminiReply = replyWith({});
+    const r = await runPhase1({ userId: "u1", sourceId: "s1", locale: "en" });
+    expect(r.keep).toBe(true);
+    expect(r.tags).toEqual([]);
+    expect(r.category).toBeUndefined();
+  });
+
+  test("invalid category falls back to undefined", async () => {
+    fixtures.source = { ...baseSource };
+    fixtures.geminiReply = replyWith({
+      category: "not-a-village",
+      tags: [],
+      relevance: 3,
+      keep: true,
+    });
+    const r = await runPhase1({ userId: "u1", sourceId: "s1", locale: "en" });
+    expect(r.category).toBeUndefined();
   });
 });
