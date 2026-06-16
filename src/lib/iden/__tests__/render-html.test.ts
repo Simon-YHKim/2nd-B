@@ -27,10 +27,18 @@ describe("renderIdenHtml", () => {
   });
 
   it("renders the traits radar in the rail AND bars in the main column", () => {
-    expect(html).toContain('aria-label="Traits radar"'); // rail radar
+    expect(html).toContain('aria-label="Traits radar.'); // rail radar (data-rich name)
     expect(html).toContain('class="data"'); // radar data polygon
     expect(html).toContain("width:82%"); // Openness bar (0.82)
     expect(html).toContain("width:35%"); // Extraversion bar (0.35)
+  });
+
+  it("gives the radar full trait names + values for accessibility (queue D)", () => {
+    // The accessible name enumerates every axis by FULL name + value (no 5-char
+    // abbreviation), so screen readers get "Conscientiousness", not "Consc".
+    expect(html).toContain('aria-label="Traits radar. Openness 82, Conscientiousness 68');
+    expect(html).not.toContain(">Consc<"); // the old lossy abbreviation is gone
+    expect(html).toContain("<title>Openness 82</title>"); // per-point hover value
   });
 
   it("renders the cores node-graph and the contents donut", () => {
@@ -60,7 +68,7 @@ describe("renderIdenHtml", () => {
     const trimmed: IdenDoc = { ...SAMPLE_IDEN, fields: SAMPLE_IDEN.fields.filter((f) => f.key !== "contents") };
     const out = renderIdenHtml(trimmed);
     expect(out).not.toContain('aria-label="Contents composition"');
-    expect(out).toContain('aria-label="Traits radar"'); // others unaffected
+    expect(out).toContain('aria-label="Traits radar.'); // others unaffected
   });
 
   it("localizes labels for KO while keeping language-neutral data", () => {

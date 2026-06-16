@@ -74,9 +74,6 @@ function clamp01(n: number): number {
 function pct(n: number): number {
   return Math.round(clamp01(n) * 100);
 }
-function abbrev(s: string): string {
-  return s.length > 6 ? s.slice(0, 5) : s;
-}
 function coreColor(name: string, i: number): string {
   return P.cores[name] ?? CORE_PALETTE[i % CORE_PALETTE.length];
 }
@@ -130,17 +127,22 @@ function radarSvg(scores: ScoreMap): string {
   const dots = keys
     .map((k, i) => {
       const [x, y] = pt(i, R * clamp01(scores[k]));
-      return `<circle class="vtx" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.1"/>`;
+      return `<circle class="vtx" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.1"><title>${esc(k)} ${pct(scores[k])}</title></circle>`;
     })
     .join("");
+  // Full trait names (no lossy abbreviation), each with a hover title carrying
+  // name + value. Long names anchor at middle so they stay inside the viewBox;
+  // short ones hug their side. The chart's accessible name (below) enumerates
+  // every axis + value, so the names reach assistive tech in full.
   const labels = keys
     .map((k, i) => {
       const [x, y] = pt(i, R + 13);
-      const anchor = x < cx - 4 ? "end" : x > cx + 4 ? "start" : "middle";
-      return `<text x="${x.toFixed(1)}" y="${(y + 3).toFixed(1)}" text-anchor="${anchor}">${esc(abbrev(k))}</text>`;
+      const anchor = k.length > 10 ? "middle" : x < cx - 4 ? "end" : x > cx + 4 ? "start" : "middle";
+      return `<text x="${x.toFixed(1)}" y="${(y + 3).toFixed(1)}" text-anchor="${anchor}"><title>${esc(k)} ${pct(scores[k])}</title>${esc(k)}</text>`;
     })
     .join("");
-  return `<svg viewBox="0 0 210 196" width="100%" role="img" aria-label="Traits radar"><polygon class="grid" points="${poly(R)}"/><polygon class="grid" points="${poly(R * 0.5)}"/><g class="axis">${axes}</g><polygon class="data" points="${dpts}"/><g>${dots}</g><g class="rlabel">${labels}</g></svg>`;
+  const desc = `Traits radar. ${keys.map((k) => `${k} ${pct(scores[k])}`).join(", ")}.`;
+  return `<svg viewBox="0 0 210 196" width="100%" role="img" aria-label="${esc(desc)}"><title>${esc(desc)}</title><polygon class="grid" points="${poly(R)}"/><polygon class="grid" points="${poly(R * 0.5)}"/><g class="axis">${axes}</g><polygon class="data" points="${dpts}"/><g>${dots}</g><g class="rlabel">${labels}</g></svg>`;
 }
 
 function barsHtml(scores: ScoreMap): string {
@@ -335,7 +337,7 @@ function css(): string {
   .leg .nn{margin-left:auto;color:${P.muted};font-variant-numeric:tabular-nums}
   svg .grid{stroke:${P.line};fill:none} svg .axis{stroke:${P.line}}
   svg .data{fill:${P.accent};fill-opacity:.14;stroke:${P.accent};stroke-width:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  svg .vtx{fill:${P.accent}} svg .rlabel text{fill:${P.muted};font-size:8px}
+  svg .vtx{fill:${P.accent}} svg .rlabel text{fill:${P.muted};font-size:7px}
   svg .link line{stroke:${P.line};stroke-width:1.3} svg .node{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   svg .seg{fill:none;stroke-width:13;-webkit-print-color-adjust:exact;print-color-adjust:exact} svg .dtotal{fill:${P.ink};font-size:13px;font-weight:700}
   footer{margin-top:18px;padding-top:12px;border-top:1px solid ${P.line};font-size:10px;color:${P.muted}}
