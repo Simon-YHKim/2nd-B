@@ -83,7 +83,7 @@ export interface PersonaCard {
   markdownExport: string;
 }
 
-interface AuditResponseRow {
+export interface AuditResponseRow {
   id: string;
   prompt: string | null;
   body: string;
@@ -105,7 +105,7 @@ function hasCompleteBfiScores(scores: Partial<BfiScores> | undefined): scores is
   return !!scores && BFI_TRAIT_KEYS.every((key) => Number.isFinite(scores[key]));
 }
 
-const DEFAULT_TRAITS: PersonaTraits = {
+export const DEFAULT_TRAITS: PersonaTraits = {
   openness: 0.5,
   conscientiousness: 0.5,
   extraversion: 0.5,
@@ -150,7 +150,7 @@ function scoreFromAnswers(rows: AuditResponseRow[]): PersonaTraits {
 // Reads the memorize Engine's output and rolls it up into a {pattern_kind:
 // count} histogram. Used to enrich the persona patterns dict beyond a
 // single LLM summary string.
-async function loadMemorizedHistogram(
+export async function loadMemorizedHistogram(
   supabase: ReturnType<typeof getSupabaseClient>,
   userId: string,
 ): Promise<Record<string, number>> {
@@ -192,7 +192,7 @@ async function loadLatestMbti(
   }
 }
 
-async function loadLatestAttachment(
+export async function loadLatestAttachment(
   supabase: ReturnType<typeof getSupabaseClient>,
   userId: string,
 ): Promise<PersonaAttachment | null> {
@@ -223,7 +223,7 @@ async function loadLatestAttachment(
   }
 }
 
-async function loadLatestBfi(
+export async function loadLatestBfi(
   supabase: ReturnType<typeof getSupabaseClient>,
   userId: string,
 ): Promise<{ openness: number; conscientiousness: number; extraversion: number; agreeableness: number; neuroticism: number } | null> {
