@@ -3,6 +3,170 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest -- 2026-06-16 (cont.3) / IDEN 정체성 내보내기 포맷 + CV 렌더러 (스키마 구동, verify green, PR #396)
+
+### 무엇을 / 왜
+- **IDEN** = 사용자의 정체성을 하나의 포터블 파일(`.iden`)로. *AI가 읽는 데이터 + 사람이 보는 이력서* (한 데이터, 두 독자). VISION 축 (2) 개인 비서 기반.
+- PR #396의 **§6 Personal Context Pack과 같은 축** — IDEN 뷰어는 그 포터블 컨텍스트를 사람이 읽는 형태로 렌더한 것. 나중에 합류 가능.
+- 디자인 반복: 시안 A/B/C(코스믹·이력서·카드) → "너무 AI스럽다" → CV화(v2) → "그래프 아쉽다" → 그래프 복원(D/E) → **E(2단 CV) 확정**. 영어 정본, A4 인쇄 우선, 단색 액센트, Soul Core는 작은 마크만, AI 슬롭 제거.
+
+### 구현 (이번 세션)
+- `docs/IDEN-SPEC.md` — 포맷+뷰어 스펙: 스키마 구동 필드 + `viz` 매핑(radar/bar/donut/node-graph/badge/tags/list/stat) + provenance 신뢰 레이어 + `.iden` 머신블록(YAML) + 제약 훅(C1/C9/C3, lexicon) + i18n(C7). §8 결정 반영, §9 구현 현황.
+- `src/lib/iden/` — `types.ts`(IdenDoc/IdenField/IdenSource/Viz, discriminated union) / `render-html.ts`(`renderIdenHtml(doc,{locale})` 순수, viz 디스패치, rail/main/both 배치, 인라인 SVG, 필드별 provenance, AI요약 "AI-generated interpretation"로 분리) / `sample.ts`(SAMPLE_IDEN, EN+KO) / 테스트 9.
+- 색은 **theme 토큰만** (`lightCosmic` paper/ink + `cosmic` accent/core), 반투명은 SVG `fill-opacity` → **새 hex literal 0개**.
+- `docs/iden-mocks/` — `iden-E-twocol.html`(확정) · `iden-D-editorial.html`(대안) · `iden-rendered.html`(실제 renderIdenHtml 출력).
+
+### 상태
+- **`npm run verify` green** — 156 suites / 1288 tests (IDEN 9 추가). working tree clean.
+- PR #396에 누적 (base = `claude/ai-os-architecture-ul1uy0`, 미머지 draft). 작업 브랜치 = `claude/korean-greeting-rja3uh`.
+- 결정(v0.1): Big Five **5축 전부**, 코어 **5개**, AI 요약 **포함**. 필드셋·코어수는 *변경 가능* — 스키마 구동이 흡수.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | `serialize.ts` — IdenDoc → `.iden` 텍스트(머신블록 YAML + body + 요청 placeholder). AI가 읽는 절반 | small | ⭐ 렌더러의 짝, 포맷은 SPEC §2에 확정 |
+| B | `buildIdenDoc()` — Supabase 데이터 → IdenDoc. §6 context-pack/persona와 연결 | medium | 실데이터 연결 |
+| C | IDEN 뷰어 앱 연결 — wiki/data 화면 export(WebView/다운로드/PDF) | medium | 기기 QA 필요(ANDROID_QA) |
+| D | radar 라벨 풀네임/접근성 (현재 5자 약어) | small | 폴리시 |
+
+### 적용 중인 정책 (영구)
+1. 작업은 `claude/korean-greeting-rja3uh`. main 직접 push 금지, 항상 PR.
+2. **PR 자동 머지 금지**(전역). 핸드오프 PR도 자동 머지 안 함 — 사용자 승인 시 머지.
+3. em dash 금지(DESIGN.md+anti-slop), 임상어 금지(`src/lib/safety/lexicon.ts`), 컴포넌트 hex 금지(theme 토큰 경유).
+4. 푸시 전 `npm run verify` 필수.
+
+### 핵심 파일 위치
+```
+src/lib/iden/render-html.ts          렌더러 (renderIdenHtml) — 다음 작업 시작점
+src/lib/iden/types.ts                IdenDoc 스키마
+src/lib/iden/sample.ts               SAMPLE_IDEN 더미
+src/lib/iden/__tests__/              렌더 계약 테스트 9
+docs/IDEN-SPEC.md                    포맷+뷰어 스펙 (§2 .iden 포맷, §9 현황)
+docs/iden-mocks/iden-E-twocol.html   확정 디자인
+src/lib/wiki/context-pack.ts         §6 연결점 (같은 축)
+```
+
+### 검증
+```bash
+npm run verify            # 전체 게이트 (156 suites / 1288 tests)
+npx jest src/lib/iden     # IDEN 렌더러만
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin claude/korean-greeting-rja3uh && git checkout claude/korean-greeting-rja3uh && git pull
+cat docs/HANDOFF.md       # 이 블록
+# A 작업(serialize.ts)부터 시작
+```
+
+---
+
+## Latest -- 2026-06-16 (cont.2) / §6 Personal Context Pack (내보내기 2층 재설계) — moat 구현 (verify green, PR #396)
+
+### 무엇을 / 왜
+- **축**: (1) 알아가기의 출력 + (2) 개인 비서 — AI-OS §6 "내보내기 = 제품의 해자(moat)". 로드맵 #3(★★★, "심사 차별점", 사용자 핵심 우려). §1 다음으로 가장 가치 높고 **외부 게이트 없이 자율 완결 가능**한 단위라 선택.
+- 기존 `export.ts`는 §6가 *틀린 접근*이라 지적한 "큰 단일 덤프". 이를 **2층 Personal Context Pack**으로 업그레이드.
+
+### 구현 (`src/lib/wiki/context-pack.ts`, 순수 + 페처)
+- **Layer 1 헤더(라우터/색인)**: SKILL.md/AGENTS.md 프레이밍(YAML frontmatter + 헤딩). identity(이름·한줄·반복 패턴) + **"사용 규칙"(맨 위)** + 색인(무엇이 들어있는지 + 카운트 + 반복 주제 태그). **Gemini Gems 4K 안에 graceful degrade** — 헤더 단독으로 동작.
+- **Layer 2 상세**: 위키 페이지/소스/기록 전문 (export.ts `formatPage/formatSource/formatRecord` 재사용 — export로 노출만, 동작 변화 0).
+- **`full` = 헤더 + 상세 + 맨 끝 "## Your task" placeholder** → Anthropic query-at-end(+30%) 충족. 규칙은 위, 세션 요청은 맨 아래.
+- 어휘 lexicon-clean(임상어 0, "자기 이해와 성장" voice). EN/KO. `fitsHeaderOnly`로 Gems/CustomGPT 한도 적합 보고.
+- `composeContextPack`(순수) + `exportContextPack(userId)`(페치+합성). identity는 선택 — 없으면 안전 폴백(테스트됨).
+- 테스트 10개: 규칙-위치/query-at-end/헤더 자족성/Gems 4K 적합/identity weaving/색인/records opt-in/빈 데이터 폴백/KO/lexicon-clean.
+
+### UI 연결 (안전 — 텍스트 내용만 변경)
+- `src/app/wiki.tsx` `handleExport`: 사용자-facing export를 `exportUserWiki().prompt` → **`exportContextPack().full`** 로 스왑. records 포함 유지(pre-delete 백업 의도). 구조/레이아웃/라이프사이클 변화 없음(ANDROID_QA 안전). **chat RAG 스냅샷(conversation.ts/recommend.ts)은 exportUserWiki 그대로** — 영향 없음.
+
+### 상태 / 남은 것
+- **`npm run verify` green** — 1279 tests / 155 suites. working tree clean. PR #396에 누적.
+- **후속(작은 자율)**: identity 브릿지 — PersonaCard/self-portrait(who/forWhom/goal)에서 `PackIdentity` 구성해 헤더를 실제 정체성으로 채우기. 현재는 graceful 폴백.
+- **후속(UI·i18n·QA)**: `/data`나 `/wiki`에 "Context Pack" 별도 버튼 + 다운로드(.md)/공유 + i18n 키. 기기 QA 필요라 전용 패스 권장.
+
+---
+
+## Latest -- 2026-06-16 (cont.) / §1 인제스트 게이트 A·B·C·E + D-core 완료 (verify green, PR #396)
+
+### 어디까지 왔나
+- 작업 브랜치 **`claude/korean-greeting-rja3uh`** (이전 세션 `claude/ai-os-architecture-ul1uy0`를 fast-forward로 흡수 → 동일 컨텍스트) → **PR #396 (draft)**, base = `claude/ai-os-architecture-ul1uy0`(#395)로 스택 → diff = §1 증분만. 머지는 Simon.
+- **A** `src/lib/ingest/dedup.ts` — 순수 dedup 프리미티브. `contentHash()`(post-scrub 64-bit djb2+sdbm 멱등키, C2) + `minhashSignature`/`estimateSimilarity`/`lshBandKeys`(16밴드)/`isNearDuplicate(0.8)`. `mulmod` 16-bit split로 2^53 safe. 결정론적. 테스트 20.
+- **B** `db/migrations/0044_ingest.sql` — `sources.{content_hash,relevance_score,dedup_of}` + partial UNIQUE(user_id,content_hash)로 exact-dedup을 **DB 불변식**화 + `ingest_log` append-only 드롭 원장(exact/near/low_relevance/schema_invalid/policy_block; owner RLS). **로컬 ephemeral PG16에서 44개 전체 시퀀스 적용 + 재적용 idempotent 검증** (supabase-dry-run.yml 재현). check:constraints green.
+- **C (+wiring)** `src/lib/ingest/gate.ts` pure `decideIngest`(exact→near→relevance) + 주입식 `runIngestGate`(테스트 9). **capture 배선 완료**: `captureFromMarkdown`이 업로드 전 dedup 실행 — exact dup = **멱등 저장**(기존 행 반환, 업로드·insert 안 함, `deduped:"exact_duplicate"`), near dup = 저장하되 `dedup_of`로 survivor 링크(maybe-distinct 클립 silent 폐기 안 함). `gate-supabase.ts`(findCandidates = exact-hash + LSH band overlap, recordDrop), 0044에 `dedup_signature int[]`/`dedup_bands text[]` + GIN 추가. capture 테스트 2 + gate-supabase 테스트 3.
+- **E (A5 critical)** `src/lib/safety/ingest-policy.ts` — 3자 클리핑 안전정책을 1인칭 크라이시스 라우팅과 **분리**. crisis 마커는 탐지→`quarantine` 태깅만, **핫라인·crisisRouting·crisis_events 구조적 노출 불가**(결과 타입에 hotline 필드 없음). 자살예방 기사 클리핑 회귀 테스트 포함. 테스트 4.
+- **D-core** `src/lib/ingest/pii-scrub.ts` — 순수 PII 정규식 스크럽 + 가역 토큰화(email/KR-RRN/card[Luhn]/phone/ipv4). `scrubPii`/`restorePii`/`hasPii`, 결정론적. 테스트 10.
+- 상태: **`npm run verify` green** — 1269 tests / 154 suites. working tree clean.
+
+### 남은 작업 (전부 외부 게이트 — 배포/prod/멀티세션. 코드로 자율 완료 가능한 §1 표면은 끝)
+- **D-wiring (배포 게이트 = Simon)**: pii-scrub 로직을 **`gemini-proxy/index.ts`(Deno, 서버 egress = A2 trust boundary)에 포팅** + LLM NER 패스(allowed model 1회) + `gemini-proxy` 재배포. ⚠️ live LLM 경로(스펜드캡/C3 감사/crisis-scan)라 blind 반쪽 수정 금지. pii-scrub.ts가 검증된 순수 코어.
+- **B-apply (prod 게이트 = Simon)**: 0044 prod `apply_migration` (0044는 dedup_signature/dedup_bands/GIN 포함). prod 적용 전엔 capture가 dedup 컬럼을 써도 prod 스키마에 없으면 insert 실패 → **0044 apply가 capture dedup 라이브의 선행조건**.
+- **relevance gate @ phase1 (소)**: phase1이 `keep=false`/저관련을 산출해도 아직 드롭 안 함. `decideIngest`의 low_relevance 경로를 phase1/promote 결과에 연결 + `ingest_log` 기록. (gate 코어는 이미 지원, 배선만.)
+- **F** §2 pgmq 큐 — 설계가 "한 세션엔 안 들어감 → 멀티세션/worktree" 명시. 벌크 전제, 동기 단건 MVP엔 불필요.
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin claude/korean-greeting-rja3uh && git pull origin claude/korean-greeting-rja3uh
+cat docs/HANDOFF.md
+npm ci --legacy-peer-deps && npm run verify
+# 자율 가능한 §1 코드 표면 완료. 남은 건 배포(D)·prod apply(B)·멀티세션(F) — Simon 게이트.
+# 작은 자율 후속: relevance gate를 phase1 결과에 배선.
+```
+
+---
+
+## Latest -- 2026-06-16 / AI-OS Personal Context Layer 설계 + §1 인제스트 첫 증분 (phase1 스키마 확장)
+
+### 어디까지 왔나
+- 작업 브랜치 **`claude/ai-os-architecture-ul1uy0`** → **PR #395 (draft)**. main 대비 3 커밋 ahead. 머지는 Simon (자동머지 안 함).
+- **설계 정본 추가**: `docs/AI-OS-ARCHITECTURE.md` — Karpathy "second brain→AI OS" 영상 + deep-research 5트랙 근거로 7개 빌드 블록(§1 클리핑 정규화 ~ §7 SPL 루프) + 갭 분석 + 우선순위 로드맵. `/plan-eng-review` §1 완료(11 findings + outside voice, 리포트 문서 하단).
+- **§1 첫 증분 (구현, verify green)**: `src/lib/wiki/phase1.ts` 스키마 확장 — `Phase1Result`+`PHASE1_SCHEMA`에 `category`(VillageId)·`tags`·`relevance`·`keep` 추가. 관련성을 별도 Gemini 호출 없이 같은 패스에 흡수. `tags`는 생성 후 `containsForbiddenLexicon` 필터(C3). 신규 필드 전부 optional = 하위호환. 테스트 5개(`__tests__/phase1.test.ts`).
+- **SimonKWiki file-back**: PR #6 (draft) — T-020(AI-OS 설계 원칙), M-021(요청 레이어 오매핑), M-020 재발(한국어 임상어 "prescribe"류 lexicon — literal 토큰은 문서에도 안 적음).
+- 테스트 상태: **verify + lint green** (CI, PR #395 HEAD `9731229`). working tree clean.
+
+### 활성 인프라 (이번 세션 변경 없음)
+- Supabase `zoacryukmdeivmolvyhj`, gemini-proxy prod **v12** (직전 핸드오프와 동일 — 이번 세션은 코드/문서만, 배포 없음).
+- repo 마이그레이션 현재 **0043**까지. 다음 인제스트 마이그레이션 = **0044** (설계 문서엔 0044로 정정 반영됨).
+
+### 다음 작업 큐 (§1 남은 증분, 순서대로)
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | ✅ **완료** — `src/lib/ingest/dedup.ts` exact-hash + MinHash-LSH (순수, 테스트 20개) | small | 위 최신 섹션 참조 |
+| B | ✅ **완료** — `db/migrations/0044_ingest.sql` (PG16 dry-run + idempotent 검증). prod apply는 Simon 게이트 | medium | 위 최신 섹션 |
+| C | ✅ **완료 + capture 배선** — `gate.ts` + `gate-supabase.ts` + capture dedup (테스트 9+3+2) | medium | 위 최신 섹션 |
+| D | ⏳ **코어 완료** — `src/lib/ingest/pii-scrub.ts` (테스트 10). 남은 것 = gemini-proxy 포팅 + LLM NER + 배포(Simon 게이트) | medium | Presidio 불가(Python), allowed model만 |
+| E | ✅ **완료** — `src/lib/safety/ingest-policy.ts` A5 분리 (테스트 4) | medium | 위 최신 섹션 |
+| F | ⏸️ **보류** — §2 pgmq 큐. 설계상 멀티세션/worktree, 벌크 전제 | large | 동기 단건 MVP엔 불필요 |
+
+### 적용 중인 정책 (영구)
+1. **§1-first + 풀 게이트 지금** — Simon이 eng review 권장(§4-first/연기)을 명시 override. accepted risk.
+2. **정규화는 phase1.ts 확장** — 별도 `normalize.ts` 신설 금지 (DRY, A1).
+3. **PR 자동 머지 금지 · 지정 브랜치(`claude/ai-os-architecture-ul1uy0`)에서만 작업** (이 핸드오프도 main 자동머지 안 하고 작업 브랜치에 영속).
+4. **forbidden lexicon은 한국어 임상어도 포함** (예: "prescribe"류 단어 — literal 한국어 토큰은 문서에도 쓰지 말 것). 새 .md 작성 시 `npm run check:lexicon` 사전 점검 (M-020).
+5. 모든 Gemini 호출 = `callGemini`(C1) → `classifyInput`(C9) → `ai_audit_log`(C3). 단 인제스트는 크라이시스 라우팅 분리 예정(E).
+
+### 핵심 파일 위치
+```
+docs/AI-OS-ARCHITECTURE.md          §1~§7 설계 정본 + eng review 리포트 + T1-T7 tasks
+src/lib/wiki/phase1.ts              §1 정규화 (이번 세션 확장)
+src/lib/safety/classifier.ts        classifyInput(로컬) + containsForbiddenLexicon
+src/lib/safety/lexicon.ts           FORBIDDEN_TERMS + LEXICON_SCAN_ALLOWLIST
+src/lib/graph/relatedness.ts        VillageId + VILLAGE_LABEL (category enum 정본)
+supabase/functions/gemini-proxy/    LLM egress (200/day cap, MODELS_ALLOWED, MAX_USER_LEN=8000)
+```
+
+### 검증
+```bash
+npm run verify    # lint + type-check + i18n + lexicon + LLM boundary + constraints + jest
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin claude/ai-os-architecture-ul1uy0 && git pull origin claude/ai-os-architecture-ul1uy0
+cat docs/HANDOFF.md
+# 다음 작업 큐 A (dedup.ts) 부터 시작
+```
+
+---
+
 ## Latest -- 2026-06-04 (cont.) / gstack 갱신 + L/I 위생 PR #206 + L8 미성년 라우팅 + gemini-proxy v11(M6) 배포
 
 ### 어디까지 왔나
