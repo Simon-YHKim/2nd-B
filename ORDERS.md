@@ -1247,7 +1247,7 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 **Simon 디렉터 지시(2026-06-17, 모바일)**: O-29 건너뛰기 = 오늘 '생각정리' 통합 보고서로 대체.
 - O-29의 핵심(deep-space IA = D-22 4결정 자율 확정·구현·머지)은 **2026-06-17 생각정리 분석이 IA 토폴로지를 재정의**(북극성+자기이해 렌즈 7별, Roles/Action/Knowledge 별→목표트리 강등, 단일 L1~L5 가치사다리, 측정 lean v1, peer review C10 후순위)하여 방향이 갱신됨 → 어제 판정대로 머지하면 구방향 반영 위험.
 - 따라서 **미실행**. push/merge 없음. 하드게이트(D-17 Lever B·수익화 M1~M5·미성년 법무·social provider·consent 사인오프)도 그대로 보류 유지.
-- **대체 산출** = 2026-06-17 생각정리 통합 보고서(로컬 `reports/2ndb-thought-organization-synthesis.html`, 본 세션 산출). 새 방향 구현은 Simon이 신규 오더(O-30+)로 지시 예정.
+- **대체 산출** = 2026-06-17 생각정리 통합 보고서(로컬 `reports/2ndb-thought-organization-synthesis.html`, 본 세션 산출). 새 방향 구현은 Simon이 다음 신규 오더로 지시 예정.
 
 
 ### [O-28 ✅ / 2026-06-15 21:48 KST] 배경 시안 ⑤ 채택 + ⑤-rev 개정(밝기 2/3↑·다양화) — AG 구상·Codex 그림 — 완료
