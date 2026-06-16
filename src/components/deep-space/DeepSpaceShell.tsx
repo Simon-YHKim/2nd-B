@@ -9,6 +9,7 @@
  * becomes the router home + the nav contract / deeplinks get documented + E2E'd);
  * for now the menu gives honest "coming next" feedback so nothing reads as broken.
  */
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Image } from "expo-image";
@@ -17,6 +18,9 @@ import { router, type Href } from "expo-router";
 import Svg, { Circle, Path } from "react-native-svg";
 
 import { deepSpace } from "@/lib/theme/tokens";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { loadStarLevels } from "@/lib/persona/load-star-levels";
+import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
 
 const CHARACTER = require("../../../assets/deep-space/character-front.png");
 
@@ -36,6 +40,25 @@ export function DeepSpaceShell() {
   // a readable CTA + menu instead of hardcoded Korean (persona-sim culture-axis gap).
   const { i18n } = useTranslation();
   const isKo = i18n.language === "ko";
+  const { userId } = useAuth();
+  const [brightness, setBrightness] = useState<{ pct: number; lit: number } | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    // Cheap, no-Gemini path so the home shows Soul Core brightness on mount.
+    loadStarLevels(userId)
+      .then(({ starLevels, soulCoreBrightness }) => {
+        if (!active) return;
+        const lit = SELF_UNDERSTANDING_STARS.filter((s) => starLevels[s.id] >= 2).length;
+        setBrightness({ pct: Math.round(soulCoreBrightness * 100), lit });
+      })
+      .catch(() => {
+        // Offline / no data yet: leave the indicator hidden rather than error.
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
       {/* O-23 Stage③ finish: head-right icons (D-22 nav). Settings is an icon, not
@@ -77,6 +100,14 @@ export function DeepSpaceShell() {
             {isKo ? "무엇을 기록해볼까?" : "What would you like to note?"}
           </Text>
         </View>
+
+        {brightness ? (
+          <Text style={styles.brightness}>
+            {isKo
+              ? `소울 코어 밝기 ${brightness.pct}% · 별 ${brightness.lit}/7 켜짐`
+              : `Soul Core ${brightness.pct}% · ${brightness.lit}/7 stars lit`}
+          </Text>
+        ) : null}
 
         <View style={styles.menu}>
           {PRIMARY.map((item) => (
@@ -125,6 +156,7 @@ const styles = StyleSheet.create({
     marginBottom: 26,
   },
   bubbleText: { color: deepSpace.text, fontSize: 14, textAlign: "center" },
+  brightness: { color: deepSpace.textMuted, fontSize: 12, textAlign: "center", marginBottom: 20 },
   menu: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" },
   item: {
     minWidth: 120,
