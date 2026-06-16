@@ -3,6 +3,60 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest -- 2026-06-16 / AI-OS Personal Context Layer 설계 + §1 인제스트 첫 증분 (phase1 스키마 확장)
+
+### 어디까지 왔나
+- 작업 브랜치 **`claude/ai-os-architecture-ul1uy0`** → **PR #395 (draft)**. main 대비 3 커밋 ahead. 머지는 Simon (자동머지 안 함).
+- **설계 정본 추가**: `docs/AI-OS-ARCHITECTURE.md` — Karpathy "second brain→AI OS" 영상 + deep-research 5트랙 근거로 7개 빌드 블록(§1 클리핑 정규화 ~ §7 SPL 루프) + 갭 분석 + 우선순위 로드맵. `/plan-eng-review` §1 완료(11 findings + outside voice, 리포트 문서 하단).
+- **§1 첫 증분 (구현, verify green)**: `src/lib/wiki/phase1.ts` 스키마 확장 — `Phase1Result`+`PHASE1_SCHEMA`에 `category`(VillageId)·`tags`·`relevance`·`keep` 추가. 관련성을 별도 Gemini 호출 없이 같은 패스에 흡수. `tags`는 생성 후 `containsForbiddenLexicon` 필터(C3). 신규 필드 전부 optional = 하위호환. 테스트 5개(`__tests__/phase1.test.ts`).
+- **SimonKWiki file-back**: PR #6 (draft) — T-020(AI-OS 설계 원칙), M-021(요청 레이어 오매핑), M-020 재발(한국어 임상어 '처방' lexicon).
+- 테스트 상태: **verify + lint green** (CI, PR #395 HEAD `9731229`). working tree clean.
+
+### 활성 인프라 (이번 세션 변경 없음)
+- Supabase `zoacryukmdeivmolvyhj`, gemini-proxy prod **v12** (직전 핸드오프와 동일 — 이번 세션은 코드/문서만, 배포 없음).
+- repo 마이그레이션 현재 **0043**까지. 다음 인제스트 마이그레이션 = **0044** (설계 문서엔 0044로 정정 반영됨).
+
+### 다음 작업 큐 (§1 남은 증분, 순서대로)
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | `src/lib/ingest/dedup.ts` — exact-hash + MinHash (순수, 단독 테스트) | small | ⭐ 가장 안전한 다음 단위, 보안 스키마 안 건드림 |
+| B | `db/migrations/0044_ingest.sql` — `ingest_log` + `sources.{relevance_score,content_hash,dedup_of}` | medium | 0036-0043 RLS/lockdown 패턴 준수 필수 |
+| C | `src/lib/ingest/gate.ts` — dedup+관련성 임계+ingest_log 오케스트레이션 | medium | B 이후 |
+| D | `gemini-proxy/index.ts` — PII regex 스크럽 + LLM NER 패스 | medium | Presidio 불가(Python), allowed model만 |
+| E | `src/lib/safety/ingest-policy.ts` — **A5 critical**: 3자 클리핑을 1인칭 크라이시스 라우팅과 분리 | medium | 자살예방 기사 저장 시 핫라인 오탐 방지 |
+| F | §2 pgmq 큐 — 풀 게이트+벌크 동기 불가라 동반 | large | 벌크 인제스트 전제 |
+
+### 적용 중인 정책 (영구)
+1. **§1-first + 풀 게이트 지금** — Simon이 eng review 권장(§4-first/연기)을 명시 override. accepted risk.
+2. **정규화는 phase1.ts 확장** — 별도 `normalize.ts` 신설 금지 (DRY, A1).
+3. **PR 자동 머지 금지 · 지정 브랜치(`claude/ai-os-architecture-ul1uy0`)에서만 작업** (이 핸드오프도 main 자동머지 안 하고 작업 브랜치에 영속).
+4. **forbidden lexicon은 한국어 임상어도 포함** (예: '처방'). 새 .md 작성 시 사전 점검 (M-020).
+5. 모든 Gemini 호출 = `callGemini`(C1) → `classifyInput`(C9) → `ai_audit_log`(C3). 단 인제스트는 크라이시스 라우팅 분리 예정(E).
+
+### 핵심 파일 위치
+```
+docs/AI-OS-ARCHITECTURE.md          §1~§7 설계 정본 + eng review 리포트 + T1-T7 tasks
+src/lib/wiki/phase1.ts              §1 정규화 (이번 세션 확장)
+src/lib/safety/classifier.ts        classifyInput(로컬) + containsForbiddenLexicon
+src/lib/safety/lexicon.ts           FORBIDDEN_TERMS + LEXICON_SCAN_ALLOWLIST
+src/lib/graph/relatedness.ts        VillageId + VILLAGE_LABEL (category enum 정본)
+supabase/functions/gemini-proxy/    LLM egress (200/day cap, MODELS_ALLOWED, MAX_USER_LEN=8000)
+```
+
+### 검증
+```bash
+npm run verify    # lint + type-check + i18n + lexicon + LLM boundary + constraints + jest
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin claude/ai-os-architecture-ul1uy0 && git pull origin claude/ai-os-architecture-ul1uy0
+cat docs/HANDOFF.md
+# 다음 작업 큐 A (dedup.ts) 부터 시작
+```
+
+---
+
 ## Latest -- 2026-06-04 (cont.) / gstack 갱신 + L/I 위생 PR #206 + L8 미성년 라우팅 + gemini-proxy v11(M6) 배포
 
 ### 어디까지 왔나
