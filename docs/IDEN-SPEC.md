@@ -174,11 +174,15 @@ Resolved for v0.1 (2026-06-16). Per Simon's standing note ("if what the system r
 - `types.ts` - `IdenDoc` / `IdenField` / `IdenSource` / `Viz`.
 - `render-html.ts` - `renderIdenHtml(doc, { locale })` produces the self-contained A4 two-column sheet. Colors sourced only from `theme/tokens` (`lightCosmic` paper/ink + `cosmic` accent/core hues); translucency via SVG `fill-opacity`; zero new hex literals.
 - `serialize.ts` - `serializeIden(doc, { request, body })` produces the `.iden` text (the AI-readable half): the YAML machine block (§2), an optional prose body, and the live `⟦REQUEST⟧` appended last (query-at-end). Hand-emitted compact flow YAML; strings are quoted only when a plain scalar would be unsafe or change type on parse, so the block round-trips. Pure, deterministic, no new dependency at runtime.
+- `build-iden.ts` - `composeIdenDoc(persona, opts)` (pure) maps a `PersonaCard` + vault counts to an `IdenDoc`: BFI traits -> radar (neuroticism surfaced as non-clinical **Sensitivity**), top positive traits -> pattern tags, MBTI -> badge, ECR-S -> badge, value frameworks -> drivers, the fixed pattern cores -> node-graph, live counts -> contents donut. A field appears only with real evidence and an honest `source.kind` (missing -> absent, never faked). `buildIdenDoc(userId, opts)` is the thin fetcher (persona + counts); the AI summary is reused from the persona's already-guarded narrative, so this adds no new LLM call (C1/C9/C3 still hold via `buildPersona`). EN canonical; KO localizes labels/values while core node names stay English (renderer color map; C7).
+- `iden-export.ts` - `buildIdenExport(doc, opts)` (pure) bundles the two shareable artifacts (`.iden` text + standalone A4 HTML) plus a download filename stem; `exportIden(userId, opts)` is the fetcher.
 - `sample.ts` - `SAMPLE_IDEN`, the dummy doc mirrored from mock E.
-- `__tests__/render-html.test.ts` - 9 contract tests (radar+bars, donut, node-graph, provenance, AI-summary separation, schema-driven drop, KO locale, HTML escaping, no em dash / no forbidden lexicon).
+- `__tests__/render-html.test.ts` - 11 contract tests (radar+bars, full-name radar accessibility, donut, node-graph, provenance, AI-summary separation, schema-driven drop, KO locale, HTML escaping, no em dash / no forbidden lexicon).
 - `__tests__/serialize.test.ts` - 13 contract tests (block/body/request order, parser round-trip, string-typed version+date, provenance tally, summary+rules separation, query-at-end, placeholder, omitted summary/rules, stat+unit, escaping of unsafe scalars, determinism, lexicon-clean).
+- `__tests__/build-iden.test.ts` - 11 contract tests for `composeIdenDoc` (trait radar + Sensitivity, pattern derivation, badges, drivers, cores+contents, summary gating, heuristic vs no-evidence, null-persona fallback, KO parity, both-consumer round-trip, lexicon-clean).
+- `__tests__/iden-export.test.ts` - 5 contract tests (artifact bundle, filename stem, Hangul fallback, locale passthrough, sizes).
 
-Not yet built (next): `buildIdenDoc()` (Supabase data -> `IdenDoc`, ties to the §6 Personal Context Pack). PDF export = browser print of the rendered sheet.
+Not yet built (device-QA gate = Simon, per `ANDROID_QA_GUIDELINES.md`): the viewer UI wiring - an export action on `/wiki` or `/data` that calls `exportIden()`, a WebView preview of the rendered sheet, and native download / PDF share. `buildIdenExport` is the device-independent seam that step calls. PDF export = browser/WebView print of the rendered sheet.
 
 ---
 
