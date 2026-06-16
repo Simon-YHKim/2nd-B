@@ -26,6 +26,8 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
+import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
+import { brightnessVisual } from "@/lib/persona/brightness-visual";
 import { buildCenterCards } from "@/lib/persona/center";
 import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
@@ -234,6 +236,7 @@ export default function CoreBrain() {
   const portrait = buildSelfPortrait({ persona }, locale);
 
   const filledFields = portrait.filter((f) => f.status === "filled").length;
+  const starLevels = persona?.starLevels;
 
   return (
     <PremiumAppShell>
@@ -311,6 +314,25 @@ export default function CoreBrain() {
             onPress={() => router.push("/persona")}
           />
         </Section>
+
+        {/* 5b) 나를 아는 일곱 가지 — 7 self-understanding stars (constellation) */}
+        {starLevels ? (
+          <Section title={locale === "ko" ? "나를 아는 일곱 가지" : "Seven ways to know me"} accent={cosmic.soulViolet}>
+            <View style={styles.starRow}>
+              {SELF_UNDERSTANDING_STARS.map((star) => {
+                const v = brightnessVisual(starLevels[star.id]);
+                return (
+                  <View key={star.id} style={styles.starItem}>
+                    <View style={[styles.starDot, { opacity: v.opacity }]} />
+                    <Text variant="caption" color="textMuted" style={styles.starName}>
+                      {locale === "ko" ? star.nameKo : star.nameEn}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </Section>
+        ) : null}
 
         {/* 6) 이걸 만든 조각들 — evidence */}
         <Section title={locale === "ko" ? "이걸 만든 조각들" : "The pieces behind this"} accent={cosmic.pixelLamp}>
@@ -433,6 +455,10 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: spacing.lg },
   hero: { alignItems: "center" },
   statRow: { flexDirection: "row", justifyContent: "space-around", gap: spacing.sm },
+  starRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, justifyContent: "space-between" },
+  starItem: { width: "30%", alignItems: "center", gap: 4 },
+  starDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: cosmic.soulViolet },
+  starName: { textAlign: "center", fontSize: 11 },
   section: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
