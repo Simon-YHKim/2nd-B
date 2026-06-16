@@ -6,6 +6,7 @@ node_modules/
 # context-guardian (per-session state, not committed)
 SESSION_RECOVERY.md
 context_limit_log.json
+.claudeignore
 
 # Expo
 .expo/
