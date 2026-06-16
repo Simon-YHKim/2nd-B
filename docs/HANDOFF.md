@@ -3,29 +3,29 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest -- 2026-06-16 (cont.) / §1 인제스트 큐 A 완료 — dedup.ts (exact-hash + MinHash-LSH) + HANDOFF lexicon 위생
+## Latest -- 2026-06-16 (cont.) / §1 인제스트 게이트 A·B·C·E + D-core 완료 (verify green, PR #396)
 
 ### 어디까지 왔나
-- 작업 브랜치 **`claude/korean-greeting-rja3uh`** (이전 세션 `claude/ai-os-architecture-ul1uy0`를 fast-forward로 흡수 → 동일 컨텍스트). 머지는 Simon.
-- **큐 A 완료**: `src/lib/ingest/dedup.ts` 신설 — 순수 함수, DB/LLM/async 의존성 0 (RN+node 안전).
-  - exact-dedup `contentHash()` = post-scrub 정규화 텍스트의 64-bit (djb2+sdbm) 멱등키 (C2). 재덤프 단락용.
-  - near-dup = `minhashSignature()`(64 perm, Mersenne prime 패밀리, 결정론적 시드) + `estimateSimilarity()` + `lshBandKeys()`(16밴드 버킷팅) + `isNearDuplicate(threshold=0.8)`.
-  - `mulmod` 16-bit split로 2^53 safe-integer 유지. 모든 출력 결정론적(멱등·크로스런 버킷 안정).
-- **테스트 20개** `src/lib/ingest/__tests__/dedup.test.ts` (정규화·멱등·shingle·시그니처·유사도·LSH·임계 튜닝).
-- **위생**: 직전 핸드오프 섹션이 M-020 임상어 literal을 본문에 적어 `check:lexicon` 레드였음 → 영어 글로스로 마스킹(의미 보존, 재유출 제거). AI-OS 브랜치 tip도 같은 레드였을 것.
-- 상태: **`npm run verify` green** (lint+type+i18n+lexicon+legal+boundary+constraints+emdash+anti-anthro+mascot+jest). working tree clean.
+- 작업 브랜치 **`claude/korean-greeting-rja3uh`** (이전 세션 `claude/ai-os-architecture-ul1uy0`를 fast-forward로 흡수 → 동일 컨텍스트) → **PR #396 (draft)**, base = `claude/ai-os-architecture-ul1uy0`(#395)로 스택 → diff = §1 증분만. 머지는 Simon.
+- **A** `src/lib/ingest/dedup.ts` — 순수 dedup 프리미티브. `contentHash()`(post-scrub 64-bit djb2+sdbm 멱등키, C2) + `minhashSignature`/`estimateSimilarity`/`lshBandKeys`(16밴드)/`isNearDuplicate(0.8)`. `mulmod` 16-bit split로 2^53 safe. 결정론적. 테스트 20.
+- **B** `db/migrations/0044_ingest.sql` — `sources.{content_hash,relevance_score,dedup_of}` + partial UNIQUE(user_id,content_hash)로 exact-dedup을 **DB 불변식**화 + `ingest_log` append-only 드롭 원장(exact/near/low_relevance/schema_invalid/policy_block; owner RLS). **로컬 ephemeral PG16에서 44개 전체 시퀀스 적용 + 재적용 idempotent 검증** (supabase-dry-run.yml 재현). check:constraints green.
+- **C** `src/lib/ingest/gate.ts` — pure `decideIngest`(exact→near→relevance 순) + 주입식 `runIngestGate`(deps: findCandidates/recordDrop). phase1 `relevance`/`keep` 소비. 테스트 9.
+- **E (A5 critical)** `src/lib/safety/ingest-policy.ts` — 3자 클리핑 안전정책을 1인칭 크라이시스 라우팅과 **분리**. crisis 마커는 탐지→`quarantine` 태깅만, **핫라인·crisisRouting·crisis_events 구조적 노출 불가**(결과 타입에 hotline 필드 없음). 자살예방 기사 클리핑 회귀 테스트 포함. 테스트 4.
+- **D-core** `src/lib/ingest/pii-scrub.ts` — 순수 PII 정규식 스크럽 + 가역 토큰화(email/KR-RRN/card[Luhn]/phone/ipv4). `scrubPii`/`restorePii`/`hasPii`, 결정론적. 테스트 10.
+- 상태: **`npm run verify` green** — 1264 tests / 153 suites. working tree clean.
 
-### 다음 작업 큐 (§1 남은 증분)
-- **B** `db/migrations/0044_ingest.sql` — `ingest_log` + `sources.{relevance_score,content_hash,dedup_of}` (0036-0043 RLS 패턴 준수). dedup.ts의 `contentHash` → `sources.content_hash` 매핑.
-- **C** `src/lib/ingest/gate.ts` — dedup.ts(`contentHash`/`lshBandKeys`/`isNearDuplicate`) + 관련성 임계 + ingest_log 오케스트레이션. B 이후.
-- D/E/F 동일 (PII NER, A5 안전정책 분리, §2 pgmq).
+### 남은 작업 (의도적 보류 — 게이트 사유)
+- **D-wiring (배포 게이트)**: pii-scrub 로직을 **`gemini-proxy/index.ts`(Deno, 서버 egress = A2 trust boundary)에 포팅** + LLM NER 패스(allowed model 1회) + `gemini-proxy` 재배포. ⚠️ 배포는 Simon 게이트 + live LLM 경로(스펜드캡/C3 감사/crisis-scan)라 blind 반쪽 수정 금지. pii-scrub.ts는 그 포팅의 검증된 순수 코어.
+- **C-wiring**: `runIngestGate`를 capture 경로(`src/lib/wiki/capture.ts`)에 배선 + kept 행에 `content_hash`/`relevance_score` 기록 + `findCandidates`/`recordDrop` Supabase 구현. (코어는 완성, 배선만 남음.)
+- **B-apply (prod 게이트)**: 0044 prod `apply_migration` — Simon 확인 필요.
+- **F** §2 pgmq 큐 — 설계 문서가 "한 세션엔 안 들어감 → 멀티세션/worktree" 명시. 벌크 인제스트 전제라 동기 단건 MVP엔 불필요.
 
 ### 다음 세션 시작하는 법
 ```bash
 git fetch origin claude/korean-greeting-rja3uh && git pull origin claude/korean-greeting-rja3uh
 cat docs/HANDOFF.md
 npm ci --legacy-peer-deps && npm run verify
-# 큐 B (0044_ingest.sql) 부터 — dedup.ts content_hash 컬럼 매핑
+# 권장: C-wiring (capture.ts에 runIngestGate 배선) — 코어 다 됨, Supabase findCandidates/recordDrop만.
 ```
 
 ---
@@ -47,11 +47,11 @@ npm ci --legacy-peer-deps && npm run verify
 | # | 작업 | 크기 | 권장 |
 |---|---|---|---|
 | A | ✅ **완료** — `src/lib/ingest/dedup.ts` exact-hash + MinHash-LSH (순수, 테스트 20개) | small | 위 최신 섹션 참조 |
-| B | `db/migrations/0044_ingest.sql` — `ingest_log` + `sources.{relevance_score,content_hash,dedup_of}` | medium | 0036-0043 RLS/lockdown 패턴 준수 필수 |
-| C | `src/lib/ingest/gate.ts` — dedup+관련성 임계+ingest_log 오케스트레이션 | medium | B 이후 |
-| D | `gemini-proxy/index.ts` — PII regex 스크럽 + LLM NER 패스 | medium | Presidio 불가(Python), allowed model만 |
-| E | `src/lib/safety/ingest-policy.ts` — **A5 critical**: 3자 클리핑을 1인칭 크라이시스 라우팅과 분리 | medium | 자살예방 기사 저장 시 핫라인 오탐 방지 |
-| F | §2 pgmq 큐 — 풀 게이트+벌크 동기 불가라 동반 | large | 벌크 인제스트 전제 |
+| B | ✅ **완료** — `db/migrations/0044_ingest.sql` (PG16 dry-run + idempotent 검증). prod apply는 Simon 게이트 | medium | 위 최신 섹션 |
+| C | ✅ **코어 완료** — `src/lib/ingest/gate.ts` (테스트 9). 남은 것 = capture.ts 배선 | medium | 위 최신 섹션 |
+| D | ⏳ **코어 완료** — `src/lib/ingest/pii-scrub.ts` (테스트 10). 남은 것 = gemini-proxy 포팅 + LLM NER + 배포(Simon 게이트) | medium | Presidio 불가(Python), allowed model만 |
+| E | ✅ **완료** — `src/lib/safety/ingest-policy.ts` A5 분리 (테스트 4) | medium | 위 최신 섹션 |
+| F | ⏸️ **보류** — §2 pgmq 큐. 설계상 멀티세션/worktree, 벌크 전제 | large | 동기 단건 MVP엔 불필요 |
 
 ### 적용 중인 정책 (영구)
 1. **§1-first + 풀 게이트 지금** — Simon이 eng review 권장(§4-first/연기)을 명시 override. accepted risk.
