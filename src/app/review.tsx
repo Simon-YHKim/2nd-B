@@ -21,6 +21,7 @@ import { RatifySheet } from "@/components/persona/RatifySheet";
 import { loadTierShifts } from "@/lib/persona/load-tier-shifts";
 import type { TierShift } from "@/lib/persona/tier-history";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
+import { recordStarTiers } from "@/lib/persona/record-star-tiers";
 
 function starName(id: TierShift["starId"], locale: "en" | "ko"): string {
   const star = SELF_UNDERSTANDING_STARS.find((s) => s.id === id);
@@ -89,6 +90,10 @@ export default function ReviewScreen() {
   function handleDecision(decision: RatifyDecision) {
     const r = applyRatify(4, decision);
     setSheetOpen(false);
+    if (decision === "ratify" && userId && proposal?.target.kind === "star") {
+      // Persist the ratified tier so D9 history + trend detection reflect it.
+      void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel });
+    }
     setResult(
       decision === "ratify"
         ? locale === "ko"

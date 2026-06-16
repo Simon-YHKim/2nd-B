@@ -9,7 +9,7 @@ import type { StarId } from "./stars";
 
 export async function recordStarTiers(
   userId: string,
-  starLevels: Record<StarId, LadderLevel>,
+  starLevels: Partial<Record<StarId, LadderLevel>>,
 ): Promise<void> {
   const rows = (Object.entries(starLevels) as [StarId, LadderLevel][]).map(([star_id, level]) => ({
     user_id: userId,
