@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
+import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
 import { buildCenterCards } from "@/lib/persona/center";
 import { TYPE_NICKNAME } from "@/lib/persona/mbti";
 import { STYLE_LABEL, STYLE_DESCRIPTION } from "@/lib/persona/attachment";
@@ -230,6 +231,13 @@ export default function Persona() {
           <Text variant="caption" color="textMuted" style={{ letterSpacing: 0 }}>
             {locale === "ko" ? "소울 코어" : "Soul Core"}
           </Text>
+          {persona.soulCoreBrightness != null ? (
+            <Text variant="subtle" color="brand" style={{ marginTop: 2 }}>
+              {locale === "ko"
+                ? `밝기 ${Math.round(persona.soulCoreBrightness * 100)}% · 별 ${SELF_UNDERSTANDING_STARS.filter((s) => (persona.starLevels?.[s.id] ?? 1) >= 2).length}/7 켜짐`
+                : `Brightness ${Math.round(persona.soulCoreBrightness * 100)}% · ${SELF_UNDERSTANDING_STARS.filter((s) => (persona.starLevels?.[s.id] ?? 1) >= 2).length}/7 stars lit`}
+            </Text>
+          ) : null}
           {buildCenterCards(persona, locale).map((card) => (
             <View key={card.id} style={[styles.centerCard, { borderStartColor: card.accent }]}>
               <Text variant="caption" color="textMuted">{card.title}</Text>
