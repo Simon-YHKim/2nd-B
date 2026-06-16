@@ -52,3 +52,55 @@ Both modes run the same safety + audit path (classify → audit log → single L
 ## Safety vocabulary
 
 This is **not** a clinical product. The forbidden clinical lexicon (CI-enforced) is enumerated in `src/lib/safety/lexicon.ts` — never introduce those terms in any surface. Use instead: 자기 이해 / 성장 / 마음이 편안 / 정서적 안정 / self-understanding / growth / reflection.
+
+## The brain model (0th / 1st / 2nd / 3rd)
+
+> Canon sentence: **2nd-Brain is the bridge that builds your 2nd brain (the organic web of your data) and wires your 3rd brain (the AI navigator) so your 1st brain (the physical brain) advances toward the north star of your 0th brain (your philosophy).** The app is never a "brain" - it is the bridge / scaffold.
+
+| Layer | Name | What it is | Owner / binding |
+|---|---|---|---|
+| **0th brain** | Philosophy, the north star | The values and roles the user steers by. Rendered as the Soul Core (북극성). | User-owned. Always full brightness (aspiration, not a data node). |
+| **1st brain** | Physical brain | The user themselves - the neural net everything serves. | The user. |
+| **2nd brain** | Data web | The LLM Wiki: records, sources, personas, wiki_pages - the organic web of the user's data. | The app builds it (Axis-1). |
+| **3rd brain** | AI navigator | SecondB over the single LLM wrapper, answering on top of the 2nd brain (RAG). | The app wires it (Axis-2/3). |
+
+## The value ladder L1 to L5 (= brightness = data quality = trust)
+
+> One ordinal scale replaces five drifting scales (DIKW, Bloom, brightness, data-quality, trust). A node's level is at once its node/star brightness, its data quality, its source trust, and its drill stop level. The AI **proposes** a level rise; the user **ratifies** it (the propose to ratify loop).
+
+| Level | Name | Brightness | DIKW / Bloom | Rises when |
+|---|---|---|---|---|
+| **L1** | Raw / 날것 | 20% | Data / Remember | a single Log is captured, unprocessed |
+| **L2** | Tagged / 태깅됨 | 40% | Information / Understand | classified + a framework or domain tag is added (clipper kind, BFI/SDT id) |
+| **L3** | Connected / 연결됨 | 60% | Knowledge / Apply, Analyze | a Pattern Link joins it to two or more nodes |
+| **L4** | Cross-checked / 교차검증 | 80% | Evaluate (cross-source agreement) | two or more independent paths agree (e.g. BFI + audit + peer converge) |
+| **L5** | Actionable / 실행가능 | 100% | Wisdom / Create | a user-ratified self-model change, or an accepted suggestion, runs |
+
+> L4 is always labelled **교차검증 (cross-source agreement)**, never any clinical wording. The north star (Soul Core) is exempt from the ladder: it stays at full brightness because it is aspiration, not a data node.
+
+## Terminology map (intent ↔ canon ↔ shipped key)
+
+> Display labels and concepts only. Internal route / slug / DB keys stay frozen (core / work / relation / knowledge / records / taste). Topology per the synthesis memo (2026-06-17): one north star, seven self-understanding lenses, one role goal-tree.
+
+| Intent term | Canon concept | Shipped name (key frozen) |
+|---|---|---|
+| **북극성 (north star)** | The 0th-brain philosophy as the hero node, always full brightness | **Soul Core** (key `core`, mascot SecondB) |
+| **페르소나 (persona)** | The role / domain lenses that feed star brightness | the **5 Pattern Cores** (별자리: Growth / Bond / Wisdom / Narrative / Muse) |
+| **별 (star)** | A self-understanding **dimension** (lens), an evidence axis, not a core | **별1 to 별7** (the seven lenses below) |
+| **밝기 (brightness)** | The quality signal | the **L1 to L5** value ladder level |
+
+### The 7 self-understanding stars (lenses, not cores)
+
+Each star estimates one latent construct, has its own elicitation path and scorer, and emits a brightness (L-level). Their aggregate is the Soul Core readout (the 북극성 brightness). Stars are evidence axes; the 5 Pattern Cores are domain lenses.
+
+| Star | Name | Construct | Engine |
+|---|---|---|---|
+| **별1** | 지금의 나 (trait state) | Big Five | `persona/bfi.ts` |
+| **별2** | 회상 (narrative origins) | McAdams narrative identity | `interview/probe.ts` |
+| **별3** | 보여지는 나 (other-view) | other-rated Big Five + reputation; doubles as a validity layer | 360 peer (postponed / adult-only) |
+| **별4** | 리듬 / 순간의 나 (momentary state) | within-person variability | `esm.tsx` |
+| **별5** | 관계의 나 (relational self) | attachment (anxiety / avoidance) | `persona/attachment.ts` (ECR-S) |
+| **별6** | 될 수 있는 나 (possible self) | Possible Selves (Markus & Nurius 1986) | new |
+| **별7** | 가치의 나 (values & strivings) | SDT + VIA strengths + personal strivings | audit `sdt:*` / `via:*` tags |
+
+> **Roles / Action / Knowledge are NOT stars.** They are branches of the north-star goal-tree (who/why/what to Roles to Projects to Tasks), the structure the navigator steers toward, never a measurement axis. "지금의 나" is **별1 (a tool)**; the Soul Core / persona card is the **aggregate** of all seven stars, not a star.

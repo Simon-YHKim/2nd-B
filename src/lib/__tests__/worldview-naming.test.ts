@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { PERSONAS, personaIds } from "@/lib/chat/personas";
 import { CHARACTERS, CHARACTER_ORDER } from "@/lib/characters";
 import { VILLAGE_LABEL, VILLAGE_IDS } from "@/lib/graph/relatedness";
+import { containsForbiddenLexicon } from "@/lib/safety/classifier";
 
 const OLD_NAMES = ["Gadi", "Lulu", "Lumi", "Archi", "Vela", "가디", "루루", "루미", "아치", "벨라"];
 const RETIRED_IMAGINE_PLACES = ["공상 작업실", "공상 작업장"];
@@ -102,5 +103,59 @@ describe("worldview v-final naming", () => {
     }
     expect(VILLAGE_LABEL.relation.ko).toBe("본드 코어");
     expect(VILLAGE_LABEL.relation.en).toBe("Bond Core");
+  });
+});
+
+// Synthesis memo (2026-06-17): north-star + 7-lens canon, Phase 0 pins.
+// Locks the three glossary blocks added to CONTEXT.md - the 0th/1st/2nd/3rd brain
+// bridge model, the single L1-L5 value ladder, and the north-star terminology map
+// (북극성 = Soul Core, 페르소나 = 5 Pattern Cores, 별 = self-understanding dimension,
+// 밝기 = L-level). Roles/Action/Knowledge stay OUT of the stars (goal-tree). L4 must
+// read "교차검증 (cross-source agreement)" with no clinical lexicon anywhere.
+describe("worldview canon: brain model + value ladder + north-star terminology", () => {
+  test("CONTEXT.md pins the 0th/1st/2nd/3rd brain bridge model", () => {
+    const ctx = readProjectFile("CONTEXT.md");
+    for (const layer of ["0th brain", "1st brain", "2nd brain", "3rd brain"]) {
+      expect(ctx).toContain(layer);
+    }
+    // the app is the bridge, never a brain itself
+    expect(ctx).toContain("bridge");
+  });
+
+  test("CONTEXT.md pins exactly five value-ladder levels L1..L5 (no L6)", () => {
+    const ctx = readProjectFile("CONTEXT.md");
+    for (const lvl of ["L1", "L2", "L3", "L4", "L5"]) {
+      expect(ctx).toContain(lvl);
+    }
+    expect(ctx).not.toContain("L6");
+    // L4 uses the non-clinical cross-source label
+    expect(ctx).toContain("교차검증");
+    expect(ctx).toContain("cross-source agreement");
+  });
+
+  test("CONTEXT.md maps north-star / persona / star / brightness to shipped canon", () => {
+    const ctx = readProjectFile("CONTEXT.md");
+    expect(ctx).toContain("북극성 (north star)");
+    expect(ctx).toContain("페르소나 (persona)");
+    expect(ctx).toContain("별 (star)");
+    expect(ctx).toContain("밝기 (brightness)");
+    expect(ctx).toContain("Soul Core");
+    expect(ctx).toContain("Pattern Core");
+    expect(ctx).toContain("L1 to L5");
+    expect(ctx).toContain("self-understanding");
+    // the seven lenses are present and numbered
+    expect(ctx).toContain("별1");
+    expect(ctx).toContain("별7");
+  });
+
+  test("roles / action / knowledge stay OUT of the stars (goal-tree, not a measurement axis)", () => {
+    const ctx = readProjectFile("CONTEXT.md");
+    expect(ctx).toMatch(/Roles \/ Action \/ Knowledge are NOT stars/i);
+  });
+
+  test("the canon glossary carries no forbidden clinical lexicon", () => {
+    const ctx = readProjectFile("CONTEXT.md");
+    expect(containsForbiddenLexicon(ctx, "en")).toHaveLength(0);
+    expect(containsForbiddenLexicon(ctx, "ko")).toHaveLength(0);
   });
 });
