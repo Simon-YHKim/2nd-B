@@ -17,6 +17,7 @@ import { isValidMbtiResult, type MbtiScores } from "./assessment-shapes";
 import type { LadderLevel } from "./brightness";
 import { soulCoreBrightness, type StarId } from "./stars";
 import { deriveStarLevels } from "./star-levels";
+import { loadEsmCount } from "./esm-count";
 import { recordStarTiers } from "./record-star-tiers";
 
 export interface PersonaTraits {
@@ -367,7 +368,8 @@ export async function buildPersona(
   // Phase A: derive the seven-star L1-L5 levels + Soul Core (북극성) brightness
   // from the card's own signals (compute-on-build; persistence is a later unit
   // per D9). Deterministic + LLM-free - the INSTRUMENT layer decides the levels.
-  persona.starLevels = deriveStarLevels(persona);
+  const esmCount = await loadEsmCount(userId);
+  persona.starLevels = deriveStarLevels(persona, esmCount);
   persona.soulCoreBrightness = soulCoreBrightness(persona.starLevels);
   // D9 (memo §10): persist this build's tiers so detectTierShift can later spot a
   // changed tendency. Fire-and-forget + best-effort - never blocks the build.
