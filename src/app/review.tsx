@@ -1,10 +1,10 @@
 // /review (memo §4 T3, demo-loop step 5): the propose -> ratify surface. Assembles
 // the ready pieces - buildPersona -> proposalContextForStar -> proposeSelfModelChange
 // -> RatifySheet -> applyRatify. User-triggered (no Gemini on mount). v1 proposes
-// for star1 (지금의 나); persist depth is minimal (confirmation) - full D9 tier-history
-// is a follow-up. Errors degrade gracefully (no profile / offline -> friendly note).
+// for star1 (지금의 나). Surfaces D9 tier shifts (loadTierShifts) as a re-check nudge.
+// Errors degrade gracefully (no profile / offline -> friendly note).
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -18,6 +18,14 @@ import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
 import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
 import { RatifySheet } from "@/components/persona/RatifySheet";
+import { loadTierShifts } from "@/lib/persona/load-tier-shifts";
+import type { TierShift } from "@/lib/persona/tier-history";
+import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
+
+function starName(id: TierShift["starId"], locale: "en" | "ko"): string {
+  const star = SELF_UNDERSTANDING_STARS.find((s) => s.id === id);
+  return star ? (locale === "ko" ? star.nameKo : star.nameEn) : id;
+}
 
 export default function ReviewScreen() {
   const { i18n } = useTranslation();
@@ -27,6 +35,23 @@ export default function ReviewScreen() {
   const [proposal, setProposal] = useState<SelfModelProposal | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [shifts, setShifts] = useState<TierShift[]>([]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    // D9 (memo §10): surface stars whose tendency has shifted as a re-check nudge.
+    loadTierShifts(userId)
+      .then((s) => {
+        if (active) setShifts(s);
+      })
+      .catch(() => {
+        // best-effort; no shift banner on failure.
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   async function generate() {
     if (!userId || loading) return;
@@ -87,6 +112,13 @@ export default function ReviewScreen() {
             ? "비서가 기록을 보고 다음 한 걸음을 제안해요. 승인할 때만 반영돼요."
             : "Your assistant proposes a next step from your records. It applies only when you ratify."}
         </Text>
+        {shifts.length > 0 ? (
+          <Text variant="subtle" color="brand" style={styles.shifts}>
+            {locale === "ko"
+              ? `최근 변화 감지: ${shifts.map((s) => `${starName(s.starId, locale)} ${s.direction === "up" ? "↑" : "↓"}`).join(", ")} - 점검해볼까요?`
+              : `Recent shift: ${shifts.map((s) => `${starName(s.starId, locale)} ${s.direction === "up" ? "↑" : "↓"}`).join(", ")} - want to re-check?`}
+          </Text>
+        ) : null}
         <Button label={locale === "ko" ? "제안 받기" : "Get a proposal"} variant="primary" onPress={generate} />
         {loading ? <ActivityIndicator color={cosmic.soulViolet} style={styles.spinner} /> : null}
         {result ? (
@@ -111,4 +143,5 @@ const styles = StyleSheet.create({
   lede: { marginBottom: spacing.sm },
   spinner: { marginTop: spacing.sm },
   result: { marginTop: spacing.sm },
+  shifts: { marginBottom: spacing.sm },
 });
