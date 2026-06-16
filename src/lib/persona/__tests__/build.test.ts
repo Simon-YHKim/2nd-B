@@ -110,6 +110,9 @@ describe("buildPersona", () => {
     expect(card.attachment).toBeNull();
     expect(card.version).toBe(1);
     expect(card.markdownExport).toContain("Persona v1");
+    // Phase A: an empty starter card leaves every star dim (L1), Soul Core 0.2.
+    expect(card.starLevels?.now).toBe(1);
+    expect(card.soulCoreBrightness).toBeCloseTo(0.2);
   });
 
   test("no written entries → skips LLM summary (no Barnum fabrication), honest empty message", async () => {
@@ -182,6 +185,8 @@ describe("buildPersona", () => {
     const card = await buildPersona("u1", "en");
     expect(card.attachment).toEqual({ style: "secure", anxiety: 2.5, avoidance: 1.8 });
     expect(card.markdownExport).toContain("Attachment style");
+    // Phase A: a completed ECR-S lights star5 (관계의 나) to L4.
+    expect(card.starLevels?.relational).toBe(4);
   });
 
   test("BFI record → traitsSource = 'bfi' + neuroticism measured directly (no inversion)", async () => {
@@ -209,6 +214,9 @@ describe("buildPersona", () => {
     // neuroticism 1.5 → (1.5 - 1) / 4 = 0.125 — preserved, NOT inverted
     expect(card.traits.neuroticism).toBeCloseTo(0.125, 5);
     expect(card.traits.openness).toBeCloseTo((4 - 1) / 4, 5);
+    // Phase A: a validated instrument lights star1 (지금의 나) to L4.
+    expect(card.starLevels?.now).toBe(4);
+    expect(card.soulCoreBrightness).toBeGreaterThan(0.2);
   });
 
   test("partial BFI score rows are ignored instead of zeroing missing traits", async () => {
