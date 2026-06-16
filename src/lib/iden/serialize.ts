@@ -18,7 +18,12 @@
 
 import type { CountMap, IdenDoc, IdenField, IdenSource, NodeGraphData, ScoreMap } from "./types";
 
-/** Marker after which the live task is appended (kept last for query-at-end). */
+/**
+ * Marker after which the live task is appended (kept last for query-at-end).
+ * The serializer inserts exactly one, right before the request; the request may
+ * itself contain this text, so a consumer should take everything after the FIRST
+ * occurrence (the one following the machine block), not split on the last.
+ */
 export const REQUEST_MARK = "⟦REQUEST⟧";
 
 const REQUEST_PLACEHOLDER = "<the actual task the user is handing to the AI>";
@@ -52,7 +57,7 @@ function plainSafe(s: string, flow: boolean): boolean {
   if (INDICATORS.includes(s[0])) return false; // an indicator may not start a plain scalar
   if (/:(?:\s|$)/.test(s)) return false; // a colon that opens a mapping
   if (/(?:^|\s)#/.test(s)) return false; // a hash that opens a comment
-  if (flow && /[,[\]{}]/.test(s)) return false; // flow-collection delimiters
+  if (flow && /[,[\]{}:]/.test(s)) return false; // flow delimiters + colon (avoids implicit-key misreads)
   if (NUMBERISH.test(s) || RADIXISH.test(s)) return false; // would parse as a number
   if (BOOLNULLISH.test(s)) return false; // would parse as bool/null
   if (DATEISH.test(s) || TIMEISH.test(s)) return false; // ambiguous timestamp across YAML versions
@@ -144,7 +149,7 @@ function serializeField(f: IdenField): string {
 function provenanceSummary(fields: IdenField[]): string {
   const counts = new Map<string, number>();
   for (const f of fields) counts.set(f.source.kind, (counts.get(f.source.kind) ?? 0) + 1);
-  return flowObj([...counts.entries()].map(([k, v]) => `${k}: ${v}`));
+  return flowObj([...counts.entries()].map(([k, v]) => `${str(k, true)}: ${v}`));
 }
 
 function machineBlock(doc: IdenDoc): string {
@@ -156,7 +161,8 @@ function machineBlock(doc: IdenDoc): string {
     `provenance_summary: ${provenanceSummary(doc.fields)}`,
     "identity:",
     `  one_liner: ${str(doc.oneLiner)}`,
-    "  fields:",
+    // Empty must serialize as an explicit [] (a bare `fields:` parses to null).
+    doc.fields.length > 0 ? "  fields:" : "  fields: []",
     ...doc.fields.map(serializeField),
   ];
   if (doc.summary) {

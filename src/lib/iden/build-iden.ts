@@ -96,8 +96,10 @@ function contentsField(label: string, data: Record<string, number>, topics?: str
 }
 
 /**
- * Compose an IdenDoc from a PersonaCard + vault counts. Pure. Fields appear only
- * when backed by real evidence; each carries an honest `source.kind`.
+ * Compose an IdenDoc from a PersonaCard + vault counts. Pure given `opts.generated`
+ * (otherwise dates to today). Fields appear only when backed by real evidence;
+ * each carries an honest `source.kind`. Field order is the spec's:
+ * traits, patterns, type, attachment, drivers, cores, contents.
  */
 export function composeIdenDoc(persona: PersonaCard | null, opts: ComposeIdenOpts): IdenDoc {
   const locale: Locale = opts.locale ?? "en";
@@ -132,7 +134,9 @@ export function composeIdenDoc(persona: PersonaCard | null, opts: ComposeIdenOpt
         .slice(0, 3)
         .map((x) => l.adj[x.k]);
       if (patterns.length > 0) {
-        fields.push({ key: "patterns", label: l.patterns, viz: "tags", placement: "main", source: src, data: patterns });
+        // Patterns are derived FROM the trait scores, not independently measured,
+        // so the honest source is `derived` regardless of where traits came from.
+        fields.push({ key: "patterns", label: l.patterns, viz: "tags", placement: "main", source: { kind: "derived" }, data: patterns });
       }
     }
   }
@@ -155,7 +159,15 @@ export function composeIdenDoc(persona: PersonaCard | null, opts: ComposeIdenOpt
   }
 
   // --- drivers (top engaged value frameworks) ---
-  const drivers = (persona?.values ?? []).slice(0, 3).map((v) => driverLabel(v, locale)).filter((d) => d.length > 0);
+  // Big Five frameworks are already the traits radar; excluding them keeps drivers
+  // about motivation (SDT / VIA / attachment), avoids showing a construct twice
+  // with two source kinds, and never surfaces "Neuroticism" (the radar hides it
+  // behind "Sensitivity").
+  const drivers = (persona?.values ?? [])
+    .filter((v) => !v.startsWith("big_five:"))
+    .slice(0, 3)
+    .map((v) => driverLabel(v, locale))
+    .filter((d) => d.length > 0);
   if (drivers.length > 0) {
     fields.push({ key: "drivers", label: l.drivers, viz: "list", placement: "rail", source: { kind: "self_report" }, data: drivers });
   }
@@ -216,6 +228,8 @@ function deriveOneLiner(persona: PersonaCard, locale: Locale): string | null {
   return null;
 }
 
+// Count-only query (no rows fetched). Expects each table to have a `user_id`
+// column (RLS-scoped): sources, records, and wiki_pages (filtered to kind=concept).
 async function countRows(table: string, userId: string, eq?: { col: string; val: string }): Promise<number> {
   const supabase = getSupabaseClient();
   let q = supabase.from(table).select("*", { count: "exact", head: true }).eq("user_id", userId);

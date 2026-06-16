@@ -26,6 +26,16 @@ describe("buildIdenExport", () => {
     expect(out.filenameBase).toBe("iden-2026-06-16");
   });
 
+  it("falls back to the generic stem for an all-symbol name", () => {
+    expect(buildIdenExport({ ...SAMPLE_IDEN, name: "!!!@@@" }).filenameBase).toBe("iden-2026-06-16");
+  });
+
+  it("caps a very long name and leaves no trailing dash", () => {
+    const out = buildIdenExport({ ...SAMPLE_IDEN, name: "A".repeat(200) + " !!! " });
+    expect(out.filenameBase).toBe(`${"a".repeat(60)}-iden-2026-06-16`);
+    expect(out.idenFilename.length).toBeLessThan(90);
+  });
+
   it("passes locale through to the rendered sheet", () => {
     const out = buildIdenExport(SAMPLE_IDEN, { locale: "ko" });
     expect(out.locale).toBe("ko");

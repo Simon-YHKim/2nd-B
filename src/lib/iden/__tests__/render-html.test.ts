@@ -29,8 +29,8 @@ describe("renderIdenHtml", () => {
   it("renders the traits radar in the rail AND bars in the main column", () => {
     expect(html).toContain('aria-label="Traits radar.'); // rail radar (data-rich name)
     expect(html).toContain('class="data"'); // radar data polygon
-    expect(html).toContain("width:82%"); // Openness bar (0.82)
-    expect(html).toContain("width:35%"); // Extraversion bar (0.35)
+    expect(html).toContain('<div class="fill" style="width:82%">'); // Openness bar (0.82)
+    expect(html).toContain('<div class="fill" style="width:35%">'); // Extraversion bar (0.35)
   });
 
   it("gives the radar full trait names + values for accessibility (queue D)", () => {
@@ -39,12 +39,13 @@ describe("renderIdenHtml", () => {
     expect(html).toContain('aria-label="Traits radar. Openness 82, Conscientiousness 68');
     expect(html).not.toContain(">Consc<"); // the old lossy abbreviation is gone
     expect(html).toContain("<title>Openness 82</title>"); // per-point hover value
+    expect(html).toContain('viewBox="0 0 240 196"'); // widened so full names never clip
   });
 
   it("renders the cores node-graph and the contents donut", () => {
     expect(html).toContain('aria-label="Pattern cores"');
     expect(html).toContain('aria-label="Contents composition"');
-    expect(html).toContain(">90<"); // donut total (48+30+12)
+    expect(html).toContain('class="dtotal">90</text>'); // donut total (48+30+12)
   });
 
   it("shows honest provenance for every measured value", () => {

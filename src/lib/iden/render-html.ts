@@ -109,7 +109,9 @@ function srcTag(src: IdenSource, t: (typeof T)[Locale]): string {
 function radarSvg(scores: ScoreMap): string {
   const keys = Object.keys(scores);
   const n = keys.length || 1;
-  const cx = 105;
+  // Wide viewBox (240) with a centered cx (120) leaves room for full trait names
+  // (e.g. "Conscientiousness") to render without clipping the right/left edge.
+  const cx = 120;
   const cy = 98;
   const R = 66;
   const pt = (i: number, r: number): [number, number] => {
@@ -142,7 +144,7 @@ function radarSvg(scores: ScoreMap): string {
     })
     .join("");
   const desc = `Traits radar. ${keys.map((k) => `${k} ${pct(scores[k])}`).join(", ")}.`;
-  return `<svg viewBox="0 0 210 196" width="100%" role="img" aria-label="${esc(desc)}"><title>${esc(desc)}</title><polygon class="grid" points="${poly(R)}"/><polygon class="grid" points="${poly(R * 0.5)}"/><g class="axis">${axes}</g><polygon class="data" points="${dpts}"/><g>${dots}</g><g class="rlabel">${labels}</g></svg>`;
+  return `<svg viewBox="0 0 240 196" width="100%" role="img" aria-label="${esc(desc)}"><title>${esc(desc)}</title><polygon class="grid" points="${poly(R)}"/><polygon class="grid" points="${poly(R * 0.5)}"/><g class="axis">${axes}</g><polygon class="data" points="${dpts}"/><g>${dots}</g><g class="rlabel">${labels}</g></svg>`;
 }
 
 function barsHtml(scores: ScoreMap): string {

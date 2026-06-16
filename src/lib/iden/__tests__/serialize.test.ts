@@ -151,6 +151,38 @@ describe("serializeIden", () => {
     expect(parsed.identity.fields[0].data).toEqual(["a, b", "true", "42"]);
   });
 
+  it("serializes an empty fields array as [] (not null)", () => {
+    const doc: IdenDoc = { iden: "0.1", name: "Bare", generated: "2026-06-16", oneLiner: "minimal", fields: [] };
+    const parsed = machine(serializeIden(doc));
+    expect(parsed.identity.fields).toEqual([]); // a bare `fields:` would parse to null
+  });
+
+  it("round-trips a battery of YAML-hostile scalars", () => {
+    const nasty = [
+      "- x", "? x", ": v", ": ", "#c", " a", "a ", "\t", "true", "false", "null", "~",
+      "0x10", "1_000", "1:2:3", "x: y", "2026-1-1", "@a", "*a", "&a", "no", "ON",
+      "a, b", "a #b", "007", "café", "日本語", "",
+    ];
+    const doc: IdenDoc = {
+      iden: "0.1",
+      name: "Edge",
+      generated: "2026-06-16",
+      oneLiner: "edge cases",
+      fields: [{ key: "tags", label: "Tags", viz: "tags", source: { kind: "self_report" }, data: nasty }],
+    };
+    expect(machine(serializeIden(doc)).identity.fields[0].data).toEqual(nasty);
+  });
+
+  it("keeps the machine block parseable even when the request contains --- and the marker", () => {
+    const req = "context:\n---\nnot: frontmatter\nalso ⟦REQUEST⟧ literal";
+    const out = serializeIden(SAMPLE_IDEN, { request: req });
+    // the machine block (first --- ... ---) still parses and is unaffected
+    expect(machine(out).name).toBe("Simon");
+    // the request is preserved verbatim after the FIRST (structural) marker,
+    // even though the request itself contains a marker and a bare --- line
+    expect(out.slice(out.indexOf(REQUEST_MARK) + REQUEST_MARK.length).trim()).toBe(req);
+  });
+
   it("is deterministic for the same input", () => {
     expect(serializeIden(SAMPLE_IDEN, { request: "x" })).toBe(serializeIden(SAMPLE_IDEN, { request: "x" }));
   });

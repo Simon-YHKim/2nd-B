@@ -41,10 +41,17 @@ describe("composeIdenDoc", () => {
   it("derives pattern tags from top positive traits (>=0.6), excluding Sensitivity, max 3", () => {
     const tags = field(composeIdenDoc(persona(), { counts: COUNTS }), "patterns");
     expect(tags?.viz).toBe("tags");
+    // patterns are derived FROM the trait scores, not independently measured
+    expect(tags).toMatchObject({ source: { kind: "derived" } });
     const data = tags && "data" in tags ? (tags.data as string[]) : [];
     expect(data).toHaveLength(3);
     expect(data).toEqual(expect.arrayContaining(["Inquisitive", "Diligent", "Warm"]));
     expect(data).not.toContain("Outgoing"); // extraversion 0.35 is below threshold
+  });
+
+  it("emits fields in the spec order", () => {
+    const doc = composeIdenDoc(persona(), { counts: COUNTS });
+    expect(doc.fields.map((f) => f.key)).toEqual(["traits", "patterns", "type", "attachment", "drivers", "cores", "contents"]);
   });
 
   it("emits MBTI type and ECR-S attachment as honest badges", () => {
@@ -53,10 +60,17 @@ describe("composeIdenDoc", () => {
     expect(field(doc, "attachment")).toMatchObject({ viz: "badge", source: { kind: "instrument", instrument: "ECR-S" }, data: "Secure" });
   });
 
-  it("turns top value frameworks into short driver labels", () => {
+  it("turns top value frameworks into short driver labels, excluding Big Five", () => {
+    // Big Five frameworks are the radar; they must not also appear as drivers.
     const drivers = field(composeIdenDoc(persona(), { counts: COUNTS }), "drivers");
     expect(drivers?.viz).toBe("list");
-    expect(drivers && "data" in drivers ? drivers.data : []).toEqual(["Autonomy", "Openness", "Character strength"]);
+    expect(drivers && "data" in drivers ? drivers.data : []).toEqual(["Autonomy", "Character strength"]);
+  });
+
+  it("never surfaces a Big Five trait (incl. Neuroticism) as a driver", () => {
+    const doc = composeIdenDoc(persona({ values: ["big_five:neuroticism", "big_five:openness"] }), { counts: COUNTS });
+    expect(field(doc, "drivers")).toBeUndefined(); // all values filtered -> no drivers field
+    expect(JSON.stringify(doc)).not.toContain("Neuroticism");
   });
 
   it("always emits cores (English node names) and contents counts", () => {

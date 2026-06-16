@@ -36,13 +36,16 @@ export interface BuildIdenExportOpts extends RenderIdenOpts {
   body?: string;
 }
 
-/** ASCII slug for a filename; empty when nothing survives (e.g. Hangul). */
+/** ASCII slug for a filename; empty when nothing survives (e.g. Hangul). Capped
+ *  so the final filename stays within filesystem limits. Not collision-safe (no
+ *  per-user discriminator) — fine for a single personal export. */
 function slugify(name: string): string {
-  return name
+  const s = name
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+  return s.slice(0, 60).replace(/-+$/, "");
 }
 
 /** Bundle an IdenDoc into its two shareable artifacts + a download stem. Pure. */
