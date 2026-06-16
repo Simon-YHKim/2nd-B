@@ -14,6 +14,9 @@ import { AUDIT_QUESTIONS, type Framework } from "../audit/questions";
 import { callGemini } from "../llm/gemini";
 import { getSupabaseClient } from "../supabase/client";
 import { isValidMbtiResult, type MbtiScores } from "./assessment-shapes";
+import type { LadderLevel } from "./brightness";
+import { soulCoreBrightness, type StarId } from "./stars";
+import { deriveStarLevels } from "./star-levels";
 
 export interface PersonaTraits {
   openness: number;
@@ -71,6 +74,12 @@ export interface PersonaCard {
   attachment: PersonaAttachment | null;
   values: string[];
   patterns: Record<string, string>;
+  /** Per-star L1-L5 brightness derived from this card's signals (Phase A canon:
+   *  stars.ts + brightness.ts). Optional so existing fixtures stay valid;
+   *  buildPersona always sets it. */
+  starLevels?: Record<StarId, LadderLevel>;
+  /** Soul Core (북극성) aggregate brightness 0-1 from starLevels (D8). */
+  soulCoreBrightness?: number;
   markdownExport: string;
 }
 
@@ -353,6 +362,12 @@ export async function buildPersona(
     patterns,
     markdownExport: renderMarkdown(traits, rows, summaryText, locale, topKinds, mbti, attachment, tc),
   };
+
+  // Phase A: derive the seven-star L1-L5 levels + Soul Core (북극성) brightness
+  // from the card's own signals (compute-on-build; persistence is a later unit
+  // per D9). Deterministic + LLM-free - the INSTRUMENT layer decides the levels.
+  persona.starLevels = deriveStarLevels(persona);
+  persona.soulCoreBrightness = soulCoreBrightness(persona.starLevels);
 
   // Persist for later reuse (RAG export, etc).
   await supabase
