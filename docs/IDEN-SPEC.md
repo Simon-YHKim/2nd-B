@@ -158,16 +158,29 @@ IDEN Viewer  ──renders──►  two-column A4 sheet (HTML, this spec's mock
 
 ## 8. Open questions (flag before build - content may change)
 
-Per Simon's standing note ("if what the system represents changes, ask"): the field set below is **current-system dummy**. Confirm before locking the renderer:
+Resolved for v0.1 (2026-06-16). Per Simon's standing note ("if what the system represents changes, ask"), the two marked *may change* are not load-bearing; the schema-driven renderer absorbs either way.
 
-- [ ] Is the `fields` set (traits, patterns, type, attachment, drivers, cores, contents) the v0.1 set, or will the system emit more/fewer?
-- [ ] Big Five surfaced as 5 axes incl. *Sensitivity* - keep, or show only a subset?
-- [ ] Cores fixed at 5, or variable count (renderer already handles N nodes)?
-- [ ] Should `summary` (AI narrative) ship in v0.1, or start data-only and add the narrative later?
+- [x] `fields` set (traits, patterns, type, attachment, drivers, cores, contents) is the v0.1 set. **May change** - render stays schema-driven.
+- [x] Big Five shows **all 5 axes** incl. *Sensitivity*.
+- [x] Cores fixed at **5** for v0.1. **May change** - renderer already handles N nodes.
+- [x] `summary` (AI narrative) **ships in v0.1**, under the "AI-generated interpretation" label, via the guarded path (§5).
+
+---
+
+## 9. Implementation status
+
+`src/lib/iden/` implements the renderer (pure, tested):
+
+- `types.ts` - `IdenDoc` / `IdenField` / `IdenSource` / `Viz`.
+- `render-html.ts` - `renderIdenHtml(doc, { locale })` produces the self-contained A4 two-column sheet. Colors sourced only from `theme/tokens` (`lightCosmic` paper/ink + `cosmic` accent/core hues); translucency via SVG `fill-opacity`; zero new hex literals.
+- `sample.ts` - `SAMPLE_IDEN`, the dummy doc mirrored from mock E.
+- `__tests__/render-html.test.ts` - 9 contract tests (radar+bars, donut, node-graph, provenance, AI-summary separation, schema-driven drop, KO locale, HTML escaping, no em dash / no forbidden lexicon).
+
+Not yet built (next): `serialize.ts` (`IdenDoc` -> `.iden` text machine block, the AI-readable half) and `buildIdenDoc()` (Supabase data -> `IdenDoc`, ties to the §6 Personal Context Pack). PDF export = browser print of the rendered sheet.
 
 ---
 
 ## Appendix - reference mocks
 
 Design exploration lives in `docs/iden-mocks/` (throwaway, dummy data):
-`iden-E-twocol.html` (locked direction) · `iden-D-editorial.html` (single-column alt).
+`iden-E-twocol.html` (locked direction) · `iden-D-editorial.html` (single-column alt) · `iden-rendered.html` (actual `renderIdenHtml` output).
