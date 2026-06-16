@@ -366,6 +366,11 @@ export default function CoreBrain() {
             variant="secondary"
             onPress={() => router.push({ pathname: "/secondb", params: { mode: "divergent" } })}
           />
+          <Button
+            label={locale === "ko" ? "제안 받고 점검하기" : "Review a proposal"}
+            variant="primary"
+            onPress={() => router.push("/review")}
+          />
         </Section>
 
         {/* 8) 세컨비에게 이 중심으로 묻기 */}
