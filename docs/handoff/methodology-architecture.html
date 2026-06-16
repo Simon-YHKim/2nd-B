@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2nd-Brain · 방법론 설계·연구 아키텍처 (런타임 위)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root{--bg:#070A18;--card:#0D1530;--card2:#16213E;--line:#2A345A;--ink:#E8ECF8;--muted:#C9D0E6;--subtle:#8D98B8;--mint:#72F2C7;--blue:#4CC9F0;--violet:#A78BFA;--amber:#FFD166;--rose:#FF7A90}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--muted);font-family:Pretendard,system-ui,sans-serif;line-height:1.6}
+  .wrap{max-width:1020px;margin:0 auto;padding:46px 22px 90px}
+  .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);font-weight:700}
+  h1{font-size:26px;font-weight:800;color:var(--ink);letter-spacing:-.02em;margin:10px 0 6px}
+  .lead{color:var(--subtle);font-size:14px;margin:0 0 8px}
+  h2{font-size:12px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--ink);margin:44px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:14px;font-weight:700;color:var(--ink);margin:18px 0 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0 10px}
+  th{text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--subtle);font-weight:700;padding:7px 9px;border-bottom:1px solid var(--line)}
+  td{padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td b{color:var(--ink)}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--card2);padding:1px 6px;border-radius:4px;color:var(--ink)}
+  .pill{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap}
+  .built{background:rgba(114,242,199,.16);color:var(--mint)}
+  .design{background:rgba(255,209,102,.16);color:var(--amber)}
+  .src{background:rgba(167,139,250,.16);color:var(--violet)}
+  .gone{background:rgba(255,122,144,.14);color:var(--rose)}
+  .callout{background:rgba(255,209,102,.06);border:1px solid #6b5a2e;border-left:3px solid var(--amber);border-radius:10px;padding:14px 18px;margin:14px 0;font-size:13.5px}
+  .callout b{color:var(--ink)}
+  .layers{display:grid;grid-template-columns:74px 1fr;font-size:12.5px}
+  .layers>div{padding:8px 10px;border-bottom:1px solid var(--line)}
+  .layers .k{font-weight:700;color:var(--ink)}
+  .small{font-size:11.5px;color:var(--subtle)}
+  ul{margin:6px 0;padding-left:18px}li{font-size:12.5px;margin:3px 0}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin:6px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">2nd-Brain · 방법론 정정/보충 · 런타임 지도 위의 설계·연구 레이어</div>
+  <h1>방법론 설계·연구 아키텍처</h1>
+  <p class="lead">앞 "방법론 지도"는 <b>런타임 측정도구</b>(BFI/ECR/audit/interview)만 담았습니다. 그 위에 <b>개념(Brain Trinity 매뉴얼) · 설계(v0.2 4-Layer + Engine) · 연구(34 배치/569 참조)</b> 레이어가 있고, 상당수는 <b>설계·연구만 됐고 미구현</b>입니다.</p>
+  <div class="legend">
+    <span class="pill built">BUILT 런타임 구현</span>
+    <span class="pill design">DESIGNED 설계·연구만</span>
+    <span class="pill src">SOURCE 외부 출처 영감</span>
+    <span class="pill gone">은퇴/대체</span>
+  </div>
+
+  <div class="callout">
+    <b>"Brain Trinity 이런것도 있지 않았어?" → 맞습니다, 그게 빙산의 일각.</b> Brain Trinity는 단순 화면이 아니라 <b>외부 출처 매뉴얼</b>(아래 1)에서 온 개념이고, 그걸 출발점으로 <b>v0.2 분석시스템 + 7-Engine + 569참조 연구기반</b>(아래 2~4)이 설계됐습니다. 제 런타임 지도엔 이 레이어가 빠져 있었습니다.
+  </div>
+
+  <!-- 1. Brain Trinity source -->
+  <h2>1 · Brain Trinity — 출처 방법론 <span class="pill src">SOURCE</span></h2>
+  <div class="card">
+    <div class="small" style="margin-bottom:8px"><code>docs/research/batches/methodology-birkman-brain-trinity.md</code> — "Self-Awareness Methodology Manual v1.0 (2026.05.25)" 비판적 감사. 저자 "브레인 트리니티의 브라이언"(Brian Choi, 한국 유튜브).</div>
+    <h3>측정 → 설계 → 운영 파이프라인</h3>
+    <div class="layers">
+      <div class="k">측정</div><div><b>Birkman Method</b> (1:1 컨설턴트 필수). 9개 구성요소 중 <b>유일하게 동료심사 검증</b>(Maxwell 2016, 중간 수준)</div>
+      <div class="k">설계</div><div><b>Brain Trinity 4계층</b>: <b>0th Brain</b>(Polaris 철학문서/5W1H) · <b>1st Brain</b>(Tiago Forte PARA in Obsidian) · <b>2nd Brain</b>(workspace 툴링) · <b>3rd Brain</b>(Karpathy LLM Wiki 패턴)</div>
+      <div class="k">운영</div><div>일/주/월/년 사이클로 네 계층을 묶음</div>
+    </div>
+    <p class="small" style="margin-top:10px"><b>감사 결론</b>: 9개 중 Birkman만 peer-review(중간), 나머지(PARA·Karpathy Wiki·Polaris·Zettelkasten·DIKW·GTD·Bush 1945)는 실무/역사 출처. 매뉴얼이 전부 동등 검증된 듯 제시 → 오해소지. <b>유지할 것</b>: 측정-먼저-설계 순서 · 살아있는 문서(v0.1→v1.0) · Karpathy Wiki(LLM 통합). <b>과장</b>: Birkman 편향 Big Five 비교표(실제 Big Five는 직무·수명 예측 강함).</p>
+    <p class="small"><b>앱의 현행 <code>/trinity</code></b> = 이 개념의 후손 — Simon 본인 운영 <b>4영역(건강/앱/뇌/재정)</b> 인생관리 대시보드(태그 집계). <span class="pill built">BUILT</span> 단, 위 4계층(0th~3rd)과는 다른 단순화 버전.</p>
+  </div>
+
+  <!-- 2. v0.2 analysis system -->
+  <h2>2 · "분석 시스템 v0.2" 아키텍처 <span class="pill design">DESIGNED · 부분 BUILT</span></h2>
+  <div class="small" style="margin-bottom:6px"><code>docs/research/v0.2-design-doc-mapping.md</code> — 569 참조로 백킹된 설계 정본.</div>
+  <div class="card">
+    <h3>§00 매니페스토</h3>
+    <p class="small">"<b>data가 말하는 만큼만 말한다</b>" — 증거-주장 분리, 측정불가 정직성, LLM=분류기(평가자 아님). <span class="pill built">BUILT</span> (persona 엔진 anti-Barnum/SOKA로 일부 구현)</p>
+    <h3>§02 LLM-Agnostic 4 Layer</h3>
+    <table>
+      <tr><th>Layer</th><th>내용</th><th>상태</th></tr>
+      <tr><td><b>L1 사실 카드</b></td><td>JSON 구조화 입력(constrained decoding) + RAG 그라운딩</td><td><span class="pill built">부분</span> (phase1/wiki)</td></tr>
+      <tr><td><b>L2 이론 매트릭스</b></td><td>인지(CHC) · 성격(Big Five+landscape) · 동기(SDT) · 정서(EI/MSCEIT) · 인지양식(dual-process) · 보조(Gardner MI Tier C)</td><td><span class="pill design">대부분 설계만</span></td></tr>
+      <tr><td><b>L3 행동 분류</b></td><td>Behavior Taxonomy(행동 코딩, κ 신뢰도)</td><td><span class="pill design">설계만</span></td></tr>
+      <tr><td><b>L4 Cross-LLM 검증</b></td><td>비결정성 대비 교차검증</td><td><span class="pill design">설계만</span></td></tr>
+    </table>
+    <h3>핵심 프로토콜</h3>
+    <ul>
+      <li><b>Ledger vs Voice 분리</b> — cold 사실(Ledger) / warm 재서술(Voice, 사실 추가 불가). <span class="pill built">부분 BUILT</span> (<code>persona/center.ts · self-portrait.ts · chat/personas.ts</code>)</li>
+      <li><b>3-Tier 증거 저장</b> — Tier A 원문 영구 / B 맥락 30일 / C 사용자선택+purge (GDPR 17). <span class="pill design">설계</span></li>
+      <li><b>Ambiguity Resolution Queue</b> — 저신뢰 항목을 앱 진입 시 사용자 보정(active learning). <span class="pill design">설계</span></li>
+      <li><b>Golden Set Protocol</b> — 분기별 100 페르소나 κ 캘리브레이션, dimension std-dev → taxonomy 개정. <span class="pill design">설계</span></li>
+      <li><b>Develop Queue Q1~Q5</b> — Output Schema · Behavior Taxonomy 마스터 · 이론 매트릭스 · Golden Set · lexicon+법무. <span class="pill design">설계</span></li>
+    </ul>
+  </div>
+
+  <!-- 3. 7-engine -->
+  <h2>3 · 7-Engine / AI-OS 파이프라인 <span class="pill design">DESIGNED · §1 일부 BUILT</span></h2>
+  <div class="small" style="margin-bottom:6px"><code>docs/AI-OS-ARCHITECTURE.md</code> §1~§7 빌드블록.</div>
+  <table>
+    <tr><th>엔진/블록</th><th>역할</th><th>상태</th></tr>
+    <tr><td><b>Engine 1</b> 인제스트</td><td>클리핑 → 고정 스키마 자동정리 + 대량 덤프(pgmq)</td><td><span class="pill built">BUILT (#396 §1 dedup/gate/pii)</span></td></tr>
+    <tr><td><b>Engine 2</b> 추론</td><td>특성 추출(computational personality) + confidence band</td><td><span class="pill built">BUILT (persona v1)</span></td></tr>
+    <tr><td><b>Engine 3</b> 검색</td><td>청킹 + 컨텍스트 헤더 + 인덱스/요약-우선 RAG (현재 #1 약점)</td><td><span class="pill built">부분 (retrieve.ts)</span></td></tr>
+    <tr><td><b>Engine 4</b> 리프레이밍</td><td>CBT/REBT 재구성</td><td><span class="pill design">연구만(cbt-rebt 배치)</span></td></tr>
+    <tr><td><b>§5</b> 타입드 엣지</td><td>양시간(bi-temporal) 지식 그래프 엣지</td><td><span class="pill design">설계</span></td></tr>
+    <tr><td><b>§6</b> 내보내기</td><td>공용 LLM이 우리 시스템대로 — Context Pack + IDEN</td><td><span class="pill built">BUILT (#396/#398)</span></td></tr>
+    <tr><td><b>§7</b> SPL 루프</td><td>System Prompt Learning + 개발단계 멀티에이전트</td><td><span class="pill design">설계</span></td></tr>
+    <tr><td><b>Engine 7</b> 안전</td><td>위기 분류 C9 (crisis-detection)</td><td><span class="pill built">BUILT (classifyInput)</span></td></tr>
+  </table>
+
+  <!-- 4. research substrate -->
+  <h2>4 · 이론 매트릭스 / 연구 기반 — 34 배치 · 308 DOI · 569 참조 <span class="pill design">대부분 DESIGNED</span></h2>
+  <div class="small" style="margin-bottom:6px"><code>docs/research/batches/INDEX.md</code> · <code>psychology-handoff.md</code>. 검증 프레임워크만, 팝심리(러브랭귀지·점성술·MBTI파생·에니어그램 약함) 거부.</div>
+  <table>
+    <tr><th>카테고리</th><th>프레임워크 (DOI수)</th><th>런타임?</th></tr>
+    <tr><td>성격</td><td>Big Five(7) · assessment-landscape(HEXACO·16PF·HPI·RIASEC·Schwartz·EI·Birkman·MBTI/에니어그램 비판, 9) · <b>whole-trait</b> 밀도분포(13)</td><td><span class="pill built">Big Five만</span></td></tr>
+    <tr><td><b>인지</b></td><td><b>CHC 인지능력</b>(20, primary) · <b>dual-process</b> 시스템1/2(20) · multiple-intelligences(Tier C)</td><td><span class="pill design">미구현</span></td></tr>
+    <tr><td><b>정서</b></td><td><b>정서지능 MSCEIT</b>(13, ability-EI)</td><td><span class="pill design">미구현</span></td></tr>
+    <tr><td>동기·의미</td><td>SDT(4) · <b>values_meaning</b> "철학"층(5: 자기일치목표·BPS·MIL·ACT)</td><td><span class="pill built">SDT만</span></td></tr>
+    <tr><td>발달</td><td>Erikson(5) · emerging_adulthood(4) · SOC/aging(4) · <b>personality_change</b> 현실적 변화율(14)</td><td><span class="pill built">Erikson만(grounding)</span></td></tr>
+    <tr><td>정체성</td><td>narrative_identity(4, interview 근거) · self_concept_clarity 다중성(15) · <b>self_knowledge</b> 핵심방법(7: RRQ 반추vs숙고·SRIS 통찰·SCCS)</td><td><span class="pill built">interview만</span></td></tr>
+    <tr><td>성장</td><td>growth_mindset(3) · self_compassion(3) · VIA(3) · habit_formation(12)</td><td><span class="pill built">VIA만(grounding)</span></td></tr>
+    <tr><td>메타(신뢰도)</td><td><b>computational_personality</b>(5, Engine 2 신뢰도 r≈0.4 천장) · <b>metacognition</b> 내성 한계(14) · <b>self_report_bias</b> SOKA(17)</td><td><span class="pill built">SOKA 일부</span></td></tr>
+    <tr><td><b>교차문화</b></td><td>east_asian(26: 정·우리·체면·한·눈치) · global_south(22)</td><td><span class="pill design">미구현</span></td></tr>
+    <tr><td>안전·임상인접</td><td>crisis_detection(7+global 16) · cbt/rebt(4) · ai_mental_health(5) · wellbeing_kpi(4: SWLS·WHO-5·PERMA) · data_ethics(1)</td><td><span class="pill built">crisis만</span></td></tr>
+  </table>
+  <p class="small">방법론 7 docs(118 refs): llm-agnostic-design · uncertainty-calibration · active-learning-hil · privacy-preserving-ml · ai-memory-architecture · adversarial-robustness · onboarding-ftux. 법무 jurisdiction-compliance(87 법령+56 URL).</p>
+
+  <!-- 5. gap -->
+  <h2>5 · 현실 갭 — 측정 중 vs 설계만</h2>
+  <table>
+    <tr><th></th><th>구축됨(런타임)</th><th>설계·연구만(미구현)</th></tr>
+    <tr><td><b>도구</b></td><td>BFI-44 · ECR-S · MBTI(강등) · audit · interview · ESM · 일일프롬프트</td><td>인지(CHC/IQ — <b>법적 회피로 의도적 보류</b>) · 정서지능(MSCEIT) · dual-process · whole-trait 밀도 · behavior taxonomy</td></tr>
+    <tr><td><b>엔진</b></td><td>Engine 1 인제스트 · 2 추론(v1) · 3 검색(부분) · 7 안전 · §6 내보내기</td><td>Engine 4 리프레이밍(CBT) · §5 타입드엣지 · §7 SPL 루프 · 4-Layer L3/L4 · Golden Set · Ambiguity Queue · 3-Tier 저장</td></tr>
+    <tr><td><b>개념</b></td><td>/trinity(Simon 4영역) · Ledger/Voice(부분)</td><td>Brain Trinity 0th~3rd 4계층 · Birkman 측정</td></tr>
+  </table>
+
+  <p class="small" style="margin-top:20px">생성: Claude Code · <code>v0.2-design-doc-mapping.md</code> · <code>AI-OS-ARCHITECTURE.md</code> · <code>batches/INDEX.md</code> · <code>methodology-birkman-brain-trinity.md</code> 직접 인용. 런타임 상태는 <code>src/lib/{persona,knowledge,safety,ingest,iden}</code> 대조.</p>
+</div>
+</body>
+</html>

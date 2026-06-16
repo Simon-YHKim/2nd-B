@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2nd-Brain · 기능 & 화면 연결 지도</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root{
+    --ink:#1A1726; --body:#2C2940; --muted:#7B7890; --faint:#A9A6BA;
+    --line:#E7E5EE; --paper:#FBFAFE; --rail:#F3F1FA; --accent:#6D51D6;
+    --c-know:#2BA8C4; --c-bond:#C9A227; --c-rec:#7E8AA8; --c-muse:#D269A6; --c-growth:#2F86C4;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#ECEAF2;color:var(--body);font-family:Pretendard,system-ui,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 22px 80px}
+  h1{font-size:27px;font-weight:800;color:var(--ink);letter-spacing:-.02em;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 6px}
+  .tag{display:inline-block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  h2{font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);margin:44px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:15px;font-weight:700;color:var(--ink);margin:26px 0 8px}
+  p{margin:0 0 12px}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0;box-shadow:0 1px 16px rgba(20,18,40,.05)}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0 14px}
+  th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:bottom}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  td.r{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink);white-space:nowrap}
+  td.links{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  .axis{display:inline-block;width:18px;height:18px;border-radius:5px;text-align:center;line-height:18px;font-size:11px;font-weight:800;color:#fff}
+  .a1{background:#3A7BD5}.a2{background:#6D51D6}.a3{background:#C0467E}.ax{background:#8D98B8}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--body);margin:8px 0 0}
+  .legend span{display:flex;align-items:center;gap:7px}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--rail);color:var(--accent);margin-right:6px}
+  .layer{display:grid;grid-template-columns:90px 1fr;gap:0;font-size:13px}
+  .layer>div{padding:8px 10px;border-bottom:1px solid var(--line)}
+  .layer .k{font-weight:700;color:var(--ink)}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:var(--rail);padding:1px 5px;border-radius:4px;color:var(--ink)}
+  .flag{border-left:3px solid var(--accent);padding:4px 0 4px 14px;margin:10px 0}
+  .flag.warn{border-color:#C0467E}
+  .flag b{color:var(--ink)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  .nav-src{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--ink);font-weight:700}
+  .small{font-size:12px;color:var(--muted)}
+  ul{margin:6px 0 12px;padding-left:20px}
+  li{margin:3px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="tag">2nd-Brain · 정본 정리</div>
+  <h1>기능 &amp; 화면 연결 지도</h1>
+  <p class="sub">AI 시대, 가장 가치있는 것은 나 자신 입니다. · 라우트 39개 화면 + 4 탭 + 5계층 세계관 · 화면 연결 재설계용</p>
+  <div class="legend">
+    <span><i class="axis a1">1</i> 알아가기 (자기 데이터 축적)</span>
+    <span><i class="axis a2">2</i> 개인 비서 (RAG 위 vibe)</span>
+    <span><i class="axis a3">3</i> 공상 → 구체화</span>
+    <span><i class="axis ax">·</i> 공통 (auth/설정/유틸)</span>
+  </div>
+
+  <!-- ============ 세계관 ============ -->
+  <h2>0 · 세계관 5계층 (그래프·네비·색의 정본)</h2>
+  <div class="card">
+    <div class="layer">
+      <div class="k">1st · Soul Core</div><div>나의 중심 = 5 Pattern Core가 모여 형성. 마스코트 <b>SecondB</b>. 내부키 <code>core</code> · 화면 <code>/core-brain</code></div>
+      <div class="k">2nd · Pattern Core ×5</div><div><b>Growth</b>(일·성장/Archon/<code>work</code>) · <b>Bond</b>(관계/Relia/<code>relation</code>) · <b>Wisdom</b>(지식/Lumen/<code>knowledge</code>) · <b>Muse</b>(취향/Lumina/<code>taste</code>) · <b>Narrative</b>(기록/Foreman Momo/<code>records</code>)</div>
+      <div class="k">3rd · Pattern Data</div><div>Log 들로 만들어진 카테고리 (도메인 태그)</div>
+      <div class="k">4th · Log</div><div>사용자 기록 원자료 · 내부키 <code>sources</code> · <code>records</code></div>
+      <div class="k">공통 · Pattern Link</div><div>전 계층을 잇는 그래프 엣지</div>
+    </div>
+    <p class="small">공상 = 장소가 아니라 SecondB 대화의 <b>Divergent 모드</b> (Analytic 모드와 짝). 두 모드 모두 C9→C3→<code>gemini.ts</code> 안전 경로. <code>/imagine</code>·<code>/jarvis</code> 라우트는 회귀 위험 때문에 보존되나 그래프 진입점은 제거된 vestigial.</p>
+  </div>
+
+  <!-- ============ 1차 네비 ============ -->
+  <h2>1 · 1차 네비게이션 &amp; 인증 게이트</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="margin-top:0">하단 탭 (항상 노출) — <code>lib/nav/tabs.ts</code></h3>
+      <table>
+        <tr><td class="r">/</td><td>그래프 (마을 별자리 · 홈)</td></tr>
+        <tr><td class="r">/capture</td><td>담기 (5-mode 입력)</td></tr>
+        <tr><td class="r">/secondb</td><td>세컨비 (RAG 챗)</td></tr>
+        <tr><td class="r">/profile</td><td>나 (프로필 허브)</td></tr>
+      </table>
+      <p class="small"><code>/settings</code>만 프로필 자식(스택). 탭 화면은 BackArrow 숨김.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">인증·게이트 플로우</h3>
+      <ul>
+        <li><b>IntroGate</b> — 디바이스당 1회 셀팀 인트로 (AsyncStorage/sessionStorage)</li>
+        <li><code>!userId</code> → <code>/sign-in</code> (모든 기능 화면 가드)</li>
+        <li><code>hasProfile === false</code> → <code>/complete-profile</code> (C10·PIPA 동의, 필수 게이트)</li>
+        <li>온보딩 미완 → <code>/onboarding</code></li>
+        <li>OAuth 콜백 → <code>/oauth-callback</code> → <code>/complete-profile</code></li>
+        <li><code>(auth)/</code> 그룹은 프로필 게이트 우회 (가입 완료용)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============ 축별 인벤토리 ============ -->
+  <h2>2 · 축별 기능 인벤토리</h2>
+
+  <h3><i class="axis a1">1</i> 알아가기 — 자기 데이터 축적</h3>
+  <table>
+    <tr><th>라우트</th><th>기능</th><th>주요 나가는 링크</th></tr>
+    <tr><td class="r">/</td><td>그래프 마을: Soul Core 중심 + 5 Pattern Core 별자리, 데이터 구동</td><td class="links">/capture · /secondb · /core-brain · /records</td></tr>
+    <tr><td class="r">/core-brain</td><td>소울 코어: 페르소나 카드 + 5 center card + 근거 서랍</td><td class="links">/secondb{core} · /record/[id] · /records · /</td></tr>
+    <tr><td class="r">/records</td><td>기록 보관소: journal+sources 병합 read, 마을 필터</td><td class="links">/wiki · /record/[id] · /core-brain · /capture</td></tr>
+    <tr><td class="r">/record/[id]</td><td>조각 상세 (일기 또는 소스), 핸드오프</td><td class="links">/?highlight · /secondb{title} · /records?village · /capture</td></tr>
+    <tr><td class="r">/wiki</td><td>사용자 위키 (지식 마을): 분류된 소스에서 생성 + 내보내기</td><td class="links">/?highlightWikiPageId · /secondb{title} · /capture · /record/[id]</td></tr>
+    <tr><td class="r">/capture</td><td>담기 5-mode: 일기(streak)/메모/링크/OCR/파일 + 분류 게이트</td><td class="links">/audit · /persona · /import · /trinity</td></tr>
+    <tr><td class="r">/journal</td><td><span class="pill">redirect</span>→ /capture (통합 입력점)</td><td class="links">/capture</td></tr>
+    <tr><td class="r">/persona</td><td>페르소나 카드: top-3 trait, Big Five 차트, 애착</td><td class="links">/audit · /big-five · /attachment · /core-brain · /interview · /research · /trinity · /capture</td></tr>
+    <tr><td class="r">/big-five</td><td>BFI-44 정량 평가 (검증)</td><td class="links">/persona</td></tr>
+    <tr><td class="r">/attachment</td><td>ECR-S 애착 정량 평가 (검증)</td><td class="links">/persona</td></tr>
+    <tr><td class="r">/mbti</td><td><span class="pill">redirect</span>→ /persona (참고용, Big Five 우선)</td><td class="links">/persona</td></tr>
+    <tr><td class="r">/audit</td><td>과거의 나: 시기 회고 인터뷰 (프레임워크 고정 질문)</td><td class="links">/ · /persona · /capture</td></tr>
+    <tr><td class="r">/interview</td><td>심층 인터뷰: 5계층 × 5시기 drill-down</td><td class="links">(dead-end · BackArrow)</td></tr>
+    <tr><td class="r">/import</td><td>자재 반입: 마크다운/노트 일괄 + 분류 → 그래프</td><td class="links">/ (저장 성공)</td></tr>
+    <tr><td class="r">/formats</td><td>클리퍼 템플릿 관리 (생성/공유/삭제)</td><td class="links">(dead-end · BackArrow)</td></tr>
+    <tr><td class="r">/iden</td><td><b>IDEN 내보내기</b>: .iden(AI용) + CV 시트 · 복사/공유/PDF</td><td class="links">(dead-end · BackArrow)</td></tr>
+    <tr><td class="r">/data</td><td>데이터 관리 허브: 내보내기/가져오기/삭제 안내 + 라우팅</td><td class="links">/settings · /wiki · /iden(신규)</td></tr>
+  </table>
+
+  <h3><i class="axis a2">2</i> 개인 비서 — RAG 위 vibe</h3>
+  <table>
+    <tr><th>라우트</th><th>기능</th><th>주요 나가는 링크</th></tr>
+    <tr><td class="r">/secondb</td><td>세컨비 RAG 챗 (Analytic + Divergent 모드), 캐릭터 보이스, 퀵액션</td><td class="links">/core-brain · /records · /wiki</td></tr>
+    <tr><td class="r">/jarvis</td><td><span class="pill">redirect</span>→ /secondb (레거시 챗 라우트)</td><td class="links">/secondb{params}</td></tr>
+    <tr><td class="r">/insights</td><td>요즘 뭘 적었는가: records+sources 패턴 종합</td><td class="links">(dead-end · BackArrow)</td></tr>
+    <tr><td class="r">/trinity</td><td>Brain Trinity: 건강/앱/뇌/재정 4영역 점검</td><td class="links">/capture</td></tr>
+    <tr><td class="r">/research</td><td>심리 참조 문헌 (Big Five·애착·SDT·CBT…), DOI/URL 검증</td><td class="links">(dead-end · BackArrow)</td></tr>
+    <tr><td class="r">/ops</td><td>루틴(O-R3): 1영역 선택 → 내 조각에서 다음 단계 → 캘린더/공유</td><td class="links">(dead-end · BackArrow)</td></tr>
+    <tr><td class="r">/esm</td><td>ESM 체크인: 맥락(위치/활동) + 에너지 샘플링</td><td class="links">(dead-end · BackArrow)</td></tr>
+  </table>
+
+  <h3><i class="axis a3">3</i> 공상 → 구체화 — 미래의 나</h3>
+  <table>
+    <tr><th>라우트</th><th>기능</th><th>주요 나가는 링크</th></tr>
+    <tr><td class="r">/secondb?mode=divergent</td><td>Divergent 모드: data 기반이되 전혀 다른 관점 (장소 아님, 대화 모드)</td><td class="links">= /secondb</td></tr>
+    <tr><td class="r">/imagine</td><td><span class="pill">redirect</span>→ /secondb?mode=divergent (vestigial)</td><td class="links">/secondb?mode=divergent</td></tr>
+  </table>
+
+  <h3><i class="axis ax">·</i> 공통 — 인증 / 설정 / 유틸</h3>
+  <table>
+    <tr><th>라우트</th><th>기능</th><th>주요 나가는 링크</th></tr>
+    <tr><td class="r">/profile</td><td>프로필 허브: 정보·구독 + 평가/설정 퀵칩</td><td class="links">/settings · /plans · /big-five · /mbti · /attachment · /interview · /persona · /account · /privacy</td></tr>
+    <tr><td class="r">/settings</td><td>설정 허브: 언어·폰트·분석·위험구역</td><td class="links">/profile · /privacy · /account · /theme · /sign-in(logout)</td></tr>
+    <tr><td class="r">/privacy</td><td>프라이버시·동의 철회 (키별)</td><td class="links">/settings</td></tr>
+    <tr><td class="r">/account</td><td>계정: 생년월일 수정·계정 삭제·age-out 자동 해제</td><td class="links">/settings</td></tr>
+    <tr><td class="r">/theme</td><td>테마(다크/라이트) + 읽기 폰트 토글</td><td class="links">/settings</td></tr>
+    <tr><td class="r">/plans</td><td>구독 관리 (티어·업그레이드)</td><td class="links">(BackArrow)</td></tr>
+    <tr><td class="r">/sign-in /sign-up /complete-profile /reset-password /oauth-callback /onboarding</td><td>인증·가입·온보딩 플로우</td><td class="links">상단 인증 게이트 참조</td></tr>
+    <tr><td class="r">/permissions</td><td>권한 투명성 (사용중/선택/예정/미사용)</td><td class="links">/manual</td></tr>
+    <tr><td class="r">/manual</td><td>사용 설명서 + 시작 가이드</td><td class="links">/permissions</td></tr>
+    <tr><td class="r">/support</td><td>지원: FAQ + 문의 (2영업일 SLA · C11)</td><td class="links">(dead-end · BackArrow)</td></tr>
+  </table>
+
+  <!-- ============ 재설계 포인트 ============ -->
+  <h2>3 · 화면 연결 재설계 포인트 (가장 중요)</h2>
+
+  <div class="card">
+    <h3 style="margin-top:0">고아 화면 (다른 화면에서 들어오는 링크가 없음 — 직접 URL/탭으로만 도달)</h3>
+    <div class="flag warn"><b>/insights</b> · <b>/ops</b> · <b>/esm</b> — 축 2의 핵심 가치(패턴 종합·루틴·체크인)인데 어느 화면도 연결 안 함. 진입점 필요 (예: /profile 퀵칩, /secondb 퀵액션, 또는 /core-brain center card).</div>
+    <div class="flag warn"><b>/data</b> · <b>/support</b> · <b>/permissions</b> · <b>/manual</b> — 유틸. /settings·/profile 어딘가에서 한 번씩은 닿게.</div>
+    <div class="flag warn"><b>/iden</b> — 방금 /data에 카드 추가했지만, /data 자체가 고아라 체인이 끊김. /profile 또는 /settings에서 /data(또는 /iden) 직접 진입점 추가 권장.</div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">막다른 화면 (나가는 CTA 없음 — BackArrow로만 탈출)</h3>
+    <p class="small"><code>/interview</code> · <code>/formats</code> · <code>/iden</code> · <code>/insights</code> · <code>/research</code> · <code>/ops</code> · <code>/esm</code> · <code>/support</code> · <code>/plans</code></p>
+    <div class="flag">완료 후 "다음 한 걸음" CTA가 비어 있음. 예: /interview·/audit 완료 → /persona 또는 /core-brain; /insights → /secondb{관련 패턴}; /research → /secondb 또는 /persona.</div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Vestigial 리다이렉트 (세계관 v-final로 통합됨)</h3>
+    <table>
+      <tr><th>구 라우트</th><th>→ 현행</th><th>의미</th></tr>
+      <tr><td class="r">/journal</td><td class="r">/capture</td><td>입력 단일화</td></tr>
+      <tr><td class="r">/jarvis</td><td class="r">/secondb</td><td>챗 = 세컨비</td></tr>
+      <tr><td class="r">/mbti</td><td class="r">/persona</td><td>Big Five 우선</td></tr>
+      <tr><td class="r">/imagine</td><td class="r">/secondb?mode=divergent</td><td>공상 = 장소 아닌 모드</td></tr>
+      <tr><td class="r">/graph</td><td class="r">/ (재export)</td><td>deep-space 계약</td></tr>
+    </table>
+    <p class="small">VISION.md 표는 아직 일부 구 라우트(<code>/jarvis</code>, <code>/imagine</code>)를 정본으로 적어둠 — 문서 갱신 후보.</p>
+  </div>
+
+  <!-- ============ 백그라운드 시스템 ============ -->
+  <h2>4 · 백그라운드 기능 시스템 (<code>src/lib/</code>, 화면 뒤)</h2>
+  <table>
+    <tr><th>모듈</th><th>역할</th><th>제약</th></tr>
+    <tr><td class="r">safety</td><td>위기 분류·렉시콘 차단·핫라인 라우팅·감사로그</td><td class="links">C9 · C3</td></tr>
+    <tr><td class="r">llm/gemini</td><td>통합 Gemini 래퍼: 챗·OCR·분류·페르소나</td><td class="links">C1 · C2</td></tr>
+    <tr><td class="r">chat</td><td>RAG 대화(analytic/divergent), 캐릭터 보이스, 인용, 일일 한도</td><td class="links">—</td></tr>
+    <tr><td class="r">persona</td><td>특성 추론·Big Five·애착·self-portrait·center card</td><td class="links">—</td></tr>
+    <tr><td class="r">graph</td><td>마을 relatedness·노드 맵·엣지·복귀 하이라이트</td><td class="links">tier 시스템</td></tr>
+    <tr><td class="r">wiki</td><td>클리퍼 감지·소스 분류·템플릿·capture·phase1/2</td><td class="links">C8</td></tr>
+    <tr><td class="r">ingest</td><td>dedup 게이트(exact+MinHash-LSH)·드롭 원장·정규화 <span class="pill">신규 #396</span></td><td class="links">0044</td></tr>
+    <tr><td class="r">iden</td><td>IDEN: .iden 직렬화·CV 렌더·빌더·export <span class="pill">신규 #396/#398</span></td><td class="links">C7</td></tr>
+    <tr><td class="r">records / journal / audit / interview / esm</td><td>입력·streak·시기회고·drill-down·샘플링</td><td class="links">—</td></tr>
+    <tr><td class="r">progression</td><td>티어 게이트·엔타이틀먼트·프리미엄 체크</td><td class="links">—</td></tr>
+    <tr><td class="r">auth / privacy / account</td><td>OAuth·세션·연령게이트·동의·삭제</td><td class="links">C10</td></tr>
+    <tr><td class="r">i18n / theme / motion / analytics / supabase</td><td>로케일·테마·전환·분석게이팅·RLS 클라이언트</td><td class="links">C7</td></tr>
+  </table>
+
+  <p class="small" style="margin-top:30px">생성: Claude Code · 코드 기준 (tabs.ts · 라우트 39 · VISION.md v-final). 화면 한줄/링크는 코드의 실제 router.push/Link/Redirect에서 추출.</p>
+
+</div>
+</body>
+</html>

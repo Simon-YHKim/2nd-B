@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2nd-Brain · 총람 (Claude Design 핸드오프)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#070A18;--c1:#0D1530;--c2:#16213E;--line:#2A345A;--ink:#E8ECF8;--mut:#C9D0E6;--sub:#8D98B8;
+    --mint:#72F2C7;--blue:#4CC9F0;--violet:#A78BFA;--violet2:#7C5EE8;--amber:#FFD166;--pink:#FF9FD6;--rose:#FF7A90}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--mut);font-family:Pretendard,system-ui,sans-serif;line-height:1.6;font-size:14px}
+  .wrap{max-width:1120px;margin:0 auto;padding:40px 22px 100px}
+  .px{font-family:"Press Start 2P",monospace}
+  a{color:var(--mint);text-decoration:none}
+  .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--mint);font-weight:700}
+  h1{font-size:30px;font-weight:800;color:var(--ink);letter-spacing:-.02em;margin:10px 0 4px}
+  .lead{color:var(--sub);margin:0 0 6px}
+  h2{font-size:13px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);margin:50px 0 14px;padding-bottom:9px;border-bottom:1px solid var(--line);scroll-margin-top:18px}
+  h2 .n{color:var(--mint);margin-right:8px}
+  h3{font-size:15px;font-weight:700;color:var(--ink);margin:22px 0 8px}
+  h4{font-size:13px;font-weight:700;color:var(--ink);margin:14px 0 5px}
+  p{margin:0 0 11px}
+  .toc{background:var(--c1);border:1px solid var(--line);border-radius:12px;padding:16px 20px;columns:3;column-gap:24px;font-size:13px}
+  .toc a{display:block;padding:3px 0;color:var(--mut)}.toc a:hover{color:var(--mint)}
+  @media(max-width:760px){.toc{columns:1}}
+  .card{background:var(--c1);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:8px 0 12px}
+  th{text-align:left;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--sub);font-weight:700;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:bottom}
+  td{padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td b,th b{color:var(--ink)}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--c2);padding:1px 5px;border-radius:4px;color:var(--ink)}
+  .sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+  .chip{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--c1)}
+  .chip .d{height:42px}.chip .m{padding:6px 9px}.chip .nm{font-size:11.5px;color:var(--ink);font-weight:600}
+  .chip .hx{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--sub)}
+  .chip .ro{font-size:10px;color:var(--sub);margin-top:1px}
+  .pill{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap}
+  .built{background:rgba(114,242,199,.16);color:var(--mint)}.design{background:rgba(255,209,102,.16);color:var(--amber)}
+  .gap{background:rgba(255,122,144,.14);color:var(--rose)}.new{background:rgba(167,139,250,.16);color:var(--violet)}
+  .flag{border-left:3px solid var(--rose);padding:5px 0 5px 14px;margin:9px 0;font-size:12.5px}
+  .flag b{color:var(--ink)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin:8px 0}
+  ul{margin:5px 0 11px;padding-left:18px}li{margin:3px 0;font-size:12.5px}
+  .small{font-size:11.5px;color:var(--sub)}
+  .btn{display:inline-block;border-radius:0;border:2px solid;padding:9px 15px;font-size:10px;font-weight:700;box-shadow:3px 3px 0 rgba(0,0,0,.5)}
+  .btn.p{background:var(--mint);color:#0B0E0C;border-color:var(--mint)}.btn.s{background:var(--c2);color:var(--ink);border-color:var(--line)}.btn.d{background:var(--rose);color:#160a0d;border-color:var(--rose)}
+  .qa{background:rgba(114,242,199,.05);border:1px solid #2e5a4e;border-radius:12px;padding:18px 20px}
+  .qa h4{color:var(--mint);margin-top:14px}.qa h4:first-child{margin-top:0}
+  .star{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .cdot{width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 auto}
+  pre{background:var(--c2);border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:11.5px;color:var(--ink);font-family:ui-monospace,Menlo,monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">2nd-Brain · 전체 디자인·기능·화면·에셋·방법론·데이터 총람 · Claude Design 핸드오프</div>
+  <h1>2nd-Brain — 총람</h1>
+  <p class="lead">AI 시대, 가장 가치있는 것은 나 자신 입니다. · "An AI that listens before it talks." · 39 화면 · 44 마이그레이션 · 6 마스코트 · 569 연구참조 · 코드 기준 단일 정본</p>
+  <div class="legend">
+    <span class="pill built">BUILT 구현됨</span><span class="pill design">DESIGNED 설계만</span>
+    <span class="pill gap">GAP 미구현/placeholder</span><span class="pill new">놓쳤던 것</span>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <a href="#qa">0 · Claude Design 온보딩 답변</a>
+    <a href="#overview">1 · 앱 개요 · 3축 · 세계관</a>
+    <a href="#design">2 · 디자인 시스템 (토큰·타입·컴포넌트·모션)</a>
+    <a href="#screens">3 · 화면 전체 39개 (콘텐츠+4상태)</a>
+    <a href="#modals">4 · 모달/오버레이</a>
+    <a href="#flows">5 · 사용자 플로우</a>
+    <a href="#systems">6 · 핵심 기능 시스템 (★놓쳤던 것)</a>
+    <a href="#data">7 · 데이터·백엔드·제약 C1~12</a>
+    <a href="#assets">8 · 에셋·마스코트·폰트</a>
+    <a href="#method">9 · 방법론 컨텍스트 (화면 뒤 데이터)</a>
+    <a href="#i18n">10 · i18n</a>
+    <a href="#legacy">11 · 레거시 (디자인·방법론 진화)</a>
+    <a href="#flags">12 · 디자인 핸드오프 플래그 ⚑</a>
+  </div>
+
+  <!-- 0 QA -->
+  <h2 id="qa"><span class="n">0</span>Claude Design 온보딩 답변</h2>
+  <div class="qa">
+    <h4>1. GitHub URL / 로컬 폴더</h4>
+    <p>GitHub <code>https://github.com/Simon-YHKim/2nd-B</code> · 라이브(공개) <code>https://simon-yhkim.github.io/2nd-B/</code> · 디자인 정본 <code>DESIGN.md</code> · <code>docs/VISION.md</code> · <code>src/lib/theme/tokens.ts</code></p>
+    <h4>2. 무엇을 하는 앱</h4>
+    <p>매일의 기록과 라이프 오딧을 검증된 심리 프레임워크(Big Five·애착·내러티브 정체성)로 분석해 '나'를 데이터로 축적하고, 그 위에서 작동하는 개인 AI 비서로 키우는 앱. 정체성은 어떤 AI에든 가져갈 수 있는 포터블 파일로 내보낸다. <b>웰니스·임상 앱이 아님</b> — '나라는 자산'을 만드는 도구.</p>
+    <h4>3. 어떤 화면 → 전체 39 라우트 모두, 처음부터 끝까지 기본 UI 틀</h4>
+    <p>아래 §3에 화면별 콘텐츠 블록 + 로딩/빈/에러/채움 4상태 + 사용 컴포넌트 정리.</p>
+    <h4>4. 목표 → 새 화면 디자인 중심 + 인터랙티브 프로토타입</h4>
+    <p>이 문서가 그 프로토타입의 화면 명세 + 플로우(§5) 역할. 모달/전이는 §4.</p>
+  </div>
+
+  <!-- 1 OVERVIEW -->
+  <h2 id="overview"><span class="n">1</span>앱 개요 · 3축 · 세계관</h2>
+  <table>
+    <tr><th>축</th><th>의미</th><th>대표 화면</th></tr>
+    <tr><td><b>① 알아가기</b></td><td>자기 데이터 축적 — 정량평가+시기회고+일상입력+LLM 인터뷰</td><td>/ · /capture · /persona · /big-five · /audit · /interview · /wiki · /records</td></tr>
+    <tr><td><b>② 개인 비서</b></td><td>축적된 데이터 위 RAG AI</td><td>/secondb · /insights · /trinity · /research · /ops</td></tr>
+    <tr><td><b>③ 공상→구체화</b></td><td>미래의 나 — SecondB <b>Divergent 모드</b>(장소 아님)</td><td>/secondb?mode=divergent</td></tr>
+  </table>
+  <h3>세계관 5계층</h3>
+  <div class="card">
+    <div class="star" style="gap:14px;margin-bottom:8px">
+      <span><span class="cdot" style="background:#A78BFA"></span> <b style="color:#E8ECF8">Soul Core</b> 나의 중심·SecondB·<code>core</code></span>
+      <span><span class="cdot" style="background:#4CC9F0"></span> Growth·Archon·<code>work</code></span>
+      <span><span class="cdot" style="background:#72F2C7"></span> Wisdom·Lumen·<code>knowledge</code></span>
+      <span><span class="cdot" style="background:#FFD166"></span> Bond·Relia·<code>relation</code></span>
+      <span><span class="cdot" style="background:#FF9FD6"></span> Muse·Lumina·<code>taste</code></span>
+      <span><span class="cdot" style="background:#E8ECF8"></span> Narrative·Foreman Momo·<code>records</code></span>
+    </div>
+    <p class="small">Soul Core → Pattern Core ×5 → Pattern Data(태그) → Log(records·sources) → Pattern Link(엣지). 중심=나, 바깥=원자료. 내부키 고정, 표시명만 진화.</p>
+  </div>
+
+  <!-- 2 DESIGN -->
+  <h2 id="design"><span class="n">2</span>디자인 시스템</h2>
+  <p class="small"><b>앱 셸 2종</b>(<code>EXPO_PUBLIC_UI</code>): legacy "Game Boy"(픽셀 코스믹) vs "deep-space"(eye-cyan 캐릭터). 핸드오프 시 어느 쪽 정본인지 확인 필요 ⚑. 신규 hex 금지 — 전부 <code>semantic.*</code>/<code>cosmic.*</code> 토큰 경유.</p>
+  <h3>색 — Cosmic 신호 (각 색 = 고정 의미, 한 화면 최대 3색)</h3>
+  <div class="sw">
+    <div class="chip"><div class="d" style="background:#72F2C7"></div><div class="m"><div class="nm">mint / brand</div><div class="hx">#72F2C7</div><div class="ro">활성연결·CTA·Wisdom</div></div></div>
+    <div class="chip"><div class="d" style="background:#4CC9F0"></div><div class="m"><div class="nm">signalBlue</div><div class="hx">#4CC9F0</div><div class="ro">Growth·info</div></div></div>
+    <div class="chip"><div class="d" style="background:#A78BFA"></div><div class="m"><div class="nm">soulViolet</div><div class="hx">#A78BFA</div><div class="ro">Soul·SecondB·AI</div></div></div>
+    <div class="chip"><div class="d" style="background:#7C5EE8"></div><div class="m"><div class="nm">soulViolet2</div><div class="hx">#7C5EE8</div><div class="ro">Divergent 모드</div></div></div>
+    <div class="chip"><div class="d" style="background:#FFD166"></div><div class="m"><div class="nm">pixelLamp</div><div class="hx">#FFD166</div><div class="ro">Bond·발견·yellow</div></div></div>
+    <div class="chip"><div class="d" style="background:#FF9FD6"></div><div class="m"><div class="nm">dreamPink</div><div class="hx">#FF9FD6</div><div class="ro">Muse</div></div></div>
+    <div class="chip"><div class="d" style="background:#FF7A90"></div><div class="m"><div class="nm">guardRose</div><div class="hx">#FF7A90</div><div class="ro">안전·위기(system)</div></div></div>
+    <div class="chip"><div class="d" style="background:#070A18"></div><div class="m"><div class="nm">background</div><div class="hx">#070A18</div><div class="ro">space950·deep ink</div></div></div>
+    <div class="chip"><div class="d" style="background:#16213E"></div><div class="m"><div class="nm">surface</div><div class="hx">#16213E</div><div class="ro">space800</div></div></div>
+    <div class="chip"><div class="d" style="background:#2A345A"></div><div class="m"><div class="nm">border</div><div class="hx">#2A345A</div><div class="ro">lineDim·hairline</div></div></div>
+    <div class="chip"><div class="d" style="background:#E8ECF8"></div><div class="m"><div class="nm">text</div><div class="hx">#E8ECF8</div><div class="ro">moonWhite</div></div></div>
+    <div class="chip"><div class="d" style="background:#8D98B8"></div><div class="m"><div class="nm">textSubtle</div><div class="hx">#8D98B8</div><div class="ro">mistGray</div></div></div>
+  </div>
+  <p class="small">라이트(보조 표면만, 그래프는 다크 유지): bg <code>#F4F5FC</code> · text <code>#0D1530</code> · brand <code>#0A7A57</code>. deep-space: bg <code>#0A0E1A</code> · accent <code>#46B6FF</code> · text <code>#5FD4FF</code>.</p>
+  <h3>타입 · 간격 · 컴포넌트 · 모션</h3>
+  <div class="card">
+    <p><b>타입</b>: 크롬(제목·버튼·탭) = 픽셀 <span class="px" style="font-size:10px">Galmuri11 / Press Start 2P</span>; 본문·챗·일기 = Pretendard; 숫자 = NeoDunggeunmoCode. 스케일 39/31/25/20/16/14/12. weight 400~800. <b>이탤릭·em dash·Inter/Roboto/Poppins 금지.</b></p>
+    <p><b>간격</b> 4·8·12·16·24·32 (정확히만) · <b>radii</b> 4·8·12·16 (<b>pill 9999 금지</b>) · <b>Game Boy</b> radius0·border2·3px hard shadow·grid8.</p>
+    <p><b>컴포넌트</b>: <span class="btn p px">PRIMARY</span> <span class="btn s px">SECONDARY</span> <span class="btn d px">DANGER</span> + ghost. Screen·Text(display/heading/body/caption/subtle)·Input·SceneHero·PremiumModal·PremiumToast·tab-bar. 터치 ≥44px. 모달 backdrop <code>rgba(0,0,0,.6)</code>, 상단 X 금지, 카드 중첩 ≤2.</p>
+    <p><b>모션</b> "Calmness is the brand": 기본 무모션·전환 200ms·프레스 80ms. 유일한 bounce = <b>"뽁" 1.25×/400ms</b>. 3 시그니처: 저장(뽁,mint) · 연결발견(line dim→bright,blue) · Divergent(violet pulse). reduced-motion=0.</p>
+    <p class="small"><b>anti-slop 금지</b>: 그라디언트·글래스·블러·이모지장식·Lottie·스켈레톤shimmer·드롭섀도(다크)·가운데정렬·카툰일러스트(픽셀 6주민만 예외).</p>
+  </div>
+
+  <!-- 3 SCREENS -->
+  <h2 id="screens"><span class="n">3</span>화면 전체 39개 — 콘텐츠 + 4상태(L로딩/E빈/Er에러/F채움)</h2>
+  <p class="small">앱 공통: 대부분 <code>PremiumAppShell</code>(다크 코스믹+별) + <code>SceneHero</code>(eyebrow+제목+캐릭터/섬)로 시작. auth 화면만 <code>CosmicBackground</code>. ✓=구현, ✛=토스트만/없음. <b>상태가 불균등</b> — 평가화면은 E/Er 없음(토스트만), /persona·/records·/formats·/insights·/research가 4상태 완비(레퍼런스).</p>
+
+  <h3>① 알아가기</h3>
+  <table>
+    <tr><th>라우트</th><th>콘텐츠 블록 (렌더 순)</th><th>상태</th><th>주요 CTA</th></tr>
+    <tr><td><b>/</b> 마을 그래프 허브</td><td>하늘 그라데이션 → 로고 → <b>NavGraph</b>(4-tier 노드) → 인사이트 리본(마스코트+오늘의 중심) → 오버레이 카드 → PowerOnOverlay</td><td>L E F Er ✓</td><td>리본→/core-brain·/records · 빈→/capture · spotlight→/secondb</td></tr>
+    <tr><td><b>/core-brain</b> 소울코어</td><td>SceneHero orb → StatTile×3 → 방향 → 동네 → 자화상 5필드 → 근거수 → next-step → Advisor</td><td>L E F Er ✓</td><td>필드→/persona · 근거→/record/[id] · /secondb · /records</td></tr>
+    <tr><td><b>/records</b> 보관소</td><td>SceneHero → 검색Input → 타입칩(all/journal/capture/audit/interview/imagine/wiki) → FlatList ReferenceShardCard → AdSlot</td><td>L E F Er ✓</td><td>행→/record/[id] · →/capture · 마을 스와이프</td></tr>
+    <tr><td><b>/record/[id]</b> 조각상세</td><td>타입+날짜 → 제목 → 태그칩 → 본문(텍스트/평가 그리드) → AdvisorFollowup → 핸드오프 버튼</td><td>L Er F · 404✓ (E n/a)</td><td>"그래프에서"→/ · "SecondB"→/secondb · 소스열기</td></tr>
+    <tr><td><b>/wiki</b> 서재</td><td>SceneHero → 2 facet → living-brain pulse(조각/링크/고아) → 검색 → export → 유틸 → 태그필터 → FlatList WikiPageListRow(확장=백링크+Phase1 brief)</td><td>L E F✓ Er✛</td><td>delete(모달) · "그래프"→/ · /secondb · export 클립보드</td></tr>
+    <tr><td><b>/capture</b> 담기 <span class="pill new">최복잡 2140줄</span></td><td>헤더 → 성공패널 → 포맷제안 → 트랙토글(daily/pro) → 모드탭(일기/메모/링크/OCR/파일)+도움 → 모드필드 → OCR고지 → 태그분류 카드(편집칩) → 제출 → 일기extras(streak·프롬프트·결론·advisor·gate)</td><td>L F✓ SUBMITTING SAVED · 드래프트 자동저장 (E n/a)</td><td>제출→저장+분류 · 성공→/records또는/ · /formats · <b>CrisisRouter</b></td></tr>
+    <tr><td><b>/persona</b> 자기모델 <span class="pill built">상태 완비</span></td><td>SceneHero → 소울코어 3카드 → <b>Big Five 막대차트</b> → AI내러티브 → 관찰패턴 → MBTI참고 → 애착(불안/회피 1-7 막대) → 프레임워크 → 액션. <b>EMPTY=평가도구 4카드 그리드</b></td><td>L E Er F ✓</td><td>도구→/audit·/big-five·/attachment·/mbti · export(Share) · /core-brain</td></tr>
+    <tr><td><b>/big-five</b> BFI-44</td><td>QuantIntroModal(게이트) → QuantPager(5문항×9p) LikertChoiceGroup(1-5) → 진행바 → 범례 → QuantSaveCelebration</td><td>L INTRO FILLING SAVING SAVED ✓ · Er✛</td><td>완료(44)→createRecord→/persona</td></tr>
+    <tr><td><b>/attachment</b> ECR-S 12</td><td>QuantIntroModal(Wei 2007) → QuantPager(5×3p, 헤더에 <b>스타일 라이브 프리뷰</b>) Likert(1-7) → 범례 → Celebration</td><td>L INTRO FILLING SAVING SAVED ✓ · Er✛</td><td>제출→/persona</td></tr>
+    <tr><td><b>/audit</b> 라이프오딧 25</td><td>시기 선택(현재/20대/10대 3카드) → 인트로 → 진행바+점 → 질문카드 → textarea(40자 라이브) → Next/Finish + "나중에"</td><td>PERIOD INTRO FILLING DONE ✓ · Er✛</td><td>Finish→/persona · abort→/capture</td></tr>
+    <tr><td><b>/interview</b> 심층 5×5</td><td>시기 그리드(5) → topBar(시기+턴) → <b>DrillProgress 5×5 매트릭스</b> → 챗 스크롤(Q/A버블+계층라벨+thinking) → 완료배너 → footer(Input+Send/Stop)</td><td>PERIOD INTERVIEWING DEPTH DONE ✓ · Er=모달</td><td>Save→/persona · Stop · 모달 retry</td></tr>
+    <tr><td><b>/import</b> LLM 임포트</td><td>SceneHero → 입력(복사프롬프트+paste textarea) → analyze → 결과(degraded·요약·태그칩·개수) → 아이템리스트 → keep/saved</td><td>INPUT ANALYZING RESULT SAVED ✓ · E✛</td><td>analyze→Gemini · save→captureFromMarkdown→/wiki·/</td></tr>
+    <tr><td><b>/formats</b> 클리퍼 템플릿 <span class="pill built">상태 완비</span></td><td>SceneHero → add → 내장8 → 내 포맷(공유토글·편집·삭제) → 커뮤니티</td><td>L E Er F ✓ + 편집/추가/보기 모달</td><td>Add/Edit/Delete/공유 · 빈→/capture</td></tr>
+    <tr><td><b>/iden</b> 정체성 내보내기 <span class="pill new">신규</span></td><td>SceneHero → 인트로(Generate) → <b>결과 PremiumModal</b>(코드박스·Copy/Share/Open-Sheet)</td><td>L READY GENERATING RESULT ✓ · Er✛</td><td>Generate→exportIden · Open Sheet(web 새탭/native Share)</td></tr>
+    <tr><td><b>/data</b> 데이터 관리</td><td>SceneHero → 4 정보섹션(import/export/iden/delete) → 기기 정보</td><td>L F (E/Er 없음 ⚑)</td><td>→/import·/wiki·/iden·/settings</td></tr>
+  </table>
+
+  <h3>② 개인 비서</h3>
+  <table>
+    <tr><th>라우트</th><th>콘텐츠 블록</th><th>상태</th><th>주요 CTA</th></tr>
+    <tr><td><b>/secondb</b> AI 챗 (구 jarvis/imagine)</td><td>SceneHero → 모드토글(Analytic/Divergent, pulse) → 컨텍스트 pill → 챗(버블+소스칩) → 퀵액션(Next step/New angle/Save to wiki/Why?/Shorter) → composer → 레퍼런스 드로어</td><td>L E F✓ · LIMIT(전송불가,"View Plans") · Er=게이트</td><td>전송→Gemini · 모드토글 · limit→/plans · 빈→/capture</td></tr>
+    <tr><td><b>/insights</b> 일기 대시보드 <span class="pill built">상태 완비</span></td><td>SceneHero → 통계(총+평균자수) → 주간비교 → <b>주간 막대차트</b> → top 주제 → top 태그 → 최근 결론</td><td>L E Er F ✓ (RefreshControl)</td><td>빈→/capture · pull-refresh</td></tr>
+    <tr><td><b>/trinity</b> 4영역 대시보드</td><td>SceneHero → 4 도메인 카드(건강/앱/뇌/재정) → 태그 가이드 → 에러모달</td><td>L E F✓ · Er=PremiumModal(Retry)</td><td>빈→/capture · Retry</td></tr>
+    <tr><td><b>/research</b> 심리 레퍼런스 <span class="pill built">상태 완비</span></td><td>SceneHero → 프레임워크 탭(All+동적) → 소스수 → 소스카드(저자/요약/검증배지/DOI)</td><td>L E Er F ✓</td><td>탭 필터 · 카드→openURL(doi) · Retry</td></tr>
+    <tr><td><b>/ops</b> 루틴 추천</td><td>SceneHero → 그룹칩 → 도메인칩 → Recommend → <b>인라인 동의카드</b>(Agree/Later) → 추천카드(이유·기간 + Device/Google/ICS/Share/Remind) → 결과노트 → disclaimer</td><td>L E Er F ✓ + IDLE/WORKING/LIMIT/OFF(minor)</td><td>Recommend→LLM · 동의→ops_push · 캘린더/공유</td></tr>
+    <tr><td><b>/esm</b> 경험표집 체크인</td><td>SceneHero → 탭(Context/Energy) → 스케일(5점 라디오 / 태그칩 그리드) → 노트 → Save/Back → 저장확인 카드</td><td>L F SAVED✓ · Er=Toast</td><td>Save→esm_responses · Back→/</td></tr>
+  </table>
+
+  <h3>공통 (프로필·설정·인증·유틸)</h3>
+  <table>
+    <tr><th>라우트</th><th>콘텐츠 블록</th><th>상태</th><th>주요 CTA</th></tr>
+    <tr><td><b>/profile</b></td><td>topBar(이름+설정) → 구독카드 → 이메일 → 퀵그리드 5칩</td><td>L F</td><td>→/settings·/plans·/core-brain·/esm·/persona·/insights·/inbox</td></tr>
+    <tr><td><b>/settings</b> 952줄</td><td>SceneHero → 네비 그리드 7버튼 → DisclosureSection(언어/크루밀도/<b>데이터삭제 4단 마법사</b>) → 로그아웃</td><td>L F · BUSY 차단 배너 · 모달 Er</td><td>네비→자식들 · 삭제(kind/tag/wiki/source/chat/full) · 로그아웃</td></tr>
+    <tr><td><b>/privacy</b></td><td>SceneHero → trust 노트 → 미성년 배너 → 토글 섹션(PreferenceToggleRow)</td><td>L F · Er=인라인,토글 revert</td><td>토글→savePrivacyPrefs</td></tr>
+    <tr><td><b>/account</b></td><td>SceneHero → DOB(BirthDateField+저장+성공) → 프라이버시 링크 → <b>danger zone</b>(확인문구+삭제) → 모달</td><td>L F · 모달 dob/delete</td><td>DOB→updateBirthDate · 삭제→wipe→/sign-in</td></tr>
+    <tr><td><b>/theme</b></td><td>SceneHero → 테마(다크/라이트) → 폰트(픽셀/readable) → 성능(full/lite) → 노트</td><td>L F (active=pill, else "use")</td><td>setMode/setFontStyle/setLiteMode</td></tr>
+    <tr><td><b>/plans</b> 수익화 v2 <span class="pill gap">표시만</span></td><td>SceneHero → 4 티어 카드(무료/Soma강조/Cortex/Brain, 가격·태그·3특징·lifetime) → notify(Coming Soon) → back</td><td>F만 (정적, 결제 없음)</td><td>back · <b>체크아웃 없음 ⚑</b></td></tr>
+    <tr><td><b>/sign-in</b></td><td>CosmicBackground → topBar(brand+locale) → hero → 폼(email·password+eye·forgot 도움카드) → sign-up행 → divider+OAuth(Google/Apple/Kakao/Naver) → manual</td><td>L F · Er✓(danger toast)</td><td>로그인→/또는/complete-profile · OAuth · forgot · →/sign-up</td></tr>
+    <tr><td><b>/sign-up</b></td><td>헤더(brand+locale+hero) → <b>JudgeBadge</b>(judge면) → 폼(email·password·DOB·동적체크리스트·<b>ConsentNotice</b>) → 기존계정 도움 → OAuth → sticky CTA</td><td>L F · Er✓ toast(age/breached/existing)</td><td>제출→/ · OAuth · →/sign-in</td></tr>
+    <tr><td><b>/complete-profile</b> (OAuth 후 필수 게이트)</td><td>헤더 → 폼(BirthDateField·체크리스트·ConsentNotice·제출+ghost cancel) → toast</td><td>L F · Er✓ toast(age)</td><td>제출→/ 또는 age-gate sign-out · cancel→/sign-in</td></tr>
+    <tr><td><b>/reset-password</b> (딥링크)</td><td>CosmicBackground → hero(상태별 제목) → 폼(pw+confirm 실시간) / 만료 안내 / 완료(continue) → toast</td><td>L F · Er✓ · 만료=폼숨김</td><td>제출→updatePassword→/ · 만료→/sign-in</td></tr>
+    <tr><td><b>/onboarding</b></td><td>OnboardingArt(ShardArt+SecondBSprite) → 제목 → 본문 → 2버튼(capture/skip)</td><td>L F</td><td>→/capture?entry=firstRun · skip→/</td></tr>
+    <tr><td><b>/permissions</b></td><td>SceneHero → 권한 8카드(상태태그+이유+플랫폼) → 원칙 → manual</td><td>F만 (정적)</td><td>→/manual</td></tr>
+    <tr><td><b>/manual</b></td><td>언어행 → SceneHero → 섹션 8카드 → 용어집 → 최근추가 → 액션</td><td>L F (정적)</td><td>→/capture·/sign-up·/permissions·/research</td></tr>
+    <tr><td><b>/support</b></td><td>SceneHero → 응답(SLA 2영업일 C11) → 연락(mailto) → FAQ</td><td>L F (Er 없음 ⚑)</td><td>mailto</td></tr>
+  </table>
+  <p class="small"><b>리다이렉트(UI 없음)</b>: /journal→/capture · /jarvis→/secondb · /mbti→/persona · /imagine→/secondb?mode=divergent · /graph→GraphScreen재export · /(auth)/oauth-callback(InlineLoader→실패시 retry).</p>
+
+  <!-- 4 MODALS -->
+  <h2 id="modals"><span class="n">4</span>모달 / 오버레이 — 디자이너가 프레임을 그려야 하는 것</h2>
+  <table>
+    <tr><th>컴포넌트</th><th>트리거</th><th>프레임</th></tr>
+    <tr><td><b>CrisisRouter</b> <span class="pill new">C9</span></td><td>안전 분류 RED존(/capture 일기/메모/OCR)</td><td>backdrop 비해제 슬라이드. 긴급/URGENT 배지 → 가디 → 제목/본문 → <b>탭-투-콜 핫라인 박스</b>(tel:, brand 좌보더) → GLOBAL_988은 findahelpline 행 → Close. locale별(KR 109/1388 · EN 988)</td></tr>
+    <tr><td><b>ConsentNotice</b> C10</td><td>/sign-up · /complete-profile 인라인</td><td>카드(모달 아님): 제목+인트로 → trust → <b>14-17 미성년 고프라이버시 배너</b> → 필수 체크박스(전부 체크해야 제출)</td></tr>
+    <tr><td><b>ConsentDialog</b> C5</td><td>증언(testimonial) 캡처</td><td>슬라이드, backdrop 해제. 2 스위치(judges 기본ON, public 기본OFF) → Decline/Agree</td></tr>
+    <tr><td><b>QuantIntroModal</b></td><td>/big-five·/attachment 진입(도구당 1회)</td><td>fade. 모모 + "시작 전" → <b>3-stat(문항/시간/페이지)</b> → 설명 → 인용 → "다음부터 안보기" → Start/Not-now</td></tr>
+    <tr><td><b>QuantSaveCelebration</b></td><td>평가 저장 성공</td><td>fade+강한 scrim. 모모 CompanionMoment(~1.5s) → 자동 /persona 이동</td></tr>
+    <tr><td><b>Reference drawer</b></td><td>/secondb·/core-brain 소스/근거 칩 탭</td><td>바텀시트, 스와이프, ≤62% 뷰포트, ReferenceShardCard 그리드, Copy/Close 헤더</td></tr>
+    <tr><td><b>JudgeBadge</b> C6</td><td>judge 이메일 @sign-up</td><td>작은 brand pill "judge" (인라인)</td></tr>
+    <tr><td><b>CompanionMoment</b></td><td>persona rebuild·저장·핵심 액션</td><td>캐릭터 스프라이트 카메오(아치/모모/루루) 잠깐, 화면 위 transient</td></tr>
+    <tr><td><b>PremiumModal / PremiumToast</b></td><td>에러·삭제확인 / 저장피드백 (앱 전역)</td><td>중앙 카드(제목+본문+버튼, danger=파괴) / 하단 transient 배너(success/info/danger ~3s)</td></tr>
+  </table>
+
+  <!-- 5 FLOWS -->
+  <h2 id="flows"><span class="n">5</span>사용자 플로우</h2>
+  <pre>인트로 게이트(IntroGate, _layout)
+  미인증 → /sign-in        인증+미본 → 셀팀 빌드 애니(LoadingScreen 25메시지·5단계·~7.5s) → /
+  인증 → 프로필 게이트:  hasProfile=false → /complete-profile (C10·PIPA 필수)  ·  온보딩 미완 → /onboarding
+
+가입:  /sign-up (email·DOB·consent[C10·judge C6]) ─OAuth→ /complete-profile
+캡처 루프:  / → /capture (5모드+분류게이트 C9) → 저장(뽁) → /records 또는 / (그래프 노드 spawn)
+평가:  /persona → /big-five|/attachment (QuantIntro→Pager→Celebration) → /persona  ·  /audit·/interview → /persona
+챗:    /secondb (Analytic|Divergent) → 퀵액션·소스드로어 · 한도→/plans
+내보내기: /wiki(Context Pack) · /iden(.iden + A4 CV) — 어떤 AI에든 붙여넣기 (제품의 해자)</pre>
+
+  <!-- 6 SYSTEMS -->
+  <h2 id="systems"><span class="n">6</span>핵심 기능 시스템 — ★ 이전에 놓쳤던 것 포함</h2>
+
+  <h3><span class="pill new">★ 놓침</span> 자기이해 별자리 — 북두칠성 (Big Dipper)</h3>
+  <div class="card"><p class="small"><code>src/lib/constellation/</code> + premium background. <b>XP와 별개인 2번째 진행/시각 레이어</b>: <b>7개 별 = 자기지식 7단계</b>, 각각 실제 Supabase 데이터로 점등. 3단계(self_context)는 INSERT 경로 없어 gated → 순차 level 캡. <b>화면 디자인이 필요한 통째 기능.</b></p></div>
+
+  <h3><span class="pill new">★ 놓침</span> XP 게이미피케이션 (10 레벨)</h3>
+  <div class="card"><p class="small"><code>progression/levels.ts</code> 누적 0/100/200/350/550/800/1150/1600/2200/3000. <code>award_xp</code> RPC만 부여(7액션). <b>피처 게이트는 전부 Lv1로 풀림</b>(2026-06-02) → 게이팅은 이제 진행도 아닌 <b>수익화</b>만. <code>XpBar.tsx</code> 존재(배치 TBD). Streak(연속일, KST).</p></div>
+
+  <h3><span class="pill new">★ 놓침</span> 수익화 (무료 + 3 티어)</h3>
+  <table>
+    <tr><th>티어</th><th>월</th><th>AI챗/일</th><th>특징</th></tr>
+    <tr><td>Free</td><td>$0 (영구 무제한 로컬 일기)</td><td>2</td><td>한계 시 paywall(SendMessageBlocked+upgradeTo)</td></tr>
+    <tr><td>Soma</td><td>$4.99 (+Lifetime $99)</td><td>30</td><td>강조 티어</td></tr>
+    <tr><td>Cortex</td><td>$9.99</td><td>80</td><td></td></tr>
+    <tr><td>Brain</td><td>$19.99</td><td>250</td><td>프리미엄: advisor·planner</td></tr>
+  </table>
+  <p class="small"><b>광고</b>: 구독자/미성년 안봄, opt-in 동의 필수, ALLOW-list 라우트(현재 /records만), web AdSense, 기본 off. <b>인앱 체크아웃·결제 웹훅 미구현 ⚑</b> — 업그레이드 모달/시트 미설계.</p>
+
+  <h3><span class="pill new">★ 놓침</span> 컴패니언 / 마스코트 행동</h3>
+  <div class="card"><p class="small"><b>6 픽셀 주민</b>(secondb·momo·lulu·archi·gadi·lumi) — 각 accent·라우트·voice. WorkerSprite=6프레임 walk(phase-offset). SecondBSprite=12상태(idle/blink/happy/thinking/carrying_shard/chat/sleep/alert/wave/walk) + FAB 배지. 20s idle 후 sleep(알림/챗 대기 제외). <b>연결발견 모먼트</b>=archi linking+cosmic blue cue 1600ms. 탭 시 캐릭터 혼잣말 말풍선(<code>graph/monologues.ts</code>, 비임상).</p></div>
+
+  <h3>안전 시스템 (C9 분류기 너머)</h3>
+  <div class="card"><p class="small"><code>lexicon.ts</code>(SSoT): FORBIDDEN(임상→yellow)·CRISIS(17EN/24KO, Suicide CARE 2.0→red)·IQ/진단 금지 26·FTC효능 regex. <b>핫라인 연령·locale</b>: KO성인 109·미성년 1388+109·EN 988(+findahelpline). 레이어드 분류=lexicon ∪ Gemini-Flash(RED-wins). dual-write ai_audit_log+crisis_events. ingest-policy A5: 3자 클리핑은 격리만, 핫라인 노출 불가. anthro.ts(의인화 가드 16 regex, CI 미연결).</p></div>
+
+  <h3>기타 기능 시스템</h3>
+  <table>
+    <tr><th>시스템</th><th>요지</th></tr>
+    <tr><td><b>IDEN 내보내기</b></td><td>정체성을 <code>.iden</code>(AI용 YAML) + A4 2단 CV HTML로. honest source-typing(measured/instrument/self_report/count/derived/ai_summary/<b>collecting</b>). /iden</td></tr>
+    <tr><td><b>지식/RAG (Advisor)</b></td><td><code>knowledge/{engines,retrieve,loader}</code> — knowledge_sources(33 seed corpora)에서 fuse/distill/memorize → injection-guarded Advisor. crisis-detection ALWAYS_LOAD</td></tr>
+    <tr><td><b>그래프/마을</b></td><td><code>graph/</code> 11파일: crew-layout·data-nodes·depth-style·glow-style·drilldown-nav·relatedness(마을)·monologues. 4-tier 시각위계</td></tr>
+    <tr><td><b>알림/오프라인/공유</b></td><td>로컬 expo-notifications(루틴, native) · 드래프트 자동저장(web/native, 5모드) · <b>Web Share Target</b>(다른 앱→/capture, 작동함)</td></tr>
+    <tr><td><b>분석/동의</b></td><td>PostHog·GA4·Clarity·Sentry, <b>동의 후에만 로드</b>, 미성년 OFF, 동기 opt-out. web only</td></tr>
+  </table>
+
+  <!-- 7 DATA -->
+  <h2 id="data"><span class="n">7</span>데이터 · 백엔드 · 제약</h2>
+  <h3>데이터 모델 — 44 마이그레이션 (<code>db/migrations/0001~0044</code>), 전부 RLS owner-isolated</h3>
+  <table>
+    <tr><th>테이블</th><th>저장</th></tr>
+    <tr><td><b>users</b></td><td>birth_date·judge_mode·subscription_tier·minor_tier(adult/minor_self/guardian)·total_xp·privacy_prefs. 특권 컬럼 trigger 보호</td></tr>
+    <tr><td><b>records</b></td><td>통합 일기/노트/오딧 — kind·prompt·body·ai_followup·topic/summary/conclusion·tags[]</td></tr>
+    <tr><td><b>sources</b></td><td>클립 원문 — source_url·storage_path·content_hash·dedup_bands[](LSH/GIN)</td></tr>
+    <tr><td><b>wiki_pages·wiki_links</b></td><td>지식 그래프 — slug·body_md·kind, [[wikilink]] 엣지</td></tr>
+    <tr><td><b>personas·memorized_patterns</b></td><td>버전드 자기모델 / 추론 fragment(pattern_kind·evidence_batches)</td></tr>
+    <tr><td><b>self_contexts</b></td><td>다중 자아(work/parents/friends/...) — <b>INSERT 경로 없음(Phase2 skeleton)</b>, 별자리 3단계 gate</td></tr>
+    <tr><td><b>esm_responses · chat_usage · xp_events</b></td><td>경험표집 / 일일 챗 카운터 / XP 원장</td></tr>
+    <tr><td><b>ai_audit_log</b> C3</td><td>모든 Gemini 호출 — hash·model·safety_zone·latency. 삭제해도 user_id NULL로 증거 잔존</td></tr>
+    <tr><td><b>crisis_events</b></td><td>RED존만, 범주만 — user_id_hash·cssrs_level·trigger_categories. DENY-ALL RLS, service-role</td></tr>
+    <tr><td><b>consent_records · guardian_consents</b></td><td>불변 PIPA 동의 원장(append-only) / under-14 보호자 동의(미배포)</td></tr>
+    <tr><td><b>knowledge_sources</b> C8 · <b>revenue_events</b> C4 · <b>testimonials</b> C5 · <b>ingest_log</b> · <b>clipper_templates</b></td><td>연구 출처(DOI+검증쌍) / 매출(month_bucket·related_party) / 증언(consent_given_at NOT NULL) / 드롭 원장 / 클립 포맷</td></tr>
+  </table>
+  <h3>Edge Functions (3)</h3>
+  <p class="small"><b>gemini-proxy</b>(키 서버보관·안전 preamble·서버 crisis 분류·스펜드캡 free200/soma·cortex350/brain500·audit write, fail-closed) · <b>delete-account</b>(GDPR17/PIPA, JWT-only, ~13테이블 cascade, audit user_id만 NULL) · <b>oauth-naver</b>(naver_id 바인딩, takeover 방어). <b>export-account 없음 ⚑</b>(데이터 이동성 미구현).</p>
+  <h3>12 하드 제약</h3>
+  <p class="small"><b>C1</b> 모든 LLM=gemini.ts경유 · <b>C2</b> vertexai 토글 · <b>C3</b> ai_audit_log INSERT · <b>C4</b> revenue_events 필드 · <b>C5</b> testimonials.consent NOT NULL · <b>C6</b> judge 자동플래그 · <b>C7</b> EN↔KO 패리티 · <b>C8</b> knowledge_sources DOI+검증 · <b>C9</b> classifyInput 선행, RED 차단 · <b>C10</b> 연령 게이트(≥14 자기동의/under-14 보호자) · <b>C11</b> 지원 SLA 2영업일 · <b>C12</b> README pre-existing assets.</p>
+
+  <!-- 8 ASSETS -->
+  <h2 id="assets"><span class="n">8</span>에셋 · 마스코트 · 폰트</h2>
+  <ul>
+    <li><b>6 픽셀 주민</b>(SVG=컴포넌트): SecondBSprite·WorkerSprite(Archon/Relia/Lumen/Lumina/Momo)·CompanionSprite — accent 색은 위 §1. <code>src/components/art/</code></li>
+    <li><b>Soul Core / 티어 아이콘</b>: SoulcoreFinalArt·TierIcon·IslandArt·WikiCardThumb + <code>lib/assets/soulcore-v3.ts</code></li>
+    <li><b>폰트</b>: Galmuri11(KO 픽셀)·Press Start 2P(EN 픽셀)·NeoDunggeunmo(Code)·Pretendard(CDN, 본문)</li>
+    <li><b>아트 세트 4종 (33MB)</b> <code>public/assets/</code>: 2ndb-production-premium-v1 · cosmic-pixel-v3-soulcore · v4-tesseract-v49 · tesseract-v10</li>
+    <li><b>랜딩</b> <code>public/landing/</code>: johwska.com 구조 스터디 + WebGL 배경 6안. <b>실제 제품 랜딩 아님(placeholder) ⚑</b></li>
+    <li>래스터: 앱아이콘·스플래시·탭아이콘 · deep-space character-front.png</li>
+  </ul>
+
+  <!-- 9 METHOD -->
+  <h2 id="method"><span class="n">9</span>방법론 컨텍스트 — 화면 뒤의 데이터/분석</h2>
+  <p class="small">화면이 보여주는 '나'는 이 측정·추론에서 나옴 (상세: 별도 methodology-map / methodology-architecture 문서).</p>
+  <ul>
+    <li><b>정량 도구</b>: BFI-44(Big Five, John 1991) · ECR-S(애착, Wei 2007) · MBTI(비검증 강등→/persona 리다이렉트)</li>
+    <li><b>정성</b>: Life Audit(25 고정Q×3시기) · Interview(5계층 FACT→ECHO×5시기, McAdams+Erikson) · ESM · 일일 프롬프트</li>
+    <li><b>추론 엔진 v1</b>: 휴리스틱→BFI override→SOKA 신뢰도→deriveValues→memorized_patterns→게이트된 LLM 요약 (anti-Barnum: "data가 말하는 만큼만")</li>
+    <li><b>연구 기반</b>: 34 배치 / 308 DOI / 569 참조 — 대부분 <b>설계만</b>(CHC 인지·정서지능·dual-process·whole-trait·교차문화는 미구현)</li>
+    <li><b>출처 개념</b>: Brain Trinity(Birkman×Brain Trinity 매뉴얼: 측정→설계 4계층→운영) → 현행 /trinity는 그 단순화 후손</li>
+  </ul>
+
+  <!-- 10 i18n -->
+  <h2 id="i18n"><span class="n">10</span>i18n</h2>
+  <p class="small"><b>5 로케일 × 24 네임스페이스 = 120 JSON</b>: en(정본)·ko(완전)·es/pt/id(기계번역 베타). <b>safety·consent는 EN/KO만</b>(베타 로케일은 영어 위기/동의 카피 노출 ⚑). SystemLocale=en|ko만(LLM·안전·동의는 이 쌍으로 collapse). 12 UI 로케일 예정(zh/hi/ar/ru/ja/fr/de), RTL(ar) 보류.</p>
+
+  <!-- 11 LEGACY -->
+  <h2 id="legacy"><span class="n">11</span>레거시 (진화 요약)</h2>
+  <table>
+    <tr><th>디자인</th><th>방법론</th></tr>
+    <tr><td>sky-blue #7DD3FC(05-25)→dark-sky #2F97FC(05-27)→<b>Cosmic mint #72F2C7(05-29)</b>→v-final 5계층(06-02)→Game Boy 픽셀(06-08)→deep-space(06-15)</td><td><b>TIPI(10문항)→BFI-44(05-29 원자교체)</b> · MBTI 강등(06-05) · SOKA 신뢰도 도입(06-06) · Vela 마스코트 은퇴</td></tr>
+  </table>
+  <p class="small"><b>병렬 미정리</b>: Paper/Pine "phytoncide" 팔레트(<code>src/theme/tokens.ts</code>)가 미문서화로 live · 휴면 토큰(darkSky/lightSky/Brain Stack v1.1 mascot).</p>
+
+  <!-- 12 FLAGS -->
+  <h2 id="flags"><span class="n">12</span>디자인 핸드오프 플래그 ⚑ (디자이너가 꼭 알아야)</h2>
+  <div class="card">
+    <div class="flag"><b>상태 불균등</b> — 평가화면(/big-five·/attachment·/audit)·/profile·/data·/plans·/theme·/permissions·/support는 EMPTY/ERROR 프레임 추가 필요. 레퍼런스: /persona·/records·/formats·/insights·/research(4상태 완비).</div>
+    <div class="flag"><b>★ 미설계 통째 기능</b> — 자기이해 별자리(북두칠성 7-star)·XP바 배치·챗 한도 업그레이드 모달·CrisisRouter(있으나 핵심)·IDEN 시트.</div>
+    <div class="flag"><b>앱 셸 2종</b> — legacy "gameboy" vs "deep-space"(<code>EXPO_PUBLIC_UI</code>). 어느 쪽 정본인지 확정 필요.</div>
+    <div class="flag"><b>미구현/placeholder</b> — 인앱 체크아웃·결제 웹훅 없음 · account-export 없음 · 랜딩이 구조 스터디(실제 랜딩 아님) · self_contexts INSERT 경로 없음.</div>
+    <div class="flag"><b>로케일</b> — safety/consent가 EN/KO만 → es/pt/id 사용자는 영어 위기/동의 화면.</div>
+    <div class="flag"><b>최복잡 화면</b> — /capture(2140줄, 다중 조건 패널)는 전용 멀티상태 디자인 보드 필요.</div>
+  </div>
+
+  <p class="small" style="margin-top:26px">생성: Claude Code · 코드 직접 감사(39 라우트 · 44 마이그레이션 · src/lib 전수). 함께 보면 좋은 분리 문서: app-feature-map(네비 그래프) · design-system(시각) · design-context.md(Claude Project용) · design-legacy-timeline · methodology-map · methodology-architecture.</p>
+</div>
+</body>
+</html>

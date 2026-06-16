@@ -3,6 +3,128 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+
+## Latest -- 2026-06-16 (cont.4) / 전체 앱 총망라 핸드오프 레퍼런스 7종 (docs/handoff/) + IDEN main 머지 완료 (생각정리 출발점)
+
+### 어디까지 왔나
+- main HEAD: `9cf57cf` (IDEN UI #398 squash-merge 결과; 이 핸드오프 머지 후 갱신됨)
+- 이번 세션 머지된 PR: **#396** (AI-OS Personal Context Layer - §1 ingest gate + §6 export pack + IDEN export format), **#398** (IDEN identity export screen - copy/share .iden + web CV sheet). **#395 closed** (superseded by #396).
+- 두 main 배포(web-deploy / GitHub Pages) green. `npm run verify` 로컬 green (159 suites / 1325 tests; IDEN 46).
+- working tree clean. 직전 작업 브랜치 `claude/iden-ui` (머지됨).
+
+### 이번 세션 산출물 - 생각정리의 기반 (docs/handoff/ 에 영속화)
+전체 앱을 코드 기준 전수 조사한 'Claude Design 핸드오프' 레퍼런스 7종. **`docs/handoff/master-handoff.html` 부터 열 것.**
+
+| 파일 (docs/handoff/) | 내용 |
+|---|---|
+| **master-handoff.html** | 총람 - Q&A·앱개요·디자인시스템·화면39·모달·플로우·기능시스템·데이터/제약·에셋·방법론·i18n·레거시·핸드오프플래그 |
+| app-feature-map.html | 39 화면 + 네비게이션 인접 리스트 + 고아/막다른 화면 |
+| design-system.html | 시각 - 토큰·타입·컴포넌트·모션·anti-slop (다크 코스믹) |
+| design-context.md | Claude Project knowledge 용 자족 디자인 스펙 (붙여넣기용) |
+| design-legacy-timeline.html | 디자인 진화 (sky-blue→Cosmic→deep-space; Paper/Pine 미문서화 팔레트 발견) |
+| methodology-map.html | 자기분석 런타임 방법론 (BFI/ECR/MBTI/audit/interview/ESM + 엔진 v1; TIPI 레거시) |
+| methodology-architecture.html | 방법론 설계/연구 레이어 (Brain Trinity 출처 + v0.2 4-Layer/7-Engine + 569 참조 + 구축vs설계 갭) |
+
+### 다음 작업 큐 (생각정리 → 우선순위화 대상)
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | master-handoff.html 열어 '생각정리' - §12 핸드오프 플래그 우선순위화 | small | ⭐ 사용자 본 목표. 결정 후 아래로 분기 |
+| B | 자기이해 별자리(북두칠성 7-star, `src/lib/constellation`) 화면 디자인·구현 - 미설계 통째 기능 | medium | ★ 가장 큰 미설계 |
+| C | 앱 셸 2종(gameboy vs deep-space, `EXPO_PUBLIC_UI`) 정본 확정 | small | 다른 디자인 결정의 선행 |
+| D | 화면 상태 불균등 보강 (평가화면·/data·/plans·/profile 빈/에러 프레임) | medium | 디자인 일관성 |
+| E | 챗 한도 업그레이드 모달 + 인앱 체크아웃(수익화) | large | prod 게이트 |
+| F | 부채 정리: Paper/Pine 미문서화 팔레트, build.ts TIPI 주석 잔재, account-export·랜딩 placeholder | small | - |
+
+### 적용 중인 정책 (영구)
+1. 모든 LLM = `src/lib/llm/gemini.ts` 경유 (C1). 신규 hex 금지 - `semantic.*`/`cosmic.*` 토큰 경유.
+2. 어휘 정책 (`src/lib/safety/lexicon.ts`) - 임상어 금지, 비임상 voice. DESIGN.md anti-slop (em dash·이탤릭·Inter 금지).
+3. 푸시 전 `npm run verify` 필수. 화면/네이티브 변경은 `ANDROID_QA_GUIDELINES.md` 준수 + 기기 QA 게이트.
+4. main push = web-deploy(GitHub Pages) 트리거. 마이그레이션 prod apply·gemini-proxy 배포는 별도 수동 (blast-radius).
+5. 12 하드 제약 C1~C12 (docs/CONSTRAINTS.md). 3축(docs/VISION.md) - 새 기능은 어느 축인지 PR에 명시.
+
+### 핵심 파일 위치
+```
+docs/handoff/master-handoff.html       총람 (생각정리 시작점)
+docs/handoff/*.html · design-context.md  레퍼런스 7종
+DESIGN.md · docs/VISION.md             디자인·세계관 정본
+src/lib/theme/tokens.ts                디자인 토큰 (src/theme/tokens.ts = 미문서화 Paper/Pine 팔레트)
+src/lib/iden/                          IDEN 기능 (이번 세션 완성)
+src/lib/persona/build.ts               추론 엔진 v1 (TIPI 주석 잔재)
+src/lib/constellation/                 북두칠성 별자리 (미설계 화면)
+```
+
+### 검증
+```bash
+npm ci --legacy-peer-deps && npm run verify   # 159 suites / 1325 tests
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# docs/handoff/master-handoff.html 를 브라우저로 열어 '생각정리'(A 작업) 시작
+```
+
+---
+
+## Latest -- 2026-06-16 (cont.3) / IDEN 정체성 내보내기 포맷 + CV 렌더러 (스키마 구동, verify green, PR #396)
+
+### 무엇을 / 왜
+- **IDEN** = 사용자의 정체성을 하나의 포터블 파일(`.iden`)로. *AI가 읽는 데이터 + 사람이 보는 이력서* (한 데이터, 두 독자). VISION 축 (2) 개인 비서 기반.
+- PR #396의 **§6 Personal Context Pack과 같은 축** — IDEN 뷰어는 그 포터블 컨텍스트를 사람이 읽는 형태로 렌더한 것. 나중에 합류 가능.
+- 디자인 반복: 시안 A/B/C(코스믹·이력서·카드) → "너무 AI스럽다" → CV화(v2) → "그래프 아쉽다" → 그래프 복원(D/E) → **E(2단 CV) 확정**. 영어 정본, A4 인쇄 우선, 단색 액센트, Soul Core는 작은 마크만, AI 슬롭 제거.
+
+### 구현 (이번 세션)
+- `docs/IDEN-SPEC.md` — 포맷+뷰어 스펙: 스키마 구동 필드 + `viz` 매핑(radar/bar/donut/node-graph/badge/tags/list/stat) + provenance 신뢰 레이어 + `.iden` 머신블록(YAML) + 제약 훅(C1/C9/C3, lexicon) + i18n(C7). §8 결정 반영, §9 구현 현황.
+- `src/lib/iden/` — `types.ts`(IdenDoc/IdenField/IdenSource/Viz, discriminated union) / `render-html.ts`(`renderIdenHtml(doc,{locale})` 순수, viz 디스패치, rail/main/both 배치, 인라인 SVG, 필드별 provenance, AI요약 "AI-generated interpretation"로 분리) / `sample.ts`(SAMPLE_IDEN, EN+KO) / 테스트 9.
+- 색은 **theme 토큰만** (`lightCosmic` paper/ink + `cosmic` accent/core), 반투명은 SVG `fill-opacity` → **새 hex literal 0개**.
+- `docs/iden-mocks/` — `iden-E-twocol.html`(확정) · `iden-D-editorial.html`(대안) · `iden-rendered.html`(실제 renderIdenHtml 출력).
+
+### 상태
+- **`npm run verify` green** — 156 suites / 1288 tests (IDEN 9 추가). working tree clean.
+- PR #396에 누적 (base = `claude/ai-os-architecture-ul1uy0`, 미머지 draft). 작업 브랜치 = `claude/korean-greeting-rja3uh`.
+- 결정(v0.1): Big Five **5축 전부**, 코어 **5개**, AI 요약 **포함**. 필드셋·코어수는 *변경 가능* — 스키마 구동이 흡수.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | `serialize.ts` — IdenDoc → `.iden` 텍스트(머신블록 YAML + body + 요청 placeholder). AI가 읽는 절반 | small | ⭐ 렌더러의 짝, 포맷은 SPEC §2에 확정 |
+| B | `buildIdenDoc()` — Supabase 데이터 → IdenDoc. §6 context-pack/persona와 연결 | medium | 실데이터 연결 |
+| C | IDEN 뷰어 앱 연결 — wiki/data 화면 export(WebView/다운로드/PDF) | medium | 기기 QA 필요(ANDROID_QA) |
+| D | radar 라벨 풀네임/접근성 (현재 5자 약어) | small | 폴리시 |
+
+### 적용 중인 정책 (영구)
+1. 작업은 `claude/korean-greeting-rja3uh`. main 직접 push 금지, 항상 PR.
+2. **PR 자동 머지 금지**(전역). 핸드오프 PR도 자동 머지 안 함 — 사용자 승인 시 머지.
+3. em dash 금지(DESIGN.md+anti-slop), 임상어 금지(`src/lib/safety/lexicon.ts`), 컴포넌트 hex 금지(theme 토큰 경유).
+4. 푸시 전 `npm run verify` 필수.
+
+### 핵심 파일 위치
+```
+src/lib/iden/render-html.ts          렌더러 (renderIdenHtml) — 다음 작업 시작점
+src/lib/iden/types.ts                IdenDoc 스키마
+src/lib/iden/sample.ts               SAMPLE_IDEN 더미
+src/lib/iden/__tests__/              렌더 계약 테스트 9
+docs/IDEN-SPEC.md                    포맷+뷰어 스펙 (§2 .iden 포맷, §9 현황)
+docs/iden-mocks/iden-E-twocol.html   확정 디자인
+src/lib/wiki/context-pack.ts         §6 연결점 (같은 축)
+```
+
+### 검증
+```bash
+npm run verify            # 전체 게이트 (156 suites / 1288 tests)
+npx jest src/lib/iden     # IDEN 렌더러만
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin claude/korean-greeting-rja3uh && git checkout claude/korean-greeting-rja3uh && git pull
+cat docs/HANDOFF.md       # 이 블록
+# A 작업(serialize.ts)부터 시작
+```
+
+---
+
 ## Latest -- 2026-06-16 (cont.2) / §6 Personal Context Pack (내보내기 2층 재설계) — moat 구현 (verify green, PR #396)
 
 ### 무엇을 / 왜

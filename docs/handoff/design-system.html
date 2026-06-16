@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2nd-Brain · Design System (Cosmic Pixel Graph Village)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070A18; --space900:#0D1530; --space800:#16213E; --space700:#243056; --line:#2A345A;
+    --ink:#E8ECF8; --muted:#C9D0E6; --subtle:#8D98B8;
+    --mint:#72F2C7; --blue:#4CC9F0; --violet:#A78BFA; --violet2:#7C5EE8;
+    --amber:#FFD166; --pink:#FF9FD6; --rose:#FF7A90;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--muted);font-family:Pretendard,system-ui,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:48px 22px 90px}
+  .px{font-family:"Press Start 2P",monospace}
+  .eyebrow{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--mint);font-weight:700}
+  h1{font-size:30px;font-weight:800;color:var(--ink);letter-spacing:-.02em;margin:10px 0 6px}
+  .lead{color:var(--subtle);font-size:14px;margin:0}
+  h2{font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);margin:54px 0 16px;padding-bottom:9px;border-bottom:1px solid var(--line)}
+  h3{font-size:14px;font-weight:700;color:var(--ink);margin:24px 0 10px}
+  p{margin:0 0 12px;font-size:14px}
+  .card{background:rgba(13,21,48,.84);border:1px solid var(--line);border-radius:12px;padding:20px}
+  .grid{display:grid;gap:12px}
+  .sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .chip{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--space900)}
+  .chip .dot{height:54px}
+  .chip .meta{padding:8px 10px}
+  .chip .nm{font-size:12px;color:var(--ink);font-weight:600}
+  .chip .hx{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--subtle)}
+  .chip .role{font-size:10.5px;color:var(--subtle);margin-top:2px;line-height:1.4}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0 8px}
+  th{text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--subtle);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line)}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  code,.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink);background:var(--space800);padding:1px 6px;border-radius:4px}
+  .row{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+  .btn{display:inline-block;border-radius:0;border:2px solid;padding:11px 18px;font-size:11px;font-weight:700;box-shadow:3px 3px 0 rgba(0,0,0,.5)}
+  .btn.primary{background:var(--mint);color:#0B0E0C;border-color:var(--mint)}
+  .btn.secondary{background:var(--space800);color:var(--ink);border-color:var(--line)}
+  .btn.danger{background:var(--rose);color:#160a0d;border-color:var(--rose)}
+  .core-legend{display:flex;flex-direction:column;gap:8px;font-size:13px}
+  .core-legend span{display:flex;align-items:center;gap:10px}
+  .cdot{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:760px){.two{grid-template-columns:1fr}}
+  .never li{margin:4px 0;font-size:13px}
+  .pill{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:0;border:1px solid var(--line);color:var(--mint);margin-left:6px}
+  .small{font-size:12px;color:var(--subtle)}
+  .lightbox{background:#F4F5FC;color:#0D1530;border-radius:12px;padding:16px;border:1px solid #D6DAEC}
+  .lightbox .hx{color:#6A7693}
+  ul{padding-left:18px;margin:6px 0 12px}
+  li{font-size:13px;margin:3px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">2nd-Brain · Design System · Cosmic Pixel Graph Village (밤빛 조각마을)</div>
+  <h1>디자인 시스템 — 포터블 패키지</h1>
+  <p class="lead">AI 시대, 가장 가치있는 것은 나 자신 입니다. · "An AI that listens before it talks." · 토큰·타입·컴포넌트·세계관·화면·규칙 정본 (source: <code>tokens.ts</code> + <code>DESIGN.md</code>)</p>
+
+  <!-- WORLD MODEL -->
+  <h2>0 · 세계관 5계층 — 그래프·색·마스코트의 정본</h2>
+  <div class="two">
+    <div class="card">
+      <svg viewBox="0 0 220 200" width="100%" role="img" aria-label="Soul Core + 5 Pattern Core">
+        <g stroke="#2A345A" stroke-width="1.4">
+          <line x1="110" y1="100" x2="110" y2="34"/><line x1="110" y1="100" x2="173" y2="80"/>
+          <line x1="110" y1="100" x2="148" y2="160"/><line x1="110" y1="100" x2="72" y2="160"/>
+          <line x1="110" y1="100" x2="47" y2="80"/>
+        </g>
+        <circle cx="110" cy="34" r="9" fill="#4CC9F0"/><circle cx="173" cy="80" r="9" fill="#72F2C7"/>
+        <circle cx="148" cy="160" r="9" fill="#FFD166"/><circle cx="72" cy="160" r="9" fill="#FF9FD6"/>
+        <circle cx="47" cy="80" r="9" fill="#E8ECF8"/>
+        <circle cx="110" cy="100" r="16" fill="#A78BFA"/>
+      </svg>
+    </div>
+    <div class="card">
+      <div class="core-legend">
+        <span><i class="cdot" style="background:#A78BFA"></i><b style="color:#E8ECF8">Soul Core</b> · 나의 중심 · <b>SecondB</b> · <code>core</code></span>
+        <span><i class="cdot" style="background:#4CC9F0"></i>Growth Core · 일·성장 · Archon · <code>work</code></span>
+        <span><i class="cdot" style="background:#72F2C7"></i>Wisdom Core · 지식 · Lumen · <code>knowledge</code></span>
+        <span><i class="cdot" style="background:#FFD166"></i>Bond Core · 관계 · Relia · <code>relation</code></span>
+        <span><i class="cdot" style="background:#FF9FD6"></i>Muse Core · 취향 · Lumina · <code>taste</code></span>
+        <span><i class="cdot" style="background:#E8ECF8"></i>Narrative Core · 기록 · Foreman Momo · <code>records</code></span>
+      </div>
+      <p class="small" style="margin-top:14px">계층: <b>Soul Core</b> → <b>Pattern Core ×5</b> → Pattern Data(도메인 태그) → Log(<code>sources</code>·<code>records</code>) → Pattern Link(엣지). 중심에 가까울수록 "나", 바깥일수록 원자료. 공상 = 장소가 아니라 SecondB 대화의 <b>Divergent 모드</b>.</p>
+    </div>
+  </div>
+
+  <!-- COLOR -->
+  <h2>1 · 색 — Cosmic 신호 팔레트</h2>
+  <p>브랜드는 <b style="color:#72F2C7">Electric Mint</b>(활성 신경 연결). 1 primary + 5 reserved signals. <b>각 색은 고정된 의미의 코드</b>이지 장식이 아니다. 한 화면에 6색 중 최대 3색. 신규 hex 금지 — 전부 <code>tokens.ts</code> 경유.</p>
+
+  <h3>신호 (signals)</h3>
+  <div class="sw">
+    <div class="chip"><div class="dot" style="background:#72F2C7"></div><div class="meta"><div class="nm">signalMint / brand</div><div class="hx">#72F2C7</div><div class="role">활성 연결 · primary CTA · 포커스 · Wisdom/Lumen</div></div></div>
+    <div class="chip"><div class="dot" style="background:#4CC9F0"></div><div class="meta"><div class="nm">signalBlue</div><div class="hx">#4CC9F0</div><div class="role">Growth/Archon · info · 연결 발견 모션</div></div></div>
+    <div class="chip"><div class="dot" style="background:#A78BFA"></div><div class="meta"><div class="nm">soulViolet</div><div class="hx">#A78BFA</div><div class="role">Soul Core/SecondB · AI 존재 · 카드 wash</div></div></div>
+    <div class="chip"><div class="dot" style="background:#7C5EE8"></div><div class="meta"><div class="nm">soulViolet2</div><div class="hx">#7C5EE8</div><div class="role">SecondB Divergent 모드</div></div></div>
+    <div class="chip"><div class="dot" style="background:#FFD166"></div><div class="meta"><div class="nm">pixelLamp</div><div class="hx">#FFD166</div><div class="role">Bond/Relia · 새 기록·발견 · zoneYellow(dual)</div></div></div>
+    <div class="chip"><div class="dot" style="background:#FF9FD6"></div><div class="meta"><div class="nm">dreamPink</div><div class="hx">#FF9FD6</div><div class="role">Muse/Lumina · 취향·영감</div></div></div>
+    <div class="chip"><div class="dot" style="background:#FF7A90"></div><div class="meta"><div class="nm">guardRose</div><div class="hx">#FF7A90</div><div class="role">안전·위기 — system-only, 마스코트 없음</div></div></div>
+  </div>
+
+  <h3>표면 (surfaces) · 잉크 (ink)</h3>
+  <div class="sw">
+    <div class="chip"><div class="dot" style="background:#070A18"></div><div class="meta"><div class="nm">space950 / background</div><div class="hx">#070A18</div><div class="role">앱 배경 · pure black 금지</div></div></div>
+    <div class="chip"><div class="dot" style="background:#0D1530"></div><div class="meta"><div class="nm">space900</div><div class="hx">#0D1530</div><div class="role">Night Navy</div></div></div>
+    <div class="chip"><div class="dot" style="background:#16213E"></div><div class="meta"><div class="nm">space800</div><div class="hx">#16213E</div><div class="role">Graph Slate · surface</div></div></div>
+    <div class="chip"><div class="dot" style="background:#2A345A"></div><div class="meta"><div class="nm">lineDim / border</div><div class="hx">#2A345A</div><div class="role">hairline · inactive edge</div></div></div>
+    <div class="chip"><div class="dot" style="background:#E8ECF8"></div><div class="meta"><div class="nm">moonWhite / text</div><div class="hx">#E8ECF8</div><div class="role">본문·제목 · never pure white</div></div></div>
+    <div class="chip"><div class="dot" style="background:#C9D0E6"></div><div class="meta"><div class="nm">textMuted</div><div class="hx">#C9D0E6</div><div class="role">2차 텍스트·라벨</div></div></div>
+    <div class="chip"><div class="dot" style="background:#8D98B8"></div><div class="meta"><div class="nm">mistGray / textSubtle</div><div class="hx">#8D98B8</div><div class="role">3차 · 타임스탬프·placeholder</div></div></div>
+    <div class="chip"><div class="dot" style="background:#243056"></div><div class="meta"><div class="nm">space700</div><div class="hx">#243056</div><div class="role">nested 표면</div></div></div>
+  </div>
+
+  <h3>라이트 모드 (보조 표면 전용 · 그래프는 항상 다크)</h3>
+  <div class="two">
+    <div class="lightbox">
+      <div class="row" style="gap:10px">
+        <span><b>lightCosmic.bg</b> <span class="hx mono">#F4F5FC</span></span>
+        <span><b>text</b> <span class="hx mono">#0D1530</span></span>
+        <span><b>brand</b> <span class="hx mono" style="color:#0A7A57">#0A7A57</span> (deep mint, AA-safe)</span>
+        <span><b>border</b> <span class="hx mono">#D6DAEC</span></span>
+      </div>
+      <p class="small" style="color:#6A7693;margin:10px 0 0">Moon Haze — 옅은 violet tint, never pure white. settings·sign-in 등 비그래프 표면만.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">deep-space 트랙 (eye-cyan 모노톤, EXPO_PUBLIC_UI=deep-space)</h3>
+      <div class="row" style="gap:10px">
+        <span><b>bg</b> <code>#0A0E1A</code></span><span><b>accent</b> <code>#46B6FF</code></span><span><b>text</b> <code>#5FD4FF</code></span>
+      </div>
+      <p class="small" style="margin:10px 0 0">캐릭터 본체/스크린처럼 읽히도록 ≤3색 (accent+text+bg).</p>
+    </div>
+  </div>
+
+  <!-- TYPOGRAPHY -->
+  <h2>2 · 타이포그래피</h2>
+  <p><b>크롬</b>(제목·버튼·탭·라벨) = 픽셀 <span class="px" style="font-size:11px">Galmuri11(KO) / Press Start 2P(EN)</span>, fallback NeoDunggeunmo. <b>본문·챗·일기</b> = Pretendard(readable). <b>숫자·코드</b> = NeoDunggeunmoCode. <b>Inter/Roboto/Poppins 금지 · 이탤릭 금지 · em dash 금지.</b></p>
+  <div class="card">
+    <div style="color:#E8ECF8;font-size:39px;font-weight:800;letter-spacing:-.01em">Display 39 · 랜딩 히어로 <span class="small">1회/화면</span></div>
+    <div style="color:#E8ECF8;font-size:31px;font-weight:700;margin-top:8px">xxl 31 · 섹션 오프너</div>
+    <div style="color:#E8ECF8;font-size:25px;font-weight:700;margin-top:8px">xl 25 · 화면 heading</div>
+    <div style="color:#E8ECF8;font-size:20px;font-weight:600;margin-top:8px">lg 20 · 카드 타이틀</div>
+    <div style="color:#C9D0E6;font-size:16px;margin-top:8px">md 16 · body — 기본 본문. 일기·챗은 Pretendard readable.</div>
+    <div style="color:#C9D0E6;font-size:14px;margin-top:6px">sm 14 · caption — 라벨·eyebrow</div>
+    <div style="color:#8D98B8;font-size:12px;margin-top:6px">xs 12 · subtle — 타임스탬프·메타</div>
+    <div class="px" style="color:#72F2C7;font-size:13px;margin-top:14px">PIXEL CHROME · BUTTONS · TABS</div>
+    <p class="small" style="margin-top:10px">weights: 400 regular(본문) · 500 medium(라벨) · 600 semibold(버튼) · 700 bold(heading) · 800 extrabold(display only). line-height 1.5 body / 1.2 display. KO는 같은 size에서 한 step 가볍게.</p>
+  </div>
+
+  <!-- SPACING / RADII -->
+  <h2>3 · 간격 &amp; 라운드 (4px 베이스)</h2>
+  <div class="two">
+    <div class="card"><h3 style="margin-top:0">spacing</h3>
+      <div class="row">
+        <span class="small">xs 4</span><span class="small">sm 8</span><span class="small">md 12</span><span class="small">lg 16</span><span class="small">xl 24</span><span class="small">xxl 32</span>
+      </div>
+      <p class="small" style="margin-top:10px">정확히 이 값만. <code>margin:7</code> 금지. 카드 패딩 lg(16)/태블릿 xl(24). 화면 거터 lg(16).</p>
+    </div>
+    <div class="card"><h3 style="margin-top:0">radii</h3>
+      <div class="row">
+        <span class="small">sm 4</span><span class="small">md 8</span><span class="small">lg 12</span><span class="small">xl 16</span>
+      </div>
+      <p class="small" style="margin-top:10px">인풋·버튼 md(8) · 카드·모달 lg(12) · 칩/배지 sm(4, 절대 원형 X). <b><code>borderRadius:9999</code> 금지 — pill 안 씀.</b> Game Boy 레이어는 radius 0(샤프 픽셀) + 2px border + 3px hard shadow.</p>
+    </div>
+  </div>
+
+  <!-- COMPONENTS -->
+  <h2>4 · 컴포넌트</h2>
+  <div class="card">
+    <div class="row" style="margin-bottom:14px">
+      <span class="btn primary px">PRIMARY</span>
+      <span class="btn secondary px">SECONDARY</span>
+      <span class="btn danger px">DANGER</span>
+    </div>
+    <table>
+      <tr><th>컴포넌트</th><th>역할 / 변형</th></tr>
+      <tr><td class="mono">Screen</td><td>모든 라우트 래퍼. safe-area + 거터 lg + 배경. 리스트는 ScrollView gap md.</td></tr>
+      <tr><td class="mono">Text</td><td>variant: display · heading · body · caption · subtle · color: text/textMuted/textSubtle/brand/danger (hex 금지)</td></tr>
+      <tr><td class="mono">Button</td><td>primary(bg mint/fg off-black) · secondary(surfaceAlt) · danger(zoneRed) · ghost. disabled 0.5 · loading "…" · 타겟 ≥44px</td></tr>
+      <tr><td class="mono">Input</td><td>surfaceAlt bg · hairline border · 포커스는 색만 X → border를 brand로 lift. multiline minHeight 120</td></tr>
+      <tr><td class="mono">premium/*</td><td>SceneHero(마을 hero) · tab-bar(픽셀) · background(cosmic) · feedback(Modal·Toast) · surfaces · PixelCorner · PowerOnOverlay</td></tr>
+      <tr><td class="mono">domain</td><td>BirthDateField(C10) · JudgeBadge(C6) · CrisisRouter(red-zone modal) · ConsentDialog(C5)</td></tr>
+    </table>
+    <p class="small">모달: 동일 backdrop <code>rgba(0,0,0,.6)</code> + surface 카드 + lg radius + xl 패딩 + secondary 버튼 dismiss(상단 X 금지). max-width 420(crisis)/480(consent). 카드 중첩 최대 2단.</p>
+  </div>
+
+  <!-- SAFETY ZONES -->
+  <h2>5 · 안전 존 시맨틱 (classifyInput → UI)</h2>
+  <div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:12px">
+    <div class="card" style="border-left:3px solid #72F2C7"><b style="color:#72F2C7">GREEN</b><p class="small" style="margin:6px 0 0">크롬 없음. AI 후속이 surfaceAlt 카드에 인라인.</p></div>
+    <div class="card" style="border-left:3px solid #FFD166"><b style="color:#FFD166">YELLOW</b><p class="small" style="margin:6px 0 0">후속 카드 안 rephrase 힌트 + 좌측 3px pixelLamp 보더. 절대 차단 안 함.</p></div>
+    <div class="card" style="border-left:3px solid #FF7A90"><b style="color:#FF7A90">RED</b><p class="small" style="margin:6px 0 0">CrisisRouter 블록 모달. 핫라인은 <b style="color:#72F2C7">brand mint</b>로(danger 아님 — 경고가 아니라 돌봄). dismiss-only.</p></div>
+  </div>
+
+  <!-- MOTION -->
+  <h2>6 · 모션 — "Calmness is the brand"</h2>
+  <p>기본 = 무모션(즉시). 전환 200ms ease · 프레스 80ms opacity→.8(scale·spring 없음). 스켈레톤 shimmer 금지 · Lottie 금지 · bounce 금지(아래 1개 예외). prefers-reduced-motion = 전부 0.</p>
+  <table>
+    <tr><th>모먼트</th><th>트리거</th><th>모션</th><th>accent</th></tr>
+    <tr><td>저장 "뽁"</td><td>기록 저장</td><td>1.25× overshoot ~400ms ease-out (+web playPop)</td><td><span class="cdot" style="display:inline-block;background:#72F2C7"></span> mint</td></tr>
+    <tr><td>연결 발견</td><td>새 엣지</td><td>dim→bright ~500ms 후 hold</td><td><span class="cdot" style="display:inline-block;background:#4CC9F0"></span> signalBlue</td></tr>
+    <tr><td>공상 Divergent</td><td>SecondB Divergent 턴</td><td>violet pulse 0.4→1→0.6 ~600ms (scale ≤1.05)</td><td><span class="cdot" style="display:inline-block;background:#7C5EE8"></span> soulViolet2</td></tr>
+  </table>
+
+  <!-- SCREENS -->
+  <h2>7 · 화면 39개 (축별)</h2>
+  <div class="two">
+    <div class="card"><h3 style="margin-top:0">① 알아가기</h3><p class="small"><code>/</code> 그래프 · <code>/core-brain</code> · <code>/records</code> · <code>/record/[id]</code> · <code>/wiki</code> · <code>/capture</code> · <code>/persona</code> · <code>/big-five</code> · <code>/attachment</code> · <code>/audit</code> · <code>/interview</code> · <code>/import</code> · <code>/formats</code> · <code>/iden</code> · <code>/data</code> · (redirect <code>/journal /mbti</code>)</p></div>
+    <div class="card"><h3 style="margin-top:0">② 개인 비서</h3><p class="small"><code>/secondb</code>(Analytic+Divergent) · <code>/insights</code> · <code>/trinity</code> · <code>/research</code> · <code>/ops</code> · <code>/esm</code> · (redirect <code>/jarvis</code>)</p>
+      <h3>③ 공상→구체화</h3><p class="small"><code>/secondb?mode=divergent</code> · (redirect <code>/imagine</code>)</p>
+      <h3>공통</h3><p class="small"><code>/profile</code> · <code>/settings</code> · <code>/privacy</code> · <code>/account</code> · <code>/theme</code> · <code>/plans</code> · <code>/sign-in /sign-up /complete-profile /reset-password /oauth-callback /onboarding</code> · <code>/permissions</code> · <code>/manual</code> · <code>/support</code></p></div>
+  </div>
+  <p class="small">1차 탭(항상): <code>/</code> · <code>/capture</code> · <code>/secondb</code> · <code>/profile</code>. 전체 연결 지도는 별도 파일(app-feature-map) 참조.</p>
+
+  <!-- NEVER -->
+  <h2>8 · 절대 안 하는 것 (anti-slop)</h2>
+  <div class="card">
+    <ul class="never">
+      <li>그라디언트(랜딩 sky-drift 5% 예외만) · 글래스모피즘·블러·frosted</li>
+      <li>카툰 일러스트/손그림 아이콘 — <b>예외: 마을 6 픽셀 주민</b>(SecondB·Archon·Relia·Lumen·Foreman Momo+크루·Lumina, 닫힌 로스터)</li>
+      <li>UI 문자열 이모지 장식(🌱✨💫) · em dash · 이탤릭</li>
+      <li>Lottie/애니 배경 루프 · 스켈레톤 shimmer · bouncy spring("뽁" 1개 예외)</li>
+      <li>카드 3중 중첩 · pill(<code>borderRadius:9999</code>) · 전체 가운데정렬(기본 left)</li>
+      <li>다크 표면 위 드롭섀도(얼룩처럼 보임) · "Built for X" 랜딩 카피</li>
+      <li>Inter·Roboto·Space Grotesk·Poppins·Montserrat · 컴포넌트 내 hex/rgba 리터럴</li>
+    </ul>
+  </div>
+
+  <!-- ASSET MANIFEST -->
+  <h2>9 · 에셋 매니페스트 (이어서 작업할 소스)</h2>
+  <table>
+    <tr><th>에셋</th><th>경로</th><th>역할</th></tr>
+    <tr><td>토큰</td><td class="mono">src/lib/theme/tokens.ts</td><td>cosmic·lightCosmic·semantic·deepSpace·characters·spacing·radii·typography</td></tr>
+    <tr><td>Game Boy 토큰</td><td class="mono">src/lib/theme/gameboy-tokens.ts</td><td>픽셀 chrome(border2·radius0·3px shadow·scanline)</td></tr>
+    <tr><td>모션</td><td class="mono">src/lib/motion/pixel-physical.ts</td><td>픽셀 타이밍·뽁 overshoot</td></tr>
+    <tr><td>Soul Core 아트</td><td class="mono">src/components/art/SoulcoreFinalArt.tsx · src/lib/assets/soulcore-v3.ts</td><td>소울코어 SVG(테서랙트)</td></tr>
+    <tr><td>마스코트</td><td class="mono">art/SecondBSprite.tsx · art/WorkerSprite.tsx · art/CompanionSprite.tsx</td><td>SecondB + 5 크루 픽셀 스프라이트(SVG)</td></tr>
+    <tr><td>그래프/타일</td><td class="mono">art/IslandArt.tsx · art/TierIcon.tsx · art/WikiCardThumb.tsx</td><td>마을 섬·티어 아이콘·위키 썸네일</td></tr>
+    <tr><td>폰트</td><td class="mono">assets/fonts/Galmuri11-subset.ttf · NeoDunggeunmo(Code)-Regular.ttf · @expo-google-fonts/press-start-2p · Pretendard(CDN)</td><td>픽셀 chrome + readable 본문</td></tr>
+    <tr><td>래스터</td><td class="mono">assets/images/* · assets/deep-space/character-front.png</td><td>앱 아이콘·스플래시·탭 아이콘·deep-space 캐릭터</td></tr>
+    <tr><td>규칙 정본</td><td class="mono">DESIGN.md · docs/VISION.md · docs/CONSTRAINTS.md</td><td>디자인·세계관·하드제약</td></tr>
+  </table>
+  <p class="small" style="margin-top:18px">생성: Claude Code · tokens.ts + DESIGN.md(434줄) + VISION v-final 기준. 마스코트/소울코어 실제 SVG 마크업은 .tsx에 JSX로 embed돼 있어, 픽셀-정확 아트가 패키지에 필요하면 별도 추출(v2) 가능.</p>
+
+</div>
+</body>
+</html>
