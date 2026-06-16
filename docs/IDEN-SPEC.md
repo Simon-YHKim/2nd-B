@@ -1,12 +1,12 @@
-# IDEN-SPEC.md — Identity Export Format & Viewer
+# IDEN-SPEC.md - Identity Export Format & Viewer
 
 > Status: **draft** (design locked, schema in review) · Owner: Simon · Last updated: 2026-06-16
-> Axis (VISION 3축): **(2) 개인 비서 기반** — IDEN is the portable substrate the assistant (and any external AI) reads to know *who you are*.
+> Axis (VISION 3축): **(2) 개인 비서 기반** - IDEN is the portable substrate the assistant (and any external AI) reads to know *who you are*.
 
 `IDEN` is **the user's identity as one portable file**. It is two things at once:
 
-1. **A data file** the user owns and carries (`*.iden`) — small, text, **read by any AI**.
-2. **A document** a human reads like a one-page résumé — rendered by the **IDEN Viewer**.
+1. **A data file** the user owns and carries (`*.iden`) - small, text, **read by any AI**.
+2. **A document** a human reads like a one-page résumé - rendered by the **IDEN Viewer**.
 
 The data is the source of truth. Graphics are **rendered from the data**, never stored as binary. Same model as JSON Resume: one data file → a printable, viewable sheet.
 
@@ -17,7 +17,7 @@ The data is the source of truth. Graphics are **rendered from the data**, never 
 - **Layout**: two-column CV (mock `E`). Left rail = identity at a glance (mark, name, signals, drivers, traits radar, cores). Right column = Summary, Traits, Profile, Contents.
 - **Language**: **English is canonical output** (global common). KO is a localized render of the same data (see §7, ties to C7).
 - **Print**: **A4 portrait, print-first.** `@page { size: A4 }`; `Ctrl/Cmd+P` produces a clean one-pager (no shadow, no screen chrome).
-- **Aesthetic**: white paper, **single accent color**, thin 1px rules, aligned label/value rows, tabular numerals. The cosmic Soul Core appears **only as a ~40px monoline mark** — our iconic element is a small portion, per Simon's rule (this file is used everywhere).
+- **Aesthetic**: white paper, **single accent color**, thin 1px rules, aligned label/value rows, tabular numerals. The cosmic Soul Core appears **only as a ~40px monoline mark** - our iconic element is a small portion, per Simon's rule (this file is used everywhere).
 - **Charts carry meaning** (Simon's HTML rule: "visual-first; if explanation is long, the graphic failed"). Inline SVG only: radar, donut, bars, node-graph. No glow, no gradients, no glassmorphism, no pill chips, no em dashes (DESIGN.md + anti-AI-slop).
 
 ### Color (from `src/lib/theme/tokens.ts`)
@@ -72,7 +72,7 @@ rules:                          # instructions to any AI reading this file
   - Treat the person as a thinking partner, not an evaluation subject.
   - The live request, if any, is at the very bottom.
 ---
-# Simon — IDEN (human-readable body, optional)
+# Simon - IDEN (human-readable body, optional)
 ...prose...
 
 ⟦REQUEST⟧
@@ -103,7 +103,7 @@ Unknown `viz` → `tags`/`badge` fallback. A field may request `rail` or `main` 
 
 ---
 
-## 4. Provenance (the trust layer — visualized)
+## 4. Provenance (the trust layer - visualized)
 
 Every field carries `source.kind`. This is IDEN's signature: a résumé where **every line shows its evidence**. Renders as a **quiet uppercase gray tag**, never a loud chip.
 
@@ -115,7 +115,7 @@ Every field carries `source.kind`. This is IDEN's signature: a résumé where **
 | `self_report` | `self-report` | user stated it |
 | `count` / `derived` | (no tag, or `derived`) | computed from the vault |
 | `ai_summary` | `AI-generated interpretation` | **must be visually separated** from measured data |
-| *(missing data)* | `collecting` (dimmed) | not yet known — shown faint, never faked |
+| *(missing data)* | `collecting` (dimmed) | not yet known - shown faint, never faked |
 
 Rule: **never render a value without an honest source.** Missing → `collecting` (dimmed), not invented. (Mirrors C8 source-verification ethos and the project "no fabrication" stance.)
 
@@ -123,12 +123,12 @@ Rule: **never render a value without an honest source.** Missing → `collecting
 
 ## 5. AI summary path (constraint hooks)
 
-The `summary.text` is generated, so it goes through the standard guarded pipeline — it is **not** exempt:
+The `summary.text` is generated, so it goes through the standard guarded pipeline - it is **not** exempt:
 
-- **C1** — generated only via `src/lib/llm/gemini.ts` (no other SDK).
-- **C9** — `classifyInput()` runs before the call; red zone short-circuits.
-- **C3** — `ai_audit_log` INSERT on the call (including mock).
-- **Lexicon** — output passes `src/lib/safety/lexicon.ts` post-filter. No clinical terms. (This is why Big Five's *Neuroticism* axis is surfaced as **"Sensitivity"** in IDEN — brand-safe, non-clinical, while the raw key stays standard internally.)
+- **C1** - generated only via `src/lib/llm/gemini.ts` (no other SDK).
+- **C9** - `classifyInput()` runs before the call; red zone short-circuits.
+- **C3** - `ai_audit_log` INSERT on the call (including mock).
+- **Lexicon** - output passes `src/lib/safety/lexicon.ts` post-filter. No clinical terms. (This is why Big Five's *Neuroticism* axis is surfaced as **"Sensitivity"** in IDEN - brand-safe, non-clinical, while the raw key stays standard internally.)
 
 ---
 
@@ -145,7 +145,7 @@ IDEN Viewer  ──renders──►  two-column A4 sheet (HTML, this spec's mock
 ```
 
 - One data file, two readers: **human** (rendered sheet) + **AI** (machine block). The sheet includes a "view source `.iden`" affordance.
-- Viewer is **pure render** (no app state). Given the same `.iden`, output is deterministic — printable, diffable, shareable.
+- Viewer is **pure render** (no app state). Given the same `.iden`, output is deterministic - printable, diffable, shareable.
 
 ---
 
@@ -156,18 +156,18 @@ IDEN Viewer  ──renders──►  two-column A4 sheet (HTML, this spec's mock
 
 ---
 
-## 8. Open questions (flag before build — content may change)
+## 8. Open questions (flag before build - content may change)
 
 Per Simon's standing note ("if what the system represents changes, ask"): the field set below is **current-system dummy**. Confirm before locking the renderer:
 
 - [ ] Is the `fields` set (traits, patterns, type, attachment, drivers, cores, contents) the v0.1 set, or will the system emit more/fewer?
-- [ ] Big Five surfaced as 5 axes incl. *Sensitivity* — keep, or show only a subset?
+- [ ] Big Five surfaced as 5 axes incl. *Sensitivity* - keep, or show only a subset?
 - [ ] Cores fixed at 5, or variable count (renderer already handles N nodes)?
 - [ ] Should `summary` (AI narrative) ship in v0.1, or start data-only and add the narrative later?
 
 ---
 
-## Appendix — reference mocks
+## Appendix - reference mocks
 
 Design exploration lives in `docs/iden-mocks/` (throwaway, dummy data):
 `iden-E-twocol.html` (locked direction) · `iden-D-editorial.html` (single-column alt).
