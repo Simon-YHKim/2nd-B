@@ -133,6 +133,22 @@
 
 ---
 
+## 측정 시스템 (밝기 · 별 · 가치 사다리): 2026-06-17 구현 정본
+
+> 합성 메모(`2ndb-thought-organization-synthesis.html`, 불변 정본)의 측정 하네스를 코드로 구현한 결과. 상세 어휘는 `CONTEXT.md`, 수치·공식은 아래 파일들.
+
+- **단일 가치 사다리 L1~L5** = 밝기 = 데이터 품질 = 출처 신뢰도 = 드릴 정지레벨. `src/lib/persona/brightness.ts` (`ladderLevel` / `brightnessFraction`, 20~100%). 결정론·LLM-free.
+- **자기이해 7별** (지금의 나·회상·보여지는 나·리듬·관계의 나·될 수 있는 나·가치의 나) = 증거축. `src/lib/persona/stars.ts` (`SELF_UNDERSTANDING_STARS`). 별=증거축, 5 Pattern Core=도메인 렌즈로 구분.
+- **소울 코어(북극성) 밝기** = 7별 밝기의 종합 (가중평균 + 전별점등 보너스, D8). `soulCoreBrightness`. "모든 별이 켜지면 북극성이 더 밝아진다."
+- **실데이터 도출**: `buildPersona`가 카드마다 `starLevels` + `soulCoreBrightness` 산출(`star-levels.ts`); 홈은 Gemini 없는 `load-star-levels.ts`로 마운트 시 표시.
+- **렌더**: 홈(DeepSpaceShell) · `/core-brain`(밝기 타일 + 7별 별자리) · `/persona`(밝기% + 켜진 별) 세 화면.
+- **드릴 정지규칙** (메모 §3d): 인터뷰가 목표 L 도달 시 종료(`interview/drill-stop.ts` + `narrative-level.ts`), 50턴은 하드캡. 소프트캡-only 대체.
+- **propose→ratify** (메모 §3f): AI는 자기모델을 직접 못 바꾼다. `SelfModelProposal` diff 제안(`propose-self-model.ts`, C9→C3→gemini) 후 사용자 승인만 L5(`proposal.ts::applyRatify`). 임상어휘 게이트 통과 제안만 표면화.
+
+> 세 축 관계: **알아가기**(별 데이터 축적·밝기 상승) → **개인 비서**(밝기·별 근거로 SecondB 응답) → **공상→구체화**(될 수 있는 나 별 + propose-ratify 다음 한 걸음).
+
+---
+
 ## XPRIZE 정렬
 
 Build with Gemini XPRIZE — **Education & Human Potential** 트랙.
