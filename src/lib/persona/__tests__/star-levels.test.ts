@@ -1,5 +1,5 @@
 import { traitConfidenceFor, type PersonaCard, type TraitConfidence } from "../build";
-import { deriveStarLevels, soulCoreBrightnessFor } from "../star-levels";
+import { deriveStarLevels, soulCoreBrightnessFor, rhythmStarLevel } from "../star-levels";
 
 function uniformConfidence(tc: TraitConfidence): PersonaCard["traitConfidence"] {
   return { openness: tc, conscientiousness: tc, extraversion: tc, agreeableness: tc, neuroticism: tc };
@@ -20,6 +20,17 @@ function baseCard(over: Partial<PersonaCard> = {}): PersonaCard {
 }
 
 describe("deriveStarLevels", () => {
+  test("rhythmStarLevel + star4 reflect ESM observation count", () => {
+    expect(rhythmStarLevel(0)).toBe(1);
+    expect(rhythmStarLevel(3)).toBe(2);
+    expect(rhythmStarLevel(8)).toBe(3);
+    expect(rhythmStarLevel(20)).toBe(4);
+    // wired into deriveStarLevels via the rhythm count param (default 0 -> L1)
+    expect(deriveStarLevels(baseCard()).rhythm).toBe(1);
+    expect(deriveStarLevels(baseCard(), 8).rhythm).toBe(3);
+    expect(deriveStarLevels(baseCard(), 20).rhythm).toBe(4);
+  });
+
   test("an empty starter card leaves every star dim (L1), Soul Core 0.2", () => {
     const levels = deriveStarLevels(baseCard());
     expect(Object.values(levels).every((l) => l === 1)).toBe(true);

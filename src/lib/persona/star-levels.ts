@@ -10,7 +10,19 @@ import { ladderLevel, type LadderLevel } from "./brightness";
 import type { PersonaCard } from "./build";
 import { soulCoreBrightness, type StarId } from "./stars";
 
-export function deriveStarLevels(card: PersonaCard): Record<StarId, LadderLevel> {
+// star4 "리듬 / ESM": momentary-state coverage. More ESM check-ins => a higher
+// tier (mirrors the journal-observation thresholds). esmCount 0 => dim L1.
+export function rhythmStarLevel(esmCount: number): LadderLevel {
+  if (esmCount <= 0) return 1;
+  if (esmCount >= 15) return 4;
+  if (esmCount >= 5) return 3;
+  return 2;
+}
+
+export function deriveStarLevels(
+  card: PersonaCard,
+  rhythmObservationCount = 0,
+): Record<StarId, LadderLevel> {
   // star1 "지금의 나": trait-state confidence (BFI questionnaire vs journal
   // heuristic) mapped through the value ladder. v1 confidence is uniform across
   // traits, so the openness slot is representative of the card.
@@ -32,11 +44,13 @@ export function deriveStarLevels(card: PersonaCard): Record<StarId, LadderLevel>
     ? 2
     : 1;
 
-  // stars 3 (보여지는 나 / peer), 4 (리듬 / ESM), 6 (될 수 있는 나) have no shipped
-  // scoring engine yet, so they stay dim until their elicitation path lands.
-  return { now, recall, seen: 1, rhythm: 1, relational, possible: 1, values };
+  // star4 "리듬 / ESM": momentary-state coverage from ESM check-ins (count passed
+  // by the caller). stars 3 (보여지는 나 / peer) + 6 (될 수 있는 나) have no shipped
+  // engine yet, so they stay dim until their elicitation path lands.
+  const rhythm: LadderLevel = rhythmStarLevel(rhythmObservationCount);
+  return { now, recall, seen: 1, rhythm, relational, possible: 1, values };
 }
 
-export function soulCoreBrightnessFor(card: PersonaCard): number {
-  return soulCoreBrightness(deriveStarLevels(card));
+export function soulCoreBrightnessFor(card: PersonaCard, rhythmObservationCount = 0): number {
+  return soulCoreBrightness(deriveStarLevels(card, rhythmObservationCount));
 }
