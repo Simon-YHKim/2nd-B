@@ -1,0 +1,32 @@
+{
+  "loading": "Memuat ekspor identitas Anda...",
+  "hero": {
+    "eyebrow": "Ekspor identitas",
+    "title": "Identitas Anda sebagai satu berkas portabel",
+    "subtitle": "Berkas yang dibaca AI mana pun, dan profil satu halaman yang Anda baca",
+    "speech": "Inilah Anda, siap dipahami oleh asisten mana pun."
+  },
+  "intro": {
+    "body": "IDEN mengumpulkan apa yang Anda pelajari tentang diri sendiri ke dalam satu berkas portabel. Tempel ke AI mana pun untuk memberi konteks Anda, atau buka lembar satu halaman."
+  },
+  "generate": {
+    "button": "Buat IDEN saya",
+    "accessibilityHint": "Membuat berkas identitas dari data Anda yang tersimpan."
+  },
+  "result": {
+    "title": "IDEN Anda siap",
+    "hint": "Tempel ke ChatGPT, Gemini, atau Claude untuk memberi konteks Anda. Permintaan Anda ada di paling bawah.",
+    "copy": "Salin .iden",
+    "copied": "Disalin ke papan klip",
+    "share": "Bagikan",
+    "openSheet": "Buka lembar satu halaman",
+    "close": "Tutup"
+  },
+  "error": "Tidak dapat membuat IDEN Anda. Segarkan dan coba lagi.",
+  "entry": {
+    "eyebrow": "Ekspor identitas",
+    "body": "Ubah apa yang Anda pelajari tentang diri sendiri menjadi satu berkas portabel yang dapat dibaca AI mana pun, plus profil satu halaman.",
+    "button": "Buka ekspor identitas",
+    "accessibilityHint": "Membuka layar ekspor identitas IDEN."
+  }
+}

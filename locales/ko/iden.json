@@ -1,0 +1,32 @@
+{
+  "loading": "정체성 내보내기를 불러오는 중이에요...",
+  "hero": {
+    "eyebrow": "정체성 내보내기",
+    "title": "나를 하나의 포터블 파일로",
+    "subtitle": "어떤 AI든 읽는 파일, 그리고 내가 읽는 한 장의 프로필",
+    "speech": "어떤 비서든 집어 들고 이해할 수 있는 '나'예요."
+  },
+  "intro": {
+    "body": "IDEN은 내가 나에 대해 알게 된 것을 하나의 포터블 파일로 모아요. 어떤 AI에든 붙여넣어 내 맥락을 주거나, 한 장짜리 시트를 열어 보세요."
+  },
+  "generate": {
+    "button": "내 IDEN 만들기",
+    "accessibilityHint": "저장된 데이터로 정체성 파일을 생성해요."
+  },
+  "result": {
+    "title": "IDEN이 준비됐어요",
+    "hint": "ChatGPT, Gemini, Claude에 붙여넣어 내 맥락을 전하세요. 요청은 맨 아래에 적으면 돼요.",
+    "copy": ".iden 복사",
+    "copied": "클립보드에 복사했어요",
+    "share": "공유",
+    "openSheet": "한 장 시트 열기",
+    "close": "닫기"
+  },
+  "error": "IDEN을 만들지 못했어요. 새로고침한 뒤 다시 시도해 주세요.",
+  "entry": {
+    "eyebrow": "정체성 내보내기",
+    "body": "나에 대해 알게 된 것을 어떤 AI든 읽는 하나의 포터블 파일과 한 장 프로필로 만들어요.",
+    "button": "정체성 내보내기 열기",
+    "accessibilityHint": "IDEN 정체성 내보내기 화면을 열어요."
+  }
+}
