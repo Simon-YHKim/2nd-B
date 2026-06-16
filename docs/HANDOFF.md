@@ -3,13 +3,40 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest -- 2026-06-16 (cont.) / §1 인제스트 큐 A 완료 — dedup.ts (exact-hash + MinHash-LSH) + HANDOFF lexicon 위생
+
+### 어디까지 왔나
+- 작업 브랜치 **`claude/korean-greeting-rja3uh`** (이전 세션 `claude/ai-os-architecture-ul1uy0`를 fast-forward로 흡수 → 동일 컨텍스트). 머지는 Simon.
+- **큐 A 완료**: `src/lib/ingest/dedup.ts` 신설 — 순수 함수, DB/LLM/async 의존성 0 (RN+node 안전).
+  - exact-dedup `contentHash()` = post-scrub 정규화 텍스트의 64-bit (djb2+sdbm) 멱등키 (C2). 재덤프 단락용.
+  - near-dup = `minhashSignature()`(64 perm, Mersenne prime 패밀리, 결정론적 시드) + `estimateSimilarity()` + `lshBandKeys()`(16밴드 버킷팅) + `isNearDuplicate(threshold=0.8)`.
+  - `mulmod` 16-bit split로 2^53 safe-integer 유지. 모든 출력 결정론적(멱등·크로스런 버킷 안정).
+- **테스트 20개** `src/lib/ingest/__tests__/dedup.test.ts` (정규화·멱등·shingle·시그니처·유사도·LSH·임계 튜닝).
+- **위생**: 직전 핸드오프 섹션이 M-020 임상어 literal을 본문에 적어 `check:lexicon` 레드였음 → 영어 글로스로 마스킹(의미 보존, 재유출 제거). AI-OS 브랜치 tip도 같은 레드였을 것.
+- 상태: **`npm run verify` green** (lint+type+i18n+lexicon+legal+boundary+constraints+emdash+anti-anthro+mascot+jest). working tree clean.
+
+### 다음 작업 큐 (§1 남은 증분)
+- **B** `db/migrations/0044_ingest.sql` — `ingest_log` + `sources.{relevance_score,content_hash,dedup_of}` (0036-0043 RLS 패턴 준수). dedup.ts의 `contentHash` → `sources.content_hash` 매핑.
+- **C** `src/lib/ingest/gate.ts` — dedup.ts(`contentHash`/`lshBandKeys`/`isNearDuplicate`) + 관련성 임계 + ingest_log 오케스트레이션. B 이후.
+- D/E/F 동일 (PII NER, A5 안전정책 분리, §2 pgmq).
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin claude/korean-greeting-rja3uh && git pull origin claude/korean-greeting-rja3uh
+cat docs/HANDOFF.md
+npm ci --legacy-peer-deps && npm run verify
+# 큐 B (0044_ingest.sql) 부터 — dedup.ts content_hash 컬럼 매핑
+```
+
+---
+
 ## Latest -- 2026-06-16 / AI-OS Personal Context Layer 설계 + §1 인제스트 첫 증분 (phase1 스키마 확장)
 
 ### 어디까지 왔나
 - 작업 브랜치 **`claude/ai-os-architecture-ul1uy0`** → **PR #395 (draft)**. main 대비 3 커밋 ahead. 머지는 Simon (자동머지 안 함).
 - **설계 정본 추가**: `docs/AI-OS-ARCHITECTURE.md` — Karpathy "second brain→AI OS" 영상 + deep-research 5트랙 근거로 7개 빌드 블록(§1 클리핑 정규화 ~ §7 SPL 루프) + 갭 분석 + 우선순위 로드맵. `/plan-eng-review` §1 완료(11 findings + outside voice, 리포트 문서 하단).
 - **§1 첫 증분 (구현, verify green)**: `src/lib/wiki/phase1.ts` 스키마 확장 — `Phase1Result`+`PHASE1_SCHEMA`에 `category`(VillageId)·`tags`·`relevance`·`keep` 추가. 관련성을 별도 Gemini 호출 없이 같은 패스에 흡수. `tags`는 생성 후 `containsForbiddenLexicon` 필터(C3). 신규 필드 전부 optional = 하위호환. 테스트 5개(`__tests__/phase1.test.ts`).
-- **SimonKWiki file-back**: PR #6 (draft) — T-020(AI-OS 설계 원칙), M-021(요청 레이어 오매핑), M-020 재발(한국어 임상어 '처방' lexicon).
+- **SimonKWiki file-back**: PR #6 (draft) — T-020(AI-OS 설계 원칙), M-021(요청 레이어 오매핑), M-020 재발(한국어 임상어 "prescribe"류 lexicon — literal 토큰은 문서에도 안 적음).
 - 테스트 상태: **verify + lint green** (CI, PR #395 HEAD `9731229`). working tree clean.
 
 ### 활성 인프라 (이번 세션 변경 없음)
@@ -19,7 +46,7 @@
 ### 다음 작업 큐 (§1 남은 증분, 순서대로)
 | # | 작업 | 크기 | 권장 |
 |---|---|---|---|
-| A | `src/lib/ingest/dedup.ts` — exact-hash + MinHash (순수, 단독 테스트) | small | ⭐ 가장 안전한 다음 단위, 보안 스키마 안 건드림 |
+| A | ✅ **완료** — `src/lib/ingest/dedup.ts` exact-hash + MinHash-LSH (순수, 테스트 20개) | small | 위 최신 섹션 참조 |
 | B | `db/migrations/0044_ingest.sql` — `ingest_log` + `sources.{relevance_score,content_hash,dedup_of}` | medium | 0036-0043 RLS/lockdown 패턴 준수 필수 |
 | C | `src/lib/ingest/gate.ts` — dedup+관련성 임계+ingest_log 오케스트레이션 | medium | B 이후 |
 | D | `gemini-proxy/index.ts` — PII regex 스크럽 + LLM NER 패스 | medium | Presidio 불가(Python), allowed model만 |
@@ -30,7 +57,7 @@
 1. **§1-first + 풀 게이트 지금** — Simon이 eng review 권장(§4-first/연기)을 명시 override. accepted risk.
 2. **정규화는 phase1.ts 확장** — 별도 `normalize.ts` 신설 금지 (DRY, A1).
 3. **PR 자동 머지 금지 · 지정 브랜치(`claude/ai-os-architecture-ul1uy0`)에서만 작업** (이 핸드오프도 main 자동머지 안 하고 작업 브랜치에 영속).
-4. **forbidden lexicon은 한국어 임상어도 포함** (예: '처방'). 새 .md 작성 시 사전 점검 (M-020).
+4. **forbidden lexicon은 한국어 임상어도 포함** (예: "prescribe"류 단어 — literal 한국어 토큰은 문서에도 쓰지 말 것). 새 .md 작성 시 `npm run check:lexicon` 사전 점검 (M-020).
 5. 모든 Gemini 호출 = `callGemini`(C1) → `classifyInput`(C9) → `ai_audit_log`(C3). 단 인제스트는 크라이시스 라우팅 분리 예정(E).
 
 ### 핵심 파일 위치
