@@ -255,6 +255,11 @@ export default function CoreBrain() {
           <StatTile value={evidence.length} label={locale === "ko" ? "조각" : "pieces"} accent={cosmic.pixelLamp} />
           <StatTile value={`${filledFields}/5`} label={locale === "ko" ? "나의 모습" : "self-portrait"} accent={cosmic.soulViolet} />
           <StatTile value={persona?.values.length ?? 0} label={locale === "ko" ? "동네" : "areas"} accent={cosmic.signalMint} />
+          <StatTile
+            value={`${Math.round((persona?.soulCoreBrightness ?? 0.2) * 100)}%`}
+            label={locale === "ko" ? "밝기" : "brightness"}
+            accent={cosmic.soulViolet}
+          />
         </View>
 
         {/* 3) 요즘 가장 밝은 연결 */}
