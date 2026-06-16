@@ -21,6 +21,7 @@ import {
 } from "./build";
 import type { LadderLevel } from "./brightness";
 import { deriveStarLevels } from "./star-levels";
+import { loadEsmCount } from "./esm-count";
 import { soulCoreBrightness, type StarId } from "./stars";
 
 export interface StarBrightness {
@@ -78,6 +79,7 @@ export async function loadStarLevels(userId: string): Promise<StarBrightness> {
     markdownExport: "",
   };
 
-  const starLevels = deriveStarLevels(card);
+  const esmCount = await loadEsmCount(userId);
+  const starLevels = deriveStarLevels(card, esmCount);
   return { starLevels, soulCoreBrightness: soulCoreBrightness(starLevels) };
 }
