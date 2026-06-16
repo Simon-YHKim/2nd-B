@@ -17,6 +17,7 @@ import { isValidMbtiResult, type MbtiScores } from "./assessment-shapes";
 import type { LadderLevel } from "./brightness";
 import { soulCoreBrightness, type StarId } from "./stars";
 import { deriveStarLevels } from "./star-levels";
+import { recordStarTiers } from "./record-star-tiers";
 
 export interface PersonaTraits {
   openness: number;
@@ -368,6 +369,9 @@ export async function buildPersona(
   // per D9). Deterministic + LLM-free - the INSTRUMENT layer decides the levels.
   persona.starLevels = deriveStarLevels(persona);
   persona.soulCoreBrightness = soulCoreBrightness(persona.starLevels);
+  // D9 (memo §10): persist this build's tiers so detectTierShift can later spot a
+  // changed tendency. Fire-and-forget + best-effort - never blocks the build.
+  void recordStarTiers(userId, persona.starLevels);
 
   // Persist for later reuse (RAG export, etc).
   await supabase
