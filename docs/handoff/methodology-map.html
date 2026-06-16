@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2nd-Brain · 자기분석 방법론 지도 + 레거시</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root{--bg:#070A18;--card:#0D1530;--card2:#16213E;--line:#2A345A;--ink:#E8ECF8;--muted:#C9D0E6;--subtle:#8D98B8;--mint:#72F2C7;--blue:#4CC9F0;--violet:#A78BFA;--amber:#FFD166;--rose:#FF7A90}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--muted);font-family:Pretendard,system-ui,sans-serif;line-height:1.6}
+  .wrap{max-width:1020px;margin:0 auto;padding:46px 22px 90px}
+  .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--mint);font-weight:700}
+  h1{font-size:27px;font-weight:800;color:var(--ink);letter-spacing:-.02em;margin:10px 0 6px}
+  .lead{color:var(--subtle);font-size:14px;margin:0 0 8px}
+  h2{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);margin:46px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:14px;font-weight:700;color:var(--ink);margin:22px 0 8px;display:flex;align-items:center;gap:8px}
+  .dotc{width:9px;height:9px;border-radius:50%}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0 10px}
+  th{text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--subtle);font-weight:700;padding:7px 9px;border-bottom:1px solid var(--line)}
+  td{padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td b{color:var(--ink)}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--card2);padding:1px 6px;border-radius:4px;color:var(--ink)}
+  .hash{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--subtle)}
+  .cite{font-size:11.5px;color:var(--subtle);font-style:normal}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:10px 0}
+  .pill{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px}
+  .pill.live{background:rgba(114,242,199,.14);color:var(--mint)}
+  .pill.dep{background:rgba(255,209,102,.16);color:var(--amber)}
+  .pill.dead{background:rgba(255,122,144,.14);color:var(--rose)}
+  .callout{background:rgba(114,242,199,.06);border:1px solid #2e5a4e;border-left:3px solid var(--mint);border-radius:10px;padding:14px 18px;margin:14px 0;font-size:13.5px}
+  .callout b{color:var(--ink)}
+  .tl{position:relative;margin-top:8px;padding-left:24px;border-left:2px solid var(--line)}
+  .ev{position:relative;margin:0 0 16px}
+  .ev::before{content:"";position:absolute;left:-31px;top:5px;width:11px;height:11px;border-radius:50%;background:var(--bg);border:2px solid var(--mint)}
+  .ev.sup::before{border-color:var(--subtle)}
+  .ev .b{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 15px}
+  .date{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--mint)}
+  .ev.sup .date{color:var(--subtle)}
+  .ev h4{margin:3px 0 5px;color:var(--ink);font-size:14px}
+  .kv{font-size:12.5px;margin:3px 0}
+  .small{font-size:11.5px;color:var(--subtle)}
+  ul{margin:6px 0;padding-left:18px}li{font-size:12.5px;margin:3px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">2nd-Brain · 축① 알아가기 · 자기 데이터 축적의 측정 레이어</div>
+  <h1>자기분석 방법론 지도 + 레거시</h1>
+  <p class="lead">"나 자신"을 측정·추론·반영하는 모든 방법론을 현행 + git 레거시까지 전수. 인용·아이템수·커밋해시는 코드에서 직접 추출.</p>
+
+  <div class="callout">
+    <b>핵심 레거시 한 줄:</b> 런타임 방법론 레이어에서 <b>유일하게 삭제된 도구 = TIPI</b>(10문항 Big Five). 2026-05-26 도입(#9) → 3일 뒤 2026-05-29 <b>BFI-44(44문항)로 원자적 교체</b>(<span class="hash">6df18d1</span>, tipi.ts 삭제 + bfi.ts 추가 동시). 임상·웰니스 검사(PHQ/GAD/PANAS/SWLS/enneagram/grit)는 <b>런타임에 한 번도 구현된 적 없음</b> — 연구 인용으로만 존재(임상앱 아님 정책).
+  </div>
+
+  <!-- ===== A. CURRENT ===== -->
+  <h2>A · 현행 방법론 카탈로그</h2>
+
+  <h3><span class="dotc" style="background:#72F2C7"></span>A.1 정량 측정 도구 (검증된 심리측정)</h3>
+  <table>
+    <tr><th>도구</th><th>측정</th><th>아이템·척도·채점</th><th>학술 근거</th></tr>
+    <tr><td><b>BFI-44</b> <span class="pill live">primary</span><br><code>persona/bfi.ts</code> · <code>/big-five</code></td><td>Big Five (개방성·성실성·외향성·우호성·<b>신경성</b>)</td><td>44문항 · 5점 Likert · 역채점(6−v) 후 trait별 평균</td><td class="cite">John, Donahue &amp; Kentle (1991) BFI. public domain</td></tr>
+    <tr><td><b>ECR-S</b> <span class="pill live">primary</span><br><code>persona/attachment.ts</code> · <code>/attachment</code></td><td>애착 불안(6) + 회피(6, 4역) → 스타일</td><td>12문항 · 7점 · 역채점(8−v) · 중앙분리@4 → Secure/Preoccupied/Dismissing/Fearful</td><td class="cite">Wei, Russell, Mallinckrodt &amp; Vogel (2007) ECR-Short Form, JPA 88(2):187-204</td></tr>
+    <tr><td><b>MBTI 스크리너</b> <span class="pill dep">비검증·강등</span><br><code>persona/mbti.ts</code></td><td>E/I · S/N · T/F · J/P</td><td>32문항(축당 8 강제선택) · 1–5(3 중립) · 축별 누적 → 4글자</td><td class="cite">헤더 자기명시: "MBTI는 검사-재검사 신뢰도·구성타당도 약함, 블루프린트 §9 회피". 공개풀 의역, 공식 검사 아님. "사용자 요청으로만 존재"</td></tr>
+  </table>
+  <p class="small"><code>/mbti</code> 화면은 <b>독립 화면 은퇴 → <code>/persona</code> 리다이렉트</b>(딥링크 호환). 채점 모듈은 MBTI 기록 있을 때만 동작. 스키마 검증 <code>assessment-shapes.ts</code>.</p>
+
+  <h3><span class="dotc" style="background:#4CC9F0"></span>A.2 정성 방법</h3>
+  <table>
+    <tr><th>방법</th><th>구조</th><th>근거 · 파일</th></tr>
+    <tr><td><b>Life Audit</b><br>(시기 회고)</td><td><b>25 고정 질문</b> × 3시기(현재 15·10대 5·20대 5). 각 질문이 <code>Framework</code>(Big Five trait/SDT need/VIA/Attachment)에 태깅. 자유서술</td><td class="cite">블루프린트 §4 · <code>audit/questions.ts</code> · <code>/audit</code></td></tr>
+    <tr><td><b>Interview</b><br>(스무고개 drill-down)</td><td><b>5×5=25셀 커버리지</b>: 5계층 <b>FACT→FEELING→MEANING→BELIEF→ECHO</b> × 5시기(유년/10대/20대/30대/현재). 3-stage 단일 LLM <code>nextProbe</code>(마지막 답 계층분류 → 미커버 계층 계획 → 질문 1개). 커버리지 회계는 결정론적</td><td class="cite">계층=McAdams(2001) 내러티브 정체성 · 시기=Erikson 단계 · <code>interview/probe.ts</code></td></tr>
+    <tr><td><b>ESM</b><br>(경험표집)</td><td><b>energy</b>(1–5) + <b>context</b>(다중선택: 혼자/사람과/일·학습/이동/휴식/야외) → <code>esm_responses</code></td><td class="cite">표준 ESM 순간표집 · <code>/esm</code></td></tr>
+    <tr><td><b>일일 프롬프트</b></td><td>15개 순환 성찰 질문, KST 일자별 결정론(<code>days%15</code>)</td><td class="cite">검증 프레임워크 기반(Big Five/SDT/Attachment/Erikson/VIA), 비임상 · <code>journal/daily-prompts.ts</code></td></tr>
+  </table>
+
+  <h3><span class="dotc" style="background:#A78BFA"></span>A.3 추론 엔진 — "Inference Engine v1" <code>persona/build.ts</code></h3>
+  <div class="card">
+    <div class="kv">원자료(records/sources) → <code>buildPersona()</code> → <b>PersonaCard</b>. 파이프라인:</div>
+    <ul>
+      <li><b>① 휴리스틱 스코어</b> <code>scoreFromAnswers</code> — KO/EN 이중 정규식 키워드. 개방성=길이구동(0.4+avgLen/600), 그 외 0.4+hits×0.12 (cap .95). <b>interview 트랜스크립트 제외</b>(길이 휴리스틱 saturation 방지)</li>
+      <li><b>② BFI override</b> — BFI-44 기록 있으면 휴리스틱 대체, 1–5→0–1 정규화. "BFI는 신경성 직접측정 → 반전 불필요(구 TIPI의 emotional_stability와 달리)". <code>traitsSource: heuristic→bfi</code></li>
+      <li><b>③ 신뢰도 SOKA</b> <code>traitConfidenceFor</code> — BFI→{questionnaire, high}; journal_text는 관측수 스케일(≥15 high·≥5 medium·else low); 0→{default, low}. anti-Barnum "N개 기록 · medium confidence"</li>
+      <li><b>④ deriveValues</b> — 사용자가 실제 답한 프레임워크를 <b>답변수로 랭크</b></li>
+      <li><b>⑤ memorized_patterns</b> 히스토그램 top-3 → 패턴</li>
+      <li><b>⑥ LLM 내러티브 요약</b> <code>callGemini(persona_chat)</code> — <b>기록 있을 때만 게이트</b>(data-truth/anti-Barnum, C9+C3 유지)</li>
+    </ul>
+    <p class="small">⚠️ <code>build.ts</code> 헤더 1–11행에 아직 "TIPI", "emotional_stability ↔ neuroticism 반전", 로더명 <code>loadLatestBfi</code> — TIPI→BFI 마이그레이션 <b>주석 잔재</b>(실제 경로는 BFI-44). 정리 후보. "Sprint 3 풀 LLM 추출(≥50 기록)"은 <b>아직 미착륙</b>.</p>
+  </div>
+
+  <h3><span class="dotc" style="background:#FFD166"></span>A.4 프레임워크 (렌즈)</h3>
+  <p class="small"><code>audit/questions.ts</code> Framework union + <code>frameworkLabels.ts</code>: <b>Big Five</b>(5특성) · <b>SDT 자기결정성</b>(autonomy/competence/relatedness) · <b>VIA 성격강점</b> · <b>Attachment</b>(secure/anxiety/avoidance). 질문이 이 렌즈에 매핑되어 deriveValues·grounding을 구동.</p>
+
+  <h3><span class="dotc" style="background:#72F2C7"></span>A.5 지식 그라운딩 (C8 — Advisor 연구 기반)</h3>
+  <div class="card">
+    <div class="kv"><code>knowledge/retrieve.ts</code> "Path A 검색(Karpathy Wiki 패턴)" — 사용자 메시지 → 연구 배치 → <code>knowledge_sources</code>(framework/locale/age 필터) → 랭크(용어겹침+locale+DOI+최신) → 프레임워크 융합 → injection-guarded Advisor 프롬프트. <code>crisis-detection</code>은 ALWAYS_LOAD.</div>
+    <div class="kv"><b>37개 연구 배치</b> <code>docs/research/batches/*.md</code> + seed SQL, 각 DOI/URL 검증(C8). 프레임워크: big_five · attachment · sdt · <b>cbt/rebt</b> · erikson · via · narrative_identity · self_compassion · growth_mindset · crisis_detection · values_meaning · self_knowledge · emerging_adulthood · soc/aging · interpersonal · computational_personality · wellbeing_kpi · data_ethics · ai_mental_health + <b>assessment-landscape</b>(HEXACO·RIASEC·16PF·Birkman·EI·HPI + <b>enneagram/MBTI 비판</b> 행). 사용자엔 <code>/research</code>로 read-only.</div>
+  </div>
+
+  <h3><span class="dotc" style="background:#FF9FD6"></span>A.6 파생 표면 (반영된 모델)</h3>
+  <table>
+    <tr><th>표면</th><th>종합</th><th>파일</th></tr>
+    <tr><td>페르소나 카드</td><td>traits + source + 신뢰도 + MBTI + 애착 + values + patterns + markdown</td><td><code>build.ts → /persona</code></td></tr>
+    <tr><td>중심 카드 "나의 중심"</td><td>3카드: 지금 가장 밝은 특성 · 가장 자주 돌아온 프레임워크 동네 · "이걸 만든 조각"(provenance)</td><td><code>persona/center.ts</code></td></tr>
+    <tr><td>자화상(self-portrait)</td><td>5필드 who(MBTI/애착)·forWhom·goal·do·fuel. <b>측정값 있을 때만 filled, 없으면 collecting(날조 금지)</b></td><td><code>persona/self-portrait.ts</code></td></tr>
+    <tr><td>근거 조각 shards</td><td>records/sources → 유형화 근거(journal/capture/wiki/interview/audit/imagine)+라우트</td><td><code>persona/evidence.ts</code></td></tr>
+    <tr><td>인사이트 <code>/insights</code></td><td>기록수·일수·주별 추세(KST ISO주)·상위 태그/주제·최근 결론·평균 길이·전주 대비</td><td><code>journal/insights.ts</code></td></tr>
+    <tr><td>Brain Trinity <code>/trinity</code></td><td>4영역(건강/앱/뇌/재정) 태그 분류 집계</td><td><code>/trinity</code></td></tr>
+  </table>
+
+  <h3><span class="dotc" style="background:#FF7A90"></span>A.7 안전 = 방법론 (C9)</h3>
+  <p class="small"><code>safety/classifier.ts</code> <code>classifyInput()</code> — 모든 LLM 호출 전. 3존 short-circuit: <b>RED</b>(CRISIS_TERMS→핫라인, Advisor 도달 불가)→<b>YELLOW</b>(FORBIDDEN_TERMS→다운그레이드+rephrase)→<b>GREEN</b>. locale 인지(EN 단어경계·KO 부분일치), 연령 인지 핫라인(KO 성인 109·미성년 1388+109, EN 988). 단일 출처 <code>safety/lexicon.ts</code>. 위기어 근거 <b>Suicide CARE 2.0 (Na et al. 2020)</b> — 한국어 잠재마커("짐이 되", "사라지는 게 나") 포함.</p>
+
+  <!-- ===== B. LEGACY ===== -->
+  <h2>B · 방법론 레거시 타임라인 (git 근거)</h2>
+  <div class="tl">
+    <div class="ev sup"><div class="b"><div class="date">2026-05-25 · <span class="hash">893717e</span></div><h4>Inference Engine v1 탄생 — 휴리스틱 only</h4><div class="kv">TRAIT_KEYWORDS·scoreFromAnswers·deriveValues·loadMemorizedHistogram. 직접측정 override 없음. (코드상 v0 없음 — 처음부터 "v1")</div></div></div>
+    <div class="ev sup"><div class="b"><div class="date">2026-05-26 · #9 <span class="hash">9d1c0c8</span></div><h4>TIPI 도입 <span class="pill dead">곧 폐기</span></h4><div class="kv"><code>persona/tipi.ts</code>(118줄, <b>10문항</b>) — Gosling, Rentfrow &amp; Swann (2003), 1–7척도, <b>emotional_stability</b> 사용. + "측정이 키워드추론을 이긴다" override 추가(<code>loadLatestTipi</code>)</div></div></div>
+    <div class="ev"><div class="b"><div class="date">2026-05-29 · #39 <span class="hash">6df18d1</span></div><h4>TIPI → BFI-44 원자적 교체 <span class="pill live">현행</span></h4><div class="kv"><b>같은 커밋</b>에서 tipi.ts(+test) 삭제 + bfi.ts(44문항)+test 추가 + build.ts 재작성. 이유: "TIPI 10문항 brevity가 정밀도 비용(특성당 2문항→낮은 내적일관성)". <b>emotional_stability→neuroticism 반전 + Likert 분모(1–7→1–5) 둘 다 변경.</b> TIPI 수명 ~3일.</div></div></div>
+    <div class="ev"><div class="b"><div class="date">2026-06-05 · <span class="hash">94a2c36</span></div><h4>MBTI 비검증 강등 + TIPI 잔재 버그픽스</h4><div class="kv">MBTI를 메인 IA에서 숨김·참고값 재라벨. "Big Five (TIPI)" UI 문자열 → "BFI-44". <b>실버그</b>: 설정 삭제가 <code>tipi</code> 태그 타겟이라 BFI 데이터가 실제로 안 지워지던 것 → <code>bfi,tipi</code>로 수정.</div></div></div>
+    <div class="ev"><div class="b"><div class="date">2026-06-06 · <span class="hash">ada9bd2</span> / <span class="hash">19f3bd0</span> / <span class="hash">1335fc4</span></div><h4>엔진 강화 — SOKA 신뢰도(핵심 도약)</h4><div class="kv">ada9bd2: proxyRows가 interview 제외(개방성 saturation 방지). <b>19f3bd0: 특성별 신뢰도 TraitConfidence/SOKA 도입</b>(anti-Barnum). 1335fc4: 기록 없으면 LLM 요약 skip(data-truth).</div></div></div>
+    <div class="ev"><div class="b"><div class="date">2026-06-10 · <span class="hash">68beb29</span></div><h4>deriveValues 재랭킹</h4><div class="kv">선언 순서(values[0]이 <code>sdt:autonomy</code>에 고정되던 것) → 프레임워크별 답변수 랭크로 수정.</div></div></div>
+    <div class="ev"><div class="b"><div class="date">2026-06-14 · <span class="hash">bcb55d0</span> / <span class="hash">b8ef8d2</span></div><h4>견고화</h4><div class="kv">부분 BFI 행 무시(<code>hasCompleteBfiScores</code> — 미완성 0이 휴리스틱 override 안 하게). MBTI 행 <code>isValidMbtiResult</code> 검증.</div></div></div>
+  </div>
+
+  <h2>C · 삭제/변경 아티팩트 (전수)</h2>
+  <ul>
+    <li><b>유일한 삭제</b>: <code>persona/tipi.ts</code> + test (<span class="hash">6df18d1</span>, 05-29) — BFI-44로 대체, 능력 손실 아님.</li>
+    <li><b>리네임</b>: 방법론 레이어 0건.</li>
+    <li><b>삭제된 방법론 화면</b>: 0건 (삭제된 건 dev용 <code>asset-motion-preview*.tsx</code>뿐). big-five/esm/persona/audit 화면 삭제된 적 없음.</li>
+    <li><b>audit 질문은행</b>: 삭제·대체 없음. 유일한 변경은 68beb29 랭킹 로직.</li>
+    <li><b>임상·웰니스 검사(PHQ/GAD/PANAS/SWLS/enneagram/grit/ikigai)</b>: 런타임 구현 <b>전무</b> — 연구 인용/assessment-landscape Tier-B/C 행으로만(enneagram·Birkman은 "유명하나 약한 근거" 표기).</li>
+  </ul>
+
+  <p class="small" style="margin-top:22px">생성: Claude Code · unshallow 후 full history 마이닝 + 코드 직접 인용. 커밋 해시·인용·아이템수 검증.</p>
+</div>
+</body>
+</html>

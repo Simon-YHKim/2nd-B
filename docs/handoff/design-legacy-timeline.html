@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2nd-Brain · 디자인 진화 타임라인 (git archaeology)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root{--bg:#070A18;--card:#0D1530;--line:#2A345A;--ink:#E8ECF8;--muted:#C9D0E6;--subtle:#8D98B8;--mint:#72F2C7;--rose:#FF7A90;--amber:#FFD166}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--muted);font-family:Pretendard,system-ui,sans-serif;line-height:1.6}
+  .wrap{max-width:1000px;margin:0 auto;padding:46px 22px 90px}
+  .eyebrow{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--mint);font-weight:700}
+  h1{font-size:28px;font-weight:800;color:var(--ink);letter-spacing:-.02em;margin:10px 0 6px}
+  .lead{color:var(--subtle);font-size:14px;margin:0 0 8px}
+  h2{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);margin:48px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .callout{background:rgba(255,209,102,.07);border:1px solid #6b5a2e;border-left:3px solid var(--amber);border-radius:10px;padding:14px 18px;margin:16px 0;font-size:13.5px}
+  .callout b{color:var(--ink)}
+  .tl{position:relative;margin-top:10px;padding-left:26px;border-left:2px solid var(--line)}
+  .era{position:relative;margin:0 0 22px}
+  .era::before{content:"";position:absolute;left:-33px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:2px solid var(--mint)}
+  .era.sup::before{border-color:var(--subtle)}
+  .era .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .date{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--mint)}
+  .era.sup .date{color:var(--subtle)}
+  h3{font-size:15px;font-weight:700;color:var(--ink);margin:3px 0 8px}
+  .sw{display:inline-flex;gap:5px;vertical-align:middle;margin:0 6px}
+  .sw i{width:18px;height:18px;border-radius:4px;border:1px solid rgba(255,255,255,.12);display:inline-block}
+  .kv{font-size:13px;margin:5px 0}
+  .kv b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#16213E;padding:1px 6px;border-radius:4px;color:var(--ink)}
+  .hash{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--subtle)}
+  .pill{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;margin-left:6px}
+  .pill.live{background:rgba(114,242,199,.14);color:var(--mint)}
+  .pill.dead{background:rgba(255,122,144,.14);color:var(--rose)}
+  .pill.dorm{background:rgba(141,152,184,.16);color:var(--subtle)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:8px 0}
+  th{text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--subtle);font-weight:700;padding:7px 9px;border-bottom:1px solid var(--line)}
+  td{padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .small{font-size:11.5px;color:var(--subtle)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">2nd-Brain · git archaeology · 996 commits · 2026-05-25 → 06-16</div>
+  <h1>디자인 진화 타임라인 (레거시 → 최신)</h1>
+  <p class="lead">팔레트·폰트·마스코트·화면의 변천을 실제 커밋 근거로 복원. (shallow clone를 <code>git fetch --unshallow</code>로 full history 복원 후 마이닝)</p>
+
+  <div class="callout">
+    ⚠️ <b>가장 중요한 발견 — 병렬로 살아있는 두 색 시스템.</b><br>
+    ① <b>Cosmic Pixel</b> <code>src/lib/theme/tokens.ts</code> — 현행 앱/그래프 팔레트(deep-space <span class="sw"><i style="background:#070A18"></i></span><code>#070A18</code> + mint <span class="sw"><i style="background:#72F2C7"></i></span><code>#72F2C7</code>). Sprint 0부터 <b>값만 in-place 진화</b>(semantic 키 고정).<br>
+    ② <b>Paper / Pine ("phytoncide / Option C")</b> <code>src/theme/tokens.ts</code> — Sprint 1(#6)에 추가된 <b>완전히 다른 따뜻한 라이트 팔레트</b>(<span class="sw"><i style="background:#F2EFE5"></i><i style="background:#2D4A3A"></i><i style="background:#8FAA5E"></i><i style="background:#D4B463"></i></span> paper/pine/leaf/sun). <b>DESIGN.md에 한 번도 언급 안 됨인데 지금도 export·테스트됨</b>(<code>src/theme/index.ts</code> + <code>theme.test.ts</code>). → 정리/문서화 대상.
+  </div>
+
+  <h2>타임라인</h2>
+  <div class="tl">
+
+    <div class="era sup"><div class="card">
+      <div class="date">2026-05-25 · Sprint 0 · #3 <span class="hash">893717e</span></div>
+      <h3>E0 · Sky-blue writing-tool <span class="pill dead">superseded</span></h3>
+      <div class="kv"><b>브랜드</b> sky-blue <span class="sw"><i style="background:#7DD3FC"></i></span><code>#7DD3FC</code> · 다크 모드 only</div>
+      <div class="kv"><b>폰트</b> Fraunces(serif display) + Geist Sans(body), KO fallback Pretendard</div>
+      <div class="kv"><b>파일</b> <code>src/lib/theme/tokens.ts</code>(sky-blue) + <code>src/theme/colors.ts</code> · 6 RAG 엔진 스캐폴드</div>
+    </div></div>
+
+    <div class="era sup"><div class="card">
+      <div class="date">2026-05-26 · Sprint 1 · #6 <span class="hash">72a0620</span></div>
+      <h3>E1 · Paper / Pine "phytoncide(피톤치드) · Option C" <span class="pill live">still live · undocumented</span></h3>
+      <div class="kv"><b>팔레트</b> <span class="sw"><i style="background:#F2EFE5"></i><i style="background:#2A2418"></i><i style="background:#2D4A3A"></i><i style="background:#1A3025"></i><i style="background:#8FAA5E"></i><i style="background:#D4B463"></i><i style="background:#8B6F47"></i><i style="background:#C5D5DC"></i></span> paper #F2EFE5 · ink #2A2418 · pine #2D4A3A · pineDeep #1A3025 · leaf #8FAA5E · sun #D4B463 · earth #8B6F47 · sky #C5D5DC</div>
+      <div class="kv">따뜻한 침엽수(conifer) 라이트 톤. <code>src/theme/tokens.ts</code>로 추가 — Cosmic Pixel과 별개로 끝까지 살아남은 병렬 디자인 언어.</div>
+    </div></div>
+
+    <div class="era sup"><div class="card">
+      <div class="date">2026-05-27 · 팔레트 피벗 #2 + 마스코트 v1.1 · <span class="hash">f9dab94</span> / #25 <span class="hash">75dd2a3</span></div>
+      <h3>E2 · Dark-sky + Brain Stack v1.1 마스코트 <span class="pill dorm">dormant</span></h3>
+      <div class="kv"><b>브랜드</b> <span class="sw"><i style="background:#2F97FC"></i></span><code>#2F97FC</code> (darkSky) · <code>lightSky #1E70C8</code></div>
+      <div class="kv"><b>마스코트</b> <b>Brain Stack v1.1</b> — <code>mascot</code> 토큰 9키: core #f0c862 · self #e36464 · field #9ba0a8 · augment #5A6FB4 · engram #c9a374 · signal #a8d4c0 · mirror #7ec4c0 · trinity #b48ec4 · audit #e89c5a</div>
+      <div class="kv small">→ 현재 <code>tokens.ts</code>에 back-compat로 dormant 잔존. 6-resident <code>characters</code> cast로 대체됨.</div>
+    </div></div>
+
+    <div class="era"><div class="card">
+      <div class="date">2026-05-29 · 팔레트 피벗 #3 · <span class="hash">6df18d1</span></div>
+      <h3>E3 · Cosmic Pixel "Graph Village" (밤빛 조각마을) <span class="pill live">현행 베이스</span></h3>
+      <div class="kv"><b>브랜드</b> Electric Mint <span class="sw"><i style="background:#72F2C7"></i></span><code>#72F2C7</code> (활성 신경 연결) · bg deep-space <span class="sw"><i style="background:#070A18"></i></span><code>#070A18</code></div>
+      <div class="kv"><b>신호</b> <span class="sw"><i style="background:#4CC9F0"></i><i style="background:#A78BFA"></i><i style="background:#FFD166"></i><i style="background:#FF9FD6"></i><i style="background:#FF7A90"></i></span> signalBlue · soulViolet · pixelLamp · dreamPink · guardRose</div>
+      <div class="kv"><b>폰트</b> → <b>NeoDunggeunmo</b> app-wide (Fraunces/Geist 폐기) + NeoDunggeunmoCode</div>
+      <div class="kv"><b>마스코트</b> 6-resident cast: secondb · momo · lulu · archi · <b>vela</b> · gadi (cosmic-pixel SVG v1/v2)</div>
+    </div></div>
+
+    <div class="era"><div class="card">
+      <div class="date">2026-06-02 · #171 <span class="hash">8475ae9</span></div>
+      <h3>E4 · Worldview v-final + 마스코트 리네임</h3>
+      <div class="kv"><b>5계층 모델</b> Soul Core → Pattern Core ×5 → Pattern Data → Log + Pattern Link</div>
+      <div class="kv"><b>리네임(표시명만, 내부키 고정)</b> Gadi→<b>Relia</b>(Bond) · Lulu→<b>Lumen</b>(Wisdom) · Momo→<b>Foreman Momo</b>(Narrative) · Lumi→<b>Lumina</b>(Muse) · Archi→<b>Archon</b>(Growth) · SecondB=Soul Core</div>
+      <div class="kv"><b>+ <code>soulViolet2 #7C5EE8</code></b> Divergent 모드 · Analytic/Divergent 챗 모드 도입</div>
+    </div></div>
+
+    <div class="era"><div class="card">
+      <div class="date">2026-06-02 · #173 <span class="hash">256c486</span></div>
+      <h3>E5 · 공상-place 제거 + Vela 은퇴 <span class="pill dead">retired</span></h3>
+      <div class="kv"><b>Vela 은퇴</b> — CharacterId/순서/맵에서 제거, 스프라이트 dormant. dreamPink는 Muse/Lumina로 재배정.</div>
+      <div class="kv"><b><code>/imagine</code> 406줄 삭제</b> → Divergent 리다이렉트로 축소(탭/위키카드/그래프노드 제거). 공상 = 장소 아닌 대화 모드.</div>
+      <div class="kv"><b>guardRose 안전색 system-only로 분리</b> (Gadi=구 안전가드 → Relia/Bond).</div>
+    </div></div>
+
+    <div class="era"><div class="card">
+      <div class="date">2026-06-03 → 06-06 · #211 <span class="hash">0bfbfa3</span></div>
+      <h3>E6 · Soul Core v3 아트 + go-live cycle 1</h3>
+      <div class="kv"><b>v3 아트</b> cosmic-pixel-v3-soulcore (Foreman Momo + crew 스프라이트시트: idle/walk/thinking/carry/overworked/slacking)</div>
+      <div class="kv"><b>cycle-1 go-live(06-06)</b>: <code>asset-motion-preview*.tsx</code>(v10/v47/v48/v49) 프리뷰 라우트 5개 삭제 · 보안·trust-copy·route-shell·Android perf·a11y</div>
+      <div class="kv small">同 시기 삭제: <code>KnowledgeGraph.tsx</code> · <code>LoadingScreen.legacy.tsx</code> · <code>oauth-kakao</code> (06-03)</div>
+    </div></div>
+
+    <div class="era"><div class="card">
+      <div class="date">2026-06-08 ~ · O-9</div>
+      <h3>E7 · Deep Space Game Boy — 픽셀 크롬</h3>
+      <div class="kv"><b>폰트</b> chrome → <b>Galmuri11</b>(KO) + <b>Press Start 2P</b>(EN), 본문 → <b>Pretendard</b>(readable)</div>
+      <div class="kv"><b>gameboy 토큰</b> border 2 · radius 0(샤프) · 3px hard shadow · grid 8 · scanline 0.04 · 픽셀 컴포넌트(PremiumButton/Card/Input/tab-bar)</div>
+    </div></div>
+
+    <div class="era"><div class="card">
+      <div class="date">2026-06-15 · O-23 / O-17 · #391 <span class="hash">ad8f4be</span> / <span class="hash">5785c4b</span></div>
+      <h3>E8 · Deep-space 홈 셸 + 랜딩 캐릭터</h3>
+      <div class="kv"><b>deep-space 트랙</b> eye-cyan 모노톤 <span class="sw"><i style="background:#0A0E1A"></i><i style="background:#46B6FF"></i><i style="background:#5FD4FF"></i></span> bg #0A0E1A · accent #46B6FF · text #5FD4FF (EXPO_PUBLIC_UI=deep-space)</div>
+      <div class="kv"><b>랜딩 캐릭터</b> <code>assets/deep-space/character-front.png</code> — rim-light bg, contextual expressions, face-tap back</div>
+    </div></div>
+
+    <div class="era"><div class="card">
+      <div class="date">2026-06-16 · #396 / #398 <span class="hash">0106108</span> <span class="hash">9cf57cf</span></div>
+      <h3>E9 · IDEN 정체성 내보내기 <span class="pill live">current tip</span></h3>
+      <div class="kv"><code>src/lib/iden/</code> — <code>.iden</code>(AI용 YAML) + 한 장 A4 CV 시트(인라인 SVG radar/donut/node-graph). 색은 <code>cosmic</code>/<code>lightCosmic</code> 토큰만(신규 hex 0). 화면 <code>/iden</code>.</div>
+    </div></div>
+
+  </div>
+
+  <h2>제거 / 휴면 / 미정리 아티팩트</h2>
+  <table>
+    <tr><th>아티팩트</th><th>상태</th><th>커밋·근거</th></tr>
+    <tr><td>sky-blue <code>#7DD3FC</code> 브랜드 + <code>src/theme/colors.ts</code></td><td><span class="pill dead">삭제/대체</span></td><td>Sprint 0 893717e → 피벗 #3에서 mint로 대체, colors.ts 트리에서 삭제</td></tr>
+    <tr><td>Fraunces + Geist 폰트</td><td><span class="pill dead">폐기</span></td><td>2026-05-25 도입 → 05-29 NeoDunggeunmo로 폐기(주석만 잔존)</td></tr>
+    <tr><td>dark-sky <code>#2F97FC</code> / lightSky / cosmicSky / useSkyPalette</td><td><span class="pill dorm">휴면</span></td><td>피벗 #2 f9dab94 → 로더 레이어로 dormant 잔존</td></tr>
+    <tr><td>Brain Stack v1.1 <code>mascot</code> 9-토큰</td><td><span class="pill dorm">휴면 back-compat</span></td><td>#25 75dd2a3 → 6-resident characters로 대체, 미삭제</td></tr>
+    <tr><td>Vela 마스코트</td><td><span class="pill dead">은퇴</span></td><td>#173 256c486 (공상→Divergent)</td></tr>
+    <tr><td>공상 <code>/imagine</code> 장소</td><td><span class="pill dorm">vestigial redirect</span></td><td>#173 256c486 (406줄 삭제 → 리다이렉트)</td></tr>
+    <tr><td>asset-motion-preview ×5 라우트</td><td><span class="pill dead">삭제</span></td><td>#211 0bfbfa3 (go-live cycle 1)</td></tr>
+    <tr><td>KnowledgeGraph · LoadingScreen.legacy · oauth-kakao</td><td><span class="pill dead">삭제</span></td><td>2026-06-03 (audit/legacy 정리)</td></tr>
+    <tr><td><b>Paper/Pine "phytoncide" 팔레트</b> <code>src/theme/tokens.ts</code></td><td><span class="pill live">살아있음 · 미문서화</span></td><td>Sprint 1 #6 72a0620 — DESIGN.md 미언급, export·테스트됨 → <b>정리 결정 필요</b></td></tr>
+  </table>
+
+  <p class="small" style="margin-top:22px">생성: Claude Code · <code>git fetch --unshallow</code> 후 996 commits 마이닝 + DESIGN.md 결정 로그 대조. 시대 라벨은 실제 커밋 해시로 검증.</p>
+</div>
+</body>
+</html>
