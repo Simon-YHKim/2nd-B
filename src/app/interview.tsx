@@ -47,6 +47,8 @@ import {
   type InterviewTurn,
   type LifePeriod,
 } from "@/lib/interview/probe";
+import { shouldStopDrilling } from "@/lib/interview/drill-stop";
+import { narrativeStarLevel } from "@/lib/interview/narrative-level";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 const SOFT_CAP = 50;
@@ -160,7 +162,16 @@ export default function Interview() {
     setDraft("");
 
     const userCount = updatedTurns.filter((t) => t.role === "user").length;
-    if (userCount >= SOFT_CAP) {
+    // Memo §3d: stop when the narrative axis reaches its target ladder level
+    // (sufficient cross-period/layer coverage), with SOFT_CAP as the hard safety
+    // net - replaces the turn-count-only soft cap.
+    if (
+      shouldStopDrilling({
+        currentLevel: narrativeStarLevel(updatedCoverage),
+        turnsSpent: userCount,
+        hardTurnCap: SOFT_CAP,
+      })
+    ) {
       setDone(true);
       return;
     }
