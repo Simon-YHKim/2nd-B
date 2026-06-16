@@ -173,10 +173,12 @@ Resolved for v0.1 (2026-06-16). Per Simon's standing note ("if what the system r
 
 - `types.ts` - `IdenDoc` / `IdenField` / `IdenSource` / `Viz`.
 - `render-html.ts` - `renderIdenHtml(doc, { locale })` produces the self-contained A4 two-column sheet. Colors sourced only from `theme/tokens` (`lightCosmic` paper/ink + `cosmic` accent/core hues); translucency via SVG `fill-opacity`; zero new hex literals.
+- `serialize.ts` - `serializeIden(doc, { request, body })` produces the `.iden` text (the AI-readable half): the YAML machine block (§2), an optional prose body, and the live `⟦REQUEST⟧` appended last (query-at-end). Hand-emitted compact flow YAML; strings are quoted only when a plain scalar would be unsafe or change type on parse, so the block round-trips. Pure, deterministic, no new dependency at runtime.
 - `sample.ts` - `SAMPLE_IDEN`, the dummy doc mirrored from mock E.
 - `__tests__/render-html.test.ts` - 9 contract tests (radar+bars, donut, node-graph, provenance, AI-summary separation, schema-driven drop, KO locale, HTML escaping, no em dash / no forbidden lexicon).
+- `__tests__/serialize.test.ts` - 13 contract tests (block/body/request order, parser round-trip, string-typed version+date, provenance tally, summary+rules separation, query-at-end, placeholder, omitted summary/rules, stat+unit, escaping of unsafe scalars, determinism, lexicon-clean).
 
-Not yet built (next): `serialize.ts` (`IdenDoc` -> `.iden` text machine block, the AI-readable half) and `buildIdenDoc()` (Supabase data -> `IdenDoc`, ties to the §6 Personal Context Pack). PDF export = browser print of the rendered sheet.
+Not yet built (next): `buildIdenDoc()` (Supabase data -> `IdenDoc`, ties to the §6 Personal Context Pack). PDF export = browser print of the rendered sheet.
 
 ---
 
