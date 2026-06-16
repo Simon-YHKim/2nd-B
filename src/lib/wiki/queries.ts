@@ -25,6 +25,12 @@ export interface CreateSourceInput {
   frontmatter: Record<string, unknown>;
   tags: string[];
   simon_relevance: number | null;
+  // §1 ingest gate (0044). All optional — omitting them keeps the legacy insert.
+  content_hash?: string;
+  relevance_score?: number | null;
+  dedup_of?: string | null;
+  dedup_signature?: number[];
+  dedup_bands?: string[];
 }
 
 export async function createSource(input: CreateSourceInput, signal?: AbortSignal): Promise<SourceRow> {
@@ -33,6 +39,60 @@ export async function createSource(input: CreateSourceInput, signal?: AbortSigna
   const { data, error } = await (signal ? query.abortSignal(signal) : query).single();
   if (error) throw error;
   return data as SourceRow;
+}
+
+// --- §1 ingest gate (0044) ---------------------------------------------
+
+export interface IngestCandidateRow {
+  id: string;
+  content_hash: string | null;
+  dedup_signature: number[] | null;
+}
+
+/**
+ * Fetch prior sources that could collide with an incoming clip: an exact
+ * content_hash match OR any row whose LSH band keys overlap. Two queries
+ * (merged, unique by id) instead of a hand-built `.or()` array literal, which
+ * is brittle with the colon/comma in band keys. RLS scopes both to the user.
+ */
+export async function findIngestCandidates(
+  userId: string,
+  bandKeys: string[],
+  contentHash: string,
+  signal?: AbortSignal,
+): Promise<IngestCandidateRow[]> {
+  const supabase = getSupabaseClient();
+  const base = () =>
+    supabase.from("sources").select("id, content_hash, dedup_signature").eq("user_id", userId).limit(50);
+  const exactQ = base().eq("content_hash", contentHash);
+  const bandQ = base().overlaps("dedup_bands", bandKeys);
+  const [exact, band] = await Promise.all([
+    signal ? exactQ.abortSignal(signal) : exactQ,
+    signal ? bandQ.abortSignal(signal) : bandQ,
+  ]);
+  if (exact.error) throw exact.error;
+  if (band.error) throw band.error;
+  const byId = new Map<string, IngestCandidateRow>();
+  for (const r of [...(exact.data ?? []), ...(band.data ?? [])]) {
+    byId.set((r as IngestCandidateRow).id, r as IngestCandidateRow);
+  }
+  return [...byId.values()];
+}
+
+export interface IngestDropInput {
+  user_id: string;
+  content_hash: string;
+  stage: string;
+  reason: string;
+  survivor_id: string | null;
+}
+
+/** Append a drop record to the ingest_log ledger (0044). */
+export async function recordIngestDrop(input: IngestDropInput, signal?: AbortSignal): Promise<void> {
+  const supabase = getSupabaseClient();
+  const query = supabase.from("ingest_log").insert(input);
+  const { error } = await (signal ? query.abortSignal(signal) : query);
+  if (error) throw error;
 }
 
 export interface ListSourcesOpts {

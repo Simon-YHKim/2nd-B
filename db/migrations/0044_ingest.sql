@@ -32,6 +32,12 @@
 ALTER TABLE sources ADD COLUMN IF NOT EXISTS content_hash    text;
 ALTER TABLE sources ADD COLUMN IF NOT EXISTS relevance_score int;
 ALTER TABLE sources ADD COLUMN IF NOT EXISTS dedup_of        uuid;
+-- MinHash signature + LSH band keys persisted so near-duplicate candidates can
+-- be fetched at capture time via band overlap (dedup_bands && $bands) and the
+-- precise compare done against dedup_signature, without re-reading every clip's
+-- body. Produced by src/lib/ingest/dedup.ts (minhashSignature / lshBandKeys).
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS dedup_signature int[];
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS dedup_bands     text[];
 
 DO $$ BEGIN
   IF NOT EXISTS (
@@ -56,6 +62,10 @@ END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS sources_user_content_hash_uniq
   ON sources (user_id, content_hash)
   WHERE content_hash IS NOT NULL;
+
+-- GIN index for LSH candidate fetch: `dedup_bands && $bandKeys` array overlap.
+CREATE INDEX IF NOT EXISTS sources_dedup_bands_gin
+  ON sources USING GIN (dedup_bands);
 
 -- 2. ingest_log drop ledger -------------------------------------------------
 CREATE TABLE IF NOT EXISTS ingest_log (

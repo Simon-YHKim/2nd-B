@@ -24,9 +24,21 @@ jest.mock("../queries", () => ({
     captured.push({ fn: "createSource", args: [input, signal] });
     return Promise.resolve(fixtures.sourceRow);
   }),
+  // Ingest gate deps (0044). Default to "no prior clip" so capture follows the
+  // keep path; the dedup-specific test overrides fixtures.candidates.
+  findIngestCandidates: jest.fn(() => Promise.resolve(fixtures.candidates ?? [])),
+  recordIngestDrop: jest.fn((input: unknown) => {
+    captured.push({ fn: "recordIngestDrop", args: [input] });
+    return Promise.resolve();
+  }),
+  getSource: jest.fn((_userId: string, id: string) => {
+    captured.push({ fn: "getSource", args: [id] });
+    return Promise.resolve(fixtures.existingSource ?? null);
+  }),
 }));
 
 import { captureFromMarkdown } from "../capture";
+import { minhashSignature } from "../../ingest/dedup";
 
 function reset() {
   captured.length = 0;
@@ -261,5 +273,58 @@ Body.`;
 
     const insert = captured.find((c) => c.fn === "createSource")!;
     expect(insert.args[1]).toBe(controller.signal);
+  });
+
+  // §1 ingest gate (dedup) wiring.
+  test("exact duplicate is an idempotent save: returns existing row, no upload/insert", async () => {
+    fixtures.existingSource = {
+      id: "existing-1",
+      user_id: "u1",
+      kind: "inbox",
+      title: "Dup",
+      storage_path: "u1/dup.md",
+    };
+    const drops: { stage: string }[] = [];
+    const r = await captureFromMarkdown({
+      userId: "u1",
+      rawMd: "A note that already lives in the brain.",
+      // findCandidates receives the gate-computed hash as its 2nd arg, so
+      // echoing it back guarantees an exact-hash match.
+      gateDeps: {
+        findCandidates: (_bands, hash) => Promise.resolve([{ id: "existing-1", contentHash: hash }]),
+        recordDrop: (row) => {
+          drops.push(row);
+          return Promise.resolve();
+        },
+      },
+    });
+
+    expect(r.deduped).toBe("exact_duplicate");
+    expect(r.source).toBe(fixtures.existingSource);
+    expect(captured.some((c) => c.fn === "uploadRawClipping")).toBe(false);
+    expect(captured.some((c) => c.fn === "createSource")).toBe(false);
+    expect(drops).toHaveLength(1);
+    expect(drops[0].stage).toBe("exact_duplicate");
+  });
+
+  test("near duplicate is still saved but linked to the survivor via dedup_of", async () => {
+    fixtures.sourceRow = { id: "s2", user_id: "u1", kind: "inbox", title: "Near", tags: [] };
+    const body = "A reflective note about morning sunlight and how it shifts my focus through the week.";
+    const r = await captureFromMarkdown({
+      userId: "u1",
+      rawMd: body,
+      gateDeps: {
+        // Same text → identical signature → similarity 1.0 (near), but a
+        // different content_hash so it isn't an exact match.
+        findCandidates: () =>
+          Promise.resolve([{ id: "survivor-1", contentHash: "different-hash", signature: minhashSignature(body) }]),
+        recordDrop: () => Promise.resolve(),
+      },
+    });
+
+    expect(r.deduped).toBe("near_duplicate");
+    const insert = captured.find((c) => c.fn === "createSource")!;
+    expect((insert.args[0] as { dedup_of: string | null }).dedup_of).toBe("survivor-1");
+    expect((insert.args[0] as { content_hash?: string }).content_hash).toBeDefined();
   });
 });
