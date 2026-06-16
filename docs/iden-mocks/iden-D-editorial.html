@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IDEN — Simon (D)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root{
+    --ink:#1a1726; --body:#2c2940; --muted:#7b7890; --faint:#a9a6ba;
+    --line:#e6e4ee; --track:#eeecf6; --paper:#fff; --accent:#6d51d6;
+    --g2:#b6b1cf; --g3:#ddd9ec;
+    --c1:#5b86b3; --c2:#5fa896; --c3:#b39a55; --c4:#b3789e; --c5:#8a8798;
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:#e9e8ee;color:var(--body);font-family:Pretendard,system-ui,sans-serif;
+       line-height:1.5;-webkit-font-smoothing:antialiased;padding:28px 14px}
+  .page{width:210mm;min-height:297mm;margin:0 auto;background:var(--paper);
+        padding:20mm 22mm;box-shadow:0 1px 24px rgba(26,23,38,.12)}
+  header{display:flex;justify-content:space-between;align-items:flex-start;
+         border-bottom:1.5px solid var(--ink);padding-bottom:14px}
+  .id{display:flex;gap:14px;align-items:center}
+  .name{font-size:23px;font-weight:800;color:var(--ink);letter-spacing:-.01em;line-height:1.15}
+  .role{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .ver{font-size:10px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;
+       border:1px solid var(--line);border-radius:3px;padding:3px 7px;white-space:nowrap}
+  section{padding:16px 0;border-bottom:1px solid var(--line)}
+  .h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:11px}
+  .h h2{font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);margin:0}
+  .h .note{font-size:10px;color:var(--faint);letter-spacing:.06em;text-transform:uppercase}
+  .summary{font-size:13.5px;color:var(--body);max-width:62ch}
+  .two{display:grid;grid-template-columns:210px 1fr;gap:26px;align-items:center}
+  table{border-collapse:collapse;width:100%;font-size:12.5px}
+  td{padding:5px 0;border-bottom:1px solid var(--line)}
+  td.k{color:var(--muted)} td.n{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+  tr:last-child td{border-bottom:none}
+  .row{display:grid;grid-template-columns:150px 1fr;gap:16px;padding:5px 0;font-size:13px;align-items:baseline}
+  .row .k{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+  .row .v{color:var(--ink)} .row .v .src{color:var(--faint);font-size:10.5px;margin-left:7px}
+  .sep{color:var(--faint);margin:0 7px}
+  .donutwrap{display:grid;grid-template-columns:96px 1fr;gap:24px;align-items:center}
+  .leg{font-size:12.5px} .leg div{display:flex;align-items:center;gap:9px;padding:3px 0}
+  .leg .sw{width:9px;height:9px;border-radius:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .leg .nn{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+  .coreg{display:grid;grid-template-columns:150px 1fr;gap:24px;align-items:center}
+  .corelist{display:flex;flex-wrap:wrap;gap:16px;font-size:12.5px;color:var(--ink)}
+  .corelist span{display:flex;align-items:center;gap:7px}
+  .dot{width:8px;height:8px;border-radius:50%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  svg .grid{stroke:var(--line);fill:none} svg .axis{stroke:var(--line)}
+  svg .data{fill:rgba(109,81,214,.12);stroke:var(--accent);stroke-width:1.6;
+            -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  svg .vtx{fill:var(--accent)} svg text{fill:var(--muted);font-size:8px}
+  svg .link{stroke:var(--line);stroke-width:1.3} svg .node{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  svg .seg{fill:none;stroke-width:13;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  footer{padding-top:14px;font-size:10.5px;color:var(--faint);display:flex;justify-content:space-between}
+  @page{size:A4;margin:14mm}
+  @media print{body{background:#fff;padding:0}.page{width:auto;min-height:auto;margin:0;padding:0;box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="id">
+      <svg width="34" height="34" viewBox="0 0 60 60" aria-hidden="true">
+        <g class="link"><line x1="30" y1="30" x2="30" y2="12"/><line x1="30" y1="30" x2="46" y2="23"/>
+        <line x1="30" y1="30" x2="40" y2="46"/><line x1="30" y1="30" x2="20" y2="46"/><line x1="30" y1="30" x2="14" y2="23"/></g>
+        <circle cx="30" cy="12" r="2.6" fill="var(--accent)"/><circle cx="46" cy="23" r="2.6" fill="var(--accent)"/>
+        <circle cx="40" cy="46" r="2.6" fill="var(--accent)"/><circle cx="20" cy="46" r="2.6" fill="var(--accent)"/>
+        <circle cx="14" cy="23" r="2.6" fill="var(--accent)"/><circle cx="30" cy="30" r="6" fill="var(--accent)"/>
+      </svg>
+      <div><div class="name">Simon</div><div class="role">INFP, mediator &middot; driven by autonomy</div></div>
+    </div>
+    <span class="ver">IDEN 0.1</span>
+  </header>
+
+  <section>
+    <div class="h"><h2>Summary</h2><span class="note">AI-generated interpretation</span></div>
+    <p class="summary">A consistent self-documenter, open to new ideas and reflective by habit.
+       Values warmth in relationships and works with the most energy when moving on a direction he set himself.</p>
+  </section>
+
+  <section>
+    <div class="h"><h2>Traits</h2><span class="note">measured &middot; BFI-44</span></div>
+    <div class="two">
+      <svg viewBox="0 0 200 185" width="100%" aria-label="Big Five radar">
+        <polygon class="grid" points="100,27 164.7,74 140,150 60,150 35.3,74"/>
+        <polygon class="grid" points="100,61 132.3,84.5 120,122.5 80,122.5 67.7,84.5"/>
+        <g class="axis"><line x1="100" y1="95" x2="100" y2="27"/><line x1="100" y1="95" x2="164.7" y2="74"/>
+        <line x1="100" y1="95" x2="140" y2="150"/><line x1="100" y1="95" x2="60" y2="150"/><line x1="100" y1="95" x2="35.3" y2="74"/></g>
+        <polygon class="data" points="100,39.2 143.9,80.7 114,114.3 70.4,135.7 73.5,86.4"/>
+        <g class="vtx"><circle cx="100" cy="39.2" r="2.2"/><circle cx="143.9" cy="80.7" r="2.2"/>
+        <circle cx="114" cy="114.3" r="2.2"/><circle cx="70.4" cy="135.7" r="2.2"/><circle cx="73.5" cy="86.4" r="2.2"/></g>
+        <text x="100" y="20" text-anchor="middle">Openness</text>
+        <text x="172" y="73" text-anchor="start">Consc.</text>
+        <text x="146" y="166" text-anchor="middle">Extrav.</text>
+        <text x="54" y="166" text-anchor="middle">Agree.</text>
+        <text x="28" y="73" text-anchor="end">Sensit.</text>
+      </svg>
+      <table>
+        <tr><td class="k">Openness</td><td class="n">82</td></tr>
+        <tr><td class="k">Conscientiousness</td><td class="n">68</td></tr>
+        <tr><td class="k">Extraversion</td><td class="n">35</td></tr>
+        <tr><td class="k">Agreeableness</td><td class="n">74</td></tr>
+        <tr><td class="k">Sensitivity</td><td class="n">41</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="h"><h2>Profile</h2></div>
+    <div class="row"><span class="k">Patterns</span><span class="v">Inquisitive <span class="sep">&middot;</span> Diligent <span class="sep">&middot;</span> Warm <span class="src">measured</span></span></div>
+    <div class="row"><span class="k">Type</span><span class="v">INFP <span class="src">assessment</span></span></div>
+    <div class="row"><span class="k">Attachment</span><span class="v">Secure <span class="src">ECR-S</span></span></div>
+    <div class="row"><span class="k">Drivers</span><span class="v">Autonomy <span class="sep">&middot;</span> Growth <span class="sep">&middot;</span> Authenticity</span></div>
+  </section>
+
+  <section>
+    <div class="h"><h2>Cores</h2></div>
+    <div class="coreg">
+      <svg viewBox="0 0 150 130" width="100%" aria-label="Pattern cores">
+        <g class="link"><line x1="75" y1="65" x2="75" y2="22"/><line x1="75" y1="65" x2="118" y2="50"/>
+        <line x1="75" y1="65" x2="102" y2="108"/><line x1="75" y1="65" x2="48" y2="108"/><line x1="75" y1="65" x2="32" y2="50"/></g>
+        <circle class="node" cx="75" cy="22" r="6" fill="var(--c1)"/><circle class="node" cx="118" cy="50" r="6" fill="var(--c2)"/>
+        <circle class="node" cx="102" cy="108" r="6" fill="var(--c3)"/><circle class="node" cx="48" cy="108" r="6" fill="var(--c4)"/>
+        <circle class="node" cx="32" cy="50" r="6" fill="var(--c5)"/><circle class="node" cx="75" cy="65" r="11" fill="var(--accent)"/>
+      </svg>
+      <div class="corelist">
+        <span><span class="dot" style="background:var(--accent)"></span>Soul</span>
+        <span><span class="dot" style="background:var(--c1)"></span>Growth</span>
+        <span><span class="dot" style="background:var(--c2)"></span>Wisdom</span>
+        <span><span class="dot" style="background:var(--c3)"></span>Bond</span>
+        <span><span class="dot" style="background:var(--c4)"></span>Muse</span>
+        <span><span class="dot" style="background:var(--c5)"></span>Record</span>
+      </div>
+    </div>
+  </section>
+
+  <section style="border-bottom:none">
+    <div class="h"><h2>Contents</h2><span class="note">90 items</span></div>
+    <div class="donutwrap">
+      <svg viewBox="0 0 80 80" width="96" aria-label="Contents composition">
+        <g transform="rotate(-90 40 40)">
+          <circle class="seg" cx="40" cy="40" r="27" stroke="var(--accent)" stroke-dasharray="90.4 79.3" stroke-dashoffset="0"/>
+          <circle class="seg" cx="40" cy="40" r="27" stroke="var(--g3)" stroke-dasharray="22.6 147.1" stroke-dashoffset="-90.4"/>
+          <circle class="seg" cx="40" cy="40" r="27" stroke="var(--g2)" stroke-dasharray="56.5 113.2" stroke-dashoffset="-113"/>
+        </g>
+        <text x="40" y="44" text-anchor="middle" style="fill:var(--ink);font-size:13px;font-weight:700">90</text>
+      </svg>
+      <div class="leg">
+        <div><span class="sw" style="background:var(--accent)"></span>Sources <span class="nn">48</span></div>
+        <div><span class="sw" style="background:var(--g2)"></span>Records <span class="nn">30</span></div>
+        <div><span class="sw" style="background:var(--g3)"></span>Concepts <span class="nn">12</span></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>IDEN 0.1 &middot; generated 2026-06-16 &middot; 4 measured / 1 collecting</span>
+    <span>Machine block included in source .iden</span>
+  </footer>
+</div>
+</body>
+</html>

@@ -20,12 +20,31 @@ import { getEnv } from "@/lib/env";
 import { getSource } from "./queries";
 import { downloadRawClipping } from "./storage";
 import { getSupabaseClient } from "../supabase/client";
+import { containsForbiddenLexicon } from "../safety/classifier";
+import { VILLAGE_LABEL, type VillageId } from "../graph/relatedness";
+
+// §1 ingest categories = the Pattern Core domains (graph tier-2). Derived from
+// VILLAGE_LABEL so the enum stays in lockstep with the graph model (DRY).
+const INGEST_CATEGORIES = Object.keys(VILLAGE_LABEL) as VillageId[];
+// relevance below this ⇒ keep=false (drop candidate). Tunable; eng review A4.
+const RELEVANCE_KEEP_THRESHOLD = 2;
 
 export interface Phase1Result {
   summary: string;
   entities: string[];
   concepts: string[];
   questions: string[];
+  // §1 ingest normalization, folded into the same pass (eng review A1/A4 — no
+  // separate Gemini call). All optional for backward-compat with __phase1__
+  // rows written before these fields existed.
+  /** One Pattern Core domain (graph tier-2). */
+  category?: VillageId;
+  /** 3-7 short tags; clinical terms stripped post-generation (eng review C3). */
+  tags?: string[];
+  /** 1-5: usefulness for the reader's self-understanding and growth. */
+  relevance?: number;
+  /** false only for spam / ads / no personal value (drop candidate). */
+  keep?: boolean;
   generated_at: string;
   model: string;
 }
@@ -37,15 +56,19 @@ const PHASE1_SCHEMA = {
     entities: { type: "ARRAY", items: { type: "STRING" } },
     concepts: { type: "ARRAY", items: { type: "STRING" } },
     questions: { type: "ARRAY", items: { type: "STRING" } },
+    category: { type: "STRING", format: "enum", enum: INGEST_CATEGORIES },
+    tags: { type: "ARRAY", items: { type: "STRING" } },
+    relevance: { type: "INTEGER" },
+    keep: { type: "BOOLEAN" },
   },
-  required: ["summary", "entities", "concepts", "questions"],
+  required: ["summary", "entities", "concepts", "questions", "category", "tags", "relevance", "keep"],
 } as const;
 
 const SYSTEM_PROMPT = {
   en:
-    "You are a careful reading assistant. Read the source markdown and emit JSON with: a 3-5 sentence summary, an `entities` array (people / orgs / works named in the text), a `concepts` array (3-7 abstract ideas the text develops), and a `questions` array of exactly 4 reflection prompts the reader can sit with. Use the reader's locale.",
+    "You are a careful reading assistant. Read the source markdown and emit JSON with: a 3-5 sentence summary, an `entities` array (people / orgs / works named in the text), a `concepts` array (3-7 abstract ideas the text develops), and a `questions` array of exactly 4 reflection prompts the reader can sit with. Also classify the source into exactly one `category` from: work, relation, knowledge, records, taste, rhythm. Suggest 3-7 short `tags`. Give a `relevance` integer from 1 to 5 for how useful this is for the reader's self-understanding and growth, and a `keep` boolean that is false only for spam, ads, or content with no personal value. Use the reader's locale.",
   ko:
-    "당신은 신중한 독해 보조자입니다. 소스 마크다운을 읽고 다음 JSON을 만들어 주세요: 3-5문장 요약, 본문에 등장한 사람/조직/저작물의 `entities` 배열, 본문이 다루는 3-7개의 추상 개념 `concepts` 배열, 그리고 독자가 음미할 수 있는 정확히 4개의 성찰 질문 `questions` 배열. 독자의 언어에 맞춰 답하세요.",
+    "당신은 신중한 독해 보조자입니다. 소스 마크다운을 읽고 다음 JSON을 만들어 주세요: 3-5문장 요약, 본문에 등장한 사람/조직/저작물의 `entities` 배열, 본문이 다루는 3-7개의 추상 개념 `concepts` 배열, 그리고 독자가 음미할 수 있는 정확히 4개의 성찰 질문 `questions` 배열. 또한 소스를 work, relation, knowledge, records, taste, rhythm 중 정확히 하나의 `category`로 분류하고, 3-7개의 짧은 `tags`를 제안하세요. 독자의 자기 이해와 성장에 얼마나 유용한지 `relevance`를 1에서 5 사이 정수로, 그리고 스팸·광고·개인적 가치가 전혀 없는 콘텐츠일 때만 false인 `keep` 불리언을 함께 주세요. 독자의 언어에 맞춰 답하세요.",
 };
 
 /**
@@ -54,7 +77,10 @@ const SYSTEM_PROMPT = {
  * the templated string. For offline preview we synthesize a fallback so the
  * UI can render something while no live model is connected.
  */
-function parsePhase1Reply(text: string): Omit<Phase1Result, "generated_at" | "model"> | null {
+function parsePhase1Reply(
+  text: string,
+  locale: "en" | "ko",
+): Omit<Phase1Result, "generated_at" | "model"> | null {
   const trimmed = text.trim();
   if (trimmed.startsWith("{")) {
     try {
@@ -65,11 +91,37 @@ function parsePhase1Reply(text: string): Omit<Phase1Result, "generated_at" | "mo
         Array.isArray(parsed.concepts) &&
         Array.isArray(parsed.questions)
       ) {
+        const isString = (s: unknown): s is string => typeof s === "string";
+        // §1 ingest fields are tolerant: absent/invalid ⇒ undefined, so replies
+        // from before this schema (and mock mode) still parse.
+        const category =
+          isString(parsed.category) && (INGEST_CATEGORIES as string[]).includes(parsed.category)
+            ? (parsed.category as VillageId)
+            : undefined;
+        // Strip any tag carrying a clinical term — schema can't enum-constrain a
+        // free-text array, so the lexicon guard runs post-generation (C3).
+        const tags = (Array.isArray(parsed.tags) ? parsed.tags.filter(isString) : []).filter(
+          (t: string) => containsForbiddenLexicon(t, locale).length === 0,
+        );
+        const relevance =
+          typeof parsed.relevance === "number" && Number.isFinite(parsed.relevance)
+            ? Math.min(5, Math.max(1, Math.round(parsed.relevance)))
+            : undefined;
+        const keep =
+          typeof parsed.keep === "boolean"
+            ? parsed.keep
+            : relevance === undefined
+              ? true
+              : relevance >= RELEVANCE_KEEP_THRESHOLD;
         return {
           summary: parsed.summary,
-          entities: parsed.entities.filter((s: unknown): s is string => typeof s === "string"),
-          concepts: parsed.concepts.filter((s: unknown): s is string => typeof s === "string"),
-          questions: parsed.questions.filter((s: unknown): s is string => typeof s === "string"),
+          entities: parsed.entities.filter(isString),
+          concepts: parsed.concepts.filter(isString),
+          questions: parsed.questions.filter(isString),
+          category,
+          tags,
+          relevance,
+          keep,
         };
       }
     } catch {
@@ -95,6 +147,9 @@ function mockStub(title: string, locale: "en" | "ko"): Omit<Phase1Result, "gener
           "동의하지 않거나 의심이 드는 지점이 있다면 어디인가요?",
           "오늘 이후 작은 행동 하나로 옮길 수 있는 것은 무엇인가요?",
         ],
+        tags: [],
+        relevance: 3,
+        keep: true,
       }
     : {
         summary: `This is an offline preview. The summary of "${title}" will be generated once you go online.`,
@@ -106,6 +161,9 @@ function mockStub(title: string, locale: "en" | "ko"): Omit<Phase1Result, "gener
           "Where do you find yourself disagreeing or doubtful?",
           "What is one small action you could carry forward today?",
         ],
+        tags: [],
+        relevance: 3,
+        keep: true,
       };
 }
 
@@ -136,7 +194,7 @@ export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
     responseSchema: env.EXPO_PUBLIC_LLM_MODE === "mock" ? undefined : (PHASE1_SCHEMA as Record<string, unknown>),
   });
 
-  const parsed = parsePhase1Reply(reply.text) ?? mockStub(source.title, input.locale);
+  const parsed = parsePhase1Reply(reply.text, input.locale) ?? mockStub(source.title, input.locale);
 
   const result: Phase1Result = {
     ...parsed,

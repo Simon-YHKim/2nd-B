@@ -48,6 +48,9 @@ jest.mock("../wiki/queries", () => ({
   }),
   listSources: jest.fn(() => Promise.resolve(sourceRows)),
   listWikiPages: jest.fn(() => Promise.resolve(wikiRows)),
+  // §1 ingest gate (0044): no prior clip -> capture follows the keep path.
+  findIngestCandidates: jest.fn(() => Promise.resolve([])),
+  recordIngestDrop: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock("../supabase/client", () => ({

@@ -40,6 +40,12 @@ export interface SourceRow {
   ingested: boolean;
   ingested_at: string | null;
   captured_at: string;
+  // §1 ingest gate (0044). Optional — legacy rows predate these columns.
+  content_hash?: string | null;
+  relevance_score?: number | null;
+  dedup_of?: string | null;
+  dedup_signature?: number[] | null;
+  dedup_bands?: string[] | null;
 }
 
 export interface WikiPageRow {

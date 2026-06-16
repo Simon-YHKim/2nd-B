@@ -7,8 +7,11 @@
 
 import { buildSourcePayload } from "./ingest-helpers";
 import { throwIfAborted } from "../async/abort";
-import { createSource } from "./queries";
+import { createSource, getSource } from "./queries";
 import { rawClippingPath, uploadRawClipping } from "./storage";
+import { contentHash, minhashSignature, lshBandKeys } from "../ingest/dedup";
+import { decideIngest, type GateDeps } from "../ingest/gate";
+import { makeSupabaseGateDeps } from "../ingest/gate-supabase";
 import type { SourceKind, SourceRow } from "./types";
 
 export interface CaptureInput {
@@ -43,6 +46,11 @@ export interface CaptureInput {
   simonRelevance?: number | null;
   /** Optional UI-owned cancellation signal for capture submit flows. */
   signal?: AbortSignal;
+  /**
+   * Ingest-gate deps (dedup). Defaults to the Supabase-backed factory; tests
+   * inject a fake. Exposed so callers can disable/stub the gate if needed.
+   */
+  gateDeps?: GateDeps;
 }
 
 export interface CaptureResult {
@@ -56,12 +64,64 @@ export interface CaptureResult {
    *  frontmatter._body_fallback. The piece is safe, but callers should
    *  surface the degraded state instead of reporting a clean success. */
   storagePending: boolean;
+  /**
+   * Set when the ingest gate matched an existing clip:
+   *   - "exact_duplicate": nothing was saved; `source` is the existing row
+   *     (idempotent save). No new Storage upload happened.
+   *   - "near_duplicate": a new row WAS saved but linked to the survivor via
+   *     `source.dedup_of` (we don't silently discard a maybe-different clip).
+   * null on a normal first-time capture.
+   */
+  deduped: "exact_duplicate" | "near_duplicate" | null;
 }
 
 export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureResult> {
   throwIfAborted(input.signal);
   const built = buildSourcePayload(input.rawMd, input.fallbackUrl ?? null, input.kindOverride ?? null);
   throwIfAborted(input.signal);
+
+  // §1 ingest gate (dedup). Runs on the body text BEFORE any Storage upload, so
+  // a re-clipped article costs no upload. Relevance gating is NOT here — the
+  // phase1 Gemini score doesn't exist yet at capture; only exact/near dedup can
+  // decide now. An exact duplicate is an idempotent save (return the existing
+  // row, nothing written). A near duplicate is still saved but linked to its
+  // survivor via dedup_of — we never silently discard a maybe-distinct clip.
+  const gateDeps = input.gateDeps ?? makeSupabaseGateDeps(input.userId, input.signal);
+  const hash = contentHash(built.body);
+  const signature = minhashSignature(built.body);
+  const bands = lshBandKeys(signature);
+  const candidates = await gateDeps.findCandidates(bands, hash);
+  throwIfAborted(input.signal);
+  const decision = decideIngest({
+    text: built.body,
+    candidates,
+    precomputed: { contentHash: hash, signature },
+  });
+
+  let dedupOf: string | null = null;
+  if (!decision.keep && decision.stage === "exact_duplicate" && decision.survivorId) {
+    await gateDeps.recordDrop({
+      content_hash: hash,
+      stage: "exact_duplicate",
+      reason: decision.reason,
+      survivor_id: decision.survivorId,
+    });
+    throwIfAborted(input.signal);
+    const existing = await getSource(input.userId, decision.survivorId);
+    if (existing) {
+      return {
+        source: existing,
+        storage_path: existing.storage_path,
+        hadFrontmatter: built.hadFrontmatter,
+        suggested_slug: built.suggested_slug,
+        storagePending: false,
+        deduped: "exact_duplicate",
+      };
+    }
+    // Survivor vanished (deleted between fetch and now) — fall through and save.
+  } else if (!decision.keep && decision.stage === "near_duplicate") {
+    dedupOf = decision.survivorId;
+  }
 
   // The body-only markdown is persisted to Storage; the frontmatter also lives
   // in sources.frontmatter (jsonb). The upload is BEST-EFFORT: a transient
@@ -101,6 +161,10 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     frontmatter: mergedFrontmatter,
     tags: mergedTags,
     simon_relevance: scaleAiRelevance(input.simonRelevance) ?? built.payload.simon_relevance,
+    content_hash: hash,
+    dedup_signature: signature,
+    dedup_bands: bands,
+    dedup_of: dedupOf,
   }, input.signal);
   throwIfAborted(input.signal);
 
@@ -110,6 +174,7 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     hadFrontmatter: built.hadFrontmatter,
     suggested_slug: built.suggested_slug,
     storagePending: !storedToStorage,
+    deduped: dedupOf ? "near_duplicate" : null,
   };
 }
 

@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/Input";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { deleteWikiPage, getBacklinks, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
-import { exportUserWiki } from "@/lib/wiki/export";
+import { exportContextPack } from "@/lib/wiki/context-pack";
 import { readPhase1, runPhase1 } from "@/lib/wiki/phase1";
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { computeGraphStats } from "@/lib/wiki/graph-stats";
@@ -353,11 +353,13 @@ export default function Wiki() {
     if (!userId) return;
     setExporting(true);
     try {
-      // P2-2: the user-facing export is the pre-delete backup the danger-zone
+      // §6 Personal Context Pack: the 2-layer portable file (router header +
+      // detail), so any consumer LLM operates on the user as their personal OS.
+      // P2-2: this user-facing export is the pre-delete backup the danger-zone
       // copy points at — it must carry the journal/note records too (opt-in
-      // here only; the chat RAG snapshot stays pages+sources).
-      const result = await exportUserWiki(userId, { locale, bodyCharLimit: 4000, includeRecords: true });
-      setExportText(result.prompt);
+      // here only; the chat RAG snapshot stays pages+sources via exportUserWiki).
+      const result = await exportContextPack(userId, { locale, bodyCharLimit: 4000, includeRecords: true });
+      setExportText(result.full);
     } catch (e) {
       // Keep the raw error in logs only; show product-tone copy + retry.
       if (typeof console !== "undefined")
