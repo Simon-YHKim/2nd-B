@@ -14,13 +14,15 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router, type Href } from "expo-router";
+import { Redirect, router, type Href } from "expo-router";
 import Svg, { Circle, Path } from "react-native-svg";
 
 import { deepSpace } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { loadStarLevels } from "@/lib/persona/load-star-levels";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
+import { InlineLoader } from "@/components/ui/InlineLoader";
+import { useOnboardingComplete } from "@/lib/onboarding/state";
 
 const CHARACTER = require("../../../assets/deep-space/character-front.png");
 
@@ -40,7 +42,8 @@ export function DeepSpaceShell() {
   // a readable CTA + menu instead of hardcoded Korean (persona-sim culture-axis gap).
   const { i18n } = useTranslation();
   const isKo = i18n.language === "ko";
-  const { userId } = useAuth();
+  const { userId, hasProfile, loading } = useAuth();
+  const onboardingComplete = useOnboardingComplete();
   const [brightness, setBrightness] = useState<{ pct: number; lit: number } | null>(null);
   const profileLabel = isKo ? "나 · 프로필" : "Me · profile";
   const settingsLabel = isKo ? "설정" : "Settings";
@@ -62,6 +65,16 @@ export function DeepSpaceShell() {
       active = false;
     };
   }, [userId]);
+
+  // O-31 Stage3: the deep-space shell is a post-auth home — gate logged-out or
+  // incomplete users to the correct entry instead of rendering home to them
+  // (AG QA finding: deep-space bypassed the unauthenticated gate).
+  if (loading) return <InlineLoader />;
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  if (onboardingComplete === null) return <InlineLoader />;
+  if (!onboardingComplete) return <Redirect href="/onboarding" />;
+
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
       {/* O-23 Stage③ finish: head-right icons (D-22 nav). Settings is an icon, not
