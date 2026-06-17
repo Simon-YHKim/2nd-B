@@ -60,7 +60,7 @@ The single source of truth for both runtime classification and CI scan is `src/l
 **Read `docs/CONCEPT.md` (concept/direction) and `DESIGN.md` (visual discipline) before any visual or UI decision.** DESIGN.md's Cosmic Pixel Graph Village is the legacy skin; deep-space visuals use `deepSpace.*` tokens + `docs/deep-space-nav-contract.md`. Font, color, spacing, and aesthetic rules are defined there.
 
 - Do not introduce hex literals in components. Always go through `semantic.*` from `src/lib/theme/tokens.ts`.
-- Do not add gradients, glassmorphism, pill chips, or em dashes in UI strings.
+- Do not add glassmorphism, pill chips, or em dashes in UI strings. Gradients are allowed only within the deep-space cyan/soul identity via `deepSpaceGradients` (`src/lib/theme/tokens.ts`); off-palette or decorative gradients stay forbidden. See DESIGN.md "Color rules".
 - Do not deviate from `DESIGN.md` without explicit user approval.
 - In QA mode, flag any code that doesn't match `DESIGN.md`.
 
