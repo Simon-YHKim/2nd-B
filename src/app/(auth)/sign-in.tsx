@@ -197,9 +197,30 @@ export default function SignIn() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={[styles.scroll, Platform.OS === "android" && { paddingBottom: Math.max(styles.scroll.paddingBottom || 0, kbHeight + 24) }]} keyboardShouldPersistTaps="handled">
-          {/* Top bar — brand left, locale toggle right. */}
+          {/* Top bar — visible home affordance, brand, locale toggle. */}
           <View style={styles.topBar}>
-            <Text style={styles.brand}>{t("common:app.name")}</Text>
+            <Pressable
+              onPress={() => router.push("/")}
+              hitSlop={14}
+              accessibilityRole="button"
+              accessibilityLabel={t("common:navGraph.drilldown.back")}
+              accessibilityHint={t("common:navGraph.drilldown.backHint")}
+              style={styles.authBackButton}
+            >
+              <View
+                style={styles.authBackChevron}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <View style={[styles.authBackChevronStroke, styles.authBackChevronTop]} />
+                <View style={[styles.authBackChevronStroke, styles.authBackChevronBottom]} />
+              </View>
+            </Pressable>
+            <View style={styles.brandSlot}>
+              <Text style={styles.brand} numberOfLines={1}>
+                {t("common:app.name")}
+              </Text>
+            </View>
             <Pressable
               onPress={() => {
                 void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
@@ -447,13 +468,46 @@ const styles = StyleSheet.create({
     // narrower than the cap, so this is a no-op there.
     ...(Platform.OS === "web" ? { width: "100%" as const, maxWidth: 520, alignSelf: "center" as const } : {}),
   },
-  topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  topBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  authBackButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.md,
+    backgroundColor: semantic.surfaceAlt,
+    borderWidth: 1,
+    borderColor: semantic.border,
+  },
+  authBackChevron: {
+    width: 14,
+    height: 18,
+    justifyContent: "center",
+  },
+  authBackChevronStroke: {
+    position: "absolute",
+    left: 2,
+    width: 14,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: PALETTE.brand,
+  },
+  authBackChevronTop: {
+    transform: [{ rotate: "-42deg" }],
+    top: 4,
+  },
+  authBackChevronBottom: {
+    transform: [{ rotate: "42deg" }],
+    bottom: 4,
+  },
+  brandSlot: { flex: 1, minWidth: 0, alignItems: "center", paddingHorizontal: spacing.xs },
   // (R4: the unused `logo` style was removed - the hero renders heroImg.)
   brand: {
     color: PALETTE.brand,
     fontSize: typography.sizes.xs,
     fontWeight: "700",
     letterSpacing: 0,
+    textAlign: "center",
   },
   localeToggle: {
     color: PALETTE.accent,
