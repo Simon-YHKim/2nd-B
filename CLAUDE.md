@@ -108,9 +108,27 @@ Too much at once is as bad as overlap. Every screen earns attention with ONE thi
 - **Progressive disclosure** — detail appears only AFTER a tap/drilldown. First screen = the lure, detail = the catch.
 - Pairs with the touch rule (O-7): one touch should SIMPLIFY the screen, never add an overlapping layer (use a screen transition or bottom sheet, never a modal over the node). Back lives in exactly one place.
 
+## Worktrees & branches (Simon standing rule)
+
+The canonical checkout is `C:\2ndB` on `main`. ALL git worktrees live INSIDE this
+repo under `.worktrees/<name>` (gitignored). Never create a worktree as a sibling
+folder (e.g. `C:\2ndB-dev`) or under `C:\Coding Infra\_worktrees\`. This applies to
+every agent: Claude, Codex, Antigravity, Grok.
+
+- Create from the repo root: `git worktree add .worktrees/<name> -b <branch>`.
+  Remove: `git worktree remove .worktrees/<name>`. Move an existing one in:
+  `git worktree move <old-path> C:/2ndB/.worktrees/<name>`.
+- Share the install: symlink the worktree's `node_modules` to the canonical
+  `C:\2ndB\node_modules` rather than a per-worktree `npm ci`.
+- Tooling already excludes `.worktrees/` (gitignore, jest, metro, tsconfig,
+  eslint). Keep those excludes: they stop the nested copies from polluting
+  `npm run verify` and the Metro bundler.
+
 ## What never to do in this repo
 
 - Commit `.env`. (gitignored — verify before staging.)
+- Create git worktrees outside `.worktrees/` (no sibling folders, none under
+  `C:\Coding Infra\_worktrees\`). See **Worktrees & branches** above.
 - Push to `main` directly. Always PR.
 - Use `git rebase -i` or `git push --force` without explicit user confirmation.
 - Add a dependency without checking the free-tier impact (blueprint §5 promises $0/mo).
