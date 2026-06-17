@@ -11,6 +11,10 @@ module.exports = {
     "^expo-crypto$": "<rootDir>/__mocks__/expo-crypto.js",
   },
   testMatch: ["**/__tests__/**/*.test.ts"],
+  // Nested git worktrees live in .worktrees/<branch> (full repo copies). Never
+  // run their suites: they would double-run and collide on the haste map.
+  testPathIgnorePatterns: ["/node_modules/", "<rootDir>/.worktrees/"],
+  modulePathIgnorePatterns: ["<rootDir>/.worktrees/"],
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: { jsx: "react" } }],
   },

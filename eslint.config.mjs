@@ -31,6 +31,9 @@ export default [
   {
     ignores: [
       "node_modules/**",
+      // Nested git worktrees (.worktrees/<branch>) are full repo copies — `eslint .`
+      // must not lint them (team rule: all 2ndB worktrees live under .worktrees/).
+      ".worktrees/**",
       ".expo/**",
       "dist/**",
       // Vendored design-asset packs (reference SVGs / example components) —

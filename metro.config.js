@@ -24,4 +24,9 @@ config.resolver.sourceExts = [...config.resolver.sourceExts, "svg"];
 // (require-based), which Hermes accepts. This fixes all such packages at once.
 config.resolver.unstable_enablePackageExports = false;
 
+// Nested git worktrees (.worktrees/<branch>) are full repo copies. Keep Metro from
+// crawling them, or the haste map collides on duplicate module names + the watch
+// set balloons. (Team rule: all 2ndB worktrees live under .worktrees/.)
+config.resolver.blockList = [/[\\/]\.worktrees[\\/].*/];
+
 module.exports = withNativeWind(config, { input: "./global.css" });

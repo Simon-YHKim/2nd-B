@@ -3,6 +3,11 @@
 # dependencies
 node_modules/
 
+# git worktrees nest INSIDE this repo at .worktrees/<branch> (team rule: all
+# 2ndB worktrees live here, never as sibling folders or under Coding Infra).
+# Each is a full working tree with its own .git file — never commit them.
+.worktrees/
+
 # context-guardian (per-session state, not committed)
 SESSION_RECOVERY.md
 context_limit_log.json
