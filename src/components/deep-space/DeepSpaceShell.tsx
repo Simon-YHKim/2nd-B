@@ -15,7 +15,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router, type Href } from "expo-router";
+import { Redirect, router, type Href } from "expo-router";
 import Svg, { Circle, Path } from "react-native-svg";
 
 import { Text } from "@/components/ui/Text";
@@ -26,6 +26,8 @@ import { SELF_UNDERSTANDING_STARS, type StarId } from "@/lib/persona/stars";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { nextActivationStep } from "../../lib/persona/next-step";
 import { isCharacterFallback } from "../../lib/ui-mode";
+import { InlineLoader } from "@/components/ui/InlineLoader";
+import { useOnboardingComplete } from "@/lib/onboarding/state";
 
 const CHARACTER = require("../../../assets/deep-space/character-front.png");
 
@@ -43,13 +45,18 @@ const SECONDARY: { key: "graph" | "capture" | "profile"; route: Href }[] = [
 export function DeepSpaceShell() {
   // O-23 Stage⑤ (F2/F3) + Phase C: the shell speaks the user's locale via the
   // `home` namespace — no hardcoded Korean (persona-sim culture-axis gap).
-  const { t } = useTranslation("home");
-  const { userId } = useAuth();
+  const { t, i18n } = useTranslation("home");
+  const isKo = i18n.language === "ko";
+  const { userId, hasProfile, loading } = useAuth();
+  const onboardingComplete = useOnboardingComplete();
   const [brightness, setBrightness] = useState<{
     pct: number;
     lit: number;
     starLevels: Record<StarId, LadderLevel>;
   } | null>(null);
+  // Settings has no `home` key (it is not part of the activation funnel), so it
+  // stays an inline locale label.
+  const settingsLabel = isKo ? "설정" : "Settings";
   useEffect(() => {
     if (!userId) return;
     let active = true;
@@ -67,6 +74,16 @@ export function DeepSpaceShell() {
       active = false;
     };
   }, [userId]);
+
+  // O-31 Stage3: the deep-space shell is a post-auth home — gate logged-out or
+  // incomplete users to the correct entry instead of rendering home to them
+  // (AG QA finding: deep-space bypassed the unauthenticated gate). These early
+  // returns run AFTER the hooks above, so hook order stays stable.
+  if (loading) return <InlineLoader />;
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  if (onboardingComplete === null) return <InlineLoader />;
+  if (!onboardingComplete) return <Redirect href="/onboarding" />;
 
   const lowEnd = isCharacterFallback();
   // Tier-1 hero brightness: a dim core still reads (floor 0.25) so the orb never
@@ -95,9 +112,16 @@ export function DeepSpaceShell() {
           style={({ pressed }) => [styles.icon, pressed && styles.iconPressed]}
           onPress={() => router.push("/settings")}
           accessibilityRole="button"
-          accessibilityLabel="설정"
+          accessibilityLabel={settingsLabel}
         >
-          <Text style={[styles.iconGlyph, { color: deepSpace.text }]}>⚙</Text>
+          <Svg width={18} height={18} viewBox="0 0 24 24">
+            <Path
+              fillRule="evenodd"
+              clipRule="evenodd"
+              d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87a.49.49 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58ZM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2Z"
+              fill={deepSpace.text}
+            />
+          </Svg>
         </Pressable>
       </View>
 
@@ -202,8 +226,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  iconPressed: { borderColor: deepSpace.accent, backgroundColor: "rgba(70,182,255,0.12)" },
-  iconGlyph: {},
+  iconPressed: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
   stage: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
   heroCore: { width: 128, height: 128, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   litLine: { textAlign: "center", marginBottom: 16, fontSize: 14 },
@@ -242,7 +265,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 22,
   },
-  secondbPressed: { backgroundColor: "rgba(70,182,255,0.12)" },
+  secondbPressed: { backgroundColor: deepSpace.cardPressed },
   secondbText: { fontWeight: "600", textAlign: "center" },
   menu: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" },
   item: {
@@ -254,6 +277,6 @@ const styles = StyleSheet.create({
     borderColor: deepSpace.cardLine,
     alignItems: "center",
   },
-  itemPressed: { borderColor: deepSpace.accent, backgroundColor: "rgba(70,182,255,0.12)" },
+  itemPressed: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
   itemText: { fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" },
 });

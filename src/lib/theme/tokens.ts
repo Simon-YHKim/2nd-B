@@ -160,6 +160,13 @@ export const semantic = {
   success: cosmic.signalMint,
   warning: cosmic.pixelLamp,
   danger: cosmic.guardRose,
+  deepSpaceBg: "#0A0E1A",
+  deepSpaceAccent: "#46B6FF",
+  deepSpaceText: "#5FD4FF",
+  deepSpaceTextMuted: "rgba(95,212,255,0.62)",
+  deepSpaceCard: "rgba(70,182,255,0.06)",
+  deepSpaceCardPressed: "rgba(70,182,255,0.12)",
+  deepSpaceCardLine: "rgba(70,182,255,0.24)",
 } as const;
 
 // O-23 (D-22/D-23): deep-space character UI track tokens. Eye-cyan monotone so the
@@ -168,14 +175,15 @@ export const semantic = {
 // only by the deep-space shell (EXPO_PUBLIC_UI=deep-space); the legacy palette is
 // untouched. danger keeps a functional exception.
 export const deepSpace = {
-  bg: "#0A0E1A", // deep-space body (tinted near-black, never pure black)
+  bg: semantic.deepSpaceBg, // deep-space body (tinted near-black, never pure black)
   bgEdge: "#070A13", // darker frame edges
-  accent: "#46B6FF", // eye outer cyan = primary accent
+  accent: semantic.deepSpaceAccent, // eye outer cyan = primary accent
   accentBright: "#CCFAFF", // eye inner bright highlight
-  text: "#5FD4FF", // cyan body text (the character's mouth color)
-  textMuted: "rgba(95,212,255,0.62)",
-  card: "rgba(70,182,255,0.06)",
-  cardLine: "rgba(70,182,255,0.24)",
+  text: semantic.deepSpaceText, // cyan body text (the character's mouth color)
+  textMuted: semantic.deepSpaceTextMuted,
+  card: semantic.deepSpaceCard,
+  cardPressed: semantic.deepSpaceCardPressed,
+  cardLine: semantic.deepSpaceCardLine,
   danger: cosmic.guardRose, // functional-color exception only
 } as const;
 
@@ -203,6 +211,13 @@ export const semanticLight = {
   success: lightCosmic.brand,
   warning: "#9A6A00",
   danger: "#C2403F",
+  deepSpaceBg: semantic.deepSpaceBg,
+  deepSpaceAccent: semantic.deepSpaceAccent,
+  deepSpaceText: semantic.deepSpaceText,
+  deepSpaceTextMuted: semantic.deepSpaceTextMuted,
+  deepSpaceCard: semantic.deepSpaceCard,
+  deepSpaceCardPressed: semantic.deepSpaceCardPressed,
+  deepSpaceCardLine: semantic.deepSpaceCardLine,
 } as const;
 
 // ─── Characters — 6 pixel residents of the Graph Village ────────────

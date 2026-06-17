@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -69,6 +70,17 @@ export default function SignIn() {
     const timeout = setTimeout(() => setToast(null), 2800);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  // Stage 3 (O-31): hardware Back on the auth gate returns to the constellation
+  // home instead of exiting the app (no dead-end). Web uses the browser back.
+  useEffect(() => {
+    const onBackPress = () => {
+      router.push("/");
+      return true;
+    };
+    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => sub.remove();
+  }, []);
 
   // Still resolving the session — render the branded checking state instead of
   // flashing the sign-in form to a user who turns out to be signed in (the

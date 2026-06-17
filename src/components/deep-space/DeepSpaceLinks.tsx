@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
   groupTitle: {
     color: deepSpace.textMuted,
     fontSize: 11,
-    letterSpacing: 1.5,
+    letterSpacing: 0,
     textTransform: "uppercase",
   },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 44, // >= 44px touch target (a11y)
   },
-  itemPressed: { borderColor: deepSpace.accent, backgroundColor: deepSpace.card },
+  itemPressed: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
   itemLabel: { color: deepSpace.text, fontSize: 14, textAlign: "center" },
 });
 
