@@ -54,9 +54,13 @@ export function DeepSpaceShell() {
     lit: number;
     starLevels: Record<StarId, LadderLevel>;
   } | null>(null);
-  // Settings has no `home` key (it is not part of the activation funnel), so it
-  // stays an inline locale label.
+  // The top-right icon + character a11y labels stay inline isKo ternaries (the
+  // deep-space-shell-a11y guard pins this pattern + bans non-ASCII string
+  // literals in accessibilityLabel); the activation-funnel UI below uses the
+  // `home` namespace.
+  const profileLabel = isKo ? "나 · 프로필" : "Me · profile";
   const settingsLabel = isKo ? "설정" : "Settings";
+  const characterLabel = isKo ? "세컨드 브레인 캐릭터" : "Second Brain character";
   useEffect(() => {
     if (!userId) return;
     let active = true;
@@ -101,7 +105,7 @@ export function DeepSpaceShell() {
           style={({ pressed }) => [styles.icon, pressed && styles.iconPressed]}
           onPress={() => router.push("/profile")}
           accessibilityRole="button"
-          accessibilityLabel={t("menu.profile")}
+          accessibilityLabel={profileLabel}
         >
           <Svg width={18} height={18} viewBox="0 0 24 24">
             <Circle cx={12} cy={8} r={4} fill={deepSpace.text} />
@@ -156,7 +160,7 @@ export function DeepSpaceShell() {
           // expo-image (not RN Image) + memory-disk cache keeps the 860KB hero off
           // the OOM path the QA backlog flagged for hi-res RN Image.
           cachePolicy="memory-disk"
-          accessibilityLabel={t("character.a11y")}
+          accessibilityLabel={characterLabel}
         />
 
         {/* The first-run lure: the bubble appears only when nothing is lit yet,
@@ -278,5 +282,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   itemPressed: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
-  itemText: { fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" },
+  itemText: { fontSize: 12, letterSpacing: 0, textTransform: "uppercase" },
 });
