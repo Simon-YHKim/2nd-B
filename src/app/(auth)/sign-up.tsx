@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, Pressable, ScrollView, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router } from "expo-router";
 
@@ -75,6 +75,17 @@ export default function SignUp() {
     const timeout = setTimeout(() => setToast(null), 2800);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  // Stage 3 (O-31): hardware Back on the auth gate returns to the constellation
+  // home instead of exiting the app (no dead-end). Web uses the browser back.
+  useEffect(() => {
+    const onBackPress = () => {
+      router.push("/");
+      return true;
+    };
+    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => sub.remove();
+  }, []);
 
   const judge = useMemo(() => isJudgeEmail(email), [email]);
   // A valid DOB in the 14-17 band drives the high-privacy notice variant and
