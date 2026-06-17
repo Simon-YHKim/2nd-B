@@ -23,7 +23,17 @@ import { getEnv, type Env } from "../env";
 
 export type AnalyticsPropValue = string | number | boolean | null;
 export type AnalyticsProps = Record<string, AnalyticsPropValue | undefined>;
-export type AnalyticsEventName = "page_view" | "capture" | "secondb_session";
+export type AnalyticsEventName =
+  | "page_view"
+  | "capture"
+  | "secondb_session"
+  | "star_lit"
+  | "activation_milestone"
+  | "ai_limit_hit"
+  | "plans_viewed"
+  | "plans_tier_focused"
+  | "checkout_started"
+  | "purchase";
 
 export interface PageViewEventProps extends AnalyticsProps {
   path: string;
@@ -42,14 +52,32 @@ export interface CaptureEventProps extends AnalyticsProps {
 export type SecondBSessionAction = "started" | "message_sent" | "message_received" | "ended" | "failed";
 export interface SecondBSessionEventProps extends AnalyticsProps {
   action: SecondBSessionAction;
-  mode?: "chat" | "divergent" | "coach";
+  mode?: "chat" | "divergent" | "coach" | "analytic";
   turn_count?: number;
+  /** "ok" when the turn completed; "blocked" when the safety/limit gate stopped it. */
+  outcome?: "ok" | "blocked";
+  /** Daily AI count after this turn (scalar). */
+  used?: number;
+  /** Daily AI cap for the user's tier (scalar). */
+  limit?: number;
+  /** Subscription tier id (scalar string). */
+  tier?: string;
 }
 
 export type PageViewAnalyticsEvent = { name: "page_view"; props: PageViewEventProps };
 export type CaptureAnalyticsEvent = { name: "capture"; props: CaptureEventProps };
 export type SecondBSessionAnalyticsEvent = { name: "secondb_session"; props: SecondBSessionEventProps };
-export type AnalyticsEvent = PageViewAnalyticsEvent | CaptureAnalyticsEvent | SecondBSessionAnalyticsEvent;
+export type AnalyticsEvent =
+  | PageViewAnalyticsEvent
+  | CaptureAnalyticsEvent
+  | SecondBSessionAnalyticsEvent
+  | StarLitAnalyticsEvent
+  | ActivationMilestoneAnalyticsEvent
+  | AiLimitHitAnalyticsEvent
+  | PlansViewedAnalyticsEvent
+  | PlansTierFocusedAnalyticsEvent
+  | CheckoutStartedAnalyticsEvent
+  | PurchaseAnalyticsEvent;
 
 export interface AnalyticsSubjectGate {
   /** True for 14-17 high-privacy users. Product analytics stay off. */
@@ -68,6 +96,101 @@ export function capture(props: CaptureEventProps): CaptureAnalyticsEvent {
 
 export function secondBSession(props: SecondBSessionEventProps): SecondBSessionAnalyticsEvent {
   return { name: "secondb_session", props };
+}
+
+// Conversion-funnel events (persona-sim memo §7). Leading indicator for the
+// paid-conversion path so it becomes measurable post-launch. All props are
+// PII-free scalars only - ids, levels, counts, tiers. Never carry record
+// bodies, chat text, or the user id (captureEvent emits only what is here).
+
+// A self-understanding star crossed up a ladder level (its brightness grew).
+export interface StarLitEventProps extends AnalyticsProps {
+  star_id: string;
+  ladder_level: number;
+  source: "questionnaire" | "journal" | "esm";
+  ms_since_signup?: number;
+  session_n?: number;
+}
+
+// The aggregate readout (북극성) reached a fuller state - lit-count + brightness.
+export interface ActivationMilestoneEventProps extends AnalyticsProps {
+  stars_lit_count: number;
+  soul_core_brightness: number;
+  ms_since_signup?: number;
+}
+
+// The daily AI cap was reached for the user's tier.
+export interface AiLimitHitEventProps extends AnalyticsProps {
+  tier: string;
+  limit: number;
+  upgrade_to?: string;
+  ms_since_first_star?: number;
+}
+
+// The plans screen was opened, with the entry point that led here.
+export interface PlansViewedEventProps extends AnalyticsProps {
+  current_tier: string;
+  source: "ai_limit" | "advisor_lock" | "direct";
+  locale?: "en" | "ko";
+  currency_shown?: string;
+}
+
+// A specific plan tier drew focus (default-highlighted or selected).
+export interface PlansTierFocusedEventProps extends AnalyticsProps {
+  tier: string;
+  price?: number;
+  currency?: string;
+}
+
+// Post-IAP only (creator fn defined now; no call site until native IAP lands).
+export interface CheckoutStartedEventProps extends AnalyticsProps {
+  tier: string;
+  price?: number;
+  currency?: string;
+}
+
+// Post-IAP only (creator fn defined now; no call site until native IAP lands).
+export interface PurchaseEventProps extends AnalyticsProps {
+  tier: string;
+  price?: number;
+  currency?: string;
+  period?: string;
+}
+
+export type StarLitAnalyticsEvent = { name: "star_lit"; props: StarLitEventProps };
+export type ActivationMilestoneAnalyticsEvent = { name: "activation_milestone"; props: ActivationMilestoneEventProps };
+export type AiLimitHitAnalyticsEvent = { name: "ai_limit_hit"; props: AiLimitHitEventProps };
+export type PlansViewedAnalyticsEvent = { name: "plans_viewed"; props: PlansViewedEventProps };
+export type PlansTierFocusedAnalyticsEvent = { name: "plans_tier_focused"; props: PlansTierFocusedEventProps };
+export type CheckoutStartedAnalyticsEvent = { name: "checkout_started"; props: CheckoutStartedEventProps };
+export type PurchaseAnalyticsEvent = { name: "purchase"; props: PurchaseEventProps };
+
+export function starLit(props: StarLitEventProps): StarLitAnalyticsEvent {
+  return { name: "star_lit", props };
+}
+
+export function activationMilestone(props: ActivationMilestoneEventProps): ActivationMilestoneAnalyticsEvent {
+  return { name: "activation_milestone", props };
+}
+
+export function aiLimitHit(props: AiLimitHitEventProps): AiLimitHitAnalyticsEvent {
+  return { name: "ai_limit_hit", props };
+}
+
+export function plansViewed(props: PlansViewedEventProps): PlansViewedAnalyticsEvent {
+  return { name: "plans_viewed", props };
+}
+
+export function plansTierFocused(props: PlansTierFocusedEventProps): PlansTierFocusedAnalyticsEvent {
+  return { name: "plans_tier_focused", props };
+}
+
+export function checkoutStarted(props: CheckoutStartedEventProps): CheckoutStartedAnalyticsEvent {
+  return { name: "checkout_started", props };
+}
+
+export function purchase(props: PurchaseEventProps): PurchaseAnalyticsEvent {
+  return { name: "purchase", props };
 }
 
 export function canLoadProductAnalytics(granted: boolean, gate?: AnalyticsSubjectGate): boolean {

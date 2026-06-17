@@ -37,6 +37,8 @@ import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
 import { CORE_VILLAGE_UI, VILLAGE_UI } from "@/lib/village-ui";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { SubscriptionTier } from "@/lib/progression/entitlements";
+import { captureEvent, secondBSession, aiLimitHit } from "@/lib/analytics";
 
 // Quick-action chips offered under an answer (chat pack §8). Each prefills
 // the composer with a short follow-up in the village voice; the user sends.
@@ -126,6 +128,11 @@ export default function SecondBChat() {
   // Tracks whether the last turn was safety-blocked, so 가디 can give the
   // "clear" beat the first time the conversation flows freely again.
   const wasBlockedRef = useRef(false);
+  // Funnel: fire ai_limit_hit at most once per mount when the daily cap is hit.
+  const limitHitFiredRef = useRef(false);
+  // The tier the server says to upgrade to (from a blocked turn). Falls back to
+  // "soma" in the limit-hit effect when no blocked turn has set it yet.
+  const [pendingUpgrade, setPendingUpgrade] = useState<SubscriptionTier | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   // Seed once on entry: a character chat opens with that companion's greeting
@@ -159,6 +166,22 @@ export default function SecondBChat() {
         setUsedToday(0);
       });
   }, [userId]);
+
+  // Funnel: the AI cap is the conversion gate. Fire ai_limit_hit once per mount
+  // the moment usage reaches the tier limit (whether hit by a sent turn or
+  // already at the cap on entry). Scalars only - tier/limit/upgrade target.
+  useEffect(() => {
+    if (limitHitFiredRef.current) return;
+    if (usedToday === null || usedToday < limit) return;
+    limitHitFiredRef.current = true;
+    captureEvent(
+      aiLimitHit({
+        tier: progression.tier,
+        limit,
+        upgrade_to: pendingUpgrade ?? "soma",
+      }),
+    );
+  }, [usedToday, limit, progression.tier, pendingUpgrade]);
 
   useEffect(() => {
     // Scroll to bottom after each new turn.
@@ -209,6 +232,17 @@ export default function SecondBChat() {
       if (result.status === "blocked") {
         setTurns((prev) => [...prev, { role: "secondb", text: result.hint }]);
         setUsedToday(result.used);
+        if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
+        captureEvent(
+          secondBSession({
+            action: "message_sent",
+            mode: chatMode,
+            outcome: "blocked",
+            used: result.used,
+            limit,
+            tier: progression.tier,
+          }),
+        );
         // 가디 steps in with a soft stop (companion pack §3 / C9).
         companion.fire("safetySoftStop");
         wasBlockedRef.current = true;
@@ -216,6 +250,17 @@ export default function SecondBChat() {
         const { display, chips } = parseSourceCitations(result.reply.text);
         setTurns((prev) => [...prev, { role: "secondb", text: display, chips }]);
         setUsedToday(result.used);
+        captureEvent(
+          secondBSession({
+            action: "message_sent",
+            mode: chatMode,
+            outcome: "ok",
+            turn_count: turns.length + 1,
+            used: result.used,
+            limit,
+            tier: progression.tier,
+          }),
+        );
         // 가디 gives the all-clear the first time we flow freely after a stop.
         if (wasBlockedRef.current) {
           companion.fire("safetyClear");
@@ -319,7 +364,7 @@ export default function SecondBChat() {
 
         {usedToday !== null && usedToday >= limit ? (
           <Pressable
-            onPress={() => router.push("/plans")}
+            onPress={() => router.push("/plans?from=ai_limit")}
             hitSlop={14}
             style={styles.limitLink}
             accessibilityRole="button"
