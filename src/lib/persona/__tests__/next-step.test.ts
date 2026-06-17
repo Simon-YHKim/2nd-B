@@ -17,22 +17,39 @@ function levels(over: Partial<Record<StarId, LadderLevel>> = {}): Record<StarId,
 }
 
 describe("nextActivationStep", () => {
-  it("offers the lowest-index offerable star first (all dim -> now / big-five)", () => {
+  // ACTIVATION_PRIORITY = attachment(relational) > bigFive(now) > values > esm(rhythm).
+  // Attachment-first matches the onboarding lure + the persona-sim leading
+  // indicator (ECR is the cheapest validated instrument -> instant L4).
+  it("offers attachment first when all stars are dim (cheapest validated L4)", () => {
     const step = nextActivationStep(levels());
+    expect(step).not.toBeNull();
+    expect(step!.star.id).toBe("relational");
+    expect(step!.route).toBe("/attachment");
+    expect(step!.key).toBe("attachment");
+  });
+
+  it("offers big-five next once attachment (relational) is lit", () => {
+    const step = nextActivationStep(levels({ relational: 4 }));
     expect(step).not.toBeNull();
     expect(step!.star.id).toBe("now");
     expect(step!.route).toBe("/big-five");
     expect(step!.key).toBe("bigFive");
   });
 
-  it("skips lit stars and offers the next dim offerable one by index (now+rhythm lit -> relational / attachment)", () => {
-    // Offerable stars by index: now(1), rhythm(4), relational(5), values(7).
-    // With now and rhythm lit, the lowest-index dim offerable star is relational.
-    const step = nextActivationStep(levels({ now: 2, rhythm: 2 }));
+  it("offers the values audit once attachment + big-five are lit", () => {
+    const step = nextActivationStep(levels({ relational: 4, now: 2 }));
     expect(step).not.toBeNull();
-    expect(step!.star.id).toBe("relational");
-    expect(step!.route).toBe("/attachment");
-    expect(step!.key).toBe("attachment");
+    expect(step!.star.id).toBe("values");
+    expect(step!.route).toBe("/audit");
+    expect(step!.key).toBe("values");
+  });
+
+  it("offers the rhythm check-in last (retention step, trails the validated instruments)", () => {
+    const step = nextActivationStep(levels({ relational: 4, now: 2, values: 2 }));
+    expect(step).not.toBeNull();
+    expect(step!.star.id).toBe("rhythm");
+    expect(step!.route).toBe("/esm");
+    expect(step!.key).toBe("esm");
   });
 
   it("returns null when every offerable star is lit (L2+)", () => {
@@ -49,13 +66,5 @@ describe("nextActivationStep", () => {
       levels({ now: 2, relational: 2, rhythm: 2, values: 2, seen: 1, possible: 1 }),
     );
     expect(step).toBeNull();
-  });
-
-  it("offers rhythm next when only now is lit (rhythm index 4 precedes relational index 5)", () => {
-    const step = nextActivationStep(levels({ now: 2 }));
-    expect(step).not.toBeNull();
-    expect(step!.star.id).toBe("rhythm");
-    expect(step!.route).toBe("/esm");
-    expect(step!.key).toBe("esm");
   });
 });
