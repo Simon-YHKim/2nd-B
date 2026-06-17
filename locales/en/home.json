@@ -1,0 +1,13 @@
+{
+  "soulCore": { "a11y": "Soul Core brightness" },
+  "character": { "a11y": "Second Brain character" },
+  "bubble": { "fresh": "What would you like to note?" },
+  "progress": { "lit": "{{lit}}/{{total}} stars lit", "next": "next: {{step}} ({{min}})" },
+  "nextStep": {
+    "bigFive": { "label": "Big Five", "min": "5 min", "cta": "Light a star with Big Five" },
+    "attachment": { "label": "Attachment", "min": "3 min", "cta": "Light a star with the relationship check" },
+    "esm": { "label": "Today's check-in", "min": "1 min", "cta": "Light a star with a quick check-in" },
+    "values": { "label": "Values", "min": "4 min", "cta": "Light a star with the values audit" }
+  },
+  "menu": { "graph": "Graph", "capture": "Capture", "secondb": "SecondB", "profile": "Me" }
+}

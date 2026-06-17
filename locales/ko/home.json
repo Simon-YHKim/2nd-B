@@ -1,0 +1,13 @@
+{
+  "soulCore": { "a11y": "소울 코어 밝기" },
+  "character": { "a11y": "세컨드 브레인 캐릭터" },
+  "bubble": { "fresh": "무엇을 기록해볼까요?" },
+  "progress": { "lit": "별 {{lit}}/{{total}}개 켜짐", "next": "다음: {{step}} ({{min}})" },
+  "nextStep": {
+    "bigFive": { "label": "빅파이브", "min": "5분", "cta": "빅파이브로 별 하나 켜기" },
+    "attachment": { "label": "관계의 나", "min": "3분", "cta": "관계 체크로 별 하나 켜기" },
+    "esm": { "label": "오늘의 체크인", "min": "1분", "cta": "가벼운 체크인으로 별 하나 켜기" },
+    "values": { "label": "가치", "min": "4분", "cta": "가치 점검으로 별 하나 켜기" }
+  },
+  "menu": { "graph": "그래프", "capture": "담기", "secondb": "세컨비", "profile": "나" }
+}
