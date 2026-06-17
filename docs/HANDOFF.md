@@ -30,7 +30,7 @@
 |---|---|---|---|
 | A | master-handoff.html 열어 '생각정리' - §12 핸드오프 플래그 우선순위화 | small | ⭐ 사용자 본 목표. 결정 후 아래로 분기 |
 | B | 자기이해 별자리(북두칠성 7-star, `src/lib/constellation`) 화면 디자인·구현 - 미설계 통째 기능 | medium | ★ 가장 큰 미설계 |
-| C | 앱 셸 2종(gameboy vs deep-space, `EXPO_PUBLIC_UI`) 정본 확정 | small | 다른 디자인 결정의 선행 |
+| C | 앱 셸 2종 정본 확정 ✅ 2026-06-17 결정: deep-space=정본(코드 기본값), gameboy=명시적 legacy 롤백. 라이브는 셸 완성(A1/A3/A4/A5)까지 legacy 핀(D12) | small | 결정됨 |
 | D | 화면 상태 불균등 보강 (평가화면·/data·/plans·/profile 빈/에러 프레임) | medium | 디자인 일관성 |
 | E | 챗 한도 업그레이드 모달 + 인앱 체크아웃(수익화) | large | prod 게이트 |
 | F | 부채 정리: Paper/Pine 미문서화 팔레트, build.ts TIPI 주석 잔재, account-export·랜딩 placeholder | small | - |
