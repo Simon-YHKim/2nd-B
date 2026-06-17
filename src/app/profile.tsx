@@ -29,6 +29,8 @@ type HubCopy = {
   items: Record<string, { label: string; hint: string }>;
 };
 
+type DeepSpaceProfileSection = "know" | "analyze";
+
 const PRIMARY_HUB_ITEMS: HubRoute[] = [
   { sectionKey: "center", key: "coreBrain", route: "/core-brain", accent: semantic.brand },
   { sectionKey: "center", key: "esm", route: "/esm", accent: semantic.brand },
@@ -111,6 +113,8 @@ export default function Profile() {
   const { userId, loading } = useAuth();
   const progression = useProgression();
   const sections = t("sections", { returnObjects: true }) as Record<string, HubCopy>;
+  const deepSpaceMode = isDeepSpaceUI();
+  const [activeDeepSpaceSection, setActiveDeepSpaceSection] = useState<DeepSpaceProfileSection>("know");
 
   const [email, setEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
@@ -160,16 +164,52 @@ export default function Profile() {
   const planName = progression.loading ? tPlans("loading") : tPlans(`tiers.${planKey}.name`);
   const planTagline = tPlans(`tiers.${planKey}.tagline`);
   const settingsCopy = sections.account.items.settings;
+  const deepSpaceSections: {
+    key: DeepSpaceProfileSection;
+    label: string;
+    group: { title: string; items: { key: string; label: string; route: Href }[] };
+  }[] = [
+    {
+      key: "know",
+      label: sections.know.label,
+      group: {
+        title: sections.know.label,
+        items: [
+          { key: "core-brain", label: sections.center.items.coreBrain.label, route: "/core-brain" },
+          { key: "persona", label: sections.know.items.persona.label, route: "/persona" },
+          { key: "insights", label: sections.analyze.items.insights.label, route: "/insights" },
+        ],
+      },
+    },
+    {
+      key: "analyze",
+      label: sections.analyze.label,
+      group: {
+        title: sections.analyze.label,
+        items: [
+          { key: "big-five", label: sections.know.items.bigFive.label, route: "/big-five" },
+          { key: "mbti", label: sections.know.items.mbti.label, route: "/mbti" },
+          { key: "attachment", label: sections.know.items.attachment.label, route: "/attachment" },
+          { key: "trinity", label: sections.analyze.items.trinity.label, route: "/trinity" },
+          { key: "esm", label: sections.center.items.esm.label, route: "/esm" },
+          { key: "interview", label: sections.know.items.interview.label, route: "/interview" },
+          { key: "audit", label: sections.know.items.audit.label, route: "/audit" },
+        ],
+      },
+    },
+  ];
+  const activeDeepSpaceGroup =
+    deepSpaceSections.find((section) => section.key === activeDeepSpaceSection)?.group ?? deepSpaceSections[0].group;
 
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.topBar} accessible accessibilityLabel={profileTitle}>
           <View style={{ flex: 1 }}>
-            <Text variant="caption" color="textMuted" style={styles.eyebrow}>
+            <Text variant="caption" color="textMuted" style={[styles.eyebrow, deepSpaceMode && styles.deepSpaceMutedText]}>
               {t("hero.eyebrow")}
             </Text>
-            <Text variant="heading" numberOfLines={1}>
+            <Text variant="heading" numberOfLines={1} style={deepSpaceMode && styles.deepSpaceText}>
               {displayName}
             </Text>
           </View>
@@ -177,112 +217,117 @@ export default function Profile() {
             onPress={() => router.push("/settings")}
             hitSlop={14}
             activeOpacity={0.7}
-            style={styles.settingsButton}
+            style={[styles.settingsButton, deepSpaceMode && styles.deepSpaceIconButton]}
             accessibilityRole="button"
             accessibilityLabel={settingsCopy.label}
             accessibilityHint={settingsCopy.hint}
           >
-            <SettingsGlyph color={semantic.brand} />
+            <SettingsGlyph color={deepSpaceMode ? semantic.deepSpaceText : semantic.brand} />
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
           onPress={() => router.push("/plans")}
           activeOpacity={0.7}
-          style={styles.subscriptionCard}
+          style={[styles.subscriptionCard, deepSpaceMode && styles.deepSpaceSubscriptionCard]}
           accessibilityRole="button"
           accessibilityLabel={`${tPlans("current")}: ${planName}`}
         >
-          <View style={styles.planIcon}>
-            <PlanGlyph color={semantic.brand} />
+          <View style={[styles.planIcon, deepSpaceMode && styles.deepSpacePlanIcon]}>
+            <PlanGlyph color={deepSpaceMode ? semantic.deepSpaceAccent : semantic.brand} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text variant="caption" color="brand" style={styles.eyebrow}>
+            <Text variant="caption" color="brand" style={[styles.eyebrow, deepSpaceMode && styles.deepSpaceText]}>
               {tPlans("current")}
             </Text>
-            <Text variant="heading">{planName}</Text>
-            <Text variant="subtle" color="textMuted" numberOfLines={2}>
+            <Text variant="heading" style={deepSpaceMode && styles.deepSpaceText}>
+              {planName}
+            </Text>
+            <Text variant="subtle" color="textMuted" numberOfLines={2} style={deepSpaceMode && styles.deepSpaceMutedText}>
               {planTagline}
             </Text>
           </View>
           {progression.loading ? (
-            <ActivityIndicator color={semantic.brand} />
+            <ActivityIndicator color={deepSpaceMode ? semantic.deepSpaceAccent : semantic.brand} />
           ) : (
-            <Text variant="caption" color="brand">
+            <Text variant="caption" color="brand" style={deepSpaceMode && styles.deepSpaceText}>
               {tPlans("hero.eyebrow")}
             </Text>
           )}
         </TouchableOpacity>
 
-        <View style={styles.accountStrip}>
-          {busy ? (
-            <ActivityIndicator color={semantic.brand} />
-          ) : (
-            <Text variant="subtle" color="textMuted" numberOfLines={1}>
-              {email ?? t("account.emailUnavailable")}
-            </Text>
-          )}
-        </View>
+        {deepSpaceMode ? null : (
+          <View style={styles.accountStrip}>
+            {busy ? (
+              <ActivityIndicator color={semantic.brand} />
+            ) : (
+              <Text variant="subtle" color="textMuted" numberOfLines={1}>
+                {email ?? t("account.emailUnavailable")}
+              </Text>
+            )}
+          </View>
+        )}
 
-        <View style={styles.quickGrid}>
-          {PRIMARY_HUB_ITEMS.map((item) => {
-            const itemCopy = sections[item.sectionKey].items[item.key];
-            return (
-              <TouchableOpacity
-                key={String(item.route)}
-                onPress={() => router.push(item.route)}
-                activeOpacity={0.7}
-                style={[styles.quickChip, { borderColor: item.accent }]}
-                accessibilityRole="button"
-                accessibilityLabel={itemCopy.label}
-                accessibilityHint={itemCopy.hint}
-              >
-                <View style={styles.quickChipIcon}>
-                  <HubGlyph itemKey={item.key} color={item.accent} />
-                </View>
-                <View style={styles.quickChipCopy}>
-                  <Text variant="body" color="text" numberOfLines={2} style={styles.quickChipLabel}>
-                    {itemCopy.label}
-                  </Text>
-                  <Text variant="subtle" color="textMuted" numberOfLines={2} style={styles.quickChipHint}>
-                    {itemCopy.hint}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {deepSpaceMode ? null : (
+          <View style={styles.quickGrid}>
+            {PRIMARY_HUB_ITEMS.map((item) => {
+              const itemCopy = sections[item.sectionKey].items[item.key];
+              return (
+                <TouchableOpacity
+                  key={String(item.route)}
+                  onPress={() => router.push(item.route)}
+                  activeOpacity={0.7}
+                  style={[styles.quickChip, { borderColor: item.accent }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={itemCopy.label}
+                  accessibilityHint={itemCopy.hint}
+                >
+                  <View style={styles.quickChipIcon}>
+                    <HubGlyph itemKey={item.key} color={item.accent} />
+                  </View>
+                  <View style={styles.quickChipCopy}>
+                    <Text variant="body" color="text" numberOfLines={2} style={styles.quickChipLabel}>
+                      {itemCopy.label}
+                    </Text>
+                    <Text variant="subtle" color="textMuted" numberOfLines={2} style={styles.quickChipHint}>
+                      {itemCopy.hint}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
-        {/* O-31 Stage③ (nav-contract §3): in deep-space mode, surface the full
-            나 second-tier + the 자기검사 허브 so every assessment route is
-            reachable directly from the 나 primary (누락 0). All labels come from
-            the profile locale bundle (C7 + ProfileI18nCopy: no inline copy).
-            Legacy mode renders nothing here — the quickGrid above is its hub. */}
+        {/* O-31 Stage4/6: deep-space keeps one summary card above, then reveals
+            one route cluster at a time instead of rendering the dense legacy hub. */}
         {isDeepSpaceUI() ? (
-          <DeepSpaceLinks
-            groups={[
-              {
-                title: sections.know.label,
-                items: [
-                  { key: "core-brain", label: sections.center.items.coreBrain.label, route: "/core-brain" },
-                  { key: "persona", label: sections.know.items.persona.label, route: "/persona" },
-                  { key: "insights", label: sections.analyze.items.insights.label, route: "/insights" },
-                ],
-              },
-              {
-                title: sections.analyze.label,
-                items: [
-                  { key: "big-five", label: sections.know.items.bigFive.label, route: "/big-five" },
-                  { key: "mbti", label: sections.know.items.mbti.label, route: "/mbti" },
-                  { key: "attachment", label: sections.know.items.attachment.label, route: "/attachment" },
-                  { key: "trinity", label: sections.analyze.items.trinity.label, route: "/trinity" },
-                  { key: "esm", label: sections.center.items.esm.label, route: "/esm" },
-                  { key: "interview", label: sections.know.items.interview.label, route: "/interview" },
-                  { key: "audit", label: sections.know.items.audit.label, route: "/audit" },
-                ],
-              },
-            ]}
-          />
+          <View style={styles.deepSpaceDisclosure}>
+            <View style={styles.deepSpaceTabs} accessibilityRole="tablist">
+              {deepSpaceSections.map((section) => {
+                const selected = section.key === activeDeepSpaceSection;
+                return (
+                  <TouchableOpacity
+                    key={section.key}
+                    onPress={() => setActiveDeepSpaceSection(section.key)}
+                    activeOpacity={0.72}
+                    style={[styles.deepSpaceTab, selected && styles.deepSpaceTabActive]}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={section.label}
+                  >
+                    <Text
+                      variant="caption"
+                      style={[styles.deepSpaceTabText, selected && styles.deepSpaceTabTextActive]}
+                    >
+                      {section.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <DeepSpaceLinks groups={[activeDeepSpaceGroup]} />
+          </View>
         ) : null}
       </ScrollView>
     </PremiumAppShell>
@@ -371,4 +416,57 @@ const styles = StyleSheet.create({
   quickChipCopy: { flex: 1, minWidth: 0, gap: 2 },
   quickChipLabel: { lineHeight: 20 },
   quickChipHint: { lineHeight: 16 },
+  deepSpaceText: { color: semantic.deepSpaceText },
+  deepSpaceMutedText: { color: semantic.deepSpaceTextMuted },
+  deepSpaceIconButton: {
+    backgroundColor: semantic.deepSpaceCard,
+    borderColor: semantic.deepSpaceCardLine,
+    borderWidth: 1,
+    borderRadius: 10,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  deepSpaceSubscriptionCard: {
+    backgroundColor: semantic.deepSpaceCard,
+    borderColor: semantic.deepSpaceAccent,
+    borderWidth: 1,
+    borderStartWidth: 1,
+    borderStartColor: semantic.deepSpaceAccent,
+    borderRadius: 12,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  deepSpacePlanIcon: {
+    backgroundColor: semantic.deepSpaceCard,
+    borderColor: semantic.deepSpaceCardLine,
+    borderWidth: 1,
+    borderRadius: 12,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  deepSpaceDisclosure: { gap: spacing.md },
+  deepSpaceTabs: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    padding: 4,
+    borderWidth: 1,
+    borderRadius: 12,
+    borderColor: semantic.deepSpaceCardLine,
+    backgroundColor: semantic.deepSpaceCard,
+  },
+  deepSpaceTab: {
+    flex: 1,
+    minHeight: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: semantic.deepSpaceCardLine,
+  },
+  deepSpaceTabActive: {
+    borderColor: semantic.deepSpaceAccent,
+    backgroundColor: semantic.deepSpaceCardPressed,
+  },
+  deepSpaceTabText: { color: semantic.deepSpaceTextMuted, letterSpacing: 0, textAlign: "center" },
+  deepSpaceTabTextActive: { color: semantic.deepSpaceText },
 });

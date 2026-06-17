@@ -28,4 +28,17 @@ describe("profile hub chips", () => {
     expect(source).toContain("quickChipIcon");
     expect(source).toContain("borderColor: item.accent");
   });
+
+  test("deep-space profile uses progressive disclosure instead of the dense legacy hub", () => {
+    const source = readRepoFile("src/app/profile.tsx");
+
+    expect(source).toContain("type DeepSpaceProfileSection");
+    expect(source).toContain("const [activeDeepSpaceSection, setActiveDeepSpaceSection]");
+    expect(source).toContain("{deepSpaceMode ? null : (");
+    expect(source).toContain("styles.quickGrid");
+    expect(source).toContain("styles.deepSpaceTabs");
+    expect(source).toContain("<DeepSpaceLinks groups={[activeDeepSpaceGroup]} />");
+    expect(source).toContain("semantic.deepSpaceAccent");
+    expect(source).not.toContain("deepSpaceMode ? <View style={styles.quickGrid}");
+  });
 });
