@@ -40,6 +40,10 @@
           "label": "Apego",
           "hint": "Abre a avaliação de estilo de apego."
         },
+        "mbti": {
+          "label": "MBTI",
+          "hint": "Abre o teste de referência MBTI."
+        },
         "audit": {
           "label": "Eu do passado",
           "hint": "Abre a linha do tempo do eu passado."

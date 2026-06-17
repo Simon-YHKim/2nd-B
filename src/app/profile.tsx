@@ -14,6 +14,8 @@ import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { useProgression } from "@/lib/progression/useProgression";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 
 interface HubRoute {
   sectionKey: string;
@@ -250,6 +252,38 @@ export default function Profile() {
             );
           })}
         </View>
+
+        {/* O-31 Stage③ (nav-contract §3): in deep-space mode, surface the full
+            나 second-tier + the 자기검사 허브 so every assessment route is
+            reachable directly from the 나 primary (누락 0). All labels come from
+            the profile locale bundle (C7 + ProfileI18nCopy: no inline copy).
+            Legacy mode renders nothing here — the quickGrid above is its hub. */}
+        {isDeepSpaceUI() ? (
+          <DeepSpaceLinks
+            groups={[
+              {
+                title: sections.know.label,
+                items: [
+                  { key: "core-brain", label: sections.center.items.coreBrain.label, route: "/core-brain" },
+                  { key: "persona", label: sections.know.items.persona.label, route: "/persona" },
+                  { key: "insights", label: sections.analyze.items.insights.label, route: "/insights" },
+                ],
+              },
+              {
+                title: sections.analyze.label,
+                items: [
+                  { key: "big-five", label: sections.know.items.bigFive.label, route: "/big-five" },
+                  { key: "mbti", label: sections.know.items.mbti.label, route: "/mbti" },
+                  { key: "attachment", label: sections.know.items.attachment.label, route: "/attachment" },
+                  { key: "trinity", label: sections.analyze.items.trinity.label, route: "/trinity" },
+                  { key: "esm", label: sections.center.items.esm.label, route: "/esm" },
+                  { key: "interview", label: sections.know.items.interview.label, route: "/interview" },
+                  { key: "audit", label: sections.know.items.audit.label, route: "/audit" },
+                ],
+              },
+            ]}
+          />
+        ) : null}
       </ScrollView>
     </PremiumAppShell>
   );
