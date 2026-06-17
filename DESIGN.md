@@ -3,6 +3,12 @@
 > Single source of truth for visual decisions. All code in `src/` must conform.
 > Update via `/design-consultation` or PR; never silently deviate. See
 > `src/lib/theme/tokens.ts` for the runtime token values referenced below.
+>
+> CONCEPT DIRECTION = deep-space. Read `docs/CONCEPT.md` first. The **Cosmic Pixel
+> Graph Village** system documented here is the LEGACY rollback skin
+> (`EXPO_PUBLIC_UI=legacy`); its cross-cutting discipline (tokens only, anti-slop,
+> no em dash) still applies. New deep-space visuals: `deepSpace.*` tokens +
+> `docs/deep-space-nav-contract.md` + the synthesis memo.
 
 ---
 

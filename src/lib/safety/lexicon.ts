@@ -131,6 +131,11 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   // and locales/ is still scanned.
   "docs/research/**",
   "docs/handoff/**",
+  // Legacy concept docs (superseded design / worldview, dated handoffs) live in
+  // docs/legacy/ for history + rollback only. They legitimately carry the old
+  // terminology and are not user-facing; the active surfaces (src/ + locales/)
+  // stay scanned, so this does not weaken the gate. See docs/CONCEPT.md.
+  "docs/legacy/**",
   // Legal & security docs define the policy — they must contain the
   // banned terms verbatim. The user-facing surfaces (src/ + locales/)
   // are still scanned, so this allowlisting doesn't weaken the gate.

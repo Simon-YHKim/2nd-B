@@ -1,3 +1,7 @@
+// @deprecated LEGACY - Phytoncide tokens (pre-deep-space). Superseded by the tokens
+// in src/lib/theme/tokens.ts (deepSpace.* / semantic.* / cosmic.*). Do NOT use for
+// new screens; kept only for legacy-skin code. Canonical concept: docs/CONCEPT.md.
+//
 // 2nd-Brain design tokens — Option C "Phytoncide" (5월 아침 편백 숲의 그린).
 // Single source of truth for color, spacing, radius and type scale. Components
 // pull from here (or the NativeWind classes generated from these) and never

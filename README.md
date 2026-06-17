@@ -77,12 +77,14 @@ doc is the routing table.
 
 ## Design system
 
-UI color, spacing, radius, type scale and font pairing come from the
-**Cosmic Pixel Graph Village** design tokens in `src/lib/theme/tokens.ts`
-(`semantic.*` / `cosmic.*`). Never hardcode hex literals in components. The
-single source of truth is [`DESIGN.md`](./DESIGN.md). (The earlier *phytoncide*
-tokens in `src/theme/tokens.ts` + `docs/DESIGN_TOKENS.md` are superseded and
-should not be used by new screens.)
+The concept and direction is **deep-space**; see [`docs/CONCEPT.md`](./docs/CONCEPT.md)
+for what is canonical vs legacy. UI color, spacing, radius, type scale and font
+pairing come from the design tokens in `src/lib/theme/tokens.ts` (`semantic.*` /
+`deepSpace.*` for deep-space; `cosmic.*` is the legacy *Cosmic Pixel Graph Village*
+skin). Never hardcode hex literals in components. Visual discipline lives in
+[`DESIGN.md`](./DESIGN.md). (The earlier *phytoncide* tokens in `src/theme/tokens.ts`
++ [`docs/legacy/DESIGN_TOKENS.md`](./docs/legacy/DESIGN_TOKENS.md) are superseded and
+must not be used.)
 
 ## Verification
 

@@ -11,6 +11,20 @@ Project-specific guidance for Claude Code sessions in this repo.
 - **Vision**: `docs/VISION.md` (캐치프레이즈 + 3축 모델). 모든 새 기능은 어느 축에 속하는지 PR 설명에 명시.
 - **Master blueprint**: `docs/ARCHITECTURE.md`. Hard constraints C1~C12: `docs/CONSTRAINTS.md`.
 
+## Canonical concept & direction (read first)
+
+The concept and direction is **deep-space** (a character-led home shell) plus the
+synthesis memo `2ndb-thought-organization-synthesis.html`. The one place that states
+what is canonical vs legacy is **`docs/CONCEPT.md`** — read it before any concept,
+IA, or visual decision. Canonical model: 북극성(Soul Core) + 북두칠성 7별
+(self-understanding lenses) + the L1~L5 brightness ladder + propose->ratify.
+
+**LEGACY (rollback skin only, never the reference for new work):** the gameboy track,
+the *Cosmic Pixel Graph Village* system, *phytoncide* tokens, *Brain Trinity* naming,
+and the fixed village node-names in the Visual Tier System below (Soul Core / Pattern
+Core x5 / snowflake / crystal). Preserved behind `EXPO_PUBLIC_UI=legacy`; superseded
+concept docs live in `docs/legacy/`.
+
 ## The 12 hard constraints
 
 Never weaken these. They're enforced at code/schema/CI level:
@@ -43,7 +57,7 @@ The single source of truth for both runtime classification and CI scan is `src/l
 
 ## Design system
 
-**Always read `DESIGN.md` before making any visual or UI decision.** All font choices, colors, spacing, and aesthetic direction are defined there.
+**Read `docs/CONCEPT.md` (concept/direction) and `DESIGN.md` (visual discipline) before any visual or UI decision.** DESIGN.md's Cosmic Pixel Graph Village is the legacy skin; deep-space visuals use `deepSpace.*` tokens + `docs/deep-space-nav-contract.md`. Font, color, spacing, and aesthetic rules are defined there.
 
 - Do not introduce hex literals in components. Always go through `semantic.*` from `src/lib/theme/tokens.ts`.
 - Do not add gradients, glassmorphism, pill chips, or em dashes in UI strings.
