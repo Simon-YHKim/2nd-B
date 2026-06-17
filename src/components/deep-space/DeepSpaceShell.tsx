@@ -42,6 +42,9 @@ export function DeepSpaceShell() {
   const isKo = i18n.language === "ko";
   const { userId } = useAuth();
   const [brightness, setBrightness] = useState<{ pct: number; lit: number } | null>(null);
+  const profileLabel = isKo ? "나 · 프로필" : "Me · profile";
+  const settingsLabel = isKo ? "설정" : "Settings";
+  const characterLabel = isKo ? "세컨드 브레인 캐릭터" : "Second Brain character";
   useEffect(() => {
     if (!userId) return;
     let active = true;
@@ -68,7 +71,7 @@ export function DeepSpaceShell() {
           style={({ pressed }) => [styles.icon, pressed && styles.iconPressed]}
           onPress={() => router.push("/profile")}
           accessibilityRole="button"
-          accessibilityLabel="나 · 프로필"
+          accessibilityLabel={profileLabel}
         >
           <Svg width={18} height={18} viewBox="0 0 24 24">
             <Circle cx={12} cy={8} r={4} fill={deepSpace.text} />
@@ -79,7 +82,7 @@ export function DeepSpaceShell() {
           style={({ pressed }) => [styles.icon, pressed && styles.iconPressed]}
           onPress={() => router.push("/settings")}
           accessibilityRole="button"
-          accessibilityLabel="설정"
+          accessibilityLabel={settingsLabel}
         >
           <Text style={styles.iconGlyph}>⚙</Text>
         </Pressable>
@@ -92,7 +95,7 @@ export function DeepSpaceShell() {
           // expo-image (not RN Image) + memory-disk cache keeps the 860KB hero off
           // the OOM path the QA backlog flagged for hi-res RN Image.
           cachePolicy="memory-disk"
-          accessibilityLabel="세컨드 브레인 캐릭터"
+          accessibilityLabel={characterLabel}
         />
 
         <View style={styles.bubble}>
