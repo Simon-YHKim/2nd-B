@@ -8,9 +8,10 @@
 // a dead end (persona PF-D). The contextual entry point is the SecondB chat
 // usage panel, which links here when the daily AI limit is reached.
 
+import { useEffect } from "react";
 import { ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 
 import { PremiumAppShell, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -19,6 +20,7 @@ import { useProgression } from "@/lib/progression/useProgression";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 import { LIFETIME } from "@/lib/progression/pricing";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { captureEvent, plansViewed, plansTierFocused } from "@/lib/analytics";
 
 // Every tier sells under its own enum name (v2: soma is live again as the
 // entry tier). The highlighted card is soma — the step the free AI limit
@@ -35,6 +37,27 @@ export default function Plans() {
   const locale = i18n.language === "ko" ? "ko" : "en";
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.5 };
   const progression = useProgression();
+  const params = useLocalSearchParams<{ from?: string }>();
+
+  // Funnel: record that the plans screen was seen, attributing the entry point,
+  // and the default-highlighted tier (soma). PII-free scalars only - tier ids +
+  // entry source + locale. Fires once the current tier is known.
+  useEffect(() => {
+    if (progression.loading) return;
+    captureEvent(
+      plansViewed({
+        current_tier: progression.tier,
+        source:
+          params.from === "ai_limit"
+            ? "ai_limit"
+            : params.from === "advisor_lock"
+              ? "advisor_lock"
+              : "direct",
+        locale,
+      }),
+    );
+    captureEvent(plansTierFocused({ tier: "soma" }));
+  }, [progression.loading]);
 
   return (
     <PremiumAppShell>
@@ -94,6 +117,7 @@ export default function Plans() {
         {/* Honest state. No fake checkout AND no notify-signup we cannot
             honor (there is no email capture / backend yet) — just a truthful
             status. Real billing is gated on Simon's store/IAP setup. */}
+        {/* TODO(IAP): captureEvent(checkoutStarted(...)) / purchase(...) here once native IAP lands */}
         <View style={styles.notifyPanel}>
           <Text variant="subtle" color="textMuted">{t("comingSoon")}</Text>
           <Text variant="caption" color="textMuted" style={styles.notifyHint}>{t("comingSoonBody")}</Text>

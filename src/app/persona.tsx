@@ -6,7 +6,7 @@ import { Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumErrorState, PremiumLoadingState, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
@@ -117,20 +117,23 @@ export default function Persona() {
     );
   }
   if (!persona) {
-    const toolCards: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" | "/mbti" }[] =
+    // ECR-first activation: the 12-item attachment check is the cheapest validated
+    // instrument and lights star5 straight to ladder L4, so it leads as the fast
+    // first-value path (the others follow). `fast` flags the lead card's accent.
+    const toolCards: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" | "/mbti"; fast?: boolean }[] =
       locale === "ko"
         ? [
+            { label: "애착 스타일 / Attachment", sub: "12문항 · 약 3분 · 별 하나 바로 켜져요", route: "/attachment", fast: true },
             { label: "라이프 오딧", sub: "25문항 · 약 8분", route: "/audit" },
             { label: "Big Five (BFI-44)", sub: "44문항 · 약 8분", route: "/big-five" },
-            { label: "애착 스타일 (ECR-S)", sub: "12문항 · 약 3분", route: "/attachment" },
             // Live QA 2026-06-11: /mbti 검사 화면에 진입점이 없었음 - 결과 카드는
             // 데이터가 있어야만 떠서, 검사를 시작할 방법 자체가 없었다.
             { label: "MBTI", sub: "유형 입력 · 약 3분", route: "/mbti" },
           ]
         : [
+            { label: "애착 스타일 / Attachment", sub: "12 items · ~3 min · lights one star now", route: "/attachment", fast: true },
             { label: "Life audit", sub: "25 items · ~8 min", route: "/audit" },
             { label: "Big Five (BFI-44)", sub: "44 items · ~8 min", route: "/big-five" },
-            { label: "Attachment (ECR-S)", sub: "12 items · ~3 min", route: "/attachment" },
             { label: "MBTI", sub: "Type check-in · ~3 min", route: "/mbti" },
           ];
     return (
@@ -149,25 +152,28 @@ export default function Persona() {
             accent={CORE_VILLAGE_UI.accent}
             speech={
               locale === "ko"
-                ? "검사 하나만 끝내도 윤곽이 생겨요. 같이 첫 조각부터 모아볼까요?"
-                : "One assessment is enough to sketch the outline. Shall we gather the first piece?"
+                ? "3분이면 가까운 관계 패턴을 짚고 별 하나가 바로 켜져요. 여기서 같이 시작해 볼까요?"
+                : "Three minutes on your relationship pattern lights your first star right away. Shall we start here?"
             }
             primaryAction={{
-              label: locale === "ko" ? "라이프 오딧 시작" : "Start life audit",
-              onPress: () => router.push("/audit"),
+              label: locale === "ko" ? "관계 체크 시작 · 3분" : "Start relationship check · 3 min",
+              onPress: () => router.push("/attachment"),
             }}
           />
           <View style={styles.toolGrid}>
-            {toolCards.map((t) => (
-              <View key={t.route} style={styles.toolCard}>
+            {toolCards.map((tc) => (
+              <View
+                key={tc.route}
+                style={[styles.toolCard, tc.fast ? styles.toolCardFast : null]}
+              >
                 <View style={{ flex: 1 }}>
-                  <Text variant="body" style={{ fontWeight: "600" }}>{t.label}</Text>
-                  <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>{t.sub}</Text>
+                  <Text variant="body" style={{ fontWeight: "600" }}>{tc.label}</Text>
+                  <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>{tc.sub}</Text>
                 </View>
                 <Button
                   label={locale === "ko" ? "시작" : "Start"}
-                  variant="secondary"
-                  onPress={() => router.push(t.route)}
+                  variant={tc.fast ? "primary" : "secondary"}
+                  onPress={() => router.push(tc.route)}
                 />
               </View>
             ))}
@@ -526,6 +532,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
+  },
+  // Lead (fast) card: a left-border accent marks the cheapest first-value path.
+  toolCardFast: {
+    borderStartColor: cosmic.soulViolet,
+    borderStartWidth: 3,
   },
   mbtiCard: {
     backgroundColor: semantic.surface,

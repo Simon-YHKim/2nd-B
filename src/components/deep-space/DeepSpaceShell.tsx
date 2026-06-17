@@ -1,50 +1,63 @@
 /**
- * O-23 Stage② — deep-space home shell skeleton (D-23 architecture C).
+ * O-23 Stage② — deep-space home shell (D-23 architecture C); Phase C hero pass.
  *
  * Rendered only when EXPO_PUBLIC_UI=deep-space; the legacy gameboy track is
- * untouched. This is the VISUAL skeleton: the character (static fallback image
- * per D-23 — r3f/expo-gl is a later, perf-gated upgrade) on the deep-space body,
- * a speech bubble, and the four primary menu entries (D-22 IA). Real routing into
- * the existing 40 expo-router screens is wired in Stage③ (the deep-space shell
- * becomes the router home + the nav contract / deeplinks get documented + E2E'd);
- * for now the menu gives honest "coming next" feedback so nothing reads as broken.
+ * untouched. The HERO is now the constellation progress: a Tier-1 Soul Core orb
+ * whose brightness IS the seven-star aggregate, with a "N/7 lit · next: <cheapest
+ * step>" nudge and a single filled CTA into the cheapest activation engine. The
+ * character recedes to a supporting sprite (D-23 static fallback — r3f/expo-gl is
+ * a later, perf-gated upgrade). SecondB (the path to the conversion trigger) is
+ * promoted out of the secondary grid; graph / capture / profile recede. One
+ * message + one graphic per screen (Simon standing rule).
  */
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Redirect, router, type Href } from "expo-router";
 import Svg, { Circle, Path } from "react-native-svg";
 
+import { Text } from "@/components/ui/Text";
 import { deepSpace } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { loadStarLevels } from "@/lib/persona/load-star-levels";
-import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
+import { SELF_UNDERSTANDING_STARS, type StarId } from "@/lib/persona/stars";
+import type { LadderLevel } from "@/lib/persona/brightness";
+import { nextActivationStep } from "../../lib/persona/next-step";
+import { isCharacterFallback } from "../../lib/ui-mode";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
 
 const CHARACTER = require("../../../assets/deep-space/character-front.png");
 
-// O-23 Stage③: the 4 primaries route into the existing screens (graph -> the
-// shared /graph route; the rest to their own routes). See nav contract.
-const PRIMARY: { key: string; ko: string; en: string; route: Href }[] = [
-  { key: "graph", ko: "그래프", en: "graph", route: "/graph" },
-  { key: "capture", ko: "담기", en: "capture", route: "/capture" },
-  { key: "secondb", ko: "세컨비", en: "secondb", route: "/secondb" },
-  { key: "profile", ko: "나", en: "profile", route: "/profile" },
+// DEFERRED (AG task): downscaled assets/deep-space/character-front@low.png ~320px
+// to serve the low-end fallback render box (132px) without decoding the 860KB hero.
+
+// The receding secondary routes (D-22 IA). SecondB is lifted OUT of this grid and
+// promoted below the hero, because it is the path to the conversion trigger.
+const SECONDARY: { key: "graph" | "capture" | "profile"; route: Href }[] = [
+  { key: "graph", route: "/graph" },
+  { key: "capture", route: "/capture" },
+  { key: "profile", route: "/profile" },
 ];
 
-const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
 export function DeepSpaceShell() {
-  // O-23 Stage⑤ (F2/F3): the shell speaks the user's locale — non-Korean users get
-  // a readable CTA + menu instead of hardcoded Korean (persona-sim culture-axis gap).
-  const { i18n } = useTranslation();
+  // O-23 Stage⑤ (F2/F3) + Phase C: the shell speaks the user's locale via the
+  // `home` namespace — no hardcoded Korean (persona-sim culture-axis gap).
+  const { t, i18n } = useTranslation("home");
   const isKo = i18n.language === "ko";
   const { userId, hasProfile, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
-  const [brightness, setBrightness] = useState<{ pct: number; lit: number } | null>(null);
+  const [brightness, setBrightness] = useState<{
+    pct: number;
+    lit: number;
+    starLevels: Record<StarId, LadderLevel>;
+  } | null>(null);
+  // The top-right icon + character a11y labels stay inline isKo ternaries (the
+  // deep-space-shell-a11y guard pins this pattern + bans non-ASCII string
+  // literals in accessibilityLabel); the activation-funnel UI below uses the
+  // `home` namespace.
   const profileLabel = isKo ? "나 · 프로필" : "Me · profile";
   const settingsLabel = isKo ? "설정" : "Settings";
   const characterLabel = isKo ? "세컨드 브레인 캐릭터" : "Second Brain character";
@@ -56,7 +69,7 @@ export function DeepSpaceShell() {
       .then(({ starLevels, soulCoreBrightness }) => {
         if (!active) return;
         const lit = SELF_UNDERSTANDING_STARS.filter((s) => starLevels[s.id] >= 2).length;
-        setBrightness({ pct: Math.round(soulCoreBrightness * 100), lit });
+        setBrightness({ pct: Math.round(soulCoreBrightness * 100), lit, starLevels });
       })
       .catch(() => {
         // Offline / no data yet: leave the indicator hidden rather than error.
@@ -68,12 +81,20 @@ export function DeepSpaceShell() {
 
   // O-31 Stage3: the deep-space shell is a post-auth home — gate logged-out or
   // incomplete users to the correct entry instead of rendering home to them
-  // (AG QA finding: deep-space bypassed the unauthenticated gate).
+  // (AG QA finding: deep-space bypassed the unauthenticated gate). These early
+  // returns run AFTER the hooks above, so hook order stays stable.
   if (loading) return <InlineLoader />;
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
   if (onboardingComplete === null) return <InlineLoader />;
   if (!onboardingComplete) return <Redirect href="/onboarding" />;
+
+  const lowEnd = isCharacterFallback();
+  // Tier-1 hero brightness: a dim core still reads (floor 0.25) so the orb never
+  // vanishes before any data lands.
+  const orbOpacity = brightness ? Math.max(0.25, brightness.pct / 100) : 0.25;
+  // The cheapest next step to light a star, from the deterministic helper.
+  const step = brightness ? nextActivationStep(brightness.starLevels) : null;
 
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
@@ -107,10 +128,34 @@ export function DeepSpaceShell() {
           </Svg>
         </Pressable>
       </View>
+
       <View style={styles.stage}>
+        {/* HERO (Tier-1): the Soul Core orb. Its brightness IS the seven-star
+            aggregate — the dominant graphic, 128px, max glow. */}
+        <View style={styles.heroCore} accessibilityLabel={t("soulCore.a11y")}>
+          <Svg width={128} height={128} viewBox="0 0 128 128">
+            <Circle cx={64} cy={64} r={48} fill={deepSpace.accent} opacity={orbOpacity * 0.5} />
+            <Circle cx={64} cy={64} r={30} fill={deepSpace.accentBright} opacity={orbOpacity} />
+          </Svg>
+        </View>
+
+        {brightness ? (
+          <Text style={[styles.litLine, { color: deepSpace.text }]}>
+            {t("progress.lit", { lit: brightness.lit, total: 7 })}
+            {step
+              ? "  ·  " +
+                t("progress.next", {
+                  step: t("nextStep." + step.key + ".label"),
+                  min: t("nextStep." + step.key + ".min"),
+                })
+              : ""}
+          </Text>
+        ) : null}
+
+        {/* Supporting sprite — recedes behind the hero. 200px (132px low-end). */}
         <Image
           source={CHARACTER}
-          style={styles.character}
+          style={[styles.character, lowEnd && styles.characterLow]}
           contentFit="contain"
           // expo-image (not RN Image) + memory-disk cache keeps the 860KB hero off
           // the OOM path the QA backlog flagged for hi-res RN Image.
@@ -118,31 +163,52 @@ export function DeepSpaceShell() {
           accessibilityLabel={characterLabel}
         />
 
-        <View style={styles.bubble}>
-          <Text style={styles.bubbleText}>
-            {isKo ? "무엇을 기록해볼까?" : "What would you like to note?"}
-          </Text>
-        </View>
-
-        {brightness ? (
-          <Text style={styles.brightness}>
-            {isKo
-              ? `소울 코어 밝기 ${brightness.pct}% · 별 ${brightness.lit}/7 켜짐`
-              : `Soul Core ${brightness.pct}% · ${brightness.lit}/7 stars lit`}
-          </Text>
+        {/* The first-run lure: the bubble appears only when nothing is lit yet,
+            then yields to the progress line + CTA once a star is on. */}
+        {brightness?.lit === 0 ? (
+          <View style={styles.bubble}>
+            <Text style={[styles.bubbleText, { color: deepSpace.text }]}>{t("bubble.fresh")}</Text>
+          </View>
         ) : null}
 
+        {/* Primary CTA: the single filled tappable into the cheapest activation
+            engine. Hidden once every offerable star is lit. */}
+        {step ? (
+          <Pressable
+            style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+            onPress={() => router.push(step.route)}
+            accessibilityRole="button"
+            accessibilityLabel={t("nextStep." + step.key + ".cta")}
+          >
+            <Text style={[styles.ctaText, { color: deepSpace.bg }]}>
+              {t("nextStep." + step.key + ".cta")}
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {/* Promoted: SecondB is the path to the conversion trigger. */}
+        <Pressable
+          style={({ pressed }) => [styles.secondb, pressed && styles.secondbPressed]}
+          onPress={() => router.push("/secondb")}
+          accessibilityRole="button"
+          accessibilityLabel={t("menu.secondb")}
+        >
+          <Text style={[styles.secondbText, { color: deepSpace.text }]}>{t("menu.secondb")}</Text>
+        </Pressable>
+
+        {/* Receding secondary routes. */}
         <View style={styles.menu}>
-          {PRIMARY.map((item) => (
+          {SECONDARY.map((item) => (
             <Pressable
               key={item.key}
               style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
               onPress={() => router.push(item.route)}
               accessibilityRole="button"
-              accessibilityLabel={isKo ? item.ko : titleCase(item.en)}
+              accessibilityLabel={t("menu." + item.key)}
             >
-              <Text style={styles.itemKo}>{isKo ? item.ko : titleCase(item.en)}</Text>
-              {isKo ? <Text style={styles.itemEn}>{item.en}</Text> : null}
+              <Text style={[styles.itemText, { color: deepSpace.textMuted }]}>
+                {t("menu." + item.key)}
+              </Text>
             </Pressable>
           ))}
         </View>
@@ -166,7 +232,10 @@ const styles = StyleSheet.create({
   },
   iconPressed: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
   stage: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
-  character: { width: 260, height: 260, marginBottom: 18 },
+  heroCore: { width: 128, height: 128, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  litLine: { textAlign: "center", marginBottom: 16, fontSize: 14 },
+  character: { width: 200, height: 200, marginBottom: 18 },
+  characterLow: { width: 132, height: 132 },
   bubble: {
     maxWidth: 320,
     paddingVertical: 12,
@@ -175,22 +244,43 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
-    marginBottom: 26,
+    marginBottom: 20,
   },
-  bubbleText: { color: deepSpace.text, fontSize: 14, textAlign: "center" },
-  brightness: { color: deepSpace.textMuted, fontSize: 12, textAlign: "center", marginBottom: 20 },
+  bubbleText: { textAlign: "center" },
+  cta: {
+    minWidth: 220,
+    paddingVertical: 15,
+    paddingHorizontal: 22,
+    borderRadius: 12,
+    backgroundColor: deepSpace.accentBright,
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  ctaPressed: { backgroundColor: deepSpace.accent },
+  ctaText: { fontWeight: "700", textAlign: "center" },
+  secondb: {
+    minWidth: 220,
+    paddingVertical: 14,
+    paddingHorizontal: 22,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: deepSpace.accent,
+    backgroundColor: deepSpace.card,
+    alignItems: "center",
+    marginBottom: 22,
+  },
+  secondbPressed: { backgroundColor: deepSpace.cardPressed },
+  secondbText: { fontWeight: "600", textAlign: "center" },
   menu: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" },
   item: {
-    minWidth: 120,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
+    minWidth: 96,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.card,
     alignItems: "center",
   },
   itemPressed: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
-  itemKo: { color: deepSpace.text, fontSize: 15, marginBottom: 2 },
-  itemEn: { color: deepSpace.textMuted, fontSize: 10, letterSpacing: 0, textTransform: "uppercase" },
+  itemText: { fontSize: 12, letterSpacing: 0, textTransform: "uppercase" },
 });

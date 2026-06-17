@@ -194,30 +194,46 @@ export default function CoreBrain() {
     );
   }
 
-  // Empty state (§7) — never fabricate a summary with no pieces.
+  // Empty state (§7) — never fabricate a summary with no pieces. Show a dimmed,
+  // locked constellation as the lure: the Tier-1 core stays dominant while the
+  // seven stars wait at the L1 dim floor (brightnessVisual(1).opacity = 0.2).
+  // The first relationship check lights one straight away.
   if (evidence.length === 0) {
+    const dimStar = brightnessVisual(1).opacity;
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <IslandArt id="core" size={140} />
+          <View style={styles.lockedConstellation}>
+            <IslandArt id="core" size={120} />
+            <View style={styles.lockedStarRow}>
+              {SELF_UNDERSTANDING_STARS.map((star) => (
+                <View key={star.id} style={styles.starItem}>
+                  <View style={[styles.starDot, { opacity: dimStar }]} />
+                  <Text variant="caption" color="textSubtle" style={styles.starName}>
+                    {locale === "ko" ? star.nameKo : star.nameEn}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
           <Text variant="heading" style={{ marginTop: spacing.lg, textAlign: "center" }}>
-            {locale === "ko" ? "아직 중심이 작아요" : "Your center is still small"}
+            {locale === "ko" ? "일곱 개의 별이 당신을 기다려요" : "Seven stars are waiting"}
           </Text>
           <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
             {locale === "ko"
-              ? "오늘의 조각을 하나 남기면 세컨비가 연결을 찾아볼 수 있어요."
-              : "Leave one piece today and SecondB can start finding the connections."}
+              ? "3분이면 첫 별 하나가 켜져요. 가까운 관계 패턴부터 같이 짚어볼까요?"
+              : "Three minutes lights your first star. Shall we start with your relationship pattern?"}
           </Text>
           <View style={styles.emptyActions}>
             <Button
-              label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
+              label={locale === "ko" ? "관계 체크 시작 · 3분" : "Start relationship check · 3 min"}
               variant="primary"
-              onPress={() => router.push("/capture")}
+              onPress={() => router.push("/attachment")}
             />
             <Button
-              label={locale === "ko" ? "세컨비와 시작하기" : "Start with SecondB"}
+              label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
               variant="secondary"
-              onPress={() => router.push("/secondb")}
+              onPress={() => router.push("/capture")}
             />
           </View>
         </View>
@@ -500,4 +516,7 @@ const styles = StyleSheet.create({
   sectionTitle: { letterSpacing: 0, marginBottom: spacing.xs },
   evRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs },
   evDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
+  // Empty-state locked constellation: Tier-1 core + a dim ring of seven stars.
+  lockedConstellation: { alignItems: "center", gap: spacing.md },
+  lockedStarRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, justifyContent: "center", maxWidth: 320 },
 });

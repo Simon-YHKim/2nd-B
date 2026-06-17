@@ -23,6 +23,7 @@ import { QuantIntroModal } from "@/components/quant/QuantIntroModal";
 import { LikertChoiceGroup } from "@/components/quant/LikertChoiceGroup";
 import { QuantPager } from "@/components/quant/QuantPager";
 import { QuantSaveCelebration } from "@/components/quant/QuantSaveCelebration";
+import { isFirstStarChatNudged, markFirstStarChatNudged } from "@/lib/onboarding/state";
 
 const SCALE: { value: number; en: string; ko: string }[] = [
   { value: 1, en: "Strongly disagree", ko: "전혀 아니다" },
@@ -201,8 +202,21 @@ export default function Attachment() {
 
       {saved ? (
         <QuantSaveCelebration
-          message={locale === "ko" ? "저장됐어요 · 페르소나에서 다시 만나요" : "Saved · see it on your Persona"}
-          onDone={() => router.replace("/persona")}
+          message={locale === "ko" ? "저장됐어요 · 별 하나가 켜졌어요" : "Saved · one star is lit"}
+          onDone={() => {
+            // First star lit ever -> steer into one SecondB chat (activation
+            // target). After the first nudge, every later save returns to the
+            // persona card as before.
+            if (!isFirstStarChatNudged()) {
+              markFirstStarChatNudged();
+              router.replace({
+                pathname: "/secondb",
+                params: { fromNode: locale === "ko" ? "관계의 나" : "my relational self" },
+              });
+            } else {
+              router.replace("/persona");
+            }
+          }}
         />
       ) : null}
 

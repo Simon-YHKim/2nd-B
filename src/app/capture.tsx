@@ -1473,7 +1473,7 @@ export default function Capture() {
                 </Pressable>
               ) : (
                 <Pressable
-                  onPress={() => router.push("/plans")}
+                  onPress={() => router.push("/plans?from=advisor_lock")}
                   hitSlop={14}
                   style={styles.advisorRow}
                   accessibilityRole="button"
