@@ -175,6 +175,7 @@ export const deepSpace = {
   text: "#5FD4FF", // cyan body text (the character's mouth color)
   textMuted: "rgba(95,212,255,0.62)",
   card: "rgba(70,182,255,0.06)",
+  cardPressed: "rgba(70,182,255,0.12)",
   cardLine: "rgba(70,182,255,0.24)",
   danger: cosmic.guardRose, // functional-color exception only
 } as const;

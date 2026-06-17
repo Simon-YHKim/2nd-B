@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  iconPressed: { borderColor: deepSpace.accent, backgroundColor: "rgba(70,182,255,0.12)" },
+  iconPressed: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
   iconGlyph: { color: deepSpace.text, fontSize: 17 },
   stage: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
   character: { width: 260, height: 260, marginBottom: 18 },
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
     alignItems: "center",
   },
-  itemPressed: { borderColor: deepSpace.accent, backgroundColor: "rgba(70,182,255,0.12)" },
+  itemPressed: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
   itemKo: { color: deepSpace.text, fontSize: 15, marginBottom: 2 },
-  itemEn: { color: deepSpace.textMuted, fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase" },
+  itemEn: { color: deepSpace.textMuted, fontSize: 10, letterSpacing: 0, textTransform: "uppercase" },
 });
