@@ -327,6 +327,11 @@ export default function CoreBrain() {
                     <Text variant="caption" color="textMuted" style={styles.starName}>
                       {locale === "ko" ? star.nameKo : star.nameEn}
                     </Text>
+                    {star.status === "absent" ? (
+                      <Text variant="caption" color="textSubtle" style={styles.starSoon}>
+                        {locale === "ko" ? "곧" : "soon"}
+                      </Text>
+                    ) : null}
                   </View>
                 );
               })}
@@ -464,6 +469,7 @@ const styles = StyleSheet.create({
   starItem: { width: "30%", alignItems: "center", gap: 4 },
   starDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: cosmic.soulViolet },
   starName: { textAlign: "center", fontSize: 11 },
+  starSoon: { textAlign: "center", fontSize: 9, letterSpacing: 1 },
   section: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
