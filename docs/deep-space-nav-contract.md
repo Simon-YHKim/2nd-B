@@ -65,8 +65,9 @@ flow → 누락 0 once Stage③ wires the primary + second-tier entries.
   native scheme). The shell is `/`; sub-screens are their own paths.
 - **Tabs**: the 4 primaries show the tab bar; modal/sub flows (capture inputs,
   tests) hide it (existing PremiumTabBar "primary routes only" rule).
-- **Mode parity**: legacy back/deeplink/tab behavior is unchanged (regression
-  guard — flag default is legacy).
+- **Mode parity**: legacy back/deeplink/tab behavior is unchanged under explicit
+  `EXPO_PUBLIC_UI=legacy` (regression guard — legacy is now the rollback track,
+  not the default).
 
 ## 5. E2E checklist (Stage③ acceptance, run per PR)
 
@@ -75,7 +76,9 @@ flow → 누락 0 once Stage③ wires the primary + second-tier entries.
 3. From each primary, each second-tier entry is reachable and renders.
 4. Back from a sub-screen returns to its parent / the shell (no dead-end).
 5. Deep-link to 3 sample routes (`/wiki`, `/big-five`, `/settings`) loads directly.
-6. `EXPO_PUBLIC_UI` unset → legacy graph at `/`, unchanged (regression).
+6. `EXPO_PUBLIC_UI=legacy` → legacy graph at `/`, unchanged (rollback regression).
+   (Default flipped 2026-06-17: an unset flag now resolves to deep-space; live
+   builds pin `=legacy` until the shell completes, so this case still ships live.)
 7. `npm run verify` + `expo export --platform web` green for both flag states.
 
 ## 6. Open / staged

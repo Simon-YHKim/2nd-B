@@ -42,6 +42,13 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - name: Build Expo Web (static export)
         env:
+          # UI track (2026-06-17): the code default is now deep-space, but the
+          # deep-space shell is not yet feature-complete (memo D12 gate: A1 nav
+          # wiring, A3 sub-screen theming, A4 3D character, A5 unified back). Pin
+          # the LIVE web build to the legacy gameboy track until that work lands,
+          # so flipping the default does not ship a half-finished shell to users.
+          # For the cutover: set this to "deep-space" (or delete the line).
+          EXPO_PUBLIC_UI: "legacy"
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           # LLM mode + key: when the repo Variable EXPO_PUBLIC_GOOGLE_API_KEY is
