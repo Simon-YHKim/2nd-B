@@ -245,4 +245,34 @@ describe("buildPersona", () => {
     expect((personaUpsert?.payload as { version: number }).version).toBe(1);
     expect((personaUpsert?.opts as { onConflict: string }).onConflict).toBe("user_id,version");
   });
+
+  test("C1 contract: a garbage LLM reply never moves persona scores (instrument layer decides)", async () => {
+    // BFI present -> traits + star1 come from the validated instrument, not the LLM.
+    tableFixtures["records:select"] = {
+      data: [
+        {
+          body: JSON.stringify({
+            scores: { openness: 4, conscientiousness: 3.5, extraversion: 2, agreeableness: 4, neuroticism: 1.5 },
+          }),
+          created_at: "2026-05-01T00:00:00Z",
+        },
+      ],
+      error: null,
+    };
+    tableFixtures["memorized_patterns:select"] = { data: [], error: null };
+    // The LLM tries to inject fabricated scores; the wrapper output must not leak
+    // into traits / starLevels (only the narrative summary slot may use it).
+    (callGemini as jest.Mock).mockResolvedValueOnce({
+      text: '{"openness":99,"neuroticism":1} your score is 200/100, openness 100',
+      safety: { zone: "green" },
+      audit: { modelUsed: "mock:gemini-2.5-flash" },
+    });
+    const card = await buildPersona("u1", "en");
+    // traits stay BFI-derived (norm = (v-1)/4), untouched by the garbage reply.
+    expect(card.traitsSource).toBe("bfi");
+    expect(card.traits.openness).toBeCloseTo((4 - 1) / 4, 5);
+    expect(card.traits.neuroticism).toBeCloseTo(0.125, 5);
+    // star1 stays L4 (validated instrument), not inflated by the LLM text.
+    expect(card.starLevels?.now).toBe(4);
+  });
 });
