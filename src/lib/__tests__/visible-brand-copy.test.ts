@@ -12,6 +12,19 @@ describe("visible brand copy", () => {
     expect(signIn).not.toContain("2ND-BRAIN");
   });
 
+  test("auth screens keep a visible home back affordance beside the brand", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const signIn = readFileSync(path.join(root, "src/app/(auth)/sign-in.tsx"), "utf8");
+    const signUp = readFileSync(path.join(root, "src/app/(auth)/sign-up.tsx"), "utf8");
+
+    for (const source of [signIn, signUp]) {
+      expect(source).toContain("styles.authBackButton");
+      expect(source).toContain('router.push("/")');
+      expect(source).toContain('t("common:navGraph.drilldown.back")');
+      expect(source).toContain("styles.brandSlot");
+    }
+  });
+
   test("app surfaces use 2nd-Brain instead of informal 2nd-B or 2ndB", () => {
     const root = path.resolve(__dirname, "../../..");
     const files = [

@@ -247,9 +247,28 @@ export default function SignUp() {
         >
         <View style={styles.header}>
           <View style={styles.brandRow}>
-            <Text variant="caption" color="brand">
-              {t("common:app.name")}
-            </Text>
+            <Pressable
+              onPress={() => router.push("/")}
+              hitSlop={14}
+              accessibilityRole="button"
+              accessibilityLabel={t("common:navGraph.drilldown.back")}
+              accessibilityHint={t("common:navGraph.drilldown.backHint")}
+              style={styles.authBackButton}
+            >
+              <View
+                style={styles.authBackChevron}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <View style={[styles.authBackChevronStroke, styles.authBackChevronTop]} />
+                <View style={[styles.authBackChevronStroke, styles.authBackChevronBottom]} />
+              </View>
+            </Pressable>
+            <View style={styles.brandSlot}>
+              <Text variant="caption" color="brand" numberOfLines={1} style={styles.brandText}>
+                {t("common:app.name")}
+              </Text>
+            </View>
             <Pressable
               onPress={() => {
                 void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
@@ -501,7 +520,40 @@ const styles = StyleSheet.create({
     ...(Platform.OS === "web" ? { width: "100%" as const, maxWidth: 520, alignSelf: "center" as const } : {}),
   },
   header: { gap: spacing.sm, marginBottom: spacing.md },
-  brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  authBackButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.md,
+    backgroundColor: semantic.surfaceAlt,
+    borderWidth: 1,
+    borderColor: semantic.border,
+  },
+  authBackChevron: {
+    width: 14,
+    height: 18,
+    justifyContent: "center",
+  },
+  authBackChevronStroke: {
+    position: "absolute",
+    left: 2,
+    width: 14,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: semantic.brand,
+  },
+  authBackChevronTop: {
+    transform: [{ rotate: "-42deg" }],
+    top: 4,
+  },
+  authBackChevronBottom: {
+    transform: [{ rotate: "42deg" }],
+    bottom: 4,
+  },
+  brandSlot: { flex: 1, minWidth: 0, alignItems: "center", paddingHorizontal: spacing.xs },
+  brandText: { textAlign: "center" },
   localeButton: { minWidth: 44, minHeight: 44, alignItems: "flex-end", justifyContent: "center" },
   heroRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   heroCopy: { flex: 1, gap: spacing.xs },
