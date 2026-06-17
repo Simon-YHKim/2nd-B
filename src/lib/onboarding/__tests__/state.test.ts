@@ -1,4 +1,12 @@
-import { __resetOnboardingStateForTests, isOnboardingComplete, markOnboardingComplete, ONBOARDING_KEY } from "../state";
+import {
+  __resetOnboardingStateForTests,
+  FIRST_STAR_CHAT_KEY,
+  isFirstStarChatNudged,
+  isOnboardingComplete,
+  markFirstStarChatNudged,
+  markOnboardingComplete,
+  ONBOARDING_KEY,
+} from "../state";
 
 describe("onboarding state", () => {
   const store: Record<string, string> = {};
@@ -28,5 +36,26 @@ describe("onboarding state", () => {
     delete (globalThis as { localStorage?: Storage }).localStorage;
     expect(isOnboardingComplete()).toBe(false);
     expect(() => markOnboardingComplete()).not.toThrow();
+  });
+
+  test("first-star chat nudge starts unfired", () => {
+    expect(isFirstStarChatNudged()).toBe(false);
+  });
+
+  test("first-star chat nudge mark + read round-trips, stores an ISO timestamp", () => {
+    markFirstStarChatNudged();
+    expect(isFirstStarChatNudged()).toBe(true);
+    expect(store[FIRST_STAR_CHAT_KEY]).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  test("first-star chat nudge is independent of onboarding completion", () => {
+    markOnboardingComplete();
+    expect(isFirstStarChatNudged()).toBe(false);
+  });
+
+  test("first-star chat nudge reads false (no throw) without localStorage", () => {
+    delete (globalThis as { localStorage?: Storage }).localStorage;
+    expect(isFirstStarChatNudged()).toBe(false);
+    expect(() => markFirstStarChatNudged()).not.toThrow();
   });
 });
