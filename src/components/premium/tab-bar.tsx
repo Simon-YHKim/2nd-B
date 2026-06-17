@@ -14,6 +14,7 @@ import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { spacing, typography } from "@/lib/theme/tokens";
 import { PRIMARY_TAB_PATHS } from "@/lib/nav/tabs";
 import { fontFamilies } from "@/theme/typography";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
 
 // Menu restructure Phase 3 (2026-05-31): the four tabs are now the VISION
 // 3-axis IA - 그래프 / 담기 / 세컨비 / 나. The old explore(/core-brain),
@@ -110,6 +111,7 @@ export const TAB_BAR_HEIGHT = 62;
 export function PremiumTabBar({ locale = "ko" }: { locale?: "en" | "ko" }) {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  if (isDeepSpaceUI()) return null;
   if (!TAB_PATHS.has(pathname)) return null;
   return (
     <View
