@@ -40,6 +40,10 @@
           "label": "Attachment",
           "hint": "Membuka asesmen gaya attachment."
         },
+        "mbti": {
+          "label": "MBTI",
+          "hint": "Membuka tes referensi MBTI."
+        },
         "audit": {
           "label": "Aku masa lalu",
           "hint": "Membuka linimasa masa lalu."

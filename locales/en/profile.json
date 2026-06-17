@@ -40,6 +40,10 @@
           "label": "Attachment",
           "hint": "Opens the attachment style assessment."
         },
+        "mbti": {
+          "label": "MBTI",
+          "hint": "Opens the MBTI reference check."
+        },
         "audit": {
           "label": "Past me",
           "hint": "Opens the past-me timeline."

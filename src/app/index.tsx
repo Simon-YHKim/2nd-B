@@ -38,6 +38,7 @@ import { cosmic, semantic, spacing, typography, withAlpha } from "@/lib/theme/to
 import { fontFamilies } from "@/theme/typography";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceShell } from "@/components/deep-space/DeepSpaceShell";
+import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { IslandArt } from "@/components/art/IslandArt";
@@ -781,6 +782,31 @@ export function GraphScreen() {
         </Pressable>
       </Animated.View>
 
+      {/* O-31 Stage③ (nav-contract §3): in deep-space mode the graph IS the
+          그래프 primary (reached via /graph from the shell). Surface its
+          second-tier — 위키 /wiki · 기록 /records · 리서치 /research — as a
+          bottom strip so all three are reachable directly (누락 0). Gated on
+          isDeepSpaceUI() so legacy "/" (the same GraphScreen) is untouched. */}
+      {isDeepSpaceUI() ? (
+        <View
+          style={[styles.deepSpaceGraphNav, { bottom: insets.bottom + TAB_BAR_HEIGHT + 12 }]}
+          pointerEvents="box-none"
+        >
+          <DeepSpaceLinks
+            groups={[
+              {
+                title: locale === "ko" ? "그래프" : "Graph",
+                items: [
+                  { key: "wiki", label: locale === "ko" ? "위키" : "Wiki", route: "/wiki" },
+                  { key: "records", label: locale === "ko" ? "기록" : "Records", route: "/records" },
+                  { key: "research", label: locale === "ko" ? "리서치" : "Research", route: "/research" },
+                ],
+              },
+            ]}
+          />
+        </View>
+      ) : null}
+
       <PowerOnOverlay />
 
       {/* Top-right cluster removed (graph-ux #2/#4): language is auto-detected
@@ -798,6 +824,9 @@ function GraphStarHost() {
 
 const styles = StyleSheet.create({
   skyContainer: { flex: 1, backgroundColor: cosmic.space950 },
+  // O-31 Stage③: deep-space graph second-tier strip (nav-contract §3). Sits
+  // above the tab bar; only mounted when isDeepSpaceUI() (legacy "/" untouched).
+  deepSpaceGraphNav: { position: "absolute", left: 10, right: 10, zIndex: 26 },
   skyLogo: {
     position: "absolute",
     width: 220,

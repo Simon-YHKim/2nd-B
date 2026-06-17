@@ -15,6 +15,8 @@ import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/settings/crew-density";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META } from "@/lib/i18n/locales";
 import { VILLAGE_UI } from "@/lib/village-ui";
@@ -454,6 +456,30 @@ export default function Settings() {
             onPress={() => router.push("/support")}
           />
         </View>
+
+        {/* O-31 Stage③ (nav-contract §3): in deep-space mode, surface the full
+            설정 second-tier so 요금제 /plans, 권한 /permissions, 운영진단 /ops
+            (no legacy nav button) are reachable directly from 설정 (누락 0).
+            Legacy mode renders nothing here — the sections above are its nav. */}
+        {isDeepSpaceUI() ? (
+          <DeepSpaceLinks
+            groups={[
+              {
+                title: locale === "ko" ? "설정" : "Settings",
+                items: [
+                  { key: "account", label: locale === "ko" ? "계정" : "Account", route: "/account" },
+                  { key: "plans", label: locale === "ko" ? "요금제" : "Plans", route: "/plans" },
+                  { key: "privacy", label: locale === "ko" ? "개인정보" : "Privacy", route: "/privacy" },
+                  { key: "permissions", label: locale === "ko" ? "권한" : "Permissions", route: "/permissions" },
+                  { key: "data", label: locale === "ko" ? "데이터" : "Data", route: "/data" },
+                  { key: "theme", label: locale === "ko" ? "테마" : "Theme", route: "/theme" },
+                  { key: "support", label: locale === "ko" ? "지원" : "Support", route: "/support" },
+                  { key: "ops", label: locale === "ko" ? "운영 진단" : "Routines", route: "/ops" },
+                ],
+              },
+            ]}
+          />
+        ) : null}
 
         <DisclosureSection
           // O-R2 (2) language-pack infra: first in-app language switch for

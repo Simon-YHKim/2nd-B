@@ -90,6 +90,8 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { checkGate } from "@/lib/progression/gates";
 import { canUsePremium, checkUsage } from "@/lib/progression/entitlements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
 // capture modes live on one screen. "일기" writes to `records` (createRecord —
@@ -1072,6 +1074,27 @@ export default function Capture() {
               ) : null}
             </View>
           </View>
+
+          {/* O-31 Stage③ (nav-contract §3): in deep-space mode, surface the
+              담기 second-tier so 형식 /formats, 가져오기 /import, 받은항목 /inbox
+              and 수동입력 /manual are reachable directly from 담기 (누락 0).
+              Legacy mode renders nothing here — its 형식 entry is the inline
+              manage-formats link below. */}
+          {isDeepSpaceUI() ? (
+            <DeepSpaceLinks
+              groups={[
+                {
+                  title: locale === "ko" ? "담기" : "Capture",
+                  items: [
+                    { key: "formats", label: locale === "ko" ? "형식" : "Formats", route: "/formats" },
+                    { key: "import", label: locale === "ko" ? "가져오기" : "Import", route: "/import" },
+                    { key: "inbox", label: locale === "ko" ? "받은 항목" : "Inbox", route: "/inbox" },
+                    { key: "manual", label: locale === "ko" ? "수동 입력" : "Manual", route: "/manual" },
+                  ],
+                },
+              ]}
+            />
+          ) : null}
 
           {/* Import success → graph link (journal-capture pack §3/§7) */}
           {savedTitle ? (
