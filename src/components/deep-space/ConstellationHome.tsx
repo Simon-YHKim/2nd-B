@@ -12,16 +12,16 @@ import { SELF_UNDERSTANDING_STARS, type StarId } from "@/lib/persona/stars";
 import { SecondbHead } from "./SecondbHead";
 
 const W = 320;
-const STAR_H = 248;
+const STAR_H = 292;
 
 const STARS: { id: StarId; x: number; y: number; size: number }[] = [
-  { id: "possible", x: 63, y: 224, size: 10 },
-  { id: "recall", x: 98, y: 189, size: 10 },
-  { id: "values", x: 128, y: 188, size: 10 },
-  { id: "rhythm", x: 167, y: 179, size: 10 },
-  { id: "now", x: 188, y: 206, size: 9 },
-  { id: "relational", x: 244, y: 174, size: 10 },
-  { id: "seen", x: 226, y: 136, size: 10 },
+  { id: "possible", x: 48, y: 238, size: 14 },
+  { id: "recall", x: 91, y: 205, size: 14 },
+  { id: "values", x: 133, y: 196, size: 14 },
+  { id: "rhythm", x: 174, y: 206, size: 14 },
+  { id: "now", x: 206, y: 238, size: 13 },
+  { id: "relational", x: 272, y: 204, size: 14 },
+  { id: "seen", x: 248, y: 150, size: 14 },
 ];
 
 const NAME = Object.fromEntries(
@@ -44,7 +44,8 @@ export function ConstellationHome({
   return (
     <View style={styles.root}>
       <View style={styles.starStage}>
-        <Svg width={W} height={STAR_H} viewBox="0 0 320 248" style={styles.svg} pointerEvents="none">
+        <View pointerEvents="none" style={styles.constellationGlow} />
+        <Svg width={W} height={STAR_H} viewBox="0 0 320 292" style={styles.svg} pointerEvents="none">
           <Defs>
             <RadialGradient id="ds-star" cx="50%" cy="45%" r="55%">
               <Stop offset="0" stopColor={deepSpace.accentBright} />
@@ -58,27 +59,27 @@ export function ConstellationHome({
             </RadialGradient>
           </Defs>
           <Polyline
-            points="63,224 98,189 128,188 167,179"
+            points="48,238 91,205 133,196 174,206"
             fill="none"
             stroke={withAlpha(deepSpace.accentDim, 0.34)}
             strokeWidth={1.1}
           />
           <Polyline
-            points="167,179 188,206 244,174 226,136 167,179"
+            points="174,206 206,238 272,204 248,150 174,206"
             fill="none"
             stroke={withAlpha(deepSpace.accentDim, 0.34)}
             strokeWidth={1.1}
           />
           <Line
-            x1={226}
-            y1={136}
-            x2={140}
-            y2={30}
+            x1={248}
+            y1={150}
+            x2={160}
+            y2={36}
             stroke={deepSpace.soulLine}
             strokeWidth={1}
             strokeDasharray="2 5"
           />
-          <Circle cx={140} cy={30} r={8} fill="url(#ds-polaris)" />
+          <Circle cx={160} cy={36} r={12} fill="url(#ds-polaris)" />
           {STARS.map((s) => (
             <Circle key={s.id} cx={s.x} cy={s.y} r={s.size / 2} fill="url(#ds-star)" />
           ))}
@@ -114,12 +115,23 @@ export function ConstellationHome({
 
 const styles = StyleSheet.create({
   root: { flex: 1, alignItems: "center", justifyContent: "space-between", paddingBottom: 14 },
-  starStage: { position: "relative", width: W, height: STAR_H, marginTop: 4 },
+  starStage: { position: "relative", width: W, height: STAR_H, marginTop: 0 },
+  constellationGlow: {
+    position: "absolute",
+    left: 18,
+    top: 28,
+    width: 284,
+    height: 236,
+    borderRadius: 142,
+    backgroundColor: withAlpha(deepSpace.bgMid, 0.7),
+    borderWidth: 1,
+    borderColor: withAlpha(deepSpace.accent, 0.12),
+  },
   svg: { position: "absolute", top: 0, left: 0 },
   polarisHit: {
     position: "absolute",
-    left: 120,
-    top: 10,
+    left: 136,
+    top: 12,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -132,10 +144,10 @@ const styles = StyleSheet.create({
   },
   hero: {
     width: 190,
-    minHeight: 170,
+    minHeight: 176,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: -8,
+    marginTop: -22,
   },
   hint: {
     textAlign: "center",
