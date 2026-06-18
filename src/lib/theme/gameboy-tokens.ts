@@ -1,6 +1,9 @@
 import { cosmic, withAlpha } from "./tokens";
+import { UI_MODE } from "../ui-mode";
 
-export const gameboy = {
+// Shared pixel geometry (sharp corners + hard offset shadow), identical in both
+// builds — the cyan pivot only moves the COLOR aliases.
+const gameboyGeometry = {
   borderWidth: 2,
   radius: 0,
   pixelShadow: {
@@ -10,6 +13,12 @@ export const gameboy = {
   },
   scanlineOpacity: 0.07,
   grid: 8,
+} as const;
+
+// Legacy cosmic mapping (EXPO_PUBLIC_UI=legacy). Kept exported for the token test
+// + the legacy track.
+export const gameboyCosmic = {
+  ...gameboyGeometry,
   screen: cosmic.space950,
   ink: cosmic.moonWhite,
   accent: cosmic.signalBlue,
@@ -17,6 +26,22 @@ export const gameboy = {
   amber: cosmic.pixelLamp,
   border: withAlpha(cosmic.signalBlue, 0.68),
 } as const;
+
+// Cyan global pivot (2026-06-18): in the deep-space build the Game-Boy color
+// aliases read as the eye-cyan identity, so the premium pixel chrome (buttons,
+// cards, inputs, tab bar) is cyan too. Geometry is unchanged (Phase 2 softens
+// shapes per screen).
+const gameboyDeepSpace = {
+  ...gameboyGeometry,
+  screen: "#0A0E1A",
+  ink: "#E8F7FF",
+  accent: "#46B6FF",
+  power: "#5FF0C0",
+  amber: "#FFD166",
+  border: "rgba(70,182,255,0.68)", // alpha matches cosmic; clears the 3:1 edge floor on dark
+} as const;
+
+export const gameboy = UI_MODE === "deep-space" ? gameboyDeepSpace : gameboyCosmic;
 
 export const androidElevation = {
   pixelShadow: 4,

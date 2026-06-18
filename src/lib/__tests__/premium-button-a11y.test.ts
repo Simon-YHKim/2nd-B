@@ -76,7 +76,9 @@ describe("PremiumButton disabled accessibility", () => {
     const border = parseRgba(gameboy.border);
     const borderOnSecondary = composite(border.rgb, secondaryBg, border.alpha);
 
-    expect(gameboy.border).toBe(withAlpha(cosmic.signalBlue, 0.68));
+    // Active build is deep-space (cyan): the edge is the eye-cyan border. The
+    // contrast floor below is the real a11y guarantee and holds in both builds.
+    expect(gameboy.border).toBe("rgba(70,182,255,0.68)");
     expect(contrastRatio(borderOnSecondary, secondaryBg)).toBeGreaterThanOrEqual(3);
   });
 

@@ -20,6 +20,8 @@
 // ─── Cosmic Pixel palette — raw colors from the 2026-05-29 handoff ──
 // Group naming mirrors the handoff CSS variables so designers can
 // cross-reference the doc 1:1.
+import { UI_MODE } from "../ui-mode";
+
 export const cosmic = {
   // Deep space backgrounds — pure black is forbidden; bg uses the
   // deepest ink instead.
@@ -137,7 +139,7 @@ export const lightCosmic = {
 // `semantic.brand` consumer keeps working. The shape is also what the
 // light-mode runtime palette returns via useThemePalette() — same keys,
 // different values.
-export const semantic = {
+export const semanticCosmic = {
   background: cosmic.space950,
   surface: "rgba(13,21,48,0.84)", // glassy night panel, aligned to premium village cards
   surfaceAlt: "rgba(22,33,62,0.68)", // graph-slate wash for nested controls
@@ -168,6 +170,44 @@ export const semantic = {
   deepSpaceCardPressed: "rgba(70,182,255,0.12)",
   deepSpaceCardLine: "rgba(70,182,255,0.24)",
 } as const;
+
+// Cyan global pivot (2026-06-18): the deep-space build maps the SAME semantic
+// keys onto the eye-cyan identity, so every `semantic.*` consumer (most screens)
+// reads as deep-space — not just the character shell. Surfaces stay a solid dark
+// navy panel so cards keep their substance; the cyan comes from brand/border/
+// text/accents. Keys are identical to semanticCosmic, so screens inherit the
+// tone with no per-screen edit (the repo's established palette-pivot pattern).
+// The legacy build (EXPO_PUBLIC_UI=legacy) keeps the cosmic tones; cosmic stays
+// exported for tests + the legacy track.
+const semanticDeepSpace = {
+  background: "#0A0E1A",
+  surface: "rgba(11,33,66,0.84)", // deep-navy panel (bgMid), keeps card substance
+  surfaceAlt: "rgba(16,40,76,0.70)",
+  border: "rgba(70,182,255,0.24)",
+  backdrop: "rgba(0,0,0,0.6)",
+  backdropStrong: "rgba(2,4,10,0.78)",
+  text: "#E8F7FF",
+  textMuted: "rgba(159,228,255,0.80)",
+  textSubtle: "rgba(159,228,255,0.55)",
+  brand: "#46B6FF", // eye-cyan primary accent
+  zoneGreen: "#5FF0C0",
+  zoneYellow: "#FFD166",
+  zoneRed: "#FF7A90",
+  info: "#46B6FF",
+  success: "#5FF0C0",
+  warning: "#FFD166",
+  danger: "#FF7A90",
+  deepSpaceBg: "#0A0E1A",
+  deepSpaceAccent: "#46B6FF",
+  deepSpaceText: "#5FD4FF",
+  deepSpaceTextMuted: "rgba(95,212,255,0.62)",
+  deepSpaceCard: "rgba(70,182,255,0.06)",
+  deepSpaceCardPressed: "rgba(70,182,255,0.12)",
+  deepSpaceCardLine: "rgba(70,182,255,0.24)",
+} as const;
+
+// Active palette for this build. UI_MODE is the build-time EXPO_PUBLIC_UI flag.
+export const semantic = UI_MODE === "deep-space" ? semanticDeepSpace : semanticCosmic;
 
 // O-23 (D-22/D-23): deep-space character UI track tokens. Eye-cyan monotone so the
 // whole UI reads as the character's body/screen — kept to <=3 core colors per D-22
