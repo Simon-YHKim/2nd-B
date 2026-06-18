@@ -75,7 +75,7 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-export const darkSky = {
+const darkSkyLegacy = {
   bg: "#02040A",
   surface: "rgba(255,255,255,0.04)",
   border: "rgba(143,183,244,0.18)",
@@ -91,7 +91,7 @@ export const darkSky = {
 // (sign-in, loaders) can drop-in replace the legacy sky-blue look with the
 // Cosmic Pixel identity (deep-space bg + mint brand + violet accent). This
 // is what makes the rebrand visible before login.
-export const cosmicSky = {
+const cosmicSkyLegacy = {
   bg: cosmic.space950,
   surface: "rgba(167,139,250,0.07)",
   border: cosmic.lineDim,
@@ -115,6 +115,25 @@ export const lightSky = {
   brand: "#1E70C8",
   accent: "#2F97FC",
 } as const;
+
+// Cyan global pivot (2026-06-18, Phase 2): the unauthenticated entry surface
+// (sign-in, reset-password) + raw-sky / loader layer read as eye-cyan in the
+// deep-space build. Same 8-key shape as darkSky/cosmicSky, so useSkyPalette()
+// and the entry screens swap in with no edits. Legacy keeps the cosmic / sky-blue
+// values for rollback.
+const skyDeepSpace = {
+  bg: "#0A0E1A",
+  surface: "rgba(70,182,255,0.07)",
+  border: "rgba(70,182,255,0.24)",
+  text: "#E8F7FF",
+  textMuted: "rgba(159,228,255,0.80)",
+  textSubtle: "rgba(159,228,255,0.55)",
+  brand: "#46B6FF",
+  accent: "#5FD4FF",
+} as const;
+
+export const darkSky = UI_MODE === "deep-space" ? skyDeepSpace : darkSkyLegacy;
+export const cosmicSky = UI_MODE === "deep-space" ? skyDeepSpace : cosmicSkyLegacy;
 
 // ─── Cosmic-light palette (queue item G, 2026-05-29) ────────────────
 // The light counterpart to `cosmic`. Same hue family (deep-space navy ink
