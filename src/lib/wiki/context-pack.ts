@@ -224,7 +224,7 @@ export function composeContextPack(
     full,
     headerChars: header.length,
     fitsHeaderOnly: {
-      geminiGems: header.length <= PACK_TARGET_LIMITS.geminiGems,
+      geminiGems: header.length <= budget,
       customGpt: header.length <= PACK_TARGET_LIMITS.customGpt,
     },
     sections,
