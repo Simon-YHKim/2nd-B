@@ -14,6 +14,9 @@ import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
 import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { IdenView } from "@/components/deep-space/DeepSpaceViews";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -38,6 +41,17 @@ function openSheetInNewTab(html: string): void {
 }
 
 export default function IdenExportScreen() {
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen active="iden">
+        <IdenView />
+      </DeepSpaceScreen>
+    );
+  }
+  return <IdenExportScreenLegacy />;
+}
+
+function IdenExportScreenLegacy() {
   const { t, i18n } = useTranslation("iden");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const { userId, loading } = useAuth();

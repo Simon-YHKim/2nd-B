@@ -23,6 +23,9 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { ChatView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
@@ -88,6 +91,17 @@ function writeIntroDismissed(kind: "today" | "permanent"): void {
 }
 
 export default function SecondBChat() {
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen active="chat">
+        <ChatView />
+      </DeepSpaceScreen>
+    );
+  }
+  return <SecondBChatLegacy />;
+}
+
+function SecondBChatLegacy() {
   const { t, i18n } = useTranslation("secondb");
   const { userId, loading: authLoading, isMinor, hasProfile } = useAuth();
   const progression = useProgression();

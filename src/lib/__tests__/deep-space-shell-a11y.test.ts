@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(__dirname, "../..");
-const readShell = () => fs.readFileSync(path.join(ROOT, "components/deep-space/DeepSpaceShell.tsx"), "utf8");
+const readShell = () => fs.readFileSync(path.join(ROOT, "components/deep-space/DeepSpaceScreen.tsx"), "utf8");
 
 describe("deep-space shell accessibility labels", () => {
   test("keeps icon and character accessibility labels locale-aware", () => {
