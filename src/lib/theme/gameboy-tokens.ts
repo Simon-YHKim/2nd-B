@@ -14,6 +14,7 @@ const geometryCosmic = {
   },
   scanlineOpacity: 0.07,
   grid: 8,
+  elevation: 4, // Android material depth for the raised pixel chrome
 } as const;
 
 const geometryDeepSpace = {
@@ -27,6 +28,7 @@ const geometryDeepSpace = {
   },
   scanlineOpacity: 0,
   grid: 8,
+  elevation: 0, // flat on Android too — the deep-space design has no drop shadow
 } as const;
 
 // Legacy cosmic mapping (EXPO_PUBLIC_UI=legacy). Kept exported for the token test
@@ -91,8 +93,9 @@ export function pixelShadowStyle(shadowColor: string = gameboy.border): PixelSha
     },
     shadowRadius: gameboy.pixelShadow.blur,
     shadowOpacity: 1,
-    // Android ignores shadow* and uses elevation; 0 rendered flat (no depth).
-    // Give material depth so cards/forms are not flat on Android (AG native review 2026-06-13).
-    ...androidElevationStyle(androidElevation.pixelShadow),
+    // Android ignores shadow* and uses elevation. Legacy pixel chrome is raised
+    // (elevation 4); the deep-space design is flat (elevation 0) so Android matches
+    // the no-drop-shadow look instead of rendering a material shadow.
+    ...androidElevationStyle(gameboy.elevation),
   };
 }

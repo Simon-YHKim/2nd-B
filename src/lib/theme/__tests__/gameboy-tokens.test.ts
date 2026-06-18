@@ -29,7 +29,7 @@ describe("gameboy tokens", () => {
       shadowOffset: { width: gameboy.pixelShadow.offsetX, height: gameboy.pixelShadow.offsetY },
       shadowRadius: gameboy.pixelShadow.blur,
       shadowOpacity: 1,
-      elevation: 4,
+      elevation: gameboy.elevation,
     });
   });
 
