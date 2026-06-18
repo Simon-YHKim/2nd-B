@@ -21,13 +21,15 @@ import { consumeAuthCallbackUrl, updatePassword } from "@/lib/supabase/auth";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { cosmicSky, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceResetPasswordDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
 const PALETTE = cosmicSky;
 type ResetToast = { message: string; tone: "info" | "success" | "danger" };
 
-export default function ResetPassword() {
+function ResetPasswordLegacy() {
   const { t } = useTranslation("auth");
   const { userId, loading } = useAuth();
   const kbHeight = useKeyboard();
@@ -286,3 +288,8 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
   },
 });
+
+export default function ResetPassword() {
+  if (isDeepSpaceUI()) return <DeepSpaceResetPasswordDesignScreen />;
+  return <ResetPasswordLegacy />;
+}

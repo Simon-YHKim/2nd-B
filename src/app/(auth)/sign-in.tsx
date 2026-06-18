@@ -38,6 +38,8 @@ import { CosmicBackground, PremiumToast } from "@/components/premium";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceSignInDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
@@ -47,7 +49,7 @@ const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth
 const PALETTE = cosmicSky;
 type SignInToast = { message: string; tone: "info" | "success" | "danger" };
 
-export default function SignIn() {
+function SignInLegacy() {
   const { t, i18n } = useTranslation(["auth", "common"]);
   const { userId, loading } = useAuth();
   const [email, setEmail] = useState("");
@@ -642,3 +644,8 @@ const styles = StyleSheet.create({
   linkText: { color: PALETTE.brand, fontSize: typography.sizes.sm, fontWeight: "600" },
   linkUnderline: { textDecorationLine: "underline" },
 });
+
+export default function SignIn() {
+  if (isDeepSpaceUI()) return <DeepSpaceSignInDesignScreen />;
+  return <SignInLegacy />;
+}

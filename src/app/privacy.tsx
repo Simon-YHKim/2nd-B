@@ -28,8 +28,10 @@ import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { setAnalyticsConsent } from "@/lib/analytics";
 import { createPrivacySaveQueue } from "@/lib/privacy/analytics-consent-queue";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpacePrivacyDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
-export default function Privacy() {
+function PrivacyLegacy() {
   const { t, i18n } = useTranslation("consent");
   const { userId, isMinor, loading } = useAuth();
   const minor = isMinor === true;
@@ -235,3 +237,8 @@ const styles = StyleSheet.create({
   sectionEyebrow: { fontWeight: "700" },
   localFirstNote: { marginTop: spacing.sm },
 });
+
+export default function Privacy() {
+  if (isDeepSpaceUI()) return <DeepSpacePrivacyDesignScreen />;
+  return <PrivacyLegacy />;
+}

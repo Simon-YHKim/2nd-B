@@ -38,6 +38,8 @@ import {
 import { submitSignUp } from "@/lib/auth/sign-up-flow";
 import { recordConsentBestEffort } from "@/lib/supabase/consent";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceSignUpDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 const ADULT_AGE = 18;
 const SIGNUP_STICKY_CTA_HEIGHT = 84;
@@ -46,7 +48,7 @@ type SignUpToast = { message: string; tone: "info" | "success" | "danger" };
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
-export default function SignUp() {
+function SignUpLegacy() {
   const { t, i18n } = useTranslation(["auth", "common"]);
   const { userId, loading, refresh } = useAuth();
   const [email, setEmail] = useState("");
@@ -642,3 +644,8 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
   },
 });
+
+export default function SignUp() {
+  if (isDeepSpaceUI()) return <DeepSpaceSignUpDesignScreen />;
+  return <SignUpLegacy />;
+}

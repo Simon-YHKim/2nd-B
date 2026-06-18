@@ -28,11 +28,13 @@ import { fetchBirthDate, updateBirthDate } from "@/lib/supabase/account";
 import { canSubmitDobCorrection } from "@/lib/account/dob";
 import { deleteAllUserData, requestAccountDeletion } from "@/lib/records/delete-bulk";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceAccountDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 const CONFIRM_PHRASE = "DELETE";
 type AccountFeedbackModal = "dobRetry" | "deleteConfirm" | "deleteFailed" | null;
 
-export default function Account() {
+function AccountLegacy() {
   const { t, i18n } = useTranslation("consent");
   const { userId, loading, refresh } = useAuth();
   const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
@@ -322,3 +324,8 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   modalButton: { flex: 1 },
 });
+
+export default function Account() {
+  if (isDeepSpaceUI()) return <DeepSpaceAccountDesignScreen />;
+  return <AccountLegacy />;
+}
