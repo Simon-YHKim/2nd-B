@@ -1,13 +1,118 @@
 {
-  "soulCore": { "a11y": "Soul Core brightness" },
-  "character": { "a11y": "Second Brain character" },
-  "bubble": { "fresh": "What would you like to note?" },
-  "progress": { "lit": "{{lit}}/{{total}} stars lit", "next": "next: {{step}} ({{min}})" },
-  "nextStep": {
-    "bigFive": { "label": "Big Five", "min": "5 min", "cta": "Light a star with Big Five" },
-    "attachment": { "label": "Attachment", "min": "3 min", "cta": "Light a star with the relationship check" },
-    "esm": { "label": "Today's check-in", "min": "1 min", "cta": "Light a star with a quick check-in" },
-    "values": { "label": "Values", "min": "4 min", "cta": "Light a star with the values audit" }
+  "soulCore": {
+    "a11y": "Soul Core brightness"
   },
-  "menu": { "graph": "Graph", "capture": "Capture", "secondb": "SecondB", "profile": "Me" }
+  "character": {
+    "a11y": "Second Brain character"
+  },
+  "bubble": {
+    "fresh": "What would you like to note?"
+  },
+  "progress": {
+    "lit": "{{lit}}/{{total}} stars lit",
+    "next": "next: {{step}} ({{min}})"
+  },
+  "nextStep": {
+    "bigFive": {
+      "label": "Big Five",
+      "min": "5 min",
+      "cta": "Light a star with Big Five"
+    },
+    "attachment": {
+      "label": "Attachment",
+      "min": "3 min",
+      "cta": "Light a star with the relationship check"
+    },
+    "esm": {
+      "label": "Today's check-in",
+      "min": "1 min",
+      "cta": "Light a star with a quick check-in"
+    },
+    "values": {
+      "label": "Values",
+      "min": "4 min",
+      "cta": "Light a star with the values audit"
+    }
+  },
+  "menu": {
+    "graph": "Graph",
+    "capture": "Capture",
+    "secondb": "SecondB",
+    "profile": "Me"
+  },
+  "ds": {
+    "dock": {
+      "home": "Home",
+      "capture": "Capture",
+      "chat": "SecondB",
+      "lens": "Me",
+      "iden": "IDEN"
+    },
+    "head": {
+      "home": {
+        "text": "You're back. Right now you're shining as seven stars.",
+        "tip": "Start with the dimmest star."
+      },
+      "capture": {
+        "text": "Don't let that thought slip away.",
+        "tip": "One line is enough. I'll sort it."
+      },
+      "chat": {
+        "text": "Ask anything. I'll answer from your records.",
+        "tip": "You can ask things like \"How am I lately?\""
+      },
+      "lens": {
+        "text": "Your extraversion star brightened a step this week.",
+        "tip": "Tap a changed axis to see the evidence."
+      },
+      "iden": {
+        "text": "I packed you into one file. Take it anywhere.",
+        "tip": "You can mask sensitive items before exporting."
+      }
+    },
+    "home": {
+      "polaris": "North Star · Soul Core",
+      "hint": "Tap the seven stars to open your self-understanding lenses"
+    },
+    "capture": {
+      "title": "Capture",
+      "placeholder": "A thought, something you read, a feeling… anything, in one line.",
+      "chipText": "Text",
+      "chipLink": "Link",
+      "chipVoice": "Voice",
+      "tip": "The moment you save it, SecondB tags and sorts it."
+    },
+    "chat": {
+      "user": "I've been so worn out lately. Why is that?",
+      "ai": "Over the last two weeks your records are all work, no rest. Your extraversion star dimmed below its usual, too.",
+      "evidence": "Evidence · 8 records",
+      "rhythm": "Rhythm ↓",
+      "suggestRest": "Log some rest?",
+      "suggestImagine": "Imagine mode"
+    },
+    "lens": {
+      "toggleFilled": "Filled",
+      "toggleEmpty": "Empty",
+      "toggleError": "Error",
+      "emptyTitle": "This star is still dark",
+      "emptyBody": "Finish the trait check once and your Trait State star lights up.",
+      "emptyCta": "Start the check",
+      "errorTitle": "Couldn't load this",
+      "errorBody": "Please try again in a moment.",
+      "errorCta": "Retry",
+      "filledTitle": "Trait state",
+      "level": "L4",
+      "insight": "Extraversion rose 6 points this week. You met more people.",
+      "traitOpenness": "Openness",
+      "traitConscientiousness": "Conscientiousness",
+      "traitExtraversion": "Extraversion",
+      "traitAgreeableness": "Agreeableness",
+      "traitNeuroticism": "Neuroticism"
+    },
+    "iden": {
+      "signed": "Signed",
+      "northStar": "\"Understand myself deeply, live more like myself.\"",
+      "send": "Send to AI"
+    }
+  }
 }
