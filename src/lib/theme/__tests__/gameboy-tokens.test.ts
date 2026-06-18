@@ -1,5 +1,5 @@
 import { cosmic, withAlpha } from "../tokens";
-import { androidElevation, androidElevationStyle, gameboy, pixelShadowStyle } from "../gameboy-tokens";
+import { androidElevation, androidElevationStyle, gameboy, gameboyCosmic, pixelShadowStyle } from "../gameboy-tokens";
 
 describe("gameboy tokens", () => {
   it("locks the Deep Space Game Boy geometry tokens", () => {
@@ -10,13 +10,15 @@ describe("gameboy tokens", () => {
     expect(gameboy.grid).toBe(8);
   });
 
-  it("maps the Game Boy palette to the existing cosmic tokens", () => {
-    expect(gameboy.screen).toBe(cosmic.space950);
-    expect(gameboy.ink).toBe(cosmic.moonWhite);
-    expect(gameboy.accent).toBe(cosmic.signalBlue);
-    expect(gameboy.power).toBe(cosmic.signalMint);
-    expect(gameboy.amber).toBe(cosmic.pixelLamp);
-    expect(gameboy.border).toBe(withAlpha(cosmic.signalBlue, 0.68));
+  it("maps the legacy Game Boy palette to the existing cosmic tokens", () => {
+    // gameboyCosmic is the legacy (EXPO_PUBLIC_UI=legacy) mapping; the active
+    // `gameboy` export flips to the cyan identity in the deep-space build.
+    expect(gameboyCosmic.screen).toBe(cosmic.space950);
+    expect(gameboyCosmic.ink).toBe(cosmic.moonWhite);
+    expect(gameboyCosmic.accent).toBe(cosmic.signalBlue);
+    expect(gameboyCosmic.power).toBe(cosmic.signalMint);
+    expect(gameboyCosmic.amber).toBe(cosmic.pixelLamp);
+    expect(gameboyCosmic.border).toBe(withAlpha(cosmic.signalBlue, 0.68));
   });
 
   it("creates a hard-offset React Native shadow style", () => {
