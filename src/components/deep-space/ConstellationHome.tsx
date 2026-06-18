@@ -1,11 +1,12 @@
 /**
- * STEP 4 — <ConstellationHome /> : the home hero from design/prototype.dc.html.
- * 북극성 (Soul Core, tier-1, tappable → IDEN) at the top, the 북두칠성 7 self-
- * understanding stars below (tier-3, tappable → lens). A star's brightness IS
- * its real ladder level (lit at >= L2), so the home reflects actual progress.
+ * Home constellation — a 1:1 clone of the `isHome` block in
+ * design/prototype.dc.html: 북극성 (Soul Core) + the 북두칠성 seven stars at the
+ * design's exact positions, sizes and FIXED brightness (4 bright #9fe4ff, 3 dim
+ * #7fc9f0 — per the design, not data-driven), plus the soul line + the
+ * constellation polyline and the bottom hint. Colors come from deepSpace.* tokens.
  *
- * The Soul Core uses the sanctioned soul radial gradient; star glows pair iOS
- * shadow with Android elevation (ANDROID_QA §1). Colors are deepSpace.* tokens.
+ * Stars route to their lens; 북극성 routes to the Soul Core. (Real per-star
+ * brightness from the ladder is a later overlay — the design shows them lit.)
  */
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Line, Polyline, RadialGradient, Stop } from "react-native-svg";
@@ -13,31 +14,32 @@ import Svg, { Circle, Defs, Line, Polyline, RadialGradient, Stop } from "react-n
 import { deepSpace, deepSpaceGradients, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { SELF_UNDERSTANDING_STARS, type StarId } from "@/lib/persona/stars";
-import type { LadderLevel } from "@/lib/persona/brightness";
 
-const BOX_W = 320;
-const BOX_H = 300;
+const W = 320;
+const H = 300;
 
-// Star screen positions, lifted from the prototype constellation layout.
-const STAR_POS: Record<StarId, { top: number; left: number; size: number }> = {
-  now: { top: 78, left: 70, size: 14 },
-  recall: { top: 112, left: 88, size: 13 },
-  seen: { top: 144, left: 113, size: 13 },
-  rhythm: { top: 144, left: 124, size: 11 },
-  relational: { top: 204, left: 63, size: 12 },
-  possible: { top: 226, left: 104, size: 13 },
-  values: { top: 204, left: 144, size: 12 },
-};
+// Exact prototype positions / sizes / brightness (soft = #9fe4ff, dim = #7fc9f0).
+const STARS: { id: StarId; top: number; left: number; size: number; soft: boolean }[] = [
+  { id: "now", top: 78, left: 70, size: 14, soft: true },
+  { id: "recall", top: 112, left: 88, size: 13, soft: true },
+  { id: "seen", top: 144, left: 113, size: 13, soft: true },
+  { id: "rhythm", top: 144, left: 124, size: 11, soft: false },
+  { id: "relational", top: 204, left: 63, size: 12, soft: false },
+  { id: "possible", top: 226, left: 104, size: 13, soft: true },
+  { id: "values", top: 204, left: 144, size: 12, soft: false },
+];
+
+const NAME = Object.fromEntries(
+  SELF_UNDERSTANDING_STARS.map((s) => [s.id, { ko: s.nameKo, en: s.nameEn }]),
+) as Record<StarId, { ko: string; en: string }>;
 
 export function ConstellationHome({
-  starLevels,
   isKo,
   hint,
   polarisLabel,
   onStarPress,
   onPolarisPress,
 }: {
-  starLevels?: Partial<Record<StarId, LadderLevel>>;
   isKo: boolean;
   hint: string;
   polarisLabel: string;
@@ -46,97 +48,108 @@ export function ConstellationHome({
 }) {
   return (
     <View style={styles.root}>
-      <View style={styles.box}>
-        <Svg width={BOX_W} height={BOX_H} style={StyleSheet.absoluteFill} pointerEvents="none">
-          {/* Soul-line down to the constellation + the cyan star links. */}
-          <Line x1={160} y1={46} x2={120} y2={150} stroke={deepSpace.soulLine} strokeWidth={1} strokeDasharray="3 4" />
+      <View style={styles.stage}>
+        <Svg width={W} height={H} viewBox="0 0 320 300" style={styles.svg} pointerEvents="none">
+          <Line x1={160} y1={40} x2={120} y2={150} stroke={deepSpace.soulLine} strokeWidth={1} strokeDasharray="3 4" />
           <Polyline
-            points="77,85 95,119 120,150 131,150 70,210 111,232 151,210"
+            points="70,210 110,232 150,210 130,150 120,150 95,120 78,86"
             fill="none"
-            stroke={withAlpha(deepSpace.accentSoft, 0.32)}
+            stroke={withAlpha(deepSpace.text, 0.35)}
             strokeWidth={1}
           />
         </Svg>
 
-        {/* 북극성 · Soul Core (tier-1). */}
+        {/* 북극성 · Soul Core — top 26, left 144, 32px, radial soul gradient + glow. */}
         <Pressable
           onPress={onPolarisPress}
-          style={styles.polaris}
+          hitSlop={14}
           accessibilityRole="button"
           accessibilityLabel={polarisLabel}
-          hitSlop={14}
+          style={styles.polaris}
         >
-          <Svg width={44} height={44} viewBox="0 0 44 44">
-            <Defs>
-              <RadialGradient id="ds-soul-core" cx="50%" cy="50%" r="50%">
-                <Stop offset="0" stopColor={deepSpaceGradients.soulCore[0]} />
-                <Stop offset="1" stopColor={deepSpaceGradients.soulCore[1]} />
-              </RadialGradient>
-            </Defs>
-            <Circle cx={22} cy={22} r={11} fill={withAlpha(deepSpace.soul, 0.25)} />
-            <Circle cx={22} cy={22} r={7} fill="url(#ds-soul-core)" />
-          </Svg>
+          <View style={styles.polarisGlow}>
+            <Svg width={32} height={32} viewBox="0 0 32 32">
+              <Defs>
+                <RadialGradient id="ch-soul" cx="50%" cy="50%" r="50%">
+                  <Stop offset="0" stopColor={deepSpaceGradients.soulCore[0]} />
+                  <Stop offset="1" stopColor={deepSpaceGradients.soulCore[1]} />
+                </RadialGradient>
+              </Defs>
+              <Circle cx={16} cy={16} r={16} fill="url(#ch-soul)" />
+            </Svg>
+          </View>
         </Pressable>
-        <Text style={styles.polarisLabel}>{polarisLabel}</Text>
+        <Text style={styles.label}>{polarisLabel}</Text>
 
-        {/* The 7 self-understanding stars (tier-3). */}
-        {SELF_UNDERSTANDING_STARS.map((s) => {
-          const pos = STAR_POS[s.id];
-          const lit = (starLevels?.[s.id] ?? 1) >= 2;
-          const color = lit ? deepSpace.accentSoft : deepSpace.accentDim;
+        {STARS.map((s) => {
+          const color = s.soft ? deepSpace.accentSoft : deepSpace.accentDim;
           return (
             <Pressable
               key={s.id}
               onPress={() => onStarPress(s.id)}
-              hitSlop={14}
+              hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel={isKo ? s.nameKo : s.nameEn}
+              accessibilityLabel={isKo ? NAME[s.id].ko : NAME[s.id].en}
               style={[
                 styles.star,
                 {
-                  top: pos.top,
-                  left: pos.left,
-                  width: pos.size,
-                  height: pos.size,
-                  borderRadius: pos.size / 2,
+                  top: s.top,
+                  left: s.left,
+                  width: s.size,
+                  height: s.size,
+                  borderRadius: s.size / 2,
                   backgroundColor: color,
                   shadowColor: color,
-                  opacity: lit ? 1 : 0.5,
                 },
               ]}
             />
           );
         })}
       </View>
+
       <Text style={styles.hint}>{hint}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, alignItems: "center", justifyContent: "flex-start" },
-  box: { width: BOX_W, height: BOX_H, marginTop: 6 },
-  polaris: { position: "absolute", top: 24, left: BOX_W / 2 - 22, width: 44, height: 44 },
-  polarisLabel: {
+  root: { flex: 1, alignItems: "center" },
+  stage: { width: W, height: H, marginTop: 6 },
+  svg: { position: "absolute", top: 0, left: 0 },
+  polaris: { position: "absolute", top: 26, left: 144, width: 32, height: 32 },
+  polarisGlow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: deepSpace.soulDeep,
+    shadowColor: deepSpace.soul,
+    shadowOpacity: 0.6,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+  },
+  label: {
     position: "absolute",
-    top: 62,
+    top: 60,
     left: 0,
-    width: BOX_W,
+    width: W,
     textAlign: "center",
-    color: withAlpha(deepSpace.soul, 0.75),
+    color: withAlpha(deepSpace.soul, 0.7),
     fontSize: 10,
     fontFamily: fontFamilies.pixelKo,
   },
   star: {
     position: "absolute",
-    shadowOpacity: 0.85,
+    shadowOpacity: 0.6,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 0 },
     elevation: 5,
   },
   hint: {
-    marginTop: 2,
-    paddingHorizontal: 20,
+    position: "absolute",
+    bottom: 14,
+    left: 20,
+    right: 20,
     textAlign: "center",
     color: withAlpha(deepSpace.text, 0.5),
     fontSize: 11,
