@@ -23,6 +23,9 @@ import {
   StatTile,
 } from "@/components/premium";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { LensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
@@ -74,6 +77,17 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
 }
 
 export default function CoreBrain() {
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen active="lens">
+        <LensView />
+      </DeepSpaceScreen>
+    );
+  }
+  return <CoreBrainLegacy />;
+}
+
+function CoreBrainLegacy() {
   const { i18n } = useTranslation();
   const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";

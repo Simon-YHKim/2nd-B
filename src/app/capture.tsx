@@ -32,6 +32,8 @@ import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-rou
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 import { PremiumAppShell, PremiumModal } from "@/components/premium";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { CaptureView } from "@/components/deep-space/DeepSpaceViews";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { PremiumCard, PremiumButton, PremiumLoadingState, TAB_BAR_HEIGHT } from "@/components/premium";
@@ -188,6 +190,20 @@ function TrackGlyph({ id, color }: { id: WikiTrack; color: string }) {
 }
 
 export default function Capture() {
+  // Deep-space build renders the design body inside the shared chrome; the legacy
+  // capture screen stays for the legacy track. isDeepSpaceUI() is build-constant,
+  // so this wrapper holds no hooks and the two paths never mix hook order.
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen active="capture">
+        <CaptureView />
+      </DeepSpaceScreen>
+    );
+  }
+  return <CaptureLegacy />;
+}
+
+function CaptureLegacy() {
   const { t, i18n } = useTranslation("capture");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
