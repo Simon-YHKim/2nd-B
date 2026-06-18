@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}html,body{margin:0}a{text-decoration:none}.chip{display:block;padding:9px 12px;border:1px solid rgba(70,182,255,.2);border-radius:10px;background:rgba(70,182,255,.05);font-size:12.5px;color:#CCFAFF;transition:.16s;cursor:pointer}.chip:hover{border-color:rgba(95,212,255,.7);background:rgba(70,182,255,.14);transform:translateX(3px)}.chip small{display:block;font-size:9.5px;color:rgba(95,212,255,.5);margin-top:2px;font-family:ui-monospace,monospace}.col{flex:none;width:212px}.colhdr{font-family:'Press Start 2P',monospace;font-size:8px;letter-spacing:.12em;margin-bottom:4px}.colsub{font-size:10.5px;color:rgba(159,228,255,.5);margin-bottom:13px}.arrow{flex:none;align-self:center;font-size:22px;color:rgba(95,212,255,.3);padding:0 2px}</style>
+</helmet>
+<div style="width:max-content;min-width:100%;min-height:100vh;box-sizing:border-box;padding:48px;background:radial-gradient(140% 90% at 30% 0%,rgba(20,40,70,.5),#0a0e17 60%);font-family:Pretendard,system-ui,sans-serif">
+
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px"><img src="assets/secondb-head-front.png" alt="" style="width:44px;height:44px"><div><div style="font-family:'Press Start 2P',monospace;font-size:13px;letter-spacing:.14em;color:#5FD4FF">2ND-BRAIN · FLOW MAP</div><div style="font-size:13px;color:rgba(159,228,255,.6);margin-top:6px">전체 화면 흐름. 카드를 누르면 해당 화면 묶음이 열립니다. <span style="color:#A78BFA">홈(별자리)</span>이 모든 흐름의 중심입니다.</div></div></div>
+
+  <!-- ============ MAIN JOURNEY ROW ============ -->
+  <div style="display:flex;gap:14px;align-items:stretch;margin-top:34px">
+
+    <!-- 진입 -->
+    <div class="col">
+      <div class="colhdr" style="color:#5FF0C0">① 진입 · 온보딩</div>
+      <div class="colsub">처음 만나는 흐름</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a class="chip" href="2nd-Brain%20인증%C2%B7설정화면.dc.html">인트로 · 로그인 · 가입<small>인증·설정화면</small></a>
+        <a class="chip" href="2nd-Brain%20공지%C2%B7IDEN화면.dc.html">약관 동의<small>공지·IDEN화면</small></a>
+        <a class="chip" href="2nd-Brain%20인증%C2%B7설정화면.dc.html">프로필 완성<small>인증·설정화면</small></a>
+        <a class="chip" href="2nd-Brain%20기타화면.dc.html">코치마크 · 튜토리얼<small>기타화면</small></a>
+        <a class="chip" href="2nd-Brain%20공지%C2%B7IDEN화면.dc.html">업데이트 안내<small>공지·IDEN화면</small></a>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- 홈 중심 -->
+    <div class="col" style="width:228px">
+      <div class="colhdr" style="color:#A78BFA">② 홈 · 별자리</div>
+      <div class="colsub">모든 흐름의 중심</div>
+      <a class="chip" href="2nd-Brain%20화면설계.dc.html" style="border-color:rgba(167,139,250,.5);background:rgba(167,139,250,.12);padding:14px 13px"><div style="display:flex;align-items:center;gap:9px"><img src="assets/secondb-head-front.png" alt="" style="width:34px;height:34px"><div><div style="font-size:13.5px;color:#fff;font-weight:600">세컨비 홈</div><div style="font-size:10px;color:rgba(200,182,255,.7);font-family:ui-monospace,monospace;margin-top:2px">북극성 + 북두칠성 7별</div></div></div></a>
+      <div style="margin-top:10px;padding:11px 13px;border:1px dashed rgba(167,139,250,.3);border-radius:10px;font-size:11px;color:rgba(200,182,255,.65);line-height:1.55">별을 누르면 → ③ 렌즈<br>도크를 누르면 → ④ 허브</div>
+      <a class="chip" href="2nd-Brain%20상태%C2%B7폴리시화면.dc.html" style="margin-top:10px">상태 · 폴리시<small>빈·로딩·에러·알림·검색</small></a>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- 자기이해 렌즈 -->
+    <div class="col">
+      <div class="colhdr" style="color:#5FD4FF">③ 자기이해 · 7별</div>
+      <div class="colsub">별을 누르면 열림</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a class="chip" href="2nd-Brain%20렌즈화면.dc.html" style="border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.08)">북극성 · 소울코어<small>/core-brain</small></a>
+        <a class="chip" href="2nd-Brain%20렌즈화면.dc.html">지금의 나 · 회상<small>/audit · /interview</small></a>
+        <a class="chip" href="2nd-Brain%20렌즈화면.dc.html">보여지는 나 · 리듬<small>/peer-review · /esm</small></a>
+        <a class="chip" href="2nd-Brain%20렌즈화면.dc.html">미래의 나<small>/future</small></a>
+        <a class="chip" href="2nd-Brain%20렌즈화면.dc.html">관계·지식 · 일·성장<small>/wiki · /trinity</small></a>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- 매일 허브 -->
+    <div class="col">
+      <div class="colhdr" style="color:#5FD4FF">④ 매일 · 허브</div>
+      <div class="colsub">도크에서 진입</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a class="chip" href="2nd-Brain%20허브화면.dc.html">담기 · 캡처<small>/capture</small></a>
+        <a class="chip" href="2nd-Brain%20허브화면.dc.html">세컨비 챗<small>/secondb</small></a>
+        <a class="chip" href="2nd-Brain%20기타화면.dc.html">세컨비 채팅 · 공상<small>기타화면</small></a>
+        <a class="chip" href="2nd-Brain%20허브화면.dc.html">트렌드 · 점검 · 인사이트<small>/trends · /review</small></a>
+        <a class="chip" href="2nd-Brain%20클리퍼%C2%B7계정화면.dc.html">클리퍼 인입 · 조각 상세<small>클리퍼·계정화면</small></a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ DEEPER + SYSTEM ROW ============ -->
+  <div style="display:flex;gap:14px;align-items:stretch;margin-top:40px;padding-top:34px;border-top:1px solid rgba(70,182,255,.12)">
+
+    <!-- 깊이 -->
+    <div class="col">
+      <div class="colhdr" style="color:#D4B85A">⑤ 깊이 · 망</div>
+      <div class="colsub">데이터가 이어진다</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a class="chip" href="2nd-Brain%20그래프%C2%B7연동화면.dc.html">노드 그래프 · 두뇌 지도<small>그래프·연동화면</small></a>
+        <a class="chip" href="2nd-Brain%20클리퍼%C2%B7계정화면.dc.html">기록 보관소 · 조각 상세<small>클리퍼·계정화면</small></a>
+        <a class="chip" href="2nd-Brain%20기타화면.dc.html">내 데이터 리뷰<small>기타화면</small></a>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- 내보내기 -->
+    <div class="col">
+      <div class="colhdr" style="color:#A78BFA">⑥ 포터블 · IDEN</div>
+      <div class="colsub">나를 어디든 가져간다</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a class="chip" href="2nd-Brain%20인증%C2%B7설정화면.dc.html" style="border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.08)">IDEN 내보내기<small>인증·설정화면</small></a>
+        <a class="chip" href="2nd-Brain%20공지%C2%B7IDEN화면.dc.html" style="border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.08)">IDEN 파일 뷰어<small>공지·IDEN화면</small></a>
+        <a class="chip" href="2nd-Brain%20그래프%C2%B7연동화면.dc.html">다른 AI 앱 연동<small>그래프·연동화면</small></a>
+      </div>
+    </div>
+
+    <div class="arrow">·</div>
+
+    <!-- 시스템/공지 -->
+    <div class="col">
+      <div class="colhdr" style="color:#9DB4C0">⑦ 시스템 · 공지</div>
+      <div class="colsub">설정과 소식</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a class="chip" href="2nd-Brain%20공지%C2%B7IDEN화면.dc.html">공지 목록 · 상세<small>공지·IDEN화면</small></a>
+        <a class="chip" href="2nd-Brain%20인증%C2%B7설정화면.dc.html">설정<small>인증·설정화면</small></a>
+        <a class="chip" href="2nd-Brain%20클리퍼%C2%B7계정화면.dc.html">계정 · 개인정보 · OAuth<small>클리퍼·계정화면</small></a>
+        <a class="chip" href="2nd-Brain%20기타화면.dc.html">옵션 · 매뉴얼 · 요금제 · 권한<small>기타화면</small></a>
+      </div>
+    </div>
+
+    <div class="arrow">·</div>
+
+    <!-- 상태 -->
+    <div class="col">
+      <div class="colhdr" style="color:#FF8A90">⑧ 상태 · 폴리시</div>
+      <div class="colsub">전 화면 공통 상태</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a class="chip" href="2nd-Brain%20상태%C2%B7폴리시화면.dc.html">빈 · 로딩 · 오프라인<small>상태·폴리시화면</small></a>
+        <a class="chip" href="2nd-Brain%20상태%C2%B7폴리시화면.dc.html">알림 센터<small>상태·폴리시화면</small></a>
+        <a class="chip" href="2nd-Brain%20상태%C2%B7폴리시화면.dc.html">연속 기록 · 성취<small>상태·폴리시화면</small></a>
+        <a class="chip" href="2nd-Brain%20상태%C2%B7폴리시화면.dc.html">검색 결과<small>상태·폴리시화면</small></a>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

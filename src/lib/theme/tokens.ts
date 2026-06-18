@@ -176,15 +176,49 @@ export const semantic = {
 // untouched. danger keeps a functional exception.
 export const deepSpace = {
   bg: semantic.deepSpaceBg, // deep-space body (tinted near-black, never pure black)
-  bgEdge: "#070A13", // darker frame edges
-  accent: semantic.deepSpaceAccent, // eye outer cyan = primary accent
-  accentBright: "#CCFAFF", // eye inner bright highlight
-  text: semantic.deepSpaceText, // cyan body text (the character's mouth color)
-  textMuted: semantic.deepSpaceTextMuted,
-  card: semantic.deepSpaceCard,
-  cardPressed: semantic.deepSpaceCardPressed,
-  cardLine: semantic.deepSpaceCardLine,
+  bgEdge: "#070A13", // darker frame edges / deepest space
+  bgMid: "#0B2142", // mid-navy stop for the screen-edge space wash (design handoff 2026-06-17)
+  bgGlow: "rgba(26,72,120,0.40)", // top light-source glow over the body
+  accent: semantic.deepSpaceAccent, // eye outer cyan = primary accent (#46B6FF)
+  accentBright: "#CCFAFF", // eye inner bright highlight / pixel titles
+  accentSoft: "#9FE4FF", // bright star / icon cyan
+  accentDim: "#7FC9F0", // faint star / receding node cyan
+  text: semantic.deepSpaceText, // cyan body text (the character's mouth color, #5FD4FF)
+  textHi: "#E8F7FF", // emphasized body / speech-bubble copy
+  textMuted: semantic.deepSpaceTextMuted, // rgba(95,212,255,0.62)
+  textMid: "rgba(159,228,255,0.80)", // secondary body
+  textLo: "rgba(159,228,255,0.55)", // tertiary / captions
+  card: semantic.deepSpaceCard, // rgba(70,182,255,0.06)
+  cardPressed: semantic.deepSpaceCardPressed, // rgba(70,182,255,0.12)
+  cardLine: semantic.deepSpaceCardLine, // rgba(70,182,255,0.24) (default border)
+  cardLineStrong: "rgba(70,182,255,0.30)", // emphasized / focused border
+  // Soul / 북극성 / AI presence (violet).
+  soul: "#C8B6FF", // Soul Core bright fill / north-star
+  soulDeep: "#8B7BD8", // Soul Core deep edge (orb radial outer)
+  soulLine: "rgba(167,139,250,0.50)", // constellation links / soul borders
+  // Mint — TIP labels, positive deltas, trust/level signals.
+  mint: "#5FF0C0",
   danger: cosmic.guardRose, // functional-color exception only
+} as const;
+
+// Deep-space radius + spacing scales (design handoff 2026-06-17). Softer/rounder
+// than the legacy `radii`/`spacing` above, so deep-space screens read as the
+// character's rounded body. Kept separate so legacy screens are untouched.
+export const deepSpaceRadii = { sm: 9, md: 13, lg: 18, pill: 999, phone: 38 } as const;
+export const deepSpaceSpacing = { xs: 6, sm: 10, md: 14, lg: 18, xl: 24 } as const;
+
+// Deep-space gradients (2026-06-17 design adoption; DESIGN.md "Color rules"
+// exception). Stop arrays for react-native-svg <LinearGradient> / <RadialGradient>
+// react-native-svg is already a dependency, so no new package. Every stop stays
+// inside the cyan / soul / mint identity so a gradient reads as the character's
+// glow, never a decorative fill. Off-palette gradients remain forbidden.
+export const deepSpaceGradients = {
+  cta: ["#46B6FF", "#5FD4FF"], // primary filled CTA (left -> right)
+  ctaPositive: ["#5FF0C0", "#46B6FF"], // positive / upward-delta emphasis fill
+  progress: ["#46B6FF", "#5FD4FF"], // trait / progress bar fill
+  soulCore: ["#C8B6FF", "#8B7BD8"], // 북극성 orb (radial: center -> edge)
+  idenSend: ["#8B7BD8", "#A78BFA"], // "AI에 전달" violet action
+  screenBg: ["rgba(26,72,120,0.40)", "rgba(11,33,66,0.24)", "#070A13"], // space wash (top -> bottom)
 } as const;
 
 // Same-shape light palette. Returned by useThemePalette() when the active

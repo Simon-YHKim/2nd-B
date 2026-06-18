@@ -102,7 +102,7 @@ The `classifyInput()` result maps directly to UI affordance:
 ### Color rules
 
 - Never introduce a hex literal in a component. Always go through `semantic.*`, `cosmic.*`, or `characters.*` from `tokens.ts`.
-- No gradients. Not in CTAs, not in backgrounds, not as decorative fills. The product is text-first; gradients lie about depth. (The faint sky-drift overlay on the landing graph is the one documented exception — a 5%-opacity atmospheric wash, not a fill.)
+- Gradients are permitted **within the deep-space cyan/soul identity** — primary CTAs, progress fills, the Soul Core orb glow, and the screen-edge space wash. Use the named stop arrays in `deepSpaceGradients` (`tokens.ts`); never inline a gradient in a component. They must read as the character's glow, not invented depth. Off-palette, multi-hue, or purely decorative gradients stay forbidden, and legacy (non-deep-space) surfaces stay flat. (The landing 5%-opacity sky-drift overlay exception is unchanged.)
 - No translucent overlays except modal backdrops (`rgba(0,0,0,0.6)`) and the soul-violet / mint surface washes defined above.
 - Saturated colors are sparse (see accent budget).
 
@@ -400,7 +400,7 @@ friction, P3 is polish.
 ---
 ## What we never do
 
-- Gradients of any kind (except the documented 5%-opacity sky-drift overlay).
+- Off-palette or decorative gradients. (Deep-space cyan/soul gradients via `deepSpaceGradients` are sanctioned — see Color rules; the 5%-opacity sky-drift overlay also stays.)
 - Glassmorphism, blurs, frosted surfaces.
 - Cute *cartoon* illustrations or hand-drawn icons. **Exception:** the pixel residents of the Graph Village — SecondB (Soul Core), Archon (Growth), Relia (Bond), Lumen (Wisdom), Foreman Momo (Narrative) + crew, Lumina (Muse); the retired Vela sprite stays dormant — are sanctioned low-fidelity pixel sprites tied to fixed accents and meanings (internal keys in `src/lib/characters.ts` / `WorkerSprite`), not decorative mascots. No character outside that roster.
 - Emojis as decoration in UI strings. (Crisis hotline messages may use language icons, but not 🌱✨💫.)
@@ -432,7 +432,8 @@ friction, P3 is polish.
 | 2026-05-29 | "뽁" overshoot + 3 signature motions as the only bounce | Calmness is still the brand; the single 1.25×/400ms overshoot is the one sanctioned exception, reused across save / connection / imagine moments. |
 | 2026-05-29 | Light mode promoted from "deferred" to planned (`lightCosmic`) | Secondary surfaces (settings, sign-in) benefit from light; the graph stays dark. Palette work tracked as queue item G. |
 | 2026-05-25 | Fraunces (display) + Geist Sans (body) | Serif display says "this is writing." Geist body keeps UI chrome unobtrusive. Korean fallback via Pretendard. **(Superseded 2026-05-29 → NeoDunggeunmo app-wide; see Typography section.)** |
-| 2026-05-25 | No gradients, no glass, no pills | Anti-slop. The category is full of meditation-app sameness; we look like a writing tool, not a wellness pillow. |
+| 2026-05-25 | No gradients, no glass, no pills | Anti-slop. The category is full of meditation-app sameness; we look like a writing tool, not a wellness pillow. *(Gradient clause superseded 2026-06-17 for deep-space — see below.)* |
+| 2026-06-17 | Deep-space design adopts cyan/soul gradients | The finalized deep-space character UI uses cyan gradients on CTAs, progress bars, and the Soul Core orb as core identity (the character's glow). Scoped to the cyan/soul/mint palette via `deepSpaceGradients`; off-palette / decorative gradients still forbidden, glass + pills unchanged, legacy surfaces stay flat. Source: design handoff (`design/`). |
 | 2026-05-25 | Crisis hotline rendered in `brand` not `danger` | Crisis routing is care, not warning. Warm signal > alarm signal. |
 | 2026-06-02 | Worldview v-final: 5-tier model (Soul Core → Pattern Core ×5 → Pattern Data → Log + Pattern Link) | Canonical spatial/graph model. Mascots renamed (display only): Gadi→Relia (Bond), Lulu→Lumen (Wisdom), Momo→Foreman Momo (Narrative), Lumi→Lumina (Muse), Archi→Archon (Growth); SecondB = Soul Core. Internal keys/asset filenames unchanged. See `docs/VISION.md`. |
 | 2026-06-02 | Bond / Relia = `pixelLamp` amber, dual-context with `zoneYellow` / `warning` accepted | No-new-hex rule + `guardRose` reserved system-only leaves `pixelLamp` as the only free warm signal for Bond. Narrative / Momo freed it by moving to monochrome (`moonWhite` / `mistGray`). Safety yellow-zone (rephrase-hint 3px left border, rare) and the Bond mascot accent coexist by context. |

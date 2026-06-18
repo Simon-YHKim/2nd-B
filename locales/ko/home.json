@@ -1,13 +1,118 @@
 {
-  "soulCore": { "a11y": "소울 코어 밝기" },
-  "character": { "a11y": "세컨드 브레인 캐릭터" },
-  "bubble": { "fresh": "무엇을 기록해볼까요?" },
-  "progress": { "lit": "별 {{lit}}/{{total}}개 켜짐", "next": "다음: {{step}} ({{min}})" },
-  "nextStep": {
-    "bigFive": { "label": "빅파이브", "min": "5분", "cta": "빅파이브로 별 하나 켜기" },
-    "attachment": { "label": "관계의 나", "min": "3분", "cta": "관계 체크로 별 하나 켜기" },
-    "esm": { "label": "오늘의 체크인", "min": "1분", "cta": "가벼운 체크인으로 별 하나 켜기" },
-    "values": { "label": "가치", "min": "4분", "cta": "가치 점검으로 별 하나 켜기" }
+  "soulCore": {
+    "a11y": "소울 코어 밝기"
   },
-  "menu": { "graph": "그래프", "capture": "담기", "secondb": "세컨비", "profile": "나" }
+  "character": {
+    "a11y": "세컨드 브레인 캐릭터"
+  },
+  "bubble": {
+    "fresh": "무엇을 기록해볼까요?"
+  },
+  "progress": {
+    "lit": "별 {{lit}}/{{total}}개 켜짐",
+    "next": "다음: {{step}} ({{min}})"
+  },
+  "nextStep": {
+    "bigFive": {
+      "label": "빅파이브",
+      "min": "5분",
+      "cta": "빅파이브로 별 하나 켜기"
+    },
+    "attachment": {
+      "label": "관계의 나",
+      "min": "3분",
+      "cta": "관계 체크로 별 하나 켜기"
+    },
+    "esm": {
+      "label": "오늘의 체크인",
+      "min": "1분",
+      "cta": "가벼운 체크인으로 별 하나 켜기"
+    },
+    "values": {
+      "label": "가치",
+      "min": "4분",
+      "cta": "가치 점검으로 별 하나 켜기"
+    }
+  },
+  "menu": {
+    "graph": "그래프",
+    "capture": "담기",
+    "secondb": "세컨비",
+    "profile": "나"
+  },
+  "ds": {
+    "dock": {
+      "home": "홈",
+      "capture": "담기",
+      "chat": "세컨비",
+      "lens": "나",
+      "iden": "IDEN"
+    },
+    "head": {
+      "home": {
+        "text": "오늘도 왔네요. 지금의 당신이 별 7개로 빛나고 있어요.",
+        "tip": "가장 어두운 별부터 채워보면 좋아요."
+      },
+      "capture": {
+        "text": "방금 떠오른 걸 흘려보내지 말아요.",
+        "tip": "한 줄이면 충분해요. 정리는 제가 할게요."
+      },
+      "chat": {
+        "text": "무엇이든 물어봐요. 당신 기록에서 찾아 답할게요.",
+        "tip": "\"요즘 나 어때?\"처럼 물어도 돼요."
+      },
+      "lens": {
+        "text": "이번 주 외향성 별이 한 칸 밝아졌어요.",
+        "tip": "변화한 축을 누르면 근거 기록을 볼 수 있어요."
+      },
+      "iden": {
+        "text": "당신을 한 파일로 묶어뒀어요. 어디든 데려가세요.",
+        "tip": "민감한 항목은 가리고 내보낼 수 있어요."
+      }
+    },
+    "home": {
+      "polaris": "북극성 · 소울코어",
+      "hint": "별 7개를 눌러 자기이해 렌즈를 열어보세요"
+    },
+    "capture": {
+      "title": "담기",
+      "placeholder": "오늘 떠오른 생각, 읽은 것, 느낀 것… 무엇이든 한 줄로.",
+      "chipText": "글",
+      "chipLink": "링크",
+      "chipVoice": "음성",
+      "tip": "담는 순간 세컨비가 자동으로 태그·분류해요."
+    },
+    "chat": {
+      "user": "나 요즘 너무 지치는데 왜 그럴까?",
+      "ai": "최근 2주 기록을 보면 '쉼' 없이 일 관련 기록만 늘었어요. 외향성 별도 평소보다 어두워졌고요.",
+      "evidence": "근거 · 기록 8건",
+      "rhythm": "리듬 ↓",
+      "suggestRest": "쉼을 기록할까?",
+      "suggestImagine": "공상 모드"
+    },
+    "lens": {
+      "toggleFilled": "채움",
+      "toggleEmpty": "빈",
+      "toggleError": "에러",
+      "emptyTitle": "아직 이 별은 어두워요",
+      "emptyBody": "성격 검사를 한 번 마치면 지금의 나 별이 켜져요.",
+      "emptyCta": "검사 시작",
+      "errorTitle": "불러오지 못했어요",
+      "errorBody": "잠시 후 다시 시도해 주세요.",
+      "errorCta": "다시 시도",
+      "filledTitle": "지금의 나",
+      "level": "L4",
+      "insight": "한 주 사이 외향성이 6p 올랐어요. 사람을 더 만났네요.",
+      "traitOpenness": "개방성",
+      "traitConscientiousness": "성실성",
+      "traitExtraversion": "외향성",
+      "traitAgreeableness": "우호성",
+      "traitNeuroticism": "신경성"
+    },
+    "iden": {
+      "signed": "서명됨",
+      "northStar": "\"나를 깊이 이해해 더 나답게 산다.\"",
+      "send": "AI에 전달"
+    }
+  }
 }

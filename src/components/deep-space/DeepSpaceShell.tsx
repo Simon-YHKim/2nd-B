@@ -1,105 +1,108 @@
 /**
- * O-23 Stage② — deep-space home shell (D-23 architecture C); Phase C hero pass.
+ * O-23 Stage② — deep-space home shell (D-23 architecture C).
  *
  * Rendered only when EXPO_PUBLIC_UI=deep-space; the legacy gameboy track is
- * untouched. The HERO is now the constellation progress: a Tier-1 Soul Core orb
- * whose brightness IS the seven-star aggregate, with a "N/7 lit · next: <cheapest
- * step>" nudge and a single filled CTA into the cheapest activation engine. The
- * character recedes to a supporting sprite (D-23 static fallback — r3f/expo-gl is
- * a later, perf-gated upgrade). SecondB (the path to the conversion trigger) is
- * promoted out of the secondary grid; graph / capture / profile recede. One
- * message + one graphic per screen (Simon standing rule).
+ * untouched. STEP 3/4 (design handoff 2026-06-17) turns the shell into the
+ * integrated experience from design/prototype.dc.html: a SecondbStatusHeader at
+ * the top, a five-tab dock at the bottom, and the dock views in between — home
+ * (북극성 + 7 stars constellation), 담기, 세컨비, 나 (Big Five lens, with
+ * empty/error/filled states), IDEN. The constellation's star brightness is the
+ * user's real ladder progress.
+ *
+ * The top-right profile/settings icons stay (the only entry to those routes from
+ * the shell, and pinned by the deep-space-shell-a11y guard). Internal views are
+ * a faithful demo; real store/Gemini wiring is TODO per view. One message + one
+ * graphic per screen (Simon standing rule). Android hardware-back steps a sub-view
+ * back to home before exiting (ANDROID_QA §4).
  */
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { BackHandler, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Redirect, router, type Href } from "expo-router";
+import { Redirect, router } from "expo-router";
 import Svg, { Circle, Path } from "react-native-svg";
 
-import { Text } from "@/components/ui/Text";
 import { deepSpace } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { loadStarLevels } from "@/lib/persona/load-star-levels";
-import { SELF_UNDERSTANDING_STARS, type StarId } from "@/lib/persona/stars";
+import { type StarId } from "@/lib/persona/stars";
 import type { LadderLevel } from "@/lib/persona/brightness";
-import { nextActivationStep } from "../../lib/persona/next-step";
-import { isCharacterFallback } from "../../lib/ui-mode";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
+import { SecondbStatusHeader } from "./SecondbStatusHeader";
+import type { SecondbMood } from "./SecondbHead";
+import { ConstellationHome } from "./ConstellationHome";
+import { CaptureView, ChatView, IdenView, LensView } from "./DeepSpaceViews";
+import { DeepSpaceDock, type DeepSpaceTab } from "./DeepSpaceDock";
 
-const CHARACTER = require("../../../assets/deep-space/character-front.png");
-
-// DEFERRED (AG task): downscaled assets/deep-space/character-front@low.png ~320px
-// to serve the low-end fallback render box (132px) without decoding the 860KB hero.
-
-// The receding secondary routes (D-22 IA). SecondB is lifted OUT of this grid and
-// promoted below the hero, because it is the path to the conversion trigger.
-const SECONDARY: { key: "graph" | "capture" | "profile"; route: Href }[] = [
-  { key: "graph", route: "/graph" },
-  { key: "capture", route: "/capture" },
-  { key: "profile", route: "/profile" },
-];
+// Per-view status-header mood (prototype heads map): home/lens read positive
+// (mint), the rest neutral (soul violet).
+const VIEW_MOOD: Record<DeepSpaceTab, SecondbMood> = {
+  home: "positive",
+  capture: "neutral",
+  chat: "neutral",
+  lens: "positive",
+  iden: "neutral",
+};
 
 export function DeepSpaceShell() {
-  // O-23 Stage⑤ (F2/F3) + Phase C: the shell speaks the user's locale via the
-  // `home` namespace — no hardcoded Korean (persona-sim culture-axis gap).
   const { t, i18n } = useTranslation("home");
   const isKo = i18n.language === "ko";
   const { userId, hasProfile, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
-  const [brightness, setBrightness] = useState<{
-    pct: number;
-    lit: number;
-    starLevels: Record<StarId, LadderLevel>;
-  } | null>(null);
-  // The top-right icon + character a11y labels stay inline isKo ternaries (the
-  // deep-space-shell-a11y guard pins this pattern + bans non-ASCII string
-  // literals in accessibilityLabel); the activation-funnel UI below uses the
-  // `home` namespace.
+  const [view, setView] = useState<DeepSpaceTab>("home");
+  const [starLevels, setStarLevels] = useState<Partial<Record<StarId, LadderLevel>>>({});
+
+  // a11y labels stay inline isKo ternaries (deep-space-shell-a11y guard pins
+  // this pattern + bans non-ASCII string literals in accessibilityLabel).
   const profileLabel = isKo ? "나 · 프로필" : "Me · profile";
   const settingsLabel = isKo ? "설정" : "Settings";
   const characterLabel = isKo ? "세컨드 브레인 캐릭터" : "Second Brain character";
+
+  // Cheap, no-Gemini read so the constellation shows real star brightness.
   useEffect(() => {
     if (!userId) return;
     let active = true;
-    // Cheap, no-Gemini path so the home shows Soul Core brightness on mount.
     loadStarLevels(userId)
-      .then(({ starLevels, soulCoreBrightness }) => {
-        if (!active) return;
-        const lit = SELF_UNDERSTANDING_STARS.filter((s) => starLevels[s.id] >= 2).length;
-        setBrightness({ pct: Math.round(soulCoreBrightness * 100), lit, starLevels });
+      .then(({ starLevels: levels }) => {
+        if (active) setStarLevels(levels);
       })
       .catch(() => {
-        // Offline / no data yet: leave the indicator hidden rather than error.
+        // Offline / no data yet: leave stars dim rather than error.
       });
     return () => {
       active = false;
     };
   }, [userId]);
 
-  // O-31 Stage3: the deep-space shell is a post-auth home — gate logged-out or
-  // incomplete users to the correct entry instead of rendering home to them
-  // (AG QA finding: deep-space bypassed the unauthenticated gate). These early
-  // returns run AFTER the hooks above, so hook order stays stable.
+  // Android hardware back: a sub-view returns to home; home falls through to the
+  // OS default (exit). Re-registered on view change so it reads the live view.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (view !== "home") {
+        setView("home");
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [view]);
+
+  // Early returns run AFTER the hooks above so hook order stays stable.
   if (loading) return <InlineLoader />;
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
   if (onboardingComplete === null) return <InlineLoader />;
   if (!onboardingComplete) return <Redirect href="/onboarding" />;
 
-  const lowEnd = isCharacterFallback();
-  // Tier-1 hero brightness: a dim core still reads (floor 0.25) so the orb never
-  // vanishes before any data lands.
-  const orbOpacity = brightness ? Math.max(0.25, brightness.pct / 100) : 0.25;
-  // The cheapest next step to light a star, from the deterministic helper.
-  const step = brightness ? nextActivationStep(brightness.starLevels) : null;
+  const dockItems = (["home", "capture", "chat", "lens", "iden"] as DeepSpaceTab[]).map((key) => ({
+    key,
+    label: t("ds.dock." + key),
+    accessibilityLabel: t("ds.dock." + key),
+  }));
 
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
-      {/* O-23 Stage③ finish: head-right icons (D-22 nav). Settings is an icon, not
-          a tab — this is the only entry point for /settings from the shell. */}
       <View style={styles.icons}>
         <Pressable
           style={({ pressed }) => [styles.icon, pressed && styles.iconPressed]}
@@ -129,99 +132,50 @@ export function DeepSpaceShell() {
         </Pressable>
       </View>
 
-      <View style={styles.stage}>
-        {/* HERO (Tier-1): the Soul Core orb. Its brightness IS the seven-star
-            aggregate — the dominant graphic, 128px, max glow. */}
-        <View style={styles.heroCore} accessibilityLabel={t("soulCore.a11y")}>
-          <Svg width={128} height={128} viewBox="0 0 128 128">
-            <Circle cx={64} cy={64} r={48} fill={deepSpace.accent} opacity={orbOpacity * 0.5} />
-            <Circle cx={64} cy={64} r={30} fill={deepSpace.accentBright} opacity={orbOpacity} />
-          </Svg>
-        </View>
+      <SecondbStatusHeader
+        text={t("ds.head." + view + ".text")}
+        tip={t("ds.head." + view + ".tip")}
+        mood={VIEW_MOOD[view]}
+        accessibilityLabel={characterLabel}
+      />
 
-        {brightness ? (
-          <Text style={[styles.litLine, { color: deepSpace.text }]}>
-            {t("progress.lit", { lit: brightness.lit, total: 7 })}
-            {step
-              ? "  ·  " +
-                t("progress.next", {
-                  step: t("nextStep." + step.key + ".label"),
-                  min: t("nextStep." + step.key + ".min"),
-                })
-              : ""}
-          </Text>
-        ) : null}
-
-        {/* Supporting sprite — recedes behind the hero. 200px (132px low-end). */}
-        <Image
-          source={CHARACTER}
-          style={[styles.character, lowEnd && styles.characterLow]}
-          contentFit="contain"
-          // expo-image (not RN Image) + memory-disk cache keeps the 860KB hero off
-          // the OOM path the QA backlog flagged for hi-res RN Image.
-          cachePolicy="memory-disk"
-          accessibilityLabel={characterLabel}
-        />
-
-        {/* The first-run lure: the bubble appears only when nothing is lit yet,
-            then yields to the progress line + CTA once a star is on. */}
-        {brightness?.lit === 0 ? (
-          <View style={styles.bubble}>
-            <Text style={[styles.bubbleText, { color: deepSpace.text }]}>{t("bubble.fresh")}</Text>
-          </View>
-        ) : null}
-
-        {/* Primary CTA: the single filled tappable into the cheapest activation
-            engine. Hidden once every offerable star is lit. */}
-        {step ? (
-          <Pressable
-            style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
-            onPress={() => router.push(step.route)}
-            accessibilityRole="button"
-            accessibilityLabel={t("nextStep." + step.key + ".cta")}
-          >
-            <Text style={[styles.ctaText, { color: deepSpace.bg }]}>
-              {t("nextStep." + step.key + ".cta")}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {/* Promoted: SecondB is the path to the conversion trigger. */}
-        <Pressable
-          style={({ pressed }) => [styles.secondb, pressed && styles.secondbPressed]}
-          onPress={() => router.push("/secondb")}
-          accessibilityRole="button"
-          accessibilityLabel={t("menu.secondb")}
-        >
-          <Text style={[styles.secondbText, { color: deepSpace.text }]}>{t("menu.secondb")}</Text>
-        </Pressable>
-
-        {/* Receding secondary routes. */}
-        <View style={styles.menu}>
-          {SECONDARY.map((item) => (
-            <Pressable
-              key={item.key}
-              style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-              onPress={() => router.push(item.route)}
-              accessibilityRole="button"
-              accessibilityLabel={t("menu." + item.key)}
-            >
-              <Text style={[styles.itemText, { color: deepSpace.textMuted }]}>
-                {t("menu." + item.key)}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+      <View style={styles.body}>
+        {view === "home" ? (
+          <ConstellationHome
+            starLevels={starLevels}
+            isKo={isKo}
+            hint={t("ds.home.hint")}
+            polarisLabel={t("ds.home.polaris")}
+            onStarPress={() => setView("lens")}
+            onPolarisPress={() => setView("iden")}
+          />
+        ) : view === "capture" ? (
+          <CaptureView />
+        ) : view === "chat" ? (
+          <ChatView />
+        ) : view === "lens" ? (
+          <LensView />
+        ) : (
+          <IdenView />
+        )}
       </View>
+
+      <DeepSpaceDock active={view} items={dockItems} onChange={setView} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: deepSpace.bg },
-  icons: { position: "absolute", top: 0, right: 18, zIndex: 2, flexDirection: "row", gap: 10, paddingTop: 12 },
+  icons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+    paddingTop: 8,
+    paddingHorizontal: 18,
+  },
   icon: {
-    width: 44, // O-23 Stage⑤ (F1): >= 44px touch target (persona-sim a11y)
+    width: 44,
     height: 44,
     borderRadius: 11,
     borderWidth: 1,
@@ -231,56 +185,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   iconPressed: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
-  stage: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
-  heroCore: { width: 128, height: 128, alignItems: "center", justifyContent: "center", marginBottom: 8 },
-  litLine: { textAlign: "center", marginBottom: 16, fontSize: 14 },
-  character: { width: 200, height: 200, marginBottom: 18 },
-  characterLow: { width: 132, height: 132 },
-  bubble: {
-    maxWidth: 320,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.card,
-    marginBottom: 20,
-  },
-  bubbleText: { textAlign: "center" },
-  cta: {
-    minWidth: 220,
-    paddingVertical: 15,
-    paddingHorizontal: 22,
-    borderRadius: 12,
-    backgroundColor: deepSpace.accentBright,
-    alignItems: "center",
-    marginBottom: 18,
-  },
-  ctaPressed: { backgroundColor: deepSpace.accent },
-  ctaText: { fontWeight: "700", textAlign: "center" },
-  secondb: {
-    minWidth: 220,
-    paddingVertical: 14,
-    paddingHorizontal: 22,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: deepSpace.accent,
-    backgroundColor: deepSpace.card,
-    alignItems: "center",
-    marginBottom: 22,
-  },
-  secondbPressed: { backgroundColor: deepSpace.cardPressed },
-  secondbText: { fontWeight: "600", textAlign: "center" },
-  menu: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" },
-  item: {
-    minWidth: 96,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    alignItems: "center",
-  },
-  itemPressed: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
-  itemText: { fontSize: 12, letterSpacing: 0, textTransform: "uppercase" },
+  body: { flex: 1 },
 });
