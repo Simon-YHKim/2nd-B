@@ -1,11 +1,16 @@
-// Token contract tests. These lock the phytoncide design tokens so an
-// accidental edit (wrong hex, dropped key) fails CI.
+// Token contract tests. These lock the deep-space design tokens so an
+// accidental edit (wrong canonical value, dropped key) fails CI.
 
 import { colors, spacing, radius, fontSize } from "../tokens";
 import { fontFamilies, fontWeights } from "../typography";
 
 describe("colors", () => {
   const required = [
+    "bgDeep", "bgMid", "bgGlow",
+    "cyan", "cyanBright", "cyanSoft", "cyanDim",
+    "textHi", "textMid", "textLo", "textTitle",
+    "soul", "soulDeep", "soulLine", "mint",
+    "border", "borderHi", "cardBg",
     "paper", "paper2", "paper3", "mist", "rule", "ruleSoft",
     "ink", "ink2", "ink3",
     "pine", "pineDeep", "pineSoft", "pineTint",
@@ -19,17 +24,28 @@ describe("colors", () => {
     }
   });
 
-  it("locks the brand-critical hex values (phytoncide / Option C)", () => {
-    expect(colors.pine).toBe("#2D4A3A");
-    expect(colors.paper).toBe("#F2EFE5");
-    expect(colors.sky).toBe("#C5D5DC");
-    expect(colors.leaf).toBe("#8FAA5E");
-    expect(colors.ink).toBe("#2A2418");
+  it("locks the brand-critical deep-space values", () => {
+    expect(colors.bgDeep).toBe("#070A13");
+    expect(colors.bgMid).toBe("#0B2142");
+    expect(colors.cyan).toBe("#46B6FF");
+    expect(colors.cyanBright).toBe("#5FD4FF");
+    expect(colors.cyanSoft).toBe("#9FE4FF");
+    expect(colors.textTitle).toBe("#CCFAFF");
+    expect(colors.soul).toBe("#C8B6FF");
+    expect(colors.mint).toBe("#5FF0C0");
   });
 
-  it("every color is a 6-digit hex string", () => {
+  it("keeps legacy aliases pointed at deep-space values", () => {
+    expect(colors.paper).toBe(colors.bgDeep);
+    expect(colors.paper2).toBe(colors.bgMid);
+    expect(colors.pine).toBe(colors.cyan);
+    expect(colors.leaf).toBe(colors.mint);
+    expect(colors.ink).toBe(colors.textHi);
+  });
+
+  it("uses explicit hex or rgba color strings", () => {
     for (const value of Object.values(colors)) {
-      expect(value).toMatch(/^#[0-9A-F]{6}$/i);
+      expect(value).toMatch(/^(#[0-9A-F]{6}|rgba\(\d{1,3},\d{1,3},\d{1,3},(?:0|1|0?\.\d+)\))$/i);
     }
   });
 });
@@ -41,23 +57,28 @@ describe("spacing", () => {
     }
   });
 
-  it("is a strictly increasing positive scale", () => {
-    const values = Object.values(spacing);
-    expect(values[0]).toBeGreaterThan(0);
-    for (let i = 1; i < values.length; i++) {
-      expect(values[i]).toBeGreaterThan(values[i - 1]);
-    }
+  it("keeps the canonical deep-space spacing values", () => {
+    expect(spacing.xs).toBe(6);
+    expect(spacing.sm).toBe(10);
+    expect(spacing.md).toBe(14);
+    expect(spacing.lg).toBe(18);
+    expect(spacing.xl).toBe(24);
   });
 });
 
 describe("radius", () => {
   it("has the expected keys", () => {
-    for (const key of ["sm", "md", "lg", "xl", "2xl", "full"]) {
+    for (const key of ["sm", "md", "lg", "pill", "phone", "xl", "2xl", "full"]) {
       expect(radius).toHaveProperty(key);
     }
   });
 
-  it("full is a pill-scale value", () => {
+  it("keeps the canonical deep-space radius values", () => {
+    expect(radius.sm).toBe(9);
+    expect(radius.md).toBe(13);
+    expect(radius.lg).toBe(18);
+    expect(radius.pill).toBe(999);
+    expect(radius.phone).toBe(38);
     expect(radius.full).toBeGreaterThanOrEqual(9999);
   });
 });
@@ -71,16 +92,14 @@ describe("fontSize", () => {
 });
 
 describe("typography", () => {
-  it("keeps legacy pixel aliases and exposes O-9 Game Boy display fonts", () => {
-    // Existing proportional faces still collapse to NeoDunggeunmo; the new
-    // aliases are only loaded for Phase 1 and are not applied to screens yet.
-    expect(fontFamilies.serifKo).toBe("NeoDunggeunmo");
-    expect(fontFamilies.serifEn).toBe("NeoDunggeunmo");
-    expect(fontFamilies.sans).toBe("NeoDunggeunmo");
-    expect(fontFamilies.pixel).toBe("NeoDunggeunmo");
-    expect(fontFamilies.pixelKo).toBe("Galmuri11");
-    expect(fontFamilies.pixelEn).toBe("PressStart2P");
-    expect(fontFamilies.mono).toBe("NeoDunggeunmoCode");
+  it("uses the deep-space font stack", () => {
+    expect(fontFamilies.serifKo).toContain("Galmuri11");
+    expect(fontFamilies.serifEn).toContain("PressStart2P");
+    expect(fontFamilies.sans).toContain("Pretendard");
+    expect(fontFamilies.pixel).toContain("Galmuri11");
+    expect(fontFamilies.pixelKo).toContain("Galmuri11");
+    expect(fontFamilies.pixelEn).toContain("PressStart2P");
+    expect(fontFamilies.mono).toContain("PressStart2P");
   });
 
   it("exposes the standard font weights", () => {
