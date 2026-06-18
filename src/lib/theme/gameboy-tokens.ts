@@ -1,9 +1,10 @@
 import { cosmic, withAlpha } from "./tokens";
 import { UI_MODE } from "../ui-mode";
 
-// Shared pixel geometry (sharp corners + hard offset shadow), identical in both
-// builds — the cyan pivot only moves the COLOR aliases.
-const gameboyGeometry = {
+// Pixel geometry differs by build: sharp corners + hard offset shadow (legacy)
+// vs rounded + flat (deep-space). The cyan pivot moved colors; this moves SHAPE
+// too, so the deep-space build reads as the smooth design, not retro pixel chrome.
+const geometryCosmic = {
   borderWidth: 2,
   radius: 0,
   pixelShadow: {
@@ -15,10 +16,23 @@ const gameboyGeometry = {
   grid: 8,
 } as const;
 
+const geometryDeepSpace = {
+  borderWidth: 1,
+  radius: 13,
+  // No hard pixel shadow (DESIGN.md: no drop shadows on dark surfaces).
+  pixelShadow: {
+    offsetX: 0,
+    offsetY: 0,
+    blur: 0,
+  },
+  scanlineOpacity: 0,
+  grid: 8,
+} as const;
+
 // Legacy cosmic mapping (EXPO_PUBLIC_UI=legacy). Kept exported for the token test
 // + the legacy track.
 export const gameboyCosmic = {
-  ...gameboyGeometry,
+  ...geometryCosmic,
   screen: cosmic.space950,
   ink: cosmic.moonWhite,
   accent: cosmic.signalBlue,
@@ -27,12 +41,12 @@ export const gameboyCosmic = {
   border: withAlpha(cosmic.signalBlue, 0.68),
 } as const;
 
-// Cyan global pivot (2026-06-18): in the deep-space build the Game-Boy color
-// aliases read as the eye-cyan identity, so the premium pixel chrome (buttons,
-// cards, inputs, tab bar) is cyan too. Geometry is unchanged (Phase 2 softens
-// shapes per screen).
+// Deep-space build (2026-06-18, Phase 2): the Game-Boy chrome reads as the smooth
+// eye-cyan design — cyan colors AND rounded/flat geometry (radius 13, 1px border,
+// no hard pixel shadow / scanlines), so premium buttons/cards/inputs/tab bar stop
+// looking like retro pixel chrome.
 const gameboyDeepSpace = {
-  ...gameboyGeometry,
+  ...geometryDeepSpace,
   screen: "#0A0E1A",
   ink: "#E8F7FF",
   accent: "#46B6FF",
