@@ -10,12 +10,15 @@
  * (document-global svg ids) never clashes across instances.
  */
 import { useId, useState } from "react";
-import { type DimensionValue, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { router } from "expo-router";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 
 import { deepSpace, deepSpaceGradients, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { createRecord } from "@/lib/records/create";
 
 // ── shared gradient primitives ───────────────────────────────────────────────
 
@@ -89,22 +92,87 @@ function Chip({ label }: { label: string }) {
 // ── 담기 / Capture ───────────────────────────────────────────────────────────
 
 export function CaptureView() {
-  const { t } = useTranslation("home");
+  const { t, i18n } = useTranslation("home");
+  const { userId, isMinor } = useAuth();
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState(false);
+  const locale = i18n.language === "ko" ? "ko" : "en";
+  const canSave = userId != null && draft.trim().length > 0 && !saving;
+
+  async function saveFirstPiece() {
+    if (!userId || !canSave) return;
+    setSaving(true);
+    setError(false);
+    try {
+      await createRecord({
+        userId,
+        locale,
+        kind: "note",
+        body: draft.trim(),
+        topic: locale === "ko" ? "첫 기록" : "First note",
+        tags: ["first-piece"],
+        withFollowup: false,
+        minor: isMinor === true,
+      });
+      setSaved(true);
+      setDraft("");
+    } catch (e) {
+      setError(true);
+      if (typeof console !== "undefined") console.warn("[deepspace-capture] save failed", (e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <ScrollView contentContainerStyle={styles.body}>
+    <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
       <Text style={styles.pixelTitle}>{t("ds.capture.title")}</Text>
-      {/* TODO: wire to the real capture store (src/lib/capture). */}
-      <View style={styles.inputBox}>
-        <Text style={styles.placeholder}>{t("ds.capture.placeholder")}</Text>
-      </View>
+      <TextInput
+        value={draft}
+        onChangeText={(next) => {
+          setDraft(next);
+          if (saved) setSaved(false);
+          if (error) setError(false);
+        }}
+        multiline
+        textAlignVertical="top"
+        placeholder={t("ds.capture.placeholder")}
+        placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
+        style={styles.inputBoxText}
+        accessibilityLabel={t("ds.capture.title")}
+      />
       <View style={styles.chipRow}>
         <Chip label={t("ds.capture.chipText")} />
         <Chip label={t("ds.capture.chipLink")} />
         <Chip label={t("ds.capture.chipVoice")} />
       </View>
-      <View style={styles.noteCard}>
-        <Text style={styles.noteText}>{t("ds.capture.tip")}</Text>
-      </View>
+      <GradientButton
+        label={
+          saving
+            ? locale === "ko" ? "저장 중" : "Saving"
+            : saved
+              ? locale === "ko" ? "저장 완료" : "Saved"
+              : locale === "ko" ? "첫 기록 저장" : "Save first note"
+        }
+        onPress={saveFirstPiece}
+        full
+      />
+      {saved ? (
+        <Pressable accessibilityRole="button" onPress={() => router.push("/records")} style={styles.ghostBtn}>
+          <Text style={styles.ghostLabel}>{locale === "ko" ? "기록 보관소에서 보기" : "Open records"}</Text>
+        </Pressable>
+      ) : null}
+      {error ? (
+        <View style={styles.noteCard}>
+          <Text style={styles.noteText}>{locale === "ko" ? "저장하지 못했어요. 잠시 뒤 다시 시도해 주세요." : "Could not save. Try again in a moment."}</Text>
+        </View>
+      ) : (
+        <View style={styles.noteCard}>
+          <Text style={styles.noteText}>{t("ds.capture.tip")}</Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -276,16 +344,19 @@ const styles = StyleSheet.create({
   chipLabel: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
 
   // capture
-  inputBox: {
+  inputBoxText: {
     marginTop: 14,
-    minHeight: 120,
+    minHeight: 132,
     padding: 14,
     borderRadius: 13,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
+    color: deepSpace.textHi,
+    fontSize: 13,
+    lineHeight: 21,
+    fontFamily: fontFamilies.readable,
   },
-  placeholder: { color: withAlpha(deepSpace.textHi, 0.5), fontSize: 13, lineHeight: 21, fontFamily: fontFamilies.readable },
   noteCard: {
     marginTop: 16,
     paddingVertical: 12,

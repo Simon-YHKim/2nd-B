@@ -13,12 +13,14 @@ import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceSupportDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 const SUPPORT_EMAIL = "support@2nd-brain.app";
 
 type SupportFaq = { question: string; answer: string };
 
-export default function Support() {
+function SupportLegacy() {
   const { t } = useTranslation("support");
   const { userId, loading } = useAuth();
   const faq = t("faq", { returnObjects: true }) as SupportFaq[];
@@ -109,3 +111,8 @@ const styles = StyleSheet.create({
   },
   faqQuestion: { marginBottom: spacing.xs },
 });
+
+export default function Support() {
+  if (isDeepSpaceUI()) return <DeepSpaceSupportDesignScreen />;
+  return <SupportLegacy />;
+}
