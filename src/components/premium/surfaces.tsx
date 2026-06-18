@@ -94,7 +94,7 @@ export function PremiumPanel({
 export function PremiumCard({
   title,
   eyebrow,
-  accent = cosmic.soulViolet,
+  accent = semantic.brand,
   right,
   children,
   style,
@@ -331,7 +331,7 @@ export function PixelIconButton({
   children,
   onPress,
   accessibilityLabel,
-  accent = cosmic.soulViolet,
+  accent = semantic.brand,
 }: {
   children: ReactNode;
   onPress?: () => void;
@@ -399,13 +399,13 @@ const styles = StyleSheet.create({
     borderRadius: gameboy.radius,
     borderWidth: gameboy.borderWidth,
     borderColor: gameboy.border,
-    backgroundColor: withAlpha(cosmic.signalMint, 0.08),
+    backgroundColor: withAlpha(semantic.brand, 0.08),
     alignItems: "center",
     justifyContent: "center",
     ...pixelShadowStyle(gameboy.border),
   },
   brandChipMain: {
-    color: cosmic.signalMint,
+    color: semantic.brand,
     fontFamily: fontFamilies.pixelKo,
     fontWeight: "800",
     fontSize: 16,

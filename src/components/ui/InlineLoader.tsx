@@ -7,7 +7,7 @@
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import Svg, { Circle, Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
-import { cosmic } from "@/lib/theme/tokens";
+import { semantic } from "@/lib/theme/tokens";
 
 export function InlineLoader({ message }: { message?: string } = {}) {
   return (
@@ -15,17 +15,17 @@ export function InlineLoader({ message }: { message?: string } = {}) {
       <Svg style={StyleSheet.absoluteFill}>
         <Defs>
           <RadialGradient id="il-violet" cx="50%" cy="44%" r="46%">
-            <Stop offset="0" stopColor={cosmic.soulViolet} stopOpacity="0.18" />
-            <Stop offset="1" stopColor={cosmic.soulViolet} stopOpacity="0" />
+            <Stop offset="0" stopColor={semantic.brand} stopOpacity="0.18" />
+            <Stop offset="1" stopColor={semantic.brand} stopOpacity="0" />
           </RadialGradient>
         </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill={cosmic.space950} />
+        <Rect x="0" y="0" width="100%" height="100%" fill={semantic.background} />
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#il-violet)" />
-        <Circle cx="50%" cy="44%" r="22" fill="none" stroke={cosmic.soulViolet} strokeOpacity={0.5} strokeWidth={2} />
-        <Circle cx="50%" cy="44%" r="6" fill={cosmic.signalMint} />
+        <Circle cx="50%" cy="44%" r="22" fill="none" stroke={semantic.brand} strokeOpacity={0.5} strokeWidth={2} />
+        <Circle cx="50%" cy="44%" r="6" fill={semantic.brand} />
       </Svg>
       <View style={styles.spinner}>
-        <ActivityIndicator color={cosmic.signalMint} />
+        <ActivityIndicator color={semantic.brand} />
       </View>
     </View>
   );
@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: cosmic.space950,
+    backgroundColor: semantic.background,
   },
   spinner: { marginTop: 120 },
 });
