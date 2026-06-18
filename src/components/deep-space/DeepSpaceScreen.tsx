@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, type Href } from "expo-router";
 
-import { deepSpace } from "@/lib/theme/tokens";
+import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { SecondbStatusHeader } from "./SecondbStatusHeader";
 import type { SecondbMood } from "./SecondbHead";
 import { DeepSpaceDock, type DeepSpaceTab } from "./DeepSpaceDock";
@@ -55,6 +55,17 @@ export function DeepSpaceScreen({ active, children }: { active: DeepSpaceTab; ch
 
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
+      <View pointerEvents="none" style={styles.spaceWash}>
+        <View style={styles.topGlow} />
+        <View style={[styles.star, styles.starA]} />
+        <View style={[styles.star, styles.starB]} />
+        <View style={[styles.star, styles.starC]} />
+        <View style={[styles.star, styles.starD]} />
+        <View style={[styles.star, styles.starE]} />
+        <View style={[styles.star, styles.starF]} />
+        <View style={[styles.star, styles.starG]} />
+        <View style={[styles.star, styles.starH]} />
+      </View>
       <SecondbStatusHeader
         text={t("ds.head." + active + ".text")}
         tip={t("ds.head." + active + ".tip")}
@@ -76,6 +87,40 @@ export function DeepSpaceScreen({ active, children }: { active: DeepSpaceTab; ch
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: deepSpace.bg },
-  body: { flex: 1 },
+  root: { flex: 1, backgroundColor: deepSpace.bgEdge },
+  spaceWash: { ...StyleSheet.absoluteFill, overflow: "hidden" },
+  topGlow: {
+    position: "absolute",
+    top: -150,
+    left: -80,
+    right: -80,
+    height: 360,
+    borderRadius: 180,
+    backgroundColor: deepSpace.bgGlow,
+    opacity: 0.9,
+  },
+  star: {
+    position: "absolute",
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: deepSpace.accentSoft,
+    shadowColor: deepSpace.accent,
+    shadowOpacity: 0.85,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
+  },
+  starA: { top: 38, left: "18%", opacity: 0.85 },
+  starB: { top: 94, right: "22%", opacity: 0.55 },
+  starC: { top: 168, left: "36%", opacity: 0.5 },
+  starD: { top: 244, right: "15%", opacity: 0.8 },
+  starE: { bottom: 168, left: "11%", opacity: 0.45 },
+  starF: { bottom: 112, right: "28%", opacity: 0.62 },
+  starG: { bottom: 54, left: "42%", opacity: 0.4 },
+  starH: { top: 312, left: "67%", opacity: 0.5 },
+  body: {
+    flex: 1,
+    backgroundColor: withAlpha(deepSpace.bgEdge, 0.5),
+  },
 });
