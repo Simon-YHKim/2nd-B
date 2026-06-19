@@ -120,7 +120,12 @@
     "resetPrompt": "Please check your email",
     "resetBody": "Enter the 6-digit code to set it again.",
     "resend": "Resend {{time}}",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "noAccount": "New here? Create an account",
+    "haveAccount": "Already have an account? Sign in",
+    "forgotPassword": "Forgot password?",
+    "or": "or",
+    "ageNotice": "You can sign up from age 14. Under 14 needs a guardian."
   },
   "account": {
     "title": "Account",

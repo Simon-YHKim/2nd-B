@@ -227,7 +227,7 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
 
 // OAuth providers we support via Supabase's built-in social login. (Naver is
 // intentionally excluded: it is not a Supabase provider; see the doc above.)
-export type OAuthProvider = "google" | "apple" | "kakao";
+export type OAuthProvider = "google" | "apple" | "kakao" | "facebook" | "github";
 
 export interface OAuthRedirect {
   url: string;
@@ -390,6 +390,14 @@ export function signInWithKakao(redirectTo?: string): Promise<OAuthRedirect | nu
   return signInWithProvider("kakao", redirectTo);
 }
 
+export function signInWithFacebook(redirectTo?: string): Promise<OAuthRedirect | null> {
+  return signInWithProvider("facebook", redirectTo);
+}
+
+export function signInWithGithub(redirectTo?: string): Promise<OAuthRedirect | null> {
+  return signInWithProvider("github", redirectTo);
+}
+
 // Whether to SHOW a built-in social provider button. The provider must ALSO be
 // configured in the Supabase dashboard (client id/secret + redirect URL) to
 // actually authenticate; this only gates the UI so a deploy that has not set up
@@ -400,6 +408,8 @@ export function isProviderEnabled(provider: OAuthProvider): boolean {
   const env = getEnv();
   if (provider === "google") return env.EXPO_PUBLIC_ENABLE_GOOGLE;
   if (provider === "apple") return env.EXPO_PUBLIC_ENABLE_APPLE;
+  if (provider === "facebook") return env.EXPO_PUBLIC_ENABLE_FACEBOOK;
+  if (provider === "github") return env.EXPO_PUBLIC_ENABLE_GITHUB;
   return env.EXPO_PUBLIC_ENABLE_KAKAO;
 }
 

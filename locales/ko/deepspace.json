@@ -120,7 +120,12 @@
     "resetPrompt": "메일을 확인해 주세요",
     "resetBody": "6자리 인증 코드를 입력하면 다시 설정할 수 있어요.",
     "resend": "재전송 {{time}}",
-    "confirm": "확인"
+    "confirm": "확인",
+    "noAccount": "처음이신가요? 계정 만들기",
+    "haveAccount": "이미 계정이 있으신가요? 로그인",
+    "forgotPassword": "비밀번호를 잊으셨나요?",
+    "or": "또는",
+    "ageNotice": "만 14세부터 가입할 수 있어요. 14세 미만은 보호자 동의가 필요해요."
   },
   "account": {
     "title": "계정",
