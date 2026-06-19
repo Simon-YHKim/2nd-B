@@ -10,17 +10,18 @@
  * every other design (gameboy / cosmic / sky palettes) is the explicit `legacy`
  * rollback. Setting EXPO_PUBLIC_UI=legacy is the whole-app rollback path.
  *
- * LIVE GATE (memo D12 "F1-F4 수정 후 default"): the deep-space shell is not yet
- * feature-complete. Sub-screen theming (A3), secondary nav wiring (A1), unified
- * back (A5), and the 3D character (A4, still a static PNG) are in progress on the
- * O-23 track. So production/live builds PIN EXPO_PUBLIC_UI=legacy (web-deploy.yml
- * + eas production env) until that work lands. The code default flips here so
- * deep-space is canonical for development and the eventual cutover; the deploy
- * pin is what holds the live app on legacy in the meantime.
+ * CUTOVER (2026-06-19): the deep-space shell is now live on both tracks. Web
+ * (web-deploy.yml) and native (eas production env) both pin EXPO_PUBLIC_UI=
+ * deep-space after the real-data wiring landed. The code default already resolved
+ * to deep-space; the deploy pins now match it. EXPO_PUBLIC_UI=legacy remains the
+ * whole-app rollback path on either track.
  *
  * Character render strategy (D-23 hybrid, mitigates the native-3D resource risk):
- *   EXPO_PUBLIC_CHARACTER=3d        → interactive r3f/expo-gl (DEFAULT, home shell)
+ *   EXPO_PUBLIC_CHARACTER=3d        → interactive r3f/expo-gl (DEFAULT, web home shell)
  *   EXPO_PUBLIC_CHARACTER=fallback  → static sprite / Lottie (low-end Android, sub-screens)
+ * The native production build PINS EXPO_PUBLIC_CHARACTER=fallback: the r3f/expo-gl
+ * 3D path (SVG-bridge / OOM risk per ANDROID_QA_GUIDELINES §3) needs on-device QA
+ * before native ships 3d, so the conservative sprite path is the initial cutover.
  */
 export type UiMode = "legacy" | "deep-space";
 export type CharacterMode = "3d" | "fallback";

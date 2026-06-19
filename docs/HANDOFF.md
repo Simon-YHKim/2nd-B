@@ -22,11 +22,14 @@ A(materialize)·B(wiki/research 배선)·C(전 화면 실데이터)·D(5-locale 
 - **인박스 추천 태그 ✅**: Phase 1 캐시 태그를 추천 칩으로, 없으면 on-demand Phase 1.
 - **propose→ratify ✅**: STEP 4 의미 이웃을 `inferred` 엣지로 제안(`proposeAllRelatedLinks`) → `/research` "제안된 연결"에서 사용자 승인(`ratifyLink`)/거절(`rejectInferredLink`). 캐논 완성. confidence 0.5 floor가 mock 노이즈 차단.
 
+### 완료 (이번 세션 후속)
+- **prod migration ✅**: `0044`~`0047` 4개 Supabase(2nd-brain)에 apply 완료. `vector` 확장 enable + `match_wiki_pages` kNN RPC 라이브. 보안 advisor green(새 테이블 RLS OK).
+- **`/import` 수동 가져오기 ✅** (PR #465): 마크다운 붙여넣기 → 검토 → `captureFromMarkdown`로 source 생성(LLM 없이 $0) → inbox. `import-notes.ts`(split/preview) + 테스트.
+- **Native(EAS) 딥스페이스 전환 ✅**: `eas.json` production `EXPO_PUBLIC_UI=deep-space`로 플립(웹과 일치). native는 `EXPO_PUBLIC_CHARACTER=fallback` 핀(3d r3f/expo-gl OOM 리스크 회피, ANDROID_QA_GUIDELINES §3). **게이트: EAS production submit 전 실기기 QA 필요** — 3d 캐릭터 전환은 그 후.
+
 ### 다음 후보 (선택)
-- Native(EAS) 딥스페이스 전환 (현재 `EXPO_PUBLIC_UI=legacy` 핀).
 - `/import` 외부 커넥터(Notion/Obsidian) 실제 연동 (정적 mockup 유지 중).
-- prod: migration `0046`·`0047` 수동 apply (pgvector 확장 enable 포함).
-- prod: migration `0046`·`0047` 수동 apply (pgvector 확장 enable 포함).
+- native 실기기 QA 후 `EXPO_PUBLIC_CHARACTER=3d` 전환 검토.
 
 ### 핵심 파일
 ```
@@ -66,8 +69,8 @@ fallback(`*Legacy` 본문, `EXPO_PUBLIC_UI=legacy` 롤백 스킨)과 비-화면(
 
 ### 활성 인프라
 - Web 라이브: https://simon-yhkim.github.io/2nd-B/ — `web-deploy.yml`이 `main` 푸시 시 배포, `EXPO_PUBLIC_UI=deep-space` 핀(딥스페이스가 라이브에 보임).
-- Native(EAS): `eas.json`이 `EXPO_PUBLIC_UI=legacy` 핀 — Android/iOS는 아직 레거시. 딥스페이스 feature-complete(실데이터+인증) 후 전환.
-- Supabase wiki 스키마: `db/migrations/0022_wiki_rag.sql` (sources/wiki_pages/wiki_links, RLS). pgvector 미설치.
+- Native(EAS): `eas.json` production `EXPO_PUBLIC_UI=deep-space` + `EXPO_PUBLIC_CHARACTER=fallback`(2026-06-19 cutover). 웹과 일치. **EAS production submit 전 실기기 QA 게이트** — 3d 캐릭터 전환은 그 후. legacy는 플래그 롤백 경로로 보존.
+- Supabase wiki 스키마: `0022_wiki_rag.sql` + `0046`(relation_type/confidence) + `0047`(pgvector embedding + kNN RPC). prod apply 완료 — pgvector 설치됨.
 
 ### 다음 작업 큐
 | # | 작업 | 크기 | 권장 |

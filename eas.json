@@ -23,7 +23,8 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_FORCE_TIER": "off",
-        "EXPO_PUBLIC_UI": "legacy"
+        "EXPO_PUBLIC_UI": "deep-space",
+        "EXPO_PUBLIC_CHARACTER": "fallback"
       }
     }
   },
