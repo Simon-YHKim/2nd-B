@@ -96,5 +96,21 @@
   "health": {
     "autoCompleted": "활동에서 자동 체크됨",
     "autoCompletedHint": "기록한 운동 또는 목표를 넘긴 걸음 수로 자동 체크되었어요."
+  },
+  "focus": {
+    "title": "집중 타이머",
+    "status": "집중 세션을 한 번 진행해요.",
+    "tip": "집중 블록을 끝내면 오늘의 집중 루틴이 자동으로 체크돼요.",
+    "phaseIdle": "준비",
+    "phaseFocus": "집중",
+    "phaseBreak": "휴식",
+    "start": "시작",
+    "pause": "일시정지",
+    "reset": "초기화",
+    "doneToday": "오늘 끝낸 집중 세션: {{count}}",
+    "alarmFocusTitle": "집중 블록 완료",
+    "alarmFocusBody": "잘했어요. 잠깐 쉬어요.",
+    "alarmBreakTitle": "휴식 끝",
+    "alarmBreakBody": "다음 집중 블록으로 돌아가요."
   }
 }

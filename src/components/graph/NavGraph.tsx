@@ -213,6 +213,10 @@ export const MENU_NODES: readonly NavNode[] = [
     description: { en: "Where routines and plans for the days ahead take shape.", ko: "하루하루의 루틴과 계획이 모양을 잡는 곳이에요." } },
 
   // Tier 3 — real sub-places under a district; revealed on zoom/selection.
+  // Wave 1: the focus timer is a sub-place of the Rhythm Core (daily_focus).
+  { id: "focus-timer", tier: 3, parentId: "rhythm", href: "/focus",
+    label: { en: "Focus Timer", ko: "집중 타이머" },
+    description: { en: "A focus session that ticks today's focus routine.", ko: "오늘의 집중 루틴을 자동으로 체크하는 집중 세션이에요." } },
   { id: "wiki-daily", tier: 3, parentId: "knowledge", href: "/wiki",
     label: { en: "Daily Wiki", ko: "일상 지식" },
     description: { en: "Everyday notes and captures.", ko: "일상의 메모와 자료." } },

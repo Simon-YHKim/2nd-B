@@ -50,6 +50,33 @@ async function ensureChannel(): Promise<void> {
 }
 
 /**
+ * Wave 1 (daily_focus): fire a one-shot local notification RIGHT NOW. Used by
+ * the focus timer when a phase ends while running (focus done / break over).
+ * Same native guard as scheduleRoutineReminder — it no-ops on web and Expo Go
+ * (where the module is absent) and never adds a dependency. A null trigger means
+ * "deliver immediately". Returns the same ReminderResult vocabulary.
+ */
+export async function notifyNow(title: string, body?: string): Promise<ReminderResult> {
+  if (!remindersSupported() || !Notifications) return "unavailable";
+  try {
+    const permission = await Notifications.requestPermissionsAsync();
+    if (!permission.granted) return "denied";
+    await ensureChannel();
+    await Notifications.scheduleNotificationAsync({
+      content: { title, body: body ?? null },
+      // null trigger = deliver immediately (the phase already ended).
+      trigger: null,
+    });
+    return "scheduled";
+  } catch (e) {
+    if (typeof console !== "undefined") {
+      console.warn("[ops] notifyNow failed", (e as Error).message);
+    }
+    return "error";
+  }
+}
+
+/**
  * Schedules a local reminder for the recommendation: repeating at the item's
  * local wall-clock time for daily/weekly routines, one-shot otherwise.
  */
