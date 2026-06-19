@@ -223,6 +223,7 @@ export type SummarizeStatus =
   | "capped"
   | "claim_failed"
   | "blocked"
+  | "skipped_preview"
   | "empty_output";
 
 export interface SummarizeResult {
@@ -235,6 +236,7 @@ export interface SummarizeResult {
    *   capped             — today's daily allowance is exhausted
    *   claim_failed        — another caller already claimed/owns this slot
    *   blocked            — the gateway returned a red-zone/crisis reply (NEVER cache)
+   *   skipped_preview    — offline-preview (mock) placeholder copy (NEVER cache)
    *   empty_output       — the model produced nothing usable
    */
   status: SummarizeStatus;
@@ -341,6 +343,17 @@ export async function summarizeArticle(
   if (reply.safety?.zone !== "green") {
     await releaseBoth();
     return { summary: "", status: "blocked", skipped: "blocked" };
+  }
+
+  // Codex P2 #2 (mock): in EXPO_PUBLIC_LLM_MODE=mock (the default for unset web
+  // deploy builds) callGemini returns generic offline-preview copy, not a real
+  // condensation. Persisting it as a 'done' summary would poison the cache —
+  // canSummarize() then skips a real Gemini summary forever. The gateway marks
+  // such replies reply.mocked===true; when set, persist NOTHING, release the
+  // slot + cap, and report skipped_preview so the row stays reclaimable.
+  if (reply.mocked) {
+    await releaseBoth();
+    return { summary: "", status: "skipped_preview", skipped: "skipped_preview" };
   }
 
   const summary = clampSummary(reply.text);

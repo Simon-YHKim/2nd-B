@@ -163,6 +163,24 @@ describe("summarizeArticle (routes through C1, capped, cached once, claim-guarde
     expect(releaseSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1");
   });
 
+  test("MOCK reply is never persisted: skipped_preview + slot released (stays reclaimable)", async () => {
+    // EXPO_PUBLIC_LLM_MODE=mock makes callGemini return generic offline-preview
+    // copy with reply.mocked===true (and a green zone). It must NOT be stored as
+    // a real 'done' summary — otherwise canSummarize() skips a real summary forever.
+    callGeminiMock.mockResolvedValueOnce({
+      text: "Offline preview: a one-line condensation of the fetched headline would appear here.",
+      safety: { zone: "green" },
+      mocked: true,
+      audit: {},
+    });
+    const res = await summarizeArticle("user-1", row(), "en");
+    // status !== "ok" so the caller does NOT call setSummary -> no stored summary.
+    expect(res).toEqual({ summary: "", status: "skipped_preview", skipped: "skipped_preview" });
+    expect(res.summary).toBe("");
+    // Slot released so the row stays reclaimable for a later real Gemini summary.
+    expect(releaseSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1");
+  });
+
   test("empty model output reports a skip rather than persisting noise (+ slot released)", async () => {
     callGeminiMock.mockResolvedValueOnce({ text: "   ", safety: { zone: "green" }, audit: {} });
     const res = await summarizeArticle("user-1", row(), "en");

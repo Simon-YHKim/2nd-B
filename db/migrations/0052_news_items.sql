@@ -42,6 +42,11 @@ CREATE TABLE IF NOT EXISTS news_items (
   --   done    = a real summary is stored (the only state listDigest treats as summarized)
   summary_status  text NOT NULL DEFAULT 'none'
                   CHECK (summary_status IN ('none', 'pending', 'done')),
+  -- When summary_status was last flipped to 'pending' (claimSummarySlot). Lets a
+  -- stale 'pending' (a process that died after claiming but before setSummary/
+  -- releaseSummarySlot) be reclaimed after a TTL, instead of wedging the row in
+  -- 'pending' forever so every retry returns claim_failed.
+  summary_claimed_at timestamptz,
   created_at      timestamptz DEFAULT now(),
   -- Idempotent re-pull AND "summarize once": the same article for the same user
   -- collapses to one row, so the cached summary is never recomputed.
@@ -54,6 +59,12 @@ CREATE TABLE IF NOT EXISTS news_items (
 -- 'done' so listDigest keeps treating them as summarized.
 ALTER TABLE news_items
   ADD COLUMN IF NOT EXISTS summary_status text NOT NULL DEFAULT 'none';
+
+-- Idempotent add for the stale-claim reclaim TTL (claimSummarySlot stamps it;
+-- a 'pending' row whose stamp is older than the TTL is reclaimable). Nullable,
+-- no default — only set when a claim is taken.
+ALTER TABLE news_items
+  ADD COLUMN IF NOT EXISTS summary_claimed_at timestamptz;
 
 DO $$ BEGIN
   IF NOT EXISTS (

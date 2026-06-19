@@ -386,7 +386,9 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       latencyMs,
     };
     await writeAiAuditLog(input.userId, audit, "[ai_audit_log] insert failed (mock)");
-    return { text: text as unknown as T, safety: outputSafety, audit };
+    // mocked:true marks this as offline-preview placeholder copy (NOT real model
+    // output). Persisting callers (e.g. the news summary cache) must NOT store it.
+    return { text: text as unknown as T, safety: outputSafety, audit, mocked: true };
   }
 
   // Live mode: route through gemini-proxy Edge Function when configured

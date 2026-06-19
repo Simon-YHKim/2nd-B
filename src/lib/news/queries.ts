@@ -32,6 +32,11 @@ export interface NewsItemRow {
    * Optional on the type so legacy callers/fixtures stay valid.
    */
   summary_status?: "none" | "pending" | "done" | null;
+  /**
+   * When the slot was last claimed (migration 0052). Used by claimSummarySlot's
+   * stale-claim reclaim TTL. Optional on the type so legacy fixtures stay valid.
+   */
+  summary_claimed_at?: string | null;
   created_at: string | null;
 }
 
@@ -86,31 +91,45 @@ export async function listDigest(userId: string, limit = 30): Promise<NewsItemRo
 }
 
 /**
+ * How long a 'pending' claim may sit before it's considered abandoned and
+ * reclaimable. If a process dies after claimSummarySlot stamps 'pending' but
+ * before setSummary/releaseSummarySlot, the row would otherwise wedge in
+ * 'pending' forever and every retry returns claim_failed. After this TTL a new
+ * caller may steal the slot.
+ */
+export const SUMMARY_CLAIM_TTL_MS = 5 * 60_000;
+
+/**
  * Atomically CLAIM the summary slot for one article before the LLM call
- * (Codex P2 #2 — double-bill guard). Compare-and-set: flip summary_status
- * 'none' -> 'pending' for exactly ONE caller. Two concurrent callers (two
- * tabs/devices) race here; the DB serializes the UPDATE so only the first
- * matches `summary_status='none'` and the loser sees 0 rows affected.
+ * (Codex P2 #2 — double-bill guard). Compare-and-set: stamp summary_claimed_at
+ * = now and flip summary_status to 'pending' for exactly ONE caller. The WHERE
+ * matches a row that is EITHER:
+ *   - summary_status='none' (free to claim), OR
+ *   - summary_status='pending' AND summary_claimed_at older than the TTL (a
+ *     stale/abandoned claim from a process that died mid-flight — reclaimable).
+ * Two concurrent fresh callers race here; the DB serializes the UPDATE so only
+ * the first matches and the loser sees 0 rows affected.
  *
  * Returns true when THIS caller won the claim (it must proceed to the LLM call
  * and then setSummary/releaseSummarySlot); false when the slot was already
- * claimed or summarized (the caller must skip the LLM entirely — no second
- * callGemini, no double billing).
+ * claimed-and-fresh or summarized (the caller must skip the LLM entirely — no
+ * second callGemini, no double billing).
  *
  * Owner-scoped (user_id = auth.uid()) so the RLS policy still gates the write.
  */
 export async function claimSummarySlot(userId: string, itemId: string): Promise<boolean> {
   const supabase = getSupabaseClient();
+  const cutoffIso = new Date(Date.now() - SUMMARY_CLAIM_TTL_MS).toISOString();
   const { data, error } = await supabase
     .from("news_items")
-    .update({ summary_status: "pending" })
+    .update({ summary_status: "pending", summary_claimed_at: new Date().toISOString() })
     .eq("user_id", userId)
     .eq("id", itemId)
-    .eq("summary_status", "none")
+    .or(`summary_status.eq.none,and(summary_status.eq.pending,summary_claimed_at.lt.${cutoffIso})`)
     .select("id");
   if (error) throw error;
   // Exactly one row returned == we won the compare-and-set. Anything else
-  // (already pending/done, or row gone) == the claim failed -> skip the LLM.
+  // (already pending-and-fresh / done, or row gone) == the claim failed.
   return (data?.length ?? 0) > 0;
 }
 
@@ -125,7 +144,7 @@ export async function releaseSummarySlot(userId: string, itemId: string): Promis
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from("news_items")
-    .update({ summary_status: "none" })
+    .update({ summary_status: "none", summary_claimed_at: null })
     .eq("user_id", userId)
     .eq("id", itemId)
     .eq("summary_status", "pending");

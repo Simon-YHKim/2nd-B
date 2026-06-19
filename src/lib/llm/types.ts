@@ -78,6 +78,14 @@ export interface GeminiResult<T = string> {
   text: T;
   safety: SafetyResult;
   audit: AuditMeta;
+  /**
+   * True only when the reply is offline-preview placeholder copy
+   * (EXPO_PUBLIC_LLM_MODE=mock), NOT a real model output. Set exclusively on the
+   * mock branch of callGemini. Callers that persist model output (e.g. the news
+   * summary cache) check this so generic preview text is never stored as a real,
+   * cached result. Absent/false on every live and crisis-routed path.
+   */
+  mocked?: boolean;
 }
 
 export const MODELS: Record<GeminiModel, string> = {

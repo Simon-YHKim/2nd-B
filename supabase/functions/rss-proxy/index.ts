@@ -21,10 +21,38 @@
 // unreachable function as an explicit "proxy_unavailable" error state (not a
 // silent []), so an undeployed proxy surfaces a clear failure.
 //
-// Auth: verify_jwt=true (default) — only signed-in app users can call it; it is
-// not an open relay. CORS is an explicit origin allowlist (no wildcard).
+// Auth: verify_jwt=true (default) proves the bearer token is VALID, but the
+// public anon key is itself a valid token — so a valid token alone is not a
+// signed-in user, and anyone holding the anon key could otherwise invoke this
+// proxy and burn Edge Function quota/bandwidth. We additionally require the JWT
+// to represent an AUTHENTICATED user (a real `sub` + role==='authenticated',
+// NOT 'anon'), mirroring the user-auth posture of gemini-proxy. CORS is an
+// explicit origin allowlist (no wildcard).
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+
+// Read the JWT claims without re-verifying the signature (the gateway already
+// did, verify_jwt=true). Mirrors gemini-proxy/userIdFromJwt. A signed-in user's
+// token carries role==='authenticated' and a real `sub`; the anon key's token
+// carries role==='anon'. Returns null for malformed/non-authenticated tokens so
+// the caller rejects anon/invalid with 401 before any upstream fetch.
+function authenticatedUserIdFromJwt(authHeader: string): string | null {
+  try {
+    const token = authHeader.slice(authHeader.toLowerCase().indexOf('bearer ') + 7).trim();
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(b64 + '=='.slice(0, (4 - (b64.length % 4)) % 4)));
+    const sub = typeof json?.sub === 'string' ? json.sub : '';
+    const role = typeof json?.role === 'string' ? json.role : '';
+    // A signed-in user only: real subject AND the 'authenticated' role. The anon
+    // key's JWT has role==='anon' (and no user sub) — reject it.
+    if (role !== 'authenticated' || sub.length === 0) return null;
+    return sub;
+  } catch {
+    return null;
+  }
+}
 
 // SSRF allowlist — EXACT mirror of src/lib/news/feeds.ts:NEWS_FEED_URLS.
 const ALLOWED_FEED_URLS = new Set<string>([
@@ -75,6 +103,18 @@ function corsPreflight(req: Request): Response {
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return corsPreflight(req);
   if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
+
+  // Require a real signed-in USER, not merely a valid token. verify_jwt=true
+  // proves the bearer is valid, but the public anon key is a valid token — so a
+  // valid token alone is not authorization. Reject anon/invalid with 401 BEFORE
+  // any upstream fetch so anon callers cannot burn Edge Function quota.
+  const authHeader = req.headers.get('authorization') ?? '';
+  if (!authHeader.toLowerCase().startsWith('bearer ')) {
+    return jsonResponse(req, { error: 'missing_authorization' }, 401);
+  }
+  if (!authenticatedUserIdFromJwt(authHeader)) {
+    return jsonResponse(req, { error: 'authentication_required' }, 401);
+  }
 
   let body: { url?: unknown };
   try {

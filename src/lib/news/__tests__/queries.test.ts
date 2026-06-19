@@ -18,7 +18,14 @@ jest.mock("../../supabase/client", () => ({
   }),
 }));
 
-import { upsertItems, setSummary, claimSummarySlot, releaseSummarySlot, listDigest } from "../queries";
+import {
+  upsertItems,
+  setSummary,
+  claimSummarySlot,
+  releaseSummarySlot,
+  listDigest,
+  SUMMARY_CLAIM_TTL_MS,
+} from "../queries";
 import type { NewsItem } from "../parse";
 
 /**
@@ -28,18 +35,24 @@ import type { NewsItem } from "../parse";
  */
 function chain(result: unknown, opts: { withSelect?: unknown } = {}) {
   const eqCalls: [string, unknown][] = [];
+  const orCalls: string[] = [];
   const node: Record<string, unknown> = {};
   const eq = jest.fn((col: string, val: unknown) => {
     eqCalls.push([col, val]);
     return node;
   });
+  const or = jest.fn((filter: string) => {
+    orCalls.push(filter);
+    return node;
+  });
   node.eq = eq;
+  node.or = or;
   if (opts.withSelect !== undefined) {
     node.select = jest.fn(() => Promise.resolve(opts.withSelect));
   }
   // Make the node thenable so `await update().eq().eq()` resolves to `result`.
   node.then = (resolve: (v: unknown) => void) => resolve(result);
-  return { node, eq, eqCalls };
+  return { node, eq, or, eqCalls, orCalls };
 }
 
 const item: NewsItem = {
@@ -101,16 +114,47 @@ describe("setSummary (owner-scoped, pending-gated, marks done)", () => {
 });
 
 describe("claimSummarySlot (atomic compare-and-set, double-bill guard)", () => {
-  test("WIN: one affected row -> true (flips none -> pending, owner-scoped)", async () => {
-    const { node, eqCalls } = chain(undefined, { withSelect: { data: [{ id: "n-1" }], error: null } });
+  test("WIN: one affected row -> true (stamps claimed_at + pending, owner-scoped)", async () => {
+    const { node, eqCalls, orCalls } = chain(undefined, {
+      withSelect: { data: [{ id: "n-1" }], error: null },
+    });
     updateMock.mockReset().mockReturnValue(node);
     const ok = await claimSummarySlot("user-1", "n-1");
     expect(ok).toBe(true);
-    expect(updateMock).toHaveBeenCalledWith({ summary_status: "pending" });
+    // Stamps summary_claimed_at = now alongside the status flip.
+    const payload = updateMock.mock.calls[0][0];
+    expect(payload.summary_status).toBe("pending");
+    expect(typeof payload.summary_claimed_at).toBe("string");
     expect(eqCalls).toContainEqual(["user_id", "user-1"]);
     expect(eqCalls).toContainEqual(["id", "n-1"]);
-    // The compare half: only claims a row currently in 'none'.
-    expect(eqCalls).toContainEqual(["summary_status", "none"]);
+    // The compare half is now an .or(): claim a 'none' row OR a stale 'pending'.
+    expect(orCalls).toHaveLength(1);
+    expect(orCalls[0]).toMatch(/^summary_status\.eq\.none,and\(summary_status\.eq\.pending,summary_claimed_at\.lt\./);
+  });
+
+  test("STALE RECLAIM: a 'pending' row older than the TTL is reclaimable (cutoff is past)", async () => {
+    const { node, orCalls } = chain(undefined, { withSelect: { data: [{ id: "n-1" }], error: null } });
+    updateMock.mockReset().mockReturnValue(node);
+    const before = Date.now();
+    const ok = await claimSummarySlot("user-1", "n-1");
+    const after = Date.now();
+    expect(ok).toBe(true);
+    // The cutoff in the .or() is now - TTL (~5 min ago): a 'pending' row whose
+    // summary_claimed_at is < cutoff (older than the TTL) matches and is reclaimed.
+    const cutoffIso = orCalls[0].match(/summary_claimed_at\.lt\.([^)]+)\)/)?.[1];
+    expect(cutoffIso).toBeTruthy();
+    const cutoffMs = Date.parse(cutoffIso as string);
+    expect(cutoffMs).toBeGreaterThanOrEqual(before - SUMMARY_CLAIM_TTL_MS - 50);
+    expect(cutoffMs).toBeLessThanOrEqual(after - SUMMARY_CLAIM_TTL_MS + 50);
+  });
+
+  test("FRESH PENDING: a just-claimed row is NOT reclaimable (cutoff older than its stamp -> 0 rows)", async () => {
+    // A fresh 'pending' row's summary_claimed_at is newer than the cutoff, so it
+    // fails the .lt.<cutoff> predicate: the DB returns 0 rows and the claim fails.
+    const { node } = chain(undefined, { withSelect: { data: [], error: null } });
+    updateMock.mockReset().mockReturnValue(node);
+    const ok = await claimSummarySlot("user-1", "n-1");
+    expect(ok).toBe(false);
   });
 
   test("RACE LOSS: zero affected rows -> false (second caller must skip the LLM)", async () => {
@@ -132,7 +176,7 @@ describe("releaseSummarySlot (only frees rows left pending)", () => {
     const { node, eqCalls } = chain({ error: null });
     updateMock.mockReset().mockReturnValue(node);
     await releaseSummarySlot("user-1", "n-1");
-    expect(updateMock).toHaveBeenCalledWith({ summary_status: "none" });
+    expect(updateMock).toHaveBeenCalledWith({ summary_status: "none", summary_claimed_at: null });
     expect(eqCalls).toContainEqual(["user_id", "user-1"]);
     expect(eqCalls).toContainEqual(["id", "n-1"]);
     expect(eqCalls).toContainEqual(["summary_status", "pending"]);
