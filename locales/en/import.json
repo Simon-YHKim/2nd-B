@@ -47,5 +47,11 @@
     "graphHint": "Opens the main graph.",
     "more": "Import more",
     "moreHint": "Clears this import and starts another one."
+  },
+  "health": {
+    "connect": "Turn on activity sync",
+    "ingest": "Add today's activity",
+    "consentNeeded": "Opt in to bring activity in",
+    "minorLocked": "Activity sync is off for this account."
   }
 }

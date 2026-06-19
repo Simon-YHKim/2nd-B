@@ -92,5 +92,9 @@
     "reminderDeniedNote": "알림 권한이 꺼져 있어요. 기기 설정에서 허용하면 리마인더를 쓸 수 있어요.",
     "reminderFailedNote": "리마인더를 설정하지 못했어요. 항목의 시간을 확인하고 다시 시도해 보세요.",
     "reminderUnavailableNote": "저장했어요. 리마인더는 설치된 앱에서만 울려서 여기서는 알림이 오지 않아요."
+  },
+  "health": {
+    "autoCompleted": "활동에서 자동 체크됨",
+    "autoCompletedHint": "기록한 운동 또는 목표를 넘긴 걸음 수로 자동 체크되었어요."
   }
 }

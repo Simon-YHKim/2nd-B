@@ -42,6 +42,7 @@ describe("privacy prefs (task D)", () => {
       "persona_share",
       "long_term_memory",
       "ops_push",
+      "health_import",
     ]);
   });
 

@@ -47,5 +47,11 @@
     "graphHint": "Abre el grafo principal.",
     "more": "Importar más",
     "moreHint": "Borra esta importación y comienza otra."
+  },
+  "health": {
+    "connect": "Activar la sincronización de actividad",
+    "ingest": "Añadir la actividad de hoy",
+    "consentNeeded": "Aceptar para traer tu actividad",
+    "minorLocked": "La sincronización de actividad está desactivada en esta cuenta."
   }
 }
