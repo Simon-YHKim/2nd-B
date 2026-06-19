@@ -333,7 +333,7 @@
     "tip": "가져오기 전 항상 네가 확인해요.",
     "lead": "다른 곳의 기록도 한 곳으로",
     "notionDesc": "페이지 · 데이터베이스",
-    "obsidianDesc": "마크다운 볼트",
+    "obsidianDesc": "Vault의 .md·텍스트 파일 가져오기",
     "healthName": "건강",
     "healthDesc": "수면 · 활동",
     "connect": "연결",
@@ -359,6 +359,8 @@
     "resultFailed": "{{count}}개 실패",
     "importing": "가져오는 중…",
     "clear": "지우기",
-    "connectorsLabel": "앱 커넥터"
+    "connectorsLabel": "앱 커넥터",
+    "pickFiles": "파일 선택",
+    "picking": "여는 중…"
   }
 }

@@ -333,7 +333,7 @@
     "tip": "You always confirm before importing.",
     "lead": "Records from elsewhere, in one place",
     "notionDesc": "Pages · databases",
-    "obsidianDesc": "Markdown vault",
+    "obsidianDesc": "Import .md / text files from your vault",
     "healthName": "Health",
     "healthDesc": "Sleep · activity",
     "connect": "Connect",
@@ -359,6 +359,8 @@
     "resultFailed": "{{count}} failed",
     "importing": "Importing…",
     "clear": "Clear",
-    "connectorsLabel": "App connectors"
+    "connectorsLabel": "App connectors",
+    "pickFiles": "Pick files",
+    "picking": "Opening…"
   }
 }

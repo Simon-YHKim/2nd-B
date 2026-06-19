@@ -115,6 +115,33 @@ export async function pickFile(): Promise<PickedFile | null> {
   };
 }
 
+// Multi-select text/markdown picker for the /import "from files" connector
+// (e.g. an Obsidian vault export, or any loose .md/.txt notes). Reuses
+// extractText per asset; binary/unreadable/empty files are skipped rather than
+// failing the whole pick. PDF/DOCX are intentionally NOT offered here — this
+// path feeds the markdown-note splitter, so it stays text-only.
+export interface PickedImportFile {
+  name: string;
+  text: string;
+}
+
+export async function pickImportFiles(): Promise<PickedImportFile[]> {
+  const res = await DocumentPicker.getDocumentAsync({
+    type: ["text/markdown", "text/plain", "text/html", "application/json"],
+    copyToCacheDirectory: true,
+    multiple: true,
+  });
+  if (res.canceled) return [];
+  const out: PickedImportFile[] = [];
+  for (const asset of res.assets ?? []) {
+    const mimeType = normalizeFileMimeType(asset.mimeType, asset.name);
+    const text = await extractText(asset.uri, mimeType, asset.size ?? 0);
+    const trimmed = text?.trim();
+    if (trimmed) out.push({ name: asset.name, text: trimmed });
+  }
+  return out;
+}
+
 // Branches by MIME. Returns null on any extraction failure so the caller
 // can still surface the file metadata; never throws.
 export async function extractText(uri: string, mimeType: string, size: number): Promise<string | null> {

@@ -333,7 +333,7 @@
     "tip": "Kamu selalu mengonfirmasi sebelum mengimpor.",
     "lead": "Catatan dari tempat lain, dalam satu tempat",
     "notionDesc": "Halaman · basis data",
-    "obsidianDesc": "Vault Markdown",
+    "obsidianDesc": "Impor file .md / teks dari vault-mu",
     "healthName": "Kesehatan",
     "healthDesc": "Tidur · aktivitas",
     "connect": "Hubungkan",
@@ -359,6 +359,8 @@
     "resultFailed": "{{count}} gagal",
     "importing": "Mengimpor…",
     "clear": "Bersihkan",
-    "connectorsLabel": "Konektor aplikasi"
+    "connectorsLabel": "Konektor aplikasi",
+    "pickFiles": "Pilih file",
+    "picking": "Membuka…"
   }
 }

@@ -51,6 +51,7 @@ import {
   normalizeFileMimeType,
   normalizeFileTextResult,
   pickFile,
+  pickImportFiles,
 } from "../capture-file";
 
 const documentPickerMock = DocumentPicker as unknown as {
@@ -244,5 +245,29 @@ describe("extractText", () => {
     mockFetch(new ArrayBuffer(8));
     const r = await extractText("file:///x.bin", "application/octet-stream", 100);
     expect(r).toBeNull();
+  });
+});
+
+describe("pickImportFiles", () => {
+  test("canceled pick → empty array", async () => {
+    documentPickerMock.getDocumentAsync.mockResolvedValue({ canceled: true, assets: null });
+    await expect(pickImportFiles()).resolves.toEqual([]);
+  });
+
+  test("reads each asset and skips empty/unreadable ones", async () => {
+    // First file has body; second is whitespace-only → dropped.
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({ headers: { get: () => null }, text: () => Promise.resolve("# Note A\n\nbody") })
+      .mockResolvedValueOnce({ headers: { get: () => null }, text: () => Promise.resolve("   \n  ") }) as unknown as typeof fetch;
+    documentPickerMock.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { uri: "file:///a.md", name: "a.md", mimeType: "text/markdown", size: 50 },
+        { uri: "file:///b.md", name: "b.md", mimeType: "text/markdown", size: 5 },
+      ],
+    });
+
+    await expect(pickImportFiles()).resolves.toEqual([{ name: "a.md", text: "# Note A\n\nbody" }]);
   });
 });
