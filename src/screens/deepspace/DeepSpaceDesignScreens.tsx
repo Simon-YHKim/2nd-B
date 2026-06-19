@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line } from "react-native-svg";
@@ -8,6 +8,20 @@ import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useSignInForm } from "@/lib/auth/useSignInForm";
+import { useSignUpForm } from "@/lib/auth/useSignUpForm";
+import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
+import {
+  ageInYears,
+  MIN_SELF_CONSENT_AGE,
+  type OAuthProvider,
+} from "@/lib/supabase/auth";
+import {
+  allRequiredAcksChecked,
+  setAllRequiredAcks,
+  type ConsentSelections,
+} from "@/lib/auth/consent-selections";
+import { formatBirthDateInput } from "@/lib/account/dob";
 import { useProgression } from "@/lib/progression/useProgression";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
@@ -165,11 +179,533 @@ export function DeepSpaceAccountDesignScreen() { const { t } = useTranslation("d
 
 export function DeepSpacePrivacyDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("privacy.title")}><SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} /><Text style={styles.lead}>{t("privacy.lead")}</Text><Card><Toggle label={t("privacy.toggleAnalysis")} value={t("privacy.on")} /><Toggle label={t("privacy.toggleStats")} value={t("privacy.off")} on={false} /><Toggle label={t("privacy.toggleLock")} value={t("privacy.on")} /></Card><Card><Action label={t("privacy.policy")} value={t("privacy.view")}/><Action label={t("privacy.processingLog")} value={t("privacy.last7")}/><Action label={t("privacy.thirdParty")} value={t("privacy.none")}/></Card><Text style={styles.footer}>{t("privacy.footer")}</Text></Shell>; }
 
-export function DeepSpaceSignInDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell><View style={styles.authHero}><SecondbHead size={132} mood="positive"/><Text style={styles.big}>{t("auth.appName")}</Text><Text style={styles.lead}>{t("auth.signInLead")}</Text></View><Card><TextInput placeholder="email@example.com" placeholderTextColor={colors.textLo} style={styles.input}/><TextInput placeholder="password" placeholderTextColor={colors.textLo} secureTextEntry style={styles.input}/><Pressable style={styles.primary}><Text style={styles.primaryText}>{t("auth.signIn")}</Text></Pressable><Pressable onPress={()=>router.push('/sign-up')}><Text style={styles.link}>{t("auth.createAccount")}</Text></Pressable></Card></Shell>; }
+// Keyboard-aware shell for the auth screens (sign-in / sign-up / reset). The
+// generic Shell above is for in-app graph screens and has no keyboard handling;
+// auth forms need KeyboardAvoidingView + scroll padding (ANDROID_QA_GUIDELINES).
+function AuthShell({ children }: { children: ReactNode }) {
+  return (
+    <View style={styles.root}>
+      <View pointerEvents="none" style={styles.stars}>
+        <View style={[styles.star, { left: "12%", top: 42 }]} />
+        <View style={[styles.star, { right: "18%", top: 118, opacity: 0.55 }]} />
+        <View style={[styles.star, { left: "42%", bottom: 92, opacity: 0.5 }]} />
+      </View>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          {children}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
 
-export function DeepSpaceSignUpDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell><View style={styles.authHero}><SecondbHead size={120} mood="neutral"/><Text style={styles.big}>{t("auth.signUpTitle")}</Text><Text style={styles.lead}>{t("auth.signUpLead")}</Text></View><Card>{[t("auth.fieldEmail"),t("auth.fieldPassword"),t("auth.fieldBirthYear")].map((p)=><TextInput key={p} placeholder={p} placeholderTextColor={colors.textLo} style={styles.input}/>) }<Pressable style={styles.primary}><Text style={styles.primaryText}>{t("auth.signUp")}</Text></Pressable></Card></Shell>; }
+function AuthToast({ message, tone }: { message: string; tone: "info" | "success" | "danger" }) {
+  const toneStyle =
+    tone === "success" ? styles.authToastSuccess : tone === "danger" ? styles.authToastDanger : styles.authToastInfo;
+  return (
+    <View style={styles.authToastWrap} pointerEvents="none">
+      <View style={[styles.authToast, toneStyle]} accessibilityRole="alert">
+        <Text style={styles.authToastText}>{message}</Text>
+      </View>
+    </View>
+  );
+}
 
-export function DeepSpaceResetPasswordDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("auth.resetTitle")}><View style={styles.center}><Text style={styles.mail}>✉</Text><Text style={styles.prompt}>{t("auth.resetPrompt")}</Text><Text style={styles.footer}>{t("auth.resetBody")}</Text></View><View style={styles.codeRow}>{['','', '', '', '', ''].map((_,i)=><View key={i} style={styles.codeCell}/>)}</View><Text style={styles.footer}>{t("auth.resend", { time: "00:42" })}</Text><Pressable style={styles.primary}><Text style={styles.primaryText}>{t("auth.confirm")}</Text></Pressable></Shell>; }
+// Per-provider button label keys live in the auth namespace (full C7 parity),
+// reused by both the legacy and deep-space presentations.
+const PROVIDER_SIGNIN_KEY: Record<OAuthProvider, string> = {
+  google: "auth:signIn.continueWithGoogle",
+  apple: "auth:signIn.continueWithApple",
+  kakao: "auth:signIn.continueWithKakao",
+  facebook: "auth:signIn.continueWithFacebook",
+  github: "auth:signIn.continueWithGithub",
+};
+const PROVIDER_SIGNUP_KEY: Record<OAuthProvider, string> = {
+  google: "auth:signUp.continueWithGoogle",
+  apple: "auth:signUp.continueWithApple",
+  kakao: "auth:signUp.continueWithKakao",
+  facebook: "auth:signUp.continueWithFacebook",
+  github: "auth:signUp.continueWithGithub",
+};
+
+export function DeepSpaceSignInDesignScreen() {
+  const { t } = useTranslation(["deepspace", "auth", "common"]);
+  const {
+    userId,
+    loading,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    showPassword,
+    toggleShowPassword,
+    submitting,
+    oauthSubmitting,
+    canSubmit,
+    toast,
+    resetHelpVisible,
+    resetSubmitting,
+    resetEmailSentTo,
+    visibleProviders,
+    naverEnabled,
+    handleSubmit,
+    handleOAuth,
+    handleNaver,
+    handleForgotPassword,
+  } = useSignInForm();
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.cyan} />
+      </View>
+    );
+  }
+  if (userId) return <Redirect href="/" />;
+
+  return (
+    <AuthShell>
+      <View style={styles.authHero}>
+        <SecondbHead size={132} mood="positive" />
+        <Text style={styles.big}>{t("deepspace:auth.appName")}</Text>
+        <Text style={styles.lead}>{t("deepspace:auth.signInLead")}</Text>
+      </View>
+      <Card>
+        <Text style={styles.authLabel}>{t("auth:signIn.email")}</Text>
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          autoComplete="email"
+          textContentType="emailAddress"
+          placeholder="email@example.com"
+          placeholderTextColor={colors.textLo}
+          accessibilityLabel={t("auth:signIn.email")}
+          style={styles.input}
+        />
+        <View style={styles.authLabelRow}>
+          <Text style={styles.authLabel}>{t("auth:signIn.password")}</Text>
+          <Pressable
+            onPress={toggleShowPassword}
+            hitSlop={14}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? t("auth:signIn.hidePasswordLabel") : t("auth:signIn.showPasswordLabel")}
+            accessibilityState={{ selected: showPassword }}
+            style={styles.eyeBtn}
+          >
+            <Text style={styles.eyeText}>{showPassword ? t("auth:signIn.hidePasswordLabel") : t("auth:signIn.showPasswordLabel")}</Text>
+          </Pressable>
+        </View>
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+          autoComplete="current-password"
+          textContentType="password"
+          placeholder="••••••••"
+          placeholderTextColor={colors.textLo}
+          accessibilityLabel={t("auth:signIn.password")}
+          style={styles.input}
+          returnKeyType="go"
+          onSubmitEditing={() => {
+            if (canSubmit) void handleSubmit();
+          }}
+        />
+        <Pressable
+          onPress={() => void handleSubmit()}
+          disabled={!canSubmit}
+          style={[styles.primary, !canSubmit && styles.btnDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel={t("auth:signIn.submit")}
+          accessibilityState={{ disabled: !canSubmit, busy: submitting }}
+        >
+          <Text style={styles.primaryText}>{submitting ? t("auth:signIn.submitting") : t("auth:signIn.submit")}</Text>
+        </Pressable>
+
+        <Pressable onPress={() => router.push("/sign-up")} style={styles.authLinkRow} accessibilityRole="link" accessibilityLabel={t("auth:signIn.signUpLink")}>
+          <Text style={styles.link}>{t("deepspace:auth.noAccount")}</Text>
+        </Pressable>
+
+        {visibleProviders.length > 0 || naverEnabled ? (
+          <View style={styles.authDividerRow}>
+            <View style={styles.authDividerLine} />
+            <Text style={styles.authDividerLabel}>{t("deepspace:auth.or")}</Text>
+            <View style={styles.authDividerLine} />
+          </View>
+        ) : null}
+
+        {visibleProviders.map((provider) => (
+          <Pressable
+            key={provider}
+            onPress={() => void handleOAuth(provider)}
+            disabled={oauthSubmitting || submitting}
+            style={[styles.providerBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel={t(PROVIDER_SIGNIN_KEY[provider])}
+            accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
+          >
+            <Text style={styles.providerBtnText}>{oauthSubmitting ? "…" : t(PROVIDER_SIGNIN_KEY[provider])}</Text>
+          </Pressable>
+        ))}
+        {naverEnabled ? (
+          <Pressable
+            onPress={handleNaver}
+            disabled={oauthSubmitting || submitting}
+            style={[styles.providerBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel={t("auth:signIn.continueWithNaver")}
+          >
+            <Text style={styles.providerBtnText}>{t("auth:signIn.continueWithNaver")}</Text>
+          </Pressable>
+        ) : null}
+
+        <Pressable
+          onPress={() => void handleForgotPassword()}
+          disabled={resetSubmitting}
+          hitSlop={14}
+          style={[styles.authForgotRow, resetSubmitting && styles.btnDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel={t("auth:signIn.resetLabel")}
+          accessibilityState={{ disabled: resetSubmitting, busy: resetSubmitting }}
+        >
+          <Text style={styles.authHelper}>{resetSubmitting ? t("auth:signIn.resetSending") : t("deepspace:auth.forgotPassword")}</Text>
+        </Pressable>
+
+        {resetHelpVisible ? (
+          <View style={styles.authHelpCard} accessibilityRole="alert">
+            <Text style={styles.authHelpTitle}>{resetEmailSentTo ? t("auth:signIn.resetSentTitle") : t("auth:signIn.resetTitle")}</Text>
+            <Text style={styles.authHelpBody}>
+              {resetEmailSentTo ? t("auth:signIn.resetSentBody", { email: resetEmailSentTo }) : t("auth:signIn.resetBody")}
+            </Text>
+          </View>
+        ) : null}
+      </Card>
+      {toast ? <AuthToast message={toast.message} tone={toast.tone} /> : null}
+    </AuthShell>
+  );
+}
+
+// Deep-space consent block: drives the SAME ConsentSelections state + helpers the
+// legacy ConsentNotice uses, so the C10 ledger (buildSignUpConsentArgs in the
+// hook) is byte-for-byte equivalent. Copy comes from the reviewed `consent`
+// namespace (notice.*). Styling is deep-space tokens only.
+function ConsentCheckRow({ checked, label, emphasize, onToggle }: { checked: boolean; label: string; emphasize?: boolean; onToggle: () => void }) {
+  return (
+    <Pressable
+      style={styles.consentRow}
+      onPress={onToggle}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      accessibilityLabel={label}
+    >
+      <View style={[styles.consentCheckbox, checked && styles.consentCheckboxOn]}>
+        {checked ? <Text style={styles.consentCheckmark}>✓</Text> : null}
+      </View>
+      <Text style={[styles.consentLabel, emphasize && { color: colors.textTitle }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function DeepSpaceConsentBlock({ minor, value, onChange }: { minor: boolean; value: ConsentSelections; onChange: (next: ConsentSelections) => void }) {
+  const { t } = useTranslation("consent");
+  const allChecked = allRequiredAcksChecked(value);
+  const toggle = (key: keyof ConsentSelections) => onChange({ ...value, [key]: !value[key] });
+  return (
+    <Card>
+      <Text style={styles.section}>{t("notice.title")}</Text>
+      <Text style={styles.consentIntro}>{t("notice.intro")}</Text>
+      {minor ? (
+        <View style={styles.minorBanner}>
+          <Text style={styles.minorBannerText}>{t("notice.minorBanner")}</Text>
+        </View>
+      ) : null}
+      <Text style={styles.consentGroupLabel}>{t("notice.requiredLabel")}</Text>
+      <ConsentCheckRow checked={allChecked} label={t("notice.agreeAll")} emphasize onToggle={() => onChange(setAllRequiredAcks(value, !allChecked))} />
+      <View style={styles.consentDivider} />
+      <ConsentCheckRow checked={value.service} label={t("notice.ackService")} onToggle={() => toggle("service")} />
+      <ConsentCheckRow checked={value.llmProcessing} label={t("notice.ackLlm")} onToggle={() => toggle("llmProcessing")} />
+      <ConsentCheckRow checked={value.overseasTransfer} label={t("notice.ackOverseas")} onToggle={() => toggle("overseasTransfer")} />
+      <ConsentCheckRow checked={value.sensitiveData} label={t("notice.ackSensitive")} onToggle={() => toggle("sensitiveData")} />
+      <Text style={styles.consentGroupLabel}>{t("notice.optionalLabel")}</Text>
+      <ConsentCheckRow checked={value.marketing} label={t("notice.optMarketing")} onToggle={() => toggle("marketing")} />
+    </Card>
+  );
+}
+
+export function DeepSpaceSignUpDesignScreen() {
+  const { t } = useTranslation(["deepspace", "auth", "common"]);
+  const {
+    userId,
+    loading,
+    submitting,
+    judgeWelcome,
+    toast,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    birthDate,
+    setBirthDate,
+    consent,
+    setConsent,
+    isMinorAge,
+    canSubmit,
+    oauthSubmitting,
+    existingAccountHelp,
+    visibleProviders,
+    naverEnabled,
+    handleSubmit,
+    handleOAuth,
+    handleNaver,
+  } = useSignUpForm();
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.cyan} />
+      </View>
+    );
+  }
+  if (userId && !submitting && !judgeWelcome && !toast) return <Redirect href="/" />;
+
+  const birthOk = ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE;
+  const showChecklist = email.length > 0 || password.length > 0 || birthDate.length > 0;
+
+  return (
+    <AuthShell>
+      <View style={styles.authHero}>
+        <SecondbHead size={120} mood="neutral" />
+        <Text style={styles.big}>{t("deepspace:auth.signUpTitle")}</Text>
+        <Text style={styles.lead}>{t("deepspace:auth.signUpLead")}</Text>
+        <Text style={styles.authHelper}>{t("deepspace:auth.ageNotice")}</Text>
+      </View>
+      <Card>
+        <Text style={styles.authLabel}>{t("auth:signUp.email")}</Text>
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          autoComplete="email"
+          textContentType="emailAddress"
+          placeholder="email@example.com"
+          placeholderTextColor={colors.textLo}
+          accessibilityLabel={t("auth:signUp.email")}
+          style={styles.input}
+        />
+        <Text style={styles.authLabel}>{t("auth:signUp.password")}</Text>
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoComplete="new-password"
+          textContentType="newPassword"
+          placeholder="••••••••"
+          placeholderTextColor={colors.textLo}
+          accessibilityLabel={t("auth:signUp.password")}
+          style={styles.input}
+        />
+        <Text style={styles.authHelper}>{t("auth:signUp.passwordHelper")}</Text>
+        <Text style={styles.authLabel}>{t("auth:signUp.birthDate")}</Text>
+        <TextInput
+          value={birthDate}
+          onChangeText={(next) => setBirthDate(formatBirthDateInput(next))}
+          autoCapitalize="none"
+          keyboardType="number-pad"
+          maxLength={10}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor={colors.textLo}
+          accessibilityLabel={t("auth:signUp.birthDate")}
+          accessibilityHint={t("auth:signUp.birthDateHelper")}
+          style={styles.input}
+        />
+        <Text style={styles.authHelper}>{t("auth:signUp.birthDateHelper")}</Text>
+
+        {showChecklist ? (
+          <View style={{ gap: 6 }}>
+            <View style={styles.checklistRow}>
+              <View style={[styles.checklistDot, { backgroundColor: email.includes("@") ? colors.mint : colors.textLo }]} />
+              <Text style={[styles.checklistText, { color: email.includes("@") ? colors.mint : colors.textMid }]}>
+                {email.includes("@") ? t("auth:signUp.checkEmail") : t("auth:signUp.checkEmailMissing")}
+              </Text>
+            </View>
+            <View style={styles.checklistRow}>
+              <View style={[styles.checklistDot, { backgroundColor: password.length >= 8 ? colors.mint : colors.textLo }]} />
+              <Text style={[styles.checklistText, { color: password.length >= 8 ? colors.mint : colors.textMid }]}>
+                {password.length >= 8 ? t("auth:signUp.checkPassword") : t("auth:signUp.checkPasswordShort")}
+              </Text>
+            </View>
+            <View style={styles.checklistRow}>
+              <View style={[styles.checklistDot, { backgroundColor: birthOk ? colors.mint : colors.textLo }]} />
+              <Text style={[styles.checklistText, { color: birthOk ? colors.mint : colors.textMid }]}>
+                {birthOk ? t("auth:signUp.checkAge") : t("auth:signUp.checkAgeBlocked")}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+      </Card>
+
+      <DeepSpaceConsentBlock minor={isMinorAge} value={consent} onChange={setConsent} />
+
+      {existingAccountHelp ? (
+        <View style={styles.authHelpCard} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          <Text style={styles.authHelpTitle}>{t("auth:signUp.existingAccountTitle")}</Text>
+          <Text style={styles.authHelpBody}>{t("auth:signUp.existingAccountBody")}</Text>
+          <Pressable style={styles.providerBtn} onPress={() => router.push("/sign-in")} accessibilityRole="button" accessibilityLabel={t("auth:signUp.existingAccountSignIn")}>
+            <Text style={styles.providerBtnText}>{t("auth:signUp.existingAccountSignIn")}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      <Card>
+        {visibleProviders.length > 0 || naverEnabled ? (
+          <View style={styles.authDividerRow}>
+            <View style={styles.authDividerLine} />
+            <Text style={styles.authDividerLabel}>{t("deepspace:auth.or")}</Text>
+            <View style={styles.authDividerLine} />
+          </View>
+        ) : null}
+        {visibleProviders.map((provider) => (
+          <Pressable
+            key={provider}
+            onPress={() => void handleOAuth(provider)}
+            disabled={oauthSubmitting || submitting}
+            style={[styles.providerBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel={t(PROVIDER_SIGNUP_KEY[provider])}
+            accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
+          >
+            <Text style={styles.providerBtnText}>{t(PROVIDER_SIGNUP_KEY[provider])}</Text>
+          </Pressable>
+        ))}
+        {naverEnabled ? (
+          <Pressable
+            onPress={handleNaver}
+            disabled={oauthSubmitting || submitting}
+            style={[styles.providerBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel={t("auth:signUp.continueWithNaver")}
+          >
+            <Text style={styles.providerBtnText}>{t("auth:signUp.continueWithNaver")}</Text>
+          </Pressable>
+        ) : null}
+      </Card>
+
+      <Pressable
+        onPress={() => void handleSubmit()}
+        disabled={!canSubmit}
+        style={[styles.primary, !canSubmit && styles.btnDisabled]}
+        accessibilityRole="button"
+        accessibilityLabel={t("auth:signUp.submit")}
+        accessibilityState={{ disabled: !canSubmit, busy: submitting }}
+      >
+        <Text style={styles.primaryText}>{t("auth:signUp.submit")}</Text>
+      </Pressable>
+
+      <Pressable onPress={() => router.push("/sign-in")} style={styles.authLinkRow} accessibilityRole="link" accessibilityLabel={t("auth:signUp.signInLink")}>
+        <Text style={styles.link}>{t("deepspace:auth.haveAccount")}</Text>
+      </Pressable>
+      {toast ? <AuthToast message={toast.message} tone={toast.tone} /> : null}
+    </AuthShell>
+  );
+}
+
+export function DeepSpaceResetPasswordDesignScreen() {
+  const { t } = useTranslation(["deepspace", "auth", "common"]);
+  const {
+    userId,
+    loading,
+    password,
+    setPassword,
+    confirmPassword,
+    setConfirmPassword,
+    submitting,
+    complete,
+    toast,
+    helperKey,
+    canSubmit,
+    handleSubmit,
+  } = useResetPasswordForm();
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.cyan} />
+      </View>
+    );
+  }
+
+  const helperDanger = helperKey !== "resetPassword.passwordHelper";
+
+  return (
+    <AuthShell>
+      <View style={styles.authHero}>
+        <SecondbHead size={120} mood={complete ? "positive" : "neutral"} />
+        <Text style={styles.big}>{complete ? t("auth:resetPassword.doneTitle") : t("auth:resetPassword.title")}</Text>
+        <Text style={styles.lead}>{complete ? t("auth:resetPassword.doneSubtitle") : t("auth:resetPassword.subtitle")}</Text>
+      </View>
+      <Card>
+        {!userId ? (
+          <>
+            <Text style={styles.authHelpTitle}>{t("auth:resetPassword.expiredTitle")}</Text>
+            <Text style={styles.authHelpBody}>{t("auth:resetPassword.expiredBody")}</Text>
+            <Pressable style={styles.providerBtn} onPress={() => router.replace("/sign-in")} accessibilityRole="link" accessibilityLabel={t("auth:resetPassword.backToSignIn")}>
+              <Text style={styles.providerBtnText}>{t("auth:resetPassword.backToSignIn")}</Text>
+            </Pressable>
+          </>
+        ) : complete ? (
+          <Pressable style={styles.primary} onPress={() => router.replace("/")} accessibilityRole="button" accessibilityLabel={t("auth:resetPassword.continue")}>
+            <Text style={styles.primaryText}>{t("auth:resetPassword.continue")}</Text>
+          </Pressable>
+        ) : (
+          <>
+            <Text style={styles.authLabel}>{t("auth:resetPassword.newPassword")}</Text>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete="new-password"
+              textContentType="newPassword"
+              placeholder="••••••••"
+              placeholderTextColor={colors.textLo}
+              accessibilityLabel={t("auth:resetPassword.newPassword")}
+              style={styles.input}
+            />
+            <Text style={styles.authLabel}>{t("auth:resetPassword.confirmPassword")}</Text>
+            <TextInput
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              autoComplete="new-password"
+              textContentType="newPassword"
+              placeholder="••••••••"
+              placeholderTextColor={colors.textLo}
+              accessibilityLabel={t("auth:resetPassword.confirmPassword")}
+              style={styles.input}
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                if (canSubmit) void handleSubmit();
+              }}
+            />
+            <Text style={[styles.authHelper, helperDanger && styles.authDanger]}>{t(`auth:${helperKey}`)}</Text>
+            <Pressable
+              onPress={() => void handleSubmit()}
+              disabled={!canSubmit}
+              style={[styles.primary, !canSubmit && styles.btnDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel={t("auth:resetPassword.submit")}
+              accessibilityState={{ disabled: !canSubmit, busy: submitting }}
+            >
+              <Text style={styles.primaryText}>{submitting ? t("auth:resetPassword.submitting") : t("auth:resetPassword.submit")}</Text>
+            </Pressable>
+          </>
+        )}
+      </Card>
+      {toast ? <AuthToast message={toast.message} tone={toast.tone} /> : null}
+    </AuthShell>
+  );
+}
 
 export function DeepSpaceInsightsScreen() {
   const { t } = useTranslation("deepspace");
@@ -1659,4 +2195,41 @@ export function DeepSpaceDomainsScreen() {
   );
 }
 
-const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, stars:{...StyleSheet.absoluteFill,overflow:'hidden'}, star:{position:'absolute',width:3,height:3,borderRadius:2,backgroundColor:colors.cyanSoft}, scroll:{padding:spacing.lg,paddingBottom:40,gap:spacing.md}, titleRow:{flexDirection:'row',alignItems:'center',gap:spacing.md,marginBottom:spacing.xs}, back:{color:colors.cyanSoft,fontSize:34,lineHeight:38,fontFamily:fontFamilies.pixelKo}, title:{color:colors.textTitle,fontSize:18,lineHeight:24,fontFamily:fontFamilies.pixelKo}, subtitle:{color:colors.textLo,fontSize:11,lineHeight:17,fontFamily:fontFamilies.readable}, card:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,padding:spacing.md,gap:spacing.sm}, graphCard:{height:332,overflow:'hidden'}, centerCaption:{position:'absolute',left:0,right:0,top:156,textAlign:'center',color:colors.bgDeep,fontFamily:fontFamilies.pixelKo,fontSize:11}, clusterLabel:{position:'absolute',color:colors.cyanSoft,fontFamily:fontFamilies.readable,fontSize:11}, ctaRow:{flexDirection:'row',gap:spacing.sm}, primary:{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:colors.cyan,borderRadius:radius.md,paddingVertical:spacing.md}, primaryText:{color:colors.bgDeep,fontFamily:fontFamilies.pixelKo,fontSize:13}, secondary:{flex:1,alignItems:'center',justifyContent:'center',borderColor:colors.borderHi,borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.md}, secondaryText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:13}, section:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:13,marginBottom:spacing.xs}, action:{minHeight:48,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderBottomWidth:1,borderBottomColor:colors.border,paddingVertical:spacing.sm}, actionLabel:{color:colors.textHi,fontFamily:fontFamilies.readable,fontSize:14}, actionValue:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:12}, chev:{color:colors.cyanSoft,fontSize:22}, toggle:{width:42,height:24,borderRadius:12,backgroundColor:colors.border,justifyContent:'center',padding:3}, toggleOn:{backgroundColor:colors.cyan}, knob:{width:18,height:18,borderRadius:9,backgroundColor:colors.textLo}, knobOn:{alignSelf:'flex-end',backgroundColor:colors.bgDeep}, footer:{color:colors.textLo,textAlign:'center',fontFamily:fontFamilies.readable,fontSize:12,lineHeight:18}, center:{alignItems:'center',gap:spacing.sm}, prompt:{color:colors.textHi,fontFamily:fontFamilies.pixelKo,fontSize:16,lineHeight:24,textAlign:'center'}, avatar:{width:92,height:92,borderRadius:46,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center',backgroundColor:colors.cardBg}, danger:{alignSelf:'center',padding:spacing.md},dangerText:{color:colors.clay,fontFamily:fontFamilies.readable,fontSize:13}, lead:{color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:14,lineHeight:21,textAlign:'center'}, authHero:{alignItems:'center',paddingTop:32,gap:spacing.md}, big:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:24,lineHeight:32}, input:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:spacing.md,color:colors.textHi,fontFamily:fontFamilies.readable,backgroundColor:colors.bgDeep}, link:{color:colors.cyanSoft,textAlign:'center',fontFamily:fontFamilies.readable,paddingTop:spacing.sm}, mail:{fontSize:44,color:colors.cyanSoft}, codeRow:{flexDirection:'row',justifyContent:'center',gap:spacing.xs}, codeCell:{width:40,height:48,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,backgroundColor:colors.cardBg}, pill:{borderWidth:1,borderColor:colors.border,borderRadius:radius.pill,paddingHorizontal:spacing.sm,paddingVertical:spacing.xs},pillText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelEn,fontSize:8}, compareRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:spacing.lg,paddingVertical:spacing.sm}, compareCol:{alignItems:'center',gap:spacing.xs}, compareNum:{color:colors.textMid,fontFamily:fontFamilies.pixelKo,fontSize:30}, compareNumHi:{color:colors.cyan}, compareCap:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:11}, delta:{color:colors.mint,textAlign:'center',fontFamily:fontFamilies.readable,fontSize:13}, statRow:{flexDirection:'row',gap:spacing.sm}, statBox:{flex:1,alignItems:'center',gap:spacing.xs,backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,paddingVertical:spacing.md}, statNum:{color:colors.cyan,fontFamily:fontFamilies.pixelKo,fontSize:28}, statCap:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:11}, sizeRow:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, sizeCap:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:12}, sizeCapLg:{color:colors.textHi,fontFamily:fontFamilies.readable,fontSize:18}, sizeTrack:{flex:1,height:4,borderRadius:2,backgroundColor:colors.border,justifyContent:'center'}, sizeKnob:{width:18,height:18,borderRadius:9,backgroundColor:colors.cyan,marginLeft:'46%'}, searchBox:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingHorizontal:spacing.md,paddingVertical:spacing.md}, searchText:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:13}, planPro:{borderColor:colors.borderHi}, planHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, planName:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:15}, planBadge:{color:colors.bgDeep,backgroundColor:colors.cyan,fontFamily:fontFamilies.pixelEn,fontSize:8,paddingHorizontal:spacing.sm,paddingVertical:3,borderRadius:radius.sm,overflow:'hidden'}, planPrice:{color:colors.textHi,fontFamily:fontFamilies.pixelKo,fontSize:22,marginVertical:spacing.xs}, planPer:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:12}, planFeat:{color:colors.cyanSoft,fontFamily:fontFamilies.readable,fontSize:13,lineHeight:22}, planFeatDim:{color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:13,lineHeight:20}, trendHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, primaryWide:{flex:1.6}, filterRow:{flexDirection:'row',flexWrap:'wrap',gap:6}, fchip:{paddingVertical:6,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, fchipActive:{borderColor:colors.cyan,backgroundColor:colors.cardBg}, fchipViolet:{borderColor:colors.soulLine,backgroundColor:colors.cardBg}, fchipText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:11}, fchipTextActive:{color:colors.textTitle}, fchipTextViolet:{color:colors.soul}, tlLabel:{color:colors.cyanDim,fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,marginTop:spacing.sm}, tlGroup:{paddingLeft:16,borderLeftWidth:1,borderLeftColor:colors.border,gap:12,marginTop:spacing.xs}, tlRow:{flexDirection:'row',alignItems:'center',gap:9}, tlDot:{width:8,height:8,borderRadius:4,backgroundColor:colors.cyan}, tlDotDim:{backgroundColor:colors.cyanDim}, tlIcon:{fontSize:14}, tlTitle:{flex:1,color:colors.textTitle,fontFamily:fontFamilies.readable,fontSize:12.5}, tlTitleDim:{color:colors.textMid}, tlTime:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:10}, tlTagRow:{flexDirection:'row',paddingLeft:32}, tlTag:{color:colors.cyanDim,fontFamily:fontFamilies.pixelEn,fontSize:5,letterSpacing:0.4,paddingHorizontal:6,paddingVertical:3,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, progressRow:{flexDirection:'row',alignItems:'center',gap:10}, progressTrack:{flex:1,height:6,borderRadius:3,backgroundColor:colors.border,overflow:'hidden'}, progressFill:{height:'100%',borderRadius:3,backgroundColor:colors.cyan}, progressLabel:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:11}, triageCard:{borderColor:colors.borderHi}, triageMeta:{flexDirection:'row',alignItems:'center',gap:9}, metaLabel:{color:colors.cyanDim,fontFamily:fontFamilies.pixelEn,fontSize:6,letterSpacing:0.5}, triageBody:{color:colors.textTitle,fontFamily:fontFamilies.readable,fontSize:13.5,lineHeight:21}, footerLeft:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:11,lineHeight:16}, iconBtn:{width:46,paddingVertical:11,borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.md,alignItems:'center',backgroundColor:colors.bgDeep}, iconBtnText:{fontSize:15}, queueItem:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:9,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,backgroundColor:colors.cardBg}, queueItemDim:{opacity:0.6}, queueText:{flex:1,color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:12}, researchGraph:{height:118,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.bgDeep,overflow:'hidden',justifyContent:'center',alignItems:'center'}, graphTag:{position:'absolute',bottom:14,color:colors.textMid,fontFamily:fontFamilies.pixelKo,fontSize:10}, insightViolet:{borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, insightVioletText:{color:colors.textTitle,fontFamily:fontFamilies.readable,fontSize:13,lineHeight:20}, evRow:{flexDirection:'row',gap:6}, evChip:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:10,paddingHorizontal:8,paddingVertical:4,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, formatGrid:{flexDirection:'row',flexWrap:'wrap',gap:9}, formatCard:{width:'47%',padding:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:4}, formatCardSel:{borderColor:colors.soulLine}, formatName:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:13}, formatNameSel:{color:colors.soul}, formatDesc:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:10.5,lineHeight:15}, soulPrimary:{alignItems:'center',justifyContent:'center',backgroundColor:colors.soul,borderRadius:radius.md,paddingVertical:spacing.md}, sourceRow:{flexDirection:'row',alignItems:'center',gap:11,paddingVertical:11,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, sourceRowDim:{opacity:0.7}, sourceName:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:13}, sourceNameDim:{color:colors.textMid,fontFamily:fontFamilies.pixelKo,fontSize:13}, sourceDesc:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:10}, sourceCta:{color:colors.cyan,fontFamily:fontFamilies.pixelKo,fontSize:11}, sourceSoon:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:10}, reviewLabel:{color:colors.cyanBright,fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,marginBottom:spacing.xs}, mapRow:{flexDirection:'row',alignItems:'center',gap:8}, mapFrom:{color:colors.cyanSoft,fontFamily:fontFamilies.readable,fontSize:12}, mapArrow:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:12}, mapTo:{color:colors.textTitle,fontFamily:fontFamilies.readable,fontSize:12}, recMetaRow:{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}, recMetaType:{color:colors.cyanSoft,fontFamily:fontFamilies.readable,fontSize:11}, recMetaDot:{color:colors.textLo,fontSize:11}, recMeta:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:11}, recTitle:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:17,lineHeight:24}, recBody:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,padding:spacing.md}, recBodyText:{color:colors.textHi,fontFamily:fontFamilies.readable,fontSize:12.5,lineHeight:20}, iconBtnDanger:{borderColor:colors.clay}, opsStep:{borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, opsStepHead:{flexDirection:'row',alignItems:'flex-start',gap:spacing.sm}, opsStepTitle:{flex:1,color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:13.5,lineHeight:19}, timeChipMint:{color:colors.mint,fontFamily:fontFamilies.readable,fontSize:10,borderWidth:1,borderColor:colors.mint,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, timeChipCyan:{color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:10,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, opsReason:{color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:11.5,lineHeight:17}, opsStepFoot:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, smallBtn:{marginLeft:'auto',backgroundColor:colors.cyan,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnText:{color:colors.bgDeep,fontFamily:fontFamilies.pixelKo,fontSize:11}, smallBtnGhost:{marginLeft:'auto',borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnGhostText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:11}, wikiStatRow:{flexDirection:'row',gap:spacing.sm}, wikiStat:{flex:1,flexDirection:'row',alignItems:'baseline',gap:6,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11}, wikiStatNum:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:20}, wikiStatNumCyan:{color:colors.cyan}, wikiStatCap:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:10.5}, wikiPageOpen:{borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, wikiPageHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiPageTitle:{flex:1,color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:13.5}, wikiCaret:{color:colors.cyanDim,fontSize:14}, wikiBody:{color:colors.textHi,fontFamily:fontFamilies.readable,fontSize:11.5,lineHeight:18}, wikiBacklinkRow:{flexDirection:'row',gap:6,flexWrap:'wrap',alignItems:'center'}, wikiBacklink:{color:colors.cyanSoft,fontFamily:fontFamilies.readable,fontSize:9.5,borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:4,overflow:'hidden'}, wikiPageRow:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11,gap:5}, wikiRowHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiRowTitle:{flex:1,color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:13}, wikiRowConn:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:9.5}, wikiRowDesc:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:11}, domainCard:{width:'47%',padding:14,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:8}, domainCardActive:{borderColor:colors.cyan}, domainCardDim:{borderStyle:'dashed',borderColor:colors.borderHi,opacity:0.65}, domainName:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:14}, domainNameDim:{color:colors.textMid,fontFamily:fontFamilies.pixelKo,fontSize:14}, domainNumRow:{flexDirection:'row',alignItems:'baseline',gap:5}, domainNum:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:22}, domainNumActive:{color:colors.cyan}, domainNumDim:{color:colors.textLo}, domainUnit:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:10}, domainSub:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:9.5}, topicCol:{gap:8}, topicRow:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:10,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, topicDot:{width:6,height:6,borderRadius:3,backgroundColor:colors.cyan}, topicDotDim:{backgroundColor:colors.cyanDim}, topicText:{flex:1,color:colors.textTitle,fontFamily:fontFamilies.readable,fontSize:12.5}, topicTextDim:{flex:1,color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:12.5}});
+const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, stars:{...StyleSheet.absoluteFill,overflow:'hidden'}, star:{position:'absolute',width:3,height:3,borderRadius:2,backgroundColor:colors.cyanSoft}, scroll:{padding:spacing.lg,paddingBottom:40,gap:spacing.md}, titleRow:{flexDirection:'row',alignItems:'center',gap:spacing.md,marginBottom:spacing.xs}, back:{color:colors.cyanSoft,fontSize:34,lineHeight:38,fontFamily:fontFamilies.pixelKo}, title:{color:colors.textTitle,fontSize:18,lineHeight:24,fontFamily:fontFamilies.pixelKo}, subtitle:{color:colors.textLo,fontSize:11,lineHeight:17,fontFamily:fontFamilies.readable}, card:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,padding:spacing.md,gap:spacing.sm}, graphCard:{height:332,overflow:'hidden'}, centerCaption:{position:'absolute',left:0,right:0,top:156,textAlign:'center',color:colors.bgDeep,fontFamily:fontFamilies.pixelKo,fontSize:11}, clusterLabel:{position:'absolute',color:colors.cyanSoft,fontFamily:fontFamilies.readable,fontSize:11}, ctaRow:{flexDirection:'row',gap:spacing.sm}, primary:{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:colors.cyan,borderRadius:radius.md,paddingVertical:spacing.md}, primaryText:{color:colors.bgDeep,fontFamily:fontFamilies.pixelKo,fontSize:13}, secondary:{flex:1,alignItems:'center',justifyContent:'center',borderColor:colors.borderHi,borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.md}, secondaryText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:13}, section:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:13,marginBottom:spacing.xs}, action:{minHeight:48,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderBottomWidth:1,borderBottomColor:colors.border,paddingVertical:spacing.sm}, actionLabel:{color:colors.textHi,fontFamily:fontFamilies.readable,fontSize:14}, actionValue:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:12}, chev:{color:colors.cyanSoft,fontSize:22}, toggle:{width:42,height:24,borderRadius:12,backgroundColor:colors.border,justifyContent:'center',padding:3}, toggleOn:{backgroundColor:colors.cyan}, knob:{width:18,height:18,borderRadius:9,backgroundColor:colors.textLo}, knobOn:{alignSelf:'flex-end',backgroundColor:colors.bgDeep}, footer:{color:colors.textLo,textAlign:'center',fontFamily:fontFamilies.readable,fontSize:12,lineHeight:18}, center:{alignItems:'center',gap:spacing.sm}, prompt:{color:colors.textHi,fontFamily:fontFamilies.pixelKo,fontSize:16,lineHeight:24,textAlign:'center'}, avatar:{width:92,height:92,borderRadius:46,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center',backgroundColor:colors.cardBg}, danger:{alignSelf:'center',padding:spacing.md},dangerText:{color:colors.clay,fontFamily:fontFamilies.readable,fontSize:13}, lead:{color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:14,lineHeight:21,textAlign:'center'}, authHero:{alignItems:'center',paddingTop:32,gap:spacing.md}, big:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:24,lineHeight:32}, input:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:spacing.md,color:colors.textHi,fontFamily:fontFamilies.readable,backgroundColor:colors.bgDeep}, link:{color:colors.cyanSoft,textAlign:'center',fontFamily:fontFamilies.readable,paddingTop:spacing.sm}, mail:{fontSize:44,color:colors.cyanSoft}, codeRow:{flexDirection:'row',justifyContent:'center',gap:spacing.xs}, codeCell:{width:40,height:48,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,backgroundColor:colors.cardBg}, pill:{borderWidth:1,borderColor:colors.border,borderRadius:radius.pill,paddingHorizontal:spacing.sm,paddingVertical:spacing.xs},pillText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelEn,fontSize:8}, compareRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:spacing.lg,paddingVertical:spacing.sm}, compareCol:{alignItems:'center',gap:spacing.xs}, compareNum:{color:colors.textMid,fontFamily:fontFamilies.pixelKo,fontSize:30}, compareNumHi:{color:colors.cyan}, compareCap:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:11}, delta:{color:colors.mint,textAlign:'center',fontFamily:fontFamilies.readable,fontSize:13}, statRow:{flexDirection:'row',gap:spacing.sm}, statBox:{flex:1,alignItems:'center',gap:spacing.xs,backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,paddingVertical:spacing.md}, statNum:{color:colors.cyan,fontFamily:fontFamilies.pixelKo,fontSize:28}, statCap:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:11}, sizeRow:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, sizeCap:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:12}, sizeCapLg:{color:colors.textHi,fontFamily:fontFamilies.readable,fontSize:18}, sizeTrack:{flex:1,height:4,borderRadius:2,backgroundColor:colors.border,justifyContent:'center'}, sizeKnob:{width:18,height:18,borderRadius:9,backgroundColor:colors.cyan,marginLeft:'46%'}, searchBox:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingHorizontal:spacing.md,paddingVertical:spacing.md}, searchText:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:13}, planPro:{borderColor:colors.borderHi}, planHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, planName:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:15}, planBadge:{color:colors.bgDeep,backgroundColor:colors.cyan,fontFamily:fontFamilies.pixelEn,fontSize:8,paddingHorizontal:spacing.sm,paddingVertical:3,borderRadius:radius.sm,overflow:'hidden'}, planPrice:{color:colors.textHi,fontFamily:fontFamilies.pixelKo,fontSize:22,marginVertical:spacing.xs}, planPer:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:12}, planFeat:{color:colors.cyanSoft,fontFamily:fontFamilies.readable,fontSize:13,lineHeight:22}, planFeatDim:{color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:13,lineHeight:20}, trendHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, primaryWide:{flex:1.6}, filterRow:{flexDirection:'row',flexWrap:'wrap',gap:6}, fchip:{paddingVertical:6,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, fchipActive:{borderColor:colors.cyan,backgroundColor:colors.cardBg}, fchipViolet:{borderColor:colors.soulLine,backgroundColor:colors.cardBg}, fchipText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:11}, fchipTextActive:{color:colors.textTitle}, fchipTextViolet:{color:colors.soul}, tlLabel:{color:colors.cyanDim,fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,marginTop:spacing.sm}, tlGroup:{paddingLeft:16,borderLeftWidth:1,borderLeftColor:colors.border,gap:12,marginTop:spacing.xs}, tlRow:{flexDirection:'row',alignItems:'center',gap:9}, tlDot:{width:8,height:8,borderRadius:4,backgroundColor:colors.cyan}, tlDotDim:{backgroundColor:colors.cyanDim}, tlIcon:{fontSize:14}, tlTitle:{flex:1,color:colors.textTitle,fontFamily:fontFamilies.readable,fontSize:12.5}, tlTitleDim:{color:colors.textMid}, tlTime:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:10}, tlTagRow:{flexDirection:'row',paddingLeft:32}, tlTag:{color:colors.cyanDim,fontFamily:fontFamilies.pixelEn,fontSize:5,letterSpacing:0.4,paddingHorizontal:6,paddingVertical:3,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, progressRow:{flexDirection:'row',alignItems:'center',gap:10}, progressTrack:{flex:1,height:6,borderRadius:3,backgroundColor:colors.border,overflow:'hidden'}, progressFill:{height:'100%',borderRadius:3,backgroundColor:colors.cyan}, progressLabel:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:11}, triageCard:{borderColor:colors.borderHi}, triageMeta:{flexDirection:'row',alignItems:'center',gap:9}, metaLabel:{color:colors.cyanDim,fontFamily:fontFamilies.pixelEn,fontSize:6,letterSpacing:0.5}, triageBody:{color:colors.textTitle,fontFamily:fontFamilies.readable,fontSize:13.5,lineHeight:21}, footerLeft:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:11,lineHeight:16}, iconBtn:{width:46,paddingVertical:11,borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.md,alignItems:'center',backgroundColor:colors.bgDeep}, iconBtnText:{fontSize:15}, queueItem:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:9,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,backgroundColor:colors.cardBg}, queueItemDim:{opacity:0.6}, queueText:{flex:1,color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:12}, researchGraph:{height:118,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.bgDeep,overflow:'hidden',justifyContent:'center',alignItems:'center'}, graphTag:{position:'absolute',bottom:14,color:colors.textMid,fontFamily:fontFamilies.pixelKo,fontSize:10}, insightViolet:{borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, insightVioletText:{color:colors.textTitle,fontFamily:fontFamilies.readable,fontSize:13,lineHeight:20}, evRow:{flexDirection:'row',gap:6}, evChip:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:10,paddingHorizontal:8,paddingVertical:4,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, formatGrid:{flexDirection:'row',flexWrap:'wrap',gap:9}, formatCard:{width:'47%',padding:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:4}, formatCardSel:{borderColor:colors.soulLine}, formatName:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:13}, formatNameSel:{color:colors.soul}, formatDesc:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:10.5,lineHeight:15}, soulPrimary:{alignItems:'center',justifyContent:'center',backgroundColor:colors.soul,borderRadius:radius.md,paddingVertical:spacing.md}, sourceRow:{flexDirection:'row',alignItems:'center',gap:11,paddingVertical:11,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, sourceRowDim:{opacity:0.7}, sourceName:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:13}, sourceNameDim:{color:colors.textMid,fontFamily:fontFamilies.pixelKo,fontSize:13}, sourceDesc:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:10}, sourceCta:{color:colors.cyan,fontFamily:fontFamilies.pixelKo,fontSize:11}, sourceSoon:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:10}, reviewLabel:{color:colors.cyanBright,fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,marginBottom:spacing.xs}, mapRow:{flexDirection:'row',alignItems:'center',gap:8}, mapFrom:{color:colors.cyanSoft,fontFamily:fontFamilies.readable,fontSize:12}, mapArrow:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:12}, mapTo:{color:colors.textTitle,fontFamily:fontFamilies.readable,fontSize:12}, recMetaRow:{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}, recMetaType:{color:colors.cyanSoft,fontFamily:fontFamilies.readable,fontSize:11}, recMetaDot:{color:colors.textLo,fontSize:11}, recMeta:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:11}, recTitle:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:17,lineHeight:24}, recBody:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,padding:spacing.md}, recBodyText:{color:colors.textHi,fontFamily:fontFamilies.readable,fontSize:12.5,lineHeight:20}, iconBtnDanger:{borderColor:colors.clay}, opsStep:{borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, opsStepHead:{flexDirection:'row',alignItems:'flex-start',gap:spacing.sm}, opsStepTitle:{flex:1,color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:13.5,lineHeight:19}, timeChipMint:{color:colors.mint,fontFamily:fontFamilies.readable,fontSize:10,borderWidth:1,borderColor:colors.mint,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, timeChipCyan:{color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:10,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, opsReason:{color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:11.5,lineHeight:17}, opsStepFoot:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, smallBtn:{marginLeft:'auto',backgroundColor:colors.cyan,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnText:{color:colors.bgDeep,fontFamily:fontFamilies.pixelKo,fontSize:11}, smallBtnGhost:{marginLeft:'auto',borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnGhostText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:11}, wikiStatRow:{flexDirection:'row',gap:spacing.sm}, wikiStat:{flex:1,flexDirection:'row',alignItems:'baseline',gap:6,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11}, wikiStatNum:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:20}, wikiStatNumCyan:{color:colors.cyan}, wikiStatCap:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:10.5}, wikiPageOpen:{borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, wikiPageHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiPageTitle:{flex:1,color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:13.5}, wikiCaret:{color:colors.cyanDim,fontSize:14}, wikiBody:{color:colors.textHi,fontFamily:fontFamilies.readable,fontSize:11.5,lineHeight:18}, wikiBacklinkRow:{flexDirection:'row',gap:6,flexWrap:'wrap',alignItems:'center'}, wikiBacklink:{color:colors.cyanSoft,fontFamily:fontFamilies.readable,fontSize:9.5,borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:4,overflow:'hidden'}, wikiPageRow:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11,gap:5}, wikiRowHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiRowTitle:{flex:1,color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:13}, wikiRowConn:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:9.5}, wikiRowDesc:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:11}, domainCard:{width:'47%',padding:14,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:8}, domainCardActive:{borderColor:colors.cyan}, domainCardDim:{borderStyle:'dashed',borderColor:colors.borderHi,opacity:0.65}, domainName:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:14}, domainNameDim:{color:colors.textMid,fontFamily:fontFamilies.pixelKo,fontSize:14}, domainNumRow:{flexDirection:'row',alignItems:'baseline',gap:5}, domainNum:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:22}, domainNumActive:{color:colors.cyan}, domainNumDim:{color:colors.textLo}, domainUnit:{color:colors.textLo,fontFamily:fontFamilies.readable,fontSize:10}, domainSub:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:9.5}, topicCol:{gap:8}, topicRow:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:10,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, topicDot:{width:6,height:6,borderRadius:3,backgroundColor:colors.cyan}, topicDotDim:{backgroundColor:colors.cyanDim}, topicText:{flex:1,color:colors.textTitle,fontFamily:fontFamilies.readable,fontSize:12.5}, topicTextDim:{flex:1,color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:12.5},
+  // --- auth (sign-in / sign-up / reset) deep-space presentation ---
+  authLabel:{color:colors.textMid,fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,textTransform:'uppercase',marginBottom:4},
+  authLabelRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
+  eyeBtn:{minWidth:44,minHeight:36,alignItems:'flex-end',justifyContent:'center'},
+  eyeText:{color:colors.cyanSoft,fontFamily:fontFamilies.readable,fontSize:11},
+  providerBtn:{alignItems:'center',justifyContent:'center',borderColor:colors.borderHi,borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.md},
+  providerBtnText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelKo,fontSize:13},
+  btnDisabled:{opacity:0.45},
+  authDividerRow:{flexDirection:'row',alignItems:'center',gap:spacing.md,marginVertical:spacing.xs},
+  authDividerLine:{flex:1,height:StyleSheet.hairlineWidth,backgroundColor:colors.border},
+  authDividerLabel:{color:colors.textLo,fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,textTransform:'uppercase'},
+  authDanger:{color:colors.clay,fontFamily:fontFamilies.readable,fontSize:12,lineHeight:18},
+  authHelper:{color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:11.5,lineHeight:17},
+  authLinkRow:{minHeight:44,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6},
+  authForgotRow:{minHeight:44,alignItems:'center',justifyContent:'center'},
+  authHelpCard:{borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.md,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm},
+  authHelpTitle:{color:colors.textTitle,fontFamily:fontFamilies.pixelKo,fontSize:13},
+  authHelpBody:{color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:11.5,lineHeight:18},
+  authToastWrap:{position:'absolute',left:spacing.lg,right:spacing.lg,bottom:spacing.xl,alignItems:'stretch'},
+  authToast:{borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.sm,paddingHorizontal:spacing.md},
+  authToastInfo:{borderColor:colors.borderHi,backgroundColor:colors.cardBg},
+  authToastSuccess:{borderColor:colors.mint,backgroundColor:colors.cardBg},
+  authToastDanger:{borderColor:colors.clay,backgroundColor:colors.cardBg},
+  authToastText:{color:colors.textHi,fontFamily:fontFamilies.readable,fontSize:12.5,lineHeight:18},
+  consentGroupLabel:{color:colors.cyanBright,fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,textTransform:'uppercase',marginTop:spacing.xs},
+  consentIntro:{color:colors.textMid,fontFamily:fontFamilies.readable,fontSize:11.5,lineHeight:18},
+  consentRow:{flexDirection:'row',alignItems:'flex-start',gap:spacing.sm,minHeight:40,paddingVertical:spacing.xs},
+  consentCheckbox:{width:22,height:22,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center',marginTop:1},
+  consentCheckboxOn:{borderColor:colors.cyan,backgroundColor:colors.cyan},
+  consentCheckmark:{color:colors.bgDeep,fontFamily:fontFamilies.readable,fontSize:13,lineHeight:15},
+  consentLabel:{flex:1,color:colors.textHi,fontFamily:fontFamilies.readable,fontSize:12,lineHeight:18},
+  consentDivider:{height:1,backgroundColor:colors.border,opacity:0.6,marginVertical:spacing.xs},
+  minorBanner:{borderWidth:1,borderLeftWidth:4,borderColor:colors.soulLine,borderRadius:radius.sm,backgroundColor:colors.cardBg,padding:spacing.sm},
+  minorBannerText:{color:colors.soul,fontFamily:fontFamilies.readable,fontSize:11.5,lineHeight:18},
+  checklistRow:{flexDirection:'row',alignItems:'center',gap:spacing.sm,minHeight:24},
+  checklistDot:{width:8,height:8,borderRadius:4},
+  checklistText:{flex:1,fontFamily:fontFamilies.readable,fontSize:11.5}});

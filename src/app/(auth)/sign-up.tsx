@@ -1,10 +1,8 @@
 import { Image } from "expo-image";
-import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, Pressable, ScrollView, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
+import { View, StyleSheet, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router } from "expo-router";
 
-import { useAuth } from "@/lib/auth/AuthContext";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { PremiumAppShell, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -14,99 +12,47 @@ import { BirthDateField } from "@/components/auth/BirthDateField";
 import { JudgeBadge } from "@/components/auth/JudgeBadge";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
-import {
-  ageInYears,
-  signUpWithEmail,
-  isNaverEnabled,
-  isProviderEnabled,
-  signInWithApple,
-  signInWithGoogle,
-  signInWithKakao,
-  signInWithNaver,
-  AgeGateError,
-  BreachedPasswordError,
-  ExistingAccountLikelyError,
-  MIN_SELF_CONSENT_AGE,
-} from "@/lib/supabase/auth";
-import { isJudgeEmail } from "@/lib/judge/domains";
+import { ageInYears, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { ConsentNotice } from "@/components/consent/ConsentNotice";
-import {
-  emptyConsentSelections,
-  allRequiredAcksChecked,
-  buildSignUpConsentArgs,
-} from "@/lib/auth/consent-selections";
-import { submitSignUp } from "@/lib/auth/sign-up-flow";
-import { recordConsentBestEffort } from "@/lib/supabase/consent";
+import { useSignUpForm } from "@/lib/auth/useSignUpForm";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceSignUpDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
-const ADULT_AGE = 18;
 const SIGNUP_STICKY_CTA_HEIGHT = 84;
 const SIGNUP_SCROLL_BOTTOM_PADDING = spacing.lg;
-type SignUpToast = { message: string; tone: "info" | "success" | "danger" };
 
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
 function SignUpLegacy() {
   const { t, i18n } = useTranslation(["auth", "common"]);
-  const { userId, loading, refresh } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [birthDate, setBirthDate] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [oauthSubmitting, setOauthSubmitting] = useState(false);
-  // Judge accounts (C6) get a 900ms welcome toast before entering; this flag
-  // holds the guest guard below open until the delayed router.replace runs
-  // (mirrors complete-profile.tsx).
-  const [judgeWelcome, setJudgeWelcome] = useState(false);
-  const [toast, setToast] = useState<SignUpToast | null>(null);
-  // J3: persistent recovery card for the likely-already-registered shape — a
-  // toast alone vanishes in 2.8s, which left the user looping on a generic
-  // failure with no way out. Conditionally worded (enumeration-safe).
-  const [existingAccountHelp, setExistingAccountHelp] = useState(false);
-  // A provider whose OAuth start failed with a "not configured" error is hidden
-  // for the rest of the session so the user is not left tapping a dead button.
-  const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
-  const [consent, setConsent] = useState(emptyConsentSelections());
+  const {
+    userId,
+    loading,
+    submitting,
+    judgeWelcome,
+    toast,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    birthDate,
+    setBirthDate,
+    consent,
+    setConsent,
+    judge,
+    isMinorAge,
+    canSubmit,
+    oauthSubmitting,
+    existingAccountHelp,
+    visibleProviders,
+    naverEnabled,
+    handleSubmit,
+    handleOAuth,
+    handleNaver,
+  } = useSignUpForm();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
-
-  useEffect(() => {
-    if (!toast) return;
-    const timeout = setTimeout(() => setToast(null), 2800);
-    return () => clearTimeout(timeout);
-  }, [toast]);
-
-  // Stage 3 (O-31): hardware Back on the auth gate returns to the constellation
-  // home instead of exiting the app (no dead-end). Web uses the browser back.
-  useEffect(() => {
-    const onBackPress = () => {
-      router.push("/");
-      return true;
-    };
-    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => sub.remove();
-  }, []);
-
-  const judge = useMemo(() => isJudgeEmail(email), [email]);
-  // A valid DOB in the 14-17 band drives the high-privacy notice variant and
-  // the minor_self consent band.
-  const age = ageInYears(birthDate);
-  const isMinorAge = age >= MIN_SELF_CONSENT_AGE && age < ADULT_AGE;
-  const canSubmit = useMemo(() => {
-    return (
-      email.includes("@") &&
-      password.length >= 8 &&
-      ageInYears(birthDate) >= MIN_SELF_CONSENT_AGE &&
-      allRequiredAcksChecked(consent) &&
-      !submitting &&
-      // R3: the OAuth buttons cross-disable against `submitting`, but the
-      // email submit stayed tappable while an OAuth browser was opening -
-      // two concurrent auth flows racing the same guard.
-      !oauthSubmitting
-    );
-  }, [email, password, birthDate, consent, submitting, oauthSubmitting]);
 
   // Guest-only guard, loading-aware. While the session resolves, show the
   // branded checking state rather than flashing the account-creation form; once
@@ -116,120 +62,11 @@ function SignUpLegacy() {
   // flow is still running — an unconditional redirect here unmounted the form
   // mid-submit, which is how a failed sign-up dropped the user on /sign-in with
   // its toast never painted (E2E-3; IntroGate carries the matching (auth)
-  // exemption so a parent swap can't undo this hold). The !toast hold covers
-  // the rare failure where the rollback sign-out ALSO failed (session live,
-  // profile-less): the error stays readable for its full duration, then the
-  // redirect routes the live session to /complete-profile recovery. OAuth
-  // sign-ups don't set `submitting`, so their redirect-driven hand-off
-  // (→ /complete-profile) is unchanged.
+  // exemption so a parent swap can't undo this hold).
   if (loading) {
     return <InlineLoader message={t("common.checking")} />;
   }
   if (userId && !submitting && !judgeWelcome && !toast) return <Redirect href="/" />;
-
-  // E2E-3/E2E-4 (e2e-shots-20260610): the submit sequencing lives in
-  // sign-up-flow.ts (unit-tested). The flow settles the context (refresh)
-  // BEFORE returning; this screen only maps results to UI.
-  async function handleSubmit(): Promise<void> {
-    setSubmitting(true);
-    setExistingAccountHelp(false);
-    try {
-      const result = await submitSignUp({
-        signUp: () => signUpWithEmail({ email: email.trim(), password, birthDate, locale }),
-        // Record the consent the user just gave. Awaited BEFORE navigating: on
-        // web a router.replace tears down the page and cancels an in-flight
-        // fire-and-forget request, which could silently drop the PIPA consent
-        // row. Still best-effort -- a write failure logs at error level and
-        // must not undo a created account; pre-migration it no-ops.
-        recordConsent: (newUserId) =>
-          recordConsentBestEffort(
-            buildSignUpConsentArgs({ userId: newUserId, isMinor: isMinorAge, locale, selections: consent }),
-          ),
-        refreshAuth: refresh,
-        isAgeGateError: (e) => e instanceof AgeGateError,
-        isBreachedPasswordError: (e) => e instanceof BreachedPasswordError,
-        isExistingAccountLikelyError: (e) => e instanceof ExistingAccountLikelyError,
-      });
-      if (result.kind === "entered") {
-        // The context already knows hasProfile=true (flow refreshed), so the
-        // "/" guard lets the brand-new user through instead of bouncing them
-        // to /complete-profile to re-type DOB + consent (E2E-4).
-        if (result.judgeMode) {
-          setJudgeWelcome(true); // hold the guest guard open for the toast
-          setToast({ tone: "success", message: t("judge.welcome") });
-          setTimeout(() => router.replace("/"), 900);
-          return;
-        }
-        // Post-signup hand-off → graph view (main). (/journal retired → /capture redirect.)
-        router.replace("/");
-        return;
-      }
-      if (result.kind === "ageGate") {
-        setToast({ tone: "danger", message: t("errors.ageGate") });
-        return;
-      }
-      if (result.kind === "breachedPassword") {
-        setToast({ tone: "danger", message: t("errors.breachedPassword") });
-        return;
-      }
-      if (result.kind === "maybeExistingAccount") {
-        // J3: persistent card (not a toast) with the recovery path. The copy is
-        // conditional — we never confirm the email exists (CSO R3).
-        setExistingAccountHelp(true);
-        return;
-      }
-      // The form is still mounted (guard held open here, parent swap blocked
-      // by IntroGate's (auth) exemption), so this toast is visible and the
-      // user's values are intact for a retry — never the old silent drop to
-      // /sign-in (E2E-3).
-      setToast({ tone: "danger", message: t("errors.signUpFailed") });
-      if (typeof console !== "undefined") console.warn("[auth] signUp error", result.message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  // Social sign-up: the OAuth flow creates the auth user, then /complete-profile
-  // collects date of birth (C10) and records consent — so the age gate + consent
-  // ledger still apply to provider sign-ups, just at the post-redirect step.
-  async function handleOAuth(provider: "google" | "apple" | "kakao") {
-    setOauthSubmitting(true);
-    try {
-      if (provider === "apple") await signInWithApple();
-      else if (provider === "kakao") await signInWithKakao();
-      else await signInWithGoogle();
-    } catch (e) {
-      const name = provider === "apple" ? "Apple" : provider === "kakao" ? "Kakao" : "Google";
-      const msg = (e as Error).message ?? "";
-      // A provider that is not configured in Supabase fails to even start with a
-      // "provider is not enabled" error. Hide its button for the session so the
-      // user is not left tapping a dead control; email/password and any working
-      // provider remain.
-      if (/not enabled|unsupported provider|validation_failed/i.test(msg)) {
-        setHiddenProviders((prev) => new Set(prev).add(provider));
-      }
-      setToast({
-        tone: "danger",
-        message: t("errors.oauthSignUpStartFailed", { provider: name }),
-      });
-      if (typeof console !== "undefined") console.warn(`[auth] ${provider} oauth error`, msg);
-    } finally {
-      setOauthSubmitting(false);
-    }
-  }
-
-  // Naver: custom redirect flow (not Supabase-native). Navigates to Naver.
-  function handleNaver() {
-    try {
-      signInWithNaver();
-    } catch (e) {
-      setToast({
-        tone: "danger",
-        message: t("errors.oauthSignUpStartFailed", { provider: "Naver" }),
-      });
-      if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
-    }
-  }
 
   return (
     <PremiumAppShell stars={false}>
@@ -321,12 +158,7 @@ function SignUpLegacy() {
             </Text>
             <Input
               value={email}
-              onChangeText={(value) => {
-                setEmail(value);
-                // The recovery card is keyed to the email that failed; editing
-                // the address makes it stale, so retire it immediately.
-                if (existingAccountHelp) setExistingAccountHelp(false);
-              }}
+              onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
@@ -412,7 +244,7 @@ function SignUpLegacy() {
             <View style={styles.providerDividerLine} />
           </View>
 
-          {isProviderEnabled("google") && !hiddenProviders.has("google") ? (
+          {visibleProviders.includes("google") ? (
             <Button
               label={t("signUp.continueWithGoogle")}
               variant="secondary"
@@ -420,7 +252,7 @@ function SignUpLegacy() {
               onPress={() => handleOAuth("google")}
             />
           ) : null}
-          {isProviderEnabled("apple") && !hiddenProviders.has("apple") ? (
+          {visibleProviders.includes("apple") ? (
             <Button
               label={t("signUp.continueWithApple")}
               variant="secondary"
@@ -428,7 +260,7 @@ function SignUpLegacy() {
               onPress={() => handleOAuth("apple")}
             />
           ) : null}
-          {isProviderEnabled("kakao") && !hiddenProviders.has("kakao") ? (
+          {visibleProviders.includes("kakao") ? (
             <Button
               label={t("signUp.continueWithKakao")}
               variant="secondary"
@@ -436,7 +268,23 @@ function SignUpLegacy() {
               onPress={() => handleOAuth("kakao")}
             />
           ) : null}
-          {isNaverEnabled() ? (
+          {visibleProviders.includes("facebook") ? (
+            <Button
+              label={t("signUp.continueWithFacebook")}
+              variant="secondary"
+              disabled={oauthSubmitting || submitting}
+              onPress={() => handleOAuth("facebook")}
+            />
+          ) : null}
+          {visibleProviders.includes("github") ? (
+            <Button
+              label={t("signUp.continueWithGithub")}
+              variant="secondary"
+              disabled={oauthSubmitting || submitting}
+              onPress={() => handleOAuth("github")}
+            />
+          ) : null}
+          {naverEnabled ? (
             <Button
               label={t("signUp.continueWithNaver")}
               variant="secondary"

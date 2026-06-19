@@ -115,6 +115,18 @@ const schema = z.object({
     .union([z.literal("true"), z.literal("false")])
     .default("false")
     .transform((v) => v === "true"),
+  // Facebook + GitHub are also Supabase-native providers (same signInWithOAuth
+  // path as Google). Default OFF until each is configured in the Supabase console
+  // (client id/secret + redirect URL), mirroring Apple/Kakao — avoids a dead
+  // button that redirects to a raw provider error page on web.
+  EXPO_PUBLIC_ENABLE_FACEBOOK: z
+    .union([z.literal("true"), z.literal("false")])
+    .default("false")
+    .transform((v) => v === "true"),
+  EXPO_PUBLIC_ENABLE_GITHUB: z
+    .union([z.literal("true"), z.literal("false")])
+    .default("false")
+    .transform((v) => v === "true"),
   GOOGLE_CLOUD_PROJECT: z.string().optional(),
   GOOGLE_CLOUD_LOCATION: z.string().default("us-central1"),
   // GOOGLE_API_KEY without EXPO_PUBLIC_ is server-side only (native / Edge
@@ -202,6 +214,8 @@ function readRaw(): Record<string, string | undefined> {
   const enableGoogle = process.env.EXPO_PUBLIC_ENABLE_GOOGLE;
   const enableApple = process.env.EXPO_PUBLIC_ENABLE_APPLE;
   const enableKakao = process.env.EXPO_PUBLIC_ENABLE_KAKAO;
+  const enableFacebook = process.env.EXPO_PUBLIC_ENABLE_FACEBOOK;
+  const enableGithub = process.env.EXPO_PUBLIC_ENABLE_GITHUB;
   const publicGoogleKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
   const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
   const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY;
@@ -238,6 +252,8 @@ function readRaw(): Record<string, string | undefined> {
     EXPO_PUBLIC_ENABLE_GOOGLE: presentOrUndefined(enableGoogle),
     EXPO_PUBLIC_ENABLE_APPLE: presentOrUndefined(enableApple),
     EXPO_PUBLIC_ENABLE_KAKAO: presentOrUndefined(enableKakao),
+    EXPO_PUBLIC_ENABLE_FACEBOOK: presentOrUndefined(enableFacebook),
+    EXPO_PUBLIC_ENABLE_GITHUB: presentOrUndefined(enableGithub),
     GOOGLE_CLOUD_PROJECT: proc.GOOGLE_CLOUD_PROJECT,
     GOOGLE_CLOUD_LOCATION: proc.GOOGLE_CLOUD_LOCATION,
     // Prefer the inlined EXPO_PUBLIC_ variant when present (Web), fall back

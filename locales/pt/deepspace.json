@@ -120,7 +120,12 @@
     "resetPrompt": "Verifique seu e-mail, por favor",
     "resetBody": "Digite o código de 6 dígitos para defini-la de novo.",
     "resend": "Reenviar {{time}}",
-    "confirm": "Confirmar"
+    "confirm": "Confirmar",
+    "noAccount": "Primeira vez? Crie uma conta",
+    "haveAccount": "Já tem uma conta? Entrar",
+    "forgotPassword": "Esqueceu a senha?",
+    "or": "ou",
+    "ageNotice": "Você pode se cadastrar a partir dos 14 anos. Menores de 14 precisam de um responsável."
   },
   "account": {
     "title": "Conta",
