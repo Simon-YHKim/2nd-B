@@ -487,12 +487,63 @@ export type Database = {
           },
         ]
       }
+      health_samples: {
+        Row: {
+          created_at: string | null
+          ended_at: string | null
+          external_id: string | null
+          id: string
+          metadata: Json
+          metric_type: string
+          source: string
+          started_at: string
+          unit: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string | null
+          ended_at?: string | null
+          external_id?: string | null
+          id?: string
+          metadata?: Json
+          metric_type: string
+          source: string
+          started_at: string
+          unit: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          created_at?: string | null
+          ended_at?: string | null
+          external_id?: string | null
+          id?: string
+          metadata?: Json
+          metric_type?: string
+          source?: string
+          started_at?: string
+          unit?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_samples_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ops_routine_logs: {
         Row: {
           completed_on: string
           created_at: string
           id: string
           routine_id: string
+          source_sample_id: string | null
           user_id: string
         }
         Insert: {
@@ -500,6 +551,7 @@ export type Database = {
           created_at?: string
           id?: string
           routine_id: string
+          source_sample_id?: string | null
           user_id: string
         }
         Update: {
@@ -507,6 +559,7 @@ export type Database = {
           created_at?: string
           id?: string
           routine_id?: string
+          source_sample_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -515,6 +568,13 @@ export type Database = {
             columns: ["routine_id"]
             isOneToOne: false
             referencedRelation: "ops_routines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ops_routine_logs_source_sample_id_fkey"
+            columns: ["source_sample_id"]
+            isOneToOne: false
+            referencedRelation: "health_samples"
             referencedColumns: ["id"]
           },
           {

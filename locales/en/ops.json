@@ -92,5 +92,9 @@
     "reminderDeniedNote": "Notification permission is off. Allow it in your device settings to use reminders.",
     "reminderFailedNote": "The reminder could not be set. Check the item's time and try again.",
     "reminderUnavailableNote": "Saved. Reminders need the installed app, so this one won't ring here."
+  },
+  "health": {
+    "autoCompleted": "Auto-checked from your activity",
+    "autoCompletedHint": "A logged workout or steps over your goal ticked this off."
   }
 }

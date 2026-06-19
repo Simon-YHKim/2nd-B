@@ -92,5 +92,9 @@
     "reminderDeniedNote": "Izin notifikasi nonaktif. Izinkan di pengaturan perangkatmu untuk menggunakan pengingat.",
     "reminderFailedNote": "Pengingat tidak bisa diatur. Periksa waktu item dan coba lagi.",
     "reminderUnavailableNote": "Tersimpan. Pengingat butuh aplikasi terpasang, jadi yang ini tidak akan berbunyi di sini."
+  },
+  "health": {
+    "autoCompleted": "Ditandai otomatis dari aktivitasmu",
+    "autoCompletedHint": "Latihan yang dicatat atau langkah melebihi targetmu menandainya."
   }
 }

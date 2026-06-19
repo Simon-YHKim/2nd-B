@@ -47,5 +47,11 @@
     "graphHint": "메인 그래프를 엽니다.",
     "more": "더 가져오기",
     "moreHint": "이번 가져오기를 비우고 새로 시작합니다."
+  },
+  "health": {
+    "connect": "활동 동기화 켜기",
+    "ingest": "오늘 활동 추가",
+    "consentNeeded": "활동 가져오기에 동의하기",
+    "minorLocked": "이 계정에서는 활동 동기화가 꺼져 있어요."
   }
 }

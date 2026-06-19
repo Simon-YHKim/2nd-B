@@ -16,6 +16,7 @@ export const PRIVACY_PREF_KEYS = [
   "persona_share",
   "long_term_memory",
   "ops_push",
+  "health_import",
 ] as const;
 
 export type PrivacyPrefKey = (typeof PRIVACY_PREF_KEYS)[number];
@@ -69,8 +70,18 @@ export const MINOR_PROMOTABLE_KEYS: readonly PrivacyPrefKey[] = ["long_term_memo
 //   - ops_push (2026-06-11, O-R3): standing consent for routine push hand-offs
 //     (/ops reads it before opening calendar links / the share sheet). The
 //     first push asks once and stores true; this toggle is the off switch.
+//   - health_import (Phase B Slice 1): app-level opt-in for the health/activity
+//     ingest (PIPA 민감정보). OFF for everyone by default; gated in
+//     src/lib/health/ingest.ts via healthImportAllowed. Minors are NOT in
+//     MINOR_PROMOTABLE_KEYS below, so they stay hard-locked OFF (and the 0050
+//     seed sets it false on sign-up) — they can never ingest health data.
 // The other keys remain here as the single point of future wiring.
-export const VISIBLE_PRIVACY_KEYS: readonly PrivacyPrefKey[] = ["external_analytics", "ads", "ops_push"];
+export const VISIBLE_PRIVACY_KEYS: readonly PrivacyPrefKey[] = [
+  "external_analytics",
+  "ads",
+  "ops_push",
+  "health_import",
+];
 
 export function isPrivacyPrefEditable(key: PrivacyPrefKey, isMinor: boolean): boolean {
   if (!isMinor) return true;
