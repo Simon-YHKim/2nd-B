@@ -18,6 +18,8 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceResearchScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 interface Source {
   id: string;
@@ -33,7 +35,7 @@ interface Source {
   verified_at: string | null;
 }
 
-export default function Research() {
+function ResearchLegacy() {
   const { t, i18n } = useTranslation("research");
   const { userId, loading: authLoading } = useAuth();
   const isKorean = i18n.language === "ko";
@@ -290,3 +292,8 @@ const styles = StyleSheet.create({
   // A-6: user-authored titles follow the P2-10 font preference via <Text variant="body">.
   cardTitle: { fontWeight: "600", marginTop: spacing.xs },
 });
+
+export default function Research() {
+  if (isDeepSpaceUI()) return <DeepSpaceResearchScreen />;
+  return <ResearchLegacy />;
+}
