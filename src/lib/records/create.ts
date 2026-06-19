@@ -253,6 +253,21 @@ export async function listRecentRecords(userId: string, limit = 500) {
   return data ?? [];
 }
 
+// Read a single record by id (deep-space /record detail). RLS scopes to
+// auth.uid(); the explicit user_id keeps the index-friendly WHERE first.
+// Returns null when the id doesn't exist or isn't the caller's.
+export async function getRecordById(userId: string, id: string) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("records")
+    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at")
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 // Delete a single record by id. RLS scopes to auth.uid(), so users can
 // only delete their own rows; we still pass userId explicitly so the
 // index-friendly WHERE fires first.

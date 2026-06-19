@@ -37,6 +37,22 @@ jest.mock("../storage", () => ({
   }),
 }));
 
+// materialize has its own unit test (materialize.test.ts); here we only assert
+// phase2 invokes it with the Phase 1 output and surfaces its counts.
+jest.mock("../materialize", () => ({
+  materializeGraphFromPhase1: jest.fn((userId: string, source: unknown, phase1: unknown) => {
+    captured.push({ fn: "materializeGraphFromPhase1", args: [userId, source, phase1] });
+    return Promise.resolve(
+      fixtures.materializeResult ?? {
+        entityPagesCreated: 0,
+        conceptPagesCreated: 0,
+        pagesReused: 0,
+        linksAdded: 0,
+      },
+    );
+  }),
+}));
+
 import { generateSourcePage, SourceNotFoundError } from "../phase2";
 
 function reset() {
@@ -205,7 +221,49 @@ describe("generateSourcePage", () => {
     expect(occurrences).toBe(1);
   });
 
-  test("no Phase 1 cached → tags unchanged (no concept merge)", async () => {
+  test("materializes Phase 1 nodes and surfaces their counts on the result", async () => {
+    fixtures.source = {
+      id: "s1",
+      user_id: "u1",
+      title: "Big Five Personality",
+      storage_path: "u1/big-five.md",
+      frontmatter: {
+        __phase1__: {
+          summary: "summary",
+          entities: ["McCrae", "Costa"],
+          concepts: ["Openness"],
+          questions: ["q1", "q2", "q3", "q4"],
+          generated_at: "2026-05-25T00:00:00Z",
+          model: "gemini-2.5-flash",
+        },
+      },
+      tags: [],
+    };
+    fixtures.upsertWikiPage = { id: "p1", user_id: "u1", slug: "big-five-personality" };
+    fixtures.materializeResult = {
+      entityPagesCreated: 2,
+      conceptPagesCreated: 1,
+      pagesReused: 0,
+      linksAdded: 3,
+    };
+
+    const r = await generateSourcePage("u1", "s1");
+
+    // materialize runs AFTER syncWikiLinks, with the page id and the Phase 1 output.
+    const mat = captured.find((c) => c.fn === "materializeGraphFromPhase1")!;
+    expect(mat.args[0]).toBe("u1");
+    expect((mat.args[1] as { id: string }).id).toBe("p1");
+    expect((mat.args[2] as { entities: string[] }).entities).toEqual(["McCrae", "Costa"]);
+    expect(callOrder().indexOf("syncWikiLinks")).toBeLessThan(
+      callOrder().indexOf("materializeGraphFromPhase1"),
+    );
+
+    expect(r.entityPagesAdded).toBe(2);
+    expect(r.conceptPagesAdded).toBe(1);
+    expect(r.nodeLinksAdded).toBe(3);
+  });
+
+  test("no Phase 1 cached → no materialize call, tags unchanged", async () => {
     fixtures.source = {
       id: "s1",
       user_id: "u1",
@@ -220,5 +278,6 @@ describe("generateSourcePage", () => {
 
     const upsert = captured.find((c) => c.fn === "upsertWikiPage")!;
     expect((upsert.args[0] as { tags: string[] }).tags).toEqual(["one", "two"]);
+    expect(callOrder()).not.toContain("materializeGraphFromPhase1");
   });
 });

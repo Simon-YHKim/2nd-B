@@ -4,6 +4,50 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
+## Latest — 2026-06-19 (cont.) / Wiki-graph upgrade A–E + deep-space data wiring + i18n (PR #464)
+
+### 어디까지 왔나
+- 브랜치 `claude/ultracode-handoff-docs-82evat`, PR **#464** (draft). 모든 커밋 `npm run verify` green (현재 1465 tests, i18n 26 namespaces / 1339 keys).
+- 직전 핸드오프의 "다음 작업 큐" A–E를 한 세션에서 처리:
+  - **A (STEP 1a)** ✅ `src/lib/wiki/materialize.ts` — Phase1 entities/concepts를 entity/concept 노드로 materialize + source→node edges (idempotent, 기존 body 보존). `phase2.generateSourcePage`에서 호출.
+  - **B (STEP 1b)** ✅ deep-space `/wiki`·`/research`를 실데이터로 배선. `src/screens/deepspace/wiki-graph-view.ts` pure 빌더.
+  - **C** ✅ deep-space 화면 실데이터 와이어링: `/records`(KST 타임라인), `/domains`(태그-도메인 집계), `/inbox`(미정리 source 큐 promote/discard), `/record` 상세(`getRecordById`+related-by-tag), `/ops`(on-demand 추천, D-20 minor gate+일일 한도). **`/formats`만 정적**(백킹 데이터 없음).
+  - **E** ✅ STEP 2 (migration `0046` `wiki_links.relation_type`+`confidence`, propose→ratify 쿼리) + STEP 3 (`src/lib/wiki/clusters.ts` connected-component 군집 + cross-topic surprise). **STEP 4 (pgvector)는 계획대로 deferred**.
+  - **D ✅ 완료** — 새 `deepspace` i18n namespace(5 locale en/ko/es/id/pt) 등록 + **모든 deep-space Shell 화면 25종** i18n 전환 완료 (C7 parity, 1539 keys, em dash 0). KO 원문 보존, EN canonical. pure 날짜 helper는 i18n-free 유지하고 화면에서 localized label 주입(`dsTimeLabels`/`dsRecencyLabels`).
+
+### 결론: 큐 A–E + 후속 4종 전부 완료
+A(materialize)·B(wiki/research 배선)·C(전 화면 실데이터)·D(5-locale i18n)·E(STEP 2+3) + 후속 **STEP 4(pgvector)·익스포트 파이프라인·인박스 추천 태그·propose→ratify** 모두 PR #464에 랜딩.
+- **STEP 4 ✅**: migration `0047`(pgvector + `embedding vector(768)` + HNSW + `match_wiki_pages` kNN RPC), `gemini.ts embedTexts`(C1/C3/C9 + cost guard, mock=deterministic), `embeddings.ts`(cosine/rank/backfill/relatedByEmbedding). `/data` "의미 색인 만들기" 액션이 backfill 트리거. CI는 `pgvector/pgvector:pg16` 이미지로 dry-run. **활성화 = prod pgvector apply + Vertex 임베딩**.
+- **익스포트 ✅**: `/formats`가 실제 export(.iden/Markdown/JSON/PDF) + 범위 토글 + 복사/공유/다운로드.
+- **인박스 추천 태그 ✅**: Phase 1 캐시 태그를 추천 칩으로, 없으면 on-demand Phase 1.
+- **propose→ratify ✅**: STEP 4 의미 이웃을 `inferred` 엣지로 제안(`proposeAllRelatedLinks`) → `/research` "제안된 연결"에서 사용자 승인(`ratifyLink`)/거절(`rejectInferredLink`). 캐논 완성. confidence 0.5 floor가 mock 노이즈 차단.
+
+### 다음 후보 (선택)
+- Native(EAS) 딥스페이스 전환 (현재 `EXPO_PUBLIC_UI=legacy` 핀).
+- `/import` 외부 커넥터(Notion/Obsidian) 실제 연동 (정적 mockup 유지 중).
+- prod: migration `0046`·`0047` 수동 apply (pgvector 확장 enable 포함).
+- prod: migration `0046`·`0047` 수동 apply (pgvector 확장 enable 포함).
+
+### 핵심 파일
+```
+src/lib/wiki/materialize.ts                      STEP 1a
+src/lib/wiki/clusters.ts                         STEP 3 군집 엔진
+db/migrations/0046_wiki_link_relation_type.sql   STEP 2
+src/screens/deepspace/wiki-graph-view.ts         view 빌더 + recencyLabel/buildDomainsView
+src/screens/deepspace/records-timeline.ts        타임라인 빌더 (localized labels)
+src/screens/deepspace/DeepSpaceDesignScreens.tsx 모든 deep-space Shell 화면
+locales/*/deepspace.json                         deepspace i18n bundle (5 locale)
+src/lib/i18n/index.ts                            namespace 등록
+```
+
+### 검증
+```bash
+npm run verify   # green (1465 tests)
+```
+
+---
+
+
 ## Latest — 2026-06-19 / Deep-space UI conversion complete; wiki-graph upgrade next (STEP 1a)
 
 ### 어디까지 왔나

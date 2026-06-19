@@ -1,13 +1,123 @@
-import type { ReactNode } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { router } from "expo-router";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ActivityIndicator, Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line } from "react-native-svg";
 
 import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { useProgression } from "@/lib/progression/useProgression";
+import { systemLocaleFor } from "@/lib/i18n/locales";
+import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
+import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
+import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
+import { buildGoogleCalendarUrl } from "@/lib/ops/push";
+import { OPS_DAILY_LIMIT, bumpOpsUsage, readOpsUsage } from "@/lib/ops/usage";
+import {
+  deleteSource,
+  listAllWikiLinks,
+  listInferredLinkDetails,
+  listSources,
+  listWikiPages,
+  ratifyLink,
+  rejectInferredLink,
+  updateSourceTags,
+  type InferredLinkDetail,
+} from "@/lib/wiki/queries";
+import { generateSourcePage } from "@/lib/wiki/phase2";
+import { runPhase1 } from "@/lib/wiki/phase1";
+import { suggestedTags } from "@/lib/wiki/suggest-tags";
+import { exportUserWiki } from "@/lib/wiki/export";
+import { backfillEmbeddings, proposeAllRelatedLinks } from "@/lib/wiki/embeddings";
+import { exportIden } from "@/lib/iden/iden-export";
+import { buildIdenDoc } from "@/lib/iden/build-iden";
+import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
+import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
+import {
+  buildDeepResearchView,
+  buildDeepWikiView,
+  buildDomainsView,
+  recencyLabel,
+  type RecencyLabels,
+  type WikiEdge,
+} from "./wiki-graph-view";
+import {
+  buildRecordsTimeline,
+  relatedByTag,
+  RECORD_KIND_ICON,
+  type TimelineLabels,
+  type TimelineRecord,
+} from "./records-timeline";
+
+// i18n label builders for the pure date helpers (which stay i18n-free).
+type Tx = (key: string, options?: Record<string, unknown>) => string;
+function dsTimeLabels(t: Tx): TimelineLabels {
+  return {
+    today: t("time.today"),
+    yesterday: t("time.yesterday"),
+    monthDay: (m, d) => t("time.monthDay", { month: m, day: d }),
+    now: t("time.now"),
+    hoursAgo: (h) => t("time.hoursAgo", { count: h }),
+    fallbackTitle: t("time.recordFallback"),
+  };
+}
+function dsRecencyLabels(t: Tx): RecencyLabels {
+  return {
+    today: t("time.today"),
+    yesterday: t("time.yesterday"),
+    daysAgo: (n) => t("time.daysAgo", { count: n }),
+  };
+}
 
 type Row = { label: string; value?: string; onPress?: () => void; on?: boolean };
+
+// Shared loader for the two graph-backed deep-space screens (/wiki + /research).
+// Mirrors what the legacy /wiki loads: pages + the full edge set, both bounded.
+// A links failure degrades to a zero-edge graph rather than blanking the screen.
+function useWikiGraphData() {
+  const { userId, loading: authLoading } = useAuth();
+  const [pages, setPages] = useState<WikiPageRow[]>([]);
+  const [edges, setEdges] = useState<WikiEdge[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    setLoading(true);
+    Promise.all([
+      listWikiPages(userId, { limit: 200 }),
+      listAllWikiLinks(userId).catch(() => [] as WikiEdge[]),
+    ])
+      .then(([p, e]) => {
+        if (!alive) return;
+        setPages(p);
+        setEdges(e);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setPages([]);
+        setEdges([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
+  return { userId, authLoading, pages, edges, loading };
+}
+
+function GraphLoading() {
+  return (
+    <View style={styles.center}>
+      <ActivityIndicator color={colors.cyan} />
+    </View>
+  );
+}
 
 function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
   return (
@@ -23,201 +133,261 @@ function Shell({ children, title, subtitle }: { children: ReactNode; title?: str
 
 function Card({ children, style }: { children: ReactNode; style?: object }) { return <View style={[styles.card, style]}>{children}</View>; }
 function Action({ label, value, onPress }: Row) { return <Pressable onPress={onPress} style={styles.action}><Text style={styles.actionLabel}>{label}</Text>{value ? <Text style={styles.actionValue}>{value}</Text> : <Text style={styles.chev}>›</Text>}</Pressable>; }
-function Toggle({ label, value, on = true }: Row) { return <View style={styles.action}><View><Text style={styles.actionLabel}>{label}</Text>{value ? <Text style={styles.actionValue}>{value}</Text> : null}</View><View style={[styles.toggle,on&&styles.toggleOn]}><View style={[styles.knob,on&&styles.knobOn]} /></View></View>; }
-
-export function DeepSpaceGraphDesignScreen() {
-  const clusters = [
-    { x: 63, y: 135, t: "기록" }, { x: 136, y: 92, t: "관계" }, { x: 219, y: 134, t: "지식" }, { x: 106, y: 226, t: "취향" }, { x: 207, y: 225, t: "성장" },
-  ];
-  return <Shell title="내 두뇌 지도" subtitle="노드 128개 · 연결 342개"><SecondbStatusHeader text="지금은 기록과 지식 군집이 강하게 연결되어 있어요." tip="군집을 누르면 관련 조각만 가볍게 볼 수 있어요." /><Card style={styles.graphCard}><Svg width="100%" height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text style={styles.centerCaption}>나</Text>{clusters.map((c)=><Text key={c.t} style={[styles.clusterLabel,{left:c.x-18,top:c.y+23}]}>{c.t}</Text>)}</Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text style={styles.primaryText}>군집 보기</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text style={styles.secondaryText}>연결 찾기</Text></Pressable></View></Shell>;
+function Toggle({ label, value, on = true, onPress }: Row) {
+  const body = (
+    <>
+      <View><Text style={styles.actionLabel}>{label}</Text>{value ? <Text style={styles.actionValue}>{value}</Text> : null}</View>
+      <View style={[styles.toggle,on&&styles.toggleOn]}><View style={[styles.knob,on&&styles.knobOn]} /></View>
+    </>
+  );
+  if (onPress) {
+    return <Pressable style={styles.action} onPress={onPress} accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel={label}>{body}</Pressable>;
+  }
+  return <View style={styles.action}>{body}</View>;
 }
 
-export function DeepSpaceIntegrationsScreen() { return <Shell title="다른 앱 연동"><SecondbStatusHeader text="외부 앱은 가져오기 전에 항상 네가 확인해요." tip="자동 저장보다 확인 후 저장이 더 안전해요." /><Card><Text style={styles.section}>AI 비서 연결</Text>{['ChatGPT','Claude','Gemini'].map((x)=><Action key={x} label={x} value="연결 대기" />)}</Card><Card><Text style={styles.section}>담기 소스</Text><Toggle label="Notion" value="페이지와 데이터베이스" /><Toggle label="Obsidian" value="로컬 마크다운" on={false} /><Toggle label="건강 · 캘린더" value="권한 필요" on={false} /></Card><Text style={styles.footer}>연동 데이터는 가져오기 전에 검토하고, 언제든 끊을 수 있어요.</Text></Shell>; }
+export function DeepSpaceGraphDesignScreen() {
+  const { t } = useTranslation("deepspace");
+  const clusters = [
+    { x: 63, y: 135, t: t("graph.clRecords") }, { x: 136, y: 92, t: t("graph.clRelations") }, { x: 219, y: 134, t: t("graph.clKnowledge") }, { x: 106, y: 226, t: t("graph.clTaste") }, { x: 207, y: 225, t: t("graph.clGrowth") },
+  ];
+  return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: 128, edges: 342 })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><Svg width="100%" height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Text key={c.t} style={[styles.clusterLabel,{left:c.x-18,top:c.y+23}]}>{c.t}</Text>)}</Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
+}
 
-export function DeepSpaceSupportDesignScreen() { return <Shell title="지원 · 문의"><View style={styles.center}><SecondbHead size={104} mood="positive" /><Text style={styles.prompt}>무엇을 도와드릴까요?</Text></View><Card>{[{label:'세컨비에게 묻기',onPress:()=>router.push('/secondb')},{label:'매뉴얼 보기',onPress:()=>router.push('/manual')},{label:'이메일 문의',onPress:()=>Linking.openURL('mailto:support@2nd-brain.app')},{label:'버그 신고',onPress:()=>Linking.openURL('mailto:support@2nd-brain.app?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card><Text style={styles.footer}>2nd-Brain v1.0.0 · 2 business days KST</Text></Shell>; }
+export function DeepSpaceIntegrationsScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("integrations.title")}><SecondbStatusHeader text={t("integrations.status")} tip={t("integrations.tip")} /><Card><Text style={styles.section}>{t("integrations.sectionAssistant")}</Text>{['ChatGPT','Claude','Gemini'].map((x)=><Action key={x} label={x} value={t("integrations.pending")} />)}</Card><Card><Text style={styles.section}>{t("integrations.sectionSources")}</Text><Toggle label="Notion" value={t("integrations.notionValue")} /><Toggle label="Obsidian" value={t("integrations.obsidianValue")} on={false} /><Toggle label={t("integrations.healthLabel")} value={t("integrations.permissionNeeded")} on={false} /></Card><Text style={styles.footer}>{t("integrations.footer")}</Text></Shell>; }
 
-export function DeepSpaceAccountDesignScreen() { return <Shell title="계정"><SecondbStatusHeader text="계정 정보는 네가 소유하고, 필요한 것만 연결해요." tip="삭제와 내보내기는 언제든 직접 시작할 수 있어요." /><View style={styles.center}><View style={styles.avatar}><SecondbHead size={72} mood="neutral" /></View><Text style={styles.prompt}>Simon Kim</Text><Text style={styles.footer}>2026.06 가입 · Free plan</Text></View><Card>{[['이름','Simon Kim'],['이메일','simon@example.com'],['비밀번호','변경'],['연결 계정','Google'],['언어','한국어']].map(([label,value])=><Action key={label} label={label} value={value}/>)}</Card><Pressable style={styles.danger}><Text style={styles.dangerText}>계정 삭제</Text></Pressable></Shell>; }
+export function DeepSpaceSupportDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("support.title")}><View style={styles.center}><SecondbHead size={104} mood="positive" /><Text style={styles.prompt}>{t("support.prompt")}</Text></View><Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card><Text style={styles.footer}>{t("support.footer")}</Text></Shell>; }
 
-export function DeepSpacePrivacyDesignScreen() { return <Shell title="개인정보"><SecondbStatusHeader text="기록은 자기 이해를 돕기 위해서만 사용돼요." tip="민감한 선택은 항상 먼저 보여주고 확인해요." /><Text style={styles.lead}>내 데이터 사용 범위를 직접 조정하세요.</Text><Card><Toggle label="자기 이해 분석에 기록 사용" value="켜짐" /><Toggle label="제품 개선 익명 통계" value="꺼짐" on={false} /><Toggle label="앱 잠금 (생체인증)" value="켜짐" /></Card><Card><Action label="개인정보 처리방침" value="보기"/><Action label="데이터 처리 기록" value="최근 7일"/><Action label="제3자 제공" value="0건"/></Card><Text style={styles.footer}>기본값은 로컬 우선입니다. 외부 전송은 확인 후 진행돼요.</Text></Shell>; }
+export function DeepSpaceAccountDesignScreen() { const { t } = useTranslation("deepspace"); const rows: [string, string][] = [[t("account.labelName"),'Simon Kim'],[t("account.labelEmail"),'simon@example.com'],[t("account.labelPassword"),t("account.valueChange")],[t("account.labelLinked"),'Google'],[t("account.labelLanguage"),t("account.valueLanguage")]]; return <Shell title={t("account.title")}><SecondbStatusHeader text={t("account.status")} tip={t("account.tip")} /><View style={styles.center}><View style={styles.avatar}><SecondbHead size={72} mood="neutral" /></View><Text style={styles.prompt}>Simon Kim</Text><Text style={styles.footer}>{t("account.joined", { date: "2026.06" })}</Text></View><Card>{rows.map(([label,value])=><Action key={label} label={label} value={value}/>)}</Card><Pressable style={styles.danger}><Text style={styles.dangerText}>{t("account.delete")}</Text></Pressable></Shell>; }
 
-export function DeepSpaceSignInDesignScreen() { return <Shell><View style={styles.authHero}><SecondbHead size={132} mood="positive"/><Text style={styles.big}>2nd-Brain</Text><Text style={styles.lead}>AI 시대 가장 가치있는 자산, 나 자신을 축적하세요.</Text></View><Card><TextInput placeholder="email@example.com" placeholderTextColor={colors.textLo} style={styles.input}/><TextInput placeholder="password" placeholderTextColor={colors.textLo} secureTextEntry style={styles.input}/><Pressable style={styles.primary}><Text style={styles.primaryText}>로그인</Text></Pressable><Pressable onPress={()=>router.push('/sign-up')}><Text style={styles.link}>계정 만들기</Text></Pressable></Card></Shell>; }
+export function DeepSpacePrivacyDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("privacy.title")}><SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} /><Text style={styles.lead}>{t("privacy.lead")}</Text><Card><Toggle label={t("privacy.toggleAnalysis")} value={t("privacy.on")} /><Toggle label={t("privacy.toggleStats")} value={t("privacy.off")} on={false} /><Toggle label={t("privacy.toggleLock")} value={t("privacy.on")} /></Card><Card><Action label={t("privacy.policy")} value={t("privacy.view")}/><Action label={t("privacy.processingLog")} value={t("privacy.last7")}/><Action label={t("privacy.thirdParty")} value={t("privacy.none")}/></Card><Text style={styles.footer}>{t("privacy.footer")}</Text></Shell>; }
 
-export function DeepSpaceSignUpDesignScreen() { return <Shell><View style={styles.authHero}><SecondbHead size={120} mood="neutral"/><Text style={styles.big}>시작하기</Text><Text style={styles.lead}>첫 조각부터 북극성을 함께 밝혀요.</Text></View><Card>{['이메일','비밀번호','출생연도'].map((p)=><TextInput key={p} placeholder={p} placeholderTextColor={colors.textLo} style={styles.input}/>) }<Pressable style={styles.primary}><Text style={styles.primaryText}>가입하기</Text></Pressable></Card></Shell>; }
+export function DeepSpaceSignInDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell><View style={styles.authHero}><SecondbHead size={132} mood="positive"/><Text style={styles.big}>{t("auth.appName")}</Text><Text style={styles.lead}>{t("auth.signInLead")}</Text></View><Card><TextInput placeholder="email@example.com" placeholderTextColor={colors.textLo} style={styles.input}/><TextInput placeholder="password" placeholderTextColor={colors.textLo} secureTextEntry style={styles.input}/><Pressable style={styles.primary}><Text style={styles.primaryText}>{t("auth.signIn")}</Text></Pressable><Pressable onPress={()=>router.push('/sign-up')}><Text style={styles.link}>{t("auth.createAccount")}</Text></Pressable></Card></Shell>; }
 
-export function DeepSpaceResetPasswordDesignScreen() { return <Shell title="비밀번호 재설정"><View style={styles.center}><Text style={styles.mail}>✉</Text><Text style={styles.prompt}>메일을 확인해 주세요</Text><Text style={styles.footer}>6자리 인증 코드를 입력하면 다시 설정할 수 있어요.</Text></View><View style={styles.codeRow}>{['','', '', '', '', ''].map((_,i)=><View key={i} style={styles.codeCell}/>)}</View><Text style={styles.footer}>재전송 00:42</Text><Pressable style={styles.primary}><Text style={styles.primaryText}>확인</Text></Pressable></Shell>; }
+export function DeepSpaceSignUpDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell><View style={styles.authHero}><SecondbHead size={120} mood="neutral"/><Text style={styles.big}>{t("auth.signUpTitle")}</Text><Text style={styles.lead}>{t("auth.signUpLead")}</Text></View><Card>{[t("auth.fieldEmail"),t("auth.fieldPassword"),t("auth.fieldBirthYear")].map((p)=><TextInput key={p} placeholder={p} placeholderTextColor={colors.textLo} style={styles.input}/>) }<Pressable style={styles.primary}><Text style={styles.primaryText}>{t("auth.signUp")}</Text></Pressable></Card></Shell>; }
+
+export function DeepSpaceResetPasswordDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("auth.resetTitle")}><View style={styles.center}><Text style={styles.mail}>✉</Text><Text style={styles.prompt}>{t("auth.resetPrompt")}</Text><Text style={styles.footer}>{t("auth.resetBody")}</Text></View><View style={styles.codeRow}>{['','', '', '', '', ''].map((_,i)=><View key={i} style={styles.codeCell}/>)}</View><Text style={styles.footer}>{t("auth.resend", { time: "00:42" })}</Text><Pressable style={styles.primary}><Text style={styles.primaryText}>{t("auth.confirm")}</Text></Pressable></Shell>; }
 
 export function DeepSpaceInsightsScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="인사이트">
-      <SecondbStatusHeader text="지난주보다 이번주, 더 많이 담았어요." tip="가장 많이 담은 주제를 눌러 흐름을 보세요." mood="positive" />
+    <Shell title={t("insights.title")}>
+      <SecondbStatusHeader text={t("insights.status")} tip={t("insights.tip")} mood="positive" />
       <Card>
-        <Text style={styles.section}>요즘의 나</Text>
-        <Text style={styles.lead}>지난주보다 이번주의 나는</Text>
-        <Text style={styles.footer}>담은 조각 · 주간</Text>
+        <Text style={styles.section}>{t("insights.sectionNow")}</Text>
+        <Text style={styles.lead}>{t("insights.lead")}</Text>
+        <Text style={styles.footer}>{t("insights.weeklyCap")}</Text>
         <View style={styles.compareRow}>
-          <View style={styles.compareCol}><Text style={styles.compareNum}>18</Text><Text style={styles.compareCap}>지난주</Text></View>
+          <View style={styles.compareCol}><Text style={styles.compareNum}>18</Text><Text style={styles.compareCap}>{t("insights.lastWeek")}</Text></View>
           <Text style={styles.chev}>›</Text>
-          <View style={styles.compareCol}><Text style={[styles.compareNum, styles.compareNumHi]}>31</Text><Text style={styles.compareCap}>이번주</Text></View>
+          <View style={styles.compareCol}><Text style={[styles.compareNum, styles.compareNumHi]}>31</Text><Text style={styles.compareCap}>{t("insights.thisWeek")}</Text></View>
         </View>
-        <Text style={styles.delta}>▲ 72% 더 많이 담았어요</Text>
+        <Text style={styles.delta}>{t("insights.delta", { percent: 72 })}</Text>
       </Card>
       <Card>
-        <Text style={styles.section}>이번 주 핵심 발견</Text>
-        <Text style={styles.lead}>'만드는 일' 관련 기록이 절반을 넘었어요. 미래의 나와 같은 방향이에요.</Text>
+        <Text style={styles.section}>{t("insights.sectionFinding")}</Text>
+        <Text style={styles.lead}>{t("insights.finding")}</Text>
       </Card>
     </Shell>
   );
 }
 
 export function DeepSpaceDataDesignScreen() {
+  const { t, i18n } = useTranslation("deepspace");
+  const { userId, isMinor } = useAuth();
+  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const [indexing, setIndexing] = useState(false);
+  const [indexed, setIndexed] = useState<number | null>(null);
+
+  async function buildIndex() {
+    if (!userId || indexing) return;
+    setIndexing(true);
+    setIndexed(null);
+    try {
+      const r = await backfillEmbeddings(userId, { locale, minor: isMinor === true });
+      setIndexed(r.embedded);
+    } catch {
+      setIndexed(0);
+    } finally {
+      setIndexing(false);
+    }
+  }
+
+  const indexValue = indexing
+    ? t("data.indexing")
+    : indexed !== null
+      ? t("data.indexed", { count: indexed })
+      : undefined;
+
   return (
-    <Shell title="내 데이터" subtitle="무엇이 쌓였고, 어디에 쓰이는지">
-      <SecondbStatusHeader text="네 데이터가 어디에 있고 어떻게 쓰이는지 보여줘요." tip="민감한 데이터는 기기 안에만 둘 수 있어요." />
+    <Shell title={t("data.title")} subtitle={t("data.subtitle")}>
+      <SecondbStatusHeader text={t("data.status")} tip={t("data.tip")} />
       <View style={styles.statRow}>
-        <View style={styles.statBox}><Text style={styles.statNum}>412</Text><Text style={styles.statCap}>담은 조각</Text></View>
-        <View style={styles.statBox}><Text style={styles.statNum}>7</Text><Text style={styles.statCap}>완료한 검사</Text></View>
+        <View style={styles.statBox}><Text style={styles.statNum}>412</Text><Text style={styles.statCap}>{t("data.statPieces")}</Text></View>
+        <View style={styles.statBox}><Text style={styles.statNum}>7</Text><Text style={styles.statCap}>{t("data.statChecks")}</Text></View>
       </View>
       <Card>
-        <Text style={styles.section}>저장 위치</Text>
-        <Action label="기기 내 (민감 데이터)" value="암호화" />
-        <Action label="클라우드 동기화" value="켜짐" />
+        <Text style={styles.section}>{t("data.sectionStorage")}</Text>
+        <Action label={t("data.onDevice")} value={t("data.encrypted")} />
+        <Action label={t("data.cloudSync")} value={t("data.on")} />
       </Card>
       <Card>
-        <Action label="전체 데이터 내보내기" />
-        <Action label="모든 데이터 삭제" />
+        <Action label={t("data.buildIndex")} value={indexValue} onPress={userId && !indexing ? () => void buildIndex() : undefined} />
+        <Action label={t("data.exportAll")} onPress={() => router.push("/formats")} />
+        <Action label={t("data.deleteAll")} />
       </Card>
     </Shell>
   );
 }
 
 export function DeepSpaceThemeScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="테마 · 글꼴">
-      <SecondbStatusHeader text="보기 편한 테마와 글꼴을 골라요." tip="모션을 줄이면 화면이 더 차분해져요." />
+    <Shell title={t("theme.title")}>
+      <SecondbStatusHeader text={t("theme.status")} tip={t("theme.tip")} />
       <Card>
-        <Text style={styles.section}>테마</Text>
-        <Action label="딥스페이스" value="✓" />
-        <Action label="미드나잇" />
+        <Text style={styles.section}>{t("theme.sectionTheme")}</Text>
+        <Action label={t("theme.themeDeepspace")} value="✓" />
+        <Action label={t("theme.themeMidnight")} />
       </Card>
       <Card>
-        <Text style={styles.section}>글꼴</Text>
-        <Action label="픽셀 · Galmuri" value="✓" />
-        <Action label="읽기 편한 · Pretendard" />
+        <Text style={styles.section}>{t("theme.sectionFont")}</Text>
+        <Action label={t("theme.fontPixel")} value="✓" />
+        <Action label={t("theme.fontReadable")} />
       </Card>
       <Card>
-        <Text style={styles.section}>글자 크기</Text>
+        <Text style={styles.section}>{t("theme.sectionSize")}</Text>
         <View style={styles.sizeRow}>
-          <Text style={styles.sizeCap}>작게</Text>
+          <Text style={styles.sizeCap}>{t("theme.small")}</Text>
           <View style={styles.sizeTrack}><View style={styles.sizeKnob} /></View>
-          <Text style={styles.sizeCapLg}>크게</Text>
+          <Text style={styles.sizeCapLg}>{t("theme.large")}</Text>
         </View>
-        <Toggle label="모션 줄이기" on={false} />
+        <Toggle label={t("theme.reduceMotion")} on={false} />
       </Card>
     </Shell>
   );
 }
 
 export function DeepSpaceManualScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="매뉴얼 · 도움말">
-      <SecondbStatusHeader text="궁금한 걸 빠르게 찾아봐요." tip="찾는 게 없으면 세컨비에게 바로 물어보세요." />
-      <View style={styles.searchBox}><Text style={styles.searchText}>무엇이 궁금하세요?</Text></View>
+    <Shell title={t("manual.title")}>
+      <SecondbStatusHeader text={t("manual.status")} tip={t("manual.tip")} />
+      <View style={styles.searchBox}><Text style={styles.searchText}>{t("manual.search")}</Text></View>
       <Card>
-        <Text style={styles.section}>시작하기</Text>
-        <Action label="북두칠성 7별은 무엇인가요?" />
-        <Action label="북극성(소울코어)은 어떻게 밝아지나요?" />
-        <Action label="검사 결과는 어떻게 정확해지나요?" />
+        <Text style={styles.section}>{t("manual.sectionStart")}</Text>
+        <Action label={t("manual.q1")} />
+        <Action label={t("manual.q2")} />
+        <Action label={t("manual.q3")} />
       </Card>
       <Card>
-        <Text style={styles.section}>데이터 · 프라이버시</Text>
-        <Action label="IDEN 파일은 무엇인가요?" />
-        <Action label="내 데이터는 어디에 저장되나요?" />
-        <Action label="세컨비에게 직접 물어보기" onPress={() => router.push('/secondb')} />
+        <Text style={styles.section}>{t("manual.sectionData")}</Text>
+        <Action label={t("manual.q4")} />
+        <Action label={t("manual.q5")} />
+        <Action label={t("manual.askDirect")} onPress={() => router.push('/secondb')} />
       </Card>
     </Shell>
   );
 }
 
 export function DeepSpacePlansScreen() {
+  const { t } = useTranslation("deepspace");
+  const proFeats = [t("plans.proFeat1"), t("plans.proFeat2"), t("plans.proFeat3"), t("plans.proFeat4")];
   return (
-    <Shell title="요금제">
-      <SecondbStatusHeader text="'나'를 더 깊이 쌓고 싶다면 Pro가 도와요." tip="무료로도 매일 담고 7별을 한 번씩 켤 수 있어요." mood="positive" />
+    <Shell title={t("plans.title")}>
+      <SecondbStatusHeader text={t("plans.status")} tip={t("plans.tip")} mood="positive" />
       <Card style={styles.planPro}>
-        <View style={styles.planHead}><Text style={styles.planName}>Pro</Text><Text style={styles.planBadge}>추천</Text></View>
-        <Text style={styles.planPrice}>₩9,900 <Text style={styles.planPer}>/ 월</Text></Text>
-        {["무제한 검사 · 반복 정합성","세컨비 무제한 대화 · 공상","IDEN 전체 내보내기","트렌드·점검 제안"].map((x) => <Text key={x} style={styles.planFeat}>✦ {x}</Text>)}
+        <View style={styles.planHead}><Text style={styles.planName}>Pro</Text><Text style={styles.planBadge}>{t("plans.recommended")}</Text></View>
+        <Text style={styles.planPrice}>₩9,900 <Text style={styles.planPer}>{t("plans.perMonth")}</Text></Text>
+        {proFeats.map((x) => <Text key={x} style={styles.planFeat}>✦ {x}</Text>)}
       </Card>
       <Card>
-        <View style={styles.planHead}><Text style={styles.planName}>Free</Text><Text style={styles.footer}>현재 이용 중</Text></View>
-        <Text style={styles.planFeatDim}>기본 담기 · 7별 1회 검사 · 세컨비 일 5회</Text>
+        <View style={styles.planHead}><Text style={styles.planName}>Free</Text><Text style={styles.footer}>{t("plans.currentPlan")}</Text></View>
+        <Text style={styles.planFeatDim}>{t("plans.freeFeat")}</Text>
       </Card>
-      <Pressable style={styles.primary}><Text style={styles.primaryText}>Pro 시작하기</Text></Pressable>
+      <Pressable style={styles.primary}><Text style={styles.primaryText}>{t("plans.startPro")}</Text></Pressable>
     </Shell>
   );
 }
 
 export function DeepSpacePermissionsScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="권한">
-      <SecondbStatusHeader text="더 잘 담으려면 필요한 권한만 요청해요." tip="언제든 끌 수 있어요." />
+    <Shell title={t("permissions.title")}>
+      <SecondbStatusHeader text={t("permissions.status")} tip={t("permissions.tip")} />
       <Card>
-        <Toggle label="알림" value="담기 리마인드 · 점검 제안" />
-        <Toggle label="사진 · 카메라" value="사진으로 담기" on={false} />
-        <Toggle label="마이크" value="음성으로 담기" on={false} />
+        <Toggle label={t("permissions.notif")} value={t("permissions.notifValue")} />
+        <Toggle label={t("permissions.photo")} value={t("permissions.photoValue")} on={false} />
+        <Toggle label={t("permissions.mic")} value={t("permissions.micValue")} on={false} />
       </Card>
-      <Pressable style={styles.primary}><Text style={styles.primaryText}>계속</Text></Pressable>
+      <Pressable style={styles.primary}><Text style={styles.primaryText}>{t("permissions.continue")}</Text></Pressable>
     </Shell>
   );
 }
 
 export function DeepSpaceDiscoverScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="트렌드">
-      <SecondbStatusHeader text="요즘 너의 관심이 향하는 다음 한 걸음." tip="제안을 누르면 관련 검사나 기록으로 이어져요." mood="positive" />
-      <Text style={styles.lead}>요즘 너의 관심이 향하는 다음 한 걸음</Text>
+    <Shell title={t("discover.title")}>
+      <SecondbStatusHeader text={t("discover.status")} tip={t("discover.tip")} mood="positive" />
+      <Text style={styles.lead}>{t("discover.lead")}</Text>
       <Card>
-        <View style={styles.trendHead}><Text style={styles.section}>자기이해 도구</Text><Text style={styles.delta}>▲ 관심 +32%</Text></View>
-        <Text style={styles.planFeatDim}>최근 3주간 가장 자주 담은 주제. 관련 검사 애착(ECR-S)를 해볼까요?</Text>
+        <View style={styles.trendHead}><Text style={styles.section}>{t("discover.card1Head")}</Text><Text style={styles.delta}>{t("discover.card1Delta", { percent: 32 })}</Text></View>
+        <Text style={styles.planFeatDim}>{t("discover.card1Body")}</Text>
       </Card>
       <Card>
-        <View style={styles.trendHead}><Text style={styles.section}>아침 루틴</Text><Text style={styles.delta}>▲ 관심 +18%</Text></View>
-        <Text style={styles.planFeatDim}>기분이 좋은 날의 공통점. 리듬에 기록을 더 담아볼까요?</Text>
+        <View style={styles.trendHead}><Text style={styles.section}>{t("discover.card2Head")}</Text><Text style={styles.delta}>{t("discover.card2Delta", { percent: 18 })}</Text></View>
+        <Text style={styles.planFeatDim}>{t("discover.card2Body")}</Text>
       </Card>
-      <Text style={styles.footer}>데이터가 더 쌓이면 새로운 제안이 나타납니다.</Text>
+      <Text style={styles.footer}>{t("discover.footer")}</Text>
     </Shell>
   );
 }
 
 export function DeepSpaceReviewScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="점검">
-      <SecondbStatusHeader text="내가 달라졌다면 별자리도 함께 점검해요." tip="승인해야만 반영돼요." />
-      <Text style={styles.lead}>내가 달라졌다면 별자리도 함께 점검</Text>
+    <Shell title={t("review.title")}>
+      <SecondbStatusHeader text={t("review.status")} tip={t("review.tip")} />
+      <Text style={styles.lead}>{t("review.lead")}</Text>
       <Card>
-        <Text style={styles.section}>세컨비의 제안</Text>
-        <Text style={styles.planFeatDim}>최근 기록을 보면 외향성이 올라간 것 같아요. 별 밝기를 올릴까요?</Text>
+        <Text style={styles.section}>{t("review.section")}</Text>
+        <Text style={styles.planFeatDim}>{t("review.body")}</Text>
         <View style={styles.compareRow}>
-          <View style={styles.compareCol}><Text style={styles.compareCap}>지금</Text><Text style={styles.compareNum}>61</Text></View>
+          <View style={styles.compareCol}><Text style={styles.compareCap}>{t("review.now")}</Text><Text style={styles.compareNum}>61</Text></View>
           <Text style={styles.chev}>›</Text>
-          <View style={styles.compareCol}><Text style={styles.compareCap}>제안</Text><Text style={[styles.compareNum, styles.compareNumHi]}>68</Text></View>
+          <View style={styles.compareCol}><Text style={styles.compareCap}>{t("review.suggest")}</Text><Text style={[styles.compareNum, styles.compareNumHi]}>68</Text></View>
         </View>
-        <Text style={styles.footer}>근거 기록 5건</Text>
+        <Text style={styles.footer}>{t("review.evidence", { count: 5 })}</Text>
       </Card>
-      <Text style={styles.footer}>승인해야만 반영됩니다 · 모든 제안은 기록에 남습니다</Text>
+      <Text style={styles.footer}>{t("review.footer")}</Text>
       <View style={styles.ctaRow}>
-        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>보류</Text></Pressable>
-        <Pressable style={styles.primary}><Text style={styles.primaryText}>승인</Text></Pressable>
+        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>{t("review.hold")}</Text></Pressable>
+        <Pressable style={styles.primary}><Text style={styles.primaryText}>{t("review.approve")}</Text></Pressable>
       </View>
     </Shell>
   );
 }
 
-function FilterChip({ label, active, violet }: { label: string; active?: boolean; violet?: boolean }) {
-  return (
-    <View style={[styles.fchip, active && styles.fchipActive, violet && styles.fchipViolet]}>
-      <Text style={[styles.fchipText, active && styles.fchipTextActive, violet && styles.fchipTextViolet]}>{label}</Text>
-    </View>
+function FilterChip({ label, active, violet, onPress }: { label: string; active?: boolean; violet?: boolean; onPress?: () => void }) {
+  const inner = (
+    <Text style={[styles.fchipText, active && styles.fchipTextActive, violet && styles.fchipTextViolet]}>{label}</Text>
   );
+  const chipStyle = [styles.fchip, active && styles.fchipActive, violet && styles.fchipViolet];
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={chipStyle}
+        accessibilityRole="button"
+        accessibilityState={{ selected: !!active }}
+        accessibilityLabel={label}
+      >
+        {inner}
+      </Pressable>
+    );
+  }
+  return <View style={chipStyle}>{inner}</View>;
 }
 
 function TimelineRow({ icon, title, time, tag, dim }: { icon: string; title: string; time?: string; tag?: string; dim?: boolean }) {
@@ -234,299 +404,1136 @@ function TimelineRow({ icon, title, time, tag, dim }: { icon: string; title: str
   );
 }
 
+const RECORD_KIND_FILTERS: { id: TimelineRecord["kind"] | null; labelKey: string }[] = [
+  { id: null, labelKey: "records.filterAll" },
+  { id: "journal", labelKey: "records.filterJournal" },
+  { id: "note", labelKey: "records.filterNote" },
+  { id: "audit_response", labelKey: "records.filterAudit" },
+];
+
 export function DeepSpaceRecordsScreen() {
-  // TODO: read from src/lib/records (timeline + filters). Dummy from records-archive.dc.html.
+  const { t } = useTranslation("deepspace");
+  const { userId, loading: authLoading } = useAuth();
+  const [records, setRecords] = useState<TimelineRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [kind, setKind] = useState<TimelineRecord["kind"] | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    setLoading(true);
+    listRecentRecords(userId)
+      .then((rows) => {
+        if (alive) setRecords(rows as TimelineRecord[]);
+      })
+      .catch(() => {
+        if (alive) setRecords([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
+  const groups = useMemo(() => {
+    const filtered = kind === null ? records : records.filter((r) => r.kind === kind);
+    return buildRecordsTimeline(filtered, { labels: dsTimeLabels(t) });
+  }, [records, kind, t]);
+
+  if (authLoading) {
+    return <Shell title={t("records.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  const total = records.length;
   return (
-    <Shell title="기록 보관소">
-      <SecondbStatusHeader text="지금까지 담은 조각 248개예요." tip="타입이나 시점으로 좁혀 보세요." />
-      <Text style={styles.lead}>담은 모든 것이 하나의 시간으로</Text>
-      <View style={styles.searchBox}><Text style={styles.searchText}>⌕  기록 검색</Text></View>
+    <Shell title={t("records.title")}>
+      <SecondbStatusHeader
+        text={total > 0 ? t("records.headerCount", { count: total }) : t("records.headerEmpty")}
+        tip={t("records.tip")}
+      />
+      <Text style={styles.lead}>{t("records.lead")}</Text>
       <View style={styles.filterRow}>
-        <FilterChip label="전체" active />
-        <FilterChip label="글" />
-        <FilterChip label="링크" />
-        <FilterChip label="사진" />
-        <FilterChip label="할 일" />
+        {RECORD_KIND_FILTERS.map((f) => (
+          <FilterChip
+            key={f.labelKey}
+            label={t(f.labelKey)}
+            active={kind === f.id}
+            onPress={() => setKind(f.id)}
+          />
+        ))}
       </View>
-      <Text style={styles.tlLabel}>오늘</Text>
-      <View style={styles.tlGroup}>
-        <TimelineRow icon="✎" title="온보딩을 별자리로 푸는 아이디어" time="2시간" tag="#아이디어" />
-        <TimelineRow icon="🔗" title="디자인 레퍼런스 아티클" time="5시간" dim />
-      </View>
-      <Text style={styles.tlLabel}>어제</Text>
-      <View style={styles.tlGroup}>
-        <TimelineRow icon="🎙" title="산책하며 남긴 음성 메모" time="어제" dim />
-        <TimelineRow icon="🖼" title="전시에서 찍은 사진 3장" time="어제" dim />
-      </View>
+      {loading ? (
+        <GraphLoading />
+      ) : groups.length === 0 ? (
+        <View style={styles.wikiPageOpen}>
+          <Text style={styles.wikiBody}>{kind === null ? t("records.emptyAll") : t("records.emptyKind")}</Text>
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+            <Text style={styles.primaryText}>{t("wiki.addPiece")}</Text>
+          </Pressable>
+        </View>
+      ) : (
+        groups.map((g) => (
+          <View key={g.label}>
+            <Text style={styles.tlLabel}>{g.label}</Text>
+            <View style={styles.tlGroup}>
+              {g.items.map((it) => (
+                <TimelineRow key={it.id} icon={it.icon} title={it.title} time={it.timeLabel || undefined} tag={it.tag} dim={it.dim} />
+              ))}
+            </View>
+          </View>
+        ))
+      )}
     </Shell>
   );
+}
+
+const SOURCE_KIND_ICON: Record<string, string> = {
+  inbox: "✎",
+  article: "🔗",
+  video: "🎬",
+  paper: "📄",
+  reddit: "💬",
+  code: "⌨",
+  ai_tool: "🤖",
+  self_knowledge: "🪞",
+};
+
+function sourceTitle(s: SourceRow, fallback: string): string {
+  const title = s.title?.trim();
+  return title && title.length > 0 ? title : fallback;
 }
 
 export function DeepSpaceInboxScreen() {
-  // TODO: wire triage queue + archive/discard actions. Dummy from records-archive.dc.html.
+  const { t, i18n } = useTranslation("deepspace");
+  const { userId, loading: authLoading, isMinor } = useAuth();
+  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const [sources, setSources] = useState<SourceRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [suggestBusyId, setSuggestBusyId] = useState<string | null>(null);
+
+  const load = useMemo(
+    () => async (uid: string) => {
+      const rows = await listSources(uid, { ingested: false, limit: 50 });
+      setSources(rows);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    setLoading(true);
+    load(userId)
+      .catch(() => {
+        if (alive) setSources([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, load]);
+
+  async function promote(s: SourceRow) {
+    if (!userId) return;
+    setBusyId(s.id);
+    try {
+      await generateSourcePage(userId, s.id);
+      await load(userId);
+    } catch {
+      // best-effort; the row stays in the queue to retry
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function discard(s: SourceRow) {
+    if (!userId) return;
+    setBusyId(s.id);
+    try {
+      await deleteSource(userId, s.id);
+      await load(userId);
+    } catch {
+      // best-effort
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // Accept one AI-suggested tag onto the source before promotion.
+  async function acceptTag(s: SourceRow, tag: string) {
+    if (!userId || s.tags.includes(tag)) return;
+    setBusyId(s.id);
+    try {
+      await updateSourceTags(userId, s.id, [...s.tags, tag]);
+      await load(userId);
+    } catch {
+      // best-effort; the tag just doesn't stick
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // On-demand Phase 1 (C1/C3/C9 inside) so the suggestion chips have something
+  // to show when nothing was extracted at capture time.
+  async function getSuggestions(s: SourceRow) {
+    if (!userId) return;
+    setSuggestBusyId(s.id);
+    try {
+      await runPhase1({ userId, sourceId: s.id, locale, minor: isMinor === true });
+      await load(userId);
+    } catch {
+      // best-effort; the button can be tapped again
+    } finally {
+      setSuggestBusyId(null);
+    }
+  }
+
+  if (authLoading) {
+    return <Shell title={t("inbox.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  const pending = sources.length;
+  const [current, ...queue] = sources;
+  const suggestions = current ? suggestedTags(current) : [];
+
   return (
-    <Shell title="정리함">
-      <SecondbStatusHeader text="정리 안 된 조각 7개가 기다려요." tip="한 개씩 보내면 금방 비워져요." />
-      <Text style={styles.lead}>남은 7개만 비우면 끝나요</Text>
-      <View style={styles.progressRow}>
-        <View style={styles.progressTrack}><View style={[styles.progressFill, { width: "30%" }]} /></View>
-        <Text style={styles.progressLabel}>3 / 10</Text>
-      </View>
-      <Card style={styles.triageCard}>
-        <View style={styles.triageMeta}><Text style={styles.tlIcon}>🔗</Text><Text style={styles.metaLabel}>링크 · 방금 담음</Text></View>
-        <Text style={styles.triageBody}>감정 연구의 최신 메타분석 아티클을 담았어요.</Text>
-        <Text style={styles.footerLeft}>세컨비 추천 태그</Text>
-        <View style={styles.filterRow}>
-          <FilterChip label="#감정" active />
-          <FilterChip label="#연구" active />
-          <FilterChip label="+ 직접" />
+    <Shell title={t("inbox.title")}>
+      <SecondbStatusHeader
+        text={pending > 0 ? t("inbox.headerPending", { count: pending }) : t("inbox.headerEmpty")}
+        tip={t("inbox.tip")}
+      />
+      {loading ? (
+        <GraphLoading />
+      ) : pending === 0 ? (
+        <View style={styles.wikiPageOpen}>
+          <Text style={styles.wikiBody}>{t("inbox.emptyDone")}</Text>
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+            <Text style={styles.primaryText}>{t("wiki.addPiece")}</Text>
+          </Pressable>
         </View>
-        <View style={styles.ctaRow}>
-          <View style={styles.iconBtn}><Text style={styles.iconBtnText}>🗑</Text></View>
-          <Pressable style={styles.primary}><Text style={styles.primaryText}>보관하기</Text></Pressable>
-        </View>
-      </Card>
-      <Text style={styles.tlLabel}>다음 차례</Text>
-      <View style={{ gap: 7 }}>
-        <View style={styles.queueItem}><Text style={styles.tlIcon}>✎</Text><Text style={styles.queueText} numberOfLines={1}>회의 중 떠오른 메모</Text></View>
-        <View style={[styles.queueItem, styles.queueItemDim]}><Text style={styles.tlIcon}>🎙</Text><Text style={styles.queueText} numberOfLines={1}>통화 후 음성 메모</Text></View>
-      </View>
+      ) : (
+        <>
+          <Text style={styles.lead}>{t("inbox.remaining", { count: pending })}</Text>
+          <Card style={styles.triageCard}>
+            <View style={styles.triageMeta}>
+              <Text style={styles.tlIcon}>{SOURCE_KIND_ICON[current.kind] ?? "•"}</Text>
+              <Text style={styles.metaLabel}>{current.kind}</Text>
+            </View>
+            <Text style={styles.triageBody} numberOfLines={3}>{sourceTitle(current, t("inbox.untitled"))}</Text>
+            {current.tags.length > 0 ? (
+              <View style={styles.filterRow}>
+                {current.tags.slice(0, 6).map((tag) => (
+                  <FilterChip key={tag} label={`#${tag}`} active />
+                ))}
+              </View>
+            ) : null}
+            {suggestions.length > 0 ? (
+              <>
+                <Text style={styles.footerLeft}>{t("inbox.suggestedLabel")}</Text>
+                <View style={styles.filterRow}>
+                  {suggestions.map((tag) => (
+                    <FilterChip
+                      key={tag}
+                      label={`+ ${tag}`}
+                      onPress={() => void acceptTag(current, tag)}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : (
+              <Pressable
+                onPress={() => void getSuggestions(current)}
+                disabled={busyId !== null || suggestBusyId !== null}
+                style={styles.smallBtnGhost}
+                accessibilityRole="button"
+                accessibilityLabel={t("inbox.getSuggestions")}
+              >
+                <Text style={styles.smallBtnGhostText}>
+                  {suggestBusyId === current.id ? t("inbox.gettingSuggestions") : t("inbox.getSuggestions")}
+                </Text>
+              </Pressable>
+            )}
+            <View style={styles.ctaRow}>
+              <Pressable
+                style={styles.iconBtn}
+                onPress={() => void discard(current)}
+                disabled={busyId !== null}
+                accessibilityRole="button"
+                accessibilityLabel={t("inbox.a11yDiscard")}
+              >
+                <Text style={styles.iconBtnText}>🗑</Text>
+              </Pressable>
+              <Pressable
+                style={styles.primary}
+                onPress={() => void promote(current)}
+                disabled={busyId !== null}
+                accessibilityRole="button"
+                accessibilityLabel={t("inbox.a11yArchive")}
+              >
+                <Text style={styles.primaryText}>{busyId === current.id ? t("inbox.archiving") : t("inbox.archive")}</Text>
+              </Pressable>
+            </View>
+          </Card>
+          {queue.length > 0 ? (
+            <>
+              <Text style={styles.tlLabel}>{t("inbox.nextUp")}</Text>
+              <View style={{ gap: 7 }}>
+                {queue.slice(0, 8).map((s, i) => (
+                  <View key={s.id} style={[styles.queueItem, i > 0 && styles.queueItemDim]}>
+                    <Text style={styles.tlIcon}>{SOURCE_KIND_ICON[s.kind] ?? "•"}</Text>
+                    <Text style={styles.queueText} numberOfLines={1}>{sourceTitle(s, t("inbox.untitled"))}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : null}
+        </>
+      )}
     </Shell>
   );
 }
+
+// Fixed satellite slots around the central god-node; we light up as many as
+// there are real hubs (capped at 4). STEP 3 will replace this with true
+// clusters — for now it honestly mirrors the top-cited pages.
+const RESEARCH_SAT = [
+  { cx: 70, cy: 40, r: 5, fill: colors.cyan, stroke: colors.borderHi },
+  { cx: 200, cy: 38, r: 4, fill: colors.cyanDim, stroke: colors.borderHi },
+  { cx: 95, cy: 92, r: 4, fill: colors.soul, stroke: colors.soulLine },
+  { cx: 185, cy: 90, r: 4, fill: colors.cyanDim, stroke: colors.border },
+] as const;
 
 export function DeepSpaceResearchScreen() {
-  // TODO: render real clusters + correlations from the graph engine. Dummy from records-archive.dc.html.
+  const { t } = useTranslation("deepspace");
+  const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
+  const view = useMemo(() => buildDeepResearchView(pages, edges), [pages, edges]);
+
+  // propose->ratify: AI-proposed (inferred) links awaiting the user's verdict.
+  const [proposals, setProposals] = useState<InferredLinkDetail[]>([]);
+  const [proposing, setProposing] = useState(false);
+  const [actingKey, setActingKey] = useState<string | null>(null);
+
+  const loadProposals = useMemo(
+    () => async (uid: string) => {
+      const rows = await listInferredLinkDetails(uid).catch(() => [] as InferredLinkDetail[]);
+      setProposals(rows);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!userId) return;
+    void loadProposals(userId);
+  }, [userId, loadProposals]);
+
+  async function findProposals() {
+    if (!userId || proposing) return;
+    setProposing(true);
+    try {
+      await proposeAllRelatedLinks(userId);
+      await loadProposals(userId);
+    } catch {
+      // best-effort; nothing new appears
+    } finally {
+      setProposing(false);
+    }
+  }
+
+  async function ratify(p: InferredLinkDetail) {
+    if (!userId) return;
+    const key = `${p.from_page}|${p.to_page}`;
+    setActingKey(key);
+    try {
+      await ratifyLink(userId, p.from_page, p.to_page);
+      await loadProposals(userId);
+    } catch {
+      // best-effort
+    } finally {
+      setActingKey(null);
+    }
+  }
+
+  async function reject(p: InferredLinkDetail) {
+    if (!userId) return;
+    const key = `${p.from_page}|${p.to_page}`;
+    setActingKey(key);
+    try {
+      await rejectInferredLink(userId, p.from_page, p.to_page);
+      await loadProposals(userId);
+    } catch {
+      // best-effort
+    } finally {
+      setActingKey(null);
+    }
+  }
+
+  if (authLoading) {
+    return <Shell title={t("research.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  const satellites = RESEARCH_SAT.slice(0, Math.max(1, Math.min(view.hubs.length, 4)));
+  const headerText =
+    view.headline !== null
+      ? t("research.headerFound", { count: view.edgeCount })
+      : t("research.headerNone");
+
   return (
-    <Shell title="연결 찾기">
-      <SecondbStatusHeader text="기록 사이에서 3개의 연결을 찾았어요." tip="연결을 누르면 근거가 보여요." mood="positive" />
-      <Text style={styles.lead}>흩어진 기록이 이렇게 이어져요</Text>
-      <View style={styles.filterRow}>
-        <FilterChip label="창작 · 12" violet />
-        <FilterChip label="관계 · 8" />
-        <FilterChip label="불안 · 5" />
-      </View>
-      <View style={styles.researchGraph}>
-        <Svg width="100%" height={118} viewBox="0 0 260 118">
-          <Line x1={70} y1={40} x2={135} y2={62} stroke={colors.borderHi} strokeWidth={1} />
-          <Line x1={135} y1={62} x2={200} y2={38} stroke={colors.borderHi} strokeWidth={1} />
-          <Line x1={135} y1={62} x2={95} y2={92} stroke={colors.soulLine} strokeWidth={1} />
-          <Line x1={135} y1={62} x2={185} y2={90} stroke={colors.border} strokeWidth={1} />
-          <Circle cx={70} cy={40} r={5} fill={colors.cyan} />
-          <Circle cx={200} cy={38} r={4} fill={colors.cyanDim} />
-          <Circle cx={95} cy={92} r={4} fill={colors.soul} />
-          <Circle cx={185} cy={90} r={4} fill={colors.cyanDim} />
-          <Circle cx={135} cy={62} r={8} fill={colors.textTitle} />
-        </Svg>
-        <Text style={styles.graphTag}>창작 군집</Text>
-      </View>
-      <View style={styles.insightViolet}>
-        <Text style={styles.insightVioletText}>만드는 일을 기록한 날은 기분도 높았어요. 둘이 함께 움직여요.</Text>
-        <View style={styles.evRow}><Text style={styles.evChip}>📎 기록 9건 근거</Text><Text style={styles.evChip}>상관 0.71</Text></View>
-      </View>
+    <Shell title={t("research.title")}>
+      <SecondbStatusHeader text={headerText} tip={t("research.tip")} mood="positive" />
+      <Text style={styles.lead}>{t("research.lead")}</Text>
+      {loading ? (
+        <GraphLoading />
+      ) : view.pageCount === 0 ? (
+        <View style={styles.insightViolet}>
+          <Text style={styles.insightVioletText}>{t("research.emptyInsight")}</Text>
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+            <Text style={styles.primaryText}>{t("wiki.addPiece")}</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <>
+          {view.clusters.length > 0 ? (
+            <View style={styles.filterRow}>
+              {view.clusters.map((c, i) => (
+                <FilterChip key={c.tag} label={`${c.tag} · ${c.count}`} violet={i === 0} />
+              ))}
+            </View>
+          ) : null}
+          <View style={styles.researchGraph}>
+            <Svg width="100%" height={118} viewBox="0 0 260 118">
+              {satellites.map((s, i) => (
+                <Line key={`l${i}`} x1={135} y1={62} x2={s.cx} y2={s.cy} stroke={s.stroke} strokeWidth={1} />
+              ))}
+              {satellites.map((s, i) => (
+                <Circle key={`c${i}`} cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} />
+              ))}
+              <Circle cx={135} cy={62} r={8} fill={colors.textTitle} />
+            </Svg>
+            <Text style={styles.graphTag}>
+              {view.clusters.length > 0
+                ? t("research.clusterTag", { tag: view.clusters[0].tag })
+                : t("research.clusterDefault")}
+            </Text>
+          </View>
+          {view.headline !== null ? (
+            <View style={styles.insightViolet}>
+              <Text style={styles.insightVioletText}>{t("research.headline", { title: view.headline.title })}</Text>
+              <View style={styles.evRow}>
+                <Text style={styles.evChip}>📎 {t("research.chipPages", { count: view.pageCount })}</Text>
+                <Text style={styles.evChip}>{t("research.chipLinks", { count: view.headline.inDegree })}</Text>
+                {view.orphanCount > 0 ? <Text style={styles.evChip}>{t("research.chipOrphans", { count: view.orphanCount })}</Text> : null}
+              </View>
+            </View>
+          ) : (
+            <View style={styles.insightViolet}>
+              <Text style={styles.insightVioletText}>{t("research.noLinks")}</Text>
+            </View>
+          )}
+          {view.surprise !== null ? (
+            <View style={styles.insightViolet}>
+              <Text style={styles.insightVioletText}>
+                {t("research.surprise", { from: view.surprise.fromTitle, to: view.surprise.toTitle })}
+              </Text>
+              <View style={styles.evRow}>
+                <Text style={styles.evChip}>{t("research.islandChip", { count: view.islandCount })}</Text>
+              </View>
+            </View>
+          ) : null}
+
+          {/* propose->ratify: AI proposes semantic links, the user decides. */}
+          <Text style={styles.tlLabel}>{t("research.proposalsLabel")}</Text>
+          {proposals.length === 0 ? (
+            <View style={styles.insightViolet}>
+              <Text style={styles.insightVioletText}>{t("research.noProposals")}</Text>
+            </View>
+          ) : (
+            proposals.map((p) => {
+              const key = `${p.from_page}|${p.to_page}`;
+              const busy = actingKey === key;
+              return (
+                <View key={key} style={styles.opsStep}>
+                  <View style={styles.mapRow}>
+                    <Text style={styles.mapFrom} numberOfLines={1}>{p.from_title}</Text>
+                    <Text style={styles.mapArrow}>↔</Text>
+                    <Text style={styles.mapTo} numberOfLines={1}>{p.to_title}</Text>
+                  </View>
+                  <View style={styles.opsStepFoot}>
+                    <Text style={styles.evChip}>{t("research.confidence", { percent: Math.round(p.confidence * 100) })}</Text>
+                    <Pressable style={styles.smallBtnGhost} onPress={() => void reject(p)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("research.reject")}>
+                      <Text style={styles.smallBtnGhostText}>{t("research.reject")}</Text>
+                    </Pressable>
+                    <Pressable style={styles.smallBtn} onPress={() => void ratify(p)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("research.ratify")}>
+                      <Text style={styles.smallBtnText}>{busy ? t("research.ratifying") : t("research.ratify")}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })
+          )}
+          <Pressable
+            style={[styles.smallBtnGhost, { marginLeft: 0, alignSelf: "flex-start" }, proposing && { opacity: 0.6 }]}
+            onPress={() => void findProposals()}
+            disabled={proposing}
+            accessibilityRole="button"
+            accessibilityLabel={t("research.getProposals")}
+          >
+            <Text style={styles.smallBtnGhostText}>{proposing ? t("research.gettingProposals") : t("research.getProposals")}</Text>
+          </Pressable>
+        </>
+      )}
     </Shell>
   );
 }
 
+type ExportFormat = "iden" | "markdown" | "json" | "pdf";
+const FORMAT_CARDS: { id: ExportFormat; name: string; descKey: string }[] = [
+  { id: "iden", name: ".iden", descKey: "formats.idenDesc" },
+  { id: "markdown", name: "Markdown", descKey: "formats.markdownDesc" },
+  { id: "json", name: "JSON", descKey: "formats.jsonDesc" },
+  { id: "pdf", name: "PDF", descKey: "formats.pdfDesc" },
+];
+
 export function DeepSpaceFormatsScreen() {
-  // TODO: wire format selection + scope toggles to the export pipeline. Dummy from records-archive.dc.html.
+  const { t, i18n } = useTranslation("deepspace");
+  const { userId, loading: authLoading } = useAuth();
+  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+
+  const [format, setFormat] = useState<ExportFormat>("iden");
+  const [includeRecords, setIncludeRecords] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [result, setResult] = useState<{ text: string; name: string } | null>(null);
+  const [note, setNote] = useState<"copied" | "copyFailed" | "error" | null>(null);
+
+  async function runExport() {
+    if (!userId || exporting) return;
+    setExporting(true);
+    setResult(null);
+    setNote(null);
+    try {
+      if (format === "iden") {
+        const r = await exportIden(userId, { locale });
+        setResult({ text: r.iden, name: r.idenFilename });
+      } else if (format === "pdf") {
+        const r = await exportIden(userId, { locale });
+        setResult({ text: r.html, name: r.htmlFilename });
+      } else if (format === "markdown") {
+        const r = await exportUserWiki(userId, { locale, includeRecords });
+        setResult({ text: r.prompt, name: "2nd-brain-wiki.md" });
+      } else {
+        const doc = await buildIdenDoc(userId, { locale });
+        setResult({ text: JSON.stringify(doc, null, 2), name: "2nd-brain-iden.json" });
+      }
+    } catch {
+      setNote("error");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function copyOrShare() {
+    if (!result) return;
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(result.text);
+        setNote("copied");
+      } catch {
+        setNote("copyFailed");
+      }
+    } else {
+      void Share.share({ message: result.text }).catch(() => {});
+    }
+  }
+
+  function download() {
+    if (!result || typeof document === "undefined") return;
+    try {
+      const blob = new Blob([result.text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = result.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // best-effort
+    }
+  }
+
+  if (authLoading) {
+    return <Shell title={t("formats.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  const canDownload = typeof document !== "undefined";
   return (
-    <Shell title="내보내기 형식">
-      <SecondbStatusHeader text="너의 정체성을 어디로든 가져갈 수 있어요." tip="형식을 고르고 범위를 정하세요." />
-      <Text style={styles.lead}>나를 어디로든 가져가요</Text>
+    <Shell title={t("formats.title")}>
+      <SecondbStatusHeader text={t("formats.status")} tip={t("formats.tip")} />
+      <Text style={styles.lead}>{t("formats.lead")}</Text>
       <View style={styles.formatGrid}>
-        <View style={[styles.formatCard, styles.formatCardSel]}><Text style={[styles.formatName, styles.formatNameSel]}>.iden</Text><Text style={styles.formatDesc}>포터블 정체성 파일</Text></View>
-        <View style={styles.formatCard}><Text style={styles.formatName}>Markdown</Text><Text style={styles.formatDesc}>Obsidian 친화</Text></View>
-        <View style={styles.formatCard}><Text style={styles.formatName}>JSON</Text><Text style={styles.formatDesc}>개발자 · API</Text></View>
-        <View style={styles.formatCard}><Text style={styles.formatName}>PDF</Text><Text style={styles.formatDesc}>읽기 · 인쇄용</Text></View>
+        {FORMAT_CARDS.map((f) => {
+          const sel = format === f.id;
+          return (
+            <Pressable
+              key={f.id}
+              onPress={() => setFormat(f.id)}
+              style={[styles.formatCard, sel && styles.formatCardSel]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: sel }}
+              accessibilityLabel={f.name}
+            >
+              <Text style={[styles.formatName, sel && styles.formatNameSel]}>{f.name}</Text>
+              <Text style={styles.formatDesc}>{t(f.descKey)}</Text>
+            </Pressable>
+          );
+        })}
       </View>
-      <Text style={styles.tlLabel}>포함 범위</Text>
+      <Text style={styles.tlLabel}>{t("formats.scopeLabel")}</Text>
       <Card>
-        <Toggle label="성격 · 애착 모델" on />
-        <Toggle label="회상 · 내러티브" on />
-        <Toggle label="기록 원문 248개" on={false} />
+        <Toggle label={t("formats.scope1")} on />
+        <Toggle label={t("formats.scope2")} on />
+        <Toggle label={t("formats.scope3")} on={includeRecords} onPress={() => setIncludeRecords((v) => !v)} />
       </Card>
-      <Pressable style={styles.soulPrimary}><Text style={styles.primaryText}>.iden 내보내기</Text></Pressable>
+      <Pressable style={[styles.soulPrimary, exporting && { opacity: 0.6 }]} onPress={() => void runExport()} disabled={exporting}>
+        <Text style={styles.primaryText}>{exporting ? t("formats.exporting") : t("formats.export")}</Text>
+      </Pressable>
+      {note === "error" ? <Text style={styles.opsReason}>{t("formats.exportError")}</Text> : null}
+      {result !== null ? (
+        <View style={styles.wikiPageOpen}>
+          <View style={styles.wikiPageHead}>
+            <Text style={styles.wikiPageTitle} numberOfLines={1}>{result.name}</Text>
+            <Text style={styles.wikiRowConn}>{t("formats.previewChars", { count: result.text.length })}</Text>
+          </View>
+          <ScrollView style={styles.recBody} nestedScrollEnabled>
+            <Text style={styles.recBodyText} selectable>{result.text.slice(0, 4000)}</Text>
+          </ScrollView>
+          {note === "copied" ? <Text style={styles.delta}>{t("formats.copied")}</Text> : null}
+          {note === "copyFailed" ? <Text style={styles.opsReason}>{t("formats.copyFailed")}</Text> : null}
+          <View style={styles.ctaRow}>
+            <Pressable style={styles.smallBtnGhost} onPress={() => void copyOrShare()} accessibilityRole="button">
+              <Text style={styles.smallBtnGhostText}>{typeof navigator !== "undefined" && navigator.clipboard ? t("formats.copy") : t("formats.share")}</Text>
+            </Pressable>
+            {canDownload ? (
+              <Pressable style={styles.smallBtnGhost} onPress={download} accessibilityRole="button">
+                <Text style={styles.smallBtnGhostText}>{t("formats.download")}</Text>
+              </Pressable>
+            ) : null}
+            <Pressable style={styles.smallBtnGhost} onPress={() => { setResult(null); setNote(null); }} accessibilityRole="button">
+              <Text style={styles.smallBtnGhostText}>{t("formats.close")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
     </Shell>
   );
 }
 
 export function DeepSpaceImportScreen() {
-  // TODO: wire external connectors + review-before-import. Dummy from records-archive.dc.html.
+  // Static import mockup; external connectors + review-before-import are a follow-up.
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="외부 가져오기">
-      <SecondbStatusHeader text="다른 앱의 기록도 불러올 수 있어요." tip="가져오기 전 항상 네가 확인해요." />
-      <Text style={styles.lead}>다른 곳의 기록도 한 곳으로</Text>
+    <Shell title={t("import.title")}>
+      <SecondbStatusHeader text={t("import.status")} tip={t("import.tip")} />
+      <Text style={styles.lead}>{t("import.lead")}</Text>
       <View style={{ gap: 8 }}>
-        <View style={styles.sourceRow}><Text style={styles.tlIcon}>🗒</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>Notion</Text><Text style={styles.sourceDesc}>페이지 · 데이터베이스</Text></View><Text style={styles.sourceCta}>연결</Text></View>
-        <View style={styles.sourceRow}><Text style={styles.tlIcon}>🔮</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>Obsidian</Text><Text style={styles.sourceDesc}>마크다운 볼트</Text></View><Text style={styles.sourceCta}>연결</Text></View>
-        <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>❤</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>건강</Text><Text style={styles.sourceDesc}>수면 · 활동</Text></View><Text style={styles.sourceSoon}>준비 중</Text></View>
+        <View style={styles.sourceRow}><Text style={styles.tlIcon}>🗒</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>Notion</Text><Text style={styles.sourceDesc}>{t("import.notionDesc")}</Text></View><Text style={styles.sourceCta}>{t("import.connect")}</Text></View>
+        <View style={styles.sourceRow}><Text style={styles.tlIcon}>🔮</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>Obsidian</Text><Text style={styles.sourceDesc}>{t("import.obsidianDesc")}</Text></View><Text style={styles.sourceCta}>{t("import.connect")}</Text></View>
+        <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>❤</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>{t("import.healthName")}</Text><Text style={styles.sourceDesc}>{t("import.healthDesc")}</Text></View><Text style={styles.sourceSoon}>{t("import.soon")}</Text></View>
       </View>
       <Card>
-        <Text style={styles.reviewLabel}>가져오기 전 검토</Text>
-        <View style={styles.mapRow}><Text style={styles.mapFrom}>Notion 제목</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>기록 제목</Text></View>
-        <View style={styles.mapRow}><Text style={styles.mapFrom}>태그</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>자동 태그</Text></View>
-        <View style={styles.mapRow}><Text style={styles.mapFrom}>생성일</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>담은 시점</Text></View>
-        <Text style={styles.footerLeft}>42개 항목을 가져와요. 네 승인 없이는 아무것도 반영되지 않아요.</Text>
+        <Text style={styles.reviewLabel}>{t("import.reviewLabel")}</Text>
+        <View style={styles.mapRow}><Text style={styles.mapFrom}>{t("import.mapFrom1")}</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>{t("import.mapTo1")}</Text></View>
+        <View style={styles.mapRow}><Text style={styles.mapFrom}>{t("import.mapFrom2")}</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>{t("import.mapTo2")}</Text></View>
+        <View style={styles.mapRow}><Text style={styles.mapFrom}>{t("import.mapFrom3")}</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>{t("import.mapTo3")}</Text></View>
+        <Text style={styles.footerLeft}>{t("import.footer", { count: 42 })}</Text>
       </Card>
       <View style={styles.ctaRow}>
-        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>취소</Text></Pressable>
-        <Pressable style={[styles.primary, styles.primaryWide]}><Text style={styles.primaryText}>42개 가져오기</Text></Pressable>
+        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>{t("import.cancel")}</Text></Pressable>
+        <Pressable style={[styles.primary, styles.primaryWide]}><Text style={styles.primaryText}>{t("import.importCount", { count: 42 })}</Text></Pressable>
       </View>
     </Shell>
   );
+}
+
+interface DetailRecord {
+  id: string;
+  kind: string;
+  body: string | null;
+  topic: string | null;
+  summary: string | null;
+  conclusion: string | null;
+  tags: string[] | null;
+  created_at: string;
+}
+
+const RECORD_KIND_KEY: Record<string, string> = {
+  journal: "recordDetail.kindJournal",
+  note: "recordDetail.kindNote",
+  audit_response: "recordDetail.kindAudit",
+};
+
+function recordTitle(r: DetailRecord, fallback: string): string {
+  const s = r.summary?.trim() || r.topic?.trim();
+  if (s) return s;
+  const body = r.body?.trim();
+  if (body) {
+    const line = body.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+    if (line) return line;
+  }
+  return fallback;
 }
 
 export function DeepSpaceRecordDetailScreen() {
-  // TODO: read the real record by id (useLocalSearchParams) + connections. Dummy from record-detail.dc.html.
+  const { t } = useTranslation("deepspace");
+  const { userId, loading: authLoading } = useAuth();
+  const params = useLocalSearchParams();
+  const idParam = params.id;
+  const recordId = Array.isArray(idParam) ? idParam[0] : idParam;
+
+  const [record, setRecord] = useState<DetailRecord | null>(null);
+  const [all, setAll] = useState<TimelineRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!userId || !recordId) {
+      setLoading(false);
+      return;
+    }
+    let alive = true;
+    setLoading(true);
+    Promise.all([getRecordById(userId, recordId), listRecentRecords(userId)])
+      .then(([r, rows]) => {
+        if (!alive) return;
+        setRecord((r as DetailRecord) ?? null);
+        setAll(rows as TimelineRecord[]);
+      })
+      .catch(() => {
+        if (alive) setRecord(null);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, recordId]);
+
+  async function handleDelete() {
+    if (!userId || !record) return;
+    setDeleting(true);
+    try {
+      await deleteRecord(userId, record.id);
+      router.back();
+    } catch {
+      setDeleting(false);
+    }
+  }
+
+  if (authLoading) {
+    return <Shell title={t("recordDetail.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  if (loading) {
+    return <Shell title={t("recordDetail.title")}><GraphLoading /></Shell>;
+  }
+  if (record === null) {
+    return (
+      <Shell title={t("recordDetail.title")}>
+        <View style={styles.wikiPageOpen}>
+          <Text style={styles.wikiBody}>{t("recordDetail.notFound")}</Text>
+          <Pressable style={styles.primary} onPress={() => router.replace("/records")}>
+            <Text style={styles.primaryText}>{t("recordDetail.toArchive")}</Text>
+          </Pressable>
+        </View>
+      </Shell>
+    );
+  }
+
+  const related = relatedByTag(record.id, record.tags, all);
+  const kindKey = RECORD_KIND_KEY[record.kind];
+  const kindLabel = kindKey ? t(kindKey) : t("recordDetail.kindFallback");
+  const kindIcon = RECORD_KIND_ICON[record.kind] ?? "•";
+  const recencyOpts = { labels: dsRecencyLabels(t) };
+
   return (
-    <Shell title="기록 상세">
-      <SecondbStatusHeader text="이 조각은 3개의 기록과 이어져 있어요." tip="연결을 누르면 그 렌즈로 갈 수 있어요." />
+    <Shell title={t("recordDetail.title")}>
+      <SecondbStatusHeader
+        text={related.length > 0 ? t("recordDetail.headerLinked", { count: related.length }) : t("recordDetail.headerAlone")}
+        tip={t("recordDetail.tip")}
+      />
       <View style={styles.recMetaRow}>
-        <Text style={styles.recMetaType}>✎ 글</Text>
+        <Text style={styles.recMetaType}>{kindIcon} {kindLabel}</Text>
         <Text style={styles.recMetaDot}>·</Text>
-        <Text style={styles.recMeta}>2시간 전</Text>
+        <Text style={styles.recMeta}>{recencyLabel(record.created_at, recencyOpts) || t("recordDetail.kindFallback")}</Text>
         <Text style={styles.recMetaDot}>·</Text>
-        <Text style={styles.recMeta}>직접 작성</Text>
+        <Text style={styles.recMeta}>{t("recordDetail.author")}</Text>
       </View>
-      <Text style={styles.recTitle}>온보딩을 별자리로 푸는 아이디어</Text>
-      <View style={styles.recBody}>
-        <Text style={styles.recBodyText}>오늘 회의에서 나온 생각. 첫 화면을 빈 밤하늘로 두고, 사용자가 기록을 남길 때마다 별이 하나씩 켜지면 어떨까. 북극성을 '되고 싶은 나'로 두면 방향이 생긴다.</Text>
-      </View>
-      <View style={styles.filterRow}>
-        <FilterChip label="#아이디어" active />
-        <FilterChip label="#온보딩" active />
-        <FilterChip label="+ 직접" />
-      </View>
-      <View style={styles.insightViolet}>
-        <Text style={styles.insightVioletText}>이 기록은 미래의 나 별과 이어져요.</Text>
-        <View style={styles.evRow}><Text style={styles.evChip}>📎 미래의 나로 가기</Text></View>
-      </View>
-      <Text style={styles.tlLabel}>연결된 기록</Text>
-      <View style={styles.tlGroup}>
-        <TimelineRow icon="🔗" title="디자인 레퍼런스 아티클" time="5시간" dim />
-        <TimelineRow icon="🎙" title="산책하며 남긴 음성 메모" time="어제" dim />
-      </View>
+      <Text style={styles.recTitle}>{recordTitle(record, t("recordDetail.kindFallback"))}</Text>
+      {record.body && record.body.trim().length > 0 ? (
+        <View style={styles.recBody}>
+          <Text style={styles.recBodyText}>{record.body}</Text>
+        </View>
+      ) : null}
+      {record.tags && record.tags.length > 0 ? (
+        <View style={styles.filterRow}>
+          {record.tags.slice(0, 5).map((tag) => (
+            <FilterChip key={tag} label={`#${tag}`} active />
+          ))}
+        </View>
+      ) : null}
+      {record.conclusion && record.conclusion.trim().length > 0 ? (
+        <View style={styles.insightViolet}>
+          <Text style={styles.insightVioletText}>{record.conclusion}</Text>
+        </View>
+      ) : null}
+      {related.length > 0 ? (
+        <>
+          <Text style={styles.tlLabel}>{t("recordDetail.linkedRecords")}</Text>
+          <View style={styles.tlGroup}>
+            {related.map((r) => (
+              <TimelineRow
+                key={r.id}
+                icon={RECORD_KIND_ICON[r.kind] ?? "•"}
+                title={recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}
+                time={recencyLabel(r.created_at, recencyOpts) || undefined}
+                dim
+              />
+            ))}
+          </View>
+        </>
+      ) : null}
       <View style={styles.ctaRow}>
-        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>편집</Text></Pressable>
-        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>이동</Text></Pressable>
-        <View style={[styles.iconBtn, styles.iconBtnDanger]}><Text style={styles.iconBtnText}>🗑</Text></View>
+        <Pressable style={styles.secondary} onPress={() => router.push("/capture")}>
+          <Text style={styles.secondaryText}>{t("recordDetail.newRecord")}</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.iconBtn, styles.iconBtnDanger]}
+          onPress={() => void handleDelete()}
+          disabled={deleting}
+          accessibilityRole="button"
+          accessibilityLabel={t("recordDetail.a11yDelete")}
+        >
+          <Text style={styles.iconBtnText}>🗑</Text>
+        </Pressable>
       </View>
     </Shell>
   );
 }
 
+// Calendar hand-off needs a start time even for untimed ideas; "tomorrow 9am"
+// is an honest, editable default (the calendar app shows the form before save).
+function opsNextMorningIso(now: Date = new Date()): string {
+  const next = new Date(now);
+  next.setDate(next.getDate() + 1);
+  next.setHours(9, 0, 0, 0);
+  return next.toISOString();
+}
+
+type OpsRunState = "idle" | "working" | "empty" | "error" | "limit" | "off";
+
 export function DeepSpaceOpsScreen() {
-  // TODO: wire domain selection + recommendations + calendar/share hand-off. Dummy from ops-wiki.dc.html.
+  const { t, i18n } = useTranslation("ops");
+  const { userId, loading: authLoading, isMinor, hasProfile } = useAuth();
+  const progression = useProgression();
+  const locale = systemLocaleFor(i18n.language);
+  // The model anchors on the EN canonical domain label regardless of UI language.
+  const tEn = useMemo(() => i18n.getFixedT("en", "ops"), [i18n]);
+
+  const [group, setGroup] = useState<OpsGroupId | null>(null);
+  const [domain, setDomain] = useState<OpsDomainId | null>(null);
+  const [recs, setRecs] = useState<OpsRecommendation[]>([]);
+  const [runState, setRunState] = useState<OpsRunState>("idle");
+  const [usedToday, setUsedToday] = useState(0);
+  const [recommendations, setRecommendations] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void fetchPrivacyPrefs(userId).then((v) => {
+      if (!cancelled) setRecommendations(v?.recommendations ?? false);
+    });
+    void readOpsUsage(userId).then((c) => {
+      if (!cancelled) setUsedToday(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  if (authLoading) {
+    return <Shell title="루틴"><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+
+  const dailyLimit = OPS_DAILY_LIMIT[progression.tier];
+  const limitReached = usedToday >= dailyLimit;
+  const domains = group ? domainsForGroup(group) : [];
+
+  async function runRecommend() {
+    if (!userId || !domain || runState === "working") return;
+    // D-20 / PROTOCOL §36: honor the minor recommendations lock at the gate
+    // (mirrors OpsLegacy). Adults are unaffected; a server-locked minor never
+    // reaches the LLM snapshot.
+    if (!recommendationsAllowed(isMinor, recommendations)) {
+      setRunState("off");
+      return;
+    }
+    if (limitReached) {
+      setRunState("limit");
+      return;
+    }
+    setRunState("working");
+    setRecs([]);
+    try {
+      const out = await recommendForDomain({
+        userId,
+        locale,
+        domainId: domain,
+        domainLabel: tEn(`domains.${domain}`),
+        minor: isMinor === true,
+      });
+      const used = await bumpOpsUsage(userId);
+      setUsedToday(used);
+      setRecs(out);
+      setRunState(out.length === 0 ? "empty" : "idle");
+    } catch {
+      setRunState("error");
+    }
+  }
+
+  function addToCalendar(rec: OpsRecommendation) {
+    const url = buildGoogleCalendarUrl({
+      title: rec.title,
+      description: rec.reason,
+      startsAtIso: rec.startsAtIso ?? opsNextMorningIso(),
+      durationMinutes: rec.durationMinutes,
+      recurrence: rec.recurrence,
+    });
+    if (url) void Linking.openURL(url).catch(() => {});
+  }
+
+  function shareStep(rec: OpsRecommendation) {
+    void Share.share({ message: `${rec.title}\n${rec.reason}` }).catch(() => {});
+  }
+
   return (
     <Shell title="루틴">
       <SecondbStatusHeader text="오늘은 어떤 영역을 챙겨볼까요?" tip="받은 걸음은 캘린더로 보낼 수 있어요." />
       <Text style={styles.lead}>내 기록에서 뽑은 다음 한 걸음</Text>
       <View style={styles.filterRow}>
-        <FilterChip label="건강" active />
-        <FilterChip label="배움" />
-        <FilterChip label="관계" />
-        <FilterChip label="재정" />
+        {OPS_GROUP_IDS.map((id) => (
+          <FilterChip
+            key={id}
+            label={t(`groups.${id}`)}
+            active={group === id}
+            onPress={() => {
+              setGroup(id);
+              setDomain(null);
+              setRecs([]);
+              setRunState("idle");
+            }}
+          />
+        ))}
       </View>
-      <View style={styles.opsStep}>
-        <View style={styles.opsStepHead}>
-          <Text style={styles.opsStepTitle}>아침 산책 15분</Text>
-          <Text style={styles.timeChipMint}>내일 아침</Text>
+      {group ? (
+        <View style={styles.filterRow}>
+          {domains.map((id) => (
+            <FilterChip key={id} label={t(`domains.${id}`)} active={domain === id} violet onPress={() => setDomain(id)} />
+          ))}
         </View>
-        <Text style={styles.opsReason}>기분이 좋았던 날의 80%에 아침 산책 기록이 있었어요.</Text>
-        <View style={styles.opsStepFoot}>
-          <Text style={styles.evChip}>📎 기록 6건</Text>
-          <Pressable style={styles.smallBtn}><Text style={styles.smallBtnText}>캘린더에 추가</Text></Pressable>
+      ) : null}
+      {domain ? (
+        <Pressable
+          style={[styles.primary, (runState === "working" || limitReached) && { opacity: 0.6 }]}
+          disabled={runState === "working" || limitReached}
+          onPress={() => void runRecommend()}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: runState === "working" || limitReached, busy: runState === "working" }}
+        >
+          <Text style={styles.primaryText}>{runState === "working" ? t("recommend.working") : t("recommend.cta")}</Text>
+        </Pressable>
+      ) : null}
+      {runState === "limit" || (domain && limitReached) ? <Text style={styles.opsReason}>{t("recommend.limit")}</Text> : null}
+      {runState === "empty" ? <Text style={styles.opsReason}>{t("recommend.empty")}</Text> : null}
+      {runState === "error" ? <Text style={styles.opsReason}>{t("recommend.error")}</Text> : null}
+      {runState === "off" ? <Text style={styles.opsReason}>{t("recommend.off")}</Text> : null}
+      {recs.map((rec, i) => (
+        <View key={`${i}-${rec.title}`} style={styles.opsStep}>
+          <View style={styles.opsStepHead}>
+            <Text style={styles.opsStepTitle}>{rec.title}</Text>
+            {rec.recurrence ? (
+              <Text style={styles.timeChipMint}>{rec.recurrence === "daily" ? t("card.daily") : t("card.weekly")}</Text>
+            ) : null}
+          </View>
+          <Text style={styles.opsReason}>{rec.reason}</Text>
+          <View style={styles.opsStepFoot}>
+            <Pressable style={styles.smallBtnGhost} onPress={() => shareStep(rec)} accessibilityRole="button" accessibilityLabel="이 걸음 공유">
+              <Text style={styles.smallBtnGhostText}>공유</Text>
+            </Pressable>
+            <Pressable style={styles.smallBtn} onPress={() => addToCalendar(rec)} accessibilityRole="button" accessibilityLabel="캘린더에 추가">
+              <Text style={styles.smallBtnText}>캘린더에 추가</Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
-      <View style={styles.opsStep}>
-        <View style={styles.opsStepHead}>
-          <Text style={styles.opsStepTitle}>자기 전 스트레칭</Text>
-          <Text style={styles.timeChipCyan}>밤 11시</Text>
-        </View>
-        <Text style={styles.opsReason}>늦게 잔 날 다음날 집중이 떨어진다고 자주 적었어요.</Text>
-        <View style={styles.opsStepFoot}>
-          <Text style={styles.evChip}>📎 기록 4건</Text>
-          <Pressable style={styles.smallBtnGhost}><Text style={styles.smallBtnGhostText}>캘린더에 추가</Text></Pressable>
-        </View>
-      </View>
-      <Pressable style={styles.primary}><Text style={styles.primaryText}>받은 걸음 캘린더로 보내기</Text></Pressable>
+      ))}
+      {recs.length > 0 ? <Text style={styles.footerLeft}>{t("recommend.disclaimerBody")}</Text> : null}
     </Shell>
   );
 }
 
 export function DeepSpaceWikiScreen() {
-  // TODO: read real wiki_pages + tag filter + backlinks. Dummy from ops-wiki.dc.html.
+  const { t } = useTranslation("deepspace");
+  const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const view = useMemo(() => buildDeepWikiView(pages, edges, { activeTag }), [pages, edges, activeTag]);
+
+  if (authLoading) {
+    return <Shell title={t("wiki.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  const headerText =
+    view.pageCount > 0 ? t("wiki.headerGrowing", { count: view.pageCount }) : t("wiki.headerEmpty");
+  const [first, ...rest] = view.pages;
+
   return (
-    <Shell title="지식">
-      <SecondbStatusHeader text="지금까지 32개의 지식이 자라고 있어요." tip="태그로 좁혀 보세요." mood="positive" />
+    <Shell title={t("wiki.title")}>
+      <SecondbStatusHeader text={headerText} tip={t("wiki.tip")} mood="positive" />
       <View style={styles.wikiStatRow}>
-        <View style={styles.wikiStat}><Text style={styles.wikiStatNum}>32</Text><Text style={styles.wikiStatCap}>페이지</Text></View>
-        <View style={styles.wikiStat}><Text style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>87</Text><Text style={styles.wikiStatCap}>연결</Text></View>
+        <View style={styles.wikiStat}><Text style={styles.wikiStatNum}>{view.pageCount}</Text><Text style={styles.wikiStatCap}>{t("wiki.statPages")}</Text></View>
+        <View style={styles.wikiStat}><Text style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>{view.edgeCount}</Text><Text style={styles.wikiStatCap}>{t("wiki.statLinks")}</Text></View>
       </View>
-      <View style={styles.filterRow}>
-        <FilterChip label="전체" active />
-        <FilterChip label="디자인" />
-        <FilterChip label="자기이해" />
-        <FilterChip label="AI" />
-      </View>
-      <View style={styles.wikiPageOpen}>
-        <View style={styles.wikiPageHead}>
-          <Text style={styles.wikiPageTitle}>별자리 은유</Text>
-          <Text style={styles.wikiCaret}>⌄</Text>
+      {view.tagChips.length > 0 ? (
+        <View style={styles.filterRow}>
+          <FilterChip label={t("wiki.filterAll")} active={activeTag === null} onPress={() => setActiveTag(null)} />
+          {view.tagChips.map((c) => (
+            <FilterChip
+              key={c.tag}
+              label={c.tag}
+              active={activeTag === c.tag}
+              onPress={() => setActiveTag((prev) => (prev === c.tag ? null : c.tag))}
+            />
+          ))}
         </View>
-        <Text style={styles.wikiBody}>방향성을 '북극성'에, 쌓이는 기록을 '별'에 비유하면 추상적 성장을 눈에 보이게 만들 수 있다. 내 기록 여러 곳에서 반복된 생각.</Text>
-        <View style={styles.wikiBacklinkRow}>
-          <Text style={styles.wikiBacklink}>↩ 연결된 기록 5</Text>
-          <Text style={styles.tlTag}>디자인</Text>
+      ) : null}
+      {loading ? (
+        <GraphLoading />
+      ) : view.pages.length === 0 ? (
+        <View style={styles.wikiPageOpen}>
+          <Text style={styles.wikiBody}>{activeTag !== null ? t("wiki.emptyTag") : t("wiki.emptyAll")}</Text>
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+            <Text style={styles.primaryText}>{t("wiki.addPiece")}</Text>
+          </Pressable>
         </View>
-      </View>
-      <View style={styles.wikiPageRow}>
-        <View style={styles.wikiRowHead}><Text style={styles.wikiRowTitle}>애착과 거리감</Text><Text style={styles.wikiRowConn}>연결 7</Text></View>
-        <Text style={styles.wikiRowDesc} numberOfLines={1}>가까워질수록 불안해지는 패턴에 대하여</Text>
-      </View>
-      <View style={styles.wikiPageRow}>
-        <View style={styles.wikiRowHead}><Text style={styles.wikiRowTitle}>아침형 인간 실험</Text><Text style={styles.wikiRowConn}>연결 4</Text></View>
-        <Text style={styles.wikiRowDesc} numberOfLines={1}>기상 시간과 집중도의 관계 기록 모음</Text>
-      </View>
+      ) : (
+        <>
+          {first ? (
+            <View style={styles.wikiPageOpen}>
+              <View style={styles.wikiPageHead}>
+                <Text style={styles.wikiPageTitle}>{first.title}</Text>
+                <Text style={styles.wikiCaret}>⌄</Text>
+              </View>
+              {first.snippet.length > 0 ? (
+                <Text style={styles.wikiBody}>{first.snippet}</Text>
+              ) : null}
+              <View style={styles.wikiBacklinkRow}>
+                <Text style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: first.connections })}</Text>
+                {first.tags[0] ? <Text style={styles.tlTag}>{first.tags[0]}</Text> : null}
+              </View>
+            </View>
+          ) : null}
+          {rest.map((p) => (
+            <View key={p.id} style={styles.wikiPageRow}>
+              <View style={styles.wikiRowHead}>
+                <Text style={styles.wikiRowTitle} numberOfLines={1}>{p.title}</Text>
+                <Text style={styles.wikiRowConn}>{t("wiki.connections", { count: p.connections })}</Text>
+              </View>
+              {p.snippet.length > 0 ? (
+                <Text style={styles.wikiRowDesc} numberOfLines={1}>{p.snippet}</Text>
+              ) : null}
+            </View>
+          ))}
+        </>
+      )}
     </Shell>
   );
 }
 
 export function DeepSpaceDomainsScreen() {
-  // TODO: aggregate real domain tag counts + last-entry + topics. Dummy from ops-wiki-trinity.dc.html.
+  const { t } = useTranslation("deepspace");
+  const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
+  const view = useMemo(() => buildDomainsView(pages, edges), [pages, edges]);
+
+  if (authLoading) {
+    return <Shell title={t("domains.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  const recencyOpts = { labels: dsRecencyLabels(t) };
   return (
-    <Shell title="내 영역">
-      <SecondbStatusHeader text="네 영역이 이렇게 쌓이고 있어요." tip="비어 있는 영역을 더 담아볼까요?" />
-      <Text style={styles.lead}>네 영역을 한눈에</Text>
-      <View style={styles.formatGrid}>
-        <View style={[styles.domainCard, styles.domainCardActive]}>
-          <Text style={styles.domainName}>건강</Text>
-          <View style={styles.domainNumRow}><Text style={[styles.domainNum, styles.domainNumActive]}>86</Text><Text style={styles.domainUnit}>조각</Text></View>
-          <Text style={styles.domainSub}>오늘 기록</Text>
+    <Shell title={t("domains.title")}>
+      <SecondbStatusHeader
+        text={view.domains.length > 0 ? t("domains.headerHas") : t("domains.headerEmpty")}
+        tip={t("domains.tip")}
+      />
+      <Text style={styles.lead}>{t("domains.lead")}</Text>
+      {loading ? (
+        <GraphLoading />
+      ) : view.domains.length === 0 ? (
+        <View style={styles.wikiPageOpen}>
+          <Text style={styles.wikiBody}>{t("domains.empty")}</Text>
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+            <Text style={styles.primaryText}>{t("domains.addData")}</Text>
+          </Pressable>
         </View>
-        <View style={styles.domainCard}>
-          <Text style={styles.domainName}>앱</Text>
-          <View style={styles.domainNumRow}><Text style={styles.domainNum}>54</Text><Text style={styles.domainUnit}>조각</Text></View>
-          <Text style={styles.domainSub}>어제 기록</Text>
-        </View>
-        <View style={styles.domainCard}>
-          <Text style={styles.domainName}>뇌</Text>
-          <View style={styles.domainNumRow}><Text style={styles.domainNum}>41</Text><Text style={styles.domainUnit}>조각</Text></View>
-          <Text style={styles.domainSub}>3일 전</Text>
-        </View>
-        <View style={[styles.domainCard, styles.domainCardDim]}>
-          <Text style={styles.domainNameDim}>재정</Text>
-          <View style={styles.domainNumRow}><Text style={[styles.domainNum, styles.domainNumDim]}>7</Text><Text style={styles.domainUnit}>조각</Text></View>
-          <Text style={styles.domainSub}>2주 전</Text>
-        </View>
-      </View>
-      <Text style={styles.tlLabel}>건강 · 핵심 주제</Text>
-      <View style={styles.topicCol}>
-        <View style={styles.topicRow}><View style={styles.topicDot} /><Text style={styles.topicText}>아침 산책이 기분과 가장 강하게 연결됨</Text></View>
-        <View style={styles.topicRow}><View style={[styles.topicDot, styles.topicDotDim]} /><Text style={styles.topicTextDim}>수면 시간이 다음날 집중을 좌우함</Text></View>
-      </View>
-      <Pressable style={styles.primary}><Text style={styles.primaryText}>+ 데이터 추가</Text></Pressable>
+      ) : (
+        <>
+          <View style={styles.formatGrid}>
+            {view.domains.map((d, i) => {
+              const active = i === 0;
+              return (
+                <View
+                  key={d.tag}
+                  style={[styles.domainCard, active && styles.domainCardActive, !d.recent && styles.domainCardDim]}
+                >
+                  <Text style={d.recent ? styles.domainName : styles.domainNameDim} numberOfLines={1}>{d.tag}</Text>
+                  <View style={styles.domainNumRow}>
+                    <Text style={[styles.domainNum, active && styles.domainNumActive, !d.recent && styles.domainNumDim]}>{d.count}</Text>
+                    <Text style={styles.domainUnit}>{t("domains.unit")}</Text>
+                  </View>
+                  <Text style={styles.domainSub}>{recencyLabel(d.lastActivity, recencyOpts) || t("domains.noActivity")}</Text>
+                </View>
+              );
+            })}
+          </View>
+          {view.topTopics !== null && view.topTopics.titles.length > 0 ? (
+            <>
+              <Text style={styles.tlLabel}>{t("domains.topicsLabel", { tag: view.topTopics.tag })}</Text>
+              <View style={styles.topicCol}>
+                {view.topTopics.titles.map((title, i) => (
+                  <View key={title} style={styles.topicRow}>
+                    <View style={[styles.topicDot, i > 0 && styles.topicDotDim]} />
+                    <Text style={i > 0 ? styles.topicTextDim : styles.topicText} numberOfLines={1}>{title}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : null}
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+            <Text style={styles.primaryText}>{t("domains.addData")}</Text>
+          </Pressable>
+        </>
+      )}
     </Shell>
   );
 }

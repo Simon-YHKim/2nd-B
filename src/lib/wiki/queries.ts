@@ -12,7 +12,7 @@
 import { getSupabaseClient } from "../supabase/client";
 import { diffWikiLinks } from "./link-diff";
 import { extractWikilinkSlugs } from "./wikilinks";
-import type { SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
+import type { RelationType, SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
 
 // --- sources -----------------------------------------------------------
 
@@ -187,6 +187,22 @@ export async function updateSourceFrontmatter(
   if (error) throw error;
 }
 
+/** Replace a source's tags column (inbox accepts an AI-suggested tag before
+ *  promotion). Caller passes the full desired set; we don't merge here. */
+export async function updateSourceTags(
+  userId: string,
+  sourceId: string,
+  tags: string[],
+): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("sources")
+    .update({ tags })
+    .eq("user_id", userId)
+    .eq("id", sourceId);
+  if (error) throw error;
+}
+
 // --- wiki_pages --------------------------------------------------------
 
 export interface UpsertWikiPageInput {
@@ -355,6 +371,133 @@ export async function listAllWikiLinks(userId: string): Promise<{ from_page: str
     .eq("user_id", userId);
   if (error) throw error;
   return (data ?? []) as { from_page: string; to_page: string }[];
+}
+
+// --- propose -> ratify (edge type + confidence, migration 0046) --------
+
+export interface InferredEdgeInput {
+  toPageId: string;
+  /** Model 0..1 score; clamped on insert. */
+  confidence: number;
+}
+
+/**
+ * Insert AI-proposed (`inferred`) edges from one page. Never overwrites an
+ * existing edge — a stronger explicit `wikilink` or already-`ratified` link
+ * wins — via onConflict do-nothing. Self-links are dropped (the table's
+ * wiki_links_no_self CHECK would reject them anyway). Returns the number of
+ * rows sent for insert.
+ */
+export async function insertInferredLinks(
+  userId: string,
+  fromPageId: string,
+  edges: InferredEdgeInput[],
+): Promise<number> {
+  if (edges.length === 0) return 0;
+  const rows = edges
+    .filter((e) => e.toPageId !== fromPageId)
+    .map((e) => ({
+      user_id: userId,
+      from_page: fromPageId,
+      to_page: e.toPageId,
+      relation_type: "inferred" as RelationType,
+      confidence: Math.min(1, Math.max(0, e.confidence)),
+    }));
+  if (rows.length === 0) return 0;
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("wiki_links")
+    .upsert(rows, { onConflict: "from_page,to_page", ignoreDuplicates: true });
+  if (error) throw error;
+  return rows.length;
+}
+
+export interface InferredEdgeRow {
+  from_page: string;
+  to_page: string;
+  confidence: number;
+}
+
+/** The user's pending AI-proposed connections, highest-confidence first —
+ *  the worklist a propose->ratify UI reads. */
+export async function listInferredLinks(userId: string, limit = 50): Promise<InferredEdgeRow[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("wiki_links")
+    .select("from_page, to_page, confidence")
+    .eq("user_id", userId)
+    .eq("relation_type", "inferred")
+    .order("confidence", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as InferredEdgeRow[];
+}
+
+export interface InferredLinkDetail {
+  from_page: string;
+  to_page: string;
+  from_title: string;
+  to_title: string;
+  confidence: number;
+}
+
+/** Inferred proposals resolved to page titles, for the ratify UI. Two-step
+ *  (edges, then the pages they touch) — mirrors getBacklinks' explicit shape. */
+export async function listInferredLinkDetails(userId: string, limit = 50): Promise<InferredLinkDetail[]> {
+  const edges = await listInferredLinks(userId, limit);
+  if (edges.length === 0) return [];
+  const ids = [...new Set(edges.flatMap((e) => [e.from_page, e.to_page]))];
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("wiki_pages")
+    .select("id, title, slug")
+    .eq("user_id", userId)
+    .in("id", ids);
+  if (error) throw error;
+  const titleById = new Map(
+    (data ?? []).map((p: { id: string; title: string; slug: string }) => [
+      p.id,
+      (p.title?.trim() || p.slug || p.id),
+    ]),
+  );
+  return edges.map((e) => ({
+    from_page: e.from_page,
+    to_page: e.to_page,
+    from_title: titleById.get(e.from_page) ?? e.from_page,
+    to_title: titleById.get(e.to_page) ?? e.to_page,
+    confidence: e.confidence,
+  }));
+}
+
+/** Promote an inferred edge to `ratified` (the user accepted the proposal).
+ *  confidence is pinned to 1.0 — a ratified link is the user's own truth. */
+export async function ratifyLink(userId: string, fromPageId: string, toPageId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("wiki_links")
+    .update({ relation_type: "ratified" as RelationType, confidence: 1 })
+    .eq("user_id", userId)
+    .eq("from_page", fromPageId)
+    .eq("to_page", toPageId);
+  if (error) throw error;
+}
+
+/** Discard an AI-proposed edge the user rejected. Scoped to relation_type so
+ *  an explicit wikilink/ratified edge is never deleted by a stray reject. */
+export async function rejectInferredLink(
+  userId: string,
+  fromPageId: string,
+  toPageId: string,
+): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("wiki_links")
+    .delete()
+    .eq("user_id", userId)
+    .eq("from_page", fromPageId)
+    .eq("to_page", toPageId)
+    .eq("relation_type", "inferred");
+  if (error) throw error;
 }
 
 export async function getOutgoingLinks(userId: string, fromPageId: string): Promise<OutgoingEdge[]> {
