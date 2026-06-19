@@ -54,3 +54,21 @@ export type NewsFeedId = (typeof NEWS_FEEDS)[number]["id"];
 export function getFeed(feedId: string): NewsFeed | undefined {
   return NEWS_FEEDS.find((f) => f.id === feedId);
 }
+
+/** Lookup a feed by its exact URL (returns undefined for an unknown URL). */
+export function getFeedByUrl(url: string): NewsFeed | undefined {
+  return NEWS_FEEDS.find((f) => f.url === url);
+}
+
+/**
+ * The exact set of allowed feed URLs. This is the SSRF allowlist source of
+ * truth for the rss-proxy Edge Function (supabase/functions/rss-proxy) — the
+ * proxy mirrors these exact strings (it cannot import this RN module) and must
+ * be kept in sync. Only an exact match here may be fetched server-side.
+ */
+export const NEWS_FEED_URLS: readonly string[] = NEWS_FEEDS.map((f) => f.url);
+
+/** True only for an exact-match URL in the curated allowlist (SSRF guard). */
+export function isAllowedFeedUrl(url: string): boolean {
+  return NEWS_FEED_URLS.includes(url);
+}

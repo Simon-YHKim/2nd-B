@@ -30,11 +30,44 @@ CREATE TABLE IF NOT EXISTS news_items (
   snippet         text,
   -- NULL until the user opts in to an AI summary; written once via setSummary.
   summary         text,
+  -- Atomic double-bill guard (Codex P2 #2). The in-memory "already cached"
+  -- check cannot stop two concurrent callers (two tabs/devices) from BOTH
+  -- reaching callGemini for the same article. summary_status is the DB
+  -- compare-and-set claim: claimSummarySlot flips 'none' -> 'pending' for
+  -- exactly one caller (UPDATE ... WHERE summary_status='none'), the loser sees
+  -- 0 rows affected and skips the LLM. On success the row becomes 'done'; a
+  -- blocked/failed call releases it back to 'none' so a later retry can claim.
+  --   none    = no summary, free to claim
+  --   pending = a caller has claimed the slot and the LLM call is in flight
+  --   done    = a real summary is stored (the only state listDigest treats as summarized)
+  summary_status  text NOT NULL DEFAULT 'none'
+                  CHECK (summary_status IN ('none', 'pending', 'done')),
   created_at      timestamptz DEFAULT now(),
   -- Idempotent re-pull AND "summarize once": the same article for the same user
   -- collapses to one row, so the cached summary is never recomputed.
   CONSTRAINT news_items_user_url_unique UNIQUE (user_id, url)
 );
+
+-- Idempotent add for environments where news_items already exists from an
+-- earlier run of this (still unapplied) migration. NOT NULL DEFAULT 'none' is
+-- safe to backfill; legacy rows that already carry a summary are normalized to
+-- 'done' so listDigest keeps treating them as summarized.
+ALTER TABLE news_items
+  ADD COLUMN IF NOT EXISTS summary_status text NOT NULL DEFAULT 'none';
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'news_items_summary_status_check'
+  ) THEN
+    ALTER TABLE news_items
+      ADD CONSTRAINT news_items_summary_status_check
+      CHECK (summary_status IN ('none', 'pending', 'done'));
+  END IF;
+END $$;
+
+UPDATE news_items
+  SET summary_status = 'done'
+  WHERE summary IS NOT NULL AND length(btrim(summary)) > 0 AND summary_status <> 'done';
 
 CREATE INDEX IF NOT EXISTS news_items_user_published_idx
   ON news_items (user_id, published_at DESC);

@@ -6,20 +6,41 @@
 const upsertMock = jest.fn();
 const selectMock = jest.fn();
 const updateMock = jest.fn();
-const eqUserMock = jest.fn();
-const eqIdMock = jest.fn();
+const selectFromMock = jest.fn();
 
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
     from: () => ({
       upsert: upsertMock,
       update: updateMock,
+      select: selectFromMock,
     }),
   }),
 }));
 
-import { upsertItems, setSummary } from "../queries";
+import { upsertItems, setSummary, claimSummarySlot, releaseSummarySlot, listDigest } from "../queries";
 import type { NewsItem } from "../parse";
+
+/**
+ * Build a chainable `.eq().eq()...` thunk that resolves to `result` after all
+ * the `.eq` links, and optionally exposes a terminal `.select`. Captures the eq
+ * calls so tests can assert the scoping (user_id, id, summary_status).
+ */
+function chain(result: unknown, opts: { withSelect?: unknown } = {}) {
+  const eqCalls: [string, unknown][] = [];
+  const node: Record<string, unknown> = {};
+  const eq = jest.fn((col: string, val: unknown) => {
+    eqCalls.push([col, val]);
+    return node;
+  });
+  node.eq = eq;
+  if (opts.withSelect !== undefined) {
+    node.select = jest.fn(() => Promise.resolve(opts.withSelect));
+  }
+  // Make the node thenable so `await update().eq().eq()` resolves to `result`.
+  node.then = (resolve: (v: unknown) => void) => resolve(result);
+  return { node, eq, eqCalls };
+}
 
 const item: NewsItem = {
   source: "yonhap",
@@ -66,17 +87,75 @@ describe("upsertItems dedupe (idempotent re-pull, summarize-once)", () => {
   });
 });
 
-describe("setSummary (owner-scoped single-row write)", () => {
-  beforeEach(() => {
-    eqIdMock.mockReset().mockResolvedValue({ error: null });
-    eqUserMock.mockReset().mockReturnValue({ eq: eqIdMock });
-    updateMock.mockReset().mockReturnValue({ eq: eqUserMock });
+describe("setSummary (owner-scoped, pending-gated, marks done)", () => {
+  test("updates summary + status='done' scoped by user_id, id, status='pending'", async () => {
+    const { node, eqCalls } = chain({ error: null });
+    updateMock.mockReset().mockReturnValue(node);
+    await setSummary("user-1", "n-1", "one-line summary");
+    expect(updateMock).toHaveBeenCalledWith({ summary: "one-line summary", summary_status: "done" });
+    expect(eqCalls).toContainEqual(["user_id", "user-1"]);
+    expect(eqCalls).toContainEqual(["id", "n-1"]);
+    // Only the caller that won the claim ('pending') commits the result.
+    expect(eqCalls).toContainEqual(["summary_status", "pending"]);
+  });
+});
+
+describe("claimSummarySlot (atomic compare-and-set, double-bill guard)", () => {
+  test("WIN: one affected row -> true (flips none -> pending, owner-scoped)", async () => {
+    const { node, eqCalls } = chain(undefined, { withSelect: { data: [{ id: "n-1" }], error: null } });
+    updateMock.mockReset().mockReturnValue(node);
+    const ok = await claimSummarySlot("user-1", "n-1");
+    expect(ok).toBe(true);
+    expect(updateMock).toHaveBeenCalledWith({ summary_status: "pending" });
+    expect(eqCalls).toContainEqual(["user_id", "user-1"]);
+    expect(eqCalls).toContainEqual(["id", "n-1"]);
+    // The compare half: only claims a row currently in 'none'.
+    expect(eqCalls).toContainEqual(["summary_status", "none"]);
   });
 
-  test("updates summary scoped by user_id then id", async () => {
-    await setSummary("user-1", "n-1", "one-line summary");
-    expect(updateMock).toHaveBeenCalledWith({ summary: "one-line summary" });
-    expect(eqUserMock).toHaveBeenCalledWith("user_id", "user-1");
-    expect(eqIdMock).toHaveBeenCalledWith("id", "n-1");
+  test("RACE LOSS: zero affected rows -> false (second caller must skip the LLM)", async () => {
+    const { node } = chain(undefined, { withSelect: { data: [], error: null } });
+    updateMock.mockReset().mockReturnValue(node);
+    const ok = await claimSummarySlot("user-1", "n-1");
+    expect(ok).toBe(false);
+  });
+
+  test("propagates a DB error", async () => {
+    const { node } = chain(undefined, { withSelect: { data: null, error: { message: "boom" } } });
+    updateMock.mockReset().mockReturnValue(node);
+    await expect(claimSummarySlot("user-1", "n-1")).rejects.toBeTruthy();
+  });
+});
+
+describe("releaseSummarySlot (only frees rows left pending)", () => {
+  test("flips pending -> none scoped by user_id, id, status='pending'", async () => {
+    const { node, eqCalls } = chain({ error: null });
+    updateMock.mockReset().mockReturnValue(node);
+    await releaseSummarySlot("user-1", "n-1");
+    expect(updateMock).toHaveBeenCalledWith({ summary_status: "none" });
+    expect(eqCalls).toContainEqual(["user_id", "user-1"]);
+    expect(eqCalls).toContainEqual(["id", "n-1"]);
+    expect(eqCalls).toContainEqual(["summary_status", "pending"]);
+  });
+});
+
+describe("listDigest (only status='done' counts as a real summary)", () => {
+  function digestChain(rows: unknown[]) {
+    const limit = jest.fn(() => Promise.resolve({ data: rows, error: null }));
+    const order = jest.fn(() => ({ limit }));
+    const eq = jest.fn(() => ({ order }));
+    selectFromMock.mockReset().mockReturnValue({ eq });
+  }
+
+  test("nulls out summary for non-'done' rows; keeps 'done' summaries", async () => {
+    digestChain([
+      { id: "a", summary: "hotline-or-half-written", summary_status: "pending" },
+      { id: "b", summary: "real summary", summary_status: "done" },
+      { id: "c", summary: "legacy", summary_status: null },
+    ]);
+    const out = await listDigest("user-1");
+    expect(out.find((r) => r.id === "a")?.summary).toBeNull();
+    expect(out.find((r) => r.id === "b")?.summary).toBe("real summary");
+    expect(out.find((r) => r.id === "c")?.summary).toBeNull();
   });
 });

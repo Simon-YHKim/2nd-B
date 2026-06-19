@@ -26,6 +26,12 @@ export interface NewsItemRow {
   published_at: string | null;
   snippet: string | null;
   summary: string | null;
+  /**
+   * Atomic summary-slot state (migration 0052). Only 'done' counts as a real
+   * cached summary; 'none'/'pending' rows are treated as not-yet-summarized.
+   * Optional on the type so legacy callers/fixtures stay valid.
+   */
+  summary_status?: "none" | "pending" | "done" | null;
   created_at: string | null;
 }
 
@@ -69,13 +75,70 @@ export async function listDigest(userId: string, limit = 30): Promise<NewsItemRo
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(limit);
   if (error) throw error;
-  return (data ?? []) as NewsItemRow[];
+  const rows = (data ?? []) as NewsItemRow[];
+  // Only summary_status='done' counts as a real cached summary. A row mid-claim
+  // ('pending') — or a legacy row whose status was never set — must read as
+  // not-yet-summarized so the UI/canSummarize don't surface a half-written or
+  // absent summary. Normalize the in-memory `summary` to null unless 'done'.
+  return rows.map((r) =>
+    r.summary_status === "done" ? r : { ...r, summary: null },
+  );
 }
 
 /**
- * Persist the AI summary onto a cached article (owner-scoped by user_id + id).
- * Writing the summary exactly once is what keeps the cost bounded — the caller
- * (summarize flow) MUST call this so the same article is never re-summarized.
+ * Atomically CLAIM the summary slot for one article before the LLM call
+ * (Codex P2 #2 — double-bill guard). Compare-and-set: flip summary_status
+ * 'none' -> 'pending' for exactly ONE caller. Two concurrent callers (two
+ * tabs/devices) race here; the DB serializes the UPDATE so only the first
+ * matches `summary_status='none'` and the loser sees 0 rows affected.
+ *
+ * Returns true when THIS caller won the claim (it must proceed to the LLM call
+ * and then setSummary/releaseSummarySlot); false when the slot was already
+ * claimed or summarized (the caller must skip the LLM entirely — no second
+ * callGemini, no double billing).
+ *
+ * Owner-scoped (user_id = auth.uid()) so the RLS policy still gates the write.
+ */
+export async function claimSummarySlot(userId: string, itemId: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("news_items")
+    .update({ summary_status: "pending" })
+    .eq("user_id", userId)
+    .eq("id", itemId)
+    .eq("summary_status", "none")
+    .select("id");
+  if (error) throw error;
+  // Exactly one row returned == we won the compare-and-set. Anything else
+  // (already pending/done, or row gone) == the claim failed -> skip the LLM.
+  return (data?.length ?? 0) > 0;
+}
+
+/**
+ * Release a previously-claimed slot back to 'none' (Codex P2 #2/#3). Called
+ * when the LLM call was blocked (red-zone) or failed/produced nothing, so a
+ * later retry can re-claim. Owner-scoped; only releases rows we left 'pending'
+ * (never clobbers a 'done' summary). Best-effort: a release failure must not
+ * mask the original error, so it is intended to be called inside a try/catch.
+ */
+export async function releaseSummarySlot(userId: string, itemId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("news_items")
+    .update({ summary_status: "none" })
+    .eq("user_id", userId)
+    .eq("id", itemId)
+    .eq("summary_status", "pending");
+  if (error) throw error;
+}
+
+/**
+ * Persist the AI summary onto a cached article (owner-scoped by user_id + id)
+ * and mark the slot 'done'. Writing the summary exactly once is what keeps the
+ * cost bounded — the caller (summarize flow) MUST call this after a winning
+ * claimSummarySlot so the same article is never re-summarized. Scoping the
+ * write to summary_status='pending' means only the caller that won the claim
+ * commits the result (a stale/duplicate writer no-ops).
  */
 export async function setSummary(
   userId: string,
@@ -85,8 +148,9 @@ export async function setSummary(
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from("news_items")
-    .update({ summary })
+    .update({ summary, summary_status: "done" })
     .eq("user_id", userId)
-    .eq("id", itemId);
+    .eq("id", itemId)
+    .eq("summary_status", "pending");
   if (error) throw error;
 }
