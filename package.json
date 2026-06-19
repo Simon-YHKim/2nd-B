@@ -20,6 +20,7 @@
     "check:emdash": "tsx scripts/check-no-emdash.ts",
     "check:anti-anthro": "tsx scripts/check-anti-anthro.ts",
     "check:mascot-voice": "tsx scripts/check-mascot-voice.ts",
+    "capture:screens": "node scripts/capture-screens.mjs",
     "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:lexicon && npm run check:legal-review && npm run check:llm-boundary && npm run check:constraints && npm run check:emdash && npm run check:anti-anthro && npm run check:mascot-voice && npm test -- --ci"
   },
   "dependencies": {

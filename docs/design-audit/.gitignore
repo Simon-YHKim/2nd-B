@@ -1,0 +1,4 @@
+# Generated capture output — keep the folder + README/script, ignore artifacts
+*.png
+report.json
+report.md
