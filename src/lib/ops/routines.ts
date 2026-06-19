@@ -243,6 +243,27 @@ export async function applyHealthAutoComplete(
   return hits.map((h) => h.routineId);
 }
 
+/**
+ * Wave 1 (daily_focus): deterministic focus-session -> routine auto-completion.
+ * The pure pomodoro state machine (pomodoro.ts) detects a completed focus phase;
+ * this is the SAVE side, the sibling of applyHealthAutoComplete. It loads the
+ * user's active routines and, for each one in the `daily_focus` domain, logs a
+ * completion for the local day via the existing idempotent logRoutineCompletion.
+ *
+ * No LLM, no new table — it reuses ops_routine_logs. Idempotent on
+ * (routine_id, completed_on), so a second focus session the same day (or a manual
+ * tick) collapses onto the one row. Returns the routine ids that were ticked.
+ */
+export async function applyFocusSessionComplete(userId: string, now: Date = new Date()): Promise<string[]> {
+  const routines = await listActiveRoutines(userId);
+  const focusRoutines = routines.filter((r) => r.domain_id === "daily_focus");
+  const day = localDayKey(now);
+  for (const routine of focusRoutines) {
+    await logRoutineCompletion(userId, routine.id, day);
+  }
+  return focusRoutines.map((r) => r.id);
+}
+
 /** All completion logs at/after `sinceDate` (YYYY-MM-DD), for streak/history. */
 export async function listCompletionsSince(userId: string, sinceDate: string): Promise<OpsRoutineLog[]> {
   const supabase = getSupabaseClient();

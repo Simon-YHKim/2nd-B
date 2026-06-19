@@ -96,5 +96,21 @@
   "health": {
     "autoCompleted": "Ditandai otomatis dari aktivitasmu",
     "autoCompletedHint": "Latihan yang dicatat atau langkah melebihi targetmu menandainya."
+  },
+  "focus": {
+    "title": "Pengatur waktu fokus",
+    "status": "Jalankan satu sesi fokus.",
+    "tip": "Menyelesaikan satu blok fokus menandai rutinitas fokus harianmu.",
+    "phaseIdle": "Siap",
+    "phaseFocus": "Fokus",
+    "phaseBreak": "Istirahat",
+    "start": "Mulai",
+    "pause": "Jeda",
+    "reset": "Atur ulang",
+    "doneToday": "Sesi fokus selesai hari ini: {{count}}",
+    "alarmFocusTitle": "Blok fokus selesai",
+    "alarmFocusBody": "Kerja bagus. Waktunya istirahat singkat.",
+    "alarmBreakTitle": "Istirahat selesai",
+    "alarmBreakBody": "Kembali ke blok fokus berikutnya."
   }
 }

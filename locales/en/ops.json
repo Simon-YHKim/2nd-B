@@ -96,5 +96,21 @@
   "health": {
     "autoCompleted": "Auto-checked from your activity",
     "autoCompletedHint": "A logged workout or steps over your goal ticked this off."
+  },
+  "focus": {
+    "title": "Focus timer",
+    "status": "Run one focus session.",
+    "tip": "Finishing a focus block checks off your daily focus routine.",
+    "phaseIdle": "Ready",
+    "phaseFocus": "Focus",
+    "phaseBreak": "Break",
+    "start": "Start",
+    "pause": "Pause",
+    "reset": "Reset",
+    "doneToday": "Focus sessions done today: {{count}}",
+    "alarmFocusTitle": "Focus block done",
+    "alarmFocusBody": "Nice work. Time for a short break.",
+    "alarmBreakTitle": "Break over",
+    "alarmBreakBody": "Back to your next focus block."
   }
 }

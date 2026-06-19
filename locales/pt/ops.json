@@ -96,5 +96,21 @@
   "health": {
     "autoCompleted": "Marcado automaticamente pela sua atividade",
     "autoCompletedHint": "Um treino registrado ou passos acima da sua meta marcaram isto."
+  },
+  "focus": {
+    "title": "Cronômetro de foco",
+    "status": "Faça uma sessão de foco.",
+    "tip": "Terminar um bloco de foco marca sua rotina de foco do dia.",
+    "phaseIdle": "Pronto",
+    "phaseFocus": "Foco",
+    "phaseBreak": "Pausa",
+    "start": "Iniciar",
+    "pause": "Pausar",
+    "reset": "Reiniciar",
+    "doneToday": "Sessões de foco feitas hoje: {{count}}",
+    "alarmFocusTitle": "Bloco de foco concluído",
+    "alarmFocusBody": "Bom trabalho. Hora de uma pausa curta.",
+    "alarmBreakTitle": "Pausa encerrada",
+    "alarmBreakBody": "De volta ao seu próximo bloco de foco."
   }
 }

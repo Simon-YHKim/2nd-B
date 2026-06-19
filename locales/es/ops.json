@@ -96,5 +96,21 @@
   "health": {
     "autoCompleted": "Marcado automáticamente desde tu actividad",
     "autoCompletedHint": "Un entrenamiento registrado o pasos por encima de tu meta lo marcaron."
+  },
+  "focus": {
+    "title": "Temporizador de enfoque",
+    "status": "Haz una sesión de enfoque.",
+    "tip": "Terminar un bloque de enfoque marca tu rutina de enfoque del día.",
+    "phaseIdle": "Listo",
+    "phaseFocus": "Enfoque",
+    "phaseBreak": "Descanso",
+    "start": "Iniciar",
+    "pause": "Pausar",
+    "reset": "Reiniciar",
+    "doneToday": "Sesiones de enfoque hechas hoy: {{count}}",
+    "alarmFocusTitle": "Bloque de enfoque terminado",
+    "alarmFocusBody": "Buen trabajo. Hora de un descanso corto.",
+    "alarmBreakTitle": "Descanso terminado",
+    "alarmBreakBody": "De vuelta a tu próximo bloque de enfoque."
   }
 }
