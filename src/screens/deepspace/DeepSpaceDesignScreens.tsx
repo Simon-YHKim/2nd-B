@@ -141,125 +141,132 @@ export function DeepSpaceSignUpDesignScreen() { const { t } = useTranslation("de
 export function DeepSpaceResetPasswordDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("auth.resetTitle")}><View style={styles.center}><Text style={styles.mail}>✉</Text><Text style={styles.prompt}>{t("auth.resetPrompt")}</Text><Text style={styles.footer}>{t("auth.resetBody")}</Text></View><View style={styles.codeRow}>{['','', '', '', '', ''].map((_,i)=><View key={i} style={styles.codeCell}/>)}</View><Text style={styles.footer}>{t("auth.resend", { time: "00:42" })}</Text><Pressable style={styles.primary}><Text style={styles.primaryText}>{t("auth.confirm")}</Text></Pressable></Shell>; }
 
 export function DeepSpaceInsightsScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="인사이트">
-      <SecondbStatusHeader text="지난주보다 이번주, 더 많이 담았어요." tip="가장 많이 담은 주제를 눌러 흐름을 보세요." mood="positive" />
+    <Shell title={t("insights.title")}>
+      <SecondbStatusHeader text={t("insights.status")} tip={t("insights.tip")} mood="positive" />
       <Card>
-        <Text style={styles.section}>요즘의 나</Text>
-        <Text style={styles.lead}>지난주보다 이번주의 나는</Text>
-        <Text style={styles.footer}>담은 조각 · 주간</Text>
+        <Text style={styles.section}>{t("insights.sectionNow")}</Text>
+        <Text style={styles.lead}>{t("insights.lead")}</Text>
+        <Text style={styles.footer}>{t("insights.weeklyCap")}</Text>
         <View style={styles.compareRow}>
-          <View style={styles.compareCol}><Text style={styles.compareNum}>18</Text><Text style={styles.compareCap}>지난주</Text></View>
+          <View style={styles.compareCol}><Text style={styles.compareNum}>18</Text><Text style={styles.compareCap}>{t("insights.lastWeek")}</Text></View>
           <Text style={styles.chev}>›</Text>
-          <View style={styles.compareCol}><Text style={[styles.compareNum, styles.compareNumHi]}>31</Text><Text style={styles.compareCap}>이번주</Text></View>
+          <View style={styles.compareCol}><Text style={[styles.compareNum, styles.compareNumHi]}>31</Text><Text style={styles.compareCap}>{t("insights.thisWeek")}</Text></View>
         </View>
-        <Text style={styles.delta}>▲ 72% 더 많이 담았어요</Text>
+        <Text style={styles.delta}>{t("insights.delta", { percent: 72 })}</Text>
       </Card>
       <Card>
-        <Text style={styles.section}>이번 주 핵심 발견</Text>
-        <Text style={styles.lead}>'만드는 일' 관련 기록이 절반을 넘었어요. 미래의 나와 같은 방향이에요.</Text>
+        <Text style={styles.section}>{t("insights.sectionFinding")}</Text>
+        <Text style={styles.lead}>{t("insights.finding")}</Text>
       </Card>
     </Shell>
   );
 }
 
 export function DeepSpaceDataDesignScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="내 데이터" subtitle="무엇이 쌓였고, 어디에 쓰이는지">
-      <SecondbStatusHeader text="네 데이터가 어디에 있고 어떻게 쓰이는지 보여줘요." tip="민감한 데이터는 기기 안에만 둘 수 있어요." />
+    <Shell title={t("data.title")} subtitle={t("data.subtitle")}>
+      <SecondbStatusHeader text={t("data.status")} tip={t("data.tip")} />
       <View style={styles.statRow}>
-        <View style={styles.statBox}><Text style={styles.statNum}>412</Text><Text style={styles.statCap}>담은 조각</Text></View>
-        <View style={styles.statBox}><Text style={styles.statNum}>7</Text><Text style={styles.statCap}>완료한 검사</Text></View>
+        <View style={styles.statBox}><Text style={styles.statNum}>412</Text><Text style={styles.statCap}>{t("data.statPieces")}</Text></View>
+        <View style={styles.statBox}><Text style={styles.statNum}>7</Text><Text style={styles.statCap}>{t("data.statChecks")}</Text></View>
       </View>
       <Card>
-        <Text style={styles.section}>저장 위치</Text>
-        <Action label="기기 내 (민감 데이터)" value="암호화" />
-        <Action label="클라우드 동기화" value="켜짐" />
+        <Text style={styles.section}>{t("data.sectionStorage")}</Text>
+        <Action label={t("data.onDevice")} value={t("data.encrypted")} />
+        <Action label={t("data.cloudSync")} value={t("data.on")} />
       </Card>
       <Card>
-        <Action label="전체 데이터 내보내기" />
-        <Action label="모든 데이터 삭제" />
+        <Action label={t("data.exportAll")} />
+        <Action label={t("data.deleteAll")} />
       </Card>
     </Shell>
   );
 }
 
 export function DeepSpaceThemeScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="테마 · 글꼴">
-      <SecondbStatusHeader text="보기 편한 테마와 글꼴을 골라요." tip="모션을 줄이면 화면이 더 차분해져요." />
+    <Shell title={t("theme.title")}>
+      <SecondbStatusHeader text={t("theme.status")} tip={t("theme.tip")} />
       <Card>
-        <Text style={styles.section}>테마</Text>
-        <Action label="딥스페이스" value="✓" />
-        <Action label="미드나잇" />
+        <Text style={styles.section}>{t("theme.sectionTheme")}</Text>
+        <Action label={t("theme.themeDeepspace")} value="✓" />
+        <Action label={t("theme.themeMidnight")} />
       </Card>
       <Card>
-        <Text style={styles.section}>글꼴</Text>
-        <Action label="픽셀 · Galmuri" value="✓" />
-        <Action label="읽기 편한 · Pretendard" />
+        <Text style={styles.section}>{t("theme.sectionFont")}</Text>
+        <Action label={t("theme.fontPixel")} value="✓" />
+        <Action label={t("theme.fontReadable")} />
       </Card>
       <Card>
-        <Text style={styles.section}>글자 크기</Text>
+        <Text style={styles.section}>{t("theme.sectionSize")}</Text>
         <View style={styles.sizeRow}>
-          <Text style={styles.sizeCap}>작게</Text>
+          <Text style={styles.sizeCap}>{t("theme.small")}</Text>
           <View style={styles.sizeTrack}><View style={styles.sizeKnob} /></View>
-          <Text style={styles.sizeCapLg}>크게</Text>
+          <Text style={styles.sizeCapLg}>{t("theme.large")}</Text>
         </View>
-        <Toggle label="모션 줄이기" on={false} />
+        <Toggle label={t("theme.reduceMotion")} on={false} />
       </Card>
     </Shell>
   );
 }
 
 export function DeepSpaceManualScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="매뉴얼 · 도움말">
-      <SecondbStatusHeader text="궁금한 걸 빠르게 찾아봐요." tip="찾는 게 없으면 세컨비에게 바로 물어보세요." />
-      <View style={styles.searchBox}><Text style={styles.searchText}>무엇이 궁금하세요?</Text></View>
+    <Shell title={t("manual.title")}>
+      <SecondbStatusHeader text={t("manual.status")} tip={t("manual.tip")} />
+      <View style={styles.searchBox}><Text style={styles.searchText}>{t("manual.search")}</Text></View>
       <Card>
-        <Text style={styles.section}>시작하기</Text>
-        <Action label="북두칠성 7별은 무엇인가요?" />
-        <Action label="북극성(소울코어)은 어떻게 밝아지나요?" />
-        <Action label="검사 결과는 어떻게 정확해지나요?" />
+        <Text style={styles.section}>{t("manual.sectionStart")}</Text>
+        <Action label={t("manual.q1")} />
+        <Action label={t("manual.q2")} />
+        <Action label={t("manual.q3")} />
       </Card>
       <Card>
-        <Text style={styles.section}>데이터 · 프라이버시</Text>
-        <Action label="IDEN 파일은 무엇인가요?" />
-        <Action label="내 데이터는 어디에 저장되나요?" />
-        <Action label="세컨비에게 직접 물어보기" onPress={() => router.push('/secondb')} />
+        <Text style={styles.section}>{t("manual.sectionData")}</Text>
+        <Action label={t("manual.q4")} />
+        <Action label={t("manual.q5")} />
+        <Action label={t("manual.askDirect")} onPress={() => router.push('/secondb')} />
       </Card>
     </Shell>
   );
 }
 
 export function DeepSpacePlansScreen() {
+  const { t } = useTranslation("deepspace");
+  const proFeats = [t("plans.proFeat1"), t("plans.proFeat2"), t("plans.proFeat3"), t("plans.proFeat4")];
   return (
-    <Shell title="요금제">
-      <SecondbStatusHeader text="'나'를 더 깊이 쌓고 싶다면 Pro가 도와요." tip="무료로도 매일 담고 7별을 한 번씩 켤 수 있어요." mood="positive" />
+    <Shell title={t("plans.title")}>
+      <SecondbStatusHeader text={t("plans.status")} tip={t("plans.tip")} mood="positive" />
       <Card style={styles.planPro}>
-        <View style={styles.planHead}><Text style={styles.planName}>Pro</Text><Text style={styles.planBadge}>추천</Text></View>
-        <Text style={styles.planPrice}>₩9,900 <Text style={styles.planPer}>/ 월</Text></Text>
-        {["무제한 검사 · 반복 정합성","세컨비 무제한 대화 · 공상","IDEN 전체 내보내기","트렌드·점검 제안"].map((x) => <Text key={x} style={styles.planFeat}>✦ {x}</Text>)}
+        <View style={styles.planHead}><Text style={styles.planName}>Pro</Text><Text style={styles.planBadge}>{t("plans.recommended")}</Text></View>
+        <Text style={styles.planPrice}>₩9,900 <Text style={styles.planPer}>{t("plans.perMonth")}</Text></Text>
+        {proFeats.map((x) => <Text key={x} style={styles.planFeat}>✦ {x}</Text>)}
       </Card>
       <Card>
-        <View style={styles.planHead}><Text style={styles.planName}>Free</Text><Text style={styles.footer}>현재 이용 중</Text></View>
-        <Text style={styles.planFeatDim}>기본 담기 · 7별 1회 검사 · 세컨비 일 5회</Text>
+        <View style={styles.planHead}><Text style={styles.planName}>Free</Text><Text style={styles.footer}>{t("plans.currentPlan")}</Text></View>
+        <Text style={styles.planFeatDim}>{t("plans.freeFeat")}</Text>
       </Card>
-      <Pressable style={styles.primary}><Text style={styles.primaryText}>Pro 시작하기</Text></Pressable>
+      <Pressable style={styles.primary}><Text style={styles.primaryText}>{t("plans.startPro")}</Text></Pressable>
     </Shell>
   );
 }
 
 export function DeepSpacePermissionsScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="권한">
-      <SecondbStatusHeader text="더 잘 담으려면 필요한 권한만 요청해요." tip="언제든 끌 수 있어요." />
+    <Shell title={t("permissions.title")}>
+      <SecondbStatusHeader text={t("permissions.status")} tip={t("permissions.tip")} />
       <Card>
-        <Toggle label="알림" value="담기 리마인드 · 점검 제안" />
-        <Toggle label="사진 · 카메라" value="사진으로 담기" on={false} />
-        <Toggle label="마이크" value="음성으로 담기" on={false} />
+        <Toggle label={t("permissions.notif")} value={t("permissions.notifValue")} />
+        <Toggle label={t("permissions.photo")} value={t("permissions.photoValue")} on={false} />
+        <Toggle label={t("permissions.mic")} value={t("permissions.micValue")} on={false} />
       </Card>
-      <Pressable style={styles.primary}><Text style={styles.primaryText}>계속</Text></Pressable>
+      <Pressable style={styles.primary}><Text style={styles.primaryText}>{t("permissions.continue")}</Text></Pressable>
     </Shell>
   );
 }
