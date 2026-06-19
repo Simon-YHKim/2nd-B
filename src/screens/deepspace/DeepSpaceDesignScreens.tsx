@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line } from "react-native-svg";
 
 import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useProgression } from "@/lib/progression/useProgression";
+import { systemLocaleFor } from "@/lib/i18n/locales";
+import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
+import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
+import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
+import { buildGoogleCalendarUrl } from "@/lib/ops/push";
+import { OPS_DAILY_LIMIT, bumpOpsUsage, readOpsUsage } from "@/lib/ops/usage";
 import { deleteSource, listAllWikiLinks, listSources, listWikiPages } from "@/lib/wiki/queries";
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
@@ -857,41 +865,164 @@ export function DeepSpaceRecordDetailScreen() {
   );
 }
 
+// Calendar hand-off needs a start time even for untimed ideas; "tomorrow 9am"
+// is an honest, editable default (the calendar app shows the form before save).
+function opsNextMorningIso(now: Date = new Date()): string {
+  const next = new Date(now);
+  next.setDate(next.getDate() + 1);
+  next.setHours(9, 0, 0, 0);
+  return next.toISOString();
+}
+
+type OpsRunState = "idle" | "working" | "empty" | "error" | "limit" | "off";
+
 export function DeepSpaceOpsScreen() {
-  // TODO: wire domain selection + recommendations + calendar/share hand-off. Dummy from ops-wiki.dc.html.
+  const { t, i18n } = useTranslation("ops");
+  const { userId, loading: authLoading, isMinor, hasProfile } = useAuth();
+  const progression = useProgression();
+  const locale = systemLocaleFor(i18n.language);
+  // The model anchors on the EN canonical domain label regardless of UI language.
+  const tEn = useMemo(() => i18n.getFixedT("en", "ops"), [i18n]);
+
+  const [group, setGroup] = useState<OpsGroupId | null>(null);
+  const [domain, setDomain] = useState<OpsDomainId | null>(null);
+  const [recs, setRecs] = useState<OpsRecommendation[]>([]);
+  const [runState, setRunState] = useState<OpsRunState>("idle");
+  const [usedToday, setUsedToday] = useState(0);
+  const [recommendations, setRecommendations] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void fetchPrivacyPrefs(userId).then((v) => {
+      if (!cancelled) setRecommendations(v?.recommendations ?? false);
+    });
+    void readOpsUsage(userId).then((c) => {
+      if (!cancelled) setUsedToday(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  if (authLoading) {
+    return <Shell title="루틴"><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+
+  const dailyLimit = OPS_DAILY_LIMIT[progression.tier];
+  const limitReached = usedToday >= dailyLimit;
+  const domains = group ? domainsForGroup(group) : [];
+
+  async function runRecommend() {
+    if (!userId || !domain || runState === "working") return;
+    // D-20 / PROTOCOL §36: honor the minor recommendations lock at the gate
+    // (mirrors OpsLegacy). Adults are unaffected; a server-locked minor never
+    // reaches the LLM snapshot.
+    if (!recommendationsAllowed(isMinor, recommendations)) {
+      setRunState("off");
+      return;
+    }
+    if (limitReached) {
+      setRunState("limit");
+      return;
+    }
+    setRunState("working");
+    setRecs([]);
+    try {
+      const out = await recommendForDomain({
+        userId,
+        locale,
+        domainId: domain,
+        domainLabel: tEn(`domains.${domain}`),
+        minor: isMinor === true,
+      });
+      const used = await bumpOpsUsage(userId);
+      setUsedToday(used);
+      setRecs(out);
+      setRunState(out.length === 0 ? "empty" : "idle");
+    } catch {
+      setRunState("error");
+    }
+  }
+
+  function addToCalendar(rec: OpsRecommendation) {
+    const url = buildGoogleCalendarUrl({
+      title: rec.title,
+      description: rec.reason,
+      startsAtIso: rec.startsAtIso ?? opsNextMorningIso(),
+      durationMinutes: rec.durationMinutes,
+      recurrence: rec.recurrence,
+    });
+    if (url) void Linking.openURL(url).catch(() => {});
+  }
+
+  function shareStep(rec: OpsRecommendation) {
+    void Share.share({ message: `${rec.title}\n${rec.reason}` }).catch(() => {});
+  }
+
   return (
     <Shell title="루틴">
       <SecondbStatusHeader text="오늘은 어떤 영역을 챙겨볼까요?" tip="받은 걸음은 캘린더로 보낼 수 있어요." />
       <Text style={styles.lead}>내 기록에서 뽑은 다음 한 걸음</Text>
       <View style={styles.filterRow}>
-        <FilterChip label="건강" active />
-        <FilterChip label="배움" />
-        <FilterChip label="관계" />
-        <FilterChip label="재정" />
+        {OPS_GROUP_IDS.map((id) => (
+          <FilterChip
+            key={id}
+            label={t(`groups.${id}`)}
+            active={group === id}
+            onPress={() => {
+              setGroup(id);
+              setDomain(null);
+              setRecs([]);
+              setRunState("idle");
+            }}
+          />
+        ))}
       </View>
-      <View style={styles.opsStep}>
-        <View style={styles.opsStepHead}>
-          <Text style={styles.opsStepTitle}>아침 산책 15분</Text>
-          <Text style={styles.timeChipMint}>내일 아침</Text>
+      {group ? (
+        <View style={styles.filterRow}>
+          {domains.map((id) => (
+            <FilterChip key={id} label={t(`domains.${id}`)} active={domain === id} violet onPress={() => setDomain(id)} />
+          ))}
         </View>
-        <Text style={styles.opsReason}>기분이 좋았던 날의 80%에 아침 산책 기록이 있었어요.</Text>
-        <View style={styles.opsStepFoot}>
-          <Text style={styles.evChip}>📎 기록 6건</Text>
-          <Pressable style={styles.smallBtn}><Text style={styles.smallBtnText}>캘린더에 추가</Text></Pressable>
+      ) : null}
+      {domain ? (
+        <Pressable
+          style={[styles.primary, (runState === "working" || limitReached) && { opacity: 0.6 }]}
+          disabled={runState === "working" || limitReached}
+          onPress={() => void runRecommend()}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: runState === "working" || limitReached, busy: runState === "working" }}
+        >
+          <Text style={styles.primaryText}>{runState === "working" ? t("recommend.working") : t("recommend.cta")}</Text>
+        </Pressable>
+      ) : null}
+      {runState === "limit" || (domain && limitReached) ? <Text style={styles.opsReason}>{t("recommend.limit")}</Text> : null}
+      {runState === "empty" ? <Text style={styles.opsReason}>{t("recommend.empty")}</Text> : null}
+      {runState === "error" ? <Text style={styles.opsReason}>{t("recommend.error")}</Text> : null}
+      {runState === "off" ? <Text style={styles.opsReason}>{t("recommend.off")}</Text> : null}
+      {recs.map((rec, i) => (
+        <View key={`${i}-${rec.title}`} style={styles.opsStep}>
+          <View style={styles.opsStepHead}>
+            <Text style={styles.opsStepTitle}>{rec.title}</Text>
+            {rec.recurrence ? (
+              <Text style={styles.timeChipMint}>{rec.recurrence === "daily" ? t("card.daily") : t("card.weekly")}</Text>
+            ) : null}
+          </View>
+          <Text style={styles.opsReason}>{rec.reason}</Text>
+          <View style={styles.opsStepFoot}>
+            <Pressable style={styles.smallBtnGhost} onPress={() => shareStep(rec)} accessibilityRole="button" accessibilityLabel="이 걸음 공유">
+              <Text style={styles.smallBtnGhostText}>공유</Text>
+            </Pressable>
+            <Pressable style={styles.smallBtn} onPress={() => addToCalendar(rec)} accessibilityRole="button" accessibilityLabel="캘린더에 추가">
+              <Text style={styles.smallBtnText}>캘린더에 추가</Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
-      <View style={styles.opsStep}>
-        <View style={styles.opsStepHead}>
-          <Text style={styles.opsStepTitle}>자기 전 스트레칭</Text>
-          <Text style={styles.timeChipCyan}>밤 11시</Text>
-        </View>
-        <Text style={styles.opsReason}>늦게 잔 날 다음날 집중이 떨어진다고 자주 적었어요.</Text>
-        <View style={styles.opsStepFoot}>
-          <Text style={styles.evChip}>📎 기록 4건</Text>
-          <Pressable style={styles.smallBtnGhost}><Text style={styles.smallBtnGhostText}>캘린더에 추가</Text></Pressable>
-        </View>
-      </View>
-      <Pressable style={styles.primary}><Text style={styles.primaryText}>받은 걸음 캘린더로 보내기</Text></Pressable>
+      ))}
+      {recs.length > 0 ? <Text style={styles.footerLeft}>{t("recommend.disclaimerBody")}</Text> : null}
     </Shell>
   );
 }
