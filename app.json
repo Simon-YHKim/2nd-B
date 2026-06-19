@@ -24,7 +24,11 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_CALENDAR",
-        "android.permission.WRITE_CALENDAR"
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_EXERCISE",
+        "android.permission.health.READ_SLEEP",
+        "android.permission.health.READ_HEART_RATE"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#070A18",
@@ -86,7 +90,17 @@
         }
       ],
       "expo-notifications",
-      "expo-image"
+      "expo-image",
+      "react-native-health-connect",
+      "expo-health-connect",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "The app reads your activity and routines only to tick off goals you approve on screen.",
+          "NSHealthUpdateUsageDescription": false,
+          "background": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

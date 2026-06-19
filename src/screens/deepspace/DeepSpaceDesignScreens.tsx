@@ -28,6 +28,8 @@ import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { recordHealthImportConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { mockSamplesForRange } from "@/lib/health/sources/mock";
+import { availableHealthSources } from "@/lib/health/registry";
+import type { HealthSample, HealthSource } from "@/lib/health/HealthSource";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
@@ -1641,19 +1643,42 @@ export function DeepSpaceImportScreen() {
   }
 
   // Ingest today's activity through the single choke point (gate enforced inside
-  // ingestHealthSamples). Slice 1 uses the deterministic mock as the data; the
-  // manual/native sources land later behind the same call.
+  // ingestHealthSamples). Slice 2: when a native OS source is available on this
+  // build (HealthKit / Health Connect on a dev-client/EAS build), read from it
+  // for today's range; otherwise (web / Expo Go) keep the Slice 1 deterministic
+  // mock. Either way the SAME ingestHealthSamples call enforces consent + the
+  // minor lock and runs auto-complete - no second ingest path bypasses it.
   async function handleHealthIngest() {
     if (!userId || healthBusy || !canHealth) return;
     setHealthBusy(true);
     setHealthDone(false);
     try {
-      const now = new Date().toISOString();
-      const samples = mockSamplesForRange({ startIso: now, endIso: now });
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const range = { startIso: start.toISOString(), endIso: new Date().toISOString() };
+
+      // Prefer the first available native OS source; mock/manual are always
+      // available, so pick a native one explicitly when present.
+      const native: HealthSource | undefined = availableHealthSources().find(
+        (s) => s.id === "healthkit" || s.id === "health_connect",
+      );
+
+      let samples: HealthSample[];
+      if (native) {
+        const perm = await native.requestPermission();
+        if (perm !== "granted") {
+          // Permission declined at the OS prompt: leave the affordance for retry.
+          return;
+        }
+        samples = await native.read(range);
+      } else {
+        samples = mockSamplesForRange(range);
+      }
+
       await ingestHealthSamples(userId, samples, { isMinor, pref: healthPref });
       setHealthDone(true);
     } catch {
-      // Gate rejection or write error: leave the affordance for retry.
+      // Gate rejection, OS-permission, or write error: leave the affordance for retry.
     } finally {
       setHealthBusy(false);
     }
