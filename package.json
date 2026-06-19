@@ -65,6 +65,7 @@
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.8.3",
     "tailwindcss": "^3.4.19",
+    "ts-fsrs": "^5.4.1",
     "yaml": "^2.9.0",
     "zod": "^3.23.0"
   },

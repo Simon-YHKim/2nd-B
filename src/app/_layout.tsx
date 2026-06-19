@@ -66,6 +66,7 @@ export default function RootLayout() {
               <Stack.Screen name="capture" />
               <Stack.Screen name="inbox" />
               <Stack.Screen name="focus" />
+              <Stack.Screen name="srs" />
               <Stack.Screen name="formats" />
               <Stack.Screen name="secondb" />
               <Stack.Screen name="jarvis" />

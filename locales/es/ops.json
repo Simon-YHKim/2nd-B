@@ -112,5 +112,27 @@
     "alarmFocusBody": "Buen trabajo. Hora de un descanso corto.",
     "alarmBreakTitle": "Descanso terminado",
     "alarmBreakBody": "De vuelta a tu próximo bloque de enfoque."
+  },
+  "srs": {
+    "title": "Repaso de idioma",
+    "status": "Despeja las tarjetas de hoy.",
+    "tip": "Despejar las tarjetas pendientes de hoy marca tu rutina de idioma.",
+    "frontLabel": "Frente",
+    "backLabel": "Reverso",
+    "frontPlaceholder": "Palabra o consigna",
+    "backPlaceholder": "Significado o respuesta",
+    "flip": "Toca para girar",
+    "showFront": "Ver frente",
+    "again": "De nuevo",
+    "hard": "Difícil",
+    "good": "Bien",
+    "easy": "Fácil",
+    "remaining": "Tarjetas restantes hoy: {{count}}",
+    "cleared": "Todo al día. Buen trabajo.",
+    "loading": "Cargando tus tarjetas…",
+    "addCard": "Agregar tarjeta",
+    "addTitle": "Agregar tarjeta",
+    "save": "Guardar",
+    "cancel": "Cancelar"
   }
 }

@@ -112,5 +112,27 @@
     "alarmFocusBody": "Kerja bagus. Waktunya istirahat singkat.",
     "alarmBreakTitle": "Istirahat selesai",
     "alarmBreakBody": "Kembali ke blok fokus berikutnya."
+  },
+  "srs": {
+    "title": "Tinjau bahasa",
+    "status": "Selesaikan kartu hari ini.",
+    "tip": "Menyelesaikan kartu jatuh tempo hari ini menandai rutinitas bahasamu.",
+    "frontLabel": "Depan",
+    "backLabel": "Belakang",
+    "frontPlaceholder": "Kata atau petunjuk",
+    "backPlaceholder": "Arti atau jawaban",
+    "flip": "Ketuk untuk membalik",
+    "showFront": "Lihat depan",
+    "again": "Lagi",
+    "hard": "Sulit",
+    "good": "Bagus",
+    "easy": "Mudah",
+    "remaining": "Kartu tersisa hari ini: {{count}}",
+    "cleared": "Semua beres. Kerja bagus.",
+    "loading": "Memuat kartumu…",
+    "addCard": "Tambah kartu",
+    "addTitle": "Tambah kartu",
+    "save": "Simpan",
+    "cancel": "Batal"
   }
 }

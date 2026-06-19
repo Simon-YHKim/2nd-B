@@ -112,5 +112,27 @@
     "alarmFocusBody": "Bom trabalho. Hora de uma pausa curta.",
     "alarmBreakTitle": "Pausa encerrada",
     "alarmBreakBody": "De volta ao seu próximo bloco de foco."
+  },
+  "srs": {
+    "title": "Revisão de idioma",
+    "status": "Limpe os cartões de hoje.",
+    "tip": "Limpar os cartões pendentes de hoje marca sua rotina de idioma.",
+    "frontLabel": "Frente",
+    "backLabel": "Verso",
+    "frontPlaceholder": "Palavra ou comando",
+    "backPlaceholder": "Significado ou resposta",
+    "flip": "Toque para virar",
+    "showFront": "Ver frente",
+    "again": "De novo",
+    "hard": "Difícil",
+    "good": "Bom",
+    "easy": "Fácil",
+    "remaining": "Cartões restantes hoje: {{count}}",
+    "cleared": "Tudo em dia. Bom trabalho.",
+    "loading": "Carregando seus cartões…",
+    "addCard": "Adicionar cartão",
+    "addTitle": "Adicionar cartão",
+    "save": "Salvar",
+    "cancel": "Cancelar"
   }
 }
