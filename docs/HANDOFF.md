@@ -4,6 +4,44 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
+## Latest — 2026-06-19 (cont.) / Wiki-graph upgrade A–E + deep-space data wiring + i18n (PR #464)
+
+### 어디까지 왔나
+- 브랜치 `claude/ultracode-handoff-docs-82evat`, PR **#464** (draft). 모든 커밋 `npm run verify` green (현재 1465 tests, i18n 26 namespaces / 1339 keys).
+- 직전 핸드오프의 "다음 작업 큐" A–E를 한 세션에서 처리:
+  - **A (STEP 1a)** ✅ `src/lib/wiki/materialize.ts` — Phase1 entities/concepts를 entity/concept 노드로 materialize + source→node edges (idempotent, 기존 body 보존). `phase2.generateSourcePage`에서 호출.
+  - **B (STEP 1b)** ✅ deep-space `/wiki`·`/research`를 실데이터로 배선. `src/screens/deepspace/wiki-graph-view.ts` pure 빌더.
+  - **C** ✅ deep-space 화면 실데이터 와이어링: `/records`(KST 타임라인), `/domains`(태그-도메인 집계), `/inbox`(미정리 source 큐 promote/discard), `/record` 상세(`getRecordById`+related-by-tag), `/ops`(on-demand 추천, D-20 minor gate+일일 한도). **`/formats`만 정적**(백킹 데이터 없음).
+  - **E** ✅ STEP 2 (migration `0046` `wiki_links.relation_type`+`confidence`, propose→ratify 쿼리) + STEP 3 (`src/lib/wiki/clusters.ts` connected-component 군집 + cross-topic surprise). **STEP 4 (pgvector)는 계획대로 deferred**.
+  - **D (진행 중)** — 새 `deepspace` i18n namespace(5 locale) 등록. **데이터 화면 6종 + ops 완료**: wiki/research/records/domains/inbox/recordDetail. **남은 것: 순수 정적 디자인 화면**(account/privacy/auth 3종/theme/manual/plans/permissions/support/discover/review/data/insights/integrations/formats/graph 등 ~12종).
+
+### 다음 작업 (D 마무리)
+정적 deep-space 화면들을 `deepspace` namespace로 i18n. 패턴 확립됨:
+1. `locales/{en,ko,es,id,pt}/deepspace.json`에 화면별 섹션 추가 (EN canonical, KO 기존, es/id/pt 번역). em dash 금지.
+2. 화면에 `const { t } = useTranslation("deepspace");` + 리터럴 → `t("<screen>.<key>")`.
+3. `npm run check:i18n` → `npm run verify`.
+- pure helper는 i18n-free 유지, 화면에서 localized label 주입 (`dsTimeLabels`/`dsRecencyLabels` 참고).
+
+### 핵심 파일
+```
+src/lib/wiki/materialize.ts                      STEP 1a
+src/lib/wiki/clusters.ts                         STEP 3 군집 엔진
+db/migrations/0046_wiki_link_relation_type.sql   STEP 2
+src/screens/deepspace/wiki-graph-view.ts         view 빌더 + recencyLabel/buildDomainsView
+src/screens/deepspace/records-timeline.ts        타임라인 빌더 (localized labels)
+src/screens/deepspace/DeepSpaceDesignScreens.tsx 모든 deep-space Shell 화면
+locales/*/deepspace.json                         deepspace i18n bundle (5 locale)
+src/lib/i18n/index.ts                            namespace 등록
+```
+
+### 검증
+```bash
+npm run verify   # green (1465 tests)
+```
+
+---
+
+
 ## Latest — 2026-06-19 / Deep-space UI conversion complete; wiki-graph upgrade next (STEP 1a)
 
 ### 어디까지 왔나
