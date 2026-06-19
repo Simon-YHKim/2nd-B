@@ -2576,7 +2576,13 @@ export function DeepSpaceFocusScreen() {
 
   const phase = timer.phase;
   const isBreak = phase === "break";
-  const totalMs = (isBreak ? timer.config.breakMinutes : timer.config.focusMinutes) * 60_000;
+  const target = timer.config.sessionsBeforeLongBreak;
+  const completed = timer.completedFocusSessions;
+  // The break after every Nth focus is the LONG break (mirrors breakMsAfter in
+  // pomodoro.ts), so the ring must divide by the long-break length, not the short.
+  const isLongBreak = isBreak && target > 0 && completed > 0 && completed % target === 0;
+  const breakTotalMin = isLongBreak ? timer.config.longBreakMinutes : timer.config.breakMinutes;
+  const totalMs = (isBreak ? breakTotalMin : timer.config.focusMinutes) * 60_000;
   const shownMs = phase === "idle" ? timer.config.focusMinutes * 60_000 : timer.remainingMs;
   // The ring FILLS as the session is gathered: offset = C while empty (start),
   // 0 when full (complete). offset = C * remaining/total.
@@ -2589,10 +2595,10 @@ export function DeepSpaceFocusScreen() {
   const clock = formatClock(shownMs);
   const subMessage = phase === "idle" ? t("focus.subIdle") : isBreak ? t("focus.subBreak") : t("focus.subFocus");
 
-  const target = timer.config.sessionsBeforeLongBreak;
-  const completed = timer.completedFocusSessions;
   const cycle = target > 0 ? completed % target : 0;
-  const filledDots = completed > 0 && cycle === 0 ? target : cycle;
+  // A completed set (cycle === 0, completed > 0) shows all dots filled ONLY at the
+  // completion/break boundary; the next focus block starts a fresh empty set.
+  const filledDots = completed > 0 && cycle === 0 ? (showComplete || isBreak ? target : 0) : cycle;
   const dotColor = showComplete ? colors.mint : colors.cyan;
 
   function openSettings() {
