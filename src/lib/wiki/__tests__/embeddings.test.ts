@@ -1,6 +1,7 @@
 import {
   cosineSimilarity,
   pageEmbeddingText,
+  proposalsFromNeighbors,
   rankBySimilarity,
 } from "../embeddings";
 
@@ -43,5 +44,26 @@ describe("pageEmbeddingText", () => {
   test("joins title + body and caps length", () => {
     expect(pageEmbeddingText({ title: "Carl Jung", body_md: "shadow self" })).toBe("Carl Jung\n\nshadow self");
     expect(pageEmbeddingText({ title: "T", body_md: "x".repeat(5000) }, 100).length).toBe(100);
+  });
+});
+
+describe("proposalsFromNeighbors", () => {
+  test("keeps neighbours at/above the confidence floor, shaped for insert", () => {
+    const out = proposalsFromNeighbors(
+      [
+        { id: "a", similarity: 0.9 },
+        { id: "b", similarity: 0.5 },
+        { id: "c", similarity: 0.49 },
+      ],
+      0.5,
+    );
+    expect(out).toEqual([
+      { toPageId: "a", confidence: 0.9 },
+      { toPageId: "b", confidence: 0.5 },
+    ]);
+  });
+
+  test("mock-grade noise (near-zero cosine) is filtered out by the floor", () => {
+    expect(proposalsFromNeighbors([{ id: "x", similarity: 0.03 }])).toEqual([]);
   });
 });

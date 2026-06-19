@@ -37,7 +37,15 @@
     "chipOrphans": "Lone pieces {{count}}",
     "noLinks": "Pieces have piled up but aren't linked yet. Add more and links will grow.",
     "surprise": "Found an unexpected link. '{{from}}' and '{{to}}' are different topics, yet they connect.",
-    "islandChip": "Knowledge clusters {{count}}"
+    "islandChip": "Knowledge clusters {{count}}",
+    "proposalsLabel": "Proposed connections",
+    "noProposals": "No proposals yet. Build the semantic index, then ask the assistant to suggest links.",
+    "confidence": "{{percent}}% match",
+    "reject": "Reject",
+    "ratify": "Accept",
+    "ratifying": "Accepting…",
+    "getProposals": "Get AI link suggestions",
+    "gettingProposals": "Looking for connections…"
   },
   "records": {
     "title": "Archive",

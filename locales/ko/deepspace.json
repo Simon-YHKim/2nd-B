@@ -37,7 +37,15 @@
     "chipOrphans": "외딴 조각 {{count}}",
     "noLinks": "조각은 쌓였지만 아직 서로 이어지지 않았어요. 더 담으면 연결이 자라나요.",
     "surprise": "뜻밖의 연결을 찾았어요. ‘{{from}}’과 ‘{{to}}’이 서로 다른 주제인데 이어져 있어요.",
-    "islandChip": "지식 군집 {{count}}"
+    "islandChip": "지식 군집 {{count}}",
+    "proposalsLabel": "제안된 연결",
+    "noProposals": "아직 제안이 없어요. 의미 색인을 만든 뒤 연결 제안을 받아보세요.",
+    "confidence": "{{percent}}% 일치",
+    "reject": "거절",
+    "ratify": "승인",
+    "ratifying": "승인 중…",
+    "getProposals": "AI 연결 제안 받기",
+    "gettingProposals": "연결을 찾는 중…"
   },
   "records": {
     "title": "기록 보관소",

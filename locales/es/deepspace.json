@@ -37,7 +37,15 @@
     "chipOrphans": "Piezas sueltas {{count}}",
     "noLinks": "Las piezas se han acumulado pero aún no están enlazadas. Añade más y los enlaces crecerán.",
     "surprise": "Se encontró un enlace inesperado. '{{from}}' y '{{to}}' son temas distintos y, aun así, conectan.",
-    "islandChip": "Grupos de conocimiento {{count}}"
+    "islandChip": "Grupos de conocimiento {{count}}",
+    "proposalsLabel": "Conexiones propuestas",
+    "noProposals": "Aún no hay propuestas. Crea el índice semántico y pide sugerencias de enlaces.",
+    "confidence": "{{percent}}% de coincidencia",
+    "reject": "Rechazar",
+    "ratify": "Aceptar",
+    "ratifying": "Aceptando…",
+    "getProposals": "Obtener sugerencias de enlaces por IA",
+    "gettingProposals": "Buscando conexiones…"
   },
   "records": {
     "title": "Archivo",

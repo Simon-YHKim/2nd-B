@@ -37,7 +37,15 @@
     "chipOrphans": "Keping sendirian {{count}}",
     "noLinks": "Keping sudah menumpuk tetapi belum tertaut. Tambahkan lagi dan tautan akan tumbuh.",
     "surprise": "Menemukan tautan tak terduga. '{{from}}' dan '{{to}}' adalah topik berbeda, namun keduanya terhubung.",
-    "islandChip": "Klaster pengetahuan {{count}}"
+    "islandChip": "Klaster pengetahuan {{count}}",
+    "proposalsLabel": "Koneksi yang diusulkan",
+    "noProposals": "Belum ada usulan. Buat indeks semantik, lalu minta saran tautan.",
+    "confidence": "{{percent}}% cocok",
+    "reject": "Tolak",
+    "ratify": "Terima",
+    "ratifying": "Menerima…",
+    "getProposals": "Dapatkan saran tautan AI",
+    "gettingProposals": "Mencari koneksi…"
   },
   "records": {
     "title": "Arsip",

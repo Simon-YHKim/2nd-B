@@ -10,7 +10,7 @@
 
 import { embedTexts, EMBED_DIM } from "../llm/gemini";
 import { getSupabaseClient } from "../supabase/client";
-import { listWikiPages } from "./queries";
+import { insertInferredLinks, listWikiPages, type InferredEdgeInput } from "./queries";
 import type { WikiPageRow } from "./types";
 
 /** Cosine similarity of two equal-length vectors; 0 for empty/mismatched. */
@@ -162,4 +162,59 @@ export async function relatedByEmbedding(
   });
   if (error) throw error;
   return (data ?? []) as RelatedPage[];
+}
+
+// --- propose -> ratify bridge (STEP 2 + STEP 4) ---------------------------
+
+/** Turn kNN neighbours into inferred-link proposals: keep the ones above the
+ *  confidence floor and shape them for insertInferredLinks. Pure. The 0.5 floor
+ *  also naturally drops mock embeddings (random 768-dim vectors sit near 0
+ *  cosine), so dev/CI never proposes noise — only real embeddings do. */
+export function proposalsFromNeighbors(
+  neighbors: { id: string; similarity: number }[],
+  minConfidence = 0.5,
+): InferredEdgeInput[] {
+  return neighbors
+    .filter((n) => n.similarity >= minConfidence)
+    .map((n) => ({ toPageId: n.id, confidence: n.similarity }));
+}
+
+/** Propose inferred links from a page to its semantic neighbours (canon's
+ *  propose->ratify: the AI emits `inferred`, the user ratifies). Returns the
+ *  number of new proposals inserted. */
+export async function proposeRelatedLinks(
+  userId: string,
+  pageId: string,
+  opts: { k?: number; minConfidence?: number } = {},
+): Promise<number> {
+  const neighbors = await relatedByEmbedding(userId, pageId, opts.k ?? 6);
+  const edges = proposalsFromNeighbors(neighbors, opts.minConfidence ?? 0.5);
+  return insertInferredLinks(userId, pageId, edges);
+}
+
+export interface ProposeAllResult {
+  pagesScanned: number;
+  proposed: number;
+}
+
+/** Propose inferred links across the user's pages (bounded, best-effort). Pages
+ *  without an embedding yield no neighbours, so they're skipped naturally. */
+export async function proposeAllRelatedLinks(
+  userId: string,
+  opts: { k?: number; minConfidence?: number; limit?: number } = {},
+): Promise<ProposeAllResult> {
+  const limit = opts.limit ?? 50;
+  const pages = await listWikiPages(userId, { limit: 200 });
+  let proposed = 0;
+  let pagesScanned = 0;
+  for (const page of pages) {
+    if (pagesScanned >= limit) break;
+    pagesScanned += 1;
+    try {
+      proposed += await proposeRelatedLinks(userId, page.id, opts);
+    } catch {
+      // best-effort; one page failing shouldn't abort the batch
+    }
+  }
+  return { pagesScanned, proposed };
 }

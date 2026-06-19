@@ -79,6 +79,7 @@ jest.mock("../../env", () => ({
 
 import {
   insertInferredLinks,
+  listInferredLinkDetails,
   listInferredLinks,
   ratifyLink,
   rejectInferredLink,
@@ -247,5 +248,28 @@ describe("propose->ratify edges (0046)", () => {
     expect(del?.filters.from_page).toBe("p-src");
     expect(del?.filters.to_page).toBe("p-a");
     expect(del?.filters.relation_type).toBe("inferred");
+  });
+
+  test("listInferredLinkDetails resolves edges to page titles", async () => {
+    tableRows.wiki_links = [{ from_page: "p-src", to_page: "p-a", confidence: 0.8 }];
+    tableRows.wiki_pages = [
+      { id: "p-src", title: "Source", slug: "source" },
+      { id: "p-a", title: "Carl Jung", slug: "carl-jung" },
+    ];
+    const rows = await listInferredLinkDetails("user-1");
+    expect(rows).toEqual([
+      { from_page: "p-src", to_page: "p-a", from_title: "Source", to_title: "Carl Jung", confidence: 0.8 },
+    ]);
+  });
+
+  test("listInferredLinkDetails falls back to slug then id for blank titles", async () => {
+    tableRows.wiki_links = [{ from_page: "p-src", to_page: "p-a", confidence: 0.6 }];
+    tableRows.wiki_pages = [
+      { id: "p-src", title: "  ", slug: "src-slug" },
+      { id: "p-a", title: "", slug: "" },
+    ];
+    const rows = await listInferredLinkDetails("user-1");
+    expect(rows[0].from_title).toBe("src-slug");
+    expect(rows[0].to_title).toBe("p-a");
   });
 });

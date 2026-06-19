@@ -433,6 +433,42 @@ export async function listInferredLinks(userId: string, limit = 50): Promise<Inf
   return (data ?? []) as InferredEdgeRow[];
 }
 
+export interface InferredLinkDetail {
+  from_page: string;
+  to_page: string;
+  from_title: string;
+  to_title: string;
+  confidence: number;
+}
+
+/** Inferred proposals resolved to page titles, for the ratify UI. Two-step
+ *  (edges, then the pages they touch) — mirrors getBacklinks' explicit shape. */
+export async function listInferredLinkDetails(userId: string, limit = 50): Promise<InferredLinkDetail[]> {
+  const edges = await listInferredLinks(userId, limit);
+  if (edges.length === 0) return [];
+  const ids = [...new Set(edges.flatMap((e) => [e.from_page, e.to_page]))];
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("wiki_pages")
+    .select("id, title, slug")
+    .eq("user_id", userId)
+    .in("id", ids);
+  if (error) throw error;
+  const titleById = new Map(
+    (data ?? []).map((p: { id: string; title: string; slug: string }) => [
+      p.id,
+      (p.title?.trim() || p.slug || p.id),
+    ]),
+  );
+  return edges.map((e) => ({
+    from_page: e.from_page,
+    to_page: e.to_page,
+    from_title: titleById.get(e.from_page) ?? e.from_page,
+    to_title: titleById.get(e.to_page) ?? e.to_page,
+    confidence: e.confidence,
+  }));
+}
+
 /** Promote an inferred edge to `ratified` (the user accepted the proposal).
  *  confidence is pinned to 1.0 — a ratified link is the user's own truth. */
 export async function ratifyLink(userId: string, fromPageId: string, toPageId: string): Promise<void> {

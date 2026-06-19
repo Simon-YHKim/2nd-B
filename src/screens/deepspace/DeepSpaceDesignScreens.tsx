@@ -15,12 +15,22 @@ import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } fro
 import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
 import { OPS_DAILY_LIMIT, bumpOpsUsage, readOpsUsage } from "@/lib/ops/usage";
-import { deleteSource, listAllWikiLinks, listSources, listWikiPages, updateSourceTags } from "@/lib/wiki/queries";
+import {
+  deleteSource,
+  listAllWikiLinks,
+  listInferredLinkDetails,
+  listSources,
+  listWikiPages,
+  ratifyLink,
+  rejectInferredLink,
+  updateSourceTags,
+  type InferredLinkDetail,
+} from "@/lib/wiki/queries";
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { runPhase1 } from "@/lib/wiki/phase1";
 import { suggestedTags } from "@/lib/wiki/suggest-tags";
 import { exportUserWiki } from "@/lib/wiki/export";
-import { backfillEmbeddings } from "@/lib/wiki/embeddings";
+import { backfillEmbeddings, proposeAllRelatedLinks } from "@/lib/wiki/embeddings";
 import { exportIden } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
@@ -705,6 +715,65 @@ export function DeepSpaceResearchScreen() {
   const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
   const view = useMemo(() => buildDeepResearchView(pages, edges), [pages, edges]);
 
+  // propose->ratify: AI-proposed (inferred) links awaiting the user's verdict.
+  const [proposals, setProposals] = useState<InferredLinkDetail[]>([]);
+  const [proposing, setProposing] = useState(false);
+  const [actingKey, setActingKey] = useState<string | null>(null);
+
+  const loadProposals = useMemo(
+    () => async (uid: string) => {
+      const rows = await listInferredLinkDetails(uid).catch(() => [] as InferredLinkDetail[]);
+      setProposals(rows);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!userId) return;
+    void loadProposals(userId);
+  }, [userId, loadProposals]);
+
+  async function findProposals() {
+    if (!userId || proposing) return;
+    setProposing(true);
+    try {
+      await proposeAllRelatedLinks(userId);
+      await loadProposals(userId);
+    } catch {
+      // best-effort; nothing new appears
+    } finally {
+      setProposing(false);
+    }
+  }
+
+  async function ratify(p: InferredLinkDetail) {
+    if (!userId) return;
+    const key = `${p.from_page}|${p.to_page}`;
+    setActingKey(key);
+    try {
+      await ratifyLink(userId, p.from_page, p.to_page);
+      await loadProposals(userId);
+    } catch {
+      // best-effort
+    } finally {
+      setActingKey(null);
+    }
+  }
+
+  async function reject(p: InferredLinkDetail) {
+    if (!userId) return;
+    const key = `${p.from_page}|${p.to_page}`;
+    setActingKey(key);
+    try {
+      await rejectInferredLink(userId, p.from_page, p.to_page);
+      await loadProposals(userId);
+    } catch {
+      // best-effort
+    } finally {
+      setActingKey(null);
+    }
+  }
+
   if (authLoading) {
     return <Shell title={t("research.title")}><GraphLoading /></Shell>;
   }
@@ -778,6 +847,46 @@ export function DeepSpaceResearchScreen() {
               </View>
             </View>
           ) : null}
+
+          {/* propose->ratify: AI proposes semantic links, the user decides. */}
+          <Text style={styles.tlLabel}>{t("research.proposalsLabel")}</Text>
+          {proposals.length === 0 ? (
+            <View style={styles.insightViolet}>
+              <Text style={styles.insightVioletText}>{t("research.noProposals")}</Text>
+            </View>
+          ) : (
+            proposals.map((p) => {
+              const key = `${p.from_page}|${p.to_page}`;
+              const busy = actingKey === key;
+              return (
+                <View key={key} style={styles.opsStep}>
+                  <View style={styles.mapRow}>
+                    <Text style={styles.mapFrom} numberOfLines={1}>{p.from_title}</Text>
+                    <Text style={styles.mapArrow}>↔</Text>
+                    <Text style={styles.mapTo} numberOfLines={1}>{p.to_title}</Text>
+                  </View>
+                  <View style={styles.opsStepFoot}>
+                    <Text style={styles.evChip}>{t("research.confidence", { percent: Math.round(p.confidence * 100) })}</Text>
+                    <Pressable style={styles.smallBtnGhost} onPress={() => void reject(p)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("research.reject")}>
+                      <Text style={styles.smallBtnGhostText}>{t("research.reject")}</Text>
+                    </Pressable>
+                    <Pressable style={styles.smallBtn} onPress={() => void ratify(p)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("research.ratify")}>
+                      <Text style={styles.smallBtnText}>{busy ? t("research.ratifying") : t("research.ratify")}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })
+          )}
+          <Pressable
+            style={[styles.smallBtnGhost, { marginLeft: 0, alignSelf: "flex-start" }, proposing && { opacity: 0.6 }]}
+            onPress={() => void findProposals()}
+            disabled={proposing}
+            accessibilityRole="button"
+            accessibilityLabel={t("research.getProposals")}
+          >
+            <Text style={styles.smallBtnGhostText}>{proposing ? t("research.gettingProposals") : t("research.getProposals")}</Text>
+          </Pressable>
         </>
       )}
     </Shell>

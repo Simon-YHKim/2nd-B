@@ -37,7 +37,15 @@
     "chipOrphans": "Peças soltas {{count}}",
     "noLinks": "As peças se acumularam, mas ainda não estão conectadas. Adicione mais e os vínculos vão crescer.",
     "surprise": "Encontrei um vínculo inesperado. '{{from}}' e '{{to}}' são temas diferentes e, mesmo assim, se conectam.",
-    "islandChip": "Grupos de conhecimento {{count}}"
+    "islandChip": "Grupos de conhecimento {{count}}",
+    "proposalsLabel": "Conexões propostas",
+    "noProposals": "Ainda não há propostas. Crie o índice semântico e peça sugestões de vínculos.",
+    "confidence": "{{percent}}% de correspondência",
+    "reject": "Rejeitar",
+    "ratify": "Aceitar",
+    "ratifying": "Aceitando…",
+    "getProposals": "Obter sugestões de vínculos por IA",
+    "gettingProposals": "Procurando conexões…"
   },
   "records": {
     "title": "Arquivo",
