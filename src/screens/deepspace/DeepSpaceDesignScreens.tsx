@@ -570,31 +570,32 @@ const RESEARCH_SAT = [
 ] as const;
 
 export function DeepSpaceResearchScreen() {
+  const { t } = useTranslation("deepspace");
   const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
   const view = useMemo(() => buildDeepResearchView(pages, edges), [pages, edges]);
 
   if (authLoading) {
-    return <Shell title="연결 찾기"><GraphLoading /></Shell>;
+    return <Shell title={t("research.title")}><GraphLoading /></Shell>;
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
   const satellites = RESEARCH_SAT.slice(0, Math.max(1, Math.min(view.hubs.length, 4)));
   const headerText =
     view.headline !== null
-      ? `흩어진 기록 사이에서 ${view.edgeCount}개의 연결을 찾았어요.`
-      : "기록이 쌓이면 사이의 연결을 찾아 보여드려요.";
+      ? t("research.headerFound", { count: view.edgeCount })
+      : t("research.headerNone");
 
   return (
-    <Shell title="연결 찾기">
-      <SecondbStatusHeader text={headerText} tip="태그를 누르면 군집이 보여요." mood="positive" />
-      <Text style={styles.lead}>흩어진 기록이 이렇게 이어져요</Text>
+    <Shell title={t("research.title")}>
+      <SecondbStatusHeader text={headerText} tip={t("research.tip")} mood="positive" />
+      <Text style={styles.lead}>{t("research.lead")}</Text>
       {loading ? (
         <GraphLoading />
       ) : view.pageCount === 0 ? (
         <View style={styles.insightViolet}>
-          <Text style={styles.insightVioletText}>아직 이어줄 기록이 없어요. 오늘의 조각을 담으면 여기서 연결을 그려드려요.</Text>
+          <Text style={styles.insightVioletText}>{t("research.emptyInsight")}</Text>
           <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
-            <Text style={styles.primaryText}>+ 조각 담기</Text>
+            <Text style={styles.primaryText}>{t("wiki.addPiece")}</Text>
           </Pressable>
         </View>
       ) : (
@@ -617,32 +618,32 @@ export function DeepSpaceResearchScreen() {
               <Circle cx={135} cy={62} r={8} fill={colors.textTitle} />
             </Svg>
             <Text style={styles.graphTag}>
-              {view.clusters.length > 0 ? `${view.clusters[0].tag} 군집` : "지식 군집"}
+              {view.clusters.length > 0
+                ? t("research.clusterTag", { tag: view.clusters[0].tag })
+                : t("research.clusterDefault")}
             </Text>
           </View>
           {view.headline !== null ? (
             <View style={styles.insightViolet}>
-              <Text style={styles.insightVioletText}>
-                가장 많이 이어진 지식은 ‘{view.headline.title}’예요. 여러 기록이 이 한 점으로 모여요.
-              </Text>
+              <Text style={styles.insightVioletText}>{t("research.headline", { title: view.headline.title })}</Text>
               <View style={styles.evRow}>
-                <Text style={styles.evChip}>📎 페이지 {view.pageCount}</Text>
-                <Text style={styles.evChip}>연결 {view.headline.inDegree}</Text>
-                {view.orphanCount > 0 ? <Text style={styles.evChip}>외딴 조각 {view.orphanCount}</Text> : null}
+                <Text style={styles.evChip}>📎 {t("research.chipPages", { count: view.pageCount })}</Text>
+                <Text style={styles.evChip}>{t("research.chipLinks", { count: view.headline.inDegree })}</Text>
+                {view.orphanCount > 0 ? <Text style={styles.evChip}>{t("research.chipOrphans", { count: view.orphanCount })}</Text> : null}
               </View>
             </View>
           ) : (
             <View style={styles.insightViolet}>
-              <Text style={styles.insightVioletText}>조각은 쌓였지만 아직 서로 이어지지 않았어요. 더 담으면 연결이 자라나요.</Text>
+              <Text style={styles.insightVioletText}>{t("research.noLinks")}</Text>
             </View>
           )}
           {view.surprise !== null ? (
             <View style={styles.insightViolet}>
               <Text style={styles.insightVioletText}>
-                뜻밖의 연결을 찾았어요. ‘{view.surprise.fromTitle}’과(와) ‘{view.surprise.toTitle}’이(가) 서로 다른 주제인데 이어져 있어요.
+                {t("research.surprise", { from: view.surprise.fromTitle, to: view.surprise.toTitle })}
               </Text>
               <View style={styles.evRow}>
-                <Text style={styles.evChip}>지식 군집 {view.islandCount}</Text>
+                <Text style={styles.evChip}>{t("research.islandChip", { count: view.islandCount })}</Text>
               </View>
             </View>
           ) : null}
@@ -1028,31 +1029,30 @@ export function DeepSpaceOpsScreen() {
 }
 
 export function DeepSpaceWikiScreen() {
+  const { t } = useTranslation("deepspace");
   const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const view = useMemo(() => buildDeepWikiView(pages, edges, { activeTag }), [pages, edges, activeTag]);
 
   if (authLoading) {
-    return <Shell title="지식"><GraphLoading /></Shell>;
+    return <Shell title={t("wiki.title")}><GraphLoading /></Shell>;
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
   const headerText =
-    view.pageCount > 0
-      ? `지금까지 ${view.pageCount}개의 지식이 자라고 있어요.`
-      : "아직 지식이 비어 있어요. 오늘의 조각을 담아볼까요?";
+    view.pageCount > 0 ? t("wiki.headerGrowing", { count: view.pageCount }) : t("wiki.headerEmpty");
   const [first, ...rest] = view.pages;
 
   return (
-    <Shell title="지식">
-      <SecondbStatusHeader text={headerText} tip="태그로 좁혀 보세요." mood="positive" />
+    <Shell title={t("wiki.title")}>
+      <SecondbStatusHeader text={headerText} tip={t("wiki.tip")} mood="positive" />
       <View style={styles.wikiStatRow}>
-        <View style={styles.wikiStat}><Text style={styles.wikiStatNum}>{view.pageCount}</Text><Text style={styles.wikiStatCap}>페이지</Text></View>
-        <View style={styles.wikiStat}><Text style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>{view.edgeCount}</Text><Text style={styles.wikiStatCap}>연결</Text></View>
+        <View style={styles.wikiStat}><Text style={styles.wikiStatNum}>{view.pageCount}</Text><Text style={styles.wikiStatCap}>{t("wiki.statPages")}</Text></View>
+        <View style={styles.wikiStat}><Text style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>{view.edgeCount}</Text><Text style={styles.wikiStatCap}>{t("wiki.statLinks")}</Text></View>
       </View>
       {view.tagChips.length > 0 ? (
         <View style={styles.filterRow}>
-          <FilterChip label="전체" active={activeTag === null} onPress={() => setActiveTag(null)} />
+          <FilterChip label={t("wiki.filterAll")} active={activeTag === null} onPress={() => setActiveTag(null)} />
           {view.tagChips.map((c) => (
             <FilterChip
               key={c.tag}
@@ -1067,13 +1067,9 @@ export function DeepSpaceWikiScreen() {
         <GraphLoading />
       ) : view.pages.length === 0 ? (
         <View style={styles.wikiPageOpen}>
-          <Text style={styles.wikiBody}>
-            {activeTag !== null
-              ? "이 태그에 담긴 지식이 아직 없어요. 다른 태그를 눌러보거나 조각을 담아보세요."
-              : "창고가 조용해요. 오늘의 조각이나 링크를 담으면 여기서 다시 만날 수 있어요."}
-          </Text>
+          <Text style={styles.wikiBody}>{activeTag !== null ? t("wiki.emptyTag") : t("wiki.emptyAll")}</Text>
           <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
-            <Text style={styles.primaryText}>+ 조각 담기</Text>
+            <Text style={styles.primaryText}>{t("wiki.addPiece")}</Text>
           </Pressable>
         </View>
       ) : (
@@ -1088,7 +1084,7 @@ export function DeepSpaceWikiScreen() {
                 <Text style={styles.wikiBody}>{first.snippet}</Text>
               ) : null}
               <View style={styles.wikiBacklinkRow}>
-                <Text style={styles.wikiBacklink}>↩ 연결된 기록 {first.connections}</Text>
+                <Text style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: first.connections })}</Text>
                 {first.tags[0] ? <Text style={styles.tlTag}>{first.tags[0]}</Text> : null}
               </View>
             </View>
@@ -1097,7 +1093,7 @@ export function DeepSpaceWikiScreen() {
             <View key={p.id} style={styles.wikiPageRow}>
               <View style={styles.wikiRowHead}>
                 <Text style={styles.wikiRowTitle} numberOfLines={1}>{p.title}</Text>
-                <Text style={styles.wikiRowConn}>연결 {p.connections}</Text>
+                <Text style={styles.wikiRowConn}>{t("wiki.connections", { count: p.connections })}</Text>
               </View>
               {p.snippet.length > 0 ? (
                 <Text style={styles.wikiRowDesc} numberOfLines={1}>{p.snippet}</Text>

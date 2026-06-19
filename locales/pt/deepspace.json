@@ -1,0 +1,33 @@
+{
+  "wiki": {
+    "title": "Conhecimento",
+    "headerGrowing": "Até agora {{count}} peças de conhecimento estão crescendo.",
+    "headerEmpty": "Seu conhecimento ainda está vazio. Quer adicionar a peça de hoje?",
+    "tip": "Filtre por etiqueta.",
+    "statPages": "Páginas",
+    "statLinks": "Conexões",
+    "filterAll": "Tudo",
+    "emptyTag": "Ainda não há nada nesta etiqueta. Tente outra etiqueta ou adicione uma peça.",
+    "emptyAll": "O arquivo está quieto. Adicione a peça de hoje ou um link e você o encontrará aqui de novo.",
+    "addPiece": "+ Adicionar uma peça",
+    "backlinks": "Registros vinculados {{count}}",
+    "connections": "Conexões {{count}}"
+  },
+  "research": {
+    "title": "Encontrar conexões",
+    "headerFound": "Encontradas {{count}} conexões entre seus registros espalhados.",
+    "headerNone": "À medida que os registros se acumulam, vou encontrar e mostrar os vínculos entre eles.",
+    "tip": "Toque numa etiqueta para ver seu grupo.",
+    "lead": "É assim que seus registros espalhados se conectam",
+    "emptyInsight": "Ainda não há registros para conectar. Adicione a peça de hoje e vou desenhar os vínculos aqui.",
+    "clusterTag": "Grupo de {{tag}}",
+    "clusterDefault": "Grupo de conhecimento",
+    "headline": "O conhecimento mais conectado é '{{title}}'. Muitos registros se reúnem neste ponto.",
+    "chipPages": "Páginas {{count}}",
+    "chipLinks": "Conexões {{count}}",
+    "chipOrphans": "Peças soltas {{count}}",
+    "noLinks": "As peças se acumularam, mas ainda não estão conectadas. Adicione mais e os vínculos vão crescer.",
+    "surprise": "Encontrei um vínculo inesperado. '{{from}}' e '{{to}}' são temas diferentes e, mesmo assim, se conectam.",
+    "islandChip": "Grupos de conhecimento {{count}}"
+  }
+}

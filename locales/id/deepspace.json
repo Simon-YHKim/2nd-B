@@ -1,0 +1,33 @@
+{
+  "wiki": {
+    "title": "Pengetahuan",
+    "headerGrowing": "Sejauh ini {{count}} keping pengetahuan sedang tumbuh.",
+    "headerEmpty": "Pengetahuanmu masih kosong. Mau menambahkan keping hari ini?",
+    "tip": "Persempit berdasarkan tag.",
+    "statPages": "Halaman",
+    "statLinks": "Tautan",
+    "filterAll": "Semua",
+    "emptyTag": "Belum ada apa pun di tag ini. Coba tag lain atau tambahkan keping.",
+    "emptyAll": "Arsip sedang sepi. Tambahkan keping hari ini atau sebuah tautan, dan kamu akan menemukannya lagi di sini.",
+    "addPiece": "+ Tambahkan keping",
+    "backlinks": "Catatan tertaut {{count}}",
+    "connections": "Tautan {{count}}"
+  },
+  "research": {
+    "title": "Temukan koneksi",
+    "headerFound": "Menemukan {{count}} koneksi di antara catatanmu yang tersebar.",
+    "headerNone": "Saat catatan menumpuk, aku akan menemukan dan menunjukkan tautan di antaranya.",
+    "tip": "Ketuk sebuah tag untuk melihat klasternya.",
+    "lead": "Beginilah catatanmu yang tersebar saling terhubung",
+    "emptyInsight": "Belum ada catatan untuk dihubungkan. Tambahkan keping hari ini dan aku akan menggambar tautannya di sini.",
+    "clusterTag": "Klaster {{tag}}",
+    "clusterDefault": "Klaster pengetahuan",
+    "headline": "Pengetahuan paling terhubung adalah '{{title}}'. Banyak catatan berkumpul di satu titik ini.",
+    "chipPages": "Halaman {{count}}",
+    "chipLinks": "Tautan {{count}}",
+    "chipOrphans": "Keping sendirian {{count}}",
+    "noLinks": "Keping sudah menumpuk tetapi belum tertaut. Tambahkan lagi dan tautan akan tumbuh.",
+    "surprise": "Menemukan tautan tak terduga. '{{from}}' dan '{{to}}' adalah topik berbeda, namun keduanya terhubung.",
+    "islandChip": "Klaster pengetahuan {{count}}"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "wiki": {
+    "title": "Knowledge",
+    "headerGrowing": "{{count}} pieces of knowledge are growing so far.",
+    "headerEmpty": "Your knowledge is still empty. Want to add today's piece?",
+    "tip": "Narrow it down by tag.",
+    "statPages": "Pages",
+    "statLinks": "Links",
+    "filterAll": "All",
+    "emptyTag": "Nothing under this tag yet. Try another tag or add a piece.",
+    "emptyAll": "The store is quiet. Add today's piece or a link and you'll meet it here again.",
+    "addPiece": "+ Add a piece",
+    "backlinks": "Linked records {{count}}",
+    "connections": "Links {{count}}"
+  },
+  "research": {
+    "title": "Find connections",
+    "headerFound": "Found {{count}} connections among your scattered records.",
+    "headerNone": "As records pile up, I'll find and show the links between them.",
+    "tip": "Tap a tag to see its cluster.",
+    "lead": "Here's how your scattered records connect",
+    "emptyInsight": "No records to connect yet. Add today's piece and I'll draw the links here.",
+    "clusterTag": "{{tag}} cluster",
+    "clusterDefault": "Knowledge cluster",
+    "headline": "The most-connected knowledge is '{{title}}'. Many records gather at this one point.",
+    "chipPages": "Pages {{count}}",
+    "chipLinks": "Links {{count}}",
+    "chipOrphans": "Lone pieces {{count}}",
+    "noLinks": "Pieces have piled up but aren't linked yet. Add more and links will grow.",
+    "surprise": "Found an unexpected link. '{{from}}' and '{{to}}' are different topics, yet they connect.",
+    "islandChip": "Knowledge clusters {{count}}"
+  }
+}

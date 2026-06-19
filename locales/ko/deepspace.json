@@ -1,0 +1,33 @@
+{
+  "wiki": {
+    "title": "지식",
+    "headerGrowing": "지금까지 {{count}}개의 지식이 자라고 있어요.",
+    "headerEmpty": "아직 지식이 비어 있어요. 오늘의 조각을 담아볼까요?",
+    "tip": "태그로 좁혀 보세요.",
+    "statPages": "페이지",
+    "statLinks": "연결",
+    "filterAll": "전체",
+    "emptyTag": "이 태그에 담긴 지식이 아직 없어요. 다른 태그를 눌러보거나 조각을 담아보세요.",
+    "emptyAll": "창고가 조용해요. 오늘의 조각이나 링크를 담으면 여기서 다시 만날 수 있어요.",
+    "addPiece": "+ 조각 담기",
+    "backlinks": "연결된 기록 {{count}}",
+    "connections": "연결 {{count}}"
+  },
+  "research": {
+    "title": "연결 찾기",
+    "headerFound": "흩어진 기록 사이에서 {{count}}개의 연결을 찾았어요.",
+    "headerNone": "기록이 쌓이면 사이의 연결을 찾아 보여드려요.",
+    "tip": "태그를 누르면 군집이 보여요.",
+    "lead": "흩어진 기록이 이렇게 이어져요",
+    "emptyInsight": "아직 이어줄 기록이 없어요. 오늘의 조각을 담으면 여기서 연결을 그려드려요.",
+    "clusterTag": "{{tag}} 군집",
+    "clusterDefault": "지식 군집",
+    "headline": "가장 많이 이어진 지식은 ‘{{title}}’예요. 여러 기록이 이 한 점으로 모여요.",
+    "chipPages": "페이지 {{count}}",
+    "chipLinks": "연결 {{count}}",
+    "chipOrphans": "외딴 조각 {{count}}",
+    "noLinks": "조각은 쌓였지만 아직 서로 이어지지 않았어요. 더 담으면 연결이 자라나요.",
+    "surprise": "뜻밖의 연결을 찾았어요. ‘{{from}}’과 ‘{{to}}’이 서로 다른 주제인데 이어져 있어요.",
+    "islandChip": "지식 군집 {{count}}"
+  }
+}

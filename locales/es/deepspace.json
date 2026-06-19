@@ -1,0 +1,33 @@
+{
+  "wiki": {
+    "title": "Conocimiento",
+    "headerGrowing": "Hasta ahora están creciendo {{count}} piezas de conocimiento.",
+    "headerEmpty": "Tu conocimiento aún está vacío. ¿Quieres añadir la pieza de hoy?",
+    "tip": "Acótalo por etiqueta.",
+    "statPages": "Páginas",
+    "statLinks": "Enlaces",
+    "filterAll": "Todo",
+    "emptyTag": "Aún no hay nada bajo esta etiqueta. Prueba otra etiqueta o añade una pieza.",
+    "emptyAll": "El archivo está tranquilo. Añade la pieza de hoy o un enlace y volverás a encontrarlo aquí.",
+    "addPiece": "+ Añadir una pieza",
+    "backlinks": "Registros enlazados {{count}}",
+    "connections": "Enlaces {{count}}"
+  },
+  "research": {
+    "title": "Encontrar conexiones",
+    "headerFound": "Se encontraron {{count}} conexiones entre tus registros dispersos.",
+    "headerNone": "A medida que se acumulen los registros, encontraré y mostraré los enlaces entre ellos.",
+    "tip": "Toca una etiqueta para ver su grupo.",
+    "lead": "Así se conectan tus registros dispersos",
+    "emptyInsight": "Aún no hay registros que conectar. Añade la pieza de hoy y dibujaré los enlaces aquí.",
+    "clusterTag": "Grupo de {{tag}}",
+    "clusterDefault": "Grupo de conocimiento",
+    "headline": "El conocimiento más conectado es '{{title}}'. Muchos registros se reúnen en este punto.",
+    "chipPages": "Páginas {{count}}",
+    "chipLinks": "Enlaces {{count}}",
+    "chipOrphans": "Piezas sueltas {{count}}",
+    "noLinks": "Las piezas se han acumulado pero aún no están enlazadas. Añade más y los enlaces crecerán.",
+    "surprise": "Se encontró un enlace inesperado. '{{from}}' y '{{to}}' son temas distintos y, aun así, conectan.",
+    "islandChip": "Grupos de conocimiento {{count}}"
+  }
+}
