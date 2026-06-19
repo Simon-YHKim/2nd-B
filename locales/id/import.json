@@ -47,5 +47,11 @@
     "graphHint": "Membuka graf utama.",
     "more": "Impor lagi",
     "moreHint": "Mengosongkan impor ini dan memulai yang baru."
+  },
+  "health": {
+    "connect": "Nyalakan sinkronisasi aktivitas",
+    "ingest": "Tambahkan aktivitas hari ini",
+    "consentNeeded": "Setujui untuk membawa aktivitas masuk",
+    "minorLocked": "Sinkronisasi aktivitas nonaktif untuk akun ini."
   }
 }

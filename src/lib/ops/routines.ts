@@ -12,7 +12,9 @@
 // without a client.
 
 import { getSupabaseClient } from "../supabase/client";
+import type { HealthSample } from "../health/HealthSource";
 import type { OpsDomainId } from "./domains";
+import { routinesSatisfiedBy } from "./health-link";
 import type { OpsRecommendation } from "./recommend";
 
 export type OpsRecurrence = "daily" | "weekly" | "none";
@@ -195,20 +197,50 @@ export async function deactivateRoutine(userId: string, routineId: string): Prom
  * Record "I did this routine today" idempotently. The UNIQUE(routine_id,
  * completed_on) key means a double-tap upserts onto the same row instead of
  * erroring, so the optimistic check in the UI never produces a duplicate.
+ *
+ * `sourceSampleId` (Phase B Slice 1) records which health_samples row
+ * auto-completed this routine; omitted/null = a manual tick. It writes into the
+ * additive ops_routine_logs.source_sample_id column (migration 0049) without
+ * changing the idempotency key, so a manual tick and a later auto-complete for
+ * the same day still collapse to the one row.
  */
 export async function logRoutineCompletion(
   userId: string,
   routineId: string,
   date: string = localDayKey(),
+  sourceSampleId?: string | null,
 ): Promise<void> {
   const supabase = getSupabaseClient();
+  const row: Record<string, unknown> = { user_id: userId, routine_id: routineId, completed_on: date };
+  if (sourceSampleId !== undefined && sourceSampleId !== null) {
+    row.source_sample_id = sourceSampleId;
+  }
   const { error } = await supabase
     .from("ops_routine_logs")
-    .upsert(
-      { user_id: userId, routine_id: routineId, completed_on: date },
-      { onConflict: "routine_id,completed_on", ignoreDuplicates: true },
-    );
+    .upsert(row, { onConflict: "routine_id,completed_on", ignoreDuplicates: true });
   if (error) throw error;
+}
+
+/**
+ * Phase B Slice 1: deterministic health → routine auto-completion. Loads the
+ * user's active routines, runs the pure rule mapping (health-link.ts, no LLM),
+ * and logs a completion for each hit — tagged with the sample id. Idempotent on
+ * (routine_id, completed_on), so re-importing the same sample is a no-op.
+ * Returns the routine ids that were auto-completed.
+ */
+export async function applyHealthAutoComplete(
+  userId: string,
+  sample: { id: string; metricType: HealthSample["metricType"]; value: number; startedAt: string },
+): Promise<string[]> {
+  const routines = await listActiveRoutines(userId);
+  const hits = routinesSatisfiedBy(
+    { metricType: sample.metricType, value: sample.value, startedAt: sample.startedAt },
+    routines.map((r) => ({ id: r.id, domain_id: r.domain_id })),
+  );
+  for (const hit of hits) {
+    await logRoutineCompletion(userId, hit.routineId, hit.completedOn, sample.id);
+  }
+  return hits.map((h) => h.routineId);
 }
 
 /** All completion logs at/after `sinceDate` (YYYY-MM-DD), for streak/history. */

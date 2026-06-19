@@ -92,5 +92,9 @@
     "reminderDeniedNote": "Permissão de notificações desativada. Permita nas configurações do dispositivo para usar lembretes.",
     "reminderFailedNote": "Não foi possível definir o lembrete. Verifique o horário do item e tente novamente.",
     "reminderUnavailableNote": "Salvo. Lembretes precisam do app instalado, então este não vai tocar aqui."
+  },
+  "health": {
+    "autoCompleted": "Marcado automaticamente pela sua atividade",
+    "autoCompletedHint": "Um treino registrado ou passos acima da sua meta marcaram isto."
   }
 }

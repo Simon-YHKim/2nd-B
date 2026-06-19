@@ -92,5 +92,9 @@
     "reminderDeniedNote": "El permiso de notificaciones está apagado. Actívalo en los ajustes del dispositivo para usar recordatorios.",
     "reminderFailedNote": "No se pudo configurar el recordatorio. Revisa la hora del elemento e intenta de nuevo.",
     "reminderUnavailableNote": "Guardado. Los recordatorios necesitan la app instalada, así que este no sonará aquí."
+  },
+  "health": {
+    "autoCompleted": "Marcado automáticamente desde tu actividad",
+    "autoCompletedHint": "Un entrenamiento registrado o pasos por encima de tu meta lo marcaron."
   }
 }

@@ -10,7 +10,10 @@ import { SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { systemLocaleFor } from "@/lib/i18n/locales";
-import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
+import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
+import { recordHealthImportConsent } from "@/lib/supabase/consent";
+import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
+import { mockSamplesForRange } from "@/lib/health/sources/mock";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
@@ -1056,14 +1059,69 @@ interface ImportResult {
 }
 
 export function DeepSpaceImportScreen() {
-  const { t } = useTranslation("deepspace");
-  const { userId, loading: authLoading } = useAuth();
+  const { t, i18n } = useTranslation("deepspace");
+  const { userId, loading: authLoading, isMinor } = useAuth();
   const [text, setText] = useState("");
   const [importing, setImporting] = useState(false);
   const [picking, setPicking] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  // Phase B Slice 1: app-level health_import opt-in state. Off for everyone by
+  // default; minors are hard-locked off (healthImportAllowed never passes).
+  const [healthPref, setHealthPref] = useState(false);
+  const [healthBusy, setHealthBusy] = useState(false);
+  const [healthDone, setHealthDone] = useState(false);
 
   const notes = useMemo(() => splitImportNotes(text), [text]);
+
+  useEffect(() => {
+    if (!userId) return;
+    void fetchPrivacyPrefs(userId).then((p) => setHealthPref(p.health_import === true));
+  }, [userId]);
+
+  const canHealth = healthImportAllowed(isMinor, healthPref);
+
+  // Opt in: persist the pref AND write an explicit sensitive-data consent record
+  // (consent_records, the existing ledger) before any ingest can run. Minors
+  // can never reach this — the row shows healthMinorLocked instead.
+  async function handleHealthConsent() {
+    if (!userId || healthBusy || isMinor === true) return;
+    setHealthBusy(true);
+    try {
+      const prefs = { ...(await fetchPrivacyPrefs(userId)), health_import: true };
+      await savePrivacyPrefs(userId, prefs);
+      // The guard above already excludes minors, so opt-in here is always adult.
+      await recordHealthImportConsent({
+        userId,
+        ageBand: "adult",
+        minorTier: "adult",
+        locale: i18n.language?.startsWith("ko") ? "ko" : "en",
+      });
+      setHealthPref(true);
+    } catch {
+      // Best-effort; the row stays in the opt-in state so the user can retry.
+    } finally {
+      setHealthBusy(false);
+    }
+  }
+
+  // Ingest today's activity through the single choke point (gate enforced inside
+  // ingestHealthSamples). Slice 1 uses the deterministic mock as the data; the
+  // manual/native sources land later behind the same call.
+  async function handleHealthIngest() {
+    if (!userId || healthBusy || !canHealth) return;
+    setHealthBusy(true);
+    setHealthDone(false);
+    try {
+      const now = new Date().toISOString();
+      const samples = mockSamplesForRange({ startIso: now, endIso: now });
+      await ingestHealthSamples(userId, samples, { isMinor, pref: healthPref });
+      setHealthDone(true);
+    } catch {
+      // Gate rejection or write error: leave the affordance for retry.
+    } finally {
+      setHealthBusy(false);
+    }
+  }
 
   async function handlePickFiles() {
     if (importing || picking) return;
@@ -1188,7 +1246,27 @@ export function DeepSpaceImportScreen() {
           accessibilityRole="button"
           accessibilityLabel={t("import.pickFiles")}
         ><Text style={styles.tlIcon}>🔮</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>Obsidian</Text><Text style={styles.sourceDesc}>{t("import.obsidianDesc")}</Text></View><Text style={styles.sourceCta}>{picking ? t("import.picking") : t("import.pickFiles")}</Text></Pressable>
-        <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>❤</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>{t("import.healthName")}</Text><Text style={styles.sourceDesc}>{t("import.healthDesc")}</Text></View><Text style={styles.sourceSoon}>{t("import.soon")}</Text></View>
+        {isMinor === true ? (
+          <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>❤</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>{t("import.healthName")}</Text><Text style={styles.sourceDesc}>{t("import.healthDesc")}</Text></View><Text style={styles.sourceSoon}>{t("import.healthMinorLocked")}</Text></View>
+        ) : !canHealth ? (
+          <Pressable
+            style={styles.sourceRow}
+            onPress={() => void handleHealthConsent()}
+            disabled={healthBusy}
+            accessibilityRole="button"
+            accessibilityLabel={t("import.healthConsentNeeded")}
+            accessibilityHint={t("import.healthConnectHint")}
+          ><Text style={styles.tlIcon}>❤</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>{t("import.healthName")}</Text><Text style={styles.sourceDesc}>{t("import.healthDesc")}</Text></View><Text style={styles.sourceCta}>{healthBusy ? t("import.importing") : t("import.healthConsentNeeded")}</Text></Pressable>
+        ) : (
+          <Pressable
+            style={styles.sourceRow}
+            onPress={() => void handleHealthIngest()}
+            disabled={healthBusy}
+            accessibilityRole="button"
+            accessibilityLabel={t("import.healthIngest")}
+            accessibilityHint={t("import.healthIngestHint")}
+          ><Text style={styles.tlIcon}>❤</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>{t("import.healthName")}</Text><Text style={styles.sourceDesc}>{healthDone ? t("import.healthIngested") : t("import.healthDesc")}</Text></View><Text style={styles.sourceCta}>{healthBusy ? t("import.importing") : t("import.healthIngest")}</Text></Pressable>
+        )}
       </View>
     </Shell>
   );

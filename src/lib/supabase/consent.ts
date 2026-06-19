@@ -70,6 +70,33 @@ export async function recordConsent(args: RecordConsentArgs): Promise<void> {
   if (error) throw error;
 }
 
+// Phase B Slice 1: record the explicit app-level opt-in to the health/activity
+// ingest. Health data is PIPA 민감정보, so the consent is logged with the
+// sensitive-data acknowledgement set. Reuses the existing consent ledger (no
+// new path) and the best-effort writer so a flaky network does not lose it.
+// Only call this AFTER the user has actually flipped health_import ON in the UI.
+export async function recordHealthImportConsent(args: {
+  userId: string;
+  ageBand: ConsentAgeBand;
+  minorTier?: MinorTier | null;
+  locale: "en" | "ko";
+}): Promise<boolean> {
+  return recordConsentBestEffort({
+    userId: args.userId,
+    ageBand: args.ageBand,
+    minorTier: args.minorTier ?? null,
+    locale: args.locale,
+    purposes: ["health_import"],
+    requiredAck: true,
+    optionalConsents: { health_import: true },
+    // Health/activity is sensitive data; it is processed by our own pipeline
+    // (no third-party LLM in this slice), so only the sensitive-data ack is set.
+    llmProcessingAck: false,
+    overseasTransferAck: false,
+    sensitiveDataAck: true,
+  });
+}
+
 // A transient (network/timeout) failure should not lose a consent event, but a
 // permanent error (missing table pre-migration, schema/permission, integrity)
 // will never succeed on retry, so retrying it just wastes time. Distinguish the
