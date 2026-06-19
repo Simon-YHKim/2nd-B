@@ -347,6 +347,18 @@
     "mapTo3": "Momento salvo",
     "footer": "Importando {{count}} itens. Nada se aplica sem sua aprovação.",
     "cancel": "Cancelar",
-    "importCount": "Importar {{count}}"
+    "importCount": "Importar {{count}}",
+    "pasteLabel": "Colar markdown",
+    "placeholder": "Cole suas notas em markdown aqui. Separe várias notas com uma linha ---.",
+    "detected": "{{count}} notas para importar",
+    "untitled": "Nota sem título",
+    "andMore": "e mais {{count}}",
+    "empty": "Cole notas acima e uma prévia aparece aqui.",
+    "resultDone": "Adicionadas {{count}} à sua bandeja.",
+    "resultDuplicate": "{{count}} duplicada(s) ignorada(s)",
+    "resultFailed": "{{count}} com falha",
+    "importing": "Importando…",
+    "clear": "Limpar",
+    "connectorsLabel": "Conectores de apps"
   }
 }

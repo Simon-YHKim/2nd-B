@@ -347,6 +347,18 @@
     "mapTo3": "Momento guardado",
     "footer": "Importando {{count}} elementos. Nada se aplica sin tu aprobación.",
     "cancel": "Cancelar",
-    "importCount": "Importar {{count}}"
+    "importCount": "Importar {{count}}",
+    "pasteLabel": "Pegar markdown",
+    "placeholder": "Pega aquí tus notas en markdown. Separa varias notas con una línea ---.",
+    "detected": "{{count}} notas para importar",
+    "untitled": "Nota sin título",
+    "andMore": "y {{count}} más",
+    "empty": "Pega notas arriba y aquí aparece una vista previa.",
+    "resultDone": "Se añadieron {{count}} a tu bandeja.",
+    "resultDuplicate": "{{count}} duplicada(s) omitida(s)",
+    "resultFailed": "{{count}} fallida(s)",
+    "importing": "Importando…",
+    "clear": "Borrar",
+    "connectorsLabel": "Conectores de apps"
   }
 }

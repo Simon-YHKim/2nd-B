@@ -31,6 +31,8 @@ import { runPhase1 } from "@/lib/wiki/phase1";
 import { suggestedTags } from "@/lib/wiki/suggest-tags";
 import { exportUserWiki } from "@/lib/wiki/export";
 import { backfillEmbeddings, proposeAllRelatedLinks } from "@/lib/wiki/embeddings";
+import { captureFromMarkdown } from "@/lib/wiki/capture";
+import { splitImportNotes, previewTitle } from "@/lib/wiki/import-notes";
 import { exportIden } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
@@ -1035,28 +1037,118 @@ export function DeepSpaceFormatsScreen() {
   );
 }
 
+interface ImportResult {
+  imported: number;
+  deduped: number;
+  failed: number;
+}
+
 export function DeepSpaceImportScreen() {
-  // Static import mockup; external connectors + review-before-import are a follow-up.
   const { t } = useTranslation("deepspace");
+  const { userId, loading: authLoading } = useAuth();
+  const [text, setText] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<ImportResult | null>(null);
+
+  const notes = useMemo(() => splitImportNotes(text), [text]);
+
+  async function handleImport() {
+    if (!userId || notes.length === 0 || importing) return;
+    setImporting(true);
+    setResult(null);
+    const tally: ImportResult = { imported: 0, deduped: 0, failed: 0 };
+    for (const note of notes) {
+      try {
+        // Same pipeline the clipper uses; user-authored notes are self_knowledge.
+        // No LLM here — imported sources land in the inbox for Phase 1/2 later ($0).
+        const r = await captureFromMarkdown({ userId, rawMd: note, kindOverride: "self_knowledge" });
+        if (r.deduped === "exact_duplicate") tally.deduped += 1;
+        else tally.imported += 1;
+      } catch {
+        tally.failed += 1;
+      }
+    }
+    setResult(tally);
+    if (tally.imported > 0 || tally.deduped > 0) setText("");
+    setImporting(false);
+  }
+
+  if (authLoading) {
+    return <Shell title={t("import.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
   return (
     <Shell title={t("import.title")}>
       <SecondbStatusHeader text={t("import.status")} tip={t("import.tip")} />
       <Text style={styles.lead}>{t("import.lead")}</Text>
-      <View style={{ gap: 8 }}>
-        <View style={styles.sourceRow}><Text style={styles.tlIcon}>🗒</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>Notion</Text><Text style={styles.sourceDesc}>{t("import.notionDesc")}</Text></View><Text style={styles.sourceCta}>{t("import.connect")}</Text></View>
-        <View style={styles.sourceRow}><Text style={styles.tlIcon}>🔮</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>Obsidian</Text><Text style={styles.sourceDesc}>{t("import.obsidianDesc")}</Text></View><Text style={styles.sourceCta}>{t("import.connect")}</Text></View>
-        <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>❤</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>{t("import.healthName")}</Text><Text style={styles.sourceDesc}>{t("import.healthDesc")}</Text></View><Text style={styles.sourceSoon}>{t("import.soon")}</Text></View>
-      </View>
+
       <Card>
-        <Text style={styles.reviewLabel}>{t("import.reviewLabel")}</Text>
-        <View style={styles.mapRow}><Text style={styles.mapFrom}>{t("import.mapFrom1")}</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>{t("import.mapTo1")}</Text></View>
-        <View style={styles.mapRow}><Text style={styles.mapFrom}>{t("import.mapFrom2")}</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>{t("import.mapTo2")}</Text></View>
-        <View style={styles.mapRow}><Text style={styles.mapFrom}>{t("import.mapFrom3")}</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>{t("import.mapTo3")}</Text></View>
-        <Text style={styles.footerLeft}>{t("import.footer", { count: 42 })}</Text>
+        <Text style={styles.reviewLabel}>{t("import.pasteLabel")}</Text>
+        <TextInput
+          style={[styles.input, { minHeight: 132, textAlignVertical: "top" }]}
+          value={text}
+          onChangeText={setText}
+          placeholder={t("import.placeholder")}
+          placeholderTextColor={colors.textLo}
+          multiline
+          editable={!importing}
+          accessibilityLabel={t("import.pasteLabel")}
+        />
+        {notes.length > 0 ? (
+          <>
+            <Text style={styles.tlLabel}>{t("import.detected", { count: notes.length })}</Text>
+            {notes.slice(0, 8).map((note, i) => (
+              <View key={i} style={styles.mapRow}>
+                <Text style={styles.mapArrow}>•</Text>
+                <Text style={styles.mapTo} numberOfLines={1}>{previewTitle(note, t("import.untitled"))}</Text>
+              </View>
+            ))}
+            {notes.length > 8 ? <Text style={styles.footerLeft}>{t("import.andMore", { count: notes.length - 8 })}</Text> : null}
+          </>
+        ) : (
+          <Text style={styles.footerLeft}>{t("import.empty")}</Text>
+        )}
       </Card>
+
+      {result !== null ? (
+        <View style={styles.insightViolet}>
+          <Text style={styles.insightVioletText}>{t("import.resultDone", { count: result.imported })}</Text>
+          {result.deduped > 0 || result.failed > 0 ? (
+            <View style={styles.evRow}>
+              {result.deduped > 0 ? <Text style={styles.evChip}>{t("import.resultDuplicate", { count: result.deduped })}</Text> : null}
+              {result.failed > 0 ? <Text style={styles.evChip}>{t("import.resultFailed", { count: result.failed })}</Text> : null}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       <View style={styles.ctaRow}>
-        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>{t("import.cancel")}</Text></Pressable>
-        <Pressable style={[styles.primary, styles.primaryWide]}><Text style={styles.primaryText}>{t("import.importCount", { count: 42 })}</Text></Pressable>
+        <Pressable
+          style={styles.secondary}
+          onPress={() => { setText(""); setResult(null); }}
+          disabled={importing || text.length === 0}
+          accessibilityRole="button"
+          accessibilityLabel={t("import.clear")}
+        >
+          <Text style={styles.secondaryText}>{t("import.clear")}</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.primary, styles.primaryWide, (notes.length === 0 || importing) && { opacity: 0.6 }]}
+          onPress={() => void handleImport()}
+          disabled={notes.length === 0 || importing}
+          accessibilityRole="button"
+          accessibilityLabel={t("import.importCount", { count: notes.length })}
+        >
+          <Text style={styles.primaryText}>{importing ? t("import.importing") : t("import.importCount", { count: notes.length })}</Text>
+        </Pressable>
+      </View>
+
+      <Text style={styles.tlLabel}>{t("import.connectorsLabel")}</Text>
+      <View style={{ gap: 8 }}>
+        <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>🗒</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>Notion</Text><Text style={styles.sourceDesc}>{t("import.notionDesc")}</Text></View><Text style={styles.sourceSoon}>{t("import.soon")}</Text></View>
+        <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>🔮</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>Obsidian</Text><Text style={styles.sourceDesc}>{t("import.obsidianDesc")}</Text></View><Text style={styles.sourceSoon}>{t("import.soon")}</Text></View>
+        <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>❤</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>{t("import.healthName")}</Text><Text style={styles.sourceDesc}>{t("import.healthDesc")}</Text></View><Text style={styles.sourceSoon}>{t("import.soon")}</Text></View>
       </View>
     </Shell>
   );
