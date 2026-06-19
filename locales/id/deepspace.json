@@ -194,7 +194,10 @@
     "cloudSync": "Sinkronisasi awan",
     "on": "Aktif",
     "exportAll": "Ekspor semua data",
-    "deleteAll": "Hapus semua data"
+    "deleteAll": "Hapus semua data",
+    "buildIndex": "Buat indeks semantik",
+    "indexing": "Mengindeks…",
+    "indexed": "{{count}} terindeks"
   },
   "theme": {
     "title": "Tema · Font",

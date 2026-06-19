@@ -20,6 +20,7 @@ import { generateSourcePage } from "@/lib/wiki/phase2";
 import { runPhase1 } from "@/lib/wiki/phase1";
 import { suggestedTags } from "@/lib/wiki/suggest-tags";
 import { exportUserWiki } from "@/lib/wiki/export";
+import { backfillEmbeddings } from "@/lib/wiki/embeddings";
 import { exportIden } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
@@ -182,7 +183,32 @@ export function DeepSpaceInsightsScreen() {
 }
 
 export function DeepSpaceDataDesignScreen() {
-  const { t } = useTranslation("deepspace");
+  const { t, i18n } = useTranslation("deepspace");
+  const { userId, isMinor } = useAuth();
+  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const [indexing, setIndexing] = useState(false);
+  const [indexed, setIndexed] = useState<number | null>(null);
+
+  async function buildIndex() {
+    if (!userId || indexing) return;
+    setIndexing(true);
+    setIndexed(null);
+    try {
+      const r = await backfillEmbeddings(userId, { locale, minor: isMinor === true });
+      setIndexed(r.embedded);
+    } catch {
+      setIndexed(0);
+    } finally {
+      setIndexing(false);
+    }
+  }
+
+  const indexValue = indexing
+    ? t("data.indexing")
+    : indexed !== null
+      ? t("data.indexed", { count: indexed })
+      : undefined;
+
   return (
     <Shell title={t("data.title")} subtitle={t("data.subtitle")}>
       <SecondbStatusHeader text={t("data.status")} tip={t("data.tip")} />
@@ -196,7 +222,8 @@ export function DeepSpaceDataDesignScreen() {
         <Action label={t("data.cloudSync")} value={t("data.on")} />
       </Card>
       <Card>
-        <Action label={t("data.exportAll")} />
+        <Action label={t("data.buildIndex")} value={indexValue} onPress={userId && !indexing ? () => void buildIndex() : undefined} />
+        <Action label={t("data.exportAll")} onPress={() => router.push("/formats")} />
         <Action label={t("data.deleteAll")} />
       </Card>
     </Shell>

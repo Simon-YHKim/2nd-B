@@ -194,7 +194,10 @@
     "cloudSync": "Sincronização na nuvem",
     "on": "Ligado",
     "exportAll": "Exportar todos os dados",
-    "deleteAll": "Excluir todos os dados"
+    "deleteAll": "Excluir todos os dados",
+    "buildIndex": "Criar índice semântico",
+    "indexing": "Indexando…",
+    "indexed": "{{count}} indexados"
   },
   "theme": {
     "title": "Tema · Fonte",

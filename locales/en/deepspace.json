@@ -194,7 +194,10 @@
     "cloudSync": "Cloud sync",
     "on": "On",
     "exportAll": "Export all data",
-    "deleteAll": "Delete all data"
+    "deleteAll": "Delete all data",
+    "buildIndex": "Build semantic index",
+    "indexing": "Indexing…",
+    "indexed": "{{count}} indexed"
   },
   "theme": {
     "title": "Theme · Font",

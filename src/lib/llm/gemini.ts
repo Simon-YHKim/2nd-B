@@ -625,6 +625,123 @@ async function advisorProxyCrisisResult(
   };
 }
 
+// --- Embeddings (wiki STEP 4) ---------------------------------------------
+
+export const EMBED_MODEL = "text-embedding-004";
+export const EMBED_DIM = 768;
+
+// Deterministic offline-preview embedding: a unit vector seeded from the text,
+// so the same text always maps to the same vector. NOT semantic — it exercises
+// the storage + kNN plumbing (mock mode, CI, demos) without a live model.
+function mockEmbedding(text: string): number[] {
+  let seed = 2166136261 >>> 0;
+  for (let i = 0; i < text.length; i++) {
+    seed ^= text.charCodeAt(i);
+    seed = Math.imul(seed, 16777619) >>> 0;
+  }
+  const v = new Array<number>(EMBED_DIM);
+  let norm = 0;
+  for (let i = 0; i < EMBED_DIM; i++) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    const x = (seed / 0xffffffff) * 2 - 1;
+    v[i] = x;
+    norm += x * x;
+  }
+  norm = Math.sqrt(norm) || 1;
+  for (let i = 0; i < EMBED_DIM; i++) v[i] /= norm;
+  return v;
+}
+
+export interface EmbedTextsInput {
+  userId: string;
+  texts: string[];
+  locale: "en" | "ko";
+  minor?: boolean;
+  signal?: AbortSignal;
+}
+
+export interface EmbedTextsResult {
+  /** One vector per input text (zero vector for skipped red-zone texts). */
+  vectors: number[][];
+  audit: AuditMeta;
+}
+
+const zeroVector = (): number[] => new Array<number>(EMBED_DIM).fill(0);
+
+/**
+ * Embed texts via text-embedding-004 (wiki STEP 4).
+ *
+ * Constraints held the same way as callGemini:
+ *   C1   only this file imports @google/genai (embedContent lives here).
+ *   C9   each text is classified first; a red-zone text is NEVER embedded
+ *        (zero vector) so crisis content never leaves the device for the model.
+ *   C3   one ai_audit_log row per batch (mock + live).
+ *   Cost live API-key egress is rejected (assertDirectEgressAllowed); mock and
+ *        Vertex are the only permitted paths, so the $0/mo promise holds.
+ */
+export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResult> {
+  throwIfAborted(input.signal);
+  const env = getEnv();
+
+  if (input.texts.length === 0) {
+    return {
+      vectors: [],
+      audit: {
+        promptHash: "",
+        outputHash: "",
+        modelUsed: `none:${EMBED_MODEL}`,
+        vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
+        safetyZone: "green",
+        latencyMs: 0,
+      },
+    };
+  }
+
+  const t0 = Date.now();
+  // C9: classify each text; red ones are skipped (never embedded).
+  const skip = input.texts.map(
+    (text) => classifyInput(text, input.locale, { minor: input.minor }).zone === "red",
+  );
+  const anyRed = skip.some(Boolean);
+
+  if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
+    const vectors = input.texts.map((text, i) => (skip[i] ? zeroVector() : mockEmbedding(text)));
+    const audit: AuditMeta = {
+      promptHash: djb2(input.texts.join(" ")),
+      outputHash: djb2(String(vectors.length)),
+      modelUsed: `mock:${EMBED_MODEL}`,
+      vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
+      safetyZone: anyRed ? "red" : "green",
+      latencyMs: Date.now() - t0,
+    };
+    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] embed insert failed (mock)");
+    return { vectors, audit };
+  }
+
+  // Live: only Vertex (or any non-direct-API-key) egress passes the cost guard.
+  assertDirectEgressAllowed(env);
+  const { client, vertex } = getClient();
+  const toEmbed = input.texts.filter((_, i) => !skip[i]);
+  let embedded: number[][] = [];
+  if (toEmbed.length > 0) {
+    const res = await client.models.embedContent({ model: EMBED_MODEL, contents: toEmbed });
+    embedded = (res.embeddings ?? []).map((e) => e.values ?? []);
+  }
+  // Re-interleave: red-zone texts get zeros, the rest take the next live vector.
+  let k = 0;
+  const vectors = input.texts.map((_, i) => (skip[i] ? zeroVector() : embedded[k++] ?? zeroVector()));
+  const audit: AuditMeta = {
+    promptHash: djb2(input.texts.join(" ")),
+    outputHash: djb2(String(vectors.length)),
+    modelUsed: EMBED_MODEL,
+    vertexBackend: vertex,
+    safetyZone: anyRed ? "red" : "green",
+    latencyMs: Date.now() - t0,
+  };
+  await writeAiAuditLog(input.userId, audit, "[ai_audit_log] embed insert failed");
+  return { vectors, audit };
+}
+
 export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   const env = getEnv();
   const promptHash = djb2(input.userMessage);

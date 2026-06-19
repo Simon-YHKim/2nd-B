@@ -194,7 +194,10 @@
     "cloudSync": "클라우드 동기화",
     "on": "켜짐",
     "exportAll": "전체 데이터 내보내기",
-    "deleteAll": "모든 데이터 삭제"
+    "deleteAll": "모든 데이터 삭제",
+    "buildIndex": "의미 색인 만들기",
+    "indexing": "색인 중…",
+    "indexed": "{{count}}개 색인됨"
   },
   "theme": {
     "title": "테마 · 글꼴",
