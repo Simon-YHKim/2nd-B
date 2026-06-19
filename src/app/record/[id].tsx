@@ -29,6 +29,8 @@ import { normalizeRecordFollowup, type RecordFollowup } from "@/lib/records/foll
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceRecordDetailScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 interface RecordDetailRow {
   id: string;
@@ -42,7 +44,7 @@ interface RecordDetailRow {
 
 type LoadState = "loading" | "ready" | "missing" | "error";
 
-export default function RecordDetail() {
+function RecordDetailLegacy() {
   const { t, i18n } = useTranslation("recordDetail");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -256,3 +258,8 @@ const styles = StyleSheet.create({
   },
   handoffs: { gap: spacing.md },
 });
+
+export default function RecordDetail() {
+  if (isDeepSpaceUI()) return <DeepSpaceRecordDetailScreen />;
+  return <RecordDetailLegacy />;
+}

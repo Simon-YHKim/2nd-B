@@ -9,10 +9,14 @@ function readProjectFile(path: string): string {
 
 describe("Android elevation coverage", () => {
   it("keeps auth form containers on the shared auth elevation", () => {
+    // complete-profile was converted in-place to the deep-space shell (like the
+    // onboarding gate, which is also not listed here): it uses deep-space depth
+    // (border + bgMid fill + glow) instead of the legacy premium android
+    // elevation card, and must not import gameboy-tokens. The remaining screens
+    // still carry their legacy variant, so the elevation guard stays on them.
     const authScreens = [
       "src/app/(auth)/sign-up.tsx",
       "src/app/(auth)/sign-in.tsx",
-      "src/app/(auth)/complete-profile.tsx",
       "src/app/(auth)/reset-password.tsx",
     ];
 
