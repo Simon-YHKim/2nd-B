@@ -112,5 +112,27 @@
     "alarmFocusBody": "잘했어요. 잠깐 쉬어요.",
     "alarmBreakTitle": "휴식 끝",
     "alarmBreakBody": "다음 집중 블록으로 돌아가요."
+  },
+  "srs": {
+    "title": "언어 복습",
+    "status": "오늘의 카드를 정리해요.",
+    "tip": "오늘 복습할 카드를 모두 끝내면 언어 루틴이 자동으로 체크돼요.",
+    "frontLabel": "앞면",
+    "backLabel": "뒷면",
+    "frontPlaceholder": "단어나 질문",
+    "backPlaceholder": "뜻이나 답",
+    "flip": "눌러서 뒤집기",
+    "showFront": "앞면 보기",
+    "again": "다시",
+    "hard": "어려움",
+    "good": "좋음",
+    "easy": "쉬움",
+    "remaining": "오늘 남은 카드: {{count}}",
+    "cleared": "모두 끝냈어요. 잘했어요.",
+    "loading": "카드를 불러오는 중이에요…",
+    "addCard": "카드 추가",
+    "addTitle": "카드 추가",
+    "save": "저장",
+    "cancel": "취소"
   }
 }

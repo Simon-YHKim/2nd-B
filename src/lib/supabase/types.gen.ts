@@ -639,6 +639,110 @@ export type Database = {
           },
         ]
       }
+      srs_cards: {
+        Row: {
+          back: string
+          created_at: string | null
+          deck: string | null
+          difficulty: number | null
+          due: string
+          elapsed_days: number | null
+          front: string
+          id: string
+          lapses: number
+          last_review: string | null
+          reps: number
+          scheduled_days: number | null
+          stability: number | null
+          state: number
+          user_id: string
+        }
+        Insert: {
+          back: string
+          created_at?: string | null
+          deck?: string | null
+          difficulty?: number | null
+          due: string
+          elapsed_days?: number | null
+          front: string
+          id?: string
+          lapses?: number
+          last_review?: string | null
+          reps?: number
+          scheduled_days?: number | null
+          stability?: number | null
+          state?: number
+          user_id: string
+        }
+        Update: {
+          back?: string
+          created_at?: string | null
+          deck?: string | null
+          difficulty?: number | null
+          due?: string
+          elapsed_days?: number | null
+          front?: string
+          id?: string
+          lapses?: number
+          last_review?: string | null
+          reps?: number
+          scheduled_days?: number | null
+          stability?: number | null
+          state?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "srs_cards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      srs_reviews: {
+        Row: {
+          card_id: string
+          created_at: string | null
+          id: string
+          rating: number
+          reviewed_on: string
+          user_id: string
+        }
+        Insert: {
+          card_id: string
+          created_at?: string | null
+          id?: string
+          rating: number
+          reviewed_on: string
+          user_id: string
+        }
+        Update: {
+          card_id?: string
+          created_at?: string | null
+          id?: string
+          rating?: number
+          reviewed_on?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "srs_reviews_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "srs_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "srs_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personas: {
         Row: {
           created_at: string

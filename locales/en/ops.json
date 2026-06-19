@@ -112,5 +112,27 @@
     "alarmFocusBody": "Nice work. Time for a short break.",
     "alarmBreakTitle": "Break over",
     "alarmBreakBody": "Back to your next focus block."
+  },
+  "srs": {
+    "title": "Language review",
+    "status": "Clear today's flashcards.",
+    "tip": "Clearing today's due cards checks off your language routine.",
+    "frontLabel": "Front",
+    "backLabel": "Back",
+    "frontPlaceholder": "Word or prompt",
+    "backPlaceholder": "Meaning or answer",
+    "flip": "Tap to flip",
+    "showFront": "Show front",
+    "again": "Again",
+    "hard": "Hard",
+    "good": "Good",
+    "easy": "Easy",
+    "remaining": "Cards left today: {{count}}",
+    "cleared": "All caught up. Nice work.",
+    "loading": "Loading your cards…",
+    "addCard": "Add a card",
+    "addTitle": "Add a card",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }

@@ -264,6 +264,33 @@ export async function applyFocusSessionComplete(userId: string, now: Date = new 
   return focusRoutines.map((r) => r.id);
 }
 
+/**
+ * Wave 1 (language_practice): deterministic spaced-repetition review ->
+ * routine auto-completion. The sibling of applyFocusSessionComplete /
+ * applyHealthAutoComplete.
+ *
+ * Deterministic rule: "the due queue reached empty today." The caller (the SRS
+ * review screen) computes how many cards remain due after a grading; when that
+ * count is 0 — the user cleared the day's queue — it calls this. We also accept
+ * an explicit "session complete" call with the same effect. Either way we load
+ * the user's active routines and, for each one in the `language_practice`
+ * domain, log a completion for the local day via the existing idempotent
+ * logRoutineCompletion.
+ *
+ * No LLM, no new completion table — it reuses ops_routine_logs. Idempotent on
+ * (routine_id, completed_on), so a second cleared queue the same day (or a
+ * manual tick) collapses onto the one row. Returns the routine ids ticked.
+ */
+export async function applyLanguageReviewComplete(userId: string, now: Date = new Date()): Promise<string[]> {
+  const routines = await listActiveRoutines(userId);
+  const languageRoutines = routines.filter((r) => r.domain_id === "language_practice");
+  const day = localDayKey(now);
+  for (const routine of languageRoutines) {
+    await logRoutineCompletion(userId, routine.id, day);
+  }
+  return languageRoutines.map((r) => r.id);
+}
+
 /** All completion logs at/after `sinceDate` (YYYY-MM-DD), for streak/history. */
 export async function listCompletionsSince(userId: string, sinceDate: string): Promise<OpsRoutineLog[]> {
   const supabase = getSupabaseClient();

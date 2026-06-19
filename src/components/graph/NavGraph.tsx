@@ -217,6 +217,10 @@ export const MENU_NODES: readonly NavNode[] = [
   { id: "focus-timer", tier: 3, parentId: "rhythm", href: "/focus",
     label: { en: "Focus Timer", ko: "집중 타이머" },
     description: { en: "A focus session that ticks today's focus routine.", ko: "오늘의 집중 루틴을 자동으로 체크하는 집중 세션이에요." } },
+  // Wave 1: language flashcards are a sub-place of the Rhythm Core (language_practice).
+  { id: "srs-review", tier: 3, parentId: "rhythm", href: "/srs",
+    label: { en: "Language Review", ko: "언어 복습" },
+    description: { en: "A flashcard review that ticks today's language routine.", ko: "오늘의 언어 루틴을 자동으로 체크하는 카드 복습이에요." } },
   { id: "wiki-daily", tier: 3, parentId: "knowledge", href: "/wiki",
     label: { en: "Daily Wiki", ko: "일상 지식" },
     description: { en: "Everyday notes and captures.", ko: "일상의 메모와 자료." } },
