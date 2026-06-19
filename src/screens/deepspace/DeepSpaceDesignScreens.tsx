@@ -120,10 +120,11 @@ function Action({ label, value, onPress }: Row) { return <Pressable onPress={onP
 function Toggle({ label, value, on = true }: Row) { return <View style={styles.action}><View><Text style={styles.actionLabel}>{label}</Text>{value ? <Text style={styles.actionValue}>{value}</Text> : null}</View><View style={[styles.toggle,on&&styles.toggleOn]}><View style={[styles.knob,on&&styles.knobOn]} /></View></View>; }
 
 export function DeepSpaceGraphDesignScreen() {
+  const { t } = useTranslation("deepspace");
   const clusters = [
-    { x: 63, y: 135, t: "기록" }, { x: 136, y: 92, t: "관계" }, { x: 219, y: 134, t: "지식" }, { x: 106, y: 226, t: "취향" }, { x: 207, y: 225, t: "성장" },
+    { x: 63, y: 135, t: t("graph.clRecords") }, { x: 136, y: 92, t: t("graph.clRelations") }, { x: 219, y: 134, t: t("graph.clKnowledge") }, { x: 106, y: 226, t: t("graph.clTaste") }, { x: 207, y: 225, t: t("graph.clGrowth") },
   ];
-  return <Shell title="내 두뇌 지도" subtitle="노드 128개 · 연결 342개"><SecondbStatusHeader text="지금은 기록과 지식 군집이 강하게 연결되어 있어요." tip="군집을 누르면 관련 조각만 가볍게 볼 수 있어요." /><Card style={styles.graphCard}><Svg width="100%" height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text style={styles.centerCaption}>나</Text>{clusters.map((c)=><Text key={c.t} style={[styles.clusterLabel,{left:c.x-18,top:c.y+23}]}>{c.t}</Text>)}</Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text style={styles.primaryText}>군집 보기</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text style={styles.secondaryText}>연결 찾기</Text></Pressable></View></Shell>;
+  return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: 128, edges: 342 })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><Svg width="100%" height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Text key={c.t} style={[styles.clusterLabel,{left:c.x-18,top:c.y+23}]}>{c.t}</Text>)}</Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
 }
 
 export function DeepSpaceIntegrationsScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("integrations.title")}><SecondbStatusHeader text={t("integrations.status")} tip={t("integrations.tip")} /><Card><Text style={styles.section}>{t("integrations.sectionAssistant")}</Text>{['ChatGPT','Claude','Gemini'].map((x)=><Action key={x} label={x} value={t("integrations.pending")} />)}</Card><Card><Text style={styles.section}>{t("integrations.sectionSources")}</Text><Toggle label="Notion" value={t("integrations.notionValue")} /><Toggle label="Obsidian" value={t("integrations.obsidianValue")} on={false} /><Toggle label={t("integrations.healthLabel")} value={t("integrations.permissionNeeded")} on={false} /></Card><Text style={styles.footer}>{t("integrations.footer")}</Text></Shell>; }
@@ -272,42 +273,44 @@ export function DeepSpacePermissionsScreen() {
 }
 
 export function DeepSpaceDiscoverScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="트렌드">
-      <SecondbStatusHeader text="요즘 너의 관심이 향하는 다음 한 걸음." tip="제안을 누르면 관련 검사나 기록으로 이어져요." mood="positive" />
-      <Text style={styles.lead}>요즘 너의 관심이 향하는 다음 한 걸음</Text>
+    <Shell title={t("discover.title")}>
+      <SecondbStatusHeader text={t("discover.status")} tip={t("discover.tip")} mood="positive" />
+      <Text style={styles.lead}>{t("discover.lead")}</Text>
       <Card>
-        <View style={styles.trendHead}><Text style={styles.section}>자기이해 도구</Text><Text style={styles.delta}>▲ 관심 +32%</Text></View>
-        <Text style={styles.planFeatDim}>최근 3주간 가장 자주 담은 주제. 관련 검사 애착(ECR-S)를 해볼까요?</Text>
+        <View style={styles.trendHead}><Text style={styles.section}>{t("discover.card1Head")}</Text><Text style={styles.delta}>{t("discover.card1Delta", { percent: 32 })}</Text></View>
+        <Text style={styles.planFeatDim}>{t("discover.card1Body")}</Text>
       </Card>
       <Card>
-        <View style={styles.trendHead}><Text style={styles.section}>아침 루틴</Text><Text style={styles.delta}>▲ 관심 +18%</Text></View>
-        <Text style={styles.planFeatDim}>기분이 좋은 날의 공통점. 리듬에 기록을 더 담아볼까요?</Text>
+        <View style={styles.trendHead}><Text style={styles.section}>{t("discover.card2Head")}</Text><Text style={styles.delta}>{t("discover.card2Delta", { percent: 18 })}</Text></View>
+        <Text style={styles.planFeatDim}>{t("discover.card2Body")}</Text>
       </Card>
-      <Text style={styles.footer}>데이터가 더 쌓이면 새로운 제안이 나타납니다.</Text>
+      <Text style={styles.footer}>{t("discover.footer")}</Text>
     </Shell>
   );
 }
 
 export function DeepSpaceReviewScreen() {
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="점검">
-      <SecondbStatusHeader text="내가 달라졌다면 별자리도 함께 점검해요." tip="승인해야만 반영돼요." />
-      <Text style={styles.lead}>내가 달라졌다면 별자리도 함께 점검</Text>
+    <Shell title={t("review.title")}>
+      <SecondbStatusHeader text={t("review.status")} tip={t("review.tip")} />
+      <Text style={styles.lead}>{t("review.lead")}</Text>
       <Card>
-        <Text style={styles.section}>세컨비의 제안</Text>
-        <Text style={styles.planFeatDim}>최근 기록을 보면 외향성이 올라간 것 같아요. 별 밝기를 올릴까요?</Text>
+        <Text style={styles.section}>{t("review.section")}</Text>
+        <Text style={styles.planFeatDim}>{t("review.body")}</Text>
         <View style={styles.compareRow}>
-          <View style={styles.compareCol}><Text style={styles.compareCap}>지금</Text><Text style={styles.compareNum}>61</Text></View>
+          <View style={styles.compareCol}><Text style={styles.compareCap}>{t("review.now")}</Text><Text style={styles.compareNum}>61</Text></View>
           <Text style={styles.chev}>›</Text>
-          <View style={styles.compareCol}><Text style={styles.compareCap}>제안</Text><Text style={[styles.compareNum, styles.compareNumHi]}>68</Text></View>
+          <View style={styles.compareCol}><Text style={styles.compareCap}>{t("review.suggest")}</Text><Text style={[styles.compareNum, styles.compareNumHi]}>68</Text></View>
         </View>
-        <Text style={styles.footer}>근거 기록 5건</Text>
+        <Text style={styles.footer}>{t("review.evidence", { count: 5 })}</Text>
       </Card>
-      <Text style={styles.footer}>승인해야만 반영됩니다 · 모든 제안은 기록에 남습니다</Text>
+      <Text style={styles.footer}>{t("review.footer")}</Text>
       <View style={styles.ctaRow}>
-        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>보류</Text></Pressable>
-        <Pressable style={styles.primary}><Text style={styles.primaryText}>승인</Text></Pressable>
+        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>{t("review.hold")}</Text></Pressable>
+        <Pressable style={styles.primary}><Text style={styles.primaryText}>{t("review.approve")}</Text></Pressable>
       </View>
     </Shell>
   );
@@ -681,49 +684,51 @@ export function DeepSpaceResearchScreen() {
 }
 
 export function DeepSpaceFormatsScreen() {
-  // TODO: wire format selection + scope toggles to the export pipeline. Dummy from records-archive.dc.html.
+  // Static export-format picker; the export pipeline wiring is a follow-up.
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="내보내기 형식">
-      <SecondbStatusHeader text="너의 정체성을 어디로든 가져갈 수 있어요." tip="형식을 고르고 범위를 정하세요." />
-      <Text style={styles.lead}>나를 어디로든 가져가요</Text>
+    <Shell title={t("formats.title")}>
+      <SecondbStatusHeader text={t("formats.status")} tip={t("formats.tip")} />
+      <Text style={styles.lead}>{t("formats.lead")}</Text>
       <View style={styles.formatGrid}>
-        <View style={[styles.formatCard, styles.formatCardSel]}><Text style={[styles.formatName, styles.formatNameSel]}>.iden</Text><Text style={styles.formatDesc}>포터블 정체성 파일</Text></View>
-        <View style={styles.formatCard}><Text style={styles.formatName}>Markdown</Text><Text style={styles.formatDesc}>Obsidian 친화</Text></View>
-        <View style={styles.formatCard}><Text style={styles.formatName}>JSON</Text><Text style={styles.formatDesc}>개발자 · API</Text></View>
-        <View style={styles.formatCard}><Text style={styles.formatName}>PDF</Text><Text style={styles.formatDesc}>읽기 · 인쇄용</Text></View>
+        <View style={[styles.formatCard, styles.formatCardSel]}><Text style={[styles.formatName, styles.formatNameSel]}>.iden</Text><Text style={styles.formatDesc}>{t("formats.idenDesc")}</Text></View>
+        <View style={styles.formatCard}><Text style={styles.formatName}>Markdown</Text><Text style={styles.formatDesc}>{t("formats.markdownDesc")}</Text></View>
+        <View style={styles.formatCard}><Text style={styles.formatName}>JSON</Text><Text style={styles.formatDesc}>{t("formats.jsonDesc")}</Text></View>
+        <View style={styles.formatCard}><Text style={styles.formatName}>PDF</Text><Text style={styles.formatDesc}>{t("formats.pdfDesc")}</Text></View>
       </View>
-      <Text style={styles.tlLabel}>포함 범위</Text>
+      <Text style={styles.tlLabel}>{t("formats.scopeLabel")}</Text>
       <Card>
-        <Toggle label="성격 · 애착 모델" on />
-        <Toggle label="회상 · 내러티브" on />
-        <Toggle label="기록 원문 248개" on={false} />
+        <Toggle label={t("formats.scope1")} on />
+        <Toggle label={t("formats.scope2")} on />
+        <Toggle label={t("formats.scope3", { count: 248 })} on={false} />
       </Card>
-      <Pressable style={styles.soulPrimary}><Text style={styles.primaryText}>.iden 내보내기</Text></Pressable>
+      <Pressable style={styles.soulPrimary}><Text style={styles.primaryText}>{t("formats.exportIden")}</Text></Pressable>
     </Shell>
   );
 }
 
 export function DeepSpaceImportScreen() {
-  // TODO: wire external connectors + review-before-import. Dummy from records-archive.dc.html.
+  // Static import mockup; external connectors + review-before-import are a follow-up.
+  const { t } = useTranslation("deepspace");
   return (
-    <Shell title="외부 가져오기">
-      <SecondbStatusHeader text="다른 앱의 기록도 불러올 수 있어요." tip="가져오기 전 항상 네가 확인해요." />
-      <Text style={styles.lead}>다른 곳의 기록도 한 곳으로</Text>
+    <Shell title={t("import.title")}>
+      <SecondbStatusHeader text={t("import.status")} tip={t("import.tip")} />
+      <Text style={styles.lead}>{t("import.lead")}</Text>
       <View style={{ gap: 8 }}>
-        <View style={styles.sourceRow}><Text style={styles.tlIcon}>🗒</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>Notion</Text><Text style={styles.sourceDesc}>페이지 · 데이터베이스</Text></View><Text style={styles.sourceCta}>연결</Text></View>
-        <View style={styles.sourceRow}><Text style={styles.tlIcon}>🔮</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>Obsidian</Text><Text style={styles.sourceDesc}>마크다운 볼트</Text></View><Text style={styles.sourceCta}>연결</Text></View>
-        <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>❤</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>건강</Text><Text style={styles.sourceDesc}>수면 · 활동</Text></View><Text style={styles.sourceSoon}>준비 중</Text></View>
+        <View style={styles.sourceRow}><Text style={styles.tlIcon}>🗒</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>Notion</Text><Text style={styles.sourceDesc}>{t("import.notionDesc")}</Text></View><Text style={styles.sourceCta}>{t("import.connect")}</Text></View>
+        <View style={styles.sourceRow}><Text style={styles.tlIcon}>🔮</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>Obsidian</Text><Text style={styles.sourceDesc}>{t("import.obsidianDesc")}</Text></View><Text style={styles.sourceCta}>{t("import.connect")}</Text></View>
+        <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>❤</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>{t("import.healthName")}</Text><Text style={styles.sourceDesc}>{t("import.healthDesc")}</Text></View><Text style={styles.sourceSoon}>{t("import.soon")}</Text></View>
       </View>
       <Card>
-        <Text style={styles.reviewLabel}>가져오기 전 검토</Text>
-        <View style={styles.mapRow}><Text style={styles.mapFrom}>Notion 제목</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>기록 제목</Text></View>
-        <View style={styles.mapRow}><Text style={styles.mapFrom}>태그</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>자동 태그</Text></View>
-        <View style={styles.mapRow}><Text style={styles.mapFrom}>생성일</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>담은 시점</Text></View>
-        <Text style={styles.footerLeft}>42개 항목을 가져와요. 네 승인 없이는 아무것도 반영되지 않아요.</Text>
+        <Text style={styles.reviewLabel}>{t("import.reviewLabel")}</Text>
+        <View style={styles.mapRow}><Text style={styles.mapFrom}>{t("import.mapFrom1")}</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>{t("import.mapTo1")}</Text></View>
+        <View style={styles.mapRow}><Text style={styles.mapFrom}>{t("import.mapFrom2")}</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>{t("import.mapTo2")}</Text></View>
+        <View style={styles.mapRow}><Text style={styles.mapFrom}>{t("import.mapFrom3")}</Text><Text style={styles.mapArrow}>→</Text><Text style={styles.mapTo}>{t("import.mapTo3")}</Text></View>
+        <Text style={styles.footerLeft}>{t("import.footer", { count: 42 })}</Text>
       </Card>
       <View style={styles.ctaRow}>
-        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>취소</Text></Pressable>
-        <Pressable style={[styles.primary, styles.primaryWide]}><Text style={styles.primaryText}>42개 가져오기</Text></Pressable>
+        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>{t("import.cancel")}</Text></Pressable>
+        <Pressable style={[styles.primary, styles.primaryWide]}><Text style={styles.primaryText}>{t("import.importCount", { count: 42 })}</Text></Pressable>
       </View>
     </Shell>
   );
