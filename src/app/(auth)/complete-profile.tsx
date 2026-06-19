@@ -1,4 +1,4 @@
-import { Image } from "expo-image";
+import { SafeAreaView } from "react-native-safe-area-context";
 // Post-OAuth profile completion. Users who sign in via Google land here when
 // the public.users row doesn't exist yet — we need their date of birth to
 // satisfy C10 (age gate) before letting them into the app.
@@ -8,12 +8,11 @@ import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "re
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
-import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
+import { deepSpace, deepSpaceSpacing, deepSpaceRadii, withAlpha } from "@/lib/theme/tokens";
+import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { ageInYears, ensureUserProfile, AgeGateError, signOut, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -29,8 +28,6 @@ import { useKeyboard } from "@/lib/ui/useKeyboard";
 
 const ADULT_AGE = 18;
 type CompleteProfileToast = { message: string; tone: "info" | "success" | "danger" };
-
-const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
 export default function CompleteProfile() {
   const { t, i18n } = useTranslation("auth");
@@ -166,7 +163,13 @@ export default function CompleteProfile() {
   }
 
   return (
-    <PremiumAppShell>
+    <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
+      <View pointerEvents="none" style={styles.spaceWash}>
+        <View style={styles.topGlow} />
+        <View style={[styles.star, styles.starA]} />
+        <View style={[styles.star, styles.starB]} />
+        <View style={[styles.star, styles.starC]} />
+      </View>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
@@ -176,26 +179,13 @@ export default function CompleteProfile() {
           keyboardShouldPersistTaps="handled"
         >
         <View style={styles.header}>
-          <Text variant="caption" color="brand">
-            2nd-Brain
+          <SecondbHead size={96} mood="positive" accessibilityLabel={locale === "ko" ? "세컨비" : "SecondB"} />
+          <Text variant="heading" style={styles.title}>
+            {t("completeProfile.title")}
           </Text>
-          <View style={styles.heroRow}>
-            <View style={styles.heroCopy}>
-              <Text variant="heading" style={styles.title}>
-                {t("completeProfile.title")}
-              </Text>
-              <Text variant="body" color="textMuted">
-                {t("completeProfile.subtitle")}
-              </Text>
-            </View>
-            <Image
-              source={authHero}
-              style={styles.heroImg}
-              resizeMode="contain"
-              accessibilityRole="image"
-              accessibilityLabel={t("common.entryArtwork")}
-            />
-          </View>
+          <Text variant="body" color="textMuted" style={styles.subtitle}>
+            {t("completeProfile.subtitle")}
+          </Text>
         </View>
 
         <View style={styles.form}>
@@ -210,11 +200,11 @@ export default function CompleteProfile() {
             </View>
           ) : null}
 
-          <View style={{ height: spacing.sm }} />
+          <View style={{ height: deepSpaceSpacing.sm }} />
 
           <ConsentNotice minor={isMinorAge} value={consent} onChange={setConsent} />
 
-          <View style={{ height: spacing.sm }} />
+          <View style={{ height: deepSpaceSpacing.sm }} />
 
           <Button
             label={t("completeProfile.submit")}
@@ -244,17 +234,19 @@ export default function CompleteProfile() {
       </KeyboardAvoidingView>
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">
-          <PremiumToast message={toast.message} tone={toast.tone} />
+          <View style={[styles.toast, toast.tone === "danger" ? styles.toastDanger : styles.toastInfo]}>
+            <Text variant="subtle" style={styles.toastText}>{toast.message}</Text>
+          </View>
         </View>
       ) : null}
-    </PremiumAppShell>
+    </SafeAreaView>
   );
 }
 
 function ChecklistItem({ ok, label }: { ok: boolean; label: string }) {
   return (
     <View style={styles.checkRow}>
-      <View style={[styles.checkDot, { backgroundColor: ok ? semantic.success : semantic.textSubtle }]} />
+      <View style={[styles.checkDot, { backgroundColor: ok ? deepSpace.mint : deepSpace.textLo }]} />
       <Text variant="subtle" color={ok ? "success" : "textMuted"}>
         {label}
       </Text>
@@ -263,32 +255,47 @@ function ChecklistItem({ ok, label }: { ok: boolean; label: string }) {
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: deepSpace.bgEdge },
+  spaceWash: { ...StyleSheet.absoluteFill, overflow: "hidden" },
+  topGlow: {
+    position: "absolute",
+    top: -120,
+    left: -80,
+    right: -80,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: deepSpace.bgGlow,
+    opacity: 0.85,
+  },
+  star: { position: "absolute", width: 3, height: 3, borderRadius: 2, backgroundColor: deepSpace.accentSoft, opacity: 0.7 },
+  starA: { top: 80, left: "20%" },
+  starB: { top: 150, right: "24%", opacity: 0.5 },
+  starC: { bottom: 120, left: "28%", opacity: 0.5 },
   scroll: {
-    paddingBottom: spacing.xl,
+    padding: deepSpaceSpacing.lg,
+    paddingBottom: deepSpaceSpacing.xl,
+    gap: deepSpaceSpacing.lg,
     // Web only: cap the auth column (cycle-4 live QA) — no-op on native.
     ...(Platform.OS === "web" ? { width: "100%" as const, maxWidth: 520, alignSelf: "center" as const } : {}),
   },
-  header: { gap: spacing.sm, marginBottom: spacing.lg },
-  heroRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  heroCopy: { flex: 1, gap: spacing.xs },
-  heroImg: { width: 112, height: 112 },
-  title: { marginTop: 0 },
+  header: { alignItems: "center", gap: deepSpaceSpacing.sm, marginBottom: deepSpaceSpacing.md },
+  title: { marginTop: deepSpaceSpacing.sm, color: deepSpace.textHi, textAlign: "center" },
+  subtitle: { textAlign: "center" },
   form: {
-    gap: spacing.sm,
-    backgroundColor: semantic.surface,
-    borderColor: semantic.border,
+    gap: deepSpaceSpacing.sm,
+    backgroundColor: withAlpha(deepSpace.bgMid, 0.5),
+    borderColor: deepSpace.cardLine,
     borderWidth: 1,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-    shadowColor: cosmic.soulViolet,
-    shadowOpacity: 0.2,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 0 },
-    ...androidElevationStyle(androidElevation.authForm),
+    borderRadius: deepSpaceRadii.lg,
+    padding: deepSpaceSpacing.lg,
   },
-  checklist: { gap: spacing.xs, marginTop: spacing.xs, marginBottom: spacing.xs },
+  checklist: { gap: deepSpaceSpacing.xs, marginTop: deepSpaceSpacing.xs, marginBottom: deepSpaceSpacing.xs },
   submitButton: { alignSelf: "stretch", width: "100%" },
-  toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
-  checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  toastWrap: { position: "absolute", left: deepSpaceSpacing.lg, right: deepSpaceSpacing.lg, bottom: deepSpaceSpacing.xl, alignItems: "stretch" },
+  toast: { borderRadius: deepSpaceRadii.md, borderWidth: 1, paddingVertical: deepSpaceSpacing.sm, paddingHorizontal: deepSpaceSpacing.md, backgroundColor: withAlpha(deepSpace.bgMid, 0.9) },
+  toastInfo: { borderColor: deepSpace.cardLine },
+  toastDanger: { borderColor: deepSpace.danger },
+  toastText: { color: deepSpace.textHi, textAlign: "center" },
+  checkRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
   checkDot: { width: 8, height: 8, borderRadius: 4 },
 });
