@@ -48,6 +48,14 @@
     "durationLabel": "{{minutes}} mnt",
     "daily": "Setiap hari",
     "weekly": "Setiap minggu",
+    "share": "Bagikan",
+    "shareA11y": "Bagikan langkah ini",
+    "addCalendar": "Tambah ke kalender",
+    "addCalendarA11y": "Tambah ke kalender",
+    "saveRoutine": "Simpan sebagai rutinitas",
+    "saveRoutineA11y": "Simpan langkah ini sebagai rutinitas terkelola",
+    "saving": "Menyimpan…",
+    "saved": "Tersimpan",
     "addDevice": "Kalenderku",
     "addDeviceHint": "Membuka formulir kalender perangkatmu dengan item ini terisi.",
     "addGoogle": "Google Calendar",
@@ -67,6 +75,13 @@
     "later": "Nanti saja",
     "laterHint": "Menutup tanpa mengirim. Item tetap ada di layar ini."
   },
+  "today": {
+    "heading": "Rutinitas hari ini",
+    "empty": "Tidak ada rutinitas untuk hari ini. Simpan langkah di bawah untuk memulai.",
+    "completeA11y": "Tandai {{title}} selesai hari ini",
+    "doneA11y": "{{title}} selesai hari ini",
+    "streak": "Rentetan {{count}} hari"
+  },
   "states": {
     "emptyDomain": "Pilih area di atas untuk memulai."
   },
@@ -75,6 +90,7 @@
     "deniedNote": "Izin kalender nonaktif. Izinkan di pengaturan perangkatmu untuk menggunakannya.",
     "reminderSetNote": "Pengingat diatur di perangkat ini.",
     "reminderDeniedNote": "Izin notifikasi nonaktif. Izinkan di pengaturan perangkatmu untuk menggunakan pengingat.",
-    "reminderFailedNote": "Pengingat tidak bisa diatur. Periksa waktu item dan coba lagi."
+    "reminderFailedNote": "Pengingat tidak bisa diatur. Periksa waktu item dan coba lagi.",
+    "reminderUnavailableNote": "Tersimpan. Pengingat butuh aplikasi terpasang, jadi yang ini tidak akan berbunyi di sini."
   }
 }

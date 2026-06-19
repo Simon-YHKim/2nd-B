@@ -487,6 +487,98 @@ export type Database = {
           },
         ]
       }
+      ops_routine_logs: {
+        Row: {
+          completed_on: string
+          created_at: string
+          id: string
+          routine_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_on: string
+          created_at?: string
+          id?: string
+          routine_id: string
+          user_id: string
+        }
+        Update: {
+          completed_on?: string
+          created_at?: string
+          id?: string
+          routine_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ops_routine_logs_routine_id_fkey"
+            columns: ["routine_id"]
+            isOneToOne: false
+            referencedRelation: "ops_routines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ops_routine_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ops_routines: {
+        Row: {
+          active: boolean
+          checklist: Json
+          created_at: string
+          domain_id: string
+          duration_minutes: number | null
+          id: string
+          reason: string | null
+          recurrence: string
+          reminder_time: string | null
+          title: string
+          user_id: string
+          weekday: number | null
+        }
+        Insert: {
+          active?: boolean
+          checklist?: Json
+          created_at?: string
+          domain_id: string
+          duration_minutes?: number | null
+          id?: string
+          reason?: string | null
+          recurrence?: string
+          reminder_time?: string | null
+          title: string
+          user_id: string
+          weekday?: number | null
+        }
+        Update: {
+          active?: boolean
+          checklist?: Json
+          created_at?: string
+          domain_id?: string
+          duration_minutes?: number | null
+          id?: string
+          reason?: string | null
+          recurrence?: string
+          reminder_time?: string | null
+          title?: string
+          user_id?: string
+          weekday?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ops_routines_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personas: {
         Row: {
           created_at: string

@@ -48,6 +48,14 @@
     "durationLabel": "{{minutes}}분",
     "daily": "매일",
     "weekly": "매주",
+    "share": "공유",
+    "shareA11y": "이 걸음 공유",
+    "addCalendar": "캘린더에 추가",
+    "addCalendarA11y": "캘린더에 추가",
+    "saveRoutine": "루틴으로 저장",
+    "saveRoutineA11y": "이 걸음을 관리 루틴으로 저장",
+    "saving": "저장하는 중…",
+    "saved": "저장됨",
     "addDevice": "내 캘린더",
     "addDeviceHint": "이 항목이 미리 채워진 기기 캘린더 작성 화면을 엽니다.",
     "addGoogle": "Google 캘린더",
@@ -67,6 +75,13 @@
     "later": "다음에",
     "laterHint": "보내지 않고 닫습니다. 항목은 화면에 남아요."
   },
+  "today": {
+    "heading": "오늘의 루틴",
+    "empty": "오늘 할 루틴이 없어요. 아래에서 걸음을 저장해 시작해요.",
+    "completeA11y": "{{title}} 오늘 완료로 표시",
+    "doneA11y": "{{title}} 오늘 완료",
+    "streak": "{{count}}일 연속"
+  },
   "states": {
     "emptyDomain": "위에서 영역을 골라 시작해요."
   },
@@ -75,6 +90,7 @@
     "deniedNote": "캘린더 권한이 꺼져 있어요. 기기 설정에서 허용하면 쓸 수 있어요.",
     "reminderSetNote": "이 기기에 리마인더를 설정했어요.",
     "reminderDeniedNote": "알림 권한이 꺼져 있어요. 기기 설정에서 허용하면 리마인더를 쓸 수 있어요.",
-    "reminderFailedNote": "리마인더를 설정하지 못했어요. 항목의 시간을 확인하고 다시 시도해 보세요."
+    "reminderFailedNote": "리마인더를 설정하지 못했어요. 항목의 시간을 확인하고 다시 시도해 보세요.",
+    "reminderUnavailableNote": "저장했어요. 리마인더는 설치된 앱에서만 울려서 여기서는 알림이 오지 않아요."
   }
 }

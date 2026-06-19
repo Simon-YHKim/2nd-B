@@ -48,6 +48,14 @@
     "durationLabel": "{{minutes}} min",
     "daily": "Cada día",
     "weekly": "Cada semana",
+    "share": "Compartir",
+    "shareA11y": "Compartir este paso",
+    "addCalendar": "Añadir al calendario",
+    "addCalendarA11y": "Añadir al calendario",
+    "saveRoutine": "Guardar como rutina",
+    "saveRoutineA11y": "Guardar este paso como una rutina gestionada",
+    "saving": "Guardando…",
+    "saved": "Guardado",
     "addDevice": "Mi calendario",
     "addDeviceHint": "Abre el formulario del calendario de tu dispositivo con este elemento prellenado.",
     "addGoogle": "Google Calendar",
@@ -67,6 +75,13 @@
     "later": "Ahora no",
     "laterHint": "Cierra sin enviar. El elemento queda en esta pantalla."
   },
+  "today": {
+    "heading": "Rutinas de hoy",
+    "empty": "No hay rutinas para hoy. Guarda un paso abajo para empezar una.",
+    "completeA11y": "Marcar {{title}} como hecho hoy",
+    "doneA11y": "{{title}} hecho hoy",
+    "streak": "Racha de {{count}} días"
+  },
   "states": {
     "emptyDomain": "Elige un área arriba para empezar."
   },
@@ -75,6 +90,7 @@
     "deniedNote": "El permiso de calendario está apagado. Actívalo en los ajustes del dispositivo para usar esto.",
     "reminderSetNote": "Recordatorio configurado en este dispositivo.",
     "reminderDeniedNote": "El permiso de notificaciones está apagado. Actívalo en los ajustes del dispositivo para usar recordatorios.",
-    "reminderFailedNote": "No se pudo configurar el recordatorio. Revisa la hora del elemento e intenta de nuevo."
+    "reminderFailedNote": "No se pudo configurar el recordatorio. Revisa la hora del elemento e intenta de nuevo.",
+    "reminderUnavailableNote": "Guardado. Los recordatorios necesitan la app instalada, así que este no sonará aquí."
   }
 }

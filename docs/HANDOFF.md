@@ -4,6 +4,23 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
+## Latest — 2026-06-19 / Phase A — ops 관리 레이어 (루틴 저장 + 로컬 알람 + 오늘의 루틴/완료 추적)
+
+브랜치 `claude/ops-routines-82evat`. SUGGEST 엔진(`recommend.ts`) 위에 MANAGE 레이어를 추가: 이미 게이트된 추천을 영속 루틴으로 저장하고, 기존 로컬 알람 스케줄러로 리마인더를 걸고, 오늘 due한 루틴을 체크박스로 완료 추적.
+
+### 완료
+- **Phase A (ops 관리 레이어: 루틴 저장 + 로컬 알람 + 오늘의 루틴/완료 추적)** ✅
+  - migration `0048_ops_routines.sql` — `ops_routines` + `ops_routine_logs` 두 테이블, 둘 다 owner-only RLS(`auth.uid() = user_id`). 추가형·idempotent. 새 LLM 호출 없음(C9/C1 표면 불변 — 루틴은 이미 게이트된 추천의 SAVE).
+  - `src/lib/ops/routines.ts` — RLS-scoped 쿼리 + pure helper(`routineDueToday`/`mapRecurrence`/`deriveReminder`/`weekStreak`) 분리(node-testable).
+  - `DeepSpaceOpsScreen` 배선: 추천마다 "루틴으로 저장" 액션(저장 후 기존 `scheduleRoutineReminder`로 알람 + ReminderResult 토스트), "오늘의 루틴" 섹션(낙관적 체크 완료). 하드코딩 한국어 버튼("공유"/"캘린더에 추가") t() 키로 교체.
+  - i18n: `ops` namespace 5 locale(en/ko/es/id/pt) `card.*`/`today.*`/`push.reminderUnavailableNote` 키 추가, C7 parity 유지.
+
+### 나중에 할 일 (2026-06-19)
+- #468 (deep-space 로그인 + Facebook/GitHub) 머지 — CI green, draft 대기. 사용자가 "나중에" 지시.
+- OAuth provider 활성화: 각 provider를 Supabase 대시보드에 client id/secret + redirect URL 등록 후 `EXPO_PUBLIC_ENABLE_<PROVIDER>=true`. google 검증됨; facebook/github/apple/kakao OFF; naver는 `oauth-naver` 엣지펑션 + `ENABLE_NAVER_OAUTH` 필요.
+
+---
+
 ## Latest — 2026-06-19 (cont.) / Wiki-graph upgrade A–E + deep-space data wiring + i18n (PR #464)
 
 ### 어디까지 왔나
