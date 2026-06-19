@@ -10,6 +10,7 @@
 // hubs) and tag groupings as cluster proxies.
 
 import { computeGraphStats } from "@/lib/wiki/graph-stats";
+import { clusterGraph, type SurpriseLink } from "@/lib/wiki/clusters";
 import type { WikiPageRow } from "@/lib/wiki/types";
 
 export type WikiEdge = { from_page: string; to_page: string };
@@ -97,12 +98,16 @@ export interface DeepResearchView {
   pageCount: number;
   edgeCount: number;
   orphanCount: number;
-  /** Tag groupings as cluster proxies until STEP 3 clustering lands. */
+  /** Tag groupings — chip filters across the graph. */
   clusters: { tag: string; count: number }[];
   /** God-nodes — pages with the most incoming citations. */
   hubs: { id: string; title: string; inDegree: number }[];
   /** The single most-connected node, for the headline insight. */
   headline: { id: string; title: string; inDegree: number } | null;
+  /** STEP 3: connected-component islands (size >= 2). */
+  islandCount: number;
+  /** STEP 3: one unexpected cross-topic connection, or null. */
+  surprise: SurpriseLink | null;
 }
 
 export function buildDeepResearchView(
@@ -118,6 +123,7 @@ export function buildDeepResearchView(
     topHubLimit: maxHubs,
     topTagLimit: maxClusters,
   });
+  const grouped = clusterGraph(pages, edges);
   return {
     pageCount: stats.pageCount,
     edgeCount: stats.edgeCount,
@@ -125,5 +131,7 @@ export function buildDeepResearchView(
     clusters: stats.topTags,
     hubs: stats.topHubs,
     headline: stats.topHubs.length > 0 ? stats.topHubs[0] : null,
+    islandCount: grouped.clusters.length,
+    surprise: grouped.surprise,
   };
 }

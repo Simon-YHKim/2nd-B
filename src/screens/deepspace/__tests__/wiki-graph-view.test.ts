@@ -117,6 +117,21 @@ describe("buildDeepResearchView", () => {
     expect(v.clusters[0]).toEqual({ tag: "창작", count: 3 });
   });
 
+  test("includes connected-component island count and a cross-topic surprise", () => {
+    // hub(창작,관계) bridges a(창작) and b(창작): a/b share 창작 with hub → not a
+    // surprise. Add a cross-topic edge to force one.
+    const p2 = [...pages, page({ id: "mood", title: "Mood", tags: ["감정"] })];
+    const e2: WikiEdge[] = [...edges, { from_page: "mood", to_page: "hub" }];
+    const v = buildDeepResearchView(p2, e2);
+    // hub + a + b + mood are now one connected island.
+    expect(v.islandCount).toBe(1);
+    expect(v.surprise).not.toBeNull();
+    // mood(감정) <-> hub(창작/관계) share no tag → the surprise bridge.
+    const titles = [v.surprise?.fromTitle, v.surprise?.toTitle];
+    expect(titles).toContain("Mood");
+    expect(titles).toContain("Hub");
+  });
+
   test("empty graph → null headline, no clusters", () => {
     const v = buildDeepResearchView([], []);
     expect(v.headline).toBeNull();

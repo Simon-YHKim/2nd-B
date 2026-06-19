@@ -439,6 +439,16 @@ export function DeepSpaceResearchScreen() {
               <Text style={styles.insightVioletText}>조각은 쌓였지만 아직 서로 이어지지 않았어요. 더 담으면 연결이 자라나요.</Text>
             </View>
           )}
+          {view.surprise !== null ? (
+            <View style={styles.insightViolet}>
+              <Text style={styles.insightVioletText}>
+                뜻밖의 연결을 찾았어요. ‘{view.surprise.fromTitle}’과(와) ‘{view.surprise.toTitle}’이(가) 서로 다른 주제인데 이어져 있어요.
+              </Text>
+              <View style={styles.evRow}>
+                <Text style={styles.evChip}>지식 군집 {view.islandCount}</Text>
+              </View>
+            </View>
+          ) : null}
         </>
       )}
     </Shell>
