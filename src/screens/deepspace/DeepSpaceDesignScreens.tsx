@@ -1,13 +1,67 @@
-import type { ReactNode } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { router } from "expo-router";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Redirect, router } from "expo-router";
 import Svg, { Circle, Line } from "react-native-svg";
 
 import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
+import type { WikiPageRow } from "@/lib/wiki/types";
+import {
+  buildDeepResearchView,
+  buildDeepWikiView,
+  type WikiEdge,
+} from "./wiki-graph-view";
 
 type Row = { label: string; value?: string; onPress?: () => void; on?: boolean };
+
+// Shared loader for the two graph-backed deep-space screens (/wiki + /research).
+// Mirrors what the legacy /wiki loads: pages + the full edge set, both bounded.
+// A links failure degrades to a zero-edge graph rather than blanking the screen.
+function useWikiGraphData() {
+  const { userId, loading: authLoading } = useAuth();
+  const [pages, setPages] = useState<WikiPageRow[]>([]);
+  const [edges, setEdges] = useState<WikiEdge[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    setLoading(true);
+    Promise.all([
+      listWikiPages(userId, { limit: 200 }),
+      listAllWikiLinks(userId).catch(() => [] as WikiEdge[]),
+    ])
+      .then(([p, e]) => {
+        if (!alive) return;
+        setPages(p);
+        setEdges(e);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setPages([]);
+        setEdges([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
+  return { userId, authLoading, pages, edges, loading };
+}
+
+function GraphLoading() {
+  return (
+    <View style={styles.center}>
+      <ActivityIndicator color={colors.cyan} />
+    </View>
+  );
+}
 
 function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
   return (
@@ -212,12 +266,25 @@ export function DeepSpaceReviewScreen() {
   );
 }
 
-function FilterChip({ label, active, violet }: { label: string; active?: boolean; violet?: boolean }) {
-  return (
-    <View style={[styles.fchip, active && styles.fchipActive, violet && styles.fchipViolet]}>
-      <Text style={[styles.fchipText, active && styles.fchipTextActive, violet && styles.fchipTextViolet]}>{label}</Text>
-    </View>
+function FilterChip({ label, active, violet, onPress }: { label: string; active?: boolean; violet?: boolean; onPress?: () => void }) {
+  const inner = (
+    <Text style={[styles.fchipText, active && styles.fchipTextActive, violet && styles.fchipTextViolet]}>{label}</Text>
   );
+  const chipStyle = [styles.fchip, active && styles.fchipActive, violet && styles.fchipViolet];
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={chipStyle}
+        accessibilityRole="button"
+        accessibilityState={{ selected: !!active }}
+        accessibilityLabel={label}
+      >
+        {inner}
+      </Pressable>
+    );
+  }
+  return <View style={chipStyle}>{inner}</View>;
 }
 
 function TimelineRow({ icon, title, time, tag, dim }: { icon: string; title: string; time?: string; tag?: string; dim?: boolean }) {
@@ -295,35 +362,85 @@ export function DeepSpaceInboxScreen() {
   );
 }
 
+// Fixed satellite slots around the central god-node; we light up as many as
+// there are real hubs (capped at 4). STEP 3 will replace this with true
+// clusters — for now it honestly mirrors the top-cited pages.
+const RESEARCH_SAT = [
+  { cx: 70, cy: 40, r: 5, fill: colors.cyan, stroke: colors.borderHi },
+  { cx: 200, cy: 38, r: 4, fill: colors.cyanDim, stroke: colors.borderHi },
+  { cx: 95, cy: 92, r: 4, fill: colors.soul, stroke: colors.soulLine },
+  { cx: 185, cy: 90, r: 4, fill: colors.cyanDim, stroke: colors.border },
+] as const;
+
 export function DeepSpaceResearchScreen() {
-  // TODO: render real clusters + correlations from the graph engine. Dummy from records-archive.dc.html.
+  const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
+  const view = useMemo(() => buildDeepResearchView(pages, edges), [pages, edges]);
+
+  if (authLoading) {
+    return <Shell title="연결 찾기"><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  const satellites = RESEARCH_SAT.slice(0, Math.max(1, Math.min(view.hubs.length, 4)));
+  const headerText =
+    view.headline !== null
+      ? `흩어진 기록 사이에서 ${view.edgeCount}개의 연결을 찾았어요.`
+      : "기록이 쌓이면 사이의 연결을 찾아 보여드려요.";
+
   return (
     <Shell title="연결 찾기">
-      <SecondbStatusHeader text="기록 사이에서 3개의 연결을 찾았어요." tip="연결을 누르면 근거가 보여요." mood="positive" />
+      <SecondbStatusHeader text={headerText} tip="태그를 누르면 군집이 보여요." mood="positive" />
       <Text style={styles.lead}>흩어진 기록이 이렇게 이어져요</Text>
-      <View style={styles.filterRow}>
-        <FilterChip label="창작 · 12" violet />
-        <FilterChip label="관계 · 8" />
-        <FilterChip label="불안 · 5" />
-      </View>
-      <View style={styles.researchGraph}>
-        <Svg width="100%" height={118} viewBox="0 0 260 118">
-          <Line x1={70} y1={40} x2={135} y2={62} stroke={colors.borderHi} strokeWidth={1} />
-          <Line x1={135} y1={62} x2={200} y2={38} stroke={colors.borderHi} strokeWidth={1} />
-          <Line x1={135} y1={62} x2={95} y2={92} stroke={colors.soulLine} strokeWidth={1} />
-          <Line x1={135} y1={62} x2={185} y2={90} stroke={colors.border} strokeWidth={1} />
-          <Circle cx={70} cy={40} r={5} fill={colors.cyan} />
-          <Circle cx={200} cy={38} r={4} fill={colors.cyanDim} />
-          <Circle cx={95} cy={92} r={4} fill={colors.soul} />
-          <Circle cx={185} cy={90} r={4} fill={colors.cyanDim} />
-          <Circle cx={135} cy={62} r={8} fill={colors.textTitle} />
-        </Svg>
-        <Text style={styles.graphTag}>창작 군집</Text>
-      </View>
-      <View style={styles.insightViolet}>
-        <Text style={styles.insightVioletText}>만드는 일을 기록한 날은 기분도 높았어요. 둘이 함께 움직여요.</Text>
-        <View style={styles.evRow}><Text style={styles.evChip}>📎 기록 9건 근거</Text><Text style={styles.evChip}>상관 0.71</Text></View>
-      </View>
+      {loading ? (
+        <GraphLoading />
+      ) : view.pageCount === 0 ? (
+        <View style={styles.insightViolet}>
+          <Text style={styles.insightVioletText}>아직 이어줄 기록이 없어요. 오늘의 조각을 담으면 여기서 연결을 그려드려요.</Text>
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+            <Text style={styles.primaryText}>+ 조각 담기</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <>
+          {view.clusters.length > 0 ? (
+            <View style={styles.filterRow}>
+              {view.clusters.map((c, i) => (
+                <FilterChip key={c.tag} label={`${c.tag} · ${c.count}`} violet={i === 0} />
+              ))}
+            </View>
+          ) : null}
+          <View style={styles.researchGraph}>
+            <Svg width="100%" height={118} viewBox="0 0 260 118">
+              {satellites.map((s, i) => (
+                <Line key={`l${i}`} x1={135} y1={62} x2={s.cx} y2={s.cy} stroke={s.stroke} strokeWidth={1} />
+              ))}
+              {satellites.map((s, i) => (
+                <Circle key={`c${i}`} cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} />
+              ))}
+              <Circle cx={135} cy={62} r={8} fill={colors.textTitle} />
+            </Svg>
+            <Text style={styles.graphTag}>
+              {view.clusters.length > 0 ? `${view.clusters[0].tag} 군집` : "지식 군집"}
+            </Text>
+          </View>
+          {view.headline !== null ? (
+            <View style={styles.insightViolet}>
+              <Text style={styles.insightVioletText}>
+                가장 많이 이어진 지식은 ‘{view.headline.title}’예요. 여러 기록이 이 한 점으로 모여요.
+              </Text>
+              <View style={styles.evRow}>
+                <Text style={styles.evChip}>📎 페이지 {view.pageCount}</Text>
+                <Text style={styles.evChip}>연결 {view.headline.inDegree}</Text>
+                {view.orphanCount > 0 ? <Text style={styles.evChip}>외딴 조각 {view.orphanCount}</Text> : null}
+              </View>
+            </View>
+          ) : (
+            <View style={styles.insightViolet}>
+              <Text style={styles.insightVioletText}>조각은 쌓였지만 아직 서로 이어지지 않았어요. 더 담으면 연결이 자라나요.</Text>
+            </View>
+          )}
+        </>
+      )}
     </Shell>
   );
 }
@@ -456,39 +573,84 @@ export function DeepSpaceOpsScreen() {
 }
 
 export function DeepSpaceWikiScreen() {
-  // TODO: read real wiki_pages + tag filter + backlinks. Dummy from ops-wiki.dc.html.
+  const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const view = useMemo(() => buildDeepWikiView(pages, edges, { activeTag }), [pages, edges, activeTag]);
+
+  if (authLoading) {
+    return <Shell title="지식"><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  const headerText =
+    view.pageCount > 0
+      ? `지금까지 ${view.pageCount}개의 지식이 자라고 있어요.`
+      : "아직 지식이 비어 있어요. 오늘의 조각을 담아볼까요?";
+  const [first, ...rest] = view.pages;
+
   return (
     <Shell title="지식">
-      <SecondbStatusHeader text="지금까지 32개의 지식이 자라고 있어요." tip="태그로 좁혀 보세요." mood="positive" />
+      <SecondbStatusHeader text={headerText} tip="태그로 좁혀 보세요." mood="positive" />
       <View style={styles.wikiStatRow}>
-        <View style={styles.wikiStat}><Text style={styles.wikiStatNum}>32</Text><Text style={styles.wikiStatCap}>페이지</Text></View>
-        <View style={styles.wikiStat}><Text style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>87</Text><Text style={styles.wikiStatCap}>연결</Text></View>
+        <View style={styles.wikiStat}><Text style={styles.wikiStatNum}>{view.pageCount}</Text><Text style={styles.wikiStatCap}>페이지</Text></View>
+        <View style={styles.wikiStat}><Text style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>{view.edgeCount}</Text><Text style={styles.wikiStatCap}>연결</Text></View>
       </View>
-      <View style={styles.filterRow}>
-        <FilterChip label="전체" active />
-        <FilterChip label="디자인" />
-        <FilterChip label="자기이해" />
-        <FilterChip label="AI" />
-      </View>
-      <View style={styles.wikiPageOpen}>
-        <View style={styles.wikiPageHead}>
-          <Text style={styles.wikiPageTitle}>별자리 은유</Text>
-          <Text style={styles.wikiCaret}>⌄</Text>
+      {view.tagChips.length > 0 ? (
+        <View style={styles.filterRow}>
+          <FilterChip label="전체" active={activeTag === null} onPress={() => setActiveTag(null)} />
+          {view.tagChips.map((c) => (
+            <FilterChip
+              key={c.tag}
+              label={c.tag}
+              active={activeTag === c.tag}
+              onPress={() => setActiveTag((prev) => (prev === c.tag ? null : c.tag))}
+            />
+          ))}
         </View>
-        <Text style={styles.wikiBody}>방향성을 '북극성'에, 쌓이는 기록을 '별'에 비유하면 추상적 성장을 눈에 보이게 만들 수 있다. 내 기록 여러 곳에서 반복된 생각.</Text>
-        <View style={styles.wikiBacklinkRow}>
-          <Text style={styles.wikiBacklink}>↩ 연결된 기록 5</Text>
-          <Text style={styles.tlTag}>디자인</Text>
+      ) : null}
+      {loading ? (
+        <GraphLoading />
+      ) : view.pages.length === 0 ? (
+        <View style={styles.wikiPageOpen}>
+          <Text style={styles.wikiBody}>
+            {activeTag !== null
+              ? "이 태그에 담긴 지식이 아직 없어요. 다른 태그를 눌러보거나 조각을 담아보세요."
+              : "창고가 조용해요. 오늘의 조각이나 링크를 담으면 여기서 다시 만날 수 있어요."}
+          </Text>
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+            <Text style={styles.primaryText}>+ 조각 담기</Text>
+          </Pressable>
         </View>
-      </View>
-      <View style={styles.wikiPageRow}>
-        <View style={styles.wikiRowHead}><Text style={styles.wikiRowTitle}>애착과 거리감</Text><Text style={styles.wikiRowConn}>연결 7</Text></View>
-        <Text style={styles.wikiRowDesc} numberOfLines={1}>가까워질수록 불안해지는 패턴에 대하여</Text>
-      </View>
-      <View style={styles.wikiPageRow}>
-        <View style={styles.wikiRowHead}><Text style={styles.wikiRowTitle}>아침형 인간 실험</Text><Text style={styles.wikiRowConn}>연결 4</Text></View>
-        <Text style={styles.wikiRowDesc} numberOfLines={1}>기상 시간과 집중도의 관계 기록 모음</Text>
-      </View>
+      ) : (
+        <>
+          {first ? (
+            <View style={styles.wikiPageOpen}>
+              <View style={styles.wikiPageHead}>
+                <Text style={styles.wikiPageTitle}>{first.title}</Text>
+                <Text style={styles.wikiCaret}>⌄</Text>
+              </View>
+              {first.snippet.length > 0 ? (
+                <Text style={styles.wikiBody}>{first.snippet}</Text>
+              ) : null}
+              <View style={styles.wikiBacklinkRow}>
+                <Text style={styles.wikiBacklink}>↩ 연결된 기록 {first.connections}</Text>
+                {first.tags[0] ? <Text style={styles.tlTag}>{first.tags[0]}</Text> : null}
+              </View>
+            </View>
+          ) : null}
+          {rest.map((p) => (
+            <View key={p.id} style={styles.wikiPageRow}>
+              <View style={styles.wikiRowHead}>
+                <Text style={styles.wikiRowTitle} numberOfLines={1}>{p.title}</Text>
+                <Text style={styles.wikiRowConn}>연결 {p.connections}</Text>
+              </View>
+              {p.snippet.length > 0 ? (
+                <Text style={styles.wikiRowDesc} numberOfLines={1}>{p.snippet}</Text>
+              ) : null}
+            </View>
+          ))}
+        </>
+      )}
     </Shell>
   );
 }
