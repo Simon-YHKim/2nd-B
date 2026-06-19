@@ -120,7 +120,12 @@
     "resetPrompt": "Revisa tu correo, por favor",
     "resetBody": "Introduce el código de 6 dígitos para configurarla de nuevo.",
     "resend": "Reenviar {{time}}",
-    "confirm": "Confirmar"
+    "confirm": "Confirmar",
+    "noAccount": "¿Primera vez? Crea una cuenta",
+    "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "or": "o",
+    "ageNotice": "Puedes registrarte desde los 14 años. Menores de 14 necesitan un tutor."
   },
   "account": {
     "title": "Cuenta",

@@ -653,6 +653,11 @@ results.push(
     const signUp = read("src/app/(auth)/sign-up.tsx");
     const resetPassword = read("src/app/(auth)/reset-password.tsx");
     const completeProfile = read("src/app/(auth)/complete-profile.tsx");
+    // The auth submit/OAuth/reset error toasts moved into shared hooks (legacy +
+    // deep-space share one source); the t() error keys now live there.
+    const signInHook = read("src/lib/auth/useSignInForm.ts");
+    const signUpHook = read("src/lib/auth/useSignUpForm.ts");
+    const resetHook = read("src/lib/auth/useResetPasswordForm.ts");
     const audit = read("src/app/audit.tsx");
     const persona = read("src/app/persona.tsx");
     const wikiAlertCount = (wiki.match(/Alert\.alert/g) ?? []).length;
@@ -681,19 +686,19 @@ results.push(
       esm.includes("PremiumToast") &&
       signIn.includes("PremiumToast") &&
       signIn.includes("resetHelpCard") &&
-      signIn.includes('t("signIn.resetToast")') &&
-      signIn.includes("sendPasswordResetEmail") &&
-      signIn.includes('t("errors.signInFailed")') &&
-      signIn.includes('t("errors.oauthSignInStartFailed"') &&
+      signInHook.includes('t("signIn.resetToast")') &&
+      signInHook.includes("sendPasswordResetEmail") &&
+      signInHook.includes('t("errors.signInFailed")') &&
+      signInHook.includes('t("errors.oauthSignInStartFailed"') &&
       signUp.includes("PremiumToast") &&
       signUp.includes("toastWrap") &&
       signUp.includes("existingHelpCard") &&
-      signUp.includes('t("errors.signUpFailed")') &&
-      signUp.includes('t("errors.oauthSignUpStartFailed"') &&
+      signUpHook.includes('t("errors.signUpFailed")') &&
+      signUpHook.includes('t("errors.oauthSignUpStartFailed"') &&
       resetPassword.includes("PremiumToast") &&
-      resetPassword.includes("updatePassword") &&
+      resetHook.includes("updatePassword") &&
       resetPassword.includes('t("resetPassword.submit")') &&
-      resetPassword.includes('t("errors.passwordUpdateFailed")') &&
+      resetHook.includes('t("errors.passwordUpdateFailed")') &&
       completeProfile.includes("PremiumToast") &&
       completeProfile.includes("toastWrap") &&
       completeProfile.includes('t("errors.completeProfileSaveFailed")') &&
@@ -2022,6 +2027,11 @@ results.push(
       const signIn = read("src/app/(auth)/sign-in.tsx");
       const signUp = read("src/app/(auth)/sign-up.tsx");
       const completeProfile = read("src/app/(auth)/complete-profile.tsx");
+      // The sign-in / sign-up failure toasts moved into shared hooks (the legacy
+      // and deep-space presentations share one source). The copy still resolves
+      // from the auth locale bundle; the hooks are where the t() calls now live.
+      const signInHook = read("src/lib/auth/useSignInForm.ts");
+      const signUpHook = read("src/lib/auth/useSignUpForm.ts");
       const en = read("locales/en/auth.json");
       const ko = read("locales/ko/auth.json");
       const forbiddenScreenCopy = [
@@ -2038,14 +2048,14 @@ results.push(
         "가입에 실패했어요",
         "프로필 저장에 실패했어요",
       ];
-      const screens = [signIn, signUp, completeProfile].join("\n");
+      const screens = [signIn, signUp, completeProfile, signInHook, signUpHook].join("\n");
       const ok =
-        signIn.includes('t("errors.oauthSignInStartFailed", { provider: name })') &&
-        signIn.includes('t("errors.oauthSignInStartFailed", { provider: "Naver" })') &&
-        signIn.includes('t("errors.signInFailed")') &&
-        signUp.includes('t("errors.signUpFailed")') &&
-        signUp.includes('t("errors.oauthSignUpStartFailed", { provider: name })') &&
-        signUp.includes('t("errors.oauthSignUpStartFailed", { provider: "Naver" })') &&
+        signInHook.includes('t("errors.oauthSignInStartFailed", { provider: PROVIDER_LABEL[provider] })') &&
+        signInHook.includes('t("errors.oauthSignInStartFailed", { provider: "Naver" })') &&
+        signInHook.includes('t("errors.signInFailed")') &&
+        signUpHook.includes('t("errors.signUpFailed")') &&
+        signUpHook.includes('t("errors.oauthSignUpStartFailed", { provider: PROVIDER_LABEL[provider] })') &&
+        signUpHook.includes('t("errors.oauthSignUpStartFailed", { provider: "Naver" })') &&
         completeProfile.includes('t("errors.completeProfileSaveFailed")') &&
         en.includes('"oauthSignInStartFailed"') &&
         en.includes('"oauthSignUpStartFailed"') &&
@@ -2070,9 +2080,14 @@ results.push(
       const signUp = read("src/app/(auth)/sign-up.tsx");
       const resetPassword = read("src/app/(auth)/reset-password.tsx");
       const completeProfile = read("src/app/(auth)/complete-profile.tsx");
+      // The stateful auth logic moved into shared hooks (legacy + deep-space
+      // presentations share one source); a few supplemental copy pins now live
+      // there. The copy still resolves from the auth locale bundle.
+      const signInHook = read("src/lib/auth/useSignInForm.ts");
+      const resetHelpers = read("src/lib/auth/reset-password-helpers.ts");
       const en = read("locales/en/auth.json");
       const ko = read("locales/ko/auth.json");
-      const screens = [signIn, signUp, resetPassword, completeProfile].join("\n");
+      const screens = [signIn, signUp, resetPassword, completeProfile, signInHook, resetHelpers].join("\n");
       const codeRequired = [
         't("common.checking")',
         't("common.entryArtwork")',
@@ -2086,7 +2101,8 @@ results.push(
         't("signIn.resetToast")',
         't("signIn.resetBody")',
         't("signIn.resetSentBody", { email: resetEmailSentTo })',
-        "if (resetEmailSentTo && value.trim() !== resetEmailSentTo)",
+        // Email-edit retires the stale "reset sent" pin (now in useSignInForm).
+        "prev && value.trim() !== prev",
         't("signIn.manualLink")',
         't("resetPassword.newPasswordHint")',
         't("resetPassword.confirmPasswordHint")',

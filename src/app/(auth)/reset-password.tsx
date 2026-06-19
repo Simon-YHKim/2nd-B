@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -12,12 +11,10 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
-import { useURL } from "expo-linking";
 
 import { CosmicBackground, PremiumToast } from "@/components/premium";
 import { InlineLoader } from "@/components/ui/InlineLoader";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { consumeAuthCallbackUrl, updatePassword } from "@/lib/supabase/auth";
+import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { cosmicSky, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
@@ -27,62 +24,28 @@ import { DeepSpaceResetPasswordDesignScreen } from "@/screens/deepspace/DeepSpac
 const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth/auth_secondb_gate_hero_hq.png");
 
 const PALETTE = cosmicSky;
-type ResetToast = { message: string; tone: "info" | "success" | "danger" };
 
 function ResetPasswordLegacy() {
   const { t } = useTranslation("auth");
-  const { userId, loading } = useAuth();
   const kbHeight = useKeyboard();
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [complete, setComplete] = useState(false);
-  const [toast, setToast] = useState<ResetToast | null>(null);
-
-  const helperKey = useMemo(() => {
-    if (password.length > 0 && password.length < 8) return "resetPassword.passwordTooShort";
-    if (confirmPassword.length > 0 && confirmPassword !== password) return "resetPassword.passwordMismatch";
-    return "resetPassword.passwordHelper";
-  }, [confirmPassword, password]);
-
-  // Native: the recovery email's deep link carries the session tokens, but
-  // detectSessionInUrl is web-only — without consuming the URL here the
-  // screen always dead-ends at "expired" (audit A-1). useURL covers both the
-  // cold-start initial URL and a warm-app link event; AuthContext picks up
-  // the resulting session and userId flips the form on.
-  const deepLinkUrl = useURL();
-  const consumedUrlRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (Platform.OS === "web" || !deepLinkUrl || userId) return;
-    if (consumedUrlRef.current === deepLinkUrl) return;
-    consumedUrlRef.current = deepLinkUrl;
-    consumeAuthCallbackUrl(deepLinkUrl).catch((e) => {
-      if (typeof console !== "undefined") console.warn("[auth] recovery link consume failed", (e as Error).message);
-    });
-  }, [deepLinkUrl, userId]);
+  const {
+    userId,
+    loading,
+    password,
+    setPassword,
+    confirmPassword,
+    setConfirmPassword,
+    submitting,
+    complete,
+    toast,
+    helperKey,
+    canSubmit,
+    handleSubmit,
+  } = useResetPasswordForm();
 
   if (loading) {
     return <InlineLoader message={t("common.checking")} />;
   }
-
-  async function handleSubmit() {
-    if (password.length < 8 || confirmPassword !== password || submitting) return;
-    setSubmitting(true);
-    try {
-      await updatePassword(password);
-      setPassword("");
-      setConfirmPassword("");
-      setComplete(true);
-      setToast({ tone: "success", message: t("resetPassword.successToast") });
-    } catch (e) {
-      setToast({ tone: "danger", message: t("errors.passwordUpdateFailed") });
-      if (typeof console !== "undefined") console.warn("[auth] password update error", (e as Error).message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  const canSubmit = userId !== null && password.length >= 8 && confirmPassword === password && !submitting;
 
   return (
     <View style={styles.root}>

@@ -175,6 +175,10 @@ describe("visible trust copy", () => {
   test("sign-in exposes account creation as a route and reset as inline help", () => {
     const root = path.resolve(__dirname, "../../..");
     const screen = readFileSync(path.join(root, "src/app/(auth)/sign-in.tsx"), "utf8");
+    // The reset-help visibility toggle moved into the shared useSignInForm hook
+    // (legacy + deep-space sign-in share one source); the screen still wires the
+    // route links and the forgot-password handler.
+    const hook = readFileSync(path.join(root, "src/lib/auth/useSignInForm.ts"), "utf8");
     const en = readFileSync(path.join(root, "locales/en/auth.json"), "utf8");
     const ko = readFileSync(path.join(root, "locales/ko/auth.json"), "utf8");
 
@@ -190,7 +194,7 @@ describe("visible trust copy", () => {
     expect(signUpIdx).toBeGreaterThan(submitIdx);
     expect(signUpIdx).toBeLessThan(providerIdx);
     expect(screen).not.toContain('<Link href="/reset-password"');
-    expect(screen).toContain("setResetHelpVisible(true)");
+    expect(hook).toContain("setResetHelpVisible(true)");
     expect(en).toContain('"signUpLink": "Create one"');
     expect(ko).toContain('"signUpLink": "계정 만들기"');
   });

@@ -120,7 +120,12 @@
     "resetPrompt": "Silakan periksa emailmu",
     "resetBody": "Masukkan kode 6 digit untuk mengaturnya lagi.",
     "resend": "Kirim ulang {{time}}",
-    "confirm": "Konfirmasi"
+    "confirm": "Konfirmasi",
+    "noAccount": "Baru di sini? Buat akun",
+    "haveAccount": "Sudah punya akun? Masuk",
+    "forgotPassword": "Lupa kata sandi?",
+    "or": "atau",
+    "ageNotice": "Kamu bisa mendaftar mulai usia 14. Di bawah 14 perlu izin wali."
   },
   "account": {
     "title": "Akun",
