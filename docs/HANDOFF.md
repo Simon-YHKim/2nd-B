@@ -4,6 +4,81 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
+## Latest — 2026-06-19 / Deep-space UI conversion complete; wiki-graph upgrade next (STEP 1a)
+
+### 어디까지 왔나
+- main HEAD (이 핸드오프 머지 전): `8ad4f01`
+- 이번 세션 머지된 PR:
+  - #460 — 20 deep-space screens (별 7개 lens + insights/data + theme/manual/plans/permissions + discover/review + records/inbox/research/formats/import)
+  - #461 — complete-profile gate reskin + record/[id] detail (+ CI fix)
+  - #462 — ops (루틴) + wiki (지식) + trinity ("내 영역")
+- 이번 세션 작성: #463 — `docs/wiki-system-upgrade.md` (graphify-informed plan). **이 핸드오프와 함께 main에 랜딩.**
+- 테스트: `npm run verify` green (177 suites / 1418 tests). working tree clean.
+
+### 결론: 레거시 → 딥스페이스 UI 전환 = 완료
+정본 디자인(.dc.html)이 있는 모든 화면이 deep-space로 전환됨. 남은 레거시는 의도된
+fallback(`*Legacy` 본문, `EXPO_PUBLIC_UI=legacy` 롤백 스킨)과 비-화면(oauth-callback
+로더, redirect 스텁 jarvis/mbti/journal)뿐.
+
+### 활성 인프라
+- Web 라이브: https://simon-yhkim.github.io/2nd-B/ — `web-deploy.yml`이 `main` 푸시 시 배포, `EXPO_PUBLIC_UI=deep-space` 핀(딥스페이스가 라이브에 보임).
+- Native(EAS): `eas.json`이 `EXPO_PUBLIC_UI=legacy` 핀 — Android/iOS는 아직 레거시. 딥스페이스 feature-complete(실데이터+인증) 후 전환.
+- Supabase wiki 스키마: `db/migrations/0022_wiki_rag.sql` (sources/wiki_pages/wiki_links, RLS). pgvector 미설치.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **위키 STEP 1a — entity/concept 노드 materialize** (아래 상세) | medium | ⭐ "make it work" 본체. graph-stats가 자동으로 진짜 그래프 집계 |
+| B | 위키 STEP 1b — deep-space `/wiki`·`/research`를 실데이터(graph-stats)로 배선 | medium | A 직후, 더미 제거 |
+| C | 전 화면 실데이터 와이어링 — deep-space 화면 `// TODO` 더미를 실제 쿼리로 | large | 화면 단위 |
+| D | Shell 패턴 화면 EN 다국어 (account/records/ops/wiki/trinity/insights/data 등 현재 KO 하드코딩) | medium | XPRIZE 국제 심사 대비 |
+| E | 위키 STEP 2/3/4 (edge type+confidence → 경량 군집 → pgvector 임베딩) | large | `docs/wiki-system-upgrade.md`. STEP 4(임베딩) 마지막 |
+
+### STEP 1a 상세 (다음 세션 시작점)
+`src/lib/wiki/`에 `materializeGraphFromPhase1(userId, sourcePage, phase1)` 추가:
+- `phase1.entities` → `kind:'entity'`, `phase1.concepts` → `kind:'concept'`:
+  - `slug = slugForTitle(name)`; 빈/중복 skip
+  - **get-or-create** (`getWikiPage` 후 없으면 `upsertWikiPage({..., source_id:null, body_md:''})`) — **기존 body 절대 덮어쓰지 않기**
+  - `wiki_links` insert: source page → entity/concept page (중복 무시 `onConflict:'from_page,to_page', ignoreDuplicates:true`; self-link 금지)
+- `src/lib/wiki/phase2.ts` `generateSourcePage()` 끝에서 호출
+- 유닛 테스트: `src/lib/wiki/__tests__/queries.test.ts`의 supabase mock 하네스(`makeChain`/`tableRows`) 재사용
+- 현 상태 근거: phase2는 source→source페이지 + concepts→tags만. entities/concepts를 노드로 안 만듦. `graph-stats.ts`는 god-node/통계 이미 계산(배선만 필요).
+
+### 적용 중인 정책 (영구)
+1. 화면 전환 패턴: `if (isDeepSpaceUI()) return <DeepSpace…/>; return <…Legacy/>;` — 레거시 본문 보존(특히 `check:constraints`가 string-scan하는 wiki.tsx/trinity.tsx/complete-profile.tsx).
+2. 금지 마커: `gameboy-tokens`/`IslandArt`/`NavGraph`/`SecondBSprite`/`VillageScene`/`PremiumAppShell`/`signalMint`/`borderStart*`. (`PremiumToast`/`PremiumModal`은 금지 아님 — 오히려 제약이 요구.)
+3. 토큰: sub-screen은 `@/theme/tokens`(Shell, 하드코딩 KO), dock-level은 `@/lib/theme/tokens` `deepSpace.*` + `home` i18n `ds.*`.
+4. 검증은 **tail 금지, full `npm run verify`** (constraints가 화면 string-scan → 부분검증은 놓침; 1회 CI 실패 경험).
+5. $0/mo, C1/C3/C9, C7(i18n parity), RLS 유지. PR은 main으로, 머지는 사용자 확인(또는 handoff).
+
+### 핵심 파일 위치
+```
+docs/wiki-system-upgrade.md                        위키 4-STEP 계획 (graphify 분석)
+src/lib/wiki/phase1.ts                             Phase1 추출 + mock
+src/lib/wiki/phase2.ts                             Phase2 source→page (← STEP 1a 확장 지점)
+src/lib/wiki/queries.ts                            upsertWikiPage/getWikiPage/syncWikiLinks/getBacklinks
+src/lib/wiki/graph-stats.ts                        god-node/통계 (배선만)
+src/screens/deepspace/DeepSpaceDesignScreens.tsx   Shell-패턴 deep-space 화면 (더미)
+src/components/deep-space/DeepSpaceViews.tsx        dock-level Views (더미)
+src/lib/ui-mode.ts                                 isDeepSpaceUI()
+design/*.dc.html                                   디자인 정본
+```
+
+### 검증
+```bash
+npm run verify
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+cat docs/wiki-system-upgrade.md
+# A 작업(STEP 1a): src/lib/wiki/phase2.ts + materialize 함수 + 테스트
+```
+
+---
+
 ## Latest -- 2026-06-16 (cont.4) / 전체 앱 총망라 핸드오프 레퍼런스 7종 (docs/handoff/) + IDEN main 머지 완료 (생각정리 출발점)
 
 ### 어디까지 왔나
