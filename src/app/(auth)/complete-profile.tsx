@@ -8,6 +8,7 @@ import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "re
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
+import { PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
@@ -179,7 +180,9 @@ export default function CompleteProfile() {
           keyboardShouldPersistTaps="handled"
         >
         <View style={styles.header}>
-          <SecondbHead size={96} mood="positive" accessibilityLabel={locale === "ko" ? "세컨비" : "SecondB"} />
+          <View accessibilityRole="image" accessibilityLabel={t("common.entryArtwork")}>
+            <SecondbHead size={96} mood="positive" />
+          </View>
           <Text variant="heading" style={styles.title}>
             {t("completeProfile.title")}
           </Text>
@@ -234,9 +237,7 @@ export default function CompleteProfile() {
       </KeyboardAvoidingView>
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">
-          <View style={[styles.toast, toast.tone === "danger" ? styles.toastDanger : styles.toastInfo]}>
-            <Text variant="subtle" style={styles.toastText}>{toast.message}</Text>
-          </View>
+          <PremiumToast message={toast.message} tone={toast.tone} />
         </View>
       ) : null}
     </SafeAreaView>
@@ -292,10 +293,6 @@ const styles = StyleSheet.create({
   checklist: { gap: deepSpaceSpacing.xs, marginTop: deepSpaceSpacing.xs, marginBottom: deepSpaceSpacing.xs },
   submitButton: { alignSelf: "stretch", width: "100%" },
   toastWrap: { position: "absolute", left: deepSpaceSpacing.lg, right: deepSpaceSpacing.lg, bottom: deepSpaceSpacing.xl, alignItems: "stretch" },
-  toast: { borderRadius: deepSpaceRadii.md, borderWidth: 1, paddingVertical: deepSpaceSpacing.sm, paddingHorizontal: deepSpaceSpacing.md, backgroundColor: withAlpha(deepSpace.bgMid, 0.9) },
-  toastInfo: { borderColor: deepSpace.cardLine },
-  toastDanger: { borderColor: deepSpace.danger },
-  toastText: { color: deepSpace.textHi, textAlign: "center" },
   checkRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
   checkDot: { width: 8, height: 8, borderRadius: 4 },
 });
