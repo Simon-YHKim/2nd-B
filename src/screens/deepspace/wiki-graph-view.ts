@@ -110,6 +110,85 @@ export interface DeepResearchView {
   surprise: SurpriseLink | null;
 }
 
+// --- /domains ("내 영역") --------------------------------------------------
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+function kstDayKey(ms: number): number {
+  return Math.floor((ms + KST_OFFSET_MS) / DAY_MS);
+}
+
+/** "오늘"/"어제"/"N일 전" for a last-activity timestamp, KST. "" if invalid. */
+export function recencyLabel(iso: string, now: Date = new Date()): string {
+  const ms = new Date(iso).getTime();
+  if (Number.isNaN(ms)) return "";
+  const diff = kstDayKey(now.getTime()) - kstDayKey(ms);
+  if (diff <= 0) return "오늘";
+  if (diff === 1) return "어제";
+  return `${diff}일 전`;
+}
+
+export interface DomainView {
+  tag: string;
+  count: number;
+  /** Most recent page update carrying this tag (ISO), "" if none. */
+  lastActivity: string;
+  /** Active within the last 2 KST days. */
+  recent: boolean;
+}
+
+export interface DeepDomainsView {
+  domains: DomainView[];
+  /** Topic page titles within the top domain (most-connected first). */
+  topTopics: { tag: string; titles: string[] } | null;
+}
+
+export function buildDomainsView(
+  pages: WikiPageRow[],
+  edges: WikiEdge[],
+  opts: { maxDomains?: number; maxTopics?: number; now?: Date } = {},
+): DeepDomainsView {
+  const maxDomains = opts.maxDomains ?? 6;
+  const maxTopics = opts.maxTopics ?? 3;
+  const now = opts.now ?? new Date();
+
+  const count = new Map<string, number>();
+  const last = new Map<string, number>();
+  for (const p of pages) {
+    const ms = new Date(p.updated_at).getTime();
+    for (const tag of p.tags) {
+      count.set(tag, (count.get(tag) ?? 0) + 1);
+      if (!Number.isNaN(ms)) last.set(tag, Math.max(last.get(tag) ?? 0, ms));
+    }
+  }
+
+  const todayKey = kstDayKey(now.getTime());
+  const domains: DomainView[] = [...count.entries()]
+    .map(([tag, c]) => {
+      const lastMs = last.get(tag);
+      const lastActivity = lastMs ? new Date(lastMs).toISOString() : "";
+      const recent = lastMs ? todayKey - kstDayKey(lastMs) <= 1 : false;
+      return { tag, count: c, lastActivity, recent };
+    })
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+    .slice(0, maxDomains);
+
+  let topTopics: DeepDomainsView["topTopics"] = null;
+  if (domains.length > 0) {
+    const top = domains[0].tag;
+    const conn = connectionCounts(edges);
+    const titles = pages
+      .filter((p) => p.tags.includes(top))
+      .sort((a, b) => (conn.get(b.id) ?? 0) - (conn.get(a.id) ?? 0))
+      .slice(0, maxTopics)
+      .map((p) => displayName(p));
+    topTopics = { tag: top, titles };
+  }
+
+  return { domains, topTopics };
+}
+
 export function buildDeepResearchView(
   pages: WikiPageRow[],
   edges: WikiEdge[],

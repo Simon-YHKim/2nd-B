@@ -7,12 +7,15 @@ import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
+import { deleteSource, listAllWikiLinks, listSources, listWikiPages } from "@/lib/wiki/queries";
+import { generateSourcePage } from "@/lib/wiki/phase2";
 import { listRecentRecords } from "@/lib/records/create";
-import type { WikiPageRow } from "@/lib/wiki/types";
+import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
 import {
   buildDeepResearchView,
   buildDeepWikiView,
+  buildDomainsView,
+  recencyLabel,
   type WikiEdge,
 } from "./wiki-graph-view";
 import { buildRecordsTimeline, type TimelineRecord } from "./records-timeline";
@@ -392,35 +395,153 @@ export function DeepSpaceRecordsScreen() {
   );
 }
 
+const SOURCE_KIND_ICON: Record<string, string> = {
+  inbox: "✎",
+  article: "🔗",
+  video: "🎬",
+  paper: "📄",
+  reddit: "💬",
+  code: "⌨",
+  ai_tool: "🤖",
+  self_knowledge: "🪞",
+};
+
+function sourceTitle(s: SourceRow): string {
+  const t = s.title?.trim();
+  return t && t.length > 0 ? t : "제목 없는 조각";
+}
+
 export function DeepSpaceInboxScreen() {
-  // TODO: wire triage queue + archive/discard actions. Dummy from records-archive.dc.html.
+  const { userId, loading: authLoading } = useAuth();
+  const [sources, setSources] = useState<SourceRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = useMemo(
+    () => async (uid: string) => {
+      const rows = await listSources(uid, { ingested: false, limit: 50 });
+      setSources(rows);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    setLoading(true);
+    load(userId)
+      .catch(() => {
+        if (alive) setSources([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, load]);
+
+  async function promote(s: SourceRow) {
+    if (!userId) return;
+    setBusyId(s.id);
+    try {
+      await generateSourcePage(userId, s.id);
+      await load(userId);
+    } catch {
+      // best-effort; the row stays in the queue to retry
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function discard(s: SourceRow) {
+    if (!userId) return;
+    setBusyId(s.id);
+    try {
+      await deleteSource(userId, s.id);
+      await load(userId);
+    } catch {
+      // best-effort
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (authLoading) {
+    return <Shell title="정리함"><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  const pending = sources.length;
+  const [current, ...queue] = sources;
+
   return (
     <Shell title="정리함">
-      <SecondbStatusHeader text="정리 안 된 조각 7개가 기다려요." tip="한 개씩 보내면 금방 비워져요." />
-      <Text style={styles.lead}>남은 7개만 비우면 끝나요</Text>
-      <View style={styles.progressRow}>
-        <View style={styles.progressTrack}><View style={[styles.progressFill, { width: "30%" }]} /></View>
-        <Text style={styles.progressLabel}>3 / 10</Text>
-      </View>
-      <Card style={styles.triageCard}>
-        <View style={styles.triageMeta}><Text style={styles.tlIcon}>🔗</Text><Text style={styles.metaLabel}>링크 · 방금 담음</Text></View>
-        <Text style={styles.triageBody}>감정 연구의 최신 메타분석 아티클을 담았어요.</Text>
-        <Text style={styles.footerLeft}>세컨비 추천 태그</Text>
-        <View style={styles.filterRow}>
-          <FilterChip label="#감정" active />
-          <FilterChip label="#연구" active />
-          <FilterChip label="+ 직접" />
+      <SecondbStatusHeader
+        text={pending > 0 ? `정리 안 된 조각 ${pending}개가 기다려요.` : "정리할 조각이 없어요. 깔끔해요."}
+        tip="한 개씩 보내면 금방 비워져요."
+      />
+      {loading ? (
+        <GraphLoading />
+      ) : pending === 0 ? (
+        <View style={styles.wikiPageOpen}>
+          <Text style={styles.wikiBody}>모두 정리됐어요. 새 조각을 담으면 여기로 와요.</Text>
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+            <Text style={styles.primaryText}>+ 조각 담기</Text>
+          </Pressable>
         </View>
-        <View style={styles.ctaRow}>
-          <View style={styles.iconBtn}><Text style={styles.iconBtnText}>🗑</Text></View>
-          <Pressable style={styles.primary}><Text style={styles.primaryText}>보관하기</Text></Pressable>
-        </View>
-      </Card>
-      <Text style={styles.tlLabel}>다음 차례</Text>
-      <View style={{ gap: 7 }}>
-        <View style={styles.queueItem}><Text style={styles.tlIcon}>✎</Text><Text style={styles.queueText} numberOfLines={1}>회의 중 떠오른 메모</Text></View>
-        <View style={[styles.queueItem, styles.queueItemDim]}><Text style={styles.tlIcon}>🎙</Text><Text style={styles.queueText} numberOfLines={1}>통화 후 음성 메모</Text></View>
-      </View>
+      ) : (
+        <>
+          <Text style={styles.lead}>남은 {pending}개만 비우면 끝나요</Text>
+          <Card style={styles.triageCard}>
+            <View style={styles.triageMeta}>
+              <Text style={styles.tlIcon}>{SOURCE_KIND_ICON[current.kind] ?? "•"}</Text>
+              <Text style={styles.metaLabel}>{current.kind}</Text>
+            </View>
+            <Text style={styles.triageBody} numberOfLines={3}>{sourceTitle(current)}</Text>
+            {current.tags.length > 0 ? (
+              <View style={styles.filterRow}>
+                {current.tags.slice(0, 4).map((tag) => (
+                  <FilterChip key={tag} label={`#${tag}`} active />
+                ))}
+              </View>
+            ) : null}
+            <View style={styles.ctaRow}>
+              <Pressable
+                style={styles.iconBtn}
+                onPress={() => void discard(current)}
+                disabled={busyId !== null}
+                accessibilityRole="button"
+                accessibilityLabel="이 조각 버리기"
+              >
+                <Text style={styles.iconBtnText}>🗑</Text>
+              </Pressable>
+              <Pressable
+                style={styles.primary}
+                onPress={() => void promote(current)}
+                disabled={busyId !== null}
+                accessibilityRole="button"
+                accessibilityLabel="이 조각 보관하기"
+              >
+                <Text style={styles.primaryText}>{busyId === current.id ? "보관 중…" : "보관하기"}</Text>
+              </Pressable>
+            </View>
+          </Card>
+          {queue.length > 0 ? (
+            <>
+              <Text style={styles.tlLabel}>다음 차례</Text>
+              <View style={{ gap: 7 }}>
+                {queue.slice(0, 8).map((s, i) => (
+                  <View key={s.id} style={[styles.queueItem, i > 0 && styles.queueItemDim]}>
+                    <Text style={styles.tlIcon}>{SOURCE_KIND_ICON[s.kind] ?? "•"}</Text>
+                    <Text style={styles.queueText} numberOfLines={1}>{sourceTitle(s)}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : null}
+        </>
+      )}
     </Shell>
   );
 }
@@ -729,39 +850,68 @@ export function DeepSpaceWikiScreen() {
 }
 
 export function DeepSpaceDomainsScreen() {
-  // TODO: aggregate real domain tag counts + last-entry + topics. Dummy from ops-wiki-trinity.dc.html.
+  const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
+  const view = useMemo(() => buildDomainsView(pages, edges), [pages, edges]);
+
+  if (authLoading) {
+    return <Shell title="내 영역"><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
   return (
     <Shell title="내 영역">
-      <SecondbStatusHeader text="네 영역이 이렇게 쌓이고 있어요." tip="비어 있는 영역을 더 담아볼까요?" />
+      <SecondbStatusHeader
+        text={view.domains.length > 0 ? "네 영역이 이렇게 쌓이고 있어요." : "아직 영역이 비어 있어요."}
+        tip="비어 있는 영역을 더 담아볼까요?"
+      />
       <Text style={styles.lead}>네 영역을 한눈에</Text>
-      <View style={styles.formatGrid}>
-        <View style={[styles.domainCard, styles.domainCardActive]}>
-          <Text style={styles.domainName}>건강</Text>
-          <View style={styles.domainNumRow}><Text style={[styles.domainNum, styles.domainNumActive]}>86</Text><Text style={styles.domainUnit}>조각</Text></View>
-          <Text style={styles.domainSub}>오늘 기록</Text>
+      {loading ? (
+        <GraphLoading />
+      ) : view.domains.length === 0 ? (
+        <View style={styles.wikiPageOpen}>
+          <Text style={styles.wikiBody}>조각에 태그가 붙으면 영역으로 모여요. 오늘의 조각을 담아보세요.</Text>
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+            <Text style={styles.primaryText}>+ 데이터 추가</Text>
+          </Pressable>
         </View>
-        <View style={styles.domainCard}>
-          <Text style={styles.domainName}>앱</Text>
-          <View style={styles.domainNumRow}><Text style={styles.domainNum}>54</Text><Text style={styles.domainUnit}>조각</Text></View>
-          <Text style={styles.domainSub}>어제 기록</Text>
-        </View>
-        <View style={styles.domainCard}>
-          <Text style={styles.domainName}>뇌</Text>
-          <View style={styles.domainNumRow}><Text style={styles.domainNum}>41</Text><Text style={styles.domainUnit}>조각</Text></View>
-          <Text style={styles.domainSub}>3일 전</Text>
-        </View>
-        <View style={[styles.domainCard, styles.domainCardDim]}>
-          <Text style={styles.domainNameDim}>재정</Text>
-          <View style={styles.domainNumRow}><Text style={[styles.domainNum, styles.domainNumDim]}>7</Text><Text style={styles.domainUnit}>조각</Text></View>
-          <Text style={styles.domainSub}>2주 전</Text>
-        </View>
-      </View>
-      <Text style={styles.tlLabel}>건강 · 핵심 주제</Text>
-      <View style={styles.topicCol}>
-        <View style={styles.topicRow}><View style={styles.topicDot} /><Text style={styles.topicText}>아침 산책이 기분과 가장 강하게 연결됨</Text></View>
-        <View style={styles.topicRow}><View style={[styles.topicDot, styles.topicDotDim]} /><Text style={styles.topicTextDim}>수면 시간이 다음날 집중을 좌우함</Text></View>
-      </View>
-      <Pressable style={styles.primary}><Text style={styles.primaryText}>+ 데이터 추가</Text></Pressable>
+      ) : (
+        <>
+          <View style={styles.formatGrid}>
+            {view.domains.map((d, i) => {
+              const active = i === 0;
+              return (
+                <View
+                  key={d.tag}
+                  style={[styles.domainCard, active && styles.domainCardActive, !d.recent && styles.domainCardDim]}
+                >
+                  <Text style={d.recent ? styles.domainName : styles.domainNameDim} numberOfLines={1}>{d.tag}</Text>
+                  <View style={styles.domainNumRow}>
+                    <Text style={[styles.domainNum, active && styles.domainNumActive, !d.recent && styles.domainNumDim]}>{d.count}</Text>
+                    <Text style={styles.domainUnit}>조각</Text>
+                  </View>
+                  <Text style={styles.domainSub}>{recencyLabel(d.lastActivity) || "기록 없음"}</Text>
+                </View>
+              );
+            })}
+          </View>
+          {view.topTopics !== null && view.topTopics.titles.length > 0 ? (
+            <>
+              <Text style={styles.tlLabel}>{view.topTopics.tag} · 핵심 주제</Text>
+              <View style={styles.topicCol}>
+                {view.topTopics.titles.map((title, i) => (
+                  <View key={title} style={styles.topicRow}>
+                    <View style={[styles.topicDot, i > 0 && styles.topicDotDim]} />
+                    <Text style={i > 0 ? styles.topicTextDim : styles.topicText} numberOfLines={1}>{title}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : null}
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+            <Text style={styles.primaryText}>+ 데이터 추가</Text>
+          </Pressable>
+        </>
+      )}
     </Shell>
   );
 }

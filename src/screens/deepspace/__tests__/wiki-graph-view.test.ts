@@ -4,8 +4,10 @@
 import {
   buildDeepResearchView,
   buildDeepWikiView,
+  buildDomainsView,
   connectionCounts,
   displayName,
+  recencyLabel,
   snippetOf,
   type WikiEdge,
 } from "../wiki-graph-view";
@@ -137,5 +139,51 @@ describe("buildDeepResearchView", () => {
     expect(v.headline).toBeNull();
     expect(v.clusters).toEqual([]);
     expect(v.pageCount).toBe(0);
+  });
+});
+
+describe("recencyLabel", () => {
+  const now = new Date("2026-06-19T03:00:00Z"); // 12:00 KST
+  test("오늘 / 어제 / N일 전 by KST day", () => {
+    expect(recencyLabel("2026-06-19T01:00:00Z", now)).toBe("오늘");
+    expect(recencyLabel("2026-06-18T05:00:00Z", now)).toBe("어제");
+    expect(recencyLabel("2026-06-15T05:00:00Z", now)).toBe("4일 전");
+    expect(recencyLabel("nope", now)).toBe("");
+  });
+});
+
+describe("buildDomainsView", () => {
+  const now = new Date("2026-06-19T03:00:00Z");
+  const pages = [
+    page({ id: "a", title: "A", tags: ["건강", "뇌"], updated_at: "2026-06-19T01:00:00Z" }),
+    page({ id: "b", title: "B", tags: ["건강"], updated_at: "2026-06-10T01:00:00Z" }),
+    page({ id: "c", title: "C", tags: ["건강"], updated_at: "2026-06-18T01:00:00Z" }),
+    page({ id: "d", title: "D", tags: ["재정"], updated_at: "2026-06-01T01:00:00Z" }),
+  ];
+  const edges: WikiEdge[] = [
+    { from_page: "b", to_page: "a" },
+    { from_page: "c", to_page: "a" },
+  ];
+
+  test("ranks domains by count with recency + last activity", () => {
+    const v = buildDomainsView(pages, edges, { now });
+    expect(v.domains[0]).toMatchObject({ tag: "건강", count: 3, recent: true });
+    // most recent 건강 page is "a" (06-19), so lastActivity reflects it
+    expect(v.domains[0].lastActivity).toBe("2026-06-19T01:00:00.000Z");
+    const fin = v.domains.find((d) => d.tag === "재정");
+    expect(fin?.recent).toBe(false);
+  });
+
+  test("top domain topics are most-connected pages first", () => {
+    const v = buildDomainsView(pages, edges, { now });
+    expect(v.topTopics?.tag).toBe("건강");
+    // "a" has 2 incoming connections → first
+    expect(v.topTopics?.titles[0]).toBe("A");
+  });
+
+  test("empty pages → no domains, null topics", () => {
+    const v = buildDomainsView([], []);
+    expect(v.domains).toEqual([]);
+    expect(v.topTopics).toBeNull();
   });
 });
