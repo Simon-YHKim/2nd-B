@@ -29,6 +29,8 @@ import { buildChecklistShareText, buildGoogleCalendarUrl, buildIcsEvent } from "
 import { addEventToDeviceCalendar, deviceCalendarSupported } from "@/lib/ops/device-calendar";
 import { remindersSupported, scheduleRoutineReminder } from "@/lib/ops/reminders";
 import { OPS_DAILY_LIMIT, bumpOpsUsage, readOpsUsage } from "@/lib/ops/usage";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceOpsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 type RunState = "idle" | "working" | "empty" | "error" | "limit" | "off";
 
@@ -42,7 +44,7 @@ function nextMorningIso(now: Date = new Date()): string {
   return next.toISOString();
 }
 
-export default function Ops() {
+function OpsLegacy() {
   const { t, i18n } = useTranslation("ops");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const progression = useProgression();
@@ -491,3 +493,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
 });
+
+export default function Ops() {
+  if (isDeepSpaceUI()) return <DeepSpaceOpsScreen />;
+  return <OpsLegacy />;
+}

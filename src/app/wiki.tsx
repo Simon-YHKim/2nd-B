@@ -35,6 +35,8 @@ import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionS
 import { WikiCardThumb, type WikiCardThumbId } from "@/components/art/WikiCardThumb";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { VILLAGE_IDS, type VillageId } from "@/lib/graph/relatedness";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceWikiScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 // listAllWikiLinks projects only the two endpoint columns — all the
 // living-brain summary and per-row connection counts need.
@@ -113,7 +115,7 @@ function pruneBacklinks(
   return next;
 }
 
-export default function Wiki() {
+function WikiLegacy() {
   const { t, i18n } = useTranslation("wiki");
   const { userId, loading: authLoading, hasProfile, isMinor } = useAuth();
   const routeParams = useLocalSearchParams();
@@ -1406,3 +1408,8 @@ const styles = StyleSheet.create({
   statsBlock: { flex: 1, gap: 2 },
   statsSectionHead: { letterSpacing: 0, marginTop: spacing.xs },
 });
+
+export default function Wiki() {
+  if (isDeepSpaceUI()) return <DeepSpaceWikiScreen />;
+  return <WikiLegacy />;
+}
