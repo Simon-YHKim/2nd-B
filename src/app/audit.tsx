@@ -8,6 +8,9 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { semantic, spacing, radii } from "@/lib/theme/tokens";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { ValuesLensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { createRecord } from "@/lib/records/create";
@@ -20,7 +23,7 @@ const PERIOD_OPTIONS: { id: AuditPeriod; label: { en: string; ko: string } }[] =
 ];
 type AuditToast = { message: string; tone: "info" | "success" | "danger" };
 
-export default function Audit() {
+function AuditLegacy() {
   const { i18n } = useTranslation();
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -324,3 +327,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
+
+export default function Audit() {
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen active="lens">
+        <ValuesLensView />
+      </DeepSpaceScreen>
+    );
+  }
+  return <AuditLegacy />;
+}

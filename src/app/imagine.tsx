@@ -6,6 +6,21 @@
 
 import { Redirect } from "expo-router";
 
-export default function Imagine() {
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { PossibleLensView } from "@/components/deep-space/DeepSpaceViews";
+
+function ImagineLegacy() {
   return <Redirect href={{ pathname: "/secondb", params: { mode: "divergent" } }} />;
+}
+
+export default function Imagine() {
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen active="lens">
+        <PossibleLensView />
+      </DeepSpaceScreen>
+    );
+  }
+  return <ImagineLegacy />;
 }

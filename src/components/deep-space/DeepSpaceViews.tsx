@@ -312,6 +312,269 @@ export function IdenView() {
   );
 }
 
+// ── shared star-lens header (eyebrow + title + tag) ──────────────────────────
+
+function LensHead({ title, tag, eyebrow }: { title: string; tag: string; eyebrow: string }) {
+  return (
+    <View style={styles.lensHead}>
+      <View style={styles.lensHeadTop}>
+        <Text style={styles.pixelTitle}>{title}</Text>
+        <Text style={styles.lensTag}>{tag}</Text>
+      </View>
+      <Text style={styles.lensEyebrow}>{eyebrow}</Text>
+    </View>
+  );
+}
+
+// 5-dot brightness indicator (filled dots cyan, empty dots faint cyan).
+function DotMeter({ filled, total = 5 }: { filled: number; total?: number }) {
+  return (
+    <View style={styles.dotRow}>
+      {Array.from({ length: total }).map((_, i) => (
+        <View key={i} style={[styles.dot, i < filled ? styles.dotOn : styles.dotOff]} />
+      ))}
+    </View>
+  );
+}
+
+// ── 회상 / Recall (NARRATIVE) ────────────────────────────────────────────────
+
+export function RecallLensView() {
+  const { t } = useTranslation("home");
+  // TODO: wire to real life-period coverage (src/lib/persona/interview coverage).
+  const periods = [
+    { name: t("ds.recall.p1Name"), age: t("ds.recall.p1Age"), dots: 3 },
+    { name: t("ds.recall.p2Name"), age: t("ds.recall.p2Age"), dots: 4 },
+    { name: t("ds.recall.p3Name"), age: t("ds.recall.p3Age"), dots: 2 },
+    { name: t("ds.recall.p4Name"), age: t("ds.recall.p4Age"), dots: 3 },
+    { name: t("ds.recall.p5Name"), age: t("ds.recall.p5Age"), dots: 1 },
+    { name: t("ds.recall.p6Name"), age: t("ds.recall.p6Age"), dots: 4 },
+    { name: t("ds.recall.p7Name"), age: t("ds.recall.p7Age"), dots: 3 },
+    { name: t("ds.recall.p8Name"), age: t("ds.recall.p8Age"), dots: 5 },
+  ];
+  return (
+    <ScrollView contentContainerStyle={styles.body}>
+      <LensHead title={t("ds.recall.title")} tag={t("ds.recall.tag")} eyebrow={t("ds.recall.eyebrow")} />
+      <Text style={styles.pixelHint}>{t("ds.recall.hint")}</Text>
+      <View style={styles.grid2}>
+        {periods.map((p) => (
+          <Pressable
+            key={p.name}
+            accessibilityRole="button"
+            accessibilityLabel={`${p.name} ${p.age}`}
+            style={({ pressed }) => [styles.gridCard, pressed && styles.pressed]}
+          >
+            <Text style={styles.gridName}>{p.name}</Text>
+            <Text style={styles.gridAge}>{p.age}</Text>
+            <DotMeter filled={p.dots} />
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.footerLine}>{t("ds.recall.footer")}</Text>
+    </ScrollView>
+  );
+}
+
+// ── 보여지는 나 / Seen (SELF·OTHER) ──────────────────────────────────────────
+
+function CompareRow({ label, self, other, delta }: { label: string; self: number; other: number; delta: string }) {
+  return (
+    <View style={styles.compareRow}>
+      <View style={styles.traitHead}>
+        <Text style={styles.traitLabel}>{label}</Text>
+        <Text style={styles.compareDelta}>{delta}</Text>
+      </View>
+      <View style={[styles.compareTrack, styles.compareTrackSelf]}>
+        <View style={[styles.compareFillSelf, { width: `${self}%` as DimensionValue }]} />
+      </View>
+      <View style={[styles.compareTrack, styles.compareTrackOther]}>
+        <View style={[styles.compareFillOther, { width: `${other}%` as DimensionValue }]} />
+      </View>
+    </View>
+  );
+}
+
+export function SeenLensView() {
+  const { t } = useTranslation("home");
+  return (
+    <ScrollView contentContainerStyle={styles.body}>
+      {/* TODO: wire to self vs peer-review scores (src/lib/persona). */}
+      <LensHead title={t("ds.seen.title")} tag={t("ds.seen.tag")} eyebrow={t("ds.seen.eyebrow")} />
+      <View style={styles.legendRow}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, styles.legendDotSelf]} />
+          <Text style={styles.legendLabel}>{t("ds.seen.legendSelf")}</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, styles.legendDotOther]} />
+          <Text style={styles.legendLabel}>{t("ds.seen.legendOther")}</Text>
+        </View>
+      </View>
+      <View style={styles.compareList}>
+        <CompareRow label={t("ds.seen.traitExtraversion")} self={61} other={79} delta={t("ds.seen.diffExtraversion")} />
+        <CompareRow label={t("ds.seen.traitConscientiousness")} self={74} other={78} delta={t("ds.seen.diffConscientiousness")} />
+        <CompareRow label={t("ds.seen.traitAgreeableness")} self={68} other={61} delta={t("ds.seen.diffAgreeableness")} />
+      </View>
+      <View style={styles.soulCard}>
+        <Text style={styles.soulCardText}>{t("ds.seen.conclusion")}</Text>
+      </View>
+      <View style={styles.btnRow}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("ds.seen.survey")} style={styles.ghostBtnFlex}>
+          <Text style={styles.ghostLabel}>{t("ds.seen.survey")}</Text>
+        </Pressable>
+        <View style={styles.btnFlex}>
+          <GradientButton label={t("ds.seen.share")} colors={deepSpaceGradients.idenSend} full />
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+// ── 리듬 / Rhythm (ESM) ──────────────────────────────────────────────────────
+
+export function RhythmLensView() {
+  const { t } = useTranslation("home");
+  // TODO: wire to ESM mood samples (src/app/esm data).
+  const bars = [
+    { day: t("ds.rhythm.mon"), h: 54 },
+    { day: t("ds.rhythm.tue"), h: 42 },
+    { day: t("ds.rhythm.wed"), h: 66 },
+    { day: t("ds.rhythm.thu"), h: 50 },
+    { day: t("ds.rhythm.fri"), h: 72 },
+    { day: t("ds.rhythm.sat"), h: 96, peak: true },
+    { day: t("ds.rhythm.sun"), h: 80 },
+  ];
+  return (
+    <ScrollView contentContainerStyle={styles.body}>
+      <LensHead title={t("ds.rhythm.title")} tag={t("ds.rhythm.tag")} eyebrow={t("ds.rhythm.eyebrow")} />
+      <View style={styles.chartCard}>
+        <Text style={styles.pixelHint}>{t("ds.rhythm.subhead")}</Text>
+        <View style={styles.chartRow}>
+          {bars.map((b) => (
+            <View key={b.day} style={styles.chartCol}>
+              <View style={styles.chartBarTrack}>
+                <View style={[styles.chartBar, { height: `${b.h}%` as DimensionValue }]}>
+                  <GradientFill colors={b.peak ? deepSpaceGradients.cta : deepSpaceGradients.progress} radius={4} />
+                </View>
+              </View>
+              <Text style={[styles.chartDay, b.peak && styles.chartDayPeak]}>{b.day}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+      <View style={styles.insightCard}>
+        <Text style={styles.insightText}>{t("ds.rhythm.caption")}</Text>
+      </View>
+      <GradientButton label={t("ds.rhythm.logNow")} full />
+    </ScrollView>
+  );
+}
+
+// ── 미래의 나 / Possible (ASPIRATION) ────────────────────────────────────────
+
+export function PossibleLensView() {
+  const { t } = useTranslation("home");
+  // TODO: wire to aspiration drafts (src/app/imagine store).
+  const cards = [
+    { name: t("ds.possible.a1Name"), body: t("ds.possible.a1Body") },
+    { name: t("ds.possible.a2Name"), body: t("ds.possible.a2Body") },
+    { name: t("ds.possible.a3Name"), body: t("ds.possible.a3Body") },
+  ];
+  return (
+    <ScrollView contentContainerStyle={styles.body}>
+      <LensHead title={t("ds.possible.title")} tag={t("ds.possible.tag")} eyebrow={t("ds.possible.eyebrow")} />
+      <View style={styles.dashedList}>
+        {cards.map((c) => (
+          <Pressable
+            key={c.name}
+            accessibilityRole="button"
+            accessibilityLabel={c.name}
+            style={({ pressed }) => [styles.dashedCard, pressed && styles.pressed]}
+          >
+            <Text style={styles.dashedName}>{c.name}</Text>
+            <Text style={styles.dashedBody}>{c.body}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.footerLine}>{t("ds.possible.footer")}</Text>
+      <View style={styles.btnRow}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("ds.possible.rewrite")} style={styles.ghostBtnFlex}>
+          <Text style={styles.ghostLabel}>{t("ds.possible.rewrite")}</Text>
+        </Pressable>
+        <View style={styles.btnFlex}>
+          <GradientButton label={t("ds.possible.add")} full />
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+// ── 관계·지식 / Relational (RELATIONS) ───────────────────────────────────────
+
+export function RelationalLensView() {
+  const { t } = useTranslation("home");
+  return (
+    <ScrollView contentContainerStyle={styles.body}>
+      {/* TODO: wire to relations/knowledge graph (src/app/attachment + wiki). */}
+      <LensHead title={t("ds.relational.title")} tag={t("ds.relational.tag")} eyebrow={t("ds.relational.eyebrow")} />
+      <Text style={[styles.pixelHint, styles.sectionGap]}>{t("ds.relational.peopleHead")}</Text>
+      <View style={styles.chipRowTight}>
+        <Chip label={t("ds.relational.person1")} />
+        <Chip label={t("ds.relational.person2")} />
+        <Chip label={t("ds.relational.person3")} />
+        <Chip label={t("ds.relational.personMore")} />
+      </View>
+      <Text style={[styles.pixelHint, styles.sectionGap]}>{t("ds.relational.knowledgeHead")}</Text>
+      <View style={styles.chipRowTight}>
+        <Chip label={t("ds.relational.topic1")} />
+        <Chip label={t("ds.relational.topic2")} />
+        <Chip label={t("ds.relational.topic3")} />
+      </View>
+      <View style={styles.insightCard}>
+        <Text style={styles.insightText}>{t("ds.relational.conclusion")}</Text>
+      </View>
+      <GradientButton label={t("ds.relational.addData")} full />
+    </ScrollView>
+  );
+}
+
+// ── 일·성장 / Values (DOMAIN) ────────────────────────────────────────────────
+
+function DomainRow({ label, count, value }: { label: string; count: string; value: number }) {
+  return (
+    <View style={styles.domainRow}>
+      <View style={styles.traitHead}>
+        <Text style={styles.domainLabel}>{label}</Text>
+        <Text style={styles.domainCount}>{count}</Text>
+      </View>
+      <View style={styles.traitTrack}>
+        <View style={[styles.traitFill, { width: `${value}%` as DimensionValue }]}>
+          <GradientFill colors={deepSpaceGradients.progress} radius={4} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+export function ValuesLensView() {
+  const { t } = useTranslation("home");
+  // TODO: wire to domain piece counts (src/app/audit + records by domain).
+  return (
+    <ScrollView contentContainerStyle={styles.body}>
+      <LensHead title={t("ds.values.title")} tag={t("ds.values.tag")} eyebrow={t("ds.values.eyebrow")} />
+      <View style={styles.domainList}>
+        <DomainRow label={t("ds.values.domain1")} count={t("ds.values.domain1Count")} value={100} />
+        <DomainRow label={t("ds.values.domain2")} count={t("ds.values.domain2Count")} value={69} />
+        <DomainRow label={t("ds.values.domain3")} count={t("ds.values.domain3Count")} value={26} />
+      </View>
+      <View style={styles.insightCard}>
+        <Text style={styles.insightText}>{t("ds.values.conclusion")}</Text>
+      </View>
+      <GradientButton label={t("ds.values.addData")} full />
+    </ScrollView>
+  );
+}
+
 const styles = StyleSheet.create({
   body: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 28, gap: 0 },
   chatBody: { gap: 10 },
@@ -486,4 +749,122 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   idenFiveValue: { color: deepSpace.accentSoft, fontSize: 10, marginTop: 6, fontFamily: fontFamilies.mono },
+
+  // ── star-lens shared head ──────────────────────────────────────────────────
+  lensHead: { gap: 6, marginBottom: 16 },
+  lensHeadTop: { flexDirection: "row", alignItems: "center", gap: 8 },
+  lensTag: { marginLeft: "auto", color: withAlpha(deepSpace.accent, 0.55), fontSize: 7, fontFamily: fontFamilies.pixelEn },
+  lensEyebrow: { color: deepSpace.textMid, fontSize: 12.5, lineHeight: 18, fontFamily: fontFamilies.readable },
+  pixelHint: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 7, fontFamily: fontFamilies.pixelEn, marginBottom: 12 },
+  sectionGap: { marginTop: 18 },
+  footerLine: { marginTop: 18, color: withAlpha(deepSpace.accentSoft, 0.55), fontSize: 11, lineHeight: 17, textAlign: "center", fontFamily: fontFamilies.readable },
+
+  // dot meter
+  dotRow: { flexDirection: "row", gap: 4, marginTop: 8 },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  dotOn: { backgroundColor: deepSpace.accent },
+  dotOff: { backgroundColor: withAlpha(deepSpace.accent, 0.25) },
+
+  // recall grid
+  grid2: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 9 },
+  gridCard: {
+    width: "48%",
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+  },
+  gridName: { color: deepSpace.accentBright, fontSize: 12, fontFamily: fontFamilies.pixelKo },
+  gridAge: { color: withAlpha(deepSpace.accentSoft, 0.5), fontSize: 9.5, marginTop: 3, fontFamily: fontFamilies.readable },
+
+  // seen - legend
+  legendRow: { flexDirection: "row", gap: 14, marginBottom: 16 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  legendDot: { width: 10, height: 10, borderRadius: 2 },
+  legendDotSelf: { backgroundColor: deepSpace.accent },
+  legendDotOther: { backgroundColor: deepSpace.soulDeep },
+  legendLabel: { color: deepSpace.textMid, fontSize: 11, fontFamily: fontFamilies.readable },
+
+  // seen - compare rows
+  compareList: { gap: 18 },
+  compareRow: { gap: 4 },
+  compareDelta: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.mono },
+  compareTrack: { height: 6, borderRadius: 3, overflow: "hidden" },
+  compareTrackSelf: { backgroundColor: withAlpha(deepSpace.accent, 0.16), marginBottom: 4 },
+  compareTrackOther: { backgroundColor: withAlpha(deepSpace.soul, 0.16) },
+  compareFillSelf: { height: "100%", borderRadius: 3, backgroundColor: deepSpace.accent },
+  compareFillOther: { height: "100%", borderRadius: 3, backgroundColor: deepSpace.soulDeep },
+
+  // soul-tinted conclusion card (non-positive: violet, not mint)
+  soulCard: {
+    marginTop: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: withAlpha(deepSpace.soul, 0.28),
+    backgroundColor: withAlpha(deepSpace.soul, 0.06),
+  },
+  soulCardText: { color: deepSpace.textHi, fontSize: 12, lineHeight: 19, fontFamily: fontFamilies.readable },
+
+  // two-button rows
+  btnRow: { flexDirection: "row", gap: 8, marginTop: 18 },
+  btnFlex: { flex: 1 },
+  ghostBtnFlex: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // rhythm chart
+  chartCard: {
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+  },
+  chartRow: { flexDirection: "row", alignItems: "flex-end", height: 120, gap: 6 },
+  chartCol: { flex: 1, alignItems: "center", gap: 6 },
+  chartBarTrack: { width: "100%", height: 100, justifyContent: "flex-end" },
+  chartBar: { width: "100%", borderRadius: 4, overflow: "hidden" },
+  chartDay: { color: withAlpha(deepSpace.accentSoft, 0.5), fontSize: 10, fontFamily: fontFamilies.readable },
+  chartDayPeak: { color: deepSpace.accentBright },
+
+  // possible - dashed cards
+  dashedList: { gap: 13 },
+  dashedCard: {
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: withAlpha(deepSpace.accent, 0.4),
+    backgroundColor: withAlpha(deepSpace.accent, 0.03),
+  },
+  dashedName: { color: deepSpace.accentBright, fontSize: 13, fontFamily: fontFamilies.pixelKo, marginBottom: 5 },
+  dashedBody: { color: deepSpace.textMid, fontSize: 12, lineHeight: 18, fontFamily: fontFamilies.readable },
+
+  // relational
+  chipRowTight: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+
+  // values - domain rows
+  domainList: { gap: 13 },
+  domainRow: {
+    gap: 9,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+  },
+  domainLabel: { color: deepSpace.accentBright, fontSize: 13, fontFamily: fontFamilies.pixelKo },
+  domainCount: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 11, fontFamily: fontFamilies.mono },
 });

@@ -7,6 +7,9 @@ import { PremiumAppShell, PremiumErrorState, PremiumLoadingState, PremiumToast, 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { SeenLensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
@@ -20,7 +23,7 @@ import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 type PersonaToast = { message: string; tone: "info" | "success" | "danger" };
 
-export default function Persona() {
+function PersonaLegacy() {
   const { t, i18n } = useTranslation("secondb");
   const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -575,3 +578,14 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
 });
+
+export default function Persona() {
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen active="lens">
+        <SeenLensView />
+      </DeepSpaceScreen>
+    );
+  }
+  return <PersonaLegacy />;
+}

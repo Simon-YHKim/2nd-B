@@ -10,6 +10,9 @@ import { PremiumAppShell, PremiumLoadingState, PremiumToast } from "@/components
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { RelationalLensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import {
@@ -37,7 +40,7 @@ const SCALE: { value: number; en: string; ko: string }[] = [
 
 type Toast = { message: string; tone: "danger" | "info" | "success" };
 
-export default function Attachment() {
+function AttachmentLegacy() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -257,3 +260,14 @@ const styles = StyleSheet.create({
   scaleLegend: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
+
+export default function Attachment() {
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen active="lens">
+        <RelationalLensView />
+      </DeepSpaceScreen>
+    );
+  }
+  return <AttachmentLegacy />;
+}
