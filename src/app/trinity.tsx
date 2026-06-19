@@ -24,6 +24,8 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceDomainsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 export type TrinityDomain = "health" | "app" | "brain" | "finance";
 
@@ -114,7 +116,7 @@ function computeStats(records: RecordLite[]): Record<TrinityDomain, DomainStats>
   return stats;
 }
 
-export default function Trinity() {
+function TrinityLegacy() {
   const { i18n } = useTranslation();
   const { userId, loading: authLoading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -360,3 +362,8 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: "row", gap: spacing.sm },
   modalButton: { flex: 1 },
 });
+
+export default function Trinity() {
+  if (isDeepSpaceUI()) return <DeepSpaceDomainsScreen />;
+  return <TrinityLegacy />;
+}
