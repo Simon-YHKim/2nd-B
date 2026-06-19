@@ -62,9 +62,21 @@ export interface WikiPageRow {
   updated_at: string;
 }
 
+// Edge provenance (migration 0046), mapped to the propose->ratify canon:
+//   wikilink — an explicit [[wikilink]] the user wrote (structural truth)
+//   inferred — an AI-proposed connection awaiting the user's ratification
+//   ratified — an inferred link the user accepted
+export type RelationType = "wikilink" | "inferred" | "ratified";
+
+export const RELATION_TYPES: readonly RelationType[] = ["wikilink", "inferred", "ratified"] as const;
+
 export interface WikiLinkRow {
   user_id: string;
   from_page: string;
   to_page: string;
+  /** Edge provenance (0046). Optional for rows read before the migration. */
+  relation_type?: RelationType;
+  /** Model 0..1 score; explicit/ratified links are 1.0 (0046). */
+  confidence?: number;
   created_at: string;
 }

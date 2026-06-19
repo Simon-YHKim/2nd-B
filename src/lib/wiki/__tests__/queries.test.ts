@@ -77,7 +77,13 @@ jest.mock("../../env", () => ({
   }),
 }));
 
-import { syncWikiLinks } from "../queries";
+import {
+  insertInferredLinks,
+  listInferredLinks,
+  ratifyLink,
+  rejectInferredLink,
+  syncWikiLinks,
+} from "../queries";
 
 function reset() {
   captured.length = 0;
@@ -191,5 +197,55 @@ describe("syncWikiLinks", () => {
     for (const r of reads) expect(r.filters.user_id).toBe("user-XYZ");
     const insert = findFirst("wiki_links", "insert");
     expect((insert?.payload as { user_id: string }[])[0].user_id).toBe("user-XYZ");
+  });
+});
+
+describe("propose->ratify edges (0046)", () => {
+  beforeEach(reset);
+
+  test("insertInferredLinks tags rows inferred, clamps confidence, drops self-links", async () => {
+    const n = await insertInferredLinks("user-1", "p-src", [
+      { toPageId: "p-a", confidence: 0.8 },
+      { toPageId: "p-b", confidence: 1.7 }, // clamped to 1
+      { toPageId: "p-src", confidence: 0.5 }, // self-link dropped
+    ]);
+    expect(n).toBe(2);
+    const upsert = findFirst("wiki_links", "upsert");
+    expect(upsert?.payload).toEqual([
+      { user_id: "user-1", from_page: "p-src", to_page: "p-a", relation_type: "inferred", confidence: 0.8 },
+      { user_id: "user-1", from_page: "p-src", to_page: "p-b", relation_type: "inferred", confidence: 1 },
+    ]);
+  });
+
+  test("insertInferredLinks is a no-op for empty / all-self input", async () => {
+    expect(await insertInferredLinks("user-1", "p-src", [])).toBe(0);
+    expect(await insertInferredLinks("user-1", "p-src", [{ toPageId: "p-src", confidence: 0.9 }])).toBe(0);
+    expect(findAll("wiki_links", "upsert")).toHaveLength(0);
+  });
+
+  test("listInferredLinks filters to inferred edges, scoped to the user", async () => {
+    tableRows.wiki_links = [{ from_page: "p-src", to_page: "p-a", confidence: 0.8 }];
+    const rows = await listInferredLinks("user-XYZ");
+    expect(rows).toEqual([{ from_page: "p-src", to_page: "p-a", confidence: 0.8 }]);
+    const select = findFirst("wiki_links", "select");
+    expect(select?.filters.user_id).toBe("user-XYZ");
+    expect(select?.filters.relation_type).toBe("inferred");
+  });
+
+  test("ratifyLink promotes the edge to ratified with confidence 1", async () => {
+    await ratifyLink("user-1", "p-src", "p-a");
+    const update = findFirst("wiki_links", "update");
+    expect(update?.payload).toEqual({ relation_type: "ratified", confidence: 1 });
+    expect(update?.filters.from_page).toBe("p-src");
+    expect(update?.filters.to_page).toBe("p-a");
+    expect(update?.filters.user_id).toBe("user-1");
+  });
+
+  test("rejectInferredLink deletes only the inferred edge", async () => {
+    await rejectInferredLink("user-1", "p-src", "p-a");
+    const del = findFirst("wiki_links", "delete");
+    expect(del?.filters.from_page).toBe("p-src");
+    expect(del?.filters.to_page).toBe("p-a");
+    expect(del?.filters.relation_type).toBe("inferred");
   });
 });
