@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, BackHandler, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Line, Defs, RadialGradient, Stop } from "react-native-svg";
+import Svg, { Circle, Line } from "react-native-svg";
 
 import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -2475,7 +2475,9 @@ const focusStyles = StyleSheet.create({
   choiceGhostText: { fontFamily: fontFamilies.pixelKo, fontSize: 13, color: colors.cyanSoft },
   choicePrimary: { flex: 1, alignItems: "center", paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.cyan },
   choicePrimaryText: { fontFamily: fontFamilies.pixelKo, fontSize: 13, color: colors.bgDeep },
-  sheetBackdrop: { ...StyleSheet.absoluteFill, justifyContent: "flex-end" },
+  // ANDROID_QA §1: a custom overlay needs its own elevated layer or the controls
+  // behind can shine through / stay touchable on Android.
+  sheetBackdrop: { ...StyleSheet.absoluteFill, justifyContent: "flex-end", zIndex: 10, elevation: 24 },
   sheetTap: { ...StyleSheet.absoluteFill },
   sheet: { backgroundColor: colors.cardBg, borderTopWidth: 1, borderColor: colors.borderHi, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.borderHi, alignSelf: "center" },
@@ -2607,7 +2609,9 @@ export function DeepSpaceFocusScreen() {
     setSettingsOpen(true);
   }
   function saveSettings() {
-    setTimer(createPomodoro({ ...timer.config, focusMinutes: draftFocus, breakMinutes: draftBreak }));
+    // The single 휴식 control scales the long break too (keeps the default 5->15 =
+    // 3x ratio) so the long break isn't stuck at the hidden default.
+    setTimer(createPomodoro({ ...timer.config, focusMinutes: draftFocus, breakMinutes: draftBreak, longBreakMinutes: draftBreak * 3 }));
     setShowComplete(false);
     setSettingsOpen(false);
   }
@@ -2619,13 +2623,9 @@ export function DeepSpaceFocusScreen() {
 
         <View style={focusStyles.ringWrap}>
           <Svg width={226} height={226} viewBox="0 0 226 226">
-            <Defs>
-              <RadialGradient id="focusGlow" cx="50%" cy="50%" r="50%">
-                <Stop offset="0" stopColor={ringColor} stopOpacity={0.22} />
-                <Stop offset="0.72" stopColor={ringColor} stopOpacity={0} />
-              </RadialGradient>
-            </Defs>
-            <Circle cx={113} cy={113} r={96} fill="url(#focusGlow)" />
+            {/* Flat tokenized glow (no inline gradient — DESIGN.md: gradients only
+                via deepSpaceGradients tokens). A faint same-tone disc reads as bloom. */}
+            <Circle cx={113} cy={113} r={88} fill={ringColor} fillOpacity={0.1} />
             <Circle cx={113} cy={113} r={RING_R} fill="none" stroke={ringColor} strokeOpacity={0.14} strokeWidth={5} />
             <Circle
               cx={113}
