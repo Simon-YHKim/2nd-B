@@ -19,6 +19,9 @@ import { deleteSource, listAllWikiLinks, listSources, listWikiPages, updateSourc
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { runPhase1 } from "@/lib/wiki/phase1";
 import { suggestedTags } from "@/lib/wiki/suggest-tags";
+import { exportUserWiki } from "@/lib/wiki/export";
+import { exportIden } from "@/lib/iden/iden-export";
+import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
 import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
 import {
@@ -119,7 +122,18 @@ function Shell({ children, title, subtitle }: { children: ReactNode; title?: str
 
 function Card({ children, style }: { children: ReactNode; style?: object }) { return <View style={[styles.card, style]}>{children}</View>; }
 function Action({ label, value, onPress }: Row) { return <Pressable onPress={onPress} style={styles.action}><Text style={styles.actionLabel}>{label}</Text>{value ? <Text style={styles.actionValue}>{value}</Text> : <Text style={styles.chev}>›</Text>}</Pressable>; }
-function Toggle({ label, value, on = true }: Row) { return <View style={styles.action}><View><Text style={styles.actionLabel}>{label}</Text>{value ? <Text style={styles.actionValue}>{value}</Text> : null}</View><View style={[styles.toggle,on&&styles.toggleOn]}><View style={[styles.knob,on&&styles.knobOn]} /></View></View>; }
+function Toggle({ label, value, on = true, onPress }: Row) {
+  const body = (
+    <>
+      <View><Text style={styles.actionLabel}>{label}</Text>{value ? <Text style={styles.actionValue}>{value}</Text> : null}</View>
+      <View style={[styles.toggle,on&&styles.toggleOn]}><View style={[styles.knob,on&&styles.knobOn]} /></View>
+    </>
+  );
+  if (onPress) {
+    return <Pressable style={styles.action} onPress={onPress} accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel={label}>{body}</Pressable>;
+  }
+  return <View style={styles.action}>{body}</View>;
+}
 
 export function DeepSpaceGraphDesignScreen() {
   const { t } = useTranslation("deepspace");
@@ -743,26 +757,144 @@ export function DeepSpaceResearchScreen() {
   );
 }
 
+type ExportFormat = "iden" | "markdown" | "json" | "pdf";
+const FORMAT_CARDS: { id: ExportFormat; name: string; descKey: string }[] = [
+  { id: "iden", name: ".iden", descKey: "formats.idenDesc" },
+  { id: "markdown", name: "Markdown", descKey: "formats.markdownDesc" },
+  { id: "json", name: "JSON", descKey: "formats.jsonDesc" },
+  { id: "pdf", name: "PDF", descKey: "formats.pdfDesc" },
+];
+
 export function DeepSpaceFormatsScreen() {
-  // Static export-format picker; the export pipeline wiring is a follow-up.
-  const { t } = useTranslation("deepspace");
+  const { t, i18n } = useTranslation("deepspace");
+  const { userId, loading: authLoading } = useAuth();
+  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+
+  const [format, setFormat] = useState<ExportFormat>("iden");
+  const [includeRecords, setIncludeRecords] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [result, setResult] = useState<{ text: string; name: string } | null>(null);
+  const [note, setNote] = useState<"copied" | "copyFailed" | "error" | null>(null);
+
+  async function runExport() {
+    if (!userId || exporting) return;
+    setExporting(true);
+    setResult(null);
+    setNote(null);
+    try {
+      if (format === "iden") {
+        const r = await exportIden(userId, { locale });
+        setResult({ text: r.iden, name: r.idenFilename });
+      } else if (format === "pdf") {
+        const r = await exportIden(userId, { locale });
+        setResult({ text: r.html, name: r.htmlFilename });
+      } else if (format === "markdown") {
+        const r = await exportUserWiki(userId, { locale, includeRecords });
+        setResult({ text: r.prompt, name: "2nd-brain-wiki.md" });
+      } else {
+        const doc = await buildIdenDoc(userId, { locale });
+        setResult({ text: JSON.stringify(doc, null, 2), name: "2nd-brain-iden.json" });
+      }
+    } catch {
+      setNote("error");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function copyOrShare() {
+    if (!result) return;
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(result.text);
+        setNote("copied");
+      } catch {
+        setNote("copyFailed");
+      }
+    } else {
+      void Share.share({ message: result.text }).catch(() => {});
+    }
+  }
+
+  function download() {
+    if (!result || typeof document === "undefined") return;
+    try {
+      const blob = new Blob([result.text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = result.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // best-effort
+    }
+  }
+
+  if (authLoading) {
+    return <Shell title={t("formats.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  const canDownload = typeof document !== "undefined";
   return (
     <Shell title={t("formats.title")}>
       <SecondbStatusHeader text={t("formats.status")} tip={t("formats.tip")} />
       <Text style={styles.lead}>{t("formats.lead")}</Text>
       <View style={styles.formatGrid}>
-        <View style={[styles.formatCard, styles.formatCardSel]}><Text style={[styles.formatName, styles.formatNameSel]}>.iden</Text><Text style={styles.formatDesc}>{t("formats.idenDesc")}</Text></View>
-        <View style={styles.formatCard}><Text style={styles.formatName}>Markdown</Text><Text style={styles.formatDesc}>{t("formats.markdownDesc")}</Text></View>
-        <View style={styles.formatCard}><Text style={styles.formatName}>JSON</Text><Text style={styles.formatDesc}>{t("formats.jsonDesc")}</Text></View>
-        <View style={styles.formatCard}><Text style={styles.formatName}>PDF</Text><Text style={styles.formatDesc}>{t("formats.pdfDesc")}</Text></View>
+        {FORMAT_CARDS.map((f) => {
+          const sel = format === f.id;
+          return (
+            <Pressable
+              key={f.id}
+              onPress={() => setFormat(f.id)}
+              style={[styles.formatCard, sel && styles.formatCardSel]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: sel }}
+              accessibilityLabel={f.name}
+            >
+              <Text style={[styles.formatName, sel && styles.formatNameSel]}>{f.name}</Text>
+              <Text style={styles.formatDesc}>{t(f.descKey)}</Text>
+            </Pressable>
+          );
+        })}
       </View>
       <Text style={styles.tlLabel}>{t("formats.scopeLabel")}</Text>
       <Card>
         <Toggle label={t("formats.scope1")} on />
         <Toggle label={t("formats.scope2")} on />
-        <Toggle label={t("formats.scope3", { count: 248 })} on={false} />
+        <Toggle label={t("formats.scope3")} on={includeRecords} onPress={() => setIncludeRecords((v) => !v)} />
       </Card>
-      <Pressable style={styles.soulPrimary}><Text style={styles.primaryText}>{t("formats.exportIden")}</Text></Pressable>
+      <Pressable style={[styles.soulPrimary, exporting && { opacity: 0.6 }]} onPress={() => void runExport()} disabled={exporting}>
+        <Text style={styles.primaryText}>{exporting ? t("formats.exporting") : t("formats.export")}</Text>
+      </Pressable>
+      {note === "error" ? <Text style={styles.opsReason}>{t("formats.exportError")}</Text> : null}
+      {result !== null ? (
+        <View style={styles.wikiPageOpen}>
+          <View style={styles.wikiPageHead}>
+            <Text style={styles.wikiPageTitle} numberOfLines={1}>{result.name}</Text>
+            <Text style={styles.wikiRowConn}>{t("formats.previewChars", { count: result.text.length })}</Text>
+          </View>
+          <ScrollView style={styles.recBody} nestedScrollEnabled>
+            <Text style={styles.recBodyText} selectable>{result.text.slice(0, 4000)}</Text>
+          </ScrollView>
+          {note === "copied" ? <Text style={styles.delta}>{t("formats.copied")}</Text> : null}
+          {note === "copyFailed" ? <Text style={styles.opsReason}>{t("formats.copyFailed")}</Text> : null}
+          <View style={styles.ctaRow}>
+            <Pressable style={styles.smallBtnGhost} onPress={() => void copyOrShare()} accessibilityRole="button">
+              <Text style={styles.smallBtnGhostText}>{typeof navigator !== "undefined" && navigator.clipboard ? t("formats.copy") : t("formats.share")}</Text>
+            </Pressable>
+            {canDownload ? (
+              <Pressable style={styles.smallBtnGhost} onPress={download} accessibilityRole="button">
+                <Text style={styles.smallBtnGhostText}>{t("formats.download")}</Text>
+              </Pressable>
+            ) : null}
+            <Pressable style={styles.smallBtnGhost} onPress={() => { setResult(null); setNote(null); }} accessibilityRole="button">
+              <Text style={styles.smallBtnGhostText}>{t("formats.close")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
     </Shell>
   );
 }

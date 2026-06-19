@@ -304,8 +304,17 @@
     "scopeLabel": "Alcance incluido",
     "scope1": "Personalidad · modelo de apego",
     "scope2": "Recuerdo · narrativa",
-    "scope3": "{{count}} registros originales",
-    "exportIden": "Exportar .iden"
+    "scope3": "Incluir registros originales",
+    "export": "Exportar",
+    "exporting": "Exportando…",
+    "copy": "Copiar",
+    "copied": "Copiado al portapapeles.",
+    "copyFailed": "No se pudo copiar.",
+    "download": "Descargar",
+    "share": "Compartir",
+    "exportError": "No se pudo crear la exportación. Inténtalo de nuevo.",
+    "previewChars": "{{count}} caracteres",
+    "close": "Cerrar"
   },
   "import": {
     "title": "Importar",

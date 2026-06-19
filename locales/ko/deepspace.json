@@ -304,8 +304,17 @@
     "scopeLabel": "포함 범위",
     "scope1": "성격 · 애착 모델",
     "scope2": "회상 · 내러티브",
-    "scope3": "기록 원문 {{count}}개",
-    "exportIden": ".iden 내보내기"
+    "scope3": "기록 원문 포함",
+    "export": "내보내기",
+    "exporting": "내보내는 중…",
+    "copy": "복사",
+    "copied": "클립보드에 복사했어요.",
+    "copyFailed": "복사하지 못했어요.",
+    "download": "내려받기",
+    "share": "공유",
+    "exportError": "내보내기를 만들지 못했어요. 다시 시도해 주세요.",
+    "previewChars": "{{count}}자",
+    "close": "닫기"
   },
   "import": {
     "title": "외부 가져오기",

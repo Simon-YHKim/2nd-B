@@ -304,8 +304,17 @@
     "scopeLabel": "Included scope",
     "scope1": "Personality · attachment model",
     "scope2": "Recall · narrative",
-    "scope3": "{{count}} original records",
-    "exportIden": "Export .iden"
+    "scope3": "Include original records",
+    "export": "Export",
+    "exporting": "Exporting…",
+    "copy": "Copy",
+    "copied": "Copied to clipboard.",
+    "copyFailed": "Couldn't copy.",
+    "download": "Download",
+    "share": "Share",
+    "exportError": "Couldn't build the export. Try again.",
+    "previewChars": "{{count}} chars",
+    "close": "Close"
   },
   "import": {
     "title": "Import",

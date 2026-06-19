@@ -304,8 +304,17 @@
     "scopeLabel": "Cakupan termasuk",
     "scope1": "Kepribadian · model kelekatan",
     "scope2": "Kenangan · narasi",
-    "scope3": "{{count}} catatan asli",
-    "exportIden": "Ekspor .iden"
+    "scope3": "Sertakan catatan asli",
+    "export": "Ekspor",
+    "exporting": "Mengekspor…",
+    "copy": "Salin",
+    "copied": "Disalin ke papan klip.",
+    "copyFailed": "Gagal menyalin.",
+    "download": "Unduh",
+    "share": "Bagikan",
+    "exportError": "Gagal membuat ekspor. Coba lagi.",
+    "previewChars": "{{count}} karakter",
+    "close": "Tutup"
   },
   "import": {
     "title": "Impor",
