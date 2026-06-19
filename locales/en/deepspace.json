@@ -347,6 +347,18 @@
     "mapTo3": "Saved time",
     "footer": "Importing {{count}} items. Nothing applies without your approval.",
     "cancel": "Cancel",
-    "importCount": "Import {{count}}"
+    "importCount": "Import {{count}}",
+    "pasteLabel": "Paste markdown",
+    "placeholder": "Paste your markdown notes here. Separate multiple notes with a --- line.",
+    "detected": "{{count}} notes to import",
+    "untitled": "Untitled note",
+    "andMore": "and {{count}} more",
+    "empty": "Paste notes above and a preview shows up here.",
+    "resultDone": "Added {{count}} to your inbox.",
+    "resultDuplicate": "skipped {{count}} duplicate",
+    "resultFailed": "{{count}} failed",
+    "importing": "Importing…",
+    "clear": "Clear",
+    "connectorsLabel": "App connectors"
   }
 }

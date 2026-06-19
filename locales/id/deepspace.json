@@ -347,6 +347,18 @@
     "mapTo3": "Waktu disimpan",
     "footer": "Mengimpor {{count}} item. Tidak ada yang berlaku tanpa persetujuanmu.",
     "cancel": "Batal",
-    "importCount": "Impor {{count}}"
+    "importCount": "Impor {{count}}",
+    "pasteLabel": "Tempel markdown",
+    "placeholder": "Tempel catatan markdown-mu di sini. Pisahkan beberapa catatan dengan baris ---.",
+    "detected": "{{count}} catatan untuk diimpor",
+    "untitled": "Catatan tanpa judul",
+    "andMore": "dan {{count}} lagi",
+    "empty": "Tempel catatan di atas dan pratinjau muncul di sini.",
+    "resultDone": "Menambahkan {{count}} ke baki kamu.",
+    "resultDuplicate": "{{count}} duplikat dilewati",
+    "resultFailed": "{{count}} gagal",
+    "importing": "Mengimpor…",
+    "clear": "Bersihkan",
+    "connectorsLabel": "Konektor aplikasi"
   }
 }
