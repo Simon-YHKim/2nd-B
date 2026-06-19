@@ -22,13 +22,15 @@ import { loadTierShifts } from "@/lib/persona/load-tier-shifts";
 import type { TierShift } from "@/lib/persona/tier-history";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceReviewScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 function starName(id: TierShift["starId"], locale: "en" | "ko"): string {
   const star = SELF_UNDERSTANDING_STARS.find((s) => s.id === id);
   return star ? (locale === "ko" ? star.nameKo : star.nameEn) : id;
 }
 
-export default function ReviewScreen() {
+function ReviewScreenLegacy() {
   const { i18n } = useTranslation();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const { userId, isMinor } = useAuth();
@@ -150,3 +152,8 @@ const styles = StyleSheet.create({
   result: { marginTop: spacing.sm },
   shifts: { marginBottom: spacing.sm },
 });
+
+export default function ReviewScreen() {
+  if (isDeepSpaceUI()) return <DeepSpaceReviewScreen />;
+  return <ReviewScreenLegacy />;
+}

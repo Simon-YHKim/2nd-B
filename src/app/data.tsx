@@ -15,8 +15,10 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceDataDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
-export default function DataManagement() {
+function DataManagementLegacy() {
   const { t } = useTranslation("data");
   const { t: tIden } = useTranslation("iden");
   const { userId, loading } = useAuth();
@@ -129,3 +131,8 @@ const styles = StyleSheet.create({
   },
   eyebrow: { letterSpacing: 0 },
 });
+
+export default function DataManagement() {
+  if (isDeepSpaceUI()) return <DeepSpaceDataDesignScreen />;
+  return <DataManagementLegacy />;
+}

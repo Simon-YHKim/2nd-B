@@ -21,6 +21,8 @@ import type { SubscriptionTier } from "@/lib/progression/entitlements";
 import { LIFETIME } from "@/lib/progression/pricing";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { captureEvent, plansViewed, plansTierFocused } from "@/lib/analytics";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpacePlansScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 // Every tier sells under its own enum name (v2: soma is live again as the
 // entry tier). The highlighted card is soma — the step the free AI limit
@@ -32,7 +34,7 @@ const CARD_TIERS: { key: SubscriptionTier; highlight: boolean }[] = [
   { key: "brain", highlight: false },
 ];
 
-export default function Plans() {
+function PlansLegacy() {
   const { t, i18n } = useTranslation("plans");
   const locale = i18n.language === "ko" ? "ko" : "en";
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.5 };
@@ -180,3 +182,8 @@ const styles = StyleSheet.create({
   notifyHint: { marginTop: spacing.xs },
   back: { alignSelf: "center", marginTop: spacing.sm, padding: spacing.sm, minHeight: 44, justifyContent: "center" },
 });
+
+export default function Plans() {
+  if (isDeepSpaceUI()) return <DeepSpacePlansScreen />;
+  return <PlansLegacy />;
+}

@@ -12,6 +12,8 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { fontFamilies } from "@/theme/typography";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpacePermissionsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 type Status = "inUse" | "optional" | "planned" | "notUsed";
 type Platform = "web" | "native" | "both" | "none";
@@ -42,7 +44,7 @@ const STATUS_COLOR: Record<Status, keyof typeof semantic> = {
   notUsed: "textSubtle",
 };
 
-export default function Permissions() {
+function PermissionsLegacy() {
   const { t } = useTranslation("permissions");
   const principles = t("principles.items", { returnObjects: true }) as string[];
 
@@ -147,3 +149,8 @@ const styles = StyleSheet.create({
   principle: { lineHeight: 20 },
   actions: { gap: spacing.sm },
 });
+
+export default function Permissions() {
+  if (isDeepSpaceUI()) return <DeepSpacePermissionsScreen />;
+  return <PermissionsLegacy />;
+}

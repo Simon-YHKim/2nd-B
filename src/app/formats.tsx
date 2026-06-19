@@ -40,11 +40,13 @@ import { CLIPPER_TEMPLATE_LIST, type ClipperTemplate } from "@/lib/wiki/clipper-
 import { TemplateEditor } from "@/components/wiki/TemplateEditor";
 import { AddFormatFlow } from "@/components/wiki/AddFormatFlow";
 import { FormatSchemaView, type FormatSchemaInput } from "@/components/wiki/FormatSchemaView";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceFormatsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 type Locale = "en" | "ko";
 type Toast = { message: string; tone: "info" | "success" | "danger" };
 
-export default function Formats() {
+function FormatsLegacy() {
   const { i18n, t: tf } = useTranslation("formats");
   const { userId, loading } = useAuth();
   const locale: Locale = i18n.language === "ko" ? "ko" : "en";
@@ -510,3 +512,8 @@ const styles = StyleSheet.create({
   modalActions: { gap: spacing.sm, marginTop: spacing.xs },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
+
+export default function Formats() {
+  if (isDeepSpaceUI()) return <DeepSpaceFormatsScreen />;
+  return <FormatsLegacy />;
+}

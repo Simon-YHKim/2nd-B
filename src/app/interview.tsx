@@ -30,6 +30,9 @@ import { Input } from "@/components/ui/Input";
 import { DrillProgress } from "@/components/ui/DrillProgress";
 import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { RecallLensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
@@ -58,7 +61,7 @@ type InterviewFeedbackModal =
   | { kind: "save" }
   | null;
 
-export default function Interview() {
+function InterviewLegacy() {
   const { i18n } = useTranslation();
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -545,3 +548,14 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   modalButton: { flex: 1 },
 });
+
+export default function Interview() {
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen active="lens">
+        <RecallLensView />
+      </DeepSpaceScreen>
+    );
+  }
+  return <InterviewLegacy />;
+}

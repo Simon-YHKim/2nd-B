@@ -17,8 +17,10 @@ import { useFontStyle, type FontStyle } from "@/lib/settings/readable-font";
 import { useLiteMode } from "@/lib/settings/lite-mode";
 import { useTheme } from "@/lib/theme/ThemeContext";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceThemeScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
-export default function ThemeScreen() {
+function ThemeScreenLegacy() {
   const { t } = useTranslation("theme");
   const { userId, loading } = useAuth();
   const { mode, setMode } = useTheme();
@@ -188,3 +190,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
 });
+
+export default function ThemeScreen() {
+  if (isDeepSpaceUI()) return <DeepSpaceThemeScreen />;
+  return <ThemeScreenLegacy />;
+}

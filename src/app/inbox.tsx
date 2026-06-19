@@ -21,6 +21,8 @@ import { runPhase1, readPhase1 } from "@/lib/wiki/phase1";
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { downloadRawClipping } from "@/lib/wiki/storage";
 import type { SourceKind, SourceRow } from "@/lib/wiki/types";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceInboxScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 const KIND_LABEL: Record<SourceKind, { en: string; ko: string }> = {
   inbox: { en: "Inbox", ko: "받은편지함" },
@@ -324,7 +326,7 @@ const InboxRow = React.memo(function InboxRow({
   );
 });
 
-export default function Inbox() {
+function InboxLegacy() {
   const { t, i18n } = useTranslation("inbox");
   const { userId, loading: authLoading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -857,3 +859,8 @@ const styles = StyleSheet.create({
   },
   body: { lineHeight: 20 },
 });
+
+export default function Inbox() {
+  if (isDeepSpaceUI()) return <DeepSpaceInboxScreen />;
+  return <InboxLegacy />;
+}

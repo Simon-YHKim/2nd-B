@@ -15,8 +15,10 @@ import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceInsightsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
-export default function Insights() {
+function InsightsLegacy() {
   const { t, i18n } = useTranslation("insights");
   const { userId, loading: authLoading } = useAuth();
   const dateLocale = i18n.language === "ko" ? "ko-KR" : "en-US";
@@ -340,3 +342,8 @@ const styles = StyleSheet.create({
   conclusionRow: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
   actions: { gap: spacing.sm },
 });
+
+export default function Insights() {
+  if (isDeepSpaceUI()) return <DeepSpaceInsightsScreen />;
+  return <InsightsLegacy />;
+}

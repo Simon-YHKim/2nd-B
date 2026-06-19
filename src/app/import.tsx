@@ -21,11 +21,13 @@ import {
   type IngestResult,
 } from "@/lib/wiki/import-external";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceImportScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 type Phase = "input" | "analyzing" | "result" | "saved";
 type Toast = { message: string; tone: "danger" | "info" | "success" };
 
-export default function ImportExternal() {
+function ImportExternalLegacy() {
   const { t, i18n } = useTranslation("import");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -295,3 +297,8 @@ const styles = StyleSheet.create({
   savedActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
+
+export default function ImportExternal() {
+  if (isDeepSpaceUI()) return <DeepSpaceImportScreen />;
+  return <ImportExternalLegacy />;
+}

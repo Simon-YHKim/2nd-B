@@ -31,6 +31,8 @@ import {
 } from "@/lib/persona/evidence";
 import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceRecordsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 const TYPE_FILTERS: (EvidenceType | "all")[] = ["all", "journal", "capture", "audit", "interview", "imagine", "wiki"];
 // Warm-gold for records by default; a few types carry their companion accent.
@@ -68,7 +70,7 @@ const ShardRow = memo(function ShardRow({ shard: s, locale }: { shard: OriginSha
   );
 });
 
-export default function Records() {
+function RecordsLegacy() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -363,3 +365,8 @@ const styles = StyleSheet.create({
   // reproduces that exact inter-card gap so spacing is unchanged.
   separator: { height: spacing.xs },
 });
+
+export default function Records() {
+  if (isDeepSpaceUI()) return <DeepSpaceRecordsScreen />;
+  return <RecordsLegacy />;
+}

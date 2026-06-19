@@ -17,6 +17,8 @@ import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { fontFamilies } from "@/theme/typography";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceManualScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
 interface ManualSection {
   emoji: string; // semantic anchor only — kept ASCII-art-ish for the design
@@ -115,7 +117,7 @@ const SECTIONS: ManualSection[] = [
   },
 ];
 
-export default function Manual() {
+function ManualLegacy() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -349,3 +351,8 @@ const styles = StyleSheet.create({
   recentLine: { lineHeight: 20 },
   versionFootnote: { textAlign: "center", marginTop: spacing.lg, letterSpacing: 0 },
 });
+
+export default function Manual() {
+  if (isDeepSpaceUI()) return <DeepSpaceManualScreen />;
+  return <ManualLegacy />;
+}

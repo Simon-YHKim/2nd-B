@@ -8,6 +8,9 @@ import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic, radii, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { RhythmLensView } from "@/components/deep-space/DeepSpaceViews";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 type PromptKind = "context" | "energy";
@@ -17,7 +20,7 @@ const PROMPT_OPTIONS: { id: PromptKind }[] = [{ id: "context" }, { id: "energy" 
 
 const CONTEXT_TAGS = ["alone", "with_people", "work_study", "moving", "resting", "outside"] as const;
 
-export default function EsmCheckIn() {
+function EsmCheckInLegacy() {
   const { t } = useTranslation("esm");
   const { userId, loading: authLoading } = useAuth();
 
@@ -318,3 +321,14 @@ const styles = StyleSheet.create({
   },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
+
+export default function EsmCheckIn() {
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen active="lens">
+        <RhythmLensView />
+      </DeepSpaceScreen>
+    );
+  }
+  return <EsmCheckInLegacy />;
+}
