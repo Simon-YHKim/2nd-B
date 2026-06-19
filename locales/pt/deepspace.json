@@ -333,7 +333,7 @@
     "tip": "Você sempre confirma antes de importar.",
     "lead": "Registros de outros lugares, em um só lugar",
     "notionDesc": "Páginas · bancos de dados",
-    "obsidianDesc": "Cofre Markdown",
+    "obsidianDesc": "Importe arquivos .md / texto do seu vault",
     "healthName": "Saúde",
     "healthDesc": "Sono · atividade",
     "connect": "Conectar",
@@ -359,6 +359,8 @@
     "resultFailed": "{{count}} com falha",
     "importing": "Importando…",
     "clear": "Limpar",
-    "connectorsLabel": "Conectores de apps"
+    "connectorsLabel": "Conectores de apps",
+    "pickFiles": "Escolher arquivos",
+    "picking": "Abrindo…"
   }
 }

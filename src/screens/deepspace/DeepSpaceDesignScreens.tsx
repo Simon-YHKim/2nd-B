@@ -32,6 +32,7 @@ import { suggestedTags } from "@/lib/wiki/suggest-tags";
 import { exportUserWiki } from "@/lib/wiki/export";
 import { backfillEmbeddings, proposeAllRelatedLinks } from "@/lib/wiki/embeddings";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
+import { pickImportFiles } from "@/lib/wiki/capture-file";
 import { splitImportNotes, previewTitle } from "@/lib/wiki/import-notes";
 import { exportIden } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
@@ -1048,9 +1049,31 @@ export function DeepSpaceImportScreen() {
   const { userId, loading: authLoading } = useAuth();
   const [text, setText] = useState("");
   const [importing, setImporting] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
 
   const notes = useMemo(() => splitImportNotes(text), [text]);
+
+  async function handlePickFiles() {
+    if (importing || picking) return;
+    setPicking(true);
+    try {
+      // Obsidian has no API — "connecting" it means importing its .md files.
+      // Picked file text drops into the same paste box so the review/import
+      // flow below handles it. Multiple files join with a --- separator so
+      // splitImportNotes keeps them as distinct notes.
+      const files = await pickImportFiles();
+      if (files.length > 0) {
+        const joined = files.map((f) => f.text).join("\n\n---\n\n");
+        setText((prev) => (prev.trim() ? `${prev.trim()}\n\n---\n\n${joined}` : joined));
+        setResult(null);
+      }
+    } catch {
+      // Picker cancel/permission errors are non-fatal; the box is unchanged.
+    } finally {
+      setPicking(false);
+    }
+  }
 
   async function handleImport() {
     if (!userId || notes.length === 0 || importing) return;
@@ -1147,7 +1170,13 @@ export function DeepSpaceImportScreen() {
       <Text style={styles.tlLabel}>{t("import.connectorsLabel")}</Text>
       <View style={{ gap: 8 }}>
         <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>🗒</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>Notion</Text><Text style={styles.sourceDesc}>{t("import.notionDesc")}</Text></View><Text style={styles.sourceSoon}>{t("import.soon")}</Text></View>
-        <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>🔮</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>Obsidian</Text><Text style={styles.sourceDesc}>{t("import.obsidianDesc")}</Text></View><Text style={styles.sourceSoon}>{t("import.soon")}</Text></View>
+        <Pressable
+          style={styles.sourceRow}
+          onPress={() => void handlePickFiles()}
+          disabled={picking || importing}
+          accessibilityRole="button"
+          accessibilityLabel={t("import.pickFiles")}
+        ><Text style={styles.tlIcon}>🔮</Text><View style={{ flex: 1 }}><Text style={styles.sourceName}>Obsidian</Text><Text style={styles.sourceDesc}>{t("import.obsidianDesc")}</Text></View><Text style={styles.sourceCta}>{picking ? t("import.picking") : t("import.pickFiles")}</Text></Pressable>
         <View style={[styles.sourceRow, styles.sourceRowDim]}><Text style={styles.tlIcon}>❤</Text><View style={{ flex: 1 }}><Text style={styles.sourceNameDim}>{t("import.healthName")}</Text><Text style={styles.sourceDesc}>{t("import.healthDesc")}</Text></View><Text style={styles.sourceSoon}>{t("import.soon")}</Text></View>
       </View>
     </Shell>
