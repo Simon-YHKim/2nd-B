@@ -48,6 +48,14 @@
     "durationLabel": "{{minutes}} min",
     "daily": "Todo dia",
     "weekly": "Toda semana",
+    "share": "Compartilhar",
+    "shareA11y": "Compartilhar este passo",
+    "addCalendar": "Adicionar ao calendário",
+    "addCalendarA11y": "Adicionar ao calendário",
+    "saveRoutine": "Salvar como rotina",
+    "saveRoutineA11y": "Salvar este passo como uma rotina gerenciada",
+    "saving": "Salvando…",
+    "saved": "Salvo",
     "addDevice": "Meu calendário",
     "addDeviceHint": "Abre o formulário de calendário do dispositivo com este item preenchido.",
     "addGoogle": "Google Calendar",
@@ -67,6 +75,13 @@
     "later": "Agora não",
     "laterHint": "Fecha sem enviar. O item permanece nesta tela."
   },
+  "today": {
+    "heading": "Rotinas de hoje",
+    "empty": "Nenhuma rotina para hoje. Salve um passo abaixo para começar uma.",
+    "completeA11y": "Marcar {{title}} como feito hoje",
+    "doneA11y": "{{title}} feito hoje",
+    "streak": "Sequência de {{count}} dias"
+  },
   "states": {
     "emptyDomain": "Escolha uma área acima para começar."
   },
@@ -75,6 +90,7 @@
     "deniedNote": "Permissão de calendário desativada. Permita nas configurações do dispositivo para usar isso.",
     "reminderSetNote": "Lembrete definido neste dispositivo.",
     "reminderDeniedNote": "Permissão de notificações desativada. Permita nas configurações do dispositivo para usar lembretes.",
-    "reminderFailedNote": "Não foi possível definir o lembrete. Verifique o horário do item e tente novamente."
+    "reminderFailedNote": "Não foi possível definir o lembrete. Verifique o horário do item e tente novamente.",
+    "reminderUnavailableNote": "Salvo. Lembretes precisam do app instalado, então este não vai tocar aqui."
   }
 }

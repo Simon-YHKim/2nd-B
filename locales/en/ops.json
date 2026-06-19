@@ -48,6 +48,14 @@
     "durationLabel": "{{minutes}} min",
     "daily": "Every day",
     "weekly": "Every week",
+    "share": "Share",
+    "shareA11y": "Share this step",
+    "addCalendar": "Add to calendar",
+    "addCalendarA11y": "Add to calendar",
+    "saveRoutine": "Save as routine",
+    "saveRoutineA11y": "Save this step as a managed routine",
+    "saving": "Saving…",
+    "saved": "Saved",
     "addDevice": "My calendar",
     "addDeviceHint": "Opens your device calendar form with this item prefilled.",
     "addGoogle": "Google Calendar",
@@ -67,6 +75,13 @@
     "later": "Not now",
     "laterHint": "Closes without pushing. The item stays on this screen."
   },
+  "today": {
+    "heading": "Today's routines",
+    "empty": "No routines due today. Save a step below to start one.",
+    "completeA11y": "Mark {{title}} done for today",
+    "doneA11y": "{{title}} done for today",
+    "streak": "{{count}} day streak"
+  },
   "states": {
     "emptyDomain": "Pick an area above to get started."
   },
@@ -75,6 +90,7 @@
     "deniedNote": "Calendar permission is off. Allow it in your device settings to use this.",
     "reminderSetNote": "Reminder set on this device.",
     "reminderDeniedNote": "Notification permission is off. Allow it in your device settings to use reminders.",
-    "reminderFailedNote": "The reminder could not be set. Check the item's time and try again."
+    "reminderFailedNote": "The reminder could not be set. Check the item's time and try again.",
+    "reminderUnavailableNote": "Saved. Reminders need the installed app, so this one won't ring here."
   }
 }
