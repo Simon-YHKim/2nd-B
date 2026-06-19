@@ -8,12 +8,14 @@ import { fontFamilies } from "@/theme/typography";
 import { SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
+import { listRecentRecords } from "@/lib/records/create";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import {
   buildDeepResearchView,
   buildDeepWikiView,
   type WikiEdge,
 } from "./wiki-graph-view";
+import { buildRecordsTimeline, type TimelineRecord } from "./records-timeline";
 
 type Row = { label: string; value?: string; onPress?: () => void; on?: boolean };
 
@@ -301,30 +303,91 @@ function TimelineRow({ icon, title, time, tag, dim }: { icon: string; title: str
   );
 }
 
+const RECORD_KIND_FILTERS: { id: TimelineRecord["kind"] | null; label: string }[] = [
+  { id: null, label: "전체" },
+  { id: "journal", label: "일기" },
+  { id: "note", label: "메모" },
+  { id: "audit_response", label: "점검" },
+];
+
 export function DeepSpaceRecordsScreen() {
-  // TODO: read from src/lib/records (timeline + filters). Dummy from records-archive.dc.html.
+  const { userId, loading: authLoading } = useAuth();
+  const [records, setRecords] = useState<TimelineRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [kind, setKind] = useState<TimelineRecord["kind"] | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    setLoading(true);
+    listRecentRecords(userId)
+      .then((rows) => {
+        if (alive) setRecords(rows as TimelineRecord[]);
+      })
+      .catch(() => {
+        if (alive) setRecords([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
+  const groups = useMemo(() => {
+    const filtered = kind === null ? records : records.filter((r) => r.kind === kind);
+    return buildRecordsTimeline(filtered);
+  }, [records, kind]);
+
+  if (authLoading) {
+    return <Shell title="기록 보관소"><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  const total = records.length;
   return (
     <Shell title="기록 보관소">
-      <SecondbStatusHeader text="지금까지 담은 조각 248개예요." tip="타입이나 시점으로 좁혀 보세요." />
+      <SecondbStatusHeader
+        text={total > 0 ? `지금까지 담은 조각 ${total}개예요.` : "아직 담은 조각이 없어요."}
+        tip="타입이나 시점으로 좁혀 보세요."
+      />
       <Text style={styles.lead}>담은 모든 것이 하나의 시간으로</Text>
-      <View style={styles.searchBox}><Text style={styles.searchText}>⌕  기록 검색</Text></View>
       <View style={styles.filterRow}>
-        <FilterChip label="전체" active />
-        <FilterChip label="글" />
-        <FilterChip label="링크" />
-        <FilterChip label="사진" />
-        <FilterChip label="할 일" />
+        {RECORD_KIND_FILTERS.map((f) => (
+          <FilterChip
+            key={f.label}
+            label={f.label}
+            active={kind === f.id}
+            onPress={() => setKind(f.id)}
+          />
+        ))}
       </View>
-      <Text style={styles.tlLabel}>오늘</Text>
-      <View style={styles.tlGroup}>
-        <TimelineRow icon="✎" title="온보딩을 별자리로 푸는 아이디어" time="2시간" tag="#아이디어" />
-        <TimelineRow icon="🔗" title="디자인 레퍼런스 아티클" time="5시간" dim />
-      </View>
-      <Text style={styles.tlLabel}>어제</Text>
-      <View style={styles.tlGroup}>
-        <TimelineRow icon="🎙" title="산책하며 남긴 음성 메모" time="어제" dim />
-        <TimelineRow icon="🖼" title="전시에서 찍은 사진 3장" time="어제" dim />
-      </View>
+      {loading ? (
+        <GraphLoading />
+      ) : groups.length === 0 ? (
+        <View style={styles.wikiPageOpen}>
+          <Text style={styles.wikiBody}>
+            {kind === null
+              ? "보관소가 비어 있어요. 오늘의 조각을 담으면 하나의 시간으로 모여요."
+              : "이 타입의 기록이 아직 없어요."}
+          </Text>
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+            <Text style={styles.primaryText}>+ 조각 담기</Text>
+          </Pressable>
+        </View>
+      ) : (
+        groups.map((g) => (
+          <View key={g.label}>
+            <Text style={styles.tlLabel}>{g.label}</Text>
+            <View style={styles.tlGroup}>
+              {g.items.map((it) => (
+                <TimelineRow key={it.id} icon={it.icon} title={it.title} time={it.timeLabel || undefined} tag={it.tag} dim={it.dim} />
+              ))}
+            </View>
+          </View>
+        ))
+      )}
     </Shell>
   );
 }
