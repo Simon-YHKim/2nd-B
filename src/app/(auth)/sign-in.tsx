@@ -5,9 +5,7 @@
 // On successful sign-in, the IntroGate in _layout plays the cell-team
 // loading sequence as the "we're building your second brain" hand-off.
 
-import { useEffect, useState } from "react";
 import {
-  BackHandler,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -21,17 +19,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router } from "expo-router";
 
-import { useAuth } from "@/lib/auth/AuthContext";
-import {
-  isNaverEnabled,
-  isProviderEnabled,
-  sendPasswordResetEmail,
-  signInWithApple,
-  signInWithEmail,
-  signInWithGoogle,
-  signInWithKakao,
-  signInWithNaver,
-} from "@/lib/supabase/auth";
+import { useSignInForm } from "@/lib/auth/useSignInForm";
 import { cosmicSky, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { CosmicBackground, PremiumToast } from "@/components/premium";
@@ -47,42 +35,34 @@ const authHero = require("../../../public/assets/2ndb-production-premium-v1/auth
 // the first (unauthenticated) screen already reads as the Cosmic Pixel
 // Graph Village. Same shape as the legacy darkSky it replaced.
 const PALETTE = cosmicSky;
-type SignInToast = { message: string; tone: "info" | "success" | "danger" };
 
 function SignInLegacy() {
   const { t, i18n } = useTranslation(["auth", "common"]);
-  const { userId, loading } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [oauthSubmitting, setOauthSubmitting] = useState(false);
-  const [toast, setToast] = useState<SignInToast | null>(null);
-  const [resetHelpVisible, setResetHelpVisible] = useState(false);
-  const [resetSubmitting, setResetSubmitting] = useState(false);
-  const [resetEmailSentTo, setResetEmailSentTo] = useState<string | null>(null);
-  // A provider whose OAuth start failed with a "not configured" error is hidden
-  // for the rest of the session so the user is not left tapping a dead button.
-  const [hiddenProviders, setHiddenProviders] = useState<Set<string>>(new Set());
+  const {
+    userId,
+    loading,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    showPassword,
+    toggleShowPassword,
+    submitting,
+    oauthSubmitting,
+    canSubmit,
+    toast,
+    resetHelpVisible,
+    resetSubmitting,
+    resetEmailSentTo,
+    visibleProviders,
+    naverEnabled,
+    handleSubmit,
+    handleOAuth,
+    handleNaver,
+    handleForgotPassword,
+  } = useSignInForm();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
-
-  useEffect(() => {
-    if (!toast) return;
-    const timeout = setTimeout(() => setToast(null), 2800);
-    return () => clearTimeout(timeout);
-  }, [toast]);
-
-  // Stage 3 (O-31): hardware Back on the auth gate returns to the constellation
-  // home instead of exiting the app (no dead-end). Web uses the browser back.
-  useEffect(() => {
-    const onBackPress = () => {
-      router.push("/");
-      return true;
-    };
-    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => sub.remove();
-  }, []);
 
   // Still resolving the session — render the branded checking state instead of
   // flashing the sign-in form to a user who turns out to be signed in (the
@@ -96,100 +76,6 @@ function SignInLegacy() {
   // so the IntroGate plays the loader and /index routes the user to
   // the right next step (/complete-profile or graph).
   if (userId) return <Redirect href="/" />;
-
-  async function handleOAuth(provider: "google" | "apple" | "kakao") {
-    setOauthSubmitting(true);
-    try {
-      if (provider === "apple") await signInWithApple();
-      else if (provider === "kakao") await signInWithKakao();
-      else await signInWithGoogle();
-    } catch (e) {
-      const name = provider === "apple" ? "Apple" : provider === "kakao" ? "Kakao" : "Google";
-      const msg = (e as Error).message ?? "";
-      // A provider that is not configured in Supabase fails to even start with a
-      // "provider is not enabled" error. Hide its button for the session so the
-      // user is not left tapping a dead control; email/password and any working
-      // provider remain.
-      if (/not enabled|unsupported provider|validation_failed/i.test(msg)) {
-        setHiddenProviders((prev) => new Set(prev).add(provider));
-      }
-      setToast({
-        tone: "danger",
-        message: t("errors.oauthSignInStartFailed", { provider: name }),
-      });
-      if (typeof console !== "undefined")
-        console.warn(`[auth] ${provider} oauth error`, msg);
-    } finally {
-      setOauthSubmitting(false);
-    }
-  }
-
-  // Naver uses a custom redirect (not Supabase-native), so it has its own
-  // handler — signInWithNaver() navigates the browser to Naver's authorize page.
-  function handleNaver() {
-    try {
-      signInWithNaver();
-    } catch (e) {
-      setToast({
-        tone: "danger",
-        message: t("errors.oauthSignInStartFailed", { provider: "Naver" }),
-      });
-      if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
-    }
-  }
-
-  async function handleSubmit() {
-    setSubmitting(true);
-    try {
-      await signInWithEmail(email.trim(), password);
-      // AuthContext picks up the new session; IntroGate plays the cell
-      // LoadingScreen and then mounts the Stack. Route to /index so the
-      // post-loading hand-off lands on the graph view (the new main).
-      // (/journal is retired; now a /capture deep-link redirect.)
-      router.replace("/");
-    } catch (e) {
-      // Generic message to avoid email-enumeration. CSO finding R3.
-      setToast({
-        tone: "danger",
-        message: t("errors.signInFailed"),
-      });
-      if (typeof console !== "undefined") console.warn("[auth] signIn error", (e as Error).message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  const canSubmit = email.includes("@") && password.length > 0 && !submitting;
-
-  async function handleForgotPassword() {
-    setResetHelpVisible(true);
-    setResetEmailSentTo(null);
-    const resetEmail = email.trim();
-    if (!resetEmail.includes("@")) {
-      setToast({
-        tone: "info",
-        message: t("signIn.resetToast"),
-      });
-      return;
-    }
-    setResetSubmitting(true);
-    try {
-      await sendPasswordResetEmail(resetEmail);
-      setResetEmailSentTo(resetEmail);
-      setToast({
-        tone: "success",
-        message: t("signIn.resetSentToast"),
-      });
-    } catch (e) {
-      setToast({
-        tone: "danger",
-        message: t("errors.passwordResetFailed"),
-      });
-      if (typeof console !== "undefined") console.warn("[auth] password reset email error", (e as Error).message);
-    } finally {
-      setResetSubmitting(false);
-    }
-  }
 
   return (
     <View style={styles.root}>
@@ -257,12 +143,7 @@ function SignInLegacy() {
             <Text style={styles.label}>{t("signIn.email")}</Text>
             <TextInput
               value={email}
-              onChangeText={(value) => {
-                setEmail(value);
-                if (resetEmailSentTo && value.trim() !== resetEmailSentTo) {
-                  setResetEmailSentTo(null);
-                }
-              }}
+              onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
@@ -276,7 +157,7 @@ function SignInLegacy() {
             <View style={styles.labelRow}>
               <Text style={styles.label}>{t("signIn.password")}</Text>
               <Pressable
-                onPress={() => setShowPassword((v) => !v)}
+                onPress={toggleShowPassword}
                 hitSlop={14}
                 accessibilityRole="button"
                 accessibilityLabel={
@@ -344,7 +225,7 @@ function SignInLegacy() {
               <View style={styles.dividerLine} />
             </View>
 
-            {isProviderEnabled("google") && !hiddenProviders.has("google") ? (
+            {visibleProviders.includes("google") ? (
               <Pressable
                 onPress={() => handleOAuth("google")}
                 disabled={oauthSubmitting || submitting}
@@ -353,13 +234,11 @@ function SignInLegacy() {
                 accessibilityLabel={t("signIn.continueWithGoogle")}
                 accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
-                <Text style={styles.secondaryBtnText}>
-                  {oauthSubmitting ? "…" : t("signIn.continueWithGoogle")}
-                </Text>
+                <Text style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithGoogle")}</Text>
               </Pressable>
             ) : null}
 
-            {isProviderEnabled("apple") && !hiddenProviders.has("apple") ? (
+            {visibleProviders.includes("apple") ? (
               <Pressable
                 onPress={() => handleOAuth("apple")}
                 disabled={oauthSubmitting || submitting}
@@ -368,13 +247,11 @@ function SignInLegacy() {
                 accessibilityLabel={t("signIn.continueWithApple")}
                 accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
-                <Text style={styles.secondaryBtnText}>
-                  {oauthSubmitting ? "…" : t("signIn.continueWithApple")}
-                </Text>
+                <Text style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithApple")}</Text>
               </Pressable>
             ) : null}
 
-            {isProviderEnabled("kakao") && !hiddenProviders.has("kakao") ? (
+            {visibleProviders.includes("kakao") ? (
               <Pressable
                 onPress={() => handleOAuth("kakao")}
                 disabled={oauthSubmitting || submitting}
@@ -383,13 +260,37 @@ function SignInLegacy() {
                 accessibilityLabel={t("signIn.continueWithKakao")}
                 accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
-                <Text style={styles.secondaryBtnText}>
-                  {oauthSubmitting ? "…" : t("signIn.continueWithKakao")}
-                </Text>
+                <Text style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithKakao")}</Text>
               </Pressable>
             ) : null}
 
-            {isNaverEnabled() ? (
+            {visibleProviders.includes("facebook") ? (
+              <Pressable
+                onPress={() => handleOAuth("facebook")}
+                disabled={oauthSubmitting || submitting}
+                style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+                accessibilityRole="button"
+                accessibilityLabel={t("signIn.continueWithFacebook")}
+                accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
+              >
+                <Text style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithFacebook")}</Text>
+              </Pressable>
+            ) : null}
+
+            {visibleProviders.includes("github") ? (
+              <Pressable
+                onPress={() => handleOAuth("github")}
+                disabled={oauthSubmitting || submitting}
+                style={[styles.secondaryBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
+                accessibilityRole="button"
+                accessibilityLabel={t("signIn.continueWithGithub")}
+                accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
+              >
+                <Text style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithGithub")}</Text>
+              </Pressable>
+            ) : null}
+
+            {naverEnabled ? (
               <Pressable
                 onPress={handleNaver}
                 disabled={oauthSubmitting || submitting}
