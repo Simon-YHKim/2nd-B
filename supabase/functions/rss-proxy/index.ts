@@ -64,11 +64,34 @@ const ALLOWED_FEED_URLS = new Set<string>([
 
 const FETCH_TIMEOUT_MS = 8000;
 
-const ALLOWED_ORIGINS = new Set<string>([
+// Static origins: GitHub Pages prod + Expo web dev servers. The Vercel deploy
+// origin is NOT pinned here (the *.vercel.app host varies per project/preview),
+// so it is supplied at deploy time via RSS_PROXY_ALLOWED_ORIGINS — see below.
+const STATIC_ALLOWED_ORIGINS: readonly string[] = [
   'https://simon-yhkim.github.io',
   'http://localhost:8081',
   'http://localhost:19006',
-]);
+];
+
+// Codex P2 #3 (Web CORS on Vercel): on a Vercel deploy the browser origin is the
+// project's `https://<name>.vercel.app` (and per-PR preview origins), so a static
+// GitHub-Pages-only allowlist returns 'null' and web RSS fails with
+// proxy_unavailable. Make the allowlist ENV-DRIVEN: RSS_PROXY_ALLOWED_ORIGINS is
+// a comma-separated list of exact origins (e.g.
+// "https://2nd-brain.vercel.app,https://2nd-brain-git-main.vercel.app") merged
+// with the static set. Set it alongside the function's other secrets
+// (`supabase secrets set RSS_PROXY_ALLOWED_ORIGINS=...`) to the Vercel
+// production/preview origin(s). Keeps the explicit allowlist posture (no wildcard
+// echo) and leaves the SSRF feed allowlist + the user-auth check untouched.
+function parseEnvOrigins(): string[] {
+  const raw = Deno.env.get('RSS_PROXY_ALLOWED_ORIGINS') ?? '';
+  return raw
+    .split(',')
+    .map((o) => o.trim())
+    .filter((o) => o.length > 0);
+}
+
+const ALLOWED_ORIGINS = new Set<string>([...STATIC_ALLOWED_ORIGINS, ...parseEnvOrigins()]);
 
 function resolveOrigin(req: Request): string {
   const origin = req.headers.get('origin') ?? '';

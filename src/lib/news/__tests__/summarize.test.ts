@@ -94,11 +94,13 @@ describe("summarizeArticle (routes through C1, capped, cached once, claim-guarde
       safety: { zone: "green" },
       audit: {},
     });
-    claimSummarySlotMock.mockReset().mockResolvedValue(true);
+    // claimSummarySlot now returns the claim TOKEN (summary_claimed_at ISO) on a
+    // win, or null on a loss. The summarize flow threads that token to release.
+    claimSummarySlotMock.mockReset().mockResolvedValue("2026-06-11T00:00:00.000Z");
     releaseSummarySlotMock.mockReset().mockResolvedValue(undefined);
   });
 
-  test("claims the slot BEFORE calling callGemini, then returns ok", async () => {
+  test("claims the slot BEFORE calling callGemini, then returns ok + claim token", async () => {
     const res = await summarizeArticle("user-1", row(), "en", { minor: true });
     expect(claimSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1");
     expect(claimSummarySlotMock).toHaveBeenCalledTimes(1);
@@ -110,7 +112,27 @@ describe("summarizeArticle (routes through C1, capped, cached once, claim-guarde
     const arg = callGeminiMock.mock.calls[0][0];
     expect(arg).toMatchObject({ userId: "user-1", locale: "en", purpose: "news_summarize", minor: true });
     expect(arg.user).toContain("<UNTRUSTED>");
-    expect(res).toEqual({ summary: "A neutral one-line summary.", status: "ok" });
+    // ok carries the claim token so the caller can scope setSummary to this claim.
+    expect(res).toEqual({
+      summary: "A neutral one-line summary.",
+      status: "ok",
+      claimToken: "2026-06-11T00:00:00.000Z",
+    });
+  });
+
+  test("RED NEWS pre-screen (Codex P2 #1): a crisis-term title short-circuits BEFORE any claim/LLM", async () => {
+    // The PURE local C9 classifier (classifyInput) runs on the fenced title+snippet
+    // before the gateway. A crisis term in third-party RSS text must NOT reach
+    // callGemini (whose routeCrisis would write a false user crisis_events row).
+    const res = await summarizeArticle(
+      "user-1",
+      row({ title: "Local report on suicide prevention efforts" }),
+      "en",
+    );
+    expect(res).toEqual({ summary: "", status: "blocked", skipped: "blocked" });
+    // No DB claim and — crucially — NO callGemini, so no crisis_events/ai_audit_log.
+    expect(claimSummarySlotMock).not.toHaveBeenCalled();
+    expect(callGeminiMock).not.toHaveBeenCalled();
   });
 
   test("skips (no claim, no LLM call) when a summary is already cached", async () => {
@@ -127,9 +149,9 @@ describe("summarizeArticle (routes through C1, capped, cached once, claim-guarde
     expect(res).toMatchObject({ summary: "", status: "capped" });
   });
 
-  test("RACE: a lost claim returns false -> NO second callGemini, no double bill", async () => {
-    // Simulate the second concurrent caller: the DB compare-and-set fails.
-    claimSummarySlotMock.mockResolvedValueOnce(false);
+  test("RACE: a lost claim returns null -> NO second callGemini, no double bill", async () => {
+    // Simulate the second concurrent caller: the DB compare-and-set fails (no token).
+    claimSummarySlotMock.mockResolvedValueOnce(null);
     const res = await summarizeArticle("user-1", row(), "en");
     expect(claimSummarySlotMock).toHaveBeenCalledTimes(1);
     expect(callGeminiMock).not.toHaveBeenCalled();
@@ -149,7 +171,7 @@ describe("summarizeArticle (routes through C1, capped, cached once, claim-guarde
     // No crisis/hotline text leaks out as a summary.
     expect(res.summary).toBe("");
     // The slot is released so a future (non-crisis) retry can re-claim.
-    expect(releaseSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1");
+    expect(releaseSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1", "2026-06-11T00:00:00.000Z");
   });
 
   test("yellow-zone reply is also not cached (only green is a real summary)", async () => {
@@ -160,7 +182,7 @@ describe("summarizeArticle (routes through C1, capped, cached once, claim-guarde
     });
     const res = await summarizeArticle("user-1", row(), "en");
     expect(res).toMatchObject({ summary: "", status: "blocked" });
-    expect(releaseSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1");
+    expect(releaseSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1", "2026-06-11T00:00:00.000Z");
   });
 
   test("MOCK reply is never persisted: skipped_preview + slot released (stays reclaimable)", async () => {
@@ -178,20 +200,20 @@ describe("summarizeArticle (routes through C1, capped, cached once, claim-guarde
     expect(res).toEqual({ summary: "", status: "skipped_preview", skipped: "skipped_preview" });
     expect(res.summary).toBe("");
     // Slot released so the row stays reclaimable for a later real Gemini summary.
-    expect(releaseSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1");
+    expect(releaseSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1", "2026-06-11T00:00:00.000Z");
   });
 
   test("empty model output reports a skip rather than persisting noise (+ slot released)", async () => {
     callGeminiMock.mockResolvedValueOnce({ text: "   ", safety: { zone: "green" }, audit: {} });
     const res = await summarizeArticle("user-1", row(), "en");
     expect(res).toMatchObject({ summary: "", status: "empty_output" });
-    expect(releaseSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1");
+    expect(releaseSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1", "2026-06-11T00:00:00.000Z");
   });
 
   test("a thrown LLM call releases the slot and re-throws", async () => {
     callGeminiMock.mockRejectedValueOnce(new Error("network"));
     await expect(summarizeArticle("user-1", row(), "en")).rejects.toThrow("network");
-    expect(releaseSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1");
+    expect(releaseSummarySlotMock).toHaveBeenCalledWith("user-1", "n-1", "2026-06-11T00:00:00.000Z");
   });
 
   // Guard against an unused import lint error and document the cap helper is exported.

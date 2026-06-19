@@ -18,6 +18,7 @@
 // + C3 audit happen inside the gateway. This module never imports an LLM SDK.
 
 import { callGemini } from "../llm/gemini";
+import { classifyInput } from "../safety/classifier";
 import type { SystemLocale } from "../i18n/locales";
 import { kstDayKey } from "../journal/streak";
 import { claimSummarySlot, releaseSummarySlot, type NewsItemRow } from "./queries";
@@ -230,6 +231,13 @@ export interface SummarizeResult {
   /** The clamped summary, or "" when not produced (skipped / blocked / empty). */
   summary: string;
   /**
+   * The claim token (summary_claimed_at ISO string) the winning claimSummarySlot
+   * stamped. Present ONLY on status="ok"; the caller MUST pass it back to
+   * setSummary so only the winning claimant commits (a stale/reclaimed token
+   * matches 0 rows — no clobber of a reclaimer's fresh claim). Codex P2 #2.
+   */
+  claimToken?: string;
+  /**
    * Outcome status. "ok" means a real summary was produced and the caller
    * SHOULD persist it via setSummary. Any other value means DO NOT persist:
    *   already_summarized — a summary is already cached
@@ -259,20 +267,30 @@ export function canSummarize(item: Pick<NewsItemRow, "summary">): boolean {
  *
  * Ordering (cost safety):
  *   1. canSummarize  — never re-summarize a 'done' article (no claim, no LLM).
- *   2. claimSummarySlot (Codex P2 #2) — atomic DB compare-and-set BEFORE the LLM
+ *   2. LOCAL PRE-SCREEN (Codex P2 #1 — privacy/safety): run the PURE C9 classifier
+ *      (classifyInput, src/lib/safety/classifier.ts) on the fenced title+snippet
+ *      BEFORE the claim AND BEFORE callGemini. classifyInput reads the lexicon and
+ *      returns a zone; it persists NOTHING (no crisis_events, no ai_audit_log, no
+ *      network). If the third-party RSS text is red/crisis we short-circuit to
+ *      status="blocked" WITHOUT calling callGemini at all — so the gateway's
+ *      routeCrisis never runs and no false crisis_events/ai_audit_log row is
+ *      written to the USER's account just for reading news. This IS the C9
+ *      invariant ("classify before any LLM call; red short-circuits") satisfied
+ *      locally so news text never reaches the per-user crisis ledger.
+ *   3. claimSummarySlot (Codex P2 #2) — atomic DB compare-and-set BEFORE the LLM
  *      call. Only the winning caller proceeds; concurrent tabs/devices lose the
  *      claim and skip Gemini entirely (the real double-bill guard). NOTE: the
  *      cross-article daily cap below is a best-effort client RMW (AsyncStorage/
  *      localStorage) and is NOT fully atomic; the server-side gemini-proxy
  *      per-tier cap is the hard spend ceiling. The per-article DB claim is what
  *      actually prevents paying twice for the same article.
- *   3. reserve the daily cap (Codex P2 #3) — bump BEFORE callGemini (reserve-
+ *   4. reserve the daily cap (Codex P2 #3) — bump BEFORE callGemini (reserve-
  *      then-call), and release on a failed/blocked/empty call so a doomed call
  *      doesn't permanently consume an allowance unit.
- *   4. callGemini, then inspect reply.safety.zone (Codex P2 #1): a red/crisis
- *      reply is the fixed hotline template, NOT a summary — release the slot +
- *      cap and return status="blocked". The caller skips setSummary so hotline
- *      copy is never cached as an article summary.
+ *   5. callGemini, then inspect reply.safety.zone: this stays as a BACKSTOP for
+ *      any non-green zone the local pre-screen did not catch (e.g. semantic
+ *      output-swap) — release the slot + cap and return status="blocked". The
+ *      caller skips setSummary so hotline copy is never cached as a summary.
  */
 export async function summarizeArticle(
   userId: string,
@@ -283,6 +301,20 @@ export async function summarizeArticle(
   // Guard 2 (cached once): never re-summarize a row that already has a summary.
   if (!canSummarize(item)) {
     return { summary: item.summary ?? "", status: "already_summarized", skipped: "already_summarized" };
+  }
+
+  // Codex P2 #1 (privacy/safety): C9 classify BEFORE any LLM egress, run LOCALLY
+  // on the fenced article text. classifyInput is the PURE lexicon classifier the
+  // gateway uses — it returns a zone and persists NOTHING (no crisis_events, no
+  // ai_audit_log, no network). If a crisis term in third-party RSS text would
+  // otherwise trip the gateway's routeCrisis (which writes a restricted
+  // crisis_events row + ai_audit_log to the USER's account), we short-circuit
+  // here to status="blocked" WITHOUT claiming the slot and WITHOUT calling
+  // callGemini — so reading the news never plants a false user crisis event.
+  // The fenced prompt is what the gateway would see, so we classify the same text.
+  const prescreen = classifyInput(buildSummaryPrompt(item), locale, { minor: options.minor });
+  if (prescreen.zone === "red") {
+    return { summary: "", status: "blocked", skipped: "blocked" };
   }
 
   // Guard 3 (daily cap): bounded number of summaries per KST day. Cheap local
@@ -296,8 +328,11 @@ export async function summarizeArticle(
 
   // Codex P2 #2: atomically CLAIM the slot BEFORE any LLM egress. If we lose the
   // race (another tab/device already claimed or finished it) skip the LLM call.
-  const claimed = await claimSummarySlot(userId, item.id);
-  if (!claimed) {
+  // The returned token (summary_claimed_at) ties this caller's later release/
+  // commit to THIS claim, so a TTL-reclaimed slot's original owner can't clobber
+  // the reclaimer's fresh claim.
+  const claimToken = await claimSummarySlot(userId, item.id);
+  if (!claimToken) {
     return { summary: "", status: "claim_failed", skipped: "claim_failed" };
   }
 
@@ -310,7 +345,7 @@ export async function summarizeArticle(
   // Best-effort: a release failure must not mask the primary outcome.
   const releaseBoth = async (): Promise<void> => {
     try {
-      await releaseSummarySlot(userId, item.id);
+      await releaseSummarySlot(userId, item.id, claimToken);
     } catch {
       // best-effort; a stale 'pending' is recoverable on the next claim attempt
     }
@@ -362,5 +397,5 @@ export async function summarizeArticle(
     await releaseBoth();
     return { summary: "", status: "empty_output", skipped: "empty_output" };
   }
-  return { summary, status: "ok" };
+  return { summary, status: "ok", claimToken };
 }

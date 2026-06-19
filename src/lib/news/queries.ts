@@ -110,44 +110,64 @@ export const SUMMARY_CLAIM_TTL_MS = 5 * 60_000;
  * Two concurrent fresh callers race here; the DB serializes the UPDATE so only
  * the first matches and the loser sees 0 rows affected.
  *
- * Returns true when THIS caller won the claim (it must proceed to the LLM call
- * and then setSummary/releaseSummarySlot); false when the slot was already
- * claimed-and-fresh or summarized (the caller must skip the LLM entirely — no
- * second callGemini, no double billing).
+ * Returns the CLAIM TOKEN (the summary_claimed_at ISO string this caller stamped)
+ * when THIS caller won the claim — it must thread that token through to
+ * setSummary/releaseSummarySlot so only the winning claimant can commit/release.
+ * Returns null when the slot was already claimed-and-fresh or summarized (the
+ * caller must skip the LLM entirely — no second callGemini, no double billing).
+ *
+ * Why the token (Codex P2 #2 follow-up): with the stale-claim reclaim TTL, a slow
+ * (not dead) original caller can have its 'pending' claim STOLEN by a reclaimer
+ * after the TTL. Without a token, the original's later setSummary/releaseSummarySlot
+ * — which match only (user_id, id, status='pending') — would clobber the
+ * reclaimer's fresh claim (commit stale output / release a slot it no longer
+ * owns). Scoping those writes additionally to summary_claimed_at=<token> means a
+ * loser matches 0 rows (a safe no-op).
  *
  * Owner-scoped (user_id = auth.uid()) so the RLS policy still gates the write.
  */
-export async function claimSummarySlot(userId: string, itemId: string): Promise<boolean> {
+export async function claimSummarySlot(userId: string, itemId: string): Promise<string | null> {
   const supabase = getSupabaseClient();
+  const claimedAt = new Date().toISOString();
   const cutoffIso = new Date(Date.now() - SUMMARY_CLAIM_TTL_MS).toISOString();
   const { data, error } = await supabase
     .from("news_items")
-    .update({ summary_status: "pending", summary_claimed_at: new Date().toISOString() })
+    .update({ summary_status: "pending", summary_claimed_at: claimedAt })
     .eq("user_id", userId)
     .eq("id", itemId)
     .or(`summary_status.eq.none,and(summary_status.eq.pending,summary_claimed_at.lt.${cutoffIso})`)
     .select("id");
   if (error) throw error;
-  // Exactly one row returned == we won the compare-and-set. Anything else
-  // (already pending-and-fresh / done, or row gone) == the claim failed.
-  return (data?.length ?? 0) > 0;
+  // Exactly one row returned == we won the compare-and-set: return the token we
+  // stamped. Anything else (already pending-and-fresh / done, or row gone) ==
+  // the claim failed (null).
+  return (data?.length ?? 0) > 0 ? claimedAt : null;
 }
 
 /**
  * Release a previously-claimed slot back to 'none' (Codex P2 #2/#3). Called
  * when the LLM call was blocked (red-zone) or failed/produced nothing, so a
  * later retry can re-claim. Owner-scoped; only releases rows we left 'pending'
- * (never clobbers a 'done' summary). Best-effort: a release failure must not
- * mask the original error, so it is intended to be called inside a try/catch.
+ * AND that still carry OUR claim token (summary_claimed_at = claimToken). After
+ * a stale-claim reclaim the row's token is the reclaimer's, so a slow original
+ * caller's release matches 0 rows (a safe no-op) instead of stealing back the
+ * reclaimer's fresh claim. Never clobbers a 'done' summary. Best-effort: a
+ * release failure must not mask the original error, so it is intended to be
+ * called inside a try/catch.
  */
-export async function releaseSummarySlot(userId: string, itemId: string): Promise<void> {
+export async function releaseSummarySlot(
+  userId: string,
+  itemId: string,
+  claimToken: string,
+): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from("news_items")
     .update({ summary_status: "none", summary_claimed_at: null })
     .eq("user_id", userId)
     .eq("id", itemId)
-    .eq("summary_status", "pending");
+    .eq("summary_status", "pending")
+    .eq("summary_claimed_at", claimToken);
   if (error) throw error;
 }
 
@@ -156,13 +176,17 @@ export async function releaseSummarySlot(userId: string, itemId: string): Promis
  * and mark the slot 'done'. Writing the summary exactly once is what keeps the
  * cost bounded — the caller (summarize flow) MUST call this after a winning
  * claimSummarySlot so the same article is never re-summarized. Scoping the
- * write to summary_status='pending' means only the caller that won the claim
- * commits the result (a stale/duplicate writer no-ops).
+ * write to summary_status='pending' AND summary_claimed_at=claimToken means only
+ * the caller that won THIS claim commits the result: after a stale-claim reclaim
+ * the row carries the reclaimer's token, so a slow original caller's late commit
+ * matches 0 rows (a safe no-op) instead of clobbering the reclaimer's fresh
+ * claim with stale output.
  */
 export async function setSummary(
   userId: string,
   itemId: string,
   summary: string,
+  claimToken: string,
 ): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
@@ -170,6 +194,7 @@ export async function setSummary(
     .update({ summary, summary_status: "done" })
     .eq("user_id", userId)
     .eq("id", itemId)
-    .eq("summary_status", "pending");
+    .eq("summary_status", "pending")
+    .eq("summary_claimed_at", claimToken);
   if (error) throw error;
 }

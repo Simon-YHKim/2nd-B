@@ -100,31 +100,44 @@ describe("upsertItems dedupe (idempotent re-pull, summarize-once)", () => {
   });
 });
 
-describe("setSummary (owner-scoped, pending-gated, marks done)", () => {
-  test("updates summary + status='done' scoped by user_id, id, status='pending'", async () => {
+describe("setSummary (owner-scoped, pending-gated, token-gated, marks done)", () => {
+  test("updates summary + status='done' scoped by user_id, id, status='pending', claim token", async () => {
     const { node, eqCalls } = chain({ error: null });
     updateMock.mockReset().mockReturnValue(node);
-    await setSummary("user-1", "n-1", "one-line summary");
+    await setSummary("user-1", "n-1", "one-line summary", "2026-06-11T00:00:00.000Z");
     expect(updateMock).toHaveBeenCalledWith({ summary: "one-line summary", summary_status: "done" });
     expect(eqCalls).toContainEqual(["user_id", "user-1"]);
     expect(eqCalls).toContainEqual(["id", "n-1"]);
     // Only the caller that won the claim ('pending') commits the result.
     expect(eqCalls).toContainEqual(["summary_status", "pending"]);
+    // ...AND only with OUR claim token: a stale/reclaimed token matches 0 rows.
+    expect(eqCalls).toContainEqual(["summary_claimed_at", "2026-06-11T00:00:00.000Z"]);
+  });
+
+  test("STALE TOKEN no-op: a loser's commit matches 0 rows (does not clobber a reclaim)", async () => {
+    // After a TTL reclaim the row carries the reclaimer's claimed_at, so the
+    // original caller's commit (its own, now-stale token) filters to 0 rows.
+    const { node, eqCalls } = chain({ data: [], error: null });
+    updateMock.mockReset().mockReturnValue(node);
+    await setSummary("user-1", "n-1", "stale output", "1999-01-01T00:00:00.000Z");
+    expect(eqCalls).toContainEqual(["summary_claimed_at", "1999-01-01T00:00:00.000Z"]);
+    // No throw; 0 matched rows is a safe no-op (the reclaimer's fresh claim stands).
   });
 });
 
 describe("claimSummarySlot (atomic compare-and-set, double-bill guard)", () => {
-  test("WIN: one affected row -> true (stamps claimed_at + pending, owner-scoped)", async () => {
+  test("WIN: one affected row -> returns the claim token (stamps claimed_at + pending, owner-scoped)", async () => {
     const { node, eqCalls, orCalls } = chain(undefined, {
       withSelect: { data: [{ id: "n-1" }], error: null },
     });
     updateMock.mockReset().mockReturnValue(node);
-    const ok = await claimSummarySlot("user-1", "n-1");
-    expect(ok).toBe(true);
-    // Stamps summary_claimed_at = now alongside the status flip.
+    const token = await claimSummarySlot("user-1", "n-1");
+    // The token IS the summary_claimed_at the win stamped (threaded to commit/release).
+    expect(typeof token).toBe("string");
     const payload = updateMock.mock.calls[0][0];
     expect(payload.summary_status).toBe("pending");
     expect(typeof payload.summary_claimed_at).toBe("string");
+    expect(token).toBe(payload.summary_claimed_at);
     expect(eqCalls).toContainEqual(["user_id", "user-1"]);
     expect(eqCalls).toContainEqual(["id", "n-1"]);
     // The compare half is now an .or(): claim a 'none' row OR a stale 'pending'.
@@ -136,9 +149,9 @@ describe("claimSummarySlot (atomic compare-and-set, double-bill guard)", () => {
     const { node, orCalls } = chain(undefined, { withSelect: { data: [{ id: "n-1" }], error: null } });
     updateMock.mockReset().mockReturnValue(node);
     const before = Date.now();
-    const ok = await claimSummarySlot("user-1", "n-1");
+    const token = await claimSummarySlot("user-1", "n-1");
     const after = Date.now();
-    expect(ok).toBe(true);
+    expect(typeof token).toBe("string");
     // The cutoff in the .or() is now - TTL (~5 min ago): a 'pending' row whose
     // summary_claimed_at is < cutoff (older than the TTL) matches and is reclaimed.
     const cutoffIso = orCalls[0].match(/summary_claimed_at\.lt\.([^)]+)\)/)?.[1];
@@ -153,15 +166,15 @@ describe("claimSummarySlot (atomic compare-and-set, double-bill guard)", () => {
     // fails the .lt.<cutoff> predicate: the DB returns 0 rows and the claim fails.
     const { node } = chain(undefined, { withSelect: { data: [], error: null } });
     updateMock.mockReset().mockReturnValue(node);
-    const ok = await claimSummarySlot("user-1", "n-1");
-    expect(ok).toBe(false);
+    const token = await claimSummarySlot("user-1", "n-1");
+    expect(token).toBeNull();
   });
 
-  test("RACE LOSS: zero affected rows -> false (second caller must skip the LLM)", async () => {
+  test("RACE LOSS: zero affected rows -> null (second caller must skip the LLM)", async () => {
     const { node } = chain(undefined, { withSelect: { data: [], error: null } });
     updateMock.mockReset().mockReturnValue(node);
-    const ok = await claimSummarySlot("user-1", "n-1");
-    expect(ok).toBe(false);
+    const token = await claimSummarySlot("user-1", "n-1");
+    expect(token).toBeNull();
   });
 
   test("propagates a DB error", async () => {
@@ -171,15 +184,26 @@ describe("claimSummarySlot (atomic compare-and-set, double-bill guard)", () => {
   });
 });
 
-describe("releaseSummarySlot (only frees rows left pending)", () => {
-  test("flips pending -> none scoped by user_id, id, status='pending'", async () => {
+describe("releaseSummarySlot (only frees rows left pending under OUR token)", () => {
+  test("flips pending -> none scoped by user_id, id, status='pending', claim token", async () => {
     const { node, eqCalls } = chain({ error: null });
     updateMock.mockReset().mockReturnValue(node);
-    await releaseSummarySlot("user-1", "n-1");
+    await releaseSummarySlot("user-1", "n-1", "2026-06-11T00:00:00.000Z");
     expect(updateMock).toHaveBeenCalledWith({ summary_status: "none", summary_claimed_at: null });
     expect(eqCalls).toContainEqual(["user_id", "user-1"]);
     expect(eqCalls).toContainEqual(["id", "n-1"]);
     expect(eqCalls).toContainEqual(["summary_status", "pending"]);
+    // ...AND only our claim token: after a reclaim, a loser's release is a no-op.
+    expect(eqCalls).toContainEqual(["summary_claimed_at", "2026-06-11T00:00:00.000Z"]);
+  });
+
+  test("STALE TOKEN no-op: after a reclaim (different claimed_at) the original token matches 0 rows", async () => {
+    const { node, eqCalls } = chain({ data: [], error: null });
+    updateMock.mockReset().mockReturnValue(node);
+    await releaseSummarySlot("user-1", "n-1", "1999-01-01T00:00:00.000Z");
+    // The .eq filter carries the stale original token; the row now holds the
+    // reclaimer's token, so 0 rows match — the reclaimer's claim is preserved.
+    expect(eqCalls).toContainEqual(["summary_claimed_at", "1999-01-01T00:00:00.000Z"]);
   });
 });
 
