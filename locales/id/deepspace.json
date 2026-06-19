@@ -76,7 +76,10 @@
     "nextUp": "Berikutnya",
     "a11yDiscard": "Buang keping ini",
     "a11yArchive": "Arsipkan keping ini",
-    "untitled": "Keping tanpa judul"
+    "untitled": "Keping tanpa judul",
+    "suggestedLabel": "Tag yang disarankan",
+    "getSuggestions": "Dapatkan saran tag AI",
+    "gettingSuggestions": "Mengambil saran…"
   },
   "recordDetail": {
     "title": "Detail catatan",

@@ -15,8 +15,10 @@ import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } fro
 import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
 import { OPS_DAILY_LIMIT, bumpOpsUsage, readOpsUsage } from "@/lib/ops/usage";
-import { deleteSource, listAllWikiLinks, listSources, listWikiPages } from "@/lib/wiki/queries";
+import { deleteSource, listAllWikiLinks, listSources, listWikiPages, updateSourceTags } from "@/lib/wiki/queries";
 import { generateSourcePage } from "@/lib/wiki/phase2";
+import { runPhase1 } from "@/lib/wiki/phase1";
+import { suggestedTags } from "@/lib/wiki/suggest-tags";
 import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
 import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
 import {
@@ -454,11 +456,13 @@ function sourceTitle(s: SourceRow, fallback: string): string {
 }
 
 export function DeepSpaceInboxScreen() {
-  const { t } = useTranslation("deepspace");
-  const { userId, loading: authLoading } = useAuth();
+  const { t, i18n } = useTranslation("deepspace");
+  const { userId, loading: authLoading, isMinor } = useAuth();
+  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [suggestBusyId, setSuggestBusyId] = useState<string | null>(null);
 
   const load = useMemo(
     () => async (uid: string) => {
@@ -510,6 +514,35 @@ export function DeepSpaceInboxScreen() {
     }
   }
 
+  // Accept one AI-suggested tag onto the source before promotion.
+  async function acceptTag(s: SourceRow, tag: string) {
+    if (!userId || s.tags.includes(tag)) return;
+    setBusyId(s.id);
+    try {
+      await updateSourceTags(userId, s.id, [...s.tags, tag]);
+      await load(userId);
+    } catch {
+      // best-effort; the tag just doesn't stick
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // On-demand Phase 1 (C1/C3/C9 inside) so the suggestion chips have something
+  // to show when nothing was extracted at capture time.
+  async function getSuggestions(s: SourceRow) {
+    if (!userId) return;
+    setSuggestBusyId(s.id);
+    try {
+      await runPhase1({ userId, sourceId: s.id, locale, minor: isMinor === true });
+      await load(userId);
+    } catch {
+      // best-effort; the button can be tapped again
+    } finally {
+      setSuggestBusyId(null);
+    }
+  }
+
   if (authLoading) {
     return <Shell title={t("inbox.title")}><GraphLoading /></Shell>;
   }
@@ -517,6 +550,7 @@ export function DeepSpaceInboxScreen() {
 
   const pending = sources.length;
   const [current, ...queue] = sources;
+  const suggestions = current ? suggestedTags(current) : [];
 
   return (
     <Shell title={t("inbox.title")}>
@@ -544,11 +578,37 @@ export function DeepSpaceInboxScreen() {
             <Text style={styles.triageBody} numberOfLines={3}>{sourceTitle(current, t("inbox.untitled"))}</Text>
             {current.tags.length > 0 ? (
               <View style={styles.filterRow}>
-                {current.tags.slice(0, 4).map((tag) => (
+                {current.tags.slice(0, 6).map((tag) => (
                   <FilterChip key={tag} label={`#${tag}`} active />
                 ))}
               </View>
             ) : null}
+            {suggestions.length > 0 ? (
+              <>
+                <Text style={styles.footerLeft}>{t("inbox.suggestedLabel")}</Text>
+                <View style={styles.filterRow}>
+                  {suggestions.map((tag) => (
+                    <FilterChip
+                      key={tag}
+                      label={`+ ${tag}`}
+                      onPress={() => void acceptTag(current, tag)}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : (
+              <Pressable
+                onPress={() => void getSuggestions(current)}
+                disabled={busyId !== null || suggestBusyId !== null}
+                style={styles.smallBtnGhost}
+                accessibilityRole="button"
+                accessibilityLabel={t("inbox.getSuggestions")}
+              >
+                <Text style={styles.smallBtnGhostText}>
+                  {suggestBusyId === current.id ? t("inbox.gettingSuggestions") : t("inbox.getSuggestions")}
+                </Text>
+              </Pressable>
+            )}
             <View style={styles.ctaRow}>
               <Pressable
                 style={styles.iconBtn}

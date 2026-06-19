@@ -76,7 +76,10 @@
     "nextUp": "Next up",
     "a11yDiscard": "Discard this piece",
     "a11yArchive": "Archive this piece",
-    "untitled": "Untitled piece"
+    "untitled": "Untitled piece",
+    "suggestedLabel": "Suggested tags",
+    "getSuggestions": "Get AI tag suggestions",
+    "gettingSuggestions": "Getting suggestions…"
   },
   "recordDetail": {
     "title": "Record detail",

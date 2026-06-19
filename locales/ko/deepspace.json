@@ -76,7 +76,10 @@
     "nextUp": "다음 차례",
     "a11yDiscard": "이 조각 버리기",
     "a11yArchive": "이 조각 보관하기",
-    "untitled": "제목 없는 조각"
+    "untitled": "제목 없는 조각",
+    "suggestedLabel": "추천 태그",
+    "getSuggestions": "AI 태그 제안 받기",
+    "gettingSuggestions": "제안 받는 중…"
   },
   "recordDetail": {
     "title": "기록 상세",

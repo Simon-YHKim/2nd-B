@@ -76,7 +76,10 @@
     "nextUp": "Próximo",
     "a11yDiscard": "Descartar esta peça",
     "a11yArchive": "Arquivar esta peça",
-    "untitled": "Peça sem título"
+    "untitled": "Peça sem título",
+    "suggestedLabel": "Etiquetas sugeridas",
+    "getSuggestions": "Obter etiquetas sugeridas por IA",
+    "gettingSuggestions": "Obtendo sugestões…"
   },
   "recordDetail": {
     "title": "Detalhe do registro",

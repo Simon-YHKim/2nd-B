@@ -187,6 +187,22 @@ export async function updateSourceFrontmatter(
   if (error) throw error;
 }
 
+/** Replace a source's tags column (inbox accepts an AI-suggested tag before
+ *  promotion). Caller passes the full desired set; we don't merge here. */
+export async function updateSourceTags(
+  userId: string,
+  sourceId: string,
+  tags: string[],
+): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("sources")
+    .update({ tags })
+    .eq("user_id", userId)
+    .eq("id", sourceId);
+  if (error) throw error;
+}
+
 // --- wiki_pages --------------------------------------------------------
 
 export interface UpsertWikiPageInput {
