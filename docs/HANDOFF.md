@@ -13,14 +13,14 @@
   - **B (STEP 1b)** ✅ deep-space `/wiki`·`/research`를 실데이터로 배선. `src/screens/deepspace/wiki-graph-view.ts` pure 빌더.
   - **C** ✅ deep-space 화면 실데이터 와이어링: `/records`(KST 타임라인), `/domains`(태그-도메인 집계), `/inbox`(미정리 source 큐 promote/discard), `/record` 상세(`getRecordById`+related-by-tag), `/ops`(on-demand 추천, D-20 minor gate+일일 한도). **`/formats`만 정적**(백킹 데이터 없음).
   - **E** ✅ STEP 2 (migration `0046` `wiki_links.relation_type`+`confidence`, propose→ratify 쿼리) + STEP 3 (`src/lib/wiki/clusters.ts` connected-component 군집 + cross-topic surprise). **STEP 4 (pgvector)는 계획대로 deferred**.
-  - **D (진행 중)** — 새 `deepspace` i18n namespace(5 locale) 등록. **데이터 화면 6종 + ops 완료**: wiki/research/records/domains/inbox/recordDetail. **남은 것: 순수 정적 디자인 화면**(account/privacy/auth 3종/theme/manual/plans/permissions/support/discover/review/data/insights/integrations/formats/graph 등 ~12종).
+  - **D ✅ 완료** — 새 `deepspace` i18n namespace(5 locale en/ko/es/id/pt) 등록 + **모든 deep-space Shell 화면 25종** i18n 전환 완료 (C7 parity, 1539 keys, em dash 0). KO 원문 보존, EN canonical. pure 날짜 helper는 i18n-free 유지하고 화면에서 localized label 주입(`dsTimeLabels`/`dsRecencyLabels`).
 
-### 다음 작업 (D 마무리)
-정적 deep-space 화면들을 `deepspace` namespace로 i18n. 패턴 확립됨:
-1. `locales/{en,ko,es,id,pt}/deepspace.json`에 화면별 섹션 추가 (EN canonical, KO 기존, es/id/pt 번역). em dash 금지.
-2. 화면에 `const { t } = useTranslation("deepspace");` + 리터럴 → `t("<screen>.<key>")`.
-3. `npm run check:i18n` → `npm run verify`.
-- pure helper는 i18n-free 유지, 화면에서 localized label 주입 (`dsTimeLabels`/`dsRecencyLabels` 참고).
+### 결론: 큐 A–E 전부 완료
+A(materialize)·B(wiki/research 배선)·C(전 화면 실데이터)·D(5-locale i18n)·E(STEP 2+3) 모두 PR #464에 랜딩. **남은 것은 계획상 deferred 된 STEP 4 (pgvector 임베딩)뿐** — 가장 큰 작업, 마지막. `/formats`·`/import`은 export 파이프라인이 없어 정적 mockup 으로 유지(번역은 완료).
+
+### 다음 후보 (선택)
+- STEP 4: pgvector + Gemini `text-embedding-004` (의미 검색·surprise 랭킹·"X와 Y를 잇는 것"). `docs/wiki-system-upgrade.md §STEP 4`.
+- Native(EAS) 딥스페이스 전환 (현재 `EXPO_PUBLIC_UI=legacy` 핀).
 
 ### 핵심 파일
 ```
