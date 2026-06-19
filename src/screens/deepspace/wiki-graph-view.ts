@@ -119,14 +119,31 @@ function kstDayKey(ms: number): number {
   return Math.floor((ms + KST_OFFSET_MS) / DAY_MS);
 }
 
-/** "오늘"/"어제"/"N일 전" for a last-activity timestamp, KST. "" if invalid. */
-export function recencyLabel(iso: string, now: Date = new Date()): string {
+export interface RecencyLabels {
+  today: string;
+  yesterday: string;
+  daysAgo: (n: number) => string;
+}
+
+const KO_RECENCY: RecencyLabels = {
+  today: "오늘",
+  yesterday: "어제",
+  daysAgo: (n) => `${n}일 전`,
+};
+
+/** "오늘"/"어제"/"N일 전" for a last-activity timestamp, KST. "" if invalid.
+ *  Labels default to KO; screens pass localized strings via i18n. */
+export function recencyLabel(
+  iso: string,
+  opts: { now?: Date; labels?: RecencyLabels } = {},
+): string {
   const ms = new Date(iso).getTime();
   if (Number.isNaN(ms)) return "";
-  const diff = kstDayKey(now.getTime()) - kstDayKey(ms);
-  if (diff <= 0) return "오늘";
-  if (diff === 1) return "어제";
-  return `${diff}일 전`;
+  const labels = opts.labels ?? KO_RECENCY;
+  const diff = kstDayKey((opts.now ?? new Date()).getTime()) - kstDayKey(ms);
+  if (diff <= 0) return labels.today;
+  if (diff === 1) return labels.yesterday;
+  return labels.daysAgo(diff);
 }
 
 export interface DomainView {

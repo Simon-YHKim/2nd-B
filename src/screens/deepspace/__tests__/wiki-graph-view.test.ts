@@ -145,10 +145,15 @@ describe("buildDeepResearchView", () => {
 describe("recencyLabel", () => {
   const now = new Date("2026-06-19T03:00:00Z"); // 12:00 KST
   test("오늘 / 어제 / N일 전 by KST day", () => {
-    expect(recencyLabel("2026-06-19T01:00:00Z", now)).toBe("오늘");
-    expect(recencyLabel("2026-06-18T05:00:00Z", now)).toBe("어제");
-    expect(recencyLabel("2026-06-15T05:00:00Z", now)).toBe("4일 전");
-    expect(recencyLabel("nope", now)).toBe("");
+    expect(recencyLabel("2026-06-19T01:00:00Z", { now })).toBe("오늘");
+    expect(recencyLabel("2026-06-18T05:00:00Z", { now })).toBe("어제");
+    expect(recencyLabel("2026-06-15T05:00:00Z", { now })).toBe("4일 전");
+    expect(recencyLabel("nope", { now })).toBe("");
+  });
+
+  test("accepts localized labels", () => {
+    const labels = { today: "Today", yesterday: "Yesterday", daysAgo: (n: number) => `${n} days ago` };
+    expect(recencyLabel("2026-06-15T05:00:00Z", { now, labels })).toBe("4 days ago");
   });
 });
 

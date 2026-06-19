@@ -1,4 +1,13 @@
 {
+  "time": {
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "daysAgo": "hace {{count}} días",
+    "hoursAgo": "hace {{count}} horas",
+    "now": "Ahora mismo",
+    "recordFallback": "Registro",
+    "monthDay": "{{day}}/{{month}}"
+  },
   "wiki": {
     "title": "Conocimiento",
     "headerGrowing": "Hasta ahora están creciendo {{count}} piezas de conocimiento.",
@@ -29,5 +38,60 @@
     "noLinks": "Las piezas se han acumulado pero aún no están enlazadas. Añade más y los enlaces crecerán.",
     "surprise": "Se encontró un enlace inesperado. '{{from}}' y '{{to}}' son temas distintos y, aun así, conectan.",
     "islandChip": "Grupos de conocimiento {{count}}"
+  },
+  "records": {
+    "title": "Archivo",
+    "headerCount": "Has guardado {{count}} piezas hasta ahora.",
+    "headerEmpty": "Aún no has guardado ninguna pieza.",
+    "tip": "Acota por tipo o tiempo.",
+    "lead": "Todo lo que has guardado, en una sola línea de tiempo",
+    "filterAll": "Todo",
+    "filterJournal": "Diario",
+    "filterNote": "Nota",
+    "filterAudit": "Revisión",
+    "emptyAll": "El archivo está vacío. Guarda la pieza de hoy y se reunirá en una sola línea de tiempo.",
+    "emptyKind": "Aún no hay registros de este tipo."
+  },
+  "domains": {
+    "title": "Mis áreas",
+    "headerHas": "Tus áreas se están formando así.",
+    "headerEmpty": "Tus áreas aún están vacías.",
+    "tip": "¿Quieres añadir más a un área vacía?",
+    "lead": "Tus áreas de un vistazo",
+    "empty": "Cuando las piezas reciben etiquetas, se reúnen en áreas. Añade la pieza de hoy.",
+    "addData": "+ Añadir datos",
+    "unit": "piezas",
+    "noActivity": "Sin registros",
+    "topicsLabel": "{{tag}} · temas clave"
+  },
+  "inbox": {
+    "title": "Bandeja de orden",
+    "headerPending": "{{count}} piezas sin ordenar están esperando.",
+    "headerEmpty": "Nada que ordenar. Todo en orden.",
+    "tip": "Envíalas una a una y se vacía rápido.",
+    "emptyDone": "Todo ordenado. Las piezas nuevas llegarán aquí.",
+    "remaining": "Solo {{count}} más por despejar y listo",
+    "archive": "Archivar",
+    "archiving": "Archivando…",
+    "nextUp": "Siguiente",
+    "a11yDiscard": "Descartar esta pieza",
+    "a11yArchive": "Archivar esta pieza",
+    "untitled": "Pieza sin título"
+  },
+  "recordDetail": {
+    "title": "Detalle del registro",
+    "headerLinked": "Esta pieza está conectada con {{count}} registros.",
+    "headerAlone": "¿Quieres releer esta pieza con calma?",
+    "tip": "Enlaza con registros que comparten la misma etiqueta.",
+    "author": "Escrito por ti",
+    "notFound": "No se encontró este registro. Vuelve al archivo y ábrelo de nuevo.",
+    "toArchive": "Al archivo",
+    "linkedRecords": "Registros enlazados",
+    "newRecord": "Nuevo registro",
+    "a11yDelete": "Eliminar este registro",
+    "kindJournal": "Diario",
+    "kindNote": "Nota",
+    "kindAudit": "Revisión",
+    "kindFallback": "Registro"
   }
 }

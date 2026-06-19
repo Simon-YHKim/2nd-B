@@ -1,4 +1,13 @@
 {
+  "time": {
+    "today": "Hari ini",
+    "yesterday": "Kemarin",
+    "daysAgo": "{{count}} hari lalu",
+    "hoursAgo": "{{count}} jam lalu",
+    "now": "Baru saja",
+    "recordFallback": "Catatan",
+    "monthDay": "{{day}}/{{month}}"
+  },
   "wiki": {
     "title": "Pengetahuan",
     "headerGrowing": "Sejauh ini {{count}} keping pengetahuan sedang tumbuh.",
@@ -29,5 +38,60 @@
     "noLinks": "Keping sudah menumpuk tetapi belum tertaut. Tambahkan lagi dan tautan akan tumbuh.",
     "surprise": "Menemukan tautan tak terduga. '{{from}}' dan '{{to}}' adalah topik berbeda, namun keduanya terhubung.",
     "islandChip": "Klaster pengetahuan {{count}}"
+  },
+  "records": {
+    "title": "Arsip",
+    "headerCount": "Kamu sudah menyimpan {{count}} keping sejauh ini.",
+    "headerEmpty": "Kamu belum menyimpan keping apa pun.",
+    "tip": "Persempit berdasarkan tipe atau waktu.",
+    "lead": "Semua yang kamu simpan, dalam satu lini masa",
+    "filterAll": "Semua",
+    "filterJournal": "Jurnal",
+    "filterNote": "Catatan",
+    "filterAudit": "Tinjauan",
+    "emptyAll": "Arsip kosong. Simpan keping hari ini dan ia akan berkumpul dalam satu lini masa.",
+    "emptyKind": "Belum ada catatan dengan tipe ini."
+  },
+  "domains": {
+    "title": "Area saya",
+    "headerHas": "Area-areamu terbentuk seperti ini.",
+    "headerEmpty": "Area-areamu masih kosong.",
+    "tip": "Mau menambahkan lebih banyak ke area yang kosong?",
+    "lead": "Area-areamu sekilas",
+    "empty": "Saat keping diberi tag, mereka berkumpul menjadi area. Tambahkan keping hari ini.",
+    "addData": "+ Tambah data",
+    "unit": "keping",
+    "noActivity": "Tidak ada catatan",
+    "topicsLabel": "{{tag}} · topik utama"
+  },
+  "inbox": {
+    "title": "Baki rapi",
+    "headerPending": "{{count}} keping yang belum dirapikan sedang menunggu.",
+    "headerEmpty": "Tidak ada yang perlu dirapikan. Semua rapi.",
+    "tip": "Kirim satu per satu dan cepat kosong.",
+    "emptyDone": "Semua sudah dirapikan. Keping baru akan tiba di sini.",
+    "remaining": "Tinggal {{count}} lagi untuk dibereskan dan selesai",
+    "archive": "Arsipkan",
+    "archiving": "Mengarsipkan…",
+    "nextUp": "Berikutnya",
+    "a11yDiscard": "Buang keping ini",
+    "a11yArchive": "Arsipkan keping ini",
+    "untitled": "Keping tanpa judul"
+  },
+  "recordDetail": {
+    "title": "Detail catatan",
+    "headerLinked": "Keping ini terhubung dengan {{count}} catatan.",
+    "headerAlone": "Mau membaca ulang keping ini perlahan?",
+    "tip": "Ia tertaut ke catatan yang berbagi tag yang sama.",
+    "author": "Ditulis olehmu",
+    "notFound": "Catatan ini tidak ditemukan. Kembali ke arsip dan buka lagi.",
+    "toArchive": "Ke arsip",
+    "linkedRecords": "Catatan tertaut",
+    "newRecord": "Catatan baru",
+    "a11yDelete": "Hapus catatan ini",
+    "kindJournal": "Jurnal",
+    "kindNote": "Catatan",
+    "kindAudit": "Tinjauan",
+    "kindFallback": "Catatan"
   }
 }

@@ -1,4 +1,13 @@
 {
+  "time": {
+    "today": "오늘",
+    "yesterday": "어제",
+    "daysAgo": "{{count}}일 전",
+    "hoursAgo": "{{count}}시간 전",
+    "now": "방금",
+    "recordFallback": "기록",
+    "monthDay": "{{month}}월 {{day}}일"
+  },
   "wiki": {
     "title": "지식",
     "headerGrowing": "지금까지 {{count}}개의 지식이 자라고 있어요.",
@@ -29,5 +38,60 @@
     "noLinks": "조각은 쌓였지만 아직 서로 이어지지 않았어요. 더 담으면 연결이 자라나요.",
     "surprise": "뜻밖의 연결을 찾았어요. ‘{{from}}’과 ‘{{to}}’이 서로 다른 주제인데 이어져 있어요.",
     "islandChip": "지식 군집 {{count}}"
+  },
+  "records": {
+    "title": "기록 보관소",
+    "headerCount": "지금까지 담은 조각 {{count}}개예요.",
+    "headerEmpty": "아직 담은 조각이 없어요.",
+    "tip": "타입이나 시점으로 좁혀 보세요.",
+    "lead": "담은 모든 것이 하나의 시간으로",
+    "filterAll": "전체",
+    "filterJournal": "일기",
+    "filterNote": "메모",
+    "filterAudit": "점검",
+    "emptyAll": "보관소가 비어 있어요. 오늘의 조각을 담으면 하나의 시간으로 모여요.",
+    "emptyKind": "이 타입의 기록이 아직 없어요."
+  },
+  "domains": {
+    "title": "내 영역",
+    "headerHas": "네 영역이 이렇게 쌓이고 있어요.",
+    "headerEmpty": "아직 영역이 비어 있어요.",
+    "tip": "비어 있는 영역을 더 담아볼까요?",
+    "lead": "네 영역을 한눈에",
+    "empty": "조각에 태그가 붙으면 영역으로 모여요. 오늘의 조각을 담아보세요.",
+    "addData": "+ 데이터 추가",
+    "unit": "조각",
+    "noActivity": "기록 없음",
+    "topicsLabel": "{{tag}} · 핵심 주제"
+  },
+  "inbox": {
+    "title": "정리함",
+    "headerPending": "정리 안 된 조각 {{count}}개가 기다려요.",
+    "headerEmpty": "정리할 조각이 없어요. 깔끔해요.",
+    "tip": "한 개씩 보내면 금방 비워져요.",
+    "emptyDone": "모두 정리됐어요. 새 조각을 담으면 여기로 와요.",
+    "remaining": "남은 {{count}}개만 비우면 끝나요",
+    "archive": "보관하기",
+    "archiving": "보관 중…",
+    "nextUp": "다음 차례",
+    "a11yDiscard": "이 조각 버리기",
+    "a11yArchive": "이 조각 보관하기",
+    "untitled": "제목 없는 조각"
+  },
+  "recordDetail": {
+    "title": "기록 상세",
+    "headerLinked": "이 조각은 {{count}}개의 기록과 이어져 있어요.",
+    "headerAlone": "이 조각을 천천히 다시 볼까요?",
+    "tip": "같은 태그의 기록으로 이어져요.",
+    "author": "직접 작성",
+    "notFound": "기록을 찾을 수 없어요. 보관소로 돌아가 다시 열어보세요.",
+    "toArchive": "보관소로",
+    "linkedRecords": "연결된 기록",
+    "newRecord": "새 기록",
+    "a11yDelete": "이 기록 삭제",
+    "kindJournal": "일기",
+    "kindNote": "메모",
+    "kindAudit": "점검",
+    "kindFallback": "기록"
   }
 }

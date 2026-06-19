@@ -1,4 +1,13 @@
 {
+  "time": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "daysAgo": "{{count}} days ago",
+    "hoursAgo": "{{count}} hours ago",
+    "now": "Just now",
+    "recordFallback": "Record",
+    "monthDay": "{{month}}/{{day}}"
+  },
   "wiki": {
     "title": "Knowledge",
     "headerGrowing": "{{count}} pieces of knowledge are growing so far.",
@@ -29,5 +38,60 @@
     "noLinks": "Pieces have piled up but aren't linked yet. Add more and links will grow.",
     "surprise": "Found an unexpected link. '{{from}}' and '{{to}}' are different topics, yet they connect.",
     "islandChip": "Knowledge clusters {{count}}"
+  },
+  "records": {
+    "title": "Archive",
+    "headerCount": "You've saved {{count}} pieces so far.",
+    "headerEmpty": "You haven't saved any pieces yet.",
+    "tip": "Narrow by type or time.",
+    "lead": "Everything you've saved, on one timeline",
+    "filterAll": "All",
+    "filterJournal": "Journal",
+    "filterNote": "Note",
+    "filterAudit": "Check",
+    "emptyAll": "The archive is empty. Save today's piece and it'll gather onto one timeline.",
+    "emptyKind": "No records of this type yet."
+  },
+  "domains": {
+    "title": "My areas",
+    "headerHas": "Your areas are building up like this.",
+    "headerEmpty": "Your areas are still empty.",
+    "tip": "Want to add more to an empty area?",
+    "lead": "Your areas at a glance",
+    "empty": "When pieces get tags, they gather into areas. Add today's piece.",
+    "addData": "+ Add data",
+    "unit": "pieces",
+    "noActivity": "No records",
+    "topicsLabel": "{{tag}} · key topics"
+  },
+  "inbox": {
+    "title": "Sorting tray",
+    "headerPending": "{{count}} unsorted pieces are waiting.",
+    "headerEmpty": "Nothing to sort. All tidy.",
+    "tip": "Send them one by one and it empties fast.",
+    "emptyDone": "All sorted. New pieces will arrive here.",
+    "remaining": "Just {{count}} more to clear and you're done",
+    "archive": "Archive",
+    "archiving": "Archiving…",
+    "nextUp": "Next up",
+    "a11yDiscard": "Discard this piece",
+    "a11yArchive": "Archive this piece",
+    "untitled": "Untitled piece"
+  },
+  "recordDetail": {
+    "title": "Record detail",
+    "headerLinked": "This piece is connected to {{count}} records.",
+    "headerAlone": "Want to revisit this piece slowly?",
+    "tip": "It links to records sharing the same tag.",
+    "author": "Written by you",
+    "notFound": "Couldn't find this record. Go back to the archive and open it again.",
+    "toArchive": "To archive",
+    "linkedRecords": "Linked records",
+    "newRecord": "New record",
+    "a11yDelete": "Delete this record",
+    "kindJournal": "Journal",
+    "kindNote": "Note",
+    "kindAudit": "Check",
+    "kindFallback": "Record"
   }
 }

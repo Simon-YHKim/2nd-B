@@ -24,14 +24,36 @@ import {
   buildDeepWikiView,
   buildDomainsView,
   recencyLabel,
+  type RecencyLabels,
   type WikiEdge,
 } from "./wiki-graph-view";
 import {
   buildRecordsTimeline,
   relatedByTag,
   RECORD_KIND_ICON,
+  type TimelineLabels,
   type TimelineRecord,
 } from "./records-timeline";
+
+// i18n label builders for the pure date helpers (which stay i18n-free).
+type Tx = (key: string, options?: Record<string, unknown>) => string;
+function dsTimeLabels(t: Tx): TimelineLabels {
+  return {
+    today: t("time.today"),
+    yesterday: t("time.yesterday"),
+    monthDay: (m, d) => t("time.monthDay", { month: m, day: d }),
+    now: t("time.now"),
+    hoursAgo: (h) => t("time.hoursAgo", { count: h }),
+    fallbackTitle: t("time.recordFallback"),
+  };
+}
+function dsRecencyLabels(t: Tx): RecencyLabels {
+  return {
+    today: t("time.today"),
+    yesterday: t("time.yesterday"),
+    daysAgo: (n) => t("time.daysAgo", { count: n }),
+  };
+}
 
 type Row = { label: string; value?: string; onPress?: () => void; on?: boolean };
 
@@ -319,14 +341,15 @@ function TimelineRow({ icon, title, time, tag, dim }: { icon: string; title: str
   );
 }
 
-const RECORD_KIND_FILTERS: { id: TimelineRecord["kind"] | null; label: string }[] = [
-  { id: null, label: "전체" },
-  { id: "journal", label: "일기" },
-  { id: "note", label: "메모" },
-  { id: "audit_response", label: "점검" },
+const RECORD_KIND_FILTERS: { id: TimelineRecord["kind"] | null; labelKey: string }[] = [
+  { id: null, labelKey: "records.filterAll" },
+  { id: "journal", labelKey: "records.filterJournal" },
+  { id: "note", labelKey: "records.filterNote" },
+  { id: "audit_response", labelKey: "records.filterAudit" },
 ];
 
 export function DeepSpaceRecordsScreen() {
+  const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
   const [records, setRecords] = useState<TimelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -353,27 +376,27 @@ export function DeepSpaceRecordsScreen() {
 
   const groups = useMemo(() => {
     const filtered = kind === null ? records : records.filter((r) => r.kind === kind);
-    return buildRecordsTimeline(filtered);
-  }, [records, kind]);
+    return buildRecordsTimeline(filtered, { labels: dsTimeLabels(t) });
+  }, [records, kind, t]);
 
   if (authLoading) {
-    return <Shell title="기록 보관소"><GraphLoading /></Shell>;
+    return <Shell title={t("records.title")}><GraphLoading /></Shell>;
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
   const total = records.length;
   return (
-    <Shell title="기록 보관소">
+    <Shell title={t("records.title")}>
       <SecondbStatusHeader
-        text={total > 0 ? `지금까지 담은 조각 ${total}개예요.` : "아직 담은 조각이 없어요."}
-        tip="타입이나 시점으로 좁혀 보세요."
+        text={total > 0 ? t("records.headerCount", { count: total }) : t("records.headerEmpty")}
+        tip={t("records.tip")}
       />
-      <Text style={styles.lead}>담은 모든 것이 하나의 시간으로</Text>
+      <Text style={styles.lead}>{t("records.lead")}</Text>
       <View style={styles.filterRow}>
         {RECORD_KIND_FILTERS.map((f) => (
           <FilterChip
-            key={f.label}
-            label={f.label}
+            key={f.labelKey}
+            label={t(f.labelKey)}
             active={kind === f.id}
             onPress={() => setKind(f.id)}
           />
@@ -383,13 +406,9 @@ export function DeepSpaceRecordsScreen() {
         <GraphLoading />
       ) : groups.length === 0 ? (
         <View style={styles.wikiPageOpen}>
-          <Text style={styles.wikiBody}>
-            {kind === null
-              ? "보관소가 비어 있어요. 오늘의 조각을 담으면 하나의 시간으로 모여요."
-              : "이 타입의 기록이 아직 없어요."}
-          </Text>
+          <Text style={styles.wikiBody}>{kind === null ? t("records.emptyAll") : t("records.emptyKind")}</Text>
           <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
-            <Text style={styles.primaryText}>+ 조각 담기</Text>
+            <Text style={styles.primaryText}>{t("wiki.addPiece")}</Text>
           </Pressable>
         </View>
       ) : (
@@ -419,12 +438,13 @@ const SOURCE_KIND_ICON: Record<string, string> = {
   self_knowledge: "🪞",
 };
 
-function sourceTitle(s: SourceRow): string {
-  const t = s.title?.trim();
-  return t && t.length > 0 ? t : "제목 없는 조각";
+function sourceTitle(s: SourceRow, fallback: string): string {
+  const title = s.title?.trim();
+  return title && title.length > 0 ? title : fallback;
 }
 
 export function DeepSpaceInboxScreen() {
+  const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -481,7 +501,7 @@ export function DeepSpaceInboxScreen() {
   }
 
   if (authLoading) {
-    return <Shell title="정리함"><GraphLoading /></Shell>;
+    return <Shell title={t("inbox.title")}><GraphLoading /></Shell>;
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
@@ -489,29 +509,29 @@ export function DeepSpaceInboxScreen() {
   const [current, ...queue] = sources;
 
   return (
-    <Shell title="정리함">
+    <Shell title={t("inbox.title")}>
       <SecondbStatusHeader
-        text={pending > 0 ? `정리 안 된 조각 ${pending}개가 기다려요.` : "정리할 조각이 없어요. 깔끔해요."}
-        tip="한 개씩 보내면 금방 비워져요."
+        text={pending > 0 ? t("inbox.headerPending", { count: pending }) : t("inbox.headerEmpty")}
+        tip={t("inbox.tip")}
       />
       {loading ? (
         <GraphLoading />
       ) : pending === 0 ? (
         <View style={styles.wikiPageOpen}>
-          <Text style={styles.wikiBody}>모두 정리됐어요. 새 조각을 담으면 여기로 와요.</Text>
+          <Text style={styles.wikiBody}>{t("inbox.emptyDone")}</Text>
           <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
-            <Text style={styles.primaryText}>+ 조각 담기</Text>
+            <Text style={styles.primaryText}>{t("wiki.addPiece")}</Text>
           </Pressable>
         </View>
       ) : (
         <>
-          <Text style={styles.lead}>남은 {pending}개만 비우면 끝나요</Text>
+          <Text style={styles.lead}>{t("inbox.remaining", { count: pending })}</Text>
           <Card style={styles.triageCard}>
             <View style={styles.triageMeta}>
               <Text style={styles.tlIcon}>{SOURCE_KIND_ICON[current.kind] ?? "•"}</Text>
               <Text style={styles.metaLabel}>{current.kind}</Text>
             </View>
-            <Text style={styles.triageBody} numberOfLines={3}>{sourceTitle(current)}</Text>
+            <Text style={styles.triageBody} numberOfLines={3}>{sourceTitle(current, t("inbox.untitled"))}</Text>
             {current.tags.length > 0 ? (
               <View style={styles.filterRow}>
                 {current.tags.slice(0, 4).map((tag) => (
@@ -525,7 +545,7 @@ export function DeepSpaceInboxScreen() {
                 onPress={() => void discard(current)}
                 disabled={busyId !== null}
                 accessibilityRole="button"
-                accessibilityLabel="이 조각 버리기"
+                accessibilityLabel={t("inbox.a11yDiscard")}
               >
                 <Text style={styles.iconBtnText}>🗑</Text>
               </Pressable>
@@ -534,20 +554,20 @@ export function DeepSpaceInboxScreen() {
                 onPress={() => void promote(current)}
                 disabled={busyId !== null}
                 accessibilityRole="button"
-                accessibilityLabel="이 조각 보관하기"
+                accessibilityLabel={t("inbox.a11yArchive")}
               >
-                <Text style={styles.primaryText}>{busyId === current.id ? "보관 중…" : "보관하기"}</Text>
+                <Text style={styles.primaryText}>{busyId === current.id ? t("inbox.archiving") : t("inbox.archive")}</Text>
               </Pressable>
             </View>
           </Card>
           {queue.length > 0 ? (
             <>
-              <Text style={styles.tlLabel}>다음 차례</Text>
+              <Text style={styles.tlLabel}>{t("inbox.nextUp")}</Text>
               <View style={{ gap: 7 }}>
                 {queue.slice(0, 8).map((s, i) => (
                   <View key={s.id} style={[styles.queueItem, i > 0 && styles.queueItemDim]}>
                     <Text style={styles.tlIcon}>{SOURCE_KIND_ICON[s.kind] ?? "•"}</Text>
-                    <Text style={styles.queueText} numberOfLines={1}>{sourceTitle(s)}</Text>
+                    <Text style={styles.queueText} numberOfLines={1}>{sourceTitle(s, t("inbox.untitled"))}</Text>
                   </View>
                 ))}
               </View>
@@ -713,13 +733,13 @@ interface DetailRecord {
   created_at: string;
 }
 
-const RECORD_KIND_KO: Record<string, string> = {
-  journal: "일기",
-  note: "메모",
-  audit_response: "점검",
+const RECORD_KIND_KEY: Record<string, string> = {
+  journal: "recordDetail.kindJournal",
+  note: "recordDetail.kindNote",
+  audit_response: "recordDetail.kindAudit",
 };
 
-function recordTitle(r: DetailRecord): string {
+function recordTitle(r: DetailRecord, fallback: string): string {
   const s = r.summary?.trim() || r.topic?.trim();
   if (s) return s;
   const body = r.body?.trim();
@@ -727,10 +747,11 @@ function recordTitle(r: DetailRecord): string {
     const line = body.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
     if (line) return line;
   }
-  return "기록";
+  return fallback;
 }
 
 export function DeepSpaceRecordDetailScreen() {
+  const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
   const params = useLocalSearchParams();
   const idParam = params.id;
@@ -777,20 +798,20 @@ export function DeepSpaceRecordDetailScreen() {
   }
 
   if (authLoading) {
-    return <Shell title="기록 상세"><GraphLoading /></Shell>;
+    return <Shell title={t("recordDetail.title")}><GraphLoading /></Shell>;
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
   if (loading) {
-    return <Shell title="기록 상세"><GraphLoading /></Shell>;
+    return <Shell title={t("recordDetail.title")}><GraphLoading /></Shell>;
   }
   if (record === null) {
     return (
-      <Shell title="기록 상세">
+      <Shell title={t("recordDetail.title")}>
         <View style={styles.wikiPageOpen}>
-          <Text style={styles.wikiBody}>기록을 찾을 수 없어요. 보관소로 돌아가 다시 열어보세요.</Text>
+          <Text style={styles.wikiBody}>{t("recordDetail.notFound")}</Text>
           <Pressable style={styles.primary} onPress={() => router.replace("/records")}>
-            <Text style={styles.primaryText}>보관소로</Text>
+            <Text style={styles.primaryText}>{t("recordDetail.toArchive")}</Text>
           </Pressable>
         </View>
       </Shell>
@@ -798,23 +819,25 @@ export function DeepSpaceRecordDetailScreen() {
   }
 
   const related = relatedByTag(record.id, record.tags, all);
-  const kindLabel = RECORD_KIND_KO[record.kind] ?? "기록";
+  const kindKey = RECORD_KIND_KEY[record.kind];
+  const kindLabel = kindKey ? t(kindKey) : t("recordDetail.kindFallback");
   const kindIcon = RECORD_KIND_ICON[record.kind] ?? "•";
+  const recencyOpts = { labels: dsRecencyLabels(t) };
 
   return (
-    <Shell title="기록 상세">
+    <Shell title={t("recordDetail.title")}>
       <SecondbStatusHeader
-        text={related.length > 0 ? `이 조각은 ${related.length}개의 기록과 이어져 있어요.` : "이 조각을 천천히 다시 볼까요?"}
-        tip="같은 태그의 기록으로 이어져요."
+        text={related.length > 0 ? t("recordDetail.headerLinked", { count: related.length }) : t("recordDetail.headerAlone")}
+        tip={t("recordDetail.tip")}
       />
       <View style={styles.recMetaRow}>
         <Text style={styles.recMetaType}>{kindIcon} {kindLabel}</Text>
         <Text style={styles.recMetaDot}>·</Text>
-        <Text style={styles.recMeta}>{recencyLabel(record.created_at) || "기록"}</Text>
+        <Text style={styles.recMeta}>{recencyLabel(record.created_at, recencyOpts) || t("recordDetail.kindFallback")}</Text>
         <Text style={styles.recMetaDot}>·</Text>
-        <Text style={styles.recMeta}>직접 작성</Text>
+        <Text style={styles.recMeta}>{t("recordDetail.author")}</Text>
       </View>
-      <Text style={styles.recTitle}>{recordTitle(record)}</Text>
+      <Text style={styles.recTitle}>{recordTitle(record, t("recordDetail.kindFallback"))}</Text>
       {record.body && record.body.trim().length > 0 ? (
         <View style={styles.recBody}>
           <Text style={styles.recBodyText}>{record.body}</Text>
@@ -834,14 +857,14 @@ export function DeepSpaceRecordDetailScreen() {
       ) : null}
       {related.length > 0 ? (
         <>
-          <Text style={styles.tlLabel}>연결된 기록</Text>
+          <Text style={styles.tlLabel}>{t("recordDetail.linkedRecords")}</Text>
           <View style={styles.tlGroup}>
             {related.map((r) => (
               <TimelineRow
                 key={r.id}
                 icon={RECORD_KIND_ICON[r.kind] ?? "•"}
-                title={recordTitle(r as DetailRecord)}
-                time={recencyLabel(r.created_at) || undefined}
+                title={recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}
+                time={recencyLabel(r.created_at, recencyOpts) || undefined}
                 dim
               />
             ))}
@@ -850,14 +873,14 @@ export function DeepSpaceRecordDetailScreen() {
       ) : null}
       <View style={styles.ctaRow}>
         <Pressable style={styles.secondary} onPress={() => router.push("/capture")}>
-          <Text style={styles.secondaryText}>새 기록</Text>
+          <Text style={styles.secondaryText}>{t("recordDetail.newRecord")}</Text>
         </Pressable>
         <Pressable
           style={[styles.iconBtn, styles.iconBtnDanger]}
           onPress={() => void handleDelete()}
           disabled={deleting}
           accessibilityRole="button"
-          accessibilityLabel="이 기록 삭제"
+          accessibilityLabel={t("recordDetail.a11yDelete")}
         >
           <Text style={styles.iconBtnText}>🗑</Text>
         </Pressable>
@@ -1107,28 +1130,30 @@ export function DeepSpaceWikiScreen() {
 }
 
 export function DeepSpaceDomainsScreen() {
+  const { t } = useTranslation("deepspace");
   const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
   const view = useMemo(() => buildDomainsView(pages, edges), [pages, edges]);
 
   if (authLoading) {
-    return <Shell title="내 영역"><GraphLoading /></Shell>;
+    return <Shell title={t("domains.title")}><GraphLoading /></Shell>;
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
+  const recencyOpts = { labels: dsRecencyLabels(t) };
   return (
-    <Shell title="내 영역">
+    <Shell title={t("domains.title")}>
       <SecondbStatusHeader
-        text={view.domains.length > 0 ? "네 영역이 이렇게 쌓이고 있어요." : "아직 영역이 비어 있어요."}
-        tip="비어 있는 영역을 더 담아볼까요?"
+        text={view.domains.length > 0 ? t("domains.headerHas") : t("domains.headerEmpty")}
+        tip={t("domains.tip")}
       />
-      <Text style={styles.lead}>네 영역을 한눈에</Text>
+      <Text style={styles.lead}>{t("domains.lead")}</Text>
       {loading ? (
         <GraphLoading />
       ) : view.domains.length === 0 ? (
         <View style={styles.wikiPageOpen}>
-          <Text style={styles.wikiBody}>조각에 태그가 붙으면 영역으로 모여요. 오늘의 조각을 담아보세요.</Text>
+          <Text style={styles.wikiBody}>{t("domains.empty")}</Text>
           <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
-            <Text style={styles.primaryText}>+ 데이터 추가</Text>
+            <Text style={styles.primaryText}>{t("domains.addData")}</Text>
           </Pressable>
         </View>
       ) : (
@@ -1144,16 +1169,16 @@ export function DeepSpaceDomainsScreen() {
                   <Text style={d.recent ? styles.domainName : styles.domainNameDim} numberOfLines={1}>{d.tag}</Text>
                   <View style={styles.domainNumRow}>
                     <Text style={[styles.domainNum, active && styles.domainNumActive, !d.recent && styles.domainNumDim]}>{d.count}</Text>
-                    <Text style={styles.domainUnit}>조각</Text>
+                    <Text style={styles.domainUnit}>{t("domains.unit")}</Text>
                   </View>
-                  <Text style={styles.domainSub}>{recencyLabel(d.lastActivity) || "기록 없음"}</Text>
+                  <Text style={styles.domainSub}>{recencyLabel(d.lastActivity, recencyOpts) || t("domains.noActivity")}</Text>
                 </View>
               );
             })}
           </View>
           {view.topTopics !== null && view.topTopics.titles.length > 0 ? (
             <>
-              <Text style={styles.tlLabel}>{view.topTopics.tag} · 핵심 주제</Text>
+              <Text style={styles.tlLabel}>{t("domains.topicsLabel", { tag: view.topTopics.tag })}</Text>
               <View style={styles.topicCol}>
                 {view.topTopics.titles.map((title, i) => (
                   <View key={title} style={styles.topicRow}>
@@ -1165,7 +1190,7 @@ export function DeepSpaceDomainsScreen() {
             </>
           ) : null}
           <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
-            <Text style={styles.primaryText}>+ 데이터 추가</Text>
+            <Text style={styles.primaryText}>{t("domains.addData")}</Text>
           </Pressable>
         </>
       )}

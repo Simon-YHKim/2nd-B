@@ -59,39 +59,59 @@ function kstDayKey(ms: number): number {
   return Math.floor((ms + KST_OFFSET_MS) / DAY_MS);
 }
 
+export interface TimelineLabels {
+  today: string;
+  yesterday: string;
+  monthDay: (month: number, day: number) => string;
+  now: string;
+  hoursAgo: (h: number) => string;
+  fallbackTitle: string;
+}
+
+const KO_TIMELINE: TimelineLabels = {
+  today: "오늘",
+  yesterday: "어제",
+  monthDay: (m, d) => `${m}월 ${d}일`,
+  now: "방금",
+  hoursAgo: (h) => `${h}시간 전`,
+  fallbackTitle: "기록",
+};
+
 function firstLine(s: string): string {
   const line = s.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
   return line.length > 80 ? `${line.slice(0, 80).trimEnd()}…` : line;
 }
 
-function titleOf(r: TimelineRecord): string {
+function titleOf(r: TimelineRecord, fallback: string): string {
   const summary = r.summary?.trim();
   if (summary) return summary.length > 80 ? `${summary.slice(0, 80).trimEnd()}…` : summary;
   const topic = r.topic?.trim();
   if (topic) return topic;
   const body = r.body?.trim();
   if (body) return firstLine(body);
-  return "기록";
+  return fallback;
 }
 
 /** "방금" / "N시간 전" for same-day rows; "" otherwise (the group label carries
  *  the day). */
-function todayTimeLabel(createdMs: number, nowMs: number): string {
+function todayTimeLabel(createdMs: number, nowMs: number, labels: TimelineLabels): string {
   const diffH = Math.floor((nowMs - createdMs) / (60 * 60 * 1000));
-  if (diffH <= 0) return "방금";
-  return `${diffH}시간 전`;
+  if (diffH <= 0) return labels.now;
+  return labels.hoursAgo(diffH);
 }
 
-function groupLabel(dayKey: number, todayKey: number, sampleMs: number): string {
-  if (dayKey === todayKey) return "오늘";
-  if (dayKey === todayKey - 1) return "어제";
+function groupLabel(dayKey: number, todayKey: number, sampleMs: number, labels: TimelineLabels): string {
+  if (dayKey === todayKey) return labels.today;
+  if (dayKey === todayKey - 1) return labels.yesterday;
   const d = new Date(sampleMs + KST_OFFSET_MS);
-  return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
+  return labels.monthDay(d.getUTCMonth() + 1, d.getUTCDate());
 }
 
 export interface BuildTimelineOpts {
   now?: Date;
   maxGroups?: number;
+  /** Localized labels; defaults to KO so existing callers/tests are unchanged. */
+  labels?: TimelineLabels;
 }
 
 export function buildRecordsTimeline(
@@ -101,6 +121,7 @@ export function buildRecordsTimeline(
   const nowMs = (opts.now ?? new Date()).getTime();
   const todayKey = kstDayKey(nowMs);
   const maxGroups = opts.maxGroups ?? 8;
+  const labels = opts.labels ?? KO_TIMELINE;
 
   // Preserve input order (listRecentRecords returns newest-first) within each
   // bucket; Map keeps first-seen key order, which is newest day first.
@@ -120,15 +141,15 @@ export function buildRecordsTimeline(
     const isToday = dayKey === todayKey;
     const sampleMs = new Date(rows[0].created_at).getTime();
     groups.push({
-      label: groupLabel(dayKey, todayKey, sampleMs),
+      label: groupLabel(dayKey, todayKey, sampleMs, labels),
       items: rows.map((r) => {
         const ms = new Date(r.created_at).getTime();
         const tag = r.tags && r.tags.length > 0 ? `#${r.tags[0]}` : undefined;
         return {
           id: r.id,
           icon: KIND_ICON[r.kind] ?? "•",
-          title: titleOf(r),
-          timeLabel: isToday ? todayTimeLabel(ms, nowMs) : "",
+          title: titleOf(r, labels.fallbackTitle),
+          timeLabel: isToday ? todayTimeLabel(ms, nowMs, labels) : "",
           tag,
           dim: !isToday,
         };
