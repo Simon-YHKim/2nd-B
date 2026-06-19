@@ -15,12 +15,17 @@
   - **E** ✅ STEP 2 (migration `0046` `wiki_links.relation_type`+`confidence`, propose→ratify 쿼리) + STEP 3 (`src/lib/wiki/clusters.ts` connected-component 군집 + cross-topic surprise). **STEP 4 (pgvector)는 계획대로 deferred**.
   - **D ✅ 완료** — 새 `deepspace` i18n namespace(5 locale en/ko/es/id/pt) 등록 + **모든 deep-space Shell 화면 25종** i18n 전환 완료 (C7 parity, 1539 keys, em dash 0). KO 원문 보존, EN canonical. pure 날짜 helper는 i18n-free 유지하고 화면에서 localized label 주입(`dsTimeLabels`/`dsRecencyLabels`).
 
-### 결론: 큐 A–E 전부 완료
-A(materialize)·B(wiki/research 배선)·C(전 화면 실데이터)·D(5-locale i18n)·E(STEP 2+3) 모두 PR #464에 랜딩. **남은 것은 계획상 deferred 된 STEP 4 (pgvector 임베딩)뿐** — 가장 큰 작업, 마지막. `/formats`·`/import`은 export 파이프라인이 없어 정적 mockup 으로 유지(번역은 완료).
+### 결론: 큐 A–E + 후속 3종 전부 완료
+A(materialize)·B(wiki/research 배선)·C(전 화면 실데이터)·D(5-locale i18n)·E(STEP 2+3) + 후속 **STEP 4(pgvector)·익스포트 파이프라인·인박스 추천 태그** 모두 PR #464에 랜딩.
+- **STEP 4 ✅**: migration `0047`(pgvector + `embedding vector(768)` + HNSW + `match_wiki_pages` kNN RPC), `gemini.ts embedTexts`(C1/C3/C9 + cost guard, mock=deterministic), `embeddings.ts`(cosine/rank/backfill/relatedByEmbedding). `/data` "의미 색인 만들기" 액션이 backfill 트리거. **활성화 = prod pgvector apply + Vertex 임베딩**(코드·테스트는 green).
+- **익스포트 ✅**: `/formats`가 실제 export(.iden/Markdown/JSON/PDF) + 범위 토글(includeRecords) + 복사/공유/다운로드.
+- **인박스 추천 태그 ✅**: Phase 1 캐시 태그를 추천 칩으로, 없으면 on-demand Phase 1.
 
 ### 다음 후보 (선택)
-- STEP 4: pgvector + Gemini `text-embedding-004` (의미 검색·surprise 랭킹·"X와 Y를 잇는 것"). `docs/wiki-system-upgrade.md §STEP 4`.
+- `relatedByEmbedding` UI 노출 (의미 기반 "관련 지식"). 페이지 detail 필요.
 - Native(EAS) 딥스페이스 전환 (현재 `EXPO_PUBLIC_UI=legacy` 핀).
+- `/import` 외부 커넥터(Notion/Obsidian) 실제 연동 (정적 mockup 유지 중).
+- prod: migration `0046`·`0047` 수동 apply (pgvector 확장 enable 포함).
 
 ### 핵심 파일
 ```
