@@ -12,6 +12,7 @@
 // (summary, suggested_slug overrides, additional tags) as inputs.
 
 import { readPhase1 } from "./phase1";
+import { materializeGraphFromPhase1 } from "./materialize";
 import { getSource, markSourceIngested, syncWikiLinks, upsertWikiPage } from "./queries";
 import { slugForTitle, toSlug } from "./slug";
 import { downloadRawClipping } from "./storage";
@@ -25,6 +26,12 @@ export interface GenerateSourcePageResult {
   linksAdded: number;
   /** Slugs the body references that didn't resolve to any existing page. */
   danglingSlugs: string[];
+  /** New entity pages materialized from Phase 1 (graph nodes). */
+  entityPagesAdded: number;
+  /** New concept pages materialized from Phase 1 (graph nodes). */
+  conceptPagesAdded: number;
+  /** New source→entity/concept edges drawn from Phase 1 extraction. */
+  nodeLinksAdded: number;
 }
 
 export class SourceNotFoundError extends Error {
@@ -71,6 +78,13 @@ export async function generateSourcePage(userId: string, sourceId: string): Prom
 
   const sync = await syncWikiLinks(userId, { id: page.id, body_md: body });
 
+  // Phase 1.5: turn the extracted entities/concepts into graph nodes and link
+  // the source page to each. Skipped cleanly when there's no Phase 1 output
+  // (offline-preview rows, or sources captured before Phase 1 ran).
+  const materialized = phase1
+    ? await materializeGraphFromPhase1(userId, { id: page.id }, phase1)
+    : { entityPagesCreated: 0, conceptPagesCreated: 0, pagesReused: 0, linksAdded: 0 };
+
   // Phase 2 promotion implies the source is now part of the user's wiki —
   // mark it ingested so the inbox view reflects it.
   if (!source.ingested) await markSourceIngested(userId, sourceId);
@@ -80,5 +94,8 @@ export async function generateSourcePage(userId: string, sourceId: string): Prom
     slug: page.slug,
     linksAdded: sync.added,
     danglingSlugs: sync.dangling,
+    entityPagesAdded: materialized.entityPagesCreated,
+    conceptPagesAdded: materialized.conceptPagesCreated,
+    nodeLinksAdded: materialized.linksAdded,
   };
 }
