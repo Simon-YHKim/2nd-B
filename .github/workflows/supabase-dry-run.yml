@@ -11,7 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        # pgvector-enabled Postgres 16 (official pgvector image) so migration
+        # 0047's `CREATE EXTENSION vector` resolves — matches Supabase prod,
+        # which ships pgvector. Otherwise identical to stock postgres:16.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_PASSWORD: postgres
         ports: ["5432:5432"]
