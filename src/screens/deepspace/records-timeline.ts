@@ -31,11 +31,29 @@ export interface TimelineGroup {
   items: TimelineItem[];
 }
 
-const KIND_ICON: Record<string, string> = {
+export const RECORD_KIND_ICON: Record<string, string> = {
   journal: "✎",
   note: "📝",
   audit_response: "🧭",
 };
+
+const KIND_ICON = RECORD_KIND_ICON;
+
+/** Other records sharing at least one tag with the focal record, newest first,
+ *  excluding the focal record itself. Powers the /record "연결된 기록" section
+ *  until a real record-link table exists. */
+export function relatedByTag(
+  focalId: string,
+  focalTags: string[] | null | undefined,
+  all: TimelineRecord[],
+  max = 5,
+): TimelineRecord[] {
+  const tags = new Set(focalTags ?? []);
+  if (tags.size === 0) return [];
+  return all
+    .filter((r) => r.id !== focalId && (r.tags ?? []).some((t) => tags.has(t)))
+    .slice(0, max);
+}
 
 function kstDayKey(ms: number): number {
   return Math.floor((ms + KST_OFFSET_MS) / DAY_MS);

@@ -1,6 +1,6 @@
 // Unit tests for the deep-space /records timeline view-model.
 
-import { buildRecordsTimeline, type TimelineRecord } from "../records-timeline";
+import { buildRecordsTimeline, relatedByTag, type TimelineRecord } from "../records-timeline";
 
 // A fixed "now": 2026-06-19 12:00 KST == 03:00 UTC.
 const NOW = new Date("2026-06-19T03:00:00Z");
@@ -53,6 +53,21 @@ describe("buildRecordsTimeline", () => {
     );
     expect(groups[0].items[0].icon).toBe("🧭");
     expect(groups[0].items[0].tag).toBe("#성장");
+  });
+
+  test("relatedByTag returns tag-sharing records, excluding the focal one", () => {
+    const all: TimelineRecord[] = [
+      rec({ id: "self", created_at: "2026-06-19T01:00:00Z", tags: ["감정"] }),
+      rec({ id: "a", created_at: "2026-06-18T01:00:00Z", tags: ["감정", "기록"] }),
+      rec({ id: "b", created_at: "2026-06-17T01:00:00Z", tags: ["성장"] }),
+      rec({ id: "c", created_at: "2026-06-16T01:00:00Z", tags: ["감정"] }),
+    ];
+    const related = relatedByTag("self", ["감정"], all);
+    expect(related.map((r) => r.id)).toEqual(["a", "c"]);
+  });
+
+  test("relatedByTag is empty when the focal record has no tags", () => {
+    expect(relatedByTag("self", [], [rec({ id: "a", created_at: "x", tags: ["감정"] })])).toEqual([]);
   });
 
   test("ignores unparseable timestamps and respects maxGroups", () => {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import Svg, { Circle, Line } from "react-native-svg";
 
 import { colors, radius, spacing } from "@/theme/tokens";
@@ -9,7 +9,7 @@ import { SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { deleteSource, listAllWikiLinks, listSources, listWikiPages } from "@/lib/wiki/queries";
 import { generateSourcePage } from "@/lib/wiki/phase2";
-import { listRecentRecords } from "@/lib/records/create";
+import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
 import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
 import {
   buildDeepResearchView,
@@ -18,7 +18,12 @@ import {
   recencyLabel,
   type WikiEdge,
 } from "./wiki-graph-view";
-import { buildRecordsTimeline, type TimelineRecord } from "./records-timeline";
+import {
+  buildRecordsTimeline,
+  relatedByTag,
+  RECORD_KIND_ICON,
+  type TimelineRecord,
+} from "./records-timeline";
 
 type Row = { label: string; value?: string; onPress?: () => void; on?: boolean };
 
@@ -688,40 +693,165 @@ export function DeepSpaceImportScreen() {
   );
 }
 
+interface DetailRecord {
+  id: string;
+  kind: string;
+  body: string | null;
+  topic: string | null;
+  summary: string | null;
+  conclusion: string | null;
+  tags: string[] | null;
+  created_at: string;
+}
+
+const RECORD_KIND_KO: Record<string, string> = {
+  journal: "일기",
+  note: "메모",
+  audit_response: "점검",
+};
+
+function recordTitle(r: DetailRecord): string {
+  const s = r.summary?.trim() || r.topic?.trim();
+  if (s) return s;
+  const body = r.body?.trim();
+  if (body) {
+    const line = body.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+    if (line) return line;
+  }
+  return "기록";
+}
+
 export function DeepSpaceRecordDetailScreen() {
-  // TODO: read the real record by id (useLocalSearchParams) + connections. Dummy from record-detail.dc.html.
+  const { userId, loading: authLoading } = useAuth();
+  const params = useLocalSearchParams();
+  const idParam = params.id;
+  const recordId = Array.isArray(idParam) ? idParam[0] : idParam;
+
+  const [record, setRecord] = useState<DetailRecord | null>(null);
+  const [all, setAll] = useState<TimelineRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!userId || !recordId) {
+      setLoading(false);
+      return;
+    }
+    let alive = true;
+    setLoading(true);
+    Promise.all([getRecordById(userId, recordId), listRecentRecords(userId)])
+      .then(([r, rows]) => {
+        if (!alive) return;
+        setRecord((r as DetailRecord) ?? null);
+        setAll(rows as TimelineRecord[]);
+      })
+      .catch(() => {
+        if (alive) setRecord(null);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, recordId]);
+
+  async function handleDelete() {
+    if (!userId || !record) return;
+    setDeleting(true);
+    try {
+      await deleteRecord(userId, record.id);
+      router.back();
+    } catch {
+      setDeleting(false);
+    }
+  }
+
+  if (authLoading) {
+    return <Shell title="기록 상세"><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  if (loading) {
+    return <Shell title="기록 상세"><GraphLoading /></Shell>;
+  }
+  if (record === null) {
+    return (
+      <Shell title="기록 상세">
+        <View style={styles.wikiPageOpen}>
+          <Text style={styles.wikiBody}>기록을 찾을 수 없어요. 보관소로 돌아가 다시 열어보세요.</Text>
+          <Pressable style={styles.primary} onPress={() => router.replace("/records")}>
+            <Text style={styles.primaryText}>보관소로</Text>
+          </Pressable>
+        </View>
+      </Shell>
+    );
+  }
+
+  const related = relatedByTag(record.id, record.tags, all);
+  const kindLabel = RECORD_KIND_KO[record.kind] ?? "기록";
+  const kindIcon = RECORD_KIND_ICON[record.kind] ?? "•";
+
   return (
     <Shell title="기록 상세">
-      <SecondbStatusHeader text="이 조각은 3개의 기록과 이어져 있어요." tip="연결을 누르면 그 렌즈로 갈 수 있어요." />
+      <SecondbStatusHeader
+        text={related.length > 0 ? `이 조각은 ${related.length}개의 기록과 이어져 있어요.` : "이 조각을 천천히 다시 볼까요?"}
+        tip="같은 태그의 기록으로 이어져요."
+      />
       <View style={styles.recMetaRow}>
-        <Text style={styles.recMetaType}>✎ 글</Text>
+        <Text style={styles.recMetaType}>{kindIcon} {kindLabel}</Text>
         <Text style={styles.recMetaDot}>·</Text>
-        <Text style={styles.recMeta}>2시간 전</Text>
+        <Text style={styles.recMeta}>{recencyLabel(record.created_at) || "기록"}</Text>
         <Text style={styles.recMetaDot}>·</Text>
         <Text style={styles.recMeta}>직접 작성</Text>
       </View>
-      <Text style={styles.recTitle}>온보딩을 별자리로 푸는 아이디어</Text>
-      <View style={styles.recBody}>
-        <Text style={styles.recBodyText}>오늘 회의에서 나온 생각. 첫 화면을 빈 밤하늘로 두고, 사용자가 기록을 남길 때마다 별이 하나씩 켜지면 어떨까. 북극성을 '되고 싶은 나'로 두면 방향이 생긴다.</Text>
-      </View>
-      <View style={styles.filterRow}>
-        <FilterChip label="#아이디어" active />
-        <FilterChip label="#온보딩" active />
-        <FilterChip label="+ 직접" />
-      </View>
-      <View style={styles.insightViolet}>
-        <Text style={styles.insightVioletText}>이 기록은 미래의 나 별과 이어져요.</Text>
-        <View style={styles.evRow}><Text style={styles.evChip}>📎 미래의 나로 가기</Text></View>
-      </View>
-      <Text style={styles.tlLabel}>연결된 기록</Text>
-      <View style={styles.tlGroup}>
-        <TimelineRow icon="🔗" title="디자인 레퍼런스 아티클" time="5시간" dim />
-        <TimelineRow icon="🎙" title="산책하며 남긴 음성 메모" time="어제" dim />
-      </View>
+      <Text style={styles.recTitle}>{recordTitle(record)}</Text>
+      {record.body && record.body.trim().length > 0 ? (
+        <View style={styles.recBody}>
+          <Text style={styles.recBodyText}>{record.body}</Text>
+        </View>
+      ) : null}
+      {record.tags && record.tags.length > 0 ? (
+        <View style={styles.filterRow}>
+          {record.tags.slice(0, 5).map((tag) => (
+            <FilterChip key={tag} label={`#${tag}`} active />
+          ))}
+        </View>
+      ) : null}
+      {record.conclusion && record.conclusion.trim().length > 0 ? (
+        <View style={styles.insightViolet}>
+          <Text style={styles.insightVioletText}>{record.conclusion}</Text>
+        </View>
+      ) : null}
+      {related.length > 0 ? (
+        <>
+          <Text style={styles.tlLabel}>연결된 기록</Text>
+          <View style={styles.tlGroup}>
+            {related.map((r) => (
+              <TimelineRow
+                key={r.id}
+                icon={RECORD_KIND_ICON[r.kind] ?? "•"}
+                title={recordTitle(r as DetailRecord)}
+                time={recencyLabel(r.created_at) || undefined}
+                dim
+              />
+            ))}
+          </View>
+        </>
+      ) : null}
       <View style={styles.ctaRow}>
-        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>편집</Text></Pressable>
-        <Pressable style={styles.secondary}><Text style={styles.secondaryText}>이동</Text></Pressable>
-        <View style={[styles.iconBtn, styles.iconBtnDanger]}><Text style={styles.iconBtnText}>🗑</Text></View>
+        <Pressable style={styles.secondary} onPress={() => router.push("/capture")}>
+          <Text style={styles.secondaryText}>새 기록</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.iconBtn, styles.iconBtnDanger]}
+          onPress={() => void handleDelete()}
+          disabled={deleting}
+          accessibilityRole="button"
+          accessibilityLabel="이 기록 삭제"
+        >
+          <Text style={styles.iconBtnText}>🗑</Text>
+        </Pressable>
       </View>
     </Shell>
   );
