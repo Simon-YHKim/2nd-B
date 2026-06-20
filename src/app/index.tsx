@@ -368,7 +368,7 @@ export function GraphScreen() {
       dataLoadFailed
         ? OFFLINE_INSIGHT[locale]
         : dataNodes.length > 0
-          ? pickInsight(locale, Date.now() % 1000)
+          ? pickInsight(locale, Math.floor(Date.now() / 86_400_000))
           : hasAnyPiece === true
             ? RECORDS_ONLY_INSIGHT[locale]
             : FIRST_PIECE_INSIGHT[locale],
