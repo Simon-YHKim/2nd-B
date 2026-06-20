@@ -28,12 +28,19 @@
       서비스키를 `EXPO_PUBLIC_MFDS_FOOD_KEY` 로 등록. (`src/lib/nutrition/foods.ts`)
 - ⚠️ 클라이언트 번들에 키가 들어가므로 공개-데이터 키만(저민감). 민감하면 엣지 프록시로 이전.
 
-## G2 — Google Calendar/Tasks 읽기 (게이트: GCP 콘솔 OAuth)
-현재 캘린더는 *내보내기(push)* 만. 읽기 연동 시 일정 맥락 확보.
-- [ ] GCP 프로젝트 → OAuth 동의화면 구성(외부, 범위 `calendar.readonly`,
-      `tasks.readonly`) → 클라이언트 ID 발급(iOS/Android/Web).
-- [ ] redirect/scheme 등록, `EXPO_PUBLIC_ENABLE_GOOGLE_CAL` 류 플래그로 게이트.
-- [ ] 임포트 허브 "구글 캘린더·할일" 커넥터(B) 배선. (대안: 이미 있는 `.ics` 파일 임포트로 무게이트 동작)
+## G2 — Google Calendar 읽기 (웹 커넥터 ✅ 빌드됨 / Simon 콘솔 1스텝 남음)
+임포트 허브 "구글 캘린더" 커넥터 = **웹 빌드 완료** (GIS 토큰 모델, `src/lib/google/`).
+OAuth로 다가오는 일정을 받아 `.ics`로 직렬화 → 기존 `.ics` 임포트 파이프라인 재사용
+(파싱·propose→ratify·이력 전부 재사용, 새 파이프라인 0). secret 없음, $0.
+- [x] OAuth 동의화면 + Calendar/Tasks API 활성 + Web 클라이언트(`2nd-Brain Web`) — cowork.
+- [x] client ID = `EXPO_PUBLIC_GOOGLE_CLIENT_ID` (repo Variable + EAS 등록). env 슬롯 + web-deploy 배선.
+- [x] 웹 커넥터 + 단위테스트(파서·날짜·`parseIcs` 라운드트립). "구글 연결" 옵트인 버튼.
+- [ ] **Simon 콘솔 1스텝**: `2nd-Brain Web` → **승인된 JavaScript 원본**에
+      `https://simon-yhkim.github.io` + `http://localhost:8081` 추가. (redirect URI 아님 — origin만.)
+      → 이거 넣어야 토큰을 받음. 데모는 게시 없이 Testing 모드 + test user(Simon 계정)로 동작.
+- [ ] (선택) 일반 공개 = calendar.readonly 민감 scope → Google 검증(수 주). 데모엔 불필요.
+- [ ] 네이티브: G3(EAS)에서 expo-auth-session + iOS/Android 클라이언트 ID로. 현재 native는 stub(웹 안내).
+- [ ] Tasks 읽기: 동일 패턴 follow-up (스코프 + 파서만 추가). (대안: `.ics` 파일 임포트는 무게이트로 계속 동작.)
 
 ## G3 — 네이티브 빌드(EAS) + 실기기 QA (게이트: EAS, ANDROID_QA)
 - [ ] `expo-notifications`(리마인더)·`expo-calendar`(기기 캘린더 직접등록)는 코드 완성 —

@@ -29,6 +29,9 @@ import {
   removeImportHistory,
   type ImportHistoryEntry,
 } from "@/lib/import/history";
+import { getEnv } from "@/lib/env";
+import { getGoogleAccessToken } from "@/lib/google/gisToken";
+import { fetchCalendarEvents, googleEventsToIcs, GOOGLE_CALENDAR_READONLY_SCOPE } from "@/lib/google/calendar";
 
 type Tier = "critical" | "sensitive" | "normal";
 type Mode = "file" | "connector";
@@ -56,6 +59,7 @@ const SOURCES: ImportSource[] = [
   { key: "health", icon: "❤", nameKo: "건강", nameEn: "Health", subKo: "건강 · export 파일", subEn: "Health · export file", tier: "sensitive", mode: "file", minorLocked: false, kind: "apple-health", whatKo: "걸음·운동 등 합계만. 상세 기록 원문은 저장 안 함.", whatEn: "Only totals (steps, etc). Detailed records aren't stored." },
   { key: "email", icon: "✉", nameKo: "이메일", nameEn: "Email", subKo: "이메일 · .eml 파일", subEn: "Email · .eml file", tier: "sensitive", mode: "file", minorLocked: false, kind: "email", whatKo: "약속·일정 신호만. 본문 전체는 저장 안 함.", whatEn: "Only plan/schedule signals, not the full body." },
   { key: "notion", icon: "🗒", nameKo: "Notion · Obsidian", nameEn: "Notion · Obsidian", subKo: "노트 · export 파일", subEn: "Notes · export file", tier: "normal", mode: "file", minorLocked: false, kind: "markdown", whatKo: "노트를 기록으로 들여와요.", whatEn: "Brings your notes in as records." },
+  { key: "google", icon: "🗓", nameKo: "구글 캘린더", nameEn: "Google Calendar", subKo: "일정 · 계정 연결", subEn: "Schedule · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "ics", whatKo: "다가오는 일정의 제목·시간만 가져와요. 본문·참석자는 저장 안 해요.", whatEn: "Brings only upcoming event titles + times. No body/attendees." },
   { key: "calendar", icon: "🗓", nameKo: "캘린더(.ics)", nameEn: "Calendar (.ics)", subKo: "일정 · 파일", subEn: "Schedule · file", tier: "normal", mode: "file", minorLocked: false, kind: "ics", whatKo: "일정 이벤트를 들여와요.", whatEn: "Brings your calendar events in." },
 ];
 
@@ -81,6 +85,8 @@ export function ImportHubScreen() {
   const [busy, setBusy] = useState(false);
   const [errored, setErrored] = useState(false);
   const [history, setHistory] = useState<ImportHistoryEntry[]>([]);
+  const [gErr, setGErr] = useState<string | null>(null);
+  const googleClientId = getEnv().EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
   const t = (k: string) => COPY(ko)[k] ?? k;
   const name = (s: ImportSource) => (ko ? s.nameKo : s.nameEn);
@@ -95,6 +101,7 @@ export function ImportHubScreen() {
     setPaste("");
     setOutcome(null);
     setErrored(false);
+    setGErr(null);
     setStep("consent");
   };
 
@@ -110,6 +117,31 @@ export function ImportHubScreen() {
     setOutcome(out);
     setSelected(new Set(out.proposals.filter((p) => !p.sensitive).map((p) => p.id))); // sensitive default-excluded
     setStep("review");
+  };
+
+  // Google Calendar connector: OAuth (GIS token model, web) → fetch events →
+  // serialize to .ics → reuse the SAME analyze/review/ratify path as a file.
+  const connectGoogle = async () => {
+    if (!active || busy) return;
+    setGErr(null);
+    setBusy(true);
+    try {
+      const token = await getGoogleAccessToken({ clientId: googleClientId, scope: GOOGLE_CALENDAR_READONLY_SCOPE });
+      const events = await fetchCalendarEvents(token);
+      const out = buildProposals("ics", googleEventsToIcs(events));
+      if (out.proposals.length === 0) {
+        setBusy(false);
+        setGErr(t("gErrNoEvents"));
+        return;
+      }
+      setOutcome(out);
+      setSelected(new Set(out.proposals.filter((p) => !p.sensitive).map((p) => p.id)));
+      setBusy(false);
+      setStep("review");
+    } catch (e) {
+      setBusy(false);
+      setGErr(e === "native_pending" ? t("gErrNative") : e === "denied" ? t("gErrDenied") : t("gErrGeneric"));
+    }
   };
 
   const ratify = async () => {
@@ -246,15 +278,35 @@ export function ImportHubScreen() {
           </View>
         </Pressable>
 
-        {s.mode === "connector" ? (
-          <View style={styles.noteCard}>
-            <Text style={styles.noteText}>{t("connectorNote")}</Text>
-          </View>
-        ) : null}
-
-        <Pressable onPress={() => setStep("input")} hitSlop={6} style={styles.primaryBtn}>
-          <Text style={styles.primaryText}>{s.mode === "connector" ? t("orImportFile") : t("consentPick")}</Text>
-        </Pressable>
+        {s.mode === "connector" && s.key === "google" ? (
+          <>
+            <View style={styles.noteCard}>
+              <Text style={styles.noteText}>{t("googleConnectorNote")}</Text>
+            </View>
+            {gErr ? <OpsState variant="error" title={t("errTitle")} body={gErr} /> : null}
+            {googleClientId ? (
+              <Pressable onPress={connectGoogle} hitSlop={6} style={[styles.primaryBtn, busy ? styles.disabled : null]} disabled={busy}>
+                <Text style={styles.primaryText}>{busy ? t("connecting") : t("googleConnect")}</Text>
+              </Pressable>
+            ) : null}
+            <Pressable onPress={() => setStep("input")} hitSlop={6} style={styles.secondaryBtn}>
+              <Text style={styles.secondaryText}>{t("orImportFile")}</Text>
+            </Pressable>
+          </>
+        ) : s.mode === "connector" ? (
+          <>
+            <View style={styles.noteCard}>
+              <Text style={styles.noteText}>{t("connectorNote")}</Text>
+            </View>
+            <Pressable onPress={() => setStep("input")} hitSlop={6} style={styles.primaryBtn}>
+              <Text style={styles.primaryText}>{t("orImportFile")}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <Pressable onPress={() => setStep("input")} hitSlop={6} style={styles.primaryBtn}>
+            <Text style={styles.primaryText}>{t("consentPick")}</Text>
+          </Pressable>
+        )}
         <Text style={styles.fine}>{t("consentFine")}</Text>
       </View>
     );
@@ -367,6 +419,10 @@ function COPY(ko: boolean): Record<string, string> {
         what: "무엇을", where: "어디에", whereBody: "이 기기에서 분석하고 원문은 버려요. 파생 신호만 암호화해 보관해요.",
         keep90: "보관 90일", deleteAnytime: "언제든 삭제", onDeviceOnly: "이 기기에서만 처리",
         connectorNote: "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청해요. (네이티브 빌드 필요)",
+        googleConnectorNote: "브라우저에서 구글 계정으로 안전하게 연결해요. 읽기 전용(일정 보기)이에요.",
+        googleConnect: "구글 캘린더 연결", connecting: "연결 중…",
+        gErrNoEvents: "다가오는 일정이 없어요.", gErrDenied: "연결이 취소됐어요. 다시 시도해 주세요.",
+        gErrNative: "지금은 웹에서만 연결돼요. 앱(네이티브)은 추후 지원해요.", gErrGeneric: "연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
         consentPick: "동의하고 파일 선택", orImportFile: "대신 파일로 가져오기",
         consentFine: "수집 항목·보관 위치·기간·삭제권에 동의해요. 미성년은 통신·위치 임포트가 잠겨 있어요.",
         pasteHint: "내보낸 파일 내용을 붙여넣어 주세요.", pastePlaceholder: "여기에 붙여넣기", analyze: "분석",
@@ -383,6 +439,10 @@ function COPY(ko: boolean): Record<string, string> {
         what: "WHAT", where: "WHERE", whereBody: "Parsed on this device; the raw is discarded. Only derived signals are kept, encrypted.",
         keep90: "Kept 90 days", deleteAnytime: "Delete anytime", onDeviceOnly: "Process on this device only",
         connectorNote: "The next screen requests location \"while using\" only. (needs the native build)",
+        googleConnectorNote: "Securely link your Google account in the browser. Read-only (view events).",
+        googleConnect: "Connect Google Calendar", connecting: "Connecting…",
+        gErrNoEvents: "No upcoming events.", gErrDenied: "Connection cancelled. Try again.",
+        gErrNative: "Connect on web for now. App (native) support comes later.", gErrGeneric: "Couldn't connect. Try again shortly.",
         consentPick: "Consent and pick file", orImportFile: "Import a file instead",
         consentFine: "You consent to what's collected, where it's kept, for how long, and your right to delete. Comms/location import is locked for minors.",
         pasteHint: "Paste the exported file's contents.", pastePlaceholder: "Paste here", analyze: "Analyze",
@@ -440,6 +500,8 @@ const styles = StyleSheet.create({
   primaryBtn: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.mint, marginTop: 4 },
   primaryText: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.onMint },
   disabled: { opacity: 0.5 },
+  secondaryBtn: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, borderWidth: 1, borderColor: deepSpace.cardLineStrong, backgroundColor: deepSpace.card, marginTop: 4 },
+  secondaryText: { fontFamily: fontFamilies.pixelKo, fontSize: 13, color: deepSpace.accentSoft },
   fine: { fontSize: 12, color: deepSpace.textLo, lineHeight: 17, textAlign: "center" },
 
   pasteInput: {
