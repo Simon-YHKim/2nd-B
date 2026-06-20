@@ -23,17 +23,17 @@
 | 👟 | 운동 루틴 | `exercise_routine` | Health Connect/HealthKit | 🟢 | ✗ | ✓ | 🔴 EAS+법무(G3/G4) · **Slice 1 출하** | `react-native-health-connect` |
 | 💪 | 운동 아이디어 | `exercise_ideas` | AI 제안(위키 근거) | ⚪ | ✓ | ✓ | 없음 · **출하(적응형)** | `recommendForDomain`(C1) |
 | 🧘 | 건강 관리 루틴 | `health_routine` | Health Connect/HealthKit | 🟢 | ✗ | ✓ | 🔴 EAS+법무(G3/G4) | 위와 동일 허브 |
-| 🥗 | 주간 식단 계획 | `weekly_meals` | 식약처 식품영양 DB(data.go.kr) + AI | 🔵⚪ | △ | ✓ | 🟠 무료 API키 등록 | `fetch` + 결정론 파서 |
-| 🥣 | 간단한 식사 | `simple_meals` | 식약처 식품영양 DB + AI | 🔵⚪ | △ | ✓ | 🟠 무료 API키 등록 | (식단과 공유) |
-| 📚 | 독서·학습 목록 | `reading_list` | **Google Books API(키 불필요)** | 🔵 | ✗ | ✓ | **없음 · ✅ 이번 PR 구현** | `src/lib/reading/books.ts` |
+| 🥗 | 주간 식단 계획 | `weekly_meals` | 식약처 식품영양 DB(data.go.kr) + AI | 🔵⚪ | △ | ✓ | 🟠 무료 키 · **✅ lib 구현(키-graceful)** | `src/lib/nutrition/foods.ts` |
+| 🥣 | 간단한 식사 | `simple_meals` | 식약처 식품영양 DB + AI | 🔵⚪ | △ | ✓ | 🟠 무료 키 · **✅ lib(식단과 공유)** | `src/lib/nutrition/foods.ts` |
+| 📚 | 독서·학습 목록 | `reading_list` | **Google Books API(키 불필요)** | 🔵 | ✗ | ✓ | **없음 · ✅ 구현** | `src/lib/reading/books.ts` |
 | 📒 | 학습 목표 | `learning_goals` | 수동 마일스톤 + 주기 AI 점검 (+Books) | 🟡⚪ | △ | ✓ | 없음 | 결정론 마일스톤 |
 | 🗣️ | 언어 연습 | `language_practice` | 온디바이스 SRS(FSRS) | 🟢🟡 | ✗ | ✓ | 없음 · **출하(#476)** | `ts-fsrs`(MIT) |
 | 🧗 | 커리어 성장 점검 | `career_check` | 수동 + 주기 AI 회고 | 🟡⚪ | △ | ✓ | 없음 | 결정론 + C1 회고 |
-| 💰 | 재정 점검 | `money_check` | 수동 가계부(결정론) + 수출입은행 FX | 🟡🔵 | ✗ | ✓ | 가계부=없음 · FX=🟠키 | `fetch` FX |
+| 💰 | 재정 점검 | `money_check` | 수동 가계부(결정론) + 수출입은행 FX | 🟡🔵 | ✗ | ✓ | 가계부=없음 · FX=🟠키 · **✅ lib+마이그레이션 구현** | `finance/ledger.ts`+`fx.ts` |
 | ✅ | 일일 집중 계획 | `daily_focus` | 온디바이스 포모도로 | 🟢 | ✗ | ✓ | 없음 · **#477 대기** | `pomodoro.ts`+`expo-notifications` |
 | 🧹 | 집 정리 체크리스트 | `home_reset` | 체크리스트(결정론) | 🟡 | ✗ | ✓ | 없음 · **출하** | 결정론 |
 | 📰 | 빠른 뉴스 요약 | `news_digest` | RSS(연합/네이버, 키 불필요) | 🔵 | ✗(보류) | ✓ | 없음 · **#478 엔진 대기, UI 큐** | `fast-xml-parser`(v4) |
-| 🎨 | 창의적 사이드 프로젝트 | `side_project` | GitHub API(공개 read, 키 불필요) | 🔵🟡 | ✗ | ✓ | 없음(유저명 입력만) | `fetch`(octokit 불요) |
+| 🎨 | 창의적 사이드 프로젝트 | `side_project` | GitHub API(공개 read, 키 불필요) | 🔵🟡 | ✗ | ✓ | 없음(유저명 입력만) · **✅ lib 구현** | `src/lib/projects/github.ts` |
 
 ### 게이트별 묶음 (합리적 착수 순서)
 - **게이트 0 · $0 · 지금 구현 가능 (logic-first)**: `reading_list`(✅완료) → `money_check`
@@ -135,12 +135,20 @@
 - `exercise_routine`/`health_routine` — Health Connect/HealthKit 권한·동의 UI는 P3 법무
   게이트(G3)와 함께 별도 사이클.
 
-## 4. 다음 합리적 착수 (게이트 0 우선)
-1. ✅ `reading_list`(이번 PR) — IN-bound 패턴 정착.
-2. `side_project` 공개 GitHub 활동 lib(키 불필요, `fetch`, 결정론 파서 + 테스트) — Books와 동일 패턴.
-3. `money_check` 수동 가계부 lib(결정론, 게이트 0). FX는 키 등록 후.
+## 4. 구현 현황 + 남은 일
+
+**✅ 이번 PR에서 lib 구현 완료 (전부 순수 파서 + 테스트, $0, 새 의존성 0):**
+- `reading_list` — `src/lib/reading/books.ts` (Google Books, 키 불필요)
+- `side_project` — `src/lib/projects/github.ts` (GitHub 공개 활동, 키 불필요)
+- `money_check` — `src/lib/finance/ledger.ts` (수동 가계부) + `db/migrations/0052_ops_ledger.sql` + `src/lib/finance/fx.ts` (수출입은행 FX, 키-graceful)
+- `weekly_meals`/`simple_meals` — `src/lib/nutrition/foods.ts` (식약처 영양, 키-graceful)
+
+**남은 일 (게이트별):**
+1. **화면 배선** — 위 lib들은 logic-first(엔진 준비 완료). DP-R1/M1/F1/S1 디자인 정본 도착 후 화면에 배선 + recommend 근거 주입(예: side_project ↔ GitHub 요약, adherence 신호처럼).
+2. **🟠 무료 키 등록 (Simon 콘솔)** — `EXPO_PUBLIC_EXIM_FX_KEY`(수출입은행), `EXPO_PUBLIC_MFDS_FOOD_KEY`(식약처 data.go.kr). 미설정 시 KRW-only/아이디어-only로 graceful 동작.
+3. **prod 마이그레이션 apply** — `0052_ops_ledger.sql` (CI dry-run 통과 후 Simon이 prod apply).
 4. `news_digest` — #478 머지 후 UI(DP는 기존 큐).
-5. 🟠 식약처/수출입은행 키 등록(Simon 콘솔) → 식단·FX 연동.
+5. **🔴 무거운 게이트** — Health Connect/HealthKit(운동/건강, EAS+PIPA), Google Calendar/Tasks 푸시(P3).
 
 ### 검증
 ```bash
