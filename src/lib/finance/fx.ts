@@ -21,7 +21,9 @@ export interface FxRate {
   name?: string;
 }
 
-const EXIM_ENDPOINT = "https://www.koreaexim.go.kr/site/program/financial/exchangeJSON";
+// oapi.* host: the old www.koreaexim.go.kr OpenAPI domain was retired (Eximbank
+// migration, old host discontinued 2026-04-30). Path + params are unchanged.
+const EXIM_ENDPOINT = "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON";
 
 /** Parse "1,303.5" / "1,234" style numbers (Eximbank returns comma strings). */
 export function parseRateNumber(value: unknown): number | undefined {
