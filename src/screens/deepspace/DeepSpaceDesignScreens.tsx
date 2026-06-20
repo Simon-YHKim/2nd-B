@@ -285,6 +285,7 @@ export function DeepSpaceSignInDesignScreen() {
     handleNaver,
     handleForgotPassword,
   } = useSignInForm();
+  const passwordRef = useRef<TextInput>(null);
 
   if (loading) {
     return (
@@ -315,6 +316,9 @@ export function DeepSpaceSignInDesignScreen() {
           placeholderTextColor={colors.textLo}
           accessibilityLabel={t("auth:signIn.email")}
           style={styles.input}
+          returnKeyType="next"
+          blurOnSubmit={false}
+          onSubmitEditing={() => passwordRef.current?.focus()}
         />
         <View style={styles.authLabelRow}>
           <Text style={styles.authLabel}>{t("auth:signIn.password")}</Text>
@@ -330,6 +334,7 @@ export function DeepSpaceSignInDesignScreen() {
           </Pressable>
         </View>
         <TextInput
+          ref={passwordRef}
           value={password}
           onChangeText={setPassword}
           secureTextEntry={!showPassword}
@@ -491,6 +496,8 @@ export function DeepSpaceSignUpDesignScreen() {
     handleOAuth,
     handleNaver,
   } = useSignUpForm();
+  const passwordRef = useRef<TextInput>(null);
+  const birthDateRef = useRef<TextInput>(null);
 
   if (loading) {
     return (
@@ -525,9 +532,13 @@ export function DeepSpaceSignUpDesignScreen() {
           placeholderTextColor={colors.textLo}
           accessibilityLabel={t("auth:signUp.email")}
           style={styles.input}
+          returnKeyType="next"
+          blurOnSubmit={false}
+          onSubmitEditing={() => passwordRef.current?.focus()}
         />
         <Text style={styles.authLabel}>{t("auth:signUp.password")}</Text>
         <TextInput
+          ref={passwordRef}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -537,10 +548,14 @@ export function DeepSpaceSignUpDesignScreen() {
           placeholderTextColor={colors.textLo}
           accessibilityLabel={t("auth:signUp.password")}
           style={styles.input}
+          returnKeyType="next"
+          blurOnSubmit={false}
+          onSubmitEditing={() => birthDateRef.current?.focus()}
         />
         <Text style={styles.authHelper}>{t("auth:signUp.passwordHelper")}</Text>
         <Text style={styles.authLabel}>{t("auth:signUp.birthDate")}</Text>
         <TextInput
+          ref={birthDateRef}
           value={birthDate}
           onChangeText={(next) => setBirthDate(formatBirthDateInput(next))}
           autoCapitalize="none"
@@ -551,6 +566,7 @@ export function DeepSpaceSignUpDesignScreen() {
           accessibilityLabel={t("auth:signUp.birthDate")}
           accessibilityHint={t("auth:signUp.birthDateHelper")}
           style={styles.input}
+          returnKeyType="done"
         />
         <Text style={styles.authHelper}>{t("auth:signUp.birthDateHelper")}</Text>
 
