@@ -4,6 +4,72 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
+## Latest — 2026-06-20 / Wave 1·2 — 일일집중 타이머(딥스페이스 정본) + 뉴스 엔진(RSS-only, 보안 하드닝)
+
+두 PR을 머지 대기 상태까지: **#477 일일집중 포모도로 타이머**(focus-timer.dc 정본)와 **#478 뉴스 다이제스트 엔진**(AI 요약은 의도적으로 defer, RSS-only). #478은 Codex P2 리뷰 4라운드를 거쳐 third-party(비-사용자) 콘텐츠 안전 표면을 정리.
+
+### 어디까지 왔나
+- main HEAD: `9798b79` (#476 FSRS 언어연습까지 머지됨). 이번 세션 PR은 **아직 main 미머지** — 둘 다 green·clean, 사용자 "머지해" 대기.
+- **#477** `claude/focus-timer-ui-82evat` — daily-focus 타이머. SVG 링(stroke-dashoffset)+상태색(집중=cyan/휴식=cyanDim/완료=mint), 픽셀폰트, 시간설정 시트(하드웨어 Back), `@/theme/tokens`만, 레거시 import 0, hex 0. CI green, mergeable clean.
+- **#478** `claude/news-engine-82evat` — RSS-only 뉴스 엔진. CI green, mergeable clean.
+- 테스트: `npm run verify` green — 203 suites / 1620 tests, check:constraints green.
+- working tree: clean.
+
+### #478 결정 & 하드닝 (중요)
+- **AI 요약 제거, RSS-only 출시**: 초안은 capped + C1-routed AI 요약을 넣었으나, third-party 기사 텍스트를 `classifyInput`(C9)+`ai_audit_log`(C3) 경로(=사용자 입력용)로 태우면 **false-crisis 로깅** 등 부작용. 안전 계약을 약화하느니, 지금은 순수 RSS 리더로 출시하고 요약은 **별도 third-party-content 안전 게이트웨이** 뒤로 defer.
+- 삭제: `summarize.ts`/`queries.ts`(+테스트), `0052_news_items.sql`, `news_summarize` PromptPurpose+mock 분기, `news_items`(types.gen). **`news/`에 LLM/crisis/migration/DB 표면 0**.
+- 유지: `feeds.ts`(allowlist)·`parse.ts`(pure)·`fetch.ts`(platform-aware)·`rss-proxy` 엣지펑션(JWT+SSRF allowlist).
+- Codex P2 하드닝(이번 세션):
+  - parse.ts: `MAX_XML_CHARS`(2M) 입력 상한 → parse 전 슬라이스(OOM 차단)
+  - parse.ts: `new URL` 스킴 가드 — http(s)만, `javascript:`/`data:`/상대/guid 드롭
+  - rss-proxy: `redirect:'manual'`+3xx 거부(첫 홉 외 SSRF 차단), 본문 `MAX_UPSTREAM_BYTES` 상한
+  - fetch.ts: `classifyProxyInvokeError` — 프록시 502(피드 장애)→`fetch_failed`, 그 외→`proxy_unavailable`
+  - 인증: anon/invalid JWT를 upstream fetch 전 401로 거부(이미 적용돼 있었음)
+- 커밋: `95ba160`(parse/proxy 하드닝) · `f3ff06b`(프록시 에러 분류) · `a6f4324`(fast-xml-parser v4 유지 + entity 하드닝).
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **#477 + #478 머지** (둘 다 green·clean, 독립적) | small | ⭐ 사용자 "머지" 한마디면 squash 머지 |
+| B | ⑥ 뉴스 다이제스트 **UI** — 디자인 정본을 RSS 엔진 위에 배선 | medium | ⭐ 클로드 디자인 정본 도착 순서대로 구현 |
+| C | `rss-proxy` 엣지펑션 **배포** + `RSS_PROXY_ALLOWED_ORIGINS`(Vercel origin) 세팅 | small | 웹 뉴스 라이브 전 필수 (네이티브는 직접 fetch로 동작) |
+| D | AI 뉴스 요약 — third-party-content 안전 게이트웨이 설계 후 복귀 | large | C9 사용자-입력 분류기와 분리된 경로 |
+| E | #473 Slice 2 네이티브 health (실기기 QA 게이트) | medium | 디바이스 QA 후 |
+| F | OAuth provider Supabase 대시보드 등록 + `EXPO_PUBLIC_ENABLE_<PROVIDER>` | small | google 검증됨; 나머지 OFF |
+
+### 적용 중인 정책 (영구)
+1. **harness-first** — AI/알고리즘 필요 시 자체구현·raw LLM 금지. GitHub 카테고리 리더(stars+recency+MIT/Apache)를 먼저. AI는 최후수단, 항상 C1 게이트웨이 경유. (docs/PERSONAL-ASSISTANT-ROADMAP.md §0)
+2. **third-party(비-사용자) 콘텐츠는 사용자-입력 안전경로(C9/C3)로 태우지 않는다** — 기사/외부 텍스트 요약은 별도 게이트웨이가 생길 때까지 보류. 잘못 태우면 false-crisis 이벤트가 사용자 계정에 남음.
+3. **fast-xml-parser는 v4 유지**(strnum 단일 dep). v5는 6 transitive deps라 $0/경량 원칙 위배 → 업그레이드 금지. entity는 `processEntities:false`로 하드닝. npm audit의 advisory는 XMLBuilder 전용(우리는 XMLParser만 사용 → 비해당).
+4. **`git reset --hard` 금지**(auto-classifier 차단) → `git checkout` / `git pull --ff-only` 사용.
+5. main 직접 push 금지, 항상 PR. 자동 머지는 사용자 확인 후.
+6. 디자인은 클로드 디자인에 프롬프트 전달 → 정본 도착하면 구현. `@/theme/tokens`만, hex 0, 레거시 import 0.
+
+### 핵심 파일 위치
+```
+src/lib/news/feeds.ts          RSS 피드 목록 + isAllowedFeedUrl allowlist
+src/lib/news/parse.ts          pure RSS/Atom→NewsItem (size cap + http(s) 가드)
+src/lib/news/fetch.ts          platform-aware fetch + classifyProxyInvokeError
+supabase/functions/rss-proxy/  Deno 엣지펑션 (JWT + SSRF allowlist + redirect 가드)
+src/screens/deepspace/DeepSpaceDesignScreens.tsx  DeepSpaceFocusScreen(#477)
+src/lib/ops/pomodoro.ts        포모도로 상태머신(#475)
+docs/PERSONAL-ASSISTANT-ROADMAP.md  14영역 소스 매핑 + harness-first 원칙
+```
+
+### 검증
+```bash
+npm run verify   # lint+type+i18n+lexicon+LLM boundary+constraints+jest (203 suites/1620 tests)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# A 작업(#477/#478 머지)부터, 또는 B(뉴스 UI 디자인 정본 구현)
+```
+
+---
+
 ## Latest — 2026-06-19 / Phase A — ops 관리 레이어 (루틴 저장 + 로컬 알람 + 오늘의 루틴/완료 추적)
 
 브랜치 `claude/ops-routines-82evat`. SUGGEST 엔진(`recommend.ts`) 위에 MANAGE 레이어를 추가: 이미 게이트된 추천을 영속 루틴으로 저장하고, 기존 로컬 알람 스케줄러로 리마인더를 걸고, 오늘 due한 루틴을 체크박스로 완료 추적.
