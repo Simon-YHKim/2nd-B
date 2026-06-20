@@ -12,7 +12,7 @@
 // from birth_date, so a former minor's locks lift automatically on /privacy.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, View, KeyboardAvoidingView, Platform } from "react-native";
+import { ScrollView, StyleSheet, View, KeyboardAvoidingView, Platform, Share } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -27,6 +27,7 @@ import { signOut } from "@/lib/supabase/auth";
 import { fetchBirthDate, updateBirthDate } from "@/lib/supabase/account";
 import { canSubmitDobCorrection } from "@/lib/account/dob";
 import { deleteAllUserData, requestAccountDeletion } from "@/lib/records/delete-bulk";
+import { requestAccountExport, buildExportFilename } from "@/lib/account/export";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceAccountDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
@@ -48,6 +49,8 @@ function AccountLegacy() {
   const [dobSaved, setDobSaved] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportNote, setExportNote] = useState<"done" | "failed" | null>(null);
   const [feedbackModal, setFeedbackModal] = useState<AccountFeedbackModal>(null);
   const mounted = useRef(true);
 
@@ -132,6 +135,41 @@ function AccountLegacy() {
     if (!userId) return;
     setFeedbackModal("deleteConfirm");
   }, [userId]);
+
+  // GDPR Art.20 portability: pull the full structured JSON bundle from the
+  // export-account Edge Function and hand it to the user (web download / native
+  // share sheet). Read-only and own-data-only (the function derives the user from
+  // the JWT). Requires the function to be deployed; surfaces a tone-appropriate
+  // failure otherwise.
+  const onExportData = useCallback(() => {
+    if (!userId || exporting) return;
+    setExportNote(null);
+    setExporting(true);
+    void (async () => {
+      try {
+        const bundle = await requestAccountExport();
+        const json = JSON.stringify(bundle, null, 2);
+        const filename = buildExportFilename(bundle.exported_at);
+        if (Platform.OS === "web" && typeof document !== "undefined") {
+          const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+          anchor.href = url;
+          anchor.download = filename;
+          anchor.click();
+          URL.revokeObjectURL(url);
+        } else {
+          await Share.share({ message: json });
+        }
+        if (mounted.current) setExportNote("done");
+      } catch (e) {
+        if (typeof console !== "undefined") console.warn("[account] export failed", (e as Error).message);
+        if (mounted.current) setExportNote("failed");
+      } finally {
+        if (mounted.current) setExporting(false);
+      }
+    })();
+  }, [userId, exporting]);
 
   if (loading) {
     return (
@@ -227,6 +265,34 @@ function AccountLegacy() {
             variant="secondary"
             onPress={() => router.push("/privacy")}
             accessibilityHint={t("account.privacy.buttonHint")}
+          />
+        </View>
+
+        {/* Your data: export (GDPR Art.20 portability) */}
+        <View style={[styles.section, { borderStartColor: cosmic.signalMint }]}>
+          <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
+            {t("account.export.label")}
+          </Text>
+          <Text variant="subtle" color="textMuted">
+            {t("account.export.body")}
+          </Text>
+          {exportNote === "done" ? (
+            <Text variant="subtle" color="success">
+              {t("account.export.done")}
+            </Text>
+          ) : null}
+          {exportNote === "failed" ? (
+            <Text variant="subtle" color="danger">
+              {t("account.export.failed")}
+            </Text>
+          ) : null}
+          <Button
+            label={t("account.export.button")}
+            variant="secondary"
+            loading={exporting}
+            disabled={exporting}
+            onPress={onExportData}
+            accessibilityHint={t("account.export.buttonHint")}
           />
         </View>
 
