@@ -1281,6 +1281,20 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [디렉터 사이클 ✅ / 2026-06-21 / 02:43:47 KST] deep-space P0 Stage7 가드 2건 + 캐릭터 상태 진단 (Claude 실행자)
+**라이브 origin/main `eb1ebe43`** · https://simon-yhkim.github.io/2nd-B/ . 사이클 #2-3: 새 원격오더 0, 머지대상 dev PR 0(파이프라인은 타 Claude 세션이 #501 TTFV온보딩·#502 handoff 자체 green 머지, 확인함). deep-space P0 디벨롭 진행(유휴 금지):
+- **#503 머지(`eb1ebe43`)** `test(ui-mode)`: 플래그 해석 계약 가드(EXPO_PUBLIC_UI 미설정/오타→deep-space 정본 default·explicit legacy만 rollback·EXPO_PUBLIC_CHARACTER 3d/fallback, 기존 무커버리지). verify green.
+- **#504 PR open** `test(deep-space)`: 도크 nav dead-end 가드(DeepSpaceScreen TAB_ROUTE 라우트가 실 expo-router 파일로 해석되는지 source-deriving 검증). 다음 사이클 CI green 시 머지.
+- 둘 다 레포 fs 소스규율 관용구(무-RN-모킹·무충돌 신규파일) → churn 중 회귀 차단 + Stage7 자동 커버리지.
+
+**진단(읽기전용 매핑, 단독패치 보류 사유 명기)**:
+1. **`EXPO_PUBLIC_CHARACTER` 죽은 배선**: ui-mode.ts에 파싱되나 소비처 0. 본체 캐릭터=정적 PNG(SecondbHead). landing "3D"=실은 PNG 빌보드+절차적 표정(GLB 모델 아님), RN 3D 스택(three/expo-gl/r3f) 미설치=true 3D는 heavy deps+OOM 리스크. **Stage5 seam 거동(fallback=정적 vs 3D-lite lively)은 주플랫폼 native UX 결정 → §35 design-first 선행 필요(단독결정 부적절)**.
+2. **SecondbHead 이중구현(분기, 153줄차)**: `components/deep-space/`(셸 home) vs `components/deepspace/`(screens/deepspace/* = focus timer·TTFV 등 라이브 화면) 둘 다 사용 → 통합은 hot-file 대형 리팩토링(현 churn 충돌위험). coordinated Codex 레인 후보.
+3. **nav-contract.md stale**: 문서 §3(graph/profile primary)이 실 도크(capture/secondb/core-brain/iden)와 드리프트(라우트 파일은 양쪽 다 존재=누락0). 문서 갱신 필요.
+
+**deep-space 단일본체화 (P0)** = OPEN 유지. 잔여 = Stage5(캐릭터 본체화, 위 §1 design 결정 선행)·Stage7(persona-sim 자동화 잔여).
+
+
 ### [디렉터 사이클 ✅ / 2026-06-21 / 01:48:23 KST] O-30 종료 + deep-space P0 진척: PR 3건 머지·라이브 (Claude 실행자)
 **라이브 origin/main `e5926214`** · https://simon-yhkim.github.io/2nd-B/ . 이번 /loop 디렉터 사이클: orders-poll 미처리 2건 트리아지 → framework-aware 병렬 리뷰(서브에이전트 3) → CI green·MERGEABLE/CLEAN·게이트 미해당 PR 3건 squash 머지(파일 중복 0, merge-tree 충돌 0):
 - **#478 `feat(news)`** RSS-only 뉴스 다이제스트 엔진 (`f265157a`): SSRF 이중 allowlist·XXE off·DoS 바운드·auth-gated rss-proxy. DB 없음·LLM 없음·실비용 0. 엔진만(UI 미배선, Wave 2).
