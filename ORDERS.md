@@ -1281,6 +1281,16 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [디렉터 사이클 ✅ / 2026-06-21 / 05:59:36 KST] BFI 렌즈 스케일링 P1 수정(#515, 내 #509 버그) + #514 캡처큐 데이터-손실 검토→이슈 #516 (Claude 실행자)
+**라이브 origin/main `30207fec`** · https://simon-yhkim.github.io/2nd-B/ . 새 원격오더 0.
+- **🐛 #515 머지(`30207fec`)** `fix(persona)`: **내가 #509에서 넣은 P1 버그를 검증이 잡아 수정** — deep-space big-five 렌즈가 BFI(1-5 Likert)를 `(v/5)*100`로 잘못 스케일(중립 3→60%, 최저 1→20% = 틀린 자기-데이터). `bfiMeanToPercent`((v-1)/4)로 정규화 추출+big-five 적용+회귀테스트. buildPersona와 동일 스케일. (persona 데이터레이어 framework-aware 리뷰 산물.)
+- **🔍 #514 리뷰→이슈 #516**: 타 세션 #514(pre-account 캡처 큐 `preauth-pending.ts`, 데이터레이어) framework-aware 검토 — **호출처 0(와이어링 deferred)이라 latent지만 데이터-손실 footgun 3건**: P0 `drainPendingCaptures`가 서버확정 전 큐삭제→flush실패 시 유실, P1 비원자적 write→동시캡처 clobber, P2 write실패 삼킴→"저장됨" 오보 + C10 미성년게이트는 와이어링서 처리 필요. **갓-만든 타 세션 모듈+caller 컨트랙트 좌우라 단독 재작성 대신 이슈 #516로 소유자에 surface**(analyze→feedback, 비충돌).
+
+**코디네이션**: 검증이 (a)내 자신 버그(#509→#515)와 (b)타 세션 잠재 데이터-손실(#514→#516)을 둘 다 잡음 — CI는 AsyncStorage/Supabase 모킹이라 못 잡는 층. 검증 습관 유효.
+
+**deep-space P0** = 플릿 7렌즈 진행, 나는 검증·안전·비-플릿 슬라이스·머지 보완.
+
+
 ### [디렉터 사이클 ✅ / 2026-06-21 / 04:47:09 KST] main lexicon 게이트 복구(#511) + import-hub tier 틴트(#512) + FIDELITY_AUDIT가 방향 검증 (Claude 실행자)
 **라이브 origin/main `41dc070e`** · https://simon-yhkim.github.io/2nd-B/ . 새 원격오더 0.
 - **🔧 인시던트 수습 — #511 머지(`41dc070e`)** `fix(safety)`: 타 세션 #510(`docs/FIDELITY_AUDIT.md`)이 docs 감사파일에 non-clinical "treatment"(palette/visual treatment=디자인 prose) 담은 채 **red CI 머지로 main lexicon 게이트를 깨뜨림** → 수습(해당 파일 allowlist) + 동시에 발견한 **lexicon allowlist over-match 버그 수정**(`slice(0,-3)`→`-2`, 형제경로 `docs/legacy-quarantine`·`db/seed.sql` 오매치 차단, 게이트 강화) + 회귀 테스트. main 그린 복구.
