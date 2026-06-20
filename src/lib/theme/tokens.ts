@@ -257,6 +257,18 @@ export const deepSpace = {
   soulLine: "rgba(167,139,250,0.50)", // constellation links / soul borders
   // Mint — TIP labels, positive deltas, trust/level signals.
   mint: "#5FF0C0",
+  mintLine: "rgba(95,240,192,0.35)", // mint border (active/positive chips)
+  mintBg: "rgba(95,240,192,0.08)", // mint fill (active chips, consent line)
+  onMint: "#04241C", // dark text on a mint-filled CTA
+  onAccent: "#04101E", // dark text on an accent-filled CTA
+  // Warning — needs-attention (permission needed, rate-limited). Functional only.
+  warning: "#FFC478",
+  warningLine: "rgba(255,196,120,0.35)",
+  warningBg: "rgba(255,196,120,0.06)",
+  // Danger — overdue / error states. Functional only.
+  dangerText: "#FF9B9B",
+  dangerLine: "rgba(255,150,150,0.30)",
+  dangerBg: "rgba(255,120,120,0.05)",
   danger: cosmic.guardRose, // functional-color exception only
 } as const;
 
