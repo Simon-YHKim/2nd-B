@@ -12,13 +12,13 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router } from "expo-router";
 
+import { Text } from "@/components/ui/Text";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
 import { cosmicSky, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
@@ -105,7 +105,7 @@ function SignInLegacy() {
               </View>
             </Pressable>
             <View style={styles.brandSlot}>
-              <Text style={styles.brand} numberOfLines={1}>
+              <Text variant="caption" style={styles.brand} numberOfLines={1}>
                 {t("common:app.name")}
               </Text>
             </View>
@@ -121,7 +121,7 @@ function SignInLegacy() {
               accessibilityHint={locale === "ko" ? t("language.switchToEnglishHint") : t("language.switchToKoreanHint")}
               style={styles.localeButton}
             >
-              <Text style={styles.localeToggle}>{locale === "ko" ? "EN" : "한국어"}</Text>
+              <Text variant="caption" style={styles.localeToggle}>{locale === "ko" ? "EN" : "한국어"}</Text>
             </Pressable>
           </View>
 
@@ -134,13 +134,13 @@ function SignInLegacy() {
               accessibilityRole="image"
               accessibilityLabel={t("common.entryArtwork")}
             />
-            <Text style={styles.title}>{t("signIn.title")}</Text>
-            <Text style={styles.subtitle}>{t("signIn.subtitle")}</Text>
+            <Text variant="heading" style={styles.title}>{t("signIn.title")}</Text>
+            <Text variant="body" style={styles.subtitle}>{t("signIn.subtitle")}</Text>
           </View>
 
           {/* Form. */}
           <View style={styles.form}>
-            <Text style={styles.label}>{t("signIn.email")}</Text>
+            <Text variant="caption" style={styles.label}>{t("signIn.email")}</Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
@@ -155,7 +155,7 @@ function SignInLegacy() {
               style={styles.input}
             />
             <View style={styles.labelRow}>
-              <Text style={styles.label}>{t("signIn.password")}</Text>
+              <Text variant="caption" style={styles.label}>{t("signIn.password")}</Text>
               <Pressable
                 onPress={toggleShowPassword}
                 hitSlop={14}
@@ -196,7 +196,7 @@ function SignInLegacy() {
               accessibilityLabel={t("signIn.submit")}
               accessibilityState={{ disabled: !canSubmit, busy: submitting }}
             >
-              <Text style={styles.primaryBtnText}>
+              <Text variant="body" style={styles.primaryBtnText}>
                 {submitting ? t("signIn.submitting") : t("signIn.submit")}
               </Text>
             </Pressable>
@@ -206,7 +206,7 @@ function SignInLegacy() {
                 the footer below the fold. Keep it ghost-weight (the primary
                 action stays Sign in) directly under the CTA, in viewport. */}
             <View style={styles.signUpRow}>
-              <Text style={styles.subtleText}>{t("signIn.noAccount")}</Text>
+              <Text variant="caption" style={styles.subtleText}>{t("signIn.noAccount")}</Text>
               <Link href="/sign-up" asChild>
                 <Pressable
                   accessibilityRole="link"
@@ -214,14 +214,14 @@ function SignInLegacy() {
                   accessibilityHint={t("signIn.signUpHint")}
                   style={styles.footerLinkHit}
                 >
-                  <Text style={styles.linkText}>{t("signIn.signUpLink")}</Text>
+                  <Text variant="caption" style={styles.linkText}>{t("signIn.signUpLink")}</Text>
                 </Pressable>
               </Link>
             </View>
 
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerLabel}>{t("signIn.or")}</Text>
+              <Text variant="caption" style={styles.dividerLabel}>{t("signIn.or")}</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -234,7 +234,7 @@ function SignInLegacy() {
                 accessibilityLabel={t("signIn.continueWithGoogle")}
                 accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
-                <Text style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithGoogle")}</Text>
+                <Text variant="body" style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithGoogle")}</Text>
               </Pressable>
             ) : null}
 
@@ -247,7 +247,7 @@ function SignInLegacy() {
                 accessibilityLabel={t("signIn.continueWithApple")}
                 accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
-                <Text style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithApple")}</Text>
+                <Text variant="body" style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithApple")}</Text>
               </Pressable>
             ) : null}
 
@@ -260,7 +260,7 @@ function SignInLegacy() {
                 accessibilityLabel={t("signIn.continueWithKakao")}
                 accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
-                <Text style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithKakao")}</Text>
+                <Text variant="body" style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithKakao")}</Text>
               </Pressable>
             ) : null}
 
@@ -273,7 +273,7 @@ function SignInLegacy() {
                 accessibilityLabel={t("signIn.continueWithFacebook")}
                 accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
-                <Text style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithFacebook")}</Text>
+                <Text variant="body" style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithFacebook")}</Text>
               </Pressable>
             ) : null}
 
@@ -286,7 +286,7 @@ function SignInLegacy() {
                 accessibilityLabel={t("signIn.continueWithGithub")}
                 accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
-                <Text style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithGithub")}</Text>
+                <Text variant="body" style={styles.secondaryBtnText}>{oauthSubmitting ? "…" : t("signIn.continueWithGithub")}</Text>
               </Pressable>
             ) : null}
 
@@ -299,7 +299,7 @@ function SignInLegacy() {
                 accessibilityLabel={t("signIn.continueWithNaver")}
                 accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
               >
-                <Text style={styles.secondaryBtnText}>{t("signIn.continueWithNaver")}</Text>
+                <Text variant="body" style={styles.secondaryBtnText}>{t("signIn.continueWithNaver")}</Text>
               </Pressable>
             ) : null}
 
@@ -315,17 +315,17 @@ function SignInLegacy() {
               accessibilityHint={t("signIn.resetHint")}
               accessibilityState={{ disabled: resetSubmitting, busy: resetSubmitting }}
             >
-              <Text style={styles.subtleText}>
+              <Text variant="caption" style={styles.subtleText}>
                 {resetSubmitting ? t("signIn.resetSending") : t("signIn.forgotPassword")}
               </Text>
             </Pressable>
 
             {resetHelpVisible ? (
               <View style={styles.resetHelpCard} accessibilityRole="alert">
-                <Text style={styles.resetHelpTitle}>
+                <Text variant="heading" style={styles.resetHelpTitle}>
                   {resetEmailSentTo ? t("signIn.resetSentTitle") : t("signIn.resetTitle")}
                 </Text>
-                <Text style={styles.resetHelpBody}>
+                <Text variant="body" style={styles.resetHelpBody}>
                   {resetEmailSentTo ? t("signIn.resetSentBody", { email: resetEmailSentTo }) : t("signIn.resetBody")}
                 </Text>
               </View>
@@ -342,7 +342,7 @@ function SignInLegacy() {
                 accessibilityHint={t("signIn.manualHint")}
                 style={styles.manualLinkHit}
               >
-                <Text style={[styles.subtleText, styles.linkUnderline]}>
+                <Text variant="caption" style={[styles.subtleText, styles.linkUnderline]}>
                   {t("signIn.manualLink")}
                 </Text>
               </Pressable>
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   resetHelpTitle: { color: PALETTE.text, fontSize: 14, fontWeight: "700", letterSpacing: 0 },
-  resetHelpBody: { color: PALETTE.textMuted, fontSize: typography.sizes.sm, lineHeight: 20, letterSpacing: 0 },
+  resetHelpBody: { color: PALETTE.textMuted, fontSize: typography.sizes.sm, letterSpacing: 0 },
   toastWrap: {
     position: "absolute",
     left: spacing.lg,
