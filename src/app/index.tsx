@@ -806,7 +806,10 @@ export function GraphScreen() {
                 // IA (ops-ia §1): single home entry into the assistant (Ops).
                 // /ops is the hub; no duplicate entry (dedup).
                 title: locale === "ko" ? "비서" : "Assistant",
-                items: [{ key: "ops", label: locale === "ko" ? "오늘의 루틴" : "Today", route: "/ops" }],
+                items: [
+                  { key: "ops", label: locale === "ko" ? "오늘의 루틴" : "Today", route: "/ops" },
+                  { key: "import", label: locale === "ko" ? "가져오기" : "Import", route: "/import-hub" },
+                ],
               },
             ]}
           />
