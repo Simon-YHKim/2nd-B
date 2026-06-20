@@ -206,6 +206,25 @@ export function ChatView() {
 
 type LensState = "filled" | "empty" | "error";
 
+export type LensTraits = {
+  openness: number;
+  conscientiousness: number;
+  extraversion: number;
+  agreeableness: number;
+  neuroticism: number;
+};
+
+// Sample Big Five (0-100) for the design-preview / Soul Core reuse path that
+// renders <LensView/> with no real traits. The big-five route passes real,
+// loadLatestBfi-derived values via the `traits` prop instead of this sample.
+const DUMMY_LENS_TRAITS: LensTraits = {
+  openness: 72,
+  conscientiousness: 58,
+  extraversion: 41,
+  agreeableness: 67,
+  neuroticism: 39,
+};
+
 function StateToggle({ value, onChange }: { value: LensState; onChange: (s: LensState) => void }) {
   const { t } = useTranslation("home");
   const opts: { key: LensState; label: string }[] = [
@@ -231,12 +250,18 @@ function StateToggle({ value, onChange }: { value: LensState; onChange: (s: Lens
   );
 }
 
-export function LensView() {
+export function LensView({ traits }: { traits?: LensTraits | null } = {}) {
   const { t } = useTranslation("home");
-  const [state, setState] = useState<LensState>("filled");
+  // No prop (undefined) = design preview / Soul Core reuse: keep the manual
+  // state toggle + sample data. A provided `traits` drives the state from real
+  // data: an object → filled with those scores, null → empty (no result yet).
+  const demo = traits === undefined;
+  const [demoState, setDemoState] = useState<LensState>("filled");
+  const state: LensState = demo ? demoState : traits ? "filled" : "empty";
+  const shown = traits ?? DUMMY_LENS_TRAITS;
   return (
     <ScrollView contentContainerStyle={styles.body}>
-      <StateToggle value={state} onChange={setState} />
+      {demo ? <StateToggle value={demoState} onChange={setDemoState} /> : null}
       {state === "empty" ? (
         <View style={styles.centerState}>
           <Svg width={34} height={34} viewBox="0 0 24 24">
@@ -260,17 +285,16 @@ export function LensView() {
         </View>
       ) : (
         <View>
-          {/* TODO: replace dummy Big Five with persona/bfi.ts results. */}
           <View style={styles.filledHead}>
             <Text style={styles.pixelTitle}>{t("ds.lens.filledTitle")}</Text>
             <Text style={styles.level}>{t("ds.lens.level")}</Text>
           </View>
           <View style={styles.traits}>
-            <TraitBar label={t("ds.lens.traitOpenness")} value={72} />
-            <TraitBar label={t("ds.lens.traitConscientiousness")} value={58} />
-            <TraitBar label={t("ds.lens.traitExtraversion")} value={41} up />
-            <TraitBar label={t("ds.lens.traitAgreeableness")} value={67} />
-            <TraitBar label={t("ds.lens.traitNeuroticism")} value={39} />
+            <TraitBar label={t("ds.lens.traitOpenness")} value={shown.openness} />
+            <TraitBar label={t("ds.lens.traitConscientiousness")} value={shown.conscientiousness} />
+            <TraitBar label={t("ds.lens.traitExtraversion")} value={shown.extraversion} up={demo} />
+            <TraitBar label={t("ds.lens.traitAgreeableness")} value={shown.agreeableness} />
+            <TraitBar label={t("ds.lens.traitNeuroticism")} value={shown.neuroticism} />
           </View>
           <View style={styles.insightCard}>
             <Text style={styles.insightText}>{t("ds.lens.insight")}</Text>

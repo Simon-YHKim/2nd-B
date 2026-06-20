@@ -14,9 +14,11 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { LensView } from "@/components/deep-space/DeepSpaceViews";
+import { LensView, type LensTraits } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
+import { loadLatestBfi } from "@/lib/persona/build";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   BFI_ITEMS,
   TRAIT_LABEL_EN,
@@ -238,13 +240,50 @@ const styles = StyleSheet.create({
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
 
+function BigFiveDeepSpace() {
+  const { userId, loading } = useAuth();
+  const [traits, setTraits] = useState<LensTraits | null>(null);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!userId) {
+      setTraits(null);
+      return;
+    }
+    let cancelled = false;
+    loadLatestBfi(getSupabaseClient(), userId)
+      .then((r) => {
+        if (cancelled) return;
+        // BFI trait scores are 1-5 Likert means; the lens bars render 0-100.
+        setTraits(
+          r
+            ? {
+                openness: Math.round((r.openness / 5) * 100),
+                conscientiousness: Math.round((r.conscientiousness / 5) * 100),
+                extraversion: Math.round((r.extraversion / 5) * 100),
+                agreeableness: Math.round((r.agreeableness / 5) * 100),
+                neuroticism: Math.round((r.neuroticism / 5) * 100),
+              }
+            : null,
+        );
+      })
+      .catch(() => {
+        // Offline / query failure: fall back to the empty state, never dummy data.
+        if (!cancelled) setTraits(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, loading]);
+
+  return (
+    <DeepSpaceScreen active="lens">
+      <LensView traits={traits} />
+    </DeepSpaceScreen>
+  );
+}
+
 export default function BigFive() {
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen active="lens">
-        <LensView />
-      </DeepSpaceScreen>
-    );
-  }
+  if (isDeepSpaceUI()) return <BigFiveDeepSpace />;
   return <BigFiveLegacy />;
 }
