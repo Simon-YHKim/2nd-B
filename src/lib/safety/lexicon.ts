@@ -144,6 +144,10 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   // UX docs (audit reports, mascot diagnostics) cite the lexicon for
   // verification — they reference, not surface.
   "docs/ux/**",
+  // Deep-space fidelity audit / work-list: a dev reference doc whose prose uses
+  // "palette treatment" / "visual treatment" (design vocabulary, not clinical),
+  // which the substring scan flags. Reference doc, not a product surface.
+  "docs/FIDELITY_AUDIT.md",
   "supabase/seed/**",
   "db/seed/**",
   "node_modules/**",
