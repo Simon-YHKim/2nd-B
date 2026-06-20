@@ -13,6 +13,13 @@ verify_jwt = true
 # (user_id derived from the JWT, never from the request body).
 verify_jwt = true
 
+[functions.export-account]
+# Subject data portability (GDPR Art.20 / PIPA). verify_jwt=true so the gateway
+# validates the caller; the function exports ONLY the caller's own data
+# (user_id derived from the JWT, never from the request body), the same
+# IDOR-safety contract as delete-account. Never deploy with --no-verify-jwt.
+verify_jwt = true
+
 [functions.oauth-naver]
 # Pre-auth endpoint - the function IS the auth boundary: it validates the user
 # via Naver's OAuth and only then mints a Supabase session. (Kakao uses the
