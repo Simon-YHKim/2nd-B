@@ -29,6 +29,7 @@ import { recordHealthImportConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { mockSamplesForRange } from "@/lib/health/sources/mock";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
+import { opsRouteForDomain } from "@/lib/ops/nav";
 import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
 import { notifyNow, scheduleRoutineReminder, type ReminderResult } from "@/lib/ops/reminders";
@@ -2219,7 +2220,20 @@ export function DeepSpaceOpsScreen() {
       {group ? (
         <View style={styles.filterRow}>
           {domains.map((id) => (
-            <FilterChip key={id} label={t(`domains.${id}`)} active={domain === id} violet onPress={() => setDomain(id)} />
+            <FilterChip
+              key={id}
+              label={t(`domains.${id}`)}
+              active={domain === id}
+              violet
+              onPress={() => {
+                // IA (ops-ia §2): the picker is a router. Domains with a
+                // dedicated screen push to it (depth 2, Back → /ops); the rest
+                // stay in the /ops recommendation flow.
+                const route = opsRouteForDomain(id);
+                if (route) router.push(route);
+                else setDomain(id);
+              }}
+            />
           ))}
         </View>
       ) : null}
