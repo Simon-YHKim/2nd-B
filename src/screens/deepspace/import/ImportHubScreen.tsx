@@ -9,13 +9,14 @@
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { Text } from "@/components/ui/Text";
 import { SecondbStatusHeader } from "@/components/deepspace";
 import { MetaChip, OpsState, OpsStatusChip, ProgressBar, type OpsChipTone } from "@/components/deepspace/ops";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -211,12 +212,12 @@ export function ImportHubScreen() {
         <SecondbStatusHeader text={t("hubBubble")} tip={t("hubTip")} />
         <View style={styles.titleRow}>
           <Pressable accessibilityRole="button" onPress={back} hitSlop={10} style={styles.backBtn}>
-            <Text style={styles.backIcon}>‹</Text>
+            <RNText style={styles.backIcon}>‹</RNText>
           </Pressable>
-          <Text style={styles.title}>{step === "history" ? t("imported") : t("import")}</Text>
+          <Text variant="heading" style={styles.title}>{step === "history" ? t("imported") : t("import")}</Text>
           {step === "hub" ? (
             <Pressable onPress={() => setStep("history")} hitSlop={8} style={{ marginLeft: "auto" }}>
-              <Text style={styles.linkText}>{t("imported")} ›</Text>
+              <Text variant="caption" style={styles.linkText}>{t("imported")} ›</Text>
             </Pressable>
           ) : null}
         </View>
@@ -236,7 +237,7 @@ export function ImportHubScreen() {
       <>
         {tiers.map((tier) => (
           <View key={tier} style={styles.section}>
-            <Text style={[styles.tierLabel, { color: TIER_COLOR[tier] }]}>{t(`tier_${tier}`)}</Text>
+            <RNText style={[styles.tierLabel, { color: TIER_COLOR[tier] }]}>{t(`tier_${tier}`)}</RNText>
             {SOURCES.filter((s) => s.tier === tier).map((s) => {
               const locked = s.minorLocked && isMinor === true;
               const tone: OpsChipTone = locked ? "muted" : s.tier === "critical" ? "warning" : "muted";
@@ -258,10 +259,10 @@ export function ImportHubScreen() {
                   ]}
                   disabled={locked}
                 >
-                  <Text style={styles.sourceIcon}>{s.icon}</Text>
+                  <RNText style={styles.sourceIcon}>{s.icon}</RNText>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.sourceName}>{name(s)}</Text>
-                    <Text style={styles.sourceSub}>{ko ? s.subKo : s.subEn}</Text>
+                    <Text variant="heading" style={styles.sourceName}>{name(s)}</Text>
+                    <Text variant="subtle" style={styles.sourceSub}>{ko ? s.subKo : s.subEn}</Text>
                   </View>
                   <OpsStatusChip tone={tone} label={chip} />
                 </Pressable>
@@ -277,18 +278,18 @@ export function ImportHubScreen() {
     return (
       <View style={styles.section}>
         <View style={styles.consentHead}>
-          <Text style={styles.consentIcon}>{s.icon}</Text>
-          <Text style={styles.consentTitle}>{name(s)}</Text>
+          <RNText style={styles.consentIcon}>{s.icon}</RNText>
+          <Text variant="heading" style={styles.consentTitle}>{name(s)}</Text>
         </View>
         <OpsStatusChip tone={s.tier === "critical" ? "danger" : "warning"} label={t(`tier_${s.tier}`)} />
 
         <View style={styles.block}>
-          <Text style={styles.blockLabel}>{t("what")}</Text>
-          <Text style={styles.blockText}>{ko ? s.whatKo : s.whatEn}</Text>
+          <RNText style={styles.blockLabel}>{t("what")}</RNText>
+          <Text variant="body" style={styles.blockText}>{ko ? s.whatKo : s.whatEn}</Text>
         </View>
         <View style={styles.block}>
-          <Text style={styles.blockLabel}>{t("where")}</Text>
-          <Text style={styles.blockText}>{t("whereBody")}</Text>
+          <RNText style={styles.blockLabel}>{t("where")}</RNText>
+          <Text variant="body" style={styles.blockText}>{t("whereBody")}</Text>
         </View>
         <View style={styles.chipRow}>
           <MetaChip label={t("keep90")} />
@@ -296,7 +297,7 @@ export function ImportHubScreen() {
         </View>
 
         <Pressable onPress={() => setOnDevice((v) => !v)} hitSlop={6} style={styles.toggleRow}>
-          <Text style={styles.toggleText}>{t("onDeviceOnly")}</Text>
+          <Text variant="body" style={styles.toggleText}>{t("onDeviceOnly")}</Text>
           <View style={[styles.toggle, onDevice ? styles.toggleOn : styles.toggleOff]}>
             <View style={[styles.knob, onDevice ? styles.knobOn : styles.knobOff]} />
           </View>
@@ -305,35 +306,35 @@ export function ImportHubScreen() {
         {s.googleKind ? (
           <>
             <View style={styles.noteCard}>
-              <Text style={styles.noteText}>{t("googleConnectorNote")}</Text>
+              <Text variant="body" style={styles.noteText}>{t("googleConnectorNote")}</Text>
             </View>
             {gErr ? <OpsState variant="error" title={t("errTitle")} body={gErr} /> : null}
             {googleClientId ? (
               <Pressable onPress={connectGoogle} hitSlop={6} style={[styles.primaryBtn, busy ? styles.disabled : null]} disabled={busy}>
-                <Text style={styles.primaryText}>{busy ? t("connecting") : t("googleConnect")}</Text>
+                <Text variant="caption" style={styles.primaryText}>{busy ? t("connecting") : t("googleConnect")}</Text>
               </Pressable>
             ) : null}
             {s.googleKind === "calendar" ? (
               <Pressable onPress={() => setStep("input")} hitSlop={6} style={styles.secondaryBtn}>
-                <Text style={styles.secondaryText}>{t("orImportFile")}</Text>
+                <Text variant="caption" style={styles.secondaryText}>{t("orImportFile")}</Text>
               </Pressable>
             ) : null}
           </>
         ) : s.mode === "connector" ? (
           <>
             <View style={styles.noteCard}>
-              <Text style={styles.noteText}>{t("connectorNote")}</Text>
+              <Text variant="body" style={styles.noteText}>{t("connectorNote")}</Text>
             </View>
             <Pressable onPress={() => setStep("input")} hitSlop={6} style={styles.primaryBtn}>
-              <Text style={styles.primaryText}>{t("orImportFile")}</Text>
+              <Text variant="caption" style={styles.primaryText}>{t("orImportFile")}</Text>
             </Pressable>
           </>
         ) : (
           <Pressable onPress={() => setStep("input")} hitSlop={6} style={styles.primaryBtn}>
-            <Text style={styles.primaryText}>{t("consentPick")}</Text>
+            <Text variant="caption" style={styles.primaryText}>{t("consentPick")}</Text>
           </Pressable>
         )}
-        <Text style={styles.fine}>{t("consentFine")}</Text>
+        <Text variant="subtle" style={styles.fine}>{t("consentFine")}</Text>
       </View>
     );
   }
@@ -341,8 +342,8 @@ export function ImportHubScreen() {
   function renderInput(s: ImportSource) {
     return (
       <View style={styles.section}>
-        <Text style={styles.tierLabel}>{name(s)}</Text>
-        <Text style={styles.blockText}>{t("pasteHint")}</Text>
+        <RNText style={styles.tierLabel}>{name(s)}</RNText>
+        <Text variant="body" style={styles.blockText}>{t("pasteHint")}</Text>
         <TextInput
           value={paste}
           onChangeText={setPaste}
@@ -359,7 +360,7 @@ export function ImportHubScreen() {
           style={[styles.primaryBtn, paste.trim().length === 0 ? styles.disabled : null]}
           disabled={paste.trim().length === 0}
         >
-          <Text style={styles.primaryText}>{t("analyze")}</Text>
+          <Text variant="caption" style={styles.primaryText}>{t("analyze")}</Text>
         </Pressable>
       </View>
     );
@@ -373,28 +374,28 @@ export function ImportHubScreen() {
           <View style={{ flex: 1 }}>
             <ProgressBar value={1} color={deepSpace.mint} />
           </View>
-          <Text style={styles.doneText}>{t("done")}</Text>
+          <Text variant="caption" style={styles.doneText}>{t("done")}</Text>
         </View>
         <View style={styles.summaryRow}>
           <Summary n={out.summary.appointments} label={t("appts")} />
           <Summary n={out.summary.places + out.summary.events} label={t("places")} />
           <Summary n={0} label={t("raw")} dim />
         </View>
-        <Text style={styles.tierLabel}>{t("pickToApply")}</Text>
+        <RNText style={styles.tierLabel}>{t("pickToApply")}</RNText>
         {out.proposals.map((p) => {
           const on = selected.has(p.id);
           return (
             <Pressable key={p.id} onPress={() => toggleSel(p.id)} hitSlop={4} style={[styles.proposalRow, on ? styles.proposalOn : null]}>
-              <View style={[styles.check, on ? styles.checkOn : null]}>{on ? <Text style={styles.checkMark}>✓</Text> : null}</View>
+              <View style={[styles.check, on ? styles.checkOn : null]}>{on ? <RNText style={styles.checkMark}>✓</RNText> : null}</View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.proposalLabel} numberOfLines={1}>{p.label}</Text>
-                <Text style={styles.proposalSub}>{p.sub}{p.sensitive ? ` · ${t("sensitiveExcluded")}` : ""}</Text>
+                <Text variant="body" style={styles.proposalLabel} numberOfLines={1}>{p.label}</Text>
+                <Text variant="subtle" style={styles.proposalSub}>{p.sub}{p.sensitive ? ` · ${t("sensitiveExcluded")}` : ""}</Text>
               </View>
             </Pressable>
           );
         })}
         <Pressable onPress={ratify} hitSlop={6} style={[styles.primaryBtn, count === 0 || busy ? styles.disabled : null]} disabled={count === 0 || busy}>
-          <Text style={styles.primaryText}>{t("applyN").replace("{n}", String(count))}</Text>
+          <Text variant="caption" style={styles.primaryText}>{t("applyN").replace("{n}", String(count))}</Text>
         </Pressable>
       </View>
     );
@@ -409,19 +410,19 @@ export function ImportHubScreen() {
           history.map((h) => (
             <View key={h.id} style={styles.historyRow}>
               <View style={styles.historyTop}>
-                <Text style={styles.historyName}>{h.name}</Text>
-                <Text style={styles.historyTime}>{h.atIso.slice(0, 10)}</Text>
+                <Text variant="heading" style={styles.historyName}>{h.name}</Text>
+                <Text variant="subtle" style={styles.historyTime}>{h.atIso.slice(0, 10)}</Text>
               </View>
               <View style={styles.historyBottom}>
-                <Text style={styles.historySummary}>{h.summary}</Text>
+                <Text variant="subtle" style={styles.historySummary}>{h.summary}</Text>
                 <Pressable onPress={() => void removeHistory(h.id)} hitSlop={8} style={styles.deleteBtn}>
-                  <Text style={styles.deleteText}>{t("delete")}</Text>
+                  <Text variant="caption" style={styles.deleteText}>{t("delete")}</Text>
                 </Pressable>
               </View>
             </View>
           ))
         )}
-        <Text style={styles.fine}>{t("historyFine")}</Text>
+        <Text variant="subtle" style={styles.fine}>{t("historyFine")}</Text>
       </View>
     );
   }
@@ -430,8 +431,8 @@ export function ImportHubScreen() {
 function Summary({ n, label, dim }: { n: number; label: string; dim?: boolean }) {
   return (
     <View style={[styles.summaryBox, dim ? styles.summaryBoxDim : null]}>
-      <Text style={[styles.summaryNum, dim ? styles.summaryNumDim : null]}>{n}</Text>
-      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text variant="heading" style={[styles.summaryNum, dim ? styles.summaryNumDim : null]}>{n}</Text>
+      <Text variant="subtle" style={styles.summaryLabel}>{label}</Text>
     </View>
   );
 }
@@ -487,8 +488,8 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
   backBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   backIcon: { color: deepSpace.accentBright, fontSize: 24 },
-  title: { fontFamily: fontFamilies.pixelKo, fontSize: 18, color: deepSpace.accentBright },
-  linkText: { fontSize: 12, color: deepSpace.accentSoft, fontFamily: fontFamilies.pixelKo },
+  title: { fontSize: 18, color: deepSpace.accentBright },
+  linkText: { fontSize: 12, color: deepSpace.accentSoft },
 
   section: { gap: deepSpaceSpacing.sm },
   tierLabel: { fontFamily: fontFamilies.pixelEn, fontSize: 8, letterSpacing: 1, color: deepSpace.textLo, marginTop: deepSpaceSpacing.sm },
@@ -499,15 +500,15 @@ const styles = StyleSheet.create({
     borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card,
   },
   sourceIcon: { fontSize: 16 },
-  sourceName: { fontFamily: fontFamilies.pixelKo, fontSize: 13, color: deepSpace.accentBright },
+  sourceName: { fontSize: 13, color: deepSpace.accentBright },
   sourceSub: { fontSize: 12, color: deepSpace.textLo, marginTop: 1 },
 
   consentHead: { flexDirection: "row", alignItems: "center", gap: 9 },
   consentIcon: { fontSize: 17 },
-  consentTitle: { fontFamily: fontFamilies.pixelKo, fontSize: 16, color: deepSpace.textHi },
+  consentTitle: { fontSize: 16, color: deepSpace.textHi },
   block: { padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card, gap: 6 },
   blockLabel: { fontFamily: fontFamilies.pixelEn, fontSize: 7, letterSpacing: 1, color: deepSpace.accentSoft },
-  blockText: { fontSize: 14, color: deepSpace.textMid, lineHeight: 20 },
+  blockText: { fontSize: 14, color: deepSpace.textMid },
   chipRow: { flexDirection: "row", gap: 6 },
   toggleRow: {
     flexDirection: "row", alignItems: "center", gap: 9, minHeight: 48, paddingHorizontal: deepSpaceSpacing.md,
@@ -521,14 +522,14 @@ const styles = StyleSheet.create({
   knobOn: { backgroundColor: deepSpace.onMint },
   knobOff: { backgroundColor: deepSpace.textLo },
   noteCard: { padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card },
-  noteText: { fontSize: 13, color: deepSpace.textLo, lineHeight: 18 },
+  noteText: { fontSize: 13, color: deepSpace.textLo },
 
   primaryBtn: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.mint, marginTop: 4 },
-  primaryText: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.onMint },
+  primaryText: { fontSize: 14, color: deepSpace.onMint },
   disabled: { opacity: 0.5 },
   secondaryBtn: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, borderWidth: 1, borderColor: deepSpace.cardLineStrong, backgroundColor: deepSpace.card, marginTop: 4 },
-  secondaryText: { fontFamily: fontFamilies.pixelKo, fontSize: 13, color: deepSpace.accentSoft },
-  fine: { fontSize: 12, color: deepSpace.textLo, lineHeight: 17, textAlign: "center" },
+  secondaryText: { fontSize: 13, color: deepSpace.accentSoft },
+  fine: { fontSize: 12, color: deepSpace.textLo, textAlign: "center" },
 
   pasteInput: {
     minHeight: 160, borderWidth: 1, borderColor: deepSpace.cardLineStrong, borderRadius: deepSpaceRadii.md,
@@ -536,11 +537,11 @@ const styles = StyleSheet.create({
   },
 
   progressRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  doneText: { fontFamily: fontFamilies.pixelKo, fontSize: 12, color: deepSpace.mint },
+  doneText: { fontSize: 12, color: deepSpace.mint },
   summaryRow: { flexDirection: "row", gap: 8 },
   summaryBox: { flex: 1, alignItems: "center", padding: 11, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card },
   summaryBoxDim: { opacity: 0.7 },
-  summaryNum: { fontFamily: fontFamilies.pixelKo, fontSize: 20, color: deepSpace.accentBright },
+  summaryNum: { fontSize: 20, color: deepSpace.accentBright },
   summaryNumDim: { color: deepSpace.textLo },
   summaryLabel: { fontSize: 12, color: deepSpace.textLo },
 
@@ -557,10 +558,10 @@ const styles = StyleSheet.create({
 
   historyRow: { padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card, gap: 7 },
   historyTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  historyName: { flex: 1, fontFamily: fontFamilies.pixelKo, fontSize: 13, color: deepSpace.accentBright },
+  historyName: { flex: 1, fontSize: 13, color: deepSpace.accentBright },
   historyTime: { fontSize: 12, color: deepSpace.textLo },
   historyBottom: { flexDirection: "row", alignItems: "center", gap: 8 },
   historySummary: { flex: 1, fontSize: 12, color: deepSpace.textMid },
   deleteBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 10, borderWidth: 1, borderColor: deepSpace.dangerLine, borderRadius: deepSpaceRadii.sm },
-  deleteText: { fontSize: 12, color: deepSpace.dangerText, fontFamily: fontFamilies.pixelKo },
+  deleteText: { fontSize: 12, color: deepSpace.dangerText },
 });
