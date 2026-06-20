@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     borderRadius: deepSpaceRadii.sm,
     backgroundColor: deepSpace.card,
   },
-  levelTagText: { fontFamily: fontFamilies.pixelEn, fontSize: 8, letterSpacing: 0.5, color: deepSpace.accentSoft, lineHeight: 12 },
+  levelTagText: { fontFamily: fontFamilies.pixelEn, fontSize: 11, letterSpacing: 0.5, color: deepSpace.accentSoft, lineHeight: 15 },
 
   block: { gap: deepSpaceSpacing.sm, marginTop: deepSpaceSpacing.xs },
   caption: { fontFamily: fontFamilies.sans, fontSize: 13, lineHeight: 19, color: deepSpace.textLo, textAlign: "center" },
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   ratifyTitle: { fontFamily: fontFamilies.sans, fontSize: 19, lineHeight: 28, fontWeight: "700", color: deepSpace.textHi, textAlign: "center" },
   ratifySub: { fontFamily: fontFamilies.sans, fontSize: 14, lineHeight: 21, color: deepSpace.textMid, textAlign: "center", marginBottom: deepSpaceSpacing.xs },
   reasonCard: { padding: deepSpaceSpacing.md, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card, gap: 6 },
-  reasonLabel: { fontFamily: fontFamilies.pixelKo, fontSize: 9, letterSpacing: 1, color: deepSpace.accentSoft },
+  reasonLabel: { fontFamily: fontFamilies.pixelKo, fontSize: 11, letterSpacing: 1, color: deepSpace.accentSoft },
   reasonText: { fontFamily: fontFamilies.sans, fontSize: 14, lineHeight: 21, color: deepSpace.textMid },
 
   primaryBtn: { minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.accent, marginTop: deepSpaceSpacing.xs },
