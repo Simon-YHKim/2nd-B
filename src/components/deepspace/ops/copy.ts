@@ -83,6 +83,14 @@ export interface OpsCopy {
   dinner: string;
   mealIdeas: string;
   nutritionNote: string;
+  // meal persistence + reminders (④)
+  planMeal: string;
+  save: string;
+  daily: string;
+  weekly: string;
+  once: string;
+  remindersTip: string;
+  remindersEntry: string;
 }
 
 const en: OpsCopy = {
@@ -153,6 +161,13 @@ const en: OpsCopy = {
   dinner: "Dinner",
   mealIdeas: "Meal ideas",
   nutritionNote: "Nutrition values are a reference — not dietary or medical advice.",
+  planMeal: "Plan a meal",
+  save: "Save",
+  daily: "Daily",
+  weekly: "Weekly",
+  once: "Once",
+  remindersTip: "Turn any of them off anytime.",
+  remindersEntry: "Scheduled reminders",
 };
 
 const ko: OpsCopy = {
@@ -223,6 +238,13 @@ const ko: OpsCopy = {
   dinner: "저녁",
   mealIdeas: "아이디어",
   nutritionNote: "영양 수치는 참고용이에요 · 식이·의료 조언이 아닙니다.",
+  planMeal: "끼니 입력",
+  save: "저장",
+  daily: "매일",
+  weekly: "매주",
+  once: "한 번",
+  remindersTip: "언제든 항목별로 끌 수 있어요.",
+  remindersEntry: "예약 리마인더",
 };
 
 export const OPS_COPY = { en, ko } as const;
