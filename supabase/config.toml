@@ -18,3 +18,10 @@ verify_jwt = true
 # via Naver's OAuth and only then mints a Supabase session. (Kakao uses the
 # native Supabase provider now, so it has no edge function.)
 verify_jwt = false
+
+[functions.rss-proxy]
+# Web CORS proxy for the curated RSS feeds (Codex P2 #4). verify_jwt=true so only
+# signed-in app users can call it (not an open relay); the function fetches ONLY
+# an exact-match URL from the feeds allowlist (SSRF guard). Must be deployed for
+# the web build's news digest to work; native fetches feeds directly.
+verify_jwt = true
