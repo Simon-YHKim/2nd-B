@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { SecondbStatusHeader } from "@/components/deepspace";
 import { MetaChip, OpsState, OpsStatusChip, ProgressBar, type OpsChipTone } from "@/components/deepspace/ops";
@@ -242,7 +242,22 @@ export function ImportHubScreen() {
               const tone: OpsChipTone = locked ? "muted" : s.tier === "critical" ? "warning" : "muted";
               const chip = locked ? t("locked") : s.mode === "connector" ? t("notLinked") : t("needsConsent");
               return (
-                <Pressable key={s.key} onPress={() => openSource(s)} hitSlop={4} style={styles.sourceRow} disabled={locked}>
+                <Pressable
+                  key={s.key}
+                  onPress={() => openSource(s)}
+                  hitSlop={4}
+                  style={[
+                    styles.sourceRow,
+                    // Tier-tinted row (import-hub.dc.html): reinforce the
+                    // sensitivity hierarchy beyond the status chip. Token-based
+                    // tint of the existing TIER_COLOR (no raw hex).
+                    {
+                      backgroundColor: withAlpha(TIER_COLOR[s.tier], 0.05),
+                      borderColor: withAlpha(TIER_COLOR[s.tier], 0.25),
+                    },
+                  ]}
+                  disabled={locked}
+                >
                   <Text style={styles.sourceIcon}>{s.icon}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.sourceName}>{name(s)}</Text>
