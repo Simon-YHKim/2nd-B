@@ -5,10 +5,11 @@
 // the Supabase-native providers (Google/Apple/Kakao) don't use this route.
 
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
+import { Text } from "@/components/ui/Text";
 import { completeNaverOAuth } from "@/lib/supabase/auth";
 import { cosmic, typography } from "@/lib/theme/tokens";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -53,7 +54,7 @@ export default function OAuthCallback() {
 
     return (
       <View style={styles.root}>
-        <Text style={styles.msg} accessibilityRole="alert">
+        <Text variant="body" style={styles.msg} accessibilityRole="alert">
           {failureMessage}
         </Text>
         <Pressable
@@ -64,7 +65,7 @@ export default function OAuthCallback() {
           accessibilityLabel={retryLabel}
           accessibilityHint={retryHint}
         >
-          <Text style={styles.link}>{retryLabel}</Text>
+          <Text variant="caption" style={styles.link}>{retryLabel}</Text>
         </Pressable>
       </View>
     );
