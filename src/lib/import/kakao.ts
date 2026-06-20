@@ -11,6 +11,8 @@
 // formats, tolerates multi-line messages, skips header/date-separator lines,
 // and caps output. Unknown lines are dropped, never trusted.
 
+import { looksLikeAppointment } from "./hints";
+
 export interface KakaoMessage {
   /** ISO local timestamp, or null when unparseable. */
   atIso: string | null;
@@ -91,10 +93,6 @@ export interface AppointmentHint {
   text: string;
 }
 
-// Deterministic appointment/plan keywords (KR + a few EN). No LLM.
-const APPOINTMENT_RE =
-  /(약속|만나|만날|볼까|보자|일정|예약|시간 ?돼|몇 ?시|내일|모레|오늘|이번 ?주|다음 ?주|주말|[월화수목금토일]요일|\d{1,2}시|meet|appointment|schedule)/;
-
 /**
  * Pure heuristic: messages that look like they mention a plan/appointment. This
  * is the DERIVED signal a caller may persist — the raw transcript is not kept.
@@ -103,7 +101,7 @@ export function extractAppointmentHints(messages: ReadonlyArray<KakaoMessage>, m
   const out: AppointmentHint[] = [];
   for (const m of messages) {
     if (out.length >= max) break;
-    if (APPOINTMENT_RE.test(m.text)) {
+    if (looksLikeAppointment(m.text)) {
       out.push({ atIso: m.atIso, sender: m.sender, text: m.text.slice(0, 140) });
     }
   }
