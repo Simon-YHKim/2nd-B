@@ -32,6 +32,7 @@ import {
 import { getEnv } from "@/lib/env";
 import { getGoogleAccessToken } from "@/lib/google/gisToken";
 import { fetchCalendarEvents, googleEventsToIcs, GOOGLE_CALENDAR_READONLY_SCOPE } from "@/lib/google/calendar";
+import { fetchTasks, googleTasksToOutcome, GOOGLE_TASKS_READONLY_SCOPE } from "@/lib/google/tasks";
 
 type Tier = "critical" | "sensitive" | "normal";
 type Mode = "file" | "connector";
@@ -49,6 +50,8 @@ interface ImportSource {
   kind: ImportKind;
   whatKo: string;
   whatEn: string;
+  /** Set on the Google OAuth connectors; picks the scope + fetch path. */
+  googleKind?: "calendar" | "tasks";
 }
 
 const SOURCES: ImportSource[] = [
@@ -59,7 +62,8 @@ const SOURCES: ImportSource[] = [
   { key: "health", icon: "❤", nameKo: "건강", nameEn: "Health", subKo: "건강 · export 파일", subEn: "Health · export file", tier: "sensitive", mode: "file", minorLocked: false, kind: "apple-health", whatKo: "걸음·운동 등 합계만. 상세 기록 원문은 저장 안 함.", whatEn: "Only totals (steps, etc). Detailed records aren't stored." },
   { key: "email", icon: "✉", nameKo: "이메일", nameEn: "Email", subKo: "이메일 · .eml 파일", subEn: "Email · .eml file", tier: "sensitive", mode: "file", minorLocked: false, kind: "email", whatKo: "약속·일정 신호만. 본문 전체는 저장 안 함.", whatEn: "Only plan/schedule signals, not the full body." },
   { key: "notion", icon: "🗒", nameKo: "Notion · Obsidian", nameEn: "Notion · Obsidian", subKo: "노트 · export 파일", subEn: "Notes · export file", tier: "normal", mode: "file", minorLocked: false, kind: "markdown", whatKo: "노트를 기록으로 들여와요.", whatEn: "Brings your notes in as records." },
-  { key: "google", icon: "🗓", nameKo: "구글 캘린더", nameEn: "Google Calendar", subKo: "일정 · 계정 연결", subEn: "Schedule · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "ics", whatKo: "다가오는 일정의 제목·시간만 가져와요. 본문·참석자는 저장 안 해요.", whatEn: "Brings only upcoming event titles + times. No body/attendees." },
+  { key: "google", icon: "🗓", nameKo: "구글 캘린더", nameEn: "Google Calendar", subKo: "일정 · 계정 연결", subEn: "Schedule · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "ics", googleKind: "calendar", whatKo: "다가오는 일정의 제목·시간만 가져와요. 본문·참석자는 저장 안 해요.", whatEn: "Brings only upcoming event titles + times. No body/attendees." },
+  { key: "google-tasks", icon: "✅", nameKo: "구글 할 일", nameEn: "Google Tasks", subKo: "할 일 · 계정 연결", subEn: "To-dos · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "markdown", googleKind: "tasks", whatKo: "할 일 목록의 제목만 기록으로 가져와요.", whatEn: "Brings your to-do titles in as records." },
   { key: "calendar", icon: "🗓", nameKo: "캘린더(.ics)", nameEn: "Calendar (.ics)", subKo: "일정 · 파일", subEn: "Schedule · file", tier: "normal", mode: "file", minorLocked: false, kind: "ics", whatKo: "일정 이벤트를 들여와요.", whatEn: "Brings your calendar events in." },
 ];
 
@@ -126,9 +130,14 @@ export function ImportHubScreen() {
     setGErr(null);
     setBusy(true);
     try {
-      const token = await getGoogleAccessToken({ clientId: googleClientId, scope: GOOGLE_CALENDAR_READONLY_SCOPE });
-      const events = await fetchCalendarEvents(token);
-      const out = buildProposals("ics", googleEventsToIcs(events));
+      const isTasks = active.googleKind === "tasks";
+      const token = await getGoogleAccessToken({
+        clientId: googleClientId,
+        scope: isTasks ? GOOGLE_TASKS_READONLY_SCOPE : GOOGLE_CALENDAR_READONLY_SCOPE,
+      });
+      const out = isTasks
+        ? googleTasksToOutcome(await fetchTasks(token))
+        : buildProposals("ics", googleEventsToIcs(await fetchCalendarEvents(token)));
       if (out.proposals.length === 0) {
         setBusy(false);
         setGErr(t("gErrNoEvents"));
@@ -278,7 +287,7 @@ export function ImportHubScreen() {
           </View>
         </Pressable>
 
-        {s.mode === "connector" && s.key === "google" ? (
+        {s.googleKind ? (
           <>
             <View style={styles.noteCard}>
               <Text style={styles.noteText}>{t("googleConnectorNote")}</Text>
@@ -289,9 +298,11 @@ export function ImportHubScreen() {
                 <Text style={styles.primaryText}>{busy ? t("connecting") : t("googleConnect")}</Text>
               </Pressable>
             ) : null}
-            <Pressable onPress={() => setStep("input")} hitSlop={6} style={styles.secondaryBtn}>
-              <Text style={styles.secondaryText}>{t("orImportFile")}</Text>
-            </Pressable>
+            {s.googleKind === "calendar" ? (
+              <Pressable onPress={() => setStep("input")} hitSlop={6} style={styles.secondaryBtn}>
+                <Text style={styles.secondaryText}>{t("orImportFile")}</Text>
+              </Pressable>
+            ) : null}
           </>
         ) : s.mode === "connector" ? (
           <>
@@ -420,7 +431,7 @@ function COPY(ko: boolean): Record<string, string> {
         keep90: "보관 90일", deleteAnytime: "언제든 삭제", onDeviceOnly: "이 기기에서만 처리",
         connectorNote: "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청해요. (네이티브 빌드 필요)",
         googleConnectorNote: "브라우저에서 구글 계정으로 안전하게 연결해요. 읽기 전용(일정 보기)이에요.",
-        googleConnect: "구글 캘린더 연결", connecting: "연결 중…",
+        googleConnect: "구글 연결", connecting: "연결 중…",
         gErrNoEvents: "다가오는 일정이 없어요.", gErrDenied: "연결이 취소됐어요. 다시 시도해 주세요.",
         gErrNative: "지금은 웹에서만 연결돼요. 앱(네이티브)은 추후 지원해요.", gErrGeneric: "연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
         consentPick: "동의하고 파일 선택", orImportFile: "대신 파일로 가져오기",
@@ -440,7 +451,7 @@ function COPY(ko: boolean): Record<string, string> {
         keep90: "Kept 90 days", deleteAnytime: "Delete anytime", onDeviceOnly: "Process on this device only",
         connectorNote: "The next screen requests location \"while using\" only. (needs the native build)",
         googleConnectorNote: "Securely link your Google account in the browser. Read-only (view events).",
-        googleConnect: "Connect Google Calendar", connecting: "Connecting…",
+        googleConnect: "Connect Google", connecting: "Connecting…",
         gErrNoEvents: "No upcoming events.", gErrDenied: "Connection cancelled. Try again.",
         gErrNative: "Connect on web for now. App (native) support comes later.", gErrGeneric: "Couldn't connect. Try again shortly.",
         consentPick: "Consent and pick file", orImportFile: "Import a file instead",
