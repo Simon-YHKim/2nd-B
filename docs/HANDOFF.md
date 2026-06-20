@@ -4,6 +4,78 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
+## Latest — 2026-06-20 / 비서(Ops) 완성 + 개인 데이터 임포트 + 성장 피드백 루프 (15 PR)
+
+이번 세션은 비전 3축을 코드로 닫았다: (1)알아가기↔(2)비서 연결 + (2)비서 전면 구축 +
+개인 데이터 임포트. 클로드 디자인 정본 4종(ops-assistant / ops-ia / import-hub /
+weekly-growth)을 키트로 배선. **#480~#494 (15 PR) main 머지**, `npm run verify` green
+(222 suites / 1704 tests). 전 구간 deepSpace 토큰만·hex 0·코어 신설 0·자동 실행 없음·$0·
+C1/C3/C9/C7 유지.
+
+### 완료 (세 갈래)
+1. **비서(Ops)** — 적응형 추천(`signals.ts` adherence + `growth/lens-signal.ts` 자기이해
+   별밝기 근거 = axis1→axis2 엔진 다리) + IN-bound 백엔드 8종(books·shelf·milestones·
+   ledger·fx·github·foods·meal-plan, 전부 순수 파서+테스트, 키-graceful) + 공유 키트
+   (`components/deepspace/ops/{kit,copy}`) + 6 도메인 화면 + 내비/IA(홈 "비서" → /ops 허브 →
+   도메인 피커=라우터, 깊이2·Back 한 방향).
+2. **개인 데이터 임포트** — 파서 7종(`lib/import/`: kakao·sms·location·ics·apple-health·
+   email + detect/hints, 전부 PURE·온디바이스·원문 비보존) + 임포트 허브(민감도 차등·동의
+   A/B[무엇을/어디에/이기기에서만]·propose→ratify·이력·**진짜 철회**[source 삭제]). 미성년
+   통신·위치 잠금(C10).
+3. **성장 피드백 루프** — "나의 변화"(`/growth`, `lib/growth/weekly.ts` 순수 합성): 7별
+   before→after(기존 별자리 언어, 밝기만 — 비주얼 티어 불가침) + 지표 칩 + 다음걸음
+   propose→ratify. star_tier_history·ops_logs·milestones·records 합성만(엔진 신설 0).
+
+### 게이트 경계 — 코드로 더 진행 불가, Simon 외부 액션 필요 (`docs/GATE-RUNBOOK.md`)
+- **G0** Supabase 마이그레이션 `0052~0055` apply → 가계부·책장·마일스톤·식단 저장 켜짐.
+- **G1** 무료 키 `EXPO_PUBLIC_EXIM_FX_KEY`(수출입은행)·`EXPO_PUBLIC_MFDS_FOOD_KEY`(식약처)
+  → Vercel+EAS 환경변수.
+- **G2** GCP OAuth(Calendar/Tasks) · **G3** EAS 네이티브+실기기 QA · **G4**
+  expo-document-picker(임포트 paste→파일피커) · **G5** PIPA 법무(위치·통신 영속/암호화).
+- **자동화**: 클로드 코워크용 computer/chrome-use 프롬프트가 세션 채팅에 있음(G0+G1 우선).
+
+### 다음 작업 큐 (게이트 열리면 그 지점부터)
+| 트리거 | 작업 |
+|---|---|
+| G0 적용 | 저장 화면 실데이터 검증(이미 graceful) |
+| G1 키 | fx/foods 실데이터 확인 |
+| G3 EAS | 리마인더·기기캘린더·실시간위치·파일피커 활성 + 임포트 허브 paste→파일피커 교체 |
+| 디자인 정본 | 첫날 자기이해 한 컷(TTFV) 등 신규 화면 |
+- 선택 제품 결정: 14 ops 영역 3~4 핵심 압축 · 공상(axis3) 투자 vs 비서 흡수.
+- 이전 핸드오프 잔여: `handoff/20260620-news`의 #477(포모도로)·#478(뉴스 RSS) 머지 +
+  `rss-proxy` 배포 상태 확인.
+
+### 적용 중인 정책 (영구)
+1. 디자인 = 클로드 디자인 정본 → 기존 키트 재사용 배선. deepSpace.* 토큰만, hex 0, 레거시/
+   glassmorphism/pill/em dash 0, 코어 신설은 별도 게이트(G1).
+2. 순수 로직 분리 + 단위테스트 → 화면 조립. **합성 우선, 새 LLM 진입점 금지(C1)**.
+3. 민감 데이터: 동의 전 0 byte · 온디바이스 · 원문 비보존 · 미성년 잠금(C10) · propose→ratify.
+4. PR은 main으로 squash 머지. 푸시 전 `npm run verify` green 필수.
+
+### 핵심 파일 (이번 세션)
+```
+src/lib/ops/{recommend,signals,nav,routines,push,...}.ts          비서 엔진 + 근거 신호
+src/lib/{reading,finance,projects,nutrition}/*                    IN-bound 백엔드
+src/lib/import/*                                                  임포트 파서 7종 + proposals/history
+src/lib/growth/{weekly,gather,lens-signal}.ts                     성장 합성 + axis1→axis2
+src/components/deepspace/ops/{kit,copy}.tsx                       공유 컴포넌트 키트
+src/screens/deepspace/{ops,import,growth}/*                       화면들
+src/app/{ops,reading,milestones,ledger,side-project,meals,reminders,import-hub,growth}.tsx
+db/migrations/0052_ops_ledger · 0053_ops_reading · 0054_ops_milestones · 0055_ops_meal_plan
+docs/{GATE-RUNBOOK,PERSONAL-DATA-IMPORT-SPEC,INTEGRATIONS-14-AREAS,ASSISTANT-EFFECTIVENESS-REVIEW}.md
+```
+
+### 검증 & 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md          # 이 섹션
+cat docs/GATE-RUNBOOK.md      # Simon 할 일
+npm run verify               # 222 suites / 1704 tests green
+# 게이트 열렸으면 위 큐의 해당 배선부터, 아니면 디자인 정본/신규 방향
+```
+
+---
+
 ## Latest — 2026-06-19 / Phase A — ops 관리 레이어 (루틴 저장 + 로컬 알람 + 오늘의 루틴/완료 추적)
 
 브랜치 `claude/ops-routines-82evat`. SUGGEST 엔진(`recommend.ts`) 위에 MANAGE 레이어를 추가: 이미 게이트된 추천을 영속 루틴으로 저장하고, 기존 로컬 알람 스케줄러로 리마인더를 걸고, 오늘 due한 루틴을 체크박스로 완료 추적.
