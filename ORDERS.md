@@ -1281,6 +1281,15 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [디렉터 사이클 ✅ / 2026-06-21 / 07:36:33 KST] gemini-proxy 보안 검증 + 수정 PR #524 + 검증 스윕 완료 + Simon 대기 통합 (Claude 실행자)
+**라이브 origin/main `c411e24d`** . 새 오더 0. 플릿 #521(a11y tap-target) 머지·main green 확인.
+- **gemini-proxy 보안 검증(서버측 LLM 경계)**: 아키텍처 견고(P0 없음 — 인증=JWT/body아님·위기 서버게이트·audit 서버측·spend-cap fail-closed·tight CORS·no SSRF·시크릿안전). **P1 발견**: `userIdFromJwt`가 `role==='authenticated'` 미확인(sibling rss-proxy는 하드닝됨, 패리티 갭). anon키는 sub없어 우연히 거부될 뿐.
+- **수정 PR #524**(머지 안 함): role 체크 추가(rss-proxy 패턴 미러, 정상 클라 무영향). **보안 엣지함수라 Simon 리뷰+deploy 대기**(머지만으론 미활성, deploy 필요). P2(image 위기게이트 우회=출력재스캔 완화·responseSchema 미검증)는 PR 본문에 follow-up 명기.
+- **🔬 고위험 검증 스윕 완료**: persona·안전분류기·캡처큐·import·gemini-proxy 5경로 framework-aware 검토 끝. 클린 fix는 ship(#503/504/508/509/511/512/515), 게이트/보안은 Simon flag. 향후는 **이벤트 구동**(새 PR머지·신규 리스크-머지 검증·오더).
+
+**⏳ AWAITING SIMON (통합)**: ①게이트 #18 위기-lexicon false-negative(공개웹) ②게이트 #522 import 프라이버시-copy + C10 fail-open ③보안 PR #524 gemini-proxy role-check(리뷰+deploy). 모두 단독 라이브 변경 금지(임상/법무/보안), Simon 결정/배포 필요.
+
+
 ### [디렉터 사이클 🛡️게이트 / 2026-06-21 / 07:05:50 KST] import 파이프라인 검증 — 프라이버시-copy·C10 미성년게이트·기능버그 (이슈 #522, 법무/임상 게이트 → Simon)
 **라이브 origin/main `f64eb0de`** . 새 오더 0. 사이클간 #519(TTFV a11y) 머지·#520(ratify-sr) 플릿머지. 고위험 미검토 경로(import=사용자 파일 파싱) framework-aware 검증 → **이슈 #522**:
 - **🛡️ 법무(프라이버시-copy)**: kakao/sms 약속힌트가 메시지 LINE 텍스트를 "derived signal"로 persist(코드 의도적, `raw:0`=전체대화 미보존)하는데 UI는 "메시지 본문 저장 안 함/원문 0"이라 함 → **copy 부정확**(프라이버시 민감 comms). reconcile(정확한 copy) 또는 de-text(날짜+sender-hash, 가독 line은 ratify ephemeral) = product/법무 결정. (location/health는 요약만=정상.)
