@@ -60,22 +60,39 @@ export function summarizeAdherence(
   now: Date = new Date(),
   windowDays = ADHERENCE_WINDOW_DAYS,
 ): string {
-  const domainRoutines = routines.filter((r) => r.domain_id === domainId);
-  if (domainRoutines.length === 0) return "";
+  const stats = adherenceStats(domainId, routines, logs, now, windowDays);
+  if (!stats) return "";
+  return `Recent adherence (last ${stats.windowDays}d): ${stats.completedDays}/${stats.windowDays} days done; current streak ${stats.streak}d; ${stats.activeRoutines} active routine(s).`;
+}
 
+/** Structured adherence numbers for the grounding chip (A). null = nothing managed. */
+export interface AdherenceStats {
+  completedDays: number;
+  windowDays: number;
+  streak: number;
+  activeRoutines: number;
+}
+
+/** Pure: the adherence numbers for one domain, or null when nothing is managed. */
+export function adherenceStats(
+  domainId: OpsDomainId,
+  routines: ReadonlyArray<Pick<OpsRoutine, "id" | "domain_id">>,
+  logs: ReadonlyArray<Pick<OpsRoutineLog, "routine_id" | "completed_on">>,
+  now: Date = new Date(),
+  windowDays = ADHERENCE_WINDOW_DAYS,
+): AdherenceStats | null {
+  const domainRoutines = routines.filter((r) => r.domain_id === domainId);
+  if (domainRoutines.length === 0) return null;
   const ids = new Set(domainRoutines.map((r) => r.id));
   const domainLogs = logs.filter((l) => ids.has(l.routine_id));
   const window = lastNDayKeys(now, windowDays);
-
-  // Distinct calendar days inside the window that have at least one completion
-  // (two routines ticked the same day still count as one "done" day).
-  const doneDays = new Set(
-    domainLogs.map((l) => l.completed_on).filter((d) => window.has(d)),
-  );
-  const completedDays = doneDays.size;
-  const streak = weekStreak(domainLogs, now);
-
-  return `Recent adherence (last ${windowDays}d): ${completedDays}/${windowDays} days done; current streak ${streak}d; ${domainRoutines.length} active routine(s).`;
+  const doneDays = new Set(domainLogs.map((l) => l.completed_on).filter((d) => window.has(d)));
+  return {
+    completedDays: doneDays.size,
+    windowDays,
+    streak: weekStreak(domainLogs, now),
+    activeRoutines: domainRoutines.length,
+  };
 }
 
 /**
@@ -98,5 +115,24 @@ export async function gatherAdherenceSignal(
     return summarizeAdherence(domainId, routines, logs, now, windowDays);
   } catch {
     return "";
+  }
+}
+
+/** Best-effort structured adherence for the chip (A). null on any failure. */
+export async function gatherAdherenceStats(
+  userId: string,
+  domainId: OpsDomainId,
+  now: Date = new Date(),
+  windowDays = ADHERENCE_WINDOW_DAYS,
+): Promise<AdherenceStats | null> {
+  try {
+    const since = adherenceSinceKey(now, windowDays);
+    const [routines, logs] = await Promise.all([
+      listActiveRoutines(userId),
+      listCompletionsSince(userId, since),
+    ]);
+    return adherenceStats(domainId, routines, logs, now, windowDays);
+  } catch {
+    return null;
   }
 }
