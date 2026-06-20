@@ -20,6 +20,7 @@ import { SecondbStatusHeader } from "@/components/deepspace";
 import { MetaChip, OpsState, OpsStatusChip, ProgressBar, type OpsChipTone } from "@/components/deepspace/ops";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
+import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
 import { detectImportKind, type ImportKind } from "@/lib/import/detect";
 import { buildProposals, proposalsToMarkdown, type ImportOutcome, type ImportProposal } from "@/lib/import/proposals";
 import {
@@ -117,7 +118,7 @@ export function ImportHubScreen() {
     if (chosen.length === 0) return;
     setBusy(true);
     try {
-      await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
+      const result = await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
       const s = outcome.summary;
       await addImportHistory({
         id: `${Date.now()}`,
@@ -125,6 +126,7 @@ export function ImportHubScreen() {
         name: name(active),
         atIso: new Date().toISOString(),
         summary: `${t("appts")} ${s.appointments} · ${t("places")} ${s.places} · ${t("raw")} 0`,
+        sourceIds: [result.source.id],
       });
     } catch {
       /* surfaced by returning to hub; capture is idempotent */
@@ -144,6 +146,15 @@ export function ImportHubScreen() {
     });
 
   const removeHistory = async (id: string) => {
+    // 철회 = full removal: delete the source rows this import created, then the log.
+    const entry = history.find((h) => h.id === id);
+    if (entry && userId && entry.sourceIds.length > 0) {
+      try {
+        await deleteSourcesByIds(userId, entry.sourceIds);
+      } catch {
+        /* best-effort; the history entry is still removed below */
+      }
+    }
     await removeImportHistory(id);
     setHistory(await getImportHistory());
   };

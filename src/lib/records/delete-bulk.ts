@@ -58,6 +58,20 @@ export async function deleteRecordsByIds(userId: string, ids: string[]): Promise
 }
 
 /** Delete every wiki page (cascades wiki_links). Sources are untouched. */
+/** Delete specific sources by id (import-hub 철회 — removes the derived rows
+ *  a ratified import created). Owner-scoped. */
+export async function deleteSourcesByIds(userId: string, ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const supabase = getSupabaseClient();
+  const { count, error } = await supabase
+    .from("sources")
+    .delete({ count: "exact" })
+    .eq("user_id", userId)
+    .in("id", ids);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function deleteAllWikiPages(userId: string): Promise<number> {
   const supabase = getSupabaseClient();
   const { count, error } = await supabase
