@@ -1281,6 +1281,17 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [디렉터 사이클 ⚠️정정 / 2026-06-21 / 03:40:44 KST] deep-space P0 진짜 갭 = 기능 와이어링 (audit stale 정정) + canon 가드 머지 (Claude 실행자)
+**라이브 origin/main `02731452`** · https://simon-yhkim.github.io/2nd-B/ . 새 원격오더 0.
+- **#508 머지(`02731452`)** `test(deep-space)`: canon-no-legacy 가드(셸+레퍼런스 화면이 gameboy/village 레거시 import로 퇴행 못 하게). verify green.
+- **⚠️ 직전 사이클 directed 플랜(FIX_TASKS 레거시→캐논 재작성) 정정**: framework-aware 소스 조사 결과 **DESIGN_AUDIT(#507)가 stale**. 실제로 7개 별 화면 전부 `isDeepSpaceUI()` 분기로 이미 **캐논 뷰(`DeepSpaceViews.*`: LensView/RecallLensView/…)를 렌더** — 시각적 캐논 전환은 **이미 됨**(audit의 "isDeepSpaceUI 분기 없음·레거시 재색칠"은 옛 상태). 레거시 import는 **legacy 분기(rollback 전용)**에만 잔존.
+- **진짜 P0 갭 = 캐논 뷰의 기능 와이어링**: `DeepSpaceViews` 헤더 명시 "Demo data is dummy; real store/query wiring is TODO." 예: **LensView(big-five)** = 하드코딩 더미점수(72/58/41/67/39) + `// TODO: replace dummy Big Five with persona/bfi.ts results` + empty CTA에 onPress 없음(검사 시작 불가). 즉 deep-space 기본모드에서 **실 검사·실 데이터가 작동 안 함**(기능은 legacy 분기에만). 수용기준 (b)기능실작동 미충족 지점.
+- **재지향**: 남은 일 = 레거시 재작성(거의 무의미) ❌ → **캐논 뷰 TODO 기능 와이어링**(실 데이터 read + 검사 launch + 죽은 CTA 연결) ⭕. 이건 Claude 레인(구현·integration)이 적합 — Codex headless는 행(아래).
+- **Codex 레인 상태**: 루프 정지(워크트리 02:07 정체) + `codex exec` headless **스모크 무응답 행**(O-30 tty 이슈 지속) = headless 분배 불가. UI 와이어링은 Claude가 직접 진행.
+
+**deep-space 단일본체화 (P0)** OPEN 유지 = 잔여 = **캐논 뷰 기능 와이어링**(LensView부터 파일럿: 실 Big Five 결과 표시 + 검사 launch). 시각검증은 browse/Pages.
+
+
 ### [디렉터 사이클 ✅ / 2026-06-21 / 03:16:42 KST] deep-space P0 정본 플랜 확정 + Codex 레인 분배 (Claude 실행자)
 **라이브 origin/main `b8f7ad94`** · https://simon-yhkim.github.io/2nd-B/ . 새 원격오더 0. 타 Claude 세션 #505·#506·#507 green 머지 확인.
 - **전환점(#507)**: deep-space 디자인 정본 패키지 입수 — `design/*.dc.html`(화면설계) + `DESIGN_AUDIT.md`(갭감사) + `FIX_TASKS.md`(수정플랜) + 스크린샷 + `FIDELITY_PROTOCOL.md`. 미뤄둔 "설계 게이트"가 정본으로 해소.
