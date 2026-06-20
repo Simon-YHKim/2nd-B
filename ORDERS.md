@@ -1281,6 +1281,15 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [디렉터 사이클 ✅ / 2026-06-21 / 03:02:56 KST] nav 가드 머지 + 온보딩 런타임 검증 CLEAN (Claude 실행자)
+**라이브 origin/main `9ea5c99b`** · https://simon-yhkim.github.io/2nd-B/ . 새 원격오더 0.
+- **#504 머지(`9ea5c99b`)** `test(deep-space)`: 도크 nav dead-end 가드(TAB_ROUTE→실파일). verify green.
+- 타 Claude 세션 **#505**(TTFV auto-trigger + relationship-lens) green 머지 확인 → **framework-aware 런타임 안전성 검토(읽기전용): CLEAN**. 자동트리거 once-only 가드 견고(seen 플래그 first-day 앵커·auth 순서 후·offline-safe getSession), 신규 Supabase 쿼리 0·신규 LLM/비용 0·i18n 영향 0. (CI는 Supabase 모킹이라 못 잡는 런타임층을 별도 검증.)
+- **백로그(검토 발견, 저severity)**: 온보딩 in-memory 싱글톤(memorySeen/Complete/Dismissed)이 sign-out 시 미리셋 → 동일프로세스 계정전환 시 cross-user 누수 가능. storage가 source-of-truth라 edge(저severity). storage 스코핑(device vs user) 결정 선행 필요 → 온보딩 위생 패스(coordinated Codex 후보).
+
+**deep-space 단일본체화 (P0)** = OPEN 유지. 잔여 Stage5(캐릭터 본체화)는 **방향이 설계 게이트(§35)** — landing 3D는 PNG빌보드(GLB아님)+RN 3D 미설치(heavy deps/OOM), seam 거동(static vs lively)은 주플랫폼 UX 결정. 다음 사이클 **ai-debate로 캐릭터 방향 확정 → 구현**(단독 강행 대신 §35 정본 경유).
+
+
 ### [디렉터 사이클 ✅ / 2026-06-21 / 02:43:47 KST] deep-space P0 Stage7 가드 2건 + 캐릭터 상태 진단 (Claude 실행자)
 **라이브 origin/main `eb1ebe43`** · https://simon-yhkim.github.io/2nd-B/ . 사이클 #2-3: 새 원격오더 0, 머지대상 dev PR 0(파이프라인은 타 Claude 세션이 #501 TTFV온보딩·#502 handoff 자체 green 머지, 확인함). deep-space P0 디벨롭 진행(유휴 금지):
 - **#503 머지(`eb1ebe43`)** `test(ui-mode)`: 플래그 해석 계약 가드(EXPO_PUBLIC_UI 미설정/오타→deep-space 정본 default·explicit legacy만 rollback·EXPO_PUBLIC_CHARACTER 3d/fallback, 기존 무커버리지). verify green.
