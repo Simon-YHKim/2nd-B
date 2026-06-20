@@ -1298,7 +1298,7 @@ const RESEARCH_SAT = [
 ] as const;
 
 export function DeepSpaceResearchScreen() {
-  const { t } = useTranslation("deepspace");
+  const { t, i18n } = useTranslation("deepspace");
   const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
   const view = useMemo(() => buildDeepResearchView(pages, edges), [pages, edges]);
 
@@ -1306,6 +1306,9 @@ export function DeepSpaceResearchScreen() {
   const [proposals, setProposals] = useState<InferredLinkDetail[]>([]);
   const [proposing, setProposing] = useState(false);
   const [actingKey, setActingKey] = useState<string | null>(null);
+  // Screen-reader feedback for ratify/reject: the row removal alone is silent,
+  // so announce the outcome via a polite live region (persona-sim a11y, D-25).
+  const [announce, setAnnounce] = useState("");
 
   const loadProposals = useMemo(
     () => async (uid: string) => {
@@ -1339,6 +1342,7 @@ export function DeepSpaceResearchScreen() {
     setActingKey(key);
     try {
       await ratifyLink(userId, p.from_page, p.to_page);
+      setAnnounce(i18n.language === "ko" ? "연결을 확인했어요." : "Connection confirmed.");
       await loadProposals(userId);
     } catch {
       // best-effort
@@ -1353,6 +1357,7 @@ export function DeepSpaceResearchScreen() {
     setActingKey(key);
     try {
       await rejectInferredLink(userId, p.from_page, p.to_page);
+      setAnnounce(i18n.language === "ko" ? "제안을 보류했어요." : "Suggestion dismissed.");
       await loadProposals(userId);
     } catch {
       // best-effort
@@ -1437,6 +1442,15 @@ export function DeepSpaceResearchScreen() {
 
           {/* propose->ratify: AI proposes semantic links, the user decides. */}
           <Text style={styles.tlLabel}>{t("research.proposalsLabel")}</Text>
+          {announce ? (
+            <Text
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+              style={{ position: "absolute", width: 1, height: 1, left: -1000, overflow: "hidden" }}
+            >
+              {announce}
+            </Text>
+          ) : null}
           {proposals.length === 0 ? (
             <View style={styles.insightViolet}>
               <Text style={styles.insightVioletText}>{t("research.noProposals")}</Text>
