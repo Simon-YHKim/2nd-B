@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}html,body{margin:0}@keyframes twinkle{0%,100%{opacity:.5}50%{opacity:1}}</style>
+</helmet>
+<div style="width:max-content;min-width:100%;min-height:100vh;box-sizing:border-box;padding:48px;background:#161b26;font-family:Pretendard,system-ui,sans-serif">
+
+  <div style="margin-bottom:8px;font-family:'Press Start 2P',monospace;font-size:11px;letter-spacing:.16em;color:#5FD4FF">2ND-BRAIN · 나의 변화 · 주간 성장 리뷰</div>
+  <div style="margin-bottom:30px;font-size:14px;color:rgba(159,228,255,.6);max-width:900px">한 메시지("여기가 자랐어") + 한 그래픽(7별 before→after). 자기이해↔비서 다리 · 공상→첫걸음 · 빈/첫주. propose→ratify.</div>
+
+  <div style="display:flex;gap:40px;align-items:flex-start">
+
+    <!-- ============ 나의 변화 (메인) ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">나의 변화 <span style="color:rgba(159,228,255,.45)">/growth · 채움</span></div>
+      <div data-screen-label="나의변화" style="position:relative;width:300px;height:780px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 54% at 50% 20%,rgba(26,72,120,.46) 0%,rgba(11,33,66,.24) 44%,#0A0E1A 78%);border:1px solid rgba(70,182,255,.24);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 18% 10%,rgba(127,227,255,.5),transparent),radial-gradient(1px 1px at 84% 8%,rgba(127,227,255,.4),transparent),radial-gradient(1px 1px at 60% 14%,rgba(127,227,255,.3),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+        <div data-sb-header style="position:relative;display:flex;align-items:flex-start;gap:9px;padding:10px 16px 2px;z-index:6">
+          <img src="assets/secondb-head-front.png" alt="세컨비" style="width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 0 8px rgba(70,182,255,.4))">
+          <div style="flex:1;position:relative;background:rgba(70,182,255,.08);border:1px solid rgba(70,182,255,.2);border-radius:3px 11px 11px 11px;padding:7px 10px">
+            <span style="position:absolute;left:-4px;top:9px;width:8px;height:8px;background:rgba(70,182,255,.08);border-left:1px solid rgba(70,182,255,.2);border-bottom:1px solid rgba(70,182,255,.2);transform:rotate(45deg)"></span>
+            <div style="font-size:11px;color:#E8F7FF;line-height:1.38;word-break:keep-all">이번 주, 너는 여기가 자랐어요.</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px"><span style="font-family:'Press Start 2P',monospace;font-size:5px;letter-spacing:.05em;color:#5FF0C0">9월 3주</span><span style="font-size:9px;color:rgba(159,228,255,.6);line-height:1.3;word-break:keep-all">지난주와 비교했어요.</span></div>
+          </div>
+        </div>
+
+        <!-- HERO: 가장 자란 별 -->
+        <div style="position:relative;text-align:center;padding:8px 20px 0">
+          <div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.14em;color:#9FE4FF">THIS WEEK'S STAR</div>
+          <div style="font-family:Galmuri11,monospace;font-size:19px;color:#E8F7FF;margin-top:8px">미래의 나</div>
+          <div style="font-size:11px;color:rgba(159,228,255,.62);margin-top:3px">가장 환해진 별 · 밝기 +2단계</div>
+        </div>
+
+        <!-- 7별 before->after 그래픽 -->
+        <div style="position:relative;margin:6px 14px 0;height:188px">
+          <svg viewBox="0 0 272 188" style="width:100%;height:100%">
+            <!-- dipper connecting lines -->
+            <polyline points="44,150 84,128 128,138 150,108 196,118 214,80 232,40" fill="none" stroke="rgba(70,182,255,.28)" stroke-width="1.2"/>
+            <!-- ghost (지난주) positions = faint hollow -->
+            <circle cx="44" cy="150" r="4" fill="none" stroke="rgba(127,201,240,.3)" stroke-width="1"/>
+            <circle cx="84" cy="128" r="4" fill="none" stroke="rgba(127,201,240,.3)" stroke-width="1"/>
+            <circle cx="128" cy="138" r="4" fill="none" stroke="rgba(127,201,240,.3)" stroke-width="1"/>
+            <circle cx="150" cy="108" r="4" fill="none" stroke="rgba(127,201,240,.3)" stroke-width="1"/>
+            <circle cx="196" cy="118" r="4" fill="none" stroke="rgba(127,201,240,.3)" stroke-width="1"/>
+            <circle cx="214" cy="80" r="4" fill="none" stroke="rgba(127,201,240,.3)" stroke-width="1"/>
+            <circle cx="232" cy="40" r="5" fill="none" stroke="rgba(200,182,255,.4)" stroke-width="1"/>
+            <!-- after (이번주): filled, hero biggest+glow -->
+            <circle cx="44" cy="150" r="3.5" fill="#7FC9F0" opacity=".7"/>
+            <circle cx="84" cy="128" r="4" fill="#9FE4FF" opacity=".8"/>
+            <circle cx="128" cy="138" r="3.5" fill="#7FC9F0" opacity=".7"/>
+            <circle cx="150" cy="108" r="5" fill="#46B6FF"/>
+            <circle cx="196" cy="118" r="4" fill="#9FE4FF" opacity=".85"/>
+            <circle cx="214" cy="80" r="4.5" fill="#5FD4FF"/>
+            <!-- HERO star: 미래의 나 -->
+            <circle cx="232" cy="40" r="13" fill="rgba(200,182,255,.16)"/>
+            <circle cx="232" cy="40" r="8" fill="rgba(200,182,255,.3)"/>
+            <circle cx="232" cy="40" r="4.5" fill="#C8B6FF"/>
+            <g stroke="#C8B6FF" stroke-width="1.2" opacity=".9"><line x1="232" y1="26" x2="232" y2="20"/><line x1="232" y1="54" x2="232" y2="60"/><line x1="218" y1="40" x2="212" y2="40"/><line x1="246" y1="40" x2="252" y2="40"/></g>
+            <!-- delta arrow on hero -->
+            <text x="248" y="34" fill="#5FF0C0" font-size="9" font-family="monospace">+2</text>
+          </svg>
+          <div style="position:absolute;left:14px;bottom:4px;display:flex;gap:10px;font-size:8.5px;color:rgba(159,228,255,.5)"><span style="display:flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;border:1px solid rgba(127,201,240,.4)"></span>지난주</span><span style="display:flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;background:#5FD4FF"></span>이번주</span></div>
+        </div>
+
+        <!-- 지표 칩 (진행성) -->
+        <div style="position:relative;margin:8px 20px 0;display:flex;gap:6px;flex-wrap:wrap">
+          <span style="font-size:10.5px;color:rgba(159,228,255,.78);padding:5px 9px;border:1px solid rgba(70,182,255,.22);border-radius:8px">기록 18</span>
+          <span style="font-size:10.5px;color:rgba(159,228,255,.78);padding:5px 9px;border:1px solid rgba(70,182,255,.22);border-radius:8px">루틴 연속 6일</span>
+          <span style="font-size:10.5px;color:#5FF0C0;padding:5px 9px;border:1px solid rgba(95,240,192,.3);border-radius:8px">완료율 82%</span>
+          <span style="font-size:10.5px;color:rgba(159,228,255,.78);padding:5px 9px;border:1px solid rgba(70,182,255,.22);border-radius:8px">마일스톤 +1</span>
+        </div>
+
+        <!-- AI 관찰 + 다음 한 걸음 (추천카드 reason) -->
+        <div style="position:relative;margin:14px 20px 0;padding:13px 14px;border:1px solid rgba(200,182,255,.3);border-radius:14px;background:rgba(167,139,250,.08)">
+          <div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:10px"><img src="assets/secondb-head-front.png" alt="세컨비" style="width:22px;height:22px;flex:0 0 auto;margin-top:1px;filter:drop-shadow(0 0 6px rgba(200,182,255,.5))"><div style="flex:1;font-size:11.5px;color:#E8F7FF;line-height:1.5">미래를 자주 그린 한 주였어요. 그 그림에 <span style="color:#C8B6FF">작은 일정 하나</span>를 더해볼까요?</div></div>
+          <!-- 자기이해 근거 칩 -->
+          <div style="display:flex;gap:6px;margin-bottom:11px"><span style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#C8B6FF;padding:4px 8px;border:1px solid rgba(200,182,255,.3);border-radius:7px"><span style="width:6px;height:6px;border-radius:50%;background:#C8B6FF"></span>미래의 나 별 ↑</span></div>
+          <div style="display:flex;gap:8px">
+            <button style="flex:1;padding:9px;border:0;border-radius:10px;background:#5FF0C0;color:#04241c;font-family:Galmuri11,monospace;font-size:12px;font-weight:700;cursor:pointer">루틴으로 담기</button>
+            <button style="padding:9px 13px;border:1px solid rgba(200,182,255,.35);border-radius:10px;background:transparent;color:#C8B6FF;font-family:Galmuri11,monospace;font-size:12px;cursor:pointer">나중에</button>
+          </div>
+        </div>
+
+        <!-- 공상 -> 첫걸음 진입 -->
+        <div style="position:absolute;bottom:18px;left:20px;right:20px;display:flex;align-items:center;gap:9px;padding:11px 13px;border:1px solid rgba(200,182,255,.26);border-radius:13px;background:rgba(167,139,250,.06)"><span style="font-size:14px">✨</span><span style="flex:1;font-size:11px;color:rgba(159,228,255,.78);line-height:1.4">이번 주 공상 한 조각을 첫 걸음으로?</span><span style="font-size:11px;color:#C8B6FF">›</span></div>
+      </div>
+    </div>
+
+    <!-- ============ 빈 / 첫주 상태 ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">첫 주 · 빈 상태 <span style="color:rgba(159,228,255,.45)">데이터 적을 때</span></div>
+      <div data-screen-label="첫주빈상태" style="position:relative;width:300px;height:780px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 54% at 50% 20%,rgba(26,72,120,.4) 0%,rgba(11,33,66,.22) 44%,#0A0E1A 78%);border:1px solid rgba(70,182,255,.22);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 18% 10%,rgba(127,227,255,.4),transparent),radial-gradient(1px 1px at 84% 8%,rgba(127,227,255,.3),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+        <div data-sb-header style="position:relative;display:flex;align-items:flex-start;gap:9px;padding:10px 16px 2px;z-index:6">
+          <img src="assets/secondb-head-front.png" alt="세컨비" style="width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 0 8px rgba(70,182,255,.4))">
+          <div style="flex:1;position:relative;background:rgba(70,182,255,.08);border:1px solid rgba(70,182,255,.2);border-radius:3px 11px 11px 11px;padding:7px 10px">
+            <span style="position:absolute;left:-4px;top:9px;width:8px;height:8px;background:rgba(70,182,255,.08);border-left:1px solid rgba(70,182,255,.2);border-bottom:1px solid rgba(70,182,255,.2);transform:rotate(45deg)"></span>
+            <div style="font-size:11px;color:#E8F7FF;line-height:1.38;word-break:keep-all">아직 비교할 지난주가 없어요.</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px"><span style="font-family:'Press Start 2P',monospace;font-size:5px;letter-spacing:.05em;color:#5FF0C0">TIP</span><span style="font-size:9px;color:rgba(159,228,255,.6);line-height:1.3;word-break:keep-all">한 주만 채우면 변화가 보여요.</span></div>
+          </div>
+        </div>
+
+        <div style="position:relative;margin-top:36px;text-align:center;padding:0 20px">
+          <svg viewBox="0 0 200 130" style="width:170px;height:110px"><polyline points="30,104 60,86 92,94 110,72 142,80 158,52 172,28" fill="none" stroke="rgba(70,182,255,.18)" stroke-width="1.2"/><circle cx="30" cy="104" r="4" fill="none" stroke="rgba(127,201,240,.35)"/><circle cx="60" cy="86" r="4" fill="none" stroke="rgba(127,201,240,.35)"/><circle cx="92" cy="94" r="4" fill="none" stroke="rgba(127,201,240,.35)"/><circle cx="110" cy="72" r="4" fill="none" stroke="rgba(127,201,240,.35)"/><circle cx="142" cy="80" r="4" fill="none" stroke="rgba(127,201,240,.35)"/><circle cx="158" cy="52" r="4" fill="none" stroke="rgba(127,201,240,.35)"/><circle cx="172" cy="28" r="5" fill="none" stroke="rgba(200,182,255,.4)"/></svg>
+          <div style="font-family:Galmuri11,monospace;font-size:15px;color:#CCFAFF;margin-top:18px">첫 변화는 다음 주에</div>
+          <div style="font-size:11.5px;color:rgba(159,228,255,.6);margin-top:8px;line-height:1.55">이번 주 기록과 루틴을 채우면<br>일요일에 너의 별이 얼마나 밝아졌는지 보여줄게요.</div>
+        </div>
+
+        <div style="position:absolute;bottom:20px;left:20px;right:20px;display:flex;flex-direction:column;gap:9px">
+          <button style="width:100%;padding:13px;border:0;border-radius:12px;background:#5FF0C0;color:#04241c;font-family:Galmuri11,monospace;font-size:13.5px;font-weight:700;cursor:pointer">오늘 기록 담기</button>
+          <button style="width:100%;padding:12px;border:1px solid rgba(70,182,255,.3);border-radius:12px;background:transparent;color:#9fe4ff;font-family:Galmuri11,monospace;font-size:12.5px;cursor:pointer">루틴 하나 시작하기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 근거 칩 사양 + 진입/리듬 ============ -->
+    <div style="flex:none;width:340px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">자기이해 근거 칩 · 진입점 · 주간 리듬</div>
+      <div style="width:340px;border-radius:18px;border:1px solid rgba(70,182,255,.22);background:#0c1322;padding:20px;display:flex;flex-direction:column;gap:16px">
+
+        <!-- 근거 칩 사양 -->
+        <div>
+          <div style="font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:.1em;color:rgba(95,212,255,.55);margin-bottom:11px">근거 칩 — 추천카드 REASON에 부착</div>
+          <div style="font-size:11.5px;color:rgba(159,228,255,.75);line-height:1.6;margin-bottom:12px">"다음 한 걸음"이 어디서 왔는지 = 어느 별/평가. 칩 색은 그 별의 도메인 색. 변화 화면과 /ops 추천이 같은 근거를 보임.</div>
+          <div style="display:flex;flex-direction:column;gap:7px">
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid rgba(200,182,255,.3);border-radius:9px;background:rgba(167,139,250,.07)"><span style="width:7px;height:7px;border-radius:50%;background:#C8B6FF"></span><span style="font-size:11px;color:#CCFAFF;flex:1">미래의 나 별 ↑</span><span style="font-size:9px;color:rgba(159,228,255,.5)">star_tier</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid rgba(70,182,255,.26);border-radius:9px;background:rgba(70,182,255,.06)"><span style="width:7px;height:7px;border-radius:50%;background:#46B6FF"></span><span style="font-size:11px;color:#CCFAFF;flex:1">성실성 평가 기반</span><span style="font-size:9px;color:rgba(159,228,255,.5)">bigfive</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid rgba(127,201,240,.26);border-radius:9px;background:rgba(127,201,240,.06)"><span style="width:7px;height:7px;border-radius:50%;background:#7FC9F0"></span><span style="font-size:11px;color:#CCFAFF;flex:1">루틴 연속 6일</span><span style="font-size:9px;color:rgba(159,228,255,.5)">streak</span></div>
+          </div>
+        </div>
+
+        <div style="height:1px;background:rgba(70,182,255,.14)"></div>
+
+        <!-- 진입점 -->
+        <div>
+          <div style="font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:.1em;color:rgba(95,212,255,.55);margin-bottom:11px">진입점</div>
+          <div style="display:flex;gap:9px;margin-bottom:9px">
+            <span style="flex:0 0 auto;font-family:'Press Start 2P',monospace;font-size:6px;color:#5FF0C0;padding:4px 8px;border:1px solid rgba(95,240,192,.35);border-radius:6px;height:fit-content">추천</span>
+            <div style="font-size:11.5px;color:rgba(159,228,255,.78);line-height:1.55">일요일 저녁 <span style="color:#9fe4ff">세컨비 말풍선</span>이 "이번 주 변화 보러 갈래요?"로 진입 — 셸 안, 별도 배지 없이 자연스럽게.</div>
+          </div>
+          <div style="display:flex;gap:9px">
+            <span style="flex:0 0 auto;font-family:'Press Start 2P',monospace;font-size:6px;color:rgba(95,212,255,.5);padding:4px 8px;border:1px solid rgba(70,182,255,.25);border-radius:6px;height:fit-content">대안</span>
+            <div style="font-size:11.5px;color:rgba(159,228,255,.65);line-height:1.55">예약 리마인더(기존 인프라)로 주 1회 알림 → 변화 화면 push.</div>
+          </div>
+        </div>
+
+        <div style="height:1px;background:rgba(70,182,255,.14)"></div>
+
+        <!-- 주간 리듬 -->
+        <div>
+          <div style="font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:.1em;color:rgba(95,212,255,.55);margin-bottom:11px">주간 리듬</div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <div style="flex:1;text-align:center"><div style="height:22px;border-radius:5px;background:rgba(70,182,255,.12)"></div><div style="font-size:8px;color:rgba(159,228,255,.5);margin-top:4px">월</div></div>
+            <div style="flex:1;text-align:center"><div style="height:22px;border-radius:5px;background:rgba(70,182,255,.16)"></div><div style="font-size:8px;color:rgba(159,228,255,.5);margin-top:4px">화</div></div>
+            <div style="flex:1;text-align:center"><div style="height:22px;border-radius:5px;background:rgba(70,182,255,.2)"></div><div style="font-size:8px;color:rgba(159,228,255,.5);margin-top:4px">수</div></div>
+            <div style="flex:1;text-align:center"><div style="height:22px;border-radius:5px;background:rgba(70,182,255,.24)"></div><div style="font-size:8px;color:rgba(159,228,255,.5);margin-top:4px">목</div></div>
+            <div style="flex:1;text-align:center"><div style="height:22px;border-radius:5px;background:rgba(70,182,255,.3)"></div><div style="font-size:8px;color:rgba(159,228,255,.5);margin-top:4px">금</div></div>
+            <div style="flex:1;text-align:center"><div style="height:22px;border-radius:5px;background:rgba(70,182,255,.4)"></div><div style="font-size:8px;color:rgba(159,228,255,.5);margin-top:4px">토</div></div>
+            <div style="flex:1;text-align:center"><div style="height:22px;border-radius:5px;background:#5FF0C0"></div><div style="font-size:8px;color:#5FF0C0;margin-top:4px">일</div></div>
+          </div>
+          <div style="font-size:10px;color:rgba(159,228,255,.6);margin-top:10px;line-height:1.5">한 주 동안 쌓고, 일요일에 변화를 비춘다. 리뷰는 읽기 1분 — 과밀 금지.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============ EN/KO 카피 ============ -->
+    <div style="flex:none;width:400px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">EN / KO 카피 <span style="color:rgba(159,228,255,.45)">키 패리티 · 관찰 프레이밍</span></div>
+      <div style="width:400px;border-radius:18px;border:1px solid rgba(70,182,255,.22);background:#0c1322;padding:20px 22px">
+        <div style="font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:.1em;color:rgba(95,212,255,.55);margin-bottom:12px">GROWTH · COPY</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+          <tr style="border-bottom:1px solid rgba(70,182,255,.14)"><td style="padding:7px 8px 7px 0;color:#9FE4FF;width:50%">EN</td><td style="padding:7px 0;color:rgba(159,228,255,.75)">KO</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">This week, you grew here.</td><td style="padding:7px 0">이번 주, 너는 여기가 자랐어요</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">This week's star</td><td style="padding:7px 0">이번 주의 별</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">Brightened +2 levels</td><td style="padding:7px 0">밝기 +2단계</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">Last week · This week</td><td style="padding:7px 0">지난주 · 이번주</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">Add as routine</td><td style="padding:7px 0">루틴으로 담기</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">Turn a daydream into a first step?</td><td style="padding:7px 0">공상 한 조각을 첫 걸음으로?</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">No last week to compare yet</td><td style="padding:7px 0">아직 비교할 지난주가 없어요</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">Fill one week and you'll see change</td><td style="padding:7px 0">한 주만 채우면 변화가 보여요</td></tr>
+          <tr><td style="padding:7px 8px 7px 0">Want to see this week's change?</td><td style="padding:7px 0">이번 주 변화 보러 갈래요?</td></tr>
+        </table>
+        <div style="margin-top:16px;font-size:10.5px;color:rgba(95,212,255,.5);line-height:1.65">· 관찰·격려 프레이밍 — 점수 단정·판단·임상 어휘 금지. 자동 반영 없음(propose→ratify).<br>· 키트 매핑: 히어로/7별=별자리 시각 언어(밝기만 변형) · 지표=MetaChip+ProgressBar · 관찰·걸음=추천카드(reason+ratify) · 빈/첫주=상태4종 · 근거칩=추천카드 reason 슬롯. 코어 신설 0, 비주얼 티어 불가침.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
