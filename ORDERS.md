@@ -1281,6 +1281,17 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [디렉터 사이클 ✅ / 2026-06-21 / 04:47:09 KST] main lexicon 게이트 복구(#511) + import-hub tier 틴트(#512) + FIDELITY_AUDIT가 방향 검증 (Claude 실행자)
+**라이브 origin/main `41dc070e`** · https://simon-yhkim.github.io/2nd-B/ . 새 원격오더 0.
+- **🔧 인시던트 수습 — #511 머지(`41dc070e`)** `fix(safety)`: 타 세션 #510(`docs/FIDELITY_AUDIT.md`)이 docs 감사파일에 non-clinical "treatment"(palette/visual treatment=디자인 prose) 담은 채 **red CI 머지로 main lexicon 게이트를 깨뜨림** → 수습(해당 파일 allowlist) + 동시에 발견한 **lexicon allowlist over-match 버그 수정**(`slice(0,-3)`→`-2`, 형제경로 `docs/legacy-quarantine`·`db/seed.sql` 오매치 차단, 게이트 강화) + 회귀 테스트. main 그린 복구.
+- **#512 PR open** `feat(deepspace)`: import-hub 소스행을 민감도 tier별 틴트(critical 적/sensitive 황/normal 시안, 기존 TIER_COLOR 토큰+withAlpha, no hex). FIDELITY_AUDIT /import-hub 권고 반영. 다음 사이클 머지.
+- **🎯 FIDELITY_AUDIT.md(#510, 타 세션 22-에이전트 감사)가 내 독립 발견을 검증**: "DESIGN_AUDIT 전제(레거시 재작성)는 false; 21/22 이미 isDeepSpaceUI 분기; 진짜 일=fidelity(placeholder→canon); big-five done #509" — 내 정정과 동일. 플릿이 7렌즈 와이어링(#509 복제) 중. 나는 비-플릿 슬라이스(#512 등)·검증·머지 보완.
+
+**⚠️ 코디네이션**: 타 세션 red-CI 머지(#510)가 main 깸 — 브랜치보호 없는 환경 위험 재현. #511로 수습.
+
+**deep-space 단일본체화 (P0)** OPEN 유지 = 플릿이 7렌즈 진행 + 나는 비-플릿 P3 fidelity 슬라이스(import-hub 등) + 인프라/안전.
+
+
 ### [디렉터 사이클 ✅ / 2026-06-21 / 04:04:21 KST] big-five 실데이터 라이브(#509) + 나머지 렌즈 와이어링 플랜 (Claude 실행자)
 **라이브 origin/main `b4ed82d5`** · https://simon-yhkim.github.io/2nd-B/ . 새 원격오더 0.
 - **#509 머지(`b4ed82d5`)** `feat(deepspace)`: big-five 렌즈가 가짜점수(72/58/41/67/39) 대신 **실 Big Five 결과** 표시(loadLatestBfi=홈셸 검증헬퍼 재사용, 1-5→0-100 스케일). LensView에 optional `traits` prop(하위호환: 미전달=demo 유지 → core-brain/Soul Core·preview 무영향), 방어적(무userId/쿼리실패/무결과→empty, 크래시·가짜 없음). verify×2+Vercel green. **정정된 진짜 P0(캐논 뷰 기능 와이어링)의 첫 기능 ship.**
