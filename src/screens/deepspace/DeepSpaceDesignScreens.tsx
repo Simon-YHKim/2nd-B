@@ -1468,10 +1468,10 @@ export function DeepSpaceResearchScreen() {
                   </View>
                   <View style={styles.opsStepFoot}>
                     <Text style={styles.evChip}>{t("research.confidence", { percent: Math.round(p.confidence * 100) })}</Text>
-                    <Pressable style={styles.smallBtnGhost} onPress={() => void reject(p)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("research.reject")}>
+                    <Pressable style={[styles.smallBtnGhost, { minHeight: 44, justifyContent: "center" }]} onPress={() => void reject(p)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("research.reject")}>
                       <Text style={styles.smallBtnGhostText}>{t("research.reject")}</Text>
                     </Pressable>
-                    <Pressable style={styles.smallBtn} onPress={() => void ratify(p)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("research.ratify")}>
+                    <Pressable style={[styles.smallBtn, { minHeight: 44, justifyContent: "center" }]} onPress={() => void ratify(p)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("research.ratify")}>
                       <Text style={styles.smallBtnText}>{busy ? t("research.ratifying") : t("research.ratify")}</Text>
                     </Pressable>
                   </View>
