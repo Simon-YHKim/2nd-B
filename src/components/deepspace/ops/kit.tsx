@@ -10,13 +10,13 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
+  Text as RNText,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
-import { fontFamilies } from "@/theme/typography";
+import { Text } from "@/components/ui/Text";
 import { SecondbStatusHeader } from "@/components/deepspace";
 import { OPS_DOMAIN_GROUP, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 
@@ -42,7 +42,7 @@ export function domainColorFor(domain: OpsDomainId): string {
 export function MetaChip({ label, color }: { label: string; color?: string }) {
   return (
     <View style={styles.metaChip}>
-      <Text style={[styles.metaChipText, color ? { color } : null]}>{label}</Text>
+      <Text variant="subtle" style={[styles.metaChipText, color ? { color } : null]}>{label}</Text>
     </View>
   );
 }
@@ -76,7 +76,7 @@ export function OpsActionRow({ primaryLabel, onPrimary, secondaryLabel, onSecond
         hitSlop={8}
         style={({ pressed }) => [styles.primaryBtn, pressed ? styles.pressed : null]}
       >
-        <Text style={styles.primaryBtnText}>{primaryLabel}</Text>
+        <Text variant="caption" style={styles.primaryBtnText}>{primaryLabel}</Text>
       </Pressable>
       {secondaryLabel && onSecondary ? (
         <Pressable
@@ -85,7 +85,7 @@ export function OpsActionRow({ primaryLabel, onPrimary, secondaryLabel, onSecond
           hitSlop={8}
           style={({ pressed }) => [styles.secondaryBtn, pressed ? styles.pressed : null]}
         >
-          <Text style={styles.secondaryBtnText}>{secondaryLabel}</Text>
+          <Text variant="caption" style={styles.secondaryBtnText}>{secondaryLabel}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -112,9 +112,9 @@ export function OpsRecommendationCard(props: OpsRecommendationCardProps) {
     <View style={styles.recCard}>
       <View style={styles.recTitleRow}>
         <View style={[styles.dot, { backgroundColor: accent }]} />
-        <Text style={styles.recTitle}>{props.title}</Text>
+        <Text variant="heading" style={styles.recTitle}>{props.title}</Text>
       </View>
-      <Text style={styles.recReason}>{props.reason}</Text>
+      <Text variant="body" style={styles.recReason}>{props.reason}</Text>
       {props.chips && props.chips.length > 0 ? (
         <View style={styles.recChips}>
           {props.chips.map((c) => (
@@ -128,7 +128,7 @@ export function OpsRecommendationCard(props: OpsRecommendationCardProps) {
         secondaryLabel={props.secondaryLabel}
         onSecondary={props.onSecondary}
       />
-      {props.disclaimer ? <Text style={styles.recDisclaimer}>{props.disclaimer}</Text> : null}
+      {props.disclaimer ? <Text variant="subtle" style={styles.recDisclaimer}>{props.disclaimer}</Text> : null}
     </View>
   );
 }
@@ -150,7 +150,7 @@ export function OpsStatusChip({ tone, label }: { tone: OpsChipTone; label: strin
   const t = CHIP_TONE[tone];
   return (
     <View style={[styles.statusChip, { borderColor: t.line, backgroundColor: t.bg }]}>
-      <Text style={[styles.statusChipText, { color: t.color }]}>{label}</Text>
+      <Text variant="caption" style={[styles.statusChipText, { color: t.color }]}>{label}</Text>
     </View>
   );
 }
@@ -172,7 +172,7 @@ export function OpsReminderRow(props: OpsReminderRowProps) {
   return (
     <View style={styles.reminderRow}>
       <View style={styles.reminderTop}>
-        <Text style={styles.reminderTitle}>{props.title}</Text>
+        <Text variant="heading" style={styles.reminderTitle}>{props.title}</Text>
         {props.onToggle ? (
           <Pressable
             accessibilityRole="switch"
@@ -186,7 +186,7 @@ export function OpsReminderRow(props: OpsReminderRowProps) {
         ) : null}
       </View>
       <View style={styles.reminderMeta}>
-        <Text style={styles.reminderSchedule}>{props.schedule}</Text>
+        <Text variant="subtle" style={styles.reminderSchedule}>{props.schedule}</Text>
         <View style={{ marginLeft: "auto" }}>
           <OpsStatusChip tone={props.tone} label={props.statusLabel} />
         </View>
@@ -198,7 +198,7 @@ export function OpsReminderRow(props: OpsReminderRowProps) {
           hitSlop={8}
           style={({ pressed }) => [styles.warnBtn, pressed ? styles.pressed : null]}
         >
-          <Text style={styles.warnBtnText}>{props.actionLabel}</Text>
+          <Text variant="caption" style={styles.warnBtnText}>{props.actionLabel}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -234,12 +234,12 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
       <Pressable style={styles.sheetBackdrop} onPress={props.onClose} accessibilityRole="button" />
       <View style={styles.sheet}>
         <View style={styles.sheetGrip} />
-        <Text style={styles.sheetTitle}>{props.title}</Text>
-        {props.subtitle ? <Text style={styles.sheetSubtitle}>{props.subtitle}</Text> : null}
+        <Text variant="heading" style={styles.sheetTitle}>{props.title}</Text>
+        {props.subtitle ? <Text variant="subtle" style={styles.sheetSubtitle}>{props.subtitle}</Text> : null}
         {props.needsConsent && props.consentLabel ? (
           <View style={styles.consentLine}>
-            <Text style={styles.consentIcon}>🔒</Text>
-            <Text style={styles.consentText}>{props.consentLabel}</Text>
+            <RNText style={styles.consentIcon}>🔒</RNText>
+            <Text variant="body" style={styles.consentText}>{props.consentLabel}</Text>
           </View>
         ) : null}
         <View style={styles.sheetOptions}>
@@ -255,12 +255,12 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
                 pressed ? styles.pressed : null,
               ]}
             >
-              <Text style={styles.pushIcon}>{o.icon}</Text>
+              <RNText style={styles.pushIcon}>{o.icon}</RNText>
               <View style={styles.pushOptionBody}>
-                <Text style={styles.pushOptionLabel}>{o.label}</Text>
-                {o.sub ? <Text style={styles.pushOptionSub}>{o.sub}</Text> : null}
+                <Text variant="caption" style={styles.pushOptionLabel}>{o.label}</Text>
+                {o.sub ? <Text variant="subtle" style={styles.pushOptionSub}>{o.sub}</Text> : null}
               </View>
-              {o.recommended ? <Text style={styles.pushRecTag}>★</Text> : null}
+              {o.recommended ? <RNText style={styles.pushRecTag}>★</RNText> : null}
             </Pressable>
           ))}
         </View>
@@ -271,7 +271,7 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
             hitSlop={6}
             style={({ pressed }) => [styles.primaryBtn, styles.sheetConfirm, pressed ? styles.pressed : null]}
           >
-            <Text style={styles.primaryBtnText}>{props.confirmLabel}</Text>
+            <Text variant="caption" style={styles.primaryBtnText}>{props.confirmLabel}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -309,9 +309,9 @@ export function OpsState(props: OpsStateProps) {
         warn ? styles.stateWarn : null,
       ]}
     >
-      <Text style={styles.stateIcon}>{STATE_ICON[props.variant]}</Text>
-      <Text style={styles.stateTitle}>{props.title}</Text>
-      <Text style={styles.stateBody}>{props.body}</Text>
+      <RNText style={styles.stateIcon}>{STATE_ICON[props.variant]}</RNText>
+      <Text variant="heading" style={styles.stateTitle}>{props.title}</Text>
+      <Text variant="body" style={styles.stateBody}>{props.body}</Text>
       {props.ctaLabel && props.onCta ? (
         <Pressable
           accessibilityRole="button"
@@ -323,7 +323,7 @@ export function OpsState(props: OpsStateProps) {
             pressed ? styles.pressed : null,
           ]}
         >
-          <Text style={props.variant === "error" ? styles.secondaryBtnText : styles.primaryBtnText}>
+          <Text variant="caption" style={props.variant === "error" ? styles.secondaryBtnText : styles.primaryBtnText}>
             {props.ctaLabel}
           </Text>
         </Pressable>
@@ -367,7 +367,7 @@ export function OpsDomainPicker({
             style={[styles.pickerChip, on ? styles.pickerChipOn : null]}
           >
             <View style={[styles.dotSm, { backgroundColor: tab.color }]} />
-            <Text style={[styles.pickerChipText, on ? styles.pickerChipTextOn : null]}>{tab.label}</Text>
+            <Text variant="caption" style={[styles.pickerChipText, on ? styles.pickerChipTextOn : null]}>{tab.label}</Text>
           </Pressable>
         );
       })}
@@ -395,10 +395,10 @@ export function OpsFrame({ title, bubble, tip, onBack, children, footer }: OpsFr
         <View style={styles.titleRow}>
           {onBack ? (
             <Pressable accessibilityRole="button" onPress={onBack} hitSlop={10} style={styles.backBtn}>
-              <Text style={styles.backIcon}>‹</Text>
+              <RNText style={styles.backIcon}>‹</RNText>
             </Pressable>
           ) : null}
-          <Text style={styles.title}>{title}</Text>
+          <Text variant="heading" style={styles.title}>{title}</Text>
         </View>
         {children}
       </ScrollView>
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
   backBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   backIcon: { color: deepSpace.accentBright, fontSize: 24 },
-  title: { fontFamily: fontFamilies.pixelKo, fontSize: 18, color: deepSpace.accentBright },
+  title: { fontSize: 18, color: deepSpace.accentBright },
   footer: { padding: deepSpaceSpacing.lg },
 
   metaChip: {
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.mint,
     paddingHorizontal: deepSpaceSpacing.md,
   },
-  primaryBtnText: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.onMint },
+  primaryBtnText: { fontSize: 14, color: deepSpace.onMint },
   secondaryBtn: {
     minHeight: 44,
     alignItems: "center",
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     borderColor: deepSpace.cardLineStrong,
     paddingHorizontal: deepSpaceSpacing.lg,
   },
-  secondaryBtnText: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.accentSoft },
+  secondaryBtnText: { fontSize: 14, color: deepSpace.accentSoft },
   pressed: { opacity: 0.7 },
 
   recCard: {
@@ -478,13 +478,13 @@ const styles = StyleSheet.create({
   recTitleRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
   dotSm: { width: 7, height: 7, borderRadius: 4 },
-  recTitle: { flex: 1, fontFamily: fontFamilies.pixelKo, fontSize: 15, color: deepSpace.textHi, lineHeight: 21 },
-  recReason: { fontSize: 14, color: deepSpace.textMid, lineHeight: 21 },
+  recTitle: { flex: 1, fontSize: 15, color: deepSpace.textHi },
+  recReason: { fontSize: 14, color: deepSpace.textMid },
   recChips: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  recDisclaimer: { fontSize: 12, color: deepSpace.textLo, lineHeight: 17 },
+  recDisclaimer: { fontSize: 12, color: deepSpace.textLo },
 
   statusChip: { paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderRadius: deepSpaceRadii.sm },
-  statusChipText: { fontSize: 12, fontFamily: fontFamilies.pixelKo },
+  statusChipText: { fontSize: 12 },
 
   reminderRow: {
     padding: deepSpaceSpacing.md,
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
     gap: deepSpaceSpacing.sm,
   },
   reminderTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  reminderTitle: { flex: 1, fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.accentBright },
+  reminderTitle: { flex: 1, fontSize: 14, color: deepSpace.accentBright },
   reminderMeta: { flexDirection: "row", alignItems: "center", gap: 7 },
   reminderSchedule: { fontSize: 12, color: deepSpace.textLo },
   toggle: { width: 44, height: 26, borderRadius: 13, justifyContent: "center", paddingHorizontal: 3 },
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     borderColor: deepSpace.warningLine,
     backgroundColor: deepSpace.warningBg,
   },
-  warnBtnText: { fontFamily: fontFamilies.pixelKo, fontSize: 13, color: deepSpace.warning },
+  warnBtnText: { fontSize: 13, color: deepSpace.warning },
 
   sheetBackdrop: { flex: 1, backgroundColor: deepSpace.bgEdge, opacity: 0.6 },
   sheet: {
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     gap: deepSpaceSpacing.sm,
   },
   sheetGrip: { width: 40, height: 4, borderRadius: 2, backgroundColor: deepSpace.cardLineStrong, alignSelf: "center" },
-  sheetTitle: { fontFamily: fontFamilies.pixelKo, fontSize: 16, color: deepSpace.textHi },
+  sheetTitle: { fontSize: 16, color: deepSpace.textHi },
   sheetSubtitle: { fontSize: 12, color: deepSpace.textLo },
   consentLine: {
     flexDirection: "row",
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
     borderRadius: deepSpaceRadii.md,
   },
   consentIcon: { fontSize: 14 },
-  consentText: { flex: 1, fontSize: 13, color: deepSpace.textMid, lineHeight: 18 },
+  consentText: { flex: 1, fontSize: 13, color: deepSpace.textMid },
   sheetOptions: { gap: 8 },
   pushOption: {
     flexDirection: "row",
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
   pushOptionRec: { borderColor: deepSpace.mintLine, backgroundColor: deepSpace.mintBg },
   pushIcon: { fontSize: 18 },
   pushOptionBody: { flex: 1 },
-  pushOptionLabel: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.accentBright },
+  pushOptionLabel: { fontSize: 14, color: deepSpace.accentBright },
   pushOptionSub: { fontSize: 12, color: deepSpace.textLo, marginTop: 1 },
   pushRecTag: { fontSize: 13, color: deepSpace.mint },
   sheetConfirm: { marginTop: 4 },
@@ -575,8 +575,8 @@ const styles = StyleSheet.create({
   stateDanger: { borderColor: deepSpace.dangerLine, backgroundColor: deepSpace.dangerBg },
   stateWarn: { borderColor: deepSpace.warningLine, backgroundColor: deepSpace.warningBg },
   stateIcon: { fontSize: 26, color: deepSpace.accentSoft },
-  stateTitle: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.accentBright, textAlign: "center" },
-  stateBody: { fontSize: 13, color: deepSpace.textLo, textAlign: "center", lineHeight: 18 },
+  stateTitle: { fontSize: 14, color: deepSpace.accentBright, textAlign: "center" },
+  stateBody: { fontSize: 13, color: deepSpace.textLo, textAlign: "center" },
   stateCta: { flex: 0, paddingHorizontal: deepSpaceSpacing.lg, marginTop: 4 },
 
   pickerRow: { gap: 7, paddingVertical: 2 },
@@ -591,6 +591,6 @@ const styles = StyleSheet.create({
     borderRadius: deepSpaceRadii.md,
   },
   pickerChipOn: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
-  pickerChipText: { fontFamily: fontFamilies.pixelKo, fontSize: 13, color: deepSpace.accentSoft },
+  pickerChipText: { fontSize: 13, color: deepSpace.accentSoft },
   pickerChipTextOn: { color: deepSpace.accentBright },
 });
