@@ -1,8 +1,9 @@
 import { useRouter } from "expo-router";
 import type { Href } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 
 import { SecondbStatusHeader } from "@/components/deepspace";
+import { Text } from "@/components/ui/Text";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
@@ -92,22 +93,22 @@ export function DeepSpaceFlowMapScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.phone}>
         <View style={styles.statusBar}>
-          <Text style={styles.statusText}>9:41</Text>
-          <Text style={styles.statusText}>●●● ▮</Text>
+          <RNText style={styles.statusText}>9:41</RNText>
+          <RNText style={styles.statusText}>●●● ▮</RNText>
         </View>
         <SecondbStatusHeader
           mood="positive"
           text="전체 흐름을 한 장으로 묶었어요. 홈이 모든 화면의 중심이에요."
           tip="막히는 화면 없이 진입, 홈, 담기, 내보내기까지 이어져야 해요."
         />
-        <Text style={styles.kicker}>2ND-BRAIN · FLOW MAP</Text>
-        <Text style={styles.title}>화면 관계 지도</Text>
-        <Text style={styles.subtitle}>정본 flowmap을 실제 route로 검증하는 deep-space QA 화면입니다.</Text>
+        <RNText style={styles.kicker}>2ND-BRAIN · FLOW MAP</RNText>
+        <Text variant="heading" style={styles.title}>화면 관계 지도</Text>
+        <Text variant="body" style={styles.subtitle}>정본 flowmap을 실제 route로 검증하는 deep-space QA 화면입니다.</Text>
         <View style={styles.grid}>
           {FLOW.map((column) => (
             <View key={column.title} style={styles.column}>
-              <Text style={[styles.columnTitle, styles[`${column.tone}Text`]]}>{column.title}</Text>
-              <Text style={styles.columnSub}>{column.subtitle}</Text>
+              <Text variant="caption" style={[styles.columnTitle, styles[`${column.tone}Text`]]}>{column.title}</Text>
+              <Text variant="subtle" style={styles.columnSub}>{column.subtitle}</Text>
               {column.items.map((item) => (
                 <Pressable
                   key={`${column.title}-${item.path}`}
@@ -116,8 +117,8 @@ export function DeepSpaceFlowMapScreen() {
                   onPress={() => router.push(item.path)}
                   style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
                 >
-                  <Text style={styles.chipLabel}>{item.label}</Text>
-                  <Text style={styles.chipNote}>{item.note}</Text>
+                  <Text variant="caption" style={styles.chipLabel}>{item.label}</Text>
+                  <Text variant="subtle" style={styles.chipNote}>{item.note}</Text>
                 </Pressable>
               ))}
             </View>
@@ -135,17 +136,17 @@ const styles = StyleSheet.create({
   statusBar: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 22, paddingTop: 14 },
   statusText: { color: colors.textMid, fontFamily: fontFamilies.pixelKo, fontSize: 11, lineHeight: 16 },
   kicker: { marginTop: spacing.md, marginHorizontal: 20, color: colors.cyanBright, fontFamily: fontFamilies.pixelEn, fontSize: 7, lineHeight: 12, letterSpacing: 1.2 },
-  title: { marginTop: spacing.xs, marginHorizontal: 20, color: colors.textTitle, fontFamily: fontFamilies.pixelKo, fontSize: 18, lineHeight: 24 },
-  subtitle: { marginTop: spacing.xs, marginHorizontal: 20, color: colors.textMid, fontFamily: fontFamilies.readable, fontSize: 12.5, lineHeight: 18 },
+  title: { marginTop: spacing.xs, marginHorizontal: 20, color: colors.textTitle, fontSize: 18 },
+  subtitle: { marginTop: spacing.xs, marginHorizontal: 20, color: colors.textMid, fontSize: 12.5 },
   grid: { paddingHorizontal: 14, paddingTop: spacing.lg, gap: spacing.md },
   column: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.cardBg, padding: spacing.md },
-  columnTitle: { fontFamily: fontFamilies.pixelKo, fontSize: 12, lineHeight: 17 },
-  columnSub: { marginTop: 2, marginBottom: spacing.sm, color: colors.textLo, fontFamily: fontFamilies.readable, fontSize: 11, lineHeight: 15 },
+  columnTitle: { fontSize: 12 },
+  columnSub: { marginTop: 2, marginBottom: spacing.sm, color: colors.textLo, fontSize: 11 },
   mintText: { color: colors.mint },
   cyanText: { color: colors.cyanBright },
   soulText: { color: colors.soul },
   chip: { minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, backgroundColor: colors.cardBg, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, marginTop: spacing.xs },
-  chipLabel: { color: colors.textTitle, fontFamily: fontFamilies.pixelKo, fontSize: 11, lineHeight: 15 },
-  chipNote: { marginTop: 2, color: colors.textLo, fontFamily: fontFamilies.readable, fontSize: 10.5, lineHeight: 14 },
+  chipLabel: { color: colors.textTitle, fontSize: 11 },
+  chipNote: { marginTop: 2, color: colors.textLo, fontSize: 10.5 },
   pressed: { opacity: 0.72 },
 });

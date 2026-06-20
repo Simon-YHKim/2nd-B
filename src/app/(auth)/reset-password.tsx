@@ -5,7 +5,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from "react-native";
@@ -13,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { Link, router } from "expo-router";
 
 import { CosmicBackground, PremiumToast } from "@/components/premium";
+import { Text } from "@/components/ui/Text";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
@@ -66,10 +66,10 @@ function ResetPasswordLegacy() {
               accessibilityRole="image"
               accessibilityLabel={t("common.entryArtwork")}
             />
-            <Text style={styles.title}>
+            <Text variant="body" style={styles.title}>
               {complete ? t("resetPassword.doneTitle") : t("resetPassword.title")}
             </Text>
-            <Text style={styles.subtitle}>
+            <Text variant="body" style={styles.subtitle}>
               {complete ? t("resetPassword.doneSubtitle") : t("resetPassword.subtitle")}
             </Text>
           </View>
@@ -77,8 +77,8 @@ function ResetPasswordLegacy() {
           <View style={styles.form}>
             {!userId ? (
               <>
-                <Text style={styles.noticeTitle}>{t("resetPassword.expiredTitle")}</Text>
-                <Text style={styles.noticeBody}>{t("resetPassword.expiredBody")}</Text>
+                <Text variant="body" style={styles.noticeTitle}>{t("resetPassword.expiredTitle")}</Text>
+                <Text variant="body" style={styles.noticeBody}>{t("resetPassword.expiredBody")}</Text>
                 <Link href="/sign-in" asChild>
                   <Pressable
                     accessibilityRole="link"
@@ -86,7 +86,7 @@ function ResetPasswordLegacy() {
                     accessibilityHint={t("resetPassword.backToSignInHint")}
                     style={styles.secondaryBtn}
                   >
-                    <Text style={styles.secondaryBtnText}>{t("resetPassword.backToSignIn")}</Text>
+                    <Text variant="body" style={styles.secondaryBtnText}>{t("resetPassword.backToSignIn")}</Text>
                   </Pressable>
                 </Link>
               </>
@@ -98,11 +98,11 @@ function ResetPasswordLegacy() {
                 accessibilityHint={t("resetPassword.continueHint")}
                 style={styles.primaryBtn}
               >
-                <Text style={styles.primaryBtnText}>{t("resetPassword.continue")}</Text>
+                <Text variant="body" style={styles.primaryBtnText}>{t("resetPassword.continue")}</Text>
               </Pressable>
             ) : (
               <>
-                <Text style={styles.label}>{t("resetPassword.newPassword")}</Text>
+                <Text variant="subtle" style={styles.label}>{t("resetPassword.newPassword")}</Text>
                 <TextInput
                   value={password}
                   onChangeText={setPassword}
@@ -113,7 +113,7 @@ function ResetPasswordLegacy() {
                   accessibilityHint={t("resetPassword.newPasswordHint")}
                   style={styles.input}
                 />
-                <Text style={styles.label}>{t("resetPassword.confirmPassword")}</Text>
+                <Text variant="subtle" style={styles.label}>{t("resetPassword.confirmPassword")}</Text>
                 <TextInput
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -128,7 +128,7 @@ function ResetPasswordLegacy() {
                     if (canSubmit) void handleSubmit();
                   }}
                 />
-                <Text style={[styles.helper, helperKey !== "resetPassword.passwordHelper" && styles.helperDanger]}>
+                <Text variant="subtle" style={[styles.helper, helperKey !== "resetPassword.passwordHelper" && styles.helperDanger]}>
                   {t(helperKey)}
                 </Text>
                 <Pressable
@@ -142,7 +142,7 @@ function ResetPasswordLegacy() {
                   accessibilityState={{ disabled: !canSubmit, busy: submitting }}
                   style={[styles.primaryBtn, !canSubmit && styles.btnDisabled]}
                 >
-                  <Text style={styles.primaryBtnText}>
+                  <Text variant="body" style={styles.primaryBtnText}>
                     {submitting ? t("resetPassword.submitting") : t("resetPassword.submit")}
                   </Text>
                 </Pressable>
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
-  helper: { color: PALETTE.textMuted, fontSize: typography.sizes.sm, lineHeight: 20 },
+  helper: { color: PALETTE.textMuted, fontSize: typography.sizes.sm },
   helperDanger: { color: semantic.danger },
   primaryBtn: {
     backgroundColor: PALETTE.brand,
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   secondaryBtnText: { color: PALETTE.text, fontSize: typography.sizes.md, fontWeight: "600", letterSpacing: 0 },
   btnDisabled: { opacity: 0.4 },
   noticeTitle: { color: PALETTE.text, fontSize: 14, fontWeight: "700", letterSpacing: 0 },
-  noticeBody: { color: PALETTE.textMuted, fontSize: typography.sizes.sm, lineHeight: 20, letterSpacing: 0 },
+  noticeBody: { color: PALETTE.textMuted, fontSize: typography.sizes.sm, letterSpacing: 0 },
   toastWrap: {
     position: "absolute",
     left: spacing.lg,

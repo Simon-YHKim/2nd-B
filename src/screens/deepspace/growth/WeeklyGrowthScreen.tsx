@@ -6,12 +6,13 @@
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
 import Svg, { Circle, Polyline, Text as SvgText } from "react-native-svg";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { Text } from "@/components/ui/Text";
 import { fontFamilies } from "@/theme/typography";
 import { MetaChip, OpsFrame, OpsState } from "@/components/deepspace/ops";
 import { SecondbHead } from "@/components/deepspace";
@@ -105,9 +106,9 @@ export function WeeklyGrowthScreen() {
     return (
       <>
         <View style={styles.heroBox}>
-          <Text style={styles.heroLabel}>{t("thisWeeksStar")}</Text>
-          <Text style={styles.heroName}>{ko ? hero.nameKo : hero.nameEn}</Text>
-          <Text style={styles.heroDelta}>
+          <RNText style={styles.heroLabel}>{t("thisWeeksStar")}</RNText>
+          <Text variant="heading" style={styles.heroName}>{ko ? hero.nameKo : hero.nameEn}</Text>
+          <Text variant="body" style={styles.heroDelta}>
             {hero.delta > 0 ? t("brightened").replace("{n}", String(hero.delta)) : t("brightestNow")}
           </Text>
         </View>
@@ -143,11 +144,11 @@ export function WeeklyGrowthScreen() {
           <View style={styles.legend}>
             <View style={styles.legendItem}>
               <View style={styles.legendHollow} />
-              <Text style={styles.legendText}>{t("lastWeek")}</Text>
+              <Text variant="subtle" style={styles.legendText}>{t("lastWeek")}</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={styles.legendFill} />
-              <Text style={styles.legendText}>{t("thisWeek")}</Text>
+              <Text variant="subtle" style={styles.legendText}>{t("thisWeek")}</Text>
             </View>
           </View>
         </View>
@@ -162,23 +163,23 @@ export function WeeklyGrowthScreen() {
         <View style={styles.obsCard}>
           <View style={styles.obsHead}>
             <SecondbHead size={22} mood="positive" />
-            <Text style={styles.obsText}>{ko ? step.obsKo : step.obsEn}</Text>
+            <Text variant="body" style={styles.obsText}>{ko ? step.obsKo : step.obsEn}</Text>
           </View>
           <View style={styles.reasonChip}>
             <View style={[styles.dot, { backgroundColor: deepSpace.soul }]} />
-            <Text style={styles.reasonText}>{`${ko ? hero.nameKo : hero.nameEn} ↑`}</Text>
+            <Text variant="caption" style={styles.reasonText}>{`${ko ? hero.nameKo : hero.nameEn} ↑`}</Text>
           </View>
           <View style={styles.obsActions}>
             <Pressable onPress={saveStep} hitSlop={6} style={[styles.primaryBtn, saved ? styles.disabled : null]} disabled={saved}>
-              <Text style={styles.primaryText}>{saved ? t("saved") : t("addRoutine")}</Text>
+              <Text variant="caption" style={styles.primaryText}>{saved ? t("saved") : t("addRoutine")}</Text>
             </Pressable>
           </View>
         </View>
 
         <Pressable onPress={() => router.push("/imagine")} hitSlop={6} style={styles.dreamRow}>
-          <Text style={styles.dreamIcon}>✨</Text>
-          <Text style={styles.dreamText}>{t("dreamToStep")}</Text>
-          <Text style={styles.dreamCaret}>›</Text>
+          <RNText style={styles.dreamIcon}>✨</RNText>
+          <Text variant="body" style={styles.dreamText}>{t("dreamToStep")}</Text>
+          <RNText style={styles.dreamCaret}>›</RNText>
         </Pressable>
       </>
     );
@@ -193,13 +194,13 @@ export function WeeklyGrowthScreen() {
             <Circle key={i} cx={cx} cy={cy} r={4} fill="none" stroke={deepSpace.accentDim} strokeWidth={1} opacity={0.4} />
           ))}
         </Svg>
-        <Text style={styles.firstTitle}>{t("firstTitle")}</Text>
-        <Text style={styles.firstBody}>{t("firstBody")}</Text>
+        <Text variant="heading" style={styles.firstTitle}>{t("firstTitle")}</Text>
+        <Text variant="body" style={styles.firstBody}>{t("firstBody")}</Text>
         <Pressable onPress={() => router.push("/capture")} hitSlop={6} style={styles.primaryBtn}>
-          <Text style={styles.primaryText}>{t("captureToday")}</Text>
+          <Text variant="caption" style={styles.primaryText}>{t("captureToday")}</Text>
         </Pressable>
         <Pressable onPress={() => router.push("/ops")} hitSlop={6} style={styles.ghostBtn}>
-          <Text style={styles.ghostText}>{t("startRoutine")}</Text>
+          <Text variant="caption" style={styles.ghostText}>{t("startRoutine")}</Text>
         </Pressable>
       </View>
     );
@@ -235,7 +236,7 @@ function COPY(ko: boolean): Record<string, string> {
 const styles = StyleSheet.create({
   heroBox: { alignItems: "center", gap: 4 },
   heroLabel: { fontFamily: fontFamilies.pixelEn, fontSize: 8, letterSpacing: 1.5, color: deepSpace.accentSoft },
-  heroName: { fontFamily: fontFamilies.pixelKo, fontSize: 19, color: deepSpace.textHi, marginTop: 4 },
+  heroName: { fontSize: 19, color: deepSpace.textHi, marginTop: 4 },
   heroDelta: { fontSize: 12, color: deepSpace.textMid },
 
   svgWrap: { height: 196, marginTop: 4 },
@@ -252,20 +253,20 @@ const styles = StyleSheet.create({
     borderRadius: deepSpaceRadii.lg, backgroundColor: deepSpace.card, gap: deepSpaceSpacing.sm,
   },
   obsHead: { flexDirection: "row", alignItems: "flex-start", gap: 9 },
-  obsText: { flex: 1, fontSize: 14, color: deepSpace.textHi, lineHeight: 21 },
+  obsText: { flex: 1, fontSize: 14, color: deepSpace.textHi },
   reasonChip: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
     paddingHorizontal: 9, paddingVertical: 5, borderWidth: 1, borderColor: deepSpace.soulLine, borderRadius: deepSpaceRadii.sm,
   },
   dot: { width: 7, height: 7, borderRadius: 4 },
-  reasonText: { fontSize: 12, color: deepSpace.soul, fontFamily: fontFamilies.pixelKo },
+  reasonText: { fontSize: 12, color: deepSpace.soul },
   obsActions: { flexDirection: "row", gap: deepSpaceSpacing.sm },
 
   primaryBtn: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.mint },
-  primaryText: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.onMint },
+  primaryText: { fontSize: 14, color: deepSpace.onMint },
   disabled: { opacity: 0.5 },
   ghostBtn: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, borderWidth: 1, borderColor: deepSpace.cardLineStrong },
-  ghostText: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.accentSoft },
+  ghostText: { fontSize: 14, color: deepSpace.accentSoft },
 
   dreamRow: {
     flexDirection: "row", alignItems: "center", gap: 9, minHeight: 48, paddingHorizontal: deepSpaceSpacing.md,
@@ -276,6 +277,6 @@ const styles = StyleSheet.create({
   dreamCaret: { fontSize: 16, color: deepSpace.soul },
 
   firstWeek: { alignItems: "center", gap: deepSpaceSpacing.md, paddingTop: deepSpaceSpacing.lg },
-  firstTitle: { fontFamily: fontFamilies.pixelKo, fontSize: 15, color: deepSpace.accentBright, marginTop: 8 },
-  firstBody: { fontSize: 13, color: deepSpace.textLo, textAlign: "center", lineHeight: 19, paddingHorizontal: deepSpaceSpacing.md },
+  firstTitle: { fontSize: 15, color: deepSpace.accentBright, marginTop: 8 },
+  firstBody: { fontSize: 13, color: deepSpace.textLo, textAlign: "center", paddingHorizontal: deepSpaceSpacing.md },
 });
