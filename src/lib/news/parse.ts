@@ -27,6 +27,14 @@ export interface NewsItem {
 const TITLE_MAX = 300;
 const SNIPPET_MAX = 500;
 const MAX_ITEMS = 50;
+// Hard ceiling on the raw XML we hand to the parser. An allowlisted feed that is
+// compromised or simply serves a huge archive could otherwise freeze/OOM the
+// digest before the item/length clamps ever run (the clamps only apply AFTER
+// xml.parse materializes the whole document). We slice the input first so feed
+// SIZE can never bypass MAX_ITEMS. ~2M chars covers any sane feed's newest items
+// (which sit at the top of the document) with large headroom. The rss-proxy
+// enforces the same cap server-side on the web path.
+export const MAX_XML_CHARS = 2_000_000;
 
 // Shared, side-effect-free parser instance. We keep attributes (Atom <link href>)
 // and never let the lib coerce dates/ids to numbers (strnum off) so an id like
@@ -84,6 +92,22 @@ function toIso(value: unknown): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+// Only http(s) article links are exposed as NewsItem.url. A third-party feed's
+// <link>/<guid> is untrusted: a malformed or compromised item could carry a
+// `javascript:`/`data:` payload or an opaque non-URL guid, which a caller that
+// opens the article would then navigate to. We validate with `new URL` and keep
+// only http/https; anything else (or a relative/garbage value) drops the item.
+function safeHttpUrl(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "";
+  try {
+    const u = new URL(t);
+    return u.protocol === "http:" || u.protocol === "https:" ? t : "";
+  } catch {
+    return "";
+  }
+}
+
 // RSS 2.0: channel > item ; Atom: feed > entry. We support both shapes.
 function rssItemUrl(item: Record<string, unknown>): string {
   return textOf(item.link).trim() || textOf(item.guid).trim();
@@ -115,9 +139,11 @@ function atomEntryUrl(entry: Record<string, unknown>): string {
  */
 export function parseFeed(source: string, xmlText: string): NewsItem[] {
   if (typeof xmlText !== "string" || xmlText.trim().length === 0) return [];
+  // Bound input size BEFORE parsing so a hostile/huge feed cannot OOM us.
+  const bounded = xmlText.length > MAX_XML_CHARS ? xmlText.slice(0, MAX_XML_CHARS) : xmlText;
   let doc: Record<string, unknown>;
   try {
-    doc = xml.parse(xmlText) as Record<string, unknown>;
+    doc = xml.parse(bounded) as Record<string, unknown>;
   } catch {
     return [];
   }
@@ -137,7 +163,7 @@ export function parseFeed(source: string, xmlText: string): NewsItem[] {
     if (out.length >= MAX_ITEMS) break;
     if (!raw || typeof raw !== "object") continue;
     const item = raw as Record<string, unknown>;
-    const url = rssItemUrl(item);
+    const url = safeHttpUrl(rssItemUrl(item));
     const title = clamp(stripHtml(textOf(item.title)), TITLE_MAX);
     if (!url || !title) continue;
     const snippetRaw = textOf(item.description) || textOf(item["content:encoded"]);
@@ -157,7 +183,7 @@ export function parseFeed(source: string, xmlText: string): NewsItem[] {
     if (out.length >= MAX_ITEMS) break;
     if (!raw || typeof raw !== "object") continue;
     const entry = raw as Record<string, unknown>;
-    const url = atomEntryUrl(entry);
+    const url = safeHttpUrl(atomEntryUrl(entry));
     const title = clamp(stripHtml(textOf(entry.title)), TITLE_MAX);
     if (!url || !title) continue;
     const snippetRaw = textOf(entry.summary) || textOf(entry.content);

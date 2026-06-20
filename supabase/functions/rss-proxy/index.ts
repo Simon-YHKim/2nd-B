@@ -63,6 +63,11 @@ const ALLOWED_FEED_URLS = new Set<string>([
 ]);
 
 const FETCH_TIMEOUT_MS = 8000;
+// Cap the upstream body we read + return. Mirrors src/lib/news/parse.ts:
+// MAX_XML_CHARS so a compromised/huge feed cannot OOM the function or the web
+// client. Bytes here vs chars in the parser — same order of magnitude, both are
+// generous relative to any real feed.
+const MAX_UPSTREAM_BYTES = 2_000_000;
 
 // Static origins: GitHub Pages prod + Expo web dev servers. The Vercel deploy
 // origin is NOT pinned here (the *.vercel.app host varies per project/preview),
@@ -157,15 +162,25 @@ Deno.serve(async (req: Request) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
+    // redirect:'manual' so the exact-match SSRF allowlist protects EVERY hop, not
+    // just the first. The allowlisted feed URLs are the canonical endpoints and
+    // serve 200 directly; a 30x would point at an off-allowlist host (a CDN, or —
+    // if a publisher is compromised/misconfigured — an internal/metadata host),
+    // which we MUST NOT follow. So we reject any redirect rather than chase it.
     const upstream = await fetch(url, {
       method: 'GET',
       headers: { Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml' },
+      redirect: 'manual',
       signal: controller.signal,
     });
+    // 'manual' surfaces a 3xx as the real status (or an opaqueredirect response).
+    if (upstream.type === 'opaqueredirect' || (upstream.status >= 300 && upstream.status < 400)) {
+      return jsonResponse(req, { error: 'upstream_redirect_blocked', status: upstream.status }, 502);
+    }
     if (!upstream.ok) {
       return jsonResponse(req, { error: 'upstream_error', status: upstream.status }, 502);
     }
-    const xml = await upstream.text();
+    const xml = (await upstream.text()).slice(0, MAX_UPSTREAM_BYTES);
     return jsonResponse(req, { xml }, 200);
   } catch {
     return jsonResponse(req, { error: 'upstream_fetch_failed' }, 502);

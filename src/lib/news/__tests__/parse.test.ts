@@ -1,6 +1,6 @@
 // Wave 2 — pure RSS/Atom parsing against fixture strings (no network).
 
-import { parseFeed } from "../parse";
+import { parseFeed, MAX_XML_CHARS } from "../parse";
 
 const RSS_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
@@ -79,5 +79,31 @@ describe("parseFeed (RSS is the ground truth; reshape only, never invent)", () =
     ).join("");
     const items = parseFeed("flood", `<rss><channel>${many}</channel></rss>`);
     expect(items.length).toBeLessThanOrEqual(50);
+  });
+
+  test("drops items whose link is not an http(s) URL (javascript:/data:/relative/guid)", () => {
+    const xml = `<rss><channel>
+      <item><title>js payload</title><link>javascript:alert(1)</link></item>
+      <item><title>data uri</title><link>data:text/html,hi</link></item>
+      <item><title>relative</title><link>/local/path</link></item>
+      <item><title>opaque guid</title><guid>1a2b-3c4d-not-a-url</guid></item>
+      <item><title>real one</title><link>https://example.com/ok</link></item>
+    </channel></rss>`;
+    const items = parseFeed("safe", xml);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ title: "real one", url: "https://example.com/ok" });
+  });
+
+  test("bounds raw input size before parsing so an oversized feed cannot OOM", () => {
+    // A complete leading item, then inter-element WHITESPACE that pushes the doc
+    // past the cap. The slice lands inside that whitespace, so the leading item
+    // (fully closed before the gap) survives and the giant tail is never parsed.
+    const head = `<rss><channel><item><title>top</title><link>https://e.com/top</link></item>`;
+    const padding = " ".repeat(MAX_XML_CHARS + 1000);
+    const oversized = `${head}${padding}</channel></rss>`;
+    expect(oversized.length).toBeGreaterThan(MAX_XML_CHARS);
+    const items = parseFeed("huge", oversized);
+    expect(items).toHaveLength(1);
+    expect(items[0].url).toBe("https://e.com/top");
   });
 });
