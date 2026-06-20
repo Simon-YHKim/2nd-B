@@ -60,6 +60,10 @@ jobs:
           # never breaks the build.
           EXPO_PUBLIC_EXIM_FX_KEY: ${{ vars.EXPO_PUBLIC_EXIM_FX_KEY }}
           EXPO_PUBLIC_MFDS_FOOD_KEY: ${{ vars.EXPO_PUBLIC_MFDS_FOOD_KEY }}
+          # Google OAuth Web client id (public, not a secret) for the Calendar/
+          # Tasks import connector (GIS token model — src/lib/google/). Unset →
+          # the "Connect Google" action is hidden; nothing else is affected.
+          EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
           # LLM mode + key: when the repo Variable EXPO_PUBLIC_GOOGLE_API_KEY is
           # set, builds default to "live"; otherwise mock. Override by setting
           # the Variable EXPO_PUBLIC_LLM_MODE explicitly.
