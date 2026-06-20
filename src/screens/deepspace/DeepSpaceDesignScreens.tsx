@@ -261,7 +261,7 @@ const PROVIDER_SIGNUP_KEY: Record<OAuthProvider, string> = {
 };
 
 export function DeepSpaceSignInDesignScreen() {
-  const { t } = useTranslation(["deepspace", "auth", "common"]);
+  const { t, i18n } = useTranslation(["deepspace", "auth", "common"]);
   const {
     userId,
     loading,
@@ -362,6 +362,10 @@ export function DeepSpaceSignInDesignScreen() {
 
         <Pressable onPress={() => router.push("/sign-up")} style={styles.authLinkRow} accessibilityRole="link" accessibilityLabel={t("auth:signIn.signUpLink")}>
           <Text style={styles.link}>{t("deepspace:auth.noAccount")}</Text>
+        </Pressable>
+
+        <Pressable onPress={() => router.push("/jot")} style={styles.authLinkRow} accessibilityRole="link" accessibilityLabel={i18n.language === "ko" ? "먼저 한 줄 적어보기" : "Jot a line first"}>
+          <Text style={styles.link}>{i18n.language === "ko" ? "먼저 한 줄 적어보기" : "Jot a line first"}</Text>
         </Pressable>
 
         {visibleProviders.length > 0 || naverEnabled ? (

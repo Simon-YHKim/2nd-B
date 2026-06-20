@@ -1,0 +1,192 @@
+// Pre-account capture (D-17 / D-25 Phase 2). A first-time visitor can jot a line
+// BEFORE making an account; it is held device-local (no server, no LLM) via the
+// preauth-pending queue and imported after sign-up. Honest copy makes the
+// "this device, temporary" state explicit, and an honest near-full nudge replaces
+// silent data loss. Lives in the (auth) group, which has no auth guard, so it is
+// reachable unauthenticated. createRecord / Supabase are never touched here.
+
+import { useCallback, useEffect, useState } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import { router } from "expo-router";
+
+import { Text } from "@/components/ui/Text";
+import { SecondbHead } from "@/components/deep-space/SecondbHead";
+import { deepSpace, deepSpaceSpacing, deepSpaceRadii } from "@/lib/theme/tokens";
+import {
+  addPendingCapture,
+  loadPendingCaptures,
+  pendingStatus,
+  PREAUTH_PENDING_MAX_CHARS,
+  type PendingCapture,
+} from "@/lib/capture/preauth-pending";
+
+export default function Jot() {
+  const { i18n } = useTranslation();
+  const ko = i18n.language === "ko";
+  const [text, setText] = useState("");
+  const [items, setItems] = useState<PendingCapture[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setItems(await loadPendingCaptures());
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const status = pendingStatus(items.length);
+
+  const onSave = useCallback(async () => {
+    const trimmed = text.trim();
+    if (trimmed.length === 0 || saving) return;
+    setSaving(true);
+    try {
+      const r = await addPendingCapture(trimmed);
+      if (r.ok) setText("");
+      await refresh();
+    } finally {
+      setSaving(false);
+    }
+  }, [text, saving, refresh]);
+
+  const canSave = text.trim().length > 0 && !status.full && !saving;
+
+  return (
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <SecondbHead size={48} mood="positive" />
+            <View style={styles.flex}>
+              <Text variant="heading">{ko ? "한 줄 적어보기" : "Jot a line"}</Text>
+              <Text variant="subtle" color="textMuted" style={styles.honest}>
+                {ko
+                  ? "이 기기에 임시로 저장돼요. 계정을 만들면 두번째 뇌로 가져올 수 있어요."
+                  : "Saved on this device for now. Make an account to bring it into your second brain."}
+              </Text>
+            </View>
+          </View>
+
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            multiline
+            maxLength={PREAUTH_PENDING_MAX_CHARS}
+            placeholder={ko ? "지금 떠오르는 한 줄" : "A line on your mind"}
+            placeholderTextColor={deepSpace.textLo}
+            style={styles.input}
+            accessibilityLabel={ko ? "한 줄 입력" : "Jot input"}
+            editable={!status.full}
+          />
+
+          <Pressable
+            onPress={() => void onSave()}
+            disabled={!canSave}
+            accessibilityRole="button"
+            accessibilityLabel={ko ? "저장" : "Save"}
+            style={[styles.saveBtn, !canSave && styles.saveBtnOff]}
+          >
+            <Text variant="body" style={styles.saveText}>
+              {ko ? "저장" : "Save"}
+            </Text>
+          </Pressable>
+
+          {status.nearFull ? (
+            <Text variant="subtle" color="textMuted" style={styles.warn} accessibilityRole="alert">
+              {ko
+                ? "이 기기 임시 저장이 거의 찼어요. 계정을 만들면 안전하게 옮겨드려요."
+                : "This device's temporary space is almost full. Make an account to move them safely."}
+            </Text>
+          ) : null}
+
+          {items.length > 0 ? (
+            <View style={styles.list}>
+              <Text variant="caption" color="textSubtle">
+                {ko ? `이 기기에 저장됨 (${items.length})` : `Saved on this device (${items.length})`}
+              </Text>
+              {items.map((it) => (
+                <View key={it.localId} style={styles.row}>
+                  <Text variant="body" numberOfLines={3}>
+                    {it.text}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          <Pressable
+            onPress={() => router.push("/sign-up")}
+            accessibilityRole="button"
+            accessibilityLabel={ko ? "계정 만들기" : "Create account"}
+            style={styles.cta}
+          >
+            <Text variant="body" style={styles.ctaText}>
+              {ko ? "계정 만들기" : "Create account"}
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: deepSpace.bg },
+  flex: { flex: 1 },
+  body: { padding: deepSpaceSpacing.lg, gap: deepSpaceSpacing.md },
+  header: { flexDirection: "row", gap: deepSpaceSpacing.sm, alignItems: "flex-start" },
+  honest: { marginTop: 4 },
+  input: {
+    minHeight: 96,
+    backgroundColor: deepSpace.card,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    borderRadius: deepSpaceRadii.md,
+    padding: deepSpaceSpacing.md,
+    color: deepSpace.textHi,
+    fontSize: 15,
+    textAlignVertical: "top",
+  },
+  saveBtn: {
+    minHeight: 48,
+    borderRadius: deepSpaceRadii.md,
+    backgroundColor: deepSpace.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveBtnOff: { opacity: 0.4 },
+  saveText: { color: deepSpace.bg, fontWeight: "700" },
+  warn: { marginTop: -4 },
+  list: { gap: deepSpaceSpacing.xs },
+  row: {
+    backgroundColor: deepSpace.card,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    borderRadius: deepSpaceRadii.sm,
+    padding: deepSpaceSpacing.sm,
+  },
+  cta: {
+    minHeight: 48,
+    borderRadius: deepSpaceRadii.md,
+    borderWidth: 1,
+    borderColor: deepSpace.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: deepSpaceSpacing.sm,
+  },
+  ctaText: { color: deepSpace.accentSoft, fontWeight: "700" },
+});

@@ -37,6 +37,7 @@ import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { useImportPendingCaptures } from "@/lib/capture/use-import-pending";
 import { DeepSpaceShell } from "@/components/deep-space/DeepSpaceShell";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
@@ -234,6 +235,7 @@ let entryFlourishPlayed = false;
 // shell. The graph stays reachable in deep-space via the /graph route (graph.tsx
 // re-exports GraphScreen), so no logic is forked — see docs/deep-space-nav-contract.md.
 export default function Index() {
+  useImportPendingCaptures();
   if (isDeepSpaceUI()) return <DeepSpaceShell />;
   return <GraphScreen />;
 }
