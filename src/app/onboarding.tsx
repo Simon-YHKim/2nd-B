@@ -1,15 +1,15 @@
 // First-run onboarding — one deep-space screen that ends at the first saved
 // record. It intentionally avoids the legacy premium/island art track.
 
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Text } from "@/components/ui/Text";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
-import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { markOnboardingComplete } from "@/lib/onboarding/state";
 
@@ -78,8 +78,8 @@ export default function Onboarding() {
       </View>
 
       <View style={styles.copyBlock}>
-        <Text style={styles.title}>{STEP.title[locale]}</Text>
-        <Text style={styles.body}>{STEP.body[locale]}</Text>
+        <Text variant="heading" style={styles.title}>{STEP.title[locale]}</Text>
+        <Text variant="body" style={styles.body}>{STEP.body[locale]}</Text>
       </View>
 
       <View style={styles.actions}>
@@ -90,7 +90,7 @@ export default function Onboarding() {
           onPress={finishToCapture}
           style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
         >
-          <Text style={styles.primaryText}>{STEP.cta[locale]}</Text>
+          <Text variant="caption" style={styles.primaryText}>{STEP.cta[locale]}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -99,7 +99,7 @@ export default function Onboarding() {
           onPress={finishToHome}
           style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
         >
-          <Text style={styles.secondaryText}>{STEP.skip[locale]}</Text>
+          <Text variant="caption" style={styles.secondaryText}>{STEP.skip[locale]}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -196,9 +196,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: deepSpace.textHi,
-    fontFamily: fontFamilies.pixelKo,
     fontSize: 30,
-    lineHeight: 42,
     textAlign: "center",
     textShadowColor: deepSpace.accent,
     textShadowOffset: { width: 2, height: 2 },
@@ -207,9 +205,7 @@ const styles = StyleSheet.create({
   body: {
     maxWidth: 620,
     color: deepSpace.textMid,
-    fontFamily: fontFamilies.readable,
     fontSize: 18,
-    lineHeight: 26,
     textAlign: "center",
   },
   actions: {
@@ -224,9 +220,7 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     color: deepSpace.bgEdge,
-    fontFamily: fontFamilies.pixelKo,
     fontSize: 18,
-    lineHeight: 24,
   },
   secondary: {
     minHeight: 64,
@@ -239,9 +233,7 @@ const styles = StyleSheet.create({
   },
   secondaryText: {
     color: deepSpace.textHi,
-    fontFamily: fontFamilies.pixelKo,
     fontSize: 17,
-    lineHeight: 23,
   },
   pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
 });
