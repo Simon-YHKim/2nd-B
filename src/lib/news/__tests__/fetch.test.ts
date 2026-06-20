@@ -1,7 +1,7 @@
 // Codex P2 #4 — platform-aware fetch routing + SSRF allowlist (pure parts)
 // plus the all-feeds-failed shared-error contract for fetchFeeds().
 
-import { resolveFetchPlan, fetchFeeds } from "../fetch";
+import { resolveFetchPlan, fetchFeeds, classifyProxyInvokeError } from "../fetch";
 import { isAllowedFeedUrl, NEWS_FEED_URLS, getFeedByUrl, NEWS_FEEDS } from "../feeds";
 
 // Minimal RSS that parseFeed accepts (one item) for the "some items" case.
@@ -18,6 +18,19 @@ describe("resolveFetchPlan (native fetches directly; web routes via proxy)", () 
 
   test("web (web=true) -> proxy route carrying the feed url", () => {
     expect(resolveFetchPlan(url, true)).toEqual({ mode: "proxy", feedUrl: url });
+  });
+});
+
+describe("classifyProxyInvokeError (proxy ran w/ feed outage vs proxy unreachable)", () => {
+  test("proxy 502 (upstream feed timed out / non-OK) -> fetch_failed", () => {
+    // FunctionsHttpError-shaped: the function answered, .context is the Response.
+    expect(classifyProxyInvokeError({ context: { status: 502 } })).toBe("fetch_failed");
+  });
+
+  test("unreachable / not-deployed / auth (no 502) -> proxy_unavailable", () => {
+    expect(classifyProxyInvokeError(new Error("Failed to fetch"))).toBe("proxy_unavailable");
+    expect(classifyProxyInvokeError({ context: { status: 401 } })).toBe("proxy_unavailable");
+    expect(classifyProxyInvokeError(null)).toBe("proxy_unavailable");
   });
 });
 

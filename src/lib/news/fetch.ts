@@ -36,6 +36,20 @@ export interface FetchFeedResult {
 }
 
 /**
+ * Classify a `functions.invoke` error from the rss-proxy. The proxy answers a
+ * 502 when it RAN but the curated upstream feed timed out / returned non-OK
+ * (`upstream_error` / `upstream_fetch_failed` / `upstream_redirect_blocked`) —
+ * that is a feed outage, the same condition the native direct path reports as
+ * "fetch_failed", so the UI shows "feeds down" rather than "proxy not deployed".
+ * Anything else (function unreachable / not deployed / auth / config — no 502)
+ * is a genuine proxy-level problem → "proxy_unavailable".
+ */
+export function classifyProxyInvokeError(error: unknown): FetchFeedError {
+  const status = (error as { context?: { status?: unknown } } | null)?.context?.status;
+  return status === 502 ? "fetch_failed" : "proxy_unavailable";
+}
+
+/**
  * Pure routing decision for one feed fetch (exported for unit tests): on native
  * fetch the feed URL directly; on web go through the rss-proxy Edge Function.
  * Returns null when web cannot resolve a proxy target (function not configured)
@@ -72,7 +86,7 @@ async function fetchRaw(feedUrl: string, signal: AbortSignal): Promise<string | 
     body: { url: plan.feedUrl },
     signal,
   });
-  if (error) return { error: "proxy_unavailable" };
+  if (error) return { error: classifyProxyInvokeError(error) };
   const xml = (data as { xml?: string } | null)?.xml;
   if (typeof xml !== "string" || xml.length === 0) return { error: "fetch_failed" };
   return xml;
