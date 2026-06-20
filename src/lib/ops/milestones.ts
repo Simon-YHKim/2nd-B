@@ -118,6 +118,18 @@ export async function listMilestones(userId: string, domainId: OpsDomainId): Pro
   return (data ?? []).map((r) => rowToMilestone(r as Record<string, unknown>));
 }
 
+/** Every milestone for the user across domains (weekly-growth synthesis). */
+export async function listAllMilestones(userId: string): Promise<Milestone[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("ops_milestones")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r) => rowToMilestone(r as Record<string, unknown>));
+}
+
 /** Update a milestone's status and/or details. */
 export async function updateMilestone(
   userId: string,
