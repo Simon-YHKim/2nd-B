@@ -1,4 +1,20 @@
-import { BFI_ITEMS, scoreBfi, type BfiResponses } from "../bfi";
+import { BFI_ITEMS, bfiMeanToPercent, scoreBfi, type BfiResponses } from "../bfi";
+
+describe("bfiMeanToPercent (1-5 Likert -> 0-100, matching buildPersona)", () => {
+  test("anchors the scale: 1 -> 0%, 3 -> 50%, 5 -> 100%", () => {
+    expect(bfiMeanToPercent(1)).toBe(0);
+    expect(bfiMeanToPercent(3)).toBe(50);
+    expect(bfiMeanToPercent(5)).toBe(100);
+  });
+  test("does not treat the scale floor as 0 (regression: was (v/5)*100)", () => {
+    expect(bfiMeanToPercent(4)).toBe(75);
+    expect(bfiMeanToPercent(2)).toBe(25);
+  });
+  test("clamps out-of-range means", () => {
+    expect(bfiMeanToPercent(0)).toBe(0);
+    expect(bfiMeanToPercent(6)).toBe(100);
+  });
+});
 
 describe("BFI_ITEMS shape", () => {
   test("44 items total", () => {
