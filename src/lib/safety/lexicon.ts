@@ -154,6 +154,23 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   "coverage/**",
 ] as const;
 
+/**
+ * True when a repo-relative POSIX path is excluded from the forbidden-lexicon
+ * CI scan. A `dir/**` entry matches paths UNDER that directory; every other
+ * entry must match exactly.
+ *
+ * Prior bug: the scanner stripped the `/**` suffix as 3 characters
+ * (`p.slice(0, -3)`), which dropped the trailing slash too — so `docs/legacy/**`
+ * resolved to a `startsWith("docs/legacy")` test that also allow-listed sibling
+ * paths like `docs/legacy-quarantine/...`, silently weakening the gate. Slicing
+ * only the `**` (2 chars) keeps the boundary slash.
+ */
+export function isLexiconScanAllowed(posixPath: string): boolean {
+  return LEXICON_SCAN_ALLOWLIST.some((p) =>
+    p.endsWith("/**") ? posixPath.startsWith(p.slice(0, -2)) : posixPath === p,
+  );
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Analysis Lexicon v0.1
 // Source of truth: docs/legal/lexicon-jurisdiction-matrix.md
