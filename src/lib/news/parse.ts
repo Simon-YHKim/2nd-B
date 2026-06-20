@@ -16,7 +16,7 @@ export interface NewsItem {
   /** Feed id this item came from (set by the caller / fetch.ts). */
   source: string;
   title: string;
-  /** Canonical article link; the dedupe key for the per-user cache. */
+  /** Canonical article link; also the natural dedupe key across feeds. */
   url: string;
   /** ISO 8601 when parseable, else null. */
   publishedAt: string | null;

@@ -4,9 +4,9 @@
 // $0/mo (blueprint §5) holds because every feed below is a public RSS endpoint
 // with no key and no paid tier. Korea-first per the roadmap, plus one world feed.
 //
-// This list is data only — no network, no parsing. fetch.ts reads `url`,
-// parse.ts maps the XML, and queries.ts caches the result per user. The AI
-// summary (summarize.ts) is a separate OPT-IN step and never runs from here.
+// This list is data only — no network, no parsing. fetch.ts reads `url` and
+// parse.ts maps the XML into NewsItems. No AI, no DB, no cache: a live RSS
+// digest is fetch -> parse -> render.
 
 export type FeedLang = "ko" | "en";
 

@@ -586,50 +586,6 @@ export type Database = {
           },
         ]
       }
-      news_items: {
-        Row: {
-          created_at: string | null
-          id: string
-          published_at: string | null
-          snippet: string | null
-          source: string
-          summary: string | null
-          title: string
-          url: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          published_at?: string | null
-          snippet?: string | null
-          source: string
-          summary?: string | null
-          title: string
-          url: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          published_at?: string | null
-          snippet?: string | null
-          source?: string
-          summary?: string | null
-          title?: string
-          url?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "news_items_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       ops_routines: {
         Row: {
           active: boolean

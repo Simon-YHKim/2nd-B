@@ -107,13 +107,9 @@ async function writeCrisisEvent(
 // as ordinary product copy. The internal "mock"/no-key technical marker lives in
 // this comment and in modelUsed audit fields only.
 const MOCK_RESPONSES: Record<
-  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest" | "ops_recommend" | "news_summarize",
+  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest" | "ops_recommend",
   Record<"en" | "ko", string>
 > = {
-  news_summarize: {
-    en: "Offline preview: a one-line condensation of the fetched headline would appear here.",
-    ko: "오프라인 미리보기: 가져온 기사 제목을 한 줄로 압축한 내용이 여기에 표시됩니다.",
-  },
   journal_reflect: {
     en: "What feeling came up most strongly in that moment? Try naming it in a single word.",
     ko: "그 순간 가장 또렷이 떠오른 감정이 무엇이었나요? 한 단어로 이름 붙여볼까요?",
@@ -386,9 +382,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       latencyMs,
     };
     await writeAiAuditLog(input.userId, audit, "[ai_audit_log] insert failed (mock)");
-    // mocked:true marks this as offline-preview placeholder copy (NOT real model
-    // output). Persisting callers (e.g. the news summary cache) must NOT store it.
-    return { text: text as unknown as T, safety: outputSafety, audit, mocked: true };
+    return { text: text as unknown as T, safety: outputSafety, audit };
   }
 
   // Live mode: route through gemini-proxy Edge Function when configured

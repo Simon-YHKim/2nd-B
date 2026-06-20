@@ -2,8 +2,8 @@
 //
 // Guarded: a feed being down, a timeout, a non-200, or malformed XML must never
 // crash the digest. A failure resolves to a FetchFeedResult with items:[] (the
-// screen shows its empty state). No AI here — this is the deterministic, $0
-// ground-truth path. The summary is a separate opt-in step (summarize.ts).
+// screen shows its empty state). No AI, no DB, no cache here — this is the
+// deterministic, $0 ground-truth path: fetch RSS -> parse -> return items.
 //
 // Codex P2 #4 (Web CORS): on Expo web, a direct browser fetch() to a third-party
 // RSS host is blocked by CORS — the request fails and the digest silently shows
@@ -106,16 +106,23 @@ export async function fetchFeed(feedId: string): Promise<FetchFeedResult> {
 /**
  * Fetch several feeds in parallel; each failure is isolated to its own result.
  * Items from every feed are flattened. `error` is set only when EVERY feed
- * failed for the same reason (e.g. the web proxy is unconfigured), so the UI can
- * distinguish "no news today" from "the proxy isn't deployed".
+ * failed for the SAME reason — e.g. the web proxy is unconfigured
+ * ("proxy_unavailable") or the device is offline / DNS is down so every direct
+ * fetch raised "fetch_failed". This lets the UI distinguish a genuine outage
+ * from "no news today". A mix of failure reasons (or any feed that returned
+ * items) degrades to a plain empty result with no error tag.
  */
 export async function fetchFeeds(feedIds: readonly string[]): Promise<FetchFeedResult> {
   const results = await Promise.all(feedIds.map((id) => fetchFeed(id)));
   const items = results.flatMap((r) => r.items);
   if (items.length > 0) return { items };
-  // No items: if every attempt failed for the same reason, surface it.
+  // No items: if EVERY attempt failed for the SAME reason, surface that shared
+  // reason so the UI can tell an outage apart from an empty digest.
   const errors = results.map((r) => r.error).filter((e): e is FetchFeedError => e !== undefined);
-  const allProxy = errors.length === results.length && errors.every((e) => e === "proxy_unavailable");
-  if (allProxy && errors.length > 0) return { items: [], error: "proxy_unavailable" };
+  const allFailedSameReason =
+    errors.length > 0 &&
+    errors.length === results.length &&
+    errors.every((e) => e === errors[0]);
+  if (allFailedSameReason) return { items: [], error: errors[0] };
   return { items: [] };
 }
