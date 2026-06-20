@@ -10,7 +10,7 @@ import { join, relative, sep } from "node:path";
 import {
   ANALYSIS_UNIVERSAL_FORBIDDEN,
   FORBIDDEN_TERMS,
-  LEXICON_SCAN_ALLOWLIST,
+  isLexiconScanAllowed,
   type Locale,
 } from "../src/lib/safety/lexicon";
 import {
@@ -56,11 +56,7 @@ function walk(dir: string, out: string[]): void {
 }
 
 function isAllowed(relPath: string): boolean {
-  const normalized = relPath.split(sep).join("/");
-  return LEXICON_SCAN_ALLOWLIST.some((p) => {
-    if (p.endsWith("/**")) return normalized.startsWith(p.slice(0, -3));
-    return normalized === p;
-  });
+  return isLexiconScanAllowed(relPath.split(sep).join("/"));
 }
 
 // Analysis-lexicon scan (ANALYSIS_UNIVERSAL_FORBIDDEN) is line-granular with
