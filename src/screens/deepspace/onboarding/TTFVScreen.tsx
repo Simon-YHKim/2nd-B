@@ -206,8 +206,9 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
               <Text style={styles.reasonLabel}>{t("why")}</Text>
               <Text style={styles.reasonText}>{reason}</Text>
             </View>
-            {/* TODO: route to the relationship-lens deep dive once it exists. */}
-            <Pressable accessibilityRole="button" accessibilityLabel={exploreLabel} onPress={() => router.push("/core-brain")} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
+            {/* The lit star is the relationship lens (DEFAULT_INSIGHT); its deep
+                dive is /attachment (RelationalLensView), the relationship-lens detail. */}
+            <Pressable accessibilityRole="button" accessibilityLabel={exploreLabel} onPress={() => router.push("/attachment")} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
               <Text style={styles.primaryText}>{exploreLabel}</Text>
             </Pressable>
           </View>
