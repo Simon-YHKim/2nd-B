@@ -33,3 +33,16 @@ export function brightnessVisual(level: LadderLevel): BrightnessVisual {
     lit: level >= 2,
   };
 }
+
+// Coarse qualitative band for an aggregate 0-1 brightness. Identity surfaces show
+// "how lit" the Soul Core / a trait is WITHOUT a raw percentage, because a number
+// on an identity card reads as a self-score (D-25: no self-quantifying % on
+// identity surfaces). Stays text-free (returns a stable id; the localized word
+// lives at the call site). Thresholds follow the canon ladder (L2 0.4 / L3 0.6).
+export type BrightnessBand = "dim" | "fair" | "bright";
+
+export function brightnessBand(fraction: number): BrightnessBand {
+  if (fraction >= 0.6) return "bright";
+  if (fraction >= 0.4) return "fair";
+  return "dim";
+}
