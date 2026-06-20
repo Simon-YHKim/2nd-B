@@ -30,7 +30,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
-import { brightnessVisual } from "@/lib/persona/brightness-visual";
+import { brightnessVisual, brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
 import { buildCenterCards } from "@/lib/persona/center";
 import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
@@ -38,6 +38,10 @@ import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionS
 import { IslandArt } from "@/components/art/IslandArt";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
+
+// D-25: Soul Core brightness shows as a qualitative band, never a raw %.
+const SOUL_CORE_BAND_KO: Record<BrightnessBand, string> = { dim: "흐릿", fair: "보통", bright: "밝음" };
+const SOUL_CORE_BAND_EN: Record<BrightnessBand, string> = { dim: "dim", fair: "fair", bright: "bright" };
 
 async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promise<EvidenceShard[]> {
   const supabase = getSupabaseClient();
@@ -289,7 +293,11 @@ function CoreBrainLegacy() {
           <StatTile value={`${filledFields}/5`} label={locale === "ko" ? "나의 모습" : "self-portrait"} accent={cosmic.soulViolet} />
           <StatTile value={persona?.values.length ?? 0} label={locale === "ko" ? "동네" : "areas"} accent={cosmic.signalMint} />
           <StatTile
-            value={`${Math.round((persona?.soulCoreBrightness ?? 0.2) * 100)}%`}
+            value={
+              locale === "ko"
+                ? SOUL_CORE_BAND_KO[brightnessBand(persona?.soulCoreBrightness ?? 0.2)]
+                : SOUL_CORE_BAND_EN[brightnessBand(persona?.soulCoreBrightness ?? 0.2)]
+            }
             label={locale === "ko" ? "밝기" : "brightness"}
             accent={cosmic.soulViolet}
           />

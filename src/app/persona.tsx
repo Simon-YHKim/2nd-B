@@ -13,6 +13,7 @@ import { SeenLensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
+import { brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
 import { buildCenterCards } from "@/lib/persona/center";
 import { TYPE_NICKNAME } from "@/lib/persona/mbti";
 import { STYLE_LABEL, STYLE_DESCRIPTION } from "@/lib/persona/attachment";
@@ -22,6 +23,10 @@ import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionS
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 type PersonaToast = { message: string; tone: "info" | "success" | "danger" };
+
+// D-25: identity surfaces show brightness as a qualitative band, never a raw %.
+const SOUL_CORE_BAND_KO: Record<BrightnessBand, string> = { dim: "흐릿", fair: "보통", bright: "밝음" };
+const SOUL_CORE_BAND_EN: Record<BrightnessBand, string> = { dim: "dim", fair: "fair", bright: "bright" };
 
 function PersonaLegacy() {
   const { t, i18n } = useTranslation("secondb");
@@ -243,8 +248,8 @@ function PersonaLegacy() {
           {persona.soulCoreBrightness != null ? (
             <Text variant="subtle" color="brand" style={{ marginTop: 2 }}>
               {locale === "ko"
-                ? `밝기 ${Math.round(persona.soulCoreBrightness * 100)}% · 별 ${SELF_UNDERSTANDING_STARS.filter((s) => (persona.starLevels?.[s.id] ?? 1) >= 2).length}/7 켜짐`
-                : `Brightness ${Math.round(persona.soulCoreBrightness * 100)}% · ${SELF_UNDERSTANDING_STARS.filter((s) => (persona.starLevels?.[s.id] ?? 1) >= 2).length}/7 stars lit`}
+                ? `밝기 ${SOUL_CORE_BAND_KO[brightnessBand(persona.soulCoreBrightness)]} · 별 ${SELF_UNDERSTANDING_STARS.filter((s) => (persona.starLevels?.[s.id] ?? 1) >= 2).length}/7 켜짐`
+                : `Brightness ${SOUL_CORE_BAND_EN[brightnessBand(persona.soulCoreBrightness)]} · ${SELF_UNDERSTANDING_STARS.filter((s) => (persona.starLevels?.[s.id] ?? 1) >= 2).length}/7 stars lit`}
             </Text>
           ) : null}
           {buildCenterCards(persona, locale).map((card) => (
@@ -258,7 +263,6 @@ function PersonaLegacy() {
         <View style={styles.traitsCard}>
           {Object.entries(persona.traits).map(([k, v]) => {
             const label = TRAIT_LABELS[locale][k as keyof typeof TRAIT_LABELS["en"]] ?? k;
-            const score = Math.round(v * 100);
             const aboveMean = v > 0.5;
             return (
               <View key={k} style={styles.traitRow}>
@@ -271,9 +275,9 @@ function PersonaLegacy() {
                 <Text
                   variant="subtle"
                   color={aboveMean ? "brand" : "textMuted"}
-                  style={{ width: 40, textAlign: "right", fontVariant: ["tabular-nums"] }}
+                  style={{ width: 64, textAlign: "right" }}
                 >
-                  {score}
+                  {locale === "ko" ? (aboveMean ? "평균 위" : "평균 아래") : aboveMean ? "above" : "below"}
                 </Text>
               </View>
             );
@@ -357,10 +361,12 @@ function PersonaLegacy() {
               <AttachmentDimBar
                 label={locale === "ko" ? "불안" : "Anxiety"}
                 value={persona.attachment.anxiety}
+                locale={locale}
               />
               <AttachmentDimBar
                 label={locale === "ko" ? "회피" : "Avoidance"}
                 value={persona.attachment.avoidance}
+                locale={locale}
               />
             </View>
           </View>
@@ -415,7 +421,7 @@ function PersonaLegacy() {
 
 // ECR-S anxiety/avoidance values are on a 1-7 Likert scale. Mid-point (4) is
 // the median-split threshold the scorer uses to classify style.
-function AttachmentDimBar({ label, value }: { label: string; value: number }) {
+function AttachmentDimBar({ label, value, locale }: { label: string; value: number; locale: "en" | "ko" }) {
   const pct = Math.max(0, Math.min(1, (value - 1) / 6));
   const high = value > 4;
   return (
@@ -428,9 +434,9 @@ function AttachmentDimBar({ label, value }: { label: string; value: number }) {
       <Text
         variant="subtle"
         color={high ? "brand" : "textMuted"}
-        style={{ width: 36, textAlign: "right", fontVariant: ["tabular-nums"] }}
+        style={{ width: 64, textAlign: "right" }}
       >
-        {value.toFixed(1)}
+        {locale === "ko" ? (high ? "평균 위" : "평균 아래") : high ? "above" : "below"}
       </Text>
     </View>
   );
