@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, BackHandler, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line } from "react-native-svg";
@@ -55,6 +55,7 @@ import {
   pause,
   phaseJustChanged,
   reset,
+  skipPhase,
   start,
   tick,
   type PomodoroState,
@@ -2473,19 +2474,100 @@ function formatClock(ms: number): string {
   return `${minutes < 10 ? "0" : ""}${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 }
 
+// Deep-space focus-timer canon (focus-timer.dc design): SVG ring drawn with
+// stroke-dashoffset, state-toned (focus = cyan, break = cyanDim cool, complete =
+// mint), pixel fonts (Galmuri11 numerals / PressStart2P eyebrow), + the
+// complete-choice screen and a session-length bottom sheet. Tokens only, no hex.
+const RING_R = 100;
+const RING_C = 2 * Math.PI * RING_R; // circumference for the dasharray
+const FOCUS_BOUNDS = { focusMin: 5, focusMax: 60, breakMin: 1, breakMax: 30 };
+
+const focusStyles = StyleSheet.create({
+  stage: { alignItems: "center", gap: spacing.md, paddingTop: spacing.sm },
+  ringWrap: { width: 226, height: 226, alignItems: "center", justifyContent: "center" },
+  ringCenter: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
+  eyebrow: { fontFamily: fontFamilies.pixelEn, fontSize: 8, letterSpacing: 1.6 },
+  time: { fontFamily: fontFamilies.pixelKo, fontSize: 46, color: colors.textHi, letterSpacing: 1, marginTop: spacing.sm },
+  ringSub: { fontFamily: fontFamilies.readable, fontSize: 11, color: colors.textLo, marginTop: spacing.sm, textAlign: "center" },
+  completeCheck: { width: 54, height: 54, borderRadius: 27, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  completeMark: { fontFamily: fontFamilies.readable, fontSize: 24 },
+  completeTitle: { fontFamily: fontFamilies.pixelKo, fontSize: 22, color: colors.textHi, marginTop: spacing.md },
+  dotsRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  dotEmpty: { borderWidth: 1, borderColor: colors.borderHi },
+  todayLine: { fontFamily: fontFamilies.readable, fontSize: 12, color: colors.textLo, textAlign: "center" },
+  subtleLink: { fontFamily: fontFamilies.readable, fontSize: 12, color: colors.textLo, textAlign: "center", paddingVertical: spacing.xs },
+  controls: { alignItems: "center", gap: spacing.md, marginTop: spacing.lg },
+  bigBtn: { width: 74, height: 74, borderRadius: 37, alignItems: "center", justifyContent: "center" },
+  bigBtnPrimary: { backgroundColor: colors.cyan },
+  bigBtnGhost: { borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.cardBg },
+  playGlyph: { fontSize: 26, marginLeft: 4 },
+  pauseGlyph: { flexDirection: "row", gap: 5 },
+  pauseBar: { width: 5, height: 20, borderRadius: 1 },
+  completeRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.lg },
+  choiceGhost: { flex: 1, alignItems: "center", paddingVertical: spacing.md, borderWidth: 1, borderColor: colors.borderHi, borderRadius: radius.md, backgroundColor: colors.cardBg },
+  choiceGhostText: { fontFamily: fontFamilies.pixelKo, fontSize: 13, color: colors.cyanSoft },
+  choicePrimary: { flex: 1, alignItems: "center", paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.cyan },
+  choicePrimaryText: { fontFamily: fontFamilies.pixelKo, fontSize: 13, color: colors.bgDeep },
+  // ANDROID_QA §1: a custom overlay needs its own elevated layer or the controls
+  // behind can shine through / stay touchable on Android.
+  sheetBackdrop: { ...StyleSheet.absoluteFill, justifyContent: "flex-end", zIndex: 10, elevation: 24 },
+  sheetTap: { ...StyleSheet.absoluteFill },
+  sheet: { backgroundColor: colors.cardBg, borderTopWidth: 1, borderColor: colors.borderHi, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.borderHi, alignSelf: "center" },
+  sheetLabel: { fontFamily: fontFamilies.pixelEn, fontSize: 8, letterSpacing: 1.4, color: colors.textLo },
+  sheetDivider: { height: 1, backgroundColor: colors.border },
+  stepRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  stepLabel: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: colors.textTitle },
+  stepHint: { fontFamily: fontFamilies.readable, fontSize: 10.5, color: colors.textLo, marginTop: 3 },
+  stepControls: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  stepBtn: { width: 34, height: 34, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.cardBg, alignItems: "center", justifyContent: "center" },
+  stepBtnText: { fontFamily: fontFamilies.readable, fontSize: 18, color: colors.cyanSoft },
+  stepValue: { fontFamily: fontFamilies.pixelKo, fontSize: 22, color: colors.textHi, minWidth: 54, textAlign: "center" },
+  stepUnit: { fontFamily: fontFamilies.readable, fontSize: 12, color: colors.textLo },
+  sheetSave: { alignItems: "center", paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.cyan, marginTop: spacing.xs },
+  sheetSaveText: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: colors.bgDeep },
+});
+
+function FocusStepper(props: {
+  label: string; hint: string; value: number; unit: string; decLabel: string; incLabel: string;
+  onDec: () => void; onInc: () => void;
+}) {
+  return (
+    <View style={focusStyles.stepRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={focusStyles.stepLabel}>{props.label}</Text>
+        <Text style={focusStyles.stepHint}>{props.hint}</Text>
+      </View>
+      <View style={focusStyles.stepControls}>
+        <Pressable style={focusStyles.stepBtn} onPress={props.onDec} accessibilityRole="button" accessibilityLabel={props.decLabel}>
+          <Text style={focusStyles.stepBtnText}>−</Text>
+        </Pressable>
+        <Text style={focusStyles.stepValue}>{props.value}<Text style={focusStyles.stepUnit}>{props.unit}</Text></Text>
+        <Pressable style={focusStyles.stepBtn} onPress={props.onInc} accessibilityRole="button" accessibilityLabel={props.incLabel}>
+          <Text style={focusStyles.stepBtnText}>+</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export function DeepSpaceFocusScreen() {
   const { t } = useTranslation("ops");
   const { userId, loading: authLoading, hasProfile } = useAuth();
 
   const [timer, setTimer] = useState<PomodoroState>(() => createPomodoro());
-  // Tracked separately so the stats line survives a reset (today's completions
-  // are a per-day tally, not the in-cycle session count).
+  // Per-day tally; survives reset (not the in-cycle session count).
   const [doneToday, setDoneToday] = useState(0);
+  // The "집중 완료" celebratory choice screen. On a focus->break boundary we pause
+  // at the break and surface 휴식하기 / 한 번 더, instead of auto-running the break.
+  const [showComplete, setShowComplete] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [draftFocus, setDraftFocus] = useState(timer.config.focusMinutes);
+  const [draftBreak, setDraftBreak] = useState(timer.config.breakMinutes);
 
-  // ANDROID_QA §4: a single 1s interval drives tick(); it is cleared on unmount
-  // AND whenever `running` flips off, so a paused/idle timer holds no live
-  // interval. The ref carries the latest state into the interval without
-  // re-subscribing every render.
+  // ANDROID_QA §4: a single 1s interval drives tick(); cleared on unmount AND
+  // whenever `running` flips off, so a paused/idle timer holds no live interval.
   const timerRef = useRef(timer);
   timerRef.current = timer;
 
@@ -2495,18 +2577,32 @@ export function DeepSpaceFocusScreen() {
       const prev = timerRef.current;
       const next = tick(prev, 1000);
       if (next === prev) return;
-      setTimer(next);
       if (focusJustCompleted(prev, next)) {
+        // Hold at the break boundary (paused) and show the completion choice.
+        setTimer(pause(next));
+        setShowComplete(true);
         setDoneToday((n) => n + 1);
         if (userId) void applyFocusSessionComplete(userId).catch(() => {});
         void notifyNow(t("focus.alarmFocusTitle"), t("focus.alarmFocusBody")).catch(() => {});
-      } else if (phaseJustChanged(prev, next)) {
-        // break -> focus boundary: ring the same one-shot, different copy.
-        void notifyNow(t("focus.alarmBreakTitle"), t("focus.alarmBreakBody")).catch(() => {});
+      } else {
+        setTimer(next);
+        if (phaseJustChanged(prev, next)) {
+          void notifyNow(t("focus.alarmBreakTitle"), t("focus.alarmBreakBody")).catch(() => {});
+        }
       }
     }, 1000);
     return () => clearInterval(id);
   }, [timer.running, userId, t]);
+
+  // ANDROID_QA §4: hardware Back closes the settings sheet, never the screen.
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      setSettingsOpen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [settingsOpen]);
 
   if (authLoading) {
     return <Shell title={t("focus.title")}><GraphLoading /></Shell>;
@@ -2514,35 +2610,191 @@ export function DeepSpaceFocusScreen() {
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  const phaseLabel =
-    timer.phase === "focus" ? t("focus.phaseFocus") : timer.phase === "break" ? t("focus.phaseBreak") : t("focus.phaseIdle");
-  const showClock = timer.phase === "idle" ? createPomodoro(timer.config).remainingMs : timer.remainingMs;
-  const clock = timer.phase === "idle" ? formatClock(timer.config.focusMinutes * 60_000) : formatClock(showClock);
+  const phase = timer.phase;
+  const isBreak = phase === "break";
+  const target = timer.config.sessionsBeforeLongBreak;
+  const completed = timer.completedFocusSessions;
+  // The break after every Nth focus is the LONG break (mirrors breakMsAfter in
+  // pomodoro.ts), so the ring must divide by the long-break length, not the short.
+  const isLongBreak = isBreak && target > 0 && completed > 0 && completed % target === 0;
+  const breakTotalMin = isLongBreak ? timer.config.longBreakMinutes : timer.config.breakMinutes;
+  const totalMs = (isBreak ? breakTotalMin : timer.config.focusMinutes) * 60_000;
+  const shownMs = phase === "idle" ? timer.config.focusMinutes * 60_000 : timer.remainingMs;
+  // The ring FILLS as the session is gathered: offset = C while empty (start),
+  // 0 when full (complete). offset = C * remaining/total.
+  const remainingFrac = totalMs > 0 ? Math.max(0, Math.min(1, shownMs / totalMs)) : 0;
+  const dashoffset = showComplete ? 0 : RING_C * remainingFrac;
+
+  const ringColor = showComplete ? colors.mint : isBreak ? colors.cyanDim : colors.cyan;
+  const eyebrowColor = phase === "focus" ? colors.cyanSoft : colors.cyanDim;
+  const glyphColor = isBreak ? colors.cyanSoft : colors.bgDeep;
+  const clock = formatClock(shownMs);
+  const subMessage = phase === "idle" ? t("focus.subIdle") : isBreak ? t("focus.subBreak") : t("focus.subFocus");
+
+  const cycle = target > 0 ? completed % target : 0;
+  // A completed set (cycle === 0, completed > 0) shows all dots filled ONLY at the
+  // completion/break boundary; the next focus block starts a fresh empty set.
+  const filledDots = completed > 0 && cycle === 0 ? (showComplete || isBreak ? target : 0) : cycle;
+  const dotColor = showComplete ? colors.mint : colors.cyan;
+
+  function openSettings() {
+    setDraftFocus(timer.config.focusMinutes);
+    setDraftBreak(timer.config.breakMinutes);
+    setSettingsOpen(true);
+  }
+  function saveSettings() {
+    // The single 휴식 control scales the long break too (keeps the default 5->15 =
+    // 3x ratio) so the long break isn't stuck at the hidden default.
+    setTimer(createPomodoro({ ...timer.config, focusMinutes: draftFocus, breakMinutes: draftBreak, longBreakMinutes: draftBreak * 3 }));
+    setShowComplete(false);
+    setSettingsOpen(false);
+  }
 
   return (
     <Shell title={t("focus.title")}>
-      <SecondbStatusHeader text={t("focus.status")} tip={t("focus.tip")} />
-      <View style={styles.focusStage}>
-        <Text style={styles.focusPhase}>{phaseLabel}</Text>
-        <Text style={styles.focusClock}>{clock}</Text>
+      <View style={focusStyles.stage}>
+        <SecondbHead size={48} mood={isBreak && !showComplete ? "neutral" : "positive"} />
+
+        <View style={focusStyles.ringWrap}>
+          <Svg width={226} height={226} viewBox="0 0 226 226">
+            {/* Flat tokenized glow (no inline gradient — DESIGN.md: gradients only
+                via deepSpaceGradients tokens). A faint same-tone disc reads as bloom. */}
+            <Circle cx={113} cy={113} r={88} fill={ringColor} fillOpacity={0.1} />
+            <Circle cx={113} cy={113} r={RING_R} fill="none" stroke={ringColor} strokeOpacity={0.14} strokeWidth={5} />
+            <Circle
+              cx={113}
+              cy={113}
+              r={RING_R}
+              fill="none"
+              stroke={ringColor}
+              strokeWidth={6}
+              strokeLinecap="round"
+              strokeDasharray={RING_C}
+              strokeDashoffset={dashoffset}
+              originX={113}
+              originY={113}
+              rotation={-90}
+            />
+          </Svg>
+          <View style={focusStyles.ringCenter}>
+            {showComplete ? (
+              <>
+                <View style={[focusStyles.completeCheck, { borderColor: colors.mint }]}>
+                  <Text style={[focusStyles.completeMark, { color: colors.mint }]}>✓</Text>
+                </View>
+                <Text style={focusStyles.completeTitle}>{t("focus.completeTitle")}</Text>
+                <Text style={focusStyles.ringSub}>{t("focus.completeBody", { minutes: timer.config.focusMinutes })}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={[focusStyles.eyebrow, { color: eyebrowColor }]}>
+                  {isBreak ? t("focus.eyebrowBreak") : t("focus.eyebrowFocus")}
+                </Text>
+                <Text style={focusStyles.time}>{clock}</Text>
+                <Text style={focusStyles.ringSub}>{subMessage}</Text>
+              </>
+            )}
+          </View>
+        </View>
+
+        <View style={focusStyles.dotsRow}>
+          {Array.from({ length: target }).map((_, i) => (
+            <View key={i} style={[focusStyles.dot, i < filledDots ? { backgroundColor: dotColor } : focusStyles.dotEmpty]} />
+          ))}
+        </View>
+
+        {showComplete ? <Text style={focusStyles.todayLine}>{t("focus.doneToday", { count: doneToday })}</Text> : null}
       </View>
-      <View style={styles.focusControls}>
-        {timer.running ? (
-          <Pressable style={styles.secondary} onPress={() => setTimer((s) => pause(s))} accessibilityRole="button" accessibilityLabel={t("focus.pause")}>
-            <Text style={styles.secondaryText}>{t("focus.pause")}</Text>
+
+      {showComplete ? (
+        <View style={focusStyles.completeRow}>
+          <Pressable
+            style={focusStyles.choiceGhost}
+            onPress={() => { setShowComplete(false); setTimer((s) => start(s)); }}
+            accessibilityRole="button"
+            accessibilityLabel={t("focus.btnBreak")}
+          >
+            <Text style={focusStyles.choiceGhostText}>{t("focus.btnBreak")}</Text>
           </Pressable>
-        ) : (
-          <Pressable style={styles.primary} onPress={() => setTimer((s) => start(s))} accessibilityRole="button" accessibilityLabel={t("focus.start")}>
-            <Text style={styles.primaryText}>{t("focus.start")}</Text>
+          <Pressable
+            style={focusStyles.choicePrimary}
+            onPress={() => { setShowComplete(false); setTimer((s) => start(skipPhase(s))); }}
+            accessibilityRole="button"
+            accessibilityLabel={t("focus.btnAgain")}
+          >
+            <Text style={focusStyles.choicePrimaryText}>{t("focus.btnAgain")}</Text>
           </Pressable>
-        )}
-        <Pressable style={styles.secondary} onPress={() => { setTimer((s) => reset(s)); }} accessibilityRole="button" accessibilityLabel={t("focus.reset")}>
-          <Text style={styles.secondaryText}>{t("focus.reset")}</Text>
-        </Pressable>
-      </View>
-      {/* Progressive disclosure: the stats line is a quiet tally under the timer,
-          not a competing graphic. */}
-      <Text style={styles.footerLeft}>{t("focus.doneToday", { count: doneToday })}</Text>
+        </View>
+      ) : (
+        <View style={focusStyles.controls}>
+          <Pressable
+            style={[focusStyles.bigBtn, isBreak ? focusStyles.bigBtnGhost : focusStyles.bigBtnPrimary]}
+            onPress={() => setTimer((s) => (s.running ? pause(s) : start(s)))}
+            accessibilityRole="button"
+            accessibilityLabel={timer.running ? t("focus.pause") : t("focus.start")}
+            accessibilityState={{ busy: timer.running }}
+          >
+            {timer.running ? (
+              <View style={focusStyles.pauseGlyph}>
+                <View style={[focusStyles.pauseBar, { backgroundColor: glyphColor }]} />
+                <View style={[focusStyles.pauseBar, { backgroundColor: glyphColor }]} />
+              </View>
+            ) : (
+              <Text style={[focusStyles.playGlyph, { color: glyphColor }]}>▶</Text>
+            )}
+          </Pressable>
+          {phase === "idle" ? (
+            <>
+              <Text style={focusStyles.todayLine}>{t("focus.doneToday", { count: doneToday })}</Text>
+              <Pressable onPress={openSettings} accessibilityRole="button" accessibilityLabel={t("focus.settings")}>
+                <Text style={focusStyles.subtleLink}>{t("focus.settings")}</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Pressable
+              onPress={() => setTimer((s) => (isBreak ? skipPhase(s) : reset(s)))}
+              accessibilityRole="button"
+              accessibilityLabel={isBreak ? t("focus.skip") : t("focus.reset")}
+            >
+              <Text style={focusStyles.subtleLink}>{isBreak ? t("focus.skip") : t("focus.reset")}</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
+      {settingsOpen ? (
+        <View style={focusStyles.sheetBackdrop}>
+          <Pressable style={focusStyles.sheetTap} onPress={() => setSettingsOpen(false)} accessibilityRole="button" accessibilityLabel={t("focus.close")} />
+          <View style={focusStyles.sheet}>
+            <View style={focusStyles.sheetHandle} />
+            <Text style={focusStyles.sheetLabel}>{t("focus.sessionLength")}</Text>
+            <FocusStepper
+              label={t("focus.labelFocus")}
+              hint={t("focus.focusHint")}
+              value={draftFocus}
+              unit={t("focus.unitMin")}
+              decLabel={t("focus.decrease")}
+              incLabel={t("focus.increase")}
+              onDec={() => setDraftFocus((v) => Math.max(FOCUS_BOUNDS.focusMin, v - 5))}
+              onInc={() => setDraftFocus((v) => Math.min(FOCUS_BOUNDS.focusMax, v + 5))}
+            />
+            <View style={focusStyles.sheetDivider} />
+            <FocusStepper
+              label={t("focus.labelBreak")}
+              hint={t("focus.breakHint")}
+              value={draftBreak}
+              unit={t("focus.unitMin")}
+              decLabel={t("focus.decrease")}
+              incLabel={t("focus.increase")}
+              onDec={() => setDraftBreak((v) => Math.max(FOCUS_BOUNDS.breakMin, v - 1))}
+              onInc={() => setDraftBreak((v) => Math.min(FOCUS_BOUNDS.breakMax, v + 1))}
+            />
+            <Pressable style={focusStyles.sheetSave} onPress={saveSettings} accessibilityRole="button" accessibilityLabel={t("focus.save")}>
+              <Text style={focusStyles.sheetSaveText}>{t("focus.save")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
     </Shell>
   );
 }
