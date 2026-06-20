@@ -83,8 +83,8 @@ const styles = StyleSheet.create({
   },
   text: {
     color: deepSpace.textHi,
-    fontSize: 12.5,
-    lineHeight: 18, // generous so Hangul 받침 is not clipped (ANDROID_QA §1)
+    fontSize: 14,
+    lineHeight: 20, // generous so Hangul 받침 is not clipped (ANDROID_QA §1)
     fontFamily: fontFamilies.readable,
   },
   tipRow: {
@@ -95,15 +95,15 @@ const styles = StyleSheet.create({
   },
   tipLabel: {
     color: deepSpace.mint,
-    fontSize: 6,
+    fontSize: 9,
     letterSpacing: 0.5,
     fontFamily: fontFamilies.pixelEn,
   },
   tip: {
     flex: 1,
     color: deepSpace.textMid,
-    fontSize: 10.5,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 17,
     fontFamily: fontFamilies.readable,
   },
 });

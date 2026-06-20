@@ -69,8 +69,8 @@ const styles = StyleSheet.create({
   text: {
     color: colors.textHi,
     fontFamily: fontFamilies.readable,
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
   },
   tipRow: {
     flexDirection: "row",
@@ -81,15 +81,15 @@ const styles = StyleSheet.create({
   tipLabel: {
     color: colors.mint,
     fontFamily: fontFamilies.pixelEn,
-    fontSize: 6,
+    fontSize: 9,
     letterSpacing: 0.48,
-    lineHeight: 10,
+    lineHeight: 13,
   },
   tipText: {
     flex: 1,
     color: colors.textLo,
     fontFamily: fontFamilies.readable,
-    fontSize: 10.5,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 17,
   },
 });
