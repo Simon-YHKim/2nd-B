@@ -23,6 +23,7 @@ import {
   BFI_ITEMS,
   TRAIT_LABEL_EN,
   TRAIT_LABEL_KO,
+  bfiMeanToPercent,
   scoreBfi,
   type BfiResponses,
 } from "@/lib/persona/bfi";
@@ -254,15 +255,16 @@ function BigFiveDeepSpace() {
     loadLatestBfi(getSupabaseClient(), userId)
       .then((r) => {
         if (cancelled) return;
-        // BFI trait scores are 1-5 Likert means; the lens bars render 0-100.
+        // BFI trait means are 1-5 Likert; bfiMeanToPercent maps to 0-100 using
+        // the same (v-1)/4 anchor buildPersona uses (1->0%, 3->50%, 5->100%).
         setTraits(
           r
             ? {
-                openness: Math.round((r.openness / 5) * 100),
-                conscientiousness: Math.round((r.conscientiousness / 5) * 100),
-                extraversion: Math.round((r.extraversion / 5) * 100),
-                agreeableness: Math.round((r.agreeableness / 5) * 100),
-                neuroticism: Math.round((r.neuroticism / 5) * 100),
+                openness: bfiMeanToPercent(r.openness),
+                conscientiousness: bfiMeanToPercent(r.conscientiousness),
+                extraversion: bfiMeanToPercent(r.extraversion),
+                agreeableness: bfiMeanToPercent(r.agreeableness),
+                neuroticism: bfiMeanToPercent(r.neuroticism),
               }
             : null,
         );
