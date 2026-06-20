@@ -6,4 +6,5 @@ export {
   LedgerScreen,
   SideProjectScreen,
   MealsScreen,
+  RemindersScreen,
 } from "./screens";

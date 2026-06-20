@@ -4,7 +4,7 @@
 // (every write is behind a user tap). Strings come from the bilingual ops copy.
 
 import { useEffect, useMemo, useState, type DependencyList } from "react";
-import { Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -19,6 +19,7 @@ import {
   OpsFrame,
   OpsPushSheet,
   OpsRecommendationCard,
+  OpsReminderRow,
   OpsState,
   OpsStatusChip,
   ProgressBar,
@@ -46,6 +47,18 @@ import {
 import { listEntriesForMonth, monthBucket, summarizeMonth } from "@/lib/finance/ledger";
 import { fetchPushActivity, summarizeGithubActivity, type PushActivity } from "@/lib/projects/github";
 import { searchFoods, type FoodNutrition } from "@/lib/nutrition/foods";
+import {
+  buildWeekGrid,
+  listWeek,
+  MEAL_SLOTS,
+  setMeal,
+  weekStartKey,
+  type DayPlan,
+  type MealEntry,
+  type MealSlot,
+} from "@/lib/nutrition/meal-plan";
+import { listActiveRoutines, type OpsRoutine } from "@/lib/ops/routines";
+import { remindersSupported } from "@/lib/ops/reminders";
 
 // --- tiny async helper -------------------------------------------------
 
@@ -457,27 +470,68 @@ export function SideProjectScreen() {
 // --- (6) Meals · foods -------------------------------------------------
 
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+const DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function MealsScreen() {
   const c = useOpsCopy();
-  const [ideas, setIdeas] = useState<FoodNutrition[] | null>(null);
-  const [q, setQ] = useState("");
+  const { userId } = useAuth();
+  const { i18n } = useTranslation();
+  const ko = i18n.language?.toLowerCase().startsWith("ko");
+  const dayLabels = ko ? DAYS : DAYS_EN;
+  const thisWeek = weekStartKey();
 
-  const onIdeas = async () => {
+  const [weekStart, setWeekStart] = useState(thisWeek);
+  const [pending, setPending] = useState<{ date: string; slot: MealSlot } | null>(null);
+  const [draft, setDraft] = useState("");
+  const [ideas, setIdeas] = useState<FoodNutrition[]>([]);
+
+  const week = useAsync<MealEntry[]>(
+    () => (userId ? listWeek(userId, weekStart) : Promise.resolve([])),
+    [userId, weekStart],
+  );
+  const grid: DayPlan[] = useMemo(() => buildWeekGrid(weekStart, week.data ?? []), [weekStart, week.data]);
+
+  const shiftWeek = (deltaDays: number) => {
+    const [y, m, d] = weekStart.split("-").map(Number);
+    const next = new Date(y, m - 1, d + deltaDays);
+    setWeekStart(weekStartKey(next));
+  };
+
+  const openCell = async (date: string, slot: MealSlot, current: MealEntry | null) => {
+    setPending({ date, slot });
+    setDraft(current?.title ?? "");
     try {
-      setIdeas(await searchFoods(q));
+      setIdeas(await searchFoods(ko ? "닭" : "chicken"));
     } catch {
       setIdeas([]);
     }
   };
 
+  const saveCell = async () => {
+    if (!userId || !pending || draft.trim().length === 0) {
+      setPending(null);
+      return;
+    }
+    try {
+      await setMeal(userId, pending.date, pending.slot, draft.trim());
+      week.reload();
+    } catch {
+      /* surfaced on reload */
+    }
+    setPending(null);
+  };
+
   return (
     <OpsFrame title={c.weeklyMeals} bubble={c.weeklyMeals} tip={c.whatToEatNow}>
-      <Pressable onPress={onIdeas} hitSlop={6} style={styles.quickMode}>
-        <Text style={styles.quickIcon}>⚡</Text>
-        <Text style={styles.quickText}>{c.whatToEatNow}</Text>
-        <Text style={styles.quickTag}>{c.quickMode} ›</Text>
-      </Pressable>
+      <View style={styles.weekNav}>
+        <Pressable onPress={() => shiftWeek(-7)} hitSlop={10} style={styles.weekArrow}>
+          <Text style={styles.weekArrowText}>‹</Text>
+        </Pressable>
+        <Text style={[styles.weekLabel, weekStart === thisWeek ? styles.weekLabelNow : null]}>{weekStart}</Text>
+        <Pressable onPress={() => shiftWeek(7)} hitSlop={10} style={styles.weekArrow}>
+          <Text style={styles.weekArrowText}>›</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.grid}>
         <View style={styles.gridHeaderRow}>
@@ -486,32 +540,95 @@ export function MealsScreen() {
           <Text style={styles.gridHeadCell}>{c.lunch}</Text>
           <Text style={styles.gridHeadCell}>{c.dinner}</Text>
         </View>
-        {DAYS.slice(0, 4).map((d) => (
-          <View key={d} style={styles.gridRow}>
-            <Text style={styles.gridDay}>{d}</Text>
-            {[0, 1, 2].map((slot) => (
-              <View key={slot} style={styles.gridCell}>
-                <Text style={styles.gridPlus}>＋</Text>
-              </View>
-            ))}
+        {grid.map((day, i) => (
+          <View key={day.date} style={styles.gridRow}>
+            <Text style={styles.gridDay}>{dayLabels[i]}</Text>
+            {MEAL_SLOTS.map((slot) => {
+              const cell = day[slot];
+              return (
+                <Pressable
+                  key={slot}
+                  onPress={() => openCell(day.date, slot, cell)}
+                  hitSlop={4}
+                  style={[styles.gridCell, cell ? styles.gridCellFilled : null]}
+                >
+                  <Text style={cell ? styles.gridCellText : styles.gridPlus} numberOfLines={1}>
+                    {cell ? cell.title : "＋"}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         ))}
       </View>
+      <Text style={styles.fxNote}>{c.nutritionNote}</Text>
 
-      {ideas && ideas.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.pixelLabel}>{c.mealIdeas}</Text>
-          {ideas.map((f) => (
-            <View key={f.name} style={styles.bookRow}>
-              <Text style={styles.bookTitle}>{f.name}</Text>
-              {f.kcal !== undefined ? <MetaChip label={`${f.kcal} kcal`} /> : null}
+      <Modal visible={pending !== null} transparent animationType="slide" onRequestClose={() => setPending(null)}>
+        <Pressable style={styles.mealBackdrop} onPress={() => setPending(null)} />
+        <View style={styles.mealSheet}>
+          <View style={styles.sheetGrip} />
+          <Text style={styles.mealSheetTitle}>{c.planMeal}</Text>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder={c.mealIdeas}
+            placeholderTextColor={deepSpace.textLo}
+            style={styles.searchInput}
+            returnKeyType="done"
+            onSubmitEditing={saveCell}
+          />
+          {ideas.length > 0 ? (
+            <View style={styles.ideaChips}>
+              {ideas.slice(0, 4).map((f) => (
+                <Pressable key={f.name} onPress={() => setDraft(f.name)} hitSlop={4} style={styles.ideaChip}>
+                  <Text style={styles.ideaChipText}>{f.name}</Text>
+                </Pressable>
+              ))}
             </View>
-          ))}
-          <Text style={styles.fxNote}>{c.nutritionNote}</Text>
+          ) : null}
+          <Pressable onPress={saveCell} hitSlop={6} style={styles.mealSave}>
+            <Text style={styles.mealSaveText}>{c.save}</Text>
+          </Pressable>
         </View>
-      ) : ideas ? (
-        <OpsState variant="empty" title={c.mealIdeas} body={c.nutritionNote} />
-      ) : null}
+      </Modal>
+    </OpsFrame>
+  );
+}
+
+// --- Scheduled reminders (④) -------------------------------------------
+
+function reminderSchedule(r: OpsRoutine, c: ReturnType<typeof useOpsCopy>): string {
+  const word = r.recurrence === "daily" ? c.daily : r.recurrence === "weekly" ? c.weekly : c.once;
+  return r.reminder_time ? `${word} ${r.reminder_time}` : word;
+}
+
+export function RemindersScreen() {
+  const c = useOpsCopy();
+  const { userId } = useAuth();
+  const supported = remindersSupported();
+  const routines = useAsync<OpsRoutine[]>(
+    () => (userId ? listActiveRoutines(userId) : Promise.resolve([])),
+    [userId],
+  );
+  const withReminder = (routines.data ?? []).filter((r) => r.reminder_time);
+
+  return (
+    <OpsFrame title={c.scheduledReminders} bubble={c.scheduledReminders} tip={c.remindersTip}>
+      {routines.status === "error" ? (
+        <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={routines.reload} />
+      ) : withReminder.length === 0 ? (
+        <OpsState variant="empty" title={c.emptyTitle} body={c.scheduledReminders} />
+      ) : (
+        withReminder.map((r) => (
+          <OpsReminderRow
+            key={r.id}
+            title={r.title}
+            schedule={reminderSchedule(r, c)}
+            tone={supported ? "active" : "muted"}
+            statusLabel={supported ? c.active : c.notOnThisDevice}
+          />
+        ))
+      )}
     </OpsFrame>
   );
 }
@@ -658,4 +775,46 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   gridPlus: { fontSize: 14, color: deepSpace.textLo },
+  gridCellFilled: { borderColor: deepSpace.cardLineStrong, backgroundColor: deepSpace.cardPressed },
+  gridCellText: { fontSize: 9, color: deepSpace.accentSoft, paddingHorizontal: 3 },
+
+  weekNav: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: deepSpaceSpacing.md },
+  weekArrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  weekArrowText: { fontSize: 22, color: deepSpace.accentBright },
+  weekLabel: { fontFamily: fontFamilies.pixelKo, fontSize: 13, color: deepSpace.textMuted },
+  weekLabelNow: { color: deepSpace.mint },
+
+  mealBackdrop: { flex: 1, backgroundColor: deepSpace.bgEdge, opacity: 0.6 },
+  mealSheet: {
+    backgroundColor: deepSpace.bgMid,
+    borderTopWidth: 1,
+    borderColor: deepSpace.cardLineStrong,
+    borderTopLeftRadius: deepSpaceRadii.phone,
+    borderTopRightRadius: deepSpaceRadii.phone,
+    padding: deepSpaceSpacing.lg,
+    paddingBottom: deepSpaceSpacing.xl,
+    gap: deepSpaceSpacing.sm,
+  },
+  sheetGrip: { width: 40, height: 4, borderRadius: 2, backgroundColor: deepSpace.cardLineStrong, alignSelf: "center" },
+  mealSheetTitle: { fontFamily: fontFamilies.pixelKo, fontSize: 15, color: deepSpace.textHi },
+  ideaChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  ideaChip: {
+    minHeight: 36,
+    justifyContent: "center",
+    paddingHorizontal: deepSpaceSpacing.md,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    borderRadius: deepSpaceRadii.md,
+    backgroundColor: deepSpace.card,
+  },
+  ideaChipText: { fontSize: 13, color: deepSpace.accentSoft },
+  mealSave: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: deepSpaceRadii.md,
+    backgroundColor: deepSpace.mint,
+    marginTop: 4,
+  },
+  mealSaveText: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.onMint },
 });

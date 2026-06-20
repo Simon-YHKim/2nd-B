@@ -2202,6 +2202,11 @@ export function DeepSpaceOpsScreen() {
       )}
       {reminderToast ? <Text style={styles.footerLeft}>{reminderToast}</Text> : null}
       <Text style={styles.lead}>{t("hero.subtitle")}</Text>
+      {/* IA (ops-ia §4): single entry from the /ops hub into the scheduled
+          reminders surface. */}
+      <Pressable style={styles.secondary} onPress={() => router.push("/reminders")}>
+        <Text style={styles.secondaryText}>{`🔔 ${t("card.remind")}`}</Text>
+      </Pressable>
       <View style={styles.filterRow}>
         {OPS_GROUP_IDS.map((id) => (
           <FilterChip
