@@ -15,6 +15,7 @@ import { Text } from "@/components/ui/Text";
 import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { isPrimaryTabPath } from "@/lib/nav/tabs";
 import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
+import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 
 // Landing + pre-auth routes that hide the arrow (no "back to graph" there yet).
 const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile", "/oauth-callback"];
@@ -161,6 +162,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.28,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
+    // Android ignores shadow* — pair an elevation so the glow renders and the
+    // floating arrow can't be punched through by higher-elevation content
+    // (ANDROID_QA_GUIDELINES §1 Shine-through).
+    ...androidElevationStyle(androidElevation.card),
   },
   chevron: {
     width: 14,
@@ -198,6 +203,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
+    ...androidElevationStyle(androidElevation.card),
   },
   labelText: {
     letterSpacing: 0,
