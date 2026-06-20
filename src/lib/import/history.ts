@@ -15,6 +15,8 @@ export interface ImportHistoryEntry {
   atIso: string;
   /** short derived summary, e.g. "약속 12 · 장소 5 · 원문 0". */
   summary: string;
+  /** source rows this import created — deleted on 철회 (full removal). */
+  sourceIds: string[];
 }
 
 export async function getImportHistory(): Promise<ImportHistoryEntry[]> {
