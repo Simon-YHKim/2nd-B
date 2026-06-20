@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}html,body{margin:0}@keyframes sb-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}@keyframes sb-pulse{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}}@keyframes sb-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}.scr{animation:sb-in .26s ease}.navbtn{background:none;border:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:0;flex:1}</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:18px;padding:40px 20px;background:radial-gradient(140% 80% at 50% 0%,rgba(20,40,70,.45),#0a0e17 60%);font-family:Pretendard,system-ui,sans-serif">
+
+  <div style="display:flex;align-items:center;gap:10px;color:rgba(159,228,255,.7)"><span style="font-family:'Press Start 2P',monospace;font-size:11px;letter-spacing:.14em;color:#5FD4FF">2ND-BRAIN · PROTOTYPE</span><span style="font-size:12px">— 하단 탭과 별·버튼을 눌러 이동하세요</span></div>
+
+  <!-- ============ PHONE ============ -->
+  <div style="position:relative;width:320px;height:680px;border-radius:38px;overflow:hidden;background:radial-gradient(120% 64% at 50% 18%,rgba(26,72,120,.4) 0%,rgba(11,33,66,.24) 46%,#070A13 80%);border:1px solid rgba(70,182,255,.24);box-shadow:0 30px 80px rgba(0,0,0,.6)">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 18% 12%,rgba(127,227,255,.5),transparent),radial-gradient(1px 1px at 82% 14%,rgba(127,227,255,.4),transparent),radial-gradient(1.1px 1.1px at 64% 26%,rgba(127,227,255,.35),transparent),radial-gradient(1px 1px at 36% 30%,rgba(127,227,255,.3),transparent)"></div>
+
+    <!-- status bar -->
+    <div style="position:relative;display:flex;justify-content:space-between;padding:14px 22px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+
+    <!-- ===== 세컨비 STATUS HEADER (좌 세컨비 · 우 말풍선) ===== -->
+    <div style="position:relative;display:flex;align-items:flex-start;gap:11px;padding:12px 16px 14px;margin:8px 12px 0;border-bottom:1px solid rgba(70,182,255,.12)">
+      <div style="position:relative;flex:0 0 auto;animation:sb-bob 4s ease-in-out infinite">
+        <img src="assets/secondb-head-front.png" alt="세컨비" style="width:48px;height:48px;filter:drop-shadow(0 0 10px rgba(70,182,255,.35))">
+        <span style="position:absolute;top:-1px;left:50%;transform:translateX(-50%);width:9px;height:9px;border-radius:50%;background:{{ moodColor }};box-shadow:0 0 9px 2px {{ moodColor }};animation:sb-pulse 2.6s ease-in-out infinite"></span>
+      </div>
+      <div style="flex:1;position:relative;background:rgba(70,182,255,.08);border:1px solid rgba(70,182,255,.22);border-radius:4px 13px 13px 13px;padding:10px 13px">
+        <span style="position:absolute;left:-5px;top:11px;width:9px;height:9px;background:rgba(70,182,255,.08);border-left:1px solid rgba(70,182,255,.22);border-bottom:1px solid rgba(70,182,255,.22);transform:rotate(45deg)"></span>
+        <div style="font-size:12.5px;color:#E8F7FF;line-height:1.45;word-break:keep-all">{{ headText }}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:7px"><span style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.08em;color:#5FF0C0">TIP</span><span style="font-size:10.5px;color:rgba(159,228,255,.62);line-height:1.4;word-break:keep-all">{{ headTip }}</span></div>
+      </div>
+    </div>
+
+    <!-- ===== BODY ===== -->
+    <div style="position:relative;height:482px;overflow:hidden">
+
+      <!-- HOME -->
+      <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+        <div class="scr" style="position:relative;height:100%">
+          <svg viewBox="0 0 320 300" style="position:absolute;top:6px;left:0;width:100%;height:300px;pointer-events:none"><line x1="160" y1="40" x2="120" y2="150" stroke="rgba(167,139,250,.5)" stroke-width="1" stroke-dasharray="3 4"/><polyline points="70,210 110,232 150,210 130,150 120,150 95,120 78,86" fill="none" stroke="rgba(95,212,255,.35)" stroke-width="1"/></svg>
+          <button onClick="{{ goPolaris }}" style="position:absolute;top:26px;left:144px;width:32px;height:32px;border-radius:50%;border:0;background:radial-gradient(circle,#C8B6FF,#8B7BD8);box-shadow:0 0 16px 4px rgba(167,139,250,.6);cursor:pointer"></button>
+          <div style="position:absolute;top:60px;left:0;width:100%;text-align:center;font-family:Galmuri11,monospace;font-size:10px;color:rgba(200,182,255,.7)">북극성 · 소울코어</div>
+          <button onClick="{{ goLens }}" style="position:absolute;top:78px;left:70px;width:14px;height:14px;border-radius:50%;border:0;background:#9fe4ff;box-shadow:0 0 10px 2px rgba(95,212,255,.6);cursor:pointer"></button>
+          <button onClick="{{ goLens }}" style="position:absolute;top:112px;left:88px;width:13px;height:13px;border-radius:50%;border:0;background:#9fe4ff;box-shadow:0 0 9px 2px rgba(95,212,255,.55);cursor:pointer"></button>
+          <button onClick="{{ goLens }}" style="position:absolute;top:144px;left:113px;width:13px;height:13px;border-radius:50%;border:0;background:#9fe4ff;box-shadow:0 0 9px 2px rgba(95,212,255,.55);cursor:pointer"></button>
+          <button onClick="{{ goLens }}" style="position:absolute;top:144px;left:124px;width:11px;height:11px;border-radius:50%;border:0;background:#7fc9f0;box-shadow:0 0 8px 2px rgba(95,212,255,.5);cursor:pointer"></button>
+          <button onClick="{{ goLens }}" style="position:absolute;top:204px;left:63px;width:12px;height:12px;border-radius:50%;border:0;background:#7fc9f0;box-shadow:0 0 8px 2px rgba(95,212,255,.5);cursor:pointer"></button>
+          <button onClick="{{ goLens }}" style="position:absolute;top:226px;left:104px;width:13px;height:13px;border-radius:50%;border:0;background:#9fe4ff;box-shadow:0 0 9px 2px rgba(95,212,255,.55);cursor:pointer"></button>
+          <button onClick="{{ goLens }}" style="position:absolute;top:204px;left:144px;width:12px;height:12px;border-radius:50%;border:0;background:#7fc9f0;box-shadow:0 0 8px 2px rgba(95,212,255,.5);cursor:pointer"></button>
+          <div style="position:absolute;bottom:14px;left:20px;right:20px;text-align:center;font-size:11px;color:rgba(95,212,255,.5)">별 7개를 눌러 자기이해 렌즈를 열어보세요</div>
+        </div>
+      </sc-if>
+
+      <!-- CAPTURE 담기 -->
+      <sc-if value="{{ isCapture }}" hint-placeholder-val="{{ true }}">
+        <div class="scr" style="padding:6px 18px 0">
+          <div style="font-family:Galmuri11,monospace;font-size:15px;color:#CCFAFF">담기</div>
+          <div style="margin-top:14px;padding:14px;border:1px solid rgba(70,182,255,.28);border-radius:13px;background:rgba(70,182,255,.05);min-height:120px;font-size:13px;color:rgba(204,224,255,.55);line-height:1.6">오늘 떠오른 생각, 읽은 것, 느낀 것…<br>무엇이든 한 줄로.</div>
+          <div style="display:flex;gap:8px;margin-top:14px"><span style="font-size:11px;color:#9fe4ff;padding:7px 12px;border:1px solid rgba(70,182,255,.3);border-radius:9px">✎ 글</span><span style="font-size:11px;color:#9fe4ff;padding:7px 12px;border:1px solid rgba(70,182,255,.3);border-radius:9px">🔗 링크</span><span style="font-size:11px;color:#9fe4ff;padding:7px 12px;border:1px solid rgba(70,182,255,.3);border-radius:9px">🎙 음성</span></div>
+          <div style="margin-top:16px;padding:12px 14px;border:1px dashed rgba(167,139,250,.3);border-radius:11px;font-size:11.5px;color:rgba(200,182,255,.7);line-height:1.5">담는 순간 세컨비가 자동으로 태그·분류해요.</div>
+        </div>
+      </sc-if>
+
+      <!-- CHAT 세컨비 -->
+      <sc-if value="{{ isChat }}" hint-placeholder-val="{{ true }}">
+        <div class="scr" style="padding:6px 16px 0;display:flex;flex-direction:column;gap:10px">
+          <div style="align-self:flex-end;max-width:80%;padding:10px 13px;border-radius:13px 13px 4px 13px;background:rgba(70,182,255,.16);font-size:12.5px;color:#E8F7FF;line-height:1.45">나 요즘 너무 지치는데 왜 그럴까?</div>
+          <div style="align-self:flex-start;max-width:84%;padding:11px 13px;border-radius:4px 13px 13px 13px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.25);font-size:12.5px;color:#E8F7FF;line-height:1.5">최근 2주 기록을 보면 '쉼' 없이 일 관련 기록만 늘었어요. 외향성 별도 평소보다 어두워졌고요.</div>
+          <div style="align-self:flex-start;display:flex;gap:6px;flex-wrap:wrap"><span style="font-size:9.5px;color:#C8B6FF;background:rgba(167,139,250,.12);padding:3px 8px;border-radius:6px">근거 · 기록 8건</span><span style="font-size:9.5px;color:#C8B6FF;background:rgba(167,139,250,.12);padding:3px 8px;border-radius:6px">리듬 ↓</span></div>
+          <div style="margin-top:4px;display:flex;gap:7px;flex-wrap:wrap"><span style="font-size:11px;color:#9fe4ff;padding:6px 11px;border:1px solid rgba(70,182,255,.3);border-radius:9px">쉼을 기록할까?</span><span style="font-size:11px;color:#9fe4ff;padding:6px 11px;border:1px solid rgba(70,182,255,.3);border-radius:9px">공상 모드</span></div>
+        </div>
+      </sc-if>
+
+      <!-- LENS 지금의 나 -->
+      <sc-if value="{{ isLens }}" hint-placeholder-val="{{ true }}">
+        <div class="scr" style="padding:6px 18px 0">
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:430px;text-align:center"><div style="font-size:34px">✶</div><div style="font-family:Galmuri11,monospace;font-size:14px;color:#CCFAFF;margin-top:14px">아직 이 별은 어두워요</div><div style="font-size:12px;color:rgba(159,228,255,.6);margin-top:10px;line-height:1.6">성격 검사를 한 번 마치면<br>지금의 나 별이 켜져요.</div><div style="margin-top:18px;padding:10px 18px;border:0;border-radius:11px;background:linear-gradient(90deg,#46B6FF,#5FD4FF);color:#04101e;font-family:Galmuri11,monospace;font-size:13px;font-weight:700">검사 시작</div></div>
+          </sc-if>
+          <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:430px;text-align:center"><div style="font-size:32px;opacity:.7">⚠</div><div style="font-family:Galmuri11,monospace;font-size:14px;color:#CCFAFF;margin-top:14px">불러오지 못했어요</div><div style="font-size:12px;color:rgba(159,228,255,.6);margin-top:10px;line-height:1.6">잠시 후 다시 시도해 주세요.</div><div style="margin-top:18px;padding:10px 18px;border:1px solid rgba(70,182,255,.3);border-radius:11px;color:#9fe4ff;font-family:Galmuri11,monospace;font-size:13px">다시 시도</div></div>
+          </sc-if>
+          <sc-if value="{{ isFilled }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <div style="font-family:Galmuri11,monospace;font-size:15px;color:#CCFAFF">지금의 나 <span style="font-size:10px;color:#5FF0C0">L4</span></div>
+              <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px">
+                <div><div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(159,228,255,.7)"><span>개방성</span><span>72</span></div><div style="height:7px;border-radius:4px;background:rgba(70,182,255,.12);margin-top:4px"><div style="width:72%;height:100%;border-radius:4px;background:linear-gradient(90deg,#46B6FF,#5FD4FF)"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(159,228,255,.7)"><span>성실성</span><span>58</span></div><div style="height:7px;border-radius:4px;background:rgba(70,182,255,.12);margin-top:4px"><div style="width:58%;height:100%;border-radius:4px;background:linear-gradient(90deg,#46B6FF,#5FD4FF)"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(159,228,255,.7)"><span>외향성</span><span style="color:#5FF0C0">41 ↑</span></div><div style="height:7px;border-radius:4px;background:rgba(70,182,255,.12);margin-top:4px"><div style="width:41%;height:100%;border-radius:4px;background:linear-gradient(90deg,#5FF0C0,#46B6FF)"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(159,228,255,.7)"><span>우호성</span><span>67</span></div><div style="height:7px;border-radius:4px;background:rgba(70,182,255,.12);margin-top:4px"><div style="width:67%;height:100%;border-radius:4px;background:linear-gradient(90deg,#46B6FF,#5FD4FF)"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(159,228,255,.7)"><span>신경성</span><span>39</span></div><div style="height:7px;border-radius:4px;background:rgba(70,182,255,.12);margin-top:4px"><div style="width:39%;height:100%;border-radius:4px;background:linear-gradient(90deg,#46B6FF,#5FD4FF)"></div></div></div>
+              </div>
+              <div style="margin-top:16px;padding:11px 13px;border:1px solid rgba(95,240,192,.25);border-radius:11px;background:rgba(95,240,192,.05);font-size:11.5px;color:#CCFAFF;line-height:1.5">한 주 사이 외향성이 6p 올랐어요. 사람을 더 만났네요.</div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- IDEN -->
+      <sc-if value="{{ isIden }}" hint-placeholder-val="{{ true }}">
+        <div class="scr" style="padding:6px 18px 0">
+          <div style="text-align:center;padding:12px;border:1px solid rgba(167,139,250,.3);border-radius:13px;background:rgba(167,139,250,.07)"><div style="font-size:26px">🪪</div><div style="font-family:ui-monospace,monospace;font-size:12px;color:#CCFAFF;margin-top:4px">simon.iden</div><div style="display:flex;justify-content:center;gap:5px;margin-top:7px"><span style="font-size:9px;color:rgba(200,182,255,.7);background:rgba(167,139,250,.14);padding:2px 6px;border-radius:5px">v2.1</span><span style="font-size:9px;color:#5FF0C0;background:rgba(95,240,192,.1);padding:2px 6px;border-radius:5px">서명됨</span></div></div>
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:7px">
+            <div style="padding:10px 12px;border-left:2px solid #A78BFA;border-radius:0 9px 9px 0;background:rgba(167,139,250,.06)"><div style="font-family:'Press Start 2P',monospace;font-size:6px;color:rgba(200,182,255,.65)">NORTH_STAR</div><div style="font-size:11.5px;color:#CCFAFF;margin-top:5px;line-height:1.5">"나를 깊이 이해해 더 나답게 산다."</div></div>
+            <div style="padding:10px 12px;border-left:2px solid #46B6FF;border-radius:0 9px 9px 0;background:rgba(70,182,255,.05)"><div style="font-family:'Press Start 2P',monospace;font-size:6px;color:rgba(95,212,255,.6)">BIG_FIVE</div><div style="font-family:ui-monospace,monospace;font-size:10px;color:#9fe4ff;margin-top:6px">O72 C58 E41 A67 N39</div></div>
+          </div>
+          <div style="margin-top:14px;width:100%;padding:12px;border:0;border-radius:12px;background:linear-gradient(90deg,#8B7BD8,#A78BFA);color:#0a0820;font-family:Galmuri11,monospace;font-size:13px;font-weight:700;text-align:center">AI에 전달</div>
+        </div>
+      </sc-if>
+
+    </div>
+
+    <!-- ===== DOCK ===== -->
+    <div style="position:absolute;bottom:0;left:0;right:0;display:flex;padding:11px 16px 16px;gap:4px;background:linear-gradient(180deg,transparent,rgba(7,10,19,.9) 40%);border-top:1px solid rgba(70,182,255,.12)">
+      <button class="navbtn" onClick="{{ goHome }}"><span style="font-size:16px;opacity:{{ homeOp }}">✦</span><span style="font-size:9px;color:{{ homeC }};font-family:Galmuri11,monospace">홈</span></button>
+      <button class="navbtn" onClick="{{ goCapture }}"><span style="font-size:16px;opacity:{{ capOp }}">✎</span><span style="font-size:9px;color:{{ capC }};font-family:Galmuri11,monospace">담기</span></button>
+      <button class="navbtn" onClick="{{ goChat }}"><span style="font-size:16px;opacity:{{ chatOp }}">💬</span><span style="font-size:9px;color:{{ chatC }};font-family:Galmuri11,monospace">세컨비</span></button>
+      <button class="navbtn" onClick="{{ goLens }}"><span style="font-size:16px;opacity:{{ lensOp }}">◐</span><span style="font-size:9px;color:{{ lensC }};font-family:Galmuri11,monospace">나</span></button>
+      <button class="navbtn" onClick="{{ goIden }}"><span style="font-size:16px;opacity:{{ idenOp }}">🪪</span><span style="font-size:9px;color:{{ idenC }};font-family:Galmuri11,monospace">IDEN</span></button>
+    </div>
+  </div>
+
+  <!-- state toggle for 나 화면 -->
+  <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(159,228,255,.6)"><span>'나' 화면 상태:</span>
+    <button onClick="{{ setFilled }}" style="padding:5px 11px;border-radius:8px;border:1px solid rgba(70,182,255,.3);background:{{ filledBg }};color:#CCFAFF;font-size:11px;cursor:pointer">채움</button>
+    <button onClick="{{ setEmpty }}" style="padding:5px 11px;border-radius:8px;border:1px solid rgba(70,182,255,.3);background:{{ emptyBg }};color:#CCFAFF;font-size:11px;cursor:pointer">빈</button>
+    <button onClick="{{ setError }}" style="padding:5px 11px;border-radius:8px;border:1px solid rgba(70,182,255,.3);background:{{ errorBg }};color:#CCFAFF;font-size:11px;cursor:pointer">에러</button>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { screen: 'home', data: 'filled' };
+
+  componentDidMount() {
+    try { const s = localStorage.getItem('sb_proto_screen'); if (s) this.setState({ screen: s }); } catch(e){}
+  }
+  go(screen) {
+    this.setState({ screen });
+    try { localStorage.setItem('sb_proto_screen', screen); } catch(e){}
+  }
+
+  renderVals() {
+    const sc = this.state.screen;
+    const heads = {
+      home:    { t: '오늘도 왔네요. 지금의 당신이 별 7개로 빛나고 있어요.', tip: '가장 어두운 별부터 채워보면 좋아요.', mood: '#5FF0C0' },
+      capture: { t: '방금 떠오른 걸 흘려보내지 말아요.', tip: '한 줄이면 충분해요. 정리는 제가 할게요.', mood: '#A78BFA' },
+      chat:    { t: '무엇이든 물어봐요. 당신 기록에서 찾아 답할게요.', tip: '"요즘 나 어때?"처럼 물어도 돼요.', mood: '#A78BFA' },
+      lens:    { t: '이번 주 외향성 별이 한 칸 밝아졌어요.', tip: '변화한 축을 누르면 근거 기록을 볼 수 있어요.', mood: '#5FF0C0' },
+      iden:    { t: '당신을 한 파일로 묶어뒀어요. 어디든 데려가세요.', tip: '민감한 항목은 가리고 내보낼 수 있어요.', mood: '#A78BFA' },
+    };
+    const h = heads[sc] || heads.home;
+    const op = (k) => sc === k ? 1 : 0.4;
+    const col = (k) => sc === k ? '#5FD4FF' : 'rgba(159,228,255,.5)';
+    const stBg = (k) => this.state.data === k ? 'rgba(70,182,255,.2)' : 'rgba(70,182,255,.05)';
+    return {
+      isHome: sc==='home', isCapture: sc==='capture', isChat: sc==='chat', isLens: sc==='lens', isIden: sc==='iden',
+      headText: h.t, headTip: h.tip, moodColor: h.mood,
+      isFilled: this.state.data==='filled', isEmpty: this.state.data==='empty', isError: this.state.data==='error',
+      goHome: () => this.go('home'), goCapture: () => this.go('capture'), goChat: () => this.go('chat'),
+      goLens: () => this.go('lens'), goIden: () => this.go('iden'), goPolaris: () => this.go('iden'),
+      setFilled: () => this.setState({data:'filled', screen:'lens'}), setEmpty: () => this.setState({data:'empty', screen:'lens'}), setError: () => this.setState({data:'error', screen:'lens'}),
+      filledBg: stBg('filled'), emptyBg: stBg('empty'), errorBg: stBg('error'),
+      homeOp: op('home'), capOp: op('capture'), chatOp: op('chat'), lensOp: op('lens'), idenOp: op('iden'),
+      homeC: col('home'), capC: col('capture'), chatC: col('chat'), lensC: col('lens'), idenC: col('iden'),
+    };
+  }
+}
+</script>
+</body>
+</html>

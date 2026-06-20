@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&amp;display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:#070A13}
+  @keyframes secondb-drift{0%{opacity:.5}50%{opacity:.85}100%{opacity:.5}}
+  @keyframes secondb-bob{0%{transform:translateY(0)}50%{transform:translateY(-5px)}100%{transform:translateY(0)}}
+  @keyframes secondb-dim{0%{opacity:.42}50%{opacity:1}100%{opacity:.42}}
+</style>
+</helmet>
+<div style="min-height:100vh;background:#070A13;color:#5FD4FF;font-family:Pretendard,system-ui,sans-serif;line-height:1.6;padding:48px 24px 120px;-webkit-font-smoothing:antialiased">
+  <div style="max-width:1120px;margin:0 auto">
+
+    <div style="font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:.18em;color:#46B6FF;opacity:.85">2ND-BRAIN · DEEP SPACE</div>
+    <h1 style="font-family:Galmuri11,monospace;font-size:34px;font-weight:400;color:#CCFAFF;letter-spacing:-.01em;margin:14px 0 6px;line-height:1.25">AI 시대, 가장 가치있는 것은 나 자신입니다</h1>
+    <p style="max-width:680px;color:rgba(95,212,255,.66);font-size:15px;margin:0 0 4px">매일의 기록을 검증된 심리 프레임워크로 분석해 '나'를 데이터로 쌓고, 어떤 AI에든 가져갈 수 있는 개인 비서로 키우는 앱. 마을 그래프는 접고, <span style="color:#5FD4FF">세컨비의 머리가 당신을 따라보는</span> 딥스페이스 셸 + <span style="color:#5FD4FF">북극성·북두칠성 별자리</span>를 중심으로 39개 화면을 설계합니다.</p>
+
+    <!-- ============ HERO · 살아있는 홈 ============ -->
+    <div style="display:flex;gap:36px;align-items:center;flex-wrap:wrap;margin:44px 0 8px">
+
+      <!-- phone -->
+      <div data-screen-label="홈 · 세컨비" style="position:relative;width:300px;height:620px;border-radius:42px;background:#04060e;border:1px solid rgba(70,182,255,.22);box-shadow:0 0 0 8px #0a0e1a,0 30px 80px rgba(0,0,0,.6);padding:10px;flex:0 0 auto">
+        <div style="position:absolute;top:18px;left:50%;transform:translateX(-50%);width:96px;height:7px;border-radius:4px;background:#0a0e1a;z-index:5"></div>
+        <div style="position:relative;width:100%;height:100%;border-radius:34px;overflow:hidden;background:radial-gradient(120% 75% at 50% 42%,rgba(26,72,120,.6) 0%,rgba(11,33,66,.32) 38%,#070A13 72%)">
+          <!-- neural background (canvas) -->
+          <canvas ref="{{ neuralRef }}" style="position:absolute;inset:0;width:100%;height:100%;z-index:0"></canvas>
+          <div style="position:absolute;inset:0;pointer-events:none;z-index:1;background:radial-gradient(circle at 50% 26%,transparent 0 40%,rgba(7,10,19,.34) 72%,rgba(7,10,19,.7) 100%)"></div>
+
+          <!-- status bar -->
+          <div style="position:relative;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(95,212,255,.8)">
+            <span>9:41</span>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="letter-spacing:.1em">●●● ▮</span>
+              <span style="font-size:12px;color:rgba(95,212,255,.7)">나</span>
+              <span style="font-size:12px;color:rgba(95,212,255,.7)">⚙</span>
+            </div>
+          </div>
+
+          <!-- ===== TOP: 별자리 (북극성 12시 + 북두칠성 135° 반시계) ===== -->
+          <div style="position:relative;z-index:3;height:240px;margin-top:6px">
+            <svg viewBox="0 0 280 240" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1">
+              <polyline points="63,224 98,189 128,188 167,179" fill="none" stroke="rgba(127,227,255,.34)" stroke-width="1.1"></polyline>
+              <polyline points="167,179 188,206 244,174 226,136 167,179" fill="none" stroke="rgba(127,227,255,.34)" stroke-width="1.1"></polyline>
+              <polyline points="226,136 140,30" fill="none" stroke="rgba(167,139,250,.5)" stroke-width="1" stroke-dasharray="2 5"></polyline>
+            </svg>
+
+            <!-- north star (북극성 · 12시 · 머리 구체와 같은 보라) -->
+            <button data-star="polaris" onClick="{{ onStar }}" style="position:absolute;left:140px;top:30px;transform:translate(-50%,-50%);width:40px;height:40px;border:0;padding:0;background:transparent;cursor:pointer;z-index:4;transition:transform .4s,filter .4s">
+              <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:15px;height:15px;border-radius:50%;background:radial-gradient(circle,#FFFFFF,#D6C4FF 48%,#A78BFA 84%);box-shadow:0 0 15px rgba(183,148,246,1),0 0 32px rgba(167,139,250,.7)"></span>
+            </button>
+
+            <!-- big dipper · 7 lenses -->
+            <button data-star="future" onClick="{{ onStar }}" style="position:absolute;left:63px;top:224px;transform:translate(-50%,-50%);width:30px;height:30px;border:0;padding:0;background:transparent;cursor:pointer;z-index:4;transition:transform .4s,filter .4s">
+              <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:radial-gradient(circle,#CCFAFF,#46B6FF 72%);box-shadow:0 0 8px rgba(70,182,255,.9),0 0 16px rgba(70,182,255,.45)"></span>
+            </button>
+            <button data-star="interview" onClick="{{ onStar }}" style="position:absolute;left:98px;top:189px;transform:translate(-50%,-50%);width:30px;height:30px;border:0;padding:0;background:transparent;cursor:pointer;z-index:4;transition:transform .4s,filter .4s">
+              <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:radial-gradient(circle,#CCFAFF,#46B6FF 72%);box-shadow:0 0 8px rgba(70,182,255,.9),0 0 16px rgba(70,182,255,.45)"></span>
+            </button>
+            <button data-star="audit" onClick="{{ onStar }}" style="position:absolute;left:128px;top:188px;transform:translate(-50%,-50%);width:30px;height:30px;border:0;padding:0;background:transparent;cursor:pointer;z-index:4;transition:transform .4s,filter .4s">
+              <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:radial-gradient(circle,#CCFAFF,#46B6FF 72%);box-shadow:0 0 8px rgba(70,182,255,.9),0 0 16px rgba(70,182,255,.45)"></span>
+            </button>
+            <button data-star="esm" onClick="{{ onStar }}" style="position:absolute;left:167px;top:179px;transform:translate(-50%,-50%);width:30px;height:30px;border:0;padding:0;background:transparent;cursor:pointer;z-index:4;transition:transform .4s,filter .4s">
+              <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:radial-gradient(circle,#CCFAFF,#46B6FF 72%);box-shadow:0 0 8px rgba(70,182,255,.9),0 0 16px rgba(70,182,255,.45)"></span>
+            </button>
+            <button data-star="peer" onClick="{{ onStar }}" style="position:absolute;left:188px;top:206px;transform:translate(-50%,-50%);width:30px;height:30px;border:0;padding:0;background:transparent;cursor:pointer;z-index:4;transition:transform .4s,filter .4s">
+              <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:radial-gradient(circle,#CCFAFF,#46B6FF 72%);box-shadow:0 0 8px rgba(70,182,255,.9),0 0 16px rgba(70,182,255,.45)"></span>
+            </button>
+            <button data-star="relation" onClick="{{ onStar }}" style="position:absolute;left:244px;top:174px;transform:translate(-50%,-50%);width:30px;height:30px;border:0;padding:0;background:transparent;cursor:pointer;z-index:4;transition:transform .4s,filter .4s">
+              <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:radial-gradient(circle,#CCFAFF,#46B6FF 72%);box-shadow:0 0 8px rgba(70,182,255,.9),0 0 16px rgba(70,182,255,.45)"></span>
+            </button>
+            <button data-star="growth" onClick="{{ onStar }}" style="position:absolute;left:226px;top:136px;transform:translate(-50%,-50%);width:30px;height:30px;border:0;padding:0;background:transparent;cursor:pointer;z-index:4;transition:transform .4s,filter .4s">
+              <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:radial-gradient(circle,#CCFAFF,#46B6FF 72%);box-shadow:0 0 8px rgba(70,182,255,.9),0 0 16px rgba(70,182,255,.45)"></span>
+            </button>
+          </div>
+
+          <!-- caption (별 선택 피드백) -->
+          
+
+          <!-- ===== BOTTOM: 세컨비 머리 + 말풍선 ===== -->
+          <div ref="{{ stageRef }}" style="position:relative;z-index:3;height:210px;margin-top:14px">
+            <div style="position:absolute;left:50%;top:0;transform:translateX(-50%)">
+              <div style="animation:secondb-bob 4.5s ease-in-out infinite">
+                <div ref="{{ headRef }}" style="position:relative;width:158px;height:158px;transform-style:preserve-3d;will-change:transform">
+                  <img src="assets/secondb-head-front.png" alt="세컨비" style="width:100%;height:100%;display:block;filter:drop-shadow(0 16px 26px rgba(70,90,200,.42))">
+                  <!-- 감정/알림 구체 (긍정/중간/부정 디밍) -->
+                  
+                  <div style="position: absolute; left: 50%; top: 60%; width: 47%; height: 23.5%; transform: translate(-50%,-50%); border-radius: 10px; background: linear-gradient(180deg,#0a1020,#03060e 62%); box-shadow: inset 0 1px 6px rgba(120,150,255,.18),inset 0 -4px 10px rgba(0,0,0,.6)"></div>
+                  <div style="position:absolute;left:38.5%;top:58.5%;width:0;height:0">
+                    <div ref="{{ leftEyeRef }}" style="position: absolute; left: -5px; top: -8px; width: 10px; height: 16px; border-radius: 4px; background: radial-gradient(60% 60% at 50% 42%,#CCFAFF,#46B6FF 72%); box-shadow: 0 0 9px rgba(70,182,255,.85),0 0 16px rgba(70,182,255,.4); will-change: transform"></div>
+                  </div>
+                  <div style="position:absolute;left:61.5%;top:58.5%;width:0;height:0">
+                    <div ref="{{ rightEyeRef }}" style="position: absolute; left: -5px; top: -8px; width: 10px; height: 16px; border-radius: 4px; background: radial-gradient(60% 60% at 50% 42%,#CCFAFF,#46B6FF 72%); box-shadow: 0 0 9px rgba(70,182,255,.85),0 0 16px rgba(70,182,255,.4); will-change: transform"></div>
+                  </div>
+                  <div style="position:absolute;left:50%;top:65.5%;width:0;height:0">
+                    <div ref="{{ mouthRef }}" style="position: absolute; left: -7px; top: 0px; width: 14px; height: 3px; border-radius: 3px; background: #5FD4FF; box-shadow: 0 0 8px rgba(70,182,255,.8); will-change: transform"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- 말풍선 (머리 하단) · 소개/팁/요약/할일/미션 -->
+            <div ref="{{ bubbleRef }}" style="position:absolute;top:162px;left:50%;z-index:6;will-change:transform;pointer-events:none">
+              <div style="position: relative; transform: translateX(-50%); width: 228px; max-width: 228px; padding: 10px 14px; border: 1px solid rgba(70,182,255,.34); border-radius: 8px; background: rgba(9,20,40,.94); box-shadow: 0 6px 20px rgba(0,0,0,.5); text-align: center; padding-top: 14px; padding-bottom: 14px; padding-left: 14px; padding-right: 14px">
+                <span style="position:absolute;top:-7px;left:50%;transform:translateX(-50%) rotate(45deg);width:12px;height:12px;background:rgba(9,20,40,.94);border-left:1px solid rgba(70,182,255,.34);border-top:1px solid rgba(70,182,255,.34)"></span>
+                <div style="font-family: Pretendard; font-size: 12px; letter-spacing: .1em; color: rgba(167,139,250,.85); margin-bottom: 5px; text-decoration-line: underline; font-style: italic">{{ bubbleKind }}</div>
+                <span style="font-size: 14px; color: #9fe4ff; line-height: 1.45; text-wrap: pretty; word-break: keep-all; overflow-wrap: break-word">{{ bubble }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- hero note -->
+      <div style="flex:1 1 320px;min-width:300px">
+        <div style="font-family:Galmuri11,monospace;font-size:20px;color:#CCFAFF;margin-bottom:10px">살아있는 홈 — 머리가 당신을 따라봅니다</div>
+        <p style="color:rgba(95,212,255,.66);font-size:14px;margin:0 0 14px">커서(모바일은 터치)를 움직여 보세요. 세컨비의 머리가 당신을 추적하고, 아래 <span style="color:#5FD4FF">북두칠성 별을 누르면</span> 머리가 그 별을 바라보며 그 렌즈 화면으로 향합니다.</p>
+        <ul style="margin:0;padding-left:18px;color:rgba(95,212,255,.6);font-size:13.5px">
+          <li style="margin:4px 0">머리(상단) → 말풍선 → 별자리 네비 → 허브 도크 순 구성</li>
+          <li style="margin:4px 0">북극성 = 소울 코어(나의 철학) · 북두칠성 7별 = 자기이해 7렌즈 (버튼)</li>
+          <li style="margin:4px 0">배경 = neural 노드 필드(브리딩) · 깊이·밝기 랜덤, 단일 원</li>
+        </ul>
+        <div style="margin-top:18px;padding:14px 16px;border:1px solid rgba(70,182,255,.2);border-radius:12px;background:rgba(70,182,255,.05)">
+          <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:6px">화면별로 직접 고르실 수 있게 합니다</div>
+          <p style="margin:0;font-size:13px;color:rgba(95,212,255,.62)">기본 플로우는 유지하되, 각 화면은 카드 단위로 분리해 <span style="color:#5FD4FF">콘텐츠·에셋·버튼 위치·순서</span>를 직접 끌어 옮기고 켜고 끌 수 있게 구성할 예정입니다. 레거시(마을)와 최신(머리) 중 무엇을 넣을지도 화면마다 선택.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ DESIGN SYSTEM ============ -->
+    <div style="font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:.14em;color:#46B6FF;margin:66px 0 16px;padding-bottom:10px;border-bottom:1px solid rgba(70,182,255,.18)">DESIGN SYSTEM · DEEP SPACE</div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
+      <!-- colors -->
+      <div style="border:1px solid rgba(70,182,255,.18);border-radius:12px;padding:18px;background:rgba(70,182,255,.04)">
+        <div style="font-family:Galmuri11,monospace;font-size:14px;color:#CCFAFF;margin-bottom:12px">색 · 시안 모노톤 (한 화면 ≤3색)</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:10px"><span style="width:34px;height:22px;border-radius:5px;background:#46B6FF;flex:0 0 auto"></span><span style="font-family:Galmuri11,monospace;font-size:12px;color:#9fe4ff">accent</span><span style="margin-left:auto;font-size:11px;color:rgba(95,212,255,.5)">#46B6FF</span></div>
+          <div style="display:flex;align-items:center;gap:10px"><span style="width:34px;height:22px;border-radius:5px;background:#CCFAFF;flex:0 0 auto"></span><span style="font-family:Galmuri11,monospace;font-size:12px;color:#9fe4ff">bright</span><span style="margin-left:auto;font-size:11px;color:rgba(95,212,255,.5)">#CCFAFF</span></div>
+          <div style="display:flex;align-items:center;gap:10px"><span style="width:34px;height:22px;border-radius:5px;background:#5FD4FF;flex:0 0 auto"></span><span style="font-family:Galmuri11,monospace;font-size:12px;color:#9fe4ff">text</span><span style="margin-left:auto;font-size:11px;color:rgba(95,212,255,.5)">#5FD4FF</span></div>
+          <div style="display:flex;align-items:center;gap:10px"><span style="width:34px;height:22px;border-radius:5px;background:#0A0E1A;border:1px solid rgba(70,182,255,.2);flex:0 0 auto"></span><span style="font-family:Galmuri11,monospace;font-size:12px;color:#9fe4ff">bg</span><span style="margin-left:auto;font-size:11px;color:rgba(95,212,255,.5)">#0A0E1A</span></div>
+          <div style="display:flex;align-items:center;gap:10px"><span style="width:34px;height:22px;border-radius:5px;background:#FF7A90;flex:0 0 auto"></span><span style="font-family:Galmuri11,monospace;font-size:12px;color:#9fe4ff">danger</span><span style="margin-left:auto;font-size:11px;color:rgba(95,212,255,.5)">#FF7A90</span></div>
+        </div>
+      </div>
+      <!-- type -->
+      <div style="border:1px solid rgba(70,182,255,.18);border-radius:12px;padding:18px;background:rgba(70,182,255,.04)">
+        <div style="font-family:Galmuri11,monospace;font-size:14px;color:#CCFAFF;margin-bottom:12px">타입</div>
+        <div style="font-family:Galmuri11,monospace;font-size:25px;color:#CCFAFF;line-height:1.3">크롬 · Galmuri11</div>
+        <div style="font-size:15px;color:#9fe4ff;margin-top:8px">본문 · Pretendard 로 읽기 편하게 기록과 대화를 표시합니다.</div>
+        <div style="font-family:'Press Start 2P',monospace;font-size:9px;color:rgba(95,212,255,.6);margin-top:10px;letter-spacing:.08em">LABELS · PRESS START 2P</div>
+        <div style="font-size:11px;color:rgba(95,212,255,.5);margin-top:10px">39·31·25·20·16·14·12 · 이탤릭/em dash 금지</div>
+      </div>
+      <!-- spacing & motion -->
+      <div style="border:1px solid rgba(70,182,255,.18);border-radius:12px;padding:18px;background:rgba(70,182,255,.04)">
+        <div style="font-family:Galmuri11,monospace;font-size:14px;color:#CCFAFF;margin-bottom:12px">간격 · 모서리 · 모션</div>
+        <div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:12px">
+          <span style="width:4px;height:4px;background:#46B6FF"></span><span style="width:8px;height:8px;background:#46B6FF"></span><span style="width:12px;height:12px;background:#46B6FF"></span><span style="width:16px;height:16px;background:#46B6FF"></span><span style="width:24px;height:24px;background:#46B6FF"></span><span style="width:32px;height:32px;background:#46B6FF"></span>
+        </div>
+        <div style="font-size:12.5px;color:rgba(95,212,255,.6)">간격 4·8·12·16·24·32 · radii 4·8·12·16 (pill 금지)</div>
+        <div style="font-size:12.5px;color:rgba(95,212,255,.6);margin-top:8px">"Calmness is the brand" — 기본 무모션, 유일한 바운스 "뽁" 1.25×/400ms</div>
+      </div>
+    </div>
+
+    <!-- ============ ROADMAP ============ -->
+    <div style="font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:.14em;color:#46B6FF;margin:66px 0 8px;padding-bottom:10px;border-bottom:1px solid rgba(70,182,255,.18)">39 SCREENS · 로드맵</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:rgba(95,212,255,.6);margin:14px 0 18px">
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:#CCFAFF"></span>신규 · 머리 컨셉</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:#46B6FF"></span>핵심 탭</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45)"></span>설계</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:#FF7A90"></span>레거시 · 보류</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px">
+
+      <div style="border:1px solid rgba(70,182,255,.18);border-radius:12px;padding:16px 18px;background:rgba(70,182,255,.04)">
+        <div style="font-family:Galmuri11,monospace;font-size:14px;color:#CCFAFF;margin-bottom:4px">① 알아가기</div>
+        <div style="font-size:11.5px;color:rgba(95,212,255,.5);margin-bottom:12px">자기 데이터 축적</div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:#CCFAFF;flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">홈 · 세컨비 머리</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:#46B6FF;flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/capture</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">담기 (5-mode 입력)</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:#46B6FF;flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/records</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">기록 보관소</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/record/[id]</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">조각 상세</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/wiki</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">사용자 위키</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/persona</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">페르소나 카드</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/big-five</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">BFI-44 정량 평가</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/attachment</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">ECR-S 애착 평가</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/audit</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">과거의 나 · 시기 회고</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/interview</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">심층 인터뷰</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/import</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">가져오기</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/formats</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">포맷 · 템플릿</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/iden</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">IDEN 내보내기</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/data</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">데이터</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:#FF7A90;flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap;text-decoration:line-through;opacity:.7">/core-brain</span><span style="font-size:12.5px;color:rgba(95,212,255,.5);margin-left:auto;text-align:right">소울코어 (마을)</span></div>
+        </div>
+      </div>
+
+      <div style="border:1px solid rgba(70,182,255,.18);border-radius:12px;padding:16px 18px;background:rgba(70,182,255,.04)">
+        <div style="font-family:Galmuri11,monospace;font-size:14px;color:#CCFAFF;margin-bottom:4px">② 개인 비서</div>
+        <div style="font-size:11.5px;color:rgba(95,212,255,.5);margin-bottom:12px">축적된 데이터 위 RAG AI</div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:#46B6FF;flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/secondb</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">세컨비 · RAG 챗</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/insights</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">인사이트</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/trinity</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">트리니티</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/research</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">리서치</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/ops</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">운영 · ops</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/esm</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">ESM</span></div>
+        </div>
+        <div style="font-family:Galmuri11,monospace;font-size:14px;color:#CCFAFF;margin:18px 0 4px">③ 공상</div>
+        <div style="font-size:11.5px;color:rgba(95,212,255,.5);margin-bottom:12px">미래의 나 · Divergent 모드</div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/secondb?divergent</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">공상 · Divergent</span></div>
+        </div>
+      </div>
+
+      <div style="border:1px solid rgba(70,182,255,.18);border-radius:12px;padding:16px 18px;background:rgba(70,182,255,.04)">
+        <div style="font-family:Galmuri11,monospace;font-size:14px;color:#CCFAFF;margin-bottom:4px">공통 · 인증 · 설정</div>
+        <div style="font-size:11.5px;color:rgba(95,212,255,.5);margin-bottom:12px">auth · 프로필 · 유틸</div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:#46B6FF;flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/profile</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">나 · 프로필</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/settings</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">설정</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/privacy</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">개인정보</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/account</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">계정</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/theme</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">테마</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/plans</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">요금제</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/onboarding</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">온보딩 · 인트로</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/sign-in</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">로그인</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/sign-up</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">가입</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/complete-profile</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">프로필 완성 · 동의</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/reset-password</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">비번 재설정</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/oauth-callback</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">OAuth 콜백</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/permissions</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">권한</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/manual</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">매뉴얼</span></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(95,212,255,.45);flex:0 0 auto"></span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9fe4ff;white-space:nowrap">/support</span><span style="font-size:12.5px;color:rgba(95,212,255,.62);margin-left:auto;text-align:right">지원</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- next -->
+    <div style="margin-top:36px;padding:18px 20px;border:1px solid rgba(70,182,255,.2);border-radius:12px;background:rgba(70,182,255,.05)">
+      <div style="font-family:Galmuri11,monospace;font-size:14px;color:#CCFAFF;margin-bottom:8px">다음 단계</div>
+      <p style="margin:0;font-size:13.5px;color:rgba(95,212,255,.64)">이 방향(딥스페이스 + 머리 트래킹)이 맞으면 → 핵심 4화면(담기·세컨비·기록·나)을 폰 프레임 안에 <span style="color:#5FD4FF">4상태(로딩·빈·에러·채움)</span>로 양산하고, 이후 알아가기 축 → 개인비서·공상 → auth·설정 순서로 39개 전부 채웁니다. 머리 크기·표정·말풍선 문구는 우측 Tweaks에서 조정 가능합니다.</p>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1120,&quot;height&quot;:1480},&quot;mood&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;positive&quot;,&quot;neutral&quot;,&quot;negative&quot;],&quot;default&quot;:&quot;neutral&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;bubbleKind&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;소개&quot;,&quot;팁&quot;,&quot;요약&quot;,&quot;할 일&quot;,&quot;미션&quot;],&quot;default&quot;:&quot;소개&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;bubbleText&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;안녕하세요, 저는 세컨비예요. 오늘 하루를 한 줄 담아볼까요?&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const STARS = {
+  polaris:   { name: "북극성 · 소울 코어 (나의 철학·초상) → /core-brain", line: "나의 북극성. 어디로 가고 있나요?" },
+  future:    { name: "별5 · 미래의 나 → /future",        line: "내가 향하는 곳을 그려볼까요?" },
+  interview: { name: "별2 · 회상 → /interview",          line: "어느 시기가 지금의 나를 만들었나요?" },
+  audit:     { name: "별1 · 지금의 나 → /audit",         line: "지금의 나를 한 문장씩 또렷하게." },
+  esm:       { name: "별4 · 리듬 → /esm",                line: "나는 언제 가장 나다운가요?" },
+  peer:      { name: "별3 · 보여지는 나 → /peer-review", line: "남이 보는 나는 얼마나 같을까요?" },
+  relation:  { name: "별 · 관계·지식 → /wiki",           line: "관계와 지식 속의 나를 볼까요?" },
+  growth:    { name: "별 · 일·성장 → /trinity",          line: "이 영역에서 무엇을 쌓아왔나요?" },
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.stageRef = React.createRef();
+    this.headRef = React.createRef();
+    this.leftEyeRef = React.createRef();
+    this.rightEyeRef = React.createRef();
+    this.mouthRef = React.createRef();
+    this.bubbleRef = React.createRef();
+    this.neuralRef = React.createRef();
+    this.sphereRef = React.createRef();
+    this.state = { bubbleText: null, bubbleKind: null, caption: "북극성(12시) = 소울 코어 · 북두칠성 7별 = 자기이해 7렌즈. 별을 눌러보세요" };
+    this._hold = null;
+  }
+
+  applyMood() {
+    const el = this.sphereRef.current;
+    if (!el) return;
+    const MOODS = {
+      positive: "radial-gradient(circle,rgba(190,255,225,.95),rgba(95,240,190,.55) 52%,transparent 76%)",
+      neutral:  "radial-gradient(circle,rgba(214,196,255,.95),rgba(167,139,250,.55) 52%,transparent 76%)",
+      negative: "radial-gradient(circle,rgba(255,202,214,.95),rgba(255,122,144,.55) 52%,transparent 76%)",
+    };
+    el.style.background = MOODS[this.props.mood] || MOODS.neutral;
+  }
+
+  componentDidUpdate() { this.applyMood(); }
+
+  setupNeural() {
+    const cv = this.neuralRef.current;
+    if (!cv) return;
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) { setTimeout(() => this.setupNeural(), 120); return; }
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = w * dpr; cv.height = h * dpr;
+    const ctx = cv.getContext("2d");
+    ctx.scale(dpr, dpr);
+    let seed = 99173;
+    const rand = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const nodes = [];
+    const mkNode = (x, y) => {
+      const depth = 0.28 + rand() * 0.72;            // distance → size/brightness
+      nodes.push({ x, y, baseX: x, baseY: y, r: 1.4 + depth * 4.2, depth, phase: rand() * Math.PI * 2, drift: 4 + rand() * 9, speed: 0.08 + rand() * 0.16 });
+    };
+    for (let i = 0; i < 22; i++) mkNode(rand() * w, rand() * h);
+    for (let i = 0; i < 12; i++) mkNode(rand() * w, h * 0.6 + rand() * h * 0.38);  // 하단 노드 보강
+    const stars = [];
+    for (let i = 0; i < 40; i++) stars.push({ x: rand() * w, y: rand() * h, r: 0.4 + rand() * 1.1, a: 0.12 + rand() * 0.4, phase: rand() * Math.PI * 2 });
+    this._neural = { ctx, w, h, nodes, stars, hx: w / 2, hy: h * 0.24 };
+  }
+
+  drawNeural(now) {
+    const N = this._neural;
+    if (!N) return;
+    const { ctx, w, h, nodes, stars } = N;
+    const time = now * 0.001;
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const s of stars) {
+      const a = s.a * (0.6 + Math.sin(time * 0.4 + s.phase) * 0.3);
+      ctx.fillStyle = `rgba(204,250,255,${a})`;
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+    }
+    for (const n of nodes) {
+      n.x = n.baseX + Math.sin(time * n.speed + n.phase) * n.drift;
+      n.y = n.baseY + Math.cos(time * n.speed * 0.8 + n.phase) * n.drift * 0.55;
+    }
+    const near = (n) => Math.hypot(n.x - N.hx, n.y - N.hy) > 78;   // keep face clear
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (d < 96 && near(a) && near(b)) {
+          const pulse = 0.5 + Math.sin(time * 0.5 + a.phase + b.phase) * 0.3;
+          const alpha = Math.max(0, (1 - d / 96) * 0.26 * pulse * Math.min(a.depth, b.depth));
+          ctx.strokeStyle = `rgba(70,182,255,${alpha})`;
+          ctx.lineWidth = 0.8 + (1 - d / 96) * 1.1;
+          ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(a.x, a.y);
+          ctx.quadraticCurveTo((a.x + b.x) / 2, (a.y + b.y) / 2 + Math.sin(time * 0.2 + i) * 4, b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+    for (const n of nodes) {
+      const fade = near(n) ? 1 : 0.16;
+      const pulse = 0.72 + Math.sin(time * 0.55 + n.phase) * 0.24;
+      const glow = n.r * (3.4 + pulse);
+      const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glow);
+      g.addColorStop(0, `rgba(204,250,255,${0.3 * pulse * n.depth * fade})`);
+      g.addColorStop(0.4, `rgba(95,212,255,${0.1 * pulse * n.depth * fade})`);
+      g.addColorStop(1, "rgba(70,182,255,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(n.x, n.y, glow, 0, Math.PI * 2); ctx.fill();
+      // 노드는 북두칠성/북극성보다 밝지 않게 상한(0.5) — 별이 항상 우위
+      ctx.fillStyle = `rgba(220,250,255,${Math.min(0.5, (0.26 + 0.26 * n.depth) * pulse) * fade})`;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r * pulse, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  onStar = (e) => {
+    const id = e.currentTarget.dataset.star;
+    const meta = STARS[id];
+    if (!meta) return;
+    const stage = this.stageRef.current;
+    const star = e.currentTarget;
+    const r = star.getBoundingClientRect();
+    const sr = stage.getBoundingClientRect();
+    const ccx = sr.left + sr.width / 2, ccy = sr.top + sr.height / 2;
+    const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+    this._hold = {
+      x: cl((r.left + r.width / 2 - ccx) / (window.innerWidth / 2), -1.4, 1.4),
+      y: cl((r.top + r.height / 2 - ccy) / (window.innerHeight / 2), -1.4, 1.4),
+      until: Date.now() + 2800,
+    };
+    this._focusedStar = id;
+    this.setState({ bubbleText: meta.line, bubbleKind: id === "polaris" ? "SOUL CORE" : "LENS", caption: meta.name });
+  };
+
+  componentDidMount() {
+    this.setupNeural();
+    this.applyMood();
+    const cur = { yaw: 0, pitch: 0, tx: 0, ty: 0, ex: 0, ey: 0 };
+    const ptr = { x: 0, y: 0 };
+    let last = Date.now();
+    let blink = 1, blinkStart = 0, nextBlink = Date.now() + 1400;
+    const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+
+    const setPtr = (cx, cy) => {
+      const el = this.stageRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const ccx = r.left + r.width / 2, ccy = r.top + r.height / 2;
+      ptr.x = cl((cx - ccx) / (window.innerWidth / 2), -1.3, 1.3);
+      ptr.y = cl((cy - ccy) / (window.innerHeight / 2), -1.3, 1.3);
+      last = Date.now();
+    };
+    this._move = (e) => { const t = e.touches ? e.touches[0] : e; if (t) setPtr(t.clientX, t.clientY); };
+    window.addEventListener("pointermove", this._move);
+    window.addEventListener("touchmove", this._move, { passive: true });
+
+    const tick = () => {
+      const now = Date.now();
+      if (this._hold) {
+        if (now < this._hold.until) { ptr.x = this._hold.x; ptr.y = this._hold.y; last = now; }
+        else { this._hold = null; }
+      }
+      if (now - last > 2000) { ptr.x *= 0.92; ptr.y *= 0.92; }
+      cur.yaw = lerp(cur.yaw, ptr.x * 17, 0.1);
+      cur.pitch = lerp(cur.pitch, -ptr.y * 11, 0.1);
+      cur.tx = lerp(cur.tx, ptr.x * 10, 0.1);
+      cur.ty = lerp(cur.ty, ptr.y * 9, 0.1);
+      cur.ex = lerp(cur.ex, ptr.x * 5.5, 0.18);
+      cur.ey = lerp(cur.ey, ptr.y * 3.5, 0.18);
+
+      if (!blinkStart && now > nextBlink) blinkStart = now;
+      if (blinkStart) {
+        const bp = (now - blinkStart) / 130;
+        blink = 1 - Math.sin(Math.min(bp, 1) * Math.PI) * 0.92;
+        if (bp >= 1) { blinkStart = 0; blink = 1; nextBlink = now + 1600 + Math.random() * 3200; }
+      }
+
+      if (this.headRef.current)
+        this.headRef.current.style.transform = `rotateY(${cur.yaw}deg) rotateX(${cur.pitch}deg) translate3d(${cur.tx}px,${cur.ty}px,0)`;
+      const eyeT = `translate(${cur.ex}px,${cur.ey}px) scaleY(${blink})`;
+      if (this.leftEyeRef.current) this.leftEyeRef.current.style.transform = eyeT;
+      if (this.rightEyeRef.current) this.rightEyeRef.current.style.transform = eyeT;
+      if (this.mouthRef.current) this.mouthRef.current.style.transform = `translate(${cur.ex * 0.5}px,${cur.ey * 0.5}px)`;
+      if (this.bubbleRef.current) this.bubbleRef.current.style.transform = `translate(${cur.tx * 0.9}px,${cur.ty * 0.5}px)`;
+      if (this.stageRef.current && this._focusedStar) {
+        this.stageRef.current.parentNode.querySelectorAll("[data-star]").forEach((el) => {
+          const on = el.dataset.star === this._focusedStar;
+          el.style.transform = on ? "translate(-50%,-50%) scale(1.6)" : "translate(-50%,-50%) scale(1)";
+          el.style.filter = on ? "brightness(1.55)" : "none";
+        });
+      }
+      this.drawNeural(now);
+      this._raf = requestAnimationFrame(tick);
+    };
+    this._raf = requestAnimationFrame(tick);
+  }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this._raf);
+    window.removeEventListener("pointermove", this._move);
+    window.removeEventListener("touchmove", this._move);
+  }
+
+  renderVals() {
+    return {
+      stageRef: this.stageRef,
+      headRef: this.headRef,
+      leftEyeRef: this.leftEyeRef,
+      rightEyeRef: this.rightEyeRef,
+      mouthRef: this.mouthRef,
+      bubbleRef: this.bubbleRef,
+      neuralRef: this.neuralRef,
+      sphereRef: this.sphereRef,
+      onStar: this.onStar,
+      caption: this.state.caption,
+      bubbleKind: this.state.bubbleKind ?? this.props.bubbleKind ?? "소개",
+      bubble: this.state.bubbleText ?? this.props.bubbleText ?? "안녕하세요, 저는 세컨비예요. 오늘 하루를 한 줄 담아볼까요?",
+    };
+  }
+}
+</script>
+</body>
+</html>
