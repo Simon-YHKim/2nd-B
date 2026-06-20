@@ -94,6 +94,29 @@ describe("parseFeed (RSS is the ground truth; reshape only, never invent)", () =
     expect(items[0]).toMatchObject({ title: "real one", url: "https://example.com/ok" });
   });
 
+  test("decodes named + numeric/hex entities ourselves (processEntities is off)", () => {
+    const xml = `<rss><channel><item>
+      <title>It&#39;s &amp; &#8217;tis &#x2026; &mdash; done</title>
+      <link>https://e.com/a?x=1&amp;y=2</link>
+      <description>caf&#233; &ndash; r&#xe9;sum&#233;</description>
+    </item></channel></rss>`;
+    const items = parseFeed("ent", xml);
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toBe("It's & ’tis … — done");
+    // &amp; inside the href is restored to & so the URL is the real article URL.
+    expect(items[0].url).toBe("https://e.com/a?x=1&y=2");
+    expect(items[0].snippet).toBe("café – résumé");
+  });
+
+  test("does NOT expand a DOCTYPE-defined entity (entity-expansion hardening)", () => {
+    const xml =
+      `<?xml version="1.0"?><!DOCTYPE rss [<!ENTITY xxe "PWNED">]>` +
+      `<rss><channel><item><title>hi &xxe;</title><link>https://e.com/s</link></item></channel></rss>`;
+    const items = parseFeed("sec", xml);
+    // The custom entity is left literal, never replaced with its definition.
+    expect(items.every((it) => !it.title.includes("PWNED"))).toBe(true);
+  });
+
   test("bounds raw input size before parsing so an oversized feed cannot OOM", () => {
     // A complete leading item, then inter-element WHITESPACE that pushes the doc
     // past the cap. The slice lands inside that whitespace, so the leading item

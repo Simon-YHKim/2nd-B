@@ -39,12 +39,20 @@ export const MAX_XML_CHARS = 2_000_000;
 // Shared, side-effect-free parser instance. We keep attributes (Atom <link href>)
 // and never let the lib coerce dates/ids to numbers (strnum off) so an id like
 // "2026..." stays a string.
+//
+// processEntities:false DISABLES the parser's entity replacement — including
+// DOCTYPE `<!ENTITY>` expansion, the surface flagged by the fast-xml-parser
+// entity advisory. A hostile allowlisted feed therefore cannot define/expand
+// custom entities through us. We do NOT lose real-feed text: every string field
+// is run through our own decodeEntities() (standard named + numeric/hex), which
+// we control and audit, rather than trusting the library's entity handling.
 const xml = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
   trimValues: true,
   parseTagValue: false,
   parseAttributeValue: false,
+  processEntities: false,
 });
 
 function asArray<T>(value: T | T[] | undefined | null): T[] {
@@ -65,15 +73,38 @@ function textOf(value: unknown): string {
   return "";
 }
 
-function stripHtml(s: string): string {
+function safeFromCodePoint(cp: number): string {
+  if (!Number.isFinite(cp) || cp < 0 || cp > 0x10ffff) return "";
+  try {
+    return String.fromCodePoint(cp);
+  } catch {
+    return "";
+  }
+}
+
+// Decode the entities a feed string may carry. Because processEntities is OFF on
+// the parser (entity-expansion hardening), entities arrive literal and WE decode
+// them here: numeric/hex first (covers &#8217; &#x2026; etc.), then the common
+// named ones, with &amp; LAST so "&amp;lt;" decodes to "&lt;" rather than "<".
+// Unknown/custom entities (e.g. a DOCTYPE-defined &xxe;) are left as-is — never
+// expanded.
+function decodeEntities(s: string): string {
   return s
-    .replace(/<[^>]*>/g, " ")
+    .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => safeFromCodePoint(Number.parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d: string) => safeFromCodePoint(Number.parseInt(d, 10)))
     .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
+    .replace(/&ndash;/gi, "–")
+    .replace(/&mdash;/gi, "—")
+    .replace(/&hellip;/gi, "…")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&apos;/gi, "'")
+    .replace(/&amp;/gi, "&");
+}
+
+function stripHtml(s: string): string {
+  return decodeEntities(s.replace(/<[^>]*>/g, " "))
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -98,7 +129,9 @@ function toIso(value: unknown): string | null {
 // opens the article would then navigate to. We validate with `new URL` and keep
 // only http/https; anything else (or a relative/garbage value) drops the item.
 function safeHttpUrl(raw: string): string {
-  const t = raw.trim();
+  // Decode first: with processEntities off, an href's query "&amp;" arrives
+  // literal, so we restore it to "&" before validating (and parsing as a URL).
+  const t = decodeEntities(raw).trim();
   if (!t) return "";
   try {
     const u = new URL(t);
