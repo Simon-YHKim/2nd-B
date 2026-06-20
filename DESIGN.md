@@ -24,7 +24,7 @@
 
 ## Voice & Tone
 
-The product is a companion. Not a coach. Not a therapist. Not a guru. A second brain that has read everything you've written and remembers.
+The product is the bridge to your second brain. It reads what you've written and surfaces patterns for you to confirm. Not a companion. Not a coach. Not a therapist. Not a guru.
 
 | Surface | Korean (존댓말 default) | English (second-person) |
 |---|---|---|
@@ -41,7 +41,7 @@ The product is a companion. Not a coach. Not a therapist. Not a guru. A second b
 
 **Use instead**: self-understanding, growth, reflection, self-knowledge, 자기 이해, 성장, 들여다보다, 짚어보다.
 
-**Tone calibration**: When in doubt, sound less like an app and more like a thoughtful older friend who took notes during the conversation.
+**Tone calibration**: When in doubt, sound less like an app and more like a careful notetaker reflecting your own words back.
 
 ---
 
