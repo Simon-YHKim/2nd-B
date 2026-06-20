@@ -1281,6 +1281,16 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [디렉터 사이클 🛡️게이트 / 2026-06-21 / 06:23:08 KST] 안전 분류기 검증 — 위기 false-negative 갭 발견 (안전임상 게이트 → Simon 확인 필요)
+**라이브 origin/main `a06cbde2`** . 새 원격오더 0, 머지대상 PR 0(플릿 자력). 클린 슬라이스 소진(남은 fidelity는 hot 공유파일=플릿소유)이라 **고가치 안전 검증**으로 전환.
+- **✅ 아키텍처 견고(보증)**: classifier RED가 모든 LLM 호출 전 hard-return short-circuit(gemini.ts callGemini/callAdvisor/embedTexts), 서버 2차 게이트(gemini-proxy hasCrisisTerm), audit-log 전경로(crisis/mock/swap/오류), classify 전 모든 LLM 진입점 강제(ESLint+boundary 체크).
+- **🛡️ 갭 = lexicon-only 빌드(공개 웹/non-Vertex, Flash 분류기 null)에서 위기 false-negative** (실세계 안전 리스크):
+  - **(안전-positive, 권장)**: Flash 프롬프트가 이미 위기마커로 쓰는 EN "last goodbye"/"won't be around" · KO "칼"/"약을 모"가 always-on `CRISIS_TERMS`에 **누락** → lexicon에 reconcile(팀이 이미 위기로 규정, 저FP).
+  - **(임상 판단 필요)**: 광범위 EN 굴절(killing myself·cutting·wanna die·end things) 추가는 더 잡지만 false-positive 위험(과장: "cutting vegetables"). `lexicon.ts:28-31`이 **의도적 보수**(false-neg<false-pos)라 트레이드오프는 Simon/임상 콜.
+  - es/pt/id는 EN 위기경로 fallback(설계상) — 해당 위기어 미탐, risk-acceptance 확인 권장.
+- **게이트 처리**: 위기탐지 변경은 **안전임상 게이트**라 단독 라이브 금지 — Simon 확인 후 reconcile subset부터 적용 권장. (리뷰의 광범위-추가 제안은 팀 보수정책 일부 오독이라 framework-aware로 필터함.)
+
+
 ### [디렉터 사이클 ✅ / 2026-06-21 / 05:59:36 KST] BFI 렌즈 스케일링 P1 수정(#515, 내 #509 버그) + #514 캡처큐 데이터-손실 검토→이슈 #516 (Claude 실행자)
 **라이브 origin/main `30207fec`** · https://simon-yhkim.github.io/2nd-B/ . 새 원격오더 0.
 - **🐛 #515 머지(`30207fec`)** `fix(persona)`: **내가 #509에서 넣은 P1 버그를 검증이 잡아 수정** — deep-space big-five 렌즈가 BFI(1-5 Likert)를 `(v/5)*100`로 잘못 스케일(중립 3→60%, 최저 1→20% = 틀린 자기-데이터). `bfiMeanToPercent`((v-1)/4)로 정규화 추출+big-five 적용+회귀테스트. buildPersona와 동일 스케일. (persona 데이터레이어 framework-aware 리뷰 산물.)
