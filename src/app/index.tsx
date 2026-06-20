@@ -47,6 +47,7 @@ import { useCoreHintDismissed } from "@/lib/onboarding/core-hint";
 import { useComfortOfferDismissed } from "@/lib/onboarding/comfort-offer";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useEmptyGraphDismissed } from "@/lib/onboarding/empty-card";
+import { useAutoTriggerTTFV } from "@/lib/onboarding/ttfv-gate";
 import { VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { retainStableDataNodes, sourceRowsToDataNodes } from "@/lib/graph/data-nodes";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
@@ -162,7 +163,7 @@ function useSkyDrift() {
 const INSIGHTS: Record<"en" | "ko", readonly string[]> = {
   en: [
     "In the age of AI, the most valuable asset is you.",
-    "We noticed something this past month.",
+    "Some patterns showed up in this past month's records.",
     "Your past me and present me are lining up.",
     "There's fresh material in Wiki worth a sort.",
     "Your patterns are showing up brighter where you look most.",
@@ -170,7 +171,7 @@ const INSIGHTS: Record<"en" | "ko", readonly string[]> = {
   ],
   ko: [
     "AI 시대, 가장 가치있는 것은 나 자신.",
-    "이번 한 달, 우리가 뭘 좀 알아챘어요.",
+    "이번 한 달 기록에서 패턴이 좀 보여요.",
     "과거의 당신과 현재의 당신이 정렬되는 중이에요.",
     "Wiki에 새 재료가 좀 들어와 있어요. 정리해 볼까요?",
     "자주 보는 곳일수록 별이 더 밝게 맥동해요.",
@@ -241,6 +242,7 @@ export function GraphScreen() {
   const { i18n } = useTranslation();
   const { userId, hasProfile, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
+  const autoTriggerTTFV = useAutoTriggerTTFV();
   const insets = useSafeAreaInsets();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const skyOverlay = useSkyDrift();
@@ -452,6 +454,11 @@ export function GraphScreen() {
   // First run: wait for native persistence before deciding whether to gate.
   if (onboardingComplete === null) return <InlineLoader />;
   if (!onboardingComplete) return <Redirect href="/onboarding" />;
+  // First-day TTFV: surface the one-cut self-understanding screen exactly once,
+  // within the first day after onboarding. null = native persistence still
+  // hydrating (match the onboarding gate's loader, don't flash the graph).
+  if (autoTriggerTTFV === null) return <InlineLoader />;
+  if (autoTriggerTTFV) return <Redirect href="/ttfv" />;
 
   // SecondB nudges toward the center when there are pieces the user hasn't
   // looked at yet this session; it dozes once idle and nothing is pending.
