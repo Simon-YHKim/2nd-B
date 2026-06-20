@@ -1281,6 +1281,17 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [디렉터 사이클 ✅ / 2026-06-21 / 03:16:42 KST] deep-space P0 정본 플랜 확정 + Codex 레인 분배 (Claude 실행자)
+**라이브 origin/main `b8f7ad94`** · https://simon-yhkim.github.io/2nd-B/ . 새 원격오더 0. 타 Claude 세션 #505·#506·#507 green 머지 확인.
+- **전환점(#507)**: deep-space 디자인 정본 패키지 입수 — `design/*.dc.html`(화면설계) + `DESIGN_AUDIT.md`(갭감사) + `FIX_TASKS.md`(수정플랜) + 스크린샷 + `FIDELITY_PROTOCOL.md`. 미뤄둔 "설계 게이트"가 정본으로 해소.
+- **진짜 P0 갭 확정**: 셸·인증·계정·그래프는 캐논 deep-space 완료. **별 7개·북극성·도크가 진입하는 "엔진 화면" ~25개가 아직 레거시(게임보이/마을)** — semantic 토큰만 시안 재색칠됐을 뿐 구조·마을아트(IslandArt/NavGraph/SecondBSprite)·좌측보더·민트(초록)액센트 잔존. ("AI가 시안 못그린다"는 오진이었음.)
+- **directed 플랜(정본 = in-repo `design/FIX_TASKS.md`, Codex=UI 레인)**: TASK1🔴(별 7화면: big-five/interview/persona/esm/attachment/imagine/audit) · TASK2🔴(core-brain 북극성 + capture 91KB) · TASK3🟠(secondb/iden/records/insights) · TASK4🟠(off-palette·borderStart 트로프 전수제거) · TASK5🟡(주변부+토큰포크 통일). 한 TASK=한 PR, "레거시 import 0개" 체크.
+- **분배**: TASK1(🔴 blocker) → **Codex 레인**(활성: `_worktrees/2ndB-codex`, 패턴 `DeepSpaceDesignScreens.tsx`·.dc.html·forbidden 목록 모두 in-repo). 화면 재작성은 시각 fidelity 검증 필요(FIDELITY_PROTOCOL) → Codex 산출 후 Claude framework-aware 리뷰 + verify green 시 머지. blind 단독 재작성은 부적절(시각검증 공백)이라 분배가 정답.
+- **캐릭터(Stage5)**: landing "3D"=실은 PNG 빌보드(GLB 아님)+절차적 표정, RN 3D 스택 미설치 → 본체 정적 PNG 유지가 현 정본 방향. **엔진화면 캐논화가 우선**, 3D는 후순위.
+
+**deep-space 단일본체화 (P0)** OPEN 유지 = 잔여 = FIX_TASKS 1~5(엔진화면 레거시→캐논). 완료 시 수용기준 (b)기능작동·(c)단일셸·(d)테마통일 충족.
+
+
 ### [디렉터 사이클 ✅ / 2026-06-21 / 03:02:56 KST] nav 가드 머지 + 온보딩 런타임 검증 CLEAN (Claude 실행자)
 **라이브 origin/main `9ea5c99b`** · https://simon-yhkim.github.io/2nd-B/ . 새 원격오더 0.
 - **#504 머지(`9ea5c99b`)** `test(deep-space)`: 도크 nav dead-end 가드(TAB_ROUTE→실파일). verify green.
