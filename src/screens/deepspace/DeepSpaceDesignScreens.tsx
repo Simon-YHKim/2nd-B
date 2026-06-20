@@ -30,6 +30,8 @@ import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { mockSamplesForRange } from "@/lib/health/sources/mock";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 import { opsRouteForDomain } from "@/lib/ops/nav";
+import { gatherAdherenceStats } from "@/lib/ops/signals";
+import { adherenceChip } from "@/lib/ops/grounding";
 import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
 import { buildGoogleCalendarUrl } from "@/lib/ops/push";
 import { notifyNow, scheduleRoutineReminder, type ReminderResult } from "@/lib/ops/reminders";
@@ -2012,6 +2014,8 @@ export function DeepSpaceOpsScreen() {
   const [group, setGroup] = useState<OpsGroupId | null>(null);
   const [domain, setDomain] = useState<OpsDomainId | null>(null);
   const [recs, setRecs] = useState<OpsRecommendation[]>([]);
+  // A grounding: adherence chip shown with the recommendations.
+  const [adherence, setAdherence] = useState<string | null>(null);
   const [runState, setRunState] = useState<OpsRunState>("idle");
   const [usedToday, setUsedToday] = useState(0);
   const [recommendations, setRecommendations] = useState<boolean | null>(null);
@@ -2081,6 +2085,7 @@ export function DeepSpaceOpsScreen() {
     }
     setRunState("working");
     setRecs([]);
+    setAdherence(null);
     try {
       const out = await recommendForDomain({
         userId,
@@ -2093,6 +2098,10 @@ export function DeepSpaceOpsScreen() {
       setUsedToday(used);
       setRecs(out);
       setRunState(out.length === 0 ? "empty" : "idle");
+      if (out.length > 0) {
+        const stats = await gatherAdherenceStats(userId, domain);
+        setAdherence(stats ? adherenceChip(stats, i18n.language?.toLowerCase().startsWith("ko") ?? false) : null);
+      }
     } catch {
       setRunState("error");
     }
@@ -2217,6 +2226,7 @@ export function DeepSpaceOpsScreen() {
               setGroup(id);
               setDomain(null);
               setRecs([]);
+              setAdherence(null);
               setRunState("idle");
             }}
           />
@@ -2257,6 +2267,11 @@ export function DeepSpaceOpsScreen() {
       {runState === "empty" ? <Text style={styles.opsReason}>{t("recommend.empty")}</Text> : null}
       {runState === "error" ? <Text style={styles.opsReason}>{t("recommend.error")}</Text> : null}
       {runState === "off" ? <Text style={styles.opsReason}>{t("recommend.off")}</Text> : null}
+      {adherence && recs.length > 0 ? (
+        <View style={styles.recMetaRow}>
+          <Text style={styles.timeChipMint}>{adherence}</Text>
+        </View>
+      ) : null}
       {recs.map((rec, i) => (
         <View key={`${i}-${rec.title}`} style={styles.opsStep}>
           <View style={styles.opsStepHead}>

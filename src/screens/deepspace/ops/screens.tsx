@@ -59,6 +59,9 @@ import {
 } from "@/lib/nutrition/meal-plan";
 import { listActiveRoutines, type OpsRoutine } from "@/lib/ops/routines";
 import { remindersSupported } from "@/lib/ops/reminders";
+import { getGithubUsername, setGithubUsername } from "@/lib/projects/github-link";
+import { monthDelta, prevMonthKey } from "@/lib/finance/trend";
+import { trendChip } from "@/lib/ops/grounding";
 
 // --- tiny async helper -------------------------------------------------
 
@@ -358,12 +361,25 @@ export function MilestonesScreen() {
 export function LedgerScreen() {
   const c = useOpsCopy();
   const { userId } = useAuth();
+  const { i18n } = useTranslation();
+  const ko = i18n.language?.toLowerCase().startsWith("ko");
   const month = monthBucket(new Date());
+  const prevMonth = prevMonthKey(month);
   const entries = useAsync(
     () => (userId ? listEntriesForMonth(userId, month) : Promise.resolve([])),
     [userId, month],
   );
+  // B grounding: month-over-month spending trend.
+  const prevEntries = useAsync(
+    () => (userId ? listEntriesForMonth(userId, prevMonth) : Promise.resolve([])),
+    [userId, prevMonth],
+  );
   const summary = useMemo(() => summarizeMonth(entries.data ?? [], month), [entries.data, month]);
+  const prevSummary = useMemo(
+    () => summarizeMonth(prevEntries.data ?? [], prevMonth),
+    [prevEntries.data, prevMonth],
+  );
+  const trend = trendChip(monthDelta(summary.expense, prevSummary.expense), !!ko);
   const maxCat = summary.byCategory[0]?.total ?? 1;
 
   return (
@@ -380,6 +396,11 @@ export function LedgerScreen() {
             {c.left} {summary.net.toLocaleString()}
           </Text>
         </View>
+        {trend ? (
+          <View style={styles.trendRow}>
+            <MetaChip label={trend} color={deepSpace.warning} />
+          </View>
+        ) : null}
       </View>
 
       {entries.status === "error" ? (
@@ -413,14 +434,34 @@ export function SideProjectScreen() {
   const [pushes, setPushes] = useState<PushActivity[] | null>(null);
   const [errored, setErrored] = useState(false);
 
-  const onConnect = async () => {
+  const connect = async (handle: string) => {
     setErrored(false);
     try {
-      setPushes(await fetchPushActivity(username));
+      setPushes(await fetchPushActivity(handle));
     } catch {
       setErrored(true);
       setPushes(null);
     }
+  };
+
+  // B: remember the GitHub connection (device-local) and reconnect on open.
+  useEffect(() => {
+    let alive = true;
+    void getGithubUsername().then((saved) => {
+      if (alive && saved) {
+        setUsername(saved);
+        void connect(saved);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onConnect = async () => {
+    await setGithubUsername(username);
+    await connect(username);
   };
   const summary = summarizeGithubActivity(pushes ?? []);
 
@@ -714,6 +755,7 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   ledgerRow: { flexDirection: "row", justifyContent: "space-between" },
+  trendRow: { flexDirection: "row", marginTop: deepSpaceSpacing.sm },
   ledgerStat: { fontSize: 12, color: deepSpace.textMid },
   catRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
   catName: { fontSize: 13, color: deepSpace.textMid },
