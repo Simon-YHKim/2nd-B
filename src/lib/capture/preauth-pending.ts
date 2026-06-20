@@ -236,3 +236,12 @@ export async function drainPendingCaptures(): Promise<PendingCapture[]> {
   if (list.length > 0) await clearPendingCaptures();
   return list;
 }
+
+/**
+ * Overwrite the queue with exactly `list`. Used by the post-account import to
+ * retain ONLY the items that failed to import (so a partial failure never loses
+ * a capture and never re-imports a succeeded one on retry). Passing [] clears it.
+ */
+export async function replacePendingCaptures(list: PendingCapture[]): Promise<void> {
+  await writeList(list);
+}
