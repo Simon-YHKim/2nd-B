@@ -1281,6 +1281,16 @@ P1(구조 재루팅)·P7(눈송이 홈노출) 머지·라이브 완료 → DONE 
 ## DONE (Claude 피드백)
 
 
+### [디렉터 사이클 🛡️게이트 / 2026-06-21 / 07:05:50 KST] import 파이프라인 검증 — 프라이버시-copy·C10 미성년게이트·기능버그 (이슈 #522, 법무/임상 게이트 → Simon)
+**라이브 origin/main `f64eb0de`** . 새 오더 0. 사이클간 #519(TTFV a11y) 머지·#520(ratify-sr) 플릿머지. 고위험 미검토 경로(import=사용자 파일 파싱) framework-aware 검증 → **이슈 #522**:
+- **🛡️ 법무(프라이버시-copy)**: kakao/sms 약속힌트가 메시지 LINE 텍스트를 "derived signal"로 persist(코드 의도적, `raw:0`=전체대화 미보존)하는데 UI는 "메시지 본문 저장 안 함/원문 0"이라 함 → **copy 부정확**(프라이버시 민감 comms). reconcile(정확한 copy) 또는 de-text(날짜+sender-hash, 가독 line은 ratify ephemeral) = product/법무 결정. (location/health는 요약만=정상.)
+- **🛡️ 임상/법무(C10)**: comms/location 미성년 잠금이 client-UI only + `isMinor===true` 체크라 **probe 실패/지연 시 null→fail-open**(실 미성년이 comms 파싱 도달). 서버잠금도 부재(health_import는 0050에 있음). min-fix=fail-closed(`isMinor!==false`)+서버 pref 잠금.
+- **기능버그(비게이트)**: notion/obsidian markdown import가 buildProposals에 markdown 분기 없어 항상 에러 → 소유자 수정(#522).
+- **검증 정밀화**: 파서 자체는 견고(캡·try/catch·선형 regex 확인), sensitive default-exclude+ratify 정상. 리뷰어 "P0 위반" 프레이밍은 의도적 signal-extraction 설계 일부 오독이라 정확히 재프레이밍([[tool_workflow_verify_shared_premise]]).
+
+**게이트 누적 (Simon 결정 대기)**: (1) #18 위기-lexicon false-negative(공개웹 빌드) (2) 본건 import 프라이버시-copy + C10 fail-open. 둘 다 단독 라이브 변경 금지(법무/임상), reconcile은 Simon 확인 후.
+
+
 ### [디렉터 사이클 🛡️게이트 / 2026-06-21 / 06:23:08 KST] 안전 분류기 검증 — 위기 false-negative 갭 발견 (안전임상 게이트 → Simon 확인 필요)
 **라이브 origin/main `a06cbde2`** . 새 원격오더 0, 머지대상 PR 0(플릿 자력). 클린 슬라이스 소진(남은 fidelity는 hot 공유파일=플릿소유)이라 **고가치 안전 검증**으로 전환.
 - **✅ 아키텍처 견고(보증)**: classifier RED가 모든 LLM 호출 전 hard-return short-circuit(gemini.ts callGemini/callAdvisor/embedTexts), 서버 2차 게이트(gemini-proxy hasCrisisTerm), audit-log 전경로(crisis/mock/swap/오류), classify 전 모든 LLM 진입점 강제(ESLint+boundary 체크).
