@@ -808,6 +808,7 @@ export function GraphScreen() {
                 title: locale === "ko" ? "비서" : "Assistant",
                 items: [
                   { key: "ops", label: locale === "ko" ? "오늘의 루틴" : "Today", route: "/ops" },
+                  { key: "growth", label: locale === "ko" ? "나의 변화" : "My change", route: "/growth" },
                   { key: "import", label: locale === "ko" ? "가져오기" : "Import", route: "/import-hub" },
                 ],
               },
