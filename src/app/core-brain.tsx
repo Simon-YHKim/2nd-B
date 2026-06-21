@@ -25,7 +25,6 @@ import {
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { LensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
@@ -80,18 +79,25 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
   return mergeEvidence(recRows, srcRows, locale);
 }
 
-export default function CoreBrain() {
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen active="lens">
-        <LensView />
-      </DeepSpaceScreen>
-    );
-  }
-  return <CoreBrainLegacy />;
+// Canon (deep-space) and legacy now share ONE functional screen — the canon
+// build no longer shows a placeholder lens. The only difference is the chrome:
+// the deep-space dock (DeepSpaceScreen) vs the premium shell. All data
+// (evidence, persona, the eight sections, the evidence drawer) and every CTA are
+// identical and live in both. (LensView is the 7-axis per-trait view — wrong fit
+// for the aggregate Soul Core, so it is no longer used here.)
+function CoreShell({ children }: { children: ReactNode }) {
+  return isDeepSpaceUI() ? (
+    <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>
+  ) : (
+    <PremiumAppShell>{children}</PremiumAppShell>
+  );
 }
 
-function CoreBrainLegacy() {
+export default function CoreBrain() {
+  return <CoreBrainScreen />;
+}
+
+function CoreBrainScreen() {
   const { i18n } = useTranslation();
   const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -159,11 +165,11 @@ function CoreBrainLegacy() {
 
   if (loading) {
     return (
-      <PremiumAppShell>
+      <CoreShell>
         <View style={styles.center}>
           <PremiumLoadingState message={locale === "ko" ? "중심을 살펴보는 중이에요…" : "Looking at your center…"} />
         </View>
-      </PremiumAppShell>
+      </CoreShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
@@ -171,11 +177,11 @@ function CoreBrainLegacy() {
 
   if (building) {
     return (
-      <PremiumAppShell>
+      <CoreShell>
         <View style={styles.center}>
           <PremiumLoadingState message={locale === "ko" ? "중심을 살펴보는 중이에요…" : "Looking at your center…"} />
         </View>
-      </PremiumAppShell>
+      </CoreShell>
     );
   }
 
@@ -184,7 +190,7 @@ function CoreBrainLegacy() {
   // RLS/timeout/token-refresh failure. Offer a retry instead.
   if (loadError) {
     return (
-      <PremiumAppShell>
+      <CoreShell>
         <View style={styles.center}>
           <IslandArt id="core" size={140} />
           <Text variant="heading" style={{ marginTop: spacing.lg, textAlign: "center" }}>
@@ -208,7 +214,7 @@ function CoreBrainLegacy() {
             />
           </View>
         </View>
-      </PremiumAppShell>
+      </CoreShell>
     );
   }
 
@@ -219,7 +225,7 @@ function CoreBrainLegacy() {
   if (evidence.length === 0) {
     const dimStar = brightnessVisual(1).opacity;
     return (
-      <PremiumAppShell>
+      <CoreShell>
         <View style={styles.center}>
           <View style={styles.lockedConstellation}>
             <IslandArt id="core" size={120} />
@@ -255,7 +261,7 @@ function CoreBrainLegacy() {
             />
           </View>
         </View>
-      </PremiumAppShell>
+      </CoreShell>
     );
   }
 
@@ -273,7 +279,7 @@ function CoreBrainLegacy() {
   const starLevels = persona?.starLevels;
 
   return (
-    <PremiumAppShell>
+    <CoreShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
           eyebrow={locale === "ko" ? "02. 소울 코어" : "02. Soul Core"}
@@ -480,7 +486,7 @@ function CoreBrainLegacy() {
       {companionMoment ? (
         <CompanionMoment moment={companionMoment} style={styles.companionFlash} />
       ) : null}
-    </PremiumAppShell>
+    </CoreShell>
   );
 }
 
