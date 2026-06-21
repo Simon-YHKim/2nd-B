@@ -20,6 +20,7 @@ import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { PremiumTabBar } from "@/components/premium";
+import { BackgroundTaskDock, CompletionToast } from "@/components/deepspace";
 import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { fontAssets } from "@/theme/typography";
 import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
@@ -73,6 +74,7 @@ export default function RootLayout() {
               <Stack.Screen name="plans" />
               <Stack.Screen name="wiki" options={fadeTransition} />
               <Stack.Screen name="manual" />
+              <Stack.Screen name="museum" />
               <Stack.Screen name="big-five" />
               <Stack.Screen name="insights" />
               <Stack.Screen name="attachment" />
@@ -96,6 +98,8 @@ export default function RootLayout() {
               </ThemedStack>
               <BackArrow />
               <AppTabBar />
+              <BackgroundTaskDock />
+              <CompletionToast />
             </IntroGate>
           </AuthProvider>
         </ThemeProvider>

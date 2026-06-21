@@ -3,6 +3,7 @@ import type { Href } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 
 import { SecondbStatusHeader } from "@/components/deepspace";
+import { startTask } from "@/lib/tasks/store";
 import { Text } from "@/components/ui/Text";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -70,6 +71,7 @@ const FLOW: FlowColumn[] = [
       { label: "위키", path: "/wiki", note: "knowledge" },
       { label: "인사이트", path: "/insights", note: "patterns" },
       { label: "리서치", path: "/research", note: "sources" },
+      { label: "AI 뮤지엄", path: "/museum", note: "history" },
     ],
   },
   {
@@ -89,6 +91,23 @@ const FLOW: FlowColumn[] = [
 export function DeepSpaceFlowMapScreen() {
   const router = useRouter();
 
+  // Loading-system demo (Claude Design loading.dc.html, C to D to E): wraps a
+  // long task with startTask so the global BackgroundTaskDock (D) spins while the
+  // app stays usable, then the CompletionToast (E) shows on finish (no auto-nav,
+  // the user taps the result link). This QA screen is not a merged feature, so
+  // wiring the demo here keeps the shipped screens untouched.
+  // TODO: point run() at a real long task (e.g. star re-analysis / import parse)
+  // once one is exposed outside the merged feature screens.
+  const runLoadingDemo = () => {
+    startTask({
+      title: "별을 다시 살펴보는 중",
+      mode: "background",
+      etaSec: 8,
+      resultHref: "/museum",
+      run: () => new Promise<void>((resolve) => setTimeout(resolve, 8000)),
+    });
+  };
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.phone}>
@@ -104,6 +123,15 @@ export function DeepSpaceFlowMapScreen() {
         <Text variant="caption" pixelEn style={styles.kicker}>2ND-BRAIN · FLOW MAP</Text>
         <Text variant="heading" style={styles.title}>화면 관계 지도</Text>
         <Text variant="body" style={styles.subtitle}>정본 flowmap을 실제 route로 검증하는 deep-space QA 화면입니다.</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="로딩 시스템 미리보기"
+          onPress={runLoadingDemo}
+          style={({ pressed }) => [styles.chip, styles.demoChip, pressed && styles.pressed]}
+        >
+          <Text variant="caption" style={styles.chipLabel}>로딩 시스템 미리보기</Text>
+          <Text variant="subtle" style={styles.chipNote}>백그라운드 도크 + 완료 토스트 데모</Text>
+        </Pressable>
         <View style={styles.grid}>
           {FLOW.map((column) => (
             <View key={column.title} style={styles.column}>
@@ -148,5 +176,6 @@ const styles = StyleSheet.create({
   chip: { minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, backgroundColor: colors.cardBg, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, marginTop: spacing.xs },
   chipLabel: { color: colors.textTitle, fontSize: 11 },
   chipNote: { marginTop: 2, color: colors.textLo, fontSize: 10.5 },
+  demoChip: { marginHorizontal: 20, marginTop: spacing.md },
   pressed: { opacity: 0.72 },
 });
