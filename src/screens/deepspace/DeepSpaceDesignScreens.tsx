@@ -8,6 +8,7 @@ import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
 import { useSignUpForm } from "@/lib/auth/useSignUpForm";
@@ -23,6 +24,7 @@ import { buildPersona } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
 import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
+import type { LadderLevel } from "@/lib/persona/brightness";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
 import { RatifySheet } from "@/components/persona/RatifySheet";
 import {
@@ -193,6 +195,19 @@ function Shell({ children, title, subtitle }: { children: ReactNode; title?: str
   );
 }
 
+// Scroll-only body for screens that already sit inside DeepSpaceScreen (which
+// supplies the star-field background, SecondbStatusHeader, and the dock). Same
+// ScrollView + back/title row as Shell but WITHOUT the root background, so the
+// chrome is not doubled. Flexes to fill DeepSpaceScreen's body slot.
+function DockBody({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
+  return (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      {title ? <View style={styles.titleRow}><Pressable onPress={() => router.back()}><RNText style={styles.back}>‹</RNText></Pressable><View><Text variant="heading" style={styles.title}>{title}</Text>{subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}</View></View> : null}
+      {children}
+    </ScrollView>
+  );
+}
+
 function Card({ children, style }: { children: ReactNode; style?: object }) { return <View style={[styles.card, style]}>{children}</View>; }
 function Action({ label, value, onPress }: Row) { return <Pressable onPress={onPress} style={styles.action}><Text variant="body" style={styles.actionLabel}>{label}</Text>{value ? <Text variant="body" style={styles.actionValue}>{value}</Text> : <RNText style={styles.chev}>›</RNText>}</Pressable>; }
 function Toggle({ label, value, on = true, onPress }: Row) {
@@ -210,10 +225,16 @@ function Toggle({ label, value, on = true, onPress }: Row) {
 
 export function DeepSpaceGraphDesignScreen() {
   const { t } = useTranslation("deepspace");
+  // Real graph scale (node = wiki page, edge = wiki link) from the same hook
+  // /research and /wiki use. The CONSTELLATION node POSITIONS below stay mock
+  // (no real coordinates exist yet); only the subtitle count numbers are real.
+  const { pages, edges, loading } = useWikiGraphData();
+  const nodeCount = loading ? 0 : pages.length;
+  const edgeCount = loading ? 0 : edges.length;
   const clusters = [
     { x: 63, y: 135, t: t("graph.clRecords"), route: "/records" as const }, { x: 136, y: 92, t: t("graph.clRelations"), route: "/research" as const }, { x: 219, y: 134, t: t("graph.clKnowledge"), route: "/wiki" as const }, { x: 106, y: 226, t: t("graph.clTaste"), route: "/trinity" as const }, { x: 207, y: 225, t: t("graph.clGrowth"), route: "/growth" as const },
   ];
-  return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: 128, edges: 342 })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><Svg width="100%" height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95} onPress={() => router.push('/account')}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22} onPress={() => router.push(c.route)}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi} onPress={() => router.push('/account')}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Pressable key={c.t} onPress={() => router.push(c.route)} accessibilityRole="button" accessibilityLabel={c.t} style={{position:'absolute',left:c.x-18,top:c.y+23}}><Text variant="body" style={[styles.clusterLabel,{position:'relative'}]}>{c.t}</Text></Pressable>)}</Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
+  return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: nodeCount, edges: edgeCount })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><Svg width="100%" height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95} onPress={() => router.push('/account')}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22} onPress={() => router.push(c.route)}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi} onPress={() => router.push('/account')}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Pressable key={c.t} onPress={() => router.push(c.route)} accessibilityRole="button" accessibilityLabel={c.t} style={{position:'absolute',left:c.x-18,top:c.y+23}}><Text variant="body" style={[styles.clusterLabel,{position:'relative'}]}>{c.t}</Text></Pressable>)}</Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
 }
 
 export function DeepSpaceIntegrationsScreen() {
@@ -270,19 +291,24 @@ export function DeepSpaceAccountDesignScreen() {
   // The "나" hub (SCREEN_TREE_SPEC §8): four working nav rows. Was a static
   // mockup with hardcoded PII and dead rows; now every row routes.
   return (
-    <Shell title={t("account.title")}>
-      <SecondbStatusHeader text={t("account.status")} tip={t("account.tip")} />
-      <View style={styles.center}>
-        <View style={styles.avatar}><SecondbHead size={72} mood="neutral" /></View>
-        <Text variant="heading" style={styles.prompt}>{t("account.title")}</Text>
-      </View>
-      <Card>
-        <Action label={ko ? "프로필" : "Profile"} onPress={() => router.push("/profile")} />
-        <Action label={ko ? "설정" : "Settings"} onPress={() => router.push("/settings")} />
-        <Action label={ko ? "내 데이터" : "My data"} onPress={() => router.push("/data")} />
-        <Action label="IDEN" onPress={() => router.push("/iden")} />
-      </Card>
-    </Shell>
+    // Primary "나" hub: render inside the persistent deep-space chrome so the
+    // bottom dock shows. DeepSpaceScreen supplies the star-field background +
+    // SecondbStatusHeader (ds.head.account), so the screen's own header/root are
+    // dropped to avoid double chrome.
+    <DeepSpaceScreen active="account">
+      <DockBody title={t("account.title")}>
+        <View style={styles.center}>
+          <View style={styles.avatar}><SecondbHead size={72} mood="neutral" /></View>
+          <Text variant="heading" style={styles.prompt}>{t("account.title")}</Text>
+        </View>
+        <Card>
+          <Action label={ko ? "프로필" : "Profile"} onPress={() => router.push("/profile")} />
+          <Action label={ko ? "설정" : "Settings"} onPress={() => router.push("/settings")} />
+          <Action label={ko ? "내 데이터" : "My data"} onPress={() => router.push("/data")} />
+          <Action label="IDEN" onPress={() => router.push("/iden")} />
+        </Card>
+      </DockBody>
+    </DeepSpaceScreen>
   );
 }
 
@@ -1249,6 +1275,10 @@ export function DeepSpaceReviewScreen() {
   // user ratifies in the sheet. LLM calls go through the C1/C9/C3 gateway inside.
   const [loading, setLoading] = useState(false);
   const [proposal, setProposal] = useState<SelfModelProposal | null>(null);
+  // The star's ACTUAL current ladder tier captured when the proposal is built,
+  // so applyRatify reports the right resultingLevel on decline (ratify always
+  // -> L5). Falls back to L1 (the ladder default) if the card has no level yet.
+  const [currentLevel, setCurrentLevel] = useState<LadderLevel>(1);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
@@ -1259,6 +1289,7 @@ export function DeepSpaceReviewScreen() {
     try {
       const card = await buildPersona(userId, locale, isMinor === true);
       const ctx = proposalContextForStar(card, "now");
+      setCurrentLevel(card.starLevels?.now ?? 1);
       const p = await proposeSelfModelChange(userId, { kind: "star", star: "now" }, ctx.before, ctx.evidence, 5, locale, isMinor === true);
       if (p) {
         setProposal(p);
@@ -1274,7 +1305,7 @@ export function DeepSpaceReviewScreen() {
   }
 
   function handleDecision(decision: RatifyDecision) {
-    const r = applyRatify(4, decision);
+    const r = applyRatify(currentLevel, decision);
     setSheetOpen(false);
     if (decision === "ratify" && userId && proposal?.target.kind === "star") {
       void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel });
@@ -1368,6 +1399,16 @@ const RECORD_KIND_FILTERS: { id: TimelineRecord["kind"] | null; labelKey: string
 export function DeepSpaceRecordsScreen() {
   const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
+  // ?tags=a,b filters to pieces whose tags intersect the set (trinity 영역 drilldown).
+  const recordsParams = useLocalSearchParams<{ tags?: string }>();
+  const tagFilter = useMemo(
+    () =>
+      (recordsParams.tags ?? "")
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean),
+    [recordsParams.tags],
+  );
   const [records, setRecords] = useState<TimelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [kind, setKind] = useState<TimelineRecord["kind"] | null>(null);
@@ -1392,9 +1433,12 @@ export function DeepSpaceRecordsScreen() {
   }, [userId]);
 
   const groups = useMemo(() => {
-    const filtered = kind === null ? records : records.filter((r) => r.kind === kind);
+    let filtered = kind === null ? records : records.filter((r) => r.kind === kind);
+    if (tagFilter.length > 0) {
+      filtered = filtered.filter((r) => (r.tags ?? []).some((tag) => tagFilter.includes(tag.toLowerCase())));
+    }
     return buildRecordsTimeline(filtered, { labels: dsTimeLabels(t) });
-  }, [records, kind, t]);
+  }, [records, kind, tagFilter, t]);
 
   if (authLoading) {
     return <Shell title={t("records.title")}><GraphLoading /></Shell>;
@@ -2485,7 +2529,7 @@ export function DeepSpaceOpsScreen() {
   }
 
   if (authLoading) {
-    return <Shell title={t("hero.title")}><GraphLoading /></Shell>;
+    return <DeepSpaceScreen active="ops"><DockBody title={t("hero.title")}><GraphLoading /></DockBody></DeepSpaceScreen>;
   }
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
@@ -2603,8 +2647,12 @@ export function DeepSpaceOpsScreen() {
   }
 
   return (
-    <Shell title={t("hero.title")}>
-      <SecondbStatusHeader text={t("today.heading")} tip={t("hero.subtitle")} />
+    // Primary "비서" hub: render inside the persistent deep-space chrome so the
+    // bottom dock shows. DeepSpaceScreen supplies the star-field background +
+    // SecondbStatusHeader (ds.head.ops), so the screen's own header/root are
+    // dropped to avoid double chrome.
+    <DeepSpaceScreen active="ops">
+      <DockBody title={t("hero.title")}>
       <View style={styles.opsTodayHead}>
         <Text variant="heading" style={styles.section}>{t("today.heading")}</Text>
         {streak > 0 ? <Text variant="subtle" style={styles.timeChipMint}>{t("today.streak", { count: streak })}</Text> : null}
@@ -2735,7 +2783,8 @@ export function DeepSpaceOpsScreen() {
         </View>
       ))}
       {recs.length > 0 ? <Text variant="subtle" style={styles.footerLeft}>{t("recommend.disclaimerBody")}</Text> : null}
-    </Shell>
+      </DockBody>
+    </DeepSpaceScreen>
   );
 }
 

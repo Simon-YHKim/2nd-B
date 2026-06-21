@@ -55,6 +55,14 @@
         "text": "You're back. Right now you're shining as seven stars.",
         "tip": "Start with the dimmest star."
       },
+      "ops": {
+        "text": "Here's today's routine. Let's keep the rhythm going.",
+        "tip": "Check off one. Momentum does the rest."
+      },
+      "account": {
+        "text": "This is your space. Everything about you lives here.",
+        "tip": "Profile, settings, and your data are one tap away."
+      },
       "capture": {
         "text": "Don't let that thought slip away.",
         "tip": "One line is enough. I'll sort it."

@@ -414,10 +414,11 @@ function TrinityDeepSpace() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  // TODO(drilldown): /records only filters by VillageId (work/relation/…), not the
-  // trinity life-area tags, so we route to /records unfiltered. A per-area filter
-  // needs a records URL param keyed on DOMAIN_TAGS (tracked separately, not here).
-  const openArea = () => router.push("/records");
+  // Drill into /records filtered to this life area. /records has a ?domain=
+  // (VillageId) taxonomy AND a ?tags= life-area taxonomy; the trinity areas are
+  // tag-keyed, so we pass this area's DOMAIN_TAGS as the comma-separated ?tags=.
+  const openArea = (domain: TrinityDomain) =>
+    router.push({ pathname: "/records", params: { tags: DOMAIN_TAGS[domain].join(",") } });
   const addData = () => router.push("/capture");
 
   return (
@@ -488,7 +489,7 @@ function TrinityDeepSpace() {
                 return (
                   <Pressable
                     key={d}
-                    onPress={openArea}
+                    onPress={() => openArea(d)}
                     style={[ds.card, active ? ds.cardActive : ds.cardDim]}
                     accessibilityRole="button"
                     accessibilityLabel={`${labels[d]} ${s.count}`}
