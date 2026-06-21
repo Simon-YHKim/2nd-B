@@ -8,10 +8,11 @@
  * components). Korean body copy uses Pretendard (readable); the TIP eyebrow uses
  * the Press Start 2P pixel face.
  */
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text as RNText, View } from "react-native";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { Text } from "@/components/ui/Text";
 import { SecondbHead, type SecondbMood } from "./SecondbHead";
 
 export function SecondbStatusHeader({
@@ -32,11 +33,11 @@ export function SecondbStatusHeader({
       <SecondbHead size={48} mood={mood} accessibilityLabel={accessibilityLabel} />
       <View style={styles.bubble}>
         <View style={styles.tail} />
-        <Text style={styles.text}>{text}</Text>
+        <Text variant="body" style={styles.text}>{text}</Text>
         {tip ? (
           <View style={styles.tipRow}>
-            <Text style={styles.tipLabel}>{tipLabel}</Text>
-            <Text style={styles.tip}>{tip}</Text>
+            <RNText style={styles.tipLabel}>{tipLabel}</RNText>
+            <Text variant="body" style={styles.tip}>{tip}</Text>
           </View>
         ) : null}
       </View>
@@ -84,8 +85,6 @@ const styles = StyleSheet.create({
   text: {
     color: deepSpace.textHi,
     fontSize: 14,
-    lineHeight: 20, // generous so Hangul 받침 is not clipped (ANDROID_QA §1)
-    fontFamily: fontFamilies.readable,
   },
   tipRow: {
     flexDirection: "row",
@@ -103,7 +102,5 @@ const styles = StyleSheet.create({
     flex: 1,
     color: deepSpace.textMid,
     fontSize: 12,
-    lineHeight: 17,
-    fontFamily: fontFamilies.readable,
   },
 });
