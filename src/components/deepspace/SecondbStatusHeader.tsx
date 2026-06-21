@@ -1,7 +1,6 @@
-import { StyleSheet, Text as RNText, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { colors, radius, spacing } from "@/theme/tokens";
-import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
 
 import { SecondbHead, type SecondbMood } from "./SecondbHead";
@@ -20,7 +19,7 @@ export function SecondbStatusHeader({ text, tip, mood = "neutral" }: SecondbStat
         <View style={styles.tail} />
         <Text variant="body" style={styles.text}>{text}</Text>
         <View style={styles.tipRow}>
-          <RNText style={styles.tipLabel}>TIP</RNText>
+          <Text variant="caption" pixelEn style={styles.tipLabel}>TIP</Text>
           <Text variant="body" style={styles.tipText}>{tip}</Text>
         </View>
       </View>
@@ -79,7 +78,6 @@ const styles = StyleSheet.create({
   },
   tipLabel: {
     color: colors.mint,
-    fontFamily: fontFamilies.pixelEn,
     fontSize: 9,
     letterSpacing: 0.48,
     lineHeight: 13,

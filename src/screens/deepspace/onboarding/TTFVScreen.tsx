@@ -20,7 +20,6 @@ import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line, Polyline } from "react-native-svg";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
-import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
 import { SecondbStatusHeader } from "@/components/deepspace";
 
@@ -176,7 +175,7 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
               <Line x1={lit.x - 9} y1={lit.y} x2={lit.x - 18} y2={lit.y} stroke={deepSpace.accentSoft} strokeWidth={1.4} strokeLinecap="round" opacity={0.85} />
             </Svg>
             <View style={[styles.levelTag, { left: `${(lit.x / VIEWBOX) * 100}%`, top: `${(lit.y / VIEWBOX) * 100}%` }]}>
-              <RNText style={styles.levelTagText}>{LEVEL_TAG}</RNText>
+              <Text variant="caption" pixelEn style={styles.levelTagText}>{LEVEL_TAG}</Text>
             </View>
           </Animated.View>
         </View>
@@ -269,7 +268,7 @@ const styles = StyleSheet.create({
     borderRadius: deepSpaceRadii.sm,
     backgroundColor: deepSpace.card,
   },
-  levelTagText: { fontFamily: fontFamilies.pixelEn, fontSize: 11, letterSpacing: 0.5, color: deepSpace.accentSoft, lineHeight: 15 },
+  levelTagText: { fontSize: 11, letterSpacing: 0.5, color: deepSpace.accentSoft, lineHeight: 15 },
 
   block: { gap: deepSpaceSpacing.sm, marginTop: deepSpaceSpacing.xs },
   caption: { fontSize: 13, color: deepSpace.textLo, textAlign: "center" },

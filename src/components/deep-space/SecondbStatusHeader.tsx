@@ -8,10 +8,9 @@
  * components). Korean body copy uses Pretendard (readable); the TIP eyebrow uses
  * the Press Start 2P pixel face.
  */
-import { StyleSheet, Text as RNText, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
-import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
 import { SecondbHead, type SecondbMood } from "./SecondbHead";
 
@@ -36,7 +35,7 @@ export function SecondbStatusHeader({
         <Text variant="body" style={styles.text}>{text}</Text>
         {tip ? (
           <View style={styles.tipRow}>
-            <RNText style={styles.tipLabel}>{tipLabel}</RNText>
+            <Text variant="caption" pixelEn style={styles.tipLabel}>{tipLabel}</Text>
             <Text variant="body" style={styles.tip}>{tip}</Text>
           </View>
         ) : null}
@@ -96,7 +95,6 @@ const styles = StyleSheet.create({
     color: deepSpace.mint,
     fontSize: 9,
     letterSpacing: 0.5,
-    fontFamily: fontFamilies.pixelEn,
   },
   tip: {
     flex: 1,
