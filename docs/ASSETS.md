@@ -33,6 +33,18 @@ libraries used under their respective licenses. The full list:
 - Press Start 2P — SIL OFL, loaded via
   `@expo-google-fonts/press-start-2p` (^0.4.1)
 
+## Remote images (AI Museum, /museum)
+
+The AI history museum (`src/screens/deepspace/museum/AiMuseumScreen.tsx`) shows
+public-domain images by hotlinking Wikimedia Commons. No image is bundled in the
+repo; each is loaded at runtime and falls back to a generated deep-space orb when
+absent. Only public-domain (PD) files are used:
+
+- Alan Turing (1950, Turing Test) — `Alan_Turing_Aged_16.jpg`, Wikimedia Commons,
+  Public Domain Mark 1.0 (author d. 1954; US-published pre-1931).
+
+Moments without a confirmed-PD image intentionally keep the orb placeholder.
+
 ## Pre-existing materials owned by Simon
 
 - Google Play developer account (existing, used for app submission)

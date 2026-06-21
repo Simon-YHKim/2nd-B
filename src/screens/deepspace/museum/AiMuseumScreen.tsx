@@ -19,7 +19,11 @@ import { useTranslation } from "react-i18next";
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
 
-type Entry = { date: string; ko: [string, string]; en: [string, string] };
+// `img` (optional): a public-domain image URL (Wikimedia Special:FilePath). It
+// overlays the accent-orb slot; if it fails to load, the orb shows through, so a
+// missing/blocked image never looks broken. PD sources are credited in README
+// (C12). Moments without a confirmed-PD image keep the orb placeholder.
+type Entry = { date: string; ko: [string, string]; en: [string, string]; img?: string };
 type Category = {
   id: string;
   accent: string;
@@ -35,7 +39,7 @@ const CATS: Category[] = [
     id: "found", accent: deepSpace.text, ko: "기반 연구·아키텍처", en: "Foundations & Architecture",
     dko: "생각하는 기계라는 꿈이 수학과 회로가 된 순간들.", den: "When the dream of a thinking machine became math and circuits.",
     entries: [
-      { date: "1950", ko: ["튜링 테스트", "앨런 튜링이 기계가 생각할 수 있는가를 모방 게임으로 다시 물었다."], en: ["The Turing Test", "Alan Turing reframed can machines think as the imitation game."] },
+      { date: "1950", ko: ["튜링 테스트", "앨런 튜링이 기계가 생각할 수 있는가를 모방 게임으로 다시 물었다."], en: ["The Turing Test", "Alan Turing reframed can machines think as the imitation game."], img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Alan_Turing_Aged_16.jpg/480px-Alan_Turing_Aged_16.jpg" },
       { date: "1956", ko: ["다트머스 회의", "인공지능이 처음 하나의 학문 이름으로 태어났다."], en: ["Dartmouth Workshop", "Artificial intelligence was born as the name of a field."] },
       { date: "1958", ko: ["퍼셉트론", "로젠블랫이 스스로 학습하는 인공 뉴런을 만들었다."], en: ["The Perceptron", "Rosenblatt built the first learning artificial neuron."] },
       { date: "1986", ko: ["역전파", "다층 신경망을 실제로 학습시키는 길이 열렸다."], en: ["Backpropagation", "Made training deep multi-layer networks practical."] },
@@ -157,6 +161,9 @@ export function AiMuseumScreen() {
         <View style={[styles.slot, { backgroundColor: withAlpha(active.accent, 0.1) }]}>
           <View style={[styles.slotOrb, { backgroundColor: withAlpha(active.accent, 0.22), borderColor: active.accent }]} />
           <Text variant="subtle" style={styles.slotHint}>{`${item.date} · ${title}`}</Text>
+          {item.img ? (
+            <Image source={{ uri: item.img }} style={styles.slotImg} resizeMode="cover" accessible accessibilityLabel={title} />
+          ) : null}
         </View>
         <View style={styles.cardBody}>
           <Text variant="heading" style={styles.num}>{num}</Text>
@@ -261,6 +268,7 @@ const styles = StyleSheet.create({
   card: { width: CARD_W, borderRadius: deepSpaceRadii.lg, overflow: "hidden", borderWidth: 1, borderColor: deepSpace.cardLine, backgroundColor: deepSpace.card },
   slot: { height: 184, alignItems: "center", justifyContent: "center", gap: 12, backgroundColor: deepSpace.cardPressed, borderBottomWidth: 1, borderBottomColor: deepSpace.cardLine, padding: deepSpaceSpacing.md },
   slotOrb: { width: 48, height: 48, borderRadius: 24, borderWidth: 1 },
+  slotImg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   slotHint: { fontSize: 11, color: deepSpace.textLo, textAlign: "center" },
   cardBody: { padding: deepSpaceSpacing.md, gap: 8 },
   num: { fontSize: 26, color: deepSpace.cardLineStrong },
