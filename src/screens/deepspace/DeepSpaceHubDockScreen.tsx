@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { router } from "expo-router";
 
 import { DeepSpaceHubDock, SecondbStatusHeader, type DeepSpaceHubTab } from "@/components/deepspace";
 import { Text } from "@/components/ui/Text";
@@ -177,6 +178,9 @@ function ReviewContent({ reviewDecision, setReviewDecision }: HubState) {
         <Pressable accessibilityRole="button" accessibilityLabel="제안 보류" onPress={() => setReviewDecision("hold")} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressedButton]}><Text variant="caption" style={styles.secondaryButtonText}>보류</Text></Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="제안 승인" onPress={() => setReviewDecision("approve")} style={({ pressed }) => [styles.soulButton, pressed && styles.pressedButton]}><Text variant="caption" style={styles.soulButtonText}>승인</Text></Pressable>
       </View>
+      <Pressable accessibilityRole="link" accessibilityLabel="오늘의 정리 열기" onPress={() => router.push("/digest")} style={{ marginTop: spacing.sm, alignSelf: "center" }}>
+        <Text variant="caption" color="brand">오늘의 정리 열기 →</Text>
+      </Pressable>
     </>
   );
 }
