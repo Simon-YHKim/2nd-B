@@ -7,7 +7,7 @@ import Svg, { Circle, Line } from "react-native-svg";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
-import { SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
+import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
 import { useSignUpForm } from "@/lib/auth/useSignUpForm";
@@ -169,10 +169,14 @@ function useWikiGraphData() {
   return { userId, authLoading, pages, edges, loading };
 }
 
+// TODO(loading): the standalone ActivityIndicator blocks below (inline loaders
+// inside individual sub-screens) can also move to DeepSpaceLoader variant "dots".
+// Swapped here once on the shared GraphLoading helper, which covers the bulk of
+// deep-space loading states with no layout regression.
 function GraphLoading() {
   return (
     <View style={styles.center}>
-      <ActivityIndicator color={colors.cyan} />
+      <DeepSpaceLoader variant="dots" />
     </View>
   );
 }

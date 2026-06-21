@@ -1,0 +1,32 @@
+diff --git a/node_modules/@expo/cli/build/src/export/metroAssetLocalPath.js b/node_modules/@expo/cli/build/src/export/metroAssetLocalPath.js
+index cee8b56..e0ee844 100644
+--- a/node_modules/@expo/cli/build/src/export/metroAssetLocalPath.js
++++ b/node_modules/@expo/cli/build/src/export/metroAssetLocalPath.js
+@@ -115,9 +115,10 @@ function getAndroidResourceFolderName(asset, scale) {
+ }
+ function getResourceIdentifier(asset) {
+     const folderPath = getBaseUrl(asset);
+-    return `${folderPath}/${asset.name}`.toLowerCase().replace(/\//g, '_') // Encode folder structure in file name
++    const identifier = `${folderPath}/${asset.name}`.toLowerCase().replace(/\//g, '_') // Encode folder structure in file name
+     .replace(/([^a-z0-9_])/g, '') // Remove illegal chars
+     .replace(/^assets_/, ''); // Remove "assets_" prefix
++    return /^[a-z]/.test(identifier) ? identifier : `a_${identifier}`;
+ }
+ function getBaseUrl(asset) {
+     let baseUrl = asset.httpServerLocation;
+diff --git a/node_modules/@expo/cli/build/src/export/persistMetroAssets.js b/node_modules/@expo/cli/build/src/export/persistMetroAssets.js
+index 322da6a..c7db977 100644
+--- a/node_modules/@expo/cli/build/src/export/persistMetroAssets.js
++++ b/node_modules/@expo/cli/build/src/export/persistMetroAssets.js
+@@ -254,9 +254,10 @@ function filterPlatformAssetScales(platform, scales) {
+ }
+ function getResourceIdentifier(asset) {
+     const folderPath = getBaseUrl(asset);
+-    return `${folderPath}/${asset.name}`.toLowerCase().replace(/\//g, '_') // Encode folder structure in file name
++    const identifier = `${folderPath}/${asset.name}`.toLowerCase().replace(/\//g, '_') // Encode folder structure in file name
+     .replace(/([^a-z0-9_])/g, '') // Remove illegal chars
+     .replace(/^assets_/, ''); // Remove "assets_" prefix
++    return /^[a-z]/.test(identifier) ? identifier : `a_${identifier}`;
+ }
+ function getBaseUrl(asset) {
+     let baseUrl = asset.httpServerLocation;
