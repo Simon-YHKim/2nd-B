@@ -6,7 +6,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
@@ -35,10 +35,10 @@ export function CompletionToast() {
     ? { done: "분석이 끝났어요", see: "결과 보기", later: "나중에" }
     : { done: "Analysis is ready", see: "See result", later: "Later" };
 
+  const href = task.resultHref;
   const openResult = () => {
-    const href = task.resultHref;
     dismissTask();
-    if (href) router.push(href as never);
+    if (href) router.push(href as Href);
   };
 
   return (
@@ -46,9 +46,11 @@ export function CompletionToast() {
       <Animated.View style={[styles.toast, { opacity: drop, transform: [{ translateY }] }]}>
         <View style={styles.tick}><View style={styles.tickDot} /></View>
         <Text variant="caption" style={styles.label}>{task.title || C.done}</Text>
-        <Pressable accessibilityRole="button" onPress={openResult} hitSlop={8} style={styles.seeBtn}>
-          <Text variant="caption" style={styles.seeText}>{C.see}</Text>
-        </Pressable>
+        {href ? (
+          <Pressable accessibilityRole="button" onPress={openResult} hitSlop={8} style={styles.seeBtn}>
+            <Text variant="caption" style={styles.seeText}>{C.see}</Text>
+          </Pressable>
+        ) : null}
         <Pressable accessibilityRole="button" onPress={() => dismissTask()} hitSlop={8} style={styles.laterBtn}>
           <Text variant="caption" style={styles.laterText}>{C.later}</Text>
         </Pressable>
@@ -85,7 +87,7 @@ const styles = StyleSheet.create({
   tickDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: deepSpace.mint },
   label: { flex: 1, fontSize: 13, color: deepSpace.textHi },
   seeBtn: {
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: deepSpaceSpacing.md,
     alignItems: "center",
     justifyContent: "center",
@@ -93,6 +95,6 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.mint,
   },
   seeText: { fontSize: 12, color: deepSpace.onMint },
-  laterBtn: { minHeight: 36, paddingHorizontal: deepSpaceSpacing.sm, alignItems: "center", justifyContent: "center" },
+  laterBtn: { minHeight: 44, paddingHorizontal: deepSpaceSpacing.sm, alignItems: "center", justifyContent: "center" },
   laterText: { fontSize: 12, color: deepSpace.textLo },
 });
