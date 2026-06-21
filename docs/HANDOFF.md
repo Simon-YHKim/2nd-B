@@ -4,6 +4,43 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
+## Latest — 2026-06-21 (밤) / 엣지함수 인증 하드닝 스윕 — #524 배포 + delete/export-account anon-JWT 차단
+
+#524(gemini-proxy role-체크)를 **라이브 배포**하고, 같은 취약점 클래스(verify_jwt=true는 토큰
+유효성만 증명 → 공개 anon/publishable 키도 유효 토큰)를 전 엣지함수로 **스윕**. inbound JWT의
+`sub`만 신뢰하던 service-role 함수 2종(delete-account·export-account)을 발견해 `role==='authenticated'`
+요구로 하드닝. 5개 inbound-JWT 함수의 인증 자세를 일치시켰다.
+
+### 어디까지 왔나
+- **gemini-proxy**: #524 엣지함수 **배포 완료** (v13→v14, verify_jwt=true). 정본 소스 바이트-검증
+  (sha `9f655af7`) 후 MCP 배포 → re-fetch로 role 체크 라이브 확인. 직전 핸드오프의 🔴 "#524
+  엣지함수 DEPLOY 필요" 플래그 **해소**.
+- **delete-account** (service-role, 계정 영구삭제): `userIdFromJwt`에 role 체크 추가 후 **배포**
+  (v3→v4). 변경은 제한적(비인증 토큰 거부)이라 정상 로그인 사용자 무영향. 배포본 바이트-검증 + re-fetch.
+- **export-account** (service-role, Art.20 데이터 export): 동일 하드닝 — **코드만**. 이 함수는 아직
+  prod 미배포(#373 "needs review+deploy") → 배포는 Art.20 런치와 함께 Simon 게이트.
+- **rss-proxy**: 이미 `authenticatedUserIdFromJwt` 보유(이번 패턴의 레퍼런스). **oauth-naver/
+  kakao·seed-knowledge-base**: verify_jwt=false 프리오스/시드, inbound-sub 미신뢰 → 해당 없음.
+
+### 취약점 분석 (방어심층)
+공개 anon 키 JWT는 보통 `sub`이 없어 구 코드도 null→401이라 **현재 활성 익스플로잇은 아님**. 이번
+하드닝은 일관성·방어심층(미래 토큰 포맷이나 sub을 가진 비인증 토큰 차단)이고, gemini/rss는 이미
+닫혀 있었던 반면 service-role 2종이 누락분이었다.
+
+### 검증 / 배포
+```bash
+npm run verify   # green
+# 배포 검증: get_edge_function re-fetch로 라이브 소스에 role 체크 존재 확인 (gemini v14, delete v4)
+```
+
+### 다음 작업 큐 / 게이트
+| # | 작업 | 게이트 |
+|---|---|---|
+| A | export-account 엣지함수 배포 (Art.20 런치) | Simon (#373 review+deploy) |
+| B | 토큰 클레임 파서 단위테스트 공유화(현재 4함수 인라인 복제) | 선택, 위생 |
+
+---
+
 ## Latest — 2026-06-21 (저녁·인프라) / AI 허브 모니터 복구 + 런치팩 워커 자율루프 + AG 네이티브-QA 라이브 픽스
 
 (인터랙티브 세션 — 같은 날 디렉터 /loop 세션들과 병행. 아래 "(저녁) D-25" / "(오후) deep-space" 블록은 디렉터 작업.) AI Hub 모니터 `stale-run?` + `BACKLOG ALARM` 해소(근본=git 신원 불일치) → 런치팩 워커 자율루프 1급화(양 문서) → AG stranded QA를 framework-aware로 선별해 라이브 픽스(#506). **대부분의 AG 보고가 legacy 死코드**였음을 Claude 최종패스가 걸러냄. device-QA는 3중 블로커로 AG 레인 보류.
