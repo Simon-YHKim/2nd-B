@@ -474,6 +474,7 @@ export default function Settings() {
                   { key: "data", label: locale === "ko" ? "데이터" : "Data", route: "/data" },
                   { key: "theme", label: locale === "ko" ? "테마" : "Theme", route: "/theme" },
                   { key: "support", label: locale === "ko" ? "지원" : "Support", route: "/support" },
+                  { key: "museum", label: locale === "ko" ? "AI 뮤지엄" : "AI Museum", route: "/museum" },
                   { key: "ops", label: locale === "ko" ? "운영 진단" : "Routines", route: "/ops" },
                 ],
               },

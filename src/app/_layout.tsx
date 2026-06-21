@@ -19,6 +19,7 @@ import { ageInYears } from "@/lib/supabase/auth";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { BackArrow } from "@/components/ui/BackArrow";
+import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
 import { PremiumTabBar } from "@/components/premium";
 import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { fontAssets } from "@/theme/typography";
@@ -51,6 +52,10 @@ export default function RootLayout() {
             <ThemedStatusBar />
             <AnalyticsConsentSync />
             <AuditWriteOutboxSync />
+            {/* Big SecondB head follows touch on every screen (auto by size >= 80);
+                bubbling onTouch* so it never steals taps. Dock + Toast are global
+                overlays for the background-task loading system. */}
+            <SecondbHeadTrackProvider>
             <IntroGate>
               {/* O-23 Stage③: the Stack mounts every route in BOTH UI modes (the
                   flag only swaps which component `index` renders — see index.tsx —
@@ -73,6 +78,7 @@ export default function RootLayout() {
               <Stack.Screen name="plans" />
               <Stack.Screen name="wiki" options={fadeTransition} />
               <Stack.Screen name="manual" />
+              <Stack.Screen name="museum" />
               <Stack.Screen name="big-five" />
               <Stack.Screen name="insights" />
               <Stack.Screen name="attachment" />
@@ -96,7 +102,10 @@ export default function RootLayout() {
               </ThemedStack>
               <BackArrow />
               <AppTabBar />
+              <BackgroundTaskDock />
+              <CompletionToast />
             </IntroGate>
+            </SecondbHeadTrackProvider>
           </AuthProvider>
         </ThemeProvider>
       </SafeAreaProvider>
