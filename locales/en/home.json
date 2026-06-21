@@ -42,9 +42,11 @@
   },
   "ds": {
     "dock": {
-      "home": "Home",
+      "home": "Learn",
       "capture": "Capture",
       "chat": "SecondB",
+      "ops": "Assistant",
+      "account": "Me",
       "lens": "Me",
       "iden": "IDEN"
     },

@@ -34,6 +34,19 @@ const POS: ReadonlyArray<[number, number]> = [
   [232, 40],
 ];
 
+// Star → lens route (mirrors DeepSpaceHomeScreen's LENS_ROUTES). The 근거 칩
+// deep-links to the lens that explains why this star grew. Inline because the
+// home-screen map isn't exported; keep the two in sync if routes change.
+const LENS_ROUTE: Record<StarId, string> = {
+  now: "/big-five",
+  recall: "/interview",
+  seen: "/persona",
+  rhythm: "/esm",
+  relational: "/attachment",
+  possible: "/imagine",
+  values: "/audit",
+};
+
 // Deterministic observation + next step per grown star (no LLM — synthesis only).
 const STEP: Record<StarId, { obsKo: string; obsEn: string; stepKo: string; stepEn: string; domain: OpsDomainId }> = {
   now: { obsKo: "지금의 나를 자주 들여다본 한 주였어요.", obsEn: "You checked in on yourself often this week.", stepKo: "오늘 한 줄 돌아보기", stepEn: "One line of reflection today", domain: "daily_focus" },
@@ -189,10 +202,16 @@ export function WeeklyGrowthScreen() {
             <SecondbHead size={22} mood="positive" />
             <Text variant="body" style={styles.obsText}>{ko ? step.obsKo : step.obsEn}</Text>
           </View>
-          <View style={styles.reasonChip}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push(LENS_ROUTE[hero.id] as never)}
+            hitSlop={6}
+            style={({ pressed }) => [styles.reasonChip, pressed ? styles.reasonChipPressed : null]}
+          >
             <View style={[styles.dot, { backgroundColor: deepSpace.soul }]} />
             <Text variant="caption" style={styles.reasonText}>{`${ko ? hero.nameKo : hero.nameEn} ↑`}</Text>
-          </View>
+            <RNText style={styles.reasonCaret}>›</RNText>
+          </Pressable>
           <View style={styles.obsActions}>
             <Pressable onPress={saveStep} hitSlop={6} style={[styles.primaryBtn, saved ? styles.disabled : null]} disabled={saved}>
               <Text variant="caption" style={styles.primaryText}>{saved ? t("saved") : t("addRoutine")}</Text>
@@ -283,11 +302,13 @@ const styles = StyleSheet.create({
   obsHead: { flexDirection: "row", alignItems: "flex-start", gap: 9 },
   obsText: { flex: 1, fontSize: 14, color: deepSpace.textHi },
   reasonChip: {
-    flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
+    flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", minHeight: 44,
     paddingHorizontal: 9, paddingVertical: 5, borderWidth: 1, borderColor: deepSpace.soulLine, borderRadius: deepSpaceRadii.sm,
   },
+  reasonChipPressed: { opacity: 0.7 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   reasonText: { fontSize: 12, color: deepSpace.soul },
+  reasonCaret: { fontSize: 14, color: deepSpace.soul },
   obsActions: { flexDirection: "row", gap: deepSpaceSpacing.sm },
 
   primaryBtn: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.mint },

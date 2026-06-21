@@ -1,11 +1,12 @@
 /**
  * Shared deep-space chrome — a 1:1 clone of design/prototype.dc.html's frame:
- * SecondbStatusHeader at the top, the screen body, and the five-tab dock at the
+ * SecondbStatusHeader at the top, the screen body, and the primary dock at the
  * bottom. No extra chrome (the design home has no top-right icons). The OS status
  * bar is handled by the safe-area inset.
  *
- * The dock MAPS to real routes (router): 담기→/capture, 세컨비→/secondb,
- * 나→/core-brain, IDEN→/iden — so the chrome is persistent and the nav is real.
+ * The dock MAPS to real routes (router, SCREEN_TREE_SPEC §0.2): 담기→/capture,
+ * 알아가기→/index, 비서→/ops, 나→/account, + 중앙 세컨비→/secondb — so the chrome
+ * is persistent and the nav is real.
  *
  * Rendered only in the deep-space build. The deep-space-shell-a11y guard pins the
  * character accessibilityLabel pattern to THIS file.
@@ -25,6 +26,8 @@ const TAB_ROUTE: Record<DeepSpaceTab, Href> = {
   home: "/",
   capture: "/capture",
   chat: "/secondb",
+  ops: "/ops",
+  account: "/account",
   lens: "/core-brain",
   iden: "/iden",
 };
@@ -33,11 +36,14 @@ const VIEW_MOOD: Record<DeepSpaceTab, SecondbMood> = {
   home: "positive",
   capture: "neutral",
   chat: "neutral",
+  ops: "neutral",
+  account: "positive",
   lens: "positive",
   iden: "neutral",
 };
 
-const TABS: DeepSpaceTab[] = ["home", "capture", "chat", "lens", "iden"];
+// Primary order (SCREEN_TREE_SPEC §0.1): 담기 · 알아가기 · [중앙 세컨비] · 비서 · 나.
+const TABS: DeepSpaceTab[] = ["capture", "home", "chat", "ops", "account"];
 
 export function DeepSpaceScreen({ active, children }: { active: DeepSpaceTab; children: ReactNode }) {
   const { t, i18n } = useTranslation("home");

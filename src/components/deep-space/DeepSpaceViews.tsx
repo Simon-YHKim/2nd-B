@@ -10,7 +10,7 @@
  * (document-global svg ids) never clashes across instances.
  */
 import { useId, useState } from "react";
-import { type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { type DimensionValue, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
@@ -250,14 +250,20 @@ function StateToggle({ value, onChange }: { value: LensState; onChange: (s: Lens
   );
 }
 
-export function LensView({ traits }: { traits?: LensTraits | null } = {}) {
+export function LensView({
+  traits,
+  hasError,
+  onStart,
+  onRetry,
+}: { traits?: LensTraits | null; hasError?: boolean; onStart?: () => void; onRetry?: () => void } = {}) {
   const { t } = useTranslation("home");
   // No prop (undefined) = design preview / Soul Core reuse: keep the manual
   // state toggle + sample data. A provided `traits` drives the state from real
   // data: an object → filled with those scores, null → empty (no result yet).
+  // `hasError` (fetch failed) takes priority over empty so the retry path shows.
   const demo = traits === undefined;
   const [demoState, setDemoState] = useState<LensState>("filled");
-  const state: LensState = demo ? demoState : traits ? "filled" : "empty";
+  const state: LensState = demo ? demoState : traits ? "filled" : hasError ? "error" : "empty";
   const shown = traits ?? DUMMY_LENS_TRAITS;
   return (
     <ScrollView contentContainerStyle={styles.body}>
@@ -269,7 +275,7 @@ export function LensView({ traits }: { traits?: LensTraits | null } = {}) {
           </Svg>
           <Text style={styles.stateTitle}>{t("ds.lens.emptyTitle")}</Text>
           <Text style={styles.stateBody}>{t("ds.lens.emptyBody")}</Text>
-          <GradientButton label={t("ds.lens.emptyCta")} />
+          <GradientButton label={t("ds.lens.emptyCta")} onPress={onStart} />
         </View>
       ) : state === "error" ? (
         <View style={styles.centerState}>
@@ -279,7 +285,7 @@ export function LensView({ traits }: { traits?: LensTraits | null } = {}) {
           </Svg>
           <Text style={styles.stateTitle}>{t("ds.lens.errorTitle")}</Text>
           <Text style={styles.stateBody}>{t("ds.lens.errorBody")}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={t("ds.lens.errorCta")} style={styles.ghostBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("ds.lens.errorCta")} onPress={onRetry} style={styles.ghostBtn}>
             <Text style={styles.ghostLabel}>{t("ds.lens.errorCta")}</Text>
           </Pressable>
         </View>
@@ -419,7 +425,21 @@ function CompareRow({ label, self, other, delta }: { label: string; self: number
 }
 
 export function SeenLensView() {
-  const { t } = useTranslation("home");
+  const { t, i18n } = useTranslation("home");
+  const isKo = i18n.language === "ko";
+
+  async function requestPeerReview() {
+    try {
+      await Share.share({
+        message: isKo
+          ? "내가 나를 보는 모습과 남이 보는 모습이 얼마나 다른지 같이 봐줄래요? 2nd-Brain에서 peer review를 부탁해요."
+          : "Would you help me see the gap between how I see myself and how others see me? Sharing a peer review request from 2nd-Brain.",
+      });
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[deepspace-seen] share failed", (e as Error).message);
+    }
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.body}>
       {/* TODO: wire to self vs peer-review scores (src/lib/persona). */}
@@ -443,11 +463,16 @@ export function SeenLensView() {
         <Text style={styles.soulCardText}>{t("ds.seen.conclusion")}</Text>
       </View>
       <View style={styles.btnRow}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("ds.seen.survey")} style={styles.ghostBtnFlex}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("ds.seen.survey")}
+          onPress={() => router.push("/interview")}
+          style={styles.ghostBtnFlex}
+        >
           <Text style={styles.ghostLabel}>{t("ds.seen.survey")}</Text>
         </Pressable>
         <View style={styles.btnFlex}>
-          <GradientButton label={t("ds.seen.share")} colors={deepSpaceGradients.idenSend} full />
+          <GradientButton label={t("ds.seen.share")} colors={deepSpaceGradients.idenSend} full onPress={requestPeerReview} />
         </View>
       </View>
     </ScrollView>
@@ -504,16 +529,21 @@ export function PossibleLensView() {
     { name: t("ds.possible.a2Name"), body: t("ds.possible.a2Body") },
     { name: t("ds.possible.a3Name"), body: t("ds.possible.a3Body") },
   ];
+  // Selecting a draft sets which aspiration the "first step → /ops" button
+  // carries forward. Default to the first card so the CTA is never a no-op.
+  const [selected, setSelected] = useState(0);
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <LensHead title={t("ds.possible.title")} tag={t("ds.possible.tag")} eyebrow={t("ds.possible.eyebrow")} />
       <View style={styles.dashedList}>
-        {cards.map((c) => (
+        {cards.map((c, i) => (
           <Pressable
             key={c.name}
             accessibilityRole="button"
             accessibilityLabel={c.name}
-            style={({ pressed }) => [styles.dashedCard, pressed && styles.pressed]}
+            accessibilityState={{ selected: selected === i }}
+            onPress={() => setSelected(i)}
+            style={({ pressed }) => [styles.dashedCard, selected === i && styles.dashedCardOn, pressed && styles.pressed]}
           >
             <Text style={styles.dashedName}>{c.name}</Text>
             <Text style={styles.dashedBody}>{c.body}</Text>
@@ -532,8 +562,13 @@ export function PossibleLensView() {
         </Pressable>
         <View style={styles.btnFlex}>
           {/* SCREEN_TREE_SPEC §7 /imagine: "이 공상을 첫 걸음으로 → /ops" (the routine is
-              proposed/created on the ops side, never auto-applied from here). */}
-          <GradientButton label={t("ds.possible.add")} full onPress={() => router.push("/ops")} />
+              proposed/created on the ops side, never auto-applied from here). The
+              selected draft rides along as a param so /ops proposes from it. */}
+          <GradientButton
+            label={t("ds.possible.add")}
+            full
+            onPress={() => router.push({ pathname: "/ops", params: { draft: cards[selected].name } })}
+          />
         </View>
       </View>
     </ScrollView>
@@ -587,7 +622,7 @@ function DomainRow({ label, count, value }: { label: string; count: string; valu
   );
 }
 
-export function ValuesLensView() {
+export function ValuesLensView({ onAddData }: { onAddData?: () => void } = {}) {
   const { t } = useTranslation("home");
   // TODO: wire to domain piece counts (src/app/audit + records by domain).
   return (
@@ -601,7 +636,7 @@ export function ValuesLensView() {
       <View style={styles.insightCard}>
         <Text style={styles.insightText}>{t("ds.values.conclusion")}</Text>
       </View>
-      <GradientButton label={t("ds.values.addData")} full />
+      <GradientButton label={t("ds.values.addData")} full onPress={onAddData} />
     </ScrollView>
   );
 }
@@ -879,6 +914,7 @@ const styles = StyleSheet.create({
     borderColor: withAlpha(deepSpace.accent, 0.4),
     backgroundColor: withAlpha(deepSpace.accent, 0.03),
   },
+  dashedCardOn: { borderColor: deepSpace.accent, backgroundColor: withAlpha(deepSpace.accent, 0.08) },
   dashedName: { color: deepSpace.accentBright, fontSize: 13, fontFamily: fontFamilies.pixelKo, marginBottom: 5 },
   dashedBody: { color: deepSpace.textMid, fontSize: 12, lineHeight: 18, fontFamily: fontFamilies.readable },
 

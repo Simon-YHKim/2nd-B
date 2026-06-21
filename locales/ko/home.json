@@ -42,9 +42,11 @@
   },
   "ds": {
     "dock": {
-      "home": "홈",
+      "home": "알아가기",
       "capture": "담기",
       "chat": "세컨비",
+      "ops": "비서",
+      "account": "나",
       "lens": "나",
       "iden": "IDEN"
     },

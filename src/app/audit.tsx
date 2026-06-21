@@ -332,7 +332,10 @@ export default function Audit() {
   if (isDeepSpaceUI()) {
     return (
       <DeepSpaceScreen active="lens">
-        <ValuesLensView />
+        {/* "데이터 추가" opens the open-ended interview that feeds domain piece
+            counts (the audit period-selector screener is the legacy-only flow;
+            routing back to /audit here would loop the deep-space lens). */}
+        <ValuesLensView onAddData={() => router.push("/interview")} />
       </DeepSpaceScreen>
     );
   }
