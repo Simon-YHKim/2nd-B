@@ -4,6 +4,66 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
+## Latest — 2026-06-21 (오후/저녁) / AI 허브 모니터 복구 + 런치팩 워커 자율루프 + AG 네이티브-QA 라이브 픽스
+
+AI Hub 모니터의 `stale-run?` + `BACKLOG ALARM` 해소(근본=git 신원 불일치) → 런치팩 워커 자율루프 1급화(양 문서) → AG stranded QA를 framework-aware로 선별해 라이브 픽스(#506). **대부분의 AG 보고가 legacy 死코드**였음을 Claude 최종패스가 걸러냄. device-QA는 3중 블로커로 AG 레인 보류. (이 세션은 허브/런치팩/2nd-B에 걸침. 2nd-B 코드 변경 = #506 한 건.)
+
+### 어디까지 왔나
+- main HEAD: `05e9ceb8` (이 핸드오프 머지 직전 기준 — 동시 디렉터 세션이 #541~#544 등 빠르게 추가 머지 중)
+- 이번 세션 머지된 PR: **#506** `fix(android): keyboard focus flow on deep-space auth + back-arrow elevation` (squash, CI verify+Pages green, `b8f7ad94`가 live main lineage 조상임 확인 = 라이브)
+- 허브(로컬 git, **리모트 없음**) 커밋: 모니터 머지게이트 ack(claude 신원) · `HUB-STARTUP.html` 동기화 · `BACKLOG.md` 재triage
+- 테스트: 2nd-B `npm run verify` green(CI) · 허브 `hub-health.ps1`
+- working tree(E:/2ndB): 디렉터가 `feat/d25-positioning`에서 작업 중(dirty) — **절대 건드리지 말 것**(공유 트리)
+
+### 활성 인프라
+- 2nd-B 인프라(Supabase `zoacryukmdeivmolvyhj` / GitHub Pages 정본 / Google OAuth)는 **직전 블록 참조** — 동일.
+- **AI Hub** `E:\Coding Infra\AI Infra\Communication` (로컬 전용 git, 리모트 push 안 함): `CONTROL.md state: running`, monitor = `RUNNING / claude fresh / backlog clear`. 데몬 codex+antigravity 가동, **grok=요청전용**. **repo 기본 git 신원 = `claude@2nd-b.ai`**(오케스트레이터 plain-commit이 ai-hub@local로 새던 모니터 알람 근본원인 차단).
+- **런치팩 2종**(루트, git 아님): `AI Hub 시작 키트 — 복붙 런치팩.html` + 허브 `HUB-STARTUP.html` — 워커 지속루프 = `hub-daemon.ps1 -Only <ai>` 포그라운드(워커 CLI엔 REPL-내장 루프 없음, Claude만 `/loop`).
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | AG device-QA: deep-space `Shell` 탭바 하단패딩(40px) 가림 여부 + 하드웨어 Back — **로그인(Supabase 테스트계정) 필요** | medium | ⭐ AG 에뮬 복구 후 / 또는 테스트계정 주면 Claude가 dev클라 reload로 진행 |
+| B | 허브 `BACKLOG.md` P0/P1 (merge-gate backpressure, 데몬 per-AI timeout, AG seat 정직화) | medium | `tools/hub-daemon.ps1` |
+| C | legacy-skin elevation(QuantIntroModal/DrillProgress) | small | rollback skin만 영향, 저우선 |
+| D | 2nd-B develop(O-31 deep-space 등) | - | 디렉터 `/loop`이 진행 중 — 충돌 회피 |
+
+### 적용 중인 정책 (영구)
+1. **멀티에이전트 발견은 적용 전 Claude framework-aware 최종패스 필수** — "N confirmed" 곧이곧대로 믿지 말 것. legacy 死코드/공유전제 위양성 多 (이번 AG 보고 대부분이 deep-space 미사용 legacy였음). ref: tool_workflow_verify_shared_premise
+2. **2nd-B 작업 = 격리 worktree**(`E:/2ndB/.worktrees/<name>` off origin/main). 공유 `E:/2ndB`(디렉터 점유) 비침범. ref: tool_push_grep_masks_rejection
+3. 허브 오케스트레이터 커밋 = `claude@2nd-b.ai`(기본 신원). 워커 = `commit.ps1 -As <ai>`. scoped staging만(`-A` 금지).
+4. 머지 전 CI verify green **별도 확인**(gh pr merge는 red에도 통과). 게이트(파괴/비용/secrets/임상/법무)만 Simon, 그 외 무확인 ship.
+5. CONTROL=running 시 `HubWatchdog`(10분)가 죽은 데몬 자동재시작. 정지하려면 CONTROL=paused 먼저.
+6. `adb exec-out screencap -p > file.png` 로 캡처(Git-Bash `/sdcard` 경로변환 우회). metro 8081 phantom-block 시 `--port 8120` + `adb reverse tcp:8081 tcp:8120`.
+
+### 핵심 파일 위치
+```
+E:\Coding Infra\AI Infra\Communication\            AI Hub (로컬 git, 리모트 X)
+  tools\monitor.ps1                                 허브 대시보드
+  tools\hub-daemon.ps1 -Only <ai>                   워커 자율루프 엔진
+  CONTROL.md / BOARD.md / BACKLOG.md                런스테이트 / 마스터판 / 백로그
+E:\Coding Infra\AI Hub 시작 키트 — 복붙 런치팩.html   런치팩 (루트, git X)
+E:\2ndB\  (origin/main = Simon-YHKim/2nd-B, 디렉터 점유)
+  src\screens\deepspace\DeepSpaceDesignScreens.tsx  라이브 deep-space 화면 (기본 UI)
+  src\components\ui\BackArrow.tsx                    글로벌 백 오버레이
+  ANDROID_QA_GUIDELINES.md                          네이티브 QA 컨벤션(elevation/BackHandler/탭바패딩)
+```
+
+### 검증
+```bash
+cd E:/2ndB && npm run verify   # lint+type-check+i18n+lexicon+constraints+jest
+powershell -File "E:/Coding Infra/AI Infra/Communication/tools/hub-health.ps1"   # 허브
+```
+
+### 다음 세션 시작하는 법
+```bash
+# (다음 세션 cwd는 보통 E:\Coding Infra — 2nd-B로 들어가서 pull)
+cd E:/2ndB && git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# 작업 A(AG device-QA) 또는 B(허브 BACKLOG)부터
+```
+
+---
+
 ## Latest — 2026-06-21 / 게이트 해소 마무리 + 구글 임포트 커넥터 + TTFV 화면 (6 PR)
 
 지난 세션이 코드로 닫아둔 비전 3축을 **라이브로 켜는** 세션. cowork(computer-use)이 G0 마이그레이션·무료키 발급·Vercel·Google OAuth 뼈대를 처리했고, Claude가 후속으로 정본 웹 확정(Pages)·FX 도메인 수정·키 배선·구글 커넥터(Calendar+Tasks)·TTFV 첫날 화면을 코드로 닫았다. **#496~#501 (6 PR) main 머지**, `npm run verify` green (225 suites / 1715 tests).
