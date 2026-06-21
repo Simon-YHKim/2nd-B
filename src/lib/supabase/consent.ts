@@ -97,6 +97,32 @@ export async function recordHealthImportConsent(args: {
   });
 }
 
+// D-25 Phase 3: record the explicit adult opt-in to /ops recommendations. The
+// recommend run sends a wiki snapshot to Gemini (LLM processing) which runs
+// overseas, so BOTH the LLM-processing and overseas-transfer acknowledgements
+// are set. Minors can never reach this (the recommendations pref is locked OFF
+// and non-promotable for them); the caller guards on isMinor, so this is always
+// an adult opt-in. Call AFTER the user confirms the understanding-gate in the UI.
+export async function recordRecommendationsConsent(args: {
+  userId: string;
+  ageBand: ConsentAgeBand;
+  minorTier?: MinorTier | null;
+  locale: "en" | "ko";
+}): Promise<boolean> {
+  return recordConsentBestEffort({
+    userId: args.userId,
+    ageBand: args.ageBand,
+    minorTier: args.minorTier ?? null,
+    locale: args.locale,
+    purposes: ["recommendations"],
+    requiredAck: true,
+    optionalConsents: { recommendations: true },
+    llmProcessingAck: true,
+    overseasTransferAck: true,
+    sensitiveDataAck: false,
+  });
+}
+
 // A transient (network/timeout) failure should not lose a consent event, but a
 // permanent error (missing table pre-migration, schema/permission, integrity)
 // will never succeed on retry, so retrying it just wastes time. Distinguish the

@@ -26,7 +26,7 @@ import { formatBirthDateInput } from "@/lib/account/dob";
 import { useProgression } from "@/lib/progression/useProgression";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
-import { recordHealthImportConsent } from "@/lib/supabase/consent";
+import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { mockSamplesForRange } from "@/lib/health/sources/mock";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
@@ -210,7 +210,131 @@ export function DeepSpaceSupportDesignScreen() { const { t } = useTranslation("d
 
 export function DeepSpaceAccountDesignScreen() { const { t } = useTranslation("deepspace"); const rows: [string, string][] = [[t("account.labelName"),'Simon Kim'],[t("account.labelEmail"),'simon@example.com'],[t("account.labelPassword"),t("account.valueChange")],[t("account.labelLinked"),'Google'],[t("account.labelLanguage"),t("account.valueLanguage")]]; return <Shell title={t("account.title")}><SecondbStatusHeader text={t("account.status")} tip={t("account.tip")} /><View style={styles.center}><View style={styles.avatar}><SecondbHead size={72} mood="neutral" /></View><Text variant="heading" style={styles.prompt}>Simon Kim</Text><Text variant="subtle" style={styles.footer}>{t("account.joined", { date: "2026.06" })}</Text></View><Card>{rows.map(([label,value])=><Action key={label} label={label} value={value}/>)}</Card><Pressable style={styles.danger}><Text variant="body" style={styles.dangerText}>{t("account.delete")}</Text></Pressable></Shell>; }
 
-export function DeepSpacePrivacyDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("privacy.title")}><SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} /><Text variant="body" style={styles.lead}>{t("privacy.lead")}</Text><Card><Toggle label={t("privacy.toggleAnalysis")} value={t("privacy.on")} /><Toggle label={t("privacy.toggleStats")} value={t("privacy.off")} on={false} /><Toggle label={t("privacy.toggleLock")} value={t("privacy.on")} /></Card><Card><Action label={t("privacy.policy")} value={t("privacy.view")}/><Action label={t("privacy.processingLog")} value={t("privacy.last7")}/><Action label={t("privacy.thirdParty")} value={t("privacy.none")}/></Card><Text variant="subtle" style={styles.footer}>{t("privacy.footer")}</Text></Shell>; }
+export function DeepSpacePrivacyDesignScreen() {
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const { userId, isMinor } = useAuth();
+  const minor = isMinor === true;
+  const [recOn, setRecOn] = useState<boolean | null>(null);
+  const [understanding, setUnderstanding] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [recError, setRecError] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void fetchPrivacyPrefs(userId).then((p) => {
+      if (!cancelled) setRecOn(p.recommendations === true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  // D-25 §11-5 follow-up: adult-only opt-in WITH an understanding step. Minors
+  // are locked (the recommendations pref is non-promotable for them); adults must
+  // read what recommendations do and explicitly confirm before it turns on, and
+  // the opt-in is logged to the consent ledger with the LLM + overseas acks.
+  async function enableRecommendations() {
+    if (!userId || busy || minor) return;
+    setBusy(true);
+    setRecError(false);
+    try {
+      const prefs = { ...(await fetchPrivacyPrefs(userId)), recommendations: true };
+      await savePrivacyPrefs(userId, prefs);
+      await recordRecommendationsConsent({ userId, ageBand: "adult", minorTier: "adult", locale: ko ? "ko" : "en" });
+      setRecOn(true);
+      setUnderstanding(false);
+    } catch {
+      setRecError(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disableRecommendations() {
+    if (!userId || busy) return;
+    setBusy(true);
+    setRecError(false);
+    try {
+      const prefs = { ...(await fetchPrivacyPrefs(userId)), recommendations: false };
+      await savePrivacyPrefs(userId, prefs);
+      setRecOn(false);
+      setUnderstanding(false);
+    } catch {
+      setRecError(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Shell title={t("privacy.title")}>
+      <SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} />
+      <Text variant="body" style={styles.lead}>{t("privacy.lead")}</Text>
+      <Card>
+        <Toggle label={t("privacy.toggleAnalysis")} value={t("privacy.on")} />
+        <Toggle label={t("privacy.toggleStats")} value={t("privacy.off")} on={false} />
+        <Toggle label={t("privacy.toggleLock")} value={t("privacy.on")} />
+      </Card>
+
+      <Card>
+        <Text variant="caption" style={styles.section}>{ko ? "맞춤 추천" : "Recommendations"}</Text>
+        {minor ? (
+          <Text variant="subtle" style={styles.footer}>
+            {ko ? "맞춤 추천은 보호를 위해 꺼져 있고 켤 수 없어요." : "Recommendations are off and locked for your protection."}
+          </Text>
+        ) : recOn === null ? (
+          <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
+        ) : recOn ? (
+          <>
+            <Text variant="body" style={styles.lead}>
+              {ko ? "켜져 있어요. 기록을 분석해 연결을 제안합니다." : "On. Your records are analyzed to suggest connections."}
+            </Text>
+            <Pressable style={styles.secondary} onPress={() => void disableRecommendations()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "추천 끄기" : "Turn off recommendations"}>
+              <Text variant="body" style={styles.secondaryText}>{ko ? "추천 끄기" : "Turn off"}</Text>
+            </Pressable>
+          </>
+        ) : !understanding ? (
+          <>
+            <Text variant="body" style={styles.lead}>
+              {ko ? "꺼져 있어요. 켜면 기록에서 연결·패턴을 제안받을 수 있어요." : "Off. Turn it on to get suggested connections from your records."}
+            </Text>
+            <Pressable style={styles.secondary} onPress={() => setUnderstanding(true)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "추천 켜기" : "Turn on recommendations"}>
+              <Text variant="body" style={styles.secondaryText}>{ko ? "추천 켜기" : "Turn on"}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text variant="body" style={styles.lead}>
+              {ko
+                ? "켜기 전에 알아두세요. 추천을 켜면 당신의 기록 묶음이 분석을 위해 Gemini로 전송돼요(해외에서 처리). 연결·패턴 제안에만 쓰이고 언제든 끌 수 있어요. 동의는 기록에 남습니다."
+                : "Before you turn it on. Your records are sent to Gemini for analysis (processed overseas), used only to suggest connections and patterns. You can turn it off anytime. Your consent is logged."}
+            </Text>
+            <View style={styles.ctaRow}>
+              <Pressable style={styles.secondary} onPress={() => setUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "취소" : "Cancel"}>
+                <Text variant="body" style={styles.secondaryText}>{ko ? "취소" : "Cancel"}</Text>
+              </Pressable>
+              <Pressable style={styles.primary} onPress={() => void enableRecommendations()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "이해했고 켭니다" : "I understand, turn it on"}>
+                <Text variant="body" style={styles.primaryText}>{ko ? "이해했고 켜기" : "I understand, turn on"}</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
+        {recError ? (
+          <Text variant="subtle" style={styles.footer}>{ko ? "저장에 실패했어요. 잠시 후 다시 시도해 주세요." : "Couldn't save. Please try again."}</Text>
+        ) : null}
+      </Card>
+
+      <Card>
+        <Action label={t("privacy.policy")} value={t("privacy.view")}/>
+        <Action label={t("privacy.processingLog")} value={t("privacy.last7")}/>
+        <Action label={t("privacy.thirdParty")} value={t("privacy.none")}/>
+      </Card>
+      <Text variant="subtle" style={styles.footer}>{t("privacy.footer")}</Text>
+    </Shell>
+  );
+}
 
 // Keyboard-aware shell for the auth screens (sign-in / sign-up / reset). The
 // generic Shell above is for in-app graph screens and has no keyboard handling;
