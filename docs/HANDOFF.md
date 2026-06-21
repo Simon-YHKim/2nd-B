@@ -4,6 +4,64 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
+## Latest — 2026-06-21 (저녁) / AI 허브 모니터 복구 + 런치팩 워커 자율루프 + AG 네이티브-QA 라이브 픽스
+
+(인터랙티브 세션. 같은 날 디렉터 /loop 세션과 병행 — 아래 "(오후)" 블록은 디렉터 작업.) AI Hub 모니터의 `stale-run?` + `BACKLOG ALARM` 해소(근본=git 신원 불일치) → 런치팩 워커 자율루프 1급화(양 문서) → AG stranded QA를 framework-aware로 선별해 라이브 픽스(#506). **대부분의 AG 보고가 legacy 死코드**였음을 Claude 최종패스가 걸러냄. device-QA는 3중 블로커로 AG 레인 보류.
+
+### 어디까지 왔나
+- main HEAD: `8157cab6`(이 핸드오프 머지 직전) — 동시 디렉터 세션이 #537~#545 등 빠르게 머지 중이라 곧 전진함
+- 이번 세션 머지된 PR: **#506** `fix(android): keyboard focus flow on deep-space auth + back-arrow elevation`(squash, CI verify+Pages green, `b8f7ad94`가 live main 조상=라이브)
+- 허브(로컬 git, **리모트 없음**) 커밋: 모니터 머지게이트 ack(claude 신원) · `HUB-STARTUP.html` 동기화 · `BACKLOG.md` 재triage
+- working tree(E:/2ndB): 디렉터가 `feat/d25-positioning`에서 작업 중(dirty) — **절대 건드리지 말 것**(공유 트리)
+
+### 활성 인프라
+- 2nd-B 인프라(Supabase `zoacryukmdeivmolvyhj` / GitHub Pages 정본 / Google OAuth)는 아래 디렉터 블록 + 직전 6PR 블록 참조.
+- **AI Hub** `E:\Coding Infra\AI Infra\Communication`(로컬 전용 git, push 안 함): `CONTROL.md state: running`, monitor `RUNNING / claude fresh / backlog clear`. 데몬 codex+antigravity, **grok=요청전용**. **repo 기본 git 신원 = `claude@2nd-b.ai`**(plain-commit이 ai-hub@local로 새던 모니터 알람 근본원인 차단).
+- **런치팩 2종**(루트, git 아님): `AI Hub 시작 키트 — 복붙 런치팩.html` + 허브 `HUB-STARTUP.html` — 워커 지속루프 = `hub-daemon.ps1 -Only <ai>` 포그라운드.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | AG device-QA: deep-space `Shell` 탭바 하단패딩(40px) 가림 + 하드웨어 Back — **로그인(Supabase 테스트계정) 필요** | medium | ⭐ AG 에뮬 복구 후 / 테스트계정 주면 Claude가 dev클라 reload로 진행 |
+| B | 허브 `BACKLOG.md` P0/P1 (merge-gate backpressure, 데몬 timeout, AG seat 정직화) | medium | `tools/hub-daemon.ps1` |
+| C | legacy-skin elevation(QuantIntroModal/DrillProgress) | small | rollback skin만 영향, 저우선 |
+| D | 2nd-B develop(O-31 deep-space) | - | 디렉터 `/loop` 진행 중 — 충돌 회피 |
+
+### 적용 중인 정책 (영구)
+1. **멀티에이전트 발견은 적용 전 Claude framework-aware 최종패스 필수** — "N confirmed" 곧이곧대로 믿지 말 것. legacy 死코드/공유전제 위양성 多. ref: tool_workflow_verify_shared_premise
+2. **2nd-B 작업 = 격리 worktree**(`E:/2ndB/.worktrees/<name>` off origin/main). 공유 `E:/2ndB`(디렉터 점유) 비침범. ref: tool_push_grep_masks_rejection
+3. 허브 오케스트레이터 커밋 = `claude@2nd-b.ai`. 워커 = `commit.ps1 -As <ai>`. scoped staging만(`-A` 금지).
+4. 머지 전 CI verify green **별도 확인**. 게이트(파괴/비용/secrets/임상/법무)만 Simon, 그 외 무확인 ship.
+5. CONTROL=running 시 `HubWatchdog`(10분)가 죽은 데몬 자동재시작. 정지하려면 CONTROL=paused 먼저.
+6. `adb exec-out screencap -p > f.png`로 캡처(Git-Bash `/sdcard` 경로변환 우회). metro 8081 phantom 시 `--port 8120` + `adb reverse tcp:8081 tcp:8120`. **docs/HANDOFF.md는 디렉터와 동시쓰기 충돌잦음 → 최신 main에서 prepend 후 즉시 머지.**
+
+### 핵심 파일 위치
+```
+E:\Coding Infra\AI Infra\Communication\            AI Hub (로컬 git, 리모트 X)
+  tools\monitor.ps1 / hub-daemon.ps1 -Only <ai>     대시보드 / 워커 루프 엔진
+  CONTROL.md / BOARD.md / BACKLOG.md                런스테이트 / 마스터판 / 백로그
+E:\Coding Infra\AI Hub 시작 키트 — 복붙 런치팩.html   런치팩 (루트, git X)
+E:\2ndB\  (origin/main = Simon-YHKim/2nd-B, 디렉터 점유)
+  src\screens\deepspace\DeepSpaceDesignScreens.tsx  라이브 deep-space 화면 (기본 UI)
+  src\components\ui\BackArrow.tsx                    글로벌 백 오버레이
+  ANDROID_QA_GUIDELINES.md                          네이티브 QA 컨벤션
+```
+
+### 검증
+```bash
+cd E:/2ndB && npm run verify
+powershell -File "E:/Coding Infra/AI Infra/Communication/tools/hub-health.ps1"
+```
+
+### 다음 세션 시작하는 법
+```bash
+# 다음 세션 cwd는 보통 E:\Coding Infra — 2nd-B로 들어가서 pull
+cd E:/2ndB && git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# 작업 A(AG device-QA) 또는 B(허브 BACKLOG)부터
+```
+
+---
+
 ## Latest — 2026-06-21 (오후) / deep-space 렌즈 상호작용 기능화 + 세션 작업 전부 main 머지
 
 Simon "상호작용이 잘 이뤄지는지 확인" 오더에서 출발 — framework-aware 감사로 deep-space 캐논의 **핵심 가치 루프(7 자기이해 렌즈 + 설정 CTA)가 더미데이터+죽은 CTA**(실로직이 legacy 분기에 갇힘 = O-31 P0 진짜 갭, a11y/fidelity sweep이 안 건드린 기능 배선)임을 확인하고, 더미였던 렌즈를 **shell-swap으로 실기능화**. 타 AI(Codex/플릿) 커밋도 검토·머지. **#537~#544 + #524 (9 PR) main 머지**, 전 PR `npm run verify` ×2 green.
