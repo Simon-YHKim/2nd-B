@@ -13,7 +13,6 @@ import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
-import { fontFamilies } from "@/theme/typography";
 import { MetaChip, OpsFrame, OpsState } from "@/components/deepspace/ops";
 import { SecondbHead } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -106,7 +105,7 @@ export function WeeklyGrowthScreen() {
     return (
       <>
         <View style={styles.heroBox}>
-          <RNText style={styles.heroLabel}>{t("thisWeeksStar")}</RNText>
+          <Text variant="caption" pixelEn style={styles.heroLabel}>{t("thisWeeksStar")}</Text>
           <Text variant="heading" style={styles.heroName}>{ko ? hero.nameKo : hero.nameEn}</Text>
           <Text variant="body" style={styles.heroDelta}>
             {hero.delta > 0 ? t("brightened").replace("{n}", String(hero.delta)) : t("brightestNow")}
@@ -235,7 +234,7 @@ function COPY(ko: boolean): Record<string, string> {
 
 const styles = StyleSheet.create({
   heroBox: { alignItems: "center", gap: 4 },
-  heroLabel: { fontFamily: fontFamilies.pixelEn, fontSize: 8, letterSpacing: 1.5, color: deepSpace.accentSoft },
+  heroLabel: { fontSize: 8, letterSpacing: 1.5, color: deepSpace.accentSoft },
   heroName: { fontSize: 19, color: deepSpace.textHi, marginTop: 4 },
   heroDelta: { fontSize: 12, color: deepSpace.textMid },
 

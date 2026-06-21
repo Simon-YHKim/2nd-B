@@ -237,7 +237,7 @@ export function ImportHubScreen() {
       <>
         {tiers.map((tier) => (
           <View key={tier} style={styles.section}>
-            <RNText style={[styles.tierLabel, { color: TIER_COLOR[tier] }]}>{t(`tier_${tier}`)}</RNText>
+            <Text variant="caption" pixelEn style={[styles.tierLabel, { color: TIER_COLOR[tier] }]}>{t(`tier_${tier}`)}</Text>
             {SOURCES.filter((s) => s.tier === tier).map((s) => {
               const locked = s.minorLocked && isMinor === true;
               const tone: OpsChipTone = locked ? "muted" : s.tier === "critical" ? "warning" : "muted";
@@ -284,11 +284,11 @@ export function ImportHubScreen() {
         <OpsStatusChip tone={s.tier === "critical" ? "danger" : "warning"} label={t(`tier_${s.tier}`)} />
 
         <View style={styles.block}>
-          <RNText style={styles.blockLabel}>{t("what")}</RNText>
+          <Text variant="caption" pixelEn style={styles.blockLabel}>{t("what")}</Text>
           <Text variant="body" style={styles.blockText}>{ko ? s.whatKo : s.whatEn}</Text>
         </View>
         <View style={styles.block}>
-          <RNText style={styles.blockLabel}>{t("where")}</RNText>
+          <Text variant="caption" pixelEn style={styles.blockLabel}>{t("where")}</Text>
           <Text variant="body" style={styles.blockText}>{t("whereBody")}</Text>
         </View>
         <View style={styles.chipRow}>
@@ -342,7 +342,7 @@ export function ImportHubScreen() {
   function renderInput(s: ImportSource) {
     return (
       <View style={styles.section}>
-        <RNText style={styles.tierLabel}>{name(s)}</RNText>
+        <Text variant="caption" pixelEn style={styles.tierLabel}>{name(s)}</Text>
         <Text variant="body" style={styles.blockText}>{t("pasteHint")}</Text>
         <TextInput
           value={paste}
@@ -381,7 +381,7 @@ export function ImportHubScreen() {
           <Summary n={out.summary.places + out.summary.events} label={t("places")} />
           <Summary n={0} label={t("raw")} dim />
         </View>
-        <RNText style={styles.tierLabel}>{t("pickToApply")}</RNText>
+        <Text variant="caption" pixelEn style={styles.tierLabel}>{t("pickToApply")}</Text>
         {out.proposals.map((p) => {
           const on = selected.has(p.id);
           return (
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   linkText: { fontSize: 12, color: deepSpace.accentSoft },
 
   section: { gap: deepSpaceSpacing.sm },
-  tierLabel: { fontFamily: fontFamilies.pixelEn, fontSize: 8, letterSpacing: 1, color: deepSpace.textLo, marginTop: deepSpaceSpacing.sm },
+  tierLabel: { fontSize: 8, letterSpacing: 1, color: deepSpace.textLo, marginTop: deepSpaceSpacing.sm },
 
   sourceRow: {
     flexDirection: "row", alignItems: "center", gap: 11, minHeight: 56,
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
   consentIcon: { fontSize: 17 },
   consentTitle: { fontSize: 16, color: deepSpace.textHi },
   block: { padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card, gap: 6 },
-  blockLabel: { fontFamily: fontFamilies.pixelEn, fontSize: 7, letterSpacing: 1, color: deepSpace.accentSoft },
+  blockLabel: { fontSize: 7, letterSpacing: 1, color: deepSpace.accentSoft },
   blockText: { fontSize: 14, color: deepSpace.textMid },
   chipRow: { flexDirection: "row", gap: 6 },
   toggleRow: {

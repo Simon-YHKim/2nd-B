@@ -101,7 +101,7 @@ export function DeepSpaceFlowMapScreen() {
           text="전체 흐름을 한 장으로 묶었어요. 홈이 모든 화면의 중심이에요."
           tip="막히는 화면 없이 진입, 홈, 담기, 내보내기까지 이어져야 해요."
         />
-        <RNText style={styles.kicker}>2ND-BRAIN · FLOW MAP</RNText>
+        <Text variant="caption" pixelEn style={styles.kicker}>2ND-BRAIN · FLOW MAP</Text>
         <Text variant="heading" style={styles.title}>화면 관계 지도</Text>
         <Text variant="body" style={styles.subtitle}>정본 flowmap을 실제 route로 검증하는 deep-space QA 화면입니다.</Text>
         <View style={styles.grid}>
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   phone: { width: 320, minHeight: 680, overflow: "hidden", borderRadius: radius.phone, backgroundColor: colors.bgDeep, borderWidth: 1, borderColor: colors.borderHi, paddingBottom: 22 },
   statusBar: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 22, paddingTop: 14 },
   statusText: { color: colors.textMid, fontFamily: fontFamilies.pixelKo, fontSize: 11, lineHeight: 16 },
-  kicker: { marginTop: spacing.md, marginHorizontal: 20, color: colors.cyanBright, fontFamily: fontFamilies.pixelEn, fontSize: 7, lineHeight: 12, letterSpacing: 1.2 },
+  kicker: { marginTop: spacing.md, marginHorizontal: 20, color: colors.cyanBright, fontSize: 7, lineHeight: 12, letterSpacing: 1.2 },
   title: { marginTop: spacing.xs, marginHorizontal: 20, color: colors.textTitle, fontSize: 18 },
   subtitle: { marginTop: spacing.xs, marginHorizontal: 20, color: colors.textMid, fontSize: 12.5 },
   grid: { paddingHorizontal: 14, paddingTop: spacing.lg, gap: spacing.md },
