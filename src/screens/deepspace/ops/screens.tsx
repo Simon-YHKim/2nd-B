@@ -4,8 +4,9 @@
 // (every write is behind a user tap). Strings come from the bilingual ops copy.
 
 import { useEffect, useMemo, useState, type DependencyList } from "react";
-import { Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 
+import { Text } from "@/components/ui/Text";
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -251,16 +252,16 @@ export function ReadingScreen() {
       {reading ? (
         <View style={styles.hero}>
           <View style={styles.cover}>
-            <Text style={styles.coverText}>{reading.title}</Text>
+            <Text variant="caption" style={styles.coverText}>{reading.title}</Text>
           </View>
           <View style={styles.heroBody}>
-            <Text style={styles.pixelLabel}>{c.nowReading}</Text>
-            <Text style={styles.heroTitle}>{reading.title}</Text>
-            <Text style={styles.heroAuthor}>{reading.authors.join(", ")}</Text>
+            <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.nowReading}</Text>
+            <Text variant="heading" style={styles.heroTitle}>{reading.title}</Text>
+            <Text variant="body" style={styles.heroAuthor}>{reading.authors.join(", ")}</Text>
             <View style={{ marginTop: 10 }}>
               <ProgressBar value={readingProgress(reading.current_page, reading.total_pages)} />
             </View>
-            <Text style={styles.heroMeta}>
+            <Text variant="subtle" style={styles.heroMeta}>
               {reading.current_page} / {reading.total_pages ?? "?"}
             </Text>
           </View>
@@ -269,11 +270,11 @@ export function ReadingScreen() {
 
       {results.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.pixelLabel}>{c.searchBooks}</Text>
+          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.searchBooks}</Text>
           {results.map((b) => (
             <Pressable key={b.id} onPress={() => onAdd(b)} hitSlop={6} style={styles.bookRow}>
-              <Text style={styles.bookTitle}>{b.title}</Text>
-              <Text style={styles.bookAdd}>＋ {c.add}</Text>
+              <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+              <Text variant="caption" style={styles.bookAdd}>＋ {c.add}</Text>
             </Pressable>
           ))}
         </View>
@@ -285,10 +286,10 @@ export function ReadingScreen() {
         <OpsState variant="empty" title={c.emptyTitle} body={c.whatReading} />
       ) : (shelf.data?.want.length ?? 0) > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.pixelLabel}>{c.wantToRead}</Text>
+          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.wantToRead}</Text>
           {shelf.data?.want.map((b) => (
             <View key={b.id} style={styles.bookRow}>
-              <Text style={styles.bookTitle}>{b.title}</Text>
+              <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
             </View>
           ))}
         </View>
@@ -329,7 +330,7 @@ export function MilestonesScreen() {
     <OpsFrame title={c.goals} bubble={c.goals} tip={c.nextStep}>
       <OpsDomainPicker tabs={tabs} selected={domain} onSelect={(d) => setDomain(d as OpsDomainId)} />
       <View style={styles.progressHeader}>
-        <Text style={styles.progressLabel}>
+        <Text variant="caption" style={styles.progressLabel}>
           {prog.done} / {prog.total}
         </Text>
         <ProgressBar value={prog.pct} color={deepSpace.accentDim} />
@@ -344,10 +345,10 @@ export function MilestonesScreen() {
           return (
             <View key={m.id} style={styles.msRow}>
               <View style={styles.msTop}>
-                <Text style={styles.msTitle}>{m.title}</Text>
+                <Text variant="heading" style={styles.msTitle}>{m.title}</Text>
                 <OpsStatusChip tone={chip.tone} label={chip.label} />
               </View>
-              {m.note ? <Text style={styles.msNote}>{m.note}</Text> : null}
+              {m.note ? <Text variant="body" style={styles.msNote}>{m.note}</Text> : null}
             </View>
           );
         })
@@ -386,13 +387,13 @@ export function LedgerScreen() {
     <OpsFrame title={c.monthCheck} bubble={`${c.left} ${summary.net.toLocaleString()}`} tip={c.record}>
       <View style={styles.ledgerCard}>
         <View style={styles.ledgerRow}>
-          <Text style={styles.ledgerStat}>
+          <Text variant="body" style={styles.ledgerStat}>
             {c.income} {summary.income.toLocaleString()}
           </Text>
-          <Text style={styles.ledgerStat}>
+          <Text variant="body" style={styles.ledgerStat}>
             {c.expense} {summary.expense.toLocaleString()}
           </Text>
-          <Text style={[styles.ledgerStat, { color: deepSpace.mint }]}>
+          <Text variant="body" style={[styles.ledgerStat, { color: deepSpace.mint }]}>
             {c.left} {summary.net.toLocaleString()}
           </Text>
         </View>
@@ -409,19 +410,19 @@ export function LedgerScreen() {
         <OpsState variant="empty" title={c.emptyTitle} body={c.record} />
       ) : (
         <View style={styles.section}>
-          <Text style={styles.pixelLabel}>{c.byCategory}</Text>
+          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.byCategory}</Text>
           {summary.byCategory.map((cat) => (
             <View key={cat.category} style={{ marginBottom: 10 }}>
               <View style={styles.catRow}>
-                <Text style={styles.catName}>{cat.category}</Text>
-                <Text style={styles.catName}>{cat.total.toLocaleString()}</Text>
+                <Text variant="body" style={styles.catName}>{cat.category}</Text>
+                <Text variant="body" style={styles.catName}>{cat.total.toLocaleString()}</Text>
               </View>
               <ProgressBar value={cat.total / maxCat} />
             </View>
           ))}
         </View>
       )}
-      <Text style={styles.fxNote}>{c.fxNote}</Text>
+      <Text variant="subtle" style={styles.fxNote}>{c.fxNote}</Text>
     </OpsFrame>
   );
 }
@@ -487,9 +488,9 @@ export function SideProjectScreen() {
       ) : (
         <>
           <View style={styles.ghCard}>
-            <Text style={styles.pixelLabel}>{c.thisWeek}</Text>
-            <Text style={styles.ghBig}>
-              {summary.commits} <Text style={styles.ghBigUnit}>{c.commits}</Text>
+            <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.thisWeek}</Text>
+            <Text variant="heading" style={styles.ghBig}>
+              {summary.commits} <Text variant="subtle" style={styles.ghBigUnit}>{c.commits}</Text>
             </Text>
             <View style={styles.ghChips}>
               <MetaChip label={`${summary.activeDays}d`} />
@@ -499,7 +500,7 @@ export function SideProjectScreen() {
           {summary.repos.map((repo) => (
             <View key={repo} style={styles.repoRow}>
               <View style={[styles.dotSm, { backgroundColor: deepSpace.soul }]} />
-              <Text style={styles.repoName}>{repo}</Text>
+              <Text variant="heading" style={styles.repoName}>{repo}</Text>
             </View>
           ))}
         </>
@@ -566,24 +567,24 @@ export function MealsScreen() {
     <OpsFrame title={c.weeklyMeals} bubble={c.weeklyMeals} tip={c.whatToEatNow}>
       <View style={styles.weekNav}>
         <Pressable onPress={() => shiftWeek(-7)} hitSlop={10} style={styles.weekArrow}>
-          <Text style={styles.weekArrowText}>‹</Text>
+          <RNText style={styles.weekArrowText}>‹</RNText>
         </Pressable>
-        <Text style={[styles.weekLabel, weekStart === thisWeek ? styles.weekLabelNow : null]}>{weekStart}</Text>
+        <Text variant="caption" style={[styles.weekLabel, weekStart === thisWeek ? styles.weekLabelNow : null]}>{weekStart}</Text>
         <Pressable onPress={() => shiftWeek(7)} hitSlop={10} style={styles.weekArrow}>
-          <Text style={styles.weekArrowText}>›</Text>
+          <RNText style={styles.weekArrowText}>›</RNText>
         </Pressable>
       </View>
 
       <View style={styles.grid}>
         <View style={styles.gridHeaderRow}>
           <View style={styles.gridDayCell} />
-          <Text style={styles.gridHeadCell}>{c.breakfast}</Text>
-          <Text style={styles.gridHeadCell}>{c.lunch}</Text>
-          <Text style={styles.gridHeadCell}>{c.dinner}</Text>
+          <Text variant="subtle" style={styles.gridHeadCell}>{c.breakfast}</Text>
+          <Text variant="subtle" style={styles.gridHeadCell}>{c.lunch}</Text>
+          <Text variant="subtle" style={styles.gridHeadCell}>{c.dinner}</Text>
         </View>
         {grid.map((day, i) => (
           <View key={day.date} style={styles.gridRow}>
-            <Text style={styles.gridDay}>{dayLabels[i]}</Text>
+            <Text variant="caption" style={styles.gridDay}>{dayLabels[i]}</Text>
             {MEAL_SLOTS.map((slot) => {
               const cell = day[slot];
               return (
@@ -593,7 +594,7 @@ export function MealsScreen() {
                   hitSlop={4}
                   style={[styles.gridCell, cell ? styles.gridCellFilled : null]}
                 >
-                  <Text style={cell ? styles.gridCellText : styles.gridPlus} numberOfLines={1}>
+                  <Text variant="subtle" style={cell ? styles.gridCellText : styles.gridPlus} numberOfLines={1}>
                     {cell ? cell.title : "＋"}
                   </Text>
                 </Pressable>
@@ -602,13 +603,13 @@ export function MealsScreen() {
           </View>
         ))}
       </View>
-      <Text style={styles.fxNote}>{c.nutritionNote}</Text>
+      <Text variant="subtle" style={styles.fxNote}>{c.nutritionNote}</Text>
 
       <Modal visible={pending !== null} transparent animationType="slide" onRequestClose={() => setPending(null)}>
         <Pressable style={styles.mealBackdrop} onPress={() => setPending(null)} />
         <View style={styles.mealSheet}>
           <View style={styles.sheetGrip} />
-          <Text style={styles.mealSheetTitle}>{c.planMeal}</Text>
+          <Text variant="heading" style={styles.mealSheetTitle}>{c.planMeal}</Text>
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -622,13 +623,13 @@ export function MealsScreen() {
             <View style={styles.ideaChips}>
               {ideas.slice(0, 4).map((f) => (
                 <Pressable key={f.name} onPress={() => setDraft(f.name)} hitSlop={4} style={styles.ideaChip}>
-                  <Text style={styles.ideaChipText}>{f.name}</Text>
+                  <Text variant="body" style={styles.ideaChipText}>{f.name}</Text>
                 </Pressable>
               ))}
             </View>
           ) : null}
           <Pressable onPress={saveCell} hitSlop={6} style={styles.mealSave}>
-            <Text style={styles.mealSaveText}>{c.save}</Text>
+            <Text variant="caption" style={styles.mealSaveText}>{c.save}</Text>
           </Pressable>
         </View>
       </Modal>
@@ -690,7 +691,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   section: { gap: 8 },
-  pixelLabel: { fontFamily: fontFamilies.pixelEn, fontSize: 8, letterSpacing: 1, color: deepSpace.textLo },
+  pixelLabel: { fontSize: 8, letterSpacing: 1, color: deepSpace.textLo },
   dotSm: { width: 7, height: 7, borderRadius: 4 },
 
   hero: {
@@ -712,9 +713,9 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     padding: 6,
   },
-  coverText: { fontFamily: fontFamilies.pixelKo, fontSize: 8, color: deepSpace.textLo },
+  coverText: { fontSize: 8, color: deepSpace.textLo },
   heroBody: { flex: 1 },
-  heroTitle: { fontFamily: fontFamilies.pixelKo, fontSize: 15, color: deepSpace.textHi, marginTop: 4 },
+  heroTitle: { fontSize: 15, color: deepSpace.textHi, marginTop: 4 },
   heroAuthor: { fontSize: 12, color: deepSpace.textLo, marginTop: 3 },
   heroMeta: { fontSize: 12, color: deepSpace.textLo, marginTop: 5 },
 
@@ -730,10 +731,10 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   bookTitle: { flex: 1, fontSize: 14, color: deepSpace.textHi },
-  bookAdd: { fontFamily: fontFamilies.pixelKo, fontSize: 12, color: deepSpace.mint },
+  bookAdd: { fontSize: 12, color: deepSpace.mint },
 
   progressHeader: { gap: 6 },
-  progressLabel: { fontSize: 12, color: deepSpace.textMuted, fontFamily: fontFamilies.pixelKo },
+  progressLabel: { fontSize: 12, color: deepSpace.textMuted },
 
   msRow: {
     padding: deepSpaceSpacing.md,
@@ -744,7 +745,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   msTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  msTitle: { flex: 1, fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.textHi },
+  msTitle: { flex: 1, fontSize: 14, color: deepSpace.textHi },
   msNote: { fontSize: 12, color: deepSpace.textLo },
 
   ledgerCard: {
@@ -759,7 +760,7 @@ const styles = StyleSheet.create({
   ledgerStat: { fontSize: 12, color: deepSpace.textMid },
   catRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
   catName: { fontSize: 13, color: deepSpace.textMid },
-  fxNote: { fontSize: 12, color: deepSpace.textLo, lineHeight: 17 },
+  fxNote: { fontSize: 12, color: deepSpace.textLo },
 
   ghCard: {
     padding: deepSpaceSpacing.md,
@@ -769,7 +770,7 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
     gap: 8,
   },
-  ghBig: { fontFamily: fontFamilies.pixelKo, fontSize: 22, color: deepSpace.textHi },
+  ghBig: { fontSize: 22, color: deepSpace.textHi },
   ghBigUnit: { fontSize: 12, color: deepSpace.textLo },
   ghChips: { flexDirection: "row", gap: 6 },
   repoRow: {
@@ -783,7 +784,7 @@ const styles = StyleSheet.create({
     borderRadius: deepSpaceRadii.md,
     backgroundColor: deepSpace.card,
   },
-  repoName: { flex: 1, fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.textHi },
+  repoName: { flex: 1, fontSize: 14, color: deepSpace.textHi },
 
   quickMode: {
     flexDirection: "row",
@@ -804,7 +805,7 @@ const styles = StyleSheet.create({
   gridHeaderRow: { flexDirection: "row", gap: 6 },
   gridRow: { flexDirection: "row", gap: 6, alignItems: "center" },
   gridDayCell: { width: 28 },
-  gridDay: { width: 28, fontSize: 12, color: deepSpace.textMid, fontFamily: fontFamilies.pixelKo },
+  gridDay: { width: 28, fontSize: 12, color: deepSpace.textMid },
   gridHeadCell: { flex: 1, fontSize: 10, color: deepSpace.textLo, textAlign: "center" },
   gridCell: {
     flex: 1,
@@ -823,7 +824,7 @@ const styles = StyleSheet.create({
   weekNav: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: deepSpaceSpacing.md },
   weekArrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   weekArrowText: { fontSize: 22, color: deepSpace.accentBright },
-  weekLabel: { fontFamily: fontFamilies.pixelKo, fontSize: 13, color: deepSpace.textMuted },
+  weekLabel: { fontSize: 13, color: deepSpace.textMuted },
   weekLabelNow: { color: deepSpace.mint },
 
   mealBackdrop: { flex: 1, backgroundColor: deepSpace.bgEdge, opacity: 0.6 },
@@ -838,7 +839,7 @@ const styles = StyleSheet.create({
     gap: deepSpaceSpacing.sm,
   },
   sheetGrip: { width: 40, height: 4, borderRadius: 2, backgroundColor: deepSpace.cardLineStrong, alignSelf: "center" },
-  mealSheetTitle: { fontFamily: fontFamilies.pixelKo, fontSize: 15, color: deepSpace.textHi },
+  mealSheetTitle: { fontSize: 15, color: deepSpace.textHi },
   ideaChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   ideaChip: {
     minHeight: 36,
@@ -858,5 +859,5 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.mint,
     marginTop: 4,
   },
-  mealSaveText: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.onMint },
+  mealSaveText: { fontSize: 14, color: deepSpace.onMint },
 });

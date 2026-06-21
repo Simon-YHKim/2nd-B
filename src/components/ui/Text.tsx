@@ -10,6 +10,12 @@ type Variant = "display" | "heading" | "body" | "caption" | "subtle";
 export interface TextProps extends RNTextProps {
   variant?: Variant;
   color?: keyof typeof semantic;
+  /**
+   * Render a Press Start 2P (pixelEn) eyebrow/label. Unlike a hardcoded
+   * fontFamily, this still honors the readable-font swap for low-vision users
+   * (readable mode overrides it to the readable sans) and the font-scale cap.
+   */
+  pixelEn?: boolean;
 }
 
 const VARIANT_STYLE: Record<Variant, { fontSize: number; fontWeight: "400" | "500" | "600" | "700" | "800" }> = {
@@ -28,7 +34,7 @@ const VARIANT_FONT: Record<Variant, string | undefined> = {
   subtle: fontFamilies.readable,
 };
 
-export function Text({ variant = "body", color, style, maxFontSizeMultiplier, ...rest }: TextProps) {
+export function Text({ variant = "body", color, style, maxFontSizeMultiplier, pixelEn = false, ...rest }: TextProps) {
   const v = VARIANT_STYLE[variant];
   // useThemePalette returns the same-shape palette for the active mode
   // (dark default / light when the user toggles). Every <Text/> across
@@ -37,7 +43,11 @@ export function Text({ variant = "body", color, style, maxFontSizeMultiplier, ..
   // P2-10: the readable-font preference swaps the pixel variants to the
   // readable sans for low-vision users. body/subtle are already readable.
   const { fontStyle } = useFontStyle();
-  const fontFamily = fontStyle === "readable" ? fontFamilies.readable : VARIANT_FONT[variant];
+  const fontFamily = fontStyle === "readable"
+    ? fontFamilies.readable
+    : pixelEn
+      ? fontFamilies.pixelEn
+      : VARIANT_FONT[variant];
 
   // Set logical font scale limits based on variant.
   // Large headers shouldn't scale up as much as body text to avoid breaking layout.

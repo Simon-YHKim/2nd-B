@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}html,body{margin:0}@keyframes sb-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}@keyframes shim{0%{opacity:.4}50%{opacity:.8}100%{opacity:.4}}.sk{background:rgba(70,182,255,.1);border-radius:6px;animation:shim 1.4s ease-in-out infinite}</style>
+</helmet>
+<div style="width:max-content;min-width:100%;min-height:100vh;box-sizing:border-box;padding:48px;background:#161b26;font-family:Pretendard,system-ui,sans-serif">
+
+  <div style="margin-bottom:8px;font-family:'Press Start 2P',monospace;font-size:11px;letter-spacing:.16em;color:#5FD4FF">2ND-BRAIN · 상태 · 폴리시</div>
+  <div style="margin-bottom:32px;font-size:14px;color:rgba(159,228,255,.6);max-width:820px">빈 상태 · 로딩 스켈레톤 · 오프라인·에러 · 알림 센터 · 연속 기록·성취 · 검색 결과.</div>
+
+  <div style="display:flex;gap:40px;align-items:flex-start">
+
+    <!-- ============ 빈 상태 ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">빈 상태 <span style="color:rgba(159,228,255,.45)">첫 진입 · empty</span></div>
+      <div data-screen-label="빈상태" style="position:relative;width:300px;height:700px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 70% at 50% 36%,rgba(26,72,120,.45) 0%,rgba(11,33,66,.28) 42%,#070A13 76%);border:1px solid rgba(70,182,255,.22);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 22% 16%,rgba(127,227,255,.5),transparent),radial-gradient(1px 1px at 78% 18%,rgba(127,227,255,.4),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+        <div data-sb-header style="position:relative;display:flex;align-items:flex-start;gap:9px;padding:10px 16px 2px;z-index:6">
+          <img src="assets/secondb-head-front.png" alt="세컨비" style="width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 0 8px rgba(70,182,255,.4))">
+          <div style="flex:1;position:relative;background:rgba(70,182,255,.08);border:1px solid rgba(70,182,255,.2);border-radius:3px 11px 11px 11px;padding:7px 10px">
+            <span style="position:absolute;left:-4px;top:9px;width:8px;height:8px;background:rgba(70,182,255,.08);border-left:1px solid rgba(70,182,255,.2);border-bottom:1px solid rgba(70,182,255,.2);transform:rotate(45deg)"></span>
+            <div style="font-size:11px;color:#E8F7FF;line-height:1.38;word-break:keep-all">기록 화면이에요. 핵심만 추렸어요.</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px"><span style="font-family:'Press Start 2P',monospace;font-size:5px;letter-spacing:.05em;color:#5FF0C0">TIP</span><span style="font-size:9px;color:rgba(159,228,255,.6);line-height:1.3;word-break:keep-all">천천히 둘러보세요.</span></div>
+          </div>
+        </div>
+        <div style="position:relative;display:flex;align-items:center;gap:10px;padding:16px 20px 0;color:#CCFAFF"><span style="font-size:18px;opacity:.7">‹</span><span style="font-family:Galmuri11,monospace;font-size:16px">기록</span></div>
+        <div style="position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;height:430px;padding:0 36px;text-align:center">
+          <div style="animation:sb-bob 4.5s ease-in-out infinite;opacity:.92"><img src="assets/secondb-head-front.png" alt="" style="width:104px;height:104px;filter:drop-shadow(0 0 18px rgba(70,182,255,.4))"></div>
+          <div style="font-family:Galmuri11,monospace;font-size:16px;color:#CCFAFF;margin-top:24px">아직 비어 있어요</div>
+          <div style="font-size:13px;color:rgba(159,228,255,.62);margin-top:12px;line-height:1.6">첫 한 줄을 담으면 세컨비가 '나'를 읽기 시작해요. 무엇이든 좋아요.</div>
+        </div>
+        <div style="position:absolute;bottom:30px;left:24px;right:24px"><button style="width:100%;padding:14px;border:0;border-radius:13px;background:linear-gradient(90deg,#46B6FF,#5FD4FF);color:#04101e;font-family:Galmuri11,monospace;font-size:14px;font-weight:700;cursor:pointer">첫 기록 담기</button></div>
+      </div>
+    </div>
+
+    <!-- ============ 로딩 스켈레톤 ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">로딩 <span style="color:rgba(159,228,255,.45)">skeleton</span></div>
+      <div data-screen-label="로딩스켈레톤" style="position:relative;width:300px;height:700px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 70% at 50% 22%,rgba(26,72,120,.4) 0%,rgba(11,33,66,.24) 44%,#070A13 78%);border:1px solid rgba(70,182,255,.22);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+        <div data-sb-header style="position:relative;display:flex;align-items:flex-start;gap:9px;padding:10px 16px 2px;z-index:6">
+          <img src="assets/secondb-head-front.png" alt="세컨비" style="width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 0 8px rgba(70,182,255,.4))">
+          <div style="flex:1;position:relative;background:rgba(70,182,255,.08);border:1px solid rgba(70,182,255,.2);border-radius:3px 11px 11px 11px;padding:7px 10px">
+            <span style="position:absolute;left:-4px;top:9px;width:8px;height:8px;background:rgba(70,182,255,.08);border-left:1px solid rgba(70,182,255,.2);border-bottom:1px solid rgba(70,182,255,.2);transform:rotate(45deg)"></span>
+            <div style="font-size:11px;color:#E8F7FF;line-height:1.38;word-break:keep-all">로딩스켈레톤 화면이에요. 핵심만 추렸어요.</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px"><span style="font-family:'Press Start 2P',monospace;font-size:5px;letter-spacing:.05em;color:#5FF0C0">TIP</span><span style="font-size:9px;color:rgba(159,228,255,.6);line-height:1.3;word-break:keep-all">천천히 둘러보세요.</span></div>
+          </div>
+        </div>
+        <div style="position:relative;display:flex;align-items:center;gap:10px;padding:16px 20px 0;color:#CCFAFF"><span style="font-size:18px;opacity:.7">‹</span><span class="sk" style="width:88px;height:18px;display:block"></span></div>
+        <div style="position:relative;margin:18px 20px 0"><div class="sk" style="width:100%;height:42px;border-radius:11px"></div></div>
+        <div style="position:relative;margin:16px 20px 0;display:flex;gap:8px"><span class="sk" style="width:48px;height:26px;border-radius:8px"></span><span class="sk" style="width:40px;height:26px;border-radius:8px;animation-delay:.2s"></span><span class="sk" style="width:52px;height:26px;border-radius:8px;animation-delay:.4s"></span></div>
+        <div style="position:relative;margin:18px 20px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="sk" style="height:108px;border-radius:12px"></div>
+          <div class="sk" style="height:108px;border-radius:12px;animation-delay:.15s"></div>
+          <div class="sk" style="height:108px;border-radius:12px;animation-delay:.3s"></div>
+          <div class="sk" style="height:108px;border-radius:12px;animation-delay:.45s"></div>
+          <div class="sk" style="height:108px;border-radius:12px;animation-delay:.2s"></div>
+          <div class="sk" style="height:108px;border-radius:12px;animation-delay:.5s"></div>
+        </div>
+        <div style="position:absolute;bottom:28px;left:0;right:0;text-align:center;font-size:12px;color:rgba(95,212,255,.45)">불러오는 중…</div>
+      </div>
+    </div>
+
+    <!-- ============ 오프라인 · 에러 ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">오프라인·에러 <span style="color:rgba(159,228,255,.45)">error</span></div>
+      <div data-screen-label="에러" style="position:relative;width:300px;height:700px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 70% at 50% 36%,rgba(60,30,40,.4) 0%,rgba(20,16,28,.28) 42%,#070A13 76%);border:1px solid rgba(255,122,144,.24);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 22% 16%,rgba(127,227,255,.4),transparent),radial-gradient(1px 1px at 78% 18%,rgba(127,227,255,.3),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.7)"><span>9:41</span><span style="letter-spacing:.1em">●●● ✕</span></div>
+        <div style="position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;height:480px;padding:0 36px;text-align:center">
+          <div style="position:relative;opacity:.85"><img src="assets/secondb-head-front.png" alt="" style="width:100px;height:100px;filter:grayscale(.3) drop-shadow(0 0 14px rgba(255,122,144,.3))"><span style="position:absolute;top:-6px;right:-8px;font-size:22px">💤</span></div>
+          <div style="font-family:Galmuri11,monospace;font-size:16px;color:#CCFAFF;margin-top:24px">연결이 끊겼어요</div>
+          <div style="font-size:13px;color:rgba(159,228,255,.62);margin-top:12px;line-height:1.6">오프라인에서도 담을 수 있어요. 연결되면 자동으로 동기화됩니다.</div>
+          <div style="margin-top:16px;padding:7px 12px;border:1px solid rgba(95,240,192,.3);border-radius:9px;background:rgba(95,240,192,.06);font-size:11.5px;color:#5FF0C0">3개 기록이 동기화 대기 중</div>
+        </div>
+        <div style="position:absolute;bottom:30px;left:24px;right:24px;display:flex;gap:8px"><button style="flex:1;padding:14px;border:1px solid rgba(70,182,255,.3);border-radius:13px;background:rgba(70,182,255,.06);color:#9fe4ff;font-family:Galmuri11,monospace;font-size:13px;cursor:pointer">오프라인으로 계속</button><button style="flex:1;padding:14px;border:0;border-radius:13px;background:linear-gradient(90deg,#46B6FF,#5FD4FF);color:#04101e;font-family:Galmuri11,monospace;font-size:13px;font-weight:700;cursor:pointer">다시 시도</button></div>
+      </div>
+    </div>
+
+    <!-- ============ 알림 센터 ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">알림 센터 <span style="color:rgba(159,228,255,.45)">notifications</span></div>
+      <div data-screen-label="알림센터" style="position:relative;width:300px;height:700px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 70% at 50% 22%,rgba(26,72,120,.4) 0%,rgba(11,33,66,.24) 44%,#070A13 78%);border:1px solid rgba(70,182,255,.22);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 24% 12%,rgba(127,227,255,.5),transparent),radial-gradient(1px 1px at 78% 16%,rgba(127,227,255,.4),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+        <div data-sb-header style="position:relative;display:flex;align-items:flex-start;gap:9px;padding:10px 16px 2px;z-index:6">
+          <img src="assets/secondb-head-front.png" alt="세컨비" style="width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 0 8px rgba(70,182,255,.4))">
+          <div style="flex:1;position:relative;background:rgba(70,182,255,.08);border:1px solid rgba(70,182,255,.2);border-radius:3px 11px 11px 11px;padding:7px 10px">
+            <span style="position:absolute;left:-4px;top:9px;width:8px;height:8px;background:rgba(70,182,255,.08);border-left:1px solid rgba(70,182,255,.2);border-bottom:1px solid rgba(70,182,255,.2);transform:rotate(45deg)"></span>
+            <div style="font-size:11px;color:#E8F7FF;line-height:1.38;word-break:keep-all">알림 화면이에요. 핵심만 추렸어요.</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px"><span style="font-family:'Press Start 2P',monospace;font-size:5px;letter-spacing:.05em;color:#5FF0C0">TIP</span><span style="font-size:9px;color:rgba(159,228,255,.6);line-height:1.3;word-break:keep-all">천천히 둘러보세요.</span></div>
+          </div>
+        </div>
+        <div style="position:relative;display:flex;align-items:center;gap:10px;padding:16px 20px 0;color:#CCFAFF"><span style="font-size:18px;opacity:.7">‹</span><span style="font-family:Galmuri11,monospace;font-size:16px">알림</span><span style="margin-left:auto;font-size:11px;color:rgba(95,212,255,.55)">모두 읽음</span></div>
+
+        <div style="position:relative;margin:16px 16px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.1em;color:rgba(95,212,255,.5);margin:4px 4px 2px">오늘</div>
+          <div style="display:flex;gap:11px;padding:12px 13px;border:1px solid rgba(167,139,250,.28);border-radius:12px;background:rgba(167,139,250,.06)"><img src="assets/secondb-head-front.png" alt="" style="width:30px;height:30px;flex:0 0 auto"><div style="flex:1"><div style="font-size:12.5px;color:#CCFAFF;line-height:1.4">새 제안이 있어요 — 외향성 별 밝기를 올릴까요?</div><div style="font-size:10px;color:rgba(95,212,255,.45);margin-top:4px">점검 · 10분 전</div></div><span style="width:7px;height:7px;border-radius:50%;background:#A78BFA;flex:0 0 auto;margin-top:4px"></span></div>
+          <div style="display:flex;gap:11px;padding:12px 13px;border:1px solid rgba(70,182,255,.18);border-radius:12px;background:rgba(70,182,255,.04)"><span style="width:30px;height:30px;border-radius:8px;background:rgba(70,182,255,.15);display:flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto">🔥</span><div style="flex:1"><div style="font-size:12.5px;color:#CCFAFF;line-height:1.4">7일 연속 담기 달성! 기록이 깊어지고 있어요.</div><div style="font-size:10px;color:rgba(95,212,255,.45);margin-top:4px">오전 9:00</div></div></div>
+          <div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.1em;color:rgba(95,212,255,.5);margin:8px 4px 2px">이번 주</div>
+          <div style="display:flex;gap:11px;padding:12px 13px;border:1px solid rgba(70,182,255,.18);border-radius:12px;background:rgba(70,182,255,.04)"><span style="width:30px;height:30px;border-radius:8px;background:rgba(70,182,255,.15);display:flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto">📊</span><div style="flex:1"><div style="font-size:12.5px;color:#CCFAFF;line-height:1.4">이번 주 인사이트가 준비됐어요</div><div style="font-size:10px;color:rgba(95,212,255,.45);margin-top:4px">월요일</div></div></div>
+          <div style="display:flex;gap:11px;padding:12px 13px;border:1px solid rgba(70,182,255,.18);border-radius:12px;background:rgba(70,182,255,.04)"><span style="width:30px;height:30px;border-radius:8px;background:rgba(70,182,255,.15);display:flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto">📝</span><div style="flex:1"><div style="font-size:12.5px;color:#CCFAFF;line-height:1.4">회상 · 10대 후반 시기를 더 채워볼까요?</div><div style="font-size:10px;color:rgba(95,212,255,.45);margin-top:4px">일요일</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 연속 기록 · 성취 ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">연속 기록 · 성취 <span style="color:rgba(159,228,255,.45)">streak</span></div>
+      <div data-screen-label="성취" style="position:relative;width:300px;height:700px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 70% at 50% 26%,rgba(40,28,80,.42) 0%,rgba(16,16,40,.28) 44%,#070A13 78%);border:1px solid rgba(167,139,250,.24);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.3px 1.3px at 22% 14%,rgba(204,196,255,.5),transparent),radial-gradient(1px 1px at 76% 16%,rgba(204,196,255,.4),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+        <div data-sb-header style="position:relative;display:flex;align-items:flex-start;gap:9px;padding:10px 16px 2px;z-index:6">
+          <img src="assets/secondb-head-front.png" alt="세컨비" style="width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 0 8px rgba(70,182,255,.4))">
+          <div style="flex:1;position:relative;background:rgba(70,182,255,.08);border:1px solid rgba(70,182,255,.2);border-radius:3px 11px 11px 11px;padding:7px 10px">
+            <span style="position:absolute;left:-4px;top:9px;width:8px;height:8px;background:rgba(70,182,255,.08);border-left:1px solid rgba(70,182,255,.2);border-bottom:1px solid rgba(70,182,255,.2);transform:rotate(45deg)"></span>
+            <div style="font-size:11px;color:#E8F7FF;line-height:1.38;word-break:keep-all">나의 여정 화면이에요. 핵심만 추렸어요.</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px"><span style="font-family:'Press Start 2P',monospace;font-size:5px;letter-spacing:.05em;color:#5FF0C0">TIP</span><span style="font-size:9px;color:rgba(159,228,255,.6);line-height:1.3;word-break:keep-all">천천히 둘러보세요.</span></div>
+          </div>
+        </div>
+        <div style="position:relative;display:flex;align-items:center;gap:10px;padding:16px 20px 0;color:#CCFAFF"><span style="font-size:18px;opacity:.7">‹</span><span style="font-family:Galmuri11,monospace;font-size:16px">나의 여정</span></div>
+
+        <div style="position:relative;text-align:center;margin-top:18px"><div style="font-size:46px">🔥</div><div style="font-family:Galmuri11,monospace;font-size:32px;color:#CCFAFF;margin-top:4px">7일</div><div style="font-size:12px;color:rgba(200,182,255,.7);margin-top:2px">연속 기록 중 · 최고 14일</div></div>
+        <div style="position:relative;display:flex;justify-content:center;gap:7px;margin-top:18px">
+          <div style="text-align:center"><div style="width:26px;height:26px;border-radius:8px;background:#46B6FF;color:#04101e;display:flex;align-items:center;justify-content:center;font-size:11px">✓</div><div style="font-size:9px;color:rgba(159,228,255,.5);margin-top:4px">월</div></div>
+          <div style="text-align:center"><div style="width:26px;height:26px;border-radius:8px;background:#46B6FF;color:#04101e;display:flex;align-items:center;justify-content:center;font-size:11px">✓</div><div style="font-size:9px;color:rgba(159,228,255,.5);margin-top:4px">화</div></div>
+          <div style="text-align:center"><div style="width:26px;height:26px;border-radius:8px;background:#46B6FF;color:#04101e;display:flex;align-items:center;justify-content:center;font-size:11px">✓</div><div style="font-size:9px;color:rgba(159,228,255,.5);margin-top:4px">수</div></div>
+          <div style="text-align:center"><div style="width:26px;height:26px;border-radius:8px;background:#46B6FF;color:#04101e;display:flex;align-items:center;justify-content:center;font-size:11px">✓</div><div style="font-size:9px;color:rgba(159,228,255,.5);margin-top:4px">목</div></div>
+          <div style="text-align:center"><div style="width:26px;height:26px;border-radius:8px;background:#46B6FF;color:#04101e;display:flex;align-items:center;justify-content:center;font-size:11px">✓</div><div style="font-size:9px;color:rgba(159,228,255,.5);margin-top:4px">금</div></div>
+          <div style="text-align:center"><div style="width:26px;height:26px;border-radius:8px;background:#46B6FF;color:#04101e;display:flex;align-items:center;justify-content:center;font-size:11px">✓</div><div style="font-size:9px;color:rgba(159,228,255,.5);margin-top:4px">토</div></div>
+          <div style="text-align:center"><div style="width:26px;height:26px;border-radius:8px;border:1.5px dashed rgba(70,182,255,.4);display:flex;align-items:center;justify-content:center;font-size:11px;color:rgba(95,212,255,.5)">·</div><div style="font-size:9px;color:#CCFAFF;margin-top:4px">일</div></div>
+        </div>
+
+        <div style="position:relative;margin:24px 20px 0"><div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.1em;color:rgba(200,182,255,.6);margin-bottom:11px">획득한 배지</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            <div style="text-align:center;padding:13px 6px;border:1px solid rgba(167,139,250,.3);border-radius:12px;background:rgba(167,139,250,.06)"><div style="font-size:22px">🌱</div><div style="font-size:9.5px;color:#CCFAFF;margin-top:5px">첫 기록</div></div>
+            <div style="text-align:center;padding:13px 6px;border:1px solid rgba(167,139,250,.3);border-radius:12px;background:rgba(167,139,250,.06)"><div style="font-size:22px">⭐</div><div style="font-size:9.5px;color:#CCFAFF;margin-top:5px">7별 점등</div></div>
+            <div style="text-align:center;padding:13px 6px;border:1px solid rgba(70,182,255,.16);border-radius:12px;background:rgba(70,182,255,.03);opacity:.5"><div style="font-size:22px">🔒</div><div style="font-size:9.5px;color:rgba(159,228,255,.6);margin-top:5px">30일</div></div>
+          </div>
+        </div>
+        <div style="position:relative;margin:18px 20px 0;padding:13px 15px;border:1px solid rgba(70,182,255,.2);border-radius:12px;background:rgba(70,182,255,.05);font-size:12.5px;color:#CCFAFF;line-height:1.5">다음 배지까지 <span style="color:#A78BFA">23일</span> — 북극성이 더 밝아져요.</div>
+      </div>
+    </div>
+
+    <!-- ============ 검색 결과 ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">검색 결과 <span style="color:rgba(159,228,255,.45)">search</span></div>
+      <div data-screen-label="검색" style="position:relative;width:300px;height:700px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 70% at 50% 14%,rgba(26,72,120,.4) 0%,rgba(11,33,66,.24) 44%,#070A13 78%);border:1px solid rgba(70,182,255,.22);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 24% 10%,rgba(127,227,255,.5),transparent),radial-gradient(1px 1px at 78% 14%,rgba(127,227,255,.4),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+        <div data-sb-header style="position:relative;display:flex;align-items:flex-start;gap:9px;padding:10px 16px 2px;z-index:6">
+          <img src="assets/secondb-head-front.png" alt="세컨비" style="width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 0 8px rgba(70,182,255,.4))">
+          <div style="flex:1;position:relative;background:rgba(70,182,255,.08);border:1px solid rgba(70,182,255,.2);border-radius:3px 11px 11px 11px;padding:7px 10px">
+            <span style="position:absolute;left:-4px;top:9px;width:8px;height:8px;background:rgba(70,182,255,.08);border-left:1px solid rgba(70,182,255,.2);border-bottom:1px solid rgba(70,182,255,.2);transform:rotate(45deg)"></span>
+            <div style="font-size:11px;color:#E8F7FF;line-height:1.38;word-break:keep-all">검색 화면이에요. 핵심만 추렸어요.</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px"><span style="font-family:'Press Start 2P',monospace;font-size:5px;letter-spacing:.05em;color:#5FF0C0">TIP</span><span style="font-size:9px;color:rgba(159,228,255,.6);line-height:1.3;word-break:keep-all">천천히 둘러보세요.</span></div>
+          </div>
+        </div>
+        <div style="position:relative;display:flex;align-items:center;gap:10px;padding:14px 16px 0"><span style="font-size:18px;opacity:.7;color:#CCFAFF">‹</span><div style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 13px;border:1px solid rgba(70,182,255,.35);border-radius:11px;background:rgba(70,182,255,.06)"><span style="font-size:13px;color:rgba(95,212,255,.6)">🔍</span><span style="font-size:13px;color:#CCFAFF;flex:1">자기이해</span><span style="font-size:12px;color:rgba(95,212,255,.5)">✕</span></div></div>
+        <div style="position:relative;padding:12px 18px 0;font-size:11.5px;color:rgba(95,212,255,.55)">14개 결과 · 기록·검사·대화</div>
+
+        <div style="position:relative;margin:14px 18px 0"><div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.1em;color:rgba(95,212,255,.5);margin-bottom:9px">세컨비 답변</div>
+          <div style="padding:12px 14px;border:1px solid rgba(167,139,250,.3);border-radius:11px;background:rgba(167,139,250,.06);font-size:12px;color:#CCFAFF;line-height:1.5">'자기이해' 관련 기록 9건과 검사 2건이 있어요. 가장 자주 나온 주제는 <span style="color:#C8B6FF">애착</span>이에요.</div>
+        </div>
+        <div style="position:relative;margin:16px 18px 0"><div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.1em;color:rgba(95,212,255,.5);margin-bottom:9px">기록</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid rgba(70,182,255,.16);border-radius:11px;background:rgba(70,182,255,.04)"><span>✎</span><div style="flex:1"><div style="font-size:12.5px;color:#CCFAFF;line-height:1.35">나를 안다는 건 무엇일까</div><div style="font-size:10px;color:rgba(95,212,255,.45);margin-top:2px">3일 전 · 글</div></div></div>
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid rgba(70,182,255,.16);border-radius:11px;background:rgba(70,182,255,.04)"><span>🔗</span><div style="flex:1"><div style="font-size:12.5px;color:#CCFAFF;line-height:1.35">자기이해를 데이터로 쌓는다는 것</div><div style="font-size:10px;color:rgba(95,212,255,.45);margin-top:2px">오늘 · 링크</div></div></div>
+          </div>
+        </div>
+        <div style="position:relative;margin:16px 18px 0"><div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.1em;color:rgba(95,212,255,.5);margin-bottom:9px">검사 · 별</div>
+          <div style="display:flex;gap:8px"><span style="font-size:11px;color:#C8B6FF;padding:7px 12px;border:1px solid rgba(167,139,250,.35);border-radius:9px">★ 애착</span><span style="font-size:11px;color:#9fe4ff;padding:7px 12px;border:1px solid rgba(70,182,255,.3);border-radius:9px">★ 지금의 나</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

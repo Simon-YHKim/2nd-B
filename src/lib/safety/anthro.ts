@@ -38,6 +38,15 @@ export const ANTHRO_FORBIDDEN: AnthroPattern[] = [
   // than a utility ("your assistant remembers ... for continuity" / "비서가 ... 기억").
   { id: "assistant-remembers", re: /\bassistant (?:will |can )?remembers?\b/i },
   { id: "ko-assistant-remembers", re: /비서가.{0,12}기억/ },
+  // surveillant register (D-25 / persona-sim): the gate caught companion ATTACHMENT
+  // ("here for you") but was blind to SURVEILLANT mind-reading / memory claims where
+  // the AI is the subject that knows the user. The user's own records, never the app,
+  // are the knower. Kept specific (must address the person, not their data) so benign
+  // utility copy ("your saved entries carry over") does not match.
+  { id: "remember-you", re: /\bI (?:remember|recall) (?:you\b|everything you\b)/i },
+  { id: "know-what-you-feel", re: /\b(?:I|we) (?:know|can tell) what you(?:['’]?re| are) (?:really )?(?:feeling|thinking)\b/i },
+  { id: "ko-remember-you", re: /(?:당신|너)(?:을|를)\s?.{0,4}기억(?:해|합니다|하고 있|할게)/ },
+  { id: "ko-know-your-mind", re: /(?:당신|너)(?:의)?\s?(?:속마음|마음)(?:을|를)\s?(?:압니다|알아요|알아|안다)/ },
 ];
 
 // Exact strings that legitimately match a pattern but are not companion copy.

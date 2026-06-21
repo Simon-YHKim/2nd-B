@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}html,body{margin:0}</style>
+</helmet>
+<div style="width:max-content;min-width:100%;min-height:100vh;box-sizing:border-box;padding:48px;background:#161b26;font-family:Pretendard,system-ui,sans-serif">
+
+  <div style="margin-bottom:8px;font-family:'Press Start 2P',monospace;font-size:11px;letter-spacing:.16em;color:#5FD4FF">2ND-BRAIN · 개인 데이터 임포트 허브</div>
+  <div style="margin-bottom:14px;font-size:14px;color:rgba(159,228,255,.6);max-width:900px">민감도 차등 · 두 모드(A 파일 임포트 / B 라이브 커넥터) · 온디바이스 우선 · 원문 비보존 · propose→ratify. 자동 반영 없음.</div>
+  <div style="margin-bottom:30px;display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:rgba(159,228,255,.7)">
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#FF8A8A"></span>최민감(통신·위치)</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#FFC478"></span>민감(건강·이메일)</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#46B6FF"></span>보통(노트·일정)</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#5FF0C0"></span>1차 액션 · 연결됨</span>
+  </div>
+
+  <div style="display:flex;gap:40px;align-items:flex-start">
+
+    <!-- ============ 임포트 허브 ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">임포트 허브 <span style="color:rgba(159,228,255,.45)">/import</span></div>
+      <div data-screen-label="임포트허브" style="position:relative;width:300px;height:760px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 56% at 50% 22%,rgba(26,72,120,.44) 0%,rgba(11,33,66,.24) 44%,#0A0E1A 78%);border:1px solid rgba(70,182,255,.24);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 22% 12%,rgba(127,227,255,.5),transparent),radial-gradient(1px 1px at 80% 10%,rgba(127,227,255,.38),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+        <div data-sb-header style="position:relative;display:flex;align-items:flex-start;gap:9px;padding:10px 16px 2px;z-index:6">
+          <img src="assets/secondb-head-front.png" alt="세컨비" style="width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 0 8px rgba(70,182,255,.4))">
+          <div style="flex:1;position:relative;background:rgba(70,182,255,.08);border:1px solid rgba(70,182,255,.2);border-radius:3px 11px 11px 11px;padding:7px 10px">
+            <span style="position:absolute;left:-4px;top:9px;width:8px;height:8px;background:rgba(70,182,255,.08);border-left:1px solid rgba(70,182,255,.2);border-bottom:1px solid rgba(70,182,255,.2);transform:rotate(45deg)"></span>
+            <div style="font-size:11px;color:#E8F7FF;line-height:1.38;word-break:keep-all">무엇을 들여올까요?</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px"><span style="font-family:'Press Start 2P',monospace;font-size:5px;letter-spacing:.05em;color:#5FF0C0">TIP</span><span style="font-size:9px;color:rgba(159,228,255,.6);line-height:1.3;word-break:keep-all">네가 승인한 것만 기록에 남아요.</span></div>
+          </div>
+        </div>
+        <div style="position:relative;display:flex;align-items:center;gap:10px;padding:14px 20px 0;color:#CCFAFF"><span style="font-size:18px;opacity:.7">‹</span><span style="font-family:Galmuri11,monospace;font-size:16px">가져오기</span><span style="margin-left:auto;font-family:'Press Start 2P',monospace;font-size:7px;color:rgba(95,212,255,.55)">IMPORT</span></div>
+
+        <div style="position:relative;padding:14px 20px 0;font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:.1em;color:rgba(255,138,138,.7)">최민감 · 명시 동의 필요</div>
+        <div style="position:relative;margin:10px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid rgba(255,138,138,.28);border-radius:12px;background:rgba(255,138,138,.05)"><span style="font-size:16px">💬</span><span style="flex:1"><span style="display:block;font-size:12.5px;color:#CCFAFF;font-family:Galmuri11,monospace">카카오톡 대화</span><span style="font-size:9.5px;color:rgba(159,228,255,.5)">통신 · 파일 내보내기</span></span><span style="font-size:9.5px;color:#FF8A8A;padding:3px 8px;border:1px solid rgba(255,138,138,.35);border-radius:7px">동의 필요</span></div>
+          <div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid rgba(255,138,138,.28);border-radius:12px;background:rgba(255,138,138,.05)"><span style="font-size:16px">📍</span><span style="flex:1"><span style="display:block;font-size:12.5px;color:#CCFAFF;font-family:Galmuri11,monospace">구글 타임라인</span><span style="font-size:9.5px;color:rgba(159,228,255,.5)">위치 · Takeout 파일</span></span><span style="font-size:9.5px;color:#FF8A8A;padding:3px 8px;border:1px solid rgba(255,138,138,.35);border-radius:7px">파일 필요</span></div>
+          <div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid rgba(255,138,138,.22);border-radius:12px;background:rgba(255,138,138,.04)"><span style="font-size:16px">🛰</span><span style="flex:1"><span style="display:block;font-size:12.5px;color:#CCFAFF;font-family:Galmuri11,monospace">실시간 위치</span><span style="font-size:9.5px;color:rgba(159,228,255,.5)">위치 · 기기 권한</span></span><span style="font-size:9.5px;color:rgba(159,228,255,.55);padding:3px 8px;border:1px solid rgba(70,182,255,.25);border-radius:7px">미연결</span></div>
+        </div>
+
+        <div style="position:relative;padding:16px 20px 0;font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:.1em;color:rgba(255,196,120,.75)">민감</div>
+        <div style="position:relative;margin:10px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid rgba(255,196,120,.26);border-radius:12px;background:rgba(255,196,120,.05)"><span style="font-size:16px">❤</span><span style="flex:1"><span style="display:block;font-size:12.5px;color:#CCFAFF;font-family:Galmuri11,monospace">건강</span><span style="font-size:9.5px;color:rgba(159,228,255,.5)">건강 · 기기 권한</span></span><span style="font-size:9.5px;color:#5FF0C0;padding:3px 8px;border:1px solid rgba(95,240,192,.3);border-radius:7px">연결됨</span></div>
+          <div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid rgba(255,196,120,.22);border-radius:12px;background:rgba(255,196,120,.04)"><span style="font-size:16px">✉</span><span style="flex:1"><span style="display:block;font-size:12.5px;color:#CCFAFF;font-family:Galmuri11,monospace">이메일</span><span style="font-size:9.5px;color:rgba(159,228,255,.5)">전달주소 · IMAP</span></span><span style="font-size:9.5px;color:rgba(159,228,255,.55);padding:3px 8px;border:1px solid rgba(70,182,255,.25);border-radius:7px">미연결</span></div>
+        </div>
+
+        <div style="position:relative;padding:16px 20px 0;font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:.1em;color:rgba(95,212,255,.6)">보통</div>
+        <div style="position:relative;margin:10px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid rgba(70,182,255,.22);border-radius:12px;background:rgba(70,182,255,.05)"><span style="font-size:16px">🗒</span><span style="flex:1"><span style="display:block;font-size:12.5px;color:#CCFAFF;font-family:Galmuri11,monospace">Notion · Obsidian</span><span style="font-size:9.5px;color:rgba(159,228,255,.5)">노트 · export 파일</span></span><span style="font-size:9.5px;color:#5FF0C0;padding:3px 8px;border:1px solid rgba(95,240,192,.3);border-radius:7px">연결됨</span></div>
+          <div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid rgba(70,182,255,.22);border-radius:12px;background:rgba(70,182,255,.05)"><span style="font-size:16px">🗓</span><span style="flex:1"><span style="display:block;font-size:12.5px;color:#CCFAFF;font-family:Galmuri11,monospace">구글 캘린더 · 할일</span><span style="font-size:9.5px;color:rgba(159,228,255,.5)">일정 · OAuth 읽기</span></span><span style="font-size:9.5px;color:rgba(159,228,255,.55);padding:3px 8px;border:1px solid rgba(70,182,255,.25);border-radius:7px">미연결</span></div>
+        </div>
+        <div style="position:relative;height:18px"></div>
+      </div>
+    </div>
+
+    <!-- ============ 동의 시트 A — 파일 임포트 ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">동의 시트 A <span style="color:rgba(159,228,255,.45)">파일 임포트 · 카카오톡</span></div>
+      <div data-screen-label="동의시트A" style="position:relative;width:300px;height:760px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 56% at 50% 22%,rgba(26,72,120,.32) 0%,rgba(11,33,66,.2) 44%,#0A0E1A 80%);border:1px solid rgba(70,182,255,.2);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 22% 12%,rgba(127,227,255,.4),transparent),radial-gradient(1px 1px at 80% 10%,rgba(127,227,255,.3),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.55)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+        <div style="position:relative;padding:18px 20px 0;opacity:.3"><div style="font-family:Galmuri11,monospace;font-size:16px;color:#CCFAFF">가져오기</div><div style="margin-top:12px;height:46px;border:1px solid rgba(255,138,138,.2);border-radius:12px;background:rgba(255,138,138,.05)"></div></div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#0c1322;border-top:1px solid rgba(70,182,255,.28);border-radius:24px 24px 34px 34px;padding:16px 20px 22px;box-shadow:0 -16px 44px rgba(0,0,0,.55)">
+          <div style="width:40px;height:4px;border-radius:2px;background:rgba(70,182,255,.3);margin:0 auto 14px"></div>
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px"><span style="font-size:17px">💬</span><span style="font-family:Galmuri11,monospace;font-size:15px;color:#E8F7FF">카카오톡 대화 가져오기</span></div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px"><span style="font-size:9.5px;color:#FF8A8A;padding:2px 7px;border:1px solid rgba(255,138,138,.35);border-radius:6px">통신 · 최민감</span></div>
+
+          <!-- 무엇을 -->
+          <div style="padding:11px 13px;border:1px solid rgba(70,182,255,.22);border-radius:12px;background:rgba(70,182,255,.05);margin-bottom:8px">
+            <div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.08em;color:#9FE4FF;margin-bottom:7px">무엇을</div>
+            <div style="font-size:11px;color:rgba(232,247,255,.85);line-height:1.55">약속·할 일·관계 신호만 뽑아요. <span style="color:#9fe4ff">메시지 본문은 저장하지 않아요.</span></div>
+          </div>
+          <!-- 어디에 -->
+          <div style="padding:11px 13px;border:1px solid rgba(70,182,255,.22);border-radius:12px;background:rgba(70,182,255,.05);margin-bottom:8px">
+            <div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.08em;color:#9FE4FF;margin-bottom:7px">어디에</div>
+            <div style="font-size:11px;color:rgba(232,247,255,.85);line-height:1.55">이 기기에서 분석하고 원문은 버려요. 약속·할 일 카운트만 암호화해 보관해요.</div>
+          </div>
+          <!-- 보관/삭제 -->
+          <div style="display:flex;gap:6px;margin-bottom:12px"><span style="font-size:9px;color:rgba(95,212,255,.6);padding:4px 7px;border:1px solid rgba(70,182,255,.2);border-radius:7px">보관 90일</span><span style="font-size:9px;color:rgba(95,212,255,.6);padding:4px 7px;border:1px solid rgba(70,182,255,.2);border-radius:7px">언제든 삭제</span></div>
+
+          <!-- 이 기기에서만 토글 -->
+          <div style="display:flex;align-items:center;gap:9px;padding:11px 13px;border:1px solid rgba(95,240,192,.3);border-radius:12px;background:rgba(95,240,192,.06);margin-bottom:13px"><span style="flex:1;font-size:11.5px;color:#CCFAFF">이 기기에서만 처리</span><span style="width:34px;height:19px;border-radius:10px;background:#5FF0C0;position:relative;flex:0 0 auto"><span style="position:absolute;right:2px;top:2px;width:15px;height:15px;border-radius:50%;background:#04241c"></span></span></div>
+
+          <!-- 내보내는 법 3스텝 -->
+          <div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.08em;color:rgba(95,212,255,.55);margin-bottom:9px">내보내는 법</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:9px;font-size:11px;color:rgba(159,228,255,.78)"><span style="width:18px;height:18px;border-radius:50%;border:1px solid rgba(70,182,255,.4);display:flex;align-items:center;justify-content:center;font-size:9px;color:#9fe4ff;flex:0 0 auto">1</span>카톡 대화방 → 메뉴 → 대화 내보내기</div>
+            <div style="display:flex;align-items:center;gap:9px;font-size:11px;color:rgba(159,228,255,.78)"><span style="width:18px;height:18px;border-radius:50%;border:1px solid rgba(70,182,255,.4);display:flex;align-items:center;justify-content:center;font-size:9px;color:#9fe4ff;flex:0 0 auto">2</span>텍스트(.txt)로 저장</div>
+            <div style="display:flex;align-items:center;gap:9px;font-size:11px;color:rgba(159,228,255,.78)"><span style="width:18px;height:18px;border-radius:50%;border:1px solid rgba(70,182,255,.4);display:flex;align-items:center;justify-content:center;font-size:9px;color:#9fe4ff;flex:0 0 auto">3</span>아래에서 그 파일을 선택</div>
+          </div>
+
+          <button style="width:100%;padding:13px;border:0;border-radius:12px;background:#5FF0C0;color:#04241c;font-family:Galmuri11,monospace;font-size:13.5px;font-weight:700;cursor:pointer">동의하고 파일 선택</button>
+          <div style="font-size:9px;color:rgba(95,212,255,.45);margin-top:9px;line-height:1.4;text-align:center">수집 항목·보관 위치·기간·삭제권에 동의해요. 미성년은 통신·위치 임포트가 잠겨 있어요.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 동의 시트 B — 라이브 커넥터 ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">동의 시트 B <span style="color:rgba(159,228,255,.45)">커넥터 · 실시간 위치</span></div>
+      <div data-screen-label="동의시트B" style="position:relative;width:300px;height:760px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 56% at 50% 22%,rgba(26,72,120,.32) 0%,rgba(11,33,66,.2) 44%,#0A0E1A 80%);border:1px solid rgba(70,182,255,.2);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 22% 12%,rgba(127,227,255,.4),transparent),radial-gradient(1px 1px at 80% 10%,rgba(127,227,255,.3),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.55)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+        <div style="position:relative;padding:18px 20px 0;opacity:.3"><div style="font-family:Galmuri11,monospace;font-size:16px;color:#CCFAFF">가져오기</div><div style="margin-top:12px;height:46px;border:1px solid rgba(255,138,138,.2);border-radius:12px;background:rgba(255,138,138,.05)"></div></div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#0c1322;border-top:1px solid rgba(70,182,255,.28);border-radius:24px 24px 34px 34px;padding:16px 20px 22px;box-shadow:0 -16px 44px rgba(0,0,0,.55)">
+          <div style="width:40px;height:4px;border-radius:2px;background:rgba(70,182,255,.3);margin:0 auto 14px"></div>
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px"><span style="font-size:17px">🛰</span><span style="font-family:Galmuri11,monospace;font-size:15px;color:#E8F7FF">실시간 위치 연결</span></div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px"><span style="font-size:9.5px;color:#FF8A8A;padding:2px 7px;border:1px solid rgba(255,138,138,.35);border-radius:6px">위치 · 최민감</span></div>
+
+          <div style="padding:11px 13px;border:1px solid rgba(70,182,255,.22);border-radius:12px;background:rgba(70,182,255,.05);margin-bottom:8px">
+            <div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.08em;color:#9FE4FF;margin-bottom:7px">무엇을</div>
+            <div style="font-size:11px;color:rgba(232,247,255,.85);line-height:1.55">자주 가는 장소·머문 시간 패턴만. <span style="color:#9fe4ff">정확한 좌표 경로는 저장 안 함.</span></div>
+          </div>
+          <div style="padding:11px 13px;border:1px solid rgba(70,182,255,.22);border-radius:12px;background:rgba(70,182,255,.05);margin-bottom:8px">
+            <div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.08em;color:#9FE4FF;margin-bottom:7px">어디에</div>
+            <div style="font-size:11px;color:rgba(232,247,255,.85);line-height:1.55">기기에서 장소로 요약 후 좌표는 버려요. 장소 라벨만 암호화 보관.</div>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:12px"><span style="font-size:9px;color:rgba(95,212,255,.6);padding:4px 7px;border:1px solid rgba(70,182,255,.2);border-radius:7px">백그라운드 안 씀</span><span style="font-size:9px;color:rgba(95,212,255,.6);padding:4px 7px;border:1px solid rgba(70,182,255,.2);border-radius:7px">언제든 삭제</span></div>
+
+          <div style="display:flex;align-items:center;gap:9px;padding:11px 13px;border:1px solid rgba(95,240,192,.3);border-radius:12px;background:rgba(95,240,192,.06);margin-bottom:13px"><span style="flex:1;font-size:11.5px;color:#CCFAFF">이 기기에서만 처리</span><span style="width:34px;height:19px;border-radius:10px;background:#5FF0C0;position:relative;flex:0 0 auto"><span style="position:absolute;right:2px;top:2px;width:15px;height:15px;border-radius:50%;background:#04241c"></span></span></div>
+
+          <div style="padding:12px 13px;border:1px solid rgba(70,182,255,.2);border-radius:12px;background:rgba(70,182,255,.04);margin-bottom:14px;display:flex;align-items:center;gap:9px"><span style="font-size:14px">📲</span><span style="flex:1;font-size:10.5px;color:rgba(159,228,255,.72);line-height:1.45">다음 화면에서 iOS·안드로이드 위치 권한을 "사용 중에만"으로 요청해요.</span></div>
+
+          <button style="width:100%;padding:13px;border:0;border-radius:12px;background:#5FF0C0;color:#04241c;font-family:Galmuri11,monospace;font-size:13.5px;font-weight:700;cursor:pointer">동의하고 권한 요청</button>
+          <button style="width:100%;margin-top:8px;padding:11px;border:1px solid rgba(70,182,255,.28);border-radius:12px;background:transparent;color:#9fe4ff;font-family:Galmuri11,monospace;font-size:12.5px;cursor:pointer">대신 파일로 가져오기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 처리 + 결과 (propose→ratify) ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">처리 → 결과 검토 <span style="color:rgba(159,228,255,.45)">propose → ratify</span></div>
+      <div data-screen-label="처리결과" style="position:relative;width:300px;height:760px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 56% at 50% 22%,rgba(26,72,120,.44) 0%,rgba(11,33,66,.24) 44%,#0A0E1A 78%);border:1px solid rgba(70,182,255,.24);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 22% 12%,rgba(127,227,255,.5),transparent),radial-gradient(1px 1px at 80% 10%,rgba(127,227,255,.38),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+        <div data-sb-header style="position:relative;display:flex;align-items:flex-start;gap:9px;padding:10px 16px 2px;z-index:6">
+          <img src="assets/secondb-head-front.png" alt="세컨비" style="width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 0 8px rgba(70,182,255,.4))">
+          <div style="flex:1;position:relative;background:rgba(70,182,255,.08);border:1px solid rgba(70,182,255,.2);border-radius:3px 11px 11px 11px;padding:7px 10px">
+            <span style="position:absolute;left:-4px;top:9px;width:8px;height:8px;background:rgba(70,182,255,.08);border-left:1px solid rgba(70,182,255,.2);border-bottom:1px solid rgba(70,182,255,.2);transform:rotate(45deg)"></span>
+            <div style="font-size:11px;color:#E8F7FF;line-height:1.38;word-break:keep-all">약속 12건·장소 5곳을 찾았어요. 본문은 저장 안 했어요.</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px"><span style="font-family:'Press Start 2P',monospace;font-size:5px;letter-spacing:.05em;color:#5FF0C0">TIP</span><span style="font-size:9px;color:rgba(159,228,255,.6);line-height:1.3;word-break:keep-all">반영할 것만 골라 담아요.</span></div>
+          </div>
+        </div>
+        <div style="position:relative;display:flex;align-items:center;gap:10px;padding:14px 20px 0;color:#CCFAFF"><span style="font-family:Galmuri11,monospace;font-size:16px">검토 후 반영</span></div>
+
+        <!-- progress done -->
+        <div style="position:relative;margin:14px 20px 0;display:flex;align-items:center;gap:10px"><div style="flex:1;height:6px;border-radius:3px;background:rgba(70,182,255,.14);overflow:hidden"><div style="width:100%;height:100%;border-radius:3px;background:linear-gradient(90deg,#46B6FF,#5FF0C0)"></div></div><span style="font-family:Galmuri11,monospace;font-size:11px;color:#5FF0C0">완료</span></div>
+
+        <!-- result summary -->
+        <div style="position:relative;margin:14px 20px 0;display:flex;gap:8px">
+          <div style="flex:1;padding:11px;border:1px solid rgba(70,182,255,.24);border-radius:12px;background:rgba(70,182,255,.06);text-align:center"><div style="font-family:Galmuri11,monospace;font-size:20px;color:#CCFAFF">12</div><div style="font-size:9.5px;color:rgba(159,228,255,.6)">약속</div></div>
+          <div style="flex:1;padding:11px;border:1px solid rgba(70,182,255,.24);border-radius:12px;background:rgba(70,182,255,.06);text-align:center"><div style="font-family:Galmuri11,monospace;font-size:20px;color:#CCFAFF">5</div><div style="font-size:9.5px;color:rgba(159,228,255,.6)">장소</div></div>
+          <div style="flex:1;padding:11px;border:1px solid rgba(70,182,255,.18);border-radius:12px;background:rgba(70,182,255,.04);text-align:center"><div style="font-family:Galmuri11,monospace;font-size:20px;color:rgba(159,228,255,.55)">0</div><div style="font-size:9.5px;color:rgba(159,228,255,.5)">원문</div></div>
+        </div>
+
+        <!-- propose list: pick to ratify -->
+        <div style="position:relative;margin:16px 20px 0;font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:.1em;color:rgba(95,212,255,.55)">반영할 항목 고르기</div>
+        <div style="position:relative;margin:10px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid rgba(95,240,192,.4);border-radius:12px;background:rgba(95,240,192,.08)"><span style="width:20px;height:20px;border-radius:6px;border:1px solid rgba(95,240,192,.5);background:rgba(95,240,192,.18);display:flex;align-items:center;justify-content:center;color:#5FF0C0;font-size:12px;flex:0 0 auto">✓</span><span style="flex:1"><span style="display:block;font-size:12px;color:#CCFAFF">금요일 저녁 약속 · 수민</span><span style="font-size:9.5px;color:rgba(159,228,255,.5)">약속 → 캘린더 후보</span></span></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid rgba(95,240,192,.4);border-radius:12px;background:rgba(95,240,192,.08)"><span style="width:20px;height:20px;border-radius:6px;border:1px solid rgba(95,240,192,.5);background:rgba(95,240,192,.18);display:flex;align-items:center;justify-content:center;color:#5FF0C0;font-size:12px;flex:0 0 auto">✓</span><span style="flex:1"><span style="display:block;font-size:12px;color:#CCFAFF">자주 가는 곳 · 합정 카페</span><span style="font-size:9.5px;color:rgba(159,228,255,.5)">장소 → 생활 패턴</span></span></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid rgba(70,182,255,.2);border-radius:12px;background:rgba(70,182,255,.04)"><span style="width:20px;height:20px;border-radius:6px;border:1px solid rgba(70,182,255,.3);flex:0 0 auto"></span><span style="flex:1"><span style="display:block;font-size:12px;color:rgba(159,228,255,.7)">병원 예약 알림</span><span style="font-size:9.5px;color:rgba(159,228,255,.45)">건강 · 민감 — 기본 제외</span></span></div>
+        </div>
+
+        <div style="position:absolute;bottom:18px;left:20px;right:20px"><button style="width:100%;padding:13px;border:0;border-radius:12px;background:#5FF0C0;color:#04241c;font-family:Galmuri11,monospace;font-size:13.5px;font-weight:700;cursor:pointer">고른 2건 기록에 반영</button></div>
+      </div>
+    </div>
+
+    <!-- ============ 이력 / 철회 + 상태 ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">임포트 이력 · 철회 <span style="color:rgba(159,228,255,.45)">+ 빈/에러/미동의</span></div>
+      <div data-screen-label="이력철회" style="position:relative;width:300px;height:760px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 56% at 50% 22%,rgba(26,72,120,.42) 0%,rgba(11,33,66,.22) 44%,#0A0E1A 78%);border:1px solid rgba(70,182,255,.22);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 22% 12%,rgba(127,227,255,.45),transparent),radial-gradient(1px 1px at 80% 10%,rgba(127,227,255,.35),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+        <div style="position:relative;display:flex;align-items:center;gap:10px;padding:16px 20px 0;color:#CCFAFF"><span style="font-size:18px;opacity:.7">‹</span><span style="font-family:Galmuri11,monospace;font-size:16px">가져온 데이터</span></div>
+
+        <!-- history -->
+        <div style="position:relative;margin:16px 20px 0;display:flex;flex-direction:column;gap:9px">
+          <div style="padding:12px 13px;border:1px solid rgba(70,182,255,.22);border-radius:12px;background:rgba(70,182,255,.05)"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px">💬</span><span style="flex:1;font-family:Galmuri11,monospace;font-size:12.5px;color:#CCFAFF">카카오톡</span><span style="font-size:9.5px;color:rgba(159,228,255,.5)">2시간 전</span></div><div style="display:flex;align-items:center;gap:8px;margin-top:7px"><span style="flex:1;font-size:10px;color:rgba(159,228,255,.6)">약속 12 · 장소 5 · 원문 0</span><button style="font-size:10px;color:#FF9B9B;padding:4px 9px;border:1px solid rgba(255,150,150,.3);border-radius:7px;background:transparent;cursor:pointer">삭제</button></div></div>
+          <div style="padding:12px 13px;border:1px solid rgba(70,182,255,.2);border-radius:12px;background:rgba(70,182,255,.04)"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px">❤</span><span style="flex:1;font-family:Galmuri11,monospace;font-size:12.5px;color:#CCFAFF">건강</span><span style="font-size:9.5px;color:rgba(159,228,255,.5)">어제</span></div><div style="display:flex;align-items:center;gap:8px;margin-top:7px"><span style="flex:1;font-size:10px;color:rgba(159,228,255,.6)">걸음·수면 7일치</span><button style="font-size:10px;color:#FF9B9B;padding:4px 9px;border:1px solid rgba(255,150,150,.3);border-radius:7px;background:transparent;cursor:pointer">삭제</button></div></div>
+          <div style="padding:12px 13px;border:1px solid rgba(70,182,255,.2);border-radius:12px;background:rgba(70,182,255,.04)"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px">🗒</span><span style="flex:1;font-family:Galmuri11,monospace;font-size:12.5px;color:#CCFAFF">Notion</span><span style="font-size:9.5px;color:rgba(159,228,255,.5)">3일 전</span></div><div style="display:flex;align-items:center;gap:8px;margin-top:7px"><span style="flex:1;font-size:10px;color:rgba(159,228,255,.6)">노트 24개</span><button style="font-size:10px;color:#FF9B9B;padding:4px 9px;border:1px solid rgba(255,150,150,.3);border-radius:7px;background:transparent;cursor:pointer">삭제</button></div></div>
+        </div>
+
+        <!-- states row -->
+        <div style="position:relative;margin:18px 20px 0;font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:.1em;color:rgba(95,212,255,.55)">상태</div>
+        <div style="position:relative;margin:10px 20px 0;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:9px;padding:11px 13px;border:1px solid rgba(70,182,255,.18);border-radius:11px;background:rgba(70,182,255,.03)"><span style="font-size:13px">📭</span><span style="flex:1;font-size:11px;color:rgba(159,228,255,.7)">아직 가져온 게 없어요</span><span style="font-size:9.5px;color:#9fe4ff">소스 고르기</span></div>
+          <div style="display:flex;align-items:center;gap:9px;padding:11px 13px;border:1px solid rgba(255,150,150,.24);border-radius:11px;background:rgba(255,120,120,.04)"><span style="font-size:13px">⚠</span><span style="flex:1;font-size:11px;color:rgba(159,228,255,.7)">파일 형식을 못 읽었어요</span><span style="font-size:9.5px;color:#FF9B9B">다시</span></div>
+          <div style="display:flex;align-items:center;gap:9px;padding:11px 13px;border:1px solid rgba(255,196,120,.26);border-radius:11px;background:rgba(255,196,120,.05)"><span style="font-size:13px">🔒</span><span style="flex:1;font-size:11px;color:rgba(159,228,255,.7)">동의가 필요해요 (위치)</span><span style="font-size:9.5px;color:#FFC478">동의</span></div>
+        </div>
+
+        <div style="position:absolute;bottom:18px;left:20px;right:20px;padding:11px 13px;border:1px solid rgba(70,182,255,.18);border-radius:11px;background:rgba(70,182,255,.04);font-size:9.5px;color:rgba(159,228,255,.62);line-height:1.5">삭제는 파생 신호까지 완전 제거해요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.</div>
+      </div>
+    </div>
+
+    <!-- ============ 동의·투명성 카피 EN/KO ============ -->
+    <div style="flex:none;width:420px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">동의·투명성 카피 <span style="color:rgba(159,228,255,.45)">EN / KO · 키 패리티</span></div>
+      <div style="width:420px;border-radius:18px;border:1px solid rgba(70,182,255,.22);background:#0c1322;padding:20px 22px">
+        <div style="font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:.1em;color:rgba(95,212,255,.55);margin-bottom:12px">IMPORT · CONSENT COPY</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+          <tr style="border-bottom:1px solid rgba(70,182,255,.14)"><td style="padding:7px 8px 7px 0;color:#9FE4FF;width:48%">EN</td><td style="padding:7px 0;color:rgba(159,228,255,.75)">KO</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">What should we bring in?</td><td style="padding:7px 0">무엇을 들여올까요?</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">Needs consent</td><td style="padding:7px 0">동의 필요</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">We don't store message text</td><td style="padding:7px 0">메시지 본문은 저장하지 않아요</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">Processed on this device only</td><td style="padding:7px 0">이 기기에서만 처리</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">Kept 90 days · delete anytime</td><td style="padding:7px 0">보관 90일 · 언제든 삭제</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">Consent and pick file</td><td style="padding:7px 0">동의하고 파일 선택</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">Review before applying</td><td style="padding:7px 0">검토 후 반영</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">Apply 2 selected to records</td><td style="padding:7px 0">고른 2건 기록에 반영</td></tr>
+          <tr style="border-bottom:1px solid rgba(70,182,255,.1)"><td style="padding:7px 8px 7px 0">Delete removes derived signals too</td><td style="padding:7px 0">삭제는 파생 신호까지 제거</td></tr>
+          <tr><td style="padding:7px 8px 7px 0">Comms/location import locked for minors</td><td style="padding:7px 0">미성년은 통신·위치 임포트 잠김</td></tr>
+        </table>
+        <div style="margin-top:16px;font-size:10.5px;color:rgba(95,212,255,.5);line-height:1.65">· 민감도 라벨은 색이 아닌 <span style="color:#9fe4ff">명시 단어</span>("위치"·"통신"·"건강")로 표기 — 투명하되 겁주지 않음.<br>· 동의 문구 4요소: 수집 항목 · 보관 위치(온디바이스 우선) · 보관 기간 · 삭제권. PIPA 명시 동의, 자동 실행 없음(propose→ratify).<br>· 키트 매핑: 소스카드=상태칩+MetaChip · 동의시트=푸시시트 변형 · 처리=ProgressBar+상태4종 · 검토=추천카드(ratify) · 이력=상태칩.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

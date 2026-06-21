@@ -1,7 +1,7 @@
 // Attachment style assessment (ECR-S, Wei et al. 2007). 12 items, two
 // subscales (anxiety + avoidance), 4 styles based on median splits.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -12,7 +12,6 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { RelationalLensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import {
@@ -40,7 +39,7 @@ const SCALE: { value: number; en: string; ko: string }[] = [
 
 type Toast = { message: string; tone: "danger" | "info" | "success" };
 
-function AttachmentLegacy() {
+function AttachmentScreen() {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -61,11 +60,11 @@ function AttachmentLegacy() {
 
   if (loading) {
     return (
-      <PremiumAppShell>
+      <AttachmentShell>
         <View style={styles.center}>
           <PremiumLoadingState message={locale === "ko" ? "검사를 불러오는 중이에요…" : "Loading assessment…"} />
         </View>
-      </PremiumAppShell>
+      </AttachmentShell>
     );
   }
   if (!userId) {
@@ -117,7 +116,7 @@ function AttachmentLegacy() {
   }
 
   return (
-    <PremiumAppShell>
+    <AttachmentShell>
       {!started ? (
         <QuantIntroModal
           toolKey="ecr"
@@ -228,7 +227,7 @@ function AttachmentLegacy() {
           <PremiumToast message={toast.message} tone={toast.tone} />
         </View>
       ) : null}
-    </PremiumAppShell>
+    </AttachmentShell>
   );
 }
 
@@ -261,13 +260,19 @@ const styles = StyleSheet.create({
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
 
+// Canon (deep-space) and legacy share ONE functional screen — the ECR-S
+// relationship check. Canon previously showed a placeholder RelationalLensView
+// with a dead CTA; now both render the real assessment (the "relationship check"
+// core-brain's empty state points to). Only the chrome differs: the deep-space
+// dock (DeepSpaceScreen) vs the premium shell.
+function AttachmentShell({ children }: { children: ReactNode }) {
+  return isDeepSpaceUI() ? (
+    <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>
+  ) : (
+    <PremiumAppShell>{children}</PremiumAppShell>
+  );
+}
+
 export default function Attachment() {
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen active="lens">
-        <RelationalLensView />
-      </DeepSpaceScreen>
-    );
-  }
-  return <AttachmentLegacy />;
+  return <AttachmentScreen />;
 }

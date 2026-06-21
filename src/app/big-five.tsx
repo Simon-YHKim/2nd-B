@@ -14,13 +14,16 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { LensView } from "@/components/deep-space/DeepSpaceViews";
+import { LensView, type LensTraits } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
+import { loadLatestBfi } from "@/lib/persona/build";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   BFI_ITEMS,
   TRAIT_LABEL_EN,
   TRAIT_LABEL_KO,
+  bfiMeanToPercent,
   scoreBfi,
   type BfiResponses,
 } from "@/lib/persona/bfi";
@@ -238,13 +241,51 @@ const styles = StyleSheet.create({
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
 
+function BigFiveDeepSpace() {
+  const { userId, loading } = useAuth();
+  const [traits, setTraits] = useState<LensTraits | null>(null);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!userId) {
+      setTraits(null);
+      return;
+    }
+    let cancelled = false;
+    loadLatestBfi(getSupabaseClient(), userId)
+      .then((r) => {
+        if (cancelled) return;
+        // BFI trait means are 1-5 Likert; bfiMeanToPercent maps to 0-100 using
+        // the same (v-1)/4 anchor buildPersona uses (1->0%, 3->50%, 5->100%).
+        setTraits(
+          r
+            ? {
+                openness: bfiMeanToPercent(r.openness),
+                conscientiousness: bfiMeanToPercent(r.conscientiousness),
+                extraversion: bfiMeanToPercent(r.extraversion),
+                agreeableness: bfiMeanToPercent(r.agreeableness),
+                neuroticism: bfiMeanToPercent(r.neuroticism),
+              }
+            : null,
+        );
+      })
+      .catch(() => {
+        // Offline / query failure: fall back to the empty state, never dummy data.
+        if (!cancelled) setTraits(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, loading]);
+
+  return (
+    <DeepSpaceScreen active="lens">
+      <LensView traits={traits} />
+    </DeepSpaceScreen>
+  );
+}
+
 export default function BigFive() {
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen active="lens">
-        <LensView />
-      </DeepSpaceScreen>
-    );
-  }
+  if (isDeepSpaceUI()) return <BigFiveDeepSpace />;
   return <BigFiveLegacy />;
 }

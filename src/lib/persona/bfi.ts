@@ -143,6 +143,17 @@ export function scoreBfi(responses: BfiResponses): BfiResult {
   return { scores, byTrait, answered, complete: answered === BFI_ITEMS.length };
 }
 
+/**
+ * Map a BFI trait mean (1-5 Likert) to a 0-100 bar percentage, mirroring
+ * buildPersona's (v-1)/4 normalization: 1 -> 0%, 3 -> 50% (neutral), 5 -> 100%.
+ * Keeps the deep-space lens bars on the same scale as the persona summary
+ * (a raw v/5 mapping wrongly treats the scale floor as 0%, inflating every bar).
+ */
+export function bfiMeanToPercent(mean: number): number {
+  const clamped = Math.max(1, Math.min(5, mean));
+  return Math.round(((clamped - 1) / 4) * 100);
+}
+
 export const TRAIT_LABEL_EN: Record<BigFiveTrait, string> = {
   extraversion: "Extraversion",
   agreeableness: "Agreeableness",

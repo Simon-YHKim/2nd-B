@@ -4,6 +4,276 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
+## Latest — 2026-06-21 (밤) / 엣지함수 인증 하드닝 스윕 — #524 배포 + delete/export-account anon-JWT 차단
+
+#524(gemini-proxy role-체크)를 **라이브 배포**하고, 같은 취약점 클래스(verify_jwt=true는 토큰
+유효성만 증명 → 공개 anon/publishable 키도 유효 토큰)를 전 엣지함수로 **스윕**. inbound JWT의
+`sub`만 신뢰하던 service-role 함수 2종(delete-account·export-account)을 발견해 `role==='authenticated'`
+요구로 하드닝. 5개 inbound-JWT 함수의 인증 자세를 일치시켰다.
+
+### 어디까지 왔나
+- **gemini-proxy**: #524 엣지함수 **배포 완료** (v13→v14, verify_jwt=true). 정본 소스 바이트-검증
+  (sha `9f655af7`) 후 MCP 배포 → re-fetch로 role 체크 라이브 확인. 직전 핸드오프의 🔴 "#524
+  엣지함수 DEPLOY 필요" 플래그 **해소**.
+- **delete-account** (service-role, 계정 영구삭제): `userIdFromJwt`에 role 체크 추가 후 **배포**
+  (v3→v4). 변경은 제한적(비인증 토큰 거부)이라 정상 로그인 사용자 무영향. 배포본 바이트-검증 + re-fetch.
+- **export-account** (service-role, Art.20 데이터 export): 동일 하드닝 + **배포 v1** (Simon 승인으로
+  #373 DPIA 게이트 통과, "검토 완료 간주" 지시). read-only·IDOR-safe(user_id=JWT). 바이트-검증
+  (sha `5b4a237c`) + re-fetch + anon 스모크 401 확인. 단 클라이언트 UI 배선은 별도(이 PR 범위 밖).
+- **rss-proxy**: 이미 `authenticatedUserIdFromJwt` 보유(이번 패턴의 레퍼런스). **oauth-naver/
+  kakao·seed-knowledge-base**: verify_jwt=false 프리오스/시드, inbound-sub 미신뢰 → 해당 없음.
+
+### 취약점 분석 (방어심층)
+공개 anon 키 JWT는 보통 `sub`이 없어 구 코드도 null→401이라 **현재 활성 익스플로잇은 아님**. 이번
+하드닝은 일관성·방어심층(미래 토큰 포맷이나 sub을 가진 비인증 토큰 차단)이고, gemini/rss는 이미
+닫혀 있었던 반면 service-role 2종이 누락분이었다.
+
+### 검증 / 배포 / 재발방지
+```bash
+npm run verify   # green (237 suites / 1792 tests)
+```
+- **소스 검증**: get_edge_function re-fetch로 라이브 소스에 role 체크 존재 확인 (gemini v14, delete v4).
+- **실동작 스모크**: anon-키 JWT(role=anon)로 gemini-proxy·delete-account POST → 둘 다 `401 invalid_jwt`
+  (함수 코드가 거부, Gemini 호출도 삭제도 없음). no-auth → 게이트웨이 401. 배포 실동작 증명.
+- **재발방지 (PR #552)**: `src/lib/safety/__tests__/edge-jwt-hardening.test.ts` — JWT `sub`를 읽는
+  엣지함수는 `role==='authenticated'` 게이트 필수, 없으면 CI 실패. 주석 스트립 처리(주석이 코드
+  누락을 못 가림), 구버전 취약 패턴을 잡는지 증명 완료. 인라인 중복을 무위험으로 안전화
+  (3-prod-재배포 리팩토링 회피).
+
+### 다음 작업 큐 / 게이트
+| # | 작업 | 게이트 |
+|---|---|---|
+| ~~A~~ | ~~export-account 엣지함수 배포~~ | ✅ **배포 v1 완료** (Simon 승인, DPIA 검토 완료 간주). 라이브 anon 스모크 401 확인. 후속: 클라이언트 UI에 export CTA 배선(앱). |
+| ~~B~~ | ~~토큰 파서 단위테스트 공유화~~ | ✅ PR #552로 완결 (가드가 4함수 일관성 강제) |
+
+---
+
+## Latest — 2026-06-21 (저녁·인프라) / AI 허브 모니터 복구 + 런치팩 워커 자율루프 + AG 네이티브-QA 라이브 픽스
+
+(인터랙티브 세션 — 같은 날 디렉터 /loop 세션들과 병행. 아래 "(저녁) D-25" / "(오후) deep-space" 블록은 디렉터 작업.) AI Hub 모니터 `stale-run?` + `BACKLOG ALARM` 해소(근본=git 신원 불일치) → 런치팩 워커 자율루프 1급화(양 문서) → AG stranded QA를 framework-aware로 선별해 라이브 픽스(#506). **대부분의 AG 보고가 legacy 死코드**였음을 Claude 최종패스가 걸러냄. device-QA는 3중 블로커로 AG 레인 보류.
+
+### 어디까지 왔나
+- main HEAD: `566e9a16`(이 핸드오프 머지 직전) — 디렉터 세션이 계속 머지 중
+- 이번 세션 머지 PR: **#506** `fix(android): keyboard focus flow on deep-space auth + back-arrow elevation`(squash, CI verify+Pages green, `b8f7ad94`가 live main 조상=라이브)
+- 허브(로컬 git, **리모트 없음**) 커밋: 모니터 머지게이트 ack(claude 신원) · `HUB-STARTUP.html` 동기화 · `BACKLOG.md` 재triage
+- working tree(E:/2ndB): 디렉터가 `feat/d25-positioning` 작업 중(dirty) — **건드리지 말 것**(공유 트리)
+
+### 활성 인프라
+- 2nd-B 인프라(Supabase `zoacryukmdeivmolvyhj` / GitHub Pages 정본 / Google OAuth) = 아래 디렉터 블록 참조.
+- **AI Hub** `E:\Coding Infra\AI Infra\Communication`(로컬 git, push 안 함): `CONTROL.md state: running`, monitor `RUNNING / claude fresh / backlog clear`. 데몬 codex+antigravity, **grok=요청전용**. **repo 기본 git 신원=`claude@2nd-b.ai`**(plain-commit이 ai-hub@local로 새던 모니터 알람 근본원인 차단).
+- **런치팩 2종**(루트, git 아님): `AI Hub 시작 키트 — 복붙 런치팩.html` + 허브 `HUB-STARTUP.html` — 워커 지속루프=`hub-daemon.ps1 -Only <ai>` 포그라운드(워커 CLI엔 REPL-내장 루프 없음, Claude만 `/loop`).
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | AG device-QA: deep-space `Shell` 탭바패딩(40px) 가림 + 하드웨어 Back — **로그인(Supabase 테스트계정) 필요** | medium | ⭐ AG 에뮬 복구 후 / 테스트계정 주면 Claude가 dev클라 reload로 진행 |
+| B | 허브 `BACKLOG.md` P0/P1(merge-gate backpressure, 데몬 timeout, AG seat 정직화) | medium | `tools/hub-daemon.ps1` |
+| C | legacy-skin elevation(QuantIntroModal/DrillProgress) | small | rollback skin만, 저우선 |
+
+### 적용 중인 정책 (영구)
+1. **멀티에이전트 발견은 적용 전 Claude framework-aware 최종패스 필수** — "N confirmed" 곧이곧대로 믿지 말 것(legacy 死코드/공유전제 위양성 多). ref: tool_workflow_verify_shared_premise
+2. **2nd-B 작업=격리 worktree**(`E:/2ndB/.worktrees/<name>` off origin/main). 공유 `E:/2ndB`(디렉터 점유) 비침범. ref: tool_push_grep_masks_rejection
+3. 허브 오케스트레이터 커밋=`claude@2nd-b.ai`. 워커=`commit.ps1 -As`. scoped staging만(`-A` 금지). 머지 전 CI green 별도 확인. 게이트(파괴/비용/secrets/임상/법무)만 Simon.
+4. CONTROL=running 시 `HubWatchdog`(10분)가 죽은 데몬 자동재시작. 정지는 CONTROL=paused 먼저.
+5. `adb exec-out screencap -p > f.png`(Git-Bash `/sdcard` 경로변환 우회). metro 8081 phantom 시 `--port 8120`+`adb reverse tcp:8081 tcp:8120`. **docs/HANDOFF.md는 디렉터와 동시쓰기 충돌잦음 → 최신 main prepend 후 즉시 머지.**
+
+### 핵심 파일 위치
+```
+E:\Coding Infra\AI Infra\Communication\   AI Hub(로컬 git, 리모트 X) — monitor.ps1 / hub-daemon.ps1 -Only <ai> / CONTROL·BOARD·BACKLOG
+E:\Coding Infra\AI Hub 시작 키트 — 복붙 런치팩.html   런치팩(루트, git X)
+E:\2ndB\ (origin/main, 디렉터 점유) — src\screens\deepspace\DeepSpaceDesignScreens.tsx(라이브 화면) / src\components\ui\BackArrow.tsx / ANDROID_QA_GUIDELINES.md
+```
+
+### 검증 & 재개
+```bash
+cd E:/2ndB && npm run verify
+# 다음 세션(보통 cwd=E:\Coding Infra): cd E:/2ndB && git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# 작업 A(AG device-QA) 또는 B(허브 BACKLOG)부터
+```
+
+---
+
+## Latest — 2026-06-21 (저녁) / D-25 포지셔닝·UX 정제 — 4AI 토론→페르소나 검증→구현
+
+그록의 5개 포지셔닝/UX 제안을 **4-AI 토론 + 페르소나 시뮬**로 검증(D-25, `AI Infra/Communication/DECISIONS.md`)하고 구현까지 닫은 트랙. `/goal 모든 phase 완료` 하네스로 Phase 0~3을 끝까지 밀었다. **Phase 0·1·2 = 100%, Phase 3 = D-21 + pull digest + #540 + #542 + #544.** (이 트랙의 #537~#544는 아래 "오후" 블록과 같은 세션 — 거기서 O-31 렌즈 배선까지 함께 머지됨.) 전 PR `npm run verify` green (236 suites / 1786 tests).
+
+### 어디까지 왔나
+- main HEAD: `8157cab6`
+- D-25 트랙 머지(롤업):
+  - **Phase 0**(신원): raw %→`brightnessBand()` + de-companion(`anthro.ts` 감시구문 4패턴)·watcher de-voice
+  - **Phase 1**(a11y + raw-Text 전수): ≥44px·SR live-region·그리팅·TTFV + **16+파일 ~450 Text를 capped `@/components/ui/Text`로**(readable-font 토글). #534 `Text` `pixelEn` prop + #535 pixelEn eyebrow 44개
+  - **Phase 2**(D-17): preauth-pending 큐 + `(auth)/jot.tsx`(device-local·LLM 0)
+  - **Phase 3**: #536 `/digest` pull 검토 · #540 성인추천 default-OFF+토글 · #542 opt-in 로컬 일일 리마인더(`daily-review.ts`) · #544 추천 이해게이트(캐논 privacy mockup 기능화·성인전용·consent ledger·미성년 잠금)
+- working tree: **E:/2ndB는 `feat/d25-phase1` + dirty 27**(동료 미커밋 — 건드리지 말 것). 내 작업은 전부 격리 worktree→PR
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **AG 에뮬 시각 QA** — raw-Text 16+파일(특히 252-Text `DeepSpaceDesignScreens`) 픽셀 회귀 | medium | ⭐ CI green이나 픽셀 검증 불가 |
+| B | server-push 스케줄러 | large | ❌ **짓지 말 것** — #542(OS-스케줄 일일 알림)가 사용자가치 전달=중복 + 마이그레이션 레포 밖이라 깨끗이 빌드 불가 |
+| C | 추천 이해게이트 **법무** | - | ⏸ §11-5 = 실 K12 DPIA + counsel(외부). 코드(#544)는 안전형태로 닫음, 공개런치 전 검토 |
+| D | morning-brief **D-19 재논의** | - | ⏸ 앱주도 push = anti-companion 충돌. 필요시 §35 토론 |
+
+### 적용 중인 정책 (영구)
+1. PR→main squash 머지(verify green). **main 직접 푸시 금지**, `git add -A` 금지(명시 경로만).
+2. **격리 worktree 필수**(E:/2ndB 공유 → 내 브랜치는 `_worktrees/`, node_modules는 mklink /J 정션).
+3. **게이트(항상-확인·우회 불가)**: ①파괴적 ②비용 ③secrets ④**아동 안전**(미성년 데이터·푸시·프로파일링) ⑤**법무 §11-5**(K12 DPIA·counsel). D-25에서 이 게이트로 server-push·이해게이트 법무를 보류/안전형태 처리.
+4. 디자인: deepSpace.* 토큰만·hex 0, 비주얼 티어 불가침, 1메시지+1그래픽, propose→ratify. **anti-companion(D-19)** CI 강제(`check-anti-anthro`/`check-mascot-voice`).
+
+### 핵심 파일 위치
+```
+AI Infra/Communication/DECISIONS.md   D-25 합의 원장(Claude-owned)
+src/app/digest.tsx                     "오늘의 정리" pull 검토 + 일일 리마인더 토글
+src/lib/ops/daily-review.ts            opt-in 로컬 일일 알림
+src/lib/ops/recommend.ts               recommendationsAllowed(성인도 pref enforce·default OFF)
+src/lib/privacy/prefs.ts               VISIBLE_PRIVACY_KEYS(+recommendations)·미성년 잠금
+src/screens/deepspace/DeepSpaceDesignScreens.tsx  캐논 privacy = 기능 이해게이트(#544)
+src/lib/supabase/consent.ts            recordRecommendationsConsent(LLM+해외 ack)
+```
+
+### 검증 / 다음 세션 시작
+```
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+npm run verify   # 236 suites / 1786 tests green
+# A(AG 에뮬 QA)부터. server-push(B)는 짓지 말 것.
+```
+
+---
+
+## 2026-06-21 (오후) / deep-space 렌즈 상호작용 기능화 + 세션 작업 전부 main 머지
+
+Simon "상호작용이 잘 이뤄지는지 확인" 오더에서 출발 — framework-aware 감사로 deep-space 캐논의 **핵심 가치 루프(7 자기이해 렌즈 + 설정 CTA)가 더미데이터+죽은 CTA**(실로직이 legacy 분기에 갇힘 = O-31 P0 진짜 갭, a11y/fidelity sweep이 안 건드린 기능 배선)임을 확인하고, 더미였던 렌즈를 **shell-swap으로 실기능화**. 타 AI(Codex/플릿) 커밋도 검토·머지. **#537~#544 + #524 (9 PR) main 머지**, 전 PR `npm run verify` ×2 green.
+
+### 어디까지 왔나
+- main HEAD: `05e9ceb8`
+- 이번 세션 머지된 PR(전부 라이브·green):
+  - #537 insights 막대차트 (Codex 패치 검증·머지)
+  - #538 core-brain 캐논 기능화 (더미 LensView→실 Soul Core, shell-swap)
+  - #539 core-brain "제안 받고 점검하기" CTA → 기능 /digest (오펀 #536 도달가능화)
+  - #540 privacy: recommendations off-by-default (플릿)
+  - #541 attachment 캐논 기능화 (실 ECR 관계검사)
+  - #542 opt-in daily-review 리마인더 (플릿, D-19-안전)
+  - #543 esm 캐논 기능화 (실 체크인)
+  - #524 gemini-proxy 인증 role-check 하드닝 (보안)
+  - #544 privacy understanding-gate (플릿)
+- 테스트: 전 PR `npm run verify` ×2 green, main CI green (05e9ceb8)
+- working tree: orch 워크트리 clean. ⚠️ `E:\2ndB` 주트리엔 타 세션(플릿) 미커밋 변경 있음(내 것 아님, 건드리지 말 것)
+
+### 활성 인프라
+- 라이브 웹 = GitHub Pages https://simon-yhkim.github.io/2nd-B/ (main→Pages 자동)
+- 🔴 **#524 gemini-proxy: 코드는 main, 엣지함수 DEPLOY 필요** — `supabase functions deploy gemini-proxy` 해야 인증 role-체크 하드닝이 서버측 활성화(머지만으론 라이브 프록시 미적용)
+- 4-AI 허브: `E:\Coding Infra\AI Infra\Communication`. **Codex/AG/Grok 헤드리스 데몬 정지 상태**(Simon이 정지+재부팅). Claude=오케스트레이터(claude@2nd-b.ai)
+- orch 워크트리: `E:\Coding Infra\_worktrees\2ndB-orch` (origin/main 고정, 북킹·패치 vehicle, 공유 HEAD 비침범)
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | #524 gemini-proxy 엣지함수 DEPLOY (보안 활성화) | small | ⭐ 코드 머지됨, 배포만 (Simon/인프라) |
+| B | audit/persona/interview 캐논 데이터-배선 | large | 설계결정: 캐논 목업 유지+실데이터 vs shell-swap 기능화 |
+| C | 게이트 #18(위기-lexicon false-negative 공개웹)·#522(import 프라이버시-copy + C10 fail-open) | medium | 임상/법무 게이트 = Simon 방향 |
+| D | imagine 렌즈 placeholder(22줄) → 신규 빌드 | medium | 와이어링 아닌 새 기능 |
+| E | Codex 데몬 재시작 시 남은 렌즈 깊은 배선 병렬화 | — | 데몬 복귀 후 |
+
+### 렌즈 상호작용 현황
+- ✅ 완전 기능화(실데이터+실플로우): **core-brain · attachment · esm** (shell-swap)
+- 🟡 캐논-네이티브 목업(스타일+CTA 탭 작동 O, 더미데이터+순환플로우 → 깊은 데이터-배선 필요): **audit · persona · interview** (FIDELITY_AUDIT의 "더미 LensView 죽은CTA"는 이 3개엔 stale)
+- ⬜ **imagine** = placeholder (별도 빌드)
+
+### 적용 중인 정책 (영구)
+1. **/loop 디렉터 모델**: orders-poll → 분배(codex=UI·AG=에뮬QA·grok=소셜) → framework-aware 검토 → `npm run verify` green 시만 main 머지 → ## DONE 회신. 게이트(파괴/비용/secrets/임상/법무)만 Simon.
+2. **shell-swap 패턴**(캐논 렌즈 기능화): canon=`DeepSpaceScreen`(도크)/legacy=`PremiumAppShell`이 하나의 기능 컴포넌트 공유, 더미 LensView 제거 (core-brain #538 레퍼런스).
+3. **framework-aware 검증**: CI green ≠ 런타임 안전(CI가 Supabase/AsyncStorage 모킹). stale audit 맹신 금지 — 소스 재확인.
+4. **git 위생**: scoped paths만 stage(`git add -A` 금지), 공유 `E:\2ndB` HEAD 비침범, 허브 커밋은 scoped 로컬.
+5. 캐릭터 = 머리만 (DECISIONS **D-26**; SecondbHead decorative, 3D 본체화 불요).
+
+### 핵심 파일 위치
+```
+src/app/{core-brain,attachment,esm,persona,interview,audit,imagine,big-five}.tsx  렌즈 route(canon/legacy 분기)
+src/components/deep-space/DeepSpaceViews.tsx     렌즈 뷰 + 더미 데이터
+src/components/deep-space/DeepSpaceScreen.tsx    캐논 셸 + 5탭 도크
+src/app/digest.tsx                               오늘의 정리(#536/#542)
+supabase/functions/gemini-proxy/index.ts         #524 (DEPLOY 대기)
+docs/FIDELITY_AUDIT.md                           ※ audit/persona/interview엔 stale 주의
+(허브) E:\Coding Infra\AI Infra\Communication\{BOARD,DECISIONS,ORDERS}.md
+```
+
+### 검증
+```bash
+npm run verify   # lint + type-check + i18n + lexicon + constraints + jest
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# 권장: A(#524 deploy) 또는 Simon 지시 우선
+```
+
+---
+
+## 2026-06-21 (이전 세션, cowork) / 게이트 해소 마무리 + 구글 임포트 커넥터 + TTFV 화면 (6 PR)
+
+지난 세션이 코드로 닫아둔 비전 3축을 **라이브로 켜는** 세션. cowork(computer-use)이 G0 마이그레이션·무료키 발급·Vercel·Google OAuth 뼈대를 처리했고, Claude가 후속으로 정본 웹 확정(Pages)·FX 도메인 수정·키 배선·구글 커넥터(Calendar+Tasks)·TTFV 첫날 화면을 코드로 닫았다. **#496~#501 (6 PR) main 머지**, `npm run verify` green (225 suites / 1715 tests).
+
+### 어디까지 왔나
+- main HEAD: `858d699e`
+- 이번 세션 머지된 PR (전부 squash, verify green):
+  - #496 마이그레이션 `0048-0051` prod 적용 + **`0050` 미성년-잠금 보안 회귀 수정** (0038 `COALESCE(OLD,NEW)` 하드닝 보존)
+  - #497 FX 클라이언트 도메인 `oapi.koreaexim.go.kr`로 교체 (구 host 2026-04-30 폐지)
+  - #498 EXIM/MFDS 무료키를 GitHub Pages 빌드에 배선 (repo Variables)
+  - #499 Google Calendar 임포트 커넥터 (웹, GIS 토큰 모델 → `.ics`로 직렬화 → 기존 임포트 파이프라인 재사용)
+  - #500 Google Tasks 임포트 커넥터 (같은 GIS 경로, `tasks.readonly`)
+  - #501 TTFV "첫날 자기이해 한 컷" 화면 (`/ttfv`)
+- 테스트: `npm run verify` green (225 suites / 1715 tests)
+- working tree: dirty 1개 — `AGENTS.md`에 빈 `## Imported Claude Cowork project instructions` 헤딩이 부트스트랩 훅으로 추가됨 (무관·미커밋, 신경 안 써도 됨)
+
+### 활성 인프라
+- **Supabase**: `2nd-brain` (`zoacryukmdeivmolvyhj`, ap-northeast-2). `0048~0055` 전부 적용, owner-only RLS, 보안 advisor 신규경고 0.
+- **정본 웹 = GitHub Pages** (`simon-yhkim.github.io/2nd-B/`), `web-deploy.yml`이 main 푸시마다 배포. `EXPO_PUBLIC_*`는 repo **Variables** (Settings→Secrets and variables→Actions→Variables): SUPABASE_*, `EXIM_FX_KEY`, `MFDS_FOOD_KEY`, `GOOGLE_CLIENT_ID` 등록됨. **Vercel 프로젝트 `2ndb`는 미사용/파킹** — `app.json baseUrl:/2nd-B`라 루트 서빙 깨짐.
+- **Google OAuth**: Web 클라이언트 `2nd-Brain Web` (GCP `My Project 81087` = ornate-hour-217619). Calendar/Tasks API 활성, **Testing 모드**(test user = Simon). client ID = repo Variable `EXPO_PUBLIC_GOOGLE_CLIENT_ID`.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **Simon 콘솔**: `2nd-Brain Web` → 승인된 JavaScript 원본에 `https://simon-yhkim.github.io` + `http://localhost:8081` 추가 (redirect URI 아님) | small | ⭐ 이거 없으면 구글 커넥터가 토큰 못 받음(현재 곱게 에러 처리) |
+| B | **Simon**: `design/`에 5종 `.dc.html` 업로드 (ttfv-firstday·ops-assistant·ops-ia·import-hub·weekly-growth) | small | ⭐ 정본 파일 repo 누락분 채우기 |
+| C | TTFV 첫날 **자동 트리거**(가입 후) + "더 알아가기" `/core-brain` 플레이스홀더를 관계-렌즈 상세로 교체 | small | 온보딩 흐름 완성 |
+| D | **G3** — EAS 네이티브 빌드 + 실기기 QA (알림·기기캘린더·위치 + G4 파일피커) | large | 네이티브 게이트 |
+| E | **G5** — PIPA 법무 (위치·통신·헬스 영속·암호화·만료) | medium | 법무 |
+| - | 레거시 11화면(big-five·persona·imagine 등) | - | **건드릴 필요 없음** — `EXPO_PUBLIC_UI=legacy` 롤백 스킨(의도된 보존) |
+
+### 적용 중인 정책 (영구)
+1. PR은 main으로 **squash + 자동머지**(`gh pr merge --auto --squash`, verify green이면). main 직접 푸시 금지, 항상 브랜치→PR.
+2. 디자인 = 클로드 디자인 정본(`design/*.dc.html`) 기준, **deepSpace.* 토큰만·hex 0**, 비주얼 티어 시스템 불가침, 정보밀도 1메시지+1그래픽, propose→ratify(자동 반영 없음). 레거시는 보존하되 신규작업 기준 아님.
+3. **마이그레이션 안전**: `CREATE OR REPLACE`가 이전 버전을 "mirror"한다 적혀 있어도, 적용 전 **현재 prod / 전체 체인 상태와 diff**(0050 회귀 교훈).
+4. 키는 repo Variables(EXPO_PUBLIC_*, 저민감 공개키만 번들). 민감하면 엣지 프록시.
+5. 순수 로직+단위테스트 → 화면 조립. 새 LLM 진입점 금지(C1). 긴 작업은 전담 에이전트로 분리하고 **파일 단위 검토 후** 머지.
+
+### 핵심 파일 위치
+```
+src/lib/google/{gisToken,calendar,tasks}.ts        구글 커넥터(GIS 토큰 · Calendar/Tasks REST+파서)
+src/screens/deepspace/import/ImportHubScreen.tsx   임포트 허브(구글 커넥터 googleKind 분기 배선)
+src/screens/deepspace/onboarding/TTFVScreen.tsx    TTFV 첫날 화면(2-state propose→ratify, SVG 별자리)
+src/app/ttfv.tsx                                   /ttfv 라우트(자동 트리거 TODO)
+src/lib/finance/fx.ts                              FX(oapi.koreaexim 도메인)
+src/lib/env.ts                                     EXPO_PUBLIC_GOOGLE_CLIENT_ID 슬롯
+db/migrations/0048~0055                            ops_routines·health_samples·srs·ledger·reading·milestones·meal_plan
+.github/workflows/web-deploy.yml                   Pages 배포 + EXPO_PUBLIC_* Variables 주입
+docs/GATE-RUNBOOK.md                               게이트 G0~G5 상태(G0✅ G1✅ G2=콘솔 1스텝)
+```
+
+### 검증
+```bash
+npm run verify   # 225 suites / 1715 tests green
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A(콘솔 JS origin)+B(.dc.html 업로드)는 Simon 외부 작업, 그 후 C(TTFV 트리거)부터 코드
+```
+
+---
+
 ## Latest — 2026-06-20 / 비서(Ops) 완성 + 개인 데이터 임포트 + 성장 피드백 루프 (15 PR)
 
 이번 세션은 비전 3축을 코드로 닫았다: (1)알아가기↔(2)비서 연결 + (2)비서 전면 구축 +
@@ -27,7 +297,10 @@ C1/C3/C9/C7 유지.
    propose→ratify. star_tier_history·ops_logs·milestones·records 합성만(엔진 신설 0).
 
 ### 게이트 경계 — 코드로 더 진행 불가, Simon 외부 액션 필요 (`docs/GATE-RUNBOOK.md`)
-- **G0** Supabase 마이그레이션 `0052~0055` apply → 가계부·책장·마일스톤·식단 저장 켜짐.
+- **G0** ✅ 완료 (2026-06-20, Supabase MCP): `0048~0055` 전부 prod 적용. 직전 세션이
+  0052~0055만 적용해 둔 **0048~0051 간극**을 발견·적용(0048 ops_routines가 주간성장리뷰
+  백킹) + **0050 보안 회귀 버그 수정**(원본이 0038의 `COALESCE(OLD,NEW)` 미성년 하드닝을
+  되돌릴 뻔 → COALESCE 보존 + health_import 추가). 저장·루틴·SRS·주간성장리뷰 백킹 켜짐.
 - **G1** 무료 키 `EXPO_PUBLIC_EXIM_FX_KEY`(수출입은행)·`EXPO_PUBLIC_MFDS_FOOD_KEY`(식약처)
   → Vercel+EAS 환경변수.
 - **G2** GCP OAuth(Calendar/Tasks) · **G3** EAS 네이티브+실기기 QA · **G4**

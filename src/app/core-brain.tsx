@@ -25,12 +25,11 @@ import {
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { LensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { buildPersona, type PersonaCard } from "@/lib/persona/build";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
-import { brightnessVisual } from "@/lib/persona/brightness-visual";
+import { brightnessVisual, brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
 import { buildCenterCards } from "@/lib/persona/center";
 import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
@@ -38,6 +37,10 @@ import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionS
 import { IslandArt } from "@/components/art/IslandArt";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
+
+// D-25: Soul Core brightness shows as a qualitative band, never a raw %.
+const SOUL_CORE_BAND_KO: Record<BrightnessBand, string> = { dim: "흐릿", fair: "보통", bright: "밝음" };
+const SOUL_CORE_BAND_EN: Record<BrightnessBand, string> = { dim: "dim", fair: "fair", bright: "bright" };
 
 async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promise<EvidenceShard[]> {
   const supabase = getSupabaseClient();
@@ -76,18 +79,25 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
   return mergeEvidence(recRows, srcRows, locale);
 }
 
-export default function CoreBrain() {
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen active="lens">
-        <LensView />
-      </DeepSpaceScreen>
-    );
-  }
-  return <CoreBrainLegacy />;
+// Canon (deep-space) and legacy now share ONE functional screen — the canon
+// build no longer shows a placeholder lens. The only difference is the chrome:
+// the deep-space dock (DeepSpaceScreen) vs the premium shell. All data
+// (evidence, persona, the eight sections, the evidence drawer) and every CTA are
+// identical and live in both. (LensView is the 7-axis per-trait view — wrong fit
+// for the aggregate Soul Core, so it is no longer used here.)
+function CoreShell({ children }: { children: ReactNode }) {
+  return isDeepSpaceUI() ? (
+    <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>
+  ) : (
+    <PremiumAppShell>{children}</PremiumAppShell>
+  );
 }
 
-function CoreBrainLegacy() {
+export default function CoreBrain() {
+  return <CoreBrainScreen />;
+}
+
+function CoreBrainScreen() {
   const { i18n } = useTranslation();
   const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -155,11 +165,11 @@ function CoreBrainLegacy() {
 
   if (loading) {
     return (
-      <PremiumAppShell>
+      <CoreShell>
         <View style={styles.center}>
           <PremiumLoadingState message={locale === "ko" ? "중심을 살펴보는 중이에요…" : "Looking at your center…"} />
         </View>
-      </PremiumAppShell>
+      </CoreShell>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
@@ -167,11 +177,11 @@ function CoreBrainLegacy() {
 
   if (building) {
     return (
-      <PremiumAppShell>
+      <CoreShell>
         <View style={styles.center}>
           <PremiumLoadingState message={locale === "ko" ? "중심을 살펴보는 중이에요…" : "Looking at your center…"} />
         </View>
-      </PremiumAppShell>
+      </CoreShell>
     );
   }
 
@@ -180,7 +190,7 @@ function CoreBrainLegacy() {
   // RLS/timeout/token-refresh failure. Offer a retry instead.
   if (loadError) {
     return (
-      <PremiumAppShell>
+      <CoreShell>
         <View style={styles.center}>
           <IslandArt id="core" size={140} />
           <Text variant="heading" style={{ marginTop: spacing.lg, textAlign: "center" }}>
@@ -204,7 +214,7 @@ function CoreBrainLegacy() {
             />
           </View>
         </View>
-      </PremiumAppShell>
+      </CoreShell>
     );
   }
 
@@ -215,7 +225,7 @@ function CoreBrainLegacy() {
   if (evidence.length === 0) {
     const dimStar = brightnessVisual(1).opacity;
     return (
-      <PremiumAppShell>
+      <CoreShell>
         <View style={styles.center}>
           <View style={styles.lockedConstellation}>
             <IslandArt id="core" size={120} />
@@ -251,7 +261,7 @@ function CoreBrainLegacy() {
             />
           </View>
         </View>
-      </PremiumAppShell>
+      </CoreShell>
     );
   }
 
@@ -269,7 +279,7 @@ function CoreBrainLegacy() {
   const starLevels = persona?.starLevels;
 
   return (
-    <PremiumAppShell>
+    <CoreShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
           eyebrow={locale === "ko" ? "02. 소울 코어" : "02. Soul Core"}
@@ -289,7 +299,11 @@ function CoreBrainLegacy() {
           <StatTile value={`${filledFields}/5`} label={locale === "ko" ? "나의 모습" : "self-portrait"} accent={cosmic.soulViolet} />
           <StatTile value={persona?.values.length ?? 0} label={locale === "ko" ? "동네" : "areas"} accent={cosmic.signalMint} />
           <StatTile
-            value={`${Math.round((persona?.soulCoreBrightness ?? 0.2) * 100)}%`}
+            value={
+              locale === "ko"
+                ? SOUL_CORE_BAND_KO[brightnessBand(persona?.soulCoreBrightness ?? 0.2)]
+                : SOUL_CORE_BAND_EN[brightnessBand(persona?.soulCoreBrightness ?? 0.2)]
+            }
             label={locale === "ko" ? "밝기" : "brightness"}
             accent={cosmic.soulViolet}
           />
@@ -404,7 +418,7 @@ function CoreBrainLegacy() {
           <Button
             label={locale === "ko" ? "제안 받고 점검하기" : "Review a proposal"}
             variant="primary"
-            onPress={() => router.push("/review")}
+            onPress={() => router.push("/digest")}
           />
         </Section>
 
@@ -472,7 +486,7 @@ function CoreBrainLegacy() {
       {companionMoment ? (
         <CompanionMoment moment={companionMoment} style={styles.companionFlash} />
       ) : null}
-    </PremiumAppShell>
+    </CoreShell>
   );
 }
 

@@ -15,13 +15,15 @@ describe("recommendationsAllowed (minor recommendations lock honored at the ops 
     expect(recommendationsAllowed(true, true)).toBe(true);
   });
 
-  test("adults are allowed regardless of the pref (opt-in toggle for the OFF default is a separate follow-up)", () => {
-    expect(recommendationsAllowed(false, false)).toBe(true);
+  test("adults now opt in too (D-25 / the D-20 follow-up): OFF by default, allowed only when explicitly enabled", () => {
+    expect(recommendationsAllowed(false, false)).toBe(false);
+    expect(recommendationsAllowed(false, undefined)).toBe(false);
     expect(recommendationsAllowed(false, true)).toBe(true);
   });
 
-  test("unresolved minor status (loading) is treated as non-minor and allowed; minors are only ever gated when isMinor === true", () => {
-    expect(recommendationsAllowed(undefined, false)).toBe(true);
-    expect(recommendationsAllowed(null, undefined)).toBe(true);
+  test("unresolved status (loading) is fail-closed: OFF until the pref is explicitly enabled", () => {
+    expect(recommendationsAllowed(undefined, false)).toBe(false);
+    expect(recommendationsAllowed(null, undefined)).toBe(false);
+    expect(recommendationsAllowed(undefined, true)).toBe(true);
   });
 });

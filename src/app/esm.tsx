@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -10,7 +10,6 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic, radii, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { RhythmLensView } from "@/components/deep-space/DeepSpaceViews";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 type PromptKind = "context" | "energy";
@@ -20,7 +19,7 @@ const PROMPT_OPTIONS: { id: PromptKind }[] = [{ id: "context" }, { id: "energy" 
 
 const CONTEXT_TAGS = ["alone", "with_people", "work_study", "moving", "resting", "outside"] as const;
 
-function EsmCheckInLegacy() {
+function EsmCheckInScreen() {
   const { t } = useTranslation("esm");
   const { userId, loading: authLoading } = useAuth();
 
@@ -43,13 +42,13 @@ function EsmCheckInLegacy() {
 
   if (authLoading) {
     return (
-      <PremiumAppShell>
+      <EsmShell>
         <View style={styles.center}>
           <Text variant="body" color="textMuted">
             {t("loading")}
           </Text>
         </View>
-      </PremiumAppShell>
+      </EsmShell>
     );
   }
 
@@ -90,7 +89,7 @@ function EsmCheckInLegacy() {
   }
 
   return (
-    <PremiumAppShell>
+    <EsmShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
           eyebrow={t("hero.eyebrow")}
@@ -221,7 +220,7 @@ function EsmCheckInLegacy() {
           <PremiumToast message={toast.message} tone={toast.tone} />
         </View>
       ) : null}
-    </PremiumAppShell>
+    </EsmShell>
   );
 }
 
@@ -322,13 +321,18 @@ const styles = StyleSheet.create({
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
 
+// Canon (deep-space) and legacy share ONE functional screen — the ESM check-in.
+// Canon previously showed a placeholder RhythmLensView with a dead CTA; now both
+// render the real check-in (context/energy prompt → save). Only the chrome
+// differs: the deep-space dock (DeepSpaceScreen) vs the premium shell.
+function EsmShell({ children }: { children: ReactNode }) {
+  return isDeepSpaceUI() ? (
+    <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>
+  ) : (
+    <PremiumAppShell>{children}</PremiumAppShell>
+  );
+}
+
 export default function EsmCheckIn() {
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen active="lens">
-        <RhythmLensView />
-      </DeepSpaceScreen>
-    );
-  }
-  return <EsmCheckInLegacy />;
+  return <EsmCheckInScreen />;
 }

@@ -11,16 +11,19 @@
 -- so a minor can never ingest health data. Adults opt in later.
 --
 -- This is a CREATE OR REPLACE of enforce_user_age_tier that MIRRORS THE CURRENT
--- (0033-hardened) body — the search_path = '' pin and the run-on-every-write
--- (not INSERT-only) minor clamp are preserved verbatim; the ONLY change is
--- adding 'health_import', false to the minor seed (0033 predates the key, so
--- this forward migration lands it).
--- It ALSO CREATE OR REPLACEs the companion clamp_minor_privacy_prefs() (the
--- server-side UPDATE enforcement of the minor lock) to add 'health_import',
--- false, so a tampered minor client cannot turn it on. FORWARD-ONLY: the
--- already-applied 0033 is left byte-for-byte untouched (a migration runner never
--- re-runs it), and CREATE OR REPLACE FUNCTION keeps the existing 0030/0033
--- trigger bindings intact (no trigger is recreated here).
+-- prod body — the search_path = '' pin and the run-on-every-write (not
+-- INSERT-only) minor clamp are preserved verbatim; the ONLY change is adding
+-- 'health_import', false to the minor seed (0033 predates the key, so this
+-- forward migration lands it). 0038 did NOT touch enforce_user_age_tier, so the
+-- 0033-derived body is still current and this replacement only adds the key.
+-- It ALSO CREATE OR REPLACEs the companion clamp_minor_privacy_prefs() to add
+-- 'health_import', false. CRITICAL: that clamp was hardened in 0038 to key off
+-- COALESCE(OLD.minor_tier, NEW.minor_tier) (the row's unforgeable tier) — this
+-- migration PRESERVES that 0038 hardening and must NOT revert to NEW.minor_tier,
+-- or a 14-17 minor could forge minor_tier='adult' on UPDATE and skip the clamp.
+-- FORWARD-ONLY: the already-applied 0033/0038 are left untouched (a migration
+-- runner never re-runs them), and CREATE OR REPLACE FUNCTION keeps the existing
+-- 0030/0033 trigger bindings intact (no trigger is recreated here).
 
 CREATE OR REPLACE FUNCTION enforce_user_age_tier() RETURNS trigger AS $$
 DECLARE
@@ -64,12 +67,17 @@ $$ LANGUAGE plpgsql SET search_path = '';
 
 -- Companion server-side clamp: on ANY write to a minor_self row, force the
 -- locked keys false (defends against a tampered client that PATCHes
--- privacy_prefs directly). Forward-only re-definition of the 0033 function that
+-- privacy_prefs directly). Forward-only re-definition of the 0038 function that
 -- adds 'health_import' to the locked set; the trigger binding from 0033 stays
--- and picks up this replaced body. Mirrors the 0033 clamp verbatim otherwise.
+-- and picks up this replaced body. Mirrors the 0038 clamp verbatim otherwise —
+-- in particular the COALESCE(OLD.minor_tier, NEW.minor_tier) tier check below is
+-- the 0038 hardening and MUST stay (reverting to NEW.minor_tier re-opens the
+-- minor_tier-forge-on-UPDATE escape that 0038 closed).
 CREATE OR REPLACE FUNCTION clamp_minor_privacy_prefs() RETURNS trigger AS $$
 BEGIN
-  IF NEW.minor_tier = 'minor_self' THEN
+  -- On UPDATE, OLD.minor_tier is the row's real (unforgeable) tier; on INSERT OLD
+  -- is NULL so fall back to the age-gate-derived NEW.minor_tier (mirrors 0038).
+  IF COALESCE(OLD.minor_tier, NEW.minor_tier) = 'minor_self' THEN
     NEW.privacy_prefs := COALESCE(NEW.privacy_prefs, '{}'::jsonb) || jsonb_build_object(
       'ads', false,
       'sharing', false,

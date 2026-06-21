@@ -1,9 +1,11 @@
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { Href } from "expo-router";
+import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
 import Svg, { Line, Polyline } from "react-native-svg";
 
-import { SecondbStatusHeader } from "@/components/deepspace";
-import { colors, radius } from "@/theme/tokens";
+import { Text } from "@/components/ui/Text";
+import { SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
+import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
 interface LensStar {
@@ -15,20 +17,30 @@ interface LensStar {
 }
 
 const LENS_STARS: LensStar[] = [
-  { key: "now", top: 78, left: 70, size: 14, tone: "bright" },
-  { key: "recall", top: 112, left: 88, size: 13, tone: "bright" },
-  { key: "seen", top: 144, left: 113, size: 13, tone: "bright" },
-  { key: "rhythm", top: 144, left: 124, size: 11, tone: "dim" },
-  { key: "relational", top: 204, left: 63, size: 12, tone: "dim" },
-  { key: "possible", top: 226, left: 104, size: 13, tone: "bright" },
-  { key: "values", top: 204, left: 144, size: 12, tone: "dim" },
+  { key: "possible", top: 224, left: 63, size: 10, tone: "bright" },
+  { key: "recall", top: 189, left: 98, size: 10, tone: "bright" },
+  { key: "values", top: 188, left: 128, size: 10, tone: "bright" },
+  { key: "rhythm", top: 179, left: 167, size: 10, tone: "dim" },
+  { key: "now", top: 206, left: 188, size: 9, tone: "dim" },
+  { key: "relational", top: 174, left: 244, size: 10, tone: "bright" },
+  { key: "seen", top: 136, left: 226, size: 10, tone: "bright" },
 ];
+
+const LENS_ROUTES: Record<string, Href> = {
+  now: "/big-five",
+  recall: "/interview",
+  seen: "/persona",
+  rhythm: "/esm",
+  relational: "/attachment",
+  possible: "/imagine",
+  values: "/audit",
+};
 
 export function DeepSpaceHomeScreen() {
   const router = useRouter();
 
-  const openLens = () => router.push("/core-brain");
-  const openPolaris = () => router.push("/iden");
+  const openLens = (key: string) => router.push(LENS_ROUTES[key] ?? "/core-brain");
+  const openPolaris = () => router.push("/core-brain");
 
   return (
     <View style={styles.screen}>
@@ -41,8 +53,8 @@ export function DeepSpaceHomeScreen() {
         </View>
 
         <View style={styles.statusBar}>
-          <Text style={styles.statusText}>9:41</Text>
-          <Text style={styles.statusText}>●●● ▮</Text>
+          <RNText style={styles.statusText}>9:41</RNText>
+          <RNText style={styles.statusText}>●●● ▮</RNText>
         </View>
 
         <SecondbStatusHeader
@@ -52,10 +64,17 @@ export function DeepSpaceHomeScreen() {
         />
 
         <View style={styles.body}>
-          <Svg viewBox="0 0 320 300" width="320" height="300" style={styles.constellationLines} pointerEvents="none">
-            <Line x1="160" y1="40" x2="120" y2="150" stroke={colors.soulLine} strokeWidth="1" strokeDasharray="3 4" />
+          <View pointerEvents="none" style={styles.constellationGlow} />
+          <Svg viewBox="0 0 320 248" width="320" height="248" style={styles.constellationLines} pointerEvents="none">
+            <Line x1="226" y1="136" x2="140" y2="30" stroke={colors.soulLine} strokeWidth="1" strokeDasharray="2 5" />
             <Polyline
-              points="70,210 110,232 150,210 130,150 120,150 95,120 78,86"
+              points="63,224 98,189 128,188 167,179"
+              fill="none"
+              stroke={colors.borderHi}
+              strokeWidth="1"
+            />
+            <Polyline
+              points="167,179 188,206 244,174 226,136 167,179"
               fill="none"
               stroke={colors.borderHi}
               strokeWidth="1"
@@ -68,14 +87,14 @@ export function DeepSpaceHomeScreen() {
             onPress={openPolaris}
             style={({ pressed }) => [styles.polaris, pressed && styles.pressed]}
           />
-          <Text style={styles.polarisLabel}>북극성 · 소울코어</Text>
+          <Text variant="caption" style={styles.polarisLabel}>북극성 · 소울코어</Text>
 
           {LENS_STARS.map((star) => (
             <Pressable
               key={star.key}
               accessibilityRole="button"
               accessibilityLabel="자기이해 렌즈 열기"
-              onPress={openLens}
+              onPress={() => openLens(star.key)}
               style={({ pressed }) => [
                 styles.lensStar,
                 star.tone === "bright" ? styles.lensStarBright : styles.lensStarDim,
@@ -85,7 +104,10 @@ export function DeepSpaceHomeScreen() {
             />
           ))}
 
-          <Text style={styles.hint}>별 7개를 눌러 자기이해 렌즈를 열어보세요</Text>
+          <Text variant="subtle" style={styles.hint}>별 7개를 눌러 자기이해 렌즈를 열어보세요</Text>
+        </View>
+        <View style={styles.secondbHero} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <SecondbHead mood="positive" size={118} />
         </View>
       </View>
     </View>
@@ -150,18 +172,29 @@ const styles = StyleSheet.create({
   },
   body: {
     position: "relative",
-    height: 482,
+    height: 410,
     overflow: "hidden",
+  },
+  constellationGlow: {
+    position: "absolute",
+    left: 26,
+    top: 36,
+    width: 268,
+    height: 220,
+    borderRadius: 134,
+    backgroundColor: colors.cardBg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   constellationLines: {
     position: "absolute",
-    top: 6,
+    top: 10,
     left: 0,
   },
   polaris: {
     position: "absolute",
-    top: 26,
-    left: 144,
+    top: 20,
+    left: 120,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -176,15 +209,13 @@ const styles = StyleSheet.create({
   },
   polarisLabel: {
     position: "absolute",
-    top: 60,
+    top: 58,
     left: 0,
     width: "100%",
     textAlign: "center",
     color: colors.soul,
     opacity: 0.7,
-    fontFamily: fontFamilies.pixelKo,
     fontSize: 10,
-    lineHeight: 15,
   },
   lensStar: {
     position: "absolute",
@@ -215,8 +246,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: colors.cyanBright,
     opacity: 0.5,
-    fontFamily: fontFamilies.readable,
     fontSize: 11,
-    lineHeight: 16,
+  },
+  secondbHero: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: spacing.sm,
   },
 });

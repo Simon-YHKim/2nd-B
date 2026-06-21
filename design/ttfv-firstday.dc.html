@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}html,body{margin:0}@keyframes bloom{0%,100%{opacity:.85;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}@keyframes softpulse{0%,100%{opacity:.55}50%{opacity:.85}}</style>
+</helmet>
+<div style="width:max-content;min-width:100%;min-height:100vh;box-sizing:border-box;padding:48px;background:#161b26;font-family:Pretendard,system-ui,sans-serif">
+
+  <div style="margin-bottom:8px;font-family:'Press Start 2P',monospace;font-size:11px;letter-spacing:.16em;color:#5FD4FF">2ND-BRAIN · TTFV · 첫날 자기이해 한 컷</div>
+  <div style="margin-bottom:30px;font-size:14px;color:rgba(159,228,255,.6);max-width:880px">가입 직후 첫 화면 · 30초 아하 모먼트. 북극성 지배 + 한 별 점등 + propose→ratify(L1→L2). 한 메시지 + 한 그래픽.</div>
+
+  <div style="display:flex;gap:40px;align-items:flex-start">
+
+    <!-- ============ ① 통찰 제시 (별 점등) ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">① 통찰 한 줄 <span style="color:rgba(159,228,255,.45)">별이 밝아진다</span></div>
+      <div data-screen-label="통찰제시" style="position:relative;width:300px;height:640px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 60% at 50% 30%,rgba(26,72,120,.5) 0%,rgba(11,33,66,.26) 46%,#070A13 80%);border:1px solid rgba(70,182,255,.24);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 16% 22%,rgba(127,227,255,.5),transparent),radial-gradient(1px 1px at 82% 16%,rgba(127,227,255,.4),transparent),radial-gradient(1px 1px at 66% 30%,rgba(127,227,255,.3),transparent),radial-gradient(1px 1px at 30% 64%,rgba(127,227,255,.3),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+
+        <!-- 북극성 + 7별 그래픽 -->
+        <div style="position:relative;height:300px;margin-top:6px">
+          <svg viewBox="0 0 300 300" style="width:100%;height:100%">
+            <!-- 북극성 Soul Core: Tier1 지배 -->
+            <circle cx="150" cy="74" r="46" fill="rgba(200,182,255,.10)"/>
+            <circle cx="150" cy="74" r="30" fill="rgba(200,182,255,.16)"/>
+            <circle cx="150" cy="74" r="16" fill="rgba(200,182,255,.3)"/>
+            <circle cx="150" cy="74" r="7" fill="#C8B6FF"/>
+            <g stroke="#C8B6FF" stroke-width="1.4" opacity=".85"><line x1="150" y1="52" x2="150" y2="44"/><line x1="150" y1="96" x2="150" y2="104"/><line x1="128" y1="74" x2="120" y2="74"/><line x1="172" y1="74" x2="180" y2="74"/></g>
+            <!-- dipper lines (faint) -->
+            <polyline points="70,210 104,186 146,196 168,166 210,176 232,140 246,196" fill="none" stroke="rgba(70,182,255,.2)" stroke-width="1"/>
+            <!-- 6 dark stars (Tier3 후퇴) -->
+            <circle cx="70" cy="210" r="3" fill="#7FC9F0" opacity=".34"/>
+            <circle cx="104" cy="186" r="3" fill="#7FC9F0" opacity=".34"/>
+            <circle cx="146" cy="196" r="3" fill="#7FC9F0" opacity=".34"/>
+            <circle cx="210" cy="176" r="3" fill="#7FC9F0" opacity=".34"/>
+            <circle cx="232" cy="140" r="3" fill="#7FC9F0" opacity=".34"/>
+            <circle cx="246" cy="196" r="3" fill="#7FC9F0" opacity=".34"/>
+            <!-- the lit star (Tier2 점등) -->
+            <circle cx="168" cy="166" r="22" fill="rgba(70,182,255,.12)"/>
+            <circle cx="168" cy="166" r="13" fill="rgba(70,182,255,.26)"/>
+            <circle cx="168" cy="166" r="6" fill="#5FD4FF"/>
+          </svg>
+          <div style="position:absolute;left:0;right:0;bottom:6px;text-align:center;font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.14em;color:rgba(159,228,255,.5)">관계의 별이 켜졌어요</div>
+        </div>
+
+        <!-- 통찰 한 줄 -->
+        <div style="position:relative;padding:8px 28px 0;text-align:center">
+          <div style="font-family:Galmuri11,monospace;font-size:18px;color:#E8F7FF;line-height:1.5;word-break:keep-all">너에게선 <span style="color:#5FD4FF">먼저 다가가 살피는</span> 결이 보여요.</div>
+        </div>
+
+        <!-- propose -> ratify -->
+        <div style="position:absolute;bottom:22px;left:24px;right:24px;display:flex;gap:10px">
+          <button style="flex:1;padding:13px;border:0;border-radius:13px;background:#46B6FF;color:#04101e;font-family:Galmuri11,monospace;font-size:14px;font-weight:700;cursor:pointer">맞아요</button>
+          <button style="flex:1;padding:13px;border:1px solid rgba(70,182,255,.35);border-radius:13px;background:transparent;color:#9fe4ff;font-family:Galmuri11,monospace;font-size:14px;cursor:pointer">조금 달라요</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ② 비준 피드백 (L1→L2) ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">② 비준 → 밝아짐 <span style="color:rgba(159,228,255,.45)">L1 → L2</span></div>
+      <div data-screen-label="비준피드백" style="position:relative;width:300px;height:640px;border-radius:34px;overflow:hidden;background:radial-gradient(120% 60% at 50% 30%,rgba(26,72,120,.54) 0%,rgba(11,33,66,.28) 46%,#070A13 80%);border:1px solid rgba(70,182,255,.26);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 16% 22%,rgba(127,227,255,.5),transparent),radial-gradient(1px 1px at 82% 16%,rgba(127,227,255,.4),transparent),radial-gradient(1px 1px at 66% 30%,rgba(127,227,255,.3),transparent)"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;padding:14px 20px 0;font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.8)"><span>9:41</span><span style="letter-spacing:.1em">●●● ▮</span></div>
+
+        <div style="position:relative;height:300px;margin-top:6px">
+          <svg viewBox="0 0 300 300" style="width:100%;height:100%">
+            <circle cx="150" cy="74" r="46" fill="rgba(200,182,255,.10)"/>
+            <circle cx="150" cy="74" r="30" fill="rgba(200,182,255,.16)"/>
+            <circle cx="150" cy="74" r="16" fill="rgba(200,182,255,.3)"/>
+            <circle cx="150" cy="74" r="7" fill="#C8B6FF"/>
+            <g stroke="#C8B6FF" stroke-width="1.4" opacity=".85"><line x1="150" y1="52" x2="150" y2="44"/><line x1="150" y1="96" x2="150" y2="104"/><line x1="128" y1="74" x2="120" y2="74"/><line x1="172" y1="74" x2="180" y2="74"/></g>
+            <polyline points="70,210 104,186 146,196 168,166 210,176 232,140 246,196" fill="none" stroke="rgba(70,182,255,.22)" stroke-width="1"/>
+            <circle cx="70" cy="210" r="3" fill="#7FC9F0" opacity=".34"/>
+            <circle cx="104" cy="186" r="3" fill="#7FC9F0" opacity=".34"/>
+            <circle cx="146" cy="196" r="3" fill="#7FC9F0" opacity=".34"/>
+            <circle cx="210" cy="176" r="3" fill="#7FC9F0" opacity=".34"/>
+            <circle cx="232" cy="140" r="3" fill="#7FC9F0" opacity=".34"/>
+            <circle cx="246" cy="196" r="3" fill="#7FC9F0" opacity=".34"/>
+            <!-- lit star now brighter (L2): bigger bloom -->
+            <circle cx="168" cy="166" r="34" fill="rgba(70,182,255,.12)"/>
+            <circle cx="168" cy="166" r="22" fill="rgba(70,182,255,.22)"/>
+            <circle cx="168" cy="166" r="12" fill="rgba(95,212,255,.5)"/>
+            <circle cx="168" cy="166" r="7" fill="#9FE4FF"/>
+            <g stroke="#9FE4FF" stroke-width="1.2" opacity=".8"><line x1="168" y1="148" x2="168" y2="142"/><line x1="168" y1="184" x2="168" y2="190"/><line x1="150" y1="166" x2="144" y2="166"/><line x1="186" y1="166" x2="192" y2="166"/></g>
+          </svg>
+          <div style="position:absolute;left:0;right:0;bottom:6px;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px">
+            <span style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.12em;color:rgba(159,228,255,.5)">관계</span>
+            <span style="font-family:Galmuri11,monospace;font-size:11px;color:rgba(159,228,255,.5)">L1</span>
+            <span style="color:#5FF0C0;font-size:11px">→</span>
+            <span style="font-family:Galmuri11,monospace;font-size:12px;color:#5FF0C0">L2</span>
+          </div>
+        </div>
+
+        <div style="position:relative;padding:6px 28px 0;text-align:center">
+          <div style="font-family:Galmuri11,monospace;font-size:17px;color:#E8F7FF;line-height:1.5;word-break:keep-all">관계의 별이 한 칸 밝아졌어요.</div>
+          <div style="font-size:12px;color:rgba(159,228,255,.62);margin-top:10px;line-height:1.55;word-break:keep-all">알아갈수록 너의 별자리가 또렷해져요.</div>
+        </div>
+
+        <!-- 근거 + 다음 걸음 (progressive disclosure) -->
+        <div style="position:absolute;bottom:22px;left:24px;right:24px">
+          <div style="padding:11px 13px;border:1px solid rgba(70,182,255,.22);border-radius:12px;background:rgba(70,182,255,.05);margin-bottom:10px;display:flex;align-items:center;gap:9px"><span style="font-family:'Press Start 2P',monospace;font-size:5px;letter-spacing:.06em;color:#9FE4FF;flex:0 0 auto">근거</span><span style="font-size:10.5px;color:rgba(159,228,255,.7);line-height:1.4">첫 기록에서 사람·마음을 살피는 말이 자주 보였어요.</span></div>
+          <button style="width:100%;padding:13px;border:0;border-radius:13px;background:#46B6FF;color:#04101e;font-family:Galmuri11,monospace;font-size:13.5px;font-weight:700;cursor:pointer">관계의 별 더 알아가기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 시각 위계 메모 ============ -->
+    <div style="flex:none;width:300px">
+      <div style="font-family:Galmuri11,monospace;font-size:13px;color:#9fe4ff;margin-bottom:10px">시각 위계 · 규율</div>
+      <div style="width:300px;border-radius:18px;border:1px solid rgba(70,182,255,.22);background:#0c1322;padding:20px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:flex-start;gap:11px">
+          <span style="flex:0 0 auto;width:30px;height:30px;border-radius:50%;background:rgba(200,182,255,.3);border:1px solid rgba(200,182,255,.5);box-shadow:0 0 12px rgba(200,182,255,.4)"></span>
+          <div><div style="font-family:Galmuri11,monospace;font-size:12px;color:#C8B6FF">Tier1 · 북극성</div><div style="font-size:10.5px;color:rgba(159,228,255,.6);line-height:1.5;margin-top:3px">Soul Core가 시각 지배. 최대 글로우 bloom, 항상 중앙 상단.</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:11px">
+          <span style="flex:0 0 auto;width:30px;height:30px;border-radius:50%;background:rgba(95,212,255,.4);border:1px solid rgba(95,212,255,.5);margin-top:0"></span>
+          <div><div style="font-family:Galmuri11,monospace;font-size:12px;color:#5FD4FF">Tier2 · 점등된 별</div><div style="font-size:10.5px;color:rgba(159,228,255,.6);line-height:1.5;margin-top:3px">이번 통찰의 별 하나만. fade+bloom으로 부드럽게 점등.</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:11px">
+          <span style="flex:0 0 auto;width:30px;height:30px;border-radius:50%;background:rgba(127,201,240,.18);border:1px solid rgba(127,201,240,.25)"></span>
+          <div><div style="font-family:Galmuri11,monospace;font-size:12px;color:rgba(127,201,240,.8)">Tier3 · 나머지 6별</div><div style="font-size:10.5px;color:rgba(159,228,255,.6);line-height:1.5;margin-top:3px">scale↓ · opacity↓로 후퇴. 아직 비추지 않은 잠재.</div></div>
+        </div>
+        <div style="height:1px;background:rgba(70,182,255,.14)"></div>
+        <div style="font-size:10.5px;color:rgba(159,228,255,.65);line-height:1.6">· 색 3개 이내(cyan/soul + text + bg), 모든 링크 cyan.<br>· off-palette·glassmorphism·pill·이모지 아이콘·em dash 금지.<br>· 모션 fade+bloom만 — bounce/elastic 금지.<br>· propose→ratify: 비준분만 L 상승, 자동 반영 없음.</div>
+        <div style="border-top:1px solid rgba(70,182,255,.14);padding-top:12px">
+          <div style="font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:.1em;color:rgba(95,212,255,.55);margin-bottom:8px">EN / KO</div>
+          <div style="font-size:10.5px;color:rgba(159,228,255,.7);line-height:1.7">A pattern shows in you — 너에게선 ~한 결이 보여요<br>That's me / Not quite — 맞아요 / 조금 달라요<br>Your star brightened one step — 별이 한 칸 밝아졌어요<br>Explore this star — 이 별 더 알아가기</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

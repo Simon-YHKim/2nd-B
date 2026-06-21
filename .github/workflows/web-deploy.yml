@@ -52,6 +52,18 @@ jobs:
           EXPO_PUBLIC_UI: "deep-space"
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          # Korea public-data keys (G1 IN-bound enrichment): Eximbank FX rates for
+          # the ledger (src/lib/finance/fx.ts) + MFDS food-nutrition for the meal
+          # planner (src/lib/nutrition/foods.ts). EXPO_PUBLIC_ = bundled client-side
+          # by design; both are free, low-sensitivity public-data keys. An unset
+          # Variable degrades gracefully (KRW-only / idea-only), so a missing key
+          # never breaks the build.
+          EXPO_PUBLIC_EXIM_FX_KEY: ${{ vars.EXPO_PUBLIC_EXIM_FX_KEY }}
+          EXPO_PUBLIC_MFDS_FOOD_KEY: ${{ vars.EXPO_PUBLIC_MFDS_FOOD_KEY }}
+          # Google OAuth Web client id (public, not a secret) for the Calendar/
+          # Tasks import connector (GIS token model — src/lib/google/). Unset →
+          # the "Connect Google" action is hidden; nothing else is affected.
+          EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
           # LLM mode + key: when the repo Variable EXPO_PUBLIC_GOOGLE_API_KEY is
           # set, builds default to "live"; otherwise mock. Override by setting
           # the Variable EXPO_PUBLIC_LLM_MODE explicitly.

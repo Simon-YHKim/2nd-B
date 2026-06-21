@@ -22,7 +22,6 @@ import {
   type PressableProps,
   StyleSheet,
   type StyleProp,
-  Text,
   View,
   type ViewStyle,
   useWindowDimensions,
@@ -30,13 +29,14 @@ import {
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Text } from "@/components/ui/Text";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
-import { fontFamilies } from "@/theme/typography";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { useImportPendingCaptures } from "@/lib/capture/use-import-pending";
 import { DeepSpaceShell } from "@/components/deep-space/DeepSpaceShell";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
@@ -47,6 +47,7 @@ import { useCoreHintDismissed } from "@/lib/onboarding/core-hint";
 import { useComfortOfferDismissed } from "@/lib/onboarding/comfort-offer";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useEmptyGraphDismissed } from "@/lib/onboarding/empty-card";
+import { useAutoTriggerTTFV } from "@/lib/onboarding/ttfv-gate";
 import { VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { retainStableDataNodes, sourceRowsToDataNodes } from "@/lib/graph/data-nodes";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
@@ -162,7 +163,7 @@ function useSkyDrift() {
 const INSIGHTS: Record<"en" | "ko", readonly string[]> = {
   en: [
     "In the age of AI, the most valuable asset is you.",
-    "We noticed something this past month.",
+    "Some patterns showed up in this past month's records.",
     "Your past me and present me are lining up.",
     "There's fresh material in Wiki worth a sort.",
     "Your patterns are showing up brighter where you look most.",
@@ -170,7 +171,7 @@ const INSIGHTS: Record<"en" | "ko", readonly string[]> = {
   ],
   ko: [
     "AI 시대, 가장 가치있는 것은 나 자신.",
-    "이번 한 달, 우리가 뭘 좀 알아챘어요.",
+    "이번 한 달 기록에서 패턴이 좀 보여요.",
     "과거의 당신과 현재의 당신이 정렬되는 중이에요.",
     "Wiki에 새 재료가 좀 들어와 있어요. 정리해 볼까요?",
     "자주 보는 곳일수록 별이 더 밝게 맥동해요.",
@@ -233,6 +234,7 @@ let entryFlourishPlayed = false;
 // shell. The graph stays reachable in deep-space via the /graph route (graph.tsx
 // re-exports GraphScreen), so no logic is forked — see docs/deep-space-nav-contract.md.
 export default function Index() {
+  useImportPendingCaptures();
   if (isDeepSpaceUI()) return <DeepSpaceShell />;
   return <GraphScreen />;
 }
@@ -241,6 +243,7 @@ export function GraphScreen() {
   const { i18n } = useTranslation();
   const { userId, hasProfile, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
+  const autoTriggerTTFV = useAutoTriggerTTFV();
   const insets = useSafeAreaInsets();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const skyOverlay = useSkyDrift();
@@ -366,7 +369,7 @@ export function GraphScreen() {
       dataLoadFailed
         ? OFFLINE_INSIGHT[locale]
         : dataNodes.length > 0
-          ? pickInsight(locale, Date.now() % 1000)
+          ? pickInsight(locale, Math.floor(Date.now() / 86_400_000))
           : hasAnyPiece === true
             ? RECORDS_ONLY_INSIGHT[locale]
             : FIRST_PIECE_INSIGHT[locale],
@@ -452,6 +455,11 @@ export function GraphScreen() {
   // First run: wait for native persistence before deciding whether to gate.
   if (onboardingComplete === null) return <InlineLoader />;
   if (!onboardingComplete) return <Redirect href="/onboarding" />;
+  // First-day TTFV: surface the one-cut self-understanding screen exactly once,
+  // within the first day after onboarding. null = native persistence still
+  // hydrating (match the onboarding gate's loader, don't flash the graph).
+  if (autoTriggerTTFV === null) return <InlineLoader />;
+  if (autoTriggerTTFV) return <Redirect href="/ttfv" />;
 
   // SecondB nudges toward the center when there are pieces the user hasn't
   // looked at yet this session; it dozes once idle and nothing is pending.
@@ -557,10 +565,10 @@ export function GraphScreen() {
                 <IslandArt id="core" size={88} />
               </View>
               <View style={styles.emptyGraphCopy}>
-                <Text style={styles.emptyGraphTitle}>
+                <Text variant="heading" style={styles.emptyGraphTitle}>
                   {locale === "ko" ? "아직 마을이 조용해요" : "The village is quiet"}
                 </Text>
-                <Text style={styles.emptyGraphBody}>
+                <Text variant="body" style={styles.emptyGraphBody}>
                   {locale === "ko"
                     ? "첫 조각은 기록 보관소에 저장돼요. 링크와 캡처가 연결되면 그래프가 켜져요."
                     : "Your first piece is saved in Records. Links and captures light the graph as they connect."}
@@ -621,7 +629,7 @@ export function GraphScreen() {
           <View style={[styles.insightCard, styles.comfortCard]}>
             {/* The offer itself must be legible to the person it targets -
                 this one card renders in the readable face even on pixel default. */}
-            <Text style={styles.comfortBody}>
+            <Text variant="body" style={styles.comfortBody}>
               {locale === "ko"
                 ? "글자가 작거나 흐리게 보이면 읽기 쉬운 글꼴로 바꿔드릴게요"
                 : "If the letters feel small or dim, I can switch to the readable font"}
@@ -652,7 +660,7 @@ export function GraphScreen() {
                 }
               />
             </View>
-            <Text style={styles.comfortFootnote}>
+            <Text variant="subtle" style={styles.comfortFootnote}>
               {locale === "ko"
                 ? "설정 > 테마에서 언제든 바꿀 수 있어요"
                 : "Change anytime in Settings > Theme"}
@@ -676,7 +684,7 @@ export function GraphScreen() {
             accessibilityLabel={locale === "ko" ? "그래프 안내" : "Graph hint"}
             accessibilityHint={locale === "ko" ? "안내를 닫습니다" : "Closes this hint"}
           >
-            <Text style={styles.insightCardBody}>
+            <Text variant="body" style={styles.insightCardBody}>
               {locale === "ko"
                 ? "빛나는 코어를 누르면 그 패턴을 가까이 볼 수 있어요"
                 : "Tap a glowing core to look closer at that pattern"}
@@ -707,10 +715,10 @@ export function GraphScreen() {
               <IslandArt id={spotlightIsland} size={46} />
             </View>
             <View style={styles.insightCardCopy}>
-              <Text style={styles.insightCardTitle}>{spotlightCoreName}</Text>
-              <Text style={styles.insightCardBody} numberOfLines={3}>{coreCardBody}</Text>
+              <Text variant="heading" style={styles.insightCardTitle}>{spotlightCoreName}</Text>
+              <Text variant="body" style={styles.insightCardBody} numberOfLines={3}>{coreCardBody}</Text>
             </View>
-            <Text style={styles.insightCardCta}>Touch!</Text>
+            <Text variant="caption" style={styles.insightCardCta}>Touch!</Text>
           </HomePressable>
         </Animated.View>
       ) : null}
@@ -770,13 +778,13 @@ export function GraphScreen() {
           {/* KO "오늘의 중심" reads worse when tracked + uppercased, so KO drops
               tracking to 0 and stays sentence-case; EN keeps the stylized
               uppercase eyebrow. */}
-          <Text style={[styles.insightEyebrow, locale === "ko" ? styles.insightEyebrowKo : styles.insightEyebrowEn]}>
+          <Text variant="caption" style={[styles.insightEyebrow, locale === "ko" ? styles.insightEyebrowKo : styles.insightEyebrowEn]}>
             {locale === "ko" ? "오늘의 중심" : "Today's center"}
           </Text>
           {/* P2-11: at 200% font scale the 2-line clamp ellipsized exactly the
               actionable clause of the records-only/offline lines. Three lines
               keeps the ribbon one message while surviving large type. */}
-          <Text style={styles.insightText} numberOfLines={3}>
+          <Text variant="body" style={styles.insightText} numberOfLines={3}>
             {insight}
           </Text>
         </Pressable>
@@ -885,13 +893,10 @@ const styles = StyleSheet.create({
     color: cosmic.moonWhite,
     fontSize: typography.sizes.md,
     fontWeight: "700",
-    fontFamily: fontFamilies.pixelKo,
   },
   emptyGraphBody: {
     color: cosmic.mistGray,
     fontSize: 12,
-    lineHeight: 17,
-    fontFamily: fontFamilies.readable,
   },
   emptyGraphCta: {
     marginTop: 8,
@@ -910,9 +915,7 @@ const styles = StyleSheet.create({
   },
   comfortBody: {
     color: cosmic.moonWhite,
-    fontFamily: fontFamilies.readable,
     fontSize: 16,
-    lineHeight: 23,
   },
   comfortActions: {
     flexDirection: "row",
@@ -957,24 +960,18 @@ const styles = StyleSheet.create({
   insightCardTitle: {
     color: cosmic.signalMint,
     fontSize: typography.sizes.md,
-    lineHeight: 19,
-    fontFamily: fontFamilies.pixelKo,
     letterSpacing: 0,
     marginBottom: 4,
   },
   insightCardBody: {
     color: cosmic.moonWhite,
     fontSize: typography.sizes.sm,
-    lineHeight: 18,
-    fontFamily: fontFamilies.readable,
     letterSpacing: 0,
   },
   insightCardCta: {
     alignSelf: "flex-end",
     color: cosmic.signalMint,
     fontSize: typography.sizes.sm,
-    lineHeight: 18,
-    fontFamily: fontFamilies.pixelKo,
     fontWeight: "700",
     letterSpacing: 0,
   },
@@ -1013,7 +1010,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     marginBottom: 4,
-    fontFamily: fontFamilies.pixelKo,
   },
   // KO: no tracking, no uppercase — keeps Hangul legible.
   insightEyebrowKo: {
@@ -1027,8 +1023,6 @@ const styles = StyleSheet.create({
   insightText: {
     color: cosmic.moonWhite,
     fontSize: 14,
-    lineHeight: 20,
     letterSpacing: 0.2,
-    fontFamily: fontFamilies.readable,
   },
 });

@@ -30,6 +30,16 @@ describe("findAnthroViolations", () => {
     expect(findAnthroViolations("저장한 기록이 세션을 넘어 이어져, 도구가 참고할 수 있게 합니다.")).toEqual([]);
   });
 
+  test("flags surveillant mind-reading / memory claims (D-25: AI-as-subject knowing the user)", () => {
+    expect(findAnthroViolations("I remember everything you wrote.")).toContain("remember-you");
+    expect(findAnthroViolations("We know what you're really feeling.")).toContain("know-what-you-feel");
+    expect(findAnthroViolations("당신을 기억해요.")).toContain("ko-remember-you");
+    expect(findAnthroViolations("당신의 마음을 압니다.")).toContain("ko-know-your-mind");
+    // benign: the data/records are the subject, not the app knowing the person
+    expect(findAnthroViolations("Your saved entries carry over between sessions.")).toEqual([]);
+    expect(findAnthroViolations("기록에서 패턴이 보여요.")).toEqual([]);
+  });
+
   test("does not flag benign reflection copy", () => {
     expect(findAnthroViolations("Pick one area. Get a few concrete next steps.")).toEqual([]);
     expect(findAnthroViolations("Routine suggestions are off for this account.")).toEqual([]);
