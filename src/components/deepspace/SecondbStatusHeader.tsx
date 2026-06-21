@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text as RNText, View } from "react-native";
 
 import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { Text } from "@/components/ui/Text";
 
 import { SecondbHead, type SecondbMood } from "./SecondbHead";
 
@@ -17,10 +18,10 @@ export function SecondbStatusHeader({ text, tip, mood = "neutral" }: SecondbStat
       <SecondbHead mood={mood} size={48} />
       <View style={styles.bubble}>
         <View style={styles.tail} />
-        <Text style={styles.text}>{text}</Text>
+        <Text variant="body" style={styles.text}>{text}</Text>
         <View style={styles.tipRow}>
-          <Text style={styles.tipLabel}>TIP</Text>
-          <Text style={styles.tipText}>{tip}</Text>
+          <RNText style={styles.tipLabel}>TIP</RNText>
+          <Text variant="body" style={styles.tipText}>{tip}</Text>
         </View>
       </View>
     </View>
@@ -68,9 +69,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: colors.textHi,
-    fontFamily: fontFamilies.readable,
     fontSize: 14,
-    lineHeight: 20,
   },
   tipRow: {
     flexDirection: "row",
@@ -88,8 +87,6 @@ const styles = StyleSheet.create({
   tipText: {
     flex: 1,
     color: colors.textLo,
-    fontFamily: fontFamilies.readable,
     fontSize: 12,
-    lineHeight: 17,
   },
 });

@@ -13,7 +13,7 @@
 // deepSpace.* tokens only, inline EN/KO COPY like ImportHubScreen (no locales).
 
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -21,6 +21,7 @@ import Svg, { Circle, Line, Polyline } from "react-native-svg";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { Text } from "@/components/ui/Text";
 import { SecondbStatusHeader } from "@/components/deepspace";
 
 /**
@@ -119,7 +120,7 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.backRow}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("back")} onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
-            <Text style={styles.backIcon}>‹</Text>
+            <RNText style={styles.backIcon}>‹</RNText>
           </Pressable>
         </View>
 
@@ -175,41 +176,41 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
               <Line x1={lit.x - 9} y1={lit.y} x2={lit.x - 18} y2={lit.y} stroke={deepSpace.accentSoft} strokeWidth={1.4} strokeLinecap="round" opacity={0.85} />
             </Svg>
             <View style={[styles.levelTag, { left: `${(lit.x / VIEWBOX) * 100}%`, top: `${(lit.y / VIEWBOX) * 100}%` }]}>
-              <Text style={styles.levelTagText}>{LEVEL_TAG}</Text>
+              <RNText style={styles.levelTagText}>{LEVEL_TAG}</RNText>
             </View>
           </Animated.View>
         </View>
 
         {phase === "propose" ? (
           <View style={styles.block}>
-            <Text style={styles.caption}>{caption}</Text>
+            <Text variant="body" style={styles.caption}>{caption}</Text>
             {/* ONE message: the insight line, with the pattern phrase in cyan. */}
-            <Text style={styles.insight}>
+            <Text variant="body" style={styles.insight}>
               {ko ? "너에게선 " : "A "}
-              <Text style={styles.insightHi}>{phrase}</Text>
+              <Text variant="body" style={styles.insightHi}>{phrase}</Text>
               {ko ? " 결이 보여요." : " pattern shows in you."}
             </Text>
             <Pressable accessibilityRole="button" accessibilityLabel={t("affirm")} onPress={() => setPhase("ratify")} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
-              <Text style={styles.primaryText}>{t("affirm")}</Text>
+              <Text variant="caption" style={styles.primaryText}>{t("affirm")}</Text>
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel={t("differ")} onPress={() => router.back()} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
-              <Text style={styles.secondaryText}>{t("differ")}</Text>
+              <Text variant="caption" style={styles.secondaryText}>{t("differ")}</Text>
             </Pressable>
           </View>
         ) : (
           <View style={styles.block}>
             {/* ONE message for the ratify state. */}
-            <Text style={styles.ratifyTitle}>{ratifyTitle}</Text>
-            <Text style={styles.ratifySub}>{t("ratifySub")}</Text>
+            <Text variant="body" style={styles.ratifyTitle}>{ratifyTitle}</Text>
+            <Text variant="body" style={styles.ratifySub}>{t("ratifySub")}</Text>
             {/* 근거 — progressive disclosure: evidence appears only after ratify. */}
             <View style={styles.reasonCard}>
-              <Text style={styles.reasonLabel}>{t("why")}</Text>
-              <Text style={styles.reasonText}>{reason}</Text>
+              <Text variant="caption" style={styles.reasonLabel}>{t("why")}</Text>
+              <Text variant="body" style={styles.reasonText}>{reason}</Text>
             </View>
             {/* The lit star is the relationship lens (DEFAULT_INSIGHT); its deep
                 dive is /attachment (RelationalLensView), the relationship-lens detail. */}
             <Pressable accessibilityRole="button" accessibilityLabel={exploreLabel} onPress={() => router.push("/attachment")} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
-              <Text style={styles.primaryText}>{exploreLabel}</Text>
+              <Text variant="caption" style={styles.primaryText}>{exploreLabel}</Text>
             </Pressable>
           </View>
         )}
@@ -271,19 +272,19 @@ const styles = StyleSheet.create({
   levelTagText: { fontFamily: fontFamilies.pixelEn, fontSize: 11, letterSpacing: 0.5, color: deepSpace.accentSoft, lineHeight: 15 },
 
   block: { gap: deepSpaceSpacing.sm, marginTop: deepSpaceSpacing.xs },
-  caption: { fontFamily: fontFamilies.sans, fontSize: 13, lineHeight: 19, color: deepSpace.textLo, textAlign: "center" },
-  insight: { fontFamily: fontFamilies.sans, fontSize: 19, lineHeight: 29, color: deepSpace.textHi, textAlign: "center", marginBottom: deepSpaceSpacing.xs },
-  insightHi: { fontFamily: fontFamilies.sans, fontWeight: "700", color: deepSpace.accentSoft },
+  caption: { fontSize: 13, color: deepSpace.textLo, textAlign: "center" },
+  insight: { fontSize: 19, color: deepSpace.textHi, textAlign: "center", marginBottom: deepSpaceSpacing.xs },
+  insightHi: { fontWeight: "700", color: deepSpace.accentSoft },
 
-  ratifyTitle: { fontFamily: fontFamilies.sans, fontSize: 19, lineHeight: 28, fontWeight: "700", color: deepSpace.textHi, textAlign: "center" },
-  ratifySub: { fontFamily: fontFamilies.sans, fontSize: 14, lineHeight: 21, color: deepSpace.textMid, textAlign: "center", marginBottom: deepSpaceSpacing.xs },
+  ratifyTitle: { fontSize: 19, fontWeight: "700", color: deepSpace.textHi, textAlign: "center" },
+  ratifySub: { fontSize: 14, color: deepSpace.textMid, textAlign: "center", marginBottom: deepSpaceSpacing.xs },
   reasonCard: { padding: deepSpaceSpacing.md, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card, gap: 6 },
-  reasonLabel: { fontFamily: fontFamilies.pixelKo, fontSize: 11, letterSpacing: 1, color: deepSpace.accentSoft },
-  reasonText: { fontFamily: fontFamilies.sans, fontSize: 14, lineHeight: 21, color: deepSpace.textMid },
+  reasonLabel: { fontSize: 11, letterSpacing: 1, color: deepSpace.accentSoft },
+  reasonText: { fontSize: 14, color: deepSpace.textMid },
 
   primaryBtn: { minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.accent, marginTop: deepSpaceSpacing.xs },
-  primaryText: { fontFamily: fontFamilies.pixelKo, fontSize: 15, color: deepSpace.onAccent, paddingHorizontal: deepSpaceSpacing.md, textAlign: "center" },
+  primaryText: { fontSize: 15, color: deepSpace.onAccent, paddingHorizontal: deepSpaceSpacing.md, textAlign: "center" },
   secondaryBtn: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, borderWidth: 1, borderColor: deepSpace.cardLineStrong, backgroundColor: deepSpace.card },
-  secondaryText: { fontFamily: fontFamilies.pixelKo, fontSize: 14, color: deepSpace.accentSoft },
+  secondaryText: { fontSize: 14, color: deepSpace.accentSoft },
   pressed: { opacity: 0.85 },
 });
