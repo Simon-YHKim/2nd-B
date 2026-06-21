@@ -17,8 +17,9 @@
   엣지함수 DEPLOY 필요" 플래그 **해소**.
 - **delete-account** (service-role, 계정 영구삭제): `userIdFromJwt`에 role 체크 추가 후 **배포**
   (v3→v4). 변경은 제한적(비인증 토큰 거부)이라 정상 로그인 사용자 무영향. 배포본 바이트-검증 + re-fetch.
-- **export-account** (service-role, Art.20 데이터 export): 동일 하드닝 — **코드만**. 이 함수는 아직
-  prod 미배포(#373 "needs review+deploy") → 배포는 Art.20 런치와 함께 Simon 게이트.
+- **export-account** (service-role, Art.20 데이터 export): 동일 하드닝 + **배포 v1** (Simon 승인으로
+  #373 DPIA 게이트 통과, "검토 완료 간주" 지시). read-only·IDOR-safe(user_id=JWT). 바이트-검증
+  (sha `5b4a237c`) + re-fetch + anon 스모크 401 확인. 단 클라이언트 UI 배선은 별도(이 PR 범위 밖).
 - **rss-proxy**: 이미 `authenticatedUserIdFromJwt` 보유(이번 패턴의 레퍼런스). **oauth-naver/
   kakao·seed-knowledge-base**: verify_jwt=false 프리오스/시드, inbound-sub 미신뢰 → 해당 없음.
 
@@ -42,7 +43,7 @@ npm run verify   # green (237 suites / 1792 tests)
 ### 다음 작업 큐 / 게이트
 | # | 작업 | 게이트 |
 |---|---|---|
-| A | **export-account 엣지함수 배포** (Art.20 런치) | ⛔ Simon/법무 (#373 DPIA = "우회 불가" 게이트). 코드는 하드닝되어 main에 있으니 승인 시 1-커맨드: `supabase functions deploy export-account` (또는 MCP deploy_edge_function, verify_jwt=true). |
+| ~~A~~ | ~~export-account 엣지함수 배포~~ | ✅ **배포 v1 완료** (Simon 승인, DPIA 검토 완료 간주). 라이브 anon 스모크 401 확인. 후속: 클라이언트 UI에 export CTA 배선(앱). |
 | ~~B~~ | ~~토큰 파서 단위테스트 공유화~~ | ✅ PR #552로 완결 (가드가 4함수 일관성 강제) |
 
 ---
