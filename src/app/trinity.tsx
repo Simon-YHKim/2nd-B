@@ -174,7 +174,7 @@ function TrinityLegacy() {
     return (
       <PremiumAppShell>
         <View style={styles.shellCenter}>
-          <PremiumLoadingState message={locale === "ko" ? "4영역을 불러오는 중이에요…" : "Loading trinity…"} />
+          <PremiumLoadingState message={locale === "ko" ? "4영역을 불러오는 중이에요…" : "Loading your areas…"} />
         </View>
       </PremiumAppShell>
     );
@@ -190,7 +190,7 @@ function TrinityLegacy() {
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
-          eyebrow={locale === "ko" ? "09. 4영역 관리" : "09. Brain Trinity"}
+          eyebrow={locale === "ko" ? "09. 4영역 관리" : "09. My areas"}
           title={locale === "ko" ? "생활의 네 영역을 밝히기" : "Light up four life areas"}
           subtitle={locale === "ko" ? "건강 · 앱 · 뇌 · 재정" : "Health · app · brain · finance"}
           island={VILLAGE_UI.work.island}

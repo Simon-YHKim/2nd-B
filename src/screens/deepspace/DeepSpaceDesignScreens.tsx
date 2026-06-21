@@ -1262,8 +1262,8 @@ function FilterChip({ label, active, violet, onPress }: { label: string; active?
   return <View style={chipStyle}>{inner}</View>;
 }
 
-function TimelineRow({ icon, title, time, tag, dim }: { icon: string; title: string; time?: string; tag?: string; dim?: boolean }) {
-  return (
+function TimelineRow({ icon, title, time, tag, dim, onPress }: { icon: string; title: string; time?: string; tag?: string; dim?: boolean; onPress?: () => void }) {
+  const content = (
     <View style={{ gap: 5 }}>
       <View style={styles.tlRow}>
         <View style={[styles.tlDot, dim && styles.tlDotDim]} />
@@ -1273,6 +1273,14 @@ function TimelineRow({ icon, title, time, tag, dim }: { icon: string; title: str
       </View>
       {tag ? <View style={styles.tlTagRow}><Text variant="caption" pixelEn style={styles.tlTag}>{tag}</Text></View> : null}
     </View>
+  );
+  if (!onPress) return content;
+  // Tappable timeline row (SCREEN_TREE_SPEC §4: 항목→/record/[id]). Wrap, not
+  // restyle — the row visual is unchanged; only a ≥44px hit target is added.
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [{ minHeight: 44, justifyContent: "center" }, pressed ? { opacity: 0.6 } : null]}>
+      {content}
+    </Pressable>
   );
 }
 
@@ -1352,7 +1360,7 @@ export function DeepSpaceRecordsScreen() {
             <Text variant="caption" pixelEn style={styles.tlLabel}>{g.label}</Text>
             <View style={styles.tlGroup}>
               {g.items.map((it) => (
-                <TimelineRow key={it.id} icon={it.icon} title={it.title} time={it.timeLabel || undefined} tag={it.tag} dim={it.dim} />
+                <TimelineRow key={it.id} icon={it.icon} title={it.title} time={it.timeLabel || undefined} tag={it.tag} dim={it.dim} onPress={() => router.push({ pathname: "/record/[id]", params: { id: it.id } })} />
               ))}
             </View>
           </View>
@@ -2285,6 +2293,7 @@ export function DeepSpaceRecordDetailScreen() {
                 title={recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}
                 time={recencyLabel(r.created_at, recencyOpts) || undefined}
                 dim
+                onPress={() => router.push({ pathname: "/record/[id]", params: { id: r.id } })}
               />
             ))}
           </View>
