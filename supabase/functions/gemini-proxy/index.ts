@@ -102,8 +102,11 @@ function djb2(s: string): string {
 }
 
 // The JWT is already validated by the gateway (verify_jwt=true in config.toml),
-// so we only need to read the `sub` claim from the payload, not re-verify the
-// signature. Returns null if the token is malformed.
+// so we read the payload without re-verifying the signature — but verify_jwt only
+// proves the token is VALID, and the public anon/publishable key is itself a valid
+// token (role==='anon'). We therefore require a signed-in USER: a real `sub` AND
+// role==='authenticated', so an anon caller can't reach the paid LLM. Mirrors
+// rss-proxy/authenticatedUserIdFromJwt. Returns null for any non-user token.
 function userIdFromJwt(authHeader: string): string | null {
   try {
     const token = authHeader.slice(authHeader.toLowerCase().indexOf('bearer ') + 7).trim();
@@ -111,7 +114,10 @@ function userIdFromJwt(authHeader: string): string | null {
     if (!payload) return null;
     const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
     const json = JSON.parse(atob(b64 + '=='.slice(0, (4 - (b64.length % 4)) % 4)));
-    return typeof json?.sub === 'string' ? json.sub : null;
+    const sub = typeof json?.sub === 'string' ? json.sub : '';
+    const role = typeof json?.role === 'string' ? json.role : '';
+    if (role !== 'authenticated' || sub.length === 0) return null;
+    return sub;
   } catch {
     return null;
   }
