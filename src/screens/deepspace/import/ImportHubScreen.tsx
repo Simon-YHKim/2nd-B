@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
 import { detectImportKind, type ImportKind } from "@/lib/import/detect";
+import { fileImportSupported, pickTextFile } from "@/lib/import/file-read";
 import { buildProposals, proposalsToMarkdown, type ImportOutcome, type ImportProposal } from "@/lib/import/proposals";
 import {
   addImportHistory,
@@ -110,11 +111,18 @@ export function ImportHubScreen() {
     setStep("consent");
   };
 
-  const analyze = () => {
+  // Shared by both inputs: paste (any platform) and the web file picker. Content
+  // sniffing wins; the filename only helps route .ics/.eml/.md by extension.
+  const runAnalyze = (content: string, fileName: string) => {
     if (!active) return;
     setErrored(false);
-    const kind = detectImportKind("", paste) === "unknown" ? active.kind : detectImportKind("", paste);
-    const out = buildProposals(kind, paste);
+    if (content.trim().length === 0) {
+      setErrored(true);
+      return;
+    }
+    const detected = detectImportKind(fileName, content);
+    const kind = detected === "unknown" ? active.kind : detected;
+    const out = buildProposals(kind, content);
     if (out.proposals.length === 0) {
       setErrored(true);
       return;
@@ -122,6 +130,23 @@ export function ImportHubScreen() {
     setOutcome(out);
     setSelected(new Set(out.proposals.filter((p) => !p.sensitive).map((p) => p.id))); // sensitive default-excluded
     setStep("review");
+  };
+
+  const analyze = () => runAnalyze(paste, "");
+
+  // Web-only: read the exported file in the browser, then run the same pipeline.
+  // The raw text is held only long enough to parse; nothing is uploaded.
+  const chooseFile = async () => {
+    setErrored(false);
+    try {
+      const picked = await pickTextFile();
+      if (!picked) return; // cancelled / unsupported
+      // raw-not-kept: the file text is only the parser input — never stored in
+      // state (so it can't linger or re-render into the textarea on a parse miss).
+      runAnalyze(picked.text, picked.name);
+    } catch {
+      setErrored(true);
+    }
   };
 
   // Google Calendar connector: OAuth (GIS token model, web) → fetch events →
@@ -343,6 +368,14 @@ export function ImportHubScreen() {
     return (
       <View style={styles.section}>
         <Text variant="caption" pixelEn style={styles.tierLabel}>{name(s)}</Text>
+        {fileImportSupported() ? (
+          <>
+            <Pressable onPress={() => void chooseFile()} hitSlop={6} style={styles.primaryBtn}>
+              <Text variant="caption" style={styles.primaryText}>{t("chooseFile")}</Text>
+            </Pressable>
+            <Text variant="subtle" style={[styles.fine, { marginTop: 2 }]}>{t("orPaste")}</Text>
+          </>
+        ) : null}
         <Text variant="body" style={styles.blockText}>{t("pasteHint")}</Text>
         <TextInput
           value={paste}
@@ -452,6 +485,7 @@ function COPY(ko: boolean): Record<string, string> {
         gErrNative: "지금은 웹에서만 연결돼요. 앱(네이티브)은 추후 지원해요.", gErrGeneric: "연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
         consentPick: "동의하고 파일 선택", orImportFile: "대신 파일로 가져오기",
         consentFine: "수집 항목·보관 위치·기간·삭제권에 동의해요. 미성년은 통신·위치 임포트가 잠겨 있어요.",
+        chooseFile: "파일 선택", orPaste: "또는 아래에 직접 붙여넣기",
         pasteHint: "내보낸 파일 내용을 붙여넣어 주세요.", pastePlaceholder: "여기에 붙여넣기", analyze: "분석",
         errTitle: "파일 형식을 못 읽었어요", errBody: "내보낸 형식이 맞는지 확인해 주세요",
         done: "완료", appts: "약속", places: "장소", raw: "원문", pickToApply: "반영할 항목 고르기",
@@ -472,6 +506,7 @@ function COPY(ko: boolean): Record<string, string> {
         gErrNative: "Connect on web for now. App (native) support comes later.", gErrGeneric: "Couldn't connect. Try again shortly.",
         consentPick: "Consent and pick file", orImportFile: "Import a file instead",
         consentFine: "You consent to what's collected, where it's kept, for how long, and your right to delete. Comms/location import is locked for minors.",
+        chooseFile: "Choose file", orPaste: "or paste it below",
         pasteHint: "Paste the exported file's contents.", pastePlaceholder: "Paste here", analyze: "Analyze",
         errTitle: "Couldn't read the file", errBody: "Check that the exported format is right",
         done: "Done", appts: "Plans", places: "Places", raw: "Raw", pickToApply: "Pick what to apply",
