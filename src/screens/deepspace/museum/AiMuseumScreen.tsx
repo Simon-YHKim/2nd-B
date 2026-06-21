@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
 
 type Entry = { date: string; ko: [string, string]; en: [string, string] };
@@ -151,8 +151,11 @@ export function AiMuseumScreen() {
     const num = String(index + 1).padStart(2, "0");
     return (
       <View style={styles.card}>
-        {/* TODO: replace the placeholder with the moment's bundled/remote image. */}
-        <View style={styles.slot}>
+        {/* TODO: replace the placeholder with the moment's bundled/remote image.
+            Until then, an intentional deep-space slot (category-accent orb), not a
+            blank box. */}
+        <View style={[styles.slot, { backgroundColor: withAlpha(active.accent, 0.1) }]}>
+          <View style={[styles.slotOrb, { backgroundColor: withAlpha(active.accent, 0.22), borderColor: active.accent }]} />
           <Text variant="subtle" style={styles.slotHint}>{`${item.date} · ${title}`}</Text>
         </View>
         <View style={styles.cardBody}>
@@ -256,7 +259,8 @@ const styles = StyleSheet.create({
 
   rail: { gap: 18, paddingHorizontal: deepSpaceSpacing.lg, paddingTop: deepSpaceSpacing.md, paddingBottom: deepSpaceSpacing.sm },
   card: { width: CARD_W, borderRadius: deepSpaceRadii.lg, overflow: "hidden", borderWidth: 1, borderColor: deepSpace.cardLine, backgroundColor: deepSpace.card },
-  slot: { height: 184, alignItems: "center", justifyContent: "center", backgroundColor: deepSpace.cardPressed, borderBottomWidth: 1, borderBottomColor: deepSpace.cardLine, padding: deepSpaceSpacing.md },
+  slot: { height: 184, alignItems: "center", justifyContent: "center", gap: 12, backgroundColor: deepSpace.cardPressed, borderBottomWidth: 1, borderBottomColor: deepSpace.cardLine, padding: deepSpaceSpacing.md },
+  slotOrb: { width: 48, height: 48, borderRadius: 24, borderWidth: 1 },
   slotHint: { fontSize: 11, color: deepSpace.textLo, textAlign: "center" },
   cardBody: { padding: deepSpaceSpacing.md, gap: 8 },
   num: { fontSize: 26, color: deepSpace.cardLineStrong },

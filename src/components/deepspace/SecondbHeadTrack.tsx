@@ -13,7 +13,7 @@
 // back to center even though the last touch point stays frozen.
 
 import { createContext, useContext, useRef } from "react";
-import { Animated, StyleSheet, View, type GestureResponderEvent, type ViewStyle } from "react-native";
+import { Animated, Platform, StyleSheet, View, type GestureResponderEvent, type ViewStyle } from "react-native";
 
 export interface SecondbTracking {
   touch: Animated.ValueXY; // window px of the active touch
@@ -40,20 +40,31 @@ export function SecondbHeadTrackProvider({
   const spring = (to: number) =>
     Animated.spring(engage, { toValue: to, useNativeDriver: false, friction: 7, tension: 55 }).start();
 
-  const onTouch = (e: GestureResponderEvent) => {
-    const { pageX, pageY } = e.nativeEvent;
+  const move = (pageX: number, pageY: number) => {
     touch.setValue({ x: pageX, y: pageY });
     if (!active.current) {
       active.current = true;
       spring(1); // smooth start
     }
   };
+  const onTouch = (e: GestureResponderEvent) => move(e.nativeEvent.pageX, e.nativeEvent.pageY);
   const end = () => {
     if (active.current) {
       active.current = false;
       spring(0); // smooth return to origin
     }
   };
+
+  // Web has no touch events for a mouse, so the head wouldn't follow the cursor
+  // on the live web build. Mirror the touch handlers onto mouse move/leave there.
+  const webProps =
+    Platform.OS === "web"
+      ? ({
+          onMouseMove: (e: { nativeEvent: { pageX: number; pageY: number } }) =>
+            move(e.nativeEvent.pageX, e.nativeEvent.pageY),
+          onMouseLeave: end,
+        } as object)
+      : null;
 
   return (
     <TrackingContext.Provider value={{ touch, engage }}>
@@ -63,6 +74,7 @@ export function SecondbHeadTrackProvider({
         onTouchMove={onTouch}
         onTouchEnd={end}
         onTouchCancel={end}
+        {...(webProps ?? {})}
       >
         {children}
       </View>
