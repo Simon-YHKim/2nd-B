@@ -134,8 +134,9 @@ export function ImportHubScreen() {
 
   const analyze = () => runAnalyze(paste, "");
 
-  // Web-only: read the exported file in the browser, then run the same pipeline.
-  // The raw text is held only long enough to parse; nothing is uploaded.
+  // Read the chosen export file (web file dialog or native document picker),
+  // then run the same pipeline. The raw text is held only long enough to parse;
+  // nothing is uploaded or stored.
   const chooseFile = async () => {
     setErrored(false);
     try {
