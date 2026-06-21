@@ -418,7 +418,7 @@ function CoreBrainScreen() {
           <Button
             label={locale === "ko" ? "제안 받고 점검하기" : "Review a proposal"}
             variant="primary"
-            onPress={() => router.push("/review")}
+            onPress={() => router.push("/digest")}
           />
         </Section>
 
