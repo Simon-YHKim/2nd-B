@@ -1,30 +1,89 @@
-// Web-safe text-file picker for the import hub. On web it opens a native file
-// dialog (hidden <input type="file">) and reads the file as text in the browser
-// — no upload, no new dependency, nothing leaves the device before parse. On
-// native it resolves null (real native file picking needs an EAS-gated dep, so
-// the hub keeps the paste path there). The parsed text feeds the same on-device
-// detect → parse → propose → ratify pipeline; the raw file is never stored.
+// Text-file picker for the import hub. On web it opens a native file dialog
+// (hidden <input type="file">) and reads the file as text in the browser. On
+// native (iOS/Android) it picks via expo-document-picker and reads the file://
+// cache copy with fetch().text() — the same read path as src/lib/wiki/
+// capture-file.ts. Either way: no upload, nothing is stored, the raw file never
+// leaves the device before parse. The parsed text feeds the same on-device
+// detect -> parse -> propose -> ratify pipeline; the raw file is never persisted.
 
 export interface PickedFile {
   name: string;
   text: string;
 }
 
-/** Accept hint for the OS dialog — text-ish exports the parsers understand. */
+/** Accept hint for the web OS dialog — text-ish exports the parsers understand. */
 const ACCEPT = ".txt,.csv,.ics,.eml,.md,.markdown,.json,.xml,text/*,application/json";
 
-/** Guard: web only. Avoids referencing `document` on native bundles. */
-export function fileImportSupported(): boolean {
+/** Native getDocumentAsync MIME filter — the same text-ish categories as ACCEPT. */
+const NATIVE_ACCEPT_MIME = [
+  "text/*", // .txt, .csv, .md, .xml (text/*)
+  "application/json",
+  "application/xml",
+  "text/calendar", // .ics
+  "message/rfc822", // .eml
+  "text/markdown",
+  "text/csv",
+];
+
+/** Web: hidden <input type="file"> + FileReader are available. */
+function webPickerSupported(): boolean {
   return typeof document !== "undefined" && typeof FileReader !== "undefined";
 }
 
 /**
- * Opens the browser file dialog and reads the chosen file as text. Resolves null
- * when unsupported (native) or when the user cancels. Best-effort: rejects only
- * on an actual read error so the caller can show the error state.
+ * Native (RN runtime) where expo-document-picker is bundled. Detected via
+ * navigator.product so this module never imports react-native and stays loadable
+ * in the node test env (same native check as src/app/_layout.tsx).
+ */
+function nativePickerSupported(): boolean {
+  const nav = globalThis.navigator as { product?: string } | undefined;
+  return nav?.product === "ReactNative";
+}
+
+/** True when file import works on this platform (web dialog or native picker). */
+export function fileImportSupported(): boolean {
+  return webPickerSupported() || nativePickerSupported();
+}
+
+/**
+ * Opens the platform file picker and reads the chosen file as text. Resolves
+ * null when unsupported (neither web nor native) or when the user cancels.
+ * Rejects only on an actual read error so the caller can show the error state.
+ * Same contract on web and native: Promise<{ name, text } | null>.
  */
 export function pickTextFile(): Promise<PickedFile | null> {
-  if (!fileImportSupported()) return Promise.resolve(null);
+  if (webPickerSupported()) return pickWebTextFile();
+  if (nativePickerSupported()) return pickNativeTextFile();
+  return Promise.resolve(null);
+}
+
+/**
+ * Native branch. expo-document-picker is imported lazily so the web/node bundle
+ * never loads the native dep (and react-native through it) at module eval. The
+ * chosen file is copied into the app cache and read as text via fetch(); a read
+ * failure rejects. The text stays in memory and is never stored or uploaded.
+ */
+async function pickNativeTextFile(): Promise<PickedFile | null> {
+  const DocumentPicker = await import("expo-document-picker");
+  const res = await DocumentPicker.getDocumentAsync({
+    type: NATIVE_ACCEPT_MIME,
+    copyToCacheDirectory: true,
+    multiple: false,
+  });
+  if (res.canceled) return null;
+  const asset = res.assets?.[0];
+  if (!asset) return null;
+  const response = await fetch(asset.uri);
+  const text = await response.text();
+  return { name: asset.name, text };
+}
+
+/**
+ * Web branch. Opens the browser file dialog and reads the chosen file as text.
+ * Resolves null when the user cancels. Best-effort: rejects only on an actual
+ * read error.
+ */
+function pickWebTextFile(): Promise<PickedFile | null> {
   return new Promise((resolve, reject) => {
     const input = document.createElement("input");
     input.type = "file";
