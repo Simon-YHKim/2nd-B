@@ -4,7 +4,65 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
-## Latest — 2026-06-21 / 게이트 해소 마무리 + 구글 임포트 커넥터 + TTFV 화면 (6 PR)
+## Latest — 2026-06-21 (저녁) / D-25 포지셔닝·UX 정제 — 4AI 토론→페르소나 검증→구현 (~23 PR)
+
+그록의 5개 포지셔닝/UX 제안을 **4-AI 토론 + 페르소나 시뮬**로 검증(D-25, `AI Infra/Communication/DECISIONS.md`)하고 구현까지 닫은 세션. `/goal 모든 phase 완료` 하네스로 Phase 0~3을 끝까지 밀었다. **Phase 0·1·2 = 100%, Phase 3 = D-21 + pull digest + #540 + #542 + #544**. 전 PR `npm run verify` green (236 suites / 1786 tests).
+
+### 어디까지 왔나
+- main HEAD: `05e9ceb8`
+- 이번 세션 머지(롤업, 전부 verify green):
+  - **Phase 0**(신원 표면): raw %→`brightnessBand()` dim/fair/bright + de-companion(DESIGN.md·`anthro.ts` 감시구문 4패턴)·watcher 리본 de-voice
+  - **Phase 1**(a11y + raw-Text 전수): 그리팅·TTFV·SR live-region·≥44px + **16+파일 ~450 Text를 capped `@/components/ui/Text`로**(readable-font 토글 + maxFontSizeMultiplier). #534 `Text`에 `pixelEn` prop 추가 + #535 pixelEn eyebrow 44개 전환
+  - **Phase 2**(D-17 pre-account wedge): preauth-pending 큐 + import-pending + `(auth)/jot.tsx` 캡처화면(device-local·정직카피·LLM 0)
+  - **Phase 3**: #536 `/digest` "오늘의 정리" pull 검토(inferred-link ratify) · #540 성인추천 default-OFF+토글(privacy enforce) · #542 opt-in 로컬 일일 리마인더(`daily-review.ts`, native·$0) · #544 추천 이해게이트(캐논 privacy mockup 기능화, 성인전용·consent ledger·미성년 잠금)
+- 테스트: `npm run verify` green (236 suites / 1786 tests)
+- working tree: **E:/2ndB는 `feat/d25-phase1`에 묶임 + dirty 27**(동료 AI 미커밋 — 건드리지 말 것). 내 작업은 전부 격리 worktree에서 PR로 머지됨
+
+### 활성 인프라
+- (이전 세션과 동일) 정본 웹 = GitHub Pages(`simon-yhkim.github.io/2nd-B/`), Supabase `2nd-brain`(`zoacryukmdeivmolvyhj`). 변경 없음.
+- **마이그레이션은 레포 밖에서 관리**(committed `supabase/migrations`는 1개뿐, 0031/0032/0050 등은 Supabase 직접). 새 스키마 필요한 기능(예: push_tokens)은 이 레포에서 `supabase-dry-run` 통과 못 시킴 → Simon/MCP로 적용해야.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **AG 에뮬 시각 QA** — raw-Text 16+파일 전환(특히 252-Text `DeepSpaceDesignScreens`) 픽셀 회귀 확인 | medium | ⭐ verify/CI green이나 픽셀 검증은 못 함 |
+| B | **O-31 렌즈 배선** — Codex 진행 중(#538/#539/#541/#543). 7렌즈 CTA→실로직(legacy 분기에 갇힌 기능 노출) | medium | ⭐ deep-space 상호작용 갭 |
+| C | server-push 스케줄러 | large | ❌ **불요** — #542(OS-스케줄 일일 알림)가 사용자가치 전달=중복 + 스키마 레포 밖이라 깨끗이 빌드 불가. 짓지 말 것 |
+| D | 성인추천 이해게이트 **법무** | - | ⏸ §11-5 = 실 K12 아동 DPIA + counsel(외부). 코드(#544)는 안전형태로 닫음, 공개런치 전 법무 검토 |
+| E | morning-brief D-19 재논의 | - | ⏸ 앱주도 push = anti-companion 충돌. 필요시 §35 토론 |
+
+### 적용 중인 정책 (영구)
+1. PR→main squash 머지(verify green). **main 직접 푸시 금지**. `git add -A` 금지(명시 경로만).
+2. **격리 worktree 필수**(E:/2ndB는 동료 AI와 공유 → 내 브랜치는 `_worktrees/`에서, node_modules는 mklink /J 정션). E:/2ndB가 `feat/d25-phase1`에 묶여 있으니 main 작업은 worktree에서.
+3. **게이트(항상-확인, 우회 불가)**: ①파괴적 ②비용 ③secrets ④**아동 안전**(미성년 데이터·푸시·프로파일링) ⑤**법무 §11-5**(K12 DPIA·counsel). D-25에서 이 게이트들로 server-push·이해게이트 법무를 보류/안전형태 처리.
+4. 디자인: deepSpace.* 토큰만·hex 0, 비주얼 티어 불가침, 1메시지+1그래픽, propose→ratify. **anti-companion(D-19)**: 감시·companion 어법 금지(CI `check-anti-anthro`/`check-mascot-voice`).
+
+### 핵심 파일 위치
+```
+AI Infra/Communication/DECISIONS.md   D-25 합의 원장(이 세션 전부 기록, Claude-owned)
+src/app/digest.tsx                     "오늘의 정리" pull 검토 + 일일 리마인더 토글
+src/lib/ops/daily-review.ts            opt-in 로컬 일일 알림(schedule/cancel/pref)
+src/lib/ops/recommend.ts               recommendationsAllowed (성인도 pref enforce, default OFF)
+src/lib/privacy/prefs.ts               VISIBLE_PRIVACY_KEYS(+recommendations), 미성년 잠금
+src/screens/deepspace/DeepSpaceDesignScreens.tsx  캐논 privacy = 기능 이해게이트(#544)
+src/lib/supabase/consent.ts            recordRecommendationsConsent (LLM+해외 ack)
+```
+
+### 검증
+```
+npm run verify   # 236 suites / 1786 tests green (lint+type+i18n+lexicon+llm-boundary+constraints+anti-anthro+mascot-voice + jest)
+```
+
+### 다음 세션 시작하는 법
+```
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md          # 이 블록
+# A(AG 에뮬 QA) 또는 B(O-31 렌즈 배선)부터. server-push(C)는 짓지 말 것.
+```
+
+---
+
+## 2026-06-21 (오전) — 게이트 해소 마무리 + 구글 임포트 커넥터 + TTFV 화면 (6 PR)
 
 지난 세션이 코드로 닫아둔 비전 3축을 **라이브로 켜는** 세션. cowork(computer-use)이 G0 마이그레이션·무료키 발급·Vercel·Google OAuth 뼈대를 처리했고, Claude가 후속으로 정본 웹 확정(Pages)·FX 도메인 수정·키 배선·구글 커넥터(Calendar+Tasks)·TTFV 첫날 화면을 코드로 닫았다. **#496~#501 (6 PR) main 머지**, `npm run verify` green (225 suites / 1715 tests).
 
