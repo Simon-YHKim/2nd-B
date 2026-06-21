@@ -75,12 +75,18 @@ export const MINOR_PROMOTABLE_KEYS: readonly PrivacyPrefKey[] = ["long_term_memo
 //     src/lib/health/ingest.ts via healthImportAllowed. Minors are NOT in
 //     MINOR_PROMOTABLE_KEYS below, so they stay hard-locked OFF (and the 0050
 //     seed sets it false on sign-up) — they can never ingest health data.
+//   - recommendations (D-20 follow-up, D-25 2026-06-21): the /ops recommend gate
+//     (recommendationsAllowed) now enforces this pref for adults too — OFF by
+//     default, opt-in here. Minors are NOT in MINOR_PROMOTABLE_KEYS, so they see
+//     it locked OFF (and stay server-clamped). The §11-5-gated in-context
+//     understanding-gate is a separate step, not this plain toggle.
 // The other keys remain here as the single point of future wiring.
 export const VISIBLE_PRIVACY_KEYS: readonly PrivacyPrefKey[] = [
   "external_analytics",
   "ads",
   "ops_push",
   "health_import",
+  "recommendations",
 ];
 
 export function isPrivacyPrefEditable(key: PrivacyPrefKey, isMinor: boolean): boolean {

@@ -129,15 +129,18 @@ export interface OpsRecommendInput {
  * MINOR_PROMOTABLE_KEYS). runRecommend previously ignored the pref entirely, so a minor's
  * wiki snapshot reached callGemini ungated. This gate honors the minor lock: a minor only
  * runs when recommendations is explicitly true (which it cannot be while server-locked), so
- * their pieces never leave the device ungated. Adults are allowed; an opt-in toggle for the
- * privacy-by-design OFF default is a separate D-20 follow-up, so adult behavior is unchanged.
+ * their pieces never leave the device ungated. D-20 follow-up (D-25, Simon GO 2026-06-21):
+ * adults now honor the same privacy-by-design OFF default and opt in via the privacy-settings
+ * toggle, instead of running regardless of the pref. (The in-context understanding-gate is a
+ * separate, §11-5-gated step and is NOT part of this change.)
  */
 export function recommendationsAllowed(
   isMinor: boolean | null | undefined,
   recommendationsPref: boolean | null | undefined,
 ): boolean {
-  if (isMinor === true) return recommendationsPref === true;
-  return true;
+  // Everyone (adult or minor) runs only when explicitly opted in; the default is
+  // OFF. Minors are additionally server-locked, so the opt-in path is adults-only.
+  return recommendationsPref === true;
 }
 
 export async function recommendForDomain(input: OpsRecommendInput): Promise<OpsRecommendation[]> {
