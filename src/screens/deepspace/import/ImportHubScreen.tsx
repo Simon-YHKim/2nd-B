@@ -141,7 +141,8 @@ export function ImportHubScreen() {
     try {
       const picked = await pickTextFile();
       if (!picked) return; // cancelled / unsupported
-      setPaste(picked.text);
+      // raw-not-kept: the file text is only the parser input — never stored in
+      // state (so it can't linger or re-render into the textarea on a parse miss).
       runAnalyze(picked.text, picked.name);
     } catch {
       setErrored(true);

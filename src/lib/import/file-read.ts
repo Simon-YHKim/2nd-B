@@ -35,9 +35,12 @@ export function pickTextFile(): Promise<PickedFile | null> {
       if (input.parentNode) input.parentNode.removeChild(input);
     };
     input.onchange = () => {
+      // The dialog closed (file chosen or not). Either way the cancel fallback
+      // must stand down now — a large export can take >300ms to read, and the
+      // focus timer would otherwise resolve null mid-read and drop a valid file.
+      settled = true;
       const file = input.files && input.files[0];
       if (!file) {
-        settled = true;
         cleanup();
         resolve(null);
         return;
