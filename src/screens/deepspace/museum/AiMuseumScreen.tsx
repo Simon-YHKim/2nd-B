@@ -39,7 +39,7 @@ const CATS: Category[] = [
     id: "found", accent: deepSpace.text, ko: "기반 연구·아키텍처", en: "Foundations & Architecture",
     dko: "생각하는 기계라는 꿈이 수학과 회로가 된 순간들.", den: "When the dream of a thinking machine became math and circuits.",
     entries: [
-      { date: "1950", ko: ["튜링 테스트", "앨런 튜링이 기계가 생각할 수 있는가를 모방 게임으로 다시 물었다."], en: ["The Turing Test", "Alan Turing reframed can machines think as the imitation game."], img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Alan_Turing_Aged_16.jpg/480px-Alan_Turing_Aged_16.jpg" },
+      { date: "1950", ko: ["튜링 테스트", "앨런 튜링이 기계가 생각할 수 있는가를 모방 게임으로 다시 물었다."], en: ["The Turing Test", "Alan Turing reframed can machines think as the imitation game."], img: "https://commons.wikimedia.org/wiki/Special:FilePath/Alan_Turing_Aged_16.jpg?width=640" },
       { date: "1956", ko: ["다트머스 회의", "인공지능이 처음 하나의 학문 이름으로 태어났다."], en: ["Dartmouth Workshop", "Artificial intelligence was born as the name of a field."] },
       { date: "1958", ko: ["퍼셉트론", "로젠블랫이 스스로 학습하는 인공 뉴런을 만들었다."], en: ["The Perceptron", "Rosenblatt built the first learning artificial neuron."] },
       { date: "1986", ko: ["역전파", "다층 신경망을 실제로 학습시키는 길이 열렸다."], en: ["Backpropagation", "Made training deep multi-layer networks practical."] },
