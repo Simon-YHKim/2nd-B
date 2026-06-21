@@ -43,11 +43,20 @@ export default function Digest() {
   const ko = i18n.language === "ko";
   const [items, setItems] = useState<InferredLinkDetail[] | null>(null);
   const [actingKey, setActingKey] = useState<string | null>(null);
+  const [error, setError] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!userId) return;
-    const rows = await listInferredLinkDetails(userId).catch(() => [] as InferredLinkDetail[]);
-    setItems(rows);
+    setError(false);
+    try {
+      const rows = await listInferredLinkDetails(userId);
+      setItems(rows);
+    } catch {
+      // A load failure is NOT an empty list. Surface a distinct error state
+      // with a retry CTA so the user can recover (spec §9).
+      setItems(null);
+      setError(true);
+    }
   }, [userId]);
 
   useEffect(() => {
@@ -136,7 +145,23 @@ export default function Digest() {
           </View>
         </View>
 
-        {items === null ? (
+        {error ? (
+          <View style={styles.empty}>
+            <Text variant="body" color="textMuted" style={styles.center}>
+              {ko
+                ? "정리를 불러오지 못했어요. 잠시 후 다시 시도해 주세요."
+                : "Couldn't load your review. Please try again in a moment."}
+            </Text>
+            <Pressable
+              onPress={() => void refresh()}
+              accessibilityRole="button"
+              accessibilityLabel={ko ? "다시 시도" : "Try again"}
+              style={styles.cta}
+            >
+              <Text variant="body" style={styles.ctaText}>{ko ? "다시 시도" : "Try again"}</Text>
+            </Pressable>
+          </View>
+        ) : items === null ? (
           <InlineLoader />
         ) : items.length === 0 ? (
           <View style={styles.empty}>
@@ -163,7 +188,17 @@ export default function Digest() {
               const key = `${p.from_page}|${p.to_page}`;
               const busy = actingKey === key;
               return (
-                <View key={key} style={styles.row}>
+                <Pressable
+                  key={key}
+                  onPress={() =>
+                    router.push({ pathname: "/record/[id]", params: { id: p.from_page } })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    ko ? `${p.from_title} 상세 보기` : `Open ${p.from_title}`
+                  }
+                  style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : null]}
+                >
                   <Text variant="body" numberOfLines={2}>
                     {p.from_title} <Text variant="body" color="textMuted">↔</Text> {p.to_title}
                   </Text>
@@ -190,7 +225,7 @@ export default function Digest() {
                       <Text variant="caption" style={styles.btnPrimaryText}>{ko ? "확인" : "Confirm"}</Text>
                     </Pressable>
                   </View>
-                </View>
+                </Pressable>
               );
             })}
           </>
@@ -236,6 +271,7 @@ const styles = StyleSheet.create({
     padding: deepSpaceSpacing.md,
     gap: 6,
   },
+  rowPressed: { opacity: 0.85 },
   band: {},
   actions: { flexDirection: "row", gap: deepSpaceSpacing.sm, justifyContent: "flex-end", marginTop: 4 },
   btn: { minHeight: 44, paddingHorizontal: deepSpaceSpacing.md, borderRadius: deepSpaceRadii.md, alignItems: "center", justifyContent: "center" },

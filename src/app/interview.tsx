@@ -10,7 +10,7 @@
 //     once the active period's 5 layers are each covered once
 //   - Soft cap at 50 turns to protect memory + LLM context
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   View,
   StyleSheet,
@@ -32,7 +32,6 @@ import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { RecallLensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
@@ -61,7 +60,25 @@ type InterviewFeedbackModal =
   | { kind: "save" }
   | null;
 
-function InterviewLegacy() {
+// Single interview engine shared by BOTH the legacy and deep-space branches —
+// no logic fork. `variant` only swaps the outer frame: legacy uses
+// PremiumAppShell, deep-space re-hosts the SAME body inside <DeepSpaceScreen>.
+// All data/LLM/safety logic below (startInterview, requestNextProbe,
+// handleAnswer, handleSave, the C9 path inside nextProbe) is identical for both.
+type InterviewVariant = "legacy" | "deepSpace";
+
+function InterviewBody({ variant }: { variant: InterviewVariant }) {
+  const isDeepSpace = variant === "deepSpace";
+
+  // Frame swaps the chrome without touching the body. Deep-space wraps in the
+  // shared DeepSpaceScreen (active="lens"); legacy keeps PremiumAppShell.
+  function Frame({ children }: { children: ReactNode }) {
+    if (isDeepSpace) {
+      return <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>;
+    }
+    return <PremiumAppShell>{children}</PremiumAppShell>;
+  }
+
   const { i18n } = useTranslation();
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -95,11 +112,11 @@ function InterviewLegacy() {
 
   if (loading) {
     return (
-      <PremiumAppShell>
+      <Frame>
         <View style={styles.center}>
           <PremiumLoadingState message={locale === "ko" ? "인터뷰를 준비하는 중이에요…" : "Loading interview…"} />
         </View>
-      </PremiumAppShell>
+      </Frame>
     );
   }
   if (!userId) {
@@ -275,7 +292,7 @@ function InterviewLegacy() {
 
   if (period === null) {
     return (
-      <PremiumAppShell>
+      <Frame>
         <ScrollView contentContainerStyle={styles.scroll}>
           <SceneHero
             eyebrow={locale === "ko" ? "10. 드릴 인터뷰" : "10. Drill interview"}
@@ -320,12 +337,12 @@ function InterviewLegacy() {
             ))}
           </View>
         </ScrollView>
-      </PremiumAppShell>
+      </Frame>
     );
   }
 
   return (
-    <PremiumAppShell>
+    <Frame>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={keyboardBehavior}>
         <View style={styles.topBar}>
           <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
@@ -478,7 +495,7 @@ function InterviewLegacy() {
           />
         </View>
       </PremiumModal>
-    </PremiumAppShell>
+    </Frame>
   );
 }
 
@@ -550,12 +567,9 @@ const styles = StyleSheet.create({
 });
 
 export default function Interview() {
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen active="lens">
-        <RecallLensView />
-      </DeepSpaceScreen>
-    );
-  }
-  return <InterviewLegacy />;
+  // Both branches run the SAME interview engine (InterviewBody) — the only
+  // difference is the chrome: deep-space re-hosts the real AI interview inside
+  // DeepSpaceScreen instead of the old static RecallLensView placeholder.
+  // No logic fork: data/LLM/safety paths are shared.
+  return <InterviewBody variant={isDeepSpaceUI() ? "deepSpace" : "legacy"} />;
 }

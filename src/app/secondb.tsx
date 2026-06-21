@@ -670,7 +670,21 @@ function SecondBChatLegacy() {
               showsVerticalScrollIndicator={false}
             >
               {(refDrawer ?? []).map((slug) => (
-                <ReferenceShardCard key={slug} title={formatSourceCitationLabel(slug)} meta={t("reference_piece_meta")} />
+                <ReferenceShardCard
+                  key={slug}
+                  title={formatSourceCitationLabel(slug)}
+                  meta={t("reference_piece_meta")}
+                  onPress={() => {
+                    // Citations are wiki-page slugs, not record ids, and no
+                    // slug->record-id mapping is available in this screen.
+                    // Route to the records browser as an honest landing rather
+                    // than a dead chip.
+                    // TODO: once a slug->record-id resolver exists (e.g. via
+                    // getWikiPage -> source record), route to /record/[id].
+                    setRefDrawer(null);
+                    router.push("/records");
+                  }}
+                />
               ))}
             </ScrollView>
             <Button
