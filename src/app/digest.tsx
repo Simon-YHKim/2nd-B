@@ -22,6 +22,14 @@ import {
   rejectInferredLink,
   type InferredLinkDetail,
 } from "@/lib/wiki/queries";
+import { PreferenceToggleRow } from "@/components/ui/PreferenceToggle";
+import {
+  dailyReviewSupported,
+  loadDailyReviewEnabled,
+  scheduleDailyReview,
+  cancelDailyReview,
+  setDailyReviewEnabledPref,
+} from "@/lib/ops/daily-review";
 
 function bandLabel(confidence: number, ko: boolean): string {
   if (confidence >= 0.6) return ko ? "강한 연결" : "strong link";
@@ -62,6 +70,52 @@ export default function Digest() {
       }
     },
     [userId, refresh],
+  );
+
+  // Opt-in daily-review reminder (native-only). OFF by default; the user turns
+  // it on for themselves and the OS permission prompt is the consent. It is a
+  // local notification, not an app-initiated re-engagement push.
+  const remindersOk = dailyReviewSupported();
+  const [reminderOn, setReminderOn] = useState(false);
+  const [reminderBusy, setReminderBusy] = useState(false);
+  const [reminderDenied, setReminderDenied] = useState(false);
+
+  useEffect(() => {
+    if (!remindersOk) return;
+    let cancelled = false;
+    void loadDailyReviewEnabled().then((on) => {
+      if (!cancelled) setReminderOn(on);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [remindersOk]);
+
+  const toggleReminder = useCallback(
+    async (next: boolean) => {
+      setReminderBusy(true);
+      setReminderDenied(false);
+      try {
+        if (next) {
+          const title = ko ? "오늘의 정리" : "Today's review";
+          const body = ko ? "기록에서 모인 연결을 검토해 볼까요?" : "Review the connections gathered from your records?";
+          const res = await scheduleDailyReview(9, 0, title, body);
+          if (res === "scheduled") {
+            setReminderOn(true);
+            setDailyReviewEnabledPref(true);
+          } else if (res === "denied") {
+            setReminderDenied(true);
+          }
+        } else {
+          await cancelDailyReview();
+          setReminderOn(false);
+          setDailyReviewEnabledPref(false);
+        }
+      } finally {
+        setReminderBusy(false);
+      }
+    },
+    [ko],
   );
 
   if (loading) return <InlineLoader />;
@@ -141,6 +195,25 @@ export default function Digest() {
             })}
           </>
         )}
+
+        {remindersOk ? (
+          <View style={styles.reminder}>
+            <PreferenceToggleRow
+              label={ko ? "매일 오전 9시에 알림" : "Remind me at 9:00 AM"}
+              description={ko ? "이 기기에서만 울려요. 언제든 끌 수 있어요." : "Rings on this device only. Turn it off anytime."}
+              value={reminderOn}
+              disabled={reminderBusy}
+              onValueChange={(v) => {
+                void toggleReminder(v);
+              }}
+            />
+            {reminderDenied ? (
+              <Text variant="subtle" color="textMuted" style={styles.center}>
+                {ko ? "기기 알림 권한이 꺼져 있어요. 설정에서 켜 주세요." : "Notifications are off for this app. Turn them on in Settings."}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -153,6 +226,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", gap: deepSpaceSpacing.sm, alignItems: "flex-start" },
   intro: { marginTop: 4 },
   center: { textAlign: "center" },
+  reminder: { gap: 6, marginTop: deepSpaceSpacing.md },
   empty: { gap: deepSpaceSpacing.md, alignItems: "center", paddingVertical: deepSpaceSpacing.lg },
   row: {
     backgroundColor: deepSpace.card,
