@@ -99,10 +99,27 @@ import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 // capture modes live on one screen. "일기" writes to `records` (createRecord —
 // streak / reflection / optional Advisor); the rest write to `sources`
 // (captureFromMarkdown). Reads were already unified via mergeEvidence.
-type Mode = CaptureDraftMode;
+// SCREEN_TREE_SPEC §3 /capture: the spec lists 5 modes — 글(memo)/링크(linkclip)/
+// 사진(ocr)/음성(voice)/할 일(todo). "voice" and "todo" are NOT persisted draft
+// modes (CaptureDraftMode lives in lib/capture/draft.ts and stays the 5 storage
+// modes), so they are added here as a local superset. They are transient
+// text-capture modes that save through createRecord(kind:"note") with a
+// distinguishing tag — no new DB kind is introduced.
+type StorageMode = CaptureDraftMode;
+type Mode = CaptureDraftMode | "voice" | "todo";
 type CaptureFeedbackModal = { title: string; body: string; retry?: () => void } | null;
+// One row of the 최근 조각 recent list — a subset of listRecentRecords output.
+type RecentRow = { id: string; kind: string; topic: string | null; body: string | null; created_at: string };
 
-const CAPTURE_MODES: Mode[] = ["journal", "memo", "linkclip", "ocr", "file"];
+// Voice/todo are not draft-persisted, so they never feed the StorageMode-typed
+// draft helpers. This guard narrows a Mode down to a StorageMode at those call
+// sites and keeps the persistence path off for the two new modes.
+const STORAGE_MODES: readonly StorageMode[] = ["journal", "memo", "linkclip", "ocr", "file"];
+function isStorageMode(m: Mode): m is StorageMode {
+  return (STORAGE_MODES as readonly string[]).includes(m);
+}
+
+const CAPTURE_MODES: Mode[] = ["journal", "memo", "linkclip", "ocr", "voice", "todo", "file"];
 const BASIC_CAPTURE_MODES: Mode[] = ["journal"];
 
 const TRACK_OPTIONS: WikiTrack[] = ["daily", "pro"];
@@ -156,6 +173,22 @@ function ModeGlyph({ mode, color, label }: { mode: Mode; color: string; label: s
           <Path d="M9 8 L10 6 L14 6 L15 8" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
           <Circle cx="12" cy="13" r="2.4" stroke={color} strokeWidth={sw} fill="none" />
           <Path d="M4 5 L4 3 L7 3 M17 3 L20 3 L20 5 M4 19 L4 21 L7 21 M17 21 L20 21 L20 19" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
+        </Svg>
+      );
+    case "voice":
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
+          <Rect x="9.5" y="4" width="5" height="9" rx="2.5" stroke={color} strokeWidth={sw} fill="none" />
+          <Path d="M7 11.5 C7 14.5 9.2 16.5 12 16.5 C14.8 16.5 17 14.5 17 11.5" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
+          <Line x1="12" y1="16.5" x2="12" y2="20" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Line x1="9" y1="20" x2="15" y2="20" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+        </Svg>
+      );
+    case "todo":
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
+          <Rect x="5" y="5" width="14" height="14" rx="2" stroke={color} strokeWidth={sw} fill="none" />
+          <Path d="M8.5 12 L11 14.5 L15.5 9" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       );
     case "file":
@@ -305,7 +338,12 @@ function CaptureLegacy() {
   const [conclusion, setConclusion] = useState("");
   const [showExtras, setShowExtras] = useState(false);
   const [askAdvisor, setAskAdvisor] = useState(false);
+  // 할 일(todo) mode: a single done flag persisted into the saved note's tags.
+  const [todoDone, setTodoDone] = useState(false);
   const [recentDates, setRecentDates] = useState<string[]>([]);
+  // 최근 조각 (recent pieces): the records rows already fetched for the streak
+  // double as a tappable recent list under the composer. Each row → /record/[id].
+  const [recentRows, setRecentRows] = useState<RecentRow[]>([]);
   const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
     visible: false,
     hotline: "GLOBAL_988",
@@ -323,7 +361,7 @@ function CaptureLegacy() {
     );
   }
 
-  function draftFromFields(targetMode: Mode): CaptureDraft {
+  function draftFromFields(targetMode: StorageMode): CaptureDraft {
     return {
       body,
       topic: targetMode === "journal" ? topic : "",
@@ -332,7 +370,7 @@ function CaptureLegacy() {
     };
   }
 
-  function storeDraftForMode(targetMode: Mode, draft: CaptureDraft): void {
+  function storeDraftForMode(targetMode: StorageMode, draft: CaptureDraft): void {
     const next = { ...draftsRef.current };
     if (hasRestorableDraft(draft)) next[targetMode] = draft;
     else delete next[targetMode];
@@ -340,15 +378,17 @@ function CaptureLegacy() {
   }
 
   function rememberCurrentDraft(): void {
+    // Voice/todo are not draft-persisted modes — nothing to remember for them.
+    if (!isStorageMode(mode)) return;
     storeDraftForMode(mode, draftFromFields(mode));
   }
 
-  function persistDrafts(lastMode: Mode): void {
+  function persistDrafts(lastMode: StorageMode): void {
     if (!userId || !draftHydratedRef.current || draftUserRef.current !== userId) return;
     saveCaptureDraftState(userId, { drafts: draftsRef.current, lastMode });
   }
 
-  function applyDraftToFields(targetMode: Mode, draft: CaptureDraft | undefined): void {
+  function applyDraftToFields(targetMode: StorageMode, draft: CaptureDraft | undefined): void {
     const conclusionDraft = targetMode === "journal" ? draft?.conclusion ?? "" : "";
     setBody(draft?.body ?? "");
     setTopic(targetMode === "journal" ? draft?.topic ?? "" : "");
@@ -418,11 +458,15 @@ function CaptureLegacy() {
     sharedConsumedRef.current = shared.key;
     const restoreSkipped = shareSkippedRestoreRef.current;
     shareSkippedRestoreRef.current = false;
+    // Voice/todo are transient (not draft-persisted): there is no live draft to
+    // fold back in, and they have no StorageMode key. Treat the fold as having
+    // no live source mode in that case so the share still lands in linkclip.
+    const liveStorageMode: StorageMode = isStorageMode(mode) ? mode : "linkclip";
     const { drafts: nextDrafts, linkclipDraft } = consumeSharedIntoDrafts({
       drafts: draftsRef.current,
-      liveDraft: draftFromFields(mode),
-      liveMode: mode,
-      restoreSkipped,
+      liveDraft: isStorageMode(mode) ? draftFromFields(mode) : { body: "", topic: "", conclusion: "" },
+      liveMode: liveStorageMode,
+      restoreSkipped: restoreSkipped || !isStorageMode(mode),
       content: shared.content,
     });
     draftsRef.current = nextDrafts;
@@ -462,6 +506,9 @@ function CaptureLegacy() {
   }, [mode]);
   useEffect(() => {
     if (!userId || !draftHydratedRef.current || draftUserRef.current !== userId) return;
+    // Voice/todo bodies are transient (not persisted across remounts) — skip
+    // the StorageMode-keyed draft store for them.
+    if (!isStorageMode(mode)) return;
     storeDraftForMode(mode, draftFromFields(mode));
     const handle = setTimeout(() => persistDrafts(mode), 800);
     return () => clearTimeout(handle);
@@ -479,6 +526,7 @@ function CaptureLegacy() {
       .then(([rows, jc]) => {
         if (cancelled) return;
         setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at));
+        setRecentRows(rows as RecentRow[]);
         setJournalCount(jc);
       })
       .catch((e) => {
@@ -581,10 +629,13 @@ function CaptureLegacy() {
     setTopic("");
     setConclusion("");
     setShowExtras(false);
+    setTodoDone(false);
     resetTransientCaptureState();
   }
 
   function clearModeDraft(targetMode: Mode): void {
+    // Only StorageMode modes have a persisted draft to clear.
+    if (!isStorageMode(targetMode)) return;
     const next = { ...draftsRef.current };
     delete next[targetMode];
     draftsRef.current = next;
@@ -597,8 +648,20 @@ function CaptureLegacy() {
     resetTransientCaptureState();
     setMode(nextMode);
     if (nextMode !== "journal") setShowAdvancedModes(true);
-    applyDraftToFields(nextMode, draftsRef.current[nextMode]);
-    persistDrafts(nextMode);
+    // Voice/todo are not draft-persisted: clear the live fields and skip the
+    // StorageMode-keyed restore/persist so their content does not leak between
+    // modes or hit the draft store.
+    if (isStorageMode(nextMode)) {
+      applyDraftToFields(nextMode, draftsRef.current[nextMode]);
+      persistDrafts(nextMode);
+    } else {
+      setBody("");
+      setTopic("");
+      setConclusion("");
+      setShowExtras(false);
+      setOcrReviewApproved(false);
+    }
+    setTodoDone(false);
   }
 
   // Explicit user action — the OS paste notice firing here is the contract.
@@ -759,12 +822,24 @@ function CaptureLegacy() {
     }
     router.push("/");
   };
+  // Post-save destination for records-path captures: open the just-saved
+  // /record/[id] when we have its id (voice/todo notes carry it), otherwise the
+  // records browser. Journal entries leave savedSourceId null → records list.
+  const openSavedRecord = () => {
+    if (savedSourceId) {
+      router.push({ pathname: "/record/[id]", params: { id: savedSourceId } });
+      return;
+    }
+    router.push("/records");
+  };
 
   const canSubmit = !!userId && !submitting && (
     (mode === "journal" && journalGate.unlocked && journalUsage.allowed && body.trim().length > 0) ||
     (mode === "memo" && body.trim().length > 0) ||
     (mode === "linkclip" && body.trim().length > 0) ||
     (mode === "ocr" && hasOcrDraft && ocrReviewApproved) ||
+    (mode === "voice" && body.trim().length > 0) ||
+    (mode === "todo" && body.trim().length > 0) ||
     (mode === "file" && (!!pickedFile || body.trim().length > 0))
   );
   const submitAccessibilityHint = canSubmit
@@ -781,7 +856,11 @@ function CaptureLegacy() {
               ? t("submitHints.ocrRequired")
               : mode === "file"
                 ? t("submitHints.fileRequired")
-                : t("submitHints.writeFirst");
+                : mode === "voice"
+                  ? t("submitHints.voiceRequired")
+                  : mode === "todo"
+                    ? t("submitHints.todoRequired")
+                    : t("submitHints.writeFirst");
 
   // 일기(journal) mode writes to `records` via createRecord: streak, optional
   // topic/conclusion, and an opt-in Advisor reply. Crisis routing is honoured.
@@ -825,6 +904,7 @@ function CaptureLegacy() {
       ])
         .then(([rows, jc]) => {
           setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at));
+          setRecentRows(rows as RecentRow[]);
           setJournalCount(jc);
         })
         .catch((e) => {
@@ -845,9 +925,73 @@ function CaptureLegacy() {
     }
   }
 
+  // 음성(voice) / 할 일(todo) modes write to `records` via createRecord(kind:
+  // "note") — the same store as 메모/일기, so they get a /record/[id] page and
+  // count toward the daily-capture streak. A distinguishing tag keeps the kind
+  // alive end-to-end (voice → #voice, todo → #todo plus #done when finished).
+  // createRecord runs the safety classifier (C9) + audit log (C3) on this path.
+  // TODO(audio): voice mode currently saves a typed/pasted transcript. Wire a
+  // real audio recorder (e.g. expo-av) + on-device or Gemini transcription once
+  // the recording lib is added — until then this is an honest text capture.
+  async function handleNoteLikeSubmit(noteMode: "voice" | "todo") {
+    if (!userId || !body.trim()) return;
+    setSubmitting(true);
+    try {
+      const baseTag = noteMode === "voice" ? "voice" : "todo";
+      const tags = [
+        baseTag,
+        ...(noteMode === "todo" && todoDone ? ["done"] : []),
+        ...tagsEditable,
+      ];
+      const res = await createRecord({
+        userId,
+        locale,
+        minor: isMinor === true,
+        kind: "note",
+        body: body.trim(),
+        tags,
+        tier: progression.tier,
+      });
+      const savedBody = body.trim();
+      reset();
+      companion.fire("captureSaved");
+      setSavedTitle(savedBody.length > 0 ? savedBody : t("savedTitleFallback"));
+      setSavedKind("records");
+      setSavedMode(noteMode);
+      // Reuse savedSourceId as the just-saved record id so the success CTA can
+      // open /record/[id] for note-like captures too.
+      setSavedSourceId(res.id);
+      setSavedFollowup(null);
+      setSavedPending(false);
+      void progression.refresh();
+      void Promise.all([
+        listRecentRecords(userId),
+        countRecordsByKind(userId, "journal"),
+      ])
+        .then(([rows, jc]) => {
+          setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at));
+          setRecentRows(rows as RecentRow[]);
+          setJournalCount(jc);
+        })
+        .catch((e) => {
+          if (typeof console !== "undefined") console.warn("[capture] recent refresh failed", (e as Error).message);
+        });
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[capture] note-like save failed", (e as Error).message);
+      showFeedback(
+        t("alerts.pieceSave.title"),
+        t("alerts.pieceSave.message"),
+        () => void handleNoteLikeSubmit(noteMode),
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleSubmit() {
     if (!userId) return;
     if (mode === "journal") return handleJournalSubmit();
+    if (mode === "voice" || mode === "todo") return handleNoteLikeSubmit(mode);
     if (submitting) return;
     const submittedMode = mode;
     submitAbortRef.current?.abort();
@@ -1162,7 +1306,7 @@ function CaptureLegacy() {
                   <PremiumButton
                     label={t("saved.seeRecords")}
                     variant="secondary"
-                    onPress={() => router.push("/records")}
+                    onPress={openSavedRecord}
                     accessibilityHint={t("saved.seeRecordsHint")}
                     style={{ flex: 1 }}
                   />
@@ -1578,6 +1722,69 @@ function CaptureLegacy() {
             </View>
           ) : null}
 
+          {/* 음성(voice): a voice memo. Until an audio recorder is added (see
+              handleNoteLikeSubmit TODO), the user types/pastes the transcript;
+              it saves as a #voice note so the mode is real and selectable. */}
+          {mode === "voice" ? (
+            <View style={styles.fieldGroup}>
+              <Text variant="caption" color="textMuted">
+                {t("voice.label")}
+              </Text>
+              <Input
+                value={body}
+                onChangeText={setBody}
+                placeholder={t("voice.placeholder")}
+                multiline
+                numberOfLines={6}
+                textAlignVertical="top"
+                style={styles.textarea}
+                accessibilityLabel={t("voice.label")}
+              />
+              <Text variant="subtle" color="textSubtle" style={{ marginTop: 6 }}>
+                {t("voice.note")}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* 할 일(todo): a task line plus a done flag, saved as a #todo note. */}
+          {mode === "todo" ? (
+            <View style={styles.fieldGroup}>
+              <Text variant="caption" color="textMuted">
+                {t("todo.label")}
+              </Text>
+              <Input
+                value={body}
+                onChangeText={setBody}
+                placeholder={t("todo.placeholder")}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                style={styles.textarea}
+                accessibilityLabel={t("todo.label")}
+              />
+              <Pressable
+                onPress={() => setTodoDone((v) => !v)}
+                hitSlop={14}
+                style={styles.advisorRow}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: todoDone }}
+                accessibilityLabel={t("todo.doneToggle")}
+              >
+                <View style={[styles.advisorCheck, todoDone && styles.advisorCheckOn]}>
+                  {todoDone ? <PathGlyph path={CHECK_PATH} color={semantic.background} size={16} /> : null}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text variant="subtle" color={todoDone ? "brand" : "textMuted"}>
+                    {t("todo.doneToggle")}
+                  </Text>
+                  <Text variant="subtle" color="textSubtle">
+                    {t("todo.doneHelper")}
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+          ) : null}
+
           {mode === "ocr" ? (
             <View style={styles.ocrDisclosureCard}>
               <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
@@ -1740,6 +1947,37 @@ function CaptureLegacy() {
               </Text>
             </Pressable>
           </View>
+
+          {/* 최근 조각 (recent pieces): the already-fetched records rows as a
+              tappable list. Each row opens /record/[id]. */}
+          {recentRows.length > 0 ? (
+            <View style={styles.recentCard}>
+              <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
+                {t("recent.title")}
+              </Text>
+              {recentRows.slice(0, 6).map((row) => {
+                const primary = (row.topic && row.topic.trim().length > 0)
+                  ? row.topic.trim()
+                  : (row.body && row.body.trim().length > 0)
+                    ? row.body.trim()
+                    : t("savedTitleFallback");
+                return (
+                  <Pressable
+                    key={row.id}
+                    onPress={() => router.push({ pathname: "/record/[id]", params: { id: row.id } })}
+                    style={styles.recentRow}
+                    accessibilityRole="button"
+                    accessibilityLabel={primary}
+                    accessibilityHint={t("recent.openHint")}
+                  >
+                    <Text variant="subtle" color="textMuted" numberOfLines={1} style={{ flex: 1 }}>
+                      {primary}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
 
           {!secondaryOpen ? (
             <Pressable
@@ -2149,6 +2387,25 @@ const styles = StyleSheet.create({
   tagAddHash: { color: semantic.brand, fontSize: typography.sizes.sm, fontWeight: "700" },
   tagAddInput: { flex: 1, fontSize: typography.sizes.sm, paddingVertical: 2, minWidth: 64 },
   submitRow: { gap: spacing.sm, marginTop: spacing.sm },
+  recentCard: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: gameboy.borderWidth,
+    borderStartColor: semantic.brand,
+    borderStartWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
+    padding: spacing.md,
+    gap: spacing.xs,
+    ...pixelShadowStyle(),
+  },
+  recentRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing.xs,
+    borderTopWidth: gameboy.borderWidth,
+    borderTopColor: semantic.border,
+  },
   secondaryDisclosure: {
     alignSelf: "center",
     minHeight: 44,

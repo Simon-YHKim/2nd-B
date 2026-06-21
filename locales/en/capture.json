@@ -7,6 +7,8 @@
     "ocrRequired": "Choose a photo and review the extracted text before saving.",
     "journalLocked": "Reach Lv{{level}} before saving a journal entry.",
     "journalLimit": "Free journal entries are used up. Other capture modes are still available.",
+    "voiceRequired": "Write the voice memo text before saving.",
+    "todoRequired": "Write the task before saving.",
     "saving": "Saving is already in progress."
   },
   "savedTitleFallback": "Today's piece",
@@ -65,7 +67,31 @@
     "file": {
       "label": "File",
       "help": "Choose a PDF, DOCX, or text file. We save the readable text."
+    },
+    "voice": {
+      "label": "Voice",
+      "help": "Leave a voice memo. For now, type or paste what you heard and it saves as a voice piece."
+    },
+    "todo": {
+      "label": "To do",
+      "help": "Write a task. It saves as a to-do piece with a done flag."
     }
+  },
+  "voice": {
+    "label": "Voice memo",
+    "placeholder": "Type or paste what you heard...",
+    "note": "For now this saves as a voice memo you type. Audio recording is coming soon."
+  },
+  "todo": {
+    "label": "To do",
+    "placeholder": "Write a task in one line...",
+    "doneToggle": "Mark as done",
+    "doneHelper": "Turn on if it is already finished. You can change it later."
+  },
+  "recent": {
+    "title": "Recent pieces",
+    "openHint": "Opens this entry in full.",
+    "empty": "No saved pieces yet."
   },
   "formatSaved": {
     "personal": "Saved as your personal format.",
