@@ -15,8 +15,10 @@ import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import {
   ageInYears,
   MIN_SELF_CONSENT_AGE,
+  signOut,
   type OAuthProvider,
 } from "@/lib/supabase/auth";
+import { deleteAllUserData, requestAccountDeletion } from "@/lib/records/delete-bulk";
 import {
   allRequiredAcksChecked,
   setAllRequiredAcks,
@@ -239,6 +241,27 @@ export function DeepSpacePrivacyDesignScreen() {
   const [understanding, setUnderstanding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recError, setRecError] = useState(false);
+  // Right-to-erasure in deep-space (was legacy-only). Terminal + irreversible, so
+  // it is gated behind a typed "DELETE" confirm and reuses the proven cascade.
+  const [delConfirm, setDelConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [delError, setDelError] = useState(false);
+
+  async function runDeleteAccount() {
+    if (!userId || deleting || delConfirm !== "DELETE") return;
+    setDeleting(true);
+    setDelError(false);
+    try {
+      await deleteAllUserData(userId);
+      await requestAccountDeletion();
+      await signOut();
+      router.replace("/sign-in");
+    } catch {
+      // Some content may already be gone; tell the truth and let them retry.
+      setDelError(true);
+      setDeleting(false);
+    }
+  }
 
   useEffect(() => {
     if (!userId) return;
@@ -350,6 +373,46 @@ export function DeepSpacePrivacyDesignScreen() {
         <Action label={t("privacy.policy")} value={t("privacy.view")}/>
         <Action label={t("privacy.processingLog")} value={t("privacy.last7")}/>
         <Action label={t("privacy.thirdParty")} value={t("privacy.none")}/>
+      </Card>
+
+      <Card>
+        <Text variant="caption" style={styles.section}>{ko ? "계정 삭제" : "Delete account"}</Text>
+        <Text variant="subtle" style={styles.footer}>
+          {ko
+            ? "기록·캡처·위키·세컨비 사용량과 계정이 영구 삭제돼요. 되돌릴 수 없어요. 필요한 내용은 먼저 내보내기로 챙겨두세요."
+            : "Your records, captures, wiki, usage and account are permanently erased. This cannot be undone. Export anything you need first."}
+        </Text>
+        <Text variant="subtle" style={styles.footer}>
+          {ko ? '진행하려면 "DELETE" 라고 입력하세요.' : 'Type "DELETE" to proceed.'}
+        </Text>
+        <TextInput
+          value={delConfirm}
+          onChangeText={setDelConfirm}
+          placeholder="DELETE"
+          placeholderTextColor={colors.textLo}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          style={styles.input}
+          accessibilityLabel={ko ? "삭제 확인 입력" : "Deletion confirmation"}
+        />
+        <Pressable
+          style={[styles.danger, (delConfirm !== "DELETE" || deleting) && { opacity: 0.5 }]}
+          onPress={() => void runDeleteAccount()}
+          disabled={delConfirm !== "DELETE" || deleting}
+          accessibilityRole="button"
+          accessibilityLabel={ko ? "계정 영구 삭제" : "Delete account permanently"}
+        >
+          <Text variant="body" style={styles.dangerText}>
+            {deleting ? (ko ? "삭제 중…" : "Deleting…") : ko ? "계정 영구 삭제" : "Delete account"}
+          </Text>
+        </Pressable>
+        {delError ? (
+          <Text variant="subtle" style={styles.footer}>
+            {ko
+              ? "삭제를 끝내지 못했어요. 일부 데이터가 남아 있을 수 있어요. 잠시 후 다시 시도해 주세요."
+              : "Couldn't finish deletion. Some data may remain. Please try again shortly."}
+          </Text>
+        ) : null}
       </Card>
       <Text variant="subtle" style={styles.footer}>{t("privacy.footer")}</Text>
     </Shell>
