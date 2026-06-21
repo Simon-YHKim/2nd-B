@@ -1,8 +1,9 @@
 import { useRouter } from "expo-router";
 import type { Href } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
 import Svg, { Line, Polyline } from "react-native-svg";
 
+import { Text } from "@/components/ui/Text";
 import { SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -52,8 +53,8 @@ export function DeepSpaceHomeScreen() {
         </View>
 
         <View style={styles.statusBar}>
-          <Text style={styles.statusText}>9:41</Text>
-          <Text style={styles.statusText}>●●● ▮</Text>
+          <RNText style={styles.statusText}>9:41</RNText>
+          <RNText style={styles.statusText}>●●● ▮</RNText>
         </View>
 
         <SecondbStatusHeader
@@ -86,7 +87,7 @@ export function DeepSpaceHomeScreen() {
             onPress={openPolaris}
             style={({ pressed }) => [styles.polaris, pressed && styles.pressed]}
           />
-          <Text style={styles.polarisLabel}>북극성 · 소울코어</Text>
+          <Text variant="caption" style={styles.polarisLabel}>북극성 · 소울코어</Text>
 
           {LENS_STARS.map((star) => (
             <Pressable
@@ -103,7 +104,7 @@ export function DeepSpaceHomeScreen() {
             />
           ))}
 
-          <Text style={styles.hint}>별 7개를 눌러 자기이해 렌즈를 열어보세요</Text>
+          <Text variant="subtle" style={styles.hint}>별 7개를 눌러 자기이해 렌즈를 열어보세요</Text>
         </View>
         <View style={styles.secondbHero} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <SecondbHead mood="positive" size={118} />
@@ -214,9 +215,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: colors.soul,
     opacity: 0.7,
-    fontFamily: fontFamilies.pixelKo,
     fontSize: 10,
-    lineHeight: 15,
   },
   lensStar: {
     position: "absolute",
@@ -247,9 +246,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: colors.cyanBright,
     opacity: 0.5,
-    fontFamily: fontFamilies.readable,
     fontSize: 11,
-    lineHeight: 16,
   },
   secondbHero: {
     position: "absolute",
