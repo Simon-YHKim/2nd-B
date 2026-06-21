@@ -12,6 +12,7 @@ jest.mock("../client", () => {
 import {
   recordConsent,
   recordConsentBestEffort,
+  recordRecommendationsConsent,
   CONSENT_VERSION,
   PRIVACY_POLICY_VERSION,
   TERMS_VERSION,
@@ -113,6 +114,28 @@ describe("recordConsent", () => {
       });
       expect(ok).toBe(false); // never throws -> sign-up is not blocked
       warn.mockRestore();
+    });
+  });
+
+  describe("recordRecommendationsConsent (D-25 adult opt-in)", () => {
+    test("logs the recommendations opt-in with LLM + overseas acks (adult-only)", async () => {
+      __insert.mockResolvedValueOnce({ error: null });
+      const ok = await recordRecommendationsConsent({
+        userId: "u1",
+        ageBand: "adult",
+        minorTier: "adult",
+        locale: "ko",
+      });
+      expect(ok).toBe(true);
+      const row = __insert.mock.calls[0]![0]!;
+      expect(row.user_id).toBe("u1");
+      expect(row.age_band).toBe("adult");
+      expect(row.purposes).toEqual(["recommendations"]);
+      expect(row.optional_consents).toEqual({ recommendations: true });
+      // The recommend run sends a wiki snapshot to Gemini (overseas LLM).
+      expect(row.llm_processing_ack).toBe(true);
+      expect(row.overseas_transfer_ack).toBe(true);
+      expect(row.sensitive_data_ack).toBe(false);
     });
   });
 });
