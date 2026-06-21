@@ -5,7 +5,7 @@
 // untouched, no new core). Next step is propose→ratify (saved as a routine).
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
 import Svg, { Circle, Polyline, Text as SvgText } from "react-native-svg";
 import { router } from "expo-router";
@@ -53,6 +53,9 @@ export function WeeklyGrowthScreen() {
   const [data, setData] = useState<WeeklyGrowth | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [saved, setSaved] = useState(false);
+  // The background reanalyze task outlives this screen, so guard its setState.
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
 
   useEffect(() => {
     let alive = true;
@@ -87,6 +90,7 @@ export function WeeklyGrowthScreen() {
       resultHref: "/growth",
       run: async () => {
         const g = await gatherWeeklyGrowth(userId);
+        if (!mounted.current) return; // screen left; "결과 보기" remounts + re-gathers
         setData(g);
         setStatus("ready");
       },

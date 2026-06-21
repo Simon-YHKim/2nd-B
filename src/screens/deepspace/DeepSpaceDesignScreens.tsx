@@ -226,9 +226,6 @@ export function DeepSpaceAccountDesignScreen() {
         <Action label={ko ? "내 데이터" : "My data"} onPress={() => router.push("/data")} />
         <Action label="IDEN" onPress={() => router.push("/iden")} />
       </Card>
-      <Pressable style={styles.danger} onPress={() => router.push("/settings")}>
-        <Text variant="body" style={styles.dangerText}>{t("account.delete")}</Text>
-      </Pressable>
     </Shell>
   );
 }
