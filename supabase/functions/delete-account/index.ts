@@ -58,8 +58,11 @@ function corsPreflight(req: Request): Response {
   });
 }
 
-// The JWT is already validated by the gateway (verify_jwt=true), so we only
-// read the `sub` claim, not re-verify the signature.
+// The JWT is already validated by the gateway (verify_jwt=true), but verify_jwt
+// only proves the token is VALID. The public anon/publishable key is itself a
+// valid token (role==='anon'). This is a service-role endpoint that ERASES the
+// account, so we require a signed-in USER: a real `sub` AND role==='authenticated'.
+// Mirrors gemini-proxy/rss-proxy. Returns null for any non-user token.
 function userIdFromJwt(authHeader: string): string | null {
   try {
     const token = authHeader.slice(authHeader.toLowerCase().indexOf('bearer ') + 7).trim();
@@ -67,7 +70,10 @@ function userIdFromJwt(authHeader: string): string | null {
     if (!payload) return null;
     const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
     const json = JSON.parse(atob(b64 + '=='.slice(0, (4 - (b64.length % 4)) % 4)));
-    return typeof json?.sub === 'string' ? json.sub : null;
+    const sub = typeof json?.sub === 'string' ? json.sub : '';
+    const role = typeof json?.role === 'string' ? json.role : '';
+    if (role !== 'authenticated' || sub.length === 0) return null;
+    return sub;
   } catch {
     return null;
   }
