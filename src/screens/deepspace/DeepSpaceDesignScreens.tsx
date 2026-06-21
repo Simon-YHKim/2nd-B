@@ -305,7 +305,7 @@ export function DeepSpaceSignInDesignScreen() {
         <Text variant="body" style={styles.lead}>{t("deepspace:auth.signInLead")}</Text>
       </View>
       <Card>
-        <RNText style={styles.authLabel}>{t("auth:signIn.email")}</RNText>
+        <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signIn.email")}</Text>
         <TextInput
           value={email}
           onChangeText={setEmail}
@@ -322,7 +322,7 @@ export function DeepSpaceSignInDesignScreen() {
           onSubmitEditing={() => passwordRef.current?.focus()}
         />
         <View style={styles.authLabelRow}>
-          <RNText style={styles.authLabel}>{t("auth:signIn.password")}</RNText>
+          <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signIn.password")}</Text>
           <Pressable
             onPress={toggleShowPassword}
             hitSlop={14}
@@ -372,7 +372,7 @@ export function DeepSpaceSignInDesignScreen() {
         {visibleProviders.length > 0 || naverEnabled ? (
           <View style={styles.authDividerRow}>
             <View style={styles.authDividerLine} />
-            <RNText style={styles.authDividerLabel}>{t("deepspace:auth.or")}</RNText>
+            <Text variant="caption" pixelEn style={styles.authDividerLabel}>{t("deepspace:auth.or")}</Text>
             <View style={styles.authDividerLine} />
           </View>
         ) : null}
@@ -462,14 +462,14 @@ function DeepSpaceConsentBlock({ minor, value, onChange }: { minor: boolean; val
           <Text variant="body" style={styles.minorBannerText}>{t("notice.minorBanner")}</Text>
         </View>
       ) : null}
-      <RNText style={styles.consentGroupLabel}>{t("notice.requiredLabel")}</RNText>
+      <Text variant="caption" pixelEn style={styles.consentGroupLabel}>{t("notice.requiredLabel")}</Text>
       <ConsentCheckRow checked={allChecked} label={t("notice.agreeAll")} emphasize onToggle={() => onChange(setAllRequiredAcks(value, !allChecked))} />
       <View style={styles.consentDivider} />
       <ConsentCheckRow checked={value.service} label={t("notice.ackService")} onToggle={() => toggle("service")} />
       <ConsentCheckRow checked={value.llmProcessing} label={t("notice.ackLlm")} onToggle={() => toggle("llmProcessing")} />
       <ConsentCheckRow checked={value.overseasTransfer} label={t("notice.ackOverseas")} onToggle={() => toggle("overseasTransfer")} />
       <ConsentCheckRow checked={value.sensitiveData} label={t("notice.ackSensitive")} onToggle={() => toggle("sensitiveData")} />
-      <RNText style={styles.consentGroupLabel}>{t("notice.optionalLabel")}</RNText>
+      <Text variant="caption" pixelEn style={styles.consentGroupLabel}>{t("notice.optionalLabel")}</Text>
       <ConsentCheckRow checked={value.marketing} label={t("notice.optMarketing")} onToggle={() => toggle("marketing")} />
     </Card>
   );
@@ -525,7 +525,7 @@ export function DeepSpaceSignUpDesignScreen() {
         <Text variant="body" style={styles.authHelper}>{t("deepspace:auth.ageNotice")}</Text>
       </View>
       <Card>
-        <RNText style={styles.authLabel}>{t("auth:signUp.email")}</RNText>
+        <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signUp.email")}</Text>
         <TextInput
           value={email}
           onChangeText={setEmail}
@@ -541,7 +541,7 @@ export function DeepSpaceSignUpDesignScreen() {
           blurOnSubmit={false}
           onSubmitEditing={() => passwordRef.current?.focus()}
         />
-        <RNText style={styles.authLabel}>{t("auth:signUp.password")}</RNText>
+        <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signUp.password")}</Text>
         <TextInput
           ref={passwordRef}
           value={password}
@@ -558,7 +558,7 @@ export function DeepSpaceSignUpDesignScreen() {
           onSubmitEditing={() => birthDateRef.current?.focus()}
         />
         <Text variant="body" style={styles.authHelper}>{t("auth:signUp.passwordHelper")}</Text>
-        <RNText style={styles.authLabel}>{t("auth:signUp.birthDate")}</RNText>
+        <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signUp.birthDate")}</Text>
         <TextInput
           ref={birthDateRef}
           value={birthDate}
@@ -615,7 +615,7 @@ export function DeepSpaceSignUpDesignScreen() {
         {visibleProviders.length > 0 || naverEnabled ? (
           <View style={styles.authDividerRow}>
             <View style={styles.authDividerLine} />
-            <RNText style={styles.authDividerLabel}>{t("deepspace:auth.or")}</RNText>
+            <Text variant="caption" pixelEn style={styles.authDividerLabel}>{t("deepspace:auth.or")}</Text>
             <View style={styles.authDividerLine} />
           </View>
         ) : null}
@@ -713,7 +713,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
           </Pressable>
         ) : (
           <>
-            <RNText style={styles.authLabel}>{t("auth:resetPassword.newPassword")}</RNText>
+            <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:resetPassword.newPassword")}</Text>
             <TextInput
               value={password}
               onChangeText={setPassword}
@@ -725,7 +725,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
               accessibilityLabel={t("auth:resetPassword.newPassword")}
               style={styles.input}
             />
-            <RNText style={styles.authLabel}>{t("auth:resetPassword.confirmPassword")}</RNText>
+            <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:resetPassword.confirmPassword")}</Text>
             <TextInput
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -889,7 +889,7 @@ export function DeepSpacePlansScreen() {
     <Shell title={t("plans.title")}>
       <SecondbStatusHeader text={t("plans.status")} tip={t("plans.tip")} mood="positive" />
       <Card style={styles.planPro}>
-        <View style={styles.planHead}><Text variant="heading" style={styles.planName}>Pro</Text><RNText style={styles.planBadge}>{t("plans.recommended")}</RNText></View>
+        <View style={styles.planHead}><Text variant="heading" style={styles.planName}>Pro</Text><Text variant="caption" pixelEn style={styles.planBadge}>{t("plans.recommended")}</Text></View>
         <Text variant="heading" style={styles.planPrice}>₩9,900 <Text variant="subtle" style={styles.planPer}>{t("plans.perMonth")}</Text></Text>
         {proFeats.map((x) => <Text variant="body" key={x} style={styles.planFeat}>✦ {x}</Text>)}
       </Card>
@@ -991,7 +991,7 @@ function TimelineRow({ icon, title, time, tag, dim }: { icon: string; title: str
         <Text variant="body" style={[styles.tlTitle, dim && styles.tlTitleDim]} numberOfLines={1}>{title}</Text>
         {time ? <Text variant="subtle" style={styles.tlTime}>{time}</Text> : null}
       </View>
-      {tag ? <View style={styles.tlTagRow}><RNText style={styles.tlTag}>{tag}</RNText></View> : null}
+      {tag ? <View style={styles.tlTagRow}><Text variant="caption" pixelEn style={styles.tlTag}>{tag}</Text></View> : null}
     </View>
   );
 }
@@ -1069,7 +1069,7 @@ export function DeepSpaceRecordsScreen() {
       ) : (
         groups.map((g) => (
           <View key={g.label}>
-            <RNText style={styles.tlLabel}>{g.label}</RNText>
+            <Text variant="caption" pixelEn style={styles.tlLabel}>{g.label}</Text>
             <View style={styles.tlGroup}>
               {g.items.map((it) => (
                 <TimelineRow key={it.id} icon={it.icon} title={it.title} time={it.timeLabel || undefined} tag={it.tag} dim={it.dim} />
@@ -1216,7 +1216,7 @@ export function DeepSpaceInboxScreen() {
           <Card style={styles.triageCard}>
             <View style={styles.triageMeta}>
               <RNText style={styles.tlIcon}>{SOURCE_KIND_ICON[current.kind] ?? "•"}</RNText>
-              <RNText style={styles.metaLabel}>{current.kind}</RNText>
+              <Text variant="caption" pixelEn style={styles.metaLabel}>{current.kind}</Text>
             </View>
             <Text variant="body" style={styles.triageBody} numberOfLines={3}>{sourceTitle(current, t("inbox.untitled"))}</Text>
             {current.tags.length > 0 ? (
@@ -1275,7 +1275,7 @@ export function DeepSpaceInboxScreen() {
           </Card>
           {queue.length > 0 ? (
             <>
-              <RNText style={styles.tlLabel}>{t("inbox.nextUp")}</RNText>
+              <Text variant="caption" pixelEn style={styles.tlLabel}>{t("inbox.nextUp")}</Text>
               <View style={{ gap: 7 }}>
                 {queue.slice(0, 8).map((s, i) => (
                   <View key={s.id} style={[styles.queueItem, i > 0 && styles.queueItemDim]}>
@@ -1446,7 +1446,7 @@ export function DeepSpaceResearchScreen() {
           ) : null}
 
           {/* propose->ratify: AI proposes semantic links, the user decides. */}
-          <RNText style={styles.tlLabel}>{t("research.proposalsLabel")}</RNText>
+          <Text variant="caption" pixelEn style={styles.tlLabel}>{t("research.proposalsLabel")}</Text>
           {announce ? (
             <RNText
               accessibilityRole="alert"
@@ -1601,7 +1601,7 @@ export function DeepSpaceFormatsScreen() {
           );
         })}
       </View>
-      <RNText style={styles.tlLabel}>{t("formats.scopeLabel")}</RNText>
+      <Text variant="caption" pixelEn style={styles.tlLabel}>{t("formats.scopeLabel")}</Text>
       <Card>
         <Toggle label={t("formats.scope1")} on />
         <Toggle label={t("formats.scope2")} on />
@@ -1765,7 +1765,7 @@ export function DeepSpaceImportScreen() {
       <Text variant="body" style={styles.lead}>{t("import.lead")}</Text>
 
       <Card>
-        <RNText style={styles.reviewLabel}>{t("import.pasteLabel")}</RNText>
+        <Text variant="caption" pixelEn style={styles.reviewLabel}>{t("import.pasteLabel")}</Text>
         <TextInput
           style={[styles.input, { minHeight: 132, textAlignVertical: "top" }]}
           value={text}
@@ -1778,7 +1778,7 @@ export function DeepSpaceImportScreen() {
         />
         {notes.length > 0 ? (
           <>
-            <RNText style={styles.tlLabel}>{t("import.detected", { count: notes.length })}</RNText>
+            <Text variant="caption" pixelEn style={styles.tlLabel}>{t("import.detected", { count: notes.length })}</Text>
             {notes.slice(0, 8).map((note, i) => (
               <View key={i} style={styles.mapRow}>
                 <RNText style={styles.mapArrow}>•</RNText>
@@ -1825,7 +1825,7 @@ export function DeepSpaceImportScreen() {
         </Pressable>
       </View>
 
-      <RNText style={styles.tlLabel}>{t("import.connectorsLabel")}</RNText>
+      <Text variant="caption" pixelEn style={styles.tlLabel}>{t("import.connectorsLabel")}</Text>
       <View style={{ gap: 8 }}>
         <View style={[styles.sourceRow, styles.sourceRowDim]}><RNText style={styles.tlIcon}>🗒</RNText><View style={{ flex: 1 }}><Text variant="caption" style={styles.sourceNameDim}>Notion</Text><Text variant="subtle" style={styles.sourceDesc}>{t("import.notionDesc")}</Text></View><Text variant="subtle" style={styles.sourceSoon}>{t("import.soon")}</Text></View>
         <Pressable
@@ -1996,7 +1996,7 @@ export function DeepSpaceRecordDetailScreen() {
       ) : null}
       {related.length > 0 ? (
         <>
-          <RNText style={styles.tlLabel}>{t("recordDetail.linkedRecords")}</RNText>
+          <Text variant="caption" pixelEn style={styles.tlLabel}>{t("recordDetail.linkedRecords")}</Text>
           <View style={styles.tlGroup}>
             {related.map((r) => (
               <TimelineRow
@@ -2408,7 +2408,7 @@ export function DeepSpaceWikiScreen() {
               ) : null}
               <View style={styles.wikiBacklinkRow}>
                 <Text variant="subtle" style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: first.connections })}</Text>
-                {first.tags[0] ? <RNText style={styles.tlTag}>{first.tags[0]}</RNText> : null}
+                {first.tags[0] ? <Text variant="caption" pixelEn style={styles.tlTag}>{first.tags[0]}</Text> : null}
               </View>
             </View>
           ) : null}
@@ -2478,7 +2478,7 @@ export function DeepSpaceDomainsScreen() {
           </View>
           {view.topTopics !== null && view.topTopics.titles.length > 0 ? (
             <>
-              <RNText style={styles.tlLabel}>{t("domains.topicsLabel", { tag: view.topTopics.tag })}</RNText>
+              <Text variant="caption" pixelEn style={styles.tlLabel}>{t("domains.topicsLabel", { tag: view.topTopics.tag })}</Text>
               <View style={styles.topicCol}>
                 {view.topTopics.titles.map((title, i) => (
                   <View key={title} style={styles.topicRow}>
@@ -2921,7 +2921,7 @@ export function DeepSpaceSrsScreen() {
     return (
       <Shell title={t("srs.addTitle")}>
         <Card>
-          <RNText style={styles.authLabel}>{t("srs.frontLabel")}</RNText>
+          <Text variant="caption" pixelEn style={styles.authLabel}>{t("srs.frontLabel")}</Text>
           <TextInput
             style={styles.input}
             value={front}
@@ -2930,7 +2930,7 @@ export function DeepSpaceSrsScreen() {
             placeholderTextColor={colors.textLo}
             accessibilityLabel={t("srs.frontLabel")}
           />
-          <RNText style={styles.authLabel}>{t("srs.backLabel")}</RNText>
+          <Text variant="caption" pixelEn style={styles.authLabel}>{t("srs.backLabel")}</Text>
           <TextInput
             style={styles.input}
             value={back}
@@ -2963,7 +2963,7 @@ export function DeepSpaceSrsScreen() {
             accessibilityRole="button"
             accessibilityLabel={flipped ? t("srs.showFront") : t("srs.flip")}
           >
-            <RNText style={styles.srsFaceLabel}>{flipped ? t("srs.backLabel") : t("srs.frontLabel")}</RNText>
+            <Text variant="caption" pixelEn style={styles.srsFaceLabel}>{flipped ? t("srs.backLabel") : t("srs.frontLabel")}</Text>
             <Text variant="heading" style={styles.srsFaceText}>{flipped ? current.back : current.front}</Text>
             {!flipped ? <Text variant="body" style={styles.srsHint}>{t("srs.flip")}</Text> : null}
           </Pressable>
@@ -2998,7 +2998,7 @@ export function DeepSpaceSrsScreen() {
   );
 }
 
-const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, stars:{...StyleSheet.absoluteFill,overflow:'hidden'}, star:{position:'absolute',width:3,height:3,borderRadius:2,backgroundColor:colors.cyanSoft}, scroll:{padding:spacing.lg,paddingBottom:40,gap:spacing.md}, titleRow:{flexDirection:'row',alignItems:'center',gap:spacing.md,marginBottom:spacing.xs}, back:{color:colors.cyanSoft,fontSize:34,lineHeight:38,fontFamily:fontFamilies.pixelKo}, title:{color:colors.textTitle,fontSize:18,}, subtitle:{color:colors.textLo,fontSize:11,}, card:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,padding:spacing.md,gap:spacing.sm}, graphCard:{height:332,overflow:'hidden'}, centerCaption:{position:'absolute',left:0,right:0,top:156,textAlign:'center',color:colors.bgDeep,fontSize:11}, clusterLabel:{position:'absolute',color:colors.cyanSoft,fontSize:11}, ctaRow:{flexDirection:'row',gap:spacing.sm}, primary:{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:colors.cyan,borderRadius:radius.md,paddingVertical:spacing.md}, primaryText:{color:colors.bgDeep,fontSize:13}, secondary:{flex:1,alignItems:'center',justifyContent:'center',borderColor:colors.borderHi,borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.md}, secondaryText:{color:colors.cyanSoft,fontSize:13}, section:{color:colors.textTitle,fontSize:13,marginBottom:spacing.xs}, action:{minHeight:48,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderBottomWidth:1,borderBottomColor:colors.border,paddingVertical:spacing.sm}, actionLabel:{color:colors.textHi,fontSize:14}, actionValue:{color:colors.textLo,fontSize:12}, chev:{color:colors.cyanSoft,fontSize:22}, toggle:{width:42,height:24,borderRadius:12,backgroundColor:colors.border,justifyContent:'center',padding:3}, toggleOn:{backgroundColor:colors.cyan}, knob:{width:18,height:18,borderRadius:9,backgroundColor:colors.textLo}, knobOn:{alignSelf:'flex-end',backgroundColor:colors.bgDeep}, footer:{color:colors.textLo,textAlign:'center',fontSize:12,}, center:{alignItems:'center',gap:spacing.sm}, prompt:{color:colors.textHi,fontSize:16,textAlign:'center'}, avatar:{width:92,height:92,borderRadius:46,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center',backgroundColor:colors.cardBg}, danger:{alignSelf:'center',padding:spacing.md},dangerText:{color:colors.clay,fontSize:13}, lead:{color:colors.textMid,fontSize:14,textAlign:'center'}, authHero:{alignItems:'center',paddingTop:32,gap:spacing.md}, big:{color:colors.textTitle,fontSize:24,}, input:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:spacing.md,color:colors.textHi,fontFamily:fontFamilies.readable,backgroundColor:colors.bgDeep}, link:{color:colors.cyanSoft,textAlign:'center',paddingTop:spacing.sm}, mail:{fontSize:44,color:colors.cyanSoft}, codeRow:{flexDirection:'row',justifyContent:'center',gap:spacing.xs}, codeCell:{width:40,height:48,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,backgroundColor:colors.cardBg}, pill:{borderWidth:1,borderColor:colors.border,borderRadius:radius.pill,paddingHorizontal:spacing.sm,paddingVertical:spacing.xs},pillText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelEn,fontSize:8}, compareRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:spacing.lg,paddingVertical:spacing.sm}, compareCol:{alignItems:'center',gap:spacing.xs}, compareNum:{color:colors.textMid,fontSize:30}, compareNumHi:{color:colors.cyan}, compareCap:{color:colors.textLo,fontSize:11}, delta:{color:colors.mint,textAlign:'center',fontSize:13}, statRow:{flexDirection:'row',gap:spacing.sm}, statBox:{flex:1,alignItems:'center',gap:spacing.xs,backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,paddingVertical:spacing.md}, statNum:{color:colors.cyan,fontSize:28}, statCap:{color:colors.textLo,fontSize:11}, sizeRow:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, sizeCap:{color:colors.textLo,fontSize:12}, sizeCapLg:{color:colors.textHi,fontSize:18}, sizeTrack:{flex:1,height:4,borderRadius:2,backgroundColor:colors.border,justifyContent:'center'}, sizeKnob:{width:18,height:18,borderRadius:9,backgroundColor:colors.cyan,marginLeft:'46%'}, searchBox:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingHorizontal:spacing.md,paddingVertical:spacing.md}, searchText:{color:colors.textLo,fontSize:13}, planPro:{borderColor:colors.borderHi}, planHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, planName:{color:colors.textTitle,fontSize:15}, planBadge:{color:colors.bgDeep,backgroundColor:colors.cyan,fontFamily:fontFamilies.pixelEn,fontSize:8,paddingHorizontal:spacing.sm,paddingVertical:3,borderRadius:radius.sm,overflow:'hidden'}, planPrice:{color:colors.textHi,fontSize:22,marginVertical:spacing.xs}, planPer:{color:colors.textLo,fontSize:12}, planFeat:{color:colors.cyanSoft,fontSize:13,}, planFeatDim:{color:colors.textMid,fontSize:13,}, trendHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, primaryWide:{flex:1.6}, filterRow:{flexDirection:'row',flexWrap:'wrap',gap:6}, fchip:{paddingVertical:6,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, fchipActive:{borderColor:colors.cyan,backgroundColor:colors.cardBg}, fchipViolet:{borderColor:colors.soulLine,backgroundColor:colors.cardBg}, fchipText:{color:colors.cyanSoft,fontSize:11}, fchipTextActive:{color:colors.textTitle}, fchipTextViolet:{color:colors.soul}, tlLabel:{color:colors.cyanDim,fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,marginTop:spacing.sm}, tlGroup:{paddingLeft:16,borderLeftWidth:1,borderLeftColor:colors.border,gap:12,marginTop:spacing.xs}, tlRow:{flexDirection:'row',alignItems:'center',gap:9}, tlDot:{width:8,height:8,borderRadius:4,backgroundColor:colors.cyan}, tlDotDim:{backgroundColor:colors.cyanDim}, tlIcon:{fontSize:14}, tlTitle:{flex:1,color:colors.textTitle,fontSize:12.5}, tlTitleDim:{color:colors.textMid}, tlTime:{color:colors.cyanDim,fontSize:10}, tlTagRow:{flexDirection:'row',paddingLeft:32}, tlTag:{color:colors.cyanDim,fontFamily:fontFamilies.pixelEn,fontSize:5,letterSpacing:0.4,paddingHorizontal:6,paddingVertical:3,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, progressRow:{flexDirection:'row',alignItems:'center',gap:10}, progressTrack:{flex:1,height:6,borderRadius:3,backgroundColor:colors.border,overflow:'hidden'}, progressFill:{height:'100%',borderRadius:3,backgroundColor:colors.cyan}, progressLabel:{color:colors.cyanSoft,fontSize:11}, triageCard:{borderColor:colors.borderHi}, triageMeta:{flexDirection:'row',alignItems:'center',gap:9}, metaLabel:{color:colors.cyanDim,fontFamily:fontFamilies.pixelEn,fontSize:6,letterSpacing:0.5}, triageBody:{color:colors.textTitle,fontSize:13.5,}, footerLeft:{color:colors.textLo,fontSize:11,}, iconBtn:{width:46,paddingVertical:11,borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.md,alignItems:'center',backgroundColor:colors.bgDeep}, iconBtnText:{fontSize:15}, queueItem:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:9,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,backgroundColor:colors.cardBg}, queueItemDim:{opacity:0.6}, queueText:{flex:1,color:colors.textMid,fontSize:12}, researchGraph:{height:118,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.bgDeep,overflow:'hidden',justifyContent:'center',alignItems:'center'}, graphTag:{position:'absolute',bottom:14,color:colors.textMid,fontSize:10}, insightViolet:{borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, insightVioletText:{color:colors.textTitle,fontSize:13,}, evRow:{flexDirection:'row',gap:6}, evChip:{color:colors.cyanDim,fontSize:10,paddingHorizontal:8,paddingVertical:4,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, formatGrid:{flexDirection:'row',flexWrap:'wrap',gap:9}, formatCard:{width:'47%',padding:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:4}, formatCardSel:{borderColor:colors.soulLine}, formatName:{color:colors.cyanSoft,fontSize:13}, formatNameSel:{color:colors.soul}, formatDesc:{color:colors.textLo,fontSize:10.5,}, soulPrimary:{alignItems:'center',justifyContent:'center',backgroundColor:colors.soul,borderRadius:radius.md,paddingVertical:spacing.md}, sourceRow:{flexDirection:'row',alignItems:'center',gap:11,paddingVertical:11,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, sourceRowDim:{opacity:0.7}, sourceName:{color:colors.textTitle,fontSize:13}, sourceNameDim:{color:colors.textMid,fontSize:13}, sourceDesc:{color:colors.textLo,fontSize:10}, sourceCta:{color:colors.cyan,fontSize:11}, sourceSoon:{color:colors.cyanDim,fontSize:10}, reviewLabel:{color:colors.cyanBright,fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,marginBottom:spacing.xs}, mapRow:{flexDirection:'row',alignItems:'center',gap:8}, mapFrom:{color:colors.cyanSoft,fontSize:12}, mapArrow:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:12}, mapTo:{color:colors.textTitle,fontSize:12}, recMetaRow:{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}, recMetaType:{color:colors.cyanSoft,fontSize:11}, recMetaDot:{color:colors.textLo,fontSize:11}, recMeta:{color:colors.textLo,fontSize:11}, recTitle:{color:colors.textTitle,fontSize:17,}, recBody:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,padding:spacing.md}, recBodyText:{color:colors.textHi,fontSize:12.5,}, iconBtnDanger:{borderColor:colors.clay}, opsStep:{borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, opsStepHead:{flexDirection:'row',alignItems:'flex-start',gap:spacing.sm}, opsStepTitle:{flex:1,color:colors.textTitle,fontSize:13.5,}, timeChipMint:{color:colors.mint,fontSize:10,borderWidth:1,borderColor:colors.mint,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, timeChipCyan:{color:colors.textMid,fontSize:10,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, opsReason:{color:colors.textMid,fontSize:11.5,}, opsStepFoot:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, smallBtn:{marginLeft:'auto',backgroundColor:colors.cyan,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnText:{color:colors.bgDeep,fontSize:11}, smallBtnGhost:{marginLeft:'auto',borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnGhostText:{color:colors.cyanSoft,fontSize:11}, wikiStatRow:{flexDirection:'row',gap:spacing.sm}, wikiStat:{flex:1,flexDirection:'row',alignItems:'baseline',gap:6,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11}, wikiStatNum:{color:colors.textTitle,fontSize:20}, wikiStatNumCyan:{color:colors.cyan}, wikiStatCap:{color:colors.textLo,fontSize:10.5}, wikiPageOpen:{borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, wikiPageHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiPageTitle:{flex:1,color:colors.textTitle,fontSize:13.5}, wikiCaret:{color:colors.cyanDim,fontSize:14}, wikiBody:{color:colors.textHi,fontSize:11.5,}, wikiBacklinkRow:{flexDirection:'row',gap:6,flexWrap:'wrap',alignItems:'center'}, wikiBacklink:{color:colors.cyanSoft,fontSize:9.5,borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:4,overflow:'hidden'}, wikiPageRow:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11,gap:5}, wikiRowHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiRowTitle:{flex:1,color:colors.cyanSoft,fontSize:13}, wikiRowConn:{color:colors.cyanDim,fontSize:9.5}, wikiRowDesc:{color:colors.textLo,fontSize:11}, domainCard:{width:'47%',padding:14,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:8}, domainCardActive:{borderColor:colors.cyan}, domainCardDim:{borderStyle:'dashed',borderColor:colors.borderHi,opacity:0.65}, domainName:{color:colors.textTitle,fontSize:14}, domainNameDim:{color:colors.textMid,fontSize:14}, domainNumRow:{flexDirection:'row',alignItems:'baseline',gap:5}, domainNum:{color:colors.cyanSoft,fontSize:22}, domainNumActive:{color:colors.cyan}, domainNumDim:{color:colors.textLo}, domainUnit:{color:colors.textLo,fontSize:10}, domainSub:{color:colors.cyanDim,fontSize:9.5}, topicCol:{gap:8}, topicRow:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:10,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, topicDot:{width:6,height:6,borderRadius:3,backgroundColor:colors.cyan}, topicDotDim:{backgroundColor:colors.cyanDim}, topicText:{flex:1,color:colors.textTitle,fontSize:12.5}, topicTextDim:{flex:1,color:colors.textMid,fontSize:12.5}, opsTodayHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, opsTodayRow:{minHeight:48,flexDirection:'row',alignItems:'center',gap:spacing.sm,paddingVertical:spacing.sm,paddingHorizontal:spacing.md,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, opsCheck:{width:22,height:22,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center'}, opsCheckOn:{backgroundColor:colors.cyan,borderColor:colors.cyan}, opsCheckMark:{color:colors.bgDeep,fontSize:13,fontFamily:fontFamilies.pixelKo}, opsTodayTitle:{flex:1,color:colors.textTitle,fontSize:13,}, opsTodayTitleDone:{color:colors.textLo,textDecorationLine:'line-through'},
+const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, stars:{...StyleSheet.absoluteFill,overflow:'hidden'}, star:{position:'absolute',width:3,height:3,borderRadius:2,backgroundColor:colors.cyanSoft}, scroll:{padding:spacing.lg,paddingBottom:40,gap:spacing.md}, titleRow:{flexDirection:'row',alignItems:'center',gap:spacing.md,marginBottom:spacing.xs}, back:{color:colors.cyanSoft,fontSize:34,lineHeight:38,fontFamily:fontFamilies.pixelKo}, title:{color:colors.textTitle,fontSize:18,}, subtitle:{color:colors.textLo,fontSize:11,}, card:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,padding:spacing.md,gap:spacing.sm}, graphCard:{height:332,overflow:'hidden'}, centerCaption:{position:'absolute',left:0,right:0,top:156,textAlign:'center',color:colors.bgDeep,fontSize:11}, clusterLabel:{position:'absolute',color:colors.cyanSoft,fontSize:11}, ctaRow:{flexDirection:'row',gap:spacing.sm}, primary:{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:colors.cyan,borderRadius:radius.md,paddingVertical:spacing.md}, primaryText:{color:colors.bgDeep,fontSize:13}, secondary:{flex:1,alignItems:'center',justifyContent:'center',borderColor:colors.borderHi,borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.md}, secondaryText:{color:colors.cyanSoft,fontSize:13}, section:{color:colors.textTitle,fontSize:13,marginBottom:spacing.xs}, action:{minHeight:48,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderBottomWidth:1,borderBottomColor:colors.border,paddingVertical:spacing.sm}, actionLabel:{color:colors.textHi,fontSize:14}, actionValue:{color:colors.textLo,fontSize:12}, chev:{color:colors.cyanSoft,fontSize:22}, toggle:{width:42,height:24,borderRadius:12,backgroundColor:colors.border,justifyContent:'center',padding:3}, toggleOn:{backgroundColor:colors.cyan}, knob:{width:18,height:18,borderRadius:9,backgroundColor:colors.textLo}, knobOn:{alignSelf:'flex-end',backgroundColor:colors.bgDeep}, footer:{color:colors.textLo,textAlign:'center',fontSize:12,}, center:{alignItems:'center',gap:spacing.sm}, prompt:{color:colors.textHi,fontSize:16,textAlign:'center'}, avatar:{width:92,height:92,borderRadius:46,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center',backgroundColor:colors.cardBg}, danger:{alignSelf:'center',padding:spacing.md},dangerText:{color:colors.clay,fontSize:13}, lead:{color:colors.textMid,fontSize:14,textAlign:'center'}, authHero:{alignItems:'center',paddingTop:32,gap:spacing.md}, big:{color:colors.textTitle,fontSize:24,}, input:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:spacing.md,color:colors.textHi,fontFamily:fontFamilies.readable,backgroundColor:colors.bgDeep}, link:{color:colors.cyanSoft,textAlign:'center',paddingTop:spacing.sm}, mail:{fontSize:44,color:colors.cyanSoft}, codeRow:{flexDirection:'row',justifyContent:'center',gap:spacing.xs}, codeCell:{width:40,height:48,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,backgroundColor:colors.cardBg}, pill:{borderWidth:1,borderColor:colors.border,borderRadius:radius.pill,paddingHorizontal:spacing.sm,paddingVertical:spacing.xs},pillText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelEn,fontSize:8}, compareRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:spacing.lg,paddingVertical:spacing.sm}, compareCol:{alignItems:'center',gap:spacing.xs}, compareNum:{color:colors.textMid,fontSize:30}, compareNumHi:{color:colors.cyan}, compareCap:{color:colors.textLo,fontSize:11}, delta:{color:colors.mint,textAlign:'center',fontSize:13}, statRow:{flexDirection:'row',gap:spacing.sm}, statBox:{flex:1,alignItems:'center',gap:spacing.xs,backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,paddingVertical:spacing.md}, statNum:{color:colors.cyan,fontSize:28}, statCap:{color:colors.textLo,fontSize:11}, sizeRow:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, sizeCap:{color:colors.textLo,fontSize:12}, sizeCapLg:{color:colors.textHi,fontSize:18}, sizeTrack:{flex:1,height:4,borderRadius:2,backgroundColor:colors.border,justifyContent:'center'}, sizeKnob:{width:18,height:18,borderRadius:9,backgroundColor:colors.cyan,marginLeft:'46%'}, searchBox:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingHorizontal:spacing.md,paddingVertical:spacing.md}, searchText:{color:colors.textLo,fontSize:13}, planPro:{borderColor:colors.borderHi}, planHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, planName:{color:colors.textTitle,fontSize:15}, planBadge:{color:colors.bgDeep,backgroundColor:colors.cyan,fontSize:8,paddingHorizontal:spacing.sm,paddingVertical:3,borderRadius:radius.sm,overflow:'hidden'}, planPrice:{color:colors.textHi,fontSize:22,marginVertical:spacing.xs}, planPer:{color:colors.textLo,fontSize:12}, planFeat:{color:colors.cyanSoft,fontSize:13,}, planFeatDim:{color:colors.textMid,fontSize:13,}, trendHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, primaryWide:{flex:1.6}, filterRow:{flexDirection:'row',flexWrap:'wrap',gap:6}, fchip:{paddingVertical:6,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, fchipActive:{borderColor:colors.cyan,backgroundColor:colors.cardBg}, fchipViolet:{borderColor:colors.soulLine,backgroundColor:colors.cardBg}, fchipText:{color:colors.cyanSoft,fontSize:11}, fchipTextActive:{color:colors.textTitle}, fchipTextViolet:{color:colors.soul}, tlLabel:{color:colors.cyanDim,fontSize:7,letterSpacing:0.7,marginTop:spacing.sm}, tlGroup:{paddingLeft:16,borderLeftWidth:1,borderLeftColor:colors.border,gap:12,marginTop:spacing.xs}, tlRow:{flexDirection:'row',alignItems:'center',gap:9}, tlDot:{width:8,height:8,borderRadius:4,backgroundColor:colors.cyan}, tlDotDim:{backgroundColor:colors.cyanDim}, tlIcon:{fontSize:14}, tlTitle:{flex:1,color:colors.textTitle,fontSize:12.5}, tlTitleDim:{color:colors.textMid}, tlTime:{color:colors.cyanDim,fontSize:10}, tlTagRow:{flexDirection:'row',paddingLeft:32}, tlTag:{color:colors.cyanDim,fontSize:5,letterSpacing:0.4,paddingHorizontal:6,paddingVertical:3,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, progressRow:{flexDirection:'row',alignItems:'center',gap:10}, progressTrack:{flex:1,height:6,borderRadius:3,backgroundColor:colors.border,overflow:'hidden'}, progressFill:{height:'100%',borderRadius:3,backgroundColor:colors.cyan}, progressLabel:{color:colors.cyanSoft,fontSize:11}, triageCard:{borderColor:colors.borderHi}, triageMeta:{flexDirection:'row',alignItems:'center',gap:9}, metaLabel:{color:colors.cyanDim,fontSize:6,letterSpacing:0.5}, triageBody:{color:colors.textTitle,fontSize:13.5,}, footerLeft:{color:colors.textLo,fontSize:11,}, iconBtn:{width:46,paddingVertical:11,borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.md,alignItems:'center',backgroundColor:colors.bgDeep}, iconBtnText:{fontSize:15}, queueItem:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:9,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,backgroundColor:colors.cardBg}, queueItemDim:{opacity:0.6}, queueText:{flex:1,color:colors.textMid,fontSize:12}, researchGraph:{height:118,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.bgDeep,overflow:'hidden',justifyContent:'center',alignItems:'center'}, graphTag:{position:'absolute',bottom:14,color:colors.textMid,fontSize:10}, insightViolet:{borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, insightVioletText:{color:colors.textTitle,fontSize:13,}, evRow:{flexDirection:'row',gap:6}, evChip:{color:colors.cyanDim,fontSize:10,paddingHorizontal:8,paddingVertical:4,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, formatGrid:{flexDirection:'row',flexWrap:'wrap',gap:9}, formatCard:{width:'47%',padding:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:4}, formatCardSel:{borderColor:colors.soulLine}, formatName:{color:colors.cyanSoft,fontSize:13}, formatNameSel:{color:colors.soul}, formatDesc:{color:colors.textLo,fontSize:10.5,}, soulPrimary:{alignItems:'center',justifyContent:'center',backgroundColor:colors.soul,borderRadius:radius.md,paddingVertical:spacing.md}, sourceRow:{flexDirection:'row',alignItems:'center',gap:11,paddingVertical:11,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, sourceRowDim:{opacity:0.7}, sourceName:{color:colors.textTitle,fontSize:13}, sourceNameDim:{color:colors.textMid,fontSize:13}, sourceDesc:{color:colors.textLo,fontSize:10}, sourceCta:{color:colors.cyan,fontSize:11}, sourceSoon:{color:colors.cyanDim,fontSize:10}, reviewLabel:{color:colors.cyanBright,fontSize:7,letterSpacing:0.7,marginBottom:spacing.xs}, mapRow:{flexDirection:'row',alignItems:'center',gap:8}, mapFrom:{color:colors.cyanSoft,fontSize:12}, mapArrow:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:12}, mapTo:{color:colors.textTitle,fontSize:12}, recMetaRow:{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}, recMetaType:{color:colors.cyanSoft,fontSize:11}, recMetaDot:{color:colors.textLo,fontSize:11}, recMeta:{color:colors.textLo,fontSize:11}, recTitle:{color:colors.textTitle,fontSize:17,}, recBody:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,padding:spacing.md}, recBodyText:{color:colors.textHi,fontSize:12.5,}, iconBtnDanger:{borderColor:colors.clay}, opsStep:{borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, opsStepHead:{flexDirection:'row',alignItems:'flex-start',gap:spacing.sm}, opsStepTitle:{flex:1,color:colors.textTitle,fontSize:13.5,}, timeChipMint:{color:colors.mint,fontSize:10,borderWidth:1,borderColor:colors.mint,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, timeChipCyan:{color:colors.textMid,fontSize:10,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, opsReason:{color:colors.textMid,fontSize:11.5,}, opsStepFoot:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, smallBtn:{marginLeft:'auto',backgroundColor:colors.cyan,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnText:{color:colors.bgDeep,fontSize:11}, smallBtnGhost:{marginLeft:'auto',borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnGhostText:{color:colors.cyanSoft,fontSize:11}, wikiStatRow:{flexDirection:'row',gap:spacing.sm}, wikiStat:{flex:1,flexDirection:'row',alignItems:'baseline',gap:6,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11}, wikiStatNum:{color:colors.textTitle,fontSize:20}, wikiStatNumCyan:{color:colors.cyan}, wikiStatCap:{color:colors.textLo,fontSize:10.5}, wikiPageOpen:{borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, wikiPageHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiPageTitle:{flex:1,color:colors.textTitle,fontSize:13.5}, wikiCaret:{color:colors.cyanDim,fontSize:14}, wikiBody:{color:colors.textHi,fontSize:11.5,}, wikiBacklinkRow:{flexDirection:'row',gap:6,flexWrap:'wrap',alignItems:'center'}, wikiBacklink:{color:colors.cyanSoft,fontSize:9.5,borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:4,overflow:'hidden'}, wikiPageRow:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11,gap:5}, wikiRowHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiRowTitle:{flex:1,color:colors.cyanSoft,fontSize:13}, wikiRowConn:{color:colors.cyanDim,fontSize:9.5}, wikiRowDesc:{color:colors.textLo,fontSize:11}, domainCard:{width:'47%',padding:14,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:8}, domainCardActive:{borderColor:colors.cyan}, domainCardDim:{borderStyle:'dashed',borderColor:colors.borderHi,opacity:0.65}, domainName:{color:colors.textTitle,fontSize:14}, domainNameDim:{color:colors.textMid,fontSize:14}, domainNumRow:{flexDirection:'row',alignItems:'baseline',gap:5}, domainNum:{color:colors.cyanSoft,fontSize:22}, domainNumActive:{color:colors.cyan}, domainNumDim:{color:colors.textLo}, domainUnit:{color:colors.textLo,fontSize:10}, domainSub:{color:colors.cyanDim,fontSize:9.5}, topicCol:{gap:8}, topicRow:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:10,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, topicDot:{width:6,height:6,borderRadius:3,backgroundColor:colors.cyan}, topicDotDim:{backgroundColor:colors.cyanDim}, topicText:{flex:1,color:colors.textTitle,fontSize:12.5}, topicTextDim:{flex:1,color:colors.textMid,fontSize:12.5}, opsTodayHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, opsTodayRow:{minHeight:48,flexDirection:'row',alignItems:'center',gap:spacing.sm,paddingVertical:spacing.sm,paddingHorizontal:spacing.md,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, opsCheck:{width:22,height:22,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center'}, opsCheckOn:{backgroundColor:colors.cyan,borderColor:colors.cyan}, opsCheckMark:{color:colors.bgDeep,fontSize:13,fontFamily:fontFamilies.pixelKo}, opsTodayTitle:{flex:1,color:colors.textTitle,fontSize:13,}, opsTodayTitleDone:{color:colors.textLo,textDecorationLine:'line-through'},
   // --- focus timer (Wave 1, daily_focus) ---
   focusStage:{alignItems:'center',justifyContent:'center',paddingVertical:spacing.xl,gap:spacing.sm},
   focusPhase:{color:colors.cyanDim,fontFamily:fontFamilies.pixelEn,fontSize:8,letterSpacing:1.2,textTransform:'uppercase'},
@@ -3006,14 +3006,14 @@ const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, 
   focusControls:{flexDirection:'row',gap:spacing.sm},
   // --- srs review (Wave 1, language_practice) ---
   srsCard:{minHeight:200,backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.lg,padding:spacing.lg,alignItems:'center',justifyContent:'center',gap:spacing.md},
-  srsFaceLabel:{color:colors.cyanDim,fontFamily:fontFamilies.pixelEn,fontSize:8,letterSpacing:1.2,textTransform:'uppercase'},
+  srsFaceLabel:{color:colors.cyanDim,fontSize:8,letterSpacing:1.2,textTransform:'uppercase'},
   srsFaceText:{color:colors.textTitle,fontSize:24,textAlign:'center'},
   srsHint:{color:colors.textLo,fontSize:11},
   srsRatingRow:{flexDirection:'row',gap:spacing.xs},
   srsRatingBtn:{flex:1,alignItems:'center',justifyContent:'center',borderColor:colors.borderHi,borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.md},
   srsRatingText:{color:colors.cyanSoft,fontSize:12},
   // --- auth (sign-in / sign-up / reset) deep-space presentation ---
-  authLabel:{color:colors.textMid,fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,textTransform:'uppercase',marginBottom:4},
+  authLabel:{color:colors.textMid,fontSize:7,letterSpacing:0.7,textTransform:'uppercase',marginBottom:4},
   authLabelRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
   eyeBtn:{minWidth:44,minHeight:36,alignItems:'flex-end',justifyContent:'center'},
   eyeText:{color:colors.cyanSoft,fontSize:11},
@@ -3022,7 +3022,7 @@ const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, 
   btnDisabled:{opacity:0.45},
   authDividerRow:{flexDirection:'row',alignItems:'center',gap:spacing.md,marginVertical:spacing.xs},
   authDividerLine:{flex:1,height:StyleSheet.hairlineWidth,backgroundColor:colors.border},
-  authDividerLabel:{color:colors.textLo,fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,textTransform:'uppercase'},
+  authDividerLabel:{color:colors.textLo,fontSize:7,letterSpacing:0.7,textTransform:'uppercase'},
   authDanger:{color:colors.clay,fontSize:12,},
   authHelper:{color:colors.textMid,fontSize:11.5,},
   authLinkRow:{minHeight:44,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6},
@@ -3036,7 +3036,7 @@ const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, 
   authToastSuccess:{borderColor:colors.mint,backgroundColor:colors.cardBg},
   authToastDanger:{borderColor:colors.clay,backgroundColor:colors.cardBg},
   authToastText:{color:colors.textHi,fontSize:12.5,},
-  consentGroupLabel:{color:colors.cyanBright,fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,textTransform:'uppercase',marginTop:spacing.xs},
+  consentGroupLabel:{color:colors.cyanBright,fontSize:7,letterSpacing:0.7,textTransform:'uppercase',marginTop:spacing.xs},
   consentIntro:{color:colors.textMid,fontSize:11.5,},
   consentRow:{flexDirection:'row',alignItems:'flex-start',gap:spacing.sm,minHeight:40,paddingVertical:spacing.xs},
   consentCheckbox:{width:22,height:22,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center',marginTop:1},

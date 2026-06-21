@@ -39,7 +39,7 @@ export function DeepSpaceHubDockScreen() {
         <View style={styles.titleRow}>
           <RNText style={styles.back}>‹</RNText>
           <Text variant="heading" style={styles.title}>{title}</Text>
-          <RNText style={styles.kicker}>{active === "capture" ? "5 MODE" : active === "review" ? "RATIFY" : active === "trend" ? "DISCOVER" : "공상"}</RNText>
+          <Text variant="caption" pixelEn style={styles.kicker}>{active === "capture" ? "5 MODE" : active === "review" ? "RATIFY" : active === "trend" ? "DISCOVER" : "공상"}</Text>
         </View>
         <View style={styles.content}>
           {renderContent(active, {
@@ -102,8 +102,8 @@ function CaptureContent({ captureMode, setCaptureMode, captured, setCaptured }: 
         ))}
       </View>
       <View style={styles.captureBox}><Text variant="body" style={styles.captureText}>오늘 회의에서 나온 아이디어, 사용자 온보딩을 별자리 은유로 풀면 어떨까</Text><View style={styles.cursor} /></View>
-      <View style={styles.tagRow}><RNText style={styles.tag}>#아이디어</RNText><RNText style={styles.tag}>AI 자동 태그</RNText></View>
-      <RNText style={styles.sectionLabel}>최근에 담은 것</RNText>
+      <View style={styles.tagRow}><Text variant="caption" pixelEn style={styles.tag}>#아이디어</Text><Text variant="caption" pixelEn style={styles.tag}>AI 자동 태그</Text></View>
+      <Text variant="caption" pixelEn style={styles.sectionLabel}>최근에 담은 것</Text>
       <SmallRow icon="✎" title="읽은 책에서 인상 깊었던 문장" time="2시간" />
       <SmallRow icon="🔗" title="디자인 레퍼런스 아티클" time="어제" />
       <Pressable
@@ -167,7 +167,7 @@ function ReviewContent({ reviewDecision, setReviewDecision }: HubState) {
     <>
       <Text variant="body" style={styles.subtitle}>내가 달라졌다면 별자리도 함께 점검</Text>
       <View style={styles.reviewCard}>
-        <RNText style={styles.sectionLabelSoul}>세컨비의 제안</RNText>
+        <Text variant="caption" pixelEn style={styles.sectionLabelSoul}>세컨비의 제안</Text>
         <Text variant="body" style={styles.reviewBody}>최근 기록을 보면 외향성이 올라간 것 같아요. 별 밝기를 올릴까요?</Text>
         <View style={styles.scoreRow}><Score label="지금" value="61" /><RNText style={styles.arrow}>→</RNText><Score label="제안" value="68" /><Text variant="subtle" style={styles.evidenceRight}>근거{"\n"}기록 5건</Text></View>
       </View>
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   titleRow: { position: "relative", flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: 20, paddingTop: 16 },
   back: { color: colors.textTitle, opacity: 0.7, fontSize: 18, lineHeight: 22 },
   title: { color: colors.textTitle, fontSize: 16 },
-  kicker: { marginLeft: "auto", color: colors.cyanBright, opacity: 0.55, fontFamily: fontFamilies.pixelEn, fontSize: 7, lineHeight: 12 },
+  kicker: { marginLeft: "auto", color: colors.cyanBright, opacity: 0.55, fontSize: 7, lineHeight: 12 },
   content: { position: "relative", paddingHorizontal: 20, paddingTop: 14, paddingBottom: 86, minHeight: 454 },
   subtitle: { color: colors.textMid, fontSize: 13, marginBottom: spacing.md },
   modeRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: spacing.md },
@@ -215,8 +215,8 @@ const styles = StyleSheet.create({
   captureText: { flex: 1, color: colors.textTitle, fontSize: 13.5 },
   cursor: { width: 2, height: 15, marginTop: 3, backgroundColor: colors.cyan },
   tagRow: { flexDirection: "row", gap: 7, marginTop: spacing.sm },
-  tag: { color: colors.cyanBright, opacity: 0.55, borderWidth: 1, borderColor: colors.border, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5, fontFamily: fontFamilies.pixelEn, fontSize: 6, lineHeight: 10 },
-  sectionLabel: { color: colors.cyanBright, opacity: 0.55, marginTop: spacing.lg, marginBottom: spacing.sm, fontFamily: fontFamilies.pixelEn, fontSize: 7, lineHeight: 12 },
+  tag: { color: colors.cyanBright, opacity: 0.55, borderWidth: 1, borderColor: colors.border, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5, fontSize: 6, lineHeight: 10 },
+  sectionLabel: { color: colors.cyanBright, opacity: 0.55, marginTop: spacing.lg, marginBottom: spacing.sm, fontSize: 7, lineHeight: 12 },
   smallRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: colors.ruleSoft, borderRadius: 10, backgroundColor: colors.cardBg, marginBottom: spacing.sm },
   rowIcon: { fontSize: 14, lineHeight: 18 },
   rowTitle: { flex: 1, color: colors.textMid, fontSize: 12.5 },
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   emptyCard: { paddingHorizontal: 16, paddingVertical: 15, borderWidth: 1, borderStyle: "dashed", borderColor: colors.borderHi, borderRadius: 14, backgroundColor: colors.cardBg },
   mutedBody: { color: colors.textLo, fontSize: 12.5 },
   reviewCard: { padding: 16, borderWidth: 1, borderColor: colors.soulLine, borderRadius: 14, backgroundColor: colors.cardBg },
-  sectionLabelSoul: { color: colors.soul, marginBottom: 12, fontFamily: fontFamilies.pixelEn, fontSize: 7, lineHeight: 12 },
+  sectionLabelSoul: { color: colors.soul, marginBottom: 12, fontSize: 7, lineHeight: 12 },
   reviewBody: { color: colors.textTitle, marginBottom: 13, fontSize: 13 },
   scoreRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: 13, paddingVertical: 11, borderRadius: 10, backgroundColor: colors.bgMid },
   score: { alignItems: "center" },

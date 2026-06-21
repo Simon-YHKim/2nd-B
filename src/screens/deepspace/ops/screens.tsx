@@ -255,7 +255,7 @@ export function ReadingScreen() {
             <Text variant="caption" style={styles.coverText}>{reading.title}</Text>
           </View>
           <View style={styles.heroBody}>
-            <RNText style={styles.pixelLabel}>{c.nowReading}</RNText>
+            <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.nowReading}</Text>
             <Text variant="heading" style={styles.heroTitle}>{reading.title}</Text>
             <Text variant="body" style={styles.heroAuthor}>{reading.authors.join(", ")}</Text>
             <View style={{ marginTop: 10 }}>
@@ -270,7 +270,7 @@ export function ReadingScreen() {
 
       {results.length > 0 ? (
         <View style={styles.section}>
-          <RNText style={styles.pixelLabel}>{c.searchBooks}</RNText>
+          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.searchBooks}</Text>
           {results.map((b) => (
             <Pressable key={b.id} onPress={() => onAdd(b)} hitSlop={6} style={styles.bookRow}>
               <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
@@ -286,7 +286,7 @@ export function ReadingScreen() {
         <OpsState variant="empty" title={c.emptyTitle} body={c.whatReading} />
       ) : (shelf.data?.want.length ?? 0) > 0 ? (
         <View style={styles.section}>
-          <RNText style={styles.pixelLabel}>{c.wantToRead}</RNText>
+          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.wantToRead}</Text>
           {shelf.data?.want.map((b) => (
             <View key={b.id} style={styles.bookRow}>
               <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
@@ -410,7 +410,7 @@ export function LedgerScreen() {
         <OpsState variant="empty" title={c.emptyTitle} body={c.record} />
       ) : (
         <View style={styles.section}>
-          <RNText style={styles.pixelLabel}>{c.byCategory}</RNText>
+          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.byCategory}</Text>
           {summary.byCategory.map((cat) => (
             <View key={cat.category} style={{ marginBottom: 10 }}>
               <View style={styles.catRow}>
@@ -488,7 +488,7 @@ export function SideProjectScreen() {
       ) : (
         <>
           <View style={styles.ghCard}>
-            <RNText style={styles.pixelLabel}>{c.thisWeek}</RNText>
+            <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.thisWeek}</Text>
             <Text variant="heading" style={styles.ghBig}>
               {summary.commits} <Text variant="subtle" style={styles.ghBigUnit}>{c.commits}</Text>
             </Text>
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   section: { gap: 8 },
-  pixelLabel: { fontFamily: fontFamilies.pixelEn, fontSize: 8, letterSpacing: 1, color: deepSpace.textLo },
+  pixelLabel: { fontSize: 8, letterSpacing: 1, color: deepSpace.textLo },
   dotSm: { width: 7, height: 7, borderRadius: 4 },
 
   hero: {
