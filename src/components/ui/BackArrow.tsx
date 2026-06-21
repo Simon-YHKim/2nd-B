@@ -66,6 +66,7 @@ const ROUTE_LABELS: Record<string, { en: string; ko: string }> = {
   "/settings": { en: "Settings", ko: "설정" },
   "/support": { en: "Support", ko: "지원" },
   "/theme": { en: "Theme", ko: "테마" },
+  "/trends": { en: "Trends", ko: "트렌드" },
   "/trinity": { en: "My areas", ko: "내 영역" },
 };
 

@@ -208,7 +208,30 @@ export function DeepSpaceIntegrationsScreen() { const { t } = useTranslation("de
 
 export function DeepSpaceSupportDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("support.title")}><View style={styles.center}><SecondbHead size={104} mood="positive" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View><Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card><Text variant="subtle" style={styles.footer}>{t("support.footer")}</Text></Shell>; }
 
-export function DeepSpaceAccountDesignScreen() { const { t } = useTranslation("deepspace"); const rows: [string, string][] = [[t("account.labelName"),'Simon Kim'],[t("account.labelEmail"),'simon@example.com'],[t("account.labelPassword"),t("account.valueChange")],[t("account.labelLinked"),'Google'],[t("account.labelLanguage"),t("account.valueLanguage")]]; return <Shell title={t("account.title")}><SecondbStatusHeader text={t("account.status")} tip={t("account.tip")} /><View style={styles.center}><View style={styles.avatar}><SecondbHead size={72} mood="neutral" /></View><Text variant="heading" style={styles.prompt}>Simon Kim</Text><Text variant="subtle" style={styles.footer}>{t("account.joined", { date: "2026.06" })}</Text></View><Card>{rows.map(([label,value])=><Action key={label} label={label} value={value}/>)}</Card><Pressable style={styles.danger}><Text variant="body" style={styles.dangerText}>{t("account.delete")}</Text></Pressable></Shell>; }
+export function DeepSpaceAccountDesignScreen() {
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  // The "나" hub (SCREEN_TREE_SPEC §8): four working nav rows. Was a static
+  // mockup with hardcoded PII and dead rows; now every row routes.
+  return (
+    <Shell title={t("account.title")}>
+      <SecondbStatusHeader text={t("account.status")} tip={t("account.tip")} />
+      <View style={styles.center}>
+        <View style={styles.avatar}><SecondbHead size={72} mood="neutral" /></View>
+        <Text variant="heading" style={styles.prompt}>{t("account.title")}</Text>
+      </View>
+      <Card>
+        <Action label={ko ? "프로필" : "Profile"} onPress={() => router.push("/profile")} />
+        <Action label={ko ? "설정" : "Settings"} onPress={() => router.push("/settings")} />
+        <Action label={ko ? "내 데이터" : "My data"} onPress={() => router.push("/data")} />
+        <Action label="IDEN" onPress={() => router.push("/iden")} />
+      </Card>
+      <Pressable style={styles.danger} onPress={() => router.push("/settings")}>
+        <Text variant="body" style={styles.dangerText}>{t("account.delete")}</Text>
+      </Pressable>
+    </Shell>
+  );
+}
 
 export function DeepSpacePrivacyDesignScreen() {
   const { t, i18n } = useTranslation("deepspace");

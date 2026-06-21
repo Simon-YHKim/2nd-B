@@ -58,6 +58,7 @@ const FLOW: FlowColumn[] = [
       { label: "허브 preview", path: "/deepspace-hub", note: "4 panels" },
       { label: "담기", path: "/capture", note: "first save" },
       { label: "세컨비", path: "/secondb", note: "chat" },
+      { label: "트렌드", path: "/trends", note: "rising" },
       { label: "기록", path: "/records", note: "archive" },
     ],
   },

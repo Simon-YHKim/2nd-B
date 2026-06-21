@@ -81,6 +81,7 @@ export default function RootLayout() {
               <Stack.Screen name="museum" />
               <Stack.Screen name="big-five" />
               <Stack.Screen name="insights" />
+              <Stack.Screen name="trends" />
               <Stack.Screen name="attachment" />
               <Stack.Screen name="permissions" />
               <Stack.Screen name="research" />
