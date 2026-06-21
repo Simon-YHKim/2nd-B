@@ -1,0 +1,18 @@
+diff --git a/node_modules/@react-native/assets-registry/path-support.js b/node_modules/@react-native/assets-registry/path-support.js
+index c73a2e2..753c4d8 100644
+--- a/node_modules/@react-native/assets-registry/path-support.js
++++ b/node_modules/@react-native/assets-registry/path-support.js
+@@ -77,11 +77,12 @@ function getAndroidResourceFolderName(
+ function getAndroidResourceIdentifier(
+   asset /*: PackagerAsset */,
+ ) /*: string */ {
+-  return (getBasePath(asset) + '/' + asset.name)
++  const identifier = (getBasePath(asset) + '/' + asset.name)
+     .toLowerCase()
+     .replace(/\//g, '_') // Encode folder structure in file name
+     .replace(/([^a-z0-9_])/g, '') // Remove illegal chars
+     .replace(/^(?:assets|assetsunstable_path)_/, ''); // Remove "assets_" or "assetsunstable_path_" prefix
++  return /^[a-z]/.test(identifier) ? identifier : 'a_' + identifier;
+ }
+ 
+ function getBasePath(asset /*: PackagerAsset */) /*: string */ {

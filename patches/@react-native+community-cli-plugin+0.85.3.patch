@@ -1,0 +1,18 @@
+diff --git a/node_modules/@react-native/community-cli-plugin/dist/commands/bundle/assetPathUtils.js b/node_modules/@react-native/community-cli-plugin/dist/commands/bundle/assetPathUtils.js
+index 8f5e3e0..60aa2bb 100644
+--- a/node_modules/@react-native/community-cli-plugin/dist/commands/bundle/assetPathUtils.js
++++ b/node_modules/@react-native/community-cli-plugin/dist/commands/bundle/assetPathUtils.js
+@@ -46,11 +46,12 @@ function getAndroidResourceFolderName(asset, scale) {
+ }
+ function getResourceIdentifier(asset) {
+   const folderPath = getBasePath(asset);
+-  return `${folderPath}/${asset.name}`
++  const identifier = `${folderPath}/${asset.name}`
+     .toLowerCase()
+     .replace(/\//g, "_")
+     .replace(/([^a-z0-9_])/g, "")
+     .replace(/^(?:assets|assetsunstable_path)_/, "");
++  return /^[a-z]/.test(identifier) ? identifier : `a_${identifier}`;
+ }
+ function getBasePath(asset) {
+   let basePath = asset.httpServerLocation;
