@@ -101,7 +101,7 @@ export default function Jot() {
             style={[styles.saveBtn, !canSave && styles.saveBtnOff]}
           >
             <Text variant="body" style={styles.saveText}>
-              {ko ? "저장" : "Save"}
+              {saving ? (ko ? "저장 중…" : "Saving…") : ko ? "저장" : "Save"}
             </Text>
           </Pressable>
 

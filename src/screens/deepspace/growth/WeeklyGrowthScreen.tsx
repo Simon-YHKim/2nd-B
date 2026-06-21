@@ -5,7 +5,7 @@
 // untouched, no new core). Next step is propose→ratify (saved as a routine).
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
 import Svg, { Circle, Polyline, Text as SvgText } from "react-native-svg";
 import { router } from "expo-router";
@@ -17,6 +17,7 @@ import { MetaChip, OpsFrame, OpsState } from "@/components/deepspace/ops";
 import { SecondbHead } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { gatherWeeklyGrowth } from "@/lib/growth/gather";
+import { startTask } from "@/lib/tasks/store";
 import type { StarChange, WeeklyGrowth } from "@/lib/growth/weekly";
 import { createRoutineFromRecommendation } from "@/lib/ops/routines";
 import type { StarId } from "@/lib/persona/stars";
@@ -52,6 +53,9 @@ export function WeeklyGrowthScreen() {
   const [data, setData] = useState<WeeklyGrowth | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [saved, setSaved] = useState(false);
+  // The background reanalyze task outlives this screen, so guard its setState.
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
 
   useEffect(() => {
     let alive = true;
@@ -71,6 +75,27 @@ export function WeeklyGrowthScreen() {
   const t = (k: string) => COPY(ko)[k] ?? k;
   const top = data?.topStar ?? null;
   const tip = data?.hasPriorWeek ? t("comparedLast") : t("firstWeekTip");
+
+  // Loading-system demo (loading.dc.html): re-reading the stars is a genuine
+  // multi-table read, so run it in the BACKGROUND — the user keeps using the app,
+  // the global dock shows progress, and the completion toast offers "결과 보기"
+  // (no auto-navigation). Additive: the on-mount load above is unchanged.
+  const reanalyze = () => {
+    if (!userId) return;
+    startTask({
+      title: ko ? "별을 다시 살펴보는 중" : "Re-reading your stars",
+      tip: ko ? "끝나면 알려줄게요. 앱은 그대로 써도 돼요." : "We'll let you know when it's done.",
+      mode: "background",
+      etaSec: 8,
+      resultHref: "/growth",
+      run: async () => {
+        const g = await gatherWeeklyGrowth(userId);
+        if (!mounted.current) return; // screen left; "결과 보기" remounts + re-gathers
+        setData(g);
+        setStatus("ready");
+      },
+    });
+  };
 
   const saveStep = async () => {
     if (!userId || !top || saved) return;
@@ -180,6 +205,10 @@ export function WeeklyGrowthScreen() {
           <Text variant="body" style={styles.dreamText}>{t("dreamToStep")}</Text>
           <RNText style={styles.dreamCaret}>›</RNText>
         </Pressable>
+
+        <Pressable onPress={reanalyze} hitSlop={6} style={styles.ghostBtn}>
+          <Text variant="caption" style={styles.ghostText}>{t("reanalyze")}</Text>
+        </Pressable>
       </>
     );
   }
@@ -217,7 +246,7 @@ function COPY(ko: boolean): Record<string, string> {
         records: "기록", streak: "루틴 연속", days: "일", rate: "완료율", milestone: "마일스톤",
         addRoutine: "루틴으로 담기", saved: "담았어요", dreamToStep: "이번 주 공상 한 조각을 첫 걸음으로?",
         firstTitle: "첫 변화는 다음 주에", firstBody: "이번 주 기록과 루틴을 채우면 일요일에 너의 별이 얼마나 밝아졌는지 보여줄게요.",
-        captureToday: "오늘 기록 담기", startRoutine: "루틴 하나 시작하기",
+        captureToday: "오늘 기록 담기", startRoutine: "루틴 하나 시작하기", reanalyze: "별 다시 살펴보기",
       }
     : {
         title: "My change", bubble: "This week, you grew here.", comparedLast: "Compared with last week.",
@@ -228,7 +257,7 @@ function COPY(ko: boolean): Record<string, string> {
         records: "Records", streak: "Streak", days: "d", rate: "Done", milestone: "Milestone",
         addRoutine: "Add as routine", saved: "Saved", dreamToStep: "Turn a daydream into a first step?",
         firstTitle: "First change comes next week", firstBody: "Fill this week with records and routines, and on Sunday we'll show how much your star brightened.",
-        captureToday: "Capture today", startRoutine: "Start a routine",
+        captureToday: "Capture today", startRoutine: "Start a routine", reanalyze: "Re-read my stars",
       };
 }
 

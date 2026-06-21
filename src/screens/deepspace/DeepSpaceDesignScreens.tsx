@@ -15,8 +15,16 @@ import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import {
   ageInYears,
   MIN_SELF_CONSENT_AGE,
+  signOut,
   type OAuthProvider,
 } from "@/lib/supabase/auth";
+import { deleteAllUserData, requestAccountDeletion } from "@/lib/records/delete-bulk";
+import { buildPersona } from "@/lib/persona/build";
+import { proposalContextForStar } from "@/lib/persona/proposal-context";
+import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
+import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
+import { recordStarTiers } from "@/lib/persona/record-star-tiers";
+import { RatifySheet } from "@/components/persona/RatifySheet";
 import {
   allRequiredAcksChecked,
   setAllRequiredAcks,
@@ -208,11 +216,31 @@ export function DeepSpaceGraphDesignScreen() {
   return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: 128, edges: 342 })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><Svg width="100%" height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Text key={c.t} variant="body" style={[styles.clusterLabel,{left:c.x-18,top:c.y+23}]}>{c.t}</Text>)}</Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
 }
 
-export function DeepSpaceIntegrationsScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("integrations.title")}><SecondbStatusHeader text={t("integrations.status")} tip={t("integrations.tip")} /><Card><Text variant="heading" style={styles.section}>{t("integrations.sectionAssistant")}</Text>{['ChatGPT','Claude','Gemini'].map((x)=><Action key={x} label={x} value={t("integrations.pending")} />)}</Card><Card><Text variant="heading" style={styles.section}>{t("integrations.sectionSources")}</Text><Toggle label="Notion" value={t("integrations.notionValue")} /><Toggle label="Obsidian" value={t("integrations.obsidianValue")} on={false} /><Toggle label={t("integrations.healthLabel")} value={t("integrations.permissionNeeded")} on={false} /></Card><Text variant="subtle" style={styles.footer}>{t("integrations.footer")}</Text></Shell>; }
+export function DeepSpaceIntegrationsScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("integrations.title")}><SecondbStatusHeader text={t("integrations.status")} tip={t("integrations.tip")} /><Card><Text variant="heading" style={styles.section}>{t("integrations.sectionAssistant")}</Text>{['ChatGPT','Claude','Gemini'].map((x)=><Action key={x} label={x} value={t("integrations.pending")} onPress={() => router.push('/iden')} />)}</Card><Card><Text variant="heading" style={styles.section}>{t("integrations.sectionSources")}</Text><Toggle label="Notion" value={t("integrations.notionValue")} /><Toggle label="Obsidian" value={t("integrations.obsidianValue")} on={false} /><Toggle label={t("integrations.healthLabel")} value={t("integrations.permissionNeeded")} on={false} /></Card><Text variant="subtle" style={styles.footer}>{t("integrations.footer")}</Text></Shell>; }
 
 export function DeepSpaceSupportDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("support.title")}><View style={styles.center}><SecondbHead size={104} mood="positive" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View><Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card><Text variant="subtle" style={styles.footer}>{t("support.footer")}</Text></Shell>; }
 
-export function DeepSpaceAccountDesignScreen() { const { t } = useTranslation("deepspace"); const rows: [string, string][] = [[t("account.labelName"),'Simon Kim'],[t("account.labelEmail"),'simon@example.com'],[t("account.labelPassword"),t("account.valueChange")],[t("account.labelLinked"),'Google'],[t("account.labelLanguage"),t("account.valueLanguage")]]; return <Shell title={t("account.title")}><SecondbStatusHeader text={t("account.status")} tip={t("account.tip")} /><View style={styles.center}><View style={styles.avatar}><SecondbHead size={72} mood="neutral" /></View><Text variant="heading" style={styles.prompt}>Simon Kim</Text><Text variant="subtle" style={styles.footer}>{t("account.joined", { date: "2026.06" })}</Text></View><Card>{rows.map(([label,value])=><Action key={label} label={label} value={value}/>)}</Card><Pressable style={styles.danger}><Text variant="body" style={styles.dangerText}>{t("account.delete")}</Text></Pressable></Shell>; }
+export function DeepSpaceAccountDesignScreen() {
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  // The "나" hub (SCREEN_TREE_SPEC §8): four working nav rows. Was a static
+  // mockup with hardcoded PII and dead rows; now every row routes.
+  return (
+    <Shell title={t("account.title")}>
+      <SecondbStatusHeader text={t("account.status")} tip={t("account.tip")} />
+      <View style={styles.center}>
+        <View style={styles.avatar}><SecondbHead size={72} mood="neutral" /></View>
+        <Text variant="heading" style={styles.prompt}>{t("account.title")}</Text>
+      </View>
+      <Card>
+        <Action label={ko ? "프로필" : "Profile"} onPress={() => router.push("/profile")} />
+        <Action label={ko ? "설정" : "Settings"} onPress={() => router.push("/settings")} />
+        <Action label={ko ? "내 데이터" : "My data"} onPress={() => router.push("/data")} />
+        <Action label="IDEN" onPress={() => router.push("/iden")} />
+      </Card>
+    </Shell>
+  );
+}
 
 export function DeepSpacePrivacyDesignScreen() {
   const { t, i18n } = useTranslation("deepspace");
@@ -223,6 +251,27 @@ export function DeepSpacePrivacyDesignScreen() {
   const [understanding, setUnderstanding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recError, setRecError] = useState(false);
+  // Right-to-erasure in deep-space (was legacy-only). Terminal + irreversible, so
+  // it is gated behind a typed "DELETE" confirm and reuses the proven cascade.
+  const [delConfirm, setDelConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [delError, setDelError] = useState(false);
+
+  async function runDeleteAccount() {
+    if (!userId || deleting || delConfirm !== "DELETE") return;
+    setDeleting(true);
+    setDelError(false);
+    try {
+      await deleteAllUserData(userId);
+      await requestAccountDeletion();
+      await signOut();
+      router.replace("/sign-in");
+    } catch {
+      // Some content may already be gone; tell the truth and let them retry.
+      setDelError(true);
+      setDeleting(false);
+    }
+  }
 
   useEffect(() => {
     if (!userId) return;
@@ -334,6 +383,46 @@ export function DeepSpacePrivacyDesignScreen() {
         <Action label={t("privacy.policy")} value={t("privacy.view")}/>
         <Action label={t("privacy.processingLog")} value={t("privacy.last7")}/>
         <Action label={t("privacy.thirdParty")} value={t("privacy.none")}/>
+      </Card>
+
+      <Card>
+        <Text variant="caption" style={styles.section}>{ko ? "계정 삭제" : "Delete account"}</Text>
+        <Text variant="subtle" style={styles.footer}>
+          {ko
+            ? "기록·캡처·위키·세컨비 사용량과 계정이 영구 삭제돼요. 되돌릴 수 없어요. 필요한 내용은 먼저 내보내기로 챙겨두세요."
+            : "Your records, captures, wiki, usage and account are permanently erased. This cannot be undone. Export anything you need first."}
+        </Text>
+        <Text variant="subtle" style={styles.footer}>
+          {ko ? '진행하려면 "DELETE" 라고 입력하세요.' : 'Type "DELETE" to proceed.'}
+        </Text>
+        <TextInput
+          value={delConfirm}
+          onChangeText={setDelConfirm}
+          placeholder="DELETE"
+          placeholderTextColor={colors.textLo}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          style={styles.input}
+          accessibilityLabel={ko ? "삭제 확인 입력" : "Deletion confirmation"}
+        />
+        <Pressable
+          style={[styles.danger, (delConfirm !== "DELETE" || deleting) && { opacity: 0.5 }]}
+          onPress={() => void runDeleteAccount()}
+          disabled={delConfirm !== "DELETE" || deleting}
+          accessibilityRole="button"
+          accessibilityLabel={ko ? "계정 영구 삭제" : "Delete account permanently"}
+        >
+          <Text variant="body" style={styles.dangerText}>
+            {deleting ? (ko ? "삭제 중…" : "Deleting…") : ko ? "계정 영구 삭제" : "Delete account"}
+          </Text>
+        </Pressable>
+        {delError ? (
+          <Text variant="subtle" style={styles.footer}>
+            {ko
+              ? "삭제를 끝내지 못했어요. 일부 데이터가 남아 있을 수 있어요. 잠시 후 다시 시도해 주세요."
+              : "Couldn't finish deletion. Some data may remain. Please try again shortly."}
+          </Text>
+        ) : null}
       </Card>
       <Text variant="subtle" style={styles.footer}>{t("privacy.footer")}</Text>
     </Shell>
@@ -967,7 +1056,7 @@ export function DeepSpaceDataDesignScreen() {
       <Card>
         <Action label={t("data.buildIndex")} value={indexValue} onPress={userId && !indexing ? () => void buildIndex() : undefined} />
         <Action label={t("data.exportAll")} onPress={() => router.push("/formats")} />
-        <Action label={t("data.deleteAll")} />
+        <Action label={t("data.deleteAll")} onPress={() => router.push("/privacy")} />
       </Card>
     </Shell>
   );
@@ -980,13 +1069,13 @@ export function DeepSpaceThemeScreen() {
       <SecondbStatusHeader text={t("theme.status")} tip={t("theme.tip")} />
       <Card>
         <Text variant="heading" style={styles.section}>{t("theme.sectionTheme")}</Text>
-        <Action label={t("theme.themeDeepspace")} value="✓" />
-        <Action label={t("theme.themeMidnight")} />
+        <View style={styles.action}><Text variant="body" style={styles.actionLabel}>{t("theme.themeDeepspace")}</Text><Text variant="body" style={styles.actionValue}>✓</Text></View>
+        <View style={styles.action}><Text variant="body" style={styles.actionLabel}>{t("theme.themeMidnight")}</Text></View>
       </Card>
       <Card>
         <Text variant="heading" style={styles.section}>{t("theme.sectionFont")}</Text>
-        <Action label={t("theme.fontPixel")} value="✓" />
-        <Action label={t("theme.fontReadable")} />
+        <View style={styles.action}><Text variant="body" style={styles.actionLabel}>{t("theme.fontPixel")}</Text><Text variant="body" style={styles.actionValue}>✓</Text></View>
+        <View style={styles.action}><Text variant="body" style={styles.actionLabel}>{t("theme.fontReadable")}</Text></View>
       </Card>
       <Card>
         <Text variant="heading" style={styles.section}>{t("theme.sectionSize")}</Text>
@@ -1009,14 +1098,14 @@ export function DeepSpaceManualScreen() {
       <View style={styles.searchBox}><Text variant="body" style={styles.searchText}>{t("manual.search")}</Text></View>
       <Card>
         <Text variant="heading" style={styles.section}>{t("manual.sectionStart")}</Text>
-        <Action label={t("manual.q1")} />
-        <Action label={t("manual.q2")} />
-        <Action label={t("manual.q3")} />
+        <Action label={t("manual.q1")} onPress={() => router.push("/support")} />
+        <Action label={t("manual.q2")} onPress={() => router.push("/support")} />
+        <Action label={t("manual.q3")} onPress={() => router.push("/support")} />
       </Card>
       <Card>
         <Text variant="heading" style={styles.section}>{t("manual.sectionData")}</Text>
-        <Action label={t("manual.q4")} />
-        <Action label={t("manual.q5")} />
+        <Action label={t("manual.q4")} onPress={() => router.push("/support")} />
+        <Action label={t("manual.q5")} onPress={() => router.push("/support")} />
         <Action label={t("manual.askDirect")} onPress={() => router.push('/secondb')} />
       </Card>
     </Shell>
@@ -1038,7 +1127,7 @@ export function DeepSpacePlansScreen() {
         <View style={styles.planHead}><Text variant="heading" style={styles.planName}>Free</Text><Text variant="subtle" style={styles.footer}>{t("plans.currentPlan")}</Text></View>
         <Text variant="body" style={styles.planFeatDim}>{t("plans.freeFeat")}</Text>
       </Card>
-      <Pressable style={styles.primary}><Text variant="caption" style={styles.primaryText}>{t("plans.startPro")}</Text></Pressable>
+      <Pressable style={styles.primary} onPress={() => router.push("/support")}><Text variant="caption" style={styles.primaryText}>{t("plans.startPro")}</Text></Pressable>
     </Shell>
   );
 }
@@ -1053,7 +1142,7 @@ export function DeepSpacePermissionsScreen() {
         <Toggle label={t("permissions.photo")} value={t("permissions.photoValue")} on={false} />
         <Toggle label={t("permissions.mic")} value={t("permissions.micValue")} on={false} />
       </Card>
-      <Pressable style={styles.primary}><Text variant="caption" style={styles.primaryText}>{t("permissions.continue")}</Text></Pressable>
+      <Pressable style={styles.primary} onPress={() => router.back()}><Text variant="caption" style={styles.primaryText}>{t("permissions.continue")}</Text></Pressable>
     </Shell>
   );
 }
@@ -1078,7 +1167,55 @@ export function DeepSpaceDiscoverScreen() {
 }
 
 export function DeepSpaceReviewScreen() {
-  const { t } = useTranslation("deepspace");
+  const { t, i18n } = useTranslation("deepspace");
+  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const { userId, isMinor } = useAuth();
+  // Real propose -> ratify (was a static mockup with hardcoded 61->68 and dead
+  // buttons). Reuses the same engine as legacy /review; nothing applies until the
+  // user ratifies in the sheet. LLM calls go through the C1/C9/C3 gateway inside.
+  const [loading, setLoading] = useState(false);
+  const [proposal, setProposal] = useState<SelfModelProposal | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  async function generate() {
+    if (!userId || loading) return;
+    setLoading(true);
+    setResult(null);
+    try {
+      const card = await buildPersona(userId, locale, isMinor === true);
+      const ctx = proposalContextForStar(card, "now");
+      const p = await proposeSelfModelChange(userId, { kind: "star", star: "now" }, ctx.before, ctx.evidence, 5, locale, isMinor === true);
+      if (p) {
+        setProposal(p);
+        setSheetOpen(true);
+      } else {
+        setResult(locale === "ko" ? "지금은 제안할 변화가 없어요." : "No change to propose right now.");
+      }
+    } catch {
+      setResult(locale === "ko" ? "제안을 불러오지 못했어요. 다시 시도해 주세요." : "Couldn't load a proposal. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleDecision(decision: RatifyDecision) {
+    const r = applyRatify(4, decision);
+    setSheetOpen(false);
+    if (decision === "ratify" && userId && proposal?.target.kind === "star") {
+      void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel });
+    }
+    setResult(
+      decision === "ratify"
+        ? locale === "ko"
+          ? `승인됐어요. 실행가능(L${r.resultingLevel})으로 올라갔어요.`
+          : `Ratified. Moved to actionable (L${r.resultingLevel}).`
+        : locale === "ko"
+          ? "이번엔 그대로 둘게요."
+          : "Left as is for now.",
+    );
+  }
+
   return (
     <Shell title={t("review.title")}>
       <SecondbStatusHeader text={t("review.status")} tip={t("review.tip")} />
@@ -1086,18 +1223,20 @@ export function DeepSpaceReviewScreen() {
       <Card>
         <Text variant="heading" style={styles.section}>{t("review.section")}</Text>
         <Text variant="body" style={styles.planFeatDim}>{t("review.body")}</Text>
-        <View style={styles.compareRow}>
-          <View style={styles.compareCol}><Text variant="subtle" style={styles.compareCap}>{t("review.now")}</Text><Text variant="heading" style={styles.compareNum}>61</Text></View>
-          <RNText style={styles.chev}>›</RNText>
-          <View style={styles.compareCol}><Text variant="subtle" style={styles.compareCap}>{t("review.suggest")}</Text><Text variant="heading" style={[styles.compareNum, styles.compareNumHi]}>68</Text></View>
-        </View>
-        <Text variant="subtle" style={styles.footer}>{t("review.evidence", { count: 5 })}</Text>
       </Card>
-      <Text variant="subtle" style={styles.footer}>{t("review.footer")}</Text>
-      <View style={styles.ctaRow}>
-        <Pressable style={styles.secondary}><Text variant="caption" style={styles.secondaryText}>{t("review.hold")}</Text></Pressable>
-        <Pressable style={styles.primary}><Text variant="caption" style={styles.primaryText}>{t("review.approve")}</Text></Pressable>
-      </View>
+      <Pressable
+        style={[styles.primary, loading ? { opacity: 0.5 } : null]}
+        onPress={() => void generate()}
+        disabled={loading}
+        accessibilityRole="button"
+        accessibilityLabel={locale === "ko" ? "제안 받기" : "Get a proposal"}
+      >
+        <Text variant="caption" style={styles.primaryText}>
+          {loading ? (locale === "ko" ? "불러오는 중…" : "Loading…") : locale === "ko" ? "제안 받기" : "Get a proposal"}
+        </Text>
+      </Pressable>
+      {result ? <Text variant="subtle" style={styles.footer}>{result}</Text> : null}
+      <RatifySheet proposal={proposal} locale={locale} visible={sheetOpen} onDecision={handleDecision} onClose={() => setSheetOpen(false)} />
     </Shell>
   );
 }

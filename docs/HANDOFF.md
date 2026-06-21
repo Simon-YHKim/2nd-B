@@ -4,6 +4,49 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
+## Latest — 2026-06-21 (심야) / 전체 화면 트리 감사 + 죽은 버튼 0 + AI 뮤지엄 이미지 (#560)
+
+SCREEN_TREE_SPEC 정본 대비 딥스페이스 전 화면 감사. **#560 main 머지**, `npm run verify`
+green (240 suites / 1809 tests). 전 구간 deepSpace 토큰만·hex 0·비주얼 티어 무회귀.
+
+### 이번 세션에 한 일 (#560)
+1. **rn-patch 통합** — 로딩/전환 시스템(`lib/tasks/store` + `DeepSpaceLoader`/`BackgroundTaskDock`/
+   `CompletionToast`) + AI 뮤지엄(`/museum`) + 큰 세컨비 머리 터치 추적(`SecondbHeadTrack`,
+   size≥80 자동). _주의_: 같은 rn-patch가 main에도 병렬로 들어와(#556) 머지 시 add/add 충돌 →
+   loading/museum 파일은 내 개선본(toast a11y 44px+조건부 결과보기, store 실행중 가드, museum 이미지)
+   유지, file-read/ImportHub는 main의 네이티브 picker(#558) 채택.
+2. **/trends 신규** — 관심 상승(이번주 vs 지난주 태그 빈도, `lib/trends/rising.ts` 순수+테스트 /
+   `gather.ts`). Ops 키트, 4상태, 카드 "담기"→/capture(`text` 파라미터 prefill). 진입점=profile
+   "알아가기" 그룹(`/insights` 옆) + flowmap.
+3. **죽은 버튼 0** — 라우팅된 2차 화면 7개가 정적 목업이었음 → 실기능화: **/review 실제
+   propose→ratify 엔진 이식**(buildPersona→proposeSelfModelChange→RatifySheet→applyRatify),
+   /data deleteAll→/privacy, /manual FAQ→/support, /plans→/support, /permissions 계속→back,
+   /integrations AI행→/iden, /theme 죽은 옵션→비-Pressable 상태행. /imagine "이 공상을 첫걸음"→/ops.
+   /account 정적 PII 목업→실작동 나-허브(프로필/설정/데이터/IDEN).
+4. **딥스페이스 계정 삭제(right-to-erasure)** — `/privacy`에 "DELETE" 확인 게이트 +
+   deleteAllUserData→requestAccountDeletion→signOut (legacy 전용이던 것 이식).
+5. **AI 뮤지엄 이미지 15개** — Wikimedia PD/CC-BY/CC-BY-SA, 전부 200 검증, 오브 폴백,
+   per-image attribution은 `docs/ASSETS.md`(C12). SVG/동영상·트레이드마크 로고 제외.
+6. **웹 마우스 머리 추적**(SecondbHeadTrack onMouseMove, Platform 가드) + 성장 화면 "별 다시
+   살펴보기"가 startTask(background) 실연결.
+7. 5-페르소나(perspectives 재현) 검증 통과 — 임상어휘 0, RLS own-data, 뮤지엄 사실성.
+
+### 다음 세션이 이어갈 것 (BLOCKED — 게이트/백엔드 필요, 추측 금지)
+- **/plans 실결제** (현재 → /support 문의로 임시 라우팅): 결제 백엔드 필요.
+- **/integrations 실 OAuth** (현재 → /iden export): 커넥터 OAuth 미구현.
+- **/permissions 네이티브 OS 권한** (현재 토글=상태표시, 계속→back): expo permissions + 실기기.
+- **AI 뮤지엄 나머지 moment 이미지**: PD/CC 라이선스 안전한 것만 추가(현재 15개). 트레이드마크 로고 금지.
+- 게이트 런북: `docs/GATE-RUNBOOK.md` (G0~G5). 코드로 닫을 수 있는 죽은 버튼/누락은 0.
+
+### 재개 명령어
+```
+git fetch origin main && git checkout main && git pull
+npm ci --legacy-peer-deps && npm run verify   # 240 suites green 기대
+```
+정본: `handoff-spec/SCREEN_TREE_SPEC.md`(동작) + `design/*.dc.html`(시각). 진입맵 §0.2.
+
+---
+
 ## Latest — 2026-06-21 (밤) / 엣지함수 인증 하드닝 스윕 — #524 배포 + delete/export-account anon-JWT 차단
 
 #524(gemini-proxy role-체크)를 **라이브 배포**하고, 같은 취약점 클래스(verify_jwt=true는 토큰

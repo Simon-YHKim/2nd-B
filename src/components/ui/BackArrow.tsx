@@ -55,6 +55,7 @@ const ROUTE_LABELS: Record<string, { en: string; ko: string }> = {
   "/secondb": { en: "SecondB", ko: "세컨비" },
   "/journal": { en: "Journal", ko: "일기" },
   "/manual": { en: "Manual", ko: "매뉴얼" },
+  "/museum": { en: "AI Museum", ko: "AI 뮤지엄" },
   "/mbti": { en: "Persona", ko: "페르소나" },
   "/onboarding": { en: "Onboarding", ko: "온보딩" },
   "/permissions": { en: "Permissions", ko: "권한" },
@@ -65,7 +66,8 @@ const ROUTE_LABELS: Record<string, { en: string; ko: string }> = {
   "/settings": { en: "Settings", ko: "설정" },
   "/support": { en: "Support", ko: "지원" },
   "/theme": { en: "Theme", ko: "테마" },
-  "/trinity": { en: "Trinity", ko: "Trinity" },
+  "/trends": { en: "Trends", ko: "트렌드" },
+  "/trinity": { en: "My areas", ko: "내 영역" },
 };
 
 function titleForRoute(pathname: string, domain: string | undefined, locale: Locale): string | null {

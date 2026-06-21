@@ -64,6 +64,9 @@ export interface StartTaskOptions {
  * swallowed into "done" so the UI never gets stuck — surface failures in run().
  */
 export function startTask(opts: StartTaskOptions): void {
+  // One global task at a time: ignore a new start while one is running, so a
+  // second tap can't overwrite the dock/toast and complete for the wrong task.
+  if (state.phase === "running") return;
   set({
     phase: "running",
     mode: opts.mode ?? "background",

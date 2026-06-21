@@ -33,6 +33,33 @@ libraries used under their respective licenses. The full list:
 - Press Start 2P — SIL OFL, loaded via
   `@expo-google-fonts/press-start-2p` (^0.4.1)
 
+## Remote images (AI Museum, /museum)
+
+The AI history museum (`src/screens/deepspace/museum/AiMuseumScreen.tsx`) shows
+images by hotlinking Wikimedia Commons (`Special:FilePath`). No image is bundled
+in the repo; each loads at runtime and falls back to a generated deep-space orb
+if absent. Each file is used under its Commons license (Public Domain / CC-BY /
+CC-BY-SA); the authoritative license + author is on each file's Commons page.
+Attribution per moment (date · title — file, license, author):
+
+- 1950 Turing Test — `Alan_Turing_Aged_16.jpg`, Public Domain Mark 1.0.
+- 2017 The Transformer — `The-Transformer-model-architecture.png`, CC-BY-SA 3.0, Yuening Jia.
+- 2014 GANs — `Ian_Goodfellow.jpg`, CC-BY-SA 4.0, Ian Goodfellow.
+- 2015 DeepDream — `Google_Deep_Dream_Image_(19926204302).jpg`, CC-BY 2.0, Lorenzo Tlacaelel.
+- 2021 DALL·E & CLIP — `DALL-E_2_artificial_intelligence_digital_image_generated_photo.jpg`, Public Domain (algorithm-generated).
+- 2022 Diffusion Boom — `Demonstration_of_inpainting_and_outpainting_using_Stable_Diffusion_(step_1_of_4).png`, CC-BY-SA 4.0, Benlisquare.
+- 1997 Deep Blue — `Deep_Blue.jpg`, CC-BY 2.0, Jim Gardner.
+- 2016 AlphaGo — `Lee_Se-Dol_-_2016_(cropped).jpg`, CC-BY 2.0, LG Electronics.
+- 2024 Humanoids — `Optimus_Tesla.jpg`, CC0 / Public Domain, Benjamin Ceci.
+- 2006 CUDA — `NVidia_G71_GPU.jpg`, CC-BY 2.0, Diego3336.
+- 2012 GPU Deep Learning — `Galaxy_NVIDIA_GeForce_GTX_460.JPG`, CC-BY-SA 3.0, Porsche 911GT2.
+- 2022 H100 — `NVIDIA_H100_(Geekerwan)_025.png`, CC-BY 3.0, Geekerwan.
+- 2024 Blackwell — `Jensen_Huang_-_RTX_Blackwell_-_Nvidia_Keynote_-_CES_2025_Las_Vegas_(3).jpg`, CC0 / Public Domain, Pronoia.
+- 2023 EU AI Act & Safety Summit — `UK_Government_hosts_AI_Summit_at_Bletchley_Park_(53301734397).jpg`, CC-BY 2.0, Marcel Grabowski / UK Government.
+
+Moments without a license-clean image intentionally keep the orb placeholder.
+SVG/video files are intentionally not used (no native `Image` URI support).
+
 ## Pre-existing materials owned by Simon
 
 - Google Play developer account (existing, used for app submission)

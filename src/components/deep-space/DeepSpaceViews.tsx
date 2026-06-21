@@ -522,11 +522,18 @@ export function PossibleLensView() {
       </View>
       <Text style={styles.footerLine}>{t("ds.possible.footer")}</Text>
       <View style={styles.btnRow}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("ds.possible.rewrite")} style={styles.ghostBtnFlex}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("ds.possible.rewrite")}
+          onPress={() => router.push({ pathname: "/secondb", params: { mode: "divergent" } })}
+          style={styles.ghostBtnFlex}
+        >
           <Text style={styles.ghostLabel}>{t("ds.possible.rewrite")}</Text>
         </Pressable>
         <View style={styles.btnFlex}>
-          <GradientButton label={t("ds.possible.add")} full />
+          {/* SCREEN_TREE_SPEC §7 /imagine: "이 공상을 첫 걸음으로 → /ops" (the routine is
+              proposed/created on the ops side, never auto-applied from here). */}
+          <GradientButton label={t("ds.possible.add")} full onPress={() => router.push("/ops")} />
         </View>
       </View>
     </ScrollView>
