@@ -4,6 +4,48 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
 
+## Latest — 2026-06-21 (/goal) / SCREEN_TREE_SPEC 정본 6-에이전트 감사 + 죽은 버튼 일소 + 독 정본 정렬 + interview/trinity 딥스페이스 이식
+
+`handoff-spec/SCREEN_TREE_SPEC.md`(정본) 대비 딥스페이스 전 화면을 6개 병렬 에이전트로 감사 후
+빠진 연결을 채움. branch `claude/repo-sync-verify-nkz86x`, `npm run verify` green (240 suites /
+1809 tests), 전 구간 deepSpace 토큰만·hex 0·비주얼 티어 무회귀·i18n 5-locale 패리티.
+
+### 핵심 발견
+딥스페이스(기본 빌드)는 `DeepSpace*` 화면을 렌더하고 **실로직은 village 스킨 `*Legacy` 브랜치**에
+있었음 → 다수 2차 화면의 CTA가 死버튼. 비주얼은 딥스페이스 유지하고 핸들러만 이식하는 방식으로 해소.
+
+### 이번 세션 커밋 (5 배치)
+1. **batch1**: TimelineRow onPress(/records·연결기록→/record/[id]), 설정에 /manual·/integrations
+   (고아 라우트였음), trinity 사용자 노출 "Brain Trinity"→"My areas".
+2. **batch2**: 하단 독 정본 정렬 — 담기/알아가기/[중앙 세컨비]/비서/나 → /capture·/·/secondb·/ops·
+   /account (lens/iden 타입은 유지해 active="lens" 콜사이트 무파손). 렌즈 死버튼(빅5 empty→/interview·
+   에러/재시도, 보여지는나 survey/share, 오딧 데이터추가, 공상 카드 선택→/ops). ops 쓰기액션(마일스톤·
+   레저 createX, 상태칩, 리마인더 토글, 로딩상태, 사이드프로젝트 히트맵, growth 근거칩→렌즈).
+3. **batch3**: research/wiki/graph/discover/data/integrations/insights 死버튼(노드 press hit-area만,
+   티어 시각 무변). ds.dock.ops/account 5-locale.
+4. **batch4**: /capture 음성·할 일 모드 추가(5모드 정본), 최근조각 리스트, 저장후 /record/[id].
+5. **batch5**: /interview 딥스페이스가 실제 AI 반복인터뷰 렌더(Frame 래퍼, 로직 포크 없음),
+   /trinity 4생활영역 대시보드(computeStats 재사용), secondb 근거칩·digest 상세/에러.
+
+### 다음 세션 (BLOCKED — 백엔드/플러밍/네이티브 필요, 추측 금지)
+- **/plans 실결제**(→/support 임시), **/permissions 네이티브 OS 권한**, **/integrations 실 OAuth**(→/iden).
+- **growth [루틴으로] propose→ratify**: 루틴 제안 메커니즘 없음(현재 star-tier 제안만). saveStep 직접생성 유지.
+- **리마인더 on/off 영속화 + OS 권한 요청**: lib/ops/routines 재활성 헬퍼·standalone 권한 export 없음.
+- **secondb 근거칩 → /record/[id]**: slug→record-id 리졸버 부재(현재 /records 폴백).
+- **/trinity 영역별 드릴다운**: /records 가 DOMAIN_TAGS 키 미지원(현재 /records 전체).
+- **/capture 실 오디오 녹음/전사**: 의존성 미추가(현재 음성 메모=라벨 텍스트). 
+- **graph/insights 실데이터**: 정적 목업 수치 유지(인터랙션만 추가, fetch 날조 금지).
+- **/ops·/account 독 크롬**: 자체 Shell 렌더라 탭 독 미표시(딥스페이스 독은 다른 1차에선 정상).
+- **review applyRatify 하드코딩 레벨 4**: 별 실제 tier 읽도록 보정 필요(死버튼 아님, 정합성).
+
+### 재개
+```
+git fetch origin && git checkout claude/repo-sync-verify-nkz86x && npm ci --legacy-peer-deps && npm run verify
+```
+정본: `handoff-spec/SCREEN_TREE_SPEC.md`(동작) + `handoff-spec/design/*.dc.html`(시각).
+
+---
+
 ## Latest — 2026-06-21 (심야) / 전체 화면 트리 감사 + 죽은 버튼 0 + AI 뮤지엄 이미지 (#560)
 
 SCREEN_TREE_SPEC 정본 대비 딥스페이스 전 화면 감사. **#560 main 머지**, `npm run verify`
