@@ -27,17 +27,23 @@
 하드닝은 일관성·방어심층(미래 토큰 포맷이나 sub을 가진 비인증 토큰 차단)이고, gemini/rss는 이미
 닫혀 있었던 반면 service-role 2종이 누락분이었다.
 
-### 검증 / 배포
+### 검증 / 배포 / 재발방지
 ```bash
-npm run verify   # green
-# 배포 검증: get_edge_function re-fetch로 라이브 소스에 role 체크 존재 확인 (gemini v14, delete v4)
+npm run verify   # green (237 suites / 1792 tests)
 ```
+- **소스 검증**: get_edge_function re-fetch로 라이브 소스에 role 체크 존재 확인 (gemini v14, delete v4).
+- **실동작 스모크**: anon-키 JWT(role=anon)로 gemini-proxy·delete-account POST → 둘 다 `401 invalid_jwt`
+  (함수 코드가 거부, Gemini 호출도 삭제도 없음). no-auth → 게이트웨이 401. 배포 실동작 증명.
+- **재발방지 (PR #552)**: `src/lib/safety/__tests__/edge-jwt-hardening.test.ts` — JWT `sub`를 읽는
+  엣지함수는 `role==='authenticated'` 게이트 필수, 없으면 CI 실패. 주석 스트립 처리(주석이 코드
+  누락을 못 가림), 구버전 취약 패턴을 잡는지 증명 완료. 인라인 중복을 무위험으로 안전화
+  (3-prod-재배포 리팩토링 회피).
 
 ### 다음 작업 큐 / 게이트
 | # | 작업 | 게이트 |
 |---|---|---|
-| A | export-account 엣지함수 배포 (Art.20 런치) | Simon (#373 review+deploy) |
-| B | 토큰 클레임 파서 단위테스트 공유화(현재 4함수 인라인 복제) | 선택, 위생 |
+| A | **export-account 엣지함수 배포** (Art.20 런치) | ⛔ Simon/법무 (#373 DPIA = "우회 불가" 게이트). 코드는 하드닝되어 main에 있으니 승인 시 1-커맨드: `supabase functions deploy export-account` (또는 MCP deploy_edge_function, verify_jwt=true). |
+| ~~B~~ | ~~토큰 파서 단위테스트 공유화~~ | ✅ PR #552로 완결 (가드가 4함수 일관성 강제) |
 
 ---
 
