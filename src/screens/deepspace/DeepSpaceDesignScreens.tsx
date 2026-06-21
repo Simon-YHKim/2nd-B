@@ -211,12 +211,56 @@ function Toggle({ label, value, on = true, onPress }: Row) {
 export function DeepSpaceGraphDesignScreen() {
   const { t } = useTranslation("deepspace");
   const clusters = [
-    { x: 63, y: 135, t: t("graph.clRecords") }, { x: 136, y: 92, t: t("graph.clRelations") }, { x: 219, y: 134, t: t("graph.clKnowledge") }, { x: 106, y: 226, t: t("graph.clTaste") }, { x: 207, y: 225, t: t("graph.clGrowth") },
+    { x: 63, y: 135, t: t("graph.clRecords"), route: "/records" as const }, { x: 136, y: 92, t: t("graph.clRelations"), route: "/research" as const }, { x: 219, y: 134, t: t("graph.clKnowledge"), route: "/wiki" as const }, { x: 106, y: 226, t: t("graph.clTaste"), route: "/trinity" as const }, { x: 207, y: 225, t: t("graph.clGrowth"), route: "/growth" as const },
   ];
-  return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: 128, edges: 342 })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><Svg width="100%" height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Text key={c.t} variant="body" style={[styles.clusterLabel,{left:c.x-18,top:c.y+23}]}>{c.t}</Text>)}</Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
+  return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: 128, edges: 342 })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><Svg width="100%" height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95} onPress={() => router.push('/account')}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22} onPress={() => router.push(c.route)}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi} onPress={() => router.push('/account')}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Pressable key={c.t} onPress={() => router.push(c.route)} accessibilityRole="button" accessibilityLabel={c.t} style={{position:'absolute',left:c.x-18,top:c.y+23}}><Text variant="body" style={[styles.clusterLabel,{position:'relative'}]}>{c.t}</Text></Pressable>)}</Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
 }
 
-export function DeepSpaceIntegrationsScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("integrations.title")}><SecondbStatusHeader text={t("integrations.status")} tip={t("integrations.tip")} /><Card><Text variant="heading" style={styles.section}>{t("integrations.sectionAssistant")}</Text>{['ChatGPT','Claude','Gemini'].map((x)=><Action key={x} label={x} value={t("integrations.pending")} onPress={() => router.push('/iden')} />)}</Card><Card><Text variant="heading" style={styles.section}>{t("integrations.sectionSources")}</Text><Toggle label="Notion" value={t("integrations.notionValue")} /><Toggle label="Obsidian" value={t("integrations.obsidianValue")} on={false} /><Toggle label={t("integrations.healthLabel")} value={t("integrations.permissionNeeded")} on={false} /></Card><Text variant="subtle" style={styles.footer}>{t("integrations.footer")}</Text></Shell>; }
+export function DeepSpaceIntegrationsScreen() {
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  // Notion starts "connected" in the mock; Obsidian disconnected. These drive a
+  // real disconnect affordance instead of a dead toggle. Real per-source OAuth is
+  // not built yet, so connect routes to the working file-import flow (/import-hub).
+  const [notionOn, setNotionOn] = useState(true);
+  const [obsidianOn, setObsidianOn] = useState(false);
+  return (
+    <Shell title={t("integrations.title")}>
+      <SecondbStatusHeader text={t("integrations.status")} tip={t("integrations.tip")} />
+      <Card>
+        <Text variant="heading" style={styles.section}>{t("integrations.sectionAssistant")}</Text>
+        {/* These are NOT live connections. They hand off to IDEN export. Label
+            honestly rather than implying a pending OAuth link. */}
+        {["ChatGPT", "Claude", "Gemini"].map((x) => (
+          <Action key={x} label={x} value={ko ? "IDEN으로 내보내기" : "Export to IDEN"} onPress={() => router.push("/iden")} />
+        ))}
+      </Card>
+      <Card>
+        <Text variant="heading" style={styles.section}>{t("integrations.sectionSources")}</Text>
+        <Toggle
+          label="Notion"
+          value={t("integrations.notionValue")}
+          on={notionOn}
+          onPress={() => (notionOn ? setNotionOn(false) : router.push("/import-hub"))}
+        />
+        {notionOn ? (
+          <Action label={ko ? "Notion 연결 해제" : "Disconnect Notion"} onPress={() => setNotionOn(false)} />
+        ) : null}
+        <Toggle
+          label="Obsidian"
+          value={t("integrations.obsidianValue")}
+          on={obsidianOn}
+          onPress={() => (obsidianOn ? setObsidianOn(false) : router.push("/import-hub"))}
+        />
+        {obsidianOn ? (
+          <Action label={ko ? "Obsidian 연결 해제" : "Disconnect Obsidian"} onPress={() => setObsidianOn(false)} />
+        ) : null}
+        <Toggle label={t("integrations.healthLabel")} value={t("integrations.permissionNeeded")} on={false} onPress={() => router.push("/import-hub")} />
+      </Card>
+      <Text variant="subtle" style={styles.footer}>{t("integrations.footer")}</Text>
+    </Shell>
+  );
+}
 
 export function DeepSpaceSupportDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("support.title")}><View style={styles.center}><SecondbHead size={104} mood="positive" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View><Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card><Text variant="subtle" style={styles.footer}>{t("support.footer")}</Text></Shell>; }
 
@@ -984,32 +1028,46 @@ export function DeepSpaceInsightsScreen() {
   return (
     <Shell title={t("insights.title")}>
       <SecondbStatusHeader text={t("insights.status")} tip={t("insights.tip")} mood="positive" />
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("insights.sectionNow")}</Text>
-        <Text variant="body" style={styles.lead}>{t("insights.lead")}</Text>
-        <Text variant="subtle" style={styles.insightsWeeklyLabel}>{t("insights.weeklyCap")}</Text>
-        <View style={styles.insightsBars}>
-          <View style={styles.insightsBarCol}>
-            <Text variant="heading" style={styles.compareNum}>{lastWeek}</Text>
-            <View style={styles.insightsBarTrack}>
-              <View style={[styles.insightsBarFillMuted, { height: 46 }]} />
+      <Pressable
+        onPress={() => router.push("/records")}
+        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+        accessibilityRole="button"
+        accessibilityLabel={t("insights.sectionNow")}
+      >
+        <Card>
+          <Text variant="heading" style={styles.section}>{t("insights.sectionNow")}</Text>
+          <Text variant="body" style={styles.lead}>{t("insights.lead")}</Text>
+          <Text variant="subtle" style={styles.insightsWeeklyLabel}>{t("insights.weeklyCap")}</Text>
+          <View style={styles.insightsBars}>
+            <View style={styles.insightsBarCol}>
+              <Text variant="heading" style={styles.compareNum}>{lastWeek}</Text>
+              <View style={styles.insightsBarTrack}>
+                <View style={[styles.insightsBarFillMuted, { height: 46 }]} />
+              </View>
+              <Text variant="subtle" style={styles.compareCap}>{t("insights.lastWeek")}</Text>
             </View>
-            <Text variant="subtle" style={styles.compareCap}>{t("insights.lastWeek")}</Text>
-          </View>
-          <View style={styles.insightsBarCol}>
-            <Text variant="heading" style={[styles.compareNum, styles.compareNumHi]}>{thisWeek}</Text>
-            <View style={styles.insightsBarTrack}>
-              <View style={[styles.insightsBarFillActive, { height: 84 }]} />
+            <View style={styles.insightsBarCol}>
+              <Text variant="heading" style={[styles.compareNum, styles.compareNumHi]}>{thisWeek}</Text>
+              <View style={styles.insightsBarTrack}>
+                <View style={[styles.insightsBarFillActive, { height: 84 }]} />
+              </View>
+              <Text variant="subtle" style={styles.compareCap}>{t("insights.thisWeek")}</Text>
             </View>
-            <Text variant="subtle" style={styles.compareCap}>{t("insights.thisWeek")}</Text>
           </View>
-        </View>
-        <Text variant="body" style={styles.delta}>{t("insights.delta", { percent: 72 })}</Text>
-      </Card>
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("insights.sectionFinding")}</Text>
-        <Text variant="body" style={styles.lead}>{t("insights.finding")}</Text>
-      </Card>
+          <Text variant="body" style={styles.delta}>{t("insights.delta", { percent: 72 })}</Text>
+        </Card>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push("/research")}
+        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+        accessibilityRole="button"
+        accessibilityLabel={t("insights.sectionFinding")}
+      >
+        <Card>
+          <Text variant="heading" style={styles.section}>{t("insights.sectionFinding")}</Text>
+          <Text variant="body" style={styles.lead}>{t("insights.finding")}</Text>
+        </Card>
+      </Pressable>
     </Shell>
   );
 }
@@ -1018,6 +1076,7 @@ export function DeepSpaceDataDesignScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const { userId, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const ko = locale === "ko";
   const [indexing, setIndexing] = useState(false);
   const [indexed, setIndexed] = useState<number | null>(null);
 
@@ -1055,6 +1114,7 @@ export function DeepSpaceDataDesignScreen() {
       </Card>
       <Card>
         <Action label={t("data.buildIndex")} value={indexValue} onPress={userId && !indexing ? () => void buildIndex() : undefined} />
+        <Action label={ko ? "가져오기" : "Import"} onPress={() => router.push("/import-hub")} />
         <Action label={t("data.exportAll")} onPress={() => router.push("/formats")} />
         <Action label={t("data.deleteAll")} onPress={() => router.push("/privacy")} />
       </Card>
@@ -1153,14 +1213,28 @@ export function DeepSpaceDiscoverScreen() {
     <Shell title={t("discover.title")}>
       <SecondbStatusHeader text={t("discover.status")} tip={t("discover.tip")} mood="positive" />
       <Text variant="body" style={styles.lead}>{t("discover.lead")}</Text>
-      <Card>
-        <View style={styles.trendHead}><Text variant="heading" style={styles.section}>{t("discover.card1Head")}</Text><Text variant="body" style={styles.delta}>{t("discover.card1Delta", { percent: 32 })}</Text></View>
-        <Text variant="body" style={styles.planFeatDim}>{t("discover.card1Body")}</Text>
-      </Card>
-      <Card>
-        <View style={styles.trendHead}><Text variant="heading" style={styles.section}>{t("discover.card2Head")}</Text><Text variant="body" style={styles.delta}>{t("discover.card2Delta", { percent: 18 })}</Text></View>
-        <Text variant="body" style={styles.planFeatDim}>{t("discover.card2Body")}</Text>
-      </Card>
+      <Pressable
+        onPress={() => router.push("/attachment")}
+        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+        accessibilityRole="button"
+        accessibilityLabel={t("discover.card1Head")}
+      >
+        <Card>
+          <View style={styles.trendHead}><Text variant="heading" style={styles.section}>{t("discover.card1Head")}</Text><Text variant="body" style={styles.delta}>{t("discover.card1Delta", { percent: 32 })}</Text></View>
+          <Text variant="body" style={styles.planFeatDim}>{t("discover.card1Body")}</Text>
+        </Card>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push("/capture")}
+        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+        accessibilityRole="button"
+        accessibilityLabel={t("discover.card2Head")}
+      >
+        <Card>
+          <View style={styles.trendHead}><Text variant="heading" style={styles.section}>{t("discover.card2Head")}</Text><Text variant="body" style={styles.delta}>{t("discover.card2Delta", { percent: 18 })}</Text></View>
+          <Text variant="body" style={styles.planFeatDim}>{t("discover.card2Body")}</Text>
+        </Card>
+      </Pressable>
       <Text variant="subtle" style={styles.footer}>{t("discover.footer")}</Text>
     </Shell>
   );
@@ -1594,6 +1668,10 @@ export function DeepSpaceResearchScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
   const view = useMemo(() => buildDeepResearchView(pages, edges), [pages, edges]);
+  // Cluster chip selection. The research view derives from graph-stats (no
+  // server-side re-cluster), so selecting a chip drives the highlight + the
+  // graph's focused tag label rather than refetching.
+  const [activeCluster, setActiveCluster] = useState<string | null>(null);
 
   // propose->ratify: AI-proposed (inferred) links awaiting the user's verdict.
   const [proposals, setProposals] = useState<InferredLinkDetail[]>([]);
@@ -1688,7 +1766,13 @@ export function DeepSpaceResearchScreen() {
           {view.clusters.length > 0 ? (
             <View style={styles.filterRow}>
               {view.clusters.map((c, i) => (
-                <FilterChip key={c.tag} label={`${c.tag} · ${c.count}`} violet={i === 0} />
+                <FilterChip
+                  key={c.tag}
+                  label={`${c.tag} · ${c.count}`}
+                  active={activeCluster === c.tag}
+                  violet={activeCluster === null ? i === 0 : false}
+                  onPress={() => setActiveCluster((prev) => (prev === c.tag ? null : c.tag))}
+                />
               ))}
             </View>
           ) : null}
@@ -1704,33 +1788,43 @@ export function DeepSpaceResearchScreen() {
             </Svg>
             <Text variant="caption" style={styles.graphTag}>
               {view.clusters.length > 0
-                ? t("research.clusterTag", { tag: view.clusters[0].tag })
+                ? t("research.clusterTag", { tag: activeCluster ?? view.clusters[0].tag })
                 : t("research.clusterDefault")}
             </Text>
           </View>
           {view.headline !== null ? (
-            <View style={styles.insightViolet}>
+            <Pressable
+              style={({ pressed }) => [styles.insightViolet, pressed ? { opacity: 0.6 } : null]}
+              onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.headline!.id } })}
+              accessibilityRole="button"
+              accessibilityLabel={view.headline.title}
+            >
               <Text variant="body" style={styles.insightVioletText}>{t("research.headline", { title: view.headline.title })}</Text>
               <View style={styles.evRow}>
                 <Text variant="subtle" style={styles.evChip}>📎 {t("research.chipPages", { count: view.pageCount })}</Text>
                 <Text variant="subtle" style={styles.evChip}>{t("research.chipLinks", { count: view.headline.inDegree })}</Text>
                 {view.orphanCount > 0 ? <Text variant="subtle" style={styles.evChip}>{t("research.chipOrphans", { count: view.orphanCount })}</Text> : null}
               </View>
-            </View>
+            </Pressable>
           ) : (
             <View style={styles.insightViolet}>
               <Text variant="body" style={styles.insightVioletText}>{t("research.noLinks")}</Text>
             </View>
           )}
           {view.surprise !== null ? (
-            <View style={styles.insightViolet}>
+            <Pressable
+              style={({ pressed }) => [styles.insightViolet, pressed ? { opacity: 0.6 } : null]}
+              onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.surprise!.fromId } })}
+              accessibilityRole="button"
+              accessibilityLabel={t("research.surprise", { from: view.surprise.fromTitle, to: view.surprise.toTitle })}
+            >
               <Text variant="body" style={styles.insightVioletText}>
                 {t("research.surprise", { from: view.surprise.fromTitle, to: view.surprise.toTitle })}
               </Text>
               <View style={styles.evRow}>
                 <Text variant="subtle" style={styles.evChip}>{t("research.islandChip", { count: view.islandCount })}</Text>
               </View>
-            </View>
+            </Pressable>
           ) : null}
 
           {/* propose->ratify: AI proposes semantic links, the user decides. */}
@@ -1754,11 +1848,16 @@ export function DeepSpaceResearchScreen() {
               const busy = actingKey === key;
               return (
                 <View key={key} style={styles.opsStep}>
-                  <View style={styles.mapRow}>
+                  <Pressable
+                    style={({ pressed }) => [styles.mapRow, { minHeight: 44 }, pressed ? { opacity: 0.6 } : null]}
+                    onPress={() => router.push({ pathname: "/record/[id]", params: { id: p.from_page } })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${p.from_title} ↔ ${p.to_title}`}
+                  >
                     <Text variant="body" style={styles.mapFrom} numberOfLines={1}>{p.from_title}</Text>
                     <RNText style={styles.mapArrow}>↔</RNText>
                     <Text variant="body" style={styles.mapTo} numberOfLines={1}>{p.to_title}</Text>
-                  </View>
+                  </Pressable>
                   <View style={styles.opsStepFoot}>
                     <Text variant="subtle" style={styles.evChip}>{t("research.confidence", { percent: Math.round(p.confidence * 100) })}</Text>
                     <Pressable style={[styles.smallBtnGhost, { minHeight: 44, justifyContent: "center" }]} onPress={() => void reject(p)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("research.reject")}>
@@ -2644,6 +2743,10 @@ export function DeepSpaceWikiScreen() {
   const { t } = useTranslation("deepspace");
   const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  // Which page row is expanded. null until the user taps; the first page renders
+  // expanded by default (matching the old fixed-open-first behaviour) but any row
+  // can now toggle open via its caret.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const view = useMemo(() => buildDeepWikiView(pages, edges, { activeTag }), [pages, edges, activeTag]);
 
   if (authLoading) {
@@ -2653,7 +2756,8 @@ export function DeepSpaceWikiScreen() {
 
   const headerText =
     view.pageCount > 0 ? t("wiki.headerGrowing", { count: view.pageCount }) : t("wiki.headerEmpty");
-  const [first, ...rest] = view.pages;
+  // Default the first page open when nothing is explicitly toggled.
+  const openId = expandedId ?? view.pages[0]?.id ?? null;
 
   return (
     <Shell title={t("wiki.title")}>
@@ -2686,32 +2790,57 @@ export function DeepSpaceWikiScreen() {
         </View>
       ) : (
         <>
-          {first ? (
-            <View style={styles.wikiPageOpen}>
-              <View style={styles.wikiPageHead}>
-                <Text variant="heading" style={styles.wikiPageTitle}>{first.title}</Text>
-                <RNText style={styles.wikiCaret}>⌄</RNText>
-              </View>
-              {first.snippet.length > 0 ? (
-                <Text variant="body" style={styles.wikiBody}>{first.snippet}</Text>
-              ) : null}
-              <View style={styles.wikiBacklinkRow}>
-                <Text variant="subtle" style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: first.connections })}</Text>
-                {first.tags[0] ? <Text variant="caption" pixelEn style={styles.tlTag}>{first.tags[0]}</Text> : null}
-              </View>
-            </View>
-          ) : null}
-          {rest.map((p) => (
-            <View key={p.id} style={styles.wikiPageRow}>
-              <View style={styles.wikiRowHead}>
-                <Text variant="caption" style={styles.wikiRowTitle} numberOfLines={1}>{p.title}</Text>
-                <Text variant="subtle" style={styles.wikiRowConn}>{t("wiki.connections", { count: p.connections })}</Text>
-              </View>
-              {p.snippet.length > 0 ? (
-                <Text variant="subtle" style={styles.wikiRowDesc} numberOfLines={1}>{p.snippet}</Text>
-              ) : null}
-            </View>
-          ))}
+          {view.pages.map((p) => {
+            const isOpen = p.id === openId;
+            const toggle = () => setExpandedId((prev) => ((prev ?? view.pages[0]?.id ?? null) === p.id ? null : p.id));
+            if (isOpen) {
+              return (
+                <View key={p.id} style={styles.wikiPageOpen}>
+                  <Pressable
+                    style={styles.wikiPageHead}
+                    onPress={toggle}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: true }}
+                    accessibilityLabel={p.title}
+                  >
+                    <Text variant="heading" style={styles.wikiPageTitle}>{p.title}</Text>
+                    <RNText style={styles.wikiCaret}>⌄</RNText>
+                  </Pressable>
+                  {p.snippet.length > 0 ? (
+                    <Text variant="body" style={styles.wikiBody}>{p.snippet}</Text>
+                  ) : null}
+                  <View style={styles.wikiBacklinkRow}>
+                    <Pressable
+                      onPress={() => router.push({ pathname: "/record/[id]", params: { id: p.id } })}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("wiki.backlinks", { count: p.connections })}
+                    >
+                      <Text variant="subtle" style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: p.connections })}</Text>
+                    </Pressable>
+                    {p.tags[0] ? <Text variant="caption" pixelEn style={styles.tlTag}>{p.tags[0]}</Text> : null}
+                  </View>
+                </View>
+              );
+            }
+            return (
+              <Pressable
+                key={p.id}
+                style={styles.wikiPageRow}
+                onPress={toggle}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: false }}
+                accessibilityLabel={p.title}
+              >
+                <View style={styles.wikiRowHead}>
+                  <Text variant="caption" style={styles.wikiRowTitle} numberOfLines={1}>{p.title}</Text>
+                  <Text variant="subtle" style={styles.wikiRowConn}>{t("wiki.connections", { count: p.connections })}</Text>
+                </View>
+                {p.snippet.length > 0 ? (
+                  <Text variant="subtle" style={styles.wikiRowDesc} numberOfLines={1}>{p.snippet}</Text>
+                ) : null}
+              </Pressable>
+            );
+          })}
         </>
       )}
     </Shell>
