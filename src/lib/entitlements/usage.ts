@@ -1,0 +1,132 @@
+/**
+ * Usage counters: Supabase-backed reasoning usage + rewarded credits, keyed by
+ * (user_id, month_bucket). Backs the reasoning caps in ./reasoning-cap.ts.
+ *
+ * Reads FAIL OPEN: on any error (including the table being absent) the read
+ * returns a zeroed counter so a user is never wrongly blocked. Writes fail
+ * gracefully (warn, no throw) so a transient counter failure never breaks the
+ * surrounding flow.
+ *
+ * month_bucket is a KST 'YYYY-MM' string so the monthly reset boundary follows
+ * KST month rollover, matching the SQL table column of the same name.
+ */
+
+import { getSupabaseClient } from '../supabase/client';
+
+const TABLE = 'usage_counters';
+
+export interface ReasoningUsage {
+  used: number;
+  rewardCredits: number;
+  monthBucket: string;
+}
+
+/**
+ * KST 'YYYY-MM' for the given instant (defaults to now). Pure: derives the KST
+ * wall-clock month by shifting the UTC instant +9h, so it is independent of the
+ * host machine's timezone.
+ */
+export function monthBucket(now: Date = new Date()): string {
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const kst = new Date(now.getTime() + KST_OFFSET_MS);
+  const year = kst.getUTCFullYear();
+  const month = kst.getUTCMonth() + 1;
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+/**
+ * Read the current-month counter for a user. FAIL OPEN: on any error returns
+ * { used: 0, rewardCredits: 0, monthBucket } so the user is never blocked by a
+ * read failure or an absent table.
+ */
+export async function getReasoningUsage(userId: string): Promise<ReasoningUsage> {
+  const bucket = monthBucket();
+  const zero: ReasoningUsage = { used: 0, rewardCredits: 0, monthBucket: bucket };
+  try {
+    const { data, error } = await getSupabaseClient()
+      .from(TABLE)
+      .select('reasoning_used, reward_credits')
+      .eq('user_id', userId)
+      .eq('month_bucket', bucket)
+      .maybeSingle();
+    if (error) {
+      console.warn('[usage] getReasoningUsage read failed, failing open:', error.message);
+      return zero;
+    }
+    if (!data) return zero;
+    return {
+      used: Number(data.reasoning_used) || 0,
+      rewardCredits: Number(data.reward_credits) || 0,
+      monthBucket: bucket,
+    };
+  } catch (e) {
+    console.warn('[usage] getReasoningUsage threw, failing open:', e);
+    return zero;
+  }
+}
+
+/**
+ * Increment the current-month reasoning_used by 1. Select-then-upsert so we do
+ * not depend on a server-side RPC. Fails gracefully (warn, no throw).
+ */
+export async function incrementReasoningUsage(userId: string): Promise<void> {
+  const bucket = monthBucket();
+  try {
+    const client = getSupabaseClient();
+    const { data, error: readError } = await client
+      .from(TABLE)
+      .select('reasoning_used')
+      .eq('user_id', userId)
+      .eq('month_bucket', bucket)
+      .maybeSingle();
+    if (readError) {
+      console.warn('[usage] incrementReasoningUsage read failed:', readError.message);
+      return;
+    }
+    const next = (Number(data?.reasoning_used) || 0) + 1;
+    const { error: writeError } = await client
+      .from(TABLE)
+      .upsert(
+        { user_id: userId, month_bucket: bucket, reasoning_used: next, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,month_bucket' },
+      );
+    if (writeError) {
+      console.warn('[usage] incrementReasoningUsage write failed:', writeError.message);
+    }
+  } catch (e) {
+    console.warn('[usage] incrementReasoningUsage threw:', e);
+  }
+}
+
+/**
+ * Add rewarded watch-to-earn credits to the current-month counter.
+ * Select-then-upsert. Fails gracefully (warn, no throw).
+ */
+export async function addRewardCredits(userId: string, credits: number): Promise<void> {
+  const bucket = monthBucket();
+  try {
+    const client = getSupabaseClient();
+    const { data, error: readError } = await client
+      .from(TABLE)
+      .select('reward_credits')
+      .eq('user_id', userId)
+      .eq('month_bucket', bucket)
+      .maybeSingle();
+    if (readError) {
+      console.warn('[usage] addRewardCredits read failed:', readError.message);
+      return;
+    }
+    const next = (Number(data?.reward_credits) || 0) + credits;
+    const { error: writeError } = await client
+      .from(TABLE)
+      .upsert(
+        { user_id: userId, month_bucket: bucket, reward_credits: next, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,month_bucket' },
+      );
+    if (writeError) {
+      console.warn('[usage] addRewardCredits write failed:', writeError.message);
+    }
+  } catch (e) {
+    console.warn('[usage] addRewardCredits threw:', e);
+  }
+}
