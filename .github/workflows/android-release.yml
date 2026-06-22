@@ -1,0 +1,156 @@
+name: Android Release (APK + AAB)
+
+# Self-contained Android build path: expo prebuild -> local gradle.
+# Does NOT require an Expo account / EXPO_TOKEN. Produces a sideload APK
+# and a store AAB, and (on a v* tag) publishes them as a GitHub Release.
+#
+# EAS cloud build is the documented secondary path (see eas.json + docs/ANDROID-BUILD.md).
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional release tag (e.g. v0.0.1). When set, a GitHub Release is created with the artifacts attached."
+        required: false
+        default: ""
+  push:
+    tags:
+      - "v*"
+
+# Needed so the job can create a GitHub Release and upload assets.
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CI: "1"
+      # Keep gradle inside the GitHub-hosted runner's memory budget (~7 GB).
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Setup Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Expo prebuild (generate android/)
+        run: npx expo prebuild -p android --no-install
+
+      # --- Signing -----------------------------------------------------------
+      # Preferred: a REAL upload keystore supplied via repo secrets. Required
+      # for Google Play store submission. Add these secrets to use it:
+      #   ANDROID_KEYSTORE_BASE64  - base64 of your .jks/.keystore file
+      #   ANDROID_KEYSTORE_PASSWORD
+      #   ANDROID_KEY_ALIAS
+      #   ANDROID_KEY_PASSWORD
+      #
+      # Fallback (NO secrets present): a throwaway keystore generated here so
+      # the build still produces an installable APK/AAB for INTERNAL / sideload
+      # TESTING ONLY. A store-submittable AAB MUST be signed with a real,
+      # persistent keystore — do NOT ship the throwaway-signed AAB to Play.
+      - name: Resolve signing keystore
+        id: signing
+        run: |
+          set -euo pipefail
+          KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "Using real keystore from secrets (store-grade signing)."
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$KEYSTORE_PATH"
+            echo "store_password=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> "$GITHUB_OUTPUT"
+            echo "key_alias=${{ secrets.ANDROID_KEY_ALIAS }}" >> "$GITHUB_OUTPUT"
+            echo "key_password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> "$GITHUB_OUTPUT"
+            echo "is_real=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret found. Generating a THROWAWAY test keystore. The resulting AAB is NOT valid for Play store submission."
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE_PATH" \
+              -alias testkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass android -keypass android \
+              -dname "CN=2nd-Brain Test, OU=CI, O=2nd-Brain, L=Seoul, S=Seoul, C=KR"
+            echo "store_password=android" >> "$GITHUB_OUTPUT"
+            echo "key_alias=testkey" >> "$GITHUB_OUTPUT"
+            echo "key_password=android" >> "$GITHUB_OUTPUT"
+            echo "is_real=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "keystore_path=$KEYSTORE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Build APK + AAB (release)
+        working-directory: android
+        run: |
+          set -euo pipefail
+          ./gradlew assembleRelease bundleRelease \
+            -Pandroid.injected.signing.store.file="${{ steps.signing.outputs.keystore_path }}" \
+            -Pandroid.injected.signing.store.password="${{ steps.signing.outputs.store_password }}" \
+            -Pandroid.injected.signing.key.alias="${{ steps.signing.outputs.key_alias }}" \
+            -Pandroid.injected.signing.key.password="${{ steps.signing.outputs.key_password }}"
+
+      - name: Collect and rename artifacts
+        id: collect
+        run: |
+          set -euo pipefail
+          SHA="${GITHUB_SHA::7}"
+          OUT="$RUNNER_TEMP/release-artifacts"
+          mkdir -p "$OUT"
+          APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n1)
+          AAB=$(find android/app/build/outputs/bundle/release -name "*.aab" | head -n1)
+          if [ -z "$APK" ] || [ -z "$AAB" ]; then
+            echo "::error::Expected APK and AAB not found (APK='$APK' AAB='$AAB')."
+            exit 1
+          fi
+          cp "$APK" "$OUT/2ndb-$SHA.apk"
+          cp "$AAB" "$OUT/2ndb-$SHA.aab"
+          echo "apk=$OUT/2ndb-$SHA.apk" >> "$GITHUB_OUTPUT"
+          echo "aab=$OUT/2ndb-$SHA.aab" >> "$GITHUB_OUTPUT"
+          echo "dir=$OUT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: 2ndb-android-${{ github.sha }}
+          path: ${{ steps.collect.outputs.dir }}/*
+          if-no-files-found: error
+          retention-days: 30
+
+      # Create a GitHub Release only when triggered by a v* tag, or when a
+      # release_tag input was supplied via manual dispatch.
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release_tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag != '' && github.event.inputs.release_tag || github.ref_name }}
+          name: ${{ github.event.inputs.release_tag != '' && github.event.inputs.release_tag || github.ref_name }}
+          generate_release_notes: true
+          body: |
+            Android build for 2nd-Brain.
+
+            - `2ndb-<sha>.apk` - sideload onto a device for testing (`adb install` or open on device).
+            - `2ndb-<sha>.aab` - Google Play store upload bundle.
+
+            Signing: ${{ steps.signing.outputs.is_real == 'true' && 'real upload keystore (store-ready)' || 'THROWAWAY test keystore (sideload/testing only, NOT valid for Play submission)' }}.
+          files: |
+            ${{ steps.collect.outputs.apk }}
+            ${{ steps.collect.outputs.aab }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
