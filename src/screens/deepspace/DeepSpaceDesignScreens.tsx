@@ -7,6 +7,8 @@ import Svg, { Circle, Line, Path } from "react-native-svg";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { TIERS, TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
+import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
+import { getReasoningUsage } from "@/lib/entitlements/usage";
 import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
@@ -1383,6 +1385,15 @@ export function DeepSpacePlansScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language === "ko";
 
+  // Current pricing tier — so the paywall shows where the user already is, not a
+  // generic upsell. progression.tier is the source of truth (free|soma|cortex|
+  // brain); RevenueCat isPro is folded in below so a just-completed purchase
+  // reflects immediately even before the users row syncs.
+  const { userId } = useAuth();
+  const { tier: currentTier } = useProgression();
+  // This month's free-tier remaining deep asks, for the 별바라기 caption.
+  const [freeRemaining, setFreeRemaining] = useState<number | null>(null);
+
   // Real native IAP scaffold. RevenueCat routes the Offering to Google Play
   // Billing (Android) / Apple IAP (iOS). On web, or with no public key, or with
   // no configured Offering, purchasesAvailable() is false / packages is empty,
@@ -1423,6 +1434,26 @@ export function DeepSpacePlansScreen() {
       alive = false;
     };
   }, [t]);
+
+  // This month's remaining free deep-asks, shown as a caption on the 별바라기
+  // card. Only loaded when the user is actually on the free tier (별바라기); for
+  // paid tiers the number is irrelevant. Fails open: on any miss it stays null
+  // and the caption is simply omitted.
+  useEffect(() => {
+    if (!userId || currentTier !== "free") {
+      setFreeRemaining(null);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const usage = await getReasoningUsage(userId);
+      if (!alive) return;
+      setFreeRemaining(remainingReasoning("free", usage.used, usage.rewardCredits));
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [userId, currentTier]);
 
   async function buy(pkg: PurchasesPackage) {
     if (busy) return;
@@ -1510,6 +1541,16 @@ export function DeepSpacePlansScreen() {
     return hint && hint !== plusPkg ? hint : undefined;
   }, [packages, plusPkg]);
 
+  // Resolve which pricing card the user is currently on. brain = 북극성,
+  // cortex/soma = 항해자 (soma is the lifetime variant of the voyager journey),
+  // free = 별바라기. RevenueCat isPro promotes a free-looking row to at-least
+  // 항해자 so a just-purchased user never sees themselves as 별바라기.
+  const onNorthStar = currentTier === "brain";
+  const onVoyager = !onNorthStar && (currentTier === "cortex" || currentTier === "soma" || isPro);
+  const onStargazer = !onNorthStar && !onVoyager;
+  // The "현재 플랜" marker — subtle accent text, never a pill.
+  const currentMarker = ko ? "현재 플랜" : "Current";
+
   return (
     <Shell title={t("plans.title")}>
       <SecondbStatusHeader
@@ -1539,24 +1580,49 @@ export function DeepSpacePlansScreen() {
         </Text>
       </View>
 
-      {isPro ? (
-        // Already on the 북극성 / 항해자 journey — confirm, no checkout.
+      {onNorthStar ? (
+        // 북극성 — every path is open. No purchase CTA; reuse the isPro
+        // confirmation path with the north-star copy.
+        <View style={[styles.payCard, styles.payCardPro]}>
+          <View style={styles.payCardHead}>
+            <Text style={styles.payTierNamePro}>{ko ? "북극성" : "North Star"}</Text>
+            <Text variant="caption" style={styles.payCurrentMarker}>{currentMarker}</Text>
+          </View>
+          {proFeatures.map((x) => (
+            <FeatureRow key={x} kind="soul" label={x} textStyle={styles.payFeatPro} />
+          ))}
+          <Text variant="subtle" style={styles.footer}>
+            {ko ? "북극성 이용 중 · 모든 길이 열려 있어요" : "On North Star · every path is open"}
+          </Text>
+        </View>
+      ) : onVoyager ? (
+        // 항해자 — confirm current journey, offer the 북극성 upgrade if a
+        // distinct pro package exists; otherwise just confirm, no checkout.
         <View style={[styles.payCard, styles.payCardPlus]}>
           <View style={styles.payCardHead}>
             <Text style={styles.payTierNamePlus}>{ko ? "항해자" : "Voyager"}</Text>
-            <Text variant="caption" pixelEn style={styles.payActiveTag}>{ko ? "이용 중" : "ACTIVE"}</Text>
+            <Text variant="caption" style={styles.payCurrentMarker}>{currentMarker}</Text>
           </View>
           {plusFeatures.map((x) => (
             <FeatureRow key={x} kind="check" label={x} textStyle={styles.payFeatPlus} />
           ))}
-          <Text variant="subtle" style={styles.footer}>{t("plans.nowPro")}</Text>
+          <Text variant="subtle" style={styles.footer}>
+            {proPkg
+              ? t("plans.nowPro")
+              : ko ? "현재 항해자 이용 중" : "Currently on Voyager"}
+          </Text>
         </View>
       ) : (
         <>
           {/* 별바라기 — ₩0, cyan outline bullets. */}
           <View style={[styles.payCard, styles.payCardFree]}>
             <View style={styles.payCardHead}>
-              <Text style={styles.payTierNameFree}>{ko ? "별바라기" : "Stargazer"}</Text>
+              <View style={styles.payNameRow}>
+                <Text style={styles.payTierNameFree}>{ko ? "별바라기" : "Stargazer"}</Text>
+                {onStargazer ? (
+                  <Text variant="caption" style={styles.payCurrentMarker}>{currentMarker}</Text>
+                ) : null}
+              </View>
               <Text style={styles.payPriceFree}>{krw(TIER_PRICE_KRW.free)}</Text>
             </View>
             <View style={styles.payFeatList}>
@@ -1564,6 +1630,13 @@ export function DeepSpacePlansScreen() {
                 <FeatureRow key={x} kind="circle" label={x} textStyle={styles.payFeatFree} />
               ))}
             </View>
+            {onStargazer && freeRemaining !== null ? (
+              <Text variant="caption" style={styles.payFreeCaption}>
+                {ko
+                  ? `이번 달 ${freeRemaining}/${free.reasoningPerMonth}회 깊이 묻기 남음`
+                  : `${freeRemaining}/${free.reasoningPerMonth} deep asks left this month`}
+              </Text>
+            ) : null}
           </View>
 
           {/* 항해자 — promoted: thicker cyan border + glow + "추천" rect tag. */}
@@ -1633,22 +1706,31 @@ export function DeepSpacePlansScreen() {
       {error ? <Text variant="subtle" style={styles.planError}>{error}</Text> : null}
 
       {/* CTA BLOCK — below the cards in normal flow (marginTop:'auto' so it sinks
-          to the bottom when the body is short, but never overlaps long copy). */}
-      {!loading && !isPro ? (
+          to the bottom when the body is short, but never overlaps long copy).
+          By current tier: 별바라기 → buy 항해자; 항해자 → upgrade to 북극성 (only
+          when a distinct pro package exists); 북극성 → no CTA. */}
+      {!loading && (onStargazer || (onVoyager && proPkg)) ? (
+        // Stargazer buys 항해자 (plusPkg); Voyager upgrades to 북극성 (proPkg).
+        (() => {
+          const ctaPkg = onVoyager ? proPkg : plusPkg;
+          const ctaIdle = onVoyager
+            ? (ko ? "북극성으로 (Pro 업그레이드)" : "Go North Star (Pro upgrade)")
+            : (ko ? "항해자로 떠나기" : "Set out as Voyager");
+          return (
         <View style={styles.payCtaBlock}>
           <View style={styles.payTrustRow}>
             <TrustStar />
             <Text style={styles.payTrust}>{ko ? "무료도 같은 AI 품질" : "Same AI quality, even free"}</Text>
           </View>
           <Pressable
-            style={[styles.payPrimary, busy ? styles.planBtnBusy : null, !plusPkg ? styles.payPrimaryDisabled : null]}
-            onPress={plusPkg ? () => void buy(plusPkg) : undefined}
-            disabled={busy || !plusPkg}
+            style={[styles.payPrimary, busy ? styles.planBtnBusy : null, !ctaPkg ? styles.payPrimaryDisabled : null]}
+            onPress={ctaPkg ? () => void buy(ctaPkg) : undefined}
+            disabled={busy || !ctaPkg}
             accessibilityRole="button"
-            accessibilityLabel={ko ? "항해자로 떠나기" : "Set out as Voyager"}
+            accessibilityLabel={ctaIdle}
           >
             <Text style={styles.payPrimaryText}>
-              {busyAction === "buy" ? (ko ? "구매 중…" : "Purchasing…") : ko ? "항해자로 떠나기" : "Set out as Voyager"}
+              {busyAction === "buy" ? (ko ? "구매 중…" : "Purchasing…") : ctaIdle}
             </Text>
           </Pressable>
           {available ? (
@@ -1665,6 +1747,8 @@ export function DeepSpacePlansScreen() {
             </Pressable>
           ) : null}
         </View>
+          );
+        })()
       ) : null}
     </Shell>
   );
@@ -3948,6 +4032,9 @@ const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, 
  payFeatPlus:{flex:1,color:deepSpace.accentBright,fontSize:12.5,fontFamily:fontFamilies.readable},
  payFeatPro:{flex:1,color:withAlpha(deepSpace.soul,0.85),fontSize:12.5,fontFamily:fontFamilies.readable},
  payActiveTag:{color:deepSpace.onAccent,backgroundColor:deepSpace.accent,fontSize:8,paddingHorizontal:spacing.sm,paddingVertical:3,borderRadius:radius.sm,overflow:'hidden'},
+ payNameRow:{flexDirection:'row',alignItems:'baseline',gap:spacing.sm},
+ payCurrentMarker:{color:deepSpace.accent,fontSize:9.5,letterSpacing:0.6,fontFamily:fontFamilies.readable},
+ payFreeCaption:{color:withAlpha(deepSpace.accentSoft,0.7),fontSize:11,marginTop:spacing.xs,fontFamily:fontFamilies.readable},
  payCtaBlock:{marginTop:'auto',paddingTop:spacing.sm,gap:9},
  payTrustRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,marginBottom:spacing.xs},
  payTrust:{color:withAlpha(deepSpace.mint,0.85),fontSize:11.5,fontFamily:fontFamilies.readable},
