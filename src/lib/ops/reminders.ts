@@ -6,6 +6,9 @@
 //
 // Native-only (G4: needs a dev/EAS build). Web keeps calendar-based paths.
 
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 let Notifications: typeof import("expo-notifications") | null = null;
 try {
   Notifications = require("expo-notifications") as typeof import("expo-notifications");
@@ -132,5 +135,112 @@ export async function scheduleRoutineReminder(input: OpsEventInput): Promise<Rem
       console.warn("[ops] reminder scheduling failed", (e as Error).message);
     }
     return "error";
+  }
+}
+
+/**
+ * Request (or confirm) the OS notification permission WITHOUT scheduling a
+ * notification — the [권한 켜기] button on the reminders screen calls this so the
+ * user can grant the permission up front, separate from any actual reminder.
+ *
+ * Reads the current grant first (getPermissionsAsync); only fires the OS prompt
+ * when the status is still 'undetermined', so a user who already decided isn't
+ * re-prompted on every visit. Returns true only when granted.
+ *
+ * Web-guarded the same way device-calendar.ts guards (Platform.OS !== "web" plus
+ * the native-module presence check): on web there is no OS notification
+ * permission to request, so we skip and report false ("이 기기 불가").
+ *
+ * NOTE: a real OS grant can only be verified on a device/EAS build — Expo Go and
+ * web both report unavailable. Device verification of the granted path is pending.
+ */
+export async function ensureNotificationPermission(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+  if (!remindersSupported() || !Notifications) return false;
+  try {
+    const current = await Notifications.getPermissionsAsync();
+    if (current.granted) return true;
+    // Only prompt when the user hasn't decided yet; a prior explicit deny is
+    // respected (re-requesting a denied permission is a no-op on most OSes and
+    // just nags the user — the row's "권한 필요" state covers that case).
+    if (current.status === "undetermined" || current.canAskAgain) {
+      const next = await Notifications.requestPermissionsAsync();
+      return next.granted;
+    }
+    return false;
+  } catch (e) {
+    if (typeof console !== "undefined") {
+      console.warn("[ops] notification permission request failed", (e as Error).message);
+    }
+    return false;
+  }
+}
+
+// --- per-routine reminder on/off persistence ---------------------------
+//
+// A reminder is device-local (the notification never leaves this device — see
+// the module header), so its on/off state belongs in device-local storage, not
+// the owner-scoped ops_routines table. We persist the DISABLED set keyed by
+// routine id in AsyncStorage (the same store github-link.ts uses for device-local
+// state — no schema, no migration). Default = ON: a routine with a reminder_time
+// is reminding unless the user explicitly turned it off here.
+
+const DISABLED_KEY = "ops.reminders.disabled";
+
+async function readDisabledSet(): Promise<Set<string>> {
+  try {
+    const raw = await AsyncStorage.getItem(DISABLED_KEY);
+    if (!raw) return new Set();
+    const parsed: unknown = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+async function writeDisabledSet(ids: Set<string>): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DISABLED_KEY, JSON.stringify([...ids]));
+  } catch {
+    /* best-effort — a failed write just means the toggle doesn't persist */
+  }
+}
+
+/** True when this routine's reminder is ON (i.e. NOT in the disabled set). */
+export async function isReminderEnabled(routineId: string): Promise<boolean> {
+  const disabled = await readDisabledSet();
+  return !disabled.has(routineId);
+}
+
+/** Map of routineId → enabled for the given ids (default ON), read in one pass. */
+export async function getReminderStates(
+  routineIds: readonly string[],
+): Promise<Record<string, boolean>> {
+  const disabled = await readDisabledSet();
+  const out: Record<string, boolean> = {};
+  for (const id of routineIds) out[id] = !disabled.has(id);
+  return out;
+}
+
+/**
+ * Turn this routine's reminder ON and persist it. Requests the OS permission
+ * first (propose->ratify: the tap is the user action); when permission is
+ * denied the state is NOT flipped on, so the caller can show "권한 필요" and the
+ * row stays off. Returns true only when the reminder is now enabled.
+ */
+export async function enableReminder(routineId: string): Promise<boolean> {
+  const granted = await ensureNotificationPermission();
+  if (!granted) return false;
+  const disabled = await readDisabledSet();
+  if (disabled.delete(routineId)) await writeDisabledSet(disabled);
+  return true;
+}
+
+/** Turn this routine's reminder OFF and persist it. Always succeeds. */
+export async function disableReminder(routineId: string): Promise<void> {
+  const disabled = await readDisabledSet();
+  if (!disabled.has(routineId)) {
+    disabled.add(routineId);
+    await writeDisabledSet(disabled);
   }
 }

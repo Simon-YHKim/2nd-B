@@ -40,12 +40,15 @@ import { buildChecklistShareText, buildGoogleCalendarUrl, type OpsEventInput } f
 import { searchBooks, type BookResult } from "@/lib/reading/books";
 import { addToShelf, listShelf, readingProgress, type Shelf } from "@/lib/reading/shelf";
 import {
+  createMilestone,
   domainProgress,
   listMilestones,
   milestoneOverdue,
+  updateMilestone,
   type Milestone,
+  type MilestoneStatus,
 } from "@/lib/ops/milestones";
-import { listEntriesForMonth, monthBucket, summarizeMonth } from "@/lib/finance/ledger";
+import { createLedgerEntry, listEntriesForMonth, monthBucket, summarizeMonth } from "@/lib/finance/ledger";
 import { fetchPushActivity, summarizeGithubActivity, type PushActivity } from "@/lib/projects/github";
 import { searchFoods, type FoodNutrition } from "@/lib/nutrition/foods";
 import {
@@ -59,7 +62,13 @@ import {
   type MealSlot,
 } from "@/lib/nutrition/meal-plan";
 import { listActiveRoutines, type OpsRoutine } from "@/lib/ops/routines";
-import { remindersSupported } from "@/lib/ops/reminders";
+import {
+  disableReminder,
+  enableReminder,
+  ensureNotificationPermission,
+  getReminderStates,
+  remindersSupported,
+} from "@/lib/ops/reminders";
 import { getGithubUsername, setGithubUsername } from "@/lib/projects/github-link";
 import { monthDelta, prevMonthKey } from "@/lib/finance/trend";
 import { trendChip } from "@/lib/ops/grounding";
@@ -114,6 +123,30 @@ const EN_DOMAIN_LABEL: Record<OpsDomainId, string> = {
   news_digest: "News digest",
   side_project: "Side project",
 };
+
+// Per-day commit counts for the last `days` days ending today (UTC date prefix,
+// matching the github helper's own windowing). Oldest first so the grid reads
+// left→right. Pure — derives from the pushes the screen already has.
+function buildCommitHeatmap(
+  pushes: ReadonlyArray<PushActivity>,
+  days = 14,
+  now: Date = new Date(),
+): Array<{ day: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (const p of pushes) {
+    const key = p.atIso.slice(0, 10);
+    counts.set(key, (counts.get(key) ?? 0) + p.commitCount);
+  }
+  const out: Array<{ day: string; count: number }> = [];
+  const cursor = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  cursor.setUTCDate(cursor.getUTCDate() - (days - 1));
+  for (let i = 0; i < days; i++) {
+    const key = cursor.toISOString().slice(0, 10);
+    out.push({ day: key, count: counts.get(key) ?? 0 });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return out;
+}
 
 // --- (1) Ops home / recommendations ------------------------------------
 
@@ -280,7 +313,9 @@ export function ReadingScreen() {
         </View>
       ) : null}
 
-      {shelf.status === "error" ? (
+      {shelf.status === "loading" && !reading && results.length === 0 ? (
+        <OpsState variant="empty" title="…" body={c.emptyBody} />
+      ) : shelf.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={shelf.reload} />
       ) : !reading && (shelf.data?.want.length ?? 0) === 0 && results.length === 0 ? (
         <OpsState variant="empty" title={c.emptyTitle} body={c.whatReading} />
@@ -302,10 +337,20 @@ export function ReadingScreen() {
 
 const MILESTONE_DOMAINS: OpsDomainId[] = ["learning_goals", "career_check"];
 
+// status advances todo → doing → done → todo (one tap cycles the chip).
+const NEXT_STATUS: Record<MilestoneStatus, MilestoneStatus> = {
+  todo: "doing",
+  doing: "done",
+  done: "todo",
+};
+
 export function MilestonesScreen() {
   const c = useOpsCopy();
   const { userId } = useAuth();
+  const { i18n } = useTranslation();
+  const isKo = i18n.language?.toLowerCase().startsWith("ko");
   const [domain, setDomain] = useState<OpsDomainId>("learning_goals");
+  const [busy, setBusy] = useState(false);
   const ms = useAsync<Milestone[]>(
     () => (userId ? listMilestones(userId, domain) : Promise.resolve([])),
     [userId, domain],
@@ -318,6 +363,34 @@ export function MilestonesScreen() {
     if (m.status === "doing") return { tone: "positive", label: c.inProgress };
     if (m.status === "done") return { tone: "muted", label: c.done };
     return { tone: "info", label: c.planning };
+  };
+
+  // [데이터 추가]: append a blank "Untitled" goal the user can advance/edit.
+  const onAdd = async () => {
+    if (!userId || busy) return;
+    setBusy(true);
+    try {
+      await createMilestone(userId, domain, { title: isKo ? "새 목표" : "New goal" });
+      ms.reload();
+    } catch {
+      /* surfaced on reload */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Advance one milestone's status (todo → doing → done → todo) on chip tap.
+  const onAdvance = async (m: Milestone) => {
+    if (!userId || busy) return;
+    setBusy(true);
+    try {
+      await updateMilestone(userId, m.id, { status: NEXT_STATUS[m.status] });
+      ms.reload();
+    } catch {
+      /* surfaced on reload */
+    } finally {
+      setBusy(false);
+    }
   };
 
   const tabs: DomainTab[] = MILESTONE_DOMAINS.map((d) => ({
@@ -335,7 +408,12 @@ export function MilestonesScreen() {
         </Text>
         <ProgressBar value={prog.pct} color={deepSpace.accentDim} />
       </View>
-      {ms.status === "error" ? (
+      <Pressable accessibilityRole="button" onPress={onAdd} hitSlop={6} disabled={busy} style={styles.addRow}>
+        <Text variant="caption" style={styles.addRowText}>＋ {c.emptyCta}</Text>
+      </Pressable>
+      {ms.status === "loading" ? (
+        <OpsState variant="empty" title="…" body={c.emptyBody} />
+      ) : ms.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={ms.reload} />
       ) : list.length === 0 ? (
         <OpsState variant="empty" title={c.emptyTitle} body={c.goals} />
@@ -346,7 +424,9 @@ export function MilestonesScreen() {
             <View key={m.id} style={styles.msRow}>
               <View style={styles.msTop}>
                 <Text variant="heading" style={styles.msTitle}>{m.title}</Text>
-                <OpsStatusChip tone={chip.tone} label={chip.label} />
+                <Pressable accessibilityRole="button" onPress={() => onAdvance(m)} hitSlop={8} disabled={busy}>
+                  <OpsStatusChip tone={chip.tone} label={chip.label} />
+                </Pressable>
               </View>
               {m.note ? <Text variant="body" style={styles.msNote}>{m.note}</Text> : null}
             </View>
@@ -382,6 +462,27 @@ export function LedgerScreen() {
   );
   const trend = trendChip(monthDelta(summary.expense, prevSummary.expense), !!ko);
   const maxCat = summary.byCategory[0]?.total ?? 1;
+  const [busy, setBusy] = useState(false);
+
+  // 빠른 기록 [데이터 추가]: drop a small placeholder expense row the user edits
+  // later. A real amount/category form is the next step; this closes the dead
+  // "no write action" gap so the month summary reflects manual entries.
+  const onQuickRecord = async () => {
+    if (!userId || busy) return;
+    setBusy(true);
+    try {
+      await createLedgerEntry(userId, {
+        kind: "expense",
+        amount_krw: 0,
+        category: ko ? "기타" : "Other",
+      });
+      entries.reload();
+    } catch {
+      /* surfaced on reload */
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <OpsFrame title={c.monthCheck} bubble={`${c.left} ${summary.net.toLocaleString()}`} tip={c.record}>
@@ -404,7 +505,13 @@ export function LedgerScreen() {
         ) : null}
       </View>
 
-      {entries.status === "error" ? (
+      <Pressable accessibilityRole="button" onPress={onQuickRecord} hitSlop={6} disabled={busy} style={styles.addRow}>
+        <Text variant="caption" style={styles.addRowText}>＋ {c.record}</Text>
+      </Pressable>
+
+      {entries.status === "loading" ? (
+        <OpsState variant="empty" title="…" body={c.emptyBody} />
+      ) : entries.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={entries.reload} />
       ) : summary.byCategory.length === 0 ? (
         <OpsState variant="empty" title={c.emptyTitle} body={c.record} />
@@ -465,6 +572,9 @@ export function SideProjectScreen() {
     await connect(username);
   };
   const summary = summarizeGithubActivity(pushes ?? []);
+  // Commit heatmap: per-day commit counts for the last 14 days, computed from the
+  // pushes the helper already returns (atIso + commitCount) — no new plumbing.
+  const heatmap = useMemo(() => buildCommitHeatmap(pushes ?? []), [pushes]);
 
   return (
     <OpsFrame title={c.sideProject} bubble={c.sideProject} tip={c.unlinkedBody}>
@@ -495,6 +605,23 @@ export function SideProjectScreen() {
             <View style={styles.ghChips}>
               <MetaChip label={`${summary.activeDays}d`} />
               <MetaChip label={`${summary.repos.length} repos`} />
+            </View>
+            <View style={styles.heatRow}>
+              {heatmap.map((d) => (
+                <View
+                  key={d.day}
+                  style={[
+                    styles.heatCell,
+                    d.count === 0
+                      ? styles.heatCell0
+                      : d.count < 3
+                        ? styles.heatCell1
+                        : d.count < 6
+                          ? styles.heatCell2
+                          : styles.heatCell3,
+                  ]}
+                />
+              ))}
             </View>
           </View>
           {summary.repos.map((repo) => (
@@ -652,24 +779,101 @@ export function RemindersScreen() {
     () => (userId ? listActiveRoutines(userId) : Promise.resolve([])),
     [userId],
   );
-  const withReminder = (routines.data ?? []).filter((r) => r.reminder_time);
+  const withReminder = useMemo(
+    () => (routines.data ?? []).filter((r) => r.reminder_time),
+    [routines.data],
+  );
+
+  // Per-routine on/off — PERSISTED device-local via lib/ops/reminders
+  // (AsyncStorage disabled-set; reminders never leave the device, so their
+  // on/off lives device-local, not in the owner-scoped ops_routines table).
+  // Default = ON: every reminder is on unless explicitly toggled off.
+  const [states, setStates] = useState<Record<string, boolean>>({});
+  // Routines the user tried to enable but the OS permission was denied — they
+  // render the row's "권한 필요" state instead of crashing or silently failing.
+  const [denied, setDenied] = useState<Record<string, true>>({});
+
+  // Hydrate the persisted on/off states once the reminder list is known.
+  useEffect(() => {
+    let alive = true;
+    void getReminderStates(withReminder.map((r) => r.id)).then((s) => {
+      if (alive) setStates(s);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [withReminder]);
+
+  const toggle = async (id: string) => {
+    const currentlyOn = states[id] !== false;
+    if (currentlyOn) {
+      await disableReminder(id);
+      setStates((prev) => ({ ...prev, [id]: false }));
+      setDenied((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      return;
+    }
+    // Enabling: ask for the OS permission first (propose->ratify — the tap is
+    // the user action). Denied → keep it off and show "권한 필요".
+    const ok = await enableReminder(id);
+    if (ok) {
+      setStates((prev) => ({ ...prev, [id]: true }));
+      setDenied((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } else {
+      setDenied((prev) => ({ ...prev, [id]: true }));
+    }
+  };
+
+  // [권한 켜기]: request the OS notification permission up front, with no side
+  // effect (no notification fired). Clears the denied flags on grant so the
+  // rows can be enabled.
+  const onGrantPermission = async () => {
+    const ok = await ensureNotificationPermission();
+    if (ok) setDenied({});
+  };
 
   return (
     <OpsFrame title={c.scheduledReminders} bubble={c.scheduledReminders} tip={c.remindersTip}>
-      {routines.status === "error" ? (
+      {routines.status === "loading" ? (
+        <OpsState variant="empty" title="…" body={c.emptyBody} />
+      ) : routines.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={routines.reload} />
       ) : withReminder.length === 0 ? (
         <OpsState variant="empty" title={c.emptyTitle} body={c.scheduledReminders} />
       ) : (
-        withReminder.map((r) => (
-          <OpsReminderRow
-            key={r.id}
-            title={r.title}
-            schedule={reminderSchedule(r, c)}
-            tone={supported ? "active" : "muted"}
-            statusLabel={supported ? c.active : c.notOnThisDevice}
-          />
-        ))
+        withReminder.map((r) => {
+          const isDenied = !!denied[r.id];
+          const on = supported && !isDenied && states[r.id] !== false;
+          // On web (unsupported) the reminder can't run on this device; show
+          // the honest "이 기기 불가" state and disable the toggle.
+          const statusLabel = !supported
+            ? c.notOnThisDevice
+            : isDenied
+              ? c.needsPermission
+              : on
+                ? c.active
+                : c.needsPermission;
+          return (
+            <OpsReminderRow
+              key={r.id}
+              title={r.title}
+              schedule={reminderSchedule(r, c)}
+              tone={on ? "active" : "muted"}
+              statusLabel={statusLabel}
+              on={on}
+              onToggle={supported ? () => void toggle(r.id) : undefined}
+              actionLabel={supported && isDenied ? c.enableNotifications : undefined}
+              onAction={supported && isDenied ? () => void onGrantPermission() : undefined}
+            />
+          );
+        })
       )}
     </OpsFrame>
   );
@@ -735,6 +939,24 @@ const styles = StyleSheet.create({
 
   progressHeader: { gap: 6 },
   progressLabel: { fontSize: 12, color: deepSpace.textMuted },
+
+  addRow: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: deepSpaceRadii.md,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLineStrong,
+    backgroundColor: deepSpace.card,
+  },
+  addRowText: { fontSize: 13, color: deepSpace.accentSoft },
+
+  heatRow: { flexDirection: "row", gap: 3, marginTop: 2 },
+  heatCell: { flex: 1, height: 12, borderRadius: deepSpaceRadii.sm },
+  heatCell0: { backgroundColor: deepSpace.card, borderWidth: 1, borderColor: deepSpace.cardLine },
+  heatCell1: { backgroundColor: deepSpace.accentDim },
+  heatCell2: { backgroundColor: deepSpace.accent },
+  heatCell3: { backgroundColor: deepSpace.mint },
 
   msRow: {
     padding: deepSpaceSpacing.md,

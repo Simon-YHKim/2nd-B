@@ -253,7 +253,20 @@
     "proFeat4": "Saran tren · tinjauan",
     "currentPlan": "Sedang aktif",
     "freeFeat": "Simpan dasar · 1 tes per bintang · 5 obrolan SecondB/hari",
-    "startPro": "Mulai Pro"
+    "startPro": "Mulai Pro",
+    "loadingOffers": "Memuat paket...",
+    "purchasing": "Memproses...",
+    "restore": "Pulihkan pembelian",
+    "restoring": "Memulihkan...",
+    "proActive": "Pro aktif",
+    "nowPro": "Kamu sekarang Pro. Terima kasih.",
+    "notAvailableTitle": "Tingkatkan di aplikasi seluler",
+    "notAvailableBody": "Pro dibeli melalui app store di iOS dan Android. Buka 2nd-Brain di ponselmu untuk meningkatkan.",
+    "support": "Hubungi dukungan",
+    "loadError": "Tidak bisa memuat paket. Coba lagi.",
+    "purchaseError": "Pembelian tidak berhasil. Coba lagi.",
+    "restoreError": "Tidak bisa memulihkan pembelian. Coba lagi.",
+    "restoredNone": "Tidak ada pembelian sebelumnya untuk dipulihkan."
   },
   "permissions": {
     "title": "Izin",

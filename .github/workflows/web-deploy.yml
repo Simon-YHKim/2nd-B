@@ -50,6 +50,10 @@ jobs:
           # EAS native production stays pinned to legacy (eas.json) until parity.
           # To roll the web build back to legacy: set this to "legacy".
           EXPO_PUBLIC_UI: "deep-space"
+          # QA pre-launch ONLY: lets ?tier=all|free|plus|pro URL links force a tier
+          # on this web preview. MUST be removed (or set "false") before the public
+          # launch build — otherwise anyone can self-grant a paid tier via the URL.
+          EXPO_PUBLIC_ALLOW_DEV_TIER: "true"
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           # Korea public-data keys (G1 IN-bound enrichment): Eximbank FX rates for

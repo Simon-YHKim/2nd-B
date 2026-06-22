@@ -253,7 +253,20 @@
     "proFeat4": "Sugestões de tendência · revisão",
     "currentPlan": "Ativo no momento",
     "freeFeat": "Salvamento básico · 1 teste por estrela · 5 chats SecondB/dia",
-    "startPro": "Começar o Pro"
+    "startPro": "Começar o Pro",
+    "loadingOffers": "Carregando planos...",
+    "purchasing": "Processando...",
+    "restore": "Restaurar compra",
+    "restoring": "Restaurando...",
+    "proActive": "Pro está ativo",
+    "nowPro": "Você está no Pro agora. Obrigado.",
+    "notAvailableTitle": "Faça upgrade no app móvel",
+    "notAvailableBody": "O Pro é comprado nas lojas de apps no iOS e Android. Abra o 2nd-Brain no seu celular para fazer upgrade.",
+    "support": "Falar com o suporte",
+    "loadError": "Não foi possível carregar os planos. Tente de novo.",
+    "purchaseError": "A compra não foi concluída. Tente de novo.",
+    "restoreError": "Não foi possível restaurar as compras. Tente de novo.",
+    "restoredNone": "Nenhuma compra anterior encontrada para restaurar."
   },
   "permissions": {
     "title": "Permissões",

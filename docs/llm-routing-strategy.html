@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>2nd-Brain · 클라우드 LLM 전수 검토 & 라우팅 전략 (2026-06-22)</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<style>
+  :root{
+    --bg:#0b1020; --surface:#121a2e; --surface2:#0e1526;
+    --text:#e7ecf8; --muted:#8b96ae; --line:rgba(122,162,210,.16);
+    --cyan:#5bc8e8; --violet:#9a8cff; --mint:#73e6b8; --amber:#e8c45b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:Pretendard,system-ui,-apple-system,sans-serif;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:52px 24px 96px}
+  .eyebrow{color:var(--cyan);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+  h1{font-size:33px;line-height:1.24;margin:10px 0 6px;font-weight:800;letter-spacing:-.01em}
+  h2{font-size:20px;margin:46px 0 12px;font-weight:700;letter-spacing:-.01em;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:15.5px;margin:22px 0 8px;font-weight:700}
+  p{color:#d4dcef;margin:10px 0}.lede{font-size:17px;color:#c4cee4}.muted{color:var(--muted)}
+  .verdict{background:linear-gradient(180deg,rgba(91,200,232,.10),rgba(91,200,232,.03));
+    border:1px solid rgba(91,200,232,.3);border-radius:14px;padding:18px 22px;margin:20px 0}
+  .verdict b{color:var(--cyan)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:14px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{color:var(--muted);font-weight:600;font-size:11.5px;letter-spacing:.03em;text-transform:uppercase}
+  td b{color:var(--text)} tr.hi td{background:rgba(91,200,232,.06)}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;letter-spacing:.02em;white-space:nowrap}
+  .tS{background:rgba(115,230,184,.14);color:var(--mint);border:1px solid rgba(115,230,184,.3)}
+  .tF{background:rgba(91,200,232,.14);color:var(--cyan);border:1px solid rgba(91,200,232,.3)}
+  .tR{background:rgba(154,140,255,.16);color:var(--violet);border:1px solid rgba(154,140,255,.34)}
+  .tX{background:rgba(232,120,120,.13);color:#e88;border:1px solid rgba(232,120,120,.3)}
+  .tOk{background:rgba(115,230,184,.12);color:var(--mint);border:1px solid rgba(115,230,184,.26)}
+  code{background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px;font-family:ui-monospace,Menlo,monospace;color:#bcd8ea}
+  ul{margin:8px 0;padding-left:20px}li{margin:5px 0;color:#d4dcef}
+  a{color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(91,200,232,.3)}
+  .foot{margin-top:46px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px}
+  /* bar chart */
+  .bar{display:grid;grid-template-columns:148px 1fr 64px;align-items:center;gap:10px;margin:6px 0;font-size:12.5px}
+  .bar .lbl{color:#d4dcef;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar .track{background:var(--surface2);border-radius:6px;height:16px;overflow:hidden;border:1px solid var(--line)}
+  .bar .fill{height:100%;border-radius:6px}
+  .bar .val{color:var(--muted);font-variant-numeric:tabular-nums;font-size:11.5px}
+  .fc{background:linear-gradient(90deg,#3aa0c4,var(--cyan))}
+  .fv{background:linear-gradient(90deg,#6f5fd0,var(--violet))}
+  .fm{background:linear-gradient(90deg,#3fb98c,var(--mint))}
+  .fa{background:linear-gradient(90deg,#c4a23a,var(--amber))}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:6px 0 2px}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:middle;margin-right:5px}
+  .note{font-size:12px;color:var(--muted)}
+  .funnel{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+  .frow{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 14px}
+  .frow .step{font-size:11px;color:var(--cyan);font-weight:700;width:74px;flex:none}
+  .frow .body{font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">2nd-Brain · Engineering Note · 2026-06-22</div>
+  <h1>클라우드 LLM 전수 검토 &amp; 시스템별 라우팅 전략</h1>
+  <p class="lede">실제 소비자 배포 시나리오 기준. 키포인트 = <b>속도</b>와 <b>정합성</b>. 로컬 LLM 제외, 26년 6월 메이저 클라우드 모델 전부를 가격·속도·프라이버시로 검토하고, 우리 14개 <code>PromptPurpose</code>에 매핑.</p>
+
+  <div class="verdict">
+    <p style="margin:0 0 8px"><b>핵심 답:</b> "Gemini로 충분한가?" → <b>속도 면에선 충분 그 이상</b>입니다. Gemini 3.5 Flash는 26년 6월 메인스트림 <b>출력속도 1위(167–180 t/s)</b>, TTFT도 최저권. GPT-5.5는 62 t/s로 오히려 느립니다.</p>
+    <p style="margin:0">단, <b>두 가지를 분리</b>해야 합니다. ① 속도가 핵심인 인터랙티브 경로 → Gemini Flash가 최적. ② 고난도 <b>정합성/종합</b>(북극성·인터뷰 설계) → 리즈닝 모델이 필요하고, 여기선 <b>Claude/GPT/Gemini-Pro 교차 옵션</b>이 의미 있음. 그리고 ③ <b style="color:#e88">한국 개인데이터(PIPA)라서 초저가 중국 모델은 프라이버시로 탈락</b>합니다.</p>
+  </div>
+
+  <h2>1. 26년 6월 클라우드 LLM 전수표</h2>
+  <p class="note">가격 = 1M 토큰 input/output (USD). 속도등급: 빠름=Flash급(~120–180 t/s) · 중간 · 느림=Reasoning급(~40–80 t/s). 데이터 리전 = 개인정보 호스팅 관할.</p>
+  <table>
+    <thead><tr><th>모델 (벤더)</th><th>in / out $</th><th>속도</th><th>무료티어</th><th>멀티모달</th><th>데이터 리전</th><th>우리 적합</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><b>Gemini 3.5 Flash</b> <span class="muted">Google</span></td><td>1.50 / 9.00</td><td><b style="color:var(--mint)">빠름·1위</b></td><td><span class="tag tOk">있음</span></td><td>오디오·이미지·영상</td><td>US/EU (Vertex)</td><td><span class="tag tF">F 메인</span></td></tr>
+      <tr><td><b>Gemini 3.x Pro</b> <span class="muted">Google</span></td><td>2.00 / 12.00</td><td>느림</td><td><span class="tag tOk">있음</span></td><td>네이티브</td><td>US/EU (Vertex)</td><td><span class="tag tR">R 리즈닝</span></td></tr>
+      <tr><td>Gemini Flash-Lite <span class="muted">Google</span></td><td>~0.10 / 0.40</td><td>빠름</td><td><span class="tag tOk">있음</span></td><td>네이티브</td><td>US/EU</td><td><span class="tag tS">S 분류</span></td></tr>
+      <tr><td>GPT-5.5 <span class="muted">OpenAI</span></td><td>5.00 / 30.00</td><td>느림(62 t/s)</td><td>없음</td><td>이미지</td><td>US</td><td><span class="tag tR">R 옵션</span></td></tr>
+      <tr><td>GPT-5.4 Mini <span class="muted">OpenAI</span></td><td>0.75 / 4.50</td><td>중간</td><td>없음</td><td>이미지</td><td>US</td><td>—</td></tr>
+      <tr><td>GPT-5.4 Nano <span class="muted">OpenAI</span></td><td>0.20 / 1.25</td><td>빠름</td><td>없음</td><td>제한</td><td>US</td><td><span class="tag tS">S 폴백</span></td></tr>
+      <tr><td><b>Claude Opus 4.8</b> <span class="muted">Anthropic</span></td><td>5.00 / 25.00</td><td>중간</td><td>없음</td><td>텍스트·비전</td><td>US</td><td><span class="tag tR">R 옵션·최강</span></td></tr>
+      <tr><td>Claude Sonnet 4.6 <span class="muted">Anthropic</span></td><td>3.00 / 15.00</td><td>중간</td><td>없음</td><td>텍스트·비전</td><td>US</td><td><span class="tag tR">R 옵션</span></td></tr>
+      <tr><td>Claude Haiku 4.5 <span class="muted">Anthropic</span></td><td>1.00 / 5.00</td><td>빠름·저TTFT</td><td>없음</td><td><b style="color:#e88">오디오 불가</b></td><td>US</td><td>—</td></tr>
+      <tr><td>Grok 4.3 <span class="muted">xAI</span></td><td>1.25 / 2.50</td><td>중간</td><td>없음</td><td>이미지</td><td>US</td><td>비PII 옵션</td></tr>
+      <tr><td>Grok 4.1 Fast <span class="muted">xAI</span></td><td>0.20 / 0.50</td><td>빠름</td><td>없음</td><td>이미지</td><td>US</td><td><span class="tag tS">S 폴백</span></td></tr>
+      <tr><td>Amazon Nova Pro <span class="muted">AWS</span></td><td>0.80 / 3.20</td><td>중간</td><td>없음</td><td>이미지·영상</td><td>다중리전</td><td>비PII 옵션</td></tr>
+      <tr><td>Amazon Nova Micro <span class="muted">AWS</span></td><td>0.035 / 0.14</td><td>빠름</td><td>없음</td><td>텍스트</td><td>다중리전</td><td><span class="tag tS">S 폴백</span></td></tr>
+      <tr><td>Mistral Small <span class="muted">Mistral·EU</span></td><td>0.20 / 0.60</td><td>빠름</td><td>일부</td><td>텍스트</td><td><b style="color:var(--mint)">EU</b></td><td>비PII 옵션</td></tr>
+      <tr><td>Mistral Nemo <span class="muted">Mistral·EU</span></td><td>0.02 / 0.03</td><td>빠름</td><td>일부</td><td>텍스트</td><td>EU</td><td><span class="tag tS">S 폴백</span></td></tr>
+      <tr><td>Cohere Command R7B <span class="muted">Cohere</span></td><td>0.037 / 0.15</td><td>빠름</td><td>없음</td><td>텍스트·RAG</td><td>US/EU</td><td><span class="tag tS">S 폴백</span></td></tr>
+      <tr><td>DeepSeek V4 Flash <span class="muted">DeepSeek·CN</span></td><td><b>0.14 / 0.28</b></td><td>중간</td><td>없음</td><td>텍스트</td><td><b style="color:#e88">CN</b></td><td><span class="tag tX">PIPA 탈락</span></td></tr>
+      <tr><td>Qwen 3.6 Plus <span class="muted">Alibaba·CN</span></td><td>0.50 / 3.00</td><td>중간</td><td>일부</td><td>멀티모달</td><td><b style="color:#e88">CN</b></td><td><span class="tag tX">PIPA 탈락</span></td></tr>
+      <tr><td>Kimi K2.6 <span class="muted">Moonshot·CN</span></td><td>1.20 / 4.50</td><td>중간</td><td>없음</td><td>텍스트·롱컨텍스트</td><td><b style="color:#e88">CN</b></td><td><span class="tag tX">PIPA 탈락</span></td></tr>
+      <tr><td>GLM 5.1 / Flash <span class="muted">Zhipu·CN</span></td><td>1.40 / 4.40 · Flash 무료</td><td>빠름</td><td>Flash 무료</td><td>텍스트</td><td><b style="color:#e88">CN</b></td><td><span class="tag tX">PIPA 탈락</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. 속도 — 우리 #1 키포인트 (출력 t/s, 높을수록 좋음)</h2>
+  <p class="note">측정치(Artificial Analysis, 6/19): Gemini 3.5 Flash <b>167–180</b>, GPT-5.5 <b>62</b>. 그 외는 모델 클래스 기반 등급(Flash급 ~120–180 / 중간 ~80–120 / Reasoning급 ~40–80). 200 t/s ≈ 초당 150단어(실시간 스트리밍 체감).</p>
+  <div class="card">
+    <div class="bar"><span class="lbl">Gemini 3.5 Flash</span><div class="track"><div class="fill fm" style="width:97%"></div></div><span class="val">~175 ●측정</span></div>
+    <div class="bar"><span class="lbl">Nova Micro / GLM Flash</span><div class="track"><div class="fill fc" style="width:83%"></div></div><span class="val">~150 등급</span></div>
+    <div class="bar"><span class="lbl">Grok 4.1 Fast</span><div class="track"><div class="fill fc" style="width:78%"></div></div><span class="val">~140 등급</span></div>
+    <div class="bar"><span class="lbl">Claude Haiku 4.5</span><div class="track"><div class="fill fc" style="width:72%"></div></div><span class="val">저TTFT &lt;600ms</span></div>
+    <div class="bar"><span class="lbl">GPT-5.4 Nano / Mini</span><div class="track"><div class="fill fc" style="width:66%"></div></div><span class="val">~120 등급</span></div>
+    <div class="bar"><span class="lbl">Gemini 3.x Pro</span><div class="track"><div class="fill fv" style="width:40%"></div></div><span class="val">~70 등급</span></div>
+    <div class="bar"><span class="lbl">Claude Opus 4.8</span><div class="track"><div class="fill fv" style="width:38%"></div></div><span class="val">~65 등급</span></div>
+    <div class="bar"><span class="lbl">GPT-5.5</span><div class="track"><div class="fill fv" style="width:34%"></div></div><span class="val">62 ●측정</span></div>
+    <div class="legend"><span><span class="dot" style="background:var(--mint)"></span>측정 1위</span><span><span class="dot" style="background:var(--cyan)"></span>Flash급(빠름)</span><span><span class="dot" style="background:var(--violet)"></span>Reasoning급(느림·정합성↑)</span></div>
+  </div>
+  <p><b>해석:</b> 실시간 모바일 챗(세컨비)에선 Gemini 3.5 Flash가 속도 최상위 — 교체 이유 없음. 느린 Reasoning급은 사용자가 기다리는 인터랙티브 경로에 부적합하고, <b>볼륨 낮고 기다려도 되는 R tier(성찰·종합)에만</b> 써야 합니다.</p>
+
+  <h2>3. 비용 — output 단가가 진짜 변수 (1M output $, 낮을수록 좋음)</h2>
+  <p class="note">우리 RAG 챗은 <b>input이 큼(검색 컨텍스트)·output은 짧음</b>. 그래서 output 단가가 핵심. Gemini Flash는 input은 싸지만 <b>output $9로 비싼 편</b> → 긴 출력 작업은 캐시(90%)·batch(50%)로 방어.</p>
+  <div class="card">
+    <div class="bar"><span class="lbl">Mistral Nemo</span><div class="track"><div class="fill fm" style="width:1%"></div></div><span class="val">$0.03</span></div>
+    <div class="bar"><span class="lbl">Nova Micro</span><div class="track"><div class="fill fm" style="width:2%"></div></div><span class="val">$0.14</span></div>
+    <div class="bar"><span class="lbl">Cohere R7B</span><div class="track"><div class="fill fm" style="width:2%"></div></div><span class="val">$0.15</span></div>
+    <div class="bar"><span class="lbl">DeepSeek V4 Flash <span class="tag tX">CN</span></span><div class="track"><div class="fill fa" style="width:3%"></div></div><span class="val">$0.28</span></div>
+    <div class="bar"><span class="lbl">Gemini Flash-Lite</span><div class="track"><div class="fill fm" style="width:4%"></div></div><span class="val">~$0.40</span></div>
+    <div class="bar"><span class="lbl">Grok 4.1 Fast</span><div class="track"><div class="fill fc" style="width:5%"></div></div><span class="val">$0.50</span></div>
+    <div class="bar"><span class="lbl">GPT-5.4 Nano</span><div class="track"><div class="fill fc" style="width:8%"></div></div><span class="val">$1.25</span></div>
+    <div class="bar"><span class="lbl">Grok 4.3</span><div class="track"><div class="fill fc" style="width:17%"></div></div><span class="val">$2.50</span></div>
+    <div class="bar"><span class="lbl">Nova Pro</span><div class="track"><div class="fill fc" style="width:21%"></div></div><span class="val">$3.20</span></div>
+    <div class="bar"><span class="lbl">GPT-5.4 Mini</span><div class="track"><div class="fill fc" style="width:30%"></div></div><span class="val">$4.50</span></div>
+    <div class="bar"><span class="lbl">Claude Haiku 4.5</span><div class="track"><div class="fill fc" style="width:33%"></div></div><span class="val">$5.00</span></div>
+    <div class="bar"><span class="lbl">Gemini 3.5 Flash</span><div class="track"><div class="fill fc" style="width:60%"></div></div><span class="val">$9.00</span></div>
+    <div class="bar"><span class="lbl">Gemini 3.x Pro</span><div class="track"><div class="fill fv" style="width:80%"></div></div><span class="val">$12.00</span></div>
+    <div class="bar"><span class="lbl">Claude Sonnet 4.6</span><div class="track"><div class="fill fv" style="width:50%"></div></div><span class="val">$15.00</span></div>
+    <div class="bar"><span class="lbl">Claude Opus 4.8</span><div class="track"><div class="fill fv" style="width:83%"></div></div><span class="val">$25.00</span></div>
+    <div class="bar"><span class="lbl">GPT-5.5</span><div class="track"><div class="fill fv" style="width:100%"></div></div><span class="val">$30.00</span></div>
+    <div class="legend"><span><span class="dot" style="background:var(--mint)"></span>초저가</span><span><span class="dot" style="background:var(--cyan)"></span>중저가</span><span><span class="dot" style="background:var(--violet)"></span>프리미엄</span><span><span class="dot" style="background:var(--amber)"></span>저가지만 CN</span></div>
+  </div>
+
+  <h2>4. 정합성(Consistency) — 하네스로 못 메우는 축</h2>
+  <p>속도·비용은 하네스로 메우지만, <b>"모호한 개인 데이터에 대한 판단의 안정성"</b>은 모델 체급이 가릅니다. 정합성 우열(공개 벤치·instruction-following 평판 종합):</p>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0;color:var(--violet)">최상위 정합성 (R tier 후보)</h3>
+      <ul><li><b>Claude Opus 4.8</b> — instruction-following·일관성 최강, 코딩 1위</li><li><b>GPT-5.5</b> — 추론 깊이, 다만 느리고 비쌈</li><li><b>Gemini 3.x Pro</b> — 멀티모달+1M, 우리 스택과 동일 벤더</li></ul></div>
+    <div class="card"><h3 style="margin-top:0;color:var(--cyan)">빠른데 정합성도 준수 (F tier)</h3>
+      <ul><li><b>Gemini 3.5 Flash</b> — 3.1 Pro를 코딩/에이전트 벤치에서 상회, 속도 1위</li><li>Claude Haiku 4.5 — 빠르고 안정적(단 오디오 불가)</li><li>Grok 4.3 — 출력 저렴, 정합성 중상</li></ul></div>
+  </div>
+
+  <h2>5. 우리 제품 의사결정 깔때기 (PIPA → 멀티모달 → 속도 → 비용)</h2>
+  <div class="funnel">
+    <div class="frow"><span class="step">필터 1</span><span class="body"><b style="color:#e88">개인정보 리전(PIPA)</b> — 한국 사용자 라이프 데이터를 CN 호스팅에 보내지 않음 → <b>DeepSeek·Qwen·Kimi·GLM 제외</b>(비PII 분류엔 별도 검토 가능)</span></div>
+    <div class="frow"><span class="step">필터 2</span><span class="body"><b>네이티브 멀티모달(오디오)</b> — 방금 붙인 음성 전사 → Claude Haiku(오디오 불가) 제외. Gemini·GPT·Nova 통과</span></div>
+    <div class="frow"><span class="step">필터 3</span><span class="body"><b>속도 + 무료티어 + 기존 통합</b> — 인터랙티브 경로 1위 속도 + $0 무료티어 + C1/C2/C3 이미 구축 → <b style="color:var(--cyan)">Gemini 3.5 Flash 단독 통과</b></span></div>
+    <div class="frow"><span class="step">결과</span><span class="body"><b>메인 = Gemini 3.5 Flash.</b> R tier 정합성 옵션으로 <b>Claude Opus 4.8</b>(교차벤더, US 리전 OK) 검토 가치. 비PII 대량 분류 비용 폴백 = Nova Micro / Grok 4.1 Fast / Mistral Nemo(EU)</span></div>
+  </div>
+
+  <h2>6. 최종 권장 — purpose별 3-tier (교차벤더 반영)</h2>
+  <table>
+    <thead><tr><th>Tier</th><th>대상 purpose</th><th>1순위</th><th>교차벤더 옵션</th><th>하네스</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag tS">S 초고속</span></td><td>안전분류 C9·capture/clipper 분류·임베딩</td><td>Gemini Flash-Lite</td><td>비PII만: Nova Micro · Mistral Nemo(EU)</td><td>lexicon 선필터</td></tr>
+      <tr><td><span class="tag tF">F 균형(기본)</span></td><td>세컨비 챗·OCR·음성전사·ops·임포트</td><td><b>Gemini 3.5 Flash</b></td><td>—(속도 1위라 대체 불요)</td><td>RAG 그라운딩</td></tr>
+      <tr><td><span class="tag tR">R 리즈닝</span></td><td>저널 성찰·인터뷰 설계·북극성 종합·연결발견</td><td>Gemini 3.x Pro</td><td><b>Claude Opus 4.8</b> / GPT-5.5</td><td>propose→ratify 게이트</td></tr>
+    </tbody>
+  </table>
+  <div class="card">
+    <h3 style="margin-top:0">한 줄 결론</h3>
+    <p style="margin:6px 0"><b>Gemini를 메인으로 유지하는 게 맞습니다</b> — 속도(우리 #1)에서 현존 1위, 멀티모달·무료티어·기존 통합까지 우리 제약(PIPA·$0·오디오)을 동시에 만족하는 유일한 후보. 비용 약점은 output 단가뿐이며 캐시·batch로 방어됩니다.</p>
+    <p style="margin:6px 0;color:var(--muted)">단 하나 적극 검토할 변화: <b>R tier(고난도 종합)만 Claude Opus 4.8 교차벤더 옵션</b>으로 두는 것. 정합성 최상위 + US 리전(PIPA 관점 CN보다 안전)이라, 북극성·인터뷰 같은 "사용자 정체성 판단"의 품질을 한 단계 올릴 수 있습니다. C1 경계에 두 번째 벤더 어댑터만 추가하면 됨.</p>
+  </div>
+
+  <div class="foot">
+    <p>출처(2026-06):
+      <a href="https://artificialanalysis.ai/models/grok-4/providers">Artificial Analysis(속도)</a> ·
+      <a href="https://devtk.ai/en/models/gemini-3-5-flash/">Gemini 3.5 Flash</a> ·
+      <a href="https://docs.x.ai/developers/models">xAI Grok</a> ·
+      <a href="https://api-docs.deepseek.com/quick_start/pricing">DeepSeek</a> ·
+      <a href="https://www.morphllm.com/llm-api">DeepSeek/Qwen/Kimi/GLM 비교</a> ·
+      <a href="https://mistral.ai/pricing/">Mistral</a> ·
+      <a href="https://aws.amazon.com/bedrock/pricing/">Amazon Nova/Bedrock</a> ·
+      <a href="https://costbench.com/software/llm-api-providers/cohere-api/">Cohere</a> ·
+      <a href="https://benchlm.ai/llm-pricing">BenchLM 비교</a>.
+      코드 근거: <code>src/lib/llm/types.ts</code>(MODELS flash/pro) · <code>gemini.ts</code> · 14 PromptPurpose. PIPA·$0 제약: <code>docs/CONSTRAINTS.md</code> C1/C2/C9.</p>
+    <p class="note">속도 측정치는 Gemini 3.5 Flash·GPT-5.5만 공개 수치이며, 그 외 막대는 모델 클래스 기반 등급(추정)임을 명시. 정합성은 정성 평판 종합.</p>
+  </div>
+
+</div>
+</body>
+</html>

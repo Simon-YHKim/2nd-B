@@ -244,14 +244,19 @@ const styles = StyleSheet.create({
 function BigFiveDeepSpace() {
   const { userId, loading } = useAuth();
   const [traits, setTraits] = useState<LensTraits | null>(null);
+  const [hasError, setHasError] = useState(false);
+  // Bumping reloadKey re-runs the BFI load (retry path from the error state).
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (loading) return;
     if (!userId) {
       setTraits(null);
+      setHasError(false);
       return;
     }
     let cancelled = false;
+    setHasError(false);
     loadLatestBfi(getSupabaseClient(), userId)
       .then((r) => {
         if (cancelled) return;
@@ -270,17 +275,26 @@ function BigFiveDeepSpace() {
         );
       })
       .catch(() => {
-        // Offline / query failure: fall back to the empty state, never dummy data.
-        if (!cancelled) setTraits(null);
+        // Distinguish a fetch failure (offline / query error) from "no result
+        // yet": the former drives LensView's error+retry state, never dummy data.
+        if (!cancelled) {
+          setTraits(null);
+          setHasError(true);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [userId, loading]);
+  }, [userId, loading, reloadKey]);
 
   return (
     <DeepSpaceScreen active="lens">
-      <LensView traits={traits} />
+      <LensView
+        traits={traits}
+        hasError={hasError}
+        onStart={() => router.push("/interview")}
+        onRetry={() => setReloadKey((k) => k + 1)}
+      />
     </DeepSpaceScreen>
   );
 }

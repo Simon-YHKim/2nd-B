@@ -7,7 +7,9 @@
     "ocrRequired": "Elige una foto y revisa el texto extraído antes de guardar.",
     "journalLocked": "Alcanza Lv{{level}} antes de guardar una entrada de diario.",
     "journalLimit": "Ya usaste las entradas gratuitas del diario. Los otros modos de captura siguen disponibles.",
-    "saving": "El guardado ya está en curso."
+    "saving": "El guardado ya está en curso.",
+    "voiceRequired": "Write the voice memo text before saving.",
+    "todoRequired": "Write the task before saving."
   },
   "savedTitleFallback": "Pieza de hoy",
   "loading": "Cargando captura...",
@@ -65,6 +67,14 @@
     "file": {
       "label": "Archivo",
       "help": "Elige un PDF, DOCX o archivo de texto. Guardamos el texto legible."
+    },
+    "voice": {
+      "label": "Voice",
+      "help": "Record a voice memo. We turn it into text you can review and edit before saving."
+    },
+    "todo": {
+      "label": "To do",
+      "help": "Write a task. It saves as a to-do piece with a done flag."
     }
   },
   "formatSaved": {
@@ -258,5 +268,32 @@
       "title": "No se pudo guardar el formato",
       "message": "No pudimos guardar el nuevo formato. Tu propuesta sigue aquí. Por favor, inténtalo de nuevo."
     }
+  },
+  "voice": {
+    "label": "Voice memo",
+    "placeholder": "Record above, or type what you heard...",
+    "note": "Record a voice memo and we turn it into text. Review and edit it, then save.",
+    "record": "Record",
+    "recordHint": "Starts recording a voice memo from your microphone.",
+    "stop": "Stop and transcribe",
+    "stopHint": "Stops recording and turns your voice memo into text.",
+    "recording": "Recording...",
+    "transcribing": "Turning your voice into text...",
+    "webFallback": "Recording is not available here. Type what you heard instead.",
+    "permissionDenied": "Microphone access is off. Type what you heard, or allow the microphone in settings.",
+    "recordFailed": "Couldn't start recording. Type what you heard instead.",
+    "transcribeFailed": "Couldn't turn that recording into text. Try again, or type what you heard.",
+    "transcriptEmpty": "We couldn't make out any words. Try again closer to the microphone, or type it."
+  },
+  "todo": {
+    "label": "To do",
+    "placeholder": "Write a task in one line...",
+    "doneToggle": "Mark as done",
+    "doneHelper": "Turn on if it is already finished. You can change it later."
+  },
+  "recent": {
+    "title": "Recent pieces",
+    "openHint": "Opens this entry in full.",
+    "empty": "No saved pieces yet."
   }
 }

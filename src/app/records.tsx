@@ -78,11 +78,27 @@ function RecordsLegacy() {
   // Domain (village) filter — entering from a village node carries
   // ?domain=<villageId>, so Records opens already filtered to that village's
   // pieces (menu restructure Phase 4). The chip row can change it afterward.
-  const params = useLocalSearchParams<{ domain?: string }>();
+  //
+  // Tags filter — entering from a /trinity life-area card carries
+  // ?tags=<comma,separated>, a DIFFERENT taxonomy (health/app/brain/finance
+  // tags, not village ids). Records then shows only pieces whose tags intersect
+  // that set (case-insensitive). Coexists with ?domain= — both apply if present.
+  const params = useLocalSearchParams<{ domain?: string; tags?: string }>();
   const paramDomain: VillageId | "all" =
     VILLAGE_IDS.includes(params.domain as VillageId) ? (params.domain as VillageId) : "all";
+  const tagFilter = useMemo(() => {
+    const raw = typeof params.tags === "string" ? params.tags : "";
+    return raw
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter((t) => t.length > 0);
+  }, [params.tags]);
 
   const [shards, setShards] = useState<OriginShard[]>([]);
+  // Raw tags per piece, keyed `${origin}:${id}`. OriginShard only retains the
+  // derived village `domain`, not the raw tag array, so the ?tags= life-area
+  // filter (a separate taxonomy) needs the originals kept alongside.
+  const [tagsByKey, setTagsByKey] = useState<Map<string, string[]>>(new Map());
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
@@ -120,7 +136,13 @@ function RecordsLegacy() {
         if (srcRes.error) throw srcRes.error;
         const recRows = (recRes.data ?? []) as RawRecordRow[];
         const srcRows = (srcRes.data ?? []) as RawSourceRow[];
-        if (!cancelled) setShards(mergeEvidence(recRows, srcRows, locale));
+        if (!cancelled) {
+          const keyed = new Map<string, string[]>();
+          for (const r of recRows) keyed.set(`record:${r.id}`, r.tags ?? []);
+          for (const s of srcRows) keyed.set(`source:${s.id}`, s.tags ?? []);
+          setTagsByKey(keyed);
+          setShards(mergeEvidence(recRows, srcRows, locale));
+        }
       } catch (e) {
         if (typeof console !== "undefined") console.warn("[records] load failed", (e as Error).message);
         if (!cancelled) setError(true);
@@ -161,10 +183,16 @@ function RecordsLegacy() {
     return shards.filter((s) => {
       if (domainFilter !== "all" && s.domain !== domainFilter) return false;
       if (typeFilter !== "all" && s.type !== typeFilter) return false;
+      // Life-area tags filter (?tags=): keep only pieces whose own tags
+      // intersect the requested set, case-insensitive. Coexists with domain.
+      if (tagFilter.length > 0) {
+        const own = (tagsByKey.get(`${s.origin}:${s.id}`) ?? []).map((t) => t.toLowerCase());
+        if (!own.some((t) => tagFilter.includes(t))) return false;
+      }
       if (q.length > 0 && !s.title.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [shards, query, typeFilter, domainFilter]);
+  }, [shards, query, typeFilter, domainFilter, tagFilter, tagsByKey]);
 
   // Memoized here — before any early return — so hook order stays stable across
   // renders (FlatList renderItem perf without violating rules-of-hooks).

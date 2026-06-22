@@ -9,6 +9,7 @@ import { getEnv } from "../env";
 import { getSupabaseClient } from "../supabase/client";
 import { levelForXp, levelProgress, type LevelProgress } from "./levels";
 import { resolveTier, type SubscriptionTier } from "./entitlements";
+import { getUrlTierOverride } from "./dev-tier-url";
 
 export interface Progression {
   totalXp: number;
@@ -58,12 +59,16 @@ export function useProgression(): Progression {
   // testing phase; set EXPO_PUBLIC_FORCE_TIER=off to restore real per-user
   // billing. This is the single chokepoint — no gate call-site needs editing.
   const forcedTier = getEnv().EXPO_PUBLIC_FORCE_TIER;
+  // QA: a `?tier=` web URL param (when EXPO_PUBLIC_ALLOW_DEV_TIER=true) takes
+  // precedence over the env FORCE_TIER, so one deployment yields per-tier links.
+  const urlOverride = getUrlTierOverride();
+  const override = urlOverride !== "off" ? urlOverride : forcedTier;
 
   return {
     totalXp,
     level: levelForXp(totalXp),
     progress: levelProgress(totalXp),
-    tier: resolveTier(forcedTier, tier),
+    tier: resolveTier(override, tier),
     loading,
     refresh,
   };

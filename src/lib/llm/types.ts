@@ -1,6 +1,12 @@
 import type { SafetyResult, SafetyZone } from "../safety/classifier";
 
-export type GeminiModel = "flash" | "pro";
+export type GeminiModel = "lite" | "flash" | "pro";
+
+// Reasoning effort levels for the pro (reasoning) tier. Maps to a generation
+// config in gemini.ts (thinking budget where the SDK exposes it, else a
+// maxOutputTokens cap). Default is "high". Lower app tiers (Free/Plus) pass a
+// lower effort via callers; the reasoning path honors whatever it is given.
+export type ReasoningEffort = "low" | "high" | "xhigh" | "max";
 
 export type PromptPurpose =
   | "journal_reflect"
@@ -11,6 +17,7 @@ export type PromptPurpose =
   | "secondb_chat"
   | "interview_probe"
   | "capture_ocr"
+  | "capture_voice"
   | "capture_classify"
   | "clipper_classify"
   | "clipper_template_propose"
@@ -28,6 +35,9 @@ export interface AdvisorInput {
   // crisis routing surfaces the youth line (KO -> 1388 alongside 109). Threaded
   // from AuthContext.isMinor by callers. Defaults to adult routing when unset.
   minor?: boolean;
+  // Reasoning effort for the Advisor (pro/reasoning tier). Defaults to "high".
+  // Lower app tiers (Free/Plus) will pass a lower effort via callers later.
+  effort?: ReasoningEffort;
 }
 
 export interface AdvisorResult {
@@ -62,6 +72,10 @@ export interface PromptInput {
   // still holds for any request that reaches the model; a pre-aborted signal
   // exits before egress.
   signal?: AbortSignal;
+  // Reasoning effort. Only honored on the pro (reasoning) tier — when this call
+  // resolves to pro (explicit model:"pro" or a pro-tier purpose). Defaults to
+  // "high". Ignored on lite/flash tiers. See gemini.ts effortToConfig().
+  effort?: ReasoningEffort;
 }
 
 export interface AuditMeta {
@@ -71,6 +85,14 @@ export interface AuditMeta {
   vertexBackend: boolean;
   safetyZone: SafetyZone;
   latencyMs: number;
+  // Reasoning effort recorded for traceability (C3). Set only on the pro
+  // (reasoning) tier where effort applies; undefined on lite/flash and on
+  // crisis-routed / classifier paths where no reasoning effort was used.
+  effort?: ReasoningEffort;
+  // Reasoning provider for the call ("gemini" default; "claude" reserved for the
+  // deferred Claude seam — see EXPO_PUBLIC_REASONING_PROVIDER). Recorded so the
+  // audit trail shows which backend produced a reasoning answer.
+  reasoningProvider?: "gemini" | "claude";
 }
 
 export interface GeminiResult<T = string> {
@@ -79,7 +101,52 @@ export interface GeminiResult<T = string> {
   audit: AuditMeta;
 }
 
+// 3-tier model ids. ENV-overridable so the owner can bump generations later
+// (e.g. to 3.x) WITHOUT a code change — set EXPO_PUBLIC_MODEL_LITE / _FLASH /
+// _PRO. Defaults stay on the current-safe 2.5 family (do NOT hard-switch).
+//   lite  — cheap/fast: safety classify, embed-like, high-volume capture/clip.
+//   flash — interactive: chat, OCR/voice, lookups, ingest, template propose.
+//   pro   — reasoning: advisor, journal reflection, interview probe, imagine.
+// Read at module load (Expo inlines EXPO_PUBLIC_* at build time). The ?? guards
+// empty-string env values too, so a blank var falls back to the safe default.
 export const MODELS: Record<GeminiModel, string> = {
-  flash: "gemini-2.5-flash",
-  pro: "gemini-2.5-pro",
-} as const;
+  lite:
+    (process.env.EXPO_PUBLIC_MODEL_LITE && process.env.EXPO_PUBLIC_MODEL_LITE.trim()) ||
+    "gemini-2.5-flash-lite",
+  flash:
+    (process.env.EXPO_PUBLIC_MODEL_FLASH && process.env.EXPO_PUBLIC_MODEL_FLASH.trim()) ||
+    "gemini-2.5-flash",
+  pro:
+    (process.env.EXPO_PUBLIC_MODEL_PRO && process.env.EXPO_PUBLIC_MODEL_PRO.trim()) ||
+    "gemini-2.5-pro",
+};
+
+// Purpose -> default tier. Used by callGemini ONLY when the caller does not pass
+// an explicit `model`. An explicit `input.model` always wins. Existing callers
+// preserved: callGemini's historical default was "flash" and callAdvisor uses
+// "pro" directly (advisor is not routed through this map), so no purpose here
+// regresses a current default. Purposes absent from the map fall back to "flash"
+// (the historical callGemini default) in purposeToTier().
+//   lite  — classify/embed-like (cheap, high volume)
+//   flash — interactive surfaces
+//   pro   — reasoning surfaces
+export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
+  // lite: classification-shaped, high volume, no nuance needed
+  capture_classify: "lite",
+  clipper_classify: "lite",
+  // flash: interactive / structured-but-not-deep
+  secondb_chat: "flash",
+  persona_chat: "flash",
+  capture_ocr: "flash",
+  capture_voice: "flash",
+  ops_recommend: "flash",
+  audit_qa: "flash",
+  knowledge_lookup: "flash",
+  import_ingest: "flash",
+  clipper_template_propose: "flash",
+  // pro: reasoning / nuance
+  advisor: "pro",
+  journal_reflect: "pro",
+  interview_probe: "pro",
+  imagine: "pro",
+};

@@ -2,12 +2,17 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, BackHandler, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Line } from "react-native-svg";
+import Svg, { Circle, Line, Path } from "react-native-svg";
 
 import { colors, radius, spacing } from "@/theme/tokens";
+import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { TIERS, TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
+import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
+import { getReasoningUsage } from "@/lib/entitlements/usage";
 import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
 import { useSignUpForm } from "@/lib/auth/useSignUpForm";
@@ -23,6 +28,7 @@ import { buildPersona } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
 import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
+import type { LadderLevel } from "@/lib/persona/brightness";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
 import { RatifySheet } from "@/components/persona/RatifySheet";
 import {
@@ -32,6 +38,15 @@ import {
 } from "@/lib/auth/consent-selections";
 import { formatBirthDateInput } from "@/lib/account/dob";
 import { useProgression } from "@/lib/progression/useProgression";
+import {
+  arePurchasesAvailable,
+  configurePurchases,
+  getOfferings,
+  getProStatus,
+  purchasePackage,
+  restorePurchases,
+} from "@/lib/payments/purchases";
+import type { PurchasesPackage } from "react-native-purchases";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
@@ -92,6 +107,7 @@ import { splitImportNotes, previewTitle } from "@/lib/wiki/import-notes";
 import { exportIden } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
+import { summarizeWeeklyInsights } from "@/lib/insights/weekly";
 import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
 import {
   buildDeepResearchView,
@@ -193,6 +209,19 @@ function Shell({ children, title, subtitle }: { children: ReactNode; title?: str
   );
 }
 
+// Scroll-only body for screens that already sit inside DeepSpaceScreen (which
+// supplies the star-field background, SecondbStatusHeader, and the dock). Same
+// ScrollView + back/title row as Shell but WITHOUT the root background, so the
+// chrome is not doubled. Flexes to fill DeepSpaceScreen's body slot.
+function DockBody({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
+  return (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      {title ? <View style={styles.titleRow}><Pressable onPress={() => router.back()}><RNText style={styles.back}>‹</RNText></Pressable><View><Text variant="heading" style={styles.title}>{title}</Text>{subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}</View></View> : null}
+      {children}
+    </ScrollView>
+  );
+}
+
 function Card({ children, style }: { children: ReactNode; style?: object }) { return <View style={[styles.card, style]}>{children}</View>; }
 function Action({ label, value, onPress }: Row) { return <Pressable onPress={onPress} style={styles.action}><Text variant="body" style={styles.actionLabel}>{label}</Text>{value ? <Text variant="body" style={styles.actionValue}>{value}</Text> : <RNText style={styles.chev}>›</RNText>}</Pressable>; }
 function Toggle({ label, value, on = true, onPress }: Row) {
@@ -210,13 +239,63 @@ function Toggle({ label, value, on = true, onPress }: Row) {
 
 export function DeepSpaceGraphDesignScreen() {
   const { t } = useTranslation("deepspace");
+  // Real graph scale (node = wiki page, edge = wiki link) from the same hook
+  // /research and /wiki use. The CONSTELLATION node POSITIONS below stay mock
+  // (no real coordinates exist yet); only the subtitle count numbers are real.
+  const { pages, edges, loading } = useWikiGraphData();
+  const nodeCount = loading ? 0 : pages.length;
+  const edgeCount = loading ? 0 : edges.length;
   const clusters = [
-    { x: 63, y: 135, t: t("graph.clRecords") }, { x: 136, y: 92, t: t("graph.clRelations") }, { x: 219, y: 134, t: t("graph.clKnowledge") }, { x: 106, y: 226, t: t("graph.clTaste") }, { x: 207, y: 225, t: t("graph.clGrowth") },
+    { x: 63, y: 135, t: t("graph.clRecords"), route: "/records" as const }, { x: 136, y: 92, t: t("graph.clRelations"), route: "/research" as const }, { x: 219, y: 134, t: t("graph.clKnowledge"), route: "/wiki" as const }, { x: 106, y: 226, t: t("graph.clTaste"), route: "/trinity" as const }, { x: 207, y: 225, t: t("graph.clGrowth"), route: "/growth" as const },
   ];
-  return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: 128, edges: 342 })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><Svg width="100%" height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Text key={c.t} variant="body" style={[styles.clusterLabel,{left:c.x-18,top:c.y+23}]}>{c.t}</Text>)}</Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
+  return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: nodeCount, edges: edgeCount })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><Svg width="100%" height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95} onPress={() => router.push('/account')}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22} onPress={() => router.push(c.route)}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi} onPress={() => router.push('/account')}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Pressable key={c.t} onPress={() => router.push(c.route)} accessibilityRole="button" accessibilityLabel={c.t} style={{position:'absolute',left:c.x-18,top:c.y+23}}><Text variant="body" style={[styles.clusterLabel,{position:'relative'}]}>{c.t}</Text></Pressable>)}</Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
 }
 
-export function DeepSpaceIntegrationsScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("integrations.title")}><SecondbStatusHeader text={t("integrations.status")} tip={t("integrations.tip")} /><Card><Text variant="heading" style={styles.section}>{t("integrations.sectionAssistant")}</Text>{['ChatGPT','Claude','Gemini'].map((x)=><Action key={x} label={x} value={t("integrations.pending")} onPress={() => router.push('/iden')} />)}</Card><Card><Text variant="heading" style={styles.section}>{t("integrations.sectionSources")}</Text><Toggle label="Notion" value={t("integrations.notionValue")} /><Toggle label="Obsidian" value={t("integrations.obsidianValue")} on={false} /><Toggle label={t("integrations.healthLabel")} value={t("integrations.permissionNeeded")} on={false} /></Card><Text variant="subtle" style={styles.footer}>{t("integrations.footer")}</Text></Shell>; }
+export function DeepSpaceIntegrationsScreen() {
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  // Notion starts "connected" in the mock; Obsidian disconnected. These drive a
+  // real disconnect affordance instead of a dead toggle. Real per-source OAuth is
+  // not built yet, so connect routes to the working file-import flow (/import-hub).
+  const [notionOn, setNotionOn] = useState(true);
+  const [obsidianOn, setObsidianOn] = useState(false);
+  return (
+    <Shell title={t("integrations.title")}>
+      <SecondbStatusHeader text={t("integrations.status")} tip={t("integrations.tip")} />
+      <Card>
+        <Text variant="heading" style={styles.section}>{t("integrations.sectionAssistant")}</Text>
+        {/* These are NOT live connections. They hand off to IDEN export. Label
+            honestly rather than implying a pending OAuth link. */}
+        {["ChatGPT", "Claude", "Gemini"].map((x) => (
+          <Action key={x} label={x} value={ko ? "IDEN으로 내보내기" : "Export to IDEN"} onPress={() => router.push("/iden")} />
+        ))}
+      </Card>
+      <Card>
+        <Text variant="heading" style={styles.section}>{t("integrations.sectionSources")}</Text>
+        <Toggle
+          label="Notion"
+          value={t("integrations.notionValue")}
+          on={notionOn}
+          onPress={() => (notionOn ? setNotionOn(false) : router.push("/import-hub"))}
+        />
+        {notionOn ? (
+          <Action label={ko ? "Notion 연결 해제" : "Disconnect Notion"} onPress={() => setNotionOn(false)} />
+        ) : null}
+        <Toggle
+          label="Obsidian"
+          value={t("integrations.obsidianValue")}
+          on={obsidianOn}
+          onPress={() => (obsidianOn ? setObsidianOn(false) : router.push("/import-hub"))}
+        />
+        {obsidianOn ? (
+          <Action label={ko ? "Obsidian 연결 해제" : "Disconnect Obsidian"} onPress={() => setObsidianOn(false)} />
+        ) : null}
+        <Toggle label={t("integrations.healthLabel")} value={t("integrations.permissionNeeded")} on={false} onPress={() => router.push("/import-hub")} />
+      </Card>
+      <Text variant="subtle" style={styles.footer}>{t("integrations.footer")}</Text>
+    </Shell>
+  );
+}
 
 export function DeepSpaceSupportDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("support.title")}><View style={styles.center}><SecondbHead size={104} mood="positive" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View><Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card><Text variant="subtle" style={styles.footer}>{t("support.footer")}</Text></Shell>; }
 
@@ -226,19 +305,24 @@ export function DeepSpaceAccountDesignScreen() {
   // The "나" hub (SCREEN_TREE_SPEC §8): four working nav rows. Was a static
   // mockup with hardcoded PII and dead rows; now every row routes.
   return (
-    <Shell title={t("account.title")}>
-      <SecondbStatusHeader text={t("account.status")} tip={t("account.tip")} />
-      <View style={styles.center}>
-        <View style={styles.avatar}><SecondbHead size={72} mood="neutral" /></View>
-        <Text variant="heading" style={styles.prompt}>{t("account.title")}</Text>
-      </View>
-      <Card>
-        <Action label={ko ? "프로필" : "Profile"} onPress={() => router.push("/profile")} />
-        <Action label={ko ? "설정" : "Settings"} onPress={() => router.push("/settings")} />
-        <Action label={ko ? "내 데이터" : "My data"} onPress={() => router.push("/data")} />
-        <Action label="IDEN" onPress={() => router.push("/iden")} />
-      </Card>
-    </Shell>
+    // Primary "나" hub: render inside the persistent deep-space chrome so the
+    // bottom dock shows. DeepSpaceScreen supplies the star-field background +
+    // SecondbStatusHeader (ds.head.account), so the screen's own header/root are
+    // dropped to avoid double chrome.
+    <DeepSpaceScreen active="account">
+      <DockBody title={t("account.title")}>
+        <View style={styles.center}>
+          <View style={styles.avatar}><SecondbHead size={72} mood="neutral" /></View>
+          <Text variant="heading" style={styles.prompt}>{t("account.title")}</Text>
+        </View>
+        <Card>
+          <Action label={ko ? "프로필" : "Profile"} onPress={() => router.push("/profile")} />
+          <Action label={ko ? "설정" : "Settings"} onPress={() => router.push("/settings")} />
+          <Action label={ko ? "내 데이터" : "My data"} onPress={() => router.push("/data")} />
+          <Action label="IDEN" onPress={() => router.push("/iden")} />
+        </Card>
+      </DockBody>
+    </DeepSpaceScreen>
   );
 }
 
@@ -978,38 +1062,158 @@ export function DeepSpaceResetPasswordDesignScreen() {
 }
 
 export function DeepSpaceInsightsScreen() {
-  const { t } = useTranslation("deepspace");
-  const lastWeek = 18;
-  const thisWeek = 31;
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language === "ko";
+  const { userId, loading: authLoading } = useAuth();
+
+  // Real week-over-week data. We reuse listRecentRecords (the same client other
+  // deep-space screens use) — it returns a ~90-day window of the user's records,
+  // which covers both comparison weeks — and feed the rows to the pure summary.
+  const [rows, setRows] = useState<Array<{ created_at: string }> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errored, setErrored] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    setLoading(true);
+    setErrored(false);
+    listRecentRecords(userId)
+      .then((data) => {
+        if (alive) setRows((data ?? []) as Array<{ created_at: string }>);
+      })
+      .catch(() => {
+        if (alive) {
+          setRows(null);
+          setErrored(true);
+        }
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, reloadKey]);
+
+  const summary = useMemo(
+    () => (rows ? summarizeWeeklyInsights(rows) : null),
+    [rows],
+  );
+
+  if (authLoading) {
+    return <Shell title={t("insights.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  // 1) Loading state.
+  if (loading) {
+    return <Shell title={t("insights.title")}><GraphLoading /></Shell>;
+  }
+
+  // 2) Error state — single retry CTA.
+  if (errored || !summary) {
+    return (
+      <Shell title={t("insights.title")}>
+        <View style={styles.wikiPageOpen}>
+          <Text variant="body" style={styles.wikiBody}>
+            {ko ? "이번 주 데이터를 불러오지 못했어요." : "Could not load this week's data."}
+          </Text>
+          <Pressable
+            style={styles.primary}
+            onPress={() => setReloadKey((k) => k + 1)}
+            accessibilityRole="button"
+            accessibilityLabel={ko ? "다시 시도" : "Try again"}
+          >
+            <Text variant="caption" style={styles.primaryText}>{ko ? "다시 시도" : "Try again"}</Text>
+          </Pressable>
+        </View>
+      </Shell>
+    );
+  }
+
+  // 3) Empty / first-week state — no prior week to compare against yet.
+  if (summary.isFirstWeek) {
+    return (
+      <Shell title={t("insights.title")}>
+        <SecondbStatusHeader text={t("insights.status")} tip={t("insights.tip")} mood="neutral" />
+        <View style={styles.wikiPageOpen}>
+          <Text variant="body" style={styles.wikiBody}>
+            {ko
+              ? "한 주만 채우면 지난주와 이번주를 비교해 드릴게요."
+              : "Fill one week and I'll compare this week with last week."}
+          </Text>
+          <Pressable
+            style={styles.primary}
+            onPress={() => router.push("/capture")}
+            accessibilityRole="button"
+            accessibilityLabel={t("wiki.addPiece")}
+          >
+            <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
+          </Pressable>
+        </View>
+      </Shell>
+    );
+  }
+
+  // 4) Filled state — real week-over-week. Bar heights scale to the larger of
+  // the two counts so the taller bar always fills the track.
+  const lastWeek = summary.lastWeek;
+  const thisWeek = summary.thisWeek;
+  const maxCount = Math.max(lastWeek, thisWeek, 1);
+  const lastHeight = Math.max(6, Math.round((lastWeek / maxCount) * 84));
+  const thisHeight = Math.max(6, Math.round((thisWeek / maxCount) * 84));
+  const deltaLabel =
+    summary.direction === "up"
+      ? t("insights.delta", { percent: summary.deltaPct })
+      : summary.direction === "down"
+        ? (ko ? `▼ ${Math.abs(summary.deltaPct)}% 적게 저장` : `▼ ${Math.abs(summary.deltaPct)}% less saved`)
+        : (ko ? "지난주와 같은 양" : "Same as last week");
+
   return (
     <Shell title={t("insights.title")}>
       <SecondbStatusHeader text={t("insights.status")} tip={t("insights.tip")} mood="positive" />
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("insights.sectionNow")}</Text>
-        <Text variant="body" style={styles.lead}>{t("insights.lead")}</Text>
-        <Text variant="subtle" style={styles.insightsWeeklyLabel}>{t("insights.weeklyCap")}</Text>
-        <View style={styles.insightsBars}>
-          <View style={styles.insightsBarCol}>
-            <Text variant="heading" style={styles.compareNum}>{lastWeek}</Text>
-            <View style={styles.insightsBarTrack}>
-              <View style={[styles.insightsBarFillMuted, { height: 46 }]} />
+      <Pressable
+        onPress={() => router.push("/records")}
+        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+        accessibilityRole="button"
+        accessibilityLabel={t("insights.sectionNow")}
+      >
+        <Card>
+          <Text variant="heading" style={styles.section}>{t("insights.sectionNow")}</Text>
+          <Text variant="body" style={styles.lead}>{t("insights.lead")}</Text>
+          <Text variant="subtle" style={styles.insightsWeeklyLabel}>{t("insights.weeklyCap")}</Text>
+          <View style={styles.insightsBars}>
+            <View style={styles.insightsBarCol}>
+              <Text variant="heading" style={styles.compareNum}>{lastWeek}</Text>
+              <View style={styles.insightsBarTrack}>
+                <View style={[styles.insightsBarFillMuted, { height: lastHeight }]} />
+              </View>
+              <Text variant="subtle" style={styles.compareCap}>{t("insights.lastWeek")}</Text>
             </View>
-            <Text variant="subtle" style={styles.compareCap}>{t("insights.lastWeek")}</Text>
-          </View>
-          <View style={styles.insightsBarCol}>
-            <Text variant="heading" style={[styles.compareNum, styles.compareNumHi]}>{thisWeek}</Text>
-            <View style={styles.insightsBarTrack}>
-              <View style={[styles.insightsBarFillActive, { height: 84 }]} />
+            <View style={styles.insightsBarCol}>
+              <Text variant="heading" style={[styles.compareNum, styles.compareNumHi]}>{thisWeek}</Text>
+              <View style={styles.insightsBarTrack}>
+                <View style={[styles.insightsBarFillActive, { height: thisHeight }]} />
+              </View>
+              <Text variant="subtle" style={styles.compareCap}>{t("insights.thisWeek")}</Text>
             </View>
-            <Text variant="subtle" style={styles.compareCap}>{t("insights.thisWeek")}</Text>
           </View>
-        </View>
-        <Text variant="body" style={styles.delta}>{t("insights.delta", { percent: 72 })}</Text>
-      </Card>
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("insights.sectionFinding")}</Text>
-        <Text variant="body" style={styles.lead}>{t("insights.finding")}</Text>
-      </Card>
+          <Text variant="body" style={styles.delta}>{deltaLabel}</Text>
+        </Card>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push("/research")}
+        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+        accessibilityRole="button"
+        accessibilityLabel={t("insights.sectionFinding")}
+      >
+        <Card>
+          <Text variant="heading" style={styles.section}>{t("insights.sectionFinding")}</Text>
+          <Text variant="body" style={styles.lead}>{t("insights.finding")}</Text>
+        </Card>
+      </Pressable>
     </Shell>
   );
 }
@@ -1018,6 +1222,7 @@ export function DeepSpaceDataDesignScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const { userId, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const ko = locale === "ko";
   const [indexing, setIndexing] = useState(false);
   const [indexed, setIndexed] = useState<number | null>(null);
 
@@ -1055,6 +1260,7 @@ export function DeepSpaceDataDesignScreen() {
       </Card>
       <Card>
         <Action label={t("data.buildIndex")} value={indexValue} onPress={userId && !indexing ? () => void buildIndex() : undefined} />
+        <Action label={ko ? "가져오기" : "Import"} onPress={() => router.push("/import-hub")} />
         <Action label={t("data.exportAll")} onPress={() => router.push("/formats")} />
         <Action label={t("data.deleteAll")} onPress={() => router.push("/privacy")} />
       </Card>
@@ -1112,22 +1318,438 @@ export function DeepSpaceManualScreen() {
   );
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// Paywall (① 페이월) — re-skinned to the deep-space design canon. Three
+// journey-stage tiers (별바라기 / 항해자 / 북극성) NEVER labelled Free/Plus/Pro
+// in the UI. Counts + feature gates are pulled from the single source of truth
+// (src/lib/entitlements/tiers.ts) so the human phrasing below can never drift
+// from what the entitlement engine actually grants. Per that file's HARD
+// invariant, money buys MORE/LONGER memory + MORE features — never a better
+// answer; this surface must never imply a pricier tier reasons better.
+// RevenueCat wiring (getOfferings/purchasePackage/getProStatus/restore) is
+// preserved exactly; only the visuals change.
+// ──────────────────────────────────────────────────────────────────────────
+
+// Format a KRW integer as ₩6,900 without a hardcoded currency literal in copy.
+function krw(n: number): string {
+  return `₩${n.toLocaleString("ko-KR")}`;
+}
+
+// Outline-circle bullet (별바라기 tier) — cyan stroke, recedes vs the mint checks.
+function CircleBullet() {
+  return (
+    <Svg width={13} height={13} viewBox="0 0 16 16">
+      <Circle cx={8} cy={8} r={6.2} stroke={deepSpace.accentSoft} strokeWidth={1.3} fill="none" />
+    </Svg>
+  );
+}
+
+// Mint check bullet (항해자 / promoted tier) — the only "filled/positive" mark.
+function CheckBullet() {
+  return (
+    <Svg width={13} height={13} viewBox="0 0 16 16">
+      <Path d="M3.5 8.5l3 3 6-7" stroke={deepSpace.mint} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </Svg>
+  );
+}
+
+// Violet diamond bullet (북극성 tier) — soul/북극성 color, sits apart from cyan.
+function SoulBullet() {
+  return (
+    <Svg width={13} height={13} viewBox="0 0 16 16">
+      <Path d="M8 2l4 6-4 6-4-6z" stroke={deepSpace.soul} strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </Svg>
+  );
+}
+
+// Small trust star (mint) for the "무료도 같은 AI 품질" line.
+function TrustStar() {
+  return (
+    <Svg width={12} height={12} viewBox="0 0 16 16">
+      <Path d="M8 1.5l1.8 3.8 4.2.5-3 2.9.8 4.1L8 10.9 4.2 12.8l.8-4.1-3-2.9 4.2-.5z" stroke={deepSpace.mint} strokeWidth={1.1} strokeLinejoin="round" fill="none" />
+    </Svg>
+  );
+}
+
+type Bullet = "circle" | "check" | "soul";
+function FeatureRow({ kind, label, textStyle }: { kind: Bullet; label: string; textStyle: object }) {
+  return (
+    <View style={styles.payFeatRow}>
+      {kind === "circle" ? <CircleBullet /> : kind === "check" ? <CheckBullet /> : <SoulBullet />}
+      <Text variant="body" style={textStyle}>{label}</Text>
+    </View>
+  );
+}
+
 export function DeepSpacePlansScreen() {
-  const { t } = useTranslation("deepspace");
-  const proFeats = [t("plans.proFeat1"), t("plans.proFeat2"), t("plans.proFeat3"), t("plans.proFeat4")];
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language === "ko";
+
+  // Current pricing tier — so the paywall shows where the user already is, not a
+  // generic upsell. progression.tier is the source of truth (free|soma|cortex|
+  // brain); RevenueCat isPro is folded in below so a just-completed purchase
+  // reflects immediately even before the users row syncs.
+  const { userId } = useAuth();
+  const { tier: currentTier } = useProgression();
+  // This month's free-tier remaining deep asks, for the 별바라기 caption.
+  const [freeRemaining, setFreeRemaining] = useState<number | null>(null);
+
+  // Real native IAP scaffold. RevenueCat routes the Offering to Google Play
+  // Billing (Android) / Apple IAP (iOS). On web, or with no public key, or with
+  // no configured Offering, purchasesAvailable() is false / packages is empty,
+  // so we show an honest "upgrade in the mobile app" notice instead of a dead
+  // button. No charging happens until Simon configures store products (see
+  // src/lib/payments/purchases.ts header). revenue_events logging is server-side
+  // via a RevenueCat webhook (out of scope; C4 schema untouched).
+  const [loading, setLoading] = useState(true);
+  const [packages, setPackages] = useState<PurchasesPackage[]>([]);
+  const [isPro, setIsPro] = useState(false);
+  // Which action is in-flight, so the paywall can show distinct "구매 중" /
+  // "복원 중" states on the right control (the 4th state, "restoring").
+  const [busyAction, setBusyAction] = useState<"buy" | "restore" | null>(null);
+  const busy = busyAction !== null;
+  const [error, setError] = useState<string | null>(null);
+  const available = arePurchasesAvailable();
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      configurePurchases();
+      if (!arePurchasesAvailable()) {
+        if (alive) setLoading(false);
+        return;
+      }
+      try {
+        const [pkgs, pro] = await Promise.all([getOfferings(), getProStatus()]);
+        if (!alive) return;
+        setPackages(pkgs);
+        setIsPro(pro);
+      } catch {
+        if (alive) setError(t("plans.loadError"));
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [t]);
+
+  // This month's remaining free deep-asks, shown as a caption on the 별바라기
+  // card. Only loaded when the user is actually on the free tier (별바라기); for
+  // paid tiers the number is irrelevant. Fails open: on any miss it stays null
+  // and the caption is simply omitted.
+  useEffect(() => {
+    if (!userId || currentTier !== "free") {
+      setFreeRemaining(null);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const usage = await getReasoningUsage(userId);
+      if (!alive) return;
+      setFreeRemaining(remainingReasoning("free", usage.used, usage.rewardCredits));
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [userId, currentTier]);
+
+  async function buy(pkg: PurchasesPackage) {
+    if (busy) return;
+    setBusyAction("buy");
+    setError(null);
+    const outcome = await purchasePackage(pkg);
+    if (outcome.status === "purchased") setIsPro(outcome.isPro);
+    else if (outcome.status === "error" || outcome.status === "unavailable") setError(t("plans.purchaseError"));
+    // "cancelled" -> stay quiet.
+    setBusyAction(null);
+  }
+
+  async function restore() {
+    if (busy) return;
+    setBusyAction("restore");
+    setError(null);
+    const outcome = await restorePurchases();
+    if (outcome.status === "restored") {
+      setIsPro(outcome.isPro);
+      if (!outcome.isPro) setError(t("plans.restoredNone"));
+    } else {
+      setError(t("plans.restoreError"));
+    }
+    setBusyAction(null);
+  }
+
+  // No native store available (web / no key) OR no Offering configured yet:
+  // honest notice, keep a /support fallback link. Never a dead checkout button.
+  const showStoreNotice = !available || (!loading && packages.length === 0);
+
+  // The "항해자" CTA buys the plus offering. RevenueCat hands us the current
+  // Offering's packages; pick the one whose product reads as the monthly plus
+  // tier (id/price hint), else the first available package. The on-card price
+  // still shows TIER_PRICE_KRW so copy never drifts; the store charges the real
+  // localized priceString.
+  const plusPkg = useMemo(() => {
+    if (packages.length === 0) return undefined;
+    const hint = packages.find((p) => {
+      const id = `${p.identifier} ${p.product.identifier}`.toLowerCase();
+      return id.includes("plus") || id.includes("voyager") || id.includes("monthly") || id.includes("month");
+    });
+    return hint ?? packages[0];
+  }, [packages]);
+
+  // ── Tier copy — counts/features pulled from TIERS so it can't drift. ──
+  const free = TIERS.free;
+  const plus = TIERS.plus;
+  const pro = TIERS.pro;
+  const freeFeatures: string[] = ko
+    ? [
+        `한 달에 ${free.reasoningPerMonth}번 깊이 묻기`,
+        `렌즈 ${free.lenses}개로 시작`,
+        `기억이 ${free.historyDays}일 머무름`,
+      ]
+    : [
+        `${free.reasoningPerMonth} deep asks a month`,
+        `Start with ${free.lenses} lenses`,
+        `Memory stays ${free.historyDays} days`,
+      ];
+  const plusFeatures: string[] = ko
+    ? [
+        `한 달에 ${plus.reasoningPerMonth}번 깊이 묻기`,
+        `7개 렌즈 모두 열기`,
+        `기억이 영원히 머무름`,
+        `내보내기와 다른 앱 연동`,
+      ]
+    : [
+        `${plus.reasoningPerMonth} deep asks a month`,
+        `Open all 7 lenses`,
+        `Memory stays forever`,
+        `Export and connect other apps`,
+      ];
+  const proFeatures: string[] = ko
+    ? ["모든 길 끝까지 열기", "가족과 함께 떠나기", "더 깊은 내보내기"]
+    : ["Open every path to the end", "Journey together with family", "Deeper export"];
+
+  // Pro tier is the 북극성 stage; tap routes through the same buy() so the
+  // existing RevenueCat flow handles it (store charges the right product).
+  const proPkg = useMemo(() => {
+    if (packages.length === 0) return undefined;
+    const hint = packages.find((p) => {
+      const id = `${p.identifier} ${p.product.identifier}`.toLowerCase();
+      return id.includes("pro") || id.includes("northstar") || id.includes("north") || id.includes("year") || id.includes("annual");
+    });
+    return hint && hint !== plusPkg ? hint : undefined;
+  }, [packages, plusPkg]);
+
+  // Resolve which pricing card the user is currently on. brain = 북극성,
+  // cortex/soma = 항해자 (soma is the lifetime variant of the voyager journey),
+  // free = 별바라기. RevenueCat isPro promotes a free-looking row to at-least
+  // 항해자 so a just-purchased user never sees themselves as 별바라기.
+  const onNorthStar = currentTier === "brain";
+  const onVoyager = !onNorthStar && (currentTier === "cortex" || currentTier === "soma" || isPro);
+  const onStargazer = !onNorthStar && !onVoyager;
+  // The "현재 플랜" marker — subtle accent text, never a pill.
+  const currentMarker = ko ? "현재 플랜" : "Current";
+
   return (
     <Shell title={t("plans.title")}>
-      <SecondbStatusHeader text={t("plans.status")} tip={t("plans.tip")} mood="positive" />
-      <Card style={styles.planPro}>
-        <View style={styles.planHead}><Text variant="heading" style={styles.planName}>Pro</Text><Text variant="caption" pixelEn style={styles.planBadge}>{t("plans.recommended")}</Text></View>
-        <Text variant="heading" style={styles.planPrice}>₩9,900 <Text variant="subtle" style={styles.planPer}>{t("plans.perMonth")}</Text></Text>
-        {proFeats.map((x) => <Text variant="body" key={x} style={styles.planFeat}>✦ {x}</Text>)}
-      </Card>
-      <Card>
-        <View style={styles.planHead}><Text variant="heading" style={styles.planName}>Free</Text><Text variant="subtle" style={styles.footer}>{t("plans.currentPlan")}</Text></View>
-        <Text variant="body" style={styles.planFeatDim}>{t("plans.freeFeat")}</Text>
-      </Card>
-      <Pressable style={styles.primary} onPress={() => router.push("/support")}><Text variant="caption" style={styles.primaryText}>{t("plans.startPro")}</Text></Pressable>
+      <SecondbStatusHeader
+        text={isPro ? t("plans.proActive") : t("plans.status")}
+        tip={t("plans.tip")}
+        mood="positive"
+      />
+
+      {/* Subtle north-star soul glow + faint starfield over the hero. */}
+      <View pointerEvents="none" style={styles.paySoulGlow} />
+      <View pointerEvents="none" style={styles.payStars}>
+        <View style={[styles.payStar, { left: "18%", top: 8 }]} />
+        <View style={[styles.payStar, { right: "16%", top: 14, opacity: 0.7 }]} />
+        <View style={[styles.payStarSoul, { left: "62%", top: 4 }]} />
+      </View>
+
+      {/* HERO — dominant, no transactional words. */}
+      <View style={styles.payHero}>
+        <Text pixelEn style={styles.payEyebrow}>JOURNEY TO YOUR NORTH STAR</Text>
+        <Text style={styles.payTitle}>
+          {ko ? "나에 대해 더\n이해하고 싶나요?" : "Want to understand\nyourself more?"}
+        </Text>
+        <Text style={styles.paySub}>
+          {ko
+            ? "더 오래, 더 깊이 기억할수록\n당신의 북극성이 또렷해져요."
+            : "The longer and deeper you remember,\nthe clearer your north star becomes."}
+        </Text>
+      </View>
+
+      {onNorthStar ? (
+        // 북극성 — every path is open. No purchase CTA; reuse the isPro
+        // confirmation path with the north-star copy.
+        <View style={[styles.payCard, styles.payCardPro]}>
+          <View style={styles.payCardHead}>
+            <Text style={styles.payTierNamePro}>{ko ? "북극성" : "North Star"}</Text>
+            <Text variant="caption" style={styles.payCurrentMarker}>{currentMarker}</Text>
+          </View>
+          {proFeatures.map((x) => (
+            <FeatureRow key={x} kind="soul" label={x} textStyle={styles.payFeatPro} />
+          ))}
+          <Text variant="subtle" style={styles.footer}>
+            {ko ? "북극성 이용 중 · 모든 길이 열려 있어요" : "On North Star · every path is open"}
+          </Text>
+        </View>
+      ) : onVoyager ? (
+        // 항해자 — confirm current journey, offer the 북극성 upgrade if a
+        // distinct pro package exists; otherwise just confirm, no checkout.
+        <View style={[styles.payCard, styles.payCardPlus]}>
+          <View style={styles.payCardHead}>
+            <Text style={styles.payTierNamePlus}>{ko ? "항해자" : "Voyager"}</Text>
+            <Text variant="caption" style={styles.payCurrentMarker}>{currentMarker}</Text>
+          </View>
+          {plusFeatures.map((x) => (
+            <FeatureRow key={x} kind="check" label={x} textStyle={styles.payFeatPlus} />
+          ))}
+          <Text variant="subtle" style={styles.footer}>
+            {proPkg
+              ? t("plans.nowPro")
+              : ko ? "현재 항해자 이용 중" : "Currently on Voyager"}
+          </Text>
+        </View>
+      ) : (
+        <>
+          {/* 별바라기 — ₩0, cyan outline bullets. */}
+          <View style={[styles.payCard, styles.payCardFree]}>
+            <View style={styles.payCardHead}>
+              <View style={styles.payNameRow}>
+                <Text style={styles.payTierNameFree}>{ko ? "별바라기" : "Stargazer"}</Text>
+                {onStargazer ? (
+                  <Text variant="caption" style={styles.payCurrentMarker}>{currentMarker}</Text>
+                ) : null}
+              </View>
+              <Text style={styles.payPriceFree}>{krw(TIER_PRICE_KRW.free)}</Text>
+            </View>
+            <View style={styles.payFeatList}>
+              {freeFeatures.map((x) => (
+                <FeatureRow key={x} kind="circle" label={x} textStyle={styles.payFeatFree} />
+              ))}
+            </View>
+            {onStargazer && freeRemaining !== null ? (
+              <Text variant="caption" style={styles.payFreeCaption}>
+                {ko
+                  ? `이번 달 ${freeRemaining}/${free.reasoningPerMonth}회 깊이 묻기 남음`
+                  : `${freeRemaining}/${free.reasoningPerMonth} deep asks left this month`}
+              </Text>
+            ) : null}
+          </View>
+
+          {/* 항해자 — promoted: thicker cyan border + glow + "추천" rect tag. */}
+          <View style={[styles.payCard, styles.payCardPlus]}>
+            <Text pixelEn style={styles.payRecTag}>{ko ? "추천" : "PICK"}</Text>
+            <View style={[styles.payCardHead, styles.payCardHeadPlus]}>
+              <Text style={styles.payTierNamePlus}>{ko ? "항해자" : "Voyager"}</Text>
+              <Text style={styles.payPricePlus}>
+                <Text style={styles.payPriceStrong}>{krw(TIER_PRICE_KRW.plus)}</Text>
+                {ko ? " /월" : " /mo"}
+              </Text>
+            </View>
+            <View style={styles.payFeatList}>
+              {plusFeatures.map((x) => (
+                <FeatureRow key={x} kind="check" label={x} textStyle={styles.payFeatPlus} />
+              ))}
+            </View>
+          </View>
+
+          {/* 북극성 — violet border + violet bullets. */}
+          <Pressable
+            style={[styles.payCard, styles.payCardPro]}
+            onPress={proPkg ? () => void buy(proPkg) : undefined}
+            disabled={!proPkg || busy}
+            accessibilityRole={proPkg ? "button" : undefined}
+            accessibilityLabel={ko ? "북극성으로 떠나기" : "Set out as North Star"}
+          >
+            <View style={styles.payCardHead}>
+              <Text style={styles.payTierNamePro}>{ko ? "북극성" : "North Star"}</Text>
+              <Text style={styles.payPricePro}>
+                <Text style={styles.payPriceStrongPro}>{krw(TIER_PRICE_KRW.pro)}</Text>
+                {ko ? " /월" : " /mo"}
+              </Text>
+            </View>
+            <View style={styles.payFeatList}>
+              {proFeatures.map((x) => (
+                <FeatureRow key={x} kind="soul" label={x} textStyle={styles.payFeatPro} />
+              ))}
+            </View>
+          </Pressable>
+
+          {showStoreNotice ? (
+            <View style={styles.payCard}>
+              <Text variant="heading" style={styles.section}>{t("plans.notAvailableTitle")}</Text>
+              <Text variant="body" style={styles.planFeatDim}>{t("plans.notAvailableBody")}</Text>
+              <Pressable
+                onPress={() => router.push("/support")}
+                accessibilityRole="button"
+                accessibilityLabel={t("plans.support")}
+              >
+                <Text variant="caption" style={styles.planSupportLink}>{t("plans.support")}</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </>
+      )}
+
+      {/* Loading state (가격 조회) — sits where the CTA will be, never overlaps. */}
+      {loading ? (
+        <View style={styles.plansLoading}>
+          <ActivityIndicator color={deepSpace.accent} />
+          <Text variant="subtle" style={styles.footer}>{ko ? "가격 조회 중…" : "Loading prices…"}</Text>
+        </View>
+      ) : null}
+
+      {/* Inline error (결제 실패) — calm, functional, above the CTA. */}
+      {error ? <Text variant="subtle" style={styles.planError}>{error}</Text> : null}
+
+      {/* CTA BLOCK — below the cards in normal flow (marginTop:'auto' so it sinks
+          to the bottom when the body is short, but never overlaps long copy).
+          By current tier: 별바라기 → buy 항해자; 항해자 → upgrade to 북극성 (only
+          when a distinct pro package exists); 북극성 → no CTA. */}
+      {!loading && (onStargazer || (onVoyager && proPkg)) ? (
+        // Stargazer buys 항해자 (plusPkg); Voyager upgrades to 북극성 (proPkg).
+        (() => {
+          const ctaPkg = onVoyager ? proPkg : plusPkg;
+          const ctaIdle = onVoyager
+            ? (ko ? "북극성으로 (Pro 업그레이드)" : "Go North Star (Pro upgrade)")
+            : (ko ? "항해자로 떠나기" : "Set out as Voyager");
+          return (
+        <View style={styles.payCtaBlock}>
+          <View style={styles.payTrustRow}>
+            <TrustStar />
+            <Text style={styles.payTrust}>{ko ? "무료도 같은 AI 품질" : "Same AI quality, even free"}</Text>
+          </View>
+          <Pressable
+            style={[styles.payPrimary, busy ? styles.planBtnBusy : null, !ctaPkg ? styles.payPrimaryDisabled : null]}
+            onPress={ctaPkg ? () => void buy(ctaPkg) : undefined}
+            disabled={busy || !ctaPkg}
+            accessibilityRole="button"
+            accessibilityLabel={ctaIdle}
+          >
+            <Text style={styles.payPrimaryText}>
+              {busyAction === "buy" ? (ko ? "구매 중…" : "Purchasing…") : ctaIdle}
+            </Text>
+          </Pressable>
+          {available ? (
+            <Pressable
+              style={busy ? styles.planBtnBusy : null}
+              onPress={() => void restore()}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel={t("plans.restore")}
+            >
+              <Text style={styles.paySecondaryText}>
+                {busyAction === "restore" ? (ko ? "복원 중…" : "Restoring…") : t("plans.restore")}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+          );
+        })()
+      ) : null}
     </Shell>
   );
 }
@@ -1153,14 +1775,28 @@ export function DeepSpaceDiscoverScreen() {
     <Shell title={t("discover.title")}>
       <SecondbStatusHeader text={t("discover.status")} tip={t("discover.tip")} mood="positive" />
       <Text variant="body" style={styles.lead}>{t("discover.lead")}</Text>
-      <Card>
-        <View style={styles.trendHead}><Text variant="heading" style={styles.section}>{t("discover.card1Head")}</Text><Text variant="body" style={styles.delta}>{t("discover.card1Delta", { percent: 32 })}</Text></View>
-        <Text variant="body" style={styles.planFeatDim}>{t("discover.card1Body")}</Text>
-      </Card>
-      <Card>
-        <View style={styles.trendHead}><Text variant="heading" style={styles.section}>{t("discover.card2Head")}</Text><Text variant="body" style={styles.delta}>{t("discover.card2Delta", { percent: 18 })}</Text></View>
-        <Text variant="body" style={styles.planFeatDim}>{t("discover.card2Body")}</Text>
-      </Card>
+      <Pressable
+        onPress={() => router.push("/attachment")}
+        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+        accessibilityRole="button"
+        accessibilityLabel={t("discover.card1Head")}
+      >
+        <Card>
+          <View style={styles.trendHead}><Text variant="heading" style={styles.section}>{t("discover.card1Head")}</Text><Text variant="body" style={styles.delta}>{t("discover.card1Delta", { percent: 32 })}</Text></View>
+          <Text variant="body" style={styles.planFeatDim}>{t("discover.card1Body")}</Text>
+        </Card>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push("/capture")}
+        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+        accessibilityRole="button"
+        accessibilityLabel={t("discover.card2Head")}
+      >
+        <Card>
+          <View style={styles.trendHead}><Text variant="heading" style={styles.section}>{t("discover.card2Head")}</Text><Text variant="body" style={styles.delta}>{t("discover.card2Delta", { percent: 18 })}</Text></View>
+          <Text variant="body" style={styles.planFeatDim}>{t("discover.card2Body")}</Text>
+        </Card>
+      </Pressable>
       <Text variant="subtle" style={styles.footer}>{t("discover.footer")}</Text>
     </Shell>
   );
@@ -1175,6 +1811,10 @@ export function DeepSpaceReviewScreen() {
   // user ratifies in the sheet. LLM calls go through the C1/C9/C3 gateway inside.
   const [loading, setLoading] = useState(false);
   const [proposal, setProposal] = useState<SelfModelProposal | null>(null);
+  // The star's ACTUAL current ladder tier captured when the proposal is built,
+  // so applyRatify reports the right resultingLevel on decline (ratify always
+  // -> L5). Falls back to L1 (the ladder default) if the card has no level yet.
+  const [currentLevel, setCurrentLevel] = useState<LadderLevel>(1);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
@@ -1185,6 +1825,7 @@ export function DeepSpaceReviewScreen() {
     try {
       const card = await buildPersona(userId, locale, isMinor === true);
       const ctx = proposalContextForStar(card, "now");
+      setCurrentLevel(card.starLevels?.now ?? 1);
       const p = await proposeSelfModelChange(userId, { kind: "star", star: "now" }, ctx.before, ctx.evidence, 5, locale, isMinor === true);
       if (p) {
         setProposal(p);
@@ -1200,7 +1841,7 @@ export function DeepSpaceReviewScreen() {
   }
 
   function handleDecision(decision: RatifyDecision) {
-    const r = applyRatify(4, decision);
+    const r = applyRatify(currentLevel, decision);
     setSheetOpen(false);
     if (decision === "ratify" && userId && proposal?.target.kind === "star") {
       void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel });
@@ -1262,8 +1903,8 @@ function FilterChip({ label, active, violet, onPress }: { label: string; active?
   return <View style={chipStyle}>{inner}</View>;
 }
 
-function TimelineRow({ icon, title, time, tag, dim }: { icon: string; title: string; time?: string; tag?: string; dim?: boolean }) {
-  return (
+function TimelineRow({ icon, title, time, tag, dim, onPress }: { icon: string; title: string; time?: string; tag?: string; dim?: boolean; onPress?: () => void }) {
+  const content = (
     <View style={{ gap: 5 }}>
       <View style={styles.tlRow}>
         <View style={[styles.tlDot, dim && styles.tlDotDim]} />
@@ -1273,6 +1914,14 @@ function TimelineRow({ icon, title, time, tag, dim }: { icon: string; title: str
       </View>
       {tag ? <View style={styles.tlTagRow}><Text variant="caption" pixelEn style={styles.tlTag}>{tag}</Text></View> : null}
     </View>
+  );
+  if (!onPress) return content;
+  // Tappable timeline row (SCREEN_TREE_SPEC §4: 항목→/record/[id]). Wrap, not
+  // restyle — the row visual is unchanged; only a ≥44px hit target is added.
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [{ minHeight: 44, justifyContent: "center" }, pressed ? { opacity: 0.6 } : null]}>
+      {content}
+    </Pressable>
   );
 }
 
@@ -1286,6 +1935,16 @@ const RECORD_KIND_FILTERS: { id: TimelineRecord["kind"] | null; labelKey: string
 export function DeepSpaceRecordsScreen() {
   const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
+  // ?tags=a,b filters to pieces whose tags intersect the set (trinity 영역 drilldown).
+  const recordsParams = useLocalSearchParams<{ tags?: string }>();
+  const tagFilter = useMemo(
+    () =>
+      (recordsParams.tags ?? "")
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean),
+    [recordsParams.tags],
+  );
   const [records, setRecords] = useState<TimelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [kind, setKind] = useState<TimelineRecord["kind"] | null>(null);
@@ -1310,9 +1969,12 @@ export function DeepSpaceRecordsScreen() {
   }, [userId]);
 
   const groups = useMemo(() => {
-    const filtered = kind === null ? records : records.filter((r) => r.kind === kind);
+    let filtered = kind === null ? records : records.filter((r) => r.kind === kind);
+    if (tagFilter.length > 0) {
+      filtered = filtered.filter((r) => (r.tags ?? []).some((tag) => tagFilter.includes(tag.toLowerCase())));
+    }
     return buildRecordsTimeline(filtered, { labels: dsTimeLabels(t) });
-  }, [records, kind, t]);
+  }, [records, kind, tagFilter, t]);
 
   if (authLoading) {
     return <Shell title={t("records.title")}><GraphLoading /></Shell>;
@@ -1352,7 +2014,7 @@ export function DeepSpaceRecordsScreen() {
             <Text variant="caption" pixelEn style={styles.tlLabel}>{g.label}</Text>
             <View style={styles.tlGroup}>
               {g.items.map((it) => (
-                <TimelineRow key={it.id} icon={it.icon} title={it.title} time={it.timeLabel || undefined} tag={it.tag} dim={it.dim} />
+                <TimelineRow key={it.id} icon={it.icon} title={it.title} time={it.timeLabel || undefined} tag={it.tag} dim={it.dim} onPress={() => router.push({ pathname: "/record/[id]", params: { id: it.id } })} />
               ))}
             </View>
           </View>
@@ -1586,6 +2248,10 @@ export function DeepSpaceResearchScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
   const view = useMemo(() => buildDeepResearchView(pages, edges), [pages, edges]);
+  // Cluster chip selection. The research view derives from graph-stats (no
+  // server-side re-cluster), so selecting a chip drives the highlight + the
+  // graph's focused tag label rather than refetching.
+  const [activeCluster, setActiveCluster] = useState<string | null>(null);
 
   // propose->ratify: AI-proposed (inferred) links awaiting the user's verdict.
   const [proposals, setProposals] = useState<InferredLinkDetail[]>([]);
@@ -1680,7 +2346,13 @@ export function DeepSpaceResearchScreen() {
           {view.clusters.length > 0 ? (
             <View style={styles.filterRow}>
               {view.clusters.map((c, i) => (
-                <FilterChip key={c.tag} label={`${c.tag} · ${c.count}`} violet={i === 0} />
+                <FilterChip
+                  key={c.tag}
+                  label={`${c.tag} · ${c.count}`}
+                  active={activeCluster === c.tag}
+                  violet={activeCluster === null ? i === 0 : false}
+                  onPress={() => setActiveCluster((prev) => (prev === c.tag ? null : c.tag))}
+                />
               ))}
             </View>
           ) : null}
@@ -1696,33 +2368,43 @@ export function DeepSpaceResearchScreen() {
             </Svg>
             <Text variant="caption" style={styles.graphTag}>
               {view.clusters.length > 0
-                ? t("research.clusterTag", { tag: view.clusters[0].tag })
+                ? t("research.clusterTag", { tag: activeCluster ?? view.clusters[0].tag })
                 : t("research.clusterDefault")}
             </Text>
           </View>
           {view.headline !== null ? (
-            <View style={styles.insightViolet}>
+            <Pressable
+              style={({ pressed }) => [styles.insightViolet, pressed ? { opacity: 0.6 } : null]}
+              onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.headline!.id } })}
+              accessibilityRole="button"
+              accessibilityLabel={view.headline.title}
+            >
               <Text variant="body" style={styles.insightVioletText}>{t("research.headline", { title: view.headline.title })}</Text>
               <View style={styles.evRow}>
                 <Text variant="subtle" style={styles.evChip}>📎 {t("research.chipPages", { count: view.pageCount })}</Text>
                 <Text variant="subtle" style={styles.evChip}>{t("research.chipLinks", { count: view.headline.inDegree })}</Text>
                 {view.orphanCount > 0 ? <Text variant="subtle" style={styles.evChip}>{t("research.chipOrphans", { count: view.orphanCount })}</Text> : null}
               </View>
-            </View>
+            </Pressable>
           ) : (
             <View style={styles.insightViolet}>
               <Text variant="body" style={styles.insightVioletText}>{t("research.noLinks")}</Text>
             </View>
           )}
           {view.surprise !== null ? (
-            <View style={styles.insightViolet}>
+            <Pressable
+              style={({ pressed }) => [styles.insightViolet, pressed ? { opacity: 0.6 } : null]}
+              onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.surprise!.fromId } })}
+              accessibilityRole="button"
+              accessibilityLabel={t("research.surprise", { from: view.surprise.fromTitle, to: view.surprise.toTitle })}
+            >
               <Text variant="body" style={styles.insightVioletText}>
                 {t("research.surprise", { from: view.surprise.fromTitle, to: view.surprise.toTitle })}
               </Text>
               <View style={styles.evRow}>
                 <Text variant="subtle" style={styles.evChip}>{t("research.islandChip", { count: view.islandCount })}</Text>
               </View>
-            </View>
+            </Pressable>
           ) : null}
 
           {/* propose->ratify: AI proposes semantic links, the user decides. */}
@@ -1746,11 +2428,16 @@ export function DeepSpaceResearchScreen() {
               const busy = actingKey === key;
               return (
                 <View key={key} style={styles.opsStep}>
-                  <View style={styles.mapRow}>
+                  <Pressable
+                    style={({ pressed }) => [styles.mapRow, { minHeight: 44 }, pressed ? { opacity: 0.6 } : null]}
+                    onPress={() => router.push({ pathname: "/record/[id]", params: { id: p.from_page } })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${p.from_title} ↔ ${p.to_title}`}
+                  >
                     <Text variant="body" style={styles.mapFrom} numberOfLines={1}>{p.from_title}</Text>
                     <RNText style={styles.mapArrow}>↔</RNText>
                     <Text variant="body" style={styles.mapTo} numberOfLines={1}>{p.to_title}</Text>
-                  </View>
+                  </Pressable>
                   <View style={styles.opsStepFoot}>
                     <Text variant="subtle" style={styles.evChip}>{t("research.confidence", { percent: Math.round(p.confidence * 100) })}</Text>
                     <Pressable style={[styles.smallBtnGhost, { minHeight: 44, justifyContent: "center" }]} onPress={() => void reject(p)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("research.reject")}>
@@ -2285,6 +2972,7 @@ export function DeepSpaceRecordDetailScreen() {
                 title={recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}
                 time={recencyLabel(r.created_at, recencyOpts) || undefined}
                 dim
+                onPress={() => router.push({ pathname: "/record/[id]", params: { id: r.id } })}
               />
             ))}
           </View>
@@ -2377,7 +3065,7 @@ export function DeepSpaceOpsScreen() {
   }
 
   if (authLoading) {
-    return <Shell title={t("hero.title")}><GraphLoading /></Shell>;
+    return <DeepSpaceScreen active="ops"><DockBody title={t("hero.title")}><GraphLoading /></DockBody></DeepSpaceScreen>;
   }
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
@@ -2495,8 +3183,12 @@ export function DeepSpaceOpsScreen() {
   }
 
   return (
-    <Shell title={t("hero.title")}>
-      <SecondbStatusHeader text={t("today.heading")} tip={t("hero.subtitle")} />
+    // Primary "비서" hub: render inside the persistent deep-space chrome so the
+    // bottom dock shows. DeepSpaceScreen supplies the star-field background +
+    // SecondbStatusHeader (ds.head.ops), so the screen's own header/root are
+    // dropped to avoid double chrome.
+    <DeepSpaceScreen active="ops">
+      <DockBody title={t("hero.title")}>
       <View style={styles.opsTodayHead}>
         <Text variant="heading" style={styles.section}>{t("today.heading")}</Text>
         {streak > 0 ? <Text variant="subtle" style={styles.timeChipMint}>{t("today.streak", { count: streak })}</Text> : null}
@@ -2627,7 +3319,8 @@ export function DeepSpaceOpsScreen() {
         </View>
       ))}
       {recs.length > 0 ? <Text variant="subtle" style={styles.footerLeft}>{t("recommend.disclaimerBody")}</Text> : null}
-    </Shell>
+      </DockBody>
+    </DeepSpaceScreen>
   );
 }
 
@@ -2635,6 +3328,10 @@ export function DeepSpaceWikiScreen() {
   const { t } = useTranslation("deepspace");
   const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  // Which page row is expanded. null until the user taps; the first page renders
+  // expanded by default (matching the old fixed-open-first behaviour) but any row
+  // can now toggle open via its caret.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const view = useMemo(() => buildDeepWikiView(pages, edges, { activeTag }), [pages, edges, activeTag]);
 
   if (authLoading) {
@@ -2644,7 +3341,8 @@ export function DeepSpaceWikiScreen() {
 
   const headerText =
     view.pageCount > 0 ? t("wiki.headerGrowing", { count: view.pageCount }) : t("wiki.headerEmpty");
-  const [first, ...rest] = view.pages;
+  // Default the first page open when nothing is explicitly toggled.
+  const openId = expandedId ?? view.pages[0]?.id ?? null;
 
   return (
     <Shell title={t("wiki.title")}>
@@ -2677,32 +3375,57 @@ export function DeepSpaceWikiScreen() {
         </View>
       ) : (
         <>
-          {first ? (
-            <View style={styles.wikiPageOpen}>
-              <View style={styles.wikiPageHead}>
-                <Text variant="heading" style={styles.wikiPageTitle}>{first.title}</Text>
-                <RNText style={styles.wikiCaret}>⌄</RNText>
-              </View>
-              {first.snippet.length > 0 ? (
-                <Text variant="body" style={styles.wikiBody}>{first.snippet}</Text>
-              ) : null}
-              <View style={styles.wikiBacklinkRow}>
-                <Text variant="subtle" style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: first.connections })}</Text>
-                {first.tags[0] ? <Text variant="caption" pixelEn style={styles.tlTag}>{first.tags[0]}</Text> : null}
-              </View>
-            </View>
-          ) : null}
-          {rest.map((p) => (
-            <View key={p.id} style={styles.wikiPageRow}>
-              <View style={styles.wikiRowHead}>
-                <Text variant="caption" style={styles.wikiRowTitle} numberOfLines={1}>{p.title}</Text>
-                <Text variant="subtle" style={styles.wikiRowConn}>{t("wiki.connections", { count: p.connections })}</Text>
-              </View>
-              {p.snippet.length > 0 ? (
-                <Text variant="subtle" style={styles.wikiRowDesc} numberOfLines={1}>{p.snippet}</Text>
-              ) : null}
-            </View>
-          ))}
+          {view.pages.map((p) => {
+            const isOpen = p.id === openId;
+            const toggle = () => setExpandedId((prev) => ((prev ?? view.pages[0]?.id ?? null) === p.id ? null : p.id));
+            if (isOpen) {
+              return (
+                <View key={p.id} style={styles.wikiPageOpen}>
+                  <Pressable
+                    style={styles.wikiPageHead}
+                    onPress={toggle}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: true }}
+                    accessibilityLabel={p.title}
+                  >
+                    <Text variant="heading" style={styles.wikiPageTitle}>{p.title}</Text>
+                    <RNText style={styles.wikiCaret}>⌄</RNText>
+                  </Pressable>
+                  {p.snippet.length > 0 ? (
+                    <Text variant="body" style={styles.wikiBody}>{p.snippet}</Text>
+                  ) : null}
+                  <View style={styles.wikiBacklinkRow}>
+                    <Pressable
+                      onPress={() => router.push({ pathname: "/record/[id]", params: { id: p.id } })}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("wiki.backlinks", { count: p.connections })}
+                    >
+                      <Text variant="subtle" style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: p.connections })}</Text>
+                    </Pressable>
+                    {p.tags[0] ? <Text variant="caption" pixelEn style={styles.tlTag}>{p.tags[0]}</Text> : null}
+                  </View>
+                </View>
+              );
+            }
+            return (
+              <Pressable
+                key={p.id}
+                style={styles.wikiPageRow}
+                onPress={toggle}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: false }}
+                accessibilityLabel={p.title}
+              >
+                <View style={styles.wikiRowHead}>
+                  <Text variant="caption" style={styles.wikiRowTitle} numberOfLines={1}>{p.title}</Text>
+                  <Text variant="subtle" style={styles.wikiRowConn}>{t("wiki.connections", { count: p.connections })}</Text>
+                </View>
+                {p.snippet.length > 0 ? (
+                  <Text variant="subtle" style={styles.wikiRowDesc} numberOfLines={1}>{p.snippet}</Text>
+                ) : null}
+              </Pressable>
+            );
+          })}
         </>
       )}
     </Shell>
@@ -3278,7 +4001,47 @@ export function DeepSpaceSrsScreen() {
   );
 }
 
-const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, stars:{...StyleSheet.absoluteFill,overflow:'hidden'}, star:{position:'absolute',width:3,height:3,borderRadius:2,backgroundColor:colors.cyanSoft}, scroll:{padding:spacing.lg,paddingBottom:40,gap:spacing.md}, titleRow:{flexDirection:'row',alignItems:'center',gap:spacing.md,marginBottom:spacing.xs}, back:{color:colors.cyanSoft,fontSize:34,lineHeight:38,fontFamily:fontFamilies.pixelKo}, title:{color:colors.textTitle,fontSize:18,}, subtitle:{color:colors.textLo,fontSize:11,}, card:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,padding:spacing.md,gap:spacing.sm}, graphCard:{height:332,overflow:'hidden'}, centerCaption:{position:'absolute',left:0,right:0,top:156,textAlign:'center',color:colors.bgDeep,fontSize:11}, clusterLabel:{position:'absolute',color:colors.cyanSoft,fontSize:11}, ctaRow:{flexDirection:'row',gap:spacing.sm}, primary:{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:colors.cyan,borderRadius:radius.md,paddingVertical:spacing.md}, primaryText:{color:colors.bgDeep,fontSize:13}, secondary:{flex:1,alignItems:'center',justifyContent:'center',borderColor:colors.borderHi,borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.md}, secondaryText:{color:colors.cyanSoft,fontSize:13}, section:{color:colors.textTitle,fontSize:13,marginBottom:spacing.xs}, action:{minHeight:48,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderBottomWidth:1,borderBottomColor:colors.border,paddingVertical:spacing.sm}, actionLabel:{color:colors.textHi,fontSize:14}, actionValue:{color:colors.textLo,fontSize:12}, chev:{color:colors.cyanSoft,fontSize:22}, toggle:{width:42,height:24,borderRadius:12,backgroundColor:colors.border,justifyContent:'center',padding:3}, toggleOn:{backgroundColor:colors.cyan}, knob:{width:18,height:18,borderRadius:9,backgroundColor:colors.textLo}, knobOn:{alignSelf:'flex-end',backgroundColor:colors.bgDeep}, footer:{color:colors.textLo,textAlign:'center',fontSize:12,}, center:{alignItems:'center',gap:spacing.sm}, prompt:{color:colors.textHi,fontSize:16,textAlign:'center'}, avatar:{width:92,height:92,borderRadius:46,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center',backgroundColor:colors.cardBg}, danger:{alignSelf:'center',padding:spacing.md},dangerText:{color:colors.clay,fontSize:13}, lead:{color:colors.textMid,fontSize:14,textAlign:'center'}, authHero:{alignItems:'center',paddingTop:32,gap:spacing.md}, big:{color:colors.textTitle,fontSize:24,}, input:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:spacing.md,color:colors.textHi,fontFamily:fontFamilies.readable,backgroundColor:colors.bgDeep}, link:{color:colors.cyanSoft,textAlign:'center',paddingTop:spacing.sm}, mail:{fontSize:44,color:colors.cyanSoft}, codeRow:{flexDirection:'row',justifyContent:'center',gap:spacing.xs}, codeCell:{width:40,height:48,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,backgroundColor:colors.cardBg}, pill:{borderWidth:1,borderColor:colors.border,borderRadius:radius.pill,paddingHorizontal:spacing.sm,paddingVertical:spacing.xs},pillText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelEn,fontSize:8}, compareRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:spacing.lg,paddingVertical:spacing.sm}, compareCol:{alignItems:'center',gap:spacing.xs}, compareNum:{color:colors.textMid,fontSize:30}, compareNumHi:{color:colors.cyan}, compareCap:{color:colors.textLo,fontSize:11}, delta:{color:colors.mint,textAlign:'center',fontSize:13}, statRow:{flexDirection:'row',gap:spacing.sm}, statBox:{flex:1,alignItems:'center',gap:spacing.xs,backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,paddingVertical:spacing.md}, statNum:{color:colors.cyan,fontSize:28}, statCap:{color:colors.textLo,fontSize:11}, sizeRow:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, sizeCap:{color:colors.textLo,fontSize:12}, sizeCapLg:{color:colors.textHi,fontSize:18}, sizeTrack:{flex:1,height:4,borderRadius:2,backgroundColor:colors.border,justifyContent:'center'}, sizeKnob:{width:18,height:18,borderRadius:9,backgroundColor:colors.cyan,marginLeft:'46%'}, searchBox:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingHorizontal:spacing.md,paddingVertical:spacing.md}, searchText:{color:colors.textLo,fontSize:13}, planPro:{borderColor:colors.borderHi}, planHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, planName:{color:colors.textTitle,fontSize:15}, planBadge:{color:colors.bgDeep,backgroundColor:colors.cyan,fontSize:8,paddingHorizontal:spacing.sm,paddingVertical:3,borderRadius:radius.sm,overflow:'hidden'}, planPrice:{color:colors.textHi,fontSize:22,marginVertical:spacing.xs}, planPer:{color:colors.textLo,fontSize:12}, planFeat:{color:colors.cyanSoft,fontSize:13,}, planFeatDim:{color:colors.textMid,fontSize:13,}, trendHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, primaryWide:{flex:1.6}, filterRow:{flexDirection:'row',flexWrap:'wrap',gap:6}, fchip:{paddingVertical:6,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, fchipActive:{borderColor:colors.cyan,backgroundColor:colors.cardBg}, fchipViolet:{borderColor:colors.soulLine,backgroundColor:colors.cardBg}, fchipText:{color:colors.cyanSoft,fontSize:11}, fchipTextActive:{color:colors.textTitle}, fchipTextViolet:{color:colors.soul}, tlLabel:{color:colors.cyanDim,fontSize:7,letterSpacing:0.7,marginTop:spacing.sm}, tlGroup:{paddingLeft:16,borderLeftWidth:1,borderLeftColor:colors.border,gap:12,marginTop:spacing.xs}, tlRow:{flexDirection:'row',alignItems:'center',gap:9}, tlDot:{width:8,height:8,borderRadius:4,backgroundColor:colors.cyan}, tlDotDim:{backgroundColor:colors.cyanDim}, tlIcon:{fontSize:14}, tlTitle:{flex:1,color:colors.textTitle,fontSize:12.5}, tlTitleDim:{color:colors.textMid}, tlTime:{color:colors.cyanDim,fontSize:10}, tlTagRow:{flexDirection:'row',paddingLeft:32}, tlTag:{color:colors.cyanDim,fontSize:5,letterSpacing:0.4,paddingHorizontal:6,paddingVertical:3,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, progressRow:{flexDirection:'row',alignItems:'center',gap:10}, progressTrack:{flex:1,height:6,borderRadius:3,backgroundColor:colors.border,overflow:'hidden'}, progressFill:{height:'100%',borderRadius:3,backgroundColor:colors.cyan}, progressLabel:{color:colors.cyanSoft,fontSize:11}, triageCard:{borderColor:colors.borderHi}, triageMeta:{flexDirection:'row',alignItems:'center',gap:9}, metaLabel:{color:colors.cyanDim,fontSize:6,letterSpacing:0.5}, triageBody:{color:colors.textTitle,fontSize:13.5,}, footerLeft:{color:colors.textLo,fontSize:11,}, iconBtn:{width:46,paddingVertical:11,borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.md,alignItems:'center',backgroundColor:colors.bgDeep}, iconBtnText:{fontSize:15}, queueItem:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:9,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,backgroundColor:colors.cardBg}, queueItemDim:{opacity:0.6}, queueText:{flex:1,color:colors.textMid,fontSize:12}, researchGraph:{height:118,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.bgDeep,overflow:'hidden',justifyContent:'center',alignItems:'center'}, graphTag:{position:'absolute',bottom:14,color:colors.textMid,fontSize:10}, insightViolet:{borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, insightVioletText:{color:colors.textTitle,fontSize:13,}, evRow:{flexDirection:'row',gap:6}, evChip:{color:colors.cyanDim,fontSize:10,paddingHorizontal:8,paddingVertical:4,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, formatGrid:{flexDirection:'row',flexWrap:'wrap',gap:9}, formatCard:{width:'47%',padding:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:4}, formatCardSel:{borderColor:colors.soulLine}, formatName:{color:colors.cyanSoft,fontSize:13}, formatNameSel:{color:colors.soul}, formatDesc:{color:colors.textLo,fontSize:10.5,}, soulPrimary:{alignItems:'center',justifyContent:'center',backgroundColor:colors.soul,borderRadius:radius.md,paddingVertical:spacing.md}, sourceRow:{flexDirection:'row',alignItems:'center',gap:11,paddingVertical:11,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, sourceRowDim:{opacity:0.7}, sourceName:{color:colors.textTitle,fontSize:13}, sourceNameDim:{color:colors.textMid,fontSize:13}, sourceDesc:{color:colors.textLo,fontSize:10}, sourceCta:{color:colors.cyan,fontSize:11}, sourceSoon:{color:colors.cyanDim,fontSize:10}, reviewLabel:{color:colors.cyanBright,fontSize:7,letterSpacing:0.7,marginBottom:spacing.xs}, mapRow:{flexDirection:'row',alignItems:'center',gap:8}, mapFrom:{color:colors.cyanSoft,fontSize:12}, mapArrow:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:12}, mapTo:{color:colors.textTitle,fontSize:12}, recMetaRow:{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}, recMetaType:{color:colors.cyanSoft,fontSize:11}, recMetaDot:{color:colors.textLo,fontSize:11}, recMeta:{color:colors.textLo,fontSize:11}, recTitle:{color:colors.textTitle,fontSize:17,}, recBody:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,padding:spacing.md}, recBodyText:{color:colors.textHi,fontSize:12.5,}, iconBtnDanger:{borderColor:colors.clay}, opsStep:{borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, opsStepHead:{flexDirection:'row',alignItems:'flex-start',gap:spacing.sm}, opsStepTitle:{flex:1,color:colors.textTitle,fontSize:13.5,}, timeChipMint:{color:colors.mint,fontSize:10,borderWidth:1,borderColor:colors.mint,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, timeChipCyan:{color:colors.textMid,fontSize:10,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, opsReason:{color:colors.textMid,fontSize:11.5,}, opsStepFoot:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, smallBtn:{marginLeft:'auto',backgroundColor:colors.cyan,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnText:{color:colors.bgDeep,fontSize:11}, smallBtnGhost:{marginLeft:'auto',borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnGhostText:{color:colors.cyanSoft,fontSize:11}, wikiStatRow:{flexDirection:'row',gap:spacing.sm}, wikiStat:{flex:1,flexDirection:'row',alignItems:'baseline',gap:6,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11}, wikiStatNum:{color:colors.textTitle,fontSize:20}, wikiStatNumCyan:{color:colors.cyan}, wikiStatCap:{color:colors.textLo,fontSize:10.5}, wikiPageOpen:{borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, wikiPageHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiPageTitle:{flex:1,color:colors.textTitle,fontSize:13.5}, wikiCaret:{color:colors.cyanDim,fontSize:14}, wikiBody:{color:colors.textHi,fontSize:11.5,}, wikiBacklinkRow:{flexDirection:'row',gap:6,flexWrap:'wrap',alignItems:'center'}, wikiBacklink:{color:colors.cyanSoft,fontSize:9.5,borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:4,overflow:'hidden'}, wikiPageRow:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11,gap:5}, wikiRowHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiRowTitle:{flex:1,color:colors.cyanSoft,fontSize:13}, wikiRowConn:{color:colors.cyanDim,fontSize:9.5}, wikiRowDesc:{color:colors.textLo,fontSize:11}, domainCard:{width:'47%',padding:14,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:8}, domainCardActive:{borderColor:colors.cyan}, domainCardDim:{borderStyle:'dashed',borderColor:colors.borderHi,opacity:0.65}, domainName:{color:colors.textTitle,fontSize:14}, domainNameDim:{color:colors.textMid,fontSize:14}, domainNumRow:{flexDirection:'row',alignItems:'baseline',gap:5}, domainNum:{color:colors.cyanSoft,fontSize:22}, domainNumActive:{color:colors.cyan}, domainNumDim:{color:colors.textLo}, domainUnit:{color:colors.textLo,fontSize:10}, domainSub:{color:colors.cyanDim,fontSize:9.5}, topicCol:{gap:8}, topicRow:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:10,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, topicDot:{width:6,height:6,borderRadius:3,backgroundColor:colors.cyan}, topicDotDim:{backgroundColor:colors.cyanDim}, topicText:{flex:1,color:colors.textTitle,fontSize:12.5}, topicTextDim:{flex:1,color:colors.textMid,fontSize:12.5}, opsTodayHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, opsTodayRow:{minHeight:48,flexDirection:'row',alignItems:'center',gap:spacing.sm,paddingVertical:spacing.sm,paddingHorizontal:spacing.md,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, opsCheck:{width:22,height:22,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center'}, opsCheckOn:{backgroundColor:colors.cyan,borderColor:colors.cyan}, opsCheckMark:{color:colors.bgDeep,fontSize:13,fontFamily:fontFamilies.pixelKo}, opsTodayTitle:{flex:1,color:colors.textTitle,fontSize:13,}, opsTodayTitleDone:{color:colors.textLo,textDecorationLine:'line-through'},
+const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, stars:{...StyleSheet.absoluteFill,overflow:'hidden'}, star:{position:'absolute',width:3,height:3,borderRadius:2,backgroundColor:colors.cyanSoft}, scroll:{padding:spacing.lg,paddingBottom:40,gap:spacing.md}, titleRow:{flexDirection:'row',alignItems:'center',gap:spacing.md,marginBottom:spacing.xs}, back:{color:colors.cyanSoft,fontSize:34,lineHeight:38,fontFamily:fontFamilies.pixelKo}, title:{color:colors.textTitle,fontSize:18,}, subtitle:{color:colors.textLo,fontSize:11,}, card:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,padding:spacing.md,gap:spacing.sm}, graphCard:{height:332,overflow:'hidden'}, centerCaption:{position:'absolute',left:0,right:0,top:156,textAlign:'center',color:colors.bgDeep,fontSize:11}, clusterLabel:{position:'absolute',color:colors.cyanSoft,fontSize:11}, ctaRow:{flexDirection:'row',gap:spacing.sm}, primary:{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:colors.cyan,borderRadius:radius.md,paddingVertical:spacing.md}, primaryText:{color:colors.bgDeep,fontSize:13}, secondary:{flex:1,alignItems:'center',justifyContent:'center',borderColor:colors.borderHi,borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.md}, secondaryText:{color:colors.cyanSoft,fontSize:13}, section:{color:colors.textTitle,fontSize:13,marginBottom:spacing.xs}, action:{minHeight:48,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderBottomWidth:1,borderBottomColor:colors.border,paddingVertical:spacing.sm}, actionLabel:{color:colors.textHi,fontSize:14}, actionValue:{color:colors.textLo,fontSize:12}, chev:{color:colors.cyanSoft,fontSize:22}, toggle:{width:42,height:24,borderRadius:12,backgroundColor:colors.border,justifyContent:'center',padding:3}, toggleOn:{backgroundColor:colors.cyan}, knob:{width:18,height:18,borderRadius:9,backgroundColor:colors.textLo}, knobOn:{alignSelf:'flex-end',backgroundColor:colors.bgDeep}, footer:{color:colors.textLo,textAlign:'center',fontSize:12,}, center:{alignItems:'center',gap:spacing.sm}, prompt:{color:colors.textHi,fontSize:16,textAlign:'center'}, avatar:{width:92,height:92,borderRadius:46,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center',backgroundColor:colors.cardBg}, danger:{alignSelf:'center',padding:spacing.md},dangerText:{color:colors.clay,fontSize:13}, lead:{color:colors.textMid,fontSize:14,textAlign:'center'}, authHero:{alignItems:'center',paddingTop:32,gap:spacing.md}, big:{color:colors.textTitle,fontSize:24,}, input:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:spacing.md,color:colors.textHi,fontFamily:fontFamilies.readable,backgroundColor:colors.bgDeep}, link:{color:colors.cyanSoft,textAlign:'center',paddingTop:spacing.sm}, mail:{fontSize:44,color:colors.cyanSoft}, codeRow:{flexDirection:'row',justifyContent:'center',gap:spacing.xs}, codeCell:{width:40,height:48,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,backgroundColor:colors.cardBg}, pill:{borderWidth:1,borderColor:colors.border,borderRadius:radius.pill,paddingHorizontal:spacing.sm,paddingVertical:spacing.xs},pillText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelEn,fontSize:8}, compareRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:spacing.lg,paddingVertical:spacing.sm}, compareCol:{alignItems:'center',gap:spacing.xs}, compareNum:{color:colors.textMid,fontSize:30}, compareNumHi:{color:colors.cyan}, compareCap:{color:colors.textLo,fontSize:11}, delta:{color:colors.mint,textAlign:'center',fontSize:13}, statRow:{flexDirection:'row',gap:spacing.sm}, statBox:{flex:1,alignItems:'center',gap:spacing.xs,backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,paddingVertical:spacing.md}, statNum:{color:colors.cyan,fontSize:28}, statCap:{color:colors.textLo,fontSize:11}, sizeRow:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, sizeCap:{color:colors.textLo,fontSize:12}, sizeCapLg:{color:colors.textHi,fontSize:18}, sizeTrack:{flex:1,height:4,borderRadius:2,backgroundColor:colors.border,justifyContent:'center'}, sizeKnob:{width:18,height:18,borderRadius:9,backgroundColor:colors.cyan,marginLeft:'46%'}, searchBox:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingHorizontal:spacing.md,paddingVertical:spacing.md}, searchText:{color:colors.textLo,fontSize:13}, planPro:{borderColor:colors.borderHi}, planHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, planName:{color:colors.textTitle,fontSize:15}, planBadge:{color:colors.bgDeep,backgroundColor:colors.cyan,fontSize:8,paddingHorizontal:spacing.sm,paddingVertical:3,borderRadius:radius.sm,overflow:'hidden'}, planPrice:{color:colors.textHi,fontSize:22,marginVertical:spacing.xs}, planPer:{color:colors.textLo,fontSize:12}, planFeat:{color:colors.cyanSoft,fontSize:13,}, planFeatDim:{color:colors.textMid,fontSize:13,}, plansLoading:{alignItems:'center',gap:spacing.sm,paddingVertical:spacing.lg}, planBtnBusy:{opacity:0.5}, planSupportLink:{color:colors.cyan,fontSize:13,marginTop:spacing.sm}, planError:{color:colors.amber,fontSize:12,textAlign:'center'}, planRestore:{alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingVertical:spacing.md}, planRestoreText:{color:colors.textMid,fontSize:13},
+ // ── Paywall (① 페이월) deep-space canon ──
+ paySoulGlow:{position:'absolute',top:54,left:'50%',width:240,height:240,marginLeft:-120,borderRadius:120,backgroundColor:withAlpha(deepSpace.soul,0.14)},
+ payStars:{...StyleSheet.absoluteFill,height:60,overflow:'hidden'},
+ payStar:{position:'absolute',width:2,height:2,borderRadius:1,backgroundColor:withAlpha(deepSpace.accentSoft,0.5)},
+ payStarSoul:{position:'absolute',width:2,height:2,borderRadius:1,backgroundColor:withAlpha(deepSpace.soul,0.45)},
+ payHero:{paddingTop:spacing.sm,paddingBottom:spacing.xs,gap:spacing.md},
+ payEyebrow:{color:deepSpace.soul,fontSize:8,letterSpacing:1.4},
+ payTitle:{color:deepSpace.textHi,fontSize:24,lineHeight:34,fontWeight:'800',fontFamily:fontFamilies.pixelKo},
+ paySub:{color:withAlpha(deepSpace.accentSoft,0.66),fontSize:13.5,lineHeight:21,fontFamily:fontFamilies.readable},
+ payCard:{borderWidth:1,borderColor:withAlpha(deepSpace.accent,0.18),borderRadius:radius.lg,backgroundColor:withAlpha(deepSpace.accent,0.04),padding:spacing.md,gap:spacing.sm},
+ payCardFree:{borderColor:withAlpha(deepSpace.accent,0.18),backgroundColor:withAlpha(deepSpace.accent,0.04)},
+ payCardPlus:{borderWidth:1.5,borderColor:withAlpha(deepSpace.accent,0.7),backgroundColor:withAlpha(deepSpace.accent,0.08),shadowColor:deepSpace.accent,shadowOpacity:0.3,shadowRadius:18,shadowOffset:{width:0,height:8},elevation:6},
+ payCardPro:{borderColor:withAlpha(deepSpace.soul,0.22),backgroundColor:withAlpha(deepSpace.soul,0.05)},
+ payCardHead:{flexDirection:'row',alignItems:'baseline',justifyContent:'space-between'},
+ payCardHeadPlus:{marginTop:spacing.xs},
+ payRecTag:{position:'absolute',top:-9,left:spacing.md,color:deepSpace.onAccent,backgroundColor:deepSpace.accent,fontSize:7,letterSpacing:0.8,paddingHorizontal:9,paddingVertical:4,borderRadius:radius.sm,overflow:'hidden'},
+ payTierNameFree:{color:deepSpace.accentBright,fontSize:15,fontFamily:fontFamilies.pixelKo},
+ payTierNamePlus:{color:deepSpace.textHi,fontSize:17,fontFamily:fontFamilies.pixelKo},
+ payTierNamePro:{color:deepSpace.soul,fontSize:15,fontFamily:fontFamilies.pixelKo},
+ payPriceFree:{color:withAlpha(deepSpace.accentSoft,0.7),fontSize:14,fontFamily:fontFamilies.readable},
+ payPricePlus:{color:deepSpace.accentBright,fontSize:14,fontFamily:fontFamilies.readable},
+ payPricePro:{color:withAlpha(deepSpace.soul,0.85),fontSize:14,fontFamily:fontFamilies.readable},
+ payPriceStrong:{color:deepSpace.accentBright,fontSize:16,fontWeight:'700'},
+ payPriceStrongPro:{color:deepSpace.textHi,fontSize:15,fontWeight:'700'},
+ payFeatList:{gap:7,marginTop:spacing.xs},
+ payFeatRow:{flexDirection:'row',alignItems:'center',gap:9},
+ payFeatFree:{flex:1,color:withAlpha(deepSpace.accentSoft,0.78),fontSize:12.5,fontFamily:fontFamilies.readable},
+ payFeatPlus:{flex:1,color:deepSpace.accentBright,fontSize:12.5,fontFamily:fontFamilies.readable},
+ payFeatPro:{flex:1,color:withAlpha(deepSpace.soul,0.85),fontSize:12.5,fontFamily:fontFamilies.readable},
+ payActiveTag:{color:deepSpace.onAccent,backgroundColor:deepSpace.accent,fontSize:8,paddingHorizontal:spacing.sm,paddingVertical:3,borderRadius:radius.sm,overflow:'hidden'},
+ payNameRow:{flexDirection:'row',alignItems:'baseline',gap:spacing.sm},
+ payCurrentMarker:{color:deepSpace.accent,fontSize:9.5,letterSpacing:0.6,fontFamily:fontFamilies.readable},
+ payFreeCaption:{color:withAlpha(deepSpace.accentSoft,0.7),fontSize:11,marginTop:spacing.xs,fontFamily:fontFamilies.readable},
+ payCtaBlock:{marginTop:'auto',paddingTop:spacing.sm,gap:9},
+ payTrustRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,marginBottom:spacing.xs},
+ payTrust:{color:withAlpha(deepSpace.mint,0.85),fontSize:11.5,fontFamily:fontFamilies.readable},
+ payPrimary:{minHeight:48,alignItems:'center',justifyContent:'center',backgroundColor:deepSpace.mint,borderRadius:radius.md,paddingVertical:spacing.md},
+ payPrimaryDisabled:{opacity:0.5},
+ payPrimaryText:{color:deepSpace.onMint,fontSize:16,fontWeight:'700',fontFamily:fontFamilies.pixelKo},
+ paySecondaryText:{color:withAlpha(deepSpace.accentSoft,0.6),fontSize:12.5,textAlign:'center',paddingVertical:11,fontFamily:fontFamilies.readable}, trendHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, primaryWide:{flex:1.6}, filterRow:{flexDirection:'row',flexWrap:'wrap',gap:6}, fchip:{paddingVertical:6,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, fchipActive:{borderColor:colors.cyan,backgroundColor:colors.cardBg}, fchipViolet:{borderColor:colors.soulLine,backgroundColor:colors.cardBg}, fchipText:{color:colors.cyanSoft,fontSize:11}, fchipTextActive:{color:colors.textTitle}, fchipTextViolet:{color:colors.soul}, tlLabel:{color:colors.cyanDim,fontSize:7,letterSpacing:0.7,marginTop:spacing.sm}, tlGroup:{paddingLeft:16,borderLeftWidth:1,borderLeftColor:colors.border,gap:12,marginTop:spacing.xs}, tlRow:{flexDirection:'row',alignItems:'center',gap:9}, tlDot:{width:8,height:8,borderRadius:4,backgroundColor:colors.cyan}, tlDotDim:{backgroundColor:colors.cyanDim}, tlIcon:{fontSize:14}, tlTitle:{flex:1,color:colors.textTitle,fontSize:12.5}, tlTitleDim:{color:colors.textMid}, tlTime:{color:colors.cyanDim,fontSize:10}, tlTagRow:{flexDirection:'row',paddingLeft:32}, tlTag:{color:colors.cyanDim,fontSize:5,letterSpacing:0.4,paddingHorizontal:6,paddingVertical:3,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, progressRow:{flexDirection:'row',alignItems:'center',gap:10}, progressTrack:{flex:1,height:6,borderRadius:3,backgroundColor:colors.border,overflow:'hidden'}, progressFill:{height:'100%',borderRadius:3,backgroundColor:colors.cyan}, progressLabel:{color:colors.cyanSoft,fontSize:11}, triageCard:{borderColor:colors.borderHi}, triageMeta:{flexDirection:'row',alignItems:'center',gap:9}, metaLabel:{color:colors.cyanDim,fontSize:6,letterSpacing:0.5}, triageBody:{color:colors.textTitle,fontSize:13.5,}, footerLeft:{color:colors.textLo,fontSize:11,}, iconBtn:{width:46,paddingVertical:11,borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.md,alignItems:'center',backgroundColor:colors.bgDeep}, iconBtnText:{fontSize:15}, queueItem:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:9,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,backgroundColor:colors.cardBg}, queueItemDim:{opacity:0.6}, queueText:{flex:1,color:colors.textMid,fontSize:12}, researchGraph:{height:118,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.bgDeep,overflow:'hidden',justifyContent:'center',alignItems:'center'}, graphTag:{position:'absolute',bottom:14,color:colors.textMid,fontSize:10}, insightViolet:{borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, insightVioletText:{color:colors.textTitle,fontSize:13,}, evRow:{flexDirection:'row',gap:6}, evChip:{color:colors.cyanDim,fontSize:10,paddingHorizontal:8,paddingVertical:4,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, formatGrid:{flexDirection:'row',flexWrap:'wrap',gap:9}, formatCard:{width:'47%',padding:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:4}, formatCardSel:{borderColor:colors.soulLine}, formatName:{color:colors.cyanSoft,fontSize:13}, formatNameSel:{color:colors.soul}, formatDesc:{color:colors.textLo,fontSize:10.5,}, soulPrimary:{alignItems:'center',justifyContent:'center',backgroundColor:colors.soul,borderRadius:radius.md,paddingVertical:spacing.md}, sourceRow:{flexDirection:'row',alignItems:'center',gap:11,paddingVertical:11,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, sourceRowDim:{opacity:0.7}, sourceName:{color:colors.textTitle,fontSize:13}, sourceNameDim:{color:colors.textMid,fontSize:13}, sourceDesc:{color:colors.textLo,fontSize:10}, sourceCta:{color:colors.cyan,fontSize:11}, sourceSoon:{color:colors.cyanDim,fontSize:10}, reviewLabel:{color:colors.cyanBright,fontSize:7,letterSpacing:0.7,marginBottom:spacing.xs}, mapRow:{flexDirection:'row',alignItems:'center',gap:8}, mapFrom:{color:colors.cyanSoft,fontSize:12}, mapArrow:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:12}, mapTo:{color:colors.textTitle,fontSize:12}, recMetaRow:{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}, recMetaType:{color:colors.cyanSoft,fontSize:11}, recMetaDot:{color:colors.textLo,fontSize:11}, recMeta:{color:colors.textLo,fontSize:11}, recTitle:{color:colors.textTitle,fontSize:17,}, recBody:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,padding:spacing.md}, recBodyText:{color:colors.textHi,fontSize:12.5,}, iconBtnDanger:{borderColor:colors.clay}, opsStep:{borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, opsStepHead:{flexDirection:'row',alignItems:'flex-start',gap:spacing.sm}, opsStepTitle:{flex:1,color:colors.textTitle,fontSize:13.5,}, timeChipMint:{color:colors.mint,fontSize:10,borderWidth:1,borderColor:colors.mint,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, timeChipCyan:{color:colors.textMid,fontSize:10,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, opsReason:{color:colors.textMid,fontSize:11.5,}, opsStepFoot:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, smallBtn:{marginLeft:'auto',backgroundColor:colors.cyan,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnText:{color:colors.bgDeep,fontSize:11}, smallBtnGhost:{marginLeft:'auto',borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnGhostText:{color:colors.cyanSoft,fontSize:11}, wikiStatRow:{flexDirection:'row',gap:spacing.sm}, wikiStat:{flex:1,flexDirection:'row',alignItems:'baseline',gap:6,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11}, wikiStatNum:{color:colors.textTitle,fontSize:20}, wikiStatNumCyan:{color:colors.cyan}, wikiStatCap:{color:colors.textLo,fontSize:10.5}, wikiPageOpen:{borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, wikiPageHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiPageTitle:{flex:1,color:colors.textTitle,fontSize:13.5}, wikiCaret:{color:colors.cyanDim,fontSize:14}, wikiBody:{color:colors.textHi,fontSize:11.5,}, wikiBacklinkRow:{flexDirection:'row',gap:6,flexWrap:'wrap',alignItems:'center'}, wikiBacklink:{color:colors.cyanSoft,fontSize:9.5,borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:4,overflow:'hidden'}, wikiPageRow:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11,gap:5}, wikiRowHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiRowTitle:{flex:1,color:colors.cyanSoft,fontSize:13}, wikiRowConn:{color:colors.cyanDim,fontSize:9.5}, wikiRowDesc:{color:colors.textLo,fontSize:11}, domainCard:{width:'47%',padding:14,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:8}, domainCardActive:{borderColor:colors.cyan}, domainCardDim:{borderStyle:'dashed',borderColor:colors.borderHi,opacity:0.65}, domainName:{color:colors.textTitle,fontSize:14}, domainNameDim:{color:colors.textMid,fontSize:14}, domainNumRow:{flexDirection:'row',alignItems:'baseline',gap:5}, domainNum:{color:colors.cyanSoft,fontSize:22}, domainNumActive:{color:colors.cyan}, domainNumDim:{color:colors.textLo}, domainUnit:{color:colors.textLo,fontSize:10}, domainSub:{color:colors.cyanDim,fontSize:9.5}, topicCol:{gap:8}, topicRow:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:10,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, topicDot:{width:6,height:6,borderRadius:3,backgroundColor:colors.cyan}, topicDotDim:{backgroundColor:colors.cyanDim}, topicText:{flex:1,color:colors.textTitle,fontSize:12.5}, topicTextDim:{flex:1,color:colors.textMid,fontSize:12.5}, opsTodayHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, opsTodayRow:{minHeight:48,flexDirection:'row',alignItems:'center',gap:spacing.sm,paddingVertical:spacing.sm,paddingHorizontal:spacing.md,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, opsCheck:{width:22,height:22,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center'}, opsCheckOn:{backgroundColor:colors.cyan,borderColor:colors.cyan}, opsCheckMark:{color:colors.bgDeep,fontSize:13,fontFamily:fontFamilies.pixelKo}, opsTodayTitle:{flex:1,color:colors.textTitle,fontSize:13,}, opsTodayTitleDone:{color:colors.textLo,textDecorationLine:'line-through'},
   insightsWeeklyLabel:{color:colors.cyanDim,textAlign:'center',fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,},
   insightsBars:{height:132,flexDirection:'row',alignItems:'flex-end',justifyContent:'center',gap:spacing.xl,paddingTop:spacing.sm},
   insightsBarCol:{width:78,alignItems:'center',gap:spacing.xs},

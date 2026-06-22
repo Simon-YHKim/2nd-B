@@ -253,7 +253,20 @@
     "proFeat4": "Trend · review suggestions",
     "currentPlan": "Currently active",
     "freeFeat": "Basic saving · 1 check per star · 5 SecondB chats/day",
-    "startPro": "Start Pro"
+    "startPro": "Start Pro",
+    "loadingOffers": "Loading plans...",
+    "purchasing": "Processing...",
+    "restore": "Restore purchase",
+    "restoring": "Restoring...",
+    "proActive": "Pro is active",
+    "nowPro": "You're on Pro now. Thank you.",
+    "notAvailableTitle": "Upgrade in the mobile app",
+    "notAvailableBody": "Pro is purchased through the app stores on iOS and Android. Open 2nd-Brain on your phone to upgrade.",
+    "support": "Contact support",
+    "loadError": "Couldn't load plans. Try again.",
+    "purchaseError": "The purchase didn't go through. Try again.",
+    "restoreError": "Couldn't restore purchases. Try again.",
+    "restoredNone": "No previous purchase found to restore."
   },
   "permissions": {
     "title": "Permissions",

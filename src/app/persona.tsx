@@ -589,6 +589,9 @@ export default function Persona() {
   if (isDeepSpaceUI()) {
     return (
       <DeepSpaceScreen active="lens">
+        {/* 보여지는 나 (self vs peer). No peer-review data source exists yet, so
+            SeenLensView shows an honest empty state + the survey/share CTAs,
+            never fabricated self/other bars (it derives locale internally). */}
         <SeenLensView />
       </DeepSpaceScreen>
     );
