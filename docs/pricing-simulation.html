@@ -170,6 +170,52 @@
     </ul>
   </div></details>
 
+  <h2>3.5 인앱 광고 — Free 티어를 자가펀딩할 수 있나?</h2>
+  <div class="verdict"><b style="color:var(--mint)">답: 가능합니다 — 단 "수익원"이 아니라 "Free COGS 상쇄"로.</b> 한국은 <b>리워드 영상 eCPM ~$29</b>(글로벌 최상위권). 배너(&lt;$1)·강제 전면광고는 성찰 앱 신뢰를 깨고 가치도 낮음. <b>리워드 영상을 "보고 횟수를 번다"(opt-in)</b>로 쓰면 — 같은-품질 원칙(횟수로만 구분)과 정확히 맞물리고, Free의 LLM 비용을 상쇄해 <b>관대한 무료 티어를 적자 없이 유지</b>(=획득·바이럴 엔진 연료).</div>
+
+  <div class="sim">
+    <div class="grid">
+      <div>
+        <h3>Free 리워드 광고 (opt-in)</h3>
+        <div class="ctl"><label>월 리워드 시청 (회/Free유저) <b id="advLbl">10</b></label><input type="range" id="adv" min="0" max="40" step="1" value="10"/></div>
+        <div class="ctl"><label>리워드 eCPM (USD) <b id="ecpmLbl">$29</b></label><input type="range" id="ecpm" min="8" max="40" step="1" value="29"/></div>
+        <p class="note">위 시뮬레이터의 모델·effort·캐시를 그대로 사용(Free = 같은 품질·light 사용량). 시청 1회 = 추가 리즈닝/렌즈 언락.</p>
+      </div>
+      <div>
+        <div class="out">
+          <div class="kpi"><div class="t">Free COGS/월</div><div class="v amber" id="aCogs">—</div><div class="s">같은 effort·light</div></div>
+          <div class="kpi"><div class="t">광고 수익/월</div><div class="v mint" id="aRev">—</div><div class="s" id="aRevS"></div></div>
+          <div class="kpi"><div class="t">자가펀딩</div><div class="v" id="aFund">—</div><div class="s" id="aNet"></div></div>
+        </div>
+        <div class="chart"><div class="ttl">Free 유저 손익 (COGS 대비 광고수익)</div>
+          <div class="barwrap" style="padding:8px 4px">
+            <div class="bar"><span class="lbl">COGS</span><div class="track"><div class="fill" id="aBarCogs" style="background:linear-gradient(90deg,#c4a23a,var(--amber))"></div></div><span class="v" id="aBarCogsV"></span></div>
+            <div class="bar"><span class="lbl">광고수익</span><div class="track"><div class="fill" id="aBarRev" style="background:linear-gradient(90deg,#3fb98c,var(--mint))"></div></div><span class="v" id="aBarRevV"></span></div>
+          </div>
+        </div>
+        <div class="verdict" id="aVerdict" style="margin-top:6px"></div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>광고 포맷</th><th class="r">eCPM(한국)</th><th>성찰앱 적합</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr class="win"><td><b>리워드 영상 (opt-in)</b></td><td class="r" style="color:var(--mint)">~$29</td><td><span class="pill pm">최적</span></td><td>"보고 횟수 번다" = 같은-품질 철학과 일치, 사용자 선택</td></tr>
+      <tr><td>전면(interstitial)</td><td class="r">$5~15</td><td>제한적</td><td>화면전환 틈에만, 성찰 흐름엔 금지</td></tr>
+      <tr><td>배너</td><td class="r" style="color:var(--red)">&lt;$1</td><td><span class="pill pc">비권장</span></td><td>가치 미미 + "한 화면 한 메시지" 위반, 신뢰훼손</td></tr>
+    </tbody>
+  </table>
+  <details><summary>전제·제약 (이미 구축된 인프라 + 게이트)</summary><div class="in">
+    <ul>
+      <li><b>이미 구현됨</b>: <code>src/components/ads/AdSlot.tsx</code> + <code>src/lib/ads/policy.ts</code> — <b>free 티어 + 성인 + 명시적 광고동의(privacy_prefs.ads) + 비민감 경로</b> 모두 충족해야만 노출, 아니면 아무것도 안 뜸(fail-closed). 네이티브(AdMob 리워드)는 후속.</li>
+      <li><b>광고 적격 Free 유저 &lt; 전체 Free</b>: 미성년 제외(C10), 동의 거부 제외, 민감 경로 제외 → 실제 노출 모수는 일부. 위 수치는 "적격·동의 유저" 기준.</li>
+      <li><b>스케일 의존</b>: 광고는 DAU가 있어야 의미. 출시 직후엔 미미, 무료 풀이 커질수록 상쇄 효과↑.</li>
+      <li><b>브랜드 가드</b>: 성찰·취약한 순간에 강제 광고 = 자살. 리워드 opt-in만이 신뢰를 지키며 비용을 상쇄.</li>
+      <li>수익은 <code>revenue_events</code>(C4: month_bucket·is_related_party·customer_relation_type)에 기록 → IAP와 분리 집계.</li>
+    </ul>
+  </div></details>
+
   <h2 id="acqH">4. 초기 유저 확보 전략</h2>
   <div id="acq">
     <p>핵심: <b>창업자 채널 + 커뮤니티 시딩 + "한 컷 자기이해 카드"의 바이럴</b>로 출시 전을 $0로 이긴다. 전환은 <b>품질이 아니라 횟수·렌즈·기억 기간</b>으로 — "모든 답의 질은 동일"을 마케팅 무기로.</p>
@@ -373,8 +419,38 @@ function update(){
   else if(r.ad>=0.35&&r.sat>=78&&r.profitPerSub>0) vd='✓ <b style="color:var(--mint)">스위트스팟</b> — 채택·만족·마진 균형. 대중 주력 구간.';
   else vd='성장 우선 영역 — 채택 높고 만족 높으나 마진 얇음. CAC 회수 '+(isFinite(r.payback)?r.payback.toFixed(1)+'개월':'불가')+'.';
   document.getElementById('verdict').innerHTML=vd;
-  drawA(s); drawB(s);
+  drawA(s); drawB(s); adUpdate();
 }
+
+function adUpdate(){
+  const c=state.cache/100;
+  const freeCogs=cogs(state.model,state.eff,0,c); // Free = same effort, light usage (idx 0)
+  const views=+document.getElementById('adv').value;
+  const ecpm=+document.getElementById('ecpm').value;
+  document.getElementById('advLbl').textContent=views;
+  document.getElementById('ecpmLbl').textContent='$'+ecpm;
+  const adRev=views*(ecpm/1000)*KRW;
+  const net=freeCogs-adRev;
+  const fund=freeCogs>0?Math.round(adRev/freeCogs*100):0;
+  document.getElementById('aCogs').textContent=fmt(freeCogs);
+  document.getElementById('aRev').textContent=fmt(adRev);
+  document.getElementById('aRevS').textContent=views+'회 × $'+ecpm+' eCPM';
+  const fundEl=document.getElementById('aFund'); fundEl.textContent=fund+'%';
+  fundEl.className='v '+(fund>=100?'mint':fund>=50?'amber':'red');
+  document.getElementById('aNet').textContent=(net<=0?'흑자 +'+fmt(-net):'적자 '+fmt(net))+'/유저';
+  const mx=Math.max(freeCogs,adRev,1);
+  document.getElementById('aBarCogs').style.width=(freeCogs/mx*100)+'%';
+  document.getElementById('aBarRev').style.width=(adRev/mx*100)+'%';
+  document.getElementById('aBarCogsV').textContent=fmt(freeCogs);
+  document.getElementById('aBarRevV').textContent=fmt(adRev);
+  let v;
+  if(fund>=100) v='✓ <b style="color:var(--mint)">Free 자가펀딩 달성</b> — 광고수익이 COGS를 덮음. 무료 티어가 비용중립이 되어 관대하게 유지 가능.';
+  else if(fund>=50) v='Free COGS의 '+fund+'% 상쇄 — 적자 대폭 축소. 시청 회수↑ 또는 무료 사용캡↓로 중립 도달 가능.';
+  else v='상쇄 '+fund+'% — 보조적. 리워드 opt-in 동선(시청→횟수 보상)을 더 자연스럽게 설계 필요.';
+  document.getElementById('aVerdict').innerHTML=v;
+}
+document.getElementById('adv').oninput=()=>adUpdate();
+document.getElementById('ecpm').oninput=()=>adUpdate();
 
 // combo table (static snapshot, medium, cache 65%)
 function buildCombo(){
