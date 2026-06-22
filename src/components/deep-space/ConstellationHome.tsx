@@ -9,6 +9,8 @@ import Svg, { Circle, Defs, Line, Polyline, RadialGradient, Stop } from "react-n
 import { deepSpace, deepSpaceGradients, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { SELF_UNDERSTANDING_STARS, type StarId } from "@/lib/persona/stars";
+import { type LadderLevel } from "@/lib/persona/brightness";
+import { starOpacity, soulCoreOpacity } from "@/lib/persona/constellation-brightness";
 import { SecondbHead } from "./SecondbHead";
 
 const W = 320;
@@ -34,12 +36,21 @@ export function ConstellationHome({
   polarisLabel,
   onStarPress,
   onPolarisPress,
+  starLevels = {},
+  soulCoreBrightness = 0.2,
 }: {
   isKo: boolean;
   hint: string;
   polarisLabel: string;
   onStarPress: (id: StarId) => void;
   onPolarisPress: () => void;
+  // Per-star value-ladder levels and the aggregate Soul Core brightness (0-1),
+  // from the no-LLM loadStarLevels path. Default = an honest empty sky (every
+  // star L1, Soul Core at its floor) so a brand-new user sees a dim constellation
+  // that brightens as they gather data. Brightness drives OPACITY only; the
+  // tier-1 size hierarchy (polaris r=12 vs star r<=7) is left untouched.
+  starLevels?: Partial<Record<StarId, LadderLevel>>;
+  soulCoreBrightness?: number;
 }) {
   return (
     <View style={styles.root}>
@@ -79,9 +90,22 @@ export function ConstellationHome({
             strokeWidth={1}
             strokeDasharray="2 5"
           />
-          <Circle cx={160} cy={36} r={12} fill="url(#ds-polaris)" />
+          <Circle
+            cx={160}
+            cy={36}
+            r={12}
+            fill="url(#ds-polaris)"
+            opacity={soulCoreOpacity(soulCoreBrightness)}
+          />
           {STARS.map((s) => (
-            <Circle key={s.id} cx={s.x} cy={s.y} r={s.size / 2} fill="url(#ds-star)" />
+            <Circle
+              key={s.id}
+              cx={s.x}
+              cy={s.y}
+              r={s.size / 2}
+              fill="url(#ds-star)"
+              opacity={starOpacity(starLevels[s.id] ?? 1)}
+            />
           ))}
         </Svg>
 
