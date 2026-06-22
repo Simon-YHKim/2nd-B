@@ -3,6 +3,81 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-06-22 (결제·리워드·공유 /goal + 엔티틀먼트 캡 루프) / PR #561 main 머지 완료
+
+세컨비 "깊이 묻기"에 **월 reasoning 캡 루프**를 끝까지 연결하고, 결제·리워드·공유 + LLM 3-tier
+라우터 + 4-티어 QA 진입 링크를 붙인 뒤 **PR #561을 squash로 main에 머지**(사용자 명시 지시).
+
+### 어디까지 왔나
+- main HEAD: `935ac16` (PR #561 squash merge — 이번 세션)
+- 테스트 상태: `npm run verify` green — **245 suites / 1861 tests**
+- working tree: clean
+- 라이브: 머지 배포(web-deploy.yml) 후 GitHub Pages 갱신. 4-티어 QA 링크:
+  `?tier=all` (god) / `?tier=free` (별바라기) / `?tier=plus` (항해자) / `?tier=pro` (북극성)
+
+### 이번 세션 핵심 (커밋된 것)
+- **엔티틀먼트 캡 루프**: `usage_counters` 마이그레이션 `0057` + `src/lib/entitlements/`
+  {`usage.ts`(KST month_bucket 카운터, fail-open) · `reasoning-cap.ts`(free 8 / cortex 60 /
+  brain 무제한 + pricingLabel 별바라기·항해자·북극성·평생)} · 세컨비 gate(전송 전 remaining 체크,
+  free 성인 0→RewardedSheet, 그 외→/plans?from=ai_limit, **성공 시에만** increment) ·
+  페이월 현재-티어 인지(CTA 티어별 + 잔여 표시).
+- **결제·리워드·공유**(직전 라운드): 여정 3티어 페이월(별바라기/항해자/북극성) ·
+  `RewardedSheet.tsx`(+2 크레딧, 월 cap 20) · `ShareCard.tsx`(A/B + view-shot 캡처).
+- **LLM 3-tier 라우터**: `src/lib/llm/types.ts`(MODELS lite/flash/pro env-override + PURPOSE_TIER) ·
+  `gemini.ts`(effort low/high/xhigh/max → thinkingBudget + Claude seam `EXPO_PUBLIC_REASONING_PROVIDER`,
+  Anthropic SDK는 미설치 — 집에서 설정).
+- **HTML 보고서**: `docs/llm-routing-strategy.html` · `docs/pricing-simulation.html`(마진 슬라이더
+  인터랙티브) · `docs/CLAUDE-REASONING-SETUP.md` · `docs/ANDROID-BUILD.md`.
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj` — 마이그레이션 `0057_usage_counters` **적용 완료**:
+  table `usage_counters`(PK user_id+month_bucket, reasoning_used/reward_credits),
+  owner-RLS 3 정책(select/insert/update = auth.uid()) + updated_at 트리거 1개 (검증됨).
+- web-deploy.yml에 `EXPO_PUBLIC_ALLOW_DEV_TIER: "true"` (QA 전용 — **런칭 전 반드시 제거**).
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | 런칭 전 `EXPO_PUBLIC_ALLOW_DEV_TIER` 제거 (web-deploy.yml) | small | ⭐ 보안 — 안 지우면 `?tier=pro`로 유료 자가부여 가능 |
+| B | AdMob 실 보상광고 (`react-native-google-mobile-ads`) → `src/lib/ads/rewarded.ts` seam | medium | 현재 mock 보상 |
+| C | IAP 웹훅 → `revenue_events`(C4) 적재 (RevenueCat) | medium | 결제 영속화 |
+| D | Android 빌드 — 본인 머신에서 `v0.0.1` 태깅 (샌드박스 git 태그 push 거부) | small | EAS 빌드 트리거 |
+| E | Claude reasoning provider 집에서 설정 (`docs/CLAUDE-REASONING-SETUP.md`) | small | seam 준비됨 |
+| F | secondb 근거칩 → `/record/[id]` (wiki slug→record-id 리졸버 부재) | medium | /records 폴백 유지 중 |
+
+### 적용 중인 정책 (영구)
+1. **티어는 횟수·기능·히스토리만 차등, 답변 품질은 전 티어 동일** (지갑이 답의 질을 사지 않음).
+2. `propose→ratify` — AI는 자기모델 수정 제안만, 사용자 승인 후 쓰기. 캡 게이트는 C9/C3 경로 무변 counts-only.
+3. 마이그레이션은 `db/migrations/*.sql` (CI glob 대상). `supabase/migrations/` 아님.
+4. main 직접 push 금지 — 항상 PR. (이번 머지는 사용자 명시 지시로 진행.)
+5. 가드레일: deepSpace 토큰만 · hex 0 · em dash/glassmorphism/pill/bounce 금지 · i18n 5-locale 패리티 · 비주얼 티어 무회귀.
+
+### 핵심 파일 위치
+```
+src/lib/entitlements/{tiers,usage,reasoning-cap}.ts   엔티틀먼트 + 캡 + 사용량
+src/lib/llm/{types,gemini}.ts                         3-tier 라우터 + effort + Claude seam
+src/components/deepspace/{RewardedSheet,ShareCard}.tsx 리워드 시트 + 공유 카드
+src/lib/ads/rewarded.ts · src/lib/share/insight-card.ts  광고 seam · 공유 카드 derive
+src/lib/progression/{dev-tier-url,useProgression}.ts  ?tier= QA override 단일 chokepoint
+db/migrations/0057_usage_counters.sql                 사용량 카운터 스키마
+src/screens/deepspace/DeepSpaceDesignScreens.tsx      페이월 현재-티어 인지
+src/app/secondb.tsx                                   세컨비 캡 게이트
+docs/{llm-routing-strategy,pricing-simulation}.html   LLM/가격 보고서
+```
+
+### 검증
+```bash
+npm run verify   # lint + type-check + i18n + lexicon + LLM boundary + constraints + jest
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A 작업(EXPO_PUBLIC_ALLOW_DEV_TIER 제거)부터 — 런칭 게이트
+```
+
+---
+
 ## Latest — 2026-06-22 (/goal cont.) / BLOCKED 큐 코드-클로저블 일소 (batch 6-8)
 
 PR #561 (`claude/repo-sync-verify-nkz86x`), CI green, `verify` 241 suites / 1813 tests.
