@@ -1,10 +1,12 @@
 # Claude reasoning seam — owner setup
 
-Status: **seam only, not wired**. The reasoning path in `src/lib/llm/gemini.ts`
-exposes a provider switch but ships with Gemini as the only live backend. This
-document is the owner's guide to turning on a real Claude backend at home. The
-code, env flag, and audit fields are already in place; what is deferred is the
-actual Claude transport, which the owner stands up.
+Status: **wired (Option A implemented)**. The reasoning path in
+`src/lib/llm/gemini.ts` routes the pro-tier call to the `claude-proxy` Supabase
+edge function whenever `EXPO_PUBLIC_REASONING_PROVIDER=claude`. The client stays
+SDK-free (C1); the Anthropic key lives only in the function's secrets. What
+remains for the owner: deploy the function, set its `ANTHROPIC_API_KEY` secret,
+and run the live smoke test (deferred until the Anthropic account has credit —
+until then a live call returns `insufficient credits`).
 
 ## Why a seam (and why C1 is not violated)
 
@@ -17,9 +19,10 @@ The seam respects this by **never importing an Anthropic SDK in the client**:
 
 - `EXPO_PUBLIC_REASONING_PROVIDER` selects the reasoning backend
   (`gemini` default, `claude` reserved).
-- `resolveReasoningProvider()` in `gemini.ts` reads the flag. Today, when it is
-  set to `claude`, it logs a one-line warning and returns `gemini`, so the
-  reasoning path keeps working unchanged.
+- `resolveReasoningProvider()` in `gemini.ts` reads the flag and returns
+  `claude` or `gemini`. On `claude`, the pro-tier call is routed to the
+  `claude-proxy` edge function (`reasoningProxyFn()`); the Anthropic call happens
+  server-side, so no SDK is imported in the client.
 - The chosen provider is recorded in the audit row (`AuditMeta.reasoningProvider`)
   so the trail shows which backend produced a reasoning answer (C3 unaffected).
 
@@ -34,16 +37,18 @@ backend, exactly the pattern already used for Gemini.
   - `ReasoningEffort = "low" | "high" | "xhigh" | "max"`.
   - `AuditMeta.reasoningProvider?: "gemini" | "claude"`.
 - `src/lib/llm/gemini.ts`
-  - `resolveReasoningProvider()` — reads `EXPO_PUBLIC_REASONING_PROVIDER`,
-    warns + falls back to `gemini` for `claude` until wired.
-  - `callAdvisor()` and the pro-tier `callGemini()` path call it and stamp the
-    provider into the audit row.
+  - `resolveReasoningProvider()` — reads `EXPO_PUBLIC_REASONING_PROVIDER` and
+    returns `gemini` or `claude`. `reasoningProxyFn()` maps that to the edge
+    function name (`gemini-proxy` / `claude-proxy`).
+  - `callAdvisor()` and the pro-tier `callGemini()` path call it, route to the
+    matching proxy, and stamp the provider into the audit row.
 
-## Option A (recommended) — `claude-proxy` Supabase edge function
+## Option A (recommended, IMPLEMENTED) — `claude-proxy` Supabase edge function
 
-Mirror the existing `gemini-proxy` edge function so the client stays SDK-free
-and the key never reaches the device (C1-safe, parity with how the public web
-bundle already reaches Gemini).
+`supabase/functions/claude-proxy/` mirrors `gemini-proxy` so the client stays
+SDK-free and the key never reaches the device (C1-safe, parity with how the
+public web bundle already reaches Gemini). It is committed; the owner deploys it.
+The original build steps below are kept as the design record.
 
 1. **Create the function** `supabase/functions/claude-proxy/` modeled on
    `gemini-proxy`:
