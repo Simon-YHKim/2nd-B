@@ -27,6 +27,12 @@ import {
   AppState,
 } from "react-native";
 import { Image } from "expo-image";
+import {
+  useAudioRecorder,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+} from "expo-audio";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
@@ -68,7 +74,7 @@ import {
   type CaptureDraftMode,
   type CaptureDrafts,
 } from "@/lib/capture/draft";
-import { classifyRecordTextForCrisis } from "@/lib/llm/gemini";
+import { classifyRecordTextForCrisis, transcribeAudio } from "@/lib/llm/gemini";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
 import { saveTemplate } from "@/lib/wiki/template-queries";
@@ -125,6 +131,32 @@ const BASIC_CAPTURE_MODES: Mode[] = ["journal"];
 const TRACK_OPTIONS: WikiTrack[] = ["daily", "pro"];
 const X_PATH = "M 4 4 L 12 12 M 12 4 L 4 12";
 const CHECK_PATH = "M 3 7 L 7 11 L 13 5";
+
+// Voice recording phases drive the record/stop control + indicator.
+type VoicePhase = "idle" | "recording" | "transcribing";
+
+// Read a local recording URI into base64 + mime WITHOUT expo-file-system:
+// fetch the file:// (or blob:) URI as a Blob, then FileReader.readAsDataURL
+// yields a "data:<mime>;base64,<data>" string we split. Works on native and web.
+async function recordingUriToBase64(
+  uri: string,
+): Promise<{ base64: string; mimeType: string }> {
+  const blob = await (await fetch(uri)).blob();
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error("voice_read_failed"));
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.readAsDataURL(blob);
+  });
+  const comma = dataUrl.indexOf(",");
+  const header = comma >= 0 ? dataUrl.slice(0, comma) : "";
+  const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+  // header looks like "data:audio/mp4;base64" — pull the mime, fall back to the
+  // blob's own type, then a safe default Gemini accepts.
+  const headerMime = header.match(/^data:([^;]+)/)?.[1];
+  const mimeType = headerMime || blob.type || "audio/mp4";
+  return { base64, mimeType };
+}
 
 function PathGlyph({ path, color, size = 16 }: { path: string; color: string; size?: number }) {
   return (
@@ -340,6 +372,16 @@ function CaptureLegacy() {
   const [askAdvisor, setAskAdvisor] = useState(false);
   // 할 일(todo) mode: a single done flag persisted into the saved note's tags.
   const [todoDone, setTodoDone] = useState(false);
+  // 음성(voice) mode: real on-device recording → transcription. The recorder
+  // hook is always created (rules-of-hooks); web/permission/platform guards live
+  // in the handlers. On web the recorder may be unavailable — the existing typed
+  // transcript box stays as the fallback (handleStartRecording short-circuits).
+  // DEVICE VERIFICATION PENDING: no microphone in this environment, so the
+  // record→transcribe round-trip has not been run on hardware. Mock transcription
+  // (transcribeAudio) is wired so the flow and tests work offline.
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const [voicePhase, setVoicePhase] = useState<VoicePhase>("idle");
+  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
   const [recentDates, setRecentDates] = useState<string[]>([]);
   // 최근 조각 (recent pieces): the records rows already fetched for the streak
   // double as a tappable recent list under the composer. Each row → /record/[id].
@@ -930,9 +972,9 @@ function CaptureLegacy() {
   // count toward the daily-capture streak. A distinguishing tag keeps the kind
   // alive end-to-end (voice → #voice, todo → #todo plus #done when finished).
   // createRecord runs the safety classifier (C9) + audit log (C3) on this path.
-  // TODO(audio): voice mode currently saves a typed/pasted transcript. Wire a
-  // real audio recorder (e.g. expo-av) + on-device or Gemini transcription once
-  // the recording lib is added — until then this is an honest text capture.
+  // Voice mode now records real on-device audio (expo-audio) and transcribes it
+  // (transcribeAudio) into `body` for review/edit before this save runs; the
+  // typed-transcript box stays as the fallback (web / permission denied).
   async function handleNoteLikeSubmit(noteMode: "voice" | "todo") {
     if (!userId || !body.trim()) return;
     setSubmitting(true);
@@ -985,6 +1027,82 @@ function CaptureLegacy() {
       );
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // 음성(voice) recording: request mic permission on first record, then capture
+  // on-device audio. Web (or any platform where the recorder is unavailable)
+  // falls back to the existing typed-transcript box with a brief notice — never
+  // crashes. propose->ratify: the transcript lands in `body` for review/edit
+  // BEFORE the user presses 담기 to save.
+  async function handleStartRecording() {
+    if (!userId || voicePhase !== "idle") return;
+    setVoiceNotice(null);
+    // Web recording is unreliable across browsers; keep the typed fallback.
+    if (Platform.OS === "web") {
+      setVoiceNotice(t("voice.webFallback"));
+      return;
+    }
+    try {
+      const perm = await requestRecordingPermissionsAsync();
+      if (!perm.granted) {
+        // Permission denied → fall back to the typed transcript box.
+        setVoiceNotice(t("voice.permissionDenied"));
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      setVoicePhase("recording");
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[capture] start recording failed", (e as Error).message);
+      setVoicePhase("idle");
+      setVoiceNotice(t("voice.recordFailed"));
+    }
+  }
+
+  async function handleStopRecording() {
+    if (!userId || voicePhase !== "recording") return;
+    setVoicePhase("transcribing");
+    try {
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+      if (!uri) {
+        setVoicePhase("idle");
+        setVoiceNotice(t("voice.recordFailed"));
+        return;
+      }
+      const { base64, mimeType } = await recordingUriToBase64(uri);
+      const reply = await transcribeAudio({
+        userId,
+        locale,
+        base64,
+        mimeType,
+        minor: isMinor === true,
+      });
+      // C9: a red-zone transcript was swapped server-side for the fixed crisis
+      // template — route to the hotline instead of populating the body with it.
+      if (reply.safety?.zone === "red") {
+        setVoicePhase("idle");
+        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        return;
+      }
+      const transcript = reply.text.trim();
+      if (transcript.length === 0) {
+        setVoicePhase("idle");
+        setVoiceNotice(t("voice.transcriptEmpty"));
+        return;
+      }
+      // propose->ratify: fill the body so the user reviews/edits before saving.
+      setBody((prev) => {
+        const current = prev.trim();
+        return current.length === 0 ? transcript : `${prev.trimEnd()}\n\n${transcript}`;
+      });
+      setVoicePhase("idle");
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[capture] transcription failed", (e as Error).message);
+      setVoicePhase("idle");
+      setVoiceNotice(t("voice.transcribeFailed"));
     }
   }
 
@@ -1722,14 +1840,51 @@ function CaptureLegacy() {
             </View>
           ) : null}
 
-          {/* 음성(voice): a voice memo. Until an audio recorder is added (see
-              handleNoteLikeSubmit TODO), the user types/pastes the transcript;
-              it saves as a #voice note so the mode is real and selectable. */}
+          {/* 음성(voice): real on-device recording → transcription. The record
+              control captures audio, transcribes it (transcribeAudio), and drops
+              the transcript into the body for review/edit BEFORE 담기 saves it
+              (propose->ratify). The text box stays as the fallback when recording
+              is unavailable (web / permission denied) or for manual edits. */}
           {mode === "voice" ? (
             <View style={styles.fieldGroup}>
               <Text variant="caption" color="textMuted">
                 {t("voice.label")}
               </Text>
+              <View style={styles.voiceControlRow}>
+                {voicePhase === "recording" ? (
+                  <Button
+                    label={t("voice.stop")}
+                    variant="primary"
+                    onPress={() => void handleStopRecording()}
+                    accessibilityHint={t("voice.stopHint")}
+                    style={{ flex: 1 }}
+                  />
+                ) : (
+                  <Button
+                    label={t("voice.record")}
+                    variant="secondary"
+                    onPress={() => void handleStartRecording()}
+                    disabled={voicePhase === "transcribing"}
+                    accessibilityHint={t("voice.recordHint")}
+                    style={{ flex: 1 }}
+                  />
+                )}
+              </View>
+              {voicePhase !== "idle" ? (
+                <View style={styles.voiceStatusRow} accessibilityLiveRegion="polite">
+                  {voicePhase === "recording" ? (
+                    <>
+                      <View style={styles.voiceRecDot} />
+                      <Text variant="subtle" color="brand">{t("voice.recording")}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <ActivityIndicator color={semantic.brand} />
+                      <Text variant="subtle" color="textMuted">{t("voice.transcribing")}</Text>
+                    </>
+                  )}
+                </View>
+              ) : null}
               <Input
                 value={body}
                 onChangeText={setBody}
@@ -1741,7 +1896,7 @@ function CaptureLegacy() {
                 accessibilityLabel={t("voice.label")}
               />
               <Text variant="subtle" color="textSubtle" style={{ marginTop: 6 }}>
-                {t("voice.note")}
+                {voiceNotice ?? t("voice.note")}
               </Text>
             </View>
           ) : null}
@@ -2131,6 +2286,19 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
     alignSelf: "stretch",
+  },
+  voiceControlRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
+  voiceStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  voiceRecDot: {
+    width: 10,
+    height: 10,
+    borderRadius: gameboy.radius,
+    backgroundColor: semantic.brand,
   },
   advisorCheck: {
     width: 22,

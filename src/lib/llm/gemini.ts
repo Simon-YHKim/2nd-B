@@ -742,6 +742,152 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
   return { vectors, audit };
 }
 
+// --- Audio transcription (voice capture) ----------------------------------
+
+export interface TranscribeAudioInput {
+  userId: string;
+  locale: "en" | "ko";
+  /** Base64 audio bytes (no `data:` prefix). */
+  base64: string;
+  /** Source mime, e.g. "audio/m4a", "audio/mp4", "audio/webm". */
+  mimeType: string;
+  // C10: a minor's crisis output-swap routes to the youth hotline. Defaults adult.
+  minor?: boolean;
+  signal?: AbortSignal;
+}
+
+export interface TranscribeAudioResult {
+  /** The spoken words as text. Empty string when nothing intelligible. */
+  text: string;
+  safety: SafetyResult;
+  audit: AuditMeta;
+}
+
+// transcribeAudio - turn a recorded voice memo into its transcript.
+//
+// Constraints held exactly like callGemini / embedTexts:
+//   C1   only this file imports @google/genai (the transcription call lives here).
+//   C2   the @google/genai client is Vertex when EXPO_PUBLIC_USE_VERTEX=true
+//        (getClient()), the only permitted live egress here.
+//   C3   one ai_audit_log row on EVERY path (mock + live + output-swap).
+//   C9   the model's transcript is re-classified; a red-zone transcript is
+//        swapped for the fixed crisis template + crisis_events (input is audio,
+//        so the pre-call text classifier has nothing to scan — output gating is
+//        the C9 equivalent, mirroring callGemini's output swap).
+//   Cost a live API-key direct path is rejected (assertDirectEgressAllowed);
+//        mock and Vertex are the only paths, preserving the $0/mo promise.
+//
+// NOTE (device verification PENDING): the recorder + real Gemini audio
+// transcription cannot be exercised in this environment (no microphone). Mock
+// mode is fully wired and tested; the live branch follows the same inline-data
+// client pattern as the image path in callGemini but has NOT been run on a real
+// recording yet.
+export async function transcribeAudio(input: TranscribeAudioInput): Promise<TranscribeAudioResult> {
+  throwIfAborted(input.signal);
+  const env = getEnv();
+  const model = MODELS.flash;
+  const promptHash = djb2(`transcribe:${input.mimeType}:${input.base64.length}`);
+
+  // Offline-preview / CI / no-key: never touch the network. Returns a sensible
+  // placeholder transcript so the voice flow works end-to-end offline. C3 audit
+  // + C9 output classification still run (parity with callGemini mock).
+  if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
+    const t0 = Date.now();
+    const text =
+      input.locale === "ko"
+        ? "오프라인 미리보기 음성 받아쓰기입니다. 들은 내용을 검토하고 다듬은 뒤 담아 주세요."
+        : "This is an offline preview voice transcript. Review and edit what you heard, then save it.";
+    const outputSafety = classifyInput(text, input.locale, { minor: input.minor });
+    const audit: AuditMeta = {
+      promptHash,
+      outputHash: djb2(text),
+      modelUsed: `mock:${model}`,
+      vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
+      safetyZone: outputSafety.zone,
+      latencyMs: Date.now() - t0,
+    };
+    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] transcribe insert failed (mock)");
+    return { text, safety: outputSafety, audit };
+  }
+
+  // Live: only Vertex (or any non-direct-API-key) egress passes the cost guard.
+  // The gemini-proxy edge function only forwards image inline-data, so audio is
+  // sent on the direct/Vertex client path (the same inlineData mechanism the
+  // image path uses in callGemini).
+  assertDirectEgressAllowed(env);
+  const { client, vertex } = getClient();
+  const prompt =
+    input.locale === "ko"
+      ? "이 음성 메모를 한국어로 그대로 받아쓰세요. 들은 말만 적고, 다른 설명이나 머리말은 붙이지 마세요. 알아들을 수 없으면 빈 줄로 두세요."
+      : "Transcribe this voice memo verbatim in English. Write only the spoken words, no preface or commentary. If nothing is intelligible, return an empty line.";
+  const t0 = Date.now();
+  const res = await client.models.generateContent({
+    model,
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: input.mimeType, data: input.base64 } },
+          { text: prompt },
+        ],
+      },
+    ],
+    config: input.signal ? { abortSignal: input.signal } : undefined,
+  });
+  const latencyMs = Date.now() - t0;
+  const text = (res.text ?? "").trim();
+
+  // C9 equivalent for an audio-input call: classify the transcript. A red-zone
+  // transcript is never returned verbatim — swap in the fixed crisis template,
+  // write an HONEST audit row (real model + latency + a +swap marker) and a
+  // categorical crisis_event, exactly like callGemini's output swap.
+  const lexical = classifyInput(text, input.locale, { minor: input.minor });
+  const semantic = await classifySafety(text, input.locale, { userId: input.userId });
+  const outputZone: "green" | "yellow" | "red" =
+    lexical.zone === "red" || semantic.zone === "red"
+      ? "red"
+      : lexical.zone === "yellow" || semantic.zone === "yellow"
+        ? "yellow"
+        : "green";
+  const outputSafety: SafetyResult = { ...lexical, zone: outputZone };
+
+  if (outputZone === "red") {
+    const fixed = fixedCrisisResponse(input.locale, input.minor);
+    const swapAudit: AuditMeta = {
+      promptHash,
+      outputHash: djb2(fixed.text),
+      modelUsed: `${model}+swap:${fixed.version}`,
+      vertexBackend: vertex,
+      safetyZone: "red",
+      latencyMs,
+    };
+    await writeAiAuditLog(input.userId, swapAudit, "[ai_audit_log] transcribe output-swap insert failed");
+    await writeCrisisEvent(
+      input.userId,
+      {
+        classifierConfidence: semantic.confidence,
+        triggerCategories: [...semantic.triggers, "output_swap"],
+        cssrsLevel: semantic.cssrsLevel,
+        routingTemplateVersion: fixed.version,
+        locale: input.locale,
+      },
+      "[crisis_events] transcribe output-swap insert failed",
+    );
+    return { text: fixed.text, safety: outputSafety, audit: swapAudit };
+  }
+
+  const audit: AuditMeta = {
+    promptHash,
+    outputHash: djb2(text),
+    modelUsed: model,
+    vertexBackend: vertex,
+    safetyZone: outputSafety.zone,
+    latencyMs,
+  };
+  await writeAiAuditLog(input.userId, audit, "[ai_audit_log] transcribe insert failed");
+  return { text, safety: outputSafety, audit };
+}
+
 export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   const env = getEnv();
   const promptHash = djb2(input.userMessage);

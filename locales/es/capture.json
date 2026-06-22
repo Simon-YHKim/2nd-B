@@ -70,7 +70,7 @@
     },
     "voice": {
       "label": "Voice",
-      "help": "Leave a voice memo. For now, type or paste what you heard and it saves as a voice piece."
+      "help": "Record a voice memo. We turn it into text you can review and edit before saving."
     },
     "todo": {
       "label": "To do",
@@ -271,8 +271,19 @@
   },
   "voice": {
     "label": "Voice memo",
-    "placeholder": "Type or paste what you heard...",
-    "note": "For now this saves as a voice memo you type. Audio recording is coming soon."
+    "placeholder": "Record above, or type what you heard...",
+    "note": "Record a voice memo and we turn it into text. Review and edit it, then save.",
+    "record": "Record",
+    "recordHint": "Starts recording a voice memo from your microphone.",
+    "stop": "Stop and transcribe",
+    "stopHint": "Stops recording and turns your voice memo into text.",
+    "recording": "Recording...",
+    "transcribing": "Turning your voice into text...",
+    "webFallback": "Recording is not available here. Type what you heard instead.",
+    "permissionDenied": "Microphone access is off. Type what you heard, or allow the microphone in settings.",
+    "recordFailed": "Couldn't start recording. Type what you heard instead.",
+    "transcribeFailed": "Couldn't turn that recording into text. Try again, or type what you heard.",
+    "transcriptEmpty": "We couldn't make out any words. Try again closer to the microphone, or type it."
   },
   "todo": {
     "label": "To do",

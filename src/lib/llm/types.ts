@@ -11,6 +11,7 @@ export type PromptPurpose =
   | "secondb_chat"
   | "interview_probe"
   | "capture_ocr"
+  | "capture_voice"
   | "capture_classify"
   | "clipper_classify"
   | "clipper_template_propose"
