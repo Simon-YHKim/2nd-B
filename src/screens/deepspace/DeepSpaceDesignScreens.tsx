@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, BackHandler, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Line } from "react-native-svg";
+import Svg, { Circle, Line, Path } from "react-native-svg";
 
 import { colors, radius, spacing } from "@/theme/tokens";
+import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { TIERS, TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
 import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
@@ -1314,9 +1316,72 @@ export function DeepSpaceManualScreen() {
   );
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// Paywall (① 페이월) — re-skinned to the deep-space design canon. Three
+// journey-stage tiers (별바라기 / 항해자 / 북극성) NEVER labelled Free/Plus/Pro
+// in the UI. Counts + feature gates are pulled from the single source of truth
+// (src/lib/entitlements/tiers.ts) so the human phrasing below can never drift
+// from what the entitlement engine actually grants. Per that file's HARD
+// invariant, money buys MORE/LONGER memory + MORE features — never a better
+// answer; this surface must never imply a pricier tier reasons better.
+// RevenueCat wiring (getOfferings/purchasePackage/getProStatus/restore) is
+// preserved exactly; only the visuals change.
+// ──────────────────────────────────────────────────────────────────────────
+
+// Format a KRW integer as ₩6,900 without a hardcoded currency literal in copy.
+function krw(n: number): string {
+  return `₩${n.toLocaleString("ko-KR")}`;
+}
+
+// Outline-circle bullet (별바라기 tier) — cyan stroke, recedes vs the mint checks.
+function CircleBullet() {
+  return (
+    <Svg width={13} height={13} viewBox="0 0 16 16">
+      <Circle cx={8} cy={8} r={6.2} stroke={deepSpace.accentSoft} strokeWidth={1.3} fill="none" />
+    </Svg>
+  );
+}
+
+// Mint check bullet (항해자 / promoted tier) — the only "filled/positive" mark.
+function CheckBullet() {
+  return (
+    <Svg width={13} height={13} viewBox="0 0 16 16">
+      <Path d="M3.5 8.5l3 3 6-7" stroke={deepSpace.mint} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </Svg>
+  );
+}
+
+// Violet diamond bullet (북극성 tier) — soul/북극성 color, sits apart from cyan.
+function SoulBullet() {
+  return (
+    <Svg width={13} height={13} viewBox="0 0 16 16">
+      <Path d="M8 2l4 6-4 6-4-6z" stroke={deepSpace.soul} strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </Svg>
+  );
+}
+
+// Small trust star (mint) for the "무료도 같은 AI 품질" line.
+function TrustStar() {
+  return (
+    <Svg width={12} height={12} viewBox="0 0 16 16">
+      <Path d="M8 1.5l1.8 3.8 4.2.5-3 2.9.8 4.1L8 10.9 4.2 12.8l.8-4.1-3-2.9 4.2-.5z" stroke={deepSpace.mint} strokeWidth={1.1} strokeLinejoin="round" fill="none" />
+    </Svg>
+  );
+}
+
+type Bullet = "circle" | "check" | "soul";
+function FeatureRow({ kind, label, textStyle }: { kind: Bullet; label: string; textStyle: object }) {
+  return (
+    <View style={styles.payFeatRow}>
+      {kind === "circle" ? <CircleBullet /> : kind === "check" ? <CheckBullet /> : <SoulBullet />}
+      <Text variant="body" style={textStyle}>{label}</Text>
+    </View>
+  );
+}
+
 export function DeepSpacePlansScreen() {
-  const { t } = useTranslation("deepspace");
-  const proFeats = [t("plans.proFeat1"), t("plans.proFeat2"), t("plans.proFeat3"), t("plans.proFeat4")];
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language === "ko";
 
   // Real native IAP scaffold. RevenueCat routes the Offering to Google Play
   // Billing (Android) / Apple IAP (iOS). On web, or with no public key, or with
@@ -1328,7 +1393,10 @@ export function DeepSpacePlansScreen() {
   const [loading, setLoading] = useState(true);
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [isPro, setIsPro] = useState(false);
-  const [busy, setBusy] = useState(false);
+  // Which action is in-flight, so the paywall can show distinct "구매 중" /
+  // "복원 중" states on the right control (the 4th state, "restoring").
+  const [busyAction, setBusyAction] = useState<"buy" | "restore" | null>(null);
+  const busy = busyAction !== null;
   const [error, setError] = useState<string | null>(null);
   const available = arePurchasesAvailable();
 
@@ -1358,18 +1426,18 @@ export function DeepSpacePlansScreen() {
 
   async function buy(pkg: PurchasesPackage) {
     if (busy) return;
-    setBusy(true);
+    setBusyAction("buy");
     setError(null);
     const outcome = await purchasePackage(pkg);
     if (outcome.status === "purchased") setIsPro(outcome.isPro);
     else if (outcome.status === "error" || outcome.status === "unavailable") setError(t("plans.purchaseError"));
     // "cancelled" -> stay quiet.
-    setBusy(false);
+    setBusyAction(null);
   }
 
   async function restore() {
     if (busy) return;
-    setBusy(true);
+    setBusyAction("restore");
     setError(null);
     const outcome = await restorePurchases();
     if (outcome.status === "restored") {
@@ -1378,12 +1446,69 @@ export function DeepSpacePlansScreen() {
     } else {
       setError(t("plans.restoreError"));
     }
-    setBusy(false);
+    setBusyAction(null);
   }
 
   // No native store available (web / no key) OR no Offering configured yet:
   // honest notice, keep a /support fallback link. Never a dead checkout button.
   const showStoreNotice = !available || (!loading && packages.length === 0);
+
+  // The "항해자" CTA buys the plus offering. RevenueCat hands us the current
+  // Offering's packages; pick the one whose product reads as the monthly plus
+  // tier (id/price hint), else the first available package. The on-card price
+  // still shows TIER_PRICE_KRW so copy never drifts; the store charges the real
+  // localized priceString.
+  const plusPkg = useMemo(() => {
+    if (packages.length === 0) return undefined;
+    const hint = packages.find((p) => {
+      const id = `${p.identifier} ${p.product.identifier}`.toLowerCase();
+      return id.includes("plus") || id.includes("voyager") || id.includes("monthly") || id.includes("month");
+    });
+    return hint ?? packages[0];
+  }, [packages]);
+
+  // ── Tier copy — counts/features pulled from TIERS so it can't drift. ──
+  const free = TIERS.free;
+  const plus = TIERS.plus;
+  const pro = TIERS.pro;
+  const freeFeatures: string[] = ko
+    ? [
+        `한 달에 ${free.reasoningPerMonth}번 깊이 묻기`,
+        `렌즈 ${free.lenses}개로 시작`,
+        `기억이 ${free.historyDays}일 머무름`,
+      ]
+    : [
+        `${free.reasoningPerMonth} deep asks a month`,
+        `Start with ${free.lenses} lenses`,
+        `Memory stays ${free.historyDays} days`,
+      ];
+  const plusFeatures: string[] = ko
+    ? [
+        `한 달에 ${plus.reasoningPerMonth}번 깊이 묻기`,
+        `7개 렌즈 모두 열기`,
+        `기억이 영원히 머무름`,
+        `내보내기와 다른 앱 연동`,
+      ]
+    : [
+        `${plus.reasoningPerMonth} deep asks a month`,
+        `Open all 7 lenses`,
+        `Memory stays forever`,
+        `Export and connect other apps`,
+      ];
+  const proFeatures: string[] = ko
+    ? ["모든 길 끝까지 열기", "가족과 함께 떠나기", "더 깊은 내보내기"]
+    : ["Open every path to the end", "Journey together with family", "Deeper export"];
+
+  // Pro tier is the 북극성 stage; tap routes through the same buy() so the
+  // existing RevenueCat flow handles it (store charges the right product).
+  const proPkg = useMemo(() => {
+    if (packages.length === 0) return undefined;
+    const hint = packages.find((p) => {
+      const id = `${p.identifier} ${p.product.identifier}`.toLowerCase();
+      return id.includes("pro") || id.includes("northstar") || id.includes("north") || id.includes("year") || id.includes("annual");
+    });
+    return hint && hint !== plusPkg ? hint : undefined;
+  }, [packages, plusPkg]);
 
   return (
     <Shell title={t("plans.title")}>
@@ -1393,48 +1518,95 @@ export function DeepSpacePlansScreen() {
         mood="positive"
       />
 
-      {loading ? (
-        <View style={styles.plansLoading}>
-          <ActivityIndicator color={colors.cyan} />
-          <Text variant="subtle" style={styles.footer}>{t("plans.loadingOffers")}</Text>
-        </View>
-      ) : isPro ? (
-        <Card style={styles.planPro}>
-          <View style={styles.planHead}>
-            <Text variant="heading" style={styles.planName}>Pro</Text>
-            <Text variant="caption" pixelEn style={styles.planBadge}>{t("plans.proActive")}</Text>
+      {/* Subtle north-star soul glow + faint starfield over the hero. */}
+      <View pointerEvents="none" style={styles.paySoulGlow} />
+      <View pointerEvents="none" style={styles.payStars}>
+        <View style={[styles.payStar, { left: "18%", top: 8 }]} />
+        <View style={[styles.payStar, { right: "16%", top: 14, opacity: 0.7 }]} />
+        <View style={[styles.payStarSoul, { left: "62%", top: 4 }]} />
+      </View>
+
+      {/* HERO — dominant, no transactional words. */}
+      <View style={styles.payHero}>
+        <Text pixelEn style={styles.payEyebrow}>JOURNEY TO YOUR NORTH STAR</Text>
+        <Text style={styles.payTitle}>
+          {ko ? "나에 대해 더\n이해하고 싶나요?" : "Want to understand\nyourself more?"}
+        </Text>
+        <Text style={styles.paySub}>
+          {ko
+            ? "더 오래, 더 깊이 기억할수록\n당신의 북극성이 또렷해져요."
+            : "The longer and deeper you remember,\nthe clearer your north star becomes."}
+        </Text>
+      </View>
+
+      {isPro ? (
+        // Already on the 북극성 / 항해자 journey — confirm, no checkout.
+        <View style={[styles.payCard, styles.payCardPlus]}>
+          <View style={styles.payCardHead}>
+            <Text style={styles.payTierNamePlus}>{ko ? "항해자" : "Voyager"}</Text>
+            <Text variant="caption" pixelEn style={styles.payActiveTag}>{ko ? "이용 중" : "ACTIVE"}</Text>
           </View>
-          {proFeats.map((x) => <Text variant="body" key={x} style={styles.planFeat}>✦ {x}</Text>)}
+          {plusFeatures.map((x) => (
+            <FeatureRow key={x} kind="check" label={x} textStyle={styles.payFeatPlus} />
+          ))}
           <Text variant="subtle" style={styles.footer}>{t("plans.nowPro")}</Text>
-        </Card>
+        </View>
       ) : (
         <>
-          {packages.map((pkg) => (
-            <Card key={pkg.identifier} style={styles.planPro}>
-              <View style={styles.planHead}>
-                <Text variant="heading" style={styles.planName}>{pkg.product.title || "Pro"}</Text>
-                <Text variant="caption" pixelEn style={styles.planBadge}>{t("plans.recommended")}</Text>
-              </View>
-              <Text variant="heading" style={styles.planPrice}>
-                {pkg.product.priceString} <Text variant="subtle" style={styles.planPer}>{t("plans.perMonth")}</Text>
+          {/* 별바라기 — ₩0, cyan outline bullets. */}
+          <View style={[styles.payCard, styles.payCardFree]}>
+            <View style={styles.payCardHead}>
+              <Text style={styles.payTierNameFree}>{ko ? "별바라기" : "Stargazer"}</Text>
+              <Text style={styles.payPriceFree}>{krw(TIER_PRICE_KRW.free)}</Text>
+            </View>
+            <View style={styles.payFeatList}>
+              {freeFeatures.map((x) => (
+                <FeatureRow key={x} kind="circle" label={x} textStyle={styles.payFeatFree} />
+              ))}
+            </View>
+          </View>
+
+          {/* 항해자 — promoted: thicker cyan border + glow + "추천" rect tag. */}
+          <View style={[styles.payCard, styles.payCardPlus]}>
+            <Text pixelEn style={styles.payRecTag}>{ko ? "추천" : "PICK"}</Text>
+            <View style={[styles.payCardHead, styles.payCardHeadPlus]}>
+              <Text style={styles.payTierNamePlus}>{ko ? "항해자" : "Voyager"}</Text>
+              <Text style={styles.payPricePlus}>
+                <Text style={styles.payPriceStrong}>{krw(TIER_PRICE_KRW.plus)}</Text>
+                {ko ? " /월" : " /mo"}
               </Text>
-              {proFeats.map((x) => <Text variant="body" key={x} style={styles.planFeat}>✦ {x}</Text>)}
-              <Pressable
-                style={[styles.primary, busy ? styles.planBtnBusy : null]}
-                onPress={() => void buy(pkg)}
-                disabled={busy}
-                accessibilityRole="button"
-                accessibilityLabel={t("plans.startPro")}
-              >
-                <Text variant="caption" style={styles.primaryText}>
-                  {busy ? t("plans.purchasing") : t("plans.startPro")}
-                </Text>
-              </Pressable>
-            </Card>
-          ))}
+            </View>
+            <View style={styles.payFeatList}>
+              {plusFeatures.map((x) => (
+                <FeatureRow key={x} kind="check" label={x} textStyle={styles.payFeatPlus} />
+              ))}
+            </View>
+          </View>
+
+          {/* 북극성 — violet border + violet bullets. */}
+          <Pressable
+            style={[styles.payCard, styles.payCardPro]}
+            onPress={proPkg ? () => void buy(proPkg) : undefined}
+            disabled={!proPkg || busy}
+            accessibilityRole={proPkg ? "button" : undefined}
+            accessibilityLabel={ko ? "북극성으로 떠나기" : "Set out as North Star"}
+          >
+            <View style={styles.payCardHead}>
+              <Text style={styles.payTierNamePro}>{ko ? "북극성" : "North Star"}</Text>
+              <Text style={styles.payPricePro}>
+                <Text style={styles.payPriceStrongPro}>{krw(TIER_PRICE_KRW.pro)}</Text>
+                {ko ? " /월" : " /mo"}
+              </Text>
+            </View>
+            <View style={styles.payFeatList}>
+              {proFeatures.map((x) => (
+                <FeatureRow key={x} kind="soul" label={x} textStyle={styles.payFeatPro} />
+              ))}
+            </View>
+          </Pressable>
 
           {showStoreNotice ? (
-            <Card>
+            <View style={styles.payCard}>
               <Text variant="heading" style={styles.section}>{t("plans.notAvailableTitle")}</Text>
               <Text variant="body" style={styles.planFeatDim}>{t("plans.notAvailableBody")}</Text>
               <Pressable
@@ -1444,33 +1616,55 @@ export function DeepSpacePlansScreen() {
               >
                 <Text variant="caption" style={styles.planSupportLink}>{t("plans.support")}</Text>
               </Pressable>
-            </Card>
+            </View>
           ) : null}
         </>
       )}
 
-      <Card>
-        <View style={styles.planHead}>
-          <Text variant="heading" style={styles.planName}>Free</Text>
-          {!isPro ? <Text variant="subtle" style={styles.footer}>{t("plans.currentPlan")}</Text> : null}
+      {/* Loading state (가격 조회) — sits where the CTA will be, never overlaps. */}
+      {loading ? (
+        <View style={styles.plansLoading}>
+          <ActivityIndicator color={deepSpace.accent} />
+          <Text variant="subtle" style={styles.footer}>{ko ? "가격 조회 중…" : "Loading prices…"}</Text>
         </View>
-        <Text variant="body" style={styles.planFeatDim}>{t("plans.freeFeat")}</Text>
-      </Card>
+      ) : null}
 
+      {/* Inline error (결제 실패) — calm, functional, above the CTA. */}
       {error ? <Text variant="subtle" style={styles.planError}>{error}</Text> : null}
 
-      {available && !isPro && !loading ? (
-        <Pressable
-          style={[styles.planRestore, busy ? styles.planBtnBusy : null]}
-          onPress={() => void restore()}
-          disabled={busy}
-          accessibilityRole="button"
-          accessibilityLabel={t("plans.restore")}
-        >
-          <Text variant="caption" style={styles.planRestoreText}>
-            {busy ? t("plans.restoring") : t("plans.restore")}
-          </Text>
-        </Pressable>
+      {/* CTA BLOCK — below the cards in normal flow (marginTop:'auto' so it sinks
+          to the bottom when the body is short, but never overlaps long copy). */}
+      {!loading && !isPro ? (
+        <View style={styles.payCtaBlock}>
+          <View style={styles.payTrustRow}>
+            <TrustStar />
+            <Text style={styles.payTrust}>{ko ? "무료도 같은 AI 품질" : "Same AI quality, even free"}</Text>
+          </View>
+          <Pressable
+            style={[styles.payPrimary, busy ? styles.planBtnBusy : null, !plusPkg ? styles.payPrimaryDisabled : null]}
+            onPress={plusPkg ? () => void buy(plusPkg) : undefined}
+            disabled={busy || !plusPkg}
+            accessibilityRole="button"
+            accessibilityLabel={ko ? "항해자로 떠나기" : "Set out as Voyager"}
+          >
+            <Text style={styles.payPrimaryText}>
+              {busyAction === "buy" ? (ko ? "구매 중…" : "Purchasing…") : ko ? "항해자로 떠나기" : "Set out as Voyager"}
+            </Text>
+          </Pressable>
+          {available ? (
+            <Pressable
+              style={busy ? styles.planBtnBusy : null}
+              onPress={() => void restore()}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel={t("plans.restore")}
+            >
+              <Text style={styles.paySecondaryText}>
+                {busyAction === "restore" ? (ko ? "복원 중…" : "Restoring…") : t("plans.restore")}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
     </Shell>
   );
@@ -3723,7 +3917,44 @@ export function DeepSpaceSrsScreen() {
   );
 }
 
-const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, stars:{...StyleSheet.absoluteFill,overflow:'hidden'}, star:{position:'absolute',width:3,height:3,borderRadius:2,backgroundColor:colors.cyanSoft}, scroll:{padding:spacing.lg,paddingBottom:40,gap:spacing.md}, titleRow:{flexDirection:'row',alignItems:'center',gap:spacing.md,marginBottom:spacing.xs}, back:{color:colors.cyanSoft,fontSize:34,lineHeight:38,fontFamily:fontFamilies.pixelKo}, title:{color:colors.textTitle,fontSize:18,}, subtitle:{color:colors.textLo,fontSize:11,}, card:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,padding:spacing.md,gap:spacing.sm}, graphCard:{height:332,overflow:'hidden'}, centerCaption:{position:'absolute',left:0,right:0,top:156,textAlign:'center',color:colors.bgDeep,fontSize:11}, clusterLabel:{position:'absolute',color:colors.cyanSoft,fontSize:11}, ctaRow:{flexDirection:'row',gap:spacing.sm}, primary:{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:colors.cyan,borderRadius:radius.md,paddingVertical:spacing.md}, primaryText:{color:colors.bgDeep,fontSize:13}, secondary:{flex:1,alignItems:'center',justifyContent:'center',borderColor:colors.borderHi,borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.md}, secondaryText:{color:colors.cyanSoft,fontSize:13}, section:{color:colors.textTitle,fontSize:13,marginBottom:spacing.xs}, action:{minHeight:48,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderBottomWidth:1,borderBottomColor:colors.border,paddingVertical:spacing.sm}, actionLabel:{color:colors.textHi,fontSize:14}, actionValue:{color:colors.textLo,fontSize:12}, chev:{color:colors.cyanSoft,fontSize:22}, toggle:{width:42,height:24,borderRadius:12,backgroundColor:colors.border,justifyContent:'center',padding:3}, toggleOn:{backgroundColor:colors.cyan}, knob:{width:18,height:18,borderRadius:9,backgroundColor:colors.textLo}, knobOn:{alignSelf:'flex-end',backgroundColor:colors.bgDeep}, footer:{color:colors.textLo,textAlign:'center',fontSize:12,}, center:{alignItems:'center',gap:spacing.sm}, prompt:{color:colors.textHi,fontSize:16,textAlign:'center'}, avatar:{width:92,height:92,borderRadius:46,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center',backgroundColor:colors.cardBg}, danger:{alignSelf:'center',padding:spacing.md},dangerText:{color:colors.clay,fontSize:13}, lead:{color:colors.textMid,fontSize:14,textAlign:'center'}, authHero:{alignItems:'center',paddingTop:32,gap:spacing.md}, big:{color:colors.textTitle,fontSize:24,}, input:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:spacing.md,color:colors.textHi,fontFamily:fontFamilies.readable,backgroundColor:colors.bgDeep}, link:{color:colors.cyanSoft,textAlign:'center',paddingTop:spacing.sm}, mail:{fontSize:44,color:colors.cyanSoft}, codeRow:{flexDirection:'row',justifyContent:'center',gap:spacing.xs}, codeCell:{width:40,height:48,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,backgroundColor:colors.cardBg}, pill:{borderWidth:1,borderColor:colors.border,borderRadius:radius.pill,paddingHorizontal:spacing.sm,paddingVertical:spacing.xs},pillText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelEn,fontSize:8}, compareRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:spacing.lg,paddingVertical:spacing.sm}, compareCol:{alignItems:'center',gap:spacing.xs}, compareNum:{color:colors.textMid,fontSize:30}, compareNumHi:{color:colors.cyan}, compareCap:{color:colors.textLo,fontSize:11}, delta:{color:colors.mint,textAlign:'center',fontSize:13}, statRow:{flexDirection:'row',gap:spacing.sm}, statBox:{flex:1,alignItems:'center',gap:spacing.xs,backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,paddingVertical:spacing.md}, statNum:{color:colors.cyan,fontSize:28}, statCap:{color:colors.textLo,fontSize:11}, sizeRow:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, sizeCap:{color:colors.textLo,fontSize:12}, sizeCapLg:{color:colors.textHi,fontSize:18}, sizeTrack:{flex:1,height:4,borderRadius:2,backgroundColor:colors.border,justifyContent:'center'}, sizeKnob:{width:18,height:18,borderRadius:9,backgroundColor:colors.cyan,marginLeft:'46%'}, searchBox:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingHorizontal:spacing.md,paddingVertical:spacing.md}, searchText:{color:colors.textLo,fontSize:13}, planPro:{borderColor:colors.borderHi}, planHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, planName:{color:colors.textTitle,fontSize:15}, planBadge:{color:colors.bgDeep,backgroundColor:colors.cyan,fontSize:8,paddingHorizontal:spacing.sm,paddingVertical:3,borderRadius:radius.sm,overflow:'hidden'}, planPrice:{color:colors.textHi,fontSize:22,marginVertical:spacing.xs}, planPer:{color:colors.textLo,fontSize:12}, planFeat:{color:colors.cyanSoft,fontSize:13,}, planFeatDim:{color:colors.textMid,fontSize:13,}, plansLoading:{alignItems:'center',gap:spacing.sm,paddingVertical:spacing.lg}, planBtnBusy:{opacity:0.5}, planSupportLink:{color:colors.cyan,fontSize:13,marginTop:spacing.sm}, planError:{color:colors.amber,fontSize:12,textAlign:'center'}, planRestore:{alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingVertical:spacing.md}, planRestoreText:{color:colors.textMid,fontSize:13}, trendHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, primaryWide:{flex:1.6}, filterRow:{flexDirection:'row',flexWrap:'wrap',gap:6}, fchip:{paddingVertical:6,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, fchipActive:{borderColor:colors.cyan,backgroundColor:colors.cardBg}, fchipViolet:{borderColor:colors.soulLine,backgroundColor:colors.cardBg}, fchipText:{color:colors.cyanSoft,fontSize:11}, fchipTextActive:{color:colors.textTitle}, fchipTextViolet:{color:colors.soul}, tlLabel:{color:colors.cyanDim,fontSize:7,letterSpacing:0.7,marginTop:spacing.sm}, tlGroup:{paddingLeft:16,borderLeftWidth:1,borderLeftColor:colors.border,gap:12,marginTop:spacing.xs}, tlRow:{flexDirection:'row',alignItems:'center',gap:9}, tlDot:{width:8,height:8,borderRadius:4,backgroundColor:colors.cyan}, tlDotDim:{backgroundColor:colors.cyanDim}, tlIcon:{fontSize:14}, tlTitle:{flex:1,color:colors.textTitle,fontSize:12.5}, tlTitleDim:{color:colors.textMid}, tlTime:{color:colors.cyanDim,fontSize:10}, tlTagRow:{flexDirection:'row',paddingLeft:32}, tlTag:{color:colors.cyanDim,fontSize:5,letterSpacing:0.4,paddingHorizontal:6,paddingVertical:3,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, progressRow:{flexDirection:'row',alignItems:'center',gap:10}, progressTrack:{flex:1,height:6,borderRadius:3,backgroundColor:colors.border,overflow:'hidden'}, progressFill:{height:'100%',borderRadius:3,backgroundColor:colors.cyan}, progressLabel:{color:colors.cyanSoft,fontSize:11}, triageCard:{borderColor:colors.borderHi}, triageMeta:{flexDirection:'row',alignItems:'center',gap:9}, metaLabel:{color:colors.cyanDim,fontSize:6,letterSpacing:0.5}, triageBody:{color:colors.textTitle,fontSize:13.5,}, footerLeft:{color:colors.textLo,fontSize:11,}, iconBtn:{width:46,paddingVertical:11,borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.md,alignItems:'center',backgroundColor:colors.bgDeep}, iconBtnText:{fontSize:15}, queueItem:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:9,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,backgroundColor:colors.cardBg}, queueItemDim:{opacity:0.6}, queueText:{flex:1,color:colors.textMid,fontSize:12}, researchGraph:{height:118,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.bgDeep,overflow:'hidden',justifyContent:'center',alignItems:'center'}, graphTag:{position:'absolute',bottom:14,color:colors.textMid,fontSize:10}, insightViolet:{borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, insightVioletText:{color:colors.textTitle,fontSize:13,}, evRow:{flexDirection:'row',gap:6}, evChip:{color:colors.cyanDim,fontSize:10,paddingHorizontal:8,paddingVertical:4,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, formatGrid:{flexDirection:'row',flexWrap:'wrap',gap:9}, formatCard:{width:'47%',padding:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:4}, formatCardSel:{borderColor:colors.soulLine}, formatName:{color:colors.cyanSoft,fontSize:13}, formatNameSel:{color:colors.soul}, formatDesc:{color:colors.textLo,fontSize:10.5,}, soulPrimary:{alignItems:'center',justifyContent:'center',backgroundColor:colors.soul,borderRadius:radius.md,paddingVertical:spacing.md}, sourceRow:{flexDirection:'row',alignItems:'center',gap:11,paddingVertical:11,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, sourceRowDim:{opacity:0.7}, sourceName:{color:colors.textTitle,fontSize:13}, sourceNameDim:{color:colors.textMid,fontSize:13}, sourceDesc:{color:colors.textLo,fontSize:10}, sourceCta:{color:colors.cyan,fontSize:11}, sourceSoon:{color:colors.cyanDim,fontSize:10}, reviewLabel:{color:colors.cyanBright,fontSize:7,letterSpacing:0.7,marginBottom:spacing.xs}, mapRow:{flexDirection:'row',alignItems:'center',gap:8}, mapFrom:{color:colors.cyanSoft,fontSize:12}, mapArrow:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:12}, mapTo:{color:colors.textTitle,fontSize:12}, recMetaRow:{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}, recMetaType:{color:colors.cyanSoft,fontSize:11}, recMetaDot:{color:colors.textLo,fontSize:11}, recMeta:{color:colors.textLo,fontSize:11}, recTitle:{color:colors.textTitle,fontSize:17,}, recBody:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,padding:spacing.md}, recBodyText:{color:colors.textHi,fontSize:12.5,}, iconBtnDanger:{borderColor:colors.clay}, opsStep:{borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, opsStepHead:{flexDirection:'row',alignItems:'flex-start',gap:spacing.sm}, opsStepTitle:{flex:1,color:colors.textTitle,fontSize:13.5,}, timeChipMint:{color:colors.mint,fontSize:10,borderWidth:1,borderColor:colors.mint,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, timeChipCyan:{color:colors.textMid,fontSize:10,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, opsReason:{color:colors.textMid,fontSize:11.5,}, opsStepFoot:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, smallBtn:{marginLeft:'auto',backgroundColor:colors.cyan,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnText:{color:colors.bgDeep,fontSize:11}, smallBtnGhost:{marginLeft:'auto',borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnGhostText:{color:colors.cyanSoft,fontSize:11}, wikiStatRow:{flexDirection:'row',gap:spacing.sm}, wikiStat:{flex:1,flexDirection:'row',alignItems:'baseline',gap:6,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11}, wikiStatNum:{color:colors.textTitle,fontSize:20}, wikiStatNumCyan:{color:colors.cyan}, wikiStatCap:{color:colors.textLo,fontSize:10.5}, wikiPageOpen:{borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, wikiPageHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiPageTitle:{flex:1,color:colors.textTitle,fontSize:13.5}, wikiCaret:{color:colors.cyanDim,fontSize:14}, wikiBody:{color:colors.textHi,fontSize:11.5,}, wikiBacklinkRow:{flexDirection:'row',gap:6,flexWrap:'wrap',alignItems:'center'}, wikiBacklink:{color:colors.cyanSoft,fontSize:9.5,borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:4,overflow:'hidden'}, wikiPageRow:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11,gap:5}, wikiRowHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiRowTitle:{flex:1,color:colors.cyanSoft,fontSize:13}, wikiRowConn:{color:colors.cyanDim,fontSize:9.5}, wikiRowDesc:{color:colors.textLo,fontSize:11}, domainCard:{width:'47%',padding:14,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:8}, domainCardActive:{borderColor:colors.cyan}, domainCardDim:{borderStyle:'dashed',borderColor:colors.borderHi,opacity:0.65}, domainName:{color:colors.textTitle,fontSize:14}, domainNameDim:{color:colors.textMid,fontSize:14}, domainNumRow:{flexDirection:'row',alignItems:'baseline',gap:5}, domainNum:{color:colors.cyanSoft,fontSize:22}, domainNumActive:{color:colors.cyan}, domainNumDim:{color:colors.textLo}, domainUnit:{color:colors.textLo,fontSize:10}, domainSub:{color:colors.cyanDim,fontSize:9.5}, topicCol:{gap:8}, topicRow:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:10,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, topicDot:{width:6,height:6,borderRadius:3,backgroundColor:colors.cyan}, topicDotDim:{backgroundColor:colors.cyanDim}, topicText:{flex:1,color:colors.textTitle,fontSize:12.5}, topicTextDim:{flex:1,color:colors.textMid,fontSize:12.5}, opsTodayHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, opsTodayRow:{minHeight:48,flexDirection:'row',alignItems:'center',gap:spacing.sm,paddingVertical:spacing.sm,paddingHorizontal:spacing.md,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, opsCheck:{width:22,height:22,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center'}, opsCheckOn:{backgroundColor:colors.cyan,borderColor:colors.cyan}, opsCheckMark:{color:colors.bgDeep,fontSize:13,fontFamily:fontFamilies.pixelKo}, opsTodayTitle:{flex:1,color:colors.textTitle,fontSize:13,}, opsTodayTitleDone:{color:colors.textLo,textDecorationLine:'line-through'},
+const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, stars:{...StyleSheet.absoluteFill,overflow:'hidden'}, star:{position:'absolute',width:3,height:3,borderRadius:2,backgroundColor:colors.cyanSoft}, scroll:{padding:spacing.lg,paddingBottom:40,gap:spacing.md}, titleRow:{flexDirection:'row',alignItems:'center',gap:spacing.md,marginBottom:spacing.xs}, back:{color:colors.cyanSoft,fontSize:34,lineHeight:38,fontFamily:fontFamilies.pixelKo}, title:{color:colors.textTitle,fontSize:18,}, subtitle:{color:colors.textLo,fontSize:11,}, card:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,padding:spacing.md,gap:spacing.sm}, graphCard:{height:332,overflow:'hidden'}, centerCaption:{position:'absolute',left:0,right:0,top:156,textAlign:'center',color:colors.bgDeep,fontSize:11}, clusterLabel:{position:'absolute',color:colors.cyanSoft,fontSize:11}, ctaRow:{flexDirection:'row',gap:spacing.sm}, primary:{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:colors.cyan,borderRadius:radius.md,paddingVertical:spacing.md}, primaryText:{color:colors.bgDeep,fontSize:13}, secondary:{flex:1,alignItems:'center',justifyContent:'center',borderColor:colors.borderHi,borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.md}, secondaryText:{color:colors.cyanSoft,fontSize:13}, section:{color:colors.textTitle,fontSize:13,marginBottom:spacing.xs}, action:{minHeight:48,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderBottomWidth:1,borderBottomColor:colors.border,paddingVertical:spacing.sm}, actionLabel:{color:colors.textHi,fontSize:14}, actionValue:{color:colors.textLo,fontSize:12}, chev:{color:colors.cyanSoft,fontSize:22}, toggle:{width:42,height:24,borderRadius:12,backgroundColor:colors.border,justifyContent:'center',padding:3}, toggleOn:{backgroundColor:colors.cyan}, knob:{width:18,height:18,borderRadius:9,backgroundColor:colors.textLo}, knobOn:{alignSelf:'flex-end',backgroundColor:colors.bgDeep}, footer:{color:colors.textLo,textAlign:'center',fontSize:12,}, center:{alignItems:'center',gap:spacing.sm}, prompt:{color:colors.textHi,fontSize:16,textAlign:'center'}, avatar:{width:92,height:92,borderRadius:46,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center',backgroundColor:colors.cardBg}, danger:{alignSelf:'center',padding:spacing.md},dangerText:{color:colors.clay,fontSize:13}, lead:{color:colors.textMid,fontSize:14,textAlign:'center'}, authHero:{alignItems:'center',paddingTop:32,gap:spacing.md}, big:{color:colors.textTitle,fontSize:24,}, input:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:spacing.md,color:colors.textHi,fontFamily:fontFamilies.readable,backgroundColor:colors.bgDeep}, link:{color:colors.cyanSoft,textAlign:'center',paddingTop:spacing.sm}, mail:{fontSize:44,color:colors.cyanSoft}, codeRow:{flexDirection:'row',justifyContent:'center',gap:spacing.xs}, codeCell:{width:40,height:48,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,backgroundColor:colors.cardBg}, pill:{borderWidth:1,borderColor:colors.border,borderRadius:radius.pill,paddingHorizontal:spacing.sm,paddingVertical:spacing.xs},pillText:{color:colors.cyanSoft,fontFamily:fontFamilies.pixelEn,fontSize:8}, compareRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:spacing.lg,paddingVertical:spacing.sm}, compareCol:{alignItems:'center',gap:spacing.xs}, compareNum:{color:colors.textMid,fontSize:30}, compareNumHi:{color:colors.cyan}, compareCap:{color:colors.textLo,fontSize:11}, delta:{color:colors.mint,textAlign:'center',fontSize:13}, statRow:{flexDirection:'row',gap:spacing.sm}, statBox:{flex:1,alignItems:'center',gap:spacing.xs,backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,paddingVertical:spacing.md}, statNum:{color:colors.cyan,fontSize:28}, statCap:{color:colors.textLo,fontSize:11}, sizeRow:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, sizeCap:{color:colors.textLo,fontSize:12}, sizeCapLg:{color:colors.textHi,fontSize:18}, sizeTrack:{flex:1,height:4,borderRadius:2,backgroundColor:colors.border,justifyContent:'center'}, sizeKnob:{width:18,height:18,borderRadius:9,backgroundColor:colors.cyan,marginLeft:'46%'}, searchBox:{backgroundColor:colors.cardBg,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingHorizontal:spacing.md,paddingVertical:spacing.md}, searchText:{color:colors.textLo,fontSize:13}, planPro:{borderColor:colors.borderHi}, planHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, planName:{color:colors.textTitle,fontSize:15}, planBadge:{color:colors.bgDeep,backgroundColor:colors.cyan,fontSize:8,paddingHorizontal:spacing.sm,paddingVertical:3,borderRadius:radius.sm,overflow:'hidden'}, planPrice:{color:colors.textHi,fontSize:22,marginVertical:spacing.xs}, planPer:{color:colors.textLo,fontSize:12}, planFeat:{color:colors.cyanSoft,fontSize:13,}, planFeatDim:{color:colors.textMid,fontSize:13,}, plansLoading:{alignItems:'center',gap:spacing.sm,paddingVertical:spacing.lg}, planBtnBusy:{opacity:0.5}, planSupportLink:{color:colors.cyan,fontSize:13,marginTop:spacing.sm}, planError:{color:colors.amber,fontSize:12,textAlign:'center'}, planRestore:{alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingVertical:spacing.md}, planRestoreText:{color:colors.textMid,fontSize:13},
+ // ── Paywall (① 페이월) deep-space canon ──
+ paySoulGlow:{position:'absolute',top:54,left:'50%',width:240,height:240,marginLeft:-120,borderRadius:120,backgroundColor:withAlpha(deepSpace.soul,0.14)},
+ payStars:{...StyleSheet.absoluteFill,height:60,overflow:'hidden'},
+ payStar:{position:'absolute',width:2,height:2,borderRadius:1,backgroundColor:withAlpha(deepSpace.accentSoft,0.5)},
+ payStarSoul:{position:'absolute',width:2,height:2,borderRadius:1,backgroundColor:withAlpha(deepSpace.soul,0.45)},
+ payHero:{paddingTop:spacing.sm,paddingBottom:spacing.xs,gap:spacing.md},
+ payEyebrow:{color:deepSpace.soul,fontSize:8,letterSpacing:1.4},
+ payTitle:{color:deepSpace.textHi,fontSize:24,lineHeight:34,fontWeight:'800',fontFamily:fontFamilies.pixelKo},
+ paySub:{color:withAlpha(deepSpace.accentSoft,0.66),fontSize:13.5,lineHeight:21,fontFamily:fontFamilies.readable},
+ payCard:{borderWidth:1,borderColor:withAlpha(deepSpace.accent,0.18),borderRadius:radius.lg,backgroundColor:withAlpha(deepSpace.accent,0.04),padding:spacing.md,gap:spacing.sm},
+ payCardFree:{borderColor:withAlpha(deepSpace.accent,0.18),backgroundColor:withAlpha(deepSpace.accent,0.04)},
+ payCardPlus:{borderWidth:1.5,borderColor:withAlpha(deepSpace.accent,0.7),backgroundColor:withAlpha(deepSpace.accent,0.08),shadowColor:deepSpace.accent,shadowOpacity:0.3,shadowRadius:18,shadowOffset:{width:0,height:8},elevation:6},
+ payCardPro:{borderColor:withAlpha(deepSpace.soul,0.22),backgroundColor:withAlpha(deepSpace.soul,0.05)},
+ payCardHead:{flexDirection:'row',alignItems:'baseline',justifyContent:'space-between'},
+ payCardHeadPlus:{marginTop:spacing.xs},
+ payRecTag:{position:'absolute',top:-9,left:spacing.md,color:deepSpace.onAccent,backgroundColor:deepSpace.accent,fontSize:7,letterSpacing:0.8,paddingHorizontal:9,paddingVertical:4,borderRadius:radius.sm,overflow:'hidden'},
+ payTierNameFree:{color:deepSpace.accentBright,fontSize:15,fontFamily:fontFamilies.pixelKo},
+ payTierNamePlus:{color:deepSpace.textHi,fontSize:17,fontFamily:fontFamilies.pixelKo},
+ payTierNamePro:{color:deepSpace.soul,fontSize:15,fontFamily:fontFamilies.pixelKo},
+ payPriceFree:{color:withAlpha(deepSpace.accentSoft,0.7),fontSize:14,fontFamily:fontFamilies.readable},
+ payPricePlus:{color:deepSpace.accentBright,fontSize:14,fontFamily:fontFamilies.readable},
+ payPricePro:{color:withAlpha(deepSpace.soul,0.85),fontSize:14,fontFamily:fontFamilies.readable},
+ payPriceStrong:{color:deepSpace.accentBright,fontSize:16,fontWeight:'700'},
+ payPriceStrongPro:{color:deepSpace.textHi,fontSize:15,fontWeight:'700'},
+ payFeatList:{gap:7,marginTop:spacing.xs},
+ payFeatRow:{flexDirection:'row',alignItems:'center',gap:9},
+ payFeatFree:{flex:1,color:withAlpha(deepSpace.accentSoft,0.78),fontSize:12.5,fontFamily:fontFamilies.readable},
+ payFeatPlus:{flex:1,color:deepSpace.accentBright,fontSize:12.5,fontFamily:fontFamilies.readable},
+ payFeatPro:{flex:1,color:withAlpha(deepSpace.soul,0.85),fontSize:12.5,fontFamily:fontFamilies.readable},
+ payActiveTag:{color:deepSpace.onAccent,backgroundColor:deepSpace.accent,fontSize:8,paddingHorizontal:spacing.sm,paddingVertical:3,borderRadius:radius.sm,overflow:'hidden'},
+ payCtaBlock:{marginTop:'auto',paddingTop:spacing.sm,gap:9},
+ payTrustRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,marginBottom:spacing.xs},
+ payTrust:{color:withAlpha(deepSpace.mint,0.85),fontSize:11.5,fontFamily:fontFamilies.readable},
+ payPrimary:{minHeight:48,alignItems:'center',justifyContent:'center',backgroundColor:deepSpace.mint,borderRadius:radius.md,paddingVertical:spacing.md},
+ payPrimaryDisabled:{opacity:0.5},
+ payPrimaryText:{color:deepSpace.onMint,fontSize:16,fontWeight:'700',fontFamily:fontFamilies.pixelKo},
+ paySecondaryText:{color:withAlpha(deepSpace.accentSoft,0.6),fontSize:12.5,textAlign:'center',paddingVertical:11,fontFamily:fontFamilies.readable}, trendHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, primaryWide:{flex:1.6}, filterRow:{flexDirection:'row',flexWrap:'wrap',gap:6}, fchip:{paddingVertical:6,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, fchipActive:{borderColor:colors.cyan,backgroundColor:colors.cardBg}, fchipViolet:{borderColor:colors.soulLine,backgroundColor:colors.cardBg}, fchipText:{color:colors.cyanSoft,fontSize:11}, fchipTextActive:{color:colors.textTitle}, fchipTextViolet:{color:colors.soul}, tlLabel:{color:colors.cyanDim,fontSize:7,letterSpacing:0.7,marginTop:spacing.sm}, tlGroup:{paddingLeft:16,borderLeftWidth:1,borderLeftColor:colors.border,gap:12,marginTop:spacing.xs}, tlRow:{flexDirection:'row',alignItems:'center',gap:9}, tlDot:{width:8,height:8,borderRadius:4,backgroundColor:colors.cyan}, tlDotDim:{backgroundColor:colors.cyanDim}, tlIcon:{fontSize:14}, tlTitle:{flex:1,color:colors.textTitle,fontSize:12.5}, tlTitleDim:{color:colors.textMid}, tlTime:{color:colors.cyanDim,fontSize:10}, tlTagRow:{flexDirection:'row',paddingLeft:32}, tlTag:{color:colors.cyanDim,fontSize:5,letterSpacing:0.4,paddingHorizontal:6,paddingVertical:3,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, progressRow:{flexDirection:'row',alignItems:'center',gap:10}, progressTrack:{flex:1,height:6,borderRadius:3,backgroundColor:colors.border,overflow:'hidden'}, progressFill:{height:'100%',borderRadius:3,backgroundColor:colors.cyan}, progressLabel:{color:colors.cyanSoft,fontSize:11}, triageCard:{borderColor:colors.borderHi}, triageMeta:{flexDirection:'row',alignItems:'center',gap:9}, metaLabel:{color:colors.cyanDim,fontSize:6,letterSpacing:0.5}, triageBody:{color:colors.textTitle,fontSize:13.5,}, footerLeft:{color:colors.textLo,fontSize:11,}, iconBtn:{width:46,paddingVertical:11,borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.md,alignItems:'center',backgroundColor:colors.bgDeep}, iconBtnText:{fontSize:15}, queueItem:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:9,paddingHorizontal:11,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,backgroundColor:colors.cardBg}, queueItemDim:{opacity:0.6}, queueText:{flex:1,color:colors.textMid,fontSize:12}, researchGraph:{height:118,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.bgDeep,overflow:'hidden',justifyContent:'center',alignItems:'center'}, graphTag:{position:'absolute',bottom:14,color:colors.textMid,fontSize:10}, insightViolet:{borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, insightVioletText:{color:colors.textTitle,fontSize:13,}, evRow:{flexDirection:'row',gap:6}, evChip:{color:colors.cyanDim,fontSize:10,paddingHorizontal:8,paddingVertical:4,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm}, formatGrid:{flexDirection:'row',flexWrap:'wrap',gap:9}, formatCard:{width:'47%',padding:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:4}, formatCardSel:{borderColor:colors.soulLine}, formatName:{color:colors.cyanSoft,fontSize:13}, formatNameSel:{color:colors.soul}, formatDesc:{color:colors.textLo,fontSize:10.5,}, soulPrimary:{alignItems:'center',justifyContent:'center',backgroundColor:colors.soul,borderRadius:radius.md,paddingVertical:spacing.md}, sourceRow:{flexDirection:'row',alignItems:'center',gap:11,paddingVertical:11,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, sourceRowDim:{opacity:0.7}, sourceName:{color:colors.textTitle,fontSize:13}, sourceNameDim:{color:colors.textMid,fontSize:13}, sourceDesc:{color:colors.textLo,fontSize:10}, sourceCta:{color:colors.cyan,fontSize:11}, sourceSoon:{color:colors.cyanDim,fontSize:10}, reviewLabel:{color:colors.cyanBright,fontSize:7,letterSpacing:0.7,marginBottom:spacing.xs}, mapRow:{flexDirection:'row',alignItems:'center',gap:8}, mapFrom:{color:colors.cyanSoft,fontSize:12}, mapArrow:{color:colors.cyanDim,fontFamily:fontFamilies.readable,fontSize:12}, mapTo:{color:colors.textTitle,fontSize:12}, recMetaRow:{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}, recMetaType:{color:colors.cyanSoft,fontSize:11}, recMetaDot:{color:colors.textLo,fontSize:11}, recMeta:{color:colors.textLo,fontSize:11}, recTitle:{color:colors.textTitle,fontSize:17,}, recBody:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,padding:spacing.md}, recBodyText:{color:colors.textHi,fontSize:12.5,}, iconBtnDanger:{borderColor:colors.clay}, opsStep:{borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, opsStepHead:{flexDirection:'row',alignItems:'flex-start',gap:spacing.sm}, opsStepTitle:{flex:1,color:colors.textTitle,fontSize:13.5,}, timeChipMint:{color:colors.mint,fontSize:10,borderWidth:1,borderColor:colors.mint,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, timeChipCyan:{color:colors.textMid,fontSize:10,borderWidth:1,borderColor:colors.border,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:3,overflow:'hidden'}, opsReason:{color:colors.textMid,fontSize:11.5,}, opsStepFoot:{flexDirection:'row',alignItems:'center',gap:spacing.sm}, smallBtn:{marginLeft:'auto',backgroundColor:colors.cyan,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnText:{color:colors.bgDeep,fontSize:11}, smallBtnGhost:{marginLeft:'auto',borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.sm,paddingHorizontal:12,paddingVertical:7}, smallBtnGhostText:{color:colors.cyanSoft,fontSize:11}, wikiStatRow:{flexDirection:'row',gap:spacing.sm}, wikiStat:{flex:1,flexDirection:'row',alignItems:'baseline',gap:6,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11}, wikiStatNum:{color:colors.textTitle,fontSize:20}, wikiStatNumCyan:{color:colors.cyan}, wikiStatCap:{color:colors.textLo,fontSize:10.5}, wikiPageOpen:{borderWidth:1,borderColor:colors.borderHi,borderRadius:radius.lg,backgroundColor:colors.cardBg,padding:spacing.md,gap:spacing.sm}, wikiPageHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiPageTitle:{flex:1,color:colors.textTitle,fontSize:13.5}, wikiCaret:{color:colors.cyanDim,fontSize:14}, wikiBody:{color:colors.textHi,fontSize:11.5,}, wikiBacklinkRow:{flexDirection:'row',gap:6,flexWrap:'wrap',alignItems:'center'}, wikiBacklink:{color:colors.cyanSoft,fontSize:9.5,borderWidth:1,borderColor:colors.soulLine,borderRadius:radius.sm,paddingHorizontal:8,paddingVertical:4,overflow:'hidden'}, wikiPageRow:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,paddingHorizontal:13,paddingVertical:11,gap:5}, wikiRowHead:{flexDirection:'row',alignItems:'center',gap:7}, wikiRowTitle:{flex:1,color:colors.cyanSoft,fontSize:13}, wikiRowConn:{color:colors.cyanDim,fontSize:9.5}, wikiRowDesc:{color:colors.textLo,fontSize:11}, domainCard:{width:'47%',padding:14,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg,gap:8}, domainCardActive:{borderColor:colors.cyan}, domainCardDim:{borderStyle:'dashed',borderColor:colors.borderHi,opacity:0.65}, domainName:{color:colors.textTitle,fontSize:14}, domainNameDim:{color:colors.textMid,fontSize:14}, domainNumRow:{flexDirection:'row',alignItems:'baseline',gap:5}, domainNum:{color:colors.cyanSoft,fontSize:22}, domainNumActive:{color:colors.cyan}, domainNumDim:{color:colors.textLo}, domainUnit:{color:colors.textLo,fontSize:10}, domainSub:{color:colors.cyanDim,fontSize:9.5}, topicCol:{gap:8}, topicRow:{flexDirection:'row',alignItems:'center',gap:9,paddingVertical:10,paddingHorizontal:13,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, topicDot:{width:6,height:6,borderRadius:3,backgroundColor:colors.cyan}, topicDotDim:{backgroundColor:colors.cyanDim}, topicText:{flex:1,color:colors.textTitle,fontSize:12.5}, topicTextDim:{flex:1,color:colors.textMid,fontSize:12.5}, opsTodayHead:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, opsTodayRow:{minHeight:48,flexDirection:'row',alignItems:'center',gap:spacing.sm,paddingVertical:spacing.sm,paddingHorizontal:spacing.md,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.cardBg}, opsCheck:{width:22,height:22,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center'}, opsCheckOn:{backgroundColor:colors.cyan,borderColor:colors.cyan}, opsCheckMark:{color:colors.bgDeep,fontSize:13,fontFamily:fontFamilies.pixelKo}, opsTodayTitle:{flex:1,color:colors.textTitle,fontSize:13,}, opsTodayTitleDone:{color:colors.textLo,textDecorationLine:'line-through'},
   insightsWeeklyLabel:{color:colors.cyanDim,textAlign:'center',fontFamily:fontFamilies.pixelEn,fontSize:7,letterSpacing:0.7,},
   insightsBars:{height:132,flexDirection:'row',alignItems:'flex-end',justifyContent:'center',gap:spacing.xl,paddingTop:spacing.sm},
   insightsBarCol:{width:78,alignItems:'center',gap:spacing.xs},

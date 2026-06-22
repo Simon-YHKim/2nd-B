@@ -93,7 +93,8 @@
         {
           "microphonePermission": "The app needs microphone access to record a voice memo and turn it into text you can save."
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
