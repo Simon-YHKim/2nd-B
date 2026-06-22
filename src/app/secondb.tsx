@@ -37,6 +37,9 @@ import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/c
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
+import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
+import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
+import { getReasoningUsage, incrementReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
 import { CORE_VILLAGE_UI, VILLAGE_UI } from "@/lib/village-ui";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -151,6 +154,18 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const [pendingUpgrade, setPendingUpgrade] = useState<SubscriptionTier | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
+  // Reasoning cap (monthly) — each chat send = one "깊이 묻기" reasoning use.
+  // This is the COUNT-only gate (same-quality principle: we limit how many,
+  // never the quality). reasoningUsed/rewardCredits come from getReasoningUsage
+  // (fail-open). reasoningRemaining = Infinity for unlimited tiers (북극성/brain),
+  // which are never gated. rewardVisible drives the RewardedSheet for free adults.
+  const [reasoningUsed, setReasoningUsed] = useState(0);
+  const [rewardCredits, setRewardCredits] = useState(0);
+  const [rewardVisible, setRewardVisible] = useState(false);
+  const [capNotice, setCapNotice] = useState(false);
+  const reasoningRemaining = remainingReasoning(progression.tier, reasoningUsed, rewardCredits);
+  const reasoningUnlimited = reasoningRemaining === Infinity;
+
   // Seed once on entry: a character chat opens with that companion's greeting
   // as the first turn; a node entry pre-fills the composer with the context.
   const seededRef = useRef(false);
@@ -180,6 +195,20 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       .catch((e) => {
         if (typeof console !== "undefined") console.warn("[secondb] readChatUsage failed", (e as Error).message);
         setUsedToday(0);
+      });
+  }, [userId]);
+
+  // Reasoning usage (monthly cap) — load on mount, refreshed after each send.
+  // getReasoningUsage is fail-open, so a failure leaves the user unblocked.
+  useEffect(() => {
+    if (!userId) return;
+    void getReasoningUsage(userId)
+      .then(({ used, rewardCredits: rc }) => {
+        setReasoningUsed(used);
+        setRewardCredits(rc);
+      })
+      .catch((e) => {
+        if (typeof console !== "undefined") console.warn("[secondb] getReasoningUsage failed", (e as Error).message);
       });
   }, [userId]);
 
@@ -232,6 +261,23 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     if (!userId) return;
     const msg = draft.trim();
     if (msg.length === 0) return;
+
+    // Pre-send reasoning-cap gate (count-only — never a quality gate). Each send
+    // is one "깊이 묻기" reasoning use. Unlimited tiers (북극성/brain → Infinity)
+    // are never gated. On cap: free adults get the rewarded sheet (top up via a
+    // watch); everyone else routes to the paywall. The chat engine / C9 / C3
+    // path below is untouched — we only decide whether to reach it.
+    if (!reasoningUnlimited && reasoningRemaining <= 0) {
+      setCapNotice(true);
+      if (progression.tier === "free" && isMinor !== true) {
+        setRewardVisible(true);
+      } else {
+        router.push("/plans?from=ai_limit");
+      }
+      return;
+    }
+    setCapNotice(false);
+
     setSending(true);
     setTurns((prev) => [...prev, { role: "user", text: msg }]);
     setDraft("");
@@ -266,6 +312,15 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         const { display, chips } = parseSourceCitations(result.reply.text);
         setTurns((prev) => [...prev, { role: "secondb", text: display, chips }]);
         setUsedToday(result.used);
+        // SUCCESS only (not blocked / not crisis): this send consumed one
+        // reasoning use. Count it (count-only, never quality). Optimistically
+        // bump local used so the gate is live before the server round-trip
+        // resolves; still increment unlimited tiers for analytics (they never
+        // block). Fail-open: a failed increment must not break the answer.
+        setReasoningUsed((u) => u + 1);
+        void incrementReasoningUsage(userId).catch((e) => {
+          if (typeof console !== "undefined") console.warn("[secondb] incrementReasoningUsage failed", (e as Error).message);
+        });
         captureEvent(
           secondBSession({
             action: "message_sent",
@@ -509,6 +564,16 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             </ScrollView>
           ) : null}
 
+          {/* reasoning-cap inline notice (count-only — NOT a quality message).
+              "다 썼어요, 더 하려면" framing; no implication of lower quality. */}
+          {capNotice && !reasoningUnlimited && reasoningRemaining <= 0 ? (
+            <Text style={ds.limitLinkText} accessibilityLiveRegion="polite">
+              {locale === "ko"
+                ? "이번 주 깊이 묻기 횟수를 다 썼어요"
+                : "You've used this week's deep questions"}
+            </Text>
+          ) : null}
+
           {atLimit ? (
             <Pressable
               onPress={() => router.push("/plans?from=ai_limit")}
@@ -655,6 +720,28 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         {companion.moment ? (
           <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
         ) : null}
+
+        {/* Rewarded watch-to-earn — free adults top up reasoning COUNTS only
+            (never quality). onEarned: persist credits, refresh remaining, close;
+            the user can send again. onClose: just close. */}
+        <RewardedSheet
+          visible={rewardVisible}
+          onClose={() => setRewardVisible(false)}
+          remaining={reasoningUnlimited ? 0 : reasoningRemaining}
+          onEarned={async (credits) => {
+            if (userId) {
+              try {
+                await addRewardCredits(userId, credits);
+              } catch (e) {
+                if (typeof console !== "undefined") console.warn("[secondb] addRewardCredits failed", (e as Error).message);
+              }
+            }
+            setRewardCredits((c) => c + credits);
+            setCapNotice(false);
+            setRewardVisible(false);
+          }}
+          locale={locale}
+        />
       </DeepSpaceScreen>
     );
   }
@@ -710,6 +797,15 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           />
           <Button label={t("send")} variant="primary" onPress={handleSend} disabled={!canSend} loading={sending} />
         </View>
+
+        {/* reasoning-cap inline notice (count-only — NOT a quality message). */}
+        {capNotice && !reasoningUnlimited && reasoningRemaining <= 0 ? (
+          <Text variant="caption" color="textMuted" accessibilityLiveRegion="polite" style={{ textAlign: "right", paddingHorizontal: spacing.md }}>
+            {locale === "ko"
+              ? "이번 주 깊이 묻기 횟수를 다 썼어요"
+              : "You've used this week's deep questions"}
+          </Text>
+        ) : null}
 
         {usedToday !== null && usedToday >= limit ? (
           <Pressable
@@ -1034,6 +1130,26 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
       ) : null}
+
+      {/* Rewarded watch-to-earn — count-only top up; same wiring as deep-space. */}
+      <RewardedSheet
+        visible={rewardVisible}
+        onClose={() => setRewardVisible(false)}
+        remaining={reasoningUnlimited ? 0 : reasoningRemaining}
+        onEarned={async (credits) => {
+          if (userId) {
+            try {
+              await addRewardCredits(userId, credits);
+            } catch (e) {
+              if (typeof console !== "undefined") console.warn("[secondb] addRewardCredits failed", (e as Error).message);
+            }
+          }
+          setRewardCredits((c) => c + credits);
+          setCapNotice(false);
+          setRewardVisible(false);
+        }}
+        locale={locale}
+      />
     </PremiumAppShell>
   );
 }
