@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>2nd-Brain · 시스템별 LLM 라우팅 전략</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<style>
+  :root{
+    --bg:#0b1020; --surface:#121a2e; --surface2:#0e1526;
+    --text:#e7ecf8; --muted:#8b96ae; --line:rgba(122,162,210,.16);
+    --cyan:#5bc8e8; --violet:#9a8cff; --mint:#73e6b8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:Pretendard,system-ui,-apple-system,sans-serif;
+    line-height:1.65;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1040px;margin:0 auto;padding:56px 24px 96px}
+  .eyebrow{color:var(--cyan);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+  h1{font-size:34px;line-height:1.25;margin:10px 0 6px;font-weight:800;letter-spacing:-.01em}
+  h2{font-size:21px;margin:48px 0 14px;font-weight:700;letter-spacing:-.01em;
+    padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:16px;margin:26px 0 8px;font-weight:700;color:var(--text)}
+  p{color:#d4dcef;margin:10px 0}
+  .lede{font-size:17px;color:#c4cee4}
+  .muted{color:var(--muted)}
+  .verdict{background:linear-gradient(180deg,rgba(91,200,232,.10),rgba(91,200,232,.03));
+    border:1px solid rgba(91,200,232,.3);border-radius:14px;padding:20px 22px;margin:22px 0}
+  .verdict b{color:var(--cyan)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:14px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+  td b{color:var(--text)}
+  .tier{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;letter-spacing:.03em}
+  .tS{background:rgba(115,230,184,.14);color:var(--mint);border:1px solid rgba(115,230,184,.3)}
+  .tF{background:rgba(91,200,232,.14);color:var(--cyan);border:1px solid rgba(91,200,232,.3)}
+  .tR{background:rgba(154,140,255,.16);color:var(--violet);border:1px solid rgba(154,140,255,.34)}
+  code{background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12.5px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#bcd8ea}
+  .meter{display:inline-flex;gap:3px;vertical-align:middle}
+  .meter i{width:7px;height:7px;border-radius:2px;background:rgba(139,150,174,.28)}
+  .meter i.on{background:var(--cyan)}
+  .meter.v i.on{background:var(--violet)}
+  ul{margin:8px 0;padding-left:20px}li{margin:5px 0;color:#d4dcef}
+  .foot{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(91,200,232,.3)}
+  .kpi{font-size:12.5px;color:var(--muted)}
+  .pillrow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">2nd-Brain · Engineering Note</div>
+  <h1>상황·시스템별 적정 LLM 라우팅 전략</h1>
+  <p class="lede">"리즈닝이 필요한 곳엔 강한 모델, 속도가 필요한 곳엔 빠른 모델 + 하네스로 성능을 메운다" — 이 가설의 검증과, 실제 우리 코드(14개 <code>PromptPurpose</code>) 기준 매핑.</p>
+
+  <div class="verdict">
+    <p style="margin:0"><b>결론: 가설이 맞습니다.</b> 그리고 우리는 이미 그 방향으로 절반 가 있습니다 — 코드의 <code>MODELS</code>는 <code>flash</code>(gemini-2.5-flash) / <code>pro</code>(gemini-2.5-pro) 2-tier고, <b>Advisor(저널 성찰)만 Pro</b>, 나머지는 전부 Flash입니다. 남은 건 이걸 <b>purpose별 3-tier 라우터로 공식화</b>하고 모델 세대를 2026 라인업으로 올리는 것뿐입니다.</p>
+  </div>
+
+  <h2>1. 핵심 원리 — 하네스가 메울 수 있는 것 vs 없는 것</h2>
+  <p>"빠른 모델 + 하네스"가 통하는지는 <b>출력의 성격</b>이 가릅니다. 하네스(검색 그라운딩·스키마 강제·분류기 선게이트·검증/재시도·human propose→ratify)는 <b>회상·형식·안전</b>을 대신해 줄 수 있지만, <b>판단·종합(synthesis)</b>은 대신 못 합니다.</p>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="color:var(--cyan);margin-top:0">하네스로 커버됨 → 빠른 모델</h3>
+      <p class="muted" style="margin-top:4px">모델은 "유능하고 빠르면" 충분. 정답이 <b>구조화·검증 가능</b>.</p>
+      <ul>
+        <li>분류 / 태깅 / 라우팅 (정답 집합이 닫혀 있음)</li>
+        <li>추출 / OCR / 전사 (입력에 답이 이미 있음)</li>
+        <li>검색 기반 응답 (RAG가 근거를 떠먹여 줌)</li>
+        <li>스키마 강제 출력 (JSON 강제 디코딩)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="color:var(--violet);margin-top:0">하네스로 못 메움 → 리즈닝 모델</h3>
+      <p class="muted" style="margin-top:4px">출력이 <b>모호한 개인 데이터에 대한 판단</b>. 검색·검증으로 환원 불가.</p>
+      <ul>
+        <li>북극성(Soul Core) 정체성 문장 종합</li>
+        <li>반복측정 인터뷰의 다음 질문 설계(미묘한 정합성↑)</li>
+        <li>저널 성찰 / propose→ratify 변경 제안</li>
+        <li>기록 간 숨은 연결·패턴 발견</li>
+      </ul>
+    </div>
+  </div>
+  <p class="muted" style="font-size:13.5px">한 줄 규칙 — <b>출력이 "라벨/추출/경로"면 빠른 모델, "사용자가 누구인가에 대한 통찰"이면 리즈닝 모델.</b></p>
+
+  <h2>2. 시스템별 매핑 (실제 PromptPurpose 기준)</h2>
+  <p class="muted" style="font-size:13.5px">속도 민감도 <span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span> · 리즈닝 요구 <span class="meter v"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span> 형식. 권장 tier: <span class="tier tS">S 초고속</span> <span class="tier tF">F 균형</span> <span class="tier tR">R 리즈닝</span></p>
+  <table>
+    <thead><tr><th>서브시스템 (purpose)</th><th>출력 성격</th><th>속도</th><th>리즈닝</th><th>볼륨</th><th>하네스</th><th>tier</th></tr></thead>
+    <tbody>
+      <tr><td><b>안전 분류 C9</b> <span class="muted">classifyInput</span></td><td>위험 zone 라벨</td>
+        <td><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="meter v"><i class="on"></i><i></i><i></i><i></i><i></i></span></td><td>모든 호출 ×1</td><td>lexicon 선필터 + 폴백</td><td><span class="tier tS">S</span></td></tr>
+      <tr><td><b>capture 분류/태깅</b> <span class="muted">capture_classify</span></td><td>태그·종류</td>
+        <td><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="meter v"><i class="on"></i><i></i><i></i><i></i><i></i></span></td><td>높음</td><td>닫힌 라벨셋</td><td><span class="tier tS">S</span></td></tr>
+      <tr><td><b>clipper 분류</b> <span class="muted">clipper_classify</span></td><td>분류</td>
+        <td><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="meter v"><i class="on"></i><i></i><i></i><i></i><i></i></span></td><td>높음</td><td>스키마 강제</td><td><span class="tier tS">S</span></td></tr>
+      <tr><td><b>세컨비 챗</b> <span class="muted">secondb_chat · persona_chat</span></td><td>RAG 응답+인용</td>
+        <td><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+        <td><span class="meter v"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td><td>높음</td><td>검색 그라운딩+근거칩</td><td><span class="tier tF">F</span></td></tr>
+      <tr><td><b>OCR / 음성 전사</b> <span class="muted">capture_ocr · capture_voice</span></td><td>이미지/오디오→텍스트</td>
+        <td><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="meter v"><i class="on"></i><i></i><i></i><i></i><i></i></span></td><td>중간</td><td>입력에 답 존재</td><td><span class="tier tF">F</span></td></tr>
+      <tr><td><b>비서 추천</b> <span class="muted">ops_recommend</span></td><td>추천 카드</td>
+        <td><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="meter v"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td><td>중간</td><td>도메인 템플릿</td><td><span class="tier tF">F</span></td></tr>
+      <tr><td><b>지식 조회 / 임포트</b> <span class="muted">knowledge_lookup · import_ingest</span></td><td>요약·정리</td>
+        <td><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+        <td><span class="meter v"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td><td>중간</td><td>RAG</td><td><span class="tier tF">F</span></td></tr>
+      <tr><td><b>저널 성찰 (Advisor)</b> <span class="muted">journal_reflect · advisor</span></td><td>개인 데이터 성찰</td>
+        <td><span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+        <td><span class="meter v"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td><td>낮음</td><td>RAG는 보조, 판단은 모델</td><td><span class="tier tR">R</span></td></tr>
+      <tr><td><b>인터뷰 질문 설계</b> <span class="muted">interview_probe</span></td><td>다음 질문</td>
+        <td><span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+        <td><span class="meter v"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td><td>낮음</td><td>정합성 누적 로직</td><td><span class="tier tR">R</span></td></tr>
+      <tr><td><b>공상 구체화</b> <span class="muted">imagine</span></td><td>발산→후보</td>
+        <td><span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+        <td><span class="meter v"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td><td>낮음</td><td>propose→ratify 게이트</td><td><span class="tier tR">R</span></td></tr>
+      <tr><td><b>임베딩 (RAG)</b> <span class="muted">embedTexts</span></td><td>벡터</td>
+        <td><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+        <td><span class="meter v"><i></i><i></i><i></i><i></i><i></i></span></td><td>매우 높음</td><td>전용 임베딩 모델</td><td><span class="tier tS">S</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2>3. 제안 — purpose별 3-tier 라우터</h2>
+  <p>현 2-tier(flash/pro)를 <b>3-tier</b>로 확장하고 <code>callGemini({ purpose })</code>가 purpose→tier를 자동 선택하게 합니다. (지금은 호출부가 직접 <code>model</code>을 넘김.)</p>
+
+  <div class="card">
+    <div class="pillrow"><span class="tier tS">Tier S · 초고속/최저가</span></div>
+    <p style="margin:6px 0"><b>대상:</b> 안전분류(C9)·capture/clipper 분류·임베딩 — 모든 호출에 붙는 최고 볼륨·최고 지연민감 경로.</p>
+    <p style="margin:6px 0"><b>모델:</b> <code>gemini-2.5-flash-lite</code> 급 (출시 라인업 중 최저가 Flash 계열) · 임베딩은 <code>text-embedding-004</code> 유지.<br>
+    <span class="kpi">하네스: lexicon 선필터가 대부분을 LLM 전에 거름 → 모델은 회색지대만. batch 50% + 캐시 90%로 단가 바닥.</span></p>
+  </div>
+  <div class="card">
+    <div class="pillrow"><span class="tier tF">Tier F · 균형 (기본값)</span></div>
+    <p style="margin:6px 0"><b>대상:</b> 세컨비 챗·OCR·음성 전사·ops 추천·지식조회·임포트 — 사용자가 기다리는 인터랙티브 경로.</p>
+    <p style="margin:6px 0"><b>모델:</b> <code>gemini-3.5-flash</code> (2.5-flash에서 업그레이드 — 3.1 Pro 대비 ~4× 속도에 코딩/에이전트 벤치는 상회, $1.50/$9.00, 캐시 $0.15).<br>
+    <span class="kpi">하네스: RAG 검색 그라운딩 + 근거칩 인용 + 스키마 강제 출력이 품질을 끌어올림.</span></p>
+  </div>
+  <div class="card">
+    <div class="pillrow"><span class="tier tR">Tier R · 리즈닝</span></div>
+    <p style="margin:6px 0"><b>대상:</b> Advisor 저널 성찰·인터뷰 질문 설계·북극성 종합·연결 발견·공상 구체화 — "사용자가 누구인가"를 판단.</p>
+    <p style="margin:6px 0"><b>모델:</b> <code>gemini-3.x-pro</code> (현 2.5-pro 업그레이드). 볼륨이 낮아 단가 부담 작음 — 여기서 비용 아끼면 제품의 핵심 가치(자기이해 깊이)가 깎임.<br>
+    <span class="kpi">하네스로 대체 불가. 단, propose→ratify의 human 게이트가 "틀린 제안"의 비용을 흡수하므로 risk는 관리됨.</span></p>
+  </div>
+
+  <h2>4. 왜 GPT/Claude가 아니라 Gemini 유지인가</h2>
+  <table>
+    <thead><tr><th>티어(우리가 쓸 급)</th><th>입력/출력 1M</th><th>무료티어</th><th>오디오 입력</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr><td><b>Gemini 3.5 Flash</b></td><td>$1.50 / $9.00</td><td><b>있음</b></td><td><b>네이티브</b></td><td>이미 통합(C1/C2/C3), 1M 컨텍스트</td></tr>
+      <tr><td>GPT-5.4 Mini / Nano</td><td>$0.75/$4.50 · $0.20/$1.25</td><td>없음</td><td>별도 경로</td><td>단가는 최저, 무료티어·통합 부재</td></tr>
+      <tr><td>Claude Haiku 4.5</td><td>$1.00 / $5.00</td><td>없음</td><td><b>불가</b></td><td>KO 우수하나 오디오 전사 불가</td></tr>
+    </tbody>
+  </table>
+  <p>GPT Nano가 토큰 단가만 보면 가장 싸지만, 우리 맥락에선 <b>(1)</b> 무료티어로 $0/mo를 지키고 <b>(2)</b> 방금 붙인 오디오 전사가 단일 API로 끝나며 <b>(3)</b> C1 경계가 이미 Gemini 기준이라 — <b>Gemini가 종합 우위</b>. 비용 폴백이 정말 필요해지면 Tier S(대량 분류)만 GPT-5.4 Nano로 빼는 하이브리드가 가능하지만, 복잡도 대비 실익은 쿼터 초과 전엔 작습니다.</p>
+
+  <h2>5. 다음 한 걸음 (코드)</h2>
+  <div class="card">
+    <ul>
+      <li><code>src/lib/llm/types.ts</code>의 <code>MODELS</code>에 <code>lite</code> 추가 + 세대 업그레이드: <code>{ lite, flash, pro }</code> → 2026 라인업.</li>
+      <li><code>callGemini</code>에 <b>purpose→tier 기본 매핑</b> 테이블 추가(호출부가 <code>model</code>을 안 넘기면 purpose로 결정).</li>
+      <li>Advisor는 이미 <code>pro</code> → Tier R 그대로. 안전분류·임베딩·capture/clipper 분류를 <code>lite</code>로 강등.</li>
+      <li>변경은 C1/C2/C3/C9 경계 안에서만 — 모델 ID·tier만 바뀌고 게이트 로직은 무변.</li>
+    </ul>
+    <p class="muted" style="margin-bottom:0">원하시면 이 라우터를 <code>model-router</code> 스킬로 바로 적용(테스트 포함)해 드립니다. 회귀 0 · verify green 보장.</p>
+  </div>
+
+  <div class="foot">
+    <p>가격·성능 출처 (2026-06):
+      <a href="https://devtk.ai/en/models/gemini-3-5-flash/">Gemini 3.5 Flash</a> ·
+      <a href="https://ai.google.dev/gemini-api/docs/pricing">Gemini API docs</a> ·
+      <a href="https://devtk.ai/en/blog/openai-api-pricing-guide-2026/">OpenAI 2026</a> ·
+      <a href="https://www.metacto.com/blogs/anthropic-api-pricing-a-full-breakdown-of-costs-and-integration">Claude 2026</a>.
+      코드 근거: <code>src/lib/llm/types.ts</code> (MODELS), <code>src/lib/llm/gemini.ts</code> (callGemini/callAdvisor/embedTexts/transcribeAudio), 14 PromptPurpose.</p>
+  </div>
+
+</div>
+</body>
+</html>
