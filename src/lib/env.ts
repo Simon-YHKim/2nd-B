@@ -74,6 +74,14 @@ const schema = z.object({
   EXPO_PUBLIC_FORCE_TIER: z
     .enum(["off", "free", "soma", "cortex", "brain"])
     .default("off"),
+  // QA-only: honor a `?tier=all|free|plus|pro` URL query param (web) so one
+  // deployment exposes separate per-tier test links. Gated OFF by default so a
+  // release build can NEVER be bypassed by a query param. REMOVE / keep "false"
+  // for the public launch build.
+  EXPO_PUBLIC_ALLOW_DEV_TIER: z
+    .union([z.literal("true"), z.literal("false")])
+    .default("false")
+    .transform((v) => v === "true"),
   // Render the Soul Core v3 SVG art pack (public/assets/cosmic-pixel-v3-soulcore/)
   // instead of the legacy PNG art. Default true (Simon concept: the worldview
   // Soul/Pattern Core tesseract art + Foreman-Momo crew are the intended visuals).
@@ -213,6 +221,7 @@ function readRaw(): Record<string, string | undefined> {
   const useVertex = process.env.EXPO_PUBLIC_USE_VERTEX;
   const viaEdge = process.env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION;
   const forceTier = process.env.EXPO_PUBLIC_FORCE_TIER;
+  const allowDevTier = process.env.EXPO_PUBLIC_ALLOW_DEV_TIER;
   const useV3Art = process.env.EXPO_PUBLIC_USE_V3_ART;
   const naverClientId = process.env.EXPO_PUBLIC_NAVER_CLIENT_ID;
   const enableNaver = process.env.EXPO_PUBLIC_ENABLE_NAVER;
@@ -252,6 +261,7 @@ function readRaw(): Record<string, string | undefined> {
     EXPO_PUBLIC_USE_VERTEX: presentOrUndefined(useVertex),
     EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: presentOrUndefined(viaEdge),
     EXPO_PUBLIC_FORCE_TIER: presentOrUndefined(forceTier),
+    EXPO_PUBLIC_ALLOW_DEV_TIER: presentOrUndefined(allowDevTier),
     EXPO_PUBLIC_USE_V3_ART: presentOrUndefined(useV3Art),
     EXPO_PUBLIC_NAVER_CLIENT_ID: presentOrUndefined(naverClientId),
     EXPO_PUBLIC_ENABLE_NAVER: presentOrUndefined(enableNaver),
