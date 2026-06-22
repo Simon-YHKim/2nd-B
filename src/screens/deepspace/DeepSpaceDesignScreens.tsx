@@ -94,6 +94,7 @@ import { splitImportNotes, previewTitle } from "@/lib/wiki/import-notes";
 import { exportIden } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
+import { summarizeWeeklyInsights } from "@/lib/insights/weekly";
 import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
 import {
   buildDeepResearchView,
@@ -1048,9 +1049,115 @@ export function DeepSpaceResetPasswordDesignScreen() {
 }
 
 export function DeepSpaceInsightsScreen() {
-  const { t } = useTranslation("deepspace");
-  const lastWeek = 18;
-  const thisWeek = 31;
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language === "ko";
+  const { userId, loading: authLoading } = useAuth();
+
+  // Real week-over-week data. We reuse listRecentRecords (the same client other
+  // deep-space screens use) — it returns a ~90-day window of the user's records,
+  // which covers both comparison weeks — and feed the rows to the pure summary.
+  const [rows, setRows] = useState<Array<{ created_at: string }> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errored, setErrored] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    setLoading(true);
+    setErrored(false);
+    listRecentRecords(userId)
+      .then((data) => {
+        if (alive) setRows((data ?? []) as Array<{ created_at: string }>);
+      })
+      .catch(() => {
+        if (alive) {
+          setRows(null);
+          setErrored(true);
+        }
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, reloadKey]);
+
+  const summary = useMemo(
+    () => (rows ? summarizeWeeklyInsights(rows) : null),
+    [rows],
+  );
+
+  if (authLoading) {
+    return <Shell title={t("insights.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  // 1) Loading state.
+  if (loading) {
+    return <Shell title={t("insights.title")}><GraphLoading /></Shell>;
+  }
+
+  // 2) Error state — single retry CTA.
+  if (errored || !summary) {
+    return (
+      <Shell title={t("insights.title")}>
+        <View style={styles.wikiPageOpen}>
+          <Text variant="body" style={styles.wikiBody}>
+            {ko ? "이번 주 데이터를 불러오지 못했어요." : "Could not load this week's data."}
+          </Text>
+          <Pressable
+            style={styles.primary}
+            onPress={() => setReloadKey((k) => k + 1)}
+            accessibilityRole="button"
+            accessibilityLabel={ko ? "다시 시도" : "Try again"}
+          >
+            <Text variant="caption" style={styles.primaryText}>{ko ? "다시 시도" : "Try again"}</Text>
+          </Pressable>
+        </View>
+      </Shell>
+    );
+  }
+
+  // 3) Empty / first-week state — no prior week to compare against yet.
+  if (summary.isFirstWeek) {
+    return (
+      <Shell title={t("insights.title")}>
+        <SecondbStatusHeader text={t("insights.status")} tip={t("insights.tip")} mood="neutral" />
+        <View style={styles.wikiPageOpen}>
+          <Text variant="body" style={styles.wikiBody}>
+            {ko
+              ? "한 주만 채우면 지난주와 이번주를 비교해 드릴게요."
+              : "Fill one week and I'll compare this week with last week."}
+          </Text>
+          <Pressable
+            style={styles.primary}
+            onPress={() => router.push("/capture")}
+            accessibilityRole="button"
+            accessibilityLabel={t("wiki.addPiece")}
+          >
+            <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
+          </Pressable>
+        </View>
+      </Shell>
+    );
+  }
+
+  // 4) Filled state — real week-over-week. Bar heights scale to the larger of
+  // the two counts so the taller bar always fills the track.
+  const lastWeek = summary.lastWeek;
+  const thisWeek = summary.thisWeek;
+  const maxCount = Math.max(lastWeek, thisWeek, 1);
+  const lastHeight = Math.max(6, Math.round((lastWeek / maxCount) * 84));
+  const thisHeight = Math.max(6, Math.round((thisWeek / maxCount) * 84));
+  const deltaLabel =
+    summary.direction === "up"
+      ? t("insights.delta", { percent: summary.deltaPct })
+      : summary.direction === "down"
+        ? (ko ? `▼ ${Math.abs(summary.deltaPct)}% 적게 저장` : `▼ ${Math.abs(summary.deltaPct)}% less saved`)
+        : (ko ? "지난주와 같은 양" : "Same as last week");
+
   return (
     <Shell title={t("insights.title")}>
       <SecondbStatusHeader text={t("insights.status")} tip={t("insights.tip")} mood="positive" />
@@ -1068,19 +1175,19 @@ export function DeepSpaceInsightsScreen() {
             <View style={styles.insightsBarCol}>
               <Text variant="heading" style={styles.compareNum}>{lastWeek}</Text>
               <View style={styles.insightsBarTrack}>
-                <View style={[styles.insightsBarFillMuted, { height: 46 }]} />
+                <View style={[styles.insightsBarFillMuted, { height: lastHeight }]} />
               </View>
               <Text variant="subtle" style={styles.compareCap}>{t("insights.lastWeek")}</Text>
             </View>
             <View style={styles.insightsBarCol}>
               <Text variant="heading" style={[styles.compareNum, styles.compareNumHi]}>{thisWeek}</Text>
               <View style={styles.insightsBarTrack}>
-                <View style={[styles.insightsBarFillActive, { height: 84 }]} />
+                <View style={[styles.insightsBarFillActive, { height: thisHeight }]} />
               </View>
               <Text variant="subtle" style={styles.compareCap}>{t("insights.thisWeek")}</Text>
             </View>
           </View>
-          <Text variant="body" style={styles.delta}>{t("insights.delta", { percent: 72 })}</Text>
+          <Text variant="body" style={styles.delta}>{deltaLabel}</Text>
         </Card>
       </Pressable>
       <Pressable

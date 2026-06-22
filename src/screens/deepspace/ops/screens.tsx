@@ -62,7 +62,13 @@ import {
   type MealSlot,
 } from "@/lib/nutrition/meal-plan";
 import { listActiveRoutines, type OpsRoutine } from "@/lib/ops/routines";
-import { remindersSupported } from "@/lib/ops/reminders";
+import {
+  disableReminder,
+  enableReminder,
+  ensureNotificationPermission,
+  getReminderStates,
+  remindersSupported,
+} from "@/lib/ops/reminders";
 import { getGithubUsername, setGithubUsername } from "@/lib/projects/github-link";
 import { monthDelta, prevMonthKey } from "@/lib/finance/trend";
 import { trendChip } from "@/lib/ops/grounding";
@@ -773,25 +779,65 @@ export function RemindersScreen() {
     () => (userId ? listActiveRoutines(userId) : Promise.resolve([])),
     [userId],
   );
-  const withReminder = (routines.data ?? []).filter((r) => r.reminder_time);
+  const withReminder = useMemo(
+    () => (routines.data ?? []).filter((r) => r.reminder_time),
+    [routines.data],
+  );
 
-  // Per-routine on/off. BLOCKED(persistence): there's no re-activate helper in
-  // lib/ops/routines (only deactivateRoutine), so this is a session-local toggle
-  // — the row's on/off STATE is honored, but it isn't persisted across launches.
-  const [offIds, setOffIds] = useState<Record<string, true>>({});
-  const toggle = (id: string) =>
-    setOffIds((prev) => {
-      const next = { ...prev };
-      if (next[id]) delete next[id];
-      else next[id] = true;
-      return next;
+  // Per-routine on/off — PERSISTED device-local via lib/ops/reminders
+  // (AsyncStorage disabled-set; reminders never leave the device, so their
+  // on/off lives device-local, not in the owner-scoped ops_routines table).
+  // Default = ON: every reminder is on unless explicitly toggled off.
+  const [states, setStates] = useState<Record<string, boolean>>({});
+  // Routines the user tried to enable but the OS permission was denied — they
+  // render the row's "권한 필요" state instead of crashing or silently failing.
+  const [denied, setDenied] = useState<Record<string, true>>({});
+
+  // Hydrate the persisted on/off states once the reminder list is known.
+  useEffect(() => {
+    let alive = true;
+    void getReminderStates(withReminder.map((r) => r.id)).then((s) => {
+      if (alive) setStates(s);
     });
+    return () => {
+      alive = false;
+    };
+  }, [withReminder]);
 
-  // [권한 켜기] permission row. BLOCKED(os-permission): lib/ops/reminders exposes
-  // no standalone permission-request export (the prompt is bundled inside
-  // scheduleRoutineReminder/notifyNow, which would also fire a notification), so
-  // we can't request the OS permission here without a side effect. The row is
-  // shown when the device can't schedule; wiring the real prompt is a follow-up.
+  const toggle = async (id: string) => {
+    const currentlyOn = states[id] !== false;
+    if (currentlyOn) {
+      await disableReminder(id);
+      setStates((prev) => ({ ...prev, [id]: false }));
+      setDenied((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      return;
+    }
+    // Enabling: ask for the OS permission first (propose->ratify — the tap is
+    // the user action). Denied → keep it off and show "권한 필요".
+    const ok = await enableReminder(id);
+    if (ok) {
+      setStates((prev) => ({ ...prev, [id]: true }));
+      setDenied((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } else {
+      setDenied((prev) => ({ ...prev, [id]: true }));
+    }
+  };
+
+  // [권한 켜기]: request the OS notification permission up front, with no side
+  // effect (no notification fired). Clears the denied flags on grant so the
+  // rows can be enabled.
+  const onGrantPermission = async () => {
+    const ok = await ensureNotificationPermission();
+    if (ok) setDenied({});
+  };
 
   return (
     <OpsFrame title={c.scheduledReminders} bubble={c.scheduledReminders} tip={c.remindersTip}>
@@ -803,16 +849,28 @@ export function RemindersScreen() {
         <OpsState variant="empty" title={c.emptyTitle} body={c.scheduledReminders} />
       ) : (
         withReminder.map((r) => {
-          const on = supported && !offIds[r.id];
+          const isDenied = !!denied[r.id];
+          const on = supported && !isDenied && states[r.id] !== false;
+          // On web (unsupported) the reminder can't run on this device; show
+          // the honest "이 기기 불가" state and disable the toggle.
+          const statusLabel = !supported
+            ? c.notOnThisDevice
+            : isDenied
+              ? c.needsPermission
+              : on
+                ? c.active
+                : c.needsPermission;
           return (
             <OpsReminderRow
               key={r.id}
               title={r.title}
               schedule={reminderSchedule(r, c)}
               tone={on ? "active" : "muted"}
-              statusLabel={!supported ? c.notOnThisDevice : on ? c.active : c.needsPermission}
+              statusLabel={statusLabel}
               on={on}
-              onToggle={supported ? () => toggle(r.id) : undefined}
+              onToggle={supported ? () => void toggle(r.id) : undefined}
+              actionLabel={supported && isDenied ? c.enableNotifications : undefined}
+              onAction={supported && isDenied ? () => void onGrantPermission() : undefined}
             />
           );
         })
