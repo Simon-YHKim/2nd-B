@@ -3,8 +3,11 @@
  *   CaptureView (담기) · ChatView (세컨비) · LensView (나, empty/error/filled) ·
  *   IdenView (IDEN).
  *
- * Demo data is the design's dummy content; real store/query wiring is marked
- * TODO. Copy lives in the `home` i18n namespace (ds.*) — no hardcoded Korean.
+ * The lens/iden/values/possible views render REAL data passed by their caller
+ * screens (loading/empty/error/filled from props); with no prop they fall back
+ * to the design's sample content for the Soul Core preview path. Recall/Rhythm/
+ * Relational are not yet wired to a live route, so they show honest empty states
+ * (see each view's TODO). Copy lives in the `home` i18n namespace (ds.*).
  * Cyan/soul gradients use the sanctioned deepSpaceGradients via react-native-svg
  * (DESIGN.md adoption 2026-06-17). Unique SVG gradient ids via useId() so web
  * (document-global svg ids) never clashes across instances.
@@ -313,16 +316,97 @@ export function LensView({
 
 // ── IDEN ─────────────────────────────────────────────────────────────────────
 
-export function IdenView() {
+export type IdenViewData = {
+  /** Display name shown as the `*.iden` handle (e.g. "simon.iden"). */
+  name: string;
+  /** IDEN format version, e.g. "0.1". */
+  version: string;
+  /** One-line "who" (the IdenDoc oneLiner) shown as the north star. */
+  northStar: string;
+  /** Pre-formatted Big Five line, e.g. "O72 C58 E41 A67 N39"; null when no traits yet. */
+  bigFive: string | null;
+};
+
+export function IdenView({
+  data,
+  loading,
+  hasError,
+  isKo,
+  onSend,
+  onRetry,
+}: {
+  data?: IdenViewData | null;
+  loading?: boolean;
+  hasError?: boolean;
+  isKo?: boolean;
+  onSend?: () => void;
+  onRetry?: () => void;
+} = {}) {
   const { t } = useTranslation("home");
+  // No `data` prop (undefined) = design preview / reuse path: keep sample copy.
+  // A provided value drives real states: loading -> spinner copy, hasError ->
+  // retry, null -> empty (no self-knowledge yet), object -> the real IdenDoc.
+  const demo = data === undefined;
+  if (!demo && loading) {
+    return (
+      <ScrollView contentContainerStyle={styles.body}>
+        <View style={styles.centerState}>
+          <Text style={styles.stateBody}>{isKo ? "IDEN을 모으는 중이에요" : "Gathering your IDEN"}</Text>
+        </View>
+      </ScrollView>
+    );
+  }
+  if (!demo && hasError) {
+    return (
+      <ScrollView contentContainerStyle={styles.body}>
+        <View style={styles.centerState}>
+          <Svg width={32} height={32} viewBox="0 0 24 24" opacity={0.7}>
+            <Path d="M12 3l9 16H3z" fill="none" stroke={deepSpace.accentSoft} strokeWidth={2} strokeLinejoin="round" />
+            <Path d="M12 9v5M12 16.5v.5" stroke={deepSpace.accentSoft} strokeWidth={2} strokeLinecap="round" />
+          </Svg>
+          <Text style={styles.stateTitle}>{t("ds.lens.errorTitle")}</Text>
+          <Text style={styles.stateBody}>{t("ds.lens.errorBody")}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("ds.lens.errorCta")} onPress={onRetry} style={styles.ghostBtn}>
+            <Text style={styles.ghostLabel}>{t("ds.lens.errorCta")}</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    );
+  }
+  if (!demo && !data) {
+    return (
+      <ScrollView contentContainerStyle={styles.body}>
+        <View style={styles.centerState}>
+          <Svg width={34} height={34} viewBox="0 0 24 24">
+            <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
+          </Svg>
+          <Text style={styles.stateTitle}>{isKo ? "아직 모을 IDEN이 없어요" : "No IDEN to gather yet"}</Text>
+          <Text style={styles.stateBody}>
+            {isKo
+              ? "도구 하나만 마쳐도 나를 담은 IDEN이 만들어져요."
+              : "Finish one tool and your IDEN starts to take shape."}
+          </Text>
+          <GradientButton
+            label={isKo ? "조각 담기 시작" : "Start gathering"}
+            onPress={onSend}
+          />
+        </View>
+      </ScrollView>
+    );
+  }
+  const shown: IdenViewData = data ?? {
+    name: "simon.iden",
+    version: "2.1",
+    northStar: t("ds.iden.northStar"),
+    bigFive: "O72 C58 E41 A67 N39",
+  };
   return (
     <ScrollView contentContainerStyle={styles.body}>
-      {/* TODO: render from the real IdenDoc (src/lib/iden). */}
       <View style={styles.idCard}>
-        <Text style={styles.idName}>simon.iden</Text>
+        <Text style={styles.idName}>{shown.name}</Text>
         <View style={styles.idBadges}>
           <View style={styles.idBadge}>
-            <Text style={styles.idBadgeText}>v2.1</Text>
+            <Text style={styles.idBadgeText}>v{shown.version}</Text>
           </View>
           <View style={[styles.idBadge, styles.idBadgeSigned]}>
             <Text style={styles.idBadgeSignedText}>{t("ds.iden.signed")}</Text>
@@ -331,13 +415,15 @@ export function IdenView() {
       </View>
       <View style={styles.idenRowNorth}>
         <Text style={styles.idenKey}>NORTH_STAR</Text>
-        <Text style={styles.idenNorthValue}>{t("ds.iden.northStar")}</Text>
+        <Text style={styles.idenNorthValue}>{shown.northStar}</Text>
       </View>
-      <View style={styles.idenRowFive}>
-        <Text style={styles.idenKeyCyan}>BIG_FIVE</Text>
-        <Text style={styles.idenFiveValue}>O72 C58 E41 A67 N39</Text>
-      </View>
-      <GradientButton label={t("ds.iden.send")} colors={deepSpaceGradients.idenSend} full />
+      {shown.bigFive ? (
+        <View style={styles.idenRowFive}>
+          <Text style={styles.idenKeyCyan}>BIG_FIVE</Text>
+          <Text style={styles.idenFiveValue}>{shown.bigFive}</Text>
+        </View>
+      ) : null}
+      <GradientButton label={t("ds.iden.send")} colors={deepSpaceGradients.idenSend} full onPress={onSend} />
     </ScrollView>
   );
 }
@@ -356,73 +442,32 @@ function LensHead({ title, tag, eyebrow }: { title: string; tag: string; eyebrow
   );
 }
 
-// 5-dot brightness indicator (filled dots cyan, empty dots faint cyan).
-function DotMeter({ filled, total = 5 }: { filled: number; total?: number }) {
-  return (
-    <View style={styles.dotRow}>
-      {Array.from({ length: total }).map((_, i) => (
-        <View key={i} style={[styles.dot, i < filled ? styles.dotOn : styles.dotOff]} />
-      ))}
-    </View>
-  );
-}
-
 // ── 회상 / Recall (NARRATIVE) ────────────────────────────────────────────────
 
-export function RecallLensView() {
+export function RecallLensView({ isKo }: { isKo?: boolean } = {}) {
   const { t } = useTranslation("home");
-  // TODO: wire to real life-period coverage (src/lib/persona/interview coverage).
-  const periods = [
-    { name: t("ds.recall.p1Name"), age: t("ds.recall.p1Age"), dots: 3 },
-    { name: t("ds.recall.p2Name"), age: t("ds.recall.p2Age"), dots: 4 },
-    { name: t("ds.recall.p3Name"), age: t("ds.recall.p3Age"), dots: 2 },
-    { name: t("ds.recall.p4Name"), age: t("ds.recall.p4Age"), dots: 3 },
-    { name: t("ds.recall.p5Name"), age: t("ds.recall.p5Age"), dots: 1 },
-    { name: t("ds.recall.p6Name"), age: t("ds.recall.p6Age"), dots: 4 },
-    { name: t("ds.recall.p7Name"), age: t("ds.recall.p7Age"), dots: 3 },
-    { name: t("ds.recall.p8Name"), age: t("ds.recall.p8Age"), dots: 5 },
-  ];
+  // TODO(data): not reachable from any live route/dock yet; per-period recall
+  // coverage (interview-coverage by life period) is non-trivial and unwired, so
+  // this renders an honest empty state instead of fabricated dot meters.
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <LensHead title={t("ds.recall.title")} tag={t("ds.recall.tag")} eyebrow={t("ds.recall.eyebrow")} />
-      <Text style={styles.pixelHint}>{t("ds.recall.hint")}</Text>
-      <View style={styles.grid2}>
-        {periods.map((p) => (
-          <Pressable
-            key={p.name}
-            accessibilityRole="button"
-            accessibilityLabel={`${p.name} ${p.age}`}
-            style={({ pressed }) => [styles.gridCard, pressed && styles.pressed]}
-          >
-            <Text style={styles.gridName}>{p.name}</Text>
-            <Text style={styles.gridAge}>{p.age}</Text>
-            <DotMeter filled={p.dots} />
-          </Pressable>
-        ))}
+      <View style={styles.centerState}>
+        <Svg width={34} height={34} viewBox="0 0 24 24">
+          <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
+        </Svg>
+        <Text style={styles.stateTitle}>{isKo ? "아직 회상으로 채운 시기가 없어요" : "No eras recalled yet"}</Text>
+        <Text style={styles.stateBody}>
+          {isKo
+            ? "지나온 시기를 하나씩 떠올려 적으면, 어느 시절이 지금의 나를 만들었는지 여기 모여요."
+            : "Recall your past eras one by one, and which years shaped you gathers here."}
+        </Text>
       </View>
-      <Text style={styles.footerLine}>{t("ds.recall.footer")}</Text>
     </ScrollView>
   );
 }
 
 // ── 보여지는 나 / Seen (SELF·OTHER) ──────────────────────────────────────────
-
-function CompareRow({ label, self, other, delta }: { label: string; self: number; other: number; delta: string }) {
-  return (
-    <View style={styles.compareRow}>
-      <View style={styles.traitHead}>
-        <Text style={styles.traitLabel}>{label}</Text>
-        <Text style={styles.compareDelta}>{delta}</Text>
-      </View>
-      <View style={[styles.compareTrack, styles.compareTrackSelf]}>
-        <View style={[styles.compareFillSelf, { width: `${self}%` as DimensionValue }]} />
-      </View>
-      <View style={[styles.compareTrack, styles.compareTrackOther]}>
-        <View style={[styles.compareFillOther, { width: `${other}%` as DimensionValue }]} />
-      </View>
-    </View>
-  );
-}
 
 export function SeenLensView() {
   const { t, i18n } = useTranslation("home");
@@ -440,9 +485,12 @@ export function SeenLensView() {
     }
   }
 
+  // 보여지는 나 needs peer-review responses to compare self vs other. No
+  // peer-review data source exists yet (no table / lib path collects it), so
+  // there are no real numbers to show: render the honest empty state plus the
+  // existing survey/share CTAs, never fabricated self/other bars.
   return (
     <ScrollView contentContainerStyle={styles.body}>
-      {/* TODO: wire to self vs peer-review scores (src/lib/persona). */}
       <LensHead title={t("ds.seen.title")} tag={t("ds.seen.tag")} eyebrow={t("ds.seen.eyebrow")} />
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
@@ -454,13 +502,16 @@ export function SeenLensView() {
           <Text style={styles.legendLabel}>{t("ds.seen.legendOther")}</Text>
         </View>
       </View>
-      <View style={styles.compareList}>
-        <CompareRow label={t("ds.seen.traitExtraversion")} self={61} other={79} delta={t("ds.seen.diffExtraversion")} />
-        <CompareRow label={t("ds.seen.traitConscientiousness")} self={74} other={78} delta={t("ds.seen.diffConscientiousness")} />
-        <CompareRow label={t("ds.seen.traitAgreeableness")} self={68} other={61} delta={t("ds.seen.diffAgreeableness")} />
-      </View>
-      <View style={styles.soulCard}>
-        <Text style={styles.soulCardText}>{t("ds.seen.conclusion")}</Text>
+      <View style={styles.centerState}>
+        <Svg width={34} height={34} viewBox="0 0 24 24">
+          <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
+        </Svg>
+        <Text style={styles.stateTitle}>{isKo ? "아직 비교할 peer 응답이 없어요" : "No peer responses to compare yet"}</Text>
+        <Text style={styles.stateBody}>
+          {isKo
+            ? "가까운 사람에게 짧은 설문을 보내면, 내가 보는 나와 남이 보는 나를 나란히 볼 수 있어요."
+            : "Send a short survey to someone close, and you'll see the me you see beside the me others see."}
+        </Text>
       </View>
       <View style={styles.btnRow}>
         <Pressable
@@ -481,76 +532,91 @@ export function SeenLensView() {
 
 // ── 리듬 / Rhythm (ESM) ──────────────────────────────────────────────────────
 
-export function RhythmLensView() {
+export function RhythmLensView({ isKo, onLogNow }: { isKo?: boolean; onLogNow?: () => void } = {}) {
   const { t } = useTranslation("home");
-  // TODO: wire to ESM mood samples (src/app/esm data).
-  const bars = [
-    { day: t("ds.rhythm.mon"), h: 54 },
-    { day: t("ds.rhythm.tue"), h: 42 },
-    { day: t("ds.rhythm.wed"), h: 66 },
-    { day: t("ds.rhythm.thu"), h: 50 },
-    { day: t("ds.rhythm.fri"), h: 72 },
-    { day: t("ds.rhythm.sat"), h: 96, peak: true },
-    { day: t("ds.rhythm.sun"), h: 80 },
-  ];
+  // TODO(data): not reachable from any live route/dock yet; the 7-day mood chart
+  // needs per-day ESM samples (loadEsmCount only returns a total), so this
+  // renders an honest empty state instead of fabricated bars.
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <LensHead title={t("ds.rhythm.title")} tag={t("ds.rhythm.tag")} eyebrow={t("ds.rhythm.eyebrow")} />
-      <View style={styles.chartCard}>
-        <Text style={styles.pixelHint}>{t("ds.rhythm.subhead")}</Text>
-        <View style={styles.chartRow}>
-          {bars.map((b) => (
-            <View key={b.day} style={styles.chartCol}>
-              <View style={styles.chartBarTrack}>
-                <View style={[styles.chartBar, { height: `${b.h}%` as DimensionValue }]}>
-                  <GradientFill colors={b.peak ? deepSpaceGradients.cta : deepSpaceGradients.progress} radius={4} />
-                </View>
-              </View>
-              <Text style={[styles.chartDay, b.peak && styles.chartDayPeak]}>{b.day}</Text>
-            </View>
-          ))}
-        </View>
+      <View style={styles.centerState}>
+        <Svg width={34} height={34} viewBox="0 0 24 24">
+          <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
+        </Svg>
+        <Text style={styles.stateTitle}>{isKo ? "아직 리듬을 그릴 기록이 없어요" : "No rhythm to chart yet"}</Text>
+        <Text style={styles.stateBody}>
+          {isKo
+            ? "기분을 며칠 기록하면, 내가 가장 나다운 시간이 여기 리듬으로 보여요."
+            : "Log your mood for a few days, and when you feel most yourself shows up as a rhythm here."}
+        </Text>
       </View>
-      <View style={styles.insightCard}>
-        <Text style={styles.insightText}>{t("ds.rhythm.caption")}</Text>
-      </View>
-      <GradientButton label={t("ds.rhythm.logNow")} full />
+      <GradientButton label={t("ds.rhythm.logNow")} full onPress={onLogNow} />
     </ScrollView>
   );
 }
 
 // ── 미래의 나 / Possible (ASPIRATION) ────────────────────────────────────────
 
-export function PossibleLensView() {
+/** One aspiration draft ("future self" card) — name + short body. */
+export type AspirationDraft = { name: string; body: string };
+
+export function PossibleLensView({
+  drafts,
+  isKo,
+}: { drafts?: AspirationDraft[] | null; isKo?: boolean } = {}) {
   const { t } = useTranslation("home");
-  // TODO: wire to aspiration drafts (src/app/imagine store).
-  const cards = [
+  // No `drafts` prop (undefined) = design preview: keep the sample cards. A
+  // provided value drives real states: aspiration drafts the user wrote, or an
+  // empty state when none exist (no fabricated aspirations).
+  // TODO(data): no persisted aspiration-draft store exists yet (imagine.ts is
+  // dormant plumbing; /imagine redirects to Divergent chat). Wire `drafts` here
+  // once divergent-mode aspirations are persisted.
+  const demo = drafts === undefined;
+  const sample: AspirationDraft[] = [
     { name: t("ds.possible.a1Name"), body: t("ds.possible.a1Body") },
     { name: t("ds.possible.a2Name"), body: t("ds.possible.a2Body") },
     { name: t("ds.possible.a3Name"), body: t("ds.possible.a3Body") },
   ];
+  const cards = demo ? sample : drafts ?? [];
   // Selecting a draft sets which aspiration the "first step → /ops" button
   // carries forward. Default to the first card so the CTA is never a no-op.
   const [selected, setSelected] = useState(0);
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <LensHead title={t("ds.possible.title")} tag={t("ds.possible.tag")} eyebrow={t("ds.possible.eyebrow")} />
-      <View style={styles.dashedList}>
-        {cards.map((c, i) => (
-          <Pressable
-            key={c.name}
-            accessibilityRole="button"
-            accessibilityLabel={c.name}
-            accessibilityState={{ selected: selected === i }}
-            onPress={() => setSelected(i)}
-            style={({ pressed }) => [styles.dashedCard, selected === i && styles.dashedCardOn, pressed && styles.pressed]}
-          >
-            <Text style={styles.dashedName}>{c.name}</Text>
-            <Text style={styles.dashedBody}>{c.body}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <Text style={styles.footerLine}>{t("ds.possible.footer")}</Text>
+      {cards.length === 0 ? (
+        <View style={styles.centerState}>
+          <Svg width={34} height={34} viewBox="0 0 24 24">
+            <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
+          </Svg>
+          <Text style={styles.stateTitle}>{isKo ? "아직 그려둔 미래의 나가 없어요" : "No future self sketched yet"}</Text>
+          <Text style={styles.stateBody}>
+            {isKo
+              ? "세컨비와 공상 모드로 이야기하면, 데이터가 되기 전의 내 모습을 여기 담을 수 있어요."
+              : "Talk with SecondB in divergent mode, and the you before the data fills in lands here."}
+          </Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.dashedList}>
+            {cards.map((c, i) => (
+              <Pressable
+                key={c.name}
+                accessibilityRole="button"
+                accessibilityLabel={c.name}
+                accessibilityState={{ selected: selected === i }}
+                onPress={() => setSelected(i)}
+                style={({ pressed }) => [styles.dashedCard, selected === i && styles.dashedCardOn, pressed && styles.pressed]}
+              >
+                <Text style={styles.dashedName}>{c.name}</Text>
+                <Text style={styles.dashedBody}>{c.body}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={styles.footerLine}>{t("ds.possible.footer")}</Text>
+        </>
+      )}
       <View style={styles.btnRow}>
         <Pressable
           accessibilityRole="button"
@@ -567,7 +633,11 @@ export function PossibleLensView() {
           <GradientButton
             label={t("ds.possible.add")}
             full
-            onPress={() => router.push({ pathname: "/ops", params: { draft: cards[selected].name } })}
+            onPress={() =>
+              cards.length > 0
+                ? router.push({ pathname: "/ops", params: { draft: cards[selected]?.name } })
+                : router.push({ pathname: "/secondb", params: { mode: "divergent" } })
+            }
           />
         </View>
       </View>
@@ -577,29 +647,26 @@ export function PossibleLensView() {
 
 // ── 관계·지식 / Relational (RELATIONS) ───────────────────────────────────────
 
-export function RelationalLensView() {
+export function RelationalLensView({ isKo, onAddData }: { isKo?: boolean; onAddData?: () => void } = {}) {
   const { t } = useTranslation("home");
+  // TODO(data): not reachable from any live route/dock yet; the people +
+  // knowledge graph (relations-graph + wiki concepts) is non-trivial and
+  // unwired, so this renders an honest empty state instead of fabricated chips.
   return (
     <ScrollView contentContainerStyle={styles.body}>
-      {/* TODO: wire to relations/knowledge graph (src/app/attachment + wiki). */}
       <LensHead title={t("ds.relational.title")} tag={t("ds.relational.tag")} eyebrow={t("ds.relational.eyebrow")} />
-      <Text style={[styles.pixelHint, styles.sectionGap]}>{t("ds.relational.peopleHead")}</Text>
-      <View style={styles.chipRowTight}>
-        <Chip label={t("ds.relational.person1")} />
-        <Chip label={t("ds.relational.person2")} />
-        <Chip label={t("ds.relational.person3")} />
-        <Chip label={t("ds.relational.personMore")} />
+      <View style={styles.centerState}>
+        <Svg width={34} height={34} viewBox="0 0 24 24">
+          <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
+        </Svg>
+        <Text style={styles.stateTitle}>{isKo ? "아직 이어진 사람과 지식이 없어요" : "No people or knowledge linked yet"}</Text>
+        <Text style={styles.stateBody}>
+          {isKo
+            ? "기록에 사람과 관심사가 쌓이면, 관계와 지식 속의 내 모습이 여기 보여요."
+            : "As people and interests build up in your records, the you inside relationships and knowledge shows here."}
+        </Text>
       </View>
-      <Text style={[styles.pixelHint, styles.sectionGap]}>{t("ds.relational.knowledgeHead")}</Text>
-      <View style={styles.chipRowTight}>
-        <Chip label={t("ds.relational.topic1")} />
-        <Chip label={t("ds.relational.topic2")} />
-        <Chip label={t("ds.relational.topic3")} />
-      </View>
-      <View style={styles.insightCard}>
-        <Text style={styles.insightText}>{t("ds.relational.conclusion")}</Text>
-      </View>
-      <GradientButton label={t("ds.relational.addData")} full />
+      <GradientButton label={t("ds.relational.addData")} full onPress={onAddData} />
     </ScrollView>
   );
 }
@@ -622,20 +689,85 @@ function DomainRow({ label, count, value }: { label: string; count: string; valu
   );
 }
 
-export function ValuesLensView({ onAddData }: { onAddData?: () => void } = {}) {
+/** One real domain (framework family) with its piece count, for ValuesLensView. */
+export type ValuesDomain = { key: string; label: string; count: number };
+
+export function ValuesLensView({
+  domains,
+  loading,
+  hasError,
+  isKo,
+  onAddData,
+  onRetry,
+}: {
+  domains?: ValuesDomain[] | null;
+  loading?: boolean;
+  hasError?: boolean;
+  isKo?: boolean;
+  onAddData?: () => void;
+  onRetry?: () => void;
+} = {}) {
   const { t } = useTranslation("home");
-  // TODO: wire to domain piece counts (src/app/audit + records by domain).
+  // No `domains` prop (undefined) = design preview: keep the sample rows. A
+  // provided value drives real states from the user's audit-response records,
+  // grouped by framework family; counts scale the bars relative to the top one.
+  const demo = domains === undefined;
+  const real = domains ?? [];
+  const max = real.reduce((m, d) => Math.max(m, d.count), 0);
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <LensHead title={t("ds.values.title")} tag={t("ds.values.tag")} eyebrow={t("ds.values.eyebrow")} />
-      <View style={styles.domainList}>
-        <DomainRow label={t("ds.values.domain1")} count={t("ds.values.domain1Count")} value={100} />
-        <DomainRow label={t("ds.values.domain2")} count={t("ds.values.domain2Count")} value={69} />
-        <DomainRow label={t("ds.values.domain3")} count={t("ds.values.domain3Count")} value={26} />
-      </View>
-      <View style={styles.insightCard}>
-        <Text style={styles.insightText}>{t("ds.values.conclusion")}</Text>
-      </View>
+      {!demo && loading ? (
+        <View style={styles.centerState}>
+          <Text style={styles.stateBody}>{isKo ? "조각을 세는 중이에요" : "Counting your pieces"}</Text>
+        </View>
+      ) : !demo && hasError ? (
+        <View style={styles.centerState}>
+          <Text style={styles.stateTitle}>{t("ds.lens.errorTitle")}</Text>
+          <Text style={styles.stateBody}>{t("ds.lens.errorBody")}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("ds.lens.errorCta")} onPress={onRetry} style={styles.ghostBtn}>
+            <Text style={styles.ghostLabel}>{t("ds.lens.errorCta")}</Text>
+          </Pressable>
+        </View>
+      ) : !demo && real.length === 0 ? (
+        <View style={styles.centerState}>
+          <Svg width={34} height={34} viewBox="0 0 24 24">
+            <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
+          </Svg>
+          <Text style={styles.stateTitle}>{isKo ? "이 영역엔 아직 쌓인 게 없어요" : "Nothing built up here yet"}</Text>
+          <Text style={styles.stateBody}>
+            {isKo
+              ? "기록을 남기면 어떤 영역을 가장 많이 키워왔는지 여기 보여요."
+              : "Add records and you'll see which areas you've grown the most."}
+          </Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.domainList}>
+            {demo ? (
+              <>
+                <DomainRow label={t("ds.values.domain1")} count={t("ds.values.domain1Count")} value={100} />
+                <DomainRow label={t("ds.values.domain2")} count={t("ds.values.domain2Count")} value={69} />
+                <DomainRow label={t("ds.values.domain3")} count={t("ds.values.domain3Count")} value={26} />
+              </>
+            ) : (
+              real.map((d) => (
+                <DomainRow
+                  key={d.key}
+                  label={d.label}
+                  count={isKo ? `${d.count}개` : `${d.count} pieces`}
+                  value={max > 0 ? Math.round((d.count / max) * 100) : 0}
+                />
+              ))
+            )}
+          </View>
+          {demo ? (
+            <View style={styles.insightCard}>
+              <Text style={styles.insightText}>{t("ds.values.conclusion")}</Text>
+            </View>
+          ) : null}
+        </>
+      )}
       <GradientButton label={t("ds.values.addData")} full onPress={onAddData} />
     </ScrollView>
   );

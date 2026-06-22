@@ -14,7 +14,7 @@
 //     reappear every session.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, Easing } from "react-native";
+import { Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, Easing, TextInput } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
@@ -22,10 +22,10 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, deepSpace, deepSpaceRadii, deepSpaceSpacing, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { fontFamilies } from "@/theme/typography";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { ChatView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
@@ -90,18 +90,20 @@ function writeIntroDismissed(kind: "today" | "permanent"): void {
   }
 }
 
+// One chat ENGINE, two chromes (Frame pattern — the same port the interview
+// screen used). isDeepSpaceUI() only swaps the VISUAL shell (deep-space frame +
+// deepSpace.* tokens vs the legacy PremiumAppShell village skin). The send
+// handler, RAG/citation parsing, C9 -> C3 -> crisis path (callGemini via
+// sendChatMessage), modes, auth gates, analytics, and daily-limit logic are
+// byte-identical for both variants — there is NO logic fork.
+type ChatVariant = "deep-space" | "legacy";
+
 export default function SecondBChat() {
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen active="chat">
-        <ChatView />
-      </DeepSpaceScreen>
-    );
-  }
-  return <SecondBChatLegacy />;
+  return <SecondBChatBody variant={isDeepSpaceUI() ? "deep-space" : "legacy"} />;
 }
 
-function SecondBChatLegacy() {
+function SecondBChatBody({ variant }: { variant: ChatVariant }) {
+  const isDeepSpace = variant === "deep-space";
   const { t, i18n } = useTranslation("secondb");
   const { userId, loading: authLoading, isMinor, hasProfile } = useAuth();
   const progression = useProgression();
@@ -323,6 +325,339 @@ function SecondBChatLegacy() {
         ? "warning"
         : "textMuted";
   const compactModeLabel = chatMode === "divergent" ? "New angle" : "Analysis";
+
+  // ── Deep-space chrome (real composer + real answers + citations + states) ──
+  // Same engine (turns / handleSend / sendChatMessage / parseSourceCitations /
+  // canSend) as the legacy branch; only the visual shell differs. Crisis/C9/C3
+  // live entirely inside sendChatMessage -> callGemini, untouched here.
+  if (isDeepSpace) {
+    const dsUsage = usedToday === null ? "..." : String(usedToday);
+    const atLimit = usedToday !== null && usedToday >= limit;
+    return (
+      <DeepSpaceScreen active="chat">
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={keyboardBehavior}
+          keyboardVerticalOffset={keyboardVerticalOffset}
+        >
+          {/* compact status row: title · usage · mode · clear */}
+          <View style={ds.headerRow}>
+            <Text style={ds.headerTitle} numberOfLines={1}>
+              {isCharacterChat ? persona.name[locale] : t("title")}
+            </Text>
+            <Text style={[ds.headerMeta, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
+              {dsUsage}/{limit}
+            </Text>
+            <Text style={ds.headerMeta} numberOfLines={1}>
+              {chatMode === "divergent" ? (locale === "ko" ? "새 관점" : "New angle") : locale === "ko" ? "분석" : "Analysis"}
+            </Text>
+            {hasTurns ? (
+              <Pressable
+                onPress={() => setTurns([])}
+                hitSlop={14}
+                style={ds.clearLink}
+                accessibilityRole="button"
+                accessibilityLabel={t("clearChatA11y")}
+                accessibilityHint={t("clearChatHint")}
+              >
+                <Text style={ds.clearLinkText}>{t("clearChat")}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {/* mode toggle — both modes run the same C9 -> C3 -> gemini path */}
+          <View style={ds.modeRow}>
+            <Pressable
+              onPress={() => setChatMode("analytic")}
+              style={[ds.modeChip, chatMode === "analytic" ? ds.modeChipOnAccent : null]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: chatMode === "analytic" }}
+              accessibilityLabel={locale === "ko" ? "분석 모드" : "Analysis mode"}
+            >
+              <Text style={[ds.modeChipText, chatMode === "analytic" ? ds.modeChipTextOn : null]}>
+                {locale === "ko" ? "분석" : "Analysis"}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setChatMode("divergent")}
+              style={[ds.modeChip, chatMode === "divergent" ? ds.modeChipOnSoul : null]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: chatMode === "divergent" }}
+              accessibilityLabel={locale === "ko" ? "새 관점 모드" : "New angle mode"}
+            >
+              <Text style={[ds.modeChipText, chatMode === "divergent" ? ds.modeChipTextOnSoul : null]}>
+                {locale === "ko" ? "새 관점" : "New angle"}
+              </Text>
+            </Pressable>
+            {chatMode === "divergent" ? (
+              <Animated.View style={[ds.modeDot, { opacity: divergentPulse as never }]} />
+            ) : null}
+          </View>
+
+          {/* nodeContext pill */}
+          {fromNode ? (
+            <View style={ds.contextPillWrap}>
+              <View style={ds.contextPill}>
+                <Text style={ds.contextPillText} numberOfLines={1}>{fromNode}</Text>
+              </View>
+            </View>
+          ) : null}
+
+          <ScrollView
+            ref={scrollRef}
+            style={{ flex: 1 }}
+            contentContainerStyle={[ds.scroll, { paddingBottom: messageListBottomPadding }]}
+            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {turns.length === 0 ? (
+              <View style={ds.empty}>
+                <Text style={ds.emptyTitle}>
+                  {isCharacterChat ? persona.name[locale] : t("title")}
+                </Text>
+                <Text style={ds.emptyBody}>{t("empty")}</Text>
+              </View>
+            ) : (
+              turns.map((turn, i) => (
+                <View
+                  key={i}
+                  style={[ds.bubbleRow, turn.role === "user" ? ds.userRow : ds.aiRow]}
+                >
+                  <View style={ds.bubbleCol}>
+                    <Pressable
+                      onLongPress={async () => {
+                        if (typeof navigator !== "undefined" && navigator.clipboard) {
+                          try {
+                            await navigator.clipboard.writeText(turn.text);
+                          } catch {
+                            // ignore — fall back to user selection
+                          }
+                        }
+                      }}
+                      style={turn.role === "user" ? ds.userBubble : ds.aiBubble}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        turn.role === "user"
+                          ? locale === "ko" ? "내 메시지" : "Your message"
+                          : locale === "ko" ? "세컨비 답변" : "SecondB answer"
+                      }
+                      accessibilityHint={locale === "ko" ? "길게 눌러 복사" : "Long press to copy"}
+                    >
+                      <Text style={turn.role === "user" ? ds.userText : ds.aiText} selectable>
+                        {turn.text}
+                      </Text>
+                    </Pressable>
+                    {/* 근거(citation) chips -> reference drawer -> /records */}
+                    {turn.role === "secondb" && turn.chips && turn.chips.length > 0 ? (
+                      <Pressable
+                        style={ds.chipRow}
+                        onPress={() => setRefDrawer(turn.chips ?? [])}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          locale === "ko"
+                            ? `이 답변은 참고한 조각 ${turn.chips.length}개를 봤어요. 눌러서 자세히 보기.`
+                            : `This answer drew on ${turn.chips.length} of your pieces. Tap for detail.`
+                        }
+                      >
+                        <Text style={ds.chipRowLead}>
+                          {locale === "ko" ? `참고한 조각 ${turn.chips.length}` : `${turn.chips.length} pieces`}
+                        </Text>
+                        {turn.chips.slice(0, 3).map((slug) => (
+                          <View key={slug} style={ds.chip}>
+                            <Text style={ds.chipText}>{formatSourceCitationLabel(slug)}</Text>
+                          </View>
+                        ))}
+                        {turn.chips.length > 3 ? (
+                          <Text style={ds.chipRowLead}>{`+${turn.chips.length - 3}`}</Text>
+                        ) : null}
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </View>
+              ))
+            )}
+            {sending ? (
+              <View style={ds.thinking}>
+                <ActivityIndicator color={deepSpace.accent} />
+              </View>
+            ) : null}
+          </ScrollView>
+
+          {/* quick-action chips after an answer */}
+          {turns.length > 0 && turns[turns.length - 1].role === "secondb" && !sending ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={ds.quickRow}
+              keyboardShouldPersistTaps="handled"
+            >
+              {QUICK_ACTIONS.map((qa) => (
+                <Pressable
+                  key={qa.en}
+                  style={ds.quickChip}
+                  onPress={() => {
+                    if (qa.mode) setChatMode(qa.mode);
+                    setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={locale === "ko" ? qa.ko : qa.en}
+                >
+                  <Text style={ds.quickChipText}>{locale === "ko" ? qa.ko : qa.en}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          ) : null}
+
+          {atLimit ? (
+            <Pressable
+              onPress={() => router.push("/plans?from=ai_limit")}
+              hitSlop={14}
+              style={ds.limitLink}
+              accessibilityRole="button"
+              accessibilityLabel={t("viewPlans")}
+              accessibilityHint={t("viewPlansHint")}
+            >
+              <Text style={ds.limitLinkText}>{t("viewPlans")}</Text>
+            </Pressable>
+          ) : null}
+
+          {/* real composer — text input + [전송] -> handleSend -> callGemini */}
+          <View style={ds.composer}>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={t("placeholder")}
+              placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
+              multiline
+              textAlignVertical="top"
+              style={ds.composerInput}
+              accessibilityLabel={t("inputA11y")}
+            />
+            <Pressable
+              onPress={handleSend}
+              disabled={!canSend}
+              style={[ds.sendBtn, !canSend ? ds.sendBtnDisabled : null]}
+              accessibilityRole="button"
+              accessibilityLabel={t("send")}
+              accessibilityState={{ disabled: !canSend }}
+            >
+              {sending ? (
+                <ActivityIndicator color={deepSpace.onAccent} />
+              ) : (
+                <Text style={ds.sendBtnText}>{t("send")}</Text>
+              )}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+
+        {/* 첫 진입 인사 모달 */}
+        <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
+          <Pressable
+            style={ds.modalBackdrop}
+            onPress={() => setIntroOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel={locale === "ko" ? "인사 모달 닫기" : "Close intro"}
+            accessibilityHint={locale === "ko" ? "세컨비 인사 모달을 닫습니다" : "Dismisses the intro modal"}
+          >
+            <Pressable style={ds.modalCard} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
+              <Text style={ds.modalEyebrow}>{t("intro_title")}</Text>
+              <Text style={ds.modalBody}>{t("intro_body")}</Text>
+              <View style={ds.modalActions}>
+                <Pressable
+                  onPress={() => { writeIntroDismissed("today"); setIntroOpen(false); }}
+                  style={ds.modalBtnGhost}
+                  hitSlop={14}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("intro_mute")}
+                >
+                  <Text style={ds.modalBtnGhostText}>{t("intro_mute")}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => { setIntroOpen(false); }}
+                  style={ds.modalBtnPrimary}
+                  hitSlop={14}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("intro_ok")}
+                >
+                  <Text style={ds.modalBtnPrimaryText}>{t("intro_ok")}</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        {/* reference drawer — pieces the answer drew on */}
+        <Modal
+          visible={refDrawer !== null}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setRefDrawer(null)}
+        >
+          <Pressable
+            style={ds.modalBackdrop}
+            onPress={() => setRefDrawer(null)}
+            accessibilityRole="button"
+            accessibilityLabel={locale === "ko" ? "참고 조각 닫기" : "Close referenced pieces"}
+            accessibilityHint={locale === "ko" ? "참고 조각 서랍을 닫습니다" : "Dismisses the referenced pieces drawer"}
+          >
+            <Pressable
+              style={ds.drawer}
+              onPress={(e) => e.stopPropagation()}
+              accessibilityViewIsModal
+              accessibilityLabel={locale === "ko" ? "참고한 조각들" : "Pieces referenced"}
+            >
+              <View style={ds.drawerHandle} />
+              <Text style={ds.drawerTitle}>{locale === "ko" ? "참고한 조각들" : "Pieces referenced"}</Text>
+              <Text style={ds.drawerSubtle}>
+                {locale === "ko"
+                  ? "답변에 영향을 준 조각들이에요. 필요하면 하나씩 열어볼 수 있어요."
+                  : "The pieces that shaped this answer. Open any one if you like."}
+              </Text>
+              <ScrollView
+                style={{ flexShrink: 1 }}
+                contentContainerStyle={ds.drawerList}
+                showsVerticalScrollIndicator={false}
+              >
+                {(refDrawer ?? []).map((slug) => (
+                  <Pressable
+                    key={slug}
+                    style={ds.drawerCard}
+                    onPress={() => {
+                      // Citations are wiki-page slugs, not record ids, and no
+                      // slug->record-id mapping is available here. Route to the
+                      // records browser as an honest landing (parity with legacy).
+                      // TODO: once a slug->record-id resolver exists, route to
+                      // /record/[id] (deep-space visual polish follow-up).
+                      setRefDrawer(null);
+                      router.push("/records");
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={formatSourceCitationLabel(slug)}
+                  >
+                    <Text style={ds.drawerCardTitle}>{formatSourceCitationLabel(slug)}</Text>
+                    <Text style={ds.drawerCardMeta}>{t("reference_piece_meta")}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <Pressable
+                onPress={() => setRefDrawer(null)}
+                style={ds.drawerClose}
+                accessibilityRole="button"
+                accessibilityLabel={locale === "ko" ? "닫기" : "Close"}
+              >
+                <Text style={ds.drawerCloseText}>{locale === "ko" ? "닫기" : "Close"}</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+        {/* 가디 safety beat (companion pack §3) — same crisis-clear signal as legacy */}
+        {companion.moment ? (
+          <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
+        ) : null}
+      </DeepSpaceScreen>
+    );
+  }
 
   return (
     <PremiumAppShell>
@@ -906,4 +1241,242 @@ const styles = StyleSheet.create({
     borderTopWidth: gameboy.borderWidth,
   },
   composerInput: { flex: 1, maxHeight: 120 },
+});
+
+// Deep-space chat chrome. deepSpace.* tokens only (no hex literals, no
+// glassmorphism, no pill chips, no em-dash in strings). Matches the prototype's
+// bubble/composer language from DeepSpaceViews while hosting the REAL engine.
+const ds = StyleSheet.create({
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: deepSpaceSpacing.sm,
+    paddingHorizontal: 18,
+    paddingTop: 6,
+    paddingBottom: deepSpaceSpacing.sm,
+  },
+  headerTitle: {
+    flex: 1,
+    minWidth: 0,
+    color: deepSpace.accentBright,
+    fontSize: 14,
+    fontFamily: fontFamilies.pixelKo,
+  },
+  headerMeta: {
+    flexShrink: 0,
+    color: deepSpace.textLo,
+    fontSize: 11,
+    fontFamily: fontFamilies.mono,
+  },
+  headerMetaDanger: { color: deepSpace.dangerText },
+  clearLink: { flexShrink: 0, minHeight: 44, justifyContent: "center", paddingHorizontal: deepSpaceSpacing.xs },
+  clearLinkText: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
+
+  modeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: deepSpaceSpacing.sm,
+    paddingHorizontal: 18,
+    paddingBottom: deepSpaceSpacing.sm,
+  },
+  modeChip: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: deepSpaceSpacing.md,
+    borderRadius: deepSpaceRadii.sm,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+  },
+  modeChipOnAccent: { backgroundColor: deepSpace.accent, borderColor: deepSpace.accent },
+  modeChipOnSoul: { backgroundColor: deepSpace.soul, borderColor: deepSpace.soul },
+  modeChipText: { color: deepSpace.textMid, fontSize: 12, fontFamily: fontFamilies.readable },
+  modeChipTextOn: { color: deepSpace.onAccent, fontWeight: "700" },
+  modeChipTextOnSoul: { color: deepSpace.bgEdge, fontWeight: "700" },
+  modeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: deepSpace.soul },
+
+  contextPillWrap: { paddingHorizontal: 18, paddingBottom: deepSpaceSpacing.sm },
+  contextPill: {
+    alignSelf: "flex-start",
+    paddingVertical: 6,
+    paddingHorizontal: deepSpaceSpacing.md,
+    borderRadius: deepSpaceRadii.sm,
+    borderWidth: 1,
+    borderColor: withAlpha(deepSpace.soul, 0.3),
+    backgroundColor: withAlpha(deepSpace.soul, 0.07),
+  },
+  contextPillText: { color: deepSpace.textHi, fontSize: 11, fontFamily: fontFamilies.readable },
+
+  scroll: { paddingHorizontal: 18, paddingTop: deepSpaceSpacing.sm, gap: 10 },
+  empty: { paddingVertical: 56, alignItems: "center", gap: 10 },
+  emptyTitle: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.pixelKo },
+  emptyBody: {
+    color: withAlpha(deepSpace.text, 0.6),
+    fontSize: 12,
+    lineHeight: 19,
+    textAlign: "center",
+    fontFamily: fontFamilies.readable,
+  },
+
+  bubbleRow: { flexDirection: "row" },
+  userRow: { justifyContent: "flex-end" },
+  aiRow: { justifyContent: "flex-start" },
+  bubbleCol: { maxWidth: "86%", gap: 6, alignItems: "flex-start" },
+  userBubble: {
+    alignSelf: "flex-end",
+    maxWidth: "100%",
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+    borderTopLeftRadius: deepSpaceRadii.md,
+    borderTopRightRadius: deepSpaceRadii.md,
+    borderBottomRightRadius: 4,
+    borderBottomLeftRadius: deepSpaceRadii.md,
+    backgroundColor: withAlpha(deepSpace.accent, 0.16),
+  },
+  userText: { color: deepSpace.textHi, fontSize: 12.5, lineHeight: 18, fontFamily: fontFamilies.readable },
+  aiBubble: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: deepSpaceRadii.md,
+    borderBottomRightRadius: deepSpaceRadii.md,
+    borderBottomLeftRadius: deepSpaceRadii.md,
+    borderWidth: 1,
+    borderColor: withAlpha(deepSpace.soul, 0.25),
+    backgroundColor: withAlpha(deepSpace.soul, 0.1),
+  },
+  aiText: { color: deepSpace.textHi, fontSize: 12.5, lineHeight: 19, fontFamily: fontFamilies.readable },
+
+  chipRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 7 },
+  chipRowLead: { color: deepSpace.textLo, fontSize: 11, fontFamily: fontFamilies.readable },
+  chip: {
+    paddingVertical: 5,
+    paddingHorizontal: deepSpaceSpacing.sm,
+    borderRadius: deepSpaceRadii.sm,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+  },
+  chipText: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
+
+  thinking: { paddingVertical: deepSpaceSpacing.md, alignItems: "center" },
+
+  quickRow: { gap: deepSpaceSpacing.sm, paddingHorizontal: 18, paddingVertical: deepSpaceSpacing.sm },
+  quickChip: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: deepSpaceSpacing.md,
+    borderRadius: deepSpaceRadii.sm,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+  },
+  quickChipText: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
+
+  limitLink: { alignSelf: "flex-end", minHeight: 44, justifyContent: "center", paddingHorizontal: 18 },
+  limitLinkText: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: fontFamilies.readable },
+
+  composer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: deepSpaceSpacing.sm,
+    paddingHorizontal: 18,
+    paddingTop: deepSpaceSpacing.sm,
+    paddingBottom: deepSpaceSpacing.sm,
+  },
+  composerInput: {
+    flex: 1,
+    maxHeight: 120,
+    minHeight: 44,
+    padding: deepSpaceSpacing.md,
+    borderRadius: deepSpaceRadii.md,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+    color: deepSpace.textHi,
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: fontFamilies.readable,
+  },
+  sendBtn: {
+    minHeight: 44,
+    minWidth: 64,
+    paddingHorizontal: deepSpaceSpacing.lg,
+    borderRadius: deepSpaceRadii.md,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: deepSpace.accent,
+  },
+  sendBtnDisabled: { backgroundColor: withAlpha(deepSpace.accent, 0.3) },
+  sendBtnText: { color: deepSpace.onAccent, fontSize: 13, fontWeight: "700", fontFamily: fontFamilies.readable },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: withAlpha(deepSpace.bgEdge, 0.8),
+    alignItems: "center",
+    justifyContent: "center",
+    padding: deepSpaceSpacing.lg,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 420,
+    padding: deepSpaceSpacing.lg,
+    borderRadius: deepSpaceRadii.lg,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.bg,
+  },
+  modalEyebrow: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
+  modalBody: { color: deepSpace.textHi, fontSize: 13, lineHeight: 20, marginTop: deepSpaceSpacing.sm, fontFamily: fontFamilies.readable },
+  modalActions: { flexDirection: "row", gap: deepSpaceSpacing.sm, marginTop: deepSpaceSpacing.md, justifyContent: "flex-end" },
+  modalBtnGhost: { minHeight: 44, justifyContent: "center", paddingHorizontal: deepSpaceSpacing.md, borderRadius: deepSpaceRadii.sm },
+  modalBtnGhostText: { color: deepSpace.textMid, fontSize: 13, fontFamily: fontFamilies.readable },
+  modalBtnPrimary: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: deepSpaceSpacing.md,
+    borderRadius: deepSpaceRadii.sm,
+    backgroundColor: deepSpace.accent,
+  },
+  modalBtnPrimaryText: { color: deepSpace.onAccent, fontSize: 13, fontWeight: "700", fontFamily: fontFamilies.readable },
+
+  drawer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: "62%",
+    padding: deepSpaceSpacing.lg,
+    gap: deepSpaceSpacing.sm,
+    borderTopLeftRadius: deepSpaceRadii.lg,
+    borderTopRightRadius: deepSpaceRadii.lg,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.bg,
+  },
+  drawerHandle: { alignSelf: "center", width: 36, height: 4, borderRadius: 2, backgroundColor: deepSpace.cardLine, marginBottom: deepSpaceSpacing.sm },
+  drawerTitle: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.pixelKo },
+  drawerSubtle: { color: deepSpace.textMid, fontSize: 12, lineHeight: 18, marginTop: 4, fontFamily: fontFamilies.readable },
+  drawerList: { marginTop: deepSpaceSpacing.md, gap: deepSpaceSpacing.sm, paddingBottom: deepSpaceSpacing.sm },
+  drawerCard: {
+    paddingVertical: deepSpaceSpacing.md,
+    paddingHorizontal: deepSpaceSpacing.md,
+    borderRadius: deepSpaceRadii.md,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+  },
+  drawerCardTitle: { color: deepSpace.accentBright, fontSize: 13, fontFamily: fontFamilies.readable },
+  drawerCardMeta: { color: deepSpace.textLo, fontSize: 11, marginTop: 4, fontFamily: fontFamilies.readable },
+  drawerClose: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: deepSpaceRadii.md,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    marginTop: deepSpaceSpacing.sm,
+  },
+  drawerCloseText: { color: deepSpace.accentSoft, fontSize: 13, fontFamily: fontFamilies.readable },
 });

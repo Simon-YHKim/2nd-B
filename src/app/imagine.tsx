@@ -5,6 +5,7 @@
 // stays as dormant internal plumbing; the tab + graph node + wiki card are gone.
 
 import { Redirect } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -14,13 +15,20 @@ function ImagineLegacy() {
   return <Redirect href={{ pathname: "/secondb", params: { mode: "divergent" } }} />;
 }
 
+function ImagineDeepSpace() {
+  const { i18n } = useTranslation();
+  // No persisted aspiration-draft store exists yet (imagine.ts is dormant
+  // plumbing; divergent-mode aspirations aren't saved), so pass an empty list:
+  // PossibleLensView shows the honest empty state + rewrite/add CTAs rather than
+  // fabricated "future self" cards. Wire real drafts here once they persist.
+  return (
+    <DeepSpaceScreen active="lens">
+      <PossibleLensView drafts={[]} isKo={i18n.language === "ko"} />
+    </DeepSpaceScreen>
+  );
+}
+
 export default function Imagine() {
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen active="lens">
-        <PossibleLensView />
-      </DeepSpaceScreen>
-    );
-  }
+  if (isDeepSpaceUI()) return <ImagineDeepSpace />;
   return <ImagineLegacy />;
 }
