@@ -3,6 +3,26 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-06-22 (/goal cont.) / BLOCKED 큐 코드-클로저블 일소 (batch 6-8)
+
+PR #561 (`claude/repo-sync-verify-nkz86x`), CI green, `verify` 241 suites / 1813 tests.
+이전 라운드 BLOCKED 큐에서 **코드로 닫을 수 있는 것은 전부 처리**:
+
+- **batch6**: trinity 영역 드릴다운(`/records?tags=` 신설, legacy+딥스페이스), review applyRatify
+  실 tier, graph 실 카운트(useWikiGraphData), /ops·/account 독 크롬(DeepSpaceScreen wrap + ds.head.*).
+- **batch7**: /insights 실 주간 데이터(`src/lib/insights/weekly.ts` 순수+테스트, 4상태),
+  /reminders OS 권한(expo-notifications) + on/off AsyncStorage 영속화(웹/거부 가드).
+- **batch8**: /capture **실 음성 녹음+전사** — expo-audio(~56) 추가, `gemini.ts.transcribeAudio`
+  (C1/C2/C3/C9 준수, mock=CI), fetch→FileReader base64(no expo-file-system), 녹음→전사→검토 후 저장.
+
+### 남은 진짜 BLOCKED (외부 계정/백엔드 — 코드로 불가, 사용자 결정 'skip')
+- **실결제 /plans**: PG 제공자+가맹점 계정+백엔드 필요 → 임시 /support (사용자 'skip' 선택).
+- **AI 어시스턴트 실 OAuth /integrations**: ChatGPT/Claude/Gemini 소비자 계정연동 API 부재 → /iden export.
+- **device 검증 PENDING (코드는 완료)**: 음성 녹음 마이크 라운드트립 + 리마인더 OS 권한 grant
+  = 실기기 EAS 빌드에서 1회 확인 필요(코드·가드 완비, CI는 mock/web fallback).
+- **secondb 근거칩 → /record/[id]**: wiki slug→record-id 리졸버 부재 → /records 폴백 유지.
+- **insights 더 풍부한 신호**: 현재 WoW 레코드 카운트. 별 밝기/스트릭 통합은 growth/weekly 확장 시.
+
 
 ## Latest — 2026-06-21 (/goal) / SCREEN_TREE_SPEC 정본 6-에이전트 감사 + 죽은 버튼 일소 + 독 정본 정렬 + interview/trinity 딥스페이스 이식
 
