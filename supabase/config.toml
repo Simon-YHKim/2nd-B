@@ -7,6 +7,13 @@ project_id = "zoacryukmdeivmolvyhj"
 [functions.gemini-proxy]
 verify_jwt = true
 
+[functions.claude-proxy]
+# Reasoning (pro-tier) backend behind EXPO_PUBLIC_REASONING_PROVIDER=claude.
+# Mirrors gemini-proxy's security boundary; the ANTHROPIC_API_KEY stays in
+# Edge Function Secrets (never the client bundle). verify_jwt=true so only
+# signed-in users reach the paid model.
+verify_jwt = true
+
 [functions.delete-account]
 # Terminal account erasure (GDPR/PIPA). verify_jwt=true so the gateway
 # validates the caller; the function erases ONLY the caller's own account

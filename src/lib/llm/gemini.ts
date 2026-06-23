@@ -85,25 +85,24 @@ function effortToConfig(effort: ReasoningEffort): {
 }
 
 // Reasoning provider seam (C1-SAFE). EXPO_PUBLIC_REASONING_PROVIDER selects the
-// backend for the reasoning (pro) path. Default "gemini". "claude" is a reserved
-// seam: real wiring is deferred to the owner (see docs/CLAUDE-REASONING-SETUP.md).
-// We NEVER import an Anthropic SDK here — that would violate C1. When the flag is
-// "claude" today, resolveReasoningProvider() WARNS and falls back to "gemini" so
-// nothing breaks. The chosen provider is recorded in the audit meta.
+// backend for the reasoning (pro) path. Default "gemini"; "claude" routes the
+// pro-tier call through the claude-proxy Edge Function (see
+// docs/CLAUDE-REASONING-SETUP.md, Option A). We NEVER import an Anthropic SDK
+// here — the Claude call happens server-side in the edge function, so C1 holds.
+// The chosen provider is recorded in the audit meta.
 function resolveReasoningProvider(): "gemini" | "claude" {
   const raw = (process.env.EXPO_PUBLIC_REASONING_PROVIDER ?? "gemini").trim().toLowerCase();
-  if (raw === "claude") {
-    // Seam not yet wired. Fall back so the reasoning path keeps working. The
-    // owner enables a real Claude backend per docs/CLAUDE-REASONING-SETUP.md
-    // (claude-proxy edge function or Claude-on-Vertex) — both keep the client
-    // SDK-free, so C1 holds when it lands.
-    console.warn(
-      "[llm] EXPO_PUBLIC_REASONING_PROVIDER=claude but the Claude reasoning seam " +
-        "is not wired yet — falling back to Gemini pro. See docs/CLAUDE-REASONING-SETUP.md.",
-    );
-    return "gemini";
-  }
-  return "gemini";
+  return raw === "claude" ? "claude" : "gemini";
+}
+
+// The reasoning provider routes to its own Supabase Edge Function; both keep the
+// client SDK-free (C1). Claude has no client-side path (no key on the device), so
+// a "claude" reasoning call ALWAYS goes through the edge function even when
+// EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is off for the direct Gemini path.
+function reasoningProxyFn(
+  reasoningProvider: "gemini" | "claude" | undefined,
+): "gemini-proxy" | "claude-proxy" {
+  return reasoningProvider === "claude" ? "claude-proxy" : "gemini-proxy";
 }
 
 let cachedClient: GoogleGenAI | null = null;
@@ -477,10 +476,13 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   // returns audited:true and we skip the client insert to avoid double-logging.
   let proxyAudited = false;
 
-  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
+  // Route through an edge function when configured, OR whenever the reasoning
+  // provider is Claude (which has no client-side path — the key lives only in
+  // claude-proxy). reasoningProxyFn picks the matching function.
+  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || reasoningProvider === "claude") {
     const supabase = getSupabaseClient();
     const t0 = Date.now();
-    const { data, error } = await supabase.functions.invoke("gemini-proxy", {
+    const { data, error } = await supabase.functions.invoke(reasoningProxyFn(reasoningProvider), {
       body: {
         system: input.system ?? null,
         user: input.user,
@@ -1096,10 +1098,12 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   // returns audited:true; we then skip the client insert to avoid double-logging
   // (parity with callGemini).
   let proxyAudited = false;
-  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
+  // Edge path when configured, OR whenever the reasoning provider is Claude
+  // (server-side only). reasoningProxyFn picks gemini-proxy vs claude-proxy.
+  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || reasoningProvider === "claude") {
     const supabase = getSupabaseClient();
     const t0 = Date.now();
-    const { data, error } = await supabase.functions.invoke("gemini-proxy", {
+    const { data, error } = await supabase.functions.invoke(reasoningProxyFn(reasoningProvider), {
       // The curated RAG prompt rides in `system` (trusted, NOT crisis-scanned —
       // it legitimately quotes crisis-detection reference text); the genuine
       // journal entry rides in `user`, which the proxy DOES crisis-scan. This
