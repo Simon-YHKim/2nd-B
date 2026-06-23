@@ -1,8 +1,10 @@
 name: Android Release (APK + AAB)
 
 # Self-contained Android build path: expo prebuild -> local gradle.
-# Does NOT require an Expo account / EXPO_TOKEN. Produces a sideload APK
-# and a store AAB, and (on a v* tag) publishes them as a GitHub Release.
+# Does NOT require an Expo account / EXPO_TOKEN. Produces a sideload APK and a
+# store AAB. Publishes a GitHub Release on a v* tag, on a manual dispatch with a
+# release_tag, and on a main push when app.json's version has no Release yet
+# (one Release per version). Other main pushes only upload workflow artifacts.
 #
 # EAS cloud build is the documented secondary path (see eas.json + docs/ANDROID-BUILD.md).
 
@@ -13,7 +15,25 @@ on:
         description: "Optional release tag (e.g. v0.0.1). When set, a GitHub Release is created with the artifacts attached."
         required: false
         default: ""
+  # Auto-build whenever app code/assets/native config land on main (mirrors
+  # web-deploy.yml). Path-filtered so docs-only merges don't spend a ~10 min
+  # native build. A main push uploads the APK/AAB as workflow artifacts and, when
+  # app.json's version has no Release yet, also publishes that version's Release.
   push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "app.json"
+      - "eas.json"
+      - "package.json"
+      - "package-lock.json"
+      - "config-plugins/**"
+      - "babel.config.js"
+      - "metro.config.js"
+      - "patches/**"
+      - ".github/workflows/android-release.yml"
     tags:
       - "v*"
 
@@ -32,6 +52,20 @@ jobs:
       CI: "1"
       # Keep gradle inside the GitHub-hosted runner's memory budget (~7 GB).
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+      # Shrink the otherwise-universal release artifacts to a single ABI. This is
+      # read by config-plugins/withAndroidAbiFilter.js during expo prebuild (it
+      # writes reactNativeArchitectures), so both the sideload APK and the AAB
+      # build arm64-v8a only - the dominant cause of the 148 MB universal APK.
+      # NOTE: arm64-v8a covers every phone since ~2015 but drops 32-bit
+      # (armeabi-v7a) and x86. Before a real Play submission needing full device
+      # reach, widen this (e.g. "arm64-v8a,armeabi-v7a") or split the AAB.
+      ANDROID_ABI_FILTER: "arm64-v8a"
+      # Inline the real Supabase project at JS-bundle time so the release stops
+      # falling back to the demo.invalid placeholder. Prefer repo Variables when
+      # set (same source as web-deploy.yml); fall back to the public anon key +
+      # URL (anon keys are public by design - RLS guards the data).
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || 'https://zoacryukmdeivmolvyhj.supabase.co' }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvYWNyeXVrbWRlaXZtb2x2eWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NjE0MzUsImV4cCI6MjA5NTIzNzQzNX0.neb3x_u8Vo9PaxoVpvfSHHxfpAcqxzoqGBDQV6xUYcs' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -133,14 +167,41 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # Create a GitHub Release only when triggered by a v* tag, or when a
-      # release_tag input was supplied via manual dispatch.
+      # Decide whether to publish a GitHub Release and under which tag:
+      #   - dispatch with release_tag -> that tag, always publish
+      #   - v* tag push               -> that tag, always publish
+      #   - main push                 -> v<app.json version>, publish only if that
+      #                                  Release does not already exist (one per
+      #                                  version; routine pushes just keep artifacts)
+      - name: Resolve release target
+        id: rel
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          INPUT_TAG="${{ github.event.inputs.release_tag }}"
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"; PUBLISH=true
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${{ github.ref_name }}"; PUBLISH=true
+          else
+            TAG="v$(node -p "require('./app.json').expo.version")"
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              PUBLISH=false
+            else
+              PUBLISH=true
+            fi
+          fi
+          echo "Release target: $TAG (publish=$PUBLISH)"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release_tag != ''
+        if: steps.rel.outputs.publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.release_tag != '' && github.event.inputs.release_tag || github.ref_name }}
-          name: ${{ github.event.inputs.release_tag != '' && github.event.inputs.release_tag || github.ref_name }}
+          tag_name: ${{ steps.rel.outputs.tag }}
+          name: ${{ steps.rel.outputs.tag }}
           generate_release_notes: true
           body: |
             Android build for 2nd-Brain.
