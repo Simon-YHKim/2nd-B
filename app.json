@@ -63,6 +63,16 @@
     "plugins": [
       "expo-router",
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ],
+      "./config-plugins/withAndroidAbiFilter",
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#070A18",

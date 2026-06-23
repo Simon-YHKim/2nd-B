@@ -148,6 +148,11 @@ export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   // "palette treatment" / "visual treatment" (design vocabulary, not clinical),
   // which the substring scan flags. Reference doc, not a product surface.
   "docs/FIDELITY_AUDIT.md",
+  // Static UI/function audit findings (docs/ui-audit/**) quote the exact strings
+  // they flagged on each screen, so the report necessarily echoes the lexicon it
+  // is checking against. Reference/verification doc, not a product surface - the
+  // active surfaces (src/ + locales/) stay scanned.
+  "docs/ui-audit/**",
   "supabase/seed/**",
   "db/seed/**",
   "node_modules/**",
