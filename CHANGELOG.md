@@ -4,6 +4,17 @@ All notable changes to 2nd-Brain are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/) and this project follows
 Conventional Commits.
 
+## [0.0.4] - 2026-06-23
+
+### Removed
+- Legacy UI track (gameboy/village skin) + its art assets. Deep-space is now the
+  only build: every route is de-gated to the canonical deep-space surface, the
+  `*Legacy` screens and the legacy `GraphScreen` are gone, the
+  `src/components/graph/**` village-graph dir is deleted, `UI_MODE` is hardcoded
+  to `deep-space` (`EXPO_PUBLIC_UI` is no longer read), and the deploy configs
+  drop the dead flag. Legacy art shared with deep-space (IslandArt, SoulcoreFinalArt,
+  TierIcon, WorkerSprite, SceneHero, PremiumAppShell) and its asset trees are kept.
+
 ## [Unreleased]
 
 ### Added
