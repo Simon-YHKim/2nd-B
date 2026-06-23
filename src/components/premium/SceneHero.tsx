@@ -469,7 +469,9 @@ const styles = StyleSheet.create({
 // Deep-space hero (isDeepSpaceUI): SecondB head + speech bubble + title,
 // replacing the legacy pixel-village island/worker on every SceneHero screen.
 const dsStyles = StyleSheet.create({
-  wrap: { gap: 12 },
+  // paddingTop clears the floating BackArrow chip (SceneHero only renders on
+  // pushed sub-screens, where the arrow is shown).
+  wrap: { gap: 12, paddingTop: 52 },
   headerRow: { flexDirection: "row", alignItems: "flex-start", gap: 11 },
   bubble: {
     flex: 1,

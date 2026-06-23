@@ -84,7 +84,10 @@ function titleForRoute(pathname: string, domain: string | undefined, locale: Loc
  *  pre-auth pages). Screens use this to reserve top-left headroom so the
  *  floating arrow never overlaps their first heading/text. */
 export function backArrowVisible(pathname: string): boolean {
-  return !HIDDEN_PATHS.has(pathname);
+  // Matches the render logic: hidden on pre-auth/"/"/onboarding AND on the
+  // primary tab roots (the bottom tab bar is the nav there). Screens use this to
+  // reserve top headroom only where the floating arrow actually shows.
+  return !HIDDEN_PATHS.has(pathname) && !isPrimaryTabPath(pathname);
 }
 
 /** True when the route is a bottom-tab destination (brand chip top-left). */

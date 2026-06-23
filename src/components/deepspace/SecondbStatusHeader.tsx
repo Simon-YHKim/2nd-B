@@ -1,7 +1,9 @@
 import { StyleSheet, View } from "react-native";
+import { usePathname } from "expo-router";
 
 import { colors, radius, spacing } from "@/theme/tokens";
 import { Text } from "@/components/ui/Text";
+import { backArrowVisible } from "@/components/ui/BackArrow";
 
 import { SecondbHead, type SecondbMood } from "./SecondbHead";
 
@@ -12,8 +14,11 @@ interface SecondbStatusHeaderProps {
 }
 
 export function SecondbStatusHeader({ text, tip, mood = "neutral" }: SecondbStatusHeaderProps) {
+  // Reserve top headroom on sub-screens so the floating BackArrow chip does not
+  // overlap the head/bubble. On tab roots (arrow hidden) no extra room is added.
+  const needHeadroom = backArrowVisible(usePathname());
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, needHeadroom ? styles.wrapHeadroom : null]}>
       <SecondbHead mood={mood} size={48} />
       <View style={styles.bubble}>
         <View style={styles.tail} />
@@ -41,6 +46,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.ruleSoft,
   },
+  // Sub-screens: clear the floating BackArrow chip (top-left ~44pt) above the head.
+  wrapHeadroom: { marginTop: 52 },
   bubble: {
     flex: 1,
     position: "relative",
