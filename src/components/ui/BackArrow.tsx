@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { Text } from "@/components/ui/Text";
 import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { isPrimaryTabPath } from "@/lib/nav/tabs";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 
@@ -140,7 +141,9 @@ export function BackArrow() {
           <View style={[styles.chevronStroke, styles.chevronBottom]} />
         </View>
       </TouchableOpacity>
-      {routeTitle ? (
+      {routeTitle && !isDeepSpaceUI() ? (
+        // Deep-space screens render their own title/header, so the floating
+        // label is redundant there — show the bare arrow only (legacy keeps it).
         <View style={styles.labelPill} pointerEvents="none">
           <Text variant="caption" color="text" numberOfLines={2} style={styles.labelText}>
             {routeTitle}
