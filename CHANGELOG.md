@@ -28,6 +28,15 @@ Conventional Commits.
   paths on `/` only, so every namespace mismatched on `\` separators and
   `npm run verify` always failed locally.
 
+## [0.0.3] - 2026-06-23
+
+### Fixed
+- The in-app loading screen and the home hero still showed the legacy Soul Core
+  orb (`core_center_premium_hq.png`). Both now render the SecondB character head
+  (`LoadingScreen.tsx`, `app/index.tsx`), matching the new app icon — so the
+  load -> home dolly-zoom handoff stays the character, not the orb. The Soul Core
+  orb is unchanged where it belongs: the graph's core node (`IslandArt`).
+
 ## [0.0.2] - 2026-06-23
 
 ### Added
