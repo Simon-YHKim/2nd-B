@@ -101,9 +101,15 @@ export function BackArrow() {
 
   if (HIDDEN_PATHS.has(pathname)) return null;
 
-  // On a tab screen, clear the brand chip by nudging the arrow rightward.
+  // Primary tab roots (/, /capture, /secondb, /profile) render the full-width
+  // SecondbStatusHeader (head + greeting) across the top. The back-arrow chip
+  // used to overlap it (the old +52 nudge didn't clear the head/greeting). The
+  // bottom tab bar is the nav affordance on these roots, so hide the arrow here;
+  // it still shows on every pushed sub-screen (village/detail).
+  if (isPrimaryTabPath(pathname)) return null;
+
   const leftBase = insets.left + 12;
-  const left = isPrimaryTabPath(pathname) ? leftBase + 52 : leftBase;
+  const left = leftBase;
   const routeTitle = titleForRoute(pathname, params.domain, locale);
 
   // E20 RTL Support: Position right instead of left, flip arrow direction.
