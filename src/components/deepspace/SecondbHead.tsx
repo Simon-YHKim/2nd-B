@@ -168,7 +168,7 @@ export function SecondbHead({ mood = "neutral", size = 48, track }: SecondbHeadP
     <View ref={rootRef} onLayout={measure} collapsable={false} style={styles.root}>
       <Animated.View style={trackStyle}>
         <Animated.View style={[styles.wrap, bobStyle]}>
-          <Image source={HEAD_IMAGE} style={[styles.image, { width: size, height: size }]} resizeMode="contain" />
+          <Image source={HEAD_IMAGE} style={{ width: size, height: size }} resizeMode="contain" />
           <Animated.View
             style={[
               styles.orb,
@@ -184,22 +184,14 @@ export function SecondbHead({ mood = "neutral", size = 48, track }: SecondbHeadP
 
 const styles = StyleSheet.create({
   root: { flexShrink: 0, alignItems: "center", justifyContent: "center" },
+  // No rectangular shadow/elevation on the head: on web it renders as a square
+  // box-shadow halo, and on Android elevation casts a rectangular outline, both
+  // around the transparent head PNG. The mood orb keeps its own (circular) glow.
   wrap: {
     position: "relative",
     flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: colors.cyan,
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
-  },
-  image: {
-    shadowColor: colors.cyan,
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
   },
   orb: {
     position: "absolute",
