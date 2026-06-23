@@ -59,6 +59,11 @@ The single source of truth for both runtime classification and CI scan is `src/l
 
 **Read `docs/CONCEPT.md` (concept/direction) and `DESIGN.md` (visual discipline) before any visual or UI decision.** DESIGN.md's Cosmic Pixel Graph Village is the legacy skin; deep-space visuals use `deepSpace.*` tokens + `docs/deep-space-nav-contract.md`. Font, color, spacing, and aesthetic rules are defined there.
 
+**Canonical reference design (always honor):** the deep-space visual canon lives in `design/*.dc.html` (open in a browser — 1:1 visual source of truth). The reference trio in `docs/ui-audit/` governs how to use it:
+- `DESIGN_INDEX.md` — which `.dc.html` maps to which route + the 3-color/3-font/anti-slop system summary.
+- `SCREEN_TREE_SPEC.md` — per-screen role, buttons→destinations, interactions, and the 4 states (empty/loading/error/filled). The source of truth for behavior + navigation.
+- `CLONE_PROTOCOL.md` — the fidelity loop (read canon → build → compare side-by-side → diff to 0) and responsive rules (`.dc.html` phone frames are scaled mockups; reproduce layout INTENT with flex/%/gap, never the literal px).
+
 - Do not introduce hex literals in components. Always go through `semantic.*` from `src/lib/theme/tokens.ts`.
 - Do not add glassmorphism, pill chips, or em dashes in UI strings. Gradients are allowed only within the deep-space cyan/soul identity via `deepSpaceGradients` (`src/lib/theme/tokens.ts`); off-palette or decorative gradients stay forbidden. See DESIGN.md "Color rules".
 - Do not deviate from `DESIGN.md` without explicit user approval.
