@@ -369,7 +369,7 @@ export default function Settings() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <SecondbStatusHeader
-          text={locale === "ko" ? "필요한 걸 여기서 맞춰요." : "Tune what you need, right here."}
+          text={locale === "ko" ? "설정을 정리해요." : "Tune your settings."}
           tip={
             locale === "ko"
               ? "삭제는 되돌릴 수 없어요. 필요한 건 먼저 내보내기로."

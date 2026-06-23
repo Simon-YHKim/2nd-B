@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text } from "react-native";
 
-import { CosmicBackground } from "@/components/premium";
+import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
 import { deepSpace, typography } from "@/lib/theme/tokens";
 
 const logo = require("../../../assets/deepspace/secondb-head-front.png");
@@ -263,7 +263,7 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       accessibilityHint={accessibilityHint}
       accessibilityState={{ busy: phase !== "ready", disabled: phase === "zooming" }}
     >
-      <CosmicBackground />
+      <DeepSpaceBackdrop />
       <Animated.Image
         source={logo}
         style={[styles.logo, { opacity, transform: [{ scale }] }]}
