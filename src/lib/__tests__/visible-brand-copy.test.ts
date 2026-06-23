@@ -3,27 +3,27 @@ import path from "node:path";
 
 describe("visible brand copy", () => {
   test("auth screens render the canonical app-name token", () => {
+    // Legacy UI track removed 2026-06-23: src/app/(auth)/sign-in.tsx + sign-up.tsx are
+    // now thin wrappers over the deep-space design screens. The canonical brand name is
+    // rendered there through the localized t("deepspace:auth.appName") token (the
+    // deep-space sign-up header uses its own deepspace:auth.signUpTitle copy), and the
+    // hardcoded "2ND-BRAIN" literal is gone — that is the surviving guarantee.
     const root = path.resolve(__dirname, "../../..");
-    const signIn = readFileSync(path.join(root, "src/app/(auth)/sign-in.tsx"), "utf8");
-    const signUp = readFileSync(path.join(root, "src/app/(auth)/sign-up.tsx"), "utf8");
+    const screens = readFileSync(
+      path.join(root, "src/screens/deepspace/DeepSpaceDesignScreens.tsx"),
+      "utf8",
+    );
 
-    expect(signIn).toContain('t("common:app.name")');
-    expect(signUp).toContain('t("common:app.name")');
-    expect(signIn).not.toContain("2ND-BRAIN");
+    expect(screens).toContain('t("deepspace:auth.appName")');
+    expect(screens).not.toContain("2ND-BRAIN");
   });
 
-  test("auth screens keep a visible home back affordance beside the brand", () => {
-    const root = path.resolve(__dirname, "../../..");
-    const signIn = readFileSync(path.join(root, "src/app/(auth)/sign-in.tsx"), "utf8");
-    const signUp = readFileSync(path.join(root, "src/app/(auth)/sign-up.tsx"), "utf8");
-
-    for (const source of [signIn, signUp]) {
-      expect(source).toContain("styles.authBackButton");
-      expect(source).toContain('router.push("/")');
-      expect(source).toContain('t("common:navGraph.drilldown.back")');
-      expect(source).toContain("styles.brandSlot");
-    }
-  });
+  // Legacy UI track removed 2026-06-23: the "visible home back affordance beside the
+  // brand" case pinned the legacy auth layout (styles.authBackButton + styles.brandSlot
+  // + router.push("/") + t("common:navGraph.drilldown.back")). The deep-space AuthShell
+  // has no brand-slot home-back affordance — sign-in instead offers route links to
+  // /sign-up and /jot — so this legacy-only layout assertion has no surviving equivalent
+  // and is removed.
 
   test("app surfaces use 2nd-Brain instead of informal 2nd-B or 2ndB", () => {
     const root = path.resolve(__dirname, "../../..");

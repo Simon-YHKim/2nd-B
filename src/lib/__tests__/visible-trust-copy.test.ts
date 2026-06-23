@@ -39,30 +39,13 @@ describe("visible trust copy", () => {
     expect(ko).toMatch(/"viewPlans": "플랜 보기"/);
   });
 
-  test("sign-up keeps the primary account CTA in the first viewport", () => {
-    const root = path.resolve(__dirname, "../../..");
-    const screen = readFileSync(path.join(root, "src/app/(auth)/sign-up.tsx"), "utf8");
-    const en = readFileSync(path.join(root, "locales/en/auth.json"), "utf8");
-    const ko = readFileSync(path.join(root, "locales/ko/auth.json"), "utf8");
-
-    const stickyIdx = screen.indexOf("styles.stickyCta");
-    const manualIdx = screen.indexOf('t("signUp.manualLink")');
-    const emailIdx = screen.indexOf('t("signUp.email")');
-
-    expect(stickyIdx).toBeGreaterThan(-1);
-    expect(screen).toContain("SIGNUP_STICKY_CTA_HEIGHT");
-    expect(screen).toContain("SIGNUP_SCROLL_BOTTOM_PADDING");
-    expect(screen).toContain('accessibilityLabel={t("signUp.submit")}');
-    expect(screen).toContain("stars={false}");
-    expect(manualIdx).toBeGreaterThan(-1);
-    expect(emailIdx).toBeGreaterThan(-1);
-    expect(manualIdx).toBeGreaterThan(emailIdx);
-    expect(screen).toContain('<Link href="/manual" asChild>');
-    expect(en).toContain('"browseBeforeCommit": "Browse first, then decide"');
-    expect(ko).toContain('"browseBeforeCommit": "먼저 둘러보고 결정하기"');
-    expect(en).toContain('"manualLink": "New here? Read the 1-min manual"');
-    expect(ko).toContain('"manualLink": "이 앱이 처음이라면 안내서 보기"');
-  });
+  // Legacy UI track removed 2026-06-23: the "sign-up keeps the primary account CTA in
+  // the first viewport" case pinned the legacy sign-up layout (styles.stickyCta +
+  // SIGNUP_STICKY_CTA_HEIGHT/SIGNUP_SCROLL_BOTTOM_PADDING sticky footer, stars={false},
+  // a <Link href="/manual"> placed after the email field). src/app/(auth)/sign-up.tsx is
+  // now a thin wrapper over the deep-space sign-up screen, which uses a scrolling card
+  // layout with no sticky-CTA viewport constants and no manual link, so this legacy-only
+  // viewport-layout assertion has no surviving equivalent and is removed.
 
   test("auth entry copy does not promise pre-account or local-device capture", () => {
     const root = path.resolve(__dirname, "../../..");
@@ -161,31 +144,34 @@ describe("visible trust copy", () => {
     expect(combined).not.toMatch(/그래프|로컬|기기|계정 없이/);
   });
 
-  test("first-run graph card does not promise a journal save lights the graph", () => {
-    const root = path.resolve(__dirname, "../../..");
-    const screen = readFileSync(path.join(root, "src/app/index.tsx"), "utf8");
-
-    expect(screen).toContain("Your first piece is saved in Records");
-    expect(screen).toContain("첫 조각은 기록 보관소에 저장돼요");
-    expect(screen).toContain("Links and captures light the graph as they connect");
-    expect(screen).not.toContain("Leave a first piece and the roads light up");
-    expect(screen).not.toContain("첫 조각을 남기면 길이 조금씩 켜져요");
-  });
+  // Legacy UI track removed 2026-06-23: the "first-run graph card" case pinned hardcoded
+  // home-card copy inside the legacy GraphScreen (src/app/index.tsx) — "Your first piece
+  // is saved in Records" / "Links and captures light the graph as they connect" and the
+  // negative "Leave a first piece and the roads light up". src/app/index.tsx is now a
+  // thin deep-space wrapper and that village-graph first-run card is gone with no
+  // deep-space equivalent, so this legacy-only copy assertion is removed.
 
   test("sign-in exposes account creation as a route and reset as inline help", () => {
     const root = path.resolve(__dirname, "../../..");
-    const screen = readFileSync(path.join(root, "src/app/(auth)/sign-in.tsx"), "utf8");
-    // The reset-help visibility toggle moved into the shared useSignInForm hook
-    // (legacy + deep-space sign-in share one source); the screen still wires the
-    // route links and the forgot-password handler.
+    // Legacy UI track removed 2026-06-23: src/app/(auth)/sign-in.tsx is now a thin
+    // wrapper, so the rendered sign-in JSX lives in the canonical deep-space sign-in
+    // screen (DeepSpaceSignInScreen in src/screens/deepspace/DeepSpaceDesignScreens.tsx).
+    // It expresses the same guarantees with deep-space symbols: account creation is a
+    // route via router.push("/sign-up") (not a legacy <Link href="/sign-up">), reset is
+    // inline help via handleForgotPassword + the hook's setResetHelpVisible(true) (no
+    // /reset-password route link), and the OAuth providers render after the sign-up link.
+    const screen = readFileSync(
+      path.join(root, "src/screens/deepspace/DeepSpaceDesignScreens.tsx"),
+      "utf8",
+    );
     const hook = readFileSync(path.join(root, "src/lib/auth/useSignInForm.ts"), "utf8");
     const en = readFileSync(path.join(root, "locales/en/auth.json"), "utf8");
     const ko = readFileSync(path.join(root, "locales/ko/auth.json"), "utf8");
 
-    const submitIdx = screen.indexOf('accessibilityLabel={t("signIn.submit")}');
-    const signUpIdx = screen.indexOf('<Link href="/sign-up" asChild>');
+    const submitIdx = screen.indexOf('accessibilityLabel={t("auth:signIn.submit")}');
+    const signUpIdx = screen.indexOf('router.push("/sign-up")');
     const resetIdx = screen.indexOf("handleForgotPassword");
-    const providerIdx = screen.indexOf('t("signIn.continueWithGoogle")');
+    const providerIdx = screen.indexOf("PROVIDER_SIGNIN_KEY[provider]");
 
     expect(submitIdx).toBeGreaterThan(-1);
     expect(signUpIdx).toBeGreaterThan(-1);

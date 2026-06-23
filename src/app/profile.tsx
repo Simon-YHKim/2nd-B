@@ -10,19 +10,11 @@ import Svg, { Circle, Path } from "react-native-svg";
 import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
+import { semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { useProgression } from "@/lib/progression/useProgression";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
-
-interface HubRoute {
-  sectionKey: string;
-  key: string;
-  route: Href;
-  accent: string;
-}
 
 type HubCopy = {
   label: string;
@@ -30,17 +22,6 @@ type HubCopy = {
 };
 
 type DeepSpaceProfileSection = "know" | "analyze";
-
-const PRIMARY_HUB_ITEMS: HubRoute[] = [
-  { sectionKey: "center", key: "coreBrain", route: "/core-brain", accent: semantic.brand },
-  { sectionKey: "center", key: "esm", route: "/esm", accent: semantic.brand },
-  { sectionKey: "know", key: "persona", route: "/persona", accent: cosmic.soulViolet },
-  { sectionKey: "analyze", key: "insights", route: "/insights", accent: cosmic.signalBlue },
-  // Live QA 2026-06-11: /inbox (클립 수신함) had NO forward entry anywhere in
-  // the app - the locale label existed but no surface rendered it. This row
-  // is its single entry point (home -> 나 -> 받은편지함, 2 taps).
-  { sectionKey: "account", key: "inbox", route: "/inbox", accent: cosmic.signalMint },
-];
 
 function SettingsGlyph({ color }: { color: string }) {
   return (
@@ -65,59 +46,17 @@ function PlanGlyph({ color }: { color: string }) {
   );
 }
 
-function HubGlyph({ itemKey, color }: { itemKey: string; color: string }) {
-  switch (itemKey) {
-    case "coreBrain":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-          <Circle cx="12" cy="12" r="7" stroke={color} strokeWidth={2} fill="none" />
-          <Circle cx="12" cy="12" r="2" fill={color} />
-          <Path d="M12 5 L12 2 M12 22 L12 19 M5 12 L2 12 M22 12 L19 12" stroke={color} strokeWidth={2} strokeLinecap="square" />
-        </Svg>
-      );
-    case "esm":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-          <Path d="M5 12 L9 16 L19 7" stroke={color} strokeWidth={2.4} fill="none" strokeLinecap="square" strokeLinejoin="miter" />
-          <Path d="M5 19 L19 19" stroke={color} strokeWidth={2} strokeLinecap="square" />
-        </Svg>
-      );
-    case "persona":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-          <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth={2} fill="none" />
-          <Path d="M5 21 C6.5 16.5 9 15 12 15 C15 15 17.5 16.5 19 21" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" />
-        </Svg>
-      );
-    case "insights":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-          <Path d="M5 18 L9 13 L13 15 L19 6" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" strokeLinejoin="miter" />
-          <Path d="M5 21 L19 21" stroke={color} strokeWidth={2} strokeLinecap="square" />
-          <Circle cx="19" cy="6" r="2" fill={color} />
-        </Svg>
-      );
-    default:
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-          <Path d="M4 7 L20 7 L20 19 L4 19 Z" stroke={color} strokeWidth={2} fill="none" />
-          <Path d="M4 13 L9 13 L11 16 L13 16 L15 13 L20 13" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" />
-        </Svg>
-      );
-  }
-}
-
 export default function Profile() {
   const { t, i18n } = useTranslation("profile");
   const { t: tPlans } = useTranslation("plans");
   const { userId, loading } = useAuth();
   const progression = useProgression();
   const sections = t("sections", { returnObjects: true }) as Record<string, HubCopy>;
-  const deepSpaceMode = isDeepSpaceUI();
+  const deepSpaceMode = true;
   const [activeDeepSpaceSection, setActiveDeepSpaceSection] = useState<DeepSpaceProfileSection>("know");
 
   const [email, setEmail] = useState<string | null>(null);
-  const [busy, setBusy] = useState(true);
+  const [_busy, setBusy] = useState(true);
 
   useEffect(() => {
     if (!userId) return;
@@ -257,79 +196,34 @@ export default function Profile() {
           )}
         </TouchableOpacity>
 
-        {deepSpaceMode ? null : (
-          <View style={styles.accountStrip}>
-            {busy ? (
-              <ActivityIndicator color={semantic.brand} />
-            ) : (
-              <Text variant="subtle" color="textMuted" numberOfLines={1}>
-                {email ?? t("account.emailUnavailable")}
-              </Text>
-            )}
-          </View>
-        )}
-
-        {deepSpaceMode ? null : (
-          <View style={styles.quickGrid}>
-            {PRIMARY_HUB_ITEMS.map((item) => {
-              const itemCopy = sections[item.sectionKey].items[item.key];
+        {/* O-31 Stage4/6: one summary card above, then reveal one route cluster
+            at a time via the disclosure tabs. */}
+        <View style={styles.deepSpaceDisclosure}>
+          <View style={styles.deepSpaceTabs} accessibilityRole="tablist">
+            {deepSpaceSections.map((section) => {
+              const selected = section.key === activeDeepSpaceSection;
               return (
                 <TouchableOpacity
-                  key={String(item.route)}
-                  onPress={() => router.push(item.route)}
-                  activeOpacity={0.7}
-                  style={[styles.quickChip, { borderColor: item.accent }]}
-                  accessibilityRole="button"
-                  accessibilityLabel={itemCopy.label}
-                  accessibilityHint={itemCopy.hint}
+                  key={section.key}
+                  onPress={() => setActiveDeepSpaceSection(section.key)}
+                  activeOpacity={0.72}
+                  style={[styles.deepSpaceTab, selected && styles.deepSpaceTabActive]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={section.label}
                 >
-                  <View style={styles.quickChipIcon}>
-                    <HubGlyph itemKey={item.key} color={item.accent} />
-                  </View>
-                  <View style={styles.quickChipCopy}>
-                    <Text variant="body" color="text" numberOfLines={2} style={styles.quickChipLabel}>
-                      {itemCopy.label}
-                    </Text>
-                    <Text variant="subtle" color="textMuted" numberOfLines={2} style={styles.quickChipHint}>
-                      {itemCopy.hint}
-                    </Text>
-                  </View>
+                  <Text
+                    variant="caption"
+                    style={[styles.deepSpaceTabText, selected && styles.deepSpaceTabTextActive]}
+                  >
+                    {section.label}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
-        )}
-
-        {/* O-31 Stage4/6: deep-space keeps one summary card above, then reveals
-            one route cluster at a time instead of rendering the dense legacy hub. */}
-        {isDeepSpaceUI() ? (
-          <View style={styles.deepSpaceDisclosure}>
-            <View style={styles.deepSpaceTabs} accessibilityRole="tablist">
-              {deepSpaceSections.map((section) => {
-                const selected = section.key === activeDeepSpaceSection;
-                return (
-                  <TouchableOpacity
-                    key={section.key}
-                    onPress={() => setActiveDeepSpaceSection(section.key)}
-                    activeOpacity={0.72}
-                    style={[styles.deepSpaceTab, selected && styles.deepSpaceTabActive]}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={section.label}
-                  >
-                    <Text
-                      variant="caption"
-                      style={[styles.deepSpaceTabText, selected && styles.deepSpaceTabTextActive]}
-                    >
-                      {section.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <DeepSpaceLinks groups={[activeDeepSpaceGroup]} />
-          </View>
-        ) : null}
+          <DeepSpaceLinks groups={[activeDeepSpaceGroup]} />
+        </View>
       </ScrollView>
     </PremiumAppShell>
   );

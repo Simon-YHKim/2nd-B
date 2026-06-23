@@ -19,28 +19,22 @@ import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, deepSpace, deepSpaceRadii, deepSpaceSpacing, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { getPersona, PERSONAS } from "@/lib/chat/personas";
 import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
-import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
-import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/components/premium";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
 import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, incrementReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
-import { CORE_VILLAGE_UI, VILLAGE_UI } from "@/lib/village-ui";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
@@ -99,14 +93,11 @@ function writeIntroDismissed(kind: "today" | "permanent"): void {
 // handler, RAG/citation parsing, C9 -> C3 -> crisis path (callGemini via
 // sendChatMessage), modes, auth gates, analytics, and daily-limit logic are
 // byte-identical for both variants — there is NO logic fork.
-type ChatVariant = "deep-space" | "legacy";
-
 export default function SecondBChat() {
-  return <SecondBChatBody variant={isDeepSpaceUI() ? "deep-space" : "legacy"} />;
+  return <SecondBChatBody />;
 }
 
-function SecondBChatBody({ variant }: { variant: ChatVariant }) {
-  const isDeepSpace = variant === "deep-space";
+function SecondBChatBody() {
   const { t, i18n } = useTranslation("secondb");
   const { userId, loading: authLoading, isMinor, hasProfile } = useAuth();
   const progression = useProgression();
@@ -354,42 +345,16 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // ChatLimitExceededError, but the UI should not look actionable). usedToday===null
   // means the count is still loading, so allow until we know.
   const canSend = draft.trim().length > 0 && !sending && (usedToday === null || usedToday < limit);
-  const usedDisplay = usedToday === null ? "..." : String(usedToday);
-  const chatUiByWorker = {
-    secondb: CORE_VILLAGE_UI,
-    archi: VILLAGE_UI.work,
-    gadi: VILLAGE_UI.relation,
-    lulu: VILLAGE_UI.knowledge,
-    momo: VILLAGE_UI.records,
-    lumi: VILLAGE_UI.taste,
-  } as const;
-  // vela is dormant (공상 → Divergent mode); fall back to the Soul Core UI for
-  // any worker without a Pattern Core mapping.
-  const chatWorker = (
-    isCharacterChat && persona.id in chatUiByWorker ? persona.id : "secondb"
-  ) as keyof typeof chatUiByWorker;
-  const chatUi = chatUiByWorker[chatWorker];
   const hasTurns = turns.length > 0;
-  // Near-limit warning threshold scales down with small caps so the free
-  // tier (limit 2, monetization v2) still has a reachable neutral state.
-  const warnAt = Math.min(2, limit - 1);
-  const usageColor: keyof typeof semantic =
-    usedToday !== null && usedToday >= limit
-      ? "danger"
-      : usedToday !== null && limit - usedToday <= warnAt
-        ? "warning"
-        : "textMuted";
-  const compactModeLabel = chatMode === "divergent" ? "New angle" : "Analysis";
 
   // ── Deep-space chrome (real composer + real answers + citations + states) ──
   // Same engine (turns / handleSend / sendChatMessage / parseSourceCitations /
   // canSend) as the legacy branch; only the visual shell differs. Crisis/C9/C3
   // live entirely inside sendChatMessage -> callGemini, untouched here.
-  if (isDeepSpace) {
-    const dsUsage = usedToday === null ? "..." : String(usedToday);
-    const atLimit = usedToday !== null && usedToday >= limit;
-    return (
-      <DeepSpaceScreen active="chat">
+  const dsUsage = usedToday === null ? "..." : String(usedToday);
+  const atLimit = usedToday !== null && usedToday >= limit;
+  return (
+    <DeepSpaceScreen active="chat">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={keyboardBehavior}
@@ -744,414 +709,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         />
       </DeepSpaceScreen>
     );
-  }
-
-  return (
-    <PremiumAppShell>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={keyboardBehavior}
-        keyboardVerticalOffset={keyboardVerticalOffset}
-      >
-        <View style={styles.compactHeader}>
-          {hasTurns ? (
-            <SecondBSprite
-              state="chat"
-              size={28}
-              label={isCharacterChat ? persona.name[locale] : t("title")}
-            />
-          ) : null}
-          <Text variant="caption" color="brand" numberOfLines={1} style={styles.compactTitle}>
-            {isCharacterChat ? persona.name[locale] : t("title")}
-          </Text>
-          <Text variant="caption" color={usageColor} numberOfLines={1} style={{ flexShrink: 0 }}>
-            {usedDisplay}/{limit}
-          </Text>
-          <Text variant="caption" color="textMuted" numberOfLines={1} style={{ flexShrink: 0 }}>
-            {compactModeLabel}
-          </Text>
-          {hasTurns ? (
-            <Pressable
-              onPress={() => setTurns([])}
-              style={styles.clearChatLink}
-              hitSlop={14}
-              accessibilityRole="button"
-              accessibilityLabel={t("clearChatA11y")}
-              accessibilityHint={t("clearChatHint")}
-            >
-              <Text variant="caption" color="brand">
-                {t("clearChat")}
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
-
-        <View style={styles.composerPrimary}>
-          <Input
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={t("placeholder")}
-            multiline
-            style={styles.composerInput}
-            accessibilityLabel={t("inputA11y")}
-          />
-          <Button label={t("send")} variant="primary" onPress={handleSend} disabled={!canSend} loading={sending} />
-        </View>
-
-        {/* reasoning-cap inline notice (count-only — NOT a quality message). */}
-        {capNotice && !reasoningUnlimited && reasoningRemaining <= 0 ? (
-          <Text variant="caption" color="textMuted" accessibilityLiveRegion="polite" style={{ textAlign: "right", paddingHorizontal: spacing.md }}>
-            {locale === "ko"
-              ? "이번 주 깊이 묻기 횟수를 다 썼어요"
-              : "You've used this week's deep questions"}
-          </Text>
-        ) : null}
-
-        {usedToday !== null && usedToday >= limit ? (
-          <Pressable
-            onPress={() => router.push("/plans?from=ai_limit")}
-            hitSlop={14}
-            style={styles.limitLink}
-            accessibilityRole="button"
-            accessibilityLabel={t("viewPlans")}
-            accessibilityHint={t("viewPlansHint")}
-          >
-            <Text variant="caption" color="brand">
-              {t("viewPlans")}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {!hasTurns ? (
-        <SceneHero
-          eyebrow={locale === "ko" ? "06. 세컨비 대화" : "06. SecondB chat"}
-          title={isCharacterChat ? persona.name[locale] : t("title")}
-          subtitle={isCharacterChat ? persona.role[locale] : t("subtitle")}
-          island={chatUi.island}
-          worker={chatUi.worker}
-          accent={chatUi.accent}
-          speech={
-            sending
-              ? t("heroSpeech.sending")
-              : chatMode === "divergent"
-                ? t("heroSpeech.divergent")
-                : t("heroSpeech.default")
-          }
-        />
-        ) : null}
-
-        {/* SecondB mode toggle (worldview v-final): Analytic / Divergent. Both
-            run the same C9 -> C3 -> gemini.ts path; only the prompt shifts. */}
-        <View style={styles.modeRow}>
-            <Pressable
-              onPress={() => setChatMode("analytic")}
-              style={[styles.modeChip, chatMode === "analytic" ? styles.modeChipAnalytic : null]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: chatMode === "analytic" }}
-            accessibilityLabel={locale === "ko" ? "분석 모드" : "Analysis mode"}
-          >
-            <Text variant="caption" color={chatMode === "analytic" ? "background" : "textMuted"}>
-              {locale === "ko" ? "분석" : "Analysis"}
-            </Text>
-          </Pressable>
-            <Pressable
-              onPress={() => setChatMode("divergent")}
-              style={[styles.modeChip, chatMode === "divergent" ? styles.modeChipDivergent : null]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: chatMode === "divergent" }}
-            accessibilityLabel={locale === "ko" ? "새 관점 모드" : "New angle mode"}
-          >
-            <Text variant="caption" color={chatMode === "divergent" ? "text" : "textMuted"}>
-              {locale === "ko" ? "새 관점" : "New angle"}
-            </Text>
-          </Pressable>
-          {chatMode === "divergent" ? (
-            <>
-              <Animated.View style={[styles.divergentPulseDot, { opacity: divergentPulse as never }]} />
-              <Text variant="caption" color="textSubtle" style={styles.modeHint} numberOfLines={1}>
-                {locale === "ko" ? "새로운 관점·가정으로" : "New perspectives & what-ifs"}
-              </Text>
-            </>
-          ) : null}
-        </View>
-
-        {/* nodeContext pill — entered from a graph node (chat pack §7) */}
-        {fromNode ? (
-          <View style={styles.contextPillWrap}>
-            <ContextPill label={fromNode} />
-          </View>
-        ) : null}
-
-        <ScrollView
-          ref={scrollRef}
-          style={{ flex: 1 }}
-          contentContainerStyle={[styles.scroll, { paddingBottom: messageListBottomPadding }]}
-          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {turns.length === 0 ? (
-            <View style={styles.empty}>
-              <View style={styles.emptySecondB}>
-                {/* O-12 Phase C P1-2: SceneHero already carries the hero graphic,
-                    so the empty-state mascot is smaller (one dominant graphic per
-                    screen). Kept labeled for a11y. */}
-                <SecondBSprite
-                  state="chat"
-                  size={56}
-                  float
-                  label={locale === "ko" ? "대화할 준비가 된 세컨비" : "SecondB ready to chat"}
-                />
-              </View>
-              <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.md }}>
-                {t("empty")}
-              </Text>
-            </View>
-          ) : (
-            turns.map((turn, i) => (
-              <View
-                key={i}
-                style={[styles.bubbleRow, turn.role === "user" ? styles.userRow : styles.secondbRow]}
-              >
-                <View style={styles.bubbleCol}>
-                  <Pressable
-                    onLongPress={async () => {
-                      if (typeof navigator !== "undefined" && navigator.clipboard) {
-                        try {
-                          await navigator.clipboard.writeText(turn.text);
-                        } catch {
-                          // ignore — fall back to selection by the user
-                        }
-                      }
-                    }}
-                    style={[
-                      styles.bubble,
-                      turn.role === "user" ? styles.userBubble : styles.secondbBubble,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      turn.role === "user"
-                        ? locale === "ko"
-                          ? "내 메시지"
-                          : "Your message"
-                        : locale === "ko"
-                          ? "세컨비 답변"
-                          : "SecondB answer"
-                    }
-                    accessibilityHint={
-                      locale === "ko" ? "길게 눌러 메시지를 복사합니다" : "Long press to copy this message"
-                    }
-                  >
-                    <Text
-                      variant="body"
-                      color={turn.role === "user" ? "background" : "text"}
-                      selectable
-                    >
-                      {turn.text}
-                    </Text>
-                  </Pressable>
-                  {/* Grounding strip — "이 답변은 참고한 조각 N개를 봤어요"; tap to
-                      open the reference drawer (chat pack §5/§6). */}
-                  {turn.role === "secondb" && turn.chips && turn.chips.length > 0 ? (
-                    <Pressable
-                      style={styles.chipRow}
-                      onPress={() => setRefDrawer(turn.chips ?? [])}
-                      accessibilityRole="button"
-                      accessibilityLabel={
-                        locale === "ko"
-                          ? `이 답변은 참고한 조각 ${turn.chips.length}개를 봤어요. 눌러서 자세히 보기.`
-                          : `This answer drew on ${turn.chips.length} of your pieces. Tap for detail.`
-                      }
-                    >
-                      <Text variant="caption" color="textSubtle">
-                        {locale === "ko" ? `참고한 조각 ${turn.chips.length}` : `${turn.chips.length} pieces`}
-                      </Text>
-                      {turn.chips.slice(0, 3).map((slug) => (
-                        <View key={slug} style={styles.chip}>
-                          <Text variant="caption" color="brand">{formatSourceCitationLabel(slug)}</Text>
-                        </View>
-                      ))}
-                      {turn.chips.length > 3 ? (
-                        <Text variant="caption" color="textSubtle">
-                          {locale === "ko" ? `+${turn.chips.length - 3}` : `+${turn.chips.length - 3}`}
-                        </Text>
-                      ) : null}
-                    </Pressable>
-                  ) : null}
-                </View>
-              </View>
-            ))
-          )}
-          {sending ? (
-            <View style={styles.thinking}>
-              <ActivityIndicator color={semantic.brand} />
-            </View>
-          ) : null}
-        </ScrollView>
-
-        {/* Quick-action chips (chat pack §8) — appear once SecondB has
-            answered; each prefills the composer with a short follow-up. */}
-        {turns.length > 0 && turns[turns.length - 1].role === "secondb" && !sending ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.quickRow}
-            keyboardShouldPersistTaps="handled"
-          >
-            {QUICK_ACTIONS.map((qa) => (
-              <Pressable
-                key={qa.en}
-                style={styles.quickChip}
-                onPress={() => {
-                  if (qa.mode) setChatMode(qa.mode);
-                  setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? qa.ko : qa.en}
-              >
-                <Text variant="caption" color="brand">{locale === "ko" ? qa.ko : qa.en}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        ) : null}
-
-      </KeyboardAvoidingView>
-
-      {/* 첫 진입 인사 모달 — 알았어요 / 오늘은 그만 볼래요 */}
-      <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setIntroOpen(false)}
-          accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "인사 모달 닫기" : "Close intro"}
-          accessibilityHint={locale === "ko" ? "세컨비 인사 모달을 닫습니다" : "Dismisses the intro modal"}
-        >
-          <Pressable
-            style={styles.modalCard}
-            onPress={(e) => e.stopPropagation()}
-            accessible={false}
-            accessibilityViewIsModal
-          >
-            <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
-              {t("intro_title")}
-            </Text>
-            <Text variant="body" color="text" style={{ marginTop: spacing.sm, lineHeight: 20 }}>
-              {t("intro_body")}
-            </Text>
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={() => { writeIntroDismissed("today"); setIntroOpen(false); }}
-                style={[styles.modalBtn, styles.modalBtnSecondary]}
-                hitSlop={14}
-                accessibilityRole="button"
-                accessibilityLabel={t("intro_mute")}
-              >
-                <Text variant="body" color="textMuted">{t("intro_mute")}</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => { setIntroOpen(false); }}
-                style={[styles.modalBtn, styles.modalBtnPrimary]}
-                hitSlop={14}
-                accessibilityRole="button"
-                accessibilityLabel={t("intro_ok")}
-              >
-                <Text variant="body" color="background" style={{ fontWeight: "700" }}>
-                  {t("intro_ok")}
-                </Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* Reference drawer (chat pack §6) — the pieces an answer drew on. */}
-      <Modal
-        visible={refDrawer !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setRefDrawer(null)}
-      >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setRefDrawer(null)}
-          accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "참고 조각 닫기" : "Close referenced pieces"}
-          accessibilityHint={locale === "ko" ? "참고 조각 서랍을 닫습니다" : "Dismisses the referenced pieces drawer"}
-        >
-          <Pressable
-            style={styles.drawer}
-            onPress={(e) => e.stopPropagation()}
-            accessibilityViewIsModal
-            accessibilityLabel={locale === "ko" ? "참고한 조각들" : "Pieces referenced"}
-          >
-            <View style={styles.drawerHandle} />
-            <Text variant="heading">{locale === "ko" ? "참고한 조각들" : "Pieces referenced"}</Text>
-            <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
-              {locale === "ko"
-                ? "답변에 영향을 준 조각들이에요. 필요하면 하나씩 열어볼 수 있어요."
-                : "The pieces that shaped this answer. Open any one if you like."}
-            </Text>
-            {/* List scrolls within the capped (62%) drawer so the Close button
-                below stays reachable even with many referenced pieces or on a
-                short / landscape screen (was a plain View: long lists pushed
-                Close off-screen). */}
-            <ScrollView
-              style={{ flexShrink: 1 }}
-              contentContainerStyle={{ marginTop: spacing.md, gap: spacing.sm, paddingBottom: spacing.sm }}
-              showsVerticalScrollIndicator={false}
-            >
-              {(refDrawer ?? []).map((slug) => (
-                <ReferenceShardCard
-                  key={slug}
-                  title={formatSourceCitationLabel(slug)}
-                  meta={t("reference_piece_meta")}
-                  onPress={() => {
-                    // Citations are wiki-page slugs, not record ids, and no
-                    // slug->record-id mapping is available in this screen.
-                    // Route to the records browser as an honest landing rather
-                    // than a dead chip.
-                    // TODO: once a slug->record-id resolver exists (e.g. via
-                    // getWikiPage -> source record), route to /record/[id].
-                    setRefDrawer(null);
-                    router.push("/records");
-                  }}
-                />
-              ))}
-            </ScrollView>
-            <Button
-              label={locale === "ko" ? "닫기" : "Close"}
-              variant="secondary"
-              onPress={() => setRefDrawer(null)}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
-      {/* 가디 appears briefly on a safety soft-stop / all-clear (companion pack §3) */}
-      {companion.moment ? (
-        <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
-      ) : null}
-
-      {/* Rewarded watch-to-earn — count-only top up; same wiring as deep-space. */}
-      <RewardedSheet
-        visible={rewardVisible}
-        onClose={() => setRewardVisible(false)}
-        remaining={reasoningUnlimited ? 0 : reasoningRemaining}
-        onEarned={async (credits) => {
-          if (userId) {
-            try {
-              await addRewardCredits(userId, credits);
-            } catch (e) {
-              if (typeof console !== "undefined") console.warn("[secondb] addRewardCredits failed", (e as Error).message);
-            }
-          }
-          setRewardCredits((c) => c + credits);
-          setCapNotice(false);
-          setRewardVisible(false);
-        }}
-        locale={locale}
-      />
-    </PremiumAppShell>
-  );
 }
 
 const styles = StyleSheet.create({

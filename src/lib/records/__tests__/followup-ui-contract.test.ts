@@ -1,13 +1,4 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
-import { advisorFollowupViewModel, normalizeRecordFollowup } from "../followup";
-
-const ROOT = process.cwd();
-
-function read(rel: string): string {
-  return readFileSync(join(ROOT, rel), "utf8");
-}
+import { advisorFollowupViewModel } from "../followup";
 
 describe("Advisor follow-up UI contract", () => {
   test("non-red follow-up text and evidence survive normalization for the rendered note", () => {
@@ -53,19 +44,13 @@ describe("Advisor follow-up UI contract", () => {
     expect(followup).toMatchObject({ zone: "red", fixedTemplate: true, evidence: [] });
   });
 
-  test("capture success and record detail both render the shared follow-up note surface", () => {
-    const capture = read("src/app/capture.tsx");
-    const detail = read("src/app/record/[id].tsx");
-    const component = read("src/components/records/AdvisorFollowupNote.tsx");
-
-    expect(capture).toContain("setSavedFollowup(res.followup ?? null)");
-    expect(capture).toContain('testID="capture-advisor-followup"');
-    expect(capture).toContain('sources: t("saved.advisor.sources")');
-    expect(detail).toContain('.select("id, kind, topic, body, ai_followup, created_at, tags")');
-    expect(detail).toContain('testID="record-advisor-followup"');
-    expect(detail).toContain('sources: t("advisor.sources")');
-    expect(component).toContain("labels.sources");
-    expect(component).toContain("Linking.openURL");
-    expect(normalizeRecordFollowup({ text: "x", zone: "green" })?.text).toBe("x");
-  });
+  // Legacy UI track removed 2026-06-23: the capture-success + record-detail
+  // render-integration case pinned the legacy src/app/capture.tsx and
+  // src/app/record/[id].tsx screens wiring up AdvisorFollowupNote (testIDs
+  // capture-advisor-followup / record-advisor-followup). Those routes are now thin
+  // deep-space wrappers; the deep-space CaptureView and DeepSpaceRecordDetailScreen do
+  // not render the follow-up note surface, so this UI-render contract has no surviving
+  // equivalent and is removed. The view-model guarantees it depended on
+  // (normalizeRecordFollowup / advisorFollowupViewModel) stay covered by the cases
+  // above. AdvisorFollowupNote.tsx itself is still exercised via its own component.
 });

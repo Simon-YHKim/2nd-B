@@ -23,14 +23,13 @@ import {
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
+import { PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DrillProgress } from "@/components/ui/DrillProgress";
 import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
@@ -65,18 +64,10 @@ type InterviewFeedbackModal =
 // PremiumAppShell, deep-space re-hosts the SAME body inside <DeepSpaceScreen>.
 // All data/LLM/safety logic below (startInterview, requestNextProbe,
 // handleAnswer, handleSave, the C9 path inside nextProbe) is identical for both.
-type InterviewVariant = "legacy" | "deepSpace";
-
-function InterviewBody({ variant }: { variant: InterviewVariant }) {
-  const isDeepSpace = variant === "deepSpace";
-
-  // Frame swaps the chrome without touching the body. Deep-space wraps in the
-  // shared DeepSpaceScreen (active="lens"); legacy keeps PremiumAppShell.
+function InterviewBody() {
+  // Frame hosts the interview body inside the shared deep-space dock.
   function Frame({ children }: { children: ReactNode }) {
-    if (isDeepSpace) {
-      return <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>;
-    }
-    return <PremiumAppShell>{children}</PremiumAppShell>;
+    return <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>;
   }
 
   const { i18n } = useTranslation();
@@ -567,9 +558,7 @@ const styles = StyleSheet.create({
 });
 
 export default function Interview() {
-  // Both branches run the SAME interview engine (InterviewBody) — the only
-  // difference is the chrome: deep-space re-hosts the real AI interview inside
-  // DeepSpaceScreen instead of the old static RecallLensView placeholder.
-  // No logic fork: data/LLM/safety paths are shared.
-  return <InterviewBody variant={isDeepSpaceUI() ? "deepSpace" : "legacy"} />;
+  // The interview engine (InterviewBody) re-hosts the real AI interview inside
+  // DeepSpaceScreen. No logic fork: data/LLM/safety paths are shared.
+  return <InterviewBody />;
 }

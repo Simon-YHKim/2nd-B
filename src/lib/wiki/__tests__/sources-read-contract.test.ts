@@ -15,12 +15,16 @@ function readSrc(rel: string): string {
   return readFileSync(join(__dirname, rel), "utf8");
 }
 
-// Read side: the sources query in the home screen (src/app/index.tsx) — its .select(...)
-// fields plus the .order(...) column (the column the P0 got wrong).
+// Read side: the canonical home sources query. Legacy UI track removed 2026-06-23:
+// src/app/index.tsx is now a thin deep-space wrapper and no longer reads `sources`.
+// The home aggregate sources read moved to src/app/trinity.tsx (the Brain-Trinity home
+// screen), with the same field shape the legacy index used (id, captured_at, title,
+// tags ordered by captured_at) — so this contract still pins the created_at/captured_at
+// P0 on the surviving canonical reader.
 function indexSourcesReadFields(): string[] {
-  const src = readSrc("../../../app/index.tsx");
+  const src = readSrc("../../../app/trinity.tsx");
   const at = src.indexOf('.from("sources")');
-  if (at === -1) throw new Error('index.tsx no longer queries .from("sources") — update this contract');
+  if (at === -1) throw new Error('trinity.tsx no longer queries .from("sources") — update this contract');
   const block = src.slice(at);
   const select = block.match(/\.select\(\s*"([^"]*)"/);
   const order = block.match(/\.order\(\s*"([^"]+)"/);

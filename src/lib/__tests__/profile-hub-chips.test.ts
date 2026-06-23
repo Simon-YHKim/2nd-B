@@ -8,34 +8,22 @@ function readRepoFile(file: string): string {
 }
 
 describe("profile hub chips", () => {
-  test("quick hub chips expose glyph, label, and hint hierarchy", () => {
-    const source = readRepoFile("src/app/profile.tsx");
-
-    expect(source).toContain("function HubGlyph");
-    expect(source).toContain("<HubGlyph itemKey={item.key} color={item.accent} />");
-    expect(source).toContain('variant="body"');
-    expect(source).toContain('style={styles.quickChipLabel}');
-    expect(source).toContain("{itemCopy.hint}");
-    expect(source).toContain('style={styles.quickChipHint}');
-    expect(source).not.toContain('<Text variant="caption" color="textMuted" numberOfLines={1}>\n                  {itemCopy.label}');
-  });
-
-  test("quick hub chips keep stable touch dimensions without color-only signaling", () => {
-    const source = readRepoFile("src/app/profile.tsx");
-
-    expect(source).toContain("minHeight: 84");
-    expect(source).toContain('flexBasis: "48%"');
-    expect(source).toContain("quickChipIcon");
-    expect(source).toContain("borderColor: item.accent");
-  });
+  // Legacy UI track removed 2026-06-23: the dense quick-hub chip grid (HubGlyph +
+  // quickChipLabel/quickChipHint, the color-coded quickGrid touch targets) is gone.
+  // src/app/profile.tsx is now a deep-space-only screen (deepSpaceMode is always true)
+  // that renders progressive-disclosure tabs over DeepSpaceLinks instead of the legacy
+  // grid, so the two legacy "quick hub chips" cases (glyph/label/hint hierarchy and
+  // stable touch dimensions) have no surviving equivalent and are removed. The surviving
+  // progressive-disclosure contract is kept below.
 
   test("deep-space profile uses progressive disclosure instead of the dense legacy hub", () => {
     const source = readRepoFile("src/app/profile.tsx");
 
     expect(source).toContain("type DeepSpaceProfileSection");
     expect(source).toContain("const [activeDeepSpaceSection, setActiveDeepSpaceSection]");
-    expect(source).toContain("{deepSpaceMode ? null : (");
-    expect(source).toContain("styles.quickGrid");
+    // Legacy/deep-space toggle (`{deepSpaceMode ? null : (` and the legacy quickGrid
+    // branch) was dropped when profile went deep-space-only; the disclosure tabs +
+    // DeepSpaceLinks below are the active progressive-disclosure surface.
     expect(source).toContain("styles.deepSpaceTabs");
     expect(source).toContain("<DeepSpaceLinks groups={[activeDeepSpaceGroup]} />");
     expect(source).toContain("semantic.deepSpaceAccent");

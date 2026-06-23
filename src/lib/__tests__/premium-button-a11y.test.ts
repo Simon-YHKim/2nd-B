@@ -82,29 +82,12 @@ describe("PremiumButton disabled accessibility", () => {
     expect(contrastRatio(borderOnSecondary, secondaryBg)).toBeGreaterThanOrEqual(3);
   });
 
-  test("capture disabled save gate exposes localized reason hints", () => {
-    const capture = readRepoFile("src/app/capture.tsx");
-    const en = JSON.parse(readRepoFile("locales/en/capture.json")) as {
-      submitHints: Record<string, string>;
-      ocrReview: { submitHint: string };
-    };
-    const ko = JSON.parse(readRepoFile("locales/ko/capture.json")) as {
-      submitHints: Record<string, string>;
-      ocrReview: { submitHint: string };
-    };
-    const requiredHints = ["writeFirst", "fileRequired", "ocrRequired", "journalLocked", "journalLimit", "saving"];
-
-    expect(capture).toContain("const submitAccessibilityHint = canSubmit");
-    expect(capture).toContain('t("submitHints.writeFirst")');
-    expect(capture).toContain('t("submitHints.fileRequired")');
-    expect(capture).toContain('t("submitHints.ocrRequired")');
-    expect(capture).toContain('t("ocrReview.submitHint")');
-    expect(capture).toContain("accessibilityHint={submitAccessibilityHint}");
-    for (const key of requiredHints) {
-      expect(en.submitHints[key]).toEqual(expect.any(String));
-      expect(ko.submitHints[key]).toEqual(expect.any(String));
-    }
-    expect(en.ocrReview.submitHint).toContain("before saving");
-    expect(ko.ocrReview.submitHint).toContain("저장");
-  });
+  // Legacy UI track removed 2026-06-23: the "capture disabled save gate" case pinned the
+  // legacy src/app/capture.tsx accessibilityHint wiring (submitAccessibilityHint +
+  // t("submitHints.*")). src/app/capture.tsx is now a thin deep-space wrapper and the
+  // deep-space CaptureView does not render that disabled-save-gate hint surface, so this
+  // legacy-only accessibility-wiring assertion has no surviving equivalent and is
+  // removed. The premium-button disabled a11y guarantees (the Pressable path, announced
+  // disabled/busy state, and the 3:1 contrast floor) are still covered by the cases
+  // above against src/components/premium/surfaces.tsx.
 });

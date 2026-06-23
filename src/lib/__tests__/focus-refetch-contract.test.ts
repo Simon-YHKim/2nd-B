@@ -8,14 +8,12 @@ function read(relativePath: string) {
 }
 
 describe("core-loop focus refetch contract", () => {
-  const screens = [
-    "src/app/index.tsx",
-    "src/app/records.tsx",
-    "src/app/core-brain.tsx",
-    "src/app/insights.tsx",
-    "src/app/trinity.tsx",
-    "src/app/record/[id].tsx",
-  ];
+  // Legacy UI track removed 2026-06-23: index/records/insights/record-detail are now
+  // thin wrappers over the deep-space shell, which does not use the focus-refetch hook
+  // (the village data-node graph that drove that path is gone). core-brain and trinity
+  // are still real screens that own a Gemini-billing refetch, so the contract stays on
+  // them — the surviving screens that must not re-bill on focus.
+  const screens = ["src/app/core-brain.tsx", "src/app/trinity.tsx"];
 
   it("keeps the shared hook as a focus-only refetch helper", () => {
     const source = read("src/lib/nav/use-focus-refetch.ts");
@@ -49,10 +47,10 @@ describe("core-loop focus refetch contract", () => {
     expect(evidenceRefreshEffect).not.toContain("buildPersona");
   });
 
-  it("keeps Home data-node identity stabilization in the refetch path", () => {
-    const source = read("src/app/index.tsx");
-
-    expect(source).toContain("retainStableDataNodes(dataNodesRef.current, nextDataNodes)");
-    expect(source).toContain("useFocusRefetch(() => setGraphReloadKey((k) => k + 1), Boolean(userId))");
-  });
+  // Legacy UI track removed 2026-06-23: the "Home data-node identity stabilization"
+  // case pinned the village graph's retainStableDataNodes + setGraphReloadKey wiring
+  // inside src/app/index.tsx, which is now a thin deep-space wrapper. The
+  // retainStableDataNodes helper itself survives in src/lib/graph/data-nodes.ts and is
+  // covered by src/lib/graph/__tests__/data-nodes.test.ts. No deep-space equivalent of
+  // this focus-refetch graph path exists, so the legacy-only case is removed.
 });

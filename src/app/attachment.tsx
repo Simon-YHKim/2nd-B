@@ -6,11 +6,10 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumToast } from "@/components/premium";
+import { PremiumLoadingState, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
@@ -266,11 +265,7 @@ const styles = StyleSheet.create({
 // core-brain's empty state points to). Only the chrome differs: the deep-space
 // dock (DeepSpaceScreen) vs the premium shell.
 function AttachmentShell({ children }: { children: ReactNode }) {
-  return isDeepSpaceUI() ? (
-    <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>
-  ) : (
-    <PremiumAppShell>{children}</PremiumAppShell>
-  );
+  return <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>;
 }
 
 export default function Attachment() {

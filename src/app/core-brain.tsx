@@ -16,14 +16,12 @@ import { Redirect, router } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import {
-  PremiumAppShell,
   PremiumCTA,
   PremiumLoadingState,
   SceneHero,
   StatTile,
 } from "@/components/premium";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -86,11 +84,7 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
 // identical and live in both. (LensView is the 7-axis per-trait view — wrong fit
 // for the aggregate Soul Core, so it is no longer used here.)
 function CoreShell({ children }: { children: ReactNode }) {
-  return isDeepSpaceUI() ? (
-    <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>
-  ) : (
-    <PremiumAppShell>{children}</PremiumAppShell>
-  );
+  return <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>;
 }
 
 export default function CoreBrain() {

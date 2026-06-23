@@ -3,12 +3,11 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero, PremiumToast } from "@/components/premium";
+import { PremiumButton, PremiumCard, SceneHero, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { cosmic, radii, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
@@ -326,11 +325,7 @@ const styles = StyleSheet.create({
 // render the real check-in (context/energy prompt → save). Only the chrome
 // differs: the deep-space dock (DeepSpaceScreen) vs the premium shell.
 function EsmShell({ children }: { children: ReactNode }) {
-  return isDeepSpaceUI() ? (
-    <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>
-  ) : (
-    <PremiumAppShell>{children}</PremiumAppShell>
-  );
+  return <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>;
 }
 
 export default function EsmCheckIn() {

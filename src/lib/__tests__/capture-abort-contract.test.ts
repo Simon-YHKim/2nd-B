@@ -8,18 +8,15 @@ function readRepoFile(file: string): string {
 }
 
 describe("capture submit abort contract", () => {
-  test("capture submit owns one abort controller and suppresses stale UI updates", () => {
-    const source = readRepoFile("src/app/capture.tsx");
-
-    expect(source).toContain("useFocusEffect");
-    expect(source).toContain("const submitAbortRef = useRef<AbortController | null>(null)");
-    expect(source).toContain("const submitController = new AbortController()");
-    expect(source).toContain("const submitSignal = submitController.signal");
-    expect(source).toContain("classifyClipper(userId, finalBody, fallbackUrl, locale, isMinor === true, submitSignal)");
-    expect(source).toContain("signal: submitSignal");
-    expect(source).toContain("if (!submitIsCurrent(submitController)) return");
-    expect(source).toContain("isAbortError(e)");
-  });
+  // Legacy UI track removed 2026-06-23: the "capture submit owns one abort controller"
+  // case pinned the legacy src/app/capture.tsx screen's submitAbortRef + useFocusEffect
+  // abort-controller wiring. src/app/capture.tsx is now a thin deep-space wrapper and the
+  // deep-space CaptureView does not implement that submit-side abort controller, so this
+  // legacy-only screen-wiring assertion has no surviving equivalent and is removed. The
+  // real, still-active guarantee — that the cancellable AbortSignal is threaded through
+  // every network boundary (classify-clipper, llm types/gemini, wiki capture/queries,
+  // and that storage never re-introduces a signal) — is the second case below, which
+  // reads the surviving shared libs and is kept.
 
   test("capture forwards the submit signal into cancellable network boundaries", () => {
     const classify = readRepoFile("src/lib/wiki/classify-clipper.ts");
