@@ -16,9 +16,11 @@ import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { Text } from "@/components/ui/Text";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
-import { cosmic, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { cosmic, deepSpace, deepSpaceRadii, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { PremiumButton } from "./surfaces";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { SecondbHead } from "@/components/deepspace";
 
 type SceneHeroAction = {
   label: string;
@@ -184,6 +186,43 @@ export function SceneHero({
     }, 2500);
     return () => clearInterval(id);
   }, [reducedMotion]);
+
+  if (isDeepSpaceUI()) {
+    return (
+      <View style={[dsStyles.wrap, style]}>
+        <View style={dsStyles.headerRow}>
+          <SecondbHead size={52} mood="neutral" />
+          <View style={dsStyles.bubble}>
+            <View style={dsStyles.bubbleTail} />
+            <Text variant="body" style={dsStyles.bubbleText}>{speech}</Text>
+          </View>
+        </View>
+        <Text variant="heading" style={dsStyles.title}>{title}</Text>
+        {primaryAction || secondaryAction ? (
+          <View style={dsStyles.actions}>
+            {primaryAction ? (
+              <PremiumButton
+                label={primaryAction.label}
+                variant={primaryAction.variant ?? "primary"}
+                loading={primaryAction.loading}
+                disabled={primaryAction.disabled}
+                onPress={primaryAction.onPress}
+              />
+            ) : null}
+            {secondaryAction ? (
+              <PremiumButton
+                label={secondaryAction.label}
+                variant={secondaryAction.variant ?? "secondary"}
+                loading={secondaryAction.loading}
+                disabled={secondaryAction.disabled}
+                onPress={secondaryAction.onPress}
+              />
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.wrap, style]}>
@@ -425,4 +464,39 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderRadius: radii.sm,
   },
+});
+
+// Deep-space hero (isDeepSpaceUI): SecondB head + speech bubble + title,
+// replacing the legacy pixel-village island/worker on every SceneHero screen.
+const dsStyles = StyleSheet.create({
+  wrap: { gap: 12 },
+  headerRow: { flexDirection: "row", alignItems: "flex-start", gap: 11 },
+  bubble: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: deepSpaceRadii.md,
+    borderBottomRightRadius: deepSpaceRadii.md,
+    borderBottomLeftRadius: deepSpaceRadii.md,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+  },
+  bubbleTail: {
+    position: "absolute",
+    left: -5,
+    top: 14,
+    width: 0,
+    height: 0,
+    borderTopWidth: 5,
+    borderBottomWidth: 5,
+    borderRightWidth: 6,
+    borderTopColor: "transparent",
+    borderBottomColor: "transparent",
+    borderRightColor: deepSpace.cardLine,
+  },
+  bubbleText: { color: deepSpace.textHi, fontSize: 14, lineHeight: 19 },
+  title: { fontSize: 20, color: deepSpace.textHi },
+  actions: { gap: 8, marginTop: 4 },
 });
