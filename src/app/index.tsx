@@ -57,7 +57,7 @@ import { secondbPresence, SLEEP_AFTER_MS } from "@/lib/companion/fab-state";
 import { PowerOnOverlay, PremiumButton, StarNoiseLayer, TAB_BAR_HEIGHT } from "@/components/premium";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 
-const logo = require("../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png");
+const logo = require("../../assets/deepspace/secondb-head-front.png");
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface HomePressableProps extends Omit<PressableProps, "style" | "children"> {

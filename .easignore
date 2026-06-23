@@ -1,0 +1,32 @@
+# Local dependencies and generated output
+node_modules/
+Output/
+dist/
+web-build/
+coverage/
+
+# Nested worktrees and local agent state
+.worktrees/
+.codex/
+.claude/local/
+.expo/
+
+# Local environment and secrets
+.env
+.env.local
+.env*.local
+
+# Large local build artifacts
+ios-sim-build.tar.gz
+ios-sim-extract/
+*.tar.gz
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/app/.cxx/
+
+# Scratch experiments and generated local assets
+landing-clone/
+assets/generated/
+assets/pixy/
