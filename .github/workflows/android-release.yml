@@ -13,7 +13,26 @@ on:
         description: "Optional release tag (e.g. v0.0.1). When set, a GitHub Release is created with the artifacts attached."
         required: false
         default: ""
+  # Auto-build whenever app code/assets/native config land on main (mirrors
+  # web-deploy.yml). Path-filtered so docs-only merges don't spend a ~10 min
+  # native build. A push build uploads the APK/AAB as workflow artifacts; a
+  # tagged GitHub Release still needs a v* tag push or a dispatch with
+  # release_tag (the Create-Release step below is gated on that).
   push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "app.json"
+      - "eas.json"
+      - "package.json"
+      - "package-lock.json"
+      - "config-plugins/**"
+      - "babel.config.js"
+      - "metro.config.js"
+      - "patches/**"
+      - ".github/workflows/android-release.yml"
     tags:
       - "v*"
 
