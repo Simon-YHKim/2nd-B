@@ -20,7 +20,6 @@ const WORLDVIEW_CONCEPT_FILES = [
   "src/lib/chat/personas.ts",
   "src/lib/graph/monologues.ts",
   "src/components/art/SoulcoreFinalArt.tsx",
-  "src/components/graph/NavGraph.tsx",
   "src/components/premium/graph-bits.tsx",
   "src/lib/assets/soulcore-v3.ts",
   "src/lib/theme/tokens.ts",

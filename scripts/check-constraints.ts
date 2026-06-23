@@ -630,7 +630,6 @@ results.push(
     const birthDateField = read("src/components/auth/BirthDateField.tsx");
     const completeProfile = read("src/app/(auth)/complete-profile.tsx");
     const notFound = read("src/app/+not-found.tsx");
-    const navGraph = read("src/components/graph/NavGraph.tsx");
     const esm = read("src/app/esm.tsx");
     const consentNotice = read("src/components/consent/ConsentNotice.tsx");
     const consentDialog = read("src/components/consent/ConsentDialog.tsx");
@@ -646,7 +645,6 @@ results.push(
     const tierIconContract = read("src/components/art/tier-icon-contract.ts");
     const input = read("src/components/ui/Input.tsx");
     const backArrow = read("src/components/ui/BackArrow.tsx");
-    const characterPath = read("src/components/graph/CharacterPathLayer.tsx");
     const drillProgress = read("src/components/ui/DrillProgress.tsx");
     const xpBar = read("src/components/progression/XpBar.tsx");
     const quantPager = read("src/components/quant/QuantPager.tsx");
@@ -690,7 +688,6 @@ results.push(
     const inboxRoles = (dsInbox.match(/accessibilityRole=/g) ?? []).length;
     const signInRoles = (dsSignIn.match(/accessibilityRole="button"/g) ?? []).length;
     const jarvisButtons = (jarvis.match(/accessibilityRole="button"/g) ?? []).length;
-    const navGraphButtons = (navGraph.match(/accessibilityRole="button"/g) ?? []).length;
     const esmTabs = (esm.match(/accessibilityRole="tab"/g) ?? []).length;
     const esmRadios = (esm.match(/accessibilityRole="radio"/g) ?? []).length;
     const esmCheckboxes = (esm.match(/accessibilityRole="checkbox"/g) ?? []).length;
@@ -764,15 +761,7 @@ results.push(
       jarvis.includes('accessibilityLabel={t("intro_mute")}') &&
       jarvis.includes('accessibilityLabel={t("intro_ok")}') &&
       jarvis.includes("Dismisses the referenced pieces drawer") &&
-      navGraphButtons >= 7 &&
-      navGraph.includes("Opens this piece summary and tags") &&
-      navGraph.includes("Opens this village node") &&
-      navGraph.includes("Opens the center village") &&
-      navGraph.includes("Resets graph pan and zoom") &&
-      navGraph.includes("Closes the village detail panel") &&
-      navGraph.includes("Open ${name} from a new angle") &&
-      navGraph.includes("Opens this village in SecondB from a new angle") &&
-      navGraph.includes("Closes the piece detail panel") &&
+      // legacy NavGraph (village graph) deleted 2026-06-23 — its a11y pins are removed.
       esm.includes('from("esm_responses").insert') &&
       esm.includes("prompt_kind: kind") &&
       esm.includes('scale_value: kind === "energy" ? scaleValue : null') &&
@@ -848,10 +837,7 @@ results.push(
       backArrow.includes('"/journal": { en: "Journal", ko: "일기" }') &&
       backArrow.includes('"/mbti": { en: "Persona", ko: "페르소나" }') &&
       backArrow.includes("Opens the graph home screen.") &&
-      characterPath.includes("Opens this resident's short self-talk bubble.") &&
-      characterPath.includes("accessibilityState={{ expanded: line != null }}") &&
-      characterPath.includes('accessibilityLiveRegion="polite"') &&
-      characterPath.includes("accessibilityLabel={text}") &&
+      // legacy CharacterPathLayer (village resident sprites) deleted 2026-06-23.
       drillProgress.includes('accessibilityRole="summary"') &&
       drillProgress.includes("Interview progress matrix. ${totalAnswers} total answers.") &&
       drillProgress.includes("Next question target: ${activeTarget}") &&
@@ -2710,7 +2696,6 @@ results.push(
       "src/lib/chat/personas.ts",
       "src/lib/graph/monologues.ts",
       "src/components/art/SoulcoreFinalArt.tsx",
-      "src/components/graph/NavGraph.tsx",
       "src/components/premium/graph-bits.tsx",
       "src/lib/assets/soulcore-v3.ts",
       "src/lib/theme/tokens.ts",
