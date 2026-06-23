@@ -27,3 +27,25 @@ Conventional Commits.
 - i18n key-parity check (`check:i18n`) now runs on Windows — it split file
   paths on `/` only, so every namespace mismatched on `\` separators and
   `npm run verify` always failed locally.
+
+## [0.0.2] - 2026-06-23
+
+### Added
+- iOS build profiles in `eas.json` (preview ad-hoc + existing simulator) so an
+  iOS build can run once an Apple Developer account is connected.
+
+### Changed
+- App icon, splash, adaptive icon (foreground + monochrome), favicon, and the
+  iOS icon now render the SecondB character head, replacing the legacy orb art.
+- The big SecondB head turns to face the touch point (perspective look-at)
+  instead of only tilting sideways.
+- Android release artifacts build `arm64-v8a` only, plus ProGuard and resource
+  shrinking, to cut the universal APK size.
+
+### Fixed
+- Native builds connect to the real Supabase project instead of the
+  `demo.invalid` placeholder (`eas.json` env and the android-release workflow).
+
+### Removed
+- Unused demo assets (react-logo, expo-logo/badge, tutorial-web), a
+  byte-identical duplicate head image, and the legacy iOS icon set.
