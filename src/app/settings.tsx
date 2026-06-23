@@ -7,11 +7,11 @@ import { ActivityIndicator, TouchableOpacity, ScrollView, StyleSheet, View, type
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
+import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
-import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { SecondbStatusHeader } from "@/components/deepspace";
+import { deepSpace, deepSpaceRadii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
@@ -19,7 +19,6 @@ import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/settings/crew-density";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META } from "@/lib/i18n/locales";
-import { VILLAGE_UI } from "@/lib/village-ui";
 import {
   deleteAllChatUsage,
   deleteAllUserData,
@@ -73,12 +72,12 @@ function SettingsActionButton({
 }: SettingsActionButtonProps) {
   const isDisabled = disabled || loading;
   const labelColor = isDisabled
-    ? withAlpha(cosmic.moonWhite, 0.58)
+    ? withAlpha(deepSpace.text, 0.5)
     : variant === "primary"
-      ? cosmic.space950
+      ? deepSpace.onMint
       : variant === "danger"
-        ? gameboy.ink
-        : cosmic.moonWhite;
+        ? deepSpace.textHi
+        : deepSpace.text;
 
   return (
     <View
@@ -181,11 +180,12 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <PremiumAppShell>
+      <View style={styles.screen}>
+        <View style={styles.glow} pointerEvents="none" />
         <View style={styles.center}>
           <PremiumLoadingState message={t("loading")} />
         </View>
-      </PremiumAppShell>
+      </View>
     );
   }
   if (!userId) {
@@ -364,25 +364,19 @@ export default function Settings() {
   }
 
   return (
-    <PremiumAppShell>
+    <View style={styles.screen}>
+      <View style={styles.glow} pointerEvents="none" />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-<ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <SceneHero
-          eyebrow={locale === "ko" ? "08. 설정" : "08. Settings"}
-          title={locale === "ko" ? "설정을 정리해요" : "Tune your settings"}
-          subtitle={
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <SecondbStatusHeader
+          text={locale === "ko" ? "필요한 걸 여기서 맞춰요." : "Tune what you need, right here."}
+          tip={
             locale === "ko"
-              ? "테마 · 데이터 · 프로필 · 지원"
-              : "Theme · data · profile · support"
+              ? "삭제는 되돌릴 수 없어요. 필요한 건 먼저 내보내기로."
+              : "Deletion cannot be undone. Export anything you need first."
           }
-          island={VILLAGE_UI.relation.island}
-          worker={VILLAGE_UI.relation.worker}
-          accent={VILLAGE_UI.relation.accent}
-          speech={
-            locale === "ko"
-              ? "삭제는 되돌릴 수 없어요. 필요한 조각은 먼저 내보내기로 챙겨두세요."
-              : "Deletion cannot be undone. Export anything you need before clearing data."
-          }        />
+        />
+        <Text variant="heading" style={styles.title}>{locale === "ko" ? "설정" : "Settings"}</Text>
 
         {/* Navigation hub (A-to-Z Phase 12) — the settings sub-screens. */}
         {/* Destructive op in flight: a persistent banner explains why actions
@@ -403,7 +397,7 @@ export default function Settings() {
             scannable groups (Gestalt: same meaning, same cluster), and the
             "Theme (quick toggle)" disclosure is GONE — it duplicated the
             /theme page button two rows above it (same action, two places). */}
-        <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
+        <View style={styles.section}>
           <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
             {locale === "ko" ? "내 계정" : "My account"}
           </Text>
@@ -427,7 +421,7 @@ export default function Settings() {
           />
         </View>
 
-        <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
+        <View style={styles.section}>
           <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
             {locale === "ko" ? "앱" : "App"}
           </Text>
@@ -864,23 +858,25 @@ export default function Settings() {
           ) : null}
         </View>
       </PremiumModal>
-    </PremiumAppShell>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Deep-space shell (replaces the legacy PremiumAppShell light cosmic body).
+  screen: { flex: 1, backgroundColor: deepSpace.bg },
+  glow: { position: "absolute", top: 0, left: 0, right: 0, height: 200, backgroundColor: deepSpace.bgGlow },
   center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
-  scroll: { paddingBottom: spacing.xl, gap: spacing.lg },
+  scroll: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl, gap: spacing.lg },
   header: { gap: spacing.xs, marginBottom: spacing.md },
+  title: { fontSize: 20, color: deepSpace.textHi, marginBottom: spacing.xs },
   section: {
-    backgroundColor: semantic.surface,
-    borderColor: gameboy.border,
-    borderWidth: gameboy.borderWidth,
-    borderStartWidth: gameboy.borderWidth,
-    borderRadius: gameboy.radius,
+    backgroundColor: deepSpace.card,
+    borderColor: deepSpace.cardLine,
+    borderWidth: 1,
+    borderRadius: deepSpaceRadii.lg,
     padding: spacing.md,
     gap: spacing.sm,
-    ...pixelShadowStyle(),
   },
   sectionEyebrow: { letterSpacing: 0, fontWeight: "700" },
   disclosureHeader: {
@@ -904,8 +900,8 @@ const styles = StyleSheet.create({
   destructiveGroup: {
     gap: spacing.sm,
     paddingTop: spacing.sm,
-    borderTopWidth: gameboy.borderWidth,
-    borderTopColor: gameboy.border,
+    borderTopWidth: 1,
+    borderTopColor: deepSpace.cardLine,
   },
   deleteWizardGrid: {
     flexDirection: "row",
@@ -918,20 +914,18 @@ const styles = StyleSheet.create({
     minWidth: 148,
   },
   busyBanner: {
-    backgroundColor: semantic.surfaceAlt,
-    borderColor: gameboy.border,
-    borderWidth: gameboy.borderWidth,
-    borderRadius: gameboy.radius,
+    backgroundColor: deepSpace.card,
+    borderColor: deepSpace.cardLine,
+    borderWidth: 1,
+    borderRadius: deepSpaceRadii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    ...pixelShadowStyle(),
   },
   settingsButton: {
     minHeight: 48,
-    borderRadius: gameboy.radius,
-    borderWidth: gameboy.borderWidth,
+    borderRadius: deepSpaceRadii.md,
+    borderWidth: 1,
     overflow: "hidden",
-    ...pixelShadowStyle(),
   },
   settingsButtonFull: {
     alignSelf: "stretch",
@@ -947,20 +941,20 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   settingsButtonPrimary: {
-    backgroundColor: cosmic.signalMint,
-    borderColor: cosmic.signalMint,
+    backgroundColor: deepSpace.mint,
+    borderColor: deepSpace.mint,
   },
   settingsButtonSecondary: {
-    backgroundColor: cosmic.space700,
-    borderColor: gameboy.border,
+    backgroundColor: deepSpace.card,
+    borderColor: deepSpace.cardLineStrong,
   },
   settingsButtonDanger: {
     backgroundColor: semantic.zoneRed,
     borderColor: semantic.zoneRed,
   },
   settingsButtonDisabled: {
-    backgroundColor: withAlpha(cosmic.mistGray, 0.12),
-    borderColor: gameboy.border,
+    backgroundColor: withAlpha(deepSpace.text, 0.08),
+    borderColor: deepSpace.cardLine,
   },
   settingsButtonPressed: {
     opacity: 0.78,
