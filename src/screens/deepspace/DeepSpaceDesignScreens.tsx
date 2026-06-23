@@ -561,6 +561,16 @@ const PROVIDER_SIGNUP_KEY: Record<OAuthProvider, string> = {
   facebook: "auth:signUp.continueWithFacebook",
   github: "auth:signUp.continueWithGithub",
 };
+// Per-provider mark shown before the label (design: a bold "G" glyph, not an
+// emoji or pill chip). Empty string = no badge (e.g. Apple, whose glyph is not
+// portable across platforms; it stays label-only).
+const PROVIDER_BADGE: Record<OAuthProvider, string> = {
+  google: "G",
+  apple: "",
+  kakao: "K",
+  facebook: "f",
+  github: "GH",
+};
 
 export function DeepSpaceSignInDesignScreen() {
   const { t, i18n } = useTranslation(["deepspace", "auth", "common"]);
@@ -688,7 +698,10 @@ export function DeepSpaceSignInDesignScreen() {
             accessibilityLabel={t(PROVIDER_SIGNIN_KEY[provider])}
             accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
           >
-            <Text variant="caption" style={styles.providerBtnText}>{oauthSubmitting ? "…" : t(PROVIDER_SIGNIN_KEY[provider])}</Text>
+            <View style={styles.providerRow}>
+              {PROVIDER_BADGE[provider] ? <Text style={styles.providerBadge}>{PROVIDER_BADGE[provider]}</Text> : null}
+              <Text variant="caption" style={styles.providerBtnText}>{oauthSubmitting ? "…" : t(PROVIDER_SIGNIN_KEY[provider])}</Text>
+            </View>
           </Pressable>
         ))}
         {naverEnabled ? (
@@ -930,7 +943,10 @@ export function DeepSpaceSignUpDesignScreen() {
             accessibilityLabel={t(PROVIDER_SIGNUP_KEY[provider])}
             accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
           >
-            <Text variant="caption" style={styles.providerBtnText}>{t(PROVIDER_SIGNUP_KEY[provider])}</Text>
+            <View style={styles.providerRow}>
+              {PROVIDER_BADGE[provider] ? <Text style={styles.providerBadge}>{PROVIDER_BADGE[provider]}</Text> : null}
+              <Text variant="caption" style={styles.providerBtnText}>{t(PROVIDER_SIGNUP_KEY[provider])}</Text>
+            </View>
           </Pressable>
         ))}
         {naverEnabled ? (
@@ -4068,6 +4084,8 @@ const styles = StyleSheet.create({ root:{flex:1,backgroundColor:colors.bgDeep}, 
   eyeText:{color:colors.cyanSoft,fontSize:11},
   providerBtn:{alignItems:'center',justifyContent:'center',borderColor:colors.borderHi,borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.md},
   providerBtnText:{color:colors.cyanSoft,fontSize:13},
+  providerRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8},
+  providerBadge:{color:colors.cyanSoft,fontSize:14,fontWeight:'800'},
   btnDisabled:{opacity:0.45},
   authDividerRow:{flexDirection:'row',alignItems:'center',gap:spacing.md,marginVertical:spacing.xs},
   authDividerLine:{flex:1,height:StyleSheet.hairlineWidth,backgroundColor:colors.border},

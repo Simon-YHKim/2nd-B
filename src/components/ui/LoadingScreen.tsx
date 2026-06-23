@@ -1,8 +1,8 @@
 // LoadingScreen — phase-driven typewriter, adaptive timing, opacity FADE-OUT.
 //
-// 밤빛 조각마을이 깨어나는 동안 일꾼 세포들이 분주하다 (docs/DESIGN.md). 25
-// messages across 5 build phases (밤하늘 → 마을 섬 → 길 → 나의 중심 → 환영),
-// each ~1.5s — the cosmic pixel graph village, not a literal brain.
+// 밤하늘 별자리가 깨어나는 동안 일꾼 세포들이 분주하다 (deep-space canon). 25
+// messages across 5 build phases (밤하늘 → 일곱 별 → 별자리 → 북극성 → 환영),
+// each ~1.5s. Deep-space worldview (북극성 + 북두칠성 7별), not the legacy village.
 //
 // Behavior:
 //   - Logo starts at opacity 1 and fades OUT to 0 over MIN_INTRO_MS as
@@ -18,39 +18,39 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text } from "react-native";
 
 import { CosmicBackground } from "@/components/premium";
-import { cosmic, typography } from "@/lib/theme/tokens";
+import { deepSpace, typography } from "@/lib/theme/tokens";
 
-const logo = require("../../../public/assets/2ndb-production-premium-v1/graph/islands/core_center_premium_hq.png");
+const logo = require("../../../assets/deepspace/secondb-head-front.png");
 
 const MESSAGES: readonly string[] = [
-  // Phase 1 — 밤하늘 (the cosmic night canvas)
+  // Phase 1 — 밤하늘 (the deep-space night canvas)
   "밤하늘 펼치는 중...",
   "영차영차! 별가루 한 줌 뿌리는 중.",
   "우주 바닥 다 깔았다! 일꾼 세포 투입.",
-  "읏차! 어둠에 첫 불빛 한 점 심는 중.",
-  "마을 들어설 자리, 반짝반짝 닦는 중!",
-  // Phase 2 — 마을 섬 (the floating district islands)
-  "마을 섬 빚는 중...",
-  "흙 한 줌 두 줌, 동네 땅 다지기.",
-  "여섯 동네 기둥 세우는 중!",
-  "바쁘다 바빠! 지붕에 픽셀 한 칸씩.",
-  "섬이 둥실, 하늘 위로 띄우는 중.",
-  // Phase 3 — 길 (the paths between villages)
-  "마을과 마을, 길 잇는 중...",
-  "쫙쫙! 빛나는 오솔길 늘이는 중.",
-  "조각과 조각, 실 한 가닥씩 연결.",
-  "찌릿! 끊긴 길 이어 붙이는 중.",
-  "길 엉키지 않게 조심조심!",
-  // Phase 4 — 나의 중심 (the center lights up)
-  "나의 중심 불 켜는 중...",
-  "탁! 마을 한가운데 등대 점등.",
-  "사방 동네로 빛 보내는 중!",
-  "쓱싹쓱싹, 중심 광장 대청소.",
-  "마을 채비 막바지! 최종 점검.",
-  // Phase 5 — 환영 (ready to welcome the first piece)
+  "읏차! 어둠에 첫 별빛 한 점 심는 중.",
+  "별자리 들어설 자리, 반짝반짝 닦는 중!",
+  // Phase 2 — 일곱 별 (the seven self-understanding stars)
+  "일곱 별 빚는 중...",
+  "빛 한 줌 두 줌, 첫 별 다지기.",
+  "자기이해 일곱 별, 자리 잡는 중!",
+  "바쁘다 바빠! 별마다 불씨 한 점씩.",
+  "별 하나 둘, 하늘 위로 띄우는 중.",
+  // Phase 3 — 별자리 (the constellation links)
+  "별과 별, 길 잇는 중...",
+  "쫙쫙! 빛나는 별길 늘이는 중.",
+  "조각과 조각, 빛 한 가닥씩 연결.",
+  "찌릿! 끊긴 별길 이어 붙이는 중.",
+  "별자리 엉키지 않게 조심조심!",
+  // Phase 4 — 북극성 (the soul core lights up)
+  "북극성 불 켜는 중...",
+  "탁! 한가운데 북극성 점등.",
+  "일곱 별로 빛 모으는 중!",
+  "쓱싹쓱싹, 북극성 둘레 대청소.",
+  "채비 막바지! 최종 점검.",
+  // Phase 5 — 환영 (세컨비 ready to welcome the first piece)
   "당신의 조각을 기다리는 중...",
   "안테나 쫙! 새 이야기 수신 대기.",
-  "일꾼들 환영 채비 끝, 문 여는 중.",
+  "세컨비 환영 채비 끝, 문 여는 중.",
   "꿀꺽. 첫 조각 받을 두 손 모으고 대기.",
   "두근두근! 당신의 멋진 생각, 기대 중!",
 ] as const;
@@ -73,6 +73,12 @@ const ZOOM_MS = 800;           // dolly-zoom on tap
 // Safety net: if the user never taps (or can't), auto-continue a few seconds
 // after the ready phase so we never sit on the loader forever.
 const AUTO_CONTINUE_MS = 4000;
+// Hard failsafe: if the parent's `ready` never flips (e.g. an auth/profile
+// fetch hangs), the typewriter would otherwise loop on the last message
+// forever. After this many ms we force the ready phase regardless, so the app
+// always advances (ready -> AUTO_CONTINUE_MS -> in). Generous so a normal
+// (fast) load is never cut short by it.
+const HARD_READY_MS = 9000;
 
 type Phase = "typing" | "ready" | "zooming";
 
@@ -90,6 +96,8 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   const [msgIdx, setMsgIdx] = useState(0);
   const [typed, setTyped] = useState("");
   const [minElapsed, setMinElapsed] = useState(false);
+  // Set by the HARD_READY_MS failsafe so a hung parent.ready never strands us.
+  const [forceReady, setForceReady] = useState(false);
 
   // Logo starts at opacity 1 and fades OUT during typing — the brain
   // "absorbs into" the cells' work. Comes back to 1 in the ready phase.
@@ -106,6 +114,12 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   // ── min-intro gate
   useEffect(() => {
     const t = setTimeout(() => setMinElapsed(true), MIN_INTRO_MS);
+    return () => clearTimeout(t);
+  }, []);
+
+  // ── hard failsafe: force ready if the parent never resolves loading.
+  useEffect(() => {
+    const t = setTimeout(() => setForceReady(true), HARD_READY_MS);
     return () => clearTimeout(t);
   }, []);
 
@@ -152,7 +166,7 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   //    loading speed per user directive (실제 로딩되는 속도에 맞게).
   useEffect(() => {
     if (phase !== "typing") return;
-    if (!ready || !minElapsed) return;
+    if ((!ready && !forceReady) || !minElapsed) return;
     setPhase("ready");
     opacity.stopAnimation();
     scale.stopAnimation();
@@ -186,7 +200,7 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
         ]),
       ).start();
     });
-  }, [phase, ready, minElapsed, opacity, scale, hintOpacity]);
+  }, [phase, ready, forceReady, minElapsed, opacity, scale, hintOpacity]);
 
   // Auto-continue safety net: if we reach 'ready' and the user doesn't tap
   // within AUTO_CONTINUE_MS, advance anyway so we never strand on the loader.
@@ -275,19 +289,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: cosmic.space950,
+    backgroundColor: deepSpace.bgEdge,
     gap: 32,
   },
   logo: { width: 220, height: 220 },
   text: {
-    color: cosmic.moonWhite,
+    color: deepSpace.textHi,
     fontSize: typography.sizes.md,
     letterSpacing: 0,
     minHeight: 22,
   },
-  caret: { color: cosmic.signalMint, opacity: 0.85 },
+  caret: { color: deepSpace.mint, opacity: 0.85 },
   hint: {
-    color: cosmic.soulViolet,
+    color: deepSpace.soul,
     fontSize: typography.sizes.sm,
     letterSpacing: 0,
     textAlign: "center",
