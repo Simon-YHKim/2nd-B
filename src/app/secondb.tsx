@@ -598,6 +598,23 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               textAlignVertical="top"
               style={ds.composerInput}
               accessibilityLabel={t("inputA11y")}
+              onKeyPress={(e) => {
+                // Web: Enter sends, Shift+Enter inserts a newline. Native keeps
+                // the multiline default (composing happens, send via the button).
+                if (Platform.OS !== "web") return;
+                const we = e as unknown as {
+                  key?: string;
+                  shiftKey?: boolean;
+                  nativeEvent: { key: string; shiftKey?: boolean };
+                  preventDefault?: () => void;
+                };
+                const key = we.nativeEvent?.key ?? we.key;
+                const shift = we.shiftKey ?? we.nativeEvent?.shiftKey ?? false;
+                if (key === "Enter" && !shift) {
+                  we.preventDefault?.();
+                  if (canSend) void handleSend();
+                }
+              }}
             />
             <Pressable
               onPress={handleSend}
