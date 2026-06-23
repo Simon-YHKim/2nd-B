@@ -386,18 +386,13 @@ export interface OpsFrameProps {
   footer?: ReactNode;
 }
 
-export function OpsFrame({ title, bubble, tip, onBack, children, footer }: OpsFrameProps) {
+export function OpsFrame({ title, bubble, tip, children, footer }: OpsFrameProps) {
   return (
     <SafeAreaView style={styles.frame} edges={["top", "bottom"]}>
       <View style={styles.glow} pointerEvents="none" />
       <ScrollView contentContainerStyle={styles.frameScroll} showsVerticalScrollIndicator={false}>
         {bubble ? <SecondbStatusHeader text={bubble} tip={tip ?? ""} /> : null}
         <View style={styles.titleRow}>
-          {onBack ? (
-            <Pressable accessibilityRole="button" onPress={onBack} hitSlop={10} style={styles.backBtn}>
-              <RNText style={styles.backIcon}>‹</RNText>
-            </Pressable>
-          ) : null}
           <Text variant="heading" style={styles.title}>{title}</Text>
         </View>
         {children}

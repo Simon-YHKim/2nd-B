@@ -3,6 +3,7 @@ import { ActivityIndicator, BackHandler, KeyboardAvoidingView, Linking, Platform
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line, Path } from "react-native-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, radius, spacing } from "@/theme/tokens";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
@@ -198,11 +199,12 @@ function GraphLoading() {
 }
 
 function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
+  const insets = useSafeAreaInsets();
   return (
     <View style={styles.root}>
       <View pointerEvents="none" style={styles.stars}><View style={[styles.star,{left:"12%",top:42}]} /><View style={[styles.star,{right:"18%",top:118,opacity:.55}]} /><View style={[styles.star,{left:"42%",bottom:92,opacity:.5}]} /></View>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {title ? <View style={styles.titleRow}><Pressable onPress={() => router.back()}><RNText style={styles.back}>‹</RNText></Pressable><View><Text variant="heading" style={styles.title}>{title}</Text>{subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}</View></View> : null}
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 52 }]} keyboardShouldPersistTaps="handled">
+        {title ? <View style={styles.titleRow}><View><Text variant="heading" style={styles.title}>{title}</Text>{subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}</View></View> : null}
         {children}
       </ScrollView>
     </View>
@@ -216,7 +218,7 @@ function Shell({ children, title, subtitle }: { children: ReactNode; title?: str
 function DockBody({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-      {title ? <View style={styles.titleRow}><Pressable onPress={() => router.back()}><RNText style={styles.back}>‹</RNText></Pressable><View><Text variant="heading" style={styles.title}>{title}</Text>{subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}</View></View> : null}
+      {title ? <View style={styles.titleRow}><View><Text variant="heading" style={styles.title}>{title}</Text>{subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}</View></View> : null}
       {children}
     </ScrollView>
   );

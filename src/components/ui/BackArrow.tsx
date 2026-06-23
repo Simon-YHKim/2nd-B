@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { Text } from "@/components/ui/Text";
 import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { isPrimaryTabPath } from "@/lib/nav/tabs";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 
@@ -84,7 +85,10 @@ function titleForRoute(pathname: string, domain: string | undefined, locale: Loc
  *  pre-auth pages). Screens use this to reserve top-left headroom so the
  *  floating arrow never overlaps their first heading/text. */
 export function backArrowVisible(pathname: string): boolean {
-  return !HIDDEN_PATHS.has(pathname);
+  // Matches the render logic: hidden on pre-auth/"/"/onboarding AND on the
+  // primary tab roots (the bottom tab bar is the nav there). Screens use this to
+  // reserve top headroom only where the floating arrow actually shows.
+  return !HIDDEN_PATHS.has(pathname) && !isPrimaryTabPath(pathname);
 }
 
 /** True when the route is a bottom-tab destination (brand chip top-left). */
@@ -101,9 +105,15 @@ export function BackArrow() {
 
   if (HIDDEN_PATHS.has(pathname)) return null;
 
-  // On a tab screen, clear the brand chip by nudging the arrow rightward.
+  // Primary tab roots (/, /capture, /secondb, /profile) render the full-width
+  // SecondbStatusHeader (head + greeting) across the top. The back-arrow chip
+  // used to overlap it (the old +52 nudge didn't clear the head/greeting). The
+  // bottom tab bar is the nav affordance on these roots, so hide the arrow here;
+  // it still shows on every pushed sub-screen (village/detail).
+  if (isPrimaryTabPath(pathname)) return null;
+
   const leftBase = insets.left + 12;
-  const left = isPrimaryTabPath(pathname) ? leftBase + 52 : leftBase;
+  const left = leftBase;
   const routeTitle = titleForRoute(pathname, params.domain, locale);
 
   // E20 RTL Support: Position right instead of left, flip arrow direction.
@@ -131,7 +141,9 @@ export function BackArrow() {
           <View style={[styles.chevronStroke, styles.chevronBottom]} />
         </View>
       </TouchableOpacity>
-      {routeTitle ? (
+      {routeTitle && !isDeepSpaceUI() ? (
+        // Deep-space screens render their own title/header, so the floating
+        // label is redundant there — show the bare arrow only (legacy keeps it).
         <View style={styles.labelPill} pointerEvents="none">
           <Text variant="caption" color="text" numberOfLines={2} style={styles.labelText}>
             {routeTitle}
