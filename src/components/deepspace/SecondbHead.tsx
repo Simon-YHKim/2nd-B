@@ -86,26 +86,70 @@ export function SecondbHead({ mood = "neutral", size = 48, track }: SecondbHeadP
     [bob],
   );
 
-  // Tracking transforms (JS driver): lean + parallax toward the touch, scaled by engage.
+  // Tracking transforms (JS driver): a 2.5D "look-at" turn toward the touch, scaled
+  // by engage. The flat head sprite is rotated in 3D so it appears to FACE the touch
+  // point rather than just tipping over sideways:
+  //   perspective FIRST (without it rotateX/rotateY collapse to flat shear),
+  //   rotateY  <- horizontal offset dx: turn the face left/right toward the touch,
+  //   rotateX  <- vertical offset dy:   tip the face up/down toward the touch,
+  //   translateX/Y: a small lean so the head also drifts into the look,
+  //   scale: a subtle attentive grow on engage.
+  // engage (0 idle .. 1 tracking) gates everything, so it eases in on touch and
+  // springs back to a centered, face-forward rest on release.
   const trackStyle = useMemo(() => {
     if (!enabled || !center.ready || !tracking) return null;
     const { touch, engage } = tracking;
-    const reach = 220; // px from head center mapped to full deflection
-    const maxShift = size * 0.16;
+    const reach = 200; // px from head center mapped to full deflection
+    const maxShift = size * 0.12;
     const dx = Animated.subtract(touch.x, center.x);
     const dy = Animated.subtract(touch.y, center.y);
+
+    // Small positional lean toward the touch (drifts into the look).
     const shift = (d: Animated.AnimatedSubtraction<number>) =>
       Animated.multiply(
         engage,
         d.interpolate({ inputRange: [-reach, reach], outputRange: [-maxShift, maxShift], extrapolate: "clamp" }),
       );
-    const tilt = Animated.multiply(
+
+    // rotateY from dx: touch to the RIGHT (dx > 0) turns the face to look right.
+    // A right-hand-y axis means positive dx maps to a positive Y rotation, so the
+    // sprite's left edge recedes and the face presents toward the touch side.
+    const turnY = Animated.multiply(
       engage,
-      dx.interpolate({ inputRange: [-reach, reach], outputRange: [-9, 9], extrapolate: "clamp" }),
+      dx.interpolate({ inputRange: [-reach, reach], outputRange: [-20, 20], extrapolate: "clamp" }),
     );
-    const rotate = tilt.interpolate({ inputRange: [-9, 9], outputRange: ["-9deg", "9deg"], extrapolate: "clamp" });
-    const scale = engage.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }); // attentive lean
-    return { transform: [{ translateX: shift(dx) }, { translateY: shift(dy) }, { rotate }, { scale }] };
+    const rotateY = turnY.interpolate({
+      inputRange: [-20, 20],
+      outputRange: ["-20deg", "20deg"],
+      extrapolate: "clamp",
+    });
+
+    // rotateX from dy: touch ABOVE center (dy < 0) tips the face UP to look up.
+    // Tipping up about the X axis is a positive rotation, so negative dy must map to
+    // a positive angle, which is why the output range is inverted (+16 .. -16).
+    const turnX = Animated.multiply(
+      engage,
+      dy.interpolate({ inputRange: [-reach, reach], outputRange: [16, -16], extrapolate: "clamp" }),
+    );
+    const rotateX = turnX.interpolate({
+      inputRange: [-16, 16],
+      outputRange: ["-16deg", "16deg"],
+      extrapolate: "clamp",
+    });
+
+    const scale = engage.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }); // attentive grow
+    // perspective scales gently with size so big and small heads turn convincingly.
+    const perspective = 600 + size * 1.5;
+    return {
+      transform: [
+        { perspective },
+        { translateX: shift(dx) },
+        { translateY: shift(dy) },
+        { rotateX },
+        { rotateY },
+        { scale },
+      ],
+    };
   }, [enabled, center.x, center.y, center.ready, size, tracking]);
 
   const orbStyle = useMemo(
