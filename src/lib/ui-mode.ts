@@ -23,22 +23,24 @@
  * 3D path (SVG-bridge / OOM risk per ANDROID_QA_GUIDELINES §3) needs on-device QA
  * before native ships 3d, so the conservative sprite path is the initial cutover.
  */
-export type UiMode = "legacy" | "deep-space";
+export type UiMode = "deep-space";
 export type CharacterMode = "3d" | "fallback";
 
-const uiRaw = (process.env.EXPO_PUBLIC_UI ?? "").trim().toLowerCase();
-// Default flipped to deep-space (2026-06-17): only an explicit "legacy" opts out.
-export const UI_MODE: UiMode = uiRaw === "legacy" ? "legacy" : "deep-space";
+// 2026-06-23: the legacy UI track was removed. deep-space is the only build, so
+// UI_MODE is a constant and isLegacyUI() is permanently false. The EXPO_PUBLIC_UI
+// flag is no longer read. isDeepSpaceUI()/isLegacyUI() remain as stable call
+// sites for any code that still branches on them.
+export const UI_MODE: UiMode = "deep-space";
 
 const charRaw = (process.env.EXPO_PUBLIC_CHARACTER ?? "").trim().toLowerCase();
 export const CHARACTER_MODE: CharacterMode = charRaw === "fallback" ? "fallback" : "3d";
 
 export function isDeepSpaceUI(): boolean {
-  return UI_MODE === "deep-space";
+  return true;
 }
 
 export function isLegacyUI(): boolean {
-  return UI_MODE === "legacy";
+  return false;
 }
 
 export function isCharacterFallback(): boolean {

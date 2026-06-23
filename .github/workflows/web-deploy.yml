@@ -42,14 +42,8 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - name: Build Expo Web (static export)
         env:
-          # UI track: the LIVE web build now ships the deep-space character shell
-          # (cutover 2026-06-17, design handoff). The integrated shell — status
-          # header + 5-tab dock + constellation home + 담기/세컨비/나/IDEN views —
-          # is in place; remaining deep-space sub-screens (graph/clipper/account/
-          # settings re-theme) are follow-ups, reachable via the existing routes.
-          # EAS native production stays pinned to legacy (eas.json) until parity.
-          # To roll the web build back to legacy: set this to "legacy".
-          EXPO_PUBLIC_UI: "deep-space"
+          # UI track: the deep-space character shell is the only build (legacy UI
+          # track removed 2026-06-23). EXPO_PUBLIC_UI is no longer read by the app.
           # QA pre-launch ONLY: lets ?tier=all|free|plus|pro URL links force a tier
           # on this web preview. MUST be removed (or set "false") before the public
           # launch build — otherwise anyone can self-grant a paid tier via the URL.
