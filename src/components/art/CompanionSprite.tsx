@@ -10,6 +10,7 @@ import { TierIcon, type TierIconId } from "@/components/art/TierIcon";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { cosmic, semantic } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
+import { reactExpression, type ExpressionMood } from "@/lib/companion/expression";
 
 export type CompanionName = "momo" | "lulu" | "archi" | "gadi" | "lumi";
 
@@ -188,6 +189,20 @@ interface ActiveMoment {
   cue: CompanionEvent;
 }
 
+// Every designed companion moment also drives the SecondB head's face, so the
+// character reacts everywhere these fire (save/import/connection = a smile). The
+// two safety events are intentionally absent: a crisis surface must never trigger
+// a cute facial reaction.
+const EXPRESSION_BY_EVENT: Partial<Record<CompanionEventKey, ExpressionMood>> = {
+  journalSaved: "positive",
+  auditCompleted: "positive",
+  wikiSaved: "positive",
+  captureSaved: "positive",
+  linkImported: "positive",
+  connectionFound: "positive",
+  personaUpdated: "positive",
+};
+
 export function useCompanionMoment(): { moment: ActiveMoment | null; fire: (key: CompanionEventKey) => void } {
   const [moment, setMoment] = useState<ActiveMoment | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -196,6 +211,8 @@ export function useCompanionMoment(): { moment: ActiveMoment | null; fire: (key:
     if (timer.current) clearTimeout(timer.current);
     setMoment({ companion: m.companion, state: m.state, cue: m.cue });
     timer.current = setTimeout(() => setMoment(null), 1600);
+    const exp = EXPRESSION_BY_EVENT[key];
+    if (exp) reactExpression(exp);
   }, []);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   return { moment, fire };

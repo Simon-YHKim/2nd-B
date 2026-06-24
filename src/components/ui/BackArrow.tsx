@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
-import { isPrimaryTabPath } from "@/lib/nav/tabs";
+import { isPrimaryTabPath, isDeepSpaceDockPath } from "@/lib/nav/tabs";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
@@ -88,7 +88,11 @@ export function backArrowVisible(pathname: string): boolean {
   // Matches the render logic: hidden on pre-auth/"/"/onboarding AND on the
   // primary tab roots (the bottom tab bar is the nav there). Screens use this to
   // reserve top headroom only where the floating arrow actually shows.
-  return !HIDDEN_PATHS.has(pathname) && !isPrimaryTabPath(pathname);
+  return (
+    !HIDDEN_PATHS.has(pathname) &&
+    !isPrimaryTabPath(pathname) &&
+    !(isDeepSpaceUI() && isDeepSpaceDockPath(pathname))
+  );
 }
 
 /** True when the route is a bottom-tab destination (brand chip top-left). */
@@ -111,6 +115,12 @@ export function BackArrow() {
   // bottom tab bar is the nav affordance on these roots, so hide the arrow here;
   // it still shows on every pushed sub-screen (village/detail).
   if (isPrimaryTabPath(pathname)) return null;
+
+  // Deep-space dock screens (DeepSpaceScreen) already carry the persistent
+  // bottom dock for nav and render the SecondbStatusHeader head top-left, which
+  // the floating chip overlaps. Hide it here (hardware back still works). Gated
+  // on isDeepSpaceUI() so legacy mode — PremiumAppShell, no dock — keeps the arrow.
+  if (isDeepSpaceUI() && isDeepSpaceDockPath(pathname)) return null;
 
   const leftBase = insets.left + 12;
   const left = leftBase;

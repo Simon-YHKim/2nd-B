@@ -1,21 +1,30 @@
-// SecondB character head (Claude Design deep-space).
-// Bob (둥둥) + mood orb (표정/감정 디밍) on every head. A BIG head also follows the
-// user's touch when it's under a <SecondbHeadTrackProvider> — it leans/parallax-
-// shifts toward the touch point, eases in on touch-start and eases back to center
-// on release. Tracking is AUTO by size: heads >= 80 track, smaller heads only bob,
-// so one provider mount extends tracking to every screen. Override with `track`.
+// SecondB character head (deep-space canon — design/2nd-Brain 화면설계.dc.html).
 //
-//   <SecondbHead size={120} mood="positive" />        // big: auto track + bob + mood
-//   <SecondbHead size={26} mood="neutral" />           // small: bob + mood only
-//   <SecondbHead size={120} track={false} />           // big but opt out of tracking
+// The head asset is a flat PNG; the LIFE is layered over it in RN exactly like the
+// canon .dc.html: a dark face "screen", two glowing cyan eyes, and a mouth. The
+// eyes BLINK on a random cadence and the whole face TRACKS the user's touch — the
+// head does a 2.5D look-at turn toward the touch while the eyes/mouth shift a few
+// px the same way. There is NO floating orb above the head (the canon has none;
+// emotion is read from the live face, not a dot).
+//
+// Tracking is AUTO by size: heads >= 80 ("big") follow touch when under a
+// <SecondbHeadTrackProvider>; smaller header heads only bob + blink (canon §0.1:
+// the status-bar head does not track). Override with `track`.
+//
+//   <SecondbHead size={158} mood="positive" />   // big: track + bob + blink + face
+//   <SecondbHead size={48}  mood="neutral" />     // small: bob + blink + face only
+//   <SecondbHead size={158} track={false} />      // big but opt out of tracking
 //
 // Driver layout (avoids native/JS driver conflicts on one node):
-//   static measure node  ->  tracking node (JS driver)  ->  bob node (native)  ->  image + orb
+//   static measure node  ->  tracking node (JS)  ->  bob node (native)  ->  face
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Image, StyleSheet, View } from "react-native";
+import { Animated, Easing, Image, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import Svg, { Path } from "react-native-svg";
 
-import { colors } from "@/theme/tokens";
+import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
+import { subscribeExpression } from "@/lib/companion/expression";
 import { useSecondbTracking } from "./SecondbHeadTrack";
 
 export type SecondbMood = "positive" | "neutral" | "negative";
@@ -24,12 +33,13 @@ interface SecondbHeadProps {
   mood?: SecondbMood;
   size?: number;
   /**
-   * Follow the user's touch (needs SecondbHeadTrackProvider above).
-   * Omit to AUTO-decide by size: big heads (>= 80) track, small heads don't —
-   * so mounting the provider once extends tracking to every screen with no
-   * per-call-site edits. Pass an explicit boolean to override.
+   * Follow the user's touch (needs SecondbHeadTrackProvider above). Omit to AUTO-
+   * decide by size: big heads (>= 80) track, small heads don't, so one provider
+   * mount extends tracking to every screen. Pass a boolean to override.
    */
   track?: boolean;
+  accessibilityLabel?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
 const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
@@ -37,41 +47,97 @@ const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
 /** Heads at or above this size are "big" and track by default. */
 const BIG_HEAD_MIN = 80;
 
-const MOOD_COLOR: Record<SecondbMood, string> = {
-  positive: colors.mint,
-  neutral: colors.soul,
-  negative: colors.clay,
+// Per-mood FACE shapes (cyan-only, never a colored orb). The canon .dc.html only
+// changes a background-sphere colour by mood; these eye/mouth shapes extend that
+// into a readable expression within the deep-space identity.
+//   eyes:  hFactor = height vs neutral (squint), topF = vertical placement,
+//          tilt   = outer-corner droop in deg (sad).
+const EYE_BY_MOOD: Record<SecondbMood, { hFactor: number; topF: number; tilt: number }> = {
+  positive: { hFactor: 0.58, topF: 0.585, tilt: 0 }, // content squint
+  neutral: { hFactor: 1, topF: 0.585, tilt: 0 },
+  negative: { hFactor: 0.9, topF: 0.602, tilt: 8 }, // lowered, outer corners down
 };
 
-export function SecondbHead({ mood = "neutral", size = 48, track }: SecondbHeadProps) {
+// Mouth as an SVG curve: smile ◡ (positive), flat line (neutral), frown ◠ (negative).
+function mouthPath(mood: SecondbMood, w: number, h: number): string {
+  const midY = h / 2;
+  const depth = h * 0.62;
+  if (mood === "positive") return `M1 ${midY - depth / 2} Q ${w / 2} ${midY + depth} ${w - 1} ${midY - depth / 2}`;
+  if (mood === "negative") return `M1 ${midY + depth / 2} Q ${w / 2} ${midY - depth} ${w - 1} ${midY + depth / 2}`;
+  return `M1 ${midY} L ${w - 1} ${midY}`;
+}
+
+export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityLabel, style }: SecondbHeadProps) {
+  const reduce = useReducedMotionPref();
   const bob = useRef(new Animated.Value(0)).current;
-  const pulse = useRef(new Animated.Value(0)).current;
-  const moodColor = MOOD_COLOR[mood];
+  const blink = useRef(new Animated.Value(1)).current; // 1 = eyes open, ~0.08 = shut
+
+  // Momentary reaction to user actions (save -> smile, error -> concern). Overrides
+  // the base mood for a beat, then reverts. `effMood` drives every face shape below.
+  const [reactMood, setReactMood] = useState<SecondbMood | null>(null);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const off = subscribeExpression((m, dur) => {
+      setReactMood(m);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setReactMood(null), dur);
+    });
+    return () => {
+      off();
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+  const effMood = reactMood ?? mood;
 
   const tracking = useSecondbTracking();
   // Auto by size when `track` is omitted: big heads follow touch, small heads don't.
   const wantsTrack = track ?? size >= BIG_HEAD_MIN;
-  const enabled = wantsTrack && !!tracking;
+  const enabled = wantsTrack && !!tracking && !reduce;
   const rootRef = useRef<View>(null);
   const [center, setCenter] = useState<{ x: number; y: number; ready: boolean }>({ x: 0, y: 0, ready: false });
 
+  // Calm bob (둥둥). Reduced motion holds it still.
   useEffect(() => {
-    const mk = (v: Animated.Value, dur: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(v, { toValue: 1, duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(v, { toValue: 0, duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        ]),
-      );
-    const bobLoop = mk(bob, 2000);
-    const pulseLoop = mk(pulse, 1300);
+    if (reduce) {
+      bob.setValue(0);
+      return;
+    }
+    const bobLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bob, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
     bobLoop.start();
-    pulseLoop.start();
-    return () => {
-      bobLoop.stop();
-      pulseLoop.stop();
+    return () => bobLoop.stop();
+  }, [bob, reduce]);
+
+  // Blink on a random cadence (canon: ~130ms close, next in 1.6-4.8s). Reduced
+  // motion keeps the eyes open.
+  useEffect(() => {
+    if (reduce) {
+      blink.setValue(1);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+    const schedule = () => {
+      timer = setTimeout(() => {
+        if (cancelled) return;
+        Animated.sequence([
+          Animated.timing(blink, { toValue: 0.08, duration: 65, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+          Animated.timing(blink, { toValue: 1, duration: 75, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        ]).start(() => {
+          if (!cancelled) schedule();
+        });
+      }, 1600 + Math.random() * 3200);
     };
-  }, [bob, pulse]);
+    schedule();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [blink, reduce]);
 
   // Measure the static root's window center so touch offsets are accurate.
   const measure = () => {
@@ -86,16 +152,9 @@ export function SecondbHead({ mood = "neutral", size = 48, track }: SecondbHeadP
     [bob],
   );
 
-  // Tracking transforms (JS driver): a 2.5D "look-at" turn toward the touch, scaled
-  // by engage. The flat head sprite is rotated in 3D so it appears to FACE the touch
-  // point rather than just tipping over sideways:
-  //   perspective FIRST (without it rotateX/rotateY collapse to flat shear),
-  //   rotateY  <- horizontal offset dx: turn the face left/right toward the touch,
-  //   rotateX  <- vertical offset dy:   tip the face up/down toward the touch,
-  //   translateX/Y: a small lean so the head also drifts into the look,
-  //   scale: a subtle attentive grow on engage.
-  // engage (0 idle .. 1 tracking) gates everything, so it eases in on touch and
-  // springs back to a centered, face-forward rest on release.
+  // Head 2.5D look-at toward the touch, scaled by engage (eases in on touch, springs
+  // back to a centered, face-forward rest on release). perspective FIRST or the
+  // rotateX/rotateY collapse to a flat shear.
   const trackStyle = useMemo(() => {
     if (!enabled || !center.ready || !tracking) return null;
     const { touch, engage } = tracking;
@@ -104,78 +163,126 @@ export function SecondbHead({ mood = "neutral", size = 48, track }: SecondbHeadP
     const dx = Animated.subtract(touch.x, center.x);
     const dy = Animated.subtract(touch.y, center.y);
 
-    // Small positional lean toward the touch (drifts into the look).
     const shift = (d: Animated.AnimatedSubtraction<number>) =>
       Animated.multiply(
         engage,
         d.interpolate({ inputRange: [-reach, reach], outputRange: [-maxShift, maxShift], extrapolate: "clamp" }),
       );
 
-    // rotateY from dx: touch to the RIGHT (dx > 0) turns the face to look right.
-    // A right-hand-y axis means positive dx maps to a positive Y rotation, so the
-    // sprite's left edge recedes and the face presents toward the touch side.
     const turnY = Animated.multiply(
       engage,
       dx.interpolate({ inputRange: [-reach, reach], outputRange: [-20, 20], extrapolate: "clamp" }),
     );
-    const rotateY = turnY.interpolate({
-      inputRange: [-20, 20],
-      outputRange: ["-20deg", "20deg"],
-      extrapolate: "clamp",
-    });
+    const rotateY = turnY.interpolate({ inputRange: [-20, 20], outputRange: ["-20deg", "20deg"], extrapolate: "clamp" });
 
-    // rotateX from dy: touch ABOVE center (dy < 0) tips the face UP to look up.
-    // Tipping up about the X axis is a positive rotation, so negative dy must map to
-    // a positive angle, which is why the output range is inverted (+16 .. -16).
     const turnX = Animated.multiply(
       engage,
       dy.interpolate({ inputRange: [-reach, reach], outputRange: [16, -16], extrapolate: "clamp" }),
     );
-    const rotateX = turnX.interpolate({
-      inputRange: [-16, 16],
-      outputRange: ["-16deg", "16deg"],
-      extrapolate: "clamp",
-    });
+    const rotateX = turnX.interpolate({ inputRange: [-16, 16], outputRange: ["-16deg", "16deg"], extrapolate: "clamp" });
 
-    const scale = engage.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }); // attentive grow
-    // perspective scales gently with size so big and small heads turn convincingly.
+    const scale = engage.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] });
     const perspective = 600 + size * 1.5;
     return {
-      transform: [
-        { perspective },
-        { translateX: shift(dx) },
-        { translateY: shift(dy) },
-        { rotateX },
-        { rotateY },
-        { scale },
-      ],
+      transform: [{ perspective }, { translateX: shift(dx) }, { translateY: shift(dy) }, { rotateX }, { rotateY }, { scale }],
     };
   }, [enabled, center.x, center.y, center.ready, size, tracking]);
 
-  const orbStyle = useMemo(
-    () => ({
-      backgroundColor: moodColor,
-      shadowColor: moodColor,
-      opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }),
-      transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) }],
-    }),
-    [moodColor, pulse],
-  );
+  // Eyes drift a few px toward the touch (smaller than the head shift). null when
+  // tracking is off, so the eye transform stays purely blink.
+  const eyeOffset = useMemo(() => {
+    if (!enabled || !center.ready || !tracking) return null;
+    const { touch, engage } = tracking;
+    const reach = 200;
+    const exMax = size * 0.035; // canon 5.5px @158
+    const eyMax = size * 0.022; // canon 3.5px @158
+    const dx = Animated.subtract(touch.x, center.x);
+    const dy = Animated.subtract(touch.y, center.y);
+    return {
+      x: Animated.multiply(engage, dx.interpolate({ inputRange: [-reach, reach], outputRange: [-exMax, exMax], extrapolate: "clamp" })),
+      y: Animated.multiply(engage, dy.interpolate({ inputRange: [-reach, reach], outputRange: [-eyMax, eyMax], extrapolate: "clamp" })),
+    };
+  }, [enabled, center.x, center.y, center.ready, size, tracking]);
 
-  const orbSize = Math.max(8, Math.round(size * 0.1875));
+  // Face geometry as canon fractions of the head size, then mood-shaped.
+  const faceW = size * 0.47;
+  const faceH = size * 0.235;
+  const eyeW = Math.max(3, size * 0.063);
+  const eyeMood = EYE_BY_MOOD[effMood];
+  const eyeH = Math.max(4, size * 0.101) * eyeMood.hFactor;
+  const eyePupil = eyeW * 0.6;
+  const mouthW = Math.max(8, size * 0.12);
+  const mouthBoxH = Math.max(4, size * 0.06);
+  const mouthStroke = Math.max(2, size * 0.018);
 
   return (
-    <View ref={rootRef} onLayout={measure} collapsable={false} style={styles.root}>
+    <View ref={rootRef} onLayout={measure} collapsable={false} style={[styles.root, style]}>
       <Animated.View style={trackStyle}>
-        <Animated.View style={[styles.wrap, bobStyle]}>
-          <Image source={HEAD_IMAGE} style={{ width: size, height: size }} resizeMode="contain" />
-          <Animated.View
+        <Animated.View style={[styles.wrap, { width: size, height: size }, bobStyle]}>
+          <Image source={HEAD_IMAGE} style={{ width: size, height: size }} resizeMode="contain" accessibilityLabel={accessibilityLabel} />
+
+          {/* Dark face screen (visor) the eyes + mouth glow on. */}
+          <View
+            pointerEvents="none"
             style={[
-              styles.orb,
-              { width: orbSize, height: orbSize, borderRadius: orbSize / 2, top: -1, marginLeft: -orbSize / 2 },
-              orbStyle,
+              styles.faceScreen,
+              {
+                width: faceW,
+                height: faceH,
+                borderRadius: Math.max(6, size * 0.063),
+                left: size * 0.5 - faceW / 2,
+                top: size * 0.6 - faceH / 2,
+              },
             ]}
           />
+
+          {/* Eyes — glowing cyan; blink + drift toward touch, mood-shaped (squint
+              when positive, droop outward when negative). */}
+          {[0.385, 0.615].map((cx, i) => {
+            // Sad: outer corners drop — left eye tilts one way, right eye mirrors.
+            const tilt = eyeMood.tilt === 0 ? "0deg" : `${i === 0 ? -eyeMood.tilt : eyeMood.tilt}deg`;
+            const transform = eyeOffset
+              ? [{ translateX: eyeOffset.x }, { translateY: eyeOffset.y }, { rotate: tilt }, { scaleY: blink }]
+              : [{ rotate: tilt }, { scaleY: blink }];
+            return (
+              <Animated.View
+                key={i}
+                pointerEvents="none"
+                style={[
+                  styles.eye,
+                  {
+                    width: eyeW,
+                    height: eyeH,
+                    borderRadius: eyeW / 2,
+                    left: size * cx - eyeW / 2,
+                    top: size * eyeMood.topF - eyeH / 2,
+                    transform,
+                  },
+                ]}
+              >
+                <View style={[styles.pupil, { width: eyePupil, height: eyePupil, borderRadius: eyePupil / 2, top: eyeH * 0.18 }]} />
+              </Animated.View>
+            );
+          })}
+
+          {/* Mouth — cyan SVG curve: smile / flat / frown by mood. */}
+          <View
+            pointerEvents="none"
+            style={[
+              styles.mouth,
+              { width: mouthW, height: mouthBoxH, left: size * 0.5 - mouthW / 2, top: size * 0.655 - mouthBoxH / 2 },
+            ]}
+          >
+            <Svg width={mouthW} height={mouthBoxH}>
+              <Path
+                d={mouthPath(effMood, mouthW, mouthBoxH)}
+                stroke={deepSpace.text}
+                strokeWidth={mouthStroke}
+                strokeLinecap="round"
+                fill="none"
+              />
+            </Svg>
+          </View>
         </Animated.View>
       </Animated.View>
     </View>
@@ -185,20 +292,37 @@ export function SecondbHead({ mood = "neutral", size = 48, track }: SecondbHeadP
 const styles = StyleSheet.create({
   root: { flexShrink: 0, alignItems: "center", justifyContent: "center" },
   // No rectangular shadow/elevation on the head: on web it renders as a square
-  // box-shadow halo, and on Android elevation casts a rectangular outline, both
-  // around the transparent head PNG. The mood orb keeps its own (circular) glow.
-  wrap: {
-    position: "relative",
-    flexShrink: 0,
+  // box-shadow halo and on Android elevation casts a rectangular outline around
+  // the transparent head PNG. The eyes carry their own (circular) glow.
+  wrap: { position: "relative", flexShrink: 0, alignItems: "center", justifyContent: "center" },
+  faceScreen: {
+    position: "absolute",
+    backgroundColor: deepSpace.bgEdge,
+    borderWidth: 1,
+    borderColor: withAlpha(deepSpace.accent, 0.18),
+  },
+  eye: {
+    position: "absolute",
+    alignItems: "center",
+    backgroundColor: deepSpace.accent,
+    shadowColor: deepSpace.accent,
+    shadowOpacity: 0.85,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
+  },
+  pupil: {
+    position: "absolute",
+    backgroundColor: deepSpace.accentBright,
+  },
+  mouth: {
+    position: "absolute",
     alignItems: "center",
     justifyContent: "center",
-  },
-  orb: {
-    position: "absolute",
-    left: "50%",
-    shadowOpacity: 1,
-    shadowRadius: 9,
+    shadowColor: deepSpace.accent,
+    shadowOpacity: 0.8,
+    shadowRadius: 5,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
+    elevation: 5,
   },
 });

@@ -22,6 +22,7 @@ import { loadTierShifts } from "@/lib/persona/load-tier-shifts";
 import type { TierShift } from "@/lib/persona/tier-history";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
+import { reactExpression } from "@/lib/companion/expression";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceReviewScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
@@ -96,6 +97,7 @@ function ReviewScreenLegacy() {
       // Persist the ratified tier so D9 history + trend detection reflect it.
       void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel });
     }
+    if (decision === "ratify") reactExpression("positive");
     setResult(
       decision === "ratify"
         ? locale === "ko"

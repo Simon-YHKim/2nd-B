@@ -26,3 +26,33 @@ export function isPrimaryTabPath(pathname: string): boolean {
 export function isProfileChildPath(pathname: string): boolean {
   return (PROFILE_CHILD_PATHS as readonly string[]).includes(pathname);
 }
+
+// Deep-space routes that render the persistent bottom dock (DeepSpaceScreen).
+// On these the floating BackArrow chip is redundant AND overlaps the
+// SecondbStatusHeader head, so it is hidden in deep-space mode (the dock — plus
+// hardware back — is the nav affordance there). The primary tab roots
+// (/, /capture, /secondb) also render the dock but are already hidden by
+// isPrimaryTabPath, so they are intentionally omitted here. Legacy mode
+// (EXPO_PUBLIC_UI=legacy) uses PremiumAppShell with no dock, so the chip stays —
+// callers MUST gate this list behind isDeepSpaceUI().
+export const DEEP_SPACE_DOCK_PATHS = [
+  "/audit",
+  "/esm",
+  "/core-brain",
+  "/big-five",
+  "/attachment",
+  "/iden",
+  "/imagine",
+  "/interview",
+  "/persona",
+  "/account",
+  "/ops",
+] as const;
+
+export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];
+
+/** True when the route renders the deep-space bottom dock (DeepSpaceScreen).
+ *  Gate behind isDeepSpaceUI() — legacy mode has no dock. */
+export function isDeepSpaceDockPath(pathname: string): boolean {
+  return (DEEP_SPACE_DOCK_PATHS as readonly string[]).includes(pathname);
+}
