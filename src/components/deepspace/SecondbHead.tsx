@@ -20,6 +20,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Image, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import Svg, { Path } from "react-native-svg";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
@@ -45,11 +46,25 @@ const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
 /** Heads at or above this size are "big" and track by default. */
 const BIG_HEAD_MIN = 80;
 
-// Per-mood mouth shape — the only mood tell on the face itself (cyan, never a
-// colored orb). Positive widens into a faint smile, negative narrows. Neutral is
-// the canon flat bar.
-const MOUTH_SCALE_X: Record<SecondbMood, number> = { positive: 1.18, neutral: 1, negative: 0.78 };
-const MOUTH_LIFT: Record<SecondbMood, number> = { positive: -0.6, neutral: 0, negative: 0.5 };
+// Per-mood FACE shapes (cyan-only, never a colored orb). The canon .dc.html only
+// changes a background-sphere colour by mood; these eye/mouth shapes extend that
+// into a readable expression within the deep-space identity.
+//   eyes:  hFactor = height vs neutral (squint), topF = vertical placement,
+//          tilt   = outer-corner droop in deg (sad).
+const EYE_BY_MOOD: Record<SecondbMood, { hFactor: number; topF: number; tilt: number }> = {
+  positive: { hFactor: 0.58, topF: 0.585, tilt: 0 }, // content squint
+  neutral: { hFactor: 1, topF: 0.585, tilt: 0 },
+  negative: { hFactor: 0.9, topF: 0.602, tilt: 8 }, // lowered, outer corners down
+};
+
+// Mouth as an SVG curve: smile ◡ (positive), flat line (neutral), frown ◠ (negative).
+function mouthPath(mood: SecondbMood, w: number, h: number): string {
+  const midY = h / 2;
+  const depth = h * 0.62;
+  if (mood === "positive") return `M1 ${midY - depth / 2} Q ${w / 2} ${midY + depth} ${w - 1} ${midY - depth / 2}`;
+  if (mood === "negative") return `M1 ${midY + depth / 2} Q ${w / 2} ${midY - depth} ${w - 1} ${midY + depth / 2}`;
+  return `M1 ${midY} L ${w - 1} ${midY}`;
+}
 
 export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityLabel, style }: SecondbHeadProps) {
   const reduce = useReducedMotionPref();
@@ -171,20 +186,16 @@ export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityL
     };
   }, [enabled, center.x, center.y, center.ready, size, tracking]);
 
-  // Face geometry as canon fractions of the head size.
+  // Face geometry as canon fractions of the head size, then mood-shaped.
   const faceW = size * 0.47;
   const faceH = size * 0.235;
   const eyeW = Math.max(3, size * 0.063);
-  const eyeH = Math.max(4, size * 0.101);
+  const eyeMood = EYE_BY_MOOD[mood];
+  const eyeH = Math.max(4, size * 0.101) * eyeMood.hFactor;
   const eyePupil = eyeW * 0.6;
-  const mouthW = Math.max(6, size * 0.089);
-  const mouthH = Math.max(2, size * 0.02);
-
-  const eyeTransform = eyeOffset
-    ? [{ translateX: eyeOffset.x }, { translateY: eyeOffset.y }, { scaleY: blink }]
-    : [{ scaleY: blink }];
-  // Mouth carries the only mood tell on the face (cyan, never a colored orb).
-  const mouthTransform = [{ translateY: MOUTH_LIFT[mood] }, { scaleX: MOUTH_SCALE_X[mood] }];
+  const mouthW = Math.max(8, size * 0.12);
+  const mouthBoxH = Math.max(4, size * 0.06);
+  const mouthStroke = Math.max(2, size * 0.018);
 
   return (
     <View ref={rootRef} onLayout={measure} collapsable={false} style={[styles.root, style]}>
@@ -207,42 +218,53 @@ export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityL
             ]}
           />
 
-          {/* Eyes — glowing cyan, blink + drift toward touch. */}
-          {[0.385, 0.615].map((cx, i) => (
-            <Animated.View
-              key={i}
-              pointerEvents="none"
-              style={[
-                styles.eye,
-                {
-                  width: eyeW,
-                  height: eyeH,
-                  borderRadius: eyeW / 2,
-                  left: size * cx - eyeW / 2,
-                  top: size * 0.585 - eyeH / 2,
-                  transform: eyeTransform,
-                },
-              ]}
-            >
-              <View style={[styles.pupil, { width: eyePupil, height: eyePupil, borderRadius: eyePupil / 2, top: eyeH * 0.18 }]} />
-            </Animated.View>
-          ))}
+          {/* Eyes — glowing cyan; blink + drift toward touch, mood-shaped (squint
+              when positive, droop outward when negative). */}
+          {[0.385, 0.615].map((cx, i) => {
+            // Sad: outer corners drop — left eye tilts one way, right eye mirrors.
+            const tilt = eyeMood.tilt === 0 ? "0deg" : `${i === 0 ? -eyeMood.tilt : eyeMood.tilt}deg`;
+            const transform = eyeOffset
+              ? [{ translateX: eyeOffset.x }, { translateY: eyeOffset.y }, { rotate: tilt }, { scaleY: blink }]
+              : [{ rotate: tilt }, { scaleY: blink }];
+            return (
+              <Animated.View
+                key={i}
+                pointerEvents="none"
+                style={[
+                  styles.eye,
+                  {
+                    width: eyeW,
+                    height: eyeH,
+                    borderRadius: eyeW / 2,
+                    left: size * cx - eyeW / 2,
+                    top: size * eyeMood.topF - eyeH / 2,
+                    transform,
+                  },
+                ]}
+              >
+                <View style={[styles.pupil, { width: eyePupil, height: eyePupil, borderRadius: eyePupil / 2, top: eyeH * 0.18 }]} />
+              </Animated.View>
+            );
+          })}
 
-          {/* Mouth — cyan bar, mood-shaped + drifts toward touch. */}
-          <Animated.View
+          {/* Mouth — cyan SVG curve: smile / flat / frown by mood. */}
+          <View
             pointerEvents="none"
             style={[
               styles.mouth,
-              {
-                width: mouthW,
-                height: mouthH,
-                borderRadius: mouthH,
-                left: size * 0.5 - mouthW / 2,
-                top: size * 0.655 - mouthH / 2,
-                transform: mouthTransform,
-              },
+              { width: mouthW, height: mouthBoxH, left: size * 0.5 - mouthW / 2, top: size * 0.655 - mouthBoxH / 2 },
             ]}
-          />
+          >
+            <Svg width={mouthW} height={mouthBoxH}>
+              <Path
+                d={mouthPath(mood, mouthW, mouthBoxH)}
+                stroke={deepSpace.text}
+                strokeWidth={mouthStroke}
+                strokeLinecap="round"
+                fill="none"
+              />
+            </Svg>
+          </View>
         </Animated.View>
       </Animated.View>
     </View>
@@ -277,7 +299,8 @@ const styles = StyleSheet.create({
   },
   mouth: {
     position: "absolute",
-    backgroundColor: deepSpace.text,
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: deepSpace.accent,
     shadowOpacity: 0.8,
     shadowRadius: 5,

@@ -23,6 +23,14 @@ describe("SecondB head canon", () => {
     expect(canonHead).toMatch(/scaleY:\s*blink/);
   });
 
+  test("has per-mood expression shapes (eyes + mouth), not just one face", () => {
+    // Eyes change shape by mood (squint / droop), mouth curves smile/flat/frown.
+    expect(canonHead).toMatch(/EYE_BY_MOOD/);
+    expect(canonHead).toMatch(/function mouthPath/);
+    expect(canonHead).toMatch(/positive/);
+    expect(canonHead).toMatch(/negative/);
+  });
+
   test("has no floating mood orb above the head", () => {
     expect(canonHead).not.toMatch(/styles\.orb/);
     expect(canonHead).not.toMatch(/orbStyle|moodColor|MOOD_COLOR/);
