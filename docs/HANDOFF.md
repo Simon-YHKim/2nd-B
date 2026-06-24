@@ -3,7 +3,86 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-22 (결제·리워드·공유 /goal + 엔티틀먼트 캡 루프) / PR #561 main 머지 완료
+## Latest — 2026-06-24 (deep-space 살아있는 세컨비 머리 + 도크칩 + EAS Update) / PR #579 머지, #580 오픈
+
+도크 백버튼 칩 겹침 제거 + 세컨비 머리를 **정본대로 살아있는 얼굴**(깜빡임·터치추적 시안 눈,
+감정별 표정, 머리 위 녹색 오브 제거)로 재구현 + 액션 반응(저장→미소/실패→걱정) + 디자인 정본
+영속화까지 **PR #579를 squash로 main 머지**(사용자 명시 지시). 이어서 **EAS Update(OTA) 설정**을
+PR #580(오픈)으로 올림. 다음 세션 목표 = **EXPO_TOKEN으로 안드로이드 빌드 트리거 → 폰에서 라이브 확인**.
+
+### 어디까지 왔나
+- main HEAD: `8194e01` (PR #579 squash merge — 이번 세션)
+- 이번 세션 머지된 PR: **#579** fix(deepspace): dock back-chip + live SecondB head + design canon
+- 오픈(미머지) PR: **#580** chore(eas): enable EAS Update (OTA) — 브랜치 `claude/2ndb-continuation-coyk8b`
+- 테스트 상태: `npm run verify` green — **249 suites / 1881 tests**
+- working tree: clean
+
+### 이번 세션 핵심 (커밋된 것)
+- **도크 백버튼 칩 폴리시**: `src/lib/nav/tabs.ts`(`DEEP_SPACE_DOCK_PATHS` 11개 + `isDeepSpaceDockPath`) +
+  `src/components/ui/BackArrow.tsx`(deep-space 도크 화면서 칩 숨김, `isDeepSpaceUI()` 게이트). 머리 겹침 해소.
+- **살아있는 세컨비 머리** (`src/components/deepspace/SecondbHead.tsx` 정본 1종):
+  - 녹색 오브 **제거**(정본에 없음). 얼굴 스크린 + **빛나는 시안 눈 2개**(깜빡임 130ms·랜덤 1.6~4.8s + 터치추적) + 입.
+  - 큰 머리(≥80, 홈 158px `ConstellationHome`) 2.5D look-at 트래킹(기존 `SecondbHeadTrack` provider, `_layout` 마운트). 작은 헤더 머리(48px)는 깜빡임만.
+  - 감정별 표정: positive(눈 squint+미소 SVG)/neutral(평)/negative(처짐+찡그림). 시안 only, hex 리터럴 X.
+  - `src/components/deep-space/SecondbHead.tsx` = 정본 re-export(머리 3종→1종 통합).
+- **상호작용 반응** (`src/lib/companion/expression.ts` 이벤트버스): `reactExpression(mood)` → 모든 머리 순간 표정 후 복귀.
+  중앙 연결: `src/components/art/CompanionSprite.tsx`의 `EXPRESSION_BY_EVENT`(모든 companion moment→positive,
+  **safety 이벤트는 의도적 제외**) + capture 저장 성공/실패 + ratify(review) + 완료 토스트.
+- **디자인 정본 영속화**: `docs/ui-audit/{DESIGN_INDEX,CLONE_PROTOCOL}.md`(SCREEN_TREE_SPEC와 트리오) +
+  `CLAUDE.md` Design system 섹션 포인터. 정본 시각 출처 = `design/*.dc.html`.
+- **EAS Update(OTA) 설정**(PR #580, 미머지): `expo-updates ~56.0.19` + `app.json`(`updates.url`=EAS 프로젝트,
+  `runtimeVersion: appVersion`, `fallbackToCacheTimeout: 0`). eas.json 채널은 기존대로.
+
+### 활성 인프라
+- Supabase project: `zoacryukmdeivmolvyhj` (eas.json env)
+- EAS project: `439c4c86-39a7-4a47-8bfa-0426f9fe18c9` (owner `simon_k`, slug `2nd-brain`)
+- **EXPO_TOKEN**: 사용자가 원격 환경에 추가 중 — **변수명은 반드시 `EXPO_TOKEN`**, 추가 후 **새 세션**이어야 셸에 주입됨.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **안드로이드 빌드 트리거** → 폰 라이브 확인 | medium | ⭐ 사용자 핵심 목표. `printenv EXPO_TOKEN` 확인 → `npx eas-cli whoami` → `npx eas-cli build -p android --profile preview --non-interactive`. **실기기=arm64(preview OK), 에뮬=x86_64(프로필 별도)** 먼저 확인 |
+| B | **PR #580(EAS Update) 머지** | small | verify CI green 시 squash. 빌드 전 머지 권장(빌드에 OTA 설정 포함되게) |
+| C | **온디바이스 QA** (머리/도크) | small | 녹색오브 사라짐·158px 머리 깜빡임+트래킹·헤더 머리 깜빡임·감정표정·반응(저장→미소)·도크 11화면 칩 겹침 해소 |
+| D | 반응 지점/동적 mood 확장 | medium | 데이터상태 연동 mood는 사용자가 보류(상호작용 반응만 선택). 필요시 추가 |
+
+### 적용 중인 정책 (영구)
+1. **사용자 명시 시 머지**: #579는 사용자 지시로 CI green 후 squash 머지함. "머지해줘" = verify green 후 squash.
+2. **정본 = deep-space `.dc.html` + `docs/ui-audit` 트리오** (DESIGN_INDEX/SCREEN_TREE_SPEC/CLONE_PROTOCOL). "항상 기억". 시각 1:1 출처.
+3. **세컨비 머리**: 머리 위 **오브 금지**(정본에 없음). 얼굴 = 깜빡이는 시안 눈 + 감정 입. **safety/위기 이벤트는 절대 귀여운 표정 트리거 X**.
+4. **이 Linux 원격 한계**: 안드로이드 빌드/에뮬/`eas update` publish **불가**(Expo 인증 없음, Windows 아님). 빌드·OTA는 EXPO_TOKEN(새 세션) 또는 Windows에서.
+5. **EAS Update**: expo-updates는 네이티브 → OTA 도달하려면 **새 빌드 1회 필수**, 그 후 `eas update --channel production`.
+6. 토큰/시크릿 **채팅에 붙여넣기 금지** — 원격 환경 env로만.
+
+### 핵심 파일 위치
+```
+src/components/deepspace/SecondbHead.tsx        정본 머리(눈·깜빡임·트래킹·감정·반응)
+src/components/deep-space/SecondbHead.tsx       정본 re-export(통합)
+src/components/deepspace/SecondbHeadTrack.tsx   터치추적 provider(_layout 마운트)
+src/lib/companion/expression.ts                 reactExpression 이벤트버스
+src/components/art/CompanionSprite.tsx          companion moment→머리 표정(EXPRESSION_BY_EVENT)
+src/lib/nav/tabs.ts                             DEEP_SPACE_DOCK_PATHS + isDeepSpaceDockPath
+src/components/ui/BackArrow.tsx                  도크칩 숨김 게이트
+docs/ui-audit/{DESIGN_INDEX,SCREEN_TREE_SPEC,CLONE_PROTOCOL}.md   정본 트리오
+app.json / eas.json                             EAS Update(OTA) 설정 (PR #580)
+```
+
+### 검증
+```bash
+npm run verify   # lint+tsc+i18n+lexicon+legal+llm경계+constraints+emdash+anti-anthro+mascot+jest
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# A 작업: EXPO_TOKEN 확인 후 안드로이드 빌드 트리거
+git checkout claude/2ndb-continuation-coyk8b   # EAS Update(#580) 작업 이어서
+```
+
+---
+
+## 2026-06-22 (결제·리워드·공유 /goal + 엔티틀먼트 캡 루프) / PR #561 main 머지 완료
 
 세컨비 "깊이 묻기"에 **월 reasoning 캡 루프**를 끝까지 연결하고, 결제·리워드·공유 + LLM 3-tier
 라우터 + 4-티어 QA 진입 링크를 붙인 뒤 **PR #561을 squash로 main에 머지**(사용자 명시 지시).
