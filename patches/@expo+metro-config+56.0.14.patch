@@ -1,0 +1,30 @@
+diff --git a/node_modules/@expo/metro-config/build/serializer/exportHermes.js b/node_modules/@expo/metro-config/build/serializer/exportHermes.js
+index 297b161..ca44eeb 100644
+--- a/node_modules/@expo/metro-config/build/serializer/exportHermes.js
++++ b/node_modules/@expo/metro-config/build/serializer/exportHermes.js
+@@ -110,9 +110,20 @@ async function directlyBuildHermesBundleAsync({ projectRoot, code, map, minify =
+     }
+ }
+ async function createHermesSourcemapAsync(sourcemap, hermesMapFile) {
+-    const bundlerSourcemap = JSON.parse(sourcemap);
+-    const hermesSourcemapContent = await fs_1.default.promises.readFile(hermesMapFile, 'utf8');
+-    const hermesSourcemap = JSON.parse(hermesSourcemapContent);
+-    return JSON.stringify((0, sourceMap_1.composeSourceMaps)([bundlerSourcemap, hermesSourcemap]));
++    // patch(2nd-B): Hermes source-map composition (@jridgewell/trace-mapping) can throw
++    // "Cannot read properties of undefined (reading 'length')" on some bundles, which
++    // aborts the whole `expo export` / `eas update`. The Hermes bytecode (hbc) is fine;
++    // only the composed source map fails. Degrade gracefully: publish the update without
++    // a source map for this chunk instead of failing the build. Mirrors the no-map path.
++    try {
++        const bundlerSourcemap = JSON.parse(sourcemap);
++        const hermesSourcemapContent = await fs_1.default.promises.readFile(hermesMapFile, 'utf8');
++        const hermesSourcemap = JSON.parse(hermesSourcemapContent);
++        return JSON.stringify((0, sourceMap_1.composeSourceMaps)([bundlerSourcemap, hermesSourcemap]));
++    }
++    catch (e) {
++        console.warn(`[patch:2nd-B] Hermes source map composition failed; continuing without a source map for this chunk: ${(e && e.message) || e}`);
++        return null;
++    }
+ }
+ //# sourceMappingURL=exportHermes.js.map
+\ No newline at end of file
