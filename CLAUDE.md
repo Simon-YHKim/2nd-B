@@ -23,7 +23,7 @@ IA, or visual decision. Canonical model: 북극성(Soul Core) + 북두칠성 7�
 the *Cosmic Pixel Graph Village* system, *phytoncide* tokens, *Brain Trinity* naming,
 and the fixed village node-names in the Visual Tier System below (Soul Core / Pattern
 Core x5 / snowflake / crystal). Preserved behind `EXPO_PUBLIC_UI=legacy`; superseded
-concept docs live in `docs/legacy/`.
+concept docs were cleaned up and remain in git history.
 
 ## The 12 hard constraints
 

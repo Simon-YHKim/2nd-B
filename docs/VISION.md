@@ -55,7 +55,7 @@
 - 실현: SecondB 대화의 **Divergent 모드** — 장소(마을 노드)가 아니라 대화 모드다 (세계관 v-final).
 - 짝: **Analytic 모드** (사용자 data 기반 분석/조언). Divergent 는 data 기반이되 전혀 다른 관점.
 - 안전: 두 모드 모두 C9(classifyInput) → C3(ai_audit_log) → `gemini.ts` 경로. 공상이 안전 분류를 우회하지 않는다.
-- 상세 spec: **`docs/dream-surface-spec.md`** (장소 전제 부분은 v-final 기준으로 갱신 대상).
+- 상세 spec 은 세계관 v-final 기준으로 추후 재작성 (구 `dream-surface-spec.md` 는 레거시 정리에서 제거, git history 보존).
 
 ---
 

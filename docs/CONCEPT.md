@@ -30,9 +30,10 @@ Kept only as a rollback skin (`EXPO_PUBLIC_UI=legacy`) or as history:
 - **Brain Trinity** naming, and the fixed village node-names in the Visual Tier
   System (Soul Core / Pattern Core x5 / snowflake / crystal). The tier *principle*
   (one dominant root, sub-nodes recede) carries over; the *names* do not.
-- Superseded concept docs in **`docs/legacy/`** (old `DESIGN.md`, `DESIGN_TOKENS.md`,
-  dated handoffs). Also self-marked superseded in place (referenced by code/history):
-  `docs/gemini-app-overview.md`, `docs/2026-05-29-session-cosmic-phase1-report.html`.
+- Superseded concept docs (old `DESIGN.md`, `DESIGN_TOKENS.md`, dated handoffs, the
+  pre-v-final `gemini-app-overview.md`, and the Cosmic Pixel session report) were
+  removed in the legacy cleanup; they remain in git history if a rollback reference
+  is needed.
 
 ## Why this file exists
 
