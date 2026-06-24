@@ -999,7 +999,6 @@ function CaptureLegacy() {
       const savedBody = body.trim();
       reset();
       companion.fire("captureSaved");
-      reactExpression("positive");
       setSavedTitle(savedBody.length > 0 ? savedBody : t("savedTitleFallback"));
       setSavedKind("records");
       setSavedMode(noteMode);
@@ -1211,7 +1210,6 @@ function CaptureLegacy() {
       clearModeDraft(submittedMode);
       // 루루 carries the shard home; an imported link gets the "success" beat.
       companion.fire(isBareLink ? "linkImported" : "captureSaved");
-      reactExpression("positive");
       // Inline success panel (journal-capture pack §3/§7) replaces the alert.
       setSavedTitle(result.source.title);
       setSavedKind("source");
