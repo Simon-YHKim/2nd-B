@@ -32,9 +32,12 @@
 | Attachment (ECR-S) | `/attachment` | 검증된 정량 |
 | 과거의 나 | `/audit` | 시기 회고 |
 | 심층 인터뷰 | `/interview` | LLM drill-down 5×5 |
-| 일상 기록 | `/journal` | 자유 입력 + streak |
-| 자재 반입 | `/capture` | 5-mode (memo/link/clip/OCR/file) |
+| 일상 기록 | `/capture`(일기 모드) | 자유 입력 + streak (구 `/journal` redirect) |
+| 자재 반입 | `/capture` | 5-mode (memo/link/clip/OCR/file) · 담아내기 별 착지점 |
 | 사용자 위키 | `/wiki` | 축적 read side |
+
+> ⚠️ 위 표면은 **레이어 A(도메인 입력) + 레이어 B(검증 측정도구)** 진입점으로 재배치된다.
+> `/big-five`·`/attachment`·`/esm`은 홈의 별이 아니라 북극성 검증틀(레이어 B)의 측정도구다.
 
 ### 2. 개인 비서 기반 — RAG 위 vibe
 
@@ -42,11 +45,11 @@
 
 | 표면 | 라우트 | 역할 |
 |---|---|---|
-| 세컨비 (2ndB) | `/jarvis` | RAG-backed chat, 사용자 wiki 위에서 응답 |
-| 페르소나 카드 | `/persona` | 패턴 surface, top-3 trait |
+| 세컨비 (2ndB) | `/secondb` | RAG-backed chat, wiki + 별자리 맥락 위에서 응답 (Analytic/Divergent) |
+| 페르소나 카드 | `/persona` | 패턴 surface, 역할/모자 |
 | insights | `/insights` | "요즘 뭘 적었는가" 종합 |
-| Brain Trinity | `/trinity` | 건강 / 앱 / 뇌 / 재정 4영역 |
-| 참조 문헌 | `/research` | RAG 가 ground 하는 검증된 출처 |
+| 북극성 종합 | (폴라리스 탭) | 7 도메인 종합 + 페르소나 — 구 Brain Trinity `/trinity` 폐기 |
+| 참조 문헌 | `/research` | RAG 가 ground 하는 검증된 출처 (C8) |
 
 ### 3. 공상 → 구체화 — 미래의 나
 
@@ -59,32 +62,24 @@
 
 ---
 
-## 세계관 (v-final) — 5계층 모델
+## 세계관 — 별자리 3-레이어 (정본 = `docs/PRD.md` v3 · `docs/CONSTELLATION-DESIGN.md`)
 
-> 정본. 그래프 / 네비게이션 / 마스코트 / 색은 모두 이 모델을 따른다.
-> 중심에 가까울수록 "나"에 가깝고, 바깥으로 갈수록 원자료(Log)에 가깝다.
+> ⚠️ 구 "5계층 모델"(Soul Core + 5 Pattern Core + Pattern Tesseract + 마을 그래프)은 **폐기**
+> (2026-06-25 방향 전환). 정본은 **별자리 3-레이어**. 그래프 / 네비게이션 / 색은 이 모델을 따른다.
 
-| 계층 | 이름 | 정체 | 마스코트 | 내부 키 |
-|---|---|---|---|---|
-| 1st | **Soul Core** ("나의 중심") | 5개 Pattern Core가 모여 형성되는 나의 중심 | **SecondB** | `core` |
-| 2nd | **Pattern Core** (Pattern Tesseract 형태) | 5개의 패턴 핵 (아래) | (코어별) | — |
-| 3rd | **Pattern Data** | Log 들로 만들어진 카테고리 | — | (도메인 태그) |
-| 4th | **Log** | 사용자 기록 그 자체 (일 / 관계 / 지식 / 취미 등) | — | `sources` · `records` |
-| 공통 | **Pattern Link** (Graph Network) | 전 계층을 잇는 신호 통로 = 그래프 엣지 | — | edges |
+| 레이어 | 정체 | 역할 |
+|---|---|---|
+| **A 입력** | 북두칠성 7 도메인 별 (커리어·재정·성장·관계·건강·오락·담아내기) | 쉬운 삶 데이터를 넣는 곳. 각 별: 입력 → 출력 + 리스트업. 홈에서 보이는 별 |
+| **B 검증** | 심리구인 (Big Five·내러티브·애착·SDT/VIA·가능자아·순간변동, `stars.ts`) | 홈에 안 보이는 추론·근거 레이어. 도메인 데이터가 구인을 삼각측량 → 검증된 초상(C8) |
+| **C 출력** | 북극성 (Polaris) | 7 도메인 종합 → 실시간 페르소나(역할/모자) + 강점. 직접 입력 X, propose→ratify로만 변경. "Soul Core" 명칭 폐기 |
+| 공통 | cyan Pattern Link | Big Dipper 형태 + 2별 포인터 → 북극성. 전부 cyan, 후퇴 |
 
-### 5개 Pattern Core (2nd layer)
+> **밝기 정직성**: 홈의 별 빛 = "내가 얼마나 넣었나"(도메인 커버리지). 페르소나 주장 세기 =
+> "얼마나 검증됐나"(숨은 구인 신뢰도). 둘을 섞지 않는다.
 
-| Pattern Core | 의미 | 마스코트 (구 이름) | 내부 키 |
-|---|---|---|---|
-| **Bond Core** | 관계와 사랑 | **Relia** (구 Gadi) | `relation` |
-| **Wisdom Core** | 배움과 지식 | **Lumen** (구 Lulu) | `knowledge` |
-| **Narrative Core** | 기록 보관소 | **Foreman Momo** (구 Momo) | `records` |
-| **Muse Core** | 취향과 영감 | **Lumina** (구 Lumi) | `taste` |
-| **Growth Core** | 일과 성장 | **Archon** (구 Archi) | `work` |
-
-> 내부 route / slug / DB 키(work / relation / knowledge / records / taste)는 회귀 위험 때문에
-> 유지하고, 바뀌는 것은 사용자 표기 라벨 · 계층 개념 · 마스코트 이름뿐이다 (표시명 매핑 레이어:
-> `src/lib/chat/personas.ts`, `src/lib/characters.ts`, `src/lib/graph/relatedness.ts::VILLAGE_LABEL`).
+> **내부 키 잔존(표면 금지)**: 옛 도메인 키(work / relation / knowledge / records / taste)는 회귀
+> 위험 때문에 데이터 태그로만 유지 — 새 7 도메인과 1:1 아님. 캐릭터 보이스(아치/가디/루루/모모/루미,
+> `src/lib/chat/personas.ts`)는 폐기/축소(PRD §17-j).
 
 ### 공상 = 장소가 아니라 SecondB 대화 모드
 
@@ -101,6 +96,9 @@
 이름을 바꾸지 않고 노드만 제거하며, 그 역할은 SecondB 의 Divergent 모드가 대신한다.)
 
 ### 색 매핑 (정본)
+
+> ⚠️ 아래 Soul Core / Pattern Core / 마스코트 **라벨은 폐기**(§별자리 3-레이어). 토큰 값은 코드에
+> 잔존하므로 참조용으로만 둔다 — 새 작업은 `deepSpace.*` + `DESIGN.md` 기준.
 
 `src/lib/theme/tokens.ts` 의 **기존 토큰만** 사용한다 (신규 hex 금지). `semantic.*` 키는 유지하고 값만 이동.
 
@@ -138,14 +136,14 @@
 > 합성 메모(`2ndb-thought-organization-synthesis.html`, 불변 정본)의 측정 하네스를 코드로 구현한 결과. 상세 어휘는 `CONTEXT.md`, 수치·공식은 아래 파일들.
 
 - **단일 가치 사다리 L1~L5** = 밝기 = 데이터 품질 = 출처 신뢰도 = 드릴 정지레벨. `src/lib/persona/brightness.ts` (`ladderLevel` / `brightnessFraction`, 20~100%). 결정론·LLM-free.
-- **자기이해 7별** (지금의 나·회상·보여지는 나·리듬·관계의 나·될 수 있는 나·가치의 나) = 증거축. `src/lib/persona/stars.ts` (`SELF_UNDERSTANDING_STARS`). 별=증거축, 5 Pattern Core=도메인 렌즈로 구분.
-- **소울 코어(북극성) 밝기** = 7별 밝기의 종합 (가중평균 + 전별점등 보너스, D8). `soulCoreBrightness`. "모든 별이 켜지면 북극성이 더 밝아진다."
-- **실데이터 도출**: `buildPersona`가 카드마다 `starLevels` + `soulCoreBrightness` 산출(`star-levels.ts`); 홈은 Gemini 없는 `load-star-levels.ts`로 마운트 시 표시.
-- **렌더**: 홈(DeepSpaceShell) · `/core-brain`(밝기 타일 + 7별 별자리) · `/persona`(밝기% + 켜진 별) 세 화면.
+- **검증 구인 (레이어 B)** (Big Five·내러티브·애착·SDT/VIA·가능자아·순간변동) = 북극성 출력의 숨은 추론·검증 레이어. `src/lib/persona/stars.ts` (`SELF_UNDERSTANDING_STARS`, "별"→"검증틀" 재분류). 도메인 데이터가 구인을 삼각측량. ⚠️ 더 이상 홈의 별이 아니다 — 홈의 7별은 도메인.
+- **북극성 밝기 (레이어 C)** = 7 도메인 별 밝기의 종합 (평균 + 전별점등 보너스). `soulCoreBrightness`(내부 키 유지, 표시명 "북극성"; 입력 의미만 도메인축으로). "모든 별이 켜지면 북극성이 더 밝아진다." 신규 `domainConfidence` 어댑터가 도메인 항목수를 밝기 체인에 연결.
+- **실데이터 도출**: `buildPersona`가 `starLevels` + `soulCoreBrightness` 산출(`star-levels.ts`); 홈은 Gemini 없는 `load-star-levels.ts`로 마운트 시 표시(도메인 별 입력으로 retarget).
+- **렌더**: 별자리 홈(유일한 홈) · 북극성 종합 뷰(구 `/core-brain` 흡수) · `/persona`(밝기% + 켜진 도메인 별).
 - **드릴 정지규칙** (메모 §3d): 인터뷰가 목표 L 도달 시 종료(`interview/drill-stop.ts` + `narrative-level.ts`), 50턴은 하드캡. 소프트캡-only 대체.
 - **propose→ratify** (메모 §3f): AI는 자기모델을 직접 못 바꾼다. `SelfModelProposal` diff 제안(`propose-self-model.ts`, C9→C3→gemini) 후 사용자 승인만 L5(`proposal.ts::applyRatify`). 임상어휘 게이트 통과 제안만 표면화.
 
-> 세 축 관계: **알아가기**(별 데이터 축적·밝기 상승) → **개인 비서**(밝기·별 근거로 SecondB 응답) → **공상→구체화**(될 수 있는 나 별 + propose-ratify 다음 한 걸음).
+> 세 축 관계: **알아가기**(도메인 별 점등·밝기 상승) → **개인 비서**(밝기·도메인·검증틀 근거로 세컨비 응답) → **공상→구체화**(세컨비 Divergent + 북극성 propose→ratify 다음 한 걸음).
 
 ---
 
