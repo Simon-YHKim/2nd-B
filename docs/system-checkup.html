@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2nd-Brain 별자리 시스템 — 구조 정리</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --bg:#0A0E1A; --surface:#121829; --surface2:#1B2238; --surface3:#0E1424;
+  --line:rgba(141,152,184,.18); --text:#E8ECF8; --muted:#9AA6C6; --faint:#66719A;
+  --cyan:#4CC9F0; --gold:#FFD56B; --keep:#72F2C7; --dev:#FFD166; --rm:#FF7A90;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.page{max-width:940px;margin:0 auto;padding:28px 20px 80px}
+h1{font-size:21px;font-weight:600;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 22px}
+h2{font-size:15px;font-weight:600;margin:30px 0 10px;display:flex;align-items:center;gap:8px}
+h2 .tag{font-size:11px;font-weight:500;padding:2px 8px;border-radius:6px;background:var(--surface2);color:var(--muted)}
+h3{font-size:13px;font-weight:600;margin:0 0 6px}
+h3 span{font-size:11px;font-weight:500;color:var(--faint);margin-left:6px}
+.grid{display:grid;gap:12px}
+@media(min-width:680px){.grid.two{grid-template-columns:1fr 1fr}.grid.three{grid-template-columns:1fr 1fr 1fr}}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.box.k{border-left:3px solid var(--keep);border-radius:0 12px 12px 0}
+.box.d{border-left:3px solid var(--dev);border-radius:0 12px 12px 0}
+.box.c{border-left:3px solid var(--cyan);border-radius:0 12px 12px 0}
+.box.star{border-left:3px solid var(--gold);border-radius:0 12px 12px 0}
+.mut{color:var(--muted);font-size:13px;margin:4px 0 0}
+.io{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface3);border:1px solid var(--line);border-radius:12px;padding:14px}
+.io-in{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:200px}
+.chip{font-size:12px;padding:4px 10px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);color:var(--text)}
+.io-arrow{color:var(--cyan);font-size:20px;font-weight:600}
+.io-out{background:rgba(76,201,240,.1);border:1px solid rgba(76,201,240,.4);border-radius:10px;padding:10px 14px;min-width:170px}
+.io-out b{color:var(--gold)}
+.io-note{font-size:12px;color:var(--muted);margin-top:8px;padding-left:2px}
+.io-note b{color:var(--cyan)}
+.ladder{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.rung{font-size:12px;padding:3px 9px;border-radius:7px;background:var(--surface3);border:1px solid var(--line);color:var(--muted)}
+.rung b{color:var(--text);font-weight:600}
+.io2{font-size:12px;color:var(--muted);margin:5px 0 0}
+.io2 b{color:var(--text);font-weight:600}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--surface3);padding:1px 5px;border-radius:4px;color:var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:10px 0 12px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0}
+.pill{font-size:12px;padding:3px 10px;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
+button{font-family:inherit;font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;transition:background .12s}
+button:hover{background:var(--surface2)}
+button.primary{background:rgba(76,201,240,.14);border-color:rgba(76,201,240,.5);color:var(--cyan)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px}
+.row{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:8px}
+.row:hover{background:var(--surface2)}
+.grip{cursor:grab;color:var(--faint);padding:0 1px;font-size:14px;flex:none;user-select:none;line-height:1}
+.grip:active{cursor:grabbing}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+select{font-family:inherit;font-size:12px;height:28px;padding:0 4px;flex:none;background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:6px;cursor:pointer}
+.name{font-weight:500;outline:none;border-radius:4px;padding:1px 4px;min-width:40px}
+.name:focus{background:var(--surface2);box-shadow:0 0 0 2px rgba(76,201,240,.5)}
+.route{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--faint);outline:none;padding:1px 4px;border-radius:4px}
+.route:focus{background:var(--surface2);color:var(--muted);box-shadow:0 0 0 2px rgba(76,201,240,.5)}
+.note{font-size:12px;color:var(--faint);margin-left:auto;text-align:right;padding-left:8px}
+.acts{margin-left:auto;display:flex;gap:1px;flex:none}
+.act{background:transparent;border:0;color:var(--faint);padding:2px 5px;font-size:14px;border-radius:5px}
+.act:hover{color:var(--text);background:var(--surface2)}
+.kids{margin-left:14px;border-left:1px solid var(--line);padding-left:6px}
+.row.dz-before{box-shadow:inset 0 2px 0 0 var(--cyan)}
+.row.dz-after{box-shadow:inset 0 -2px 0 0 var(--cyan)}
+.row.dz-inside{background:rgba(76,201,240,.12);box-shadow:inset 0 0 0 1px var(--cyan)}
+.foot{margin-top:22px;font-size:12px;color:var(--faint);line-height:1.8}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>2nd-Brain — 별자리 시스템 구조</h1>
+  <p class="sub">단일 비유는 <b>별자리</b> 하나. (하늘·땅·흙·동반자 같은 다른 비유는 폐기.) 7별 = 입력 도메인, 북극성 = 종합 출력.</p>
+
+  <h2>결정된 것 <span class="tag">3</span></h2>
+  <div class="grid three">
+    <div class="box k"><h3>① 입력 ↔ 출력 분리</h3><p class="mut"><b>7별 = 입력</b>(삶의 도메인 데이터를 넣는 곳). <b>북극성 = 출력</b>(7별을 종합해 보여줌). 별은 직접 넣고, 북극성은 받아 비춘다.</p></div>
+    <div class="box k"><h3>② 중심 = 북극성</h3><p class="mut">'Core'·'Soul Core' 안 씀. 중심 명칭은 북극성 하나로 통일.</p></div>
+    <div class="box d"><h3>③ 밝기 = DIKW 한 사다리</h3>
+      <div class="ladder">
+        <span class="rung"><b>L1</b> 꺼짐</span><span class="rung"><b>L2</b> Data</span><span class="rung"><b>L3</b> Information</span><span class="rung"><b>L4</b> Knowledge</span><span class="rung"><b>L5</b> Wisdom</span>
+      </div>
+      <p class="mut">별마다 숫자 하나 = "이 도메인의 앎이 어디까지 익었나." 모든 별이 켜지면 북극성이 더 밝아짐.</p></div>
+  </div>
+
+  <h2>한 장 — 입력 → 출력 <span class="tag">별자리</span></h2>
+  <div class="io">
+    <div class="io-in">
+      <span class="chip">커리어</span><span class="chip">재정</span><span class="chip">성장</span><span class="chip">관계</span><span class="chip">건강</span><span class="chip">오락</span><span class="chip">담아내기</span>
+    </div>
+    <div class="io-arrow">&#8594;</div>
+    <div class="io-out"><b>&#9733; 북극성</b><div class="io2"><b>7별 종합</b> = 실시간 페르소나 + 성향·강점 요약</div></div>
+  </div>
+  <p class="io-note"><b>세컨비</b>(AI 비서)가 7별·북극성을 전부 읽고 돕는다 + 바깥 트렌드를 제안으로 들여온다. <b>기초입력(철학·4W1H)</b>은 시작 seed — 나중에 AI가 종합해 채울 수 있다.</p>
+
+  <h2>7별 = 입력 도메인 <span class="tag">각 별: 입력 → 출력 + 리스트업</span></h2>
+  <div class="grid two">
+    <div class="box star"><h3>1. 커리어</h3><p class="mut"><b>입력</b> 진행중·완료 프로젝트, 이력, 업무 스타일 · <b>출력</b> 추천 목표·프로젝트, 업무 방식 조언</p></div>
+    <div class="box star"><h3>2. 재정 <span>수동입력 먼저</span></h3><p class="mut"><b>입력</b> 자산·자본·현금흐름, 재정 목표 (계좌·카드 연동은 후순위) · <b>출력</b> 가계부, 재정 트렌드, 목표 조언</p></div>
+    <div class="box star"><h3>3. 성장 <span>옛 '회상'</span></h3><p class="mut"><b>입력</b> 연령대별(유년기·10·20·30대) 패턴 deep drill · <b>출력</b> "그때의 나" 연령대별 요약</p></div>
+    <div class="box star"><h3>4. 관계 <span>제3자 주의</span></h3><p class="mut"><b>입력</b> 대상(가족·친구·동료)별 생각·지향, peer2peer · <b>출력</b> 관계 정리, 대상별 조언</p></div>
+    <div class="box star"><h3>5. 건강 <span>생활습관만</span></h3><p class="mut"><b>입력</b> 컨디션·생활습관 자기기록 (검진결과 의료 해석은 범위 밖) · <b>출력</b> 요약, 트렌드, 생활 조언</p></div>
+    <div class="box star"><h3>6. 오락</h3><p class="mut"><b>입력</b> 취미·경험 기록 · <b>출력</b> 취미 성장 조언, 취미 추천</p></div>
+    <div class="box star" style="grid-column:1/-1"><h3>7. 담아내기 <span>catch-all</span></h3><p class="mut"><b>입력</b> 6별이 못 담은 환경·기타 + 사용자가 계속 추가하는 메모·데이터 · <b>출력</b> 리스트업. (모든 입력은 편집 가능 + 카테고리·태그 — 종합의 '깊이'가 여기서 나옴.)</p></div>
+  </div>
+
+  <h2>북극성 = 출력 <span class="tag">종합</span></h2>
+  <div class="box c"><p class="mut" style="color:var(--text)">7별을 병렬로 종합해 <b>대표 실시간 페르소나(들)</b>을 만든다. 각 페르소나 요약 + 내 성향·장단점·강점에 집중하는 법·조언. 밝기 = 7별 종합. 바뀔 땐 <b>propose→ratify</b>(AI가 먼저 산출→합의→승인)로만 확정. 페르소나(여럿) = 메모의 '모자(역할)'.</p></div>
+
+  <h2>짚을 점 <span class="tag">설계 시</span></h2>
+  <div class="grid two">
+    <div class="box d"><h3>검증 깊이</h3><p class="mut">쉬운 삶 데이터로 받되, <b>북극성 종합이 검증된 틀로 근거를 대야</b> 그냥 '인생 대시보드'와 차별됨(C8 큐레이터). 차별점 = "삶 데이터 → 검증된 나의 초상".</p></div>
+    <div class="box d"><h3>건강 = 의료선</h3><p class="mut">검진결과 해석·의료성 조언은 우리가 피하는 범주. <b>생활습관·컨디션 자기기록</b>까지만.</p></div>
+    <div class="box d"><h3>관계 = 제3자</h3><p class="mut">실명 타인(가족·친구) 분석은 제3자 개인정보(PIPA). 범위·동의 설계 필요.</p></div>
+    <div class="box d"><h3>재정 = 연동 무게</h3><p class="mut">계좌·카드 연동 = 오픈뱅킹급 + 민감. 수동입력으로 시작, 연동은 한참 뒤.</p></div>
+  </div>
+
+  <div class="legend" style="margin-top:26px">
+    <span><i style="background:var(--keep)"></i>유지</span>
+    <span><i style="background:var(--dev)"></i>디벨롭 / 논의</span>
+    <span><i style="background:var(--rm)"></i>제거</span>
+    <span class="mut">· 손잡이(⠿) 끌어 재배치 · 이름·경로 클릭 편집</span>
+  </div>
+  <div class="bar" id="bar"></div>
+
+  <h2 style="margin-top:14px">세계관 요소</h2>
+  <div class="card" id="world"></div>
+
+  <h2>화면 링크 트리 <span class="tag">드래그 재배치</span></h2>
+  <div class="card" id="tree"></div>
+  <button class="act" data-act="addroot" style="margin-top:10px;color:var(--muted);font-size:13px;padding:6px 4px">+ 최상위 추가</button>
+
+  <p class="foot">⠿ 끌어 위/아래(형제)·안쪽(하위) 재배치 · <code>+</code> 하위 · <code>↑↓</code> 이동 · <code>✕</code> 삭제. 자동 저장. 다 보면 <b>JSON 복사</b> → 붙여넣기. (구조가 바뀌어 저장키 v4로 분리됨.)</p>
+</div>
+<script>
+(function(){
+var KEY='2ndb-system-checkup-v4';
+function uid(){return 'n'+Math.random().toString(36).slice(2,9);}
+function nn(){return {id:uid(),label:'새 항목',route:'',state:'develop',kids:[]};}
+function D(){return {
+ world:[
+  {id:uid(),label:'별자리 = 우리 단일 시스템 비유',note:'다른 비유 없음',state:'keep'},
+  {id:uid(),label:'북극성 = 7별 종합 출력 (실시간 페르소나)',note:'직접 입력 안 받음',state:'develop'},
+  {id:uid(),label:'북두칠성 7별 = 입력 도메인',note:'각 별: 입력→출력+리스트업',state:'keep',kids:[
+   {id:uid(),label:'1. 커리어',note:'프로젝트·이력→목표·조언',state:'keep'},
+   {id:uid(),label:'2. 재정',note:'수동입력 먼저, 연동 후순위',state:'develop'},
+   {id:uid(),label:'3. 성장 (연령대별 = 옛 회상)',note:'그때의 나 요약',state:'keep'},
+   {id:uid(),label:'4. 관계',note:'제3자(PIPA) 주의',state:'develop'},
+   {id:uid(),label:'5. 건강',note:'생활습관만 · 의료해석 제외',state:'develop'},
+   {id:uid(),label:'6. 오락',note:'취미 성장·추천',state:'keep'},
+   {id:uid(),label:'7. 담아내기 (catch-all + 계속 담기)',note:'7번째 별로 확정 · 동작 정의 필요',state:'develop'}
+  ]},
+  {id:uid(),label:'입력 리스트업 = 편집 가능 + 카테고리 + 태그',note:'RAG·종합의 바탕',state:'keep'},
+  {id:uid(),label:'밝기 = DIKW 한 사다리 (꺼짐·Data·Info·Knowledge·Wisdom)',note:'결정됨',state:'keep'},
+  {id:uid(),label:'propose → ratify (AI 산출→합의→승인)',note:'',state:'keep'},
+  {id:uid(),label:'기초입력 / 철학 (4W1H, 나중에 AI 종합 가능)',note:'시작 seed',state:'develop'},
+  {id:uid(),label:'세컨비 = 전체 읽는 AI 비서 + 트렌드 제안',note:'',state:'keep'},
+  {id:uid(),label:'검증된 자료로 종합 (큐레이터 C8 — 깊이는 여기)',note:'차별점',state:'develop'},
+  {id:uid(),label:'페르소나 = 역할/모자 (여럿)',note:'메모: 모자→페르소나',state:'develop'},
+  {id:uid(),label:'하늘·땅·흙·동반자 비유',note:'폐기 — 별자리로 통일',state:'remove'},
+  {id:uid(),label:'Soul Core 명칭 · 5 Pattern Core · 마을그래프 · core-brain · Brain Trinity · v3 tesseract',note:'폐기',state:'remove'}
+ ],
+ tree:[
+  {id:uid(),label:'별자리 홈',route:'/',state:'keep',kids:[
+   {id:uid(),label:'북극성 (출력: 종합 페르소나)',route:'(폴라리스 탭)',state:'develop',kids:[
+    {id:uid(),label:'실시간 페르소나(들)',route:'(역할/모자)',state:'develop',kids:[]},
+    {id:uid(),label:'종합 요약 (성향·장단점·강점·조언)',route:'(readout)',state:'develop',kids:[]},
+    {id:uid(),label:'기초입력 · 철학 (시작 seed)',route:'(4W1H)',state:'develop',kids:[]},
+    {id:uid(),label:'propose→ratify 검토',route:'(합의 후 승인)',state:'develop',kids:[]}
+   ]},
+   {id:uid(),label:'별1 커리어',route:'입력→출력',state:'keep',kids:[]},
+   {id:uid(),label:'별2 재정',route:'수동입력 먼저',state:'develop',kids:[]},
+   {id:uid(),label:'별3 성장 (연령대별)',route:'입력→출력',state:'keep',kids:[]},
+   {id:uid(),label:'별4 관계',route:'제3자 주의',state:'develop',kids:[]},
+   {id:uid(),label:'별5 건강',route:'생활습관만',state:'develop',kids:[]},
+   {id:uid(),label:'별6 오락',route:'입력→출력',state:'keep',kids:[]},
+   {id:uid(),label:'별7 담아내기',route:'catch-all',state:'develop',kids:[]},
+   {id:uid(),label:'세컨비 (AI 비서, 전체 읽기)',route:'/secondb',state:'keep',kids:[]},
+   {id:uid(),label:'제안 피드 (트렌드)',route:'(신규)',state:'develop',kids:[]},
+   {id:uid(),label:'설정',route:'/settings',state:'keep',kids:[]},
+   {id:uid(),label:'인증 / 온보딩',route:'(auth)/* · /onboarding',state:'keep',kids:[]}
+  ]},
+  {id:uid(),label:'마을 그래프',route:'/graph',state:'remove',kids:[]},
+  {id:uid(),label:'core-brain',route:'/core-brain',state:'remove',kids:[]},
+  {id:uid(),label:'Brain Trinity',route:'/trinity',state:'remove',kids:[]}
+ ]
+};}
+var M; try{var s=localStorage.getItem(KEY); M=s?JSON.parse(s):D();}catch(e){M=D();}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({world:M.world,tree:M.tree}));}catch(e){}}
+function esc(s){return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function col(st){return st==='keep'?'var(--keep)':st==='develop'?'var(--dev)':'var(--rm)';}
+function find(id){function w(a){for(var i=0;i<a.length;i++){var n=a[i];if(n.id===id)return{node:n,arr:a,idx:i};if(n.kids){var r=w(n.kids);if(r)return r;}}return null;}return w(M.world)||w(M.tree);}
+function contains(node,id){if(!node.kids)return false;for(var i=0;i<node.kids.length;i++){if(node.kids[i].id===id)return true;if(contains(node.kids[i],id))return true;}return false;}
+function walkAll(cb){function w(a){a.forEach(function(n){cb(n);if(n.kids)w(n.kids);});}w(M.world);w(M.tree);}
+function counts(){var k=0,d=0,r=0;walkAll(function(n){if(n.state==='keep')k++;else if(n.state==='develop')d++;else r++;});return{k:k,d:d,r:r};}
+function nodeHTML(n,ed){
+ var grip=ed?'<span class="grip" draggable="true" data-id="'+n.id+'" title="드래그로 이동">&#10303;</span>':'';
+ var sel='<select data-act="state" data-id="'+n.id+'">'+
+  '<option value="keep"'+(n.state==='keep'?' selected':'')+'>유지</option>'+
+  '<option value="develop"'+(n.state==='develop'?' selected':'')+'>디벨롭</option>'+
+  '<option value="remove"'+(n.state==='remove'?' selected':'')+'>제거</option></select>';
+ var name='<span class="name"'+(ed?' contenteditable="true" draggable="false"':'')+' data-field="label" data-id="'+n.id+'">'+esc(n.label)+'</span>';
+ var route=ed?'<span class="route" contenteditable="true" draggable="false" data-field="route" data-id="'+n.id+'">'+esc(n.route||'')+'</span>':'';
+ var note=(!ed&&n.note)?'<span class="note">'+esc(n.note)+'</span>':'';
+ var acts=ed?'<span class="acts">'+
+  '<button class="act" data-act="add" data-id="'+n.id+'" title="하위 추가" aria-label="하위 추가">+</button>'+
+  '<button class="act" data-act="up" data-id="'+n.id+'" title="위로" aria-label="위로">&#8593;</button>'+
+  '<button class="act" data-act="down" data-id="'+n.id+'" title="아래로" aria-label="아래로">&#8595;</button>'+
+  '<button class="act" data-act="del" data-id="'+n.id+'" title="삭제" aria-label="삭제">&#10005;</button></span>':'';
+ var kids=(n.kids&&n.kids.length)?'<div class="kids">'+n.kids.map(function(c){return nodeHTML(c,ed);}).join('')+'</div>':'';
+ return '<div class="row" data-id="'+n.id+'">'+grip+'<span class="dot" style="background:'+col(n.state)+'"></span>'+sel+name+route+note+acts+'</div>'+kids;
+}
+function renderBar(){var c=counts();
+ document.getElementById('bar').innerHTML=
+  '<span class="pill" style="color:var(--keep)">유지 '+c.k+'</span>'+
+  '<span class="pill" style="color:var(--dev)">디벨롭 '+c.d+'</span>'+
+  '<span class="pill" style="color:var(--rm)">제거 '+c.r+'</span>'+
+  '<span style="flex:1"></span>'+
+  '<button class="primary" data-act="copy">JSON 복사</button>'+
+  '<button data-act="download">JSON 다운로드</button>'+
+  '<button data-act="reset">초기화</button>';
+}
+function render(){renderBar();
+ document.getElementById('world').innerHTML=M.world.map(function(n){return nodeHTML(n,false);}).join('');
+ document.getElementById('tree').innerHTML=M.tree.map(function(n){return nodeHTML(n,true);}).join('');
+}
+function cw(n){var o={label:n.label,state:n.state};if(n.route)o.route=n.route;if(n.note)o.note=n.note;if(n.kids&&n.kids.length)o.links=n.kids.map(cw);return o;}
+function payload(){return {worldview:M.world.map(cw),screenTree:M.tree.map(cw)};}
+function flash(m){var b=document.querySelector('[data-act="copy"]');if(b){var o=b.textContent;b.textContent=m;setTimeout(function(){b.textContent=o;},1200);}}
+function doCopy(){var t=JSON.stringify(payload(),null,2);
+ if(navigator.clipboard){navigator.clipboard.writeText(t).then(function(){flash('복사됨');}).catch(function(){flash('복사 실패');});}
+ else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');flash('복사됨');}catch(e){}document.body.removeChild(ta);}}
+function doDownload(){var t=JSON.stringify(payload(),null,2);var blob=new Blob([t],{type:'application/json'});var u=URL.createObjectURL(blob);
+ var a=document.createElement('a');a.href=u;a.download='2ndb-system-checkup.json';document.body.appendChild(a);a.click();document.body.removeChild(a);
+ setTimeout(function(){URL.revokeObjectURL(u);},1000);}
+var page=document.querySelector('.page');
+page.addEventListener('click',function(e){
+ var b=e.target.closest('[data-act]');if(!b)return;var act=b.dataset.act,id=b.dataset.id;
+ if(act==='state')return;
+ if(act==='copy')return doCopy();
+ if(act==='download')return doDownload();
+ if(act==='reset'){if(confirm('기본값으로 초기화할까요? 수정 내용이 사라집니다.')){try{localStorage.removeItem(KEY);}catch(e){}M=D();save();render();}return;}
+ if(act==='addroot'){M.tree.push(nn());save();render();return;}
+ if(!id)return;var f=find(id);if(!f)return;
+ if(act==='add'){if(!f.node.kids)f.node.kids=[];f.node.kids.push(nn());save();render();}
+ else if(act==='del'){if(confirm('이 항목과 하위를 삭제할까요?')){f.arr.splice(f.idx,1);save();render();}}
+ else if(act==='up'){if(f.idx>0){var a=f.arr,t=a[f.idx-1];a[f.idx-1]=a[f.idx];a[f.idx]=t;save();render();}}
+ else if(act==='down'){if(f.idx<f.arr.length-1){var a2=f.arr,t2=a2[f.idx+1];a2[f.idx+1]=a2[f.idx];a2[f.idx]=t2;save();render();}}
+});
+page.addEventListener('change',function(e){var s=e.target.closest('[data-act="state"]');if(!s)return;var f=find(s.dataset.id);if(f){f.node.state=s.value;save();render();}});
+page.addEventListener('input',function(e){var el=e.target.closest('[data-field]');if(!el)return;var f=find(el.dataset.id);if(f){f.node[el.dataset.field]=el.textContent;save();}});
+function moveNode(src,dst,zone){
+ if(src===dst)return;var sf=find(src);if(!sf)return;if(contains(sf.node,dst))return;
+ var node=sf.arr.splice(sf.idx,1)[0];var df=find(dst);
+ if(!df){M.tree.push(node);save();render();return;}
+ if(zone==='inside'){if(!df.node.kids)df.node.kids=[];df.node.kids.push(node);}
+ else{df.arr.splice(df.idx+(zone==='after'?1:0),0,node);}
+ save();render();
+}
+function clearDz(){var r=document.querySelectorAll('.row');for(var i=0;i<r.length;i++){r[i].classList.remove('dz-before','dz-after','dz-inside');}}
+var treeEl=document.getElementById('tree');var dragId=null;
+treeEl.addEventListener('dragstart',function(e){var g=e.target.closest('.grip');if(!g)return;dragId=g.dataset.id;e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',dragId);}catch(x){}});
+treeEl.addEventListener('dragover',function(e){var row=e.target.closest('.row');if(!row||!dragId)return;e.preventDefault();e.dataTransfer.dropEffect='move';var r=row.getBoundingClientRect();var p=(e.clientY-r.top)/r.height;var z=p<0.3?'before':p>0.7?'after':'inside';clearDz();row.classList.add('dz-'+z);row.dataset.dz=z;});
+treeEl.addEventListener('drop',function(e){var row=e.target.closest('.row');if(!row||!dragId)return;e.preventDefault();var z=row.dataset.dz||'inside';var dst=row.dataset.id;var s=dragId;dragId=null;clearDz();moveNode(s,dst,z);});
+treeEl.addEventListener('dragend',function(){dragId=null;clearDz();});
+render();
+})();
+</script>
+</body>
+</html>
