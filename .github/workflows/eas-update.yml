@@ -1,0 +1,77 @@
+name: EAS Update (OTA)
+
+# Ships JS/asset-only changes over-the-air to already-installed builds via
+# EAS Update. An installed build that EMBEDS expo-updates (PR #580,
+# runtimeVersion policy = appVersion) is required for an update to reach a
+# device — OTA only carries the JS bundle + assets, never native code.
+#
+# Reaches a device only when ALL of these match the installed build:
+#   - channel        : "preview" (the internal preview APK on the test phone)
+#   - runtimeVersion : app.json `version` (currently 0.0.5). Bumping the version
+#                      starts a NEW runtime — old installs stop receiving OTA and
+#                      need a fresh build (android-release.yml / EAS Build).
+#
+# Native changes (new npm packages, app.json native config, plugins, icons)
+# are NOT deliverable over-the-air — rebuild instead.
+#
+# Setup (one-time): add repo secret EXPO_TOKEN
+#   Settings → Secrets and variables → Actions → New repository secret
+#   Name: EXPO_TOKEN   Value: an Expo access token (expo.dev → Account → Access tokens)
+# Until the secret exists, this job logs a warning and no-ops (no red X).
+
+on:
+  push:
+    branches:
+      - main
+    # Only JS/asset-relevant paths trigger an OTA. Docs-only merges are skipped.
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "app.json"
+      - "App.tsx"
+      - "index.js"
+      - "babel.config.js"
+      - "metro.config.js"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "EAS Update channel to publish to"
+        required: false
+        default: "preview"
+
+concurrency:
+  group: eas-update-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Publish OTA update (EAS Update)
+        env:
+          # eas-cli authenticates non-interactively from EXPO_TOKEN.
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::warning::EXPO_TOKEN secret not set — skipping OTA publish. Add it in Settings → Secrets and variables → Actions to enable auto-updates."
+            exit 0
+          fi
+          CHANNEL="${{ github.event.inputs.channel || 'preview' }}"
+          MESSAGE="$(git log -1 --pretty=%s)"
+          echo "Publishing OTA to channel '$CHANNEL' — \"$MESSAGE\""
+          npx eas-cli update --channel "$CHANNEL" --message "$MESSAGE" --non-interactive
