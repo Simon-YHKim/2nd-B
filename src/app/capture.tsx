@@ -83,6 +83,7 @@ import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
 import { consumeSharedIntoDrafts, normalizeSharedCaptureParams } from "@/lib/capture/share-params";
 import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
+import { reactExpression } from "@/lib/companion/expression";
 import { AdvisorFollowupNote } from "@/components/records/AdvisorFollowupNote";
 import { createRecord } from "@/lib/records/create";
 import type { RecordFollowup } from "@/lib/records/followup";
@@ -956,6 +957,7 @@ function CaptureLegacy() {
           if (typeof console !== "undefined") console.warn("[capture] streak refresh failed", (e as Error).message);
         });
     } catch (e) {
+      reactExpression("negative");
       if (typeof console !== "undefined") console.warn("[capture] journal save failed", (e as Error).message);
       showFeedback(
         t("alerts.journalSave.title"),
@@ -997,6 +999,7 @@ function CaptureLegacy() {
       const savedBody = body.trim();
       reset();
       companion.fire("captureSaved");
+      reactExpression("positive");
       setSavedTitle(savedBody.length > 0 ? savedBody : t("savedTitleFallback"));
       setSavedKind("records");
       setSavedMode(noteMode);
@@ -1019,6 +1022,7 @@ function CaptureLegacy() {
           if (typeof console !== "undefined") console.warn("[capture] recent refresh failed", (e as Error).message);
         });
     } catch (e) {
+      reactExpression("negative");
       if (typeof console !== "undefined") console.warn("[capture] note-like save failed", (e as Error).message);
       showFeedback(
         t("alerts.pieceSave.title"),
@@ -1207,6 +1211,7 @@ function CaptureLegacy() {
       clearModeDraft(submittedMode);
       // 루루 carries the shard home; an imported link gets the "success" beat.
       companion.fire(isBareLink ? "linkImported" : "captureSaved");
+      reactExpression("positive");
       // Inline success panel (journal-capture pack §3/§7) replaces the alert.
       setSavedTitle(result.source.title);
       setSavedKind("source");
@@ -1222,6 +1227,7 @@ function CaptureLegacy() {
       }
     } catch (e) {
       if (isAbortError(e) || !submitIsCurrent(submitController)) return;
+      reactExpression("negative");
       if (typeof console !== "undefined") console.warn("[capture] capture save failed", (e as Error).message);
       showFeedback(
         t("alerts.pieceSave.title"),

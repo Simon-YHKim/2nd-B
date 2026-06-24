@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
 import { dismissTask, useTaskStatus } from "@/lib/tasks/store";
+import { reactExpression } from "@/lib/companion/expression";
 
 const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
 
@@ -28,6 +29,8 @@ export function CompletionToast() {
       drop.setValue(0);
       return;
     }
+    // A finished task is a happy beat — the persistent SecondB head smiles too.
+    reactExpression("positive");
     Animated.timing(drop, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [visible, drop]);
 

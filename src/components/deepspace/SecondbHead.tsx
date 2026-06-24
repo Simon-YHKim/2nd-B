@@ -24,6 +24,7 @@ import Svg, { Path } from "react-native-svg";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
+import { subscribeExpression } from "@/lib/companion/expression";
 import { useSecondbTracking } from "./SecondbHeadTrack";
 
 export type SecondbMood = "positive" | "neutral" | "negative";
@@ -70,6 +71,23 @@ export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityL
   const reduce = useReducedMotionPref();
   const bob = useRef(new Animated.Value(0)).current;
   const blink = useRef(new Animated.Value(1)).current; // 1 = eyes open, ~0.08 = shut
+
+  // Momentary reaction to user actions (save -> smile, error -> concern). Overrides
+  // the base mood for a beat, then reverts. `effMood` drives every face shape below.
+  const [reactMood, setReactMood] = useState<SecondbMood | null>(null);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const off = subscribeExpression((m, dur) => {
+      setReactMood(m);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setReactMood(null), dur);
+    });
+    return () => {
+      off();
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+  const effMood = reactMood ?? mood;
 
   const tracking = useSecondbTracking();
   // Auto by size when `track` is omitted: big heads follow touch, small heads don't.
@@ -190,7 +208,7 @@ export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityL
   const faceW = size * 0.47;
   const faceH = size * 0.235;
   const eyeW = Math.max(3, size * 0.063);
-  const eyeMood = EYE_BY_MOOD[mood];
+  const eyeMood = EYE_BY_MOOD[effMood];
   const eyeH = Math.max(4, size * 0.101) * eyeMood.hFactor;
   const eyePupil = eyeW * 0.6;
   const mouthW = Math.max(8, size * 0.12);
@@ -257,7 +275,7 @@ export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityL
           >
             <Svg width={mouthW} height={mouthBoxH}>
               <Path
-                d={mouthPath(mood, mouthW, mouthBoxH)}
+                d={mouthPath(effMood, mouthW, mouthBoxH)}
                 stroke={deepSpace.text}
                 strokeWidth={mouthStroke}
                 strokeLinecap="round"

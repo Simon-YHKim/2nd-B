@@ -31,6 +31,12 @@ describe("SecondB head canon", () => {
     expect(canonHead).toMatch(/negative/);
   });
 
+  test("reacts to user actions: subscribes to the expression emitter", () => {
+    expect(canonHead).toMatch(/subscribeExpression/);
+    // The reaction overrides the base mood (effMood), then reverts.
+    expect(canonHead).toMatch(/effMood/);
+  });
+
   test("has no floating mood orb above the head", () => {
     expect(canonHead).not.toMatch(/styles\.orb/);
     expect(canonHead).not.toMatch(/orbStyle|moodColor|MOOD_COLOR/);
