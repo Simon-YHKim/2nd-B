@@ -32,6 +32,81 @@
 
 ---
 
+## 프롬프트 0 — 한방(올인원) 키 발급 · chrome-use
+
+> 필요한 무료 API(Kakao·Naver·FX·식약처) + 소셜 로그인 콘솔 설정을 한 번에. 그대로 붙여넣는다.
+
+```
+너는 chrome-use 가능한 Claude Cowork다. 2nd-Brain(repo Simon-YHKim/2nd-B)에 필요한 외부 API 키와
+콘솔 설정을 아래 순서대로 한 번에 처리하라. 각 단계 끝에 무엇을 어디에 저장했는지 메모하고, 맨 끝에
+통합 보고하라.
+
+[보안 가드레일 — 예외 없음]
+- API 키/시크릿을 채팅 출력·스크린샷·git 커밋 금지. 화면 값을 읽어 옮기지 말고 콘솔↔저장소로 직접
+  복사하고 "저장됨"만 보고.
+- 진짜 시크릿은 EXPO_PUBLIC_*/GitHub "Variables"에 절대 금지(웹 번들 노출). 공개 식별자만 Variables.
+- 돈 나가는 행동(계정비·결제·충전) 직전 멈추고 사용자 확인. 결제/은행 입력 화면은 사용자에게 넘김.
+- 의료성 API는 발급하지 마라(범위 밖). Places는 "기관 길안내" 비임상 용도만.
+
+[고정값]
+- repo: Simon-YHKim/2nd-B · 배포 origin: https://simon-yhkim.github.io/2nd-B
+- Supabase project ref: zoacryukmdeivmolvyhj (사용자에게 확인)
+- OAuth redirect: https://simon-yhkim.github.io/2nd-B/oauth-callback
+- 저장소 2곳: (가) Supabase → Edge Functions → Secrets [서버 시크릿]
+              (나) GitHub → Settings → Secrets and variables → Actions [Variables=공개 / Secrets=비밀]
+
+1. Kakao Developers (https://developers.kakao.com) — 로그인 1회로 둘 다
+   a) 앱 생성/재사용 "2nd-Brain". 플랫폼에 배포 origin, Redirect URI에 위 redirect 추가.
+   b) [로그인] 카카오 로그인 활성화 → client id + Client Secret 발급
+      → Supabase Auth → Providers → Kakao "Enable" + id/secret 콘솔 직접 입력.
+   c) [Places] 같은 REST API 키로 Local(키워드 장소검색) 사용 설정
+      → Supabase Secrets에 KAKAO_REST_API_KEY 저장.
+      (참고: GET https://dapi.kakao.com/v2/local/search/keyword.json, Authorization: KakaoAK {KEY})
+
+2. Naver Developers (https://developers.naver.com) — 로그인 1회로 둘 다
+   a) 앱 등록/재사용. 사용 API에 "네이버 로그인" + "검색" 둘 다 추가. Callback = 위 redirect.
+   b) [로그인] Client ID/Secret → 공개 ID는 GitHub Variables EXPO_PUBLIC_NAVER_CLIENT_ID,
+      Secret은 Supabase Secrets NAVER_OAUTH_CLIENT_SECRET.
+   c) [지역검색] → Supabase Secrets NAVER_SEARCH_CLIENT_ID / NAVER_SEARCH_CLIENT_SECRET.
+      (참고: GET https://openapi.naver.com/v1/search/local.json, X-Naver-Client-Id/Secret, 최대 5건)
+
+3. 한국수출입은행 FX (https://www.koreaexim.go.kr 오픈API)
+   a) "현재환율 OpenAPI" authkey 발급(무료).
+   b) 표본 https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey={KEY}&data=AP01
+      → result:1 행 보이면 OK(주말/신규키 빈배열 가능, 구조만 확인).
+   c) 읽기전용 공개데이터 키 → GitHub Variables EXPO_PUBLIC_EXIM_FX_KEY.
+
+4. 식약처 식품영양 (https://www.data.go.kr)
+   a) 로그인/가입 → "식품의약품안전처_식품영양성분DB정보"(I2790) 활용신청(무료·자동승인).
+   b) 표본 https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo01/getFoodNtrCpntDbInq01?serviceKey={KEY}&type=json&FOOD_NM_KR=사과
+      → 음식 행 오면 OK(활성화 수십분~수시간 가능).
+   c) GitHub Variables EXPO_PUBLIC_MFDS_FOOD_KEY = {Decoding 서비스키}. (Encoding/Decoding 2개 중
+      보통 Decoding, 안되면 반대.)
+
+5. (선택) Expo 빌드 토큰 (https://expo.dev)
+   a) 로그인 → Account → Access Tokens → 토큰 "2ndb-ci" 생성.
+   b) 진짜 시크릿 → GitHub → Actions → "Secrets"(Variables 아님)에 EXPO_TOKEN 저장.
+
+6. 토글 (콘솔 enable 된 것만!)
+   - Kakao는 1-b에서 Supabase enable 했으니 GitHub Variables EXPO_PUBLIC_ENABLE_KAKAO=true.
+   - ⚠️ Naver는 엣지 함수 배포(Claude Code 작업) 전엔 EXPO_PUBLIC_ENABLE_NAVER 켜지 마라
+     (과거: 콘솔 미완 + 토글 ON → 사용자 raw JSON 에러). 키만 저장, 토글 OFF 유지.
+
+[통합 보고] (키 값 금지)
+- 저장한 Supabase Secrets 이름: KAKAO_REST_API_KEY / NAVER_OAUTH_CLIENT_SECRET /
+  NAVER_SEARCH_CLIENT_ID / NAVER_SEARCH_CLIENT_SECRET
+- 저장한 GitHub Variables: EXPO_PUBLIC_NAVER_CLIENT_ID / EXPO_PUBLIC_EXIM_FX_KEY /
+  EXPO_PUBLIC_MFDS_FOOD_KEY / EXPO_PUBLIC_ENABLE_KAKAO(=true) · GitHub Secrets: EXPO_TOKEN
+- Supabase에서 enable한 provider: Kakao(예/아니오)
+- 표본 호출 결과: Kakao Local / Naver Local / FX / 식약처 (성공/빈배열/오류)
+- 남은 일(코드 = Claude Code): places-search 엣지 함수, oauth-naver 배포+ENABLE_NAVER 토글,
+  FX/식약처 edge proxy 하드닝.
+
+막히면(콘솔 UI 변경, 승인 지연, 비용 화면) 멈추고 그 지점만 사용자에게 보고하라.
+```
+
+---
+
 ## 프롬프트 1 — Anthropic Console (Claude reasoning provider) · chrome-use
 
 > 가장 먼저 권장. 위험 낮고, "깊이 묻기" 추론 백엔드를 Claude로 켤 수 있게 한다.
@@ -176,6 +251,101 @@ docs/ANDROID-BUILD.md.
 
 ---
 
+## 프롬프트 6 — Kakao/Naver Local(Places) · 건강 별 병원 안내 · chrome-use
+
+> 별자리 §3 결정(KR-first). OAuth와 같은 콘솔이라 프롬프트 5와 한 방문에 묶어도 된다.
+
+```
+너는 chrome-use 가능한 Claude Cowork다. 2nd-Brain "건강" 도메인에서 가까운 전문가/기관을
+안내(지도 검색)하는 데 쓸 Kakao Local + Naver 지역검색 API 키를 발급하라. 공통 가드레일을 따른다.
+
+성격(중요): 이건 의료 자문이 아니라 "가까운 기관 길안내" 비임상 기능이다. 검진결과 해석·의료성
+기능이 아니라 장소(지도) 검색 API만 발급한다. 앱이 코드로 비임상 프레이밍을 강제한다.
+
+이 키들은 전부 서버 사이드 시크릿이다 — EXPO_PUBLIC_* 절대 금지. 추후 만들 Supabase 엣지 함수
+(places-search)가 사용한다. 값을 채팅/스크린샷/커밋에 남기지 말고 콘솔에서 직접 복사해 Supabase
+Edge Function Secret 에 붙여넣고 "저장됨"만 보고하라.
+
+A) Kakao Local (키워드 장소 검색)
+1. https://developers.kakao.com 로그인. (프롬프트 5의 "2nd-Brain" 앱 있으면 재사용.)
+2. 내 애플리케이션 → 앱 키 → "REST API 키" 확인(KakaoAK 인증용, 시크릿 취급). 필요 시 제품 설정에서
+   카카오맵/Local 활성화.
+   (엔드포인트: GET https://dapi.kakao.com/v2/local/search/keyword.json, 헤더
+    Authorization: KakaoAK {REST_API_KEY})
+3. Supabase → Edge Functions → Secrets → `KAKAO_REST_API_KEY` 저장. 값 출력 금지.
+
+B) Naver 지역검색 (검색 API · Local)
+1. https://developers.naver.com → Application 등록(또는 기존 재사용) → 사용 API에 "검색" 추가.
+   (엔드포인트: GET https://openapi.naver.com/v1/search/local.json, 헤더 X-Naver-Client-Id /
+    X-Naver-Client-Secret. 결과 최대 5건.)
+2. Client ID / Client Secret 수집. ⚠️ 네이버 "로그인"용 키와 별개다(혼동 금지).
+3. Supabase Edge Function Secrets → `NAVER_SEARCH_CLIENT_ID` / `NAVER_SEARCH_CLIENT_SECRET` 저장.
+
+보고(이것만): 발급/활성화 항목, 저장한 시크릿 이름 3개. 남은 일 = "Claude Code가 places-search
+엣지 함수로 비임상 기관 안내 + propose→ratify 연결"(코드 작업, 너는 하지 마라).
+
+주의: 두 키 모두 EXPO_PUBLIC_*/GitHub Variables/코드/채팅에 넣지 마라(클라이언트 유출). 검진결과
+해석·의료성 API는 발급하지 마라(범위 밖).
+```
+
+---
+
+## 프롬프트 7 — 한국수출입은행 OpenAPI (재정 환율 FX) · chrome-use
+
+```
+너는 chrome-use 가능한 Claude Cowork다. 2nd-Brain "재정" 도메인의 환율 변환(FX)에 쓸
+한국수출입은행 OpenAPI 무료 인증키를 발급하라. 공통 가드레일을 따른다.
+
+배경: 재정 가계부(ledger)는 수동·KRW로 이미 동작한다. 이 키는 다통화 항목을 KRW로 환산하는
+"선택 보강"이다. 코드(src/lib/finance/fx.ts)는 구현 완료, 키 없으면 KRW-only로 degrade한다.
+
+단계:
+1. https://www.koreaexim.go.kr 의 오픈API 안내에서 "현재환율 OpenAPI" 인증키(authkey)를 발급
+   (무료, 회원가입 필요시 진행).
+2. 표본 호출로 동작 확인:
+   https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey={KEY}&data=AP01
+   → JSON 배열에 result:1 행(cur_unit / deal_bas_r)이 보이면 OK.
+   (신규 키는 활성화에 시간이 걸리거나 영업시간/주말엔 빈 배열이 올 수 있음 — 구조만 확인.)
+3. 저장: 읽기전용 공개데이터 키(저민감)다. 코드가 process.env.EXPO_PUBLIC_EXIM_FX_KEY 로 읽으므로
+   GitHub repo Variables(Settings → Secrets and variables → Actions → Variables)에
+   `EXPO_PUBLIC_EXIM_FX_KEY` = {KEY} 로 저장. (값을 채팅에 출력 말고 콘솔↔GitHub 직접 복사.)
+4. 보고: 발급/표본호출 결과(성공/빈배열/오류), 저장한 변수명. 남은 일 = "Claude Code가 운영용
+   thin edge proxy로 키 번들 노출 제거(하드닝)"(코드 작업).
+
+주의: 진짜 시크릿은 아니지만(공개 FX 데이터) 값을 채팅/커밋/스크린샷에 남기지 마라.
+```
+
+---
+
+## 프롬프트 8 — 식약처 식품영양 OpenAPI (건강·식단 참조) · chrome-use
+
+```
+너는 chrome-use 가능한 Claude Cowork다. 2nd-Brain "건강·식단" 기능의 영양 성분 참조에 쓸
+식약처 식품영양성분DB(data.go.kr) 무료 서비스키를 발급하라. 공통 가드레일을 따른다.
+
+성격(중요): 이건 의료성 조언이 아니라 "아이디어에 kcal/매크로 참조를 붙이는" 비임상 참조
+데이터다. 코드(src/lib/nutrition/foods.ts)는 구현 완료, 키 없으면 idea-only로 degrade한다.
+
+단계:
+1. https://www.data.go.kr 로그인/가입(무료).
+2. "식품의약품안전처_식품영양성분DB정보"(FoodNtrCpntDbInfo01 / I2790) 검색 → "활용신청"
+   (무료, 보통 자동승인). data.go.kr 마이페이지에서 인증키(서비스키) 확인.
+3. 표본 호출로 확인:
+   https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo01/getFoodNtrCpntDbInq01?serviceKey={KEY}&type=json&FOOD_NM_KR=사과
+   → 음식 행(FOOD_NM_KR / kcal 등)이 오면 OK. (신규 키 활성화에 수십 분~수시간 — 빈 결과면 잠시
+    후 재시도.)
+4. 저장: 코드가 process.env.EXPO_PUBLIC_MFDS_FOOD_KEY 로 읽으므로 GitHub repo Variables에
+   `EXPO_PUBLIC_MFDS_FOOD_KEY` = {Decoding 서비스키} 로 저장.
+   ⚠️ data.go.kr은 Encoding/Decoding 키 2개를 준다 — 쿼리에 직접 넣는 fetch라 보통 Decoding 키.
+   안 되면 반대 키로 재시도.
+5. 보고: 활용신청 승인 여부, 표본호출 결과, 저장한 변수명. 남은 일 = "Claude Code가 운영 하드닝
+   + 식단 surface 비임상 프레이밍 확인"(코드 작업).
+
+주의: 영양 수치는 참조용일 뿐, 의료성·처방성 표현 금지(어휘 정책). 키 값은 채팅/커밋에 남기지 마라.
+```
+
+---
+
 ## 우선순위 & 의존도
 
 | 순서 | 프롬프트 | 위험/비용 | 차단 해제 |
@@ -185,6 +355,9 @@ docs/ANDROID-BUILD.md.
 | 3 | Android 빌드 | 낮음(Expo 무료 빌드) | 실기기 QA |
 | 4 | RevenueCat + 스토어 | **높음**(개발자 계정비) | 실결제 |
 | 5 | 소셜 로그인 | 없음 | 가입 전환 |
+| 6 | Kakao/Naver Local(병원) | 없음 | 건강 별 기관 안내 |
+| 7 | 수출입은행 FX | 없음 | 재정 다통화 환산 |
+| 8 | 식약처 영양 | 없음 | 건강·식단 영양 참조 |
 
 각 셋업 완료 후, 남는 코드 연결(claude-proxy / AdMob SDK / revenuecat-webhook)은 Claude Code 가
 seam 에 맞춰 마무리한다.
