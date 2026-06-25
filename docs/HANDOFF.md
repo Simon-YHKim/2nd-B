@@ -3,6 +3,64 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-06-26 / 별자리 키스톤 lib 체인 완성 + proto rev2 감사 (PR #586 docs · #587 keystone, 둘 다 draft)
+
+### 어디까지 왔나
+- main HEAD: `37d63ac7` (이번 세션 산출은 두 draft PR에, 아직 main 미머지)
+- 이번 세션 머지된 기능 PR: 없음. 산출 = **PR #586**(docs 정본화) + **PR #587**(키스톤 lib).
+- 테스트: 키스톤 ~30 신규 테스트 green · tsc 클린 · lexicon green · 기존 65 LLM 테스트 green.
+- working tree: clean (이전 세션 untracked WIP 잔존, 손대지 않음).
+
+### 핵심 결과
+1. **docs 정본화 (PR #586, branch `claude/constellation-prd-v3-canonize`)**: PRD→Draft v3(별자리 3-레이어), `CONSTELLATION-DESIGN.md`(설계 + 10-에이전트 차용 감사), CONCEPT/VISION/CLAUDE(Visual Tier) 정렬, CANONIZATION-REPORT.html, COWORK-PROMPTS.md(올인원 + Kakao/Naver Places + 수출입은행 FX + 식약처). §7/§13 결정 a~j CONFIRMED.
+2. **키스톤 lib 체인 완성 (PR #587, branch `claude/constellation-keystone`)** — 순수·additive·~30 테스트:
+   `domain-stars.ts`(DOMAIN_STARS 7 + DomainEntry) · `domain-confidence.ts`(domainConfidence/domainLevel — brightness.ts 체인 무수정 재사용) · `north-star.ts`(domainStarLevels + northStarBrightness, soulCoreBrightness 동일공식 교차검증) · `persona-synthesis.ts`(layer-C 하네스: persona_synthesis purpose + 스키마 + 근거강제 파서 + cap 3).
+3. **Proto rev2 감사** (디자인 = Claude Design): zip `C:\Users\Soha.Bae\Downloads\2ndB-proto-rev2\`(37 PNG + 스펙). 디자이너가 PRD v3 잘 내재화(3-레이어·밝기정직성·propose→ratify·데이터주권·IDEN). **ship-blocker 3**: 비준 안 된 layer-B가 37-widget/27-inbox로 샘 · 31-callrec 음성 purge+C9 미확인 · 33-plans 가격 ₩6,900/12,900 vs PRD §13 ₩4,900/9,900/19,900. ⚠️ claude_design MCP(DesignSync) 있으나 `/design-login`이 이 env에 없어 인증 불가 → zip으로 작업.
+
+### 활성 인프라
+- Supabase project ref `zoacryukmdeivmolvyhj` (14-17 자가동의 prod LIVE, 0028-0033). Gemini 라이브(gemini-proxy edge fn). i18n 5로케일 패리티(C7 PASS). 키스톤·정본화 코드는 main 미머지(두 draft PR).
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **홈(05) 이관 — "담기→도메인 태깅부터"** | medium | ⭐ records가 도메인 slug 획득(`detect.ts`+캡처). 이게 먼저여야 홈이 의미. 그 다음 `load-domain-levels.ts`(load-star-levels 미러) → `ConstellationHome` STARS relabel(키스톤 위) |
+| B | 감사 Code P0 | medium | 비준-전-표시 강제(push/widget = layer-A/C만) · `domainConfidence` "비준 커버리지만" 정련 · callrec STT purge+C9 |
+| C | PR #586 / #587 머지 | small | CI green 확인 후 (docs + lib) |
+| D | 가격 확정(Simon) → PRD §13·디자인·`pricing.ts` 정렬 | small | Simon 결정 대기 |
+
+### 적용 중인 정책 (영구)
+1. main 직접 push 금지(항상 PR) · push 전 `npm run verify`(docs-only면 `check:lexicon`) · CI green 시 머지 · `npm ci --legacy-peer-deps`.
+2. 별자리 3-레이어 정본(PRD v3). 비유는 별자리 하나만. 밝기 정직성(별빛=커버리지 ≠ 확신). 자기모델 변경은 propose→ratify.
+3. 키스톤은 순수·additive·TDD — 기존 모듈 무수정(회귀 0).
+4. ⚠️ `check:constraints` WorldviewConceptCoherence가 아직 구 워crldview(Lumina/Soul/Pattern) 검증 — VISION 색/마스코트맵을 legacy로 남겨둠. Phase 4서 그 제약도 갱신.
+
+### 핵심 파일 위치
+```
+src/lib/persona/domain-stars.ts                 레이어 A: DOMAIN_STARS 7 + DomainEntry
+src/lib/persona/domain-confidence.ts            키스톤 어댑터: domainConfidence/domainLevel
+src/lib/persona/north-star.ts                   레이어 C: domainStarLevels + northStarBrightness
+src/lib/persona/persona-synthesis.ts            레이어 C 하네스: persona_synthesis
+src/components/deep-space/ConstellationHome.tsx 홈 렌더 (STARS L19-27 구별 = relabel 대상)
+src/components/deep-space/DeepSpaceShell.tsx     홈 로더 (load-star-levels → load-domain-levels 스왑)
+src/lib/persona/load-star-levels.ts             미러 대상 (→ load-domain-levels.ts 신규)
+docs/PRD.md (v3) · docs/CONSTELLATION-DESIGN.md  개념 SoT
+C:\Users\Soha.Bae\Downloads\2ndB-proto-rev2\    디자인 rev2 (37 PNG + 스펙)
+```
+
+### 검증
+```bash
+npm run verify   # lint+type+i18n+lexicon+constraints+jest
+npx jest src/lib/persona/__tests__/domain-stars.test.ts src/lib/persona/__tests__/domain-confidence.test.ts src/lib/persona/__tests__/north-star.test.ts src/lib/persona/__tests__/persona-synthesis.test.ts
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A 작업: 홈 이관 — "담기→도메인 태깅부터" (PR #587 키스톤 브랜치 위에서)
+```
+
+---
+
 ## Latest — 2026-06-25 / 개념 재설계: core 폐기 → 별자리(7 삶-도메인 별 → 북극성 페르소나) + 5-Phase 계획 (실행 전)
 
 > ⚠️ 이번 세션은 **전부 개념·계획** (코드 변경·기능 PR 0). 다음 세션은 사용자 지시대로
