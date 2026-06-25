@@ -56,6 +56,30 @@ export function isDomainId(value: string): value is DomainId {
   return Object.prototype.hasOwnProperty.call(DOMAIN_BY_ID, value);
 }
 
+// The reserved tag namespace that carries a record's domain slug in the shared
+// records.tags[] column (the no-migration tag convention, PRD §15 M-migrate).
+// It is an INTERNAL classification tag, orthogonal to user content tags: any
+// consumer that keyword-classifies or DISPLAYS tags must ignore it (legacy graph
+// village routing, wiki export, interest trends, tag chips) so the new layer-A
+// namespace never pollutes the legacy taxonomy or leaks into user-facing copy.
+export const DOMAIN_TAG_PREFIX = "domain:";
+
+/** The canonical tag string for a domain (what capture writes + /records?tags= matches). */
+export function domainTagFor(id: DomainId): string {
+  return `${DOMAIN_TAG_PREFIX}${id}`;
+}
+
+/** True for a reserved domain: tag (case-insensitive). */
+export function isDomainTag(tag: string): boolean {
+  return tag.toLowerCase().startsWith(DOMAIN_TAG_PREFIX);
+}
+
+/** Drop reserved domain: tags, leaving only user/content tags. The filter every
+ *  legacy tag consumer applies so the domain namespace stays invisible to them. */
+export function stripDomainTags(tags: readonly string[]): string[] {
+  return tags.filter((t) => !isDomainTag(t));
+}
+
 // A single life-data item under a domain star — the unit domain-confidence counts.
 // Minimal by design; real records carry more, but coverage + organized-ratio is all
 // the v1 brightness adapter needs. `category`/`tags` presence marks the item as
