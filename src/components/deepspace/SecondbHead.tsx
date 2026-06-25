@@ -125,8 +125,13 @@ export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityL
       timer = setTimeout(() => {
         if (cancelled) return;
         Animated.sequence([
-          Animated.timing(blink, { toValue: 0.08, duration: 65, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-          Animated.timing(blink, { toValue: 1, duration: 75, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          // JS driver (NOT native): blink's scaleY shares the eye's transform with
+          // the JS-driven look-at (eyeOffset, from the setValue-driven engage/touch).
+          // A native blink would move that node to the native side, and the
+          // SecondbHeadTrack provider's JS setValue/spring on touch/engage would then
+          // throw "JS driven animation on a node moved to native" on the next touch.
+          Animated.timing(blink, { toValue: 0.08, duration: 65, easing: Easing.in(Easing.quad), useNativeDriver: false }),
+          Animated.timing(blink, { toValue: 1, duration: 75, easing: Easing.out(Easing.quad), useNativeDriver: false }),
         ]).start(() => {
           if (!cancelled) schedule();
         });
