@@ -9,27 +9,16 @@
  */
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Redirect, router, type Href } from "expo-router";
+import { Redirect, router } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
-import { type StarId } from "@/lib/persona/stars";
+import { type DomainId } from "@/lib/persona/domain-stars";
 import { type LadderLevel } from "@/lib/persona/brightness";
-import { loadStarLevels } from "@/lib/persona/load-star-levels";
+import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
 import { DeepSpaceScreen } from "./DeepSpaceScreen";
 import { ConstellationHome } from "./ConstellationHome";
-
-// Each self-understanding star opens its real engine screen (flowmap mapping).
-const STAR_ROUTE: Record<StarId, Href> = {
-  now: "/big-five",
-  recall: "/interview",
-  seen: "/persona",
-  rhythm: "/esm",
-  relational: "/attachment",
-  possible: "/imagine",
-  values: "/audit",
-};
 
 export function DeepSpaceShell() {
   const { t, i18n } = useTranslation("home");
@@ -37,20 +26,21 @@ export function DeepSpaceShell() {
   const { userId, hasProfile, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
 
-  // Live brightness for the home constellation: the no-LLM loadStarLevels path
-  // derives per-star L1-L5 levels + the Soul Core aggregate from the user's real
-  // data, so the sky reflects how much they've gathered. Defaults to an honest
-  // empty sky (all L1) until it resolves; failure leaves it empty (never blocks).
-  const [starLevels, setStarLevels] = useState<Partial<Record<StarId, LadderLevel>>>({});
-  const [soulCoreBrightness, setSoulCoreBrightness] = useState(0.2);
+  // Live brightness for the home constellation: the no-LLM loadDomainLevels path
+  // derives per-domain L1-L5 levels + the 북극성 aggregate from the user's real
+  // records (grouped by their domain: tag), so the sky reflects how much of their
+  // life they've mapped. Defaults to an honest empty sky (all L1) until it
+  // resolves; failure leaves it empty (never blocks).
+  const [domainLevels, setDomainLevels] = useState<Partial<Record<DomainId, LadderLevel>>>({});
+  const [northStarBrightness, setNorthStarBrightness] = useState(0.2);
   useEffect(() => {
     if (!userId) return;
     let alive = true;
-    loadStarLevels(userId)
+    loadDomainLevels(userId)
       .then((b) => {
         if (!alive) return;
-        setStarLevels(b.starLevels);
-        setSoulCoreBrightness(b.soulCoreBrightness);
+        setDomainLevels(b.domainLevels);
+        setNorthStarBrightness(b.northStarBrightness);
       })
       .catch(() => {});
     return () => {
@@ -70,10 +60,13 @@ export function DeepSpaceShell() {
         isKo={isKo}
         hint={t("ds.home.hint")}
         polarisLabel={t("ds.home.polaris")}
-        onStarPress={(id) => router.push(STAR_ROUTE[id])}
+        // Each domain star opens that domain's records (the 리스트업 view) via
+        // the existing /records ?tags= filter — domain:<slug> matches the tag
+        // capture writes. The 북극성 opens the persona aggregate (/core-brain).
+        onStarPress={(id: DomainId) => router.push({ pathname: "/records", params: { tags: `domain:${id}` } })}
         onPolarisPress={() => router.push("/core-brain")}
-        starLevels={starLevels}
-        soulCoreBrightness={soulCoreBrightness}
+        starLevels={domainLevels}
+        northStarBrightness={northStarBrightness}
       />
     </DeepSpaceScreen>
   );
