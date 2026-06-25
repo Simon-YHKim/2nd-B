@@ -9,6 +9,8 @@
 //
 // Vocabulary stays in the project register (no clinical/technical terms).
 
+import { stripDomainTags } from "../persona/domain-stars";
+
 // The tier-2 Pattern Cores (NavGraph MENU_NODES tier-2 ids). The former
 // "imagine" district was removed in worldview v-final (공상 → SecondB Divergent
 // mode); its keywords fold into `taste` (Muse Core). Internal ids unchanged.
@@ -86,7 +88,11 @@ const DEFAULT_VILLAGE: VillageId = "knowledge";
  * when nothing matches, so a freshly captured note still lands somewhere sane.
  */
 export function domainForTags(tags: readonly string[], title = ""): VillageId {
-  const hay = [...tags.map((t) => t.toLowerCase()), title.toLowerCase()];
+  // The reserved domain:<slug> namespace (layer-A capture tag) is orthogonal to
+  // this legacy village taxonomy and must not feed its keyword match — e.g.
+  // "domain:collect" contains the substring "ai", a knowledge cue. Strip it so a
+  // record's village stays decided by its real content tags, exactly as before.
+  const hay = [...stripDomainTags(tags).map((t) => t.toLowerCase()), title.toLowerCase()];
   const score = new Map<VillageId, number>();
   for (const village of VILLAGE_IDS) {
     let s = 0;

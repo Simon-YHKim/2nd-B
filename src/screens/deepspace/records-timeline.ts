@@ -2,6 +2,8 @@
 // Groups a user's records into KST day buckets (오늘 / 어제 / M월 D일) so the
 // screen stays a thin renderer. Tested without rendering or a DB.
 
+import { stripDomainTags } from "../../lib/persona/domain-stars";
+
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -48,10 +50,12 @@ export function relatedByTag(
   all: TimelineRecord[],
   max = 5,
 ): TimelineRecord[] {
-  const tags = new Set(focalTags ?? []);
+  // Ignore the reserved domain: tag: every record carries one, so relating by it
+  // would make almost everything "connected" and drown the real tag overlap.
+  const tags = new Set(stripDomainTags(focalTags ?? []));
   if (tags.size === 0) return [];
   return all
-    .filter((r) => r.id !== focalId && (r.tags ?? []).some((t) => tags.has(t)))
+    .filter((r) => r.id !== focalId && stripDomainTags(r.tags ?? []).some((t) => tags.has(t)))
     .slice(0, max);
 }
 
@@ -144,7 +148,9 @@ export function buildRecordsTimeline(
       label: groupLabel(dayKey, todayKey, sampleMs, labels),
       items: rows.map((r) => {
         const ms = new Date(r.created_at).getTime();
-        const tag = r.tags && r.tags.length > 0 ? `#${r.tags[0]}` : undefined;
+        // First USER tag (the domain: tag rides on every record and isn't a chip).
+        const visibleTags = stripDomainTags(r.tags ?? []);
+        const tag = visibleTags.length > 0 ? `#${visibleTags[0]}` : undefined;
         return {
           id: r.id,
           icon: KIND_ICON[r.kind] ?? "•",

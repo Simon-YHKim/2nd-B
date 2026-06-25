@@ -23,7 +23,8 @@ export type PromptPurpose =
   | "clipper_template_propose"
   | "import_ingest"
   | "imagine"
-  | "ops_recommend";
+  | "ops_recommend"
+  | "persona_synthesis";
 
 export interface AdvisorInput {
   userId: string;
@@ -144,6 +145,9 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   knowledge_lookup: "flash",
   import_ingest: "flash",
   clipper_template_propose: "flash",
+  // 북극성 persona synthesis (layer C). v1 flash (CONSTELLATION-DESIGN §17-f);
+  // promote to "pro" if persona quality needs deeper reasoning.
+  persona_synthesis: "flash",
   // pro: reasoning / nuance
   advisor: "pro",
   journal_reflect: "pro",

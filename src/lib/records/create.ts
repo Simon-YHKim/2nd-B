@@ -13,6 +13,7 @@ import { callAdvisor, callGemini, classifyRecordTextForCrisis } from "../llm/gem
 import { canUsePremium, type SubscriptionTier } from "../progression/entitlements";
 import { awardXpSafe, type XpAction } from "../progression/xp";
 import { getSupabaseClient } from "../supabase/client";
+import { withDomainTag } from "./detect-domain";
 import type { RecordFollowup } from "./followup";
 
 export type RecordKind = "journal" | "note" | "audit_response";
@@ -215,7 +216,11 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       topic: args.topic ?? null,
       summary: args.summary ?? null,
       conclusion: args.conclusion ?? null,
-      tags: args.tags ?? [],
+      // Constellation layer A: tag the record with its life-domain slug at
+      // insert (deterministic, no LLM) so the home's load-domain-levels can
+      // group it. Detect from the user's own text (body + topic), not the AI
+      // prompt; withDomainTag drops any user-forced domain:* tag first.
+      tags: withDomainTag(args.tags, [args.body, args.topic].filter(Boolean).join("\n")),
     })
     .select("id")
     .single();
