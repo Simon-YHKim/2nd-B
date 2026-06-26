@@ -35,3 +35,19 @@ values
     'Gaslighting is a social phenomenon rooted in power and inequality, not the victim "being crazy." The confusion felt when someone destabilizes one''s sense of reality is a response to a tactic, not a personal defect. Grounds normalizing and externalizing the self-doubt.',
     'Advisor cue: ''내가 예민한 건가'' 류 자기 의심에 ''그 혼란은 전술에 대한 반응일 수 있다''를 비춤. 상대를 규정하지 말고 본인 경험의 타당성을 회복하는 성찰 질문으로. 위기 시 crisis-detection 우선.'
   );
+
+-- Korean-context validation (④ follow-up). KCI-indexed, real DOI.
+insert into public.knowledge_sources
+  (title, authors, doi, url, framework, age_range, locale,
+   verified_at, summary_ko, summary_en, application_notes)
+values
+  (
+    '어두운 3요소 성격 측정 도구(SD3)의 타당화 연구: ESEM과 DIF 분석을 중심으로',
+    ARRAY['박소향','서종한','홍정윤'],
+    '10.35147/knpsi.2022.36.4.285',
+    'https://doi.org/10.35147/knpsi.2022.36.4.285',
+    'manipulation', 'adult', 'ko', now(),
+    '한국 일반 성인 대상으로 SD3(어둠의 3요소: 마키아벨리즘·자기애·사이코패시) 척도를 타당화. ESEM·DIF 분석에서 3요인 구조가 적절함을 확인. 다크 트라이어드가 한국 맥락에서도 측정 가능한 일상 범위 성향임을 보여줌 — 진단이 아니라 패턴 어휘.',
+    'Korean validation of the SD3, confirming the three-factor structure (Machiavellianism, narcissism, psychopathy) via ESEM/DIF in Korean adults; the Dark Triad is measurable as normal-range tendencies in the Korean context.',
+    '한국어 사용자의 ''이용당하는'' 경험을 패턴 어휘로만 비추는 근거. 상대 진단 금지, 위기 시 crisis-detection 우선.'
+  );

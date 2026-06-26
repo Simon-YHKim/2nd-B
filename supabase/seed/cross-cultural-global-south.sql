@@ -192,3 +192,72 @@ values
     'Reviews how indigenous psychologies arose as a response to the limits of imported Western frameworks, clarifying that indigenous psychology is a disciplinary commitment grounded in local concepts and methods, not folk belief.',
     '토착 개념을 Tier-D 민속이 아니라 학문적 자원으로 구분해 다루는 근거(batch §6 indigenous ≠ folk).'
   );
+
+-- Wave 3 (the deferred rows, now summarized after confirming each paper's core
+-- finding via source lookup). This completes the substantive set: 21 of the 22
+-- verified DOIs are seeded; only the Allwood & Berry 2006 *preface*
+-- (10.1080/00207590544000022) is intentionally excluded as non-substantive.
+insert into public.knowledge_sources
+  (title, authors, doi, url, framework, age_range, locale,
+   verified_at, summary_ko, summary_en, application_notes)
+values
+  (
+    'Indigenous and Cultural Psychology: Understanding People in Context',
+    ARRAY['Uichol Kim','Kuo-Shu Yang','Kwang-Kuo Hwang'],
+    '10.1007/0-387-28662-4',
+    'https://doi.org/10.1007/0-387-28662-4',
+    'cross_cultural_global_south', 'adult', 'en', now(),
+    '토착·문화 심리학의 표준 핸드북. 사람을 ''맥락 속에서'' 이해해야 한다는 관점 아래, 각 문화의 고유 개념과 그것을 연구하는 통합적 방법을 정리. 비서구 심리 전통을 결손이 아니라 정합적 지식 체계로 다룸.',
+    'The standard handbook of indigenous and cultural psychology. Under the premise that people must be understood in context, it compiles culture-specific concepts and integrative methods to study them, treating non-Western traditions as coherent knowledge systems rather than deficits.',
+    '문화 우선 설계의 표준 참조. 사용자의 문화 개념을 ''맥락 속 사람''으로 이해하는 근거.'
+  ),
+  (
+    'Indigenous and Cultural Psychology: Understanding People in Context (Introduction)',
+    ARRAY['Uichol Kim','Kuo-Shu Yang','Kwang-Kuo Hwang'],
+    '10.1007/0-387-28662-4_1',
+    'https://doi.org/10.1007/0-387-28662-4_1',
+    'cross_cultural_global_south', 'adult', 'en', now(),
+    '핸드북 서장: 토착 심리학은 ''이국 문화 연구''가 아니라 사람을 그가 살아가는 의미 맥락 안에서 이해하려는 관점이다. 사람과 맥락의 상호작용(transactional)을 강조하며, 보편 심리학이 놓쳐온 맥락을 복원.',
+    'The handbook''s introduction: indigenous psychology is not the study of "exotic cultures" but a perspective on understanding people within their meaningful context, emphasizing the transaction between person and context that general psychology has overlooked.',
+    '사람-맥락 상호작용 관점의 근거. 개인을 탈맥락적으로 평가하지 말 것.'
+  ),
+  (
+    'Contributions of Mexican Ethnopsychology to the Resolution of the Etic-Emic Dilemma in Personality',
+    ARRAY['Rolando Diaz-Loving'],
+    '10.1177/0022022198291006',
+    'https://doi.org/10.1177/0022022198291006',
+    'cross_cultural_global_south', 'adult', 'en', now(),
+    '멕시코 민족심리학(ethnopsychology)이 etic(보편)·emic(고유) 논쟁을 ''실증적으로'' 해소하는 방식을 제시 — 보편 개념과 문화 고유 개념을 데이터로 결합. 어느 쪽도 선험적으로 특권화하지 않고 자료가 일반성/특수성을 가르게 함.',
+    'Shows how Mexican ethnopsychology resolves the etic (universal) vs emic (culture-specific) dilemma empirically — combining universal and culture-specific concepts with data, letting evidence (not a priori assumptions) decide generality vs specificity.',
+    '멕시코·라티노 사용자에게 보편·고유 개념을 데이터 기반으로 함께 적용하는 근거.'
+  ),
+  (
+    'Emergence and Contributions of a Latin American Indigenous Social Psychology',
+    ARRAY['Rolando Diaz-Loving'],
+    '10.1080/00207590444000168',
+    'https://doi.org/10.1080/00207590444000168',
+    'cross_cultural_global_south', 'adult', 'en', now(),
+    '라틴아메리카 토착 사회심리학의 형성 과정을 정리. 수입된 이론과 현지 일상의 행동·관념을 결합해 ''그 지역의 시선''으로 사회심리 현상을 보는 접근을 강조. 보편 이론의 단순 이식이 아니라 현지 발(發) 이론화.',
+    'Documents the emergence of a Latin American indigenous social psychology, stressing the creation of a locally-grounded view by combining imported theory with the behaviors and ideas of autochthonous everyday life — local theorizing, not transplanted universals.',
+    '라틴아메리카 사용자의 사회·관계 서사를 현지 발 이론으로 비추는 근거.'
+  ),
+  (
+    'Psychology in the Arab World: Past, Present, and Future',
+    ARRAY['Moustafa I. Soueif','Ramadan A. Ahmed'],
+    '10.1023/a:1011653930957',
+    'https://doi.org/10.1023/A:1011653930957',
+    'cross_cultural_global_south', 'adult', 'en', now(),
+    '아랍 세계 심리학의 역사·현황을 개관. 중세 아랍 학자들의 풍부한 유산이 체계적으로 거의 연구되지 않았고, 서구 심리학이 20세기 초(특히 이집트) 도입됐음을 정리. 아랍 심리학을 ''서구의 지각된 부재''가 아니라 자체 역사로 봐야 함을 시사.',
+    'A broad history of psychology in the Arab world: the rich legacy of medieval Arab scholars has been barely studied systematically, and Western psychology was introduced in the early 20th century (notably via Egypt). Frames Arab psychology as having its own history, not a Western absence.',
+    '아랍·MENA 사용자의 심리 전통을 자체 역사로 존중하는 근거. 종교·민족·문화 구분 유지.'
+  ),
+  (
+    'Human Development in Cultural Context: A Third World Perspective',
+    ARRAY['A. Bame Nsamenang'],
+    '10.4135/9781483326030',
+    'https://doi.org/10.4135/9781483326030',
+    'cross_cultural_global_south', 'adult', 'en', now(),
+    '아프리카(주로 카메룬) 관점의 발달 이론: ''사회적 발생(social ontogeny)'' — 생물학적 잠재가 생태·문화 입력에 의해 다듬어지고 방향지어진다. 아이가 문화와 무관하게 같은 패턴으로 자란다는 가정을 거부. 비서구 학자의 첫 체계적 발달론.',
+    'A developmental theory from an African (mainly Cameroonian) perspective: "social ontogeny" — biogenetic potential is canalized by ecocultural inputs. Rejects the assumption that children develop along the same pattern regardless of culture; the first systematic non-Western account of development.',
+    '아프리카 사용자의 성장·발달 서사를 ''사회적 발생''으로 비춤. 서구 발달 규준을 보편으로 강요 금지.'
+  );

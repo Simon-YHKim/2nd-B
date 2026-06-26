@@ -33,3 +33,19 @@ values
     'There is no universally "good" conflict communication. Soft, positive talk suits minor issues, but for serious problems that need to change, direct and even negative engagement can be more beneficial long-term. What matters is fit to the situation, not a fixed style.',
     'Advisor cue: ''갈등을 잘 못 한다''는 입력에 ''상황에 따라 맞는 방식이 다르다''를 비춤. 본인이 회피형인지 직면형인지, 어떤 상황에 어느 쪽이 맞았는지 되돌아보는 질문으로. 처방 금지.'
   );
+
+-- Korean-context validation (④ follow-up). KCI-indexed, real DOI.
+insert into public.knowledge_sources
+  (title, authors, doi, url, framework, age_range, locale,
+   verified_at, summary_ko, summary_en, application_notes)
+values
+  (
+    '부부의사소통능력 척도 개발 및 타당화',
+    ARRAY['강정실'],
+    '10.15703/kjc.16.5.201510.385',
+    'https://doi.org/10.15703/kjc.16.5.201510.385',
+    'communication', 'adult', 'ko', now(),
+    '한국 기혼 성인 344명 대상으로 부부의사소통능력 척도를 개발·타당화(최종 33문항, 3요인). 소통을 추상적 태도가 아니라 측정 가능한 ''능력''으로 조작화한 한국 도구.',
+    'Develops and validates a Korean couple-communication-ability scale (33 items, 3 factors) in 344 married adults, operationalizing communication as a measurable competence in the Korean context.',
+    '한국어 사용자의 소통 입력을 ''능력의 차원''으로 비추는 한국 근거. 처방이 아닌 성찰 질문으로.'
+  );
