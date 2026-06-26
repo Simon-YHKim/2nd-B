@@ -131,6 +131,16 @@ describe("retrieveEvidence — routing table", () => {
     expect(r.matchedBatches).toContain("attraction-initiation");
   });
 
+  test("Korean 'too sensitive' message → highly-sensitive batch (YouTube gap P2)", async () => {
+    const r = await retrieveEvidence({ userMessage: "사람들이 저보고 너무 예민하대요", userLocale: "ko" });
+    expect(r.matchedBatches).toContain("highly-sensitive");
+  });
+
+  test("Korean conflict message → communication-skills batch (YouTube gap P2)", async () => {
+    const r = await retrieveEvidence({ userMessage: "자꾸 갈등이 생기고 대화가 안 돼요", userLocale: "ko" });
+    expect(r.matchedBatches).toContain("communication-skills");
+  });
+
   test("brightness → advice: a DIM finance star surfaces finance evidence even off-topic", async () => {
     // Message is about hiking (no finance keyword), but the finance domain star
     // is dark (L1). The dim star pulls its own batch into scope so the advisor

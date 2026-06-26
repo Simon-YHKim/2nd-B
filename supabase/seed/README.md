@@ -45,8 +45,10 @@
 | `behaviour-change-design.sql` | `health` | 1 |
 | `loneliness-connection.sql` | `loneliness` | 3 |
 | `attraction-initiation.sql` | `attraction` | 3 |
+| `highly-sensitive.sql` | `sensitivity` | 3 |
+| `communication-skills.sql` | `communication` | 2 |
 
-**Total**: 106 rows across 28 batches / 34 framework slugs.
+**Total**: 111 rows across 30 batches / 36 framework slugs.
 
 > The five life-domain seeds (`finance`/`career`/`recreation`/`relation`/`health`)
 > are reachable by the Advisor via `src/lib/knowledge/retrieve.ts` routing — both

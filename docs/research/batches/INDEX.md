@@ -43,8 +43,10 @@ DOI-verified psychology framework batches curated via `docs/research/psychology-
 
 | `loneliness` | [loneliness-connection.md](loneliness-connection.md) | 3 | **YouTube-gap P1 — relation** — felt loneliness distinct from being alone: Hawkley & Cacioppo 2010 (mechanisms), Holt-Lunstad 2015 (mortality meta), Masi 2011 (interventions meta — maladaptive social cognition is the lever). Non-clinical; crisis co-occurrence routes to crisis-detection first |
 | `attraction` | [attraction-initiation.md](attraction-initiation.md) | 3 | **YouTube-gap P1 — relation** — how relationships START (largest YT demand cluster): Finkel 2012 PSPI (online dating critique), Montoya & Horton 2013 (perceived-similarity meta), Aron 1997 (36-questions closeness generation). Self-understanding framing, not pickup advice |
+| `sensitivity` | [highly-sensitive.md](highly-sensitive.md) | 3 | **YouTube-gap P2 — self-understanding** — Sensory Processing Sensitivity as a trait, not a disorder: Aron & Aron 1997 (SPS construct + HSP scale), Lionetti 2018 (3 groups: orchid/tulip/dandelion), Greven 2019 (vantage sensitivity — benefits more from good environments). Non-pathologizing |
+| `communication` | [communication-skills.md](communication-skills.md) | 2 | **YouTube-gap P2 — relation** — applied communication: Gable 2004 (capitalization / active-constructive responding to good news), Overall & McNulty 2017 (no universal conflict style — fit to situation). Complements interpersonal's circumplex structure |
 
-**Total**: 36 batches (1 methodology analysis), 314 verified DOI rows for `knowledge_sources`.
+**Total**: 38 batches (1 methodology analysis), 319 verified DOI rows for `knowledge_sources`.
 
 ## Supplementary documents (non-batch, deep-research backing for v0.2 design doc)
 

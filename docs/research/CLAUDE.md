@@ -67,6 +67,8 @@ Use this to identify which batches to consult first for a given user query or sy
 | Relationships / partners / family | `attachment.md`, `interpersonal.md` | `erikson.md` (intimacy stage) |
 | Loneliness / feeling disconnected even around people | `loneliness-connection.md` | `self-compassion.md`, `self-knowledge.md` |
 | Attraction / crush / how relationships start | `attraction-initiation.md` | `attachment.md`, `relationship-maintenance.md` |
+| "Too sensitive" / easily overwhelmed / overstimulated | `highly-sensitive.md` | `self-compassion.md`, `big-five.md` |
+| Communication / conflict / "we keep arguing" | `communication-skills.md` | `interpersonal.md`, `attachment.md` |
 | Career / work | `assessment-landscape.md` (RIASEC), `sdt.md` (autonomy) | `erikson.md` (generativity) |
 | "Why do I keep doing X" pattern | `self-knowledge.md`, `cbt-rebt.md` | `big-five.md` |
 | "I want to change but can't" | `cbt-rebt.md`, `growth-mindset.md`, `values-meaning.md` (self-concordance) | `sdt.md` |
@@ -226,7 +228,7 @@ When AI agents use this knowledge base, these patterns indicate misuse:
 | `wellbeing_kpi` | wellbeing-kpi | 4 | A |
 | `data_ethics` | data-ethics-consent | 1 | A (+ policy refs) |
 
-**Total**: 106 DOI-verified rows across 34 framework slugs (see `supabase/seed/README.md` for the authoritative per-file count, including the life-domain seeds and the YouTube-gap P1 batches `loneliness` + `attraction`).
+**Total**: 111 DOI-verified rows across 36 framework slugs (see `supabase/seed/README.md` for the authoritative per-file count, including the life-domain seeds and the YouTube-gap batches `loneliness` + `attraction` (P1), `sensitivity` + `communication` (P2)).
 
 ---
 

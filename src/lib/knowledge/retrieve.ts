@@ -70,6 +70,16 @@ const ROUTING: RoutingEntry[] = [
     pattern: /(lonely|loneliness|isolated|disconnected|no one\s*(gets|understands)|외로|혼자라고\s*느|소외|고립|아무도\s*날)/i,
     batches: ["loneliness-connection", "self-compassion"],
   },
+  // Highly sensitive / overstimulation (a trait, not a disorder)
+  {
+    pattern: /(too sensitive|highly sensitive|overstimulated|overwhelmed by|easily overwhelmed|예민|민감|쉽게\s*지치|자극에\s*약)/i,
+    batches: ["highly-sensitive", "self-compassion"],
+  },
+  // Communication / conflict-repair skills
+  {
+    pattern: /(communicat|how to talk|conflict|argue|argument|갈등|소통|대화가\s*안|말이\s*안\s*통|어떻게\s*말)/i,
+    batches: ["communication-skills", "interpersonal"],
+  },
   // Career / work
   {
     pattern: /(career|work|job|promotion|quit|일|직장|진로|이직|퇴사|승진)/i,
@@ -216,6 +226,9 @@ const SLUG_TO_FRAMEWORK: Record<string, string[]> = {
   // YouTube topic-gap map P1 batches (standalone frameworks, not life-domains).
   "loneliness-connection": ["loneliness"],
   "attraction-initiation": ["attraction"],
+  // YouTube topic-gap map P2 batches.
+  "highly-sensitive": ["sensitivity"],
+  "communication-skills": ["communication"],
 };
 
 // The life-domain slug → the batch that carries that domain's evidence. Used to
