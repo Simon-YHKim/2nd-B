@@ -120,4 +120,33 @@ describe("recordStarTiers", () => {
     // The single climbed star still fires star_lit.
     expect(eventsNamed("star_lit")).toHaveLength(1);
   });
+
+  test("stamps evidence_origin + evidence_citations on each row when provided (ratify path)", async () => {
+    await recordStarTiers("u1", { now: 5 }, "journal", {
+      origin: "ratify",
+      citations: ["record:abc", "src:bfi"],
+    });
+    const rows = inserts[0].payload as Record<string, unknown>[];
+    expect(rows[0]).toMatchObject({
+      user_id: "u1",
+      star_id: "now",
+      level: 5,
+      evidence_origin: "ratify",
+      evidence_citations: ["record:abc", "src:bfi"],
+    });
+  });
+
+  test("omits evidence keys for legacy/bare callers (backward compatible)", async () => {
+    await recordStarTiers("u1", { now: 4 });
+    const rows = inserts[0].payload as Record<string, unknown>[];
+    expect(rows[0]).not.toHaveProperty("evidence_origin");
+    expect(rows[0]).not.toHaveProperty("evidence_citations");
+  });
+
+  test("stamps only evidence_origin when citations are empty (rebuild path)", async () => {
+    await recordStarTiers("u1", { now: 4 }, "journal", { origin: "rebuild", citations: [] });
+    const rows = inserts[0].payload as Record<string, unknown>[];
+    expect(rows[0]).toMatchObject({ evidence_origin: "rebuild" });
+    expect(rows[0]).not.toHaveProperty("evidence_citations");
+  });
 });

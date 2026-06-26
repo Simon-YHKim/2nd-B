@@ -19,17 +19,33 @@ import { soulCoreBrightness, type StarId } from "./stars";
 // matching the all-lit bonus gate in soulCoreBrightness.
 const LIT_THRESHOLD = 2;
 
+// Optional evidence link for an observation (0060). Lets a tier change cite WHAT
+// moved it so a brightness shift is auditable, not a bare number. Scalars only —
+// ids / slugs, never body or chat text (same PII contract as the funnel events).
+export interface TierEvidence {
+  /** How the row was produced: "ratify" | "rebuild" | … (free text). */
+  origin?: string;
+  /** Record ids / source slugs justifying the tier — SelfModelProposal.citations. */
+  citations?: readonly string[];
+}
+
 export async function recordStarTiers(
   userId: string,
   starLevels: Partial<Record<StarId, LadderLevel>>,
   source: StarLitEventProps["source"] = "journal",
+  evidence?: TierEvidence,
 ): Promise<void> {
   const entries = Object.entries(starLevels) as [StarId, LadderLevel][];
-  const rows = entries.map(([star_id, level]) => ({
-    user_id: userId,
-    star_id,
-    level,
-  }));
+  const citations =
+    evidence?.citations && evidence.citations.length > 0 ? [...evidence.citations] : undefined;
+  const rows = entries.map(([star_id, level]) => {
+    const row: Record<string, unknown> = { user_id: userId, star_id, level };
+    // Additive evidence link (0060): only stamped when provided, so the aggregate
+    // rebuild path and legacy callers keep writing the bare three-column row.
+    if (evidence?.origin) row.evidence_origin = evidence.origin;
+    if (citations) row.evidence_citations = citations;
+    return row;
+  });
   if (rows.length === 0) return;
   try {
     // Best-effort read of the prior latest level per star (ids + levels only,

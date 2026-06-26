@@ -373,7 +373,7 @@ export async function buildPersona(
   persona.soulCoreBrightness = soulCoreBrightness(persona.starLevels);
   // D9 (memo §10): persist this build's tiers so detectTierShift can later spot a
   // changed tendency. Fire-and-forget + best-effort - never blocks the build.
-  void recordStarTiers(userId, persona.starLevels);
+  void recordStarTiers(userId, persona.starLevels, "journal", { origin: "rebuild" });
 
   // Persist for later reuse (RAG export, etc).
   await supabase

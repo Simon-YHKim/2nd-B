@@ -37,6 +37,38 @@ describe("detectTierShift", () => {
     expect(shifts).toEqual([]);
   });
 
+  test("carries the latest observation's evidence (0060) onto the shift", () => {
+    const shifts = detectTierShift([
+      obs("now", 3, "2026-06-01T00:00:00Z"),
+      {
+        star_id: "now",
+        level: 5,
+        recorded_at: "2026-06-05T00:00:00Z",
+        evidence_origin: "ratify",
+        evidence_citations: ["record:abc", "src:bfi"],
+      },
+    ]);
+    expect(shifts).toEqual([
+      {
+        starId: "now",
+        from: 3,
+        to: 5,
+        direction: "up",
+        origin: "ratify",
+        citations: ["record:abc", "src:bfi"],
+      },
+    ]);
+  });
+
+  test("omits evidence keys when the latest observation has none", () => {
+    const shifts = detectTierShift([
+      obs("now", 3, "2026-06-01T00:00:00Z"),
+      obs("now", 4, "2026-06-05T00:00:00Z"),
+    ]);
+    expect(shifts[0]).not.toHaveProperty("citations");
+    expect(shifts[0]).not.toHaveProperty("origin");
+  });
+
   test("reports shifts across multiple stars independently", () => {
     const shifts = detectTierShift([
       obs("now", 2, "2026-06-01T00:00:00Z"),

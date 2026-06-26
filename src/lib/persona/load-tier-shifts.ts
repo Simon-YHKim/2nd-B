@@ -10,7 +10,7 @@ export async function loadTierShifts(userId: string): Promise<TierShift[]> {
   try {
     const { data } = await getSupabaseClient()
       .from("star_tier_history")
-      .select("star_id, level, recorded_at")
+      .select("star_id, level, recorded_at, evidence_origin, evidence_citations")
       .eq("user_id", userId)
       .order("recorded_at", { ascending: true });
     const rows = (data ?? []) as TierObservation[];

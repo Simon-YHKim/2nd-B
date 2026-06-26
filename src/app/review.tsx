@@ -94,8 +94,12 @@ function ReviewScreenLegacy() {
     const r = applyRatify(4, decision);
     setSheetOpen(false);
     if (decision === "ratify" && userId && proposal?.target.kind === "star") {
-      // Persist the ratified tier so D9 history + trend detection reflect it.
-      void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel });
+      // Persist the ratified tier so D9 history + trend detection reflect it,
+      // evidence-linked (0060) to the proposal's citations so the shift is citable.
+      void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel }, "journal", {
+        origin: "ratify",
+        citations: proposal.citations,
+      });
     }
     if (decision === "ratify") reactExpression("positive");
     setResult(

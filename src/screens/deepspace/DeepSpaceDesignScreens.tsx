@@ -1866,7 +1866,11 @@ export function DeepSpaceReviewScreen() {
     const r = applyRatify(currentLevel, decision);
     setSheetOpen(false);
     if (decision === "ratify" && userId && proposal?.target.kind === "star") {
-      void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel });
+      // Evidence-link (0060) the ratified tier to the proposal's citations.
+      void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel }, "journal", {
+        origin: "ratify",
+        citations: proposal.citations,
+      });
     }
     setResult(
       decision === "ratify"
