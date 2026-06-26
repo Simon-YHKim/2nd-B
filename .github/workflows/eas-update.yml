@@ -7,7 +7,7 @@ name: EAS Update (OTA)
 #
 # Reaches a device only when ALL of these match the installed build:
 #   - channel        : "preview" (the internal preview APK on the test phone)
-#   - runtimeVersion : app.json `version` (currently 0.0.5). Bumping the version
+#   - runtimeVersion : app.json `version` (currently 0.0.6). Bumping the version
 #                      starts a NEW runtime — old installs stop receiving OTA and
 #                      need a fresh build (android-release.yml / EAS Build).
 #
@@ -65,6 +65,13 @@ jobs:
         env:
           # eas-cli authenticates non-interactively from EXPO_TOKEN.
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          # 2026-06-26 HOTFIX: `eas update` inlines EXPO_PUBLIC_* into the JS bundle at
+          # export time. These lived ONLY in eas.json build profiles, never in this OTA
+          # job — so every published OTA fell back to the env.ts DEMO Supabase placeholder
+          # (app boots but auth/data are dead). The anon key is public (same value as
+          # eas.json, already committed) so inlining it here is safe.
+          EXPO_PUBLIC_SUPABASE_URL: https://zoacryukmdeivmolvyhj.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvYWNyeXVrbWRlaXZtb2x2eWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NjE0MzUsImV4cCI6MjA5NTIzNzQzNX0.neb3x_u8Vo9PaxoVpvfSHHxfpAcqxzoqGBDQV6xUYcs
         run: |
           set -euo pipefail
           if [ -z "${EXPO_TOKEN:-}" ]; then
@@ -74,4 +81,6 @@ jobs:
           CHANNEL="${{ github.event.inputs.channel || 'preview' }}"
           MESSAGE="$(git log -1 --pretty=%s)"
           echo "Publishing OTA to channel '$CHANNEL' — \"$MESSAGE\""
-          npx eas-cli update --channel "$CHANNEL" --message "$MESSAGE" --non-interactive
+          # --environment is required by newer eas-cli in --non-interactive mode; the
+          # default EAS environments (development/preview/production) match our channels.
+          npx eas-cli update --channel "$CHANNEL" --environment "$CHANNEL" --message "$MESSAGE" --non-interactive
