@@ -25,6 +25,13 @@ import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { fontAssets } from "@/theme/typography";
 import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
 
+// Expo Router uses a route's named `ErrorBoundary` export as that segment's
+// render-error fallback. Exporting it from the root layout makes it the app-wide
+// boundary: any render error below the root shows the fallback, never a blank
+// crash. The fallback renders outside this layout's providers by design — see
+// RootErrorBoundary.tsx (handoff queue B, post-2026-06-26 crash hardening).
+export { ErrorBoundary } from "@/components/ui/RootErrorBoundary";
+
 initI18n();
 void initAnalytics();
 void SplashScreen.preventAutoHideAsync();
