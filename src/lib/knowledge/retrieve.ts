@@ -60,6 +60,16 @@ const ROUTING: RoutingEntry[] = [
     pattern: /(relationship|breakup|partner|dating|ex.?girlfriend|ex.?boyfriend|연애|헤어|이별|남친|여친|배우자)/i,
     batches: ["attachment", "relationship-maintenance"],
   },
+  // Attraction / relationship initiation (how connections START)
+  {
+    pattern: /(crush|attracted to|falling in love|fall for|ask.?out|first date|my type|썸|좋아하는\s*사람|끌리|반했|소개팅|고백)/i,
+    batches: ["attraction-initiation", "attachment"],
+  },
+  // Loneliness / felt disconnection (distinct from being alone)
+  {
+    pattern: /(lonely|loneliness|isolated|disconnected|no one\s*(gets|understands)|외로|혼자라고\s*느|소외|고립|아무도\s*날)/i,
+    batches: ["loneliness-connection", "self-compassion"],
+  },
   // Career / work
   {
     pattern: /(career|work|job|promotion|quit|일|직장|진로|이직|퇴사|승진)/i,
@@ -203,6 +213,9 @@ const SLUG_TO_FRAMEWORK: Record<string, string[]> = {
   "leisure-wellbeing": ["recreation"],
   "relationship-maintenance": ["relation"],
   "behaviour-change": ["health"],
+  // YouTube topic-gap map P1 batches (standalone frameworks, not life-domains).
+  "loneliness-connection": ["loneliness"],
+  "attraction-initiation": ["attraction"],
 };
 
 // The life-domain slug → the batch that carries that domain's evidence. Used to
