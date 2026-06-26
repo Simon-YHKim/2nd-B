@@ -50,8 +50,23 @@
 | `cross-cultural-global-south.sql` | `cross_cultural_global_south` | 21 (of 22; the Allwood & Berry preface excluded as non-substantive) |
 | `manipulation-literacy.sql` | `manipulation` | 3 (2 EN + 1 KO/KCI) |
 | `family-of-origin.sql` | `family_of_origin` | 2 (1 EN + 1 KO/KCI) |
+| `chc-cognitive-abilities.sql` | `chc_cognitive` | 22 |
+| `emotional-intelligence-mscit.sql` | `emotional_intelligence` | 13 |
+| `dual-process-theory.sql` | `dual_process` | 20 |
+| `multiple-intelligences.sql` | `multiple_intelligences` | 16 (incl. ISBN/KCI rows) |
+| `metacognition-introspection.sql` | `metacognition` | 14 |
+| `self-concept-clarity.sql` | `self_concept_clarity` | 15 |
+| `whole-trait-density.sql` | `whole_trait` | 13 |
+| `personality-change-dynamics.sql` | `personality_change` | 14 |
+| `self-report-bias.sql` | `self_report_bias` | 17 |
+| `cross-cultural-east-asian.sql` | `cross_cultural_east_asian` | 26 |
+| `crisis-detection-global.sql` | `crisis_detection_global` | 18 |
+| `habit-formation-change.sql` | `habit_formation` | 12 |
 
-**Total**: 140 rows across 33 batches / 39 framework slugs.
+**Total**: 340 rows across 45 seed files / 51 framework slugs (row count = actual
+`insert` tuples per file, verified by `grep -c "now()," supabase/seed/*.sql`; a few
+rows cite an ISBN or KCI id rather than a DOI, so "rows" ≥ "verified DOI rows" in
+`docs/research/batches/INDEX.md`).
 
 > The five life-domain seeds (`finance`/`career`/`recreation`/`relation`/`health`)
 > are reachable by the Advisor via `src/lib/knowledge/retrieve.ts` routing — both

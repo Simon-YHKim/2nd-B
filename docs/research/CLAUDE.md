@@ -230,7 +230,19 @@ When AI agents use this knowledge base, these patterns indicate misuse:
 | `wellbeing_kpi` | wellbeing-kpi | 4 | A |
 | `data_ethics` | data-ethics-consent | 1 | A (+ policy refs) |
 
-**Total**: 120 DOI-verified rows across 39 framework slugs (see `supabase/seed/README.md` for the authoritative per-file count, including the life-domain seeds and the YouTube-gap batches `loneliness` + `attraction` (P1), `sensitivity` + `communication` (P2), `manipulation` + `family_of_origin` (P3, safety-sensitive — crisis gate absolute)).
+**Total**: **340 inserted rows across 45 seed files / 51 framework slugs** — the
+authoritative per-file count lives in `supabase/seed/README.md` (verified by
+`grep -c "now()," supabase/seed/*.sql`). This Quick Index table above lists only
+the original core batches; the corpus has since grown to include the cognitive /
+style layer (`chc_cognitive`, `emotional_intelligence`, `dual_process`,
+`multiple_intelligences`, `metacognition`, `whole_trait`, `self_concept_clarity`,
+`personality_change`, `self_report_bias`), the cultural anchor
+(`cross_cultural_east_asian`, `cross_cultural_global_south`), the global crisis
+extension (`crisis_detection_global`), the engagement layer (`habit_formation`),
+the five life-domain seeds, and the YouTube-gap batches `loneliness` + `attraction`
+(P1), `sensitivity` + `communication` (P2), `manipulation` + `family_of_origin`
+(P3, safety-sensitive — crisis gate absolute). "Rows" ≥ "verified DOI rows" in
+`batches/INDEX.md` because some rows cite an ISBN or KCI id rather than a DOI.
 
 ---
 
