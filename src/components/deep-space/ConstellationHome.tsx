@@ -113,6 +113,24 @@ export function ConstellationHome({
           ))}
         </Svg>
 
+        {/* Visible domain + 북극성 labels (PF-1): the NAME map was accessibility-only,
+            so a sighted first-run user saw seven unlabeled dots and didn't know what
+            to tap. Render the names (matching design/05-home). Non-interactive — the
+            Pressables below own the taps; small + muted so the tier-1 hero/북극성 stay
+            dominant. */}
+        {STARS.map((s) => (
+          <Text
+            key={`label-${s.id}`}
+            numberOfLines={1}
+            style={[styles.starLabel, { left: s.x - 30, top: s.y + 9 }]}
+          >
+            {isKo ? NAME[s.id].ko : NAME[s.id].en}
+          </Text>
+        ))}
+        <Text numberOfLines={1} style={[styles.polarisLabelText, { left: 160 - 40, top: 36 + 14 }]}>
+          {polarisLabel}
+        </Text>
+
         <Pressable
           onPress={onPolarisPress}
           hitSlop={18}
@@ -169,6 +187,25 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
+  },
+  starLabel: {
+    position: "absolute",
+    width: 60,
+    textAlign: "center",
+    color: withAlpha(deepSpace.text, 0.62),
+    fontSize: 9,
+    lineHeight: 12,
+    fontFamily: fontFamilies.readable,
+  },
+  polarisLabelText: {
+    position: "absolute",
+    width: 80,
+    textAlign: "center",
+    color: withAlpha(deepSpace.textHi, 0.82),
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: "600",
+    fontFamily: fontFamilies.readable,
   },
   hero: {
     width: 190,
