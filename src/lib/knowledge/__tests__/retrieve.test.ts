@@ -106,6 +106,42 @@ describe("retrieveEvidence — routing table", () => {
     expect(r.matchedBatches).toContain("self-knowledge");
   });
 
+  test("English finance message → financial-wellbeing batch (new life-domain evidence)", async () => {
+    const r = await retrieveEvidence({ userMessage: "I am drowning in debt and can't save money.", userLocale: "en" });
+    expect(r.matchedBatches).toContain("financial-wellbeing");
+  });
+
+  test("Korean leisure message → leisure-wellbeing batch", async () => {
+    const r = await retrieveEvidence({ userMessage: "요즘 취미도 없고 여가가 하나도 없어요", userLocale: "ko" });
+    expect(r.matchedBatches).toContain("leisure-wellbeing");
+  });
+
+  test("English career message also pulls vocational-interests (new career evidence)", async () => {
+    const r = await retrieveEvidence({ userMessage: "Should I quit my job?", userLocale: "en" });
+    expect(r.matchedBatches).toContain("vocational-interests");
+  });
+
+  test("brightness → advice: a DIM finance star surfaces finance evidence even off-topic", async () => {
+    // Message is about hiking (no finance keyword), but the finance domain star
+    // is dark (L1). The dim star pulls its own batch into scope so the advisor
+    // can nudge the under-fed domain — wiring brightness to advice.
+    const r = await retrieveEvidence({
+      userMessage: "I went hiking today and felt great.",
+      userLocale: "en",
+      domainLevels: { finance: 1, career: 4, health: 5 },
+    });
+    expect(r.matchedBatches).toContain("financial-wellbeing");
+  });
+
+  test("brightness → advice: a BRIGHT domain does not force its batch in", async () => {
+    const r = await retrieveEvidence({
+      userMessage: "I went hiking today and felt great.",
+      userLocale: "en",
+      domainLevels: { finance: 5, career: 5, health: 5 },
+    });
+    expect(r.matchedBatches).not.toContain("financial-wellbeing");
+  });
+
   test("Cap: at most 4 matched batches per message", async () => {
     const r = await retrieveEvidence({
       userMessage: "가족이랑 일하고 진로 정체성 번아웃 다 한꺼번에 와요",

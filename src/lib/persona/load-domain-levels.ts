@@ -49,14 +49,31 @@ interface DomainRow {
   tags?: string[] | null;
 }
 
+// One structured manage-layer row (relation_people 0058 / recreation_items 0059).
+// These are deterministic, manually-entered domain backing — exactly the
+// "organized" evidence the brightness-honesty rule wants — so they count toward
+// their domain's coverage alongside the free-text records. created_at gives them
+// a recency timestamp; the row's mere existence (a named person / logged item)
+// makes it organized, so we mark it with a non-empty tag set.
+interface StructuredRow {
+  created_at?: string | null;
+}
+
 export async function loadDomainLevels(userId: string): Promise<DomainBrightness> {
   const supabase = getSupabaseClient();
-  const { data } = await supabase
-    .from("records")
-    .select("id, created_at, tags")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true });
-  const rows = (data ?? []) as DomainRow[];
+  const [recordsRes, relationRes, recreationRes] = await Promise.all([
+    supabase
+      .from("records")
+      .select("id, created_at, tags")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true }),
+    // Structured backing for the relation/recreation stars. Read-only here; the
+    // manage-layer writers (mirroring ops_*) own inserts. A failed/absent table
+    // must never blank the home sky, so these degrade to [] independently.
+    supabase.from("relation_people").select("created_at").eq("user_id", userId),
+    supabase.from("recreation_items").select("created_at").eq("user_id", userId),
+  ]);
+  const rows = (recordsRes.data ?? []) as DomainRow[];
 
   const entriesByDomain: Partial<Record<DomainId, DomainEntry[]>> = {};
   for (const row of rows) {
@@ -73,6 +90,26 @@ export async function loadDomainLevels(userId: string): Promise<DomainBrightness
     });
   }
 
-  const domainLevels = domainStarLevels(entriesByDomain);
+  // Fold the structured manage-layer rows into their domains. Each row is
+  // organized by construction (a deliberate, named entry), so it carries a
+  // sentinel user-tag and lifts coverage exactly like a curated record.
+  const STRUCTURED_TAG = ["structured"];
+  const foldStructured = (domain: DomainId, data: unknown) => {
+    for (const r of (data ?? []) as StructuredRow[]) {
+      (entriesByDomain[domain] ??= []).push({
+        domain,
+        createdAt: r.created_at ?? undefined,
+        tags: STRUCTURED_TAG,
+      });
+    }
+  };
+  foldStructured("relation", relationRes.data);
+  foldStructured("recreation", recreationRes.data);
+
+  // Inject a real Date.now() ONLY here, at the impure Supabase-read boundary, so
+  // the §4.5 ④ recency signal is live in production (a domain abandoned months ago
+  // dims relative to one fed today) while domain-confidence.ts / north-star.ts stay
+  // pure and every other caller is unchanged.
+  const domainLevels = domainStarLevels(entriesByDomain, {}, Date.now());
   return { domainLevels, northStarBrightness: northStarBrightness(domainLevels) };
 }

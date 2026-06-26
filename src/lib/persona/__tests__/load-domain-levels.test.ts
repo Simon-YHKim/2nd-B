@@ -38,12 +38,20 @@ function reset() {
   for (const k of Object.keys(tableFixtures)) delete tableFixtures[k];
 }
 
+// Recent (always inside the 60-day recency window) so the §4.5 ④ staleness gate —
+// which loadDomainLevels feeds a real Date.now() — never fires for these coverage
+// fixtures. Deriving created_at from now keeps these tests clock-independent: only
+// the dedicated "recency is live" test (which uses a hardcoded 2020 stale date)
+// exercises the staleness path. A fixed 2026-05-01 literal would silently flip
+// these assertions once the wall clock crosses 60 days past that date.
+const RECENT_ISO = new Date(Date.now() - 5 * 86_400_000).toISOString();
+
 // n records in one domain, each "organized" (carries a real user tag besides the
-// system domain: tag). createdAt is constant — recency is deferred (§4.5 ④).
+// system domain: tag). createdAt is recent so recency never dims (§4.5 ④).
 function organizedRows(domain: string, n: number) {
   return Array.from({ length: n }, (_, i) => ({
     id: `${domain}-${i}`,
-    created_at: "2026-05-01T00:00:00Z",
+    created_at: RECENT_ISO,
     tags: [`domain:${domain}`, "mytag"],
   }));
 }
@@ -51,8 +59,18 @@ function organizedRows(domain: string, n: number) {
 function rawRows(domain: string, n: number) {
   return Array.from({ length: n }, (_, i) => ({
     id: `${domain}-raw-${i}`,
-    created_at: "2026-05-01T00:00:00Z",
+    created_at: RECENT_ISO,
     tags: [`domain:${domain}`], // only the system tag -> not organized
+  }));
+}
+
+// Organized rows whose newest entry is older than the 60-day staleness window,
+// for asserting the live recency signal (loadDomainLevels passes Date.now()).
+function staleOrganizedRows(domain: string, n: number, isoDate: string) {
+  return Array.from({ length: n }, (_, i) => ({
+    id: `${domain}-stale-${i}`,
+    created_at: isoDate,
+    tags: [`domain:${domain}`, "mytag"],
   }));
 }
 
@@ -104,6 +122,42 @@ describe("loadDomainLevels (cheap, no-Gemini)", () => {
     const { domainLevels, northStarBrightness } = await loadDomainLevels("u1");
     expect(Object.values(domainLevels).every((l) => l === 1)).toBe(true);
     expect(northStarBrightness).toBeCloseTo(0.2);
+  });
+
+  test("recency is live: a long-abandoned domain dims one band (§4.5 ④)", async () => {
+    // loadDomainLevels injects a real Date.now() at the read boundary. A domain
+    // whose newest entry is from 2020 is always >60 days stale, so its high band
+    // (15 organized rows → L4) drops to L3. A domain fed today stays at L4. This
+    // proves the recency signal — dead while the loader never passed `now` — is now
+    // reachable in production.
+    const today = new Date().toISOString();
+    tableFixtures["records:select"] = {
+      data: [
+        ...staleOrganizedRows("career", 15, "2020-01-01T00:00:00Z"), // stale → L3
+        ...staleOrganizedRows("finance", 15, today), // fresh → L4
+      ],
+      error: null,
+    };
+    const { domainLevels } = await loadDomainLevels("u1");
+    expect(domainLevels.career).toBe(3); // dimmed by recency
+    expect(domainLevels.finance).toBe(4); // fresh, full band
+  });
+
+  test("structured manage-layer rows lift their domain (relation_people 0058 / recreation_items 0059)", async () => {
+    // No records at all, but 5 relation_people + 5 recreation_items rows. Each
+    // structured row is organized by construction, so it counts toward coverage
+    // exactly like a curated record: 5 entries -> medium band -> L3. Proves the
+    // 0058/0059 tables are no longer dead schema — they feed brightness.
+    const recent = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    const structured = (n: number) =>
+      Array.from({ length: n }, () => ({ created_at: recent }));
+    tableFixtures["records:select"] = { data: [], error: null };
+    tableFixtures["relation_people:select"] = { data: structured(5), error: null };
+    tableFixtures["recreation_items:select"] = { data: structured(5), error: null };
+    const { domainLevels } = await loadDomainLevels("u1");
+    expect(domainLevels.relation).toBe(3);
+    expect(domainLevels.recreation).toBe(3);
+    expect(domainLevels.career).toBe(1); // untouched domain stays dark
   });
 
   test("ignores unknown / malformed domain slugs", async () => {

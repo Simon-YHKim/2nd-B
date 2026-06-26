@@ -15,6 +15,13 @@ export interface RetrieveInput {
   userLocale: Locale;
   userAgeRange?: AgeRange;
   conversationContext?: string;
+  // Per-domain brightness levels (L1~L5) from loadDomainLevels, keyed by the
+  // life-domain slug (career/finance/growth/relation/health/recreation/collect).
+  // When supplied, a DIM domain (low level) pulls that domain's evidence into
+  // scope even if the user's message did not keyword-route to it — so the
+  // brightness layer ("how much I've put in") biases the advice layer toward
+  // the under-fed domains. Omitting it leaves routing message-only (unchanged).
+  domainLevels?: Partial<Record<string, number>>;
 }
 
 export interface RetrieveResult {
@@ -51,12 +58,22 @@ const ROUTING: RoutingEntry[] = [
   },
   {
     pattern: /(relationship|breakup|partner|dating|ex.?girlfriend|ex.?boyfriend|연애|헤어|이별|남친|여친|배우자)/i,
-    batches: ["attachment", "interpersonal"],
+    batches: ["attachment", "relationship-maintenance"],
   },
   // Career / work
   {
     pattern: /(career|work|job|promotion|quit|일|직장|진로|이직|퇴사|승진)/i,
-    batches: ["sdt", "big-five", "assessment-landscape"],
+    batches: ["sdt", "big-five", "vocational-interests"],
+  },
+  // Money / finance
+  {
+    pattern: /(money|finance|financial|salary|debt|saving|budget|돈|재정|월급|연봉|빚|저축|소비|지출)/i,
+    batches: ["financial-wellbeing", "sdt"],
+  },
+  // Leisure / hobby / play
+  {
+    pattern: /(leisure|hobby|hobbies|play|rest|relax|취미|여가|놀이|쉬고\s*싶|휴식|오락)/i,
+    batches: ["leisure-wellbeing", "self-knowledge"],
   },
   // Identity / purpose
   {
@@ -71,7 +88,7 @@ const ROUTING: RoutingEntry[] = [
   // Habits / motivation
   {
     pattern: /(habit|routine|discipline|motivation|습관|루틴|동기|의지)/i,
-    batches: ["sdt", "growth-mindset"],
+    batches: ["behaviour-change", "sdt", "growth-mindset"],
   },
   // Failure / regret
   {
@@ -110,12 +127,25 @@ const ALWAYS_LOAD = ["crisis-detection"];
 const MAX_BATCHES = 4;
 const FALLBACK_BATCHES = ["self-knowledge", "sdt", "big-five"];
 
-function routeBatches(userMessage: string): string[] {
+function routeBatches(
+  userMessage: string,
+  domainLevels?: Partial<Record<string, number>>,
+): string[] {
   const matched = new Set<string>();
   for (const { pattern, batches } of ROUTING) {
     if (pattern.test(userMessage)) {
       for (const b of batches) matched.add(b);
     }
+  }
+  // Brightness → advice wiring. A DIM domain star (level <= DIM_LEVEL_MAX) pulls
+  // its own evidence batch into scope even if the message did not route to it,
+  // dimmest-first so the most under-fed domain wins the limited seats. This is
+  // what makes a dark finance/relation star surface that domain's advice.
+  if (domainLevels) {
+    const dim = Object.entries(domainLevels)
+      .filter(([d, lvl]) => lvl != null && lvl <= DIM_LEVEL_MAX && DOMAIN_TO_BATCH[d])
+      .sort((a, b) => (a[1] as number) - (b[1] as number));
+    for (const [d] of dim) matched.add(DOMAIN_TO_BATCH[d]!);
   }
   // ALWAYS_LOAD batches hold reserved seats. Appending them and slicing the
   // combined set used to evict crisis-detection whenever a routing entry
@@ -165,7 +195,31 @@ const SLUG_TO_FRAMEWORK: Record<string, string[]> = {
   "data-ethics-consent": ["data_ethics"],
   "computational-personality": ["computational_personality"],
   "wellbeing-kpi": ["wellbeing_kpi"],
+  // Life-domain evidence (seeded with framework == the domain slug). These let a
+  // finance / leisure / relationship / habit message — or a DIM domain star via
+  // domainLevels — actually surface the new knowledge_sources rows.
+  "financial-wellbeing": ["finance"],
+  "vocational-interests": ["career"],
+  "leisure-wellbeing": ["recreation"],
+  "relationship-maintenance": ["relation"],
+  "behaviour-change": ["health"],
 };
+
+// The life-domain slug → the batch that carries that domain's evidence. Used to
+// pull a domain's batch into scope when its star is DIM (low level), wiring the
+// brightness layer to the advice layer (a dark/under-fed domain pulls its own
+// evidence even when the user's words did not route to it).
+const DOMAIN_TO_BATCH: Record<string, string> = {
+  finance: "financial-wellbeing",
+  career: "vocational-interests",
+  recreation: "leisure-wellbeing",
+  relation: "relationship-maintenance",
+  health: "behaviour-change",
+};
+
+// At or below this level a domain star is considered DIM enough that the advisor
+// should proactively surface that domain's evidence. L1/L2 = barely fed.
+const DIM_LEVEL_MAX = 2;
 
 function frameworksForBatches(slugs: string[]): string[] {
   const set = new Set<string>();
@@ -174,7 +228,7 @@ function frameworksForBatches(slugs: string[]): string[] {
 }
 
 export async function retrieveEvidence(input: RetrieveInput): Promise<RetrieveResult> {
-  const matchedBatches = routeBatches(input.userMessage);
+  const matchedBatches = routeBatches(input.userMessage, input.domainLevels);
 
   // Load batch markdown (only the ones we have on disk/bundled — silently
   // skip missing ones so the system degrades gracefully as new batches land).

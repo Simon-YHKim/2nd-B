@@ -38,8 +38,20 @@
 | `ai-mental-health-safety.sql` | `ai_mental_health` | 5 |
 | `wellbeing-kpi.sql` | `wellbeing_kpi` | 4 |
 | `data-ethics-consent.sql` | `data_ethics` | 1 |
+| `financial-wellbeing.sql` | `finance` | 1 |
+| `vocational-interests.sql` | `career` | 1 |
+| `leisure-wellbeing.sql` | `recreation` | 1 |
+| `relationship-maintenance.sql` | `relation` | 1 |
+| `behaviour-change-design.sql` | `health` | 1 |
 
-**Total**: 95 rows across 21 batches / 27 framework slugs.
+**Total**: 100 rows across 26 batches / 32 framework slugs.
+
+> The five life-domain seeds (`finance`/`career`/`recreation`/`relation`/`health`)
+> are reachable by the Advisor via `src/lib/knowledge/retrieve.ts` routing — both
+> by keyword (money/leisure/relationship/habit) and by a DIM domain star pulling
+> its own batch. Apply them with MCP `apply_migration` / `execute_sql`, then
+> confirm with `select count(*) from public.knowledge_sources where framework in
+> ('finance','career','recreation','relation','health');` (expect 5).
 
 > AI retrieval schema for these seeds: see [`../../docs/research/CLAUDE.md`](../../docs/research/CLAUDE.md).
 
