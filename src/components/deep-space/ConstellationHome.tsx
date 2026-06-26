@@ -127,7 +127,7 @@ export function ConstellationHome({
             {isKo ? NAME[s.id].ko : NAME[s.id].en}
           </Text>
         ))}
-        <Text numberOfLines={1} style={[styles.polarisLabelText, { left: 160 - 40, top: 36 + 14 }]}>
+        <Text numberOfLines={2} style={[styles.polarisLabelText, { left: 160 - 60, top: 36 + 14 }]}>
           {polarisLabel}
         </Text>
 
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   polarisLabelText: {
     position: "absolute",
-    width: 80,
+    width: 120,
     textAlign: "center",
     color: withAlpha(deepSpace.textHi, 0.82),
     fontSize: 10,
