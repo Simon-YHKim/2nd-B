@@ -13,6 +13,9 @@ SESSION_RECOVERY.md
 context_limit_log.json
 .claudeignore
 
+# Local QA / emulator artifacts (screenshots, logs, working punch lists)
+reports/
+
 # Expo
 .expo/
 dist/
