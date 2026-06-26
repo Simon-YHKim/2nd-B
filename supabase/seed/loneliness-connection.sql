@@ -48,3 +48,19 @@ values
     'A meta-analysis comparing four loneliness-reduction strategies (social-skills training, boosting social support, increasing contact opportunities, and addressing maladaptive social cognition). The strongest lever was not "meet more people" but addressing distorted social cognition — the over-negative predictions about how others see us.',
     '가장 실행 가능한 Advisor cue: 외로움 호소 시 ''사람을 더 만나라'' 대신 ''남들이 나를 어떻게 볼지에 대한 예측''을 한 가지 부드럽게 점검하는 질문으로 연결. 조언이 아닌 성찰 질문으로 끝맺기.'
   );
+
+-- Korean-context validation (④). KCI-indexed; url-only (no DOI) satisfies C8.
+insert into public.knowledge_sources
+  (title, authors, doi, url, framework, age_range, locale,
+   verified_at, summary_ko, summary_en, application_notes)
+values
+  (
+    '한국판 UCLA 외로움 척도 3판의 타당화',
+    ARRAY['진은주'],
+    NULL,
+    'https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART002515909',
+    'loneliness', 'adult', 'ko', now(),
+    '한국 표본에서 UCLA 외로움 척도 3판을 타당화(α=.93, 검사-재검사 .94). 긍정/부정 문항 2요인이 ''주관적 외로움''이라는 단일 일반 요인으로 수렴. 한국 맥락에서도 외로움이 ''혼자임''이 아니라 ''연결 결핍의 지각''으로 측정됨을 확인.',
+    'Korean validation of the UCLA Loneliness Scale v3 (alpha=.93, test-retest .94); positive/negative item factors converge on one general subjective-loneliness factor.',
+    '한국어 사용자의 외로움을 비추는 한국 검증 근거. 외로움을 결함이 아닌 지각된 연결 결핍으로 정상화.'
+  );

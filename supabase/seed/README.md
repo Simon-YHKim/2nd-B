@@ -43,15 +43,15 @@
 | `leisure-wellbeing.sql` | `recreation` | 1 |
 | `relationship-maintenance.sql` | `relation` | 1 |
 | `behaviour-change-design.sql` | `health` | 1 |
-| `loneliness-connection.sql` | `loneliness` | 3 |
+| `loneliness-connection.sql` | `loneliness` | 4 (3 EN + 1 KO/KCI) |
 | `attraction-initiation.sql` | `attraction` | 3 |
-| `highly-sensitive.sql` | `sensitivity` | 3 |
+| `highly-sensitive.sql` | `sensitivity` | 4 (3 EN + 1 KO/KCI) |
 | `communication-skills.sql` | `communication` | 2 |
 | `cross-cultural-global-south.sql` | `cross_cultural_global_south` | 15 (of 22 researched; 7 deferred to a source-reading pass) |
 | `manipulation-literacy.sql` | `manipulation` | 2 |
-| `family-of-origin.sql` | `family_of_origin` | 1 |
+| `family-of-origin.sql` | `family_of_origin` | 2 (1 EN + 1 KO/KCI) |
 
-**Total**: 129 rows across 33 batches / 39 framework slugs.
+**Total**: 132 rows across 33 batches / 39 framework slugs.
 
 > The five life-domain seeds (`finance`/`career`/`recreation`/`relation`/`health`)
 > are reachable by the Advisor via `src/lib/knowledge/retrieve.ts` routing — both

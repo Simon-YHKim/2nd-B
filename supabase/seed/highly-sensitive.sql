@@ -46,3 +46,19 @@ values
     'The Environmental Sensitivity view: highly sensitive people are not only more affected by negative environments but also benefit MORE from positive ones (vantage sensitivity). Sensitivity is not mere vulnerability but a double-edged trait that can be a strength or a cost depending on context.',
     'Advisor cue: 민감성을 약점으로만 보는 입력에 ''좋은 환경에서 더 얻는 면''을 한 줄로 비춤. 어떤 환경이 본인을 살리는지 성찰하는 질문으로.'
   );
+
+-- Korean-context validation (④). KCI-indexed; url-only (no DOI) satisfies C8.
+insert into public.knowledge_sources
+  (title, authors, doi, url, framework, age_range, locale,
+   verified_at, summary_ko, summary_en, application_notes)
+values
+  (
+    '한국판 매우 민감한 사람 척도(K-HSPS-18)의 재타당화',
+    ARRAY['손옥선','김진숙'],
+    NULL,
+    'https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART002749199',
+    'sensitivity', 'adult', 'ko', now(),
+    '한국 성인 925명에서 HSP 척도를 18문항·4요인으로 재타당화 — 흥분 용이성·낮은 감각 역치·심미적 민감성, 그리고 한국 고유의 ''눈치(Nunchi)'' 요인. 민감성 수준은 orchid 22.6% / healthy orchid 3.1% / tulip 54.7% / dandelion 19.5%로 분류. 한국인의 민감성에 문화 특수성이 있음을 시사.',
+    'Revalidation of the HSP scale in 925 Korean adults (K-HSPS-18, four factors including a culturally unique Nunchi factor); sensitivity groups orchid 22.6% / healthy orchid 3.1% / tulip 54.7% / dandelion 19.5%.',
+    '한국어 사용자의 민감성을 ''눈치''를 포함한 한국 맥락으로 비추는 근거. 민감성을 결함이 아닌 정도·문화적 특성으로.'
+  );
