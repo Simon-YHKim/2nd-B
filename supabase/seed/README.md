@@ -47,8 +47,9 @@
 | `attraction-initiation.sql` | `attraction` | 3 |
 | `highly-sensitive.sql` | `sensitivity` | 3 |
 | `communication-skills.sql` | `communication` | 2 |
+| `cross-cultural-global-south.sql` | `cross_cultural_global_south` | 6 (of 22 researched; rest follow-up) |
 
-**Total**: 111 rows across 30 batches / 36 framework slugs.
+**Total**: 117 rows across 31 batches / 37 framework slugs.
 
 > The five life-domain seeds (`finance`/`career`/`recreation`/`relation`/`health`)
 > are reachable by the Advisor via `src/lib/knowledge/retrieve.ts` routing — both
