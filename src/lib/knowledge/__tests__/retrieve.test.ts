@@ -141,6 +141,22 @@ describe("retrieveEvidence — routing table", () => {
     expect(r.matchedBatches).toContain("communication-skills");
   });
 
+  test("Korean gaslighting message → manipulation-literacy batch (YouTube gap P3)", async () => {
+    const r = await retrieveEvidence({ userMessage: "자꾸 내가 이상한 사람처럼 느껴져요, 가스라이팅 같아요", userLocale: "ko" });
+    expect(r.matchedBatches).toContain("manipulation-literacy");
+  });
+
+  test("manipulation routing still keeps crisis-detection loaded (safety baseline)", async () => {
+    const r = await retrieveEvidence({ userMessage: "I think my partner is manipulating me", userLocale: "en" });
+    expect(r.matchedBatches).toContain("manipulation-literacy");
+    expect(r.matchedBatches).toContain("crisis-detection");
+  });
+
+  test("Korean family-of-origin message → family-of-origin batch (YouTube gap P3)", async () => {
+    const r = await retrieveEvidence({ userMessage: "부모 때문에 어린 시절부터 이런 패턴이 생긴 것 같아요", userLocale: "ko" });
+    expect(r.matchedBatches).toContain("family-of-origin");
+  });
+
   test("brightness → advice: a DIM finance star surfaces finance evidence even off-topic", async () => {
     // Message is about hiking (no finance keyword), but the finance domain star
     // is dark (L1). The dim star pulls its own batch into scope so the advisor

@@ -45,8 +45,10 @@ DOI-verified psychology framework batches curated via `docs/research/psychology-
 | `attraction` | [attraction-initiation.md](attraction-initiation.md) | 3 | **YouTube-gap P1 — relation** — how relationships START (largest YT demand cluster): Finkel 2012 PSPI (online dating critique), Montoya & Horton 2013 (perceived-similarity meta), Aron 1997 (36-questions closeness generation). Self-understanding framing, not pickup advice |
 | `sensitivity` | [highly-sensitive.md](highly-sensitive.md) | 3 | **YouTube-gap P2 — self-understanding** — Sensory Processing Sensitivity as a trait, not a disorder: Aron & Aron 1997 (SPS construct + HSP scale), Lionetti 2018 (3 groups: orchid/tulip/dandelion), Greven 2019 (vantage sensitivity — benefits more from good environments). Non-pathologizing |
 | `communication` | [communication-skills.md](communication-skills.md) | 2 | **YouTube-gap P2 — relation** — applied communication: Gable 2004 (capitalization / active-constructive responding to good news), Overall & McNulty 2017 (no universal conflict style — fit to situation). Complements interpersonal's circumplex structure |
+| `manipulation` | [manipulation-literacy.md](manipulation-literacy.md) | 2 | **YouTube-gap P3 — relation (safety-sensitive)** — self-protection sense-making, never diagnose others: Paulhus & Williams 2002 (Dark Triad, subclinical), Sweet 2019 (sociology of gaslighting — a power phenomenon, not the victim being "crazy"). Crisis gate absolute |
+| `family_of_origin` | [family-of-origin.md](family-of-origin.md) | 1 | **YouTube-gap P3 — self-understanding (non-clinical)** — differentiation of self (Skowron & Friedlander 1998 DSI): reactivity / fusion / cutoff / I-position. Family patterns are workable, not destiny; no blame, crisis gate absolute |
 
-**Total**: 38 batches (1 methodology analysis), 319 verified DOI rows for `knowledge_sources`.
+**Total**: 40 batches (1 methodology analysis), 322 verified DOI rows for `knowledge_sources`.
 
 ## Supplementary documents (non-batch, deep-research backing for v0.2 design doc)
 

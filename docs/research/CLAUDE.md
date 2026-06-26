@@ -69,6 +69,8 @@ Use this to identify which batches to consult first for a given user query or sy
 | Attraction / crush / how relationships start | `attraction-initiation.md` | `attachment.md`, `relationship-maintenance.md` |
 | "Too sensitive" / easily overwhelmed / overstimulated | `highly-sensitive.md` | `self-compassion.md`, `big-five.md` |
 | Communication / conflict / "we keep arguing" | `communication-skills.md` | `interpersonal.md`, `attachment.md` |
+| "Am I being manipulated / gaslit?" / "이용당하는 것 같아" | `manipulation-literacy.md` (+ **`crisis-detection.md` if abuse/crisis markers**) | `interpersonal.md`, `self-compassion.md` |
+| "My parents made me this way" / 원가족 / childhood patterns | `family-of-origin.md` | `attachment.md`, `narrative-identity.md`, `cross-cultural-east-asian.md` |
 | Career / work | `assessment-landscape.md` (RIASEC), `sdt.md` (autonomy) | `erikson.md` (generativity) |
 | "Why do I keep doing X" pattern | `self-knowledge.md`, `cbt-rebt.md` | `big-five.md` |
 | "I want to change but can't" | `cbt-rebt.md`, `growth-mindset.md`, `values-meaning.md` (self-concordance) | `sdt.md` |
@@ -228,7 +230,7 @@ When AI agents use this knowledge base, these patterns indicate misuse:
 | `wellbeing_kpi` | wellbeing-kpi | 4 | A |
 | `data_ethics` | data-ethics-consent | 1 | A (+ policy refs) |
 
-**Total**: 111 DOI-verified rows across 36 framework slugs (see `supabase/seed/README.md` for the authoritative per-file count, including the life-domain seeds and the YouTube-gap batches `loneliness` + `attraction` (P1), `sensitivity` + `communication` (P2)).
+**Total**: 120 DOI-verified rows across 39 framework slugs (see `supabase/seed/README.md` for the authoritative per-file count, including the life-domain seeds and the YouTube-gap batches `loneliness` + `attraction` (P1), `sensitivity` + `communication` (P2), `manipulation` + `family_of_origin` (P3, safety-sensitive — crisis gate absolute)).
 
 ---
 

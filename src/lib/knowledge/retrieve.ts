@@ -80,6 +80,16 @@ const ROUTING: RoutingEntry[] = [
     pattern: /(communicat|how to talk|conflict|argue|argument|갈등|소통|대화가\s*안|말이\s*안\s*통|어떻게\s*말)/i,
     batches: ["communication-skills", "interpersonal"],
   },
+  // Manipulation literacy (self-protection sense-making, never diagnose others)
+  {
+    pattern: /(manipulat|gaslight|narcissist|red flag|toxic|using me|이용당|조종|가스라이팅|교묘|레드\s*플래그)/i,
+    batches: ["manipulation-literacy", "self-compassion"],
+  },
+  // Family-of-origin developmental influence (non-clinical, differentiation)
+  {
+    pattern: /(family of origin|childhood|grew up|my parents made|원가족|어린\s*시절|자라면서|부모\s*때문)/i,
+    batches: ["family-of-origin", "attachment"],
+  },
   // Career / work
   {
     pattern: /(career|work|job|promotion|quit|일|직장|진로|이직|퇴사|승진)/i,
@@ -229,6 +239,9 @@ const SLUG_TO_FRAMEWORK: Record<string, string[]> = {
   // YouTube topic-gap map P2 batches.
   "highly-sensitive": ["sensitivity"],
   "communication-skills": ["communication"],
+  // YouTube topic-gap map P3 batches (safety-sensitive; crisis-detection always loaded).
+  "manipulation-literacy": ["manipulation"],
+  "family-of-origin": ["family_of_origin"],
 };
 
 // The life-domain slug → the batch that carries that domain's evidence. Used to
