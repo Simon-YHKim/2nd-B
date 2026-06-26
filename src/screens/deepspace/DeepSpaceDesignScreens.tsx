@@ -882,7 +882,7 @@ export function DeepSpaceSignUpDesignScreen() {
           autoCapitalize="none"
           keyboardType="number-pad"
           maxLength={10}
-          placeholder="YYYY-MM-DD"
+          placeholder="2010-03-15"
           placeholderTextColor={colors.textLo}
           accessibilityLabel={t("auth:signUp.birthDate")}
           accessibilityHint={t("auth:signUp.birthDateHelper")}
