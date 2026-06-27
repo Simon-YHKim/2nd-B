@@ -7,11 +7,18 @@
  * Colors come only from deepSpace.* tokens (DESIGN.md: no hex/rgba literals in
  * components). Korean body copy uses Pretendard (readable); the TIP eyebrow uses
  * the Press Start 2P pixel face.
+ *
+ * This is the SINGLE canonical SecondbStatusHeader: the former legacy-token copy
+ * at components/deepspace/ now re-exports this one through that barrel, so every
+ * deep-space screen renders one implementation. It reserves BackArrow headroom
+ * (below) for the screens that mount it outside DeepSpaceScreen.
  */
 import { StyleSheet, View } from "react-native";
+import { usePathname } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
+import { backArrowVisible } from "@/components/ui/BackArrow";
 import { SecondbHead, type SecondbMood } from "./SecondbHead";
 
 export function SecondbStatusHeader({
@@ -27,8 +34,12 @@ export function SecondbStatusHeader({
   mood?: SecondbMood;
   accessibilityLabel?: string;
 }) {
+  // Reserve top headroom on sub-screens so the floating BackArrow chip does not
+  // overlap the head/bubble. backArrowVisible() is false on tab roots and on the
+  // deep-space dock routes (DeepSpaceScreen), so those add no extra room.
+  const needHeadroom = backArrowVisible(usePathname());
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, needHeadroom ? styles.rowHeadroom : null]}>
       <SecondbHead size={48} mood={mood} accessibilityLabel={accessibilityLabel} />
       <View style={styles.bubble}>
         <View style={styles.tail} />
@@ -56,6 +67,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: withAlpha(deepSpace.accent, 0.12),
   },
+  // Sub-screens: clear the floating BackArrow chip (top-left ~44pt) above the head.
+  rowHeadroom: { marginTop: 52 },
   bubble: {
     flex: 1,
     position: "relative",
