@@ -36,6 +36,10 @@
           "label": "Big Five",
           "hint": "Membuka asesmen Big Five."
         },
+        "rlss": {
+          "label": "Kepuasan hidup",
+          "hint": "Membuka asesmen kepuasan hidup (RLSS)."
+        },
         "attachment": {
           "label": "Attachment",
           "hint": "Membuka asesmen gaya attachment."

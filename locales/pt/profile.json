@@ -36,6 +36,10 @@
           "label": "Big Five",
           "hint": "Abre a avaliação Big Five."
         },
+        "rlss": {
+          "label": "Satisfação com a vida",
+          "hint": "Abre a avaliação de satisfação com a vida (RLSS)."
+        },
         "attachment": {
           "label": "Apego",
           "hint": "Abre a avaliação de estilo de apego."
