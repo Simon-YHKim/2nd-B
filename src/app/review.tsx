@@ -37,6 +37,10 @@ function ReviewScreenLegacy() {
   const { userId, isMinor } = useAuth();
   const [loading, setLoading] = useState(false);
   const [proposal, setProposal] = useState<SelfModelProposal | null>(null);
+  // Real, resolvable record refs behind the proposal (0060), captured at build
+  // time so a ratify can cite the records the card was built from — not the LLM's
+  // invented proposal.citations.
+  const [evidenceRefs, setEvidenceRefs] = useState<string[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [shifts, setShifts] = useState<TierShift[]>([]);
@@ -64,6 +68,7 @@ function ReviewScreenLegacy() {
     try {
       const card = await buildPersona(userId, locale, isMinor === true);
       const ctx = proposalContextForStar(card, "now");
+      setEvidenceRefs(ctx.evidenceRefs);
       const p = await proposeSelfModelChange(
         userId,
         { kind: "star", star: "now" },
@@ -95,14 +100,13 @@ function ReviewScreenLegacy() {
     setSheetOpen(false);
     if (decision === "ratify" && userId && proposal?.target.kind === "star") {
       // Persist the ratified tier so D9 history + trend detection reflect it.
-      // We tag origin only — NOT proposal.citations: those are Gemini-emitted
-      // and proposalContextForStar gives the model a narrative summary, not a
-      // whitelist of real record ids, so the citations are unverifiable labels.
-      // Persisting them would misrepresent fabricated strings as resolvable
-      // evidence (0060 contract). Real evidence-id citations are a follow-up
-      // (thread record ids through proposal-context).
+      // Cite evidenceRefs (real `record:<id>` for the records this card was built
+      // from), NOT proposal.citations — those are Gemini-emitted labels with no
+      // real-id whitelist behind them. The write boundary re-sanitizes to
+      // resolvable refs only, so a fabricated string could never survive (0060).
       void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel }, "journal", {
         origin: "ratify",
+        citations: evidenceRefs,
       });
     }
     if (decision === "ratify") reactExpression("positive");
