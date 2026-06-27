@@ -16,7 +16,7 @@ values
     'adult',
     'en',
     now(),
-    'DRAMMA 모델: 여가가 주관적 웰빙으로 이어지는 6개 심리 경로 — Detachment-recovery(회복), Autonomy(자율), Mastery(숙달), Meaning(의미), Affiliation(관계). 여가의 가치는 시간량이 아니라 이 경로들이 얼마나 충족되는지로 결정됨. 같은 활동도 어떤 경로를 채우느냐에 따라 효과가 다름.',
-    'The DRAMMA model: six psychological pathways through which leisure yields subjective well-being — Detachment-recovery, Autonomy, Mastery, Meaning, and Affiliation. Leisure value depends not on hours spent but on how well these pathways are met; the same activity differs by which pathway it fills.',
-    'recreation 도메인 별의 학술 근거. Advisor가 오락 항목을 다룰 때 ''얼마나 자주''가 아니라 어떤 DRAMMA 경로(회복·자율·숙달·의미·관계)를 채우는지 mirror. 활동 추천이 아니라 본인 여가의 의미를 비춰주기.'
+    'DRAMMA 모델: 여가가 주관적 웰빙으로 이어지는 6개 심리 경로 — Detachment-recovery(분리-회복), Relaxation(이완), Autonomy(자율), Mastery(숙달), Meaning(의미), Affiliation(관계). 여가의 가치는 시간량이 아니라 이 경로들이 얼마나 충족되는지로 결정됨. 같은 활동도 어떤 경로를 채우느냐에 따라 효과가 다름.',
+    'The DRAMMA model: six psychological pathways through which leisure yields subjective well-being — Detachment-recovery, Relaxation, Autonomy, Mastery, Meaning, and Affiliation. Leisure value depends not on hours spent but on how well these pathways are met; the same activity differs by which pathway it fills.',
+    'recreation 도메인 별의 학술 근거. Advisor가 오락 항목을 다룰 때 ''얼마나 자주''가 아니라 어떤 DRAMMA 경로(분리회복·이완·자율·숙달·의미·관계)를 채우는지 mirror. 활동 추천이 아니라 본인 여가의 의미를 비춰주기.'
   );

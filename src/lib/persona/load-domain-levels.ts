@@ -52,11 +52,17 @@ interface DomainRow {
 // One structured manage-layer row (relation_people 0058 / recreation_items 0059).
 // These are deterministic, manually-entered domain backing — exactly the
 // "organized" evidence the brightness-honesty rule wants — so they count toward
-// their domain's coverage alongside the free-text records. created_at gives them
-// a recency timestamp; the row's mere existence (a named person / logged item)
-// makes it organized, so we mark it with a non-empty tag set.
+// their domain's coverage alongside the free-text records. The row's mere
+// existence (a named person / logged item) makes it organized, so we mark it
+// with a non-empty tag set. For recency we prefer the ACTIVITY date
+// (last_interaction_on / occurred_on) over created_at, so the recency signal
+// tracks real engagement, not when the row was first created.
 interface StructuredRow {
   created_at?: string | null;
+  /** relation_people: when the user last interacted with this person. */
+  last_interaction_on?: string | null;
+  /** recreation_items: when this leisure item happened. */
+  occurred_on?: string | null;
 }
 
 export async function loadDomainLevels(userId: string): Promise<DomainBrightness> {
@@ -70,8 +76,8 @@ export async function loadDomainLevels(userId: string): Promise<DomainBrightness
     // Structured backing for the relation/recreation stars. Read-only here; the
     // manage-layer writers (mirroring ops_*) own inserts. A failed/absent table
     // must never blank the home sky, so these degrade to [] independently.
-    supabase.from("relation_people").select("created_at").eq("user_id", userId),
-    supabase.from("recreation_items").select("created_at").eq("user_id", userId),
+    supabase.from("relation_people").select("created_at, last_interaction_on").eq("user_id", userId),
+    supabase.from("recreation_items").select("created_at, occurred_on").eq("user_id", userId),
   ]);
   const rows = (recordsRes.data ?? []) as DomainRow[];
 
@@ -94,17 +100,25 @@ export async function loadDomainLevels(userId: string): Promise<DomainBrightness
   // organized by construction (a deliberate, named entry), so it carries a
   // sentinel user-tag and lifts coverage exactly like a curated record.
   const STRUCTURED_TAG = ["structured"];
-  const foldStructured = (domain: DomainId, data: unknown) => {
+  const foldStructured = (
+    domain: DomainId,
+    data: unknown,
+    activityKey: "last_interaction_on" | "occurred_on",
+  ) => {
     for (const r of (data ?? []) as StructuredRow[]) {
+      // Recency timestamp = the activity date (last interaction / occurrence)
+      // when present, else created_at. So a person created months ago but
+      // contacted today keeps the relation star fresh, while an old item logged
+      // today does not look fresh just because its row is new.
       (entriesByDomain[domain] ??= []).push({
         domain,
-        createdAt: r.created_at ?? undefined,
+        createdAt: r[activityKey] ?? r.created_at ?? undefined,
         tags: STRUCTURED_TAG,
       });
     }
   };
-  foldStructured("relation", relationRes.data);
-  foldStructured("recreation", recreationRes.data);
+  foldStructured("relation", relationRes.data, "last_interaction_on");
+  foldStructured("recreation", recreationRes.data, "occurred_on");
 
   // Inject a real Date.now() ONLY here, at the impure Supabase-read boundary, so
   // the §4.5 ④ recency signal is live in production (a domain abandoned months ago

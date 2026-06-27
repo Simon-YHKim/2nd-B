@@ -160,6 +160,28 @@ describe("loadDomainLevels (cheap, no-Gemini)", () => {
     expect(domainLevels.career).toBe(1); // untouched domain stays dark
   });
 
+  test("structured recency uses the ACTIVITY date, not created_at (last_interaction_on / occurred_on)", async () => {
+    // 15 rows each → high band → L4 before recency. The created_at column would
+    // give the wrong recency for both: relation rows are old-created but contacted
+    // today (must stay bright), recreation rows are new-created but happened long
+    // ago (must dim). Proves the fold reads the activity date with a created_at
+    // fallback.
+    const old = "2020-01-01T00:00:00Z";
+    const recent = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    tableFixtures["records:select"] = { data: [], error: null };
+    tableFixtures["relation_people:select"] = {
+      data: Array.from({ length: 15 }, () => ({ created_at: old, last_interaction_on: recent })),
+      error: null,
+    };
+    tableFixtures["recreation_items:select"] = {
+      data: Array.from({ length: 15 }, () => ({ created_at: recent, occurred_on: old })),
+      error: null,
+    };
+    const { domainLevels } = await loadDomainLevels("u1");
+    expect(domainLevels.relation).toBe(4); // old created_at ignored; recent interaction keeps it bright
+    expect(domainLevels.recreation).toBe(3); // recent created_at ignored; old occurrence dims it
+  });
+
   test("ignores unknown / malformed domain slugs", async () => {
     tableFixtures["records:select"] = {
       data: [
