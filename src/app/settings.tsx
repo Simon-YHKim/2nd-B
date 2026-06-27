@@ -795,6 +795,10 @@ export default function Settings() {
             }}
           />
         </View>
+
+        <Text variant="caption" color="textMuted" style={styles.buildMarker}>
+          {locale === "ko" ? "빌드 0.0.6 · OTA ota-2026-06-27a" : "Build 0.0.6 · OTA ota-2026-06-27a"}
+        </Text>
       </ScrollView>
 </KeyboardAvoidingView>
       {toast ? (
@@ -972,4 +976,5 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   modalButton: { flex: 1 },
   crewRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
+  buildMarker: { marginTop: spacing.md, textAlign: "center", opacity: 0.6 },
 });
