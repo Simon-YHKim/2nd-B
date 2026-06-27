@@ -26,10 +26,10 @@ These three share one code path (`signInWithOAuth({ provider })`, web redirect).
 
 1. **Supabase dashboard → Authentication → Providers →** toggle the provider on and paste its
    client id + secret.
-2. **Authentication → URL Configuration → Redirect URLs:** add every origin the web app runs on:
+2. **Authentication → URL Configuration → Redirect URLs:** add every origin the app runs on:
    - `https://simon-yhkim.github.io/2nd-B/` (prod web)
    - `http://localhost:8081/` (Expo web dev)
-   - native deep link later (see "Native" below).
+   - `secondbrain://**` (native iOS/Android deep link — **required for phone login**, see "Native" below).
 3. Provider-console specifics:
    - **Google:** Google Cloud → OAuth 2.0 Client. Authorized redirect URI =
      `https://<project-ref>.supabase.co/auth/v1/callback`.
@@ -40,7 +40,10 @@ These three share one code path (`signInWithOAuth({ provider })`, web redirect).
    - **Kakao:** Kakao Developers → app → REST API key = client id; create a client secret; set the
      redirect URI to the Supabase callback. Enable "Kakao Login" + the email scope if you want email.
 
-After enabling, the existing buttons work on the web build with no code change.
+After enabling, the existing buttons work on **both web and native** with no code change — native
+runs the same providers through an in-app browser (see "Native" below), so there are **no
+Android/iOS-specific OAuth client ids**. The only native-specific operator step is allowing the
+`secondbrain://**` redirect in step 2.
 
 ## Naver (custom — not a Supabase provider)
 
@@ -70,15 +73,54 @@ function remains server-gated by `ENABLE_NAVER_OAUTH` until you're satisfied.
 > The legacy **`oauth-kakao` edge function was retired** — Kakao is now a Supabase-native provider
 > (`signInWithOAuth({ provider: 'kakao' })`), so it follows the built-in path above, no edge function.
 
-## Native (Expo) — deferred, same as the original Google path
+## Native (Expo iOS/Android) — implemented (Supabase-mediated, no native client ids)
 
-The current helpers do the **web** redirect only. For native iOS/Android builds:
+> The earlier "deferred" note is obsolete: the native path is **already implemented and shipped**.
+> `signInWithProvider` (`src/lib/supabase/auth.ts`) detects the runtime and, on native, opens the
+> Supabase provider URL with `expo-web-browser`'s `openAuthSessionAsync(authUrl, redirectTo)`, then
+> turns the returned callback URL into a session via `createNativeSessionFromUrl`
+> (`exchangeCodeForSession` for PKCE `code`, or `setSession` for an implicit token pair).
 
-- Add a deep-link `scheme` in `app.json` and allow it in Supabase Redirect URLs.
-- Open `data.url` from `signInWithProvider` via `expo-web-browser`'s `openAuthSessionAsync`, then
-  parse the returned URL for the session (or use `signInWithIdToken` for Apple/Google/Kakao where an
-  id_token is available natively).
-- iOS Apple: use `expo-apple-authentication` (native sheet) + `signInWithIdToken({ provider: 'apple' })`.
+Because OAuth is **brokered by Supabase** (not the native Google/Kakao SDKs), native reuses the same
+provider config as web. There is **no separate Android/iOS OAuth client id** to register, and
+**nothing provider-secret is ever bundled**. The pieces already in place:
+
+- `app.json` → `scheme: "secondbrain"` + the Android `intentFilter` (VIEW / BROWSABLE / DEFAULT) for
+  the `secondbrain` scheme. (Native config — present in any build cut from current `main`.)
+- `nativeRedirectTo()` → `Linking.createURL("/")` → a `secondbrain://…` deep link used as `redirectTo`.
+- `expo-web-browser` + `expo-linking` are already native dependencies, so the JS flow ships over
+  **OTA** (`eas update`) — no rebuild needed to change or fix the OAuth *code*.
+
+### Make phone login go live (per provider)
+
+1. Enable the provider in Supabase + (for Kakao) its console — the **same** built-in steps above.
+2. **Add `secondbrain://**` to Supabase Redirect URLs** (URL Configuration). Without this, the
+   provider authenticates but Supabase refuses to redirect back to the app and the flow dead-ends.
+   The wildcard form matters: `Linking.createURL("/")` carries a path, so a bare `secondbrain://`
+   exact entry will not match.
+3. Make sure the button renders in the native build. Visibility is the build-time flag in
+   `src/lib/env.ts`: `EXPO_PUBLIC_ENABLE_GOOGLE` defaults **true** (Google shows by default);
+   `EXPO_PUBLIC_ENABLE_KAKAO`/`_APPLE`/`_FACEBOOK`/`_GITHUB` default **false**. To show a default-off
+   provider on the phone, set its flag to `"true"` in the relevant `eas.json` build profile `env`
+   (native reads `eas.json`, **not** the web-deploy GitHub Variables), then rebuild — or inject it in
+   `eas-update.yml` and OTA. Only flip a flag **after** that provider is live in Supabase, or the
+   phone shows a dead button.
+4. Ship: OTA the JS (`[ota]`/`[release]` marker or the manual "EAS Update" workflow) if only code/JS
+   changed; rebuild the APK only if a native flag/config (`app.json`, a new native dep, an `eas.json`
+   env baked at build time) changed.
+
+**Current status (2026-06-27):** Google is enabled in Supabase and verified on web (1 google
+identity). Kakao/Apple/Facebook/GitHub are **not** enabled in Supabase (0 identities). So the nearest
+phone win is **Google**: do step 2 (`secondbrain://**`) + OTA, then test "Continue with Google" on the
+device. Kakao additionally needs the Kakao console app + (for the email scope) Simon's
+business/identity verification — see `docs/api-registration-cowork.md` prompt 2.
+
+### iOS Sign in with Apple (still deferred)
+
+App Store guideline 4.8: a native iOS build offering other social logins **must** also offer Sign in
+with Apple, via `expo-apple-authentication` (native sheet) + `signInWithIdToken({ provider: 'apple' })`.
+That native-sheet path is the one remaining unimplemented piece; the browser-brokered Apple button
+works the same as the others once enabled in Supabase.
 
 ## Security notes
 
