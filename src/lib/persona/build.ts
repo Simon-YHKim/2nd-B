@@ -82,6 +82,11 @@ export interface PersonaCard {
   starLevels?: Record<StarId, LadderLevel>;
   /** Soul Core (북극성) aggregate brightness 0-1 from starLevels (D8). */
   soulCoreBrightness?: number;
+  /** Resolvable evidence refs (0060): the `record:<id>` of the rows this card was
+   *  actually built from (most-recent first, bounded). The SYSTEM's provenance —
+   *  not the LLM's free-form citations — so a downstream tier change can cite real,
+   *  openable records. Optional so existing fixtures stay valid; buildPersona sets it. */
+  evidenceRefs?: string[];
   markdownExport: string;
 }
 
@@ -106,6 +111,11 @@ type BfiScores = Record<BfiTraitKey, number>;
 function hasCompleteBfiScores(scores: Partial<BfiScores> | undefined): scores is BfiScores {
   return !!scores && BFI_TRAIT_KEYS.every((key) => Number.isFinite(scores[key]));
 }
+
+// Cap on how many record refs a card carries as evidence. Matches the write-
+// boundary MAX_CITATIONS in record-star-tiers.ts so nothing is silently dropped
+// downstream; keeps the persisted row small.
+const EVIDENCE_REF_LIMIT = 8;
 
 export const DEFAULT_TRAITS: PersonaTraits = {
   openness: 0.5,
@@ -353,6 +363,14 @@ export async function buildPersona(
     openness: tc, conscientiousness: tc, extraversion: tc, agreeableness: tc, neuroticism: tc,
   };
 
+  // Resolvable provenance (0060): the record ids this card was actually built
+  // from, newest-first and bounded. These are the SYSTEM's evidence refs — what
+  // a ratified tier change cites — never the LLM's invented citation labels.
+  const evidenceRefs = rows
+    .slice(-EVIDENCE_REF_LIMIT)
+    .reverse()
+    .map((r) => `record:${r.id}`);
+
   const persona: PersonaCard = {
     version: 1,
     traits,
@@ -362,6 +380,7 @@ export async function buildPersona(
     attachment,
     values: deriveValues(rows),
     patterns,
+    evidenceRefs,
     markdownExport: renderMarkdown(traits, rows, summaryText, locale, topKinds, mbti, attachment, tc),
   };
 

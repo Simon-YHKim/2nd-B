@@ -29,6 +29,33 @@ export interface TierShift {
   origin?: string;
 }
 
+/**
+ * Format the D9 re-check nudge sentence for shifted stars, surfacing the
+ * evidence count (0060) when the shifts are backed by cited records — so the
+ * nudge says not just THAT a tendency moved but that there are N real records
+ * behind it (the value 0045+0060 persist). Pure; `nameOf` resolves a star id to
+ * its localized display name, keeping this free of UI constants. One aggregate
+ * evidence fact, not per-item clutter (information-density rule). Returns null
+ * when there is nothing to nudge.
+ */
+export function tierShiftNudge(
+  shifts: readonly TierShift[],
+  locale: "en" | "ko",
+  nameOf: (starId: StarId, locale: "en" | "ko") => string,
+): string | null {
+  if (shifts.length === 0) return null;
+  const segs = shifts
+    .map((s) => `${nameOf(s.starId, locale)} ${s.direction === "up" ? "↑" : "↓"}`)
+    .join(", ");
+  const cited = shifts.reduce((n, s) => n + (s.citations?.length ?? 0), 0);
+  if (locale === "ko") {
+    const evid = cited > 0 ? ` · 근거 ${cited}개` : "";
+    return `최근 변화 감지: ${segs}${evid} - 점검해볼까요?`;
+  }
+  const evid = cited > 0 ? ` · ${cited} cited` : "";
+  return `Recent shift: ${segs}${evid} - want to re-check?`;
+}
+
 export function detectTierShift(observations: readonly TierObservation[]): TierShift[] {
   const byStar = new Map<StarId, TierObservation[]>();
   for (const o of observations) {

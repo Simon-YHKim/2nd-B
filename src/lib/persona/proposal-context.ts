@@ -12,6 +12,13 @@ export interface ProposalContext {
   before: string;
   /** Evidence the proposer reasons over (narrative summary + observed patterns). */
   evidence: string;
+  /**
+   * Resolvable `record:<id>` refs for the records this card was built from (0060).
+   * The SYSTEM's provenance — what a ratified tier change should cite — as opposed
+   * to `proposal.citations`, which the LLM invents from the narrative and cannot
+   * be trusted as real ids. Empty when the card carries no refs (legacy fixtures).
+   */
+  evidenceRefs: string[];
 }
 
 function evidenceFrom(card: PersonaCard): string {
@@ -46,5 +53,5 @@ export function proposalContextForStar(card: PersonaCard, starId: StarId): Propo
       // recall / seen / rhythm / possible have no card-resident scalar yet.
       before = "not gathered yet";
   }
-  return { before, evidence };
+  return { before, evidence, evidenceRefs: card.evidenceRefs ?? [] };
 }

@@ -32,6 +32,8 @@ import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
 import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
+import { loadEvidenceShards } from "@/lib/persona/load-evidence-shards";
+import { type EvidenceShard } from "@/lib/persona/evidence";
 import { RatifySheet } from "@/components/persona/RatifySheet";
 import {
   allRequiredAcksChecked,
@@ -1838,6 +1840,14 @@ export function DeepSpaceReviewScreen() {
   // so applyRatify reports the right resultingLevel on decline (ratify always
   // -> L5). Falls back to L1 (the ladder default) if the card has no level yet.
   const [currentLevel, setCurrentLevel] = useState<LadderLevel>(1);
+  // Real `record:<id>` refs behind the proposal (0060), captured at build time so
+  // a ratify cites the records the card was built from — not LLM-invented labels.
+  const [evidenceRefs, setEvidenceRefs] = useState<string[]>([]);
+  // Openable receipt rows for those refs — so the user can tap a cited record and
+  // CHECK the proposal against the original (research 2026-06-28: a "grounded in
+  // your data" claim is not self-proving; showing the source span is the honest,
+  // anti-Barnum move). Loaded when a proposal is generated.
+  const [receipts, setReceipts] = useState<EvidenceShard[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
@@ -1845,10 +1855,13 @@ export function DeepSpaceReviewScreen() {
     if (!userId || loading) return;
     setLoading(true);
     setResult(null);
+    setReceipts([]);
     try {
       const card = await buildPersona(userId, locale, isMinor === true);
       const ctx = proposalContextForStar(card, "now");
       setCurrentLevel(card.starLevels?.now ?? 1);
+      setEvidenceRefs(ctx.evidenceRefs);
+      setReceipts(await loadEvidenceShards(ctx.evidenceRefs, locale));
       const p = await proposeSelfModelChange(userId, { kind: "star", star: "now" }, ctx.before, ctx.evidence, 5, locale, isMinor === true);
       if (p) {
         setProposal(p);
@@ -1867,11 +1880,13 @@ export function DeepSpaceReviewScreen() {
     const r = applyRatify(currentLevel, decision);
     setSheetOpen(false);
     if (decision === "ratify" && userId && proposal?.target.kind === "star") {
-      // Tag origin only (0060). proposal.citations are Gemini-emitted labels,
-      // not a whitelist of real record ids, so they are unverifiable evidence
-      // and intentionally not persisted (real evidence-id citations: follow-up).
+      // Cite evidenceRefs (real `record:<id>` for the records this card was built
+      // from), NOT proposal.citations — those are Gemini-emitted labels with no
+      // real-id whitelist. The write boundary re-sanitizes to resolvable refs
+      // only, so a fabricated string can never be persisted (0060).
       void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel }, "journal", {
         origin: "ratify",
+        citations: evidenceRefs,
       });
     }
     setResult(
@@ -1905,6 +1920,31 @@ export function DeepSpaceReviewScreen() {
         </Text>
       </Pressable>
       {result ? <Text variant="subtle" style={styles.footer}>{result}</Text> : null}
+      {receipts.length > 0 ? (
+        <Card>
+          <Text variant="heading" style={styles.section}>
+            {locale === "ko" ? "이 제안의 근거가 된 기록" : "The records behind this"}
+          </Text>
+          <Text variant="body" style={styles.planFeatDim}>
+            {locale === "ko" ? "탭하면 원본 기록을 직접 확인할 수 있어요." : "Tap to check the original record yourself."}
+          </Text>
+          <View style={styles.topicCol}>
+            {receipts.map((ev) => (
+              <Pressable
+                key={ev.id}
+                style={styles.topicRow}
+                onPress={() => router.push({ pathname: "/record/[id]", params: { id: ev.id } })}
+                accessibilityRole="button"
+                accessibilityLabel={locale === "ko" ? `${ev.title} 기록 열기` : `Open record ${ev.title}`}
+              >
+                <View style={styles.topicDot} />
+                <Text variant="body" style={styles.topicText} numberOfLines={1}>{ev.title}</Text>
+                {ev.dateLabel ? <Text variant="subtle" style={styles.tlTime}>{ev.dateLabel}</Text> : null}
+              </Pressable>
+            ))}
+          </View>
+        </Card>
+      ) : null}
       <RatifySheet proposal={proposal} locale={locale} visible={sheetOpen} onDecision={handleDecision} onClose={() => setSheetOpen(false)} />
     </Shell>
   );
