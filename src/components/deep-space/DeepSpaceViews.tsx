@@ -12,7 +12,7 @@
  * (DESIGN.md adoption 2026-06-17). Unique SVG gradient ids via useId() so web
  * (document-global svg ids) never clashes across instances.
  */
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { type DimensionValue, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
@@ -22,6 +22,9 @@ import { deepSpace, deepSpaceGradients, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
+import { getSupabaseClient } from "@/lib/supabase/client";
+import { loadLatestBfi } from "@/lib/persona/build";
+import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
 
 // ── shared gradient primitives ───────────────────────────────────────────────
 
@@ -472,6 +475,28 @@ export function RecallLensView({ isKo }: { isKo?: boolean } = {}) {
 export function SeenLensView() {
   const { t, i18n } = useTranslation("home");
   const isKo = i18n.language === "ko";
+  const locale = isKo ? "ko" : "en";
+  const { userId } = useAuth();
+  // SOKA-grounded "observable self": the part of the user's OWN Big Five that reads
+  // most from outside (extraversion/conscientiousness/agreeableness). This is NOT a
+  // claim about what specific others think -- that needs the peer-review data the
+  // empty state below still asks for. It just gives the lens honest, grounded content
+  // from data the user already has, instead of a bare empty screen.
+  const [observable, setObservable] = useState<ObservableTrait[]>([]);
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    loadLatestBfi(getSupabaseClient(), userId)
+      .then((means) => {
+        if (!cancelled) setObservable(observableSelf(means, locale));
+      })
+      .catch(() => {
+        if (!cancelled) setObservable([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, locale]);
 
   async function requestPeerReview() {
     try {
@@ -502,6 +527,24 @@ export function SeenLensView() {
           <Text style={styles.legendLabel}>{t("ds.seen.legendOther")}</Text>
         </View>
       </View>
+      {observable.length > 0 ? (
+        <View style={styles.obsPanel}>
+          <Text style={styles.obsTitle}>{isKo ? "밖에서 가장 잘 보이는 나" : "Most visible from outside"}</Text>
+          <Text style={styles.obsNote}>
+            {isKo
+              ? "남이 실제로 어떻게 보는지가 아니라, 내 Big Five 자기보고에서 밖으로 가장 잘 드러나는 특질이에요."
+              : "Not what others actually think; the traits from your own Big Five that read most from outside."}
+          </Text>
+          {observable.map((o) => (
+            <View key={o.trait} style={styles.obsRow}>
+              <Text style={styles.obsLabel}>{o.label}</Text>
+              <View style={styles.obsTrack}>
+                <View style={[styles.obsFill, { width: `${o.percent}%` }]} />
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
       <View style={styles.centerState}>
         <Svg width={34} height={34} viewBox="0 0 24 24">
           <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
@@ -875,6 +918,13 @@ const styles = StyleSheet.create({
   stateMarkDim: { opacity: 0.7 },
   stateTitle: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.pixelKo },
   stateBody: { color: withAlpha(deepSpace.text, 0.6), fontSize: 12, lineHeight: 19, textAlign: "center", fontFamily: fontFamilies.readable },
+  obsPanel: { gap: 8, marginBottom: 16, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: withAlpha(deepSpace.accentSoft, 0.3), backgroundColor: withAlpha(deepSpace.accentSoft, 0.06) },
+  obsTitle: { color: deepSpace.accentBright, fontSize: 13, fontFamily: fontFamilies.pixelKo },
+  obsNote: { color: withAlpha(deepSpace.text, 0.55), fontSize: 11, lineHeight: 16, fontFamily: fontFamilies.readable, marginBottom: 4 },
+  obsRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  obsLabel: { color: withAlpha(deepSpace.text, 0.85), fontSize: 12, width: 64, fontFamily: fontFamilies.readable },
+  obsTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: withAlpha(deepSpace.text, 0.12), overflow: "hidden" },
+  obsFill: { height: "100%", borderRadius: 3, backgroundColor: deepSpace.accentSoft },
   ghostBtn: {
     marginTop: 6,
     paddingVertical: 10,
