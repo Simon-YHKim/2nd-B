@@ -15,6 +15,7 @@ function chainable(result: QueryResult) {
     select: () => chain,
     eq: () => chain,
     contains: () => chain,
+    in: () => chain,
     order: () => chain,
     limit: () => chain,
     then: (...args: unknown[]) => promise.then(...(args as Parameters<typeof promise.then>)),
@@ -194,5 +195,71 @@ describe("loadDomainLevels (cheap, no-Gemini)", () => {
     expect(domainLevels.health).toBe(3);
     // bogus slug contributed to no domain
     expect(domainLevels.career).toBe(1);
+  });
+
+  test("ops_ledger lifts finance, ops_reading lifts growth (organized fold like 0058/0059)", async () => {
+    // Manual, low-volume self-report: 5 rows each → medium band → L3, exactly like
+    // the relation/recreation precedent. Proves the finance/growth behavioral
+    // tables are no longer dead schema for the home sky.
+    const recent = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    tableFixtures["records:select"] = { data: [], error: null };
+    tableFixtures["ops_ledger:select"] = {
+      data: Array.from({ length: 5 }, () => ({ created_at: recent, occurred_on: recent })),
+      error: null,
+    };
+    tableFixtures["ops_reading:select"] = {
+      data: Array.from({ length: 5 }, () => ({ created_at: recent, updated_at: recent })),
+      error: null,
+    };
+    const { domainLevels } = await loadDomainLevels("u1");
+    expect(domainLevels.finance).toBe(3);
+    expect(domainLevels.growth).toBe(3);
+    expect(domainLevels.health).toBe(1); // untouched domain stays dark
+  });
+
+  test("ledger/reading recency uses the activity date (occurred_on / updated_at)", async () => {
+    const old = "2020-01-01T00:00:00Z";
+    const recent = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    tableFixtures["records:select"] = { data: [], error: null };
+    // 15 ledger rows occurred long ago → L4 base dims one band to L3 by recency.
+    tableFixtures["ops_ledger:select"] = {
+      data: Array.from({ length: 15 }, () => ({ created_at: recent, occurred_on: old })),
+      error: null,
+    };
+    // 15 reading rows updated today → L4 stays (created_at is old but ignored).
+    tableFixtures["ops_reading:select"] = {
+      data: Array.from({ length: 15 }, () => ({ created_at: old, updated_at: recent })),
+      error: null,
+    };
+    const { domainLevels } = await loadDomainLevels("u1");
+    expect(domainLevels.finance).toBe(3); // old occurrence dims despite recent created_at
+    expect(domainLevels.growth).toBe(4); // recent update keeps it bright despite old created_at
+  });
+
+  test("health triangulation: device sample + a self-report record → +1 tier; device alone never inflates", async () => {
+    // The .in("source", [healthkit, health_connect, strava]) filter runs at the DB,
+    // so the health_samples fixture is the POST-FILTER (device-only) result: a
+    // single device row models any wearable user (1 row == 10k rows == one boolean,
+    // so the +1 is volume-proof). manual/mock sources are filtered out → empty.
+    const oneDevice = { data: [{ source: "healthkit" }], error: null };
+
+    // (a) device + 1 organized health record (base L2) → triangulation lifts to L3.
+    tableFixtures["records:select"] = { data: organizedRows("health", 1), error: null };
+    tableFixtures["health_samples:select"] = oneDevice;
+    expect((await loadDomainLevels("u1")).domainLevels.health).toBe(3);
+
+    // (b) record present but NO device row (e.g. only manual/mock, filtered out) →
+    // no bonus; health stays at its record-derived L2. Proves the +1 is what lifted (a).
+    reset();
+    tableFixtures["records:select"] = { data: organizedRows("health", 1), error: null };
+    tableFixtures["health_samples:select"] = { data: [], error: null };
+    expect((await loadDomainLevels("u1")).domainLevels.health).toBe(2);
+
+    // (c) device data ALONE (no self-report health record) never lights health —
+    // owning a wearable is not the app understanding your health (honesty rule).
+    reset();
+    tableFixtures["records:select"] = { data: [], error: null };
+    tableFixtures["health_samples:select"] = oneDevice;
+    expect((await loadDomainLevels("u1")).domainLevels.health).toBe(1);
   });
 });

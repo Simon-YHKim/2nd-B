@@ -61,24 +61,48 @@ interface StructuredRow {
   created_at?: string | null;
   /** relation_people: when the user last interacted with this person. */
   last_interaction_on?: string | null;
-  /** recreation_items: when this leisure item happened. */
+  /** recreation_items / ops_ledger: when the item / ledger entry happened. */
   occurred_on?: string | null;
+  /** ops_reading: when the shelf row was last updated (status change). */
+  updated_at?: string | null;
 }
 
 export async function loadDomainLevels(userId: string): Promise<DomainBrightness> {
   const supabase = getSupabaseClient();
-  const [recordsRes, relationRes, recreationRes] = await Promise.all([
-    supabase
-      .from("records")
-      .select("id, created_at, tags")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true }),
-    // Structured backing for the relation/recreation stars. Read-only here; the
-    // manage-layer writers (mirroring ops_*) own inserts. A failed/absent table
-    // must never blank the home sky, so these degrade to [] independently.
-    supabase.from("relation_people").select("created_at, last_interaction_on").eq("user_id", userId),
-    supabase.from("recreation_items").select("created_at, occurred_on").eq("user_id", userId),
-  ]);
+  const [recordsRes, relationRes, recreationRes, ledgerRes, readingRes, healthDeviceRes] =
+    await Promise.all([
+      supabase
+        .from("records")
+        .select("id, created_at, tags")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true }),
+      // Structured backing for the relation/recreation stars. Read-only here; the
+      // manage-layer writers (mirroring ops_*) own inserts. A failed/absent table
+      // must never blank the home sky, so these degrade to [] independently.
+      supabase.from("relation_people").select("created_at, last_interaction_on").eq("user_id", userId),
+      supabase.from("recreation_items").select("created_at, occurred_on").eq("user_id", userId),
+      // Manual, low-volume manage-layer rows that ARE the user's deliberate
+      // self-report coverage for finance (ops_ledger) and growth (ops_reading) —
+      // folded as "organized" entries exactly like relation_people/recreation_items
+      // (same introspective method; per-row effort bounds volume). Recency key:
+      // ledger = occurred_on, reading = updated_at.
+      supabase.from("ops_ledger").select("created_at, occurred_on").eq("user_id", userId),
+      supabase.from("ops_reading").select("created_at, updated_at").eq("user_id", userId),
+      // DEVICE-measured health is the one INDEPENDENT, objective channel. It is
+      // NEVER folded as coverage rows: auto-ingest is high-volume (one HealthKit
+      // sync emits dozens of rows), so counting it would inflate the most sensitive
+      // star to L4 on "owns a wearable" alone — detonating the brightness-honesty
+      // rule. Instead it contributes ONE boolean (existence) toward the
+      // crossSourceAgreement +1 tier (below). Only device sources count; manual is
+      // self-report and mock is seed/test, both excluded at the query. .limit(1)
+      // keeps existence O(1) and volume-proof (1 row and 10k give the same boolean).
+      supabase
+        .from("health_samples")
+        .select("source")
+        .eq("user_id", userId)
+        .in("source", ["healthkit", "health_connect", "strava"])
+        .limit(1),
+    ]);
   const rows = (recordsRes.data ?? []) as DomainRow[];
 
   const entriesByDomain: Partial<Record<DomainId, DomainEntry[]>> = {};
@@ -103,7 +127,7 @@ export async function loadDomainLevels(userId: string): Promise<DomainBrightness
   const foldStructured = (
     domain: DomainId,
     data: unknown,
-    activityKey: "last_interaction_on" | "occurred_on",
+    activityKey: "last_interaction_on" | "occurred_on" | "updated_at",
   ) => {
     for (const r of (data ?? []) as StructuredRow[]) {
       // Recency timestamp = the activity date (last interaction / occurrence)
@@ -119,11 +143,30 @@ export async function loadDomainLevels(userId: string): Promise<DomainBrightness
   };
   foldStructured("relation", relationRes.data, "last_interaction_on");
   foldStructured("recreation", recreationRes.data, "occurred_on");
+  // Finance & growth: the same organized-fold. Deliberate manual self-report
+  // (logged transactions / shelf entries), so the count-based coverage band is
+  // honest here — they ADD coverage volume but do NOT earn a triangulation tier
+  // (single method). Per the judge-panel verdict (psychometric/honesty/UX).
+  foldStructured("finance", ledgerRes.data, "occurred_on");
+  foldStructured("growth", readingRes.data, "updated_at");
+
+  // Activate the (previously dead) crossSourceAgreement +1 tier — for HEALTH only,
+  // and only as genuine method-triangulation: a DEVICE-measured sample (objective)
+  // AND >=1 self-report health record (introspective) must BOTH be present. Device
+  // data alone never lifts health past its record-derived level; co-presence of two
+  // independent methods is the incremental-validity finding encoded honestly, and
+  // one device row equals ten thousand (boolean), so brightness stays inflation-
+  // proof under passive volume. Each read degraded to []/false above, so an
+  // absent/failed table can neither blank nor fabricate a star.
+  const hasDeviceHealth = ((healthDeviceRes.data ?? []) as unknown[]).length > 0;
+  const hasHealthRecord = (entriesByDomain.health ?? []).length > 0;
+  const opts: Partial<Record<DomainId, { crossSourceAgreement?: boolean }>> =
+    hasDeviceHealth && hasHealthRecord ? { health: { crossSourceAgreement: true } } : {};
 
   // Inject a real Date.now() ONLY here, at the impure Supabase-read boundary, so
   // the §4.5 ④ recency signal is live in production (a domain abandoned months ago
   // dims relative to one fed today) while domain-confidence.ts / north-star.ts stay
   // pure and every other caller is unchanged.
-  const domainLevels = domainStarLevels(entriesByDomain, {}, Date.now());
+  const domainLevels = domainStarLevels(entriesByDomain, opts, Date.now());
   return { domainLevels, northStarBrightness: northStarBrightness(domainLevels) };
 }
