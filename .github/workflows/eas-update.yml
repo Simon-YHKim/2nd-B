@@ -14,16 +14,30 @@ name: EAS Update (OTA)
 # Native changes (new npm packages, app.json native config, plugins, icons)
 # are NOT deliverable over-the-air — rebuild instead.
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# OTA PUBLISH IS GATED (2026-06-26). It used to auto-publish on EVERY main push
+# touching JS paths — which shipped half-finished merges to the test phone and
+# was the structural cause of the 06-26 crash incident (a pre-#590 OTA reached
+# the device unintentionally). Publish now requires EXPLICIT INTENT:
+#   1. Manual run    : Actions → "EAS Update (OTA)" → Run workflow (pick channel)
+#   2. Opt-in marker : the head commit / merge message contains [ota] or [release]
+# Any other push to main runs the cheap `gate` job, logs that it skipped, and
+# never installs deps or publishes (job stays green, `update` is skipped).
+# To ship a merge: add "[ota]" to the squash/merge commit message, or dispatch
+# the workflow manually after the merge.
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # Setup (one-time): add repo secret EXPO_TOKEN
 #   Settings → Secrets and variables → Actions → New repository secret
 #   Name: EXPO_TOKEN   Value: an Expo access token (expo.dev → Account → Access tokens)
-# Until the secret exists, this job logs a warning and no-ops (no red X).
+# Until the secret exists, the publish job logs a warning and no-ops (no red X).
 
 on:
   push:
     branches:
       - main
-    # Only JS/asset-relevant paths trigger an OTA. Docs-only merges are skipped.
+    # Only JS/asset-relevant paths can even reach the gate. Docs-only merges are
+    # skipped here; the [ota] marker gate below is the second, explicit layer.
     paths:
       - "src/**"
       - "assets/**"
@@ -46,7 +60,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Cheap decision job — no npm install. Decides whether this run is allowed to
+  # publish (manual dispatch, or an [ota]/[release] marker on the head commit).
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
+      channel: ${{ steps.decide.outputs.channel }}
+    steps:
+      - name: Checkout (head commit only — for the message)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Decide whether to publish
+        id: decide
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            CH="${{ github.event.inputs.channel || 'preview' }}"
+            echo "publish=true"   >> "$GITHUB_OUTPUT"
+            echo "channel=$CH"     >> "$GITHUB_OUTPUT"
+            echo "::notice title=OTA::Manual dispatch — publishing OTA to '$CH'."
+          elif git log -1 --pretty=%B | grep -qiE '\[ota\]|\[release\]'; then
+            echo "publish=true"      >> "$GITHUB_OUTPUT"
+            echo "channel=preview"   >> "$GITHUB_OUTPUT"
+            echo "::notice title=OTA::Found [ota]/[release] marker in the head commit — publishing OTA to 'preview'."
+          else
+            echo "publish=false"     >> "$GITHUB_OUTPUT"
+            echo "channel=preview"   >> "$GITHUB_OUTPUT"
+            echo "::notice title=OTA::OTA publish gated (skipped). This main push has no [ota]/[release] marker and is not a manual dispatch. Add '[ota]' to the commit/merge message, or run this workflow manually, to ship to the test phone."
+          fi
+
   update:
+    needs: gate
+    if: needs.gate.outputs.publish == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -78,7 +126,7 @@ jobs:
             echo "::warning::EXPO_TOKEN secret not set — skipping OTA publish. Add it in Settings → Secrets and variables → Actions to enable auto-updates."
             exit 0
           fi
-          CHANNEL="${{ github.event.inputs.channel || 'preview' }}"
+          CHANNEL="${{ needs.gate.outputs.channel }}"
           MESSAGE="$(git log -1 --pretty=%s)"
           echo "Publishing OTA to channel '$CHANNEL' — \"$MESSAGE\""
           # --environment is required by newer eas-cli in --non-interactive mode; the

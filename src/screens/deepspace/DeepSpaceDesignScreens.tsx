@@ -54,6 +54,7 @@ import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { mockSamplesForRange } from "@/lib/health/sources/mock";
+import { availableHealthSources } from "@/lib/health/registry";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 import { opsRouteForDomain } from "@/lib/ops/nav";
 import { gatherAdherenceStats } from "@/lib/ops/signals";
@@ -2702,7 +2703,18 @@ export function DeepSpaceImportScreen() {
     setHealthDone(false);
     try {
       const now = new Date().toISOString();
-      const samples = mockSamplesForRange({ startIso: now, endIso: now });
+      const range = { startIso: now, endIso: now };
+      // Slice 2: prefer a real OS source (Health Connect / HealthKit) when it can
+      // run on this device; fall back to the deterministic mock on web / Expo Go /
+      // jest. Both funnel through the same ingestHealthSamples choke point, so the
+      // consent gate + minor hard-lock stay identical.
+      const native = availableHealthSources().find(
+        (s) => s.id === "health_connect" || s.id === "healthkit",
+      );
+      const samples =
+        native && (await native.requestPermission()) === "granted"
+          ? await native.read(range)
+          : mockSamplesForRange(range);
       await ingestHealthSamples(userId, samples, { isMinor, pref: healthPref });
       setHealthDone(true);
     } catch {

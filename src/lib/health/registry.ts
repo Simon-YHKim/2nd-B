@@ -9,10 +9,21 @@
 import type { HealthSource } from "./HealthSource";
 import { manualHealthSource } from "./sources/manual";
 import { mockHealthSource } from "./sources/mock";
+import { healthConnectSource } from "./sources/health-connect";
+import { healthKitSource } from "./sources/healthkit";
 
 // Registration order = display order. Manual first (the universal fallback),
-// mock second (dev / demo only).
-const ALL_SOURCES: readonly HealthSource[] = [manualHealthSource, mockHealthSource];
+// mock second (dev / demo only). The native OS sources come AFTER so manual /
+// mock stay available everywhere; the native sources self-omit via isAvailable()
+// (they return false off-device — wrong platform, web, Expo Go, or jest) so this
+// list is safe to register statically. Slice 2: requiring them never throws
+// because every native call is behind a lazy require/try-catch.
+const ALL_SOURCES: readonly HealthSource[] = [
+  manualHealthSource,
+  mockHealthSource,
+  healthConnectSource,
+  healthKitSource,
+];
 
 /** The sources that can run on the current platform. */
 export function availableHealthSources(): HealthSource[] {

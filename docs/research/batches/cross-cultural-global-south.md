@@ -325,7 +325,10 @@ If a user's content shows crisis markers (self-harm, suicidal ideation, severe l
 
 ## Suggested `knowledge_sources` INSERT rows
 
-See `supabase/seed/cross-cultural-global-south.sql` (to be created in companion commit). Rows should be tagged `framework='cross_cultural_global_south'` with sub-slugs `indigenous_psychology`, `simpatia`, `familismo`, `mexican_ethnopsychology`, `latin_american_social_psychology`, `ubuntu`, `nsamenang_ontogenesis`, `indian_psychology`, `karma`, `diasporic_self`, `arab_collective_personality`, `arab_self_assertive_interdependence`, `arab_psychology_review`, `cross_cultural_big_five`, `cross_cultural_methodology` to allow precise retrieval.
+See `supabase/seed/cross-cultural-global-south.sql` — **created**: seeds 21 of the 22
+verified rows across the four regions (the Allwood & Berry 2006 *preface* is excluded
+as non-substantive). Summaries authored after confirming each paper's core finding. Surfacing is locale-driven (like `cross-cultural-east-asian`), not keyword-
+routed in Path A. Rows are tagged `framework='cross_cultural_global_south'` with sub-slugs `indigenous_psychology`, `simpatia`, `familismo`, `mexican_ethnopsychology`, `latin_american_social_psychology`, `ubuntu`, `nsamenang_ontogenesis`, `indian_psychology`, `karma`, `diasporic_self`, `arab_collective_personality`, `arab_self_assertive_interdependence`, `arab_psychology_review`, `cross_cultural_big_five`, `cross_cultural_methodology` to allow precise retrieval.
 
 ```sql
 insert into public.knowledge_sources

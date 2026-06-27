@@ -106,6 +106,78 @@ describe("retrieveEvidence — routing table", () => {
     expect(r.matchedBatches).toContain("self-knowledge");
   });
 
+  test("English finance message → financial-wellbeing batch (new life-domain evidence)", async () => {
+    const r = await retrieveEvidence({ userMessage: "I am drowning in debt and can't save money.", userLocale: "en" });
+    expect(r.matchedBatches).toContain("financial-wellbeing");
+  });
+
+  test("Korean leisure message → leisure-wellbeing batch", async () => {
+    const r = await retrieveEvidence({ userMessage: "요즘 취미도 없고 여가가 하나도 없어요", userLocale: "ko" });
+    expect(r.matchedBatches).toContain("leisure-wellbeing");
+  });
+
+  test("English career message also pulls vocational-interests (new career evidence)", async () => {
+    const r = await retrieveEvidence({ userMessage: "Should I quit my job?", userLocale: "en" });
+    expect(r.matchedBatches).toContain("vocational-interests");
+  });
+
+  test("Korean loneliness message → loneliness-connection batch (YouTube gap P1)", async () => {
+    const r = await retrieveEvidence({ userMessage: "사람들 사이에 있어도 외로워요", userLocale: "ko" });
+    expect(r.matchedBatches).toContain("loneliness-connection");
+  });
+
+  test("English crush message → attraction-initiation batch (YouTube gap P1)", async () => {
+    const r = await retrieveEvidence({ userMessage: "I have a crush but never know how to start.", userLocale: "en" });
+    expect(r.matchedBatches).toContain("attraction-initiation");
+  });
+
+  test("Korean 'too sensitive' message → highly-sensitive batch (YouTube gap P2)", async () => {
+    const r = await retrieveEvidence({ userMessage: "사람들이 저보고 너무 예민하대요", userLocale: "ko" });
+    expect(r.matchedBatches).toContain("highly-sensitive");
+  });
+
+  test("Korean conflict message → communication-skills batch (YouTube gap P2)", async () => {
+    const r = await retrieveEvidence({ userMessage: "자꾸 갈등이 생기고 대화가 안 돼요", userLocale: "ko" });
+    expect(r.matchedBatches).toContain("communication-skills");
+  });
+
+  test("Korean gaslighting message → manipulation-literacy batch (YouTube gap P3)", async () => {
+    const r = await retrieveEvidence({ userMessage: "자꾸 내가 이상한 사람처럼 느껴져요, 가스라이팅 같아요", userLocale: "ko" });
+    expect(r.matchedBatches).toContain("manipulation-literacy");
+  });
+
+  test("manipulation routing still keeps crisis-detection loaded (safety baseline)", async () => {
+    const r = await retrieveEvidence({ userMessage: "I think my partner is manipulating me", userLocale: "en" });
+    expect(r.matchedBatches).toContain("manipulation-literacy");
+    expect(r.matchedBatches).toContain("crisis-detection");
+  });
+
+  test("Korean family-of-origin message → family-of-origin batch (YouTube gap P3)", async () => {
+    const r = await retrieveEvidence({ userMessage: "부모 때문에 어린 시절부터 이런 패턴이 생긴 것 같아요", userLocale: "ko" });
+    expect(r.matchedBatches).toContain("family-of-origin");
+  });
+
+  test("brightness → advice: a DIM finance star surfaces finance evidence even off-topic", async () => {
+    // Message is about hiking (no finance keyword), but the finance domain star
+    // is dark (L1). The dim star pulls its own batch into scope so the advisor
+    // can nudge the under-fed domain — wiring brightness to advice.
+    const r = await retrieveEvidence({
+      userMessage: "I went hiking today and felt great.",
+      userLocale: "en",
+      domainLevels: { finance: 1, career: 4, health: 5 },
+    });
+    expect(r.matchedBatches).toContain("financial-wellbeing");
+  });
+
+  test("brightness → advice: a BRIGHT domain does not force its batch in", async () => {
+    const r = await retrieveEvidence({
+      userMessage: "I went hiking today and felt great.",
+      userLocale: "en",
+      domainLevels: { finance: 5, career: 5, health: 5 },
+    });
+    expect(r.matchedBatches).not.toContain("financial-wellbeing");
+  });
+
   test("Cap: at most 4 matched batches per message", async () => {
     const r = await retrieveEvidence({
       userMessage: "가족이랑 일하고 진로 정체성 번아웃 다 한꺼번에 와요",

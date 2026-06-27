@@ -41,7 +41,21 @@ DOI-verified psychology framework batches curated via `docs/research/psychology-
 | `metacognition` | [metacognition-introspection.md](metacognition-introspection.md) | 14 | **Introspection accuracy boundaries** — Flavell 1979 American Psychologist, Nelson & Narens 1990 metamemory, Fleming & Lau 2014 + Fleming 2010 Science + Mamassian 2016 ARVS, Nisbett & Wilson 1977 (THE seminal limits paper), Schwitzgebel 2008 Philosophical Review, Bollich/Johannet/Vazire 2011, Kruger & Dunning 1999 + Krueger & Mueller 2002 critique + Sanchez & Dunning 2018, Russell & Barrett 1999 emotion, Bem 1972 self-perception, Heine 2001 cultural variation. Users CAN introspect goals/values/situations; CANNOT reliably introspect behavior patterns / others' perceptions / deep motivation. Backs v0.2 §05 Queue weighting + §07 Voice claims |
 | `cross_cultural_global_south` | [cross-cultural-global-south.md](cross-cultural-global-south.md) | 22 | **Global coverage completion** — Latin American (Diaz-Loving 1998/2005, Triandis 1984 simpatía JPSP, Sabogal 1987 familismo), African (Nsamenang 1992/2006 ontogenesis, Metz 2007 Ubuntu moral theory), South Asian (Misra & Gergen 1993, Bhawuk 2011 karma + global need, Bhatia 2002 dialogical voices diaspora), Arab/MENA (Soueif & Ahmed 2001, Dwairy 2002 Clinical Psych Review, San Martin 2018 Nature Human Behaviour). LOAD-BEARING: San Martin 2018 contradicts naive East-Asian → Arab interdependence transfer. Religion-ethnicity conflation rule heavily reinforced. Confidence bands widened 10-20% vs East-Asian/Western due to thinner psychometric infrastructure. Backs v0.2 §06 global cultural priority |
 
-**Total**: 34 batches (1 methodology analysis), 308 verified DOI rows for `knowledge_sources`.
+| `loneliness` | [loneliness-connection.md](loneliness-connection.md) | 3 | **YouTube-gap P1 — relation** — felt loneliness distinct from being alone: Hawkley & Cacioppo 2010 (mechanisms), Holt-Lunstad 2015 (mortality meta), Masi 2011 (interventions meta — maladaptive social cognition is the lever). Non-clinical; crisis co-occurrence routes to crisis-detection first |
+| `attraction` | [attraction-initiation.md](attraction-initiation.md) | 3 | **YouTube-gap P1 — relation** — how relationships START (largest YT demand cluster): Finkel 2012 PSPI (online dating critique), Montoya & Horton 2013 (perceived-similarity meta), Aron 1997 (36-questions closeness generation). Self-understanding framing, not pickup advice |
+| `sensitivity` | [highly-sensitive.md](highly-sensitive.md) | 3 | **YouTube-gap P2 — self-understanding** — Sensory Processing Sensitivity as a trait, not a disorder: Aron & Aron 1997 (SPS construct + HSP scale), Lionetti 2018 (3 groups: orchid/tulip/dandelion), Greven 2019 (vantage sensitivity — benefits more from good environments). Non-pathologizing |
+| `communication` | [communication-skills.md](communication-skills.md) | 2 | **YouTube-gap P2 — relation** — applied communication: Gable 2004 (capitalization / active-constructive responding to good news), Overall & McNulty 2017 (no universal conflict style — fit to situation). Complements interpersonal's circumplex structure |
+| `manipulation` | [manipulation-literacy.md](manipulation-literacy.md) | 2 | **YouTube-gap P3 — relation (safety-sensitive)** — self-protection sense-making, never diagnose others: Paulhus & Williams 2002 (Dark Triad, subclinical), Sweet 2019 (sociology of gaslighting — a power phenomenon, not the victim being "crazy"). Crisis gate absolute |
+| `family_of_origin` | [family-of-origin.md](family-of-origin.md) | 1 | **YouTube-gap P3 — self-understanding (non-clinical)** — differentiation of self (Skowron & Friedlander 1998 DSI): reactivity / fusion / cutoff / I-position. Family patterns are workable, not destiny; no blame, crisis gate absolute |
+
+**Total**: 40 batches (1 methodology analysis), 322 verified DOI rows for `knowledge_sources`.
+
+> **Reconciliation (authoritative loaded-row count)**: the actual corpus that loads
+> into `knowledge_sources` is **346 inserted rows across 45 seed files** (verified by
+> `grep -c "now()," supabase/seed/*.sql` — see `supabase/seed/README.md` for the
+> per-file table). The "verified DOI rows" figure above counts DOI-bearing rows only,
+> so it is lower than the loaded-row total: some rows cite an ISBN (e.g. Gardner,
+> Carroll monographs) or a KCI id (Korean-context rows) instead of a DOI.
 
 ## Supplementary documents (non-batch, deep-research backing for v0.2 design doc)
 

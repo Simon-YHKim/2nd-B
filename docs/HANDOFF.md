@@ -3,6 +3,57 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-06-27 / OTA 셋업 검증 + 미머지 PR 정리(#600/#586/#605) + Cowork API 등록 핸드오프
+
+### 어디까지 왔나
+- main HEAD: `58c904a`
+- 이번 세션 머지된 PR: #580 expo-updates(OTA 클라이언트) · #582 eas-update 워크플로우 · #603 API 대시보드+Sentry 가이드+빌드마커 · **#600 OTA 자동발행 게이팅 + 루트 ErrorBoundary** · #586 별자리 3-레이어 개념 정본화(PRD v3) · **#605 네이티브 health(HealthKit/Health Connect)** (#473을 현재 main에 재이식 → #473 close).
+- 병행 머지(타 작업): #602/#595 persona, #604/#606/#607.
+- 테스트: `npm run verify` green — jest **257 suites / 1946 tests** (#605 기준). working tree clean.
+
+### 활성 인프라 / 상태
+- Supabase project `zoacryukmdeivmolvyhj` (URL+anon in eas.json). LLM 키는 Edge Function secret(`gemini-proxy`/`claude-proxy`).
+- **EXPO_TOKEN repo secret 설정됨 → OTA 작동.** 채널 `preview`, runtime = `app.json version`(현재 0.0.6).
+- ⚠️ **OTA는 이제 GATED(#600)** — 자동발행 안 함. 폰 전달은 머지/커밋 메시지에 `[ota]`(또는 `[release]`) 또는 Actions → "EAS Update (OTA)" → Run workflow.
+- 환경변수 주입: `web-deploy.yml`이 `${{ vars.* }}`(GitHub **Variables**)로 `EXPO_PUBLIC_*` 주입 → 키만 넣으면 웹 라이브. 네이티브는 eas.json 필요.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | Cowork API 등록(분석/OAuth/정부) 후 **Google/Kakao client id** 받으면 → `eas.json` 네이티브 OAuth 반영 + **APK 리빌드 PR** | medium | ⭐ Cowork 결과 대기. 프롬프트 = `docs/api-registration-cowork.md` |
+| B | **#605 device QA** — 실기기 Health Connect/Apple Health → 샘플 적재+루틴 자동완료, 미성년 잠금 확인 | small | 사용자 수동(에이전트 불가) |
+| C | (선택) Sentry **네이티브** 크래시 = `@sentry/react-native` 교체 + 리빌드 | large | `docs/sentry-setup.md` Path B |
+
+### 적용 중인 정책 (영구)
+1. **OTA 의도적 발행만** — `[ota]`/`[release]` 마커 또는 수동 dispatch(#600). 자동발행 금지.
+2. Always PR · squash-merge · main 직접 push 금지 · 브랜치는 origin/main에서.
+3. `EXPO_PUBLIC_*` 키 → GitHub **Variables**(Secrets 아님). OAuth **client secret → Supabase 대시보드에만**(GitHub/채팅 금지).
+4. native dep 추가 시 $0/mo 무료티어 확인(blueprint §5) + 리빌드 필요(OTA 불가).
+5. stale PR 통째 머지 금지 — net-new만 현재 main에 재이식(#473→#605 사례).
+
+### 핵심 파일 위치
+```
+docs/api-registration-cowork.md   Cowork 등록 프롬프트(검증본 v2) — 분석/OAuth/정부API
+docs/api-status.html              API 연결 현황 대시보드
+docs/sentry-setup.md              Sentry 웹(즉시)/네이티브(리빌드) 경로
+.github/workflows/eas-update.yml  OTA(게이팅) · web-deploy.yml = vars.* 주입
+src/lib/health/                   Slice2 native 어댑터(health-connect/healthkit/mappers)
+```
+
+### 검증
+```bash
+npm run verify
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# A: Cowork client id 받으면 eas.json 네이티브 OAuth + 리빌드. 프롬프트 = docs/api-registration-cowork.md
+```
+
+---
+
 ## Latest — 2026-06-26 / DB user-profiling 진단 + 7별 근거 기반 대확장 (knowledge_sources 95→140 live)
 
 > 별개 세션. 위 크래시 핫픽스와 무관하게 PR **#595**(draft, OPEN — 아직 미머지)에서
