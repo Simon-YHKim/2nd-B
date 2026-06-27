@@ -21,7 +21,18 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://zoacryukmdeivmolvyhj.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvYWNyeXVrbWRlaXZtb2x2eWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NjE0MzUsImV4cCI6MjA5NTIzNzQzNX0.neb3x_u8Vo9PaxoVpvfSHHxfpAcqxzoqGBDQV6xUYcs",
-        "ANDROID_ABI_FILTER": "arm64-v8a"
+        "ANDROID_ABI_FILTER": "arm64-v8a",
+        "EXPO_PUBLIC_LLM_MODE": "live",
+        "EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION": "true",
+        "EXPO_PUBLIC_REASONING_PROVIDER": "claude",
+        "EXPO_PUBLIC_ENABLE_KAKAO": "true",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "699860089424-4a3q2qgoclj605mj9480vaiqj0116i73.apps.googleusercontent.com",
+        "EXPO_PUBLIC_NAVER_CLIENT_ID": "A1Su7C7EgyR49be6V4rT",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://334159a0c75dae6d72aa06e38c1a02f0@o4511637741830144.ingest.us.sentry.io/4511637746679808",
+        "EXPO_PUBLIC_GA4_MEASUREMENT_ID": "G-VF514NK1WS",
+        "EXPO_PUBLIC_CLARITY_PROJECT_ID": "xb3qenit2h",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_AkPZXxTwcFVjH9reTQdgBG6tPc4wJRL2RhJqjkpgPK3A",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
       }
     },
     "ios-simulator": {
@@ -40,7 +51,18 @@
         "EXPO_PUBLIC_UI": "deep-space",
         "EXPO_PUBLIC_CHARACTER": "fallback",
         "EXPO_PUBLIC_SUPABASE_URL": "https://zoacryukmdeivmolvyhj.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvYWNyeXVrbWRlaXZtb2x2eWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NjE0MzUsImV4cCI6MjA5NTIzNzQzNX0.neb3x_u8Vo9PaxoVpvfSHHxfpAcqxzoqGBDQV6xUYcs"
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvYWNyeXVrbWRlaXZtb2x2eWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NjE0MzUsImV4cCI6MjA5NTIzNzQzNX0.neb3x_u8Vo9PaxoVpvfSHHxfpAcqxzoqGBDQV6xUYcs",
+        "EXPO_PUBLIC_LLM_MODE": "live",
+        "EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION": "true",
+        "EXPO_PUBLIC_REASONING_PROVIDER": "claude",
+        "EXPO_PUBLIC_ENABLE_KAKAO": "true",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "699860089424-4a3q2qgoclj605mj9480vaiqj0116i73.apps.googleusercontent.com",
+        "EXPO_PUBLIC_NAVER_CLIENT_ID": "A1Su7C7EgyR49be6V4rT",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://334159a0c75dae6d72aa06e38c1a02f0@o4511637741830144.ingest.us.sentry.io/4511637746679808",
+        "EXPO_PUBLIC_GA4_MEASUREMENT_ID": "G-VF514NK1WS",
+        "EXPO_PUBLIC_CLARITY_PROJECT_ID": "xb3qenit2h",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_AkPZXxTwcFVjH9reTQdgBG6tPc4wJRL2RhJqjkpgPK3A",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
       }
     }
   },
