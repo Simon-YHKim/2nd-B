@@ -95,7 +95,15 @@ function ReviewScreenLegacy() {
     setSheetOpen(false);
     if (decision === "ratify" && userId && proposal?.target.kind === "star") {
       // Persist the ratified tier so D9 history + trend detection reflect it.
-      void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel });
+      // We tag origin only — NOT proposal.citations: those are Gemini-emitted
+      // and proposalContextForStar gives the model a narrative summary, not a
+      // whitelist of real record ids, so the citations are unverifiable labels.
+      // Persisting them would misrepresent fabricated strings as resolvable
+      // evidence (0060 contract). Real evidence-id citations are a follow-up
+      // (thread record ids through proposal-context).
+      void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel }, "journal", {
+        origin: "ratify",
+      });
     }
     if (decision === "ratify") reactExpression("positive");
     setResult(

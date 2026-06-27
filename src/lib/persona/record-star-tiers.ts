@@ -19,17 +19,60 @@ import { soulCoreBrightness, type StarId } from "./stars";
 // matching the all-lit bonus gate in soulCoreBrightness.
 const LIT_THRESHOLD = 2;
 
+// Optional evidence link for an observation (0060). Lets a tier change cite WHAT
+// moved it so a brightness shift is auditable, not a bare number. Scalars only —
+// ids / slugs, never body or chat text (same PII contract as the funnel events).
+export interface TierEvidence {
+  /** How the row was produced: "ratify" | "rebuild" | … (free text). */
+  origin?: string;
+  /**
+   * RESOLVABLE evidence references that justify the tier — a namespaced id/slug
+   * (`record:<id>`, `source:<slug>`, `doi:<id>`), a bare DOI, or a uuid. NOT
+   * model-invented labels: the ratify path does not pass Gemini's free-form
+   * `proposal.citations` here (no real-id whitelist exists yet — see callers),
+   * so in practice this is only set by a future caller that has actual ids.
+   */
+  citations?: readonly string[];
+}
+
+// 0060 contract enforced at the write boundary, not just documented. A citation
+// must be a RESOLVABLE reference; bare dictionary words ("career", "meeting") and
+// any free text / quote are rejected, so star_tier_history.evidence_citations can
+// never hold a model-invented label masquerading as evidence, nor any body/PII
+// text — regardless of what a caller forwards. Bounded count keeps the row small.
+const MAX_CITATIONS = 8;
+const RESOLVABLE_CITATION =
+  /^(?:(?:record|source|src|doi|kb):[\w./#-]{1,120}|10\.\d{4,9}\/\S{1,120}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
+
+export function sanitizeCitations(raw: readonly string[] | undefined): string[] | undefined {
+  if (!raw || raw.length === 0) return undefined;
+  const clean: string[] = [];
+  for (const c of raw) {
+    const t = typeof c === "string" ? c.trim() : "";
+    if (t.length <= 128 && RESOLVABLE_CITATION.test(t)) clean.push(t);
+    if (clean.length >= MAX_CITATIONS) break;
+  }
+  return clean.length > 0 ? clean : undefined;
+}
+
 export async function recordStarTiers(
   userId: string,
   starLevels: Partial<Record<StarId, LadderLevel>>,
   source: StarLitEventProps["source"] = "journal",
+  evidence?: TierEvidence,
 ): Promise<void> {
   const entries = Object.entries(starLevels) as [StarId, LadderLevel][];
-  const rows = entries.map(([star_id, level]) => ({
-    user_id: userId,
-    star_id,
-    level,
-  }));
+  // Sanitize at the write boundary — drops any model-provided free text so the
+  // 0060 ids/slugs-only contract holds no matter what the ratify path forwards.
+  const citations = sanitizeCitations(evidence?.citations);
+  const rows = entries.map(([star_id, level]) => {
+    const row: Record<string, unknown> = { user_id: userId, star_id, level };
+    // Additive evidence link (0060): only stamped when provided, so the aggregate
+    // rebuild path and legacy callers keep writing the bare three-column row.
+    if (evidence?.origin) row.evidence_origin = evidence.origin;
+    if (citations) row.evidence_citations = citations;
+    return row;
+  });
   if (rows.length === 0) return;
   try {
     // Best-effort read of the prior latest level per star (ids + levels only,

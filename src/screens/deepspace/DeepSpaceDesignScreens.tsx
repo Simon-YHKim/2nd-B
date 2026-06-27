@@ -1866,7 +1866,12 @@ export function DeepSpaceReviewScreen() {
     const r = applyRatify(currentLevel, decision);
     setSheetOpen(false);
     if (decision === "ratify" && userId && proposal?.target.kind === "star") {
-      void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel });
+      // Tag origin only (0060). proposal.citations are Gemini-emitted labels,
+      // not a whitelist of real record ids, so they are unverifiable evidence
+      // and intentionally not persisted (real evidence-id citations: follow-up).
+      void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel }, "journal", {
+        origin: "ratify",
+      });
     }
     setResult(
       decision === "ratify"

@@ -33,7 +33,7 @@ jest.mock("../../analytics", () => ({
   activationMilestone: (props: unknown) => ({ name: "activation_milestone", props }),
 }));
 
-import { recordStarTiers } from "../record-star-tiers";
+import { recordStarTiers, sanitizeCitations } from "../record-star-tiers";
 import type { StarId } from "../stars";
 import type { LadderLevel } from "../brightness";
 
@@ -119,5 +119,100 @@ describe("recordStarTiers", () => {
     expect(eventsNamed("activation_milestone")).toHaveLength(0);
     // The single climbed star still fires star_lit.
     expect(eventsNamed("star_lit")).toHaveLength(1);
+  });
+
+  test("stamps evidence_origin + evidence_citations on each row when provided (ratify path)", async () => {
+    await recordStarTiers("u1", { now: 5 }, "journal", {
+      origin: "ratify",
+      citations: ["record:abc", "src:bfi"],
+    });
+    const rows = inserts[0].payload as Record<string, unknown>[];
+    expect(rows[0]).toMatchObject({
+      user_id: "u1",
+      star_id: "now",
+      level: 5,
+      evidence_origin: "ratify",
+      evidence_citations: ["record:abc", "src:bfi"],
+    });
+  });
+
+  test("omits evidence keys for legacy/bare callers (backward compatible)", async () => {
+    await recordStarTiers("u1", { now: 4 });
+    const rows = inserts[0].payload as Record<string, unknown>[];
+    expect(rows[0]).not.toHaveProperty("evidence_origin");
+    expect(rows[0]).not.toHaveProperty("evidence_citations");
+  });
+
+  test("stamps only evidence_origin when citations are empty (rebuild path)", async () => {
+    await recordStarTiers("u1", { now: 4 }, "journal", { origin: "rebuild", citations: [] });
+    const rows = inserts[0].payload as Record<string, unknown>[];
+    expect(rows[0]).toMatchObject({ evidence_origin: "rebuild" });
+    expect(rows[0]).not.toHaveProperty("evidence_citations");
+  });
+
+  test("drops model-provided free text from citations at the write boundary (0060 contract)", async () => {
+    // Simulates the ratify path forwarding Gemini-emitted proposal.citations:
+    // ids/slugs survive; a quote / sentence / over-long token is stripped so no
+    // body or chat text reaches star_tier_history.
+    await recordStarTiers("u1", { now: 5 }, "journal", {
+      origin: "ratify",
+      citations: [
+        "record:7e1a",
+        "I felt anxious about the meeting", // free text -> dropped
+        "src:big_five",
+        "x".repeat(200), // over-long -> dropped
+        "10.1037/0003-066X.34.10.906", // doi-as-slug -> kept
+      ],
+    });
+    const rows = inserts[0].payload as Record<string, unknown>[];
+    expect(rows[0].evidence_citations).toEqual([
+      "record:7e1a",
+      "src:big_five",
+      "10.1037/0003-066X.34.10.906",
+    ]);
+  });
+
+  test("omits evidence_citations entirely when every token is non-id text", async () => {
+    await recordStarTiers("u1", { now: 4 }, "journal", {
+      origin: "ratify",
+      citations: ["just a sentence", "another free note"],
+    });
+    const rows = inserts[0].payload as Record<string, unknown>[];
+    expect(rows[0]).toMatchObject({ evidence_origin: "ratify" });
+    expect(rows[0]).not.toHaveProperty("evidence_citations");
+  });
+});
+
+describe("sanitizeCitations", () => {
+  test("keeps only resolvable references (namespaced / doi / uuid)", () => {
+    expect(sanitizeCitations(undefined)).toBeUndefined();
+    expect(sanitizeCitations([])).toBeUndefined();
+    expect(sanitizeCitations(["has space"])).toBeUndefined();
+    expect(
+      sanitizeCitations([
+        "record:abc",
+        "src:via",
+        "doi:10.1/x",
+        "10.1037/0003-066X.34.10.906",
+        "550e8400-e29b-41d4-a716-446655440000",
+      ]),
+    ).toEqual([
+      "record:abc",
+      "src:via",
+      "doi:10.1/x",
+      "10.1037/0003-066X.34.10.906",
+      "550e8400-e29b-41d4-a716-446655440000",
+    ]);
+  });
+
+  test("rejects bare dictionary words / model-invented labels (Codex P2)", () => {
+    // No namespace, no id shape -> not resolvable evidence -> dropped.
+    expect(sanitizeCitations(["career", "meeting", "anxiety"])).toBeUndefined();
+    // a bare DOI needs a real registrant (4+ digits), not "10.1/x".
+    expect(sanitizeCitations(["10.1/x"])).toBeUndefined();
+  });
+
+  test("caps at 8", () => {
+    expect(sanitizeCitations(Array.from({ length: 12 }, (_, i) => `record:id${i}`))).toHaveLength(8);
   });
 });
