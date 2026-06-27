@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2nd-Brain — 별자리 정본화 보고서 (2026-06-25)</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --bg:#0A0E1A; --surface:#121829; --surface2:#1B2238; --surface3:#0E1424;
+  --line:rgba(141,152,184,.18); --text:#E8ECF8; --muted:#9AA6C6; --faint:#66719A;
+  --cyan:#4CC9F0; --gold:#FFD56B; --keep:#72F2C7; --rm:#FF7A90;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.page{max-width:920px;margin:0 auto;padding:34px 20px 90px}
+.kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);font-weight:600;margin:0 0 6px}
+h1{font-size:23px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:13px;margin:0 0 4px}
+.meta{color:var(--faint);font-size:12px;margin:0 0 26px}
+h2{font-size:15px;font-weight:600;margin:34px 0 12px;display:flex;align-items:center;gap:9px}
+h2 .n{font-size:11px;font-weight:600;color:var(--bg);background:var(--cyan);width:19px;height:19px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.lead{background:var(--surface3);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:0 12px 12px 0;padding:15px 18px;margin:0 0 6px}
+.lead b{color:var(--gold)}
+.grid{display:grid;gap:11px}
+@media(min-width:640px){.grid.three{grid-template-columns:repeat(3,1fr)}.grid.two{grid-template-columns:1fr 1fr}}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.box h3{font-size:13px;font-weight:600;margin:0 0 6px}
+.box p{color:var(--muted);font-size:12.5px;margin:0}
+.stat{text-align:center;padding:16px 12px}
+.stat .big{font-size:30px;font-weight:700;line-height:1;margin-bottom:5px}
+.stat .lbl{font-size:11.5px;color:var(--muted)}
+.layers{display:flex;flex-direction:column;gap:0;margin:4px 0}
+.layer{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:7px 0}
+.layer.a{border-left:3px solid var(--cyan)}
+.layer.b{border-left:3px solid var(--faint)}
+.layer.c{border-left:3px solid var(--gold)}
+.layer .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:2px 8px;border-radius:6px;margin-bottom:6px}
+.layer.a .tag{background:rgba(76,201,240,.14);color:var(--cyan)}
+.layer.b .tag{background:rgba(102,113,154,.18);color:var(--muted)}
+.layer.c .tag{background:rgba(255,213,107,.14);color:var(--gold)}
+.layer h3{margin:0 0 4px;font-size:13.5px}
+.layer p{margin:0;color:var(--muted);font-size:12.5px}
+.arrow{text-align:center;color:var(--faint);font-size:15px;line-height:.4;margin:-1px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}
+.chip{font-size:11.5px;padding:4px 10px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);color:var(--text)}
+.chip.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:6px 0;font-size:12.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--faint);font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+td b{color:var(--text)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;background:var(--surface3);padding:1px 5px;border-radius:4px;color:var(--cyan)}
+.tagpill{font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:5px;white-space:nowrap}
+.tp-new{background:rgba(114,242,199,.14);color:var(--keep)}
+.tp-edit{background:rgba(255,213,107,.14);color:var(--gold)}
+.callout{background:var(--surface3);border:1px solid rgba(76,201,240,.3);border-radius:12px;padding:14px 16px;margin:12px 0}
+.callout b{color:var(--cyan)}
+.foot{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);font-size:11.5px;color:var(--faint);line-height:1.9}
+.foot code{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="page">
+  <p class="kicker">Constellation · Canonization</p>
+  <h1>2nd-Brain — 별자리 정본화 보고서</h1>
+  <p class="sub">core 폐기 → 별자리 3-레이어. 설계 디벨롭 · 기존 시스템 차용 감사 · PRD v3 정본화 · 정본 문서 정렬.</p>
+  <p class="meta">2026-06-25 · Simon Kim (solo build) · Build with Gemini XPRIZE · 마감 2026-08-17</p>
+
+  <div class="lead">
+    <p style="margin:0">충돌하던 "7별"의 두 정의(심리구인 vs 삶의 도메인)를 <b>3-레이어</b>로 해소했다 —
+    7별 = 입력 도메인(A), 기존 심리구인 = 숨은 검증 레이어(B), 북극성 = 종합 출력(C). 10-에이전트
+    감사로 <b>거의 모든 기계가 이미 존재함</b>을 확인(차용 18건 중 15 confirmed). 어댑터 하나만 새로
+    쓰면 붙는다.</p>
+  </div>
+
+  <h2><span class="n">1</span> 이번 세션 산출물</h2>
+  <div class="grid two">
+    <div class="box"><h3>설계 디벨롭</h3><p><code>docs/CONSTELLATION-DESIGN.md</code> — 3-레이어 모델 + 7별 스펙 + 레이어 B 검증 매핑 + 북극성 종합 알고리즘(안정성·케이던스) + DIKW 산정식 + 오픈질문 해소.</p></div>
+    <div class="box"><h3>차용 감사 (10-에이전트)</h3><p>8 서브시스템 병렬 매핑 → 종합 → 인용 정확성 적대적 검증. 기존 LLM 하네스 · 밝기 사다리 · propose→ratify · RAG · 세컨비 루프 재사용 맵.</p></div>
+    <div class="box"><h3>PRD 정본화</h3><p><code>docs/PRD.md</code> Draft v2 → <b>v3</b>. §4 개념 · §8 기능 · §9 IA를 도메인-별 모델로 재작성. 6-에이전트 적대적 리뷰 통과. C1~C12 보존.</p></div>
+    <div class="box"><h3>정본 문서 정렬</h3><p><code>CONCEPT.md</code> · <code>VISION.md</code> · <code>CLAUDE.md</code>(Visual Tier System)를 3-레이어로 갱신. 구 Soul Core / 5 Pattern Core 모델 제거.</p></div>
+  </div>
+
+  <h2><span class="n">2</span> 정본 모델 — 별자리 3-레이어</h2>
+  <div class="layers">
+    <div class="layer a">
+      <span class="tag">A · 입력</span>
+      <h3>북두칠성 7 도메인 별 <span style="color:var(--faint);font-weight:400">(홈에 보이는 별)</span></h3>
+      <p>커리어 · 재정 · 성장 · 관계 · 건강 · 오락 · 담아내기. 쉬운 삶 데이터를 넣는 곳. 각 별: 입력 → 출력 + 리스트업(편집 가능 + 카테고리 + 태그).</p>
+    </div>
+    <div class="arrow">&#9660;</div>
+    <div class="layer b">
+      <span class="tag">B · 검증</span>
+      <h3>심리구인 <span style="color:var(--faint);font-weight:400">(홈에 안 보임 · 숨은 추론 레이어)</span></h3>
+      <p>Big Five · 내러티브 · 애착 · SDT/VIA · 가능자아 · 순간변동. <code>stars.ts</code>의 기존 7축을 "별"→"검증틀"로 재분류. 도메인 데이터가 구인을 삼각측량 → 검증된 초상(C8).</p>
+    </div>
+    <div class="arrow">&#9660;</div>
+    <div class="layer c">
+      <span class="tag">C · 출력</span>
+      <h3>북극성 (Polaris)</h3>
+      <p>7 도메인 종합 → 실시간 페르소나(역할/모자) + 성향·강점 요약. 직접 입력 X. propose→ratify로만 변경. "Soul Core" 명칭 폐기.</p>
+    </div>
+  </div>
+  <div class="callout">
+    <b>밝기 정직성 규칙</b> — 홈의 별 빛 = "내가 얼마나 넣었나"(도메인 커버리지). 페르소나 주장
+    세기 = "얼마나 검증됐나"(숨은 구인 신뢰도). 이 둘을 섞지 않는다. 데이터 적은데 북극성만 밝게
+    빛나면 거짓말이 된다.
+  </div>
+
+  <h2><span class="n">3</span> 기존 시스템 차용 감사</h2>
+  <div class="grid three" style="margin-bottom:12px">
+    <div class="box stat"><div class="big" style="color:var(--keep)">15</div><div class="lbl">confirmed (검증됨)</div></div>
+    <div class="box stat"><div class="big" style="color:var(--text)">0</div><div class="lbl">wrong (오류)</div></div>
+    <div class="box stat"><div class="big" style="color:var(--gold)">3</div><div class="lbl">unverifiable</div></div>
+  </div>
+  <p class="sub" style="margin:0 0 8px">그대로 붙는 핵심 기계 (검증된 차용):</p>
+  <div class="chips">
+    <span class="chip mono">brightness.ts (L1~L5) · verbatim</span>
+    <span class="chip mono">soulCoreBrightness · 입력만 도메인축</span>
+    <span class="chip mono">propose→ratify (proposal.ts)</span>
+    <span class="chip mono">callGemini C9→C3 하네스</span>
+    <span class="chip mono">exportUserWiki RAG + [[slug]] 인용</span>
+    <span class="chip mono">sendChatMessage 세컨비 루프</span>
+    <span class="chip mono">detect.ts → 담아내기 라우팅</span>
+  </div>
+  <div class="callout" style="border-color:rgba(255,213,107,.35)">
+    <b style="color:var(--gold)">키스톤 갭</b> — 거의 전부가 기존 기계에 붙는다. 새로 짤 핵심은
+    <code>domainConfidence(entries)→TraitConfidence</code> 어댑터 + <code>DOMAIN_STARS</code> 배열
+    <b style="color:var(--gold)">하나뿐</b>. LLM 하네스엔 <code>persona_synthesis</code> purpose 1개 추가(약 2줄).
+  </div>
+
+  <h2><span class="n">4</span> 정본화 변경 파일</h2>
+  <table>
+    <tr><th>파일</th><th>상태</th><th>변경</th></tr>
+    <tr><td><code>docs/CONSTELLATION-DESIGN.md</code></td><td><span class="tagpill tp-new">신규</span></td><td>3-레이어 설계 + 차용 감사(Part II) + 결정 확정</td></tr>
+    <tr><td><code>docs/PRD.md</code></td><td><span class="tagpill tp-edit">개정 v3</span></td><td>§4 개념 · §8 기능 · §9 IA 도메인-별로 재작성, 결정 a~j 잠금</td></tr>
+    <tr><td><code>docs/CONCEPT.md</code></td><td><span class="tagpill tp-edit">정렬</span></td><td>canonical = 3-레이어; 구 7별=심리구인 framing 폐기 명시</td></tr>
+    <tr><td><code>docs/VISION.md</code></td><td><span class="tagpill tp-edit">정렬</span></td><td>5계층 모델 → 별자리 3-레이어; 라우트·측정 시스템 갱신</td></tr>
+    <tr><td><code>CLAUDE.md</code></td><td><span class="tagpill tp-edit">정렬</span></td><td>Canonical 섹션 + Visual Tier System을 3-레이어 위계로</td></tr>
+    <tr><td><code>docs/CANONIZATION-REPORT.html</code></td><td><span class="tagpill tp-new">신규</span></td><td>이 보고서</td></tr>
+  </table>
+  <p class="sub" style="margin-top:8px">⚠️ 아직 stale (Phase 4 코드): <code>src/lib/assets/constellation-home.ts</code>(북극성 "Soul Core" 라벨), <code>stars.ts</code>(레이어 B 재분류), 마을 그래프 · <code>/core-brain</code> · 캐릭터 보이스.</p>
+
+  <h2><span class="n">5</span> 확정된 결정 (CONFIRMED 2026-06-25)</h2>
+  <table>
+    <tr><th>#</th><th>결정</th><th>확정값</th></tr>
+    <tr><td>a</td><td>북극성 헤드라인 밝기</td><td><b>도메인-평균</b> (정직·단순). 구인 신뢰도는 페르소나 주장 세기만 통제</td></tr>
+    <tr><td>b</td><td>페르소나(모자) 개수</td><td>주 1 + 보조, 표시 캡 <b>3</b></td></tr>
+    <tr><td>c</td><td>담아내기 자동 라우팅</td><td><b>propose-only</b> (민감 도메인 강제)</td></tr>
+    <tr><td>d</td><td>도메인 밝기 임계</td><td><code>brightness.ts</code> 기존 밴드(1–4 / 5–14 / ≥15) 차용</td></tr>
+    <tr><td>f</td><td><code>persona_synthesis</code> tier</td><td><b>v1 flash</b> ($0 예산), 품질 이슈 시 pro 승격</td></tr>
+    <tr><td>g</td><td>페르소나 근거 저장</td><td><code>wiki_links</code> <code>cite</code> relation 재사용 (스키마 무증설)</td></tr>
+    <tr><td>i</td><td>담아내기 비준</td><td>SourceRow <b>재태깅 이동</b> (이중계상 없음)</td></tr>
+    <tr><td>j</td><td>캐릭터 보이스</td><td><b>폐기/축소</b>, <code>systemHint</code>만 잔존</td></tr>
+  </table>
+
+  <h2><span class="n">6</span> 다음 단계</h2>
+  <div class="grid two">
+    <div class="box"><h3>커밋 / PR</h3><p>정본 docs 6건을 draft-PR로. CI green 시 머지.</p></div>
+    <div class="box"><h3>Phase 4 — 코드 이관 (키스톤)</h3><p><code>domainConfidence</code> 어댑터 + <code>DOMAIN_STARS</code> 배열 → 기존 밝기·종합 체인에 연결. <code>persona_synthesis</code> purpose 추가. <code>constellation-home.ts</code> 라벨 리매핑.</p></div>
+  </div>
+
+  <p class="foot">
+    SoT: <code>docs/PRD.md</code> (v3) · 설계 상세 <code>docs/CONSTELLATION-DESIGN.md</code> · 시각화 <code>docs/system-checkup.html</code> (v4).<br>
+    검증: <code>npm run check:lexicon</code> PASS · 적대적 리뷰 highCount 0 (실질). 비유는 별자리 하나만 — 다른 비유 도입 금지.
+  </p>
+</div>
+</body>
+</html>

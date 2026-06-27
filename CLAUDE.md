@@ -13,17 +13,21 @@ Project-specific guidance for Claude Code sessions in this repo.
 
 ## Canonical concept & direction (read first)
 
-The concept and direction is **deep-space** (a character-led home shell) plus the
-synthesis memo `2ndb-thought-organization-synthesis.html`. The one place that states
-what is canonical vs legacy is **`docs/CONCEPT.md`** — read it before any concept,
-IA, or visual decision. Canonical model: 북극성(Soul Core) + 북두칠성 7별
-(self-understanding lenses) + the L1~L5 brightness ladder + propose->ratify.
+The concept and direction is **deep-space constellation** (a character-led home shell). The
+canonical concept SoT is **`docs/PRD.md` (Draft v3)**; the detailed model spec is
+**`docs/CONSTELLATION-DESIGN.md`**; **`docs/CONCEPT.md`** names canonical vs legacy. Read these
+before any concept, IA, or visual decision. Canonical model = **3-layer 별자리**: A) 7 DOMAIN
+stars (커리어·재정·성장·관계·건강·오락·담아내기 = input), B) the psychological constructs in
+`stars.ts` (the hidden validation layer behind the output — NOT home stars), C) 북극성 (Polaris)
+= the aggregate output / persona synthesis (drop the "Soul Core" name) + the L1~L5 brightness
+ladder + propose->ratify.
 
-**LEGACY (rollback skin only, never the reference for new work):** the gameboy track,
-the *Cosmic Pixel Graph Village* system, *phytoncide* tokens, *Brain Trinity* naming,
-and the fixed village node-names in the Visual Tier System below (Soul Core / Pattern
-Core x5 / snowflake / crystal). Preserved behind `EXPO_PUBLIC_UI=legacy`; superseded
-concept docs were cleaned up and remain in git history.
+**LEGACY (rollback skin only, never the reference for new work):** the gameboy track, the
+*Cosmic Pixel Graph Village* system, *phytoncide* tokens, *Brain Trinity* naming, **the "Soul
+Core" name, the 5 Pattern Core layer + Pattern Tesseract, the village graph `/graph` +
+`/core-brain` + `/trinity`, the v3 tesseract art, the character voices (아치/가디/루루/모모/루미),
+and the old 4-tier Visual Tier node-names** (Soul Core 128px / Pattern Core x5 / snowflake /
+crystal). Preserved behind `EXPO_PUBLIC_UI=legacy`; superseded concept docs remain in git history.
 
 ## The 12 hard constraints
 
@@ -101,21 +105,25 @@ When the user's request matches an available skill, invoke it via the Skill tool
 
 ## Visual Tier System — always enforce (Simon standing rule)
 
-The app uses a 4-tier visual hierarchy. ALL visual changes must respect this:
+The app uses the **3-layer constellation hierarchy** (canonical = PRD §4.1 +
+`docs/CONSTELLATION-DESIGN.md`). ALL visual changes must respect it. The OLD 4-tier node names
+(Soul Core 128px / Pattern Core ×5 / snowflake / crystal) are **DEPRECATED** — the tier
+*principle* (one dominant root, sub-nodes recede) carries over; the *names* do not.
 
-| Tier | Node | Size | Opacity/Glow | Notes |
-|------|------|------|--------------|-------|
-| 1 | Soul Core | 128px | Full brightness, max glow bloom | Root/hero — must be clearly dominant |
-| 2 | Pattern Core (×5) | 82px | High brightness, strong glow | Secondary nodes, each color-coded |
-| 3 | Pattern Data (snowflake) | 38px | Medium opacity, softer glow | Blue snowflakes, visible in overview |
-| 4 | Pattern Link (crystal) | 30px | Lower opacity, subtle | Sub-nodes, recede in overview |
+| Layer | Node | Brightness/Glow | Notes |
+|------|------|--------------|-------|
+| C (출력) | 북극성 (Polaris) | Full brightness, max glow bloom | Root/hero — aggregate of the 7 domain stars, must be clearly dominant. Internal key `soulCoreBrightness`, display "북극성" |
+| A (입력) | 북두칠성 7 도메인 별 | baseline magnitude × domain L1~L5 | The 7 life-domain stars (커리어·재정·성장·관계·건강·오락·담아내기). Brighter as the domain fills |
+| link | cyan Pattern Link | Subtle, recedes | All links = cyan (Big Dipper shape + 2-star pointer → 북극성) |
+
+(Layer B = the psychological constructs in `stars.ts`, the hidden validation layer behind
+북극성 — NOT rendered as stars.)
 
 **Rules:**
-- Never make tier-2 nodes look as large/bright as tier-1
-- Never make tier-3/4 nodes compete visually with tier-2
-- In drilldown (focused) view: selected core tier-2 = promoted near tier-1; others recede (scale↓, desaturation, opacity↓)
+- Never make a domain star (layer A) look as large/bright as 북극성 (layer C)
+- In drilldown (focused) view: tapped domain star = promoted near 북극성; others recede (scale↓, desaturation, opacity↓)
 - Link colors: ALL links = cyan (no green trunks, no violet leaves)
-- Depth falloff and snowflake brightness must not contradict each other
+- Brightness = "how much of this domain I know" (DIKW L1~L5); depth falloff and star brightness must not contradict each other
 - This hierarchy applies to size, glow intensity, opacity, animation amplitude
 
 ## Information Density — one message + one graphic per screen (Simon standing rule)
