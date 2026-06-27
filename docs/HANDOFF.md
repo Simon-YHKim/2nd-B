@@ -3,7 +3,28 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-06-27 / OTA 셋업 검증 + 미머지 PR 정리(#600/#586/#605) + Cowork API 등록 핸드오프
+## Latest — 2026-06-27 / DB user-profiling: 실제 evidence-id citations + 리서치 백로그 라이브 적재 + 넛지 evidence 노출
+
+### 어디까지 왔나
+- main HEAD: `#615` 머지 직후. 이번 세션 머지 PR: **#611** (실제 record-id citations) · **#615** (D9 re-check 넛지 evidence 수 노출). 앞서 #604/#606/#607/#608도 머지됨.
+- 테스트: `npm run verify` green — jest **259 suites / 2001 tests**. working tree clean.
+
+### 이번 세션 핵심 변경
+- **#611 — evidence-id citations**: `star_tier_history.evidence_citations`가 항상 null이던 문제 해결. ratify 시 LLM 날조 `proposal.citations` 대신 **시스템이 실제로 카드를 만든 records의 `record:<id>`** 영속화. 흐름: `buildPersona.evidenceRefs`(최근 8, newest-first) → `ProposalContext.evidenceRefs` → `review.tsx`/`DeepSpaceDesignScreens.tsx` ratify → `recordStarTiers` write boundary(0060 sanitizer가 resolvable-refs-only 재검증).
+- **#615 — 넛지 evidence**: 순수 `tierShiftNudge(shifts, locale, nameOf)` (tier-history.ts) 추출 + 테스트. shift가 cited면 "근거 N개"/"N cited" 집계 1개 노출. **legacy review 화면(review.tsx)에서만** 렌더.
+- **리서치 백로그 라이브 적재**: live `knowledge_sources` **337행, C8 위반 0, 57 frameworks**. seed↔live 정합성 확인(drift 없음). `on conflict (doi) where doi is not null` 멱등.
+- **점검**: Supabase advisors — 내 변경발 신규 결함 0(나머지는 기존 인프라 항목, 일부는 deny-all 의도적).
+
+### 다음 작업 큐 (이 스레드에서 도출)
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| EV-1 | **deep-space review 화면에 tier-shift 넛지(+evidence) 노출** — `DeepSpaceReviewScreen`(DeepSpaceDesignScreens.tsx)은 현재 shift를 안 그림. `loadTierShifts`+`tierShiftNudge` 포팅. ⚠️ 캐노니컬 디자인 surface라 **info-density/DESIGN.md 배치 결정 = 사용자 승인 필요**(에이전트 단독 금지). | small-med | ⭐ 디자인 승인 후 |
+| EV-2 | (선택) `record:<id>` citation → 해당 record 열기 resolver + 탭 인터랙션. evidence.ts의 `evidenceRoute` 패턴 확장. EV-1과 함께. | medium | EV-1 다음 |
+
+### 적용 중인 정책 (영구, 추가)
+- citations는 **이드/슬러그만** (record:/source:/doi:/uuid), body·chat 텍스트 절대 금지(0060 PII 계약). write boundary sanitizer가 강제 — caller가 뭘 넘겨도 안전.
+
+## 2026-06-27 / OTA 셋업 검증 + 미머지 PR 정리(#600/#586/#605) + Cowork API 등록 핸드오프
 
 ### 어디까지 왔나
 - main HEAD: `58c904a`
