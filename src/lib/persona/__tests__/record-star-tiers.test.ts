@@ -33,7 +33,7 @@ jest.mock("../../analytics", () => ({
   activationMilestone: (props: unknown) => ({ name: "activation_milestone", props }),
 }));
 
-import { recordStarTiers } from "../record-star-tiers";
+import { recordStarTiers, sanitizeCitations } from "../record-star-tiers";
 import type { StarId } from "../stars";
 import type { LadderLevel } from "../brightness";
 
@@ -148,5 +148,51 @@ describe("recordStarTiers", () => {
     const rows = inserts[0].payload as Record<string, unknown>[];
     expect(rows[0]).toMatchObject({ evidence_origin: "rebuild" });
     expect(rows[0]).not.toHaveProperty("evidence_citations");
+  });
+
+  test("drops model-provided free text from citations at the write boundary (0060 contract)", async () => {
+    // Simulates the ratify path forwarding Gemini-emitted proposal.citations:
+    // ids/slugs survive; a quote / sentence / over-long token is stripped so no
+    // body or chat text reaches star_tier_history.
+    await recordStarTiers("u1", { now: 5 }, "journal", {
+      origin: "ratify",
+      citations: [
+        "record:7e1a",
+        "I felt anxious about the meeting", // free text -> dropped
+        "src:big_five",
+        "x".repeat(200), // over-long -> dropped
+        "10.1037/0003-066X.34.10.906", // doi-as-slug -> kept
+      ],
+    });
+    const rows = inserts[0].payload as Record<string, unknown>[];
+    expect(rows[0].evidence_citations).toEqual([
+      "record:7e1a",
+      "src:big_five",
+      "10.1037/0003-066X.34.10.906",
+    ]);
+  });
+
+  test("omits evidence_citations entirely when every token is non-id text", async () => {
+    await recordStarTiers("u1", { now: 4 }, "journal", {
+      origin: "ratify",
+      citations: ["just a sentence", "another free note"],
+    });
+    const rows = inserts[0].payload as Record<string, unknown>[];
+    expect(rows[0]).toMatchObject({ evidence_origin: "ratify" });
+    expect(rows[0]).not.toHaveProperty("evidence_citations");
+  });
+});
+
+describe("sanitizeCitations", () => {
+  test("keeps id/slug/doi tokens, drops whitespace/over-long, caps at 8", () => {
+    expect(sanitizeCitations(undefined)).toBeUndefined();
+    expect(sanitizeCitations([])).toBeUndefined();
+    expect(sanitizeCitations(["has space"])).toBeUndefined();
+    expect(sanitizeCitations(["record:abc", "src:via", "10.1/x"])).toEqual([
+      "record:abc",
+      "src:via",
+      "10.1/x",
+    ]);
+    expect(sanitizeCitations(Array.from({ length: 12 }, (_, i) => `id${i}`))).toHaveLength(8);
   });
 });

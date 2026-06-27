@@ -29,6 +29,27 @@ export interface TierEvidence {
   citations?: readonly string[];
 }
 
+// The ids/slugs-only privacy contract of 0060 is ENFORCED here, not just
+// documented: the ratify path forwards `proposal.citations`, which are
+// Gemini-generated strings (parseSelfModelProposal only stringifies/slices them),
+// so a model could otherwise return a quote or other user text. Keep only tokens
+// that look like an id / slug / doi — no whitespace, bounded length — so body or
+// chat text can never reach star_tier_history.evidence_citations regardless of
+// what the model emitted. Bounded count keeps the row small.
+const MAX_CITATIONS = 8;
+const CITATION_TOKEN = /^[A-Za-z0-9][\w:.#/-]{0,127}$/;
+
+export function sanitizeCitations(raw: readonly string[] | undefined): string[] | undefined {
+  if (!raw || raw.length === 0) return undefined;
+  const clean: string[] = [];
+  for (const c of raw) {
+    const t = typeof c === "string" ? c.trim() : "";
+    if (CITATION_TOKEN.test(t)) clean.push(t);
+    if (clean.length >= MAX_CITATIONS) break;
+  }
+  return clean.length > 0 ? clean : undefined;
+}
+
 export async function recordStarTiers(
   userId: string,
   starLevels: Partial<Record<StarId, LadderLevel>>,
@@ -36,8 +57,9 @@ export async function recordStarTiers(
   evidence?: TierEvidence,
 ): Promise<void> {
   const entries = Object.entries(starLevels) as [StarId, LadderLevel][];
-  const citations =
-    evidence?.citations && evidence.citations.length > 0 ? [...evidence.citations] : undefined;
+  // Sanitize at the write boundary — drops any model-provided free text so the
+  // 0060 ids/slugs-only contract holds no matter what the ratify path forwards.
+  const citations = sanitizeCitations(evidence?.citations);
   const rows = entries.map(([star_id, level]) => {
     const row: Record<string, unknown> = { user_id: userId, star_id, level };
     // Additive evidence link (0060): only stamped when provided, so the aggregate
