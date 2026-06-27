@@ -17,7 +17,7 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 
 export interface QuantIntroProps {
   /** Storage key used to remember "don't show again" preference. */
-  toolKey: "bfi" | "mbti" | "ecr";
+  toolKey: "bfi" | "mbti" | "ecr" | "rlss";
   title: string;
   itemCount: number;
   estimatedMinutes: number;

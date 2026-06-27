@@ -36,6 +36,10 @@
           "label": "Big Five",
           "hint": "Opens the Big Five assessment."
         },
+        "rlss": {
+          "label": "Life Satisfaction",
+          "hint": "Opens the Life Satisfaction (RLSS) assessment."
+        },
         "attachment": {
           "label": "Attachment",
           "hint": "Opens the attachment style assessment."
