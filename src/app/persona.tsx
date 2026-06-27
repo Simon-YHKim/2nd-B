@@ -21,6 +21,7 @@ import { labelFramework } from "@/lib/audit/frameworkLabels";
 import type { Framework } from "@/lib/audit/questions";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
+import { ReflectionScaffold } from "@/components/persona/ReflectionScaffold";
 
 type PersonaToast = { message: string; tone: "info" | "success" | "danger" };
 
@@ -295,6 +296,10 @@ function PersonaLegacy() {
           </Text>
           <Text variant="body" style={{ marginTop: spacing.xs }}>{persona.patterns.summary}</Text>
         </View>
+
+        {Object.entries(persona.patterns).filter(([k]) => k.startsWith("top_")).length > 0 ? (
+          <ReflectionScaffold locale={locale} />
+        ) : null}
 
         {Object.entries(persona.patterns).filter(([k]) => k.startsWith("top_")).length > 0 ? (
           <View style={styles.patternsCard}>
