@@ -24,14 +24,21 @@ export interface DomainStarOpts {
 
 /** Per-domain L1~L5 levels for all 7 stars. Domains with no entries default to L1
  *  (honest: a dark star stays dark). Per-domain ratify / cross-source flags thread
- *  through domainLevel() so propose->ratify (L5) and triangulation still apply. */
+ *  through domainLevel() so propose->ratify (L5) and triangulation still apply.
+ *
+ *  `now` (epoch ms) is OPT-IN and forwarded into every domain's recency check
+ *  (domain-confidence.ts §4.5 ④): a domain whose newest entry is older than the
+ *  staleness window dims one band. Omitting `now` keeps the function pure and every
+ *  existing caller unchanged — only the Supabase-read boundary (loadDomainLevels)
+ *  injects a real Date.now(), so recency stays live without polluting this module. */
 export function domainStarLevels(
   entriesByDomain: Partial<Record<DomainId, readonly DomainEntry[]>>,
   opts: Partial<Record<DomainId, DomainStarOpts>> = {},
+  now?: number,
 ): Record<DomainId, LadderLevel> {
   const out = {} as Record<DomainId, LadderLevel>;
   for (const d of DOMAIN_STARS) {
-    out[d.id] = domainLevel(entriesByDomain[d.id] ?? [], opts[d.id] ?? {});
+    out[d.id] = domainLevel(entriesByDomain[d.id] ?? [], { ...(opts[d.id] ?? {}), now });
   }
   return out;
 }

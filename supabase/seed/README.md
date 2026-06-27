@@ -38,8 +38,42 @@
 | `ai-mental-health-safety.sql` | `ai_mental_health` | 5 |
 | `wellbeing-kpi.sql` | `wellbeing_kpi` | 4 |
 | `data-ethics-consent.sql` | `data_ethics` | 1 |
+| `financial-wellbeing.sql` | `finance` | 3 |
+| `vocational-interests.sql` | `career` | 3 |
+| `leisure-wellbeing.sql` | `recreation` | 1 |
+| `relationship-maintenance.sql` | `relation` | 1 |
+| `behaviour-change-design.sql` | `health` | 3 |
+| `loneliness-connection.sql` | `loneliness` | 4 (3 EN + 1 KO/KCI) |
+| `attraction-initiation.sql` | `attraction` | 3 |
+| `highly-sensitive.sql` | `sensitivity` | 4 (3 EN + 1 KO/KCI) |
+| `communication-skills.sql` | `communication` | 3 (2 EN + 1 KO/KCI) |
+| `cross-cultural-global-south.sql` | `cross_cultural_global_south` | 21 (of 22; the Allwood & Berry preface excluded as non-substantive) |
+| `manipulation-literacy.sql` | `manipulation` | 3 (2 EN + 1 KO/KCI) |
+| `family-of-origin.sql` | `family_of_origin` | 2 (1 EN + 1 KO/KCI) |
+| `chc-cognitive-abilities.sql` | `chc_cognitive` | 22 |
+| `emotional-intelligence-mscit.sql` | `emotional_intelligence` | 13 |
+| `dual-process-theory.sql` | `dual_process` | 20 |
+| `multiple-intelligences.sql` | `multiple_intelligences` | 16 (incl. ISBN/KCI rows) |
+| `metacognition-introspection.sql` | `metacognition` | 14 |
+| `self-concept-clarity.sql` | `self_concept_clarity` | 15 |
+| `whole-trait-density.sql` | `whole_trait` | 13 |
+| `personality-change-dynamics.sql` | `personality_change` | 14 |
+| `self-report-bias.sql` | `self_report_bias` | 17 |
+| `cross-cultural-east-asian.sql` | `cross_cultural_east_asian` | 26 |
+| `crisis-detection-global.sql` | `crisis_detection_global` | 18 |
+| `habit-formation-change.sql` | `habit_formation` | 12 |
 
-**Total**: 95 rows across 21 batches / 27 framework slugs.
+**Total**: 346 rows across 45 seed files / 51 framework slugs (row count = actual
+`insert` tuples per file, verified by `grep -c "now()," supabase/seed/*.sql`; a few
+rows cite an ISBN or KCI id rather than a DOI, so "rows" ≥ "verified DOI rows" in
+`docs/research/batches/INDEX.md`).
+
+> The five life-domain seeds (`finance`/`career`/`recreation`/`relation`/`health`)
+> are reachable by the Advisor via `src/lib/knowledge/retrieve.ts` routing — both
+> by keyword (money/leisure/relationship/habit) and by a DIM domain star pulling
+> its own batch. Apply them with MCP `apply_migration` / `execute_sql`, then
+> confirm with `select count(*) from public.knowledge_sources where framework in
+> ('finance','career','recreation','relation','health');` (expect 11 — finance/career/health 3 each, recreation/relation 1 each).
 
 > AI retrieval schema for these seeds: see [`../../docs/research/CLAUDE.md`](../../docs/research/CLAUDE.md).
 

@@ -28,6 +28,44 @@ describe("domainStarLevels", () => {
     const levels = domainStarLevels({ growth: organized(1) }, { growth: { ratified: true } });
     expect(levels.growth).toBe(5);
   });
+
+  describe("recency threading (§4.5 ④, opt-in via now)", () => {
+    const NOW = Date.parse("2026-06-26T00:00:00Z");
+    const datedOrganized = (n: number, isoDate: string): DomainEntry[] =>
+      Array.from({ length: n }, () => ({
+        domain: "career" as const,
+        category: "c",
+        tags: ["t"],
+        createdAt: isoDate,
+      }));
+
+    it("no now → recency never applies (back-compat: stale domain keeps its band)", () => {
+      const levels = domainStarLevels({ career: datedOrganized(15, "2020-01-01T00:00:00Z") });
+      expect(levels.career).toBe(4); // high → L4, undimmed
+    });
+
+    it("now dims a domain whose newest entry is older than 60 days", () => {
+      const levels = domainStarLevels(
+        { career: datedOrganized(15, "2026-01-01T00:00:00Z") }, // ~177 days old
+        {},
+        NOW,
+      );
+      expect(levels.career).toBe(3); // high → medium → L3
+    });
+
+    it("a fresh domain stays bright while a stale one dims under the same now", () => {
+      const levels = domainStarLevels(
+        {
+          career: datedOrganized(15, "2026-06-20T00:00:00Z"), // 6 days old → bright
+          finance: datedOrganized(15, "2026-01-01T00:00:00Z"), // stale → dims
+        },
+        {},
+        NOW,
+      );
+      expect(levels.career).toBe(4);
+      expect(levels.finance).toBe(3);
+    });
+  });
 });
 
 describe("northStarBrightness", () => {

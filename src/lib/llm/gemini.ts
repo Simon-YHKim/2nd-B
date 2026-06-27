@@ -13,6 +13,7 @@ import { GoogleGenAI } from "@google/genai";
 import { throwIfAborted } from "../async/abort";
 import { getEnv } from "../env";
 import { retrieveEvidence } from "../knowledge/retrieve";
+import { loadDomainLevels } from "../persona/load-domain-levels";
 import { classifyInput, crisisHotlines, type SafetyResult } from "../safety/classifier";
 import { getSupabaseClient } from "../supabase/client";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
@@ -1035,12 +1036,20 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     };
   }
 
-  // YELLOW/GREEN: retrieve grounding evidence.
+  // YELLOW/GREEN: retrieve grounding evidence. Thread the user's per-domain
+  // brightness so a DIM (under-fed) life-domain star pulls that domain's
+  // evidence into scope even when the message did not keyword-route to it —
+  // wiring the brightness layer to the advice layer. Best-effort: a failed
+  // read must never block the advisor, so we fall back to message-only routing.
+  const domainLevels = await loadDomainLevels(input.userId)
+    .then((d) => d.domainLevels)
+    .catch(() => undefined);
   const evidence = await retrieveEvidence({
     userMessage: input.userMessage,
     userLocale: input.locale,
     userAgeRange: input.userAgeRange,
     conversationContext: input.conversationContext,
+    domainLevels,
   });
 
   let systemPrompt = evidence.assembledPrompt;

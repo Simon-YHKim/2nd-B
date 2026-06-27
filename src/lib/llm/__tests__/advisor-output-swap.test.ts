@@ -29,6 +29,12 @@ jest.mock("../../supabase/crisis-events", () => ({
   insertCrisisEvent: jest.fn().mockResolvedValue(undefined),
 }));
 
+// loadDomainLevels is called by callAdvisor to bias evidence toward dim
+// domains. Stub it so this suite stays hermetic (no Supabase round-trip).
+jest.mock("../../persona/load-domain-levels", () => ({
+  loadDomainLevels: jest.fn().mockResolvedValue({ domainLevels: {}, northStarBrightness: 0.2 }),
+}));
+
 jest.mock("../../knowledge/retrieve", () => ({
   retrieveEvidence: jest.fn().mockResolvedValue({
     matchedBatches: ["self-knowledge"],
