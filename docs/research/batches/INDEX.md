@@ -51,7 +51,7 @@ DOI-verified psychology framework batches curated via `docs/research/psychology-
 **Total**: 40 batches (1 methodology analysis), 322 verified DOI rows for `knowledge_sources`.
 
 > **Reconciliation (authoritative loaded-row count)**: the actual corpus that loads
-> into `knowledge_sources` is **340 inserted rows across 45 seed files** (verified by
+> into `knowledge_sources` is **346 inserted rows across 45 seed files** (verified by
 > `grep -c "now()," supabase/seed/*.sql` — see `supabase/seed/README.md` for the
 > per-file table). The "verified DOI rows" figure above counts DOI-bearing rows only,
 > so it is lower than the loaded-row total: some rows cite an ISBN (e.g. Gardner,

@@ -230,7 +230,7 @@ When AI agents use this knowledge base, these patterns indicate misuse:
 | `wellbeing_kpi` | wellbeing-kpi | 4 | A |
 | `data_ethics` | data-ethics-consent | 1 | A (+ policy refs) |
 
-**Total**: **340 inserted rows across 45 seed files / 51 framework slugs** — the
+**Total**: **346 inserted rows across 45 seed files / 51 framework slugs** — the
 authoritative per-file count lives in `supabase/seed/README.md` (verified by
 `grep -c "now()," supabase/seed/*.sql`). This Quick Index table above lists only
 the original core batches; the corpus has since grown to include the cognitive /

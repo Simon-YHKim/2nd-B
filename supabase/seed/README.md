@@ -38,11 +38,11 @@
 | `ai-mental-health-safety.sql` | `ai_mental_health` | 5 |
 | `wellbeing-kpi.sql` | `wellbeing_kpi` | 4 |
 | `data-ethics-consent.sql` | `data_ethics` | 1 |
-| `financial-wellbeing.sql` | `finance` | 1 |
-| `vocational-interests.sql` | `career` | 1 |
+| `financial-wellbeing.sql` | `finance` | 3 |
+| `vocational-interests.sql` | `career` | 3 |
 | `leisure-wellbeing.sql` | `recreation` | 1 |
 | `relationship-maintenance.sql` | `relation` | 1 |
-| `behaviour-change-design.sql` | `health` | 1 |
+| `behaviour-change-design.sql` | `health` | 3 |
 | `loneliness-connection.sql` | `loneliness` | 4 (3 EN + 1 KO/KCI) |
 | `attraction-initiation.sql` | `attraction` | 3 |
 | `highly-sensitive.sql` | `sensitivity` | 4 (3 EN + 1 KO/KCI) |
@@ -63,7 +63,7 @@
 | `crisis-detection-global.sql` | `crisis_detection_global` | 18 |
 | `habit-formation-change.sql` | `habit_formation` | 12 |
 
-**Total**: 340 rows across 45 seed files / 51 framework slugs (row count = actual
+**Total**: 346 rows across 45 seed files / 51 framework slugs (row count = actual
 `insert` tuples per file, verified by `grep -c "now()," supabase/seed/*.sql`; a few
 rows cite an ISBN or KCI id rather than a DOI, so "rows" ≥ "verified DOI rows" in
 `docs/research/batches/INDEX.md`).
@@ -73,7 +73,7 @@ rows cite an ISBN or KCI id rather than a DOI, so "rows" ≥ "verified DOI rows"
 > by keyword (money/leisure/relationship/habit) and by a DIM domain star pulling
 > its own batch. Apply them with MCP `apply_migration` / `execute_sql`, then
 > confirm with `select count(*) from public.knowledge_sources where framework in
-> ('finance','career','recreation','relation','health');` (expect 5).
+> ('finance','career','recreation','relation','health');` (expect 11 — finance/career/health 3 each, recreation/relation 1 each).
 
 > AI retrieval schema for these seeds: see [`../../docs/research/CLAUDE.md`](../../docs/research/CLAUDE.md).
 
