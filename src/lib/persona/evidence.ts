@@ -15,6 +15,30 @@ export interface EvidenceShard {
   route: string;
 }
 
+/**
+ * Pull the user-record ids out of a list of evidence citations (0060 format).
+ * Citations are namespaced refs — `record:<uuid>` (a user record), plus possibly
+ * `source:<id>` / `doi:...` (curated research). This extracts ONLY the `record:`
+ * ones — the user's OWN entries that can be opened and checked — strips the
+ * prefix, and dedupes preserving order. Pure; load-evidence-shards turns these
+ * ids into openable shards so a user can verify a persona/tier claim against the
+ * actual records behind it (the "surface the source span" honesty rule).
+ */
+export function recordIdsFromCitations(citations: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of citations) {
+    const m = /^record:(.+)$/i.exec(c.trim());
+    if (!m) continue;
+    const id = m[1]!.trim();
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+  }
+  return out;
+}
+
 /** Map a records.kind (+ tags) to a user-facing evidence type. */
 export function recordKindToType(kind: string, tags: string[] = []): EvidenceType {
   if (kind === "journal") return "journal";
