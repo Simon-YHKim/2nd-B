@@ -25,26 +25,31 @@ const LIT_THRESHOLD = 2;
 export interface TierEvidence {
   /** How the row was produced: "ratify" | "rebuild" | … (free text). */
   origin?: string;
-  /** Record ids / source slugs justifying the tier — SelfModelProposal.citations. */
+  /**
+   * RESOLVABLE evidence references that justify the tier — a namespaced id/slug
+   * (`record:<id>`, `source:<slug>`, `doi:<id>`), a bare DOI, or a uuid. NOT
+   * model-invented labels: the ratify path does not pass Gemini's free-form
+   * `proposal.citations` here (no real-id whitelist exists yet — see callers),
+   * so in practice this is only set by a future caller that has actual ids.
+   */
   citations?: readonly string[];
 }
 
-// The ids/slugs-only privacy contract of 0060 is ENFORCED here, not just
-// documented: the ratify path forwards `proposal.citations`, which are
-// Gemini-generated strings (parseSelfModelProposal only stringifies/slices them),
-// so a model could otherwise return a quote or other user text. Keep only tokens
-// that look like an id / slug / doi — no whitespace, bounded length — so body or
-// chat text can never reach star_tier_history.evidence_citations regardless of
-// what the model emitted. Bounded count keeps the row small.
+// 0060 contract enforced at the write boundary, not just documented. A citation
+// must be a RESOLVABLE reference; bare dictionary words ("career", "meeting") and
+// any free text / quote are rejected, so star_tier_history.evidence_citations can
+// never hold a model-invented label masquerading as evidence, nor any body/PII
+// text — regardless of what a caller forwards. Bounded count keeps the row small.
 const MAX_CITATIONS = 8;
-const CITATION_TOKEN = /^[A-Za-z0-9][\w:.#/-]{0,127}$/;
+const RESOLVABLE_CITATION =
+  /^(?:(?:record|source|src|doi|kb):[\w./#-]{1,120}|10\.\d{4,9}\/\S{1,120}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
 
 export function sanitizeCitations(raw: readonly string[] | undefined): string[] | undefined {
   if (!raw || raw.length === 0) return undefined;
   const clean: string[] = [];
   for (const c of raw) {
     const t = typeof c === "string" ? c.trim() : "";
-    if (CITATION_TOKEN.test(t)) clean.push(t);
+    if (t.length <= 128 && RESOLVABLE_CITATION.test(t)) clean.push(t);
     if (clean.length >= MAX_CITATIONS) break;
   }
   return clean.length > 0 ? clean : undefined;

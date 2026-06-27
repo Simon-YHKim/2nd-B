@@ -184,15 +184,35 @@ describe("recordStarTiers", () => {
 });
 
 describe("sanitizeCitations", () => {
-  test("keeps id/slug/doi tokens, drops whitespace/over-long, caps at 8", () => {
+  test("keeps only resolvable references (namespaced / doi / uuid)", () => {
     expect(sanitizeCitations(undefined)).toBeUndefined();
     expect(sanitizeCitations([])).toBeUndefined();
     expect(sanitizeCitations(["has space"])).toBeUndefined();
-    expect(sanitizeCitations(["record:abc", "src:via", "10.1/x"])).toEqual([
+    expect(
+      sanitizeCitations([
+        "record:abc",
+        "src:via",
+        "doi:10.1/x",
+        "10.1037/0003-066X.34.10.906",
+        "550e8400-e29b-41d4-a716-446655440000",
+      ]),
+    ).toEqual([
       "record:abc",
       "src:via",
-      "10.1/x",
+      "doi:10.1/x",
+      "10.1037/0003-066X.34.10.906",
+      "550e8400-e29b-41d4-a716-446655440000",
     ]);
-    expect(sanitizeCitations(Array.from({ length: 12 }, (_, i) => `id${i}`))).toHaveLength(8);
+  });
+
+  test("rejects bare dictionary words / model-invented labels (Codex P2)", () => {
+    // No namespace, no id shape -> not resolvable evidence -> dropped.
+    expect(sanitizeCitations(["career", "meeting", "anxiety"])).toBeUndefined();
+    // a bare DOI needs a real registrant (4+ digits), not "10.1/x".
+    expect(sanitizeCitations(["10.1/x"])).toBeUndefined();
+  });
+
+  test("caps at 8", () => {
+    expect(sanitizeCitations(Array.from({ length: 12 }, (_, i) => `record:id${i}`))).toHaveLength(8);
   });
 });
