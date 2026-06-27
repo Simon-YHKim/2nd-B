@@ -28,9 +28,9 @@ export interface TierEvidence {
   /**
    * RESOLVABLE evidence references that justify the tier — a namespaced id/slug
    * (`record:<id>`, `source:<slug>`, `doi:<id>`), a bare DOI, or a uuid. NOT
-   * model-invented labels: the ratify path does not pass Gemini's free-form
-   * `proposal.citations` here (no real-id whitelist exists yet — see callers),
-   * so in practice this is only set by a future caller that has actual ids.
+   * model-invented labels: the ratify path passes the card's `evidenceRefs`
+   * (real `record:<id>` for the rows the card was built from), never Gemini's
+   * free-form `proposal.citations`. The sanitizer below re-checks every token.
    */
   citations?: readonly string[];
 }
