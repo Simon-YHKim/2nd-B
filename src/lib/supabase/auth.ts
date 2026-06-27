@@ -398,6 +398,20 @@ export function signInWithGithub(redirectTo?: string): Promise<OAuthRedirect | n
   return signInWithProvider("github", redirectTo);
 }
 
+// Native (on-device SDK) social sign-in: the platform SDK obtains an OIDC id_token
+// and Supabase exchanges it for a session, no browser round-trip. Used only by the
+// native-SDK path (src/lib/auth/native-social.ts); web/native browser flows use
+// signInWithProvider above. Kakao is accepted by gotrue's id_token endpoint when its
+// OpenID Connect is enabled in the Kakao console.
+export async function signInWithIdTokenProvider(
+  provider: "google" | "kakao" | "apple",
+  token: string,
+): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.signInWithIdToken({ provider, token });
+  if (error) throw error;
+}
+
 // Whether to SHOW a built-in social provider button. The provider must ALSO be
 // configured in the Supabase dashboard (client id/secret + redirect URL) to
 // actually authenticate; this only gates the UI so a deploy that has not set up
