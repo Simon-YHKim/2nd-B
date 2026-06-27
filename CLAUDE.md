@@ -11,6 +11,16 @@ Project-specific guidance for Claude Code sessions in this repo.
 - **Vision**: `docs/VISION.md` (캐치프레이즈 + 3축 모델). 모든 새 기능은 어느 축에 속하는지 PR 설명에 명시.
 - **Master blueprint**: `docs/ARCHITECTURE.md`. Hard constraints C1~C12: `docs/CONSTRAINTS.md`.
 
+## QA test account — AI agents: sign in and test freely
+
+A shared test account is **committed** so any AI agent (local, cloud, or headless) can
+sign in and exercise the real app during QA. **Reuse it — do not create another.**
+
+- **Credentials**: `.env.test` (committed at repo root) → `QA_TEST_EMAIL` / `QA_TEST_PASSWORD`.
+- **Account**: `qa.ai.b18807@example.com` — email/password sign-in, free tier, adult, `judge_mode=false`, RLS-isolated (only its own rows).
+- Disposable and non-secret (the Supabase anon key is already public). Revoke anytime by deleting the user in Supabase Auth. Real secrets (service_role, API keys, `.env`) still never go in git.
+- To test paywalled features, set `EXPO_PUBLIC_FORCE_TIER` in `.env` (e.g. `brain` unlocks everything) — the account itself stays free.
+
 ## Canonical concept & direction (read first)
 
 The concept and direction is **deep-space constellation** (a character-led home shell). The
