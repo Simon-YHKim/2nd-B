@@ -83,8 +83,7 @@ pairing come from the design tokens in `src/lib/theme/tokens.ts` (`semantic.*` /
 `deepSpace.*` for deep-space; `cosmic.*` is the legacy *Cosmic Pixel Graph Village*
 skin). Never hardcode hex literals in components. Visual discipline lives in
 [`DESIGN.md`](./DESIGN.md). (The earlier *phytoncide* tokens in `src/theme/tokens.ts`
-+ [`docs/legacy/DESIGN_TOKENS.md`](./docs/legacy/DESIGN_TOKENS.md) are superseded and
-must not be used.)
+are superseded and must not be used.)
 
 ## Verification
 

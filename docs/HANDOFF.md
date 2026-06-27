@@ -3,6 +3,288 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-06-26 / DB user-profiling 진단 + 7별 근거 기반 대확장 (knowledge_sources 95→140 live)
+
+> 별개 세션. 위 크래시 핫픽스와 무관하게 PR **#595**(draft, OPEN — 아직 미머지)에서
+> "근거 깊이 확장"만 진행. main 은 건드리지 않음.
+
+### 어디까지 왔나
+- main HEAD: `26179b6` (이번 세션 동안 main 변동 없음 — 모든 작업이 PR #595).
+- 이번 세션 머지된 PR: **없음**. 작업은 전부 PR **#595** (branch `claude/database-user-profiling-check-7l4d8i`, **draft, OPEN**), 11 commits.
+- 테스트: `npm run verify` green (**257 suites / 1962 tests**) — 매 push 전 통과.
+- working tree: clean.
+
+### 무엇을 했나 (PR #595)
+1. **진단**: 앱 DB 가 '나'를 7개 **생활영역 별**(커리어·재정·성장·관계·건강·오락·담아내기, `domain-stars.ts`)로 파악. 실측 결과 데이터가 비어있고(records 전부 `domain:(none)`), recency 가 죽어있고, 관계/오락 별은 read 만 배선돼 있었음.
+2. **파이프라인 수리**: recency 신호를 prod 에 연결(`load-domain-levels.ts` Date.now()), 밝기→조언 배선(`retrieve.ts` + `gemini.ts`: dim 별이 자기 근거를 advisor 로 끌어옴), 관계/오락 테이블을 밝기에 fold.
+3. **쓰기 경로**: `src/lib/relation/people.ts` + `src/lib/recreation/items.ts` (dead-schema 였던 0058/0059 의 writer, ledger 패턴).
+4. **근거 대확장** (유튜브 4,074영상 토픽 갭맵 → 학술 디벨롭): P1 loneliness·attraction, P2 sensitivity·communication, P3 manipulation·family_of_origin, + 5 life-domain seeds, + cross-cultural-global-south **21/22행**, + 한국어 KCI 행 5개. 전부 batch.md + seed.sql + 라우팅 + 도달성 테스트.
+5. **라이브 적재**: Supabase `knowledge_sources` **95 → 140행** (전부 실DOI/KCI + verified_at, advisor 라우팅에 도달).
+
+### 활성 인프라
+- Supabase project **`zoacryukmdeivmolvyhj`** (name `2nd-brain`, ap-northeast-2, ACTIVE_HEALTHY).
+- **live `knowledge_sources` = 140 rows** (이번 세션 +45). KO rows = 21. 확인: `select count(*) from public.knowledge_sources` (expect 140).
+- (DressRoom project `nthmmpvygoiybvtxwpep` 는 INACTIVE — 무관.)
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **PR #595 리뷰 → draft 해제 → 머지** (45행 적재 완료, verify green) | medium | ⭐ 세션 결실 마무리 |
+| B | relation/recreation **캡처 UI** (writers 완료, 화면만 필요) — 전역규칙상 **design-first 인테이크 먼저** | large | ⭐ 두 별이 실데이터 받게 |
+| C | `star_tier_history` **evidence-link** (migration 0060: source_record_id) — 조언 "왜" 설명 | medium | 무결성 |
+| D | attraction **한국어 KCI 행** — 한국 매력/관계형성 척도 타당화 나오면 (현재 없어 보류) | small | 후속 |
+| E | cross-cultural 22번째(Allwood&Berry *preface*) — 비실질이라 의도적 제외. n/a | — | skip |
+
+### 적용 중인 정책 (영구)
+1. 모든 push 전 `npm run verify` green (257 suites). 라이브 DB 적재는 `BEGIN/COMMIT` 원자적 + framework 중복 사전 확인.
+2. **YouTube = 주제 발굴 입력만, citation 아님**. 근거는 학술 DOI 만 (`docs/research/README.md` 거부 체크리스트).
+3. **안 읽은 논문 요약 금지** — 핵심 확인 후 작성하거나 deferred 명시 (cross-cultural 21/22, attraction-KO deferred).
+4. cross-cultural **비본질주의**: 문화 내 변산 > 문화 간 변산, 국적→개인 추정 금지.
+5. **비임상 lexicon 엄수**. manipulation/family-of-origin 등 민감 batch 는 `crisis-detection` always-load + 안전 테스트(manipulation 메시지에도 crisis 유지).
+6. seed 추가 = **5종 세트**: `batches/<slug>.md` + `seed/<slug>.sql` + `retrieve.ts` 라우팅(ROUTING+SLUG_TO_FRAMEWORK) + 도달성 jest + `seed/README.md` 적재 체크리스트 → 그다음 라이브 적재.
+7. 새 record 는 capture 시 `domain:` 태깅됨(`records/create.ts:223`). 기존 `domain:(none)` 는 레거시.
+
+### 핵심 파일 위치
+```
+src/lib/persona/domain-stars.ts           7 생활영역 별 정의 (Layer A)
+src/lib/persona/domain-confidence.ts      밝기 = coverage + recency(opt-in now)
+src/lib/persona/load-domain-levels.ts     records+relation_people+recreation_items → 밝기, Date.now() recency 주입
+src/lib/knowledge/retrieve.ts             advisor 라우팅 + brightness→advice (DOMAIN_TO_BATCH)
+src/lib/llm/gemini.ts                     callAdvisor 가 loadDomainLevels best-effort 로드
+src/lib/relation/people.ts                관계 writer (createPerson 등)
+src/lib/recreation/items.ts               오락 writer (createRecreationItem 등)
+db/migrations/0058_relation_people.sql    관계 구조화 테이블 (owner RLS)
+db/migrations/0059_recreation_items.sql   오락 구조화 테이블 (owner RLS)
+docs/research/youtube-topic-gap-map.md    유튜브 4,074영상 토픽→근거 갭맵
+docs/research/batches/*.md + supabase/seed/*.sql   근거 코퍼스 (40 batches / 140 rows)
+```
+
+### 검증
+```bash
+cd /home/user/2nd-B && npm run verify        # 257 suites / 1962 tests
+# 라이브 행 수 (Supabase MCP): select count(*) from public.knowledge_sources;  -- expect 140
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+git checkout claude/database-user-profiling-check-7l4d8i   # PR #595 이어가기 (A 작업부터)
+```
+
+---
+
+## 2026-06-26 (앞선 세션) — 🚨 긴급 크래시 핫픽스 (SecondbHead head-touch) + QA loop PR 일괄 머지 + 클라우드 인계
+
+### 어디까지 왔나
+- main HEAD: `717c0543`
+- 이번 세션 머지된 PR: **#592**(PF-1 home star labels) · **#593**(PF-9 hint "lenses"→"life areas", 5 locale) · **#594**(polaris label widen) · **#596**([HOTFIX] eas-update: Supabase env + `--environment`) · **#597**(account build/OTA identifier) · **#598**(PF-7 DOB placeholder 예시). (#590/#591 직전 머지.)
+- 테스트: `npm run verify` green (255 suites / 1927 tests) — 머지 전 각 PR 통과.
+- working tree: clean.
+
+### 🚨 크래시 핫픽스 (CLOSED)
+- **증상:** 다운로드 preview 앱에서 SecondbHead 머리를 ~4초 드래그하면 일관 크래시 (런치 크래시 아님 — 메인 정상 진입).
+- **ROOT CAUSE:** SecondbHead 눈 노드가 `blink`(애니)와 `eyeOffset`(터치 시선추적) transform을 공유. #590 이전엔 `blink`=native driver, `eyeOffset`=JS driver → `blink`(1.6~4.8s 랜덤 주기)이 터치 중 발동하면 같은 노드에 native+JS 동시 → "JS driven animation on a node moved to native" 크래시. **#590(`66c1124e`)이 `blink`→JS로 이미 fix.** 현 main은 driver-consistent (전수 `useNativeDriver` 점검: `bob`만 native, 독립 inner 노드).
+- **사고 경위:** preview APK 임베디드 번들 = #590 이전(버그). `eas-update.yml`이 매 main 머지마다 OTA 자동게시하나 `EXPO_PUBLIC_SUPABASE_*` env 없이 게시 → 모든 OTA가 `env.ts` demo Supabase placeholder fallback(부팅되나 auth/data 죽음). 12:54 `eas update:roll-back-to-embedded`(잘못된 미티게이션)가 사용자를 #590 이전 버그 임베디드로 되돌린 역효과.
+- **해결:** preview 채널에 고친 OTA 재배포 — commit `2cd5bf80` + 실제 supabase env, **update group `28b98f03`**, runtimeVersion 0.0.6 → rollback 무효화. **사용자 복구법 = 앱 완전종료 후 2회 재실행** (`fallbackToCacheTimeout:0`이라 1회차 OTA 다운로드·2회차 적용).
+- **재발방지(#596):** `eas-update.yml`에 Supabase env + `--environment` + stale 0.0.5 주석 수정.
+- 전 과정 기록: **`reports/HOTFIX_CRASH_270626.md`**.
+
+### 다음 작업 큐 (원래 /loop QA, 중단됨 — SoT: `reports/qa/270626_loop_findings.md` + `reports/qa/CLONE-PROGRESS.md`)
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | 핫픽스 후속: `eas-update.yml` auto-publish 게이팅 (매 머지 자동게시 → 수동 dispatch / post-verify) | small | ⭐ 이번 사고의 구조적 원인 |
+| B | `app/_layout` 루트 ErrorBoundary (렌더에러 → blank crash 방지) | small | ⭐ 방어 |
+| C | persona fix(코드): PF-2(guardian-consent 카피 정직화) · PF-3(consent ackLlm/ackOverseas 강조) · PF-4(privacy mock toggle) · PF-5(first-save 축하) · PF-6(onboarding 별자리 설명) | medium | 각 verify→PR |
+| D | 화면별 클론 fidelity vs `captures/NN-*.png` (16라우트 redbox/crash 0 확인됨) | large | 매회 관점 로테이션 |
+| E | `deepspace/index.ts` require cycle 정리 (현재 무해, 잠재 리스크) | small | hygiene |
+
+### 적용 중인 정책 (영구)
+1. main 직접푸시 금지 · draft-PR flow · `npm run verify`(또는 CI Constraints job)가 게이트.
+2. **PR 제목 = Conventional Commits 필수** (CI "Validate title" 체크; `[HOTFIX]` 등 프리픽스 금지 → `fix(scope): …`).
+3. EAS Update: `preview` 채널 = 테스트폰. runtimeVersion = appVersion policy(=0.0.6). 로컬 `eas update`는 bare workflow라 policy 거부 → app.json에 concrete `"0.0.6"` 임시지정 후 publish·revert. 공개 anon key는 eas.json에 이미 커밋됨(인라인 OK).
+4. **로컬 전용 함정 (클라우드엔 무관):** adb `/data`·`/sdcard` 경로엔 `MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'`; Windows python엔 `C:/…` 경로(`/c/…` 주면 깨짐); 앱 텍스트입력 전 필드클리어; 스샷은 PIL 축소/contact-sheet montage 후 read(이미지 한계).
+5. test 계정 `test@test.com` / `qwer1234!` (Supabase user 41bc7b92, profile 존재). 온보딩 우회 = AsyncStorage `RKStorage`의 `catalystLocalStorage`에 `onboarding.cosmicPixel.v2.completedAt` insert.
+
+### 핵심 파일 위치
+```
+src/components/deepspace/SecondbHead.tsx          head 애니 — driver 일관성 주의(bob=native 독립, blink/engage/touch/eyeOffset=JS)
+src/components/deepspace/SecondbHeadTrack.tsx     터치추적 provider (engage spring + touch setValue, 둘 다 JS)
+src/components/deep-space/ConstellationHome.tsx   홈 별자리 (7 도메인 라벨 + 북극성)
+src/screens/deepspace/DeepSpaceDesignScreens.tsx  모든 deep-space 화면 (4120줄)
+src/lib/build-info.ts                             build/OTA identifier (account 화면 footer)
+src/lib/env.ts                                    env 스키마 + demo Supabase fallback
+.github/workflows/eas-update.yml                  OTA 자동게시 (이제 supabase env 포함)
+reports/HOTFIX_CRASH_270626.md                    크래시 핫픽스 보고서
+reports/qa/270626_loop_findings.md                persona punch list (PF-1~9)
+reports/qa/CLONE-PROGRESS.md                      클론/로그인/온보딩우회 SoT
+```
+
+### 검증
+```bash
+npm run verify   # lint + tsc + i18n + lexicon + LLM boundary + constraints + jest (255 suites / 1927 tests)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A 작업(eas-update 게이팅)부터, 또는 C(persona fix). reports/qa/*.md 가 QA loop SoT.
+```
+
+---
+
+## Latest — 2026-06-26 / 별자리 키스톤 lib 체인 완성 + proto rev2 감사 (PR #586 docs · #587 keystone, 둘 다 draft)
+
+### 어디까지 왔나
+- main HEAD: `37d63ac7` (이번 세션 산출은 두 draft PR에, 아직 main 미머지)
+- 이번 세션 머지된 기능 PR: 없음. 산출 = **PR #586**(docs 정본화) + **PR #587**(키스톤 lib).
+- 테스트: 키스톤 ~30 신규 테스트 green · tsc 클린 · lexicon green · 기존 65 LLM 테스트 green.
+- working tree: clean (이전 세션 untracked WIP 잔존, 손대지 않음).
+
+### 핵심 결과
+1. **docs 정본화 (PR #586, branch `claude/constellation-prd-v3-canonize`)**: PRD→Draft v3(별자리 3-레이어), `CONSTELLATION-DESIGN.md`(설계 + 10-에이전트 차용 감사), CONCEPT/VISION/CLAUDE(Visual Tier) 정렬, CANONIZATION-REPORT.html, COWORK-PROMPTS.md(올인원 + Kakao/Naver Places + 수출입은행 FX + 식약처). §7/§13 결정 a~j CONFIRMED.
+2. **키스톤 lib 체인 완성 (PR #587, branch `claude/constellation-keystone`)** — 순수·additive·~30 테스트:
+   `domain-stars.ts`(DOMAIN_STARS 7 + DomainEntry) · `domain-confidence.ts`(domainConfidence/domainLevel — brightness.ts 체인 무수정 재사용) · `north-star.ts`(domainStarLevels + northStarBrightness, soulCoreBrightness 동일공식 교차검증) · `persona-synthesis.ts`(layer-C 하네스: persona_synthesis purpose + 스키마 + 근거강제 파서 + cap 3).
+3. **Proto rev2 감사** (디자인 = Claude Design): zip `C:\Users\Soha.Bae\Downloads\2ndB-proto-rev2\`(37 PNG + 스펙). 디자이너가 PRD v3 잘 내재화(3-레이어·밝기정직성·propose→ratify·데이터주권·IDEN). **ship-blocker 3**: 비준 안 된 layer-B가 37-widget/27-inbox로 샘 · 31-callrec 음성 purge+C9 미확인 · 33-plans 가격 ₩6,900/12,900 vs PRD §13 ₩4,900/9,900/19,900. ⚠️ claude_design MCP(DesignSync) 있으나 `/design-login`이 이 env에 없어 인증 불가 → zip으로 작업.
+
+### 활성 인프라
+- Supabase project ref `zoacryukmdeivmolvyhj` (14-17 자가동의 prod LIVE, 0028-0033). Gemini 라이브(gemini-proxy edge fn). i18n 5로케일 패리티(C7 PASS). 키스톤·정본화 코드는 main 미머지(두 draft PR).
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **홈(05) 이관 — "담기→도메인 태깅부터"** | medium | ⭐ records가 도메인 slug 획득(`detect.ts`+캡처). 이게 먼저여야 홈이 의미. 그 다음 `load-domain-levels.ts`(load-star-levels 미러) → `ConstellationHome` STARS relabel(키스톤 위) |
+| B | 감사 Code P0 | medium | 비준-전-표시 강제(push/widget = layer-A/C만) · `domainConfidence` "비준 커버리지만" 정련 · callrec STT purge+C9 |
+| C | PR #586 / #587 머지 | small | CI green 확인 후 (docs + lib) |
+| D | 가격 확정(Simon) → PRD §13·디자인·`pricing.ts` 정렬 | small | Simon 결정 대기 |
+
+### 적용 중인 정책 (영구)
+1. main 직접 push 금지(항상 PR) · push 전 `npm run verify`(docs-only면 `check:lexicon`) · CI green 시 머지 · `npm ci --legacy-peer-deps`.
+2. 별자리 3-레이어 정본(PRD v3). 비유는 별자리 하나만. 밝기 정직성(별빛=커버리지 ≠ 확신). 자기모델 변경은 propose→ratify.
+3. 키스톤은 순수·additive·TDD — 기존 모듈 무수정(회귀 0).
+4. ⚠️ `check:constraints` WorldviewConceptCoherence가 아직 구 워crldview(Lumina/Soul/Pattern) 검증 — VISION 색/마스코트맵을 legacy로 남겨둠. Phase 4서 그 제약도 갱신.
+
+### 핵심 파일 위치
+```
+src/lib/persona/domain-stars.ts                 레이어 A: DOMAIN_STARS 7 + DomainEntry
+src/lib/persona/domain-confidence.ts            키스톤 어댑터: domainConfidence/domainLevel
+src/lib/persona/north-star.ts                   레이어 C: domainStarLevels + northStarBrightness
+src/lib/persona/persona-synthesis.ts            레이어 C 하네스: persona_synthesis
+src/components/deep-space/ConstellationHome.tsx 홈 렌더 (STARS L19-27 구별 = relabel 대상)
+src/components/deep-space/DeepSpaceShell.tsx     홈 로더 (load-star-levels → load-domain-levels 스왑)
+src/lib/persona/load-star-levels.ts             미러 대상 (→ load-domain-levels.ts 신규)
+docs/PRD.md (v3) · docs/CONSTELLATION-DESIGN.md  개념 SoT
+C:\Users\Soha.Bae\Downloads\2ndB-proto-rev2\    디자인 rev2 (37 PNG + 스펙)
+```
+
+### 검증
+```bash
+npm run verify   # lint+type+i18n+lexicon+constraints+jest
+npx jest src/lib/persona/__tests__/domain-stars.test.ts src/lib/persona/__tests__/domain-confidence.test.ts src/lib/persona/__tests__/north-star.test.ts src/lib/persona/__tests__/persona-synthesis.test.ts
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A 작업: 홈 이관 — "담기→도메인 태깅부터" (PR #587 키스톤 브랜치 위에서)
+```
+
+---
+
+## Latest — 2026-06-25 / 개념 재설계: core 폐기 → 별자리(7 삶-도메인 별 → 북극성 페르소나) + 5-Phase 계획 (실행 전)
+
+> ⚠️ 이번 세션은 **전부 개념·계획** (코드 변경·기능 PR 0). 다음 세션은 사용자 지시대로
+> **"계획을 더 디벨롭"하는 것부터** 시작할 것 — 정본화/실행 전에 7별 스펙 + 산출로직을 더 단단히.
+
+### 어디까지 왔나
+- main HEAD: `4ba666b1` (이 핸드오프 PR 외 코드 변경 없음)
+- 머지된 기능 PR: 없음. 산출물 = `docs/PRD.md`(초안) + `docs/system-checkup.html`(인터랙티브 모델) — 이 핸드오프 PR로 함께 커밋.
+- 테스트: 코드 무변경. `npm run check:lexicon` PASS (두 문서 다 docs 스캔 통과).
+- working tree: 이 PR는 docs 3개만 커밋. 그 외 untracked(assets·reports·constellation-home.ts)는 손대지 않음(이전 세션 WIP).
+
+### 결정된 모델 (정본 후보 — PRD 본문엔 아직 미반영, `system-checkup.html` v4가 최신 시각화)
+- 단일 비유 = **별자리** 하나. 폐기: core / Soul Core / 5 Pattern Core / Pattern Tesseract / 마을 그래프 / `/core-brain` / Brain Trinity / v3 tesseract 아트 / 하늘·땅·흙·동반자 비유.
+- **7별 = 입력(삶의 도메인)**: 커리어·재정·성장·관계·건강·오락·담아내기. 각 별 = 입력 → 출력(조언·요약) + 리스트업(편집·카테고리·태그).
+- **북극성 = 출력**: 7별 종합 → 실시간 페르소나(들=역할/모자) + 성향·장단점·강점 요약. 직접 입력 안 받음. 변경은 propose→ratify로만.
+- **밝기 = DIKW 한 사다리**(결정): L1 꺼짐·L2 Data·L3 Information·L4 Knowledge·L5 Wisdom. 모든 별 켜지면 북극성 더 밝게.
+- **검증 깊이**: 기존 심리구인(Big Five·애착·SDT/VIA, `src/lib/persona/stars.ts`)을 버리지 않고 **북극성 출력의 추론·검증 레이어**로 이동(사용자 1번 지시).
+
+### 이번 세션 3개 결정 (AskUserQuestion)
+1. 정본화 = **문서 먼저** (PRD를 SoT로 개정, 코드 이관은 별도 트랙).
+2. 연동 = **현실 경로** (내보내기 import + 무료 공개 API + 연락처/Slack + 병원=지도 Places + 수동. live 커넥터·사업자 인증은 XPRIZE 이후).
+3. 병원추천 = **Kakao/Naver (KR-first)**.
+
+### 결정적 발견 — 입력 인프라 상당수 이미 존재 (greenfield 아님)
+- `docs/INTEGRATIONS-14-AREAS-2026-06-20.md` — 14 생활영역 매트릭스. 출하분: 독서(Google Books), 사이드프로젝트(GitHub), 재정 수동가계부(`finance/ledger.ts`+`fx.ts`), 식단(식약처), 언어(SRS), 집중(포모도로).
+- `docs/PERSONAL-DATA-IMPORT-SPEC.md` — 카톡·문자·위치·캘린더·헬스·이메일 파서 구현(`src/lib/import/*`, 온디바이스·$0, propose→ratify·PIPA 계약).
+- `docs/COWORK-PROMPTS.md` — Cowork = chrome-use/computer-use 에이전트 셋업 프롬프트 패턴(사용자 6번이 이것).
+- ⚠️ 메신저 친구목록 live API 불가(카톡=내보내기만). 오픈뱅킹·NHIS = 사업자 인증(솔로·마감엔 비현실). → "연동 강화" = import 파이프라인 강화.
+
+### Reconciliation (7별 ↔ 기존 자산) — Phase 0 코어
+| 별 | 입력(현실경로) | 기존 자산 | 신규 |
+|---|---|---|---|
+| 커리어 | 프로젝트·이력·스타일(수동+GitHub) | career_check, `projects/github.ts` | 이력·스타일 폼 |
+| 재정 | 자산·현금흐름(수동)+FX | `finance/ledger.ts`✅, `fx.ts` | (수동 유지) |
+| 성장 | 연령대 drill(AI) | `interview/probe.ts` | 연령 타임라인 |
+| 관계 | 대상 수동+카톡/문자/연락처 import+Slack | `import/kakao.ts`·`sms.ts` | peer2peer 폼 |
+| 건강 | 헬스 import+생활습관 수동+병원추천 | `import/health-export.ts` | Kakao/Naver Places 병원추천 |
+| 오락 | 취미·독서(Books)+경험 수동 | `reading/books.ts` | 취미 폼 |
+| 담아내기 | catch-all: detect→parse+자유메모/클립 | `import/detect.ts`, capture/wiki | catch-all 라우팅 |
+| ★북극성 | (출력) | `persona/stars.ts` = 검증 깊이 | 페르소나 종합 |
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **계획 더 디벨롭** (사용자 지시: 여기서 시작) — Phase1 7별 스펙 + Phase2 북극성 산출로직을 설계로 깊게. 아래 오픈Q부터. | medium | ⭐ 정본화 전에 계획을 단단히 |
+| B | Phase 0 정본화 — PRD를 7도메인으로 개정 + reconciliation(PRD 내) + CONCEPT/VISION 노트 + 메모리 | medium | 계획 익으면 |
+| C | Phase 3 연동맵 + Cowork 프롬프트 (Kakao/Naver Places 키 등록 등) | medium | |
+| D | Phase 4 코드 이관 (`stars.ts`·라우트·UI → 7도메인) | large | 별도 트랙·여러 세션 |
+
+### A 작업(계획 디벨롭)에서 풀 오픈 질문
+- 담아내기(7별) 동작 정의 — catch-all 라우팅 + 다른 6별이 못 담은 부분 보완 로직.
+- 북극성 페르소나 종합 알고리즘 — 7별 → 페르소나(들) + 요약; 검증틀(심리구인) 매핑.
+- 밝기/DIKW 산정식 — 별별 L1~L5 측정: ①커버리지 ②내적일관성(반복질문 일치) ③교차검증(자기↔타인) ④최신성. v1은 ①②만.
+- 관계 별 peer2peer 프라이버시 — 제3자 PIPA; 실명은 사용자 수동입력 + import만.
+- 건강 별 병원추천 — Kakao/Naver Places + 비임상 '전문가에게 안내' 프레이밍.
+- 별별 입력/출력/태깅 상세 — 기존 lib에 매핑.
+
+### 적용 중인 정책 (영구)
+1. main 직접 push 금지(항상 PR) · push 전 `npm run verify` · CI green 시 머지 · `npm ci --legacy-peer-deps`.
+2. `docs/`도 `check:lexicon` 스캔 대상 — 임상·병리 금지어 일체 금지(정본 `src/lib/safety/lexicon.ts`). 이 핸드오프 포함 새 문서도 준수.
+3. 어휘 정책: 임상·의료·웰니스 범주 아님 → 자기이해·성장 어휘.
+4. 비유는 **별자리 하나만**. 다른 비유 도입 금지.
+5. 자기모델/페르소나 변경은 propose→ratify (AI 제안 → 사용자 승인).
+
+### 핵심 파일 위치
+```
+docs/system-checkup.html                 ⭐ 인터랙티브 시스템 맵(드래그앤드랍·v4) = 7도메인 모델 최신 시각화. 브라우저로 열어 확인.
+docs/PRD.md                              개념 초안 — ⚠️ '별자리 v2(심리구인 별)' 버전, 7도메인 미반영. Phase 0이 개정.
+docs/INTEGRATIONS-14-AREAS-2026-06-20.md 14영역 연동 매트릭스(기존 출하분)
+docs/PERSONAL-DATA-IMPORT-SPEC.md        import 파서 + 프라이버시 계약
+docs/COWORK-PROMPTS.md                   Cowork 셋업 프롬프트 패턴
+src/lib/persona/stars.ts                 심리구인 7-star (→ 북극성 검증 깊이)
+src/lib/persona/brightness.ts            L1~L5 밝기
+src/lib/import/*                          카톡/문자/위치/헬스/이메일 파서
+src/lib/finance/ledger.ts, fx.ts         재정 수동가계부 + FX
+```
+
+### 검증
+```bash
+npm run check:lexicon   # docs 포함 — 이번 산출물 PASS 확인됨
+npm run verify          # 코드 변경 시 전체 게이트
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# A 작업(계획 더 디벨롭)부터:
+#  1) docs/system-checkup.html 브라우저로 열어 7도메인 모델 확인
+#  2) 위 '오픈 질문'(담아내기 동작·페르소나 종합식·밝기 산정식 등)을 설계로 디벨롭
+#  3) 계획이 익으면 Phase 0 정본화(B)로
+```
+
+---
+
 ## Latest — 2026-06-24 (deep-space 살아있는 세컨비 머리 + 도크칩 + EAS Update) / PR #579 머지, #580 오픈
 
 도크 백버튼 칩 겹침 제거 + 세컨비 머리를 **정본대로 살아있는 얼굴**(깜빡임·터치추적 시안 눈,

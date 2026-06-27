@@ -1,0 +1,43 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "RN: Web preview (Metro web :8081) -> open in Simple Browser",
+      "detail": "Runs the app as react-native-web. After it serves, open VS Code Simple Browser at http://localhost:8081 to preview inside the editor (both-platform shared UI).",
+      "type": "shell",
+      "command": "npm run web",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "group": "preview" }
+    },
+    {
+      "label": "RN: Android (build + install to running emulator)",
+      "detail": "expo run/start --android. Builds the dev client (gradle 8.13, JDK 17) and installs to the booted Pixel_9_Pro_XL.",
+      "type": "shell",
+      "command": "npm run android",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "RN: Metro start (then press a=Android, w=web)",
+      "type": "shell",
+      "command": "npm start",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Android: cold-boot Pixel_9_Pro_XL emulator",
+      "detail": "Launches the AVD window if not already running.",
+      "type": "shell",
+      "command": "emulator -avd Pixel_9_Pro_XL",
+      "problemMatcher": []
+    },
+    {
+      "label": "adb: reverse 8081 (native <-> Metro bridge)",
+      "type": "shell",
+      "command": "adb reverse tcp:8081 tcp:8081",
+      "problemMatcher": []
+    }
+  ]
+}

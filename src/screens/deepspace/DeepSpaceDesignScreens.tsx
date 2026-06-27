@@ -14,6 +14,7 @@ import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { buildInfoLine } from "@/lib/build-info";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
 import { useSignUpForm } from "@/lib/auth/useSignUpForm";
@@ -323,6 +324,9 @@ export function DeepSpaceAccountDesignScreen() {
           <Action label={ko ? "내 데이터" : "My data"} onPress={() => router.push("/data")} />
           <Action label="IDEN" onPress={() => router.push("/iden")} />
         </Card>
+        {/* Build/OTA identifier — lets a tester confirm which bundle is live
+            (embedded vs OTA), the ambiguity that prolonged the 2026-06-26 crash. */}
+        <Text variant="subtle" style={styles.footer}>{buildInfoLine()}</Text>
       </DockBody>
     </DeepSpaceScreen>
   );
@@ -882,7 +886,7 @@ export function DeepSpaceSignUpDesignScreen() {
           autoCapitalize="none"
           keyboardType="number-pad"
           maxLength={10}
-          placeholder="YYYY-MM-DD"
+          placeholder="2010-03-15"
           placeholderTextColor={colors.textLo}
           accessibilityLabel={t("auth:signUp.birthDate")}
           accessibilityHint={t("auth:signUp.birthDateHelper")}

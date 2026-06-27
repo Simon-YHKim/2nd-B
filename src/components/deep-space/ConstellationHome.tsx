@@ -8,7 +8,7 @@ import Svg, { Circle, Defs, Line, Polyline, RadialGradient, Stop } from "react-n
 
 import { deepSpace, deepSpaceGradients, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
-import { SELF_UNDERSTANDING_STARS, type StarId } from "@/lib/persona/stars";
+import { DOMAIN_STARS, type DomainId } from "@/lib/persona/domain-stars";
 import { type LadderLevel } from "@/lib/persona/brightness";
 import { starOpacity, soulCoreOpacity } from "@/lib/persona/constellation-brightness";
 import { SecondbHead } from "./SecondbHead";
@@ -16,19 +16,23 @@ import { SecondbHead } from "./SecondbHead";
 const W = 320;
 const STAR_H = 292;
 
-const STARS: { id: StarId; x: number; y: number; size: number }[] = [
-  { id: "possible", x: 48, y: 238, size: 14 },
-  { id: "recall", x: 91, y: 205, size: 14 },
-  { id: "values", x: 133, y: 196, size: 14 },
-  { id: "rhythm", x: 174, y: 206, size: 14 },
-  { id: "now", x: 206, y: 238, size: 13 },
-  { id: "relational", x: 272, y: 204, size: 14 },
-  { id: "seen", x: 248, y: 150, size: 14 },
+// The seven Big-Dipper points map to the layer-A DOMAIN stars (career → … →
+// collect), in DOMAIN_STARS order. Coordinates + sizes are the canon arc from
+// design/screen-design.dc.html, unchanged from the prior labeling — only the
+// star identity moved from the layer-B constructs to the life domains.
+const STARS: { id: DomainId; x: number; y: number; size: number }[] = [
+  { id: "career", x: 48, y: 238, size: 14 },
+  { id: "finance", x: 91, y: 205, size: 14 },
+  { id: "growth", x: 133, y: 196, size: 14 },
+  { id: "relation", x: 174, y: 206, size: 14 },
+  { id: "health", x: 206, y: 238, size: 13 },
+  { id: "recreation", x: 272, y: 204, size: 14 },
+  { id: "collect", x: 248, y: 150, size: 14 },
 ];
 
 const NAME = Object.fromEntries(
-  SELF_UNDERSTANDING_STARS.map((s) => [s.id, { ko: s.nameKo, en: s.nameEn }]),
-) as Record<StarId, { ko: string; en: string }>;
+  DOMAIN_STARS.map((s) => [s.id, { ko: s.nameKo, en: s.nameEn }]),
+) as Record<DomainId, { ko: string; en: string }>;
 
 export function ConstellationHome({
   isKo,
@@ -37,20 +41,20 @@ export function ConstellationHome({
   onStarPress,
   onPolarisPress,
   starLevels = {},
-  soulCoreBrightness = 0.2,
+  northStarBrightness = 0.2,
 }: {
   isKo: boolean;
   hint: string;
   polarisLabel: string;
-  onStarPress: (id: StarId) => void;
+  onStarPress: (id: DomainId) => void;
   onPolarisPress: () => void;
-  // Per-star value-ladder levels and the aggregate Soul Core brightness (0-1),
-  // from the no-LLM loadStarLevels path. Default = an honest empty sky (every
-  // star L1, Soul Core at its floor) so a brand-new user sees a dim constellation
+  // Per-domain value-ladder levels and the aggregate 북극성 brightness (0-1),
+  // from the no-LLM loadDomainLevels path. Default = an honest empty sky (every
+  // star L1, 북극성 at its floor) so a brand-new user sees a dim constellation
   // that brightens as they gather data. Brightness drives OPACITY only; the
   // tier-1 size hierarchy (polaris r=12 vs star r<=7) is left untouched.
-  starLevels?: Partial<Record<StarId, LadderLevel>>;
-  soulCoreBrightness?: number;
+  starLevels?: Partial<Record<DomainId, LadderLevel>>;
+  northStarBrightness?: number;
 }) {
   return (
     <View style={styles.root}>
@@ -95,7 +99,7 @@ export function ConstellationHome({
             cy={36}
             r={12}
             fill="url(#ds-polaris)"
-            opacity={soulCoreOpacity(soulCoreBrightness)}
+            opacity={soulCoreOpacity(northStarBrightness)}
           />
           {STARS.map((s) => (
             <Circle
@@ -108,6 +112,24 @@ export function ConstellationHome({
             />
           ))}
         </Svg>
+
+        {/* Visible domain + 북극성 labels (PF-1): the NAME map was accessibility-only,
+            so a sighted first-run user saw seven unlabeled dots and didn't know what
+            to tap. Render the names (matching design/05-home). Non-interactive — the
+            Pressables below own the taps; small + muted so the tier-1 hero/북극성 stay
+            dominant. */}
+        {STARS.map((s) => (
+          <Text
+            key={`label-${s.id}`}
+            numberOfLines={1}
+            style={[styles.starLabel, { left: s.x - 30, top: s.y + 9 }]}
+          >
+            {isKo ? NAME[s.id].ko : NAME[s.id].en}
+          </Text>
+        ))}
+        <Text numberOfLines={2} style={[styles.polarisLabelText, { left: 160 - 60, top: 36 + 14 }]}>
+          {polarisLabel}
+        </Text>
 
         <Pressable
           onPress={onPolarisPress}
@@ -165,6 +187,25 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
+  },
+  starLabel: {
+    position: "absolute",
+    width: 60,
+    textAlign: "center",
+    color: withAlpha(deepSpace.text, 0.62),
+    fontSize: 9,
+    lineHeight: 12,
+    fontFamily: fontFamilies.readable,
+  },
+  polarisLabelText: {
+    position: "absolute",
+    width: 120,
+    textAlign: "center",
+    color: withAlpha(deepSpace.textHi, 0.82),
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: "600",
+    fontFamily: fontFamilies.readable,
   },
   hero: {
     width: 190,

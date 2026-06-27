@@ -13,6 +13,7 @@
 import { joinFrontmatter } from "./frontmatter";
 import { listSources, listWikiPages } from "./queries";
 import { getSupabaseClient } from "../supabase/client";
+import { stripDomainTags } from "../persona/domain-stars";
 import type { SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
 
 // P2-2 (persona sim): journal/note records are the user's MOST personal data,
@@ -136,7 +137,10 @@ export function formatRecord(r: ExportRecordRow, bodyCharLimit: number | undefin
   };
   const date = r.created_at.slice(0, 10);
   const label = (kindLabel[r.kind] ?? { en: r.kind, ko: r.kind })[locale];
-  const tags = r.tags && r.tags.length > 0 ? ` · tags: ${r.tags.join(", ")}` : "";
+  // Drop the internal domain: classification tag — the export is user-facing
+  // context for an external LLM, not a place for our layer-A bookkeeping.
+  const userTags = stripDomainTags(r.tags ?? []);
+  const tags = userTags.length > 0 ? ` · tags: ${userTags.join(", ")}` : "";
   let body = r.body;
   if (bodyCharLimit !== undefined && body.length > bodyCharLimit) {
     body = body.slice(0, bodyCharLimit) + STRINGS[locale].truncated(r.body.length);

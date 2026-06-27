@@ -3,11 +3,18 @@
     "name": "2nd-Brain",
     "slug": "2nd-brain",
     "owner": "simon_k",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "secondbrain",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/439c4c86-39a7-4a47-8bfa-0426f9fe18c9",
+      "fallbackToCacheTimeout": 0
+    },
     "ios": {
       "bundleIdentifier": "com.simonk.secondbrain",
       "icon": "./assets/images/icon.png",
@@ -18,7 +25,7 @@
     },
     "android": {
       "package": "com.simonk.secondbrain",
-      "versionCode": 4,
+      "versionCode": 5,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
