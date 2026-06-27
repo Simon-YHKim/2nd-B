@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>2nd-Brain · 시스템 작동 방식</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#070912;        /* near-black, slight blue tint */
+    --bg2:#0d1120;
+    --panel:#121732;
+    --line:#222a4d;
+    --text:#e6e9f5;
+    --muted:#8a93b8;
+    --cyan:#37e0d6;       /* soul/deep-space accent */
+    --cyan-dim:#1b6f73;
+    --warn:#e8b15a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1100px 700px at 80% -10%, #14224a55, transparent),
+      radial-gradient(900px 600px at -10% 20%, #0c2b4a44, transparent),
+      var(--bg);
+    color:var(--text);
+    font-family:'Pretendard','Pretendard Variable',-apple-system,system-ui,sans-serif;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:48px 22px 120px}
+  header.hero{margin-bottom:34px}
+  .kicker{color:var(--cyan);font-size:12.5px;letter-spacing:.18em;text-transform:uppercase;font-weight:600}
+  h1{font-size:30px;line-height:1.25;margin:10px 0 8px;font-weight:700}
+  .axis{color:var(--muted);font-size:14.5px;margin:0 0 16px}
+  .summary{background:linear-gradient(180deg,var(--panel),#0f1430);border:1px solid var(--line);
+    border-radius:var(--radius);padding:18px 20px;color:#cfd6f0;font-size:14.5px}
+  .summary b{color:var(--cyan)}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:26px 0 10px}
+  .toolbar .grow{flex:1}
+  .count-pill{font-size:12.5px;color:var(--muted)}
+  .count-pill b{color:var(--cyan)}
+  button{font-family:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);
+    background:#161c38;color:var(--text);padding:9px 14px;font-size:13.5px;transition:.15s}
+  button:hover{border-color:var(--cyan-dim);background:#1b2244}
+  button.primary{background:linear-gradient(180deg,#1f9c97,#157e7a);border-color:#2bbdb4;color:#04201f;font-weight:700}
+  button.primary:hover{filter:brightness(1.08)}
+  button.ghost{background:transparent}
+
+  /* pipeline */
+  .pipeline{position:relative;margin-top:8px}
+  .node{position:relative;display:grid;grid-template-columns:54px 1fr;gap:16px;padding:0 0 14px}
+  .rail{display:flex;flex-direction:column;align-items:center}
+  .dot{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;
+    color:#04201f;background:radial-gradient(circle at 35% 30%, #6ff3ea, var(--cyan));
+    box-shadow:0 0 0 5px #37e0d61f, 0 0 22px #37e0d655;flex:none}
+  .stem{width:2px;flex:1;background:linear-gradient(var(--cyan-dim),transparent 90%);margin-top:4px;min-height:18px}
+  .node:last-child .stem{display:none}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;transition:.18s}
+  .card.sel{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan-dim),0 10px 40px #0006}
+  .card.has-comment{border-color:#2e6f6c}
+  .card-head{display:flex;align-items:center;gap:10px;cursor:pointer}
+  .titles{flex:1;min-width:0}
+  .t-ko{font-weight:700;font-size:16px}
+  .t-en{color:var(--muted);font-size:12px;letter-spacing:.02em}
+  .badge{font-size:11px;color:var(--cyan);border:1px solid var(--cyan-dim);border-radius:999px;
+    padding:2px 9px;white-space:nowrap;background:#0e2b2c}
+  .cbadge{font-size:11px;color:var(--warn);border:1px solid #5b4a24;border-radius:999px;padding:2px 8px;background:#231c0d}
+  .what{color:#cfd6f0;font-size:14px;margin:10px 0 0}
+  .io{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--muted)}
+  .io span{background:#0f1430;border:1px solid var(--line);border-radius:8px;padding:4px 9px}
+  .io b{color:#b9c2e8;font-weight:600}
+  details.more{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
+  details.more summary{cursor:pointer;color:var(--cyan);font-size:12.5px;list-style:none}
+  details.more summary::-webkit-details-marker{display:none}
+  .meta-row{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .meta-row b{color:#b9c2e8}
+  .files code{background:#0c1126;border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin:2px 4px 2px 0;
+    display:inline-block;font-size:11.5px;color:#9fd9d4}
+  .limit{color:#d8c08a}
+  .comment-wrap{margin-top:12px}
+  .comment-wrap textarea{width:100%;min-height:54px;resize:vertical;background:#0c1126;color:var(--text);
+    border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-family:inherit;font-size:13.5px}
+  .comment-wrap textarea:focus{outline:none;border-color:var(--cyan-dim)}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+
+  /* output */
+  .out-section{margin-top:40px;border-top:1px solid var(--line);padding-top:26px}
+  .out-section h2{font-size:18px;margin:0 0 6px}
+  .out-section p.lede{color:var(--muted);font-size:13.5px;margin:0 0 14px}
+  #prompt-out{white-space:pre-wrap;background:#0a0f24;border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;font-size:13px;color:#d6ddf6;max-height:460px;overflow:auto;
+    font-family:'SFMono-Regular',ui-monospace,Menlo,Consolas,monospace;line-height:1.55}
+  .empty{color:var(--muted);font-style:italic}
+  footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 0;font-size:12px;color:var(--muted)}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#13351f;color:#9ff0bf;
+    border:1px solid #2e6f49;border-radius:10px;padding:10px 16px;font-size:13px;opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="kicker">2nd-Brain · how the system works</div>
+    <h1 id="h1">나를 데이터로 쌓아 별자리 페르소나로 키우는 파이프라인</h1>
+    <p class="axis" id="axis">축 (1) 알아가기 — 캡처에서 북극성 페르소나까지, 밝기는 확신이 아니라 커버리지를 말한다.</p>
+    <div class="summary" id="summary">요약을 불러오는 중…</div>
+    <div class="legend">
+      <span>● 노드 클릭 = 상세 펼침</span>
+      <span>● 각 단계에 코멘트 작성 가능</span>
+      <span>● 코멘트 → 종합 개선 프롬프트 자동 생성</span>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <span class="count-pill"><b id="cnum">0</b> / <span id="tnum">0</span> 단계에 코멘트</span>
+    <span class="grow"></span>
+    <button class="ghost" id="clearBtn">코멘트 전체 지우기</button>
+    <button class="primary" id="genBtn">종합 개선 프롬프트 생성 ↓</button>
+  </div>
+
+  <div class="pipeline" id="pipeline"></div>
+
+  <section class="out-section">
+    <h2>종합 개선 프롬프트</h2>
+    <p class="lede">코멘트를 단 단계만 모아, 그대로 복사해 에이전트에게 붙여넣을 수 있는 구조화된 개선 지시문으로 합성합니다.</p>
+    <div class="toolbar" style="margin-top:0">
+      <button class="primary" id="genBtn2">생성 / 새로고침</button>
+      <button id="copyBtn">복사</button>
+      <span class="grow"></span>
+      <span class="count-pill" id="promptMeta"></span>
+    </div>
+    <div id="prompt-out"><span class="empty">아직 생성되지 않았습니다. 단계에 코멘트를 남기고 “생성”을 누르세요.</span></div>
+  </section>
+
+  <footer>2nd-Brain 시스템 리포트 · 코멘트는 이 브라우저(localStorage)에만 저장됩니다 · 서버 전송 없음</footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== SYSTEM SUMMARY (verified by pipeline-mapping workflow) ===== */
+const SYSTEM = {
+  "summary_ko": "2nd-Brain의 데이터/알고리즘 파이프라인은 한 번의 기록 캡처에서 시작해 북극성 페르소나와 재점검 루프까지 단방향으로 흐른다. createRecord가 입력을 받으면 C9 안전 분류(렉시콘 backstop + LLM 경로의 시맨틱 union)가 모든 LLM 호출 앞에서 레드존을 단락시키고, 도메인 태깅이 LLM-free·결정적으로 7개 생활 도메인 별을 records.tags에 박는다. journal은 Advisor RAG(knowledge_sources C8 근거 + Pro 호출 + 출력 재분류 C9 출구)로, 그 외는 audit_qa로 갈린다. Layer A(도메인 커버리지)가 7별 L1~L5 밝기를 계측해 북극성 글로우로 집계하고, Layer B(숨은 자기이해 구인)가 페르소나 주장을 검증·추론하며, 합성된 페르소나는 propose→ratify로만 L5로 승격된다. 비준은 star_tier_history에 영속화되고 tier 변화는 재점검 넛지를, 전체 활성화는 PII-프리 유료 전환 퍼널을 발화한다 — 모든 경로는 C9→C1→C3 제약 척추로 게이트된다.",
+  "summary_en": "The 2nd-Brain pipeline flows one-directionally from a single record capture to a north-star persona and a re-check loop. Every LLM call is gated by a C9 safety classifier (lexical backstop + semantic union) that short-circuits the red zone, deterministic LLM-free domain tagging routes records to seven life-domain stars, and journals run through Advisor RAG (C8-grounded knowledge_sources, a Pro call, and an output re-classify exit) before Layer-A coverage brightness aggregates into the north-star glow. A hidden Layer-B of self-understanding constructs validates synthesized personas, which can only reach L5 via propose->ratify; ratifications persist to tier history, shifts fire a re-check nudge, and activation feeds a PII-free conversion funnel — all under the C9->C1->C3 constraint spine.",
+  "axis_note_ko": "캡처→안전→도메인 태깅→밝기 집계가 (1) 알아가기, Advisor RAG·페르소나 합성·propose→ratify가 (2) 개인 비서 기반, tier-history·재점검 넛지·활성화 퍼널이 (3) 공상→구체화(나를 실행가능한 자기모델로 비준)에 대응한다."
+};
+
+/* ===== PIPELINE STEPS (verified by pipeline-mapping workflow, 13 nodes) ===== */
+const STEPS = [
+  {
+    "id": "capture-entry",
+    "order": 1,
+    "title_ko": "기록 캡처 진입 + 분기 결정",
+    "title_en": "Record capture entry and fork",
+    "layer": "capture",
+    "what_ko": "createRecord가 userId·locale·kind(journal/note/audit_response)·body를 받아 캡처를 시작한다. kind별로 후속이 갈린다: journal→Advisor(RAG), audit_response→callGemini(audit_qa), note→AI 호출 없음. withFollowup·tier·minor·advisorAllowed 플래그가 LLM 경로 여부(llmPathWillClassify)와 follow-up 분기를 결정한다.",
+    "inputs": "CreateRecordArgs(userId, locale, kind, body, minor?, tier?, withFollowup?)",
+    "outputs": "분기 결정값: advisorAllowed, llmPathWillClassify, follow-up 갈래(journal RAG vs audit_qa vs none)",
+    "key_files": [
+      "src/lib/records/create.ts"
+    ],
+    "constraints": [
+      "C9",
+      "C10"
+    ],
+    "limitations_ko": "분류 대상은 args.body 텍스트 한정 — topic/summary/prompt 부가 필드는 안전 분류를 안 거치고 도메인 태깅에만 body+topic이 쓰인다. 음성/이미지 입력은 이 경로가 아니라 transcribeAudio/callGemini 이미지 경로의 출력 재분류로 처리. advisorAllowed는 클라이언트 판단이라 프록시 403과 어긋날 수 있어 catch에서 로컬 위기분류로 방어한다.",
+    "improve_hint_ko": "prompt/topic 부가 텍스트 필드도 red-zone 스캔 범위에 넣을지 검토. advisorAllowed 엔타이틀먼트 결정 로직과 서버 게이트의 단일 출처화 여부 점검. note가 분류는 받되 followup 없는 정책의 일관성 확인."
+  },
+  {
+    "id": "safety-classify-c9",
+    "order": 2,
+    "title_ko": "C9 입력 안전 분류 + crisis 라우팅",
+    "title_en": "C9 input safety classify + crisis routing",
+    "layer": "safety",
+    "what_ko": "모든 LLM 호출 전 입력을 분류한다. classifyInput(동기 렉시콘 backstop)이 CRISIS_TERMS→red(단락)/FORBIDDEN_TERMS→yellow/그 외 green으로 나누고, callAdvisor는 classifySafety(렉시콘+Gemini Flash 시맨틱 union)를 쓴다. red면 연령·로케일별 hotline(KO성인 109, KO미성년 1388+109, EN 988)을 채우고 routeCrisis가 fixedCrisisResponse 반환 + ai_audit_log(modelUsed='none-crisis-routed', C3) + crisis_events 기록 — LLM은 절대 호출되지 않는다. 비-LLM 세이브(무료 journal·advisor off·plain note)도 classifyRecordTextForCrisis로 zero-cost 게이트한다.",
+    "inputs": "args.body / userMessage, locale, minor, userId",
+    "outputs": "SafetyResult{zone, matched, crisisRouting?}; red→fixedCrisisResponse + ai_audit_log + crisis_events; green/yellow→LLM 진행",
+    "key_files": [
+      "src/lib/safety/classifier.ts",
+      "src/lib/safety/lexicon.ts",
+      "src/lib/llm/safety.ts",
+      "src/lib/llm/gemini.ts",
+      "src/lib/llm/audit-write-outbox.ts",
+      "src/lib/supabase/crisis-events.ts"
+    ],
+    "constraints": [
+      "C9",
+      "C3",
+      "C2",
+      "C1",
+      "C10"
+    ],
+    "limitations_ko": "callAdvisor는 시맨틱 classifySafety를 쓰지만 callGemini(audit_qa) 입력단은 렉시콘 classifyInput만 — 시맨틱 RED를 입력시점에 못 잡고 출력 swap에 의존한다. Flash 분류는 live+key/Vertex일 때만 동작하고 mock/keyless 웹은 렉시콘-fallback으로 강등돼 우회적·은유적 red를 놓친다. crisis_events는 outbox best-effort 큐잉이고 cssrsLevel은 렉시콘만 있어 null로 보수 매핑된다.",
+    "improve_hint_ko": "callGemini 입력 분류도 callAdvisor처럼 classifySafety(시맨틱)로 통일할지 비용·지연 대비 false-negative 감소를 비교. outbox 영속/재시도가 앱 종료 시 미플러시 audit을 손실하는지 점검. 세 곳(비-LLM 게이트, advisor catch, audit catch)에 중복된 classifyRecordTextForCrisis fallback을 단일 헬퍼로 통합."
+  },
+  {
+    "id": "domain-tag",
+    "order": 3,
+    "title_ko": "도메인 태깅 (LLM-free 결정적 투표)",
+    "title_en": "Deterministic LLM-free domain tagging",
+    "layer": "domain-tag",
+    "what_ko": "detectDomain(text)가 LLM 없이 순수·결정적으로 7개 생활 도메인 별(career/finance/growth/relation/health/recreation/collect)을 판정한다. 소문자화 후 이중언어 키워드 사전(한국어 substring, 영어 distinctive 단어)으로 도메인별 distinct hit를 세고 TIE_ORDER(북두칠성 순서)대로 strict '>' 최고점을 고른다. hit 0이면 catch-all collect. withDomainTag가 caller의 domain:* 태그를 모두 제거(하이재킹 방지) 후 domainTagFor 결과를 맨 앞에 붙여 record당 도메인 tag 정확히 1개를 보장한다. brightness-honesty 규칙상 '어느 별에 속하나'는 instrument 레이어가 결정해야 하므로 LLM-free다.",
+    "inputs": "capture text (string | null), 기존 tags[]?",
+    "outputs": "DomainId, records.tags = ['domain:<slug>', ...userTags]",
+    "key_files": [
+      "src/lib/records/detect-domain.ts",
+      "src/lib/persona/domain-stars.ts",
+      "src/lib/safety/lexicon.ts"
+    ],
+    "constraints": [
+      "C9"
+    ],
+    "limitations_ko": "substring 매칭이라 영어 짧은 키워드('work','play','show','date')가 무관 단어에 부분일치할 수 있고, 점수가 도메인별 키워드 배열 길이로 정규화되지 않아 키워드 많은 도메인이 구조적으로 유리하다. 사전 미수록 표현은 전부 collect로 떨어져 home이 실제보다 어두워 보일 수 있다. withDomainTag를 우회한 직접 insert는 도메인 tag가 누락된다. isDomainTag는 prefix만 봐 'domain:bogus' 같은 무효 slug도 통과한다.",
+    "improve_hint_ko": "영어 키워드에 단어경계(\\b) 매칭 적용 + 키워드 수로 점수 정규화로 substring 충돌·쏠림을 완화하고 evals로 회귀 고정. capture insert 단일 진입점 강제 또는 도메인 tag 부재 record를 collect로 백필. isDomainTag 통과 후 isDomainId로 slug 유효성까지 검증. collect 비율을 운영 모니터링 지표로 노출."
+  },
+  {
+    "id": "advisor-rag-grounding",
+    "order": 4,
+    "title_ko": "Advisor RAG 근거 검색 + 프롬프트 조립 + Pro 호출",
+    "title_en": "Advisor RAG grounding, prompt assembly, Pro call",
+    "layer": "advisor",
+    "what_ko": "journal·advisorAllowed면 callAdvisor가 loadDomainLevels로 7별 밝기를 가져와 retrieveEvidence에 넘긴다. routeBatches가 정규식 ROUTING으로 2~4개 배치를 매칭하고 DIM(level<=2) 도메인 배치를 dimmest-first로 추가 주입(crisis-detection은 ALWAYS_LOAD). frameworksForBatches→queryRows가 knowledge_sources에서 added_by IS NULL 또는 verified_at NOT NULL 행만(C8) limit:16 가져오고, rankRows(term overlap+locale+DOI+recency)·fuseFrameworks 라운드로빈으로 top-8. assembleAdvisorPrompt가 §7 템플릿(HARD SAFETY + EVIDENCE + BATCH NOTES + <UNTRUSTED> 펜스 + sanitizeUntrusted)을 만들고, MODELS.pro로 호출한다(EDGE_FUNCTION/claude면 proxy, 아니면 Vertex 직접). audit_qa 갈래는 무검색 callGemini.",
+    "inputs": "userMessage/body, domainLevels, userLocale, userAgeRange, conversationContext",
+    "outputs": "Pro 응답 text + matchedBatches + 균형 top-8 KnowledgeRow(DOI/URL 인용), latencyMs, vertex",
+    "key_files": [
+      "src/lib/llm/gemini.ts",
+      "src/lib/persona/load-domain-levels.ts",
+      "src/lib/knowledge/retrieve.ts",
+      "src/lib/knowledge/loader.ts",
+      "src/lib/knowledge/engines.ts",
+      "src/lib/supabase/client.ts"
+    ],
+    "constraints": [
+      "C1",
+      "C2",
+      "C8",
+      "C9"
+    ],
+    "limitations_ko": "라우팅이 순수 정규식이라 오탈자·완곡어·영한 혼용에 취약하고 MAX_BATCHES=4 캡으로 다주제 메시지는 일부 배치가 잘린다. term overlap이 한국어 음절런 휴리스틱 토크나이저라 형태소 경계를 못 잡고 임베딩 미사용(시맨틱 유사도 아님). BATCH_ASSETS/SCHEMA_ASSET가 빈 객체라 번들 빌드에선 배치 md를 못 읽어 BATCH NOTES가 빌 수 있다. knowledge_sources RLS가 인증 INSERT 허용이라 C8 검증 페어가 무너지면 행이 샐 수 있다. sanitizeUntrusted는 문자열 치환 휴리스틱이라 새 위장 패턴은 우회 가능. effort/purpose는 자기보고라 프록시 cap이 최종 방어.",
+    "improve_hint_ko": "임베딩 kNN(embedTexts/text-embedding-004 이미 존재)을 라우팅·랭킹에 결합. 배치 md를 Expo 에셋/Storage로 프로덕션 동봉. DOI/URL+verification 미충족 행이 added_by NULL 시드로 새는지 무결성 점검. sanitizeUntrusted 치환 목록이 펜스/섹션명과 동기화되는지 + 우회 페이로드 테스트 보강. reasoningProvider='claude'시 claude-proxy 엔타이틀먼트가 advisor와 동일 적용되는지 확인."
+  },
+  {
+    "id": "advisor-output-swap",
+    "order": 5,
+    "title_ko": "출력 재분류 + 위기 스왑 (C9 출구) + 멱등 세이브",
+    "title_en": "Output re-classify, crisis swap, idempotent persist",
+    "layer": "layerB-validate",
+    "what_ko": "Pro/Gemini 응답을 classifySafety로 재분류해 입력단 분류를 닫는다 — 인젝션된 knowledge_sources/conversationContext로 모델이 위기 콘텐츠를 뱉을 수 있기 때문. RED면 응답 text를 버리고 fixedCrisisResponse로 스왑 + swap 마커가 든 정직한 감사행 + crisis_events 기록. GREEN/YELLOW는 input/output zone worst-case 병합. 이후 aiFollowup을 포함해 records에 insert하고, LLM 경로가 인프라 오류로 throw하면 catch에서 classifyRecordTextForCrisis 로컬 분류를 재실행해 red가 조용히 저장되지 않게 한다. 성공 후 awardXpSafe로 퀘스트 XP(best-effort).",
+    "inputs": "Pro/Gemini 응답 text, locale, minor, aiFollowup, args(body, kind, tags, topic)",
+    "outputs": "최종 text(원문 또는 위기 템플릿) + finalZone + swap 감사; CreatedRecord{id, followup?} + records 행 + XP",
+    "key_files": [
+      "src/lib/llm/gemini.ts",
+      "src/lib/llm/safety.ts",
+      "src/lib/records/create.ts",
+      "src/lib/records/detect-domain.ts",
+      "src/lib/progression/xp.ts"
+    ],
+    "constraints": [
+      "C9",
+      "C3"
+    ],
+    "limitations_ko": "키 없는 웹 빌드는 classifySafety가 렉시콘-온리로 떨어져 시맨틱 RED 출력을 놓친다(주석에 명시된 callAdvisor 패리티 한계). LLM throw 시 fallback 분류도 렉시콘-only라 의미적 red를 놓칠 수 있고, fallback 분류 자체가 throw하면 빈 catch로 무시(세이브 우선). insert 자체 실패는 throw로 전체 submit 실패.",
+    "improve_hint_ko": "키리스 빌드의 시맨틱 출력 게이트 부재를 서버측(proxy) 재분류로 메울지 검토. 세 곳에 중복된 classifyRecordTextForCrisis fallback을 단일 헬퍼로 통합해 일관성·테스트 용이성 개선."
+  },
+  {
+    "id": "audit-every-call-c3",
+    "order": 6,
+    "title_ko": "감사 기록 (C3 every call, outbox)",
+    "title_en": "Audit every call (C3, outbox)",
+    "layer": "history",
+    "what_ko": "모든 경로(mock/live/crisis/swap)가 enqueueAuditWrite로 ai_audit_log에 promptHash/outputHash/modelUsed/vertexBackend/safetyZone/latencyMs/effort/reasoningProvider를 큐잉(outbox). proxyAudited(서버가 행을 씀)면 중복 방지로 클라 insert skip. 위기·스왑은 crisis_events 별도 제한 원장에도 categorical 기록. 비-LLM 세이브(free 일기/advisor off)의 classifyRecordTextForCrisis도 동일 감사 위기 라우팅을 적용해 어떤 경로도 audit 누락 없이 통과한다.",
+    "inputs": "AuditMeta, userId, crisis payload",
+    "outputs": "ai_audit_log 행(+ crisis_events 행), best-effort 큐잉",
+    "key_files": [
+      "src/lib/llm/gemini.ts",
+      "src/lib/llm/audit-write-outbox.ts",
+      "src/lib/supabase/crisis-events.ts"
+    ],
+    "constraints": [
+      "C3",
+      "C9"
+    ],
+    "limitations_ko": "감사는 best-effort(UX 비차단)라 outbox flush 실패 시 감사행이 유실될 수 있어 judge 추적 무결성이 outbox 신뢰성에 의존한다. promptHash는 djb2 비암호 해시(충돌 허용). proxyAudited=false 폴백이 이중기록/누락을 만들 수 있다.",
+    "improve_hint_ko": "outbox 영속/재시도 보장과 proxyAudited=false 폴백이 이중기록·누락 없이 작동하는지 점검. 레드존 short-circuit 경로에서도 C3 audit 행이 실제로 남는지 코드로 1:1 검증."
+  },
+  {
+    "id": "layerA-domain-brightness",
+    "order": 7,
+    "title_ko": "Layer A — 7별 도메인 밝기 계측 (커버리지)",
+    "title_en": "Layer A: 7-star domain brightness (coverage)",
+    "layer": "layerA-brightness",
+    "what_ko": "loadDomainLevels가 records를 user_id로 읽어 각 행의 domain: 태그로 도메인을 판별·적재하고(태그 없는 레코드는 정직한 dark star로 제외), relation_people·recreation_items 구조화 테이블을 organized sentinel로 병렬 접는다. domainConfidence가 ①커버리지(entry 수 밴드 0→default,1-4→low,5-14→medium,≥15→high) + ②organized-ratio<0.5면 한 밴드 강등 + ④recency(now 주입 시 60일 초과 stale면 추가 강등)를 deterministic·LLM-free로 계산하고, domainLevel이 baseLevelFor→crossSourceAgreement(+1)→ratified(L5) 사다리 체인으로 흘려 7별 각각 L1~L5를 낸다.",
+    "inputs": "records(id, created_at, tags) + relation_people/recreation_items + per-domain ratify/cross-source opts + 선택 now(epoch ms)",
+    "outputs": "Record<DomainId, LadderLevel> — 7개 도메인 각각 L1~L5",
+    "key_files": [
+      "src/lib/persona/load-domain-levels.ts",
+      "src/lib/persona/domain-confidence.ts",
+      "src/lib/persona/domain-stars.ts",
+      "src/lib/persona/brightness.ts"
+    ],
+    "constraints": [],
+    "limitations_ko": "③cross-source(triangulation)은 caller가 opts로 직접 넘길 때만 적용되고 자동 감지가 없어 loadDomainLevels는 {}로 넘긴다 → 자유텍스트 도메인 실질 상한 L4(L5는 ratify로만). organized 판정이 'category 또는 tag 1개 존재'라는 이진값이고 밴드 경계(5/15)·stale 임계(60일 step)가 고정 상수다. SYSTEM_TAGS가 voice/todo/interview 3개 하드코딩이라 새 캡처 모드 태그가 organized를 오염시킬 수 있다. 구조화 backing이 relation/recreation 둘뿐이라 도메인 간 밝기 형평이 비대칭이고, 날짜 없는 entry는 영원히 stale 회피.",
+    "improve_hint_ko": "cross-source 자동 감지(같은 도메인을 import+수기 두 경로로 채운 경우)를 코드로 도출해 L4→L5를 ratify 외에도 연다. organized를 태그 수/카테고리 깊이의 연속값으로, stale을 도메인별(health vs career) 차등 연속 decay로. SYSTEM_TAGS를 캡처 파이프라인과 단일 소스 공유. loadDomainLevels 외 경로에도 now 일관 주입."
+  },
+  {
+    "id": "northstar-aggregate",
+    "order": 8,
+    "title_ko": "북극성 밝기 집계 (Layer C 헤드라인)",
+    "title_en": "North Star brightness aggregate (Layer C)",
+    "layer": "northstar",
+    "what_ko": "domainStarLevels가 7별 domainLevel을 호출(entry 없으면 L1)하고 now를 전 도메인 recency 체크에 forward한다. northStarBrightness가 brightnessFraction(L×0.2)을 평균내고 모든 별이 ≥L2면 ALL_LIT_BONUS 0.05를 더해 0~1로 클램프(Polaris glow) — breadth가 단일 spike보다 빛난다. soulCoreBrightness와 같은 공식이되 축이 다르다: 북극성=도메인 축(layer A 커버리지), Soul Core=구인 축(layer B). brightness-honesty 규칙상 이 헤드라인은 오직 '내 삶이 얼마나 매핑됐나'만 의미하고 페르소나 주장 강도는 절대 안 섞는다.",
+    "inputs": "Step 7의 Record<DomainId, LadderLevel>, opts, now=Date.now() (read 경계에서만 주입)",
+    "outputs": "northStarBrightness: 0~1 Polaris 글로우 수치, domainLevels",
+    "key_files": [
+      "src/lib/persona/north-star.ts",
+      "src/lib/persona/stars.ts",
+      "src/lib/persona/brightness.ts",
+      "src/lib/persona/load-domain-levels.ts"
+    ],
+    "constraints": [],
+    "limitations_ko": "v1은 7개 도메인 동일 가중 평균이라 한 영역만 깊게 판 사용자의 북극성이 나머지 dark star에 희석돼 상대적으로 어둡고, 도메인 간 중요도 차(career vs recreation)를 반영 못한다. Date.now()가 loadDomainLevels의 impure 경계에서만 주입되고 north-star/domain-confidence는 순수 유지라 테스트는 now를 명시 주입해야 recency가 검증된다. all-lit 보너스가 L2 문턱에서 계단식으로 튄다.",
+    "improve_hint_ko": "per-domain 가중치 또는 사용자 우선순위 반영 + coverage 분포(편중도) 엔트로피 항으로 '넓게 vs 깊게'를 정교히 보상. all-lit 보너스를 L2 문턱 연속 함수로 완화."
+  },
+  {
+    "id": "layerB-hidden-validation",
+    "order": 9,
+    "title_ko": "Layer B — 7개 자기이해 구인 (숨은 검증층) + 페르소나 합성",
+    "title_en": "Layer B: 7 self-understanding constructs + persona synthesis",
+    "layer": "layerB-validate",
+    "what_ko": "SELF_UNDERSTANDING_STARS 7개(지금의 나=Big Five, 회상=McAdams, 보여지는 나=타인평정, 리듬=ESM, 관계의 나=애착, 될 수 있는 나=Possible Selves, 가치의 나=SDT+VIA)가 도메인 별과 별개인 잠재 구인 추정 축으로, 홈에 안 보이지만 북극성 뒤에서 페르소나 주장을 검증·추론한다. build.ts가 BFI-44(L4)·ECR-S 애착(L4)·가치 breadth·ESM 신호를 deriveStarLevels로 각 구인 L1~L5로 환산한다. synthesizePersonas가 layer-A DomainSummary[]와 layer-B ConstructEstimate[]를 callGemini로 종합해 역할/모자 1~3개를 제안하고, parsePersonaSynthesis가 ①grounding(도메인≥1 AND 구인≥1 인용 못하면 drop, C8) ②claimStrength=인용 근거 최소 레벨(LLM 미결정) ③lexicon 게이트 ④강도순 cap 3을 코드로 강제한다.",
+    "inputs": "records(bfi/attachment/mbti 태그) + audit_response 휴리스틱 + ESM count + DomainSummary[] + priorPersonas, locale, minor",
+    "outputs": "ConstructEstimate[] (검증 근거) + SynthesizedPersona[] (label, evidence{domains,constructs}, 계산된 claimStrength) — 제안일 뿐",
+    "key_files": [
+      "src/lib/persona/stars.ts",
+      "src/lib/persona/build.ts",
+      "src/lib/persona/star-levels.ts",
+      "src/lib/persona/persona-synthesis.ts",
+      "src/lib/llm/gemini.ts",
+      "src/lib/safety/classifier.ts"
+    ],
+    "constraints": [
+      "C1",
+      "C3",
+      "C8",
+      "C9"
+    ],
+    "limitations_ko": "7개 중 shipped는 일부뿐 — seen(360 peer)=absent, possible=absent, rhythm=stub, values=partial이라 검증층이 절반만 작동하고 미탑재 구인은 L1 고정. star1 trait confidence가 5개 trait 균일값(openness 슬롯 대표)이라 trait별 분기 없음(build.ts 휴리스틱은 Sprint3까지 placeholder). claimStrength가 인용 근거 '최소'라 강한 근거가 약한 근거에 끌려 보수적으로 어둡고, grounding이 존재 여부만 보고 의미 정합은 검증 못한다. mock 모드는 합성 entry 없으면 [] 반환.",
+    "improve_hint_ko": "absent/stub 엔진(360 peer, Possible Selves, ESM 본격화) 탑재로 검증층 완성 + trait별 독립 confidence로 SOKA 정밀화. claimStrength를 min 대신 근거 수·다양성 가중 집계로 보정 + 근거-역할 의미 정합 체크 추가. mock 합성 fixture로 오프라인 검증."
+  },
+  {
+    "id": "propose-ratify",
+    "order": 10,
+    "title_ko": "propose→ratify: 비준으로만 L5 승격",
+    "title_en": "propose->ratify: L5 only on ratification",
+    "layer": "ratify",
+    "what_ko": "AI는 자기모델을 절대 직접 쓰지 않는다. review.tsx가 buildPersona→proposalContextForStar로 별의 before·evidence를 추출하고, proposeSelfModelChange가 buildSelfModelProposalPrompt로 JSON 전용 callGemini를 호출, parseSelfModelProposal이 {after,rationale,citations,targetLevel=5}로 파싱한다. isPresentableProposal+isProposalClean이 변화없음·빈값·EN/KO 금지어(임상·의료) 위반을 drop. RatifySheet에서 사용자가 비준해야만 applyRatify가 노드를 L5(실행가능)로 올린다 — L5로 가는 유일한 경로. brightness.ts의 ladderLevel도 ratified=true일 때만 L5를 반환해 같은 불변식을 이중 보강. ProposalTarget은 star/soulCore/northStar를 가리킨다.",
+    "inputs": "ProposalTarget, before, evidence(3000자 컷), targetLevel=5, locale → RatifyDecision(ratify/decline)",
+    "outputs": "SelfModelProposal|null → RatifyResult{decision, resultingLevel(=5 on ratify)} + UI 메시지",
+    "key_files": [
+      "src/lib/persona/propose-self-model.ts",
+      "src/lib/persona/proposal.ts",
+      "src/lib/persona/brightness.ts",
+      "src/app/review.tsx",
+      "src/components/persona/RatifySheet.tsx",
+      "src/lib/persona/proposal-context.ts"
+    ],
+    "constraints": [
+      "C1",
+      "C3",
+      "C9"
+    ],
+    "limitations_ko": "v1은 star1(지금의 나) 전용 — before가 다른 별(recall/seen/rhythm/possible)에서 'not gathered yet'로 고정. review.tsx가 applyRatify에 현재 레벨을 하드코딩(4)으로 넘겨 비준이 항상 4→5로 표시되고 중간/부분 승격 개념이 없다. citations가 자유 문자열 slug라 실재 record 참조 무결성 미보장(파서가 record id 대조 안 함). C1/C3/C9는 propose-self-model.ts가 아니라 callGemini 호출부에서만 강제. 금지어 검사가 부분문자열이라 완곡어·무해 의료어 오탐. evidence가 card.patterns에만 의존해 원천 record id 미탑재.",
+    "improve_hint_ko": "하드코딩 4 대신 별의 실제 현재 레벨/proposal.targetLevel을 받아 임의 레벨 전이·부분(edit-then-ratify) 지원. evidence에 원천 record id/slug를 실어 citations를 record FK로 검증하고 허구 인용을 후처리로 거른다. 필드별(특히 citations) 금지어 검사 강도 분리 + 토큰 경계 매칭으로 오탐 축소."
+  },
+  {
+    "id": "tier-history-persist",
+    "order": 11,
+    "title_ko": "비준 tier history 영속화 (+ evidence 갭)",
+    "title_en": "Persist ratified tier (evidence gap)",
+    "layer": "history",
+    "what_ko": "비준 시(target.kind==='star') recordStarTiers가 star_tier_history(0045)에 append-only insert한다. 직전 최신 레벨을 읽어 genuine 상승이면 star_lit 이벤트를, 7별 전체 재영속 시 lit-count 증가면 activation_milestone을 발화. best-effort라 실패해도 호출자를 막지 않는다.",
+    "inputs": "userId, { star_id: level } (review.tsx는 단일 별)",
+    "outputs": "star_tier_history 행(user_id, star_id, level, recorded_at) + 분석 이벤트",
+    "key_files": [
+      "src/lib/persona/record-star-tiers.ts",
+      "db/migrations/0045_star_tier_history.sql",
+      "src/lib/analytics/index.ts"
+    ],
+    "constraints": [
+      "C3"
+    ],
+    "limitations_ko": "중대 불일치: 과제가 말한 evidence 링크(evidence_origin + evidence_citations, 'migration 0060')는 레포에 존재하지 않는다 — 최고 마이그레이션이 0059이고 star_tier_history 컬럼은 id/user_id/star_id/level/recorded_at뿐. 즉 비준된 tier만 저장되고 proposal.citations/rationale은 history에 함께 기록되지 않아 '근거 인용된' 재점검의 근거가 영속화되지 않는다.",
+    "improve_hint_ko": "실제로 evidence_origin/evidence_citations 컬럼을 추가하는 마이그레이션(0060)을 만들고 recordStarTiers 시그니처가 인용을 받아 insert에 포함하도록 확장 — 현재는 미구현. 영속 후 재빌드 시 ratified 플래그를 다시 읽는 bridge도 함께 연결."
+  },
+  {
+    "id": "recheck-nudge",
+    "order": 12,
+    "title_ko": "tier 변화 감지 → 재점검 넛지",
+    "title_en": "Detect tier shift → re-check nudge",
+    "layer": "analytics",
+    "what_ko": "review.tsx 마운트 시 loadTierShifts가 star_tier_history를 recorded_at 오름차순으로 읽어 detectTierShift로 별별 최신 2개 관측 레벨을 비교, 달라진 별을 TierShift(up/down)로 반환한다. shifts가 있으면 '최근 변화 감지 … 점검해볼까요?' 배너를 띄워 재점검 루프를 닫는다.",
+    "inputs": "userId → TierObservation[] (star_id, level, recorded_at)",
+    "outputs": "TierShift[] → 변화 감지 배너(별 이름 + ↑/↓)",
+    "key_files": [
+      "src/lib/persona/load-tier-shifts.ts",
+      "src/lib/persona/tier-history.ts",
+      "src/app/review.tsx"
+    ],
+    "constraints": [],
+    "limitations_ko": "detectTierShift가 level 스칼라만 비교 — evidence 컬럼이 없으니 넛지는 '근거 인용된' 재점검이 아니라 단순 '레벨 바뀜' 신호일 뿐이다. 같은 별을 두 번 비준해야(관측 ≥2) 발화하고, 배너는 제안 생성으로 자동 연결되지 않아 루프가 사용자 수동 재진입에 의존한다.",
+    "improve_hint_ko": "0060 evidence 링크가 생기면 detectTierShift/배너가 해당 인용을 함께 노출하고, 배너 탭이 그 별에 대한 generate()(propose→ratify)를 바로 트리거하도록 연결해 재점검 루프를 자동화."
+  },
+  {
+    "id": "analytics-funnel-constraint-spine",
+    "order": 13,
+    "title_ko": "활성화 퍼널 (PII-프리) + 제약 척추",
+    "title_en": "Activation funnel (PII-free) + constraint spine",
+    "layer": "northstar",
+    "what_ko": "별이 L1~L5를 오를 때마다 starLit, 북극성 집계가 차오를 때마다 activationMilestone이 발생하고, 여기서 aiLimitHit→plansViewed→plansTierFocused→checkoutStarted→purchase 유료 전환 퍼널이 측정된다. 모든 props는 PII-프리 스칼라(별 id, 레벨, 카운트, 밝기, tier, 가격)뿐이고 captureEvent를 거치며 동의 없으면 no-op. 이 모든 경로를 게이트하는 척추: C9(classifyInput이 callGemini 최상단, 레드존 short-circuit)→C1(모든 LLM은 callGemini 단일 래퍼, ESLint가 타 SDK 차단)→C3(성공 호출마다 ai_audit_log INSERT). C8(knowledge_sources doi OR url + verified 페어 CHECK), C7(EN 정본·KO 키 패리티)도 전 카피에 적용.",
+    "inputs": "별 밝기 상승·북극성 집계·AI 한도·요금제 진입(스칼라만); 모든 LLM 경로·knowledge_sources·i18n 키셋",
+    "outputs": "PostHog+GA4 PII-프리 이벤트(star_lit, activation_milestone, ai_limit_hit, plans_viewed, plans_tier_focused, checkout_started, purchase); C9→C1→C3 게이트 통과 파이프라인",
+    "key_files": [
+      "src/lib/analytics/index.ts",
+      "docs/CONSTRAINTS.md",
+      "src/lib/llm/gemini.ts",
+      "src/lib/safety/lexicon.ts",
+      "src/lib/supabase/audit.ts"
+    ],
+    "constraints": [
+      "C1",
+      "C3",
+      "C7",
+      "C8",
+      "C9"
+    ],
+    "limitations_ko": "분석은 웹 전용(initAnalytics가 webWindow() 없으면 즉시 return)이고 네이티브 EAS SDK 와이어링·IAP 미구현이라 checkout_started/purchase는 creator만 정의돼 호출부가 없다. 제3자 SDK는 동의 철회 시 세션 중 teardown 불가라 captureEvent 게이트로만 차단. 제약 척추 매핑은 문서(CONSTRAINTS.md/CLAUDE.md) 기준이고 gemini.ts/lexicon.ts/audit.ts 실제 구현은 이 단계에서 직접 읽어 검증하지 않았다 — 레드존 short-circuit 경로의 C3 audit 실재 여부는 코드 재확인 필요.",
+    "improve_hint_ko": "gemini.ts를 읽어 classifyInput()→ai_audit_log INSERT 순서와 레드존 short-circuit 시에도 C3 행이 남는지 코드로 1:1 검증. 네이티브 IAP 도입 시 checkout_started/purchase 호출부 연결 + EAS용 SDK 게이트. analytics captureEvent가 LLM 경로와 독립이라 C3 audit과 분리됨을 다이어그램에 명시. ms_since_signup/ms_since_first_star 시간 스칼라가 호출부에서 일관 채워지는지 검증."
+  }
+];
+
+/* ===== render + interactivity ===== */
+const LAYER_LABEL = {
+  capture:"capture", safety:"safety · C9", "domain-tag":"domain", advisor:"advisor · RAG",
+  "layerA-brightness":"layer A", northstar:"layer C", "layerB-validate":"layer B",
+  ratify:"ratify", history:"history", analytics:"analytics"
+};
+const LS_KEY = "ndb_report_comments_v1";
+let comments = {};
+try{ comments = JSON.parse(localStorage.getItem(LS_KEY)||"{}"); }catch(e){ comments = {}; }
+
+function saveComments(){ localStorage.setItem(LS_KEY, JSON.stringify(comments)); refreshCounts(); }
+function esc(s){ return (s||"").replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function render(){
+  document.getElementById('summary').innerHTML = esc(SYSTEM.summary_ko);
+  document.getElementById('axis').textContent = SYSTEM.axis_note_ko;
+  const root = document.getElementById('pipeline');
+  root.innerHTML = "";
+  STEPS.forEach(s=>{
+    const node = document.createElement('div'); node.className='node';
+    const cons = (s.constraints||[]).map(c=>`<span class="cbadge">${esc(c)}</span>`).join(' ');
+    const files = (s.key_files||[]).map(f=>`<code>${esc(f)}</code>`).join('');
+    node.innerHTML = `
+      <div class="rail"><div class="dot">${s.order}</div><div class="stem"></div></div>
+      <div class="card" id="card-${s.id}">
+        <div class="card-head" data-id="${s.id}">
+          <div class="titles"><div class="t-ko">${esc(s.title_ko)}</div><div class="t-en">${esc(s.title_en)}</div></div>
+          <span class="badge">${esc(LAYER_LABEL[s.layer]||s.layer)}</span>
+        </div>
+        <p class="what">${esc(s.what_ko)}</p>
+        <div class="io"><span><b>IN</b> ${esc(s.inputs)}</span><span><b>OUT</b> ${esc(s.outputs)}</span>${cons?('<span>'+cons+'</span>'):''}</div>
+        <details class="more">
+          <summary>구현 · 한계 보기</summary>
+          <div class="meta-row files"><b>파일</b> ${files||'<span style="color:var(--muted)">—</span>'}</div>
+          <div class="meta-row"><b>한계</b> <span class="limit">${esc(s.limitations_ko)}</span></div>
+          <div class="meta-row"><b>개선 각도</b> ${esc(s.improve_hint_ko)}</div>
+        </details>
+        <div class="comment-wrap">
+          <textarea data-id="${s.id}" placeholder="이 단계에 대한 코멘트 (개선 아이디어 / 의문 / 우선순위)…">${esc(comments[s.id]||"")}</textarea>
+          <div class="hint">코멘트를 남긴 단계만 종합 프롬프트에 포함됩니다.</div>
+        </div>
+      </div>`;
+    root.appendChild(node);
+  });
+  // wire events
+  root.querySelectorAll('.card-head').forEach(h=>h.addEventListener('click',()=>{
+    const id=h.getAttribute('data-id'); const card=document.getElementById('card-'+id);
+    document.querySelectorAll('.card').forEach(c=>c.classList.remove('sel'));
+    card.classList.add('sel');
+  }));
+  root.querySelectorAll('textarea[data-id]').forEach(t=>t.addEventListener('input',()=>{
+    const id=t.getAttribute('data-id'); const v=t.value.trim();
+    if(v) comments[id]=v; else delete comments[id];
+    document.getElementById('card-'+id).classList.toggle('has-comment', !!v);
+    saveComments();
+  }));
+  refreshCounts();
+}
+
+function refreshCounts(){
+  const n = Object.keys(comments).filter(k=>comments[k] && comments[k].trim()).length;
+  document.getElementById('cnum').textContent = n;
+  document.getElementById('tnum').textContent = STEPS.length;
+  STEPS.forEach(s=>{
+    const card=document.getElementById('card-'+s.id);
+    if(card) card.classList.toggle('has-comment', !!(comments[s.id]&&comments[s.id].trim()));
+  });
+}
+
+function buildPrompt(){
+  const commented = STEPS.filter(s=>comments[s.id] && comments[s.id].trim());
+  const meta = document.getElementById('promptMeta');
+  const out = document.getElementById('prompt-out');
+  if(commented.length===0){
+    out.innerHTML='<span class="empty">코멘트가 없습니다. 단계에 코멘트를 남기고 다시 생성하세요.</span>';
+    meta.textContent=''; return;
+  }
+  const L=[];
+  L.push("# 2nd-Brain 시스템 개선 요청");
+  L.push("");
+  L.push("아래는 2nd-Brain 파이프라인의 작동 방식과, 각 단계에 대해 내가 남긴 개선 코멘트다.");
+  L.push("시스템 개요: "+SYSTEM.summary_ko);
+  L.push("");
+  L.push("## 검토 대상 단계와 내 코멘트");
+  commented.forEach((s,i)=>{
+    L.push("");
+    L.push(`### ${i+1}. ${s.title_ko} (${s.title_en}) — 단계 ${s.order}/${STEPS.length}`);
+    L.push(`- 작동: ${s.what_ko}`);
+    L.push(`- 입력→출력: ${s.inputs} → ${s.outputs}`);
+    if(s.key_files && s.key_files.length) L.push(`- 핵심 파일: ${s.key_files.join(', ')}`);
+    if(s.constraints && s.constraints.length) L.push(`- 관련 제약: ${s.constraints.join(', ')}`);
+    L.push(`- 알려진 한계: ${s.limitations_ko}`);
+    L.push(`- 🗣️ 내 코멘트: ${comments[s.id].trim()}`);
+  });
+  L.push("");
+  L.push("## 요청");
+  L.push("위 코멘트를 반영해 다음을 작성하라:");
+  L.push("1. 각 코멘트를 구체적 변경 제안으로 번역 (영향 파일 + 접근 + 제약 위반 여부 C1~C12 점검).");
+  L.push("2. 제안들을 영향 × 노력으로 우선순위화 (P0/P1/P2).");
+  L.push("3. 단계 간 상호작용·회귀 위험을 명시하고, 검증 방법(npm run verify, 대상 테스트, supabase dry-run)을 각 제안에 붙여라.");
+  L.push("4. 최상위 우선순위 1건은 바로 착수 가능한 구현 계획(파일·diff 개요·테스트)으로 풀어라.");
+  L.push("");
+  L.push(`— 코멘트 단계: ${commented.length}/${STEPS.length} · 생성: 시스템 리포트 인터랙티브 빌더`);
+  const text=L.join("\n");
+  out.textContent=text;
+  meta.textContent=`${commented.length}개 단계 · ${text.length.toLocaleString()}자`;
+  return text;
+}
+
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1600); }
+
+document.getElementById('genBtn').addEventListener('click',()=>{ buildPrompt(); document.getElementById('prompt-out').scrollIntoView({behavior:'smooth',block:'center'}); });
+document.getElementById('genBtn2').addEventListener('click',buildPrompt);
+document.getElementById('copyBtn').addEventListener('click',()=>{
+  const txt=document.getElementById('prompt-out').textContent;
+  if(!txt || txt.indexOf('아직')>-1 || txt.indexOf('코멘트가 없')>-1){ toast('먼저 프롬프트를 생성하세요'); return; }
+  navigator.clipboard.writeText(txt).then(()=>toast('복사됨 — 에이전트에 붙여넣으세요')).catch(()=>toast('복사 실패'));
+});
+document.getElementById('clearBtn').addEventListener('click',()=>{
+  if(!confirm('모든 코멘트를 지울까요? (이 브라우저 저장본만 삭제)')) return;
+  comments={}; saveComments(); render(); toast('코멘트 초기화됨');
+});
+
+render();
+</script>
+</body>
+</html>
