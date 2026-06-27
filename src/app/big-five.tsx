@@ -42,7 +42,14 @@ const SCALE: { value: number; en: string; ko: string }[] = [
 
 type Toast = { message: string; tone: "danger" | "info" | "success" };
 
-function BigFiveLegacy() {
+// The BFI-44 questionnaire body, shell-agnostic so the SAME functional survey
+// mounts in both tracks: canon wraps it in DeepSpaceScreen, legacy in
+// PremiumAppShell. It is the ONLY writer of the `bfi`-tagged record that
+// loadLatestBfi reads and buildPersona's trait branch needs. onComplete fires
+// after the save celebration so the caller decides where to go next (canon
+// returns to its results lens and reloads; legacy routes to /persona); onCancel
+// backs out of the intro.
+function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -63,11 +70,9 @@ function BigFiveLegacy() {
 
   if (loading) {
     return (
-      <PremiumAppShell>
-        <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "검사를 불러오는 중이에요…" : "Loading assessment…"} />
-        </View>
-      </PremiumAppShell>
+      <View style={styles.center}>
+        <PremiumLoadingState message={locale === "ko" ? "검사를 불러오는 중이에요…" : "Loading assessment…"} />
+      </View>
     );
   }
   if (!userId) {
@@ -118,7 +123,7 @@ function BigFiveLegacy() {
   }
 
   return (
-    <PremiumAppShell>
+    <>
       {!started ? (
         <QuantIntroModal
           toolKey="bfi"
@@ -137,7 +142,7 @@ function BigFiveLegacy() {
           }
           locale={locale}
           onStart={() => setStarted(true)}
-          onCancel={() => router.back()}
+          onCancel={onCancel}
         />
       ) : null}
 
@@ -199,7 +204,7 @@ function BigFiveLegacy() {
       {saved ? (
         <QuantSaveCelebration
           message={locale === "ko" ? "저장됐어요 · 페르소나에서 다시 만나요" : "Saved · see it on your Persona"}
-          onDone={() => router.replace("/persona")}
+          onDone={onComplete}
         />
       ) : null}
 
@@ -208,7 +213,7 @@ function BigFiveLegacy() {
           <PremiumToast message={toast.message} tone={toast.tone} />
         </View>
       ) : null}
-    </PremiumAppShell>
+    </>
   );
 }
 
@@ -241,12 +246,24 @@ const styles = StyleSheet.create({
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
 
+// Legacy rollback skin: the survey directly, in the premium shell.
+function BigFiveLegacy() {
+  return (
+    <PremiumAppShell>
+      <BigFiveSurvey onComplete={() => router.replace("/persona")} onCancel={() => router.back()} />
+    </PremiumAppShell>
+  );
+}
+
 function BigFiveDeepSpace() {
   const { userId, loading } = useAuth();
   const [traits, setTraits] = useState<LensTraits | null>(null);
   const [hasError, setHasError] = useState(false);
-  // Bumping reloadKey re-runs the BFI load (retry path from the error state).
+  // Bumping reloadKey re-runs the BFI load (retry path from the error state, and
+  // the refresh after a freshly completed survey).
   const [reloadKey, setReloadKey] = useState(0);
+  // Whether the user is currently taking the questionnaire (vs viewing the lens).
+  const [taking, setTaking] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -287,12 +304,32 @@ function BigFiveDeepSpace() {
     };
   }, [userId, loading, reloadKey]);
 
+  // The validated BFI-44 questionnaire is the only writer of the bfi record the
+  // lens reads, so canon MUST be able to launch it. Previously the empty-state
+  // CTA routed to /interview (which never writes bfi), so a deep-space-only user
+  // could never fill the trait lens and buildPersona silently fell back to the
+  // journal heuristic. "Start" now opens the real survey inside the deep-space
+  // dock; finishing returns to the lens and reloads the new result.
+  if (taking) {
+    return (
+      <DeepSpaceScreen active="lens">
+        <BigFiveSurvey
+          onComplete={() => {
+            setTaking(false);
+            setReloadKey((k) => k + 1);
+          }}
+          onCancel={() => setTaking(false)}
+        />
+      </DeepSpaceScreen>
+    );
+  }
+
   return (
     <DeepSpaceScreen active="lens">
       <LensView
         traits={traits}
         hasError={hasError}
-        onStart={() => router.push("/interview")}
+        onStart={() => setTaking(true)}
         onRetry={() => setReloadKey((k) => k + 1)}
       />
     </DeepSpaceScreen>
