@@ -1,4 +1,4 @@
-import { detectTierShift, type TierObservation } from "../tier-history";
+import { detectTierShift, tierShiftNudge, type TierObservation, type TierShift } from "../tier-history";
 
 function obs(star_id: TierObservation["star_id"], level: TierObservation["level"], recorded_at: string): TierObservation {
   return { star_id, level, recorded_at };
@@ -79,5 +79,41 @@ describe("detectTierShift", () => {
     expect(shifts).toHaveLength(2);
     expect(shifts).toContainEqual({ starId: "now", from: 2, to: 3, direction: "up" });
     expect(shifts).toContainEqual({ starId: "values", from: 4, to: 2, direction: "down" });
+  });
+});
+
+describe("tierShiftNudge", () => {
+  const nameOf = (id: TierShift["starId"], locale: "en" | "ko") =>
+    locale === "ko" ? `별-${id}` : `star-${id}`;
+
+  test("returns null when there are no shifts", () => {
+    expect(tierShiftNudge([], "ko", nameOf)).toBeNull();
+    expect(tierShiftNudge([], "en", nameOf)).toBeNull();
+  });
+
+  test("lists shifted stars with direction arrows, no evidence clause when uncited", () => {
+    const shifts: TierShift[] = [{ starId: "now", from: 3, to: 4, direction: "up" }];
+    expect(tierShiftNudge(shifts, "ko", nameOf)).toBe("최근 변화 감지: 별-now ↑ - 점검해볼까요?");
+    expect(tierShiftNudge(shifts, "en", nameOf)).toBe("Recent shift: star-now ↑ - want to re-check?");
+  });
+
+  test("surfaces the aggregate evidence count (0060) when shifts are cited", () => {
+    const shifts: TierShift[] = [
+      { starId: "now", from: 3, to: 5, direction: "up", citations: ["record:a", "record:b"] },
+      { starId: "values", from: 4, to: 2, direction: "down", citations: ["record:c"] },
+    ];
+    expect(tierShiftNudge(shifts, "ko", nameOf)).toBe(
+      "최근 변화 감지: 별-now ↑, 별-values ↓ · 근거 3개 - 점검해볼까요?",
+    );
+    expect(tierShiftNudge(shifts, "en", nameOf)).toBe(
+      "Recent shift: star-now ↑, star-values ↓ · 3 cited - want to re-check?",
+    );
+  });
+
+  test("no em dash in the rendered string (DESIGN.md UI-string rule)", () => {
+    const shifts: TierShift[] = [{ starId: "now", from: 1, to: 2, direction: "up", citations: ["record:a"] }];
+    for (const locale of ["en", "ko"] as const) {
+      expect(tierShiftNudge(shifts, locale, nameOf)).not.toMatch(/[—–]/);
+    }
   });
 });

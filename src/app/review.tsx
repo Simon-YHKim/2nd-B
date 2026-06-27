@@ -19,7 +19,7 @@ import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
 import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
 import { RatifySheet } from "@/components/persona/RatifySheet";
 import { loadTierShifts } from "@/lib/persona/load-tier-shifts";
-import type { TierShift } from "@/lib/persona/tier-history";
+import { tierShiftNudge, type TierShift } from "@/lib/persona/tier-history";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
 import { reactExpression } from "@/lib/companion/expression";
@@ -37,6 +37,10 @@ function ReviewScreenLegacy() {
   const { userId, isMinor } = useAuth();
   const [loading, setLoading] = useState(false);
   const [proposal, setProposal] = useState<SelfModelProposal | null>(null);
+  // Real, resolvable record refs behind the proposal (0060), captured at build
+  // time so a ratify can cite the records the card was built from — not the LLM's
+  // invented proposal.citations.
+  const [evidenceRefs, setEvidenceRefs] = useState<string[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [shifts, setShifts] = useState<TierShift[]>([]);
@@ -64,6 +68,7 @@ function ReviewScreenLegacy() {
     try {
       const card = await buildPersona(userId, locale, isMinor === true);
       const ctx = proposalContextForStar(card, "now");
+      setEvidenceRefs(ctx.evidenceRefs);
       const p = await proposeSelfModelChange(
         userId,
         { kind: "star", star: "now" },
@@ -95,14 +100,13 @@ function ReviewScreenLegacy() {
     setSheetOpen(false);
     if (decision === "ratify" && userId && proposal?.target.kind === "star") {
       // Persist the ratified tier so D9 history + trend detection reflect it.
-      // We tag origin only — NOT proposal.citations: those are Gemini-emitted
-      // and proposalContextForStar gives the model a narrative summary, not a
-      // whitelist of real record ids, so the citations are unverifiable labels.
-      // Persisting them would misrepresent fabricated strings as resolvable
-      // evidence (0060 contract). Real evidence-id citations are a follow-up
-      // (thread record ids through proposal-context).
+      // Cite evidenceRefs (real `record:<id>` for the records this card was built
+      // from), NOT proposal.citations — those are Gemini-emitted labels with no
+      // real-id whitelist behind them. The write boundary re-sanitizes to
+      // resolvable refs only, so a fabricated string could never survive (0060).
       void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel }, "journal", {
         origin: "ratify",
+        citations: evidenceRefs,
       });
     }
     if (decision === "ratify") reactExpression("positive");
@@ -117,6 +121,10 @@ function ReviewScreenLegacy() {
     );
   }
 
+  // D9 re-check nudge, evidence-aware (0060): surfaces how many real records
+  // back the shifted stars. Pure helper so the string logic stays tested.
+  const nudge = tierShiftNudge(shifts, locale, starName);
+
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
       <ScrollView contentContainerStyle={styles.body}>
@@ -129,12 +137,8 @@ function ReviewScreenLegacy() {
             ? "비서가 기록을 보고 다음 한 걸음을 제안해요. 승인할 때만 반영돼요."
             : "Your assistant proposes a next step from your records. It applies only when you ratify."}
         </Text>
-        {shifts.length > 0 ? (
-          <Text variant="subtle" color="brand" style={styles.shifts}>
-            {locale === "ko"
-              ? `최근 변화 감지: ${shifts.map((s) => `${starName(s.starId, locale)} ${s.direction === "up" ? "↑" : "↓"}`).join(", ")} - 점검해볼까요?`
-              : `Recent shift: ${shifts.map((s) => `${starName(s.starId, locale)} ${s.direction === "up" ? "↑" : "↓"}`).join(", ")} - want to re-check?`}
-          </Text>
+        {nudge ? (
+          <Text variant="subtle" color="brand" style={styles.shifts}>{nudge}</Text>
         ) : null}
         <Button label={locale === "ko" ? "제안 받기" : "Get a proposal"} variant="primary" onPress={generate} />
         {loading ? <ActivityIndicator color={cosmic.soulViolet} style={styles.spinner} /> : null}
