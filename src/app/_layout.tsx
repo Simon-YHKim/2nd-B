@@ -32,8 +32,28 @@ import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
 // RootErrorBoundary.tsx (handoff queue B, post-2026-06-26 crash hardening).
 export { ErrorBoundary } from "@/components/ui/RootErrorBoundary";
 
+// Native-only crash reporting. Web keeps its own @sentry/browser path in
+// src/lib/analytics; jest/node and web never load the React Native SDK, guarded by
+// the RN-runtime check (mirroring nativeIntroStorage below). Sentry.init installs the
+// native crash handlers on its own, so this captures native + JS crashes once the app
+// is rebuilt with the SDK in the binary. Source-map symbolication (the Sentry metro
+// plugin + SENTRY_AUTH_TOKEN upload) is a deliberate follow-up; raw crashes report now.
+function initNativeCrashReporting(): void {
+  const nav = globalThis.navigator as { product?: string } | undefined;
+  if (nav?.product !== "ReactNative") return;
+  const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+  if (!dsn) return;
+  try {
+    const Sentry = require("@sentry/react-native") as typeof import("@sentry/react-native");
+    Sentry.init({ dsn, sendDefaultPii: false, tracesSampleRate: 0.1 });
+  } catch {
+    // RN SDK not in the binary yet (pre-rebuild) — no-op.
+  }
+}
+
 initI18n();
 void initAnalytics();
+initNativeCrashReporting();
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
