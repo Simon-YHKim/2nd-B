@@ -1838,6 +1838,9 @@ export function DeepSpaceReviewScreen() {
   // so applyRatify reports the right resultingLevel on decline (ratify always
   // -> L5). Falls back to L1 (the ladder default) if the card has no level yet.
   const [currentLevel, setCurrentLevel] = useState<LadderLevel>(1);
+  // Real `record:<id>` refs behind the proposal (0060), captured at build time so
+  // a ratify cites the records the card was built from — not LLM-invented labels.
+  const [evidenceRefs, setEvidenceRefs] = useState<string[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
@@ -1849,6 +1852,7 @@ export function DeepSpaceReviewScreen() {
       const card = await buildPersona(userId, locale, isMinor === true);
       const ctx = proposalContextForStar(card, "now");
       setCurrentLevel(card.starLevels?.now ?? 1);
+      setEvidenceRefs(ctx.evidenceRefs);
       const p = await proposeSelfModelChange(userId, { kind: "star", star: "now" }, ctx.before, ctx.evidence, 5, locale, isMinor === true);
       if (p) {
         setProposal(p);
@@ -1867,11 +1871,13 @@ export function DeepSpaceReviewScreen() {
     const r = applyRatify(currentLevel, decision);
     setSheetOpen(false);
     if (decision === "ratify" && userId && proposal?.target.kind === "star") {
-      // Tag origin only (0060). proposal.citations are Gemini-emitted labels,
-      // not a whitelist of real record ids, so they are unverifiable evidence
-      // and intentionally not persisted (real evidence-id citations: follow-up).
+      // Cite evidenceRefs (real `record:<id>` for the records this card was built
+      // from), NOT proposal.citations — those are Gemini-emitted labels with no
+      // real-id whitelist. The write boundary re-sanitizes to resolvable refs
+      // only, so a fabricated string can never be persisted (0060).
       void recordStarTiers(userId, { [proposal.target.star]: r.resultingLevel }, "journal", {
         origin: "ratify",
+        citations: evidenceRefs,
       });
     }
     setResult(

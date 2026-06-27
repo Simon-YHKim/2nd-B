@@ -236,6 +236,32 @@ describe("buildPersona", () => {
     expect(card.traitConfidence?.conscientiousness.source).toBe("journal_text");
   });
 
+  test("evidenceRefs = resolvable record refs for the rows the card was built from (0060)", async () => {
+    // Audit rows carry ids; buildPersona reads them ascending and exposes the
+    // most-recent (bounded, newest-first) as `record:<id>` provenance — the real
+    // ids a ratified tier change cites, never an LLM-invented label.
+    tableFixtures["records:select"] = {
+      data: [
+        { id: "aaaaaaaa-1111-1111-1111-111111111111", prompt: "q1", body: "older entry", created_at: "2026-05-01T00:00:00Z", tags: [] },
+        { id: "bbbbbbbb-2222-2222-2222-222222222222", prompt: "q2", body: "newer entry", created_at: "2026-05-02T00:00:00Z", tags: [] },
+      ],
+      error: null,
+    };
+    tableFixtures["memorized_patterns:select"] = { data: [], error: null };
+    const card = await buildPersona("u1", "en");
+    expect(card.evidenceRefs).toEqual([
+      "record:bbbbbbbb-2222-2222-2222-222222222222",
+      "record:aaaaaaaa-1111-1111-1111-111111111111",
+    ]);
+  });
+
+  test("evidenceRefs is empty for a card with no written entries", async () => {
+    tableFixtures["records:select"] = { data: [], error: null };
+    tableFixtures["memorized_patterns:select"] = { data: [], error: null };
+    const card = await buildPersona("u1", "en");
+    expect(card.evidenceRefs).toEqual([]);
+  });
+
   test("persona row upserted with version 1", async () => {
     tableFixtures["records:select"] = { data: [], error: null };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };

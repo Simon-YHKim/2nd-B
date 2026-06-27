@@ -106,3 +106,11 @@ ios-sim-extract/
 
 # scratch landing-page experiment (promote to its own repo if kept; never commit into the app tree)
 landing-clone/
+
+# agent/report output dir — APKs, web exports, QA artifacts; regenerable, 300MB+ locally.
+# never commit (a stray `git add -A` must not sweep it into the app tree).
+Output/
+
+# root thought-dump / synthesis docs — belong in the wiki or Output/, not the live app tree.
+2ndb-thought-organization-synthesis.html
+260617생각정리.txt

@@ -54,4 +54,14 @@ describe("proposalContextForStar", () => {
   test("stars without a card-resident value are honest", () => {
     expect(proposalContextForStar(baseCard(), "possible").before).toBe("not gathered yet");
   });
+
+  test("evidenceRefs surfaces the card's resolvable record refs (0060)", () => {
+    const refs = ["record:11111111-1111-1111-1111-111111111111", "record:22222222-2222-2222-2222-222222222222"];
+    const ctx = proposalContextForStar(baseCard({ evidenceRefs: refs }), "now");
+    expect(ctx.evidenceRefs).toEqual(refs);
+  });
+
+  test("evidenceRefs defaults to [] when the card carries none (legacy fixtures)", () => {
+    expect(proposalContextForStar(baseCard(), "now").evidenceRefs).toEqual([]);
+  });
 });
