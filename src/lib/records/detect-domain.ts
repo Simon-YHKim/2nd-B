@@ -63,10 +63,39 @@ const TIE_ORDER = DOMAIN_STARS.filter((d) => d.id !== "collect").map(
   (d) => d.id,
 ) as Exclude<DomainId, "collect">[];
 
+// Split each domain's keywords into Korean (substring match — Korean has no word
+// boundaries, so substring is correct) and English/ASCII (word-boundary match).
+// Word boundaries fix false positives the old substring scan produced: "work"
+// (career) no longer fires on "framework"/"network"/"homework"/"workout", "date"
+// (relation) no longer on "update"/"candidate", "play" not on "display", "show"
+// not on "shower". Precompiled once at module load; detectDomain stays pure.
+const isAscii = (s: string): boolean => {
+  for (let i = 0; i < s.length; i += 1) if (s.charCodeAt(i) > 127) return false;
+  return true;
+};
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+interface DomainMatcher {
+  id: Exclude<DomainId, "collect">;
+  korean: readonly string[];
+  englishRes: readonly RegExp[];
+}
+
+const DOMAIN_MATCHERS: readonly DomainMatcher[] = TIE_ORDER.map((id) => {
+  const kws = DOMAIN_KEYWORDS[id];
+  return {
+    id,
+    korean: kws.filter((k) => !isAscii(k)),
+    // Non-global so .test() is stateless; haystack is pre-lowercased but keep `i`.
+    englishRes: kws.filter(isAscii).map((k) => new RegExp(`\\b${escapeRegExp(k)}\\b`, "i")),
+  };
+});
+
 /**
  * Best-effort domain for a capture. Pure: scores each domain by distinct
- * keyword hits in the combined text, returns the highest (ties broken by
- * Big-Dipper order). No match → "collect" (the catch-all). Never throws.
+ * keyword hits in the combined text (Korean substring + English word-boundary),
+ * returns the highest (ties broken by Big-Dipper order). No match → "collect"
+ * (the catch-all). Never throws.
  */
 export function detectDomain(text: string): DomainId {
   const haystack = (text ?? "").toLowerCase();
@@ -74,15 +103,14 @@ export function detectDomain(text: string): DomainId {
 
   let best: DomainId = "collect";
   let bestScore = 0;
-  for (const id of TIE_ORDER) {
+  for (const m of DOMAIN_MATCHERS) {
     let score = 0;
-    for (const kw of DOMAIN_KEYWORDS[id]) {
-      if (haystack.includes(kw)) score += 1;
-    }
+    for (const kw of m.korean) if (haystack.includes(kw)) score += 1;
+    for (const re of m.englishRes) if (re.test(haystack)) score += 1;
     // Strict > keeps the earlier (higher-priority) domain on a tie.
     if (score > bestScore) {
       bestScore = score;
-      best = id;
+      best = m.id;
     }
   }
   return best;

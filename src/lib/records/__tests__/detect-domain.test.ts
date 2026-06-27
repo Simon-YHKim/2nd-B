@@ -29,6 +29,17 @@ describe("detectDomain (pure, LLM-free)", () => {
     expect(detectDomain("INTERVIEW at the OFFICE")).toBe("career");
   });
 
+  it("EN keywords match on word boundaries, not substrings (no false positives)", () => {
+    // "framework"/"network" contain "work" (career) and "update" contains
+    // "date" (relation) — none are real signals, so -> collect.
+    expect(detectDomain("Refactored the framework and fixed the network update")).toBe("collect");
+    expect(detectDomain("Please review the candidate shortlist")).toBe("collect");
+    // "workout" must NOT lend a phantom career point; gym + workout -> health.
+    expect(detectDomain("A long workout at the gym")).toBe("health");
+    // real whole-word hits still classify.
+    expect(detectDomain("I have a date planned with my partner")).toBe("relation");
+  });
+
   it("breaks ties by Big-Dipper order (career before finance)", () => {
     // one career hit (회사) + one finance hit (월급) -> tie -> career wins
     expect(detectDomain("회사 월급")).toBe("career");
