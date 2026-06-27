@@ -19,7 +19,7 @@ import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
 import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
 import { RatifySheet } from "@/components/persona/RatifySheet";
 import { loadTierShifts } from "@/lib/persona/load-tier-shifts";
-import type { TierShift } from "@/lib/persona/tier-history";
+import { tierShiftNudge, type TierShift } from "@/lib/persona/tier-history";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
 import { reactExpression } from "@/lib/companion/expression";
@@ -121,6 +121,10 @@ function ReviewScreenLegacy() {
     );
   }
 
+  // D9 re-check nudge, evidence-aware (0060): surfaces how many real records
+  // back the shifted stars. Pure helper so the string logic stays tested.
+  const nudge = tierShiftNudge(shifts, locale, starName);
+
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
       <ScrollView contentContainerStyle={styles.body}>
@@ -133,12 +137,8 @@ function ReviewScreenLegacy() {
             ? "비서가 기록을 보고 다음 한 걸음을 제안해요. 승인할 때만 반영돼요."
             : "Your assistant proposes a next step from your records. It applies only when you ratify."}
         </Text>
-        {shifts.length > 0 ? (
-          <Text variant="subtle" color="brand" style={styles.shifts}>
-            {locale === "ko"
-              ? `최근 변화 감지: ${shifts.map((s) => `${starName(s.starId, locale)} ${s.direction === "up" ? "↑" : "↓"}`).join(", ")} - 점검해볼까요?`
-              : `Recent shift: ${shifts.map((s) => `${starName(s.starId, locale)} ${s.direction === "up" ? "↑" : "↓"}`).join(", ")} - want to re-check?`}
-          </Text>
+        {nudge ? (
+          <Text variant="subtle" color="brand" style={styles.shifts}>{nudge}</Text>
         ) : null}
         <Button label={locale === "ko" ? "제안 받기" : "Get a proposal"} variant="primary" onPress={generate} />
         {loading ? <ActivityIndicator color={cosmic.soulViolet} style={styles.spinner} /> : null}
