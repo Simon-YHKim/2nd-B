@@ -94,6 +94,7 @@ export default function Jot() {
           />
 
           <Pressable
+            hitSlop={14}
             onPress={() => void onSave()}
             disabled={!canSave}
             accessibilityRole="button"
@@ -129,6 +130,7 @@ export default function Jot() {
           ) : null}
 
           <Pressable
+            hitSlop={14}
             onPress={() => router.push("/sign-up")}
             accessibilityRole="button"
             accessibilityLabel={ko ? "계정 만들기" : "Create account"}

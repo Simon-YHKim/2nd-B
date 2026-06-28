@@ -300,6 +300,7 @@ function SignUpLegacy() {
             </Text>
             <Link href="/sign-in" asChild>
               <Pressable
+                hitSlop={14}
                 accessibilityRole="link"
                 accessibilityLabel={t("signUp.signInLink")}
                 accessibilityHint={t("signUp.signInHint")}
@@ -313,6 +314,7 @@ function SignUpLegacy() {
           </View>
           <Link href="/manual" asChild>
             <Pressable
+              hitSlop={14}
               accessibilityRole="link"
               accessibilityLabel={t("signUp.manualLabel")}
               accessibilityHint={t("signUp.manualHint")}
