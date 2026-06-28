@@ -52,7 +52,16 @@ async function fetchProfile(userId: string): Promise<ProfileProbe> {
     return { hasProfile: false, isMinor: null };
   }
   if (!data) return { hasProfile: false, isMinor: null };
-  const isMinor = data.birth_date ? ageInYears(data.birth_date) < MINOR_AGE_CEILING : null;
+  if (!data.birth_date) {
+    // birth_date is NOT NULL in the schema (0002_users + the 0030 server age-gate),
+    // so a profile WITHOUT it is a data anomaly. Never silently route an unknown-age
+    // profile as an ADULT — that would send a possible minor to the adult crisis
+    // hotline and grant adult-only data flows (the minor clamp 0033 keys off this).
+    // Fail SAFE to the protective path: treat as a minor until the age is known.
+    if (typeof console !== "undefined") console.warn("[auth] profile has no birth_date; routing protectively as minor");
+    return { hasProfile: true, isMinor: true };
+  }
+  const isMinor = ageInYears(data.birth_date) < MINOR_AGE_CEILING;
   return { hasProfile: true, isMinor };
 }
 
