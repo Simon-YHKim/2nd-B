@@ -3,6 +3,81 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-07-01 / 네이티브(폰) 소셜 로그인·Sentry·분석 반영 (빌드 게이트 대기) + 옛 GCP 프로젝트 정리 + 다른 컴퓨터 이전
+
+> **이 핸드오프 = 다른 컴퓨터로 작업 이전용.** 새 머신은 아래 "새 컴퓨터 셋업"부터.
+
+### 어디까지 왔나
+- main HEAD: `ccba7b66`
+- 이번 세션 머지된 PR: **#608**(seed C8 인용) · **#610**(AUTH_PROVIDERS 네이티브 정정) · **#617**(eas 네이티브 env 패리티 — 폰 mock LLM→live·Kakao버튼·Sentry DSN) · **#618**(네이티브 셋업 런북 `docs/native-social-login-setup.md`) · **#623**(eas Google client→2ndB)
+- **미머지 draft (EAS 빌드 게이트 대기)**: **#619** Sentry 네이티브 크래시 캡처 · **#624** native-SDK Google+Kakao 로그인(signInWithIdToken). 둘 다 `npm run verify` green.
+- 테스트: `npm run verify` green (#624 기준 **262 suites / 2021 tests**). working tree: clean.
+
+### 활성 인프라 / 자격증명 맵 (← 새 머신이 알아야 할 핵심)
+- **Supabase** `zoacryukmdeivmolvyhj`. LLM은 edge function(`gemini-proxy`) 경유, Gemini 키는 **2ndB GCP `gen-lang-client-0309022219`**(generativelanguage 켜짐). 키는 Supabase Edge secret(레포/번들에 없음).
+- **Google OAuth (2ndB, num 160139928684)**: web `160139928684-a3d8fufkppj560cltgaas9qpsfefl72i.apps.googleusercontent.com`, android `160139928684-kbgbapp3v5a102krmqpij970sdv2f2l7.apps.googleusercontent.com`. 동의화면=Production. (구 `699860089424-*`는 폐기.)
+- **Kakao 앱 1496341**: OIDC ON · 네이티브앱키 `b1e5bae63789540f943809288822663b` · 스킴 `kakaob1e5bae63789540f943809288822663b` · Android 키해시 `uNhEMMiu0vE7N0VkjTxbRANAEz8=` · 릴리즈 SHA-1 `B8:D8:44:30:C8:AE:D2:F1:3B:37:45:64:8D:3C:5B:44:03:40:13:3F`.
+- **GitHub Variables** (공개 `EXPO_PUBLIC_*`): GOOGLE_CLIENT_ID(2ndB)·SENTRY_DSN·POSTHOG_KEY/HOST·CLARITY·GA4·ENABLE_KAKAO·EXIM/MFDS. eas.json 네이티브 프로파일에 미러됨(EXIM/MFDS는 §5 위해 제외).
+- **옛 GCP `ornate-hour-217619` = 삭제 완료** (DELETE_REQUESTED, Gemini/Vertex/billing 없음 확인 후 삭제 → 옛 OAuth 클라이언트·시크릿 동반 삭제). 30일 내 복원: `gcloud projects undelete ornate-hour-217619`.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **EAS Android preview 빌드 + 실기기 확인** — Google 네이티브 시트·KakaoTalk 로그인(#624) + #617 효과(live AI·Kakao버튼). 양호→#624 머지 | medium | ⭐ 핵심 게이트. **#619까지 합본 빌드하면 크래시 캡처도 한 번에** |
+| B | #619 Sentry 머지 — A와 같은 빌드에서 크래시 리포트 확인 후 | small | A와 동시 |
+| C | iOS: iOS Google client + google-signin 플러그인 `iosUrlScheme` + Sign in with Apple(가이드 4.8) | medium | iOS 빌드 시 |
+| D | Sentry 소스맵 심볼리케이션: metro `getSentryExpoConfig` + `@sentry/react-native/expo` 플러그인 + `SENTRY_AUTH_TOKEN`(EAS secret) | medium | 후속 |
+| E | EXIM/MFDS 키 하드닝(EAS sensitive env 또는 엣지프록시) | small | `docs/EXTERNAL-API-INTEGRATION.md` B.3/4 |
+
+### 적용 중인 정책 (영구)
+1. **네이티브 PR은 EAS 빌드 green + 실기기 확인 전 머지 금지**(draft 유지) — native 모듈은 OTA 불가, ANDROID_QA_GUIDELINES 위험존.
+2. 워크트리는 **`<repo>/.worktrees/<name>` 안에만**(스탠딩룰, `E:\Coding Infra\_worktrees\` 금지). main 직접 push 금지→PR, push 전 `npm run verify`, Conventional Commits.
+3. 네이티브 소셜 로그인 = **Supabase `signInWithIdToken`**(browser-brokered 아님). 실패 시 browser-brokered 자동 폴백. `EXPO_PUBLIC_NATIVE_SOCIAL_SDK` 게이트(웹=off).
+4. 시크릿은 Supabase 대시보드 / EAS Secret만. 공개 client id·Kakao 네이티브키는 eas.json/app.json OK.
+5. 빌드는 비용 발생 → 트리거 전 사용자 확인.
+
+### 핵심 파일 위치
+```
+src/lib/auth/native-social.ts          네이티브 Google/Kakao id_token 로그인 (#624)
+src/lib/auth/auth-providers.ts         startOAuthProvider 네이티브-우선 디스패치(+browser 폴백)
+src/lib/supabase/auth.ts               signInWithIdTokenProvider 래퍼
+app.json                               kakao 플러그인(네이티브앱키) + google-signin(bare, Android-safe)
+eas.json                               네이티브 env(NATIVE_SOCIAL_SDK=true, GOOGLE_CLIENT_ID=2ndB)
+src/app/_layout.tsx                    네이티브 Sentry init (#619, RN-runtime 가드)
+docs/native-social-login-setup.md      단계별 셋업 + 콘솔 런북
+docs/AUTH_PROVIDERS.md                 네이티브 OAuth(browser-brokered 기본) 정본
+```
+
+### 새 컴퓨터 셋업 (이 핸드오프의 목적)
+```bash
+# 1) 레포 받기 (기존 클론 있으면 pull만)
+git clone https://github.com/Simon-YHKim/2nd-B.git && cd 2nd-B
+git fetch origin main && git pull origin main
+# 2) 로컬 의존성 (새 머신엔 node_modules 없음 — 필수)
+npm ci --legacy-peer-deps
+# 3) 검증
+npm run verify        # 262 suites / 2021 tests
+# 4) EAS 빌드하려면 (게이트 A): Expo 인증 필요
+npx eas-cli login     # 또는 EXPO_TOKEN 환경변수
+# npx eas-cli build -p android --profile preview   # 비용 → 사용자 확인 후
+# 5) 드래프트 이어가기
+git checkout feat/native-sdk-social-login   # #624 (native 로그인)
+git checkout feat/sentry-native-pathb       # #619 (Sentry)
+```
+
+### 검증
+```bash
+npm ci --legacy-peer-deps && npm run verify
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A 작업(EAS Android 빌드 게이트)부터. #624 단독 vs #619 합본 빌드 결정.
+```
+
+---
+
 ## Latest — 2026-06-27 / DB user-profiling: 실제 evidence-id citations + 리서치 백로그 라이브 적재 + 넛지 evidence 노출
 
 ### 어디까지 왔나
