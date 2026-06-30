@@ -3,7 +3,67 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-01 / 네이티브(폰) 소셜 로그인·Sentry·분석 반영 (빌드 게이트 대기) + 옛 GCP 프로젝트 정리 + 다른 컴퓨터 이전
+## Latest — 2026-07-01 / IPIP-NEO-120 정밀 측정(P1-P3) + 자기이해 강화·a11y·컴플라이언스 다수 PR
+
+### 어디까지 왔나
+- main HEAD: `0eac3880`
+- **이번 세션 머지**: **#633** IPIP-NEO-120 Phase1(instrument) · **#634** Phase2(화면+진입+도메인렌즈). (앞서 같은 세션: #612 Big Five canon · #613 위생 · #614 statusheader · #620 행동 fold · #622 receipt)
+- 테스트: `npm run verify` green (각 PR · CI green)
+- working tree: **9 untracked mascot assets**(`assets/deepspace/secondb-*.png` — Simon이 다른 플랫폼서 추가, **건드리지 말 것**)
+
+### 활성 인프라
+- 2nd-B = Expo SDK 56 + Supabase `zoacryukmdeivmolvyhj` + Gemini(edge `gemini-proxy`) + Claude(edge `claude-proxy`). main 라이브. (네이티브 로그인·키 맵 = 아래 이전 핸드오프 참조.)
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **#636 IPIP facet lens 시각 QA → 머지** (`/ipip-neo` 검사 완료 후 30-facet 뷰 확인) | small | ⭐ IPIP 정밀 완성 |
+| B | **buildPersona가 IPIP>BFI 우선** 결정 (소울코어/별자리 핵심 trait를 IPIP 도메인으로 — 행동 변경) | medium | A 후 |
+| C | **열린 강화 PR QA·머지**: #625 RLSS · #626 정직-종합 · #627 반영스캐폴드 · #628 SOKA Seen · #629 근사치고지 · #630 대비가드 · #631 a11y · #632 연령 fail-safe | medium | 시각/런타임 QA 후 |
+| D | high-privacy 저마찰 3종(미사용 pref키 prune·추천 하드게이트·동의 audit log) — Simon "이 3개 가" 하면 빌드 | medium | Simon 결정 |
+| E | 보존정책 TTL 기간(ai_audit_log·consent_records ip/ua_hash·star_tier_history 무기한) → 마이그레이션 | medium | 기간=법무/제품 |
+| F | T5 peer-review 파이프라인 (informant=타인 PII) | large | 법무 게이트 |
+
+### 적용 중인 정책 (영구)
+1. 게이트만 확인하고 계속 ship: **파괴·비용·secrets·안전임상·법무**.
+2. `verify`는 **단독 명령으로 background**(`> out` trailing이면 알림 exit=tail이라 마스킹).
+3. 공유 `node_modules` devDep(ts-jest 등) 멀티에이전트가 prune → `npm install` 복원.
+4. **스택 PR**: 부모 squash 머지 후 자식 `--base main` retarget → `update-branch`가 squash 부모 흡수(디프 정리).
+5. cascade로 BEHIND + verify·lint green + 격리 변경 → `--admin` 머지.
+6. `git add`는 **명시 경로만**(stray 휩쓸림 방지; 지금 9 mascot assets 미추적 — 안 건드림).
+7. 결정/리포트 산출물은 **HTML**(CLAUDE.md §13); 검증된 도구 문항은 verbatim 유지.
+
+### 핵심 파일 위치
+```
+src/lib/persona/ipip-neo.ts                IPIP-NEO-120 120문항 + facet/domain 채점 (#633)
+src/lib/persona/facet-rows.ts              facet 그룹화 순수헬퍼 (#636)
+src/components/persona/FacetBreakdown.tsx  facet 렌즈 UI (#636)
+src/app/ipip-neo.tsx                       IPIP 검사 화면 (#634)
+src/lib/persona/bfi.ts / rlss.ts           BFI-44(검증됨) / RLSS(#625)
+src/lib/persona/synthesis-prompt.ts        정직-종합 프롬프트 (#626)
+src/lib/theme/contrast.ts                  WCAG 대비 유틸 (#630)
+E:\Coding Infra\Output\2ndb-*.html         리서치·컴플라이언스·설계 리포트 다수
+```
+
+### 컨텍스트 (이번 세션 무엇을 왜)
+- **자기이해 강화**: deep-research 4회(자기이해법·AI엄밀성/Barnum·동의프라이버시·접근성) → T1 receipt·T2 정직종합·T3 RLSS·T4 스캐폴드·T5 SOKA Seen·근사치고지·a11y스윕·대비가드·연령 fail-safe.
+- **IPIP-NEO-120**: Simon "Big Five IPIP 적용·정확?" → 검증=IPIP 미적용·BFI-44는 정확. Simon "B" 선택 → IPIP-NEO-120 P1-P3(공개도메인 EN verbatim, KO 비검증 reference, Alheimsins MIT 레포 소싱·Johnson 키 프로그램 검증).
+- 전체 기록 = 메모리 `project_2ndb_self_understanding_strengthening.md`.
+
+### 검증
+```bash
+npm run verify
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A 작업(#636 시각 QA → 머지)부터
+```
+
+---
+
+## 2026-07-01 (이전) / 네이티브(폰) 소셜 로그인·Sentry·분석 반영 (빌드 게이트 대기) + 옛 GCP 프로젝트 정리 + 다른 컴퓨터 이전
 
 > **이 핸드오프 = 다른 컴퓨터로 작업 이전용.** 새 머신은 아래 "새 컴퓨터 셋업"부터.
 
