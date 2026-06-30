@@ -270,10 +270,11 @@ export async function loadLatestBfi(
 export async function loadLatestIpip(
   supabase: ReturnType<typeof getSupabaseClient>,
   userId: string,
-): Promise<{ openness: number; conscientiousness: number; extraversion: number; agreeableness: number; neuroticism: number } | null> {
+): Promise<{ openness: number; conscientiousness: number; extraversion: number; agreeableness: number; neuroticism: number; facets: Record<string, number> } | null> {
   // IPIP-NEO-120 (1-5 Likert) is the facet-level measure. /ipip-neo writes a record
-  // tagged ["ipip_neo", ...] whose body carries the 5 domain means (+ 30 facets).
-  // Same 5 domains as BFI, so this feeds the persona/lens identically.
+  // tagged ["ipip_neo", ...] whose body carries the 5 domain means + 30 facet means.
+  // Same 5 domains as BFI, so the domains feed the persona/lens identically; the 30
+  // facets are the precision layer the facet lens renders.
   const { data, error } = await supabase
     .from("records")
     .select("body, created_at")
@@ -285,16 +286,24 @@ export async function loadLatestIpip(
   try {
     const parsed = JSON.parse((data[0] as { body: string }).body) as {
       domains?: Partial<Record<"openness" | "conscientiousness" | "extraversion" | "agreeableness" | "neuroticism", number>>;
+      facets?: Record<string, number>;
     };
     const d = parsed.domains;
     const keys = ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"] as const;
     if (!d || !keys.every((k) => typeof d[k] === "number" && Number.isFinite(d[k]))) return null;
+    const facets: Record<string, number> = {};
+    if (parsed.facets && typeof parsed.facets === "object") {
+      for (const [k, v] of Object.entries(parsed.facets)) {
+        if (typeof v === "number" && Number.isFinite(v)) facets[k] = v;
+      }
+    }
     return {
       openness: d.openness as number,
       conscientiousness: d.conscientiousness as number,
       extraversion: d.extraversion as number,
       agreeableness: d.agreeableness as number,
       neuroticism: d.neuroticism as number,
+      facets,
     };
   } catch {
     return null;

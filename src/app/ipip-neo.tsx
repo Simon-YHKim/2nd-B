@@ -17,7 +17,7 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { LensView, type LensTraits } from "@/components/deep-space/DeepSpaceViews";
+import { LensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import { loadLatestIpip } from "@/lib/persona/build";
@@ -25,10 +25,10 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { TRAIT_LABEL_EN, TRAIT_LABEL_KO } from "@/lib/persona/bfi";
 import {
   IPIP_NEO_120_ITEMS,
-  ipipMeanToPercent,
   scoreIpipNeo,
   type IpipResponses,
 } from "@/lib/persona/ipip-neo";
+import { FacetBreakdown } from "@/components/persona/FacetBreakdown";
 import { QuantIntroModal } from "@/components/quant/QuantIntroModal";
 import { LikertChoiceGroup } from "@/components/quant/LikertChoiceGroup";
 import { QuantPager } from "@/components/quant/QuantPager";
@@ -248,8 +248,10 @@ function IpipNeoLegacy() {
 }
 
 function IpipNeoDeepSpace() {
+  const { i18n } = useTranslation();
+  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const { userId, loading } = useAuth();
-  const [traits, setTraits] = useState<LensTraits | null>(null);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof loadLatestIpip>>>(null);
   const [hasError, setHasError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [taking, setTaking] = useState(false);
@@ -257,7 +259,7 @@ function IpipNeoDeepSpace() {
   useEffect(() => {
     if (loading) return;
     if (!userId) {
-      setTraits(null);
+      setResult(null);
       setHasError(false);
       return;
     }
@@ -265,23 +267,11 @@ function IpipNeoDeepSpace() {
     setHasError(false);
     loadLatestIpip(getSupabaseClient(), userId)
       .then((r) => {
-        if (cancelled) return;
-        // IPIP domain means are 1-5; same (v-1)/4 anchor as the persona/BFI bars.
-        setTraits(
-          r
-            ? {
-                openness: ipipMeanToPercent(r.openness),
-                conscientiousness: ipipMeanToPercent(r.conscientiousness),
-                extraversion: ipipMeanToPercent(r.extraversion),
-                agreeableness: ipipMeanToPercent(r.agreeableness),
-                neuroticism: ipipMeanToPercent(r.neuroticism),
-              }
-            : null,
-        );
+        if (!cancelled) setResult(r);
       })
       .catch(() => {
         if (!cancelled) {
-          setTraits(null);
+          setResult(null);
           setHasError(true);
         }
       });
@@ -304,10 +294,28 @@ function IpipNeoDeepSpace() {
     );
   }
 
+  // Data present -> the facet lens: the 5 domains expanded into their 30 facets
+  // (the precision payoff over BFI's domain-only bars).
+  if (result) {
+    const domains = {
+      openness: result.openness,
+      conscientiousness: result.conscientiousness,
+      extraversion: result.extraversion,
+      agreeableness: result.agreeableness,
+      neuroticism: result.neuroticism,
+    };
+    return (
+      <DeepSpaceScreen active="lens">
+        <FacetBreakdown facets={result.facets} domains={domains} locale={locale} onRetake={() => setTaking(true)} />
+      </DeepSpaceScreen>
+    );
+  }
+
+  // No result yet / error -> the shared empty / error / take-survey flow.
   return (
     <DeepSpaceScreen active="lens">
       <LensView
-        traits={traits}
+        traits={null}
         hasError={hasError}
         onStart={() => setTaking(true)}
         onRetry={() => setReloadKey((k) => k + 1)}
