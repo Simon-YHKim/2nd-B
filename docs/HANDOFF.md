@@ -3,7 +3,28 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-01 / IPIP-NEO-120 정밀 측정(P1-P3) + 자기이해 강화·a11y·컴플라이언스 다수 PR
+## Latest — 2026-07-01 / #636 facet lens 시각 QA → 머지 + EN 라벨 트렁케이션 픽스(follow-up)
+
+### 어디까지 왔나
+- main HEAD: `971bb35` (#636 squash 머지)
+- **이번 세션 = 큐 A 처리**: #636(IPIP-NEO-120 facet lens · 30 facet, Phase 3) **시각 QA → 머지 완료**. 실제 컴포넌트를 토큰·라벨·데이터 그대로 HTML 재현(Playwright/Chromium 390px) → EN·KO 둘 다 눈으로 확인.
+- **QA 발견 + 픽스(follow-up PR, 드래프트)**: EN(`fallbackLng`; facet 라벨이 en/ko-only라 es/id/pt도 EN 폴백)에서 도메인 헤더 3/5(Openness to Experience·Conscientiousness·Agreeableness) + 긴 facet 라벨 3개(Achievement-Striving·Excitement-Seeking·Self-Consciousness)가 `width:96`/`numberOfLines=1`에 잘림. KO는 깨끗. → `FacetBreakdown`: 도메인명을 **풀폭 헤더 라인 + 그 아래 풀폭 막대**(부모 우세 = Visual Tier), facet 라벨 칼럼 96→116 + 2-line 허용. 재렌더로 EN 잘림 0 / KO 무변 확인. 브랜치 `claude/ipip-facet-lens-qa-uuvjti`.
+- 테스트: `npm run verify` green (264 suites / 2030 tests). #636 CI도 green이었음. working tree: 9 mascot assets 미추적(건드리지 않음).
+
+### 다음 작업 큐 (갱신)
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| ~~A~~ | ~~#636 facet lens 시각 QA → 머지~~ **DONE `971bb35`** (+ EN 라벨 픽스 follow-up PR 드래프트) | — | ✅ |
+| B | **buildPersona가 IPIP>BFI 우선** (소울코어/별자리 핵심 trait를 IPIP 도메인으로 — 행동 변경) | medium | ⭐ 다음 |
+| C | 열린 강화 PR QA·머지: #625 RLSS · #626 정직-종합 · #627 반영스캐폴드 · #628 SOKA Seen · #629 근사치고지 · #630 대비가드 · #631 a11y · #632 연령 fail-safe | medium | 시각/런타임 QA 후 |
+| G | (신규·선택) facet 30 라벨 + 도메인 라벨 es/id/pt 로컬라이즈 (현재 EN 폴백) | small | |
+
+### 시각 QA 방법 메모 (재사용)
+- 라이브 SPA 캡처(`scripts/capture-screens.mjs`)는 **머지 전 PR 코드** + **로그인·설문 완료 상태**(facet lens는 결과 있을 때만 렌더)를 못 보여줌. 대신 컴포넌트를 토큰 그대로 HTML 재현 후 Playwright(`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`)로 390px 스크린샷 = 머지 전 시각 QA에 빠르고 정확.
+
+---
+
+## 2026-07-01 / IPIP-NEO-120 정밀 측정(P1-P3) + 자기이해 강화·a11y·컴플라이언스 다수 PR
 
 ### 어디까지 왔나
 - main HEAD: `0eac3880`
