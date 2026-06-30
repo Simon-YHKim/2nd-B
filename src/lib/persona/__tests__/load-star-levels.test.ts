@@ -65,6 +65,26 @@ describe("loadStarLevels (cheap, no-Gemini)", () => {
     expect(starLevels.now).toBe(4);
   });
 
+  test("an IPIP-NEO-120 record (no BFI) lights star1 (지금의 나) to L4", async () => {
+    // Previously only BFI counted here, so a 120-item IPIP result with no BFI was
+    // treated as heuristic. IPIP is a validated instrument, so it must light L4.
+    tableFixtures["records:select"] = {
+      data: [
+        {
+          body: JSON.stringify({
+            domains: { openness: 4, conscientiousness: 3.5, extraversion: 2, agreeableness: 4, neuroticism: 1.5 },
+            facets: { anxiety: 2 },
+          }),
+          created_at: "2026-05-10T00:00:00Z",
+        },
+      ],
+      error: null,
+    };
+    tableFixtures["memorized_patterns:select"] = { data: [], error: null };
+    const { starLevels } = await loadStarLevels("u1");
+    expect(starLevels.now).toBe(4);
+  });
+
   test("an ECR-S attachment record lights star5 (관계의 나) to L4", async () => {
     tableFixtures["records:select"] = {
       data: [

@@ -11,7 +11,7 @@ import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { SeenLensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { buildPersona, type PersonaCard } from "@/lib/persona/build";
+import { buildPersona, instrumentLabel, isMeasuredSource, type PersonaCard } from "@/lib/persona/build";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
 import { brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
 import { buildCenterCards } from "@/lib/persona/center";
@@ -217,10 +217,10 @@ function PersonaLegacy() {
           eyebrow={locale === "ko" ? "07. 나의 모습" : "07. Self model"}
           title={locale === "ko" ? "자기 모델이 하나로 모였어요" : "Your self-model is gathered"}
           subtitle={
-            persona.traitsSource === "bfi"
+            isMeasuredSource(persona.traitsSource)
               ? locale === "ko"
-                ? "BFI-44 실측 · 애착 합성"
-                : "BFI-44 measurement · attachment combined"
+                ? `${instrumentLabel(persona.traitsSource)} 실측 · 애착 합성`
+                : `${instrumentLabel(persona.traitsSource)} measurement · attachment combined`
               : locale === "ko"
                 ? "일기 기반 추정 · 평가하면 실측으로 업데이트"
                 : "Journal-based estimate · assessments update it"

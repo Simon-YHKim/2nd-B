@@ -12,7 +12,7 @@
 // only renders these when a PersonaCard exists, so we can assume the
 // inputs are present (traits always are; mbti/attachment/values may not).
 
-import type { PersonaCard, PersonaTraits } from "./build";
+import { isMeasuredSource, type PersonaCard, type PersonaTraits } from "./build";
 import { labelFramework } from "../audit/frameworkLabels";
 import { cosmic } from "../theme/tokens";
 
@@ -100,7 +100,7 @@ export function buildCenterCards(persona: PersonaCard, locale: "en" | "ko"): Cen
   // 3) 이걸 만든 조각 — name the signals that fed the model.
   const sources: string[] = [];
   sources.push(
-    persona.traitsSource === "bfi"
+    isMeasuredSource(persona.traitsSource)
       ? ko
         ? "Big Five 실측"
         : "a measured Big Five"
