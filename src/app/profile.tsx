@@ -189,6 +189,7 @@ export default function Profile() {
         title: sections.analyze.label,
         items: [
           { key: "big-five", label: sections.know.items.bigFive.label, route: "/big-five" },
+          { key: "ipip", label: sections.know.items.ipip.label, route: "/ipip-neo" },
           { key: "mbti", label: sections.know.items.mbti.label, route: "/mbti" },
           { key: "attachment", label: sections.know.items.attachment.label, route: "/attachment" },
           { key: "trinity", label: sections.analyze.items.trinity.label, route: "/trinity" },

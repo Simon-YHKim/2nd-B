@@ -36,6 +36,10 @@
           "label": "Big Five",
           "hint": "Abre a avaliação Big Five."
         },
+        "ipip": {
+          "label": "IPIP-NEO-120",
+          "hint": "Abre a avaliação detalhada (IPIP-NEO-120)."
+        },
         "attachment": {
           "label": "Apego",
           "hint": "Abre a avaliação de estilo de apego."

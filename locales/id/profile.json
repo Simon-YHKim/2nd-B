@@ -36,6 +36,10 @@
           "label": "Big Five",
           "hint": "Membuka asesmen Big Five."
         },
+        "ipip": {
+          "label": "IPIP-NEO-120",
+          "hint": "Membuka asesmen mendalam (IPIP-NEO-120)."
+        },
         "attachment": {
           "label": "Attachment",
           "hint": "Membuka asesmen gaya attachment."
