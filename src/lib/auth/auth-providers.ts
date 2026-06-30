@@ -11,6 +11,7 @@ import {
   signInWithKakao,
   type OAuthProvider,
 } from "@/lib/supabase/auth";
+import { shouldTryNativeSocialSignIn, tryNativeSocialSignIn } from "@/lib/auth/native-social";
 
 // The Supabase-native providers, in display order. Naver is custom (separate
 // handler) and is appended by the presentation layer via isNaverEnabled().
@@ -30,10 +31,30 @@ export const OAUTH_PROVIDER_LABEL: Record<OAuthProvider, string> = {
   github: "GitHub",
 };
 
-// Dispatch a single OAuth provider to its Supabase-native start helper. Pure so
-// the provider→helper mapping (including the new facebook/github) is unit-tested
-// without rendering a hook.
+// Dispatch a single OAuth provider to its start helper. On a real native runtime with
+// the native-SDK flag on (google/kakao), try the on-device SDK first; any native failure
+// falls back to the browser-brokered helper so a misconfigured native client never blocks
+// a login that already works on web. Web/jest skip straight to the browser switch, so the
+// provider→helper mapping stays unit-testable without the SDKs.
 export function startOAuthProvider(provider: OAuthProvider): Promise<unknown> {
+  if (shouldTryNativeSocialSignIn(provider)) {
+    return startOAuthProviderNative(provider);
+  }
+  return startOAuthProviderBrowser(provider);
+}
+
+async function startOAuthProviderNative(provider: OAuthProvider): Promise<unknown> {
+  try {
+    if (await tryNativeSocialSignIn(provider)) return undefined;
+  } catch (e) {
+    if (typeof console !== "undefined") {
+      console.warn(`[auth] native ${provider} sign-in failed; falling back to browser`, (e as Error).message);
+    }
+  }
+  return startOAuthProviderBrowser(provider);
+}
+
+function startOAuthProviderBrowser(provider: OAuthProvider): Promise<unknown> {
   switch (provider) {
     case "apple":
       return signInWithApple();
