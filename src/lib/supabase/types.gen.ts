@@ -153,6 +153,45 @@ export type Database = {
           },
         ]
       }
+      consent_changes: {
+        // Manually added (D-3, migration 0062) — this snapshot predates it.
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          ip_hash: string | null
+          pref_key: string
+          ua_hash: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          ip_hash?: string | null
+          pref_key: string
+          ua_hash?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          ip_hash?: string | null
+          pref_key?: string
+          ua_hash?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_changes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consent_records: {
         Row: {
           age_band: string
