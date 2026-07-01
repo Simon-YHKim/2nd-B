@@ -64,10 +64,21 @@ export const m3ColorDark = {
 export const m3Accent = {
   star: "#CCFAFF",
   starCore: "#46B6FF",
+  /** Receding / faint star cyan (constellation arcs, dim stars). */
+  starDim: "#7FC9F0",
   polaris: "#C8B6FF",
+  /** 북극성 orb radial edge (pairs with `polaris` as the center stop). */
+  polarisEdge: "#8B7BD8",
+  /** Pointer link toward 북극성 (soul violet, pre-multiplied 50%). */
+  polarisLine: "rgba(167,139,250,0.50)",
   moodPositive: "#5FF0C0",
   moodNeutral: "#A78BFA",
   moodNegative: "#FF7A90",
+  /** Sky copy on the deep-space background: body cyan / emphasized near-white. */
+  skyText: "#5FD4FF",
+  skyTextHi: "#E8F7FF",
+  /** Mid-navy wash behind the constellation glow disc. */
+  skySurface: "#0B2142",
   /** App-wide deepest background behind the nebula (m3-theme.css `body`). */
   spaceBody: "#05070B",
 } as const;
