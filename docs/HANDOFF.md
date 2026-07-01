@@ -3,7 +3,41 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-01 / P1b: M3 프리미티브 7종 + Roboto 폰트 (rev2 마이그레이션)
+## Latest — 2026-07-01 / P2 랜딩 + OTA 파이프라인 복구 (rev2 M3)
+
+### 어디까지 왔나
+- **P1b (#652) · P2 (#653) · OTA 번들 fix (#654) 전부 main 머지.** 그 사이 Simon 이 Android 픽스 다수를 직접 push (텍스트클리핑/키보드/expo-image/tabbar/elevation) — 충돌 없이 통합됨.
+- **P2 (#653)**: `DeepSpaceDock`→`MdNavBar` 스왑, 5탭 정합(별자리홈·담기·세컨비·위키·비서; 나=account 는 dock out → profile/settings/back-arrow 로 진입), `wiki`→`/wiki`, `SecondbHead` persona prop(secondb/meta/twi tint, unset=시안 무회귀), locale 5개 wiki 키 + 별자리홈 라벨 + 소울코어 제거. verify 276 suites/2125 green.
+
+### ⚠️ OTA 번들 버그 발견·수정 (#654 + 이 커밋)
+- `src/app/__tests__/big-five-canon.test.ts` 의 `node:fs` 가 expo-router `require.context` 로 **앱 번들에 포함** → Hermes(네이티브/OTA) 번들 실패. **웹 export 는 통과(node: shim)해서 가려져 있었음.**
+- 게다가 `eas-update.yml` gate 는 커밋메시지 `[ota]`/`[release]` 마커 없으면 **publish skip** → **OTA 는 #612 이후 실제로 한 번도 퍼블리시된 적 없었음**(전부 gate-skip). P2 머지의 `[ota]` 마커가 첫 실제 퍼블리시를 시도하다 이 버그를 노출.
+- **수정**: 테스트를 `src/__tests__/` 로 이동(#654) + `metro.config.js` blockList 에 `__tests__`/`*.test.*` 제외 하드닝(이 커밋). `expo export --platform android --clear` 성공으로 확인(node:fs 오류 소멸, 13MB Hermes 번들).
+
+### OTA 상태 / 다음 세션 확인
+- 버전 **0.0.6 유지**(runtimeVersion policy appVersion) = 기존 preview 설치(Simon 폰) 도달. 올리면 OTA 고아 → 유지.
+- OTA 트리거: **main push + 커밋 `[ota]`/`[release]` 마커** (또는 workflow_dispatch). ⚠️ 에이전트 GitHub 토큰은 **Actions dispatch/rerun 403** → push 경유로만 발동. 이 핸드오프 머지가 `[ota]` 로 재트리거.
+- **동시성 주의**: Simon 이 연속 push 하면 concurrency 가 진행 중 OTA 런을 취소함(482929e 런이 그렇게 취소됨 — 번들은 성공했었음). 조용한 시점에 퍼블리시돼야 완료.
+- **on-device 확인**(Simon): `fallbackToCacheTimeout:0` → 앱 **2회 완전 재실행** 시 반영. preview 채널, runtime 0.0.6.
+
+### 검증 한계 (헤드리스 컨테이너)
+- 앱 정상 렌더 확인됨: 웹 export 빌드 + 61라우트 Playwright 워크 **0 크래시** + `/complete-profile` 실제 렌더 시각확인(세컨비 머리·딥스페이스·M3 필드).
+- 이 컨테이너 브라우저는 Supabase/외부 HTTPS 미도달(프록시 CONNECT 가 브라우저엔 안 열림) → **딥스페이스 홈+M3 dock 시각검증은 Vercel PR 프리뷰 / Simon 폰**(정상 네트워크)에서.
+
+### 다음 작업
+- **P2-cont**: 홈 색토큰 m3.accent.* 완전 이관(현재 홈은 이미 Pretendard+딥스페이스라 저델타), 세컨비 persona **셀렉터** UI(/secondb), `/wiki` 를 DeepSpaceScreen active="wiki" 로 감싸기(PRD §04 최종 5탭 확정 게이트).
+- **P3~P7**: `docs/REV2-MIGRATION.md`.
+- **백엔드 게이트**(변동 없음): E-act(0063 purge 활성화), F2~F4(peer-review informant 법무).
+
+### 검증 / 시작
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md && cat docs/REV2-MIGRATION.md
+npm run verify   # 276 suites / 2125 tests
+```
+
+---
+
+## 2026-07-01 / P1b: M3 프리미티브 7종 + Roboto 폰트 (rev2 마이그레이션)
 
 ### 어디까지 왔나
 - **draft PR #652** (`claude/handoff-docs-review-rkrty7`). CI green (lint + verify + Vercel 프리뷰 Ready). **미머지** — Simon 리뷰 대기 (자동머지 금지).

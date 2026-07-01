@@ -27,6 +27,14 @@ config.resolver.unstable_enablePackageExports = false;
 // Nested git worktrees (.worktrees/<branch>) are full repo copies. Keep Metro from
 // crawling them, or the haste map collides on duplicate module names + the watch
 // set balloons. (Team rule: all 2ndB worktrees live under .worktrees/.)
-config.resolver.blockList = [/[\\/]\.worktrees[\\/].*/];
+config.resolver.blockList = [
+  /[\\/]\.worktrees[\\/].*/,
+  // Never bundle tests into the app. expo-router globs src/app via require.context,
+  // so a *.test.* / __tests__ file there pulls in node:* builtins that Hermes can't
+  // resolve and breaks the native / OTA export. jest uses ts-jest (not Metro), so
+  // this exclusion does not affect the test run.
+  /[\\/]__tests__[\\/]/,
+  /\.(test|spec)\.[jt]sx?$/,
+];
 
 module.exports = withNativeWind(config, { input: "./global.css" });
