@@ -48,7 +48,8 @@
       "ops": "Assistant",
       "account": "Me",
       "lens": "Me",
-      "iden": "IDEN"
+      "iden": "IDEN",
+      "wiki": "Wiki"
     },
     "head": {
       "home": {
@@ -78,10 +79,14 @@
       "iden": {
         "text": "I packed you into one file. Take it anywhere.",
         "tip": "You can mask sensitive items before exporting."
+      },
+      "wiki": {
+        "text": "Your knowledge, linked like a constellation.",
+        "tip": "Tap a node to wander between your notes."
       }
     },
     "home": {
-      "polaris": "North Star · Soul Core",
+      "polaris": "North Star",
       "hint": "Tap the seven stars to open your seven life areas"
     },
     "capture": {

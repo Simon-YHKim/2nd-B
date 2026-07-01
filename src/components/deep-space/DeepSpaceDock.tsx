@@ -16,7 +16,7 @@ import { fontFamilies } from "@/theme/typography";
 // Primary dock tabs (SCREEN_TREE_SPEC §0.1): 담기/알아가기/비서/나 + 중앙 세컨비.
 // "lens"/"iden" remain valid values so existing 2nd-tier callsites (active="lens")
 // keep type-checking; they are no longer rendered as primary dock tabs.
-export type DeepSpaceTab = "home" | "capture" | "chat" | "ops" | "account" | "lens" | "iden";
+export type DeepSpaceTab = "home" | "capture" | "chat" | "ops" | "account" | "wiki" | "lens" | "iden";
 
 export interface DockItem {
   key: DeepSpaceTab;
@@ -24,7 +24,7 @@ export interface DockItem {
   accessibilityLabel: string;
 }
 
-function TabIcon({ tab, color }: { tab: DeepSpaceTab; color: string }) {
+export function TabIcon({ tab, color }: { tab: DeepSpaceTab; color: string }) {
   switch (tab) {
     case "home": // four-point star
       return (
@@ -48,6 +48,19 @@ function TabIcon({ tab, color }: { tab: DeepSpaceTab; color: string }) {
       return (
         <Svg width={18} height={18} viewBox="0 0 24 24">
           <Path d="M5 7h14M5 12h14M5 17h9" stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" />
+        </Svg>
+      );
+    case "wiki": // 위키 — open book / knowledge
+      return (
+        <Svg width={18} height={18} viewBox="0 0 24 24">
+          <Path
+            d="M12 6C10 4.6 6.5 4.6 4 5.2v13c2.5-.6 6-.6 8 1 2-1.6 5.5-1.6 8-1v-13c-2.5-.6-6-.6-8 1zM12 6v13"
+            stroke={color}
+            strokeWidth={2}
+            fill="none"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
         </Svg>
       );
     case "account": // 나 — person
