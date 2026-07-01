@@ -47,4 +47,11 @@ export const fontAssets = {
   Pretendard: require("../../assets/fonts/Pretendard-Regular.otf"),
   Galmuri11: require("../../assets/fonts/Galmuri11-subset.ttf"),
   PressStart2P: require("@expo-google-fonts/press-start-2p/400Regular/PressStart2P_400Regular.ttf"),
+  // Material 3 chrome (rev2 migration, P1b). Keys MUST equal the m3.font strings
+  // (m3.font.chrome "Roboto" / mono "RobotoMono") so migrated screens resolve them.
+  // Three weights are registered so Android renders M3 medium/bold without faux-bold.
+  Roboto: require("@expo-google-fonts/roboto/400Regular/Roboto_400Regular.ttf"),
+  RobotoMedium: require("@expo-google-fonts/roboto/500Medium/Roboto_500Medium.ttf"),
+  RobotoBold: require("@expo-google-fonts/roboto/700Bold/Roboto_700Bold.ttf"),
+  RobotoMono: require("@expo-google-fonts/roboto-mono/400Regular/RobotoMono_400Regular.ttf"),
 };
