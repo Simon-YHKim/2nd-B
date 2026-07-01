@@ -126,6 +126,7 @@ function OpsLegacy() {
         domainId: domain,
         domainLabel: tEn(`domains.${domain}`),
         minor: isMinor === true,
+        recommendationsPref: prefs?.recommendations,
       });
       const used = await bumpOpsUsage(userId);
       setUsedToday(used);
