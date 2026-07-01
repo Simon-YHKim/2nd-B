@@ -3,7 +3,37 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-01 / rev2 (PRD v2.0) UI 마이그레이션 프로그램 착수 + F1 peer-review 스키마
+## Latest — 2026-07-01 / P1b: M3 프리미티브 7종 + Roboto 폰트 (rev2 마이그레이션)
+
+### 어디까지 왔나
+- **draft PR #652** (`claude/handoff-docs-review-rkrty7`). CI green (lint + verify + Vercel 프리뷰 Ready). **미머지** — Simon 리뷰 대기 (자동머지 금지).
+- **P1b 완료**: `src/components/m3/` 신규 — MdButton(filled/tonal/outlined/text/elevated)·SegBtn·MdCard(filled/outlined/elevated)·MdChip(assist/filter/input/suggestion)·Field(M3 outlined)·MdNavBar(presentational)·ProgressLinear(determinate/indeterminate) + `typeface.ts`(robotoFor/m3TextStyle) + `index.ts` 배럴. **m3.* 토큰만·hex/rgba 0·a11y prop·>=44/48dp**.
+- **폰트**: `@expo-google-fonts/roboto`(^0.4.3)+`roboto-mono`(^0.4.2) 설치, `src/theme/typography.ts` fontAssets에 Roboto/RobotoMedium/RobotoBold/RobotoMono 4키 등록 → dangling 이던 `m3.font.chrome/mono` 해소. `_layout.tsx`·`m3.ts` **무수정**(useFonts가 자동 스프레드).
+- **결정(Simon 승인)**: 진짜 M3 **stadium**(버튼/세그/내비 액티브인디케이터/진행바 = `m3.shape.full`), 칩은 정통 M3 8dp(`m3.shape.small`). DESIGN.md에 **M3-트랙 stadium 예외** 명시 + `:414` Roboto stale 금지라인 정정. docs/ASSETS.md에 Roboto/Roboto Mono(Apache-2.0, 번들) **C12** 등재.
+- **테스트 3종**: `m3-primitives`(소스규율: 토큰·hex/rgba/em대시·a11y·터치타깃)·`typeface`(단위)·`typography-m3-fonts`(폰트등록 일치). verify: **276 suites / 2125 tests green** (기존 273/2098 → +3/+27).
+
+### 다음 작업 (P2 — 프리미티브 실사용 시작점)
+| # | 작업 | 크기 |
+|---|---|---|
+| **P2** | 다음 — 5탭 내비 정합(별자리홈·담기·세컨비·위키·비서; 현 dock=나/account 포함, rev2=나 out·위키 in → **P2에서 최종 확정**) + `MdNavBar`를 `DeepSpaceScreen`에 배선(라우팅은 스크린 소유, `deep-space-nav-routes.test.ts` 커버 유지) + 별자리 홈 M3 스킨(골격 보존) + 세컨비 3인격 머리 | large |
+| P3~P7 | 자기이해 축·도메인 렌즈·IDEN/임포트·앱밖 위젯·QA (REV2-MIGRATION.md 참조) | large |
+
+- 프리미티브 사용: `import { MdButton, MdCard, MdChip, MdNavBar, Field, SegBtn, ProgressLinear } from "@/components/m3"`.
+- **시각 검증은 P2로** — P1b는 화면 미부착이라 렌더 확인 불가. P2에서 첫 M3 스크린 마운트 시 Roboto·토큰·stadium 육안 확인.
+
+### 검증 / 시작
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md && cat docs/REV2-MIGRATION.md
+npm run verify   # 276 suites / 2125 tests
+# P2(내비 정합 + MdNavBar 배선 + 별자리 홈 M3 스킨)부터. 프리미티브 = src/components/m3/
+```
+
+### 백엔드 결정 게이트 (UI와 별개, 변동 없음)
+- **E-act**: 0063 purge 함수 배포됨, 활성화(기간 + pg_cron)만. **F2~F4**: peer-review informant 플로우(공개링크+타인 PII 동의문구 법무 검토) → 집계뷰 → LLM 합성.
+
+---
+
+## 2026-07-01 / rev2 (PRD v2.0) UI 마이그레이션 프로그램 착수 + F1 peer-review 스키마
 
 ### 어디까지 왔나 (이 세션 머지 6 PR)
 - main HEAD: `57dd257`.

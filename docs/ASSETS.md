@@ -32,6 +32,10 @@ libraries used under their respective licenses. The full list:
   SIL OFL 1.1; subset derived from the `galmuri` npm package (^2.40.3)
 - Press Start 2P — SIL OFL, loaded via
   `@expo-google-fonts/press-start-2p` (^0.4.1)
+- Roboto (400 / 500 / 700) — Apache-2.0, loaded via
+  `@expo-google-fonts/roboto` (^0.4.3); Material 3 chrome/label face (rev2)
+- Roboto Mono — Apache-2.0, loaded via
+  `@expo-google-fonts/roboto-mono` (^0.4.2); M3 numeric face (rev2)
 
 ## Remote images (AI Museum, /museum)
 
