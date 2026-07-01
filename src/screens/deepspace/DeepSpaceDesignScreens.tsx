@@ -3176,6 +3176,7 @@ export function DeepSpaceOpsScreen() {
         domainId: domain,
         domainLabel: tEn(`domains.${domain}`),
         minor: isMinor === true,
+        recommendationsPref: recommendations,
       });
       const used = await bumpOpsUsage(userId);
       setUsedToday(used);

@@ -119,6 +119,13 @@ export interface OpsRecommendInput {
   /** EN label of the domain - the model anchor (EN is canonical). */
   domainLabel: string;
   minor?: boolean;
+  /**
+   * D-2 (defense-in-depth): the account's `recommendations` privacy pref. The
+   * engine itself re-checks the gate (recommendationsAllowed) before loading the
+   * wiki snapshot, so a call site that forgets the UI gate can never leak a
+   * snapshot to the LLM. OFF / undefined is fail-closed (returns []).
+   */
+  recommendationsPref?: boolean | null;
   now?: Date;
 }
 
@@ -144,6 +151,14 @@ export function recommendationsAllowed(
 }
 
 export async function recommendForDomain(input: OpsRecommendInput): Promise<OpsRecommendation[]> {
+  // D-2 (defense-in-depth): enforce the recommendations privacy gate at the
+  // ENGINE, not only at the three call sites. `recommendationsAllowed` is
+  // fail-closed (OFF / undefined -> false), so any current or future caller that
+  // reaches here without an explicit opt-in gets an empty result and NO wiki
+  // snapshot is ever loaded or sent to callGemini. The UI gates stay (they drive
+  // the "off" affordance); this is the belt-and-suspenders backstop so a missing
+  // call-site gate cannot leak the user's own material to the LLM.
+  if (!recommendationsAllowed(input.minor, input.recommendationsPref)) return [];
   const snapshot = await exportUserWiki(input.userId, { bodyCharLimit: SNAPSHOT_CHAR_LIMIT });
   const now = input.now ?? new Date();
   // Deterministic, aggregate-only behavior signal (the user's own completion
