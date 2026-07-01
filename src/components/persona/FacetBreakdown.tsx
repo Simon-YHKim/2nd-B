@@ -44,11 +44,13 @@ export function FacetBreakdown({
         <View key={g.domain} style={styles.group}>
           <View style={styles.domainHead}>
             <Text variant="body" style={styles.domainLabel} numberOfLines={1}>{g.domainLabel}</Text>
-            <Bar percent={g.domainPercent} accent={cosmic.soulViolet} />
+            <View style={styles.domainBarRow}>
+              <Bar percent={g.domainPercent} accent={cosmic.soulViolet} />
+            </View>
           </View>
           {g.facets.map((f) => (
             <View key={f.key} style={styles.facetRow}>
-              <Text variant="subtle" color="textMuted" style={styles.facetLabel} numberOfLines={1}>{f.label}</Text>
+              <Text variant="subtle" color="textMuted" style={styles.facetLabel} numberOfLines={2}>{f.label}</Text>
               <Bar percent={f.percent} accent={cosmic.signalMint} />
             </View>
           ))}
@@ -82,16 +84,22 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   domainHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
+    gap: spacing.xs,
     paddingBottom: spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: semantic.border,
   },
-  domainLabel: { width: 96, color: cosmic.soulViolet },
+  // The domain name heads its group on its own full-width line (long EN labels
+  // like "Openness to Experience" / "Conscientiousness" can't fit a fixed label
+  // column), with its overall bar full-width below — which also reads as the
+  // dominant parent over the indented facet bars (Visual Tier principle).
+  domainLabel: { color: cosmic.soulViolet },
+  domainBarRow: { flexDirection: "row" },
   facetRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  facetLabel: { width: 96 },
+  // Wide enough for long EN facet labels ("Self-Consciousness",
+  // "Excitement-Seeking"); the longest ("Achievement-Striving") wraps to a 2nd
+  // line rather than truncating. KO labels are short and stay single-line.
+  facetLabel: { width: 116 },
   track: { flex: 1, height: 7, borderRadius: 4, backgroundColor: withAlpha(cosmic.mistGray, 0.18), overflow: "hidden" },
   fill: { height: "100%", borderRadius: 4 },
   retake: { minHeight: 44, alignItems: "center", justifyContent: "center", marginTop: spacing.xs },
