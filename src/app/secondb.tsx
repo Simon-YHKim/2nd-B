@@ -693,10 +693,13 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
 
         {/* 첫 진입 인사 모달 */}
         <Modal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
+          {/* Scrim: NOT a button — on web an accessibilityRole="button" backdrop
+              renders as <button> and nests the modal's real <button>s inside it
+              (hydration error, parity finding S1). Tap-to-dismiss stays; the
+              labeled close affordances are the modal's own buttons. */}
           <Pressable
             style={ds.modalBackdrop}
             onPress={() => setIntroOpen(false)}
-            accessibilityRole="button"
             accessibilityLabel={locale === "ko" ? "인사 모달 닫기" : "Close intro"}
             accessibilityHint={locale === "ko" ? "세컨비 인사 모달을 닫습니다" : "Dismisses the intro modal"}
           >
@@ -734,10 +737,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           animationType="slide"
           onRequestClose={() => setRefDrawer(null)}
         >
+          {/* Scrim: not a button (same web nesting rationale as the intro modal). */}
           <Pressable
             style={ds.modalBackdrop}
             onPress={() => setRefDrawer(null)}
-            accessibilityRole="button"
             accessibilityLabel={locale === "ko" ? "참고 조각 닫기" : "Close referenced pieces"}
             accessibilityHint={locale === "ko" ? "참고 조각 서랍을 닫습니다" : "Dismisses the referenced pieces drawer"}
           >
