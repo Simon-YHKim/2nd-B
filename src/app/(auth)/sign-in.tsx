@@ -5,6 +5,7 @@
 // On successful sign-in, the IntroGate in _layout plays the cell-team
 // loading sequence as the "we're building your second brain" hand-off.
 
+import { useRef } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -63,6 +64,7 @@ function SignInLegacy() {
   } = useSignInForm();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
+  const passwordInputRef = useRef<TextInput>(null);
 
   // Still resolving the session — render the branded checking state instead of
   // flashing the sign-in form to a user who turns out to be signed in (the
@@ -153,6 +155,8 @@ function SignInLegacy() {
               accessibilityLabel={t("signIn.email")}
               accessibilityHint={t("signIn.emailHint")}
               style={styles.input}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordInputRef.current?.focus()}
             />
             <View style={styles.labelRow}>
               <Text variant="caption" style={styles.label}>{t("signIn.password")}</Text>
@@ -173,6 +177,7 @@ function SignInLegacy() {
               </Pressable>
             </View>
             <TextInput
+              ref={passwordInputRef}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}

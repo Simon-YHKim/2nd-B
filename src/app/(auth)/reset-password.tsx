@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -28,6 +29,7 @@ const PALETTE = cosmicSky;
 function ResetPasswordLegacy() {
   const { t } = useTranslation("auth");
   const kbHeight = useKeyboard();
+  const confirmPasswordInputRef = useRef<TextInput>(null);
   const {
     userId,
     loading,
@@ -112,9 +114,12 @@ function ResetPasswordLegacy() {
                   accessibilityLabel={t("resetPassword.newPassword")}
                   accessibilityHint={t("resetPassword.newPasswordHint")}
                   style={styles.input}
+                  returnKeyType="next"
+                  onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
                 />
                 <Text variant="subtle" style={styles.label}>{t("resetPassword.confirmPassword")}</Text>
                 <TextInput
+                  ref={confirmPasswordInputRef}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry
