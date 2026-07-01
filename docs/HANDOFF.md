@@ -3,7 +3,57 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-01 / 큐 A·B·C 전량 머지 + D-1(프라이버시 prune) — 11 PR 랜딩
+## Latest — 2026-07-01 / D-2 추천 엔진 하드게이트 + D-3 동의 REVOKE 원장 + E 보존 TTL — 3건 랜딩
+
+### 어디까지 왔나
+- main HEAD: `70c0feb` (E). 그 아래 `d62c61e` (D-2+D-3 합본).
+- **이 세션 머지된 PR 2개** (둘 다 CI green 후 squash 머지):
+  - **#644** — **D-2**(추천 엔진 하드게이트) + **D-3**(동의 REVOKE/GRANT 원장) 합본 → `d62c61e`
+  - **#645** — **E**(보존정책 TTL purge 함수 3종) → `70c0feb`
+- 최종 verify: **271 suites / 2080 tests green**. working tree: clean (9 mascot assets 미추적 — 안 건드림).
+
+### 이번에 무엇을 왜 (D-2 / D-3 / E)
+- **D-2 추천 하드게이트** (defense-in-depth): `recommendForDomain` **내부**에 `recommendationsAllowed(minor, pref)` 게이트를 스냅샷 로드 前에 추가 → fail-closed(OFF/undefined/미성년 → `[]`, 스냅샷·LLM 호출 0). 실제 우회 경로였던 `deepspace/ops/screens.tsx` OpsHomeScreen(마운트 자동실행, 게이트 없음)을 pref+isMinor 배선으로 막음. 3 호출부 모두 `recommendationsPref` 전달.
+- **D-3 동의 REVOKE 원장** (PIPA §37 / GDPR Art.7(3) 갭): 새 append-only `consent_changes`(마이그 **0062** — `pref_key`, `event_type` grant|revoke, ip/ua_hash nullable, per-user RLS, select+insert만). 스키마 **A안** 채택(신규 테이블, `consent_records`에 event_type 추가하는 B안 아님). 훅 = `savePrivacyPrefs`(모든 pref 쓰기의 단일 초크포인트)가 before/after diff → 변경 키별 1행 append. best-effort(원장 실패가 저장 안 깸).
+- **E 보존 TTL** (PIPA §21 / GDPR storage-limitation): 마이그 **0063** — `0056` 패턴 그대로 service_role 전용 SECURITY DEFINER purge 함수 3종, **기본 OFF**(pg_cron 미포함). `purge_ai_audit_log(365)` 하드삭제 · `purge_consent_request_metadata(365)` ip/ua 해시만 NULL(**동의행 보존**=UPDATE) · `purge_star_tier_history(730)` 초과 관측만 삭제하되 **(user,star)별 최신행 항상 보존**. 보존기간=잠정 기본값(활성화 시 법무 확정).
+
+### 다음 작업 큐 (갱신)
+| # | 작업 | 크기 | 상태/권장 |
+|---|---|---|---|
+| ~~D-2~~ | 추천 엔진 하드게이트 | small | ✅ DONE (#644) |
+| ~~D-3~~ | 동의 REVOKE audit (schema A) | medium | ✅ DONE (#644) |
+| ~~E~~ | 보존정책 TTL purge 함수 | medium | ✅ DONE (#645) |
+| **E-act** | 보존 purge **활성화** (최종 기간 확정 + pg_cron/edge 스케줄) | small | **법무/제품 결정** — 0063 함수는 이미 배포됨, 스케줄만 켜면 됨 |
+| **F** | T5 peer-review 파이프라인 (informant=타인 PII) | large | 법무 게이트 — 착수 전 스코프 합의 필요 |
+
+### 핵심 파일 위치 (이번 세션 추가분)
+```
+src/lib/ops/recommend.ts                    recommendForDomain 내부 게이트 (D-2) — OpsRecommendInput.recommendationsPref
+src/lib/supabase/privacy.ts                 savePrivacyPrefs + recordConsentChanges (D-3 REVOKE 훅)
+db/migrations/0062_consent_changes.sql      append-only 동의 변경 원장 (D-3)
+db/migrations/0063_retention_ttl_purge.sql  purge 함수 3종, 기본 OFF (E) — 활성화는 별도 리뷰 스텝
+src/lib/account/__tests__/retention-ttl-purge.test.ts   0063 구조 가드
+```
+
+### 이 세션 방법 메모 (재사용)
+- **squash 머지 후 같은 브랜치 재사용**: 브랜치 tip이 pre-squash 커밋이라 non-fast-forward. 브랜치가 **이미 머지된 히스토리만** 담고 있으면 `git reset --hard origin/main` + `--force-with-lease` 푸시가 정석(사용자 확인 필요 — CLAUDE.md).
+- **off-by-default 마이그레이션**: 법무 기간 결정이 없어도 purge *메커니즘*은 `0056`처럼 함수만 정의(스케줄 X)하면 랜딩 가능. 활성화가 결정 게이트.
+- **마이그 구조 테스트**: SQL은 supabase-dry-run이 실DB로 검증, 별도 jest 테스트로 scope·불변식(scrub-not-delete, 최신행 보존)·service_role 잠금·OFF 보장을 정규식으로 핀.
+
+### 검증
+```bash
+npm run verify   # 271 suites / 2080 tests
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# E-act(보존 purge 활성화 — 기간 확정 후) 또는 F(T5 peer-review — 스코프 합의 후)부터
+```
+
+---
+
+## 2026-07-01 / 큐 A·B·C 전량 머지 + D-1(프라이버시 prune) — 11 PR 랜딩
 
 ### 어디까지 왔나
 - main HEAD: `8586c8a` (마지막 코드 변경 = `34ecc7d` #641; 그 위 핸드오프 문서 커밋)
