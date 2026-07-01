@@ -3,7 +3,41 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-01 / #636 facet lens 시각 QA → 머지 + EN 라벨 트렁케이션 픽스(follow-up)
+## Latest — 2026-07-01 / 큐 A·B·C 전량 머지 + D-1(프라이버시 prune) — 11 PR 랜딩
+
+### 어디까지 왔나
+- main HEAD: `34ecc7d`
+- **이 세션에 머지된 PR 11개** (전부 현재 main 기준 재검증 후 admin squash):
+  - **A** — #636 IPIP facet lens Phase 3 (시각 QA 후 머지, `971bb35`)
+  - **A 후속** — #639 facet lens EN 라벨 트렁케이션 픽스 (`f111dff`)
+  - **B** — #640 buildPersona+별자리 **IPIP-NEO-120 > BFI-44 우선** (`c81d24a`)
+  - **C (강화 PR 8종)** — #630 대비가드 `9bad838` · #631 a11y 터치타겟 `1a62896` · #632 나이 fail-safe(안전) `73c6e31` · #629 근사치 고지 `2f15862` · #625 RLSS `2db88f5` · #627 반영 스캐폴드 `f575de0` · #628 Seen SOKA 패널 `2fbb3c6` · #626 정직-종합 프롬프트 `c662a2c`
+  - **D-1** — #641 미사용 privacy pref키 prune (`llm_training`·`persona_export`·`persona_share`) `34ecc7d`
+- 최종 verify: **269 suites / 2062 tests green**. working tree: 9 mascot assets 미추적(안 건드림).
+
+### 다음 작업 큐 (갱신)
+| # | 작업 | 크기 | 상태/권장 |
+|---|---|---|---|
+| ~~A~~ | #636 facet lens 시각 QA → 머지 (+EN 픽스 #639) | — | ✅ DONE |
+| ~~B~~ | buildPersona IPIP>BFI 우선 (#640) | — | ✅ DONE |
+| ~~C~~ | 강화 PR #625–#632 QA·머지 | — | ✅ DONE (8/8) |
+| **D-2** | **추천 하드게이트 — 엔진 레벨 defense-in-depth** | small | 호출부 3곳은 이미 게이트됨(`recommendationsAllowed`). 남은 건 `recommendForDomain` **내부**에 가드를 넣어(스냅샷 로드 前) 미래 호출부도 못 우회하게. `OpsRecommendInput`에 `recommendationsPref` 추가 + 3 호출부(`ops.tsx:123`·`deepspace/ops/screens.tsx:165`·`DeepSpaceDesignScreens.tsx:3173`) 전달 + 테스트. **Simon: 할지 결정** |
+| **D-3** | **동의 audit log — REVOKE 이벤트 감사** | medium | `consent_records`가 GRANT는 불변 기록하나 **REVOKE(pref off)는 기록 안 함**(GDPR/PIPA 철회기록 갭). **마이그레이션 + 스키마 결정 필요**: (A·추천) 새 `consent_changes` append-only(`event_type grant\|revoke`, `pref_key`, ip/ua_hash — `ai_audit_log`/`ingest_log` 패턴) vs (B) `consent_records`에 `event_type` 추가. 클라 훅 = `src/lib/supabase/privacy.ts`(pref 저장 시 old/new diff → 변경 키별 행 append). **법무/민감 — Simon 결정 후 착수** |
+| E | 보존정책 TTL (ai_audit_log·consent ip/ua_hash·star_tier_history) | medium | 기간=법무/제품 |
+| F | T5 peer-review 파이프라인 (informant PII) | large | 법무 게이트 |
+
+### 이 세션에서 쓴 방법 메모 (재사용)
+- **behind PR 안전 머지**: PR 브랜치에 `git merge origin/main` → `npm run verify`(현 main 기준 재검증) → 충돌 있으면 해소·push, 없으면 as-is admin squash. 충돌 케이스(#625 IPIP↔RLSS 카드)는 **둘 다 유지**로 해소.
+- **머지 전 시각 QA**: 라이브 캡처는 미배포 PR/설문완료 상태를 못 봄. 대신 컴포넌트를 토큰 그대로 HTML 재현 → Playwright(`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`) 390px 스크린샷.
+
+### D 조사 결과 (part 2/3 착수 전 필독)
+- **prefs**: `src/lib/privacy/prefs.ts` — `PRIVACY_PREF_KEYS`(D-1로 7개로 축소), `VISIBLE_PRIVACY_KEYS`(강제되는 것만 노출), `resolvePrivacyPrefs`(unknown 키 drop). `sharing`은 미강제지만 future-wiring 플레이스홀더로 **의도적 잔류**(prune 후보 4번 — 원하면 제거 가능).
+- **추천 게이트**: `src/lib/ops/recommend.ts` — `recommendationsAllowed(isMinor, pref)` = `pref===true`. `recommendForDomain(input)`는 현재 게이트 미포함(호출부가 게이트).
+- **동의**: `consent_records`(마이그 0031, append-only RLS) = GRANT 로그. `guardian_consents`(0028). 클라 기록 = `src/lib/supabase/consent.ts`. 최신 마이그 = `db/migrations/0061_*`.
+
+---
+
+## 2026-07-01 (A) / #636 facet lens 시각 QA → 머지 + EN 라벨 트렁케이션 픽스(follow-up)
 
 ### 어디까지 왔나
 - main HEAD: `971bb35` (#636 squash 머지)
