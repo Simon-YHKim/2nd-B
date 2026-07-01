@@ -3,7 +3,47 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-01 / D-2 추천 엔진 하드게이트 + D-3 동의 REVOKE 원장 + E 보존 TTL — 3건 랜딩
+## Latest — 2026-07-01 / rev2 (PRD v2.0) UI 마이그레이션 프로그램 착수 + F1 peer-review 스키마
+
+### 어디까지 왔나 (이 세션 머지 6 PR)
+- main HEAD: `57dd257`.
+- **F1** (#648 `bfb29f9`) — T5 peer-review 스키마 (마이그 0064): `peer_invitations`/`informant_consents`/`peer_observations` + `t5_seen_aggregate()` min-N≥3. 타인 PII 불변식 DB-레벨.
+- **rev2 마이그레이션 로드맵 + P0** (#649 `1a670c2`) — `docs/REV2-MIGRATION.md`(갭분석 + P0~P7). **오락→휴식** rename(코드 id `recreation` 유지). **M3 canon supersession** CLAUDE.md 기록.
+- **P1a** (#650 `57dd257`) — **M3 토큰 파운데이션** `src/lib/theme/m3.ts` (시안 다크, 프로토타입 `m3-theme.css`에서 1:1 전사) + `m3.test.ts`.
+- (이전 세션 연속분: D-2/D-3 #644, E #645, 핸드오프 #646, F스펙 #647 — 아래 섹션.)
+- verify: **273 suites / 2098 tests green**.
+
+### rev2 마이그레이션 = 이 프로그램의 SoT (다음 세션 필독)
+- **정본**: `docs/REV2-MIGRATION.md` (갭분석표 + 8 워크스트림 + P0~P7 단계 + PRD §15 불변식). 각 단계 = 검증된 PR.
+- **결론**: 현행 앱은 이미 거의 완성(29/32 표면) → **리스킨 + 정합 + 갭채우기** (from-scratch 아님). PRD "레이아웃 자유, 의미 고정".
+- **canon = M3** (승인됨, "진행해"): cosmic-pixel(Galmuri/Press Start) → Material 3(Roboto/Roboto Mono + Pretendard). 개념 불변(별자리·북극성·7별·정직밝기·propose→ratify·세컨비). 화면별 마이그 전까진 현행 딥스페이스 규칙 유지. `EXPO_PUBLIC_UI=legacy` = 롤백.
+- **첨부 원본**: 프로토타입 zip(28 sb-*.jsx + M3 디자인시스템 + Screen-Spec) + PRD_standalone v2.0. scratchpad에 unzip됨(재업로드는 byte-identical).
+
+### 다음 작업 (정확한 착수점)
+| # | 작업 | 크기 |
+|---|---|---|
+| **P1b** | ⭐ 다음 — `MdButton/MdCard/MdChip/MdNavBar/Field` RN 프리미티브를 `m3.*` 위에 + Roboto/Roboto Mono 폰트 로딩(expo-google-fonts) | medium |
+| P2 | 5탭 내비 정합(별자리홈·담기·세컨비·위키·비서) + 별자리 홈 M3 스킨(골격 보존) + 세컨비 3인격 머리(gaze/mood, secondb/meta/twi 에셋) | large |
+| P3 | 자기이해 축: 페르소나 덱 · 검증화면(BigFive/애착/가치/SDT/강점) · 밝기 타임라인+정직미터 · 승인이력 | large |
+| P4 | 도메인 렌즈(담기 4W1H+OCR · 위키 노드그래프 · 관계 인물맵 · 커리어 CV타임라인+3C4P) + **peer review F2/F3/F4** (rev2 "보여지는 나" = F1 스키마 위) | large |
+| P5 | IDEN · 임포트 · 통화녹음 · 공유카드 · **AI 뮤지엄 2축 타임라인** · 요금제 · 공상하기(트위비) | large |
+| P6 | 앱밖 위젯 + F-ret(peer 보관 purge) + E-act(0063 활성화, 법무 기간 게이트) | medium |
+| P7 | QA: 화면별 4상태 · a11y ≥44dp · i18n 패리티 · rev2 스크린샷 대조 | medium |
+
+### 남은 백엔드 결정 게이트 (UI와 별개)
+- **E-act**: 0063 purge 함수 배포됨, 활성화(기간 365/365/730 + pg_cron)만 남음 — 런칭 직전 권장.
+- **F2~F4**: peer review informant 플로우(공개 링크+타인 PII 동의문구 법무 검토) → 집계뷰 → LLM 합성. 스펙 `docs/T5-PEER-REVIEW-SPEC.md` §7 결정 반영됨(미성년 허용·LLM합성·GDPR).
+
+### 검증 / 시작
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md && cat docs/REV2-MIGRATION.md
+npm run verify   # 273 suites / 2098 tests
+# P1b(M3 프리미티브 + 폰트)부터
+```
+
+---
+
+## 2026-07-01 / D-2 추천 엔진 하드게이트 + D-3 동의 REVOKE 원장 + E 보존 TTL — 3건 랜딩
 
 ### 어디까지 왔나
 - main HEAD: `70c0feb` (E). 그 아래 `d62c61e` (D-2+D-3 합본).
