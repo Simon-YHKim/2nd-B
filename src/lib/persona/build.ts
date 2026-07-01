@@ -29,7 +29,7 @@ export interface PersonaTraits {
   neuroticism: number;
 }
 
-export type TraitsSource = "bfi" | "heuristic";
+export type TraitsSource = "ipip" | "bfi" | "heuristic";
 
 // Per-trait provenance + confidence (SOKA: accuracy comes from knowing WHICH
 // source a trait estimate rests on and HOW MANY observations back it). v1 uses
@@ -42,14 +42,28 @@ export interface TraitConfidence {
   observationCount: number;
 }
 
-/** Map a source + observation count to a confidence estimate. Validated
- *  questionnaire (BFI) is high; heuristic journal_text scales with how many
- *  entries back it (≈5-10 independent observations ≈ reliable). */
+/** Map a source + observation count to a confidence estimate. A validated
+ *  questionnaire (BFI-44 or IPIP-NEO-120) is high; heuristic journal_text scales
+ *  with how many entries back it (≈5-10 independent observations ≈ reliable). */
 export function traitConfidenceFor(source: TraitsSource, observationCount: number): TraitConfidence {
-  if (source === "bfi") return { source: "questionnaire", confidence: "high", observationCount: 1 };
+  if (isMeasuredSource(source)) return { source: "questionnaire", confidence: "high", observationCount: 1 };
   if (observationCount <= 0) return { source: "default", confidence: "low", observationCount: 0 };
   const confidence = observationCount >= 15 ? "high" : observationCount >= 5 ? "medium" : "low";
   return { source: "journal_text", confidence, observationCount };
+}
+
+/** True when traits came from a validated Big Five questionnaire (BFI-44 or
+ *  IPIP-NEO-120) rather than the journal-text heuristic. */
+export function isMeasuredSource(source: TraitsSource): boolean {
+  return source === "bfi" || source === "ipip";
+}
+
+/** Display name of the instrument behind a measured traits source (null for the
+ *  heuristic). IPIP-NEO-120 is the 120-item facet-level measure; BFI-44 the 44-item. */
+export function instrumentLabel(source: TraitsSource): string | null {
+  if (source === "ipip") return "IPIP-NEO-120";
+  if (source === "bfi") return "BFI-44";
+  return null;
 }
 
 export interface PersonaMbti {
@@ -338,20 +352,25 @@ export async function buildPersona(
   let traits = scoreFromAnswers(proxyRows);
   let traitsSource: TraitsSource = "heuristic";
 
-  // If a BFI-44 assessment exists, prefer it (1-5 → 0-1 normalize). BFI
-  // measures neuroticism directly so no inversion is needed (unlike the
-  // older TIPI which used emotional_stability).
-  const bfi = await loadLatestBfi(supabase, userId);
-  if (bfi) {
+  // Prefer a validated Big Five questionnaire over the heuristic (1-5 → 0-1
+  // normalize; both measure neuroticism directly, so no inversion — unlike the
+  // older TIPI's emotional_stability). When both exist, IPIP-NEO-120 (120 items,
+  // facet-level) outranks BFI-44 (44 items) for the same five domains.
+  const [ipip, bfi] = await Promise.all([
+    loadLatestIpip(supabase, userId),
+    loadLatestBfi(supabase, userId),
+  ]);
+  const measured = ipip ?? bfi;
+  if (measured) {
     const norm = (v: number) => Math.max(0, Math.min(1, (v - 1) / 4));
     traits = {
-      openness: norm(bfi.openness),
-      conscientiousness: norm(bfi.conscientiousness),
-      extraversion: norm(bfi.extraversion),
-      agreeableness: norm(bfi.agreeableness),
-      neuroticism: norm(bfi.neuroticism),
+      openness: norm(measured.openness),
+      conscientiousness: norm(measured.conscientiousness),
+      extraversion: norm(measured.extraversion),
+      agreeableness: norm(measured.agreeableness),
+      neuroticism: norm(measured.neuroticism),
     };
-    traitsSource = "bfi";
+    traitsSource = ipip ? "ipip" : "bfi";
   }
 
   const [memorized, mbti, attachment] = await Promise.all([
@@ -406,7 +425,7 @@ export async function buildPersona(
   // Per-trait confidence (SOKA). v1 uses one source globally, so all traits
   // share it; observationCount = BFI run (1) or the journal rows behind the
   // heuristic. Surfaced in markdown + available to UI for evidence framing.
-  const tc = traitConfidenceFor(traitsSource, traitsSource === "bfi" ? 1 : proxyRows.length);
+  const tc = traitConfidenceFor(traitsSource, isMeasuredSource(traitsSource) ? 1 : proxyRows.length);
   const traitConfidence: Record<keyof PersonaTraits, TraitConfidence> = {
     openness: tc, conscientiousness: tc, extraversion: tc, agreeableness: tc, neuroticism: tc,
   };

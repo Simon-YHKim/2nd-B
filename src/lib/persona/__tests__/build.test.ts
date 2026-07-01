@@ -48,7 +48,7 @@ jest.mock("../../llm/gemini", () => ({
   ),
 }));
 
-import { buildPersona, deriveValues, traitConfidenceFor } from "../build";
+import { buildPersona, deriveValues, instrumentLabel, isMeasuredSource, traitConfidenceFor } from "../build";
 import { callGemini } from "../../llm/gemini";
 import { AUDIT_QUESTIONS } from "../../audit/questions";
 
@@ -61,11 +61,27 @@ describe("traitConfidenceFor (SOKA per-trait confidence)", () => {
   test("bfi → questionnaire / high", () => {
     expect(traitConfidenceFor("bfi", 1)).toEqual({ source: "questionnaire", confidence: "high", observationCount: 1 });
   });
+  test("ipip → questionnaire / high (validated instrument, same as bfi)", () => {
+    expect(traitConfidenceFor("ipip", 1)).toEqual({ source: "questionnaire", confidence: "high", observationCount: 1 });
+  });
   test("heuristic scales confidence with observation count", () => {
     expect(traitConfidenceFor("heuristic", 0)).toMatchObject({ source: "default", confidence: "low", observationCount: 0 });
     expect(traitConfidenceFor("heuristic", 3)).toMatchObject({ source: "journal_text", confidence: "low" });
     expect(traitConfidenceFor("heuristic", 8)).toMatchObject({ source: "journal_text", confidence: "medium" });
     expect(traitConfidenceFor("heuristic", 20)).toMatchObject({ source: "journal_text", confidence: "high", observationCount: 20 });
+  });
+});
+
+describe("isMeasuredSource / instrumentLabel", () => {
+  test("ipip and bfi are measured; heuristic is not", () => {
+    expect(isMeasuredSource("ipip")).toBe(true);
+    expect(isMeasuredSource("bfi")).toBe(true);
+    expect(isMeasuredSource("heuristic")).toBe(false);
+  });
+  test("instrument label names the instrument (null for heuristic)", () => {
+    expect(instrumentLabel("ipip")).toBe("IPIP-NEO-120");
+    expect(instrumentLabel("bfi")).toBe("BFI-44");
+    expect(instrumentLabel("heuristic")).toBeNull();
   });
 });
 
@@ -217,6 +233,52 @@ describe("buildPersona", () => {
     // Phase A: a validated instrument lights star1 (지금의 나) to L4.
     expect(card.starLevels?.now).toBe(4);
     expect(card.soulCoreBrightness).toBeGreaterThan(0.2);
+  });
+
+  test("IPIP-NEO-120 record → traitsSource = 'ipip' + traits from its domain means", async () => {
+    tableFixtures["records:select"] = {
+      data: [
+        {
+          body: JSON.stringify({
+            domains: { openness: 4, conscientiousness: 3.5, extraversion: 2, agreeableness: 4, neuroticism: 1.5 },
+            facets: { anxiety: 2, imagination: 5 },
+          }),
+          created_at: "2026-05-10T00:00:00Z",
+        },
+      ],
+      error: null,
+    };
+    tableFixtures["memorized_patterns:select"] = { data: [], error: null };
+    const card = await buildPersona("u1", "en");
+    expect(card.traitsSource).toBe("ipip");
+    // same (v-1)/4 normalize as BFI; neuroticism measured directly (no inversion)
+    expect(card.traits.openness).toBeCloseTo((4 - 1) / 4, 5);
+    expect(card.traits.neuroticism).toBeCloseTo(0.125, 5);
+    // a validated instrument lights star1 (지금의 나) to L4, same as BFI
+    expect(card.starLevels?.now).toBe(4);
+  });
+
+  test("IPIP outranks BFI when both exist (the more detailed instrument wins)", async () => {
+    // One row carries BOTH shapes; the mock returns it to every records query, so
+    // loadLatestIpip reads `domains` and loadLatestBfi reads `scores`. IPIP must win.
+    tableFixtures["records:select"] = {
+      data: [
+        {
+          body: JSON.stringify({
+            domains: { openness: 5, conscientiousness: 5, extraversion: 5, agreeableness: 5, neuroticism: 5 },
+            facets: { anxiety: 5 },
+            scores: { openness: 1, conscientiousness: 1, extraversion: 1, agreeableness: 1, neuroticism: 1 },
+          }),
+          created_at: "2026-05-10T00:00:00Z",
+        },
+      ],
+      error: null,
+    };
+    tableFixtures["memorized_patterns:select"] = { data: [], error: null };
+    const card = await buildPersona("u1", "en");
+    expect(card.traitsSource).toBe("ipip");
+    // IPIP openness 5 → 1.0, NOT BFI's 1 → 0.0
+    expect(card.traits.openness).toBeCloseTo(1, 5);
   });
 
   test("partial BFI score rows are ignored instead of zeroing missing traits", async () => {
