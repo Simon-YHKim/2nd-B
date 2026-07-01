@@ -1,5 +1,5 @@
 // Recreation manage layer: the writer for recreation_items (migration 0059), the
-// structured backing for the 오락 (recreation) domain star. Mirrors the ops
+// structured backing for the 휴식 (recreation) domain star. Mirrors the ops
 // manage-layer discipline (src/lib/finance/ledger.ts): no LLM, no external API,
 // owner-only RLS does authorization, pure normalizer separated from Supabase.
 //
