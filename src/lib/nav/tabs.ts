@@ -47,6 +47,9 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/persona",
   "/account",
   "/ops",
+  // /wiki joined the dock as a 5-tab root in P2-cont (#658 wraps it in
+  // DeepSpaceScreen), so the floating BackArrow chip must hide there too.
+  "/wiki",
 ] as const;
 
 export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];
