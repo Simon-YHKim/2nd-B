@@ -88,6 +88,8 @@ from-scratch build.
 
 - **P0 — Canon & rename foundation**: record the M3 supersession in `CLAUDE.md`/`DESIGN.md`/`docs/PRD.md`; land 오락→휴식 (WS3). Low risk, unblocks coherence.
 - **P1 — M3 design system** (WS1): additive M3 token layer + primitives + font swap behind the deep-space identity. The toka for every screen.
+  - **P1a ✅ token foundation** — `src/lib/theme/m3.ts` (`m3.color/type/shape/elevation/state/spacing/motion` + `m3.accent` deep-space + `m3.persona` 2nd-B/메타비/트위비), transcribed 1:1 from the prototype `m3-theme.css` (cyan dark). Guarded by `src/lib/theme/__tests__/m3.test.ts`.
+  - **P1b — primitives + fonts** — `MdButton/MdCard/MdChip/MdNavBar/Field` RN components on `m3.*`; load Roboto/Roboto Mono (expo-google-fonts). NEXT.
 - **P2 — Nav + constellation home + 세컨비 3-persona** (WS2). Preserve home skeleton.
 - **P3 — Self-understanding axis** (WS4): persona deck, validation screens, brightness timeline, ratification log.
 - **P4 — Domain lenses + peer review** (WS5 + WS7): graphs, structured inputs; F2→F4.
