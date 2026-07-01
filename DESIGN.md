@@ -220,7 +220,7 @@ Use exactly these. Never `margin: 7`. If you reach for an in-between value, you'
 - Inputs and buttons: `md` (8).
 - Cards and modals: `lg` (12).
 - Avatars / chips (judge badge, zone tags): `sm` (4) for sharp; never circular.
-- **Never** `borderRadius: 9999`. We don't ship pill chrome.
+- **Never** `borderRadius: 9999` on the legacy deep-space / cosmic-pixel track. We don't ship pill chrome there. **M3-track exception (rev2):** primitives in `src/components/m3/` may use `m3.shape.full` (stadium) where the Material 3 spec requires it — buttons, segmented buttons, the nav-bar active indicator, and the linear progress bar. M3 chips stay at `m3.shape.small` (8dp), not pills.
 
 ---
 
@@ -407,11 +407,11 @@ friction, P3 is polish.
 - Em dashes in any user-visible string.
 - Lottie / animated background loops.
 - "Cards within cards within cards" — max two levels of `surface` nesting.
-- Pill-shaped chips with `borderRadius: 9999`.
+- Pill-shaped chips with `borderRadius: 9999`. (Legacy / deep-space surfaces. The M3 track uses stadium buttons / segmented / nav-indicator per the M3-track exception under Radii; M3 chips stay 8dp.)
 - Centered everything. Default-align text left (or right for RTL when we add it).
 - "Built for X" / "Designed for Y" landing copy.
 - Drop shadows on dark surfaces — they read as smudges.
-- `Inter`, `Roboto`, `Space Grotesk`, `Poppins`, `Montserrat` as primary fonts. The active face is **NeoDunggeunmo** (numbers: NeoDunggeunmoCode); the earlier Geist + Fraunces pairing is superseded (2026-05-29, see Typography).
+- `Inter`, `Space Grotesk`, `Poppins`, `Montserrat` as primary fonts. The active face is **NeoDunggeunmo** (numbers: NeoDunggeunmoCode); the earlier Geist + Fraunces pairing is superseded (2026-05-29, see Typography). **Roboto / Roboto Mono are sanctioned under rev2** as the Material 3 chrome/label + numeric faces on the M3 track (`m3.font.chrome` / `m3.font.mono`) — not as the legacy body face.
 
 ---
 
