@@ -30,6 +30,15 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { getPersona, PERSONAS } from "@/lib/chat/personas";
+import {
+  REV2_PERSONA_IDS,
+  rev2PersonaAccent,
+  rev2PersonaHint,
+  rev2PersonaMode,
+  rev2PersonaName,
+  rev2PersonaRole,
+  type Rev2PersonaId,
+} from "@/lib/chat/rev2-personas";
 import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
@@ -137,6 +146,17 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const [chatMode, setChatMode] = useState<ChatMode>(
     params.mode === "divergent" ? "divergent" : "analytic",
   );
+  // rev2 세컨비 personas (main deep-space chat only): ONE character, three
+  // personas sharing this conversation. 트위비 owns 공상, so selecting it engages
+  // the Divergent engine mode (and ?mode=divergent seeds 트위비). The default
+  // 2nd-B keeps the shipped voice (hint = null — no behavior change).
+  const [rev2Persona, setRev2Persona] = useState<Rev2PersonaId>(
+    params.mode === "divergent" ? "twi" : "secondb",
+  );
+  function selectRev2Persona(id: Rev2PersonaId): void {
+    setRev2Persona(id);
+    setChatMode(rev2PersonaMode(id));
+  }
   // Divergent signature motion (DESIGN.md): a soft soulViolet2 pulse while a
   // Divergent turn is in flight. Holds at rest otherwise; static under reduced
   // motion. (Replaces the old dreamPink "벨라 신호" now that 공상 is a mode.)
@@ -287,7 +307,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         message: msg,
         locale,
         tier: progression.tier,
-        personaHint: isCharacterChat ? persona.systemHint[locale] : null,
+        personaHint: isCharacterChat ? persona.systemHint[locale] : rev2PersonaHint(rev2Persona, locale),
         mode: chatMode,
         minor: isMinor === true,
       });
@@ -389,7 +409,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     const dsUsage = usedToday === null ? "..." : String(usedToday);
     const atLimit = usedToday !== null && usedToday >= limit;
     return (
-      <DeepSpaceScreen active="chat">
+      <DeepSpaceScreen active="chat" personaTint={isCharacterChat ? undefined : rev2Persona}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={keyboardBehavior}
@@ -420,34 +440,71 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             ) : null}
           </View>
 
-          {/* mode toggle — both modes run the same C9 -> C3 -> gemini path */}
-          <View style={ds.modeRow}>
-            <Pressable
-              onPress={() => setChatMode("analytic")}
-              style={[ds.modeChip, chatMode === "analytic" ? ds.modeChipOnAccent : null]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: chatMode === "analytic" }}
-              accessibilityLabel={locale === "ko" ? "분석 모드" : "Analysis mode"}
-            >
-              <Text style={[ds.modeChipText, chatMode === "analytic" ? ds.modeChipTextOn : null]}>
-                {locale === "ko" ? "분석" : "Analysis"}
+          {/* rev2 persona selector (main chat): ONE 세컨비, three personas sharing
+              this conversation. 트위비 = 공상 = the Divergent engine mode, so this
+              row REPLACES the old 분석/새관점 toggle; both run the same C9 -> C3 ->
+              gemini path. Character chat (legacy roster) keeps the mode toggle. */}
+          {!isCharacterChat ? (
+            <View style={ds.modeRow} accessibilityLabel={t("rev2.selectorA11y")}>
+              {REV2_PERSONA_IDS.map((id) => {
+                const selected = rev2Persona === id;
+                const accent = rev2PersonaAccent(id);
+                return (
+                  <Pressable
+                    key={id}
+                    onPress={() => selectRev2Persona(id)}
+                    hitSlop={8}
+                    style={[
+                      ds.personaChip,
+                      { borderColor: accent },
+                      selected ? { backgroundColor: accent } : null,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`${rev2PersonaName(id, locale)} · ${rev2PersonaRole(id, locale)}`}
+                  >
+                    <Text style={[ds.modeChipText, selected ? ds.personaChipTextOn : { color: accent }]}>
+                      {rev2PersonaName(id, locale)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              <Text style={ds.personaRole} numberOfLines={1}>
+                {rev2PersonaRole(rev2Persona, locale)}
               </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setChatMode("divergent")}
-              style={[ds.modeChip, chatMode === "divergent" ? ds.modeChipOnSoul : null]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: chatMode === "divergent" }}
-              accessibilityLabel={locale === "ko" ? "새 관점 모드" : "New angle mode"}
-            >
-              <Text style={[ds.modeChipText, chatMode === "divergent" ? ds.modeChipTextOnSoul : null]}>
-                {locale === "ko" ? "새 관점" : "New angle"}
-              </Text>
-            </Pressable>
-            {chatMode === "divergent" ? (
-              <Animated.View style={[ds.modeDot, { opacity: divergentPulse as never }]} />
-            ) : null}
-          </View>
+              {chatMode === "divergent" ? (
+                <Animated.View style={[ds.modeDot, { opacity: divergentPulse as never }]} />
+              ) : null}
+            </View>
+          ) : (
+            <View style={ds.modeRow}>
+              <Pressable
+                onPress={() => setChatMode("analytic")}
+                style={[ds.modeChip, chatMode === "analytic" ? ds.modeChipOnAccent : null]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: chatMode === "analytic" }}
+                accessibilityLabel={locale === "ko" ? "분석 모드" : "Analysis mode"}
+              >
+                <Text style={[ds.modeChipText, chatMode === "analytic" ? ds.modeChipTextOn : null]}>
+                  {locale === "ko" ? "분석" : "Analysis"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setChatMode("divergent")}
+                style={[ds.modeChip, chatMode === "divergent" ? ds.modeChipOnSoul : null]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: chatMode === "divergent" }}
+                accessibilityLabel={locale === "ko" ? "새 관점 모드" : "New angle mode"}
+              >
+                <Text style={[ds.modeChipText, chatMode === "divergent" ? ds.modeChipTextOnSoul : null]}>
+                  {locale === "ko" ? "새 관점" : "New angle"}
+                </Text>
+              </Pressable>
+              {chatMode === "divergent" ? (
+                <Animated.View style={[ds.modeDot, { opacity: divergentPulse as never }]} />
+              ) : null}
+            </View>
+          )}
 
           {/* nodeContext pill */}
           {fromNode ? (
@@ -552,7 +609,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                   key={qa.en}
                   style={ds.quickChip}
                   onPress={() => {
-                    if (qa.mode) setChatMode(qa.mode);
+                    if (qa.mode === "divergent" && !isCharacterChat) selectRev2Persona("twi");
+                    else if (qa.mode) setChatMode(qa.mode);
                     setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
                   }}
                   accessibilityRole="button"
@@ -1427,6 +1485,25 @@ const ds = StyleSheet.create({
   modeChipTextOn: { color: deepSpace.onAccent, fontWeight: "700" },
   modeChipTextOnSoul: { color: deepSpace.bgEdge, fontWeight: "700" },
   modeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: deepSpace.soul },
+  // rev2 persona chips: same metrics as modeChip; the accent border/fill comes
+  // from m3.persona via rev2PersonaAccent (inline), never a literal here.
+  personaChip: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: deepSpaceSpacing.md,
+    borderRadius: deepSpaceRadii.sm,
+    borderWidth: 1,
+    backgroundColor: deepSpace.card,
+  },
+  personaChipTextOn: { color: deepSpace.bgEdge, fontWeight: "700" },
+  personaRole: {
+    flex: 1,
+    minWidth: 0,
+    color: deepSpace.textMid,
+    fontSize: 11,
+    fontFamily: fontFamilies.readable,
+    textAlign: "right",
+  },
 
   contextPillWrap: { paddingHorizontal: 18, paddingBottom: deepSpaceSpacing.sm },
   contextPill: {

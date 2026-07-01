@@ -17,6 +17,7 @@ import { StyleSheet, View } from "react-native";
 import { usePathname } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import type { M3Persona } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { backArrowVisible } from "@/components/ui/BackArrow";
 import { SecondbHead, type SecondbMood } from "./SecondbHead";
@@ -26,12 +27,15 @@ export function SecondbStatusHeader({
   tip,
   tipLabel = "TIP",
   mood = "neutral",
+  persona,
   accessibilityLabel,
 }: {
   text: string;
   tip?: string;
   tipLabel?: string;
   mood?: SecondbMood;
+  /** rev2 persona tint for the head (secondb/meta/twi). Unset = canonical cyan. */
+  persona?: M3Persona;
   accessibilityLabel?: string;
 }) {
   // Reserve top headroom on sub-screens so the floating BackArrow chip does not
@@ -40,7 +44,7 @@ export function SecondbStatusHeader({
   const needHeadroom = backArrowVisible(usePathname());
   return (
     <View style={[styles.row, needHeadroom ? styles.rowHeadroom : null]}>
-      <SecondbHead size={48} mood={mood} accessibilityLabel={accessibilityLabel} />
+      <SecondbHead size={48} mood={mood} persona={persona} accessibilityLabel={accessibilityLabel} />
       <View style={styles.bubble}>
         <View style={styles.tail} />
         <Text variant="body" style={styles.text}>{text}</Text>

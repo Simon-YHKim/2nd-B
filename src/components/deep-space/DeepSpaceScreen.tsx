@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, type Href } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import type { M3Persona } from "@/lib/theme/m3";
 import { MdNavBar } from "@/components/m3";
 import { SecondbStatusHeader } from "./SecondbStatusHeader";
 import type { SecondbMood } from "./SecondbHead";
@@ -49,7 +50,16 @@ const VIEW_MOOD: Record<DeepSpaceTab, SecondbMood> = {
 // 나(account) moves out of the dock — reachable via profile / settings / back-arrow.
 const TABS: DeepSpaceTab[] = ["home", "capture", "chat", "wiki", "ops"];
 
-export function DeepSpaceScreen({ active, children }: { active: DeepSpaceTab; children: ReactNode }) {
+export function DeepSpaceScreen({
+  active,
+  personaTint,
+  children,
+}: {
+  active: DeepSpaceTab;
+  /** rev2 persona tint for the status-header head (chat surface). Unset = canonical cyan. */
+  personaTint?: M3Persona;
+  children: ReactNode;
+}) {
   const { t, i18n } = useTranslation("home");
   const isKo = i18n.language === "ko";
 
@@ -82,6 +92,7 @@ export function DeepSpaceScreen({ active, children }: { active: DeepSpaceTab; ch
         text={t("ds.head." + active + ".text")}
         tip={t("ds.head." + active + ".tip")}
         mood={VIEW_MOOD[active]}
+        persona={personaTint}
         accessibilityLabel={characterLabel}
       />
 
