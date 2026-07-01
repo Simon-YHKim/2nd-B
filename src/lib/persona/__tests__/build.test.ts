@@ -300,5 +300,13 @@ describe("buildPersona", () => {
     expect(card.traits.neuroticism).toBeCloseTo(0.125, 5);
     // star1 stays L4 (validated instrument), not inflated by the LLM text.
     expect(card.starLevels?.now).toBe(4);
+    // The persona narrative call is now GUIDED: build.ts passes the honest-
+    // synthesis system instruction (it was previously unguided).
+    expect(callGemini).toHaveBeenCalledWith(
+      expect.objectContaining({
+        purpose: "persona_chat",
+        system: expect.stringContaining("ONLY in the entries"),
+      }),
+    );
   });
 });

@@ -12,6 +12,7 @@
 
 import { AUDIT_QUESTIONS, type Framework } from "../audit/questions";
 import { callGemini } from "../llm/gemini";
+import { personaSynthesisSystem } from "./synthesis-prompt";
 import { getSupabaseClient } from "../supabase/client";
 import { isValidMbtiResult, type MbtiScores } from "./assessment-shapes";
 import type { LadderLevel } from "./brightness";
@@ -376,6 +377,10 @@ export async function buildPersona(
       userId,
       locale,
       purpose: "persona_chat",
+      // Guide the synthesis toward an honest, grounded, balanced mirror (was
+      // unguided). Trusted system channel; the entries still ride `user` and stay
+      // crisis-scanned, so C9/C3 are unaffected.
+      system: personaSynthesisSystem(locale),
       user: summaryInput,
       minor,
     });
