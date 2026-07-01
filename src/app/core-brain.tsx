@@ -25,9 +25,12 @@ import {
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { PolarisDeck, type PolarisDeckPage } from "@/components/deep-space/PolarisDeck";
+import { TraitRadar } from "@/components/persona/TraitRadar";
+import { MdButton } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { buildPersona, type PersonaCard } from "@/lib/persona/build";
+import { buildPersona, isMeasuredSource, type PersonaCard } from "@/lib/persona/build";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
 import { brightnessVisual, brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
 import { buildCenterCards } from "@/lib/persona/center";
@@ -278,6 +281,282 @@ function CoreBrainScreen() {
   const filledFields = portrait.filter((f) => f.status === "filled").length;
   const starLevels = persona?.starLevels;
 
+  // Evidence drawer (§5) — shared by the deep-space deck and the legacy screen.
+  const renderEvidenceDrawer = () => (
+    <Modal visible={drawerOpen} transparent animationType="slide" onRequestClose={() => setDrawerOpen(false)}>
+      <Pressable
+        style={styles.backdrop}
+        onPress={() => setDrawerOpen(false)}
+        accessibilityRole="button"
+        accessibilityLabel={locale === "ko" ? "참고 조각 닫기" : "Close evidence drawer"}
+      >
+        <Pressable style={styles.drawer} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
+          <View style={styles.drawerHandle} />
+          <Text variant="heading">{locale === "ko" ? "이걸 만든 조각들" : "The pieces behind this"}</Text>
+          <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
+            {locale === "ko"
+              ? isDeepSpaceUI()
+                ? "세컨비와 북극성이 참고한 기록이에요."
+                : "세컨비와 소울 코어이 참고한 기록이에요."
+              : "The records SecondB and your center drew on."}
+          </Text>
+          <ScrollView style={{ marginTop: spacing.md }} contentContainerStyle={{ gap: spacing.sm }}>
+            {evidence.map((ev) => (
+              <TouchableOpacity
+                key={ev.id}
+                style={styles.evRow}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setDrawerOpen(false);
+                  router.push({ pathname: "/record/[id]", params: { id: ev.id } });
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={locale === "ko" ? `${ev.title} 기록 열기` : `Open record ${ev.title}`}
+                accessibilityHint={evidenceLabel(ev, locale)}
+              >
+                <View style={styles.evDot} />
+                <View style={{ flex: 1 }}>
+                  <Text variant="body" numberOfLines={1}>{ev.title}</Text>
+                  <Text variant="subtle" color="textSubtle">
+                    {evidenceLabel(ev, locale)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <Button
+            label={locale === "ko" ? "모든 기록 보기" : "See all records"}
+            variant="secondary"
+            onPress={() => {
+              setDrawerOpen(false);
+              router.push("/records");
+            }}
+          />
+          <Button label={locale === "ko" ? "닫기" : "Close"} variant="secondary" onPress={() => setDrawerOpen(false)} />
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+
+  // rev2 P3a (deep-space track): the same data as the legacy sections below,
+  // reorganized as the 북극성 persona deck — one card per screenful (swipe),
+  // Big Five radar + validation entry included. User-facing name here is
+  // 북극성 (the legacy core name is dropped on the canon track, PRD v3).
+  // The legacy premium-shell screen below is untouched.
+  if (isDeepSpaceUI()) {
+    const band = brightnessBand(persona?.soulCoreBrightness ?? 0.2);
+    const bandLabel = locale === "ko" ? SOUL_CORE_BAND_KO[band] : SOUL_CORE_BAND_EN[band];
+    const askPolaris = () =>
+      router.push({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "북극성" : "my Polaris" } });
+    const deckPages: PolarisDeckPage[] = [
+      {
+        key: "polaris",
+        title: locale === "ko" ? "북극성 · 종합" : "Polaris · the aggregate you",
+        accent: cosmic.soulViolet,
+        body: (
+          <View style={dsDeck.heroBody}>
+            <Text variant="display" style={dsDeck.heroBand}>{bandLabel}</Text>
+            <Text variant="caption" color="textMuted" style={dsDeck.heroCaption}>
+              {locale === "ko" ? "지금 밝기 · 아는 만큼만 밝아져요" : "Current brightness · only as bright as what you know"}
+            </Text>
+            <View style={dsDeck.heroStats}>
+              <Text variant="body" color="textMuted">
+                {locale === "ko" ? `조각 ${evidence.length}` : `${evidence.length} pieces`}
+              </Text>
+              <Text variant="body" color="textMuted">
+                {locale === "ko" ? `나의 모습 ${filledFields}/5` : `self-portrait ${filledFields}/5`}
+              </Text>
+              <Text variant="body" color="textMuted">
+                {locale === "ko" ? `영역 ${persona?.values.length ?? 0}` : `${persona?.values.length ?? 0} areas`}
+              </Text>
+            </View>
+            <Text variant="subtle" color="textSubtle" style={dsDeck.heroHint}>
+              {locale === "ko" ? "옆으로 넘겨 카드를 살펴보세요" : "Swipe to walk the cards"}
+            </Text>
+          </View>
+        ),
+      },
+      ...(direction
+        ? [{
+            key: "direction",
+            title: locale === "ko" ? "요즘 가장 밝은 연결" : "Brightest connection now",
+            accent: direction.accent,
+            body: <Text variant="body">{direction.body}</Text>,
+          }]
+        : []),
+      ...(neighborhood
+        ? [{
+            key: "neighborhood",
+            title: locale === "ko" ? "밝아진 동네" : "The lit-up neighborhood",
+            accent: neighborhood.accent,
+            body: <Text variant="body">{neighborhood.body}</Text>,
+          }]
+        : []),
+      {
+        key: "portrait",
+        title: locale === "ko" ? "자주 보이는 나의 모습" : "A side of me I keep seeing",
+        accent: cosmic.soulViolet,
+        body: (
+          <View>
+            <View style={styles.fieldList}>
+              {portrait.map((field) => (
+                <TouchableOpacity
+                  key={field.id}
+                  style={styles.fieldRow}
+                  activeOpacity={0.7}
+                  onPress={() => router.push(field.route as never)}
+                  accessibilityRole="button"
+                  accessibilityLabel={field.label}
+                >
+                  <View
+                    style={[styles.fieldDot, { backgroundColor: field.status === "filled" ? cosmic.signalMint : semantic.border }]}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text variant="caption" color="textMuted" style={styles.fieldLabel}>{field.label}</Text>
+                    {field.status === "filled" ? (
+                      <Text variant="body">{field.value}</Text>
+                    ) : (
+                      <Text variant="subtle" color="textSubtle">{field.hint}</Text>
+                    )}
+                  </View>
+                  {field.status === "collecting" ? (
+                    <Text variant="caption" color="brand">{locale === "ko" ? "채우기" : "Fill"}</Text>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text variant="caption" color="textSubtle" style={{ marginTop: 8 }}>
+              {locale === "ko"
+                ? "AI가 기록에서 만든 근사치예요 · 권위적 판단이 아니라 한 가지 해석이에요."
+                : "An AI approximation from your records, one interpretation, not authoritative."}
+            </Text>
+          </View>
+        ),
+      },
+      ...(persona
+        ? [{
+            key: "radar",
+            title: locale === "ko" ? "성격 지형" : "Trait terrain",
+            accent: cosmic.soulViolet,
+            body: (
+              <View style={dsDeck.radarBody}>
+                <TraitRadar traits={persona.traits} traitsSource={persona.traitsSource} locale={locale} />
+                <MdButton
+                  variant="tonal"
+                  label={
+                    isMeasuredSource(persona.traitsSource)
+                      ? locale === "ko" ? "자세히 살펴보기" : "Look closer"
+                      : locale === "ko" ? "검사로 정확히 재기" : "Measure it properly"
+                  }
+                  onPress={() => router.push(isMeasuredSource(persona.traitsSource) ? "/persona" : "/big-five")}
+                />
+              </View>
+            ),
+          }]
+        : []),
+      ...(starLevels
+        ? [{
+            key: "seven",
+            title: locale === "ko" ? "나를 아는 일곱 가지" : "Seven ways to know me",
+            accent: cosmic.soulViolet,
+            body: (
+              <View style={styles.starRow}>
+                {SELF_UNDERSTANDING_STARS.map((star) => {
+                  const v = brightnessVisual(starLevels[star.id]);
+                  return (
+                    <View key={star.id} style={styles.starItem}>
+                      <View style={[styles.starDot, { opacity: v.opacity }]} />
+                      <Text variant="caption" color="textMuted" style={styles.starName}>
+                        {locale === "ko" ? star.nameKo : star.nameEn}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ),
+          }]
+        : []),
+      {
+        key: "pieces",
+        title: locale === "ko" ? "이걸 만든 조각들" : "The pieces behind this",
+        accent: cosmic.pixelLamp,
+        body: (
+          <View>
+            {pieces ? <Text variant="body" style={{ marginBottom: spacing.sm }}>{pieces.body}</Text> : null}
+            <MdButton
+              variant="text"
+              label={locale === "ko" ? `참고한 조각 ${evidence.length}개 보기` : `See ${evidence.length} pieces`}
+              onPress={() => setDrawerOpen(true)}
+            />
+          </View>
+        ),
+      },
+      {
+        key: "validate",
+        title: locale === "ko" ? "나를 재는 도구들" : "Ways to measure me",
+        accent: cosmic.signalMint,
+        body: (
+          <View style={dsDeck.validateList}>
+            <Text variant="caption" color="textMuted" style={{ marginBottom: 4 }}>
+              {locale === "ko"
+                ? "검증된 검사로 별을 하나씩 밝혀요."
+                : "Validated checks light the stars one by one."}
+            </Text>
+            {([
+              { key: "bigfive", label: locale === "ko" ? "Big Five 성격 검사" : "Big Five check", route: "/big-five" },
+              { key: "ipip", label: locale === "ko" ? "정밀 성격 지도 (IPIP-NEO-120)" : "Facet map (IPIP-NEO-120)", route: "/ipip-neo" },
+              { key: "attachment", label: locale === "ko" ? "관계 패턴 체크" : "Relationship pattern check", route: "/attachment" },
+              { key: "mbti", label: locale === "ko" ? "MBTI 스크리너" : "MBTI screener", route: "/mbti" },
+              { key: "audit", label: locale === "ko" ? "가치 오딧" : "Values audit", route: "/audit" },
+            ] as const).map((tool) => (
+              <MdButton
+                key={tool.key}
+                variant="outlined"
+                label={tool.label}
+                onPress={() => router.push(tool.route)}
+              />
+            ))}
+          </View>
+        ),
+      },
+      {
+        key: "next",
+        title: locale === "ko" ? "다음 한 걸음" : "Next step",
+        accent: cosmic.signalMint,
+        body: (
+          <View style={dsDeck.validateList}>
+            <Text variant="body" color="textMuted">
+              {locale === "ko" ? "이 중심을 다음 한 걸음으로 줄여볼게요." : "Let's narrow this center into one next step."}
+            </Text>
+            <MdButton
+              variant="outlined"
+              label={locale === "ko" ? "트위비와 새 관점으로" : "New angle with Twi-B"}
+              onPress={() => router.push({ pathname: "/secondb", params: { mode: "divergent" } })}
+            />
+            <MdButton
+              variant="filled"
+              label={locale === "ko" ? "제안 받고 점검하기" : "Review a proposal"}
+              onPress={() => router.push("/digest")}
+            />
+            <MdButton
+              variant="text"
+              label={locale === "ko" ? "세컨비에게 이 중심으로 묻기" : "Ask SecondB about this center"}
+              onPress={askPolaris}
+            />
+          </View>
+        ),
+      },
+    ];
+    return (
+      <CoreShell>
+        <View style={dsDeck.wrap}>
+          <PolarisDeck pages={deckPages} isKo={locale === "ko"} />
+        </View>
+        {renderEvidenceDrawer()}
+      </CoreShell>
+    );
+  }
+
   return (
     <CoreShell>
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -439,58 +718,7 @@ function CoreBrainScreen() {
         />
       </ScrollView>
 
-      {/* Evidence drawer (§5) */}
-      <Modal visible={drawerOpen} transparent animationType="slide" onRequestClose={() => setDrawerOpen(false)}>
-        <Pressable
-          style={styles.backdrop}
-          onPress={() => setDrawerOpen(false)}
-          accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "참고 조각 닫기" : "Close evidence drawer"}
-        >
-          <Pressable style={styles.drawer} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
-            <View style={styles.drawerHandle} />
-            <Text variant="heading">{locale === "ko" ? "이걸 만든 조각들" : "The pieces behind this"}</Text>
-            <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
-              {locale === "ko"
-                ? "세컨비와 소울 코어이 참고한 기록이에요."
-                : "The records SecondB and your center drew on."}
-            </Text>
-            <ScrollView style={{ marginTop: spacing.md }} contentContainerStyle={{ gap: spacing.sm }}>
-              {evidence.map((ev) => (
-                <TouchableOpacity
-                  key={ev.id}
-                  style={styles.evRow}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    setDrawerOpen(false);
-                    router.push({ pathname: "/record/[id]", params: { id: ev.id } });
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={locale === "ko" ? `${ev.title} 기록 열기` : `Open record ${ev.title}`}
-                  accessibilityHint={evidenceLabel(ev, locale)}
-                >
-                  <View style={styles.evDot} />
-                  <View style={{ flex: 1 }}>
-                    <Text variant="body" numberOfLines={1}>{ev.title}</Text>
-                    <Text variant="subtle" color="textSubtle">
-                      {evidenceLabel(ev, locale)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <Button
-              label={locale === "ko" ? "모든 기록 보기" : "See all records"}
-              variant="secondary"
-              onPress={() => {
-                setDrawerOpen(false);
-                router.push("/records");
-              }}
-            />
-            <Button label={locale === "ko" ? "닫기" : "Close"} variant="secondary" onPress={() => setDrawerOpen(false)} />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {renderEvidenceDrawer()}
       {/* 아치 appears briefly when a fresh connection surfaces (companion pack §3) */}
       {companionMoment ? (
         <CompanionMoment moment={companionMoment} style={styles.companionFlash} />
@@ -556,4 +784,22 @@ const styles = StyleSheet.create({
   // Empty-state locked constellation: Tier-1 core + a dim ring of seven stars.
   lockedConstellation: { alignItems: "center", gap: spacing.md },
   lockedStarRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, justifyContent: "center", maxWidth: 320 },
+});
+
+// rev2 P3a — deep-space 북극성 deck layout (the deck itself is PolarisDeck).
+const dsDeck = StyleSheet.create({
+  wrap: { flex: 1, paddingHorizontal: 12, paddingTop: 10 },
+  heroBody: { alignItems: "center", gap: spacing.xs, paddingVertical: spacing.md },
+  heroBand: { textAlign: "center" },
+  heroCaption: { textAlign: "center" },
+  heroStats: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  heroHint: { marginTop: spacing.lg, textAlign: "center" },
+  radarBody: { alignItems: "center", gap: spacing.md },
+  validateList: { gap: spacing.sm },
 });
