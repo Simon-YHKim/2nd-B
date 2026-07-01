@@ -4,11 +4,12 @@
 // saved as a record so it surfaces in /persona and feeds Inference Engine.
 
 import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumToast } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
+import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
@@ -59,8 +60,23 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
   const [started, setStarted] = useState(false);
   const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
 
   const result = useMemo(() => scoreBfi(responses), [responses]);
+
+  // Android hardware back handler: intercept navigation back requests while the
+  // survey is in progress to prevent accidental loss of responses.
+  useEffect(() => {
+    if (!started || Object.keys(responses).length === 0 || saved) return;
+
+    const onBackPress = () => {
+      setExitConfirmOpen(true);
+      return true; // Consume the event, preventing immediate navigation back
+    };
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => subscription.remove();
+  }, [started, responses, saved]);
 
   useEffect(() => {
     if (!toast) return;
@@ -213,6 +229,40 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
           <PremiumToast message={toast.message} tone={toast.tone} />
         </View>
       ) : null}
+
+      <PremiumModal
+        visible={exitConfirmOpen}
+        onClose={() => setExitConfirmOpen(false)}
+        accessibilityLabel={locale === "ko" ? "검사 종료 안내" : "Exit survey notice"}
+      >
+        <Text variant="heading">
+          {locale === "ko" ? "검사를 종료할까요?" : "Exit survey?"}
+        </Text>
+        <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
+          {locale === "ko"
+            ? "정말 성격 검사를 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다."
+            : "Are you sure you want to exit? Your progress will not be saved."}
+        </Text>
+        <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
+          <Button
+            label={locale === "ko" ? "취소" : "Cancel"}
+            variant="secondary"
+            onPress={() => setExitConfirmOpen(false)}
+            style={{ flex: 1 }}
+            accessibilityHint={locale === "ko" ? "검사를 계속 진행합니다." : "Continue the survey."}
+          />
+          <Button
+            label={locale === "ko" ? "종료하기" : "Exit"}
+            variant="primary"
+            onPress={() => {
+              setExitConfirmOpen(false);
+              onCancel();
+            }}
+            style={{ flex: 1 }}
+            accessibilityHint={locale === "ko" ? "검사를 종료하고 이전 화면으로 돌아갑니다." : "Exit the survey and return."}
+          />
+        </View>
+      </PremiumModal>
     </>
   );
 }
