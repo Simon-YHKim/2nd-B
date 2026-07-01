@@ -18,9 +18,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, type Href } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { MdNavBar } from "@/components/m3";
 import { SecondbStatusHeader } from "./SecondbStatusHeader";
 import type { SecondbMood } from "./SecondbHead";
-import { DeepSpaceDock, type DeepSpaceTab } from "./DeepSpaceDock";
+import { TabIcon, type DeepSpaceTab } from "./DeepSpaceDock";
 
 const TAB_ROUTE: Record<DeepSpaceTab, Href> = {
   home: "/",
@@ -28,6 +29,7 @@ const TAB_ROUTE: Record<DeepSpaceTab, Href> = {
   chat: "/secondb",
   ops: "/ops",
   account: "/account",
+  wiki: "/wiki",
   lens: "/core-brain",
   iden: "/iden",
 };
@@ -38,12 +40,14 @@ const VIEW_MOOD: Record<DeepSpaceTab, SecondbMood> = {
   chat: "neutral",
   ops: "neutral",
   account: "positive",
+  wiki: "neutral",
   lens: "positive",
   iden: "neutral",
 };
 
-// Primary order (SCREEN_TREE_SPEC §0.1): 담기 · 알아가기 · [중앙 세컨비] · 비서 · 나.
-const TABS: DeepSpaceTab[] = ["capture", "home", "chat", "ops", "account"];
+// Primary order (rev2 §3): 별자리홈 · 담기 · [중앙 세컨비] · 위키 · 비서.
+// 나(account) moves out of the dock — reachable via profile / settings / back-arrow.
+const TABS: DeepSpaceTab[] = ["home", "capture", "chat", "wiki", "ops"];
 
 export function DeepSpaceScreen({ active, children }: { active: DeepSpaceTab; children: ReactNode }) {
   const { t, i18n } = useTranslation("home");
@@ -57,6 +61,8 @@ export function DeepSpaceScreen({ active, children }: { active: DeepSpaceTab; ch
     key,
     label: t("ds.dock." + key),
     accessibilityLabel: t("ds.dock." + key),
+    icon: (color: string) => <TabIcon tab={key} color={color} />,
+    center: key === "chat",
   }));
 
   return (
@@ -81,11 +87,11 @@ export function DeepSpaceScreen({ active, children }: { active: DeepSpaceTab; ch
 
       <View style={styles.body}>{children}</View>
 
-      <DeepSpaceDock
+      <MdNavBar
         active={active}
         items={dockItems}
-        onChange={(tab) => {
-          if (tab !== active) router.replace(TAB_ROUTE[tab]);
+        onSelect={(tab) => {
+          if (tab !== active) router.replace(TAB_ROUTE[tab as DeepSpaceTab]);
         }}
       />
     </SafeAreaView>
