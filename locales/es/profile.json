@@ -36,6 +36,10 @@
           "label": "Big Five",
           "hint": "Abre la evaluación Big Five."
         },
+        "rlss": {
+          "label": "Satisfacción vital",
+          "hint": "Abre la evaluación de satisfacción vital (RLSS)."
+        },
         "ipip": {
           "label": "IPIP-NEO-120",
           "hint": "Abre la evaluación detallada (IPIP-NEO-120)."
