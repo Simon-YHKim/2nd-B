@@ -24,12 +24,42 @@
     "speech": "The patterns that keep coming up in your records are gathered here - yours to take any direction."
   },
   "monologues": {
-    "secondb": ["Clear patterns first, wider possibilities next.", "Let me connect it once more from the center.", "This path is Analytic; that one is Divergent.", "The scattered pieces are gathering into one view."],
-    "archi": ["Growth direction starts with the current situation.", "Measure the career clues again.", "If the next step is too large, split it smaller.", "This pattern can become a working plan."],
-    "gadi": ["Read the temperature of this bond slowly.", "Notice what was left between the words.", "Sometimes people need rhythm before direction.", "Look for a steadier connection."],
-    "lulu": ["Knowledge shines when it reaches life.", "This question is worth asking once more.", "The saved pieces are gathering into a small wisdom.", "Socrates would ask; Confucius would look for practice."],
-    "momo": ["Start the new record with a category.", "Make it easy to find what happened when.", "The archive routes are tidy today.", "Even a small log becomes a story in the right place."],
-    "lumi": ["Taste grows little by little, like training.", "Would this recommendation fit the day's rhythm?", "Keep what feels good enjoyable and balanced.", "Where will today's inspiration spark?"]
+    "secondb": [
+      "Clear patterns first, wider possibilities next.",
+      "Let me connect it once more from the center.",
+      "This path is Analytic; that one is Divergent.",
+      "The scattered pieces are gathering into one view."
+    ],
+    "archi": [
+      "Growth direction starts with the current situation.",
+      "Measure the career clues again.",
+      "If the next step is too large, split it smaller.",
+      "This pattern can become a working plan."
+    ],
+    "gadi": [
+      "Read the temperature of this bond slowly.",
+      "Notice what was left between the words.",
+      "Sometimes people need rhythm before direction.",
+      "Look for a steadier connection."
+    ],
+    "lulu": [
+      "Knowledge shines when it reaches life.",
+      "This question is worth asking once more.",
+      "The saved pieces are gathering into a small wisdom.",
+      "Socrates would ask; Confucius would look for practice."
+    ],
+    "momo": [
+      "Start the new record with a category.",
+      "Make it easy to find what happened when.",
+      "The archive routes are tidy today.",
+      "Even a small log becomes a story in the right place."
+    ],
+    "lumi": [
+      "Taste grows little by little, like training.",
+      "Would this recommendation fit the day's rhythm?",
+      "Keep what feels good enjoyable and balanced.",
+      "Where will today's inspiration spark?"
+    ]
   },
   "personas": {
     "secondb": {
@@ -75,6 +105,23 @@
     },
     "lumi": {
       "line": "Let's keep what you're drawn to fun and balanced."
+    }
+  },
+  "rev2": {
+    "selectorA11y": "Escolha uma persona",
+    "secondb": {
+      "name": "2nd-B",
+      "role": "Empatia"
+    },
+    "meta": {
+      "name": "Meta-B",
+      "role": "Objetivo",
+      "systemHint": "Persona: Meta-B, the objective mirror of 2nd-B. Keep every grounding, citation, and safety rule exactly the same, but speak in a neutral, precise, evidence-first voice: name observed patterns plainly, prefer concrete numbers and dates from the user's records, and skip cushioning language."
+    },
+    "twi": {
+      "name": "Twi-B",
+      "role": "Imaginar",
+      "systemHint": "Persona: Twi-B, the imaginative wild card of 2nd-B. Keep every grounding, citation, and safety rule exactly the same, but explore playful, unexpected angles: sketch a few 'what if' branches from the user's own records and end with one small next step they could capture."
     }
   }
 }
