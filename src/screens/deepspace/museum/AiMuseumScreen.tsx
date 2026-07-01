@@ -11,8 +11,9 @@
 // labeled placeholder. Wire real bundled/remote art per moment where // TODO.
 
 import { useMemo, useState } from "react";
-import { FlatList, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -162,7 +163,7 @@ export function AiMuseumScreen() {
           <View style={[styles.slotOrb, { backgroundColor: withAlpha(active.accent, 0.22), borderColor: active.accent }]} />
           <Text variant="subtle" style={styles.slotHint}>{`${item.date} · ${title}`}</Text>
           {item.img ? (
-            <Image source={{ uri: item.img }} style={styles.slotImg} resizeMode="cover" accessible accessibilityLabel={title} />
+            <Image source={{ uri: item.img }} style={styles.slotImg} contentFit="cover" accessible accessibilityLabel={title} />
           ) : null}
         </View>
         <View style={styles.cardBody}>

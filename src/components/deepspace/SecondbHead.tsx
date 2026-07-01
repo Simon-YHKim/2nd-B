@@ -19,7 +19,8 @@
 //   static measure node  ->  tracking node (JS)  ->  bob node (native)  ->  face
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Image, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Image } from "expo-image";
 import Svg, { Path } from "react-native-svg";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
@@ -224,7 +225,7 @@ export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityL
     <View ref={rootRef} onLayout={measure} collapsable={false} style={[styles.root, style]}>
       <Animated.View style={trackStyle}>
         <Animated.View style={[styles.wrap, { width: size, height: size }, bobStyle]}>
-          <Image source={HEAD_IMAGE} style={{ width: size, height: size }} resizeMode="contain" accessibilityLabel={accessibilityLabel} />
+          <Image source={HEAD_IMAGE} style={{ width: size, height: size }} contentFit="contain" accessibilityLabel={accessibilityLabel} />
 
           {/* Dark face screen (visor) the eyes + mouth glow on. */}
           <View
