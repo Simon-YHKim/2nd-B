@@ -3415,18 +3415,19 @@ export function DeepSpaceWikiScreen() {
   const view = useMemo(() => buildDeepWikiView(pages, edges, { activeTag }), [pages, edges, activeTag]);
 
   if (authLoading) {
-    return <Shell title={t("wiki.title")}><GraphLoading /></Shell>;
+    return <DeepSpaceScreen active="wiki"><DockBody title={t("wiki.title")}><GraphLoading /></DockBody></DeepSpaceScreen>;
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  const headerText =
-    view.pageCount > 0 ? t("wiki.headerGrowing", { count: view.pageCount }) : t("wiki.headerEmpty");
   // Default the first page open when nothing is explicitly toggled.
   const openId = expandedId ?? view.pages[0]?.id ?? null;
 
+  // P2-cont: /wiki sits inside the M3 dock shell (PRD §04 5-tab set). The shell
+  // owns the star-field + SecondbStatusHeader (ds.head.wiki.*), so the screen's
+  // own header goes away; the page count already reads out in the stat row.
   return (
-    <Shell title={t("wiki.title")}>
-      <SecondbStatusHeader text={headerText} tip={t("wiki.tip")} mood="positive" />
+    <DeepSpaceScreen active="wiki">
+      <DockBody title={t("wiki.title")}>
       <View style={styles.wikiStatRow}>
         <View style={styles.wikiStat}><Text variant="heading" style={styles.wikiStatNum}>{view.pageCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statPages")}</Text></View>
         <View style={styles.wikiStat}><Text variant="heading" style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>{view.edgeCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statLinks")}</Text></View>
@@ -3508,7 +3509,8 @@ export function DeepSpaceWikiScreen() {
           })}
         </>
       )}
-    </Shell>
+      </DockBody>
+    </DeepSpaceScreen>
   );
 }
 
