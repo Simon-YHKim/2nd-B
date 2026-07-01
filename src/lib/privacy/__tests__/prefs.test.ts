@@ -27,19 +27,18 @@ describe("privacy prefs (task D)", () => {
     expect(resolvePrivacyPrefs({})).toEqual(defaultPrivacyPrefs());
   });
 
-  test("the seeded minor key set matches the migration (0032) plus post-seed keys", () => {
-    // Guard against drift between src and the SQL jsonb_build_object keys.
-    // Keys after the 0032 seed (ops_push, 2026-06-11) default to false via
-    // resolvePrivacyPrefs when absent from the stored jsonb, so they don't
-    // require a new migration - but they MUST stay listed here on purpose.
+  test("the pref key set is the honest, enforced-or-intentional contract", () => {
+    // Guard against drift. Task D (2026-07-01) pruned llm_training /
+    // persona_export / persona_share (declared but never read/enforced — false
+    // privacy promises). The 0032 minor seed may still write those keys into old
+    // rows, but they are inert here (resolvePrivacyPrefs drops unknown keys), so
+    // no migration is required for the app contract. Keys MUST stay listed here on
+    // purpose.
     expect([...PRIVACY_PREF_KEYS]).toEqual([
       "ads",
       "sharing",
       "recommendations",
       "external_analytics",
-      "llm_training",
-      "persona_export",
-      "persona_share",
       "long_term_memory",
       "ops_push",
       "health_import",

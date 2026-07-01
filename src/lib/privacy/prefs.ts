@@ -6,14 +6,19 @@
 // the key set + default resolution, shared by the server defaults, the app, and
 // the settings UI (delegated to the design pass — it binds toggles to these keys).
 
+// Task D (2026-07-01): pruned three declared-but-never-read keys —
+// `llm_training`, `persona_export`, `persona_share`. None was enforced or shown
+// (all absent from VISIBLE_PRIVACY_KEYS), so each was a false privacy promise: a
+// pref the app persisted but never honored. Removing them from the contract makes
+// the set honest — re-add a key only when a real enforcer ships. Old rows may
+// still carry the seeded booleans in users.privacy_prefs (migration 0032); those
+// are inert here (resolvePrivacyPrefs drops unknown keys) — an optional cleanup
+// migration + trigger update can strip them from the DB later.
 export const PRIVACY_PREF_KEYS = [
   "ads",
   "sharing",
   "recommendations",
   "external_analytics",
-  "llm_training",
-  "persona_export",
-  "persona_share",
   "long_term_memory",
   "ops_push",
   "health_import",
@@ -60,8 +65,10 @@ export function resolvePrivacyPrefs(stored: Record<string, unknown> | null | und
 export const MINOR_PROMOTABLE_KEYS: readonly PrivacyPrefKey[] = ["long_term_memory", "ops_push"];
 
 // D-12 (2026-06-07 consensus): the settings UI MUST render ONLY enforced keys
-// — showing a toggle that controls nothing is a false privacy promise (esp.
-// llm_training/sharing). Enforced today:
+// — showing a toggle that controls nothing is a false privacy promise (which is
+// why the unenforced llm_training/persona_export/persona_share keys were pruned
+// entirely; `sharing` remains as the one intentional future-wiring placeholder).
+// Enforced today:
 //   - external_analytics: analytics-consent-queue gates GA4/Clarity/PostHog.
 //   - ads (2026-06-11): AdSlot reads this pref as the explicit ads consent
 //     (policy rule 3, src/lib/ads/policy.ts) — OFF means no ads at all, not
