@@ -294,6 +294,7 @@ function SelectRow<T extends string>({
         return (
           <Pressable
             key={opt}
+            hitSlop={12}
             onPress={() => onSelect(opt)}
             style={[styles.selChip, active && styles.selChipActive]}
             accessibilityRole="button"
@@ -362,7 +363,7 @@ function TagField({
           autoCorrect={false}
           style={styles.tagInput}
         />
-        <Pressable onPress={add} style={styles.tagAddBtn} accessibilityRole="button" accessibilityLabel={addLabel}>
+        <Pressable onPress={add} hitSlop={12} style={styles.tagAddBtn} accessibilityRole="button" accessibilityLabel={addLabel}>
           <Text style={styles.tagAddBtnText}>+</Text>
         </Pressable>
       </View>
