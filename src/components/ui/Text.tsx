@@ -1,4 +1,4 @@
-import { Text as RNText, type TextProps as RNTextProps } from "react-native";
+import { Text as RNText, type TextProps as RNTextProps, Platform } from "react-native";
 
 import { semantic, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -59,6 +59,7 @@ export function Text({ variant = "body", color, style, maxFontSizeMultiplier, pi
       {...rest}
       style={[
         { color: palette[color ?? "text"], fontSize: v.fontSize, fontWeight: v.fontWeight, fontFamily },
+        rest.numberOfLines !== undefined && Platform.OS === "android" && { paddingBottom: 1.5 },
         style,
       ]}
     />
