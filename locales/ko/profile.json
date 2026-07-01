@@ -40,6 +40,10 @@
           "label": "삶의 만족도",
           "hint": "삶의 만족도(RLSS) 검사를 엽니다."
         },
+        "ipip": {
+          "label": "정밀검사 (IPIP-NEO)",
+          "hint": "성격 정밀검사(IPIP-NEO-120)를 엽니다."
+        },
         "attachment": {
           "label": "애착 유형",
           "hint": "애착 유형 검사를 엽니다."

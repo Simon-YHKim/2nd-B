@@ -40,6 +40,10 @@
           "label": "Life Satisfaction",
           "hint": "Opens the Life Satisfaction (RLSS) assessment."
         },
+        "ipip": {
+          "label": "IPIP-NEO-120",
+          "hint": "Opens the in-depth (IPIP-NEO-120) assessment."
+        },
         "attachment": {
           "label": "Attachment",
           "hint": "Opens the attachment style assessment."

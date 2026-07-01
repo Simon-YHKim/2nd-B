@@ -352,6 +352,15 @@ function CoreBrainScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          {/* Over-trust / EU AI Act Art.50 + GDPR Art.12 (research 2026-06-28): the
+              inferred persona must be disclosed as a generative approximation, not
+              authoritative self-knowledge. The legacy persona screen says this; the
+              canon soul-core did not, so it is added here on the inferred-self card. */}
+          <Text variant="caption" color="textSubtle" style={{ marginTop: 8 }}>
+            {locale === "ko"
+              ? "AI가 기록에서 만든 근사치예요 · 권위적 판단이 아니라 한 가지 해석이에요."
+              : "An AI approximation from your records, one interpretation, not authoritative."}
+          </Text>
           <Button
             label={locale === "ko" ? "살펴보기" : "Look around"}
             variant="secondary"

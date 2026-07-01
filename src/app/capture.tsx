@@ -1481,6 +1481,7 @@ function CaptureLegacy() {
                     />
                   </View>
                   <Pressable
+                    hitSlop={14}
                     onPress={() => { setProposal(null); setProposalCtx(null); }}
                     style={styles.proposalDismissLink}
                     accessibilityRole="button"
@@ -1694,6 +1695,7 @@ function CaptureLegacy() {
                 </Text>
                 {topic.length === 0 ? (
                   <Pressable
+                    hitSlop={14}
                     onPress={() => setTopic(dailyPrompt(locale))}
                     style={styles.useTopicLink}
                     accessibilityRole="button"
@@ -1712,6 +1714,7 @@ function CaptureLegacy() {
                 autoCapitalize="sentences"
               />
               <Pressable
+                hitSlop={14}
                 onPress={() => setShowExtras((v) => !v)}
                 style={styles.extrasToggleLink}
                 accessibilityRole="button"
