@@ -27,7 +27,7 @@ The concept and direction is **deep-space constellation** (a character-led home 
 canonical concept SoT is **`docs/PRD.md` (Draft v3)**; the detailed model spec is
 **`docs/CONSTELLATION-DESIGN.md`**; **`docs/CONCEPT.md`** names canonical vs legacy. Read these
 before any concept, IA, or visual decision. Canonical model = **3-layer 별자리**: A) 7 DOMAIN
-stars (커리어·재정·성장·관계·건강·오락·담아내기 = input), B) the psychological constructs in
+stars (커리어·재정·성장·관계·건강·휴식·담아내기 = input), B) the psychological constructs in
 `stars.ts` (the hidden validation layer behind the output — NOT home stars), C) 북극성 (Polaris)
 = the aggregate output / persona synthesis (drop the "Soul Core" name) + the L1~L5 brightness
 ladder + propose->ratify.
@@ -70,6 +70,16 @@ This is **not** a mental-health, therapy, or wellness app. Avoid clinical termin
 The single source of truth for both runtime classification and CI scan is `src/lib/safety/lexicon.ts`.
 
 ## Design system
+
+> **ACTIVE MIGRATION (2026-07-01) — rev2 PRD v2.0 → Material 3.** Approved direction: the app is
+> migrating from the deep-space **cosmic-pixel** visual system to **Material 3 + deep-space**. The
+> program plan + gap analysis is `docs/REV2-MIGRATION.md` (the SoT for this migration). Concept is
+> UNCHANGED (별자리 · 북극성 · 북두칠성 7별 · 정직한 밝기 L1~L5 · propose→ratify · 세컨비); per PRD v2.0
+> "레이아웃 자유, 의미 고정" — feature purpose/interaction/data-flow/safety invariants + the 별자리 홈
+> 골격 + 세컨비 머리 에셋 are fixed. Deltas: pixel-font chrome (Galmuri/Press Start) → Roboto/Roboto
+> Mono + Pretendard; azure primary + violet tertiary; deep-space bg global; 세컨비 3 personas
+> (2nd-B/메타비/트위비); domain 6 오락 → 휴식. **Until a screen is migrated to M3, the current
+> deep-space rules below still apply to it.** `EXPO_PUBLIC_UI=legacy` cosmic-pixel stays the rollback.
 
 **Read `docs/CONCEPT.md` (concept/direction) and `DESIGN.md` (visual discipline) before any visual or UI decision.** DESIGN.md's Cosmic Pixel Graph Village is the legacy skin; deep-space visuals use `deepSpace.*` tokens + `docs/deep-space-nav-contract.md`. Font, color, spacing, and aesthetic rules are defined there.
 
@@ -123,7 +133,7 @@ The app uses the **3-layer constellation hierarchy** (canonical = PRD §4.1 +
 | Layer | Node | Brightness/Glow | Notes |
 |------|------|--------------|-------|
 | C (출력) | 북극성 (Polaris) | Full brightness, max glow bloom | Root/hero — aggregate of the 7 domain stars, must be clearly dominant. Internal key `soulCoreBrightness`, display "북극성" |
-| A (입력) | 북두칠성 7 도메인 별 | baseline magnitude × domain L1~L5 | The 7 life-domain stars (커리어·재정·성장·관계·건강·오락·담아내기). Brighter as the domain fills |
+| A (입력) | 북두칠성 7 도메인 별 | baseline magnitude × domain L1~L5 | The 7 life-domain stars (커리어·재정·성장·관계·건강·휴식·담아내기). Brighter as the domain fills |
 | link | cyan Pattern Link | Subtle, recedes | All links = cyan (Big Dipper shape + 2-star pointer → 북극성) |
 
 (Layer B = the psychological constructs in `stars.ts`, the hidden validation layer behind

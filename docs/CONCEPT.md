@@ -11,7 +11,7 @@
   default). The constellation is the **single home / navigation**; tap a star → its domain,
   tap 북극성 → the aggregate + 세컨비. No 4-tab shell, no village graph.
 - **Canonical model = 3-layer 별자리** (PRD §4):
-  - **Layer A — input: 7 DOMAIN stars** (북두칠성). 커리어 · 재정 · 성장 · 관계 · 건강 · 오락 ·
+  - **Layer A — input: 7 DOMAIN stars** (북두칠성). 커리어 · 재정 · 성장 · 관계 · 건강 · 휴식 ·
     담아내기. Each = 입력 → 출력 + 리스트업(편집 가능 + 카테고리 + 태그). These are the *visible*
     home stars.
   - **Layer B — validation: psychological constructs** (`src/lib/persona/stars.ts`
