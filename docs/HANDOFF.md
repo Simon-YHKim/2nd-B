@@ -3,7 +3,58 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-01 / P2 랜딩 + OTA 파이프라인 복구 (rev2 M3)
+## Latest — 2026-07-02 / rev2 P1b+P2 랜딩 · OTA 파이프라인 복구·퍼블리시 · Android Studio QA 인계
+
+### 어디까지 왔나
+- main HEAD: `220393a` (그 위로 Simon 이 BackHandler/survey 픽스 다수 직접 push — rev2 UI 와 독립).
+- **이번 세션 머지된 PR** (전부 main): #652 P1b(M3 프리미티브 7종+Roboto) · #653 P2(MdNavBar 배선+5탭 정합+세컨비 persona 머리) · #654 OTA 번들 fix · #655 번들 하드닝+핸드오프 · #656 CHANGELOG+OTA 트리거.
+- 테스트: **276 suites / 2125 tests green** (`npm run verify`). working tree: clean.
+- **OTA 퍼블리시 성공** ✅ — channel `preview` · runtime `0.0.6` · android+ios · update group `9a855a30-99dd-4e4a-9264-fbb7066bf7e7`. 대시보드: <https://expo.dev/accounts/simon_k/projects/2nd-brain/updates>.
+
+### 🔴 이번 세션 최대 발견: OTA 는 #612 이후 실제로 한 번도 퍼블리시된 적 없었음 (지금 복구)
+- `src/app/__tests__/big-five-canon.test.ts` 의 `node:fs` 가 expo-router `require.context` 로 앱 번들에 포함 → Hermes/EAS 번들 실패. 웹 export 는 통과(node: shim)해 가려졌고, eas-update gate 는 `[ota]` 마커 없으면 skip 이라 아무도 몰랐음.
+- **복구**: 테스트 router 밖 이동(#654) + metro blockList 로 `__tests__`/`*.test.*` 번들 제외(#655). `expo export --platform android --clear` 성공으로 확인.
+
+### 활성 인프라 (변동 없음)
+- Supabase `zoacryukmdeivmolvyhj` (Postgres+Auth). LLM edge: Gemini `gemini-proxy` · Claude `claude-proxy` (키 = Edge secret). 라이브 web = GitHub Pages(main). QA 계정 = `.env.test` (`qa.ai.b18807@example.com`).
+- **버전 `0.0.6` 유지** (runtimeVersion policy=appVersion). ⚠️ 올리면 기존 preview 설치가 OTA 고아 → 새 네이티브 빌드 필요할 때만 bump.
+
+### 📱 다음 세션 = 터미널 + Android Studio QA (인계 핵심)
+- **런북**: `docs/ANDROID-STUDIO-QA.md` (신규). `npm ci` → `.env` 에 Supabase 공개값 → `npx expo run:android` (또는 `expo prebuild -p android` 후 Android Studio 로 `android/` 열기) → QA 계정 로그인.
+- **육안 검증 대상** (헤드리스로 못 본 것): M3 dock(MdNavBar) 5탭 · 별자리 홈 · 세컨비 persona 머리 · Roboto 크롬폰트 · stadium 버튼/8dp 칩. 반드시 `ANDROID_QA_GUIDELINES.md` 준수.
+- 또는 기존 preview 빌드(runtime 0.0.6)면 **앱 2회 완전 재실행**으로 OTA 반영.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **Android Studio 육안 QA** (위 목록) → 발견된 시각/UX 이슈 픽스 | medium | ⭐ 다음 세션 시작점 (헤드리스 미검증분) |
+| B | **P2-cont**: 홈 색토큰 `m3.accent.*` 완전 이관(저델타) · 세컨비 persona **셀렉터** UI(/secondb) · `/wiki` 를 DeepSpaceScreen `active="wiki"` 셸로 감싸기(PRD §04 5탭 확정) | large | A 후 |
+| C | **P3~P7**: `docs/REV2-MIGRATION.md` (자기이해 축·도메인 렌즈·IDEN·위젯·QA) | large | |
+| D | 백엔드 게이트: E-act(0063 purge 활성화) · F2~F4(peer-review informant 법무) | medium | 법무/제품 |
+
+### 적용 중인 정책 (영구 / 이번 세션 학습)
+1. **`git push --force` 는 auto-mode 분류기가 차단** (CLAUDE.md). 머지된 브랜치 재사용 대신 **새 브랜치**로 PR. (이번 세션 P2/fix 들이 그렇게 진행됨.)
+2. **OTA 퍼블리시 트리거**: main push + 커밋/머지 메시지 `[ota]`/`[release]` 마커 (또는 workflow_dispatch). 에이전트 GitHub 토큰은 **Actions dispatch/rerun 403** → push 경유만 가능.
+3. **OTA concurrency**: `eas-update.yml` 은 `cancel-in-progress` — Simon 이 연속 push 하면 진행 중 OTA 런이 취소됨. **조용한 ~4분 창**에서 [ota] 머지해야 완주.
+4. 커밋 신원 = `Claude <noreply@anthropic.com>`. GitHub "Unverified" 는 GPG 부재이며 기능 무관.
+5. 결정/리포트 산출물은 HTML (progressive disclosure).
+
+### 검증
+```bash
+npm run verify   # 276 suites / 2125 tests
+npx expo export --platform android --clear   # OTA/네이티브 번들 무결성 (node:fs 재발 감지)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md && cat docs/ANDROID-STUDIO-QA.md
+# A) Android Studio 로 앱 띄워 rev2 M3 육안 QA 부터
+```
+
+---
+
+## 2026-07-01 / P2 랜딩 + OTA 파이프라인 복구 (rev2 M3)
 
 ### 어디까지 왔나
 - **P1b (#652) · P2 (#653) · OTA 번들 fix (#654) 전부 main 머지.** 그 사이 Simon 이 Android 픽스 다수를 직접 push (텍스트클리핑/키보드/expo-image/tabbar/elevation) — 충돌 없이 통합됨.
