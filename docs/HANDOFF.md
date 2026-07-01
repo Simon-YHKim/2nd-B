@@ -6,14 +6,20 @@
 ## Latest — 2026-07-01 / 큐 A·B·C 전량 머지 + D-1(프라이버시 prune) — 11 PR 랜딩
 
 ### 어디까지 왔나
-- main HEAD: `34ecc7d`
+- main HEAD: `8586c8a` (마지막 코드 변경 = `34ecc7d` #641; 그 위 핸드오프 문서 커밋)
 - **이 세션에 머지된 PR 11개** (전부 현재 main 기준 재검증 후 admin squash):
   - **A** — #636 IPIP facet lens Phase 3 (시각 QA 후 머지, `971bb35`)
   - **A 후속** — #639 facet lens EN 라벨 트렁케이션 픽스 (`f111dff`)
   - **B** — #640 buildPersona+별자리 **IPIP-NEO-120 > BFI-44 우선** (`c81d24a`)
   - **C (강화 PR 8종)** — #630 대비가드 `9bad838` · #631 a11y 터치타겟 `1a62896` · #632 나이 fail-safe(안전) `73c6e31` · #629 근사치 고지 `2f15862` · #625 RLSS `2db88f5` · #627 반영 스캐폴드 `f575de0` · #628 Seen SOKA 패널 `2fbb3c6` · #626 정직-종합 프롬프트 `c662a2c`
   - **D-1** — #641 미사용 privacy pref키 prune (`llm_training`·`persona_export`·`persona_share`) `34ecc7d`
-- 최종 verify: **269 suites / 2062 tests green**. working tree: 9 mascot assets 미추적(안 건드림).
+- 최종 verify: **269 suites / 2062 tests green**. working tree: clean (9 mascot assets 미추적 — 안 건드림).
+
+### 활성 인프라
+- **Supabase** `zoacryukmdeivmolvyhj` (Postgres + Auth). LLM은 edge function 경유: **Gemini `gemini-proxy`** · **Claude `claude-proxy`** (키는 Supabase Edge secret — 레포/번들에 없음).
+- **라이브**: <https://simon-yhkim.github.io/2nd-B/> (GitHub Pages, main) + PR별 Vercel 프리뷰.
+- **마이그레이션**: `db/migrations/` (최신 `0061_rls_initplan_optimize.sql`). CI = `verify` + `supabase-dry-run.yml`.
+- **QA 계정**: `.env.test`(커밋됨) → `qa.ai.b18807@example.com` (free · adult · judge_mode=false, RLS 격리).
 
 ### 다음 작업 큐 (갱신)
 | # | 작업 | 크기 | 상태/권장 |
@@ -34,6 +40,28 @@
 - **prefs**: `src/lib/privacy/prefs.ts` — `PRIVACY_PREF_KEYS`(D-1로 7개로 축소), `VISIBLE_PRIVACY_KEYS`(강제되는 것만 노출), `resolvePrivacyPrefs`(unknown 키 drop). `sharing`은 미강제지만 future-wiring 플레이스홀더로 **의도적 잔류**(prune 후보 4번 — 원하면 제거 가능).
 - **추천 게이트**: `src/lib/ops/recommend.ts` — `recommendationsAllowed(isMinor, pref)` = `pref===true`. `recommendForDomain(input)`는 현재 게이트 미포함(호출부가 게이트).
 - **동의**: `consent_records`(마이그 0031, append-only RLS) = GRANT 로그. `guardian_consents`(0028). 클라 기록 = `src/lib/supabase/consent.ts`. 최신 마이그 = `db/migrations/0061_*`.
+
+### 핵심 파일 위치
+```
+src/lib/privacy/prefs.ts               privacy pref 계약 (D-1 로 7키) — PRIVACY_PREF_KEYS/VISIBLE_PRIVACY_KEYS/resolvePrivacyPrefs
+src/lib/ops/recommend.ts               추천 엔진 + recommendationsAllowed 게이트 (D-2 대상)
+src/lib/supabase/consent.ts            동의 기록 클라 (record*Consent) — GRANT만; REVOKE 미기록 (D-3 대상)
+src/lib/supabase/privacy.ts            privacy_prefs I/O (D-3 REVOKE 훅 지점)
+db/migrations/                         Supabase 마이그 (최신 0061; D-3 는 새 0062 필요)
+src/lib/persona/build.ts               buildPersona (IPIP>BFI, #640) + traitsSource/isMeasuredSource
+src/components/persona/FacetBreakdown.tsx  facet 렌즈 UI (#636/#639)
+```
+
+### 검증
+```bash
+npm run verify   # lint + type-check + i18n + lexicon + LLM-boundary + constraints + jest (269 suites / 2062 tests)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# D-2(추천 엔진 하드게이트, small) 또는 D-3(동의 REVOKE audit — 스키마 A/B 결정 후, medium)부터
+```
 
 ---
 
