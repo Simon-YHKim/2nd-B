@@ -31,8 +31,8 @@ config.resolver.blockList = [
   /[\\/]\.worktrees[\\/].*/,
   // Never bundle tests into the app. expo-router globs src/app via require.context,
   // so a *.test.* / __tests__ file there pulls in node:* builtins that Hermes can't
-  // resolve and breaks the native / OTA export. jest uses ts-jest (not Metro), so
-  // this exclusion does not affect the test run.
+  // resolve and breaks the native / OTA export (see .github/workflows/eas-update.yml).
+  // jest uses ts-jest (not Metro), so this exclusion does not affect the test run.
   /[\\/]__tests__[\\/]/,
   /\.(test|spec)\.[jt]sx?$/,
 ];
