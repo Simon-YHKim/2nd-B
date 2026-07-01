@@ -19,6 +19,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  BackHandler,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -58,6 +59,7 @@ type InterviewToast = { message: string; tone: "info" | "success" | "danger" };
 type InterviewFeedbackModal =
   | { kind: "probe"; turnsSoFar: InterviewTurn[]; coverageSoFar: Coverage }
   | { kind: "save" }
+  | { kind: "exit" }
   | null;
 
 // Single interview engine shared by BOTH the legacy and deep-space branches —
@@ -109,6 +111,21 @@ function InterviewBody({ variant }: { variant: InterviewVariant }) {
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
     }
   }, [turns.length]);
+
+  // Android hardware back handler: intercept navigation back requests while the
+  // interview session is in progress (turns.length > 0) and not finished yet to
+  // prevent accidental loss of multi-turn conversational answers.
+  useEffect(() => {
+    if (turns.length === 0 || done) return;
+
+    const onBackPress = () => {
+      setFeedbackModal({ kind: "exit" });
+      return true; // Consume the event, preventing immediate navigation back
+    };
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => subscription.remove();
+  }, [turns.length, done]);
 
   if (loading) {
     return (
@@ -255,24 +272,36 @@ function InterviewBody({ variant }: { variant: InterviewVariant }) {
   const shouldSuggestWrap = periodComplete && !completionAcknowledged && !done;
   const feedbackModalTitle = feedbackModal?.kind === "probe"
     ? (locale === "ko" ? "다음 질문을 못 불러왔어요" : "Couldn't load the next question")
-    : (locale === "ko" ? "저장하지 못했어요" : "Couldn't save");
+    : feedbackModal?.kind === "save"
+      ? (locale === "ko" ? "저장하지 못했어요" : "Couldn't save")
+      : (locale === "ko" ? "인터뷰를 종료할까요?" : "Exit interview?");
   const feedbackModalBody = feedbackModal?.kind === "probe"
     ? (
         locale === "ko"
           ? "잠시 연결이 흔들렸어요. 방금 답변은 그대로 남아 있어요. 다시 시도하면 이어서 물어볼게요."
           : "The connection hiccuped for a moment. Your answer is safe. Try again and we'll pick up where we left off."
       )
-    : (
-        locale === "ko"
-          ? "인터뷰 내용은 화면에 그대로 남아 있어요. 잠시 후 다시 저장해 주세요."
-          : "Your interview is still here on the screen. Give it another try in a moment."
-      );
+    : feedbackModal?.kind === "save"
+      ? (
+          locale === "ko"
+            ? "인터뷰 내용은 화면에 그대로 남아 있어요. 잠시 후 다시 저장해 주세요."
+            : "Your interview is still here on the screen. Give it another try in a moment."
+        )
+      : (
+          locale === "ko"
+            ? "정말 인터뷰를 종료하시겠습니까? 작성 중이던 대화 답변 내용이 저장되지 않고 사라집니다."
+            : "Are you sure you want to exit? Your conversational responses will not be saved."
+        );
   const feedbackRetryLabel = feedbackModal?.kind === "probe"
     ? (locale === "ko" ? "다시 시도" : "Retry")
-    : (locale === "ko" ? "다시 저장" : "Try again");
+    : feedbackModal?.kind === "save"
+      ? (locale === "ko" ? "다시 저장" : "Try again")
+      : (locale === "ko" ? "종료하기" : "Exit");
   const feedbackRetryHint = feedbackModal?.kind === "probe"
     ? (locale === "ko" ? "다음 질문을 다시 불러옵니다." : "Retry interview feedback by loading the next question.")
-    : (locale === "ko" ? "인터뷰 저장을 다시 시도합니다." : "Retry interview feedback by saving again.");
+    : feedbackModal?.kind === "save"
+      ? (locale === "ko" ? "인터뷰 저장을 다시 시도합니다." : "Retry interview feedback by saving again.")
+      : (locale === "ko" ? "인터뷰를 종료하고 이전 화면으로 돌아갑니다." : "Exit the interview and return to the previous screen.");
   const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;
   const footerStyle = Platform.OS === "android" && kbHeight > 0
     ? [styles.footer, { paddingBottom: kbHeight + spacing.sm }]
@@ -287,6 +316,10 @@ function InterviewBody({ variant }: { variant: InterviewVariant }) {
     }
     if (current?.kind === "save") {
       void handleSave();
+      return;
+    }
+    if (current?.kind === "exit") {
+      router.back();
     }
   }
 
@@ -479,11 +512,11 @@ function InterviewBody({ variant }: { variant: InterviewVariant }) {
         </Text>
         <View style={styles.modalActions}>
           <Button
-            label={locale === "ko" ? "닫기" : "Dismiss"}
+            label={feedbackModal?.kind === "exit" ? (locale === "ko" ? "취소" : "Cancel") : (locale === "ko" ? "닫기" : "Dismiss")}
             variant="secondary"
             onPress={() => setFeedbackModal(null)}
             style={styles.modalButton}
-            accessibilityHint={locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice."}
+            accessibilityHint={feedbackModal?.kind === "exit" ? (locale === "ko" ? "인터뷰를 계속 진행합니다." : "Continue the interview.") : (locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice.")}
           />
           <Button
             label={feedbackRetryLabel}
