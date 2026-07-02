@@ -20,13 +20,16 @@ export interface IdenExport {
   iden: string;
   /** The standalone A4 CV-sheet HTML (Ctrl/Cmd+P -> PDF, or a WebView). */
   html: string;
+  /** The filtered IdenDoc as pretty JSON — the machine-interchange form (P5a). */
+  json: string;
   /** Slug + date stem for downloads, e.g. "simon-iden-2026-06-16". */
   filenameBase: string;
   idenFilename: string;
   htmlFilename: string;
+  jsonFilename: string;
   locale: "en" | "ko";
   /** Character lengths (consistent with context-pack's char-based sizing). */
-  chars: { iden: number; html: number };
+  chars: { iden: number; html: number; json: number };
 }
 
 export interface BuildIdenExportOpts extends RenderIdenOpts {
@@ -34,6 +37,12 @@ export interface BuildIdenExportOpts extends RenderIdenOpts {
   request?: string;
   /** Optional human prose body for the `.iden`. */
   body?: string;
+  /**
+   * Data sovereignty toggles (rev2 P5a): field keys to KEEP in every artifact
+   * (.iden / HTML / JSON). Undefined = all fields. An excluded field never
+   * leaves the device in any format.
+   */
+  include?: readonly string[];
 }
 
 /** ASCII slug for a filename; empty when nothing survives (e.g. Hangul). Capped
@@ -48,21 +57,29 @@ function slugify(name: string): string {
   return s.slice(0, 60).replace(/-+$/, "");
 }
 
-/** Bundle an IdenDoc into its two shareable artifacts + a download stem. Pure. */
+/** Bundle an IdenDoc into its shareable artifacts + a download stem. Pure. */
 export function buildIdenExport(doc: IdenDoc, opts: BuildIdenExportOpts = {}): IdenExport {
   const locale = opts.locale ?? "en";
-  const iden = serializeIden(doc, { request: opts.request, body: opts.body });
-  const html = renderIdenHtml(doc, { locale });
+  // Sovereignty filter first (P5a): every artifact renders from the SAME
+  // filtered doc, so an excluded field cannot leak through any format.
+  const kept: IdenDoc = opts.include
+    ? { ...doc, fields: doc.fields.filter((f) => opts.include!.includes(f.key)) }
+    : doc;
+  const iden = serializeIden(kept, { request: opts.request, body: opts.body });
+  const html = renderIdenHtml(kept, { locale });
+  const json = JSON.stringify(kept, null, 2);
   const slug = slugify(doc.name);
   const filenameBase = `${slug ? `${slug}-` : ""}iden-${doc.generated}`;
   return {
     iden,
     html,
+    json,
     filenameBase,
     idenFilename: `${filenameBase}.iden`,
     htmlFilename: `${filenameBase}.html`,
+    jsonFilename: `${filenameBase}.json`,
     locale,
-    chars: { iden: iden.length, html: html.length },
+    chars: { iden: iden.length, html: html.length, json: json.length },
   };
 }
 

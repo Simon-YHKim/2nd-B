@@ -23,6 +23,8 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { exportIden, type IdenExport } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
+import type { IdenDoc } from "@/lib/iden/types";
+import { MdButton, MdChip } from "@/components/m3";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 type Toast = { tone: "info" | "success" | "danger"; message: string };
@@ -57,6 +59,17 @@ function IdenExportScreenDeepSpace() {
   const [data, setData] = useState<IdenViewData | null | undefined>(undefined);
   const [hasError, setHasError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  // rev2 P5a data sovereignty: the loaded doc's fields drive include-toggles;
+  // an excluded field never leaves the device in ANY export format.
+  const [doc, setDoc] = useState<IdenDoc | null>(null);
+  const [excluded, setExcluded] = useState<string[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = setTimeout(() => setNotice(null), 2400);
+    return () => clearTimeout(timeout);
+  }, [notice]);
 
   useEffect(() => {
     if (loading) return;
@@ -82,6 +95,7 @@ function IdenExportScreenDeepSpace() {
                 .map((v, i) => `${letters[i] ?? ""}${Math.round(v * 100)}`)
                 .join(" ")
             : null;
+        setDoc(doc);
         setData({ name: `${doc.name}.iden`, version: doc.iden, northStar: doc.oneLiner, bigFive });
       })
       .catch(() => {
@@ -100,6 +114,12 @@ function IdenExportScreenDeepSpace() {
   // "Send to AI" exports the real `.iden` text and opens the share sheet (queue
   // C export/share path). When there's no IDEN yet, the empty-state CTA instead
   // routes the user to start gathering, so the action always advances them.
+  // Include = every doc field minus the user's exclusions (P5a toggles).
+  const includeKeys = useCallback(
+    () => (doc ? doc.fields.map((f) => f.key).filter((k) => !excluded.includes(k)) : undefined),
+    [doc, excluded],
+  );
+
   const handleSend = useCallback(async () => {
     if (!userId) return;
     if (!hasData) {
@@ -107,12 +127,24 @@ function IdenExportScreenDeepSpace() {
       return;
     }
     try {
-      const result = await exportIden(userId, { locale, minor: isMinor === true });
+      const result = await exportIden(userId, { locale, minor: isMinor === true, include: includeKeys() });
       await Share.share({ message: result.iden });
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[iden] export/share failed", (e as Error).message);
     }
-  }, [userId, hasData, locale, isMinor]);
+  }, [userId, hasData, locale, isMinor, includeKeys]);
+
+  const handleCopyJson = useCallback(async () => {
+    if (!userId || !hasData) return;
+    try {
+      const result = await exportIden(userId, { locale, minor: isMinor === true, include: includeKeys() });
+      await Clipboard.setStringAsync(result.json);
+      setNotice(isKo ? "JSON을 복사했어요" : "JSON copied");
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[iden] json copy failed", (e as Error).message);
+      setNotice(isKo ? "복사하지 못했어요" : "Could not copy");
+    }
+  }, [userId, hasData, locale, isMinor, includeKeys, isKo]);
 
   return (
     <DeepSpaceScreen active="iden">
@@ -123,10 +155,52 @@ function IdenExportScreenDeepSpace() {
         isKo={isKo}
         onSend={handleSend}
         onRetry={() => setReloadKey((k) => k + 1)}
+        footer={
+          doc && hasData ? (
+            <View style={dsIden.footer}>
+              <Text variant="caption" color="textMuted">
+                {isKo ? "내보낼 항목 (끄면 어떤 형식으로도 안 나가요)" : "Fields to export (off = leaves in no format)"}
+              </Text>
+              <View style={dsIden.chips}>
+                {doc.fields.map((field) => {
+                  const on = !excluded.includes(field.key);
+                  return (
+                    <MdChip
+                      key={field.key}
+                      kind="filter"
+                      label={field.label}
+                      selected={on}
+                      onPress={() =>
+                        setExcluded((prev) =>
+                          on ? [...prev, field.key] : prev.filter((k) => k !== field.key),
+                        )
+                      }
+                    />
+                  );
+                })}
+              </View>
+              <MdButton
+                variant="outlined"
+                label={isKo ? "JSON 복사" : "Copy JSON"}
+                onPress={handleCopyJson}
+              />
+              {notice ? (
+                <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
+                  {notice}
+                </Text>
+              ) : null}
+            </View>
+          ) : null
+        }
       />
     </DeepSpaceScreen>
   );
 }
+
+const dsIden = StyleSheet.create({
+  footer: { gap: spacing.sm, marginTop: spacing.md },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+});
 
 function IdenExportScreenLegacy() {
   const { t, i18n } = useTranslation("iden");

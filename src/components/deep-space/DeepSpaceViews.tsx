@@ -12,7 +12,7 @@
  * (DESIGN.md adoption 2026-06-17). Unique SVG gradient ids via useId() so web
  * (document-global svg ids) never clashes across instances.
  */
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { type DimensionValue, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
@@ -337,6 +337,7 @@ export function IdenView({
   isKo,
   onSend,
   onRetry,
+  footer,
 }: {
   data?: IdenViewData | null;
   loading?: boolean;
@@ -344,6 +345,8 @@ export function IdenView({
   isKo?: boolean;
   onSend?: () => void;
   onRetry?: () => void;
+  /** rev2 P5a export controls (field toggles + JSON copy), rendered after send. */
+  footer?: ReactNode;
 } = {}) {
   const { t } = useTranslation("home");
   // No `data` prop (undefined) = design preview / reuse path: keep sample copy.
@@ -427,6 +430,7 @@ export function IdenView({
         </View>
       ) : null}
       <GradientButton label={t("ds.iden.send")} colors={deepSpaceGradients.idenSend} full onPress={onSend} />
+      {footer}
     </ScrollView>
   );
 }
