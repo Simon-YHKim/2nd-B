@@ -48,6 +48,7 @@ export function MdChip({
   return (
     <View style={[styles.chip, on ? styles.chipOn : styles.chipOff, style]}>
       <Pressable
+        android_ripple={{ color: m3.color.secondaryContainer }}
         onPress={onPress}
         accessibilityRole={isFilter ? "checkbox" : "button"}
         accessibilityState={{ selected, checked: selected }}
