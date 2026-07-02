@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect } from "expo-router";
+import { Redirect, router } from "expo-router";
 import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
 
 import { Text } from "@/components/ui/Text";
@@ -76,7 +76,7 @@ export default function PeopleMapScreen() {
 
   if (loading) {
     return (
-      <DeepSpaceScreen active="lens">
+      <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={isKo ? "관계" : "Relationships"} onBack={() => router.back()}>
         <View style={styles.center}>
           <PremiumLoadingState message={isKo ? "불러오는 중이에요…" : "Loading…"} />
         </View>
@@ -103,7 +103,7 @@ export default function PeopleMapScreen() {
   }
 
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={isKo ? "관계" : "Relationships"} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headRow}>
           <Text variant="heading" style={{ flex: 1 }}>

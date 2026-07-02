@@ -4,7 +4,7 @@
 // instead of a dead screen. The imagine generation engine (src/lib/llm/imagine.ts)
 // stays as dormant internal plumbing; the tab + graph node + wiki card are gone.
 
-import { Redirect } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { isDeepSpaceUI } from "@/lib/ui-mode";
@@ -22,7 +22,13 @@ function ImagineDeepSpace() {
   // PossibleLensView shows the honest empty state + rewrite/add CTAs rather than
   // fabricated "future self" cards. Wire real drafts here once they persist.
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen
+      active="lens"
+      header="none"
+      variant="windowed"
+      title={i18n.language === "ko" ? "공상하기" : "Imagine"}
+      onBack={() => router.back()}
+    >
       <PossibleLensView drafts={[]} isKo={i18n.language === "ko"} />
     </DeepSpaceScreen>
   );

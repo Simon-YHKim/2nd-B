@@ -78,7 +78,7 @@ export default function CareerTimelineScreen() {
 
   if (loading) {
     return (
-      <DeepSpaceScreen active="lens">
+      <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={isKo ? "커리어" : "Career"} onBack={() => router.back()}>
         <View style={styles.center}>
           <PremiumLoadingState message={isKo ? "불러오는 중이에요…" : "Loading…"} />
         </View>
@@ -121,7 +121,7 @@ export default function CareerTimelineScreen() {
   }
 
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={isKo ? "커리어" : "Career"} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headRow}>
           <Text variant="heading" style={{ flex: 1 }}>
