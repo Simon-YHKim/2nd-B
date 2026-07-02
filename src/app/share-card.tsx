@@ -12,7 +12,7 @@ import { Redirect, router } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { MdButton, SegBtn } from "@/components/m3";
+import { MdButton, MdChip } from "@/components/m3";
 import { ShareCard } from "@/components/deepspace/ShareCard";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { spacing } from "@/lib/theme/tokens";
@@ -80,33 +80,40 @@ export default function ShareCardScreen() {
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text variant="caption" color="textSubtle">
+        {/* rev2 sb-more copy verbatim */}
+        <Text variant="caption" color="textSubtle" style={styles.introCopy}>
           {isKo
-            ? "한 문장과 별 개수만 담겨요. 기록 내용은 카드에 실리지 않아요."
-            : "One sentence and a star count. None of your records leave with it."}
+            ? "1080×1080 정사각 카드로 내보내요. 원문은 빼고, 보여줄 한 줄만 담겨요."
+            : "Exports as a 1080×1080 square card. Raw notes stay out; only the one line you choose goes in."}
         </Text>
 
-        <SegBtn
-          segments={[
-            { key: "A", label: isKo ? "문장 중심" : "Insight" },
-            { key: "B", label: isKo ? "별자리 중심" : "Constellation" },
-          ]}
-          selected={[variant]}
-          onSelect={(key) => setVariant(key === "B" ? "B" : "A")}
-        />
+        <View style={styles.chipRow}>
+          <MdChip kind="filter" label={isKo ? "통찰 카드" : "Insight card"} selected={variant === "A"} onPress={() => setVariant("A")} />
+          <MdChip
+            kind="filter"
+            label={isKo ? "별자리 카드" : "Constellation card"}
+            selected={variant === "B"}
+            onPress={() => setVariant("B")}
+          />
+        </View>
 
         <View style={styles.preview}>
-          <ShareCard variant={variant} insight={card.insight} handle={card.handle} litCount={card.litCount} size={320} />
+          <ShareCard variant={variant} insight={card.insight} handle={card.handle} litCount={card.litCount} size={330} isKo={isKo} />
         </View>
 
         <MdButton
           variant="filled"
           disabled={sharing}
-          label={sharing ? (isKo ? "여는 중…" : "Opening…") : isKo ? "공유하기" : "Share"}
+          label={sharing ? (isKo ? "여는 중…" : "Opening…") : isKo ? "공유" : "Share"}
           onPress={handleShare}
         />
+        <Text variant="caption" color="textSubtle" style={styles.introCopy}>
+          {isKo
+            ? "기록 원문·수치는 카드에 포함되지 않아요. 보여줄 문장만 골라 담아요."
+            : "Raw records and numbers never go on the card. Only the sentence you pick."}
+        </Text>
         {litStars === null ? (
-          <Text variant="caption" color="textSubtle">
+          <Text variant="caption" color="textSubtle" style={styles.introCopy}>
             {isKo ? "별 개수를 못 읽어 기본값으로 그렸어요." : "Could not read your stars; drew the default."}
           </Text>
         ) : null}
@@ -116,7 +123,7 @@ export default function ShareCardScreen() {
             responsive). Kept out of the a11y tree. */}
         <View style={styles.captureHost} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <View ref={captureRef} collapsable={false}>
-            <ShareCard variant={variant} insight={card.insight} handle={card.handle} litCount={card.litCount} size={1080} />
+            <ShareCard variant={variant} insight={card.insight} handle={card.handle} litCount={card.litCount} size={1080} isKo={isKo} />
           </View>
         </View>
       </ScrollView>
@@ -128,5 +135,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
   preview: { alignItems: "center" },
+  chipRow: { flexDirection: "row", gap: 8, justifyContent: "center" },
+  introCopy: { textAlign: "center" },
   captureHost: { position: "absolute", left: -4000, top: 0, opacity: 0 },
 });

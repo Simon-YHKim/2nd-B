@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect } from "expo-router";
+import { Redirect, router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -88,9 +88,14 @@ export default function NorthstarSentence() {
   if (!userId) return <Redirect href="/sign-in" />;
 
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen
+      active="lens"
+      header="none"
+      variant="windowed"
+      title={isKo ? "북극성 문장" : "North-star sentence"}
+      onBack={() => router.back()}
+    >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text variant="heading">{isKo ? "북극성 문장" : "North-star sentence"}</Text>
         <Text style={styles.sub}>
           {isKo ? "나를 한 줄로. 저장한 문장만 별자리의 북극성에 걸려요." : "You, in one line. Only what you save hangs on your Polaris."}
         </Text>

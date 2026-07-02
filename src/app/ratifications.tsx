@@ -48,9 +48,12 @@ export default function RatificationLogScreen() {
     };
   }, [userId]);
 
+  // rev2 TITLES verbatim: 승인 이력 (the windowed top app bar carries it).
+  const barTitle = locale === "ko" ? "승인 이력" : "Ratification log";
+
   if (loading) {
     return (
-      <DeepSpaceScreen active="lens">
+      <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
         <View style={styles.center}>
           <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
         </View>
@@ -60,9 +63,8 @@ export default function RatificationLogScreen() {
   if (!userId) return <Redirect href="/sign-in" />;
 
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text variant="heading">{locale === "ko" ? "승인 이력" : "Ratification log"}</Text>
         <Text variant="caption" color="textSubtle">
           {locale === "ko"
             ? "별의 밝기가 바뀐 모든 기록이에요. 자동 반영은 없어요. 제안을 승인한 것만 남아요."
