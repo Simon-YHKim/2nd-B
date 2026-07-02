@@ -27,6 +27,8 @@ import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, FOURW_LABEL, fourWHasContent
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
 import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
+import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
+import { callGemini } from "@/lib/llm/gemini";
 
 // ── shared gradient primitives ───────────────────────────────────────────────
 
@@ -546,9 +548,25 @@ export function SeenLensView() {
   // empty state below still asks for. It just gives the lens honest, grounded content
   // from data the user already has, instead of a bare empty screen.
   const [observable, setObservable] = useState<ObservableTrait[]>([]);
+  // T5 F3: the combined other-view (t5_seen_aggregate, min-N 3). Empty until
+  // enough informants answered; fail-soft to the honest empty state.
+  const [aggregate, setAggregate] = useState<SeenAggregateRow[]>([]);
+  // T5 F4: optional LLM synthesis of the self/other gap. Only NUMBERS go in
+  // (never informant text); C1/C3/C9 ride callGemini as everywhere else, and
+  // the informant-side LLM acks are structurally guaranteed by the 0064 CHECK
+  // before any observation row can exist.
+  const [synth, setSynth] = useState<string | null>(null);
+  const [synthBusy, setSynthBusy] = useState(false);
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
+    loadSeenAggregate()
+      .then((rows) => {
+        if (!cancelled) setAggregate(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setAggregate([]);
+      });
     loadLatestBfi(getSupabaseClient(), userId)
       .then((means) => {
         if (!cancelled) setObservable(observableSelf(means, locale));
@@ -561,22 +579,40 @@ export function SeenLensView() {
     };
   }, [userId, locale]);
 
-  async function requestPeerReview() {
-    try {
-      await Share.share({
-        message: isKo
-          ? "내가 나를 보는 모습과 남이 보는 모습이 얼마나 다른지 같이 봐줄래요? 2nd-Brain에서 peer review를 부탁해요."
-          : "Would you help me see the gap between how I see myself and how others see me? Sharing a peer review request from 2nd-Brain.",
-      });
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[deepspace-seen] share failed", (e as Error).message);
-    }
-  }
-
   // 보여지는 나 needs peer-review responses to compare self vs other. No
   // peer-review data source exists yet (no table / lib path collects it), so
   // there are no real numbers to show: render the honest empty state plus the
   // existing survey/share CTAs, never fabricated self/other bars.
+  const otherPct = new Map(aggregate.map((r) => [r.trait, Math.round(((r.avg_score - 1) / 4) * 100)]));
+  const informantCount = aggregate.length > 0 ? Math.max(...aggregate.map((r) => r.informant_count)) : 0;
+  const hasGap = aggregate.length > 0 && observable.length > 0;
+
+  async function synthesizeGap() {
+    if (!userId || synthBusy) return;
+    setSynthBusy(true);
+    try {
+      const lines = observable
+        .filter((o) => otherPct.has(o.trait))
+        .map((o) => o.label + ": self " + o.percent + "%, others " + otherPct.get(o.trait) + "%")
+        .join("; ");
+      const res = await callGemini({
+        userId,
+        locale,
+        purpose: "persona_chat",
+        system:
+          locale === "ko"
+            ? "당신은 자기이해 앱의 세컨비. 아래는 사용자의 자기보고와 지인 " + informantCount + "명의 합산 관찰(비식별 수치)이다. 두 그림의 간극을 2~3문장으로, 따뜻하고 검증적인 톤으로 짚어라. 진단이나 단정은 금지, 수치 나열 금지, 존중하는 제안 하나로 끝내라.\n" + lines
+            : "You are SecondB in a self-understanding app. Below are the user's self-report and a combined, de-identified view from " + informantCount + " people who know them. Name the gap between the two pictures in 2-3 sentences, warm and non-judgmental. No verdicts, no number-listing; end with one respectful suggestion.\n" + lines,
+        user: locale === "ko" ? "내가 보는 나와 남이 보는 나의 간극을 짚어줘." : "Read the gap between how I see myself and how others see me.",
+      });
+      setSynth(res.text);
+    } catch {
+      setSynth(null);
+    } finally {
+      setSynthBusy(false);
+    }
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <LensHead title={t("ds.seen.title")} tag={t("ds.seen.tag")} eyebrow={t("ds.seen.eyebrow")} />
@@ -592,22 +628,50 @@ export function SeenLensView() {
       </View>
       {observable.length > 0 ? (
         <View style={styles.obsPanel}>
-          <Text style={styles.obsTitle}>{isKo ? "밖에서 가장 잘 보이는 나" : "Most visible from outside"}</Text>
+          <Text style={styles.obsTitle}>{hasGap ? (isKo ? "내가 보는 나 · 남이 보는 나" : "The me I see, the me they see") : isKo ? "밖에서 가장 잘 보이는 나" : "Most visible from outside"}</Text>
           <Text style={styles.obsNote}>
             {isKo
               ? "남이 실제로 어떻게 보는지가 아니라, 내 Big Five 자기보고에서 밖으로 가장 잘 드러나는 특질이에요."
               : "Not what others actually think; the traits from your own Big Five that read most from outside."}
           </Text>
+          {hasGap ? (
+            <Text style={styles.obsNote}>
+              {isKo ? informantCount + "명의 답을 합친 그림이에요. 개별 답은 누구의 것인지 알 수 없어요." : "A combined picture from " + informantCount + " people; no single answer is identifiable."}
+            </Text>
+          ) : null}
           {observable.map((o) => (
             <View key={o.trait} style={styles.obsRow}>
               <Text style={styles.obsLabel}>{o.label}</Text>
               <View style={styles.obsTrack}>
                 <View style={[styles.obsFill, { width: `${o.percent}%` }]} />
               </View>
+              {otherPct.has(o.trait) ? (
+                <View style={[styles.obsTrack, styles.obsTrackOther]}>
+                  <View style={[styles.obsFillOther, { width: `${otherPct.get(o.trait) ?? 0}%` }]} />
+                </View>
+              ) : null}
             </View>
           ))}
+          {hasGap ? (
+            synth ? (
+              <Text style={styles.obsNote}>{synth}</Text>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={isKo ? "간극 한 줄 해석" : "One-line gap read"}
+                onPress={() => void synthesizeGap()}
+                disabled={synthBusy}
+                style={styles.ghostBtn}
+              >
+                <Text style={styles.ghostLabel}>
+                  {synthBusy ? (isKo ? "읽는 중…" : "Reading…") : isKo ? "세컨비의 간극 한 줄" : "SecondB reads the gap"}
+                </Text>
+              </Pressable>
+            )
+          ) : null}
         </View>
       ) : null}
+      {hasGap ? null : (
       <View style={styles.centerState}>
         <Svg width={34} height={34} viewBox="0 0 24 24">
           <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
@@ -619,6 +683,7 @@ export function SeenLensView() {
             : "Send a short survey to someone close, and you'll see the me you see beside the me others see."}
         </Text>
       </View>
+      )}
       <View style={styles.btnRow}>
         <Pressable
           accessibilityRole="button"
@@ -629,7 +694,7 @@ export function SeenLensView() {
           <Text style={styles.ghostLabel}>{t("ds.seen.survey")}</Text>
         </Pressable>
         <View style={styles.btnFlex}>
-          <GradientButton label={t("ds.seen.share")} colors={deepSpaceGradients.idenSend} full onPress={requestPeerReview} />
+          <GradientButton label={t("ds.seen.share")} colors={deepSpaceGradients.idenSend} full onPress={() => router.push("/peer-invites")} />
         </View>
       </View>
     </ScrollView>
@@ -997,6 +1062,9 @@ const styles = StyleSheet.create({
   obsLabel: { color: withAlpha(deepSpace.text, 0.85), fontSize: 12, width: 64, fontFamily: fontFamilies.readable },
   obsTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: withAlpha(deepSpace.text, 0.12), overflow: "hidden" },
   obsFill: { height: "100%", borderRadius: 3, backgroundColor: deepSpace.accentSoft },
+  // T5 F3: the combined other-view bar (violet family = legendDotOther).
+  obsTrackOther: { marginTop: 3 },
+  obsFillOther: { height: "100%", borderRadius: 4, backgroundColor: deepSpace.accentSoft },
   ghostBtn: {
     marginTop: 6,
     paddingVertical: 10,
