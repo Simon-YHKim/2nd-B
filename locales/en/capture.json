@@ -9,7 +9,8 @@
     "journalLimit": "Free journal entries are used up. Other capture modes are still available.",
     "voiceRequired": "Write the voice memo text before saving.",
     "todoRequired": "Write the task before saving.",
-    "saving": "Saving is already in progress."
+    "saving": "Saving is already in progress.",
+    "fourwRequired": "Fill the What box first"
   },
   "savedTitleFallback": "Today's piece",
   "loading": "Loading capture...",
@@ -75,6 +76,10 @@
     "todo": {
       "label": "To do",
       "help": "Write a task. It saves as a to-do piece with a done flag."
+    },
+    "fourw": {
+      "label": "4W1H",
+      "help": "Five boxes: who, when, where, what, how"
     }
   },
   "voice": {
@@ -295,5 +300,22 @@
       "title": "Couldn't save the format",
       "message": "We couldn't save the new format. Your proposal is still here. Please try again."
     }
+  },
+  "fourw": {
+    "fields": {
+      "who": "Who",
+      "when": "When",
+      "where": "Where",
+      "what": "What (required)",
+      "how": "How"
+    },
+    "placeholders": {
+      "who": "Who was part of it?",
+      "when": "When did it happen?",
+      "where": "Where were you?",
+      "what": "What happened, or what is it?",
+      "how": "How did it go? Any why worth keeping?"
+    },
+    "note": "Only filled boxes are saved, as one piece with a #fourw tag."
   }
 }
