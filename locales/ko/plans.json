@@ -19,7 +19,7 @@
       "f3": "하루 AI 대화 2회"
     },
     "soma": {
-      "name": "Soma",
+      "name": "별빛",
       "price": "₩4,900 / 월",
       "priceNote": "연 ₩49,000 (2개월 무료)",
       "tagline": "기록 옆에 매일 쓰는 AI",
@@ -29,7 +29,7 @@
       "lifetimeNote": "또는 ₩99,000 한 번 결제로 평생 이용"
     },
     "cortex": {
-      "name": "Cortex",
+      "name": "별자리",
       "price": "₩9,900 / 월",
       "priceNote": "연 ₩99,000 (2개월 무료)",
       "tagline": "매일 깊게 파고들 여유",
@@ -38,7 +38,7 @@
       "f3": "긴 호흡의 대화도 여유 있게"
     },
     "brain": {
-      "name": "Brain",
+      "name": "은하수",
       "price": "₩19,900 / 월",
       "priceNote": "연 ₩199,000 (2개월 무료)",
       "tagline": "완전한 두번째 뇌",
