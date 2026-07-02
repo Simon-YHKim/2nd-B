@@ -1,0 +1,53 @@
+{
+  "title": "Como me veem",
+  "loading": "Carregando…",
+  "invalid": "Este link nao e valido.",
+  "expired": "Este link expirou.",
+  "withdrawnNote": "Sua resposta foi retirada. Nada seu permanece no conjunto.",
+  "alreadyNote": "Voce ja enviou sua resposta. Pode retira-la quando quiser com este link.",
+  "doneNote": "Obrigado. Suas respostas aparecem apenas combinadas; nunca individualmente.",
+  "doneKeepLink": "Guarde este link caso queira retirar sua resposta um dia.",
+  "intro": "Alguem que voce conhece esta montando um retrato de como os outros o percebem. Tres perguntas, cerca de um minuto.",
+  "privacyPoints": "Suas respostas sao seus proprios dados: so aparecem combinadas com pelo menos outras duas pessoas, nunca uma a uma. Voce pode retira-las quando quiser com este link.",
+  "scaleHint": "1 = nada a ver com a pessoa, 5 = muito caracteristico",
+  "trait": {
+    "extraversion": "Ganha energia perto de pessoas e fala com facilidade.",
+    "conscientiousness": "E organizada e conclui o que comeca.",
+    "agreeableness": "E calorosa, atenciosa e facil de conviver."
+  },
+  "ackLlm": "Concordo que minhas respostas possam ser processadas por um sistema de IA para formar o retrato combinado.",
+  "ackOverseas": "Concordo que esse processamento possa ocorrer em servidores fora do meu pais.",
+  "minorRow": "Tenho menos de 18 anos.",
+  "guardianRow": "Meu pai, mae ou responsavel esta comigo e concorda.",
+  "submitCta": "Enviar respostas",
+  "submitting": "Enviando…",
+  "submitError": "Nao foi possivel enviar. Tente novamente.",
+  "withdrawCta": "Retirar minha resposta",
+  "withdrawAnytime": "Voce pode retirar quando quiser abrindo este link de novo.",
+  "subjectTitle": "Perguntar a quem me conhece",
+  "subjectIntro": "Envie um link de uso unico. Quando tres ou mais responderem, o retrato combinado aparece na sua lente Visto; voce nunca ve respostas individuais.",
+  "labelField": "Apelido para esta pessoa (so voce ve)",
+  "kind": {
+    "friend": "Amizade",
+    "family": "Familia",
+    "coworker": "Trabalho",
+    "partner": "Par",
+    "other": "Outro"
+  },
+  "createCta": "Criar link e compartilhar",
+  "creating": "Criando…",
+  "createError": "Nao foi possivel criar o link. Tente de novo.",
+  "pendingCap": "Voce atingiu o limite de convites abertos. Revogue um para enviar outro.",
+  "privacyLine": "O link funciona uma vez, expira em 14 dias e nao guarda contatos.",
+  "emptyList": "Nenhum convite ainda. Comece com alguem que conhece voce bem.",
+  "status": {
+    "pending": "Aguardando",
+    "accepted": "Respondido",
+    "declined": "Recusado",
+    "withdrawn": "Retirado",
+    "expired": "Expirado"
+  },
+  "revokeCta": "Revogar",
+  "shareMessage": "Voce responderia tres perguntas rapidas sobre como me ve? Um minuto:",
+  "aggregateNote": "As respostas aparecem apenas como retrato combinado de tres ou mais pessoas, na lente Visto."
+}

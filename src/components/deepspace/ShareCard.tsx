@@ -1,36 +1,30 @@
-// ShareCard — the "자기이해 한 컷" shareable square card (deep-space canon).
+// ShareCard — the "자기이해 한 컷" shareable square card, rev2 composition
+// (reference-app sb-more ShareCardScreen 1:1).
 //
-// Two variants from design sections ③ (A insight-forward) and ④ (B
-// constellation-forward). 1:1 square, dynamically generated from user data,
-// captured at 1080×1080 by src/lib/share/insight-card.ts.
+// Two variants:
+//   - "A" 통찰 카드: mono eyebrow "2ND-BRAIN · 이번 주", the insight sentence
+//     centered, 세컨비 head + "세컨비가 함께 본 한 주" footer.
+//   - "B" 별자리 카드: "MY CONSTELLATION" eyebrow, the 7 domain dots at the
+//     prototype's fixed positions (litCount lit, rest dim) around a bright
+//     polaris core, then "N개 별이 빛나는 중" + the handle line.
 //
-//   <ShareCard variant="A" insight="깊이 이해하고, 더 나답게 산다." handle="simon" litCount={4} />
-//   <ShareCard variant="B" insight="깊이 이해하고, 더 나답게 산다." handle="simon" />
+// The prototype previews at 330px and exports at 1080; every value below is
+// expressed in the 330 space and scaled by `size/330`, so the on-screen
+// preview and the 1080 off-screen capture are the same card.
 //
-// Visual contract:
-//   - north-star = soul-violet orb (deepSpace.soul) + concentric soft halos +
-//     a small 4-point cross glint at 12 o'clock.
-//   - Big-Dipper polyline of 7 stars; `litCount` are lit (accentSoft cyan with
-//     halo), the rest dim (accentDim, low opacity).
-//   - The card IS the explanation — minimal text. One message + one graphic.
-//
-// Token-only: every color comes from deepSpace.* / withAlpha — zero hex literals.
-// Fonts: pixelEn for eyebrows, Pretendard (sans) for the sentence. No
-// glassmorphism / pill / emoji / em-dash / bounce.
+// Privacy contract unchanged: one sentence + a star count + the handle.
+// Colors come from m3.accent share tokens (values transcribed from the
+// prototype); the eyebrow uses Roboto Mono — no pixel fonts on the rev2 track.
 
-import { StyleSheet, Text, View } from "react-native";
-import Svg, {
-  Circle,
-  Defs,
-  Line,
-  Polyline,
-  RadialGradient,
-  Rect,
-  Stop,
-} from "react-native-svg";
+import { Fragment } from "react";
+import { Image, StyleSheet, Text, View } from "react-native";
+import Svg, { Circle, Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
-import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
+
+const headFront = require("../../../assets/deepspace/secondb-head-front.png");
 
 export interface ShareCardProps {
   variant: "A" | "B";
@@ -38,323 +32,129 @@ export interface ShareCardProps {
   insight: string;
   /** Handle shown in the footer (without the @). */
   handle: string;
-  /** How many of the 7 Big-Dipper stars are lit (0..7). Default 4. */
+  /** How many of the 7 domain stars are lit (0..7). Default 4. */
   litCount?: number;
-  /** Rendered side length. Capture scales this to 1080. Default 540 (design base). */
+  /** Rendered side length. Capture scales this to 1080. Default 330 (prototype base). */
   size?: number;
+  /** Card copy locale (KO is the prototype canonical). */
+  isKo?: boolean;
 }
 
-// The design renders A/B at a 540px base. All geometry below is expressed as a
-// fraction of that base so a single `size` prop scales the whole card (and the
-// off-screen capture can render at 1080 = base 540 × scale 2).
-const BASE = 540;
+// Prototype preview base (sb-more CARD = 330).
+const BASE = 330;
 
-// 7 Big-Dipper star anchors, normalized to the 540-wide overview band. The first
-// four are the "bowl/handle" lit candidates; the rest recede. Geometry traced
-// from design sections ③ / ④ so the polyline reads as 북두칠성.
-const DIPPER_A = [
-  { x: 150, y: 170 },
-  { x: 196, y: 150 },
-  { x: 244, y: 162 },
-  { x: 286, y: 138 },
-  { x: 332, y: 150 },
-  { x: 372, y: 120 },
-  { x: 400, y: 166 },
-];
-const DIPPER_B = [
-  { x: 120, y: 300 },
-  { x: 186, y: 268 },
-  { x: 252, y: 290 },
-  { x: 312, y: 250 },
-  { x: 372, y: 276 },
-  { x: 420, y: 228 },
-  { x: 456, y: 300 },
-];
+// CYCLE NOTE: components/deepspace/index.ts has a known require cycle, so this
+// module can evaluate BEFORE lib/theme/m3 under some entry orders — a
+// module-scope m3.accent dereference then reads undefined and withAlpha
+// crashes (seen live on the /settings path). Every m3-dependent color is
+// therefore resolved at RENDER time through these helpers; StyleSheet.create
+// below carries layout only.
+const eyebrowColor = () => ({ fontFamily: m3.font.mono, color: m3.accent.shareEyebrow });
+const inkColor = () => ({ color: m3.accent.shareInk });
+const softInk = (a: number) => ({ color: withAlpha(m3.accent.shareInkSoft, a) });
 
-interface ConstellationGeom {
-  /** SVG viewBox height (width is always BASE). */
-  vbHeight: number;
-  /** North-star center. */
-  star: { x: number; y: number };
-  /** Halo radii outer→inner; last is the solid core. */
-  haloRadii: number[];
-  coreR: number;
-  /** Cross-glint half-length + gap from core edge. */
-  glint: { len: number; gap: number; width: number };
-  dipper: { x: number; y: number }[];
-  /** Lit / dim star radius + halo radius. */
-  litR: number;
-  litHaloR: number;
-  dimR: number;
-  lineWidth: number;
-}
+// sb-more ShareCardScreen star map — percentage positions inside the 220-tall
+// constellation band. The prototype hardcodes which are lit; here the first
+// `litCount` light up in this order so the card stays honest to the data.
+const CARD_STARS = [
+  { x: 50, y: 16 },
+  { x: 80, y: 34 },
+  { x: 86, y: 66 },
+  { x: 60, y: 84 },
+  { x: 32, y: 80 },
+  { x: 16, y: 56 },
+  { x: 22, y: 26 },
+] as const;
 
-const GEOM: Record<"A" | "B", ConstellationGeom> = {
-  // ③ compact constellation, top band.
-  A: {
-    vbHeight: 230,
-    star: { x: 270, y: 62 },
-    haloRadii: [40, 22],
-    coreR: 10,
-    glint: { len: 10, gap: 28, width: 1.6 },
-    dipper: DIPPER_A,
-    litR: 5.5,
-    litHaloR: 0,
-    dimR: 3,
-    lineWidth: 1.4,
-  },
-  // ④ big constellation, centered.
-  B: {
-    vbHeight: 420,
-    star: { x: 270, y: 96 },
-    haloRadii: [70, 46, 24],
-    coreR: 13,
-    glint: { len: 16, gap: 40, width: 2 },
-    dipper: DIPPER_B,
-    litR: 9,
-    litHaloR: 17,
-    dimR: 4,
-    lineWidth: 2,
-  },
-};
-
-function Constellation({ variant, litCount }: { variant: "A" | "B"; litCount: number }) {
-  const g = GEOM[variant];
-  const { star } = g;
-  const lit = Math.max(0, Math.min(7, litCount));
-  // gap = distance from core center to where each glint arm begins (core edge + air).
-  const gap = g.glint.gap;
+export function ShareCard({ variant, insight, handle, litCount = 4, size = BASE, isKo = true }: ShareCardProps) {
+  const k = size / BASE;
+  const lit = Math.max(0, Math.min(CARD_STARS.length, litCount));
 
   return (
-    <Svg viewBox={`0 0 ${BASE} ${g.vbHeight}`} width="100%" height="100%">
-      <Defs>
-        <RadialGradient id="northHalo" cx="50%" cy="50%" r="50%">
-          <Stop offset="0%" stopColor={deepSpace.soul} stopOpacity={0.34} />
-          <Stop offset="100%" stopColor={deepSpace.soul} stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-
-      {/* north-star soft halos (outer→inner) */}
-      {g.haloRadii.map((r, i) => (
-        <Circle
-          key={`halo-${i}`}
-          cx={star.x}
-          cy={star.y}
-          r={r}
-          fill={withAlpha(deepSpace.soul, 0.12 + i * 0.07)}
-        />
-      ))}
-      {/* solid soul core */}
-      <Circle cx={star.x} cy={star.y} r={g.coreR} fill={deepSpace.soul} />
-
-      {/* 4-point cross glint (12 o'clock anchored, all four arms) */}
-      <Line
-        x1={star.x}
-        y1={star.y - gap}
-        x2={star.x}
-        y2={star.y - gap - g.glint.len}
-        stroke={deepSpace.soul}
-        strokeWidth={g.glint.width}
-        strokeLinecap="round"
-        opacity={0.85}
-      />
-      <Line
-        x1={star.x}
-        y1={star.y + gap}
-        x2={star.x}
-        y2={star.y + gap + g.glint.len}
-        stroke={deepSpace.soul}
-        strokeWidth={g.glint.width}
-        strokeLinecap="round"
-        opacity={0.85}
-      />
-      <Line
-        x1={star.x - gap}
-        y1={star.y}
-        x2={star.x - gap - g.glint.len}
-        y2={star.y}
-        stroke={deepSpace.soul}
-        strokeWidth={g.glint.width}
-        strokeLinecap="round"
-        opacity={0.85}
-      />
-      <Line
-        x1={star.x + gap}
-        y1={star.y}
-        x2={star.x + gap + g.glint.len}
-        y2={star.y}
-        stroke={deepSpace.soul}
-        strokeWidth={g.glint.width}
-        strokeLinecap="round"
-        opacity={0.85}
-      />
-
-      {/* Big-Dipper polyline */}
-      <Polyline
-        points={g.dipper.map((p) => `${p.x},${p.y}`).join(" ")}
-        fill="none"
-        stroke={withAlpha(deepSpace.accentSoft, variant === "B" ? 0.3 : 0.24)}
-        strokeWidth={g.lineWidth}
-      />
-
-      {/* lit-star halos first (B only) so the bright core sits on top */}
-      {g.litHaloR > 0
-        ? g.dipper.map((p, i) =>
-            i < lit ? (
-              <Circle
-                key={`h-${i}`}
-                cx={p.x}
-                cy={p.y}
-                r={g.litHaloR}
-                fill={withAlpha(deepSpace.accentSoft, 0.18)}
-              />
-            ) : null,
-          )
-        : null}
-
-      {/* 7 stars: first `lit` are lit (accentSoft), rest dim (accentDim, low opacity) */}
-      {g.dipper.map((p, i) => {
-        const isLit = i < lit;
-        if (isLit) {
-          return (
-            <Circle
-              key={`s-${i}`}
-              cx={p.x}
-              cy={p.y}
-              r={g.litR}
-              fill={deepSpace.accentSoft}
-            />
-          );
-        }
-        return (
-          <Circle
-            key={`s-${i}`}
-            cx={p.x}
-            cy={p.y}
-            r={g.dimR}
-            fill={deepSpace.accentDim}
-            opacity={0.42}
-          />
-        );
-      })}
-    </Svg>
-  );
-}
-
-// Background star-field dots (positions traced from the design's layered
-// radial-gradient sparkle). Rendered as an SVG layer so the capture is crisp.
-const FIELD_A = [
-  { x: 0.14, y: 0.2, r: 1.4, c: deepSpace.accentSoft, o: 0.5 },
-  { x: 0.84, y: 0.14, r: 1.2, c: deepSpace.accentSoft, o: 0.4 },
-  { x: 0.7, y: 0.3, r: 1, c: deepSpace.soul, o: 0.4 },
-  { x: 0.3, y: 0.72, r: 1, c: deepSpace.accentSoft, o: 0.3 },
-  { x: 0.9, y: 0.6, r: 1.2, c: deepSpace.accentSoft, o: 0.3 },
-];
-const FIELD_B = [
-  { x: 0.12, y: 0.18, r: 1.6, c: deepSpace.accentSoft, o: 0.55 },
-  { x: 0.86, y: 0.22, r: 1.3, c: deepSpace.accentSoft, o: 0.45 },
-  { x: 0.76, y: 0.7, r: 1.2, c: deepSpace.soul, o: 0.45 },
-  { x: 0.24, y: 0.64, r: 1, c: deepSpace.accentSoft, o: 0.35 },
-  { x: 0.5, y: 0.88, r: 1.4, c: deepSpace.accentSoft, o: 0.3 },
-  { x: 0.18, y: 0.4, r: 1, c: deepSpace.soul, o: 0.3 },
-];
-
-function StarField({ variant, size }: { variant: "A" | "B"; size: number }) {
-  const dots = variant === "A" ? FIELD_A : FIELD_B;
-  return (
-    <Svg
-      style={StyleSheet.absoluteFill}
-      width="100%"
-      height="100%"
-      viewBox={`0 0 ${size} ${size}`}
+    <View
+      style={[
+        styles.card,
+        {
+          width: size,
+          height: size,
+          borderRadius: 24 * k,
+          borderColor: withAlpha(m3.accent.shareEyebrow, 0.18),
+        },
+      ]}
     >
-      <Defs>
-        <RadialGradient
-          id="bgWash"
-          cx="50%"
-          cy={variant === "A" ? "18%" : "42%"}
-          r={variant === "A" ? "90%" : "100%"}
-        >
-          <Stop offset="0%" stopColor={deepSpace.soul} stopOpacity={variant === "A" ? 0.22 : 0.26} />
-          <Stop offset="44%" stopColor={deepSpace.bgMid} stopOpacity={0.5} />
-          <Stop offset="82%" stopColor={deepSpace.bgEdge} stopOpacity={1} />
-        </RadialGradient>
-      </Defs>
-      <Rect x={0} y={0} width={size} height={size} fill="url(#bgWash)" />
-      {dots.map((d, i) => (
-        <Circle
-          key={`f-${i}`}
-          cx={d.x * size}
-          cy={d.y * size}
-          r={d.r * (size / BASE)}
-          fill={d.c}
-          opacity={d.o}
-        />
-      ))}
-    </Svg>
-  );
-}
-
-export function ShareCard({
-  variant,
-  insight,
-  handle,
-  litCount = 4,
-  size = BASE,
-}: ShareCardProps) {
-  const scale = size / BASE;
-  const px = (v: number) => v * scale;
-
-  return (
-    <View style={[styles.card, { width: size, height: size }]}>
-      {/* deep-space radial wash + star-field */}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: deepSpace.bgEdge }]} />
-      <StarField variant={variant} size={size} />
+      {/* radial(130% 100% at 50% 0%, #16203A → #070A13 75%) */}
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Defs>
+          <RadialGradient id="share-bg" cx="50%" cy="0%" rx="130%" ry="100%">
+            <Stop offset="0" stopColor={m3.accent.shareBgTop} />
+            <Stop offset="0.75" stopColor={m3.accent.stageFloor} />
+            <Stop offset="1" stopColor={m3.accent.stageFloor} />
+          </RadialGradient>
+        </Defs>
+        <Rect x={0} y={0} width={size} height={size} fill="url(#share-bg)" />
+      </Svg>
 
       {variant === "A" ? (
-        <>
-          {/* compact constellation, top band */}
-          <View style={[styles.constellationA, { top: px(24), height: px(230) }]}>
-            <Constellation variant="A" litCount={litCount} />
-          </View>
-
-          {/* insight-forward: eyebrow + big sentence */}
-          <View style={[styles.bodyA, { top: px(260), paddingHorizontal: px(50) }]}>
-            <Text
-              style={[
-                styles.eyebrow,
-                { fontSize: px(9), letterSpacing: px(1.8), marginBottom: px(22) },
-              ]}
-            >
-              YOUR NORTH STAR
-            </Text>
-            <Text style={[styles.insightA, { fontSize: px(34), lineHeight: px(48) }]}>
-              {insight}
-            </Text>
-          </View>
-
-          <Text style={[styles.footerA, { bottom: px(30), fontSize: px(14) }]}>
-            {`@${handle} 의 자기이해 한 컷 · 2ndb.app`}
+        <View style={[styles.inner, { padding: 30 * k }]}>
+          <Text style={[styles.eyebrow, eyebrowColor(), { fontSize: 11 * k, letterSpacing: 11 * k * 0.18 }]}>
+            {isKo ? "2ND-BRAIN · 이번 주" : "2ND-BRAIN · THIS WEEK"}
           </Text>
-        </>
+          <View style={styles.insightWrap}>
+            <Text style={[styles.insight, inkColor(), { fontSize: 27 * k, lineHeight: 27 * k * 1.4 }]}>{insight}</Text>
+          </View>
+          <View style={[styles.footerRow, { gap: 10 * k }]}>
+            <Image source={headFront} style={{ width: 34 * k, height: 34 * k }} resizeMode="contain" />
+            <Text style={[styles.footerText, softInk(0.7), { fontSize: 13 * k }]}>
+              {isKo ? "세컨비가 함께 본 한 주" : "A week seen together with SecondB"}
+            </Text>
+          </View>
+        </View>
       ) : (
-        <>
-          {/* big constellation, centered */}
-          <View style={[styles.constellationB, { top: px(54), height: px(420) }]}>
-            <Constellation variant="B" litCount={litCount} />
+        <View style={[styles.inner, { padding: 26 * k }]}>
+          <Text style={[styles.eyebrow, styles.center, eyebrowColor(), { fontSize: 11 * k, letterSpacing: 11 * k * 0.18 }]}>
+            MY CONSTELLATION
+          </Text>
+          <View style={{ height: 220 * k, marginTop: 6 * k }}>
+            <Svg width="100%" height="100%" viewBox="0 0 330 220">
+              <Defs>
+                <RadialGradient id="share-lit" cx="50%" cy="50%" r="50%">
+                  <Stop offset="0" stopColor={m3.accent.shareStarOn} stopOpacity={0.8} />
+                  <Stop offset="1" stopColor={m3.accent.shareStarOn} stopOpacity={0} />
+                </RadialGradient>
+                <RadialGradient id="share-polaris" cx="50%" cy="50%" r="50%">
+                  <Stop offset="0" stopColor={m3.accent.polarisSoft} stopOpacity={0.7} />
+                  <Stop offset="1" stopColor={m3.accent.polarisSoft} stopOpacity={0} />
+                </RadialGradient>
+              </Defs>
+              {CARD_STARS.map((s, i) => {
+                const on = i < lit;
+                const cx = (s.x / 100) * 330;
+                const cy = (s.y / 100) * 220;
+                return (
+                  <Fragment key={`s${i}`}>
+                    {on ? <Circle cx={cx} cy={cy} r={14} fill="url(#share-lit)" /> : null}
+                    <Circle
+                      cx={cx}
+                      cy={cy}
+                      r={on ? 5.5 : 3}
+                      fill={on ? m3.accent.shareStarOn : withAlpha(m3.accent.shareEyebrow, 0.4)}
+                    />
+                  </Fragment>
+                );
+              })}
+              <Circle cx={165} cy={110} r={20} fill="url(#share-polaris)" />
+              <Circle cx={165} cy={110} r={8} fill={m3.accent.shareInk} />
+            </Svg>
           </View>
-
-          {/* constellation-forward: smaller sentence near the bottom */}
-          <View style={[styles.bodyB, { bottom: px(78), paddingHorizontal: px(60) }]}>
-            <Text style={[styles.insightB, { fontSize: px(25), lineHeight: px(35) }]}>
-              {insight}
+          <View style={{ marginTop: 6 * k, alignItems: "center" }}>
+            <Text style={[styles.litLine, inkColor(), { fontSize: 19 * k }]}>
+              {isKo ? `${lit}개 별이 빛나는 중` : `${lit} stars shining`}
+            </Text>
+            <Text style={[styles.handleLine, softInk(0.65), { fontSize: 13 * k, marginTop: 2 * k }]}>
+              {`2nd-Brain · @${handle}`}
             </Text>
           </View>
-
-          <Text style={[styles.footerB, { bottom: px(34), fontSize: px(13) }]}>
-            {`@${handle} · 2ndb.app`}
-          </Text>
-        </>
+        </View>
       )}
     </View>
   );
@@ -363,65 +163,16 @@ export function ShareCard({
 const styles = StyleSheet.create({
   card: {
     overflow: "hidden",
-    backgroundColor: deepSpace.bgEdge,
+    borderWidth: 1,
+    backgroundColor: "transparent",
   },
-
-  // ── A: insight-forward ──
-  constellationA: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-  },
-  bodyA: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  eyebrow: {
-    fontFamily: fontFamilies.pixelEn,
-    color: deepSpace.soul,
-    textAlign: "center",
-  },
-  insightA: {
-    fontFamily: fontFamilies.sans,
-    fontWeight: "800",
-    color: deepSpace.textHi,
-    textAlign: "center",
-  },
-  footerA: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    textAlign: "center",
-    color: deepSpace.textLo,
-    fontFamily: fontFamilies.sans,
-  },
-
-  // ── B: constellation-forward ──
-  constellationB: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-  },
-  bodyB: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  insightB: {
-    fontFamily: fontFamilies.sans,
-    fontWeight: "800",
-    color: deepSpace.textHi,
-    textAlign: "center",
-  },
-  footerB: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    textAlign: "center",
-    color: deepSpace.textLo,
-    fontFamily: fontFamilies.sans,
-  },
+  inner: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, flexDirection: "column" },
+  eyebrow: {},
+  center: { textAlign: "center" },
+  insightWrap: { flex: 1, justifyContent: "center" },
+  insight: { fontWeight: "700", fontFamily: fontFamilies.readable },
+  footerRow: { flexDirection: "row", alignItems: "center" },
+  footerText: { fontFamily: fontFamilies.readable },
+  litLine: { fontWeight: "700", fontFamily: fontFamilies.readable },
+  handleLine: { fontFamily: fontFamilies.readable },
 });

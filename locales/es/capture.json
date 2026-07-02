@@ -317,5 +317,19 @@
       "how": "¿Cómo fue? ¿Algún porqué que valga la pena guardar?"
     },
     "note": "Solo se guardan las casillas completadas, como una pieza con la etiqueta #fourw."
+  },
+  "callReflection": {
+    "title": "Despues de la llamada",
+    "intro": "Un minuto justo despues de una llamada: con quien, la esencia, que te dejo. No se graba audio; solo se guardan tus propias palabras.",
+    "who": "Con quien (solo apodo)",
+    "gist": "La esencia",
+    "feeling": "Lo que te dejo",
+    "followup": "Un siguiente paso",
+    "saveCta": "Guardar reflexion",
+    "saving": "Guardando…",
+    "savedNote": "Guardado. Se une a tus registros como cualquier otra pieza.",
+    "openRecords": "Abrir registros",
+    "privacyLine": "Se guarda de forma privada en tu cuenta. No se perfila a la otra persona.",
+    "topicPrefix": "Reflexion de llamada"
   }
 }

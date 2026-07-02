@@ -9,7 +9,7 @@ import { Pressable, StyleSheet, type StyleProp, Text, View, type ViewStyle } fro
 
 import { m3 } from "@/lib/theme/m3";
 
-import { m3TextStyle } from "./typeface";
+import { m3TextStyle, robotoFor } from "./typeface";
 
 export interface MdNavItem {
   key: string;
@@ -38,45 +38,62 @@ export function MdNavBar({ items, active, onSelect, bottomInset = 0, style }: Md
         const activeFg = item.center ? m3.color.onTertiaryContainer : m3.color.onSecondaryContainer;
         const iconColor = on ? activeFg : m3.color.onSurfaceVariant;
         const labelColor = on ? m3.color.onSurface : m3.color.onSurfaceVariant;
+        // LAYOUT NOTE (#680): Fabric Android drops function-form Pressable
+        // styles (the flex:1 was lost, packing all five tabs to the left), so
+        // the tab layout lives on a View and the Pressable inside is a plain
+        // touch surface with an android_ripple state layer (#698 idiom).
         return (
-          <Pressable
-            key={item.key}
-            onPress={() => onSelect(item.key)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={item.accessibilityLabel ?? item.label}
-            style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
-          >
-            <View style={[styles.indicator, item.center && styles.indicatorCenter, on && { backgroundColor: pillBg }]}>
-              {item.icon(iconColor)}
-            </View>
-            <Text style={[m3TextStyle("labelMedium"), styles.label, { color: labelColor }]} numberOfLines={1}>
-              {item.label}
-            </Text>
-          </Pressable>
+          <View key={item.key} style={styles.tab}>
+            <Pressable
+              onPress={() => onSelect(item.key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={item.accessibilityLabel ?? item.label}
+              android_ripple={{ color: m3.color.secondaryContainer, borderless: true }}
+              style={styles.press}
+            >
+              <View style={[styles.indicator, item.center && styles.indicatorCenter, on && { backgroundColor: pillBg }]}>
+                {item.icon(iconColor)}
+              </View>
+              <Text
+                style={[
+                  m3TextStyle("labelMedium"),
+                  styles.label,
+                  { color: labelColor },
+                  on && { fontFamily: robotoFor("700") },
+                ]}
+                numberOfLines={1}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          </View>
         );
       })}
     </View>
   );
 }
 
+// rev2 sb-app NavBar: height 80 (12 top pad), 64×32 pill indicator, icon 24,
+// label 12 (bold when active), 1px surface-variant top border.
 const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
     backgroundColor: m3.color.surfaceContainer,
-    paddingTop: m3.spacing.s2,
+    paddingTop: 12,
     paddingHorizontal: m3.spacing.s2,
+    borderTopWidth: 1,
+    borderTopColor: m3.color.surfaceVariant,
   },
-  tab: { flex: 1, alignItems: "center", gap: m3.spacing.s1, minHeight: 48, justifyContent: "center" },
+  tab: { flex: 1, minHeight: 52, justifyContent: "center" },
+  press: { alignItems: "center", gap: m3.spacing.s1, justifyContent: "center", minHeight: 52 },
   indicator: {
-    minWidth: 56,
+    width: 64,
     height: 32,
     borderRadius: m3.shape.full,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: m3.spacing.s4,
   },
-  indicatorCenter: { minWidth: 64, height: 36 },
-  pressed: { opacity: 0.7 },
+  indicatorCenter: { width: 64, height: 32 },
   label: { textAlign: "center" },
 });

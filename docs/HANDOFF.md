@@ -3,6 +3,25 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-07-03 / Simon 결정 6건 전면 이행 + T5 peer-review F2~F4 랜딩
+
+### 결정 이행 (전부 랜딩)
+- **요금제 캐논 확정**: 별바라기(free)/항해자(cortex, soma=평생판)/북극성(brain) — reasoning-cap.ts FIXED 매핑 그대로, 5로케일 표시명 교체 (#703). 결제 enum·스토어 상품 불변.
+- **구조화 JSON 캡처(0066, 라이브 적용)**: records.structured jsonb + lib/capture/structured.ts. 4W1H·3C4P Drill Down이 JSON 저장(Drill Down 입력 소실 버그 해소), 세컨비가 최신 5건을 <UNTRUSTED type=structured_records>로 읽음, 기록 상세 라벨 그리드 (#704).
+- **E-act 활성화(0067, 라이브 적용)**: purge 6종 pg_cron 야간 스케줄(365/365/730/90/730+import 기본). CI엔 pg_cron이 없어 가용성 가드 필수 — #705가 main sql 체크를 깨서 #707로 봉합(교훈: 마이그레이션은 dry-run 컨테이너 기준으로 작성).
+- **네이티브 PR 소생**: #638(Google·Kakao 로그인)·#619(Sentry) 리베이스+CI green+ready. 단독 머지 금지 — 다음 네이티브 사이클(runtime 0.0.7 범프+EAS)에 일괄. #624는 #638에 흡수 close.
+- **서명키**: Cowork 위임 프롬프트 전달(Output/cowork-prompt-android-keystore-20260703.html). 등록되면 android-release.yml이 store-grade 서명.
+
+### T5 peer review — F2·F3·F4 (법무 게이트 해제분, 0064 스키마 그대로)
+- **F2**: /peer-invites(일회용 링크·해시만 저장·상한 10·회수) + /peer/[token](무계정 웹: 고지→acks 2종(0064 CHECK 강제)→미성년 보호자 경로→3특질 1..5→링크 재방문 철회) + **peer-respond edge fn 배포됨(v1)** — informant 행 유일 쓰기 경로, salted ip/ua 해시만.
+- **F3**: SeenLensView가 t5_seen_aggregate(min-N 3) 소비 — self/other 이중 바 + N명 고지, 미달 시 기존 정직 엠티 + /peer-invites CTA.
+- **F4**: gap 수치만으로 persona_chat purpose 재사용 합성(2~3문장, 진단 금지 프롬프트). informant 원문은 LLM에 절대 미투입.
+- **peer i18n 네임스페이스 ×5** (C7 27개 정렬).
+- 다음: F3 실데이터 QA(informant 3명 시나리오), 세컨비 페르소나 셀렉터 자리에서 Seen 진입 동선 검토.
+
+### 통화 녹음 — 설계 노트 발행 (docs/CALL-RECORDING-SPEC.md)
+- KR 일방동의 합법이나 v1은 **통화 직후 회고 플로우**(call-log 권한+voice 캡처+0066 structured call_reflection)로 법 표면 최소화. 실 통화녹음은 OEM/iOS 제약+별도 법무로 v2. 다음 네이티브 사이클 후보.
+
 ## Latest — 2026-07-02 (오전 2차) / rev2 P2-cont~P6 일괄 랜딩 (12 머지) + 에뮬 육안 QA 2라운드 (픽스 3 PR)
 
 ### 🔎 에뮬 육안 QA 결과 (Pixel 9 Pro XL, debug 빌드 + Metro, 전 표면 순회)

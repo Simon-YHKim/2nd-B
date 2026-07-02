@@ -11,16 +11,17 @@
  * Rendered only in the deep-space build. The deep-space-shell-a11y guard pins the
  * character accessibilityLabel pattern to THIS file.
  */
-import type { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, type ReactNode } from "react";
+import { BackHandler, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, type Href } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
-import type { M3Persona } from "@/lib/theme/m3";
-import { MdNavBar } from "@/components/m3";
+import { m3, type M3Persona } from "@/lib/theme/m3";
+import { MdNavBar, MdTopAppBar } from "@/components/m3";
 import { SecondbStatusHeader } from "./SecondbStatusHeader";
+import { SbStarfield } from "./SbStarfield";
 import type { SecondbMood } from "./SecondbHead";
 import { TabIcon, type DeepSpaceTab } from "./DeepSpaceDock";
 
@@ -33,6 +34,7 @@ const TAB_ROUTE: Record<DeepSpaceTab, Href> = {
   wiki: "/wiki",
   lens: "/core-brain",
   iden: "/iden",
+  settings: "/settings",
 };
 
 const VIEW_MOOD: Record<DeepSpaceTab, SecondbMood> = {
@@ -44,20 +46,38 @@ const VIEW_MOOD: Record<DeepSpaceTab, SecondbMood> = {
   wiki: "neutral",
   lens: "positive",
   iden: "neutral",
+  settings: "neutral",
 };
 
-// Primary order (rev2 §3): 별자리홈 · 담기 · [중앙 세컨비] · 위키 · 비서.
-// 나(account) moves out of the dock — reachable via profile / settings / back-arrow.
-const TABS: DeepSpaceTab[] = ["home", "capture", "chat", "wiki", "ops"];
+// Primary order (rev2 SoT, sb-data NAV): 별자리 · 담기 · [중앙 세컨비] · 위키 · 설정.
+// 비서(ops) moves out of the dock — reached via the home head-tap menu (sb-home)
+// and deep links; 나(account) stays reachable via profile / settings / back-arrow.
+const TABS: DeepSpaceTab[] = ["home", "capture", "chat", "wiki", "settings"];
 
 export function DeepSpaceScreen({
   active,
   personaTint,
+  header = "companion",
+  variant = "fullbleed",
+  title,
+  onBack,
+  action,
   children,
 }: {
   active: DeepSpaceTab;
   /** rev2 persona tint for the status-header head (chat surface). Unset = canonical cyan. */
   personaTint?: M3Persona;
+  /** rev2 (sb-app §4): the companion header belongs to capture/chat/records only —
+   *  home renders its own big head + bubble, so it passes "none". records keeps
+   *  the graph full-bleed and FLOATS the companion over it ("floating"). */
+  header?: "companion" | "none" | "floating";
+  /** rev2 (sb-app §4): every non-immersive screen floats as a radius-24 "window"
+   *  over the shared sky (padding 12/12/14, surface bg, 1px starlight rim). */
+  variant?: "fullbleed" | "windowed";
+  /** Windowed sub-screens: M3 top app bar title + back (TopAppBar). */
+  title?: string;
+  onBack?: () => void;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   const { t, i18n } = useTranslation("home");
@@ -67,36 +87,84 @@ export function DeepSpaceScreen({
   // pins this pattern + bans non-ASCII string literals in accessibilityLabel).
   const characterLabel = isKo ? "세컨드 브레인 캐릭터" : "Second Brain character";
 
+  // rev2 back() (sb-app): hardware back on a non-home ROOT tab returns to the
+  // constellation home instead of exiting the app. Screens with their own back
+  // guards register later and therefore run first (LIFO); sub-screens
+  // (active not in TABS) keep the default pop behavior.
+  useEffect(() => {
+    if (active === "home" || !TABS.includes(active)) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      router.replace("/");
+      return true;
+    });
+    return () => sub.remove();
+  }, [active]);
+
+  // rev2 NavBar: uniform 64×32 pills + 24dp icons (no center emphasis).
   const dockItems = TABS.map((key) => ({
     key,
     label: t("ds.dock." + key),
     accessibilityLabel: t("ds.dock." + key),
-    icon: (color: string) => <TabIcon tab={key} color={color} />,
-    center: key === "chat",
+    icon: (color: string) => <TabIcon tab={key} color={color} size={24} />,
   }));
 
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
+      {/* rev2 shared constellation wallpaper (sb-app SbStarfield + SB_COSMIC),
+          seed-locked so every screen sits under the same sky. */}
       <View pointerEvents="none" style={styles.spaceWash}>
-        <View style={styles.topGlow} />
-        <View style={[styles.star, styles.starA]} />
-        <View style={[styles.star, styles.starB]} />
-        <View style={[styles.star, styles.starC]} />
-        <View style={[styles.star, styles.starD]} />
-        <View style={[styles.star, styles.starE]} />
-        <View style={[styles.star, styles.starF]} />
-        <View style={[styles.star, styles.starG]} />
-        <View style={[styles.star, styles.starH]} />
+        <SbStarfield cosmic />
       </View>
-      <SecondbStatusHeader
-        text={t("ds.head." + active + ".text")}
-        tip={t("ds.head." + active + ".tip")}
-        mood={VIEW_MOOD[active]}
-        persona={personaTint}
-        accessibilityLabel={characterLabel}
-      />
-
-      <View style={styles.body}>{children}</View>
+      {variant === "windowed" ? (
+        // rev2 windowed layout: the screen floats as a radius-24 window over
+        // the shared sky; the companion header (capture/chat) or the M3 top
+        // app bar (sub-screens) sits INSIDE the window.
+        <View style={styles.windowWrap}>
+          <View style={styles.window}>
+            {header === "companion" ? (
+              <SecondbStatusHeader
+                text={t("ds.head." + active + ".text")}
+                tip={t("ds.head." + active + ".tip")}
+                mood={VIEW_MOOD[active]}
+                persona={personaTint}
+                accessibilityLabel={characterLabel}
+              />
+            ) : title && onBack ? (
+              <MdTopAppBar title={title} onBack={onBack} action={action} />
+            ) : null}
+            <View style={styles.windowBody}>{children}</View>
+          </View>
+        </View>
+      ) : (
+        <>
+          {header === "companion" ? (
+            <SecondbStatusHeader
+              text={t("ds.head." + active + ".text")}
+              tip={t("ds.head." + active + ".tip")}
+              mood={VIEW_MOOD[active]}
+              persona={personaTint}
+              accessibilityLabel={characterLabel}
+            />
+          ) : null}
+          <View style={styles.body}>
+            {children}
+            {header === "floating" ? (
+              // rev2 records: the graph stays full-bleed and the companion
+              // FLOATS over it (sb-app: absolute overlay, taps pass through
+              // the wrapper so the graph keeps its gestures).
+              <View pointerEvents="box-none" style={styles.floatingHeader}>
+                <SecondbStatusHeader
+                  text={t("ds.head." + active + ".text")}
+                  tip={t("ds.head." + active + ".tip")}
+                  mood={VIEW_MOOD[active]}
+                  persona={personaTint}
+                  accessibilityLabel={characterLabel}
+                />
+              </View>
+            ) : null}
+          </View>
+        </>
+      )}
 
       <MdNavBar
         active={active}
@@ -112,38 +180,31 @@ export function DeepSpaceScreen({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: deepSpace.bgEdge },
   spaceWash: { ...StyleSheet.absoluteFill, overflow: "hidden" },
-  topGlow: {
-    position: "absolute",
-    top: -150,
-    left: -80,
-    right: -80,
-    height: 360,
-    borderRadius: 180,
-    backgroundColor: deepSpace.bgGlow,
-    opacity: 0.9,
-  },
-  star: {
-    position: "absolute",
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: deepSpace.accentSoft,
-    shadowColor: deepSpace.accent,
-    shadowOpacity: 0.85,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
-  },
-  starA: { top: 38, left: "18%", opacity: 0.85 },
-  starB: { top: 94, right: "22%", opacity: 0.55 },
-  starC: { top: 168, left: "36%", opacity: 0.5 },
-  starD: { top: 244, right: "15%", opacity: 0.8 },
-  starE: { bottom: 168, left: "11%", opacity: 0.45 },
-  starF: { bottom: 112, right: "28%", opacity: 0.62 },
-  starG: { bottom: 54, left: "42%", opacity: 0.4 },
-  starH: { top: 312, left: "67%", opacity: 0.5 },
   body: {
     flex: 1,
     backgroundColor: withAlpha(deepSpace.bgEdge, 0.5),
   },
+  floatingHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 6 },
+  // sb-app windowed: padding '12px 12px 14px' around a radius-24 surface card
+  // with a 1px starlight rim; the sky stays visible around it.
+  windowWrap: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 14,
+  },
+  window: {
+    flex: 1,
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: m3.color.surface,
+    borderWidth: 1,
+    borderColor: withAlpha(m3.accent.windowRim, 0.16),
+    elevation: 16,
+    shadowColor: "#000000",
+    shadowOpacity: 0.5,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 10 },
+  },
+  windowBody: { flex: 1, minHeight: 0 },
 });
