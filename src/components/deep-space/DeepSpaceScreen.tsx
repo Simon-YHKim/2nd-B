@@ -72,8 +72,11 @@ export function DeepSpaceScreen({
    *  the graph full-bleed and FLOATS the companion over it ("floating"). */
   header?: "companion" | "none" | "floating";
   /** rev2 (sb-app §4): every non-immersive screen floats as a radius-24 "window"
-   *  over the shared sky (padding 12/12/14, surface bg, 1px starlight rim). */
-  variant?: "fullbleed" | "windowed";
+   *  over the shared sky (padding 12/12/14, surface bg, 1px starlight rim).
+   *  museumLike = full-bleed cosmic surface with a translucent top scrim +
+   *  top app bar floating over it (museum/exhibit/star; blur approximated —
+   *  expo-blur would be a native dep and break the OTA runtime pin). */
+  variant?: "fullbleed" | "windowed" | "museumLike";
   /** Windowed sub-screens: M3 top app bar title + back (TopAppBar). */
   title?: string;
   onBack?: () => void;
@@ -115,7 +118,17 @@ export function DeepSpaceScreen({
       <View pointerEvents="none" style={styles.spaceWash}>
         <SbStarfield cosmic />
       </View>
-      {variant === "windowed" ? (
+      {variant === "museumLike" ? (
+        // rev2 museumLike (sb-app §4): the screen paints its own full-bleed
+        // sky; a single top scrim spans the title zone so the sky reads as one
+        // continuous wash, with the M3 top app bar floating inside it.
+        <View style={styles.body}>
+          <View style={styles.museumBody}>{children}</View>
+          <View pointerEvents="box-none" style={styles.museumScrim}>
+            {title && onBack ? <MdTopAppBar title={title} onBack={onBack} action={action} /> : null}
+          </View>
+        </View>
+      ) : variant === "windowed" ? (
         // rev2 windowed layout: the screen floats as a radius-24 window over
         // the shared sky; the companion header (capture/chat) or the M3 top
         // app bar (sub-screens) sits INSIDE the window.
@@ -185,6 +198,26 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(deepSpace.bgEdge, 0.5),
   },
   floatingHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 6 },
+  // Content clears the ~56dp bar zone (no blur, so "under the scrim" would
+  // just be hidden; clearance matches the visual outcome).
+  museumBody: { flex: 1, paddingTop: 60 },
+  // sb-app museumLike top scrim: rgba(8,11,20,.9) + hairline + soft drop —
+  // stageFloor at .92 approximates the blurred wash without a native blur dep.
+  museumScrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 7,
+    backgroundColor: withAlpha(m3.accent.stageFloor, 0.92),
+    borderBottomWidth: 1,
+    borderBottomColor: m3.color.outlineVariant,
+    elevation: 6,
+    shadowColor: "#000000",
+    shadowOpacity: 0.28,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 3 },
+  },
   // sb-app windowed: padding '12px 12px 14px' around a radius-24 surface card
   // with a 1px starlight rim; the sky stays visible around it.
   windowWrap: {
