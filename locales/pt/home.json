@@ -1,230 +1,230 @@
 {
   "soulCore": {
-    "a11y": "Soul Core brightness"
+    "a11y": "Brilho do Soul Core"
   },
   "character": {
-    "a11y": "Second Brain character"
+    "a11y": "Personagem do Second Brain"
   },
   "bubble": {
-    "fresh": "What would you like to note?"
+    "fresh": "O que você quer anotar?"
   },
   "progress": {
-    "lit": "{{lit}}/{{total}} stars lit",
-    "next": "next: {{step}} ({{min}})"
+    "lit": "{{lit}}/{{total}} estrelas acesas",
+    "next": "próximo: {{step}} ({{min}})"
   },
   "nextStep": {
     "bigFive": {
       "label": "Big Five",
       "min": "5 min",
-      "cta": "Light a star with Big Five"
+      "cta": "Acenda uma estrela com o Big Five"
     },
     "attachment": {
-      "label": "Attachment",
+      "label": "Apego",
       "min": "3 min",
-      "cta": "Light a star with the relationship check"
+      "cta": "Acenda uma estrela com o check de relações"
     },
     "esm": {
-      "label": "Today's check-in",
+      "label": "Check-in de hoje",
       "min": "1 min",
-      "cta": "Light a star with a quick check-in"
+      "cta": "Acenda uma estrela com um check-in rápido"
     },
     "values": {
-      "label": "Values",
+      "label": "Valores",
       "min": "4 min",
-      "cta": "Light a star with the values audit"
+      "cta": "Acenda uma estrela com a revisão de valores"
     }
   },
   "menu": {
-    "graph": "Graph",
-    "capture": "Capture",
+    "graph": "Grafo",
+    "capture": "Capturar",
     "secondb": "SecondB",
-    "profile": "Me"
+    "profile": "Eu"
   },
   "ds": {
     "dock": {
-      "home": "Home",
-      "capture": "Capture",
+      "home": "Início",
+      "capture": "Capturar",
       "chat": "SecondB",
-      "ops": "Assistant",
-      "account": "Me",
-      "lens": "Me",
+      "ops": "Assistente",
+      "account": "Eu",
+      "lens": "Eu",
       "iden": "IDEN",
       "wiki": "Wiki"
     },
     "head": {
       "home": {
-        "text": "You're back. Right now you're shining as seven stars.",
-        "tip": "Start with the dimmest star."
+        "text": "Você voltou. Agora mesmo você brilha como sete estrelas.",
+        "tip": "Comece pela estrela mais apagada."
       },
       "ops": {
-        "text": "Here's today's routine. Let's keep the rhythm going.",
-        "tip": "Check off one. Momentum does the rest."
+        "text": "Esta é sua rotina de hoje. Vamos manter o ritmo.",
+        "tip": "Marque só uma. O embalo faz o resto."
       },
       "account": {
-        "text": "This is your space. Everything about you lives here.",
-        "tip": "Profile, settings, and your data are one tap away."
+        "text": "Este é o seu espaço. Tudo sobre você mora aqui.",
+        "tip": "Perfil, ajustes e seus dados a um toque."
       },
       "capture": {
-        "text": "Don't let that thought slip away.",
-        "tip": "One line is enough. I'll sort it."
+        "text": "Não deixe esse pensamento escapar.",
+        "tip": "Uma linha basta. Eu organizo."
       },
       "chat": {
-        "text": "Ask anything. I'll answer from your records.",
-        "tip": "You can ask things like \"How am I lately?\""
+        "text": "Pergunte qualquer coisa. Respondo a partir dos seus registros.",
+        "tip": "Você pode perguntar coisas como \"Como eu ando ultimamente?\""
       },
       "lens": {
-        "text": "Your extraversion star brightened a step this week.",
-        "tip": "Tap a changed axis to see the evidence."
+        "text": "Sua estrela de extroversão brilhou um passo a mais esta semana.",
+        "tip": "Toque em um eixo que mudou para ver a evidência."
       },
       "iden": {
-        "text": "I packed you into one file. Take it anywhere.",
-        "tip": "You can mask sensitive items before exporting."
+        "text": "Empacotei você em um único arquivo. Leve para onde quiser.",
+        "tip": "Você pode ocultar itens sensíveis antes de exportar."
       },
       "wiki": {
-        "text": "Your knowledge, linked like a constellation.",
-        "tip": "Tap a node to wander between your notes."
+        "text": "Seu conhecimento, ligado como uma constelação.",
+        "tip": "Toque em um nó para passear entre suas notas."
       }
     },
     "home": {
-      "polaris": "North Star",
-      "hint": "Tap the seven stars to open your seven life areas"
+      "polaris": "Estrela Polar",
+      "hint": "Toque nas sete estrelas para abrir suas sete áreas da vida"
     },
     "capture": {
-      "title": "Capture",
-      "placeholder": "A thought, something you read, a feeling… anything, in one line.",
-      "chipText": "Text",
+      "title": "Capturar",
+      "placeholder": "Um pensamento, algo que você leu, um sentimento… qualquer coisa, em uma linha.",
+      "chipText": "Texto",
       "chipLink": "Link",
-      "chipVoice": "Voice",
-      "tip": "The moment you save it, SecondB tags and sorts it."
+      "chipVoice": "Voz",
+      "tip": "Assim que você salva, o SecondB etiqueta e organiza."
     },
     "chat": {
-      "user": "I've been so worn out lately. Why is that?",
-      "ai": "Over the last two weeks your records are all work, no rest. Your extraversion star dimmed below its usual, too.",
-      "evidence": "Evidence · 8 records",
-      "rhythm": "Rhythm ↓",
-      "suggestRest": "Log some rest?",
-      "suggestImagine": "Imagine mode"
+      "user": "Ando muito esgotado ultimamente. Por que será?",
+      "ai": "Nas últimas duas semanas seus registros são só trabalho, sem descanso. Sua estrela de extroversão também escureceu além do normal.",
+      "evidence": "Evidência · 8 registros",
+      "rhythm": "Ritmo ↓",
+      "suggestRest": "Registrar um descanso?",
+      "suggestImagine": "Modo imaginar"
     },
     "lens": {
-      "toggleFilled": "Filled",
-      "toggleEmpty": "Empty",
-      "toggleError": "Error",
-      "emptyTitle": "This star is still dark",
-      "emptyBody": "Finish the trait check once and your Trait State star lights up.",
-      "emptyCta": "Start the check",
-      "errorTitle": "Couldn't load this",
-      "errorBody": "Please try again in a moment.",
-      "errorCta": "Retry",
-      "filledTitle": "Trait state",
+      "toggleFilled": "Cheio",
+      "toggleEmpty": "Vazio",
+      "toggleError": "Erro",
+      "emptyTitle": "Esta estrela ainda está apagada",
+      "emptyBody": "Conclua o check de traços uma vez e sua estrela de Traços acende.",
+      "emptyCta": "Começar o check",
+      "errorTitle": "Não foi possível carregar",
+      "errorBody": "Tente de novo em instantes.",
+      "errorCta": "Tentar de novo",
+      "filledTitle": "Estado dos traços",
       "level": "L4",
-      "insight": "Extraversion rose 6 points this week. You met more people.",
-      "traitOpenness": "Openness",
-      "traitConscientiousness": "Conscientiousness",
-      "traitExtraversion": "Extraversion",
-      "traitAgreeableness": "Agreeableness",
-      "traitNeuroticism": "Neuroticism"
+      "insight": "A extroversão subiu 6 pontos esta semana. Você viu mais gente.",
+      "traitOpenness": "Abertura",
+      "traitConscientiousness": "Conscienciosidade",
+      "traitExtraversion": "Extroversão",
+      "traitAgreeableness": "Amabilidade",
+      "traitNeuroticism": "Neuroticismo"
     },
     "iden": {
-      "signed": "Signed",
-      "northStar": "\"Understand myself deeply, live more like myself.\"",
-      "send": "Send to AI"
+      "signed": "Assinado",
+      "northStar": "\"Me entender a fundo, viver mais do meu jeito.\"",
+      "send": "Enviar para a IA"
     },
     "recall": {
-      "title": "Recall",
+      "title": "Lembrança",
       "tag": "NARRATIVE",
-      "eyebrow": "Which era made the person I am now",
-      "hint": "Tap a period to start a drill-down question",
-      "footer": "Repeated questions raise the coherence of your recall.",
-      "p1Name": "Infancy",
+      "eyebrow": "Qual época fez a pessoa que eu sou agora",
+      "hint": "Toque em um período para abrir uma pergunta a fundo",
+      "footer": "Perguntas repetidas elevam a coerência da sua lembrança.",
+      "p1Name": "Primeira infância",
       "p1Age": "0–6",
-      "p2Name": "Childhood",
+      "p2Name": "Infância",
       "p2Age": "7–12",
-      "p3Name": "Early teens",
+      "p3Name": "Início da adolescência",
       "p3Age": "13–15",
-      "p4Name": "Mid teens",
+      "p4Name": "Meio da adolescência",
       "p4Age": "16–17",
-      "p5Name": "Late teens",
+      "p5Name": "Fim da adolescência",
       "p5Age": "18–19",
-      "p6Name": "Early 20s",
+      "p6Name": "Início dos 20",
       "p6Age": "20–23",
-      "p7Name": "First job years",
+      "p7Name": "Primeiros anos de trabalho",
       "p7Age": "24–27",
-      "p8Name": "Now",
+      "p8Name": "Agora",
       "p8Age": "28–"
     },
     "seen": {
-      "title": "Seen self",
+      "title": "Como me veem",
       "tag": "SELF·OTHER",
-      "eyebrow": "How close is the me others see to the me I see",
-      "legendSelf": "Me I see",
-      "legendOther": "Me others see",
-      "traitExtraversion": "Extraversion",
-      "traitConscientiousness": "Conscientiousness",
-      "traitAgreeableness": "Agreeableness",
-      "diffExtraversion": "diff +18",
-      "diffConscientiousness": "diff +4",
-      "diffAgreeableness": "diff −7",
-      "conclusion": "Others see you as a more lively person. You may be more extraverted than you think.",
-      "survey": "View survey",
-      "share": "Share"
+      "eyebrow": "Quanto o eu que os outros veem parece com o eu que eu vejo",
+      "legendSelf": "O eu que eu vejo",
+      "legendOther": "O eu que os outros veem",
+      "traitExtraversion": "Extroversão",
+      "traitConscientiousness": "Conscienciosidade",
+      "traitAgreeableness": "Amabilidade",
+      "diffExtraversion": "dif +18",
+      "diffConscientiousness": "dif +4",
+      "diffAgreeableness": "dif −7",
+      "conclusion": "Os outros veem você como alguém mais animado. Talvez você seja mais extrovertido do que pensa.",
+      "survey": "Ver questionário",
+      "share": "Compartilhar"
     },
     "rhythm": {
-      "title": "Rhythm",
+      "title": "Ritmo",
       "tag": "ESM",
-      "eyebrow": "When am I most myself",
-      "subhead": "Last 7 days · mood rhythm",
-      "mon": "Mon",
-      "tue": "Tue",
-      "wed": "Wed",
-      "thu": "Thu",
-      "fri": "Fri",
-      "sat": "Sat",
-      "sun": "Sun",
-      "caption": "Most yourself: Saturday morning. You feel best when absorbed in making something.",
-      "logNow": "+ Log mood now"
+      "eyebrow": "Quando eu sou mais eu",
+      "subhead": "Últimos 7 dias · ritmo de humor",
+      "mon": "Seg",
+      "tue": "Ter",
+      "wed": "Qua",
+      "thu": "Qui",
+      "fri": "Sex",
+      "sat": "Sáb",
+      "sun": "Dom",
+      "caption": "Mais você: sábado de manhã. Você se sente melhor quando está absorto criando algo.",
+      "logNow": "+ Registrar humor agora"
     },
     "possible": {
-      "title": "Future self",
+      "title": "Eu futuro",
       "tag": "ASPIRATION",
-      "eyebrow": "Where I'm heading - the me that isn't data yet",
-      "a1Name": "A maker",
-      "a1Body": "Making moving thoughts into form my work",
-      "a2Name": "A few deep ties",
-      "a2Body": "Becoming someone who keeps ties long over wide",
-      "a3Name": "An unshaken center",
-      "a3Body": "Someone who keeps the standard inside",
-      "footer": "Dashed = the me before the data fills in",
-      "rewrite": "Rewrite",
-      "add": "+ Add"
+      "eyebrow": "Para onde estou indo: o eu que ainda não virou dados",
+      "a1Name": "Alguém que cria",
+      "a1Body": "Fazer de dar forma às ideias o meu ofício",
+      "a2Name": "Poucos laços profundos",
+      "a2Body": "Ser de quem mantém laços longos, não largos",
+      "a3Name": "Um centro firme",
+      "a3Body": "Alguém que guarda o critério dentro de si",
+      "footer": "Tracejado = o eu antes de os dados preencherem",
+      "rewrite": "Reescrever",
+      "add": "+ Adicionar"
     },
     "relational": {
-      "title": "Relations",
+      "title": "Relações",
       "tag": "RELATIONS",
-      "eyebrow": "Me inside relationships and knowledge",
-      "peopleHead": "People who show up often",
+      "eyebrow": "O eu dentro das relações e do conhecimento",
+      "peopleHead": "Pessoas que aparecem com frequência",
       "person1": "Minjun · 24",
-      "person2": "Mom · 18",
+      "person2": "Mãe · 18",
       "person3": "Jiwoo · 12",
       "personMore": "+9",
-      "knowledgeHead": "Interests",
-      "topic1": "Design·tools",
-      "topic2": "Psychology·self-understanding",
-      "topic3": "AI·productivity",
-      "conclusion": "Depth stands out more than breadth in your relationships. A few, often, for a long time.",
-      "addData": "+ Add data"
+      "knowledgeHead": "Interesses",
+      "topic1": "Design·ferramentas",
+      "topic2": "Psicologia·autoconhecimento",
+      "topic3": "IA·produtividade",
+      "conclusion": "Nas suas relações a profundidade se destaca mais que a amplitude. Poucas, com frequência, por muito tempo.",
+      "addData": "+ Adicionar dados"
     },
     "values": {
-      "title": "Work·growth",
+      "title": "Trabalho·crescimento",
       "tag": "DOMAIN",
-      "eyebrow": "What have I built up in this area",
-      "domain1": "Career",
-      "domain1Count": "142 pieces",
-      "domain2": "Learning·growth",
-      "domain2Count": "98 pieces",
-      "domain3": "Finance",
-      "domain3Count": "37 pieces",
-      "conclusion": "You've built the most in Career. Finance is still empty - shall we put more in?",
-      "addData": "+ Add data"
+      "eyebrow": "O que eu construí nesta área",
+      "domain1": "Carreira",
+      "domain1Count": "142 peças",
+      "domain2": "Aprendizado·crescimento",
+      "domain2Count": "98 peças",
+      "domain3": "Finanças",
+      "domain3Count": "37 peças",
+      "conclusion": "Onde você mais construiu foi em Carreira. Finanças ainda está vazio: vamos guardar mais?",
+      "addData": "+ Adicionar dados"
     }
   }
 }

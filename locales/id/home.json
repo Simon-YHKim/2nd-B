@@ -1,230 +1,230 @@
 {
   "soulCore": {
-    "a11y": "Soul Core brightness"
+    "a11y": "Kecerahan Soul Core"
   },
   "character": {
-    "a11y": "Second Brain character"
+    "a11y": "Karakter Second Brain"
   },
   "bubble": {
-    "fresh": "What would you like to note?"
+    "fresh": "Apa yang mau kamu catat?"
   },
   "progress": {
-    "lit": "{{lit}}/{{total}} stars lit",
-    "next": "next: {{step}} ({{min}})"
+    "lit": "{{lit}}/{{total}} bintang menyala",
+    "next": "berikutnya: {{step}} ({{min}})"
   },
   "nextStep": {
     "bigFive": {
       "label": "Big Five",
-      "min": "5 min",
-      "cta": "Light a star with Big Five"
+      "min": "5 mnt",
+      "cta": "Nyalakan satu bintang dengan Big Five"
     },
     "attachment": {
-      "label": "Attachment",
-      "min": "3 min",
-      "cta": "Light a star with the relationship check"
+      "label": "Kelekatan",
+      "min": "3 mnt",
+      "cta": "Nyalakan satu bintang dengan cek relasi"
     },
     "esm": {
-      "label": "Today's check-in",
-      "min": "1 min",
-      "cta": "Light a star with a quick check-in"
+      "label": "Check-in hari ini",
+      "min": "1 mnt",
+      "cta": "Nyalakan satu bintang dengan check-in singkat"
     },
     "values": {
-      "label": "Values",
-      "min": "4 min",
-      "cta": "Light a star with the values audit"
+      "label": "Nilai",
+      "min": "4 mnt",
+      "cta": "Nyalakan satu bintang dengan tinjauan nilai"
     }
   },
   "menu": {
-    "graph": "Graph",
-    "capture": "Capture",
+    "graph": "Graf",
+    "capture": "Tangkap",
     "secondb": "SecondB",
-    "profile": "Me"
+    "profile": "Aku"
   },
   "ds": {
     "dock": {
-      "home": "Home",
-      "capture": "Capture",
+      "home": "Beranda",
+      "capture": "Tangkap",
       "chat": "SecondB",
-      "ops": "Assistant",
-      "account": "Me",
-      "lens": "Me",
+      "ops": "Asisten",
+      "account": "Aku",
+      "lens": "Aku",
       "iden": "IDEN",
       "wiki": "Wiki"
     },
     "head": {
       "home": {
-        "text": "You're back. Right now you're shining as seven stars.",
-        "tip": "Start with the dimmest star."
+        "text": "Kamu datang lagi. Saat ini kamu bersinar sebagai tujuh bintang.",
+        "tip": "Mulailah dari bintang yang paling redup."
       },
       "ops": {
-        "text": "Here's today's routine. Let's keep the rhythm going.",
-        "tip": "Check off one. Momentum does the rest."
+        "text": "Ini rutinitasmu hari ini. Ayo jaga ritmenya.",
+        "tip": "Centang satu saja. Sisanya ikut terbawa."
       },
       "account": {
-        "text": "This is your space. Everything about you lives here.",
-        "tip": "Profile, settings, and your data are one tap away."
+        "text": "Ini ruangmu. Semua tentang kamu ada di sini.",
+        "tip": "Profil, pengaturan, dan datamu sekali ketuk."
       },
       "capture": {
-        "text": "Don't let that thought slip away.",
-        "tip": "One line is enough. I'll sort it."
+        "text": "Jangan biarkan pikiran itu lewat begitu saja.",
+        "tip": "Satu baris cukup. Aku yang merapikan."
       },
       "chat": {
-        "text": "Ask anything. I'll answer from your records.",
-        "tip": "You can ask things like \"How am I lately?\""
+        "text": "Tanya apa saja. Aku menjawab dari catatanmu.",
+        "tip": "Kamu bisa bertanya seperti \"Akhir-akhir ini aku gimana?\""
       },
       "lens": {
-        "text": "Your extraversion star brightened a step this week.",
-        "tip": "Tap a changed axis to see the evidence."
+        "text": "Bintang ekstraversimu naik satu tingkat minggu ini.",
+        "tip": "Ketuk sumbu yang berubah untuk melihat buktinya."
       },
       "iden": {
-        "text": "I packed you into one file. Take it anywhere.",
-        "tip": "You can mask sensitive items before exporting."
+        "text": "Aku mengemas dirimu dalam satu berkas. Bawa ke mana saja.",
+        "tip": "Kamu bisa menutupi hal sensitif sebelum mengekspor."
       },
       "wiki": {
-        "text": "Your knowledge, linked like a constellation.",
-        "tip": "Tap a node to wander between your notes."
+        "text": "Pengetahuanmu terhubung seperti rasi bintang.",
+        "tip": "Ketuk simpul untuk menjelajah di antara catatanmu."
       }
     },
     "home": {
-      "polaris": "North Star",
-      "hint": "Tap the seven stars to open your seven life areas"
+      "polaris": "Bintang Utara",
+      "hint": "Ketuk tujuh bintang untuk membuka tujuh area hidupmu"
     },
     "capture": {
-      "title": "Capture",
-      "placeholder": "A thought, something you read, a feeling… anything, in one line.",
-      "chipText": "Text",
-      "chipLink": "Link",
-      "chipVoice": "Voice",
-      "tip": "The moment you save it, SecondB tags and sorts it."
+      "title": "Tangkap",
+      "placeholder": "Pikiran, sesuatu yang kamu baca, sebuah perasaan… apa saja, dalam satu baris.",
+      "chipText": "Teks",
+      "chipLink": "Tautan",
+      "chipVoice": "Suara",
+      "tip": "Begitu disimpan, SecondB langsung menandai dan merapikannya."
     },
     "chat": {
-      "user": "I've been so worn out lately. Why is that?",
-      "ai": "Over the last two weeks your records are all work, no rest. Your extraversion star dimmed below its usual, too.",
-      "evidence": "Evidence · 8 records",
-      "rhythm": "Rhythm ↓",
-      "suggestRest": "Log some rest?",
-      "suggestImagine": "Imagine mode"
+      "user": "Akhir-akhir ini aku capek banget. Kenapa ya?",
+      "ai": "Dua minggu terakhir catatanmu isinya kerja semua, tanpa istirahat. Bintang ekstraversimu juga lebih redup dari biasanya.",
+      "evidence": "Bukti · 8 catatan",
+      "rhythm": "Ritme ↓",
+      "suggestRest": "Catat istirahat?",
+      "suggestImagine": "Mode berandai"
     },
     "lens": {
-      "toggleFilled": "Filled",
-      "toggleEmpty": "Empty",
-      "toggleError": "Error",
-      "emptyTitle": "This star is still dark",
-      "emptyBody": "Finish the trait check once and your Trait State star lights up.",
-      "emptyCta": "Start the check",
-      "errorTitle": "Couldn't load this",
-      "errorBody": "Please try again in a moment.",
-      "errorCta": "Retry",
-      "filledTitle": "Trait state",
+      "toggleFilled": "Terisi",
+      "toggleEmpty": "Kosong",
+      "toggleError": "Galat",
+      "emptyTitle": "Bintang ini masih gelap",
+      "emptyBody": "Selesaikan cek kepribadian sekali dan bintang Kepribadianmu menyala.",
+      "emptyCta": "Mulai cek",
+      "errorTitle": "Gagal memuat",
+      "errorBody": "Coba lagi sebentar lagi.",
+      "errorCta": "Coba lagi",
+      "filledTitle": "Keadaan kepribadian",
       "level": "L4",
-      "insight": "Extraversion rose 6 points this week. You met more people.",
-      "traitOpenness": "Openness",
-      "traitConscientiousness": "Conscientiousness",
-      "traitExtraversion": "Extraversion",
-      "traitAgreeableness": "Agreeableness",
-      "traitNeuroticism": "Neuroticism"
+      "insight": "Ekstraversi naik 6 poin minggu ini. Kamu bertemu lebih banyak orang.",
+      "traitOpenness": "Keterbukaan",
+      "traitConscientiousness": "Kehati-hatian",
+      "traitExtraversion": "Ekstraversi",
+      "traitAgreeableness": "Keramahan",
+      "traitNeuroticism": "Neurotisisme"
     },
     "iden": {
-      "signed": "Signed",
-      "northStar": "\"Understand myself deeply, live more like myself.\"",
-      "send": "Send to AI"
+      "signed": "Ditandatangani",
+      "northStar": "\"Memahami diriku secara mendalam, hidup lebih seperti diriku.\"",
+      "send": "Kirim ke AI"
     },
     "recall": {
-      "title": "Recall",
+      "title": "Kenangan",
       "tag": "NARRATIVE",
-      "eyebrow": "Which era made the person I am now",
-      "hint": "Tap a period to start a drill-down question",
-      "footer": "Repeated questions raise the coherence of your recall.",
-      "p1Name": "Infancy",
+      "eyebrow": "Masa mana yang membentuk aku yang sekarang",
+      "hint": "Ketuk satu periode untuk memulai pertanyaan mendalam",
+      "footer": "Pertanyaan yang berulang menaikkan keutuhan kenanganmu.",
+      "p1Name": "Balita",
       "p1Age": "0–6",
-      "p2Name": "Childhood",
+      "p2Name": "Masa kecil",
       "p2Age": "7–12",
-      "p3Name": "Early teens",
+      "p3Name": "Remaja awal",
       "p3Age": "13–15",
-      "p4Name": "Mid teens",
+      "p4Name": "Remaja tengah",
       "p4Age": "16–17",
-      "p5Name": "Late teens",
+      "p5Name": "Remaja akhir",
       "p5Age": "18–19",
-      "p6Name": "Early 20s",
+      "p6Name": "Awal 20-an",
       "p6Age": "20–23",
-      "p7Name": "First job years",
+      "p7Name": "Awal masa kerja",
       "p7Age": "24–27",
-      "p8Name": "Now",
+      "p8Name": "Sekarang",
       "p8Age": "28–"
     },
     "seen": {
-      "title": "Seen self",
+      "title": "Aku di mata orang",
       "tag": "SELF·OTHER",
-      "eyebrow": "How close is the me others see to the me I see",
-      "legendSelf": "Me I see",
-      "legendOther": "Me others see",
-      "traitExtraversion": "Extraversion",
-      "traitConscientiousness": "Conscientiousness",
-      "traitAgreeableness": "Agreeableness",
-      "diffExtraversion": "diff +18",
-      "diffConscientiousness": "diff +4",
-      "diffAgreeableness": "diff −7",
-      "conclusion": "Others see you as a more lively person. You may be more extraverted than you think.",
-      "survey": "View survey",
-      "share": "Share"
+      "eyebrow": "Seberapa mirip aku yang dilihat orang dengan aku yang kulihat",
+      "legendSelf": "Aku yang kulihat",
+      "legendOther": "Aku yang dilihat orang",
+      "traitExtraversion": "Ekstraversi",
+      "traitConscientiousness": "Kehati-hatian",
+      "traitAgreeableness": "Keramahan",
+      "diffExtraversion": "selisih +18",
+      "diffConscientiousness": "selisih +4",
+      "diffAgreeableness": "selisih −7",
+      "conclusion": "Orang lain melihatmu lebih ceria. Mungkin kamu lebih ekstrover dari yang kamu kira.",
+      "survey": "Lihat survei",
+      "share": "Bagikan"
     },
     "rhythm": {
-      "title": "Rhythm",
+      "title": "Ritme",
       "tag": "ESM",
-      "eyebrow": "When am I most myself",
-      "subhead": "Last 7 days · mood rhythm",
-      "mon": "Mon",
-      "tue": "Tue",
-      "wed": "Wed",
-      "thu": "Thu",
-      "fri": "Fri",
-      "sat": "Sat",
-      "sun": "Sun",
-      "caption": "Most yourself: Saturday morning. You feel best when absorbed in making something.",
-      "logNow": "+ Log mood now"
+      "eyebrow": "Kapan aku paling menjadi diriku",
+      "subhead": "7 hari terakhir · ritme suasana hati",
+      "mon": "Sen",
+      "tue": "Sel",
+      "wed": "Rab",
+      "thu": "Kam",
+      "fri": "Jum",
+      "sat": "Sab",
+      "sun": "Min",
+      "caption": "Paling menjadi dirimu: Sabtu pagi. Kamu merasa paling baik saat tenggelam membuat sesuatu.",
+      "logNow": "+ Catat suasana hati sekarang"
     },
     "possible": {
-      "title": "Future self",
+      "title": "Aku di masa depan",
       "tag": "ASPIRATION",
-      "eyebrow": "Where I'm heading - the me that isn't data yet",
-      "a1Name": "A maker",
-      "a1Body": "Making moving thoughts into form my work",
-      "a2Name": "A few deep ties",
-      "a2Body": "Becoming someone who keeps ties long over wide",
-      "a3Name": "An unshaken center",
-      "a3Body": "Someone who keeps the standard inside",
-      "footer": "Dashed = the me before the data fills in",
-      "rewrite": "Rewrite",
-      "add": "+ Add"
+      "eyebrow": "Ke mana aku menuju: aku yang belum menjadi data",
+      "a1Name": "Seorang pembuat",
+      "a1Body": "Menjadikan mewujudkan ide sebagai pekerjaanku",
+      "a2Name": "Sedikit ikatan yang dalam",
+      "a2Body": "Menjadi orang yang menjaga ikatan lama, bukan luas",
+      "a3Name": "Pusat yang tak goyah",
+      "a3Body": "Orang yang menyimpan ukurannya di dalam diri",
+      "footer": "Garis putus = aku sebelum datanya terisi",
+      "rewrite": "Tulis ulang",
+      "add": "+ Tambah"
     },
     "relational": {
-      "title": "Relations",
+      "title": "Relasi",
       "tag": "RELATIONS",
-      "eyebrow": "Me inside relationships and knowledge",
-      "peopleHead": "People who show up often",
+      "eyebrow": "Aku di dalam relasi dan pengetahuan",
+      "peopleHead": "Orang yang sering muncul",
       "person1": "Minjun · 24",
-      "person2": "Mom · 18",
+      "person2": "Ibu · 18",
       "person3": "Jiwoo · 12",
       "personMore": "+9",
-      "knowledgeHead": "Interests",
-      "topic1": "Design·tools",
-      "topic2": "Psychology·self-understanding",
-      "topic3": "AI·productivity",
-      "conclusion": "Depth stands out more than breadth in your relationships. A few, often, for a long time.",
-      "addData": "+ Add data"
+      "knowledgeHead": "Minat",
+      "topic1": "Desain·perkakas",
+      "topic2": "Psikologi·pemahaman diri",
+      "topic3": "AI·produktivitas",
+      "conclusion": "Dalam relasimu, kedalaman lebih menonjol daripada keluasan. Sedikit, sering, dan lama.",
+      "addData": "+ Tambah data"
     },
     "values": {
-      "title": "Work·growth",
+      "title": "Kerja·pertumbuhan",
       "tag": "DOMAIN",
-      "eyebrow": "What have I built up in this area",
-      "domain1": "Career",
-      "domain1Count": "142 pieces",
-      "domain2": "Learning·growth",
-      "domain2Count": "98 pieces",
-      "domain3": "Finance",
-      "domain3Count": "37 pieces",
-      "conclusion": "You've built the most in Career. Finance is still empty - shall we put more in?",
-      "addData": "+ Add data"
+      "eyebrow": "Apa yang sudah kubangun di area ini",
+      "domain1": "Karier",
+      "domain1Count": "142 kepingan",
+      "domain2": "Belajar·pertumbuhan",
+      "domain2Count": "98 kepingan",
+      "domain3": "Keuangan",
+      "domain3Count": "37 kepingan",
+      "conclusion": "Yang paling banyak kamu bangun ada di Karier. Keuangan masih kosong: mau isi lagi?",
+      "addData": "+ Tambah data"
     }
   }
 }
