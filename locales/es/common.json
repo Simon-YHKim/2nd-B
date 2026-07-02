@@ -32,27 +32,27 @@
     "network": "No pudimos llegar al servidor. Verifica tu conexión."
   },
   "locale": {
-    "en": "English",
+    "en": "Inglés",
     "ko": "한국어"
   },
   "worldview": {
-    "soulCore": "Soul Core",
-    "growthCore": "Growth Core",
-    "bondCore": "Bond Core",
-    "wisdomCore": "Wisdom Core",
-    "narrativeCore": "Narrative Core",
-    "museCore": "Muse Core",
-    "patternCore": "Pattern Core",
-    "patternData": "Pattern Data",
-    "log": "Log",
-    "patternLink": "Pattern Link"
+    "soulCore": "Núcleo del alma",
+    "growthCore": "Núcleo de crecimiento",
+    "bondCore": "Núcleo de vínculos",
+    "wisdomCore": "Núcleo de sabiduría",
+    "narrativeCore": "Núcleo narrativo",
+    "museCore": "Núcleo musa",
+    "patternCore": "Núcleo de patrones",
+    "patternData": "Datos de patrones",
+    "log": "Registro",
+    "patternLink": "Enlace de patrones"
   },
   "navGraph": {
     "drilldown": {
       "back": "Volver a la constelación",
       "backHint": "Vuelve del detalle del Pattern Core a la constelación completa.",
-      "coreEyebrow": "Pattern Core",
-      "dataEyebrow": "Pattern Data",
+      "coreEyebrow": "Núcleo de patrones",
+      "dataEyebrow": "Datos de patrones",
       "touch": "¡Toca!",
       "coreIntro": {
         "work": "Este es el Growth Core. Tus piezas de carrera y crecimiento se reúnen aquí.",

@@ -32,27 +32,27 @@
     "network": "Kami tidak bisa menjangkau server. Periksa koneksimu."
   },
   "locale": {
-    "en": "English",
+    "en": "Bahasa Inggris",
     "ko": "한국어"
   },
   "worldview": {
-    "soulCore": "Soul Core",
-    "growthCore": "Growth Core",
-    "bondCore": "Bond Core",
-    "wisdomCore": "Wisdom Core",
-    "narrativeCore": "Narrative Core",
-    "museCore": "Muse Core",
-    "patternCore": "Pattern Core",
-    "patternData": "Pattern Data",
-    "log": "Log",
-    "patternLink": "Pattern Link"
+    "soulCore": "Inti Jiwa",
+    "growthCore": "Inti Pertumbuhan",
+    "bondCore": "Inti Ikatan",
+    "wisdomCore": "Inti Kebijaksanaan",
+    "narrativeCore": "Inti Narasi",
+    "museCore": "Inti Muse",
+    "patternCore": "Inti Pola",
+    "patternData": "Data Pola",
+    "log": "Catatan",
+    "patternLink": "Tautan Pola"
   },
   "navGraph": {
     "drilldown": {
       "back": "Kembali ke konstelasi",
       "backHint": "Kembali dari drilldown Pattern Core ke konstelasi penuh.",
-      "coreEyebrow": "Pattern Core",
-      "dataEyebrow": "Pattern Data",
+      "coreEyebrow": "Inti Pola",
+      "dataEyebrow": "Data Pola",
       "touch": "Sentuh!",
       "coreIntro": {
         "work": "Ini adalah Growth Core. Kepingan karier dan pertumbuhanmu berkumpul di sini.",

@@ -8,8 +8,8 @@
     "journalLocked": "Capai Lv{{level}} sebelum menyimpan entri jurnal.",
     "journalLimit": "Entri jurnal gratis sudah habis. Mode tangkap lain masih tersedia.",
     "saving": "Penyimpanan sedang berlangsung.",
-    "voiceRequired": "Write the voice memo text before saving.",
-    "todoRequired": "Write the task before saving.",
+    "voiceRequired": "Tulis teks memo suara sebelum menyimpan.",
+    "todoRequired": "Tulis tugas sebelum menyimpan.",
     "fourwRequired": "Isi kotak Apa dulu"
   },
   "savedTitleFallback": "Kepingan hari ini",
@@ -66,16 +66,16 @@
       "help": "Pilih foto atau gunakan kamera. Kami akan membaca teks dari gambar."
     },
     "file": {
-      "label": "File",
+      "label": "Berkas",
       "help": "Pilih file PDF, DOCX, atau teks. Kami menyimpan teks yang bisa dibaca."
     },
     "voice": {
-      "label": "Voice",
-      "help": "Record a voice memo. We turn it into text you can review and edit before saving."
+      "label": "Suara",
+      "help": "Rekam memo suara. Kami mengubahnya menjadi teks yang bisa kamu tinjau dan edit sebelum disimpan."
     },
     "todo": {
-      "label": "To do",
-      "help": "Write a task. It saves as a to-do piece with a done flag."
+      "label": "Tugas",
+      "help": "Tulis tugas. Ini disimpan sebagai potongan tugas dengan tanda selesai."
     },
     "fourw": {
       "label": "4W1H",
@@ -275,31 +275,31 @@
     }
   },
   "voice": {
-    "label": "Voice memo",
-    "placeholder": "Record above, or type what you heard...",
-    "note": "Record a voice memo and we turn it into text. Review and edit it, then save.",
-    "record": "Record",
-    "recordHint": "Starts recording a voice memo from your microphone.",
-    "stop": "Stop and transcribe",
-    "stopHint": "Stops recording and turns your voice memo into text.",
-    "recording": "Recording...",
-    "transcribing": "Turning your voice into text...",
-    "webFallback": "Recording is not available here. Type what you heard instead.",
-    "permissionDenied": "Microphone access is off. Type what you heard, or allow the microphone in settings.",
-    "recordFailed": "Couldn't start recording. Type what you heard instead.",
-    "transcribeFailed": "Couldn't turn that recording into text. Try again, or type what you heard.",
-    "transcriptEmpty": "We couldn't make out any words. Try again closer to the microphone, or type it."
+    "label": "Memo suara",
+    "placeholder": "Rekam di atas, atau ketik yang kamu dengar...",
+    "note": "Rekam memo suara dan kami ubah menjadi teks. Tinjau, edit, lalu simpan.",
+    "record": "Rekam",
+    "recordHint": "Mulai merekam memo suara dari mikrofonmu.",
+    "stop": "Berhenti dan transkripsikan",
+    "stopHint": "Menghentikan rekaman dan mengubah memo suaramu menjadi teks.",
+    "recording": "Merekam...",
+    "transcribing": "Mengubah suaramu menjadi teks...",
+    "webFallback": "Perekaman tidak tersedia di sini. Ketik yang kamu dengar sebagai gantinya.",
+    "permissionDenied": "Akses mikrofon mati. Ketik yang kamu dengar, atau izinkan mikrofon di pengaturan.",
+    "recordFailed": "Tidak bisa mulai merekam. Ketik yang kamu dengar sebagai gantinya.",
+    "transcribeFailed": "Tidak bisa mengubah rekaman itu menjadi teks. Coba lagi, atau ketik yang kamu dengar.",
+    "transcriptEmpty": "Kami tidak bisa menangkap kata apa pun. Coba lagi lebih dekat ke mikrofon, atau ketik saja."
   },
   "todo": {
-    "label": "To do",
-    "placeholder": "Write a task in one line...",
-    "doneToggle": "Mark as done",
-    "doneHelper": "Turn on if it is already finished. You can change it later."
+    "label": "Tugas",
+    "placeholder": "Tulis tugas dalam satu baris...",
+    "doneToggle": "Tandai selesai",
+    "doneHelper": "Aktifkan jika sudah selesai. Kamu bisa mengubahnya nanti."
   },
   "recent": {
-    "title": "Recent pieces",
-    "openHint": "Opens this entry in full.",
-    "empty": "No saved pieces yet."
+    "title": "Potongan terbaru",
+    "openHint": "Membuka entri ini secara lengkap.",
+    "empty": "Belum ada potongan tersimpan."
   },
   "fourw": {
     "fields": {

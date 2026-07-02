@@ -8,8 +8,8 @@
     "journalLocked": "Alcanza Lv{{level}} antes de guardar una entrada de diario.",
     "journalLimit": "Ya usaste las entradas gratuitas del diario. Los otros modos de captura siguen disponibles.",
     "saving": "El guardado ya está en curso.",
-    "voiceRequired": "Write the voice memo text before saving.",
-    "todoRequired": "Write the task before saving.",
+    "voiceRequired": "Escribe el texto de la nota de voz antes de guardar.",
+    "todoRequired": "Escribe la tarea antes de guardar.",
     "fourwRequired": "Completa primero la casilla Qué"
   },
   "savedTitleFallback": "Pieza de hoy",
@@ -70,12 +70,12 @@
       "help": "Elige un PDF, DOCX o archivo de texto. Guardamos el texto legible."
     },
     "voice": {
-      "label": "Voice",
-      "help": "Record a voice memo. We turn it into text you can review and edit before saving."
+      "label": "Voz",
+      "help": "Graba una nota de voz. La convertimos en texto para que puedas revisarlo y editarlo antes de guardar."
     },
     "todo": {
-      "label": "To do",
-      "help": "Write a task. It saves as a to-do piece with a done flag."
+      "label": "Tarea",
+      "help": "Escribe una tarea. Se guarda como una pieza pendiente con una marca de completado."
     },
     "fourw": {
       "label": "4W1H",
@@ -200,7 +200,7 @@
     "dataUsageHint": "Subir archivos puede generar cargos de datos. Se recomienda usar Wi-Fi."
   },
   "tags": {
-    "title": "Hashtags",
+    "title": "Etiquetas",
     "removeLabel": "Eliminar hashtag {{tag}}",
     "emptyHelper": "Déjalo vacío y SecondB lo etiquetará al guardar, o añade el tuyo con +.",
     "removeHelper": "Toca un hashtag para eliminarlo.",
@@ -275,31 +275,31 @@
     }
   },
   "voice": {
-    "label": "Voice memo",
-    "placeholder": "Record above, or type what you heard...",
-    "note": "Record a voice memo and we turn it into text. Review and edit it, then save.",
-    "record": "Record",
-    "recordHint": "Starts recording a voice memo from your microphone.",
-    "stop": "Stop and transcribe",
-    "stopHint": "Stops recording and turns your voice memo into text.",
-    "recording": "Recording...",
-    "transcribing": "Turning your voice into text...",
-    "webFallback": "Recording is not available here. Type what you heard instead.",
-    "permissionDenied": "Microphone access is off. Type what you heard, or allow the microphone in settings.",
-    "recordFailed": "Couldn't start recording. Type what you heard instead.",
-    "transcribeFailed": "Couldn't turn that recording into text. Try again, or type what you heard.",
-    "transcriptEmpty": "We couldn't make out any words. Try again closer to the microphone, or type it."
+    "label": "Nota de voz",
+    "placeholder": "Graba arriba o escribe lo que escuchaste...",
+    "note": "Graba una nota de voz y la convertimos en texto. Revísala, edítala y luego guarda.",
+    "record": "Grabar",
+    "recordHint": "Empieza a grabar una nota de voz desde tu micrófono.",
+    "stop": "Detener y transcribir",
+    "stopHint": "Detiene la grabación y convierte tu nota de voz en texto.",
+    "recording": "Grabando...",
+    "transcribing": "Convirtiendo tu voz en texto...",
+    "webFallback": "La grabación no está disponible aquí. Escribe lo que escuchaste.",
+    "permissionDenied": "El acceso al micrófono está desactivado. Escribe lo que escuchaste o permite el micrófono en ajustes.",
+    "recordFailed": "No se pudo iniciar la grabación. Escribe lo que escuchaste.",
+    "transcribeFailed": "No se pudo convertir esa grabación en texto. Inténtalo de nuevo o escribe lo que escuchaste.",
+    "transcriptEmpty": "No pudimos distinguir palabras. Inténtalo más cerca del micrófono o escríbelo."
   },
   "todo": {
-    "label": "To do",
-    "placeholder": "Write a task in one line...",
-    "doneToggle": "Mark as done",
-    "doneHelper": "Turn on if it is already finished. You can change it later."
+    "label": "Tarea",
+    "placeholder": "Escribe una tarea en una línea...",
+    "doneToggle": "Marcar como hecha",
+    "doneHelper": "Actívalo si ya está terminada. Puedes cambiarlo después."
   },
   "recent": {
-    "title": "Recent pieces",
-    "openHint": "Opens this entry in full.",
-    "empty": "No saved pieces yet."
+    "title": "Piezas recientes",
+    "openHint": "Abre esta entrada completa.",
+    "empty": "Aún no hay piezas guardadas."
   },
   "fourw": {
     "fields": {

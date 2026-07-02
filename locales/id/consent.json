@@ -1,136 +1,136 @@
 {
   "testimonial": {
-    "title": "Share your story?",
-    "body": "We may share your words with our team and trusted reviewers as evidence that 2nd-Brain helps real people. You stay in control.",
-    "shareWithJudges": "Allow trusted reviewers to read this testimonial",
-    "approveForPublic": "Allow public display on our site",
-    "agree": "I consent",
-    "decline": "Not now"
+    "title": "Bagikan ceritamu?",
+    "body": "Kami dapat membagikan kata-katamu kepada tim dan peninjau tepercaya sebagai bukti bahwa 2nd-Brain membantu orang sungguhan. Kamu tetap memegang kendali.",
+    "shareWithJudges": "Izinkan peninjau tepercaya membaca testimoni ini",
+    "approveForPublic": "Izinkan ditampilkan publik di situs kami",
+    "agree": "Saya setuju",
+    "decline": "Nanti saja"
   },
   "notice": {
-    "title": "A quick heads-up before you start",
-    "intro": "2nd-Brain keeps your entries private, stores them encrypted, and uses Google Gemini only to generate the responses you ask for. Please review and agree before continuing.",
-    "trustTitle": "Your records are not for sale",
+    "title": "Pemberitahuan singkat sebelum mulai",
+    "intro": "2nd-Brain menjaga entri kamu tetap pribadi, menyimpannya secara terenkripsi, dan menggunakan Google Gemini hanya untuk membuat respons yang kamu minta. Harap tinjau dan setujui sebelum melanjutkan.",
+    "trustTitle": "Catatanmu tidak dijual",
     "trustBody": "By default, your entries are not used to train models. Optional sharing, analytics, ads, and model-improvement controls start off.",
-    "purposesTitle": "What we collect and why",
-    "items": "Collected: your email, date of birth, and the entries you write (journals, notes, captures).",
-    "purposeService": "Used to run the service: saving your entries, your growth graph, and your assistant.",
-    "retention": "Kept while your account is active. You can delete entries or your whole account any time from Settings.",
-    "rights": "You can decline the optional item below and still use the app. Declining a required item means we cannot provide the service.",
-    "requiredLabel": "Required",
-    "optionalLabel": "Optional",
-    "agreeAll": "Agree to all required items",
-    "ackService": "I agree to the collection and use above so the service can run.",
-    "ackLlm": "I understand my entries are processed only when needed to generate responses I request, for automatic safety checks, and for service audit records, and only in those cases may be sent to Google Gemini.",
-    "ackOverseas": "I understand encrypted service data may be processed outside my country by Google or Supabase to run the app.",
-    "ackSensitive": "I understand my entries may include sensitive details, and 2nd-Brain treats them as private account data.",
-    "optMarketing": "Send me occasional product updates (optional).",
-    "minorBanner": "You are signing up as a teen (14 to 17). High-privacy is on by default: sharing, ads, analytics, model training, and outside analysis stay off."
+    "purposesTitle": "Apa yang kami kumpulkan dan alasannya",
+    "items": "Dikumpulkan: email, tanggal lahir, dan entri yang kamu tulis (jurnal, catatan, tangkapan).",
+    "purposeService": "Digunakan untuk menjalankan layanan: menyimpan entri, grafik pertumbuhan, dan asistenmu.",
+    "retention": "Disimpan selama akunmu aktif. Kamu bisa menghapus entri atau seluruh akun kapan saja dari Pengaturan.",
+    "rights": "Kamu bisa menolak item opsional di bawah dan tetap memakai app. Menolak item wajib berarti kami tidak bisa menyediakan layanan.",
+    "requiredLabel": "Wajib",
+    "optionalLabel": "Opsional",
+    "agreeAll": "Setujui semua item wajib",
+    "ackService": "Saya setuju dengan pengumpulan dan penggunaan di atas agar layanan dapat berjalan.",
+    "ackLlm": "Saya memahami entri saya diproses hanya saat diperlukan untuk membuat respons yang saya minta, untuk pemeriksaan keamanan otomatis, dan untuk catatan audit layanan, dan hanya dalam kasus tersebut dapat dikirim ke Google Gemini.",
+    "ackOverseas": "Saya memahami data layanan terenkripsi dapat diproses di luar negara saya oleh Google atau Supabase untuk menjalankan app.",
+    "ackSensitive": "Saya memahami entri saya mungkin berisi detail sensitif, dan 2nd-Brain memperlakukannya sebagai data akun pribadi.",
+    "optMarketing": "Kirimi saya pembaruan produk sesekali (opsional).",
+    "minorBanner": "Kamu mendaftar sebagai remaja (14 sampai 17). Privasi tinggi aktif secara default: berbagi, iklan, analitik, pelatihan model, dan analisis luar tetap mati."
   },
   "privacy": {
-    "eyebrow": "Privacy",
-    "title": "You decide what leaves your account",
-    "subtitle": "Sharing, profiling, analytics, and model training all start off.",
-    "speech": "Your records stay private unless you turn on a control. Teens stay locked to high-privacy.",
-    "trustTitle": "Default: private and off",
-    "trustBody": "Your entries are stored encrypted. Ads never appear unless you turn them on yourself, and even then your entries are never used for ads. 2nd-Brain does not sell your data.",
-    "sectionLabel": "Privacy controls",
-    "minorLockNote": "You are on a teen account, so high-privacy stays on. Long-term memory is the only switch you can turn on.",
-    "saveError": "Could not save that change. Please try again.",
-    "lockedTag": "Locked",
+    "eyebrow": "Privasi",
+    "title": "Kamu menentukan apa yang keluar dari akunmu",
+    "subtitle": "Berbagi, profiling, analitik, dan pelatihan model semuanya dimulai dalam keadaan mati.",
+    "speech": "Catatanmu tetap pribadi kecuali kamu mengaktifkan kontrol. Akun remaja tetap terkunci pada privasi tinggi.",
+    "trustTitle": "Default: pribadi dan mati",
+    "trustBody": "Entrimu disimpan terenkripsi. Iklan tidak pernah muncul kecuali kamu mengaktifkannya sendiri, dan meski begitu entrimu tidak pernah digunakan untuk iklan. 2nd-Brain tidak menjual datamu.",
+    "sectionLabel": "Kontrol privasi",
+    "minorLockNote": "Kamu berada di akun remaja, jadi privasi tinggi tetap aktif. Memori jangka panjang adalah satu-satunya sakelar yang bisa kamu nyalakan.",
+    "saveError": "Tidak bisa menyimpan perubahan itu. Coba lagi.",
+    "lockedTag": "Terkunci",
     "keys": {
       "ads": {
-        "label": "Ads",
-        "desc": "Allow ads while on the free plan. Off means no ads at all."
+        "label": "Iklan",
+        "desc": "Izinkan iklan saat memakai paket gratis. Mati berarti tidak ada iklan sama sekali."
       },
       "ops_push": {
-        "label": "Routine push",
-        "desc": "Keep handing approved routine items to your calendar and share sheet without asking each time. Off asks again on the next push."
+        "label": "Dorongan rutin",
+        "desc": "Terus kirim item rutin yang disetujui ke kalender dan lembar berbagi tanpa bertanya setiap kali. Jika mati, akan bertanya lagi pada dorongan berikutnya."
       },
       "sharing": {
-        "label": "Sharing",
-        "desc": "Allow you to send entries or profile summaries outside the app."
+        "label": "Berbagi",
+        "desc": "Memungkinkan kamu mengirim entri atau ringkasan profil ke luar app."
       },
       "recommendations": {
-        "label": "Recommendations",
-        "desc": "Use records inside your account to suggest prompts and next steps."
+        "label": "Rekomendasi",
+        "desc": "Gunakan catatan di dalam akunmu untuk menyarankan prompt dan langkah berikutnya."
       },
       "external_analytics": {
-        "label": "External analytics",
-        "desc": "Send app usage signals, not entry text, to outside analytics services."
+        "label": "Analitik eksternal",
+        "desc": "Kirim sinyal penggunaan app, bukan teks entri, ke layanan analitik luar."
       },
       "llm_training": {
-        "label": "Model training permission",
-        "desc": "Keep off unless you choose to let content help improve models. Off keeps entries out of training."
+        "label": "Izin pelatihan model",
+        "desc": "Tetap matikan kecuali kamu memilih agar konten membantu meningkatkan model. Mati menjaga entri keluar dari pelatihan."
       },
       "persona_export": {
-        "label": "Profile export",
-        "desc": "Let you export your self-profile to a file."
+        "label": "Ekspor profil",
+        "desc": "Memungkinkan kamu mengekspor profil diri ke file."
       },
       "persona_share": {
-        "label": "Profile sharing",
-        "desc": "Let you share your self-profile with other people."
+        "label": "Berbagi profil",
+        "desc": "Memungkinkan kamu membagikan profil diri dengan orang lain."
       },
       "long_term_memory": {
-        "label": "Long-term memory",
-        "desc": "Let your saved entries carry over between sessions so the tool can reference them."
+        "label": "Memori jangka panjang",
+        "desc": "Memungkinkan entri tersimpan terbawa antar sesi agar alat ini bisa merujuknya."
       }
     },
-    "localFirstStatement": "Sharing, recommendations, and using your entries to train AI models are not features today. If any is ever added, it will be off by default and ask for your explicit consent at that point."
+    "localFirstStatement": "Berbagi, rekomendasi, dan penggunaan entrimu untuk melatih model AI bukan fitur saat ini. Jika suatu saat ditambahkan, fitur itu akan mati secara default dan meminta persetujuan jelas darimu saat itu."
   },
   "account": {
     "export": {
-      "label": "Your data",
-      "body": "Download everything saved on your account as a structured JSON file.",
-      "button": "Export my data",
-      "buttonHint": "Builds a complete JSON export of your account data.",
-      "done": "Export ready.",
-      "failed": "Couldn't build the export. Try again."
+      "label": "Datamu",
+      "body": "Unduh semua yang tersimpan di akunmu sebagai file JSON terstruktur.",
+      "button": "Ekspor data saya",
+      "buttonHint": "Membuat ekspor JSON lengkap dari data akunmu.",
+      "done": "Ekspor siap.",
+      "failed": "Tidak bisa membuat ekspor. Coba lagi."
     },
-    "loading": "Loading account…",
-    "eyebrow": "Account",
-    "title": "Your account, your call",
-    "subtitle": "Fix your details, manage privacy, or close your account.",
-    "speech": "Anything about your account lives here. No rush.",
+    "loading": "Memuat akun...",
+    "eyebrow": "Akun",
+    "title": "Akunmu, keputusanmu",
+    "subtitle": "Perbaiki detailmu, kelola privasi, atau tutup akunmu.",
+    "speech": "Semua tentang akunmu ada di sini. Tidak perlu buru-buru.",
     "dob": {
-      "label": "Correct your date of birth",
-      "hint": "Fix a mistyped birth date. It must be a real date and meet the age floor.",
-      "save": "Save birth date",
-      "saved": "Birth date updated.",
-      "saveFailed": "Could not update your birth date",
-      "saveFailedBody": "We couldn't save your birth date. Please try again in a moment.",
-      "saveHint": "Saves your birth date and updates age-based privacy settings.",
-      "retry": "Retry",
-      "retryHint": "Retries saving your birth date."
+      "label": "Perbaiki tanggal lahirmu",
+      "hint": "Perbaiki tanggal lahir yang salah ketik. Tanggal harus nyata dan memenuhi batas usia minimum.",
+      "save": "Simpan tanggal lahir",
+      "saved": "Tanggal lahir diperbarui.",
+      "saveFailed": "Tidak bisa memperbarui tanggal lahirmu",
+      "saveFailedBody": "Kami tidak bisa menyimpan tanggal lahirmu. Coba lagi sebentar lagi.",
+      "saveHint": "Menyimpan tanggal lahirmu dan memperbarui pengaturan privasi berbasis usia.",
+      "retry": "Coba lagi",
+      "retryHint": "Mencoba lagi menyimpan tanggal lahirmu."
     },
     "privacy": {
-      "label": "Privacy and consent",
-      "body": "External analytics is the only setting here, off by default. Sharing, ads, recommendations, and model training are not features today, and any future one would stay off until you agree.",
-      "button": "Open privacy controls",
-      "buttonHint": "Opens privacy and consent settings."
+      "label": "Privasi dan persetujuan",
+      "body": "Analitik eksternal adalah satu-satunya pengaturan di sini, mati secara default. Berbagi, iklan, rekomendasi, dan pelatihan model bukan fitur saat ini, dan fitur masa depan apa pun akan tetap mati sampai kamu setuju.",
+      "button": "Buka kontrol privasi",
+      "buttonHint": "Membuka pengaturan privasi dan persetujuan."
     },
     "feedback": {
-      "label": "Account feedback notice",
-      "dismiss": "Dismiss",
-      "dismissHint": "Dismisses this notice."
+      "label": "Pemberitahuan masukan akun",
+      "dismiss": "Tutup",
+      "dismissHint": "Menutup pemberitahuan ini."
     },
     "delete": {
-      "label": "Delete account",
-      "body": "This erases your entries, captures, wiki, and assistant usage, then signs you out.",
-      "supportNote": "Full account removal is processed within 2 business days. Contact support if you need it sooner.",
-      "confirmHint": "Type \"{{phrase}}\" to enable the button.",
-      "button": "Delete my account",
-      "confirmTitle": "Delete your account?",
-      "confirmBody": "Your data will be erased and you will be signed out. This cannot be undone.",
-      "confirmCta": "Delete",
-      "cancel": "Cancel",
-      "failed": "Account deletion failed",
-      "failedBody": "We couldn't finish deleting your account. Some content may already be removed, and your account and login may still exist. Please contact support@2nd-brain.app and we'll help.",
-      "confirmLabel": "Account deletion confirmation",
-      "inputLabel": "Account deletion confirmation phrase",
-      "inputHint": "Type DELETE to enable the account deletion button.",
-      "buttonHint": "Opens a final confirmation before deleting your account and data.",
-      "confirmCtaHint": "Starts account and data deletion."
+      "label": "Hapus akun",
+      "body": "Ini menghapus entri, tangkapan, wiki, dan penggunaan asistenmu, lalu mengeluarkanmu.",
+      "supportNote": "Penghapusan akun penuh diproses dalam 2 hari kerja. Hubungi dukungan jika kamu membutuhkannya lebih cepat.",
+      "confirmHint": "Ketik \"{{phrase}}\" untuk mengaktifkan tombol.",
+      "button": "Hapus akun saya",
+      "confirmTitle": "Hapus akunmu?",
+      "confirmBody": "Datamu akan dihapus dan kamu akan keluar. Ini tidak bisa dibatalkan.",
+      "confirmCta": "Hapus",
+      "cancel": "Batal",
+      "failed": "Penghapusan akun gagal",
+      "failedBody": "Kami tidak bisa menyelesaikan penghapusan akunmu. Sebagian konten mungkin sudah terhapus, dan akun serta loginmu mungkin masih ada. Hubungi support@2nd-brain.app dan kami akan membantu.",
+      "confirmLabel": "Konfirmasi penghapusan akun",
+      "inputLabel": "Frasa konfirmasi penghapusan akun",
+      "inputHint": "Ketik DELETE untuk mengaktifkan tombol penghapusan akun.",
+      "buttonHint": "Membuka konfirmasi terakhir sebelum menghapus akun dan datamu.",
+      "confirmCtaHint": "Memulai penghapusan akun dan data."
     }
   }
 }
