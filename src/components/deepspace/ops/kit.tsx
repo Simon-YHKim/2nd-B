@@ -14,10 +14,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
-import { SecondbStatusHeader } from "@/components/deepspace";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { OPS_DOMAIN_GROUP, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 
 // --- domain color mapping (deepSpace palette) --------------------------
@@ -384,19 +385,24 @@ export interface OpsFrameProps {
   footer?: ReactNode;
 }
 
-export function OpsFrame({ title, bubble, tip, children, footer }: OpsFrameProps) {
+// rev2 windowed shell (sb-app §4): the M3 top app bar carries the title; the
+// mini companion bubble retires (companion belongs to capture/chat/records
+// only). `bubble`/`tip` stay in the props contract so the seven call sites
+// don't churn, but they no longer render.
+export function OpsFrame({ title, children, footer }: OpsFrameProps) {
   return (
-    <SafeAreaView style={styles.frame} edges={["top", "bottom"]}>
-      <View style={styles.glow} pointerEvents="none" />
+    <DeepSpaceScreen
+      active="lens"
+      header="none"
+      variant="windowed"
+      title={title}
+      onBack={() => router.back()}
+    >
       <ScrollView contentContainerStyle={styles.frameScroll} showsVerticalScrollIndicator={false}>
-        {bubble ? <SecondbStatusHeader text={bubble} tip={tip ?? ""} /> : null}
-        <View style={styles.titleRow}>
-          <Text variant="heading" style={styles.title}>{title}</Text>
-        </View>
         {children}
       </ScrollView>
       {footer ? <View style={styles.footer}>{footer}</View> : null}
-    </SafeAreaView>
+    </DeepSpaceScreen>
   );
 }
 
