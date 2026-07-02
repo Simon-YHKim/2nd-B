@@ -11,7 +11,7 @@
   "comingSoonBody": "Pembayaran belum dibuka. Harga sudah final, dan tidak ada yang ditagih sampai kamu memilih paket di sini.",
   "tiers": {
     "free": {
-      "name": "Free",
+      "name": "Gratis",
       "price": "Gratis",
       "tagline": "2nd-Brain harianmu, catatan tanpa batas",
       "f1": "Catatan, memo, dan wiki tanpa batas",

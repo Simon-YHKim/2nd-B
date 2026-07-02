@@ -16,7 +16,7 @@
     "accessibilityLabel": "Soporte por correo",
     "accessibilityHint": "Abre tu app de correo con la dirección de soporte."
   },
-  "faqLabel": "FAQ",
+  "faqLabel": "Preguntas frecuentes",
   "faq": [
     {
       "question": "¿Cómo empiezo a capturar?",

@@ -16,7 +16,7 @@
     "accessibilityLabel": "Email dukungan",
     "accessibilityHint": "Membuka aplikasi email dengan alamat dukungan."
   },
-  "faqLabel": "FAQ",
+  "faqLabel": "Pertanyaan umum",
   "faq": [
     {
       "question": "Bagaimana cara mulai menangkap?",
