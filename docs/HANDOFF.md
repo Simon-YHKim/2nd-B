@@ -3,7 +3,13 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-02 (오전 2차) / rev2 P2-cont~P6 일괄 랜딩 (12 머지) · 다음 = Android Studio 육안 QA
+## Latest — 2026-07-02 (오전 2차) / rev2 P2-cont~P6 일괄 랜딩 (12 머지) + 에뮬 육안 QA 2라운드 (픽스 3 PR)
+
+### 🔎 에뮬 육안 QA 결과 (Pixel 9 Pro XL, debug 빌드 + Metro, 전 표면 순회)
+- **PASS (스크린샷 픽셀 판정)**: 로그인 → 온보딩 skip → **별자리 홈**(북극성+7별, Rest 개명, M3 dock pill) · **세컨비 3-persona 셀렉터**(2nd-B violet/Meta-B cyan/Twi-B lavender, 트위비 선택 시 New-angle 모드 자동 전환+펄스) · **북극성 deck**(9카드 스와이프·dots·실통계 11 pieces·tier-shift 넛지) · **TraitRadar**(펜타곤+근사치 고지) · **/brightness**(8주 히트맵+정직미터 35 obs) · **/career**(2026 연도 그룹+실레코드) · **/people**(사람 추가 → 방사 맵 실렌더, relation_people 첫 실데이터 개통) · **담기 4W1H**(One line↔4W1H 토글, 5박스) · wiki/assistant dock 셸.
+- **발견→픽스 3 PR (전부 머지+[ota])**: **#678** ① SegBtn/ProgressLinear가 radius 9999+overflow hidden에서 Android 클리핑으로 붕괴 → radius=height/2 ② 캐논 담기에 4W1H 부재(병렬 세션도 동일 발견, 그쪽 F1 보고 섹션은 본 섹션으로 통합) → CaptureView에 토글 추가 ③ GradientButton 라벨 좌측 고착 → width100%+center ④ 레이더 EN 라벨 에지 클리핑 → 축약 캡션. **#680** ⑤ **Fabric Android에서 Pressable에 준 스타일이 통째로 미적용** (SegBtn 세그 붕괴 'ListGraph'·MdChip 보더/선택필 소실) → **컨테이너 비주얼을 감싼 View로 이전** (라이브 프로브 3종으로 원인 격리 후 확정, LAYOUT NOTE로 고정). **#676** ⑥ 로컬 네이티브 빌드가 health-connect minSdk 26 요구로 매니페스트 머지 실패 → expo-build-properties minSdk 26.
+- **에뮬 QA 도구 함정 (다음 세션용)**: Windows Metro 파일워쳐가 변경 미감지 → fast refresh 안 옴, **검증 사이클 = force-stop+relaunch로 델타 재번들 강제** (metro 로그 "Bundled (1 module)" 확인). uiautomator dump는 RN 상시 애니메이션으로 idle 불가 → 스크린샷 픽셀 판정 유지. 에뮬 /data 92%면 구 패키지 uninstall 후 설치.
+- **잔여 마이너 (라운드3 후보)**: /brightness 행 라벨 EN 말줄임(width 74) · lens 서브스크린에서 dock 탭 무반응 의심(F7, 재현 1회) · 비서 Remind me 🔔 이모지(anti-slop) · SegBtn/MdChip pressed 시각 피드백 제거됨(기능 무영향) · 잔여 화면(/motivation·/rest·/share-card·/iden) 미순회 — 공통 프리미티브 픽스 전파로 리스크 낮음, KO 로케일 패스 미실시.
 
 ### 어디까지 왔나
 - **이번 세션 머지 (전부 main, CI green 후)**: #658 wiki dock 셸(B) · #659 홈 m3.accent 이관(B) · #661 세컨비 3-persona 셀렉터(B) `[ota]` · #663 북극성 persona deck+TraitRadar+검증진입(P3a) · #665 동기/강점 체크(/motivation·/strengths, P3b) · #666 밝기 타임라인+정직미터+승인이력(/brightness·/ratifications, P3c/d) `[ota]` · #668 4W1H 담기 모드(P4a) · #669 위키 노드그래프(P4b) · #671 인물맵+커리어 타임라인+휴식 보드(/people·/career·/rest, P4c/d/e) `[ota]` · #672 F-ret 마이그 0065(P6) · #673 트위비 3-branch 칩+공유카드 표면(/share-card, P5c/f) · #674 IDEN 토글+JSON(P5a) `[ota]`.
