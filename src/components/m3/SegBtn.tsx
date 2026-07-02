@@ -51,6 +51,7 @@ export function SegBtn({ segments, selected, onSelect, multiSelect = false, styl
             style={[styles.seg, { width: segWidth }, i > 0 && styles.divider, on && styles.segOn]}
           >
             <Pressable
+              android_ripple={{ color: m3.color.secondaryContainer }}
               onPress={() => onSelect(seg.key)}
               accessibilityRole={multiSelect ? "checkbox" : "radio"}
               accessibilityState={{ selected: on, checked: on }}
