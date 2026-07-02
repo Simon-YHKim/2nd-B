@@ -35,6 +35,9 @@ describe("북극성 persona deck (P3a)", () => {
     for (const route of ["/big-five", "/ipip-neo", "/attachment", "/motivation", "/strengths", "/mbti", "/audit"]) {
       expect(screen).toContain(`route: "${route}"`);
     }
+    // History surfaces hang off the hero card (P3c/P3d).
+    expect(screen).toContain('router.push("/brightness")');
+    expect(screen).toContain('router.push("/ratifications")');
   });
 
   test("radar discloses its source honestly (instrument vs approximation)", () => {
