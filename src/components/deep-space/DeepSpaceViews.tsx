@@ -19,6 +19,7 @@ import { router } from "expo-router";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 
 import { deepSpace, deepSpaceGradients, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
@@ -947,7 +948,7 @@ export function ValuesLensView({
 const styles = StyleSheet.create({
   body: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 28, gap: 0 },
   chatBody: { gap: 10 },
-  pixelTitle: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.pixelKo },
+  pixelTitle: { color: deepSpace.accentBright, fontSize: 16, fontFamily: fontFamilies.readable, fontWeight: "700" },
 
   // shared gradient button
   gButton: {
@@ -963,7 +964,7 @@ const styles = StyleSheet.create({
   gButtonFull: { alignSelf: "stretch" },
   // width+textAlign keep the label centered on Android regardless of how the
   // gradient absolute-fill affects the flex pass (device QA 2026-07-02).
-  gButtonLabel: { color: deepSpace.bgEdge, fontSize: 13, fontFamily: fontFamilies.pixelKo, fontWeight: "700", width: "100%", textAlign: "center" },
+  gButtonLabel: { color: deepSpace.bgEdge, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "700", width: "100%", textAlign: "center" },
   // 담기 4W1H boxes (canon track, rev2 P4a).
   captureModeToggle: { marginTop: 14, alignSelf: "stretch" },
   fourwCol: { gap: 10, marginTop: 12 },
@@ -1053,10 +1054,10 @@ const styles = StyleSheet.create({
   centerState: { alignItems: "center", justifyContent: "center", paddingVertical: 56, gap: 12 },
   stateMark: { fontSize: 34, color: deepSpace.accentSoft },
   stateMarkDim: { opacity: 0.7 },
-  stateTitle: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.pixelKo },
+  stateTitle: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.readable, fontWeight: "700" },
   stateBody: { color: withAlpha(deepSpace.text, 0.6), fontSize: 12, lineHeight: 19, textAlign: "center", fontFamily: fontFamilies.readable },
   obsPanel: { gap: 8, marginBottom: 16, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: withAlpha(deepSpace.accentSoft, 0.3), backgroundColor: withAlpha(deepSpace.accentSoft, 0.06) },
-  obsTitle: { color: deepSpace.accentBright, fontSize: 13, fontFamily: fontFamilies.pixelKo },
+  obsTitle: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
   obsNote: { color: withAlpha(deepSpace.text, 0.55), fontSize: 11, lineHeight: 16, fontFamily: fontFamilies.readable, marginBottom: 4 },
   obsRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   obsLabel: { color: withAlpha(deepSpace.text, 0.85), fontSize: 12, width: 64, fontFamily: fontFamilies.readable },
@@ -1073,11 +1074,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
   },
-  ghostLabel: { color: deepSpace.accentSoft, fontSize: 13, fontFamily: fontFamilies.pixelKo },
+  ghostLabel: { color: deepSpace.accentSoft, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
 
   // lens — filled
   filledHead: { flexDirection: "row", alignItems: "center", gap: 8 },
-  level: { color: deepSpace.mint, fontSize: 10, fontFamily: fontFamilies.pixelEn },
+  level: { color: deepSpace.mint, fontSize: 11, fontFamily: m3.font.mono },
   traits: { marginTop: 16, gap: 11 },
   traitRow: { gap: 4 },
   traitHead: { flexDirection: "row", justifyContent: "space-between" },
@@ -1123,8 +1124,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 9,
     backgroundColor: withAlpha(deepSpace.soul, 0.06),
   },
-  idenKey: { color: withAlpha(deepSpace.soul, 0.65), fontSize: 6, fontFamily: fontFamilies.pixelEn },
-  idenKeyCyan: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 6, fontFamily: fontFamilies.pixelEn },
+  idenKey: { color: withAlpha(deepSpace.soul, 0.65), fontSize: 9, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  idenKeyCyan: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 9, fontFamily: m3.font.mono, letterSpacing: 0.8 },
   idenNorthValue: { color: deepSpace.accentBright, fontSize: 11.5, lineHeight: 18, marginTop: 5, fontFamily: fontFamilies.readable },
   idenRowFive: {
     marginTop: 7,
@@ -1141,9 +1142,9 @@ const styles = StyleSheet.create({
   // ── star-lens shared head ──────────────────────────────────────────────────
   lensHead: { gap: 6, marginBottom: 16 },
   lensHeadTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  lensTag: { marginLeft: "auto", color: withAlpha(deepSpace.accent, 0.55), fontSize: 7, fontFamily: fontFamilies.pixelEn },
+  lensTag: { marginLeft: "auto", color: withAlpha(deepSpace.accent, 0.55), fontSize: 9.5, fontFamily: m3.font.mono, letterSpacing: 0.8 },
   lensEyebrow: { color: deepSpace.textMid, fontSize: 12.5, lineHeight: 18, fontFamily: fontFamilies.readable },
-  pixelHint: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 7, fontFamily: fontFamilies.pixelEn, marginBottom: 12 },
+  pixelHint: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 9.5, fontFamily: m3.font.mono, letterSpacing: 0.8, marginBottom: 12 },
   sectionGap: { marginTop: 18 },
   footerLine: { marginTop: 18, color: withAlpha(deepSpace.accentSoft, 0.55), fontSize: 11, lineHeight: 17, textAlign: "center", fontFamily: fontFamilies.readable },
 
@@ -1164,7 +1165,7 @@ const styles = StyleSheet.create({
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
   },
-  gridName: { color: deepSpace.accentBright, fontSize: 12, fontFamily: fontFamilies.pixelKo },
+  gridName: { color: deepSpace.accentBright, fontSize: 13, fontFamily: fontFamilies.readable, fontWeight: "600" },
   gridAge: { color: withAlpha(deepSpace.accentSoft, 0.5), fontSize: 9.5, marginTop: 3, fontFamily: fontFamilies.readable },
 
   // seen - legend
@@ -1237,7 +1238,7 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(deepSpace.accent, 0.03),
   },
   dashedCardOn: { borderColor: deepSpace.accent, backgroundColor: withAlpha(deepSpace.accent, 0.08) },
-  dashedName: { color: deepSpace.accentBright, fontSize: 13, fontFamily: fontFamilies.pixelKo, marginBottom: 5 },
+  dashedName: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600", marginBottom: 5 },
   dashedBody: { color: deepSpace.textMid, fontSize: 12, lineHeight: 18, fontFamily: fontFamilies.readable },
 
   // relational
@@ -1254,6 +1255,6 @@ const styles = StyleSheet.create({
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
   },
-  domainLabel: { color: deepSpace.accentBright, fontSize: 13, fontFamily: fontFamilies.pixelKo },
+  domainLabel: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
   domainCount: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 11, fontFamily: fontFamilies.mono },
 });

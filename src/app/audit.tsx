@@ -449,7 +449,13 @@ function AuditDeepSpace() {
   }, [userId, loading, isKo, reloadKey]);
 
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen
+      active="lens"
+      header="none"
+      variant="windowed"
+      title={isKo ? "성장 · 과거의 나" : "Growth · Past me"}
+      onBack={() => router.back()}
+    >
       {/* "데이터 추가" opens the open-ended interview that feeds domain piece
           counts (the audit period-selector screener is the legacy-only flow;
           routing back to /audit here would loop the deep-space lens). */}
