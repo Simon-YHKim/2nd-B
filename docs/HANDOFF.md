@@ -3,6 +3,105 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-07-03 / rev2 r3 픽셀 클로닝 /loop — 15 PR + 핫픽스 (홈 1:1 · 셸 3종 완성 · 폰트 규율 · 축 추정)
+
+> Simon /loop 지시: r3 디자인 핸드오프(`Downloads\2ndB-proto-rev2-r3\design_handoff_2nd_brain\`)와
+> **완벽하게 똑같을 때까지** 에뮬레이터 검증 반복. 판정 기준 = **라이브 레퍼런스**(동봉 37캡처는
+> 소스보다 구버전 — scratchpad `serve-ref.js`+`ref-capture.mjs`로 프로토타입을 직접 실행·캡처).
+
+### 어디까지 왔나
+- main HEAD: `1e7e78f3` (#725) · working tree clean · behind 0 · 로컬 verify EXIT=0 (294 suites)
+- **이번 세션 머지 (15 PR + 핫픽스 1, 전부 CI green)**:
+  - **#706 홈 1:1** — sb-data 국자 지오메트리(북극성 오버행+점선 가이드), **7번째 별=뮤지엄**,
+    머리 아래 말풍선 3상태(소개/여행하기·다음에/챗봇·비서 메뉴), 좌상단 벨→/inbox,
+    SbStarfield(시드 70730219)+뉴럴필드(99173) 정적 이식, **dock 5탭=설정**(rev2 NAV), headSize 200
+  - **#708 windowed 셸 + 코호트1** — MdTopAppBar 신규, radius-24 창(12/12/14, 림 .16),
+    motivation/strengths/values/iden/share-card + **MdNavBar Fabric 함수형-style 소실 픽스**(main 기존 버그)
+  - **#709 IDEN 콘텐츠** — 바이올렛 히어로+스위치 리스트(정직 출처 서브라벨)+형식 3칩+AI 타깃 그리드
+    (서명됨→**로컬 생성**: 서명 미구현이라 참인 카피만)
+  - **#710 ShareCard + 코호트2** — sb-more 1:1(330 스케일 모델), 통찰/별자리 칩, brightness/ratifications/northstar
+  - **#711 핫픽스** — components/deepspace **require 순환**에서 ShareCard 모듈스코프 m3 참조가
+    /settings 경로 크래시 → 색상 렌더타임 헬퍼로
+  - **#712 코호트3** — ops(오늘의 비서 탑바), capture/secondb **창 안 컴패니언**
+  - **#713 축 리포트 프레임** — 실카운트 근거 카드+비준 프레이밍+축 크로스링크
+  - **#715 settings 루트탭** — 딥스페이스 트랙만 windowed 루트(독 표시), legacy 셸 불변,
+    가드 카피는 캡션으로 이주(OldGuidanceCopyResidue)
+  - **#716 wiki 플로팅 컴패니언 + 루트탭 back→home** — sb-app back() 규칙(비홈 루트에서 back=홈)
+  - **#720 코호트4** — 공유 래퍼 3종(신규 DockShell·OpsFrame·interview Frame)으로 **10화면 일괄**:
+    interview/focus/inbox/reminders/reading/ledger/meals/milestones/side-project
+  - **#721 plans 셸** — 디스크·미니컴패니언 제거, 픽셀 아이브로→RobotoMono, **IAP/카드구성/가격 불변**
+  - **#723 픽셀폰트 은퇴** — DeepSpaceViews 13곳 전부(KR→Pretendard+웨이트, EN 마이크로태그→RobotoMono 9~9.5)
+    + audit windowed(성장 · 과거의 나)
+  - **#724 museumLike** — 셸 3번째 variant(자체 하늘+stageFloor@.92 스크림+탑바), career/people/rest + imagine windowed
+  - **#725 축 추정 propose** — northstar 패턴: 축 답변만 digest(min 3), '세컨비의 추정 · 아직 반영 안 됨',
+    '이 추정 담기'로만 저장(estimate 태그, 재생성 자기참조 차단), 신규 purpose `axis_estimate`
+- **sb-app §4 셸 3종(immersive/windowed/museumLike) 전부 구현 완료** — 컴패니언 규칙(capture/chat/records만),
+  독, back→home, 폰트 규율 포함. KO 원문 검증: 홈·IDEN·담기·values·northstar·brightness 합격.
+- 병렬 세션 동시 랜딩(참고): #704 구조화 캡처, #705/#707 E-act, T5 F2 peer-respond, **#619 Sentry + #638
+  네이티브 소셜 로그인 + runtime 0.0.7 릴리스**, dds-styles 분리, call-reflection.
+
+### 활성 인프라
+- **runtime 0.0.7 네이티브 사이클 개시**(병렬 세션) — 이후 OTA는 0.0.7 채널. 폰 반영은 새 빌드 설치 선행.
+- ⚠️ **#725 OTA run 미생성**(GitHub 러너 백로그) — [ota]는 push 경유만 → **다음 머지 편승 배달 확인 필요**.
+- 로컬 에뮬 루프: Metro 8081 + Pixel 9 Pro XL(구 0.0.6 debug APK — 새 네이티브 없이도 부팅 정상, JS 가드 확인).
+  네이티브 검증하려면 `npx expo run:android` 재빌드 필요.
+- 레퍼런스 도구(세션 스크래치패드): `serve-ref.js`(:8000) + `ref-capture.mjs`(Playwright Edge,
+  `window.__sb.jump` 딥점프) — 재사용하려면 레포 반입 고려.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | #725 OTA 편승 배달 확인(다음 [ota] 머지 후 run 완주+그룹ID) | small | ⭐ 즉시 |
+| B | KO 스팟체크 잔여(share/capture-full/ops 등) + imagine/star KO | small | ⭐ A와 함께 |
+| C | dev 경고: 딥링크 전환 중 unmounted setState(기존) 추적 | small | |
+| D | motivation 파이프 잔여 2종 — 확신%/L배지(레이어B 확신 모델), 내적↔외적 게이지(앵커 데이터) | large | 설계 선행 |
+| E | plans 3티어 카드 레이아웃 | medium | 🔒 Simon 수익화 게이트 |
+| F | 0.0.7 새 빌드 폰 설치 후 소셜 로그인·Sentry 실기기 QA | medium | 네이티브 게이트 |
+
+### 적용 중인 정책 (영구 — 이번 세션 학습 포함)
+1. **판정 기준 = 라이브 레퍼런스**(zip 동봉 캡처 아님): 소스가 캡처보다 최신(벨 좌상단·오늘칩 없음·소개 카피).
+2. **verify는 `; echo EXIT=$?`로 실제 exit 확인** — `| tail` 파이프가 exit를 가림(오판 2회 원인).
+   **CI verify ⊂ 로컬 verify**(check:mascot-voice 등 CI 부재) — 로컬 green이 정본.
+3. **Fabric: Pressable 함수형 style 금지**(bell·MdNavBar 좌측뭉침 실증) — plain 배열은 OK,
+   컨테이너 비주얼은 View+android_ripple(#680/#698/#706/#708).
+4. **components/deepspace/*(require 순환 디렉터리)에서 m3.* 모듈스코프 참조 금지** — 렌더타임 헬퍼로(#711).
+5. em-dash(U+2014)는 **로케일 번들 금지**(CI 가드) — 코드 주석의 `#680`도 hex 스캐너에 걸림 → `PR 680`.
+6. 화면 추가/전환 시 **DEEP_SPACE_DOCK_PATHS 등재**(플로팅 칩↔탑바 양보) — thin-route/공유 래퍼는
+   드리프트 가드 스캔 밖이라 수동 등재.
+7. **코호트 확장은 공유 래퍼 전환이 정답**(DockShell/OpsFrame로 10화면 일괄) — 개별 수술 지양.
+8. 머지 차단 시 `gh pr update-branch` → CI 재green → 일반 머지(--admin 금지). OTA cancelled여도
+   후속 success 번들에 포함되면 배달 완료 판정.
+9. 에뮬 탭 물리 y≥2800=제스처존(구글앱 열림) — dock 아이콘행 y≈2790. Metro 워쳐 블라인드 →
+   코드 수정마다 Metro 재시작+force-stop 재기동("(1 module)"=스테일).
+10. 게이트 불변: 파괴/비용/secrets/임상/법무 + 수익화 레이아웃(Simon) + 네이티브 의존(런타임 핀).
+
+### 핵심 파일 위치
+```
+src/components/deep-space/DeepSpaceScreen.tsx   셸 3종 variant + back→home + 독(설정 탭)
+src/components/deep-space/ConstellationHome.tsx  rev2 홈(국자·말풍선·벨·뉴럴필드)
+src/components/deep-space/SbStarfield.tsx        시드 고정 공유 별하늘(70730219)
+src/components/m3/MdTopAppBar.tsx                M3 상단바(56dp)
+src/components/deepspace/ShareCard.tsx           공유 카드 A/B(330 스케일)
+src/lib/audit/axis-estimate.ts                   축 추정 propose(gemini, min3)
+src/lib/nav/tabs.ts                              DEEP_SPACE_DOCK_PATHS(칩 양보 등재부)
+src/lib/theme/m3.ts                              m3.accent rev2 토큰(share*/window림/벨 등)
+C:\Users\Soha.Bae\Downloads\2ndB-proto-rev2-r3\design_handoff_2nd_brain\  레퍼런스 정본
+```
+
+### 검증
+```bash
+npm run verify; echo EXIT=$?   # EXIT=0 확인(파이프 금지) · 294 suites
+npx expo start --port 8081     # 에뮬 루프(코드 수정마다 재시작)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A(#725 OTA 편승 확인)부터. 레퍼런스 판정은 라이브 서빙으로.
+```
+
+---
+
 ## Latest — 2026-07-03 / Simon 결정 6건 전면 이행 + T5 peer-review F2~F4 랜딩
 
 ### 결정 이행 (전부 랜딩)
