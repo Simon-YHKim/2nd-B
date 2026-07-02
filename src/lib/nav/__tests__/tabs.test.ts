@@ -19,7 +19,7 @@ describe("primary tab routes", () => {
 });
 
 describe("deep-space dock routes", () => {
-  test("covers the 25 dock screens, excluding primary tab roots", () => {
+  test("covers the dock screens, excluding primary tab roots", () => {
     expect(isDeepSpaceDockPath("/core-brain")).toBe(true);
     expect(isDeepSpaceDockPath("/big-five")).toBe(true);
     expect(isDeepSpaceDockPath("/account")).toBe(true);
@@ -37,8 +37,11 @@ describe("deep-space dock routes", () => {
       expect(DEEP_SPACE_DOCK_PATHS).not.toContain(tab);
     }
 
+    // /settings became the 5th dock ROOT tab in the rev2 NAV (sb-data) — the
+    // dock is its nav, so the floating back arrow must hide there too.
+    expect(isDeepSpaceDockPath("/settings")).toBe(true);
+
     // Stack routes without a dock keep the floating back arrow.
-    expect(isDeepSpaceDockPath("/settings")).toBe(false);
     expect(isDeepSpaceDockPath("/privacy")).toBe(false);
   });
 });
