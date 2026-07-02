@@ -25,6 +25,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { AXIS_CHECKS, type AxisCheckId } from "@/lib/audit/axis-checks";
+import { proposeAxisEstimate } from "@/lib/audit/axis-estimate";
 import { labelFramework } from "@/lib/audit/frameworkLabels";
 import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -105,6 +106,58 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
       alive = false;
     };
   }, [loading, userId, started, done, check.tag]);
+
+  // rev2 RatifyBlock estimate (sb-surfaces B6): a user-initiated Gemini
+  // proposal grounded ONLY in this axis's answers. It reaches nothing until
+  // the user keeps it as their own record (propose→ratify, 불변식 #2).
+  const [estimate, setEstimate] = useState<{ sentence: string; evidence: number } | null>(null);
+  const [estimating, setEstimating] = useState(false);
+  const [estimateThin, setEstimateThin] = useState(false);
+  const [estimateSaved, setEstimateSaved] = useState(false);
+
+  async function handleEstimate() {
+    if (!userId || estimating) return;
+    setEstimating(true);
+    setEstimateThin(false);
+    setEstimateSaved(false);
+    try {
+      const out = await proposeAxisEstimate({
+        userId,
+        tag: check.tag,
+        axisName: BAR_TITLE[axis][locale],
+        locale,
+        minor: isMinor === true,
+      });
+      setEstimate(out);
+      if (!out) setEstimateThin(true);
+    } catch {
+      setEstimate(null);
+      setEstimateThin(true);
+    } finally {
+      setEstimating(false);
+    }
+  }
+
+  async function handleKeepEstimate() {
+    if (!userId || !estimate || estimateSaved) return;
+    try {
+      await createRecord({
+        userId,
+        locale,
+        minor: isMinor === true,
+        kind: "audit_response",
+        body: estimate.sentence,
+        prompt: locale === "ko" ? "세컨비의 추정" : "SecondB estimate",
+        auditPeriod: "current",
+        topic: estimate.sentence.slice(0, 80),
+        tags: ["life_audit", check.tag, "estimate"],
+      });
+      setEstimateSaved(true);
+    } catch (e) {
+      console.warn(`[${axis}] estimate save failed`, (e as Error).message);
+      setErrorToast(true);
+    }
+  }
 
   // Android hardware back mid-session: confirm before losing a written answer.
   useEffect(() => {
@@ -252,12 +305,49 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
                       sentence and confidence% wait on the estimate pipe —
                       never fabricated here. */}
                   <View style={styles.evidenceCard}>
+                    {estimate ? (
+                      <>
+                        <Text style={styles.estimateTag}>
+                          {locale === "ko" ? "세컨비의 추정 · 아직 반영 안 됨" : "SecondB's estimate · not applied yet"}
+                        </Text>
+                        <Text style={styles.estimateLine}>{estimate.sentence}</Text>
+                      </>
+                    ) : null}
+                    {estimateThin ? (
+                      <Text style={styles.evidenceLine}>
+                        {locale === "ko"
+                          ? "아직 추정할 만큼 답이 모이지 않았어요. 점검을 몇 번 더 해봐요."
+                          : "Not enough answers to estimate yet. A few more checks will do it."}
+                      </Text>
+                    ) : null}
                     <Text style={styles.evidenceLine}>
                       {locale === "ko"
                         ? `담긴 기록 ${total}건 근거 · 비준하기 전엔 북극성에 반영되지 않아요.`
                         : `${total} records as evidence. Nothing reaches your North Star until you ratify it.`}
                     </Text>
                     <View style={styles.evidenceActions}>
+                      <MdButton
+                        variant="text"
+                        disabled={estimating}
+                        label={
+                          estimating
+                            ? locale === "ko" ? "생각 중…" : "Thinking…"
+                            : estimate
+                              ? locale === "ko" ? "재생성" : "Regenerate"
+                              : locale === "ko" ? "추정 제안 받기" : "Get an estimate"
+                        }
+                        onPress={() => void handleEstimate()}
+                      />
+                      {estimate && !estimateSaved ? (
+                        <MdButton
+                          variant="text"
+                          label={locale === "ko" ? "이 추정 담기" : "Keep this estimate"}
+                          onPress={() => void handleKeepEstimate()}
+                        />
+                      ) : null}
+                      {estimateSaved ? (
+                        <MdButton variant="text" disabled label={locale === "ko" ? "담았어요" : "Kept"} onPress={() => {}} />
+                      ) : null}
                       <MdButton
                         variant="text"
                         label={locale === "ko" ? "승인 이력 보기" : "Ratification log"}
@@ -450,6 +540,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   evidenceLine: { fontSize: 12.5, lineHeight: 18, color: m3.color.onSurfaceVariant },
+  estimateTag: {
+    fontFamily: m3.font.mono,
+    fontSize: 9.5,
+    letterSpacing: 0.8,
+    color: withAlpha(m3.color.tertiary, 0.9),
+  },
+  estimateLine: { fontSize: 14, lineHeight: 21, color: m3.color.onSurface },
   evidenceActions: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
   crossRow: { flexDirection: "row", gap: 8, marginTop: 10 },
   crossBtn: { flex: 1 },
