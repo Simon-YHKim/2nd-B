@@ -54,7 +54,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderWidth: 1,
     borderColor: m3.color.outline,
-    borderRadius: m3.shape.full,
+    // Android clips children away when borderRadius exceeds the view size and
+    // overflow is hidden (device QA 2026-07-02: segments collapsed to a sliver).
+    // 24 = minHeight/2 keeps the stadium silhouette with a valid clip path.
+    borderRadius: 24,
     overflow: "hidden",
     minHeight: 48,
   },
