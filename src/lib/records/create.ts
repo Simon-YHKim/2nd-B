@@ -13,6 +13,7 @@ import { callAdvisor, callGemini, classifyRecordTextForCrisis } from "../llm/gem
 import { canUsePremium, type SubscriptionTier } from "../progression/entitlements";
 import { awardXpSafe, type XpAction } from "../progression/xp";
 import { getSupabaseClient } from "../supabase/client";
+import type { StructuredPayload } from "../capture/structured";
 import { withDomainTag } from "./detect-domain";
 import type { RecordFollowup } from "./followup";
 
@@ -44,6 +45,12 @@ export interface CreateRecordArgs {
   summary?: string;
   conclusion?: string;
   tags?: string[];
+  /**
+   * Machine-readable form payload (0066): set by form-shaped captures (4W1H,
+   * career 3C4P) alongside the flattened human body, so the system and the AI
+   * can read the structure. Omitted = column stays null.
+   */
+  structured?: StructuredPayload;
 }
 
 export type { RecordedEvidence, RecordFollowup } from "./followup";
@@ -221,6 +228,8 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       // group it. Detect from the user's own text (body + topic), not the AI
       // prompt; withDomainTag drops any user-forced domain:* tag first.
       tags: withDomainTag(args.tags, [args.body, args.topic].filter(Boolean).join("\n")),
+      // 0066: machine-readable form payload for form-shaped captures.
+      structured: args.structured ?? null,
     })
     .select("id")
     .single();
@@ -249,7 +258,7 @@ export async function listRecentRecords(userId: string, limit = 500) {
   const sinceIso = new Date(Date.now() - STREAK_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from("records")
-    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at")
+    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured")
     .eq("user_id", userId)
     .gte("created_at", sinceIso)
     .order("created_at", { ascending: false })
@@ -265,7 +274,7 @@ export async function getRecordById(userId: string, id: string) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("records")
-    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at")
+    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured")
     .eq("user_id", userId)
     .eq("id", id)
     .maybeSingle();

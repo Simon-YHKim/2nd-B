@@ -18,6 +18,7 @@ import type { GeminiResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
 import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
+import { loadStructuredContext } from "../records/load-structured";
 import { exportUserWiki } from "../wiki/export";
 import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsage } from "./usage";
 
@@ -148,6 +149,10 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
 
   // RAG context: compact wiki snapshot. Capped so the chat stays inside the
   // Gemini Flash context window even for users with hundreds of pages.
+  // 0066: newest structured form captures (4W1H, career 3C4P) ride along so
+  // the model reads the form data as structure, not prose. Small, fail-soft,
+  // sanitized + fenced with the snapshot below.
+  const structuredBlock = await loadStructuredContext(input.userId, 5);
   const snapshot = await exportUserWiki(input.userId, {
     locale: input.locale,
     bodyCharLimit: 600,
@@ -190,8 +195,14 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // prepend the injection-guard preamble so a clipped "ignore previous
   // instructions" cannot hijack the system prompt (mirrors the Advisor path).
   const fencedSnapshot = `<UNTRUSTED type="wiki_snapshot">\n${sanitizeUntrusted(snapshot.prompt)}\n</UNTRUSTED>`;
+  const fencedStructured = structuredBlock
+    ? `
+<UNTRUSTED type="structured_records">
+${sanitizeUntrusted(structuredBlock)}
+</UNTRUSTED>`
+    : "";
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
-  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${guardLine}${modeLine}${personaLine}${fencedSnapshot}`;
+  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${guardLine}${modeLine}${personaLine}${fencedSnapshot}${fencedStructured}`;
 
   // C1/C3/C9 are enforced by callGemini. Red-zone short-circuit still
   // happens inside callGemini; we just no longer adjust the counter

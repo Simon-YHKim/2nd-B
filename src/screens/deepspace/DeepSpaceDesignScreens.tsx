@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import { parseStructured } from "@/lib/capture/structured";
 import { TIERS, TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage } from "@/lib/entitlements/usage";
@@ -2921,6 +2922,7 @@ interface DetailRecord {
   id: string;
   kind: string;
   body: string | null;
+  structured?: unknown;
   topic: string | null;
   summary: string | null;
   conclusion: string | null;
@@ -3037,6 +3039,23 @@ export function DeepSpaceRecordDetailScreen() {
           <Text variant="body" style={styles.recBodyText}>{record.body}</Text>
         </View>
       ) : null}
+      {(() => {
+        // 0066: form-shaped captures render their machine-readable fields as a
+        // clean label grid under the flattened body (no re-parsing of prose).
+        const sp = parseStructured(record.structured);
+        if (!sp) return null;
+        return (
+          <View style={styles.recBody}>
+            <Text variant="caption" pixelEn style={styles.tlLabel}>{sp.form === "fourw" ? "4W1H" : "3C4P"}</Text>
+            {Object.entries(sp.fields).map(([k, v]) => (
+              <View key={k} style={{ marginTop: 6 }}>
+                <Text variant="caption" style={styles.metaLabel}>{k}</Text>
+                <Text variant="body" style={styles.recBodyText}>{v}</Text>
+              </View>
+            ))}
+          </View>
+        );
+      })()}
       {record.tags && record.tags.length > 0 ? (
         <View style={styles.filterRow}>
           {record.tags.slice(0, 5).map((tag) => (

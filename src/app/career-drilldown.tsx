@@ -13,6 +13,8 @@ import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { Field, MdButton, MdCard, MdChip } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { createRecord } from "@/lib/records/create";
+import { composeStructured } from "@/lib/capture/structured";
 import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 
@@ -98,6 +100,7 @@ export default function CareerDrilldown() {
   const [expType, setExpType] = useState<string | null>(null);
   const [typeOpen, setTypeOpen] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
   const filled = useMemo(
     () => summary.trim().length > 0 || Object.values(values).some((v) => v.trim().length > 0),
@@ -109,11 +112,40 @@ export default function CareerDrilldown() {
 
   const setField = (key: string) => (v: string) => setValues((prev) => ({ ...prev, [key]: v }));
 
-  // Seed the 세컨비 chat with the drill-down framing (prototype goChat →
-  // pending seed). We ride the existing /secondb fromNode prefill contract.
-  const submit = () => {
+  // 0066: persist the drill-down as a record FIRST (human-readable body +
+  // machine-readable structured payload), then seed the 세컨비 chat via the
+  // existing /secondb fromNode prefill contract. Best-effort save: a network
+  // miss still opens the chat so the user's flow is never blocked.
+  const submit = async () => {
     const head = summary.trim().length > 0 ? summary.trim() : isKo ? "커리어 경험" : "a career experience";
     const seed = expType ? `Drill Down · ${head} · ${expType}` : `Drill Down · ${head}`;
+    if (!saving && userId) {
+      setSaving(true);
+      try {
+        const labelOf: Record<string, string> = {};
+        for (const band of BANDS) for (const g of band.groups) for (const f of g.fields) labelOf[f.key] = f.label;
+        const bodyLines = [head, expType ? `유형: ${expType}` : null]
+          .concat(
+            Object.entries(values)
+              .filter(([, v]) => v.trim().length > 0)
+              .map(([k, v]) => `${labelOf[k] ?? k}: ${v.trim()}`),
+          )
+          .filter(Boolean) as string[];
+        await createRecord({
+          userId,
+          locale: isKo ? "ko" : "en",
+          kind: "note",
+          body: bodyLines.join("\n"),
+          topic: head,
+          tags: ["career_drilldown"],
+          structured: composeStructured("career_3c4p", { summary: summary, exp_type: expType ?? "", ...values }) ?? undefined,
+        });
+      } catch (e) {
+        if (typeof console !== "undefined") console.warn("[drilldown] save failed", (e as Error).message);
+      } finally {
+        setSaving(false);
+      }
+    }
     router.push({ pathname: "/secondb", params: { fromNode: seed } });
   };
 
@@ -206,8 +238,8 @@ export default function CareerDrilldown() {
           <MdButton
             variant="filled"
             label={isKo ? "세컨비와 Drill Down" : "Drill down with SecondB"}
-            onPress={submit}
-            disabled={!filled}
+            onPress={() => void submit()}
+            disabled={!filled || saving}
             accessibilityLabel={isKo ? "세컨비와 Drill Down" : "Drill down with SecondB"}
           />
         </View>

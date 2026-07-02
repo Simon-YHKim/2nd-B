@@ -83,6 +83,7 @@ import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
 import { consumeSharedIntoDrafts, normalizeSharedCaptureParams } from "@/lib/capture/share-params";
 import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
 import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
+import { composeStructured } from "@/lib/capture/structured";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { reactExpression } from "@/lib/companion/expression";
 import { AdvisorFollowupNote } from "@/components/records/AdvisorFollowupNote";
@@ -1023,6 +1024,8 @@ export function CaptureLegacy() {
         body: noteBody,
         tags,
         tier: progression.tier,
+        // 0066: 4W1H keeps the machine-readable payload beside the flattened body.
+        structured: noteMode === "fourw" ? composeStructured("fourw", fourw) ?? undefined : undefined,
       });
       const savedBody = noteBody;
       reset();
