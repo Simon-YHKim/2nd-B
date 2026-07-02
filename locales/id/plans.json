@@ -11,7 +11,7 @@
   "comingSoonBody": "Pembayaran belum dibuka. Harga sudah final, dan tidak ada yang ditagih sampai kamu memilih paket di sini.",
   "tiers": {
     "free": {
-      "name": "Gratis",
+      "name": "Stargazer",
       "price": "Gratis",
       "tagline": "2nd-Brain harianmu, catatan tanpa batas",
       "f1": "Catatan, memo, dan wiki tanpa batas",
@@ -19,7 +19,7 @@
       "f3": "2 obrolan AI per hari"
     },
     "soma": {
-      "name": "Cahaya bintang",
+      "name": "Voyager",
       "price": "$4.99 / mo",
       "priceNote": "$49.90 / yr (2 bulan gratis)",
       "tagline": "AI harian bersama catatanmu",
@@ -29,7 +29,7 @@
       "lifetimeNote": "Atau $99 sekali bayar untuk akses seumur hidup"
     },
     "cortex": {
-      "name": "Rasi bintang",
+      "name": "Voyager",
       "price": "$9.99 / mo",
       "priceNote": "$99.90 / yr (2 bulan gratis)",
       "tagline": "Ruang untuk eksplorasi mendalam setiap hari",
@@ -38,7 +38,7 @@
       "f3": "Kapasitas ekstra untuk sesi panjang"
     },
     "brain": {
-      "name": "Galaksi",
+      "name": "North Star",
       "price": "$19.99 / mo",
       "priceNote": "$199.90 / yr (2 bulan gratis)",
       "tagline": "Otak kedua yang lengkap",
