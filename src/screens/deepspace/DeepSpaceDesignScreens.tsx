@@ -1032,24 +1032,17 @@ export function DeepSpacePlansScreen() {
   const currentMarker = ko ? "현재 플랜" : "Current";
 
   return (
-    <Shell title={t("plans.title")}>
-      <SecondbStatusHeader
-        text={isPro ? t("plans.proActive") : t("plans.status")}
-        tip={t("plans.tip")}
-        mood="positive"
-      />
-
-      {/* Subtle north-star soul glow + faint starfield over the hero. */}
-      <View pointerEvents="none" style={styles.paySoulGlow} />
-      <View pointerEvents="none" style={styles.payStars}>
-        <View style={[styles.payStar, { left: "18%", top: 8 }]} />
-        <View style={[styles.payStar, { right: "16%", top: 14, opacity: 0.7 }]} />
-        <View style={[styles.payStarSoul, { left: "62%", top: 4 }]} />
-      </View>
+    <DockShell title={t("plans.title")}>
+      {/* rev2 windowed sub-screen: no companion here (sb-app §4) and no legacy
+          soul-glow disc — the shared sky outside the window carries the mood.
+          Status line stays as honest body copy. */}
+      <Text variant="caption" color="textMuted">
+        {isPro ? t("plans.proActive") : t("plans.status")}
+      </Text>
 
       {/* HERO — dominant, no transactional words. */}
       <View style={styles.payHero}>
-        <Text pixelEn style={styles.payEyebrow}>JOURNEY TO YOUR NORTH STAR</Text>
+        <Text style={[styles.payEyebrow, { fontFamily: m3.font.mono }]}>JOURNEY TO YOUR NORTH STAR</Text>
         <Text style={styles.payTitle}>
           {ko ? "나에 대해 더\n이해하고 싶나요?" : "Want to understand\nyourself more?"}
         </Text>
@@ -1230,7 +1223,7 @@ export function DeepSpacePlansScreen() {
           );
         })()
       ) : null}
-    </Shell>
+    </DockShell>
   );
 }
 

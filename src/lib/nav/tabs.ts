@@ -95,6 +95,8 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/meals",
   "/milestones",
   "/side-project",
+  // 요금제 — DockShell 경유(윈도우+탑바); 카드 구성/IAP 로직은 불변(수익화 게이트).
+  "/plans",
 ] as const;
 
 export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];
