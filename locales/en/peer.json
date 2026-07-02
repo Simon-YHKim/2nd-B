@@ -1,0 +1,53 @@
+{
+  "title": "How they see me",
+  "loading": "Loading…",
+  "invalid": "This link is not valid.",
+  "expired": "This link has expired.",
+  "withdrawnNote": "Your response has been withdrawn. Nothing of yours remains in the aggregate.",
+  "alreadyNote": "You already sent your response. You can withdraw it anytime with this link.",
+  "doneNote": "Thank you. Your answers join a combined view only; they are never shown individually.",
+  "doneKeepLink": "Keep this link if you ever want to withdraw your response.",
+  "intro": "Someone you know is building a picture of how others experience them. Three quick questions, about one minute.",
+  "privacyPoints": "Your answers are your own data: they are only ever shown combined with at least two other people, never one by one. You can withdraw anytime with this link.",
+  "scaleHint": "1 = not at all like them, 5 = very much like them",
+  "trait": {
+    "extraversion": "They gain energy around people and speak up easily.",
+    "conscientiousness": "They are organized and follow through on what they start.",
+    "agreeableness": "They are warm, considerate, and easy to get along with."
+  },
+  "ackLlm": "I agree that my answers may be processed by an AI system to build the combined picture.",
+  "ackOverseas": "I agree that this processing may happen on servers outside my country.",
+  "minorRow": "I am under 18.",
+  "guardianRow": "My parent or guardian is with me and agrees to this.",
+  "submitCta": "Send my answers",
+  "submitting": "Sending…",
+  "submitError": "Could not send. Try again in a moment.",
+  "withdrawCta": "Withdraw my response",
+  "withdrawAnytime": "You can withdraw anytime by opening this link again.",
+  "subjectTitle": "Ask people who know me",
+  "subjectIntro": "Send a one-time link to people who know you. Once three or more answer, the combined picture appears in your Seen lens; you never see individual answers.",
+  "labelField": "Nickname for this person (only you see it)",
+  "kind": {
+    "friend": "Friend",
+    "family": "Family",
+    "coworker": "Coworker",
+    "partner": "Partner",
+    "other": "Other"
+  },
+  "createCta": "Create link and share",
+  "creating": "Creating…",
+  "createError": "Could not create the link. Try again.",
+  "pendingCap": "You have reached the limit of open invitations. Revoke one to send another.",
+  "privacyLine": "The link works once, expires in 14 days, and stores no contact info.",
+  "emptyList": "No invitations yet. Start with one person who knows you well.",
+  "status": {
+    "pending": "Waiting",
+    "accepted": "Answered",
+    "declined": "Declined",
+    "withdrawn": "Withdrawn",
+    "expired": "Expired"
+  },
+  "revokeCta": "Revoke",
+  "shareMessage": "Would you answer three quick questions about how you see me? About a minute:",
+  "aggregateNote": "Answers appear only as a combined picture of three or more people, in the Seen lens."
+}
