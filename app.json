@@ -55,10 +55,7 @@
               "scheme": "secondbrain"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },
@@ -77,6 +74,7 @@
         "expo-build-properties",
         {
           "android": {
+            "minSdkVersion": 26,
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true
           }
