@@ -77,4 +77,11 @@ describe("captureCardProps", () => {
       captureCardProps({ variant: "A", insight: "x", handle: "y", litCount: 2 }).litCount,
     ).toBe(2);
   });
+
+  test("passes pieceCount through for the signature line (absent = undefined)", () => {
+    expect(
+      captureCardProps({ variant: "B", insight: "x", handle: "y", pieceCount: 124 }).pieceCount,
+    ).toBe(124);
+    expect(captureCardProps({ variant: "B", insight: "x", handle: "y" }).pieceCount).toBeUndefined();
+  });
 });

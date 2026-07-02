@@ -133,7 +133,7 @@ export const MUSEUM: MuseumEvent[] = [
 
   // ===== AI 발전사 =====
   { id: "a_turing", icon: "psychology", lane: "ai", year: 1950, ylabel: "1950", title: "튜링 테스트", sub: "생각하는 기계라는 질문",
-    body: "앨런 튜링이 “기계가 생각할 수 있는가”를 측정 가능한 질문으로 바꿨다. 대화만으로 사람과 기계를 구별할 수 없다면 그것을 지능이라 부르자는 제안.",
+    body: "앨런 튜링이 \"기계가 생각할 수 있는가\"를 측정 가능한 질문으로 바꿨다. 대화만으로 사람과 기계를 구별할 수 없다면 그것을 지능이라 부르자는 제안.",
     tags: ["#튜링테스트", "#이미테이션게임", "#앨런튜링"],
     rel: ["w_ww2", "a_dartmouth"], refs: [{ kind: "paper", label: "Computing Machinery and Intelligence (1950)" }] },
   { id: "a_dartmouth", icon: "groups", lane: "ai", year: 1956, ylabel: "1956", title: "다트머스 회의", sub: "AI의 탄생",
@@ -169,7 +169,7 @@ export const MUSEUM: MuseumEvent[] = [
     tags: ["#딥마인드", "#이세돌", "#바둑"],
     rel: ["a_transformer"], refs: [{ kind: "event", label: "딥마인드 · 이세돌 5국" }, { kind: "film", label: "다큐 〈알파고〉" }] },
   { id: "a_transformer", icon: "transform", lane: "ai", year: 2017, ylabel: "2017", title: "트랜스포머", sub: "주목하라",
-    body: "“Attention is all you need” — 문맥을 한눈에 보는 구조가 등장했다. 오늘의 모든 거대 언어모델의 뼈대가 된 설계.",
+    body: "\"Attention is all you need\" — 문맥을 한눈에 보는 구조가 등장했다. 오늘의 모든 거대 언어모델의 뼈대가 된 설계.",
     tags: ["#어텐션", "#구글", "#Transformer"],
     rel: ["a_gpt3"], refs: [{ kind: "paper", label: "Attention Is All You Need (2017)" }] },
   { id: "a_gpt3", icon: "open_in_full", lane: "ai", year: 2020, ylabel: "2020", title: "GPT-3", sub: "클수록 똑똑하다",
