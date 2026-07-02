@@ -73,10 +73,22 @@ function InterviewBody({ variant }: { variant: InterviewVariant }) {
   const isDeepSpace = variant === "deepSpace";
 
   // Frame swaps the chrome without touching the body. Deep-space wraps in the
-  // shared DeepSpaceScreen (active="lens"); legacy keeps PremiumAppShell.
+  // rev2 windowed shell (TopAppBar carries TITLES verbatim: 심층 인터뷰);
+  // legacy keeps PremiumAppShell.
   function Frame({ children }: { children: ReactNode }) {
+    const { i18n: frameI18n } = useTranslation();
     if (isDeepSpace) {
-      return <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>;
+      return (
+        <DeepSpaceScreen
+          active="lens"
+          header="none"
+          variant="windowed"
+          title={frameI18n.language === "ko" ? "심층 인터뷰" : "Deep interview"}
+          onBack={() => router.back()}
+        >
+          {children}
+        </DeepSpaceScreen>
+      );
     }
     return <PremiumAppShell>{children}</PremiumAppShell>;
   }

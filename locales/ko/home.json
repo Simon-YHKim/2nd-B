@@ -42,14 +42,15 @@
   },
   "ds": {
     "dock": {
-      "home": "별자리홈",
+      "home": "별자리",
       "capture": "담기",
       "chat": "세컨비",
       "ops": "비서",
       "account": "나",
       "lens": "나",
       "iden": "IDEN",
-      "wiki": "위키"
+      "wiki": "위키",
+      "settings": "설정"
     },
     "head": {
       "home": {
@@ -87,7 +88,33 @@
     },
     "home": {
       "polaris": "북극성",
-      "hint": "별 7개를 눌러 7가지 삶의 영역을 열어보세요"
+      "hint": "별 7개를 눌러 7가지 삶의 영역을 열어보세요",
+      "museumName": "뮤지엄",
+      "inbox": "알림",
+      "headA11y": "세컨비에게 물어보기",
+      "kind": {
+        "domain": "도메인",
+        "museum": "함께 배우기"
+      },
+      "bubble": {
+        "introTag": "소개",
+        "intro": "안녕하세요, 저는 세컨비예요. 머리를 누르면 도와드릴게요.",
+        "menuTag": "세컨비",
+        "menu": "어떻게 도와드릴까요?",
+        "travel": "여행하기",
+        "later": "다음에",
+        "chatbot": "챗봇",
+        "assistant": "비서"
+      },
+      "star": {
+        "career": { "line": "무엇을 만들고 쌓아왔나요?" },
+        "finance": { "line": "돈은 나의 무엇을 말해주나요?" },
+        "relation": { "line": "가까운 사람들과 나는 어떤가요?" },
+        "growth": { "line": "어느 시기가 지금의 나를 만들었나요?" },
+        "health": { "line": "요즘 내 컨디션과 리듬은요?" },
+        "recreation": { "line": "무엇이 나를 쉬게 하나요?" },
+        "museum": { "line": "AI가 걸어온 길을 거닐며, 세컨비가 나를 이해하는 원리도 함께 배워요." }
+      }
     },
     "capture": {
       "title": "담기",

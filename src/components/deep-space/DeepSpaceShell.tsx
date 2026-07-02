@@ -8,7 +8,6 @@
  * Keeps the post-auth gate.
  */
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -23,8 +22,6 @@ import { ConstellationHome } from "./ConstellationHome";
 import { HomeCoachmarks } from "./HomeCoachmarks";
 
 export function DeepSpaceShell() {
-  const { t, i18n } = useTranslation("home");
-  const isKo = i18n.language === "ko";
   const { userId, hasProfile, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
 
@@ -70,16 +67,21 @@ export function DeepSpaceShell() {
   if (!onboardingComplete) return <Redirect href="/onboarding" />;
 
   return (
-    <DeepSpaceScreen active="home">
+    <DeepSpaceScreen active="home" header="none">
       <ConstellationHome
-        isKo={isKo}
-        hint={t("ds.home.hint")}
-        polarisLabel={t("ds.home.polaris")}
-        // Each domain star opens that domain's records (the 리스트업 view) via
-        // the existing /records ?tags= filter — domain:<slug> matches the tag
-        // capture writes. The 북극성 opens the persona aggregate (/core-brain).
-        onStarPress={(id: DomainId) => router.push({ pathname: "/records", params: { tags: `domain:${id}` } })}
+        // 여행하기 on a domain star opens that domain's records (the 리스트업
+        // view) via the existing /records ?tags= filter — domain:<slug> matches
+        // the tag capture writes. 뮤지엄 opens the AI museum; the 북극성 opens
+        // the persona aggregate (/core-brain). Head-tap menu: 챗봇/비서 (sb-home).
+        onStarTravel={(id) =>
+          id === "museum"
+            ? router.push("/museum")
+            : router.push({ pathname: "/records", params: { tags: `domain:${id}` } })
+        }
         onPolarisPress={() => router.push("/core-brain")}
+        onChatPress={() => router.push("/secondb")}
+        onOpsPress={() => router.push("/ops")}
+        onBellPress={() => router.push("/inbox")}
         starLevels={domainLevels}
         northStarBrightness={northStarBrightness}
       />

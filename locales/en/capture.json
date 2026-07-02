@@ -317,5 +317,19 @@
       "how": "How did it go? Any why worth keeping?"
     },
     "note": "Only filled boxes are saved, as one piece with a #fourw tag."
+  },
+  "callReflection": {
+    "title": "After the call",
+    "intro": "One minute, right after a call: who it was, the gist, what it left you with. No audio is recorded; only your own words are saved.",
+    "who": "Who (nickname only)",
+    "gist": "The gist",
+    "feeling": "The feeling it left",
+    "followup": "One follow-up",
+    "saveCta": "Save reflection",
+    "saving": "Saving…",
+    "savedNote": "Saved. It joins your records like any other piece.",
+    "openRecords": "Open records",
+    "privacyLine": "Stored privately in your account. Nothing about the other person is profiled.",
+    "topicPrefix": "Call reflection"
   }
 }

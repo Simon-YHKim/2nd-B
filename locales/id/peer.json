@@ -1,0 +1,53 @@
+{
+  "title": "Bagaimana mereka melihatku",
+  "loading": "Memuat…",
+  "invalid": "Tautan ini tidak valid.",
+  "expired": "Tautan ini sudah kedaluwarsa.",
+  "withdrawnNote": "Jawabanmu sudah ditarik. Tidak ada milikmu yang tersisa dalam gabungan.",
+  "alreadyNote": "Kamu sudah mengirim jawaban. Kamu bisa menariknya kapan saja lewat tautan ini.",
+  "doneNote": "Terima kasih. Jawabanmu hanya tampil sebagai gabungan; tidak pernah satu per satu.",
+  "doneKeepLink": "Simpan tautan ini kalau suatu saat ingin menarik jawabanmu.",
+  "intro": "Seseorang yang kamu kenal sedang menyusun gambaran tentang bagaimana orang lain memandangnya. Tiga pertanyaan, sekitar satu menit.",
+  "privacyPoints": "Jawabanmu adalah datamu sendiri: hanya tampil digabung dengan minimal dua orang lain, tidak pernah satu per satu. Kamu bisa menariknya kapan saja lewat tautan ini.",
+  "scaleHint": "1 = sama sekali tidak, 5 = sangat sesuai",
+  "trait": {
+    "extraversion": "Dia mendapat energi saat bersama orang dan mudah bersuara.",
+    "conscientiousness": "Dia teratur dan menuntaskan apa yang dimulai.",
+    "agreeableness": "Dia hangat, penuh perhatian, dan mudah diajak bergaul."
+  },
+  "ackLlm": "Saya setuju jawaban saya dapat diproses sistem AI untuk membentuk gambaran gabungan.",
+  "ackOverseas": "Saya setuju pemrosesan ini dapat terjadi di server di luar negara saya.",
+  "minorRow": "Saya berusia di bawah 18 tahun.",
+  "guardianRow": "Orang tua atau wali saya mendampingi dan menyetujui ini.",
+  "submitCta": "Kirim jawaban",
+  "submitting": "Mengirim…",
+  "submitError": "Gagal mengirim. Coba lagi sebentar lagi.",
+  "withdrawCta": "Tarik jawaban saya",
+  "withdrawAnytime": "Kamu bisa menarik jawaban kapan saja dengan membuka tautan ini lagi.",
+  "subjectTitle": "Tanya orang yang mengenalku",
+  "subjectIntro": "Kirim tautan sekali pakai ke orang yang mengenalmu. Setelah tiga orang atau lebih menjawab, gambaran gabungan muncul di lensa Terlihat; kamu tidak pernah melihat jawaban individual.",
+  "labelField": "Nama panggilan untuk orang ini (hanya kamu yang melihat)",
+  "kind": {
+    "friend": "Teman",
+    "family": "Keluarga",
+    "coworker": "Rekan kerja",
+    "partner": "Pasangan",
+    "other": "Lainnya"
+  },
+  "createCta": "Buat tautan dan bagikan",
+  "creating": "Membuat…",
+  "createError": "Gagal membuat tautan. Coba lagi.",
+  "pendingCap": "Batas undangan terbuka tercapai. Cabut satu untuk mengirim yang baru.",
+  "privacyLine": "Tautan berlaku sekali, kedaluwarsa dalam 14 hari, dan tidak menyimpan kontak.",
+  "emptyList": "Belum ada undangan. Mulai dari satu orang yang mengenalmu dengan baik.",
+  "status": {
+    "pending": "Menunggu",
+    "accepted": "Dijawab",
+    "declined": "Ditolak",
+    "withdrawn": "Ditarik",
+    "expired": "Kedaluwarsa"
+  },
+  "revokeCta": "Cabut",
+  "shareMessage": "Maukah menjawab tiga pertanyaan singkat tentang bagaimana kamu melihatku? Sekitar satu menit:",
+  "aggregateNote": "Jawaban hanya muncul sebagai gambaran gabungan dari tiga orang atau lebih, di lensa Terlihat."
+}

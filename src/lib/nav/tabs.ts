@@ -45,6 +45,10 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/imagine",
   "/interview",
   "/persona",
+  // T5 F2 (peer review): the subject-side invitation ledger lives on the lens track.
+  "/peer-invites",
+  // Call recording v1 (post-call reflection, docs/CALL-RECORDING-SPEC.md §5).
+  "/call-reflection",
   "/account",
   "/ops",
   // /wiki joined the dock as a 5-tab root in P2-cont (#658 wraps it in
@@ -67,13 +71,32 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/museum",
   // 커리어 3C4P Drill Down (P4d) — direct-render dock screen.
   "/career-drilldown",
-  // 가치관 체크 (P3b) — thin route over AxisCheckScreen, so the drift guard's
-  // direct-render scan doesn't see it; registered by hand like /museum.
+  // 축 체크 3종 (P3b) — thin routes over AxisCheckScreen, so the drift guard's
+  // direct-render scan doesn't see them; registered by hand like /museum.
   "/values",
+  "/motivation",
+  "/strengths",
   // 담기 풀 모드 (링크/클립/OCR/파일) — deep-space shell over the legacy pipes.
   "/capture-full",
   // 북극성 문장 편집 (Screen-Spec 21) — direct-render dock screen.
   "/northstar",
+  // 설정 — rev2 windowed ROOT tab (5th dock slot); conditional render behind
+  // isDeepSpaceUI so the drift guard's direct-render scan doesn't see it.
+  "/settings",
+  // windowed 코호트 4 — DockShell(inbox/focus) · OpsFrame(ops sub-screens) ·
+  // interview Frame all render DeepSpaceScreen via shared wrappers, so the
+  // drift guard's direct-render scan doesn't see them; registered by hand.
+  "/interview",
+  "/focus",
+  "/inbox",
+  "/reminders",
+  "/reading",
+  "/ledger",
+  "/meals",
+  "/milestones",
+  "/side-project",
+  // 요금제 — DockShell 경유(윈도우+탑바); 카드 구성/IAP 로직은 불변(수익화 게이트).
+  "/plans",
 ] as const;
 
 export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];

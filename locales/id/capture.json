@@ -317,5 +317,19 @@
       "how": "Bagaimana jalannya? Ada alasan yang layak disimpan?"
     },
     "note": "Hanya kotak terisi yang disimpan, sebagai satu potongan bertag #fourw."
+  },
+  "callReflection": {
+    "title": "Setelah panggilan",
+    "intro": "Satu menit tepat setelah panggilan: dengan siapa, intinya, apa yang tersisa. Tidak ada audio yang direkam; hanya kata-katamu sendiri yang disimpan.",
+    "who": "Dengan siapa (panggilan saja)",
+    "gist": "Intinya",
+    "feeling": "Perasaan yang tersisa",
+    "followup": "Satu tindak lanjut",
+    "saveCta": "Simpan refleksi",
+    "saving": "Menyimpan…",
+    "savedNote": "Tersimpan. Bergabung dengan catatanmu seperti kepingan lainnya.",
+    "openRecords": "Buka catatan",
+    "privacyLine": "Disimpan secara pribadi di akunmu. Tidak ada profil tentang orang lain.",
+    "topicPrefix": "Refleksi panggilan"
   }
 }

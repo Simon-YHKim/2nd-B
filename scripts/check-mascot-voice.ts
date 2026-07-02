@@ -67,7 +67,9 @@ const NEGATION_NEAR = /\b(?:do not|don['’]?t|never|no)\b|마세요|말고|않|
 // record-sourcing token, so the mascot speaks from the user's own records rather
 // than as an oracle. A string that is purely a question (no declarative claim)
 // passes - there is nothing to source.
-const SOURCING_TOKEN = /records|기록|patterns|모습|패턴/i;
+// es/id/pt joined as real locales in #699 - their record/pattern words are part
+// of the lexicon so faithful sourced translations don't read as unsourced.
+const SOURCING_TOKEN = /records|기록|patterns|모습|패턴|registros?|catatan(?:mu|nya)?|patrones|pola|padr(?:ões|ão)/i;
 
 // The exact key set D-21 re-registered to observational+sourced. Wall 2 applies
 // ONLY to these (keyed by the `where` suffix), to avoid scope creep onto

@@ -81,6 +81,58 @@ export const m3Accent = {
   skySurface: "#0B2142",
   /** App-wide deepest background behind the nebula (m3-theme.css `body`). */
   spaceBody: "#05070B",
+
+  // ---- rev2 constellation home (reference-app sb-home.jsx / sb-app.jsx).
+  // Values transcribed 1:1 from the prototype; alpha is applied at the callsite
+  // via withAlpha so each token stays a plain hex.
+  /** Cosmic base under every sky layer (sb-app SB_COSMIC base). */
+  cosmicBase: "#060912",
+  /** Home stage radial floor (sb-home stage gradient end / vignette base). */
+  stageFloor: "#070A13",
+  /** Home stage radial center wash rgb(26,72,120) (used at .5 alpha). */
+  stageGlow: "#1A4878",
+  /** SB_COSMIC nebula washes: blue rgb(40,86,150) / violet rgb(120,96,210). */
+  nebulaBlue: "#285696",
+  nebulaViolet: "#7860D2",
+  /** Shared starfield star tints (sb-app SB_SKY_STARS palette). */
+  skyStarBlue: "#CFE0FF",
+  skyStarViolet: "#C9BEFF",
+  skyStarWhite: "#FFFFFF",
+  /** Shared starfield faint constellation line tints (SB_SKY_CONST). */
+  skyConstA: "#5B9DFF",
+  skyConstB: "#9A86FF",
+  skyConstC: "#7FA8FF",
+  skyConstD: "#8FB6FF",
+  /** Dipper outline starlight rgb(127,227,255) (used at .34 alpha). */
+  dipperLine: "#7FE3FF",
+  /** 북극성 dot radial mid-stop / polaris label tint rgb(214,196,255). */
+  polarisSoft: "#D6C4FF",
+  /** Polaris glow rims rgb(183,148,246) (1 / .7 alpha in the prototype). */
+  polarisGlow: "#B794F6",
+  /** Star label starlight rgb(190,225,255) (used at .78 alpha). */
+  starLabel: "#BEE1FF",
+  /** Focused star/bubble-title near-white (#EAF7FF ≠ skyTextHi on purpose). */
+  starFocus: "#EAF7FF",
+  /** Speech bubble: surface rgb(9,20,40) (.95), body copy #A7E0FF. */
+  bubbleSurface: "#091428",
+  bubbleText: "#A7E0FF",
+  /** Home inbox bell: chip rgb(20,30,52) (.7), glyph #CFE6FF, badge #FF8A5B. */
+  bellSurface: "#141E34",
+  bellGlyph: "#CFE6FF",
+  alertDot: "#FF8A5B",
+  /** Windowed-screen 1px rim rgb(150,180,230) (used at .16 — sb-app data-window). */
+  windowRim: "#96B4E6",
+  // ---- 공유 카드 (sb-more ShareCardScreen) — 1080×1080 card palette.
+  /** Card eyebrow/rim starlight rgb(127,208,255) (rim at .18). */
+  shareEyebrow: "#7FD0FF",
+  /** Card headline ink. */
+  shareInk: "#EAF2FF",
+  /** Card body/footer ink rgb(220,230,255) (used at .65–.7). */
+  shareInkSoft: "#DCE6FF",
+  /** Lit constellation dot on the card. */
+  shareStarOn: "#BFE9FF",
+  /** Card background radial top stop (→ stageFloor). */
+  shareBgTop: "#16203A",
 } as const;
 
 /**

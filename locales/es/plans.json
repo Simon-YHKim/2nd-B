@@ -11,7 +11,7 @@
   "comingSoonBody": "El pago aún no está disponible. Los precios son definitivos y no se te cobrará nada hasta que elijas un plan aquí.",
   "tiers": {
     "free": {
-      "name": "Gratis",
+      "name": "Stargazer",
       "price": "Gratis",
       "tagline": "Tu 2nd-Brain de siempre, registros ilimitados",
       "f1": "Registros, notas y wiki ilimitados",
@@ -19,7 +19,7 @@
       "f3": "2 chats con IA por día"
     },
     "soma": {
-      "name": "Luz estelar",
+      "name": "Voyager",
       "price": "$4.99 / mo",
       "priceNote": "$49.90 / yr (2 meses gratis)",
       "tagline": "IA diaria junto a tus registros",
@@ -29,7 +29,7 @@
       "lifetimeNote": "O $99 una sola vez para acceso de por vida"
     },
     "cortex": {
-      "name": "Constelación",
+      "name": "Voyager",
       "price": "$9.99 / mo",
       "priceNote": "$99.90 / yr (2 meses gratis)",
       "tagline": "Espacio para reflexiones profundas cada día",
@@ -38,7 +38,7 @@
       "f3": "Margen para sesiones largas"
     },
     "brain": {
-      "name": "Galaxia",
+      "name": "North Star",
       "price": "$19.99 / mo",
       "priceNote": "$199.90 / yr (2 meses gratis)",
       "tagline": "El segundo cerebro completo",
