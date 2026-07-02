@@ -35,6 +35,7 @@ export default function RatificationLogScreen() {
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
+  const [showUnchanged, setShowUnchanged] = useState(false);
   const [entries, setEntries] = useState<RatificationEntry[] | null>(null);
 
   useEffect(() => {
@@ -62,6 +63,13 @@ export default function RatificationLogScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
+  // QA r3: same-level re-recordings (L1 -> L1 rebuild echoes) drowned the real
+  // changes. Real deltas render as before; unchanged echoes fold behind one
+  // count row the user can expand.
+  const changed = (entries ?? []).filter((e) => e.prevLevel === null || e.level !== e.prevLevel);
+  const unchanged = (entries ?? []).filter((e) => e.prevLevel !== null && e.level === e.prevLevel);
+  const visible = showUnchanged ? entries ?? [] : changed;
+
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -73,7 +81,7 @@ export default function RatificationLogScreen() {
 
         {entries === null ? (
           <PremiumLoadingState message={locale === "ko" ? "장부를 펴는 중…" : "Opening the ledger…"} />
-        ) : entries.length === 0 ? (
+        ) : visible.length === 0 && unchanged.length === 0 ? (
           <MdCard variant="outlined" style={styles.cardPad}>
             <Text variant="body" color="textMuted">
               {locale === "ko"
@@ -87,7 +95,7 @@ export default function RatificationLogScreen() {
             />
           </MdCard>
         ) : (
-          entries.map((entry, i) => (
+          visible.map((entry, i) => (
             <MdCard key={`${entry.starId}-${entry.recordedAt}-${i}`} variant="outlined" style={styles.entry}>
               <View style={styles.entryHead}>
                 <Text variant="body" style={styles.entryStar} numberOfLines={1}>
@@ -116,6 +124,19 @@ export default function RatificationLogScreen() {
             </MdCard>
           ))
         )}
+        {unchanged.length > 0 ? (
+          <MdButton
+            variant="text"
+            label={
+              showUnchanged
+                ? locale === "ko" ? "변화 없는 재계산 접기" : "Hide unchanged recomputes"
+                : locale === "ko"
+                  ? `변화 없는 재계산 ${unchanged.length}건 보기`
+                  : `Show ${unchanged.length} unchanged recomputes`
+            }
+            onPress={() => setShowUnchanged((v) => !v)}
+          />
+        ) : null}
       </ScrollView>
     </DeepSpaceScreen>
   );
