@@ -62,6 +62,9 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/ratifications",
   "/rlss",
   "/share-card",
+  // AI 뮤지엄 (rev2 2-axis timeline) — the route file delegates, so the drift
+  // guard's direct-render scan doesn't see it; registered here by hand.
+  "/museum",
 ] as const;
 
 export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];
