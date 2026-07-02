@@ -59,6 +59,18 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 cat docs/ANDROID-STUDIO-QA.md
 # A: npx expo run:android 로 육안 QA — 신규 표면 지도(위) 전부 순회
 ```
+## 2026-07-02 / 🔴 QA 발견 F1 (→ 픽스 완료: #678 CaptureView 4W1H 토글, 아래는 발견 원문): 딥스페이스 /capture가 first-piece 전용 → 정식 8모드(4W1H·OCR·todo·file) 도달 불가
+
+### 발견 (인증 캡처 QA 세션, 실데이터 재현)
+- `capture.tsx`의 딥스페이스 분기(L272)가 **무조건** `<CaptureView/>`(first-piece 전용: 한줄 입력 + 글/링크/음성 3칩 + "첫 기록 저장", `tags:["first-piece"]` 하드코딩)로 early-return.
+- 정식 멀티모드 캡처 폼(`CAPTURE_MODES` 8종 — **P4a 4W1H(#668)·기존 OCR 포함**)은 `CaptureLegacy`에만 배선 → **rev2 기본(딥스페이스) 트랙에서 도달 불가**.
+- 증거: QA 계정(기록 11건)에서도 /capture가 계속 first-piece UI로 렌더 + 모든 딥스페이스 저장이 `first-piece` 태그·"첫 기록" topic으로 적재(DB 확인).
+- 영향: rev2 갭표의 "담기 4W1H+OCR 인터랙션 업그레이드"가 사용자 관점 미출하 상태. #668의 verify green은 폼 자체는 건강함을 보장(도달성만 문제).
+
+### 제안 방향 (착수 전 정합 확인)
+- **DS 캡처 멀티모드 뷰**: CaptureView를 first-piece 상태(기록 0)에서만 쓰고, 기록 존재 시 8모드 폼을 DS 셸로 이식(M3 프리미티브 사용). CaptureLegacy 이식은 Premium 셸/스타일 충돌 주의.
+- first-piece 판정은 **계정 records 존재 기반**으로(현재는 무조건이라 크로스디바이스 무관하게 항상 축약).
+- 슬라이스 소유: P4 캡처 레인 진행 세션이 이어받는 게 자연스러움 — 착수 시 이 섹션을 상태 갱신할 것.
 
 ---
 
