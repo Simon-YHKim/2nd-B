@@ -43,6 +43,16 @@ export interface ShareCardProps {
 // Prototype preview base (sb-more CARD = 330).
 const BASE = 330;
 
+// CYCLE NOTE: components/deepspace/index.ts has a known require cycle, so this
+// module can evaluate BEFORE lib/theme/m3 under some entry orders — a
+// module-scope m3.accent dereference then reads undefined and withAlpha
+// crashes (seen live on the /settings path). Every m3-dependent color is
+// therefore resolved at RENDER time through these helpers; StyleSheet.create
+// below carries layout only.
+const eyebrowColor = () => ({ fontFamily: m3.font.mono, color: m3.accent.shareEyebrow });
+const inkColor = () => ({ color: m3.accent.shareInk });
+const softInk = (a: number) => ({ color: withAlpha(m3.accent.shareInkSoft, a) });
+
 // sb-more ShareCardScreen star map — percentage positions inside the 220-tall
 // constellation band. The prototype hardcodes which are lit; here the first
 // `litCount` light up in this order so the card stays honest to the data.
@@ -86,22 +96,22 @@ export function ShareCard({ variant, insight, handle, litCount = 4, size = BASE,
 
       {variant === "A" ? (
         <View style={[styles.inner, { padding: 30 * k }]}>
-          <Text style={[styles.eyebrow, { fontSize: 11 * k, letterSpacing: 11 * k * 0.18 }]}>
+          <Text style={[styles.eyebrow, eyebrowColor(), { fontSize: 11 * k, letterSpacing: 11 * k * 0.18 }]}>
             {isKo ? "2ND-BRAIN · 이번 주" : "2ND-BRAIN · THIS WEEK"}
           </Text>
           <View style={styles.insightWrap}>
-            <Text style={[styles.insight, { fontSize: 27 * k, lineHeight: 27 * k * 1.4 }]}>{insight}</Text>
+            <Text style={[styles.insight, inkColor(), { fontSize: 27 * k, lineHeight: 27 * k * 1.4 }]}>{insight}</Text>
           </View>
           <View style={[styles.footerRow, { gap: 10 * k }]}>
             <Image source={headFront} style={{ width: 34 * k, height: 34 * k }} resizeMode="contain" />
-            <Text style={[styles.footerText, { fontSize: 13 * k }]}>
+            <Text style={[styles.footerText, softInk(0.7), { fontSize: 13 * k }]}>
               {isKo ? "세컨비가 함께 본 한 주" : "A week seen together with SecondB"}
             </Text>
           </View>
         </View>
       ) : (
         <View style={[styles.inner, { padding: 26 * k }]}>
-          <Text style={[styles.eyebrow, styles.center, { fontSize: 11 * k, letterSpacing: 11 * k * 0.18 }]}>
+          <Text style={[styles.eyebrow, styles.center, eyebrowColor(), { fontSize: 11 * k, letterSpacing: 11 * k * 0.18 }]}>
             MY CONSTELLATION
           </Text>
           <View style={{ height: 220 * k, marginTop: 6 * k }}>
@@ -137,10 +147,12 @@ export function ShareCard({ variant, insight, handle, litCount = 4, size = BASE,
             </Svg>
           </View>
           <View style={{ marginTop: 6 * k, alignItems: "center" }}>
-            <Text style={[styles.litLine, { fontSize: 19 * k }]}>
+            <Text style={[styles.litLine, inkColor(), { fontSize: 19 * k }]}>
               {isKo ? `${lit}개 별이 빛나는 중` : `${lit} stars shining`}
             </Text>
-            <Text style={[styles.handleLine, { fontSize: 13 * k, marginTop: 2 * k }]}>{`2nd-Brain · @${handle}`}</Text>
+            <Text style={[styles.handleLine, softInk(0.65), { fontSize: 13 * k, marginTop: 2 * k }]}>
+              {`2nd-Brain · @${handle}`}
+            </Text>
           </View>
         </View>
       )}
@@ -155,12 +167,12 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   inner: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, flexDirection: "column" },
-  eyebrow: { fontFamily: m3.font.mono, color: m3.accent.shareEyebrow },
+  eyebrow: {},
   center: { textAlign: "center" },
   insightWrap: { flex: 1, justifyContent: "center" },
-  insight: { fontWeight: "700", color: m3.accent.shareInk, fontFamily: fontFamilies.readable },
+  insight: { fontWeight: "700", fontFamily: fontFamilies.readable },
   footerRow: { flexDirection: "row", alignItems: "center" },
-  footerText: { color: withAlpha(m3.accent.shareInkSoft, 0.7), fontFamily: fontFamilies.readable },
-  litLine: { fontWeight: "700", color: m3.accent.shareInk, fontFamily: fontFamilies.readable },
-  handleLine: { color: withAlpha(m3.accent.shareInkSoft, 0.65), fontFamily: fontFamilies.readable },
+  footerText: { fontFamily: fontFamilies.readable },
+  litLine: { fontWeight: "700", fontFamily: fontFamilies.readable },
+  handleLine: { fontFamily: fontFamilies.readable },
 });
