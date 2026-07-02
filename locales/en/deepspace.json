@@ -20,7 +20,9 @@
     "emptyAll": "The store is quiet. Add today's piece or a link and you'll meet it here again.",
     "addPiece": "+ Add a piece",
     "backlinks": "Linked records {{count}}",
-    "connections": "Links {{count}}"
+    "connections": "Links {{count}}",
+    "viewList": "List",
+    "viewGraph": "Graph"
   },
   "research": {
     "title": "Find connections",

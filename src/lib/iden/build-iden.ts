@@ -15,7 +15,7 @@
 import { STYLE_LABEL } from "../persona/attachment";
 import { labelFramework } from "../audit/frameworkLabels";
 import { TYPE_NICKNAME } from "../persona/mbti";
-import { buildPersona, type PersonaCard, type PersonaTraits } from "../persona/build";
+import { buildPersona, instrumentLabel, isMeasuredSource, type PersonaCard, type PersonaTraits } from "../persona/build";
 import { getSupabaseClient } from "../supabase/client";
 import type { IdenDoc, IdenField, IdenSource } from "./types";
 
@@ -108,11 +108,13 @@ export function composeIdenDoc(persona: PersonaCard | null, opts: ComposeIdenOpt
 
   // --- traits + patterns: only with backing evidence ---
   if (persona) {
-    const measured = persona.traitsSource === "bfi";
+    const measured = isMeasuredSource(persona.traitsSource);
     const obs = persona.traitConfidence?.openness.observationCount ?? 0;
     if (measured || obs > 0) {
       const t = persona.traits;
-      const src: IdenSource = measured ? { kind: "measured", instrument: "BFI-44" } : { kind: "derived" };
+      const src: IdenSource = measured
+        ? { kind: "measured", instrument: instrumentLabel(persona.traitsSource) ?? "BFI-44" }
+        : { kind: "derived" };
       fields.push({
         key: "traits",
         label: l.traits,

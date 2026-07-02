@@ -19,6 +19,7 @@ import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/settings/crew-density";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META } from "@/lib/i18n/locales";
+import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import {
   deleteAllChatUsage,
   deleteAllUserData,
@@ -430,6 +431,19 @@ export default function Settings() {
             accessibilityHint={t("nav.themeHint")}
             variant="secondary"
             onPress={() => router.push("/theme")}
+          />
+          {/* Screen-Spec 09: 코치마크 리셋 — clears the seen flag and returns
+              home so the 4-step guide plays again immediately. */}
+          <Button
+            label={locale === "ko" ? "코치마크 리셋" : "Reset coachmarks"}
+            accessibilityHint={
+              locale === "ko" ? "홈 사용 가이드를 처음부터 다시 봐요" : "Replay the home guide from the start"
+            }
+            variant="secondary"
+            onPress={() => {
+              resetCoachmarks();
+              router.replace("/");
+            }}
           />
           <Button
             label={t("nav.data")}

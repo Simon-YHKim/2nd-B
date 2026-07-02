@@ -11,7 +11,7 @@
   "comingSoonBody": "O checkout ainda não está aberto. Os preços são definitivos e nada é cobrado até você escolher um plano aqui.",
   "tiers": {
     "free": {
-      "name": "Free",
+      "name": "Grátis",
       "price": "Grátis",
       "tagline": "Seu 2nd-Brain do dia a dia, registros ilimitados",
       "f1": "Registros, notas e wiki ilimitados",
@@ -19,7 +19,7 @@
       "f3": "2 conversas com IA por dia"
     },
     "soma": {
-      "name": "Soma",
+      "name": "Luz das estrelas",
       "price": "$4.99 / mo",
       "priceNote": "$49.90 / yr (2 meses grátis)",
       "tagline": "IA diária junto aos seus registros",
@@ -29,7 +29,7 @@
       "lifetimeNote": "Ou $99 uma vez para acesso vitalício"
     },
     "cortex": {
-      "name": "Cortex",
+      "name": "Constelação",
       "price": "$9.99 / mo",
       "priceNote": "$99.90 / yr (2 meses grátis)",
       "tagline": "Espaço para mergulhos diários profundos",
@@ -38,7 +38,7 @@
       "f3": "Fôlego para sessões longas"
     },
     "brain": {
-      "name": "Brain",
+      "name": "Galáxia",
       "price": "$19.99 / mo",
       "priceNote": "$199.90 / yr (2 meses grátis)",
       "tagline": "O segundo cérebro completo",

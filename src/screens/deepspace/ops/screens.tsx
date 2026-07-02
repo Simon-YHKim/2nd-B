@@ -36,6 +36,7 @@ import {
   type OpsGroupId,
 } from "@/lib/ops/domains";
 import { recommendForDomain, type OpsRecommendation } from "@/lib/ops/recommend";
+import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { buildChecklistShareText, buildGoogleCalendarUrl, type OpsEventInput } from "@/lib/ops/push";
 import { searchBooks, type BookResult } from "@/lib/reading/books";
 import { addToShelf, listShelf, readingProgress, type Shelf } from "@/lib/reading/shelf";
@@ -152,19 +153,41 @@ function buildCommitHeatmap(
 
 export function OpsHomeScreen() {
   const c = useOpsCopy();
-  const { userId } = useAuth();
+  const { userId, isMinor } = useAuth();
   const { i18n } = useTranslation();
   const locale = systemLocaleFor(i18n.language);
   const [group, setGroup] = useState<OpsGroupId>("body");
   const domain = domainsForGroup(group)[0];
   const [pushRec, setPushRec] = useState<OpsRecommendation | null>(null);
+  // D-2: this home list auto-runs recommendForDomain on mount, so load the
+  // `recommendations` privacy pref and pass it through. The engine gate is
+  // fail-closed, so until this resolves (undefined) it returns [] and shows the
+  // empty state — privacy-by-default, and no wiki snapshot is sent ungated.
+  const [recPref, setRecPref] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    void fetchPrivacyPrefs(userId).then((p) => {
+      if (alive) setRecPref(p.recommendations === true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
 
   const recs = useAsync<OpsRecommendation[]>(
     () =>
       userId
-        ? recommendForDomain({ userId, locale, domainId: domain, domainLabel: EN_DOMAIN_LABEL[domain] })
+        ? recommendForDomain({
+            userId,
+            locale,
+            domainId: domain,
+            domainLabel: EN_DOMAIN_LABEL[domain],
+            minor: isMinor === true,
+            recommendationsPref: recPref,
+          })
         : Promise.resolve([]),
-    [userId, domain, locale],
+    [userId, domain, locale, recPref, isMinor],
   );
 
   const tabs: DomainTab[] = OPS_GROUP_IDS.map((g) => ({ id: g, label: g, color: domainColor(g) }));
@@ -183,7 +206,6 @@ export function OpsHomeScreen() {
     if (gUrl) {
       opts.push({
         key: "google",
-        icon: "🗓",
         label: c.googleCalendar,
         sub: c.googleCalendarSub,
         recommended: true,
@@ -192,7 +214,6 @@ export function OpsHomeScreen() {
     }
     opts.push({
       key: "share",
-      icon: "☑",
       label: c.shareChecklist,
       sub: c.shareChecklistSub,
       onPress: () => void Share.share({ message: buildChecklistShareText(r.title, r.checklist ?? [r.reason]) }),

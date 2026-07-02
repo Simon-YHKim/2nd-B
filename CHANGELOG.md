@@ -7,6 +7,11 @@ Conventional Commits.
 ## [Unreleased]
 
 ### Added
+- Material 3 primitive kit (`src/components/m3/`): MdButton / SegBtn / MdCard /
+  MdChip / Field / MdNavBar / ProgressLinear on the `m3.*` token foundation, plus
+  Roboto / Roboto Mono chrome fonts (rev2 P1b).
+- 세컨비 persona-capable head (`SecondbHead` `persona` prop — secondb / meta / twi
+  accent tint; unset keeps the deep-space cyan) (rev2 P2).
 - Phytoncide design tokens (pine/birch/mist palette + spring leaf accents)
 - Serif typography pairing (Nanum Myeongjo + Source Serif 4 + Pretendard)
 - NativeWind/Tailwind integration wired to the design tokens
@@ -15,11 +20,19 @@ Conventional Commits.
   resolve, replacing blank/`null` frames on web
 
 ### Changed
+- Deep-space dock migrated to the Material 3 `MdNavBar`; 5-tab reconcile to
+  별자리홈 · 담기 · 세컨비 · 위키 · 비서 (account moves out of the dock, still reachable
+  via profile / settings) (rev2 P2).
 - Landing page redesigned on the phytoncide theme — serif display hero,
   app logo, and accent-coloured pillar cards; migrated off the legacy
   token shim (`@/lib/theme`) to `@/theme`.
 
 ### Fixed
+- OTA / native bundle: a `node:fs` source-discipline test under `src/app` was
+  pulled into the app bundle by expo-router's `require.context` and broke the
+  Hermes / EAS Update export — so OTA silently never published (gate-skip) since
+  the test landed. Moved it out of the router root and excluded `__tests__` /
+  `*.test.*` from the Metro bundle.
 - Live web root URL (`/2nd-B/`) resolved to the app's not-found screen.
   Set `expo.experiments.baseUrl` to `/2nd-B` so expo-router is base-path
   aware, and removed the manual `sed` asset path-patching (plus the

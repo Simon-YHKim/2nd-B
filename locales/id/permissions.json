@@ -24,7 +24,7 @@
       "why": "Diperlukan untuk masuk, menyimpan catatanmu, dan balasan SecondB. HTTPS standar."
     },
     "clipboard": {
-      "name": "Clipboard",
+      "name": "Papan klip",
       "why": "Digunakan hanya saat kamu mengetuk Salin di tindakan ekspor atau pesan. 2nd-Brain tidak pernah membaca clipboard-mu di latar belakang."
     },
     "calendar": {

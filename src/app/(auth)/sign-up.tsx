@@ -1,5 +1,6 @@
+import { useRef } from "react";
 import { Image } from "expo-image";
-import { View, StyleSheet, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, Pressable, ScrollView, KeyboardAvoidingView, Platform, TextInput } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Link, Redirect, router } from "expo-router";
 
@@ -53,6 +54,7 @@ function SignUpLegacy() {
   } = useSignUpForm();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
+  const passwordInputRef = useRef<TextInput>(null);
 
   // Guest-only guard, loading-aware. While the session resolves, show the
   // branded checking state rather than flashing the account-creation form; once
@@ -166,11 +168,14 @@ function SignUpLegacy() {
               placeholder="you@example.com"
               accessibilityLabel={t("signUp.email")}
               accessibilityHint={t("signUp.emailHint")}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordInputRef.current?.focus()}
             />
             <Text variant="caption" color="textMuted" style={styles.fieldLabelSpaced}>
               {t("signUp.password")}
             </Text>
             <Input
+              ref={passwordInputRef}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -178,6 +183,10 @@ function SignUpLegacy() {
               textContentType="newPassword"
               accessibilityLabel={t("signUp.password")}
               accessibilityHint={t("signUp.passwordHint")}
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                if (canSubmit) void handleSubmit();
+              }}
             />
             {/* O-R1.4 (persona sim, low-vision): this line GATES submission
                 (8+ chars feeds canSubmit), so it cannot be the smallest,
@@ -300,6 +309,7 @@ function SignUpLegacy() {
             </Text>
             <Link href="/sign-in" asChild>
               <Pressable
+                hitSlop={14}
                 accessibilityRole="link"
                 accessibilityLabel={t("signUp.signInLink")}
                 accessibilityHint={t("signUp.signInHint")}
@@ -313,6 +323,7 @@ function SignUpLegacy() {
           </View>
           <Link href="/manual" asChild>
             <Pressable
+              hitSlop={14}
               accessibilityRole="link"
               accessibilityLabel={t("signUp.manualLabel")}
               accessibilityHint={t("signUp.manualHint")}

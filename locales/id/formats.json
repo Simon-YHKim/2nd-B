@@ -32,7 +32,7 @@
   "actions": {
     "addFormat": "Tambah format",
     "goCapture": "Mulai tangkap",
-    "edit": "Edit",
+    "edit": "Ubah",
     "delete": "Hapus",
     "cancel": "Batal",
     "close": "Tutup"
@@ -64,7 +64,7 @@
     "eyebrow": "Panduan pengarsipan"
   },
   "editor": {
-    "eyebrow": "Edit format",
+    "eyebrow": "Ubah format",
     "name": "Nama",
     "nameKoPlaceholder": "Nama dalam bahasa Korea",
     "nameEnPlaceholder": "Nama dalam bahasa Inggris",

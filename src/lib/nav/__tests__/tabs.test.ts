@@ -19,11 +19,17 @@ describe("primary tab routes", () => {
 });
 
 describe("deep-space dock routes", () => {
-  test("covers the 11 dock screens, excluding primary tab roots", () => {
+  test("covers the 25 dock screens, excluding primary tab roots", () => {
     expect(isDeepSpaceDockPath("/core-brain")).toBe(true);
     expect(isDeepSpaceDockPath("/big-five")).toBe(true);
     expect(isDeepSpaceDockPath("/account")).toBe(true);
     expect(isDeepSpaceDockPath("/ops")).toBe(true);
+    // /wiki is a dock tab root since P2-cont (#658) — the BackArrow hides there.
+    expect(isDeepSpaceDockPath("/wiki")).toBe(true);
+    // P4c/d/e lens screens render the dock too (QA W1-b — chip floated on /people).
+    expect(isDeepSpaceDockPath("/people")).toBe(true);
+    expect(isDeepSpaceDockPath("/career")).toBe(true);
+    expect(isDeepSpaceDockPath("/rest")).toBe(true);
 
     // Primary tab roots also render the dock but are hidden via isPrimaryTabPath,
     // so they must NOT be duplicated in the dock list.

@@ -41,6 +41,8 @@ on:
     paths:
       - "src/**"
       - "assets/**"
+      - "locales/**"
+      - ".github/workflows/eas-update.yml"
       - "app.json"
       - "App.tsx"
       - "index.js"

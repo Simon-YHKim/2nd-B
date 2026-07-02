@@ -82,6 +82,7 @@ import type { SourceKind } from "@/lib/wiki/types";
 import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
 import { consumeSharedIntoDrafts, normalizeSharedCaptureParams } from "@/lib/capture/share-params";
 import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
+import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { reactExpression } from "@/lib/companion/expression";
 import { AdvisorFollowupNote } from "@/components/records/AdvisorFollowupNote";
@@ -102,6 +103,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 
+// Deep-space reads these four explicit pixel-font labels in Pretendard (the
+// same build-constant swap as Text.tsx #667); the legacy track keeps pixelKo.
+// This is what makes /capture-full read as the deep-space design instead of
+// retro chrome (the gameboy/semantic tokens are already track-aware).
+const CAPTURE_LABEL_FONT = isDeepSpaceUI() ? fontFamilies.readable : fontFamilies.pixelKo;
+
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
 // capture modes live on one screen. "일기" writes to `records` (createRecord —
 // streak / reflection / optional Advisor); the rest write to `sources`
@@ -113,7 +120,7 @@ import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 // text-capture modes that save through createRecord(kind:"note") with a
 // distinguishing tag — no new DB kind is introduced.
 type StorageMode = CaptureDraftMode;
-type Mode = CaptureDraftMode | "voice" | "todo";
+type Mode = CaptureDraftMode | "voice" | "todo" | "fourw";
 type CaptureFeedbackModal = { title: string; body: string; retry?: () => void } | null;
 // One row of the 최근 조각 recent list — a subset of listRecentRecords output.
 type RecentRow = { id: string; kind: string; topic: string | null; body: string | null; created_at: string };
@@ -126,7 +133,7 @@ function isStorageMode(m: Mode): m is StorageMode {
   return (STORAGE_MODES as readonly string[]).includes(m);
 }
 
-const CAPTURE_MODES: Mode[] = ["journal", "memo", "linkclip", "ocr", "voice", "todo", "file"];
+const CAPTURE_MODES: Mode[] = ["journal", "memo", "fourw", "linkclip", "ocr", "voice", "todo", "file"];
 const BASIC_CAPTURE_MODES: Mode[] = ["journal"];
 
 const TRACK_OPTIONS: WikiTrack[] = ["daily", "pro"];
@@ -224,6 +231,15 @@ function ModeGlyph({ mode, color, label }: { mode: Mode; color: string; label: s
           <Path d="M8.5 12 L11 14.5 L15.5 9" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       );
+    case "fourw":
+      return (
+        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
+          <Rect x="4.5" y="4.5" width="6.5" height="6.5" rx="1.5" stroke={color} strokeWidth={sw} fill="none" />
+          <Rect x="13" y="4.5" width="6.5" height="6.5" rx="1.5" stroke={color} strokeWidth={sw} fill="none" />
+          <Rect x="4.5" y="13" width="6.5" height="6.5" rx="1.5" stroke={color} strokeWidth={sw} fill="none" />
+          <Rect x="13" y="13" width="6.5" height="6.5" rx="1.5" stroke={color} strokeWidth={sw} fill="none" />
+        </Svg>
+      );
     case "file":
       return (
         <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
@@ -269,7 +285,10 @@ export default function Capture() {
   return <CaptureLegacy />;
 }
 
-function CaptureLegacy() {
+// Exported for /capture-full: the deep-space track reaches this full multi-mode
+// intake (링크/클립/OCR/파일) through that route, reusing these proven pipes
+// instead of reimplementing them in the design body (QA F1 follow-up).
+export function CaptureLegacy() {
   const { t, i18n } = useTranslation("capture");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -373,6 +392,9 @@ function CaptureLegacy() {
   const [askAdvisor, setAskAdvisor] = useState(false);
   // 할 일(todo) mode: a single done flag persisted into the saved note's tags.
   const [todoDone, setTodoDone] = useState(false);
+  // 4W1H mode (rev2 P4a): five format boxes composed into one note body at
+  // submit. Transient like voice/todo — no draft persistence.
+  const [fourw, setFourw] = useState<FourWFields>(EMPTY_FOURW);
   // 음성(voice) mode: real on-device recording → transcription. The recorder
   // hook is always created (rules-of-hooks); web/permission/platform guards live
   // in the handlers. On web the recorder may be unavailable — the existing typed
@@ -673,6 +695,7 @@ function CaptureLegacy() {
     setConclusion("");
     setShowExtras(false);
     setTodoDone(false);
+    setFourw(EMPTY_FOURW);
     resetTransientCaptureState();
   }
 
@@ -883,6 +906,7 @@ function CaptureLegacy() {
     (mode === "ocr" && hasOcrDraft && ocrReviewApproved) ||
     (mode === "voice" && body.trim().length > 0) ||
     (mode === "todo" && body.trim().length > 0) ||
+    (mode === "fourw" && fourWHasContent(fourw)) ||
     (mode === "file" && (!!pickedFile || body.trim().length > 0))
   );
   const submitAccessibilityHint = canSubmit
@@ -903,7 +927,9 @@ function CaptureLegacy() {
                   ? t("submitHints.voiceRequired")
                   : mode === "todo"
                     ? t("submitHints.todoRequired")
-                    : t("submitHints.writeFirst");
+                    : mode === "fourw"
+                      ? t("submitHints.fourwRequired")
+                      : t("submitHints.writeFirst");
 
   // 일기(journal) mode writes to `records` via createRecord: streak, optional
   // topic/conclusion, and an opt-in Advisor reply. Crisis routing is honoured.
@@ -977,11 +1003,13 @@ function CaptureLegacy() {
   // Voice mode now records real on-device audio (expo-audio) and transcribes it
   // (transcribeAudio) into `body` for review/edit before this save runs; the
   // typed-transcript box stays as the fallback (web / permission denied).
-  async function handleNoteLikeSubmit(noteMode: "voice" | "todo") {
-    if (!userId || !body.trim()) return;
+  async function handleNoteLikeSubmit(noteMode: "voice" | "todo" | "fourw") {
+    // 4W1H composes its five boxes into the note body; voice/todo use the box.
+    const noteBody = noteMode === "fourw" ? composeFourWBody(fourw, locale) : body.trim();
+    if (!userId || !noteBody) return;
     setSubmitting(true);
     try {
-      const baseTag = noteMode === "voice" ? "voice" : "todo";
+      const baseTag = noteMode;
       const tags = [
         baseTag,
         ...(noteMode === "todo" && todoDone ? ["done"] : []),
@@ -992,11 +1020,11 @@ function CaptureLegacy() {
         locale,
         minor: isMinor === true,
         kind: "note",
-        body: body.trim(),
+        body: noteBody,
         tags,
         tier: progression.tier,
       });
-      const savedBody = body.trim();
+      const savedBody = noteBody;
       reset();
       companion.fire("captureSaved");
       setSavedTitle(savedBody.length > 0 ? savedBody : t("savedTitleFallback"));
@@ -1112,7 +1140,7 @@ function CaptureLegacy() {
   async function handleSubmit() {
     if (!userId) return;
     if (mode === "journal") return handleJournalSubmit();
-    if (mode === "voice" || mode === "todo") return handleNoteLikeSubmit(mode);
+    if (mode === "voice" || mode === "todo" || mode === "fourw") return handleNoteLikeSubmit(mode);
     if (submitting) return;
     const submittedMode = mode;
     submitAbortRef.current?.abort();
@@ -1481,6 +1509,7 @@ function CaptureLegacy() {
                     />
                   </View>
                   <Pressable
+                    hitSlop={14}
                     onPress={() => { setProposal(null); setProposalCtx(null); }}
                     style={styles.proposalDismissLink}
                     accessibilityRole="button"
@@ -1694,6 +1723,7 @@ function CaptureLegacy() {
                 </Text>
                 {topic.length === 0 ? (
                   <Pressable
+                    hitSlop={14}
                     onPress={() => setTopic(dailyPrompt(locale))}
                     style={styles.useTopicLink}
                     accessibilityRole="button"
@@ -1712,6 +1742,7 @@ function CaptureLegacy() {
                 autoCapitalize="sentences"
               />
               <Pressable
+                hitSlop={14}
                 onPress={() => setShowExtras((v) => !v)}
                 style={styles.extrasToggleLink}
                 accessibilityRole="button"
@@ -1941,6 +1972,34 @@ function CaptureLegacy() {
                   </Text>
                 </View>
               </Pressable>
+            </View>
+          ) : null}
+
+          {/* 4W1H (rev2 P4a): five format boxes — 누가/언제/어디서/무엇을/어떻게.
+              무엇을 is the one required box; the rest sharpen the piece. Composed
+              into a single #fourw note at submit (composeFourWBody). */}
+          {mode === "fourw" ? (
+            <View style={styles.fieldGroup}>
+              {FOURW_KEYS.map((key) => (
+                <View key={key}>
+                  <Text variant="caption" color={key === "what" ? "brand" : "textMuted"}>
+                    {t(`fourw.fields.${key}`)}
+                  </Text>
+                  <Input
+                    value={fourw[key]}
+                    onChangeText={(text) => setFourw((prev) => ({ ...prev, [key]: text }))}
+                    placeholder={t(`fourw.placeholders.${key}`)}
+                    multiline={key === "what" || key === "how"}
+                    numberOfLines={key === "what" || key === "how" ? 3 : 1}
+                    textAlignVertical={key === "what" || key === "how" ? "top" : "center"}
+                    style={key === "what" || key === "how" ? styles.textarea : undefined}
+                    accessibilityLabel={t(`fourw.fields.${key}`)}
+                  />
+                </View>
+              ))}
+              <Text variant="subtle" color="textSubtle">
+                {t("fourw.note")}
+              </Text>
             </View>
           ) : null}
 
@@ -2420,7 +2479,7 @@ const styles = StyleSheet.create({
   },
   trackChipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   trackGlyph: { width: 16, height: 16 },
-  trackChipText: { color: semantic.textMuted, fontSize: typography.sizes.sm, fontWeight: "600", fontFamily: fontFamilies.pixelKo },
+  trackChipText: { color: semantic.textMuted, fontSize: typography.sizes.sm, fontWeight: "600", fontFamily: CAPTURE_LABEL_FONT },
   trackChipTextActive: { color: semantic.background, fontWeight: "700" },
   modeRow: {
     flexDirection: "row",
@@ -2453,9 +2512,9 @@ const styles = StyleSheet.create({
   },
   modeMoreTabExpanded: { borderColor: semantic.brand },
   modeGlyph: { width: 24, height: 24 },
-  modeLabel: { color: semantic.textMuted, fontSize: typography.sizes.xs, fontWeight: "600", fontFamily: fontFamilies.pixelKo },
+  modeLabel: { color: semantic.textMuted, fontSize: typography.sizes.xs, fontWeight: "600", fontFamily: CAPTURE_LABEL_FONT },
   modeLabelActive: { color: semantic.background, fontWeight: "700" },
-  modeMoreLabel: { color: semantic.brand, fontSize: typography.sizes.sm, fontWeight: "700", fontFamily: fontFamilies.pixelKo },
+  modeMoreLabel: { color: semantic.brand, fontSize: typography.sizes.sm, fontWeight: "700", fontFamily: CAPTURE_LABEL_FONT },
   modeHelp: { lineHeight: 18, marginTop: -spacing.xs },
   fieldGroup: {
     gap: spacing.xs,
@@ -2603,6 +2662,6 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(cosmic.space900, 0.86),
     borderColor: withAlpha(cosmic.mistGray, 0.36),
   },
-  tossBtnText: { color: semantic.background, fontSize: typography.sizes.md, fontWeight: "700", fontFamily: fontFamilies.pixelKo },
+  tossBtnText: { color: semantic.background, fontSize: typography.sizes.md, fontWeight: "700", fontFamily: CAPTURE_LABEL_FONT },
   tossBtnTextDisabled: { color: withAlpha(cosmic.moonWhite, 0.72) },
 });

@@ -5,8 +5,9 @@
 // "결과 보기" CTA is mint-filled, "나중에" is an outline. Token-only, no confetti.
 
 import { useEffect, useRef } from "react";
-import { Animated, Easing, Image, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 import { router, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -53,7 +54,7 @@ export function CompletionToast() {
       <Animated.View style={[styles.toast, { opacity: drop, transform: [{ translateY }] }]}>
         <View style={styles.row}>
           <View style={styles.avatar}>
-            <Image source={HEAD_IMAGE} style={styles.head} resizeMode="contain" />
+            <Image source={HEAD_IMAGE} style={styles.head} contentFit="contain" />
           </View>
           <View style={styles.body}>
             <Text variant="caption" style={styles.title}>{C.done}</Text>

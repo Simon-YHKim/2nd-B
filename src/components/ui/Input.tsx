@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { TextInput, type TextInputProps, StyleSheet, Platform } from "react-native";
 
 import { gameboy } from "@/lib/theme/gameboy-tokens";
@@ -7,7 +7,7 @@ import { fontFamilies } from "@/theme/typography";
 
 export type InputProps = TextInputProps;
 
-export function Input(props: InputProps) {
+export const Input = forwardRef<TextInput, InputProps>((props, ref) => {
   const [focused, setFocused] = useState(false);
   const { style, onFocus, onBlur, accessibilityLabel, placeholder, ...rest } = props;
   const resolvedAccessibilityLabel =
@@ -16,6 +16,7 @@ export function Input(props: InputProps) {
       : accessibilityLabel;
   return (
     <TextInput
+      ref={ref}
       {...rest}
       placeholder={placeholder}
       accessibilityLabel={resolvedAccessibilityLabel}
@@ -43,7 +44,9 @@ export function Input(props: InputProps) {
       ]}
     />
   );
-}
+});
+
+Input.displayName = "Input";
 
 const styles = StyleSheet.create({
   base: {

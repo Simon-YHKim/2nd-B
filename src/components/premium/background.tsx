@@ -9,7 +9,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname } from "expo-router";
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop, Circle, Line } from "react-native-svg";
 import ReAnimated, {
@@ -285,10 +285,10 @@ export function PremiumAppShell({
   glow?: boolean;
   stars?: boolean;
   constellation?: boolean;
-  /** Add the standard horizontal screen padding (matches the legacy Screen). */
   padded?: boolean;
 }) {
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   // When the floating back arrow is shown it sits above the content lane;
   // reserve top padding so first headings never collide with it. This also
   // applies to tab destinations, which still render full screen titles.
@@ -298,20 +298,29 @@ export function PremiumAppShell({
   // hidden behind it. Applies regardless of `padded` (horizontal-only).
   const onTabBar = isTabPath(pathname);
 
+  // Dynamic bottom padding: clears the absolute bottom tab bar, safe area bottom (insets.bottom)
+  // and maintains a visual gap on Android/iOS.
+  const bottomClearance = onTabBar ? TAB_BAR_HEIGHT + spacing.lg + insets.bottom : insets.bottom;
+
+  // Dynamic top padding: states insets.top, plus optional breathing room
+  const topClearance = insets.top + (padded ? spacing.sm : 0) + (padded && needsArrowHeadroom ? 60 : 0);
+
   return (
     <ForceDark>
       <View style={styles.root}>
         <CosmicBackground glow={glow} stars={stars} constellation={constellation} />
-        <SafeAreaView
+        <View
           style={[
             styles.safe,
+            {
+              paddingTop: topClearance,
+              paddingBottom: bottomClearance,
+            },
             padded ? styles.padded : null,
-            padded && needsArrowHeadroom ? styles.arrowHeadroom : null,
-            onTabBar ? styles.tabBarClearance : null,
           ]}
         >
           {children}
-        </SafeAreaView>
+        </View>
       </View>
     </ForceDark>
   );
@@ -320,12 +329,5 @@ export function PremiumAppShell({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: cosmic.space950 },
   safe: { flex: 1 },
-  padded: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  // 40px arrow + breathing room; keeps the back button lane separate from
-  // each screen's first title/eyebrow row.
-  arrowHeadroom: { paddingTop: 60 },
-  // Clears the absolute bottom tab bar (its height) so tab-screen content and
-  // bottom inputs aren't covered. SafeAreaView already adds the safe-area
-  // inset; this is the bar's own height plus a small gap on top.
-  tabBarClearance: { paddingBottom: TAB_BAR_HEIGHT + spacing.lg },
+  padded: { paddingHorizontal: spacing.lg },
 });

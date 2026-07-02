@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
+import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { deepSpace, deepSpaceSpacing, deepSpaceRadii } from "@/lib/theme/tokens";
 import {
@@ -34,6 +35,7 @@ export default function Jot() {
   const { i18n } = useTranslation();
   const ko = i18n.language === "ko";
   const [text, setText] = useState("");
+  const kbHeight = useKeyboard();
   const [items, setItems] = useState<PendingCapture[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -68,7 +70,15 @@ export default function Jot() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[
+            styles.body,
+            Platform.OS === "android" && {
+              paddingBottom: Math.max(deepSpaceSpacing.lg, kbHeight + 24),
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.header}>
             <SecondbHead size={48} mood="positive" />
             <View style={styles.flex}>
@@ -94,6 +104,7 @@ export default function Jot() {
           />
 
           <Pressable
+            hitSlop={14}
             onPress={() => void onSave()}
             disabled={!canSave}
             accessibilityRole="button"
@@ -129,6 +140,7 @@ export default function Jot() {
           ) : null}
 
           <Pressable
+            hitSlop={14}
             onPress={() => router.push("/sign-up")}
             accessibilityRole="button"
             accessibilityLabel={ko ? "계정 만들기" : "Create account"}

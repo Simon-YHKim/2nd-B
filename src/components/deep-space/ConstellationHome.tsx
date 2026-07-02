@@ -6,7 +6,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Line, Polyline, RadialGradient, Stop } from "react-native-svg";
 
-import { deepSpace, deepSpaceGradients, withAlpha } from "@/lib/theme/tokens";
+import { withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { DOMAIN_STARS, type DomainId } from "@/lib/persona/domain-stars";
 import { type LadderLevel } from "@/lib/persona/brightness";
@@ -63,26 +64,26 @@ export function ConstellationHome({
         <Svg width={W} height={STAR_H} viewBox="0 0 320 292" style={styles.svg} pointerEvents="none">
           <Defs>
             <RadialGradient id="ds-star" cx="50%" cy="45%" r="55%">
-              <Stop offset="0" stopColor={deepSpace.accentBright} />
-              <Stop offset="0.72" stopColor={deepSpace.accent} />
-              <Stop offset="1" stopColor={deepSpace.accentDim} />
+              <Stop offset="0" stopColor={m3.accent.star} />
+              <Stop offset="0.72" stopColor={m3.accent.starCore} />
+              <Stop offset="1" stopColor={m3.accent.starDim} />
             </RadialGradient>
             <RadialGradient id="ds-polaris" cx="50%" cy="45%" r="55%">
-              <Stop offset="0" stopColor={deepSpace.textHi} />
-              <Stop offset="0.48" stopColor={deepSpaceGradients.soulCore[0]} />
-              <Stop offset="1" stopColor={deepSpaceGradients.soulCore[1]} />
+              <Stop offset="0" stopColor={m3.accent.skyTextHi} />
+              <Stop offset="0.48" stopColor={m3.accent.polaris} />
+              <Stop offset="1" stopColor={m3.accent.polarisEdge} />
             </RadialGradient>
           </Defs>
           <Polyline
             points="48,238 91,205 133,196 174,206"
             fill="none"
-            stroke={withAlpha(deepSpace.accentDim, 0.34)}
+            stroke={withAlpha(m3.accent.starDim, 0.34)}
             strokeWidth={1.1}
           />
           <Polyline
             points="174,206 206,238 272,204 248,150 174,206"
             fill="none"
-            stroke={withAlpha(deepSpace.accentDim, 0.34)}
+            stroke={withAlpha(m3.accent.starDim, 0.34)}
             strokeWidth={1.1}
           />
           <Line
@@ -90,7 +91,7 @@ export function ConstellationHome({
             y1={150}
             x2={160}
             y2={36}
-            stroke={deepSpace.soulLine}
+            stroke={m3.accent.polarisLine}
             strokeWidth={1}
             strokeDasharray="2 5"
           />
@@ -162,6 +163,10 @@ export function ConstellationHome({
 const styles = StyleSheet.create({
   root: { flex: 1, alignItems: "center", justifyContent: "space-between", paddingBottom: 14 },
   starStage: { position: "relative", width: W, height: STAR_H, marginTop: 0 },
+  // Parity H2 (rev2 01-home): the prototype's constellation glow is a soft
+  // radial wash with NO visible rim — the 1px starCore border drew a clear
+  // ellipse outline around the sky, so it goes, and the wash eases down a step
+  // so the disc reads as light, not as a shape.
   constellationGlow: {
     position: "absolute",
     left: 18,
@@ -169,9 +174,7 @@ const styles = StyleSheet.create({
     width: 284,
     height: 236,
     borderRadius: 142,
-    backgroundColor: withAlpha(deepSpace.bgMid, 0.7),
-    borderWidth: 1,
-    borderColor: withAlpha(deepSpace.accent, 0.12),
+    backgroundColor: withAlpha(m3.accent.skySurface, 0.55),
   },
   svg: { position: "absolute", top: 0, left: 0 },
   polarisHit: {
@@ -192,7 +195,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 60,
     textAlign: "center",
-    color: withAlpha(deepSpace.text, 0.62),
+    color: withAlpha(m3.accent.skyText, 0.62),
     fontSize: 9,
     lineHeight: 12,
     fontFamily: fontFamilies.readable,
@@ -201,7 +204,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 120,
     textAlign: "center",
-    color: withAlpha(deepSpace.textHi, 0.82),
+    color: withAlpha(m3.accent.skyTextHi, 0.82),
     fontSize: 10,
     lineHeight: 13,
     fontWeight: "600",
@@ -216,7 +219,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     textAlign: "center",
-    color: withAlpha(deepSpace.text, 0.66),
+    color: withAlpha(m3.accent.skyText, 0.66),
     fontSize: 12,
     lineHeight: 18,
     fontFamily: fontFamilies.readable,

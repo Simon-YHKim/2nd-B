@@ -44,8 +44,9 @@ export function DeepSpaceHomeScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.phone}>
-        <View style={styles.starField} pointerEvents="none">
+      <View style={styles.phoneShadow}>
+        <View style={styles.phone}>
+          <View style={styles.starField} pointerEvents="none">
           <View style={[styles.microStar, styles.microStarA]} />
           <View style={[styles.microStar, styles.microStarB]} />
           <View style={[styles.microStar, styles.microStarC]} />
@@ -109,6 +110,7 @@ export function DeepSpaceHomeScreen() {
         <View style={styles.secondbHero} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <SecondbHead mood="positive" size={118} />
         </View>
+        </View>
       </View>
     </View>
   );
@@ -123,20 +125,26 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     backgroundColor: colors.bgDeep,
   },
-  phone: {
-    position: "relative",
+  phoneShadow: {
     width: 320,
     height: 680,
-    overflow: "hidden",
     borderRadius: radius.phone,
-    backgroundColor: colors.bgDeep,
-    borderWidth: 1,
-    borderColor: colors.borderHi,
     shadowColor: colors.bgDeep,
     shadowOpacity: 0.6,
     shadowRadius: 80,
     shadowOffset: { width: 0, height: 30 },
     elevation: 10,
+    backgroundColor: "transparent",
+  },
+  phone: {
+    position: "relative",
+    width: "100%",
+    height: "100%",
+    overflow: "hidden",
+    borderRadius: radius.phone,
+    backgroundColor: colors.bgDeep,
+    borderWidth: 1,
+    borderColor: colors.borderHi,
   },
   starField: {
     position: "absolute",

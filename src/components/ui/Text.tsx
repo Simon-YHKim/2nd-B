@@ -1,7 +1,9 @@
-import { Text as RNText, type TextProps as RNTextProps } from "react-native";
+import { Text as RNText, type TextProps as RNTextProps, Platform } from "react-native";
 
 import { semantic, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { m3 } from "@/lib/theme/m3";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useThemePalette } from "@/lib/theme/ThemeContext";
 
@@ -26,11 +28,18 @@ const VARIANT_STYLE: Record<Variant, { fontSize: number; fontWeight: "400" | "50
   subtle: { fontSize: typography.sizes.xs, fontWeight: "400" },
 };
 
+// rev2 M3 track (REV2-MIGRATION P1/P2-cont): the deep-space build retires pixel
+// chrome — display/heading/caption render Pretendard, and pixelEn micro-labels
+// render Roboto Mono (m3.font.mono). The legacy track (EXPO_PUBLIC_UI=legacy
+// rollback) keeps the cosmic-pixel fonts unchanged. isDeepSpaceUI() is
+// build-constant, so this resolves once per bundle, not per render.
+const DS_M3 = isDeepSpaceUI();
+
 const VARIANT_FONT: Record<Variant, string | undefined> = {
-  display: fontFamilies.pixelKo,
-  heading: fontFamilies.pixelKo,
+  display: DS_M3 ? fontFamilies.readable : fontFamilies.pixelKo,
+  heading: DS_M3 ? fontFamilies.readable : fontFamilies.pixelKo,
   body: fontFamilies.readable,
-  caption: fontFamilies.pixelKo,
+  caption: DS_M3 ? fontFamilies.readable : fontFamilies.pixelKo,
   subtle: fontFamilies.readable,
 };
 
@@ -46,7 +55,7 @@ export function Text({ variant = "body", color, style, maxFontSizeMultiplier, pi
   const fontFamily = fontStyle === "readable"
     ? fontFamilies.readable
     : pixelEn
-      ? fontFamilies.pixelEn
+      ? (DS_M3 ? m3.font.mono : fontFamilies.pixelEn)
       : VARIANT_FONT[variant];
 
   // Set logical font scale limits based on variant.
@@ -59,6 +68,7 @@ export function Text({ variant = "body", color, style, maxFontSizeMultiplier, pi
       {...rest}
       style={[
         { color: palette[color ?? "text"], fontSize: v.fontSize, fontWeight: v.fontWeight, fontFamily },
+        rest.numberOfLines !== undefined && Platform.OS === "android" && { paddingBottom: 1.5 },
         style,
       ]}
     />

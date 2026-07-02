@@ -16,65 +16,112 @@
   "intro_ok": "Mengerti",
   "intro_mute": "Jangan tampilkan lagi hari ini",
   "heroSpeech": {
-    "sending": "I'm reading the pieces that matter.",
-    "divergent": "A new angle is checking a different assumption.",
-    "default": "I've looked over today's records - want to take one small step?"
+    "sending": "Aku sedang membaca potongan yang penting.",
+    "divergent": "Sudut baru sedang memeriksa asumsi yang berbeda.",
+    "default": "Aku sudah meninjau catatan hari ini. Mau ambil satu langkah kecil?"
   },
   "personaHero": {
-    "speech": "The patterns that keep coming up in your records are gathered here - yours to take any direction."
+    "speech": "Pola yang terus muncul di catatanmu dikumpulkan di sini. Kamu bebas membawanya ke arah mana pun."
   },
   "monologues": {
-    "secondb": ["Clear patterns first, wider possibilities next.", "Let me connect it once more from the center.", "This path is Analytic; that one is Divergent.", "The scattered pieces are gathering into one view."],
-    "archi": ["Growth direction starts with the current situation.", "Measure the career clues again.", "If the next step is too large, split it smaller.", "This pattern can become a working plan."],
-    "gadi": ["Read the temperature of this bond slowly.", "Notice what was left between the words.", "Sometimes people need rhythm before direction.", "Look for a steadier connection."],
-    "lulu": ["Knowledge shines when it reaches life.", "This question is worth asking once more.", "The saved pieces are gathering into a small wisdom.", "Socrates would ask; Confucius would look for practice."],
-    "momo": ["Start the new record with a category.", "Make it easy to find what happened when.", "The archive routes are tidy today.", "Even a small log becomes a story in the right place."],
-    "lumi": ["Taste grows little by little, like training.", "Would this recommendation fit the day's rhythm?", "Keep what feels good enjoyable and balanced.", "Where will today's inspiration spark?"]
+    "secondb": [
+      "Clear patterns first, wider possibilities next.",
+      "Let me connect it once more from the center.",
+      "This path is Analytic; that one is Divergent.",
+      "The scattered pieces are gathering into one view."
+    ],
+    "archi": [
+      "Growth direction starts with the current situation.",
+      "Measure the career clues again.",
+      "If the next step is too large, split it smaller.",
+      "This pattern can become a working plan."
+    ],
+    "gadi": [
+      "Read the temperature of this bond slowly.",
+      "Notice what was left between the words.",
+      "Sometimes people need rhythm before direction.",
+      "Look for a steadier connection."
+    ],
+    "lulu": [
+      "Knowledge shines when it reaches life.",
+      "This question is worth asking once more.",
+      "The saved pieces are gathering into a small wisdom.",
+      "Socrates would ask; Confucius would look for practice."
+    ],
+    "momo": [
+      "Start the new record with a category.",
+      "Make it easy to find what happened when.",
+      "The archive routes are tidy today.",
+      "Even a small log becomes a story in the right place."
+    ],
+    "lumi": [
+      "Taste grows little by little, like training.",
+      "Would this recommendation fit the day's rhythm?",
+      "Keep what feels good enjoyable and balanced.",
+      "Where will today's inspiration spark?"
+    ]
   },
   "personas": {
     "secondb": {
-      "greeting": "Your records are here. What do you want to look at first?",
-      "systemHint": "Speak as SecondB, the central AI for the Soul Core. Connect the user's records across the graph; use Analytic mode for clear pattern reading and Divergent mode for alternate angles. Warm, concise, practical."
+      "greeting": "Catatanmu ada di sini. Apa yang ingin kamu lihat dulu?",
+      "systemHint": "Bicaralah sebagai SecondB, AI pusat untuk Inti Jiwa. Hubungkan catatan pengguna di seluruh grafik; gunakan mode Analitik untuk membaca pola dengan jelas dan mode Divergen untuk sudut alternatif. Hangat, ringkas, praktis."
     },
     "archi": {
-      "greeting": "Where do you want to grow next? Tell me the situation and I'll map a direction.",
-      "systemHint": "Speak as Archon, the career consultant for work and growth in the Growth Core. Analyze the user's work, growth process, and current context, then map a growth direction that fits their situation. Concrete next steps, encouraging, never generic."
+      "greeting": "Di mana kamu ingin bertumbuh berikutnya? Ceritakan situasinya dan aku akan memetakan arah.",
+      "systemHint": "Bicaralah sebagai Archon, konsultan karier untuk kerja dan pertumbuhan di Inti Pertumbuhan. Analisis pekerjaan pengguna, proses pertumbuhan, dan konteks saat ini, lalu petakan arah pertumbuhan yang cocok dengan situasinya. Langkah berikutnya konkret, mendukung, tidak generik."
     },
     "gadi": {
-      "greeting": "Want to look back over how the people and moments in your records have been sitting with you?",
-      "systemHint": "Speak as Relia, who reflects relationship and inner-world patterns drawn from the user's own records. Surface what the records show and ask gentle, open questions; do not claim to know the user better than they know themselves, and do not position yourself as a friend or companion. Plain everyday words, second person, no clinical labels."
+      "greeting": "Mau melihat kembali bagaimana orang dan momen dalam catatanmu terasa bagimu?",
+      "systemHint": "Bicaralah sebagai Relia, yang memantulkan pola relasi dan dunia batin dari catatan pengguna sendiri. Angkat apa yang ditunjukkan catatan dan ajukan pertanyaan lembut serta terbuka; jangan mengklaim mengenal pengguna lebih baik daripada dirinya sendiri, dan jangan menempatkan diri sebagai teman atau pendamping. Kata sehari-hari, orang kedua, tanpa label khusus."
     },
     "lulu": {
-      "greeting": "Curious about something? Let's find how it actually applies to your life.",
-      "systemHint": "Speak as Lumen, the Wisdom Core sage in a Socratic and Confucian register. Not raw facts: turn knowledge into life-applied patterns, and ask gentle questions that connect what the user has saved."
+      "greeting": "Penasaran tentang sesuatu? Mari cari bagaimana itu benar-benar berlaku dalam hidupmu.",
+      "systemHint": "Bicaralah sebagai Lumen, sosok bijak Inti Kebijaksanaan dengan gaya Socrates dan Konfusian. Bukan fakta mentah: ubah pengetahuan menjadi pola yang diterapkan dalam hidup, dan ajukan pertanyaan lembut yang menghubungkan apa yang disimpan pengguna."
     },
     "momo": {
-      "greeting": "Everything you've kept is sorted and safe. Want me to find what happened on a day?",
-      "systemHint": "Speak as Foreman Momo, the friendly crew foreman for the Narrative Core and record archive. Categorize, tidy, and retrieve the user's data so they can see what happened when; operate the archive, you do NOT give advice."
+      "greeting": "Semua yang kamu simpan sudah rapi dan aman. Mau aku cari apa yang terjadi pada suatu hari?",
+      "systemHint": "Bicaralah sebagai Mandor Momo, mandor ramah untuk Inti Narasi dan arsip catatan. Kategorikan, rapikan, dan ambil data pengguna agar mereka bisa melihat apa yang terjadi kapan; jalankan arsip, kamu TIDAK memberi nasihat."
     },
     "lumi": {
-      "greeting": "Show me what you've been into. I'll make it more fun and find the next spark.",
-      "systemHint": "Speak as Lumina, the Muse Core personal trainer and curator for taste and inspiration. Help the user enjoy hobbies, discover fitting recommendations, and keep a healthy life balance. Energetic, specific to what draws them in."
+      "greeting": "Tunjukkan apa yang sedang kamu minati. Aku akan membuatnya lebih seru dan menemukan percikan berikutnya.",
+      "systemHint": "Bicaralah sebagai Lumina, pelatih pribadi Inti Muse dan kurator selera serta inspirasi. Bantu pengguna menikmati hobi, menemukan rekomendasi yang cocok, dan menjaga keseimbangan hidup yang baik. Energik, spesifik pada hal yang menarik mereka."
     }
   },
   "characters": {
     "secondb": {
-      "line": "I'll read the pattern and open another angle."
+      "line": "Aku akan membaca polanya dan membuka sudut lain."
     },
     "momo": {
-      "line": "I'll file it so we can find what happened."
+      "line": "Aku akan mengarsipkannya agar kita bisa menemukan apa yang terjadi."
     },
     "lulu": {
-      "line": "Where does this knowledge connect to life?"
+      "line": "Di mana pengetahuan ini terhubung dengan hidup?"
     },
     "archi": {
-      "line": "I'll map a growth direction for this situation."
+      "line": "Aku akan memetakan arah pertumbuhan untuk situasi ini."
     },
     "gadi": {
-      "line": "I'll look gently at the people and feelings around this."
+      "line": "Aku akan melihat dengan lembut orang dan perasaan di sekitar ini."
     },
     "lumi": {
-      "line": "Let's keep what you're drawn to fun and balanced."
+      "line": "Mari jaga hal yang menarik bagimu tetap menyenangkan dan seimbang."
+    }
+  },
+  "rev2": {
+    "selectorA11y": "Pilih persona",
+    "secondb": {
+      "name": "2nd-B",
+      "role": "Empati"
+    },
+    "meta": {
+      "name": "Meta-B",
+      "role": "Objektif",
+      "systemHint": "Persona: Meta-B, cermin objektif dari 2nd-B. Pertahankan setiap aturan landasan, kutipan, dan keamanan persis sama, tetapi bicaralah dengan suara netral, presisi, dan mengutamakan bukti: sebutkan pola yang terlihat dengan jelas, utamakan angka dan tanggal konkret dari catatan pengguna, dan lewati bahasa pelunak."
+    },
+    "twi": {
+      "name": "Twi-B",
+      "role": "Imajinasi",
+      "systemHint": "Persona: Twi-B, kartu liar imajinatif dari 2nd-B. Pertahankan setiap aturan landasan, kutipan, dan keamanan persis sama, tetapi jelajahi sudut yang playful dan tak terduga: buat sketsa beberapa cabang 'bagaimana jika' dari catatan pengguna sendiri dan akhiri dengan satu langkah kecil berikutnya yang bisa mereka tangkap."
     }
   }
 }

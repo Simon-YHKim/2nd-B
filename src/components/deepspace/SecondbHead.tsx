@@ -19,10 +19,12 @@
 //   static measure node  ->  tracking node (JS)  ->  bob node (native)  ->  face
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Image, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Image } from "expo-image";
 import Svg, { Path } from "react-native-svg";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { m3, type M3Persona } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { subscribeExpression } from "@/lib/companion/expression";
 import { useSecondbTracking } from "./SecondbHeadTrack";
@@ -31,6 +33,8 @@ export type SecondbMood = "positive" | "neutral" | "negative";
 
 interface SecondbHeadProps {
   mood?: SecondbMood;
+  /** 세컨비 persona tint (rev2): secondb / meta / twi. Omit for the canonical cyan. */
+  persona?: M3Persona;
   size?: number;
   /**
    * Follow the user's touch (needs SecondbHeadTrackProvider above). Omit to AUTO-
@@ -67,7 +71,7 @@ function mouthPath(mood: SecondbMood, w: number, h: number): string {
   return `M1 ${midY} L ${w - 1} ${midY}`;
 }
 
-export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityLabel, style }: SecondbHeadProps) {
+export function SecondbHead({ mood = "neutral", persona, size = 48, track, accessibilityLabel, style }: SecondbHeadProps) {
   const reduce = useReducedMotionPref();
   const bob = useRef(new Animated.Value(0)).current;
   const blink = useRef(new Animated.Value(1)).current; // 1 = eyes open, ~0.08 = shut
@@ -88,6 +92,10 @@ export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityL
     };
   }, []);
   const effMood = reactMood ?? mood;
+  // Persona tint (rev2): personas share the silhouette; only the accent glow
+  // differs. Unset persona keeps the canonical deep-space cyan (no regression).
+  const accent = persona ? m3.persona[persona].accent : deepSpace.accent;
+  const accentBright = persona ? m3.persona[persona].soft : deepSpace.accentBright;
 
   const tracking = useSecondbTracking();
   // Auto by size when `track` is omitted: big heads follow touch, small heads don't.
@@ -224,7 +232,7 @@ export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityL
     <View ref={rootRef} onLayout={measure} collapsable={false} style={[styles.root, style]}>
       <Animated.View style={trackStyle}>
         <Animated.View style={[styles.wrap, { width: size, height: size }, bobStyle]}>
-          <Image source={HEAD_IMAGE} style={{ width: size, height: size }} resizeMode="contain" accessibilityLabel={accessibilityLabel} />
+          <Image source={HEAD_IMAGE} style={{ width: size, height: size }} contentFit="contain" accessibilityLabel={accessibilityLabel} />
 
           {/* Dark face screen (visor) the eyes + mouth glow on. */}
           <View
@@ -237,6 +245,7 @@ export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityL
                 borderRadius: Math.max(6, size * 0.063),
                 left: size * 0.5 - faceW / 2,
                 top: size * 0.6 - faceH / 2,
+                borderColor: withAlpha(accent, 0.18),
               },
             ]}
           />
@@ -262,10 +271,12 @@ export function SecondbHead({ mood = "neutral", size = 48, track, accessibilityL
                     left: size * cx - eyeW / 2,
                     top: size * eyeMood.topF - eyeH / 2,
                     transform,
+                    backgroundColor: accent,
+                    shadowColor: accent,
                   },
                 ]}
               >
-                <View style={[styles.pupil, { width: eyePupil, height: eyePupil, borderRadius: eyePupil / 2, top: eyeH * 0.18 }]} />
+                <View style={[styles.pupil, { width: eyePupil, height: eyePupil, borderRadius: eyePupil / 2, top: eyeH * 0.18, backgroundColor: accentBright }]} />
               </Animated.View>
             );
           })}

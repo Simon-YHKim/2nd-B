@@ -8,8 +8,9 @@
     "journalLocked": "Alcance Lv{{level}} antes de salvar uma entrada de diário.",
     "journalLimit": "As entradas gratuitas do diário acabaram. Outros modos de captura ainda estão disponíveis.",
     "saving": "O salvamento já está em andamento.",
-    "voiceRequired": "Write the voice memo text before saving.",
-    "todoRequired": "Write the task before saving."
+    "voiceRequired": "Escreva o texto da nota de voz antes de salvar.",
+    "todoRequired": "Escreva a tarefa antes de salvar.",
+    "fourwRequired": "Preencha primeiro a caixa O quê"
   },
   "savedTitleFallback": "Peça de hoje",
   "loading": "Carregando captura...",
@@ -69,12 +70,16 @@
       "help": "Escolha um PDF, DOCX ou arquivo de texto. Salvamos o texto legível."
     },
     "voice": {
-      "label": "Voice",
-      "help": "Record a voice memo. We turn it into text you can review and edit before saving."
+      "label": "Voz",
+      "help": "Grave uma nota de voz. Nós a transformamos em texto para você revisar e editar antes de salvar."
     },
     "todo": {
-      "label": "To do",
-      "help": "Write a task. It saves as a to-do piece with a done flag."
+      "label": "Tarefa",
+      "help": "Escreva uma tarefa. Ela será salva como uma peça de tarefa com marca de concluída."
+    },
+    "fourw": {
+      "label": "4W1H",
+      "help": "Cinco caixas: quem, quando, onde, o quê, como"
     }
   },
   "formatSaved": {
@@ -270,30 +275,47 @@
     }
   },
   "voice": {
-    "label": "Voice memo",
-    "placeholder": "Record above, or type what you heard...",
-    "note": "Record a voice memo and we turn it into text. Review and edit it, then save.",
-    "record": "Record",
-    "recordHint": "Starts recording a voice memo from your microphone.",
-    "stop": "Stop and transcribe",
-    "stopHint": "Stops recording and turns your voice memo into text.",
-    "recording": "Recording...",
-    "transcribing": "Turning your voice into text...",
-    "webFallback": "Recording is not available here. Type what you heard instead.",
-    "permissionDenied": "Microphone access is off. Type what you heard, or allow the microphone in settings.",
-    "recordFailed": "Couldn't start recording. Type what you heard instead.",
-    "transcribeFailed": "Couldn't turn that recording into text. Try again, or type what you heard.",
-    "transcriptEmpty": "We couldn't make out any words. Try again closer to the microphone, or type it."
+    "label": "Nota de voz",
+    "placeholder": "Grave acima ou digite o que ouviu...",
+    "note": "Grave uma nota de voz e nós a transformamos em texto. Revise, edite e salve.",
+    "record": "Gravar",
+    "recordHint": "Começa a gravar uma nota de voz pelo seu microfone.",
+    "stop": "Parar e transcrever",
+    "stopHint": "Para a gravação e transforma sua nota de voz em texto.",
+    "recording": "Gravando...",
+    "transcribing": "Transformando sua voz em texto...",
+    "webFallback": "A gravação não está disponível aqui. Digite o que ouviu.",
+    "permissionDenied": "O acesso ao microfone está desativado. Digite o que ouviu ou permita o microfone nas configurações.",
+    "recordFailed": "Não foi possível iniciar a gravação. Digite o que ouviu.",
+    "transcribeFailed": "Não foi possível transformar essa gravação em texto. Tente de novo ou digite o que ouviu.",
+    "transcriptEmpty": "Não conseguimos distinguir nenhuma palavra. Tente de novo mais perto do microfone ou digite."
   },
   "todo": {
-    "label": "To do",
-    "placeholder": "Write a task in one line...",
-    "doneToggle": "Mark as done",
-    "doneHelper": "Turn on if it is already finished. You can change it later."
+    "label": "Tarefa",
+    "placeholder": "Escreva uma tarefa em uma linha...",
+    "doneToggle": "Marcar como concluída",
+    "doneHelper": "Ative se já estiver concluída. Você pode mudar depois."
   },
   "recent": {
-    "title": "Recent pieces",
-    "openHint": "Opens this entry in full.",
-    "empty": "No saved pieces yet."
+    "title": "Peças recentes",
+    "openHint": "Abre esta entrada completa.",
+    "empty": "Ainda não há peças salvas."
+  },
+  "fourw": {
+    "fields": {
+      "who": "Quem",
+      "when": "Quando",
+      "where": "Onde",
+      "what": "O quê (obrigatório)",
+      "how": "Como"
+    },
+    "placeholders": {
+      "who": "Quem participou?",
+      "when": "Quando aconteceu?",
+      "where": "Onde você estava?",
+      "what": "O que aconteceu, ou do que se trata?",
+      "how": "Como foi? Algum porquê que valha guardar?"
+    },
+    "note": "Somente caixas preenchidas são salvas, como uma peça com a tag #fourw."
   }
 }

@@ -11,7 +11,7 @@ import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { SeenLensView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { buildPersona, type PersonaCard } from "@/lib/persona/build";
+import { buildPersona, instrumentLabel, isMeasuredSource, type PersonaCard } from "@/lib/persona/build";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
 import { brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
 import { buildCenterCards } from "@/lib/persona/center";
@@ -21,6 +21,7 @@ import { labelFramework } from "@/lib/audit/frameworkLabels";
 import type { Framework } from "@/lib/audit/questions";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
+import { ReflectionScaffold } from "@/components/persona/ReflectionScaffold";
 
 type PersonaToast = { message: string; tone: "info" | "success" | "danger" };
 
@@ -128,12 +129,14 @@ function PersonaLegacy() {
     // ECR-first activation: the 12-item attachment check is the cheapest validated
     // instrument and lights star5 straight to ladder L4, so it leads as the fast
     // first-value path (the others follow). `fast` flags the lead card's accent.
-    const toolCards: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" | "/mbti"; fast?: boolean }[] =
+    const toolCards: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" | "/mbti" | "/ipip-neo" | "/rlss"; fast?: boolean }[] =
       locale === "ko"
         ? [
             { label: "애착 스타일 / Attachment", sub: "12문항 · 약 3분 · 별 하나 바로 켜져요", route: "/attachment", fast: true },
             { label: "라이프 오딧", sub: "25문항 · 약 8분", route: "/audit" },
             { label: "Big Five (BFI-44)", sub: "44문항 · 약 8분", route: "/big-five" },
+            { label: "성격 정밀검사 (IPIP-NEO-120)", sub: "120문항 · 약 15분 · facet 30개", route: "/ipip-neo" },
+            { label: "삶의 만족도 / RLSS", sub: "6문항 · 약 2분", route: "/rlss" },
             // Live QA 2026-06-11: /mbti 검사 화면에 진입점이 없었음 - 결과 카드는
             // 데이터가 있어야만 떠서, 검사를 시작할 방법 자체가 없었다.
             { label: "MBTI", sub: "유형 입력 · 약 3분", route: "/mbti" },
@@ -142,6 +145,8 @@ function PersonaLegacy() {
             { label: "애착 스타일 / Attachment", sub: "12 items · ~3 min · lights one star now", route: "/attachment", fast: true },
             { label: "Life audit", sub: "25 items · ~8 min", route: "/audit" },
             { label: "Big Five (BFI-44)", sub: "44 items · ~8 min", route: "/big-five" },
+            { label: "Personality, in depth (IPIP-NEO-120)", sub: "120 items · ~15 min · 30 facets", route: "/ipip-neo" },
+            { label: "Life Satisfaction / RLSS", sub: "6 items · ~2 min", route: "/rlss" },
             { label: "MBTI", sub: "Type check-in · ~3 min", route: "/mbti" },
           ];
     return (
@@ -215,10 +220,10 @@ function PersonaLegacy() {
           eyebrow={locale === "ko" ? "07. 나의 모습" : "07. Self model"}
           title={locale === "ko" ? "자기 모델이 하나로 모였어요" : "Your self-model is gathered"}
           subtitle={
-            persona.traitsSource === "bfi"
+            isMeasuredSource(persona.traitsSource)
               ? locale === "ko"
-                ? "BFI-44 실측 · 애착 합성"
-                : "BFI-44 measurement · attachment combined"
+                ? `${instrumentLabel(persona.traitsSource)} 실측 · 애착 합성`
+                : `${instrumentLabel(persona.traitsSource)} measurement · attachment combined`
               : locale === "ko"
                 ? "일기 기반 추정 · 평가하면 실측으로 업데이트"
                 : "Journal-based estimate · assessments update it"
@@ -295,6 +300,10 @@ function PersonaLegacy() {
           </Text>
           <Text variant="body" style={{ marginTop: spacing.xs }}>{persona.patterns.summary}</Text>
         </View>
+
+        {Object.entries(persona.patterns).filter(([k]) => k.startsWith("top_")).length > 0 ? (
+          <ReflectionScaffold locale={locale} />
+        ) : null}
 
         {Object.entries(persona.patterns).filter(([k]) => k.startsWith("top_")).length > 0 ? (
           <View style={styles.patternsCard}>

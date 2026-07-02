@@ -9,8 +9,10 @@ import { getSupabaseClient } from "../supabase/client";
 import {
   DEFAULT_TRAITS,
   deriveValues,
+  isMeasuredSource,
   loadLatestAttachment,
   loadLatestBfi,
+  loadLatestIpip,
   loadMemorizedHistogram,
   traitConfidenceFor,
   type AuditResponseRow,
@@ -42,16 +44,20 @@ export async function loadStarLevels(userId: string): Promise<StarBrightness> {
   // heuristic observation count.
   const proxyRows = rows.filter((r) => !(r.tags ?? []).includes("interview"));
 
-  const [bfi, attachment, memorized] = await Promise.all([
+  const [ipip, bfi, attachment, memorized] = await Promise.all([
+    loadLatestIpip(supabase, userId),
     loadLatestBfi(supabase, userId),
     loadLatestAttachment(supabase, userId),
     loadMemorizedHistogram(supabase, userId),
   ]);
 
-  const traitsSource: TraitsSource = bfi ? "bfi" : "heuristic";
+  // Prefer the more detailed instrument (IPIP-NEO-120 > BFI-44) for the
+  // constellation's brightness, mirroring buildPersona. A 120-item IPIP result
+  // with no BFI now lights the validated-instrument level instead of heuristic.
+  const traitsSource: TraitsSource = ipip ? "ipip" : bfi ? "bfi" : "heuristic";
   const tc: TraitConfidence = traitConfidenceFor(
     traitsSource,
-    traitsSource === "bfi" ? 1 : proxyRows.length,
+    isMeasuredSource(traitsSource) ? 1 : proxyRows.length,
   );
   const traitConfidence: Record<keyof PersonaTraits, TraitConfidence> = {
     openness: tc,

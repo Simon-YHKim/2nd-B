@@ -18,7 +18,15 @@ export type Framework =
   | "via:character_strength"
   | "attachment:secure"
   | "attachment:anxiety"
-  | "attachment:avoidance";
+  | "attachment:avoidance"
+  // Schwartz-anchored values vocabulary (rev2 P3b 가치관 체크) — self-check
+  // reflections only; no proprietary instrument items are bundled.
+  | "values:self_direction"
+  | "values:stimulation"
+  | "values:authenticity"
+  | "values:benevolence"
+  | "values:achievement"
+  | "values:security";
 
 export interface AuditQuestion {
   id: string;

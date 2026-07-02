@@ -47,6 +47,33 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/persona",
   "/account",
   "/ops",
+  // /wiki joined the dock as a 5-tab root in P2-cont (#658 wraps it in
+  // DeepSpaceScreen), so the floating BackArrow chip must hide there too.
+  "/wiki",
+  // P4c/d/e lens screens (people map / career CV timeline / rest board) all
+  // render inside DeepSpaceScreen — same rule: the dock is the nav, no chip.
+  "/people",
+  "/career",
+  "/rest",
+  // P3/P5 self-understanding + sharing screens — surfaced by the dock-drift
+  // guard test (they render DeepSpaceScreen directly, so the chip must hide).
+  "/brightness",
+  "/ipip-neo",
+  "/ratifications",
+  "/rlss",
+  "/share-card",
+  // AI 뮤지엄 (rev2 2-axis timeline) — the route file delegates, so the drift
+  // guard's direct-render scan doesn't see it; registered here by hand.
+  "/museum",
+  // 커리어 3C4P Drill Down (P4d) — direct-render dock screen.
+  "/career-drilldown",
+  // 가치관 체크 (P3b) — thin route over AxisCheckScreen, so the drift guard's
+  // direct-render scan doesn't see it; registered by hand like /museum.
+  "/values",
+  // 담기 풀 모드 (링크/클립/OCR/파일) — deep-space shell over the legacy pipes.
+  "/capture-full",
+  // 북극성 문장 편집 (Screen-Spec 21) — direct-render dock screen.
+  "/northstar",
 ] as const;
 
 export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];

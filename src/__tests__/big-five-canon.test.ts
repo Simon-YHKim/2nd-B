@@ -14,8 +14,13 @@ import path from "node:path";
  * Source-discipline test (read the source, assert the invariant) mirroring
  * ui-mode-flags.test.ts / deep-space-canon-no-legacy.test.ts, so it needs no
  * React Native render mocks and stays robust across deep-space churn.
+ *
+ * NOTE: this lives in src/__tests__ (NOT src/app/__tests__) on purpose — anything
+ * under src/app is bundled by expo-router's require.context, and this file's
+ * `node:fs` import breaks the native/OTA Hermes bundle. It reads big-five.tsx by
+ * repo-relative path, so its location does not matter.
  */
-const SRC = fs.readFileSync(path.resolve(__dirname, "../big-five.tsx"), "utf8");
+const SRC = fs.readFileSync(path.resolve(__dirname, "../app/big-five.tsx"), "utf8");
 
 describe("big-five canon wiring discipline", () => {
   test("the bfi-tagged questionnaire writer still exists", () => {

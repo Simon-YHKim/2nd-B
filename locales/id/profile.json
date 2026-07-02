@@ -36,8 +36,16 @@
           "label": "Big Five",
           "hint": "Membuka asesmen Big Five."
         },
+        "rlss": {
+          "label": "Kepuasan hidup",
+          "hint": "Membuka asesmen kepuasan hidup (RLSS)."
+        },
+        "ipip": {
+          "label": "IPIP-NEO-120",
+          "hint": "Membuka asesmen mendalam (IPIP-NEO-120)."
+        },
         "attachment": {
-          "label": "Attachment",
+          "label": "Ikatan",
           "hint": "Membuka asesmen gaya attachment."
         },
         "mbti": {

@@ -1,8 +1,12 @@
-// First-day TTFV "첫날 자기이해 한 컷" (first-day self-understanding) onboarding.
-// A single deep-space screen with TWO internal states (propose -> ratify): it
-// surfaces ONE self-understanding insight via one of the 북두칠성 7 stars and
-// lets the user ratify it. Brightness (L1->L2) rises only on explicit ratify, so
-// this is a propose->ratify gesture, not an auto-write.
+// First-day TTFV "첫날 자기이해 한 컷" — First Light (rev2 Screen-Spec 03,
+// A안 per Simon 2026-07-02). A single deep-space screen with TWO internal
+// states (propose -> ratify): it surfaces ONE self-understanding insight via
+// one of the 북두칠성 7 stars and lets the user ratify it. Brightness (L1->L2)
+// rises only on explicit ratify, so this is a propose->ratify gesture, not an
+// auto-write. Per the spec, "조금 달라요" is a SOFT ratify — the star still
+// lights (the user's correction is itself a signal), the copy just softens;
+// only the back button leaves without lighting. Both answers append a
+// first_light-tagged record so the ratify ledger keeps the moment.
 //
 // ONE message + ONE graphic per state (Information Density rule). Visual Tier
 // System is enforced in the constellation: Tier 1 북극성(Soul Core) dominates
@@ -22,6 +26,8 @@ import Svg, { Circle, Line, Polyline } from "react-native-svg";
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
 import { SecondbStatusHeader } from "@/components/deepspace";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { createRecord } from "@/lib/records/create";
 
 /**
  * One ratifiable self-understanding insight. Static prop data for now; the real
@@ -79,10 +85,35 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const t = (k: string) => COPY(ko)[k] ?? k;
+  const { userId, isMinor } = useAuth();
 
   const [phase, setPhase] = useState<Phase>("propose");
+  const [soft, setSoft] = useState(false);
   const [size, setSize] = useState(VIEWBOX);
   const bloom = useRef(new Animated.Value(0)).current;
+
+  // Spec 03: both answers ratify (the star lights either way — a correction is
+  // still a signal). The answer is kept as a first_light-tagged record so the
+  // moment lands in the ledger; the honest brightness engine stays untouched
+  // (it counts records, and this IS one). Fire-and-forget: a save hiccup must
+  // never block the first-light moment.
+  const ratify = (softAnswer: boolean) => {
+    setSoft(softAnswer);
+    setPhase("ratify");
+    if (!userId) return;
+    const phraseText = ko ? insight.phraseKo : insight.phraseEn;
+    void createRecord({
+      userId,
+      locale: ko ? "ko" : "en",
+      minor: isMinor === true,
+      kind: "note",
+      body: ko
+        ? `첫 통찰: "${phraseText}" — ${softAnswer ? "조금 다르게 느껴요" : "맞아요"}`
+        : `First light: "${phraseText}" — ${softAnswer ? "feels a little different" : "that's right"}`,
+      withFollowup: false,
+      tags: ["first_light", softAnswer ? "first_light:soft" : "first_light:affirm"],
+    }).catch(() => {});
+  };
 
   // Ratify brightens the lit star one level with a calm fade + bloom (no bounce).
   useEffect(() => {
@@ -189,27 +220,32 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
               <Text variant="body" style={styles.insightHi}>{phrase}</Text>
               {ko ? " 결이 보여요." : " pattern shows in you."}
             </Text>
-            <Pressable accessibilityRole="button" accessibilityLabel={t("affirm")} onPress={() => setPhase("ratify")} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("affirm")} onPress={() => ratify(false)} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
               <Text variant="caption" style={styles.primaryText}>{t("affirm")}</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={t("differ")} onPress={() => router.back()} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
+            {/* Spec 03: 조금 달라요 = soft ratify — the star still lights. */}
+            <Pressable accessibilityRole="button" accessibilityLabel={t("differ")} onPress={() => ratify(true)} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
               <Text variant="caption" style={styles.secondaryText}>{t("differ")}</Text>
             </Pressable>
           </View>
         ) : (
           <View style={styles.block}>
-            {/* ONE message for the ratify state. */}
-            <Text variant="body" style={styles.ratifyTitle}>{ratifyTitle}</Text>
-            <Text variant="body" style={styles.ratifySub}>{t("ratifySub")}</Text>
+            {/* ONE message for the ratify state — softened when the user said
+                "조금 달라요" (their correction is the signal, spec 03). */}
+            <Text variant="body" style={styles.ratifyTitle}>{soft ? t("softTitle") : ratifyTitle}</Text>
+            <Text variant="body" style={styles.ratifySub}>{soft ? t("softSub") : t("ratifySub")}</Text>
             {/* 근거 — progressive disclosure: evidence appears only after ratify. */}
             <View style={styles.reasonCard}>
               <Text variant="caption" style={styles.reasonLabel}>{t("why")}</Text>
               <Text variant="body" style={styles.reasonText}>{reason}</Text>
             </View>
-            {/* The lit star is the relationship lens (DEFAULT_INSIGHT); its deep
-                dive is /attachment (RelationalLensView), the relationship-lens detail. */}
-            <Pressable accessibilityRole="button" accessibilityLabel={exploreLabel} onPress={() => router.push("/attachment")} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
-              <Text variant="caption" style={styles.primaryText}>{exploreLabel}</Text>
+            {/* Spec 03 "별자리로 들어가기": the primary exit is the constellation
+                home; the lens deep-dive (/attachment) stays as the secondary. */}
+            <Pressable accessibilityRole="button" accessibilityLabel={t("enterHome")} onPress={() => router.replace("/")} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
+              <Text variant="caption" style={styles.primaryText}>{t("enterHome")}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={exploreLabel} onPress={() => router.push("/attachment")} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
+              <Text variant="caption" style={styles.secondaryText}>{exploreLabel}</Text>
             </Pressable>
           </View>
         )}
@@ -224,24 +260,30 @@ function COPY(ko: boolean): Record<string, string> {
         back: "뒤로",
         graphicLabel: "북극성과 북두칠성 별자리, 한 별이 켜져 있어요",
         headProposeText: "오늘, 너의 첫 별이 하나 보였어요.",
-        headProposeTip: "맞으면 별이 한 칸 밝아져요.",
+        headProposeTip: "별은 당신의 동의로만 밝아져요.",
         headRatifyText: "좋아요. 별 하나가 더 또렷해졌어요.",
         headRatifyTip: "별자리는 알아갈수록 자라요.",
         affirm: "맞아요",
         differ: "조금 달라요",
         ratifySub: "알아갈수록 너의 별자리가 또렷해져요.",
+        softTitle: "그렇게 느끼는 것도 소중한 신호예요.",
+        softSub: "당신의 말이 별을 더 정확하게 만들어요. 별은 한 칸 밝아졌어요.",
+        enterHome: "별자리로 들어가기",
         why: "근거",
       }
     : {
         back: "Back",
         graphicLabel: "The north star and the seven-star dipper, with one star lit",
         headProposeText: "Today, your first star showed itself.",
-        headProposeTip: "If it fits, the star brightens one step.",
+        headProposeTip: "Stars brighten only with your consent.",
         headRatifyText: "Nice. One star is clearer now.",
         headRatifyTip: "Your constellation grows as you go.",
         affirm: "That's right",
         differ: "A little different",
         ratifySub: "The more you learn, the clearer your constellation becomes.",
+        softTitle: "Feeling it differently is a precious signal too.",
+        softSub: "Your words make the star more accurate. It brightened one step.",
+        enterHome: "Enter your constellation",
         why: "WHY",
       };
 }

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumToast } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -47,6 +47,7 @@ function AuditLegacy() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [toast, setToast] = useState<AuditToast | null>(null);
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
   const companion = useCompanionMoment();
 
   useEffect(() => {
@@ -54,6 +55,25 @@ function AuditLegacy() {
     const timeout = setTimeout(() => setToast(null), 2800);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  // Android hardware back handler: intercept navigation back requests while the
+  // life audit session is in progress to prevent accidental loss of written answers.
+  useEffect(() => {
+    if (period === null || done) return;
+
+    const onBackPress = () => {
+      if (index > 0 || answer.trim().length > 0) {
+        setExitConfirmOpen(true);
+        return true; // Consume the event, preventing immediate navigation back
+      }
+      // If they haven't written anything yet on the first question, just let them return to selector
+      setPeriod(null);
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => subscription.remove();
+  }, [period, index, answer, done]);
 
   if (loading) {
     return (
@@ -279,6 +299,42 @@ function AuditLegacy() {
           <PremiumToast message={toast.message} tone={toast.tone} />
         </View>
       ) : null}
+
+      <PremiumModal
+        visible={exitConfirmOpen}
+        onClose={() => setExitConfirmOpen(false)}
+        accessibilityLabel={locale === "ko" ? "진단 종료 안내" : "Exit audit notice"}
+      >
+        <Text variant="heading">
+          {locale === "ko" ? "진단을 종료할까요?" : "Exit audit?"}
+        </Text>
+        <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
+          {locale === "ko"
+            ? "정말 가치관 진단을 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다."
+            : "Are you sure you want to exit? Your progress will not be saved."}
+        </Text>
+        <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
+          <Button
+            label={locale === "ko" ? "취소" : "Cancel"}
+            variant="secondary"
+            onPress={() => setExitConfirmOpen(false)}
+            style={{ flex: 1 }}
+            accessibilityHint={locale === "ko" ? "진단을 계속 진행합니다." : "Continue the audit."}
+          />
+          <Button
+            label={locale === "ko" ? "종료하기" : "Exit"}
+            variant="primary"
+            onPress={() => {
+              setExitConfirmOpen(false);
+              setPeriod(null);
+              setIndex(0);
+              setAnswer("");
+            }}
+            style={{ flex: 1 }}
+            accessibilityHint={locale === "ko" ? "진단을 종료하고 질문 선택 화면으로 돌아갑니다." : "Exit the audit and return to selection."}
+          />
+        </View>
+      </PremiumModal>
     </PremiumAppShell>
   );
 }
