@@ -231,6 +231,13 @@ export function CaptureView() {
           <Text style={styles.noteText}>{t("ds.capture.tip")}</Text>
         </View>
       )}
+      {/* The full multi-mode intake (링크/클립/OCR/파일) lives on /capture-full —
+          the proven legacy pipes reused under the deep-space shell (QA F1). */}
+      <Pressable accessibilityRole="button" onPress={() => router.push("/capture-full")} style={styles.ghostBtn}>
+        <Text style={styles.ghostLabel}>
+          {locale === "ko" ? "링크·사진·파일로 담기" : "Add by link, photo, or file"}
+        </Text>
+      </Pressable>
     </ScrollView>
   );
 }
