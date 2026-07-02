@@ -421,7 +421,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     const dsUsage = usedToday === null ? "..." : String(usedToday);
     const atLimit = usedToday !== null && usedToday >= limit;
     return (
-      <DeepSpaceScreen active="chat" personaTint={isCharacterChat ? undefined : rev2Persona}>
+      <DeepSpaceScreen active="chat" variant="windowed" personaTint={isCharacterChat ? undefined : rev2Persona}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={keyboardBehavior}
