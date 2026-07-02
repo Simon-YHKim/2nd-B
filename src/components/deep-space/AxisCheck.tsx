@@ -11,7 +11,7 @@
  * answer is never lost silently (PremiumModal confirm, the attachment/audit
  * survey pattern).
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BackHandler, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -115,6 +115,20 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
   const [estimateThin, setEstimateThin] = useState(false);
   const [estimateSaved, setEstimateSaved] = useState(false);
 
+  // The submit/estimate handlers await network calls the user can navigate
+  // away from (deep-link hops) — guard every post-await setState so an
+  // unmounted screen never warns/leaks.
+  const aliveRef = useRef(true);
+  // Set true on (re)mount too, not just false on cleanup — otherwise React
+  // Strict Mode's mount→unmount→mount would leave it false on the live mount
+  // and every guarded setState would be skipped (formats.tsx precedent).
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+
   async function handleEstimate() {
     if (!userId || estimating) return;
     setEstimating(true);
@@ -128,13 +142,15 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
         locale,
         minor: isMinor === true,
       });
+      if (!aliveRef.current) return;
       setEstimate(out);
       if (!out) setEstimateThin(true);
     } catch {
+      if (!aliveRef.current) return;
       setEstimate(null);
       setEstimateThin(true);
     } finally {
-      setEstimating(false);
+      if (aliveRef.current) setEstimating(false);
     }
   }
 
@@ -152,10 +168,11 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
         topic: estimate.sentence.slice(0, 80),
         tags: ["life_audit", check.tag, "estimate"],
       });
+      if (!aliveRef.current) return;
       setEstimateSaved(true);
     } catch (e) {
       console.warn(`[${axis}] estimate save failed`, (e as Error).message);
-      setErrorToast(true);
+      if (aliveRef.current) setErrorToast(true);
     }
   }
 
@@ -227,6 +244,7 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
         topic: current.prompt[locale].slice(0, 80),
         tags: ["life_audit", check.tag, current.framework],
       });
+      if (!aliveRef.current) return;
       setAnswer("");
       setSavedCount((n) => n + 1);
       if (index + 1 >= questions.length) {
@@ -236,9 +254,9 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
       }
     } catch (e) {
       console.warn(`[${axis}] save failed`, (e as Error).message);
-      setErrorToast(true);
+      if (aliveRef.current) setErrorToast(true);
     } finally {
-      setSubmitting(false);
+      if (aliveRef.current) setSubmitting(false);
     }
   }
 
