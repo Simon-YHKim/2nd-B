@@ -13,16 +13,24 @@
 --
 -- All six are SECURITY DEFINER, service_role-only; pg_cron runs as the
 -- extension owner so grants hold. Nightly at 04:00 UTC (13:00 KST), staggered
--- a minute apart to avoid lock pileups. Re-runnable: cron.schedule upserts by
--- jobname on modern pg_cron; the unschedule guard below keeps it idempotent
--- on older versions too.
-
-CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- a minute apart to avoid lock pileups.
+--
+-- CI-safe: the plain postgres container in the sql dry-run has no pg_cron, so
+-- the whole activation is guarded on extension availability and becomes a
+-- NOTICE no-op there. On Supabase (pg_cron available) it schedules for real.
+-- Idempotent: existing jobs with these names are unscheduled first.
 
 DO $$
 DECLARE
   j record;
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'pg_cron') THEN
+    RAISE NOTICE '0067: pg_cron not available (CI dry-run); skipping retention activation';
+    RETURN;
+  END IF;
+
+  EXECUTE 'CREATE EXTENSION IF NOT EXISTS pg_cron';
+
   FOR j IN SELECT jobid, jobname FROM cron.job
     WHERE jobname IN (
       'purge-unreflected-imports', 'purge-ai-audit-log',
@@ -31,11 +39,11 @@ BEGIN
   LOOP
     PERFORM cron.unschedule(j.jobid);
   END LOOP;
-END $$;
 
-SELECT cron.schedule('purge-unreflected-imports',      '0 4 * * *', $$SELECT purge_unreflected_import_data();$$);
-SELECT cron.schedule('purge-ai-audit-log',             '1 4 * * *', $$SELECT purge_ai_audit_log(365);$$);
-SELECT cron.schedule('purge-consent-request-metadata', '2 4 * * *', $$SELECT purge_consent_request_metadata(365);$$);
-SELECT cron.schedule('purge-star-tier-history',        '3 4 * * *', $$SELECT purge_star_tier_history(730);$$);
-SELECT cron.schedule('purge-expired-peer-invitations', '4 4 * * *', $$SELECT purge_expired_peer_invitations(90);$$);
-SELECT cron.schedule('purge-stale-peer-observations',  '5 4 * * *', $$SELECT purge_stale_peer_observations(730);$$);
+  PERFORM cron.schedule('purge-unreflected-imports',      '0 4 * * *', 'SELECT purge_unreflected_import_data();');
+  PERFORM cron.schedule('purge-ai-audit-log',             '1 4 * * *', 'SELECT purge_ai_audit_log(365);');
+  PERFORM cron.schedule('purge-consent-request-metadata', '2 4 * * *', 'SELECT purge_consent_request_metadata(365);');
+  PERFORM cron.schedule('purge-star-tier-history',        '3 4 * * *', 'SELECT purge_star_tier_history(730);');
+  PERFORM cron.schedule('purge-expired-peer-invitations', '4 4 * * *', 'SELECT purge_expired_peer_invitations(90);');
+  PERFORM cron.schedule('purge-stale-peer-observations',  '5 4 * * *', 'SELECT purge_stale_peer_observations(730);');
+END $$;

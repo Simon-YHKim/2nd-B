@@ -49,7 +49,8 @@
       "account": "Aku",
       "lens": "Aku",
       "iden": "IDEN",
-      "wiki": "Wiki"
+      "wiki": "Wiki",
+      "settings": "Pengaturan"
     },
     "head": {
       "home": {
@@ -87,7 +88,33 @@
     },
     "home": {
       "polaris": "Bintang Utara",
-      "hint": "Ketuk tujuh bintang untuk membuka tujuh area hidupmu"
+      "hint": "Ketuk tujuh bintang untuk membuka tujuh area hidupmu",
+      "museumName": "Museum",
+      "inbox": "Notifikasi",
+      "headA11y": "Tanya SecondB",
+      "kind": {
+        "domain": "Domain",
+        "museum": "Belajar bersama"
+      },
+      "bubble": {
+        "introTag": "Perkenalan",
+        "intro": "Halo, aku SecondB. Ketuk kepalaku, aku akan membantu.",
+        "menuTag": "SecondB",
+        "menu": "Bagaimana aku bisa membantu?",
+        "travel": "Jelajahi",
+        "later": "Nanti",
+        "chatbot": "Chatbot",
+        "assistant": "Asisten"
+      },
+      "star": {
+        "career": { "line": "Apa yang sudah kamu bangun dan kumpulkan?" },
+        "finance": { "line": "Apa yang uang katakan tentang diriku?" },
+        "relation": { "line": "Bagaimana aku dengan orang-orang terdekatku?" },
+        "growth": { "line": "Masa mana yang membentuk diriku sekarang?" },
+        "health": { "line": "Bagaimana kondisi dan ritmeku belakangan ini?" },
+        "recreation": { "line": "Apa yang membuatku bisa beristirahat?" },
+        "museum": { "line": "Susuri jalan yang telah dilalui AI dan pelajari cara SecondB memahamimu." }
+      }
     },
     "capture": {
       "title": "Tangkap",
