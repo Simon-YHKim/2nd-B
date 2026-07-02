@@ -37,6 +37,10 @@ jest.mock("../usage", () => ({
   ChatLimitExceededError,
 }));
 
+jest.mock("../../records/load-structured", () => ({
+  loadStructuredContext: jest.fn(async () => ""),
+}));
+
 jest.mock("../../wiki/export", () => ({
   exportUserWiki: jest.fn(() => {
     captured.push({ fn: "exportUserWiki", args: [], ret: fixtures.exportPrompt });
