@@ -205,6 +205,21 @@ function GraphLoading() {
   );
 }
 
+// rev2 windowed stack shell: the M3 top app bar carries the title and the
+// screen floats as a radius-24 window over the shared sky (sb-app §4). Routes
+// moving from Shell to DockShell must also join DEEP_SPACE_DOCK_PATHS so the
+// floating BackArrow chip yields to the top bar.
+function DockShell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
+  return (
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title ?? ""} onBack={() => router.back()}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}
+        {children}
+      </ScrollView>
+    </DeepSpaceScreen>
+  );
+}
+
 function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
   const insets = useSafeAreaInsets();
   return (
@@ -2208,7 +2223,7 @@ export function DeepSpaceInboxScreen() {
   }
 
   if (authLoading) {
-    return <Shell title={t("inbox.title")}><GraphLoading /></Shell>;
+    return <DockShell title={t("inbox.title")}><GraphLoading /></DockShell>;
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
@@ -2217,7 +2232,7 @@ export function DeepSpaceInboxScreen() {
   const suggestions = current ? suggestedTags(current) : [];
 
   return (
-    <Shell title={t("inbox.title")}>
+    <DockShell title={t("inbox.title")}>
       <SecondbStatusHeader
         text={pending > 0 ? t("inbox.headerPending", { count: pending }) : t("inbox.headerEmpty")}
         tip={t("inbox.tip")}
@@ -2309,7 +2324,7 @@ export function DeepSpaceInboxScreen() {
           ) : null}
         </>
       )}
-    </Shell>
+    </DockShell>
   );
 }
 
@@ -3804,7 +3819,7 @@ export function DeepSpaceFocusScreen() {
   }, [settingsOpen]);
 
   if (authLoading) {
-    return <Shell title={t("focus.title")}><GraphLoading /></Shell>;
+    return <DockShell title={t("focus.title")}><GraphLoading /></DockShell>;
   }
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
@@ -3850,7 +3865,7 @@ export function DeepSpaceFocusScreen() {
   }
 
   return (
-    <Shell title={t("focus.title")}>
+    <DockShell title={t("focus.title")}>
       <View style={focusStyles.stage}>
         <SecondbHead size={48} mood={isBreak && !showComplete ? "neutral" : "positive"} />
 
@@ -3994,7 +4009,7 @@ export function DeepSpaceFocusScreen() {
           </View>
         </View>
       ) : null}
-    </Shell>
+    </DockShell>
   );
 }
 
