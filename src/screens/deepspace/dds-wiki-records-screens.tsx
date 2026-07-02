@@ -135,7 +135,7 @@ function TimelineRow({ title, time, tag, dim, onPress }: { title: string; time?:
   );
   if (!onPress) return content;
   // Tappable timeline row (SCREEN_TREE_SPEC §4: 항목→/record/[id]). Wrap, not
-  // restyle — the row visual is unchanged; only a ≥44px hit target is added.
+  // restyle - the row visual is unchanged; only a ≥44px hit target is added.
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [{ minHeight: 44, justifyContent: "center" }, pressed ? { opacity: 0.6 } : null]}>
       {content}
