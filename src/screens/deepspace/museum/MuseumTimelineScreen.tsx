@@ -62,6 +62,7 @@ export function MuseumTimelineScreen() {
   const { i18n } = useTranslation();
   const isKo = i18n.language === "ko";
   const scrollRef = useRef<ScrollView>(null);
+  const didInitialSeek = useRef(false);
   const [selId, setSelId] = useState<string | null>(null);
   const [year, setYear] = useState(2022);
 
@@ -142,7 +143,14 @@ export function MuseumTimelineScreen() {
             showsHorizontalScrollIndicator={false}
             onScroll={onScroll}
             scrollEventThrottle={32}
-            contentOffset={{ x: mzX(2022) - 180, y: 0 }}
+            // contentOffset is iOS-only — on web/Android it silently no-ops and
+            // the canvas opens at 1936 (an empty stretch) while the year readout
+            // claims 2022 (QA F3). Seek on mount instead, cross-platform.
+            onLayout={() => {
+              if (didInitialSeek.current) return;
+              didInitialSeek.current = true;
+              scrollRef.current?.scrollTo({ x: mzX(2022) - 180, animated: false });
+            }}
             contentContainerStyle={{ width: MZ_CANVAS_W, height: MZ.TH }}
           >
             <Svg width={MZ_CANVAS_W} height={MZ.TH} style={StyleSheet.absoluteFill} pointerEvents="none">
