@@ -23,8 +23,33 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { Field, MdButton, ProgressLinear } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import { AXIS_CHECKS, type AxisCheckId } from "@/lib/audit/axis-checks";
-import { spacing } from "@/lib/theme/tokens";
+import { labelFramework } from "@/lib/audit/frameworkLabels";
+import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
+
+/**
+ * Accumulated signal counts per framework for one axis check (Screen-Spec
+ * 16/19/20 display side, honesty-shaped): the "spectrum" bars show HOW MUCH
+ * the user has written per anchor — record counts, never invented scores.
+ */
+async function fetchAxisSignals(userId: string, tag: string): Promise<Record<string, number>> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("records")
+    .select("tags")
+    .eq("user_id", userId)
+    .contains("tags", [tag]);
+  if (error) throw error;
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    for (const t of (row as { tags: string[] | null }).tags ?? []) {
+      if (t.includes(":") && t !== tag) counts[t] = (counts[t] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
 
 export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
   const check = AXIS_CHECKS[axis];
@@ -40,6 +65,21 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
   const [savedCount, setSavedCount] = useState(0);
   const [errorToast, setErrorToast] = useState(false);
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+  const [signals, setSignals] = useState<Record<string, number> | null>(null);
+
+  // Signal summary for the start screen (and refresh after a finished run).
+  useEffect(() => {
+    if (loading || !userId || started) return;
+    let alive = true;
+    fetchAxisSignals(userId, check.tag)
+      .then((c) => {
+        if (alive) setSignals(c);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [loading, userId, started, done, check.tag]);
 
   // Android hardware back mid-session: confirm before losing a written answer.
   useEffect(() => {
@@ -122,6 +162,53 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
                 ? "자기 점검이에요. 답은 내 기록으로만 저장돼요."
                 : "A self-check. Answers are saved only as your own records."}
             </Text>
+            {(() => {
+              // Signal spectrum (Screen-Spec 16/19/20 display side): per-anchor
+              // record counts as relative bars — the honest version of the
+              // prototype's ranked spectrum (amount written, not scores).
+              if (!signals) return null;
+              const anchors = [...new Set(questions.map((q) => q.framework))];
+              const rows = anchors
+                .map((f) => ({ f, n: signals[f] ?? 0 }))
+                .sort((a, b) => b.n - a.n);
+              const total = rows.reduce((s, r) => s + r.n, 0);
+              if (total === 0) return null;
+              const max = Math.max(...rows.map((r) => r.n), 1);
+              const top = rows.filter((r) => r.n > 0).slice(0, 3);
+              return (
+                <View style={styles.signalBlock}>
+                  <Text style={styles.signalLabel}>
+                    {locale === "ko" ? `지금까지의 신호 · 기록 ${total}개` : `Signals so far · ${total} records`}
+                  </Text>
+                  {anchors.length >= 4 && top.length >= 3 ? (
+                    <View style={styles.topRow}>
+                      {top.map((r, i) => (
+                        <View key={r.f} style={[styles.topCard, i === 0 && styles.topCardFirst]}>
+                          <Text style={[styles.topRank, i === 0 && styles.topRankFirst]}>{i + 1}</Text>
+                          <Text style={[styles.topName, i === 0 && styles.topNameFirst]} numberOfLines={1}>
+                            {labelFramework(r.f, locale).split("·").pop()?.trim()}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                  {rows.map((r) => (
+                    <View key={r.f} style={styles.signalRow}>
+                      <View style={styles.signalHead}>
+                        <Text style={styles.signalName}>{labelFramework(r.f, locale).split("·").pop()?.trim()}</Text>
+                        <Text style={styles.signalCount}>{`×${r.n}`}</Text>
+                      </View>
+                      <ProgressLinear value={r.n / max} color={m3.color.tertiary} />
+                    </View>
+                  ))}
+                  <Text style={styles.signalFootnote}>
+                    {locale === "ko"
+                      ? "막대는 확신이 아니라 적어 주신 양이에요."
+                      : "Bars show how much you've written, not scores."}
+                  </Text>
+                </View>
+              );
+            })()}
             <MdButton
               variant="filled"
               label={locale === "ko" ? `시작하기 · ${questions.length}문항` : `Start · ${questions.length} prompts`}
@@ -250,4 +337,34 @@ const styles = StyleSheet.create({
   progressBar: { flex: 1 },
   prompt: { lineHeight: 26 },
   field: { minHeight: 120 },
+  signalBlock: {
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: withAlpha(deepSpace.accent, 0.25),
+    borderRadius: 16,
+    padding: spacing.md,
+    backgroundColor: withAlpha(deepSpace.accent, 0.05),
+  },
+  signalLabel: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.1, color: withAlpha(deepSpace.accentSoft, 0.75) },
+  topRow: { flexDirection: "row", gap: 8 },
+  topCard: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: m3.color.outlineVariant,
+    backgroundColor: m3.color.surface,
+    gap: 2,
+  },
+  topCardFirst: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },
+  topRank: { fontFamily: m3.font.mono, fontSize: 11, color: m3.color.onSurfaceVariant },
+  topRankFirst: { color: m3.color.onPrimary },
+  topName: { fontSize: 13.5, fontWeight: "700", color: m3.color.onSurface },
+  topNameFirst: { color: m3.color.onPrimary },
+  signalRow: { gap: 4 },
+  signalHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  signalName: { fontSize: 13, fontWeight: "600", color: "#EAF2FF" },
+  signalCount: { fontFamily: m3.font.mono, fontSize: 11, color: withAlpha(deepSpace.accentSoft, 0.7) },
+  signalFootnote: { fontSize: 11.5, color: withAlpha(deepSpace.accentSoft, 0.7) },
 });
