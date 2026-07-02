@@ -8,7 +8,8 @@
 // runtimes with deps already in the app.
 
 import { useCallback, useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, Platform, Share } from "react-native";
+import { View, StyleSheet, ScrollView, Platform, Share, Switch, Pressable } from "react-native";
+import Svg, { Path, Rect as SvgRect, Circle as SvgCircle } from "react-native-svg";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -16,7 +17,7 @@ import { Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { IdenView, type IdenViewData } from "@/components/deep-space/DeepSpaceViews";
+import { type IdenViewData } from "@/components/deep-space/DeepSpaceViews";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -24,10 +25,46 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { exportIden, type IdenExport } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import type { IdenDoc } from "@/lib/iden/types";
+import { m3 } from "@/lib/theme/m3";
 import { MdButton, MdChip } from "@/components/m3";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
 type Toast = { tone: "info" | "success" | "danger"; message: string };
+
+// rev2 IdenScreen (sb-screens-extra) — the "AI에 전달" target cards. Brand marks
+// are letter avatars tinted with each product's brand color; every card routes
+// to the integrations surface (reference: go('connect')).
+const AI_TARGETS = [
+  { k: "ChatGPT", c: "#10A37F" },
+  { k: "Claude", c: "#D97757" },
+  { k: "Gemini", c: "#4285F4" },
+  { k: "Notion", c: "#111111" },
+] as const;
+
+type IdenFormat = "Markdown" | "JSON" | "PDF";
+
+// Honest source line under each include row (IDEN's trust layer, types.ts):
+// shows WHERE a field's value came from, never a fabricated confidence.
+function sourceSub(kind: string, instrument: string | undefined, isKo: boolean): string {
+  const inst = instrument ? ` · ${instrument}` : "";
+  switch (kind) {
+    case "measured":
+    case "instrument":
+      return (isKo ? "측정됨" : "Measured") + inst;
+    case "assessment":
+      return isKo ? "자기 평가" : "Self-assessment";
+    case "self_report":
+      return isKo ? "직접 입력" : "Self-reported";
+    case "count":
+      return isKo ? "기록 수 기반" : "From record counts";
+    case "derived":
+      return isKo ? "기록에서 도출" : "Derived from records";
+    case "ai_summary":
+      return isKo ? "AI 요약" : "AI summary";
+    default:
+      return isKo ? "수집 중" : "Collecting";
+  }
+}
 
 // Open the rendered CV sheet in a new tab so the browser print dialog can save
 // it as an A4 PDF. Web-only; reached through globalThis so no DOM lib types or
@@ -146,6 +183,61 @@ function IdenExportScreenDeepSpace() {
     }
   }, [userId, hasData, locale, isMinor, includeKeys, isKo]);
 
+  // rev2 IdenScreen: 형식 chips drive what 내보내기 emits — Markdown = the
+  // `.iden` text via the share sheet, JSON = clipboard, PDF = the printable
+  // sheet (web print dialog; on native it is honest about needing web).
+  const [fmt, setFmt] = useState<IdenFormat>("Markdown");
+
+  const handlePreview = useCallback(async () => {
+    if (!userId || !hasData) return;
+    try {
+      const result = await exportIden(userId, { locale, minor: isMinor === true, include: includeKeys() });
+      if (Platform.OS === "web") {
+        openSheetInNewTab(result.html);
+      } else {
+        setNotice(isKo ? "미리보기 시트는 웹에서 열려요" : "The preview sheet opens on web");
+      }
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[iden] preview failed", (e as Error).message);
+    }
+  }, [userId, hasData, locale, isMinor, includeKeys, isKo]);
+
+  const handleExport = useCallback(async () => {
+    if (fmt === "JSON") {
+      await handleCopyJson();
+      return;
+    }
+    if (fmt === "PDF") {
+      await handlePreview();
+      return;
+    }
+    await handleSend();
+  }, [fmt, handleCopyJson, handlePreview, handleSend]);
+
+  // Non-data states keep the prior IdenView behaviors: spinner while loading,
+  // retry on error, and a gather-first CTA when the vault is empty.
+  const stateBody = !hasData ? (
+    <View style={dsIden.center}>
+      {!hasError && data === undefined ? (
+        <PremiumLoadingState message={isKo ? "불러오는 중이에요…" : "Loading…"} />
+      ) : hasError ? (
+        <View style={dsIden.stateBlock}>
+          <Text variant="body" color="textMuted">
+            {isKo ? "IDEN을 불러오지 못했어요." : "Could not load your IDEN."}
+          </Text>
+          <MdButton variant="tonal" label={isKo ? "다시 시도" : "Retry"} onPress={() => setReloadKey((k) => k + 1)} />
+        </View>
+      ) : (
+        <View style={dsIden.stateBlock}>
+          <Text variant="body" color="textMuted">
+            {isKo ? "아직 담긴 내가 없어요. 먼저 나를 조금 담아볼까요?" : "Nothing gathered yet. Gather a little of yourself first?"}
+          </Text>
+          <MdButton variant="filled" label={isKo ? "담으러 가기" : "Start gathering"} onPress={() => router.push("/interview")} />
+        </View>
+      )}
+    </View>
+  ) : null;
+
   return (
     <DeepSpaceScreen
       active="iden"
@@ -154,58 +246,195 @@ function IdenExportScreenDeepSpace() {
       title={isKo ? "IDEN · 포터블 정체성" : "IDEN · Portable identity"}
       onBack={() => router.back()}
     >
-      <IdenView
-        data={hasError ? null : data}
-        loading={!hasError && data === undefined}
-        hasError={hasError}
-        isKo={isKo}
-        onSend={handleSend}
-        onRetry={() => setReloadKey((k) => k + 1)}
-        footer={
-          doc && hasData ? (
-            <View style={dsIden.footer}>
-              <Text variant="caption" color="textMuted">
-                {isKo ? "내보낼 항목 (끄면 어떤 형식으로도 안 나가요)" : "Fields to export (off = leaves in no format)"}
-              </Text>
-              <View style={dsIden.chips}>
-                {doc.fields.map((field) => {
-                  const on = !excluded.includes(field.key);
-                  return (
-                    <MdChip
-                      key={field.key}
-                      kind="filter"
-                      label={field.label}
-                      selected={on}
-                      onPress={() =>
-                        setExcluded((prev) =>
-                          on ? [...prev, field.key] : prev.filter((k) => k !== field.key),
-                        )
-                      }
-                    />
-                  );
-                })}
-              </View>
-              <MdButton
-                variant="outlined"
-                label={isKo ? "JSON 복사" : "Copy JSON"}
-                onPress={handleCopyJson}
-              />
-              {notice ? (
-                <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
-                  {notice}
-                </Text>
-              ) : null}
+      {stateBody ?? (
+        <ScrollView contentContainerStyle={dsIden.scroll}>
+          {/* file hero (rev2: tertiary-container plate, badge tile, mono filename) */}
+          <View style={dsIden.hero}>
+            <View style={dsIden.heroTile}>
+              <Svg width={30} height={30} viewBox="0 0 24 24">
+                <SvgRect x={3} y={5} width={18} height={14} rx={2.5} stroke={m3.color.onTertiaryContainer} strokeWidth={1.8} fill="none" />
+                <SvgCircle cx={9} cy={11} r={2.2} fill={m3.color.onTertiaryContainer} />
+                <Path d="M6.2 16.4c.5-1.6 1.6-2.4 2.8-2.4s2.3.8 2.8 2.4M14.5 9.5h4M14.5 13h4" stroke={m3.color.onTertiaryContainer} strokeWidth={1.6} strokeLinecap="round" fill="none" />
+              </Svg>
             </View>
-          ) : null
-        }
-      />
+            <Text style={dsIden.heroName}>{data!.name}</Text>
+            <View style={dsIden.heroChips}>
+              <View style={dsIden.versionChip}>
+                <Text style={dsIden.versionChipText}>{`v${data!.version}`}</Text>
+              </View>
+              <View style={dsIden.localChip}>
+                <Svg width={12} height={12} viewBox="0 0 24 24">
+                  <Path d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z" fill={m3.color.onPrimary} />
+                </Svg>
+                <Text style={dsIden.localChipText}>{isKo ? "로컬 생성" : "On-device"}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* 무엇을 담을까요 — include switches over the schema-driven fields */}
+          <Text style={dsIden.sectionLabel}>{isKo ? "무엇을 담을까요" : "What goes in"}</Text>
+          <View style={dsIden.rowsCard}>
+            {doc!.fields.map((field, i) => {
+              const on = !excluded.includes(field.key);
+              return (
+                <View key={field.key} style={[dsIden.row, i > 0 && dsIden.rowDivider]}>
+                  <View style={dsIden.rowText}>
+                    <Text style={dsIden.rowLabel}>{field.label}</Text>
+                    <Text style={dsIden.rowSub}>{sourceSub(field.source.kind, field.source.instrument, isKo)}</Text>
+                  </View>
+                  <Switch
+                    value={on}
+                    onValueChange={(v) =>
+                      setExcluded((prev) => (v ? prev.filter((k) => k !== field.key) : [...prev, field.key]))
+                    }
+                    trackColor={{ false: m3.color.surfaceVariant, true: m3.color.primary }}
+                    thumbColor={on ? m3.color.onPrimary : m3.color.outline}
+                    accessibilityLabel={field.label}
+                  />
+                </View>
+              );
+            })}
+          </View>
+          <Text style={dsIden.rowsFootnote}>
+            {isKo ? "끄면 어떤 형식으로도 나가지 않아요." : "Off = leaves in no format."}
+          </Text>
+
+          {/* 형식 */}
+          <Text style={dsIden.sectionLabel}>{isKo ? "형식" : "Format"}</Text>
+          <View style={dsIden.chips}>
+            {(["Markdown", "JSON", "PDF"] as const).map((f) => (
+              <MdChip key={f} kind="filter" label={f} selected={fmt === f} onPress={() => setFmt(f)} />
+            ))}
+          </View>
+
+          {/* AI에 전달 */}
+          <Text style={dsIden.sectionLabel}>{isKo ? "AI에 전달" : "Send to an AI"}</Text>
+          <View style={dsIden.targetGrid}>
+            {AI_TARGETS.map((tg) => (
+              <Pressable
+                key={tg.k}
+                style={dsIden.targetCard}
+                onPress={() => router.push("/integrations")}
+                accessibilityRole="button"
+                accessibilityLabel={tg.k}
+              >
+                <View style={[dsIden.targetBadge, { backgroundColor: tg.c }]}>
+                  <Text style={dsIden.targetBadgeText}>{tg.k[0]}</Text>
+                </View>
+                <Text style={dsIden.targetName}>{tg.k}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={dsIden.actions}>
+            <MdButton
+              variant="filled"
+              style={dsIden.actionMain}
+              label={isKo ? "내보내기" : "Export"}
+              onPress={handleExport}
+            />
+            <MdButton variant="outlined" label={isKo ? "미리보기" : "Preview"} onPress={handlePreview} />
+          </View>
+          {notice ? (
+            <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite" style={dsIden.notice}>
+              {notice}
+            </Text>
+          ) : null}
+          <View style={dsIden.lockRow}>
+            <Svg width={14} height={14} viewBox="0 0 24 24">
+              <Path d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z" fill={m3.color.onSurfaceVariant} />
+            </Svg>
+            <Text style={dsIden.lockText}>
+              {isKo ? "내 기기에서 만들어져요. 원문은 동의 없이 나가지 않아요." : "Built on your device. Raw notes never leave without consent."}
+            </Text>
+          </View>
+        </ScrollView>
+      )}
     </DeepSpaceScreen>
   );
 }
 
 const dsIden = StyleSheet.create({
-  footer: { gap: spacing.sm, marginTop: spacing.md },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  scroll: { padding: 16, paddingBottom: 28, gap: 10 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
+  stateBlock: { alignItems: "center", gap: 14 },
+  hero: {
+    marginTop: 4,
+    borderRadius: m3.shape.large,
+    overflow: "hidden",
+    backgroundColor: m3.color.tertiaryContainer,
+    alignItems: "center",
+    padding: 18,
+    ...m3.elevation.level1,
+  },
+  heroTile: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    marginBottom: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: m3.color.surface,
+    ...m3.elevation.level1,
+  },
+  heroName: { fontFamily: m3.font.mono, fontSize: 18, color: m3.color.onTertiaryContainer },
+  heroChips: { flexDirection: "row", gap: 6, marginTop: 8 },
+  versionChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: m3.color.surface,
+  },
+  versionChipText: { fontSize: 11, fontWeight: "600", color: m3.color.onSurfaceVariant },
+  localChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: m3.color.primary,
+  },
+  localChipText: { fontSize: 11, fontWeight: "600", color: m3.color.onPrimary },
+  sectionLabel: {
+    marginTop: 12,
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.6,
+    color: m3.color.onSurfaceVariant,
+  },
+  rowsCard: {
+    borderRadius: m3.shape.medium,
+    backgroundColor: m3.color.surfaceContainerHigh,
+    padding: 4,
+  },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12, paddingVertical: 12 },
+  rowDivider: { borderTopWidth: 1, borderTopColor: m3.color.outlineVariant },
+  rowText: { flex: 1, gap: 2 },
+  rowLabel: { fontSize: 16, lineHeight: 22, color: m3.color.onSurface },
+  rowSub: { fontSize: 12, lineHeight: 16, color: m3.color.onSurfaceVariant },
+  rowsFootnote: { fontSize: 12, color: m3.color.onSurfaceVariant, marginTop: 2 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  targetGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  targetCard: {
+    flexBasis: "48%",
+    flexGrow: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    borderRadius: m3.shape.medium,
+    borderWidth: 1,
+    borderColor: m3.color.outline,
+  },
+  targetBadge: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  targetBadgeText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
+  targetName: { fontSize: 14, color: m3.color.onSurface },
+  actions: { flexDirection: "row", gap: 8, marginTop: 22 },
+  actionMain: { flex: 1 },
+  notice: { textAlign: "center", marginTop: 8 },
+  lockRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12 },
+  lockText: { fontSize: 12, color: m3.color.onSurfaceVariant },
 });
 
 function IdenExportScreenLegacy() {
