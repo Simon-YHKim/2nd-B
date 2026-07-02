@@ -55,6 +55,13 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/people",
   "/career",
   "/rest",
+  // P3/P5 self-understanding + sharing screens — surfaced by the dock-drift
+  // guard test (they render DeepSpaceScreen directly, so the chip must hide).
+  "/brightness",
+  "/ipip-neo",
+  "/ratifications",
+  "/rlss",
+  "/share-card",
 ] as const;
 
 export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];
