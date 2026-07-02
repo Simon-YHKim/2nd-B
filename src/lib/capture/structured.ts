@@ -7,7 +7,7 @@
 // Pure module: no I/O, no React. records.structured (migration 0066) stores
 // exactly the StructuredPayload shape below.
 
-export const STRUCTURED_FORMS = ["fourw", "career_3c4p"] as const;
+export const STRUCTURED_FORMS = ["fourw", "career_3c4p", "call_reflection"] as const;
 export type StructuredForm = (typeof STRUCTURED_FORMS)[number];
 
 export interface StructuredPayload {
