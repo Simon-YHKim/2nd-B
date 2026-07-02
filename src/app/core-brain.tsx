@@ -506,6 +506,8 @@ function CoreBrainScreen() {
               { key: "bigfive", label: locale === "ko" ? "Big Five 성격 검사" : "Big Five check", route: "/big-five" },
               { key: "ipip", label: locale === "ko" ? "정밀 성격 지도 (IPIP-NEO-120)" : "Facet map (IPIP-NEO-120)", route: "/ipip-neo" },
               { key: "attachment", label: locale === "ko" ? "관계 패턴 체크" : "Relationship pattern check", route: "/attachment" },
+              { key: "motivation", label: locale === "ko" ? "동기 체크" : "Motivation check", route: "/motivation" },
+              { key: "strengths", label: locale === "ko" ? "강점 체크" : "Strengths check", route: "/strengths" },
               { key: "mbti", label: locale === "ko" ? "MBTI 스크리너" : "MBTI screener", route: "/mbti" },
               { key: "audit", label: locale === "ko" ? "가치 오딧" : "Values audit", route: "/audit" },
             ] as const).map((tool) => (

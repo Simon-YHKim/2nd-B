@@ -32,7 +32,7 @@ describe("북극성 persona deck (P3a)", () => {
     expect(screen).toMatch(/PolarisDeck/);
     expect(screen).toMatch(/TraitRadar/);
     expect(screen).toMatch(/북극성 · 종합/);
-    for (const route of ["/big-five", "/ipip-neo", "/attachment", "/mbti", "/audit"]) {
+    for (const route of ["/big-five", "/ipip-neo", "/attachment", "/motivation", "/strengths", "/mbti", "/audit"]) {
       expect(screen).toContain(`route: "${route}"`);
     }
   });
