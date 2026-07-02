@@ -1,14 +1,15 @@
-// AI 뮤지엄 — rev2 2-axis timeline (P5, M1 slice). A horizontal time canvas
+// AI 뮤지엄 — rev2 2-axis timeline (P5). A horizontal time canvas
 // (X = years, 100px/yr) split by one shared axis: WORLD lane above, AI lane
 // below. Nodes are the 25 curated events; bezier connectors draw the `rel`
 // links; tapping a node opens the detail sheet (prev/next steps chronologically,
-// the `here` terminal node routes home). M2 (dial drag-seek + sheet swipe +
-// twinkle polish) layers on top of this structure.
+// the `here` terminal node routes home). M2 interactions: dragging the year
+// dial seeks the canvas (two-way bound via onScroll), swiping the sheet
+// horizontally steps through events (prototype ±60px threshold).
 //
 // Prototype source of truth: rev2 `sb-museum.jsx` (geometry MZ, data 1:1 in
 // museum-timeline-data.ts). Deep-space track only.
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { PanResponder, Pressable, ScrollView, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { useTranslation } from "react-i18next";
 import Svg, { Line, Path } from "react-native-svg";
 import { router } from "expo-router";
@@ -118,6 +119,44 @@ export function MuseumTimelineScreen() {
     },
     [selIdx, jumpTo],
   );
+  const stepRef = useRef(step);
+  stepRef.current = step;
+
+  // M2: dial drag-seek — pointer X on the track maps to a year, two-way bound
+  // to the canvas (scrollTo fires onScroll, which drives the readout back).
+  // PanResponder goes on a plain View (NOT an Svg element - the /people F2
+  // responder-prop leak is a react-native-svg-web quirk, Views are fine).
+  const dialW = useRef(1);
+  const seekToDialX = useCallback((x: number) => {
+    const frac = Math.min(1, Math.max(0, x / Math.max(1, dialW.current)));
+    const y = MZ.START + frac * (MZ.END - MZ.START);
+    scrollRef.current?.scrollTo({ x: Math.max(0, mzX(y) - 195), animated: false });
+  }, []);
+  const dialPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (e) => seekToDialX(e.nativeEvent.locationX),
+        onPanResponderMove: (e) => seekToDialX(e.nativeEvent.locationX),
+      }),
+    [seekToDialX],
+  );
+
+  // M2: sheet horizontal swipe steps prev/next (prototype ±60px threshold).
+  // Horizontal-dominant guard keeps the sheet's vertical ScrollView working.
+  const sheetPan = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_e, g) =>
+          Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+        onPanResponderRelease: (_e, g) => {
+          if (g.dx <= -60) stepRef.current(1);
+          else if (g.dx >= 60) stepRef.current(-1);
+        },
+      }),
+    [],
+  );
 
   const yearFrac = (year - MZ.START) / (MZ.END - MZ.START);
 
@@ -214,14 +253,23 @@ export function MuseumTimelineScreen() {
             <Text style={styles.dialYear}>{year}</Text>
             <Text style={styles.dialCap}>YEAR</Text>
           </View>
-          <View style={styles.dialTrack}>
-            <View style={[styles.dialPlayhead, { left: `${Math.min(98, Math.max(0, yearFrac * 100))}%` }]} />
+          <View
+            style={styles.dialTrack}
+            onLayout={(e) => {
+              dialW.current = e.nativeEvent.layout.width;
+            }}
+            {...dialPan.panHandlers}
+            accessibilityRole="adjustable"
+            accessibilityLabel={isKo ? "연도 탐색" : "Seek year"}
+            accessibilityValue={{ text: String(year) }}
+          >
+            <View pointerEvents="none" style={[styles.dialPlayhead, { left: `${Math.min(98, Math.max(0, yearFrac * 100))}%` }]} />
           </View>
         </View>
 
         {/* detail sheet */}
         {sel ? (
-          <View style={styles.sheet} accessibilityViewIsModal>
+          <View style={styles.sheet} accessibilityViewIsModal {...sheetPan.panHandlers}>
             <View style={styles.sheetHead}>
               <Pressable onPress={() => step(-1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={isKo ? "이전 사건" : "Previous"} style={styles.stepBtn}>
                 <Text style={styles.stepGlyph}>‹</Text>
