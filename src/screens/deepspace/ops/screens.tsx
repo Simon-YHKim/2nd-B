@@ -206,7 +206,6 @@ export function OpsHomeScreen() {
     if (gUrl) {
       opts.push({
         key: "google",
-        icon: "🗓",
         label: c.googleCalendar,
         sub: c.googleCalendarSub,
         recommended: true,
@@ -215,7 +214,6 @@ export function OpsHomeScreen() {
     }
     opts.push({
       key: "share",
-      icon: "☑",
       label: c.shareChecklist,
       sub: c.shareChecklistSub,
       onPress: () => void Share.share({ message: buildChecklistShareText(r.title, r.checklist ?? [r.reason]) }),
