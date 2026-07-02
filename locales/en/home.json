@@ -49,7 +49,8 @@
       "account": "Me",
       "lens": "Me",
       "iden": "IDEN",
-      "wiki": "Wiki"
+      "wiki": "Wiki",
+      "settings": "Settings"
     },
     "head": {
       "home": {
@@ -87,7 +88,33 @@
     },
     "home": {
       "polaris": "North Star",
-      "hint": "Tap the seven stars to open your seven life areas"
+      "hint": "Tap the seven stars to open your seven life areas",
+      "museumName": "Museum",
+      "inbox": "Notifications",
+      "headA11y": "Ask SecondB",
+      "kind": {
+        "domain": "Domain",
+        "museum": "Learn together"
+      },
+      "bubble": {
+        "introTag": "Intro",
+        "intro": "Hi, I'm SecondB. Tap my head and I'll help.",
+        "menuTag": "SecondB",
+        "menu": "How can I help?",
+        "travel": "Travel",
+        "later": "Later",
+        "chatbot": "Chatbot",
+        "assistant": "Assistant"
+      },
+      "star": {
+        "career": { "line": "What have you built and gathered?" },
+        "finance": { "line": "What does money say about me?" },
+        "relation": { "line": "How am I with the people close to me?" },
+        "growth": { "line": "Which period shaped who I am now?" },
+        "health": { "line": "How are my condition and rhythm these days?" },
+        "recreation": { "line": "What lets me rest?" },
+        "museum": { "line": "Walk the path AI has taken — and learn how SecondB understands you." }
+      }
     },
     "capture": {
       "title": "Capture",
