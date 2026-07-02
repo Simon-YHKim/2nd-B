@@ -46,12 +46,11 @@ describe("buildRecordsTimeline", () => {
     expect(titles).toEqual(["주제만", "본문 첫 줄", "기록"]);
   });
 
-  test("maps kind to an icon and surfaces the first tag", () => {
+  test("surfaces the first tag as the chip", () => {
     const groups = buildRecordsTimeline(
       [rec({ id: "a", kind: "audit_response", created_at: "2026-06-19T01:00:00Z", summary: "s", tags: ["성장", "기록"] })],
       { now: NOW },
     );
-    expect(groups[0].items[0].icon).toBe("🧭");
     expect(groups[0].items[0].tag).toBe("#성장");
   });
 
