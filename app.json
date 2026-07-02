@@ -55,7 +55,10 @@
               "scheme": "secondbrain"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -123,7 +126,8 @@
           "microphonePermission": "The app needs microphone access to record a voice memo and turn it into text you can save."
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
