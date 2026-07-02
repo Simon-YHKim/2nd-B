@@ -119,12 +119,15 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
   // away from (deep-link hops) — guard every post-await setState so an
   // unmounted screen never warns/leaks.
   const aliveRef = useRef(true);
-  useEffect(
-    () => () => {
+  // Set true on (re)mount too, not just false on cleanup — otherwise React
+  // Strict Mode's mount→unmount→mount would leave it false on the live mount
+  // and every guarded setState would be skipped (formats.tsx precedent).
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
       aliveRef.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   async function handleEstimate() {
     if (!userId || estimating) return;
