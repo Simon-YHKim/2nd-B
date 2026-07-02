@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
   cardPad: { padding: spacing.md, gap: spacing.sm },
   gridRow: { flexDirection: "row", alignItems: "center", gap: 3, marginBottom: 3 },
-  rowLabel: { width: 74 },
+  rowLabel: { width: 92 },
   cell: { flex: 1, height: 18, borderRadius: 3 },
   cellPolaris: { height: 22, borderRadius: 4 },
   cellEmpty: { borderWidth: 1, borderColor: withAlpha(deepSpace.accentDim, 0.18), backgroundColor: "transparent" },

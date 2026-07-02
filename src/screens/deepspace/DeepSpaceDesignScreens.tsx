@@ -3305,7 +3305,7 @@ export function DeepSpaceOpsScreen() {
       {/* IA (ops-ia §4): single entry from the /ops hub into the scheduled
           reminders surface. */}
       <Pressable style={styles.secondary} onPress={() => router.push("/reminders")}>
-        <Text variant="caption" style={styles.secondaryText}>{`🔔 ${t("card.remind")}`}</Text>
+        <Text variant="caption" style={styles.secondaryText}>{t("card.remind")}</Text>
       </Pressable>
       <View style={styles.filterRow}>
         {OPS_GROUP_IDS.map((id) => (
