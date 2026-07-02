@@ -57,9 +57,12 @@ export default function BrightnessTimelineScreen() {
     [observations, locale],
   );
 
+  // rev2 TITLES verbatim: 밝기 변화 (the windowed top app bar carries it).
+  const barTitle = locale === "ko" ? "밝기 변화" : "Brightness";
+
   if (loading) {
     return (
-      <DeepSpaceScreen active="lens">
+      <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
         <View style={styles.center}>
           <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
         </View>
@@ -71,9 +74,9 @@ export default function BrightnessTimelineScreen() {
   const empty = timeline !== null && timeline.honesty.observations < 2;
 
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text variant="heading">{locale === "ko" ? "밝기 변화 · 8주" : "Brightness · 8 weeks"}</Text>
+        <Text variant="heading">{locale === "ko" ? "8주 타임라인" : "8-week timeline"}</Text>
 
         {timeline === null ? (
           <PremiumLoadingState message={locale === "ko" ? "하늘을 살펴보는 중…" : "Reading the sky…"} />

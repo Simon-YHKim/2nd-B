@@ -122,6 +122,17 @@ export const m3Accent = {
   alertDot: "#FF8A5B",
   /** Windowed-screen 1px rim rgb(150,180,230) (used at .16 — sb-app data-window). */
   windowRim: "#96B4E6",
+  // ---- 공유 카드 (sb-more ShareCardScreen) — 1080×1080 card palette.
+  /** Card eyebrow/rim starlight rgb(127,208,255) (rim at .18). */
+  shareEyebrow: "#7FD0FF",
+  /** Card headline ink. */
+  shareInk: "#EAF2FF",
+  /** Card body/footer ink rgb(220,230,255) (used at .65–.7). */
+  shareInkSoft: "#DCE6FF",
+  /** Lit constellation dot on the card. */
+  shareStarOn: "#BFE9FF",
+  /** Card background radial top stop (→ stageFloor). */
+  shareBgTop: "#16203A",
 } as const;
 
 /**
