@@ -67,6 +67,9 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/museum",
   // 커리어 3C4P Drill Down (P4d) — direct-render dock screen.
   "/career-drilldown",
+  // 가치관 체크 (P3b) — thin route over AxisCheckScreen, so the drift guard's
+  // direct-render scan doesn't see it; registered by hand like /museum.
+  "/values",
 ] as const;
 
 export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];

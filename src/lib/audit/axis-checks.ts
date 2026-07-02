@@ -8,7 +8,7 @@
 // tools in the app stay BFI-44 / IPIP-NEO-120 / ECR-S, all public-domain or
 // research-free). Copy stays in the self-understanding/growth register.
 
-export type AxisCheckId = "motivation" | "strengths";
+export type AxisCheckId = "motivation" | "strengths" | "values";
 
 export interface AxisQuestion {
   id: string;
@@ -146,7 +146,73 @@ const STRENGTHS: AxisCheck = {
   ],
 };
 
+// 가치관 (rev2 P3b) — Schwartz-anchored self-check. The prototype's values
+// screen shows a ranked spectrum; honesty rules (no mock numbers) mean the
+// spectrum renders only once these reflections accumulate — this check is the
+// input side. One reflection per anchor value; the prototype's value notes
+// ("스스로 정하고 움직일 때 가장 나다워요" …) seeded the prompts.
+const VALUES: AxisCheck = {
+  id: "values",
+  tag: "axis_check:values",
+  title: { en: "Values check", ko: "가치관 체크" },
+  intro: {
+    en: "Six short reflections on what you hold important: deciding for yourself, novelty, being the same inside and out, caring, achieving, and stability. No scores; your answers become the signals behind the values spectrum.",
+    ko: "무엇을 중요하게 여기는지 여섯 번의 짧은 돌아보기로 살펴봐요. 스스로 정하는 것, 새로움, 겉과 속이 같은 것, 돌봄, 성취, 안정. 점수는 없어요. 적어 주신 기록이 가치 스펙트럼의 근거가 돼요.",
+  },
+  questions: [
+    {
+      id: "val-selfdir",
+      framework: "values:self_direction",
+      prompt: {
+        en: "What choice did you recently make and carry through entirely on your own terms?",
+        ko: "최근에 온전히 내 뜻으로 정해서 끝까지 밀고 나간 선택은 무엇이었나요?",
+      },
+    },
+    {
+      id: "val-stim",
+      framework: "values:stimulation",
+      prompt: {
+        en: "What newness or learning is pulling you in these days?",
+        ko: "요즘 나를 끌어당기는 새로움이나 배움이 있나요? 무엇인가요?",
+      },
+    },
+    {
+      id: "val-auth",
+      framework: "values:authenticity",
+      prompt: {
+        en: "When did being different on the outside and inside last feel uncomfortable? What was the situation?",
+        ko: "겉과 속이 달라서 불편했던 최근 순간이 있나요? 어떤 상황이었나요?",
+      },
+    },
+    {
+      id: "val-benev",
+      framework: "values:benevolence",
+      prompt: {
+        en: "When did caring for someone close recently feel most like you?",
+        ko: "가까운 사람을 챙기면서 '이게 나답다'고 느낀 최근 순간은 언제였나요?",
+      },
+    },
+    {
+      id: "val-achieve",
+      framework: "values:achievement",
+      prompt: {
+        en: "What gave you an unusually strong sense of 'I did it'?",
+        ko: "'해냈다'는 감각이 유난히 컸던 일은 무엇이었나요?",
+      },
+    },
+    {
+      id: "val-secure",
+      framework: "values:security",
+      prompt: {
+        en: "When did you last need things predictable and steady? How filled is that need right now?",
+        ko: "안정과 예측 가능함이 필요했던 순간은 언제였나요? 지금 그 필요는 얼마나 채워져 있나요?",
+      },
+    },
+  ],
+};
+
 export const AXIS_CHECKS: Record<AxisCheckId, AxisCheck> = {
   motivation: MOTIVATION,
   strengths: STRENGTHS,
+  values: VALUES,
 };

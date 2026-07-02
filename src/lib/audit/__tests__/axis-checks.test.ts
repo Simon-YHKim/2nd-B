@@ -1,9 +1,9 @@
 import { AXIS_CHECKS } from "../axis-checks";
 import { labelFramework } from "../frameworkLabels";
 
-describe("axis checks (P3b 동기/강점)", () => {
-  test("two axes, six questions each, EN+KO complete", () => {
-    expect(Object.keys(AXIS_CHECKS).sort()).toEqual(["motivation", "strengths"]);
+describe("axis checks (P3b 동기/강점/가치관)", () => {
+  test("three axes, six questions each, EN+KO complete", () => {
+    expect(Object.keys(AXIS_CHECKS).sort()).toEqual(["motivation", "strengths", "values"]);
     for (const check of Object.values(AXIS_CHECKS)) {
       expect(check.questions).toHaveLength(6);
       expect(check.title.en.length).toBeGreaterThan(0);
@@ -44,6 +44,19 @@ describe("axis checks (P3b 동기/강점)", () => {
   test("axis tags are namespaced and distinct", () => {
     expect(AXIS_CHECKS.motivation.tag).toBe("axis_check:motivation");
     expect(AXIS_CHECKS.strengths.tag).toBe("axis_check:strengths");
+    expect(AXIS_CHECKS.values.tag).toBe("axis_check:values");
+  });
+
+  test("values covers each Schwartz anchor exactly once", () => {
+    const frameworks = AXIS_CHECKS.values.questions.map((q) => q.framework).sort();
+    expect(frameworks).toEqual([
+      "values:achievement",
+      "values:authenticity",
+      "values:benevolence",
+      "values:security",
+      "values:self_direction",
+      "values:stimulation",
+    ]);
   });
 
   test("no em dashes in user-visible copy", () => {
