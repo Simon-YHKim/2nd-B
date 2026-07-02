@@ -65,6 +65,8 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // AI 뮤지엄 (rev2 2-axis timeline) — the route file delegates, so the drift
   // guard's direct-render scan doesn't see it; registered here by hand.
   "/museum",
+  // 커리어 3C4P Drill Down (P4d) — direct-render dock screen.
+  "/career-drilldown",
 ] as const;
 
 export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];
