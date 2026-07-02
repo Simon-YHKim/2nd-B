@@ -3,7 +3,60 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-02 / rev2 P1b+P2 랜딩 · OTA 파이프라인 복구·퍼블리시 · Android Studio QA 인계
+## Latest — 2026-07-02 (오전 2차) / rev2 P2-cont~P6 일괄 랜딩 (12 머지) · 다음 = Android Studio 육안 QA
+
+### 어디까지 왔나
+- **이번 세션 머지 (전부 main, CI green 후)**: #658 wiki dock 셸(B) · #659 홈 m3.accent 이관(B) · #661 세컨비 3-persona 셀렉터(B) `[ota]` · #663 북극성 persona deck+TraitRadar+검증진입(P3a) · #665 동기/강점 체크(/motivation·/strengths, P3b) · #666 밝기 타임라인+정직미터+승인이력(/brightness·/ratifications, P3c/d) `[ota]` · #668 4W1H 담기 모드(P4a) · #669 위키 노드그래프(P4b) · #671 인물맵+커리어 타임라인+휴식 보드(/people·/career·/rest, P4c/d/e) `[ota]` · #672 F-ret 마이그 0065(P6) · #673 트위비 3-branch 칩+공유카드 표면(/share-card, P5c/f) · #674 IDEN 토글+JSON(P5a) `[ota]`.
+- 최종 verify green (매 PR CI + 로컬). OTA 퍼블리시 채널 `preview`·runtime `0.0.6` — 마지막 `[ota]` = #674 머지.
+- **병렬 세션 협업**: 같은 시간 웹-QA 트랙 세션이 BackArrow/wiki fix·픽셀크롬 은퇴(M3 타이포)·홈 밝기 auth-gate·모달 scrim 픽스를 랜딩 (충돌 1건 = DeepSpaceDesignScreens 타이포그래피, 그쪽 손 들어주고 해소). **슬라이스 선점 프로토콜 = 시작 전 브랜치 push + 열린 PR/브랜치 확인, 중복은 뒤에 열린 쪽 close** (#659/#660 사례).
+
+### rev2 마이그레이션 현황 (REV2-MIGRATION.md 기준)
+- P0 ✅ · P1a/b ✅ · P2(+cont) ✅ · **P3 ✅** (deck·radar·검증5종·타임라인·승인이력) · **P4 ✅** (4W1H·위키그래프·인물맵·커리어·휴식; OCR은 기존 ocr 모드가 이미 커버) · **P5 대부분 ✅** (IDEN 토글/JSON·공유카드·트위비 3-branch; 임포트/데이터권리·뮤지엄은 기존 딥스페이스 화면이 이미 충족) · **P6 F-ret ✅ (0065, off-default)**.
+- **의도적 보류 (punch list)**: ① 커리어 **3C4P drilldown + 고용24** — 로드맵에 이름만 존재, 프레임워크 상세는 rev2 프로토타입 스펙(zip) 필요. 발명 금지 원칙으로 보류 ② **뮤지엄 2축(세계사) 타임라인** — 세계사 축 캐논 카피 부재, 동일 사유 ③ **요금제 3-tier 재명명(별바라기/항해자/북극성)** — Simon-approved v2 가격정책(free/soma/cortex/brain, pricing.test.ts 고정)과 충돌 → **수익화 결정 게이트, Simon 결정 필요** ④ E-act·F2~F4(법무)·위젯(네이티브 빌드)·통화녹음(법무) — 기존 게이트 유지.
+
+### 새 표면 지도 (이번 세션 추가 라우트)
+```
+/motivation /strengths     동기·강점 자기점검 (audit_response, axis_check 태그)
+/brightness /ratifications 8주 밝기 히트맵+정직미터 · propose→ratify 원장
+/people /career /rest      관계 인물맵(0058 첫 화면) · 커리어 연도 타임라인(year: 태그) · 휴식 보드(0059 첫 화면)
+/share-card                공유카드 A/B 프리뷰 + 1080 캡처 공유
+capture 4W1H 모드           누가/언제/어디서/무엇을/어떻게 → #fourw note
+wiki 그래프 토글             목록↔노드그래프 (graph-layout.ts 결정론 레이아웃)
+북극성 deck                 hero(밝기/통계/링크3) · 연결 · 동네 · 나의모습 · 성격레이더 · 일곱별 · 조각 · 도구7종 · 다음걸음
+secondb                    3-persona 셀렉터(2nd-B/메타비/트위비) · 트위비 divergent 답변 끝 '→' 3-branch 칩(담기 연결)
+IDEN                       필드 include 토글 + JSON 복사 (제외 필드는 어떤 포맷으로도 미유출)
+```
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **Android Studio 육안 QA** (`docs/ANDROID-STUDIO-QA.md`) — 기존 체크리스트 + 이번 세션 신규 표면 전부(위 지도) 순회, 발견 이슈 픽스 → 머지+[ota] | large | ⭐ 바로 이것 (사용자 지시) |
+| B | punch list 해소: 프로토타입 스펙(zip) 재확보 시 3C4P·뮤지엄 2축 / Simon 결정 시 요금제 명명 | medium | 게이트 대기 |
+| C | P7 잔여: es/id/pt 실번역(현 EN 사본), 신규 화면 rev2 스크린샷 대조 | medium | A에서 발견분과 함께 |
+
+### 적용 중인 정책 (이번 세션 학습, 영구)
+1. **머지+OTA 상시** (Simon 지시): 작업 단위 = PR → CI green → squash 머지, 배치 마지막 머지 subject 에 `[ota]` → run 완주 확인(조용한 4분 창). 중간 머지는 마커 없이.
+2. **병렬 Claude 세션 프로토콜**: 슬라이스 착수 전 `git fetch` + 열린 PR/브랜치 확인, 선점은 브랜치 push, 중복 PR 은 늦게 연 쪽이 close. 공유 워크트리 HEAD 는 언제든 바뀔 수 있음 — 커밋은 SHA 로 확인.
+3. **behind PR**: `gh pr update-branch` → CI 재green → 일반 머지 (`--admin` 금지 — auto-mode 분류기 차단).
+4. **분류기(권한 모델) 장애 시**: 리포 쓰기 전부 차단됨. 스크래치패드는 통과 → 파일들을 staging 에 써두고 회복 즉시 cp 반입 (이번 세션 ~40분 장애를 이 패턴으로 무손실 통과).
+5. 신규 화면 공통 규율: DeepSpaceScreen active="lens" 셸 · M3 프리미티브 · 4-state · ≥44dp · KO/EN 인라인 (기존 화면 관례) · 순수 lib 분리 + 테스트.
+
+### 검증
+```bash
+npm run verify   # 289 suites / 2202 tests (P5a 머지 기준)
+npx expo export --platform android --clear   # 번들 무결성
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+cat docs/ANDROID-STUDIO-QA.md
+# A: npx expo run:android 로 육안 QA — 신규 표면 지도(위) 전부 순회
+```
+
+---
+
+## 2026-07-02 / rev2 P1b+P2 랜딩 · OTA 파이프라인 복구·퍼블리시 · Android Studio QA 인계
 
 ### 어디까지 왔나
 - main HEAD: `220393a` (그 위로 Simon 이 BackHandler/survey 픽스 다수 직접 push — rev2 UI 와 독립).
