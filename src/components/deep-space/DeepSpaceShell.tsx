@@ -17,8 +17,10 @@ import { type LadderLevel } from "@/lib/persona/brightness";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
+import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
 import { DeepSpaceScreen } from "./DeepSpaceScreen";
 import { ConstellationHome } from "./ConstellationHome";
+import { HomeCoachmarks } from "./HomeCoachmarks";
 
 export function DeepSpaceShell() {
   const { t, i18n } = useTranslation("home");
@@ -33,6 +35,13 @@ export function DeepSpaceShell() {
   // resolves; failure leaves it empty (never blocks).
   const [domainLevels, setDomainLevels] = useState<Partial<Record<DomainId, LadderLevel>>>({});
   const [northStarBrightness, setNorthStarBrightness] = useState(0.2);
+
+  // Home coachmarks (Screen-Spec 04): the 4-step spotlight shows once on the
+  // first home visit; 다시 보지 않기/시작하기 persist the seen flag, and the
+  // settings 코치마크 리셋 brings it back. Dismissal is local state so the
+  // overlay drops immediately without waiting on storage.
+  const coachmarksDue = useCoachmarksGate();
+  const [coachmarksDismissed, setCoachmarksDismissed] = useState(false);
   useEffect(() => {
     // Wait for the auth session restore (`loading`) as well as the userId:
     // firing on userId alone raced the token attach at boot, so the Supabase
@@ -74,6 +83,9 @@ export function DeepSpaceShell() {
         starLevels={domainLevels}
         northStarBrightness={northStarBrightness}
       />
+      {coachmarksDue === true && !coachmarksDismissed ? (
+        <HomeCoachmarks onDone={() => setCoachmarksDismissed(true)} />
+      ) : null}
     </DeepSpaceScreen>
   );
 }
