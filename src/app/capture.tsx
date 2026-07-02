@@ -103,6 +103,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 
+// Deep-space reads these four explicit pixel-font labels in Pretendard (the
+// same build-constant swap as Text.tsx #667); the legacy track keeps pixelKo.
+// This is what makes /capture-full read as the deep-space design instead of
+// retro chrome (the gameboy/semantic tokens are already track-aware).
+const CAPTURE_LABEL_FONT = isDeepSpaceUI() ? fontFamilies.readable : fontFamilies.pixelKo;
+
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
 // capture modes live on one screen. "일기" writes to `records` (createRecord —
 // streak / reflection / optional Advisor); the rest write to `sources`
@@ -2473,7 +2479,7 @@ const styles = StyleSheet.create({
   },
   trackChipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   trackGlyph: { width: 16, height: 16 },
-  trackChipText: { color: semantic.textMuted, fontSize: typography.sizes.sm, fontWeight: "600", fontFamily: fontFamilies.pixelKo },
+  trackChipText: { color: semantic.textMuted, fontSize: typography.sizes.sm, fontWeight: "600", fontFamily: CAPTURE_LABEL_FONT },
   trackChipTextActive: { color: semantic.background, fontWeight: "700" },
   modeRow: {
     flexDirection: "row",
@@ -2506,9 +2512,9 @@ const styles = StyleSheet.create({
   },
   modeMoreTabExpanded: { borderColor: semantic.brand },
   modeGlyph: { width: 24, height: 24 },
-  modeLabel: { color: semantic.textMuted, fontSize: typography.sizes.xs, fontWeight: "600", fontFamily: fontFamilies.pixelKo },
+  modeLabel: { color: semantic.textMuted, fontSize: typography.sizes.xs, fontWeight: "600", fontFamily: CAPTURE_LABEL_FONT },
   modeLabelActive: { color: semantic.background, fontWeight: "700" },
-  modeMoreLabel: { color: semantic.brand, fontSize: typography.sizes.sm, fontWeight: "700", fontFamily: fontFamilies.pixelKo },
+  modeMoreLabel: { color: semantic.brand, fontSize: typography.sizes.sm, fontWeight: "700", fontFamily: CAPTURE_LABEL_FONT },
   modeHelp: { lineHeight: 18, marginTop: -spacing.xs },
   fieldGroup: {
     gap: spacing.xs,
@@ -2656,6 +2662,6 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(cosmic.space900, 0.86),
     borderColor: withAlpha(cosmic.mistGray, 0.36),
   },
-  tossBtnText: { color: semantic.background, fontSize: typography.sizes.md, fontWeight: "700", fontFamily: fontFamilies.pixelKo },
+  tossBtnText: { color: semantic.background, fontSize: typography.sizes.md, fontWeight: "700", fontFamily: CAPTURE_LABEL_FONT },
   tossBtnTextDisabled: { color: withAlpha(cosmic.moonWhite, 0.72) },
 });
