@@ -11,8 +11,8 @@
  * Rendered only in the deep-space build. The deep-space-shell-a11y guard pins the
  * character accessibilityLabel pattern to THIS file.
  */
-import type { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, type ReactNode } from "react";
+import { BackHandler, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, type Href } from "expo-router";
@@ -68,8 +68,9 @@ export function DeepSpaceScreen({
   /** rev2 persona tint for the status-header head (chat surface). Unset = canonical cyan. */
   personaTint?: M3Persona;
   /** rev2 (sb-app §4): the companion header belongs to capture/chat/records only —
-   *  home renders its own big head + bubble, so it passes "none". */
-  header?: "companion" | "none";
+   *  home renders its own big head + bubble, so it passes "none". records keeps
+   *  the graph full-bleed and FLOATS the companion over it ("floating"). */
+  header?: "companion" | "none" | "floating";
   /** rev2 (sb-app §4): every non-immersive screen floats as a radius-24 "window"
    *  over the shared sky (padding 12/12/14, surface bg, 1px starlight rim). */
   variant?: "fullbleed" | "windowed";
@@ -85,6 +86,19 @@ export function DeepSpaceScreen({
   // Character a11y label stays an inline isKo ternary (deep-space-shell-a11y guard
   // pins this pattern + bans non-ASCII string literals in accessibilityLabel).
   const characterLabel = isKo ? "세컨드 브레인 캐릭터" : "Second Brain character";
+
+  // rev2 back() (sb-app): hardware back on a non-home ROOT tab returns to the
+  // constellation home instead of exiting the app. Screens with their own back
+  // guards register later and therefore run first (LIFO); sub-screens
+  // (active not in TABS) keep the default pop behavior.
+  useEffect(() => {
+    if (active === "home" || !TABS.includes(active)) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      router.replace("/");
+      return true;
+    });
+    return () => sub.remove();
+  }, [active]);
 
   // rev2 NavBar: uniform 64×32 pills + 24dp icons (no center emphasis).
   const dockItems = TABS.map((key) => ({
@@ -132,7 +146,23 @@ export function DeepSpaceScreen({
               accessibilityLabel={characterLabel}
             />
           ) : null}
-          <View style={styles.body}>{children}</View>
+          <View style={styles.body}>
+            {children}
+            {header === "floating" ? (
+              // rev2 records: the graph stays full-bleed and the companion
+              // FLOATS over it (sb-app: absolute overlay, taps pass through
+              // the wrapper so the graph keeps its gestures).
+              <View pointerEvents="box-none" style={styles.floatingHeader}>
+                <SecondbStatusHeader
+                  text={t("ds.head." + active + ".text")}
+                  tip={t("ds.head." + active + ".tip")}
+                  mood={VIEW_MOOD[active]}
+                  persona={personaTint}
+                  accessibilityLabel={characterLabel}
+                />
+              </View>
+            ) : null}
+          </View>
         </>
       )}
 
@@ -154,6 +184,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: withAlpha(deepSpace.bgEdge, 0.5),
   },
+  floatingHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 6 },
   // sb-app windowed: padding '12px 12px 14px' around a radius-24 surface card
   // with a 1px starlight rim; the sky stays visible around it.
   windowWrap: {
