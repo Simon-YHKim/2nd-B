@@ -1,22 +1,22 @@
 {
   "red": {
-    "title": "We hear you.",
-    "body": "What you're going through sounds heavy. You don't have to carry it alone.",
+    "title": "A gente te escuta.",
+    "body": "O que você está passando parece pesado. Você não precisa carregar isso sozinho.",
     "hotline": {
-      "GLOBAL_988": "Call or text 988 - Suicide & Crisis Lifeline (24/7)",
+      "GLOBAL_988": "Ligue ou envie mensagem para 988 - Suicide & Crisis Lifeline (24/7)",
       "KR_109": "전화 109 - 자살예방상담전화 (24시간, 무료)",
       "KR_1393": "전화 1393 - 자살예방상담전화 (24시간)",
       "KR_1577_0199": "전화 1577-0199 - 정신건강위기상담전화",
       "KR_1388": "전화 1388 - 청소년상담전화 (24시간)"
     },
-    "dismiss": "Close",
-    "directoryLabel": "Outside the US? Find a helpline in your country",
-    "directoryHint": "Opens findahelpline.com in your browser"
+    "dismiss": "Fechar",
+    "directoryLabel": "Fora dos EUA? Encontre uma linha de ajuda no seu país",
+    "directoryHint": "Abre findahelpline.com no seu navegador"
   },
   "yellow": {
-    "rephraseHint": "We focus on self-understanding and growth. Try describing what you're noticing rather than naming a condition."
+    "rephraseHint": "Nosso foco é auto entendimento e crescimento. Tente descrever o que você está percebendo em vez de dar um rótulo."
   },
   "green": {
-    "placeholder": "What's on your mind?"
+    "placeholder": "O que está na sua mente?"
   }
 }

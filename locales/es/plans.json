@@ -11,8 +11,8 @@
   "comingSoonBody": "El pago aún no está disponible. Los precios son definitivos y no se te cobrará nada hasta que elijas un plan aquí.",
   "tiers": {
     "free": {
-      "name": "Free",
-      "price": "Free",
+      "name": "Gratis",
+      "price": "Gratis",
       "tagline": "Tu 2nd-Brain de siempre, registros ilimitados",
       "f1": "Registros, notas y wiki ilimitados",
       "f2": "Almacenamiento privado con exportación cuando lo necesites",

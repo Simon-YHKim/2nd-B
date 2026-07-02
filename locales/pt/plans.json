@@ -11,7 +11,7 @@
   "comingSoonBody": "O checkout ainda não está aberto. Os preços são definitivos e nada é cobrado até você escolher um plano aqui.",
   "tiers": {
     "free": {
-      "name": "Free",
+      "name": "Grátis",
       "price": "Grátis",
       "tagline": "Seu 2nd-Brain do dia a dia, registros ilimitados",
       "f1": "Registros, notas e wiki ilimitados",
