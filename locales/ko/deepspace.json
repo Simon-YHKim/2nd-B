@@ -20,7 +20,9 @@
     "emptyAll": "창고가 조용해요. 오늘의 조각이나 링크를 담으면 여기서 다시 만날 수 있어요.",
     "addPiece": "+ 조각 담기",
     "backlinks": "연결된 기록 {{count}}",
-    "connections": "연결 {{count}}"
+    "connections": "연결 {{count}}",
+    "viewList": "목록",
+    "viewGraph": "그래프"
   },
   "research": {
     "title": "연결 찾기",

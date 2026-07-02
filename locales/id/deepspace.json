@@ -20,7 +20,9 @@
     "emptyAll": "Arsip sedang sepi. Tambahkan keping hari ini atau sebuah tautan, dan kamu akan menemukannya lagi di sini.",
     "addPiece": "+ Tambahkan keping",
     "backlinks": "Catatan tertaut {{count}}",
-    "connections": "Tautan {{count}}"
+    "connections": "Tautan {{count}}",
+    "viewList": "Daftar",
+    "viewGraph": "Graf"
   },
   "research": {
     "title": "Temukan koneksi",

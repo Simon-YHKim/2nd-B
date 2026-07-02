@@ -20,7 +20,9 @@
     "emptyAll": "El archivo está tranquilo. Añade la pieza de hoy o un enlace y volverás a encontrarlo aquí.",
     "addPiece": "+ Añadir una pieza",
     "backlinks": "Registros enlazados {{count}}",
-    "connections": "Enlaces {{count}}"
+    "connections": "Enlaces {{count}}",
+    "viewList": "Lista",
+    "viewGraph": "Grafo"
   },
   "research": {
     "title": "Encontrar conexiones",
