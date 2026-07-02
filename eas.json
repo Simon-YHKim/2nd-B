@@ -32,7 +32,8 @@
         "EXPO_PUBLIC_GA4_MEASUREMENT_ID": "G-VF514NK1WS",
         "EXPO_PUBLIC_CLARITY_PROJECT_ID": "xb3qenit2h",
         "EXPO_PUBLIC_POSTHOG_KEY": "phc_AkPZXxTwcFVjH9reTQdgBG6tPc4wJRL2RhJqjkpgPK3A",
-        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
+        "EXPO_PUBLIC_NATIVE_SOCIAL_SDK": "true"
       }
     },
     "ios-simulator": {
@@ -62,7 +63,8 @@
         "EXPO_PUBLIC_GA4_MEASUREMENT_ID": "G-VF514NK1WS",
         "EXPO_PUBLIC_CLARITY_PROJECT_ID": "xb3qenit2h",
         "EXPO_PUBLIC_POSTHOG_KEY": "phc_AkPZXxTwcFVjH9reTQdgBG6tPc4wJRL2RhJqjkpgPK3A",
-        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
+        "EXPO_PUBLIC_NATIVE_SOCIAL_SDK": "true"
       }
     }
   },
