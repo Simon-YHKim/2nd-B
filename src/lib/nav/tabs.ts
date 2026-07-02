@@ -72,6 +72,8 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/values",
   // 담기 풀 모드 (링크/클립/OCR/파일) — deep-space shell over the legacy pipes.
   "/capture-full",
+  // 북극성 문장 편집 (Screen-Spec 21) — direct-render dock screen.
+  "/northstar",
 ] as const;
 
 export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];

@@ -526,6 +526,7 @@ function CoreBrainScreen() {
               { key: "motivation", label: locale === "ko" ? "동기 체크" : "Motivation check", route: "/motivation" },
               { key: "strengths", label: locale === "ko" ? "강점 체크" : "Strengths check", route: "/strengths" },
               { key: "values", label: locale === "ko" ? "가치관 체크" : "Values check", route: "/values" },
+              { key: "northstar", label: locale === "ko" ? "북극성 문장 편집" : "Edit north-star sentence", route: "/northstar" },
               { key: "mbti", label: locale === "ko" ? "MBTI 스크리너" : "MBTI screener", route: "/mbti" },
               { key: "audit", label: locale === "ko" ? "가치 오딧" : "Values audit", route: "/audit" },
             ] as const).map((tool) => (

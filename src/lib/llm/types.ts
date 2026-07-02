@@ -24,7 +24,8 @@ export type PromptPurpose =
   | "import_ingest"
   | "imagine"
   | "ops_recommend"
-  | "persona_synthesis";
+  | "persona_synthesis"
+  | "northstar_propose";
 
 export interface AdvisorInput {
   userId: string;
