@@ -6,5 +6,6 @@ export { MdCard, type MdCardProps, type MdCardVariant } from "./MdCard";
 export { MdChip, type MdChipProps, type MdChipKind } from "./MdChip";
 export { Field, type FieldProps } from "./Field";
 export { MdNavBar, type MdNavBarProps, type MdNavItem } from "./MdNavBar";
+export { MdTopAppBar } from "./MdTopAppBar";
 export { ProgressLinear, type ProgressLinearProps } from "./ProgressLinear";
 export { robotoFor, m3TextStyle } from "./typeface";

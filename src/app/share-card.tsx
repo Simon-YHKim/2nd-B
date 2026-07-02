@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect } from "expo-router";
+import { Redirect, router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState } from "@/components/premium";
@@ -46,9 +46,11 @@ export default function ShareCardScreen() {
     };
   }, [userId]);
 
+  const barTitle = isKo ? "공유 카드" : "Share card";
+
   if (loading) {
     return (
-      <DeepSpaceScreen active="lens">
+      <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
         <View style={styles.center}>
           <PremiumLoadingState message={isKo ? "불러오는 중이에요…" : "Loading…"} />
         </View>
@@ -76,9 +78,8 @@ export default function ShareCardScreen() {
   }
 
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text variant="heading">{isKo ? "공유 카드" : "Share card"}</Text>
         <Text variant="caption" color="textSubtle">
           {isKo
             ? "한 문장과 별 개수만 담겨요. 기록 내용은 카드에 실리지 않아요."

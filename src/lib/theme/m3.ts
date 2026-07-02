@@ -120,6 +120,8 @@ export const m3Accent = {
   bellSurface: "#141E34",
   bellGlyph: "#CFE6FF",
   alertDot: "#FF8A5B",
+  /** Windowed-screen 1px rim rgb(150,180,230) (used at .16 — sb-app data-window). */
+  windowRim: "#96B4E6",
 } as const;
 
 /**

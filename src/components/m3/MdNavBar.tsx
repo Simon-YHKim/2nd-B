@@ -9,7 +9,7 @@ import { Pressable, StyleSheet, type StyleProp, Text, View, type ViewStyle } fro
 
 import { m3 } from "@/lib/theme/m3";
 
-import { m3TextStyle } from "./typeface";
+import { m3TextStyle, robotoFor } from "./typeface";
 
 export interface MdNavItem {
   key: string;
@@ -55,7 +55,15 @@ export function MdNavBar({ items, active, onSelect, bottomInset = 0, style }: Md
               <View style={[styles.indicator, item.center && styles.indicatorCenter, on && { backgroundColor: pillBg }]}>
                 {item.icon(iconColor)}
               </View>
-              <Text style={[m3TextStyle("labelMedium"), styles.label, { color: labelColor }]} numberOfLines={1}>
+              <Text
+                style={[
+                  m3TextStyle("labelMedium"),
+                  styles.label,
+                  { color: labelColor },
+                  on && { fontFamily: robotoFor("700") },
+                ]}
+                numberOfLines={1}
+              >
                 {item.label}
               </Text>
             </Pressable>
@@ -66,23 +74,26 @@ export function MdNavBar({ items, active, onSelect, bottomInset = 0, style }: Md
   );
 }
 
+// rev2 sb-app NavBar: height 80 (12 top pad), 64×32 pill indicator, icon 24,
+// label 12 (bold when active), 1px surface-variant top border.
 const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
     backgroundColor: m3.color.surfaceContainer,
-    paddingTop: m3.spacing.s2,
+    paddingTop: 12,
     paddingHorizontal: m3.spacing.s2,
+    borderTopWidth: 1,
+    borderTopColor: m3.color.surfaceVariant,
   },
-  tab: { flex: 1, minHeight: 48, justifyContent: "center" },
-  press: { alignItems: "center", gap: m3.spacing.s1, justifyContent: "center", minHeight: 48 },
+  tab: { flex: 1, minHeight: 52, justifyContent: "center" },
+  press: { alignItems: "center", gap: m3.spacing.s1, justifyContent: "center", minHeight: 52 },
   indicator: {
-    minWidth: 56,
+    width: 64,
     height: 32,
     borderRadius: m3.shape.full,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: m3.spacing.s4,
   },
-  indicatorCenter: { minWidth: 64, height: 36 },
+  indicatorCenter: { width: 64, height: 32 },
   label: { textAlign: "center" },
 });
