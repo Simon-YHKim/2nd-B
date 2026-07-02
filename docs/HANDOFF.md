@@ -3,6 +3,54 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-07-03 (게이트 해제 세션) / T5 E2E·통화회고·DDS분할 + 네이티브 사이클 0.0.7 완주
+
+### 어디까지 왔나
+- main HEAD: `9d825fce` 기준 이 세션 머지: **#717** 통화 직후 회고(call_reflection structured) · **#718** 승인원장 무변화 접기 · **#719** DDS 분할 1차(4264→3616줄, dds-styles.ts + dds-auth-screens.tsx 순수이동) · **#638** 네이티브 Google/Kakao 로그인 · **#619** Sentry 네이티브 · **#722** runtime 0.0.7 범프. (같은 날 병렬 세션 = 아래 픽셀 클로닝 블록.)
+- working tree(fable5 worktree): clean. 메인 체크아웃(C:\2ndB)은 병렬 세션 로컬 커밋 보유 — pull은 그쪽 플로우가 정리.
+- verify: 전 PR CI green ×2 + lint (매 머지 전 확인).
+
+### 🔴 이 세션의 최중요 발견 — "파일-only 마이그레이션" 함정
+- **0064(T5 스키마)가 레포에만 있고 라이브 DB에 미적용**이었음 → T5 E2E 첫 insert에서 발각, 즉시 적용. **교훈: 마이그레이션은 파일 머지 ≠ 적용. 새 기능 E2E 전에 라이브 테이블 존재부터 probe.**
+- 적용 현황(라이브): 0064(T5) · 0066(records.structured) · 0067(보존 purge pg_cron — CI엔 가용성 가드 필수, #707 참조).
+
+### T5 peer-review — 백엔드 E2E 전 구간 PASS
+- edge fn `peer-respond` v1: submit ×4(성인3+미성년·보호자1) · 가드 4종(중복409/acks/guardian/등급범위) · withdraw 즉시 min-N 재폐쇄(3→2) · 집계 정확(3.00/4.67/4.00, n=3) · Pages `/2nd-B/peer/<token>` SPA 폴백 실브라우저 렌더 ✓.
+- QA 계정(qa.ai.b18807) = informant 3명 활성 상태로 유지 → **0.0.7 설치 후 /persona Seen 렌즈에서 gap 뷰 실확인 가능** (F4 "간극 한 줄" 버튼 포함).
+
+### 네이티브 사이클 0.0.7 (Simon 게이트 해제분)
+- **EAS preview 빌드 FINISHED**: runtime 0.0.7 / channel preview. APK: `https://expo.dev/artifacts/eas/KyVG5SVbIIsf_atsmFfJ2bV0bHre34M0HQdCeYKdD4s.apk` (빌드 7d2a4e53).
+- 이 설치부터 [ota]는 0.0.7 대상. **0.0.6 설치는 동결** — 새 APK 설치 필수.
+- **서명키**: 시크릿 4종 등록 + CI android-release 로그 "Using real keystore (store-grade signing)" 실행 라인 확인 → CI 산출물 Play 제출 가능.
+- 소셜 로그인은 provider 클라이언트 키 env 설정된 것만 버튼 노출(미설정=기존 로그인만, 정상). Sentry는 DSN 설정 시 활성.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | 0.0.7 설치 후 신기능 폰 QA(Seen gap·통화회고·소셜로그인 버튼 상태) | small | ⭐ 방금 출하분 실확인 |
+| B | DDS 분할 2차 (wiki/records/record-detail → plans/paywall → import/inbox 블록) | medium | 1차 패턴 그대로(순수이동+재export) |
+| C | Play 스토어 제출 트랙(리스팅·스크린샷·개인정보 URL·AAB) | large | 서명 준비 완료로 개시 가능 |
+| D | call-log 네이티브 트리거(통화회고 자동 프롬프트) | medium | 다음 네이티브 사이클 |
+| E | 고용24 연동 | ? | 스펙 자료 대기 |
+
+### 적용 중인 정책 (영구, 이 세션 추가분)
+1. **auto-merge + 조용대기**: main 경합 시 `gh pr merge --auto` 걸고 update-branch → **CI 완주까지 무간섭**(짧은 재트리거 반복 = CI 리셋 자충수).
+2. **마이그레이션 = dry-run 컨테이너 기준 작성**(pg_cron 등 확장은 가용성 가드) + **적용 여부 별도 확인**.
+3. codex 헤드리스는 `< /dev/null` stdin 차단 필수.
+
+### 검증
+```bash
+npm run verify   # lint+type+i18n(C7 27ns)+lexicon+jest, 매 PR CI와 동일
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A(폰 QA)부터: APK 설치 → /persona Seen → gap 뷰·간극 한 줄
+```
+
+---
+
 ## Latest — 2026-07-03 / rev2 r3 픽셀 클로닝 /loop — 15 PR + 핫픽스 (홈 1:1 · 셸 3종 완성 · 폰트 규율 · 축 추정)
 
 > Simon /loop 지시: r3 디자인 핸드오프(`Downloads\2ndB-proto-rev2-r3\design_handoff_2nd_brain\`)와
