@@ -163,6 +163,10 @@ export function ConstellationHome({
 const styles = StyleSheet.create({
   root: { flex: 1, alignItems: "center", justifyContent: "space-between", paddingBottom: 14 },
   starStage: { position: "relative", width: W, height: STAR_H, marginTop: 0 },
+  // Parity H2 (rev2 01-home): the prototype's constellation glow is a soft
+  // radial wash with NO visible rim — the 1px starCore border drew a clear
+  // ellipse outline around the sky, so it goes, and the wash eases down a step
+  // so the disc reads as light, not as a shape.
   constellationGlow: {
     position: "absolute",
     left: 18,
@@ -170,9 +174,7 @@ const styles = StyleSheet.create({
     width: 284,
     height: 236,
     borderRadius: 142,
-    backgroundColor: withAlpha(m3.accent.skySurface, 0.7),
-    borderWidth: 1,
-    borderColor: withAlpha(m3.accent.starCore, 0.12),
+    backgroundColor: withAlpha(m3.accent.skySurface, 0.55),
   },
   svg: { position: "absolute", top: 0, left: 0 },
   polarisHit: {
