@@ -22,6 +22,8 @@ import { deepSpace, deepSpaceGradients, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
+import { SegBtn } from "@/components/m3";
+import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, FOURW_LABEL, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
 import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
@@ -101,29 +103,40 @@ export function CaptureView() {
   const { t, i18n } = useTranslation("home");
   const { userId, isMinor } = useAuth();
   const [draft, setDraft] = useState("");
+  // rev2 P4a on the canon track (device QA 2026-07-02): the deep-space 담기 only
+  // offered the one-line box, so the 4W1H format boxes never showed on device.
+  // A SegBtn toggles between them; both save through the same createRecord path.
+  const [captureMode, setCaptureMode] = useState<"line" | "fourw">("line");
+  const [fourw, setFourw] = useState<FourWFields>(EMPTY_FOURW);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
   const locale = i18n.language === "ko" ? "ko" : "en";
-  const canSave = userId != null && draft.trim().length > 0 && !saving;
+  const hasContent = captureMode === "fourw" ? fourWHasContent(fourw) : draft.trim().length > 0;
+  const canSave = userId != null && hasContent && !saving;
 
   async function saveFirstPiece() {
     if (!userId || !canSave) return;
     setSaving(true);
     setError(false);
     try {
+      const body = captureMode === "fourw" ? composeFourWBody(fourw, locale) : draft.trim();
       await createRecord({
         userId,
         locale,
         kind: "note",
-        body: draft.trim(),
-        topic: locale === "ko" ? "첫 기록" : "First note",
-        tags: ["first-piece"],
+        body,
+        topic:
+          captureMode === "fourw"
+            ? fourw.what.trim().slice(0, 80)
+            : locale === "ko" ? "첫 기록" : "First note",
+        tags: captureMode === "fourw" ? ["fourw"] : ["first-piece"],
         withFollowup: false,
         minor: isMinor === true,
       });
       setSaved(true);
       setDraft("");
+      setFourw(EMPTY_FOURW);
     } catch (e) {
       setError(true);
       if (typeof console !== "undefined") console.warn("[deepspace-capture] save failed", (e as Error).message);
@@ -135,32 +148,71 @@ export function CaptureView() {
   return (
     <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
       <Text style={styles.pixelTitle}>{t("ds.capture.title")}</Text>
-      <TextInput
-        value={draft}
-        onChangeText={(next) => {
-          setDraft(next);
-          if (saved) setSaved(false);
-          if (error) setError(false);
-        }}
-        multiline
-        textAlignVertical="top"
-        placeholder={t("ds.capture.placeholder")}
-        placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
-        style={styles.inputBoxText}
-        accessibilityLabel={t("ds.capture.title")}
+      <SegBtn
+        segments={[
+          { key: "line", label: locale === "ko" ? "한 줄" : "One line" },
+          { key: "fourw", label: "4W1H" },
+        ]}
+        selected={[captureMode]}
+        onSelect={(key) => setCaptureMode(key === "fourw" ? "fourw" : "line")}
+        style={styles.captureModeToggle}
       />
-      <View style={styles.chipRow}>
-        <Chip label={t("ds.capture.chipText")} />
-        <Chip label={t("ds.capture.chipLink")} />
-        <Chip label={t("ds.capture.chipVoice")} />
-      </View>
+      {captureMode === "line" ? (
+        <>
+          <TextInput
+            value={draft}
+            onChangeText={(next) => {
+              setDraft(next);
+              if (saved) setSaved(false);
+              if (error) setError(false);
+            }}
+            multiline
+            textAlignVertical="top"
+            placeholder={t("ds.capture.placeholder")}
+            placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
+            style={styles.inputBoxText}
+            accessibilityLabel={t("ds.capture.title")}
+          />
+          <View style={styles.chipRow}>
+            <Chip label={t("ds.capture.chipText")} />
+            <Chip label={t("ds.capture.chipLink")} />
+            <Chip label={t("ds.capture.chipVoice")} />
+          </View>
+        </>
+      ) : (
+        <View style={styles.fourwCol}>
+          {FOURW_KEYS.map((key) => (
+            <View key={key}>
+              <Text style={[styles.fourwLabel, key === "what" && styles.fourwLabelRequired]}>
+                {FOURW_LABEL[locale][key]}
+                {key === "what" ? (locale === "ko" ? " (필수)" : " (required)") : ""}
+              </Text>
+              <TextInput
+                value={fourw[key]}
+                onChangeText={(text) => {
+                  setFourw((prev) => ({ ...prev, [key]: text }));
+                  if (saved) setSaved(false);
+                  if (error) setError(false);
+                }}
+                multiline={key === "what" || key === "how"}
+                textAlignVertical={key === "what" || key === "how" ? "top" : "center"}
+                placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
+                style={[styles.inputBoxText, styles.fourwInput, (key === "what" || key === "how") && styles.fourwInputTall]}
+                accessibilityLabel={FOURW_LABEL[locale][key]}
+              />
+            </View>
+          ))}
+        </View>
+      )}
       <GradientButton
         label={
           saving
             ? locale === "ko" ? "저장 중" : "Saving"
             : saved
               ? locale === "ko" ? "저장 완료" : "Saved"
-              : locale === "ko" ? "첫 기록 저장" : "Save first note"
+              : captureMode === "fourw"
+                ? locale === "ko" ? "조각 저장" : "Save piece"
+                : locale === "ko" ? "첫 기록 저장" : "Save first note"
         }
         onPress={saveFirstPiece}
         full
@@ -837,7 +889,16 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   gButtonFull: { alignSelf: "stretch" },
-  gButtonLabel: { color: deepSpace.bgEdge, fontSize: 13, fontFamily: fontFamilies.pixelKo, fontWeight: "700" },
+  // width+textAlign keep the label centered on Android regardless of how the
+  // gradient absolute-fill affects the flex pass (device QA 2026-07-02).
+  gButtonLabel: { color: deepSpace.bgEdge, fontSize: 13, fontFamily: fontFamilies.pixelKo, fontWeight: "700", width: "100%", textAlign: "center" },
+  // 담기 4W1H boxes (canon track, rev2 P4a).
+  captureModeToggle: { marginTop: 14, alignSelf: "stretch" },
+  fourwCol: { gap: 10, marginTop: 12 },
+  fourwLabel: { color: withAlpha(deepSpace.text, 0.75), fontSize: 12, fontFamily: fontFamilies.readable, marginBottom: 4 },
+  fourwLabelRequired: { color: deepSpace.textHi },
+  fourwInput: { minHeight: 48, marginTop: 0 },
+  fourwInputTall: { minHeight: 84 },
   pressed: { opacity: 0.85 },
 
   // chips

@@ -29,6 +29,15 @@ const CY = SIZE / 2 + 4;
 const R = 78;
 const GRID_LEVELS = [1 / 3, 2 / 3, 1];
 
+/** Short EN axis captions that fit the 232px canvas (full names clip). */
+const RADAR_SHORT_EN: Record<(typeof RADAR_TRAIT_KEYS)[number], string> = {
+  openness: "Open",
+  conscientiousness: "Consc",
+  extraversion: "Extra",
+  agreeableness: "Agree",
+  neuroticism: "Neuro",
+};
+
 export function TraitRadar({
   traits,
   traitsSource,
@@ -94,7 +103,11 @@ export function TraitRadar({
         })}
         {axes.map((a, i) => {
           const key = RADAR_TRAIT_KEYS[i];
-          const label = RADAR_TRAIT_LABEL[locale][key];
+          // Compact axis captions: the full EN names (Neuroticism, Agreeableness,
+          // Conscientiousness) clip at the SVG edge on device (QA 2026-07-02).
+          // KO labels are 2-3 glyphs and stay full; the a11y label keeps the
+          // full localized names either way.
+          const label = locale === "ko" ? RADAR_TRAIT_LABEL.ko[key] : RADAR_SHORT_EN[key];
           const dx = a.x - CX;
           const anchor = Math.abs(dx) < 8 ? "middle" : dx > 0 ? "start" : "end";
           const lx = a.x + (anchor === "start" ? 7 : anchor === "end" ? -7 : 0);
