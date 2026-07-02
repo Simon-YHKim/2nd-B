@@ -40,6 +40,7 @@ import {
   type Rev2PersonaId,
 } from "@/lib/chat/rev2-personas";
 import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
+import { parseTwiBranches } from "@/lib/chat/twi-branches";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/components/premium";
@@ -70,6 +71,8 @@ interface ChatTurn {
   text: string;
   /** Slugs the reply cited — rendered as small source chips. */
   chips?: string[];
+  /** 트위비 next-step candidates (P5f) — trailing → lines lifted from the reply. */
+  branches?: string[];
 }
 
 type ChatMode = "analytic" | "divergent";
@@ -330,7 +333,16 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         wasBlockedRef.current = true;
       } else {
         const { display, chips } = parseSourceCitations(result.reply.text);
-        setTurns((prev) => [...prev, { role: "secondb", text: display, chips }]);
+        // 트위비 3-branch (P5f): Divergent replies on the main chat end with up
+        // to three '→ ' next-step lines — lift them into tappable chips.
+        const twi =
+          !isCharacterChat && chatMode === "divergent"
+            ? parseTwiBranches(display)
+            : { display, branches: [] as string[] };
+        setTurns((prev) => [
+          ...prev,
+          { role: "secondb", text: twi.display, chips, branches: twi.branches },
+        ]);
         setUsedToday(result.used);
         // SUCCESS only (not blocked / not crisis): this send consumed one
         // reasoning use. Count it (count-only, never quality). Optimistically
@@ -584,6 +596,37 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                           <Text style={ds.chipRowLead}>{`+${turn.chips.length - 3}`}</Text>
                         ) : null}
                       </Pressable>
+                    ) : null}
+                    {/* 트위비 3-branch (P5f): next-step candidates. Tap = prefill
+                        the composer; 담기 = hand the branch to /capture (?text=,
+                        the share-consume path). */}
+                    {turn.role === "secondb" && turn.branches && turn.branches.length > 0 ? (
+                      <View style={ds.branchCol}>
+                        {turn.branches.map((branch) => (
+                          <View key={branch} style={ds.branchRow}>
+                            <Pressable
+                              style={ds.branchChip}
+                              onPress={() => setDraft(branch)}
+                              accessibilityRole="button"
+                              accessibilityLabel={branch}
+                              accessibilityHint={locale === "ko" ? "입력창에 채워요" : "Fills the composer"}
+                            >
+                              <Text style={ds.branchChipText} numberOfLines={2}>
+                                {branch}
+                              </Text>
+                            </Pressable>
+                            <Pressable
+                              style={ds.branchSave}
+                              onPress={() => router.push({ pathname: "/capture", params: { text: branch } })}
+                              hitSlop={10}
+                              accessibilityRole="button"
+                              accessibilityLabel={locale === "ko" ? `담기: ${branch}` : `Capture: ${branch}`}
+                            >
+                              <Text style={ds.branchSaveText}>{locale === "ko" ? "담기" : "Keep"}</Text>
+                            </Pressable>
+                          </View>
+                        ))}
+                      </View>
                     ) : null}
                   </View>
                 </View>
@@ -1507,6 +1550,32 @@ const ds = StyleSheet.create({
     fontFamily: fontFamilies.readable,
     textAlign: "right",
   },
+  // 트위비 3-branch chips (P5f): next-step candidates under a Divergent reply.
+  branchCol: { gap: 6, marginTop: 6 },
+  branchRow: { flexDirection: "row", alignItems: "stretch", gap: 6 },
+  branchChip: {
+    flex: 1,
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: deepSpaceSpacing.md,
+    paddingVertical: 8,
+    borderRadius: deepSpaceRadii.sm,
+    borderWidth: 1,
+    borderColor: deepSpace.soulLine,
+    backgroundColor: deepSpace.card,
+  },
+  branchChipText: { color: deepSpace.textHi, fontSize: 12, fontFamily: fontFamilies.readable },
+  branchSave: {
+    minWidth: 52,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: deepSpaceRadii.sm,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+  },
+  branchSaveText: { color: deepSpace.mint, fontSize: 12, fontFamily: fontFamilies.readable },
 
   contextPillWrap: { paddingHorizontal: 18, paddingBottom: deepSpaceSpacing.sm },
   contextPill: {
