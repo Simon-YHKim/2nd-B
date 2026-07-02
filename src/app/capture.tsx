@@ -278,7 +278,7 @@ export default function Capture() {
   // so this wrapper holds no hooks and the two paths never mix hook order.
   if (isDeepSpaceUI()) {
     return (
-      <DeepSpaceScreen active="capture">
+      <DeepSpaceScreen active="capture" variant="windowed">
         <CaptureView />
       </DeepSpaceScreen>
     );

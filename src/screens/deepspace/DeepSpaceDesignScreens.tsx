@@ -3171,7 +3171,17 @@ export function DeepSpaceOpsScreen() {
   }
 
   if (authLoading) {
-    return <DeepSpaceScreen active="ops"><DockBody title={t("hero.title")}><GraphLoading /></DockBody></DeepSpaceScreen>;
+    return (
+      <DeepSpaceScreen
+        active="ops"
+        header="none"
+        variant="windowed"
+        title={i18n.language === "ko" ? "오늘의 비서" : "Today's assistant"}
+        onBack={() => router.back()}
+      >
+        <DockBody title={t("hero.title")}><GraphLoading /></DockBody>
+      </DeepSpaceScreen>
+    );
   }
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
@@ -3291,10 +3301,15 @@ export function DeepSpaceOpsScreen() {
 
   return (
     // Primary "비서" hub: render inside the persistent deep-space chrome so the
-    // bottom dock shows. DeepSpaceScreen supplies the star-field background +
-    // SecondbStatusHeader (ds.head.ops), so the screen's own header/root are
-    // dropped to avoid double chrome.
-    <DeepSpaceScreen active="ops">
+    // rev2 windowed sub-screen: the M3 top app bar carries TITLES verbatim
+    // (오늘의 비서); DockBody's 루틴 heading stays as the content hero.
+    <DeepSpaceScreen
+      active="ops"
+      header="none"
+      variant="windowed"
+      title={i18n.language === "ko" ? "오늘의 비서" : "Today's assistant"}
+      onBack={() => router.back()}
+    >
       <DockBody title={t("hero.title")}>
       <View style={styles.opsTodayHead}>
         <Text variant="heading" style={styles.section}>{t("today.heading")}</Text>
