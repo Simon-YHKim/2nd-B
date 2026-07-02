@@ -384,6 +384,11 @@ function CoreBrainScreen() {
                 label={locale === "ko" ? "승인 이력" : "Ratification log"}
                 onPress={() => router.push("/ratifications")}
               />
+              <MdButton
+                variant="text"
+                label={locale === "ko" ? "공유 카드" : "Share card"}
+                onPress={() => router.push("/share-card")}
+              />
             </View>
           </View>
         ),
