@@ -147,7 +147,13 @@ function IdenExportScreenDeepSpace() {
   }, [userId, hasData, locale, isMinor, includeKeys, isKo]);
 
   return (
-    <DeepSpaceScreen active="iden">
+    <DeepSpaceScreen
+      active="iden"
+      header="none"
+      variant="windowed"
+      title={isKo ? "IDEN · 포터블 정체성" : "IDEN · Portable identity"}
+      onBack={() => router.back()}
+    >
       <IdenView
         data={hasError ? null : data}
         loading={!hasError && data === undefined}

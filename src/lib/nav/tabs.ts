@@ -67,9 +67,11 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/museum",
   // 커리어 3C4P Drill Down (P4d) — direct-render dock screen.
   "/career-drilldown",
-  // 가치관 체크 (P3b) — thin route over AxisCheckScreen, so the drift guard's
-  // direct-render scan doesn't see it; registered by hand like /museum.
+  // 축 체크 3종 (P3b) — thin routes over AxisCheckScreen, so the drift guard's
+  // direct-render scan doesn't see them; registered by hand like /museum.
   "/values",
+  "/motivation",
+  "/strengths",
   // 담기 풀 모드 (링크/클립/OCR/파일) — deep-space shell over the legacy pipes.
   "/capture-full",
   // 북극성 문장 편집 (Screen-Spec 21) — direct-render dock screen.

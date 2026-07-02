@@ -51,6 +51,14 @@ async function fetchAxisSignals(userId: string, tag: string): Promise<Record<str
   return counts;
 }
 
+// rev2 TITLES verbatim for the windowed top app bar (sb-app: 동기/강점/가치관 —
+// the bar carries the axis name; the check framing stays in the body copy).
+const BAR_TITLE: Record<AxisCheckId, { ko: string; en: string }> = {
+  motivation: { ko: "동기", en: "Motivation" },
+  strengths: { ko: "강점", en: "Strengths" },
+  values: { ko: "가치관", en: "Values" },
+};
+
 export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
   const check = AXIS_CHECKS[axis];
   const { i18n } = useTranslation();
@@ -102,9 +110,25 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
     return () => clearTimeout(timeout);
   }, [errorToast]);
 
+  const barTitle = BAR_TITLE[axis][locale];
+
+  // Top-app-bar back mirrors the hardware-back guard: confirm mid-session so a
+  // written answer is never lost; otherwise pop the screen.
+  const requestExit = () => {
+    if (started && !done) {
+      if (index > 0 || answer.trim().length > 0) {
+        setExitConfirmOpen(true);
+        return;
+      }
+      setStarted(false);
+      return;
+    }
+    router.back();
+  };
+
   if (loading) {
     return (
-      <DeepSpaceScreen active="lens">
+      <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
         <View style={styles.center}>
           <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
         </View>
@@ -149,7 +173,7 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
   }
 
   return (
-    <DeepSpaceScreen active="lens">
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={requestExit}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {!started && !done ? (
           <View style={styles.block}>

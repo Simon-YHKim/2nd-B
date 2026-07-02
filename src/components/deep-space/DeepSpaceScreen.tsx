@@ -18,8 +18,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, type Href } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
-import type { M3Persona } from "@/lib/theme/m3";
-import { MdNavBar } from "@/components/m3";
+import { m3, type M3Persona } from "@/lib/theme/m3";
+import { MdNavBar, MdTopAppBar } from "@/components/m3";
 import { SecondbStatusHeader } from "./SecondbStatusHeader";
 import { SbStarfield } from "./SbStarfield";
 import type { SecondbMood } from "./SecondbHead";
@@ -58,6 +58,10 @@ export function DeepSpaceScreen({
   active,
   personaTint,
   header = "companion",
+  variant = "fullbleed",
+  title,
+  onBack,
+  action,
   children,
 }: {
   active: DeepSpaceTab;
@@ -66,6 +70,13 @@ export function DeepSpaceScreen({
   /** rev2 (sb-app §4): the companion header belongs to capture/chat/records only —
    *  home renders its own big head + bubble, so it passes "none". */
   header?: "companion" | "none";
+  /** rev2 (sb-app §4): every non-immersive screen floats as a radius-24 "window"
+   *  over the shared sky (padding 12/12/14, surface bg, 1px starlight rim). */
+  variant?: "fullbleed" | "windowed";
+  /** Windowed sub-screens: M3 top app bar title + back (TopAppBar). */
+  title?: string;
+  onBack?: () => void;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   const { t, i18n } = useTranslation("home");
@@ -75,12 +86,12 @@ export function DeepSpaceScreen({
   // pins this pattern + bans non-ASCII string literals in accessibilityLabel).
   const characterLabel = isKo ? "세컨드 브레인 캐릭터" : "Second Brain character";
 
+  // rev2 NavBar: uniform 64×32 pills + 24dp icons (no center emphasis).
   const dockItems = TABS.map((key) => ({
     key,
     label: t("ds.dock." + key),
     accessibilityLabel: t("ds.dock." + key),
-    icon: (color: string) => <TabIcon tab={key} color={color} />,
-    center: key === "chat",
+    icon: (color: string) => <TabIcon tab={key} color={color} size={24} />,
   }));
 
   return (
@@ -90,17 +101,40 @@ export function DeepSpaceScreen({
       <View pointerEvents="none" style={styles.spaceWash}>
         <SbStarfield cosmic />
       </View>
-      {header === "companion" ? (
-        <SecondbStatusHeader
-          text={t("ds.head." + active + ".text")}
-          tip={t("ds.head." + active + ".tip")}
-          mood={VIEW_MOOD[active]}
-          persona={personaTint}
-          accessibilityLabel={characterLabel}
-        />
-      ) : null}
-
-      <View style={styles.body}>{children}</View>
+      {variant === "windowed" ? (
+        // rev2 windowed layout: the screen floats as a radius-24 window over
+        // the shared sky; the companion header (capture/chat) or the M3 top
+        // app bar (sub-screens) sits INSIDE the window.
+        <View style={styles.windowWrap}>
+          <View style={styles.window}>
+            {header === "companion" ? (
+              <SecondbStatusHeader
+                text={t("ds.head." + active + ".text")}
+                tip={t("ds.head." + active + ".tip")}
+                mood={VIEW_MOOD[active]}
+                persona={personaTint}
+                accessibilityLabel={characterLabel}
+              />
+            ) : title && onBack ? (
+              <MdTopAppBar title={title} onBack={onBack} action={action} />
+            ) : null}
+            <View style={styles.windowBody}>{children}</View>
+          </View>
+        </View>
+      ) : (
+        <>
+          {header === "companion" ? (
+            <SecondbStatusHeader
+              text={t("ds.head." + active + ".text")}
+              tip={t("ds.head." + active + ".tip")}
+              mood={VIEW_MOOD[active]}
+              persona={personaTint}
+              accessibilityLabel={characterLabel}
+            />
+          ) : null}
+          <View style={styles.body}>{children}</View>
+        </>
+      )}
 
       <MdNavBar
         active={active}
@@ -120,4 +154,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: withAlpha(deepSpace.bgEdge, 0.5),
   },
+  // sb-app windowed: padding '12px 12px 14px' around a radius-24 surface card
+  // with a 1px starlight rim; the sky stays visible around it.
+  windowWrap: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 14,
+  },
+  window: {
+    flex: 1,
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: m3.color.surface,
+    borderWidth: 1,
+    borderColor: withAlpha(m3.accent.windowRim, 0.16),
+    elevation: 16,
+    shadowColor: "#000000",
+    shadowOpacity: 0.5,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 10 },
+  },
+  windowBody: { flex: 1, minHeight: 0 },
 });
