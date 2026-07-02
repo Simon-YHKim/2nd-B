@@ -9,7 +9,8 @@
     "journalLimit": "Ya usaste las entradas gratuitas del diario. Los otros modos de captura siguen disponibles.",
     "saving": "El guardado ya está en curso.",
     "voiceRequired": "Write the voice memo text before saving.",
-    "todoRequired": "Write the task before saving."
+    "todoRequired": "Write the task before saving.",
+    "fourwRequired": "Completa primero la casilla Qué"
   },
   "savedTitleFallback": "Pieza de hoy",
   "loading": "Cargando captura...",
@@ -75,6 +76,10 @@
     "todo": {
       "label": "To do",
       "help": "Write a task. It saves as a to-do piece with a done flag."
+    },
+    "fourw": {
+      "label": "4W1H",
+      "help": "Cinco casillas: quién, cuándo, dónde, qué, cómo"
     }
   },
   "formatSaved": {
@@ -295,5 +300,22 @@
     "title": "Recent pieces",
     "openHint": "Opens this entry in full.",
     "empty": "No saved pieces yet."
+  },
+  "fourw": {
+    "fields": {
+      "who": "Quién",
+      "when": "Cuándo",
+      "where": "Dónde",
+      "what": "Qué (obligatorio)",
+      "how": "Cómo"
+    },
+    "placeholders": {
+      "who": "¿Quién participó?",
+      "when": "¿Cuándo ocurrió?",
+      "where": "¿Dónde estabas?",
+      "what": "¿Qué pasó o de qué se trata?",
+      "how": "¿Cómo fue? ¿Algún porqué que valga la pena guardar?"
+    },
+    "note": "Solo se guardan las casillas completadas, como una pieza con la etiqueta #fourw."
   }
 }
