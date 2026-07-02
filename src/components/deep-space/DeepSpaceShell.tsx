@@ -34,7 +34,13 @@ export function DeepSpaceShell() {
   const [domainLevels, setDomainLevels] = useState<Partial<Record<DomainId, LadderLevel>>>({});
   const [northStarBrightness, setNorthStarBrightness] = useState(0.2);
   useEffect(() => {
-    if (!userId) return;
+    // Wait for the auth session restore (`loading`) as well as the userId:
+    // firing on userId alone raced the token attach at boot, so the Supabase
+    // reads went out anon → RLS 401 (observed on recreation_items in the
+    // authenticated capture pass) and the swallowed catch left the first paint
+    // silently missing the relation/recreation brightness with no retry.
+    // Depending on `loading` re-fires the load once the session is ready.
+    if (loading || !userId) return;
     let alive = true;
     loadDomainLevels(userId)
       .then((b) => {
@@ -46,7 +52,7 @@ export function DeepSpaceShell() {
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [loading, userId]);
 
   if (loading) return <InlineLoader />;
   if (!userId) return <Redirect href="/sign-in" />;
