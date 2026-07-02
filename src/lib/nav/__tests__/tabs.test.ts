@@ -19,7 +19,7 @@ describe("primary tab routes", () => {
 });
 
 describe("deep-space dock routes", () => {
-  test("covers the 21 dock screens, excluding primary tab roots", () => {
+  test("covers the 22 dock screens, excluding primary tab roots", () => {
     expect(isDeepSpaceDockPath("/core-brain")).toBe(true);
     expect(isDeepSpaceDockPath("/big-five")).toBe(true);
     expect(isDeepSpaceDockPath("/account")).toBe(true);

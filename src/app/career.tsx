@@ -128,6 +128,11 @@ export default function CareerTimelineScreen() {
             {isKo ? "커리어 타임라인" : "Career timeline"}
           </Text>
           <MdButton
+            variant="outlined"
+            label="Drill Down"
+            onPress={() => router.push("/career-drilldown")}
+          />
+          <MdButton
             variant="tonal"
             label={adding ? (isKo ? "닫기" : "Close") : isKo ? "성과 담기" : "Add achievement"}
             onPress={() => setAdding((v) => !v)}
