@@ -90,12 +90,12 @@ from-scratch build.
 - **P1 — M3 design system** (WS1): additive M3 token layer + primitives + font swap behind the deep-space identity. The toka for every screen.
   - **P1a ✅ token foundation** — `src/lib/theme/m3.ts` (`m3.color/type/shape/elevation/state/spacing/motion` + `m3.accent` deep-space + `m3.persona` 2nd-B/메타비/트위비), transcribed 1:1 from the prototype `m3-theme.css` (cyan dark). Guarded by `src/lib/theme/__tests__/m3.test.ts`.
   - **P1b — primitives + fonts** — `MdButton/MdCard/MdChip/MdNavBar/Field` RN components on `m3.*`; load Roboto/Roboto Mono (expo-google-fonts). NEXT.
-- **P2 — Nav + constellation home + 세컨비 3-persona** (WS2). Preserve home skeleton.
-- **P3 — Self-understanding axis** (WS4): persona deck, validation screens, brightness timeline, ratification log.
-- **P4 — Domain lenses + peer review** (WS5 + WS7): graphs, structured inputs; F2→F4.
-- **P5 — Data sovereignty + new surfaces** (WS6): IDEN, import, 통화녹음, 공유카드, AI 뮤지엄, 요금제, 공상하기.
-- **P6 — Off-app + retention** (WS6 widgets + WS8): widgets; F-ret; E-act (gated).
-- **P7 — QA + fidelity pass**: per-screen 4-state (empty/loading/error/filled), a11y ≥44dp, i18n parity, visual QA vs rev2 screenshots.
+- **P2 — Nav + constellation home + 세컨비 3-persona** (WS2). Preserve home skeleton. ✅ (#653 + P2-cont #658/#659/#661: wiki dock shell, home m3.accent, persona selector)
+- **P3 — Self-understanding axis** (WS4): persona deck, validation screens, brightness timeline, ratification log. ✅ (#663 deck+radar, #665 /motivation·/strengths, #666 /brightness·/ratifications)
+- **P4 — Domain lenses + peer review** (WS5 + WS7): graphs, structured inputs; F2→F4. ✅ lenses (#668 4W1H, #669 wiki graph, #671 /people·/career·/rest; photo OCR pre-existing) · F2→F4 stays legal-gated · 3C4P/고용24 deferred to the prototype spec
+- **P5 — Data sovereignty + new surfaces** (WS6): IDEN, import, 통화녹음, 공유카드, AI 뮤지엄, 요금제, 공상하기. ✅ core (#673 share card + 트위비 3-branch, #674 IDEN toggles+JSON; import/data + museum surfaces pre-existed) · museum 2-axis + 요금제 3-tier naming deferred (prototype spec / Simon pricing gate) · 통화녹음 stays legal-gated
+- **P6 — Off-app + retention** (WS6 widgets + WS8): widgets; F-ret; E-act (gated). ✅ F-ret (#672, 0065 off-default) · widgets = native-build gate · E-act = legal gate
+- **P7 — QA + fidelity pass**: per-screen 4-state (empty/loading/error/filled), a11y ≥44dp, i18n parity, visual QA vs rev2 screenshots. → running via the Android Studio visual-QA loop (docs/ANDROID-STUDIO-QA.md); es/id/pt real translations outstanding.
 
 ## 6. Invariants (PRD §15 — never violate during migration)
 
