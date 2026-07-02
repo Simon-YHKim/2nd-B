@@ -279,7 +279,10 @@ export default function Capture() {
   return <CaptureLegacy />;
 }
 
-function CaptureLegacy() {
+// Exported for /capture-full: the deep-space track reaches this full multi-mode
+// intake (링크/클립/OCR/파일) through that route, reusing these proven pipes
+// instead of reimplementing them in the design body (QA F1 follow-up).
+export function CaptureLegacy() {
   const { t, i18n } = useTranslation("capture");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";

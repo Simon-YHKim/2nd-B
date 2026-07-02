@@ -70,6 +70,8 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // 가치관 체크 (P3b) — thin route over AxisCheckScreen, so the drift guard's
   // direct-render scan doesn't see it; registered by hand like /museum.
   "/values",
+  // 담기 풀 모드 (링크/클립/OCR/파일) — deep-space shell over the legacy pipes.
+  "/capture-full",
 ] as const;
 
 export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];
