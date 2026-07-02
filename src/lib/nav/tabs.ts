@@ -45,6 +45,8 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/imagine",
   "/interview",
   "/persona",
+  // T5 F2 (peer review): the subject-side invitation ledger lives on the lens track.
+  "/peer-invites",
   "/account",
   "/ops",
   // /wiki joined the dock as a 5-tab root in P2-cont (#658 wraps it in

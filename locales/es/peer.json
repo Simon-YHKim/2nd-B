@@ -1,0 +1,53 @@
+{
+  "title": "Como me ven",
+  "loading": "Cargando…",
+  "invalid": "Este enlace no es valido.",
+  "expired": "Este enlace ha caducado.",
+  "withdrawnNote": "Tu respuesta fue retirada. Nada tuyo queda en el conjunto.",
+  "alreadyNote": "Ya enviaste tu respuesta. Puedes retirarla cuando quieras con este enlace.",
+  "doneNote": "Gracias. Tus respuestas solo se muestran combinadas; nunca de forma individual.",
+  "doneKeepLink": "Guarda este enlace por si algun dia quieres retirar tu respuesta.",
+  "intro": "Alguien que conoces esta construyendo una imagen de como lo perciben. Tres preguntas, un minuto.",
+  "privacyPoints": "Tus respuestas son tus propios datos: solo se muestran combinadas con al menos otras dos personas. Puedes retirarlas cuando quieras con este enlace.",
+  "scaleHint": "1 = nada tipico de esa persona, 5 = muy tipico",
+  "trait": {
+    "extraversion": "Gana energia con la gente y habla con facilidad.",
+    "conscientiousness": "Es organizada y termina lo que empieza.",
+    "agreeableness": "Es calida, considerada y facil de tratar."
+  },
+  "ackLlm": "Acepto que un sistema de IA procese mis respuestas para crear la imagen combinada.",
+  "ackOverseas": "Acepto que este procesamiento pueda ocurrir en servidores fuera de mi pais.",
+  "minorRow": "Tengo menos de 18 anos.",
+  "guardianRow": "Mi madre, padre o tutor esta conmigo y lo acepta.",
+  "submitCta": "Enviar respuestas",
+  "submitting": "Enviando…",
+  "submitError": "No se pudo enviar. Intenta de nuevo.",
+  "withdrawCta": "Retirar mi respuesta",
+  "withdrawAnytime": "Puedes retirarla cuando quieras abriendo este enlace.",
+  "subjectTitle": "Preguntar a quienes me conocen",
+  "subjectIntro": "Envia un enlace de un solo uso. Cuando respondan tres o mas, la imagen combinada aparece en tu lente Visto; nunca ves respuestas individuales.",
+  "labelField": "Apodo para esta persona (solo tu lo ves)",
+  "kind": {
+    "friend": "Amistad",
+    "family": "Familia",
+    "coworker": "Trabajo",
+    "partner": "Pareja",
+    "other": "Otro"
+  },
+  "createCta": "Crear enlace y compartir",
+  "creating": "Creando…",
+  "createError": "No se pudo crear el enlace. Intenta de nuevo.",
+  "pendingCap": "Alcanzaste el limite de invitaciones abiertas. Revoca una para enviar otra.",
+  "privacyLine": "El enlace funciona una vez, caduca en 14 dias y no guarda contactos.",
+  "emptyList": "Aun no hay invitaciones. Empieza con alguien que te conozca bien.",
+  "status": {
+    "pending": "En espera",
+    "accepted": "Respondida",
+    "declined": "Rechazada",
+    "withdrawn": "Retirada",
+    "expired": "Caducada"
+  },
+  "revokeCta": "Revocar",
+  "shareMessage": "Responderias tres preguntas rapidas sobre como me ves? Un minuto:",
+  "aggregateNote": "Las respuestas aparecen solo como imagen combinada de tres o mas personas, en la lente Visto."
+}
