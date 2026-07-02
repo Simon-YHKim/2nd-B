@@ -6,13 +6,15 @@
 //     centered, 세컨비 head + "세컨비가 함께 본 한 주" footer.
 //   - "B" 별자리 카드: "MY CONSTELLATION" eyebrow, the 7 domain dots at the
 //     prototype's fixed positions (litCount lit, rest dim) around a bright
-//     polaris core, then "N개 별이 빛나는 중" + the handle line.
+//     polaris core, then "N개 별이 빛나는 중" + the "2nd-Brain · N개 별가루"
+//     signature line (sb-more verbatim; the prototype hardcodes 124).
 //
 // The prototype previews at 330px and exports at 1080; every value below is
 // expressed in the 330 space and scaled by `size/330`, so the on-screen
 // preview and the 1080 off-screen capture are the same card.
 //
-// Privacy contract unchanged: one sentence + a star count + the handle.
+// Privacy contract: one sentence + a star count + a piece count. The user's
+// handle stays OFF the card (share-sheet text only) — counts reveal less.
 // Colors come from m3.accent share tokens (values transcribed from the
 // prototype); the eyebrow uses Roboto Mono — no pixel fonts on the rev2 track.
 
@@ -30,8 +32,8 @@ export interface ShareCardProps {
   variant: "A" | "B";
   /** The 북극성 sentence — dynamic, supplied by the caller (core-brain). */
   insight: string;
-  /** Handle shown in the footer (without the @). */
-  handle: string;
+  /** Total captured pieces (별가루) for the signature line. null/undefined = hide the count. */
+  pieceCount?: number | null;
   /** How many of the 7 domain stars are lit (0..7). Default 4. */
   litCount?: number;
   /** Rendered side length. Capture scales this to 1080. Default 330 (prototype base). */
@@ -66,7 +68,7 @@ const CARD_STARS = [
   { x: 22, y: 26 },
 ] as const;
 
-export function ShareCard({ variant, insight, handle, litCount = 4, size = BASE, isKo = true }: ShareCardProps) {
+export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = BASE, isKo = true }: ShareCardProps) {
   const k = size / BASE;
   const lit = Math.max(0, Math.min(CARD_STARS.length, litCount));
 
@@ -150,8 +152,12 @@ export function ShareCard({ variant, insight, handle, litCount = 4, size = BASE,
             <Text style={[styles.litLine, inkColor(), { fontSize: 19 * k }]}>
               {isKo ? `${lit}개 별이 빛나는 중` : `${lit} stars shining`}
             </Text>
-            <Text style={[styles.handleLine, softInk(0.65), { fontSize: 13 * k, marginTop: 2 * k }]}>
-              {`2nd-Brain · @${handle}`}
+            <Text style={[styles.sigLine, softInk(0.65), { fontSize: 13 * k, marginTop: 2 * k }]}>
+              {pieceCount == null
+                ? "2nd-Brain"
+                : isKo
+                  ? `2nd-Brain · ${pieceCount}개 별가루`
+                  : `2nd-Brain · ${pieceCount} stardust`}
             </Text>
           </View>
         </View>
@@ -174,5 +180,5 @@ const styles = StyleSheet.create({
   footerRow: { flexDirection: "row", alignItems: "center" },
   footerText: { fontFamily: fontFamilies.readable },
   litLine: { fontWeight: "700", fontFamily: fontFamilies.readable },
-  handleLine: { fontFamily: fontFamilies.readable },
+  sigLine: { fontFamily: fontFamilies.readable },
 });

@@ -161,7 +161,9 @@ export function MuseumTimelineScreen() {
   const yearFrac = (year - MZ.START) / (MZ.END - MZ.START);
 
   return (
-    <DeepSpaceScreen active="lens">
+    // sb-museum owns its full chrome (range bar, dial, back-to-constellation) —
+    // no companion header over the timeline (sb-app §4).
+    <DeepSpaceScreen active="lens" header="none">
       <View style={styles.body}>
         {/* range / hint bar */}
         <View style={styles.rangeRow}>
@@ -171,10 +173,21 @@ export function MuseumTimelineScreen() {
 
         {/* timeline viewport */}
         <View style={styles.viewport}>
-          {/* pinned lane labels */}
+          {/* pinned lane labels — sb-museum left rail: 9px accent dot + the
+              vertical Korean lane name (prototype: writing-mode vertical-rl).
+              RN has no vertical writing mode, so glyphs stack one per line
+              (spaces dropped) — Korean stays upright like textOrientation:mixed.
+              Tops center each block on the old 78/288 anchors (block heights
+              ≈119/80 → 83-59, 293-40). */}
           <View pointerEvents="none" style={styles.laneCol}>
-            <Text style={[styles.laneLabel, { color: MZ_LANES.world.ink, top: 78 }]}>{MZ_LANES.world.en}</Text>
-            <Text style={[styles.laneLabel, { color: MZ_LANES.ai.ink, top: 288 }]}>{MZ_LANES.ai.en}</Text>
+            {([MZ_LANES.world, MZ_LANES.ai] as const).map((L, i) => (
+              <View key={L.id} style={[styles.laneTag, { top: i === 0 ? 24 : 253 }]}>
+                <View style={[styles.laneDot, { backgroundColor: L.accent, shadowColor: L.accent }]} />
+                <Text style={[styles.laneVertical, { color: L.ink }]}>
+                  {L.label.replace(/\s+/g, "").split("").join("\n")}
+                </Text>
+              </View>
+            ))}
           </View>
           <ScrollView
             ref={scrollRef}
@@ -241,6 +254,8 @@ export function MuseumTimelineScreen() {
                   <Text style={[styles.nodeYear, { color: lane.accent }]}>{e.ylabel}</Text>
                   <Text style={styles.nodeTitle} numberOfLines={1}>{e.title}</Text>
                   <Text style={styles.nodeSub} numberOfLines={1}>{e.sub}</Text>
+                  {/* sb-museum: the here-node carries a mono NOW badge top-right */}
+                  {e.here ? <Text style={[styles.nodeNow, { color: lane.accent }]}>NOW</Text> : null}
                 </Pressable>
               );
             })}
@@ -330,7 +345,7 @@ export function MuseumTimelineScreen() {
 
               {sel.refs.length > 0 ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>{isKo ? "자료·논문" : "References"}</Text>
+                  <Text style={styles.sectionLabel}>{isKo ? "자료 · 논문" : "References"}</Text>
                   {sel.refs.map((r) => (
                     <View key={r.label} style={styles.refRow}>
                       <Text style={styles.refKind}>{MUSEUM_REF_LABEL[r.kind]}</Text>
@@ -371,7 +386,25 @@ const styles = StyleSheet.create({
   rangeHint: { fontSize: 11, color: withAlpha(deepSpace.accentSoft, 0.7) },
   viewport: { flex: 1 },
   laneCol: { position: "absolute", left: 4, top: 0, bottom: 0, width: 42, zIndex: 2 },
-  laneLabel: { position: "absolute", left: 0, fontFamily: m3.font.mono, fontSize: 9, letterSpacing: 1.2, opacity: 0.9 },
+  laneTag: { position: "absolute", left: 0, width: 34, alignItems: "center", gap: 6 },
+  laneDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
+  },
+  laneVertical: {
+    fontSize: 11,
+    fontWeight: "800",
+    lineHeight: 13,
+    textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.9)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
+  },
   decade: { position: "absolute", fontFamily: m3.font.mono, fontSize: 9, color: withAlpha(deepSpace.accentSoft, 0.6) },
   node: {
     position: "absolute",
@@ -385,6 +418,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   nodeHere: { shadowColor: MZ_LANES.ai.accent, shadowOpacity: 0.7, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 6 },
+  nodeNow: { position: "absolute", top: 7, right: 9, fontFamily: m3.font.mono, fontSize: 8.5, fontWeight: "800", letterSpacing: 1 },
   nodeYear: { fontFamily: m3.font.mono, fontSize: 9 },
   nodeTitle: { fontSize: 12.5, fontWeight: "700", color: "#EAF2FF" },
   nodeSub: { fontSize: 10, color: withAlpha(deepSpace.accentSoft, 0.75) },

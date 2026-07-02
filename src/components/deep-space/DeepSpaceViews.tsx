@@ -1108,10 +1108,10 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(deepSpace.soul, 0.07),
     gap: 7,
   },
-  idName: { color: deepSpace.accentBright, fontSize: 12, fontFamily: fontFamilies.mono },
+  idName: { color: deepSpace.accentBright, fontSize: 12, fontFamily: m3.font.mono },
   idBadges: { flexDirection: "row", gap: 5 },
   idBadge: { paddingVertical: 2, paddingHorizontal: 6, borderRadius: 5, backgroundColor: withAlpha(deepSpace.soul, 0.14) },
-  idBadgeText: { color: withAlpha(deepSpace.soul, 0.8), fontSize: 9, fontFamily: fontFamilies.mono },
+  idBadgeText: { color: withAlpha(deepSpace.soul, 0.8), fontSize: 9, fontFamily: m3.font.mono },
   idBadgeSigned: { backgroundColor: withAlpha(deepSpace.mint, 0.1) },
   idBadgeSignedText: { color: deepSpace.mint, fontSize: 9, fontFamily: fontFamilies.readable },
   idenRowNorth: {
@@ -1137,7 +1137,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 9,
     backgroundColor: deepSpace.card,
   },
-  idenFiveValue: { color: deepSpace.accentSoft, fontSize: 10, marginTop: 6, fontFamily: fontFamilies.mono },
+  idenFiveValue: { color: deepSpace.accentSoft, fontSize: 10, marginTop: 6, fontFamily: m3.font.mono },
 
   // ── star-lens shared head ──────────────────────────────────────────────────
   lensHead: { gap: 6, marginBottom: 16 },
@@ -1179,7 +1179,7 @@ const styles = StyleSheet.create({
   // seen - compare rows
   compareList: { gap: 18 },
   compareRow: { gap: 4 },
-  compareDelta: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.mono },
+  compareDelta: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: m3.font.mono },
   compareTrack: { height: 6, borderRadius: 3, overflow: "hidden" },
   compareTrackSelf: { backgroundColor: withAlpha(deepSpace.accent, 0.16), marginBottom: 4 },
   compareTrackOther: { backgroundColor: withAlpha(deepSpace.soul, 0.16) },
@@ -1256,5 +1256,5 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   domainLabel: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
-  domainCount: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 11, fontFamily: fontFamilies.mono },
+  domainCount: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 11, fontFamily: m3.font.mono },
 });

@@ -3,7 +3,8 @@
 // route surfaces them: A/B variant preview, live litStars from the user's real
 // domain levels, and the OS share sheet via shareInsightCard (web falls back to
 // a text share; capture uses the pre-mounted off-screen host, per the lib note).
-// Privacy: the card carries ONE sentence + star count + handle. Nothing else.
+// Privacy: the card carries ONE sentence + star count + piece count. The handle
+// stays off the card (share-sheet text only) — sb-more signature verbatim.
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -18,6 +19,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { spacing } from "@/lib/theme/tokens";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
 import { deriveCardProps, shareInsightCard } from "@/lib/share/insight-card";
+import { countUserPieces } from "@/lib/share/piece-count";
 
 export default function ShareCardScreen() {
   const { i18n } = useTranslation();
@@ -26,6 +28,7 @@ export default function ShareCardScreen() {
 
   const [variant, setVariant] = useState<"A" | "B">("A");
   const [litStars, setLitStars] = useState<number | null>(null);
+  const [pieceCount, setPieceCount] = useState<number | null>(null);
   const [sharing, setSharing] = useState(false);
   const captureRef = useRef<View>(null);
 
@@ -41,6 +44,10 @@ export default function ShareCardScreen() {
       .catch(() => {
         if (alive) setLitStars(null);
       });
+    // Signature line count — countUserPieces resolves null on failure, so no catch.
+    void countUserPieces(userId).then((n) => {
+      if (alive) setPieceCount(n);
+    });
     return () => {
       alive = false;
     };
@@ -98,7 +105,7 @@ export default function ShareCardScreen() {
         </View>
 
         <View style={styles.preview}>
-          <ShareCard variant={variant} insight={card.insight} handle={card.handle} litCount={card.litCount} size={330} isKo={isKo} />
+          <ShareCard variant={variant} insight={card.insight} pieceCount={pieceCount} litCount={card.litCount} size={330} isKo={isKo} />
         </View>
 
         <MdButton
@@ -123,7 +130,7 @@ export default function ShareCardScreen() {
             responsive). Kept out of the a11y tree. */}
         <View style={styles.captureHost} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <View ref={captureRef} collapsable={false}>
-            <ShareCard variant={variant} insight={card.insight} handle={card.handle} litCount={card.litCount} size={1080} isKo={isKo} />
+            <ShareCard variant={variant} insight={card.insight} pieceCount={pieceCount} litCount={card.litCount} size={1080} isKo={isKo} />
           </View>
         </View>
       </ScrollView>

@@ -17,6 +17,9 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { signOut } from "@/lib/supabase/auth";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
+// Direct module import (NOT the components/deepspace barrel) — the barrel has a
+// known require cycle that crashed the /settings path once already (PR 711).
+import { SecondbStatusHeader } from "@/components/deep-space/SecondbStatusHeader";
 import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/settings/crew-density";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META } from "@/lib/i18n/locales";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
@@ -390,14 +393,29 @@ export default function Settings() {
     <Chrome>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {/* Legacy track keeps its pre-rev2 companion header EXACTLY (it is the
+            live-pinned track); only the deep-space track trades it for the
+            caption below (sb-app §4: no companion outside capture/chat/records). */}
+        {!isDeepSpaceUI() && (
+          <SecondbStatusHeader
+            text={locale === "ko" ? "설정을 정리해요." : "Tune your settings."}
+            tip={
+              locale === "ko"
+                ? "삭제는 되돌릴 수 없어요. 필요한 건 먼저 내보내기로."
+                : "Deletion cannot be undone. Export anything you need first."
+            }
+          />
+        )}
         <Text variant="heading" style={styles.title}>{locale === "ko" ? "설정" : "Settings"}</Text>
         {/* Guidance line (kept from the companion era — OldGuidanceCopyResidue
             pins this SecondB-voiced wording; rev2 drops the header, not the copy). */}
-        <Text variant="caption" color="textMuted" style={styles.guidance}>
-          {locale === "ko"
-            ? "설정을 정리해요. 삭제는 되돌릴 수 없어요. 필요한 건 먼저 내보내기로."
-            : "Tune your settings. Deletion cannot be undone. Export anything you need first."}
-        </Text>
+        {isDeepSpaceUI() && (
+          <Text variant="caption" color="textMuted" style={styles.guidance}>
+            {locale === "ko"
+              ? "설정을 정리해요. 삭제는 되돌릴 수 없어요. 필요한 건 먼저 내보내기로."
+              : "Tune your settings. Deletion cannot be undone. Export anything you need first."}
+          </Text>
+        )}
 
         {/* Navigation hub (A-to-Z Phase 12) — the settings sub-screens. */}
         {/* Destructive op in flight: a persistent banner explains why actions

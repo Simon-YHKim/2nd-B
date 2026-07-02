@@ -15,7 +15,7 @@ import { useEffect, type ReactNode } from "react";
 import { BackHandler, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router, type Href } from "expo-router";
+import { router, usePathname, type Href } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3, type M3Persona } from "@/lib/theme/m3";
@@ -67,9 +67,11 @@ export function DeepSpaceScreen({
   active: DeepSpaceTab;
   /** rev2 persona tint for the status-header head (chat surface). Unset = canonical cyan. */
   personaTint?: M3Persona;
-  /** rev2 (sb-app §4): the companion header belongs to capture/chat/records only —
-   *  home renders its own big head + bubble, so it passes "none". records keeps
-   *  the graph full-bleed and FLOATS the companion over it ("floating"). */
+  /** rev2 (sb-app §4) TARGET rule: the companion header belongs to capture/chat
+   *  and the wiki graph (which FLOATS it) only — every converted rev2 screen
+   *  passes "none"; home renders its own big head + bubble. NOTE the default
+   *  stays "companion", so legacy fullbleed screens not yet converted still show
+   *  it — strip those cohort by cohort with their shell conversion, not here. */
   header?: "companion" | "none" | "floating";
   /** rev2 (sb-app §4): every non-immersive screen floats as a radius-24 "window"
    *  over the shared sky (padding 12/12/14, surface bg, 1px starlight rim).
@@ -92,16 +94,20 @@ export function DeepSpaceScreen({
 
   // rev2 back() (sb-app): hardware back on a non-home ROOT tab returns to the
   // constellation home instead of exiting the app. Screens with their own back
-  // guards register later and therefore run first (LIFO); sub-screens
-  // (active not in TABS) keep the default pop behavior.
+  // guards register later and therefore run first (LIFO); sub-screens keep the
+  // default pop behavior — both when `active` is not in TABS AND when a
+  // sub-screen reuses a tab's `active` for dock highlight (e.g. /capture-full
+  // with active="capture"): only the tab's ROOT route gets the home-back rule.
+  const pathname = usePathname();
   useEffect(() => {
     if (active === "home" || !TABS.includes(active)) return;
+    if (pathname !== TAB_ROUTE[active]) return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       router.replace("/");
       return true;
     });
     return () => sub.remove();
-  }, [active]);
+  }, [active, pathname]);
 
   // rev2 NavBar: uniform 64×32 pills + 24dp icons (no center emphasis).
   const dockItems = TABS.map((key) => ({
