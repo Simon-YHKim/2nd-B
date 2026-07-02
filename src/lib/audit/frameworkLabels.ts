@@ -18,6 +18,12 @@ export const FRAMEWORK_LABEL: Record<"en" | "ko", Record<Framework, string>> = {
     "attachment:secure": "Attachment · Secure base",
     "attachment:anxiety": "Attachment · Anxiety",
     "attachment:avoidance": "Attachment · Avoidance",
+    "values:self_direction": "Values · Self-direction",
+    "values:stimulation": "Values · Stimulation",
+    "values:authenticity": "Values · Authenticity",
+    "values:benevolence": "Values · Benevolence",
+    "values:achievement": "Values · Achievement",
+    "values:security": "Values · Security",
   },
   ko: {
     "big_five:openness": "Big Five · 개방성",
@@ -32,6 +38,12 @@ export const FRAMEWORK_LABEL: Record<"en" | "ko", Record<Framework, string>> = {
     "attachment:secure": "애착 · 안정 기반",
     "attachment:anxiety": "애착 · 불안",
     "attachment:avoidance": "애착 · 회피",
+    "values:self_direction": "가치관 · 자율성",
+    "values:stimulation": "가치관 · 성장·자극",
+    "values:authenticity": "가치관 · 진정성",
+    "values:benevolence": "가치관 · 관계·돌봄",
+    "values:achievement": "가치관 · 성취",
+    "values:security": "가치관 · 안정",
   },
 };
 
