@@ -373,6 +373,18 @@ function CoreBrainScreen() {
             <Text variant="subtle" color="textSubtle" style={dsDeck.heroHint}>
               {locale === "ko" ? "옆으로 넘겨 카드를 살펴보세요" : "Swipe to walk the cards"}
             </Text>
+            <View style={dsDeck.heroLinks}>
+              <MdButton
+                variant="text"
+                label={locale === "ko" ? "밝기 변화" : "Brightness"}
+                onPress={() => router.push("/brightness")}
+              />
+              <MdButton
+                variant="text"
+                label={locale === "ko" ? "승인 이력" : "Ratification log"}
+                onPress={() => router.push("/ratifications")}
+              />
+            </View>
           </View>
         ),
       },
@@ -802,6 +814,7 @@ const dsDeck = StyleSheet.create({
     marginTop: spacing.md,
   },
   heroHint: { marginTop: spacing.lg, textAlign: "center" },
+  heroLinks: { flexDirection: "row", justifyContent: "center", gap: spacing.sm, marginTop: spacing.sm },
   radarBody: { alignItems: "center", gap: spacing.md },
   validateList: { gap: spacing.sm },
 });
