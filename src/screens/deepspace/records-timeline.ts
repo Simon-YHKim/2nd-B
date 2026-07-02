@@ -21,7 +21,6 @@ export interface TimelineRecord {
 
 export interface TimelineItem {
   id: string;
-  icon: string;
   title: string;
   timeLabel: string;
   tag?: string;
@@ -32,14 +31,6 @@ export interface TimelineGroup {
   label: string;
   items: TimelineItem[];
 }
-
-export const RECORD_KIND_ICON: Record<string, string> = {
-  journal: "✎",
-  note: "📝",
-  audit_response: "🧭",
-};
-
-const KIND_ICON = RECORD_KIND_ICON;
 
 /** Other records sharing at least one tag with the focal record, newest first,
  *  excluding the focal record itself. Powers the /record "연결된 기록" section
@@ -153,7 +144,6 @@ export function buildRecordsTimeline(
         const tag = visibleTags.length > 0 ? `#${visibleTags[0]}` : undefined;
         return {
           id: r.id,
-          icon: KIND_ICON[r.kind] ?? "•",
           title: titleOf(r, labels.fallbackTitle),
           timeLabel: isToday ? todayTimeLabel(ms, nowMs, labels) : "",
           tag,

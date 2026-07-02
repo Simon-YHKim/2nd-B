@@ -209,7 +209,6 @@ export function OpsReminderRow(props: OpsReminderRowProps) {
 
 export interface PushOption {
   key: string;
-  icon: string;
   label: string;
   sub?: string;
   recommended?: boolean;
@@ -255,7 +254,6 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
                 pressed ? styles.pressed : null,
               ]}
             >
-              <RNText style={styles.pushIcon}>{o.icon}</RNText>
               <View style={styles.pushOptionBody}>
                 <Text variant="caption" style={styles.pushOptionLabel}>{o.label}</Text>
                 {o.sub ? <Text variant="subtle" style={styles.pushOptionSub}>{o.sub}</Text> : null}
@@ -549,7 +547,6 @@ const styles = StyleSheet.create({
     borderRadius: deepSpaceRadii.md,
   },
   pushOptionRec: { borderColor: deepSpace.mintLine, backgroundColor: deepSpace.mintBg },
-  pushIcon: { fontSize: 18 },
   pushOptionBody: { flex: 1 },
   pushOptionLabel: { fontSize: 14, color: deepSpace.accentBright },
   pushOptionSub: { fontSize: 12, color: deepSpace.textLo, marginTop: 1 },
