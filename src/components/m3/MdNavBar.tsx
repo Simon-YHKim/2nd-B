@@ -38,22 +38,28 @@ export function MdNavBar({ items, active, onSelect, bottomInset = 0, style }: Md
         const activeFg = item.center ? m3.color.onTertiaryContainer : m3.color.onSecondaryContainer;
         const iconColor = on ? activeFg : m3.color.onSurfaceVariant;
         const labelColor = on ? m3.color.onSurface : m3.color.onSurfaceVariant;
+        // LAYOUT NOTE (#680): Fabric Android drops function-form Pressable
+        // styles (the flex:1 was lost, packing all five tabs to the left), so
+        // the tab layout lives on a View and the Pressable inside is a plain
+        // touch surface with an android_ripple state layer (#698 idiom).
         return (
-          <Pressable
-            key={item.key}
-            onPress={() => onSelect(item.key)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={item.accessibilityLabel ?? item.label}
-            style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
-          >
-            <View style={[styles.indicator, item.center && styles.indicatorCenter, on && { backgroundColor: pillBg }]}>
-              {item.icon(iconColor)}
-            </View>
-            <Text style={[m3TextStyle("labelMedium"), styles.label, { color: labelColor }]} numberOfLines={1}>
-              {item.label}
-            </Text>
-          </Pressable>
+          <View key={item.key} style={styles.tab}>
+            <Pressable
+              onPress={() => onSelect(item.key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={item.accessibilityLabel ?? item.label}
+              android_ripple={{ color: m3.color.secondaryContainer, borderless: true }}
+              style={styles.press}
+            >
+              <View style={[styles.indicator, item.center && styles.indicatorCenter, on && { backgroundColor: pillBg }]}>
+                {item.icon(iconColor)}
+              </View>
+              <Text style={[m3TextStyle("labelMedium"), styles.label, { color: labelColor }]} numberOfLines={1}>
+                {item.label}
+              </Text>
+            </Pressable>
+          </View>
         );
       })}
     </View>
@@ -67,7 +73,8 @@ const styles = StyleSheet.create({
     paddingTop: m3.spacing.s2,
     paddingHorizontal: m3.spacing.s2,
   },
-  tab: { flex: 1, alignItems: "center", gap: m3.spacing.s1, minHeight: 48, justifyContent: "center" },
+  tab: { flex: 1, minHeight: 48, justifyContent: "center" },
+  press: { alignItems: "center", gap: m3.spacing.s1, justifyContent: "center", minHeight: 48 },
   indicator: {
     minWidth: 56,
     height: 32,
@@ -77,6 +84,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: m3.spacing.s4,
   },
   indicatorCenter: { minWidth: 64, height: 36 },
-  pressed: { opacity: 0.7 },
   label: { textAlign: "center" },
 });

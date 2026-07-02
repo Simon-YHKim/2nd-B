@@ -13,10 +13,10 @@ import Svg, { Circle, Path } from "react-native-svg";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
-// Primary dock tabs (SCREEN_TREE_SPEC §0.1): 담기/알아가기/비서/나 + 중앙 세컨비.
-// "lens"/"iden" remain valid values so existing 2nd-tier callsites (active="lens")
-// keep type-checking; they are no longer rendered as primary dock tabs.
-export type DeepSpaceTab = "home" | "capture" | "chat" | "ops" | "account" | "wiki" | "lens" | "iden";
+// Primary dock tabs (rev2 sb-data NAV): 별자리/담기/세컨비/위키/설정.
+// "ops"/"lens"/"iden"/"account" remain valid values so existing 2nd-tier callsites
+// (active="lens" etc.) keep type-checking; they are no longer primary dock tabs.
+export type DeepSpaceTab = "home" | "capture" | "chat" | "ops" | "account" | "wiki" | "lens" | "iden" | "settings";
 
 export interface DockItem {
   key: DeepSpaceTab;
@@ -83,6 +83,15 @@ export function TabIcon({ tab, color }: { tab: DeepSpaceTab; color: string }) {
           <Path d="M3 6h18v12H3z" stroke={color} strokeWidth={2} fill="none" />
           <Circle cx={8.5} cy={11} r={2} fill={color} />
           <Path d="M13 9h5M13 13h5" stroke={color} strokeWidth={2} strokeLinecap="round" />
+        </Svg>
+      );
+    case "settings": // 설정 — tune sliders (rev2 NAV icon 'tune')
+      return (
+        <Svg width={18} height={18} viewBox="0 0 24 24">
+          <Path d="M4 7h9M19 7h1M4 12h3M13 12h7M4 17h11M21 17h-1" stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" />
+          <Circle cx={15.5} cy={7} r={2.2} stroke={color} strokeWidth={2} fill="none" />
+          <Circle cx={9.5} cy={12} r={2.2} stroke={color} strokeWidth={2} fill="none" />
+          <Circle cx={17.5} cy={17} r={2.2} stroke={color} strokeWidth={2} fill="none" />
         </Svg>
       );
   }

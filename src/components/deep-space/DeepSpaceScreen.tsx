@@ -21,6 +21,7 @@ import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import type { M3Persona } from "@/lib/theme/m3";
 import { MdNavBar } from "@/components/m3";
 import { SecondbStatusHeader } from "./SecondbStatusHeader";
+import { SbStarfield } from "./SbStarfield";
 import type { SecondbMood } from "./SecondbHead";
 import { TabIcon, type DeepSpaceTab } from "./DeepSpaceDock";
 
@@ -33,6 +34,7 @@ const TAB_ROUTE: Record<DeepSpaceTab, Href> = {
   wiki: "/wiki",
   lens: "/core-brain",
   iden: "/iden",
+  settings: "/settings",
 };
 
 const VIEW_MOOD: Record<DeepSpaceTab, SecondbMood> = {
@@ -44,20 +46,26 @@ const VIEW_MOOD: Record<DeepSpaceTab, SecondbMood> = {
   wiki: "neutral",
   lens: "positive",
   iden: "neutral",
+  settings: "neutral",
 };
 
-// Primary order (rev2 §3): 별자리홈 · 담기 · [중앙 세컨비] · 위키 · 비서.
-// 나(account) moves out of the dock — reachable via profile / settings / back-arrow.
-const TABS: DeepSpaceTab[] = ["home", "capture", "chat", "wiki", "ops"];
+// Primary order (rev2 SoT, sb-data NAV): 별자리 · 담기 · [중앙 세컨비] · 위키 · 설정.
+// 비서(ops) moves out of the dock — reached via the home head-tap menu (sb-home)
+// and deep links; 나(account) stays reachable via profile / settings / back-arrow.
+const TABS: DeepSpaceTab[] = ["home", "capture", "chat", "wiki", "settings"];
 
 export function DeepSpaceScreen({
   active,
   personaTint,
+  header = "companion",
   children,
 }: {
   active: DeepSpaceTab;
   /** rev2 persona tint for the status-header head (chat surface). Unset = canonical cyan. */
   personaTint?: M3Persona;
+  /** rev2 (sb-app §4): the companion header belongs to capture/chat/records only —
+   *  home renders its own big head + bubble, so it passes "none". */
+  header?: "companion" | "none";
   children: ReactNode;
 }) {
   const { t, i18n } = useTranslation("home");
@@ -77,24 +85,20 @@ export function DeepSpaceScreen({
 
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
+      {/* rev2 shared constellation wallpaper (sb-app SbStarfield + SB_COSMIC),
+          seed-locked so every screen sits under the same sky. */}
       <View pointerEvents="none" style={styles.spaceWash}>
-        <View style={styles.topGlow} />
-        <View style={[styles.star, styles.starA]} />
-        <View style={[styles.star, styles.starB]} />
-        <View style={[styles.star, styles.starC]} />
-        <View style={[styles.star, styles.starD]} />
-        <View style={[styles.star, styles.starE]} />
-        <View style={[styles.star, styles.starF]} />
-        <View style={[styles.star, styles.starG]} />
-        <View style={[styles.star, styles.starH]} />
+        <SbStarfield cosmic />
       </View>
-      <SecondbStatusHeader
-        text={t("ds.head." + active + ".text")}
-        tip={t("ds.head." + active + ".tip")}
-        mood={VIEW_MOOD[active]}
-        persona={personaTint}
-        accessibilityLabel={characterLabel}
-      />
+      {header === "companion" ? (
+        <SecondbStatusHeader
+          text={t("ds.head." + active + ".text")}
+          tip={t("ds.head." + active + ".tip")}
+          mood={VIEW_MOOD[active]}
+          persona={personaTint}
+          accessibilityLabel={characterLabel}
+        />
+      ) : null}
 
       <View style={styles.body}>{children}</View>
 
@@ -112,36 +116,6 @@ export function DeepSpaceScreen({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: deepSpace.bgEdge },
   spaceWash: { ...StyleSheet.absoluteFill, overflow: "hidden" },
-  topGlow: {
-    position: "absolute",
-    top: -150,
-    left: -80,
-    right: -80,
-    height: 360,
-    borderRadius: 180,
-    backgroundColor: deepSpace.bgGlow,
-    opacity: 0.9,
-  },
-  star: {
-    position: "absolute",
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: deepSpace.accentSoft,
-    shadowColor: deepSpace.accent,
-    shadowOpacity: 0.85,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
-  },
-  starA: { top: 38, left: "18%", opacity: 0.85 },
-  starB: { top: 94, right: "22%", opacity: 0.55 },
-  starC: { top: 168, left: "36%", opacity: 0.5 },
-  starD: { top: 244, right: "15%", opacity: 0.8 },
-  starE: { bottom: 168, left: "11%", opacity: 0.45 },
-  starF: { bottom: 112, right: "28%", opacity: 0.62 },
-  starG: { bottom: 54, left: "42%", opacity: 0.4 },
-  starH: { top: 312, left: "67%", opacity: 0.5 },
   body: {
     flex: 1,
     backgroundColor: withAlpha(deepSpace.bgEdge, 0.5),

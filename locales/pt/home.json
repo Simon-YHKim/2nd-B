@@ -49,7 +49,8 @@
       "account": "Eu",
       "lens": "Eu",
       "iden": "IDEN",
-      "wiki": "Wiki"
+      "wiki": "Wiki",
+      "settings": "Configurações"
     },
     "head": {
       "home": {
@@ -87,7 +88,33 @@
     },
     "home": {
       "polaris": "Estrela Polar",
-      "hint": "Toque nas sete estrelas para abrir suas sete áreas da vida"
+      "hint": "Toque nas sete estrelas para abrir suas sete áreas da vida",
+      "museumName": "Museu",
+      "inbox": "Notificações",
+      "headA11y": "Perguntar ao SecondB",
+      "kind": {
+        "domain": "Domínio",
+        "museum": "Aprender juntos"
+      },
+      "bubble": {
+        "introTag": "Apresentação",
+        "intro": "Olá, eu sou o SecondB. Toque na minha cabeça e eu ajudo.",
+        "menuTag": "SecondB",
+        "menu": "Como posso ajudar?",
+        "travel": "Viajar",
+        "later": "Depois",
+        "chatbot": "Chatbot",
+        "assistant": "Assistente"
+      },
+      "star": {
+        "career": { "line": "O que você construiu e acumulou?" },
+        "finance": { "line": "O que o dinheiro diz sobre mim?" },
+        "relation": { "line": "Como estou com as pessoas próximas de mim?" },
+        "growth": { "line": "Que época me fez quem sou agora?" },
+        "health": { "line": "Como andam minha condição e meu ritmo ultimamente?" },
+        "recreation": { "line": "O que me deixa descansar?" },
+        "museum": { "line": "Percorra o caminho que a IA trilhou e aprenda como o SecondB entende você." }
+      }
     },
     "capture": {
       "title": "Capturar",
