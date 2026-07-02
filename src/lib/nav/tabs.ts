@@ -76,6 +76,9 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/capture-full",
   // 북극성 문장 편집 (Screen-Spec 21) — direct-render dock screen.
   "/northstar",
+  // 설정 — rev2 windowed ROOT tab (5th dock slot); conditional render behind
+  // isDeepSpaceUI so the drift guard's direct-render scan doesn't see it.
+  "/settings",
 ] as const;
 
 export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];

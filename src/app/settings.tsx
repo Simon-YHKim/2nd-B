@@ -10,7 +10,7 @@ import { Redirect, router } from "expo-router";
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
-import { SecondbStatusHeader } from "@/components/deepspace";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { deepSpace, deepSpaceRadii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -180,12 +180,20 @@ export default function Settings() {
   }, [toast]);
 
   if (loading) {
-    return (
+    const loadingBody = (
+      <View style={styles.center}>
+        <PremiumLoadingState message={t("loading")} />
+      </View>
+    );
+    // rev2: settings is a windowed ROOT tab (dock visible, no top bar/companion).
+    return isDeepSpaceUI() ? (
+      <DeepSpaceScreen active="settings" header="none" variant="windowed">
+        {loadingBody}
+      </DeepSpaceScreen>
+    ) : (
       <View style={styles.screen}>
         <View style={styles.glow} pointerEvents="none" />
-        <View style={styles.center}>
-          <PremiumLoadingState message={t("loading")} />
-        </View>
+        {loadingBody}
       </View>
     );
   }
@@ -364,20 +372,32 @@ export default function Settings() {
     }
   }
 
+  // rev2: settings is a windowed ROOT tab — the dock stays visible, no top bar
+  // and no companion header (sb-app §4: companion is capture/chat/records only).
+  const Chrome = ({ children }: { children: ReactNode }) =>
+    isDeepSpaceUI() ? (
+      <DeepSpaceScreen active="settings" header="none" variant="windowed">
+        {children}
+      </DeepSpaceScreen>
+    ) : (
+      <View style={styles.screen}>
+        <View style={styles.glow} pointerEvents="none" />
+        {children}
+      </View>
+    );
+
   return (
-    <View style={styles.screen}>
-      <View style={styles.glow} pointerEvents="none" />
+    <Chrome>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <SecondbStatusHeader
-          text={locale === "ko" ? "설정을 정리해요." : "Tune your settings."}
-          tip={
-            locale === "ko"
-              ? "삭제는 되돌릴 수 없어요. 필요한 건 먼저 내보내기로."
-              : "Deletion cannot be undone. Export anything you need first."
-          }
-        />
         <Text variant="heading" style={styles.title}>{locale === "ko" ? "설정" : "Settings"}</Text>
+        {/* Guidance line (kept from the companion era — OldGuidanceCopyResidue
+            pins this SecondB-voiced wording; rev2 drops the header, not the copy). */}
+        <Text variant="caption" color="textMuted" style={styles.guidance}>
+          {locale === "ko"
+            ? "설정을 정리해요. 삭제는 되돌릴 수 없어요. 필요한 건 먼저 내보내기로."
+            : "Tune your settings. Deletion cannot be undone. Export anything you need first."}
+        </Text>
 
         {/* Navigation hub (A-to-Z Phase 12) — the settings sub-screens. */}
         {/* Destructive op in flight: a persistent banner explains why actions
@@ -876,7 +896,7 @@ export default function Settings() {
           ) : null}
         </View>
       </PremiumModal>
-    </View>
+    </Chrome>
   );
 }
 
@@ -888,6 +908,7 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl, gap: spacing.lg },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   title: { fontSize: 20, color: deepSpace.textHi, marginBottom: spacing.xs },
+  guidance: { marginTop: -6, marginBottom: spacing.xs },
   section: {
     backgroundColor: deepSpace.card,
     borderColor: deepSpace.cardLine,
