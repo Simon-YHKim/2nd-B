@@ -47,6 +47,8 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/persona",
   // T5 F2 (peer review): the subject-side invitation ledger lives on the lens track.
   "/peer-invites",
+  // Call recording v1 (post-call reflection, docs/CALL-RECORDING-SPEC.md §5).
+  "/call-reflection",
   "/account",
   "/ops",
   // /wiki joined the dock as a 5-tab root in P2-cont (#658 wraps it in

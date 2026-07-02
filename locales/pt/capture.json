@@ -317,5 +317,19 @@
       "how": "Como foi? Algum porquê que valha guardar?"
     },
     "note": "Somente caixas preenchidas são salvas, como uma peça com a tag #fourw."
+  },
+  "callReflection": {
+    "title": "Depois da ligacao",
+    "intro": "Um minuto logo apos a ligacao: com quem, a essencia, o que ficou. Nenhum audio e gravado; apenas suas proprias palavras sao salvas.",
+    "who": "Com quem (so apelido)",
+    "gist": "A essencia",
+    "feeling": "O que ficou",
+    "followup": "Um proximo passo",
+    "saveCta": "Salvar reflexao",
+    "saving": "Salvando…",
+    "savedNote": "Salvo. Junta-se aos seus registros como qualquer outra peca.",
+    "openRecords": "Abrir registros",
+    "privacyLine": "Guardado de forma privada na sua conta. Nao criamos perfil da outra pessoa.",
+    "topicPrefix": "Reflexao de ligacao"
   }
 }
