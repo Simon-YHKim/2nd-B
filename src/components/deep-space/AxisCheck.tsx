@@ -59,6 +59,23 @@ const BAR_TITLE: Record<AxisCheckId, { ko: string; en: string }> = {
   values: { ko: "가치관", en: "Values" },
 };
 
+// rev2 report cross-links (sb-surfaces bottom buttons): each axis screen links
+// the sibling checks. Routes are the real app screens.
+const CROSS_LINKS: Record<AxisCheckId, { label: { ko: string; en: string }; route: string; tonal?: boolean }[]> = {
+  motivation: [
+    { label: { ko: "강점 보기", en: "See strengths" }, route: "/strengths", tonal: true },
+    { label: { ko: "다른 검증틀", en: "Other checks" }, route: "/big-five" },
+  ],
+  strengths: [
+    { label: { ko: "동기 보기", en: "See motivation" }, route: "/motivation", tonal: true },
+    { label: { ko: "다른 검증틀", en: "Other checks" }, route: "/big-five" },
+  ],
+  values: [
+    { label: { ko: "동기 보기", en: "See motivation" }, route: "/motivation", tonal: true },
+    { label: { ko: "강점 보기", en: "See strengths" }, route: "/strengths" },
+  ],
+};
+
 export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
   const check = AXIS_CHECKS[axis];
   const { i18n } = useTranslation();
@@ -230,6 +247,29 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
                       ? "막대는 확신이 아니라 적어 주신 양이에요."
                       : "Bars show how much you've written, not scores."}
                   </Text>
+                  {/* rev2 RatifyBlock, honest half: real evidence count + the
+                      propose→ratify framing. The prototype's LLM estimate
+                      sentence and confidence% wait on the estimate pipe —
+                      never fabricated here. */}
+                  <View style={styles.evidenceCard}>
+                    <Text style={styles.evidenceLine}>
+                      {locale === "ko"
+                        ? `담긴 기록 ${total}건 근거 · 비준하기 전엔 북극성에 반영되지 않아요.`
+                        : `${total} records as evidence. Nothing reaches your North Star until you ratify it.`}
+                    </Text>
+                    <View style={styles.evidenceActions}>
+                      <MdButton
+                        variant="text"
+                        label={locale === "ko" ? "승인 이력 보기" : "Ratification log"}
+                        onPress={() => router.push("/ratifications")}
+                      />
+                      <MdButton
+                        variant="text"
+                        label={locale === "ko" ? "인터뷰로 다듬기" : "Refine in interview"}
+                        onPress={() => router.push("/interview")}
+                      />
+                    </View>
+                  </View>
                 </View>
               );
             })()}
@@ -238,6 +278,17 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
               label={locale === "ko" ? `시작하기 · ${questions.length}문항` : `Start · ${questions.length} prompts`}
               onPress={() => setStarted(true)}
             />
+            <View style={styles.crossRow}>
+              {CROSS_LINKS[axis].map((l) => (
+                <MdButton
+                  key={l.route}
+                  variant={l.tonal ? "tonal" : "outlined"}
+                  style={styles.crossBtn}
+                  label={l.label[locale]}
+                  onPress={() => router.push(l.route as never)}
+                />
+              ))}
+            </View>
           </View>
         ) : null}
 
@@ -391,4 +442,15 @@ const styles = StyleSheet.create({
   signalName: { fontSize: 13, fontWeight: "600", color: "#EAF2FF" },
   signalCount: { fontFamily: m3.font.mono, fontSize: 11, color: withAlpha(deepSpace.accentSoft, 0.7) },
   signalFootnote: { fontSize: 11.5, color: withAlpha(deepSpace.accentSoft, 0.7) },
+  evidenceCard: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: m3.shape.medium,
+    backgroundColor: m3.color.surfaceContainerHigh,
+    gap: 4,
+  },
+  evidenceLine: { fontSize: 12.5, lineHeight: 18, color: m3.color.onSurfaceVariant },
+  evidenceActions: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
+  crossRow: { flexDirection: "row", gap: 8, marginTop: 10 },
+  crossBtn: { flex: 1 },
 });
