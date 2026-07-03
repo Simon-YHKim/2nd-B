@@ -30,7 +30,9 @@ const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile", "/oauth-cal
 // /onboarding (J5): the arrow pushed "/" which index immediately bounced back
 // to /onboarding - a visible control whose only effect was resetting the
 // stepper to step 0. The in-screen Skip is the designed exit.
-const HIDDEN_PATHS = new Set<string>([...PRE_AUTH_PATHS, "/", "/onboarding"]);
+// /deepspace-home is a home root (the cloned deep-space 별자리 shell renders its
+// own bottom nav + inbox bell); it IS a back target, so it gets no floating arrow.
+const HIDDEN_PATHS = new Set<string>([...PRE_AUTH_PATHS, "/", "/onboarding", "/deepspace-home"]);
 const BACK_ARROW_BG = withAlpha(cosmic.soulViolet, 0.16);
 const BACK_ARROW_BORDER = withAlpha(cosmic.signalMint, 0.42);
 const BACK_LABEL_BG = withAlpha(cosmic.space950, 0.74);
