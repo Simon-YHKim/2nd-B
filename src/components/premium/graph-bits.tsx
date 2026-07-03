@@ -1,5 +1,5 @@
 // Premium graph / chat building blocks (Part 1): the reference shard card
-// (참고한 조각), graph node chip (village island label + gold count), the
+// (참고한 별가루), graph node chip (village island label + gold count), the
 // character badge (companion avatar with a glow ring), and the context pill
 // shown when the chat is entered from a node.
 
@@ -20,7 +20,7 @@ function useCurrentLocale(): "en" | "ko" {
   return i18n.language === "ko" ? "ko" : "en";
 }
 
-/** A "참고한 조각" card — what an answer / center drew on. */
+/** A "참고한 별가루" card — what an answer / center drew on. */
 export const ReferenceShardCard = memo(function ReferenceShardCard({
   title,
   meta,
@@ -70,7 +70,7 @@ export const GraphNodeChip = memo(function GraphNodeChip({
     count == null
       ? label
       : locale === "ko"
-        ? `${label}, 조각 ${count}`
+        ? `${label}, 별가루 ${count}`
         : `${label}, ${count} ${count === 1 ? "piece" : "pieces"}`;
   return (
     <Pressable

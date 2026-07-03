@@ -450,7 +450,7 @@ export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
             </Text>
             <Text variant="body" color="textMuted" style={styles.intro}>
               {locale === "ko"
-                ? `${title} 답변 ${savedCount}개가 내 기록으로 저장됐어요. 북극성이 이 조각들을 참고해요.`
+                ? `${title} 답변 ${savedCount}개가 내 기록으로 저장됐어요. 북극성이 이 별가루들을 참고해요.`
                 : `${savedCount} answers are saved as your records. Your Polaris draws on these pieces.`}
             </Text>
             <MdButton

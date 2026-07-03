@@ -188,7 +188,7 @@ export default function CareerTimelineScreen() {
           <MdCard variant="outlined" style={styles.cardPad}>
             <Text variant="body" color="textMuted">
               {isKo
-                ? "타임라인을 잠깐 못 불러왔어요. 조각은 그대로 있으니 다시 시도해 주세요."
+                ? "타임라인을 잠깐 못 불러왔어요. 별가루는 그대로 있으니 다시 시도해 주세요."
                 : "Could not load the timeline just now. Your pieces are safe; try again."}
             </Text>
             <MdButton variant="tonal" label={isKo ? "다시 시도" : "Try again"} onPress={refresh} />
@@ -197,7 +197,7 @@ export default function CareerTimelineScreen() {
           <MdCard variant="outlined" style={styles.cardPad}>
             <Text variant="body" color="textMuted">
               {isKo
-                ? "아직 커리어 조각이 없어요. 지난 성과부터 하나 담아 보세요. 커리어 별이 밝아져요."
+                ? "아직 커리어 별가루가 없어요. 지난 성과부터 하나 담아 보세요. 커리어 별이 밝아져요."
                 : "No career pieces yet. Start with one past achievement; the career star brightens."}
             </Text>
           </MdCard>
@@ -215,7 +215,7 @@ export default function CareerTimelineScreen() {
                   key={item.id}
                   onPress={() => router.push({ pathname: "/record/[id]", params: { id: item.id } })}
                   accessibilityRole="button"
-                  accessibilityLabel={item.topic ?? (isKo ? "커리어 조각" : "Career piece")}
+                  accessibilityLabel={item.topic ?? (isKo ? "커리어 별가루" : "Career piece")}
                 >
                   <MdCard variant="outlined" style={styles.entry}>
                     <View style={styles.entryDot} />

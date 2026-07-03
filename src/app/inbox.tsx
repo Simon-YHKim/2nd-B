@@ -610,7 +610,7 @@ function InboxLegacy() {
     <View style={styles.listHeader}>
       <SceneHero
         eyebrow={locale === "ko" ? "받은편지함" : "Inbox"}
-        title={locale === "ko" ? "잡아둔 조각을 다듬어요" : "Refine captured pieces"}
+        title={locale === "ko" ? "잡아둔 별가루를 다듬어요" : "Refine captured pieces"}
         subtitle={locale === "ko" ? "요약 · 질문 · 위키 승격" : "Summaries · questions · wiki promotion"}
         island={VILLAGE_UI.records.island}
         worker={VILLAGE_UI.records.worker}

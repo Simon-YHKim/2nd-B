@@ -51,7 +51,7 @@ describe("evidenceRoute", () => {
 
 describe("evidenceTypeLabel", () => {
   test("localized", () => {
-    expect(evidenceTypeLabel("journal", "ko")).toBe("오늘의 조각");
+    expect(evidenceTypeLabel("journal", "ko")).toBe("오늘의 별가루");
     expect(evidenceTypeLabel("journal", "en")).toBe("Journal");
   });
 });
@@ -79,7 +79,7 @@ describe("toEvidenceShard", () => {
       { id: "r2", kind: "journal", topic: "  ", created_at: "2026-05-12T00:00:00Z" },
       "ko",
     );
-    expect(s.title).toBe("오늘의 조각");
+    expect(s.title).toBe("오늘의 별가루");
   });
 });
 

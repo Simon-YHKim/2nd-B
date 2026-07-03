@@ -1,6 +1,6 @@
 // Evidence mapping for the Core Brain / 나의 중심 screen. Turns raw
 // `records` rows into the CoreEvidenceShard shape the screen lists in its
-// "이걸 만든 조각들" drawer (core-brain pack §5 / data_contract). Pure +
+// "이걸 만든 별가루들" drawer (core-brain pack §5 / data_contract). Pure +
 // tested so the type/route/label mapping is a single source of truth.
 
 import { domainForTags, type VillageId } from "@/lib/graph/relatedness";
@@ -65,7 +65,7 @@ export function evidenceRoute(type: EvidenceType): string {
 }
 
 const TYPE_LABEL: Record<"en" | "ko", Record<EvidenceType, string>> = {
-  ko: { journal: "오늘의 조각", capture: "조각 담기", wiki: "지식 창고", interview: "스무고개", audit: "라이프 오딧", imagine: "새 관점" },
+  ko: { journal: "오늘의 별가루", capture: "별가루 담기", wiki: "지식 창고", interview: "스무고개", audit: "라이프 오딧", imagine: "새 관점" },
   en: { journal: "Journal", capture: "Capture", wiki: "Wiki", interview: "Interview", audit: "Life audit", imagine: "Imagine" },
 };
 
