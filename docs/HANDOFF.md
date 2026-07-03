@@ -3,6 +3,48 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-07-03 (오후) / QA·머지·OTA 오케스트레이터 세션 — 17건 머지 보장 + 4-AI 닫힌 루프 가동
+
+> 역할이 다른 핸드오프: 아래 dev 세션 블록들과 달리 이 세션은 **감시·리뷰·머지 게이트·OTA·허브 오케스트레이션**을 맡았다.
+> 같은 역할을 잇는 세션은 이 블록이 출발점.
+
+### 어디까지 왔나
+- main HEAD: `c06c594b` (#738). 이번 세션 머지 보장 **17건**(#721~#738 흐름 — 세션 자체머지 감시 + 방치분 직접 머지).
+- 직접 랜딩: **#729**(aliveRef StrictMode) · **#732**(codex 부분수용 — consentOnce만, 면책고지 4건 반려) · **#733**(Seen 빈상태 오귀인) · **#737**(codex dds-split-2 게이트 머지).
+- **OTA 전량 배달**: 0.0.6 최종 `fd04b741`(#721까지) / 0.0.7 최신 체인 `40033b66→8197f886→cee46a3a→3bfe1d08→45bcbea1→(#737분)`. 미배달 갭 2건(#721 취소·#725 이벤트드랍) 복구했음.
+- **0.0.7 바이너리**: EAS preview `7d2a4e53`(APK 링크 Simon 전달됨) + CI store-grade 서명 아티팩트(run 28622463122). **⚠️ 둘 다 arm64 전용 — x86_64 에뮬에서 libreactnative.so DSO 크래시. 에뮬 QA는 `expo run:android` 로컬 빌드로만.**
+- **에뮬 함정 추가**: 구 debug APK가 versionCode=5라 EAS APK(vC=2)는 다운그레이드 거부 — 언인스톨 선행 필수. 설치 완료 주장은 `dumpsys package | grep versionName` 계측 필수(AG 허위보고 사례).
+
+### 4-AI 허브 닫힌 루프 (이 세션이 배선)
+- **오더 발행→산출→Claude 검증·머지→피드백** 사이클 검증 완료. 현재 open: `codex/pressable-sweep-g`(큐 G, #680 패턴, 억지 변환 금지 가드).
+- codex: dds-split-2 → #737 머지(10분 턴어라운드). **AI 브랜치는 푸시 전 리베이스**(main up-to-date 룰 신설됨, BEHIND→update-branch→재green→일반 머지, --admin 금지).
+- AG: 레인 분업 확정 — 디바이스 준비·설치·logcat=AG / 시각 판정·캡처=Claude(픽셀 직독). 
+- grok: **원샷 레인 조용한 사망**(스폰 후 로그 무기록 — hub-infra 조사 항목). 우회 = `grok --single` 직접 실행(검증됨). advisory 결과는 아래 큐 D 입력에 반영.
+- 허브 리모트 이동 이벤트는 **작성자부터 확인**(내 푸시에 타 AI 커밋이 묻혀 4h 소비 지연 사례).
+
+### 이 세션 QA 발견 (라이브 웹 + QA 계정 픽셀 직독)
+- 처리됨: Seen 오귀인(#733) · codex 면책고지 제거 반려(임상·법무 게이트 방어).
+- 큐 반영 필요: **온보딩 화면 = 미변환 레거시 스타일**(큐 I에 추가) · imagine 인트로 카드 우측 마진 니트.
+- 큐 D(call-log 트리거) 설계 요구(grok KR advisory): 통화내용 미저장 명시 · 수동/지연 트리거 옵션 · opt-in+끄기. 카피 금기='감정 분석/관계 진단/상대 평가'. axis_estimate엔 '담기 전 문장 편집' 개선 후보.
+- Seen gap 뷰 완전체 확인법: QA 계정(qa.ai.b18807)에 Big Five 설문 1회(현재 bfi 0건이 빈상태 원인이었음 — peer 3건은 게이트 통과 상태).
+
+### 🔒 Simon 게이트 (변동 없음)
+axis_estimate 과금 의도 · consent 문구 복원(법무) · E(plans 3티어) · F(0.0.7 폰 QA — APK 링크 전달됨, 설치가 사용자 액션).
+
+### 검증
+```bash
+npm run verify; echo EXIT=$?   # 파이프 금지. CI 필수=verify×2+lint, Vercel=한도 노이즈
+```
+
+### 다음 세션 시작하는 법 (오케스트레이터 역할)
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# 감시 재장착: main/PR/OTA/허브 원격/inbox 폴링(75s) + PR별 CI green→5분 유예→방치 시 머지 [ota]
+# 허브: BOARD.md 현재 포커스 + agents/claude/outbox open 오더 확인. OTA 재트리거 = gh workflow run eas-update.yml (dispatch 작동 확인됨)
+```
+
+---
+
 ## Latest — 2026-07-03 / 감사 라운드(#730) + 레퍼런스=정본 재정렬(#734·#735) — Simon 정본 확정
 
 > 두 웨이브: ① 직전 컨텍스트-포화 /loop 세션(15 PR) 전수 감사 → 결함 픽스, ② Simon "레퍼런스=정본" 확정 → 용어·디자인 재정렬.
