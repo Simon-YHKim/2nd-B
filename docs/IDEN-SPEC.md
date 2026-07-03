@@ -1,5 +1,7 @@
 # IDEN-SPEC.md - Identity Export Format & Viewer
 
+> ℹ️ 여기서 **'Soul Core' = 북극성의 내부/에셋 명칭**이다(표시명 '북극성', 내부 키 `soulCoreBrightness` 는 회귀 안전상 유지 — CLAUDE.md Visual Tier System). 개념 정본: `docs/CONCEPT.md`. 스키마·렌더러 등 스펙 본문은 유효.
+
 > Status: **draft** (design locked, schema in review) · Owner: Simon · Last updated: 2026-06-16
 > Axis (VISION 3축): **(2) 개인 비서 기반** - IDEN is the portable substrate the assistant (and any external AI) reads to know *who you are*.
 

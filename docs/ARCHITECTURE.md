@@ -1,27 +1,29 @@
 # Architecture
 
-> Snapshot at Sprint 0. Evolves with each sprint.
+> **Status:** 개념/세계관 정본은 아래 3-layer 별자리 모델. rev2 Material-3 마이그레이션 진행 중
+> (`docs/REV2-MIGRATION.md` — 개념 불변, 크롬만 변경). 나머지 아키텍처 상세는 각 섹션 참조.
+> ⚠️ 2026-05-25 Sprint 0 의 5계층 **Soul Core / Pattern Core / Pattern Tesseract** 모델은 **폐기(legacy)** —
+> `EXPO_PUBLIC_UI=legacy` 롤백 스킨에만 존재(이전 판은 git history).
 
-## 세계관 (v-final) — 5계층 그래프 모델
+## 세계관 — 3-layer 별자리 (canonical)
 
-정본은 `docs/VISION.md` "세계관 (v-final)". 코드 / 그래프 / 마스코트 / 색은 모두 이 모델을 따른다.
+정본: `docs/CONCEPT.md` · `docs/PRD.md` (Draft v3) · `docs/CONSTELLATION-DESIGN.md`. 시각 규율: `DESIGN.md`.
 
-- **Tier 1 Soul Core** ("나의 중심", 마스코트 SecondB) — 5개 Pattern Core 가 모여 형성. 내부 키 `core`.
-- **Tier 2 Pattern Core** (Pattern Tesseract) — 5개:
-  Bond(관계·`relation`)/Relia, Wisdom(지식·`knowledge`)/Lumen, Narrative(기록·`records`)/Foreman Momo,
-  Muse(취향·`taste`)/Lumina, Growth(일·성장·`work`)/Archon.
-- **Tier 3 Pattern Data** — Log 로 만들어진 카테고리 (도메인 태그 분류, `src/lib/graph/relatedness.ts`).
-- **Tier 4 Log** — 사용자 기록 그 자체 (`sources` / `records`).
-- **Pattern Link** (Graph Network) — 전 계층을 잇는 그래프 엣지.
+- **Layer A — 입력: 북두칠성 7 도메인 별.** 커리어 · 재정 · 성장 · 관계 · 건강 · 휴식 · 담아내기.
+  기록이 쌓일수록 해당 도메인 별이 밝아진다(도메인 L1~L5 "정직한 밝기").
+- **Layer B — 숨은 검증층.** `src/lib/stars.ts` 의 심리 구성개념 — 북극성 산출을 뒷받침하는 검증 레이어이며
+  홈 화면에 별로 렌더되지 않는다.
+- **Layer C — 출력: 북극성 (Polaris).** 7 도메인 별의 집약 = 페르소나 합성 readout. 항상 가장 밝고 지배적(root/hero).
+  L1~L5 밝기 사다리 + propose→ratify. **"Soul Core" 명칭 폐기** — 표시명 "북극성", 내부 키 `soulCoreBrightness`
+  는 회귀 안전을 위해 유지.
+- **링크 = cyan Pattern Link.** 북두칠성 형태 + 2-star pointer → 북극성. 모든 링크 cyan(green trunk / violet leaf 없음).
 
-내부 route / slug / DB 키(work / relation / knowledge / records / taste)는 유지하고, 표시명 · 개념 ·
-마스코트 이름만 표시 레이어에서 바뀐다 (`src/lib/chat/personas.ts`, `src/lib/characters.ts`,
-`src/lib/graph/relatedness.ts::VILLAGE_LABEL`).
+내부 route / slug / DB 키(work / relation / knowledge / records / taste 등)는 유지하고, 표시명 · 개념 ·
+마스코트만 표시 레이어에서 바뀐다. 마스코트 = **세컨비** — rev2 3 페르소나(2nd-B / 메타비 / 트위비).
 
-**공상 작업실**은 장소(Pattern Core 노드)에서 제거되고 SecondB 대화 모드로 전환된다:
-**Analytic**(data 기반 분석) · **Divergent**(data 기반 + 전혀 다른 관점). 두 모드 모두
-C9 → C3 → `gemini.ts` 경로를 타며 안전 분류를 우회하지 않는다(C9 유지). 구 `/imagine` 라우트 ·
-스크린 · LLM purpose · 에셋 키는 vestigial 로 보존한다(회귀 위험 최소화).
+**공상**(3축 중 "공상 → 구체화")은 별도 장소 노드가 아니라 세컨비 대화 / 공상 시드로 다뤄진다
+(`src/app/imagine.tsx`, deep-space=seeds). 모든 LLM 경로는 C9 → C3 → `src/lib/llm/gemini.ts` 안전 분류를 지킨다.
+구 `/graph` · `/core-brain` · `/trinity` · `/imagine` 라우트·스크린·에셋은 `EXPO_PUBLIC_UI=legacy` 롤백용으로만 vestigial 보존.
 
 ## Seven Engines
 

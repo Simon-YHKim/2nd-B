@@ -1,5 +1,7 @@
 # 2nd-Brain — 컨셉 브리프 (외부 LLM 검토용)
 
+> ⚠️ **부분 stale**: 아래 본문의 `Soul Core` / `5개 Pattern Core` 프레이밍은 **옛 모델**이다. 현재 정본 = **3-layer 별자리**(입력 = 북두칠성 7 도메인 별 → 출력 = 북극성). 정본: `docs/CONCEPT.md` · `docs/PRD.md` · `docs/CONSTELLATION-DESIGN.md`.
+
 > 다른 LLM에게 그대로 붙여넣어 컨셉을 비판적으로 압박받기 위한 자기완결 브리프.
 > 정본: `docs/CONCEPT.md`(방향) · `docs/VISION.md`(3축) · `2ndb-thought-organization-synthesis.html`(메모).
 
