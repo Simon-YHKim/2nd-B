@@ -313,6 +313,18 @@
       "sectionSteps": "Kandidat langkah berikutnya",
       "toCapture": "Pindahkan ke Capture",
       "more": "Lainnya bersama SecondB"
+    },
+    "me": {
+      "title": "Bintang Utara",
+      "eyebrow": "Bintang Utara · sintesis 7",
+      "headline": "Memahami diri lebih dalam agar hidup lebih menjadi diri sendiri.",
+      "synthMeta": "Sintesis 7 bintang · keyakinan",
+      "refine": "Perhalus kalimat",
+      "domainsTitle": "7 bintang hidup · domain",
+      "toConstellation": "Ke rasi bintang",
+      "hiddenTitle": "Serat tersembunyi · validasi",
+      "hiddenBody": "Data domainmu menyilangkan kerangka seperti Big Five dan kelekatan. Cahaya bintang adalah seberapa banyak yang kamu masukkan, keyakinan adalah seberapa tervalidasi. Keduanya berbeda.",
+      "viewValidation": "Lihat validasi"
     }
   }
 }

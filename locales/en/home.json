@@ -313,6 +313,18 @@
       "sectionSteps": "Next-step candidates",
       "toCapture": "Move to Capture",
       "more": "More with SecondB"
+    },
+    "me": {
+      "title": "North Star",
+      "eyebrow": "North Star · synthesis of 7",
+      "headline": "Understand myself deeply, live more like myself.",
+      "synthMeta": "Synthesis of 7 stars · confidence",
+      "refine": "Refine the line",
+      "domainsTitle": "7 life stars · domains",
+      "toConstellation": "To constellation",
+      "hiddenTitle": "Hidden grain · validation",
+      "hiddenBody": "Your domain data triangulates frameworks like Big Five and attachment. Starlight is how much you put in, confidence is how validated it is. They are different.",
+      "viewValidation": "See validation"
     }
   }
 }

@@ -313,6 +313,18 @@
       "sectionSteps": "다음 한 걸음 후보",
       "toCapture": "담기로 옮기기",
       "more": "세컨비와 더"
+    },
+    "me": {
+      "title": "북극성",
+      "eyebrow": "북극성 · 7별 종합",
+      "headline": "나를 깊이 이해해 더 나답게 산다.",
+      "synthMeta": "7개 별의 종합 · 신뢰도",
+      "refine": "문장 다듬기",
+      "domainsTitle": "7개의 삶 별 · 도메인",
+      "toConstellation": "별자리로",
+      "hiddenTitle": "숨은 결 · 검증틀",
+      "hiddenBody": "도메인 데이터가 Big Five·애착 같은 검증틀을 삼각측량해요. 별빛은 얼마나 넣었는지, 확신은 얼마나 검증됐는지. 둘은 달라요.",
+      "viewValidation": "검증 보기"
     }
   }
 }

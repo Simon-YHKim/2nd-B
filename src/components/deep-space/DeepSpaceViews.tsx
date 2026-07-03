@@ -27,6 +27,7 @@ import { MdButton, MdChip } from "@/components/m3";
 import { composeFourWBody, EMPTY_FOURW, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
+import { getDomainStar, type DomainId } from "@/lib/persona/domain-stars";
 import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callGemini } from "@/lib/llm/gemini";
@@ -1293,6 +1294,128 @@ export function ValuesLensView({
   );
 }
 
+// ── 북극성 종합 / Me synthesis (layer C) ──────────────────────────────────────
+// The 10-me screen: the aggregate 북극성 hero (dominant, full glow) sits over the
+// seven receding domain stars (layer A) and the hidden validation entry (layer B).
+// Visual Tier rule: 북극성 is the one bright hero; the 7 domain cards recede
+// (smaller, cyan-accent, no soul glow). Levels here are the L1~L5 brightness
+// ladder (coverage-driven display) — filled dots = how much of that domain is in.
+const ME_LADDER = 5;
+const ME_CONFIDENCE = 3; // 신뢰도 3/5 — synthesis confidence (distinct from star fill)
+// Capture reading order (10-me): 커리어 · 재정 · 관계 · 성장 · 건강 · 휴식 · 담아내기.
+const ME_DOMAIN_ROWS: { id: DomainId; level: 1 | 2 | 3 | 4 | 5 }[] = [
+  { id: "career", level: 3 },
+  { id: "finance", level: 2 },
+  { id: "relation", level: 3 },
+  { id: "growth", level: 3 },
+  { id: "health", level: 2 },
+  { id: "recreation", level: 2 },
+  { id: "collect", level: 4 },
+];
+
+function BrightDots({ level }: { level: number }) {
+  return (
+    <View style={styles.meDotRow}>
+      {Array.from({ length: ME_LADDER }).map((_, i) => (
+        <View key={i} style={[styles.meDot, i < level ? styles.meDotOn : styles.meDotOff]} />
+      ))}
+    </View>
+  );
+}
+
+export function MeSynthView({ isKo }: { isKo?: boolean } = {}) {
+  const { t, i18n } = useTranslation("home");
+  const ko = isKo ?? i18n.language === "ko";
+  return (
+    <ScrollView contentContainerStyle={styles.meBody}>
+      {/* layer C — 북극성 hero synthesis (dominant, soul glow) */}
+      <View style={styles.meHero}>
+        <GradientFill colors={deepSpaceGradients.idenSend} radius={20} />
+        <View style={styles.meHeroTop}>
+          <View style={styles.meOrb}>
+            <View style={styles.meOrbCore} />
+          </View>
+          <View style={styles.meHeroCopy}>
+            <Text style={styles.meEyebrow}>{t("ds.me.eyebrow")}</Text>
+            <Text style={styles.meHeadline}>{t("ds.me.headline")}</Text>
+          </View>
+        </View>
+        <View style={styles.meHeroFoot}>
+          <View style={styles.meHeroMeta}>
+            <Text style={styles.meMetaLabel}>{t("ds.me.synthMeta")}</Text>
+            <BrightDots level={ME_CONFIDENCE} />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("ds.me.refine")}
+            onPress={() => router.push("/northstar")}
+            style={({ pressed }) => [styles.meRefine, pressed && styles.pressed]}
+          >
+            <CaptureIcon name="edit" color={deepSpace.textHi} size={14} />
+            <Text style={styles.meRefineLabel}>{t("ds.me.refine")}</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* layer A — the seven life-domain stars (recede below 북극성) */}
+      <View style={styles.meSectionHead}>
+        <Text style={styles.meSectionTitle}>{t("ds.me.domainsTitle")}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("ds.me.toConstellation")}
+          onPress={() => router.replace("/")}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <Text style={styles.meLink}>{t("ds.me.toConstellation")}</Text>
+        </Pressable>
+      </View>
+      <View style={styles.meGrid}>
+        {ME_DOMAIN_ROWS.map(({ id, level }) => {
+          const star = getDomainStar(id);
+          const name = ko ? star.nameKo : star.nameEn;
+          return (
+            <Pressable
+              key={id}
+              accessibilityRole="button"
+              accessibilityLabel={name}
+              onPress={() => router.replace("/")}
+              style={({ pressed }) => [styles.meCard, pressed && styles.pressed]}
+            >
+              <View style={styles.meCardTop}>
+                <View style={styles.meCardDot} />
+                <Text style={styles.meCardLevel}>{`L${level}`}</Text>
+              </View>
+              <Text style={styles.meCardName}>{name}</Text>
+              <BrightDots level={level} />
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* layer B — hidden validation layer (밝기 정직성): 별빛 ≠ 확신 */}
+      <View style={styles.meSectionHead}>
+        <Text style={styles.meSectionTitle}>{t("ds.me.hiddenTitle")}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("ds.me.viewValidation")}
+          onPress={() => router.push("/big-five")}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <Text style={styles.meLink}>{t("ds.me.viewValidation")}</Text>
+        </Pressable>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("ds.me.viewValidation")}
+        onPress={() => router.push("/big-five")}
+        style={({ pressed }) => [styles.meValidateCard, pressed && styles.pressed]}
+      >
+        <Text style={styles.meValidateText}>{t("ds.me.hiddenBody")}</Text>
+      </Pressable>
+    </ScrollView>
+  );
+}
+
 const styles = StyleSheet.create({
   body: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 28, gap: 0 },
   chatBody: { gap: 10 },
@@ -1690,4 +1813,82 @@ const styles = StyleSheet.create({
   imgStepText: { flex: 1, fontSize: 14, lineHeight: 20, color: m3.color.onSurface, fontFamily: fontFamilies.readable },
   imgBtnRow: { flexDirection: "row", gap: 8, marginTop: 16 },
   imgBtnFlex: { flex: 1 },
+
+  // ── 북극성 종합 / me synthesis (10-me) ──────────────────────────────────────
+  meBody: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 28 },
+  // layer C hero — dominant, soul (violet) identity
+  meHero: { position: "relative", borderRadius: 20, overflow: "hidden", padding: 16, marginBottom: 18 },
+  meHeroTop: { flexDirection: "row", alignItems: "center", gap: 12 },
+  meOrb: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: withAlpha(deepSpace.bgEdge, 0.45),
+    borderWidth: 1,
+    borderColor: withAlpha(deepSpace.soul, 0.55),
+  },
+  meOrbCore: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: deepSpace.soul,
+    shadowColor: deepSpace.soul,
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
+  },
+  meHeroCopy: { flex: 1, minWidth: 0 },
+  meEyebrow: { color: withAlpha(deepSpace.textHi, 0.75), fontSize: 11, fontFamily: fontFamilies.readable, marginBottom: 4 },
+  meHeadline: { color: deepSpace.textHi, fontSize: 19, lineHeight: 25, fontFamily: fontFamilies.readable, fontWeight: "700" },
+  meHeroFoot: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 14 },
+  meHeroMeta: { gap: 6 },
+  meMetaLabel: { color: withAlpha(deepSpace.textHi, 0.8), fontSize: 11, fontFamily: fontFamilies.readable },
+  meRefine: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4, paddingHorizontal: 6 },
+  meRefineLabel: { color: deepSpace.textHi, fontSize: 12, fontWeight: "600", fontFamily: fontFamilies.readable },
+  // section head shared by the domain grid + validation entry
+  meSectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  meSectionTitle: { color: withAlpha(deepSpace.text, 0.85), fontSize: 13, fontFamily: fontFamilies.readable, fontWeight: "600" },
+  meLink: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: fontFamilies.readable, fontWeight: "600" },
+  // layer A domain grid — receding cyan cards
+  meGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 9, marginBottom: 18 },
+  meCard: {
+    width: "48.5%",
+    minHeight: 92,
+    borderRadius: 14,
+    padding: 12,
+    justifyContent: "space-between",
+    backgroundColor: deepSpace.card,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+  },
+  meCardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  meCardDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: deepSpace.accent,
+    shadowColor: deepSpace.accent,
+    shadowOpacity: 0.8,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 3,
+  },
+  meCardLevel: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: m3.font.mono },
+  meCardName: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.readable, fontWeight: "600", marginTop: 10 },
+  meDotRow: { flexDirection: "row", gap: 4 },
+  meDot: { width: 6, height: 6, borderRadius: 3 },
+  meDotOn: { backgroundColor: deepSpace.accent },
+  meDotOff: { backgroundColor: withAlpha(deepSpace.accent, 0.25) },
+  // layer B validation entry — soul-tinted (violet), signals the hidden layer
+  meValidateCard: {
+    borderRadius: 14,
+    padding: 14,
+    backgroundColor: withAlpha(deepSpace.soul, 0.08),
+    borderWidth: 1,
+    borderColor: deepSpace.soulLine,
+  },
+  meValidateText: { color: withAlpha(deepSpace.textHi, 0.85), fontSize: 12.5, lineHeight: 19, fontFamily: fontFamilies.readable },
 });

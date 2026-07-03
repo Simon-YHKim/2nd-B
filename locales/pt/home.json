@@ -313,6 +313,18 @@
       "sectionSteps": "Candidatos a próximo passo",
       "toCapture": "Levar para o Capturar",
       "more": "Mais com o SecondB"
+    },
+    "me": {
+      "title": "Estrela Polar",
+      "eyebrow": "Estrela Polar · síntese de 7",
+      "headline": "Entender-me a fundo para viver mais como eu sou.",
+      "synthMeta": "Síntese de 7 estrelas · confiança",
+      "refine": "Refinar a frase",
+      "domainsTitle": "7 estrelas da vida · domínios",
+      "toConstellation": "Para a constelação",
+      "hiddenTitle": "Fibra oculta · validação",
+      "hiddenBody": "Os teus dados por domínio triangulam quadros como Big Five e o apego. A luz da estrela é quanto colocas, a confiança é quanto foi validado. Não são a mesma coisa.",
+      "viewValidation": "Ver validação"
     }
   }
 }
