@@ -104,14 +104,67 @@ function serve() {
   });
 }
 
+function envVal(file, key) {
+  try {
+    const t = readFileSync(path.resolve(file), 'utf8');
+    return (t.match(new RegExp(`^${key}=(.*)$`, 'm')) || [])[1]?.trim();
+  } catch { return undefined; }
+}
+
+// Fetch a real QA session from Supabase via curl (respects HTTPS_PROXY; the
+// egress policy allows supabase.co). Returns the session object supabase-js
+// persists, or null. Injected into localStorage so the app boots signed-in
+// without any in-browser form flow.
+function fetchQaSession() {
+  const url = envVal('.env', 'EXPO_PUBLIC_SUPABASE_URL');
+  const anon = envVal('.env', 'EXPO_PUBLIC_SUPABASE_ANON_KEY');
+  const email = envVal('.env.test', 'QA_TEST_EMAIL');
+  const password = envVal('.env.test', 'QA_TEST_PASSWORD');
+  if (!url || !anon || !email || !password) return null;
+  const ref = new URL(url).hostname.split('.')[0];
+  try {
+    const { execFileSync } = require('node:child_process');
+    const body = JSON.stringify({ email, password });
+    const out = execFileSync('curl', [
+      '-sS', '-X', 'POST', `${url}/auth/v1/token?grant_type=password`,
+      '-H', `apikey: ${anon}`, '-H', 'Content-Type: application/json', '-d', body,
+    ], { encoding: 'utf8', timeout: 30000 });
+    const session = JSON.parse(out);
+    if (!session.access_token) { console.log('auth: no access_token in response'); return null; }
+    return { ref, session };
+  } catch (e) { console.log('auth curl error:', e.message); return null; }
+}
+
 async function main() {
   if (!existsSync(DIST)) { console.error('no dist/ — run: npx expo export --platform web'); process.exit(1); }
   mkdirSync(OUT, { recursive: true });
   mkdirSync(path.join(OUT, 'current'), { recursive: true });
   const { chromium } = resolvePlaywright();
   const server = await serve();
-  const browser = await chromium.launch({ executablePath: resolveChrome(), args: ['--no-sandbox'] });
-  const ctx = await browser.newContext({ viewport: { width: VW, height: VH }, deviceScaleFactor: 2, ignoreHTTPSErrors: true });
+  // Route the browser's outbound HTTPS (Supabase auth/data) through the agent
+  // proxy; localhost (the dist server) is bypassed. ignoreHTTPSErrors trusts
+  // the proxy's MITM cert.
+  // Chromium proxies loopback by default when a proxy is set — the `<-loopback>`
+  // token bypasses it so the local dist server loads; Supabase HTTPS still tunnels.
+  const proxy = process.env.HTTPS_PROXY
+    ? { server: process.env.HTTPS_PROXY, bypass: '<-loopback>,localhost,127.0.0.1' }
+    : undefined;
+  const browser = await chromium.launch({ executablePath: resolveChrome(), proxy, args: ['--no-sandbox'] });
+  const ctx = await browser.newContext({
+    viewport: { width: VW, height: VH }, deviceScaleFactor: 2,
+    ignoreHTTPSErrors: true, locale: 'ko-KR',
+  });
+  // Seed localStorage before first paint: Korean UI language (matches the
+  // all-Korean reference) + a real QA Supabase session so auth-gated routes
+  // render their real screens instead of redirecting to /sign-in.
+  const auth = process.env.NO_AUTH === '1' ? null : fetchQaSession();
+  await ctx.addInitScript((a) => {
+    try {
+      localStorage.setItem('2nd-brain:locale', 'ko');
+      if (a) localStorage.setItem('supabase.auth.token', JSON.stringify(a.session));
+    } catch {}
+  }, auth);
+  console.log(auth ? '✓ QA session injected' : '✗ no auth — gated routes will show sign-in');
   const report = [];
   for (const [name, route] of Object.entries(MAP)) {
     if (only && !only.includes(name) && !only.includes(route)) continue;
