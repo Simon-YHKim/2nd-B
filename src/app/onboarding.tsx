@@ -25,7 +25,7 @@ const STEP: Step = {
   art: "firstShard",
   title: { ko: "먼저 한 문장만 저장해요", en: "Start with one sentence" },
   body: {
-    ko: "오늘 기억하고 싶은 일, 배운 것, 링크 하나면 충분해요. 저장한 조각은 기록 보관소에 모이고, 세컨비의 답은 그 기록을 근거로 해요.",
+    ko: "오늘 기억하고 싶은 일, 배운 것, 링크 하나면 충분해요. 저장한 별가루는 기록 보관소에 모이고, 세컨비의 답은 그 기록을 근거로 해요.",
     en: "A thought, lesson, or link is enough. Your pieces collect in your records, and SecondB's answers are grounded in them.",
   },
   cta: { ko: "첫 기록 저장", en: "Save my first note" },

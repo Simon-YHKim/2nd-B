@@ -5,7 +5,7 @@
 // unsupported summaries — sections fall back to a collecting/empty state.
 //
 // Section order (pack §2): Header · hero orb · 요즘 가장 밝은 연결 ·
-// 밝아진 동네 · 자주 보이는 나의 모습 · 이걸 만든 조각들 · 다음 한 걸음 ·
+// 밝아진 동네 · 자주 보이는 나의 모습 · 이걸 만든 별가루들 · 다음 한 걸음 ·
 // 세컨비에게 이 중심으로 묻기.
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -201,7 +201,7 @@ function CoreBrainScreen() {
           </Text>
           <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
             {locale === "ko"
-              ? "연결이 잠깐 흔들렸어요. 조각은 그대로 있으니 다시 시도해 주세요."
+              ? "연결이 잠깐 흔들렸어요. 별가루는 그대로 있으니 다시 시도해 주세요."
               : "The connection wobbled for a moment. Your pieces are safe, so please try again."}
           </Text>
           <View style={styles.emptyActions}>
@@ -258,7 +258,7 @@ function CoreBrainScreen() {
               onPress={() => router.push("/attachment")}
             />
             <Button
-              label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
+              label={locale === "ko" ? "오늘의 별가루 남기기" : "Leave today's piece"}
               variant="secondary"
               onPress={() => router.push("/capture")}
             />
@@ -288,11 +288,11 @@ function CoreBrainScreen() {
         style={styles.backdrop}
         onPress={() => setDrawerOpen(false)}
         accessibilityRole="button"
-        accessibilityLabel={locale === "ko" ? "참고 조각 닫기" : "Close evidence drawer"}
+        accessibilityLabel={locale === "ko" ? "참고 별가루 닫기" : "Close evidence drawer"}
       >
         <Pressable style={styles.drawer} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
           <View style={styles.drawerHandle} />
-          <Text variant="heading">{locale === "ko" ? "이걸 만든 조각들" : "The pieces behind this"}</Text>
+          <Text variant="heading">{locale === "ko" ? "이걸 만든 별가루들" : "The pieces behind this"}</Text>
           <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
             {locale === "ko"
               ? isDeepSpaceUI()
@@ -361,7 +361,7 @@ function CoreBrainScreen() {
             </Text>
             <View style={dsDeck.heroStats}>
               <Text variant="body" color="textMuted">
-                {locale === "ko" ? `조각 ${evidence.length}` : `${evidence.length} pieces`}
+                {locale === "ko" ? `별가루 ${evidence.length}` : `${evidence.length} pieces`}
               </Text>
               <Text variant="body" color="textMuted">
                 {locale === "ko" ? `나의 모습 ${filledFields}/5` : `self-portrait ${filledFields}/5`}
@@ -495,14 +495,14 @@ function CoreBrainScreen() {
         : []),
       {
         key: "pieces",
-        title: locale === "ko" ? "이걸 만든 조각들" : "The pieces behind this",
+        title: locale === "ko" ? "이걸 만든 별가루들" : "The pieces behind this",
         accent: cosmic.pixelLamp,
         body: (
           <View>
             {pieces ? <Text variant="body" style={{ marginBottom: spacing.sm }}>{pieces.body}</Text> : null}
             <MdButton
               variant="text"
-              label={locale === "ko" ? `참고한 조각 ${evidence.length}개 보기` : `See ${evidence.length} pieces`}
+              label={locale === "ko" ? `참고한 별가루 ${evidence.length}개 보기` : `See ${evidence.length} pieces`}
               onPress={() => setDrawerOpen(true)}
             />
           </View>
@@ -583,7 +583,7 @@ function CoreBrainScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
           eyebrow={locale === "ko" ? "02. 소울 코어" : "02. Soul Core"}
-          title={locale === "ko" ? "내 조각들이 중심으로 모여요" : "Your pieces gather into a center"}
+          title={locale === "ko" ? "내 별가루들이 중심으로 모여요" : "Your pieces gather into a center"}
           subtitle={locale === "ko" ? "요즘 나의 연결 상태" : "How you're connecting lately"}
           island={CORE_VILLAGE_UI.island}
           worker={CORE_VILLAGE_UI.worker}
@@ -595,7 +595,7 @@ function CoreBrainScreen() {
           }}
         />
         <View style={styles.statRow}>
-          <StatTile value={evidence.length} label={locale === "ko" ? "조각" : "pieces"} accent={cosmic.pixelLamp} />
+          <StatTile value={evidence.length} label={locale === "ko" ? "별가루" : "pieces"} accent={cosmic.pixelLamp} />
           <StatTile value={`${filledFields}/5`} label={locale === "ko" ? "나의 모습" : "self-portrait"} accent={cosmic.soulViolet} />
           <StatTile value={persona?.values.length ?? 0} label={locale === "ko" ? "동네" : "areas"} accent={cosmic.signalMint} />
           <StatTile
@@ -692,8 +692,8 @@ function CoreBrainScreen() {
           </Section>
         ) : null}
 
-        {/* 6) 이걸 만든 조각들 — evidence */}
-        <Section title={locale === "ko" ? "이걸 만든 조각들" : "The pieces behind this"} accent={cosmic.pixelLamp}>
+        {/* 6) 이걸 만든 별가루들 — evidence */}
+        <Section title={locale === "ko" ? "이걸 만든 별가루들" : "The pieces behind this"} accent={cosmic.pixelLamp}>
           {pieces ? <Text variant="body" style={{ marginBottom: spacing.sm }}>{pieces.body}</Text> : null}
           <TouchableOpacity
             activeOpacity={0.7}
@@ -702,12 +702,12 @@ function CoreBrainScreen() {
             accessibilityRole="button"
             accessibilityLabel={
               locale === "ko"
-                ? `참고한 조각 ${evidence.length}개 보기`
+                ? `참고한 별가루 ${evidence.length}개 보기`
                 : `See ${evidence.length} evidence pieces`
             }
           >
             <Text variant="body" color="brand">
-              {locale === "ko" ? `참고한 조각 ${evidence.length}개 보기` : `See ${evidence.length} pieces`}
+              {locale === "ko" ? `참고한 별가루 ${evidence.length}개 보기` : `See ${evidence.length} pieces`}
             </Text>
           </TouchableOpacity>
         </Section>

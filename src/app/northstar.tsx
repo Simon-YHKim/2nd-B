@@ -161,7 +161,7 @@ export default function NorthstarSentence() {
           <MdCard variant="outlined" style={styles.currentCard}>
             <Text style={styles.emptyText}>
               {isKo
-                ? `아직 기록이 얕아서 제안하기 조심스러워요. 조각 ${MIN_RECORDS_FOR_PROPOSAL}개쯤 담기면 기록에서 문장을 길어올게요.`
+                ? `아직 기록이 얕아서 제안하기 조심스러워요. 별가루 ${MIN_RECORDS_FOR_PROPOSAL}개쯤 담기면 기록에서 문장을 길어올게요.`
                 : `Your record base is still thin. Capture about ${MIN_RECORDS_FOR_PROPOSAL} pieces and I'll draw drafts from them.`}
             </Text>
           </MdCard>

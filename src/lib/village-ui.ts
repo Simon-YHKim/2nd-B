@@ -22,10 +22,10 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     worker: "archi",
     accent: cosmic.signalBlue,
     primaryRoute: "/capture",
-    primaryLabel: { en: "Leave a growth piece", ko: "성장 조각 남기기" },
+    primaryLabel: { en: "Leave a growth piece", ko: "성장 별가루 남기기" },
     speech: {
       en: "I can line up the pieces that show where you're growing.",
-      ko: "자라나는 조각들을 한 줄로 이어볼게요.",
+      ko: "자라나는 별가루들을 한 줄로 이어볼게요.",
     },
   },
   relation: {
@@ -33,10 +33,10 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     worker: "gadi",
     accent: cosmic.pixelLamp, // Bond Core / Relia — amber
     primaryRoute: "/capture",
-    primaryLabel: { en: "Leave a people piece", ko: "관계 조각 남기기" },
+    primaryLabel: { en: "Leave a people piece", ko: "관계 별가루 남기기" },
     speech: {
       en: "People pieces need a steady hand. I'll keep them clear and gentle.",
-      ko: "관계의 조각은 조심히 다뤄볼게요.",
+      ko: "관계의 별가루는 조심히 다뤄볼게요.",
     },
   },
   knowledge: {
@@ -44,7 +44,7 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     worker: "lulu",
     accent: cosmic.signalMint,
     primaryRoute: "/capture",
-    primaryLabel: { en: "Capture a knowledge piece", ko: "지식 조각 담기" },
+    primaryLabel: { en: "Capture a knowledge piece", ko: "지식 별가루 담기" },
     speech: {
       en: "Bring a source here and I'll help it find its shelf.",
       ko: "자료를 가져오면 찾기 쉬운 자리로 묶어둘게요.",
@@ -55,10 +55,10 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     worker: "momo",
     accent: cosmic.moonWhite, // Narrative Core / Foreman Momo — monochrome
     primaryRoute: "/capture",
-    primaryLabel: { en: "Leave today's piece", ko: "오늘의 조각 남기기" },
+    primaryLabel: { en: "Leave today's piece", ko: "오늘의 별가루 남기기" },
     speech: {
       en: "Every piece is kept by time. Want to pull a memory back out?",
-      ko: "모든 조각은 시간순으로 보관돼 있어요. 필요한 기억을 꺼내볼까요?",
+      ko: "모든 별가루는 시간순으로 보관돼 있어요. 필요한 기억을 꺼내볼까요?",
     },
   },
   taste: {
@@ -66,7 +66,7 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     worker: "lumi",
     accent: cosmic.dreamPink, // Muse Core / Lumina
     primaryRoute: "/capture",
-    primaryLabel: { en: "Leave an inspiration piece", ko: "영감 조각 남기기" },
+    primaryLabel: { en: "Leave an inspiration piece", ko: "영감 별가루 남기기" },
     speech: {
       en: "What you keep liking often points toward the next spark.",
       ko: "좋아하는 것들이 다음 불빛을 알려줄 때가 있어요.",

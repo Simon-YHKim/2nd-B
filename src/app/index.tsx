@@ -198,7 +198,7 @@ function featuredVillageForCards(dataNodes: readonly DataNode[]): VillageId {
 // instead, so the ribbon never contradicts the empty-graph card.
 const FIRST_PIECE_INSIGHT: Record<"en" | "ko", string> = {
   en: "Leave your first piece; patterns will show up here.",
-  ko: "첫 조각을 남기면 여기에서 패턴이 보이기 시작해요.",
+  ko: "첫 별가루를 남기면 여기에서 패턴이 보이기 시작해요.",
 };
 
 // J1 (e2e journey register): the default first save is a journal entry, which
@@ -211,7 +211,7 @@ const RECORDS_ONLY_INSIGHT: Record<"en" | "ko", string> = {
   // Kept under the 2-line ribbon budget at 360dp — the actionable second
   // clause must not be the part that ellipsizes.
   en: "Saved in your records. Clip a link to light the graph.",
-  ko: "조각은 기록 보관소에 있어요. 링크를 담으면 별이 떠요.",
+  ko: "별가루는 기록 보관소에 있어요. 링크를 담으면 별이 떠요.",
 };
 
 // P2-6 (persona sim): when the graph data fetch fails (metered connection
@@ -220,7 +220,7 @@ const RECORDS_ONLY_INSIGHT: Record<"en" | "ko", string> = {
 // have nothing yet is the exact gaslighting the honest-UI rule forbids.
 const OFFLINE_INSIGHT: Record<"en" | "ko", string> = {
   en: "Connection is shaky. Your pieces are safe. Tap to retry.",
-  ko: "연결이 불안정해요. 조각은 안전해요. 눌러서 다시 시도.",
+  ko: "연결이 불안정해요. 별가루는 안전해요. 눌러서 다시 시도.",
 };
 
 // The logo→village entry flourish plays once per JS session. A module-level
@@ -396,7 +396,7 @@ export function GraphScreen() {
     // Two reads settle together: `sources` → the tier-4 graph dots (classified
     // clipper captures); `records` (journal + note, head-only count) → the
     // user's authored pieces. The empty-graph card's emptiness check considers
-    // both, so leaving a journal "조각" clears it. audit_response is excluded —
+    // both, so leaving a journal "별가루" clears it. audit_response is excluded —
     // it's onboarding-guided Q&A, not a free-form piece.
     // P2-6: supabase responses don't reject — they carry an `error` field —
     // and a true network exception rejects the Promise.all. Both used to fall
@@ -494,8 +494,8 @@ export function GraphScreen() {
   const coreCardBody =
     locale === "ko"
       ? recentPieceTitle
-        ? `'${recentPieceTitle}' 조각이 최근 추가됐어요. 더 자세히 확인해보시겠어요?`
-        : `${spotlightCoreName}에 조각들이 모여 있어요. 더 자세히 확인해보시겠어요?`
+        ? `'${recentPieceTitle}' 별가루가 최근 추가됐어요. 더 자세히 확인해보시겠어요?`
+        : `${spotlightCoreName}에 별가루들이 모여 있어요. 더 자세히 확인해보시겠어요?`
       : recentPieceTitle
         ? `Your latest piece is about "${recentPieceTitle}". Want a closer look?`
         : `Pieces are gathering in ${spotlightCoreName}. Want a closer look?`;
@@ -570,18 +570,18 @@ export function GraphScreen() {
                 </Text>
                 <Text variant="body" style={styles.emptyGraphBody}>
                   {locale === "ko"
-                    ? "첫 조각은 기록 보관소에 저장돼요. 링크와 캡처가 연결되면 그래프가 켜져요."
+                    ? "첫 별가루는 기록 보관소에 저장돼요. 링크와 캡처가 연결되면 그래프가 켜져요."
                     : "Your first piece is saved in Records. Links and captures light the graph as they connect."}
                 </Text>
               </View>
             </View>
             <PremiumButton
-              label={locale === "ko" ? "첫 조각 남기기" : "Leave a first piece"}
+              label={locale === "ko" ? "첫 별가루 남기기" : "Leave a first piece"}
               onPress={() => router.push({ pathname: "/capture", params: { entry: "firstRun" } })}
               full
               style={styles.emptyGraphCta}
               accessibilityRole="button"
-              accessibilityLabel={locale === "ko" ? "첫 조각 남기기" : "Leave a first piece"}
+              accessibilityLabel={locale === "ko" ? "첫 별가루 남기기" : "Leave a first piece"}
               accessibilityHint={
                 locale === "ko" ? "캡처 화면으로 이동합니다" : "Opens capture to save your first piece"
               }

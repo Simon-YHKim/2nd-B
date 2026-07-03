@@ -215,7 +215,7 @@ export function CaptureView() {
             : saved
               ? locale === "ko" ? "저장 완료" : "Saved"
               : captureMode === "fourw"
-                ? locale === "ko" ? "조각 저장" : "Save piece"
+                ? locale === "ko" ? "별가루 저장" : "Save piece"
                 : locale === "ko" ? "첫 기록 저장" : "Save first note"
         }
         onPress={saveFirstPiece}
@@ -456,7 +456,7 @@ export function IdenView({
               : "Finish one tool and your IDEN starts to take shape."}
           </Text>
           <GradientButton
-            label={isKo ? "조각 담기 시작" : "Start gathering"}
+            label={isKo ? "별가루 담기 시작" : "Start gathering"}
             onPress={onSend}
           />
         </View>
@@ -1027,7 +1027,7 @@ export function ValuesLensView({
       <LensHead title={t("ds.values.title")} tag={t("ds.values.tag")} eyebrow={t("ds.values.eyebrow")} />
       {!demo && loading ? (
         <View style={styles.centerState}>
-          <Text style={styles.stateBody}>{isKo ? "조각을 세는 중이에요" : "Counting your pieces"}</Text>
+          <Text style={styles.stateBody}>{isKo ? "별가루를 세는 중이에요" : "Counting your pieces"}</Text>
         </View>
       ) : !demo && hasError ? (
         <View style={styles.centerState}>

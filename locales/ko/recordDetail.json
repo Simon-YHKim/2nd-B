@@ -4,12 +4,12 @@
     "record": "기록을 불러오는 중이에요…"
   },
   "state": {
-    "missingTitle": "조각을 찾을 수 없어요",
-    "errorTitle": "조각을 불러오지 못했어요"
+    "missingTitle": "별가루를 찾을 수 없어요",
+    "errorTitle": "별가루를 불러오지 못했어요"
   },
   "body": {
     "sourceEmpty": "캡처한 자료예요. 아래 원래 화면 열기에서 전체 내용을 볼 수 있어요.",
-    "noText": "이 조각은 본문이 없어요."
+    "noText": "이 별가루는 본문이 없어요."
   },
   "advisor": {
     "heading": "세컨비 되짚기",

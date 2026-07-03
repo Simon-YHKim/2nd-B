@@ -213,7 +213,7 @@ export function renderIngestMarkdown(result: IngestResult, locale: "en" | "ko"):
     ? { trait: "성향", value: "가치", relationship: "관계", motivation: "동기", context: "맥락", preference: "취향" }
     : { trait: "Trait", value: "Value", relationship: "Relationship", motivation: "Motivation", context: "Context", preference: "Preference" };
   const lines: string[] = [];
-  lines.push(`# ${ko ? "외부에서 가져온 나의 조각" : "Imported self-knowledge"}`);
+  lines.push(`# ${ko ? "외부에서 가져온 나의 별가루" : "Imported self-knowledge"}`);
   if (result.summary) lines.push("", result.summary);
   // Group items by section in the canonical order.
   for (const section of IMPORT_SECTIONS) {

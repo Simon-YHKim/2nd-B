@@ -53,7 +53,7 @@ const ShardRow = memo(function ShardRow({ shard: s, locale }: { shard: OriginSha
     <ReferenceShardCard
       title={s.title}
       // A topic-less piece falls back to the type label as its title; repeating
-      // the same label in the meta line read as "오늘의 조각 · 오늘의 조각" on
+      // the same label in the meta line read as "오늘의 별가루 · 오늘의 별가루" on
       // the very row the first-save CTA lands on.
       meta={[s.dateLabel, evidenceTypeLabel(s.type, locale)]
         .filter((part) => part && part !== s.title)
@@ -222,8 +222,8 @@ function RecordsLegacy() {
       : (locale === "ko" ? `${villageLabel} · 기록` : `${villageLabel} · records`);
   const heroTitle =
     domainFilter === "all"
-      ? (locale === "ko" ? "남긴 조각을 다시 만나요" : "Revisit every piece you left")
-      : (locale === "ko" ? "이 영역의 조각" : "Pieces in this area");
+      ? (locale === "ko" ? "남긴 별가루를 다시 만나요" : "Revisit every piece you left")
+      : (locale === "ko" ? "이 영역의 별가루" : "Pieces in this area");
   const heroSubtitle =
     domainFilter === "all"
       ? (locale === "ko" ? "일기 · 담기 · 검사 · 영감까지 한곳에" : "Journal, capture, assessments, and inspiration in one place")
@@ -249,7 +249,7 @@ function RecordsLegacy() {
       <Input
         value={query}
         onChangeText={setQuery}
-        placeholder={locale === "ko" ? "조각 검색" : "Search pieces"}
+        placeholder={locale === "ko" ? "별가루 검색" : "Search pieces"}
         accessibilityLabel={locale === "ko" ? "기록 검색" : "Search records"}
       />
 
@@ -296,7 +296,7 @@ function RecordsLegacy() {
   ) : error ? (
     <View style={styles.stateBox}>
       <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
-        {locale === "ko" ? "조각을 불러오지 못했어요." : "Couldn't load your pieces."}
+        {locale === "ko" ? "별가루를 불러오지 못했어요." : "Couldn't load your pieces."}
       </Text>
       <Button
         label={locale === "ko" ? "다시 시도" : "Try again"}
@@ -312,19 +312,19 @@ function RecordsLegacy() {
       <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
         {shards.length === 0
           ? locale === "ko"
-            ? "아직 남긴 조각이 없어요. 오늘의 조각을 하나 남겨볼까요?"
+            ? "아직 남긴 별가루가 없어요. 오늘의 별가루를 하나 남겨볼까요?"
             : "No pieces yet. Want to leave today's piece?"
           : locale === "ko"
-            ? "조건에 맞는 조각이 없어요."
+            ? "조건에 맞는 별가루가 없어요."
             : "No pieces match that filter."}
       </Text>
       {shards.length === 0 ? (
         <Button
-          label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
+          label={locale === "ko" ? "오늘의 별가루 남기기" : "Leave today's piece"}
           variant="primary"
           onPress={() => router.push("/capture")}
           accessibilityHint={
-            locale === "ko" ? "캡처 화면을 열어 오늘의 조각을 저장합니다." : "Opens capture to save today's piece."
+            locale === "ko" ? "캡처 화면을 열어 오늘의 별가루를 저장합니다." : "Opens capture to save today's piece."
           }
         />
       ) : null}
