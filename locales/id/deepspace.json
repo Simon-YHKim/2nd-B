@@ -127,7 +127,20 @@
     "haveAccount": "Sudah punya akun? Masuk",
     "forgotPassword": "Lupa kata sandi?",
     "or": "atau",
-    "ageNotice": "Kamu bisa mendaftar mulai usia 14. Di bawah 14 perlu izin wali."
+    "ageNotice": "Kamu bisa mendaftar mulai usia 14. Di bawah 14 perlu izin wali.",
+    "brandLabel": "2ND-BRAIN",
+    "signInTitle": "Senang bertemu lagi",
+    "signInEncrypt": "Catatanmu dienkripsi di perangkatmu lebih dulu.",
+    "emailContinue": "Lanjut dengan email",
+    "signUpPrompt": "Baru di sini?",
+    "legalConsent": "Dengan melanjutkan, kamu menyetujui Ketentuan Layanan dan Kebijakan Privasi.",
+    "continueShort": {
+      "google": "Lanjut dengan Google",
+      "apple": "Lanjut dengan Apple",
+      "kakao": "Lanjut dengan Kakao",
+      "facebook": "Lanjut dengan Facebook",
+      "github": "Lanjut dengan GitHub"
+    }
   },
   "account": {
     "title": "Akun",

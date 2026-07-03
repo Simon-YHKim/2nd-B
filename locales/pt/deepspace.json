@@ -127,7 +127,20 @@
     "haveAccount": "Já tem uma conta? Entrar",
     "forgotPassword": "Esqueceu a senha?",
     "or": "ou",
-    "ageNotice": "Você pode se cadastrar a partir dos 14 anos. Menores de 14 precisam de um responsável."
+    "ageNotice": "Você pode se cadastrar a partir dos 14 anos. Menores de 14 precisam de um responsável.",
+    "brandLabel": "2ND-BRAIN",
+    "signInTitle": "Que bom te ver de novo",
+    "signInEncrypt": "Seus registros são criptografados primeiro no seu dispositivo.",
+    "emailContinue": "Continuar com e-mail",
+    "signUpPrompt": "Primeira vez?",
+    "legalConsent": "Ao continuar, você concorda com os Termos de Serviço e a Política de Privacidade.",
+    "continueShort": {
+      "google": "Continuar com o Google",
+      "apple": "Continuar com a Apple",
+      "kakao": "Continuar com o Kakao",
+      "facebook": "Continuar com o Facebook",
+      "github": "Continuar com o GitHub"
+    }
   },
   "account": {
     "title": "Conta",

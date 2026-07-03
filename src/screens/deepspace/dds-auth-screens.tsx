@@ -5,10 +5,10 @@
 /* eslint-disable */
 // TODO(split-2): trim the import set + re-enable lint once the move settles.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View, useWindowDimensions } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Line, Path } from "react-native-svg";
+import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, radius, spacing } from "@/theme/tokens";
@@ -30,20 +30,80 @@ import { formatBirthDateInput } from "@/lib/account/dob";
 // auth forms need KeyboardAvoidingView + scroll padding (ANDROID_QA_GUIDELINES).
 function Card({ children, style }: { children: ReactNode; style?: object }) { return <View style={[styles.card, style]}>{children}</View>; }
 
+// Shared starfield, seeded as fractional positions so it scales to any viewport
+// (mirrors DeepSpaceBackdrop). Static — no animation lock risk (ANDROID_QA).
+const AUTH_STARS = [
+  { x: 0.14, y: 0.07, r: 1.4, o: 0.5 },
+  { x: 0.82, y: 0.11, r: 1.2, o: 0.42 },
+  { x: 0.5, y: 0.2, r: 1.1, o: 0.3 },
+  { x: 0.28, y: 0.52, r: 1.1, o: 0.3 },
+  { x: 0.74, y: 0.46, r: 1, o: 0.26 },
+  { x: 0.16, y: 0.78, r: 1, o: 0.24 },
+] as const;
+
+// Deep-space auth backdrop: top-center radial glow over the shared starfield,
+// reproducing the canon `radial-gradient(120% 80% at 50% 0%, ...)` (sb-surfaces
+// AuthScreen) with tokens only. The buttons float directly on this — no card.
+function AuthBackdrop() {
+  const { width, height } = useWindowDimensions();
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+        <Defs>
+          <RadialGradient id="auth-top-glow" cx="50%" cy="0%" rx="120%" ry="78%">
+            <Stop offset="0" stopColor={deepSpace.bgMid} stopOpacity="0.9" />
+            <Stop offset="0.55" stopColor={deepSpace.bgMid} stopOpacity="0.28" />
+            <Stop offset="0.78" stopColor={deepSpace.bgEdge} stopOpacity="1" />
+          </RadialGradient>
+        </Defs>
+        <Rect x="0" y="0" width={width} height={height} fill={deepSpace.bgEdge} />
+        <Rect x="0" y="0" width={width} height={height} fill="url(#auth-top-glow)" />
+        {AUTH_STARS.map((s, i) => (
+          <Circle key={i} cx={s.x * width} cy={s.y * height} r={s.r} fill={deepSpace.accentSoft} fillOpacity={s.o} />
+        ))}
+      </Svg>
+    </View>
+  );
+}
+
 function AuthShell({ children }: { children: ReactNode }) {
   return (
     <View style={styles.root}>
-      <View pointerEvents="none" style={styles.stars}>
-        <View style={[styles.star, { left: "12%", top: 42 }]} />
-        <View style={[styles.star, { right: "18%", top: 118, opacity: 0.55 }]} />
-        <View style={[styles.star, { left: "42%", bottom: 92, opacity: 0.5 }]} />
-      </View>
+      <AuthBackdrop />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {children}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
+  );
+}
+
+// Provider leading marks. Apple / email get a small token-colored glyph; the
+// other providers keep a bold letter badge. No emoji, no pill chips (DESIGN.md).
+function AppleGlyph({ color }: { color: string }) {
+  return (
+    <Svg width={17} height={17} viewBox="0 0 24 24">
+      <Path
+        fill={color}
+        d="M16.36 12.9c.02 2.14 1.87 2.85 1.89 2.86-.02.05-.3 1.02-.98 2.02-.59.87-1.2 1.73-2.16 1.75-.94.02-1.25-.56-2.33-.56-1.08 0-1.42.54-2.31.58-.93.03-1.64-.94-2.23-1.8-1.22-1.77-2.15-5-.9-7.18.62-1.08 1.73-1.77 2.93-1.79.91-.02 1.77.62 2.33.62.55 0 1.6-.76 2.7-.65.46.02 1.75.19 2.58 1.4-.07.04-1.54.9-1.52 2.68zM14.66 6.36c.49-.6.82-1.42.73-2.25-.71.03-1.56.47-2.07 1.07-.45.53-.85 1.37-.74 2.18.79.06 1.59-.4 2.08-1z"
+      />
+    </Svg>
+  );
+}
+
+function MailGlyph({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24">
+      <Path
+        stroke={color}
+        strokeWidth={1.7}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+        d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"
+      />
+    </Svg>
   );
 }
 
@@ -87,7 +147,7 @@ const PROVIDER_BADGE: Record<OAuthProvider, string> = {
 };
 
 export function DeepSpaceSignInDesignScreen() {
-  const { t, i18n } = useTranslation(["deepspace", "auth", "common"]);
+  const { t } = useTranslation(["deepspace", "auth", "common"]);
   const {
     userId,
     loading,
@@ -112,6 +172,10 @@ export function DeepSpaceSignInDesignScreen() {
     handleForgotPassword,
   } = useSignInForm();
   const passwordRef = useRef<TextInput>(null);
+  // Progressive disclosure: the first paint is social-first (provider pills +
+  // an "이메일로 계속하기" entry), matching the 01-auth canon. Tapping the entry
+  // reveals the email/password fields (Simon O-7 one-touch-simplifies rule).
+  const [emailOpen, setEmailOpen] = useState(false);
 
   if (loading) {
     return (
@@ -122,135 +186,163 @@ export function DeepSpaceSignInDesignScreen() {
   }
   if (userId) return <Redirect href="/" />;
 
+  const oauthBusy = oauthSubmitting || submitting;
+  const renderProvider = (provider: OAuthProvider) => {
+    const light = provider === "apple";
+    const label = t(`deepspace:auth.continueShort.${provider}`);
+    return (
+      <Pressable
+        key={provider}
+        onPress={() => void handleOAuth(provider)}
+        disabled={oauthBusy}
+        style={[styles.providerPill, light ? styles.providerPillLight : styles.providerPillDark, oauthBusy && styles.btnDisabled]}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled: oauthBusy, busy: oauthSubmitting }}
+      >
+        <View style={styles.providerPillRow}>
+          {provider === "apple" ? (
+            <AppleGlyph color={deepSpace.providerLightFg} />
+          ) : PROVIDER_BADGE[provider] ? (
+            <RNText style={styles.providerMarkDark}>{PROVIDER_BADGE[provider]}</RNText>
+          ) : null}
+          <Text variant="body" style={light ? styles.providerPillTextLight : styles.providerPillTextDark}>
+            {oauthSubmitting ? "…" : label}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  };
+
   return (
     <AuthShell>
       <View style={styles.authHero}>
-        <SecondbHead size={132} mood="positive" />
-        <Text variant="heading" style={styles.big}>{t("deepspace:auth.appName")}</Text>
-        <Text variant="body" style={styles.lead}>{t("deepspace:auth.signInLead")}</Text>
+        <SecondbHead size={72} mood="positive" />
+        <Text variant="caption" pixelEn style={styles.authBrand}>{t("deepspace:auth.brandLabel")}</Text>
+        <Text variant="heading" style={styles.authTitle}>{t("deepspace:auth.signInTitle")}</Text>
+        <Text variant="body" style={styles.authSub}>{t("deepspace:auth.signInEncrypt")}</Text>
       </View>
-      <Card>
-        <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signIn.email")}</Text>
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoComplete="email"
-          textContentType="emailAddress"
-          placeholder="email@example.com"
-          placeholderTextColor={colors.textLo}
-          accessibilityLabel={t("auth:signIn.email")}
-          style={styles.input}
-          returnKeyType="next"
-          blurOnSubmit={false}
-          onSubmitEditing={() => passwordRef.current?.focus()}
-        />
-        <View style={styles.authLabelRow}>
-          <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signIn.password")}</Text>
-          <Pressable
-            onPress={toggleShowPassword}
-            hitSlop={14}
-            accessibilityRole="button"
-            accessibilityLabel={showPassword ? t("auth:signIn.hidePasswordLabel") : t("auth:signIn.showPasswordLabel")}
-            accessibilityState={{ selected: showPassword }}
-            style={styles.eyeBtn}
-          >
-            <Text variant="body" style={styles.eyeText}>{showPassword ? t("auth:signIn.hidePasswordLabel") : t("auth:signIn.showPasswordLabel")}</Text>
-          </Pressable>
-        </View>
-        <TextInput
-          ref={passwordRef}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!showPassword}
-          autoComplete="current-password"
-          textContentType="password"
-          placeholder="••••••••"
-          placeholderTextColor={colors.textLo}
-          accessibilityLabel={t("auth:signIn.password")}
-          style={styles.input}
-          returnKeyType="go"
-          onSubmitEditing={() => {
-            if (canSubmit) void handleSubmit();
-          }}
-        />
-        <Pressable
-          onPress={() => void handleSubmit()}
-          disabled={!canSubmit}
-          style={[styles.primary, !canSubmit && styles.btnDisabled]}
-          accessibilityRole="button"
-          accessibilityLabel={t("auth:signIn.submit")}
-          accessibilityState={{ disabled: !canSubmit, busy: submitting }}
-        >
-          <Text variant="caption" style={styles.primaryText}>{submitting ? t("auth:signIn.submitting") : t("auth:signIn.submit")}</Text>
-        </Pressable>
 
-        <Pressable onPress={() => router.push("/sign-up")} style={styles.authLinkRow} accessibilityRole="link" accessibilityLabel={t("auth:signIn.signUpLink")}>
-          <Text variant="body" style={styles.link}>{t("deepspace:auth.noAccount")}</Text>
-        </Pressable>
+      <View style={styles.authMethods}>
+        {!emailOpen ? (
+          <>
+            {visibleProviders.map(renderProvider)}
+            {naverEnabled ? (
+              <Pressable
+                onPress={handleNaver}
+                disabled={oauthBusy}
+                style={[styles.providerPill, styles.providerPillDark, oauthBusy && styles.btnDisabled]}
+                accessibilityRole="button"
+                accessibilityLabel={t("auth:signIn.continueWithNaver")}
+              >
+                <View style={styles.providerPillRow}>
+                  <RNText style={styles.providerMarkDark}>N</RNText>
+                  <Text variant="body" style={styles.providerPillTextDark}>{t("auth:signIn.continueWithNaver")}</Text>
+                </View>
+              </Pressable>
+            ) : null}
 
-        <Pressable onPress={() => router.push("/jot")} style={styles.authLinkRow} accessibilityRole="link" accessibilityLabel={i18n.language === "ko" ? "먼저 한 줄 적어보기" : "Jot a line first"}>
-          <Text variant="body" style={styles.link}>{i18n.language === "ko" ? "먼저 한 줄 적어보기" : "Jot a line first"}</Text>
-        </Pressable>
-
-        {visibleProviders.length > 0 || naverEnabled ? (
-          <View style={styles.authDividerRow}>
-            <View style={styles.authDividerLine} />
-            <Text variant="caption" pixelEn style={styles.authDividerLabel}>{t("deepspace:auth.or")}</Text>
-            <View style={styles.authDividerLine} />
-          </View>
-        ) : null}
-
-        {visibleProviders.map((provider) => (
-          <Pressable
-            key={provider}
-            onPress={() => void handleOAuth(provider)}
-            disabled={oauthSubmitting || submitting}
-            style={[styles.providerBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
-            accessibilityRole="button"
-            accessibilityLabel={t(PROVIDER_SIGNIN_KEY[provider])}
-            accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
-          >
-            <View style={styles.providerRow}>
-              {PROVIDER_BADGE[provider] ? <Text style={styles.providerBadge}>{PROVIDER_BADGE[provider]}</Text> : null}
-              <Text variant="caption" style={styles.providerBtnText}>{oauthSubmitting ? "…" : t(PROVIDER_SIGNIN_KEY[provider])}</Text>
+            <Pressable
+              onPress={() => setEmailOpen(true)}
+              style={styles.emailEntry}
+              accessibilityRole="button"
+              accessibilityLabel={t("deepspace:auth.emailContinue")}
+            >
+              <View style={styles.emailEntryLeft}>
+                <MailGlyph color={colors.cyanSoft} />
+                <Text variant="body" style={styles.emailEntryLabel}>{t("deepspace:auth.emailContinue")}</Text>
+              </View>
+              <RNText style={styles.emailEntryArrow}>{"→"}</RNText>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoFocus
+              keyboardType="email-address"
+              autoComplete="email"
+              textContentType="emailAddress"
+              placeholder="email@example.com"
+              placeholderTextColor={colors.textLo}
+              accessibilityLabel={t("auth:signIn.email")}
+              style={styles.input}
+              returnKeyType="next"
+              blurOnSubmit={false}
+              onSubmitEditing={() => passwordRef.current?.focus()}
+            />
+            <View style={styles.authLabelRow}>
+              <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signIn.password")}</Text>
+              <Pressable
+                onPress={toggleShowPassword}
+                hitSlop={14}
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? t("auth:signIn.hidePasswordLabel") : t("auth:signIn.showPasswordLabel")}
+                accessibilityState={{ selected: showPassword }}
+                style={styles.eyeBtn}
+              >
+                <Text variant="body" style={styles.eyeText}>{showPassword ? t("auth:signIn.hidePasswordLabel") : t("auth:signIn.showPasswordLabel")}</Text>
+              </Pressable>
             </View>
-          </Pressable>
-        ))}
-        {naverEnabled ? (
-          <Pressable
-            onPress={handleNaver}
-            disabled={oauthSubmitting || submitting}
-            style={[styles.providerBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
-            accessibilityRole="button"
-            accessibilityLabel={t("auth:signIn.continueWithNaver")}
-          >
-            <Text variant="caption" style={styles.providerBtnText}>{t("auth:signIn.continueWithNaver")}</Text>
-          </Pressable>
-        ) : null}
+            <TextInput
+              ref={passwordRef}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoComplete="current-password"
+              textContentType="password"
+              placeholder="••••••••"
+              placeholderTextColor={colors.textLo}
+              accessibilityLabel={t("auth:signIn.password")}
+              style={styles.input}
+              returnKeyType="go"
+              onSubmitEditing={() => {
+                if (canSubmit) void handleSubmit();
+              }}
+            />
+            <Pressable
+              onPress={() => void handleSubmit()}
+              disabled={!canSubmit}
+              style={[styles.providerPill, styles.authPrimary, !canSubmit && styles.btnDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel={t("auth:signIn.submit")}
+              accessibilityState={{ disabled: !canSubmit, busy: submitting }}
+            >
+              <Text variant="body" style={styles.authPrimaryText}>{submitting ? t("auth:signIn.submitting") : t("auth:signIn.submit")}</Text>
+            </Pressable>
 
-        <Pressable
-          onPress={() => void handleForgotPassword()}
-          disabled={resetSubmitting}
-          hitSlop={14}
-          style={[styles.authForgotRow, resetSubmitting && styles.btnDisabled]}
-          accessibilityRole="button"
-          accessibilityLabel={t("auth:signIn.resetLabel")}
-          accessibilityState={{ disabled: resetSubmitting, busy: resetSubmitting }}
-        >
-          <Text variant="body" style={styles.authHelper}>{resetSubmitting ? t("auth:signIn.resetSending") : t("deepspace:auth.forgotPassword")}</Text>
+            <Pressable
+              onPress={() => void handleForgotPassword()}
+              disabled={resetSubmitting}
+              hitSlop={14}
+              style={[styles.authForgotRow, resetSubmitting && styles.btnDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel={t("auth:signIn.resetLabel")}
+              accessibilityState={{ disabled: resetSubmitting, busy: resetSubmitting }}
+            >
+              <Text variant="body" style={styles.authHelper}>{resetSubmitting ? t("auth:signIn.resetSending") : t("deepspace:auth.forgotPassword")}</Text>
+            </Pressable>
+
+            {resetHelpVisible ? (
+              <View style={styles.authHelpCard} accessibilityRole="alert">
+                <Text variant="heading" style={styles.authHelpTitle}>{resetEmailSentTo ? t("auth:signIn.resetSentTitle") : t("auth:signIn.resetTitle")}</Text>
+                <Text variant="body" style={styles.authHelpBody}>
+                  {resetEmailSentTo ? t("auth:signIn.resetSentBody", { email: resetEmailSentTo }) : t("auth:signIn.resetBody")}
+                </Text>
+              </View>
+            ) : null}
+          </>
+        )}
+
+        <Pressable onPress={() => router.push("/sign-up")} style={styles.authSignUpRow} accessibilityRole="link" accessibilityLabel={`${t("deepspace:auth.signUpPrompt")} ${t("deepspace:auth.signUp")}`}>
+          <Text variant="body" style={styles.authSignUpPrompt}>{t("deepspace:auth.signUpPrompt")}</Text>
+          <Text variant="body" style={styles.authSignUpCta}>{t("deepspace:auth.signUp")}</Text>
         </Pressable>
+      </View>
 
-        {resetHelpVisible ? (
-          <View style={styles.authHelpCard} accessibilityRole="alert">
-            <Text variant="heading" style={styles.authHelpTitle}>{resetEmailSentTo ? t("auth:signIn.resetSentTitle") : t("auth:signIn.resetTitle")}</Text>
-            <Text variant="body" style={styles.authHelpBody}>
-              {resetEmailSentTo ? t("auth:signIn.resetSentBody", { email: resetEmailSentTo }) : t("auth:signIn.resetBody")}
-            </Text>
-          </View>
-        ) : null}
-      </Card>
+      <Text variant="caption" style={styles.authLegal}>{t("deepspace:auth.legalConsent")}</Text>
       {toast ? <AuthToast message={toast.message} tone={toast.tone} /> : null}
     </AuthShell>
   );

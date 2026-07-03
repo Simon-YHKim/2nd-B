@@ -127,7 +127,20 @@
     "haveAccount": "Already have an account? Sign in",
     "forgotPassword": "Forgot password?",
     "or": "or",
-    "ageNotice": "You can sign up from age 14. Under 14 needs a guardian."
+    "ageNotice": "You can sign up from age 14. Under 14 needs a guardian.",
+    "brandLabel": "2ND-BRAIN",
+    "signInTitle": "Good to see you again",
+    "signInEncrypt": "Your entries are encrypted on your device first.",
+    "emailContinue": "Continue with email",
+    "signUpPrompt": "New here?",
+    "legalConsent": "By continuing, you agree to the Terms of Service and Privacy Policy.",
+    "continueShort": {
+      "google": "Continue with Google",
+      "apple": "Continue with Apple",
+      "kakao": "Continue with Kakao",
+      "facebook": "Continue with Facebook",
+      "github": "Continue with GitHub"
+    }
   },
   "account": {
     "title": "Account",
