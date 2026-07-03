@@ -4,6 +4,30 @@
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 > ⚠️ 경로 주의: 이 로그의 절대경로(`C:\2ndB` · `E:\2ndB` · `E:\Coding Infra\...` · `C:\Users\...\Downloads\...` 등)는 **로컬·과거 머신 기준 기록**이다. 로컬 + 클라우드 + 다중 AI 가 섞여 작업하므로 신규 작업은 **repo-상대 경로/명령**(예: `git fetch origin main`)을 쓰고 위 절대경로는 비정본으로 취급. worktree 위치는 CLAUDE.md 'Worktrees & branches'(`<repo>/.worktrees/<name>`)가 SoT.
 
+<details><summary><strong>라이브 블록 색인</strong> (최신순 · 2026-06-27~07-03 · 그 이전은 맨 아래 아카이브)</summary>
+
+- 2026-07-03 (오후) / QA·머지·OTA 오케스트레이터 세션 — 17건 머지 보장 + 4-AI 닫힌 루프…
+- 2026-07-03 / 감사 라운드(#730) + 레퍼런스=정본 재정렬(#734·#735) — Simon 정본 확정
+- 2026-07-03 (오전) / 컨텍스트-포화 세션 전수 감사 → 결함 8건 픽스 (#730) + A·C 큐 소화
+- 2026-07-03 (게이트 해제 세션) / T5 E2E·통화회고·DDS분할 + 네이티브 사이클 0.0.7 완주
+- 2026-07-03 / rev2 r3 픽셀 클로닝 /loop — 15 PR + 핫픽스 (홈 1:1 · 셸 3종 완…
+- 2026-07-03 / Simon 결정 6건 전면 이행 + T5 peer-review F2~F4 랜딩
+- 2026-07-02 (오전 2차) / rev2 P2-cont~P6 일괄 랜딩 (12 머지) + 에뮬 육안 QA 2…
+- 2026-07-02 / 🔴 QA 발견 F1 (→ 픽스 완료: #678 CaptureView 4W1H 토글, 아래는…
+- 2026-07-02 / rev2 P1b+P2 랜딩 · OTA 파이프라인 복구·퍼블리시 · Android Studi…
+- 2026-07-01 / P2 랜딩 + OTA 파이프라인 복구 (rev2 M3)
+- 2026-07-01 / P1b: M3 프리미티브 7종 + Roboto 폰트 (rev2 마이그레이션)
+- 2026-07-01 / rev2 (PRD v2.0) UI 마이그레이션 프로그램 착수 + F1 peer-review…
+- 2026-07-01 / D-2 추천 엔진 하드게이트 + D-3 동의 REVOKE 원장 + E 보존 TTL — 3건…
+- 2026-07-01 / 큐 A·B·C 전량 머지 + D-1(프라이버시 prune) — 11 PR 랜딩
+- 2026-07-01 (A) / #636 facet lens 시각 QA → 머지 + EN 라벨 트렁케이션 픽스(fo…
+- 2026-07-01 / IPIP-NEO-120 정밀 측정(P1-P3) + 자기이해 강화·a11y·컴플라이언스 다수…
+- 2026-07-01 (이전) / 네이티브(폰) 소셜 로그인·Sentry·분석 반영 (빌드 게이트 대기) + 옛 G…
+- 2026-06-27 / DB user-profiling: 실제 evidence-id citations + 리서치…
+- 2026-06-27 / OTA 셋업 검증 + 미머지 PR 정리(#600/#586/#605) + Cowork API…
+
+</details>
+
 ## Latest — 2026-07-03 (오후) / QA·머지·OTA 오케스트레이터 세션 — 17건 머지 보장 + 4-AI 닫힌 루프 가동
 
 > 역할이 다른 핸드오프: 아래 dev 세션 블록들과 달리 이 세션은 **감시·리뷰·머지 게이트·OTA·허브 오케스트레이션**을 맡았다.
@@ -711,7 +735,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 2. `verify`는 **단독 명령으로 background**(`> out` trailing이면 알림 exit=tail이라 마스킹).
 3. 공유 `node_modules` devDep(ts-jest 등) 멀티에이전트가 prune → `npm install` 복원.
 4. **스택 PR**: 부모 squash 머지 후 자식 `--base main` retarget → `update-branch`가 squash 부모 흡수(디프 정리).
-5. cascade로 BEHIND + verify·lint green + 격리 변경 → `--admin` 머지.
+5. ~~cascade로 BEHIND + verify·lint green + 격리 변경 → `--admin` 머지.~~ **[SUPERSEDED 2026-07-03 — 현행 정책은 `--admin` 금지: BEHIND→`gh pr update-branch`→CI 재green→일반 머지(맨 위 블록 머지 게이트). 감사 §B4.]**
 6. `git add`는 **명시 경로만**(stray 휩쓸림 방지; 지금 9 mascot assets 미추적 — 안 건드림).
 7. 결정/리포트 산출물은 **HTML**(CLAUDE.md §13); 검증된 도구 문항은 verbatim 유지.
 
