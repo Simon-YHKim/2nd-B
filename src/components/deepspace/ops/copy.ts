@@ -6,6 +6,16 @@
 
 import { useTranslation } from "react-i18next";
 
+/** A demo/fallback reminder shown when the account has no scheduled routines
+ *  yet (sb-more RemindersScreen static data, verbatim). */
+export interface OpsDemoReminder {
+  title: string;
+  when: string;
+  repeat: string;
+  src: string;
+  star: string;
+}
+
 export interface OpsCopy {
   // shared
   todaysRoutine: string;
@@ -35,6 +45,12 @@ export interface OpsCopy {
   notOnThisDevice: string;
   enableNotifications: string;
   reminderUnavailableNote: string;
+  remindersDeviceNote: string;
+  remindersCountTemplate: string;
+  addFromAssistant: string;
+  assistantSource: string;
+  starWord: string;
+  demoReminders: OpsDemoReminder[];
   // states (E)
   emptyTitle: string;
   emptyBody: string;
@@ -119,6 +135,17 @@ const en: OpsCopy = {
   notOnThisDevice: "Not on this device",
   enableNotifications: "Turn on notifications",
   reminderUnavailableNote: "You can schedule this in the full app.",
+  remindersDeviceNote: "Sent as device notifications only. Nothing leaves your device.",
+  remindersCountTemplate: "{n} scheduled reminders",
+  addFromAssistant: "Add from today's assistant",
+  assistantSource: "Today's assistant",
+  starWord: "star",
+  demoReminders: [
+    { title: "Reach out to someone close", when: "Today 8:00 PM", repeat: "Once", src: "Today's assistant", star: "Relationships" },
+    { title: "Screen off before midnight", when: "Every day 23:30", repeat: "Daily", src: "Routine", star: "Health" },
+    { title: "Finish the saved read", when: "Tomorrow 9:00 AM", repeat: "Once", src: "SecondB suggestion", star: "Growth" },
+    { title: "Check this month's subscriptions", when: "Jun 28, 10:00", repeat: "Monthly", src: "Today's assistant", star: "Finance" },
+  ],
   emptyTitle: "No suggestions yet",
   emptyBody: "As your records grow I'll pick steps for you",
   emptyCta: "Add a record",
@@ -196,6 +223,17 @@ const ko: OpsCopy = {
   notOnThisDevice: "이 기기 불가",
   enableNotifications: "알림 권한 켜기",
   reminderUnavailableNote: "정식 앱에서 예약할 수 있어요.",
+  remindersDeviceNote: "기기 알림으로만 보내요. 내용은 기기를 떠나지 않아요.",
+  remindersCountTemplate: "예약된 리마인더 {n}개",
+  addFromAssistant: "오늘의 비서에서 추가",
+  assistantSource: "오늘의 비서",
+  starWord: "별",
+  demoReminders: [
+    { title: "가까운 사람에게 안부 전하기", when: "오늘 저녁 8:00", repeat: "한 번", src: "오늘의 비서", star: "관계" },
+    { title: "밤 12시 전 화면 끄기", when: "매일 23:30", repeat: "매일", src: "루틴", star: "건강" },
+    { title: "담아둔 「몰입」 마저 읽기", when: "내일 오전 9:00", repeat: "한 번", src: "세컨비 제안", star: "성장" },
+    { title: "이번 달 구독 점검", when: "6월 28일 10:00", repeat: "매월", src: "오늘의 비서", star: "재정" },
+  ],
   emptyTitle: "아직 추천이 없어요",
   emptyBody: "기록이 쌓이면 걸음을 골라줄게요",
   emptyCta: "기록 담기",
