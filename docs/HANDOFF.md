@@ -23,6 +23,7 @@
   ⚠️ 인트로 그라디언트는 SVG 수평 근사(135deg 미지원) — 에뮬 육안 QA 1회 권장.
 - **#735 (6c2a28a5, [ota])** 별가루/조각 어휘 정렬 — 184곳(로케일 63·src 121, 조사 교정), KEEP=표면 규칙,
   가드 핀 공진화(check-constraints Onboarding J4·WikiHeroI18nCopy) + 테스트 어서션 동기화.
+  OTA 그룹 `45bcbea1-900b-48a0-a023-b62b1e42600b`.
   스윕 도구: 세션 스크래치패드 term-sweep.js / 매핑 정본: term-map-report.md (Explore 에이전트 산출).
 - 병렬 세션 랜딩(참고): #733 Seen empty state.
 
