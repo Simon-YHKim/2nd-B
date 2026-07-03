@@ -202,7 +202,13 @@
       "traitConscientiousness": "Kehati-hatian",
       "traitExtraversion": "Ekstraversi",
       "traitAgreeableness": "Keramahan",
-      "traitNeuroticism": "Neurotisisme"
+      "traitNeuroticism": "Neurotisisme",
+      "headline": "Verifikasi · Big Five",
+      "confidence": "Keyakinan 64%",
+      "subtitle": "Serat tersembunyi (lapisan B) · usulan hasil triangulasi dari perilaku domainmu",
+      "extraFrameworks": "Kerangka lain · lihat gaya kelekatan",
+      "retake": "Ukur ulang",
+      "addData": "Tambah data"
     },
     "iden": {
       "signed": "Ditandatangani",

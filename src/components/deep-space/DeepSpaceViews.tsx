@@ -23,7 +23,7 @@ import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
-import { MdButton, MdChip } from "@/components/m3";
+import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { composeFourWBody, EMPTY_FOURW, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
@@ -122,6 +122,10 @@ const CAPTURE_ICON_INNER: Record<string, string> = {
   auto_awesome: '<path d="M11 3c.4 3.2 2.3 5.1 5.5 5.5-3.2.4-5.1 2.3-5.5 5.5-.4-3.2-2.3-5.1-5.5-5.5C8.7 8.1 10.6 6.2 11 3Z"/><path d="M18 13c.2 1.5 1 2.3 2.5 2.5-1.5.2-2.3 1-2.5 2.5-.2-1.5-1-2.3-2.5-2.5 1.5-.2 2.3-1 2.5-2.5Z"/>',
   radio_unchecked: '<circle cx="12" cy="12" r="8"/>',
   add: '<path d="M12 5v14M5 12h14"/>',
+  trending_up: '<path d="M4 16 10 10l3.5 3.5L20 7"/><path d="M15.5 7H20v4.5"/>',
+  forum: '<path d="M3 5.5h11v7H8l-3.5 3z"/><path d="M8.5 13v1.4a2 2 0 0 0 2 2h5.7l3.3 2.6v-7.6a2 2 0 0 0-2-2H16"/>',
+  chevron_right: '<path d="m9 6 6 6-6 6"/>',
+  replay: '<path d="M5 12a7 7 0 1 0 2-4.9M7 3v4h4"/>',
 };
 
 function CaptureIcon({ name, color, size = 18 }: { name: keyof typeof CAPTURE_ICON_INNER; color: string; size?: number }) {
@@ -589,6 +593,174 @@ export function LensView({
           </View>
         </View>
       )}
+    </ScrollView>
+  );
+}
+
+// ── 검증 · Big Five (M3 windowed, clone-audit 14-bigfive) ─────────────────────
+// The layer-B validation lens rebuilt on the migrated Material 3 track (gap
+// 14-bigfive: retire the cosmic LensView skin for /big-five). Filled state =
+// the reference BigFiveScreen (sb-screens-know.jsx): headline + L4 chip +
+// confidence, subtitle, five ProgressLinear trait rows (extraversion carries the
+// tertiary/violet "recently changed" highlight + ↑ delta to match the shipped
+// insight copy), the 세컨비 insight card, an other-frameworks card, and the
+// retake / add-data action pair. Empty + error reuse the existing ds.lens copy.
+// All colors route through m3.* tokens — no cosmic tokens, no hex literals.
+
+// The extraversion row's static delta, tied 1:1 to the ds.lens.insight copy
+// ("외향성이 6p 올랐어요" / "Extraversion rose 6 points"). Kept as a design
+// constant so the bar highlight and the insight card never drift apart.
+const BIGFIVE_EXTRAVERSION_DELTA = 6;
+
+function BigFiveTraitRow({
+  label,
+  value,
+  delta,
+}: {
+  label: string;
+  value: number;
+  delta?: number;
+}) {
+  const changed = delta != null;
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <View style={styles.bfTraitRow}>
+      <View style={styles.bfTraitHead}>
+        <Text style={[m3TextStyle("bodyMedium"), styles.bfTraitLabel]}>{label}</Text>
+        <Text
+          style={[
+            m3TextStyle("bodyMedium"),
+            styles.bfTraitValue,
+            { color: changed ? m3.color.primary : m3.color.onSurfaceVariant },
+          ]}
+        >
+          {value}
+          {changed ? ` ↑${delta}` : ""}
+        </Text>
+      </View>
+      <ProgressLinear
+        value={pct / 100}
+        color={changed ? m3.color.tertiary : m3.color.primary}
+        accessibilityLabel={`${label} ${value}`}
+      />
+    </View>
+  );
+}
+
+export function BigFiveLensM3({
+  traits,
+  hasError,
+  onStart,
+  onRetry,
+  onAddData,
+  onExtraFrameworks,
+}: {
+  traits?: LensTraits | null;
+  hasError?: boolean;
+  onStart?: () => void;
+  onRetry?: () => void;
+  onAddData?: () => void;
+  onExtraFrameworks?: () => void;
+} = {}) {
+  const { t } = useTranslation("home");
+  // A provided `traits` object → filled; null → empty (no BFI record yet);
+  // `hasError` (fetch failed) takes priority over empty so retry shows.
+  const state: LensState = traits ? "filled" : hasError ? "error" : "empty";
+  const shown = traits ?? DUMMY_LENS_TRAITS;
+
+  if (state === "empty") {
+    return (
+      <ScrollView contentContainerStyle={styles.bfBody}>
+        <View style={styles.bfCenterState}>
+          <Svg width={34} height={34} viewBox="0 0 24 24">
+            <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={m3.color.primary} />
+          </Svg>
+          <Text style={[m3TextStyle("titleMedium"), styles.bfStateTitle]}>{t("ds.lens.emptyTitle")}</Text>
+          <Text style={[m3TextStyle("bodyMedium"), styles.bfStateBody]}>{t("ds.lens.emptyBody")}</Text>
+          <MdButton
+            label={t("ds.lens.emptyCta")}
+            variant="filled"
+            onPress={onStart}
+            icon={<CaptureIcon name="add" color={m3.color.onPrimary} size={18} />}
+          />
+        </View>
+      </ScrollView>
+    );
+  }
+
+  if (state === "error") {
+    return (
+      <ScrollView contentContainerStyle={styles.bfBody}>
+        <View style={styles.bfCenterState}>
+          <Svg width={32} height={32} viewBox="0 0 24 24" opacity={0.7}>
+            <Path d="M12 3l9 16H3z" fill="none" stroke={m3.color.onSurfaceVariant} strokeWidth={2} strokeLinejoin="round" />
+            <Path d="M12 9v5M12 16.5v.5" stroke={m3.color.onSurfaceVariant} strokeWidth={2} strokeLinecap="round" />
+          </Svg>
+          <Text style={[m3TextStyle("titleMedium"), styles.bfStateTitle]}>{t("ds.lens.errorTitle")}</Text>
+          <Text style={[m3TextStyle("bodyMedium"), styles.bfStateBody]}>{t("ds.lens.errorBody")}</Text>
+          <MdButton label={t("ds.lens.errorCta")} variant="tonal" onPress={onRetry} />
+        </View>
+      </ScrollView>
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.bfBody}>
+      <View style={styles.bfHeadRow}>
+        <Text style={[m3TextStyle("headlineSmall"), styles.bfHeadline]}>{t("ds.lens.headline")}</Text>
+        <View style={styles.bfLevelChip}>
+          <Text style={[m3TextStyle("labelSmall"), styles.bfLevelChipText]}>{t("ds.lens.level")}</Text>
+        </View>
+        <Text style={[m3TextStyle("labelSmall"), styles.bfConfidence]}>{t("ds.lens.confidence")}</Text>
+      </View>
+      <Text style={[m3TextStyle("bodyMedium"), styles.bfSubtitle]}>{t("ds.lens.subtitle")}</Text>
+
+      <View style={styles.bfTraits}>
+        <BigFiveTraitRow label={t("ds.lens.traitOpenness")} value={shown.openness} />
+        <BigFiveTraitRow label={t("ds.lens.traitConscientiousness")} value={shown.conscientiousness} />
+        <BigFiveTraitRow
+          label={t("ds.lens.traitExtraversion")}
+          value={shown.extraversion}
+          delta={BIGFIVE_EXTRAVERSION_DELTA}
+        />
+        <BigFiveTraitRow label={t("ds.lens.traitAgreeableness")} value={shown.agreeableness} />
+        <BigFiveTraitRow label={t("ds.lens.traitNeuroticism")} value={shown.neuroticism} />
+      </View>
+
+      <View style={styles.bfInsightCard}>
+        <CaptureIcon name="trending_up" color={m3.color.onSecondaryContainer} size={18} />
+        <Text style={[m3TextStyle("bodyMedium"), styles.bfInsightText]}>{t("ds.lens.insight")}</Text>
+      </View>
+
+      <MdCard
+        variant="filled"
+        onPress={onExtraFrameworks}
+        accessibilityLabel={t("ds.lens.extraFrameworks")}
+        style={styles.bfExtraCard}
+      >
+        <View style={styles.bfExtraRow}>
+          <CaptureIcon name="forum" color={m3.color.tertiary} size={20} />
+          <Text style={[m3TextStyle("bodyMedium"), styles.bfExtraLabel]}>{t("ds.lens.extraFrameworks")}</Text>
+          <CaptureIcon name="chevron_right" color={m3.color.onSurfaceVariant} size={20} />
+        </View>
+      </MdCard>
+
+      <View style={styles.bfActions}>
+        <MdButton
+          label={t("ds.lens.retake")}
+          variant="tonal"
+          onPress={onStart}
+          icon={<CaptureIcon name="replay" color={m3.color.onSecondaryContainer} size={18} />}
+          style={styles.bfActionBtn}
+        />
+        <MdButton
+          label={t("ds.lens.addData")}
+          variant="filled"
+          onPress={onAddData}
+          icon={<CaptureIcon name="add" color={m3.color.onPrimary} size={18} />}
+          style={styles.bfActionBtn}
+        />
+      </View>
     </ScrollView>
   );
 }
@@ -1629,6 +1801,43 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(deepSpace.mint, 0.05),
   },
   insightText: { color: deepSpace.accentBright, fontSize: 11.5, lineHeight: 18, fontFamily: fontFamilies.readable },
+
+  // ── 검증 · Big Five (M3, clone-audit 14-bigfive) ──────────────────────────
+  bfBody: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
+  bfHeadRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  bfHeadline: { color: m3.color.onSurface, fontFamily: m3.font.brand, flexShrink: 1 },
+  bfLevelChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: m3.color.primaryContainer,
+  },
+  bfLevelChipText: { color: m3.color.onPrimaryContainer, fontFamily: m3.font.brand, fontWeight: "600" },
+  bfConfidence: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+  bfSubtitle: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4, marginBottom: 18 },
+  bfTraits: { gap: 14 },
+  bfTraitRow: { gap: 6 },
+  bfTraitHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  bfTraitLabel: { color: m3.color.onSurface, fontFamily: m3.font.brand },
+  bfTraitValue: { fontFamily: m3.font.brand, fontWeight: "600" },
+  bfInsightCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginTop: 16,
+    padding: 14,
+    borderRadius: m3.shape.medium,
+    backgroundColor: m3.color.secondaryContainer,
+  },
+  bfInsightText: { flex: 1, color: m3.color.onSecondaryContainer, fontFamily: m3.font.brand },
+  bfExtraCard: { marginTop: 12, padding: 14 },
+  bfExtraRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  bfExtraLabel: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand },
+  bfActions: { flexDirection: "row", gap: 8, marginTop: 18 },
+  bfActionBtn: { flex: 1 },
+  bfCenterState: { alignItems: "center", justifyContent: "center", paddingVertical: 56, gap: 12 },
+  bfStateTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, textAlign: "center" },
+  bfStateBody: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, textAlign: "center", marginBottom: 4 },
 
   // iden
   idCard: {

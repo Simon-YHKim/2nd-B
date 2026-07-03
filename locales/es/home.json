@@ -202,7 +202,13 @@
       "traitConscientiousness": "Responsabilidad",
       "traitExtraversion": "Extraversión",
       "traitAgreeableness": "Amabilidad",
-      "traitNeuroticism": "Neuroticismo"
+      "traitNeuroticism": "Neuroticismo",
+      "headline": "Verificar · Big Five",
+      "confidence": "Confianza 64%",
+      "subtitle": "Vetas ocultas (capa B) · una propuesta triangulada desde tu comportamiento por dominios",
+      "extraFrameworks": "Otros marcos · ver estilo de apego",
+      "retake": "Repetir",
+      "addData": "Añadir datos"
     },
     "iden": {
       "signed": "Firmado",

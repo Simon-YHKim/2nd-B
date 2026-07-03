@@ -202,7 +202,13 @@
       "traitConscientiousness": "성실성",
       "traitExtraversion": "외향성",
       "traitAgreeableness": "우호성",
-      "traitNeuroticism": "신경성"
+      "traitNeuroticism": "신경성",
+      "headline": "검증 · Big Five",
+      "confidence": "확신 64%",
+      "subtitle": "숨은 결(레이어 B) · 도메인 행동을 삼각측량해 추정한 제안이에요",
+      "extraFrameworks": "다른 검증틀 · 애착 유형 보기",
+      "retake": "다시 측정",
+      "addData": "데이터 추가"
     },
     "iden": {
       "signed": "서명됨",

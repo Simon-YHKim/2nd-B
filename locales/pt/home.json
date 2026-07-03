@@ -202,7 +202,13 @@
       "traitConscientiousness": "Conscienciosidade",
       "traitExtraversion": "Extroversão",
       "traitAgreeableness": "Amabilidade",
-      "traitNeuroticism": "Neuroticismo"
+      "traitNeuroticism": "Neuroticismo",
+      "headline": "Verificar · Big Five",
+      "confidence": "Confiança 64%",
+      "subtitle": "Fibras ocultas (camada B) · uma proposta triangulada a partir do seu comportamento por domínios",
+      "extraFrameworks": "Outros modelos · ver estilo de apego",
+      "retake": "Refazer",
+      "addData": "Adicionar dados"
     },
     "iden": {
       "signed": "Assinado",

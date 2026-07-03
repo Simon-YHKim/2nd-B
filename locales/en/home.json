@@ -202,7 +202,13 @@
       "traitConscientiousness": "Conscientiousness",
       "traitExtraversion": "Extraversion",
       "traitAgreeableness": "Agreeableness",
-      "traitNeuroticism": "Neuroticism"
+      "traitNeuroticism": "Neuroticism",
+      "headline": "Verify · Big Five",
+      "confidence": "Confidence 64%",
+      "subtitle": "Hidden grain (layer B) · a proposal triangulated from your domain behavior",
+      "extraFrameworks": "Other frames · see attachment style",
+      "retake": "Retake",
+      "addData": "Add data"
     },
     "iden": {
       "signed": "Signed",
