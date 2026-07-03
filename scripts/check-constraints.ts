@@ -1026,9 +1026,11 @@ results.push(
       quantIntro.includes("accessibilityViewIsModal") &&
       quantIntro.includes("accessibilityLabel={title}") &&
       quantIntro.includes("accessibilityHint={description}") &&
-      onboarding.includes("accessibilityHint={openGraphHint}") &&
-      onboarding.includes("accessibilityHint={primaryHint}") &&
-      onboarding.includes("Completes onboarding and opens the first capture screen.") &&
+      // Onboarding is now a pre-auth carousel (skip / next / auth CTA), each
+      // action still carries an accessibilityHint (J1 intent preserved).
+      onboarding.includes("accessibilityHint={authHint}") &&
+      onboarding.includes("accessibilityHint={nextHint}") &&
+      onboarding.includes("accessibilityHint={skipHint}") &&
       account.includes('accessibilityHint={t("account.dob.saveHint")}') &&
       account.includes('accessibilityHint={t("account.privacy.buttonHint")}') &&
       account.includes('accessibilityLabel={t("account.delete.inputLabel")}') &&
@@ -1099,11 +1101,14 @@ results.push(
 results.push(
   check("Onboarding", () => {
     const onboarding = read("src/app/onboarding.tsx");
-    // J4: onboarding is ONE step by contract (the user already typed
-    // email+password+DOB+consent at sign-up; extra gate screens before the
-    // first piece of value regress the journey). Pin the single actionable
-    // step, the honest where-it-lives promise, and the absence of the old
-    // multi-step scaffolding.
+    // J4 (rev2): onboarding is a PRE-AUTH 4-slide carousel that hands off to the
+    // real age-tiered auth path (reference sb-flows.jsx OnboardingScreen +
+    // 02-onboard.png). The render-broken bug was the `!userId` redirect to
+    // /sign-in, which stopped the carousel from ever showing for a signed-out
+    // user — the whole point of onboarding is that it precedes auth. Pin the new
+    // contract: gated on the onboarding-complete flag (NOT userId), the verbatim
+    // slide copy, and a final hand-off through the REAL sign-in screen so C10's
+    // age-tiered sign-up stays intact. No village/node metaphor copy.
     const forbiddenMetaphors = [
       "Your thoughts become a small map",
       "The graph is a village",
@@ -1114,24 +1119,27 @@ results.push(
       "기록은 조각",
     ];
     const ok =
-      onboarding.includes('art: "firstShard"') &&
-      !onboarding.includes('art: "welcome"') &&
-      !onboarding.includes('art: "trust"') &&
-      onboarding.includes('title: { ko: "먼저 한 문장만 저장해요", en: "Start with one sentence" }') &&
-      onboarding.includes("기록 보관소") &&
-      onboarding.includes('cta: { ko: "첫 기록 저장", en: "Save my first note" }') &&
-      onboarding.includes('params: { entry: "firstRun" }') &&
-      onboarding.includes("저장한 별가루는 기록 보관소에 모이고") &&
-      onboarding.includes("const STEP: Step =") &&
-      !onboarding.includes("STEPS") &&
-      !onboarding.includes("progressText") &&
+      // render-broken fix: gate on the onboarding flag, never on userId.
+      !onboarding.includes("if (!userId) return <Redirect") &&
+      onboarding.includes("useOnboardingComplete") &&
+      onboarding.includes("markOnboardingComplete") &&
+      // 4-slide carousel with the reference icon + verbatim slide copy.
+      onboarding.includes("const SLIDES: Slide[]") &&
+      onboarding.includes('icon: "bubble_chart"') &&
+      onboarding.includes("흩어진 일상이") &&
+      onboarding.includes("별자리가 돼요") &&
+      // top-right skip jumps to the final (auth) slide.
+      onboarding.includes("건너뛰기") &&
+      onboarding.includes("AUTH_STEP") &&
+      // final slide hands off to the REAL age-tiered auth path (C10 intact).
+      onboarding.includes('router.replace("/sign-in")') &&
       forbiddenMetaphors.every((term) => !onboarding.includes(term));
     return {
       id: "Onboarding",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "first-run onboarding is a SINGLE actionable step (one sentence in, honest records promise, firstRun hand-off) with no village/node metaphor copy"
-        : "onboarding must stay ONE step (J4): single STEP, honest 기록 보관소 promise in the body, firstRun hand-off to capture, no multi-step scaffolding or metaphor copy",
+        ? "pre-auth 4-slide onboarding carousel (gated on the onboarding flag, verbatim reference copy, hand-off through the real age-tiered sign-in) with no village/node metaphor copy"
+        : "onboarding must be a PRE-AUTH carousel (J4/rev2): gated on useOnboardingComplete (never !userId→/sign-in), SLIDES with the reference copy + bubble_chart icon, a 건너뛰기 skip to the auth slide, and a final hand-off to the real /sign-in (C10 age-gating intact); no multi-step metaphor copy",
     };
   }),
 );

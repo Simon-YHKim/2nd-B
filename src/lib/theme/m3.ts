@@ -137,6 +137,19 @@ export const m3Accent = {
   shareStarOn: "#BFE9FF",
   /** Card background radial top stop (→ stageFloor). */
   shareBgTop: "#16203A",
+
+  // ---- rev2 entry flow (onboarding carousel + TTFV first-light). Transcribed
+  // 1:1 from sb-flows.jsx OnboardingScreen + sb-ops.jsx FirstInsight.
+  /** Onboarding mono tag + TTFV evidence accent rgb(127,182,255). */
+  entryTag: "#7FB6FF",
+  /** Onboarding body copy rgb(214,230,255) (applied at .72 alpha). */
+  entryBody: "#D6E6FF",
+  /** TTFV insight phrase highlight (‘먼저 다가가는’). */
+  insightHi: "#82D8F6",
+  /** 북극성 caption + outlined-button ink rgb(207,230,255). */
+  starCaption: "#CFE6FF",
+  /** TTFV consent footer rgb(200,210,240) (applied at .5 alpha). */
+  consentFootnote: "#C8D2F0",
 } as const;
 
 /**

@@ -1,31 +1,33 @@
-// First-day TTFV "첫날 자기이해 한 컷" — First Light (rev2 Screen-Spec 03,
-// A안 per Simon 2026-07-02). A single deep-space screen with TWO internal
-// states (propose -> ratify): it surfaces ONE self-understanding insight via
-// one of the 북두칠성 7 stars and lets the user ratify it. Brightness (L1->L2)
-// rises only on explicit ratify, so this is a propose->ratify gesture, not an
-// auto-write. Per the spec, "조금 달라요" is a SOFT ratify — the star still
-// lights (the user's correction is itself a signal), the copy just softens;
-// only the back button leaves without lighting. Both answers append a
-// first_light-tagged record so the ratify ledger keeps the moment.
+// First-day TTFV "첫 통찰 · First Light" — rebuilt 1:1 from the finalized
+// reference (docs/clone-audit/reference-handoff/reference-app/sb-ops.jsx ·
+// FirstInsight) + the 03-ttfv.png capture (pixel target). A single deep-space
+// screen with TWO internal states (propose -> ratify): it surfaces ONE self-
+// understanding insight from one of the 북두칠성 7 domain stars and lets the user
+// ratify it. Brightness (L1->L2) rises only on explicit ratify — a propose->
+// ratify gesture, not an auto-write.
 //
-// ONE message + ONE graphic per state (Information Density rule). Visual Tier
-// System is enforced in the constellation: Tier 1 북극성(Soul Core) dominates
-// (largest, max bloom, soul/violet); Tier 2 is the single lit star (cyan, soft
-// bloom); Tier 3 is the six receded stars (small, low opacity). All links cyan.
+// Per rev2 PRD v2.0 "레이아웃 자유, 의미 고정" the FIXED invariants are preserved:
+// both answers ratify (the correction is itself a signal), each answer appends a
+// first_light-tagged record so the ratify ledger keeps the moment, and there is
+// NO LLM call (the insight is static prop data; the AI scoring slots in later).
 //
-// No LLM call: the insight is static prop data (the AI scoring slots in later).
-// deepSpace.* tokens only, inline EN/KO COPY like ImportHubScreen (no locales).
+// ONE message + ONE graphic per state (Information Density). Visual Tier System:
+// 북극성 (Tier C) dominates — white core + violet bloom; the lit 관계 star (Tier A)
+// is cyan and recedes below it; the third node is dim. All links are cyan.
 
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { Animated, Easing, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Line, Polyline } from "react-native-svg";
+import Svg, { Circle, Line } from "react-native-svg";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
-import { SecondbStatusHeader } from "@/components/deepspace";
+import { SecondbHead } from "@/components/deep-space/SecondbHead";
+import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
+import { SbIcon } from "@/components/deepspace/shell/SbIcon";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 
@@ -37,43 +39,31 @@ export interface TTFVInsight {
   /** Which of the 7 lenses the lit star represents (display). */
   starKo: string;
   starEn: string;
-  /** The pattern phrase, cyan-highlighted in the insight line. */
+  /** The pattern phrase, highlighted in the insight line. */
   phraseKo: string;
   phraseEn: string;
-  /** Evidence shown only after ratify (progressive disclosure). */
-  reasonKo: string;
-  reasonEn: string;
-  /** Which dipper star (0..6) is lit. */
-  litIndex: number;
 }
 
 const DEFAULT_INSIGHT: TTFVInsight = {
   starKo: "관계",
   starEn: "Relationship",
-  phraseKo: "먼저 다가가 살피는",
-  phraseEn: "reaching-out, attentive",
-  reasonKo: "첫 기록에서 사람·마음을 살피는 말이 자주 보였어요",
-  reasonEn: "Your first notes often reached toward people and how they feel",
-  litIndex: 3,
+  phraseKo: "먼저 다가가는",
+  phraseEn: "reaching out first",
 };
 
-// The 북두칠성 (Big Dipper): 3 handle stars + a 4-star bowl, fixed positions in
-// the 300x300 viewBox. litIndex only changes which star glows, not the shape.
-const D = {
-  alkaid: { x: 58, y: 196 }, // handle tip
-  mizar: { x: 95, y: 210 },
-  alioth: { x: 130, y: 214 },
-  megrez: { x: 166, y: 210 }, // bowl top-left / handle junction (default lit)
-  phecda: { x: 176, y: 250 }, // bowl bottom-left
-  merak: { x: 224, y: 244 }, // bowl bottom-right
-  dubhe: { x: 212, y: 204 }, // bowl top-right
-} as const;
-const DIPPER = [D.alkaid, D.mizar, D.alioth, D.megrez, D.phecda, D.merak, D.dubhe];
-const DIPPER_POINTS = DIPPER.map((s) => `${s.x},${s.y}`).join(" ");
+// The insight evidence, transcribed verbatim from the reference FirstInsight.
+const EVIDENCE: { q: string; a: string }[] = [
+  { q: "가입 질문 · 사람을 만나면?", a: "“만나고 나면 에너지가 차는 편이에요”" },
+  { q: "가입 질문 · 고민이 생기면?", a: "“가까운 사람한테 먼저 털어놔요”" },
+];
 
-const SOUL = { x: 150, y: 50 }; // 북극성 Soul Core — top center, Tier 1
-const VIEWBOX = 300;
-const LEVEL_TAG = "L1 → L2";
+// Constellation stage (fixed box): 북극성 top-centre, the lit 관계 star bottom-
+// left, a dim third node bottom-right — the small triangle the capture shows.
+const STAGE_W = 220;
+const STAGE_H = 150;
+const POLARIS = { x: 110, y: 34 };
+const GWANGE = { x: 58, y: 104 };
+const DIM = { x: 162, y: 104 };
 
 type Phase = "propose" | "ratify";
 
@@ -84,19 +74,30 @@ interface TTFVScreenProps {
 export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  const t = (k: string) => COPY(ko)[k] ?? k;
   const { userId, isMinor } = useAuth();
 
   const [phase, setPhase] = useState<Phase>("propose");
   const [soft, setSoft] = useState(false);
-  const [size, setSize] = useState(VIEWBOX);
-  const bloom = useRef(new Animated.Value(0)).current;
+  const [showWhy, setShowWhy] = useState(false);
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  // Gentle 북극성 pulse (reference sb-pulse 2.4s). Single node, native driver.
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
 
   // Spec 03: both answers ratify (the star lights either way — a correction is
   // still a signal). The answer is kept as a first_light-tagged record so the
-  // moment lands in the ledger; the honest brightness engine stays untouched
-  // (it counts records, and this IS one). Fire-and-forget: a save hiccup must
-  // never block the first-light moment.
+  // moment lands in the ledger; the honest brightness engine stays untouched (it
+  // counts records, and this IS one). Fire-and-forget: a save hiccup must never
+  // block the first-light moment.
   const ratify = (softAnswer: boolean) => {
     setSoft(softAnswer);
     setPhase("ratify");
@@ -115,137 +116,146 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
     }).catch(() => {});
   };
 
-  // Ratify brightens the lit star one level with a calm fade + bloom (no bounce).
-  useEffect(() => {
-    if (phase !== "ratify") return;
-    const anim = Animated.timing(bloom, {
-      toValue: 1,
-      duration: 420,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    });
-    anim.start();
-    return () => anim.stop(); // cancel on unmount (no zombie animation)
-  }, [phase, bloom]);
-
-  const clamped = Math.min(Math.max(Math.round(insight.litIndex), 0), DIPPER.length - 1);
-  const lit = DIPPER[clamped] ?? D.megrez;
   const star = ko ? insight.starKo : insight.starEn;
   const phrase = ko ? insight.phraseKo : insight.phraseEn;
-  const reason = ko ? insight.reasonKo : insight.reasonEn;
-  const starLow = star.toLowerCase();
 
-  const caption = ko ? `${star}의 별이 켜졌어요` : `Your ${starLow} star lit up`;
-  const ratifyTitle = ko ? `${star}의 별이 한 칸 밝아졌어요.` : `Your ${starLow} star brightened one step.`;
-  const exploreLabel = ko ? `${star}의 별 더 알아가기` : `Explore your ${starLow} star`;
-
-  const overlayStyle = {
-    opacity: bloom,
-    transform: [{ scale: bloom.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }],
+  const pulseStyle = {
+    opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.75] }),
+    transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.12] }) }],
   };
 
   return (
     <SafeAreaView style={styles.frame} edges={["top", "bottom"]}>
-      <View style={styles.glow} pointerEvents="none" />
+      <DeepSpaceBackdrop />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.backRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t("back")} onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
-            <RNText style={styles.backIcon}>‹</RNText>
-          </Pressable>
-        </View>
+        {/* Eyebrow + page title (centred, no back button / no companion bubble). */}
+        <Text variant="caption" style={styles.eyebrow}>FIRST LIGHT · 첫 빛</Text>
+        <Text variant="heading" style={styles.pageTitle}>
+          {ko ? "당신의 첫 별이 켜졌어요" : "Your first star just lit up"}
+        </Text>
 
-        <SecondbStatusHeader
-          text={phase === "propose" ? t("headProposeText") : t("headRatifyText")}
-          tip={phase === "propose" ? t("headProposeTip") : t("headRatifyTip")}
-        />
+        {/* ONE graphic: the small constellation IS the explanation. */}
+        <View style={styles.stage} accessible accessibilityLabel={ko ? "북극성과 첫 별이 켜진 별자리" : "The north star and your first lit star"}>
+          <Animated.View style={[styles.polarisPulse, pulseStyle]} pointerEvents="none" />
+          <Svg width={STAGE_W} height={STAGE_H} viewBox={`0 0 ${STAGE_W} ${STAGE_H}`}>
+            {/* Cyan links (all links cyan). */}
+            <Line x1={POLARIS.x} y1={POLARIS.y} x2={GWANGE.x} y2={GWANGE.y} stroke={deepSpace.cardLine} strokeWidth={1} />
+            <Line x1={POLARIS.x} y1={POLARIS.y} x2={DIM.x} y2={DIM.y} stroke={deepSpace.cardLine} strokeWidth={1} />
+            <Line x1={GWANGE.x} y1={GWANGE.y} x2={DIM.x} y2={DIM.y} stroke={deepSpace.cardLine} strokeWidth={1} strokeDasharray="3 5" />
 
-        {/* ONE graphic: the constellation IS the explanation. */}
-        <View
-          style={styles.stage}
-          onLayout={(e) => {
-            const w = e.nativeEvent.layout.width;
-            if (w > 0 && Math.round(w) !== size) setSize(Math.round(w));
-          }}
-          accessible
-          accessibilityLabel={t("graphicLabel")}
-        >
-          <Svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} width={size} height={size}>
-            {/* Faint cyan links (all links cyan). */}
-            <Line x1={SOUL.x} y1={SOUL.y + 16} x2={lit.x} y2={lit.y - 10} stroke={deepSpace.cardLine} strokeWidth={1} strokeDasharray="3 5" />
-            <Polyline points={DIPPER_POINTS} fill="none" stroke={deepSpace.cardLine} strokeWidth={1} />
-            <Line x1={D.dubhe.x} y1={D.dubhe.y} x2={D.megrez.x} y2={D.megrez.y} stroke={deepSpace.cardLine} strokeWidth={1} />
+            {/* Tier: receding third node. */}
+            <Circle cx={DIM.x} cy={DIM.y} r={3.4} fill={deepSpace.accentDim} opacity={0.5} />
 
-            {/* Tier 1 — 북극성 Soul Core: dominant, max bloom, soul/violet. */}
-            <Circle cx={SOUL.x} cy={SOUL.y} r={46} fill={deepSpace.soul} opacity={0.07} />
-            <Circle cx={SOUL.x} cy={SOUL.y} r={33} fill={deepSpace.soul} opacity={0.13} />
-            <Circle cx={SOUL.x} cy={SOUL.y} r={22} fill={deepSpace.soul} opacity={0.26} />
-            <Circle cx={SOUL.x} cy={SOUL.y} r={15} fill={deepSpace.soulDeep} opacity={0.9} />
-            <Circle cx={SOUL.x} cy={SOUL.y} r={11} fill={deepSpace.soul} stroke={deepSpace.soulLine} strokeWidth={1} />
+            {/* Tier A: the lit 관계 star (cyan, soft bloom). Brightens on ratify. */}
+            <Circle cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 15 : 11} fill={deepSpace.accent} opacity={0.16} />
+            <Circle cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 9 : 7} fill={deepSpace.accentSoft} opacity={0.34} />
+            <Circle cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 5.2 : 4.2} fill={deepSpace.accentBright} />
 
-            {/* Tier 3 — the six receded stars. */}
-            {DIPPER.map((s, i) =>
-              i === clamped ? null : <Circle key={`dim-${i}`} cx={s.x} cy={s.y} r={3.2} fill={deepSpace.accentDim} opacity={0.5} />,
-            )}
-
-            {/* Tier 2 — the lit star at L1: cyan, soft bloom. */}
-            <Circle cx={lit.x} cy={lit.y} r={14} fill={deepSpace.accent} opacity={0.16} />
-            <Circle cx={lit.x} cy={lit.y} r={8.5} fill={deepSpace.accentSoft} opacity={0.3} />
-            <Circle cx={lit.x} cy={lit.y} r={4.6} fill={deepSpace.accentBright} />
+            {/* Tier C: 북극성 — dominant, white core + violet bloom. */}
+            <Circle cx={POLARIS.x} cy={POLARIS.y} r={16} fill={m3.accent.polaris} opacity={0.14} />
+            <Circle cx={POLARIS.x} cy={POLARIS.y} r={9} fill={m3.accent.polaris} opacity={0.26} />
+            <Circle cx={POLARIS.x} cy={POLARIS.y} r={6} fill={deepSpace.textHi} />
           </Svg>
-
-          {/* Ratify overlay — same lit star one level brighter (bigger bloom +
-              brighter core + rays). Fades + blooms in over the base. */}
-          <Animated.View style={[styles.overlay, overlayStyle]} pointerEvents="none">
-            <Svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} width={size} height={size}>
-              <Circle cx={lit.x} cy={lit.y} r={24} fill={deepSpace.accent} opacity={0.2} />
-              <Circle cx={lit.x} cy={lit.y} r={14} fill={deepSpace.accentSoft} opacity={0.4} />
-              <Circle cx={lit.x} cy={lit.y} r={6.2} fill={deepSpace.accentBright} />
-              <Line x1={lit.x} y1={lit.y - 9} x2={lit.x} y2={lit.y - 18} stroke={deepSpace.accentSoft} strokeWidth={1.4} strokeLinecap="round" opacity={0.85} />
-              <Line x1={lit.x} y1={lit.y + 9} x2={lit.x} y2={lit.y + 18} stroke={deepSpace.accentSoft} strokeWidth={1.4} strokeLinecap="round" opacity={0.85} />
-              <Line x1={lit.x + 9} y1={lit.y} x2={lit.x + 18} y2={lit.y} stroke={deepSpace.accentSoft} strokeWidth={1.4} strokeLinecap="round" opacity={0.85} />
-              <Line x1={lit.x - 9} y1={lit.y} x2={lit.x - 18} y2={lit.y} stroke={deepSpace.accentSoft} strokeWidth={1.4} strokeLinecap="round" opacity={0.85} />
-            </Svg>
-            <View style={[styles.levelTag, { left: `${(lit.x / VIEWBOX) * 100}%`, top: `${(lit.y / VIEWBOX) * 100}%` }]}>
-              <Text variant="caption" pixelEn style={styles.levelTagText}>{LEVEL_TAG}</Text>
-            </View>
-          </Animated.View>
+          <Text variant="caption" style={[styles.starLabel, styles.polarisLabel]}>북극성</Text>
+          <Text variant="caption" style={[styles.starLabel, styles.gwangeLabel]}>{star}</Text>
         </View>
 
         {phase === "propose" ? (
           <View style={styles.block}>
-            <Text variant="body" style={styles.caption}>{caption}</Text>
-            {/* ONE message: the insight line, with the pattern phrase in cyan. */}
+            {/* 세컨비 head sits in the middle, above the question (gentle bob). */}
+            <SecondbHead size={84} mood="positive" track={false} accessibilityLabel={ko ? "세컨비" : "SecondB"} />
+
             <Text variant="body" style={styles.insight}>
-              {ko ? "너에게선 " : "A "}
-              <Text variant="body" style={styles.insightHi}>{phrase}</Text>
-              {ko ? " 결이 보여요." : " pattern shows in you."}
+              {ko ? "당신은 " : "You might be someone who "}
+              <Text variant="body" style={styles.insightHi}>{ko ? `‘${phrase}’` : phrase}</Text>
+              {ko ? " 사람일지도 몰라요." : "."}
             </Text>
-            <Pressable accessibilityRole="button" accessibilityLabel={t("affirm")} onPress={() => ratify(false)} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
-              <Text variant="caption" style={styles.primaryText}>{t("affirm")}</Text>
-            </Pressable>
-            {/* Spec 03: 조금 달라요 = soft ratify — the star still lights. */}
-            <Pressable accessibilityRole="button" accessibilityLabel={t("differ")} onPress={() => ratify(true)} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
-              <Text variant="caption" style={styles.secondaryText}>{t("differ")}</Text>
-            </Pressable>
+            <Text variant="body" style={styles.sub}>
+              {ko ? "가입 답변에서 관계 별의 첫 신호를 봤어요. 맞나요?" : "Your sign-up answers gave the first signal of your relationship star. Right?"}
+            </Text>
+
+            {/* 근거 — progressive disclosure: the two grounds, collapsed by default. */}
+            <View style={styles.whyWrap}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showWhy }}
+                accessibilityLabel={ko ? "이렇게 본 근거 2가지" : "Two grounds for this read"}
+                onPress={() => setShowWhy((v) => !v)}
+                style={styles.whyToggle}
+                hitSlop={8}
+              >
+                <SbIcon name="target" size={15} color={withAlpha(deepSpace.accentSoft, 0.85)} />
+                <Text variant="caption" style={styles.whyToggleText}>{ko ? "이렇게 본 근거 2가지" : "Two grounds for this read"}</Text>
+                <SbIcon name={showWhy ? "expand_less" : "expand_more"} size={16} color={withAlpha(deepSpace.accentSoft, 0.85)} />
+              </Pressable>
+              {showWhy ? (
+                <View style={styles.whyBody}>
+                  {EVIDENCE.map((e, i) => (
+                    <View key={i} style={styles.evidenceCard}>
+                      <Text variant="caption" style={styles.evidenceQ}>{e.q}</Text>
+                      <Text variant="body" style={styles.evidenceA}>{e.a}</Text>
+                    </View>
+                  ))}
+                  <Text variant="caption" style={styles.whyFootnote}>
+                    아직 가입 답변뿐이라 ‘첫 신호’예요. 담을수록 근거가 늘어요.
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {/* Two answers, side by side. Both ratify (조금 달라요 = soft ratify). */}
+            <View style={styles.answerRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={ko ? "맞아요" : "That's right"}
+                onPress={() => ratify(false)}
+                style={({ pressed }) => [styles.answerBtn, styles.affirmBtn, pressed && styles.pressed]}
+              >
+                <SbIcon name="check" size={18} color={deepSpace.onAccent} />
+                <Text variant="caption" style={styles.affirmText}>{ko ? "맞아요" : "That's right"}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={ko ? "조금 달라요" : "A little different"}
+                onPress={() => ratify(true)}
+                style={({ pressed }) => [styles.answerBtn, styles.differBtn, pressed && styles.pressed]}
+              >
+                <Text variant="caption" style={styles.differText}>{ko ? "조금 달라요" : "A little different"}</Text>
+              </Pressable>
+            </View>
+
+            <Text variant="caption" style={styles.consent}>
+              {ko ? "어떤 답이든, 별은 당신의 동의로만 밝아져요." : "Either way, a star only brightens with your consent."}
+            </Text>
           </View>
         ) : (
           <View style={styles.block}>
-            {/* ONE message for the ratify state — softened when the user said
-                "조금 달라요" (their correction is the signal, spec 03). */}
-            <Text variant="body" style={styles.ratifyTitle}>{soft ? t("softTitle") : ratifyTitle}</Text>
-            <Text variant="body" style={styles.ratifySub}>{soft ? t("softSub") : t("ratifySub")}</Text>
-            {/* 근거 — progressive disclosure: evidence appears only after ratify. */}
-            <View style={styles.reasonCard}>
-              <Text variant="caption" style={styles.reasonLabel}>{t("why")}</Text>
-              <Text variant="body" style={styles.reasonText}>{reason}</Text>
+            {/* Ratify: the lit star rose one level. Softened when the user
+                answered 조금 달라요 (their correction is the signal, spec 03). */}
+            <View style={styles.levelChip}>
+              <SbIcon name="trending_up" size={16} color={m3.accent.insightHi} />
+              <Text variant="caption" style={styles.levelChipText}>{`${star} · L1 → L2`}</Text>
             </View>
-            {/* Spec 03 "별자리로 들어가기": the primary exit is the constellation
-                home; the lens deep-dive (/attachment) stays as the secondary. */}
-            <Pressable accessibilityRole="button" accessibilityLabel={t("enterHome")} onPress={() => router.replace("/")} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
-              <Text variant="caption" style={styles.primaryText}>{t("enterHome")}</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={exploreLabel} onPress={() => router.push("/attachment")} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
-              <Text variant="caption" style={styles.secondaryText}>{exploreLabel}</Text>
+            <Text variant="body" style={styles.ratifyTitle}>
+              {soft
+                ? ko
+                  ? "당신 말이 별을 더 정확하게 만들었어요."
+                  : "Your words made the star more accurate."
+                : ko
+                  ? `${star} 별이 한 단계 밝아졌어요.`
+                  : `Your ${star.toLowerCase()} star brightened one step.`}
+            </Text>
+            <Text variant="body" style={styles.sub}>
+              {ko ? "담을수록 별이 또렷해지고, 7개가 모이면 북극성이 켜져요." : "The more you capture, the clearer the stars, and seven of them light the north star."}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={ko ? "별자리로 들어가기" : "Enter your constellation"}
+              onPress={() => router.replace("/")}
+              style={({ pressed }) => [styles.enterBtn, pressed && styles.pressed]}
+            >
+              <SbIcon name="star_shine" size={18} color={deepSpace.onAccent} fill />
+              <Text variant="caption" style={styles.affirmText}>{ko ? "별자리로 들어가기" : "Enter your constellation"}</Text>
             </Pressable>
           </View>
         )}
@@ -254,78 +264,71 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
   );
 }
 
-function COPY(ko: boolean): Record<string, string> {
-  return ko
-    ? {
-        back: "뒤로",
-        graphicLabel: "북극성과 북두칠성 별자리, 한 별이 켜져 있어요",
-        headProposeText: "오늘, 너의 첫 별이 하나 보였어요.",
-        headProposeTip: "별은 당신의 동의로만 밝아져요.",
-        headRatifyText: "좋아요. 별 하나가 더 또렷해졌어요.",
-        headRatifyTip: "별자리는 알아갈수록 자라요.",
-        affirm: "맞아요",
-        differ: "조금 달라요",
-        ratifySub: "알아갈수록 너의 별자리가 또렷해져요.",
-        softTitle: "그렇게 느끼는 것도 소중한 신호예요.",
-        softSub: "당신의 말이 별을 더 정확하게 만들어요. 별은 한 칸 밝아졌어요.",
-        enterHome: "별자리로 들어가기",
-        why: "근거",
-      }
-    : {
-        back: "Back",
-        graphicLabel: "The north star and the seven-star dipper, with one star lit",
-        headProposeText: "Today, your first star showed itself.",
-        headProposeTip: "Stars brighten only with your consent.",
-        headRatifyText: "Nice. One star is clearer now.",
-        headRatifyTip: "Your constellation grows as you go.",
-        affirm: "That's right",
-        differ: "A little different",
-        ratifySub: "The more you learn, the clearer your constellation becomes.",
-        softTitle: "Feeling it differently is a precious signal too.",
-        softSub: "Your words make the star more accurate. It brightened one step.",
-        enterHome: "Enter your constellation",
-        why: "WHY",
-      };
-}
-
 const styles = StyleSheet.create({
   frame: { flex: 1, backgroundColor: deepSpace.bg },
-  glow: { position: "absolute", top: 0, left: 0, right: 0, height: 220, backgroundColor: deepSpace.bgGlow, opacity: 0.5 },
-  scroll: { padding: deepSpaceSpacing.lg, paddingBottom: 48, gap: deepSpaceSpacing.md },
+  scroll: { paddingHorizontal: 28, paddingTop: 46, paddingBottom: 40, alignItems: "center", gap: deepSpaceSpacing.xs },
 
-  backRow: { flexDirection: "row", alignItems: "center" },
-  backBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  backIcon: { color: deepSpace.accentBright, fontSize: 24, lineHeight: 28 },
+  eyebrow: { color: m3.accent.shareEyebrow, fontSize: 10, letterSpacing: 2, textAlign: "center", marginBottom: 4 },
+  pageTitle: { color: deepSpace.textHi, fontSize: 18, textAlign: "center", marginBottom: 10 },
 
-  stage: { width: "100%", maxWidth: VIEWBOX, aspectRatio: 1, alignSelf: "center", position: "relative", marginTop: deepSpaceSpacing.sm },
-  overlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
-  levelTag: {
+  stage: { width: STAGE_W, height: STAGE_H, alignItems: "center", justifyContent: "center", alignSelf: "center" },
+  polarisPulse: {
     position: "absolute",
-    marginLeft: 14,
-    marginTop: -12,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLineStrong,
-    borderRadius: deepSpaceRadii.sm,
-    backgroundColor: deepSpace.card,
+    left: POLARIS.x - 22,
+    top: POLARIS.y - 22,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: withAlpha(m3.accent.polaris, 0.3),
   },
-  levelTagText: { fontSize: 11, letterSpacing: 0.5, color: deepSpace.accentSoft, lineHeight: 15 },
+  starLabel: { position: "absolute", fontSize: 11, color: m3.accent.starCaption, letterSpacing: 0.6, textAlign: "center" },
+  polarisLabel: { left: 0, right: 0, top: POLARIS.y + 14 },
+  gwangeLabel: { left: GWANGE.x - 24, width: 48, top: GWANGE.y + 12 },
 
-  block: { gap: deepSpaceSpacing.sm, marginTop: deepSpaceSpacing.xs },
-  caption: { fontSize: 13, color: deepSpace.textLo, textAlign: "center" },
-  insight: { fontSize: 19, color: deepSpace.textHi, textAlign: "center", marginBottom: deepSpaceSpacing.xs },
-  insightHi: { fontWeight: "700", color: deepSpace.accentSoft },
+  block: { alignItems: "center", gap: deepSpaceSpacing.sm, marginTop: deepSpaceSpacing.sm, alignSelf: "stretch" },
+  insight: { fontSize: 18, lineHeight: 27, color: deepSpace.textHi, textAlign: "center", maxWidth: 280, marginTop: 4 },
+  insightHi: { fontSize: 18, fontWeight: "700", color: m3.accent.insightHi },
+  sub: { fontSize: 14, lineHeight: 20, color: deepSpace.textMid, textAlign: "center", maxWidth: 270 },
 
-  ratifyTitle: { fontSize: 19, fontWeight: "700", color: deepSpace.textHi, textAlign: "center" },
-  ratifySub: { fontSize: 14, color: deepSpace.textMid, textAlign: "center", marginBottom: deepSpaceSpacing.xs },
-  reasonCard: { padding: deepSpaceSpacing.md, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card, gap: 6 },
-  reasonLabel: { fontSize: 11, letterSpacing: 1, color: deepSpace.accentSoft },
-  reasonText: { fontSize: 14, color: deepSpace.textMid },
+  whyWrap: { alignSelf: "stretch", alignItems: "center", maxWidth: 320, width: "100%", marginTop: 6 },
+  whyToggle: { flexDirection: "row", alignItems: "center", gap: 6 },
+  whyToggleText: { fontSize: 13, fontWeight: "600", color: withAlpha(deepSpace.accentSoft, 0.85) },
+  whyBody: { alignSelf: "stretch", gap: 8, marginTop: 10 },
+  evidenceCard: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: withAlpha(m3.accent.entryTag, 0.1),
+    borderWidth: 1,
+    borderColor: withAlpha(m3.accent.entryTag, 0.2),
+    gap: 3,
+  },
+  evidenceQ: { fontSize: 10, letterSpacing: 0.4, color: m3.accent.entryTag },
+  evidenceA: { fontSize: 13, color: m3.accent.shareInkSoft },
+  whyFootnote: { fontSize: 11, lineHeight: 16, color: withAlpha(m3.accent.starCaption, 0.6), textAlign: "center", marginTop: 2 },
 
-  primaryBtn: { minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.accent, marginTop: deepSpaceSpacing.xs },
-  primaryText: { fontSize: 15, color: deepSpace.onAccent, paddingHorizontal: deepSpaceSpacing.md, textAlign: "center" },
-  secondaryBtn: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, borderWidth: 1, borderColor: deepSpace.cardLineStrong, backgroundColor: deepSpace.card },
-  secondaryText: { fontSize: 14, color: deepSpace.accentSoft },
+  answerRow: { flexDirection: "row", gap: 10, alignSelf: "stretch", maxWidth: 320, width: "100%", marginTop: 16 },
+  answerBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 50, borderRadius: deepSpaceRadii.md },
+  affirmBtn: { backgroundColor: deepSpace.accent },
+  differBtn: { borderWidth: 1, borderColor: withAlpha(m3.accent.starCaption, 0.4), backgroundColor: "transparent" },
+  affirmText: { fontSize: 15, color: deepSpace.onAccent },
+  differText: { fontSize: 15, color: m3.accent.starCaption },
+
+  consent: { fontSize: 13, color: withAlpha(m3.accent.consentFootnote, 0.5), textAlign: "center", marginTop: 12, maxWidth: 280 },
+
+  levelChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: 9999,
+    backgroundColor: withAlpha(m3.accent.insightHi, 0.16),
+    marginBottom: 6,
+  },
+  levelChipText: { fontSize: 13, fontWeight: "700", color: m3.accent.starCaption },
+  ratifyTitle: { fontSize: 18, lineHeight: 26, fontWeight: "700", color: deepSpace.textHi, textAlign: "center", maxWidth: 280 },
+  enterBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, alignSelf: "stretch", maxWidth: 320, minHeight: 52, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.accent, marginTop: 20 },
+
   pressed: { opacity: 0.85 },
 });

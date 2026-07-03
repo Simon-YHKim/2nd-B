@@ -12,6 +12,15 @@ import { SvgXml } from "react-native-svg";
 // Path fragments copied verbatim from reference-app/sb-data.jsx ICON_SVG.
 const ICON_PATHS = {
   star_shine: '<path d="M12 3c.5 3.8 2.7 6 6.5 6.5-3.8.5-6 2.7-6.5 6.5-.5-3.8-2.7-6-6.5-6.5 3.8-.5 6-2.7 6.5-6.5Z"/>',
+  bubble_chart: '<circle cx="9" cy="10" r="4"/><circle cx="17" cy="8" r="2.3"/><circle cx="16.4" cy="15.6" r="3"/>',
+  lightbulb: '<path d="M9.2 17h5.6M10 20h4M8.6 14.2a5 5 0 1 1 6.8 0c-.8.7-1.2 1.4-1.4 2.1h-4c-.2-.7-.6-1.4-1.4-2.1Z"/>',
+  school: '<path d="M3 9.2 12 5l9 4.2-9 4.2-9-4.2Z"/><path d="M7 11.4v3.8c0 1 2.2 2.1 5 2.1s5-1.1 5-2.1v-3.8M21 9.2v5.2"/>',
+  arrow_forward: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  check: '<path d="M5 12.5 10 17 19 7"/>',
+  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
+  expand_more: '<path d="m6 9 6 6 6-6"/>',
+  expand_less: '<path d="m6 15 6-6 6 6"/>',
+  trending_up: '<path d="M4 16l5-5 3 3 8-8M15 6h5v5"/>',
   add_circle: '<circle cx="12" cy="12" r="8.4"/><path d="M12 8.2v7.6M8.2 12h7.6"/>',
   forum: '<path d="M3 5h12v8H7l-4 3.2z"/><path d="M8 13.2V15h9l3 2.4V9.5h-2.5"/>',
   inventory_2: '<path d="M3.5 7.5h17V20h-17z"/><path d="M3.5 7.5 5.5 4h13l2 3.5M12 7.5v4M9.5 11.5h5"/>',
