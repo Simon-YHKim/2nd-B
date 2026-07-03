@@ -1,0 +1,200 @@
+[
+  {
+    "name": "01-auth",
+    "route": "/sign-in",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "02-onboard",
+    "route": "/onboarding",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "03-ttfv",
+    "route": "/ttfv",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "05-home",
+    "route": "/deepspace-home",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "06-capture",
+    "route": "/capture",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "07-chat",
+    "route": "/secondb",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "08-records",
+    "route": "/records",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "09-settings",
+    "route": "/settings",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "10-me",
+    "route": "/persona",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "12-record",
+    "route": "/record/r1",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "13-interview",
+    "route": "/interview",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "14-bigfive",
+    "route": "/big-five",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "15-attachment",
+    "route": "/attachment",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "16-values",
+    "route": "/values",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "17-audit",
+    "route": "/audit",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "18-trend",
+    "route": "/trends",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "19-motivation",
+    "route": "/motivation",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "20-strengths",
+    "route": "/strengths",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "21-northstar",
+    "route": "/northstar",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "22-ratify",
+    "route": "/ratifications",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "23-iden",
+    "route": "/iden",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "24-ops",
+    "route": "/ops",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "25-focus",
+    "route": "/focus",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "26-reminders",
+    "route": "/reminders",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "27-inbox",
+    "route": "/inbox",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "28-connect",
+    "route": "/integrations",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "29-import",
+    "route": "/import",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "30-datareview",
+    "route": "/data",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "31-callrec",
+    "route": "/call-reflection",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "32-share",
+    "route": "/share-card",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "33-plans",
+    "route": "/plans",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "34-museum",
+    "route": "/museum",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "36-imagine",
+    "route": "/imagine",
+    "errors": [],
+    "refExists": true
+  }
+]
