@@ -1,0 +1,648 @@
+# 2nd-Brain Handoff — Archive 2026-05
+
+> `docs/HANDOFF.md` 에서 분리한 2026-05-25(Sprint 0) ~ 2026-05-31 세션 핸드오프 (2026-07-03 감사 §B2). 최신 상태는 `../HANDOFF.md` 참조. 원문 순서(최신 위)·내용 그대로 보존.
+
+---
+
+## 2026-05-31 (밤) / Phase 3 하드닝 — 탭 라우트 정합 + 크래시 수정 (#83)
+
+### 무엇을 / 왜
+사용자 "시스템적으로 더 만질것 없어?" → Phase 3(#79) 탭 재정의가 드러낸 시스템 이슈 4개 수정:
+1. **BackArrow 라우트 desync** — BackArrow 가 자체 목록(옛 탭)을 들고 있어 `/core-brain`·`/records`·`/wiki` 가 막다른 길(back·탭바 둘 다 없음), 새 탭은 이중 내비. → `src/lib/nav/tabs.ts`(`PRIMARY_TAB_PATHS`) 단일 소스로 통합(탭바·BackArrow·shell 공유).
+2. **탭바 하단 클리어런스 없음** — capture/jarvis/imagine 콘텐츠(특히 세컨비 입력창)가 58px 탭바 밑에 깔림. → `PremiumAppShell` 에 `isTabPath` 기반 `tabBarClearance` 중앙화 + profile 중복 패딩 제거.
+3. **capture.tsx hooks 크래시** — `useMemo` 2개가 early-return 뒤 → userId/loading 플립 시 React #300(흰 화면). /capture 가 주요 탭 되며 노출(라이브 재현). → 가드 위로 이동.
+4. **근본 원인** — `react-hooks/rules-of-hooks` 미적용 → `eslint-plugin-react-hooks` 추가 + 룰 on(error). blast radius=capture 1개.
+
+### 바뀐 파일
+- `src/lib/nav/tabs.ts`(신규) — PRIMARY_TAB_PATHS 단일 소스
+- `tab-bar.tsx`·`BackArrow.tsx` — 공유 상수 사용 / `background.tsx` — tabBarClearance / `profile.tsx` — 중복 패딩 제거
+- `capture.tsx` — useMemo 가드 위로 / `eslint.config.mjs`·`package.json`/`lock` — react-hooks
+
+### 검증
+- npm run verify: jest **662/662 (66 suites)**, lint **0 errors**(rules-of-hooks 포함), C1~C12
+
+### 다음 / 되돌리기
+- 다음 1순위: **Phase 4** (마을 탭 → records 도메인 필터)
+- revert: PR #83 단독 revert. `tabs.ts` 만 신규.
+- 협업 메모: GPT 와 같은 파일 동시 작업 시 **머지 후 재검증 필수**(#79 에서 capture.tsx 겹침 경험).
+
+---
+## 2026-05-31 (저녁) / 메뉴 재설계 Phase 3 — 탭 재정의 + journal redirect (#79)
+
+### 무엇을 / 왜
+- 하단 탭을 VISION 3축 IA 로 5개 재정의: **그래프·담기·세컨비·공상·나**. explore(`/core-brain`)·records(`/records`)·store(`/wiki`) 탭 제거 — core-brain 은 '나' 허브(Phase 5), wiki/records 는 그래프 마을(Phase 4)로 흡수.
+- `/journal` → `/capture` redirect. 라우트 파일·`_layout` Stack.Screen 유지 → 진입점 19곳(onboarding firstRun, index 빈그래프 CTA, insights/inbox/wiki/trinity/manual/persona/audit/settings/core-brain/+not-found)과 `characterForRoute("/journal")→momo` 안 깨짐.
+- capture 일기 모드에 Lv3 게이트(`checkGate`)+무료 한도(`checkUsage`) 이식 → redirect 가 진행도 게이트를 우회하지 않음.
+
+### 바뀐 파일
+- `src/components/premium/tab-bar.tsx` — 5탭 재정의 + 새 픽셀 글리프(담기=트레이↓/세컨비=말풍선/공상=초승달), unused `Rect` import 제거
+- `src/app/journal.tsx` — 본문 전체 → `<Redirect href="/capture" />` (822→18줄)
+- `src/app/capture.tsx` — 일기 모드 Lv3 게이트+무료 한도 이식, journalCount 로드, 저장 후 XP/카운트 refresh
+
+### 검증
+- npm run verify: jest **662/662 (66 suites)** green, lint 0, C1~C12
+
+### 다음 / 되돌리기
+- 다음 1순위: **Phase 4** (마을 탭 → records 도메인 필터 뷰로 통일)
+- revert: PR #79 단독 revert 로 롤백. `journal.tsx` 복원 시 구 일기 화면 그대로 복귀.
+- ⚠️ 결정(사용자 확정): 게이트가 capture 일기 모드 전체에 적용 → 담기 일기에도 무료 2회 한도 생김. 마찰 원치 않으면 revert.
+
+---
+## 2026-05-31 (낮) / 메뉴 재설계 Phase 1·2 (스펙 + 담기 일기 모드) — #75 #76
+
+### 어디까지 왔나
+- **main HEAD**: `d77cb00`
+- **테스트**: `npm run verify` green — jest **662/662 (66 suites)**, lint 0 err, C1~C12. working tree clean.
+- **의존성 설치 주의**: `npm ci --legacy-peer-deps` (그냥 `npm ci`는 typescript@6 vs expo peer 충돌로 실패. CI도 `--legacy-peer-deps`).
+
+### 이번 세션 머지된 PR (시간순)
+- #71 capture/records 저장소 통합 읽기(mergeEvidence) + 캐릭터별 페르소나 chat + capture 개편(링크/스크랩 통합, 자동분류 버튼 제거, 해시태그 +칩)
+- #73 로그아웃→/sign-in 직행 + 메인 그래프 마을 픽셀 이름표
+- #74 그래프 연관성: 태그 기반 도메인 자동 배치(domainForTags) + 공유태그 연결선(relatedEdges) — `src/lib/graph/relatedness.ts`
+- #75 **메뉴 재설계 스펙 문서** — `docs/MENU_RESTRUCTURE.md` (VISION 3축 IA, 5탭, 결정 Q1~Q3 확정)
+- #76 **재설계 Phase 2** — `/capture`(담기)에 '일기' 모드 추가(streak·성찰질문·topic/conclusion·opt-in Advisor, records 저장, C9 crisis). 나머지 모드는 sources 저장.
+
+### ⏳ 진행 중인 큰 작업: 메뉴 구조 전면 재설계
+**단일 소스: `docs/MENU_RESTRUCTURE.md`** (스펙 + Phase별 진행현황 + 확정 결정).
+사용자 지시: "메뉴 하나하나 기능부터 다시 정의해서 구조를 짜자." → VISION 3축 기반 IA로 재설계 합의.
+
+**확정된 결정 (MENU_RESTRUCTURE.md §6):**
+- Q1 통합 입력 저장 = **모드별 유지 + 읽기 통합** (메모/일기→records, 링크·파일→sources; 읽기는 mergeEvidence)
+- Q2 마을 도착지 = **records 도메인 필터 재사용** (신규 화면 최소화)
+- Q3 탭 5개 = **그래프 · 담기 · 세컨비 · 공상 · 나** (explore/store 탭 제거)
+
+**Phase 진행 상태:**
+- ✅ Phase 1 (스펙 문서) — #75
+- ✅ Phase 2 (통합 담기, 일기 모드) — #76
+- ⬜ **Phase 3 (다음 1순위) — 5탭 재정의**: `src/components/premium/tab-bar.tsx`의 explore(`/core-brain`)·store(`/wiki`) 탭 제거 → 담기(`/capture`)·세컨비(`/jarvis`)·공상(`/imagine`) 추가. `/journal`은 진입점 19곳이라 삭제 말고 `/capture`로 **redirect**. ⚠️ journal은 Lv3 게이트(checkGate)·firstRun 파라미터(onboarding.tsx:85, index.tsx:239)가 있으니 redirect 시 깨지지 않게 처리.
+- ⬜ Phase 4 — 마을 탭 도착지를 records 도메인 필터 뷰로 통일 (relatedness.ts의 VillageId와 정합). 현재 마을→trinity/insights/interview로 불일치.
+- ⬜ Phase 5 — `/profile`을 '나' 허브로 확장, 묻힌 화면(big-five/mbti/attachment/audit/interview/research/support/permissions/import/inbox/data/theme/manual) 명시 노출.
+- ⬜ Phase 6 — 죽은 라우트/중복 정리, i18n·테스트.
+
+> **사용자 메모: "하다보면 별로일 수도 있어."** → 재설계는 가역적으로. 각 Phase는 독립 PR + 독립 동작(중간에 멈춰도 안 깨짐). 별로면 해당 Phase PR만 revert하면 됨. Phase 2까지는 `/journal` 원본을 남겨둬서 롤백 안전.
+
+### 복구 방법 (다음 세션 시작 시)
+1. `git checkout main && git fetch origin main && git pull origin main` (HEAD `d77cb00` 이상)
+2. `npm ci --legacy-peer-deps && npm run verify` (662/662 green 확인)
+3. `cat docs/MENU_RESTRUCTURE.md` 읽기 — 재설계 전체 맥락 + Phase별 할 일 + 확정 결정
+4. Phase 3부터 이어서: tab-bar.tsx 교체 + /journal redirect (위 ⚠️ 주의사항대로)
+
+### 핵심 파일 (재설계 관련)
+```
+docs/MENU_RESTRUCTURE.md              재설계 단일 소스 (스펙+Phase+결정)
+src/components/premium/tab-bar.tsx    5탭 정의 (Phase 3 대상)
+src/app/capture.tsx                   통합 담기 (journal+capture, Phase 2 완료)
+src/app/journal.tsx                   원본 일기 (Phase 3에서 redirect 예정, 아직 살아있음)
+src/lib/graph/relatedness.ts          domainForTags + relatedEdges (#74)
+src/lib/persona/evidence.ts           mergeEvidence (records+sources 읽기 통합, #71)
+src/lib/chat/personas.ts              캐릭터별 페르소나 (#71)
+src/components/graph/NavGraph.tsx     메인 그래프 (마을 이름표·연관선·캐릭터 탭)
+```
+
+### 알려진 미해결 (재설계와 별개 트랙)
+- capture(`sources`) 조각은 아직 **메인 그래프 미반영** — 메인은 `wiki_pages`만 읽음. (기록 화면은 #71로 통합됐지만 그래프는 별개.)
+- 연관성은 "공유 태그" 기준 — 임베딩 의미 유사도는 범위 밖.
+- 실제 Gemini 라이브 연결 안 됨 (mock 유지).
+
+---
+## Earlier — 2026-05-30 / premium closeout v3 머지 + reference-assetization audit 진행 중 (미완료)
+
+### 어디까지 왔나
+- **main HEAD**: `f6cc931`
+- 이번 세션 머지된 PR (시각/그래프 UX 폴리시 연속):
+  - #56 loading reliability(무한로딩 수정) + external import(/import) + first-run dismiss + auth/loading premium
+  - #57 main-graph restructure — 기본 tier 1+2, 6 도메인 섬, ribbon glow
+  - #58 graph-UX overhaul — layering, 1-finger pan, sectors, tap-zoom, light text, branded loader, back arrow
+  - #59 cross-LLM handoff note (docs)
+  - #60 refine-v2 — graph gestures/layers/sectors, auth hero + eye icon, HUD cleanup
+  - #61 **closeout-v3** — premium islands(no-square core), workers+Lumi(글로벌 클럭 모션), tier icons(종이/책/링크/큐브/크리스탈), free camera + 원래대로 reset, readable Pretendard bottom sheet, transparent auth hero
+- **테스트**: `npm run verify` green — jest **627/627 (64 suites)**, lint 0 err, C1~C12.
+- **working tree**: clean.
+
+### ⏳ 이번 세션 미완료 작업 (다음 세션 1순위)
+**premium reference assetization audit** — 사용자가 4개 zip(2ndB_AtoZ_premium part1~4)을 업로드. `premium_references/` 프리뷰 이미지 품질을 최종 기준으로 삼아, 현재 적용된 단순 placeholder 자산을 식별·교체 목록 작성하는 **감사 보고서**가 목표. 코드 대규모 수정 금지(보고서 우선), 단 명백한 버그(검은 사각형 wrapper)는 즉시 수정 허용.
+- 레퍼런스 추출 위치(재추출 필요, /tmp는 ephemeral): 업로드 zip은 `/root/.claude/uploads/bb7deded-fdd7-42d2-b73f-0a60ec4d3d1c/`.
+- 핵심 레퍼런스: 01_character_sheet · 02_main_graph · 03_chat · 04_core_brain · 05_imagine · 06_journal_capture · 07_wiki_records · 08_onboarding · 09_settings_profile · 10_system_board (+ alt 11~16).
+- 감사 항목: (1) island 자산 (2) character 자산 (3) tier3/4 node 아이콘 (4) UI panel/card/sheet 비교 (5) 교체 우선순위 P0/P1/P2 (6) 필요한 새 production asset 목록(assetKey/description/targetReference/format/size/usedIn/replaces/priority 형식) (7) 최종 제안 A/B/C. 마지막에 plain-text handoff 출력(마크다운 테이블 금지).
+- 보고서만 작성, PR/머지 불필요(단 검은박스 등 버그 수정 시 평소 PR 흐름).
+
+### 활성 인프라
+- **Supabase**: `zoacryukmdeivmolvyhj`, gemini-proxy edge function 활성. 배포 기본 `EXPO_PUBLIC_LLM_MODE=mock`.
+- **Deploy**: main push → GitHub Pages 자동(~2–3분). Live: <https://simon-yhkim.github.io/2nd-B/>.
+- **현재 그래프 아트 자산**: 전부 `public/assets/2ndb-closeout-v3/` 사용 중 (islands/workers/tier-icons/shards/auth). 구 팩(2ndb-refine, premium-closing, cosmic-pixel-v2 등)은 일부 잔존하나 IslandArt/WorkerSprite/TierIcon는 closeout-v3를 참조.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **reference assetization audit 보고서 완료** (위 미완료 항목) | medium | ⭐ 사용자 직전 요청, 이어서 진행 |
+| B | audit 결과의 P0 항목 즉시 수정 (검은박스 wrapper 등 버그성) | small | A의 부산물 |
+| C | Wiki 딥 리스타일 / 평가 화면 questionnaire 프리미엄 컴포넌트 | medium | 이전부터 누적된 잔여 |
+| D | 실제 Gemini 라이브 연결 (mock→live, Vertex 권장) | small(설정) | XPRIZE 대비 |
+
+### 적용 중인 정책 (영구 — 이번 세션 재확인)
+1. **PR 흐름**: fresh main에서 새 브랜치 → draft PR → **CI(verify+lint) 그린 확인 후** squash 머지 → 사후 보고. (이번 세션 한 번 CI 확인 전 머지 실수 있었음 — 반드시 그린 먼저.)
+2. **브랜치 패턴**: `git fetch origin main && git checkout main && git reset --hard origin/main` 후 새 브랜치.
+3. **순수 로직은 별도 모듈 + jest 테스트** (world-layout, zoom-math, import-external 등). UI는 컴포넌트 얇게.
+4. **C1~C12 + forbidden lexicon** 강제. 임상어/기술어(RAG/vector/embedding/classifier) UI 노출 금지.
+5. **메인 그래프는 라이트 모드에서도 항상 다크** (PremiumAppShell이 ForceDark로 children 감쌈).
+6. **둥근모꼴(NeoDunggeunmo) 픽셀폰트 전역**, 단 긴 한글 본문/바텀시트 설명은 `fontFamilies.readable`(Pretendard/system).
+7. 강제 푸시/main 직접 푸시/`.env` 커밋 금지.
+
+### 핵심 파일 위치
+```
+src/components/graph/NavGraph.tsx          그래프 본체 (제스처/섹터/포커스/노드시트/워커 마운트)
+src/components/graph/world-layout.ts       순수 6섹터 레이아웃 + sectorFocus (테스트됨)
+src/components/graph/zoom-math.ts          clampPanFree/cameraOffHome 등 (테스트됨)
+src/components/graph/CharacterPathLayer.tsx 워커 커뮤트 (글로벌 클럭, 마운트 리셋 없음)
+src/components/art/IslandArt.tsx           도메인 섬 PNG (closeout-v3)
+src/components/art/WorkerSprite.tsx        7 워커 6프레임 워크 스트립 (글로벌 클럭)
+src/components/art/TierIcon.tsx            tier3/4 조각 아이콘 (paper/book/link/...)
+src/app/(auth)/sign-in.tsx                 transparent auth hero + eye icon
+src/components/ui/InlineLoader.tsx         브랜드 로더
+src/lib/theme/ThemeContext.tsx             ForceDark
+src/theme/typography.ts                    NeoDunggeunmo + fontFamilies.readable
+public/assets/2ndb-closeout-v3/            현재 그래프 아트 자산 (islands/workers/tier-icons/shards/auth)
+```
+
+### 검증
+```bash
+npm run verify   # lint + type + i18n + lexicon + LLM boundary + C1~C12 + jest (627)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# 큐 A — reference assetization audit 보고서 완료부터.
+# 업로드 zip 4개: /root/.claude/uploads/bb7deded-fdd7-42d2-b73f-0a60ec4d3d1c/
+```
+
+---
+
+
+---
+## 2026-05-29 / v2 design-pack integration — 10 packs + onboarding (PR #41–#51)
+
+### 어디까지 왔나
+- **main HEAD**: `3570a8b`
+- 이번 세션 머지된 PR (11개, 전부 squash + CI green):
+  - #41 Phase-3 F/C/E/D + 세컨비 rename + lightCosmic + walker/signature/source-chips
+  - #42 Cosmic Pixel Graph Village mobile (Phase 1/2: bottom-sheet, zoom-tier-gating 0.65/1.1, mint highlight+dim, bigger nodes)
+  - #43 SecondB sprite pack v2 + **cosmic entry surface** (sign-in/loader → cosmic; fixed "라이브에 변화 없음" = 변경이 로그인 뒤라서)
+  - #44 companion sprite pack v2 (모모/루루/아치/벨라/가디 event characters)
+  - #45 mobile-graph pack v2 (v2 node art + HUD 버튼)
+  - #46 SecondB chat v2 (node context pill, 참고한 조각 grounding, reference drawer, quick actions)
+  - #47 Core Brain / 나의 중심 화면 (`/core-brain`)
+  - #48 Imagine / 공상 작업실 **생성 파이프라인** (큐 B 완료 — Gemini `purpose:"imagine"`)
+  - #49 journal/capture v2 (오늘의 조각 / 조각 담기 + graph-link success)
+  - #50 wiki/records v2 (지식 창고 + 검색 + handoff)
+  - #51 first-run onboarding + empty graph state
+- 테스트: **562 / 562 green** (57 suites). `npm run verify` 전부 통과 (lint 0 error · type · i18n parity · forbidden lexicon · LLM boundary · C1~C12).
+- working tree: clean.
+
+### 활성 인프라
+- **Supabase**: `zoacryukmdeivmolvyhj` (변경 없음). **gemini-proxy v5 ACTIVE**.
+- **LLM 모드**: 배포 기본 `EXPO_PUBLIC_LLM_MODE=mock`. imagine/chat/persona 모두 mock에서도 동작(구조화 mock stub 포함). 실제 생성은 `GOOGLE_API_KEY`(또는 Vertex) repo Variable 설정 시.
+- **Deploy**: main push → GitHub Pages 자동 (~2–3분). Live: <https://simon-yhkim.github.io/2nd-B/>.
+- **SVG 렌더 방식**: 모든 v2 픽셀 에셋은 `react-native-svg`의 `SvgXml` + 생성된 `*Xml.ts` 모듈로 렌더. **svg-transformer 안 씀**(metro/배포 안전). raw 에셋은 `public/assets/cosmic-pixel-v2/<pack>/`에 커밋(무거운 PNG preview는 제외). `eslint.config.mjs`가 `public/**` ignore.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **world-coordinate(1200×1600) 그래프 마이그레이션** (mobile-graph pack §3). 현재 NavGraph는 반응형 ring 레이아웃; 고정 월드 + translate/scale로 전환. `layout/mobile_graph_layout_example.json` 참고. **유일한 고위험 항목** — 작동 중인 제스처/clamp(`zoom-math.ts`) 코어를 건드림 | large | ⭐ 라이브 미리보기 보며 신중히. 항목별 highlight-on-return(B)이 여기 딸려옴 |
+| B | **records 브라우저 + record/wiki-page 상세 화면** + 항목별 "그래프에서 보기" highlight-on-return (wiki-records §5/§6/§7, journal-capture §7-7). 그래프가 wiki_pages 기준이라 record-id 하이라이트 배선 필요 | medium-large | A와 묶으면 자연스러움 |
+| C | **남은 companion event 트리거 연결**: auditCompleted/wikiSaved(모모), linkImported(루루), connectionFound/personaUpdated(아치), safetySoftStop/clear(가디). `companionEventMap`에 다 정의됨, trigger site만 연결 | small-medium | |
+| D | **persona 5필드 상세**(who/forWhom/goal/do/fuel) 데이터 계약 — core-brain "나의 모습"이 현재 collecting state. 백킹 데이터 없어 보류 중 | medium | data_contract 먼저 |
+| E | **CharacterPathLayer walker 모션 고도화** + sprite walk frames(이미 placeholder drift만), SecondB FAB notification/chat_ready 트리거, sleep-on-idle | medium | |
+| F | **실제 Gemini 생성 연결** (현재 mock) — imagine/chat/persona를 라이브로. `GOOGLE_API_KEY` repo Variable + `EXPO_PUBLIC_LLM_MODE=live` | small(설정) | XPRIZE는 Vertex 권장 |
+
+### 적용 중인 정책 (영구 — 이번 세션 재확인)
+1. **CI 자동 머지**: PR 만들고 CI(lint+verify) green이면 draft 해제 → squash merge → 사후 보고. 사용자 명시.
+2. **Branch 패턴**: 각 작업마다 `git fetch origin main && git checkout -b claude/<name> origin/main` (fresh main 위에서). 이전 PR 머지 후 새 작업은 새 브랜치.
+3. **에셋 팩 통합 패턴**: zip → `public/assets/cosmic-pixel-v2/<pack>/` (무거운 PNG 제외) → 필요한 SVG만 `node`로 `src/components/art/<pack>Xml.ts` 생성 → `SvgXml`로 렌더. CSS 토큰은 기존 `cosmic.*` alias(중복 금지).
+4. **날조 금지**: data_contract 원칙 — evidence 없는 요약/필드는 collecting/empty state로. (core-brain, imagine 등)
+5. **C1~C12 강제** + **forbidden lexicon**(임상어 금지). `npm run check:constraints`.
+6. **유저-facing vs 코드 식별자 분리**: 화면 = "나의 중심/오늘의 조각/조각 담기/지식 창고/공상 작업실/세컨비", 코드 route = `/core-brain`,`/journal`,`/capture`,`/wiki`,`/imagine`,`/jarvis`(+`jarvis_chat` purpose) 유지.
+7. **DESIGN.md**: cosmic 팔레트 + accent budget(primary mint + 5 signal, 화면당 ≤3) + 뽁 overshoot + signature motion. 캐릭터는 보조자, 그래프가 주인공.
+
+### 핵심 파일 위치 (이번 세션)
+```
+src/components/art/                  SvgXml art layer (CosmicPixel/SecondBSprite/CompanionSprite + *Xml.ts 생성물)
+src/components/graph/NavGraph.tsx    bottom-sheet · zoom-tier-gating · mint highlight/dim · v2 node art · 공상/세컨비 handoff
+src/components/graph/tier-visibility.ts  zoom→tier 순수 헬퍼 (테스트됨)
+src/components/motion/useSignatureMotion.ts  save-pop / connection-glow / imagine-pulse 훅
+src/app/core-brain.tsx (NEW)         나의 중심 화면 (+ evidence drawer)
+src/app/imagine.tsx                  공상 생성 파이프라인 (states + 카드 + 저장)
+src/app/onboarding.tsx (NEW)         5단계 첫 진입
+src/app/jarvis.tsx                   세컨비 chat — node context pill · grounding · reference drawer · quick actions
+src/app/{journal,capture,wiki}.tsx   오늘의 조각 / 조각 담기 / 지식 창고 (+ momo/lulu cue, graph-link success, 검색)
+src/lib/llm/imagine.ts (NEW)         IMAGINE_SYSTEM + parseImagineResult(순수, 테스트됨)
+src/lib/llm/{types,gemini}.ts        purpose "imagine" 추가 + 구조화 mock
+src/lib/persona/{center,evidence}.ts 나의 중심 카드 + evidence 매핑 (테스트됨)
+src/lib/onboarding/state.ts          온보딩 완료 플래그
+src/lib/theme/tokens.ts              cosmic + lightCosmic + cosmicSky + FX 토큰
+public/assets/cosmic-pixel-v2/*      10개 팩 raw 에셋
+```
+
+### 검증
+```bash
+npm run verify   # lint + type + i18n + lexicon + LLM boundary + C1~C12 + jest (562)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# 큐 A (world-coordinate 그래프 마이그레이션) 부터 — 단, 라이브 미리보기 보며 신중히
+```
+
+---
+## 2026-05-29 / Cosmic Pixel Graph Village Phase 1 (PR #39 merged)
+
+### 어디까지 왔나
+- **main HEAD**: `6df18d1` ([PR #39](https://github.com/Simon-YHKim/2nd-B/pull/39))
+- 이번 세션 머지된 PR: **#39** — 9 commits 통합 squash (nav 정리 + persona 통합 + 정량 도구 + capture + 인사이트 + Cosmic Phase 1)
+- 테스트 상태: **509 / 509 green** (47 suites)
+- working tree: clean
+- diff: **41 files, +3,345 / -823**
+
+### 마지막 작업 성실성 audit (2026-05-29 KST)
+세션 종료 직전 self-audit 완료:
+
+| 항목 | 결과 |
+|---|---|
+| 12개 신규 파일 main 에 존재 | ✅ (bfi.ts / characters.ts / QuantIntroModal+Pager / CharacterPathLayer / imagine.tsx / 보고서 HTML 등 전부 사이즈 확인) |
+| tipi.ts + tipi.test.ts 삭제 | ✅ ENOENT 확인 |
+| `npm run verify` on `6df18d1` | ✅ 509/509 tests, lint + typecheck + i18n parity + forbidden lexicon + LLM boundary + C1~C12 모두 PASS |
+| PR #39 CI | ✅ lint + verify ×2 모두 success |
+| squash merge stat 일관성 | ⚠ PR description "44 files, +2,683" → 실제 "41 files, +3,345" (squash 통합 + lockfile 차이, 기능 누락 없음) |
+| 의도된 변경 누락 | 없음 |
+
+### 활성 인프라
+- **Supabase project**: `zoacryukmdeivmolvyhj` (변경 없음)
+- **gemini-proxy edge function**: **v5 ACTIVE** — multimodal OCR (image base64 ≤2.7MB)
+- **CI**: GitHub Actions verify + lint 모두 green
+- **Deploy**: GitHub Pages auto-deploy on main push (~2-3분)
+- **신규 deps** (이번 세션): `pdfjs-dist@^5.7`, `mammoth@^1.12` (`--legacy-peer-deps` 로 install)
+
+### 사용자 confirm 필요 (전 세션 종료 시점)
+| # | 항목 | 비고 |
+|---|---|---|
+| ① | brand color sky-blue → mint (#72F2C7) 유지? | 모든 primary button/accent 색 변경. 어색하면 되돌리기 |
+| ② | 라이트 모드 정책 — cosmic-light palette 필요? | 핸드오프 "main 다크 유지" 명시, 부수 화면 토글은? |
+| ③ | 6 캐릭터 sprite asset 발주 path | 외주 / Gemini 생성 / 직접 도트 선택 |
+| ④ | /imagine LLM pipeline 시점 | Gemini purpose enum 에 "imagine" 추가 결정 |
+| ⑤ | BFI-44 ↔ 기존 TIPI 호환 | 척도 다름 (1-7→1-5). 자동 마이그레이션 불가, Simon 본인 재평가 필요 |
+| ⑥ | PR 사이즈 정책 | #39 가 41 files. 다음 PR 부터 묶음당 분리 원하면 정책 변경 |
+
+상세: `docs/2026-05-29-session-cosmic-phase1-report.html`
+
+### 다음 작업 큐 (Phase 3 후보)
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **6 캐릭터 sprite asset 제작** + CharacterPathLayer 의 placeholder → `<Image>` swap | medium-large | ⭐ confirm ③ 의 답에 따라 외주/생성/직접. 동시에 imagine.tsx 의 velaSpriteSlot 도 swap |
+| B | **/imagine LLM pipeline wiring** — Gemini `purpose: "imagine"` 추가 + classify-track + 출력 카드 7섹션 동적 채움 | medium | confirm ④ 시작 시 |
+| C | **persona / core-brain 카드 구조 §7-2 재편** — "지금 가장 밝은 방향" / "요즘 불 켜진 동네" / "이걸 만든 조각" 카드 | medium | Cosmic Phase 1 의 5번 항목 완성 |
+| D | **signature motion** — 저장 (루루 뽁) / 연결 발견 (아치 라인 켜짐) / 공상 (벨라 핑크 신호) animation system | medium-large | 핸드오프 우선순위 8 |
+| E | **voice sweep 잔여** — BFI / MBTI / ECR-S / Interview / Wiki 의 clinical 잔여 → Core Brain 일인칭 복수 | medium | HANDOFF B 잔여 |
+| F | **DESIGN.md 3-color rule 갱신** — cosmic accent 5-6색 정책 명확화 | small | 다른 PR 시작 전 권장 |
+| G | **lightCosmic palette 설계** (confirm ② = "필요" 답 시) | small-medium | semantic 의 light 매핑 추가 |
+
+### 적용 중인 정책 (영구 — 이번 세션 reaffirmed)
+1. **CI 자동 머지**: PR 만들고 CI 그린되면 squash auto-merge. PR #39 이 그렇게 머지됨.
+2. **Branch reset 패턴**: 이전 PR 머지 후 `git fetch origin main && git reset --hard origin/main`. 안 하면 충돌.
+3. **개발 branch**: 각 세션마다 자기 branch 만들기 (예: `claude/previous-session-handoff-uszkl`). 같은 branch 누적 push 도 가능하지만 PR 사이즈가 커짐 — confirm ⑥ 정책 결정 대기.
+4. **C1~C12 강제** — `npm run check:constraints` CI 에서 강제. 약화 금지.
+5. **forbidden lexicon** — 자세한 단어 목록은 `src/lib/safety/lexicon.ts`. character voice 라인 단위 테스트 + CI scan 으로 defense in depth.
+6. **DESIGN.md** bounce/elastic 금지. PR #34 의 뽁 overshoot 만 명시 예외.
+7. **개발명 vs 유저-facing 분리**: 코드 식별자 = "Core Brain", 화면 문구 = "나의 중심" (handoff §7-2 정책).
+
+### 핵심 파일 위치 (이번 세션 변경)
+```
+src/lib/theme/tokens.ts                     cosmic palette + characters + semantic 매핑 pivot
+src/lib/characters.ts (NEW)                 6 캐릭터 roster + voice + 라우트 매핑
+src/lib/persona/bfi.ts (NEW)                BFI-44 44문항 + friendly subtitle
+src/lib/persona/build.ts                    loadLatestMbti/Attachment/Bfi + traitsSource
+src/lib/persona/mbti.ts                     16 → 32 items + subtitle
+src/lib/persona/attachment.ts               + subtitle 12개
+src/lib/audit/frameworkLabels.ts (NEW)      Framework KO/EN 라벨
+src/lib/wiki/capture.ts                     userTags + track frontmatter 영속화
+src/lib/wiki/capture-file.ts                PDF/DOCX dynamic import (web)
+src/components/quant/QuantIntroModal.tsx (NEW)  시작 사전고지 modal
+src/components/quant/QuantPager.tsx (NEW)       5문항/페이지 + progress
+src/components/graph/CharacterPathLayer.tsx (NEW)  6 캐릭터 placeholder (asset slot)
+src/components/graph/NavGraph.tsx           cosmic 색상 + imagine 노드 + 나의 중심 label
+src/app/imagine.tsx (NEW)                   공상 작업실 scaffold (Vela accent)
+src/app/big-five.tsx / mbti.tsx / attachment.tsx  Pager + IntroModal 적용
+src/app/persona.tsx                         MBTI/Attachment 카드 + 출처 라벨
+src/app/index.tsx                           FAB sprite block + ribbon "나의 중심"
+src/app/insights.tsx                        Core Brain 일인칭 복수 voice
+src/app/capture.tsx                         userTags + track 전달
+docs/2026-05-29-session-cosmic-phase1-report.html (NEW)  세션 보고서
+```
+
+### Asset slot 명세 (Phase 3 swap 1-line)
+| 위치 | 영역 | 필요 asset |
+|---|---|---|
+| `src/components/graph/CharacterPathLayer.tsx` styles.body ×6 | 16×14 each | `{id}-idle.png` (secondb/momo/lulu/archi/vela/gadi) |
+| `src/app/imagine.tsx` styles.velaSpriteSlot | 64×64 | `vela-idle@2x.png` |
+| `src/app/imagine.tsx` styles.sceneSlot ×3 | 88×88 each | 장면 thumbnail/illustration |
+| `src/app/index.tsx` styles.jarvisFabSprite | 26×22 | `secondb-idle.png` (FAB 안) |
+| `src/app/index.tsx` styles.mascotSlot | 52×52 | `secondb-idle@2x.png` (ribbon left) |
+
+### 검증
+```bash
+npm run verify            # lint + type + i18n + lexicon + LLM boundary + constraints + jest (509 tests)
+npm run check:constraints # C1~C12 단독
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# Phase 3 시작 — confirm 6 항목 답 받고 큐 A~G 진행
+```
+
+근거 파일:
+- `docs/2026-05-29-session-cosmic-phase1-report.html` — 세션 보고서 (palette swatch + confirm 카드)
+- 핸드오프 원본: `uploads/d8550591-65ae-4ac1-b720-2d6ef26ea366/277276a6-2ndB_pixel_graph_village_revised_handoff.html` (1914 lines)
+- PR #39: <https://github.com/Simon-YHKim/2nd-B/pull/39>
+
+---
+## 2026-05-27 / Constellation v2 + 세컨비 + Capture v2
+
+### 어디까지 왔나
+`main` 의 `61e784f` 까지 4개 PR 머지 (#31 → #34). **471/471 tests green**, working tree clean, gemini-proxy **v5 ACTIVE** (multimodal OCR enabled).
+
+| # | SHA | What |
+|---|---|---|
+| #31 | `e8e9456` | base components (Text/Button/Input) `useThemePalette()` 추적 + 라이프 오딧 → 과거의 나 rename |
+| #32 | `f257b88` | /capture v2 — 5 모드 (메모/링크/스크랩/OCR/문서) + 일상/Pro 토글 + Gemini multimodal OCR + LLM 자동 분류 |
+| #33 | `d87d6fa` | 로고 페이드 후 티어 1→4 순차 노드 등장 (랜덤) + Web Audio "뽁!" 합성음 + 엣지 reveal |
+| #34 | `61e784f` | drift seamless loop + tier hue 분리 + 펄스 30% 단축 + 말풍선 뽁 + Core Brain voice + Jarvis→세컨비 + intro 모달 + viewport zoom lock |
+
+### 활성 인프라
+- **Supabase project**: `zoacryukmdeivmolvyhj`
+- **gemini-proxy edge function**: **v5 ACTIVE** — multimodal OCR (image base64 ≤2.7MB, mime allowlist jpeg/png/webp/heic/heif), 안전 preamble + crisis 분류 유지
+- **CI**: GitHub Actions verify + lint 둘 다 그린
+- **Deploy**: GitHub Pages auto-deploy on main push (~2–3 min)
+
+### 다음 작업 큐 — PR #34 의 follow-up
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **그래프 자체 pinch/wheel zoom** — `react-native-gesture-handler` + `react-native-reanimated` 로 `NavGraph` root 에 `GestureDetector` wrap. 페이지 viewport 는 이미 lock 됨 (`src/app/+html.tsx`) | medium | ⭐ PR #34 에서 "follow-up 별도 PR" 로 명시한 유일한 항목 — 가장 먼저 권장 |
+| B | **전체 문구 sweep** — Insights / Trinity / Interview / Wiki 화면들이 아직 clinical voice. Core Brain 일인칭 복수 ("우리") 로 전환 | medium-large | i18n keys 만지면 EN↔KO parity 깨지지 않게 주의 (C7) |
+| C | **`sources.wiki_track` DB 마이그레이션** | medium | PR #32 의 하이브리드 옵션 C 의 phase 2 (당시 phase 1 만 처리). Supabase migration + ingest layer 가 컬럼 읽도록 업데이트 |
+| D | **태그/track 영속화** | small-medium | PR #32 capture flow 가 LLM 분류 결과를 Alert 만 보여주고 frontmatter 업데이트는 안 함. **C 와 묶어 처리 권장** |
+| E | **PDF/DOCX 바이너리 텍스트 추출** | medium | 현재 capture-file.ts 는 text MIME 만 추출. `pdfjs-dist` (PDF) + `mammoth` (DOCX) 추가 |
+
+### 적용 중인 정책 (영구)
+
+1. **CI 자동 머지**: PR 만들고 CI 그린되면 자동 squash merge → 사용자에게 사후 보고. 사용자가 명시한 정책.
+2. **Branch reset 패턴** (충돌 회피): 이전 PR squash 머지 후 새 PR 시작 전 항상:
+   ```bash
+   git fetch origin main && git reset --hard origin/main
+   # 새 commit 만들기 전에 fresh main 위에서 시작
+   ```
+   안 하면 PR #34 머지 시 충돌 났던 그 패턴 반복.
+3. **개발 branch**: 사용자 환경마다 다름. 현재 세션은 컨테이너에 따라 `claude/exciting-galileo-Qapf4`, `claude/previous-session-handoff-uszkl` 등. **각 새 세션에서 자기 branch 로 작업 → PR → 머지**.
+4. **C1~C12**: `npm run check:constraints` 가 CI 에서 강제. 약화 금지.
+5. **DESIGN.md**: bounce/elastic 금지가 원칙. PR #34 의 뽁 overshoot (1.25× cap, ~400ms) 은 사용자 명시 예외 — 새로 추가하는 overshoot 도 같은 톤 유지.
+
+### 핵심 파일 위치 (이번 세션에 변경된 것)
+
+```
+src/components/graph/NavGraph.tsx              drift/spawn/pulse/bubble/색상/엣지
+src/app/index.tsx                              Core Brain ribbon + mascot 자리
+src/app/+html.tsx (NEW)                        viewport zoom lock
+src/app/capture.tsx                            5-mode capture
+src/app/jarvis.tsx                             세컨비 + intro modal
+src/lib/audio/pop.ts (NEW)                     Web Audio "뽁!" synth
+src/lib/wiki/capture-image.ts (NEW)            Gemini multimodal OCR
+src/lib/wiki/capture-file.ts (NEW)             DocumentPicker
+src/lib/wiki/classify-track.ts (NEW)           LLM tag/track suggestion
+src/lib/llm/types.ts                           image? field + capture purposes
+src/lib/llm/gemini.ts                          image forward to proxy
+supabase/functions/gemini-proxy/index.ts       v5 — multimodal support
+locales/{ko,en}/jarvis.json                    세컨비 strings + intro
+```
+
+### 검증
+
+```bash
+npm run verify                # 풀 게이트: lint + type + i18n + lexicon + LLM boundary + constraints + jest (471 tests)
+npm run check:constraints     # C1~C12 단독
+```
+
+### 다음 세션 시작하는 법 (간단)
+
+```bash
+git fetch origin main
+git checkout main && git pull
+# 또는 자기 branch 에서
+git fetch origin main && git reset --hard origin/main
+# 이 파일 읽기
+cat docs/HANDOFF.md
+# A 작업부터 시작 (또는 사용자 선택)
+```
+
+---
+## Sprint 0 (historic) — 2026-05-25
+## 1. What is live right now
+
+| Artifact | Status | Link |
+|---|---|---|
+| Web preview (Expo Web → GitHub Pages) | 🟢 Live, HTTP 200 | <https://simon-yhkim.github.io/2nd-B/> |
+| GitHub repo | 🟢 main + claude/awesome-clarke-ZJgc3 | <https://github.com/Simon-YHKim/2nd-B> |
+| Merged PR | 🟢 #3 closed | <https://github.com/Simon-YHKim/2nd-B/pull/3> |
+| Expo project (placeholder, no builds pushed) | 🟡 Empty dashboard | <https://expo.dev/accounts/simon_k/projects/2nd-brain> |
+| Supabase project | 🟡 Migrations applied via Edge Function; client env vars not set on Pages build | — |
+| Gemini API | 🟡 Mock mode only (`EXPO_PUBLIC_LLM_MODE=mock`); no key configured | — |
+
+The deployed Pages build runs with **demo Supabase placeholders** (`demo.invalid.supabase.co`) — landing page shows a yellow demo-mode banner. Real auth/save will only work once real Supabase repo Variables are set.
+
+---
+## 2. The 12 hard constraints — never weaken these
+
+CI-enforced via `npm run check:constraints`. C1–C10 + C12 PASS; C11 PARTIAL.
+
+| ID | Rule | Location |
+|---|---|---|
+| C1 | All LLM calls through `src/lib/llm/gemini.ts`; foreign LLM SDKs blocked | ESLint flat config + `scripts/check-llm-import-boundary.ts` |
+| C2 | `@google/genai` with `vertexai: true` when `EXPO_PUBLIC_USE_VERTEX=true` | `src/lib/llm/gemini.ts` `getClient()` |
+| C3 | `ai_audit_log` INSERT on every Gemini call (including mock + crisis) | wrapper `insertAiAuditLog()` |
+| C4 | `revenue_events` has `month_bucket` + `is_related_party` + `customer_relation_type` | migration 0005 + 0010 trigger |
+| C5 | `testimonials.consent_given_at NOT NULL` | migration 0006 |
+| C6 | Judge mode auto-flag for `@xprize.org`, `@devpost.com`, `@hacker.fund` | DB trigger 0010 + `src/lib/judge/domains.ts` |
+| C7 | i18n EN ↔ KO key parity, EN canonical | `scripts/check-i18n-keys.ts` |
+| C8 | `knowledge_sources` requires DOI/URL + verification pair | migration 0007 + 0014 |
+| C9 | `classifyInput()` runs before any LLM call; red zone short-circuits | `src/lib/llm/gemini.ts` + `src/lib/safety/classifier.ts` |
+| C10 | Age-tiered sign-up: 14-17 self-consent minors + adults direct; <14 guardian consent (PIPA §22-2) | migration 0028 + `src/lib/supabase/auth.ts` + `BirthDateField` |
+| C11 | Support SLA = 2 business days (KST) | README §Support · auto-responder Sprint 1 |
+| C12 | README "Pre-existing assets used" section | README §Pre-existing assets |
+
+**Vocabulary policy**: Forbidden lexicon scan (`scripts/check-forbidden-lexicon.ts`) blocks 7 EN + 4 KO clinical terms. Source of truth: `src/lib/safety/lexicon.ts`. Allowlist: `LEXICON_SCAN_ALLOWLIST` in the same file.
+
+---
+## 3. RAG engines — all 6 wired
+
+`src/lib/knowledge/` + `src/lib/llm/`. 121/121 tests pass.
+
+| Engine | File | Pure / IO |
+|---|---|---|
+| **retrieve** | `src/lib/knowledge/retrieve.ts` `retrieveEvidence` | IO (Supabase queryRows) |
+| **classify** | `src/lib/llm/safety.ts` `classifySafety` (lexicon + Gemini Flash conservative union) | IO (Flash) |
+| **rank** | `src/lib/knowledge/retrieve.ts` `rankRows` | Pure |
+| **fuse** | `src/lib/knowledge/engines.ts` `fuseFrameworks` (round-robin multi-framework) | Pure |
+| **distill** | `src/lib/knowledge/engines.ts` `distillContext` (first+last+packed-middle) | Pure |
+| **memorize** | `src/lib/knowledge/engines.ts` `buildMemorizedPattern` → `memorized_patterns` table | Builder pure; INSERT in `records/create.ts` |
+
+Cross-engine feedback loop: journal entry → callAdvisor → memorize → `memorized_patterns` → `buildPersona` reads histogram → persona screen surfaces top-3 pattern kinds.
+
+---
+## 4. Three CSO audit findings closed this sprint
+
+| # | Severity | File | Fix |
+|---|---|---|---|
+| 1 | 9/10 | `src/lib/llm/gemini.ts:329-410` | `callAdvisor` now re-classifies Gemini Pro output; RED swap to `fixedCrisisResponse` + insert crisis_event with `output_swap` trigger |
+| 2 | 8/10 | `src/lib/knowledge/retrieve.ts:215-260` | `<UNTRUSTED type="...">` fences around user-influenced data (knowledge_sources rows, conversationContext, user_message) + sanitizer + INJECTION GUARD rubric |
+| 3 | 9/10 | `db/migrations/0016_drop_admin_exec_sql.sql` | Dropped SECURITY DEFINER `admin_exec_sql` after seeding completed (94 rows in `knowledge_sources`) |
+
+Finding #4 (anonymous-callable Edge Function `seed-knowledge-base`) is functionally neutralized by #3 — RPC is gone so any call returns PostgREST 404. Remote function deletion is a Supabase admin action.
+
+---
+## 5. What needs to happen next — ordered by impact
+
+### 5.1 To make the live URL functional (not just a UI preview)
+
+1. **Set Supabase repo Variables** in GitHub Settings → Secrets and variables → Actions → Variables:
+   - `EXPO_PUBLIC_SUPABASE_URL` = your project URL
+   - `EXPO_PUBLIC_SUPABASE_ANON_KEY` = your anon key
+2. **Re-push to main** (or `workflow_dispatch` the `Web preview (GitHub Pages)` workflow). Build re-runs, demo banner disappears, auth/save work end-to-end.
+3. **Verify** by signing up with a test email, completing the 5-question audit, viewing the persona screen.
+
+### 5.2 To enable native iOS/Android builds in the Expo dashboard
+
+1. `eas login` and `eas init --id <your-project-id>` (the `2nd-brain` slug already matches).
+2. `eas build --platform ios --profile preview` (or `--platform android`).
+3. Apple Developer account ($99/yr) required for iOS TestFlight; Android needs Google Play Console ($25 one-time).
+4. Both platforms can be built via Expo's hosted infra; no local Xcode/Android Studio needed.
+5. EAS profile config lives in `eas.json` (checked in, untouched).
+
+### 5.3 To enable live Gemini calls
+
+Pick one path:
+- **Direct API**: set `GOOGLE_API_KEY` repo Variable. Set `EXPO_PUBLIC_LLM_MODE=live` in the workflow env.
+- **Vertex AI** (recommended for XPRIZE judge claim — uses Google Cloud product): set `EXPO_PUBLIC_USE_VERTEX=true` + `GOOGLE_CLOUD_PROJECT=<your-project>` + ADC credentials via OIDC or service account.
+
+The wrapper picks the path automatically based on env (`src/lib/llm/gemini.ts:40-57`).
+
+### 5.4 C11 auto-responder (PARTIAL → PASS)
+
+Currently README has SLA text + GitHub workflow skeleton at `.github/workflows/issue-sla.yml`. Missing:
+- Gmail filter for `support@2nd-brain.app` → autoresponder template with 2-business-day SLA wording (EN + KO)
+- Devpost mobile push notification on inbound message
+- Auto-tag GitHub issues received outside business hours with `outside-hours` label
+
+---
+## 6. Pending Sprint 1 work surfaced this session
+
+| Item | Notes |
+|---|---|
+| Forgot-password flow | `src/app/(auth)/sign-in.tsx` shows Alert placeholder. Real flow needs Supabase `resetPasswordForEmail` + new screen for the recovery token redirect. |
+| Engine eval harness | RAG retrieval works but no eval set exists. Build 50–100 prompt/expected-evidence pairs to score retrieve+rank quality. |
+| Android widget | `react-native-android-widget` is in package.json, no widget code yet. Sprint 2 per blueprint. |
+| OTA channel | EAS Update for over-the-air JS updates. Wire after first `eas build` succeeds. |
+| Sentry + PostHog | env vars wired in `src/lib/env.ts` (optional); no init code yet. |
+| Persona LLM extraction | Currently heuristic over 5-keyword regex. Full LLM extraction needs ≥50 entries per user (Sprint 3 per blueprint). |
+
+---
+## 7. How to resume work in cowork
+
+```bash
+git clone https://github.com/Simon-YHKim/2nd-B.git
+cd 2nd-B
+cp .env.example .env  # fill in Supabase + Gemini values
+npm install --legacy-peer-deps
+npm run verify        # full gauntlet: lint + tsc + i18n + lexicon + boundary + constraints + jest
+npm start             # Expo dev server
+```
+
+**Per-PR checklist** before push:
+- `npm run verify` clean
+- `npm run check:constraints` 12/12 PASS (or 11 PASS + C11 PARTIAL until auto-responder lands)
+- Update `CHANGELOG.md` if exists (currently no CHANGELOG — add when version bumps land)
+- If touching `src/lib/safety/lexicon.ts`, double-check `check-forbidden-lexicon.ts` still passes (LEXICON_SCAN_ALLOWLIST is the escape hatch for legitimate uses in safety code itself)
+
+**Key files to know:**
+```
+src/lib/llm/gemini.ts          # C1/C2/C3/C9 entry point — touch with caution
+src/lib/safety/classifier.ts   # red/yellow/green lexicon classifier
+src/lib/safety/lexicon.ts      # SINGLE SOURCE OF TRUTH for forbidden + crisis terms
+src/lib/knowledge/retrieve.ts  # RAG retrieve + rank + fuse + prompt assembly
+src/lib/knowledge/engines.ts   # fuse, distill, memorize (pure functions, easy to test)
+src/lib/env.ts                 # zod-validated runtime env with demo fallback
+db/migrations/                 # 17 migrations, supabase-dry-run CI applies all
+docs/research/CLAUDE.md        # safety rubric loaded into every Advisor LLM call
+docs/research/batches/*.md     # 23 framework batches (Big Five, SDT, Attachment, etc.)
+supabase/seed/*.sql            # 21 seed files, 94 rows already applied
+DESIGN.md                      # design source of truth — read before any UI change
+```
+
+**Commit message convention**:
+- `feat:` new feature · `fix:` bug fix · `polish:` UX/visual polish · `chore:` infra/scaffolding · `docs:` docs only · `security:` security-relevant
+- Subject ≤ 70 chars, body explains the **why** in 2–4 paragraphs
+
+---
+## 8. Skills invoked this session (with artifacts)
+
+10 skills, each produced something durable:
+
+| Skill | Artifact |
+|---|---|
+| `/design-consultation` | `DESIGN.md` (pre-compact) |
+| `/review` | CSO audit findings (pre-compact) |
+| `/health` | Composite quality score 10/10 (pre-compact) |
+| `/update-config` | `.claude/settings.json` (pre-compact) |
+| `/canary` | Health check on live URL + bundle inspection |
+| `/context-save` | `~/.gstack/projects/Simon-YHKim-2nd-B/checkpoints/20260525-100238-sprint-0-shipped-rag-engines-web-live.md` |
+| `/document-release` | Aborted (on base branch — correct per skill rules) |
+| `/retro` | `.context/retros/2026-05-25-1.json` + narrative |
+| `/learn` | 5 entries in `~/.gstack/projects/Simon-YHKim-2nd-B/learnings.jsonl` |
+| `/code-review` | 4 findings, 1 real bug fixed + shipped (`f3d2a02`) |
+
+Skills NOT invoked because they don't apply in this environment:
+- Browse-dependent (qa, design-review, devex-review, scrape, browse, canary screenshots): sandbox Chromium rejects public GitHub Pages cert with `ERR_CERT_AUTHORITY_INVALID`. **In cowork, with a real browser, these will work** — recommend running `/qa` and `/design-review` against the live URL once Supabase vars are set.
+- iOS-only (ios-qa, ios-fix, ios-design-review, ios-sync, ios-clean): no native iOS build yet. Run after `eas build --platform ios` succeeds.
+- Setup/maintenance one-shot (gstack-upgrade, setup-gbrain, setup-browser-cookies, freeze, unfreeze): no work to do on a clean repo.
+
+**Pre-merge skill order to try in cowork** (highest expected ROI first):
+1. `/qa` — systematic test the live URL, fix bugs iteratively
+2. `/design-review` — visual polish on live UI (catches what static review can't)
+3. `/cso` — fresh security audit with browser-level checks
+4. `/codex review` — independent diff review by GPT for pair second-opinion
+5. `/plan-eng-review` — architecture review of what's shipped (catches structural debt)
+
+---
+## 9. Open questions / decisions waiting on you
+
+| # | Question | Default if no decision |
+|---|---|---|
+| Q1 | Supabase project: existing project or fresh one? Project ref + region? | Free-tier in `us-east-1` |
+| Q2 | Gemini access: direct API or Vertex AI? | Vertex (XPRIZE judge mandate) |
+| Q3 | Apple Developer account ready for iOS TestFlight? | Defer iOS to Sprint 1 mid-point |
+| Q4 | Sentry workspace + PostHog project IDs? | Skip telemetry until usage stabilizes |
+| Q5 | Forgot-password flow: email-link or one-time code? | Supabase default (email-link via OTP) |
+| Q6 | Demo banner: keep visible when env vars set but the demo subdomain is intentional? | Banner hides automatically when real URL configured |
+
+---
+## 10. Two things never to commit
+
+- `.env` (gitignored, but verify before `git add`)
+- `.claude/settings.local.json` (per-user, gitignored)
+
+---
+
+_Sprint 0 archive footer (historical — 2026-05-25). Web preview: <https://simon-yhkim.github.io/2nd-B/>. Sprint 0 main was `d45ad4e` (CSS PR #3 merged 09:47 KST 2026-05-25). Current state = the top block, not this line._

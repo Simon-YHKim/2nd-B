@@ -103,7 +103,7 @@
 | 차원 | 심각 | verdict | finding | 처리 |
 |---|---|---|---|---|
 | hygiene | HIGH | CONFIRMED | 31 `## Latest` 마커(30 stale) | ✅ A1 |
-| hygiene | HIGH | CONFIRMED | 3658줄, 아카이브 부재(1000줄 규칙 위반) | ⏳ B2 |
+| hygiene | HIGH | CONFIRMED | 3658줄, 아카이브 부재(1000줄 규칙 위반) | ✅ D |
 | hygiene | MED | CONFIRMED | 대시 혼용(7 `--` / 24 `—`) | ✅ A1 |
 | hygiene | MED | CONFIRMED | TOC/네비게이션 부재 | ⏳ B5 |
 | hygiene | LOW | ADJUSTED | Sprint 0 numbered H2 충돌 | ⏳ B6 |
@@ -133,15 +133,17 @@
 
 ---
 
-## D. 후속 적용 (경로 정리 — 2번째 커밋)
+## D. 후속 적용 (경로 정리 + 아카이브 분할)
 
-Simon 승인("권장대로 진행")으로 **경로 관련 findings**를 정리. 원칙: **과거 블록의 머신 경로는 사실
-기록이라 왜곡하지 않고 그대로 두되(아카이브 §B2 대상), "현행 정책"으로 오도하는 부분만 정정.**
+Simon 승인("권장대로 진행")으로 **경로 관련 findings + 아카이브 분할**을 정리. 원칙: **과거 블록의
+머신 경로/내용은 사실 기록이라 왜곡·삭제하지 않고, "현행 정책"으로 오도하는 부분만 정정하고 오래된
+블록은 이동+링크.**
 
 | 대상 | 수정 | 해소한 finding |
 |---|---|---|
 | `HANDOFF.md` 헤더(Live 줄 다음) | 전역 경로 안내 추가 — 절대경로(`C:\2ndB`·`E:\2ndB`·…)는 로컬·과거 기록이니 신규 작업은 repo-상대 경로 사용, worktree는 CLAUDE.md 규칙이 SoT | §B6 머신 절대경로 오도(LOW) |
 | `HANDOFF.md` L89 "적용 중인 정책(영구)" item 5 | worktree 위치를 `C:/2ndB-dev` 하드코딩 → **CLAUDE.md `.worktrees/` 규칙 참조**로 정정(과거 경로는 규칙 위반임을 명시, 격리·staging 취지는 유지) | §B1 worktree 내부 모순(HIGH×2) |
+| **아카이브 분할** — `HANDOFF.md` **3661→901줄** | 2026-06-27~07-03(19블록)만 live 유지, 이전은 `ARCHIVE-2026-06.md`(43블록)·`ARCHIVE-2026-05.md`(18블록)로 이동 + 맨 아래 포인터. 블록 내용 무손실(sum 3656=3656 검증), 헤더 80개 전부 보존, `## Latest`=1 유지 | §B2 파일 비대화(HIGH) |
 
 - L57(그 세션의 `내 worktree(C:/2ndB-dev) clean` **상태 기록**)은 사실이라 **미변경** — 헤더 안내가 커버.
 - **여전히 열린 항목(Simon 확인)**: 위 수정은 핸드오프가 CLAUDE.md 를 SoT 로 따르게 해 **문서 내부 모순**을
