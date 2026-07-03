@@ -1,5 +1,7 @@
 # 2nd-Brain · Psychology Research Handoff Prompt
 
+> ⚠️ **SUPERSEDED — the maintained master is `docs/research/psychology-handoff.md`.** This condensed predecessor copy is kept for history; edit the `docs/research/` copy, not this one (see the path table in `docs/handoff/build-rag-wiki.md`). Seed outputs live in `supabase/seed/`.
+
 > **사용 방법**: Gemini Deep Research, Claude (Research mode), 또는 새 Claude/ChatGPT 채팅의 첫 메시지로 그대로 붙여넣으세요. 1회 실행이 아닌 반복 사용을 가정합니다 — 한 번 실행하면 한 배치(framework)를 얻고, 검증 후 다음 배치를 요청하는 방식.
 
 > 이 파일은 시몬님이 별도 research 세션을 시작할 때 master prompt로 사용. 산출물(batches + seed)은 `docs/research/batches/` + `db/seed/knowledge-sources-{slug}.sql`로 들어간다.

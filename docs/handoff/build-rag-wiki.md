@@ -32,7 +32,7 @@ Constraints:
 | `/docs/research/batches/{slug}.md` | `/docs/research/batches/{slug}.md` ✓ |
 | `/docs/research/psychology-handoff.md` | `/docs/handoff/psychology-handoff.md` (this file's predecessor) |
 | `/supabase/migrations/20260525000000_create_knowledge_sources.sql` | `/db/migrations/0007_knowledge_sources.sql` (already applied) |
-| `/supabase/seed/{slug}.sql` | `/db/seed/knowledge-sources-{slug}.sql` |
+| `/supabase/seed/{slug}.sql` | `/supabase/seed/{slug}.sql` ✓ |
 | `/supabase/migrations/20260525001000_create_crisis_events.sql` | `/db/migrations/0012_crisis_events.sql` |
 
 ---
@@ -78,7 +78,7 @@ Path B (pgvector) is deferred to v2 after baseline product is in beta.
 
 ## 6. Required Deliverables (mapped to actual repo)
 
-- **6.1 Migration**: `db/migrations/0007_knowledge_sources.sql` already applied. Add `0012_crisis_events.sql` + seed in `db/seed/`. Idempotent via `ON CONFLICT (doi) DO NOTHING`.
+- **6.1 Migration**: `db/migrations/0007_knowledge_sources.sql` already applied. Add `0012_crisis_events.sql` + seed in `supabase/seed/`. Idempotent via `ON CONFLICT (doi) DO NOTHING`.
 - **6.2 Loader module**: `src/lib/knowledge/loader.ts` with `loadSchema()`, `loadBatch(slug)`, `queryRows(filters)`.
 - **6.3 Retrieval module**: `src/lib/knowledge/retrieve.ts` with `retrieveEvidence(input)` returning `{ matchedBatches, rows, schemaContext, assembledPrompt }`.
 - **6.4 Safety Classifier**: `src/lib/llm/safety.ts` with `classifySafety(userMessage, locale)` → `{ zone, triggers, confidence, cssrsLevel }`. Gemini Flash call grounded in C-SSRS + Suicide CARE 2.0.
@@ -142,7 +142,7 @@ Recent themes: {brief summary}
 
 ## 9. Things NOT to do
 
-- Do not modify curated files in `docs/research/batches/` or `db/seed/` without an explicit research-batch update.
+- Do not modify curated files in `docs/research/batches/` or `supabase/seed/` without an explicit research-batch update.
 - Do not modify the Hard Safety Rules (§0) without explicit user approval.
 - Do not let Gemini generate freeform crisis responses. Use fixed templates.
 - Do not log raw user text on crisis events. Categorical features only.
