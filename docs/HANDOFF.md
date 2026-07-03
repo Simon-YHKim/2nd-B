@@ -3,7 +3,51 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-03 (오전) / 컨텍스트-포화 세션 전수 감사 → 결함 8건 픽스 (#730) + A·C 큐 소화
+## Latest — 2026-07-03 (오전 2차) / 🔒 레퍼런스=정본 확정(Simon) → imagine 복원 #734 + 별가루 어휘 정렬 #735
+
+> **Simon 확정 지시(08:56)**: 업로드 zip(2ndB_proto_rev2_Copy — r3와 바이트 동일 확인)
+> = "모든 용어와 디자인 기준은 클로드 디자인이 제공한 자료를 따름".
+> → 감사 라운드의 "결정 대기 7건" 중 용어·디자인 건 **해소**, 작업 큐로 승격됨.
+
+### 확정된 정본 규칙 (영구)
+1. **용어**: 기록 1건 = **별가루** (ref README/CONTEXT "기록 하나하나 = 별가루"). **조각**은
+   도메인 대시보드 집계 표면 전용(sb-audit 동형: home values.domain*Count, deepspace domains.*)
+   + 관용구("막힌 조각", "기억/공상 한 조각")만 생존. 판정 기준 = **표면**, 산문/카운트 아님.
+2. 레퍼런스 원문의 조사 오류(별가루이/별가루을)는 복제하지 않음 — 모음종결 정조사(가/를/로).
+3. 예외 존치: 정직성(서명됨→로컬 생성), 로케일 em-dash 금지, consent 문구는 법무-인접이라 Simon 명시 확인 후.
+
+### 이번 세션 랜딩 (2차)
+- **#734 (c85f0f67, [ota])** imagine 공상-갈래 화면 복원 — ref ImagineScreen 1:1(시드 3종 확장/반전/연결
+  + 다음 한 걸음 + 담기 프리필/Divergent 딥링크), 시드=imagine-seeds.ts(canon 테스트 4), ds.imagine 5로케일,
+  Fabric 가드(외곽 View 비주얼) 준수. OTA 그룹 `3bfe1d08-8ac3-456d-b45f-e615bfe6e000`.
+  ⚠️ 인트로 그라디언트는 SVG 수평 근사(135deg 미지원) — 에뮬 육안 QA 1회 권장.
+- **#735 (6c2a28a5, [ota])** 별가루/조각 어휘 정렬 — 184곳(로케일 63·src 121, 조사 교정), KEEP=표면 규칙,
+  가드 핀 공진화(check-constraints Onboarding J4·WikiHeroI18nCopy) + 테스트 어서션 동기화.
+  OTA 그룹 `45bcbea1-900b-48a0-a023-b62b1e42600b`.
+  스윕 도구: 세션 스크래치패드 term-sweep.js / 매핑 정본: term-map-report.md (Explore 에이전트 산출).
+- 병렬 세션 랜딩(참고): #733 Seen empty state.
+
+### 다음 작업 큐 (레퍼런스 재정렬 트랙 — Simon 정본 확정으로 전부 작업化)
+| # | 작업 | 크기 | 비고 |
+|---|---|---|---|
+| K | star insight 스트립("세컨비 한 줄 해석") + 공통 버튼(채워 넣기/세컨비와 대화) | large | 실데이터 훅 설계 필요 |
+| L | ops 본문 3섹션(오늘의 종합 의견·이번 주 패턴 분석·비서 도구 그리드) + 시간행·undo | large | 데이터 모델 설계 선행 |
+| M | capture 담은뒤 별-분류 스텝(잘 모르겠어요=세컨비 분류로 기존 AI 파이프 재사용) + 왜(Why) 필드 | medium | fourw 스키마 터치 |
+| N | 뮤지엄 사진추가 칩 + ShareCard 배경사진 슬롯(image-picker 기존 dep) | medium | |
+| O | 근거 드로어 명사 → ref 어휘 '근거 기록' 리네임 패스 | small | #735 후속 |
+| G | Fabric Pressable 42곳 스윕 | large | 감사 라운드 발견분 |
+| H | 에뮬 육안 QA: 뮤지엄 레인라벨·NOW·settings 헤더 + **imagine 신규 화면** | small | ⭐ 최우선 |
+- 게이트 유지: `이미지 저장`(expo-media-library, 0.0.8 네이티브 사이클) · consent 문구 · E(plans)/F(0.0.7 폰 QA).
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# H(에뮬 육안 QA)부터, 그다음 K~O 재정렬 트랙. 레퍼런스 정본 = Downloads\2ndB-proto-rev2-r3\ (Copy본은 동일 스냅샷).
+```
+
+---
+
+## 2026-07-03 (오전) / 컨텍스트-포화 세션 전수 감사 → 결함 8건 픽스 (#730) + A·C 큐 소화
 
 > Simon 지시: 직전 /loop 세션(컨텍스트 포화 상태로 15 PR 처리)의 todo 클레임이 실제 구현됐는지
 > 상세 점검하고 미비 시 개선. 5 KO-카피 에이전트 + 6 클레임-검증 에이전트 병렬 감사.
