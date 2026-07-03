@@ -1,116 +1,94 @@
-// Drill-down interview. Separate from /audit (which is a fixed
-// framework-anchored screener) — this is a free-form, LLM-driven
-// probe that descends through 5 narrative layers (FACT → ECHO) within
-// a chosen life period.
+// 심층 인터뷰 — fixed 5-question 회상 인터뷰 Likert screener (clone-audit 13).
 //
-// v0.3 (2026-05-27, docs/ux/2026-05-27-interview-drilldown.html):
-//   - 25-cell live progress matrix (5 layers × 5 periods)
-//   - Per-turn layer label so the user sees what depth a probe is at
-//   - 20-turn hard cap replaced with a "sufficient depth" soft signal
-//     once the active period's 5 layers are each covered once
-//   - Soft cap at 50 turns to protect memory + LLM context
+// Cloned 1:1 from the reference InterviewScreen (sb-screens-know.jsx): a
+// windowed M3 screen over the shared deep-space sky (DeepSpaceScreen active
+// "lens"). Per step: a linear progress bar, one 세컨비-asked headline question,
+// a subtitle, and five tappable outlined answer cards. After the 5th answer a
+// ratify ("이렇게 반영할까요?") view proposes the change and only reflects it on
+// approval (propose→ratify). All colors route through m3.* tokens.
+//
+// The reference screener has no free-text LLM turn, so C9 is not in this
+// screen's path (the classifier stays enforced in gemini.ts). The ratify
+// approval persists the answers through createRecord and hands off to /big-five;
+// its success/failure surfaces use the premium toast + modal (never a native alert).
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  BackHandler,
-} from "react-native";
+import { useEffect, useState, type ReactNode } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { SvgXml } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
-import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { DrillProgress } from "@/components/ui/DrillProgress";
-import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
-import { fontFamilies } from "@/theme/typography";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
+import { SecondbHead } from "@/components/deepspace/SecondbHead";
+import { PremiumModal, PremiumToast, PremiumLoadingState } from "@/components/premium";
+import { m3 } from "@/lib/theme/m3";
+import { spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { createRecord } from "@/lib/records/create";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
-import {
-  PERIOD_LABEL,
-  LAYER_LABEL,
-  emptyCoverage,
-  incrementCoverage,
-  isPeriodComplete,
-  nextLayerSuggestion,
-  nextProbe,
-  seedQuestion,
-  type Coverage,
-  type DrillLayer,
-  type InterviewTurn,
-  type LifePeriod,
-} from "@/lib/interview/probe";
-import { shouldStopDrilling } from "@/lib/interview/drill-stop";
-import { narrativeStarLevel } from "@/lib/interview/narrative-level";
-import { VILLAGE_UI } from "@/lib/village-ui";
+import { createRecord } from "@/lib/records/create";
 
-const SOFT_CAP = 50;
-type InterviewToast = { message: string; tone: "info" | "success" | "danger" };
-type InterviewFeedbackModal =
-  | { kind: "probe"; turnsSoFar: InterviewTurn[]; coverageSoFar: Coverage }
-  | { kind: "save" }
-  | { kind: "exit" }
-  | null;
+const TOTAL = 5;
 
-// Single interview engine shared by BOTH the legacy and deep-space branches —
-// no logic fork. `variant` only swaps the outer frame: legacy uses
-// PremiumAppShell, deep-space re-hosts the SAME body inside <DeepSpaceScreen>.
-// All data/LLM/safety logic below (startInterview, requestNextProbe,
-// handleAnswer, handleSave, the C9 path inside nextProbe) is identical for both.
-type InterviewVariant = "legacy" | "deepSpace";
+// Material-symbol stroke idiom (2dp currentColor, round caps), matching the
+// shell's icon set. Only the glyphs this screen needs are kept local.
+const ICON: Record<string, string> = {
+  radio_button_unchecked: '<circle cx="12" cy="12" r="9"/>',
+  task_alt: '<circle cx="12" cy="12" r="8.4"/><path d="m8.4 12 2.5 2.6 4.7-5.2"/>',
+  check: '<path d="m5 12 5 5L20 7"/>',
+  arrow_forward: '<path d="M4 12h15"/><path d="M13 6l6 6-6 6"/>',
+};
 
-function InterviewBody({ variant }: { variant: InterviewVariant }) {
-  const isDeepSpace = variant === "deepSpace";
+function Glyph({ name, color, size = 20 }: { name: keyof typeof ICON; color: string; size?: number }) {
+  const xml =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
+    `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+    `${ICON[name]}</svg>`;
+  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+}
 
-  // Frame swaps the chrome without touching the body. Deep-space wraps in the
-  // rev2 windowed shell (TopAppBar carries TITLES verbatim: 심층 인터뷰);
-  // legacy keeps PremiumAppShell.
-  function Frame({ children }: { children: ReactNode }) {
-    const { i18n: frameI18n } = useTranslation();
-    if (isDeepSpace) {
-      return (
-        <DeepSpaceScreen
-          active="lens"
-          header="none"
-          variant="windowed"
-          title={frameI18n.language === "ko" ? "심층 인터뷰" : "Deep interview"}
-          onBack={() => router.back()}
-        >
-          {children}
-        </DeepSpaceScreen>
-      );
-    }
-    return <PremiumAppShell>{children}</PremiumAppShell>;
-  }
+// Fixed question set + answers, transcribed 1:1 from the reference (ko) with a
+// faithful en mirror (locale-inline copy keeps EN↔KO parity without new i18n
+// keys). The capture is Korean, so ko renders verbatim.
+const QS: Record<"ko" | "en", string[]> = {
+  ko: [
+    "요즘 사람들과 함께 있을 때, 에너지가 차오르나요 빠져나가나요?",
+    "혼자 있는 저녁과 약속이 있는 저녁 중, 어느 쪽이 더 당신답나요?",
+    "처음 만난 자리에서 먼저 말을 거는 편인가요?",
+    "지친 하루의 끝, 누군가에게 연락하고 싶어지나요?",
+    "돌아보면, 당신을 가장 살아있게 한 순간은 혼자였나요 함께였나요?",
+  ],
+  en: [
+    "Lately, when you're with people, does your energy fill up or drain away?",
+    "An evening alone or an evening with plans — which is more you?",
+    "At a first meeting, are you the one who speaks up first?",
+    "At the end of a tiring day, do you want to reach out to someone?",
+    "Looking back, was the moment you felt most alive spent alone or together?",
+  ],
+};
 
+const ANSWERS: Record<"ko" | "en", string[]> = {
+  ko: ["그렇다", "조금 그렇다", "중간", "조금 아니다", "아니다"],
+  en: ["Yes", "Somewhat", "Neutral", "Not really", "No"],
+};
+
+// The ratify proposals, transcribed 1:1 from the reference ratify view.
+const DELTAS: { ko: string; en: string; from: string; to: string; delta: { ko: string; en: string } }[] = [
+  { ko: "지금의 나 · 외향성", en: "The me now · Extraversion", from: "L3", to: "L4", delta: { ko: "+6", en: "+6" } },
+  { ko: "리듬", en: "Rhythm", from: "L2", to: "L3", delta: { ko: "명확", en: "clearer" } },
+];
+
+function InterviewScreen() {
   const { i18n } = useTranslation();
+  const locale = (i18n.language === "ko" ? "ko" : "en") as "ko" | "en";
   const { userId, loading, isMinor, hasProfile } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const kbHeight = useKeyboard();
 
-  const [period, setPeriod] = useState<LifePeriod | null>(null);
-  const [turns, setTurns] = useState<InterviewTurn[]>([]);
-  const [coverage, setCoverage] = useState<Coverage>(emptyCoverage());
-  const [pendingLayer, setPendingLayer] = useState<DrillLayer>("fact");
-  const [draft, setDraft] = useState("");
-  const [thinking, setThinking] = useState(false);
-  const [done, setDone] = useState(false);
-  const [completionAcknowledged, setCompletionAcknowledged] = useState(false);
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<InterviewToast | null>(null);
-  const [feedbackModal, setFeedbackModal] = useState<InterviewFeedbackModal>(null);
-
-  const scrollRef = useRef<ScrollView>(null);
+  const [toast, setToast] = useState<{ message: string; tone: "success" | "danger" } | null>(null);
+  const [feedbackModal, setFeedbackModal] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -118,26 +96,19 @@ function InterviewBody({ variant }: { variant: InterviewVariant }) {
     return () => clearTimeout(timeout);
   }, [toast]);
 
-  useEffect(() => {
-    if (turns.length > 0) {
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
-    }
-  }, [turns.length]);
-
-  // Android hardware back handler: intercept navigation back requests while the
-  // interview session is in progress (turns.length > 0) and not finished yet to
-  // prevent accidental loss of multi-turn conversational answers.
-  useEffect(() => {
-    if (turns.length === 0 || done) return;
-
-    const onBackPress = () => {
-      setFeedbackModal({ kind: "exit" });
-      return true; // Consume the event, preventing immediate navigation back
-    };
-
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => subscription.remove();
-  }, [turns.length, done]);
+  function Frame({ children }: { children: ReactNode }) {
+    return (
+      <DeepSpaceScreen
+        active="lens"
+        header="none"
+        variant="windowed"
+        title={locale === "ko" ? "심층 인터뷰" : "Deep interview"}
+        onBack={() => router.back()}
+      >
+        {children}
+      </DeepSpaceScreen>
+    );
+  }
 
   if (loading) {
     return (
@@ -148,395 +119,196 @@ function InterviewBody({ variant }: { variant: InterviewVariant }) {
       </Frame>
     );
   }
-  if (!userId) {
-    return <Redirect href="/sign-in" />;
-  }
-  // No-profile OAuth session must not reach the interview LLM surface (the probe
-  // calls Gemini on the user's answers) — route to /complete-profile (C10 + consent).
+  if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  function startInterview(p: LifePeriod) {
-    const initialCoverage = emptyCoverage();
-    setPeriod(p);
-    setCoverage(initialCoverage);
-    setPendingLayer(nextLayerSuggestion(initialCoverage, p));
-    setTurns([
-      {
-        role: "interviewer",
-        text: seedQuestion(p, locale),
-        period: p,
-        layer: "fact",
-      },
-    ]);
+  function pickAnswer(a: string) {
+    setAnswers((prev) => [...prev, a]);
+    setStep((s) => s + 1);
   }
 
-  // Runs the LLM probe against the turns/coverage already committed to state.
-  // Split out so a failed probe can be retried without re-submitting the draft
-  // (the user's answer is already in `turns` by the time this runs).
-  async function requestNextProbe(turnsSoFar: InterviewTurn[], coverageSoFar: Coverage) {
-    if (!userId || !period) return;
-    setThinking(true);
-    try {
-      const probe = await nextProbe(userId, locale, period, turnsSoFar, coverageSoFar, isMinor === true);
-      setTurns((prev) => [
-        ...prev,
-        { role: "interviewer", text: probe.question, period, layer: probe.layer },
-      ]);
-      setPendingLayer(probe.layer);
-    } catch (e) {
-      console.warn("[interview] next probe failed", (e as Error).message);
-      setFeedbackModal({ kind: "probe", turnsSoFar, coverageSoFar });
-    } finally {
-      setThinking(false);
-    }
+  function restart() {
+    setAnswers([]);
+    setStep(0);
   }
 
-  async function handleAnswer() {
-    if (!userId || !period || !draft.trim() || thinking) return;
-
-    // The pending layer is what the *current* probe was trying to elicit —
-    // when the user answers, that's the cell that gets credited. This stays
-    // a deterministic mapping (LLM-agnostic).
-    const answeredLayer = pendingLayer;
-    const userTurn: InterviewTurn = {
-      role: "user",
-      text: draft.trim(),
-      period,
-      layer: answeredLayer,
-    };
-    const updatedTurns = [...turns, userTurn];
-    const updatedCoverage = incrementCoverage(coverage, period, answeredLayer);
-    setTurns(updatedTurns);
-    setCoverage(updatedCoverage);
-    setDraft("");
-
-    const userCount = updatedTurns.filter((t) => t.role === "user").length;
-    // Memo §3d: stop when the narrative axis reaches its target ladder level
-    // (sufficient cross-period/layer coverage), with SOFT_CAP as the hard safety
-    // net - replaces the turn-count-only soft cap.
-    if (
-      shouldStopDrilling({
-        currentLevel: narrativeStarLevel(updatedCoverage),
-        turnsSpent: userCount,
-        hardTurnCap: SOFT_CAP,
-      })
-    ) {
-      setDone(true);
-      return;
-    }
-
-    await requestNextProbe(updatedTurns, updatedCoverage);
-  }
-
-  async function handleSave() {
-    if (!userId || !period || turns.length === 0) return;
+  async function approveAndReflect() {
+    if (!userId || saving) return;
     setSaving(true);
-    let navigatingAfterSave = false;
+    let navigating = false;
     try {
-      const transcript = turns
-        .map((t) => {
-          const tag = t.role === "interviewer"
-            ? (locale === "ko" ? "질문" : "Q")
-            : (locale === "ko" ? "답변" : "A");
-          const layer = t.layer ? ` [${LAYER_LABEL[locale][t.layer]}]` : "";
-          return `${tag}${layer}: ${t.text}`;
-        })
+      const qLabel = locale === "ko" ? "질문" : "Q";
+      const aLabel = locale === "ko" ? "답변" : "A";
+      const transcript = QS[locale]
+        .map((q, i) => `${qLabel}: ${q}\n${aLabel}: ${answers[i] ?? ""}`)
         .join("\n\n");
-      const userCount = turns.filter((t) => t.role === "user").length;
-      const layersCovered = (["fact", "feeling", "meaning", "belief", "echo"] as DrillLayer[])
-        .filter((l) => coverage[period][l] > 0).length;
       await createRecord({
         userId,
         locale,
         minor: isMinor === true,
         kind: "audit_response",
         body: transcript,
-        topic: locale === "ko"
-          ? `드릴 인터뷰 · ${PERIOD_LABEL.ko[period]}`
-          : `Drill interview · ${PERIOD_LABEL.en[period]}`,
-        summary: locale === "ko"
-          ? `${userCount}개 답변, ${layersCovered}/5 깊이 층 탐색`
-          : `${userCount} answers · ${layersCovered}/5 layers covered`,
-        tags: ["interview", "life_audit", `period-${period}`, `layers-${layersCovered}`],
-        auditPeriod: period === "current" ? "current" : "past",
+        topic: locale === "ko" ? "회상 인터뷰" : "Recall interview",
+        summary: locale === "ko" ? "5문항 회상 인터뷰 응답" : "5-item recall interview",
+        tags: ["interview", "recall", "screener"],
+        auditPeriod: "current",
         withFollowup: false,
       });
       setToast({
         tone: "success",
-        message:
-          locale === "ko"
-            ? "저장됐어요. 페르소나 화면에 함께 반영할게요."
-            : "Saved. We'll fold this in on the Persona screen.",
+        message: locale === "ko" ? "반영했어요. 검증 화면으로 이동할게요." : "Reflected. Opening the check screen.",
       });
-      navigatingAfterSave = true;
-      setTimeout(() => router.replace("/persona"), 900);
-      return;
+      navigating = true;
+      setTimeout(() => router.replace("/big-five"), 700);
     } catch (e) {
-      console.warn("[interview] save failed", (e as Error).message);
-      setFeedbackModal({ kind: "save" });
+      console.warn("[interview] reflect save failed", (e as Error).message);
+      setFeedbackModal(true);
     } finally {
-      if (!navigatingAfterSave) setSaving(false);
+      if (!navigating) setSaving(false);
     }
   }
 
-  const userAnswers = turns.filter((t) => t.role === "user").length;
-  const periodComplete = period !== null && isPeriodComplete(coverage, period);
-  const shouldSuggestWrap = periodComplete && !completionAcknowledged && !done;
-  const feedbackModalTitle = feedbackModal?.kind === "probe"
-    ? (locale === "ko" ? "다음 질문을 못 불러왔어요" : "Couldn't load the next question")
-    : feedbackModal?.kind === "save"
-      ? (locale === "ko" ? "저장하지 못했어요" : "Couldn't save")
-      : (locale === "ko" ? "인터뷰를 종료할까요?" : "Exit interview?");
-  const feedbackModalBody = feedbackModal?.kind === "probe"
-    ? (
-        locale === "ko"
-          ? "잠시 연결이 흔들렸어요. 방금 답변은 그대로 남아 있어요. 다시 시도하면 이어서 물어볼게요."
-          : "The connection hiccuped for a moment. Your answer is safe. Try again and we'll pick up where we left off."
-      )
-    : feedbackModal?.kind === "save"
-      ? (
-          locale === "ko"
-            ? "인터뷰 내용은 화면에 그대로 남아 있어요. 잠시 후 다시 저장해 주세요."
-            : "Your interview is still here on the screen. Give it another try in a moment."
-        )
-      : (
-          locale === "ko"
-            ? "정말 인터뷰를 종료하시겠습니까? 작성 중이던 대화 답변 내용이 저장되지 않고 사라집니다."
-            : "Are you sure you want to exit? Your conversational responses will not be saved."
-        );
-  const feedbackRetryLabel = feedbackModal?.kind === "probe"
-    ? (locale === "ko" ? "다시 시도" : "Retry")
-    : feedbackModal?.kind === "save"
-      ? (locale === "ko" ? "다시 저장" : "Try again")
-      : (locale === "ko" ? "종료하기" : "Exit");
-  const feedbackRetryHint = feedbackModal?.kind === "probe"
-    ? (locale === "ko" ? "다음 질문을 다시 불러옵니다." : "Retry interview feedback by loading the next question.")
-    : feedbackModal?.kind === "save"
-      ? (locale === "ko" ? "인터뷰 저장을 다시 시도합니다." : "Retry interview feedback by saving again.")
-      : (locale === "ko" ? "인터뷰를 종료하고 이전 화면으로 돌아갑니다." : "Exit the interview and return to the previous screen.");
-  const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;
-  const footerStyle = Platform.OS === "android" && kbHeight > 0
-    ? [styles.footer, { paddingBottom: kbHeight + spacing.sm }]
-    : styles.footer;
-
-  function retryFeedbackModal() {
-    const current = feedbackModal;
-    setFeedbackModal(null);
-    if (current?.kind === "probe") {
-      void requestNextProbe(current.turnsSoFar, current.coverageSoFar);
-      return;
-    }
-    if (current?.kind === "save") {
-      void handleSave();
-      return;
-    }
-    if (current?.kind === "exit") {
-      router.back();
-    }
-  }
-
-  if (period === null) {
-    return (
-      <Frame>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <SceneHero
-            eyebrow={locale === "ko" ? "10. 드릴 인터뷰" : "10. Drill interview"}
-            title={locale === "ko" ? "한 시기를 깊게 들어가기" : "Drill into one life period"}
-            subtitle={locale === "ko" ? "사실 · 감정 · 의미 · 믿음 · 울림" : "Fact · feeling · meaning · belief · echo"}
-            island={VILLAGE_UI.relation.island}
-            worker={VILLAGE_UI.relation.worker}
-            accent={VILLAGE_UI.relation.accent}
-            speech={
-              locale === "ko"
-                ? "해석보다 먼저 듣겠습니다. 어느 시기부터 살펴볼까요?"
-                : "I'll listen before interpreting. Which period should we start with?"
-            }
-          />
-          <View style={styles.periodGrid}>
-            {(["childhood", "teens", "twenties", "thirties", "current"] as LifePeriod[]).map((p) => (
-              <Pressable
-                key={p}
-                onPress={() => startInterview(p)}
-                // O-R1.2 (Hick): five identical cards gave no entry point —
-                // "current" is the recommended start (most recall, least
-                // friction), so it carries the brand accent and a hint line.
-                style={[styles.periodCard, p === "current" && styles.periodCardRecommended]}
-                hitSlop={14}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  locale === "ko"
-                    ? `${PERIOD_LABEL[locale][p]} 시기 인터뷰 시작`
-                    : `Start interview for ${PERIOD_LABEL[locale][p]}`
-                }
-                accessibilityHint={locale === "ko" ? "선택한 시기의 질문을 시작합니다" : "Starts questions for the selected life period"}
-              >
-                <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
-                  {PERIOD_LABEL[locale][p]}
-                </Text>
-                {p === "current" ? (
-                  <Text variant="subtle" color="textSubtle" style={{ marginTop: 2 }}>
-                    {locale === "ko" ? "여기서 시작하면 좋아요" : "A good place to start"}
-                  </Text>
-                ) : null}
-              </Pressable>
-            ))}
-          </View>
-        </ScrollView>
-      </Frame>
-    );
-  }
+  const feedbackRetryHint =
+    locale === "ko" ? "인터뷰 저장을 다시 시도합니다." : "Retry interview feedback by saving again.";
+  const ratify = step >= TOTAL;
+  const scrollStyle = [styles.body, { paddingBottom: kbHeight + spacing.sm }];
 
   return (
     <Frame>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={keyboardBehavior}>
-        <View style={styles.topBar}>
-          <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
-            {PERIOD_LABEL[locale][period]}
-          </Text>
-          <Text variant="subtle" color="textSubtle">
-            {/* O-R1.2: next-layer text removed — DrillProgress already shows
-                the active layer; two indicators saying the same thing was
-                the audit's triple-progress finding. */}
-            {locale === "ko" ? `${userAnswers}턴` : `${userAnswers} turns`}
-          </Text>
-        </View>
+      <ScrollView contentContainerStyle={scrollStyle}>
+        {ratify ? (
+          <>
+            <View style={styles.ratifyHead}>
+              <Glyph name="task_alt" color={m3.color.primary} size={22} />
+              <Text style={[m3TextStyle("titleLarge"), styles.ratifyTitle]}>
+                {locale === "ko" ? "이렇게 반영할까요?" : "Reflect it like this?"}
+              </Text>
+            </View>
+            <Text style={[m3TextStyle("bodyMedium"), styles.ratifyBody]}>
+              {locale === "ko" ? "답을 종합한 변경 제안이에요. " : "A change proposed from your answers. "}
+              <Text style={styles.ratifyBodyStrong}>{locale === "ko" ? "승인한 것만" : "Only what you approve"}</Text>
+              {locale === "ko" ? " 렌즈에 반영돼요." : " is reflected in the lens."}
+            </Text>
 
-        <View style={styles.progressWrap}>
-          <DrillProgress
-            coverage={coverage}
-            locale={locale}
-            activePeriod={period}
-            activeLayer={pendingLayer}
-          />
-        </View>
-
-        <ScrollView ref={scrollRef} contentContainerStyle={styles.chatScroll} keyboardShouldPersistTaps="handled">
-          {turns.map((t, i) => (
-            <View key={i} style={[styles.bubble, t.role === "interviewer" ? styles.qBubble : styles.aBubble]}>
-              <View style={styles.bubbleHeader}>
-                <Text variant="subtle" color={t.role === "interviewer" ? "brand" : "textSubtle"} style={{ letterSpacing: 0 }}>
-                  {t.role === "interviewer" ? (locale === "ko" ? "질문" : "Q") : (locale === "ko" ? "답변" : "A")}
+            {DELTAS.map((d) => (
+              <MdCard key={d.ko} variant="outlined" style={styles.deltaCard}>
+                <View style={styles.deltaTop}>
+                  <Text style={[m3TextStyle("titleSmall"), styles.deltaLens]}>{locale === "ko" ? d.ko : d.en}</Text>
+                  <View style={styles.deltaMove}>
+                    <Text style={[m3TextStyle("labelLarge"), styles.deltaLevel]}>{d.from}</Text>
+                    <Glyph name="arrow_forward" color={m3.color.primary} size={14} />
+                    <Text style={[m3TextStyle("labelLarge"), styles.deltaLevel]}>{d.to}</Text>
+                  </View>
+                </View>
+                <Text style={[m3TextStyle("bodySmall"), styles.deltaNote]}>
+                  {locale === "ko"
+                    ? `변화 ${d.delta.ko} · 근거 4건`
+                    : `Change ${d.delta.en} · 4 evidence`}
                 </Text>
-                {t.layer ? (
-                  <Text variant="subtle" color="textSubtle" style={styles.layerTag}>
-                    {LAYER_LABEL[locale][t.layer]}
-                  </Text>
-                ) : null}
-              </View>
-              <Text variant="body" selectable style={{ marginTop: 4, lineHeight: 22 }}>
-                {t.text}
-              </Text>
-            </View>
-          ))}
-          {thinking ? (
-            <View style={styles.thinkingRow}>
-              <ActivityIndicator color={semantic.brand} size="small" />
-              <Text variant="subtle" color="textSubtle">
-                {locale === "ko" ? "다음 질문 준비 중…" : "Preparing next question…"}
-              </Text>
-            </View>
-          ) : null}
-        </ScrollView>
+              </MdCard>
+            ))}
 
-        {/* O-R1.2: the depth-reached decision moved from a banner wedged
-            between progress and chat (mid-flow interruption, layout shift)
-            to the end of the scan, directly above the composer — the
-            canonical decision position. Keep-going is the escape hatch. */}
-        {shouldSuggestWrap ? (
-          <View style={styles.completionBanner}>
-            <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
-              {locale === "ko" ? "충분한 깊이 도달" : "Sufficient depth reached"}
-            </Text>
-            <Text variant="body" color="textMuted" style={{ marginTop: 4 }}>
-              {locale === "ko"
-                ? "5개 층 모두 들었어요. 여기서 마무리해도 좋고, 더 가도 좋아요."
-                : "All five layers covered. You can wrap up now or keep going."}
-            </Text>
-            <View style={styles.completionActions}>
-              <Button
-                label={locale === "ko" ? "마무리하기" : "Wrap up"}
-                variant="primary"
-                onPress={() => setDone(true)}
+            <View style={styles.ratifyActions}>
+              <MdButton
+                label={locale === "ko" ? "다시" : "Again"}
+                variant="outlined"
+                onPress={restart}
+                style={styles.ratifyRestart}
               />
-              <Button
-                label={locale === "ko" ? "더 갈게요" : "Keep going"}
-                variant="ghost"
-                onPress={() => setCompletionAcknowledged(true)}
+              <MdButton
+                label={locale === "ko" ? "승인하고 반영" : "Approve & reflect"}
+                variant="filled"
+                loading={saving}
+                onPress={approveAndReflect}
+                icon={<Glyph name="check" color={m3.color.onPrimary} size={18} />}
+                style={styles.ratifyApprove}
               />
             </View>
-          </View>
-        ) : null}
-
-        {done ? (
-          <View style={footerStyle}>
-            <Text variant="caption" color="brand">
-              {locale === "ko"
-                ? (userAnswers >= SOFT_CAP ? "긴 인터뷰가 끝났어요" : "인터뷰 마무리")
-                : (userAnswers >= SOFT_CAP ? "Long interview complete" : "Interview wrap-up")}
-            </Text>
-            <Button
-              label={locale === "ko" ? "저장하고 페르소나에 반영" : "Save & feed Persona"}
-              variant="primary"
-              onPress={handleSave}
-              loading={saving}
-            />
-          </View>
+          </>
         ) : (
-          <View style={footerStyle}>
-            <Input
-              value={draft}
-              onChangeText={setDraft}
-              placeholder={locale === "ko" ? "솔직하게 답해 주세요." : "Be honest with yourself."}
-              multiline
-              numberOfLines={3}
-            />
-            <View style={styles.footerActions}>
-              <Button
-                label={locale === "ko" ? "그만하기" : "Stop"}
-                // O-R1 escape-hatch pattern: Stop must read quieter than Send.
-                variant="ghost"
-                onPress={() => setDone(true)}
+          <>
+            <View style={styles.progressBlock}>
+              <ProgressLinear
+                value={step / TOTAL}
+                style={styles.progressBar}
+                accessibilityLabel={
+                  locale === "ko" ? `질문 ${step + 1} / ${TOTAL}` : `Question ${step + 1} of ${TOTAL}`
+                }
               />
-              <Button
-                label={locale === "ko" ? "보내기" : "Send"}
-                variant="primary"
-                onPress={handleAnswer}
-                disabled={!draft.trim() || thinking}
-                loading={thinking}
-              />
+              <Text style={[m3TextStyle("labelMedium"), styles.progressLabel]}>
+                {locale === "ko"
+                  ? `질문 ${step + 1} / ${TOTAL} · 회상 인터뷰`
+                  : `Question ${step + 1} / ${TOTAL} · Recall interview`}
+              </Text>
             </View>
-          </View>
+
+            <View style={styles.questionRow}>
+              <SecondbHead size={36} track={false} />
+              <Text style={[m3TextStyle("headlineSmall"), styles.question]}>{QS[locale][step]}</Text>
+            </View>
+
+            <Text style={[m3TextStyle("bodySmall"), styles.subtitle]}>
+              {locale === "ko"
+                ? "같은 핵심을 조금씩 다르게 되물어요. 더 또렷해지려고요."
+                : "We circle the same core a little differently each time — to see it more clearly."}
+            </Text>
+
+            <View style={styles.answers}>
+              {ANSWERS[locale].map((a) => (
+                <MdCard
+                  key={a}
+                  variant="outlined"
+                  onPress={() => pickAnswer(a)}
+                  accessibilityLabel={a}
+                  style={styles.answerCard}
+                >
+                  <View style={styles.answerRow}>
+                    <Text style={[m3TextStyle("bodyLarge"), styles.answerText]}>{a}</Text>
+                    <Glyph name="radio_button_unchecked" color={m3.color.outline} size={20} />
+                  </View>
+                </MdCard>
+              ))}
+            </View>
+          </>
         )}
-      </KeyboardAvoidingView>
+      </ScrollView>
+
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">
           <PremiumToast message={toast.message} tone={toast.tone} />
         </View>
       ) : null}
+
       <PremiumModal
-        visible={feedbackModal !== null}
-        onClose={() => setFeedbackModal(null)}
+        visible={feedbackModal}
+        onClose={() => setFeedbackModal(false)}
         accessibilityLabel={locale === "ko" ? "인터뷰 피드백 안내" : "Interview feedback notice"}
       >
-        <Text variant="heading">{feedbackModalTitle}</Text>
-        <Text variant="body" color="textMuted" style={styles.modalBody}>
-          {feedbackModalBody}
+        <Text style={[m3TextStyle("titleMedium"), styles.modalTitle]}>
+          {locale === "ko" ? "반영하지 못했어요" : "Couldn't reflect it"}
+        </Text>
+        <Text style={[m3TextStyle("bodyMedium"), styles.modalBody]}>
+          {locale === "ko"
+            ? "인터뷰 답변은 그대로 남아 있어요. 잠시 후 다시 시도해 주세요."
+            : "Your answers are still here. Give it another try in a moment."}
         </Text>
         <View style={styles.modalActions}>
-          <Button
-            label={feedbackModal?.kind === "exit" ? (locale === "ko" ? "취소" : "Cancel") : (locale === "ko" ? "닫기" : "Dismiss")}
-            variant="secondary"
-            onPress={() => setFeedbackModal(null)}
+          <MdButton
+            label={locale === "ko" ? "닫기" : "Dismiss"}
+            variant="outlined"
+            onPress={() => setFeedbackModal(false)}
             style={styles.modalButton}
-            accessibilityHint={feedbackModal?.kind === "exit" ? (locale === "ko" ? "인터뷰를 계속 진행합니다." : "Continue the interview.") : (locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice.")}
           />
-          <Button
-            label={feedbackRetryLabel}
-            variant="primary"
-            onPress={retryFeedbackModal}
-            loading={thinking || saving}
-            style={styles.modalButton}
+          <MdButton
+            label={locale === "ko" ? "다시 시도" : "Try again"}
+            variant="filled"
+            loading={saving}
+            onPress={() => {
+              setFeedbackModal(false);
+              void approveAndReflect();
+            }}
             accessibilityHint={feedbackRetryHint}
+            style={styles.modalButton}
           />
         </View>
       </PremiumModal>
@@ -545,76 +317,44 @@ function InterviewBody({ variant }: { variant: InterviewVariant }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: spacing.lg, gap: spacing.md },
+  body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
   center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
-  header: { gap: spacing.sm },
-  periodGrid: { gap: spacing.sm, marginVertical: spacing.md },
-  periodCard: {
-    minHeight: 48,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: semantic.border,
-    backgroundColor: semantic.surface,
-  },
-  // Recommended entry point (O-R1.2 Hick fix) — brand accent edge, same
-  // pattern as gateCard accents elsewhere.
-  periodCardRecommended: {
-    borderColor: semantic.brand,
-    borderStartWidth: 3,
-    borderStartColor: semantic.brand,
-  },
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: semantic.border,
-  },
-  progressWrap: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  completionBanner: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: semantic.success,
-    backgroundColor: semantic.surface,
-  },
-  completionActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-  chatScroll: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
-  bubble: {
-    padding: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: semantic.border,
-  },
-  bubbleHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  layerTag: { fontFamily: fontFamilies.mono, fontSize: typography.sizes.xs, letterSpacing: 0 },
-  qBubble: { backgroundColor: semantic.surface },
-  aBubble: { backgroundColor: semantic.surfaceAlt },
-  thinkingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
-  footer: {
-    padding: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: semantic.border,
-    gap: spacing.sm,
-  },
-  footerActions: { flexDirection: "row", justifyContent: "space-between", gap: spacing.sm },
-  toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
-  modalBody: { lineHeight: 21 },
-  modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+
+  // question state
+  progressBlock: { marginTop: 6, marginBottom: 4 },
+  progressBar: { height: 6, borderRadius: 3 },
+  progressLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 8 },
+  questionRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginTop: 20, marginBottom: 8 },
+  question: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand, lineHeight: 34 },
+  subtitle: { color: m3.color.tertiary, fontFamily: m3.font.brand, marginTop: 10, marginBottom: 18 },
+  answers: { gap: 10 },
+  answerCard: { minHeight: 48, paddingVertical: 14, paddingHorizontal: 16, justifyContent: "center" },
+  answerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  answerText: { color: m3.color.onSurface, fontFamily: m3.font.brand, flexShrink: 1 },
+
+  // ratify state
+  ratifyHead: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 16 },
+  ratifyTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, flexShrink: 1 },
+  ratifyBody: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginBottom: 14 },
+  ratifyBodyStrong: { color: m3.color.onSurface, fontWeight: "700" },
+  deltaCard: { marginBottom: 10 },
+  deltaTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  deltaLens: { color: m3.color.onSurface, fontFamily: m3.font.brand, flexShrink: 1 },
+  deltaMove: { flexDirection: "row", alignItems: "center", gap: 4 },
+  deltaLevel: { color: m3.color.primary },
+  deltaNote: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4 },
+  ratifyActions: { flexDirection: "row", gap: 8, marginTop: 18 },
+  ratifyRestart: { flex: 1 },
+  ratifyApprove: { flex: 2 },
+
+  // feedback surfaces
+  toastWrap: { position: "absolute", left: 16, right: 16, bottom: 32, alignItems: "stretch" },
+  modalTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginBottom: 8 },
+  modalBody: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, lineHeight: 21 },
+  modalActions: { flexDirection: "row", gap: 8, marginTop: 16 },
   modalButton: { flex: 1 },
 });
 
 export default function Interview() {
-  // Both branches run the SAME interview engine (InterviewBody) — the only
-  // difference is the chrome: deep-space re-hosts the real AI interview inside
-  // DeepSpaceScreen instead of the old static RecallLensView placeholder.
-  // No logic fork: data/LLM/safety paths are shared.
-  return <InterviewBody variant={isDeepSpaceUI() ? "deepSpace" : "legacy"} />;
+  return <InterviewScreen />;
 }
