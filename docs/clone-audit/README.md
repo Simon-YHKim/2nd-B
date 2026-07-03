@@ -44,3 +44,26 @@ source+capture and self-verified against `reference-captures/NN.png`.
 6. `npm run verify` → commit → push. Non-gated screens verify live; gated ones (see auth blocker above) self-verify vs capture until the blocker is resolved.
 
 Batch order suggestion: finish the 5 root tabs (capture · chat/secondb · records · settings), then Screen-Spec numeric order.
+
+## Milestone: full backlog cloned (2026-07-03)
+
+All 33 gap-backlog screens cloned to the rev2 M3 reference + pushed to the branch, CI green each step:
+auth · onboarding · ttfv · home · capture · chat · records · settings · me/북극성 · record-detail ·
+interview · big-five · attachment · values · motivation · strengths · audit · trend · northstar ·
+ratify · iden · ops · focus · reminders · inbox · connect · import · datareview · callrec · share ·
+plans · museum · imagine. (The 37-screen spec's 04-coach/11-star/35-exhibit/37-widget are
+overlays/sub-views, not standalone routes.)
+
+Each screen: built from the reference source + capture, tokens-only colors, verbatim KO copy,
+`npm run verify` green, capture spot-checked. Terminology aligned to the captures where they
+supersede the older docs/source: **조각** (was 별가루), **휴식** (was 오락), **안티비** (was 트위비) —
+docs/CONCEPT.md / CONTEXT.md still carry the old terms; reconcile there if desired.
+
+### Remaining polish (for a final pass)
+- **Live pixel-verify of gated screens** — still blocked by the AuthContext session-adoption issue
+  (see the auth blocker above). All gated screens were source+capture verified, not live-rendered.
+  Unblock via a dev-only design-preview auth stub, then re-export + `scripts/clone-fidelity.mjs` diff every route.
+- **Locale fallback** — several screens use inline `ko?…:…` copy (matching sibling files), so es/id/pt
+  fall back to English on those. Move to i18n keys if full localization is wanted.
+- **big-five** trait labels use full names (개방성…) vs the capture's short (개방…) — low impact.
+- **ratify** 보류 amber could reuse the new `m3.accent.trendFlat` token.
