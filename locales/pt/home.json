@@ -107,13 +107,27 @@
         "assistant": "Assistente"
       },
       "star": {
-        "career": { "line": "O que você construiu e acumulou?" },
-        "finance": { "line": "O que o dinheiro diz sobre mim?" },
-        "relation": { "line": "Como estou com as pessoas próximas de mim?" },
-        "growth": { "line": "Que época me fez quem sou agora?" },
-        "health": { "line": "Como andam minha condição e meu ritmo ultimamente?" },
-        "recreation": { "line": "O que me deixa descansar?" },
-        "museum": { "line": "Percorra o caminho que a IA trilhou e aprenda como o SecondB entende você." }
+        "career": {
+          "line": "O que você construiu e acumulou?"
+        },
+        "finance": {
+          "line": "O que o dinheiro diz sobre mim?"
+        },
+        "relation": {
+          "line": "Como estou com as pessoas próximas de mim?"
+        },
+        "growth": {
+          "line": "Que época me fez quem sou agora?"
+        },
+        "health": {
+          "line": "Como andam minha condição e meu ritmo ultimamente?"
+        },
+        "recreation": {
+          "line": "O que me deixa descansar?"
+        },
+        "museum": {
+          "line": "Percorra o caminho que a IA trilhou e aprenda como o SecondB entende você."
+        }
       }
     },
     "capture": {
@@ -252,6 +266,14 @@
       "domain3Count": "37 peças",
       "conclusion": "Onde você mais construiu foi em Carreira. Finanças ainda está vazio: vamos guardar mais?",
       "addData": "+ Adicionar dados"
+    },
+    "imagine": {
+      "title": "Imaginar",
+      "introBody": "Jogue longe, sem resposta certa. Escolha um rumo que goste e vamos afunilar no próximo passo.",
+      "sectionAngles": "Rumos que o SecondB lançou",
+      "sectionSteps": "Candidatos a próximo passo",
+      "toCapture": "Levar para o Capturar",
+      "more": "Mais com o SecondB"
     }
   }
 }

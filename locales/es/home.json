@@ -107,13 +107,27 @@
         "assistant": "Asistente"
       },
       "star": {
-        "career": { "line": "¿Qué has construido y acumulado?" },
-        "finance": { "line": "¿Qué dice el dinero sobre mí?" },
-        "relation": { "line": "¿Cómo estoy con las personas cercanas a mí?" },
-        "growth": { "line": "¿Qué época me hizo quien soy ahora?" },
-        "health": { "line": "¿Cómo van mi condición y mi ritmo últimamente?" },
-        "recreation": { "line": "¿Qué me permite descansar?" },
-        "museum": { "line": "Recorre el camino que ha andado la IA y aprende cómo SecondB te entiende." }
+        "career": {
+          "line": "¿Qué has construido y acumulado?"
+        },
+        "finance": {
+          "line": "¿Qué dice el dinero sobre mí?"
+        },
+        "relation": {
+          "line": "¿Cómo estoy con las personas cercanas a mí?"
+        },
+        "growth": {
+          "line": "¿Qué época me hizo quien soy ahora?"
+        },
+        "health": {
+          "line": "¿Cómo van mi condición y mi ritmo últimamente?"
+        },
+        "recreation": {
+          "line": "¿Qué me permite descansar?"
+        },
+        "museum": {
+          "line": "Recorre el camino que ha andado la IA y aprende cómo SecondB te entiende."
+        }
       }
     },
     "capture": {
@@ -252,6 +266,14 @@
       "domain3Count": "37 piezas",
       "conclusion": "Donde más has construido es en Carrera. Finanzas sigue vacío: ¿ponemos más?",
       "addData": "+ Añadir datos"
+    },
+    "imagine": {
+      "title": "Imaginar",
+      "introBody": "Lanza lejos, sin respuestas correctas. Elige la rama que te guste y la acotaremos a un siguiente paso.",
+      "sectionAngles": "Ramas que lanzó SecondB",
+      "sectionSteps": "Candidatos a siguiente paso",
+      "toCapture": "Llevar a Capturar",
+      "more": "Más con SecondB"
     }
   }
 }
