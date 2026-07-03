@@ -45,8 +45,12 @@ const POLARIS_GUIDE = "M230,131 L228,90 L140,-16";
 
 const VBW = 280;
 const VBH = 230;
-const DOT = 12;
-const BIG_DOT = 18;
+// Delicate stars (fidelity pass): dot core + a soft radial glow drawn INSIDE the
+// SVG (no RN box-shadow, which rendered a dark rounded square behind the dot).
+const DOT = 10;
+const BIG_DOT = 15;
+const GLOW = 26;
+const BIG_GLOW = 42;
 
 // sb-home starOpacity: big -> 1, else 0.36 + level/5 * 0.64.
 function starOpacity(s: HomeStar): number {
@@ -57,40 +61,39 @@ function starOpacity(s: HomeStar): number {
 
 function StarDot({ star, cx, cy }: { star: HomeStar; cx: number; cy: number }) {
   const dot = star.big ? BIG_DOT : DOT;
-  const gid = `star-${star.id}`;
+  const glow = star.big ? BIG_GLOW : GLOW;
+  const core = `core-${star.id}`;
+  const halo = `halo-${star.id}`;
+  const glowColor = star.big ? m3.accent.polarisGlow : m3.accent.starCore;
+  const c = glow / 2;
   return (
     <>
       <View
         pointerEvents="none"
-        style={[
-          styles.dotWrap,
-          {
-            left: cx - dot / 2,
-            top: cy - dot / 2,
-            width: dot,
-            height: dot,
-            opacity: starOpacity(star),
-            shadowColor: star.big ? m3.accent.polarisGlow : m3.accent.starCore,
-            shadowRadius: star.big ? 16 : 11,
-          },
-        ]}
+        style={{ position: "absolute", left: cx - c, top: cy - c, width: glow, height: glow, opacity: starOpacity(star) }}
       >
-        <Svg width={dot} height={dot}>
+        <Svg width={glow} height={glow}>
           <Defs>
+            <RadialGradient id={halo} cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor={glowColor} stopOpacity={star.big ? 0.85 : 0.7} />
+              <Stop offset="0.4" stopColor={glowColor} stopOpacity={star.big ? 0.34 : 0.24} />
+              <Stop offset="1" stopColor={glowColor} stopOpacity={0} />
+            </RadialGradient>
             {star.big ? (
-              <RadialGradient id={gid} cx="50%" cy="50%" r="50%">
+              <RadialGradient id={core} cx="50%" cy="50%" r="50%">
                 <Stop offset="0" stopColor={m3.accent.skyStarWhite} />
                 <Stop offset="0.48" stopColor={m3.accent.polarisSoft} />
                 <Stop offset="0.84" stopColor={m3.accent.moodNeutral} />
               </RadialGradient>
             ) : (
-              <RadialGradient id={gid} cx="50%" cy="50%" r="50%">
+              <RadialGradient id={core} cx="50%" cy="50%" r="50%">
                 <Stop offset="0" stopColor={m3.accent.star} />
                 <Stop offset="0.72" stopColor={m3.accent.starCore} />
               </RadialGradient>
             )}
           </Defs>
-          <Circle cx={dot / 2} cy={dot / 2} r={dot / 2} fill={`url(#${gid})`} />
+          <Circle cx={c} cy={c} r={c} fill={`url(#${halo})`} />
+          <Circle cx={c} cy={c} r={dot / 2} fill={`url(#${core})`} />
         </Svg>
       </View>
       <Text
@@ -113,8 +116,10 @@ function StarDot({ star, cx, cy }: { star: HomeStar; cx: number; cy: number }) {
 
 export function DeepSpaceHomeScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const boxW = Math.min(width - 20, 400);
+  const { width, height } = useWindowDimensions();
+  // Compact dipper anchored high (fidelity pass): smaller box + top-anchored so it
+  // sits in the top ~45% and leaves the lower half for the head + bubble.
+  const boxW = Math.min(width - 44, 330);
   const boxH = boxW * (VBH / VBW);
   const sx = boxW / VBW;
   const sy = boxH / VBH;
@@ -122,10 +127,12 @@ export function DeepSpaceHomeScreen() {
   return (
     <PhoneShell variant="immersive" activeNav="home">
       <View style={styles.stage}>
-        {/* deep-space neural field — radial stage glow + vignette (sb-home bg) */}
-        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        {/* deep-space neural field — a single FULL-BLEED radial wash + vignette.
+            Sized to the window (not "100%") so react-native-svg fills edge-to-edge
+            with no intrinsic-size seam. */}
+        <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
           <Defs>
-            <RadialGradient id="home-stage" cx="50%" cy="26%" r="80%">
+            <RadialGradient id="home-stage" cx="50%" cy="24%" r="82%">
               <Stop offset="0" stopColor={m3.accent.stageGlow} stopOpacity={0.5} />
               <Stop offset="0.42" stopColor={m3.accent.skySurface} stopOpacity={0.3} />
               <Stop offset="0.76" stopColor={m3.accent.stageFloor} stopOpacity={1} />
@@ -136,9 +143,9 @@ export function DeepSpaceHomeScreen() {
               <Stop offset="1" stopColor={m3.accent.stageFloor} stopOpacity={0.62} />
             </RadialGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill={m3.accent.stageFloor} />
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#home-stage)" />
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#home-vignette)" />
+          <Rect x={0} y={0} width={width} height={height} fill={m3.accent.stageFloor} />
+          <Rect x={0} y={0} width={width} height={height} fill="url(#home-stage)" />
+          <Rect x={0} y={0} width={width} height={height} fill="url(#home-vignette)" />
         </Svg>
 
         {/* home inbox bell — top-left, alert dot; no stray back button, no 9:41 */}
@@ -152,7 +159,7 @@ export function DeepSpaceHomeScreen() {
           <View style={styles.bellDot} />
         </Pressable>
 
-        {/* constellation region */}
+        {/* constellation — top-anchored block */}
         <View style={styles.constellationRegion}>
           <View style={{ width: boxW, height: boxH }}>
             <Svg
@@ -164,7 +171,7 @@ export function DeepSpaceHomeScreen() {
               pointerEvents="none"
             >
               {STAR_LINES.map((d, i) => (
-                <Path key={i} d={d} fill="none" stroke={withAlpha(m3.accent.dipperLine, 0.34)} strokeWidth={1.2} strokeLinejoin="round" />
+                <Path key={i} d={d} fill="none" stroke={withAlpha(m3.accent.dipperLine, 0.34)} strokeWidth={1.1} strokeLinejoin="round" />
               ))}
               <Path d={POLARIS_GUIDE} fill="none" stroke={withAlpha(m3.accent.moodNeutral, 0.45)} strokeWidth={1} strokeDasharray="2 5" />
             </Svg>
@@ -174,7 +181,7 @@ export function DeepSpaceHomeScreen() {
           </View>
         </View>
 
-        {/* head + speech bubble */}
+        {/* head + speech bubble — lower ~55% */}
         <View style={styles.headRegion}>
           <SecondbHead mood="neutral" size={160} accessibilityLabel="세컨비" />
           <View style={styles.bubble}>
@@ -210,21 +217,10 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: 3.5,
     backgroundColor: m3.accent.alertDot,
-    shadowColor: m3.accent.alertDot,
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
   },
-  constellationRegion: { flex: 1, minHeight: 0, alignItems: "center", justifyContent: "center", paddingTop: 84 },
-  dotWrap: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowOpacity: 0.9,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
-  },
+  // Top-anchored (not flex-centered) so the dipper sits high; paddingTop matches
+  // the prototype's stage offset and gives the negative-y 북극성 room to render.
+  constellationRegion: { alignItems: "center", paddingTop: 84 },
   starLabel: {
     position: "absolute",
     width: 80,
