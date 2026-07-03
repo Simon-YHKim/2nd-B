@@ -678,11 +678,26 @@ export function SeenLensView() {
         <Svg width={34} height={34} viewBox="0 0 24 24">
           <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
         </Svg>
-        <Text style={styles.stateTitle}>{isKo ? "아직 비교할 peer 응답이 없어요" : "No peer responses to compare yet"}</Text>
+        {/* Two honest empty states: when the aggregate IS in but the user has no
+            Big Five self-report, saying "no peer responses" would misattribute the
+            missing half (live QA 2026-07-03: 3 responses in, copy claimed none). */}
+        <Text style={styles.stateTitle}>
+          {aggregate.length > 0
+            ? isKo
+              ? "지인 " + informantCount + "명의 응답이 도착해 있어요"
+              : "Responses from " + informantCount + " people are in"
+            : isKo
+              ? "아직 비교할 peer 응답이 없어요"
+              : "No peer responses to compare yet"}
+        </Text>
         <Text style={styles.stateBody}>
-          {isKo
-            ? "가까운 사람에게 짧은 설문을 보내면, 내가 보는 나와 남이 보는 나를 나란히 볼 수 있어요."
-            : "Send a short survey to someone close, and you'll see the me you see beside the me others see."}
+          {aggregate.length > 0
+            ? isKo
+              ? "내 Big Five 자기 점검을 마치면, 내가 보는 나와 남이 보는 나를 나란히 보여드려요."
+              : "Finish your own Big Five check and you'll see the me you see beside the me they see."
+            : isKo
+              ? "가까운 사람에게 짧은 설문을 보내면, 내가 보는 나와 남이 보는 나를 나란히 볼 수 있어요."
+              : "Send a short survey to someone close, and you'll see the me you see beside the me others see."}
         </Text>
       </View>
       )}
