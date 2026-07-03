@@ -43,3 +43,36 @@ export function rev2PersonaMode(id: Rev2PersonaId): "analytic" | "divergent" {
 export function rev2PersonaAccent(id: Rev2PersonaId): string {
   return m3.persona[id].accent;
 }
+
+/** Translucent lens fill behind the banner / selected toggle / cite chips. */
+export function rev2PersonaSoftBg(id: Rev2PersonaId): string {
+  return m3.persona[id].softBg;
+}
+
+/** On-accent ink used on the tinted lens fill (cite-chip label, tag). */
+export function rev2PersonaOnSoft(id: Rev2PersonaId): string {
+  return m3.persona[id].soft;
+}
+
+/** Accent bloom under the persona status dot. */
+export function rev2PersonaGlow(id: Rev2PersonaId): string {
+  return m3.persona[id].glow;
+}
+
+/**
+ * Display name shown on the lens toggle (reference ChatScreen: KO 세컨비/메타비/
+ * 안티비). Distinct from rev2PersonaName (the brand tag "2nd-B" used elsewhere).
+ */
+export function rev2PersonaLensName(id: Rev2PersonaId, locale: SystemLocale): string {
+  return tLocale(locale, "secondb", `rev2.${id}.lensName`);
+}
+
+/** Monospace brand tag under the lens name (2nd-B / Meta-B / Anti-B). */
+export function rev2PersonaTag(id: Rev2PersonaId, locale: SystemLocale): string {
+  return tLocale(locale, "secondb", `rev2.${id}.tag`);
+}
+
+/** One-line lens description shown in the persona banner. */
+export function rev2PersonaDesc(id: Rev2PersonaId, locale: SystemLocale): string {
+  return tLocale(locale, "secondb", `rev2.${id}.desc`);
+}

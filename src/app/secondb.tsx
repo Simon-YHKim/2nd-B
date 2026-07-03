@@ -33,12 +33,19 @@ import { getPersona, PERSONAS } from "@/lib/chat/personas";
 import {
   REV2_PERSONA_IDS,
   rev2PersonaAccent,
+  rev2PersonaDesc,
+  rev2PersonaGlow,
   rev2PersonaHint,
+  rev2PersonaLensName,
   rev2PersonaMode,
-  rev2PersonaName,
+  rev2PersonaOnSoft,
   rev2PersonaRole,
+  rev2PersonaSoftBg,
+  rev2PersonaTag,
   type Rev2PersonaId,
 } from "@/lib/chat/rev2-personas";
+import { m3 } from "@/lib/theme/m3";
+import Svg, { Path } from "react-native-svg";
 import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
@@ -65,6 +72,38 @@ const QUICK_ACTIONS: { ko: string; en: string; mode?: "divergent"; prompt: { ko:
   { ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 별가루를 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
   { ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
 ];
+
+// M3 glyphs (Material Symbols geometry, viewBox 0 -960 960 960) used by the
+// reference ChatScreen input bar + citation chips. Kept as tiny static SVGs
+// (ANDROID_QA: no animated SVG, low node count) so the round send / mic / cite
+// affordances match the prototype without a font-icon dependency.
+function IconSend({ color, size = 22 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 -960 960 960">
+      <Path d="M120-160v-240l320-80-320-80v-240l760 320-760 320Z" fill={color} />
+    </Svg>
+  );
+}
+function IconMic({ color, size = 22 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 -960 960 960">
+      <Path
+        d="M480-400q-50 0-85-35t-35-85v-240q0-50 35-85t85-35q50 0 85 35t35 85v240q0 50-35 85t-85 35Zm-40 320v-123q-104-14-172-93t-68-184h80q0 83 58.5 141.5T480-360q83 0 141.5-58.5T680-560h80q0 105-68 184t-172 93v123h-80Z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+function IconCite({ color, size = 13 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 -960 960 960">
+      <Path
+        d="M280-240q-83 0-141.5-58.5T80-440q0-83 58.5-141.5T280-640q83 0 141.5 58.5T480-440q0 83-58.5 141.5T280-240Zm400-160q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM560-40q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
 
 interface ChatTurn {
   role: "user" | "secondb";
@@ -420,6 +459,15 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   if (isDeepSpace) {
     const dsUsage = usedToday === null ? "..." : String(usedToday);
     const atLimit = usedToday !== null && usedToday >= limit;
+    // Per-lens recolor (reference CHAT_MODES): the whole chat surface tints to
+    // the selected persona's accent / soft fill / on-soft ink / glow. Character
+    // chat (legacy roster) keeps the canonical cyan.
+    const lensAccent = isCharacterChat ? deepSpace.accent : rev2PersonaAccent(rev2Persona);
+    const lensSoftBg = isCharacterChat ? withAlpha(deepSpace.accent, 0.16) : rev2PersonaSoftBg(rev2Persona);
+    const lensOnSoft = isCharacterChat ? deepSpace.accentBright : rev2PersonaOnSoft(rev2Persona);
+    const lensGlow = isCharacterChat ? withAlpha(deepSpace.accent, 0.5) : rev2PersonaGlow(rev2Persona);
+    const lensName = isCharacterChat ? persona.name[locale] : rev2PersonaLensName(rev2Persona, locale);
+    const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
     return (
       <DeepSpaceScreen active="chat" variant="windowed" personaTint={isCharacterChat ? undefined : rev2Persona}>
         <KeyboardAvoidingView
@@ -427,16 +475,19 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           behavior={keyboardBehavior}
           keyboardVerticalOffset={keyboardVerticalOffset}
         >
-          {/* compact status row: title · usage · mode · clear */}
-          <View style={ds.headerRow}>
-            <Text style={ds.headerTitle} numberOfLines={1}>
-              {isCharacterChat ? persona.name[locale] : t("title")}
+          {/* persona banner (reference ChatScreen header): status dot + mono tag +
+              one-line lens description, tinted by the selected lens. Usage counter
+              and clear affordance ride the right edge. */}
+          <View style={[ds.banner, { backgroundColor: lensSoftBg }]}>
+            <View style={[ds.bannerDot, { backgroundColor: lensAccent, shadowColor: lensGlow }]} />
+            <Text style={[ds.bannerTag, { color: lensOnSoft }]} numberOfLines={1}>
+              {isCharacterChat ? t("title") : rev2PersonaTag(rev2Persona, locale)}
             </Text>
-            <Text style={[ds.headerMeta, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
+            <Text style={ds.bannerDesc} numberOfLines={1}>
+              {isCharacterChat ? persona.role[locale] : rev2PersonaDesc(rev2Persona, locale)}
+            </Text>
+            <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
               {dsUsage}/{limit}
-            </Text>
-            <Text style={ds.headerMeta} numberOfLines={1}>
-              {chatMode === "divergent" ? (locale === "ko" ? "새 관점" : "New angle") : locale === "ko" ? "분석" : "Analysis"}
             </Text>
             {hasTurns ? (
               <Pressable
@@ -451,72 +502,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               </Pressable>
             ) : null}
           </View>
-
-          {/* rev2 persona selector (main chat): ONE 세컨비, three personas sharing
-              this conversation. 트위비 = 공상 = the Divergent engine mode, so this
-              row REPLACES the old 분석/새관점 toggle; both run the same C9 -> C3 ->
-              gemini path. Character chat (legacy roster) keeps the mode toggle. */}
-          {!isCharacterChat ? (
-            <View style={ds.modeRow} accessibilityLabel={t("rev2.selectorA11y")}>
-              {REV2_PERSONA_IDS.map((id) => {
-                const selected = rev2Persona === id;
-                const accent = rev2PersonaAccent(id);
-                return (
-                  <Pressable
-                    key={id}
-                    onPress={() => selectRev2Persona(id)}
-                    hitSlop={8}
-                    style={[
-                      ds.personaChip,
-                      { borderColor: accent },
-                      selected ? { backgroundColor: accent } : null,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={`${rev2PersonaName(id, locale)} · ${rev2PersonaRole(id, locale)}`}
-                  >
-                    <Text style={[ds.modeChipText, selected ? ds.personaChipTextOn : { color: accent }]}>
-                      {rev2PersonaName(id, locale)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-              <Text style={ds.personaRole} numberOfLines={1}>
-                {rev2PersonaRole(rev2Persona, locale)}
-              </Text>
-              {chatMode === "divergent" ? (
-                <Animated.View style={[ds.modeDot, { opacity: divergentPulse as never }]} />
-              ) : null}
-            </View>
-          ) : (
-            <View style={ds.modeRow}>
-              <Pressable
-                onPress={() => setChatMode("analytic")}
-                style={[ds.modeChip, chatMode === "analytic" ? ds.modeChipOnAccent : null]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: chatMode === "analytic" }}
-                accessibilityLabel={locale === "ko" ? "분석 모드" : "Analysis mode"}
-              >
-                <Text style={[ds.modeChipText, chatMode === "analytic" ? ds.modeChipTextOn : null]}>
-                  {locale === "ko" ? "분석" : "Analysis"}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setChatMode("divergent")}
-                style={[ds.modeChip, chatMode === "divergent" ? ds.modeChipOnSoul : null]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: chatMode === "divergent" }}
-                accessibilityLabel={locale === "ko" ? "새 관점 모드" : "New angle mode"}
-              >
-                <Text style={[ds.modeChipText, chatMode === "divergent" ? ds.modeChipTextOnSoul : null]}>
-                  {locale === "ko" ? "새 관점" : "New angle"}
-                </Text>
-              </Pressable>
-              {chatMode === "divergent" ? (
-                <Animated.View style={[ds.modeDot, { opacity: divergentPulse as never }]} />
-              ) : null}
-            </View>
-          )}
 
           {/* nodeContext pill */}
           {fromNode ? (
@@ -559,7 +544,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                           }
                         }
                       }}
-                      style={turn.role === "user" ? ds.userBubble : ds.aiBubble}
+                      style={turn.role === "user" ? ds.userBubble : [ds.aiBubble, { borderLeftColor: lensAccent }]}
                       accessibilityRole="button"
                       accessibilityLabel={
                         turn.role === "user"
@@ -572,7 +557,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                         {turn.text}
                       </Text>
                     </Pressable>
-                    {/* 근거(citation) chips -> reference drawer -> /records */}
+                    {/* 근거(citation) chip -> reference drawer -> /records. One
+                        summary chip (reference "근거 · 기록 N건") tinted by the lens. */}
                     {turn.role === "secondb" && turn.chips && turn.chips.length > 0 ? (
                       <Pressable
                         style={ds.chipRow}
@@ -584,17 +570,12 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                             : `This answer drew on ${turn.chips.length} of your pieces. Tap for detail.`
                         }
                       >
-                        <Text style={ds.chipRowLead}>
-                          {locale === "ko" ? `참고한 별가루 ${turn.chips.length}` : `${turn.chips.length} pieces`}
-                        </Text>
-                        {turn.chips.slice(0, 3).map((slug) => (
-                          <View key={slug} style={ds.chip}>
-                            <Text style={ds.chipText}>{formatSourceCitationLabel(slug)}</Text>
-                          </View>
-                        ))}
-                        {turn.chips.length > 3 ? (
-                          <Text style={ds.chipRowLead}>{`+${turn.chips.length - 3}`}</Text>
-                        ) : null}
+                        <View style={[ds.citeChip, { backgroundColor: lensSoftBg }]}>
+                          <IconCite color={lensOnSoft} size={13} />
+                          <Text style={[ds.citeChipText, { color: lensOnSoft }]}>
+                            {locale === "ko" ? `근거 · 기록 ${turn.chips.length}건` : `${turn.chips.length} sources`}
+                          </Text>
+                        </View>
                       </Pressable>
                     ) : null}
                     {/* 트위비 3-branch (P5f): next-step candidates. Tap = prefill
@@ -634,7 +615,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             )}
             {sending ? (
               <View style={ds.thinking}>
-                <ActivityIndicator color={deepSpace.accent} />
+                <ActivityIndicator color={lensAccent} />
               </View>
             ) : null}
           </ScrollView>
@@ -688,47 +669,127 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             </Pressable>
           ) : null}
 
-          {/* real composer — text input + [전송] -> handleSend -> callGemini */}
+          {/* persona toggle (reference ChatScreen): 3 equal lenses. Selecting one
+              recolors the whole surface and switches who answers next. Character
+              chat (legacy roster) keeps the 분석/새 관점 mode toggle instead. */}
+          {!isCharacterChat ? (
+            <View style={ds.toggleRow} accessibilityLabel={t("rev2.selectorA11y")}>
+              {REV2_PERSONA_IDS.map((id) => {
+                const on = rev2Persona === id;
+                const accent = rev2PersonaAccent(id);
+                return (
+                  <Pressable
+                    key={id}
+                    onPress={() => selectRev2Persona(id)}
+                    style={[
+                      ds.lensBtn,
+                      { borderColor: on ? accent : m3.color.outlineVariant },
+                      on ? { backgroundColor: rev2PersonaSoftBg(id) } : null,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={`${rev2PersonaLensName(id, locale)} · ${rev2PersonaRole(id, locale)}`}
+                  >
+                    <Text style={[ds.lensName, { color: on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
+                      {rev2PersonaLensName(id, locale)}
+                    </Text>
+                    <Text style={[ds.lensTag, { color: on ? accent : m3.color.onSurfaceVariant }]}>
+                      {rev2PersonaTag(id, locale)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={ds.toggleRow}>
+              <Pressable
+                onPress={() => setChatMode("analytic")}
+                style={[
+                  ds.lensBtn,
+                  { borderColor: chatMode === "analytic" ? lensAccent : m3.color.outlineVariant },
+                  chatMode === "analytic" ? { backgroundColor: lensSoftBg } : null,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: chatMode === "analytic" }}
+                accessibilityLabel={locale === "ko" ? "분석 모드" : "Analysis mode"}
+              >
+                <Text style={[ds.lensName, { color: chatMode === "analytic" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
+                  {locale === "ko" ? "분석" : "Analysis"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setChatMode("divergent")}
+                style={[
+                  ds.lensBtn,
+                  { borderColor: chatMode === "divergent" ? lensAccent : m3.color.outlineVariant },
+                  chatMode === "divergent" ? { backgroundColor: lensSoftBg } : null,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: chatMode === "divergent" }}
+                accessibilityLabel={locale === "ko" ? "새 관점 모드" : "New angle mode"}
+              >
+                <Text style={[ds.lensName, { color: chatMode === "divergent" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
+                  {locale === "ko" ? "새 관점" : "New angle"}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* input bar (reference ChatScreen): a rounded pill holding the text
+              field + inline mic, then a separate 48px round send button that
+              fills with the lens accent when there is something to send. */}
           <View style={ds.composer}>
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              placeholder={t("placeholder")}
-              placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
-              multiline
-              textAlignVertical="top"
-              style={ds.composerInput}
-              accessibilityLabel={t("inputA11y")}
-              onKeyPress={(e) => {
-                // Web: Enter sends, Shift+Enter inserts a newline. Native keeps
-                // the multiline default (composing happens, send via the button).
-                if (Platform.OS !== "web") return;
-                const we = e as unknown as {
-                  key?: string;
-                  shiftKey?: boolean;
-                  nativeEvent: { key: string; shiftKey?: boolean };
-                  preventDefault?: () => void;
-                };
-                const key = we.nativeEvent?.key ?? we.key;
-                const shift = we.shiftKey ?? we.nativeEvent?.shiftKey ?? false;
-                if (key === "Enter" && !shift) {
-                  we.preventDefault?.();
-                  if (canSend) void handleSend();
-                }
-              }}
-            />
+            <View style={ds.inputPill}>
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                placeholder={locale === "ko" ? `${lensName}에게 물어보기…` : `Ask ${lensName}…`}
+                placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
+                style={ds.pillInput}
+                accessibilityLabel={t("inputA11y")}
+                onSubmitEditing={() => { if (canSend) void handleSend(); }}
+                returnKeyType="send"
+                onKeyPress={(e) => {
+                  // Web: Enter sends, Shift+Enter inserts a newline.
+                  if (Platform.OS !== "web") return;
+                  const we = e as unknown as {
+                    key?: string;
+                    shiftKey?: boolean;
+                    nativeEvent: { key: string; shiftKey?: boolean };
+                    preventDefault?: () => void;
+                  };
+                  const key = we.nativeEvent?.key ?? we.key;
+                  const shift = we.shiftKey ?? we.nativeEvent?.shiftKey ?? false;
+                  if (key === "Enter" && !shift) {
+                    we.preventDefault?.();
+                    if (canSend) void handleSend();
+                  }
+                }}
+              />
+              <Pressable
+                style={ds.micBtn}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={locale === "ko" ? "음성 입력" : "Voice input"}
+              >
+                <IconMic color={m3.color.onSurfaceVariant} size={22} />
+              </Pressable>
+            </View>
             <Pressable
               onPress={handleSend}
               disabled={!canSend}
-              style={[ds.sendBtn, !canSend ? ds.sendBtnDisabled : null]}
+              style={[
+                ds.sendBtn,
+                { borderColor: lensAccent, backgroundColor: canSend ? lensAccent : "transparent" },
+              ]}
               accessibilityRole="button"
               accessibilityLabel={t("send")}
               accessibilityState={{ disabled: !canSend }}
             >
               {sending ? (
-                <ActivityIndicator color={deepSpace.onAccent} />
+                <ActivityIndicator color={inkOnAccent} />
               ) : (
-                <Text style={ds.sendBtnText}>{t("send")}</Text>
+                <IconSend color={canSend ? inkOnAccent : lensAccent} size={22} />
               )}
             </Pressable>
           </View>
@@ -1484,22 +1545,39 @@ const styles = StyleSheet.create({
 // glassmorphism, no pill chips, no em-dash in strings). Matches the prototype's
 // bubble/composer language from DeepSpaceViews while hosting the REAL engine.
 const ds = StyleSheet.create({
-  headerRow: {
+  // persona banner (reference ChatScreen header row): dot + mono tag + desc,
+  // over the lens soft fill (set inline). Usage + clear ride the right edge.
+  banner: {
     flexDirection: "row",
     alignItems: "center",
     gap: deepSpaceSpacing.sm,
-    paddingHorizontal: 18,
-    paddingTop: 6,
-    paddingBottom: deepSpaceSpacing.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  headerTitle: {
+  bannerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    flexShrink: 0,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 8,
+    shadowOpacity: 1,
+    elevation: 2,
+  },
+  bannerTag: {
+    flexShrink: 0,
+    fontSize: 10,
+    fontWeight: "700",
+    fontFamily: fontFamilies.mono,
+  },
+  bannerDesc: {
     flex: 1,
     minWidth: 0,
-    color: deepSpace.accentBright,
-    fontSize: 14,
-    fontFamily: fontFamilies.pixelKo,
+    color: m3.color.onSurfaceVariant,
+    fontSize: 12,
+    fontFamily: fontFamilies.readable,
   },
-  headerMeta: {
+  bannerUsage: {
     flexShrink: 0,
     color: deepSpace.textLo,
     fontSize: 11,
@@ -1508,6 +1586,26 @@ const ds = StyleSheet.create({
   headerMetaDanger: { color: deepSpace.dangerText },
   clearLink: { flexShrink: 0, minHeight: 44, justifyContent: "center", paddingHorizontal: deepSpaceSpacing.xs },
   clearLinkText: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
+
+  // lens toggle (reference ChatScreen persona toggle): 3 equal buttons, name +
+  // mono tag; border/fill accent set inline per selected lens.
+  toggleRow: {
+    flexDirection: "row",
+    gap: deepSpaceSpacing.sm,
+    paddingHorizontal: 12,
+    paddingTop: deepSpaceSpacing.sm,
+  },
+  lensBtn: {
+    flex: 1,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    borderRadius: deepSpaceRadii.md,
+    borderWidth: 1.5,
+  },
+  lensName: { fontSize: 13, fontWeight: "700", fontFamily: fontFamilies.readable },
+  lensTag: { fontSize: 9, fontFamily: fontFamilies.mono, marginTop: 1 },
 
   modeRow: {
     flexDirection: "row",
@@ -1604,43 +1702,46 @@ const ds = StyleSheet.create({
   userRow: { justifyContent: "flex-end" },
   aiRow: { justifyContent: "flex-start" },
   bubbleCol: { maxWidth: "86%", gap: 6, alignItems: "flex-start" },
+  // user bubble: M3 primary fill, radius 16/16/4/16 (reference).
   userBubble: {
     alignSelf: "flex-end",
     maxWidth: "100%",
     paddingVertical: 10,
-    paddingHorizontal: 13,
+    paddingHorizontal: 14,
     borderTopLeftRadius: deepSpaceRadii.md,
     borderTopRightRadius: deepSpaceRadii.md,
     borderBottomRightRadius: 4,
     borderBottomLeftRadius: deepSpaceRadii.md,
-    backgroundColor: withAlpha(deepSpace.accent, 0.16),
+    backgroundColor: m3.color.primary,
   },
-  userText: { color: deepSpace.textHi, fontSize: 12.5, lineHeight: 18, fontFamily: fontFamilies.readable },
+  userText: { color: m3.color.onPrimary, fontSize: 13, lineHeight: 19, fontFamily: fontFamilies.readable },
+  // SB bubble: surface-container-high, 3px lens accent left border (set inline),
+  // radius 4/16/16/16 (reference).
   aiBubble: {
     alignSelf: "flex-start",
     maxWidth: "100%",
-    paddingVertical: 11,
-    paddingHorizontal: 13,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderTopLeftRadius: 4,
     borderTopRightRadius: deepSpaceRadii.md,
     borderBottomRightRadius: deepSpaceRadii.md,
     borderBottomLeftRadius: deepSpaceRadii.md,
-    borderWidth: 1,
-    borderColor: withAlpha(deepSpace.soul, 0.25),
-    backgroundColor: withAlpha(deepSpace.soul, 0.1),
+    borderLeftWidth: 3,
+    backgroundColor: m3.color.surfaceContainerHigh,
   },
-  aiText: { color: deepSpace.textHi, fontSize: 12.5, lineHeight: 19, fontFamily: fontFamilies.readable },
+  aiText: { color: m3.color.onSurface, fontSize: 13, lineHeight: 19, fontFamily: fontFamilies.readable },
 
-  chipRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 7 },
-  chipRowLead: { color: deepSpace.textLo, fontSize: 11, fontFamily: fontFamilies.readable },
-  chip: {
-    paddingVertical: 5,
-    paddingHorizontal: deepSpaceSpacing.sm,
+  chipRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 },
+  // citation chip (reference: soft lens fill, bubble_chart glyph + label).
+  citeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    height: 26,
+    paddingHorizontal: 10,
     borderRadius: deepSpaceRadii.sm,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
   },
-  chipText: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
+  citeChipText: { fontSize: 12, fontWeight: "600", fontFamily: fontFamilies.readable },
 
   thinking: { paddingVertical: deepSpaceSpacing.md, alignItems: "center" },
 
@@ -1661,37 +1762,50 @@ const ds = StyleSheet.create({
 
   composer: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     gap: deepSpaceSpacing.sm,
-    paddingHorizontal: 18,
+    paddingHorizontal: 12,
     paddingTop: deepSpaceSpacing.sm,
-    paddingBottom: deepSpaceSpacing.sm,
+    paddingBottom: 12,
   },
-  composerInput: {
+  // rounded input pill (reference): surface-container-high, mic inline right.
+  inputPill: {
     flex: 1,
-    maxHeight: 120,
-    minHeight: 44,
-    padding: deepSpaceSpacing.md,
-    borderRadius: deepSpaceRadii.md,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.card,
-    color: deepSpace.textHi,
-    fontSize: 13,
-    lineHeight: 20,
-    fontFamily: fontFamilies.readable,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: deepSpaceSpacing.sm,
+    height: 48,
+    paddingLeft: 16,
+    paddingRight: 6,
+    borderRadius: 9999,
+    backgroundColor: m3.color.surfaceContainerHigh,
   },
-  sendBtn: {
-    minHeight: 44,
-    minWidth: 64,
-    paddingHorizontal: deepSpaceSpacing.lg,
-    borderRadius: deepSpaceRadii.md,
+  pillInput: {
+    flex: 1,
+    minWidth: 0,
+    color: m3.color.onSurface,
+    fontSize: 15,
+    fontFamily: fontFamilies.readable,
+    padding: 0,
+  },
+  micBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: deepSpace.accent,
+    flexShrink: 0,
   },
-  sendBtnDisabled: { backgroundColor: withAlpha(deepSpace.accent, 0.3) },
-  sendBtnText: { color: deepSpace.onAccent, fontSize: 13, fontWeight: "700", fontFamily: fontFamilies.readable },
+  // separate 48px round send button (reference): accent fill when canSend.
+  sendBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
 
   modalBackdrop: {
     flex: 1,

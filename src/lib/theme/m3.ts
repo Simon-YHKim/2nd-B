@@ -81,6 +81,8 @@ export const m3Accent = {
   skySurface: "#0B2142",
   /** App-wide deepest background behind the nebula (m3-theme.css `body`). */
   spaceBody: "#05070B",
+  /** Dark ink placed on a bright persona-accent fill (chat send/mic glyph). */
+  onAccentInk: "#06121f",
 
   // ---- rev2 constellation home (reference-app sb-home.jsx / sb-app.jsx).
   // Values transcribed 1:1 from the prototype; alpha is applied at the callsite
@@ -139,13 +141,19 @@ export const m3Accent = {
  * 세컨비 — one character, three personas (PRD §02 / §05). Each shares the head
  * silhouette; only the accent + top signature differ.
  */
+// `soft` = the light on-accent ink (reference CHAT_MODES.onSoft — text/glyph on
+// a tinted lens fill). `softBg` = the translucent lens fill behind chips /
+// banners / selected toggles (reference CHAT_MODES.soft). `glow` = the accent
+// bloom under the persona status dot (reference CHAT_MODES.glow). Values
+// transcribed 1:1 from reference-app/sb-data.jsx CHAT_MODES so the chat surface
+// recolors per selected lens exactly like the prototype.
 export const m3Persona = {
   /** 2nd-B (공감) — empathetic main lens. */
-  secondb: { accent: "#A78BFA", soft: "#E2D6FF" },
+  secondb: { accent: "#A78BFA", soft: "#E2D6FF", softBg: "rgba(167,139,250,0.16)", glow: "rgba(167,139,250,0.5)" },
   /** 메타비 / Meta-B (객관) — objective mirror. */
-  meta: { accent: "#46B6FF", soft: "#BFE7FF" },
-  /** 트위비 / Twi-B (공상) — creative wild-card. */
-  twi: { accent: "#CFC4E8", soft: "#EDE7F7" },
+  meta: { accent: "#46B6FF", soft: "#BFE7FF", softBg: "rgba(70,182,255,0.16)", glow: "rgba(70,182,255,0.5)" },
+  /** 트위비·안티비 / Anti-B (공상) — creative wild-card. */
+  twi: { accent: "#CFC4E8", soft: "#EDE7F7", softBg: "rgba(207,196,232,0.16)", glow: "rgba(245,230,190,0.55)" },
 } as const;
 
 /** Typefaces (PRD §13): Pretendard KO body + Roboto M3 chrome; Roboto Mono numerics. */
