@@ -106,7 +106,7 @@
     "gettingSuggestions": "Getting suggestions…"
   },
   "recordDetail": {
-    "title": "Record detail",
+    "title": "Piece detail",
     "headerLinked": "This piece is connected to {{count}} records.",
     "headerAlone": "Want to revisit this piece slowly?",
     "tip": "It links to records sharing the same tag.",

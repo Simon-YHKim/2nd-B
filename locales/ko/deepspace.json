@@ -106,7 +106,7 @@
     "gettingSuggestions": "제안 받는 중…"
   },
   "recordDetail": {
-    "title": "기록 상세",
+    "title": "조각 상세",
     "headerLinked": "이 별가루는 {{count}}개의 기록과 이어져 있어요.",
     "headerAlone": "이 별가루를 천천히 다시 볼까요?",
     "tip": "같은 태그의 기록으로 이어져요.",

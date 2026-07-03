@@ -74,6 +74,8 @@ export const m3Accent = {
   moodPositive: "#5FF0C0",
   moodNeutral: "#A78BFA",
   moodNegative: "#FF7A90",
+  /** Amber for a flat / receding brightness bar (밝기 변화 non-rising star). */
+  trendFlat: "#F7B955",
   /** Sky copy on the deep-space background: body cyan / emphasized near-white. */
   skyText: "#5FD4FF",
   skyTextHi: "#E8F7FF",

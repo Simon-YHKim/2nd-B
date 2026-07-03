@@ -7,11 +7,18 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { stripDomainTags } from "@/lib/persona/domain-stars";
+import {
+  DOMAIN_STARS,
+  DOMAIN_TAG_PREFIX,
+  getDomainStar,
+  isDomainId,
+  isDomainTag,
+  stripDomainTags,
+} from "@/lib/persona/domain-stars";
 import { ddsStyles as styles } from "./dds-styles";
 import { parseStructured } from "@/lib/capture/structured";
 import { Text } from "@/components/ui/Text";
-import { DeepSpaceLoader, SecondbStatusHeader } from "@/components/deepspace";
+import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { SegBtn } from "@/components/m3";
@@ -86,7 +93,7 @@ function GraphLoading() {
 
 function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
   return (
-    <DeepSpaceScreen active="lens" title={title ?? ""} onBack={() => router.back()}>
+    <DeepSpaceScreen active="home" variant="windowed" header="none" title={title ?? ""} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}
         {children}
@@ -123,27 +130,6 @@ export function FilterChip({ label, active, violet, onPress }: { label: string; 
     );
   }
   return <View style={chipStyle}>{inner}</View>;
-}
-
-function TimelineRow({ title, time, tag, dim, onPress }: { title: string; time?: string; tag?: string; dim?: boolean; onPress?: () => void }) {
-  const content = (
-    <View style={{ gap: 5 }}>
-      <View style={styles.tlRow}>
-        <View style={[styles.tlDot, dim && styles.tlDotDim]} />
-        <Text variant="body" style={[styles.tlTitle, dim && styles.tlTitleDim]} numberOfLines={1}>{title}</Text>
-        {time ? <Text variant="subtle" style={styles.tlTime}>{time}</Text> : null}
-      </View>
-      {tag ? <View style={styles.tlTagRow}><Text variant="caption" pixelEn style={styles.tlTag}>{tag}</Text></View> : null}
-    </View>
-  );
-  if (!onPress) return content;
-  // Tappable timeline row (SCREEN_TREE_SPEC §4: 항목→/record/[id]). Wrap, not
-  // restyle - the row visual is unchanged; only a ≥44px hit target is added.
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [{ minHeight: 44, justifyContent: "center" }, pressed ? { opacity: 0.6 } : null]}>
-      {content}
-    </Pressable>
-  );
 }
 
 function TrashGlyph() {
@@ -508,12 +494,6 @@ interface DetailRecord {
   created_at: string;
 }
 
-const RECORD_KIND_KEY: Record<string, string> = {
-  journal: "recordDetail.kindJournal",
-  note: "recordDetail.kindNote",
-  audit_response: "recordDetail.kindAudit",
-};
-
 function recordTitle(r: DetailRecord, fallback: string): string {
   const s = r.summary?.trim() || r.topic?.trim();
   if (s) return s;
@@ -525,8 +505,26 @@ function recordTitle(r: DetailRecord, fallback: string): string {
   return fallback;
 }
 
+const RTYPE_KO: Record<RType, string> = { text: "글", link: "링크", voice: "음성", photo: "사진", todo: "할 일" };
+const RTYPE_EN: Record<RType, string> = { text: "Text", link: "Link", voice: "Voice", photo: "Photo", todo: "To-do" };
+
+// The 세컨비 line names the domain star this piece connects to. Derived from the
+// record's own tags (domain: tag or a plain 도메인 name), never invented.
+function pickDomainStar(tags: string[] | null, ko: boolean): string {
+  for (const tag of tags ?? []) {
+    if (isDomainTag(tag)) {
+      const id = tag.slice(DOMAIN_TAG_PREFIX.length);
+      if (isDomainId(id)) return ko ? getDomainStar(id).nameKo : getDomainStar(id).nameEn;
+    }
+    const hit = DOMAIN_STARS.find((d) => d.nameKo === tag || d.nameEn.toLowerCase() === tag.toLowerCase());
+    if (hit) return ko ? hit.nameKo : hit.nameEn;
+  }
+  return ko ? "관계" : "Relationships";
+}
+
 export function DeepSpaceRecordDetailScreen() {
-  const { t } = useTranslation("deepspace");
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language === "ko";
   const { userId, loading: authLoading } = useAuth();
   const params = useLocalSearchParams();
   const idParam = params.id;
@@ -594,24 +592,30 @@ export function DeepSpaceRecordDetailScreen() {
   }
 
   const related = relatedByTag(record.id, record.tags, all);
-  const kindKey = RECORD_KIND_KEY[record.kind];
-  const kindLabel = kindKey ? t(kindKey) : t("recordDetail.kindFallback");
   const recencyOpts = { labels: dsRecencyLabels(t) };
+  const rtype = recordType(record as unknown as TimelineRecord);
+  const typeLabel = ko ? RTYPE_KO[rtype] : RTYPE_EN[rtype];
+  const timeLabel = recencyLabel(record.created_at, recencyOpts) || (ko ? "방금" : "Just now");
+  const linkedStar = pickDomainStar(record.tags, ko);
+  const secondbLine =
+    related.length > 0
+      ? ko
+        ? `이 조각은 '${linkedStar}' 별과 이어져요. 비슷한 기록 ${related.length}건이 같은 시간대에 모여 있어요.`
+        : `This piece links to your '${linkedStar}' star. ${related.length} similar records sit in the same window.`
+      : ko
+        ? "이 조각은 아직 어느 별과도 이어지지 않았어요. 곧 이어드릴게요."
+        : "This piece isn't linked to a star yet. We'll connect it soon.";
 
   return (
     <Shell title={t("recordDetail.title")}>
-      <SecondbStatusHeader
-        text={related.length > 0 ? t("recordDetail.headerLinked", { count: related.length }) : t("recordDetail.headerAlone")}
-        tip={t("recordDetail.tip")}
-      />
-      <View style={styles.recMetaRow}>
-        <Text variant="subtle" style={styles.recMetaType}>{kindLabel}</Text>
-        <RNText style={styles.recMetaDot}>·</RNText>
-        <Text variant="subtle" style={styles.recMeta}>{recencyLabel(record.created_at, recencyOpts) || t("recordDetail.kindFallback")}</Text>
-        <RNText style={styles.recMetaDot}>·</RNText>
-        <Text variant="subtle" style={styles.recMeta}>{t("recordDetail.author")}</Text>
+      {/* type chip + relative time (reference RecordDetail 별가루 상세 → 조각 상세) */}
+      <View style={rd.typeRow}>
+        <View style={rStyles.iconBox}><TypeGlyph type={rtype} /></View>
+        <RNText style={rd.typeLabel}>{typeLabel} · {timeLabel}</RNText>
       </View>
+
       <Text variant="heading" style={styles.recTitle}>{recordTitle(record, t("recordDetail.kindFallback"))}</Text>
+
       {record.body && record.body.trim().length > 0 ? (
         <View style={styles.recBody}>
           <Text variant="body" style={styles.recBodyText}>{record.body}</Text>
@@ -634,37 +638,60 @@ export function DeepSpaceRecordDetailScreen() {
           </View>
         );
       })()}
-      {record.tags && record.tags.length > 0 ? (
-        <View style={styles.filterRow}>
-          {record.tags.slice(0, 5).map((tag) => (
-            <FilterChip key={tag} label={`#${tag}`} active />
-          ))}
+
+      {/* 세컨비 한 줄 — which star this connects to + why (tertiary container) */}
+      <View style={rd.sbCard}>
+        <SecondbHead size={30} mood="neutral" track={false} />
+        <View style={rd.sbBody}>
+          <RNText style={rd.sbText}>{secondbLine}</RNText>
+          {related.length > 0 ? (
+            <Pressable onPress={() => router.push("/core-brain")} accessibilityRole="button" hitSlop={6}>
+              <RNText style={rd.sbLink}>{ko ? "근거 기록 보기 ↗" : "See evidence ↗"}</RNText>
+            </Pressable>
+          ) : null}
         </View>
-      ) : null}
-      {record.conclusion && record.conclusion.trim().length > 0 ? (
-        <View style={styles.insightViolet}>
-          <Text variant="body" style={styles.insightVioletText}>{record.conclusion}</Text>
-        </View>
-      ) : null}
+      </View>
+
+      <RNText style={rd.section}>{ko ? "태그" : "Tags"}</RNText>
+      <View style={rd.tagRow}>
+        {(record.tags ?? []).slice(0, 6).map((tag) => (
+          <View key={tag} style={rd.tag}><RNText style={rd.tagTxt}>{tag}</RNText></View>
+        ))}
+        <Pressable style={rd.tag} onPress={() => router.push("/capture")} accessibilityRole="button" accessibilityLabel={ko ? "태그 추가" : "Add tag"}>
+          <RNText style={rd.tagTxt}>+ {ko ? "태그 추가" : "Add tag"}</RNText>
+        </Pressable>
+      </View>
+
       {related.length > 0 ? (
         <>
-          <Text variant="caption" pixelEn style={styles.tlLabel}>{t("recordDetail.linkedRecords")}</Text>
-          <View style={styles.tlGroup}>
-            {related.map((r) => (
-              <TimelineRow
-                key={r.id}
-                title={recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}
-                time={recencyLabel(r.created_at, recencyOpts) || undefined}
-                dim
-                onPress={() => router.push({ pathname: "/record/[id]", params: { id: r.id } })}
-              />
-            ))}
+          <RNText style={rd.section}>{ko ? "연결된 기록" : "Linked records"}</RNText>
+          <View style={rd.linkCol}>
+            {related.map((r) => {
+              const lt = recordType(r);
+              return (
+                <Pressable
+                  key={r.id}
+                  style={({ pressed }) => [rd.linkCard, pressed && rStyles.cardPressed]}
+                  onPress={() => router.push({ pathname: "/record/[id]", params: { id: r.id } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}
+                >
+                  <TypeGlyph type={lt} />
+                  <RNText numberOfLines={1} style={rd.linkTitle}>{recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}</RNText>
+                  <RNText style={rd.linkChev}>›</RNText>
+                </Pressable>
+              );
+            })}
           </View>
         </>
       ) : null}
+
       <View style={styles.ctaRow}>
-        <Pressable style={styles.secondary} onPress={() => router.push("/capture")}>
-          <Text variant="caption" style={styles.secondaryText}>{t("recordDetail.newRecord")}</Text>
+        <Pressable style={styles.secondary} onPress={() => router.push("/capture")} accessibilityRole="button">
+          <Text variant="caption" style={styles.secondaryText}>{ko ? "편집" : "Edit"}</Text>
+        </Pressable>
+        <Pressable style={styles.secondary} onPress={() => router.push("/records")} accessibilityRole="button">
+          <Text variant="caption" style={styles.secondaryText}>{ko ? "이동" : "Move"}</Text>
         </Pressable>
         <Pressable
           style={[styles.iconBtn, styles.iconBtnDanger]}
@@ -679,6 +706,47 @@ export function DeepSpaceRecordDetailScreen() {
     </Shell>
   );
 }
+
+const rd = StyleSheet.create({
+  typeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, marginBottom: 10 },
+  typeLabel: { color: colors.textMid, fontSize: 11 },
+  sbCard: {
+    flexDirection: "row",
+    gap: 10,
+    backgroundColor: m3.color.tertiaryContainer,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginTop: spacing.sm,
+  },
+  sbBody: { flex: 1, gap: 6 },
+  sbText: { color: m3.color.onTertiaryContainer, fontSize: 13, lineHeight: 19 },
+  sbLink: { color: m3.color.primary, fontSize: 13, fontWeight: "600" },
+  section: { color: colors.textTitle, fontSize: 13, marginTop: spacing.md, marginBottom: spacing.xs },
+  tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tag: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  tagTxt: { color: colors.cyanSoft, fontSize: 12 },
+  linkCol: { gap: 8, marginTop: spacing.xs },
+  linkCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.cardBg,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  linkTitle: { flex: 1, color: colors.textTitle, fontSize: 13 },
+  linkChev: { color: colors.cyanSoft, fontSize: 20 },
+});
 
 export function DeepSpaceWikiScreen() {
   const { t, i18n } = useTranslation("deepspace");
