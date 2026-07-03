@@ -107,13 +107,27 @@
         "assistant": "Asisten"
       },
       "star": {
-        "career": { "line": "Apa yang sudah kamu bangun dan kumpulkan?" },
-        "finance": { "line": "Apa yang uang katakan tentang diriku?" },
-        "relation": { "line": "Bagaimana aku dengan orang-orang terdekatku?" },
-        "growth": { "line": "Masa mana yang membentuk diriku sekarang?" },
-        "health": { "line": "Bagaimana kondisi dan ritmeku belakangan ini?" },
-        "recreation": { "line": "Apa yang membuatku bisa beristirahat?" },
-        "museum": { "line": "Susuri jalan yang telah dilalui AI dan pelajari cara SecondB memahamimu." }
+        "career": {
+          "line": "Apa yang sudah kamu bangun dan kumpulkan?"
+        },
+        "finance": {
+          "line": "Apa yang uang katakan tentang diriku?"
+        },
+        "relation": {
+          "line": "Bagaimana aku dengan orang-orang terdekatku?"
+        },
+        "growth": {
+          "line": "Masa mana yang membentuk diriku sekarang?"
+        },
+        "health": {
+          "line": "Bagaimana kondisi dan ritmeku belakangan ini?"
+        },
+        "recreation": {
+          "line": "Apa yang membuatku bisa beristirahat?"
+        },
+        "museum": {
+          "line": "Susuri jalan yang telah dilalui AI dan pelajari cara SecondB memahamimu."
+        }
       }
     },
     "capture": {
@@ -252,6 +266,14 @@
       "domain3Count": "37 kepingan",
       "conclusion": "Yang paling banyak kamu bangun ada di Karier. Keuangan masih kosong: mau isi lagi?",
       "addData": "+ Tambah data"
+    },
+    "imagine": {
+      "title": "Berandai",
+      "introBody": "Lempar jauh saja, tidak ada jawaban benar. Pilih cabang yang kamu suka, kita persempit jadi langkah berikutnya.",
+      "sectionAngles": "Cabang yang dilempar SecondB",
+      "sectionSteps": "Kandidat langkah berikutnya",
+      "toCapture": "Pindahkan ke Capture",
+      "more": "Lainnya bersama SecondB"
     }
   }
 }
