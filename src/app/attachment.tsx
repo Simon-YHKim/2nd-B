@@ -1,7 +1,13 @@
-// Attachment style assessment (ECR-S, Wei et al. 2007). 12 items, two
-// subscales (anxiety + avoidance), 4 styles based on median splits.
+// Attachment style (ECR-S, Wei et al. 2007). Two surfaces share this route:
+//   • the RESULT lens (AttachmentLensM3) — a 회피×불안 2-axis map + propose→ratify
+//     estimate, the pixel target cloned from the reference AttachmentScreen; and
+//   • the ECR SURVEY (AttachmentSurvey) — 12 items, two subscales, 4 styles —
+//     which is the sole writer of the ecr-tagged record the lens reads.
+// Canon (deep-space) shows the lens first and launches the survey from its
+// empty-state / retake CTA (mirrors BigFive). Legacy renders the survey directly
+// in the premium shell.
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -13,8 +19,11 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { AttachmentLensM3, type AttachmentLensResult } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
+import { getSupabaseClient } from "@/lib/supabase/client";
+import { loadLatestAttachment } from "@/lib/persona/build";
 import {
   ECR_ITEMS,
   STYLE_DESCRIPTION,
@@ -40,7 +49,11 @@ const SCALE: { value: number; en: string; ko: string }[] = [
 
 type Toast = { message: string; tone: "danger" | "info" | "success" };
 
-function AttachmentScreen() {
+// The ECR-S questionnaire body, shell-agnostic so the SAME survey mounts in both
+// tracks. It is the ONLY writer of the ["attachment","ecr"] record that
+// loadLatestAttachment reads. onComplete fires after the save celebration so the
+// caller decides where to go next; onCancel backs out of the intro / exit modal.
+function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
   const { i18n } = useTranslation();
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -76,11 +89,9 @@ function AttachmentScreen() {
 
   if (loading) {
     return (
-      <AttachmentShell>
-        <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "검사를 불러오는 중이에요…" : "Loading assessment…"} />
-        </View>
-      </AttachmentShell>
+      <View style={styles.center}>
+        <PremiumLoadingState message={locale === "ko" ? "검사를 불러오는 중이에요…" : "Loading assessment…"} />
+      </View>
     );
   }
   if (!userId) {
@@ -132,7 +143,7 @@ function AttachmentScreen() {
   }
 
   return (
-    <AttachmentShell>
+    <>
       {!started ? (
         <QuantIntroModal
           toolKey="ecr"
@@ -151,7 +162,7 @@ function AttachmentScreen() {
           }
           locale={locale}
           onStart={() => setStarted(true)}
-          onCancel={() => router.back()}
+          onCancel={onCancel}
         />
       ) : null}
 
@@ -223,8 +234,8 @@ function AttachmentScreen() {
           message={locale === "ko" ? "저장됐어요 · 별 하나가 켜졌어요" : "Saved · one star is lit"}
           onDone={() => {
             // First star lit ever -> steer into one SecondB chat (activation
-            // target). After the first nudge, every later save returns to the
-            // persona card as before.
+            // target). After the first nudge, every later save returns via
+            // onComplete (canon reloads the lens; legacy routes to /persona).
             if (!isFirstStarChatNudged()) {
               markFirstStarChatNudged();
               router.replace({
@@ -232,7 +243,7 @@ function AttachmentScreen() {
                 params: { fromNode: locale === "ko" ? "관계의 나" : "my relational self" },
               });
             } else {
-              router.replace("/persona");
+              onComplete();
             }
           }}
         />
@@ -270,14 +281,14 @@ function AttachmentScreen() {
             variant="primary"
             onPress={() => {
               setExitConfirmOpen(false);
-              router.back();
+              onCancel();
             }}
             style={{ flex: 1 }}
             accessibilityHint={locale === "ko" ? "검사를 종료하고 이전 화면으로 돌아갑니다." : "Exit the survey and return."}
           />
         </View>
       </PremiumModal>
-    </AttachmentShell>
+    </>
   );
 }
 
@@ -310,19 +321,79 @@ const styles = StyleSheet.create({
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
 
-// Canon (deep-space) and legacy share ONE functional screen — the ECR-S
-// relationship check. Canon previously showed a placeholder RelationalLensView
-// with a dead CTA; now both render the real assessment (the "relationship check"
-// core-brain's empty state points to). Only the chrome differs: the deep-space
-// dock (DeepSpaceScreen) vs the premium shell.
-function AttachmentShell({ children }: { children: ReactNode }) {
-  return isDeepSpaceUI() ? (
-    <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>
-  ) : (
-    <PremiumAppShell>{children}</PremiumAppShell>
+// Canon (deep-space): the ECR RESULT lens over the shared sky. Loads the latest
+// ecr-tagged record; empty -> dark-star state whose CTA launches the survey;
+// filled -> the 회피×불안 map + propose→ratify estimate. `taking` flips to the
+// survey inside the same dock (the BigFive pattern).
+function AttachmentDeepSpace() {
+  const { t } = useTranslation("home");
+  const { userId, loading } = useAuth();
+  const [result, setResult] = useState<AttachmentLensResult | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [taking, setTaking] = useState(false);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!userId) {
+      setResult(null);
+      return;
+    }
+    let cancelled = false;
+    loadLatestAttachment(getSupabaseClient(), userId)
+      .then((r) => {
+        if (cancelled) return;
+        setResult(r ? { avoidance: r.avoidance, anxiety: r.anxiety, style: r.style } : null);
+      })
+      .catch(() => {
+        if (!cancelled) setResult(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, loading, reloadKey]);
+
+  if (taking) {
+    return (
+      <DeepSpaceScreen active="lens">
+        <AttachmentSurvey
+          onComplete={() => {
+            setTaking(false);
+            setReloadKey((k) => k + 1);
+          }}
+          onCancel={() => setTaking(false)}
+        />
+      </DeepSpaceScreen>
+    );
+  }
+
+  return (
+    <DeepSpaceScreen
+      active="lens"
+      variant="windowed"
+      header="none"
+      title={t("ds.attachment.headline")}
+      onBack={() => router.back()}
+    >
+      <AttachmentLensM3
+        result={result}
+        onStart={() => setTaking(true)}
+        onInterview={() => router.push("/interview")}
+        onBigFive={() => router.push("/big-five")}
+      />
+    </DeepSpaceScreen>
+  );
+}
+
+// Legacy rollback skin: the survey directly, in the premium shell.
+function AttachmentLegacy() {
+  return (
+    <PremiumAppShell>
+      <AttachmentSurvey onComplete={() => router.replace("/persona")} onCancel={() => router.back()} />
+    </PremiumAppShell>
   );
 }
 
 export default function Attachment() {
-  return <AttachmentScreen />;
+  if (isDeepSpaceUI()) return <AttachmentDeepSpace />;
+  return <AttachmentLegacy />;
 }

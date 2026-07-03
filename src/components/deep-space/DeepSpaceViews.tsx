@@ -28,6 +28,8 @@ import { composeFourWBody, EMPTY_FOURW, fourWHasContent, type FourWFields } from
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
 import { getDomainStar, type DomainId } from "@/lib/persona/domain-stars";
+import { STYLE_LABEL, type AttachmentStyle } from "@/lib/persona/attachment";
+import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callGemini } from "@/lib/llm/gemini";
@@ -760,6 +762,167 @@ export function BigFiveLensM3({
           icon={<CaptureIcon name="add" color={m3.color.onPrimary} size={18} />}
           style={styles.bfActionBtn}
         />
+      </View>
+    </ScrollView>
+  );
+}
+
+// ── ATTACHMENT (애착 · ECR 검증틀) ─────────────────────────────────────────────
+// The RESULT view for /attachment — the ECR "hidden grain" (layer B) seen as a
+// 2-axis 회피×불안 map + the propose→ratify estimate. Cloned 1:1 from the
+// reference AttachmentScreen (sb-flows.jsx) + RatifyBlock (sb-data.jsx). The ECR
+// SURVEY (the record writer) lives behind the empty-state / retake CTA in
+// attachment.tsx, exactly as BigFiveLensM3 sits over BigFiveSurvey. All colors
+// route through m3.* (azure point/glow, violet L3 + confidence, secondary-
+// container ratify surface); no cosmic tokens, no hex literals.
+
+export type AttachmentLensResult = {
+  /** Avoidance subscale mean on the 1-7 ECR scale. */
+  avoidance: number;
+  /** Anxiety subscale mean on the 1-7 ECR scale. */
+  anxiety: number;
+  style: AttachmentStyle;
+};
+
+// 1-7 ECR mean → 0-100 grid position (same (v-1)/6 anchor the map axes assume).
+function ecrPct(mean: number): number {
+  return Math.max(0, Math.min(100, ((mean - 1) / 6) * 100));
+}
+
+// Quadrant labels transcribed literally from the reference (안정 TL · 몰입 TR ·
+// 회피 BL · 혼란 BR) — corner-anchored, not reinterpreted.
+const ATTACHMENT_QUADRANTS: { key: string; v: "top" | "bottom"; h: "left" | "right" }[] = [
+  { key: "secure", v: "top", h: "left" },
+  { key: "preoccupied", v: "top", h: "right" },
+  { key: "avoidant", v: "bottom", h: "left" },
+  { key: "fearful", v: "bottom", h: "right" },
+];
+
+export function AttachmentLensM3({
+  result,
+  hasError,
+  onStart,
+  onInterview,
+  onBigFive,
+}: {
+  result?: AttachmentLensResult | null;
+  hasError?: boolean;
+  onStart?: () => void;
+  onInterview?: () => void;
+  onBigFive?: () => void;
+} = {}) {
+  const { t, i18n } = useTranslation("home");
+  const locale = i18n.language === "ko" ? "ko" : "en";
+  const state: LensState = result ? "filled" : hasError ? "error" : "empty";
+  const gradId = "at-map-" + useId().replace(/[^a-zA-Z0-9]/g, "");
+
+  if (state === "empty") {
+    return (
+      <ScrollView contentContainerStyle={styles.bfBody}>
+        <View style={styles.bfCenterState}>
+          <Svg width={34} height={34} viewBox="0 0 24 24">
+            <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={m3.color.primary} />
+          </Svg>
+          <Text style={[m3TextStyle("titleMedium"), styles.bfStateTitle]}>{t("ds.attachment.emptyTitle")}</Text>
+          <Text style={[m3TextStyle("bodyMedium"), styles.bfStateBody]}>{t("ds.attachment.emptyBody")}</Text>
+          <MdButton
+            label={t("ds.attachment.emptyCta")}
+            variant="filled"
+            onPress={onStart}
+            icon={<CaptureIcon name="add" color={m3.color.onPrimary} size={18} />}
+          />
+        </View>
+      </ScrollView>
+    );
+  }
+
+  if (state === "error") {
+    return (
+      <ScrollView contentContainerStyle={styles.bfBody}>
+        <View style={styles.bfCenterState}>
+          <Svg width={32} height={32} viewBox="0 0 24 24" opacity={0.7}>
+            <Path d="M12 3l9 16H3z" fill="none" stroke={m3.color.onSurfaceVariant} strokeWidth={2} strokeLinejoin="round" />
+            <Path d="M12 9v5M12 16.5v.5" stroke={m3.color.onSurfaceVariant} strokeWidth={2} strokeLinecap="round" />
+          </Svg>
+          <Text style={[m3TextStyle("titleMedium"), styles.bfStateTitle]}>{t("ds.attachment.errorTitle")}</Text>
+          <Text style={[m3TextStyle("bodyMedium"), styles.bfStateBody]}>{t("ds.attachment.errorBody")}</Text>
+          <MdButton label={t("ds.attachment.errorCta")} variant="tonal" onPress={onStart} />
+        </View>
+      </ScrollView>
+    );
+  }
+
+  const r = result as AttachmentLensResult;
+  const avoid = Math.round(ecrPct(r.avoidance));
+  const anx = Math.round(ecrPct(r.anxiety));
+
+  return (
+    <ScrollView contentContainerStyle={styles.bfBody}>
+      <View style={styles.bfHeadRow}>
+        <Text style={[m3TextStyle("headlineSmall"), styles.bfHeadline]}>{t("ds.attachment.headline")}</Text>
+        <View style={styles.atLevelChip}>
+          <Text style={[m3TextStyle("labelSmall"), styles.atLevelChipText]}>{t("ds.attachment.level")}</Text>
+        </View>
+      </View>
+      <Text style={[m3TextStyle("bodyMedium"), styles.bfSubtitle]}>{t("ds.attachment.subtitle")}</Text>
+
+      <MdCard variant="outlined" style={styles.atMapCard}>
+        <View style={styles.atMap}>
+          <Svg style={StyleSheet.absoluteFill}>
+            <Defs>
+              <LinearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
+                <Stop offset="0" stopColor={withAlpha(m3.color.primaryContainer, 0.33)} />
+                <Stop offset="1" stopColor={m3.color.surfaceContainer} />
+              </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${gradId})`} />
+          </Svg>
+          {ATTACHMENT_QUADRANTS.map((q) => (
+            <Text
+              key={q.key}
+              style={[
+                m3TextStyle("labelMedium"),
+                styles.atQuad,
+                q.v === "top" ? styles.atQuadTop : styles.atQuadBottom,
+                q.h === "left" ? styles.atQuadLeft : styles.atQuadRight,
+              ]}
+            >
+              {t(`ds.attachment.quadrant_${q.key}`)}
+            </Text>
+          ))}
+          <View style={styles.atAxisV} />
+          <View style={styles.atAxisH} />
+          <View style={[styles.atPointWrap, { left: `${avoid}%` as DimensionValue, top: `${anx}%` as DimensionValue }]}>
+            <View style={styles.atPointHalo} />
+            <View style={styles.atPoint} />
+          </View>
+          <Text style={styles.atAxisFooter}>{t("ds.attachment.axisFooter")}</Text>
+        </View>
+        <View style={styles.atResultRow}>
+          <Text style={[m3TextStyle("titleMedium"), styles.atResultLabel]}>
+            {t("ds.attachment.resultNear", { style: STYLE_LABEL[locale][r.style] })}
+          </Text>
+          <Text style={[m3TextStyle("bodySmall"), styles.atScore]}>{t("ds.attachment.scoreLine", { avoid, anx })}</Text>
+        </View>
+      </MdCard>
+
+      {/* 세컨비 insight — a single plain card (head + one message), matching the
+          capture exactly: no confidence pill, evidence link, or ratify buttons
+          on this screen. Detail lives behind the deeper ratify/interview flows. */}
+      <View style={styles.atInsightCard}>
+        <SecondbHead size={30} track={false} />
+        <Text style={[m3TextStyle("bodyMedium"), styles.atInsightText]}>{t("ds.attachment.insight")}</Text>
+      </View>
+
+      <View style={styles.bfActions}>
+        <MdButton
+          label={t("ds.attachment.interview")}
+          variant="tonal"
+          onPress={onInterview}
+          icon={<CaptureIcon name="forum" color={m3.color.onSecondaryContainer} size={18} />}
+          style={styles.bfActionBtn}
+        />
+        <MdButton label={t("ds.attachment.bigfive")} variant="outlined" onPress={onBigFive} style={styles.bfActionBtn} />
       </View>
     </ScrollView>
   );
@@ -1838,6 +2001,53 @@ const styles = StyleSheet.create({
   bfCenterState: { alignItems: "center", justifyContent: "center", paddingVertical: 56, gap: 12 },
   bfStateTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, textAlign: "center" },
   bfStateBody: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, textAlign: "center", marginBottom: 4 },
+  // ── Attachment (애착 · ECR) result view ──
+  atLevelChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: m3.color.tertiaryContainer },
+  atLevelChipText: { color: m3.color.onTertiaryContainer, fontFamily: m3.font.brand, fontWeight: "600" },
+  atMapCard: { padding: 16 },
+  atMap: {
+    position: "relative",
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: m3.color.surfaceContainer,
+  },
+  atQuad: { position: "absolute", color: m3.color.onSurfaceVariant, opacity: 0.7, fontFamily: m3.font.brand },
+  atQuadTop: { top: 8 },
+  atQuadBottom: { bottom: 8 },
+  atQuadLeft: { left: 10 },
+  atQuadRight: { right: 10 },
+  atAxisV: { position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, backgroundColor: m3.color.outlineVariant },
+  atAxisH: { position: "absolute", top: "50%", left: 0, right: 0, height: 1, backgroundColor: m3.color.outlineVariant },
+  atPointWrap: { position: "absolute", width: 30, height: 30, marginLeft: -15, marginTop: -15, alignItems: "center", justifyContent: "center" },
+  atPointHalo: { position: "absolute", width: 30, height: 30, borderRadius: 15, backgroundColor: withAlpha(m3.color.primary, 0.2) },
+  atPoint: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: m3.color.primary,
+    shadowColor: m3.color.primary,
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
+  },
+  atAxisFooter: { position: "absolute", bottom: 4, alignSelf: "center", fontSize: 10, color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+  atResultRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, flexWrap: "wrap" },
+  atResultLabel: { color: m3.color.onSurface, fontFamily: m3.font.brand },
+  atScore: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+  // 세컨비 insight — one plain card (head + message), per the capture.
+  atInsightCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 16,
+    padding: 14,
+    borderRadius: m3.shape.medium,
+    backgroundColor: m3.color.secondaryContainer,
+  },
+  atInsightText: { flex: 1, color: m3.color.onSecondaryContainer, fontFamily: m3.font.brand },
 
   // iden
   idCard: {

@@ -210,6 +210,27 @@
       "retake": "다시 측정",
       "addData": "데이터 추가"
     },
+    "attachment": {
+      "headline": "애착 유형",
+      "level": "L3",
+      "subtitle": "숨은 결(레이어 B) · 관계 도메인을 ECR 척도로 본 모습",
+      "quadrant_secure": "안정",
+      "quadrant_preoccupied": "몰입",
+      "quadrant_avoidant": "회피",
+      "quadrant_fearful": "혼란",
+      "axisFooter": "← 회피 낮음 · 높음 →",
+      "resultNear": "{{style}}에 가까움",
+      "scoreLine": "· 회피 {{avoid}} · 불안 {{anx}}",
+      "insight": "가까운 사람에게 먼저 다가가되, 바쁠 땐 거리를 두는 편이에요. 관계 별 기록 12건이 이 추정을 받쳐요.",
+      "interview": "관계 인터뷰",
+      "bigfive": "Big Five 보기",
+      "emptyTitle": "아직 이 별은 어두워요",
+      "emptyBody": "애착 검사를 한 번 마치면 관계의 나 별이 켜져요.",
+      "emptyCta": "검사 시작",
+      "errorTitle": "불러오지 못했어요",
+      "errorBody": "잠시 후 다시 시도해 주세요.",
+      "errorCta": "다시 시도"
+    },
     "iden": {
       "signed": "서명됨",
       "northStar": "\"나를 깊이 이해해 더 나답게 산다.\"",

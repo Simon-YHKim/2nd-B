@@ -210,6 +210,27 @@
       "retake": "Repetir",
       "addData": "Añadir datos"
     },
+    "attachment": {
+      "headline": "Estilo de apego",
+      "level": "L3",
+      "subtitle": "Textura oculta (capa B) · tu dominio de relaciones visto con la escala ECR",
+      "quadrant_secure": "Seguro",
+      "quadrant_preoccupied": "Preocupado",
+      "quadrant_avoidant": "Evitativo",
+      "quadrant_fearful": "Temeroso",
+      "axisFooter": "← Evitación baja · alta →",
+      "resultNear": "Cercano a {{style}}",
+      "scoreLine": "· Evitación {{avoid}} · Ansiedad {{anx}}",
+      "insight": "Te acercas primero a quienes te importan, pero mantienes distancia cuando estás ocupado. 12 registros de estrella de relaciones respaldan esta lectura.",
+      "interview": "Entrevista de relaciones",
+      "bigfive": "Ver Big Five",
+      "emptyTitle": "Esta estrella sigue apagada",
+      "emptyBody": "Completa el test de apego una vez y tu estrella del Yo Relacional se encenderá.",
+      "emptyCta": "Empezar el test",
+      "errorTitle": "No se pudo cargar",
+      "errorBody": "Inténtalo de nuevo en un momento.",
+      "errorCta": "Reintentar"
+    },
     "iden": {
       "signed": "Firmado",
       "northStar": "\"Entenderme a fondo, vivir más como yo.\"",

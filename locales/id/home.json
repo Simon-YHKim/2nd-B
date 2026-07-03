@@ -210,6 +210,27 @@
       "retake": "Ukur ulang",
       "addData": "Tambah data"
     },
+    "attachment": {
+      "headline": "Gaya kelekatan",
+      "level": "L3",
+      "subtitle": "Tekstur tersembunyi (lapisan B) · domain relasimu dilihat dengan skala ECR",
+      "quadrant_secure": "Aman",
+      "quadrant_preoccupied": "Cemas",
+      "quadrant_avoidant": "Menghindar",
+      "quadrant_fearful": "Takut",
+      "axisFooter": "← Penghindaran rendah · tinggi →",
+      "resultNear": "Dekat dengan {{style}}",
+      "scoreLine": "· Penghindaran {{avoid}} · Kecemasan {{anx}}",
+      "insight": "Kamu mendekat lebih dulu ke orang terdekat, tapi menjaga jarak saat sibuk. 12 catatan bintang relasi mendukung perkiraan ini.",
+      "interview": "Wawancara relasi",
+      "bigfive": "Lihat Big Five",
+      "emptyTitle": "Bintang ini masih gelap",
+      "emptyBody": "Selesaikan tes kelekatan sekali dan bintang Diri Relasionalmu menyala.",
+      "emptyCta": "Mulai tes",
+      "errorTitle": "Tidak dapat memuat",
+      "errorBody": "Coba lagi sebentar.",
+      "errorCta": "Coba lagi"
+    },
     "iden": {
       "signed": "Ditandatangani",
       "northStar": "\"Memahami diriku secara mendalam, hidup lebih seperti diriku.\"",

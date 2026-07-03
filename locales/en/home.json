@@ -210,6 +210,27 @@
       "retake": "Retake",
       "addData": "Add data"
     },
+    "attachment": {
+      "headline": "Attachment style",
+      "level": "L3",
+      "subtitle": "Hidden grain (layer B) · your relationship domain seen through the ECR scale",
+      "quadrant_secure": "Secure",
+      "quadrant_preoccupied": "Preoccupied",
+      "quadrant_avoidant": "Avoidant",
+      "quadrant_fearful": "Fearful",
+      "axisFooter": "← Avoidance low · high →",
+      "resultNear": "Close to {{style}}",
+      "scoreLine": "· Avoidance {{avoid}} · Anxiety {{anx}}",
+      "insight": "You reach out first to those close to you, but keep some distance when you're busy. 12 relationship-star records back this read.",
+      "interview": "Relationship interview",
+      "bigfive": "See Big Five",
+      "emptyTitle": "This star is still dark",
+      "emptyBody": "Finish the attachment check once and your Relational Self star lights up.",
+      "emptyCta": "Start the check",
+      "errorTitle": "Couldn't load this",
+      "errorBody": "Please try again in a moment.",
+      "errorCta": "Retry"
+    },
     "iden": {
       "signed": "Signed",
       "northStar": "\"Understand myself deeply, live more like myself.\"",
