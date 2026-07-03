@@ -3,7 +3,7 @@
 > ⚠️ **SUPERSEDED — 2026-06-16 snapshot of the legacy `EXPO_PUBLIC_UI=legacy` cosmic-pixel / Soul Core skin.** The canonical concept is now deep-space 별자리 · 북극성(Polaris) · 북두칠성 7 도메인 별, under the active rev2 Material-3 migration. This file predates the 별자리 재설계 (2026-06-25) and the rev2 M3 migration (2026-07-01), so its worldview/design tables describe the rollback-only skin — not current direction. Canonical source-of-truth: `docs/CONCEPT.md`, `docs/PRD.md`, `docs/CONSTELLATION-DESIGN.md`, `docs/REV2-MIGRATION.md`, `DESIGN.md`. Do not use as the reference for new work.
 
 
-> Self-contained design source-of-truth. Paste into a Claude Project (or any Claude session) to continue design work **without the repo**. Distilled from `src/lib/theme/tokens.ts` + `DESIGN.md` (434 lines) + `docs/VISION.md` (worldview v-final).
+> Self-contained snapshot of the **legacy** cosmic-pixel / Soul Core design (superseded — current SoT is in the banner above, not this file). Paste into a Claude Project (or any Claude session) to continue design work **without the repo**. Distilled from `src/lib/theme/tokens.ts` + `DESIGN.md` (434 lines) + `docs/VISION.md` (worldview v-final).
 > Catchphrase: **"AI 시대, 가장 가치있는 것은 나 자신 입니다."** · North star: *"An AI that listens before it talks."*
 
 ## 0. Product & boundary
@@ -12,7 +12,7 @@
 - Mobile-first React Native (Expo, iOS+Android) + static web export (GitHub Pages / Vercel) as landing + judge demo.
 - **Forbidden lexicon (CI-enforced via `src/lib/safety/lexicon.ts` + DESIGN.md):** all clinical / wellness vocabulary in EN+KO (the exact term list lives in those two files). Use instead: self-understanding, growth, reflection, self-knowledge / 자기 이해, 성장, 들여다보다, 짚어보다.
 
-## 1. Worldview — 5-layer model (canonical for graph / nav / color / mascot)
+## 1. Worldview — 5-layer model (LEGACY Soul Core skin — superseded by the 별자리 / 북극성 model; see `docs/CONCEPT.md`)
 Closer to center = closer to "me"; outward = raw log.
 
 | Layer | Name | Mascot | internal key |
